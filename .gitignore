@@ -7,3 +7,25 @@ venv/
 *.log
 airflow/logs/
 postgres_data/
+
+# Données temporaires
+*.csv
+*.xlsx
+data/raw/
+data/processed/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Airflow
+airflow.db
+airflow.cfg
+config/config.yaml
+config.yaml

@@ -1,0 +1,26 @@
+venv\Scripts\activate
+deactivate
+streamlit run streamlit_dashboard_rev0.py   puis   CTRL + c   => stopper le terminal
+
+
+
+Linux :
+crontab -e
+0 20 * * * /usr/bin/python3 "/mnt/c/Users/timot/Desktop/Data/Streamlit dashboard 1x7xxxxxxx/get_popularity_score.py" >> "/mnt/c/Users/timot/Desktop/Data/Streamlit dashboard 1x7xxxxxxx/db_popularity_score/log.txt" 2>&1
+
+
+
+source streamlit_dashboard/bin/activate
+cd "/mnt/c/Users/timot/Desktop/Data/Streamlit dashboard 1x7xxxxxxx"
+python3 get_popularity_score.py
+
+# Vérifier que cron est démarré (sortir "q")
+sudo service cron status
+
+# Si pas démarré, le démarrer
+sudo service cron start
+
+
+git add .
+git commit -m "Initial project setup"
+git push -u origin main
