@@ -1,0 +1,17 @@
+﻿# Configuration Example - Copiez ce fichier en config.yaml et remplissez vos credentials
+
+database:
+  host: localhost
+  port: 5433
+  database: spotify_etl
+  user: postgres
+  password: VOTRE_PASSWORD
+
+meta_ads:
+  access_token: "VOTRE_META_ACCESS_TOKEN"
+  ad_account_id: "act_XXXXXXXXX"
+
+spotify:
+  client_id: "VOTRE_SPOTIFY_CLIENT_ID"
+  client_secret: "VOTRE_SPOTIFY_CLIENT_SECRET"
+  redirect_uri: "http://localhost:8888/callback"

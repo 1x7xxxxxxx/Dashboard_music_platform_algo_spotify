@@ -1,36 +1,40 @@
+﻿# Python
 __pycache__/
-*.pyc
-.env
-config.yaml
+*.py[cod]
+*.class
+*.so
+.Python
 venv/
-.DS_Store
-*.log
-airflow/logs/
-postgres_data/
+env/
+ENV/
 
-# Données temporaires
+# Streamlit
+.streamlit/
+
+# Data (ne pas commit les données)
+data/raw/**/*.csv
+data/processed/**/*.csv
 *.csv
-*.xlsx
-data/raw/
-data/processed/
+
+# Configuration sensible
+config/config.yaml
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
 
-# Tests
-.pytest_cache/
-.coverage
-htmlcov/
+# OS
+.DS_Store
+Thumbs.db
 
-# Airflow
-airflow.db
-airflow.cfg
-config/config.yaml
-config.yaml
+# Logs
+*.log
 
-# Données Selenium
-data/raw/
-*.crdownload
-*.png
+# Jupyter
+.ipynb_checkpoints/
+
+# Base de données locale
+*.db
+*.sqlite

@@ -1,7 +1,9 @@
-"""Collector pour Meta Ads API."""
+"""Collector pour Meta Ads API avec gestion des rate limits."""
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+from functools import wraps
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.campaign import Campaign
@@ -11,6 +13,29 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def retry_on_rate_limit(max_retries=3, delay=60):
+    """Décorateur pour gérer les rate limits Meta Ads."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    error_str = str(e)
+                    if 'rate limit' in error_str.lower() or 'User request limit' in error_str or 'code": 17' in error_str:
+                        if attempt < max_retries - 1:
+                            wait_time = delay * (attempt + 1)
+                            logger.warning(f"⏳ Rate limit atteint (tentative {attempt + 1}/{max_retries}). Attente de {wait_time}s...")
+                            time.sleep(wait_time)
+                            continue
+                    logger.error(f"❌ Erreur {func.__name__}: {e}")
+                    return [] if 'get_' in func.__name__ else None
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class MetaAdsCollector:
@@ -50,6 +75,7 @@ class MetaAdsCollector:
             logger.error(f"❌ Erreur initialisation API: {e}")
             raise
     
+    @retry_on_rate_limit(max_retries=3, delay=60)
     def get_campaigns(self) -> List[Dict[str, Any]]:
         """Récupère toutes les campagnes."""
         logger.info("📊 Récupération des campagnes...")
@@ -87,12 +113,14 @@ class MetaAdsCollector:
                 })
             
             logger.info(f"✅ {len(campaigns_data)} campagnes récupérées")
+            time.sleep(2)  # Pause pour éviter rate limit
             return campaigns_data
             
         except Exception as e:
             logger.error(f"❌ Erreur récupération campagnes: {e}")
             return []
     
+    @retry_on_rate_limit(max_retries=3, delay=60)
     def get_adsets(self, campaign_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Récupère les adsets."""
         logger.info("📊 Récupération des adsets...")
@@ -139,12 +167,14 @@ class MetaAdsCollector:
                 })
             
             logger.info(f"✅ {len(adsets_data)} adsets récupérés")
+            time.sleep(2)  # Pause pour éviter rate limit
             return adsets_data
             
         except Exception as e:
             logger.error(f"❌ Erreur récupération adsets: {e}")
             return []
     
+    @retry_on_rate_limit(max_retries=3, delay=60)
     def get_ads(self, adset_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Récupère les ads."""
         logger.info("📊 Récupération des ads...")
@@ -186,13 +216,15 @@ class MetaAdsCollector:
                 })
             
             logger.info(f"✅ {len(ads_data)} ads récupérées")
+            time.sleep(2)  # Pause pour éviter rate limit
             return ads_data
             
         except Exception as e:
             logger.error(f"❌ Erreur récupération ads: {e}")
             return []
     
-    def get_insights(self, ad_id: str, days: int = 730) -> List[Dict[str, Any]]:
+    @retry_on_rate_limit(max_retries=3, delay=60)
+    def get_insights(self, ad_id: str, days: int = 30) -> List[Dict[str, Any]]:
         """
         Récupère les insights pour une ad.
         
@@ -200,8 +232,6 @@ class MetaAdsCollector:
             ad_id: ID de l'ad
             days: Nombre de jours d'historique
         """
-        logger.info(f"📊 Récupération insights pour ad {ad_id}...")
-        
         try:
             ad = Ad(ad_id)
             
@@ -247,11 +277,14 @@ class MetaAdsCollector:
                     'collected_at': datetime.now()
                 })
             
-            logger.info(f"✅ {len(insights_data)} jours d'insights récupérés")
+            if insights_data:
+                logger.info(f"✅ {len(insights_data)} jours d'insights récupérés pour ad {ad_id}")
+            
+            time.sleep(1)  # Pause pour éviter rate limit
             return insights_data
             
         except Exception as e:
-            logger.error(f"❌ Erreur récupération insights: {e}")
+            # Silencieux pour les ads sans insights
             return []
     
     def collect_all(self, days_insights: int = 30) -> Dict[str, List[Dict[str, Any]]]:
@@ -284,10 +317,14 @@ class MetaAdsCollector:
         # 3. Ads
         data['ads'] = self.get_ads()
         
-        # 4. Insights pour chaque ad
-        for ad in data['ads']:
-            ad_insights = self.get_insights(ad['ad_id'], days=days_insights)
-            data['insights'].extend(ad_insights)
+        # 4. Insights pour ads actives uniquement (limite à 20 pour éviter rate limit)
+        active_ads = [ad for ad in data['ads'] if ad['status'] == 'ACTIVE'][:20]
+        
+        if active_ads:
+            logger.info(f"\n📊 Récupération insights pour {len(active_ads)} ads actives...")
+            for ad in active_ads:
+                ad_insights = self.get_insights(ad['ad_id'], days=days_insights)
+                data['insights'].extend(ad_insights)
         
         logger.info("\n" + "="*70)
         logger.info("✅ COLLECTE TERMINÉE")
