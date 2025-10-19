@@ -2,7 +2,8 @@ venv\Scripts\activate
 deactivate
 streamlit run streamlit_dashboard_rev0.py   puis   CTRL + c   => stopper le terminal
 
-
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h localhost
+ -p 5433 -U postgres -d spotify_etl
 
 Linux :
 crontab -e

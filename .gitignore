@@ -29,3 +29,8 @@ airflow.db
 airflow.cfg
 config/config.yaml
 config.yaml
+
+# Données Selenium
+data/raw/
+*.crdownload
+*.png
