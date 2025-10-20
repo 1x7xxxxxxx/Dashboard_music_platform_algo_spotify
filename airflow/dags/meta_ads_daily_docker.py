@@ -73,7 +73,7 @@ with DAG(
     'meta_ads_daily_docker',
     default_args=default_args,
     description='Collecte quotidienne Meta Ads (Docker)',
-    schedule_interval='0 20 * * *',
+    schedule_interval=None,
     start_date=datetime(2025, 1, 20),
     catchup=False,
     tags=['meta_ads', 'production', 'docker'],

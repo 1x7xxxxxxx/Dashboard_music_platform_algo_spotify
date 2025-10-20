@@ -1,4 +1,4 @@
-"""Application Streamlit principale."""
+"""Application Streamlit principale avec déclenchement des DAGs."""
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -11,6 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
+from src.utils.airflow_trigger import airflow_trigger
 
 # Configuration de la page
 st.set_page_config(
@@ -34,8 +35,78 @@ def get_db():
     )
 
 
+def show_data_collection_panel():
+    """Affiche le panneau de collecte de données."""
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔄 Collecte de données")
+    
+    # Bouton pour déclencher toutes les collectes
+    if st.sidebar.button("🚀 Lancer toutes les collectes", type="primary"):
+        with st.sidebar:
+            with st.spinner('Déclenchement des DAGs...'):
+                results = airflow_trigger.trigger_all_dags(wait=False)
+                
+                # Afficher les résultats
+                success_count = 0
+                for dag_id, result in results.items():
+                    if result.get('success'):
+                        st.success(f"✅ {dag_id}")
+                        success_count += 1
+                    else:
+                        st.error(f"❌ {dag_id}: {result.get('error', 'Erreur inconnue')}")
+                
+                if success_count == len(results):
+                    st.success(f"🎉 Toutes les collectes lancées ! ({success_count}/{len(results)})")
+                    st.info("📊 Rafraîchissez la page dans 2-3 minutes pour voir les nouvelles données")
+    
+    # Boutons individuels
+    st.sidebar.markdown("#### Collectes individuelles")
+    
+    col1, col2 = st.sidebar.columns(2)
+    
+    with col1:
+        if st.button("📱 Meta Ads", help="Collecter les campagnes Meta Ads"):
+            with st.spinner('Déclenchement...'):
+                result = airflow_trigger.trigger_dag('meta_ads_daily_docker')
+                if result.get('success'):
+                    st.success("✅ Meta Ads lancé")
+                else:
+                    st.error("❌ Échec")
+        
+        if st.button("🎵 CSV S4A", help="Traiter les CSV Spotify for Artists"):
+            with st.spinner('Déclenchement...'):
+                result = airflow_trigger.trigger_dag('s4a_csv_watcher')
+                if result.get('success'):
+                    st.success("✅ CSV S4A lancé")
+                else:
+                    st.error("❌ Échec")
+    
+    with col2:
+        if st.button("🎸 Spotify API", help="Collecter artistes et tracks"):
+            with st.spinner('Déclenchement...'):
+                result = airflow_trigger.trigger_dag('spotify_api_daily')
+                if result.get('success'):
+                    st.success("✅ Spotify API lancé")
+                else:
+                    st.error("❌ Échec")
+        
+        if st.button("🔍 Qualité", help="Vérifier la qualité des données"):
+            with st.spinner('Déclenchement...'):
+                result = airflow_trigger.trigger_dag('data_quality_check')
+                if result.get('success'):
+                    st.success("✅ Qualité lancée")
+                else:
+                    st.error("❌ Échec")
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("💡 **Astuce:** Les collectes prennent 1-3 minutes")
+
+
 def main():
     """Page principale."""
+    # Panneau de collecte dans la sidebar
+    show_data_collection_panel()
+    
     # Navigation
     st.sidebar.title("🎵 Navigation")
     
@@ -61,24 +132,28 @@ def main():
         st.markdown("""
         ## 🎯 Bienvenue sur votre Dashboard Musical !
         
-        ### 📱 Meta Ads
-        - Vue d'ensemble des campagnes actives
+        ### 🔄 Collecte de données
         
-        ### 🎸 Spotify for Artists
-        - Statistiques globales par chanson
-        - Timeline détaillée des streams
-        - Statistiques d'audience
+        **Utilisez le panneau de gauche pour lancer les collectes :**
+        - 📱 **Meta Ads** : Campagnes publicitaires
+        - 🎸 **Spotify API** : Artistes et tracks
+        - 🎵 **CSV S4A** : Traitement des fichiers Spotify for Artists
+        - 🔍 **Qualité** : Vérification de la cohérence des données
         
-        ### 👤 Stats Artiste
-        - Analyse complète des performances
+        ### 📊 Sources de données
+        - ✅ Meta Ads collecté via API
+        - ✅ Spotify API pour artistes et tracks
+        - ✅ Spotify for Artists via CSV (déposez vos fichiers dans `data/raw/spotify_for_artists/`)
+        - ✅ PostgreSQL stockage centralisé
         
         ---
         
-        ### 🚀 Système Opérationnel
-        - ✅ Meta Ads collecté automatiquement
-        - ✅ Spotify for Artists avec téléchargement manuel + auto-intégration
-        - ✅ PostgreSQL stockage centralisé (11,231+ enregistrements)
-        - ✅ Dashboard interactif Streamlit
+        ### 🚀 Comment ça marche ?
+        
+        1. **Cliquez sur "🚀 Lancer toutes les collectes"** dans la sidebar
+        2. Airflow exécute les DAGs en arrière-plan (1-3 minutes)
+        3. Rafraîchissez la page pour voir les nouvelles données
+        4. Explorez les différentes pages du dashboard
         """)
         
         # Statistiques rapides
@@ -88,25 +163,66 @@ def main():
         db = get_db()
         
         try:
+            col1, col2, col3, col4 = st.columns(4)
+            
             # Count Meta Ads
-            meta_count = db.get_table_count('meta_ads_campaigns')
+            meta_count = db.get_table_count('meta_campaigns')
+            col1.metric("📱 Campagnes Meta", f"{meta_count:,}")
+            
+            # Count Spotify Artists
+            artists_count = db.get_table_count('artists')
+            col2.metric("👤 Artistes Spotify", f"{artists_count:,}")
             
             # Count S4A
             s4a_count = db.get_table_count('s4a_song_timeline')
+            col3.metric("🎵 Timeline S4A", f"{s4a_count:,}")
             
-            col1, col2 = st.columns(2)
+            # Dernière collecte
+            last_update_query = """
+                SELECT MAX(collected_at) 
+                FROM (
+                    SELECT collected_at FROM meta_campaigns
+                    UNION ALL
+                    SELECT collected_at FROM artists
+                    UNION ALL
+                    SELECT collected_at FROM s4a_songs_global
+                ) AS combined
+            """
             
-            with col1:
-                st.metric("📱 Campagnes Meta Ads", f"{meta_count:,}")
-            
-            with col2:
-                st.metric("🎵 Enregistrements S4A", f"{s4a_count:,}")
+            result = db.fetch_query(last_update_query)
+            if result and result[0][0]:
+                last_update = result[0][0]
+                time_diff = datetime.now() - last_update
+                hours_ago = int(time_diff.total_seconds() / 3600)
+                
+                if hours_ago < 1:
+                    col4.metric("🕐 Dernière collecte", "< 1h")
+                elif hours_ago < 24:
+                    col4.metric("🕐 Dernière collecte", f"Il y a {hours_ago}h")
+                else:
+                    days_ago = int(hours_ago / 24)
+                    col4.metric("🕐 Dernière collecte", f"Il y a {days_ago}j")
+            else:
+                col4.metric("🕐 Dernière collecte", "Aucune")
         
         finally:
             db.close()
+        
+        st.markdown("---")
+        
+        # Statut Airflow
+        st.subheader("🔧 Statut Airflow")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.info("**Interface Airflow:** http://localhost:8080")
+        
+        with col2:
+            if st.button("🔗 Ouvrir Airflow UI"):
+                st.markdown("[Cliquez ici pour ouvrir Airflow](http://localhost:8080)")
     
     elif page == "meta_ads_overview":
-        # Importer le module
         from pages.meta_ads_overview import show
         show()
     
