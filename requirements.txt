@@ -22,3 +22,14 @@ PyYAML==6.0.1
 # Utils
 requests==2.31.0
 python-dotenv==1.0.0
+
+apache-airflow==2.8.1
+apache-airflow-providers-common-io==1.2.0
+apache-airflow-providers-common-sql==1.10.0
+apache-airflow-providers-ftp==3.7.0
+apache-airflow-providers-http==4.9.0
+apache-airflow-providers-imap==3.5.0
+apache-airflow-providers-postgres==5.10.0
+apache-airflow-providers-sqlite==3.7.0
+
+
