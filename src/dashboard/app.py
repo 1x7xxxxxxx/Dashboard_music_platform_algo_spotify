@@ -113,6 +113,7 @@ def main():
     pages = {
         "🏠 Accueil": "home",
         "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
+        "🎵 META x Spotify": "meta_x_spotify",
         "📊 S4A - Vue d'ensemble": "s4a_overview",
         "🎸 S4A - Timeline par chanson": "s4a_song_timeline",
         "👤 Artist Stats": "artist_stats",
@@ -229,6 +230,10 @@ def main():
     elif page == "s4a_overview":
         from pages.s4a_overview import show
         show()
+
+    elif page == "meta_x_spotify":
+        from pages.meta_x_spotify import show
+        show()    
     
     elif page == "s4a_song_timeline":
         from pages.s4a_song_timeline import show
