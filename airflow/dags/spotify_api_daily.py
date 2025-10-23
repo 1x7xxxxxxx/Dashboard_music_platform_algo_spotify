@@ -1,7 +1,7 @@
 ﻿"""DAG Spotify API - Collecte quotidienne artistes et tracks."""
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date  # ✅ AJOUT de 'date'
 import sys
 import os
 import logging
@@ -39,19 +39,19 @@ def collect_spotify_artists(**context):
             client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
         )
         
-        # Liste des artistes à suivre (à adapter selon votre config)
+        # Liste des artistes à suivre
         artist_ids = os.getenv('SPOTIFY_ARTIST_IDS', '').split(',')
         
         if not artist_ids or artist_ids == ['']:
             logger.warning('⚠️ Aucun artiste configuré dans SPOTIFY_ARTIST_IDS')
             return 0
         
-        # Connexion DB
+        # ✅ Connexion à la base spotify_etl
         db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST'),
-            port=int(os.getenv('DATABASE_PORT')),
-            database=os.getenv('DATABASE_NAME'),
-            user=os.getenv('DATABASE_USER'),
+            host=os.getenv('DATABASE_HOST', 'postgres'),
+            port=int(os.getenv('DATABASE_PORT', 5432)),
+            database='spotify_etl',  # ✅ Base correcte
+            user=os.getenv('DATABASE_USER', 'postgres'),
             password=os.getenv('DATABASE_PASSWORD')
         )
         
@@ -115,12 +115,12 @@ def collect_spotify_top_tracks(**context):
             client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
         )
         
-        # Connexion DB
+        # ✅ Connexion à la base spotify_etl
         db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST'),
-            port=int(os.getenv('DATABASE_PORT')),
-            database=os.getenv('DATABASE_NAME'),
-            user=os.getenv('DATABASE_USER'),
+            host=os.getenv('DATABASE_HOST', 'postgres'),
+            port=int(os.getenv('DATABASE_PORT', 5432)),
+            database='spotify_etl',  # ✅ Base correcte
+            user=os.getenv('DATABASE_USER', 'postgres'),
             password=os.getenv('DATABASE_PASSWORD')
         )
         
@@ -135,9 +135,9 @@ def collect_spotify_top_tracks(**context):
         total_tracks = 0
         popularity_records = []
         
-        # Date et heure actuelles (défini une seule fois)
+        # ✅ CORRECTION : Utiliser date() depuis datetime
         current_datetime = datetime.now()
-        current_date = current_datetime.date()
+        current_date = date.today()  # ✅ Changement ici
         
         for (artist_id,) in artists:
             logger.info(f'🎵 Top tracks pour artiste: {artist_id}')
