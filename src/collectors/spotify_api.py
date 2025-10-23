@@ -63,7 +63,7 @@ class SpotifyCollector:
                 'followers': artist['followers']['total'],
                 'popularity': artist['popularity'],
                 'genres': artist['genres'],
-                'collected_at': datetime.now().isoformat()
+                'collected_at': datetime.now()  # ✅ datetime object, pas string
             }
             
             logger.info(f"✅ Données récupérées pour l'artiste: {artist['name']}")
@@ -101,7 +101,7 @@ class SpotifyCollector:
                     'explicit': track['explicit'],
                     'album_name': track['album']['name'],
                     'release_date': track['album']['release_date'],
-                    'collected_at': datetime.now().isoformat()
+                    'collected_at': datetime.now()  # ✅ datetime object, pas string
                 }
                 tracks.append(track_data)
             
@@ -139,7 +139,7 @@ class SpotifyCollector:
                     'liveness': features['liveness'],
                     'valence': features['valence'],
                     'tempo': features['tempo'],
-                    'collected_at': datetime.now().isoformat()
+                    'collected_at': datetime.now()  # ✅ datetime object, pas string
                 }
                 
                 logger.info(f"✅ Audio features récupérés pour track {track_id}")
@@ -185,27 +185,6 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
     
     from src.utils.config_loader import config_loader
-    
-    # Charger la config
-    config = config_loader.load()
-    spotify_config = config['spotify']
-    
-    # Créer le collector
-    collector = SpotifyCollector(
-        client_id=spotify_config['client_id'],
-        client_secret=spotify_config['client_secret']
-    )
-    
-    # Exemple: Rechercher et récupérer les infos d'un artiste
-    artist_name = "1x7xxxxxxx"
-    artist_id = collector.search_artist(artist_name)
-    
-    if artist_id:
-        artist_info = collector.get_artist_info(artist_id)
-        print(f"\n📊 Infos artiste: {artist_info}")
-        
-        top_tracks = collector.get_artist_top_tracks(artist_id)
-        print(f"\n🎵 Top tracks: {len(top_tracks)} tracks récupérés")
     
     # Charger la config
     config = config_loader.load()

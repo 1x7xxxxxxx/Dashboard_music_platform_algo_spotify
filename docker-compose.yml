@@ -46,11 +46,31 @@
       airflow-init:
         condition: service_completed_successfully
     environment:
+      # Airflow config
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:Wowow1357911!@postgres:5432/airflow_db
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       PYTHONPATH: /opt/airflow
+      
+      # ✅ Database
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: spotify_etl
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: Wowow1357911!
+      
+      # ✅ Spotify API
+      SPOTIFY_CLIENT_ID: 24cccb6e92144ea7b405ae76aca0a982
+      SPOTIFY_CLIENT_SECRET: 9273db619591406584f8ab23ea7aa5fa
+      SPOTIFY_ARTIST_IDS: 7sbfafbLjNZGZJZjZ3xoPB
+      
+      # Meta Ads
+      META_APP_ID: 567214713853881
+      META_APP_SECRET: 9273db619591406584f8ab23ea7aa5fa
+      META_ACCESS_TOKEN: EAAfRguS806oBPovPgVMtJgvhtCZB3wco9vUfb7wnQ7FX8swCZC97HDRfp4JPCtjyMm9ux05M5qaFQjSax2SrZAya6jiNMj2M8HDk2Ydrmivkf01xZApbwJBSELGvg8ZCH8UDq8gHN7iWAf1R9ZBIjlnC9mjZAX44Y9M3ln8llfJXT9A7ext0aqmkyiDIhdIMIWsmxDmNianbU80e1k6iIMZD
+      META_AD_ACCOUNT_ID: act_567214713853881
+      META_API_VERSION: v21.0
     ports:
       - '8080:8080'
     volumes:
@@ -74,11 +94,31 @@
       airflow-init:
         condition: service_completed_successfully
     environment:
+      # Airflow config
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:Wowow1357911!@postgres:5432/airflow_db
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       PYTHONPATH: /opt/airflow
+      
+      # ✅ Database (pour les DAGs)
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: spotify_etl
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: Wowow1357911!
+      
+      # ✅ Spotify API - AJOUTEZ VOS VRAIES VALEURS ICI
+      SPOTIFY_CLIENT_ID: 24cccb6e92144ea7b405ae76aca0a982
+      SPOTIFY_CLIENT_SECRET: 9273db619591406584f8ab23ea7aa5fa
+      SPOTIFY_ARTIST_IDS: 7sbfafbLjNZGZJZjZ3xoPB
+      
+      # Meta Ads
+      META_APP_ID: 567214713853881
+      META_APP_SECRET: 9273db619591406584f8ab23ea7aa5fa
+      META_ACCESS_TOKEN: EAAfRguS806oBPovPgVMtJgvhtCZB3wco9vUfb7wnQ7FX8swCZC97HDRfp4JPCtjyMm9ux05M5qaFQjSax2SrZAya6jiNMj2M8HDk2Ydrmivkf01xZApbwJBSELGvg8ZCH8UDq8gHN7iWAf1R9ZBIjlnC9mjZAX44Y9M3ln8llfJXT9A7ext0aqmkyiDIhdIMIWsmxDmNianbU80e1k6iIMZD
+      META_AD_ACCOUNT_ID: act_567214713853881
+      META_API_VERSION: v21.0
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs

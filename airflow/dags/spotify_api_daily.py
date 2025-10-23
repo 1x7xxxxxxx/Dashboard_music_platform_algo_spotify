@@ -107,7 +107,6 @@ def collect_spotify_top_tracks(**context):
     try:
         from src.collectors.spotify_api import SpotifyCollector
         from src.database.postgres_handler import PostgresHandler
-        from datetime import datetime
         
         logger.info('🎵 Collecte Spotify - Top Tracks...')
         
@@ -128,8 +127,17 @@ def collect_spotify_top_tracks(**context):
         # Récupérer les artistes depuis la DB
         artists = db.fetch_query("SELECT artist_id FROM artists")
         
+        if not artists:
+            logger.warning('⚠️ Aucun artiste trouvé en base. Lancez d\'abord collect_artists.')
+            db.close()
+            return 0
+        
         total_tracks = 0
         popularity_records = []
+        
+        # Date et heure actuelles (défini une seule fois)
+        current_datetime = datetime.now()
+        current_date = current_datetime.date()
         
         for (artist_id,) in artists:
             logger.info(f'🎵 Top tracks pour artiste: {artist_id}')
@@ -158,26 +166,37 @@ def collect_spotify_top_tracks(**context):
                         'track_id': track['track_id'],
                         'track_name': track['track_name'],
                         'popularity': track['popularity'],
-                        'collected_at': datetime.now(),
-                        'date': datetime.now().date()
+                        'collected_at': current_datetime,
+                        'date': current_date
                     })
         
         # Stocker l'historique de popularité
         if popularity_records:
             logger.info(f'📊 Stockage historique popularité: {len(popularity_records)} enregistrements...')
             
-            pop_count = db.upsert_many(
-                table='track_popularity_history',
-                data=popularity_records,
-                conflict_columns=['track_id', 'date'],
-                update_columns=['track_name', 'popularity', 'collected_at']
-            )
-            
-            logger.info(f'✅ {pop_count} enregistrements d\'historique stockés')
+            try:
+                pop_count = db.upsert_many(
+                    table='track_popularity_history',
+                    data=popularity_records,
+                    conflict_columns=['track_id', 'date'],
+                    update_columns=['track_name', 'popularity', 'collected_at']
+                )
+                
+                logger.info(f'✅ {pop_count} enregistrements d\'historique stockés')
+                logger.info(f'📅 Date enregistrée: {current_date}')
+                
+            except Exception as e:
+                logger.error(f'❌ Erreur stockage historique popularité: {e}')
+                import traceback
+                logger.error(traceback.format_exc())
+                raise
+        else:
+            logger.warning('⚠️ Aucun enregistrement de popularité à stocker')
         
         db.close()
         
         logger.info(f'✅ Total: {total_tracks} tracks collectées')
+        logger.info(f'✅ Total: {len(popularity_records)} enregistrements de popularité créés')
         return total_tracks
         
     except Exception as e:
