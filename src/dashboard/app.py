@@ -35,6 +35,23 @@ def get_db():
     )
 
 
+def show_navigation_menu():
+    """Affiche le menu de navigation dans la sidebar."""
+    st.sidebar.title("🎵 Navigation")
+    
+    pages = {
+        "🏠 Accueil": "home",
+        "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
+        "🎵 META x Spotify": "meta_x_spotify",
+        "🎵 Spotify & S4A": "spotify_s4a_combined",
+    }
+    
+    # Utiliser st.radio pour la navigation
+    selection = st.sidebar.radio("Aller à", list(pages.keys()), label_visibility="collapsed")
+    
+    return pages[selection]
+
+
 def show_data_collection_panel():
     """Affiche le panneau de collecte de données."""
     st.sidebar.markdown("---")
@@ -104,25 +121,13 @@ def show_data_collection_panel():
 
 def main():
     """Page principale."""
-    # Panneau de collecte dans la sidebar
+    # 1. Menu de navigation en premier (en haut de la sidebar)
+    page = show_navigation_menu()
+    
+    # 2. Panneau de collecte en dessous
     show_data_collection_panel()
     
-    # Navigation
-    st.sidebar.title("🎵 Navigation")
-    
-    pages = {
-        "🏠 Accueil": "home",
-        "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
-        "🎵 META x Spotify": "meta_x_spotify",
-        "🎵 Spotify & S4A": "spotify_s4a_combined",
-        "👤 Artist Stats": "artist_stats",
-    }
-    
-    selection = st.sidebar.radio("Aller à", list(pages.keys()))
-    
-    # Charger la page sélectionnée
-    page = pages[selection]
-    
+    # 3. Charger la page sélectionnée
     if page == "home":
         st.title("🎵 Music Platform Dashboard")
         st.markdown("---")
@@ -221,19 +226,15 @@ def main():
                 st.markdown("[Cliquez ici pour ouvrir Airflow](http://localhost:8080)")
     
     elif page == "meta_ads_overview":
-        from pages.meta_ads_overview import show
+        from views.meta_ads_overview import show
         show()
     
     elif page == "meta_x_spotify":
-        from pages.meta_x_spotify import show
+        from views.meta_x_spotify import show
         show()
     
     elif page == "spotify_s4a_combined":
-        from pages.spotify_s4a_combined import show
-        show()
-    
-    elif page == "artist_stats":
-        from pages.artist_stats import show
+        from views.spotify_s4a_combined import show
         show()
 
 

@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 from src.database.postgres_handler import PostgresHandler
-from src.database.spotify_schema import SPOTIFY_SCHEMA
+from spotify_schema import SPOTIFY_SCHEMA
 from src.utils.config_loader import config_loader
 
 
