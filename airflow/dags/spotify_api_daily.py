@@ -103,10 +103,11 @@ def collect_spotify_artists(**context):
 
 
 def collect_spotify_top_tracks(**context):
-    """Collecte les top tracks des artistes."""
+    """Collecte les top tracks des artistes et stocke l'historique de popularité."""
     try:
         from src.collectors.spotify_api import SpotifyCollector
         from src.database.postgres_handler import PostgresHandler
+        from datetime import datetime
         
         logger.info('🎵 Collecte Spotify - Top Tracks...')
         
@@ -128,6 +129,7 @@ def collect_spotify_top_tracks(**context):
         artists = db.fetch_query("SELECT artist_id FROM artists")
         
         total_tracks = 0
+        popularity_records = []
         
         for (artist_id,) in artists:
             logger.info(f'🎵 Top tracks pour artiste: {artist_id}')
@@ -149,6 +151,29 @@ def collect_spotify_top_tracks(**context):
                 
                 total_tracks += count
                 logger.info(f'✅ {count} tracks collectées')
+                
+                # Préparer l'historique de popularité
+                for track in tracks:
+                    popularity_records.append({
+                        'track_id': track['track_id'],
+                        'track_name': track['track_name'],
+                        'popularity': track['popularity'],
+                        'collected_at': datetime.now(),
+                        'date': datetime.now().date()
+                    })
+        
+        # Stocker l'historique de popularité
+        if popularity_records:
+            logger.info(f'📊 Stockage historique popularité: {len(popularity_records)} enregistrements...')
+            
+            pop_count = db.upsert_many(
+                table='track_popularity_history',
+                data=popularity_records,
+                conflict_columns=['track_id', 'date'],
+                update_columns=['track_name', 'popularity', 'collected_at']
+            )
+            
+            logger.info(f'✅ {pop_count} enregistrements d\'historique stockés')
         
         db.close()
         
@@ -165,7 +190,7 @@ def collect_spotify_top_tracks(**context):
 with DAG(
     'spotify_api_daily',
     default_args=default_args,
-    description='Collecte quotidienne Spotify API (artistes + tracks)',
+    description='Collecte quotidienne Spotify API (artistes + tracks + historique popularité)',
     schedule_interval=None,  
     start_date=datetime(2025, 1, 20),
     catchup=False,
@@ -179,7 +204,7 @@ with DAG(
         provide_context=True,
     )
     
-    # Tâche 2: Collecter les top tracks
+    # Tâche 2: Collecter les top tracks + historique popularité
     collect_tracks_task = PythonOperator(
         task_id='collect_top_tracks',
         python_callable=collect_spotify_top_tracks,

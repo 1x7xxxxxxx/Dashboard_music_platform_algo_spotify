@@ -114,11 +114,8 @@ def main():
         "🏠 Accueil": "home",
         "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
         "🎵 META x Spotify": "meta_x_spotify",
-        "📊 S4A - Vue d'ensemble": "s4a_overview",
-        "🎸 S4A - Timeline par chanson": "s4a_song_timeline",
+        "🎵 Spotify & S4A": "spotify_s4a_combined",
         "👤 Artist Stats": "artist_stats",
-        "🎵 Top Tracks": "top_tracks",
-        "📊 S4A - Audience": "s4a_audience",
     }
     
     selection = st.sidebar.radio("Aller à", list(pages.keys()))
@@ -137,13 +134,13 @@ def main():
         
         **Utilisez le panneau de gauche pour lancer les collectes :**
         - 📱 **Meta Ads** : Campagnes publicitaires
-        - 🎸 **Spotify API** : Artistes et tracks
+        - 🎸 **Spotify API** : Artistes, tracks et historique de popularité
         - 🎵 **CSV S4A** : Traitement des fichiers Spotify for Artists
         - 🔍 **Qualité** : Vérification de la cohérence des données
         
         ### 📊 Sources de données
         - ✅ Meta Ads collecté via API
-        - ✅ Spotify API pour artistes et tracks
+        - ✅ Spotify API pour artistes, tracks et **historique de popularité quotidien**
         - ✅ Spotify for Artists via CSV (déposez vos fichiers dans `data/raw/spotify_for_artists/`)
         - ✅ PostgreSQL stockage centralisé
         
@@ -227,28 +224,16 @@ def main():
         from pages.meta_ads_overview import show
         show()
     
-    elif page == "s4a_overview":
-        from pages.s4a_overview import show
-        show()
-
     elif page == "meta_x_spotify":
         from pages.meta_x_spotify import show
-        show()    
+        show()
     
-    elif page == "s4a_song_timeline":
-        from pages.s4a_song_timeline import show
+    elif page == "spotify_s4a_combined":
+        from pages.spotify_s4a_combined import show
         show()
     
     elif page == "artist_stats":
         from pages.artist_stats import show
-        show()
-    
-    elif page == "top_tracks":
-        from pages.top_tracks import show
-        show()
-    
-    elif page == "s4a_audience":
-        from pages.s4a_audience import show
         show()
 
 
