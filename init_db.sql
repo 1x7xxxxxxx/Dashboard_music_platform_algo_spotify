@@ -53,3 +53,24 @@ CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist_id);
 
 -- Message de confirmation
 SELECT 'Base de données spotify_etl créée avec succès' AS status;
+
+-- Ajout à la fin de init_db.sql
+CREATE TABLE IF NOT EXISTS track_popularity_history (
+    id SERIAL PRIMARY KEY,
+    track_id VARCHAR(50) NOT NULL,
+    track_name VARCHAR(255) NOT NULL,
+    popularity INTEGER DEFAULT 0,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date DATE DEFAULT CURRENT_DATE,
+    UNIQUE(track_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_track_pop_history_track ON track_popularity_history(track_id);
+CREATE INDEX IF NOT EXISTS idx_track_pop_history_date ON track_popularity_history(date DESC);
+
+-- Insérer une donnée de test
+INSERT INTO track_popularity_history (track_id, track_name, popularity, date)
+VALUES ('test_track_001', 'Test Track', 50, CURRENT_DATE)
+ON CONFLICT (track_id, date) DO NOTHING;
+
+SELECT 'Table track_popularity_history créée avec succès' AS status;

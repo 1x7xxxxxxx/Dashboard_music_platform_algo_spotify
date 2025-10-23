@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class AirflowTrigger:
     """Classe pour déclencher des DAGs Airflow via CLI Docker."""
     
-    def __init__(self, container_name: str = "dashboard_music_platform_algo_spotify-airflow-scheduler-1"):
+    def __init__(self, container_name: str = "airflow_scheduler"):
         """
         Initialise le trigger Airflow.
         
