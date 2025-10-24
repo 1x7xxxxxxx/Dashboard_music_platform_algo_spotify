@@ -117,7 +117,7 @@ def show():
     with col1:
         start_date_audience = st.date_input(
             "📅 Date début",
-            value=datetime.now().date() - timedelta(days=30),
+            value=datetime.now().date() - timedelta(days=60),
             key="start_date_audience"
         )
     
@@ -250,15 +250,19 @@ def show():
         
         # Récupérer l'historique de popularité pour la chanson sélectionnée
         popularity_query = """
-            SELECT 
-                date,
-                popularity
+            SELECT date, popularity
             FROM track_popularity_history
             WHERE track_name = %s
-              AND date >= %s
-              AND date <= %s
             ORDER BY date
         """
+        df_popularity = db.fetch_df(
+            popularity_query,
+            (selected_track,)
+        )
+
+        # Afficher la période couverte
+        if not df_popularity.empty:
+            st.info(f"📅 Période : {df_popularity['date'].min()} → {df_popularity['date'].max()}")
         
         df_popularity = db.fetch_df(
             popularity_query,
