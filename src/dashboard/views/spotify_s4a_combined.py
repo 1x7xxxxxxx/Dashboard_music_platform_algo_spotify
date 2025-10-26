@@ -253,11 +253,13 @@ def show():
             SELECT date, popularity
             FROM track_popularity_history
             WHERE track_name = %s
+            AND date >= %s
+              AND date <= %s
             ORDER BY date
         """
         df_popularity = db.fetch_df(
             popularity_query,
-            (selected_track,)
+            (selected_track, start_date_pop, end_date_pop)
         )
 
         # Afficher la période couverte
