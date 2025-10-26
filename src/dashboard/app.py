@@ -236,6 +236,10 @@ def main():
     elif page == "spotify_s4a_combined":
         from views.spotify_s4a_combined import show
         show()
+    
+    elif page == "hypeddit_manual":
+        from views.hypeddit_manual import show
+        show()
 
 
 if __name__ == "__main__":
