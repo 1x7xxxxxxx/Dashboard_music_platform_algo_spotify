@@ -46,6 +46,7 @@ def show_navigation_menu():
         "🎵 META x Spotify": "meta_x_spotify",
         "🎵 Spotify & S4A": "spotify_s4a_combined",
         "📱 Hypeddit": "hypeddit",
+        "🍎 Apple Music": "apple_music",
     }
     
     # Utiliser st.radio pour la navigation
@@ -97,6 +98,14 @@ def show_data_collection_panel():
                 result = airflow_trigger.trigger_dag('s4a_csv_watcher')
                 if result.get('success'):
                     st.success("✅ CSV S4A lancé")
+                else:
+                    st.error("❌ Échec")
+
+        if st.button("🍎 CSV Apple", help="Traiter les CSV Apple Music"):  # 👈 AJOUTER CE BLOC
+            with st.spinner('Déclenchement...'):
+                result = airflow_trigger.trigger_dag('apple_music_csv_watcher')
+                if result.get('success'):
+                    st.success("✅ CSV Apple lancé")
                 else:
                     st.error("❌ Échec")
     
@@ -241,6 +250,10 @@ def main():
     
     elif page == "hypeddit":
         from views.hypeddit import show
+        show()
+    
+    elif page == "apple_music":
+        from views.apple_music import show
         show()
 
 
