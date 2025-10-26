@@ -544,3 +544,24 @@ with DAG(
     # Définir le flux d'exécution
     # Les checks s'exécutent en parallèle, puis stats, puis résumé
     [check_meta_task, check_spotify_task] >> generate_stats_task >> send_summary_task
+
+
+    # Dans data_quality_check.py
+
+def send_quality_alert(**context):
+    from src.utils.email_alerts import EmailAlert
+    
+    quality_check = context['task_instance'].xcom_pull(
+        task_ids='check_spotify_consistency',
+        key='quality_issues'
+    )
+    
+    if quality_check['issues']:
+        alert = EmailAlert()
+        body = f"""
+        <h2>⚠️ Problèmes de qualité détectés</h2>
+        <ul>
+        {''.join([f'<li>{issue}</li>' for issue in quality_check['issues']])}
+        </ul>
+        """
+        alert.send_alert('Qualité des données', body)
