@@ -22,6 +22,7 @@ st.set_page_config(
 )
 
 
+
 def get_db():
     """Connexion PostgreSQL."""
     config = config_loader.load()
@@ -44,6 +45,7 @@ def show_navigation_menu():
         "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
         "🎵 META x Spotify": "meta_x_spotify",
         "🎵 Spotify & S4A": "spotify_s4a_combined",
+        "📱 Hypeddit": "hypeddit",
     }
     
     # Utiliser st.radio pour la navigation
@@ -237,8 +239,8 @@ def main():
         from views.spotify_s4a_combined import show
         show()
     
-    elif page == "hypeddit_manual":
-        from views.hypeddit_manual import show
+    elif page == "hypeddit":
+        from views.hypeddit import show
         show()
 
 

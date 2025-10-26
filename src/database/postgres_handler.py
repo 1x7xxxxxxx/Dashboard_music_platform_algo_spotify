@@ -42,6 +42,10 @@ class PostgresHandler:
                 user=self.user,
                 password=self.password
             )
+
+            # ✅ AJOUT : Activer l'autocommit
+            self.conn.autocommit = True
+
             self.cursor = self.conn.cursor()
             logger.info(f"✅ Connecté à PostgreSQL: {self.database}")
         except Exception as e:
@@ -168,12 +172,16 @@ class PostgresHandler:
             """
             
             execute_values(self.cursor, query, values)
+            
+            # ✅ AJOUT : Commit explicite
             self.conn.commit()
+            
+            logger.info(f"✅ {self.cursor.rowcount} ligne(s) affectée(s) dans {table}")
             
             return self.cursor.rowcount
         except Exception as e:
             self.conn.rollback()
-            logger.error(f"❌ Erreur upsert_many: {e}")
+            logger.error(f"❌ Erreur upsert_many sur {table}: {e}")
             raise
     
     def table_exists(self, table_name: str) -> bool:
