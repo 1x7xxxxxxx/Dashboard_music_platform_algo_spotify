@@ -1,4 +1,4 @@
-"""Script de traitement manuel des CSV Apple Music."""
+"""Script de traitement manuel des CSV Apple Music - VERSION CORRIGÉE."""
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
@@ -85,11 +85,16 @@ def process_apple_music_csvs():
             
             # Stocker selon le type
             if csv_type == 'songs_performance':
+                # ✅ CORRECTION : Ajouter les nouvelles colonnes dans update_columns
                 count = db.upsert_many(
                     table='apple_songs_performance',
                     data=data,
                     conflict_columns=['song_name'],
-                    update_columns=['album_name', 'plays', 'listeners', 'collected_at']
+                    update_columns=[
+                        'album_name', 'plays', 'listeners', 
+                        'shazam_count', 'radio_spins', 'purchases',
+                        'collected_at'
+                    ]
                 )
                 print(f"   ✅ {count} chanson(s) stockée(s)")
             

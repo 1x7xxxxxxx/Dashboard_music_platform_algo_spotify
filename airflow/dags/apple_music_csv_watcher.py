@@ -1,5 +1,5 @@
 """
-DAG Apple Music CSV Watcher - Surveillance automatique des CSV
+DAG Apple Music CSV Watcher - Surveillance automatique des CSV - VERSION CORRIGÉE
 Fréquence : Toutes les 15 minutes
 Description : Détecte et traite automatiquement les nouveaux CSV Apple Music
 """
@@ -122,12 +122,16 @@ def process_csv_files(**context):
             
             try:
                 if csv_type == 'songs_performance':
-                    # Créer une table simplifiée si nécessaire
+                    # ✅ CORRECTION : Ajouter les nouvelles colonnes dans update_columns
                     count = db.upsert_many(
                         table='apple_songs_performance',
                         data=data,
                         conflict_columns=['song_name'],
-                        update_columns=['plays', 'listeners', 'collected_at']
+                        update_columns=[
+                            'album_name', 'plays', 'listeners',
+                            'shazam_count', 'radio_spins', 'purchases',
+                            'collected_at'
+                        ]
                     )
                     logger.info(f'   ✅ {count} chanson(s) stockée(s)')
                 

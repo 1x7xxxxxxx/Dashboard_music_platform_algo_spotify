@@ -1,4 +1,4 @@
-"""Module pour déclencher les DAGs Airflow depuis Streamlit via CLI Docker."""
+"""Module pour déclencher les DAGs Airflow depuis Streamlit via CLI Docker - VERSION CORRIGÉE."""
 import subprocess
 import logging
 from typing import Dict, List
@@ -128,10 +128,13 @@ class AirflowTrigger:
         Returns:
             Dict avec les résultats de tous les déclenchements
         """
+        # ✅ CORRECTION : Ajouter apple_music_csv_watcher et data_quality_check
         dags = [
             'meta_ads_daily_docker',
             'spotify_api_daily',
             's4a_csv_watcher',
+            'apple_music_csv_watcher',  # ✅ AJOUTÉ
+            'data_quality_check',       # ✅ AJOUTÉ
         ]
         
         results = {}
