@@ -1,267 +1,275 @@
-"""Module pour déclencher les DAGs Airflow depuis Streamlit via CLI Docker - VERSION CORRIGÉE."""
-import subprocess
+"""Utilitaire pour déclencher les DAGs Airflow depuis Streamlit."""
+import requests
+from typing import Dict, List, Optional
 import logging
-from typing import Dict, List
-import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class AirflowTrigger:
-    """Classe pour déclencher des DAGs Airflow via CLI Docker."""
+    """Classe pour déclencher les DAGs Airflow via l'API REST."""
     
-    def __init__(self, container_name: str = "airflow_scheduler"):
+    def __init__(self, base_url: str = "http://localhost:8080", 
+                 username: str = "admin", password: str = "admin"):
         """
         Initialise le trigger Airflow.
         
         Args:
-            container_name: Nom du container Airflow scheduler
+            base_url: URL de base d'Airflow
+            username: Nom d'utilisateur Airflow
+            password: Mot de passe Airflow
         """
-        self.container_name = container_name
+        self.base_url = base_url.rstrip('/')
+        self.auth = (username, password)
+        self.session = requests.Session()
+        self.session.auth = self.auth
         
-        # Vérifier que le container existe
-        self._verify_container()
+        logger.info(f"✅ AirflowTrigger initialisé: {base_url}")
     
-    def _verify_container(self) -> bool:
-        """Vérifie que le container Airflow existe."""
-        try:
-            cmd = ["docker", "ps", "--format", "{{.Names}}"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-            
-            if self.container_name in result.stdout:
-                logger.info(f"✅ Container Airflow trouvé: {self.container_name}")
-                return True
-            else:
-                logger.warning(f"⚠️  Container {self.container_name} introuvable")
-                logger.info("Containers disponibles:")
-                for line in result.stdout.split('\n'):
-                    if 'airflow' in line.lower():
-                        logger.info(f"   • {line}")
-                return False
-        except Exception as e:
-            logger.error(f"❌ Erreur vérification container: {e}")
-            return False
-    
-    def trigger_dag(self, dag_id: str, wait: bool = False) -> Dict:
+    def trigger_dag(self, dag_id: str, conf: Optional[Dict] = None) -> Dict:
         """
-        Déclenche un DAG Airflow via CLI.
+        Déclenche un DAG Airflow.
         
         Args:
-            dag_id: Identifiant du DAG à déclencher
-            wait: Si True, attend la fin de l'exécution (non implémenté pour CLI)
+            dag_id: ID du DAG à déclencher
+            conf: Configuration optionnelle à passer au DAG
             
         Returns:
-            Dict avec le résultat du déclenchement
+            Dict avec le résultat (success, message, dag_run_id)
         """
+        url = f"{self.base_url}/api/v1/dags/{dag_id}/dagRuns"
+        
+        payload = {
+            "conf": conf or {},
+            "dag_run_id": None  # Auto-généré par Airflow
+        }
+        
         try:
             logger.info(f"🚀 Déclenchement du DAG: {dag_id}")
             
-            # Commande Docker pour déclencher le DAG
-            cmd = [
-                "docker", "exec",
-                self.container_name,
-                "airflow", "dags", "trigger", dag_id
-            ]
-            
-            # Exécuter la commande
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=15
+            response = self.session.post(
+                url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
             )
             
-            if result.returncode == 0:
-                logger.info(f"✅ DAG {dag_id} déclenché avec succès")
+            if response.status_code in [200, 201]:
+                data = response.json()
+                dag_run_id = data.get('dag_run_id', 'unknown')
                 
-                # Extraire le dag_run_id de la sortie
-                dag_run_id = None
-                for line in result.stdout.split('\n'):
-                    if 'dag_run_id' in line.lower() or 'created' in line.lower():
-                        dag_run_id = line.strip()
-                        break
+                logger.info(f"✅ DAG {dag_id} déclenché: {dag_run_id}")
                 
                 return {
                     'success': True,
-                    'dag_id': dag_id,
+                    'dag': dag_id,
                     'dag_run_id': dag_run_id,
-                    'message': 'DAG déclenché avec succès',
-                    'output': result.stdout.strip()
+                    'message': f"DAG {dag_id} déclenché avec succès"
                 }
+            
             else:
-                error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
-                logger.error(f"❌ Erreur déclenchement DAG {dag_id}")
-                logger.error(f"   Code retour: {result.returncode}")
-                logger.error(f"   Erreur: {error_msg}")
+                error_msg = f"Erreur HTTP {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    error_msg = error_detail.get('detail', error_msg)
+                except:
+                    error_msg = response.text[:200]
+                
+                logger.error(f"❌ Échec déclenchement {dag_id}: {error_msg}")
                 
                 return {
                     'success': False,
-                    'dag_id': dag_id,
+                    'dag': dag_id,
                     'error': error_msg,
-                    'return_code': result.returncode
+                    'message': f"Échec du déclenchement de {dag_id}"
                 }
         
-        except subprocess.TimeoutExpired:
-            logger.error(f"⏱️  Timeout lors du déclenchement de {dag_id}")
+        except requests.exceptions.Timeout:
+            error_msg = "Timeout de connexion à Airflow"
+            logger.error(f"❌ {error_msg}")
+            
             return {
                 'success': False,
-                'dag_id': dag_id,
-                'error': 'Timeout (15s dépassé)'
+                'dag': dag_id,
+                'error': error_msg,
+                'message': f"Timeout lors du déclenchement de {dag_id}"
             }
-        except Exception as e:
-            logger.error(f"❌ Exception lors du déclenchement de {dag_id}: {e}")
+        
+        except requests.exceptions.ConnectionError:
+            error_msg = "Impossible de se connecter à Airflow"
+            logger.error(f"❌ {error_msg}")
+            
             return {
                 'success': False,
-                'dag_id': dag_id,
-                'error': str(e)
+                'dag': dag_id,
+                'error': error_msg,
+                'message': f"Connexion à Airflow impossible"
+            }
+        
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"❌ Erreur inattendue pour {dag_id}: {error_msg}")
+            
+            return {
+                'success': False,
+                'dag': dag_id,
+                'error': error_msg,
+                'message': f"Erreur lors du déclenchement de {dag_id}"
             }
     
-    def trigger_all_dags(self, wait: bool = False, delay: float = 1.0) -> Dict:
+    def trigger_all_dags(self) -> List[Dict]:
         """
-        Déclenche tous les DAGs de collecte.
+        Déclenche tous les DAGs de production.
         
-        Args:
-            wait: Si True, attend la fin de chaque exécution
-            delay: Délai en secondes entre chaque déclenchement
-            
         Returns:
-            Dict avec les résultats de tous les déclenchements
+            Liste de dicts avec les résultats de chaque DAG
         """
-        # ✅ CORRECTION : Ajouter apple_music_csv_watcher et data_quality_check
         dags = [
             'meta_ads_daily_docker',
             'spotify_api_daily',
             's4a_csv_watcher',
-            'apple_music_csv_watcher',  # ✅ AJOUTÉ
-            'data_quality_check',       # ✅ AJOUTÉ
+            'apple_music_csv_watcher',
+            'youtube_daily',
+            'data_quality_check',
         ]
         
-        results = {}
+        results = []
         
         logger.info(f"🚀 Déclenchement de {len(dags)} DAGs...")
         
-        for i, dag_id in enumerate(dags, 1):
-            logger.info(f"\n[{i}/{len(dags)}] Traitement de {dag_id}...")
-            
-            result = self.trigger_dag(dag_id, wait=wait)
-            results[dag_id] = result
-            
-            # Pause entre chaque déclenchement
-            if i < len(dags):
-                time.sleep(delay)
+        for dag_id in dags:
+            result = self.trigger_dag(dag_id)
+            results.append(result)
         
-        # Résumé
-        success_count = sum(1 for r in results.values() if r.get('success'))
-        logger.info(f"\n{'='*60}")
-        logger.info(f"✅ Résumé: {success_count}/{len(dags)} DAGs déclenchés avec succès")
-        logger.info(f"{'='*60}")
+        success_count = sum(1 for r in results if r.get('success'))
+        logger.info(f"✅ {success_count}/{len(dags)} DAGs déclenchés avec succès")
         
         return results
     
-    def list_dags(self) -> List[str]:
+    def get_dag_status(self, dag_id: str) -> Dict:
         """
-        Liste tous les DAGs disponibles.
+        Récupère le statut d'un DAG.
         
+        Args:
+            dag_id: ID du DAG
+            
         Returns:
-            Liste des IDs de DAGs
+            Dict avec le statut du DAG
         """
+        url = f"{self.base_url}/api/v1/dags/{dag_id}"
+        
         try:
-            cmd = [
-                "docker", "exec",
-                self.container_name,
-                "airflow", "dags", "list"
-            ]
+            response = self.session.get(url, timeout=10)
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            
-            if result.returncode == 0:
-                # Parser la sortie pour extraire les DAG IDs
-                dags = []
-                for line in result.stdout.split('\n'):
-                    line = line.strip()
-                    # Ignorer les lignes vides et les headers
-                    if line and not line.startswith('dag_id') and '---' not in line:
-                        # Le premier mot est le dag_id
-                        dag_id = line.split()[0] if line.split() else None
-                        if dag_id:
-                            dags.append(dag_id)
+            if response.status_code == 200:
+                data = response.json()
                 
-                logger.info(f"📋 {len(dags)} DAGs disponibles")
-                return dags
+                return {
+                    'success': True,
+                    'dag': dag_id,
+                    'is_paused': data.get('is_paused', True),
+                    'is_active': data.get('is_active', False),
+                    'last_parsed_time': data.get('last_parsed_time'),
+                    'data': data
+                }
             else:
-                logger.error(f"❌ Erreur listage DAGs: {result.stderr}")
-                return []
+                return {
+                    'success': False,
+                    'dag': dag_id,
+                    'error': f"HTTP {response.status_code}"
+                }
         
         except Exception as e:
-            logger.error(f"❌ Exception listage DAGs: {e}")
-            return []
-
-
-# Instance globale pour utilisation facile
-airflow_trigger = AirflowTrigger()
-
-
-# Fonction helper pour Streamlit
-def trigger_data_collection(show_progress: bool = True):
-    """
-    Déclenche la collecte de toutes les données.
+            return {
+                'success': False,
+                'dag': dag_id,
+                'error': str(e)
+            }
     
-    Args:
-        show_progress: Afficher les messages de progression
+    def get_last_dag_run(self, dag_id: str) -> Optional[Dict]:
+        """
+        Récupère la dernière exécution d'un DAG.
         
-    Returns:
-        Dict avec les résultats
-    """
-    if show_progress:
-        logger.info("🚀 Démarrage de la collecte de données...")
+        Args:
+            dag_id: ID du DAG
+            
+        Returns:
+            Dict avec les infos de la dernière exécution, ou None
+        """
+        url = f"{self.base_url}/api/v1/dags/{dag_id}/dagRuns"
+        
+        try:
+            response = self.session.get(
+                url,
+                params={'limit': 1, 'order_by': '-execution_date'},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                dag_runs = data.get('dag_runs', [])
+                
+                if dag_runs:
+                    last_run = dag_runs[0]
+                    
+                    return {
+                        'dag_run_id': last_run.get('dag_run_id'),
+                        'state': last_run.get('state'),
+                        'execution_date': last_run.get('execution_date'),
+                        'start_date': last_run.get('start_date'),
+                        'end_date': last_run.get('end_date')
+                    }
+            
+            return None
+        
+        except Exception as e:
+            logger.error(f"❌ Erreur get_last_dag_run pour {dag_id}: {e}")
+            return None
     
-    results = airflow_trigger.trigger_all_dags(wait=False, delay=1.0)
-    
-    # Compter les succès
-    success_count = sum(1 for r in results.values() if r.get('success'))
-    total_count = len(results)
-    
-    if show_progress:
-        if success_count == total_count:
-            logger.info(f"🎉 Toutes les collectes lancées avec succès!")
-        else:
-            logger.warning(f"⚠️  {success_count}/{total_count} DAGs lancés")
-    
-    return {
-        'success': success_count == total_count,
-        'results': results,
-        'summary': f"{success_count}/{total_count} DAGs lancés"
-    }
+    def check_connection(self) -> bool:
+        """
+        Vérifie la connexion à Airflow.
+        
+        Returns:
+            True si la connexion fonctionne, False sinon
+        """
+        url = f"{self.base_url}/api/v1/health"
+        
+        try:
+            response = self.session.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                logger.info("✅ Connexion à Airflow OK")
+                return True
+            else:
+                logger.warning(f"⚠️ Airflow répond avec code {response.status_code}")
+                return False
+        
+        except Exception as e:
+            logger.error(f"❌ Connexion à Airflow impossible: {e}")
+            return False
 
 
-# Script de test
+# Test
 if __name__ == "__main__":
-    print("="*60)
-    print("🧪 TEST AIRFLOW TRIGGER")
-    print("="*60)
+    trigger = AirflowTrigger()
     
-    # Test 1: Lister les DAGs
-    print("\n1️⃣  Listage des DAGs disponibles...")
-    dags = airflow_trigger.list_dags()
-    if dags:
-        print(f"✅ {len(dags)} DAGs trouvés:")
-        for dag in dags:
-            print(f"   • {dag}")
-    else:
-        print("❌ Aucun DAG trouvé")
-    
-    # Test 2: Déclencher un DAG
-    print("\n2️⃣  Test déclenchement d'un DAG...")
-    test_dag = input("Entrez le nom d'un DAG à tester (ou Entrée pour passer): ").strip()
-    
-    if test_dag:
-        result = airflow_trigger.trigger_dag(test_dag)
+    # Test de connexion
+    print("\n🔍 Test de connexion...")
+    if trigger.check_connection():
+        print("✅ Connexion OK\n")
+        
+        # Test déclenchement d'un DAG
+        print("🚀 Test déclenchement meta_ads_daily_docker...")
+        result = trigger.trigger_dag('meta_ads_daily_docker')
+        
         if result['success']:
-            print(f"✅ DAG {test_dag} déclenché avec succès!")
+            print(f"✅ {result['message']}")
+            print(f"   DAG Run ID: {result['dag_run_id']}")
         else:
-            print(f"❌ Échec: {result.get('error')}")
-    
-    print("\n" + "="*60)
-    print("✅ Tests terminés")
-    print("="*60)
+            print(f"❌ {result['message']}")
+            print(f"   Erreur: {result['error']}")
+    else:
+        print("❌ Impossible de se connecter à Airflow")
+        print("   Vérifiez que Airflow est démarré sur http://localhost:8080")

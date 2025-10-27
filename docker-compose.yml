@@ -64,6 +64,11 @@ services:
       META_ACCESS_TOKEN: EAAfRguS806oBPovPgVMtJgvhtCZB3wco9vUfb7wnQ7FX8swCZC97HDRfp4JPCtjyMm9ux05M5qaFQjSax2SrZAya6jiNMj2M8HDk2Ydrmivkf01xZApbwJBSELGvg8ZCH8UDq8gHN7iWAf1R9ZBIjlnC9mjZAX44Y9M3ln8llfJXT9A7ext0aqmkyiDIhdIMIWsmxDmNianbU80e1k6iIMZD
       META_AD_ACCOUNT_ID: act_567214713853881
       META_API_VERSION: v21.0
+      
+      # YouTube API
+      YOUTUBE_API_KEY: AIzaSyDSTiChPPIpFZ7kMJkd9p7dClf4iD3EJp0
+      YOUTUBE_CHANNEL_ID: KR4qVy-M9s8n0sSgmt9JIw
+      
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./src:/opt/airflow/src

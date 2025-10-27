@@ -32,4 +32,6 @@ apache-airflow-providers-imap==3.5.0
 apache-airflow-providers-postgres==5.10.0
 apache-airflow-providers-sqlite==3.7.0
 
+google-api-python-client==2.108.0
+
 

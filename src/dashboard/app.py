@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
-from src.utils.airflow_trigger import airflow_trigger
+from src.utils.airflow_trigger import AirflowTrigger
 
 # Configuration de la page
 st.set_page_config(
@@ -21,6 +21,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Initialiser AirflowTrigger
+config = config_loader.load()
+airflow_config = config.get('airflow', {})
+airflow_trigger = AirflowTrigger(
+    base_url=airflow_config.get('base_url', 'http://localhost:8080'),
+    username=airflow_config.get('username', 'admin'),
+    password=airflow_config.get('password', 'admin')
+)
 
 
 def get_db():
@@ -47,10 +55,11 @@ def show_navigation_menu():
         "🎵 Spotify & S4A": "spotify_s4a_combined",
         "📱 Hypeddit": "hypeddit",
         "🍎 Apple Music": "apple_music",
+        "🎬 YouTube": "youtube",
     }
     
     # Utiliser st.radio pour la navigation
-    selection = st.sidebar.radio("Aller à", list(pages.keys()), label_visibility="collapsed")
+    selection = st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")
     
     return pages[selection]
 
@@ -64,20 +73,23 @@ def show_data_collection_panel():
     if st.sidebar.button("🚀 Lancer toutes les collectes", type="primary"):
         with st.sidebar:
             with st.spinner('Déclenchement des DAGs...'):
-                results = airflow_trigger.trigger_all_dags(wait=False)
+                results = airflow_trigger.trigger_all_dags()
                 
                 # Afficher les résultats
-                success_count = 0
-                for dag_id, result in results.items():
-                    if result.get('success'):
-                        st.success(f"✅ {dag_id}")
-                        success_count += 1
-                    else:
-                        st.error(f"❌ {dag_id}: {result.get('error', 'Erreur inconnue')}")
+                success_count = sum(1 for r in results if r.get('success'))
+                total_count = len(results)
                 
-                if success_count == len(results):
-                    st.success(f"🎉 Toutes les collectes lancées ! ({success_count}/{len(results)})")
+                for result in results:
+                    if result.get('success'):
+                        st.success(f"✅ {result['dag']}")
+                    else:
+                        st.error(f"❌ {result['dag']}: {result.get('error', 'Erreur inconnue')}")
+                
+                if success_count == total_count:
+                    st.success(f"🎉 Toutes les collectes lancées ! ({success_count}/{total_count})")
                     st.info("📊 Rafraîchissez la page dans 2-3 minutes pour voir les nouvelles données")
+                else:
+                    st.warning(f"⚠️ {success_count}/{total_count} collectes lancées")
     
     # Boutons individuels
     st.sidebar.markdown("#### Collectes individuelles")
@@ -85,46 +97,54 @@ def show_data_collection_panel():
     col1, col2 = st.sidebar.columns(2)
     
     with col1:
-        if st.button("📱 Meta Ads", help="Collecter les campagnes Meta Ads"):
+        if st.button("📱 Meta Ads", help="Collecter les campagnes Meta Ads", key="trigger_meta"):
             with st.spinner('Déclenchement...'):
                 result = airflow_trigger.trigger_dag('meta_ads_daily_docker')
                 if result.get('success'):
                     st.success("✅ Meta Ads lancé")
                 else:
-                    st.error("❌ Échec")
+                    st.error(f"❌ Échec: {result.get('error')}")
         
-        if st.button("🎵 CSV S4A", help="Traiter les CSV Spotify for Artists"):
+        if st.button("🎵 CSV S4A", help="Traiter les CSV Spotify for Artists", key="trigger_s4a"):
             with st.spinner('Déclenchement...'):
                 result = airflow_trigger.trigger_dag('s4a_csv_watcher')
                 if result.get('success'):
                     st.success("✅ CSV S4A lancé")
                 else:
-                    st.error("❌ Échec")
+                    st.error(f"❌ Échec: {result.get('error')}")
 
-        if st.button("🍎 CSV Apple", help="Traiter les CSV Apple Music"):  # 👈 AJOUTER CE BLOC
+        if st.button("🍎 CSV Apple", help="Traiter les CSV Apple Music", key="trigger_apple"):
             with st.spinner('Déclenchement...'):
                 result = airflow_trigger.trigger_dag('apple_music_csv_watcher')
                 if result.get('success'):
                     st.success("✅ CSV Apple lancé")
                 else:
-                    st.error("❌ Échec")
+                    st.error(f"❌ Échec: {result.get('error')}")
     
     with col2:
-        if st.button("🎸 Spotify API", help="Collecter artistes et tracks"):
+        if st.button("🎸 Spotify API", help="Collecter artistes et tracks", key="trigger_spotify"):
             with st.spinner('Déclenchement...'):
                 result = airflow_trigger.trigger_dag('spotify_api_daily')
                 if result.get('success'):
                     st.success("✅ Spotify API lancé")
                 else:
-                    st.error("❌ Échec")
+                    st.error(f"❌ Échec: {result.get('error')}")
         
-        if st.button("🔍 Qualité", help="Vérifier la qualité des données"):
+        if st.button("🎬 YouTube", help="Collecter données YouTube", key="trigger_youtube"):
+            with st.spinner('Déclenchement...'):
+                result = airflow_trigger.trigger_dag('youtube_daily')
+                if result.get('success'):
+                    st.success("✅ YouTube lancé")
+                else:
+                    st.error(f"❌ Échec: {result.get('error')}")
+        
+        if st.button("🔍 Qualité", help="Vérifier la qualité des données", key="trigger_quality"):
             with st.spinner('Déclenchement...'):
                 result = airflow_trigger.trigger_dag('data_quality_check')
                 if result.get('success'):
                     st.success("✅ Qualité lancée")
                 else:
-                    st.error("❌ Échec")
+                    st.error(f"❌ Échec: {result.get('error')}")
     
     st.sidebar.markdown("---")
     st.sidebar.markdown("💡 **Astuce:** Les collectes prennent 1-3 minutes")
@@ -152,12 +172,16 @@ def main():
         - 📱 **Meta Ads** : Campagnes publicitaires
         - 🎸 **Spotify API** : Artistes, tracks et historique de popularité
         - 🎵 **CSV S4A** : Traitement des fichiers Spotify for Artists
+        - 🍎 **CSV Apple** : Traitement des fichiers Apple Music
+        - 🎬 **YouTube** : Statistiques de chaîne et vidéos
         - 🔍 **Qualité** : Vérification de la cohérence des données
         
         ### 📊 Sources de données
         - ✅ Meta Ads collecté via API
         - ✅ Spotify API pour artistes, tracks et **historique de popularité quotidien**
         - ✅ Spotify for Artists via CSV (déposez vos fichiers dans `data/raw/spotify_for_artists/`)
+        - ✅ Apple Music via CSV (déposez vos fichiers dans `data/raw/apple_music/`)
+        - ✅ YouTube via API (données temps réel)
         - ✅ PostgreSQL stockage centralisé
         
         ---
@@ -187,9 +211,24 @@ def main():
             artists_count = db.get_table_count('artists')
             col2.metric("👤 Artistes Spotify", f"{artists_count:,}")
             
+            # Count Apple Music
+            apple_count = db.get_table_count('apple_songs_performance')
+            col3.metric("🍎 Chansons Apple", f"{apple_count:,}")
+            
+            # Count YouTube
+            youtube_count = db.get_table_count('youtube_videos')
+            col4.metric("🎬 Vidéos YouTube", f"{youtube_count:,}")
+            
+            # Deuxième ligne de KPIs
+            col1, col2, col3, col4 = st.columns(4)
+            
             # Count S4A
             s4a_count = db.get_table_count('s4a_song_timeline')
-            col3.metric("🎵 Timeline S4A", f"{s4a_count:,}")
+            col1.metric("🎵 Timeline S4A", f"{s4a_count:,}")
+            
+            # Count YouTube channel stats
+            youtube_channels = db.get_table_count('youtube_channels')
+            col2.metric("📺 Chaînes YouTube", f"{youtube_channels:,}")
             
             # Dernière collecte
             last_update_query = """
@@ -200,6 +239,10 @@ def main():
                     SELECT collected_at FROM artists
                     UNION ALL
                     SELECT collected_at FROM s4a_songs_global
+                    UNION ALL
+                    SELECT collected_at FROM apple_songs_performance
+                    UNION ALL
+                    SELECT collected_at FROM youtube_channels
                 ) AS combined
             """
             
@@ -210,14 +253,17 @@ def main():
                 hours_ago = int(time_diff.total_seconds() / 3600)
                 
                 if hours_ago < 1:
-                    col4.metric("🕐 Dernière collecte", "< 1h")
+                    col3.metric("🕐 Dernière collecte", "< 1h")
                 elif hours_ago < 24:
-                    col4.metric("🕐 Dernière collecte", f"Il y a {hours_ago}h")
+                    col3.metric("🕐 Dernière collecte", f"Il y a {hours_ago}h")
                 else:
                     days_ago = int(hours_ago / 24)
-                    col4.metric("🕐 Dernière collecte", f"Il y a {days_ago}j")
+                    col3.metric("🕐 Dernière collecte", f"Il y a {days_ago}j")
             else:
-                col4.metric("🕐 Dernière collecte", "Aucune")
+                col3.metric("🕐 Dernière collecte", "Aucune")
+        
+        except Exception as e:
+            st.error(f"❌ Erreur lors du chargement des statistiques: {e}")
         
         finally:
             db.close()
@@ -254,6 +300,10 @@ def main():
     
     elif page == "apple_music":
         from views.apple_music import show
+        show()
+
+    elif page == "youtube":
+        from views.youtube import show
         show()
 
 
