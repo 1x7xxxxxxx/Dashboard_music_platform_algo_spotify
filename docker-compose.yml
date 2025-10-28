@@ -67,7 +67,7 @@ services:
       
       # YouTube API
       YOUTUBE_API_KEY: AIzaSyDSTiChPPIpFZ7kMJkd9p7dClf4iD3EJp0
-      YOUTUBE_CHANNEL_ID: KR4qVy-M9s8n0sSgmt9JIw
+      YOUTUBE_CHANNEL_ID: UCDpjL6K1yoGdCm4M3PEdskg
       
     volumes:
       - ./airflow/dags:/opt/airflow/dags
