@@ -41,8 +41,7 @@ class AirflowTrigger:
         url = f"{self.base_url}/api/v1/dags/{dag_id}/dagRuns"
         
         payload = {
-            "conf": conf or {},
-            "dag_run_id": None  # Auto-généré par Airflow
+            "conf": conf or {}
         }
         
         try:

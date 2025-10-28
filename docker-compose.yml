@@ -9,7 +9,7 @@ services:
     container_name: postgres_spotify_airflow
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Wowow1357911!
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: airflow_db
     ports:
       - '5433:5432'
@@ -54,20 +54,20 @@ services:
       DATABASE_PASSWORD: Wowow1357911!
       
       # Spotify API
-      SPOTIFY_CLIENT_ID: 24cccb6e92144ea7b405ae76aca0a982
-      SPOTIFY_CLIENT_SECRET: 9273db619591406584f8ab23ea7aa5fa
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       SPOTIFY_ARTIST_IDS: 7sbfafbLjNZGZJZjZ3xoPB
       
       # Meta Ads
-      META_APP_ID: 567214713853881
-      META_APP_SECRET: 9273db619591406584f8ab23ea7aa5fa
-      META_ACCESS_TOKEN: EAAfRguS806oBPovPgVMtJgvhtCZB3wco9vUfb7wnQ7FX8swCZC97HDRfp4JPCtjyMm9ux05M5qaFQjSax2SrZAya6jiNMj2M8HDk2Ydrmivkf01xZApbwJBSELGvg8ZCH8UDq8gHN7iWAf1R9ZBIjlnC9mjZAX44Y9M3ln8llfJXT9A7ext0aqmkyiDIhdIMIWsmxDmNianbU80e1k6iIMZD
+      META_APP_ID: ${META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
       META_AD_ACCOUNT_ID: act_567214713853881
       META_API_VERSION: v21.0
       
       # YouTube API
-      YOUTUBE_API_KEY: AIzaSyDSTiChPPIpFZ7kMJkd9p7dClf4iD3EJp0
-      YOUTUBE_CHANNEL_ID: UCDpjL6K1yoGdCm4M3PEdskg
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      YOUTUBE_CHANNEL_ID: ${YOUTUBE_CHANNEL_ID}
       
     volumes:
       - ./airflow/dags:/opt/airflow/dags
