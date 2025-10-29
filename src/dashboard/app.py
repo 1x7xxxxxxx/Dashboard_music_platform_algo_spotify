@@ -6,9 +6,17 @@ import plotly.graph_objects as go
 from pathlib import Path
 import sys
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
 
+# ✅ IMPORTANT : Ajouter le chemin AVANT les imports src.*
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+# ✅ Charger .env.local si disponible (priorité)
+env_file = '.env.local' if os.path.exists('.env.local') else '.env'
+load_dotenv(env_file)
+
+# ✅ Imports après sys.path.append
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
@@ -54,7 +62,7 @@ def show_navigation_menu():
         "🎵 META x Spotify": "meta_x_spotify",
         "🎵 Spotify & S4A": "spotify_s4a_combined",
         "📱 Hypeddit": "hypeddit",
-        "🍎 Apple Music": "apple_music",
+        "🎎 Apple Music": "apple_music",
         "🎬 YouTube": "youtube",
     }
     
@@ -113,7 +121,7 @@ def show_data_collection_panel():
                 else:
                     st.error(f"❌ Échec: {result.get('error')}")
 
-        if st.button("🍎 CSV Apple", help="Traiter les CSV Apple Music", key="trigger_apple"):
+        if st.button("🎎 CSV Apple", help="Traiter les CSV Apple Music", key="trigger_apple"):
             with st.spinner('Déclenchement...'):
                 result = airflow_trigger.trigger_dag('apple_music_csv_watcher')
                 if result.get('success'):
@@ -172,7 +180,7 @@ def main():
         - 📱 **Meta Ads** : Campagnes publicitaires
         - 🎸 **Spotify API** : Artistes, tracks et historique de popularité
         - 🎵 **CSV S4A** : Traitement des fichiers Spotify for Artists
-        - 🍎 **CSV Apple** : Traitement des fichiers Apple Music
+        - 🎎 **CSV Apple** : Traitement des fichiers Apple Music
         - 🎬 **YouTube** : Statistiques de chaîne et vidéos
         - 🔍 **Qualité** : Vérification de la cohérence des données
         
@@ -213,7 +221,7 @@ def main():
             
             # Count Apple Music
             apple_count = db.get_table_count('apple_songs_performance')
-            col3.metric("🍎 Chansons Apple", f"{apple_count:,}")
+            col3.metric("🎎 Chansons Apple", f"{apple_count:,}")
             
             # Count YouTube
             youtube_count = db.get_table_count('youtube_videos')

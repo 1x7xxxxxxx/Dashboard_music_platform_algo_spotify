@@ -1,4 +1,4 @@
-"""Vue Streamlit pour YouTube."""
+"""Vue Streamlit pour YouTube - VERSION CORRIGÉE."""
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -221,9 +221,12 @@ def show():
         if video_stats_count > 0:
             st.subheader("📈 Performances des vidéos")
             
-            # Sélection vidéo
+            # ✅ CORRECTION : Ajouter published_at dans SELECT pour ORDER BY
             videos_list_query = """
-                SELECT DISTINCT v.video_id, v.title
+                SELECT DISTINCT 
+                    v.video_id, 
+                    v.title,
+                    v.published_at
                 FROM youtube_videos v
                 INNER JOIN youtube_video_stats vs ON v.video_id = vs.video_id
                 ORDER BY v.published_at DESC

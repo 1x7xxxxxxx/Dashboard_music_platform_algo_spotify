@@ -1,10 +1,10 @@
-"""Schéma PostgreSQL pour YouTube Data API v3."""
+"""Schéma PostgreSQL pour YouTube Data API v3 - VERSION CORRIGÉE."""
 
 YOUTUBE_SCHEMA = {
     'youtube_channels': """
         CREATE TABLE IF NOT EXISTS youtube_channels (
             id SERIAL PRIMARY KEY,
-            channel_id VARCHAR(255) NOT NULL UNIQUE,
+            channel_id VARCHAR(255) NOT NULL,
             channel_name VARCHAR(500),
             description TEXT,
             published_at TIMESTAMP,
@@ -14,7 +14,7 @@ YOUTUBE_SCHEMA = {
             thumbnail_url TEXT,
             country VARCHAR(10),
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(channel_id)
+            CONSTRAINT unique_channel_id UNIQUE(channel_id)
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_channels_id 
@@ -31,8 +31,7 @@ YOUTUBE_SCHEMA = {
             subscriber_count INTEGER DEFAULT 0,
             video_count INTEGER DEFAULT 0,
             view_count BIGINT DEFAULT 0,
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (channel_id) REFERENCES youtube_channels(channel_id) ON DELETE CASCADE
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_channel 
@@ -45,7 +44,7 @@ YOUTUBE_SCHEMA = {
     'youtube_videos': """
         CREATE TABLE IF NOT EXISTS youtube_videos (
             id SERIAL PRIMARY KEY,
-            video_id VARCHAR(255) NOT NULL UNIQUE,
+            video_id VARCHAR(255) NOT NULL,
             channel_id VARCHAR(255) NOT NULL,
             title TEXT,
             description TEXT,
@@ -54,8 +53,7 @@ YOUTUBE_SCHEMA = {
             duration VARCHAR(50),
             definition VARCHAR(10),
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (channel_id) REFERENCES youtube_channels(channel_id) ON DELETE CASCADE,
-            UNIQUE(video_id)
+            CONSTRAINT unique_video_id UNIQUE(video_id)
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_videos_id 
@@ -76,8 +74,7 @@ YOUTUBE_SCHEMA = {
             like_count INTEGER DEFAULT 0,
             comment_count INTEGER DEFAULT 0,
             favorite_count INTEGER DEFAULT 0,
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (video_id) REFERENCES youtube_videos(video_id) ON DELETE CASCADE
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_video 
@@ -93,7 +90,7 @@ YOUTUBE_SCHEMA = {
     'youtube_playlists': """
         CREATE TABLE IF NOT EXISTS youtube_playlists (
             id SERIAL PRIMARY KEY,
-            playlist_id VARCHAR(255) NOT NULL UNIQUE,
+            playlist_id VARCHAR(255) NOT NULL,
             channel_id VARCHAR(255) NOT NULL,
             title TEXT,
             description TEXT,
@@ -101,8 +98,7 @@ YOUTUBE_SCHEMA = {
             published_at TIMESTAMP,
             thumbnail_url TEXT,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (channel_id) REFERENCES youtube_channels(channel_id) ON DELETE CASCADE,
-            UNIQUE(playlist_id)
+            CONSTRAINT unique_playlist_id UNIQUE(playlist_id)
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_playlists_id 
@@ -115,15 +111,14 @@ YOUTUBE_SCHEMA = {
     'youtube_comments': """
         CREATE TABLE IF NOT EXISTS youtube_comments (
             id SERIAL PRIMARY KEY,
-            comment_id VARCHAR(255) NOT NULL UNIQUE,
+            comment_id VARCHAR(255) NOT NULL,
             video_id VARCHAR(255) NOT NULL,
             author VARCHAR(500),
             text TEXT,
             like_count INTEGER DEFAULT 0,
             published_at TIMESTAMP,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (video_id) REFERENCES youtube_videos(video_id) ON DELETE CASCADE,
-            UNIQUE(comment_id)
+            CONSTRAINT unique_comment_id UNIQUE(comment_id)
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_comments_video 
@@ -154,10 +149,29 @@ def create_youtube_tables():
     try:
         for table_name, sql in YOUTUBE_SCHEMA.items():
             print(f"📋 Création de {table_name}...")
+            
+            # Vérifier si la table existe déjà
+            if db.table_exists(table_name):
+                print(f"   ⚠️  Table {table_name} existe déjà")
+            
             db.execute_query(sql)
-            print(f"   ✅ Table {table_name} créée")
+            print(f"   ✅ Table {table_name} créée/vérifiée")
         
-        print("\n🔍 Vérification...")
+        print("\n🔍 Vérification des colonnes...")
+        
+        # Vérifier les colonnes de youtube_channels
+        check_columns_query = """
+            SELECT column_name, data_type 
+            FROM information_schema.columns
+            WHERE table_name = 'youtube_channels'
+            ORDER BY ordinal_position
+        """
+        columns = db.fetch_query(check_columns_query)
+        print(f"\n📊 Colonnes de youtube_channels :")
+        for col_name, col_type in columns:
+            print(f"   • {col_name} ({col_type})")
+        
+        print("\n🔍 Comptage des enregistrements...")
         for table_name in YOUTUBE_SCHEMA.keys():
             count = db.get_table_count(table_name)
             print(f"   ✅ {table_name}: {count} enregistrement(s)")
@@ -167,10 +181,11 @@ def create_youtube_tables():
         import traceback
         traceback.print_exc()
     
-    db.close()
+    finally:
+        db.close()
     
     print("\n" + "="*70)
-    print("✅ TABLES YOUTUBE CRÉÉES")
+    print("✅ TABLES YOUTUBE CRÉÉES/VÉRIFIÉES")
     print("="*70 + "\n")
 
 

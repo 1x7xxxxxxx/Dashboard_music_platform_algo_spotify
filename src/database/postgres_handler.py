@@ -1,4 +1,4 @@
-"""Handler pour les interactions avec PostgreSQL."""
+"""Handler pour les interactions avec PostgreSQL - VERSION OPTIMISÉE."""
 import psycopg2
 from psycopg2.extras import execute_values
 from typing import List, Dict, Any, Optional, Tuple
@@ -43,7 +43,7 @@ class PostgresHandler:
                 password=self.password
             )
 
-            # ✅ AJOUT : Activer l'autocommit
+            # ✅ AUTOCOMMIT : Chaque requête est committée immédiatement
             self.conn.autocommit = True
 
             self.cursor = self.conn.cursor()
@@ -62,10 +62,11 @@ class PostgresHandler:
         """
         try:
             self.cursor.execute(query, params)
-            self.conn.commit()
+            # ✅ Pas de commit nécessaire avec autocommit = True
+            logger.debug(f"✅ Requête exécutée")
         except Exception as e:
-            self.conn.rollback()
             logger.error(f"❌ Erreur exécution requête: {e}")
+            logger.error(f"   Query: {query[:200]}...")
             raise
     
     def fetch_query(self, query: str, params: Optional[Tuple] = None) -> List[Tuple]:
@@ -81,9 +82,12 @@ class PostgresHandler:
         """
         try:
             self.cursor.execute(query, params)
-            return self.cursor.fetchall()
+            results = self.cursor.fetchall()
+            logger.debug(f"✅ Fetch query retourné {len(results)} lignes")
+            return results
         except Exception as e:
             logger.error(f"❌ Erreur fetch requête: {e}")
+            logger.error(f"   Query: {query[:200]}...")
             raise
     
     def fetch_df(self, query: str, params: Optional[Tuple] = None):
@@ -102,9 +106,12 @@ class PostgresHandler:
             self.cursor.execute(query, params)
             columns = [desc[0] for desc in self.cursor.description]
             data = self.cursor.fetchall()
-            return pd.DataFrame(data, columns=columns)
+            df = pd.DataFrame(data, columns=columns)
+            logger.debug(f"✅ Fetch DataFrame retourné {len(df)} lignes")
+            return df
         except Exception as e:
             logger.error(f"❌ Erreur fetch DataFrame: {e}")
+            logger.error(f"   Query: {query[:200]}...")
             raise
     
     def insert_many(self, table: str, data: List[Dict[str, Any]]) -> int:
@@ -119,6 +126,7 @@ class PostgresHandler:
             Nombre de lignes insérées
         """
         if not data:
+            logger.warning(f"⚠️ insert_many appelé avec data vide pour {table}")
             return 0
         
         try:
@@ -131,12 +139,12 @@ class PostgresHandler:
             query = f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})"
             
             self.cursor.executemany(query, values)
-            self.conn.commit()
+            # ✅ Pas de commit nécessaire avec autocommit = True
             
+            logger.info(f"✅ {len(data)} ligne(s) insérée(s) dans {table}")
             return len(data)
         except Exception as e:
-            self.conn.rollback()
-            logger.error(f"❌ Erreur insert_many: {e}")
+            logger.error(f"❌ Erreur insert_many sur {table}: {e}")
             raise
     
     def upsert_many(self, table: str, data: List[Dict[str, Any]], 
@@ -154,6 +162,7 @@ class PostgresHandler:
             Nombre de lignes affectées
         """
         if not data:
+            logger.warning(f"⚠️ upsert_many appelé avec data vide pour {table}")
             return 0
         
         try:
@@ -172,16 +181,15 @@ class PostgresHandler:
             """
             
             execute_values(self.cursor, query, values)
+            rows_affected = self.cursor.rowcount
+            # ✅ Pas de commit nécessaire avec autocommit = True
             
-            # ✅ AJOUT : Commit explicite
-            self.conn.commit()
+            logger.info(f"✅ {rows_affected} ligne(s) affectée(s) dans {table}")
             
-            logger.info(f"✅ {self.cursor.rowcount} ligne(s) affectée(s) dans {table}")
-            
-            return self.cursor.rowcount
+            return rows_affected
         except Exception as e:
-            self.conn.rollback()
             logger.error(f"❌ Erreur upsert_many sur {table}: {e}")
+            logger.error(f"   Data sample: {data[0] if data else 'empty'}")
             raise
     
     def table_exists(self, table_name: str) -> bool:
@@ -197,9 +205,15 @@ class PostgresHandler:
     
     def get_table_count(self, table_name: str) -> int:
         """Retourne le nombre de lignes dans une table."""
-        query = f"SELECT COUNT(*) FROM {table_name}"
-        result = self.fetch_query(query)
-        return result[0][0] if result else 0
+        try:
+            query = f"SELECT COUNT(*) FROM {table_name}"
+            result = self.fetch_query(query)
+            count = result[0][0] if result else 0
+            logger.debug(f"📊 Table {table_name}: {count} lignes")
+            return count
+        except Exception as e:
+            logger.error(f"❌ Erreur get_table_count pour {table_name}: {e}")
+            return 0
     
     def close(self) -> None:
         """Ferme la connexion PostgreSQL."""
