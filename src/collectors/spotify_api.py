@@ -4,16 +4,10 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from typing import Dict, List, Optional, Any
 import logging
 from datetime import datetime
-import time
-
 
 # Configuration du logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Note: On laisse Airflow gérer le formatage global, on récupère juste le logger
 logger = logging.getLogger(__name__)
-
 
 class SpotifyCollector:
     """Collecte les données depuis l'API Spotify."""
@@ -63,17 +57,14 @@ class SpotifyCollector:
                 'followers': artist['followers']['total'],
                 'popularity': artist['popularity'],
                 'genres': artist['genres'],
-                'collected_at': datetime.now()  # ✅ datetime object, pas string
+                'collected_at': datetime.now()  # ✅ datetime object pour Postgres
             }
             
             logger.info(f"✅ Données récupérées pour l'artiste: {artist['name']}")
             return data
             
-        except spotipy.exceptions.SpotifyException as e:
-            logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {e}")
-            return None
         except Exception as e:
-            logger.error(f"❌ Erreur inattendue: {e}")
+            logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {e}")
             return None
     
     def get_artist_top_tracks(self, artist_id: str, market: str = 'FR') -> List[Dict[str, Any]]:
@@ -92,6 +83,9 @@ class SpotifyCollector:
             
             tracks = []
             for track in results['tracks']:
+                # Gestion sécurisée de la date de sortie (parfois YYYY seulement)
+                release_date = track['album']['release_date']
+                
                 track_data = {
                     'track_id': track['id'],
                     'track_name': track['name'],
@@ -100,8 +94,8 @@ class SpotifyCollector:
                     'duration_ms': track['duration_ms'],
                     'explicit': track['explicit'],
                     'album_name': track['album']['name'],
-                    'release_date': track['album']['release_date'],
-                    'collected_at': datetime.now()  # ✅ datetime object, pas string
+                    'release_date': release_date,
+                    'collected_at': datetime.now()
                 }
                 tracks.append(track_data)
             
@@ -111,45 +105,6 @@ class SpotifyCollector:
         except Exception as e:
             logger.error(f"❌ Erreur lors de la récupération des top tracks: {e}")
             return []
-    
-    def get_track_audio_features(self, track_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Récupère les caractéristiques audio d'un track.
-        
-        Args:
-            track_id: ID Spotify du track
-            
-        Returns:
-            Dictionnaire avec les audio features
-        """
-        try:
-            features = self.sp.audio_features(track_id)[0]
-            
-            if features:
-                data = {
-                    'track_id': track_id,
-                    'danceability': features['danceability'],
-                    'energy': features['energy'],
-                    'key': features['key'],
-                    'loudness': features['loudness'],
-                    'mode': features['mode'],
-                    'speechiness': features['speechiness'],
-                    'acousticness': features['acousticness'],
-                    'instrumentalness': features['instrumentalness'],
-                    'liveness': features['liveness'],
-                    'valence': features['valence'],
-                    'tempo': features['tempo'],
-                    'collected_at': datetime.now()  # ✅ datetime object, pas string
-                }
-                
-                logger.info(f"✅ Audio features récupérés pour track {track_id}")
-                return data
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Erreur lors de la récupération des audio features: {e}")
-            return None
     
     def search_artist(self, artist_name: str) -> Optional[str]:
         """
@@ -175,34 +130,3 @@ class SpotifyCollector:
         except Exception as e:
             logger.error(f"❌ Erreur lors de la recherche d'artiste: {e}")
             return None
-
-
-# Exemple d'utilisation
-if __name__ == "__main__":
-    # Import relatif
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    
-    from src.utils.config_loader import config_loader
-    
-    # Charger la config
-    config = config_loader.load()
-    spotify_config = config['spotify']
-    
-    # Créer le collector
-    collector = SpotifyCollector(
-        client_id=spotify_config['client_id'],
-        client_secret=spotify_config['client_secret']
-    )
-    
-    # Exemple: Rechercher et récupérer les infos d'un artiste
-    artist_name = "Daft Punk"
-    artist_id = collector.search_artist(artist_name)
-    
-    if artist_id:
-        artist_info = collector.get_artist_info(artist_id)
-        print(f"\n📊 Infos artiste: {artist_info}")
-        
-        top_tracks = collector.get_artist_top_tracks(artist_id)
-        print(f"\n🎵 Top tracks: {len(top_tracks)} tracks récupérés")

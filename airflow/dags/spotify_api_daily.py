@@ -9,9 +9,6 @@ import logging
 # Ajouter le projet au path
 sys.path.insert(0, '/opt/airflow')
 
-# Charger .env
-from dotenv import load_dotenv
-load_dotenv('/opt/airflow/.env')
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +24,7 @@ default_args = {
 
 def collect_spotify_artists(**context):
     """Collecte les statistiques des artistes via API Spotify."""
+    
     try:
         from src.collectors.spotify_api import SpotifyCollector
         from src.database.postgres_handler import PostgresHandler
