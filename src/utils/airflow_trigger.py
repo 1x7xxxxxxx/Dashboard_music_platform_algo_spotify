@@ -3,7 +3,6 @@ import requests
 from typing import Dict, List, Optional
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

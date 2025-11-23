@@ -2,68 +2,48 @@
 import yaml
 from pathlib import Path
 from typing import Dict, Any, List
-
+import os
 
 class ConfigLoader:
     """Charge et gère la configuration de l'application."""
     
     def __init__(self, config_path: str = "config/config.yaml"):
         """
-        Initialise le chargeur de configuration.
-        
-        Args:
-            config_path: Chemin vers le fichier de configuration
+        Initialise le chargeur.
+        Le chemin est calculé par rapport à la racine du projet pour être robuste.
         """
-        self.config_path = Path(config_path)
+        # On cherche la racine du projet (2 niveaux au-dessus de ce fichier utils/)
+        self.project_root = Path(__file__).resolve().parent.parent.parent
+        self.config_path = self.project_root / config_path
         self._config = None
     
     def load(self) -> Dict[str, Any]:
-        """
-        Charge la configuration depuis le fichier YAML.
-        
-        Returns:
-            Dict contenant toute la configuration
-            
-        Raises:
-            FileNotFoundError: Si le fichier config n'existe pas
-            yaml.YAMLError: Si le fichier YAML est mal formaté
-        """
+        """Charge la configuration."""
         if not self.config_path.exists():
-            raise FileNotFoundError(f"Fichier de configuration introuvable: {self.config_path}")
+            # Fallback: cherche dans le dossier courant si lancé depuis la racine
+            local_path = Path("config/config.yaml")
+            if local_path.exists():
+                self.config_path = local_path
+            else:
+                raise FileNotFoundError(f"Fichier de configuration introuvable: {self.config_path}")
         
         with open(self.config_path, 'r', encoding='utf-8') as f:
             self._config = yaml.safe_load(f)
         
         return self._config
-    
-    def get_spotify_config(self) -> Dict[str, str]:
-        """Récupère la configuration Spotify."""
-        if not self._config:
-            self.load()
-        return self._config.get('spotify', {})
-    
+
+    # Helpers pour accès rapide
     def get_database_config(self) -> Dict[str, Any]:
-        """Récupère la configuration de la base de données."""
-        if not self._config:
-            self.load()
+        if not self._config: self.load()
         return self._config.get('database', {})
     
-    def get_meta_ads_config(self) -> Dict[str, str]:
-        """Récupère la configuration Meta Ads."""
-        if not self._config:
-            self.load()
+    def get_spotify_config(self) -> Dict[str, Any]:
+        if not self._config: self.load()
+        return self._config.get('spotify', {})
+        
+    def get_meta_ads_config(self) -> Dict[str, Any]:
+        if not self._config: self.load()
         return self._config.get('meta_ads', {})
 
-    def get_artists_config(self) -> List[Dict[str, Any]]:
-        """Récupère la liste des artistes à suivre."""
-        if not self._config:
-            self.load()
-        return self._config.get('artists', [])
-    
-    def get_active_artists(self) -> List[Dict[str, Any]]:
-        """Récupère uniquement les artistes actifs."""
-        artists = self.get_artists_config()
-        return [artist for artist in artists if artist.get('active', True)]
-
-# Instance globale pour utilisation facile
+# Instance globale
 config_loader = ConfigLoader()

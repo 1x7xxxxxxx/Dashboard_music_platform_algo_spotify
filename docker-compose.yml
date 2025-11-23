@@ -97,7 +97,7 @@ services:
       - '8080:8080'
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
+      - airflow_logs:/opt/airflow/logs
       - ./src:/opt/airflow/src
       - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
@@ -128,7 +128,7 @@ services:
       <<: *airflow-common-env
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
+      - airflow_logs:/opt/airflow/logs
       - ./src:/opt/airflow/src
       - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
@@ -142,6 +142,7 @@ services:
 # ============================================================================
 volumes:
   postgres_data:
+  airflow_logs:
 
 # ============================================================================
 # NETWORKS

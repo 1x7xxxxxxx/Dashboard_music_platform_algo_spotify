@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

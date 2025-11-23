@@ -1,5 +1,6 @@
 ﻿# Python
 __pycache__/
+*.pyc
 *.py[cod]
 *.class
 *.so
@@ -11,9 +12,13 @@ ENV/
 # Streamlit
 .streamlit/
 
+#Raccourcis
+Raccourcis.txt
+
 # Configuration sensible - CRITIQUE
 config/config.yaml
 .env
+.env.local
 .env.*
 airflow/.env
 **/.env
@@ -62,3 +67,9 @@ airflow-webserver.pid
 .coverage
 htmlcov/
 *.cover
+
+# Ignorer les fichiers de configuration locaux Airflow
+airflow.cfg
+unittests.cfg
+airflow.db
+airflow-webserver.pid

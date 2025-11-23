@@ -1,37 +1,33 @@
-﻿# Core
-pandas==2.1.3
+﻿# --- Data & Processing ---
+pandas==2.1.4
 numpy==1.26.2
 
-# Database
+# --- Database ---
+# Indispensable pour PostgreSQL
 psycopg2-binary==2.9.9
+sqlalchemy==2.0.25
 
-# API Clients
+# --- API Clients ---
+# Meta Ads
 facebook-business==18.0.0
+# Spotify
 spotipy==2.23.0
+# YouTube
+google-api-python-client==2.108.0
 
-# Dashboard
+# --- Dashboard (Local) ---
 streamlit==1.29.0
 plotly==5.18.0
-
-# File Watching
 watchdog==3.0.0
 
-# Configuration
+# --- Utilities ---
 PyYAML==6.0.1
-
-# Utils
 requests==2.31.0
 python-dotenv==1.0.0
 
+# --- Airflow & Providers (Pour Docker) ---
+# Note: apache-airflow est déjà dans l'image de base, mais nécessaire pour dev local
 apache-airflow==2.8.1
-apache-airflow-providers-common-io==1.2.0
-apache-airflow-providers-common-sql==1.10.0
-apache-airflow-providers-ftp==3.7.0
-apache-airflow-providers-http==4.9.0
-apache-airflow-providers-imap==3.5.0
 apache-airflow-providers-postgres==5.10.0
-apache-airflow-providers-sqlite==3.7.0
-
-google-api-python-client==2.108.0
-
-
+apache-airflow-providers-http==4.9.0
+apache-airflow-providers-common-sql==1.10.0

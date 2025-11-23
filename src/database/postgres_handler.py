@@ -4,7 +4,6 @@ from psycopg2.extras import execute_values
 from typing import List, Dict, Any, Optional, Tuple
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

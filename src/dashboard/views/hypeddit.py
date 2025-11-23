@@ -7,23 +7,10 @@ from pathlib import Path
 import sys
 from datetime import datetime, timedelta
 
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
-
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-
-def get_db():
-    """Connexion PostgreSQL."""
-    config = config_loader.load()
-    db_config = config['database']
-    return PostgresHandler(
-        host=db_config['host'],
-        port=db_config['port'],
-        database=db_config['database'],
-        user=db_config['user'],
-        password=db_config['password']
-    )
+from dashboard.utils import get_db_connection
 
 
 def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budget: float):
@@ -138,7 +125,7 @@ def show():
     st.markdown("---")
     
     # Vérifier si les tables existent
-    db = get_db()
+    db = get_db_connection()
     
     if not db.table_exists('hypeddit_campaigns'):
         st.error("❌ Tables Hypeddit non trouvées")

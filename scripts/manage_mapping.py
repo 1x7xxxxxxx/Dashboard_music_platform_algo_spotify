@@ -1,8 +1,12 @@
-"""Gestion de la table de mapping META x SPOTIFY."""
 import sys
+import os
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent))
 
+# On remonte de 2 niveaux (scripts -> racine du projet) pour trouver 'src'
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
+# Maintenant les imports fonctionneront
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 import pandas as pd

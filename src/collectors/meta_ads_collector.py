@@ -11,7 +11,6 @@ from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adsinsights import AdsInsights
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

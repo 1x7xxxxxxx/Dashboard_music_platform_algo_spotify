@@ -7,31 +7,17 @@ from datetime import datetime, timedelta
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-
-def get_db():
-    """Connexion PostgreSQL."""
-    config = config_loader.load()
-    db_config = config['database']
-    return PostgresHandler(
-        host=db_config['host'],
-        port=db_config['port'],
-        database=db_config['database'],
-        user=db_config['user'],
-        password=db_config['password']
-    )
-
+from dashboard.utils import get_db_connection
 
 def show():
     """Affiche la vue YouTube."""
     st.title("🎬 YouTube Analytics")
     st.markdown("---")
     
-    db = get_db()
+    db = get_db_connection()
     
     try:
         # ============================================================

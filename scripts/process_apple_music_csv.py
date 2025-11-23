@@ -1,18 +1,20 @@
-"""Script de traitement manuel des CSV Apple Music - VERSION CORRIGÉE."""
 import sys
+import os
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent))
 
-from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
+# On remonte de 2 niveaux (scripts -> racine du projet) pour trouver 'src'
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
+# Maintenant les imports fonctionneront
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
+
+from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
+
 from datetime import datetime
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
 
