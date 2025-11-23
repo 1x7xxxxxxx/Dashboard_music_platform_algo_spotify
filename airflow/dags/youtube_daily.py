@@ -8,8 +8,9 @@ import logging
 
 sys.path.insert(0, '/opt/airflow')
 
-from dotenv import load_dotenv
-load_dotenv('/opt/airflow/.env')
+#Déjà lecture via docker-compose.yml
+#from dotenv import load_dotenv
+#load_dotenv('/opt/airflow/.env')
 
 logger = logging.getLogger(__name__)
 

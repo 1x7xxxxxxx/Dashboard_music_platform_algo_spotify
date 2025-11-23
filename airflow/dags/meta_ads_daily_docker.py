@@ -9,9 +9,9 @@ import logging
 # Ajouter le projet au path
 sys.path.insert(0, '/opt/airflow')
 
-# Charger .env
-from dotenv import load_dotenv
-load_dotenv('/opt/airflow/.env')
+#Déjà lecture via docker-compose.yml
+#from dotenv import load_dotenv
+#load_dotenv('/opt/airflow/.env')
 
 logger = logging.getLogger(__name__)
 

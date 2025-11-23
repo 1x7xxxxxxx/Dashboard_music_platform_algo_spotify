@@ -16,9 +16,9 @@ from pathlib import Path
 # Ajouter le projet au path Python
 sys.path.insert(0, '/opt/airflow')
 
-# Charger les variables d'environnement
-from dotenv import load_dotenv
-load_dotenv('/opt/airflow/.env')
+#Déjà lecture via docker-compose.yml
+#from dotenv import load_dotenv
+#load_dotenv('/opt/airflow/.env')
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +222,7 @@ with DAG(
     dag_id='s4a_csv_watcher',
     default_args=default_args,
     description='🎵 Surveillance automatique des CSV Spotify for Artists',
-    schedule_interval=None,  # Toutes les 15 minutes
+    schedule_interval=None,  # manuellement
     start_date=datetime(2025, 1, 20),
     catchup=False,  # Ne pas rattraper les exécutions passées
     tags=['spotify', 's4a', 'csv', 'production'],

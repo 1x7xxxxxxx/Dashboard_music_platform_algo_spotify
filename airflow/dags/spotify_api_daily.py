@@ -48,7 +48,8 @@ def collect_spotify_artists(**context):
         db = PostgresHandler(
             host=os.getenv('DATABASE_HOST', 'postgres'),
             port=int(os.getenv('DATABASE_PORT', 5432)),
-            database='spotify_etl',  # ✅ Base correcte
+            #database='spotify_etl',  # ✅ Base correcte, mais on vient la récupérer dynamiquement via .env
+            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
             user=os.getenv('DATABASE_USER', 'postgres'),
             password=os.getenv('DATABASE_PASSWORD')
         )
