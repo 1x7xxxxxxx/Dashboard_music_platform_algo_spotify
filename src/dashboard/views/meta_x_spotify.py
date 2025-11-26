@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-from dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection
 
 def get_available_songs():
     """Récupère la liste des chansons avec mapping actif."""
-    db = get_db()
+    db = get_db_connection()
     
     query = """
         SELECT DISTINCT
@@ -42,7 +42,7 @@ def get_combined_data(song: str, start_date, end_date):
     Returns:
         DataFrame avec : date, streams, popularity, conversions
     """
-    db = get_db()
+    db = get_db_connection()
     
     query = """
         WITH date_range AS (

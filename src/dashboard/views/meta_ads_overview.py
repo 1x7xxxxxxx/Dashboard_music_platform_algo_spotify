@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-from dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection
 
 def get_date_range_filter(key_suffix=""):
     """Crée un filtre de sélection de dates."""

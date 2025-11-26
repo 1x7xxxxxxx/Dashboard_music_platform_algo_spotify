@@ -1,23 +1,24 @@
 """
-DAG Apple Music CSV Watcher - Surveillance automatique des CSV - VERSION CORRIGÉE
+DAG Apple Music CSV Watcher - Ingestion et Historisation
 Fréquence : Toutes les 15 minutes
-Description : Détecte et traite automatiquement les nouveaux CSV Apple Music
+Description : 
+1. Détecte les CSV dans data/raw/apple_music
+2. Met à jour la table 'apple_songs_performance' (Dernier état connu)
+3. Insère une ligne dans 'apple_songs_history' (Snapshot quotidien pour calculs)
+4. Archive le fichier traité
 """
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.empty import EmptyOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import sys
 import os
 import logging
 from pathlib import Path
 
+# Ajouter le chemin pour trouver les modules src
 sys.path.insert(0, '/opt/airflow')
-
-#Déjà lecture via docker-compose.yml
-#from dotenv import load_dotenv
-#load_dotenv('/opt/airflow/.env')
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,6 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
-
 
 def check_for_new_csv(**context):
     """Vérifie s'il y a de nouveaux CSV à traiter."""
@@ -43,46 +43,39 @@ def check_for_new_csv(**context):
         logger.info(f'📊 {len(csv_files)} fichier(s) CSV trouvé(s)')
         
         if csv_files:
-            for csv_file in csv_files:
-                logger.info(f'   📄 {csv_file.name}')
-            
+            # On transmet la liste des fichiers sous forme de chaînes de caractères
             file_paths = [str(f) for f in csv_files]
-            context['task_instance'].xcom_push(
-                key='csv_files',
-                value=file_paths
-            )
-            
+            context['task_instance'].xcom_push(key='csv_files', value=file_paths)
             return 'process_csv_files'
         else:
-            logger.info('ℹ️  Aucun nouveau CSV à traiter')
             return 'skip_processing'
         
     except Exception as e:
-        logger.error(f'❌ Erreur lors de la vérification des CSV: {e}')
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f'❌ Erreur scan dossier: {e}')
         return 'skip_processing'
 
 
 def process_csv_files(**context):
-    """Traite tous les CSV trouvés."""
+    """Traite les CSV : Upsert Performance + Insert History."""
     try:
+        # Imports à l'intérieur de la fonction pour éviter les erreurs de Top-Level code
         from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
         from src.database.postgres_handler import PostgresHandler
         
         logger.info('='*70)
-        logger.info('🍎 TRAITEMENT DES CSV APPLE MUSIC')
+        logger.info('🍎 TRAITEMENT CSV APPLE MUSIC')
         logger.info('='*70)
         
+        # Récupérer la liste des fichiers
         csv_files = context['task_instance'].xcom_pull(
             task_ids='check_new_csv',
             key='csv_files'
         )
         
         if not csv_files:
-            logger.warning('⚠️  Aucun fichier CSV dans XCom')
             return 0
         
+        # Initialiser Parser et DB
         parser = AppleMusicCSVParser()
         
         db = PostgresHandler(
@@ -94,37 +87,31 @@ def process_csv_files(**context):
         )
         
         processed_count = 0
-        total_records = 0
         
-        for csv_file_str in csv_files:
-            csv_file = Path(csv_file_str)
-            
+        for file_path_str in csv_files:
+            csv_file = Path(file_path_str)
             if not csv_file.exists():
-                logger.warning(f'⚠️  Fichier introuvable: {csv_file.name}')
                 continue
+                
+            logger.info(f'\n📄 Traitement : {csv_file.name}')
             
-            logger.info(f'\n📄 Traitement: {csv_file.name}')
-            
+            # 1. Parsing
             result = parser.parse_csv_file(csv_file)
+            csv_type = result.get('type')
+            data = result.get('data')
             
-            if not result['type']:
-                logger.warning(f'⚠️  Type CSV non reconnu: {csv_file.name}')
+            if not data:
+                logger.warning(f"⚠️ Aucune donnée ou type inconnu pour {csv_file.name}")
                 continue
             
-            if not result['data']:
-                logger.warning(f'⚠️  Aucune donnée extraite: {csv_file.name}')
-                continue
-            
-            csv_type = result['type']
-            data = result['data']
-            
-            logger.info(f'   🏷️  Type: {csv_type}')
-            logger.info(f'   📊 Enregistrements: {len(data)}')
-            
+            # 2. Ingestion selon le type
             try:
+                # On se concentre sur le rapport principal "Songs Performance"
                 if csv_type == 'songs_performance':
-                    # ✅ CORRECTION : Ajouter les nouvelles colonnes dans update_columns
-                    count = db.upsert_many(
+                    
+                    # A. UPSERT : Mettre à jour l'état actuel (Performance globale)
+                    # Cela sert pour les KPIs "Total à date"
+                    count_perf = db.upsert_many(
                         table='apple_songs_performance',
                         data=data,
                         conflict_columns=['song_name'],
@@ -134,101 +121,91 @@ def process_csv_files(**context):
                             'collected_at'
                         ]
                     )
-                    logger.info(f'   ✅ {count} chanson(s) stockée(s)')
-                
-                elif csv_type == 'daily_plays':
-                    count = db.upsert_many(
-                        table='apple_daily_plays',
-                        data=data,
-                        conflict_columns=['song_name', 'date'],
-                        update_columns=['plays', 'collected_at']
-                    )
-                    logger.info(f'   ✅ {count} enregistrement(s) stocké(s)')
-                
-                elif csv_type == 'listeners':
-                    count = db.upsert_many(
-                        table='apple_listeners',
-                        data=data,
-                        conflict_columns=['date'],
-                        update_columns=['listeners', 'collected_at']
-                    )
-                    logger.info(f'   ✅ {count} jour(s) stocké(s)')
-                
+                    logger.info(f"   ✅ Performance mise à jour : {count_perf} lignes")
+
+                    # B. INSERT : Créer un snapshot pour l'historique (Calculs quotidiens)
+                    # On extrait juste ce qui est nécessaire pour le calcul J - (J-1)
+                    history_data = []
+                    current_date = date.today()
+                    timestamp = datetime.now()
+                    
+                    for row in data:
+                        history_data.append({
+                            'song_name': row['song_name'],
+                            'plays': row['plays'],            # Valeur cumulée à ce jour
+                            'shazam_count': row.get('shazam_count', 0),
+                            'date': current_date,
+                            'collected_at': timestamp
+                        })
+                    
+                    # Nettoyage préventif : Si on relance le script 2 fois le même jour,
+                    # on supprime d'abord les entrées d'aujourd'hui pour éviter les doublons
+                    for row in history_data:
+                        db.execute_query(
+                            "DELETE FROM apple_songs_history WHERE song_name = %s AND date = %s",
+                            (row['song_name'], row['date'])
+                        )
+                    
+                    # Insertion propre
+                    count_hist = db.insert_many('apple_songs_history', history_data)
+                    logger.info(f"   ✅ Historique sauvegardé : {count_hist} lignes (Snapshot du jour)")
+
                 else:
-                    logger.error(f'   ❌ Type non supporté: {csv_type}')
-                    continue
-                
-                total_records += len(data)
-                
-                # Archiver
+                    # Pour les autres types (si jamais tu en remets), on log juste
+                    logger.info(f"   ℹ️ Type '{csv_type}' ignoré (focus sur performance/history)")
+
+                # 3. Archivage
                 archive_dir = Path('/opt/airflow/data/processed/apple_music')
                 archive_dir.mkdir(parents=True, exist_ok=True)
                 
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                new_name = f"{csv_file.stem}_{timestamp}{csv_file.suffix}"
-                archive_path = archive_dir / new_name
+                timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+                new_name = f"{csv_file.stem}_{timestamp_str}{csv_file.suffix}"
                 
-                csv_file.rename(archive_path)
-                logger.info(f'   📦 Archivé: {archive_path.name}')
-                
+                csv_file.rename(archive_dir / new_name)
+                logger.info(f"   📦 Archivé sous : {new_name}")
                 processed_count += 1
                 
             except Exception as e:
-                logger.error(f'   ❌ Erreur stockage: {e}')
-                import traceback
-                logger.error(traceback.format_exc())
+                logger.error(f"❌ Erreur sur le fichier {csv_file.name}: {e}")
+                # On continue vers le fichier suivant même si celui-ci plante
                 continue
         
         db.close()
-        
-        logger.info('\n' + '='*70)
-        logger.info(f'✅ TRAITEMENT TERMINÉ')
-        logger.info('='*70)
-        logger.info(f'📊 Fichiers traités: {processed_count}/{len(csv_files)}')
-        logger.info(f'📊 Enregistrements stockés: {total_records}')
-        logger.info('='*70)
-        
+        logger.info(f"🏁 Fin du traitement. {processed_count} fichiers traités.")
         return processed_count
-        
+
     except Exception as e:
-        logger.error(f'❌ Erreur globale traitement CSV: {e}')
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"❌ Erreur fatale DAG : {e}")
         raise
 
 
 with DAG(
     dag_id='apple_music_csv_watcher',
     default_args=default_args,
-    description='🍎 Surveillance automatique des CSV Apple Music',
+    description='Ingestion Apple Music (Performance + Snapshot Historique)',
     schedule_interval='*/15 * * * *',  # Toutes les 15 minutes
     start_date=datetime(2025, 1, 20),
     catchup=False,
-    tags=['apple_music', 'csv', 'production'],
-    max_active_runs=1,
+    tags=['apple', 'csv', 'production'],
+    max_active_runs=1
 ) as dag:
-    
-    check_csv_task = BranchPythonOperator(
+
+    check_task = BranchPythonOperator(
         task_id='check_new_csv',
         python_callable=check_for_new_csv,
-        provide_context=True,
+        provide_context=True
     )
-    
-    process_csv_task = PythonOperator(
+
+    process_task = PythonOperator(
         task_id='process_csv_files',
         python_callable=process_csv_files,
-        provide_context=True,
+        provide_context=True
     )
-    
-    skip_task = EmptyOperator(
-        task_id='skip_processing'
-    )
-    
-    end_task = EmptyOperator(
-        task_id='end',
-        trigger_rule='none_failed_min_one_success'
-    )
-    
-    check_csv_task >> [process_csv_task, skip_task]
-    process_csv_task >> end_task
+
+    skip_task = EmptyOperator(task_id='skip_processing')
+    end_task = EmptyOperator(task_id='end', trigger_rule='none_failed_min_one_success')
+
+    # Orchestration
+    check_task >> [process_task, skip_task]
+    process_task >> end_task
     skip_task >> end_task

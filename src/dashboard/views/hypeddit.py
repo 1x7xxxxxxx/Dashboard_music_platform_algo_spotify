@@ -10,12 +10,12 @@ from datetime import datetime, timedelta
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-from dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection
 
 
 def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budget: float):
     """Ajoute ou met à jour les statistiques d'une campagne."""
-    db = get_db()
+    db = get_db_connection()
     
     try:
         # D'abord, s'assurer que la campagne existe
@@ -78,7 +78,7 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
 
 def get_campaigns_list():
     """Récupère la liste des campagnes actives."""
-    db = get_db()
+    db = get_db_connection()
     
     query = """
         SELECT campaign_name, created_at
@@ -95,7 +95,7 @@ def get_campaigns_list():
 
 def get_campaign_stats(campaign_name: str, start_date, end_date):
     """Récupère les statistiques d'une campagne."""
-    db = get_db()
+    db = get_db_connection()
     
     query = """
         SELECT 
@@ -473,7 +473,7 @@ def show():
         st.markdown("---")
         
         # Requête historique
-        db = get_db()
+        db = get_db_connection()
         
         if filter_campaign == 'Toutes':
             query = """

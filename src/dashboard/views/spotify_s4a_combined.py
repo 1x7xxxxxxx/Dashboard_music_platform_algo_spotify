@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-from dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection
 
 def show():
     """Affiche la page Spotify & S4A combinée."""
