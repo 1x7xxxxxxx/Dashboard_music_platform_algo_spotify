@@ -150,21 +150,22 @@ def collect_youtube_data(**context):
                 )
             
             logger.info(f'   ✅ {len(data["video_stats"])} stats vidéos stockées')
+
         
-        # Stocker playlists
-        if data['playlists']:
-            logger.info(f'📋 Stockage {len(data["playlists"])} playlists...')
+        # # Stocker playlists
+        # if data['playlists']:
+        #     logger.info(f'📋 Stockage {len(data["playlists"])} playlists...')
             
-            count = db.upsert_many(
-                table='youtube_playlists',
-                data=data['playlists'],
-                conflict_columns=['playlist_id'],
-                update_columns=[
-                    'title', 'description', 'video_count', 
-                    'thumbnail_url', 'collected_at'
-                ]
-            )
-            logger.info(f'   ✅ {count} playlists stockées')
+        #     count = db.upsert_many(
+        #         table='youtube_playlists',
+        #         data=data['playlists'],
+        #         conflict_columns=['playlist_id'],
+        #         update_columns=[
+        #             'title', 'description', 'video_count', 
+        #             'thumbnail_url', 'collected_at'
+        #         ]
+        #     )
+        #     logger.info(f'   ✅ {count} playlists stockées')
         
         # Stocker commentaires (si collectés)
         if data['comments']:
@@ -193,8 +194,7 @@ def collect_youtube_data(**context):
         
         return {
             'channel_name': data['channel_stats']['channel_name'],
-            'videos_count': len(data['videos']),
-            'playlists_count': len(data['playlists'])
+            'videos_count': len(data['videos'])
         }
         
     except Exception as e:

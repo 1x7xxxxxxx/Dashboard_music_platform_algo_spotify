@@ -26,3 +26,4 @@ psycopg2-binary==2.9.9
 apache-airflow-providers-postgres
 apache-airflow-providers-http
 apache-airflow-providers-common-sql
+isodate==0.6.1
