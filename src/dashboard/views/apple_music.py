@@ -69,7 +69,7 @@ def show():
             )
             fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
             fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         st.markdown("---")
         
@@ -127,7 +127,7 @@ def show():
                             title="Nouveaux Streams par Jour", markers=True
                         )
                         fig_streams.update_layout(hovermode='x unified')
-                        st.plotly_chart(fig_streams, use_container_width=True)
+                        st.plotly_chart(fig_streams, width='stretch')
                         
                     with tab2:
                         fig_shazams = px.bar(
@@ -135,7 +135,7 @@ def show():
                             title="Nouveaux Shazams par Jour", barmode='group'
                         )
                         fig_shazams.update_layout(hovermode='x unified')
-                        st.plotly_chart(fig_shazams, use_container_width=True)
+                        st.plotly_chart(fig_shazams, width='stretch')
                         
                 else:
                     st.info("📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données).")

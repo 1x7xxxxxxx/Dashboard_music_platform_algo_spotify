@@ -1,335 +1,220 @@
-"""Page Spotify & S4A - Vue combinée."""
+"""Page Spotify & S4A - Vue consolidée et nettoyée."""
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pathlib import Path
-import sys
 from datetime import datetime, timedelta
-
-from src.database.postgres_handler import PostgresHandler
-from src.utils.config_loader import config_loader
-
 from src.dashboard.utils import get_db_connection
+
+# ⚠️ IMPORTANT : Le nom exact tel qu'il apparaît dans tes CSV pour la ligne "Total"
+ARTIST_NAME_FILTER = "1x7xxxxxxx" 
 
 def show():
     """Affiche la page Spotify & S4A combinée."""
     st.title("🎵 Spotify & S4A")
-    st.markdown("### Analyse complète des performances musicales")
+    st.markdown("### Analyse des performances (Source : Timeline CSV)")
     st.markdown("---")
     
     db = get_db_connection()
     
     # ============================================================================
-    # SECTION 1 : KPIs GLOBAUX
+    # 1. RÉCUPÉRATION DES DONNÉES GLOBALES
+    # ============================================================================
+    
+    # A. Date de mise à jour
+    update_query = "SELECT MAX(collected_at) FROM s4a_song_timeline"
+    last_update_res = db.fetch_query(update_query)
+    last_update = last_update_res[0][0] if last_update_res and last_update_res[0][0] else None
+
+    # B. KPIs (Excluant l'artiste pour ne pas doubler)
+    stats_query = """
+        SELECT 
+            COUNT(DISTINCT song), 
+            SUM(streams)
+        FROM s4a_song_timeline
+        WHERE song NOT ILIKE %s
+    """
+    stats_res = db.fetch_query(stats_query, (f"%{ARTIST_NAME_FILTER}%",))
+    songs_count = stats_res[0][0] or 0
+    total_streams_individual = stats_res[0][1] or 0
+
+    # ============================================================================
+    # 2. AFFICHAGE DES MÉTRIQUES (3 COLONNES)
     # ============================================================================
     st.header("🎯 Métriques Globales")
+    col1, col2, col3 = st.columns(3)
     
-    col1, col2 = st.columns(2)
+    col1.metric("🎵 Chansons Actives", f"{songs_count}")
+    col2.metric("🎧 Cumul Streams (Titres)", f"{total_streams_individual:,}")
     
-    # Total chansons
-    songs_count = db.get_table_count('s4a_songs_global')
-    col1.metric("🎵 Total Chansons", f"{songs_count}")
-    
-    # Total streams
-    total_streams_query = "SELECT SUM(streams) FROM s4a_songs_global"
-    total_streams = db.fetch_query(total_streams_query)[0][0] or 0
-    col2.metric("🎧 Streams Totaux", f"{total_streams:,}")
+    # C. Affichage intelligent de la date
+    if last_update:
+        time_diff = datetime.now() - last_update
+        hours_ago = int(time_diff.total_seconds() / 3600)
+        
+        # Calcul du petit texte "delta" (ex: -2h)
+        if hours_ago < 1:
+            delta_str = "À l'instant"
+            delta_color = "normal"
+        elif hours_ago < 24:
+            delta_str = f"Il y a {hours_ago}h"
+            delta_color = "off" # Gris
+        else:
+            days = int(hours_ago / 24)
+            delta_str = f"Il y a {days}j"
+            delta_color = "off"
+
+        col3.metric(
+            "🕐 Dernière MàJ", 
+            last_update.strftime('%d/%m %H:%M'), 
+            delta=delta_str,
+            delta_color=delta_color
+        )
+    else:
+        col3.metric("🕐 Dernière MàJ", "Aucune donnée")
     
     st.markdown("---")
     
     # ============================================================================
-    # SECTION 2 : TOP 10 CHANSONS PAR STREAMS (avec étiquettes)
+    # 3. TOP CHANSONS (Exclut l'artiste)
     # ============================================================================
-    st.header("🏆 Top 10 Chansons par Streams")
+    st.header("🏆 Top Chansons")
     
-    top_songs_query = """
+    df_top = db.fetch_df("""
         SELECT 
-            song,
-            streams,
-            listeners,
-            release_date
-        FROM s4a_songs_global
-        ORDER BY streams DESC
+            song, 
+            SUM(streams) as total_streams
+        FROM s4a_song_timeline
+        WHERE song NOT ILIKE %s
+        GROUP BY song
+        ORDER BY total_streams DESC
         LIMIT 10
-    """
-    
-    df_top = db.fetch_df(top_songs_query)
+    """, (f"%{ARTIST_NAME_FILTER}%",))
     
     if not df_top.empty:
-        # Créer le graphique en barres avec étiquettes
         fig_top = px.bar(
             df_top,
-            x='streams',
+            x='total_streams',
             y='song',
             orientation='h',
-            title="",
-            labels={'streams': 'Streams', 'song': 'Chanson'},
-            color='streams',
-            color_continuous_scale='viridis',
-            text='streams'  # Ajouter les étiquettes
+            text='total_streams',
+            labels={'total_streams': 'Streams', 'song': ''},
+            color='total_streams',
+            color_continuous_scale='viridis'
         )
-        
-        # Formater les étiquettes pour afficher les nombres avec séparateurs
-        fig_top.update_traces(
-            texttemplate='%{text:,.0f}',
-            textposition='outside'
-        )
-        
+        fig_top.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
         fig_top.update_layout(
             height=500,
             showlegend=False,
-            xaxis_title='Streams',
-            yaxis_title='',
-            font=dict(size=12)
+            xaxis_title="Total Streams",
+            yaxis={'categoryorder':'total ascending'}
         )
-        
-        st.plotly_chart(fig_top, use_container_width=True)
+        st.plotly_chart(fig_top, width='stretch')
     else:
-        st.warning("⚠️ Aucune donnée disponible")
+        st.info("Pas de données disponibles.")
     
     st.markdown("---")
     
     # ============================================================================
-    # SECTION 3 : ÉVOLUTION DE L'AUDIENCE (avec filtres)
+    # 4. ÉVOLUTION DE L'AUDIENCE GLOBALE (Calculée)
     # ============================================================================
-    st.header("📈 Évolution de l'Audience")
+    st.header("📈 Évolution de l'Audience Globale")
+    st.caption("Calculé : Somme des streams de tous les titres par jour")
     
-    # Filtres
-    st.subheader("🔍 Filtres")
-    
+    # Filtres date
     col1, col2 = st.columns(2)
+    default_start = datetime.now().date() - timedelta(days=365)
+    start_date_aud = col1.date_input("Début", value=default_start, key="date_aud_start")
+    end_date_aud = col2.date_input("Fin", value=datetime.now().date(), key="date_aud_end")
     
-    with col1:
-        start_date_audience = st.date_input(
-            "📅 Date début",
-            value=datetime.now().date() - timedelta(days=60),
-            key="start_date_audience"
-        )
-    
-    with col2:
-        end_date_audience = st.date_input(
-            "📅 Date fin",
-            value=datetime.now().date(),
-            key="end_date_audience"
-        )
-    
-    st.markdown("---")
-    
-    # Récupérer les données d'audience
+    # REQUÊTE : On somme tous les streams jour par jour
     audience_query = """
-        SELECT 
-            date,
-            listeners,
-            streams,
-            followers
-        FROM s4a_audience
-        WHERE date >= %s AND date <= %s
+        SELECT date, SUM(streams) as daily_streams
+        FROM s4a_song_timeline
+        WHERE song NOT ILIKE %s 
+          AND date >= %s 
+          AND date <= %s
+        GROUP BY date
         ORDER BY date
     """
-    
-    df_audience = db.fetch_df(audience_query, (start_date_audience, end_date_audience))
+    df_audience = db.fetch_df(audience_query, (f"%{ARTIST_NAME_FILTER}%", start_date_aud, end_date_aud))
     
     if not df_audience.empty:
-        df_audience['date'] = pd.to_datetime(df_audience['date'])
+        fig_aud = go.Figure()
         
-        # Graphique multi-lignes avec listeners en JAUNE
-        fig_audience = go.Figure()
-        
-        # Streams (vert Spotify)
-        fig_audience.add_trace(go.Scatter(
-            x=df_audience['date'],
-            y=df_audience['streams'],
-            name='Streams',
+        fig_aud.add_trace(go.Scatter(
+            x=df_audience['date'], 
+            y=df_audience['daily_streams'], 
+            name='Streams Totaux',
             mode='lines',
-            line=dict(color='#1DB954', width=2),
-            fill='tonexty',
-            fillcolor='rgba(29, 185, 84, 0.2)'
+            fill='tozeroy',
+            line=dict(color='#1DB954', width=3)
         ))
         
-        # Listeners (JAUNE)
-        fig_audience.add_trace(go.Scatter(
-            x=df_audience['date'],
-            y=df_audience['listeners'],
-            name='Listeners',
-            mode='lines',
-            line=dict(color='#FFD700', width=2)
-        ))
-        
-        # Followers (rouge)
-        fig_audience.add_trace(go.Scatter(
-            x=df_audience['date'],
-            y=df_audience['followers'],
-            name='Followers',
-            mode='lines',
-            line=dict(color='#FF6B6B', width=2)
-        ))
-        
-        fig_audience.update_layout(
-            title="Évolution Streams / Listeners / Followers",
-            xaxis_title="Date",
-            yaxis_title="Nombre",
-            height=500,
+        fig_aud.update_layout(
+            height=400, 
             hovermode='x unified',
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            yaxis_title="Streams / Jour"
         )
-        
-        st.plotly_chart(fig_audience, use_container_width=True)
+        st.plotly_chart(fig_aud, width='stretch')
     else:
-        st.info("ℹ️ Aucune donnée disponible pour cette période")
-    
+        st.info("Pas de données pour cette période.")
+
+    # ============================================================================
+    # 5. DÉTAIL PAR CHANSON (Filtre 365 jours par défaut)
+    # ============================================================================
     st.markdown("---")
+    st.header("🎸 Détail par Chanson")
     
-    # ============================================================================
-    # SECTION 4 : ÉVOLUTION DE LA POPULARITÉ SPOTIFY (NOUVEAU)
-    # ============================================================================
-    st.header("📊 Évolution de l'Index de Popularité Spotify")
+    # Liste des chansons (SANS l'artiste)
+    songs_list = db.fetch_df("""
+        SELECT DISTINCT song 
+        FROM s4a_song_timeline 
+        WHERE song NOT ILIKE %s 
+        ORDER BY song
+    """, (f"%{ARTIST_NAME_FILTER}%",))
     
-    # Récupérer la liste des chansons disponibles dans l'historique
-    tracks_query = """
-        SELECT DISTINCT track_name
-        FROM track_popularity_history
-        ORDER BY track_name
-    """
-    
-    df_tracks_list = db.fetch_df(tracks_query)
-    
-    if not df_tracks_list.empty:
-        # Filtres
-        st.subheader("🔍 Filtres")
-        
+    if not songs_list.empty:
         col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
-            # Dropdown des chansons
-            selected_track = st.selectbox(
-                "🎵 Sélectionner une chanson",
-                options=df_tracks_list['track_name'].tolist(),
-                key="track_selector_popularity"
-            )
+            selected_song = st.selectbox("Sélectionner une chanson", songs_list['song'])
         
         with col2:
-            # Date début
-            start_date_pop = st.date_input(
-                "📅 Date début",
-                value=datetime.now().date() - timedelta(days=30),
-                format="DD/MM/YYYY",
-                key="start_date_popularity"
+            # Filtre par défaut sur 365 jours
+            start_date_song = st.date_input(
+                "Début", 
+                value=datetime.now().date() - timedelta(days=365),
+                key="song_start"
             )
-        
         with col3:
-            # Date fin
-            end_date_pop = st.date_input(
-                "📅 Date fin",
+            end_date_song = st.date_input(
+                "Fin", 
                 value=datetime.now().date(),
-                format="DD/MM/YYYY",
-                key="end_date_popularity"
+                key="song_end"
             )
         
-        st.markdown("---")
-        
-        # Récupérer l'historique de popularité pour la chanson sélectionnée
-        popularity_query = """
-            SELECT date, popularity
-            FROM track_popularity_history
-            WHERE track_name = %s
-            AND date >= %s
-              AND date <= %s
+        df_song = db.fetch_df("""
+            SELECT date, streams 
+            FROM s4a_song_timeline 
+            WHERE song = %s AND date >= %s AND date <= %s
             ORDER BY date
-        """
-        df_popularity = db.fetch_df(
-            popularity_query,
-            (selected_track, start_date_pop, end_date_pop)
-        )
-
-        # Afficher la période couverte
-        if not df_popularity.empty:
-            st.info(f"📅 Période : {df_popularity['date'].min()} → {df_popularity['date'].max()}")
+        """, (selected_song, start_date_song, end_date_song))
         
-        df_popularity = db.fetch_df(
-            popularity_query,
-            (selected_track, start_date_pop, end_date_pop)
-        )
-        
-        if not df_popularity.empty:
-            df_popularity['date'] = pd.to_datetime(df_popularity['date'])
-            
-            # Créer le graphique de popularité
-            fig_pop = go.Figure()
-            
-            fig_pop.add_trace(go.Scatter(
-                x=df_popularity['date'],
-                y=df_popularity['popularity'],
-                name='Popularité',
-                mode='lines+markers',
-                line=dict(color='#1DB954', width=3),
-                marker=dict(size=8, symbol='circle'),
-                fill='tozeroy',
-                fillcolor='rgba(29, 185, 84, 0.2)',
-                hovertemplate='<b>Date:</b> %{x|%d/%m/%Y}<br><b>Popularité:</b> %{y}/100<extra></extra>'
-            ))
-            
-            fig_pop.update_layout(
-                title=f"Évolution de la popularité : {selected_track}",
-                xaxis_title="Date",
-                yaxis_title="Index de Popularité (0-100)",
-                height=500,
-                hovermode='x unified',
-                yaxis=dict(range=[0, 100]),
-                showlegend=False
+        if not df_song.empty:
+            fig_song = px.line(
+                df_song, 
+                x='date', 
+                y='streams', 
+                title=f"Évolution Streams : {selected_song}", 
+                markers=False 
             )
-            
-            st.plotly_chart(fig_pop, use_container_width=True)
-            
-            # Statistiques de la période
-            col1, col2, col3 = st.columns(3)
-            
-            avg_pop = df_popularity['popularity'].mean()
-            col1.metric(
-                "📊 Popularité Moyenne",
-                f"{avg_pop:.1f}/100"
-            )
-            
-            max_pop = df_popularity['popularity'].max()
-            max_date = df_popularity[df_popularity['popularity'] == max_pop]['date'].iloc[0]
-            col2.metric(
-                "🔥 Maximum",
-                f"{int(max_pop)}/100",
-                f"Le {max_date.strftime('%d/%m/%Y')}"
-            )
-            
-            min_pop = df_popularity['popularity'].min()
-            min_date = df_popularity[df_popularity['popularity'] == min_pop]['date'].iloc[0]
-            col3.metric(
-                "📉 Minimum",
-                f"{int(min_pop)}/100",
-                f"Le {min_date.strftime('%d/%m/%Y')}"
-            )
-            
+            fig_song.update_traces(line_color='#1DB954', line_width=2)
+            st.plotly_chart(fig_song, width='stretch')
         else:
-            st.info(f"ℹ️ Aucune donnée de popularité disponible pour '{selected_track}' sur cette période")
-    else:
-        st.warning("⚠️ Aucune donnée d'historique de popularité disponible")
-        st.info("""
-        **Pour commencer à collecter l'historique de popularité :**
-        
-        1. Lancez la collecte Spotify API depuis la page d'accueil
-        2. Le DAG `spotify_api_daily` collectera automatiquement les données de popularité
-        3. Revenez ici pour visualiser l'évolution
-        """)
-    
-    # Footer
-    st.markdown("---")
-    st.caption(f"📊 Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    
+            st.info("Pas de données pour cette période.")
+            
     db.close()
-
 
 if __name__ == "__main__":
     show()

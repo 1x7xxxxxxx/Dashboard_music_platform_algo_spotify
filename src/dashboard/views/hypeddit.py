@@ -126,9 +126,9 @@ def show():
             
             c1, c2, c3 = st.columns([2, 1, 1])
             with c2:
-                submit = st.form_submit_button("💾 Enregistrer", type="primary", use_container_width=True)
+                submit = st.form_submit_button("💾 Enregistrer", type="primary", width='stretch')
             with c3:
-                clear = st.form_submit_button("🔄 Réinitialiser", use_container_width=True, on_click=clear_form_data)
+                clear = st.form_submit_button("🔄 Réinitialiser", width='stretch', on_click=clear_form_data)
         
         if submit:
             if not campaign_name:
@@ -267,10 +267,10 @@ def show():
                 height=550
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             with st.expander("Voir le détail des données"):
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width="stretch")
             
         else:
             st.info("📭 Aucune donnée trouvée pour la période sélectionnée.")
@@ -288,7 +288,7 @@ def show():
         
         if not df_hist.empty:
             df_hist['date'] = pd.to_datetime(df_hist['date']).dt.strftime('%d/%m/%Y')
-            st.dataframe(df_hist, use_container_width=True)
+            st.dataframe(df_hist, width='stretch')
         else:
             st.info("Historique vide.")
 

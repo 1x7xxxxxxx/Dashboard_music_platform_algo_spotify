@@ -157,7 +157,7 @@ def show():
         st.dataframe(
             df_display,
             hide_index=True,
-            use_container_width=True,
+            width='stretch',
             height=400
         )
         
@@ -314,7 +314,7 @@ def show():
                 )
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Statistiques de la période
             col1, col2, col3 = st.columns(3)
@@ -441,7 +441,7 @@ def show():
             hovermode='y'
         )
         
-        st.plotly_chart(fig_adsets, use_container_width=True)
+        st.plotly_chart(fig_adsets, width='stretch')
         
         # Statistiques
         col1, col2, col3 = st.columns(3)

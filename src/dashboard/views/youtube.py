@@ -97,7 +97,7 @@ def show():
                         markers=True
                     )
                     fig.update_traces(line_color='#FF0000')
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Croissance
                     if len(df_history) > 1:
@@ -118,7 +118,7 @@ def show():
                         title='Évolution des vues totales',
                         color_discrete_sequence=['#FF0000']
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             
             st.markdown("---")
         
@@ -159,7 +159,7 @@ def show():
                     color_continuous_scale='Reds'
                 )
                 fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             
             with tab2:
                 fig = px.bar(
@@ -173,7 +173,7 @@ def show():
                     color_continuous_scale='Blues'
                 )
                 fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             
             with tab3:
                 # Calculer engagement rate
@@ -184,7 +184,7 @@ def show():
                 df_display.columns = ['Titre', 'Vues', 'Likes', 'Commentaires', 'Engagement %', 'Publiée le']
                 df_display['Publiée le'] = pd.to_datetime(df_display['Publiée le']).dt.strftime('%Y-%m-%d')
                 
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                st.dataframe(df_display, width='stretch', hide_index=True)
                 
                 # Export CSV
                 csv = df_display.to_csv(index=False)
@@ -270,7 +270,7 @@ def show():
                             hovermode='x unified'
                         )
                         
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     else:
                         st.info("📊 Pas assez de données historiques pour cette vidéo")
             
@@ -309,7 +309,7 @@ def show():
                         color_continuous_scale='Oranges'
                     )
                     fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                 
                 with col2:
                     st.metric("📋 Total playlists", len(df_playlists))
@@ -361,7 +361,7 @@ def show():
                     color_continuous_scale='Greens'
                 )
                 fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
     
     except Exception as e:
         st.error(f"❌ Erreur lors du chargement des données : {e}")

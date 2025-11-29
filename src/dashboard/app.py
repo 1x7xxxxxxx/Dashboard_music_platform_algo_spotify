@@ -246,7 +246,7 @@ def main():
                     UNION ALL
                     SELECT collected_at FROM artists
                     UNION ALL
-                    SELECT collected_at FROM s4a_songs_global
+                    SELECT collected_at FROM s4a_song_timeline
                     UNION ALL
                     SELECT collected_at FROM apple_songs_performance
                     UNION ALL
