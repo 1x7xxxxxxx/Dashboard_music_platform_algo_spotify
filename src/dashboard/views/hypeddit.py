@@ -1,16 +1,18 @@
-"""Page Hypeddit - Saisie manuelle des statistiques."""
+"""Page Hypeddit - Saisie Manuelle & Analyse Globale (Multi-Axes)."""
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from pathlib import Path
-import sys
 from datetime import datetime, timedelta
-
-from src.database.postgres_handler import PostgresHandler
-from src.utils.config_loader import config_loader
-
 from src.dashboard.utils import get_db_connection
+
+# --- FONCTION DE CALLBACK POUR LE RESET ---
+def clear_form_data():
+    """Réinitialise les valeurs du formulaire dans le session state."""
+    st.session_state["h_visits"] = 0
+    st.session_state["h_clicks"] = 0
+    st.session_state["h_budget"] = 0.0
+    if "h_new_camp_name" in st.session_state:
+        st.session_state["h_new_camp_name"] = ""
 
 
 def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budget: float):
@@ -18,7 +20,7 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
     db = get_db_connection()
     
     try:
-        # D'abord, s'assurer que la campagne existe
+        # 1. Assurer que la campagne existe
         campaign_data = [{
             'campaign_name': campaign_name,
             'is_active': True
@@ -30,29 +32,9 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
             conflict_columns=['campaign_name'],
             update_columns=['is_active', 'updated_at']
         )
+        db.conn.commit()
 
-        # ✅ AJOUT : Commit explicite après campagne
-        db.conn.commit()
-        
-        count_stats = db.upsert_many(
-            table='hypeddit_daily_stats',
-            data=stats_data,
-            conflict_columns=['campaign_name', 'date'],
-            update_columns=['visits', 'clicks', 'budget', 'updated_at']
-        )
-        
-        # ✅ AJOUT : Commit explicite après stats
-        db.conn.commit()
-        
-        db.close()
-        return True, "✅ Données enregistrées avec succès"
-        
-    except Exception as e:
-        db.conn.rollback()  # ✅ Rollback en cas d'erreur
-        db.close()
-        return False, f"❌ Erreur: {str(e)}"
-        
-        # Ensuite, ajouter les stats
+        # 2. Stats
         stats_data = [{
             'campaign_name': campaign_name,
             'date': date,
@@ -67,505 +49,248 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
             conflict_columns=['campaign_name', 'date'],
             update_columns=['visits', 'clicks', 'budget', 'updated_at']
         )
+        db.conn.commit()
         
         db.close()
         return True, "✅ Données enregistrées avec succès"
         
     except Exception as e:
-        db.close()
+        if db and db.conn:
+            db.conn.rollback()
+        if db:
+            db.close()
         return False, f"❌ Erreur: {str(e)}"
 
 
 def get_campaigns_list():
-    """Récupère la liste des campagnes actives."""
     db = get_db_connection()
-    
-    query = """
-        SELECT campaign_name, created_at
-        FROM hypeddit_campaigns
-        WHERE is_active = true
-        ORDER BY created_at DESC
-    """
-    
+    query = "SELECT campaign_name FROM hypeddit_campaigns WHERE is_active = true ORDER BY created_at DESC"
     df = db.fetch_df(query)
     db.close()
-    
     return df['campaign_name'].tolist() if not df.empty else []
 
 
-def get_campaign_stats(campaign_name: str, start_date, end_date):
-    """Récupère les statistiques d'une campagne."""
+def get_global_stats(start_date, end_date):
+    """Récupère les statistiques de TOUTES les campagnes sur la période."""
     db = get_db_connection()
-    
     query = """
         SELECT 
-            date,
-            visits,
-            clicks,
-            budget,
-            ctr,
+            campaign_name,
+            date, 
+            visits, 
+            clicks, 
+            budget, 
+            ctr, 
             cost_per_click
         FROM hypeddit_daily_stats
-        WHERE campaign_name = %s
-          AND date >= %s
-          AND date <= %s
+        WHERE date >= %s AND date <= %s
         ORDER BY date
     """
-    
-    df = db.fetch_df(query, (campaign_name, start_date, end_date))
+    df = db.fetch_df(query, (start_date, end_date))
     db.close()
-    
     return df
 
 
 def show():
-    """Affiche la page Hypeddit."""
-    st.title("📱 Hypeddit - Saisie Manuelle")
-    st.markdown("### Gestion des campagnes Hypeddit")
+    st.title("📱 Hypeddit - Gestion & Analyse")
     st.markdown("---")
     
-    # Vérifier si les tables existent
-    db = get_db_connection()
-    
-    if not db.table_exists('hypeddit_campaigns'):
-        st.error("❌ Tables Hypeddit non trouvées")
-        st.info("""
-        **Pour utiliser cette page, créez d'abord les tables:**
-```bash
-        python src/database/hypeddit_schema.py
-```
-        """)
-        db.close()
-        return
-    
-    db.close()
+    tab1, tab2, tab3 = st.tabs(["📝 Saisie", "📊 Statistiques Globales", "📋 Historique"])
     
     # ============================================================================
-    # ONGLETS
-    # ============================================================================
-    tab1, tab2, tab3 = st.tabs(["📝 Saisie", "📊 Statistiques", "📋 Historique"])
-    
-    # ============================================================================
-    # ONGLET 1 : SAISIE DES DONNÉES
+    # ONGLET 1 : SAISIE
     # ============================================================================
     with tab1:
-        st.header("📝 Saisir les données quotidiennes")
+        st.header("📝 Saisir les données")
         
-        st.markdown("---")
-        
-        # Formulaire de saisie
         with st.form("hypeddit_entry_form"):
             col1, col2 = st.columns(2)
             
             with col1:
-                # Liste des campagnes existantes
                 existing_campaigns = get_campaigns_list()
+                campaign_type = st.radio("Type", ["Existante", "Nouvelle"], horizontal=True)
                 
-                # Choix : nouvelle campagne ou existante
-                campaign_type = st.radio(
-                    "Type de campagne",
-                    ["Campagne existante", "Nouvelle campagne"],
-                    horizontal=True
-                )
-                
-                if campaign_type == "Campagne existante":
-                    if existing_campaigns:
-                        campaign_name = st.selectbox(
-                            "🎯 Campagne",
-                            options=existing_campaigns
-                        )
-                    else:
-                        st.warning("Aucune campagne existante. Créez-en une nouvelle.")
-                        campaign_name = st.text_input(
-                            "🎯 Nom de la campagne",
-                            placeholder="Ex: Pre-save Mon Titre"
-                        )
+                if campaign_type == "Existante" and existing_campaigns:
+                    campaign_name = st.selectbox("🎯 Campagne", options=existing_campaigns)
                 else:
-                    campaign_name = st.text_input(
-                        "🎯 Nom de la nouvelle campagne",
-                        placeholder="Ex: Pre-save Mon Titre"
-                    )
+                    campaign_name = st.text_input("🎯 Nom de la campagne", key="h_new_camp_name")
                 
-                # Date
-                entry_date = st.date_input(
-                    "📅 Date",
-                    value=datetime.now().date() - timedelta(days=1),
-                    max_value=datetime.now().date()
-                )
+                entry_date = st.date_input("📅 Date", value=datetime.now().date() - timedelta(days=1))
             
             with col2:
-                # Visites
-                visits = st.number_input(
-                    "👁️ Visites",
-                    min_value=0,
-                    value=0,
-                    step=1,
-                    help="Nombre de visites de la page"
-                )
-                
-                # Clicks
-                clicks = st.number_input(
-                    "🖱️ Clicks",
-                    min_value=0,
-                    value=0,
-                    step=1,
-                    help="Nombre de clicks sur le lien"
-                )
-                
-                # Budget
-                budget = st.number_input(
-                    "💰 Budget (€)",
-                    min_value=0.0,
-                    value=0.0,
-                    step=0.01,
-                    format="%.2f",
-                    help="Budget dépensé pour cette journée"
-                )
+                visits = st.number_input("👁️ Visites", min_value=0, step=1, key="h_visits")
+                clicks = st.number_input("🖱️ Clicks", min_value=0, step=1, key="h_clicks")
+                budget = st.number_input("💰 Budget (€)", min_value=0.0, step=0.01, format="%.2f", key="h_budget")
             
             st.markdown("---")
             
-            # Boutons
-            col1, col2, col3 = st.columns([2, 1, 1])
-            
-            with col2:
-                submit_button = st.form_submit_button(
-                    "💾 Enregistrer",
-                    type="primary",
-                    use_container_width=True
-                )
-            
-            with col3:
-                clear_button = st.form_submit_button(
-                    "🔄 Réinitialiser",
-                    use_container_width=True
-                )
+            c1, c2, c3 = st.columns([2, 1, 1])
+            with c2:
+                submit = st.form_submit_button("💾 Enregistrer", type="primary", use_container_width=True)
+            with c3:
+                clear = st.form_submit_button("🔄 Réinitialiser", use_container_width=True, on_click=clear_form_data)
         
-        # Traitement du formulaire
-        if submit_button:
-            # Validation
-            if not campaign_name or campaign_name.strip() == "":
-                st.error("❌ Veuillez entrer un nom de campagne")
-            elif visits == 0 and clicks == 0 and budget == 0:
-                st.warning("⚠️ Aucune donnée saisie")
+        if submit:
+            if not campaign_name:
+                st.error("Nom de campagne requis")
             else:
-                # Enregistrement
-                with st.spinner('Enregistrement en cours...'):
-                    success, message = add_campaign_stats(
-                        campaign_name=campaign_name.strip(),
-                        date=entry_date,
-                        visits=visits,
-                        clicks=clicks,
-                        budget=budget
-                    )
-                
+                success, msg = add_campaign_stats(campaign_name, entry_date, visits, clicks, budget)
                 if success:
-                    st.success(message)
-                    
-                    # Afficher un récapitulatif
-                    st.markdown("---")
-                    st.subheader("📊 Récapitulatif")
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    col1.metric("Visites", f"{visits:,}")
-                    col2.metric("Clicks", f"{clicks:,}")
-                    col3.metric("Budget", f"{budget:.2f} €")
-                    
-                    if visits > 0:
-                        ctr = (clicks / visits) * 100
-                        col4.metric("CTR", f"{ctr:.2f}%")
-                    
-                    # Métriques calculées
-                    if clicks > 0:
-                        st.markdown("**Métriques calculées :**")
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        cpc = budget / clicks
-                        col1.metric("💰 Coût par Click", f"{cpc:.2f} €")
-                    
-                    st.balloons()
+                    st.success(msg)
                 else:
-                    st.error(message)
-        
-        if clear_button:
-            st.rerun()
-    
+                    st.error(msg)
+
     # ============================================================================
-    # ONGLET 2 : STATISTIQUES
+    # ONGLET 2 : STATS GLOBALES
     # ============================================================================
     with tab2:
-        st.header("📊 Statistiques des Campagnes")
+        st.header("📊 Analyse de l'année en cours")
         
-        # Filtres
-        st.subheader("🔍 Filtres")
-        
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2 = st.columns(2)
+        current_year = datetime.now().year
         
         with col1:
-            campaigns_list = get_campaigns_list()
-            
-            if campaigns_list:
-                selected_campaign = st.selectbox(
-                    "🎯 Sélectionner une campagne",
-                    options=campaigns_list
-                )
-            else:
-                st.warning("Aucune campagne disponible. Saisissez des données dans l'onglet 'Saisie'.")
-                return
-        
+            start = st.date_input("📅 Début", value=datetime(current_year, 1, 1), key="d1")
         with col2:
-            start_date_stats = st.date_input(
-                "📅 Date début",
-                value=datetime(2023, 1, 1).date(),
-                key="stats_start_date"
-            )
-        
-        with col3:
-            end_date_stats = st.date_input(
-                "📅 Date fin",
-                value=datetime.now().date(),
-                key="stats_end_date"
-            )
-        
+            end = st.date_input("📅 Fin", value=datetime.now(), key="d2")
+            
         st.markdown("---")
         
-        # Récupérer les données
-        df_stats = get_campaign_stats(selected_campaign, start_date_stats, end_date_stats)
+        df = get_global_stats(start, end)
         
-        if not df_stats.empty:
-            df_stats['date'] = pd.to_datetime(df_stats['date'])
+        if not df.empty:
+            # Nettoyage et conversion
+            df['visits'] = pd.to_numeric(df['visits'], errors='coerce').fillna(0)
+            df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce').fillna(0)
+            df['budget'] = pd.to_numeric(df['budget'], errors='coerce').fillna(0)
+            df['cost_per_click'] = pd.to_numeric(df['cost_per_click'], errors='coerce').fillna(0)
+            df['date'] = pd.to_datetime(df['date'])
             
-            # KPIs de la période
-            st.subheader(f"🎯 {selected_campaign}")
-            
-            col1, col2, col3, col4, col5 = st.columns(5)
-            
-            total_visits = df_stats['visits'].sum()
-            col1.metric("Visites", f"{int(total_visits):,}")
-            
-            total_clicks = df_stats['clicks'].sum()
-            col2.metric("Clicks", f"{int(total_clicks):,}")
-            
-            total_budget = df_stats['budget'].sum()
-            col3.metric("Budget", f"{total_budget:.2f} €")
-            
-            avg_ctr = df_stats['ctr'].mean()
-            col4.metric("CTR Moy.", f"{avg_ctr:.2f}%")
-            
-            avg_cpc = df_stats['cost_per_click'].mean()
-            col5.metric("CPC Moy.", f"{avg_cpc:.2f} €" if pd.notna(avg_cpc) else "N/A")
+            # KPIs Moyens
+            st.subheader("Moyennes Journalières (Toutes campagnes)")
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("👁️ Visites Moy.", f"{int(df['visits'].mean()):,}")
+            k2.metric("🖱️ Clicks Moy.", f"{int(df['clicks'].mean()):,}")
+            k3.metric("💰 Budget Moy.", f"{df['budget'].mean():.2f} €")
+            k4.metric("📉 CPC Moy.", f"{df['cost_per_click'].mean():.2f} €")
             
             st.markdown("---")
             
-            # Graphique d'évolution
-            st.subheader("📈 Évolution dans le temps")
+            # 3. Graphique Combiné (4 indicateurs)
+            st.subheader("📈 Performance Globale")
+            
+            # Aggrégation par date
+            # Pour le CPC, on doit recalculer la moyenne pondérée (Total Budget / Total Clicks) pour être précis
+            df_agg = df.groupby('date')[['visits', 'clicks', 'budget']].sum().reset_index()
+            df_agg['cpc'] = df_agg.apply(lambda x: x['budget'] / x['clicks'] if x['clicks'] > 0 else 0, axis=1)
             
             fig = go.Figure()
             
-            # Visites (barres)
+            # Axe Y1 (Gauche) : Visites
             fig.add_trace(go.Bar(
-                x=df_stats['date'],
-                y=df_stats['visits'],
+                x=df_agg['date'], y=df_agg['visits'],
                 name='Visites',
-                marker_color='lightblue',
+                marker_color='rgba(135, 206, 250, 0.5)',
                 yaxis='y'
             ))
             
-            # Clicks (ligne)
+            # Axe Y1 (Gauche) : Clicks
             fig.add_trace(go.Scatter(
-                x=df_stats['date'],
-                y=df_stats['clicks'],
+                x=df_agg['date'], y=df_agg['clicks'],
                 name='Clicks',
                 mode='lines+markers',
-                line=dict(color='#1DB954', width=2),
+                line=dict(color='#2ECC71', width=2),
                 yaxis='y'
             ))
             
-            # Budget (ligne)
+            # Axe Y2 (Droite 1) : Budget
             fig.add_trace(go.Scatter(
-                x=df_stats['date'],
-                y=df_stats['budget'],
+                x=df_agg['date'], y=df_agg['budget'],
                 name='Budget (€)',
-                mode='lines+markers',
-                line=dict(color='#FF6B6B', width=2),
+                mode='lines',
+                line=dict(color='#E74C3C', width=2, dash='dot'),
                 yaxis='y2'
             ))
             
-            fig.update_layout(
-                title="Visites, Clicks et Budget",
-                xaxis_title="Date",
-                yaxis=dict(title="Visites / Clicks"),
-                yaxis2=dict(
-                    title="Budget (€)",
-                    overlaying='y',
-                    side='right'
-                ),
-                height=500,
-                hovermode='x unified'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Graphique CTR
-            st.markdown("---")
-            st.subheader("📊 CTR (Click-Through Rate)")
-            
-            fig_ctr = go.Figure()
-            
-            fig_ctr.add_trace(go.Scatter(
-                x=df_stats['date'],
-                y=df_stats['ctr'],
+            # Axe Y3 (Droite 2 - Décalée) : CPC
+            fig.add_trace(go.Scatter(
+                x=df_agg['date'], y=df_agg['cpc'],
+                name='CPC (€)',
                 mode='lines+markers',
-                line=dict(color='#FFD700', width=2),
-                fill='tozeroy',
-                fillcolor='rgba(255, 215, 0, 0.2)'
+                line=dict(color='#9B59B6', width=2), # Violet
+                yaxis='y3'
             ))
             
-            fig_ctr.update_layout(
-                title="",
-                xaxis_title="Date",
-                yaxis_title="CTR (%)",
-                height=400
+            fig.update_layout(
+                title="Visites & Clicks vs Budget & CPC",
+                xaxis=dict(title="Date"),
+                
+                # Axe Gauche (Visites/Clicks)
+                yaxis=dict(
+                    title="Volume",
+                    side='left',
+                    showgrid=True
+                ),
+                
+                # Axe Droite 1 (Budget)
+                yaxis2=dict(
+                    title="Budget (€)",
+                    titlefont=dict(color="#E74C3C"),
+                    tickfont=dict(color="#E74C3C"),
+                    anchor="x",
+                    overlaying="y",
+                    side="right"
+                ),
+                
+                # Axe Droite 2 (CPC) - Décalé pour ne pas chevaucher
+                yaxis3=dict(
+                    title="CPC (€)",
+                    titlefont=dict(color="#9B59B6"),
+                    tickfont=dict(color="#9B59B6"),
+                    anchor="free",
+                    overlaying="y",
+                    side="right",
+                    position=1.0, # Positionne l'axe un peu plus à droite
+                    showgrid=False
+                ),
+                
+                # Ajustement des marges pour faire place au 3ème axe
+                margin=dict(r=20), # Marge droite
+                hovermode='x unified',
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.05,
+                    xanchor="right",
+                    x=1
+                ),
+                height=550
             )
+
+            st.plotly_chart(fig, use_container_width=True)
             
-            st.plotly_chart(fig_ctr, use_container_width=True)
+            with st.expander("Voir le détail des données"):
+                st.dataframe(df, use_container_width=True)
             
         else:
-            st.info(f"ℹ️ Aucune donnée pour '{selected_campaign}' sur cette période")
-    
+            st.info("📭 Aucune donnée trouvée pour la période sélectionnée.")
+
     # ============================================================================
     # ONGLET 3 : HISTORIQUE
     # ============================================================================
     with tab3:
-        st.header("📋 Historique des Saisies")
-        
-        # Filtres
-        col1, col2, col3 = st.columns([2, 1, 1])
-        
-        with col1:
-            campaigns_list = get_campaigns_list()
-            
-            if campaigns_list:
-                filter_campaign = st.selectbox(
-                    "🎯 Filtrer par campagne",
-                    options=['Toutes'] + campaigns_list,
-                    key="history_campaign_filter"
-                )
-            else:
-                st.warning("Aucune campagne disponible")
-                return
-        
-        with col2:
-            start_date_history = st.date_input(
-                "📅 Date début",
-                value=datetime(2023, 1, 1).date(),
-                key="history_start_date"
-            )
-        
-        with col3:
-            end_date_history = st.date_input(
-                "📅 Date fin",
-                value=datetime.now().date(),
-                key="history_end_date"
-            )
-        
-        st.markdown("---")
-        
-        # Requête historique
         db = get_db_connection()
-        
-        if filter_campaign == 'Toutes':
-            query = """
-                SELECT 
-                    campaign_name,
-                    date,
-                    visits,
-                    clicks,
-                    budget,
-                    ctr,
-                    cost_per_click,
-                    updated_at
-                FROM hypeddit_daily_stats
-                WHERE date >= %s AND date <= %s
-                ORDER BY date DESC, campaign_name
-            """
-            params = (start_date_history, end_date_history)
-        else:
-            query = """
-                SELECT 
-                    campaign_name,
-                    date,
-                    visits,
-                    clicks,
-                    budget,
-                    ctr,
-                    cost_per_click,
-                    updated_at
-                FROM hypeddit_daily_stats
-                WHERE campaign_name = %s
-                  AND date >= %s 
-                  AND date <= %s
-                ORDER BY date DESC
-            """
-            params = (filter_campaign, start_date_history, end_date_history)
-        
-        df_history = db.fetch_df(query, params)
+        df_hist = db.fetch_df("""
+            SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click 
+            FROM hypeddit_daily_stats ORDER BY date DESC LIMIT 50
+        """)
         db.close()
         
-        if not df_history.empty:
-            # Formater pour affichage
-            df_display = df_history.copy()
-            
-            df_display['date'] = pd.to_datetime(df_display['date']).dt.strftime('%d/%m/%Y')
-            df_display['updated_at'] = pd.to_datetime(df_display['updated_at']).dt.strftime('%d/%m/%Y %H:%M')
-            
-            df_display = df_display.rename(columns={
-                'campaign_name': 'Campagne',
-                'date': 'Date',
-                'visits': 'Visites',
-                'clicks': 'Clicks',
-                'budget': 'Budget',
-                'ctr': 'CTR (%)',
-                'cost_per_click': 'CPC',
-                'updated_at': 'Modifié le'
-            })
-            
-            # Formater les valeurs
-            df_display['Visites'] = df_display['Visites'].apply(lambda x: f"{int(x):,}")
-            df_display['Clicks'] = df_display['Clicks'].apply(lambda x: f"{int(x):,}")
-            df_display['Budget'] = df_display['Budget'].apply(lambda x: f"{x:.2f} €")
-            df_display['CTR (%)'] = df_display['CTR (%)'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A")
-            df_display['CPC'] = df_display['CPC'].apply(lambda x: f"{x:.2f} €" if pd.notna(x) else "N/A")
-            
-            st.dataframe(
-                df_display,
-                hide_index=True,
-                use_container_width=True,
-                height=600
-            )
-            
-            st.caption(f"📊 {len(df_history)} enregistrement(s) • Période : {start_date_history} → {end_date_history}")
-            
-            # Option d'export
-            st.markdown("---")
-            
-            if st.button("📥 Exporter en CSV", type="secondary"):
-                csv = df_display.to_csv(index=False)
-                st.download_button(
-                    label="Télécharger le CSV",
-                    data=csv,
-                    file_name=f"hypeddit_export_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
-                )
-        
+        if not df_hist.empty:
+            df_hist['date'] = pd.to_datetime(df_hist['date']).dt.strftime('%d/%m/%Y')
+            st.dataframe(df_hist, use_container_width=True)
         else:
-            st.info("ℹ️ Aucun historique disponible pour cette période/campagne")
-    
-    # Footer
-    st.markdown("---")
-    st.caption(f"📊 Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
+            st.info("Historique vide.")
 
 if __name__ == "__main__":
     show()
