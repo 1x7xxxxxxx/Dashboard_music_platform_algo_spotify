@@ -1,277 +1,179 @@
+"""Script CLI pour gérer le mapping Campagnes Meta <-> Chansons Spotify."""
 import sys
 import os
 from pathlib import Path
+from tabulate import tabulate
+import pandas as pd
 
-# On remonte de 2 niveaux (scripts -> racine du projet) pour trouver 'src'
+# Setup chemin
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-# Maintenant les imports fonctionneront
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
-import pandas as pd
 
 def get_db():
-    """Connexion PostgreSQL."""
     config = config_loader.load()
     return PostgresHandler(**config['database'])
 
-
 def list_campaigns():
-    """Liste toutes les campagnes Meta disponibles."""
+    """Liste les campagnes disponibles depuis la vue globale."""
     db = get_db()
-    
-    query = """
-        SELECT 
-            c.campaign_id,
-            c.campaign_name,
-            c.status,
-            COUNT(DISTINCT i.ad_id) as ads_count,
-            COALESCE(SUM(i.conversions), 0) as total_conversions
-        FROM meta_campaigns c
-        LEFT JOIN meta_ads a ON c.campaign_id = a.campaign_id
-        LEFT JOIN meta_insights i ON a.ad_id = i.ad_id
-        GROUP BY c.campaign_id, c.campaign_name, c.status
-        ORDER BY c.created_time DESC
-    """
-    
-    df = db.fetch_df(query)
-    db.close()
-    
-    return df
-
-
-def list_songs():
-    """Liste toutes les chansons Spotify disponibles."""
-    db = get_db()
-    
-    query = """
-        SELECT DISTINCT
-            st.song,
-            sg.streams as total_streams,
-            t.track_id,
-            t.popularity
-        FROM s4a_song_timeline st
-        LEFT JOIN s4a_songs_global sg ON st.song = sg.song
-        LEFT JOIN tracks t ON LOWER(t.track_name) = LOWER(st.song)
-        GROUP BY st.song, sg.streams, t.track_id, t.popularity
-        ORDER BY sg.streams DESC NULLS LAST
-    """
-    
-    df = db.fetch_df(query)
-    db.close()
-    
-    return df
-
-
-def add_mapping(campaign_id: str, song: str, track_id: str = None):
-    """Ajoute un mapping campagne ↔ chanson."""
-    db = get_db()
-    
     try:
-        data = [{
-            'campaign_id': campaign_id,
-            'song': song,
-            'track_id': track_id,
-            'is_active': True
-        }]
-        
-        db.upsert_many(
-            table='meta_spotify_mapping',
-            data=data,
-            conflict_columns=['campaign_id', 'song'],
-            update_columns=['track_id', 'is_active', 'updated_at']
-        )
-        
-        print(f"✅ Mapping ajouté : {campaign_id} ↔ {song}")
-        
-    except Exception as e:
-        print(f"❌ Erreur : {e}")
-    
-    db.close()
+        # On tape directement dans la table des stats globales
+        query = """
+            SELECT 
+                campaign_name,
+                MIN(date_start) as start_date,
+                SUM(spend) as total_spend,
+                SUM(clicks) as total_clicks
+            FROM meta_insights_global
+            GROUP BY campaign_name
+            ORDER BY start_date DESC
+        """
+        df = db.fetch_df(query)
+        return df
+    finally:
+        db.close()
 
+def list_tracks():
+    """Liste les chansons disponibles (S4A + API)."""
+    db = get_db()
+    try:
+        # On combine S4A et API pour avoir le maximum de choix
+        query = """
+            SELECT DISTINCT song as track_name, song_uri as uri, 'S4A' as source
+            FROM s4a_song_timeline
+            UNION
+            SELECT DISTINCT name, track_id, 'API'
+            FROM spotify_tracks
+            ORDER BY track_name
+        """
+        df = db.fetch_df(query)
+        return df
+    finally:
+        db.close()
 
 def list_mappings():
-    """Liste tous les mappings actifs."""
+    """Affiche les liens existants."""
     db = get_db()
-    
-    query = """
-        SELECT 
-            m.id,
-            c.campaign_name,
-            m.song,
-            t.popularity as spotify_popularity,
-            m.is_active,
-            m.created_at
-        FROM meta_spotify_mapping m
-        JOIN meta_campaigns c ON m.campaign_id = c.campaign_id
-        LEFT JOIN tracks t ON m.track_id = t.track_id
-        ORDER BY m.created_at DESC
-    """
-    
-    df = db.fetch_df(query)
-    db.close()
-    
-    return df
-
-
-def delete_mapping(mapping_id: int):
-    """Désactive un mapping."""
-    db = get_db()
-    
     try:
-        query = "UPDATE meta_spotify_mapping SET is_active = false WHERE id = %s"
-        db.execute_query(query, (mapping_id,))
-        print(f"✅ Mapping {mapping_id} désactivé")
-    except Exception as e:
-        print(f"❌ Erreur : {e}")
-    
-    db.close()
+        query = """
+            SELECT 
+                id, 
+                campaign_name, 
+                spotify_track_uri, 
+                created_at 
+            FROM campaign_track_mapping
+            ORDER BY created_at DESC
+        """
+        df = db.fetch_df(query)
+        return df
+    finally:
+        db.close()
 
-
-def interactive_add_mapping():
-    """Mode interactif pour ajouter un mapping."""
-    print("\n" + "="*70)
-    print("🔗 AJOUT MAPPING META x SPOTIFY")
-    print("="*70 + "\n")
-    
-    # Lister les campagnes
-    print("📱 CAMPAGNES META DISPONIBLES :")
-    print("-" * 70)
-    df_campaigns = list_campaigns()
-    
-    if df_campaigns.empty:
-        print("❌ Aucune campagne trouvée")
+def add_mapping():
+    """Wizard pour créer un lien."""
+    print("\n--- 1. CHOIX DE LA CAMPAGNE ---")
+    df_camp = list_campaigns()
+    if df_camp.empty:
+        print("❌ Aucune campagne trouvée.")
         return
-    
-    print(df_campaigns[['campaign_id', 'campaign_name', 'status', 'total_conversions']].to_string(index=True))
-    
-    # Sélection campagne
-    print("\n")
-    campaign_idx = input("👉 Entrez le numéro de la campagne (index) : ").strip()
+
+    # Affichage indexé pour choix facile
+    print(tabulate(df_camp[['campaign_name', 'total_spend']].reset_index(), headers='keys', tablefmt='simple'))
     
     try:
-        campaign_idx = int(campaign_idx)
-        selected_campaign = df_campaigns.iloc[campaign_idx]
-        campaign_id = selected_campaign['campaign_id']
-        campaign_name = selected_campaign['campaign_name']
-        
-        print(f"\n✅ Campagne sélectionnée : {campaign_name}")
+        idx = int(input("\n👉 Entrez le numéro de la campagne (index) : "))
+        selected_camp = df_camp.iloc[idx]['campaign_name']
+        print(f"✅ Campagne sélectionnée : {selected_camp}")
     except:
-        print("❌ Index invalide")
+        print("❌ Sélection invalide.")
         return
-    
-    # Lister les chansons
-    print("\n🎵 CHANSONS SPOTIFY DISPONIBLES :")
-    print("-" * 70)
-    df_songs = list_songs()
-    
-    if df_songs.empty:
-        print("❌ Aucune chanson trouvée")
+
+    print("\n--- 2. CHOIX DE LA CHANSON ---")
+    df_tracks = list_tracks()
+    if df_tracks.empty:
+        print("❌ Aucune chanson trouvée.")
         return
-    
-    print(df_songs[['song', 'total_streams', 'popularity']].to_string(index=True))
-    
-    # Sélection chanson
-    print("\n")
-    song_idx = input("👉 Entrez le numéro de la chanson (index) : ").strip()
+
+    print(tabulate(df_tracks.reset_index(), headers='keys', tablefmt='simple'))
     
     try:
-        song_idx = int(song_idx)
-        selected_song = df_songs.iloc[song_idx]
-        song = selected_song['song']
-        track_id = selected_song['track_id'] if pd.notna(selected_song['track_id']) else None
-        
-        print(f"\n✅ Chanson sélectionnée : {song}")
+        idx = int(input("\n👉 Entrez le numéro de la chanson : "))
+        selected_uri = df_tracks.iloc[idx]['uri']
+        selected_name = df_tracks.iloc[idx]['track_name']
+        print(f"✅ Chanson sélectionnée : {selected_name}")
     except:
-        print("❌ Index invalide")
+        print("❌ Sélection invalide.")
         return
-    
-    # Confirmation
-    print("\n" + "="*70)
-    print("📋 RÉCAPITULATIF")
-    print("="*70)
-    print(f"Campagne : {campaign_name}")
-    print(f"Chanson  : {song}")
-    print(f"Track ID : {track_id or 'N/A'}")
-    print("="*70)
-    
-    confirm = input("\n✅ Confirmer l'ajout ? (o/n) : ").strip().lower()
-    
-    if confirm == 'o':
-        add_mapping(campaign_id, song, track_id)
-        print("\n🎉 Mapping enregistré avec succès !")
-    else:
-        print("\n❌ Annulé")
 
+    # Validation
+    confirm = input(f"\nLier '{selected_camp}' <-> '{selected_name}' ? (o/n) : ")
+    if confirm.lower() == 'o':
+        db = get_db()
+        try:
+            query = """
+                INSERT INTO campaign_track_mapping (campaign_name, spotify_track_uri)
+                VALUES (%s, %s)
+                ON CONFLICT (campaign_name, spotify_track_uri) DO NOTHING
+            """
+            with db.conn.cursor() as cur:
+                cur.execute(query, (selected_camp, selected_uri))
+                db.conn.commit()
+            print("🎉 Mapping enregistré avec succès !")
+        except Exception as e:
+            print(f"❌ Erreur SQL : {e}")
+        finally:
+            db.close()
+
+def delete_mapping():
+    """Supprimer un lien."""
+    df = list_mappings()
+    if df.empty:
+        print("Aucun mapping à supprimer.")
+        return
+
+    print(tabulate(df, headers='keys', tablefmt='simple', showindex=False))
+    try:
+        id_del = int(input("\n👉 Entrez l'ID du mapping à supprimer : "))
+        db = get_db()
+        with db.conn.cursor() as cur:
+            cur.execute("DELETE FROM campaign_track_mapping WHERE id = %s", (id_del,))
+            db.conn.commit()
+        print("🗑️ Supprimé.")
+        db.close()
+    except:
+        print("Erreur.")
 
 def main_menu():
-    """Menu principal."""
     while True:
-        print("\n" + "="*70)
-        print("🔗 GESTION MAPPING META x SPOTIFY")
-        print("="*70)
-        print("\n1️⃣  Ajouter un mapping")
+        print("\n" + "="*50)
+        print("🔗 GESTION MAPPING META x SPOTIFY (Mode CSV)")
+        print("="*50)
+        print("1️⃣  Ajouter un mapping")
         print("2️⃣  Lister les mappings")
         print("3️⃣  Lister les campagnes")
         print("4️⃣  Lister les chansons")
-        print("5️⃣  Désactiver un mapping")
+        print("5️⃣  Supprimer un mapping")
         print("0️⃣  Quitter")
-        print("\n" + "="*70)
+        print("="*50)
         
-        choice = input("\n👉 Votre choix : ").strip()
+        choice = input("\n👉 Votre choix : ")
         
-        if choice == '1':
-            interactive_add_mapping()
-        
-        elif choice == '2':
+        if choice == '1': add_mapping()
+        elif choice == '2': 
             df = list_mappings()
-            if not df.empty:
-                print("\n📋 MAPPINGS ACTIFS :")
-                print("-" * 70)
-                print(df.to_string(index=False))
-            else:
-                print("\n⚠️ Aucun mapping trouvé")
-        
+            print("\n" + tabulate(df, headers='keys', tablefmt='grid'))
         elif choice == '3':
             df = list_campaigns()
-            if not df.empty:
-                print("\n📱 CAMPAGNES META :")
-                print("-" * 70)
-                print(df.to_string(index=False))
-            else:
-                print("\n⚠️ Aucune campagne trouvée")
-        
+            print("\n" + tabulate(df, headers='keys', tablefmt='grid'))
         elif choice == '4':
-            df = list_songs()
-            if not df.empty:
-                print("\n🎵 CHANSONS SPOTIFY :")
-                print("-" * 70)
-                print(df[['song', 'total_streams', 'popularity']].to_string(index=False))
-            else:
-                print("\n⚠️ Aucune chanson trouvée")
-        
-        elif choice == '5':
-            df = list_mappings()
-            if not df.empty:
-                print("\n📋 MAPPINGS ACTIFS :")
-                print(df[['id', 'campaign_name', 'song']].to_string(index=False))
-                
-                mapping_id = input("\n👉 ID du mapping à désactiver : ").strip()
-                try:
-                    delete_mapping(int(mapping_id))
-                except:
-                    print("❌ ID invalide")
-            else:
-                print("\n⚠️ Aucun mapping trouvé")
-        
-        elif choice == '0':
-            print("\n👋 Au revoir !")
-            break
-        
-        else:
-            print("\n❌ Choix invalide")
-
+            df = list_tracks()
+            print("\n" + tabulate(df, headers='keys', tablefmt='grid'))
+        elif choice == '5': delete_mapping()
+        elif choice == '0': break
+        else: print("Choix invalide.")
 
 if __name__ == "__main__":
     main_menu()

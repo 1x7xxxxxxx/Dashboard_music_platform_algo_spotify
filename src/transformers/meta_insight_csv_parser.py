@@ -9,34 +9,39 @@ logger = logging.getLogger(__name__)
 class MetaInsightCSVParser:
     """
     Parse les exports CSV d'Insights Meta Ads.
-    Version V5 : Suppression stricte des lignes de TOTAL (Campagne vide).
+    Version V5 Finale : Robuste, Nettoyage des Totaux, Mapping FR/EN.
     """
 
     def _normalize_str(self, text):
-        """Nettoie une chaine : minuscule, sans accent."""
+        """Nettoie une chaine : minuscule, sans accent, sans espace inutile."""
         if not isinstance(text, str): return str(text)
+        # Décomposition des accents (ex: Â -> A)
         text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
         return text.lower().strip()
 
     def _read_file_robust(self, file_path: Path):
-        """Lit le fichier en testant plusieurs configurations."""
+        """Lit le fichier en testant plusieurs configurations d'encodage et de séparateur."""
+        # Liste des configurations à tester (Ordre : UTF-8 (Standard), UTF-16 (Excel), Latin-1 (Vieux Excel))
         configs = [
-            {'sep': ',', 'encoding': 'utf-8', 'quotechar': '"'},
-            {'sep': ',', 'encoding': 'utf-16', 'quotechar': '"'},
-            {'sep': '\t', 'encoding': 'utf-16', 'quotechar': '"'},
-            {'sep': ',', 'encoding': 'latin-1', 'quotechar': '"'},
+            {'sep': ',', 'encoding': 'utf-8'},
+            {'sep': ',', 'encoding': 'utf-8-sig'}, # UTF-8 avec BOM
+            {'sep': '\t', 'encoding': 'utf-16'},   # Export brut
+            {'sep': ',', 'encoding': 'latin-1'},
+            {'sep': ';', 'encoding': 'latin-1'}    # Format Excel FR parfois
         ]
         
         for cfg in configs:
             try:
+                # On lit tout le fichier en ignorant les lignes malformées
                 df = pd.read_csv(file_path, on_bad_lines='skip', **cfg)
+                
+                # Vérification rapide : A-t-on des colonnes cohérentes ?
                 cols = [self._normalize_str(c) for c in df.columns]
                 
-                # Critère : On cherche 'campagne' ET ('date' ou 'debut' ou 'start')
+                # Critère de succès : On cherche 'campagne' ET ('date' ou 'debut' ou 'start')
                 has_campaign = any('campagne' in c or 'campaign' in c for c in cols)
-                has_date = any('debut' in c or 'start' in c or 'date' in c for c in cols)
                 
-                if has_campaign and has_date:
+                if has_campaign and len(df.columns) > 3:
                     logger.info(f"   ✅ Format détecté : {cfg['encoding']} / '{cfg['sep']}'")
                     return df
             except Exception:
@@ -54,45 +59,47 @@ class MetaInsightCSVParser:
                 return None
 
             # --- 1. NORMALISATION DES COLONNES ---
+            # Map : { 'nom_normalise': 'Nom Réel dans le CSV' }
             col_map = {self._normalize_str(c): c for c in df.columns}
             cols_norm = list(col_map.keys())
 
-            # --- 2. FILTRAGE TOTAL / LIGNES VIDES (Nouveau !) ---
-            # On cherche la colonne qui contient le nom de la campagne
+            # --- 2. FILTRAGE DES LIGNES PARASITES (Totaux, Vides) ---
+            # On cherche la colonne "Nom de la campagne"
             camp_col_norm = next((c for c in cols_norm if 'nom de la campagne' in c or 'campaign name' in c), None)
             
             if camp_col_norm:
                 real_camp_col = col_map[camp_col_norm]
-                
-                # 1. On supprime les NaN dans la colonne campagne
+                # On supprime les lignes où le nom de la campagne est vide (ce sont les totaux)
                 df = df.dropna(subset=[real_camp_col])
-                
-                # 2. On supprime les chaines vides ou espaces
+                # On supprime aussi si c'est juste des espaces
                 df = df[df[real_camp_col].astype(str).str.strip() != '']
-                
-                # 3. On supprime la ligne qui contient littéralement "Results from..." ou "Résultats" si elle existe
-                df = df[~df[real_camp_col].astype(str).str.contains('Résultats', na=False)]
-            else:
-                logger.warning("⚠️ Impossible de trouver la colonne 'Nom de la campagne' pour filtrer les totaux.")
+            
+            # On cherche la colonne "Début des rapports" pour supprimer les lignes vides
+            date_col_norm = next((c for c in cols_norm if 'debut' in c or 'start' in c), None)
+            if date_col_norm:
+                df = df.dropna(subset=[col_map[date_col_norm]])
 
-            # Filtre Archives
+            # Filtre Archives (Si la colonne existe)
             status_col_norm = next((c for c in cols_norm if 'diffusion' in c or 'status' in c), None)
             if status_col_norm:
                 status_real = col_map[status_col_norm]
-                df = df[~df[status_real].astype(str).str.lower().str.contains('archiv', na=False)]
+                # On filtre tout ce qui contient 'archiv' ou 'supprim'
+                df = df[~df[status_real].astype(str).str.lower().str.contains('archiv|supprim|deleted', na=False, regex=True)]
 
             if df.empty:
-                logger.warning("⚠️ Fichier vide après filtrage.")
+                logger.warning("⚠️ Fichier vide après filtrage (Archives ou Totaux).")
                 return None
 
-            # --- 3. DÉTECTION DU TYPE ---
+            # --- 3. DÉTECTION DU TYPE & MAPPING ---
             result_type = 'unknown'
             data = None
             
+            # Mapping Cible (BDD) -> Liste de Patterns possibles dans le CSV (Normalisés)
             base_mapping = {
                 'campaign_name': ['nom de la campagne', 'campaign name'],
                 'spend': ['montant depense', 'amount spent'],
                 'impressions': ['impressions'],
+                'clicks': ['clics', 'clicks'],  # ✅ On récupère bien les clics
                 'reach': ['couverture', 'reach'],
                 'results': ['resultats', 'results'],
                 'date_start': ['debut des rapports', 'reporting starts'],
@@ -100,18 +107,28 @@ class MetaInsightCSVParser:
             }
 
             def build_df(target_type, specific_map={}):
+                """Construit le DataFrame final en cherchant les colonnes."""
                 final_cols = {}
-                for db_col, patterns in base_mapping.items():
-                    found = next((col_map[c] for c in cols_norm for p in patterns if p in c), None)
-                    if found: final_cols[found] = db_col
                 
+                # 1. Colonnes de base (Spend, Clics...)
+                for db_col, patterns in base_mapping.items():
+                    # On cherche la première colonne du CSV qui matche un des patterns
+                    found = next((col_map[c] for c in cols_norm for p in patterns if p in c), None)
+                    if found: 
+                        final_cols[found] = db_col
+                
+                # 2. Colonnes spécifiques (Age, Pays...)
                 for db_col, patterns in specific_map.items():
+                    # Recherche exacte ou partielle
                     found = next((col_map[c] for c in cols_norm for p in patterns if p == c or p in c), None)
-                    if found: final_cols[found] = db_col
+                    if found: 
+                        final_cols[found] = db_col
                 
                 return df[list(final_cols.keys())].rename(columns=final_cols).copy()
 
-            # LOGIQUE DE DÉTECTION
+            # --- LOGIQUE DE DÉTECTION (Ordre important) ---
+            
+            # 1. PLACEMENT (Doit avoir 'plateforme' et 'placement')
             if any('plateforme' in c for c in cols_norm) and any('placement' in c for c in cols_norm):
                 result_type = 'platform'
                 data = build_df('platform', {
@@ -120,31 +137,36 @@ class MetaInsightCSVParser:
                     'device': ['appareil', 'device']
                 })
 
-            elif any('pays' == c or 'country' == c for c in cols_norm):
+            # 2. PAYS ('pays' ou 'country')
+            elif any('pays' == c or 'country' == c for c in cols_norm): 
                 result_type = 'country'
                 data = build_df('country', {'country': ['pays', 'country']})
 
-            elif any('age' == c for c in cols_norm):
+            # 3. AGE ('age' ou 'age')
+            elif any('age' == c for c in cols_norm): 
                 result_type = 'age'
                 data = build_df('age', {'age_range': ['age']})
 
+            # 4. GLOBAL (Par défaut, si on a le nom de campagne)
             elif any('nom de la campagne' in c for c in cols_norm):
                 result_type = 'global'
                 data = build_df('global')
 
             else:
-                logger.error(f"❌ Type non identifié.")
+                logger.error(f"❌ Type non identifié. Colonnes normalisées vues : {cols_norm}")
                 return None
 
-            # --- 4. NETTOYAGE VALEURS ---
-            numeric_cols = ['spend', 'impressions', 'reach', 'results']
+            # --- 4. NETTOYAGE DES VALEURS ---
+            numeric_cols = ['spend', 'impressions', 'reach', 'results', 'clicks']
             for col in numeric_cols:
                 if col in data.columns:
+                    # Nettoyage robuste (1 200,50 -> 1200.50)
                     data[col] = (data[col].astype(str)
                                 .str.replace(',', '.', regex=False)
                                 .str.replace(r'[^\d\.-]', '', regex=True))
                     data[col] = pd.to_numeric(data[col], errors='coerce').fillna(0)
             
+            # Ajout timestamp
             data['collected_at'] = datetime.now()
             
             logger.info(f"   ✅ Type validé : {result_type.upper()} ({len(data)} lignes)")
@@ -155,4 +177,6 @@ class MetaInsightCSVParser:
 
         except Exception as e:
             logger.error(f"❌ Erreur critique {file_path.name}: {e}")
+            import traceback
+            traceback.print_exc()
             return None

@@ -73,89 +73,53 @@ def show_navigation_menu():
 
 
 def show_data_collection_panel():
-    """Affiche le panneau de collecte de données."""
+    """Affiche le panneau de collecte de données (Bouton Unique)."""
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔄 Collecte de données")
+    st.sidebar.markdown("### 🔄 Synchronisation")
     
-    # Bouton pour déclencher toutes les collectes
-    if st.sidebar.button("🚀 Lancer toutes les collectes", type="primary"):
-        with st.sidebar:
-            with st.spinner('Déclenchement des DAGs...'):
-                results = airflow_trigger.trigger_all_dags()
-                
-                # Afficher les résultats
-                success_count = sum(1 for r in results if r.get('success'))
-                total_count = len(results)
-                
-                for result in results:
+    # Bouton Maître
+    if st.sidebar.button("🚀 Lancer TOUTES les collectes", type="primary"):
+        with st.sidebar.status("Démarrage des pipelines...", expanded=True) as status:
+            
+            # Liste précise des DAGs actifs à lancer
+            dags_to_run = [
+                ("spotify_api_daily", "Spotify API"),
+                ("youtube_daily", "YouTube Data"),
+                ("s4a_csv_watcher", "CSV Spotify Artists"),
+                ("apple_music_csv_watcher", "CSV Apple Music"),
+                ("meta_csv_watcher_config", "Meta Ads (Config)"),
+                ("meta_insights_watcher", "Meta Ads (Stats)"),
+                ("data_quality_check", "Check Qualité")
+            ]
+            
+            success_count = 0
+            
+            for dag_id, label in dags_to_run:
+                st.write(f"⏳ {label}...")
+                try:
+                    # ✅ CORRECTION ICI : On récupère le résultat complet (Dictionnaire)
+                    result = airflow_trigger.trigger_dag(dag_id)
+                    
+                    # On vérifie la clé 'success' dans le dictionnaire
                     if result.get('success'):
-                        st.success(f"✅ {result['dag']}")
+                        st.write(f"✅ {label}")
+                        success_count += 1
                     else:
-                        st.error(f"❌ {result['dag']}: {result.get('error', 'Erreur inconnue')}")
-                
-                if success_count == total_count:
-                    st.success(f"🎉 Toutes les collectes lancées ! ({success_count}/{total_count})")
-                    st.info("📊 Rafraîchissez la page dans 2-3 minutes pour voir les nouvelles données")
-                else:
-                    st.warning(f"⚠️ {success_count}/{total_count} collectes lancées")
+                        # On récupère le message d'erreur s'il existe
+                        error_msg = result.get('error', 'Erreur inconnue')
+                        st.error(f"❌ {label}: {error_msg}")
+                        
+                except Exception as e:
+                    st.error(f"❌ {label}: Erreur appel ({e})")
+            
+            # Bilan
+            if success_count == len(dags_to_run):
+                status.update(label="✅ Tout est lancé !", state="complete")
+                st.sidebar.success("Rafraîchissez dans quelques minutes.")
+            else:
+                status.update(label="⚠️ Lancement partiel", state="error")
     
-    # Boutons individuels
-    st.sidebar.markdown("#### Collectes individuelles")
-    
-    col1, col2 = st.sidebar.columns(2)
-    
-    with col1:
-        if st.button("📱 Meta Ads", help="Collecter les campagnes Meta Ads", key="trigger_meta"):
-            with st.spinner('Déclenchement...'):
-                result = airflow_trigger.trigger_dag('meta_ads_daily_docker')
-                if result.get('success'):
-                    st.success("✅ Meta Ads lancé")
-                else:
-                    st.error(f"❌ Échec: {result.get('error')}")
-        
-        if st.button("🎵 CSV S4A", help="Traiter les CSV Spotify for Artists", key="trigger_s4a"):
-            with st.spinner('Déclenchement...'):
-                result = airflow_trigger.trigger_dag('s4a_csv_watcher')
-                if result.get('success'):
-                    st.success("✅ CSV S4A lancé")
-                else:
-                    st.error(f"❌ Échec: {result.get('error')}")
-
-        if st.button("🎎 CSV Apple", help="Traiter les CSV Apple Music", key="trigger_apple"):
-            with st.spinner('Déclenchement...'):
-                result = airflow_trigger.trigger_dag('apple_music_csv_watcher')
-                if result.get('success'):
-                    st.success("✅ CSV Apple lancé")
-                else:
-                    st.error(f"❌ Échec: {result.get('error')}")
-    
-    with col2:
-        if st.button("🎸 Spotify API", help="Collecter artistes et tracks", key="trigger_spotify"):
-            with st.spinner('Déclenchement...'):
-                result = airflow_trigger.trigger_dag('spotify_api_daily')
-                if result.get('success'):
-                    st.success("✅ Spotify API lancé")
-                else:
-                    st.error(f"❌ Échec: {result.get('error')}")
-        
-        if st.button("🎬 YouTube", help="Collecter données YouTube", key="trigger_youtube"):
-            with st.spinner('Déclenchement...'):
-                result = airflow_trigger.trigger_dag('youtube_daily')
-                if result.get('success'):
-                    st.success("✅ YouTube lancé")
-                else:
-                    st.error(f"❌ Échec: {result.get('error')}")
-        
-        if st.button("🔍 Qualité", help="Vérifier la qualité des données", key="trigger_quality"):
-            with st.spinner('Déclenchement...'):
-                result = airflow_trigger.trigger_dag('data_quality_check')
-                if result.get('success'):
-                    st.success("✅ Qualité lancée")
-                else:
-                    st.error(f"❌ Échec: {result.get('error')}")
-    
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("💡 **Astuce:** Les collectes prennent 1-3 minutes")
+    st.sidebar.caption("Cela traitera tous les fichiers CSV présents dans le dossier `data/raw` et lancera les API.")
 
 
 def main():
