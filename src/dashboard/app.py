@@ -62,7 +62,8 @@ def show_navigation_menu():
         "🎵 META x Spotify": "meta_x_spotify",
         "🎵 Spotify & S4A": "spotify_s4a_combined",
         "📱 Hypeddit": "hypeddit",
-        "☁️ SoundCloud": "soundcloud",  # ✅ AJOUTÉ ICI
+        "☁️ SoundCloud": "soundcloud",
+        "📸 Instagram": "instagram",
         "🎎 Apple Music": "apple_music",
         "🎬 YouTube": "youtube",
     }
@@ -86,7 +87,8 @@ def show_data_collection_panel():
             dags_to_run = [
                 ("spotify_api_daily", "Spotify API"),
                 ("youtube_daily", "YouTube Data"),
-                ("soundcloud_daily", "SoundCloud Data"), # ✅ AJOUTÉ ICI
+                ("soundcloud_daily", "SoundCloud Data"),
+                ("instagram_daily", "Instagram Data"),
                 ("s4a_csv_watcher", "CSV Spotify Artists"),
                 ("apple_music_csv_watcher", "CSV Apple Music"),
                 ("meta_csv_watcher_config", "Meta Ads (Config)"),
@@ -140,13 +142,19 @@ def show_data_collection_panel():
                 if res.get('success'): st.success("✅ Lancé")
                 else: st.error("❌ Erreur")
                 
-        # Meta Ads CSV (Nouveau)
+        # Meta Ads CSV
         if st.button("📱 CSV Meta", help="Meta Ads", key="trigger_meta"):
              with st.spinner('Lancement...'):
-                # On lance les deux pour Meta
                 r1 = airflow_trigger.trigger_dag('meta_csv_watcher_config')
                 r2 = airflow_trigger.trigger_dag('meta_insights_watcher')
                 if r1.get('success') and r2.get('success'): st.success("✅ Lancé")
+                else: st.error("❌ Erreur")
+
+        # Instagram (Nouveau)
+        if st.button("📸 Instagram", help="Abonnés & Posts", key="trigger_insta"):
+            with st.spinner('Lancement...'):
+                res = airflow_trigger.trigger_dag('instagram_daily')
+                if res.get('success'): st.success("✅ Lancé")
                 else: st.error("❌ Erreur")
 
     with col2:
@@ -164,8 +172,8 @@ def show_data_collection_panel():
                 if res.get('success'): st.success("✅ Lancé")
                 else: st.error("❌ Erreur")
 
-        # SoundCloud (Nouveau)
-        if st.button("☁️ SoundCloud", help="Données SoundCloud", key="trigger_sc"): # ✅ AJOUTÉ ICI
+        # SoundCloud
+        if st.button("☁️ SoundCloud", help="Données SoundCloud", key="trigger_sc"):
             with st.spinner('Lancement...'):
                 res = airflow_trigger.trigger_dag('soundcloud_daily')
                 if res.get('success'): st.success("✅ Lancé")
@@ -181,13 +189,9 @@ def show_data_collection_panel():
 
 def main():
     """Page principale."""
-    # 1. Menu de navigation en premier (en haut de la sidebar)
     page = show_navigation_menu()
-    
-    # 2. Panneau de collecte en dessous
     show_data_collection_panel()
     
-    # 3. Charger la page sélectionnée
     if page == "home":
         st.title("🎵 Music Platform Dashboard")
         st.markdown("---")
@@ -201,6 +205,7 @@ def main():
         - 🎸 **Spotify API** : Artistes, tracks et historique
         - 🎵 **CSV S4A** : Spotify for Artists
         - ☁️ **SoundCloud** : Stats quotidiennes via API
+        - 📸 **Instagram** : Abonnés et engagement
         - 🎎 **CSV Apple** : Apple Music
         - 🎬 **YouTube** : Statistiques de chaîne
         
@@ -208,6 +213,7 @@ def main():
         - ✅ Meta Ads (CSV)
         - ✅ Spotify API & S4A (CSV)
         - ✅ SoundCloud API
+        - ✅ Instagram Graph API
         - ✅ Apple Music (CSV)
         - ✅ YouTube API
         - ✅ PostgreSQL stockage centralisé
@@ -222,47 +228,42 @@ def main():
         try:
             col1, col2, col3, col4 = st.columns(4)
             
-            # Count Meta Ads
             try:
                 meta_count = db.fetch_query("SELECT COUNT(*) FROM meta_campaigns")[0][0]
             except: meta_count = 0
             col1.metric("📱 Campagnes Meta", f"{meta_count:,}")
             
-            # Count Spotify Artists
             try:
                 artists_count = db.fetch_query("SELECT COUNT(*) FROM artists")[0][0]
             except: artists_count = 0
             col2.metric("👤 Artistes Spotify", f"{artists_count:,}")
             
-            # Count SoundCloud
             try:
                 sc_count = db.fetch_query("SELECT COUNT(DISTINCT track_id) FROM soundcloud_tracks_daily")[0][0]
             except: sc_count = 0
-            col3.metric("☁️ Titres SoundCloud", f"{sc_count:,}") # ✅ AJOUTÉ ICI
+            col3.metric("☁️ Titres SoundCloud", f"{sc_count:,}")
             
-            # Count YouTube
             try:
                 youtube_count = db.fetch_query("SELECT COUNT(*) FROM youtube_videos")[0][0]
             except: youtube_count = 0
             col4.metric("🎬 Vidéos YouTube", f"{youtube_count:,}")
             
-            # Deuxième ligne de KPIs
             st.markdown("")
             c1, c2, c3 = st.columns(3)
             
-            # Count S4A
             try:
                 s4a_count = db.fetch_query("SELECT COUNT(*) FROM s4a_song_timeline")[0][0]
             except: s4a_count = 0
             c1.metric("🎵 Timeline S4A", f"{s4a_count:,}")
             
-            # Count Apple
             try:
-                apple_count = db.fetch_query("SELECT COUNT(*) FROM apple_songs_performance")[0][0]
-            except: apple_count = 0
-            c2.metric("🎎 Chansons Apple", f"{apple_count:,}")
+                ig_count = db.fetch_query("SELECT COUNT(DISTINCT ig_user_id) FROM instagram_daily_stats")[0][0]
+                label_ig = "Compte IG Connecté" if ig_count > 0 else "Compte IG"
+            except: 
+                ig_count = 0
+                label_ig = "Compte IG"
+            c2.metric(f"📸 {label_ig}", f"{ig_count}")
 
-            # Date
             c3.metric("🕐 Date", datetime.now().strftime("%d/%m/%Y"))
         
         except Exception as e:
@@ -308,7 +309,11 @@ def main():
 
     elif page == "soundcloud": 
         from views.soundcloud import show
-        show()        
+        show()
+        
+    elif page == "instagram":
+        from views.instagram import show
+        show()            
 
 
 if __name__ == "__main__":
