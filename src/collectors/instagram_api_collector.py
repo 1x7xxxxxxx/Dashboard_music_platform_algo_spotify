@@ -98,7 +98,7 @@ class InstagramCollector:
 
     def run(self):
         stats = self.fetch_stats()
-        self.save_to_db(stats)
+        self.save_to_db(stats)     
 
 if __name__ == "__main__":
     InstagramCollector().run()
