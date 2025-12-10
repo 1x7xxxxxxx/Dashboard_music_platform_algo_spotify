@@ -66,6 +66,7 @@ def show_navigation_menu():
         "📸 Instagram": "instagram",
         "🎎 Apple Music": "apple_music",
         "🎬 YouTube": "youtube",
+        "🏗️ Monitoring ETL": "airflow_kpi",
     }
     
     # Utiliser st.radio pour la navigation
@@ -296,7 +297,7 @@ def main():
         show()
     
     elif page == "hypeddit":
-        from views.hypeddit_overview import show
+        from views.hypeddit import show
         show()
     
     elif page == "apple_music":
@@ -313,7 +314,11 @@ def main():
         
     elif page == "instagram":
         from views.instagram import show
-        show()            
+        show()
+
+    elif page == "airflow_kpi":
+        from views.airflow_kpi import show
+        show()                
 
 
 if __name__ == "__main__":
