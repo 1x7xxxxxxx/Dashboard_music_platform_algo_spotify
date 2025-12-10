@@ -1,240 +1,213 @@
-"""Page META x SPOTIFY - Corrélation des performances."""
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from plotly.subplots import make_subplots
 from src.dashboard.utils import get_db_connection
 
-def get_available_songs():
-    """Récupère la liste des chansons avec mapping actif."""
-    db = get_db_connection()
-    
-    # ✅ CORRECTION : Utilisation de s4a_song_timeline au lieu de s4a_songs_global
-    query = """
-        WITH total_streams_per_song AS (
-            SELECT song, SUM(streams) as total_streams
-            FROM s4a_song_timeline
-            GROUP BY song
-        )
-        SELECT DISTINCT
-            m.song,
-            COUNT(DISTINCT m.campaign_id) as campaigns_count,
-            MAX(t.popularity) as max_popularity,
-            COALESCE(ts.total_streams, 0) as total_streams
-        FROM meta_spotify_mapping m
-        LEFT JOIN tracks t ON m.track_id = t.track_id
-        LEFT JOIN total_streams_per_song ts ON m.song = ts.song
-        WHERE m.is_active = true
-        GROUP BY m.song, ts.total_streams
-        ORDER BY total_streams DESC NULLS LAST
-    """
-    
-    df = db.fetch_df(query)
-    db.close()
-    
-    return df
-
-
-def get_combined_data(song: str, start_date, end_date):
-    """
-    Récupère les données combinées META + SPOTIFY pour une chanson.
-    """
-    db = get_db_connection()
-    
-    query = """
-        WITH date_range AS (
-            SELECT generate_series(
-                %s::date,
-                %s::date,
-                '1 day'::interval
-            )::date as date
-        ),
-        
-        -- Streams quotidiens depuis S4A
-        daily_streams AS (
-            SELECT 
-                st.date,
-                st.streams
-            FROM s4a_song_timeline st
-            WHERE st.song = %s
-                AND st.date >= %s
-                AND st.date <= %s
-        ),
-        
-        -- Popularité depuis Spotify API (dernière valeur collectée)
-        track_popularity AS (
-            SELECT 
-                t.popularity
-            FROM tracks t
-            JOIN meta_spotify_mapping m ON t.track_id = m.track_id
-            WHERE m.song = %s
-                AND m.is_active = true
-            ORDER BY t.collected_at DESC
-            LIMIT 1
-        ),
-        
-        -- Conversions quotidiennes depuis Meta
-        daily_conversions AS (
-            SELECT 
-                i.date,
-                SUM(i.conversions) as conversions
-            FROM meta_insights i
-            JOIN meta_ads a ON i.ad_id = a.ad_id
-            JOIN meta_spotify_mapping m ON a.campaign_id = m.campaign_id
-            WHERE m.song = %s
-                AND m.is_active = true
-                AND i.date >= %s
-                AND i.date <= %s
-            GROUP BY i.date
-        )
-        
-        SELECT 
-            dr.date,
-            COALESCE(ds.streams, 0) as streams,
-            COALESCE(tp.popularity, 0) as popularity,
-            COALESCE(dc.conversions, 0) as conversions
-        FROM date_range dr
-        LEFT JOIN daily_streams ds ON dr.date = ds.date
-        CROSS JOIN track_popularity tp
-        LEFT JOIN daily_conversions dc ON dr.date = dc.date
-        ORDER BY dr.date
-    """
-    
-    df = db.fetch_df(
-        query, 
-        (start_date, end_date, song, start_date, end_date, song, song, start_date, end_date)
-    )
-    
-    db.close()
-    return df
-
-
 def show():
-    """Affiche la page META x SPOTIFY."""
-    st.title("🎵 META x SPOTIFY")
-    st.markdown("### Corrélation des performances publicitaires et musicales")
+    st.title("🔀 META x SPOTIFY - Analyse ROI")
     st.markdown("---")
-    
+
     db = get_db_connection()
-    
-    # Vérifier la table de mapping
-    if not db.table_exists('meta_spotify_mapping'):
-        st.error("❌ Table de mapping non trouvée")
-        st.info("Veuillez créer la table de mapping via le script `create_mapping_table.py`.")
-        db.close()
-        return
-    
-    # Récupérer les chansons
-    df_songs = get_available_songs()
-    
-    if df_songs.empty:
-        st.warning("⚠️ Aucun mapping campagne ↔ chanson trouvé")
-        st.info("Utilisez `python scripts/manage_mapping.py` pour lier vos campagnes.")
-        db.close()
-        return
-    
-    # FILTRES
-    st.header("🔍 Filtres")
-    col1, col2, col3 = st.columns([2, 1, 1])
-    
-    with col1:
-        selected_song = st.selectbox("🎵 Sélectionner une chanson", df_songs['song'].tolist())
-    
-    with col2:
-        start_date = st.date_input("📅 Début", datetime.now().date() - timedelta(days=30))
-    
-    with col3:
-        end_date = st.date_input("📅 Fin", datetime.now().date())
-    
-    st.markdown("---")
-    
-    # INFOS CHANSON
-    song_info = df_songs[df_songs['song'] == selected_song].iloc[0]
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🎯 Campagnes Liées", int(song_info['campaigns_count']))
-    col2.metric("📊 Popularité", f"{int(song_info['max_popularity'] or 0)}/100")
-    col3.metric("🎧 Streams Totaux (Timeline)", f"{int(song_info['total_streams']):,}")
-    
-    st.markdown("---")
-    
-    # DONNÉES COMBINÉES
-    df_data = get_combined_data(selected_song, start_date, end_date)
-    
-    if df_data.empty:
-        st.warning(f"⚠️ Aucune donnée pour '{selected_song}' sur cette période")
-        db.close()
-        return
-    
-    df_data['date'] = pd.to_datetime(df_data['date'])
-    
-    # GRAPHIQUE
-    st.header("📈 Performance Croisée")
-    fig = go.Figure()
-    
-    # Streams (Aire verte)
-    fig.add_trace(go.Scatter(
-        x=df_data['date'], y=df_data['streams'], name='Streams',
-        mode='lines', fill='tozeroy', fillcolor='rgba(29, 185, 84, 0.3)',
-        line=dict(color='#1DB954', width=2), yaxis='y'
-    ))
-    
-    # Popularité (Ligne orange)
-    fig.add_trace(go.Scatter(
-        x=df_data['date'], y=df_data['popularity'], name='Popularité',
-        mode='lines', line=dict(color='#FF9500', width=3, dash='dot'),
-        yaxis='y2'
-    ))
-    
-    # Conversions (Ligne rouge)
-    fig.add_trace(go.Scatter(
-        x=df_data['date'], y=df_data['conversions'], name='Conversions Meta',
-        mode='lines+markers', line=dict(color='#FF3B30', width=2),
-        yaxis='y3'
-    ))
-    
-    fig.update_layout(
-        title=f"Performance : {selected_song}",
-        xaxis=dict(title='Date'),
-        yaxis=dict(title='Streams', side='left', showgrid=True),
-        yaxis2=dict(title='Popularité', side='right', overlaying='y', showgrid=False, range=[0, 100]),
-        yaxis3=dict(title='Conversions', side='right', overlaying='y', anchor='free', position=0.95, showgrid=False),
-        height=600, hovermode='x unified',
-        legend=dict(orientation="h", y=1.02, x=1)
+
+    # =========================================================================
+    # 1. SECTION CONFIGURATION (MAPPING)
+    # =========================================================================
+    with st.expander("⚙️ Gérer les associations (Campagnes <-> Titres)", expanded=False):
+        c1, c2 = st.columns(2)
+        
+        # Récupération des listes depuis les tables propres
+        try:
+            df_camps = db.fetch_df("SELECT DISTINCT campaign_name FROM meta_campaigns ORDER BY campaign_name")
+            campaigns = df_camps['campaign_name'].tolist()
+        except: campaigns = []
+
+        try:
+            df_tracks = db.fetch_df("SELECT DISTINCT track_name FROM tracks ORDER BY track_name")
+            tracks = df_tracks['track_name'].tolist()
+        except: tracks = []
+
+        # Formulaire d'ajout
+        with st.form("mapping_form"):
+            st.write("Créer un nouveau lien :")
+            col_a, col_b = st.columns(2)
+            sel_camp = col_a.selectbox("Campagne Meta Ads", campaigns)
+            sel_track = col_b.selectbox("Titre Spotify", tracks)
+            
+            if st.form_submit_button("💾 Enregistrer le lien"):
+                if sel_camp and sel_track:
+                    try:
+                        with db.conn.cursor() as cur:
+                            cur.execute("""
+                                INSERT INTO campaign_track_mapping (campaign_name, track_name)
+                                VALUES (%s, %s)
+                                ON CONFLICT (campaign_name, track_name) DO NOTHING
+                            """, (sel_camp, sel_track))
+                            db.conn.commit()
+                        st.success(f"✅ Lien activé : {sel_camp} -> {sel_track}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erreur SQL : {e}")
+
+        # Tableau des liens existants
+        st.markdown("#### Liens actifs")
+        try:
+            curr_map = db.fetch_df("SELECT campaign_name, track_name, created_at FROM campaign_track_mapping ORDER BY created_at DESC")
+            if not curr_map.empty:
+                st.dataframe(curr_map, width='stretch', hide_index=True)
+                
+                col_del, _ = st.columns([1, 4])
+                if col_del.button("🗑️ Réinitialiser tous les liens"):
+                    with db.conn.cursor() as cur:
+                        cur.execute("TRUNCATE TABLE campaign_track_mapping")
+                        db.conn.commit()
+                    st.rerun()
+            else:
+                st.info("Aucun lien configuré. Utilisez le formulaire ci-dessus.")
+        except: pass
+
+    # =========================================================================
+    # 2. SECTION ANALYSE (VISUALISATION)
+    # =========================================================================
+    st.header("📊 Performance & ROI")
+
+    # Sélecteur de Mode (Détail vs Global)
+    view_mode = st.radio(
+        "Mode d'analyse :", 
+        ["🎯 Par Campagne (Vue détaillée)", "💿 Par Titre (Vue agrégée)"], 
+        horizontal=True
     )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # STATS PÉRIODE
-    st.header("📊 Statistiques de la période")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Streams Totaux", f"{df_data['streams'].sum():,.0f}")
-    c2.metric("Moy. Streams/jour", f"{df_data['streams'].mean():,.0f}")
-    c3.metric("Conversions Totales", f"{int(df_data['conversions'].sum()):,}")
-    c4.metric("Popularité Actuelle", f"{int(df_data['popularity'].iloc[-1])}/100")
-    
-    # CORRÉLATION
-    st.markdown("---")
-    st.header("🔬 Analyse de Corrélation")
-    
-    if df_data['conversions'].sum() > 0 and df_data['streams'].sum() > 0:
-        df_corr = df_data[(df_data['conversions'] > 0) & (df_data['streams'] > 0)]
-        if len(df_corr) > 2:
-            corr = df_corr[['conversions', 'streams']].corr().iloc[0, 1]
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Corrélation", f"{corr:.2f}")
+
+    data = pd.DataFrame()
+    col_spend_name = ""
+    col_stream_name = "organic_streams"
+    chart_title = ""
+
+    # --- CHARGEMENT DES DONNÉES SELON LE MODE ---
+    if view_mode == "🎯 Par Campagne (Vue détaillée)":
+        try:
+            # On charge la Vue Détail (view_meta_spotify_roi)
+            df = db.fetch_df("SELECT * FROM view_meta_spotify_roi ORDER BY date ASC")
+        except: df = pd.DataFrame()
+
+        if not df.empty:
+            df['label'] = df['campaign_name'] + " ➡️ " + df['track_name']
+            selection = st.selectbox("Sélectionner le couple à analyser :", df['label'].unique())
             
-            if corr > 0.7: interpretation = "🟢 Forte"
-            elif corr > 0.3: interpretation = "🟡 Modérée"
-            elif corr > -0.3: interpretation = "⚪ Faible/Nulle"
-            else: interpretation = "🔴 Négative"
-            
-            c2.metric("Interprétation", interpretation)
-            c3.info("Calculé sur les jours avec >0 conversion.")
+            data = df[df['label'] == selection].copy()
+            col_spend_name = 'ad_spend'
+            chart_title = selection
         else:
-            st.info("Pas assez de données pour la corrélation.")
+            st.warning("Aucune donnée détaillée trouvée. Avez-vous importé les CSV et configuré le mapping ?")
+
     else:
-        st.info("Pas de conversions ou streams sur cette période.")
+        # Mode Global (view_track_global_roi)
+        try:
+            df = db.fetch_df("SELECT * FROM view_track_global_roi ORDER BY date ASC")
+        except: df = pd.DataFrame()
+
+        if not df.empty:
+            selection = st.selectbox("Sélectionner le Titre (Toutes campagnes confondues) :", df['track_name'].unique())
+            
+            data = df[df['track_name'] == selection].copy()
+            col_spend_name = 'total_ad_spend'
+            chart_title = f"Global : {selection}"
+        else:
+            st.warning("Aucune donnée globale trouvée.")
+
+    # --- RENDU GRAPHIQUE ET KPIS ---
+    if not data.empty and col_spend_name:
+        
+        # 1. Nettoyage des Types (Vital pour Plotly)
+        data['date'] = pd.to_datetime(data['date'])
+        cols_to_float = [col_spend_name, 'organic_streams', 'total_link_clicks', 'total_conversions', 'link_clicks', 'conversions']
+        
+        for c in cols_to_float:
+            if c in data.columns:
+                data[c] = pd.to_numeric(data[c], errors='coerce').fillna(0).astype(float)
+
+        # 2. Calculs KPI
+        total_spend = data[col_spend_name].sum()
+        total_streams = data['organic_streams'].sum()
+        
+        # Gestion Clics/Conversions selon la vue
+        clicks_col = 'total_link_clicks' if 'total_link_clicks' in data.columns else 'link_clicks'
+        total_clicks = data[clicks_col].sum() if clicks_col in data.columns else 0
+        
+        # Calculs Ratios
+        cps = total_spend / total_streams if total_streams > 0 else 0
+        cpc = total_spend / total_clicks if total_clicks > 0 else 0
+        
+        # 3. Affichage des Métriques
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("💰 Budget Période", f"{total_spend:,.2f} €")
+        k2.metric("🎧 Streams", f"{int(total_streams):,}")
+        k3.metric("🖱️ Clics (Link)", f"{int(total_clicks):,}")
+        k4.metric("📉 Coût / Stream", f"{cps:.3f} €", delta_color="inverse")
+
+        st.markdown("---")
+
+        # 4. Graphique Avancé (Double Axe)
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Barres : Dépenses
+        fig.add_trace(
+            go.Bar(
+                x=data['date'], 
+                y=data[col_spend_name], 
+                name="Dépenses Pub (€)",
+                marker_color='rgba(66, 103, 178, 0.6)', # Bleu Meta
+                hovertemplate='%{y:.2f} €<extra></extra>'
+            ),
+            secondary_y=False
+        )
+
+        # Ligne : Streams
+        fig.add_trace(
+            go.Scatter(
+                x=data['date'], 
+                y=data['organic_streams'], 
+                name="Streams Spotify",
+                line=dict(color='#1DB954', width=3, shape='spline'), # Vert Spotify
+                mode='lines+markers',
+                marker=dict(size=6),
+                hovertemplate='%{y} streams<extra></extra>'
+            ),
+            secondary_y=True
+        )
+
+        # Mise en page pro
+        fig.update_layout(
+            title=f"<b>{chart_title}</b>",
+            title_x=0.0,
+            legend=dict(orientation="h", y=1.1, x=0),
+            hovermode="x unified",
+            height=500,
+            margin=dict(l=20, r=20, t=80, b=20),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+        )
+
+        # Axes
+        fig.update_yaxes(title_text="Dépenses (€)", secondary_y=False, showgrid=True, gridcolor='rgba(128,128,128,0.1)')
+        fig.update_yaxes(title_text="Nombre de Streams", secondary_y=True, showgrid=False)
+        fig.update_xaxes(showgrid=False)
+
+        st.plotly_chart(fig, width='stretch')
+
+        # 5. Tableau de données brutes
+        with st.expander("🔎 Voir les données brutes"):
+            st.dataframe(
+                data.sort_values('date', ascending=False),
+                column_config={
+                    "date": "Date",
+                    col_spend_name: st.column_config.NumberColumn("Dépenses", format="%.2f €"),
+                    "organic_streams": st.column_config.NumberColumn("Streams"),
+                    clicks_col: st.column_config.NumberColumn("Clics")
+                },
+                width='stretch',
+                hide_index=True
+            )
 
     db.close()
 

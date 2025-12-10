@@ -17,19 +17,14 @@ def get_db():
     return PostgresHandler(**config['database'])
 
 def list_campaigns():
-    """Liste les campagnes disponibles depuis la vue globale."""
+    """Liste les campagnes disponibles depuis meta_campaigns."""
     db = get_db()
     try:
-        # On tape directement dans la table des stats globales
+        # ✅ CORRECTION : On ne sélectionne que le nom (pas de status)
         query = """
-            SELECT 
-                campaign_name,
-                MIN(date_start) as start_date,
-                SUM(spend) as total_spend,
-                SUM(clicks) as total_clicks
-            FROM meta_insights_global
-            GROUP BY campaign_name
-            ORDER BY start_date DESC
+            SELECT DISTINCT campaign_name
+            FROM meta_campaigns
+            ORDER BY campaign_name
         """
         df = db.fetch_df(query)
         return df
@@ -37,16 +32,13 @@ def list_campaigns():
         db.close()
 
 def list_tracks():
-    """Liste les chansons disponibles (S4A + API)."""
+    """Liste les chansons disponibles depuis la table tracks."""
     db = get_db()
     try:
-        # On combine S4A et API pour avoir le maximum de choix
+        # On récupère le nom et l'ID pour information
         query = """
-            SELECT DISTINCT song as track_name, song_uri as uri, 'S4A' as source
-            FROM s4a_song_timeline
-            UNION
-            SELECT DISTINCT name, track_id, 'API'
-            FROM spotify_tracks
+            SELECT DISTINCT track_name, track_id
+            FROM tracks
             ORDER BY track_name
         """
         df = db.fetch_df(query)
@@ -59,11 +51,7 @@ def list_mappings():
     db = get_db()
     try:
         query = """
-            SELECT 
-                id, 
-                campaign_name, 
-                spotify_track_uri, 
-                created_at 
+            SELECT id, campaign_name, track_name, created_at 
             FROM campaign_track_mapping
             ORDER BY created_at DESC
         """
@@ -77,16 +65,16 @@ def add_mapping():
     print("\n--- 1. CHOIX DE LA CAMPAGNE ---")
     df_camp = list_campaigns()
     if df_camp.empty:
-        print("❌ Aucune campagne trouvée.")
+        print("❌ Aucune campagne trouvée dans meta_campaigns.")
         return
 
     # Affichage indexé pour choix facile
-    print(tabulate(df_camp[['campaign_name', 'total_spend']].reset_index(), headers='keys', tablefmt='simple'))
+    print(tabulate(df_camp.reset_index(), headers='keys', tablefmt='simple'))
     
     try:
         idx = int(input("\n👉 Entrez le numéro de la campagne (index) : "))
         selected_camp = df_camp.iloc[idx]['campaign_name']
-        print(f"✅ Campagne sélectionnée : {selected_camp}")
+        print(f"✅ Campagne : {selected_camp}")
     except:
         print("❌ Sélection invalide.")
         return
@@ -94,32 +82,31 @@ def add_mapping():
     print("\n--- 2. CHOIX DE LA CHANSON ---")
     df_tracks = list_tracks()
     if df_tracks.empty:
-        print("❌ Aucune chanson trouvée.")
+        print("❌ Aucune chanson trouvée dans tracks.")
         return
 
     print(tabulate(df_tracks.reset_index(), headers='keys', tablefmt='simple'))
     
     try:
         idx = int(input("\n👉 Entrez le numéro de la chanson : "))
-        selected_uri = df_tracks.iloc[idx]['uri']
-        selected_name = df_tracks.iloc[idx]['track_name']
-        print(f"✅ Chanson sélectionnée : {selected_name}")
+        selected_track = df_tracks.iloc[idx]['track_name']
+        print(f"✅ Chanson : {selected_track}")
     except:
         print("❌ Sélection invalide.")
         return
 
     # Validation
-    confirm = input(f"\nLier '{selected_camp}' <-> '{selected_name}' ? (o/n) : ")
+    confirm = input(f"\nLier '{selected_camp}' <-> '{selected_track}' ? (o/n) : ")
     if confirm.lower() == 'o':
         db = get_db()
         try:
             query = """
-                INSERT INTO campaign_track_mapping (campaign_name, spotify_track_uri)
+                INSERT INTO campaign_track_mapping (campaign_name, track_name)
                 VALUES (%s, %s)
-                ON CONFLICT (campaign_name, spotify_track_uri) DO NOTHING
+                ON CONFLICT (campaign_name, track_name) DO NOTHING
             """
             with db.conn.cursor() as cur:
-                cur.execute(query, (selected_camp, selected_uri))
+                cur.execute(query, (selected_camp, selected_track))
                 db.conn.commit()
             print("🎉 Mapping enregistré avec succès !")
         except Exception as e:
@@ -144,17 +131,17 @@ def delete_mapping():
         print("🗑️ Supprimé.")
         db.close()
     except:
-        print("Erreur.")
+        print("Erreur ou Annulation.")
 
 def main_menu():
     while True:
         print("\n" + "="*50)
-        print("🔗 GESTION MAPPING META x SPOTIFY (Mode CSV)")
+        print("🔗 GESTION MAPPING META x SPOTIFY")
         print("="*50)
         print("1️⃣  Ajouter un mapping")
         print("2️⃣  Lister les mappings")
-        print("3️⃣  Lister les campagnes")
-        print("4️⃣  Lister les chansons")
+        print("3️⃣  Lister les campagnes (meta_campaigns)")
+        print("4️⃣  Lister les chansons (tracks)")
         print("5️⃣  Supprimer un mapping")
         print("0️⃣  Quitter")
         print("="*50)
