@@ -2,10 +2,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from pathlib import Path
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 import os
 
@@ -20,15 +19,11 @@ from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
 
-# Configuration de la page
-st.set_page_config(
-    page_title="Music Platform Dashboard",
-    page_icon="🎵",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ⚠️ FILTRE ARTISTE (Pour exclure la ligne "Total" des CSV)
+ARTIST_NAME_FILTER = "1x7xxxxxxx"
 
-# Initialiser AirflowTrigger
+st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide")
+
 config = config_loader.load()
 airflow_config = config.get('airflow', {})
 airflow_trigger = AirflowTrigger(
@@ -40,13 +35,7 @@ airflow_trigger = AirflowTrigger(
 def get_db():
     config = config_loader.load()
     db_config = config['database']
-    return PostgresHandler(
-        host=db_config['host'],
-        port=db_config['port'],
-        database=db_config['database'],
-        user=db_config['user'],
-        password=db_config['password']
-    )
+    return PostgresHandler(**db_config)
 
 def show_navigation_menu():
     st.sidebar.title("🎵 Navigation")
@@ -62,76 +51,43 @@ def show_navigation_menu():
         "🎬 YouTube": "youtube",
         "🏗️ Monitoring ETL": "airflow_kpi",
     }
-    selection = st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")
-    return pages[selection]
+    return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
 
 def show_data_collection_panel():
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔄 Synchronisation")
-    
     if st.sidebar.button("🚀 Lancer TOUTES les collectes", type="primary"):
-        with st.sidebar.status("Démarrage des pipelines...", expanded=True) as status:
-            dags_to_run = [
-                ("spotify_api_daily", "Spotify API"),
-                ("youtube_daily", "YouTube Data"),
-                ("soundcloud_daily", "SoundCloud Data"),
-                ("instagram_daily", "Instagram Data"),
-                ("s4a_csv_watcher", "CSV Spotify Artists"),
-                ("apple_music_csv_watcher", "CSV Apple Music"),
-                ("meta_csv_watcher_config", "Meta Ads (Config)"),
-                ("meta_insights_watcher", "Meta Ads (Stats)"),
-                ("data_quality_check", "Check Qualité")
-            ]
-            success_count = 0
-            for dag_id, label in dags_to_run:
-                st.write(f"⏳ {label}...")
+        with st.sidebar.status("Synchronisation...", expanded=True):
+            dags = [("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
+                    ("soundcloud_daily", "SoundCloud"), ("instagram_daily", "Instagram"),
+                    ("s4a_csv_watcher", "CSV S4A"), ("apple_music_csv_watcher", "CSV Apple"),
+                    ("meta_csv_watcher_config", "Meta Config"), ("meta_insights_watcher", "Meta Stats")]
+            for dag_id, label in dags:
                 try:
-                    res = airflow_trigger.trigger_dag(dag_id)
-                    if res.get('success'):
-                        st.write(f"✅ {label}")
-                        success_count += 1
-                    else:
-                        st.error(f"❌ {label}: {res.get('error')}")
-                except Exception as e: st.error(f"❌ {label}: {e}")
-            
-            if success_count == len(dags_to_run):
-                status.update(label="✅ Tout est lancé !", state="complete")
-                st.sidebar.success("Rafraîchissez dans quelques minutes.")
-    
-    st.sidebar.caption("Traite les API et les CSV du dossier `data/raw`.")
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("#### 🛠️ Collectes Individuelles")
-    
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        if st.button("🎸 Spotify", help="API"): airflow_trigger.trigger_dag('spotify_api_daily')
-        if st.button("🎵 S4A", help="CSV"): airflow_trigger.trigger_dag('s4a_csv_watcher')
-        if st.button("📱 Meta", help="CSV"): 
-            airflow_trigger.trigger_dag('meta_csv_watcher_config')
-            airflow_trigger.trigger_dag('meta_insights_watcher')
-        if st.button("📸 Insta", help="API"): airflow_trigger.trigger_dag('instagram_daily')
-    with c2:
-        if st.button("🎎 Apple", help="CSV"): airflow_trigger.trigger_dag('apple_music_csv_watcher')
-        if st.button("🎬 YouTube", help="API"): airflow_trigger.trigger_dag('youtube_daily')
-        if st.button("☁️ S-Cloud", help="API"): airflow_trigger.trigger_dag('soundcloud_daily')
+                    if airflow_trigger.trigger_dag(dag_id).get('success'): st.write(f"✅ {label}")
+                    else: st.error(f"❌ {label}")
+                except: st.error(f"❌ {label}")
+            st.sidebar.success("Lancé !")
 
 def get_spotify_chart_data(db):
-    """Récupère l'historique propre pour le graphique (Uniquement Spotify)."""
+    """Récupère l'historique dédupliqué (MAX par jour)."""
     try:
-        # On utilise DISTINCT ON pour ne garder qu'une seule valeur par jour/chanson (élimine les doublons)
-        df = db.fetch_df("""
-            SELECT date, SUM(streams) as value, 'Spotify' as platform
+        # On utilise MAX(streams) groupé par date et chanson pour écraser les doublons
+        # Puis on somme par date
+        query = """
+            SELECT date, SUM(daily_max) as value, 'Spotify' as platform
             FROM (
-                SELECT DISTINCT ON (date, song) streams, date
+                SELECT date, song, MAX(streams) as daily_max
                 FROM s4a_song_timeline
-                ORDER BY date, song, collected_at DESC
+                WHERE song NOT ILIKE %s
+                GROUP BY date, song
             ) sub
             GROUP BY date
             ORDER BY date ASC
-        """)
+        """
+        df = db.fetch_df(query, (f"%{ARTIST_NAME_FILTER}%",))
         if not df.empty:
             df['date'] = pd.to_datetime(df['date'])
-            df['value'] = df['value'].cumsum()
+            df['value'] = df['value'].cumsum() # Cumulatif pour voir la croissance
             return df
     except: pass
     return pd.DataFrame()
@@ -144,61 +100,61 @@ def main():
         st.title("🎵 Music Platform Dashboard")
         st.markdown("---")
         
-        # --- SECTION 1 : APERÇU RAPIDE & TOTAL STREAMS ---
         db = get_db()
         try:
-            total_spotify = 0
-            total_apple = 0
-            total_sc = 0
-            total_yt = 0
-            
-            # 1. Spotify (Total S4A Nettoyé)
-            # Cette requête prend chaque jour unique pour chaque chanson et les additionne.
-            # Elle ignore les doublons s'ils existent dans la base.
-            try: 
-                query_spot = """
-                    SELECT SUM(streams) 
+            # 1. SPOTIFY : Somme des MAX par chanson (Total Nettoyé)
+            q_spot = """
+                SELECT SUM(streams) FROM (
+                    SELECT song, MAX(streams) as streams
                     FROM (
-                        SELECT DISTINCT ON (date, song) streams 
+                        SELECT date, song, MAX(streams) as streams 
                         FROM s4a_song_timeline 
-                        ORDER BY date, song, collected_at DESC
-                    ) sub
-                """
-                total_spotify = db.fetch_query(query_spot)[0][0] or 0
-            except: pass
+                        WHERE song NOT ILIKE %s 
+                        GROUP BY date, song
+                    ) daily_deduped
+                    GROUP BY song
+                ) total_deduped
+            """
+            # Note: Cette logique prend le MAX atteint par chaque chanson (somme des pics)
+            # Alternative : Somme de tous les jours uniques :
+            q_spot_alt = """
+                SELECT SUM(daily_max) FROM (
+                    SELECT date, song, MAX(streams) as daily_max
+                    FROM s4a_song_timeline
+                    WHERE song NOT ILIKE %s
+                    GROUP BY date, song
+                ) sub
+            """
+            total_spotify = db.fetch_query(q_spot_alt, (f"%{ARTIST_NAME_FILTER}%",))[0][0] or 0
             
-            # 2. Apple (Somme des plays)
-            try: total_apple = db.fetch_query("SELECT SUM(plays) FROM apple_songs_performance")[0][0] or 0
-            except: pass
-            
-            # 3. SoundCloud (Somme des playbacks du dernier snapshot par track)
-            try: total_sc = db.fetch_query("SELECT SUM(playback_count) FROM view_soundcloud_latest")[0][0] or 0
-            except: pass
-            
-            # 4. YouTube (Somme des vues de la DERNIÈRE capture connue par vidéo)
+            # 2. YOUTUBE : On prend le MAX de vues connu par video_id
+            # On cherche dans youtube_video_stats qui contient l'historique
             try:
-                query_yt = """
-                    SELECT SUM(view_count) 
-                    FROM (
-                        SELECT DISTINCT ON (video_id) view_count 
-                        FROM youtube_videos 
-                        ORDER BY video_id, collected_at DESC
+                q_yt = """
+                    SELECT SUM(max_views) FROM (
+                        SELECT video_id, MAX(view_count) as max_views 
+                        FROM youtube_video_stats 
+                        GROUP BY video_id
                     ) sub
                 """
-                total_yt = db.fetch_query(query_yt)[0][0] or 0
-            except: pass
+                total_yt = db.fetch_query(q_yt)[0][0] or 0
+            except: total_yt = 0
+            
+            # 3. SOUNDCLOUD & APPLE (inchangés)
+            try: total_sc = db.fetch_query("SELECT SUM(playback_count) FROM view_soundcloud_latest")[0][0] or 0
+            except: total_sc = 0
+            try: total_apple = db.fetch_query("SELECT SUM(plays) FROM apple_songs_performance")[0][0] or 0
+            except: total_apple = 0
             
             GRAND_TOTAL = total_spotify + total_apple + total_sc + total_yt
 
-            # Affichage "Big Number"
             st.markdown(f"""
             <div style="text-align: center; padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 20px;">
-                <h2 style="color: #555; margin:0;">🎧 Total Streams (Toutes Plateformes)</h2>
+                <h2 style="color: #555; margin:0;">🎧 Total Streams</h2>
                 <h1 style="font-size: 3.5em; color: #1DB954; margin:0;">{int(GRAND_TOTAL):,}</h1>
             </div>
             """, unsafe_allow_html=True)
             
-            # KPIs individuels
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Spotify", f"{int(total_spotify):,}")
             c2.metric("YouTube", f"{int(total_yt):,}")
@@ -206,75 +162,38 @@ def main():
             c4.metric("Apple Music", f"{int(total_apple):,}")
             
             st.markdown("---")
-            
-            # --- SECTION 2 : GRAPHIQUE ÉVOLUTION (SPOTIFY ONLY) ---
-            st.subheader("📈 Évolution Cumulée des Streams (Spotify)")
+            st.subheader("📈 Évolution Cumulée (Spotify)")
             
             df_chart = get_spotify_chart_data(db)
-            
             if not df_chart.empty:
-                fig = px.area(
-                    df_chart, 
-                    x="date", 
-                    y="value", 
-                    color="platform",
-                    title="Croissance Spotify",
-                    color_discrete_map={"Spotify": "#1DB954"}
-                )
-                fig.update_layout(xaxis_title="Date", yaxis_title="Streams Cumulés", hovermode="x unified")
+                fig = px.area(df_chart, x="date", y="value", color="platform", 
+                              color_discrete_map={"Spotify": "#1DB954"})
+                fig.update_layout(yaxis_title="Streams Cumulés", hovermode="x unified")
                 st.plotly_chart(fig, width='stretch')
             else:
-                st.info("Aucune donnée Spotify pour le graphique. Avez-vous importé les CSV ?")
+                st.info("Pas assez de données.")
 
         except Exception as e:
-            st.error(f"Erreur chargement données: {e}")
+            st.error(f"Erreur : {e}")
         finally:
             db.close()
-        
+            
         st.markdown("---")
-        
-        # --- SECTION 3 : INFRASTRUCTURE ---
-        st.subheader("🔧 Infrastructure & Commandes")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.info("**Interface Airflow:** http://localhost:8080")
-            if st.button("🔗 Ouvrir Airflow UI"):
-                st.markdown("[Cliquez ici](http://localhost:8080)")
-                
-        with col2:
-            st.info("**Commande Docker (Démarrage):**")
-            st.code("docker-compose up -d", language="bash")
-            st.caption("À exécuter dans le terminal si Airflow est éteint.")
+        c1, c2 = st.columns(2)
+        with c1: 
+            if st.button("🔗 Airflow UI"): st.markdown("[Ouvrir](http://localhost:8080)")
+        with c2: st.code("docker-compose up -d")
 
-    # --- ROUTING DES AUTRES PAGES ---
-    elif page == "meta_ads_overview":
-        from views.meta_ads_overview import show
-        show()
-    elif page == "meta_x_spotify":
-        from views.meta_x_spotify import show
-        show()
-    elif page == "spotify_s4a_combined":
-        from views.spotify_s4a_combined import show
-        show()
-    elif page == "hypeddit":
-        from views.hypeddit import show
-        show()
-    elif page == "apple_music":
-        from views.apple_music import show
-        show()
-    elif page == "youtube":
-        from views.youtube import show
-        show()
-    elif page == "soundcloud": 
-        from views.soundcloud import show
-        show()
-    elif page == "instagram":
-        from views.instagram import show
-        show()
-    elif page == "airflow_kpi":
-        from views.airflow_kpi import show
-        show()
+    # Routing
+    elif page == "meta_ads_overview": from views.meta_ads_overview import show; show()
+    elif page == "meta_x_spotify": from views.meta_x_spotify import show; show()
+    elif page == "spotify_s4a_combined": from views.spotify_s4a_combined import show; show()
+    elif page == "hypeddit": from views.hypeddit import show; show()
+    elif page == "apple_music": from views.apple_music import show; show()
+    elif page == "youtube": from views.youtube import show; show()
+    elif page == "soundcloud": from views.soundcloud import show; show()
+    elif page == "instagram": from views.instagram import show; show()
+    elif page == "airflow_kpi": from views.airflow_kpi import show; show()
 
 if __name__ == "__main__":
     main()

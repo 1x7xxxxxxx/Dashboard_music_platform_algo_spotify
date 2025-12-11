@@ -18,7 +18,7 @@ def show():
     db = get_db_connection()
     
     # ============================================================================
-    # 1. RÉCUPÉRATION DES DONNÉES GLOBALES
+    # 1. RÉCUPÉRATION DES DONNÉES GLOBALES (DÉDUPLIQUÉES)
     # ============================================================================
     
     # A. Date de mise à jour
@@ -26,15 +26,20 @@ def show():
     last_update_res = db.fetch_query(update_query)
     last_update = last_update_res[0][0] if last_update_res and last_update_res[0][0] else None
 
-    # B. KPIs (Excluant l'artiste pour ne pas doubler)
-    stats_query = """
+    # B. KPIs (Dédupliqués)
+    # On calcule la somme des streams en ne prenant que la ligne la plus récente pour chaque jour/chanson
+    kpi_query = """
         SELECT 
             COUNT(DISTINCT song), 
             SUM(streams)
-        FROM s4a_song_timeline
-        WHERE song NOT ILIKE %s
+        FROM (
+            SELECT DISTINCT ON (date, song) song, streams
+            FROM s4a_song_timeline
+            WHERE song NOT ILIKE %s
+            ORDER BY date, song, collected_at DESC
+        ) sub
     """
-    stats_res = db.fetch_query(stats_query, (f"%{ARTIST_NAME_FILTER}%",))
+    stats_res = db.fetch_query(kpi_query, (f"%{ARTIST_NAME_FILTER}%",))
     songs_count = stats_res[0][0] or 0
     total_streams_individual = stats_res[0][1] or 0
 
@@ -58,7 +63,7 @@ def show():
             delta_color = "normal"
         elif hours_ago < 24:
             delta_str = f"Il y a {hours_ago}h"
-            delta_color = "off" # Gris
+            delta_color = "off"
         else:
             days = int(hours_ago / 24)
             delta_str = f"Il y a {days}j"
@@ -76,7 +81,7 @@ def show():
     st.markdown("---")
     
     # ============================================================================
-    # 3. TOP CHANSONS (Exclut l'artiste)
+    # 3. TOP CHANSONS (Dédupliqué)
     # ============================================================================
     st.header("🏆 Top Chansons")
     
@@ -84,8 +89,12 @@ def show():
         SELECT 
             song, 
             SUM(streams) as total_streams
-        FROM s4a_song_timeline
-        WHERE song NOT ILIKE %s
+        FROM (
+            SELECT DISTINCT ON (date, song) song, streams
+            FROM s4a_song_timeline
+            WHERE song NOT ILIKE %s
+            ORDER BY date, song, collected_at DESC
+        ) sub
         GROUP BY song
         ORDER BY total_streams DESC
         LIMIT 10
@@ -116,24 +125,26 @@ def show():
     st.markdown("---")
     
     # ============================================================================
-    # 4. ÉVOLUTION DE L'AUDIENCE GLOBALE (Calculée)
+    # 4. ÉVOLUTION DE L'AUDIENCE GLOBALE (Dédupliqué)
     # ============================================================================
     st.header("📈 Évolution de l'Audience Globale")
-    st.caption("Calculé : Somme des streams de tous les titres par jour")
+    st.caption("Calculé : Somme des streams dédupliqués jour par jour")
     
-    # Filtres date
     col1, col2 = st.columns(2)
     default_start = datetime.now().date() - timedelta(days=365)
     start_date_aud = col1.date_input("Début", value=default_start, key="date_aud_start")
     end_date_aud = col2.date_input("Fin", value=datetime.now().date(), key="date_aud_end")
     
-    # REQUÊTE : On somme tous les streams jour par jour
     audience_query = """
         SELECT date, SUM(streams) as daily_streams
-        FROM s4a_song_timeline
-        WHERE song NOT ILIKE %s 
-          AND date >= %s 
-          AND date <= %s
+        FROM (
+            SELECT DISTINCT ON (date, song) date, streams
+            FROM s4a_song_timeline
+            WHERE song NOT ILIKE %s 
+              AND date >= %s 
+              AND date <= %s
+            ORDER BY date, song, collected_at DESC
+        ) sub
         GROUP BY date
         ORDER BY date
     """
@@ -161,12 +172,11 @@ def show():
         st.info("Pas de données pour cette période.")
 
     # ============================================================================
-    # 5. DÉTAIL PAR CHANSON (Filtre 365 jours par défaut)
+    # 5. DÉTAIL PAR CHANSON
     # ============================================================================
     st.markdown("---")
     st.header("🎸 Détail par Chanson")
     
-    # Liste des chansons (SANS l'artiste)
     songs_list = db.fetch_df("""
         SELECT DISTINCT song 
         FROM s4a_song_timeline 
@@ -181,7 +191,6 @@ def show():
             selected_song = st.selectbox("Sélectionner une chanson", songs_list['song'])
         
         with col2:
-            # Filtre par défaut sur 365 jours
             start_date_song = st.date_input(
                 "Début", 
                 value=datetime.now().date() - timedelta(days=365),
@@ -194,11 +203,12 @@ def show():
                 key="song_end"
             )
         
+        # Même logique de déduplication ici aussi pour être cohérent
         df_song = db.fetch_df("""
-            SELECT date, streams 
+            SELECT DISTINCT ON (date) date, streams 
             FROM s4a_song_timeline 
             WHERE song = %s AND date >= %s AND date <= %s
-            ORDER BY date
+            ORDER BY date, collected_at DESC
         """, (selected_song, start_date_song, end_date_song))
         
         if not df_song.empty:
