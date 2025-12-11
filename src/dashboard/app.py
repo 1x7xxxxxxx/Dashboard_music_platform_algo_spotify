@@ -19,7 +19,7 @@ from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
 
-# ⚠️ FILTRE ARTISTE (Pour exclure la ligne "Total" des CSV)
+# ⚠️ FILTRE ARTISTE (Pour exclure la ligne "Total" des CSV Spotify)
 ARTIST_NAME_FILTER = "1x7xxxxxxx"
 
 st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide")
@@ -71,8 +71,6 @@ def show_data_collection_panel():
 def get_spotify_chart_data(db):
     """Récupère l'historique dédupliqué (MAX par jour)."""
     try:
-        # On utilise MAX(streams) groupé par date et chanson pour écraser les doublons
-        # Puis on somme par date
         query = """
             SELECT date, SUM(daily_max) as value, 'Spotify' as platform
             FROM (
@@ -87,7 +85,7 @@ def get_spotify_chart_data(db):
         df = db.fetch_df(query, (f"%{ARTIST_NAME_FILTER}%",))
         if not df.empty:
             df['date'] = pd.to_datetime(df['date'])
-            df['value'] = df['value'].cumsum() # Cumulatif pour voir la croissance
+            df['value'] = df['value'].cumsum()
             return df
     except: pass
     return pd.DataFrame()
@@ -102,22 +100,8 @@ def main():
         
         db = get_db()
         try:
-            # 1. SPOTIFY : Somme des MAX par chanson (Total Nettoyé)
+            # 1. SPOTIFY : Calcul nettoyé (MAX par chanson/jour pour écraser doublons)
             q_spot = """
-                SELECT SUM(streams) FROM (
-                    SELECT song, MAX(streams) as streams
-                    FROM (
-                        SELECT date, song, MAX(streams) as streams 
-                        FROM s4a_song_timeline 
-                        WHERE song NOT ILIKE %s 
-                        GROUP BY date, song
-                    ) daily_deduped
-                    GROUP BY song
-                ) total_deduped
-            """
-            # Note: Cette logique prend le MAX atteint par chaque chanson (somme des pics)
-            # Alternative : Somme de tous les jours uniques :
-            q_spot_alt = """
                 SELECT SUM(daily_max) FROM (
                     SELECT date, song, MAX(streams) as daily_max
                     FROM s4a_song_timeline
@@ -125,24 +109,28 @@ def main():
                     GROUP BY date, song
                 ) sub
             """
-            total_spotify = db.fetch_query(q_spot_alt, (f"%{ARTIST_NAME_FILTER}%",))[0][0] or 0
+            try:
+                total_spotify = db.fetch_query(q_spot, (f"%{ARTIST_NAME_FILTER}%",))[0][0] or 0
+            except: total_spotify = 0
             
-            # 2. YOUTUBE : On prend le MAX de vues connu par video_id
-            # On cherche dans youtube_video_stats qui contient l'historique
+            # 2. YOUTUBE : CORRECTION MAJEURE ICI 🔴
+            # On prend directement le compteur GLOBAL de la chaîne (comme la vue détaillée)
+            # au lieu de faire la somme des vidéos une par une.
             try:
                 q_yt = """
-                    SELECT SUM(max_views) FROM (
-                        SELECT video_id, MAX(view_count) as max_views 
-                        FROM youtube_video_stats 
-                        GROUP BY video_id
-                    ) sub
+                    SELECT view_count 
+                    FROM youtube_channel_history 
+                    ORDER BY collected_at DESC 
+                    LIMIT 1
                 """
                 total_yt = db.fetch_query(q_yt)[0][0] or 0
             except: total_yt = 0
             
-            # 3. SOUNDCLOUD & APPLE (inchangés)
+            # 3. SOUNDCLOUD
             try: total_sc = db.fetch_query("SELECT SUM(playback_count) FROM view_soundcloud_latest")[0][0] or 0
             except: total_sc = 0
+            
+            # 4. APPLE MUSIC
             try: total_apple = db.fetch_query("SELECT SUM(plays) FROM apple_songs_performance")[0][0] or 0
             except: total_apple = 0
             
@@ -171,10 +159,10 @@ def main():
                 fig.update_layout(yaxis_title="Streams Cumulés", hovermode="x unified")
                 st.plotly_chart(fig, width='stretch')
             else:
-                st.info("Pas assez de données.")
+                st.info("Pas assez de données pour le graphique.")
 
         except Exception as e:
-            st.error(f"Erreur : {e}")
+            st.error(f"Erreur d'affichage : {e}")
         finally:
             db.close()
             
