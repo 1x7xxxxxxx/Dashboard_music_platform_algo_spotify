@@ -27,3 +27,9 @@ apache-airflow-providers-postgres
 apache-airflow-providers-http
 apache-airflow-providers-common-sql
 isodate==0.6.1
+
+#Reading xlsx for meta_insight watcher
+openpyxl
+pandas
+psycopg2-binary
+python-dotenv
