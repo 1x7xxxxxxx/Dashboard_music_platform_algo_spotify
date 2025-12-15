@@ -6,13 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Gestion des chemins pour imports
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.database.postgres_handler import PostgresHandler
 
-# Import défensif du Parser
 try:
     from src.transformers.meta_insight_csv_parser import MetaInsightParser
 except ImportError:
@@ -21,7 +19,6 @@ except ImportError:
 
 load_dotenv()
 
-# Chemins
 RAW_DIR = project_root / "data" / "raw" / "meta_ads" / "insights"
 ARCHIVE_DIR = project_root / "data" / "processed" / "meta_ads" / "insights"
 
@@ -41,15 +38,11 @@ class MetaAdsWatcher:
     def process_files(self):
         print(f"📂 Analyse Meta Ads dans : {RAW_DIR}")
         
-        if not os.path.exists(RAW_DIR):
-            print(f"❌ Dossier introuvable : {RAW_DIR}")
-            return
+        if not os.path.exists(RAW_DIR): return
 
-        # On accepte Excel (.xlsx) et CSV (.csv)
         files = [f for f in os.listdir(RAW_DIR) if f.lower().endswith(('.xlsx', '.csv'))]
-        
-        if not files:
-            print("⚠️ Aucun fichier Insights trouvé.")
+        if not files: 
+            # print("⚠️ Aucun fichier.") # Commenté pour éviter le spam si vide
             return
 
         for file in files:
@@ -57,52 +50,44 @@ class MetaAdsWatcher:
             print(f"👉 Traitement de : {file}")
 
             try:
-                # 1. Parsing
                 result = self.parser.parse_csv(file_path)
                 ftype = result['type']
                 data = result['data']
                 
-                # 2. Vérification Erreur / Vide
-                if ftype == 'error':
+                if result['type'] == 'error':
                     print(f"❌ ERREUR DE PARSING sur {file}. Vérifiez le format.")
-                    continue 
-                
-                if not data:
-                    print(f"⚠️ Fichier vide ou illisible : {file}")
                     continue
 
-                print(f"   🔍 Type : {ftype} | Lignes extraites : {len(data)}")
+                if not data:
+                    print(f"⚠️ Fichier vide ou illisible.")
+                    continue
 
-                # 3. Aiguillage vers les bonnes tables (Performance vs Engagement)
                 count = 0
                 
-                # --- Globaux ---
-                if ftype == 'global_performance': 
-                    count = self.upsert_performance(data)
-                elif ftype == 'global_engagement': 
-                    count = self.upsert_engagement(data)
+                # ==========================================
+                # ROUTAGE INTELLIGENT (PERF vs ENGAGEMENT)
+                # ==========================================
                 
-                # --- Répartitions (Nouvelles tables Performance) ---
-                elif ftype == 'day': 
-                    count = self.upsert_day(data)
-                elif ftype == 'age': 
-                    count = self.upsert_age(data)
-                elif ftype == 'country': 
-                    count = self.upsert_country(data)
-                elif ftype == 'placement': 
-                    count = self.upsert_placement(data)
+                # --- A. PERFORMANCES ---
+                if ftype == 'performance_global': count = self.upsert_performance_global(data)
+                elif ftype == 'performance_day': count = self.upsert_performance_day(data)
+                elif ftype == 'performance_age': count = self.upsert_performance_age(data)
+                elif ftype == 'performance_country': count = self.upsert_performance_country(data)
+                elif ftype == 'performance_placement': count = self.upsert_performance_placement(data)
                 
-                print(f"   ✅ {count} lignes insérées dans 'meta_insights_{ftype}'")
+                # --- B. ENGAGEMENT (NOUVEAU) ---
+                elif ftype == 'engagement_global': count = self.upsert_engagement_global(data)
+                elif ftype == 'engagement_day': count = self.upsert_engagement_day(data)
+                elif ftype == 'engagement_age': count = self.upsert_engagement_age(data)
+                elif ftype == 'engagement_country': count = self.upsert_engagement_country(data)
+                elif ftype == 'engagement_placement': count = self.upsert_engagement_placement(data)
                 
-                # 4. Archivage
+                print(f"   ✅ {count} lignes insérées ({ftype})")
                 self.archive_file(file)
 
             except Exception as e:
                 print(f"   ❌ Erreur critique sur {file}: {e}")
 
-    # =========================================================================
-    # HELPER SQL
-    # =========================================================================
     def _execute_upsert(self, query, data):
         if not data: return 0
         count = 0
@@ -118,86 +103,10 @@ class MetaAdsWatcher:
         return count
 
     # =========================================================================
-    # FONCTIONS UPSERT (Performance Tables)
+    # 1. UPSERTS PERFORMANCE (L'existant qui fonctionnait)
     # =========================================================================
 
-    def upsert_day(self, data):
-        """Table: meta_insights_performance_day"""
-        query = """
-            INSERT INTO meta_insights_performance_day (
-                campaign_name, day_date, spend, results, cpr, impressions, reach
-            ) VALUES (
-                %(campaign_name)s, %(day_date)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
-            )
-            ON CONFLICT (campaign_name, day_date) DO UPDATE SET
-                spend = EXCLUDED.spend,
-                results = EXCLUDED.results,
-                cpr = EXCLUDED.cpr,
-                impressions = EXCLUDED.impressions,
-                reach = EXCLUDED.reach,
-                collected_at = CURRENT_TIMESTAMP;
-        """
-        return self._execute_upsert(query, data)
-
-    def upsert_age(self, data):
-        """Table: meta_insights_performance_age"""
-        query = """
-            INSERT INTO meta_insights_performance_age (
-                campaign_name, age_range, spend, results, cpr, impressions, reach
-            ) VALUES (
-                %(campaign_name)s, %(age_range)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
-            )
-            ON CONFLICT (campaign_name, age_range) DO UPDATE SET
-                spend = EXCLUDED.spend,
-                results = EXCLUDED.results,
-                cpr = EXCLUDED.cpr,
-                impressions = EXCLUDED.impressions,
-                reach = EXCLUDED.reach,
-                collected_at = CURRENT_TIMESTAMP;
-        """
-        return self._execute_upsert(query, data)
-
-    def upsert_country(self, data):
-        """Table: meta_insights_performance_country"""
-        query = """
-            INSERT INTO meta_insights_performance_country (
-                campaign_name, country, spend, results, cpr, impressions, reach
-            ) VALUES (
-                %(campaign_name)s, %(country)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
-            )
-            ON CONFLICT (campaign_name, country) DO UPDATE SET
-                spend = COALESCE(EXCLUDED.spend, meta_insights_performance_country.spend),
-                results = COALESCE(EXCLUDED.results, meta_insights_performance_country.results),
-                cpr = COALESCE(EXCLUDED.cpr, meta_insights_performance_country.cpr),
-                impressions = COALESCE(EXCLUDED.impressions, meta_insights_performance_country.impressions),
-                reach = COALESCE(EXCLUDED.reach, meta_insights_performance_country.reach),
-                collected_at = CURRENT_TIMESTAMP;
-        """
-        return self._execute_upsert(query, data)
-
-    def upsert_placement(self, data):
-        """Table: meta_insights_performance_placement"""
-        query = """
-            INSERT INTO meta_insights_performance_placement (
-                campaign_name, platform, placement, spend, results, cpr, impressions, reach
-            ) VALUES (
-                %(campaign_name)s, %(platform)s, %(placement)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
-            )
-            ON CONFLICT (campaign_name, platform, placement) DO UPDATE SET
-                spend = EXCLUDED.spend,
-                results = EXCLUDED.results,
-                cpr = EXCLUDED.cpr,
-                impressions = EXCLUDED.impressions,
-                reach = EXCLUDED.reach,
-                collected_at = CURRENT_TIMESTAMP;
-        """
-        return self._execute_upsert(query, data)
-
-    # =========================================================================
-    # FONCTIONS UPSERT (Global Tables)
-    # =========================================================================
-
-    def upsert_performance(self, data):
+    def upsert_performance_global(self, data):
         """Table: meta_insights_performance"""
         query = """
             INSERT INTO meta_insights_performance (
@@ -208,35 +117,155 @@ class MetaAdsWatcher:
                 %(cpm)s, %(link_clicks)s, %(cpc)s, %(ctr)s, %(lp_views)s
             )
             ON CONFLICT (campaign_name, date_start) DO UPDATE SET
-                spend = EXCLUDED.spend, 
-                results = EXCLUDED.results,
-                cpr = EXCLUDED.cpr,
-                impressions = EXCLUDED.impressions, 
-                reach = EXCLUDED.reach,
-                frequency = EXCLUDED.frequency,
-                cpm = EXCLUDED.cpm,
-                link_clicks = EXCLUDED.link_clicks,
-                cpc = EXCLUDED.cpc,
-                ctr = EXCLUDED.ctr,
-                lp_views = EXCLUDED.lp_views,
+                spend = EXCLUDED.spend, results = EXCLUDED.results,
+                impressions = EXCLUDED.impressions, reach = EXCLUDED.reach,
+                frequency = EXCLUDED.frequency, cpm = EXCLUDED.cpm,
+                link_clicks = EXCLUDED.link_clicks, cpc = EXCLUDED.cpc,
+                ctr = EXCLUDED.ctr, lp_views = EXCLUDED.lp_views,
                 collected_at = CURRENT_TIMESTAMP;
         """
         return self._execute_upsert(query, data)
 
-    def upsert_engagement(self, data):
+    def upsert_performance_day(self, data):
+        """Table: meta_insights_performance_day"""
+        query = """
+            INSERT INTO meta_insights_performance_day (
+                campaign_name, day_date, spend, results, cpr, impressions, reach
+            ) VALUES (
+                %(campaign_name)s, %(day_date)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+            )
+            ON CONFLICT (campaign_name, day_date) DO UPDATE SET
+                spend = EXCLUDED.spend, results = EXCLUDED.results,
+                cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
+                reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_performance_age(self, data):
+        """Table: meta_insights_performance_age"""
+        query = """
+            INSERT INTO meta_insights_performance_age (
+                campaign_name, age_range, spend, results, cpr, impressions, reach
+            ) VALUES (
+                %(campaign_name)s, %(age_range)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+            )
+            ON CONFLICT (campaign_name, age_range) DO UPDATE SET
+                spend = EXCLUDED.spend, results = EXCLUDED.results,
+                cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
+                reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_performance_country(self, data):
+        """Table: meta_insights_performance_country"""
+        query = """
+            INSERT INTO meta_insights_performance_country (
+                campaign_name, country, spend, results, cpr, impressions, reach
+            ) VALUES (
+                %(campaign_name)s, %(country)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+            )
+            ON CONFLICT (campaign_name, country) DO UPDATE SET
+                spend = EXCLUDED.spend, results = EXCLUDED.results,
+                cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
+                reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_performance_placement(self, data):
+        """Table: meta_insights_performance_placement"""
+        query = """
+            INSERT INTO meta_insights_performance_placement (
+                campaign_name, platform, placement, spend, results, cpr, impressions, reach
+            ) VALUES (
+                %(campaign_name)s, %(platform)s, %(placement)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+            )
+            ON CONFLICT (campaign_name, platform, placement) DO UPDATE SET
+                spend = EXCLUDED.spend, results = EXCLUDED.results,
+                cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
+                reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    # =========================================================================
+    # 2. UPSERTS ENGAGEMENT (Les ajouts)
+    # =========================================================================
+
+    def upsert_engagement_global(self, data):
         """Table: meta_insights_engagement"""
         query = """
             INSERT INTO meta_insights_engagement (
-                campaign_name, page_interactions, post_reactions, comments, saves, shares
+                campaign_name, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                %(campaign_name)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s
+                %(campaign_name)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
             ON CONFLICT (campaign_name, date_start) DO UPDATE SET
-                page_interactions = EXCLUDED.page_interactions, 
-                post_reactions = EXCLUDED.post_reactions,
-                comments = EXCLUDED.comments, 
-                saves = EXCLUDED.saves,
-                shares = EXCLUDED.shares,
+                page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
+                comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
+                link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
+                collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_engagement_day(self, data):
+        """Table: meta_insights_engagement_day"""
+        query = """
+            INSERT INTO meta_insights_engagement_day (
+                campaign_name, day_date, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+            ) VALUES (
+                %(campaign_name)s, %(day_date)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+            )
+            ON CONFLICT (campaign_name, day_date) DO UPDATE SET
+                page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
+                comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
+                link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
+                collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_engagement_age(self, data):
+        """Table: meta_insights_engagement_age"""
+        query = """
+            INSERT INTO meta_insights_engagement_age (
+                campaign_name, age_range, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+            ) VALUES (
+                %(campaign_name)s, %(age_range)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+            )
+            ON CONFLICT (campaign_name, age_range) DO UPDATE SET
+                page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
+                comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
+                link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
+                collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_engagement_country(self, data):
+        """Table: meta_insights_engagement_country"""
+        query = """
+            INSERT INTO meta_insights_engagement_country (
+                campaign_name, country, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+            ) VALUES (
+                %(campaign_name)s, %(country)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+            )
+            ON CONFLICT (campaign_name, country) DO UPDATE SET
+                page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
+                comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
+                link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
+                collected_at = CURRENT_TIMESTAMP;
+        """
+        return self._execute_upsert(query, data)
+
+    def upsert_engagement_placement(self, data):
+        """Table: meta_insights_engagement_placement"""
+        query = """
+            INSERT INTO meta_insights_engagement_placement (
+                campaign_name, platform, placement, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+            ) VALUES (
+                %(campaign_name)s, %(platform)s, %(placement)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+            )
+            ON CONFLICT (campaign_name, platform, placement) DO UPDATE SET
+                page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
+                comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
+                link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
                 collected_at = CURRENT_TIMESTAMP;
         """
         return self._execute_upsert(query, data)
