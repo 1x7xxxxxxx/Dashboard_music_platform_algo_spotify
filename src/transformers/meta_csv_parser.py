@@ -2,122 +2,129 @@ import pandas as pd
 import logging
 from pathlib import Path
 from datetime import datetime
+import warnings
 
+warnings.simplefilter("ignore")
 logger = logging.getLogger(__name__)
 
 class MetaCSVParser:
     """
-    Parse les exports CSV Meta Ads avec mapping strict des colonnes demandées.
+    Parser Configuration Meta complet (Campagnes, Adsets, Ads + Ciblage + Créa).
     """
 
+    def read_flexible(self, file_path):
+        """Lecture robuste (Tabulation + UTF-16 en priorité pour Meta)."""
+        try: return pd.read_csv(file_path, sep='\t', encoding='utf-16', on_bad_lines='skip')
+        except: pass
+        try: return pd.read_csv(file_path, sep='\t', encoding='utf-8', on_bad_lines='skip')
+        except: pass
+        try: return pd.read_csv(file_path, encoding='utf-8', on_bad_lines='skip') # Cas virgule
+        except: pass
+        return pd.DataFrame()
+
     def parse(self, file_path: Path):
-        try:
-            logger.info(f"📂 Lecture du fichier : {file_path.name}")
+        print(f"🔧 [Config Parser] Analyse : {file_path.name}")
+        
+        df = self.read_flexible(file_path)
+        
+        # Scan pour trouver le header si le fichier a des lignes parasites au début
+        if df.empty or 'Campaign ID' not in [str(c).strip() for c in df.columns]:
+            # Mode Scan manuel
+            df_raw = self.read_flexible(file_path) # Reload brut
+            header_idx = None
+            for r in range(min(20, len(df_raw))):
+                row_str = [str(x).strip() for x in df_raw.iloc[r].values]
+                if 'Campaign ID' in row_str:
+                    header_idx = r
+                    break
             
-            # 1. Lecture Robuste (Gestion Tabulations \t et Encodage)
-            # Votre fichier est un .csv qui utilise des tabulations
-            try:
-                df = pd.read_csv(file_path, sep='\t', encoding='utf-16', on_bad_lines='skip')
-                if 'Campaign ID' not in df.columns:
-                    raise ValueError("Mauvais encodage")
-            except:
-                try:
-                    df = pd.read_csv(file_path, sep='\t', encoding='utf-8', on_bad_lines='skip')
-                except:
-                    # Moteur Python plus tolérant
-                    df = pd.read_csv(file_path, sep='\t', engine='python')
+            if header_idx is not None:
+                df = df_raw.iloc[header_idx+1:].copy()
+                df.columns = [str(x).strip() for x in df_raw.iloc[header_idx].values]
+            else:
+                print("❌ Impossible de trouver l'en-tête 'Campaign ID'")
+                return {'type': 'error', 'data': None}
 
-            # Nettoyage des noms de colonnes (espaces avant/après)
-            df.columns = [c.strip() for c in df.columns]
+        # Nettoyage des noms de colonnes
+        df.columns = [str(c).strip() for c in df.columns]
+        cols = df.columns.tolist()
+
+        # Dictionnaires résultats
+        campaigns, adsets, ads = {}, {}, {}
+
+        # Helper pour récupérer une valeur (tolérant à la casse)
+        def get_val(row, col_name):
+            # Cherche correspondance exacte ou insensible à la casse
+            target = next((c for c in cols if c.lower() == col_name.lower()), None)
+            val = row[target] if target else None
+            return str(val).strip() if pd.notna(val) else None
+
+        for _, row in df.iterrows():
             
-            if 'Campaign ID' not in df.columns:
-                logger.error("❌ Colonne 'Campaign ID' introuvable.")
-                return None
+            # --- 1. CAMPAGNES ---
+            c_id = get_val(row, 'Campaign ID')
+            if c_id:
+                c_id = c_id.replace('.0', '')
+                campaigns[c_id] = {
+                    'campaign_id': c_id,
+                    'campaign_name': get_val(row, 'Campaign Name'),
+                    'start_time': get_val(row, 'Campaign Start Time')
+                }
 
-            # Remplacement des NaN par None (NULL en SQL) pour éviter les erreurs
-            df = df.where(pd.notnull(df), None)
+            # --- 2. ADSETS (Ensembles) ---
+            as_id = get_val(row, 'Ad Set ID')
+            if as_id:
+                as_id = as_id.replace('.0', '')
+                adsets[as_id] = {
+                    'adset_id': as_id,
+                    'campaign_id': c_id,
+                    'adset_name': get_val(row, 'Ad Set Name'),
+                    'status': get_val(row, 'Ad Set Run Status') or get_val(row, 'Ad Set Status'), # Fallback
+                    'start_time': get_val(row, 'Ad Set Time Start'),
+                    
+                    # Ciblage Géographique & Démographique
+                    'countries': get_val(row, 'Countries'),
+                    'cities': get_val(row, 'Cities'),
+                    'gender': get_val(row, 'Gender'),
+                    'age_min': get_val(row, 'Age Min'),
+                    'age_max': get_val(row, 'Age Max'),
+                    
+                    # Ciblage Avancé
+                    'flexible_inclusions': get_val(row, 'Flexible Inclusions'),
+                    'advantage_audience': get_val(row, 'Advantage Audience'),
+                    'age_range': get_val(row, 'Age Range'),
+                    'targeting_optimization': get_val(row, 'Targeting Optimization'),
+                    
+                    # Placements
+                    'publisher_platforms': get_val(row, 'Publisher Platforms'),
+                    'instagram_positions': get_val(row, 'Instagram Positions'),
+                    'device_platforms': get_val(row, 'Device Platforms')
+                }
 
-            # =================================================================
-            # 1. CAMPAGNES
-            # =================================================================
-            camp_mapping = {
-                'Campaign ID': 'campaign_id',
-                'Campaign Name': 'campaign_name',
-                'Campaign Start Time': 'start_time'
-            }
-            
-            # Sélection et renommage
-            df_camp = df[list(camp_mapping.keys())].rename(columns=camp_mapping).copy()
-            df_camp = df_camp.drop_duplicates(subset=['campaign_id'])
-            df_camp['collected_at'] = datetime.now()
+            # --- 3. ADS (Publicités) ---
+            ad_id = get_val(row, 'Ad ID')
+            if ad_id:
+                ad_id = ad_id.replace('.0', '')
+                ads[ad_id] = {
+                    'ad_id': ad_id,
+                    'adset_id': as_id,
+                    'campaign_id': c_id,
+                    'ad_name': get_val(row, 'Ad Name'),
+                    
+                    # Créa
+                    'title': get_val(row, 'Title'),
+                    'body': get_val(row, 'Body'),
+                    'video_file_name': get_val(row, 'Video File Name'),
+                    'call_to_action': get_val(row, 'Call to Action')
+                }
 
-            # =================================================================
-            # 2. ADSETS
-            # =================================================================
-            # Mapping Colonne CSV -> Colonne BDD
-            adset_mapping = {
-                'Ad Set ID': 'adset_id',
-                'Campaign ID': 'campaign_id', # Nécessaire pour la liaison
-                'Ad Set Name': 'adset_name',
-                'Ad Set Run Status': 'status',
-                'Ad Set Time Start': 'start_time',
-                'Countries': 'countries',
-                'Gender': 'gender',
-                'Age Min': 'age_min',
-                'Age Max': 'age_max',
-                'Advantage Audience': 'advantage_audience',
-                'Age Range': 'age_range',
-                'Publisher Platforms': 'publisher_platforms',
-                'Instagram Positions': 'instagram_positions',
-                'Device Platforms': 'device_platforms'
-            }
-            
-            # On ne garde que les colonnes qui existent dans le fichier
-            existing_cols = [c for c in adset_mapping.keys() if c in df.columns]
-            df_adsets = df[existing_cols].rename(columns=adset_mapping).copy()
-            
-            # Nettoyage
-            df_adsets = df_adsets.dropna(subset=['adset_id'])
-            df_adsets = df_adsets.drop_duplicates(subset=['adset_id'])
-            df_adsets['collected_at'] = datetime.now()
+        res_c = list(campaigns.values())
+        res_as = list(adsets.values())
+        res_ad = list(ads.values())
 
-            # =================================================================
-            # 3. ADS
-            # =================================================================
-            ads_mapping = {
-                'Ad ID': 'ad_id',
-                'Ad Set ID': 'adset_id',     # Nécessaire pour liaison
-                'Campaign ID': 'campaign_id', # Nécessaire pour liaison
-                'Ad Name': 'ad_name',
-                'Instagram Preview Link': 'instagram_preview_link',
-                'Dynamic Creative Ad Format': 'dynamic_creative_ad_format',
-                'Default Language': 'default_language',
-                'Additional Language 1': 'additional_language_1',
-                'Title': 'title',
-                'Additional Title 1': 'additional_title_1',
-                'Body': 'body',
-                'Additional Body 1': 'additional_body_1',
-                'Additional Body 2': 'additional_body_2',
-                'Additional Body 3': 'additional_body_3',
-                'Link Description': 'link_description',
-                'Additional Link Description 1': 'additional_link_description_1',
-                'Video File Name': 'video_file_name',
-                'Call to Action': 'call_to_action'
-            }
-
-            existing_cols = [c for c in ads_mapping.keys() if c in df.columns]
-            df_ads = df[existing_cols].rename(columns=ads_mapping).copy()
-            
-            df_ads = df_ads.dropna(subset=['ad_id'])
-            df_ads = df_ads.drop_duplicates(subset=['ad_id'])
-            df_ads['collected_at'] = datetime.now()
-
-            return {
-                'campaigns': df_camp,
-                'adsets': df_adsets,
-                'ads': df_ads
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Erreur critique parsing CSV: {e}")
-            raise
+        print(f"   📊 Extraction : {len(res_c)} Camps | {len(res_as)} Sets | {len(res_ad)} Pubs")
+        
+        return {
+            'type': 'mixed_config',
+            'data': {'campaigns': res_c, 'adsets': res_as, 'ads': res_ad}
+        }
