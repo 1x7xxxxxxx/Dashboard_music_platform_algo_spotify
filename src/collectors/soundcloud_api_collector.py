@@ -20,121 +20,143 @@ class SoundCloudCollector:
         self.client_id = os.getenv("SOUNDCLOUD_CLIENT_ID")
         self.user_id = os.getenv("SOUNDCLOUD_USER_ID")
         
+        # Récupération dynamique des infos BDD
+        # Si vous testez en local hors docker, assurez-vous que localhost pointe bien sur le bon port
+        self.db_host = os.getenv('DATABASE_HOST', 'localhost')
+        self.db_port = os.getenv('DATABASE_PORT', '5432') # <-- On remet 5432 par défaut
+        self.db_name = os.getenv('DATABASE_NAME')
+        self.db_user = os.getenv('DATABASE_USER')
+        self.db_pass = os.getenv('DATABASE_PASSWORD')
+
         if not self.client_id or not self.user_id:
             raise ValueError("❌ Manque SOUNDCLOUD_CLIENT_ID ou SOUNDCLOUD_USER_ID dans .env")
             
         self.base_url = "https://api-v2.soundcloud.com"
         
-        # ✅ DÉGUISEMENT NAVIGATEUR (User-Agent)
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://soundcloud.com/',
-            'Origin': 'https://soundcloud.com'
+            'Origin': 'https://soundcloud.com',
+            'Referer': 'https://soundcloud.com/'
         }
         
-        # Connexion BDD (Port forcé 5433 pour Docker local)
-        print("🔌 Connexion BDD via le port 5433 (Docker Externe)...")
-        self.db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'localhost'),
-            port=5433,
-            database=os.getenv('DATABASE_NAME'),
-            user=os.getenv('DATABASE_USER'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
+        print(f"🔌 Tentative de connexion BDD vers {self.db_host}:{self.db_port}...")
+        try:
+            self.db = PostgresHandler(
+                host=self.db_host,
+                port=self.db_port,
+                database=self.db_name,
+                user=self.db_user,
+                password=self.db_pass
+            )
+            print("✅ Connexion BDD réussie (Objet créé).")
+        except Exception as e:
+            print(f"❌ CRASH Connexion BDD : {e}")
+            self.db = None
 
     def fetch_tracks(self):
-        """Récupère tous les titres de l'artiste."""
-        print(f"🎵 Connexion à SoundCloud pour l'utilisateur {self.user_id}...")
-        
+        print(f"🎵 Récupération SoundCloud pour User {self.user_id}...")
         tracks_data = []
         limit = 50
         offset = 0
         
         while True:
-            # Endpoint V2 pour les tracks d'un user
             url = f"{self.base_url}/users/{self.user_id}/tracks"
             params = {
                 'client_id': self.client_id,
                 'limit': limit,
                 'offset': offset,
                 'linked_partitioning': 1,
-                'app_locale': 'en' # Ajout pour faire plus "vrai"
+                'app_locale': 'en'
             }
             
             try:
-                # ✅ AJOUT DES HEADERS ICI
                 response = requests.get(url, params=params, headers=self.headers)
                 
-                if response.status_code == 401:
-                    print("❌ Erreur 401 : Client ID invalide (non autorisé).")
-                    break
-                if response.status_code == 403:
-                    print("❌ Erreur 403 : Accès interdit (WAF). Le script est détecté comme un bot.")
+                if response.status_code != 200:
+                    print(f"❌ Erreur API {response.status_code}")
                     break
                 
-                response.raise_for_status()
                 data = response.json()
                 
                 if 'collection' in data:
                     for track in data['collection']:
+                        # On prépare l'objet propre pour la BDD
                         tracks_data.append({
-                            'track_id': track.get('id'),
+                            'track_id': str(track.get('id')), # Conversion string au cas où
                             'title': track.get('title'),
                             'permalink_url': track.get('permalink_url'),
-                            'playback_count': track.get('playback_count', 0),
-                            'likes_count': track.get('likes_count', 0),
-                            'reposts_count': track.get('reposts_count', 0),
-                            'comment_count': track.get('comment_count', 0),
+                            'playback_count': int(track.get('playback_count', 0)),
+                            'likes_count': int(track.get('likes_count', 0)),
+                            'reposts_count': int(track.get('reposts_count', 0)),
+                            'comment_count': int(track.get('comment_count', 0)),
                             'collected_at': datetime.now().strftime('%Y-%m-%d')
                         })
                 
-                # Gestion de la pagination
                 if data.get('next_href'):
                     offset += limit
                 else:
                     break
                     
             except Exception as e:
-                print(f"❌ Erreur API: {e}")
+                print(f"❌ Erreur Fetch: {e}")
                 break
         
-        print(f"✅ {len(tracks_data)} titres récupérés.")
+        print(f"✅ {len(tracks_data)} titres trouvés via l'API.")
         return tracks_data
 
     def save_to_db(self, tracks):
-        """Sauvegarde les snapshots dans PostgreSQL."""
         if not tracks:
-            print("⚠️ Aucune donnée à sauvegarder.")
+            print("⚠️ Liste vide, rien à sauvegarder.")
             return
 
-        print(f"💾 Sauvegarde de {len(tracks)} titres en base de données...")
+        if not self.db:
+            print("❌ Pas de connexion BDD active. Abandon.")
+            return
+
+        print(f"💾 Tentative d'insertion de {len(tracks)} lignes...")
         
-        query = """
-            INSERT INTO soundcloud_tracks_daily 
-            (track_id, title, permalink_url, playback_count, likes_count, reposts_count, comment_count, collected_at)
-            VALUES (%(track_id)s, %(title)s, %(permalink_url)s, %(playback_count)s, %(likes_count)s, %(reposts_count)s, %(comment_count)s, %(collected_at)s)
-        """
-        
+        # 1. Suppression des données du jour pour éviter les doublons
         delete_query = "DELETE FROM soundcloud_tracks_daily WHERE collected_at = CURRENT_DATE"
         
         try:
+            # On tente d'abord la suppression
             with self.db.conn.cursor() as cur:
                 cur.execute(delete_query)
                 self.db.conn.commit()
+            print("   🧹 Nettoyage des données du jour effectué.")
             
-            self.db.insert_many("soundcloud_tracks_daily", tracks)
-            print("   ✅ Données insérées avec succès.")
-            
+            # 2. Insertion
+            # Vérification que la méthode insert_many existe bien dans votre PostgresHandler
+            # Sinon on fait une boucle simple pour tester
+            try:
+                self.db.insert_many("soundcloud_tracks_daily", tracks)
+                print("   ✅ INSERT SUCCESS ! Données sauvegardées.")
+            except AttributeError:
+                print("   ⚠️ Méthode insert_many introuvable, tentative manuelle...")
+                # Fallback manuel si insert_many n'est pas défini
+                query = """
+                    INSERT INTO soundcloud_tracks_daily 
+                    (track_id, title, permalink_url, playback_count, likes_count, reposts_count, comment_count, collected_at)
+                    VALUES (%(track_id)s, %(title)s, %(permalink_url)s, %(playback_count)s, %(likes_count)s, %(reposts_count)s, %(comment_count)s, %(collected_at)s)
+                """
+                with self.db.conn.cursor() as cur:
+                    for t in tracks:
+                        cur.execute(query, t)
+                    self.db.conn.commit()
+                print("   ✅ INSERT MANUEL SUCCESS !")
+
         except Exception as e:
-            print(f"❌ Erreur BDD: {e}")
-        finally:
-            self.db.close()
+            print(f"❌ ERREUR SQL CRITIQUE : {e}")
+            # Si l'erreur mentionne que la table n'existe pas, c'est le moment de la créer !
+            if "relation" in str(e) and "does not exist" in str(e):
+                print("💡 CONSEIL : Vérifiez que la table 'soundcloud_tracks_daily' existe bien dans PgAdmin.")
 
     def run(self):
         tracks = self.fetch_tracks()
         self.save_to_db(tracks)
+        if self.db:
+            self.db.close()
 
 if __name__ == "__main__":
     collector = SoundCloudCollector()
