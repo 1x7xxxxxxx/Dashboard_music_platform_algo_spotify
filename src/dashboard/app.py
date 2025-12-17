@@ -41,6 +41,7 @@ def show_navigation_menu():
     st.sidebar.title("🎵 Navigation")
     pages = {
         "🏠 Accueil": "home",
+        "🚀 Road to Algo (ML)": "trigger_algo",
         "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
         "🎵 META x Spotify": "meta_x_spotify",
         "🎵 Spotify & S4A": "spotify_s4a_combined",
@@ -173,6 +174,7 @@ def main():
         with c2: st.code("docker-compose up -d")
 
     # Routing
+    elif page == "trigger_algo": from views.trigger_algo import show; show()
     elif page == "meta_ads_overview": from views.meta_ads_overview import show; show()
     elif page == "meta_x_spotify": from views.meta_x_spotify import show; show()
     elif page == "spotify_s4a_combined": from views.spotify_s4a_combined import show; show()
