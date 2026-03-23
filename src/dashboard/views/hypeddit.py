@@ -34,7 +34,6 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
             conflict_columns=['artist_id', 'campaign_name'],
             update_columns=['is_active', 'updated_at']
         )
-        db.conn.commit()
 
         # 2. Stats
         stats_data = [{
@@ -52,14 +51,11 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
             conflict_columns=['artist_id', 'campaign_name', 'date'],
             update_columns=['visits', 'clicks', 'budget', 'updated_at']
         )
-        db.conn.commit()
-        
+
         db.close()
         return True, "✅ Données enregistrées avec succès"
-        
+
     except Exception as e:
-        if db and db.conn:
-            db.conn.rollback()
         if db:
             db.close()
         return False, f"❌ Erreur: {str(e)}"
@@ -124,9 +120,9 @@ def show():
             
             c1, c2, c3 = st.columns([2, 1, 1])
             with c2:
-                submit = st.form_submit_button("💾 Enregistrer", type="primary", width='stretch')
+                submit = st.form_submit_button("💾 Enregistrer", type="primary")
             with c3:
-                clear = st.form_submit_button("🔄 Réinitialiser", width='stretch', on_click=clear_form_data)
+                clear = st.form_submit_button("🔄 Réinitialiser", on_click=clear_form_data)
         
         if submit:
             if not campaign_name:
@@ -265,10 +261,10 @@ def show():
                 height=550
             )
 
-            st.plotly_chart(fig, width='stretch')
-            
+            st.plotly_chart(fig, use_container_width=True)
+
             with st.expander("Voir le détail des données"):
-                st.dataframe(df, width="stretch")
+                st.dataframe(df, use_container_width=True)
             
         else:
             st.info("📭 Aucune donnée trouvée pour la période sélectionnée.")
@@ -289,7 +285,7 @@ def show():
         
         if not df_hist.empty:
             df_hist['date'] = pd.to_datetime(df_hist['date']).dt.strftime('%d/%m/%Y')
-            st.dataframe(df_hist, width='stretch')
+            st.dataframe(df_hist, use_container_width=True)
         else:
             st.info("Historique vide.")
 

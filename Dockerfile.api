@@ -1,0 +1,25 @@
+# Dockerfile.api — FastAPI REST backend (Railway-compatible, Brick 14)
+#
+# Build:   docker build -f Dockerfile.api -t music-api .
+# Run:     docker run -e DATABASE_URL=... -e API_SECRET_KEY=... -e PORT=8080 -p 8080:8080 music-api
+#
+# In Railway: set DATABASE_URL, API_SECRET_KEY; PORT is injected automatically.
+
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY config/ ./config/
+
+EXPOSE 8080
+
+# PORT is injected by Railway at runtime; default to 8080 locally
+CMD sh -c "uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8080}"

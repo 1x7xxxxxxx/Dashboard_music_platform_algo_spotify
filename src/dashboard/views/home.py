@@ -158,7 +158,7 @@ def _section_spotify_chart(db, artist_id):
                 labels={'value': 'Streams cumulés', 'date': ''}
             )
             fig.update_layout(yaxis_title="Streams cumulés", hovermode="x unified", showlegend=False)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Pas encore de données Spotify S4A.")
     except Exception as e:
@@ -220,7 +220,7 @@ def _section_roi(db, artist_id):
             hovermode="x unified",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Aucune donnée de revenus ou dépenses sur cette période.")
 

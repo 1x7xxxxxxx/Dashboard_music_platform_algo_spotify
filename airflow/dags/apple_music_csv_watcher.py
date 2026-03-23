@@ -149,19 +149,20 @@ def process_csv_files(**context):
                     
                     for row in data:
                         history_data.append({
+                            'artist_id': artist_id,
                             'song_name': row['song_name'],
                             'plays': row['plays'],            # Valeur cumulée à ce jour
                             'shazam_count': row.get('shazam_count', 0),
                             'date': current_date,
                             'collected_at': timestamp
                         })
-                    
+
                     # Nettoyage préventif : Si on relance le script 2 fois le même jour,
                     # on supprime d'abord les entrées d'aujourd'hui pour éviter les doublons
                     for row in history_data:
                         db.execute_query(
-                            "DELETE FROM apple_songs_history WHERE song_name = %s AND date = %s",
-                            (row['song_name'], row['date'])
+                            "DELETE FROM apple_songs_history WHERE artist_id = %s AND song_name = %s AND date = %s",
+                            (row['artist_id'], row['song_name'], row['date'])
                         )
                     
                     # Insertion propre

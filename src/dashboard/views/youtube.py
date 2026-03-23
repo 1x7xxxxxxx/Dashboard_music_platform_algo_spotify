@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import isodate
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id
 
@@ -84,7 +84,7 @@ def show():
                 legend=dict(orientation="h", y=1.1),
                 height=450
             )
-            st.plotly_chart(fig_channel, width='stretch')
+            st.plotly_chart(fig_channel, use_container_width=True)
             
             # KPIs actuels
             latest = df_hist.iloc[-1]
@@ -100,42 +100,76 @@ def show():
         # ============================================================================
         # 2. ANALYSE VIDÉOS (TOP & SHORTS)
         # ============================================================================
-        
+
+        # ── Release-date filter (mirrors S4A / Apple / SoundCloud / Meta) ────
+        st.subheader("🏆 Top Contenus (Analyse Multi-Axes)")
+
+        _PERIOD_OPTIONS = {
+            "Tous": None,
+            "12 derniers mois": 365,
+            "6 derniers mois": 180,
+            "3 derniers mois": 90,
+            "30 derniers jours": 30,
+        }
+        c_period, c_filter1, c_filter2 = st.columns(3)
+        with c_period:
+            period_label = st.selectbox("Période de publication", list(_PERIOD_OPTIONS.keys()))
+        days_back = _PERIOD_OPTIONS[period_label]
+        published_since = (
+            datetime.now() - timedelta(days=days_back) if days_back else None
+        )
+
         # Récupération des vidéos + stats
-        videos_query = """
-            SELECT
-                v.title, v.duration, v.published_at, v.thumbnail_url,
-                vs.view_count, vs.like_count, vs.comment_count
-            FROM youtube_videos v
-            JOIN (
-                SELECT video_id, MAX(collected_at) as max_date
-                FROM youtube_video_stats
-                WHERE artist_id = %s
-                GROUP BY video_id
-            ) latest ON v.video_id = latest.video_id
-            JOIN youtube_video_stats vs ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
-            WHERE v.artist_id = %s
-            ORDER BY vs.view_count DESC
-        """
-        df_videos = db.fetch_df(videos_query, (artist_id, artist_id))
-        
+        if published_since:
+            videos_query = """
+                SELECT
+                    v.title, v.duration, v.published_at, v.thumbnail_url,
+                    vs.view_count, vs.like_count, vs.comment_count
+                FROM youtube_videos v
+                JOIN (
+                    SELECT video_id, MAX(collected_at) as max_date
+                    FROM youtube_video_stats
+                    WHERE artist_id = %s
+                    GROUP BY video_id
+                ) latest ON v.video_id = latest.video_id
+                JOIN youtube_video_stats vs
+                    ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
+                WHERE v.artist_id = %s
+                  AND v.published_at >= %s
+                ORDER BY v.published_at DESC
+            """
+            df_videos = db.fetch_df(videos_query, (artist_id, artist_id, published_since))
+        else:
+            videos_query = """
+                SELECT
+                    v.title, v.duration, v.published_at, v.thumbnail_url,
+                    vs.view_count, vs.like_count, vs.comment_count
+                FROM youtube_videos v
+                JOIN (
+                    SELECT video_id, MAX(collected_at) as max_date
+                    FROM youtube_video_stats
+                    WHERE artist_id = %s
+                    GROUP BY video_id
+                ) latest ON v.video_id = latest.video_id
+                JOIN youtube_video_stats vs
+                    ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
+                WHERE v.artist_id = %s
+                ORDER BY v.published_at DESC
+            """
+            df_videos = db.fetch_df(videos_query, (artist_id, artist_id))
+
         if not df_videos.empty:
             # Traitement
             df_videos['seconds'] = df_videos['duration'].apply(parse_duration)
             df_videos['type'] = df_videos['seconds'].apply(lambda x: 'Short 📱' if 0 < x <= 60 else 'Vidéo 📹')
-            
+
             # Calcul Ratio Vues/Like (Combien de vues pour 1 like ?)
             df_videos['ratio_views_like'] = df_videos.apply(
                 lambda x: x['view_count'] / x['like_count'] if x['like_count'] > 0 else 0, axis=1
             )
-            
-            # Filtres
-            st.subheader("🏆 Top Contenus (Analyse Multi-Axes)")
-            
-            c_filter1, c_filter2 = st.columns(2)
+
             with c_filter1:
                 selected_type = st.selectbox("Type de contenu", ["Tous", "Vidéo 📹", "Short 📱"])
-            
             with c_filter2:
                 top_n = st.slider("Nombre de vidéos", 5, 50, 10)
 
@@ -143,7 +177,7 @@ def show():
             df_filtered = df_videos.copy()
             if selected_type != "Tous":
                 df_filtered = df_filtered[df_filtered['type'] == selected_type]
-            
+
             df_top = df_filtered.head(top_n)
             
             if not df_top.empty:
@@ -244,7 +278,7 @@ def show():
                     margin=dict(b=100, r=50) # Marges pour les axes multiples
                 )
                 
-                st.plotly_chart(fig_top, width='stretch')
+                st.plotly_chart(fig_top, use_container_width=True)
                 
             else:
                 st.info("Aucune vidéo dans cette catégorie.")

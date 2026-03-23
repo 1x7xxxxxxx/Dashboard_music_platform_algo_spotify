@@ -44,7 +44,7 @@ def run_ml_scoring(**context):
     db_cfg = {
         'host': os.environ.get('DATABASE_HOST', 'postgres'),
         'port': int(os.environ.get('DATABASE_PORT', 5432)),
-        'dbname': os.environ.get('DATABASE_NAME', 'spotify_etl'),
+        'database': os.environ.get('DATABASE_NAME', 'spotify_etl'),
         'user': os.environ.get('DATABASE_USER', 'postgres'),
         'password': os.environ.get('DATABASE_PASSWORD', ''),
     }

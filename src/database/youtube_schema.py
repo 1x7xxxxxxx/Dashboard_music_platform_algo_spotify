@@ -33,7 +33,8 @@ YOUTUBE_SCHEMA = {
             subscriber_count INTEGER DEFAULT 0,
             video_count INTEGER DEFAULT 0,
             view_count BIGINT DEFAULT 0,
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(artist_id, channel_id, (collected_at::date))
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_channel 
@@ -78,7 +79,8 @@ YOUTUBE_SCHEMA = {
             like_count INTEGER DEFAULT 0,
             comment_count INTEGER DEFAULT 0,
             favorite_count INTEGER DEFAULT 0,
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(artist_id, video_id, (collected_at::date))
         );
         
         CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_video 

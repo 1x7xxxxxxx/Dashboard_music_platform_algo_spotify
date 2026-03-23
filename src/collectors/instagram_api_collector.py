@@ -16,8 +16,8 @@ from src.utils.retry import retry
 load_dotenv()
 
 class InstagramCollector:
-    def __init__(self):
-        # On a besoin d'un Token Meta (Long-Lived idéalement)
+    def __init__(self, artist_id: int = 1):
+        self.artist_id = artist_id
         self.access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
         # L'ID du compte Instagram Business (pas le nom d'utilisateur)
         self.ig_user_id = os.getenv("INSTAGRAM_USER_ID")
@@ -79,6 +79,7 @@ class InstagramCollector:
             data = response.json()
             
             stats = {
+                'artist_id': self.artist_id,
                 'ig_user_id': data.get('id'),
                 'username': data.get('username'),
                 'followers_count': data.get('followers_count', 0),
@@ -105,21 +106,24 @@ class InstagramCollector:
 
         print("💾 Sauvegarde en base de données...")
         
-        delete_query = "DELETE FROM instagram_daily_stats WHERE collected_at = CURRENT_DATE"
-        
+        delete_query = "DELETE FROM instagram_daily_stats WHERE collected_at = CURRENT_DATE AND artist_id = %s"
+
         insert_query = """
-            INSERT INTO instagram_daily_stats 
-            (ig_user_id, username, followers_count, follows_count, media_count, collected_at)
-            VALUES (%(ig_user_id)s, %(username)s, %(followers_count)s, %(follows_count)s, %(media_count)s, %(collected_at)s)
+            INSERT INTO instagram_daily_stats
+            (artist_id, ig_user_id, username, followers_count, follows_count, media_count, collected_at)
+            VALUES (%(artist_id)s, %(ig_user_id)s, %(username)s, %(followers_count)s, %(follows_count)s, %(media_count)s, %(collected_at)s)
+            ON CONFLICT (artist_id, ig_user_id, collected_at) DO UPDATE SET
+                username = EXCLUDED.username,
+                followers_count = EXCLUDED.followers_count,
+                follows_count = EXCLUDED.follows_count,
+                media_count = EXCLUDED.media_count
         """
         
         try:
-            with self.db.conn.cursor() as cur:
-                cur.execute(delete_query)
-                cur.execute(insert_query, stats)
-                self.db.conn.commit()
+            self.db.execute_query(delete_query, (self.artist_id,))
+            self.db.execute_query(insert_query, stats)
             print("   ✅ Succès : Stats Instagram insérées.")
-            
+
         except Exception as e:
             print(f"❌ Erreur SQL: {e}")
             if "relation" in str(e) and "does not exist" in str(e):

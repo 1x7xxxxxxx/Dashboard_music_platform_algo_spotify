@@ -50,9 +50,27 @@ APPLE_MUSIC_CSV_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, date)
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_apple_listeners_date 
+
+        CREATE INDEX IF NOT EXISTS idx_apple_listeners_date
         ON apple_listeners(date DESC);
+    """,
+
+    'apple_songs_history': """
+        CREATE TABLE IF NOT EXISTS apple_songs_history (
+            id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
+            song_name VARCHAR(255) NOT NULL,
+            plays INTEGER DEFAULT 0,
+            shazam_count INTEGER DEFAULT 0,
+            date DATE NOT NULL DEFAULT CURRENT_DATE,
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_apple_history_artist
+        ON apple_songs_history(artist_id);
+
+        CREATE INDEX IF NOT EXISTS idx_apple_history_date
+        ON apple_songs_history(date DESC);
     """
 }
 

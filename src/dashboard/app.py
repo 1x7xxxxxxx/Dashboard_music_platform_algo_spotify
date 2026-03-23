@@ -23,10 +23,11 @@ st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide"
 
 config = config_loader.load()
 airflow_config = config.get('airflow', {})
+# Env vars take precedence over config.yaml — required for Railway deployment
 airflow_trigger = AirflowTrigger(
-    base_url=airflow_config.get('base_url', 'http://localhost:8080'),
-    username=airflow_config.get('username', 'admin'),
-    password=airflow_config.get('password', 'admin')
+    base_url=os.getenv('AIRFLOW_BASE_URL', airflow_config.get('base_url', 'http://localhost:8080')),
+    username=os.getenv('AIRFLOW_USERNAME', airflow_config.get('username', 'admin')),
+    password=os.getenv('AIRFLOW_PASSWORD', airflow_config.get('password', 'admin')),
 )
 
 def show_navigation_menu(role: str = 'artist'):
@@ -42,7 +43,8 @@ def show_navigation_menu(role: str = 'artist'):
         "📸 Instagram": "instagram",
         "🎎 Apple Music": "apple_music",
         "🎬 YouTube": "youtube",
-        "💰 iMusician": "imusician",
+        "🎁 Data Wrapped": "data_wrapped",
+        "💰 Distributeur": "imusician",
         "🔑 Credentials API": "credentials",
         "📂 Import CSV": "upload_csv",
         "📄 Export PDF": "export_pdf",
@@ -50,6 +52,7 @@ def show_navigation_menu(role: str = 'artist'):
         "🏗️ Monitoring ETL": "airflow_kpi",
         "🤖 Perf. Modèles ML": "ml_performance",
         "🔧 Liens & Outils": "useful_links",
+        "💳 Billing": "billing",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
@@ -110,6 +113,7 @@ def main():
     elif page == "youtube": from views.youtube import show; show()
     elif page == "soundcloud": from views.soundcloud import show; show()
     elif page == "instagram": from views.instagram import show; show()
+    elif page == "data_wrapped": from views.data_wrapped import show; show()
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
     elif page == "upload_csv": from views.upload_csv import show; show()
@@ -118,6 +122,7 @@ def main():
     elif page == "airflow_kpi": from views.airflow_kpi import show; show()
     elif page == "ml_performance": from views.ml_performance import show; show()
     elif page == "useful_links": from views.useful_links import show; show()
+    elif page == "billing": from views.billing import show; show()
     elif page == "admin": from views.admin import show; show()
 
 if __name__ == "__main__":

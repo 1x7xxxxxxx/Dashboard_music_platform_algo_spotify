@@ -12,6 +12,13 @@ def show():
     artist_id = get_artist_id() or 1
 
     try:
+        _show_meta_ads(db, artist_id)
+    finally:
+        db.close()
+
+
+def _show_meta_ads(db, artist_id):
+    try:
         df_list = db.fetch_df(
             "SELECT DISTINCT campaign_name FROM meta_insights_performance WHERE artist_id = %s ORDER BY campaign_name DESC",
             (artist_id,)
@@ -174,7 +181,7 @@ def show():
             hovermode="x unified",
             barmode='group'
         )
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
@@ -210,7 +217,7 @@ def show():
             yaxis3=dict(title="CPR (€)", titlefont=dict(color="#bc5090"), anchor="free", overlaying="y", side="right", position=0.95, showgrid=False),
             legend=dict(orientation="h", y=1.1)
         )
-        st.plotly_chart(fig_time, width='stretch')
+        st.plotly_chart(fig_time, use_container_width=True)
     else:
         st.info("Pas de données temporelles.")
 
@@ -250,11 +257,11 @@ def show():
 
     c1, c2 = st.columns(2)
     with c1:
-        if fig_country := create_pareto_chart(df_country, 'country', "Pays (Top Dépenses)"): st.plotly_chart(fig_country, width='stretch')
+        if fig_country := create_pareto_chart(df_country, 'country', "Pays (Top Dépenses)"): st.plotly_chart(fig_country, use_container_width=True)
     with c2:
-        if fig_place := create_pareto_chart(df_place, 'placement', "Placements"): st.plotly_chart(fig_place, width='stretch')
+        if fig_place := create_pareto_chart(df_place, 'placement', "Placements"): st.plotly_chart(fig_place, use_container_width=True)
 
-    if fig_age := create_pareto_chart(df_age, 'age_range', "Performance par Âge"): st.plotly_chart(fig_age, width='stretch')
+    if fig_age := create_pareto_chart(df_age, 'age_range', "Performance par Âge"): st.plotly_chart(fig_age, use_container_width=True)
 
     st.markdown("---")
 
@@ -292,5 +299,5 @@ def show():
                 "CTR (%)": "{:,.2f}", "Saves": "{:,.0f}", "Clics": "{:,.0f}",
                 "Interactions": "{:,.0f}", "Shares": "{:,.0f}"
             }), 
-            width='stretch'
+            use_container_width=True,
         )

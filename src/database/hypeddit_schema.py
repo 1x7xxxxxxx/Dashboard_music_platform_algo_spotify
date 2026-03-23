@@ -12,10 +12,10 @@ HYPEDDIT_SCHEMA = {
             UNIQUE(artist_id, campaign_name)
         );
         
-        CREATE INDEX idx_hypeddit_campaigns_name 
+        CREATE INDEX IF NOT EXISTS idx_hypeddit_campaigns_name
         ON hypeddit_campaigns(campaign_name);
-        
-        CREATE INDEX idx_hypeddit_campaigns_active 
+
+        CREATE INDEX IF NOT EXISTS idx_hypeddit_campaigns_active
         ON hypeddit_campaigns(is_active) WHERE is_active = true;
     """,
     
@@ -39,13 +39,13 @@ HYPEDDIT_SCHEMA = {
                 ON DELETE CASCADE
         );
         
-        CREATE INDEX idx_hypeddit_stats_campaign 
+        CREATE INDEX IF NOT EXISTS idx_hypeddit_stats_campaign
         ON hypeddit_daily_stats(campaign_name);
-        
-        CREATE INDEX idx_hypeddit_stats_date 
+
+        CREATE INDEX IF NOT EXISTS idx_hypeddit_stats_date
         ON hypeddit_daily_stats(date DESC);
-        
-        CREATE INDEX idx_hypeddit_stats_campaign_date 
+
+        CREATE INDEX IF NOT EXISTS idx_hypeddit_stats_campaign_date
         ON hypeddit_daily_stats(campaign_name, date);
         
         -- Fonction pour calculer automatiquement CTR et CPC

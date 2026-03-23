@@ -1,7 +1,9 @@
 """Handler pour les interactions avec PostgreSQL - VERSION OPTIMISÉE."""
 import psycopg2
+from psycopg2 import sql as pgsql
 from psycopg2.extras import execute_values
 from typing import List, Dict, Any, Optional, Tuple
+from urllib.parse import urlparse
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,26 @@ class PostgresHandler:
         
         self._connect()
     
+    @classmethod
+    def from_url(cls, url: str) -> "PostgresHandler":
+        """
+        Instantiate from a DATABASE_URL string.
+
+        Accepts both ``postgresql://`` and ``postgres://`` schemes (Railway uses the latter).
+        Example: ``postgres://user:pass@host:5432/dbname``
+        """
+        parsed = urlparse(url)
+        # Normalise scheme so psycopg2 accepts it
+        if parsed.scheme not in ("postgresql", "postgres"):
+            raise ValueError(f"Unsupported DATABASE_URL scheme: {parsed.scheme!r}")
+        return cls(
+            host=parsed.hostname or "localhost",
+            port=parsed.port or 5432,
+            database=parsed.path.lstrip("/"),
+            user=parsed.username or "postgres",
+            password=parsed.password or "",
+        )
+
     def _connect(self) -> None:
         """Établit la connexion à PostgreSQL."""
         try:
@@ -222,7 +244,9 @@ class PostgresHandler:
     def get_table_count(self, table_name: str) -> int:
         """Retourne le nombre de lignes dans une table."""
         try:
-            query = f"SELECT COUNT(*) FROM {table_name}"
+            query = pgsql.SQL("SELECT COUNT(*) FROM {}").format(
+                pgsql.Identifier(table_name)
+            )
             result = self.fetch_query(query)
             count = result[0][0] if result else 0
             logger.debug(f"📊 Table {table_name}: {count} lignes")

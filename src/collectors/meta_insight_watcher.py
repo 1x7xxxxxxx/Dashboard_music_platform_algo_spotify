@@ -23,7 +23,8 @@ RAW_DIR = project_root / "data" / "raw" / "meta_ads" / "insights"
 ARCHIVE_DIR = project_root / "data" / "processed" / "meta_ads" / "insights"
 
 class MetaAdsWatcher:
-    def __init__(self):
+    def __init__(self, artist_id: int = 1):
+        self.artist_id = artist_id
         self.db = PostgresHandler(
             host=os.getenv('DATABASE_HOST'),
             port=int(os.getenv('DATABASE_PORT')),
@@ -92,14 +93,11 @@ class MetaAdsWatcher:
         if not data: return 0
         count = 0
         try:
-            with self.db.conn.cursor() as cur:
-                for row in data:
-                    cur.execute(query, row)
-                    count += 1
-                self.db.conn.commit()
+            for row in data:
+                self.db.execute_query(query, {**row, 'artist_id': self.artist_id})
+                count += 1
         except Exception as e:
             print(f"❌ Erreur SQL: {e}")
-            self.db.conn.rollback()
         return count
 
     # =========================================================================
@@ -113,7 +111,7 @@ class MetaAdsWatcher:
                 artist_id, campaign_name, date_start, spend, impressions, reach,
                 frequency, results, cpr, cpm, link_clicks, cpc, ctr, lp_views
             ) VALUES (
-                1, %(campaign_name)s, %(date_start)s, %(spend)s, %(impressions)s, %(reach)s,
+                %(artist_id)s, %(campaign_name)s, %(date_start)s, %(spend)s, %(impressions)s, %(reach)s,
                 %(frequency)s, %(results)s, %(cpr)s, %(cpm)s, %(link_clicks)s, %(cpc)s, %(ctr)s, %(lp_views)s
             )
             ON CONFLICT (artist_id, campaign_name, date_start) DO UPDATE SET
@@ -132,7 +130,7 @@ class MetaAdsWatcher:
             INSERT INTO meta_insights_performance_day (
                 artist_id, campaign_name, day_date, spend, results, cpr, impressions, reach
             ) VALUES (
-                1, %(campaign_name)s, %(day_date)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                %(artist_id)s, %(campaign_name)s, %(day_date)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
             ON CONFLICT (artist_id, campaign_name, day_date) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
@@ -147,7 +145,7 @@ class MetaAdsWatcher:
             INSERT INTO meta_insights_performance_age (
                 artist_id, campaign_name, age_range, spend, results, cpr, impressions, reach
             ) VALUES (
-                1, %(campaign_name)s, %(age_range)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                %(artist_id)s, %(campaign_name)s, %(age_range)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
             ON CONFLICT (artist_id, campaign_name, age_range) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
@@ -162,7 +160,7 @@ class MetaAdsWatcher:
             INSERT INTO meta_insights_performance_country (
                 artist_id, campaign_name, country, spend, results, cpr, impressions, reach
             ) VALUES (
-                1, %(campaign_name)s, %(country)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                %(artist_id)s, %(campaign_name)s, %(country)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
             ON CONFLICT (artist_id, campaign_name, country) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
@@ -177,7 +175,7 @@ class MetaAdsWatcher:
             INSERT INTO meta_insights_performance_placement (
                 artist_id, campaign_name, platform, placement, spend, results, cpr, impressions, reach
             ) VALUES (
-                1, %(campaign_name)s, %(platform)s, %(placement)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                %(artist_id)s, %(campaign_name)s, %(platform)s, %(placement)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
             ON CONFLICT (artist_id, campaign_name, platform, placement) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
@@ -197,7 +195,7 @@ class MetaAdsWatcher:
                 artist_id, campaign_name, date_start, page_interactions, post_reactions,
                 comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                1, %(campaign_name)s, %(date_start)s, %(page_interactions)s, %(post_reactions)s,
+                %(artist_id)s, %(campaign_name)s, %(date_start)s, %(page_interactions)s, %(post_reactions)s,
                 %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
             ON CONFLICT (artist_id, campaign_name, date_start) DO UPDATE SET
@@ -215,7 +213,7 @@ class MetaAdsWatcher:
                 artist_id, campaign_name, day_date, page_interactions, post_reactions,
                 comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                1, %(campaign_name)s, %(day_date)s, %(page_interactions)s, %(post_reactions)s,
+                %(artist_id)s, %(campaign_name)s, %(day_date)s, %(page_interactions)s, %(post_reactions)s,
                 %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
             ON CONFLICT (artist_id, campaign_name, day_date) DO UPDATE SET
@@ -233,7 +231,7 @@ class MetaAdsWatcher:
                 artist_id, campaign_name, age_range, page_interactions, post_reactions,
                 comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                1, %(campaign_name)s, %(age_range)s, %(page_interactions)s, %(post_reactions)s,
+                %(artist_id)s, %(campaign_name)s, %(age_range)s, %(page_interactions)s, %(post_reactions)s,
                 %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
             ON CONFLICT (artist_id, campaign_name, age_range) DO UPDATE SET
@@ -251,7 +249,7 @@ class MetaAdsWatcher:
                 artist_id, campaign_name, country, page_interactions, post_reactions,
                 comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                1, %(campaign_name)s, %(country)s, %(page_interactions)s, %(post_reactions)s,
+                %(artist_id)s, %(campaign_name)s, %(country)s, %(page_interactions)s, %(post_reactions)s,
                 %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
             ON CONFLICT (artist_id, campaign_name, country) DO UPDATE SET
@@ -269,7 +267,7 @@ class MetaAdsWatcher:
                 artist_id, campaign_name, platform, placement, page_interactions, post_reactions,
                 comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                1, %(campaign_name)s, %(platform)s, %(placement)s, %(page_interactions)s, %(post_reactions)s,
+                %(artist_id)s, %(campaign_name)s, %(platform)s, %(placement)s, %(page_interactions)s, %(post_reactions)s,
                 %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
             ON CONFLICT (artist_id, campaign_name, platform, placement) DO UPDATE SET

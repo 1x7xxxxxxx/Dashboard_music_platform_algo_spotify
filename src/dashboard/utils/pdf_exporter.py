@@ -129,15 +129,15 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
                        FROM s4a_song_timeline
-                       WHERE song = %s AND artist_id = %s AND date BETWEEN %s AND %s""",
-                    (song, artist_id, from_date, to_date)
+                       WHERE song = %s AND song NOT ILIKE %s AND artist_id = %s AND date BETWEEN %s AND %s""",
+                    (song, f"%{ARTIST_NAME_FILTER}%", artist_id, from_date, to_date)
                 )
             else:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
                        FROM s4a_song_timeline
-                       WHERE song = %s AND date BETWEEN %s AND %s""",
-                    (song, from_date, to_date)
+                       WHERE song = %s AND song NOT ILIKE %s AND date BETWEEN %s AND %s""",
+                    (song, f"%{ARTIST_NAME_FILTER}%", from_date, to_date)
                 )
             entry['total_streams'] = int(row[0][0] or 0)
         except Exception:
@@ -149,16 +149,16 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
                        FROM s4a_song_timeline
-                       WHERE song = %s AND artist_id = %s
+                       WHERE song = %s AND song NOT ILIKE %s AND artist_id = %s
                          AND date >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song, artist_id)
+                    (song, f"%{ARTIST_NAME_FILTER}%", artist_id)
                 )
             else:
                 row = db.fetch_query(
                     """SELECT COALESCE(SUM(streams), 0)
                        FROM s4a_song_timeline
-                       WHERE song = %s AND date >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song,)
+                       WHERE song = %s AND song NOT ILIKE %s AND date >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song, f"%{ARTIST_NAME_FILTER}%")
                 )
             entry['last7d_streams'] = int(row[0][0] or 0)
         except Exception:

@@ -63,7 +63,7 @@ def run_soundcloud_collector(**context):
             logger.info("  Credentials depuis env vars")
 
         try:
-            collector = SoundCloudCollector()
+            collector = SoundCloudCollector(artist_id=artist_id)
             collector.run()
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")
         except Exception as e:

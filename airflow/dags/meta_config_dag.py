@@ -47,13 +47,26 @@ with DAG(
     tags=['meta', 'config', 'csv']
 ) as dag:
 
-    def run_config_watcher():
-        if not MetaCSVWatcher:
-            raise ImportError("Le module MetaCSVWatcher n'est pas chargé.")
-        watcher = MetaCSVWatcher() # ✅ Cela va maintenant marcher car la classe a été renommée
-        watcher.process_files()
+    def run_config_watcher(**context):
+        import sys
+        sys.path.insert(0, '/opt/airflow')
+        from src.collectors.meta_csv_watcher import MetaCSVWatcher
+        from src.utils.credential_loader import get_active_artists
+
+        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+        artist_id_conf = conf.get('artist_id')
+
+        artists = get_active_artists(include_artist_id=artist_id_conf)
+        if not artists:
+            artists = [(1, 'default')]
+
+        for artist_id, artist_name in artists:
+            print(f"Meta CSV Watcher — artist_id={artist_id} ({artist_name})")
+            watcher = MetaCSVWatcher(artist_id=artist_id)
+            watcher.process_files()
 
     t1 = PythonOperator(
         task_id='process_meta_config_files',
         python_callable=run_config_watcher,
+        provide_context=True,
     )

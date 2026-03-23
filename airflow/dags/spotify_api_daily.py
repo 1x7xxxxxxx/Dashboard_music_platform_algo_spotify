@@ -47,15 +47,22 @@ def collect_spotify_artists(**context):
 
         logger.info('🎸 Collecte Spotify - Artistes...')
 
-        # Brick 6 : credentials depuis DB si artist_id fourni dans conf
-        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
-        saas_artist_id = conf.get('artist_id', 1)
+        from src.utils.credential_loader import get_active_artists
 
+        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+        artist_id_conf = conf.get('artist_id')
+
+        active_artists = get_active_artists(include_artist_id=artist_id_conf)
+        if not active_artists:
+            active_artists = [(1, 'default')]
+
+        # Use first active artist's Spotify credentials (Spotify API is per-account)
+        saas_artist_id = active_artists[0][0]
         creds = load_platform_credentials(saas_artist_id, 'spotify')
         client_id = creds.get('client_id') or os.getenv('SPOTIFY_CLIENT_ID')
         client_secret = creds.get('client_secret') or os.getenv('SPOTIFY_CLIENT_SECRET')
         if creds.get('client_id'):
-            logger.info(f'  Credentials Spotify chargés depuis DB (artist_id={saas_artist_id})')
+            logger.info(f'  Spotify credentials loaded from DB (artist_id={saas_artist_id})')
 
         # Initialiser collector
         collector = SpotifyCollector(

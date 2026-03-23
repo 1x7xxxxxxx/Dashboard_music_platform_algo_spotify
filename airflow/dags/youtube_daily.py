@@ -40,41 +40,24 @@ default_args = {
 
 
 def collect_youtube_data(**context):
-    """Collecte les données YouTube."""
+    """Collecte les données YouTube pour tous les artistes actifs."""
     try:
         from src.collectors.youtube_collector import YouTubeCollector
         from src.database.postgres_handler import PostgresHandler
-        from src.utils.credential_loader import load_platform_credentials
+        from src.utils.credential_loader import load_platform_credentials, get_active_artists
 
-        logger.info('='*70)
-        logger.info('🎬 COLLECTE YOUTUBE DATA API')
-        logger.info('='*70)
+        logger.info('=' * 70)
+        logger.info('YouTube Data API — collect')
+        logger.info('=' * 70)
 
-        # ── Brick 6 : credentials depuis DB si artist_id fourni ───────
         conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
-        artist_id = conf.get('artist_id', 1)
+        artist_id_conf = conf.get('artist_id')
 
-        creds = load_platform_credentials(artist_id, 'youtube')
-        if creds.get('client_id'):
-            logger.info(f'  Credentials YouTube chargés depuis DB (artist_id={artist_id})')
+        artists = get_active_artists(include_artist_id=artist_id_conf)
+        if not artists:
+            logger.info("No active artists in DB — fallback env vars (artist_id=1)")
+            artists = [(1, 'default')]
 
-        # Config YouTube — DB d'abord, env vars ensuite
-        api_key = creds.get('api_key') or os.getenv('YOUTUBE_API_KEY')
-        channel_id = creds.get('channel_id') or os.getenv('YOUTUBE_CHANNEL_ID')
-        
-        if not api_key or not channel_id:
-            logger.error('❌ YOUTUBE_API_KEY ou YOUTUBE_CHANNEL_ID manquant')
-            raise ValueError('Configuration YouTube manquante')
-        
-        # Collecte
-        collector = YouTubeCollector(api_key)
-        data = collector.collect_all_data(
-            channel_id=channel_id,
-            max_videos=50,
-            collect_comments=False  # Mettre True pour collecter commentaires (coûteux)
-        )
-        
-        # Connexion DB
         db = PostgresHandler(
             host=os.getenv('DATABASE_HOST', 'postgres'),
             port=int(os.getenv('DATABASE_PORT', 5432)),
@@ -82,147 +65,102 @@ def collect_youtube_data(**context):
             user=os.getenv('DATABASE_USER', 'postgres'),
             password=os.getenv('DATABASE_PASSWORD')
         )
-        
-        # Stocker stats de chaîne
-        if data['channel_stats']:
-            logger.info('📊 Stockage stats chaîne...')
-            
-            # Upsert chaîne
-            count = db.upsert_many(
-                table='youtube_channels',
-                data=[data['channel_stats']],
-                conflict_columns=['channel_id'],
-                update_columns=[
-                    'channel_name', 'description', 'subscriber_count',
-                    'video_count', 'view_count', 'thumbnail_url', 
-                    'country', 'collected_at'
-                ]
-            )
-            logger.info(f'   ✅ Chaîne stockée')
-            
-            # Historique
-            history_data = {
-                'channel_id': data['channel_stats']['channel_id'],
-                'subscriber_count': data['channel_stats']['subscriber_count'],
-                'video_count': data['channel_stats']['video_count'],
-                'view_count': data['channel_stats']['view_count'],
-                'collected_at': data['channel_stats']['collected_at']
-            }
-            
-            db.execute_query(
-                """
-                INSERT INTO youtube_channel_history 
-                (channel_id, subscriber_count, video_count, view_count, collected_at)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    history_data['channel_id'],
-                    history_data['subscriber_count'],
-                    history_data['video_count'],
-                    history_data['view_count'],
-                    history_data['collected_at']
+
+        results = []
+
+        for saas_artist_id, artist_name in artists:
+            logger.info(f'YouTube collect — artist_id={saas_artist_id} ({artist_name})')
+
+            creds = load_platform_credentials(saas_artist_id, 'youtube')
+            api_key = creds.get('api_key') or os.getenv('YOUTUBE_API_KEY')
+            channel_id = creds.get('channel_id') or os.getenv('YOUTUBE_CHANNEL_ID')
+
+            if not api_key or not channel_id:
+                logger.warning(f'  Missing YouTube credentials for {artist_name} — skipping')
+                continue
+
+            collector = YouTubeCollector(api_key)
+            data = collector.collect_all_data(channel_id=channel_id, max_videos=50, collect_comments=False)
+
+            if data['channel_stats']:
+                channel_row = {**data['channel_stats'], 'artist_id': saas_artist_id}
+                db.upsert_many(
+                    table='youtube_channels',
+                    data=[channel_row],
+                    conflict_columns=['channel_id'],
+                    update_columns=[
+                        'artist_id', 'channel_name', 'description', 'subscriber_count',
+                        'video_count', 'view_count', 'thumbnail_url', 'country', 'collected_at'
+                    ]
                 )
-            )
-            logger.info(f'   ✅ Historique chaîne stocké')
-        
-        # Stocker vidéos
-        if data['videos']:
-            logger.info(f'📹 Stockage {len(data["videos"])} vidéos...')
-            
-            count = db.upsert_many(
-                table='youtube_videos',
-                data=data['videos'],
-                conflict_columns=['video_id'],
-                update_columns=[
-                    'title', 'description', 'thumbnail_url', 'collected_at'
-                ]
-            )
-            logger.info(f'   ✅ {count} vidéos stockées')
-        
-        # Stocker stats vidéos
-        if data['video_stats']:
-            logger.info(f'📊 Stockage stats vidéos...')
-            
-            # Insérer historique (pas d'upsert, on garde l'historique)
-            for stat in data['video_stats']:
+
                 db.execute_query(
                     """
-                    INSERT INTO youtube_video_stats 
-                    (video_id, view_count, like_count, comment_count, 
-                     favorite_count, collected_at)
+                    INSERT INTO youtube_channel_history
+                    (artist_id, channel_id, subscriber_count, video_count, view_count, collected_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     """,
                     (
-                        stat['video_id'],
-                        stat['view_count'],
-                        stat['like_count'],
-                        stat['comment_count'],
-                        stat['favorite_count'],
-                        stat['collected_at']
+                        saas_artist_id,
+                        data['channel_stats']['channel_id'],
+                        data['channel_stats']['subscriber_count'],
+                        data['channel_stats']['video_count'],
+                        data['channel_stats']['view_count'],
+                        data['channel_stats']['collected_at'],
                     )
                 )
-            
-            # Mettre à jour duration et definition dans youtube_videos
-            for stat in data['video_stats']:
-                db.execute_query(
-                    """
-                    UPDATE youtube_videos 
-                    SET duration = %s, definition = %s
-                    WHERE video_id = %s
-                    """,
-                    (stat.get('duration'), stat.get('definition'), stat['video_id'])
-                )
-            
-            logger.info(f'   ✅ {len(data["video_stats"])} stats vidéos stockées')
+                logger.info(f'  Channel + history stored')
 
-        
-        # # Stocker playlists
-        # if data['playlists']:
-        #     logger.info(f'📋 Stockage {len(data["playlists"])} playlists...')
-            
-        #     count = db.upsert_many(
-        #         table='youtube_playlists',
-        #         data=data['playlists'],
-        #         conflict_columns=['playlist_id'],
-        #         update_columns=[
-        #             'title', 'description', 'video_count', 
-        #             'thumbnail_url', 'collected_at'
-        #         ]
-        #     )
-        #     logger.info(f'   ✅ {count} playlists stockées')
-        
-        # Stocker commentaires (si collectés)
-        if data['comments']:
-            logger.info(f'💬 Stockage {len(data["comments"])} commentaires...')
-            
-            count = db.upsert_many(
-                table='youtube_comments',
-                data=data['comments'],
-                conflict_columns=['comment_id'],
-                update_columns=['like_count', 'collected_at']
-            )
-            logger.info(f'   ✅ {count} commentaires stockés')
-        
+            if data['videos']:
+                videos_with_artist = [{**v, 'artist_id': saas_artist_id} for v in data['videos']]
+                db.upsert_many(
+                    table='youtube_videos',
+                    data=videos_with_artist,
+                    conflict_columns=['video_id'],
+                    update_columns=['artist_id', 'title', 'description', 'thumbnail_url', 'collected_at']
+                )
+                logger.info(f'  {len(data["videos"])} videos stored')
+
+            if data['video_stats']:
+                for stat in data['video_stats']:
+                    db.execute_query(
+                        """
+                        INSERT INTO youtube_video_stats
+                        (artist_id, video_id, view_count, like_count, comment_count, favorite_count, collected_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            saas_artist_id,
+                            stat['video_id'],
+                            stat['view_count'],
+                            stat['like_count'],
+                            stat['comment_count'],
+                            stat['favorite_count'],
+                            stat['collected_at'],
+                        )
+                    )
+                    db.execute_query(
+                        "UPDATE youtube_videos SET duration = %s, definition = %s WHERE video_id = %s",
+                        (stat.get('duration'), stat.get('definition'), stat['video_id'])
+                    )
+                logger.info(f'  {len(data["video_stats"])} video stats stored')
+
+            if data['comments']:
+                db.upsert_many(
+                    table='youtube_comments',
+                    data=data['comments'],
+                    conflict_columns=['comment_id'],
+                    update_columns=['like_count', 'collected_at']
+                )
+
+            results.append({'artist': artist_name, 'videos': len(data['videos'])})
+
         db.close()
-        
-        logger.info('\n' + '='*70)
-        logger.info('✅ COLLECTE YOUTUBE TERMINÉE')
-        logger.info('='*70)
-        logger.info(f'📊 Résumé:')
-        logger.info(f'   • Chaîne: {data["channel_stats"]["channel_name"]}')
-        logger.info(f'   • Abonnés: {data["channel_stats"]["subscriber_count"]:,}')
-        logger.info(f'   • Vidéos: {len(data["videos"])}')
-        logger.info(f'   • Playlists: {len(data["playlists"])}')
-        logger.info(f'   • Commentaires: {len(data["comments"])}')
-        logger.info('='*70)
-        
-        return {
-            'channel_name': data['channel_stats']['channel_name'],
-            'videos_count': len(data['videos'])
-        }
-        
+        logger.info('YouTube collect done')
+        return results
+
     except Exception as e:
-        logger.error(f'❌ Erreur collecte YouTube: {e}')
+        logger.error(f'YouTube collect error: {e}')
         import traceback
         traceback.print_exc()
         raise

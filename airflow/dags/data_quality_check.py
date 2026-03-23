@@ -24,11 +24,10 @@ logger = logging.getLogger(__name__)
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
-    'email_on_failure': False,  # Mettre True si vous configurez SMTP
+    'email_on_failure': True,
     'email_on_retry': False,
-    'email': ['votre_email@example.com'],  # À configurer
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retries': 2,
+    'retry_delay': timedelta(minutes=10),
 }
 
 
@@ -125,26 +124,28 @@ def check_spotify_data_consistency(**context):
         issues = []
         warnings = []
         
-        # ====== CHECK 1: Artistes sans tracks ======
-        logger.info('\n📊 Check 1: Artistes sans tracks...')
-        
+        # ====== CHECK 1: Artistes sans données S4A ======
+        logger.info('\n📊 Check 1: Artistes sans données S4A...')
+
         query_orphan_artists = """
-            SELECT a.artist_id, a.name
-            FROM artists a
-            LEFT JOIN tracks t ON a.artist_id = t.artist_id
-            WHERE t.track_id IS NULL
+            SELECT a.id, a.name
+            FROM saas_artists a
+            WHERE a.active = TRUE
+              AND NOT EXISTS (
+                SELECT 1 FROM s4a_song_timeline t WHERE t.artist_id = a.id
+              )
         """
-        
+
         orphan_artists = db.fetch_query(query_orphan_artists)
-        
+
         if orphan_artists:
-            issue = f'⚠️  {len(orphan_artists)} artiste(s) sans tracks'
+            issue = f'⚠️  {len(orphan_artists)} artiste(s) actif(s) sans données S4A'
             warnings.append(issue)
             logger.warning(issue)
-            for artist_id, name in orphan_artists[:5]:  # Afficher max 5
-                logger.warning(f'   • {name} ({artist_id})')
+            for artist_id, name in orphan_artists[:5]:
+                logger.warning(f'   • {name} (id={artist_id})')
         else:
-            logger.info('✅ Tous les artistes ont des tracks')
+            logger.info('✅ Tous les artistes actifs ont des données S4A')
         
         # ====== CHECK 2: Cohérence S4A Timeline vs Global ======
         logger.info('\n📊 Check 2: Cohérence S4A Timeline...')
@@ -339,12 +340,13 @@ def generate_daily_stats(**context):
         logger.info('\n🎸 Spotify API - Artistes:')
         
         query_spotify = """
-            SELECT 
+            SELECT
                 COUNT(*) as total_artists,
-                COALESCE(SUM(followers), 0) as total_followers,
-                ROUND(AVG(popularity), 2) as avg_popularity,
-                MAX(followers) as max_followers
-            FROM artists
+                0 as total_followers,
+                0 as avg_popularity,
+                0 as max_followers
+            FROM saas_artists
+            WHERE active = TRUE
         """
         
         spotify_result = db.fetch_query(query_spotify)
@@ -361,10 +363,12 @@ def generate_daily_stats(**context):
             logger.info(f"   • Followers totaux: {stats['spotify_api']['total_followers']:,}")
             logger.info(f"   • Popularité moyenne: {stats['spotify_api']['avg_popularity']:.1f}/100")
         
-        # Nombre de tracks
-        count_tracks = db.fetch_query("SELECT COUNT(*) FROM tracks")[0][0]
+        # Nombre de chansons suivies via S4A
+        count_tracks = db.fetch_query(
+            "SELECT COUNT(DISTINCT song) FROM s4a_song_timeline WHERE song NOT ILIKE '%%1x7xxxxxxx%%'"
+        )[0][0]
         stats['spotify_api']['total_tracks'] = count_tracks
-        logger.info(f"   • Tracks collectées: {count_tracks}")
+        logger.info(f"   • Tracks suivies: {count_tracks}")
         
         # ====== SPOTIFY FOR ARTISTS - Stats dernières 24h ======
         logger.info('\n🎵 Spotify for Artists - Dernières 24h:')
@@ -505,7 +509,7 @@ with DAG(
     dag_id='data_quality_check',
     default_args=default_args,
     description='🔍 Vérification quotidienne qualité des données + statistiques',
-    schedule_interval=None,  # Tous les jours à 22h00 (après collectes)
+    schedule_interval='0 22 * * *',  # Daily at 22:00 UTC (after all collectors)
     start_date=datetime(2025, 1, 20),
     catchup=False,  # Ne pas rattraper les exécutions passées
     tags=['quality', 'monitoring', 'statistics', 'production'],
@@ -516,28 +520,24 @@ with DAG(
     check_meta_task = PythonOperator(
         task_id='check_meta_ads_freshness',
         python_callable=check_meta_ads_freshness,
-        provide_context=True,
     )
     
     # Tâche 2: Vérifier cohérence données Spotify
     check_spotify_task = PythonOperator(
         task_id='check_spotify_consistency',
         python_callable=check_spotify_data_consistency,
-        provide_context=True,
     )
     
     # Tâche 3: Générer statistiques quotidiennes
     generate_stats_task = PythonOperator(
         task_id='generate_daily_stats',
         python_callable=generate_daily_stats,
-        provide_context=True,
     )
     
     # Tâche 4: Envoyer résumé quotidien
     send_summary_task = PythonOperator(
         task_id='send_summary_notification',
         python_callable=send_summary_notification,
-        provide_context=True,
         trigger_rule='all_done',  # S'exécute même si vérifications échouent
     )
     

@@ -17,7 +17,8 @@ from src.utils.retry import retry
 load_dotenv()
 
 class SoundCloudCollector:
-    def __init__(self):
+    def __init__(self, artist_id: int = 1):
+        self.artist_id = artist_id
         self.client_id = os.getenv("SOUNDCLOUD_CLIENT_ID")
         self.user_id = os.getenv("SOUNDCLOUD_USER_ID")
         
@@ -85,7 +86,8 @@ class SoundCloudCollector:
                     for track in data['collection']:
                         # On prépare l'objet propre pour la BDD
                         tracks_data.append({
-                            'track_id': str(track.get('id')), # Conversion string au cas où
+                            'artist_id': self.artist_id,
+                            'track_id': str(track.get('id')),
                             'title': track.get('title'),
                             'permalink_url': track.get('permalink_url'),
                             'playback_count': int(track.get('playback_count', 0)),
@@ -118,35 +120,15 @@ class SoundCloudCollector:
 
         print(f"💾 Tentative d'insertion de {len(tracks)} lignes...")
         
-        # 1. Suppression des données du jour pour éviter les doublons
-        delete_query = "DELETE FROM soundcloud_tracks_daily WHERE collected_at = CURRENT_DATE"
-        
+        delete_query = "DELETE FROM soundcloud_tracks_daily WHERE collected_at = CURRENT_DATE AND artist_id = %s"
+
         try:
-            # On tente d'abord la suppression
-            with self.db.conn.cursor() as cur:
-                cur.execute(delete_query)
-                self.db.conn.commit()
+            self.db.execute_query(delete_query, (self.artist_id,))
             print("   🧹 Nettoyage des données du jour effectué.")
-            
+
             # 2. Insertion
-            # Vérification que la méthode insert_many existe bien dans votre PostgresHandler
-            # Sinon on fait une boucle simple pour tester
-            try:
-                self.db.insert_many("soundcloud_tracks_daily", tracks)
-                print("   ✅ INSERT SUCCESS ! Données sauvegardées.")
-            except AttributeError:
-                print("   ⚠️ Méthode insert_many introuvable, tentative manuelle...")
-                # Fallback manuel si insert_many n'est pas défini
-                query = """
-                    INSERT INTO soundcloud_tracks_daily 
-                    (track_id, title, permalink_url, playback_count, likes_count, reposts_count, comment_count, collected_at)
-                    VALUES (%(track_id)s, %(title)s, %(permalink_url)s, %(playback_count)s, %(likes_count)s, %(reposts_count)s, %(comment_count)s, %(collected_at)s)
-                """
-                with self.db.conn.cursor() as cur:
-                    for t in tracks:
-                        cur.execute(query, t)
-                    self.db.conn.commit()
-                print("   ✅ INSERT MANUEL SUCCESS !")
+            self.db.insert_many("soundcloud_tracks_daily", tracks)
+            print("   ✅ INSERT SUCCESS ! Données sauvegardées.")
 
         except Exception as e:
             print(f"❌ ERREUR SQL CRITIQUE : {e}")

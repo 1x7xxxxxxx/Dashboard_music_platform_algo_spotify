@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
-from src.dashboard.utils.csv_exporter import export_all
+from src.dashboard.utils.csv_exporter import export_all, table_names as _all_table_names
 
 
 def _get_artists_list(db) -> list[dict]:
@@ -50,21 +50,46 @@ def show():
 
         st.markdown("---")
 
-        # ── Description des tables exportées ─────────────────────────────
-        with st.expander("📋 Tables incluses dans l'export", expanded=False):
-            st.markdown("""
-| Source | Tables |
-|---|---|
-| Spotify for Artists | `s4a_song_timeline`, `s4a_songs_global`, `s4a_audience` |
-| Apple Music | `apple_songs_performance`, `apple_daily_plays`, `apple_listeners` |
-| YouTube | `youtube_channels`, `youtube_channel_history`, `youtube_videos`, `youtube_video_stats`, `youtube_playlists`, `youtube_comments` |
-| SoundCloud | `soundcloud_tracks_daily` |
-| Instagram | `instagram_daily_stats` |
-| Meta Ads | `meta_campaigns`, `meta_adsets`, `meta_ads`, `meta_insights` |
-| Hypeddit | `hypeddit_campaigns`, `hypeddit_daily_stats` |
-| iMusician | `imusician_monthly_revenue` |
-""")
-            st.caption("Les tables vides (sans données pour cet artiste) sont incluses avec un CSV vide.")
+        # ── Sélection des sources ─────────────────────────────────────────
+        _SOURCE_GROUPS = {
+            "Spotify for Artists": [
+                "s4a_song_timeline", "s4a_songs_global", "s4a_audience"
+            ],
+            "Apple Music": [
+                "apple_songs_performance", "apple_daily_plays", "apple_listeners"
+            ],
+            "YouTube": [
+                "youtube_channels", "youtube_channel_history", "youtube_videos",
+                "youtube_video_stats", "youtube_playlists", "youtube_comments"
+            ],
+            "SoundCloud": ["soundcloud_tracks_daily"],
+            "Instagram": ["instagram_daily_stats"],
+            "Meta Ads": ["meta_campaigns", "meta_adsets", "meta_ads", "meta_insights_performance_day"],
+            "Hypeddit": ["hypeddit_campaigns", "hypeddit_daily_stats"],
+            "Distributeur": ["imusician_monthly_revenue"],
+        }
+
+        st.subheader("📋 Sources à inclure")
+        col_sel, col_desel = st.columns([1, 5])
+        if col_sel.button("Tout sélectionner"):
+            for k in _SOURCE_GROUPS:
+                st.session_state[f"src_{k}"] = True
+        selected_tables: list[str] = []
+        cols = st.columns(4)
+        for i, (source, tbls) in enumerate(_SOURCE_GROUPS.items()):
+            checked = cols[i % 4].checkbox(
+                source,
+                value=st.session_state.get(f"src_{source}", True),
+                key=f"src_{source}",
+            )
+            if checked:
+                selected_tables.extend(tbls)
+
+        if not selected_tables:
+            st.warning("Sélectionnez au moins une source.")
+
+        st.caption(f"{len(selected_tables)} table(s) sélectionnée(s) sur {len(_all_table_names())}.")
+        st.markdown("---")
 
         # ── Bouton générer ───────────────────────────────────────────────
         col_btn, _ = st.columns([1, 3])
@@ -72,7 +97,7 @@ def show():
             generate_clicked = st.button(
                 "📦 Préparer l'export ZIP",
                 type="primary",
-                width="stretch",
+                disabled=not selected_tables,
             )
 
         if generate_clicked:
@@ -81,7 +106,7 @@ def show():
                 return
             try:
                 with st.spinner("Génération du ZIP en cours…"):
-                    zip_bytes = export_all(db2, export_artist_id)
+                    zip_bytes = export_all(db2, export_artist_id, tables=selected_tables or None)
                 st.session_state["_export_csv_bytes"] = zip_bytes.getvalue()
                 st.session_state["_export_csv_artist"] = export_artist_name
                 st.success("ZIP prêt — cliquez sur Télécharger ci-dessous.")
@@ -102,7 +127,6 @@ def show():
                 data=st.session_state["_export_csv_bytes"],
                 file_name=filename,
                 mime="application/zip",
-                width="content",
             )
 
     finally:

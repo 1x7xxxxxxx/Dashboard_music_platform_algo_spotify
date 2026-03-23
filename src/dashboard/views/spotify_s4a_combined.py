@@ -24,8 +24,8 @@ def show():
     # ============================================================================
 
     # A. Date de mise à jour
-    update_query = "SELECT MAX(collected_at) FROM s4a_song_timeline"
-    last_update_res = db.fetch_query(update_query)
+    update_query = f"SELECT MAX(collected_at) FROM s4a_song_timeline WHERE 1=1 {artist_frag}"
+    last_update_res = db.fetch_query(update_query, artist_params)
     last_update = last_update_res[0][0] if last_update_res and last_update_res[0][0] else None
 
     # B. KPIs (Dédupliqués)
@@ -122,7 +122,7 @@ def show():
             xaxis_title="Total Streams",
             yaxis={'categoryorder':'total ascending'}
         )
-        st.plotly_chart(fig_top, width='stretch')
+        st.plotly_chart(fig_top, use_container_width=True)
     else:
         st.info("Pas de données disponibles.")
     
@@ -172,7 +172,7 @@ def show():
             hovermode='x unified',
             yaxis_title="Streams / Jour"
         )
-        st.plotly_chart(fig_aud, width='stretch')
+        st.plotly_chart(fig_aud, use_container_width=True)
     else:
         st.info("Pas de données pour cette période.")
 
@@ -229,7 +229,7 @@ def show():
                 markers=False 
             )
             fig_song.update_traces(line_color='#1DB954', line_width=2)
-            st.plotly_chart(fig_song, width='stretch')
+            st.plotly_chart(fig_song, use_container_width=True)
         else:
             st.info("Pas de données pour cette période.")
             

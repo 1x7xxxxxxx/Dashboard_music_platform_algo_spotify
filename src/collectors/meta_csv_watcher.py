@@ -22,8 +22,9 @@ load_dotenv()
 RAW_DIR = project_root / "data" / "raw" / "meta_ads" / "configuration"
 ARCHIVE_DIR = project_root / "data" / "processed" / "meta_ads" / "configuration"
 
-class MetaCSVWatcher: 
-    def __init__(self):
+class MetaCSVWatcher:
+    def __init__(self, artist_id: int = 1):
+        self.artist_id = artist_id
         self.db = PostgresHandler(
             host=os.getenv('DATABASE_HOST'),
             port=int(os.getenv('DATABASE_PORT')),
@@ -72,31 +73,33 @@ class MetaCSVWatcher:
     def upsert_campaigns(self, data):
         if not data: return 0
         query = """
-            INSERT INTO meta_campaigns (campaign_id, campaign_name, start_time)
-            VALUES (%(campaign_id)s, %(campaign_name)s, %(start_time)s)
+            INSERT INTO meta_campaigns (campaign_id, artist_id, campaign_name, start_time)
+            VALUES (%(campaign_id)s, %(artist_id)s, %(campaign_name)s, %(start_time)s)
             ON CONFLICT (campaign_id) DO UPDATE SET
+                artist_id = EXCLUDED.artist_id,
                 campaign_name = EXCLUDED.campaign_name,
                 start_time = EXCLUDED.start_time,
                 collected_at = CURRENT_TIMESTAMP;
         """
-        return self._execute(query, data)
+        return self._execute(query, [{**row, 'artist_id': self.artist_id} for row in data])
 
     def upsert_adsets(self, data):
         if not data: return 0
         query = """
             INSERT INTO meta_adsets (
-                adset_id, campaign_id, adset_name, status, start_time,
+                adset_id, artist_id, campaign_id, adset_name, status, start_time,
                 countries, cities, gender, age_min, age_max,
                 flexible_inclusions, advantage_audience, age_range, targeting_optimization,
                 publisher_platforms, instagram_positions, device_platforms
             )
             VALUES (
-                %(adset_id)s, %(campaign_id)s, %(adset_name)s, %(status)s, %(start_time)s,
+                %(adset_id)s, %(artist_id)s, %(campaign_id)s, %(adset_name)s, %(status)s, %(start_time)s,
                 %(countries)s, %(cities)s, %(gender)s, %(age_min)s, %(age_max)s,
                 %(flexible_inclusions)s, %(advantage_audience)s, %(age_range)s, %(targeting_optimization)s,
                 %(publisher_platforms)s, %(instagram_positions)s, %(device_platforms)s
             )
             ON CONFLICT (adset_id) DO UPDATE SET
+                artist_id = EXCLUDED.artist_id,
                 adset_name = EXCLUDED.adset_name,
                 status = EXCLUDED.status,
                 countries = EXCLUDED.countries,
@@ -105,39 +108,37 @@ class MetaCSVWatcher:
                 instagram_positions = EXCLUDED.instagram_positions,
                 collected_at = CURRENT_TIMESTAMP;
         """
-        return self._execute(query, data)
+        return self._execute(query, [{**row, 'artist_id': self.artist_id} for row in data])
 
     def upsert_ads(self, data):
         if not data: return 0
         query = """
             INSERT INTO meta_ads (
-                ad_id, adset_id, campaign_id, ad_name,
+                ad_id, artist_id, adset_id, campaign_id, ad_name,
                 title, body, video_file_name, call_to_action
             )
             VALUES (
-                %(ad_id)s, %(adset_id)s, %(campaign_id)s, %(ad_name)s,
+                %(ad_id)s, %(artist_id)s, %(adset_id)s, %(campaign_id)s, %(ad_name)s,
                 %(title)s, %(body)s, %(video_file_name)s, %(call_to_action)s
             )
             ON CONFLICT (ad_id) DO UPDATE SET
+                artist_id = EXCLUDED.artist_id,
                 ad_name = EXCLUDED.ad_name,
                 title = EXCLUDED.title,
                 body = EXCLUDED.body,
                 video_file_name = EXCLUDED.video_file_name,
                 collected_at = CURRENT_TIMESTAMP;
         """
-        return self._execute(query, data)
+        return self._execute(query, [{**row, 'artist_id': self.artist_id} for row in data])
 
     def _execute(self, query, data):
         count = 0
         try:
-            with self.db.conn.cursor() as cur:
-                for row in data:
-                    cur.execute(query, row)
-                    count += 1
-                self.db.conn.commit()
+            for row in data:
+                self.db.execute_query(query, row)
+                count += 1
         except Exception as e:
             print(f"⚠️ Erreur SQL : {e}")
-            self.db.conn.rollback()
         return count
 
     def archive_file(self, filename):

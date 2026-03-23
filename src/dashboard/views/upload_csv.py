@@ -30,14 +30,37 @@ PLATFORMS = {
         'table': 's4a_song_timeline',
         'conflict_columns': ['artist_id', 'song', 'date'],
         'update_columns': ['streams', 'collected_at'],
+        # Each inner list = at least one match required (case-insensitive).
+        'required_columns': [
+            (['date'], "Date"),
+            (['streams', 'ecoutes', 'écoutes'], "Streams / Écoutes"),
+        ],
     },
     'Apple Music (performance)': {
         'key': 'apple',
         'table': 'apple_songs_performance',
         'conflict_columns': ['artist_id', 'song_name'],
         'update_columns': ['plays', 'listeners', 'shazam_count'],
+        'required_columns': [
+            (['morceau', 'song', 'song title', 'title', 'track', 'titre'], "Song / Morceau"),
+            (['écoutes', 'plays', 'play count', 'lectures'], "Plays / Écoutes"),
+        ],
     },
 }
+
+
+def _validate_columns(df: pd.DataFrame, required_groups: list) -> list[dict]:
+    """
+    Check that each required column group has at least one match in df.columns.
+
+    Returns a list of dicts: {label, matched, found_col}.
+    """
+    cols_lower = [c.lower().strip() for c in df.columns]
+    results = []
+    for candidates, label in required_groups:
+        found = next((c for c in candidates if c in cols_lower), None)
+        results.append({'label': label, 'matched': found is not None, 'found': found})
+    return results
 
 
 def _parse_csv(platform_key: str, file, artist_id: int) -> list:
@@ -97,11 +120,44 @@ def show():
                 key=f"upload_{platform_cfg['key']}_{target_artist_id}",
             )
 
-        # ── Preview ───────────────────────────────────────────────────
+        # ── Validation + Preview ─────────────────────────────────────
         if uploaded:
+            # Step 1: read raw header for column validation
+            uploaded.seek(0)
             try:
-                # Rembobiner le curseur du fichier (peut avoir été lu par l'uploader)
-                uploaded.seek(0)
+                df_raw = pd.read_csv(uploaded, nrows=0)  # header only
+            except Exception as e:
+                st.error(f"❌ Impossible de lire le fichier CSV : {e}")
+                return
+
+            st.markdown("---")
+            st.subheader("🔍 Validation")
+
+            # Column check
+            checks = _validate_columns(df_raw, platform_cfg['required_columns'])
+            all_ok = all(c['matched'] for c in checks)
+
+            col_v1, col_v2, col_v3 = st.columns(3)
+            col_v1.metric("Artiste cible", f"#{target_artist_id}")
+            col_v2.metric("Colonnes brutes détectées", len(df_raw.columns))
+            col_v3.metric("Validation colonnes", "✅ OK" if all_ok else "❌ Échec")
+
+            for check in checks:
+                icon = "✅" if check['matched'] else "❌"
+                detail = f"→ `{check['found']}`" if check['matched'] else "non trouvée"
+                st.markdown(f"{icon} **{check['label']}** {detail}")
+
+            if not all_ok:
+                missing = [c['label'] for c in checks if not c['matched']]
+                st.error(
+                    f"Colonnes requises manquantes : {', '.join(missing)}. "
+                    "Vérifiez que le bon fichier est sélectionné pour cette plateforme."
+                )
+                return
+
+            # Step 2: parse
+            uploaded.seek(0)
+            try:
                 rows = _parse_csv(platform_cfg['key'], uploaded, target_artist_id)
             except Exception as e:
                 st.error(f"❌ Erreur de parsing : {e}")
@@ -112,17 +168,19 @@ def show():
                 st.warning("Aucune ligne valide détectée dans ce fichier.")
                 return
 
+            # Step 3: preview
             df_preview = pd.DataFrame(rows)
             st.markdown("---")
             st.subheader(f"Aperçu — {len(rows)} ligne(s) à importer")
             st.dataframe(
                 df_preview.head(10),
-                width="stretch",
+                use_container_width=True,
                 hide_index=True,
             )
             if len(rows) > 10:
                 st.caption(f"… et {len(rows) - 10} ligne(s) supplémentaire(s) non affichées.")
 
+            # Step 4: confirm
             st.markdown("---")
             if st.button("✅ Confirmer l'import", type="primary"):
                 try:

@@ -128,16 +128,23 @@ _TABLES = [
 ]
 
 
-def export_all(db, artist_id: int) -> io.BytesIO:
+def table_names() -> list[str]:
+    """Return the ordered list of all exportable table names."""
+    return [t for t, _, _ in _TABLES]
+
+
+def export_all(db, artist_id: int, tables: list[str] | None = None) -> io.BytesIO:
     """Exporte toutes les tables pour un artiste dans un ZIP (un CSV par table).
 
     Args:
         db: PostgresHandler connecté.
         artist_id: ID de l'artiste à exporter (obligatoire).
+        tables: Optional list of table names to include. None = all tables.
 
     Returns:
         io.BytesIO contenant le ZIP, prêt pour st.download_button.
     """
+    selected = set(tables) if tables is not None else None
     zip_buffer = io.BytesIO()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     exported: list[str] = []
@@ -145,6 +152,8 @@ def export_all(db, artist_id: int) -> io.BytesIO:
 
     with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for table_name, sql, params_builder in _TABLES:
+            if selected is not None and table_name not in selected:
+                continue
             try:
                 df = db.fetch_df(sql, params_builder(artist_id))
             except Exception:

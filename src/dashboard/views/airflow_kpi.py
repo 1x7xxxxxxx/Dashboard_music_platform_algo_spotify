@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils import get_db_connection
 from src.utils.freshness_monitor import check_freshness, MONITOR_TARGETS
+from src.dashboard.auth import is_admin
 
 def get_quality_metrics():
     """Récupère les KPIs métiers depuis PostgreSQL."""
@@ -64,7 +65,7 @@ def _section_source_status():
         })
 
     df = pd.DataFrame(rows)
-    st.dataframe(df.set_index("Source"), width="stretch")
+    st.dataframe(df.set_index("Source"), use_container_width=True)
 
     stale_count = sum(1 for r in results if r['stale'])
     if stale_count:
@@ -189,16 +190,120 @@ def _section_run_logs():
             st.info("Logs vides ou indisponibles.")
 
 
+def _section_last_runs():
+    """Tab: last run per DAG — status, duration, rows inserted."""
+    st.subheader("🕐 Dernière exécution par DAG")
+
+    monitor = AirflowMonitor()
+    with st.spinner("Chargement des DAGs..."):
+        dag_list = monitor.get_dag_list()
+
+    if not dag_list:
+        st.error("❌ API Airflow inaccessible. Vérifiez que Docker est lancé.")
+        return
+
+    # Fetch last run for every DAG in parallel (sequential calls — Airflow API)
+    rows = []
+    with st.spinner("Récupération des dernières exécutions..."):
+        for dag_id in dag_list:
+            runs = monitor.get_runs_for_dag(dag_id, limit=1)
+            if runs:
+                r = runs[0]
+                state = r.get('state') or '?'
+                icon = _STATE_ICON.get(state, '⚫')
+                start = r.get('start_date', '')
+                end = r.get('end_date', '')
+                dur_s = r.get('duration_sec')
+                dur_str = f"{dur_s:.0f}s" if dur_s else "—"
+                start_str = start[:16] if start else "—"
+                rows.append({
+                    "DAG": dag_id,
+                    "Statut": f"{icon} {state}",
+                    "Dernier run": start_str,
+                    "Durée": dur_str,
+                    "_state": state,
+                })
+            else:
+                rows.append({
+                    "DAG": dag_id,
+                    "Statut": "⚫ jamais exécuté",
+                    "Dernier run": "—",
+                    "Durée": "—",
+                    "_state": None,
+                })
+
+    # Rows inserted from etl_daily_metrics (last day per DAG)
+    db = get_db_connection()
+    rows_inserted: dict = {}
+    if db:
+        try:
+            df_metrics = db.fetch_df(
+                """
+                SELECT dag_id, SUM(total_rows) AS rows_inserted
+                FROM etl_daily_metrics
+                WHERE run_date = (
+                    SELECT MAX(run_date) FROM etl_daily_metrics m2
+                    WHERE m2.dag_id = etl_daily_metrics.dag_id
+                )
+                GROUP BY dag_id
+                """
+            )
+            if not df_metrics.empty:
+                rows_inserted = dict(zip(df_metrics['dag_id'], df_metrics['rows_inserted']))
+        except Exception:
+            pass
+        finally:
+            db.close()
+
+    for row in rows:
+        row["Lignes insérées"] = int(rows_inserted.get(row["DAG"], 0) or 0)
+
+    df = pd.DataFrame(rows).drop(columns=["_state"])
+
+    # Summary KPIs
+    states = [r["_state"] for r in rows]
+    n_ok = sum(1 for s in states if s == "success")
+    n_fail = sum(1 for s in states if s == "failed")
+    n_never = sum(1 for s in states if s is None)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("DAGs totaux", len(rows))
+    k2.metric("🟢 Succès", n_ok)
+    k3.metric("🔴 Échecs", n_fail, delta_color="inverse")
+    k4.metric("⚫ Jamais exécuté", n_never)
+
+    if n_fail:
+        failed_dags = [r["DAG"] for r in rows if r["_state"] == "failed"]
+        st.error(f"DAGs en échec : {', '.join(f'`{d}`' for d in failed_dags)}")
+
+    st.markdown("---")
+    st.dataframe(
+        df.set_index("DAG"),
+        column_config={
+            "Lignes insérées": st.column_config.NumberColumn(format="%d"),
+        },
+        use_container_width=True,
+    )
+
+
 def show():
+    if not is_admin():
+        st.error("⛔ Accès réservé à l'administrateur.")
+        st.stop()
+
     st.title("🏗️ Monitoring ETL & Qualité (Global)")
     st.markdown("---")
 
-    tab_etl, tab_sources, tab_logs = st.tabs([
-        "📊 Performance DAGs", "📡 État des sources", "📋 Logs par Run"
+    tab_etl, tab_sources, tab_last, tab_logs = st.tabs([
+        "📊 Performance DAGs", "📡 État des sources",
+        "🕐 Dernière exécution", "📋 Logs par Run"
     ])
 
     with tab_sources:
         _section_source_status()
+
+    with tab_last:
+        _section_last_runs()
 
     with tab_logs:
         _section_run_logs()
@@ -271,7 +376,7 @@ def show():
                     "Temps Exec Moyen (s)": st.column_config.NumberColumn(format="%.1f s"),
                     "Délai Moy. Alerte (s)": st.column_config.NumberColumn(format="%d s"),
                 },
-                width='stretch'
+                use_container_width=True,
             )
 
             st.markdown("---")
@@ -284,7 +389,7 @@ def show():
                 hover_data=["duration_sec"]
             )
             fig.update_yaxes(autorange="reversed")
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
         else:
             st.info("Aucune donnée d'exécution trouvée dans Airflow.")

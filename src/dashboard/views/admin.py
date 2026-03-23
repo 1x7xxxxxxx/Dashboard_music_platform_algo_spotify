@@ -136,7 +136,7 @@ def show():
                     'tier': 'Tier', 'created_at': 'Créé le'
                 }),
                 hide_index=True,
-                width='stretch'
+                use_container_width=True,
             )
 
         st.markdown("---")

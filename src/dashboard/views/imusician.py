@@ -73,8 +73,8 @@ def _delete_revenue(db, artist_id, year, month):
 
 
 def show():
-    st.title("💰 iMusician — Revenus mensuels")
-    st.markdown("Saisie manuelle des revenus générés via la distribution iMusician.")
+    st.title("💰 Distributeur — Revenus mensuels")
+    st.markdown("Saisie manuelle des revenus générés via votre distributeur.")
 
     tab_form, tab_data = st.tabs(["✏️ Saisie", "📊 Données"])
 
@@ -171,7 +171,7 @@ def show():
                 showlegend=False,
                 hovermode="x unified"
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
             st.markdown("---")
             st.subheader("Détail")
@@ -187,7 +187,7 @@ def show():
                     'revenue_eur': 'Revenus (€)',
                     'notes': 'Notes'
                 }),
-                width="stretch",
+                use_container_width=True,
                 hide_index=True
             )
 

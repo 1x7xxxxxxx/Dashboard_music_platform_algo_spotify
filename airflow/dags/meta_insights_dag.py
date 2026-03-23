@@ -46,13 +46,27 @@ with DAG(
     tags=['meta', 'csv', 'insights']
 ) as dag:
 
-    def run_watcher_task():
-        print("🚀 Démarrage du Meta Ads Insight Watcher...")
-        watcher = MetaAdsWatcher()
-        watcher.process_files()
-        print("✅ Fin du traitement.")
+    def run_watcher_task(**context):
+        import sys
+        sys.path.insert(0, '/opt/airflow')
+        from src.utils.credential_loader import get_active_artists
+        from src.collectors.meta_insight_watcher import MetaAdsWatcher
+
+        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+        artist_id_conf = conf.get('artist_id')
+
+        artists = get_active_artists(include_artist_id=artist_id_conf)
+        if not artists:
+            artists = [(1, 'default')]
+
+        for artist_id, artist_name in artists:
+            print(f"Meta Insights Watcher — artist_id={artist_id} ({artist_name})")
+            watcher = MetaAdsWatcher(artist_id=artist_id)
+            watcher.process_files()
+        print("Done.")
 
     t1 = PythonOperator(
         task_id='process_meta_insights_files',
         python_callable=run_watcher_task,
-    )   
+        provide_context=True,
+    )

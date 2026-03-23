@@ -51,7 +51,7 @@ def show():
         st.subheader("🏆 Top Chansons (Cumulé)")
         
         top_query = """
-            SELECT song_name, plays, shazam_count
+            SELECT song_name, plays
             FROM apple_songs_performance
             WHERE artist_id = %s
             ORDER BY plays DESC
@@ -73,8 +73,8 @@ def show():
             )
             fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
             fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
-            st.plotly_chart(fig, width='stretch')
-        
+            st.plotly_chart(fig, use_container_width=True)
+
         st.markdown("---")
         
         # ============================================================
@@ -85,8 +85,9 @@ def show():
         # Récupérer la liste des chansons — triée par dernière release (MIN date DESC)
         songs_list = db.fetch_df("""
             SELECT song_name FROM apple_songs_history
+            WHERE artist_id = %s
             GROUP BY song_name ORDER BY MIN(date) DESC
-        """)
+        """, (artist_id,))
 
         if not songs_list.empty:
             # Filtre dynamique — défaut : 3 premières (= 3 dernières releases)
@@ -111,7 +112,7 @@ def show():
                             plays - LAG(plays) OVER (PARTITION BY song_name ORDER BY date) as daily_streams,
                             shazam_count - LAG(shazam_count) OVER (PARTITION BY song_name ORDER BY date) as daily_shazams
                         FROM apple_songs_history
-                        WHERE song_name IN ({placeholders})
+                        WHERE artist_id = %s AND song_name IN ({placeholders})
                     )
                     SELECT * FROM daily_diff
                     WHERE daily_streams IS NOT NULL
@@ -119,7 +120,7 @@ def show():
                     ORDER BY date
                 """
 
-                df_daily = db.fetch_df(daily_calc_query, tuple(selected_songs))
+                df_daily = db.fetch_df(daily_calc_query, (artist_id, *selected_songs))
                 
                 if not df_daily.empty:
                     # Nettoyage des valeurs négatives (si Apple corrige ses chiffres à la baisse)
@@ -134,7 +135,7 @@ def show():
                             title="Nouveaux Streams par Jour", markers=True
                         )
                         fig_streams.update_layout(hovermode='x unified')
-                        st.plotly_chart(fig_streams, width='stretch')
+                        st.plotly_chart(fig_streams, use_container_width=True)
                         
                     with tab2:
                         fig_shazams = px.bar(
@@ -142,7 +143,7 @@ def show():
                             title="Nouveaux Shazams par Jour", barmode='group'
                         )
                         fig_shazams.update_layout(hovermode='x unified')
-                        st.plotly_chart(fig_shazams, width='stretch')
+                        st.plotly_chart(fig_shazams, use_container_width=True)
                         
                 else:
                     st.info("📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données).")

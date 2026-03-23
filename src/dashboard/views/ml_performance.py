@@ -95,7 +95,7 @@ def _show_predictions_tab(db):
         if col in df.columns:
             df[col] = (df[col] * 100).round(1).astype(str) + "%"
 
-    st.dataframe(df, width="stretch")
+    st.dataframe(df, use_container_width=True)
 
 
 def show():
@@ -109,16 +109,18 @@ def show():
 
     db = get_db_connection()
 
-    tab_labels = [label for _, _, label, _ in _MODELS] + ["🎯 Prédictions en DB"]
-    tabs = st.tabs(tab_labels)
+    try:
+        tab_labels = [label for _, _, label, _ in _MODELS] + ["🎯 Prédictions en DB"]
+        tabs = st.tabs(tab_labels)
 
-    for i, (exp_id, run_id, label, _) in enumerate(_MODELS):
-        with tabs[i]:
-            st.subheader(label)
-            st.caption(f"Expérience MLflow n°{exp_id} — run `{run_id[:8]}…`")
-            _show_model_tab(exp_id, run_id, label)
+        for i, (exp_id, run_id, label, _) in enumerate(_MODELS):
+            with tabs[i]:
+                st.subheader(label)
+                st.caption(f"Expérience MLflow n°{exp_id} — run `{run_id[:8]}…`")
+                _show_model_tab(exp_id, run_id, label)
 
-    with tabs[-1]:
-        _show_predictions_tab(db)
+        with tabs[-1]:
+            _show_predictions_tab(db)
 
-    db.close()
+    finally:
+        db.close()

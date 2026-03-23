@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Platform Dashboard — Onboarding Checklist</title>
+<style>
+  @media print {
+    body { font-size: 11pt; }
+    .no-print { display: none; }
+    h1 { page-break-before: avoid; }
+    section { page-break-inside: avoid; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1a2e;
+    background: #f8f9fa;
+    padding: 32px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    border-bottom: 3px solid #1db954;
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+  }
+
+  header h1 {
+    font-size: 24px;
+    color: #1db954;
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    color: #555;
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  section {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  section h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  section h2 .badge {
+    background: #1db954;
+    color: white;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 9px;
+  }
+
+  ol, ul { padding-left: 20px; }
+
+  li {
+    margin-bottom: 10px;
+    line-height: 1.55;
+  }
+
+  li input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #1db954;
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+  }
+
+  code {
+    font-family: "Cascadia Code", "Fira Mono", Consolas, monospace;
+    background: #f0f4f8;
+    border: 1px solid #d0d8e0;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11.5px;
+    color: #c0392b;
+  }
+
+  pre {
+    background: #1a1a2e;
+    color: #e2e8f0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 12px;
+    margin: 10px 0 6px 22px;
+    overflow-x: auto;
+    font-family: "Cascadia Code", "Fira Mono", Consolas, monospace;
+    line-height: 1.6;
+  }
+
+  .note {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 4px 4px 0;
+    padding: 8px 12px;
+    margin: 8px 0 4px 22px;
+    font-size: 12px;
+    color: #78350f;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .kpi-card {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+
+  .kpi-card strong { display: block; color: #1db954; margin-bottom: 2px; font-size: 13px; }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .no-print {
+    background: #1db954;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 22px;
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 24px;
+    font-weight: 600;
+  }
+
+  .no-print:hover { background: #17a347; }
+</style>
+</head>
+<body>
+
+<button class="no-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+
+<header>
+  <h1>🎵 Music Platform Dashboard — Onboarding Checklist</h1>
+  <p>Follow each step in order. Estimated setup time: ~15 minutes.</p>
+</header>
+
+<!-- STEP 1 -->
+<section>
+  <h2>1 — Prerequisites <span class="badge">local machine</span></h2>
+  <ol>
+    <li><input type="checkbox"> Install <strong>Docker Desktop</strong> and enable WSL2 integration (Windows: Settings → Resources → WSL Integration).</li>
+    <li><input type="checkbox"> Install <strong>Python 3.11+</strong> and confirm: <code>python --version</code></li>
+    <li><input type="checkbox"> Clone or unzip the project into a working directory.</li>
+    <li><input type="checkbox"> Copy config template: <code>cp config/config.example.yaml config/config.yaml</code></li>
+    <li><input type="checkbox"> Edit <code>config/config.yaml</code> — fill in database credentials and your Fernet key.<br>
+      Generate a key if needed:
+      <pre>python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"</pre>
+    </li>
+  </ol>
+</section>
+
+<!-- STEP 2 -->
+<section>
+  <h2>2 — Start Docker (PostgreSQL + Airflow) <span class="badge">infrastructure</span></h2>
+  <ol>
+    <li><input type="checkbox"> Open a terminal in the project root and run:
+      <pre>docker-compose up -d</pre>
+    </li>
+    <li><input type="checkbox"> Wait ~30 seconds, then verify all containers are healthy:
+      <pre>docker-compose ps</pre>
+      All services should show <code>Up</code> or <code>healthy</code>.
+    </li>
+    <li><input type="checkbox"> Confirm Airflow UI is reachable: <code>http://localhost:8080</code> (admin / admin)</li>
+    <li><input type="checkbox"> Confirm PostgreSQL is reachable on port <code>5433</code>.</li>
+  </ol>
+  <div class="note">If a container fails, run <code>docker-compose logs -f &lt;service-name&gt;</code> to diagnose.</div>
+</section>
+
+<!-- STEP 3 -->
+<section>
+  <h2>3 — Launch the Dashboard <span class="badge">streamlit</span></h2>
+  <ol>
+    <li><input type="checkbox"> Install Python dependencies (first time only):
+      <pre>pip install -r requirements.txt</pre>
+    </li>
+    <li><input type="checkbox"> Start the dashboard:
+      <pre>cd src/dashboard &amp;&amp; streamlit run app.py</pre>
+    </li>
+    <li><input type="checkbox"> Open <code>http://localhost:8501</code> in your browser.</li>
+    <li><input type="checkbox"> Log in with the credentials defined in <code>config/config.yaml</code> → <code>auth.credentials</code>.<br>
+      <em>If no <code>auth</code> section exists, the app starts in DEV MODE (auto-logged in as admin — a yellow banner will appear).</em>
+    </li>
+  </ol>
+</section>
+
+<!-- STEP 4 -->
+<section>
+  <h2>4 — Connect API Credentials <span class="badge">credentials</span></h2>
+  <ol>
+    <li><input type="checkbox"> Navigate to <strong>🔑 Credentials API</strong> in the sidebar.</li>
+    <li><input type="checkbox"> For each platform (Spotify, YouTube, Meta, SoundCloud, Instagram):
+      <ul>
+        <li>Click the platform tab.</li>
+        <li>Enter the required tokens / client IDs.</li>
+        <li>Click <strong>Test</strong> to verify the connection.</li>
+        <li>Click <strong>Save</strong> — credentials are Fernet-encrypted in the database.</li>
+      </ul>
+    </li>
+    <li><input type="checkbox"> Confirm at least Spotify credentials are valid (required for ML scoring).</li>
+  </ol>
+  <div class="note">Credentials are per-artist. If you manage multiple artists, repeat this step after selecting each artist in the Admin panel.</div>
+</section>
+
+<!-- STEP 5 -->
+<section>
+  <h2>5 — Trigger a DAG <span class="badge">airflow</span></h2>
+  <ol>
+    <li><input type="checkbox"> Go to the Airflow UI: <code>http://localhost:8080</code></li>
+    <li><input type="checkbox"> Find the DAG you want to run (e.g. <code>spotify_api_daily</code>).</li>
+    <li><input type="checkbox"> Toggle the DAG <strong>ON</strong> (blue switch on the left).</li>
+    <li><input type="checkbox"> Click the ▶ <strong>Trigger DAG</strong> button (top right of the DAG row).</li>
+    <li><input type="checkbox"> Watch the run turn green in the graph view — this confirms data is flowing into PostgreSQL.</li>
+  </ol>
+  <div class="note">Alternatively, use the <strong>🚀 Lancer TOUTES les collectes</strong> button in the dashboard sidebar to trigger all DAGs at once.</div>
+</section>
+
+<!-- STEP 6 -->
+<section>
+  <h2>6 — Upload a CSV <span class="badge">import</span></h2>
+  <ol>
+    <li><input type="checkbox"> Navigate to <strong>📂 Import CSV</strong> in the sidebar.</li>
+    <li><input type="checkbox"> Select the artist target (admin only) and the platform (S4A or Apple Music).</li>
+    <li><input type="checkbox"> Upload the CSV exported from Spotify for Artists or Apple Music for Artists.</li>
+    <li><input type="checkbox"> Review the <strong>Validation</strong> panel — all required columns should show ✅.</li>
+    <li><input type="checkbox"> Review the <strong>Preview</strong> (first 10 rows).</li>
+    <li><input type="checkbox"> Click <strong>✅ Confirmer l'import</strong> to write to the database.</li>
+  </ol>
+</section>
+
+<!-- STEP 7 -->
+<section>
+  <h2>7 — Read the KPIs <span class="badge">dashboard</span></h2>
+  <div class="kpi-grid">
+    <div class="kpi-card"><strong>🏠 Home</strong>Global KPIs, source freshness, ROI summary.</div>
+    <div class="kpi-card"><strong>🚀 Road to Algo (ML)</strong>J+28 stream trajectory + algorithm probability scores.</div>
+    <div class="kpi-card"><strong>🎵 Spotify &amp; S4A</strong>Per-song stream history, audience trends.</div>
+    <div class="kpi-card"><strong>📱 Meta Ads</strong>Campaign spend, CTR, CPR — linked to Spotify saves.</div>
+    <div class="kpi-card"><strong>🎬 YouTube</strong>Subscribers, views, top videos by type.</div>
+    <div class="kpi-card"><strong>🎁 Data Wrapped</strong>Year-over-year listener, stream and save evolution.</div>
+    <div class="kpi-card"><strong>📄 Export PDF</strong>Printable report per artist.</div>
+    <div class="kpi-card"><strong>🏗️ Monitoring ETL</strong>(Admin) DAG health, last run, rows inserted.</div>
+  </div>
+</section>
+
+<!-- STEP 8 -->
+<section>
+  <h2>8 — Troubleshooting Quick Reference <span class="badge">ops</span></h2>
+  <ul>
+    <li><strong>Dashboard cannot connect to DB</strong> → run <code>docker-compose up -d</code> and wait 30 s.</li>
+    <li><strong>DAG fails immediately</strong> → check credentials via <strong>🔑 Credentials API</strong>.</li>
+    <li><strong>CSV import — column validation fails</strong> → confirm you selected the correct platform for the file.</li>
+    <li><strong>ML scores missing</strong> → unpause <code>ml_scoring_daily</code> in Airflow UI and trigger it manually.</li>
+    <li><strong>View shows no data</strong> → trigger the relevant DAG or import the corresponding CSV.</li>
+    <li><strong>Rebuild after code changes</strong>: <code>docker-compose build &amp;&amp; docker-compose up -d</code></li>
+  </ul>
+</section>
+
+<footer>
+  Music Platform Dashboard · Generated <span id="gen-date"></span>
+</footer>
+
+<script>
+  document.getElementById('gen-date').textContent = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
+</script>
+</body>
+</html>

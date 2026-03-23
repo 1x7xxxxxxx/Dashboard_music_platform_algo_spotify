@@ -1,0 +1,27 @@
+# Railway project configuration
+# Docs: https://docs.railway.com/reference/config-as-code
+#
+# This project deploys two services on Railway:
+#   1. dashboard   — Streamlit UI  (Dockerfile)
+#   2. api         — FastAPI REST  (Dockerfile.api)
+#
+# Both services share the same Railway PostgreSQL database via DATABASE_URL,
+# which Railway injects automatically when you link the Postgres plugin.
+#
+# Required environment variables (set in Railway service settings):
+#   DATABASE_URL      — auto-injected by Railway PostgreSQL plugin
+#   API_SECRET_KEY    — JWT signing secret (min 32 chars, generate with: openssl rand -hex 32)
+#
+# Optional:
+#   AIRFLOW_BASE_URL  — URL of deployed Airflow instance (leave empty to disable DAG triggers)
+#   AIRFLOW_USERNAME  — Airflow basic-auth username
+#   AIRFLOW_PASSWORD  — Airflow basic-auth password
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

@@ -6,12 +6,8 @@ from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id
 
-def show():
-    st.title("🔀 META x SPOTIFY - Analyse ROI")
-    st.markdown("---")
-
-    db = get_db_connection()
-    artist_id = get_artist_id() or 1
+def _show_body(db, artist_id):
+    """Main view body — db.close() is handled by show()."""
 
     # =========================================================================
     # 1. SECTION CONFIGURATION (MAPPING)
@@ -35,13 +31,14 @@ def show():
             if st.form_submit_button("💾 Enregistrer le lien"):
                 if sel_camp and sel_track:
                     try:
-                        with db.conn.cursor() as cur:
-                            cur.execute("""
-                                INSERT INTO campaign_track_mapping (campaign_name, track_name)
-                                VALUES (%s, %s)
-                                ON CONFLICT (campaign_name, track_name) DO NOTHING
-                            """, (sel_camp, sel_track))
-                            db.conn.commit()
+                        db.execute_query(
+                            """
+                            INSERT INTO campaign_track_mapping (campaign_name, track_name)
+                            VALUES (%s, %s)
+                            ON CONFLICT (campaign_name, track_name) DO NOTHING
+                            """,
+                            (sel_camp, sel_track),
+                        )
                         st.success(f"✅ Lien activé : {sel_camp} -> {sel_track}")
                         st.rerun()
                     except Exception as e:
@@ -50,7 +47,7 @@ def show():
         try:
             curr_map = db.fetch_df("SELECT campaign_name, track_name, created_at FROM campaign_track_mapping ORDER BY created_at DESC")
             if not curr_map.empty:
-                st.dataframe(curr_map, width='stretch', hide_index=True)
+                st.dataframe(curr_map, use_container_width=True, hide_index=True)
         except: pass
 
     st.markdown("---")
@@ -346,18 +343,29 @@ def show():
     fig.update_yaxes(title_text="Streams Jour", row=3, col=1, secondary_y=False)
     fig.update_yaxes(title_text="Index Pop.", row=3, col=1, secondary_y=True, range=[0, 100])
 
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
 
     # --- TABLEAU ---
     with st.expander("🔎 Voir les données brutes"):
         st.dataframe(
             df_master.sort_values('date', ascending=False).style.format({
                 "spend": "{:.2f}", "cpr_calc": "{:.2f}", "streams": "{:.0f}", "streams_cumul": "{:.0f}", "popularity": "{:.0f}"
-            }), 
-            width='stretch'
+            }),
+            use_container_width=True,
         )
 
-    db.close()
+
+
+def show():
+    st.title("🔀 META x SPOTIFY - Analyse ROI")
+    st.markdown("---")
+
+    db = get_db_connection()
+    artist_id = get_artist_id() or 1
+    try:
+        _show_body(db, artist_id)
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     show()

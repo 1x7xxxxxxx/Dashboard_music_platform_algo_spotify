@@ -41,7 +41,13 @@ def require_login() -> bool:
     auth_config = _load_auth_config()
 
     if auth_config is None:
-        # Mode développement : bypass auth si pas de section 'auth' dans config.yaml
+        # Development mode: no 'auth' section in config.yaml → auto-login as admin.
+        # SECURITY: this bypass must never reach production.
+        st.warning(
+            "**DEV MODE** — Authentication disabled (no `auth` section in config.yaml). "
+            "All sessions are logged in as admin.",
+            icon="⚠️",
+        )
         st.session_state.setdefault('authenticated', True)
         st.session_state.setdefault('artist_id', 1)
         st.session_state.setdefault('role', 'admin')
@@ -128,6 +134,74 @@ def get_artist_id() -> Optional[int]:
 
 def is_admin() -> bool:
     return st.session_state.get('role') == 'admin'
+
+
+def get_artist_plan() -> str:
+    """Return the current artist's plan name: 'free' | 'basic' | 'premium'.
+
+    Reads artist_subscriptions from DB; falls back to saas_artists.tier.
+    Returns 'premium' for admin sessions (unrestricted access).
+    """
+    if is_admin():
+        return 'premium'
+
+    artist_id = get_artist_id()
+    if artist_id is None:
+        return 'premium'
+
+    try:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        if db is None:
+            return 'free'
+        row = db.fetch_query(
+            """
+            SELECT sp.name
+            FROM artist_subscriptions asub
+            JOIN subscription_plans sp ON sp.id = asub.plan_id
+            WHERE asub.artist_id = %s AND asub.status IN ('active', 'trialing')
+            LIMIT 1
+            """,
+            (artist_id,),
+        )
+        db.close()
+        if row:
+            return row[0][0]
+        # Fallback to saas_artists.tier
+        db2 = get_db_connection()
+        tier_row = db2.fetch_query(
+            "SELECT tier FROM saas_artists WHERE id = %s", (artist_id,)
+        )
+        db2.close()
+        if tier_row:
+            return tier_row[0][0]
+    except Exception:
+        pass
+    return 'free'
+
+
+def require_plan(min_plan: str) -> bool:
+    """Show a paywall banner if the current artist's plan is below min_plan.
+
+    Returns True if access is allowed, False if blocked.
+
+    Usage at the top of a view:
+        from src.dashboard.auth import require_plan
+        if not require_plan('premium'):
+            return
+    """
+    from src.database.stripe_schema import PLAN_RANK
+    current_plan = get_artist_plan()
+    if PLAN_RANK.get(current_plan, 0) >= PLAN_RANK.get(min_plan, 0):
+        return True
+
+    plan_labels = {'basic': 'Basic (9.90€/mo)', 'premium': 'Premium (29.90€/mo)'}
+    st.warning(
+        f"🔒 This feature requires the **{plan_labels.get(min_plan, min_plan)}** plan. "
+        f"Your current plan: **{current_plan}**. Upgrade via the **Billing** page.",
+        icon="⚠️",
+    )
+    return False
 
 
 def artist_id_sql_filter(table_alias: str = '') -> tuple:

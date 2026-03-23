@@ -1,0 +1,31 @@
+# Ruff configuration for the music analytics SaaS project.
+# Docs: https://docs.astral.sh/ruff/configuration/
+
+target-version = "py311"
+line-length = 110
+
+[lint]
+select = ["E", "F", "W"]
+ignore = [
+    # sys.path manipulation before imports — intentional in all entry points (app.py, DAGs, debug scripts)
+    "E402",
+    # One-liner routing / conditional style used throughout app.py and views
+    "E701",
+    "E702",
+    # Bare except in DAG trigger fallbacks — intentional defensive pattern
+    "E722",
+    # Line too long — relaxed for SQL strings
+    "E501",
+    # Trailing whitespace — pre-existing across the entire codebase, not enforced
+    "W291",
+    "W293",
+    # No newline at end of file — pre-existing
+    "W292",
+]
+
+[lint.per-file-ignores]
+# Test files: allow unused imports (fixtures, re-exports)
+"tests/*" = ["F401"]
+# DAG files: sys.path insert is mandatory (see CLAUDE.md)
+"airflow/dags/*" = ["E402"]
+"airflow/debug_dag/*" = ["E402"]

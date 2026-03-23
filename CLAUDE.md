@@ -161,7 +161,7 @@ Enable first: Docker Desktop → Settings → Resources → WSL Integration → 
 
 ## Roadmap
 
-Full checklist: `.claude/dev-docs/roadmap/checklist.md`
+Single master checklist: `.claude/dev-docs/roadmap/checklist.md`
 Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and continue with the next unchecked item."*
 
 | Bricks | Topic | Status | Priority |
@@ -169,6 +169,6 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 | 1–8 | SaaS DB migration, Auth, Admin, Credentials, CSV import, Parameterized DAGs, iMusician, Home KPI | ✅ | — |
 | 9–11 | Error handling + retry, Unit tests, Monitoring + alerting | ✅ | P2 |
 | 12–13 | PDF export (WeasyPrint), CSV export (ZIP) | ✅ | P3 |
-| 14 | FastAPI REST backend (JWT) | 🔲 | P4 |
-| 15 | CI/CD Railway deployment | 🔲 | P4 |
+| 14 | FastAPI REST backend (JWT) | ✅ | P4 |
+| 15 | CI/CD Railway deployment | ✅ | P4 |
 | 16–17 | ML scoring DAG + ML dashboard views | ✅ | P3 |
