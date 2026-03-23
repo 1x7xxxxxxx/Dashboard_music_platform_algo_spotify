@@ -4,6 +4,7 @@ META_ADS_SCHEMA = {
     'meta_campaigns': """
         CREATE TABLE IF NOT EXISTS meta_campaigns (
             campaign_id VARCHAR(50) PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             campaign_name VARCHAR(255) NOT NULL,
             status VARCHAR(50),
             objective VARCHAR(100),
@@ -23,6 +24,7 @@ META_ADS_SCHEMA = {
     'meta_adsets': """
         CREATE TABLE IF NOT EXISTS meta_adsets (
             adset_id VARCHAR(50) PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             adset_name VARCHAR(255) NOT NULL,
             campaign_id VARCHAR(50) REFERENCES meta_campaigns(campaign_id),
             status VARCHAR(50),
@@ -42,6 +44,7 @@ META_ADS_SCHEMA = {
     'meta_ads': """
         CREATE TABLE IF NOT EXISTS meta_ads (
             ad_id VARCHAR(50) PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             ad_name VARCHAR(255) NOT NULL,
             adset_id VARCHAR(50) REFERENCES meta_adsets(adset_id),
             campaign_id VARCHAR(50) REFERENCES meta_campaigns(campaign_id),
@@ -59,6 +62,7 @@ META_ADS_SCHEMA = {
     'meta_insights': """
         CREATE TABLE IF NOT EXISTS meta_insights (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             ad_id VARCHAR(50) REFERENCES meta_ads(ad_id),
             date DATE NOT NULL,
             impressions INTEGER DEFAULT 0,

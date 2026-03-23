@@ -3,6 +3,7 @@ from googleapiclient.discovery import build
 from datetime import datetime
 from typing import List, Dict, Optional
 import logging
+from src.utils.retry import retry
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class YouTubeCollector:
         self.youtube = build('youtube', 'v3', developerKey=api_key)
         logger.info("✅ YouTubeCollector initialisé")
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_channel_stats(self, channel_id: str) -> Optional[Dict]:
         """
         Récupère les statistiques d'une chaîne.
@@ -66,6 +68,7 @@ class YouTubeCollector:
             logger.error(f"❌ Erreur get_channel_stats: {e}")
             return None
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_channel_videos(self, channel_id: str, max_results: int = 50) -> List[Dict]:
         """
         Récupère la liste des vidéos d'une chaîne.
@@ -133,6 +136,7 @@ class YouTubeCollector:
             logger.error(f"❌ Erreur get_channel_videos: {e}")
             return videos
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_video_stats(self, video_ids: List[str]) -> List[Dict]:
         """
         Récupère les statistiques de plusieurs vidéos.
@@ -183,6 +187,7 @@ class YouTubeCollector:
             logger.error(f"❌ Erreur get_video_stats: {e}")
             return stats_list
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_video_comments(self, video_id: str, max_results: int = 100) -> List[Dict]:
         """
         Récupère les commentaires d'une vidéo.
@@ -236,6 +241,7 @@ class YouTubeCollector:
             logger.error(f"❌ Erreur get_video_comments: {e}")
             return comments
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_playlists(self, channel_id: str) -> List[Dict]:
         """
         Récupère les playlists d'une chaîne.

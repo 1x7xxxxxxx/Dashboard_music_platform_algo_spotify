@@ -17,11 +17,24 @@ except ImportError as e:
     print(f"❌ ERREUR IMPORT : {e}")
     MetaCSVWatcher = None
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': _on_failure_callback,
 }
 
 with DAG(

@@ -1,26 +1,23 @@
 """Application Streamlit principale avec déclenchement des DAGs."""
 import streamlit as st
-import pandas as pd
-import plotly.express as px
 from pathlib import Path
 import sys
-from datetime import datetime
 from dotenv import load_dotenv
 import os
 
 # ✅ IMPORTANT : Ajouter le chemin AVANT les imports src.*
-sys.path.append(str(Path(__file__).parent.parent.parent))
+# resolve() → chemin absolu garanti, insert(0) → priorité maximale
+_project_root = str(Path(__file__).resolve().parent.parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 # ✅ Charger .env.local si disponible
 env_file = '.env.local' if os.path.exists('.env.local') else '.env'
 load_dotenv(env_file)
 
-from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
-
-# ⚠️ FILTRE ARTISTE (Pour exclure la ligne "Total" des CSV Spotify)
-ARTIST_NAME_FILTER = "1x7xxxxxxx"
+from src.dashboard.auth import require_login, show_user_sidebar
 
 st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide")
 
@@ -32,14 +29,9 @@ airflow_trigger = AirflowTrigger(
     password=airflow_config.get('password', 'admin')
 )
 
-def get_db():
-    config = config_loader.load()
-    db_config = config['database']
-    return PostgresHandler(**db_config)
-
-def show_navigation_menu():
+def show_navigation_menu(role: str = 'artist'):
     st.sidebar.title("🎵 Navigation")
-    pages = {
+    pages_all = {
         "🏠 Accueil": "home",
         "🚀 Road to Algo (ML)": "trigger_algo",
         "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
@@ -50,8 +42,19 @@ def show_navigation_menu():
         "📸 Instagram": "instagram",
         "🎎 Apple Music": "apple_music",
         "🎬 YouTube": "youtube",
+        "💰 iMusician": "imusician",
+        "🔑 Credentials API": "credentials",
+        "📂 Import CSV": "upload_csv",
+        "📄 Export PDF": "export_pdf",
+        "⬇️ Export CSV": "export_csv",
         "🏗️ Monitoring ETL": "airflow_kpi",
+        "🤖 Perf. Modèles ML": "ml_performance",
+        "🔧 Liens & Outils": "useful_links",
+        "⚙️ Admin": "admin",
     }
+    # Pages réservées admin (cachées pour le rôle 'artist')
+    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links'}
+    pages = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
     return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
 
 def show_data_collection_panel():
@@ -69,109 +72,33 @@ def show_data_collection_panel():
                 except: st.error(f"❌ {label}")
             st.sidebar.success("Lancé !")
 
-def get_spotify_chart_data(db):
-    """Récupère l'historique dédupliqué (MAX par jour)."""
-    try:
-        query = """
-            SELECT date, SUM(daily_max) as value, 'Spotify' as platform
-            FROM (
-                SELECT date, song, MAX(streams) as daily_max
-                FROM s4a_song_timeline
-                WHERE song NOT ILIKE %s
-                GROUP BY date, song
-            ) sub
-            GROUP BY date
-            ORDER BY date ASC
-        """
-        df = db.fetch_df(query, (f"%{ARTIST_NAME_FILTER}%",))
-        if not df.empty:
-            df['date'] = pd.to_datetime(df['date'])
-            df['value'] = df['value'].cumsum()
-            return df
-    except: pass
-    return pd.DataFrame()
+def _check_db_health():
+    """Affiche une bannière rouge si PostgreSQL est inaccessible."""
+    from src.dashboard.utils import get_db_connection
+    db = get_db_connection()
+    if db is None:
+        st.error(
+            "❌ **Base de données PostgreSQL inaccessible.** "
+            "Vérifiez que Docker est lancé : `docker-compose up -d`"
+        )
+        return False
+    db.close()
+    return True
+
 
 def main():
-    page = show_navigation_menu()
+    if not require_login():
+        st.stop()
+
+    _check_db_health()
+
+    role = st.session_state.get('role', 'artist')
+    page = show_navigation_menu(role)
+    show_user_sidebar()
     show_data_collection_panel()
     
     if page == "home":
-        st.title("🎵 Music Platform Dashboard")
-        st.markdown("---")
-        
-        db = get_db()
-        try:
-            # 1. SPOTIFY : Calcul nettoyé (MAX par chanson/jour pour écraser doublons)
-            q_spot = """
-                SELECT SUM(daily_max) FROM (
-                    SELECT date, song, MAX(streams) as daily_max
-                    FROM s4a_song_timeline
-                    WHERE song NOT ILIKE %s
-                    GROUP BY date, song
-                ) sub
-            """
-            try:
-                total_spotify = db.fetch_query(q_spot, (f"%{ARTIST_NAME_FILTER}%",))[0][0] or 0
-            except: total_spotify = 0
-            
-            # 2. YOUTUBE : CORRECTION MAJEURE ICI 🔴
-            # On prend directement le compteur GLOBAL de la chaîne (comme la vue détaillée)
-            # au lieu de faire la somme des vidéos une par une.
-            try:
-                q_yt = """
-                    SELECT view_count 
-                    FROM youtube_channel_history 
-                    ORDER BY collected_at DESC 
-                    LIMIT 1
-                """
-                total_yt = db.fetch_query(q_yt)[0][0] or 0
-            except: total_yt = 0
-            
-            # 3. SOUNDCLOUD
-            try: total_sc = db.fetch_query("SELECT SUM(playback_count) FROM view_soundcloud_latest")[0][0] or 0
-            except: total_sc = 0
-            
-            # 4. APPLE MUSIC
-            try: total_apple = db.fetch_query("SELECT SUM(plays) FROM apple_songs_performance")[0][0] or 0
-            except: total_apple = 0
-            
-            GRAND_TOTAL = total_spotify + total_apple + total_sc + total_yt
-
-            st.markdown(f"""
-            <div style="text-align: center; padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 20px;">
-                <h2 style="color: #555; margin:0;">🎧 Total Streams</h2>
-                <h1 style="font-size: 3.5em; color: #1DB954; margin:0;">{int(GRAND_TOTAL):,}</h1>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Spotify", f"{int(total_spotify):,}")
-            c2.metric("YouTube", f"{int(total_yt):,}")
-            c3.metric("SoundCloud", f"{int(total_sc):,}")
-            c4.metric("Apple Music", f"{int(total_apple):,}")
-            
-            st.markdown("---")
-            st.subheader("📈 Évolution Cumulée (Spotify)")
-            
-            df_chart = get_spotify_chart_data(db)
-            if not df_chart.empty:
-                fig = px.area(df_chart, x="date", y="value", color="platform", 
-                              color_discrete_map={"Spotify": "#1DB954"})
-                fig.update_layout(yaxis_title="Streams Cumulés", hovermode="x unified")
-                st.plotly_chart(fig, width='stretch')
-            else:
-                st.info("Pas assez de données pour le graphique.")
-
-        except Exception as e:
-            st.error(f"Erreur d'affichage : {e}")
-        finally:
-            db.close()
-            
-        st.markdown("---")
-        c1, c2 = st.columns(2)
-        with c1: 
-            if st.button("🔗 Airflow UI"): st.markdown("[Ouvrir](http://localhost:8080)")
-        with c2: st.code("docker-compose up -d")
+        from views.home import show; show()
 
     # Routing
     elif page == "trigger_algo": from views.trigger_algo import show; show()
@@ -183,7 +110,15 @@ def main():
     elif page == "youtube": from views.youtube import show; show()
     elif page == "soundcloud": from views.soundcloud import show; show()
     elif page == "instagram": from views.instagram import show; show()
+    elif page == "imusician": from views.imusician import show; show()
+    elif page == "credentials": from views.credentials import show; show()
+    elif page == "upload_csv": from views.upload_csv import show; show()
+    elif page == "export_pdf": from views.export_pdf import show; show()
+    elif page == "export_csv": from views.export_csv import show; show()
     elif page == "airflow_kpi": from views.airflow_kpi import show; show()
+    elif page == "ml_performance": from views.ml_performance import show; show()
+    elif page == "useful_links": from views.useful_links import show; show()
+    elif page == "admin": from views.admin import show; show()
 
 if __name__ == "__main__":
     main()

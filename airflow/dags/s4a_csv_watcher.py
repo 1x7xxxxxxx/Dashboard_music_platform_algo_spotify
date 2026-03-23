@@ -22,6 +22,15 @@ sys.path.insert(0, '/opt/airflow')
 
 logger = logging.getLogger(__name__)
 
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 # Configuration par défaut du DAG
 default_args = {
     'owner': 'data_team',
@@ -30,6 +39,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': _on_failure_callback,
 }
 
 
@@ -111,32 +121,39 @@ def process_csv_files(**context):
             password=os.getenv('DATABASE_PASSWORD')
         )
         
+        # artist_id depuis conf ou défaut 1
+        conf = context.get('dag_run').conf or {}
+        artist_id = int(conf.get('artist_id', 1))
+
         processed_count = 0
         total_records = 0
-        
+
         # Traiter chaque fichier CSV
         for csv_file_str in csv_files:
             csv_file = Path(csv_file_str)
-            
+
             if not csv_file.exists():
                 logger.warning(f'⚠️  Fichier introuvable: {csv_file.name}')
                 continue
-            
+
             logger.info(f'\n📄 Traitement: {csv_file.name}')
-            
+
             # Parser le CSV
             result = parser.parse_csv_file(csv_file)
-            
+
             if not result['type']:
                 logger.warning(f'⚠️  Type CSV non reconnu: {csv_file.name}')
                 continue
-            
+
             if not result['data']:
                 logger.warning(f'⚠️  Aucune donnée extraite: {csv_file.name}')
                 continue
-            
+
             csv_type = result['type']
             data = result['data']
+            # Injecter artist_id dans chaque ligne
+            for row in data:
+                row['artist_id'] = artist_id
             
             logger.info(f'   🏷️  Type: {csv_type}')
             logger.info(f'   📊 Enregistrements: {len(data)}')
@@ -147,25 +164,25 @@ def process_csv_files(**context):
                     count = db.upsert_many(
                         table='s4a_songs_global',
                         data=data,
-                        conflict_columns=['song'],
+                        conflict_columns=['artist_id', 'song'],
                         update_columns=['listeners', 'streams', 'saves', 'release_date', 'collected_at']
                     )
                     logger.info(f'   ✅ {count} chanson(s) stockée(s)')
-                
+
                 elif csv_type == 'song_timeline':
                     count = db.upsert_many(
                         table='s4a_song_timeline',
                         data=data,
-                        conflict_columns=['song', 'date'],
+                        conflict_columns=['artist_id', 'song', 'date'],
                         update_columns=['streams', 'collected_at']
                     )
                     logger.info(f'   ✅ {count} enregistrement(s) timeline stocké(s)')
-                
+
                 elif csv_type == 'audience':
                     count = db.upsert_many(
                         table='s4a_audience',
                         data=data,
-                        conflict_columns=['date'],
+                        conflict_columns=['artist_id', 'date'],
                         update_columns=['listeners', 'streams', 'followers', 'collected_at']
                     )
                     logger.info(f'   ✅ {count} jour(s) d\'audience stocké(s)')

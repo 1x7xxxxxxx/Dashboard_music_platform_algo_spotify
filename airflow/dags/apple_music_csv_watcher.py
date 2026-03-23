@@ -22,6 +22,15 @@ sys.path.insert(0, '/opt/airflow')
 
 logger = logging.getLogger(__name__)
 
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
@@ -29,6 +38,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': _on_failure_callback,
 }
 
 def check_for_new_csv(**context):
@@ -86,19 +96,27 @@ def process_csv_files(**context):
             password=os.getenv('DATABASE_PASSWORD')
         )
         
+        # artist_id depuis conf ou défaut 1
+        conf = context.get('dag_run').conf or {}
+        artist_id = int(conf.get('artist_id', 1))
+
         processed_count = 0
-        
+
         for file_path_str in csv_files:
             csv_file = Path(file_path_str)
             if not csv_file.exists():
                 continue
-                
+
             logger.info(f'\n📄 Traitement : {csv_file.name}')
-            
+
             # 1. Parsing
             result = parser.parse_csv_file(csv_file)
             csv_type = result.get('type')
             data = result.get('data')
+            # Injecter artist_id dans chaque ligne
+            if data:
+                for row in data:
+                    row['artist_id'] = artist_id
             
             if not data:
                 logger.warning(f"⚠️ Aucune donnée ou type inconnu pour {csv_file.name}")
@@ -114,7 +132,7 @@ def process_csv_files(**context):
                     count_perf = db.upsert_many(
                         table='apple_songs_performance',
                         data=data,
-                        conflict_columns=['song_name'],
+                        conflict_columns=['artist_id', 'song_name'],
                         update_columns=[
                             'album_name', 'plays', 'listeners',
                             'shazam_count', 'radio_spins', 'purchases',

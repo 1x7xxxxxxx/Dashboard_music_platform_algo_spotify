@@ -3,18 +3,27 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import get_artist_id
 
 def show():
     st.title("☁️ SoundCloud - Performance")
     st.markdown("---")
 
     db = get_db_connection()
+    artist_id = get_artist_id() or 1
 
     # =========================================================================
     # 1. KPIs GLOBAUX (Dernière date connue)
     # =========================================================================
     try:
-        df_latest = db.fetch_df("SELECT * FROM view_soundcloud_latest")
+        df_latest = db.fetch_df("""
+            SELECT DISTINCT ON (track_id)
+                track_id, title, permalink_url, playback_count,
+                likes_count, reposts_count, comment_count, collected_at
+            FROM soundcloud_tracks_daily
+            WHERE artist_id = %s
+            ORDER BY track_id, collected_at DESC
+        """, (artist_id,))
         
         if not df_latest.empty:
             # Calculs
@@ -70,12 +79,12 @@ def show():
             format="DD/MM/YYYY"
         )
         
-        # B. Filtre Titres (Multiselect)
-        all_titles = sorted(df_latest['title'].unique().tolist())
+        # B. Filtre Titres (Multiselect) — trié par streams desc (plus actif en premier)
+        all_titles = df_latest.sort_values('playback_count', ascending=False)['title'].tolist()
         selected_tracks = col_f2.multiselect(
             "Filtrer par titres",
             options=all_titles,
-            default=all_titles # Tout sélectionné par défaut
+            default=all_titles  # Tout sélectionné par défaut
         )
 
     # --- REQUÊTE & AFFICHAGE ---
@@ -89,11 +98,12 @@ def show():
 
         # On récupère l'historique large (on filtre en Pandas pour plus de souplesse UI)
         query_hist = """
-            SELECT collected_at, title, playback_count 
-            FROM soundcloud_tracks_daily 
+            SELECT collected_at, title, playback_count
+            FROM soundcloud_tracks_daily
+            WHERE artist_id = %s
             ORDER BY collected_at ASC
         """
-        df_history = db.fetch_df(query_hist)
+        df_history = db.fetch_df(query_hist, (artist_id,))
         
         if not df_history.empty:
             # Conversion types

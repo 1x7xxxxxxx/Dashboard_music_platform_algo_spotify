@@ -5,15 +5,41 @@ import sys
 
 sys.path.insert(0, '/opt/airflow')
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': _on_failure_callback,
 }
 
-def run_insta_collector():
+def run_insta_collector(**context):
+    import os
     from src.collectors.instagram_api_collector import InstagramCollector
+    from src.utils.credential_loader import load_platform_credentials
+
+    # Brick 6 : credentials depuis DB si artist_id fourni
+    conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+    artist_id = conf.get('artist_id', 1)
+
+    creds = load_platform_credentials(artist_id, 'meta')
+    if creds.get('access_token'):
+        os.environ['INSTAGRAM_ACCESS_TOKEN'] = creds['access_token']
+    if creds.get('account_id'):
+        os.environ['INSTAGRAM_USER_ID'] = creds['account_id']
+
     InstagramCollector().run()
 
 with DAG(
@@ -28,5 +54,6 @@ with DAG(
 
     collect_task = PythonOperator(
         task_id='collect_instagram_stats',
+        provide_context=True,
         python_callable=run_insta_collector
     )

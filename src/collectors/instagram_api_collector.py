@@ -11,6 +11,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.database.postgres_handler import PostgresHandler
+from src.utils.retry import retry
 
 load_dotenv()
 
@@ -49,6 +50,7 @@ class InstagramCollector:
             print(f"❌ Erreur Connexion BDD: {e}")
             self.db = None
 
+    @retry(max_attempts=3, backoff="exponential")
     def fetch_stats(self):
         """Récupère les stats du compte."""
         print(f"📸 Appel API Meta pour l'ID {self.ig_user_id}...")

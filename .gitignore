@@ -62,6 +62,10 @@ airflow/dags/__pycache__/
 airflow.db
 airflow-webserver.pid
 
+# Machine Learning
+machine_learning/mlruns/
+machine_learning/data_analysis_ml_perso.ipynb
+
 # Tests et coverage
 .pytest_cache/
 .coverage

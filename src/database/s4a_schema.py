@@ -4,13 +4,14 @@ S4A_SCHEMA = {
     's4a_songs_global': """
         CREATE TABLE IF NOT EXISTS s4a_songs_global (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             song VARCHAR(255) NOT NULL,
             listeners INTEGER DEFAULT 0,
             streams INTEGER DEFAULT 0,
             saves INTEGER DEFAULT 0,
             release_date DATE,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(song)
+            UNIQUE(artist_id, song)
         );
         
         CREATE INDEX IF NOT EXISTS idx_s4a_songs_song ON s4a_songs_global(song);
@@ -20,11 +21,12 @@ S4A_SCHEMA = {
     's4a_song_timeline': """
         CREATE TABLE IF NOT EXISTS s4a_song_timeline (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             song VARCHAR(255) NOT NULL,
             date DATE NOT NULL,
             streams INTEGER DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(song, date)
+            UNIQUE(artist_id, song, date)
         );
         
         CREATE INDEX IF NOT EXISTS idx_s4a_timeline_song ON s4a_song_timeline(song);
@@ -35,12 +37,13 @@ S4A_SCHEMA = {
     's4a_audience': """
         CREATE TABLE IF NOT EXISTS s4a_audience (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             date DATE NOT NULL,
             listeners INTEGER DEFAULT 0,
             streams INTEGER DEFAULT 0,
             followers INTEGER DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(date)
+            UNIQUE(artist_id, date)
         );
         
         CREATE INDEX IF NOT EXISTS idx_s4a_audience_date ON s4a_audience(date DESC);

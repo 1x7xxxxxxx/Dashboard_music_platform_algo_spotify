@@ -2,17 +2,14 @@
 
 HYPEDDIT_SCHEMA = {
     'hypeddit_campaigns': """
-        -- Supprimer la table existante si elle existe
-        DROP TABLE IF EXISTS hypeddit_daily_stats CASCADE;
-        DROP TABLE IF EXISTS hypeddit_campaigns CASCADE;
-        
-        -- Créer la table des campagnes
-        CREATE TABLE hypeddit_campaigns (
+        CREATE TABLE IF NOT EXISTS hypeddit_campaigns (
             id SERIAL PRIMARY KEY,
-            campaign_name VARCHAR(255) NOT NULL UNIQUE,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
+            campaign_name VARCHAR(255) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_active BOOLEAN DEFAULT true
+            is_active BOOLEAN DEFAULT true,
+            UNIQUE(artist_id, campaign_name)
         );
         
         CREATE INDEX idx_hypeddit_campaigns_name 
@@ -23,9 +20,9 @@ HYPEDDIT_SCHEMA = {
     """,
     
     'hypeddit_daily_stats': """
-        -- Créer la table des statistiques quotidiennes
-        CREATE TABLE hypeddit_daily_stats (
+        CREATE TABLE IF NOT EXISTS hypeddit_daily_stats (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             campaign_name VARCHAR(255) NOT NULL,
             date DATE NOT NULL,
             visits INTEGER DEFAULT 0,
@@ -35,9 +32,9 @@ HYPEDDIT_SCHEMA = {
             cost_per_click DECIMAL(10, 4) DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(campaign_name, date),
-            CONSTRAINT fk_hypeddit_campaign 
-                FOREIGN KEY (campaign_name) 
+            UNIQUE(artist_id, campaign_name, date),
+            CONSTRAINT fk_hypeddit_campaign
+                FOREIGN KEY (campaign_name)
                 REFERENCES hypeddit_campaigns(campaign_name)
                 ON DELETE CASCADE
         );

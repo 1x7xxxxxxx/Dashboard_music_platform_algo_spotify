@@ -1,4 +1,9 @@
-"""DAG YouTube Data API - Collecte manuelle."""
+"""DAG YouTube Data API - Collecte manuelle.
+
+Brick 6 : supporte artist_id dans dag_run.conf.
+  - conf.artist_id fourni → credentials depuis DB pour cet artiste.
+  - conf absent           → fallback sur env vars (comportement historique).
+"""
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
@@ -14,6 +19,15 @@ sys.path.insert(0, '/opt/airflow')
 
 logger = logging.getLogger(__name__)
 
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
@@ -21,6 +35,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
+    'on_failure_callback': _on_failure_callback,
 }
 
 
@@ -29,14 +44,23 @@ def collect_youtube_data(**context):
     try:
         from src.collectors.youtube_collector import YouTubeCollector
         from src.database.postgres_handler import PostgresHandler
-        
+        from src.utils.credential_loader import load_platform_credentials
+
         logger.info('='*70)
         logger.info('🎬 COLLECTE YOUTUBE DATA API')
         logger.info('='*70)
-        
-        # Config YouTube
-        api_key = os.getenv('YOUTUBE_API_KEY')
-        channel_id = os.getenv('YOUTUBE_CHANNEL_ID')
+
+        # ── Brick 6 : credentials depuis DB si artist_id fourni ───────
+        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+        artist_id = conf.get('artist_id', 1)
+
+        creds = load_platform_credentials(artist_id, 'youtube')
+        if creds.get('client_id'):
+            logger.info(f'  Credentials YouTube chargés depuis DB (artist_id={artist_id})')
+
+        # Config YouTube — DB d'abord, env vars ensuite
+        api_key = creds.get('api_key') or os.getenv('YOUTUBE_API_KEY')
+        channel_id = creds.get('channel_id') or os.getenv('YOUTUBE_CHANNEL_ID')
         
         if not api_key or not channel_id:
             logger.error('❌ YOUTUBE_API_KEY ou YOUTUBE_CHANNEL_ID manquant')

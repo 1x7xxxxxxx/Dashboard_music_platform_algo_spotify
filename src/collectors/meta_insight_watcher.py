@@ -110,13 +110,13 @@ class MetaAdsWatcher:
         """Table: meta_insights_performance"""
         query = """
             INSERT INTO meta_insights_performance (
-                campaign_name, spend, impressions, reach, frequency, results, cpr, 
-                cpm, link_clicks, cpc, ctr, lp_views
+                artist_id, campaign_name, date_start, spend, impressions, reach,
+                frequency, results, cpr, cpm, link_clicks, cpc, ctr, lp_views
             ) VALUES (
-                %(campaign_name)s, %(spend)s, %(impressions)s, %(reach)s, %(frequency)s, %(results)s, %(cpr)s,
-                %(cpm)s, %(link_clicks)s, %(cpc)s, %(ctr)s, %(lp_views)s
+                1, %(campaign_name)s, %(date_start)s, %(spend)s, %(impressions)s, %(reach)s,
+                %(frequency)s, %(results)s, %(cpr)s, %(cpm)s, %(link_clicks)s, %(cpc)s, %(ctr)s, %(lp_views)s
             )
-            ON CONFLICT (campaign_name, date_start) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, date_start) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
                 impressions = EXCLUDED.impressions, reach = EXCLUDED.reach,
                 frequency = EXCLUDED.frequency, cpm = EXCLUDED.cpm,
@@ -130,11 +130,11 @@ class MetaAdsWatcher:
         """Table: meta_insights_performance_day"""
         query = """
             INSERT INTO meta_insights_performance_day (
-                campaign_name, day_date, spend, results, cpr, impressions, reach
+                artist_id, campaign_name, day_date, spend, results, cpr, impressions, reach
             ) VALUES (
-                %(campaign_name)s, %(day_date)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                1, %(campaign_name)s, %(day_date)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
-            ON CONFLICT (campaign_name, day_date) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, day_date) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
                 cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
                 reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
@@ -145,11 +145,11 @@ class MetaAdsWatcher:
         """Table: meta_insights_performance_age"""
         query = """
             INSERT INTO meta_insights_performance_age (
-                campaign_name, age_range, spend, results, cpr, impressions, reach
+                artist_id, campaign_name, age_range, spend, results, cpr, impressions, reach
             ) VALUES (
-                %(campaign_name)s, %(age_range)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                1, %(campaign_name)s, %(age_range)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
-            ON CONFLICT (campaign_name, age_range) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, age_range) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
                 cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
                 reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
@@ -160,11 +160,11 @@ class MetaAdsWatcher:
         """Table: meta_insights_performance_country"""
         query = """
             INSERT INTO meta_insights_performance_country (
-                campaign_name, country, spend, results, cpr, impressions, reach
+                artist_id, campaign_name, country, spend, results, cpr, impressions, reach
             ) VALUES (
-                %(campaign_name)s, %(country)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                1, %(campaign_name)s, %(country)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
-            ON CONFLICT (campaign_name, country) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, country) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
                 cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
                 reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
@@ -175,11 +175,11 @@ class MetaAdsWatcher:
         """Table: meta_insights_performance_placement"""
         query = """
             INSERT INTO meta_insights_performance_placement (
-                campaign_name, platform, placement, spend, results, cpr, impressions, reach
+                artist_id, campaign_name, platform, placement, spend, results, cpr, impressions, reach
             ) VALUES (
-                %(campaign_name)s, %(platform)s, %(placement)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
+                1, %(campaign_name)s, %(platform)s, %(placement)s, %(spend)s, %(results)s, %(cpr)s, %(impressions)s, %(reach)s
             )
-            ON CONFLICT (campaign_name, platform, placement) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, platform, placement) DO UPDATE SET
                 spend = EXCLUDED.spend, results = EXCLUDED.results,
                 cpr = EXCLUDED.cpr, impressions = EXCLUDED.impressions,
                 reach = EXCLUDED.reach, collected_at = CURRENT_TIMESTAMP;
@@ -194,11 +194,13 @@ class MetaAdsWatcher:
         """Table: meta_insights_engagement"""
         query = """
             INSERT INTO meta_insights_engagement (
-                campaign_name, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+                artist_id, campaign_name, date_start, page_interactions, post_reactions,
+                comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                %(campaign_name)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+                1, %(campaign_name)s, %(date_start)s, %(page_interactions)s, %(post_reactions)s,
+                %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
-            ON CONFLICT (campaign_name, date_start) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, date_start) DO UPDATE SET
                 page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
                 comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
                 link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
@@ -210,11 +212,13 @@ class MetaAdsWatcher:
         """Table: meta_insights_engagement_day"""
         query = """
             INSERT INTO meta_insights_engagement_day (
-                campaign_name, day_date, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+                artist_id, campaign_name, day_date, page_interactions, post_reactions,
+                comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                %(campaign_name)s, %(day_date)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+                1, %(campaign_name)s, %(day_date)s, %(page_interactions)s, %(post_reactions)s,
+                %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
-            ON CONFLICT (campaign_name, day_date) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, day_date) DO UPDATE SET
                 page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
                 comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
                 link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
@@ -226,11 +230,13 @@ class MetaAdsWatcher:
         """Table: meta_insights_engagement_age"""
         query = """
             INSERT INTO meta_insights_engagement_age (
-                campaign_name, age_range, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+                artist_id, campaign_name, age_range, page_interactions, post_reactions,
+                comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                %(campaign_name)s, %(age_range)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+                1, %(campaign_name)s, %(age_range)s, %(page_interactions)s, %(post_reactions)s,
+                %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
-            ON CONFLICT (campaign_name, age_range) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, age_range) DO UPDATE SET
                 page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
                 comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
                 link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
@@ -242,11 +248,13 @@ class MetaAdsWatcher:
         """Table: meta_insights_engagement_country"""
         query = """
             INSERT INTO meta_insights_engagement_country (
-                campaign_name, country, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+                artist_id, campaign_name, country, page_interactions, post_reactions,
+                comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                %(campaign_name)s, %(country)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+                1, %(campaign_name)s, %(country)s, %(page_interactions)s, %(post_reactions)s,
+                %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
-            ON CONFLICT (campaign_name, country) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, country) DO UPDATE SET
                 page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
                 comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
                 link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,
@@ -258,11 +266,13 @@ class MetaAdsWatcher:
         """Table: meta_insights_engagement_placement"""
         query = """
             INSERT INTO meta_insights_engagement_placement (
-                campaign_name, platform, placement, page_interactions, post_reactions, comments, saves, shares, link_clicks, post_likes
+                artist_id, campaign_name, platform, placement, page_interactions, post_reactions,
+                comments, saves, shares, link_clicks, post_likes
             ) VALUES (
-                %(campaign_name)s, %(platform)s, %(placement)s, %(page_interactions)s, %(post_reactions)s, %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
+                1, %(campaign_name)s, %(platform)s, %(placement)s, %(page_interactions)s, %(post_reactions)s,
+                %(comments)s, %(saves)s, %(shares)s, %(link_clicks)s, %(post_likes)s
             )
-            ON CONFLICT (campaign_name, platform, placement) DO UPDATE SET
+            ON CONFLICT (artist_id, campaign_name, platform, placement) DO UPDATE SET
                 page_interactions = EXCLUDED.page_interactions, post_reactions = EXCLUDED.post_reactions,
                 comments = EXCLUDED.comments, saves = EXCLUDED.saves, shares = EXCLUDED.shares,
                 link_clicks = EXCLUDED.link_clicks, post_likes = EXCLUDED.post_likes,

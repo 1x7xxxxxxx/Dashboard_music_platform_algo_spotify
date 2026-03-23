@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import get_artist_id
 
 # --- FONCTION DE CALLBACK POUR LE RESET ---
 def clear_form_data():
@@ -22,31 +23,33 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
     try:
         # 1. Assurer que la campagne existe
         campaign_data = [{
+            'artist_id': get_artist_id() or 1,
             'campaign_name': campaign_name,
             'is_active': True
         }]
-        
+
         db.upsert_many(
             table='hypeddit_campaigns',
             data=campaign_data,
-            conflict_columns=['campaign_name'],
+            conflict_columns=['artist_id', 'campaign_name'],
             update_columns=['is_active', 'updated_at']
         )
         db.conn.commit()
 
         # 2. Stats
         stats_data = [{
+            'artist_id': get_artist_id() or 1,
             'campaign_name': campaign_name,
             'date': date,
             'visits': visits,
             'clicks': clicks,
             'budget': budget
         }]
-        
+
         db.upsert_many(
             table='hypeddit_daily_stats',
             data=stats_data,
-            conflict_columns=['campaign_name', 'date'],
+            conflict_columns=['artist_id', 'campaign_name', 'date'],
             update_columns=['visits', 'clicks', 'budget', 'updated_at']
         )
         db.conn.commit()
@@ -64,8 +67,9 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
 
 def get_campaigns_list():
     db = get_db_connection()
-    query = "SELECT campaign_name FROM hypeddit_campaigns WHERE is_active = true ORDER BY created_at DESC"
-    df = db.fetch_df(query)
+    artist_id = get_artist_id() or 1
+    query = "SELECT campaign_name FROM hypeddit_campaigns WHERE is_active = true AND artist_id = %s ORDER BY created_at DESC"
+    df = db.fetch_df(query, (artist_id,))
     db.close()
     return df['campaign_name'].tolist() if not df.empty else []
 
@@ -73,20 +77,14 @@ def get_campaigns_list():
 def get_global_stats(start_date, end_date):
     """Récupère les statistiques de TOUTES les campagnes sur la période."""
     db = get_db_connection()
+    artist_id = get_artist_id() or 1
     query = """
-        SELECT 
-            campaign_name,
-            date, 
-            visits, 
-            clicks, 
-            budget, 
-            ctr, 
-            cost_per_click
+        SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click
         FROM hypeddit_daily_stats
-        WHERE date >= %s AND date <= %s
+        WHERE date >= %s AND date <= %s AND artist_id = %s
         ORDER BY date
     """
-    df = db.fetch_df(query, (start_date, end_date))
+    df = db.fetch_df(query, (start_date, end_date, artist_id))
     db.close()
     return df
 
@@ -280,10 +278,13 @@ def show():
     # ============================================================================
     with tab3:
         db = get_db_connection()
+        artist_id = get_artist_id() or 1
         df_hist = db.fetch_df("""
-            SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click 
-            FROM hypeddit_daily_stats ORDER BY date DESC LIMIT 50
-        """)
+            SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click
+            FROM hypeddit_daily_stats
+            WHERE artist_id = %s
+            ORDER BY date DESC LIMIT 50
+        """, (artist_id,))
         db.close()
         
         if not df_hist.empty:

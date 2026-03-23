@@ -82,6 +82,75 @@ class AirflowMonitor:
             print(f"🔥 Exception Airflow : {e}")
             return pd.DataFrame()
 
+    def get_dag_list(self):
+        """Retourne la liste de tous les DAGs (paused ou non)."""
+        try:
+            resp = self.session.get(f"{self.base_url}/dags", params={'limit': 100})
+            if resp.status_code != 200:
+                return []
+            return sorted([d['dag_id'] for d in resp.json().get('dags', [])])
+        except Exception:
+            return []
+
+    def get_runs_for_dag(self, dag_id: str, limit: int = 20):
+        """Retourne les derniers runs d'un DAG donné."""
+        try:
+            resp = self.session.get(
+                f"{self.base_url}/dags/{dag_id}/dagRuns",
+                params={'limit': limit, 'order_by': '-execution_date'}
+            )
+            if resp.status_code != 200:
+                return []
+            runs = resp.json().get('dag_runs', [])
+            result = []
+            for r in runs:
+                run_id = r.get('dag_run_id') or r.get('run_id') or 'unknown'
+                result.append({
+                    'run_id': run_id,
+                    'state': r.get('state', '?'),
+                    'start_date': r.get('start_date', ''),
+                    'end_date': r.get('end_date', ''),
+                })
+            return result
+        except Exception:
+            return []
+
+    def get_task_instances(self, dag_id: str, run_id: str):
+        """Retourne les task instances d'un dag run."""
+        try:
+            resp = self.session.get(
+                f"{self.base_url}/dags/{dag_id}/dagRuns/{run_id}/taskInstances"
+            )
+            if resp.status_code != 200:
+                return []
+            tasks = resp.json().get('task_instances', [])
+            result = []
+            for t in tasks:
+                result.append({
+                    'task_id': t.get('task_id'),
+                    'state': t.get('state', '?'),
+                    'start_date': t.get('start_date', ''),
+                    'end_date': t.get('end_date', ''),
+                    'try_number': t.get('try_number', 1),
+                    'duration': t.get('duration'),
+                })
+            return result
+        except Exception:
+            return []
+
+    def get_task_log(self, dag_id: str, run_id: str, task_id: str, attempt: int = 1):
+        """Retourne le log texte d'une task instance."""
+        try:
+            resp = self.session.get(
+                f"{self.base_url}/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{attempt}",
+                headers={'Accept': 'text/plain'}
+            )
+            if resp.status_code == 200:
+                return resp.text
+            return f"[Erreur {resp.status_code}] Impossible de récupérer les logs."
+        except Exception as e:
+            return f"[Exception] {e}"
+
     def get_kpis(self):
         """Calcule les KPIs globaux."""
         df = self.get_dag_runs()

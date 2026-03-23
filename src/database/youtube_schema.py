@@ -4,6 +4,7 @@ YOUTUBE_SCHEMA = {
     'youtube_channels': """
         CREATE TABLE IF NOT EXISTS youtube_channels (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             channel_id VARCHAR(255) NOT NULL,
             channel_name VARCHAR(500),
             description TEXT,
@@ -27,6 +28,7 @@ YOUTUBE_SCHEMA = {
     'youtube_channel_history': """
         CREATE TABLE IF NOT EXISTS youtube_channel_history (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             channel_id VARCHAR(255) NOT NULL,
             subscriber_count INTEGER DEFAULT 0,
             video_count INTEGER DEFAULT 0,
@@ -44,6 +46,7 @@ YOUTUBE_SCHEMA = {
     'youtube_videos': """
         CREATE TABLE IF NOT EXISTS youtube_videos (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             video_id VARCHAR(255) NOT NULL,
             channel_id VARCHAR(255) NOT NULL,
             title TEXT,
@@ -69,6 +72,7 @@ YOUTUBE_SCHEMA = {
     'youtube_video_stats': """
         CREATE TABLE IF NOT EXISTS youtube_video_stats (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             video_id VARCHAR(255) NOT NULL,
             view_count BIGINT DEFAULT 0,
             like_count INTEGER DEFAULT 0,
@@ -90,6 +94,7 @@ YOUTUBE_SCHEMA = {
     'youtube_playlists': """
         CREATE TABLE IF NOT EXISTS youtube_playlists (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             playlist_id VARCHAR(255) NOT NULL,
             channel_id VARCHAR(255) NOT NULL,
             title TEXT,
@@ -111,6 +116,7 @@ YOUTUBE_SCHEMA = {
     'youtube_comments': """
         CREATE TABLE IF NOT EXISTS youtube_comments (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             comment_id VARCHAR(255) NOT NULL,
             video_id VARCHAR(255) NOT NULL,
             author VARCHAR(500),

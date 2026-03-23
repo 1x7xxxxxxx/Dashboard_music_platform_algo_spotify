@@ -50,6 +50,19 @@ class PostgresHandler:
         except Exception as e:
             logger.error(f"❌ Erreur connexion PostgreSQL: {e}")
             raise
+
+    def _ensure_connection(self) -> None:
+        """Reconnecte automatiquement si la connexion est perdue."""
+        try:
+            if self.conn is None or self.conn.closed:
+                logger.warning("⚠️ Connexion PostgreSQL perdue — reconnexion automatique...")
+                self._connect()
+                return
+            # Test léger de connexion via poll()
+            self.conn.poll()
+        except psycopg2.OperationalError:
+            logger.warning("⚠️ Connexion PostgreSQL interrompue — reconnexion automatique...")
+            self._connect()
     
     def execute_query(self, query: str, params: Optional[Tuple] = None) -> None:
         """
@@ -59,6 +72,7 @@ class PostgresHandler:
             query: Requête SQL
             params: Paramètres de la requête
         """
+        self._ensure_connection()
         try:
             self.cursor.execute(query, params)
             # ✅ Pas de commit nécessaire avec autocommit = True
@@ -79,6 +93,7 @@ class PostgresHandler:
         Returns:
             Liste de tuples avec les résultats
         """
+        self._ensure_connection()
         try:
             self.cursor.execute(query, params)
             results = self.cursor.fetchall()
@@ -100,6 +115,7 @@ class PostgresHandler:
         Returns:
             DataFrame pandas
         """
+        self._ensure_connection()
         try:
             import pandas as pd
             self.cursor.execute(query, params)
@@ -163,7 +179,8 @@ class PostgresHandler:
         if not data:
             logger.warning(f"⚠️ upsert_many appelé avec data vide pour {table}")
             return 0
-        
+
+        self._ensure_connection()
         try:
             columns = list(data[0].keys())
             values = [[row.get(col) for col in columns] for row in data]

@@ -15,3 +15,30 @@ spotify:
   client_id: "VOTRE_SPOTIFY_CLIENT_ID"
   client_secret: "VOTRE_SPOTIFY_CLIENT_SECRET"
   redirect_uri: "http://localhost:8888/callback"
+
+# --- Brick 4: Fernet encryption key (for artist_credentials) ---
+# Générer : python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+fernet_key: "VOTRE_FERNET_KEY_BASE64_44_CHARS"
+
+# --- Auth (Brick 2) ---
+# Désactivez cette section pour le mode développement sans login.
+# Générer un hash : python -c "import streamlit_authenticator as stauth; print(stauth.Hasher(['motdepasse']).generate()[0])"
+auth:
+  cookie:
+    name: music_dashboard
+    key: CHANGEZ_MOI_CLE_SECRETE_32_CHARS  # doit faire >= 32 caractères
+    expiry_days: 30
+  credentials:
+    usernames:
+      admin:
+        name: Admin
+        email: admin@example.com
+        password: $2b$12$HASH_DU_MOT_DE_PASSE_ADMIN  # bcrypt hash
+        role: admin
+        artist_id: null  # null = voit toutes les données
+      artist1:
+        name: Artiste 1
+        email: artist1@example.com
+        password: $2b$12$HASH_DU_MOT_DE_PASSE_ARTIST1  # bcrypt hash
+        role: artist
+        artist_id: 1

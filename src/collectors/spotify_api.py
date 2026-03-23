@@ -4,6 +4,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from typing import Dict, List, Optional, Any
 import logging
 from datetime import datetime
+from src.utils.retry import retry
 
 # Configuration du logging
 # Note: On laisse Airflow gérer le formatage global, on récupère juste le logger
@@ -38,6 +39,7 @@ class SpotifyCollector:
             logger.error(f"❌ Erreur d'authentification Spotify: {e}")
             raise
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_artist_info(self, artist_id: str) -> Optional[Dict[str, Any]]:
         """
         Récupère les informations d'un artiste.
@@ -67,6 +69,7 @@ class SpotifyCollector:
             logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {e}")
             return None
     
+    @retry(max_attempts=3, backoff="exponential")
     def get_artist_top_tracks(self, artist_id: str, market: str = 'FR') -> List[Dict[str, Any]]:
         """
         Récupère les top tracks d'un artiste.
@@ -106,6 +109,7 @@ class SpotifyCollector:
             logger.error(f"❌ Erreur lors de la récupération des top tracks: {e}")
             return []
     
+    @retry(max_attempts=3, backoff="exponential")
     def search_artist(self, artist_name: str) -> Optional[str]:
         """
         Recherche un artiste par nom et retourne son ID.

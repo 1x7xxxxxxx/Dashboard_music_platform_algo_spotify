@@ -4,12 +4,14 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import get_artist_id
 
 def show():
     st.title("🔀 META x SPOTIFY - Analyse ROI")
     st.markdown("---")
 
     db = get_db_connection()
+    artist_id = get_artist_id() or 1
 
     # =========================================================================
     # 1. SECTION CONFIGURATION (MAPPING)
@@ -21,7 +23,7 @@ def show():
         except: campaigns = []
 
         try:
-            df_tracks = db.fetch_df("SELECT DISTINCT track_name FROM tracks ORDER BY track_name")
+            df_tracks = db.fetch_df("SELECT track_name FROM tracks ORDER BY release_date DESC NULLS LAST, track_name")
             tracks = df_tracks['track_name'].tolist()
         except: tracks = []
 
@@ -59,8 +61,8 @@ def show():
     st.header("📊 Performance 360°")
 
     try:
-        q_camp_list = "SELECT DISTINCT campaign_name FROM meta_insights_performance_day ORDER BY campaign_name DESC"
-        camp_list_df = db.fetch_df(q_camp_list)
+        q_camp_list = "SELECT DISTINCT campaign_name FROM meta_insights_performance_day WHERE artist_id = %s ORDER BY campaign_name DESC"
+        camp_list_df = db.fetch_df(q_camp_list, (artist_id,))
         available_campaigns = camp_list_df['campaign_name'].tolist()
     except:
         available_campaigns = []
@@ -125,18 +127,18 @@ def show():
     q_meta = """
         SELECT day_date as date, spend, results, cpr
         FROM meta_insights_performance_day
-        WHERE campaign_name = %s AND day_date >= %s AND day_date <= %s
+        WHERE artist_id = %s AND campaign_name = %s AND day_date >= %s AND day_date <= %s
     """
-    df_meta = db.fetch_df(q_meta, (selected_campaign, start_date, end_date))
+    df_meta = db.fetch_df(q_meta, (artist_id, selected_campaign, start_date, end_date))
 
     # B. HYPEDDIT
     q_hypeddit = """
         SELECT date, clicks as hypeddit_clicks, visits as hypeddit_visits
         FROM hypeddit_daily_stats
-        WHERE campaign_name = %s AND date >= %s AND date <= %s
+        WHERE artist_id = %s AND campaign_name = %s AND date >= %s AND date <= %s
     """
     try:
-        df_hypeddit = db.fetch_df(q_hypeddit, (selected_campaign, start_date, end_date))
+        df_hypeddit = db.fetch_df(q_hypeddit, (artist_id, selected_campaign, start_date, end_date))
     except:
         df_hypeddit = pd.DataFrame()
 
@@ -145,12 +147,12 @@ def show():
     if mapped_track:
         try:
             q_streams = """
-                SELECT date::date, streams 
-                FROM s4a_song_timeline 
-                WHERE TRIM(song) = %s AND date >= %s AND date <= %s
+                SELECT date::date, streams
+                FROM s4a_song_timeline
+                WHERE artist_id = %s AND TRIM(song) = %s AND date >= %s AND date <= %s
                 ORDER BY date ASC
             """
-            df_streams = db.fetch_df(q_streams, (mapped_track.strip(), start_date, end_date))
+            df_streams = db.fetch_df(q_streams, (artist_id, mapped_track.strip(), start_date, end_date))
         except Exception as e: 
             st.error(f"Erreur Streams SQL: {e}")
             df_streams = pd.DataFrame()

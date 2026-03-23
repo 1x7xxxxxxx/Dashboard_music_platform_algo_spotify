@@ -2,15 +2,20 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import get_artist_id
 
 def show():
     st.title("📱 Méta Ads - Analyse Stratégique")
 
     # --- 1. CONNEXION & FILTRES ---
     db = get_db_connection()
-    
+    artist_id = get_artist_id() or 1
+
     try:
-        df_list = db.fetch_df("SELECT DISTINCT campaign_name FROM meta_insights_performance ORDER BY campaign_name DESC")
+        df_list = db.fetch_df(
+            "SELECT DISTINCT campaign_name FROM meta_insights_performance WHERE artist_id = %s ORDER BY campaign_name DESC",
+            (artist_id,)
+        )
         all_campaigns = df_list['campaign_name'].dropna().tolist()
     except Exception as e:
         st.error(f"Erreur connexion BDD: {e}")
@@ -30,11 +35,11 @@ def show():
     # Construction de la clause WHERE
     if selected_campaigns:
         placeholders = ', '.join(['%s'] * len(selected_campaigns))
-        where_clause = f"WHERE campaign_name IN ({placeholders})"
-        params = tuple(selected_campaigns)
+        where_clause = f"WHERE artist_id = %s AND campaign_name IN ({placeholders})"
+        params = (artist_id, *selected_campaigns)
     else:
-        where_clause = ""
-        params = ()
+        where_clause = "WHERE artist_id = %s"
+        params = (artist_id,)
 
     # ==============================================================================
     # 🟢 SECTION 1 : VUE MACRO (KPIS)
@@ -258,8 +263,12 @@ def show():
     # ==============================================================================
     st.subheader("🗃️ Tableau Récapitulatif")
     
-    # ⚠️ FIX : On remplace campaign_name par p.campaign_name pour éviter l'ambiguïté dans le JOIN
-    where_clause_full = where_clause.replace("campaign_name", "p.campaign_name")
+    # Clause WHERE pour la requête avec alias de table p
+    if selected_campaigns:
+        placeholders_full = ', '.join(['%s'] * len(selected_campaigns))
+        where_clause_full = f"WHERE p.artist_id = %s AND p.campaign_name IN ({placeholders_full})"
+    else:
+        where_clause_full = "WHERE p.artist_id = %s"
     
     # ⚠️ FIX : On double le % dans CTR (%%) pour éviter l'IndexError python
     query_full = f"""

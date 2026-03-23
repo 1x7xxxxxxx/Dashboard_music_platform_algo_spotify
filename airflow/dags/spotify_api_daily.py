@@ -1,4 +1,9 @@
-﻿"""DAG Spotify API - Collecte quotidienne artistes et tracks."""
+﻿"""DAG Spotify API - Collecte quotidienne artistes et tracks.
+
+Brick 6 : supporte artist_id dans dag_run.conf.
+  - conf.artist_id fourni → credentials depuis DB pour cet artiste.
+  - conf absent           → fallback sur env vars (comportement historique).
+"""
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta, date  # ✅ AJOUT de 'date'
@@ -12,6 +17,15 @@ sys.path.insert(0, '/opt/airflow')
 
 logger = logging.getLogger(__name__)
 
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
@@ -19,6 +33,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
+    'on_failure_callback': _on_failure_callback,
 }
 
 
@@ -28,13 +43,24 @@ def collect_spotify_artists(**context):
     try:
         from src.collectors.spotify_api import SpotifyCollector
         from src.database.postgres_handler import PostgresHandler
-        
+        from src.utils.credential_loader import load_platform_credentials
+
         logger.info('🎸 Collecte Spotify - Artistes...')
-        
+
+        # Brick 6 : credentials depuis DB si artist_id fourni dans conf
+        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+        saas_artist_id = conf.get('artist_id', 1)
+
+        creds = load_platform_credentials(saas_artist_id, 'spotify')
+        client_id = creds.get('client_id') or os.getenv('SPOTIFY_CLIENT_ID')
+        client_secret = creds.get('client_secret') or os.getenv('SPOTIFY_CLIENT_SECRET')
+        if creds.get('client_id'):
+            logger.info(f'  Credentials Spotify chargés depuis DB (artist_id={saas_artist_id})')
+
         # Initialiser collector
         collector = SpotifyCollector(
-            client_id=os.getenv('SPOTIFY_CLIENT_ID'),
-            client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
+            client_id=client_id,
+            client_secret=client_secret
         )
         
         # Liste des artistes à suivre
@@ -177,7 +203,7 @@ def collect_spotify_top_tracks(**context):
                 pop_count = db.upsert_many(
                     table='track_popularity_history',
                     data=popularity_records,
-                    conflict_columns=['track_id', 'date'],
+                    conflict_columns=['artist_id', 'track_id', 'date'],
                     update_columns=['track_name', 'popularity', 'collected_at']
                 )
                 

@@ -4,12 +4,13 @@ APPLE_MUSIC_CSV_SCHEMA = {
     'apple_songs_performance': """
         CREATE TABLE IF NOT EXISTS apple_songs_performance (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             song_name VARCHAR(255) NOT NULL,
             album_name VARCHAR(255),
             plays INTEGER DEFAULT 0,
             listeners INTEGER DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(song_name)
+            UNIQUE(artist_id, song_name)
         );
         
         CREATE INDEX IF NOT EXISTS idx_apple_songs_perf_name 
@@ -22,11 +23,12 @@ APPLE_MUSIC_CSV_SCHEMA = {
     'apple_daily_plays': """
         CREATE TABLE IF NOT EXISTS apple_daily_plays (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             song_name VARCHAR(255) NOT NULL,
             date DATE NOT NULL,
             plays INTEGER DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(song_name, date)
+            UNIQUE(artist_id, song_name, date)
         );
         
         CREATE INDEX IF NOT EXISTS idx_apple_daily_song 
@@ -42,10 +44,11 @@ APPLE_MUSIC_CSV_SCHEMA = {
     'apple_listeners': """
         CREATE TABLE IF NOT EXISTS apple_listeners (
             id SERIAL PRIMARY KEY,
+            artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
             date DATE NOT NULL,
             listeners INTEGER DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(date)
+            UNIQUE(artist_id, date)
         );
         
         CREATE INDEX IF NOT EXISTS idx_apple_listeners_date 

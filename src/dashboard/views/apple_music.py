@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import get_artist_id
 
 def show():
     """Affiche la vue Apple Music."""
@@ -14,7 +15,8 @@ def show():
     st.markdown("---")
     
     db = get_db_connection()
-    
+    artist_id = get_artist_id() or 1
+
     try:
         # ============================================================
         # 1. KPIs GLOBAUX
@@ -29,12 +31,13 @@ def show():
         
         # Total Shazams et Plays (Dernier état connu)
         totals_query = """
-            SELECT 
+            SELECT
                 COALESCE(SUM(plays), 0) as total_plays,
                 COALESCE(SUM(shazam_count), 0) as total_shazams
             FROM apple_songs_performance
+            WHERE artist_id = %s
         """
-        result = db.fetch_query(totals_query)
+        result = db.fetch_query(totals_query, (artist_id,))
         total_plays, total_shazams = result[0] if result else (0, 0)
         
         col2.metric("▶️ Total Streams (Cumul)", f"{total_plays:,}")
@@ -50,10 +53,11 @@ def show():
         top_query = """
             SELECT song_name, plays, shazam_count
             FROM apple_songs_performance
+            WHERE artist_id = %s
             ORDER BY plays DESC
             LIMIT 10
         """
-        df_top = db.fetch_df(top_query)
+        df_top = db.fetch_df(top_query, (artist_id,))
         
         if not df_top.empty:
             fig = px.bar(
@@ -78,15 +82,18 @@ def show():
         # ============================================================
         st.subheader("📈 Croissance Quotidienne (Streams & Shazams)")
         
-        # Récupérer la liste des chansons pour le filtre
-        songs_list = db.fetch_df("SELECT DISTINCT song_name FROM apple_songs_history ORDER BY song_name")
-        
+        # Récupérer la liste des chansons — triée par dernière release (MIN date DESC)
+        songs_list = db.fetch_df("""
+            SELECT song_name FROM apple_songs_history
+            GROUP BY song_name ORDER BY MIN(date) DESC
+        """)
+
         if not songs_list.empty:
-            # Filtre dynamique
+            # Filtre dynamique — défaut : 3 premières (= 3 dernières releases)
             selected_songs = st.multiselect(
                 "🔍 Filtrer par chanson(s)",
                 options=songs_list['song_name'].tolist(),
-                default=songs_list['song_name'].tolist()[:3]  # 3 premiers par défaut
+                default=songs_list['song_name'].tolist()[:3]
             )
             
             if selected_songs:
@@ -96,7 +103,7 @@ def show():
                 
                 daily_calc_query = f"""
                     WITH daily_diff AS (
-                        SELECT 
+                        SELECT
                             date,
                             song_name,
                             plays,
@@ -106,12 +113,12 @@ def show():
                         FROM apple_songs_history
                         WHERE song_name IN ({placeholders})
                     )
-                    SELECT * FROM daily_diff 
-                    WHERE daily_streams IS NOT NULL -- On enlève le premier jour qui n'a pas de précédent
+                    SELECT * FROM daily_diff
+                    WHERE daily_streams IS NOT NULL
                     AND date >= CURRENT_DATE - INTERVAL '30 days'
                     ORDER BY date
                 """
-                
+
                 df_daily = db.fetch_df(daily_calc_query, tuple(selected_songs))
                 
                 if not df_daily.empty:

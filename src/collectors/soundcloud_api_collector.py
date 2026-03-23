@@ -11,6 +11,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.database.postgres_handler import PostgresHandler
+from src.utils.retry import retry
 
 # Chargement .env
 load_dotenv()
@@ -54,6 +55,7 @@ class SoundCloudCollector:
             print(f"❌ CRASH Connexion BDD : {e}")
             self.db = None
 
+    @retry(max_attempts=3, backoff="exponential")
     def fetch_tracks(self):
         print(f"🎵 Récupération SoundCloud pour User {self.user_id}...")
         tracks_data = []

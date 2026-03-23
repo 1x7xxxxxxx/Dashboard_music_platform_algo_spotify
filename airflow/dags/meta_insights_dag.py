@@ -13,6 +13,18 @@ sys.path.append(str(project_root))
 # 2. Import du Watcher que nous avons créé
 from src.collectors.meta_insight_watcher import MetaAdsWatcher
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+def _on_failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -20,6 +32,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': _on_failure_callback,
 }
 
 # 3. Définition du DAG

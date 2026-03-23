@@ -70,10 +70,10 @@ class S4AWatcher:
 
         # La requête SQL qui gère les conflits
         query = """
-            INSERT INTO s4a_song_timeline (song, date, streams, collected_at)
-            VALUES (%(song)s, %(date)s, %(streams)s, CURRENT_TIMESTAMP)
-            ON CONFLICT (song, date) 
-            DO UPDATE SET 
+            INSERT INTO s4a_song_timeline (artist_id, song, date, streams, collected_at)
+            VALUES (1, %(song)s, %(date)s, %(streams)s, CURRENT_TIMESTAMP)
+            ON CONFLICT (artist_id, song, date)
+            DO UPDATE SET
                 streams = EXCLUDED.streams,
                 collected_at = CURRENT_TIMESTAMP;
         """

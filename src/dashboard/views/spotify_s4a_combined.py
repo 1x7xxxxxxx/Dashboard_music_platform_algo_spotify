@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import artist_id_sql_filter
 
 # ⚠️ IMPORTANT : Le nom exact tel qu'il apparaît dans tes CSV pour la ligne "Total"
 ARTIST_NAME_FILTER = "1x7xxxxxxx" 
@@ -16,11 +17,12 @@ def show():
     st.markdown("---")
     
     db = get_db_connection()
-    
+    artist_frag, artist_params = artist_id_sql_filter()
+
     # ============================================================================
     # 1. RÉCUPÉRATION DES DONNÉES GLOBALES (DÉDUPLIQUÉES)
     # ============================================================================
-    
+
     # A. Date de mise à jour
     update_query = "SELECT MAX(collected_at) FROM s4a_song_timeline"
     last_update_res = db.fetch_query(update_query)
@@ -28,18 +30,19 @@ def show():
 
     # B. KPIs (Dédupliqués)
     # On calcule la somme des streams en ne prenant que la ligne la plus récente pour chaque jour/chanson
-    kpi_query = """
-        SELECT 
-            COUNT(DISTINCT song), 
+    kpi_query = f"""
+        SELECT
+            COUNT(DISTINCT song),
             SUM(streams)
         FROM (
             SELECT DISTINCT ON (date, song) song, streams
             FROM s4a_song_timeline
             WHERE song NOT ILIKE %s
+            {artist_frag}
             ORDER BY date, song, collected_at DESC
         ) sub
     """
-    stats_res = db.fetch_query(kpi_query, (f"%{ARTIST_NAME_FILTER}%",))
+    stats_res = db.fetch_query(kpi_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
     songs_count = stats_res[0][0] or 0
     total_streams_individual = stats_res[0][1] or 0
 
@@ -85,20 +88,21 @@ def show():
     # ============================================================================
     st.header("🏆 Top Chansons")
     
-    df_top = db.fetch_df("""
-        SELECT 
-            song, 
+    df_top = db.fetch_df(f"""
+        SELECT
+            song,
             SUM(streams) as total_streams
         FROM (
             SELECT DISTINCT ON (date, song) song, streams
             FROM s4a_song_timeline
             WHERE song NOT ILIKE %s
+            {artist_frag}
             ORDER BY date, song, collected_at DESC
         ) sub
         GROUP BY song
         ORDER BY total_streams DESC
         LIMIT 10
-    """, (f"%{ARTIST_NAME_FILTER}%",))
+    """, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
     
     if not df_top.empty:
         fig_top = px.bar(
@@ -135,20 +139,21 @@ def show():
     start_date_aud = col1.date_input("Début", value=default_start, key="date_aud_start")
     end_date_aud = col2.date_input("Fin", value=datetime.now().date(), key="date_aud_end")
     
-    audience_query = """
+    audience_query = f"""
         SELECT date, SUM(streams) as daily_streams
         FROM (
             SELECT DISTINCT ON (date, song) date, streams
             FROM s4a_song_timeline
-            WHERE song NOT ILIKE %s 
-              AND date >= %s 
+            WHERE song NOT ILIKE %s
+            {artist_frag}
+              AND date >= %s
               AND date <= %s
             ORDER BY date, song, collected_at DESC
         ) sub
         GROUP BY date
         ORDER BY date
     """
-    df_audience = db.fetch_df(audience_query, (f"%{ARTIST_NAME_FILTER}%", start_date_aud, end_date_aud))
+    df_audience = db.fetch_df(audience_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params, start_date_aud, end_date_aud))
     
     if not df_audience.empty:
         fig_aud = go.Figure()
@@ -177,12 +182,14 @@ def show():
     st.markdown("---")
     st.header("🎸 Détail par Chanson")
     
-    songs_list = db.fetch_df("""
-        SELECT DISTINCT song 
-        FROM s4a_song_timeline 
-        WHERE song NOT ILIKE %s 
-        ORDER BY song
-    """, (f"%{ARTIST_NAME_FILTER}%",))
+    songs_list = db.fetch_df(f"""
+        SELECT song, MIN(date) AS first_seen
+        FROM s4a_song_timeline
+        WHERE song NOT ILIKE %s
+        {artist_frag}
+        GROUP BY song
+        ORDER BY first_seen DESC
+    """, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
     
     if not songs_list.empty:
         col1, col2, col3 = st.columns([2, 1, 1])
@@ -204,12 +211,14 @@ def show():
             )
         
         # Même logique de déduplication ici aussi pour être cohérent
-        df_song = db.fetch_df("""
-            SELECT DISTINCT ON (date) date, streams 
-            FROM s4a_song_timeline 
-            WHERE song = %s AND date >= %s AND date <= %s
+        df_song = db.fetch_df(f"""
+            SELECT DISTINCT ON (date) date, streams
+            FROM s4a_song_timeline
+            WHERE song = %s
+            {artist_frag}
+              AND date >= %s AND date <= %s
             ORDER BY date, collected_at DESC
-        """, (selected_song, start_date_song, end_date_song))
+        """, (selected_song, *artist_params, start_date_song, end_date_song))
         
         if not df_song.empty:
             fig_song = px.line(

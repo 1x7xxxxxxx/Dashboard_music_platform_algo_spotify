@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import isodate
 from datetime import datetime
 from src.dashboard.utils import get_db_connection
+from src.dashboard.auth import get_artist_id
 
 def parse_duration(duration_str):
     """Convertit 'PT1M30S' en secondes."""
@@ -21,7 +22,8 @@ def show():
     st.markdown("---")
     
     db = get_db_connection()
-    
+    artist_id = get_artist_id() or 1
+
     try:
         # ============================================================================
         # 1. ANALYSE GLOBALE (CHAÎNE)
@@ -29,14 +31,15 @@ def show():
         st.subheader("📈 Évolution de la Chaîne")
         
         hist_query = """
-            SELECT date(collected_at) as date, 
-                   MAX(subscriber_count) as subs, 
+            SELECT date(collected_at) as date,
+                   MAX(subscriber_count) as subs,
                    MAX(view_count) as views
             FROM youtube_channel_history
+            WHERE artist_id = %s
             GROUP BY date(collected_at)
             ORDER BY date
         """
-        df_hist = db.fetch_df(hist_query)
+        df_hist = db.fetch_df(hist_query, (artist_id,))
         
         if not df_hist.empty:
             fig_channel = go.Figure()
@@ -100,19 +103,21 @@ def show():
         
         # Récupération des vidéos + stats
         videos_query = """
-            SELECT 
+            SELECT
                 v.title, v.duration, v.published_at, v.thumbnail_url,
                 vs.view_count, vs.like_count, vs.comment_count
             FROM youtube_videos v
             JOIN (
                 SELECT video_id, MAX(collected_at) as max_date
                 FROM youtube_video_stats
+                WHERE artist_id = %s
                 GROUP BY video_id
             ) latest ON v.video_id = latest.video_id
             JOIN youtube_video_stats vs ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
+            WHERE v.artist_id = %s
             ORDER BY vs.view_count DESC
         """
-        df_videos = db.fetch_df(videos_query)
+        df_videos = db.fetch_df(videos_query, (artist_id, artist_id))
         
         if not df_videos.empty:
             # Traitement
