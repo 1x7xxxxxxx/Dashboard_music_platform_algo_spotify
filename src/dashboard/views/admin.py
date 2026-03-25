@@ -1,4 +1,4 @@
-"""Vue Admin — Gestion des artistes SaaS + upload CSV.
+"""Vue Admin — Gestion des artistes SaaS, utilisateurs et upload CSV.
 
 Accessible uniquement au rôle 'admin'.
 """
@@ -46,6 +46,50 @@ def _toggle_active(db, artist_id: int, active: bool):
         "UPDATE saas_artists SET active = %s WHERE id = %s",
         (active, artist_id)
     )
+
+
+# ─────────────────────────────────────────────
+# User management helpers
+# ─────────────────────────────────────────────
+
+def _load_users(db) -> pd.DataFrame:
+    return db.fetch_df(
+        """
+        SELECT u.id, u.username, u.email, u.role, u.active, u.email_verified,
+               u.created_at, a.name AS artist_name
+        FROM saas_users u
+        LEFT JOIN saas_artists a ON u.artist_id = a.id
+        ORDER BY u.id
+        """
+    )
+
+
+def _toggle_user_active(db, user_id: int, active: bool):
+    db.execute_query(
+        "UPDATE saas_users SET active = %s WHERE id = %s",
+        (active, user_id)
+    )
+
+
+def _delete_user(db, user_id: int):
+    """Hard-delete saas_users row. saas_artists row is preserved (FK ON DELETE SET NULL)."""
+    db.execute_query("DELETE FROM saas_users WHERE id = %s", (user_id,))
+
+
+def _delete_artist_and_users(db, artist_id: int):
+    """Hard-delete a saas_artists row. Linked saas_users rows get artist_id = NULL (FK cascade)."""
+    db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
+
+
+def _resend_verification(db, user_id: int, email: str, username: str) -> bool:
+    import secrets
+    from src.utils.verification_email import send_verification_email
+    token = secrets.token_urlsafe(32)
+    db.execute_query(
+        "UPDATE saas_users SET verification_token = %s WHERE id = %s",
+        (token, user_id)
+    )
+    return send_verification_email(email, username, token)
 
 
 # ─────────────────────────────────────────────
@@ -104,7 +148,7 @@ def show():
     st.title("⚙️ Administration")
     st.markdown("---")
 
-    tab_artists, tab_upload = st.tabs(["👥 Artistes", "📂 Upload CSV"])
+    tab_artists, tab_users, tab_upload = st.tabs(["👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV"])
 
     # ══════════════════════════════════════════
     # ONGLET 1 : GESTION DES ARTISTES
@@ -136,7 +180,7 @@ def show():
                     'tier': 'Tier', 'created_at': 'Créé le'
                 }),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
             )
 
         st.markdown("---")
@@ -191,7 +235,136 @@ def show():
         db.close()
 
     # ══════════════════════════════════════════
-    # ONGLET 2 : UPLOAD CSV
+    # ONGLET 2 : GESTION DES UTILISATEURS
+    # ══════════════════════════════════════════
+    with tab_users:
+        db = get_db_connection()
+        try:
+            df_users = _load_users(db)
+        except Exception as e:
+            st.error(f"Erreur chargement utilisateurs : {e}")
+            db.close()
+            return
+
+        st.subheader("👤 Comptes utilisateurs")
+
+        if df_users.empty:
+            st.info("Aucun utilisateur en base.")
+        else:
+            def _fmt_bool(v, yes="✅", no="🔴"):
+                return yes if v else no
+
+            df_display = df_users.copy()
+            df_display['Accès'] = df_display['active'].apply(lambda v: _fmt_bool(v, "✅ Actif", "🔴 Révoqué"))
+            df_display['Email vérifié'] = df_display['email_verified'].apply(lambda v: _fmt_bool(v, "✅ Oui", "⏳ Non"))
+            df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+            st.dataframe(
+                df_display[['id', 'username', 'email', 'role', 'artist_name', 'Accès', 'Email vérifié', 'created_at']].rename(columns={
+                    'id': 'ID', 'username': 'Utilisateur', 'email': 'Email',
+                    'role': 'Rôle', 'artist_name': 'Artiste', 'created_at': 'Créé le'
+                }),
+                hide_index=True,
+                width="stretch",
+            )
+
+        st.markdown("---")
+
+        if not df_users.empty:
+            user_options = {
+                f"{row['id']} — {row['username']} ({row['email']})": row
+                for _, row in df_users.iterrows()
+            }
+            sel_label = st.selectbox("Sélectionner un utilisateur", list(user_options.keys()), key="user_sel")
+            sel_user = user_options[sel_label]
+
+            col1, col2, col3 = st.columns(3)
+
+            # Revoke / restore access
+            with col1:
+                if sel_user['active']:
+                    if st.button("🔴 Révoquer l'accès", key="revoke_user"):
+                        _toggle_user_active(db, sel_user['id'], False)
+                        st.success(f"Accès révoqué pour {sel_user['username']}.")
+                        st.rerun()
+                else:
+                    if st.button("✅ Restaurer l'accès", key="restore_user"):
+                        _toggle_user_active(db, sel_user['id'], True)
+                        st.success(f"Accès restauré pour {sel_user['username']}.")
+                        st.rerun()
+
+            # Resend verification email
+            with col2:
+                resend_disabled = bool(sel_user['email_verified'])
+                if st.button("📧 Renvoyer vérification", disabled=resend_disabled, key="resend_verif"):
+                    ok = _resend_verification(db, sel_user['id'], sel_user['email'], sel_user['username'])
+                    if ok:
+                        st.success(f"Email de vérification renvoyé à {sel_user['email']}.")
+                    else:
+                        st.warning("Email non envoyé — vérifiez la config SMTP dans config/config.yaml.")
+
+            # Delete user account
+            with col3:
+                if st.button("🗑️ Supprimer le compte", type="secondary", key="delete_user"):
+                    st.session_state['_confirm_delete_user'] = sel_user['id']
+
+            if st.session_state.get('_confirm_delete_user') == sel_user['id']:
+                st.warning(
+                    f"⚠️ Supprimer **{sel_user['username']}** ? "
+                    "Cette action est irréversible. L'artiste lié est conservé."
+                )
+                cc1, cc2 = st.columns(2)
+                if cc1.button("Confirmer la suppression", type="primary", key="confirm_del_user"):
+                    _delete_user(db, sel_user['id'])
+                    st.session_state.pop('_confirm_delete_user', None)
+                    st.success("Compte supprimé.")
+                    st.rerun()
+                if cc2.button("Annuler", key="cancel_del_user"):
+                    st.session_state.pop('_confirm_delete_user', None)
+                    st.rerun()
+
+        # ── Export liste marketing ────────────────────────────────────
+        st.markdown("---")
+        st.subheader("📧 Liste email marketing (opt-in)")
+
+        try:
+            df_optin = db.fetch_df(
+                """
+                SELECT u.username, u.email, a.name AS artist_name,
+                       u.marketing_consent_at, u.created_at
+                FROM saas_users u
+                LEFT JOIN saas_artists a ON u.artist_id = a.id
+                WHERE u.marketing_consent = TRUE AND u.active = TRUE
+                ORDER BY u.created_at DESC
+                """
+            )
+        except Exception:
+            df_optin = None
+
+        if df_optin is not None and not df_optin.empty:
+            st.metric("Contacts opt-in", len(df_optin))
+            st.dataframe(
+                df_optin.rename(columns={
+                    'username': 'Utilisateur', 'email': 'Email',
+                    'artist_name': 'Artiste', 'marketing_consent_at': 'Opt-in le',
+                    'created_at': 'Inscrit le',
+                }),
+                hide_index=True,
+                width="stretch",
+            )
+            csv_bytes = df_optin[['username', 'email', 'artist_name']].to_csv(index=False).encode()
+            st.download_button(
+                "⬇️ Exporter CSV",
+                data=csv_bytes,
+                file_name="optin_emails.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("Aucun utilisateur n'a consenti aux communications marketing pour l'instant.")
+
+        db.close()
+
+    # ══════════════════════════════════════════
+    # ONGLET 3 : UPLOAD CSV
     # ══════════════════════════════════════════
     with tab_upload:
         st.subheader("📂 Importer un CSV pour un artiste")

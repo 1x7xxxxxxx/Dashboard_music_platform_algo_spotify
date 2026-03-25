@@ -65,7 +65,7 @@ def _section_source_status():
         })
 
     df = pd.DataFrame(rows)
-    st.dataframe(df.set_index("Source"), use_container_width=True)
+    st.dataframe(df.set_index("Source"), width="stretch")
 
     stale_count = sum(1 for r in results if r['stale'])
     if stale_count:
@@ -282,8 +282,121 @@ def _section_last_runs():
         column_config={
             "Lignes insérées": st.column_config.NumberColumn(format="%d"),
         },
-        use_container_width=True,
+        width="stretch",
     )
+
+
+# Chaque entrée : (label, dag_id, table, col_date, description)
+_INSERTION_TARGETS = [
+    ("🎵 Spotify S4A",    "s4a_csv_watcher",          "s4a_song_timeline",            "collected_at", "Lignes de streams quotidiens par chanson"),
+    ("☁️ SoundCloud",     "soundcloud_daily",          "soundcloud_tracks_daily",       "collected_at", "Tracks SoundCloud avec play/likes/reposts"),
+    ("📸 Instagram",      "instagram_daily",           "instagram_daily_stats",         "collected_at", "Stats Instagram journalières"),
+    ("🎬 YouTube",        "youtube_daily",             "youtube_channel_history",       "collected_at", "Historique chaîne YouTube"),
+    ("📱 Meta Ads",       "meta_insights_dag",         "meta_insights_performance_day", "collected_at", "Insights Meta Ads par jour"),
+    ("🎎 Apple Music",    "apple_music_csv_watcher",   "apple_songs_performance",       "collected_at", "Performance Apple Music"),
+    ("🤖 ML Scoring",     "ml_scoring_daily",          "ml_song_predictions",           "prediction_date", "Prédictions ML par chanson"),
+]
+
+
+def _section_insertion_test():
+    """Vérifie directement en DB combien de lignes ont été insérées par chaque DAG."""
+    st.subheader("🗄️ Test d'insertion PostgreSQL par DAG")
+    st.caption(
+        "Comptage direct dans les tables sources — indépendant d'Airflow. "
+        "Permet de confirmer qu'un run a bien produit des données en base."
+    )
+
+    db = get_db_connection()
+    if db is None:
+        st.error("❌ Base de données inaccessible.")
+        return
+
+    window = st.selectbox(
+        "Fenêtre de contrôle", ["Aujourd'hui", "7 derniers jours", "30 derniers jours"],
+        key="insert_window"
+    )
+    interval_map = {
+        "Aujourd'hui": "1 day",
+        "7 derniers jours": "7 days",
+        "30 derniers jours": "30 days",
+    }
+    interval = interval_map[window]
+
+    results = []
+    try:
+        for label, dag_id, table, col_date, description in _INSERTION_TARGETS:
+            try:
+                rows = db.fetch_query(
+                    f"""
+                    SELECT
+                        COUNT(*)                                      AS total_rows,
+                        COUNT(DISTINCT DATE({col_date}))              AS distinct_days,
+                        MAX({col_date})                               AS last_insert,
+                        MIN({col_date})                               AS first_insert
+                    FROM {table}
+                    WHERE {col_date} >= NOW() - INTERVAL '{interval}'
+                    """
+                )
+                total, days, last_ins, first_ins = rows[0] if rows else (0, 0, None, None)
+                last_str = pd.to_datetime(last_ins).strftime('%d/%m %H:%M') if last_ins else '—'
+
+                if total and total > 0:
+                    status = "✅ OK"
+                    color = "green"
+                else:
+                    status = "⚠️ 0 ligne"
+                    color = "red"
+
+                results.append({
+                    "Plateforme": label,
+                    "DAG": dag_id,
+                    "Table": table,
+                    "Lignes": int(total or 0),
+                    "Jours distincts": int(days or 0),
+                    "Dernier insert": last_str,
+                    "Statut": status,
+                    "_color": color,
+                    "Description": description,
+                })
+            except Exception as e:
+                results.append({
+                    "Plateforme": label,
+                    "DAG": dag_id,
+                    "Table": table,
+                    "Lignes": 0,
+                    "Jours distincts": 0,
+                    "Dernier insert": "—",
+                    "Statut": f"❌ {str(e)[:60]}",
+                    "_color": "red",
+                    "Description": description,
+                })
+    finally:
+        db.close()
+
+    # KPI summary
+    n_ok = sum(1 for r in results if r["_color"] == "green")
+    n_ko = len(results) - n_ok
+    c1, c2, c3 = st.columns(3)
+    c1.metric("DAGs avec données", n_ok, f"/ {len(results)}")
+    c2.metric("DAGs sans données", n_ko, delta_color="inverse")
+    c3.metric("Fenêtre", window)
+
+    st.markdown("---")
+
+    # Detail per DAG
+    for r in results:
+        icon = "✅" if r["_color"] == "green" else "⚠️"
+        with st.container():
+            col_label, col_rows, col_days, col_last, col_status = st.columns([3, 1, 1, 2, 1])
+            col_label.markdown(f"**{r['Plateforme']}**  \n`{r['Table']}`")
+            col_rows.metric("Lignes", f"{r['Lignes']:,}")
+            col_days.metric("Jours", r["Jours distincts"])
+            col_last.markdown(f"Dernier insert  \n`{r['Dernier insert']}`")
+            col_status.markdown(f"{icon} **{r['Statut']}**")
+
+        if r["_color"] == "red" and "❌" in r["Statut"]:
+            st.error(f"`{r['DAG']}` → {r['Statut']}")
+        st.markdown("---")
 
 
 def show():
@@ -294,9 +407,9 @@ def show():
     st.title("🏗️ Monitoring ETL & Qualité (Global)")
     st.markdown("---")
 
-    tab_etl, tab_sources, tab_last, tab_logs = st.tabs([
+    tab_etl, tab_sources, tab_last, tab_logs, tab_insert = st.tabs([
         "📊 Performance DAGs", "📡 État des sources",
-        "🕐 Dernière exécution", "📋 Logs par Run"
+        "🕐 Dernière exécution", "📋 Logs par Run", "🗄️ Test insertion DB"
     ])
 
     with tab_sources:
@@ -307,6 +420,9 @@ def show():
 
     with tab_logs:
         _section_run_logs()
+
+    with tab_insert:
+        _section_insertion_test()
 
     with tab_etl:
         # 1. Récupération des Données (Airflow + DB)
@@ -376,7 +492,7 @@ def show():
                     "Temps Exec Moyen (s)": st.column_config.NumberColumn(format="%.1f s"),
                     "Délai Moy. Alerte (s)": st.column_config.NumberColumn(format="%d s"),
                 },
-                use_container_width=True,
+                width="stretch",
             )
 
             st.markdown("---")
@@ -390,6 +506,47 @@ def show():
             )
             fig.update_yaxes(autorange="reversed")
             st.plotly_chart(fig, use_container_width=True)
+
+            # ── Taux de succès par DAG ──────────────────────────────────
+            st.markdown("---")
+            st.subheader("✅ Taux de succès par DAG")
+            fig_success = px.bar(
+                df_tech.sort_values("Taux Succès"),
+                x="Taux Succès",
+                y="dag_id",
+                orientation="h",
+                color="Taux Succès",
+                color_continuous_scale=["#EF553B", "#FFA15A", "#00CC96"],
+                range_color=[0, 100],
+                labels={"dag_id": "DAG", "Taux Succès": "Succès (%)"},
+                text="Taux Succès",
+            )
+            fig_success.update_traces(texttemplate="%{text:.0f}%", textposition="outside")
+            fig_success.update_layout(coloraxis_showscale=False, height=max(300, len(df_tech) * 40))
+            st.plotly_chart(fig_success, use_container_width=True)
+
+            # ── Tendance journalière des runs ───────────────────────────
+            st.markdown("---")
+            st.subheader("📈 Tendance journalière des runs (30 derniers jours)")
+            if "start_date" in df_runs.columns:
+                trend_df = df_runs.copy()
+                trend_df["date"] = pd.to_datetime(trend_df["start_date"]).dt.date
+                trend_df = (
+                    trend_df.groupby(["date", "state"])
+                    .size()
+                    .reset_index(name="count")
+                )
+                fig_trend = px.bar(
+                    trend_df,
+                    x="date",
+                    y="count",
+                    color="state",
+                    color_discrete_map={"success": "#00CC96", "failed": "#EF553B", "running": "#636EFA"},
+                    labels={"date": "Date", "count": "Nombre de runs", "state": "Statut"},
+                    barmode="stack",
+                )
+                fig_trend.update_layout(height=320)
+                st.plotly_chart(fig_trend, use_container_width=True)
 
         else:
             st.info("Aucune donnée d'exécution trouvée dans Airflow.")
