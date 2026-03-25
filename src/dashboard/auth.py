@@ -1,108 +1,217 @@
-"""Auth module — Streamlit Authenticator (Brick 2).
+"""Auth module — DB-based authentication (Brick 2).
 
-Gère le login, la session et l'injection d'artist_id.
-Config dans config/config.yaml sous la clé 'auth'.
+Type: Core
+Depends on: saas_users table, saas_artists table, get_db_connection
+Persists in: PostgreSQL spotify_etl (saas_users)
 
-Génération d'un hash bcrypt :
-    python -c "import streamlit_authenticator as stauth; \
-               print(stauth.Hasher(['monmotdepasse']).generate()[0])"
+User records are stored in saas_users. Passwords are bcrypt-hashed via passlib.
+artist_id = NULL in saas_users means admin (unrestricted cross-tenant access).
+
+Registration: GET /?page=register — accessible without login.
+Bootstrap:    if saas_users is empty, first-run admin creation form is shown.
 """
+import re
 import sys
 from pathlib import Path
 from typing import Optional
-import streamlit as st
-import streamlit_authenticator as stauth
 
-# Garantit que la racine du projet est dans sys.path (chemin absolu)
+import bcrypt
+import streamlit as st
+
 _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from src.utils.config_loader import config_loader
 
+_SESSION_KEYS = ['authenticated', 'username', 'name', 'artist_id', 'role']
 
-def _load_auth_config() -> Optional[dict]:
-    config = config_loader.load()
-    return config.get('auth', None)
 
+# ─────────────────────────────────────────────
+# Password helpers
+# ─────────────────────────────────────────────
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+
+# ─────────────────────────────────────────────
+# DB helpers (auth-specific, avoid circular import)
+# ─────────────────────────────────────────────
+
+def _get_db():
+    from src.dashboard.utils import get_db_connection
+    return get_db_connection()
+
+
+def _user_table_empty(db) -> bool:
+    rows = db.fetch_query("SELECT 1 FROM saas_users LIMIT 1")
+    return len(rows) == 0
+
+
+def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict], Optional[str]]:
+    """Return (user_dict, None) on success, (None, error_msg) on failure."""
+    rows = db.fetch_query(
+        "SELECT id, username, email, password_hash, artist_id, role, email_verified "
+        "FROM saas_users WHERE username = %s AND active = TRUE LIMIT 1",
+        (username.strip(),)
+    )
+    if not rows:
+        return None, "Invalid username or password."
+    uid, uname, email, pw_hash, artist_id, role, email_verified = rows[0]
+    if not verify_password(password, pw_hash):
+        return None, "Invalid username or password."
+    if not email_verified:
+        return None, f"__unverified__{email}"
+    return {"id": uid, "username": uname, "email": email,
+            "artist_id": artist_id, "role": role}, None
+
+
+def _resend_verification(username: str, email: str, db) -> None:
+    import secrets
+    from src.utils.verification_email import send_verification_email
+    token = secrets.token_urlsafe(32)
+    db.execute_query(
+        "UPDATE saas_users SET verification_token = %s WHERE username = %s",
+        (token, username)
+    )
+    if send_verification_email(email, username, token):
+        st.success(f"Verification email resent to {email}.")
+    else:
+        st.error("Failed to send email. Check SMTP config in config/config.yaml.")
+
+
+def _hydrate_session(user: dict) -> None:
+    st.session_state['authenticated'] = True
+    st.session_state['username']      = user['username']
+    st.session_state['name']          = user['email']
+    st.session_state['artist_id']     = user['artist_id']  # None = admin
+    st.session_state['role']          = user['role']
+
+
+# ─────────────────────────────────────────────
+# Bootstrap (first-run admin creation)
+# ─────────────────────────────────────────────
+
+def _show_bootstrap_form(db) -> None:
+    st.title("🎵 Music Dashboard — First-time setup")
+    st.warning(
+        "No users found in the database. Create the first **admin** account to get started.",
+        icon="⚠️",
+    )
+    with st.form("bootstrap_admin"):
+        st.subheader("Create admin account")
+        username = st.text_input("Username")
+        email    = st.text_input("Email")
+        pw       = st.text_input("Password", type="password")
+        pw2      = st.text_input("Confirm password", type="password")
+        submitted = st.form_submit_button("Create admin", type="primary")
+
+    if submitted:
+        if not username or not email or not pw:
+            st.error("All fields are required.")
+            return
+        if pw != pw2:
+            st.error("Passwords do not match.")
+            return
+        if len(pw) < 8:
+            st.error("Password must be at least 8 characters.")
+            return
+        try:
+            db.execute_query(
+                """
+                INSERT INTO saas_users
+                    (username, email, password_hash, artist_id, role, email_verified)
+                VALUES (%s, %s, %s, NULL, 'admin', TRUE)
+                """,
+                (username.strip(), email.strip(), hash_password(pw))
+            )
+            st.success(f"Admin account '{username}' created. You can now log in.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error creating admin: {e}")
+
+
+# ─────────────────────────────────────────────
+# Login
+# ─────────────────────────────────────────────
 
 def require_login() -> bool:
-    """Affiche le formulaire de login si non authentifié.
+    """Show login form if not authenticated.
 
-    Stocke dans st.session_state :
-        - authenticated (bool)
-        - username     (str)
-        - name         (str)
-        - artist_id    (int | None)  — None = admin (voit tout)
-        - role         (str)         — 'admin' | 'artist'
+    Stores in st.session_state:
+        authenticated (bool)
+        username      (str)
+        name          (str)   — email used as display name
+        artist_id     (int | None) — None = admin
+        role          (str)   — 'admin' | 'artist'
 
-    Retourne True si l'utilisateur est connecté, False sinon (→ st.stop()).
+    Returns True if authenticated, False otherwise.
     """
-    auth_config = _load_auth_config()
-
-    if auth_config is None:
-        # Development mode: no 'auth' section in config.yaml → auto-login as admin.
-        # SECURITY: this bypass must never reach production.
-        st.warning(
-            "**DEV MODE** — Authentication disabled (no `auth` section in config.yaml). "
-            "All sessions are logged in as admin.",
-            icon="⚠️",
-        )
-        st.session_state.setdefault('authenticated', True)
-        st.session_state.setdefault('artist_id', 1)
-        st.session_state.setdefault('role', 'admin')
-        st.session_state.setdefault('name', 'Dev')
+    if st.session_state.get('authenticated'):
         return True
 
-    credentials = auth_config.get('credentials', {'usernames': {}})
-    cookie = auth_config.get('cookie', {})
+    db = _get_db()
+    if db is None:
+        st.error("❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`")
+        return False
 
-    authenticator = stauth.Authenticate(
-        credentials,
-        cookie.get('name', 'music_dashboard'),
-        cookie.get('key', 'changeme_32_chars_min'),
-        cookie.get('expiry_days', 30),
-    )
-    # Garder l'authenticator en session pour le logout
-    st.session_state['_authenticator'] = authenticator
-
-    # API 0.4.x : login() sans titre, retourne None — statut dans session_state
-    # API 0.3.x : login('title', 'location') retourne (name, status, username)
     try:
-        result = authenticator.login(location='main')
-        # 0.3.x retourne un tuple
-        if isinstance(result, tuple):
-            name, auth_status, username = result
-        else:
-            # 0.4.x : lire depuis session_state
-            auth_status = st.session_state.get('authentication_status')
-            name = st.session_state.get('name', '')
-            username = st.session_state.get('username', '')
-    except TypeError:
-        # Fallback 0.3.x si location= non accepté
-        result = authenticator.login('Connexion', 'main')
-        name, auth_status, username = result
+        if _user_table_empty(db):
+            _show_bootstrap_form(db)
+            return False
 
-    if auth_status:
-        user_data = credentials.get('usernames', {}).get(username, {})
-        st.session_state['authenticated'] = True
-        st.session_state['username'] = username
-        st.session_state['name'] = name or user_data.get('name', username)
-        st.session_state['artist_id'] = user_data.get('artist_id', 1)
-        st.session_state['role'] = user_data.get('role', 'artist')
-        return True
+        st.title("🎵 Music Dashboard")
 
-    if auth_status is False:
-        st.error("Nom d'utilisateur ou mot de passe incorrect.")
-    else:
-        st.info("Entrez vos identifiants pour accéder au tableau de bord.")
-    return False
+        with st.form("login"):
+            st.subheader("Sign in")
+            username  = st.text_input("Username")
+            password  = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Sign in", type="primary")
 
+        st.markdown("[Don't have an account? **Create one**](?page=register)")
+
+        if submitted:
+            if not username or not password:
+                st.error("Please enter your username and password.")
+                return False
+            user, error = _authenticate_user(username, password, db)
+            if user:
+                _hydrate_session(user)
+                db.execute_query(
+                    "UPDATE saas_users SET updated_at = NOW() WHERE username = %s",
+                    (username,)
+                )
+                st.rerun()
+                return True
+            if error and error.startswith("__unverified__"):
+                email = error.replace("__unverified__", "")
+                st.warning(
+                    f"📧 Please verify your email address before signing in. "
+                    f"Check your inbox at **{email}**."
+                )
+                if st.button("Resend verification email"):
+                    _resend_verification(username, email, db)
+            else:
+                st.error(error or "Invalid username or password.")
+        return False
+
+    finally:
+        db.close()
+
+
+# ─────────────────────────────────────────────
+# Sidebar
+# ─────────────────────────────────────────────
 
 def show_user_sidebar():
-    """Affiche le nom d'utilisateur et le bouton logout dans la sidebar."""
-    name = st.session_state.get('name', '')
-    role = st.session_state.get('role', 'artist')
+    """Show username, role, and logout button in sidebar."""
+    name      = st.session_state.get('name', '')
+    role      = st.session_state.get('role', 'artist')
     artist_id = st.session_state.get('artist_id')
 
     role_label = '👑 Admin' if role == 'admin' else '🎤 Artist'
@@ -110,25 +219,20 @@ def show_user_sidebar():
     if artist_id is not None:
         st.sidebar.caption(f"artist_id = {artist_id}")
     else:
-        st.sidebar.caption("Accès global (tous artistes)")
+        st.sidebar.caption("Global access (all artists)")
 
-    authenticator = st.session_state.get('_authenticator')
-    if authenticator:
-        try:
-            # 0.4.x : logout(button_name=..., location=...)
-            authenticator.logout(button_name='Déconnexion', location='sidebar')
-        except TypeError:
-            # 0.3.x : logout('label', 'location')
-            authenticator.logout('Déconnexion', 'sidebar')
-    else:
-        if st.sidebar.button('Déconnexion'):
-            for key in ['authenticated', 'username', 'name', 'artist_id', 'role', '_authenticator']:
-                st.session_state.pop(key, None)
-            st.rerun()
+    if st.sidebar.button('Logout'):
+        for key in _SESSION_KEYS:
+            st.session_state.pop(key, None)
+        st.rerun()
 
+
+# ─────────────────────────────────────────────
+# Session helpers (unchanged API)
+# ─────────────────────────────────────────────
 
 def get_artist_id() -> Optional[int]:
-    """Retourne l'artist_id de la session (None = admin, voit tout)."""
+    """Return artist_id from session (None = admin, sees all data)."""
     return st.session_state.get('artist_id', 1)
 
 
@@ -137,7 +241,7 @@ def is_admin() -> bool:
 
 
 def get_artist_plan() -> str:
-    """Return the current artist's plan name: 'free' | 'basic' | 'premium'.
+    """Return the current artist's plan: 'free' | 'basic' | 'premium'.
 
     Reads artist_subscriptions from DB; falls back to saas_artists.tier.
     Returns 'premium' for admin sessions (unrestricted access).
@@ -167,7 +271,6 @@ def get_artist_plan() -> str:
         db.close()
         if row:
             return row[0][0]
-        # Fallback to saas_artists.tier
         db2 = get_db_connection()
         tier_row = db2.fetch_query(
             "SELECT tier FROM saas_artists WHERE id = %s", (artist_id,)
@@ -181,14 +284,9 @@ def get_artist_plan() -> str:
 
 
 def require_plan(min_plan: str) -> bool:
-    """Show a paywall banner if the current artist's plan is below min_plan.
+    """Show a paywall banner if the artist's plan is below min_plan.
 
     Returns True if access is allowed, False if blocked.
-
-    Usage at the top of a view:
-        from src.dashboard.auth import require_plan
-        if not require_plan('premium'):
-            return
     """
     from src.database.stripe_schema import PLAN_RANK
     current_plan = get_artist_plan()
@@ -205,15 +303,10 @@ def require_plan(min_plan: str) -> bool:
 
 
 def artist_id_sql_filter(table_alias: str = '') -> tuple:
-    """Retourne (fragment_sql, params) pour filtrer par artist_id.
+    """Return (sql_fragment, params) to filter queries by artist_id.
 
-    Retourne ('', ()) si admin (pas de filtre → voit tout).
-    Retourne ('AND artist_id = %s', (1,)) pour un artiste.
-
-    Usage :
-        sql_frag, params = artist_id_sql_filter()
-        query = f"SELECT * FROM s4a_song_timeline WHERE 1=1 {sql_frag}"
-        df = db.fetch_df(query, params)
+    Returns ('', ()) for admin (no filter — sees all data).
+    Returns ('AND artist_id = %s', (id,)) for artist sessions.
     """
     artist_id = get_artist_id()
     if artist_id is None:

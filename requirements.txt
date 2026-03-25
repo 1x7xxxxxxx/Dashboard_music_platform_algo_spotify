@@ -12,7 +12,6 @@ google-api-python-client==2.108.0
 streamlit==1.29.0
 plotly==5.18.0
 watchdog==3.0.0
-streamlit-authenticator==0.3.3
 weasyprint>=60.0
 
 # --- Utilities ---
