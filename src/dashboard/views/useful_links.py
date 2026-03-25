@@ -24,7 +24,7 @@ def _link_row(label: str, url: str, note: str = ""):
         st.markdown(f"**{label}**" + (f" — *{note}*" if note else ""))
         st.code(url, language=None)
     with cols[1]:
-        st.link_button("Ouvrir →", url, use_container_width=True)
+        st.link_button("Ouvrir →", url, width="stretch")
     st.divider()
 
 
@@ -107,23 +107,23 @@ def show():
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Airflow UI", "localhost:8080")
-            st.link_button("Ouvrir Airflow →", "http://localhost:8080", use_container_width=True)
+            st.link_button("Ouvrir Airflow →", "http://localhost:8080", width="stretch")
             st.caption("Login : admin / admin (par défaut)")
 
         with col2:
             st.metric("Streamlit Dashboard", "localhost:8501")
-            st.link_button("Ouvrir Dashboard →", "http://localhost:8501", use_container_width=True)
+            st.link_button("Ouvrir Dashboard →", "http://localhost:8501", width="stretch")
             st.caption("Ce dashboard — `streamlit run src/dashboard/app.py`")
 
         st.divider()
         col3, col4 = st.columns(2)
         with col3:
             st.metric("REST API (FastAPI)", "localhost:8502")
-            st.link_button("Swagger UI →", "http://localhost:8502/docs", use_container_width=True)
+            st.link_button("Swagger UI →", "http://localhost:8502/docs", width="stretch")
             st.caption("Brick 14 — `uvicorn src.api.main:app --reload --port 8502`")
         with col4:
             st.metric("API ReDoc", "localhost:8502/redoc")
-            st.link_button("ReDoc →", "http://localhost:8502/redoc", use_container_width=True)
+            st.link_button("ReDoc →", "http://localhost:8502/redoc", width="stretch")
             st.caption("Documentation alternative (lisible)")
 
         st.divider()
@@ -157,7 +157,7 @@ def show():
             url = f"http://localhost:8080/dags/{dag_id}/grid"
             c1, c2 = st.columns([4, 1])
             c1.markdown(f"`{dag_id}` — {label}")
-            c2.link_button("Grid →", url, use_container_width=True)
+            c2.link_button("Grid →", url, width="stretch")
 
     # ─────────────────────────────────────────────
     # TAB 3 — DOCKER & INFRA

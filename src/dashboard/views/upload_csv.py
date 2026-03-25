@@ -174,7 +174,7 @@ def show():
             st.subheader(f"Aperçu — {len(rows)} ligne(s) à importer")
             st.dataframe(
                 df_preview.head(10),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
             if len(rows) > 10:

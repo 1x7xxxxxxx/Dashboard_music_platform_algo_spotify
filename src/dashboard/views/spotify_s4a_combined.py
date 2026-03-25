@@ -122,7 +122,7 @@ def show():
             xaxis_title="Total Streams",
             yaxis={'categoryorder':'total ascending'}
         )
-        st.plotly_chart(fig_top, use_container_width=True)
+        st.plotly_chart(fig_top, width="stretch")
     else:
         st.info("Pas de données disponibles.")
     
@@ -172,7 +172,7 @@ def show():
             hovermode='x unified',
             yaxis_title="Streams / Jour"
         )
-        st.plotly_chart(fig_aud, use_container_width=True)
+        st.plotly_chart(fig_aud, width="stretch")
     else:
         st.info("Pas de données pour cette période.")
 
@@ -229,7 +229,7 @@ def show():
                 markers=False 
             )
             fig_song.update_traces(line_color='#1DB954', line_width=2)
-            st.plotly_chart(fig_song, use_container_width=True)
+            st.plotly_chart(fig_song, width="stretch")
         else:
             st.info("Pas de données pour cette période.")
             

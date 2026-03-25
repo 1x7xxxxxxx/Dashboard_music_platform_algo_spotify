@@ -314,7 +314,7 @@ def show():
         )
         fig.update_yaxes(title_text="Volume Streams", secondary_y=False)
         fig.update_yaxes(title_text="Popularité (0-100)", secondary_y=True, range=[0, 100])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # ── 8. Projection linéaire (heuristique uniquement) ──────────────────────
         if not ml_pred and 5 <= days_elapsed < 28:
@@ -338,7 +338,7 @@ def show():
                 {"Plateforme": "Fluence",  "Offre": "Premium",   "Coût/soumission (€)": 3.00},
             ]
             st.caption("Tarifs de référence — vérifiez les prix actuels sur les plateformes.")
-            st.dataframe(pd.DataFrame(_PLATFORMS), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(_PLATFORMS), hide_index=True, width="stretch")
 
             st.markdown("**Simulateur de budget**")
             budget_key = f"budget_{selected_track}"

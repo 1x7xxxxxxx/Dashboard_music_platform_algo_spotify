@@ -490,10 +490,29 @@ def send_summary_notification(**context):
         summary = '\n'.join(summary_lines)
         logger.info(summary)
         
-        # TODO: Implémenter l'envoi par email ou Slack ici
-        # Exemple avec email (si SMTP configuré):
-        # send_email(to=os.getenv('ALERT_EMAIL'), subject='Résumé quotidien', body=summary)
-        
+        has_critical = quality_check and len(quality_check.get('issues', [])) > 0
+        has_warnings = quality_check and len(quality_check.get('warnings', [])) > 0
+        subject_prefix = '❌ CRITIQUE' if has_critical else ('⚠️ Avertissements' if has_warnings else '✅ OK')
+        html_body = f"""
+        <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">
+          <h1 style="color:#2c3e50">📊 Résumé quotidien — {datetime.now().strftime('%Y-%m-%d %H:%M')}</h1>
+          <pre style="background:#f8f9fa;padding:16px;border-radius:4px;font-size:0.85em;
+                      white-space:pre-wrap;color:#2c3e50">{summary}</pre>
+          <p style="color:#aaa;font-size:0.8em">
+            Généré par data_quality_check DAG —
+            <a href="http://localhost:8080">Airflow UI</a>
+          </p>
+        </div>
+        """
+        try:
+            from src.utils.email_alerts import EmailAlert
+            EmailAlert().send_alert(
+                f"Résumé quotidien Music Platform — {subject_prefix}",
+                html_body,
+            )
+        except Exception as email_err:
+            logger.warning(f'Email résumé non envoyé : {email_err}')
+
         logger.info('✅ Résumé quotidien généré')
         
         return summary

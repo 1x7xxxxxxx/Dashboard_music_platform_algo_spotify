@@ -181,7 +181,7 @@ def _show_meta_ads(db, artist_id):
             hovermode="x unified",
             barmode='group'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.markdown("---")
 
@@ -217,7 +217,7 @@ def _show_meta_ads(db, artist_id):
             yaxis3=dict(title="CPR (€)", titlefont=dict(color="#bc5090"), anchor="free", overlaying="y", side="right", position=0.95, showgrid=False),
             legend=dict(orientation="h", y=1.1)
         )
-        st.plotly_chart(fig_time, use_container_width=True)
+        st.plotly_chart(fig_time, width="stretch")
     else:
         st.info("Pas de données temporelles.")
 
@@ -257,11 +257,11 @@ def _show_meta_ads(db, artist_id):
 
     c1, c2 = st.columns(2)
     with c1:
-        if fig_country := create_pareto_chart(df_country, 'country', "Pays (Top Dépenses)"): st.plotly_chart(fig_country, use_container_width=True)
+        if fig_country := create_pareto_chart(df_country, 'country', "Pays (Top Dépenses)"): st.plotly_chart(fig_country, width="stretch")
     with c2:
-        if fig_place := create_pareto_chart(df_place, 'placement', "Placements"): st.plotly_chart(fig_place, use_container_width=True)
+        if fig_place := create_pareto_chart(df_place, 'placement', "Placements"): st.plotly_chart(fig_place, width="stretch")
 
-    if fig_age := create_pareto_chart(df_age, 'age_range', "Performance par Âge"): st.plotly_chart(fig_age, use_container_width=True)
+    if fig_age := create_pareto_chart(df_age, 'age_range', "Performance par Âge"): st.plotly_chart(fig_age, width="stretch")
 
     st.markdown("---")
 
@@ -299,5 +299,5 @@ def _show_meta_ads(db, artist_id):
                 "CTR (%)": "{:,.2f}", "Saves": "{:,.0f}", "Clics": "{:,.0f}",
                 "Interactions": "{:,.0f}", "Shares": "{:,.0f}"
             }), 
-            use_container_width=True,
+            width="stretch",
         )

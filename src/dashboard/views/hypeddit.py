@@ -261,10 +261,10 @@ def show():
                 height=550
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             with st.expander("Voir le détail des données"):
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width="stretch")
             
         else:
             st.info("📭 Aucune donnée trouvée pour la période sélectionnée.")
@@ -285,7 +285,7 @@ def show():
         
         if not df_hist.empty:
             df_hist['date'] = pd.to_datetime(df_hist['date']).dt.strftime('%d/%m/%Y')
-            st.dataframe(df_hist, use_container_width=True)
+            st.dataframe(df_hist, width="stretch")
         else:
             st.info("Historique vide.")
 

@@ -84,7 +84,7 @@ def show():
                 legend=dict(orientation="h", y=1.1),
                 height=450
             )
-            st.plotly_chart(fig_channel, use_container_width=True)
+            st.plotly_chart(fig_channel, width="stretch")
             
             # KPIs actuels
             latest = df_hist.iloc[-1]
@@ -278,7 +278,7 @@ def show():
                     margin=dict(b=100, r=50) # Marges pour les axes multiples
                 )
                 
-                st.plotly_chart(fig_top, use_container_width=True)
+                st.plotly_chart(fig_top, width="stretch")
                 
             else:
                 st.info("Aucune vidéo dans cette catégorie.")

@@ -155,7 +155,7 @@ def _show_admin_view(db):
     df = pd.DataFrame(rows, columns=["Artist", "Tier", "Plan", "Status", "Period End", "Stripe Customer"])
     df["Period End"] = df["Period End"].apply(lambda x: x.strftime('%Y-%m-%d') if x else "—")
     df["Stripe Customer"] = df["Stripe Customer"].apply(lambda x: x[:8] + "…" if x else "—")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
 
     # Revenue summary
     rev_rows = db.fetch_query(
@@ -164,7 +164,7 @@ def _show_admin_view(db):
         FROM artist_subscriptions asub
         JOIN subscription_plans sp ON sp.id = asub.plan_id
         WHERE asub.status = 'active'
-        GROUP BY sp.name
+        GROUP BY sp.name, sp.price_monthly
         ORDER BY sp.price_monthly DESC
         """
     )
@@ -181,7 +181,7 @@ def _show_admin_view(db):
 
         import pandas as pd
         df_mrr = pd.DataFrame(rev_rows, columns=["Plan", "Artists", "MRR (€)"])
-        st.dataframe(df_mrr, use_container_width=True, hide_index=True)
+        st.dataframe(df_mrr, width="stretch", hide_index=True)
 
 
 def _show_plan_comparison(db):
@@ -210,4 +210,4 @@ def _show_plan_comparison(db):
             "Features": "All" if "*" in features else ", ".join(features),
         })
 
-    st.dataframe(pd.DataFrame(table_data), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(table_data), width="stretch", hide_index=True)

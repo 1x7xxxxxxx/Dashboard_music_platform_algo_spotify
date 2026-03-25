@@ -358,54 +358,54 @@ def show():
                 with col_l:
                     fig = _line_chart(df, 'listeners', "Listeners", fmt_fn=_fmt_big)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                 with col_c:
                     fig = _line_chart(df, 'countries', "Pays touchés",
                                       color="#457b9d", fmt_fn=_fmt_big)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
                 fig = _bar_gain_chart(df, 'listener_gain', "Gain listeners / an")
                 if fig:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 st.markdown("#### Streams & Écoute")
                 col_s, col_h = st.columns(2)
                 with col_s:
                     fig = _line_chart(df, 'streams', "Streams", fmt_fn=_fmt_big)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                 with col_h:
                     fig = _line_chart(df, 'hours_listened', "Heures d'écoute",
                                       color="#e9c46a", fmt_fn=_fmt_big)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
                 fig = _bar_gain_chart(df, 'stream_gain', "Gain streams / an")
                 if fig:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 st.markdown("#### Engagement")
                 col_sv, col_pl = st.columns(2)
                 with col_sv:
                     fig = _line_chart(df, 'saves', "Saves", fmt_fn=_fmt_big)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                 with col_pl:
                     fig = _line_chart(df, 'playlist_adds', "Playlist adds",
                                       color="#f4a261", fmt_fn=_fmt_big)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
                 col_sg, col_pg = st.columns(2)
                 with col_sg:
                     fig = _bar_gain_chart(df, 'save_gain', "Gain saves / an")
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                 with col_pg:
                     fig = _bar_gain_chart(df, 'playlist_add_gain', "Gain playlist adds / an")
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
                 # Top artist similarity
                 top_rows = df[df['top_artist_name'].notna()][
@@ -420,7 +420,7 @@ def show():
                             'top_artist_fan_pct': '% fans communs',
                         }),
                         hide_index=True,
-                        use_container_width=True,
+                        width="stretch",
                     )
 
         # ── Onglet 3 : Données brutes ────────────────────────────────────────
@@ -452,7 +452,7 @@ def show():
                 st.dataframe(
                     df_raw[existing_cols].rename(columns=rename_map),
                     hide_index=True,
-                    use_container_width=True,
+                    width="stretch",
                 )
 
     finally:

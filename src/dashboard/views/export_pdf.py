@@ -142,7 +142,7 @@ def _show_form(db):
     col_gen, _ = st.columns([1, 3])
     with col_gen:
         generate_clicked = st.button("📄 Générer le rapport PDF", type="primary",
-                                     use_container_width=True)
+                                     width="stretch")
 
     if generate_clicked:
         db2 = get_db_connection()

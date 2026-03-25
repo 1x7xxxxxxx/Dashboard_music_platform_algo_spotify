@@ -171,7 +171,7 @@ def show():
                 showlegend=False,
                 hovermode="x unified"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             st.markdown("---")
             st.subheader("Détail")
@@ -187,7 +187,7 @@ def show():
                     'revenue_eur': 'Revenus (€)',
                     'notes': 'Notes'
                 }),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True
             )
 

@@ -73,7 +73,7 @@ def show():
                     color_discrete_sequence=['#E1306C']  # Couleur Insta
                 )
                 fig.update_layout(yaxis_title="Nombre d'abonnés")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         except Exception as e:
             st.error(f"Erreur historique : {e}")

@@ -130,7 +130,7 @@ def show():
                         hovermode="x unified",
                         legend=dict(orientation="h", y=-0.2)  # Légende en bas pour ne pas cacher
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 else:
                     st.info("Aucune donnée pour cette sélection (Vérifiez les dates ou les titres).")
             else:
@@ -162,7 +162,7 @@ def show():
                     "comment_count": st.column_config.NumberColumn("💬 Coms", format="%d")
                 },
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
             )
 
     finally:

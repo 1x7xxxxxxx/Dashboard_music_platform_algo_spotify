@@ -40,7 +40,7 @@ def _show_model_tab(exp_id: str, run_id: str, label: str):
         st.warning(f"Aucun artefact PNG trouvé pour ce run (`mlruns/{exp_id}/{run_id}/`).")
         return
     for png in pngs:
-        st.image(str(png), caption=png.stem.replace("_", " "), use_container_width=True)
+        st.image(str(png), caption=png.stem.replace("_", " "), width="stretch")
 
 
 def _show_predictions_tab(db):
@@ -95,7 +95,7 @@ def _show_predictions_tab(db):
         if col in df.columns:
             df[col] = (df[col] * 100).round(1).astype(str) + "%"
 
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width="stretch")
 
 
 def show():
