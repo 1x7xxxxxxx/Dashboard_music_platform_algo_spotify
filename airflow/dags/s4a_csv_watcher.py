@@ -239,7 +239,7 @@ with DAG(
     dag_id='s4a_csv_watcher',
     default_args=default_args,
     description='🎵 Surveillance automatique des CSV Spotify for Artists',
-    schedule_interval=None,  # manuellement
+    schedule_interval='*/15 * * * *',  # Every 15 min — picks up new CSV drops
     start_date=datetime(2025, 1, 20),
     catchup=False,  # Ne pas rattraper les exécutions passées
     tags=['spotify', 's4a', 'csv', 'production'],

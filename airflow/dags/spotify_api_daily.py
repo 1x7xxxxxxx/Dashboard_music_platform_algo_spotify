@@ -123,10 +123,16 @@ def collect_spotify_artists(**context):
                 logger.info(f'✅ Artiste {artist_id} collecté')
         
         db.close()
-        
+
+        if artist_ids and artist_ids != [''] and artists_collected == 0:
+            raise ValueError(
+                f"Spotify API collected 0 artists from {len(artist_ids)} configured IDs. "
+                "Check SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET validity."
+            )
+
         logger.info(f'✅ Total: {artists_collected} artistes collectés')
         return artists_collected
-        
+
     except Exception as e:
         logger.error(f'❌ Erreur collecte artistes: {e}')
         import traceback
@@ -226,11 +232,17 @@ def collect_spotify_top_tracks(**context):
             logger.warning('⚠️ Aucun enregistrement de popularité à stocker')
         
         db.close()
-        
+
+        if artists and total_tracks == 0:
+            raise ValueError(
+                f"Spotify API collected 0 tracks from {len(artists)} artist(s) in DB. "
+                "Check that SPOTIFY_ARTIST_IDS are valid and credentials are active."
+            )
+
         logger.info(f'✅ Total: {total_tracks} tracks collectées')
         logger.info(f'✅ Total: {len(popularity_records)} enregistrements de popularité créés')
         return total_tracks
-        
+
     except Exception as e:
         logger.error(f'❌ Erreur collecte tracks: {e}')
         import traceback
@@ -242,7 +254,7 @@ with DAG(
     'spotify_api_daily',
     default_args=default_args,
     description='Collecte quotidienne Spotify API (artistes + tracks + historique popularité)',
-    schedule_interval=None,  
+    schedule_interval='0 7 * * *',  # Daily 07:00 UTC (09:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
     tags=['spotify', 'api', 'production'],

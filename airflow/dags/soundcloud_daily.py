@@ -33,6 +33,29 @@ default_args = {
 }
 
 
+def precheck_soundcloud_credentials(**context):
+    """Fail fast if no SoundCloud credentials exist for any active artist."""
+    from src.utils.credential_loader import get_active_artists, load_platform_credentials
+
+    artists = get_active_artists()
+    if not artists:
+        logger.info("No active artists — skipping credential pre-check.")
+        return
+
+    missing = [
+        f"{name} (id={aid})"
+        for aid, name in artists
+        if not load_platform_credentials(aid, 'soundcloud').get('client_id')
+    ]
+    if missing:
+        raise ValueError(
+            f"Credentials SoundCloud manquants pour : {', '.join(missing)}. "
+            "Action : Dashboard → Credentials → SoundCloud → saisir le client_id "
+            "(extraire depuis DevTools → Network → filtrer client_id sur soundcloud.com)."
+        )
+    logger.info(f"✅ Credentials SoundCloud OK pour {len(artists)} artiste(s)")
+
+
 def run_soundcloud_collector(**context):
     import logging
     from src.collectors.soundcloud_api_collector import SoundCloudCollector
@@ -58,9 +81,14 @@ def run_soundcloud_collector(**context):
         creds = load_platform_credentials(artist_id, 'soundcloud')
         if creds.get('client_id'):
             os.environ['SOUNDCLOUD_CLIENT_ID'] = creds['client_id']
-            logger.info("  Credentials chargés depuis DB")
+            logger.info("  client_id chargé depuis DB")
         else:
-            logger.info("  Credentials depuis env vars")
+            logger.info("  client_id depuis env vars")
+        if creds.get('user_id'):
+            os.environ['SOUNDCLOUD_USER_ID'] = creds['user_id']
+            logger.info("  user_id chargé depuis DB")
+        else:
+            logger.info("  user_id depuis env vars")
 
         try:
             collector = SoundCloudCollector(artist_id=artist_id)
@@ -81,8 +109,15 @@ with DAG(
     tags=['social', 'soundcloud'],
 ) as dag:
 
+    precheck_task = PythonOperator(
+        task_id='precheck_credentials',
+        python_callable=precheck_soundcloud_credentials,
+    )
+
     collect_task = PythonOperator(
         task_id='collect_soundcloud_stats',
         python_callable=run_soundcloud_collector,
         provide_context=True,
     )
+
+    precheck_task >> collect_task

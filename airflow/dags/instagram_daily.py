@@ -25,6 +25,29 @@ default_args = {
     'on_failure_callback': _on_failure_callback,
 }
 
+def precheck_instagram_credentials(**context):
+    """Fail fast if no Meta/Instagram credentials exist for any active artist."""
+    from src.utils.credential_loader import get_active_artists, load_platform_credentials
+
+    artists = get_active_artists()
+    if not artists:
+        logger.info("No active artists — skipping credential pre-check.")
+        return
+
+    missing = [
+        f"{name} (id={aid})"
+        for aid, name in artists
+        if not load_platform_credentials(aid, 'meta').get('access_token')
+    ]
+    if missing:
+        raise ValueError(
+            f"Credentials Meta/Instagram manquants pour : {', '.join(missing)}. "
+            "Action : developers.facebook.com → Graph API Explorer → "
+            "renouveler le Long-lived token (scopes: instagram_basic, instagram_manage_insights)."
+        )
+    logger.info(f"✅ Credentials Meta/Instagram OK pour {len(artists)} artiste(s)")
+
+
 def run_insta_collector(**context):
     import os
     import logging
@@ -47,9 +70,10 @@ def run_insta_collector(**context):
         creds = load_platform_credentials(artist_id, 'meta')
         if creds.get('access_token'):
             os.environ['INSTAGRAM_ACCESS_TOKEN'] = creds['access_token']
-            logger.info("  Credentials loaded from DB")
-        if creds.get('account_id'):
-            os.environ['INSTAGRAM_USER_ID'] = creds['account_id']
+            logger.info("  access_token loaded from DB")
+        if creds.get('ig_user_id'):
+            os.environ['INSTAGRAM_USER_ID'] = creds['ig_user_id']
+            logger.info("  ig_user_id loaded from DB")
 
         try:
             InstagramCollector(artist_id=artist_id).run()
@@ -62,14 +86,21 @@ with DAG(
     'instagram_daily',
     default_args=default_args,
     description='Collecte journalière Instagram',
-    schedule_interval='0 10 * * *', # Tous les jours à 10h
+    schedule_interval='0 10 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=['social', 'instagram']
 ) as dag:
+
+    precheck_task = PythonOperator(
+        task_id='precheck_credentials',
+        python_callable=precheck_instagram_credentials,
+    )
 
     collect_task = PythonOperator(
         task_id='collect_instagram_stats',
         provide_context=True,
         python_callable=run_insta_collector
     )
+
+    precheck_task >> collect_task

@@ -66,7 +66,7 @@ class YouTubeCollector:
             
         except Exception as e:
             logger.error(f"❌ Erreur get_channel_stats: {e}")
-            return None
+            raise
     
     @retry(max_attempts=3, backoff="exponential")
     def get_channel_videos(self, channel_id: str, max_results: int = 50) -> List[Dict]:
@@ -134,7 +134,7 @@ class YouTubeCollector:
             
         except Exception as e:
             logger.error(f"❌ Erreur get_channel_videos: {e}")
-            return videos
+            raise
     
     @retry(max_attempts=3, backoff="exponential")
     def get_video_stats(self, video_ids: List[str]) -> List[Dict]:
@@ -185,7 +185,7 @@ class YouTubeCollector:
             
         except Exception as e:
             logger.error(f"❌ Erreur get_video_stats: {e}")
-            return stats_list
+            raise
     
     @retry(max_attempts=3, backoff="exponential")
     def get_video_comments(self, video_id: str, max_results: int = 100) -> List[Dict]:

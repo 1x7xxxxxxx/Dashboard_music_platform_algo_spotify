@@ -67,6 +67,8 @@ def collect_youtube_data(**context):
         )
 
         results = []
+        artists_with_creds = 0
+        successful_fetches = 0
 
         for saas_artist_id, artist_name in artists:
             logger.info(f'YouTube collect — artist_id={saas_artist_id} ({artist_name})')
@@ -79,10 +81,12 @@ def collect_youtube_data(**context):
                 logger.warning(f'  Missing YouTube credentials for {artist_name} — skipping')
                 continue
 
+            artists_with_creds += 1
             collector = YouTubeCollector(api_key)
             data = collector.collect_all_data(channel_id=channel_id, max_videos=50, collect_comments=False)
 
             if data['channel_stats']:
+                successful_fetches += 1
                 channel_row = {**data['channel_stats'], 'artist_id': saas_artist_id}
                 db.upsert_many(
                     table='youtube_channels',
@@ -156,6 +160,13 @@ def collect_youtube_data(**context):
             results.append({'artist': artist_name, 'videos': len(data['videos'])})
 
         db.close()
+
+        if artists_with_creds > 0 and successful_fetches == 0:
+            raise ValueError(
+                f"YouTube API returned no channel data for any of the {artists_with_creds} "
+                "configured artist(s). Check API key validity and channel IDs."
+            )
+
         logger.info('YouTube collect done')
         return results
 
@@ -170,7 +181,7 @@ with DAG(
     'youtube_daily',
     default_args=default_args,
     description='🎬 Collecte manuelle YouTube Data API',
-    schedule_interval=None,  # Déclenchement manuel uniquement
+    schedule_interval='0 8 * * *',  # Daily 08:00 UTC (10:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
     tags=['youtube', 'api', 'production'],

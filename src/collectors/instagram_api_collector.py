@@ -65,19 +65,23 @@ class InstagramCollector:
             response = requests.get(url, params=params)
             
             # Gestion précise des erreurs Token
-            if response.status_code == 401: # Unauthorized
+            if response.status_code == 401:
                 err = response.json()
-                print(f"❌ ERREUR TOKEN 401 : {err.get('error', {}).get('message')}")
-                print("💡 SOLUTION : Votre token a expiré. Générez-en un nouveau sur 'Meta Graph API Explorer'.")
-                return None
-            
+                msg = err.get('error', {}).get('message', 'unknown')
+                raise ValueError(
+                    f"Instagram API 401 — token expired or invalid: {msg}. "
+                    "Action: Dashboard → Credentials → Meta → generate a new long-lived token."
+                )
+
             if response.status_code == 400:
-                print(f"❌ ERREUR 400 : Vérifiez que l'ID {self.ig_user_id} est bien un ID Business.")
-                return None
+                raise ValueError(
+                    f"Instagram API 400 — ig_user_id={self.ig_user_id} may not be a Business account ID. "
+                    "Action: Dashboard → Credentials → Meta → verify the Instagram Business Account ID."
+                )
 
             response.raise_for_status()
             data = response.json()
-            
+
             stats = {
                 'artist_id': self.artist_id,
                 'ig_user_id': data.get('id'),
@@ -87,13 +91,14 @@ class InstagramCollector:
                 'media_count': data.get('media_count', 0),
                 'collected_at': datetime.now().strftime('%Y-%m-%d')
             }
-            
+
             print(f"✅ Données récupérées pour @{stats['username']} : {stats['followers_count']} abonnés.")
             return stats
-            
+
+        except ValueError:
+            raise
         except Exception as e:
-            print(f"❌ Erreur API Générale: {e}")
-            return None
+            raise RuntimeError(f"Instagram API request failed: {e}") from e
 
     def save_to_db(self, stats):
         if not stats: 

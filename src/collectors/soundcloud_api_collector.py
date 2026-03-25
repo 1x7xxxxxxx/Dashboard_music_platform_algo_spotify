@@ -76,9 +76,12 @@ class SoundCloudCollector:
             try:
                 response = requests.get(url, params=params, headers=self.headers)
                 
+                if response.status_code == 401:
+                    raise ValueError(f"SoundCloud API 401 — client_id expiré. Renouveler via Dashboard → Credentials.")
+                if response.status_code == 403:
+                    raise ValueError(f"SoundCloud API 403 — client_id refusé ou IP bloquée temporairement. Renouveler le client_id via DevTools.")
                 if response.status_code != 200:
-                    print(f"❌ Erreur API {response.status_code}")
-                    break
+                    raise ValueError(f"SoundCloud API {response.status_code}: {response.text[:200]}")
                 
                 data = response.json()
                 
@@ -102,9 +105,10 @@ class SoundCloudCollector:
                 else:
                     break
                     
+            except ValueError:
+                raise
             except Exception as e:
-                print(f"❌ Erreur Fetch: {e}")
-                break
+                raise RuntimeError(f"SoundCloud fetch error: {e}") from e
         
         print(f"✅ {len(tracks_data)} titres trouvés via l'API.")
         return tracks_data

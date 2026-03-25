@@ -67,7 +67,7 @@ class SpotifyCollector:
             
         except Exception as e:
             logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {e}")
-            return None
+            raise
     
     @retry(max_attempts=3, backoff="exponential")
     def get_artist_top_tracks(self, artist_id: str, market: str = 'FR') -> List[Dict[str, Any]]:
@@ -107,7 +107,7 @@ class SpotifyCollector:
             
         except Exception as e:
             logger.error(f"❌ Erreur lors de la récupération des top tracks: {e}")
-            return []
+            raise
     
     @retry(max_attempts=3, backoff="exponential")
     def search_artist(self, artist_name: str) -> Optional[str]:
