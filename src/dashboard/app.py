@@ -30,6 +30,43 @@ airflow_trigger = AirflowTrigger(
     password=os.getenv('AIRFLOW_PASSWORD', airflow_config.get('password', 'admin')),
 )
 
+def _verify_email(token: str) -> None:
+    """Handle the email verification link (?page=verify&token=xxx)."""
+    st.title("🎵 Email verification")
+    if not token:
+        st.error("Invalid verification link.")
+        return
+    from src.dashboard.utils import get_db_connection
+    db = get_db_connection()
+    if db is None:
+        st.error("Database unreachable.")
+        return
+    try:
+        rows = db.fetch_query(
+            "SELECT id, username, email_verified FROM saas_users "
+            "WHERE verification_token = %s LIMIT 1",
+            (token,)
+        )
+        if not rows:
+            st.error("This verification link is invalid or has already been used.")
+            return
+        uid, username, already_verified = rows[0]
+        if already_verified:
+            st.info(f"Account **{username}** is already verified. [Sign in](/)")
+            return
+        db.execute_query(
+            "UPDATE saas_users SET email_verified = TRUE, verification_token = NULL "
+            "WHERE id = %s",
+            (uid,)
+        )
+        st.success(
+            f"✅ Email verified! Welcome, **{username}**. "
+            "You can now [sign in](/)."
+        )
+    finally:
+        db.close()
+
+
 def show_navigation_menu(role: str = 'artist'):
     st.sidebar.title("🎵 Navigation")
     pages_all = {
@@ -46,17 +83,19 @@ def show_navigation_menu(role: str = 'artist'):
         "🎁 Data Wrapped": "data_wrapped",
         "💰 Distributeur": "imusician",
         "🔑 Credentials API": "credentials",
+        "👤 Mon compte": "account",
         "📂 Import CSV": "upload_csv",
         "📄 Export PDF": "export_pdf",
         "⬇️ Export CSV": "export_csv",
         "🏗️ Monitoring ETL": "airflow_kpi",
+        "🗂️ Historique ETL": "etl_logs",
         "🤖 Perf. Modèles ML": "ml_performance",
         "🔧 Liens & Outils": "useful_links",
         "💳 Billing": "billing",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
-    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links'}
+    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs'}
     pages = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
     return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
 
@@ -89,11 +128,46 @@ def _check_db_health():
     return True
 
 
+def _show_cookie_notice():
+    """Display a one-time cookie notice per session (RGPD Art. 13)."""
+    if st.session_state.get('_cookie_notice_dismissed'):
+        return
+    with st.container():
+        cols = st.columns([8, 1])
+        cols[0].info(
+            "🍪 This platform uses a single session cookie (`music_dashboard`) "
+            "strictly necessary for authentication. No tracking, no third-party cookies. "
+            "[Privacy Policy](?page=privacy)"
+        )
+        if cols[1].button("OK", key="_dismiss_cookie"):
+            st.session_state['_cookie_notice_dismissed'] = True
+            st.rerun()
+
+
 def main():
+    # Public routes — accessible without authentication
+    _page_param = st.query_params.get("page")
+
+    if _page_param == "register":
+        from views.register import show as show_register
+        show_register()
+        st.stop()
+
+    if _page_param == "privacy":
+        from views.privacy import show as show_privacy
+        show_privacy()
+        st.stop()
+
+    if _page_param == "verify":
+        _token = st.query_params.get("token", "")
+        _verify_email(_token)
+        st.stop()
+
     if not require_login():
         st.stop()
 
     _check_db_health()
+    _show_cookie_notice()
 
     role = st.session_state.get('role', 'artist')
     page = show_navigation_menu(role)
@@ -120,10 +194,12 @@ def main():
     elif page == "export_pdf": from views.export_pdf import show; show()
     elif page == "export_csv": from views.export_csv import show; show()
     elif page == "airflow_kpi": from views.airflow_kpi import show; show()
+    elif page == "etl_logs": from views.etl_logs import show; show()
     elif page == "ml_performance": from views.ml_performance import show; show()
     elif page == "useful_links": from views.useful_links import show; show()
     elif page == "billing": from views.billing import show; show()
     elif page == "admin": from views.admin import show; show()
+    elif page == "account": from views.account import show; show()
 
 if __name__ == "__main__":
     main()
