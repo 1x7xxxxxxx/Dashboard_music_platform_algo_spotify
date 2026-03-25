@@ -97,13 +97,22 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 3. **Classification**: Label every module as Core/Feature/Sub/Hook/Utility with dependency verbs.
 → Full specification: `.claude/skills/response-protocol.md`
 
-### Skills (`.claude/skills/`)
-| File | Injected when |
+### Cross-Cutting Rules (always active — no file read needed)
+1. **Language**: English in all code, comments, docstrings, docs. Exception: Streamlit UI strings.
+2. **Neutrality**: Cold technical feedback. State behavior + consequence. Enumerate ≥2 alternatives with trade-offs before recommending.
+3. **Classification**: Label every new file in its docstring: `Type: Core|Feature|Sub|Hook|Utility` + `Uses/Triggers/Depends on/Persists in`.
+4. **Priority**: P1 (crash/security) > P2 (data integrity) > P3 (UX) > P4 (tech debt). Never address P4 during a P1 session.
+5. **Background agent**: Spawn `strategic-plan-architect` only after ≥3 files changed in one session. Not after single-file edits.
+6. **Collectors must raise**: `except Exception` blocks in `src/collectors/` must always `raise` — never `return None`, `return []`, or `break` silently. Any deviation is a P2 data-integrity bug. Run `/audit-collectors` after touching any collector.
+
+### Skills (`.claude/skills/`) — load on demand via Skill tool only
+| File | Use when |
 |---|---|
-| `dashboard-view.md` | "dashboard", "view", "streamlit" in prompt |
-| `airflow-dag.md` | "dag", "airflow", "collector" in prompt |
-| `db-schema.md` | "schema", "upsert", "postgres" in prompt |
-| `response-protocol.md` | Always — defines cross-cutting rules |
+| `dashboard-view.md` | Implementing a new Streamlit view from scratch |
+| `airflow-dag.md` | Creating a new DAG or debug_dag |
+| `db-schema.md` | Designing a new table or migration |
+| `response-protocol.md` | Detailed audit rules — load only for `/review-*` commands |
+| `audit-collectors.md` | Silent success anti-pattern rules — load for `/audit-collectors` or when touching collectors |
 
 ### Agents (`.claude/agents/`)
 | Agent | Role |
@@ -122,11 +131,12 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 | `/logs-airflow` | Read + analyze recent Airflow container logs |
 | `/dev-docs <name>` | Generate plan/context/checklist trio for a large feature |
 | `/run-tests` | Execute pytest suite and analyze failures |
+| `/audit-collectors` | Audit all collectors for silent success anti-pattern (see `.claude/skills/audit-collectors.md`) |
 
 ### Hooks
 - **UserPromptSubmit** → `inject_context.py` — keyword-triggered skill injection (domain patterns)
 - **PostToolUse** → `check_python_syntax.py` — ruff after every Write/Edit; exit 2 blocks on E9 syntax errors
-- **Stop** → `session_summary.py` — git diff, Docker health, turn count, pytest summary
+- **Stop** → `session_summary.py` — git diff (≤5 files), Docker health, turn count
 → Full specification: `.claude/hooks/hook.md`
 
 ## MCP Servers
