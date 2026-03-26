@@ -20,8 +20,8 @@ def _on_failure_callback(context):
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retries': 2,
+    'retry_delay': timedelta(minutes=10),
     'on_failure_callback': _on_failure_callback,
 }
 
@@ -74,6 +74,10 @@ def run_insta_collector(**context):
         if creds.get('ig_user_id'):
             os.environ['INSTAGRAM_USER_ID'] = creds['ig_user_id']
             logger.info("  ig_user_id loaded from DB")
+        if creds.get('app_id'):
+            os.environ['META_APP_ID'] = creds['app_id']
+        if creds.get('app_secret'):
+            os.environ['META_APP_SECRET'] = creds['app_secret']
 
         try:
             InstagramCollector(artist_id=artist_id).run()
@@ -99,8 +103,7 @@ with DAG(
 
     collect_task = PythonOperator(
         task_id='collect_instagram_stats',
-        provide_context=True,
-        python_callable=run_insta_collector
+        python_callable=run_insta_collector,
     )
 
     precheck_task >> collect_task

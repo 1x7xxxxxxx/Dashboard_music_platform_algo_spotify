@@ -442,98 +442,38 @@ def _guide_soundcloud():
         st.markdown(
             "- Ce `client_id` est lié à l'app interne de SoundCloud — il change lors de leurs déploiements.\n"
             "- Durée typique : **quelques semaines à quelques mois**.\n"
-            "- Si le DAG `soundcloud_daily` échoue à nouveau avec une erreur 401/403, recommencer ce process.\n"
+            "- Si le DAG `soundcloud_daily` échoue avec une erreur 401, le DAG tente un **renouvellement "
+            "automatique** (extraction depuis le bundle JS de soundcloud.com) et sauvegarde le nouveau "
+            "`client_id` en base sans intervention manuelle.\n"
+            "- Si le renouvellement automatique échoue (IP bloquée ou structure du bundle changée), "
+            "utiliser le bouton **Rafraîchir le client_id** ci-dessous ou la méthode DevTools.\n"
             "- 📅 **Recommandé** : mettre un rappel calendrier tous les 2 mois."
         )
 
 
 def _guide_meta():
-    with st.expander("📱 Comment obtenir les credentials Meta / Instagram ?", expanded=False):
+    with st.expander("📱 Où trouver chaque champ Meta / Instagram ?", expanded=False):
         st.info(
-            "Meta utilise OAuth 2.0 avec des tokens à durée limitée. "
-            "Le **Long-lived token** dure **60 jours** — prévoir un renouvellement mensuel."
+            "Le token est renouvelé **automatiquement** par le DAG `meta_token_refresh` (hebdomadaire). "
+            "Ce guide sert uniquement lors de la première configuration ou si le token est expiré."
         )
 
-        st.markdown("### Étape 1 — Créer une app Meta")
-        st.markdown(
-            "1. Aller sur **[developers.facebook.com](https://developers.facebook.com)** → **Mes apps** → **Créer une app**\n"
-            "2. Choisir le type : **Business** (obligatoire pour Marketing API)\n"
-            "3. Donner un nom à l'app (ex: `Music Dashboard`)\n"
-            "4. Dans le catalogue de produits, ajouter :\n"
-            "   - **Marketing API** (pour Meta Ads)\n"
-            "   - **Instagram Graph API** (pour les insights Instagram)\n"
-        )
+        st.markdown("**Tout se trouve sur une seule page — ouvre-la dans ton navigateur :**")
+        st.code("https://developers.facebook.com/apps/TON_APP_ID/settings/basic/", language="text")
 
-        st.markdown("### Étape 2 — Récupérer App ID et App Secret")
         st.markdown(
-            "Dans ton app → **Paramètres → Paramètres de base** :\n"
-            "- Copier l'**App ID** → champ `App ID` ci-dessous\n"
-            "- Copier l'**App Secret** (cliquer sur Afficher) → champ `App Secret` ci-dessous\n"
-        )
-
-        st.markdown("### Étape 3 — Générer un Access Token")
-        st.markdown(
-            "1. Aller dans **Outils → [Graph API Explorer](https://developers.facebook.com/tools/explorer)**\n"
-            "2. En haut à droite, sélectionner **ton app** dans le menu déroulant\n"
-            "3. Cliquer sur **Generate Access Token** → autoriser avec ton compte Facebook\n"
-            "4. Cocher les permissions suivantes :\n"
-        )
-        st.code(
-            "ads_read\nads_management\ninstagram_basic\ninstagram_manage_insights\npages_read_engagement",
-            language="text",
-        )
-        st.markdown("5. Cliquer **Generate Access Token** — tu obtiens un token à courte durée (1h).")
-
-        st.markdown("### Étape 4 — Convertir en Long-lived token (60 jours)")
-        st.markdown("Faire une requête GET avec les valeurs de ton app :")
-        st.code(
-            "GET https://graph.facebook.com/oauth/access_token"
-            "?grant_type=fb_exchange_token"
-            "&client_id={TON_APP_ID}"
-            "&client_secret={TON_APP_SECRET}"
-            "&fb_exchange_token={TOKEN_COURT_TERME}",
-            language="text",
-        )
-        st.markdown(
-            "Ou utiliser le **[Token Debugger](https://developers.facebook.com/tools/debug/)** → coller le token → "
-            "cliquer **Extend Access Token** en bas de page.\n\n"
-            "Copier le nouveau token → champ `Access Token` ci-dessous."
-        )
-
-        st.markdown("### Étape 5 — Récupérer l'Ad Account ID (Meta Ads)")
-        st.markdown(
-            "1. Aller sur **[Meta Ads Manager](https://adsmanager.facebook.com)**\n"
-            "2. Menu en haut à gauche → **Paramètres → Paramètres du compte**\n"
-            "3. Copier l'**Account ID** (ex: `123456789`)\n"
-            "4. Ajouter le préfixe `act_` → format final : `act_123456789` → champ `Ad Account ID` ci-dessous\n"
-        )
-
-        st.markdown("### Étape 6 — Récupérer l'Instagram Business Account ID")
-        st.info(
-            "⚠️ Ce champ est **différent** de l'Ad Account ID. "
-            "C'est un identifiant numérique spécifique à ton compte Instagram Business (ex: `17841400008460056`)."
-        )
-        st.markdown("Appeler cette URL dans le navigateur (remplacer le token) :")
-        st.code(
-            "https://graph.facebook.com/v18.0/me/accounts?access_token=TON_ACCESS_TOKEN",
-            language="text",
-        )
-        st.markdown(
-            "Cela retourne la liste de tes Pages Facebook. Pour chaque page, récupérer l'Instagram Business Account ID :"
-        )
-        st.code(
-            "https://graph.facebook.com/v18.0/{PAGE_ID}?fields=instagram_business_account&access_token=TON_ACCESS_TOKEN",
-            language="text",
-        )
-        st.markdown(
-            "La réponse contient : `{\"instagram_business_account\": {\"id\": \"17841400008460056\"}}`. "
-            "Copier cette valeur → champ **Instagram Business Account ID** ci-dessous."
+            "| Champ | Où le trouver |\n"
+            "|---|---|\n"
+            "| **App ID** | En haut de la page Paramètres → Général |\n"
+            "| **App Secret** | Même page → cliquer **Afficher** à côté de App Secret |\n"
+            "| **Access Token** | [Graph API Explorer](https://developers.facebook.com/tools/explorer) → sélectionner ton app → Generate Access Token → puis [Token Debugger](https://developers.facebook.com/tools/debug/accesstoken/) → Extend Access Token (60 jours) |\n"
+            "| **Ad Account ID** | [Ads Manager](https://adsmanager.facebook.com) → Paramètres → Paramètres du compte → Account ID → ajouter préfixe `act_` |\n"
+            "| **Instagram Business Account ID** | Distinct de l'Ad Account ID — coller ton Access Token dans la barre d'adresse : `https://graph.facebook.com/v18.0/me/accounts?access_token=TON_TOKEN` → récupérer le `id` de ta Page → puis `https://graph.facebook.com/v18.0/PAGE_ID?fields=instagram_business_account&access_token=TON_TOKEN` |\n"
         )
 
         st.warning(
-            "⚠️ **Le Long-lived token expire dans 60 jours.** "
-            "Répéter les étapes 3 et 4 chaque mois. "
-            "📅 Recommandé : mettre un rappel calendrier à J+50."
+            "⚠️ **Ne pas confondre** App ID (`2200684950508458`) et Ad Account ID (`act_123456789`). "
+            "Ce sont deux identifiants distincts."
         )
 
 
@@ -610,6 +550,55 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
         st.caption(f"DAG `{dag_id}` — {icon} **{state or 'jamais exécuté'}** — dernier run : {date}")
 
 
+def _render_soundcloud_refresh_button(db, artist_id: int, existing_row: dict | None) -> None:
+    """Auto-refresh the SoundCloud client_id from the public JS bundle.
+
+    Extracts the current client_id from SoundCloud's JS bundle (no DevTools needed),
+    saves it to artist_credentials, and refreshes the page.
+    Non-blocking: errors are surfaced as st.error without crashing the view.
+    """
+    st.markdown("---")
+    st.markdown("#### Renouvellement automatique du Client ID")
+    st.caption(
+        "Extrait le `client_id` actuel directement depuis le bundle JavaScript de soundcloud.com. "
+        "Ne nécessite pas d'ouvrir les DevTools. Le résultat est sauvegardé en base immédiatement."
+    )
+
+    col_btn, col_status = st.columns([1, 3])
+    with col_btn:
+        clicked = st.button(
+            "🔄 Rafraîchir le client_id",
+            key=f"sc_refresh_{artist_id}",
+            type="primary",
+        )
+
+    if clicked:
+        with st.spinner("Extraction depuis le bundle JS de soundcloud.com…"):
+            try:
+                from src.collectors.soundcloud_api_collector import SoundCloudCollector
+                new_id = SoundCloudCollector._fetch_client_id_from_bundle()
+            except Exception as e:
+                st.error(
+                    f"Extraction échouée : {e}\n\n"
+                    "Causes possibles : IP bloquée par SoundCloud, réseau inaccessible, "
+                    "ou structure du bundle changée. Utiliser la méthode DevTools en dernier recours."
+                )
+                return
+
+        # Persist: merge into extra_config (preserves user_id and other fields)
+        try:
+            fields_def = PLATFORMS['soundcloud']['fields']
+            existing_values = _decode_row(existing_row, fields_def) if existing_row else {}
+            extra = {f['key']: existing_values.get(f['key'], '') for f in fields_def if not f['secret']}
+            extra['client_id'] = new_id
+            _save_credentials(db, artist_id, 'soundcloud', '', extra)
+            with col_status:
+                st.success(f"✅ Nouveau client_id sauvegardé : `{new_id[:8]}…{new_id[-4:]}`")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Extraction réussie mais sauvegarde échouée : {e}")
+
+
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None):
     fields_def = platform_info['fields']
@@ -627,7 +616,22 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         updated_str = (
             pd.to_datetime(updated).strftime('%d/%m/%Y %H:%M') if updated else '?'
         )
-        st.success(f"Credentials enregistrés — mise à jour : {updated_str}")
+        # Expiry badge for platforms that use expiring tokens (Meta)
+        expires_at = existing_row.get('expires_at')
+        if expires_at is not None:
+            try:
+                exp = pd.to_datetime(expires_at)
+                days_left = (exp - pd.Timestamp.utcnow().tz_localize(None)).days
+                if days_left <= 0:
+                    st.error(f"Token **expiré** depuis le {exp.strftime('%d/%m/%Y')}. Renouvellement requis.")
+                elif days_left <= 15:
+                    st.warning(f"Token expire dans **{days_left} jour(s)** ({exp.strftime('%d/%m/%Y')}) — renouvellement recommandé.")
+                else:
+                    st.success(f"Credentials enregistrés — mise à jour : {updated_str} · Token valide jusqu'au {exp.strftime('%d/%m/%Y')} ({days_left}j)")
+            except Exception:
+                st.success(f"Credentials enregistrés — mise à jour : {updated_str}")
+        else:
+            st.success(f"Credentials enregistrés — mise à jour : {updated_str}")
         existing_values = _decode_row(existing_row, fields_def)
     else:
         st.info("Aucun credential enregistré pour cette plateforme.")
@@ -635,7 +639,32 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
 
     st.markdown("---")
 
-    # ── Formulaire ────────────────────────────────────────────────────
+    # ── SoundCloud : bouton auto-refresh en premier, formulaire manuel collapsé ──
+    if platform_key == 'soundcloud':
+        _render_soundcloud_refresh_button(db, artist_id, existing_row)
+        with st.expander("✏️ Saisie manuelle (avancé)", expanded=False):
+            st.caption("Utilisez ce formulaire uniquement si le renouvellement automatique échoue.")
+            with st.form(f"cred_{platform_key}_{artist_id}"):
+                form_values = {}
+                pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]
+                for pair in pairs:
+                    cols = st.columns(len(pair))
+                    for col, field in zip(cols, pair):
+                        key = field['key']
+                        existing_val = existing_values.get(key, '')
+                        val = col.text_input(
+                            field['label'],
+                            value=existing_val or field.get('default', ''),
+                            key=f"{platform_key}_{artist_id}_{key}",
+                        )
+                        form_values[key] = val
+                submitted = st.form_submit_button("💾 Enregistrer", type="primary", disabled=not fernet_ok)
+                if submitted and fernet_ok:
+                    _handle_save(db=db, platform_key=platform_key, fields_def=fields_def,
+                                 artist_id=artist_id, form_values=form_values, existing_values=existing_values)
+        return
+
+    # ── Formulaire standard (toutes autres plateformes) ───────────────
     with st.form(f"cred_{platform_key}_{artist_id}"):
         st.subheader("Mettre à jour")
         st.caption(
@@ -686,27 +715,74 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     # ── Test de connexion (hors form) ─────────────────────────────────
     if existing_row and platform_key in CONNECTION_TESTS:
         st.markdown("---")
+        if st.button(
+            "🔌 Tester la connexion",
+            key=f"test_{platform_key}_{artist_id}",
+        ):
+            with st.spinner("Test en cours…"):
+                test_fields = _decode_row(existing_row, fields_def)
+                ok, msg = CONNECTION_TESTS[platform_key](test_fields)
+                if ok:
+                    st.success(msg)
+                else:
+                    st.error(f"Connexion échouée : {msg}")
 
-        # SoundCloud: server-side test triggers bot detection — warn instead
-        if platform_key == 'soundcloud':
-            st.info(
-                "⚠️ **Test automatique désactivé pour SoundCloud.** "
-                "SoundCloud détecte les requêtes programmatiques et bloque l'IP temporairement. "
-                "Pour valider les credentials, déclencher directement le DAG `soundcloud_daily` "
-                "dans l'Airflow UI (http://localhost:8080) et vérifier les logs."
-            )
-        else:
-            if st.button(
-                "🔌 Tester la connexion",
-                key=f"test_{platform_key}_{artist_id}",
-            ):
-                with st.spinner("Test en cours…"):
-                    test_fields = _decode_row(existing_row, fields_def)
-                    ok, msg = CONNECTION_TESTS[platform_key](test_fields)
-                    if ok:
-                        st.success(msg)
-                    else:
-                        st.error(f"Connexion échouée : {msg}")
+    # ── Meta : bouton renouvellement automatique du token ─────────────
+    if platform_key == 'meta' and existing_row:
+        st.markdown("---")
+        st.markdown("#### Renouvellement automatique du token")
+        st.caption(
+            "Échange le token actuel contre un nouveau token de 60 jours via l'API Meta. "
+            "Le token doit être encore valide pour pouvoir être échangé. "
+            "Le DAG fait ce renouvellement automatiquement quand il reste ≤ 15 jours."
+        )
+        if st.button("🔄 Rafraîchir le token Meta", key=f"meta_refresh_{artist_id}", type="primary"):
+            with st.spinner("Échange du token en cours…"):
+                fields_def_meta = PLATFORMS['meta']['fields']
+                current = _decode_row(existing_row, fields_def_meta)
+                app_id = current.get('app_id', '')
+                app_secret = current.get('app_secret', '')
+                access_token = current.get('access_token', '')
+
+                if not app_id or not app_secret:
+                    st.error("App ID ou App Secret manquant — renseigner d'abord ces champs.")
+                elif not access_token:
+                    st.error("Access Token manquant — impossible d'effectuer l'échange.")
+                else:
+                    try:
+                        r = requests.get(
+                            'https://graph.facebook.com/v18.0/oauth/access_token',
+                            params={
+                                'grant_type': 'fb_exchange_token',
+                                'client_id': app_id,
+                                'client_secret': app_secret,
+                                'fb_exchange_token': access_token,
+                            },
+                            timeout=10,
+                        )
+                        data = r.json()
+                        if r.status_code == 200 and data.get('access_token'):
+                            from datetime import timedelta as _td
+                            new_token = data['access_token']
+                            expires_in = data.get('expires_in', 5184000)
+                            new_expires = pd.Timestamp.utcnow() + pd.Timedelta(seconds=expires_in)
+                            # Save new token + expires_at
+                            secrets = {f['key']: current.get(f['key'], '') for f in fields_def_meta if f['secret']}
+                            secrets['access_token'] = new_token
+                            encrypted_blob = _encrypt_secrets(secrets)
+                            _save_credentials(db, artist_id, 'meta', encrypted_blob,
+                                              {f['key']: current.get(f['key'], '') for f in fields_def_meta if not f['secret']})
+                            db.execute_query(
+                                "UPDATE artist_credentials SET expires_at = %s WHERE artist_id = %s AND platform = 'meta'",
+                                (new_expires.to_pydatetime(), artist_id)
+                            )
+                            st.success(f"✅ Token renouvelé — expire le {new_expires.strftime('%d/%m/%Y')} ({expires_in // 86400} jours)")
+                            st.rerun()
+                        else:
+                            err = data.get('error', {})
+                            st.error(f"Échec : {err.get('message', data)} — si le token est expiré, générer un nouveau token manuellement via Graph API Explorer.")
+                    except Exception as e:
+                        st.error(f"Erreur réseau : {e}")
 
 
 def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_values):
