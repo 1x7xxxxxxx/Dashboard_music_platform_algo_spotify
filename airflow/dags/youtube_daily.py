@@ -103,6 +103,12 @@ def collect_youtube_data(**context):
                     INSERT INTO youtube_channel_history
                     (artist_id, channel_id, subscriber_count, video_count, view_count, collected_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (artist_id, channel_id, (collected_at::date))
+                    DO UPDATE SET
+                        subscriber_count = EXCLUDED.subscriber_count,
+                        video_count = EXCLUDED.video_count,
+                        view_count = EXCLUDED.view_count,
+                        collected_at = EXCLUDED.collected_at
                     """,
                     (
                         saas_artist_id,
@@ -126,23 +132,25 @@ def collect_youtube_data(**context):
                 logger.info(f'  {len(data["videos"])} videos stored')
 
             if data['video_stats']:
+                stats_rows = [
+                    {
+                        'artist_id': saas_artist_id,
+                        'video_id': stat['video_id'],
+                        'view_count': stat['view_count'],
+                        'like_count': stat['like_count'],
+                        'comment_count': stat['comment_count'],
+                        'favorite_count': stat['favorite_count'],
+                        'collected_at': stat['collected_at'],
+                    }
+                    for stat in data['video_stats']
+                ]
+                db.upsert_many(
+                    table='youtube_video_stats',
+                    data=stats_rows,
+                    conflict_columns=['artist_id', 'video_id', '(collected_at::date)'],
+                    update_columns=['view_count', 'like_count', 'comment_count', 'favorite_count', 'collected_at']
+                )
                 for stat in data['video_stats']:
-                    db.execute_query(
-                        """
-                        INSERT INTO youtube_video_stats
-                        (artist_id, video_id, view_count, like_count, comment_count, favorite_count, collected_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """,
-                        (
-                            saas_artist_id,
-                            stat['video_id'],
-                            stat['view_count'],
-                            stat['like_count'],
-                            stat['comment_count'],
-                            stat['favorite_count'],
-                            stat['collected_at'],
-                        )
-                    )
                     db.execute_query(
                         "UPDATE youtube_videos SET duration = %s, definition = %s WHERE video_id = %s",
                         (stat.get('duration'), stat.get('definition'), stat['video_id'])

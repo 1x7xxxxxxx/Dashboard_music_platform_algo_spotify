@@ -331,6 +331,8 @@ def step_6_test_401_simulation():
             'Origin': 'https://soundcloud.com',
             'Referer': 'https://soundcloud.com/',
         }
+        collector.session = requests.Session()
+        collector.session.headers.update(collector.headers)
 
         tracks = collector.fetch_tracks()
         logger.info(f"✅ Auto-refresh worked — {len(tracks)} track(s) collected with refreshed client_id.")

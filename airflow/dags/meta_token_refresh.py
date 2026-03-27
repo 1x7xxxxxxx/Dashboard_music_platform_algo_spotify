@@ -24,11 +24,21 @@ logger = logging.getLogger(__name__)
 
 REFRESH_THRESHOLD_DAYS = 30  # refresh if token expires within this many days
 
+
+def _failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
+    'on_failure_callback': _failure_callback,
 }
 
 

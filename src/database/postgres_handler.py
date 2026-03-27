@@ -1,7 +1,7 @@
 """Handler pour les interactions avec PostgreSQL - VERSION OPTIMISÉE."""
 import psycopg2
 from psycopg2 import sql as pgsql
-from psycopg2.extras import execute_values
+from psycopg2.extras import execute_batch
 from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urlparse
 import logging
@@ -98,7 +98,7 @@ class PostgresHandler:
         try:
             self.cursor.execute(query, params)
             # ✅ Pas de commit nécessaire avec autocommit = True
-            logger.debug(f"✅ Requête exécutée")
+            logger.debug("✅ Requête exécutée")
         except Exception as e:
             logger.error(f"❌ Erreur exécution requête: {e}")
             logger.error(f"   Query: {query[:200]}...")
@@ -202,23 +202,42 @@ class PostgresHandler:
             logger.warning(f"⚠️ upsert_many appelé avec data vide pour {table}")
             return 0
 
+        # Deduplicate by conflict_columns before sending to PostgreSQL.
+        # PostgreSQL raises CardinalityViolation if the same constraint key
+        # appears twice in a single execute_values batch.
+        # Only skip columns that are plain names (not SQL expressions like
+        # '(collected_at::date)') so functional-index conflicts still work.
+        plain_conflict_cols = [c for c in conflict_columns if not c.startswith('(')]
+        if plain_conflict_cols:
+            seen: dict = {}
+            for row in data:
+                key = tuple(str(row.get(c, '')).strip() for c in plain_conflict_cols)
+                seen[key] = row          # last write wins (same semantics as DO UPDATE)
+            if len(seen) < len(data):
+                logger.warning(
+                    f"upsert_many({table}): deduplicated {len(data)} → {len(seen)} rows "
+                    f"on {plain_conflict_cols}"
+                )
+            data = list(seen.values())
+
         self._ensure_connection()
         try:
             columns = list(data[0].keys())
             values = [[row.get(col) for col in columns] for row in data]
-            
+
             columns_str = ', '.join(columns)
+            placeholders = ', '.join(['%s'] * len(columns))
             conflict_str = ', '.join(conflict_columns)
             update_str = ', '.join([f"{col} = EXCLUDED.{col}" for col in update_columns])
-            
+
             query = f"""
                 INSERT INTO {table} ({columns_str})
-                VALUES %s
+                VALUES ({placeholders})
                 ON CONFLICT ({conflict_str})
                 DO UPDATE SET {update_str}
             """
-            
-            execute_values(self.cursor, query, values)
+
+            execute_batch(self.cursor, query, values)
             rows_affected = self.cursor.rowcount
             # ✅ Pas de commit nécessaire avec autocommit = True
             

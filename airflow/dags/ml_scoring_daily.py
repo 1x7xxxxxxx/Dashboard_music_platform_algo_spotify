@@ -58,9 +58,7 @@ def run_ml_scoring(**context):
             logger.warning("Aucun artiste actif trouvé — scoring ignoré")
             return
 
-        for artist in artists:
-            artist_id = artist['id']
-            name = artist.get('name', f'artist_{artist_id}')
+        for artist_id, name in artists:
             logger.info(f"Scoring ML pour {name!r} (artist_id={artist_id})")
 
             rows = score_all_songs(db, artist_id)

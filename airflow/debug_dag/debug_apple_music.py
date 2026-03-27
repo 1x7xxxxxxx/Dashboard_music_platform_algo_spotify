@@ -28,8 +28,8 @@ logger = logging.getLogger("Debugger")
 load_dotenv()
 
 # Ajouter le chemin racine pour les imports
-project_root = Path(__file__).resolve().parent
-sys.path.append(str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 # Import des modules du projet
 try:

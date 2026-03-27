@@ -69,7 +69,13 @@ def collect_spotify_artists(**context):
             client_id=client_id,
             client_secret=client_secret
         )
-        
+
+        # Share credentials with next task via XCom (avoids second DB lookup + auth)
+        context['task_instance'].xcom_push(
+            key='spotify_creds',
+            value={'client_id': client_id, 'client_secret': client_secret}
+        )
+
         # Liste des artistes à suivre
         artist_ids = os.getenv('SPOTIFY_ARTIST_IDS', '').split(',')
         
@@ -145,12 +151,19 @@ def collect_spotify_top_tracks(**context):
     try:
         from src.collectors.spotify_api import SpotifyCollector
         from src.database.postgres_handler import PostgresHandler
-        
+
         logger.info('🎵 Collecte Spotify - Top Tracks...')
-        
+
+        # Reuse credentials pushed by collect_artists task (avoids second auth call)
+        creds_xcom = context['task_instance'].xcom_pull(
+            task_ids='collect_artists', key='spotify_creds'
+        ) or {}
+        client_id = creds_xcom.get('client_id') or os.getenv('SPOTIFY_CLIENT_ID')
+        client_secret = creds_xcom.get('client_secret') or os.getenv('SPOTIFY_CLIENT_SECRET')
+
         collector = SpotifyCollector(
-            client_id=os.getenv('SPOTIFY_CLIENT_ID'),
-            client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
+            client_id=client_id,
+            client_secret=client_secret
         )
         
         # ✅ Connexion à la base spotify_etl

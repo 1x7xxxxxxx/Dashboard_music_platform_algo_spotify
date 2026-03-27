@@ -20,6 +20,15 @@ sys.path.insert(0, '/opt/airflow')
 
 logger = logging.getLogger(__name__)
 
+
+def _failure_callback(context):
+    try:
+        from src.utils.email_alerts import dag_failure_callback
+        dag_failure_callback(context)
+    except Exception as e:
+        logger.error(f"Failure callback error: {e}")
+
+
 # Configuration par défaut du DAG
 default_args = {
     'owner': 'data_team',
@@ -28,6 +37,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
+    'on_failure_callback': _failure_callback,
 }
 
 

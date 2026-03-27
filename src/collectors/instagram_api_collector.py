@@ -1,7 +1,6 @@
 import os
 import sys
 import requests
-import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -39,6 +38,7 @@ class InstagramCollector:
         self.app_id = os.getenv("META_APP_ID")
         self.app_secret = os.getenv("META_APP_SECRET")
         self.base_url = "https://graph.facebook.com/v18.0"
+        self.session = requests.Session()
         
         # Connexion BDD
         print(f"🔌 Tentative connexion BDD vers {self.db_host}:{self.db_port}...")
@@ -68,7 +68,7 @@ class InstagramCollector:
             return False
 
         try:
-            r = requests.get(
+            r = self.session.get(
                 f"{self.base_url}/oauth/access_token",
                 params={
                     'grant_type': 'fb_exchange_token',
@@ -110,28 +110,22 @@ class InstagramCollector:
     def _check_proactive_refresh(self) -> None:
         """Refresh the token proactively if it expires within 15 days.
 
-        Reads expires_at from DB. If within threshold, calls _refresh_access_token().
+        Reuses self.db (already open) — avoids opening a second DB connection.
         Silently skips if expires_at is not set or DB is unavailable.
         """
+        if not self.db:
+            return
         try:
-            import psycopg2
-            conn = psycopg2.connect(
-                host=self.db_host, port=self.db_port, database=self.db_name,
-                user=self.db_user, password=self.db_pass
-            )
-            cur = conn.cursor()
-            cur.execute(
+            rows = self.db.fetch_query(
                 "SELECT expires_at FROM artist_credentials WHERE artist_id = %s AND platform = 'meta'",
                 (self.artist_id,)
             )
-            row = cur.fetchone()
-            cur.close()
-            conn.close()
-
-            if not row or not row[0]:
+            if not rows or not rows[0][0]:
                 return
 
-            expires_at = row[0]
+            expires_at = rows[0][0]
+            if hasattr(expires_at, 'tzinfo') and expires_at.tzinfo is not None:
+                expires_at = expires_at.replace(tzinfo=None)
             days_left = (expires_at - datetime.utcnow()).days
             if days_left <= 15:
                 logger.info(f"Meta token expires in {days_left} day(s) — triggering proactive refresh.")
@@ -151,7 +145,7 @@ class InstagramCollector:
         }
         
         try:
-            response = requests.get(url, params=params)
+            response = self.session.get(url, params=params)
             
             # Gestion précise des erreurs Token
             if response.status_code == 401:

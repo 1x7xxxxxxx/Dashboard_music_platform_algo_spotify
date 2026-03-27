@@ -46,6 +46,8 @@ class SoundCloudCollector:
             'Origin': 'https://soundcloud.com',
             'Referer': 'https://soundcloud.com/'
         }
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
         
         print(f"🔌 Tentative de connexion BDD vers {self.db_host}:{self.db_port}...")
         try:
@@ -143,11 +145,14 @@ class SoundCloudCollector:
             }
             
             try:
-                response = requests.get(url, params=params, headers=self.headers)
+                response = self.session.get(url, params=params)
                 
-                if response.status_code == 401:
+                if response.status_code in (401, 403):
                     if not self._client_id_refreshed:
-                        logger.warning("SoundCloud 401 — client_id expired. Starting auto-refresh from JS bundle...")
+                        logger.warning(
+                            f"SoundCloud {response.status_code} — client_id rejected. "
+                            "Starting auto-refresh from JS bundle..."
+                        )
                         new_id = self._fetch_client_id_from_bundle()
                         self.client_id = new_id
                         os.environ['SOUNDCLOUD_CLIENT_ID'] = new_id
@@ -160,9 +165,10 @@ class SoundCloudCollector:
                         except Exception as persist_err:
                             logger.warning(f"client_id persist to DB failed (non-blocking): {persist_err}")
                         continue  # rebuild params with new client_id and retry immediately
-                    raise ValueError("SoundCloud API 401 — client_id still invalid after auto-refresh.")
-                if response.status_code == 403:
-                    raise ValueError(f"SoundCloud API 403 — client_id refusé ou IP bloquée temporairement. Renouveler le client_id via DevTools.")
+                    raise ValueError(
+                        f"SoundCloud API {response.status_code} — client_id still rejected after auto-refresh. "
+                        "IP may be temporarily blocked by SoundCloud."
+                    )
                 if response.status_code != 200:
                     raise ValueError(f"SoundCloud API {response.status_code}: {response.text[:200]}")
                 
