@@ -92,6 +92,7 @@ def show_navigation_menu(role: str = 'artist'):
         "🤖 Perf. Modèles ML": "ml_performance",
         "🔧 Liens & Outils": "useful_links",
         "💳 Billing": "billing",
+        "📈 Prévisions revenus": "revenue_forecast",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
@@ -100,7 +101,6 @@ def show_navigation_menu(role: str = 'artist'):
     return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
 
 def show_data_collection_panel():
-    st.sidebar.markdown("---")
     if st.sidebar.button("🚀 Lancer TOUTES les collectes", type="primary"):
         with st.sidebar.status("Synchronisation...", expanded=True):
             dags = [("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
@@ -113,6 +113,7 @@ def show_data_collection_panel():
                     else: st.error(f"❌ {label}")
                 except: st.error(f"❌ {label}")
             st.sidebar.success("Lancé !")
+    st.sidebar.markdown("---")
 
 def _check_db_health():
     """Affiche une bannière rouge si PostgreSQL est inaccessible."""
@@ -170,9 +171,9 @@ def main():
     _show_cookie_notice()
 
     role = st.session_state.get('role', 'artist')
+    show_data_collection_panel()
     page = show_navigation_menu(role)
     show_user_sidebar()
-    show_data_collection_panel()
     
     if page == "home":
         from views.home import show; show()
@@ -198,6 +199,7 @@ def main():
     elif page == "ml_performance": from views.ml_performance import show; show()
     elif page == "useful_links": from views.useful_links import show; show()
     elif page == "billing": from views.billing import show; show()
+    elif page == "revenue_forecast": from views.revenue_forecast import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
 

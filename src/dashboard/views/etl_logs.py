@@ -209,7 +209,7 @@ def _section_trend(db):
         height=400,
     )
     fig.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ── Circuit breakers ──────────────────────────────────────────────

@@ -46,6 +46,35 @@ PLATFORMS = {
             (['écoutes', 'plays', 'play count', 'lectures'], "Plays / Écoutes"),
         ],
     },
+    'iMusician — Résumé par sortie': {
+        'key': 'imusician_summary',
+        'table': 'imusician_release_summary',
+        'conflict_columns': ['artist_id', 'barcode', 'year', 'month'],
+        'update_columns': [
+            'release_title', 'track_downloads', 'track_streams', 'release_downloads',
+            'track_downloads_revenue', 'track_streams_revenue',
+            'release_downloads_revenue', 'total_revenue', 'collected_at',
+        ],
+        'required_columns': [
+            (['release title'], "Release title"),
+            (['track streams'], "Track streams"),
+            (['total revenue'], "Total revenue"),
+        ],
+    },
+    'iMusician — Rapport de vente': {
+        'key': 'imusician_sales',
+        'table': 'imusician_sales_detail',
+        'conflict_columns': [
+            'artist_id', 'isrc', 'sales_year', 'sales_month',
+            'statement_year', 'statement_month', 'shop', 'country', 'transaction_type',
+        ],
+        'update_columns': ['quantity', 'revenue_eur', 'collected_at'],
+        'required_columns': [
+            (['sales date'], "Sales date"),
+            (['isrc'], "ISRC"),
+            (['shop'], "Shop"),
+        ],
+    },
 }
 
 
@@ -74,6 +103,14 @@ def _parse_csv(platform_key: str, file, artist_id: int) -> list:
     if platform_key == 'apple':
         from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
         return AppleMusicCSVParser().parse(df, artist_id=artist_id)
+
+    if platform_key == 'imusician_summary':
+        from src.transformers.imusician_csv_parser import IMusicianCSVParser
+        return IMusicianCSVParser().parse_release_summary(df, artist_id=artist_id)
+
+    if platform_key == 'imusician_sales':
+        from src.transformers.imusician_csv_parser import IMusicianCSVParser
+        return IMusicianCSVParser().parse_sales_detail(df, artist_id=artist_id)
 
     raise ValueError(f"Plateforme inconnue : {platform_key}")
 

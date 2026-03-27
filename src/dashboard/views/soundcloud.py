@@ -27,6 +27,18 @@ def show():
             """, (artist_id,))
 
             if not df_latest.empty:
+                # Enrichir avec first_seen pour tri "dernière release en premier"
+                try:
+                    df_first = db.fetch_df(
+                        """SELECT track_id, MIN(collected_at) AS first_seen
+                           FROM soundcloud_tracks_daily WHERE artist_id = %s
+                           GROUP BY track_id""",
+                        (artist_id,),
+                    )
+                    df_latest = df_latest.merge(df_first, on="track_id", how="left")
+                except Exception:
+                    df_latest["first_seen"] = df_latest["collected_at"]
+
                 # Calculs
                 total_plays = df_latest['playback_count'].sum()
                 total_likes = df_latest['likes_count'].sum()
@@ -78,12 +90,12 @@ def show():
                 format="DD/MM/YYYY"
             )
 
-            # B. Filtre Titres (Multiselect) — trié par streams desc (plus actif en premier)
-            all_titles = df_latest.sort_values('playback_count', ascending=False)['title'].tolist()
+            # B. Filtre Titres — trié par dernière release (first_seen desc)
+            all_titles = df_latest.sort_values('first_seen', ascending=False)['title'].tolist()
             selected_tracks = col_f2.multiselect(
                 "Filtrer par titres",
                 options=all_titles,
-                default=all_titles  # Tout sélectionné par défaut
+                default=all_titles[:1],  # Dernière release par défaut
             )
 
         # --- REQUÊTE & AFFICHAGE ---

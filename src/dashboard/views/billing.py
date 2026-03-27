@@ -3,6 +3,7 @@
 Shows the current artist's subscription status, plan comparison,
 and upgrade/manage links. Admin sees all artist subscriptions.
 """
+import os
 import streamlit as st
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin, get_artist_plan
@@ -82,7 +83,7 @@ def _show_current_plan(db, artist_id: int):
         )
 
     if customer_id:
-        stripe_portal_url = st.secrets.get("STRIPE_PORTAL_URL", "") if hasattr(st, 'secrets') else ""
+        stripe_portal_url = os.getenv("STRIPE_PORTAL_URL", "")
         if stripe_portal_url:
             st.link_button("Manage subscription (Stripe portal)", stripe_portal_url)
         else:
@@ -98,7 +99,7 @@ def _show_current_plan(db, artist_id: int):
 def _show_upgrade_section(current_plan: str = 'free'):
     st.subheader("Upgrade your plan")
 
-    checkout_url = st.secrets.get("STRIPE_CHECKOUT_URL", "") if hasattr(st, 'secrets') else ""
+    checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
 
     col1, col2 = st.columns(2)
     with col1:

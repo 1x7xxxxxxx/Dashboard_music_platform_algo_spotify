@@ -505,7 +505,7 @@ def show():
                 hover_data=["duration_sec"]
             )
             fig.update_yaxes(autorange="reversed")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # ── Taux de succès par DAG ──────────────────────────────────
             st.markdown("---")
@@ -523,7 +523,7 @@ def show():
             )
             fig_success.update_traces(texttemplate="%{text:.0f}%", textposition="outside")
             fig_success.update_layout(coloraxis_showscale=False, height=max(300, len(df_tech) * 40))
-            st.plotly_chart(fig_success, use_container_width=True)
+            st.plotly_chart(fig_success, width='stretch')
 
             # ── Tendance journalière des runs ───────────────────────────
             st.markdown("---")
@@ -546,7 +546,7 @@ def show():
                     barmode="stack",
                 )
                 fig_trend.update_layout(height=320)
-                st.plotly_chart(fig_trend, use_container_width=True)
+                st.plotly_chart(fig_trend, width='stretch')
 
         else:
             st.info("Aucune donnée d'exécution trouvée dans Airflow.")

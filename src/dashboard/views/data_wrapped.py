@@ -194,18 +194,20 @@ def show():
         return
 
     try:
-        # Resolve artist context
+        # Resolve artist context — include inactive artists (historical data entry)
         if is_admin():
             artists_df = db.fetch_df(
-                "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
+                "SELECT id, name FROM saas_artists ORDER BY name"
             )
             if artists_df.empty:
-                st.warning("Aucun artiste actif.")
+                st.warning("Aucun artiste en base.")
                 return
             artist_options = {row['name']: row['id'] for _, row in artists_df.iterrows()}
         else:
             aid = get_artist_id()
-            artist_options = {f"Artiste {aid}": aid}
+            name_row = db.fetch_query("SELECT name FROM saas_artists WHERE id = %s", (aid,))
+            name = name_row[0][0] if name_row else f"Artiste {aid}"
+            artist_options = {name: aid}
 
         # ── Onglet 1 : Formulaire ───────────────────────────────────────────
         with tab_form:

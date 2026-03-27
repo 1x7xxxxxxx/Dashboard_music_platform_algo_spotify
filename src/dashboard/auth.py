@@ -174,6 +174,7 @@ def require_login() -> bool:
             submitted = st.form_submit_button("Sign in", type="primary")
 
         st.markdown("[Don't have an account? **Create one**](?page=register)")
+        st.caption("🔒 Votre mot de passe est chiffré (bcrypt) et n'est jamais stocké en clair — conformément au RGPD.")
 
         if submitted:
             if not username or not password:
