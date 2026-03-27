@@ -128,6 +128,30 @@ _TABLES = [
 ]
 
 
+def export_excel(db, artist_id: int, tables: list[str] | None = None) -> io.BytesIO:
+    """Exporte toutes les tables pour un artiste dans un fichier Excel (un onglet par table).
+
+    Requires openpyxl: pip install openpyxl
+    """
+    import pandas as pd
+
+    selected = set(tables) if tables is not None else None
+    excel_buffer = io.BytesIO()
+
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        for table_name, sql, params_builder in _TABLES:
+            if selected is not None and table_name not in selected:
+                continue
+            try:
+                df = db.fetch_df(sql, params_builder(artist_id))
+                df.to_excel(writer, sheet_name=table_name[:31], index=False)
+            except Exception:
+                continue
+
+    excel_buffer.seek(0)
+    return excel_buffer
+
+
 def table_names() -> list[str]:
     """Return the ordered list of all exportable table names."""
     return [t for t, _, _ in _TABLES]

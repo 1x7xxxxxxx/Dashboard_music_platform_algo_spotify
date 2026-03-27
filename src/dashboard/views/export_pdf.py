@@ -107,19 +107,42 @@ def _show_form(db):
     for col, (key, label) in zip(sec_cols, ALL_SECTIONS.items()):
         sections[key] = col.checkbox(label, value=defaults.get(key, True), key=f"sec_{key}")
 
-    # ── Ligne 3 : Sélection chansons (conditionnel) ──────────────────────────
+    # ── Ligne 3 : Sélecteurs de chansons (conditionnels) ────────────────────
+    available = get_available_songs(db, report_artist_id)
+
+    s4a_songs_filter = None
+    if sections.get('s4a_songs'):
+        st.markdown("**🎵 S4A — Chansons à inclure** (laisser vide = toutes)")
+        if available:
+            col_s4a, col_all = st.columns([4, 1])
+            with col_s4a:
+                s4a_sel = st.multiselect(
+                    "Chansons S4A", available,
+                    default=available[:1],
+                    label_visibility="collapsed",
+                    placeholder="Toutes les chansons (défaut top 15)…",
+                    key="sec_s4a_songs_sel",
+                )
+            with col_all:
+                if st.checkbox("Toutes", value=False, key="sec_s4a_all"):
+                    s4a_sel = []
+            s4a_songs_filter = s4a_sel if s4a_sel else None
+        else:
+            st.info("Aucune donnée S4A disponible pour cet artiste.")
+            sections['s4a_songs'] = False
+
     selected_songs = []
     if sections.get('songs'):
-        st.markdown("**🎵 Chansons à inclure dans le focus**")
-        available = get_available_songs(db, report_artist_id)
+        st.markdown("**🔬 Focus ML — Chansons à inclure**")
         if available:
             selected_songs = st.multiselect(
-                "Chansons", available, default=available[:5],
+                "Chansons ML", available, default=available[:5],
                 label_visibility="collapsed",
-                placeholder="Choisissez une ou plusieurs chansons…"
+                placeholder="Choisissez une ou plusieurs chansons…",
+                key="sec_songs_sel",
             )
             if not selected_songs:
-                st.warning("Sélectionnez au moins une chanson pour activer la section Focus.")
+                st.warning("Sélectionnez au moins une chanson pour activer la section Focus ML.")
         else:
             st.info("Aucune donnée S4A disponible pour cet artiste.")
             sections['songs'] = False
@@ -158,6 +181,7 @@ def _show_form(db):
                     to_date=to_date,
                     sections=sections,
                     songs=selected_songs if sections.get('songs') else None,
+                    s4a_songs_filter=s4a_songs_filter,
                 )
             st.session_state['_export_pdf_bytes']  = pdf_bytes
             st.session_state['_export_pdf_artist'] = report_artist_name

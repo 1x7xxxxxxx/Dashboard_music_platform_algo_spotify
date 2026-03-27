@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
-from src.dashboard.utils.csv_exporter import export_all, table_names as _all_table_names
+from src.dashboard.utils.csv_exporter import export_all, export_excel, table_names as _all_table_names
 
 
 def _get_artists_list(db) -> list[dict]:
@@ -91,11 +91,18 @@ def show():
         st.caption(f"{len(selected_tables)} table(s) sélectionnée(s) sur {len(_all_table_names())}.")
         st.markdown("---")
 
-        # ── Bouton générer ───────────────────────────────────────────────
-        col_btn, _ = st.columns([1, 3])
+        # ── Format d'export ──────────────────────────────────────────────
+        col_fmt, col_btn, _ = st.columns([1, 1, 2])
+        with col_fmt:
+            fmt = st.radio(
+                "Format",
+                ["ZIP (CSV)", "Excel (.xlsx)"],
+                horizontal=True,
+            )
         with col_btn:
+            st.markdown("&nbsp;", unsafe_allow_html=True)
             generate_clicked = st.button(
-                "📦 Préparer l'export ZIP",
+                "📦 Préparer l'export",
                 type="primary",
                 disabled=not selected_tables,
             )
@@ -105,11 +112,18 @@ def show():
             if db2 is None:
                 return
             try:
-                with st.spinner("Génération du ZIP en cours…"):
-                    zip_bytes = export_all(db2, export_artist_id, tables=selected_tables or None)
-                st.session_state["_export_csv_bytes"] = zip_bytes.getvalue()
+                if fmt == "Excel (.xlsx)":
+                    with st.spinner("Génération du fichier Excel en cours…"):
+                        buf = export_excel(db2, export_artist_id, tables=selected_tables or None)
+                    st.session_state["_export_csv_bytes"] = buf.getvalue()
+                    st.session_state["_export_csv_fmt"] = "xlsx"
+                else:
+                    with st.spinner("Génération du ZIP en cours…"):
+                        buf = export_all(db2, export_artist_id, tables=selected_tables or None)
+                    st.session_state["_export_csv_bytes"] = buf.getvalue()
+                    st.session_state["_export_csv_fmt"] = "zip"
                 st.session_state["_export_csv_artist"] = export_artist_name
-                st.success("ZIP prêt — cliquez sur Télécharger ci-dessous.")
+                st.success("Fichier prêt — cliquez sur Télécharger ci-dessous.")
             except Exception as e:
                 st.error(f"Erreur lors de la génération : {e}")
             finally:
@@ -121,12 +135,15 @@ def show():
             slug = (
                 st.session_state.get("_export_csv_artist") or "artiste"
             ).replace(" ", "_").lower()
-            filename = f"export_{slug}_{ts}.zip"
+            file_fmt  = st.session_state.get("_export_csv_fmt", "zip")
+            filename  = f"export_{slug}_{ts}.{file_fmt}"
+            mime      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" \
+                        if file_fmt == "xlsx" else "application/zip"
             st.download_button(
-                label="⬇️ Télécharger le ZIP",
+                label=f"⬇️ Télécharger le fichier (.{file_fmt})",
                 data=st.session_state["_export_csv_bytes"],
                 file_name=filename,
-                mime="application/zip",
+                mime=mime,
             )
 
     finally:

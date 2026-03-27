@@ -13,11 +13,17 @@ from src.dashboard.utils.kpi_helpers import (
 
 # Sections disponibles dans le rapport (ordre d'affichage)
 ALL_SECTIONS = {
-    'freshness': '📡 Fraîcheur des sources',
-    'streams':   '🎧 Streams totaux',
-    'kpi':       '📊 KPI (Spotify, Instagram, SoundCloud)',
-    'roi':       '💹 ROI Breakheaven',
-    'songs':     '🎵 Focus chansons',
+    'freshness':          '📡 Fraîcheur des sources',
+    'streams':            '🎧 Streams totaux',
+    'kpi':                '📊 KPI (Spotify, Instagram, SoundCloud)',
+    'roi':                '💹 ROI Breakheaven',
+    's4a_songs':          '🎵 Spotify S4A — Top chansons',
+    'youtube':            '🎬 YouTube',
+    'instagram':          '📸 Instagram',
+    'meta':               '📱 Meta Ads',
+    'soundcloud_detail':  '☁️ SoundCloud — Tracks',
+    'apple':              '🍎 Apple Music',
+    'songs':              '🔬 Focus chansons (ML)',
 }
 
 # ─── CSS ─────────────────────────────────────────────────────────────────────
@@ -200,7 +206,216 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
     return result
 
 
-def collect_report_data(db, artist_id, from_date, to_date, songs=None):
+def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None):
+    """Top 15 chansons S4A sur la période + streams 7 derniers jours.
+    songs_filter: liste optionnelle de noms de chansons — None = toutes.
+    """
+    try:
+        song_clause = ""
+        song_params: tuple = ()
+        if songs_filter:
+            placeholders = ",".join(["%s"] * len(songs_filter))
+            song_clause = f"AND song IN ({placeholders})"
+            song_params = tuple(songs_filter)
+
+        if artist_id is not None:
+            rows = db.fetch_query(
+                f"""SELECT song, SUM(streams) AS total
+                   FROM (
+                       SELECT DISTINCT ON (date, song) song, streams
+                       FROM s4a_song_timeline
+                       WHERE song NOT ILIKE %s AND artist_id = %s
+                         AND date BETWEEN %s AND %s {song_clause}
+                       ORDER BY date, song, collected_at DESC
+                   ) sub
+                   GROUP BY song ORDER BY total DESC LIMIT 15""",
+                (f"%{ARTIST_NAME_FILTER}%", artist_id, from_date, to_date, *song_params),
+            )
+        else:
+            rows = db.fetch_query(
+                f"""SELECT song, SUM(streams) AS total
+                   FROM (
+                       SELECT DISTINCT ON (date, song) song, streams
+                       FROM s4a_song_timeline
+                       WHERE song NOT ILIKE %s AND date BETWEEN %s AND %s {song_clause}
+                       ORDER BY date, song, collected_at DESC
+                   ) sub
+                   GROUP BY song ORDER BY total DESC LIMIT 15""",
+                (f"%{ARTIST_NAME_FILTER}%", from_date, to_date, *song_params),
+            )
+        if not rows:
+            return []
+        songs_list = [r[0] for r in rows]
+        last7_map = {}
+        for song in songs_list:
+            if artist_id is not None:
+                r7 = db.fetch_query(
+                    """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
+                       WHERE song = %s AND song NOT ILIKE %s AND artist_id = %s
+                         AND date >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song, f"%{ARTIST_NAME_FILTER}%", artist_id),
+                )
+            else:
+                r7 = db.fetch_query(
+                    """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
+                       WHERE song = %s AND song NOT ILIKE %s
+                         AND date >= CURRENT_DATE - INTERVAL '7 days'""",
+                    (song, f"%{ARTIST_NAME_FILTER}%"),
+                )
+            last7_map[song] = int(r7[0][0] or 0) if r7 else 0
+        return [(r[0], int(r[1] or 0), last7_map.get(r[0], 0)) for r in rows]
+    except Exception:
+        return []
+
+
+def _collect_youtube(db, artist_id):
+    """Stats chaîne + top 10 vidéos par vues."""
+    if artist_id is None:
+        return None
+    try:
+        ch = db.fetch_query(
+            """SELECT MAX(subscriber_count), MAX(view_count)
+               FROM youtube_channel_history WHERE artist_id = %s""",
+            (artist_id,),
+        )
+        subs  = int(ch[0][0] or 0) if ch else 0
+        views = int(ch[0][1] or 0) if ch else 0
+        vids  = db.fetch_query(
+            """SELECT v.title, v.published_at,
+                      vs.view_count, vs.like_count, vs.comment_count
+               FROM youtube_videos v
+               JOIN (
+                   SELECT video_id, MAX(collected_at) AS max_date
+                   FROM youtube_video_stats WHERE artist_id = %s GROUP BY video_id
+               ) latest ON v.video_id = latest.video_id
+               JOIN youtube_video_stats vs
+                   ON vs.video_id = latest.video_id
+                  AND vs.collected_at = latest.max_date
+               WHERE v.artist_id = %s
+               ORDER BY vs.view_count DESC LIMIT 10""",
+            (artist_id, artist_id),
+        )
+        return {
+            'subscriber_count': subs,
+            'total_views':      views,
+            'videos': [
+                (r[0], str(r[1])[:10] if r[1] else '—',
+                 int(r[2] or 0), int(r[3] or 0), int(r[4] or 0))
+                for r in vids
+            ] if vids else [],
+        }
+    except Exception:
+        return None
+
+
+def _collect_instagram(db, artist_id):
+    """Derniers stats + historique 30 jours (agrégé par jour)."""
+    if artist_id is None:
+        return None
+    try:
+        latest = db.fetch_query(
+            """SELECT DISTINCT ON (ig_user_id)
+                   username, followers_count, media_count
+               FROM instagram_daily_stats WHERE artist_id = %s
+               ORDER BY ig_user_id, collected_at DESC""",
+            (artist_id,),
+        )
+        if not latest:
+            return None
+        username, followers, media_count = latest[0]
+        history = db.fetch_query(
+            """SELECT collected_at::date, MAX(followers_count)
+               FROM instagram_daily_stats
+               WHERE artist_id = %s
+                 AND collected_at >= CURRENT_DATE - INTERVAL '30 days'
+               GROUP BY collected_at::date ORDER BY collected_at::date""",
+            (artist_id,),
+        )
+        return {
+            'username':    username or '—',
+            'followers':   int(followers or 0),
+            'media_count': int(media_count or 0),
+            'history':     [(str(r[0]), int(r[1] or 0)) for r in history] if history else [],
+        }
+    except Exception:
+        return None
+
+
+def _collect_meta(db, artist_id):
+    """Résumé des campagnes Meta Ads."""
+    if artist_id is None:
+        return None
+    try:
+        rows = db.fetch_query(
+            """SELECT campaign_name, spend, results, impressions, reach, link_clicks
+               FROM meta_insights_performance
+               WHERE artist_id = %s ORDER BY spend DESC""",
+            (artist_id,),
+        )
+        if not rows:
+            return None
+        campaigns = [
+            (r[0], float(r[1] or 0), int(r[2] or 0),
+             int(r[3] or 0), int(r[4] or 0), int(r[5] or 0))
+            for r in rows
+        ]
+        return {
+            'campaigns':     campaigns,
+            'total_spend':   sum(c[1] for c in campaigns),
+            'total_results': sum(c[2] for c in campaigns),
+        }
+    except Exception:
+        return None
+
+
+def _collect_soundcloud_tracks(db, artist_id):
+    """Dernier snapshot de tous les tracks SoundCloud (trié par plays)."""
+    if artist_id is None:
+        return None
+    try:
+        rows = db.fetch_query(
+            """SELECT DISTINCT ON (track_id)
+                   title, playback_count, likes_count, reposts_count, comment_count
+               FROM soundcloud_tracks_daily WHERE artist_id = %s
+               ORDER BY track_id, collected_at DESC""",
+            (artist_id,),
+        )
+        if not rows:
+            return []
+        return sorted(
+            [(r[0], int(r[1] or 0), int(r[2] or 0), int(r[3] or 0), int(r[4] or 0))
+             for r in rows],
+            key=lambda x: -x[1],
+        )
+    except Exception:
+        return []
+
+
+def _collect_apple(db, artist_id):
+    """Apple Music : totaux + top 10 chansons."""
+    if artist_id is None:
+        return None
+    try:
+        totals = db.fetch_query(
+            """SELECT COALESCE(SUM(plays), 0), COALESCE(SUM(shazam_count), 0)
+               FROM apple_songs_performance WHERE artist_id = %s""",
+            (artist_id,),
+        )
+        top = db.fetch_query(
+            """SELECT song_name, plays FROM apple_songs_performance
+               WHERE artist_id = %s ORDER BY plays DESC LIMIT 10""",
+            (artist_id,),
+        )
+        return {
+            'total_plays':   int(totals[0][0] or 0) if totals else 0,
+            'total_shazams': int(totals[0][1] or 0) if totals else 0,
+            'top_songs':     [(r[0], int(r[1] or 0)) for r in top] if top else [],
+        }
+    except Exception:
+        return None
+
+
+def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs_filter=None):
     """
     Retourne un dict avec toutes les métriques nécessaires au rapport.
     songs : liste de noms de chansons pour la section focus (None = pas de section songs).
@@ -218,21 +433,33 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None):
     likes = get_soundcloud_likes(db, artist_id)
     roi   = get_roi_data(db, artist_id, from_date, to_date)
 
-    songs_data = _collect_songs_focus(db, artist_id, songs, from_date, to_date) if songs else []
+    songs_data       = _collect_songs_focus(db, artist_id, songs, from_date, to_date) if songs else []
+    s4a_top_songs    = _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=s4a_songs_filter)
+    youtube_data     = _collect_youtube(db, artist_id)
+    instagram_data   = _collect_instagram(db, artist_id)
+    meta_data        = _collect_meta(db, artist_id)
+    sc_tracks        = _collect_soundcloud_tracks(db, artist_id)
+    apple_data       = _collect_apple(db, artist_id)
 
     return {
-        'generated_at': now,
-        'period_months': months,
-        'from_date': from_date,
-        'to_date': to_date,
-        'freshness': freshness,
-        'streams': {'s4a': s4a, 'youtube': yt, 'soundcloud': sc, 'apple': apple,
-                    'total': s4a + yt + sc + apple},
+        'generated_at':    now,
+        'period_months':   months,
+        'from_date':       from_date,
+        'to_date':         to_date,
+        'freshness':       freshness,
+        'streams':         {'s4a': s4a, 'youtube': yt, 'soundcloud': sc, 'apple': apple,
+                            'total': s4a + yt + sc + apple},
         'spotify_popularity': pop,
-        'instagram': ig,
+        'instagram':       ig,
         'soundcloud_likes': likes,
-        'roi': roi,
-        'songs_data': songs_data,
+        'roi':             roi,
+        'songs_data':      songs_data,
+        's4a_top_songs':   s4a_top_songs,
+        'youtube_data':    youtube_data,
+        'instagram_data':  instagram_data,
+        'meta_data':       meta_data,
+        'sc_tracks':       sc_tracks,
+        'apple_data':      apple_data,
     }
 
 
@@ -379,6 +606,135 @@ def _render_songs_focus(songs_data):
     return "\n".join(parts)
 
 
+def _render_s4a_top_songs(songs):
+    if not songs:
+        return '<p class="no-data">Aucune donnée S4A disponible.</p>'
+    rows = "".join(
+        f"<tr><td>{s[0]}</td><td>{s[1]:,}</td><td>{s[2]:,}</td></tr>"
+        for s in songs
+    )
+    return (
+        f'<table><thead><tr><th>Chanson</th><th>Streams (période)</th>'
+        f'<th>Streams 7 derniers jours</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+
+
+def _render_youtube(yt):
+    if not yt:
+        return '<p class="no-data">Aucune donnée YouTube disponible.</p>'
+    header = (
+        f'<div class="kpi-grid">'
+        f'<div class="kpi-card"><div class="kpi-val">{yt["subscriber_count"]:,}</div>'
+        f'<div class="kpi-lbl">Abonnés</div></div>'
+        f'<div class="kpi-card"><div class="kpi-val">{yt["total_views"]:,}</div>'
+        f'<div class="kpi-lbl">Vues totales (chaîne)</div></div>'
+        f'</div>'
+    )
+    if not yt['videos']:
+        return header + '<p class="no-data">Aucune vidéo trouvée.</p>'
+    rows = "".join(
+        f"<tr><td>{v[0]}</td><td>{v[1]}</td>"
+        f"<td>{v[2]:,}</td><td>{v[3]:,}</td><td>{v[4]:,}</td></tr>"
+        for v in yt['videos']
+    )
+    table = (
+        f'<table><thead><tr><th>Titre</th><th>Publiée</th>'
+        f'<th>Vues</th><th>Likes</th><th>Commentaires</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+    return header + table
+
+
+def _render_instagram(ig):
+    if not ig:
+        return '<p class="no-data">Aucune donnée Instagram disponible.</p>'
+    summary = (
+        f'<div class="kpi-grid">'
+        f'<div class="kpi-card"><div class="kpi-val">{ig["followers"]:,}</div>'
+        f'<div class="kpi-lbl">@{ig["username"]} — Abonnés</div></div>'
+        f'<div class="kpi-card"><div class="kpi-val">{ig["media_count"]:,}</div>'
+        f'<div class="kpi-lbl">Publications</div></div>'
+        f'</div>'
+    )
+    if not ig['history']:
+        return summary
+    rows = "".join(
+        f"<tr><td>{h[0]}</td><td>{h[1]:,}</td></tr>"
+        for h in ig['history'][-10:]
+    )
+    table = (
+        f'<h3>Évolution abonnés — 10 dernières entrées (30 j)</h3>'
+        f'<table><thead><tr><th>Date</th><th>Abonnés</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+    return summary + table
+
+
+def _render_meta(meta):
+    if not meta or not meta['campaigns']:
+        return '<p class="no-data">Aucune donnée Meta Ads disponible.</p>'
+    summary = (
+        f'<div class="kpi-grid">'
+        f'<div class="kpi-card"><div class="kpi-val" style="color:#FF4444;">'
+        f'{meta["total_spend"]:,.2f} €</div>'
+        f'<div class="kpi-lbl">Dépenses totales</div></div>'
+        f'<div class="kpi-card"><div class="kpi-val">{meta["total_results"]:,}</div>'
+        f'<div class="kpi-lbl">Résultats totaux</div></div>'
+        f'</div>'
+    )
+    rows = "".join(
+        f"<tr><td>{c[0]}</td><td>{c[1]:,.2f} €</td><td>{c[2]:,}</td>"
+        f"<td>{c[3]:,}</td><td>{c[4]:,}</td><td>{c[5]:,}</td></tr>"
+        for c in meta['campaigns']
+    )
+    table = (
+        f'<table><thead><tr><th>Campagne</th><th>Dépenses</th><th>Résultats</th>'
+        f'<th>Impressions</th><th>Reach</th><th>Clics</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+    return summary + table
+
+
+def _render_soundcloud_tracks(tracks):
+    if not tracks:
+        return '<p class="no-data">Aucune donnée SoundCloud disponible.</p>'
+    rows = "".join(
+        f"<tr><td>{t[0]}</td><td>{t[1]:,}</td><td>{t[2]:,}</td>"
+        f"<td>{t[3]:,}</td><td>{t[4]:,}</td></tr>"
+        for t in tracks
+    )
+    return (
+        f'<table><thead><tr><th>Titre</th><th>Plays</th><th>Likes</th>'
+        f'<th>Reposts</th><th>Commentaires</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+
+
+def _render_apple(apple):
+    if not apple:
+        return '<p class="no-data">Aucune donnée Apple Music disponible.</p>'
+    summary = (
+        f'<div class="kpi-grid">'
+        f'<div class="kpi-card"><div class="kpi-val">{apple["total_plays"]:,}</div>'
+        f'<div class="kpi-lbl">Plays totaux</div></div>'
+        f'<div class="kpi-card"><div class="kpi-val">{apple["total_shazams"]:,}</div>'
+        f'<div class="kpi-lbl">Shazams</div></div>'
+        f'</div>'
+    )
+    if not apple['top_songs']:
+        return summary
+    rows = "".join(
+        f"<tr><td>{s[0]}</td><td>{s[1]:,}</td></tr>"
+        for s in apple['top_songs']
+    )
+    table = (
+        f'<table><thead><tr><th>Chanson</th><th>Plays</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+    return summary + table
+
+
 def render_html(data, artist_name, sections=None):
     """
     Génère la chaîne HTML du rapport.
@@ -410,9 +766,39 @@ def render_html(data, artist_name, sections=None):
             f"<h2>💹 ROI Breakheaven</h2>\n"
             f"{_render_roi(data['roi'], data['from_date'], data['to_date'])}"
         )
+    if sections.get('s4a_songs'):
+        body_parts.append(
+            f"<h2>🎵 Spotify S4A — Top chansons</h2>\n"
+            f"{_render_s4a_top_songs(data.get('s4a_top_songs', []))}"
+        )
+    if sections.get('youtube'):
+        body_parts.append(
+            f"<h2>🎬 YouTube</h2>\n"
+            f"{_render_youtube(data.get('youtube_data'))}"
+        )
+    if sections.get('instagram'):
+        body_parts.append(
+            f"<h2>📸 Instagram</h2>\n"
+            f"{_render_instagram(data.get('instagram_data'))}"
+        )
+    if sections.get('meta'):
+        body_parts.append(
+            f"<h2>📱 Meta Ads</h2>\n"
+            f"{_render_meta(data.get('meta_data'))}"
+        )
+    if sections.get('soundcloud_detail'):
+        body_parts.append(
+            f"<h2>☁️ SoundCloud — Tracks</h2>\n"
+            f"{_render_soundcloud_tracks(data.get('sc_tracks', []))}"
+        )
+    if sections.get('apple'):
+        body_parts.append(
+            f"<h2>🍎 Apple Music</h2>\n"
+            f"{_render_apple(data.get('apple_data'))}"
+        )
     if sections.get('songs') and data.get('songs_data'):
         body_parts.append(
-            f"<h2>🎵 Focus chansons</h2>\n{_render_songs_focus(data['songs_data'])}"
+            f"<h2>🔬 Focus chansons (ML)</h2>\n{_render_songs_focus(data['songs_data'])}"
         )
 
     body_html = "\n\n".join(body_parts)
@@ -444,7 +830,7 @@ def render_html(data, artist_name, sections=None):
 
 def generate_pdf(db, artist_id, artist_name=None, months=12,
                  from_date=None, to_date=None,
-                 sections=None, songs=None):
+                 sections=None, songs=None, s4a_songs_filter=None):
     """
     Collecte les données et retourne les bytes du PDF.
 
@@ -454,7 +840,8 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
         sections  — dict {key: bool} des sections à inclure (None = toutes)
         songs     — liste de noms de chansons pour la section focus
     """
-    from weasyprint import HTML  # import tardif
+    import io
+    from xhtml2pdf import pisa  # pure-Python, no system deps
 
     now = datetime.now()
     if from_date is None:
@@ -464,6 +851,11 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
     if artist_name is None:
         artist_name = _get_artist_name(db, artist_id)
 
-    data = collect_report_data(db, artist_id, from_date, to_date, songs=songs)
+    data = collect_report_data(db, artist_id, from_date, to_date, songs=songs,
+                               s4a_songs_filter=s4a_songs_filter)
     html_str = render_html(data, artist_name, sections=sections)
-    return HTML(string=html_str).write_pdf()
+    buf = io.BytesIO()
+    result = pisa.CreatePDF(html_str, dest=buf)
+    if result.err:
+        raise RuntimeError(f"PDF generation failed: {result.err}")
+    return buf.getvalue()
