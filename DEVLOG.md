@@ -5,6 +5,34 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-03-27 — iMusician CSV import + DAG fixes + debug scripts
+
+### Features
+1. **iMusician CSV import (full pipeline)** — two iMusician export formats now auto-ingested:
+   - `src/transformers/imusician_csv_parser.py` — `detect_csv_type()`, `parse_release_summary()`, `parse_sales_detail()`, encoding fallback (utf-8 → utf-8-sig → latin-1 → cp1252)
+   - `src/database/imusician_csv_schema.py` — two new tables: `imusician_release_summary`, `imusician_sales_detail`
+   - `migrations/010_imusician_csv_tables.sql` — idempotent migration applied ✅
+   - `airflow/dags/imusician_csv_watcher.py` — `*/15 * * * *` DAG, branch on CSV presence, auto-detects type, upserts + archives
+   - `airflow/debug_dag/debug_imusician_csv.py` — 5-step debug + `--write` flag
+   - `src/dashboard/views/imusician.py` — 3rd tab "📂 Import CSV" (uploader, type badge, 10-row preview, confirm)
+   - `src/dashboard/views/upload_csv.py` — 2 new platforms: iMusician Résumé + Rapport de vente
+
+### Bugs fixed
+2. **SoundCloud 403 not triggering auto-refresh** — `status_code == 401` → `in (401, 403)`. IP block confirmed; auto-refresh mechanism correct, key persisted to DB.
+3. **`debug_soundcloud.py` step_6 crash** — `SoundCloudCollector.__new__()` bypasses `__init__` → `self.session` never set. Fixed: manual `requests.Session()` init after construction.
+4. **YouTube UniqueViolation on retry** — `youtube_channel_history` INSERT → upsert with `ON CONFLICT (artist_id, channel_id, (collected_at::date))`; `youtube_video_stats` per-row loop → `upsert_many()` with functional conflict key.
+5. **`ml_scoring_daily` TypeError** — `get_active_artists()` returns `List[Tuple]`, code was accessing `artist['id']`. Fixed: `for artist_id, name in artists:`.
+6. **8 debug scripts broken sys.path** — all used `.parent` (→ `airflow/debug_dag/`) instead of `.parent.parent.parent`. Fixed across: debug_youtube, debug_meta_config, debug_spotify_api, debug_instagram, debug_meta_insights, debug_s4a, debug_apple_music.
+7. **`debug_data_quality_check.py` missing** — created; implements all 4 DAG checks inline (no Airflow import, no `fcntl` crash on Windows).
+8. **`use_container_width` deprecation** — replaced `width='stretch'` in trigger_algo.py, airflow_kpi.py, etl_logs.py.
+9. **RGPD notice on login** — added `st.caption` below sign-in form (bcrypt, no plaintext storage).
+
+### Statut
+✅ Tables `imusician_release_summary` + `imusician_sales_detail` créées (0 rows, ready for import).
+⏳ SoundCloud / Instagram: IP block — retrigger after credentials refreshed.
+
+---
+
 ## 2026-03-12 — Session de debug post-test dashboard 🔧
 
 ### Bugs corrigés
@@ -821,3 +849,37 @@ Brick 3 de la roadmap SaaS : permettre à l'admin de gérer les artistes en DB e
 **Tests**: 79 passed ✅ (verified via session_summary.py hook)
 **Status**: ✅ Restructuring complete. All 3 existing hooks remain operational.
 **Next**: Address P1 bugs (SoundCloud/Instagram credentials, meta_campaigns ALTER TABLE)
+
+---
+
+## 2026-03-26 — PDF, export Excel, UX sidebar, bugfixes
+
+### Bugs corrigés
+1. **`billing.py`** — `st.secrets.get()` crashait (`StreamlitSecretNotFoundError`) même avec guard `hasattr`. Remplacé par `os.getenv()` pour `STRIPE_CHECKOUT_URL` et `STRIPE_PORTAL_URL`.
+2. **`.env`** — `SMTP_HOST` contenait l'adresse email au lieu de `smtp.gmail.com`. `SMTP_PORT=587` était sur la même ligne (jamais parsé). Corrigé → alertes email DAG fonctionnelles.
+3. **`data_wrapped.py`** — Non-admin voyait `"Artiste 1"` au lieu du vrai nom. Admin ne voyait pas les artistes inactifs. Corrigés : query non-admin charge le nom depuis `saas_artists` ; query admin retire le filtre `active = TRUE`.
+
+### Migration WeasyPrint → xhtml2pdf
+- WeasyPrint nécessite GTK3/Pango/Cairo (indisponibles nativement sur Windows).
+- Remplacé par `xhtml2pdf>=0.2.11` (pure Python). `requirements.txt` mis à jour.
+
+### SoundCloud DAG — diagnostic IP block
+- Confirmé 403 (IP bloquée) via logs Airflow. Le code actuel raise `ValueError` → tâche FAILED correctement.
+- L'ancienne run (2026-03-24) montrait un silent success (bug corrigé dans commit `3d73c0a`).
+
+### PDF export — 6 nouvelles sections
+Ajoutées dans `pdf_exporter.py` : Spotify S4A top songs, YouTube, Instagram, Meta Ads, SoundCloud tracks, Apple Music. Chacune avec `_collect_xxx` + `_render_xxx`. `_collect_s4a_top_songs` accepte `songs_filter`. UI `export_pdf.py` : sélecteur S4A indépendant + case "Toutes".
+
+### Export CSV — format Excel
+- Ajout `export_excel()` dans `csv_exporter.py` (openpyxl, un onglet par table).
+- `export_csv.py` : radio ZIP / Excel (.xlsx), bouton téléchargement unifié.
+
+### Sidebar — bouton collecte en haut
+- `show_data_collection_panel()` appelé avant `show_navigation_menu()` dans `main()`.
+- Séparateur `---` déplacé après le bouton.
+
+### SoundCloud view — tri par dernière release
+- Ajout subquery `MIN(collected_at) AS first_seen` par track.
+- Multiselect trié par `first_seen DESC`, défaut `[:1]` (dernière release uniquement).
+
+**Fichiers modifiés** : `app.py`, `billing.py`, `data_wrapped.py`, `soundcloud.py`, `export_csv.py`, `export_pdf.py`, `csv_exporter.py`, `pdf_exporter.py`, `requirements.txt`, `.env`

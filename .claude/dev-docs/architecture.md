@@ -1,7 +1,7 @@
 # Architecture Diagrams
 
 *Auto-updated by the `strategic-plan-architect` background agent after each session.*
-*Last updated: 2026-03-23*
+*Last updated: 2026-03-26*
 
 ---
 
@@ -112,6 +112,6 @@ graph LR
 | `admin.py` | Admin | saas_artists, artist_credentials | admin |
 | `credentials.py` | Credentials API | artist_credentials | all |
 | `upload_csv.py` | Upload CSV | all CSV-sourced tables | all |
-| `export_csv.py` | Export CSV | all tables | all |
-| `export_pdf.py` | Export PDF | all tables | all |
+| `export_csv.py` | Export CSV (ZIP or Excel) | all tables | all |
+| `export_pdf.py` | Export PDF (xhtml2pdf; S4A, YouTube, Instagram, Meta, SoundCloud, Apple Music) | all tables | all |
 | `useful_links.py` | Useful Links | static | admin |

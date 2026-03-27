@@ -82,6 +82,13 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 - [x] **Scheduled email reports** — `airflow/dags/weekly_digest.py`, every Monday 08:00 UTC. One HTML email per active artist: S4A streams delta, top song, Meta spend/CTR, Instagram delta, SoundCloud delta, ML top prediction. Requires SMTP_USER/SMTP_PASSWORD/ALERT_EMAIL env vars.
 - [x] **Stripe integration** (Brick 21) — `subscription_plans` + `artist_subscriptions` tables in `stripe_schema.py` + `migrations/004_stripe_billing.sql`; `POST /webhooks/stripe` in `src/api/routers/stripe_webhook.py` (handles checkout.session.completed, subscription.updated/deleted, invoice.payment_failed); `get_artist_plan()` + `require_plan()` in `auth.py`; billing page `views/billing.py` (current plan, MRR admin view, plan comparison, upgrade links). Requires STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_CHECKOUT_URL, STRIPE_PORTAL_URL env vars.
+- [x] **PDF report expansion** — `pdf_exporter.py` extended with 6 new sections: S4A top songs, YouTube, Instagram, Meta Ads, SoundCloud tracks, Apple Music. `songs_filter` parameter added to `_collect_s4a_top_songs`, `collect_report_data`, `generate_pdf`. `export_pdf.py` adds S4A song selector with "Toutes" checkbox.
+- [x] **Excel export** — `csv_exporter.py` gains `export_excel()` (openpyxl, multi-sheet). `export_csv.py` adds format selector (ZIP vs Excel).
+- [x] **SoundCloud track selector UX** — track list sorted by `first_seen DESC`; defaults to the latest release (`[:1]`).
+- [x] **Data Wrapped multi-tenant fix** — admin query no longer filters `active=TRUE`; non-admin loads real artist name from DB instead of hardcoded value.
+- [x] **Billing page env fix** — `billing.py` replaced `st.secrets` with `os.getenv` for STRIPE_CHECKOUT_URL and STRIPE_PORTAL_URL (fixes crash when Streamlit secrets file absent).
+- [x] **WeasyPrint → xhtml2pdf migration** — `pdf_exporter.py` and `requirements.txt` switched from WeasyPrint to `xhtml2pdf>=0.2.11` (eliminates system-level GTK/Pango dependency).
+- [x] **SMTP config fix** — `.env` corrected: SMTP_HOST was set to an email address (now `smtp.gmail.com`); SMTP_PORT moved to its own line.
 
 ### P4 — Tech Debt (new)
 
@@ -117,6 +124,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 | 19 | Security audit — SQL injection, Fernet key exposure, auth bypass, SSRF | ✅ | P3 |
 | 20 | Multi-tenancy — artist_id propagation in all collectors + DAG iteration | ✅ | P2 |
 | 21 | Stripe integration — subscription plans, webhook, billing page | ✅ | P3 |
+| 22 | iMusician CSV import — parser, watcher DAG, Distributeur tab, Upload CSV page | ✅ | P2 |
 
 ---
 
