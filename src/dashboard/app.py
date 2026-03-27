@@ -97,7 +97,7 @@ def show_navigation_menu(role: str = 'artist'):
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
-    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs', 'meta_mapping'}
+    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs'}
     pages = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
     return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
 

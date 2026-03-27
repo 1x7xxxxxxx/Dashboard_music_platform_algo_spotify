@@ -9,34 +9,41 @@ import streamlit as st
 from src.dashboard.utils import get_db_connection
 
 
-def _load_campaigns(db) -> list[str]:
+def _load_campaigns(db, artist_id: int) -> list[str]:
     rows = db.fetch_query(
-        "SELECT DISTINCT campaign_name FROM meta_campaigns ORDER BY campaign_name"
+        "SELECT DISTINCT campaign_name FROM meta_campaigns "
+        "WHERE artist_id = %s ORDER BY campaign_name",
+        (artist_id,)
     )
     return [r[0] for r in rows]
 
 
-def _load_tracks(db) -> list[str]:
+def _load_tracks(db, artist_id: int) -> list[str]:
     rows = db.fetch_query(
-        "SELECT DISTINCT track_name FROM tracks ORDER BY track_name"
+        "SELECT DISTINCT track_name FROM tracks "
+        "WHERE artist_id = %s ORDER BY track_name",
+        (artist_id,)
     )
     return [r[0] for r in rows]
 
 
-def _load_mappings(db):
+def _load_mappings(db, artist_id: int):
     return db.fetch_df(
         "SELECT id, campaign_name, track_name, created_at "
-        "FROM campaign_track_mapping ORDER BY created_at DESC"
+        "FROM campaign_track_mapping "
+        "WHERE artist_id = %s ORDER BY created_at DESC",
+        {"artist_id": artist_id}
     )
 
 
 def show():
-    if st.session_state.get("role") != "admin":
-        st.warning("Access restricted to administrators.")
-        return
-
     st.title("🔗 Meta × Spotify — Campaign Mapping")
-    st.caption("Link Meta ad campaigns to Spotify track names for attribution analysis.")
+    st.caption("Link your Meta ad campaigns to Spotify track names for attribution analysis.")
+
+    artist_id = st.session_state.get("artist_id")
+    if not artist_id:
+        st.error("Session error: artist_id missing.")
+        return
 
     db = get_db_connection()
     if db is None:
@@ -48,7 +55,7 @@ def show():
 
         # ── Tab 1 : existing mappings ─────────────────────────────────────────
         with tab_list:
-            df = _load_mappings(db)
+            df = _load_mappings(db, artist_id)
             if df.empty:
                 st.info("No mappings yet. Use the **Add / Remove** tab to create one.")
             else:
@@ -71,16 +78,16 @@ def show():
                 if st.button("🗑️ Delete", type="secondary"):
                     mapping_id = mapping_options[selected_label]
                     db.execute_query(
-                        "DELETE FROM campaign_track_mapping WHERE id = %s",
-                        (mapping_id,)
+                        "DELETE FROM campaign_track_mapping WHERE id = %s AND artist_id = %s",
+                        (mapping_id, artist_id)
                     )
                     st.success(f"Deleted: {selected_label}")
                     st.rerun()
 
         # ── Tab 2 : add mapping ───────────────────────────────────────────────
         with tab_add:
-            campaigns = _load_campaigns(db)
-            tracks = _load_tracks(db)
+            campaigns = _load_campaigns(db, artist_id)
+            tracks = _load_tracks(db, artist_id)
 
             if not campaigns:
                 st.warning(
@@ -103,11 +110,11 @@ def show():
             if submitted:
                 db.execute_query(
                     """
-                    INSERT INTO campaign_track_mapping (campaign_name, track_name)
-                    VALUES (%s, %s)
-                    ON CONFLICT (campaign_name, track_name) DO NOTHING
+                    INSERT INTO campaign_track_mapping (artist_id, campaign_name, track_name)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (artist_id, campaign_name, track_name) DO NOTHING
                     """,
-                    (campaign, track)
+                    (artist_id, campaign, track)
                 )
                 st.success(f"Mapped **{campaign}** → **{track}**")
                 st.rerun()
