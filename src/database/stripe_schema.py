@@ -49,14 +49,22 @@ STRIPE_SCHEMA = {
 }
 
 # Plan feature sets — used by auth.py for feature gating
+# Keys must match page route keys defined in app.py show_navigation_menu()
 PLAN_FEATURES = {
-    'free':    {'home', 'spotify', 'spotify_s4a_combined', 'youtube'},
-    'basic':   {'home', 'spotify', 'spotify_s4a_combined', 'youtube',
-                'meta_ads_overview', 'meta_x_spotify', 'instagram',
-                'soundcloud', 'apple_music', 'hypeddit',
-                'imusician', 'upload_csv', 'credentials'},
-    'premium': {'*'},  # all features
+    'free':  {'home', 'spotify_s4a_combined', 'youtube',
+              'meta_ads_overview', 'instagram', 'soundcloud', 'apple_music',
+              'hypeddit', 'imusician', 'upload_csv', 'credentials',
+              'export_csv', 'data_wrapped', 'meta_mapping'},
+    'basic': {'home', 'spotify_s4a_combined', 'youtube',
+              'meta_ads_overview', 'instagram', 'soundcloud', 'apple_music',
+              'hypeddit', 'imusician', 'upload_csv', 'credentials',
+              'export_csv', 'data_wrapped', 'meta_mapping',
+              'trigger_algo', 'export_pdf'},
+    'premium': {'*'},  # all features including meta_creatives, meta_cpr_optimizer
 }
+
+# Pages always accessible regardless of plan (account management + billing)
+ALWAYS_ACCESSIBLE = {'account', 'billing'}
 
 PLAN_RANK = {'free': 0, 'basic': 1, 'premium': 2}
 

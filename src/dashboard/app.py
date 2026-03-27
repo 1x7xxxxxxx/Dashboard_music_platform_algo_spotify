@@ -17,7 +17,8 @@ load_dotenv(env_file)
 
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
-from src.dashboard.auth import require_login, show_user_sidebar
+from src.dashboard.auth import require_login, show_user_sidebar, get_artist_plan
+from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 
 st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide")
 
@@ -94,12 +95,27 @@ def show_navigation_menu(role: str = 'artist'):
         "💳 Billing": "billing",
         "📈 Prévisions revenus": "revenue_forecast",
         "🔗 Meta Mapping": "meta_mapping",
+        "🎨 Créatives Meta Ads": "meta_creatives",
+        "📊 CPR Optimizer": "meta_cpr_optimizer",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
     _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs'}
-    pages = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
-    return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
+    visible = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
+
+    # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
+    plan = get_artist_plan()
+    accessible = PLAN_FEATURES.get(plan, set())
+    is_all = '*' in accessible  # premium: unrestricted
+
+    pages_display = {}
+    for label, key in visible.items():
+        if is_all or key in ALWAYS_ACCESSIBLE or key in accessible:
+            pages_display[label] = key
+        else:
+            pages_display[f"🔒 {label}"] = 'upgrade'
+
+    return pages_display[st.sidebar.radio("Aller à ", list(pages_display.keys()), label_visibility="collapsed")]
 
 def show_data_collection_panel():
     if st.sidebar.button("🚀 Lancer TOUTES les collectes", type="primary"):
@@ -168,6 +184,11 @@ def main():
     if not require_login():
         st.stop()
 
+    if _page_param == "onboarding":
+        from views.onboarding import show as show_onboarding
+        show_onboarding()
+        st.stop()
+
     _check_db_health()
     _show_cookie_notice()
 
@@ -204,6 +225,9 @@ def main():
     elif page == "meta_mapping": from views.meta_mapping import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
+    elif page == "meta_creatives": from views.meta_creatives import show; show()
+    elif page == "meta_cpr_optimizer": from views.meta_cpr_optimizer import show; show()
+    elif page == "upgrade": from views.upgrade import show; show()
 
 if __name__ == "__main__":
     main()

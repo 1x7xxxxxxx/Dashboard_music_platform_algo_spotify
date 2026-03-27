@@ -297,9 +297,12 @@ def require_plan(min_plan: str) -> bool:
     plan_labels = {'basic': 'Basic (9.90€/mo)', 'premium': 'Premium (29.90€/mo)'}
     st.warning(
         f"🔒 This feature requires the **{plan_labels.get(min_plan, min_plan)}** plan. "
-        f"Your current plan: **{current_plan}**. Upgrade via the **Billing** page.",
+        f"Your current plan: **{current_plan}**.",
         icon="⚠️",
     )
+    if st.button("→ Voir les plans et upgrader", key=f"_upgrade_btn_{min_plan}"):
+        st.query_params["page"] = "upgrade"
+        st.rerun()
     return False
 
 

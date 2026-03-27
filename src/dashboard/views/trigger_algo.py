@@ -975,6 +975,10 @@ def _show_tab_model(db, track: str, artist_id):
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 def show():
+    from src.dashboard.auth import require_plan
+    if not require_plan('basic'):
+        return
+
     st.title("🚀 Road to Algorithms (J+28)")
     st.markdown("Suivi ML, budget, ROI et explainabilité des scores algorithmiques.")
 

@@ -359,6 +359,15 @@ def show():
         # ── KPI global ───────────────────────────────────────────────────
         _render_global_kpi(existing, dag_states)
 
+        # ── First-time setup banner ───────────────────────────────────────
+        if not existing:
+            st.info(
+                "💡 **Aucun credential configuré.** "
+                "Sélectionnez une plateforme ci-dessous et suivez le guide "
+                "pour connecter vos sources de données. "
+                "Commencez par **Spotify** pour démarrer la collecte."
+            )
+
         st.markdown("---")
 
         # ── Onglets plateforme ────────────────────────────────────────────
@@ -526,13 +535,13 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
             run_icon = '⚫'
             run_label = 'Jamais exécuté'
 
-        creds_icon = '🔑' if has_creds else '❌'
-        creds_label = 'Credentials OK' if has_creds else 'Aucun credential'
+        creds_icon = '✅' if has_creds else '❌'
+        creds_label = 'Connecté' if has_creds else 'Non configuré'
 
         col.metric(
             label=platform_info['label'],
-            value=f"{run_icon} {run_label}",
-            delta=f"{creds_icon} {creds_label}",
+            value=f"{creds_icon} {creds_label}",
+            delta=f"{run_icon} {run_label}",
             delta_color="off",
         )
 

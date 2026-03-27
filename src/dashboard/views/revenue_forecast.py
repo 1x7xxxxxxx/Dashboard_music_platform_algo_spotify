@@ -578,6 +578,10 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
 # ─────────────────────────────────────────────
 
 def show() -> None:
+    from src.dashboard.auth import require_plan
+    if not is_admin() and not require_plan('premium'):
+        return
+
     st.title("📈 Prévisions revenus")
 
     db = get_db_connection()

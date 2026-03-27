@@ -357,6 +357,10 @@ def _show_body(db, artist_id):
 
 
 def show():
+    from src.dashboard.auth import require_plan
+    if not require_plan('premium'):
+        return
+
     st.title("🔀 META x SPOTIFY - Analyse ROI")
     st.markdown("---")
 

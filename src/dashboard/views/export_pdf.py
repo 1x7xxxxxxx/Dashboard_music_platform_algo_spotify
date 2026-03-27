@@ -36,6 +36,10 @@ def _resolve_period(period_label, custom_from, custom_to):
 # ─── UI ──────────────────────────────────────────────────────────────────────
 
 def show():
+    from src.dashboard.auth import require_plan
+    if not require_plan('basic'):
+        return
+
     st.title("📄 Export PDF — Rapport Artiste")
     st.caption(
         "Configurez le rapport, sélectionnez les sections et les chansons à inclure, "

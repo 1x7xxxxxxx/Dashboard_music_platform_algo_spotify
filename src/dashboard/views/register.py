@@ -189,6 +189,7 @@ def show():
                 "could not be sent (SMTP not configured). "
                 "Ask an admin to manually verify your account."
             )
+        st.link_button("→ Configurer votre dashboard (2 min)", "/?page=onboarding")
 
     except Exception as e:
         st.error(f"Registration failed: {e}")
