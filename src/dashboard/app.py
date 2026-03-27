@@ -93,10 +93,11 @@ def show_navigation_menu(role: str = 'artist'):
         "🔧 Liens & Outils": "useful_links",
         "💳 Billing": "billing",
         "📈 Prévisions revenus": "revenue_forecast",
+        "🔗 Meta Mapping": "meta_mapping",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
-    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs'}
+    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs', 'meta_mapping'}
     pages = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
     return pages[st.sidebar.radio("Aller à ", list(pages.keys()), label_visibility="collapsed")]
 
@@ -200,6 +201,7 @@ def main():
     elif page == "useful_links": from views.useful_links import show; show()
     elif page == "billing": from views.billing import show; show()
     elif page == "revenue_forecast": from views.revenue_forecast import show; show()
+    elif page == "meta_mapping": from views.meta_mapping import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
 
