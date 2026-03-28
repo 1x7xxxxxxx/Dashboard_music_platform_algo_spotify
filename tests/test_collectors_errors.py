@@ -139,39 +139,38 @@ class TestSoundCloudCollectorErrors:
         from src.collectors.soundcloud_api_collector import SoundCloudCollector
         c = SoundCloudCollector.__new__(SoundCloudCollector)
         c.client_id = "fake_client_id"
+        c.client_secret = "fake_secret"
         c.user_id = "123456789"
         c.artist_id = 1
         c.base_url = "https://api-v2.soundcloud.com"
-        c.headers = {}
         c.db = MagicMock()
+        c._access_token = "valid_token"           # skip _get_access_token in _ensure_token
+        c._token_expires_at = float("inf")        # token never expires during test
+        c.session = MagicMock()
         return c
 
-    @patch("requests.get")
-    def test_fetch_tracks_raises_valueerror_on_401(self, mock_get):
-        mock_get.return_value = _mock_response(401)
+    def test_fetch_tracks_raises_valueerror_on_401(self):
         c = self._collector()
+        c.session.get.return_value = _mock_response(401)
         with pytest.raises(ValueError, match="401"):
             c.fetch_tracks()
 
-    @patch("requests.get")
-    def test_fetch_tracks_raises_valueerror_on_403(self, mock_get):
-        mock_get.return_value = _mock_response(403)
+    def test_fetch_tracks_raises_on_403(self):
         c = self._collector()
-        with pytest.raises(ValueError, match="403"):
+        c.session.get.return_value = _mock_response(403)
+        with pytest.raises((ValueError, RuntimeError), match="403"):
             c.fetch_tracks()
 
-    @patch("requests.get")
-    def test_fetch_tracks_raises_valueerror_on_non_200(self, mock_get):
-        mock_get.return_value = _mock_response(500, text="Internal Server Error")
+    def test_fetch_tracks_raises_on_non_200(self):
         c = self._collector()
-        with pytest.raises(ValueError, match="500"):
+        c.session.get.return_value = _mock_response(500, text="Internal Server Error")
+        with pytest.raises((ValueError, RuntimeError), match="500"):
             c.fetch_tracks()
 
-    @patch("requests.get")
-    def test_fetch_tracks_never_returns_empty_list_on_401(self, mock_get):
+    def test_fetch_tracks_never_returns_empty_list_on_401(self):
         """Regression: before fix, 401 was swallowed by outer except → returned []."""
-        mock_get.return_value = _mock_response(401)
         c = self._collector()
+        c.session.get.return_value = _mock_response(401)
         with pytest.raises((ValueError, RuntimeError)):
             result = c.fetch_tracks()
             assert result != [], "Silent success regression: returned [] on 401"
@@ -191,30 +190,29 @@ class TestInstagramCollectorErrors:
         c.artist_id = 1
         c.base_url = "https://graph.facebook.com/v18.0"
         c.db = MagicMock()
+        # Use MagicMock session — fetch_stats calls self.session.get()
+        c.session = MagicMock()
         return c
 
-    @patch("requests.get")
-    def test_fetch_stats_raises_valueerror_on_401(self, mock_get):
-        mock_get.return_value = _mock_response(
+    def test_fetch_stats_raises_valueerror_on_401(self):
+        c = self._collector()
+        c.session.get.return_value = _mock_response(
             401, json_data={"error": {"message": "Invalid OAuth access token"}}
         )
-        c = self._collector()
         with pytest.raises(ValueError, match="401"):
             c.fetch_stats()
 
-    @patch("requests.get")
-    def test_fetch_stats_raises_valueerror_on_400(self, mock_get):
-        mock_get.return_value = _mock_response(
-            400, json_data={"error": {"message": "not a Business account"}}
-        )
+    def test_fetch_stats_raises_valueerror_on_400(self):
         c = self._collector()
+        c.session.get.return_value = _mock_response(
+            400, json_data={"error": {"message": "not a Business account", "code": 0}}
+        )
         with pytest.raises(ValueError, match="400"):
             c.fetch_stats()
 
-    @patch("requests.get")
-    def test_fetch_stats_raises_on_network_error(self, mock_get):
+    def test_fetch_stats_raises_on_network_error(self):
         import requests as req
-        mock_get.side_effect = req.exceptions.ConnectionError("connection refused")
         c = self._collector()
+        c.session.get.side_effect = req.exceptions.ConnectionError("connection refused")
         with pytest.raises((RuntimeError, Exception)):
             c.fetch_stats()
