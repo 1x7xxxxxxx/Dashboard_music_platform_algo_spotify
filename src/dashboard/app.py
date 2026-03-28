@@ -2,6 +2,8 @@
 import streamlit as st
 from pathlib import Path
 import sys
+import time
+from datetime import datetime
 from dotenv import load_dotenv
 import os
 
@@ -72,6 +74,7 @@ def show_navigation_menu(role: str = 'artist'):
     st.sidebar.title("🎵 Navigation")
     pages_all = {
         "🏠 Accueil": "home",
+        "⚡ Perf. Dashboard": "perf_monitor",
         "🚀 Road to Algo (ML)": "trigger_algo",
         "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
         "🎵 META x Spotify": "meta_x_spotify",
@@ -97,10 +100,13 @@ def show_navigation_menu(role: str = 'artist'):
         "🔗 Meta Mapping": "meta_mapping",
         "🎨 Créatives Meta Ads": "meta_creatives",
         "📊 CPR Optimizer": "meta_cpr_optimizer",
+        "🎁 Parrainage": "referral",
+        "📊 Referral KPIs": "referral_kpi",
+        "🎟️ Promo Codes": "promo_admin",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
-    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs'}
+    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor'}
     visible = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
 
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
@@ -197,6 +203,8 @@ def main():
     page = show_navigation_menu(role)
     show_user_sidebar()
     
+    _t0 = time.perf_counter()
+
     if page == "home":
         from views.home import show; show()
 
@@ -227,7 +235,18 @@ def main():
     elif page == "account": from views.account import show; show()
     elif page == "meta_creatives": from views.meta_creatives import show; show()
     elif page == "meta_cpr_optimizer": from views.meta_cpr_optimizer import show; show()
+    elif page == "referral": from views.referral import show; show()
+    elif page == "referral_kpi": from views.referral_admin import show; show()
+    elif page == "promo_admin": from views.promo_admin import show; show()
     elif page == "upgrade": from views.upgrade import show; show()
+    elif page == "perf_monitor": from views.perf_monitor import show; show()
+
+    # Record render time (rolling 100-entry log, stored in session state)
+    _render_ms = int((time.perf_counter() - _t0) * 1000)
+    log = st.session_state.setdefault('_perf_log', [])
+    log.append({'page': page, 'ms': _render_ms, 'ts': datetime.now().strftime('%H:%M:%S')})
+    if len(log) > 100:
+        st.session_state['_perf_log'] = log[-100:]
 
 if __name__ == "__main__":
     main()
