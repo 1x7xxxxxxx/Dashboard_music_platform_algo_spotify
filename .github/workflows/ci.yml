@@ -65,3 +65,30 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: railway up --service api --detach
+
+  deploy-hetzner:
+    # Auto-deploy to Hetzner VPS via SSH on push to main.
+    # Activate when ready: remove the `if: false` line below.
+    # Required GitHub secrets:
+    #   HETZNER_HOST     — VPS IP or hostname (e.g. 65.21.x.x)
+    #   HETZNER_USER     — SSH user (e.g. root or deploy)
+    #   HETZNER_SSH_KEY  — private SSH key (generate: ssh-keygen -t ed25519)
+    # VPS setup (one-time): add the public key to ~/.ssh/authorized_keys on the server.
+    needs: lint-and-test
+    if: false  # Remove this line once HETZNER_* secrets are configured
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key:      ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            cd /opt/music-dashboard
+            git pull origin main
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker compose exec -T airflow-scheduler airflow dags unpause meta_ads_api_daily || true
+            echo "Deploy done: $(date)"
