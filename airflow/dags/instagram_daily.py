@@ -42,8 +42,9 @@ def precheck_instagram_credentials(**context):
     if missing:
         raise ValueError(
             f"Credentials Meta/Instagram manquants pour : {', '.join(missing)}. "
-            "Action : developers.facebook.com → Graph API Explorer → "
-            "renouveler le Long-lived token (scopes: instagram_basic, instagram_manage_insights)."
+            "Action : Business Manager → Paramètres → Utilisateurs système → "
+            "Générer un token (scopes: instagram_basic, instagram_manage_insights, pages_show_list). "
+            "Guide complet : .claude/dev-docs/meta-ads-credential-guide.md"
         )
     logger.info(f"✅ Credentials Meta/Instagram OK pour {len(artists)} artiste(s)")
 

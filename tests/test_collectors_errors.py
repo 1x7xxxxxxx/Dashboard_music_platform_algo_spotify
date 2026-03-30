@@ -188,7 +188,8 @@ class TestInstagramCollectorErrors:
         c.access_token = "fake_token"
         c.ig_user_id = "17841402151518986"
         c.artist_id = 1
-        c.base_url = "https://graph.facebook.com/v18.0"
+        from src.utils.meta_config import META_GRAPH_BASE_URL
+        c.base_url = META_GRAPH_BASE_URL
         c.db = MagicMock()
         # Use MagicMock session — fetch_stats calls self.session.get()
         c.session = MagicMock()

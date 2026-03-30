@@ -34,7 +34,7 @@ default_args = {
 
 
 def precheck_soundcloud_credentials(**context):
-    """Fail fast if no SoundCloud credentials exist for any active artist."""
+    """Fail fast if client_id, client_secret or user_id is missing for any active artist."""
     from src.utils.credential_loader import get_active_artists, load_platform_credentials
 
     artists = get_active_artists()
@@ -42,16 +42,18 @@ def precheck_soundcloud_credentials(**context):
         logger.info("No active artists — skipping credential pre-check.")
         return
 
-    missing = [
-        f"{name} (id={aid})"
-        for aid, name in artists
-        if not load_platform_credentials(aid, 'soundcloud').get('client_id')
-    ]
+    missing = []
+    for aid, name in artists:
+        creds = load_platform_credentials(aid, 'soundcloud')
+        absent = [k for k in ('client_id', 'client_secret', 'user_id') if not creds.get(k)]
+        if absent:
+            missing.append(f"{name} (id={aid}) — champs manquants : {', '.join(absent)}")
+
     if missing:
         raise ValueError(
-            f"Credentials SoundCloud manquants pour : {', '.join(missing)}. "
-            "Action : Dashboard → Credentials → SoundCloud → saisir le client_id "
-            "(extraire depuis DevTools → Network → filtrer client_id sur soundcloud.com)."
+            f"Credentials SoundCloud incomplets pour : {'; '.join(missing)}. "
+            "Action : Dashboard → Credentials → SoundCloud → saisir client_id, "
+            "client_secret et user_id (app créée sur soundcloud.com/you/apps)."
         )
     logger.info(f"✅ Credentials SoundCloud OK pour {len(artists)} artiste(s)")
 
@@ -79,19 +81,18 @@ def run_soundcloud_collector(**context):
 
         # ── Credentials depuis DB, fallback env vars ───────────────────
         creds = load_platform_credentials(artist_id, 'soundcloud')
-        if creds.get('client_id'):
-            os.environ['SOUNDCLOUD_CLIENT_ID'] = creds['client_id']
-            logger.info("  client_id chargé depuis DB")
-        else:
-            logger.info("  client_id depuis env vars")
-        if creds.get('user_id'):
-            os.environ['SOUNDCLOUD_USER_ID'] = creds['user_id']
-            logger.info("  user_id chargé depuis DB")
-        else:
-            logger.info("  user_id depuis env vars")
+        client_id     = creds.get('client_id')     or os.getenv('SOUNDCLOUD_CLIENT_ID')
+        client_secret = creds.get('client_secret') or os.getenv('SOUNDCLOUD_CLIENT_SECRET')
+        user_id       = creds.get('user_id')       or os.getenv('SOUNDCLOUD_USER_ID')
+        logger.info("  credentials chargés (DB + env vars fallback)")
 
         try:
-            collector = SoundCloudCollector(artist_id=artist_id)
+            collector = SoundCloudCollector(
+                artist_id=artist_id,
+                client_id=client_id,
+                client_secret=client_secret,
+                user_id=user_id,
+            )
             collector.run()
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")
         except Exception as e:
@@ -117,7 +118,6 @@ with DAG(
     collect_task = PythonOperator(
         task_id='collect_soundcloud_stats',
         python_callable=run_soundcloud_collector,
-        provide_context=True,
     )
 
     precheck_task >> collect_task

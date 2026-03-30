@@ -101,23 +101,27 @@ def refresh_meta_tokens(**context):
             continue
 
         expires_at = row[0] if row else None
-        if expires_at is not None:
-            # Make expires_at timezone-naive for comparison
-            if hasattr(expires_at, 'tzinfo') and expires_at.tzinfo is not None:
-                expires_at = expires_at.replace(tzinfo=None)
-            days_left = (expires_at - datetime.utcnow()).days
-            if days_left > REFRESH_THRESHOLD_DAYS:
-                skipped.append(f"{artist_name}: {days_left} days left — no refresh needed")
-                continue
-            logger.info(f"{artist_name}: token expires in {days_left} day(s) — refreshing.")
-        else:
-            # No expires_at recorded — refresh unconditionally to populate it
-            logger.info(f"{artist_name}: expires_at not set — refreshing to populate.")
+        if expires_at is None:
+            # System User tokens never expire — expires_at is intentionally NULL.
+            # Attempting fb_exchange_token on a System User token returns an error.
+            # Skip silently; these tokens require manual revocation only.
+            skipped.append(f"{artist_name}: expires_at=NULL (System User token) — skipping")
+            continue
+
+        # Make expires_at timezone-naive for comparison
+        if hasattr(expires_at, 'tzinfo') and expires_at.tzinfo is not None:
+            expires_at = expires_at.replace(tzinfo=None)
+        days_left = (expires_at - datetime.utcnow()).days
+        if days_left > REFRESH_THRESHOLD_DAYS:
+            skipped.append(f"{artist_name}: {days_left} days left — no refresh needed")
+            continue
+        logger.info(f"{artist_name}: token expires in {days_left} day(s) — refreshing.")
 
         # Call Meta token exchange endpoint
         try:
+            from src.utils.meta_config import META_GRAPH_BASE_URL
             r = requests.get(
-                'https://graph.facebook.com/v18.0/oauth/access_token',
+                f'{META_GRAPH_BASE_URL}/oauth/access_token',
                 params={
                     'grant_type': 'fb_exchange_token',
                     'client_id': app_id,

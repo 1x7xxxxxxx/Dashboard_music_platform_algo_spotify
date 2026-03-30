@@ -121,7 +121,8 @@ def step_3_test_api():
     
     token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
     user_id = os.getenv("INSTAGRAM_USER_ID")
-    base_url = "https://graph.facebook.com/v18.0"
+    from src.utils.meta_config import META_GRAPH_BASE_URL
+    base_url = META_GRAPH_BASE_URL
     
     url = f"{base_url}/{user_id}"
     params = {

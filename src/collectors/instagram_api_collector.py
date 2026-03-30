@@ -14,6 +14,7 @@ sys.path.append(str(project_root))
 
 from src.database.postgres_handler import PostgresHandler
 from src.utils.retry import retry
+from src.utils.meta_config import META_GRAPH_BASE_URL
 
 load_dotenv()
 
@@ -37,23 +38,17 @@ class InstagramCollector:
 
         self.app_id = os.getenv("META_APP_ID")
         self.app_secret = os.getenv("META_APP_SECRET")
-        self.base_url = "https://graph.facebook.com/v18.0"
+        self.base_url = META_GRAPH_BASE_URL
         self.session = requests.Session()
         
         # Connexion BDD
-        print(f"🔌 Tentative connexion BDD vers {self.db_host}:{self.db_port}...")
-        try:
-            self.db = PostgresHandler(
-                host=self.db_host,
-                port=self.db_port,
-                database=self.db_name,
-                user=self.db_user,
-                password=self.db_pass
-            )
-            print("✅ Connexion BDD réussie.")
-        except Exception as e:
-            print(f"❌ Erreur Connexion BDD: {e}")
-            self.db = None
+        self.db = PostgresHandler(
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
+            user=self.db_user,
+            password=self.db_pass
+        )
 
     def _refresh_access_token(self) -> bool:
         """Exchange current long-lived token for a new one via Meta's token endpoint.
@@ -89,7 +84,8 @@ class InstagramCollector:
             new_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
             self.access_token = new_token
-            os.environ['INSTAGRAM_ACCESS_TOKEN'] = new_token
+            # Do NOT write to os.environ — would expose the token to child processes
+            # and /proc/<pid>/environ. Persist via DB only.
 
             try:
                 from src.utils.credential_loader import update_platform_secret

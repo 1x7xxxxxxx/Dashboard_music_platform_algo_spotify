@@ -124,7 +124,7 @@ def step_3_dry_run_exchange(token_info):
         logger.info(f"▶ Test échange pour {name}...")
         try:
             r = requests.get(
-                'https://graph.facebook.com/v18.0/oauth/access_token',
+                'https://graph.facebook.com/v24.0/oauth/access_token',
                 params={
                     'grant_type': 'fb_exchange_token',
                     'client_id': app_id,
@@ -156,7 +156,7 @@ def step_4_full_refresh(token_info):
         logger.info(f"▶ Refresh pour {name}...")
         try:
             r = requests.get(
-                'https://graph.facebook.com/v18.0/oauth/access_token',
+                'https://graph.facebook.com/v24.0/oauth/access_token',
                 params={
                     'grant_type': 'fb_exchange_token',
                     'client_id': creds['app_id'],
