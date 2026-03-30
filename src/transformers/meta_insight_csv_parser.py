@@ -130,17 +130,35 @@ class MetaInsightParser:
             if category == 'performance':
                 entry['spend'] = get_val(row, ['montant dépensé', 'amount spent'], self._clean_currency)
                 entry['results'] = get_val(row, ['résultats', 'results'], self._clean_int)
-                entry['cpr'] = get_val(row, ['coût par résultat', 'cost per result'], self._clean_currency)
                 entry['impressions'] = get_val(row, ['impressions'], self._clean_int)
                 entry['reach'] = get_val(row, ['couverture', 'reach'], self._clean_int)
-                
+
+                # CPR: read from column; compute from spend/results when column is missing or zero
+                cpr_raw = get_val(row, ['coût par résultat', 'cost per result'], self._clean_currency)
+                results = entry['results'] or 0
+                spend = entry['spend'] or 0.0
+                if results == 0:
+                    entry['cpr'] = None
+                elif cpr_raw:
+                    entry['cpr'] = cpr_raw
+                else:
+                    entry['cpr'] = round(spend / results, 4)
+
                 if breakdown == 'global':
                     entry['frequency'] = get_val(row, ['répétition', 'frequency'], self._clean_currency)
-                    entry['link_clicks'] = get_val(row, ['clics sur un lien', 'link clicks'], self._clean_int)
-                    entry['cpc'] = get_val(row, ['cpc', 'coût par clic'], self._clean_currency)
+                    link_clicks = get_val(row, ['clics sur un lien', 'link clicks'], self._clean_int) or 0
+                    entry['link_clicks'] = link_clicks
                     entry['ctr'] = get_val(row, ['ctr'], self._clean_currency)
                     entry['lp_views'] = get_val(row, ['vue de page', 'landing'], self._clean_int)
                     entry['cpm'] = get_val(row, ['cpm'], self._clean_currency)
+                    # CPC: compute from spend/link_clicks when column is zero or missing
+                    cpc_raw = get_val(row, ['cpc', 'coût par clic'], self._clean_currency)
+                    if link_clicks == 0:
+                        entry['cpc'] = None
+                    elif cpc_raw:
+                        entry['cpc'] = cpc_raw
+                    else:
+                        entry['cpc'] = round(spend / link_clicks, 4)
 
             # 3. ENGAGEMENT (C'est ici que ça se joue)
             if category == 'engagement':

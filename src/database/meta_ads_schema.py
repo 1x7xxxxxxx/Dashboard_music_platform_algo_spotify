@@ -35,12 +35,22 @@ META_ADS_SCHEMA = {
             start_time TIMESTAMP,
             end_time TIMESTAMP,
             targeting JSONB,
+            countries TEXT,
+            cities TEXT,
+            gender TEXT,
+            age_min TEXT,
+            age_max TEXT,
+            flexible_inclusions TEXT,
+            advantage_audience TEXT,
+            publisher_platforms TEXT,
+            instagram_positions TEXT,
+            device_platforms TEXT,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_meta_adsets_campaign ON meta_adsets(campaign_id);
     """,
-    
+
     'meta_ads': """
         CREATE TABLE IF NOT EXISTS meta_ads (
             ad_id VARCHAR(50) PRIMARY KEY,
@@ -50,11 +60,14 @@ META_ADS_SCHEMA = {
             campaign_id VARCHAR(50) REFERENCES meta_campaigns(campaign_id),
             status VARCHAR(50),
             creative_id VARCHAR(50),
+            title TEXT,
+            body TEXT,
+            call_to_action VARCHAR(100),
             created_time TIMESTAMP,
             updated_time TIMESTAMP,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_meta_ads_adset ON meta_ads(adset_id);
         CREATE INDEX IF NOT EXISTS idx_meta_ads_campaign ON meta_ads(campaign_id);
     """,
@@ -76,7 +89,7 @@ META_ADS_SCHEMA = {
             conversions INTEGER DEFAULT 0,
             cost_per_conversion DECIMAL(10, 4) DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(ad_id, date)
+            UNIQUE(artist_id, ad_id, date)
         );
         
         CREATE INDEX IF NOT EXISTS idx_meta_insights_ad ON meta_insights(ad_id);

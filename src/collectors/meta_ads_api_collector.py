@@ -23,6 +23,7 @@ import os
 import time
 from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
+from src.utils.meta_config import META_API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,7 @@ class MetaAdsApiCollector:
             app_id=self._creds['app_id'],
             app_secret=self._creds['app_secret'],
             access_token=self._creds['access_token'],
-            api_version='v21.0',
+            api_version=META_API_VERSION,
         )
         self.ad_account = AdAccount(self._creds['ad_account_id'])
         logger.info(
@@ -186,12 +187,12 @@ class MetaAdsApiCollector:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    def run(self, full_history: bool = False, insights_only: bool = False):
-        """Full collection pipeline.
+    def run(self, full_history: bool = False, insights_only: bool = False) -> int:
+        """Full collection pipeline. Returns total insight rows inserted.
 
-        full_history=False  : insights for the last 90 days.
-        full_history=True   : insights from the earliest campaign start_time to today,
-                              fetched in monthly chunks (safe for rate limits).
+        full_history=False  : smart incremental — starts from MAX(day_date)-3d in DB,
+                              falls back to earliest campaign start on first run.
+        full_history=True   : force backfill from earliest campaign start_time to today.
         insights_only=True  : skip campaigns/adsets/ads/creatives fetch (already in DB);
                               only run the 4 insight API calls. Reduces API call count by ~75%.
                               Requires at least one prior full run to have populated config tables.
@@ -234,6 +235,7 @@ class MetaAdsApiCollector:
             f"{len(creatives)} creatives, {total_insight_rows} insight rows across "
             f"{len(insights)} tables"
         )
+        return total_insight_rows
 
     # ── Fetch: config ─────────────────────────────────────────────────────────
 
@@ -443,8 +445,8 @@ class MetaAdsApiCollector:
         """
         today = date.today()
 
-        if full_history and campaigns:
-            # Find earliest campaign start — go back to that date
+        def _earliest_campaign_start() -> date:
+            """Return the earliest campaign start_time, fallback to 1 year ago."""
             starts = []
             for c in campaigns:
                 s = c.get('start_time')
@@ -453,9 +455,27 @@ class MetaAdsApiCollector:
                         starts.append(datetime.fromisoformat(s[:10]).date())
                     except Exception:
                         pass
-            history_start = min(starts) if starts else today - timedelta(days=90)
+            return min(starts) if starts else today - timedelta(days=365)
+
+        if full_history:
+            history_start = _earliest_campaign_start()
         else:
-            history_start = today - timedelta(days=90)
+            # Smart incremental: start from last known data point (minus 3-day overlap
+            # to catch late-arriving Meta data), falling back to full history on first run.
+            row = self.db.fetch_query(
+                "SELECT MAX(day_date) FROM meta_insights_performance_day WHERE artist_id = %s",
+                (self.artist_id,),
+            )
+            last_day = row[0][0] if row and row[0][0] else None
+            if last_day is not None:
+                history_start = last_day - timedelta(days=3)
+            else:
+                # No data yet — backfill from first campaign
+                history_start = _earliest_campaign_start()
+                logger.info(
+                    f"No existing insight data for artist_id={self.artist_id} — "
+                    f"backfilling from {history_start}"
+                )
 
         # Aggregate tables (age/country/placement) always use full range in one shot
         aggregate_start = history_start
@@ -499,6 +519,7 @@ class MetaAdsApiCollector:
                     'results':            row['results'],
                     'custom_conversions': row['custom_conversions'],
                     'cpr':                row['cpr'],
+                    'collected_at':       datetime.now(),
                 }
                 result['meta_insights_performance_day'].append(day_row)
             for row in e:
@@ -670,6 +691,7 @@ class MetaAdsApiCollector:
                 ],
                 'meta_insights_performance_day': [
                     'spend', 'impressions', 'reach', 'results', 'custom_conversions', 'cpr',
+                    'collected_at',
                 ],
                 'meta_insights_performance_age': [
                     'spend', 'impressions', 'reach', 'results', 'custom_conversions', 'cpr',
