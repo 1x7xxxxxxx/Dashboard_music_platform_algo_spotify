@@ -9,7 +9,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id, require_plan
+from src.dashboard.auth import get_artist_id, is_admin, require_plan
 
 
 _QUERY_CREATIVES = """
@@ -106,7 +106,11 @@ def show() -> None:
     st.title("🎨 Créatives Meta Ads")
     st.caption("Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights).")
 
-    artist_id = get_artist_id() or 1
+    artist_id = get_artist_id()
+    if artist_id is None:
+        if not is_admin():
+            st.error("Session invalide."); st.stop()
+        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
     db = get_db_connection()
     if db is None:
         st.error("Base de données inaccessible.")

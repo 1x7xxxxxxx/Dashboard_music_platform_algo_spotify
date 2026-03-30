@@ -43,9 +43,13 @@ def _show_meta_ads(db, artist_id):
         default=default_main
     )
 
-    # Build WHERE fragment and params — no f-string variable interpolation
+    # CRITICAL-04: selected_campaigns values come from a DB-sourced multiselect.
+    # The IN-clause placeholder count is derived from len() (code-controlled).
+    # Values are always passed as %s parameters — never interpolated into the SQL string.
+    # Validate that selected_campaigns is a subset of all_campaigns (allowlist check).
+    selected_campaigns = [c for c in selected_campaigns if c in set(all_campaigns)]
     _campaign_in = (
-        f" AND campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
+        " AND campaign_name IN ({})".format(','.join(['%s'] * len(selected_campaigns)))
         if selected_campaigns else ""
     )
     params = (artist_id, *selected_campaigns)

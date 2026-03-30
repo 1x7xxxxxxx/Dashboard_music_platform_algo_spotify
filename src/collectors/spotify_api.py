@@ -110,27 +110,29 @@ class SpotifyCollector:
             raise
     
     @retry(max_attempts=3, backoff="exponential")
-    def search_artist(self, artist_name: str) -> Optional[str]:
-        """
-        Recherche un artiste par nom et retourne son ID.
-        
+    def search_artist(self, artist_name: str) -> str:
+        """Search an artist by name and return their Spotify ID.
+
         Args:
-            artist_name: Nom de l'artiste
-            
+            artist_name: Artist name to search.
+
         Returns:
-            ID Spotify de l'artiste ou None
+            Spotify artist ID string.
+
+        Raises:
+            ValueError: If no artist is found for the given name.
+            Exception: Re-raised on API errors (prevents silent DAG success with 0 rows).
         """
         try:
             results = self.sp.search(q=f'artist:{artist_name}', type='artist', limit=1)
-            
+
             if results['artists']['items']:
                 artist_id = results['artists']['items'][0]['id']
-                logger.info(f"✅ Artiste trouvé: {artist_name} (ID: {artist_id})")
+                logger.info(f"Artist found: {artist_name} (ID: {artist_id})")
                 return artist_id
-            else:
-                logger.warning(f"⚠️ Aucun artiste trouvé pour: {artist_name}")
-                return None
-                
+
+            raise ValueError(f"No artist found for: {artist_name}")
+
         except Exception as e:
-            logger.error(f"❌ Erreur lors de la recherche d'artiste: {e}")
-            return None
+            logger.error(f"search_artist failed: {e}")
+            raise

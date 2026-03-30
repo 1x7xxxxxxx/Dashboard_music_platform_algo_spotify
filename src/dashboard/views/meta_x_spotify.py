@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id
+from src.dashboard.auth import get_artist_id, is_admin
 
 def _show_body(db, artist_id):
     """Main view body — db.close() is handled by show()."""
@@ -365,7 +365,11 @@ def show():
     st.markdown("---")
 
     db = get_db_connection()
-    artist_id = get_artist_id() or 1
+    artist_id = get_artist_id()
+    if artist_id is None:
+        if not is_admin():
+            st.error("Session invalide."); st.stop()
+        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
     try:
         _show_body(db, artist_id)
     finally:

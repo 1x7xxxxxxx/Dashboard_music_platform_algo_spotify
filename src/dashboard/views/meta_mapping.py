@@ -32,7 +32,7 @@ def _load_mappings(db, artist_id: int):
         "SELECT id, campaign_name, track_name, created_at "
         "FROM campaign_track_mapping "
         "WHERE artist_id = %s ORDER BY created_at DESC",
-        {"artist_id": artist_id}
+        (artist_id,)
     )
 
 

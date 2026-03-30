@@ -10,7 +10,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id, require_plan
+from src.dashboard.auth import get_artist_id, is_admin, require_plan
 
 
 # ── Seuils score ─────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ def _compute_scores(df: pd.DataFrame, cpr_median: float) -> pd.DataFrame:
             return 0.0
         ml_prob = max(row['dw_prob'], row['rr_prob'], row['radio_prob'])
         # Higher ML prob + lower CPR → higher score
-        return float(ml_prob) * (cpr_median / row['cpr'])
+        return float(ml_prob) * (cpr_median / float(row['cpr']))
 
     df = df.copy()
     df['score_raw'] = df.apply(_score_row, axis=1)
@@ -198,7 +198,11 @@ def show() -> None:
         "Basé sur `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
     )
 
-    artist_id = get_artist_id() or 1
+    artist_id = get_artist_id()
+    if artist_id is None:
+        if not is_admin():
+            st.error("Session invalide."); st.stop()
+        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
     db = get_db_connection()
     if db is None:
         st.error("Base de données inaccessible.")

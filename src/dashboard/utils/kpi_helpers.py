@@ -14,6 +14,14 @@ ARTIST_NAME_FILTER = "1x7xxxxxxx"
 
 SOURCES_CONFIG = [
     {
+        "label": "Spotify API",
+        "icon": "🎸",
+        "table": "artists",
+        "col": "collected_at",
+        "artist_col": None,         # Spotify artist_id is a string ID, not saas artist_id
+        "skip_artist_filter": True,
+    },
+    {
         "label": "Spotify S4A",
         "icon": "🎵",
         "table": "s4a_song_timeline",
@@ -64,31 +72,56 @@ SOURCES_CONFIG = [
     },
 ]
 
+# Allowlists — protect f-string identifier interpolation in get_source_freshness()
+_ALLOWED_TABLES     = frozenset(s["table"]      for s in SOURCES_CONFIG)
+_ALLOWED_COLS       = frozenset(s["col"]        for s in SOURCES_CONFIG)
+_ALLOWED_ARTIST_COLS = frozenset(s["artist_col"] for s in SOURCES_CONFIG if s.get("artist_col"))
+
 
 def get_source_freshness(db, artist_id):
+    """Return {label: {icon, last_dt}} for each source in a single UNION ALL query.
+
+    Replaces 7 sequential SELECT MAX() calls with one round-trip.
+    Identifiers are validated against allowlists before interpolation.
     """
-    Retourne un dict {label: last_dt} pour chaque source.
-    last_dt peut être None si aucune donnée.
-    """
-    result = {}
+    # Validate all identifiers against allowlists before building the query
     for src in SOURCES_CONFIG:
-        try:
-            if artist_id is not None:
-                row = db.fetch_query(
-                    f"SELECT MAX({src['col']}) FROM {src['table']} WHERE {src['artist_col']} = %s",
-                    (artist_id,)
-                )
-            else:
-                row = db.fetch_query(
-                    f"SELECT MAX({src['col']}) FROM {src['table']}"
-                )
-            val = row[0][0] if row and row[0][0] is not None else None
-            # Normaliser en datetime
+        if src["table"] not in _ALLOWED_TABLES:
+            raise ValueError(f"Table not in allowlist: {src['table']}")
+        if src["col"] not in _ALLOWED_COLS:
+            raise ValueError(f"Column not in allowlist: {src['col']}")
+        if not src.get("skip_artist_filter") and src["artist_col"] not in _ALLOWED_ARTIST_COLS:
+            raise ValueError(f"Artist column not in allowlist: {src['artist_col']}")
+
+    branches = []
+    params = []
+    for src in SOURCES_CONFIG:
+        if artist_id is not None and not src.get("skip_artist_filter"):
+            branches.append(
+                f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
+                f" FROM {src['table']} WHERE {src['artist_col']} = %s"
+            )
+            params.append(artist_id)
+        else:
+            branches.append(
+                f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
+                f" FROM {src['table']}"
+            )
+    query = " UNION ALL ".join(branches)
+    params = tuple(params)
+
+    label_to_icon = {src["label"]: src["icon"] for src in SOURCES_CONFIG}
+    result = {src["label"]: {"icon": src["icon"], "last_dt": None} for src in SOURCES_CONFIG}
+
+    try:
+        rows = db.fetch_query(query, params) if params else db.fetch_query(query)
+        for label, val in rows:
             if val is not None and not isinstance(val, datetime):
                 val = datetime(val.year, val.month, val.day, 0, 0, 0)
-            result[src['label']] = {'icon': src['icon'], 'last_dt': val}
-        except Exception:
-            result[src['label']] = {'icon': src['icon'], 'last_dt': None}
+            result[label] = {"icon": label_to_icon.get(label, ""), "last_dt": val}
+    except Exception:
+        pass  # return defaults (all None) on failure
+
     return result
 
 

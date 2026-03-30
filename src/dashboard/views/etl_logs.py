@@ -6,6 +6,7 @@ Shows:
   - Per-DAG trend chart: runs per day × status
   - Circuit breaker state panel with admin reset buttons
 """
+import html as _html
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -242,10 +243,12 @@ def _section_circuit_breakers(db):
         with st.container():
             col_info, col_btn = st.columns([5, 1])
             with col_info:
+                # HIGH-06: html.escape() on all DB-sourced values inside unsafe_allow_html
                 st.markdown(
-                    f"{icon} **{platform}** (artiste #{artist_id}) — "
-                    f"<span style='color:{color};font-weight:bold'>{state.upper()}</span> "
-                    f"— {failures} échec(s)",
+                    f"{icon} **{_html.escape(str(platform))}** (artiste #{int(artist_id)}) — "
+                    f"<span style='color:{_html.escape(color)};font-weight:bold'>"
+                    f"{_html.escape(state.upper())}</span> "
+                    f"— {int(failures)} échec(s)",
                     unsafe_allow_html=True,
                 )
                 if last_fail:

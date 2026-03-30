@@ -24,6 +24,8 @@ ARCHIVE_DIR = project_root / "data" / "processed" / "meta_ads" / "insights"
 
 class MetaAdsWatcher:
     def __init__(self, artist_id: int = 1):
+        if not artist_id or artist_id < 1:
+            raise ValueError(f"MetaAdsWatcher: invalid artist_id={artist_id!r}")
         self.artist_id = artist_id
         self.db = PostgresHandler(
             host=os.getenv('DATABASE_HOST'),
@@ -88,6 +90,7 @@ class MetaAdsWatcher:
 
             except Exception as e:
                 print(f"   ❌ Erreur critique sur {file}: {e}")
+                raise
 
     def _execute_upsert(self, query, data):
         if not data: return 0

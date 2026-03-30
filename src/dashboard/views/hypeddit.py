@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id
+from src.dashboard.auth import get_artist_id, is_admin
 
 # --- FONCTION DE CALLBACK POUR LE RESET ---
 def clear_form_data():
@@ -19,11 +19,16 @@ def clear_form_data():
 def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budget: float):
     """Ajoute ou met à jour les statistiques d'une campagne."""
     db = get_db_connection()
-    
+    artist_id = get_artist_id()
+    if artist_id is None:
+        if not is_admin():
+            return False, "❌ Session invalide."
+        artist_id = 1  # admin: defaults to artist 1
+
     try:
         # 1. Assurer que la campagne existe
         campaign_data = [{
-            'artist_id': get_artist_id() or 1,
+            'artist_id': artist_id,
             'campaign_name': campaign_name,
             'is_active': True
         }]
@@ -37,7 +42,7 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
 
         # 2. Stats
         stats_data = [{
-            'artist_id': get_artist_id() or 1,
+            'artist_id': artist_id,
             'campaign_name': campaign_name,
             'date': date,
             'visits': visits,
@@ -63,7 +68,9 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
 
 def get_campaigns_list():
     db = get_db_connection()
-    artist_id = get_artist_id() or 1
+    artist_id = get_artist_id()
+    if artist_id is None:
+        artist_id = 1  # admin: defaults to artist 1
     query = "SELECT campaign_name FROM hypeddit_campaigns WHERE is_active = true AND artist_id = %s ORDER BY created_at DESC"
     df = db.fetch_df(query, (artist_id,))
     db.close()
@@ -73,7 +80,9 @@ def get_campaigns_list():
 def get_global_stats(start_date, end_date):
     """Récupère les statistiques de TOUTES les campagnes sur la période."""
     db = get_db_connection()
-    artist_id = get_artist_id() or 1
+    artist_id = get_artist_id()
+    if artist_id is None:
+        artist_id = 1  # admin: defaults to artist 1
     query = """
         SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click
         FROM hypeddit_daily_stats
@@ -274,7 +283,11 @@ def show():
     # ============================================================================
     with tab3:
         db = get_db_connection()
-        artist_id = get_artist_id() or 1
+        artist_id = get_artist_id()
+        if artist_id is None:
+            if not is_admin():
+                st.error("Session invalide."); st.stop()
+            artist_id = 1  # admin: defaults to artist 1
         df_hist = db.fetch_df("""
             SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click
             FROM hypeddit_daily_stats

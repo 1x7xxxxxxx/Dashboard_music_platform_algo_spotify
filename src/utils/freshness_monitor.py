@@ -10,6 +10,7 @@ _CSV_STALE_H = 7 * 24  # CSV S4A / Apple Music : watcher peu fréquent
 
 # Sources à monitorer : (label, table, colonne, seuil_h)
 MONITOR_TARGETS = [
+    {"source": "Spotify API",  "table": "artists",                  "col": "collected_at", "stale_h": _DEFAULT_STALE_H, "skip_artist_filter": True},
     {"source": "Spotify S4A",  "table": "s4a_song_timeline",       "col": "collected_at", "stale_h": _CSV_STALE_H},
     {"source": "YouTube",      "table": "youtube_channel_history",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "SoundCloud",   "table": "soundcloud_tracks_daily",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
@@ -17,6 +18,11 @@ MONITOR_TARGETS = [
     {"source": "Apple Music",  "table": "apple_songs_performance",  "col": "collected_at", "stale_h": _CSV_STALE_H},
     {"source": "Meta Ads",     "table": "meta_insights_performance_day", "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
 ]
+
+# Allowlists derived from MONITOR_TARGETS — guards against identifier injection
+# if a bad entry is ever introduced into the config list.
+_ALLOWED_TABLES = frozenset(t["table"] for t in MONITOR_TARGETS)
+_ALLOWED_COLS   = frozenset(t["col"]   for t in MONITOR_TARGETS)
 
 
 def check_freshness(db, artist_id=None):
@@ -34,7 +40,9 @@ def check_freshness(db, artist_id=None):
         stale = True
 
         try:
-            if artist_id is not None:
+            if t["table"] not in _ALLOWED_TABLES or t["col"] not in _ALLOWED_COLS:
+                raise ValueError(f"Identifier not in allowlist: {t['table']}.{t['col']}")
+            if artist_id is not None and not t.get("skip_artist_filter"):
                 row = db.fetch_query(
                     f"SELECT MAX({t['col']}) FROM {t['table']} WHERE artist_id = %s",
                     (artist_id,)
