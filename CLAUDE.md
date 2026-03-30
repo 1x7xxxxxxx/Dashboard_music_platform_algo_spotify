@@ -67,6 +67,19 @@ python3 -m pytest tests/ -v                       # Run unit tests
 python airflow/debug_dag/debug_<name>.py          # Run a DAG locally without Airflow
 ```
 
+### Running Migrations (Windows PowerShell — psql not installed locally)
+`psql` is not available locally. Always use `docker exec` via PowerShell `Get-Content` pipe.
+
+```powershell
+# Step 1 — find the postgres container name
+docker ps --format "table {{.Names}}`t{{.Status}}"
+
+# Step 2 — run the migration (replace <container> with the actual name)
+Get-Content migrations/<name>.sql | docker exec -i <container> psql -U postgres -d spotify_etl
+```
+
+**Never suggest** `psql` as a standalone command, `< file` redirection (not supported in PowerShell), or `bash`-only syntax for migration steps.
+
 ## Configuration
 
 Two mechanisms coexist:
@@ -104,6 +117,15 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 4. **Priority**: P1 (crash/security) > P2 (data integrity) > P3 (UX) > P4 (tech debt). Never address P4 during a P1 session.
 5. **Background agent**: Spawn `strategic-plan-architect` only after ≥3 files changed in one session. Not after single-file edits.
 6. **Collectors must raise**: `except Exception` blocks in `src/collectors/` must always `raise` — never `return None`, `return []`, or `break` silently. Any deviation is a P2 data-integrity bug. Run `/audit-collectors` after touching any collector.
+7. **`get_artist_id()` guard**: Never write `get_artist_id() or 1`. Always use the explicit guard:
+   ```python
+   artist_id = get_artist_id()
+   if artist_id is None:
+       if not is_admin(): st.error("Session invalide."); st.stop()
+       artist_id = 1  # admin fallback — document explicitly
+   ```
+8. **SQL identifier allowlists**: Any f-string that interpolates a table name or column name must validate against a `frozenset` allowlist before execution. Values (user data) always use `%s` parameterization — never f-strings.
+9. **DB connections per request**: `get_artist_plan()` uses 1 single LEFT JOIN query. Views must open 1 connection in `show()` and close it in `finally`. Never open `db2` as a fallback inside the same function.
 
 ### Skills (`.claude/skills/`) — load on demand via Skill tool only
 | File | Use when |

@@ -5,6 +5,23 @@ Format: `## YYYY-MM-DD HH:MM` + Changed / Why / Decisions / Status
 
 ---
 
+## 2026-03-28 — System audit (documentation)
+
+**Changed:**
+- `.claude/dev-docs/system-audit.md` — NEW. Comprehensive architecture audit: 51-table PostgreSQL ERD (6 Mermaid diagrams), 15-DAG Gantt + flowcharts, KPI/chart/alert/API/credential catalog. Generated from 4 parallel agent scans covering `src/database/`, `src/collectors/`, `src/dashboard/views/`, `airflow/dags/`, `src/utils/`.
+
+**Why:** Full read-only architecture review session before context compaction. Goal: capture all system invariants, thresholds, SQL patterns, and API behaviors in a single queryable reference document. No code was modified.
+
+**Decisions:**
+- `system-audit.md` is a manually curated snapshot — not auto-generated. Should be refreshed after any major schema migration or new collector addition.
+- Confirmed architectural debt: `get_artist_id() or 1` admin guard refactor to `artist_id_sql_filter()` still pending (deferred from 2026-03-27).
+- `pip-audit` still not in CI — deferred to P4 backlog.
+- iMusician and Apple Music confirmed CSV-only permanently (no public API on any plan).
+
+**Status:** Documentation complete. No open bugs introduced. No migrations required.
+
+---
+
 ## 2026-03-27 — Security + performance audit
 
 **Changed:**

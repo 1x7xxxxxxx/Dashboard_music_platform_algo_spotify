@@ -10,8 +10,9 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P1 — Blocking (data missing or crash)
 
-- [ ] **SoundCloud + Instagram DAGs** — credentials expired since Dec 2025 → 67 failures, no data for 3 months.
-  Fix: enter valid credentials via `Credentials API` page in dashboard, then retrigger the DAGs.
+- [x] **SoundCloud + Instagram DAGs** — fixed 2026-03-30.
+  SoundCloud: infinite pagination loop (manual offset ignored `next_href`) → cursor-based pagination + `max_pages=200` cap.
+  Instagram: Meta API v18.0 deprecated Sept 2025 → centralized to `META_GRAPH_BASE_URL` (v24.0) via `src/utils/meta_config.py`; fresh personal token with ~56 days validity entered via Credentials page.
 - [x] **`meta_campaigns` schema incomplete** — DB has 5 columns, `meta_ads_schema.py` expects 11.
   Fix: applied in `migrations/002_schema_fixes.sql`.
 - [x] **DAG health audit** — completed 2026-03-23. Summary:
@@ -96,6 +97,77 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 - [x] **YouTube UNIQUE constraints** — `UNIQUE(artist_id, channel_id, collected_at::date)` and `UNIQUE(artist_id, video_id, collected_at::date)` added to `youtube_schema.py` + `migrations/003_youtube_unique.sql`.
 - [x] **`provide_context` deprecation** — removed `provide_context=True` from all 4 `PythonOperator` instances in `data_quality_check.py`. Functions already accept `**context`.
 
+### P3 — UX / Features (new, 2026-03-27)
+
+- [x] **Meta Ads credential onboarding guide** — step-by-step guide with screenshots for each artist to configure Meta credentials in the dashboard.
+  Spec: (1) generate a long-lived User Access Token from Business Manager → System Users (not a personal token); (2) token must have `ads_read` + `ads_management` scopes; (3) account_id = numeric ID from `/me/adaccounts` (no `act_` prefix — the dashboard adds it); (4) artists do NOT create their own app — they use ETL_DASHBOARD_SPOTIFY as OAuth client; (5) link ad account to the app in Business Manager → App Settings → Business Assets.
+  Deliverable: dedicated doc in `.claude/dev-docs/` + in-app help tooltip on Credentials page.
+
+### P2 — Data Integrity (new, 2026-03-27)
+
+- [ ] **Instagram System User token — activation** — générer le token dans Business Manager (2FA SMS requis) et le sauvegarder dans Dashboard → Credentials → Meta. Guide : `.claude/dev-docs/meta-ads-credential-guide.md`. Non bloquant : toutes les autres sources collectent normalement.
+- [x] **Instagram + Meta System User token migration** (Brick 24) — migrate from personal 60-day tokens (expired Dec 2025) to System User tokens (never expire).
+  Changes: `meta_token_refresh.py` skips artists with `expires_at=NULL` instead of attempting `fb_exchange_token` (which fails on System User tokens); `instagram_daily.py` precheck error message updated; `_guide_meta()` extended with Instagram scopes (`instagram_basic`, `instagram_manage_insights`, `pages_show_list`); `meta-ads-credential-guide.md` updated with token refresh behavior table.
+  Note: Spotify/YouTube/meta_token_refresh DAGs were already scheduled in previous bricks — no schedule changes needed.
+
+### P1 — Security (new, 2026-03-27)
+
+- [x] **`get_artist_id()` default was `1` instead of `None`** — session non-hydratée queryait silencieusement l'artiste 1. Fix: `auth.py` default → `None`.
+- [x] **`get_artist_id() or 1` dans 9 vues** — isolation tenant cassée pour les admins (None coercé sur artiste 1). Fix: guard explicite `if artist_id is None: if not is_admin(): st.stop()` dans `apple_music.py`, `instagram.py`, `soundcloud.py`, `youtube.py`, `meta_ads_overview.py`, `meta_cpr_optimizer.py`, `meta_creatives.py`, `meta_x_spotify.py`, `hypeddit.py`.
+- [x] **f-string SQL avec `where_clause` interpolé — `meta_ads_overview.py`** — fragment WHERE interpolé dans 5 requêtes via f-string. Fix: suppression de la variable `where_clause`; chaque requête construite explicitement avec `_campaign_in`.
+- [x] **f-string SQL avec identifiants table/colonne — `freshness_monitor.py` + `kpi_helpers.py`** — noms de table et colonne interpolés sans validation. Fix: allowlists `_ALLOWED_TABLES` / `_ALLOWED_COLS` validées avant interpolation.
+- [ ] **Secrets réels dans `config/config.yaml`** — fichier déjà dans `.gitignore` (non tracké en git). Rotation manuelle requise : Gmail App Password, Spotify client_secret, PostgreSQL passwords, Meta app_secret, Fernet key (critique — déchiffre tous les tokens OAuth), YouTube API key. **Action utilisateur requise.**
+
+### P1 — Security (2026-03-28 — full OWASP + RGPD hardening)
+
+- [x] **CRITICAL-02: SQL injection in `postgres_handler.py`** — `insert_many()` / `upsert_many()` used f-string table/column interpolation. Fix: `_ALLOWED_TABLES` frozenset + `_VALID_IDENTIFIER_RE`; all queries rewritten with `psycopg2.sql` composition.
+- [x] **CRITICAL-03: SQL injection via `artist_id_sql_filter()` table alias** — alias not validated. Fix: `_ALIAS_RE = re.compile(r'^[a-z_][a-z0-9_]*$')` in `auth.py`.
+- [x] **CRITICAL-04: Campaign filter IDOR in `meta_ads_overview.py`** — user-supplied campaign IDs not validated against DB. Fix: allowlist check against fetched campaign list.
+- [x] **CRITICAL-05: Fernet key on disk** — `credentials.py` read FERNET_KEY only from config.yaml. Fix: `os.getenv('FERNET_KEY')` first, config.yaml as local-dev fallback.
+- [x] **CRITICAL-06: Token written to `os.environ` in `instagram_api_collector.py`** — exposed to all child processes. Fix: removed the assignment entirely.
+- [x] **HIGH-01: No brute-force protection** — unlimited login attempts. Fix: `failed_login_attempts` + `locked_until` in DB (migration 017); 5 failures → 15-min lockout.
+- [x] **HIGH-02: Email enumeration on unverified login** — error message revealed whether email existed. Fix: generic message; email looked up only on "Resend" button click.
+- [x] **HIGH-04: Weak password policy** — minimum 8 chars only. Fix: 10 chars + 1 letter + 1 digit enforced in both `auth.py` and `register.py`.
+- [x] **HIGH-05: Hardcoded `'admin'` default in AirflowTrigger** — unauthenticated DAG triggering possible. Fix: `RuntimeError` raised if `AIRFLOW_PASSWORD` is falsy.
+- [x] **HIGH-06/07: Stored XSS via `unsafe_allow_html`** — DB values interpolated unescaped in `etl_logs.py` and `home.py`. Fix: `html.escape()` on all interpolated values.
+- [x] **MEDIUM-01: Session fixation** — session state not cleared on login. Fix: `st.session_state.clear()` before `_hydrate_session()`.
+- [x] **MEDIUM-02: Plan gate bypass** — `require_plan()` returned `False` instead of stopping. Fix: `st.stop()` after error.
+- [x] **MEDIUM-05: TOCTOU on single-use promo codes** — concurrent registrations could exhaust code without guard. Fix: atomic `UPDATE ... WHERE uses_count < max_uses RETURNING id`.
+- [x] **INFO-01: Email verification tokens never expire** — link valid indefinitely. Fix: 48h expiry check in `_verify_email()`; expired token cleared from DB.
+- [x] **INFO-02: Secret key names logged at INFO level** — `credential_loader.py` logged key name in update messages. Fix: `logger.debug()` with key name removed.
+- [x] **INFO-04: SSRF via open redirects in outbound requests** — 5 `requests` calls in `credentials.py` without `allow_redirects=False`. Fix: `allow_redirects=False` on all 5.
+- [x] **INFO-06: No upload size cap** — Streamlit allowed arbitrarily large file uploads. Fix: `.streamlit/config.toml` with `maxUploadSize = 50`.
+- [x] **RGPD Art. 5(1)(f): Marketing export not audited** — no record of admin personal data access. Fix: `admin_audit_log` write on download button click in `admin.py`.
+- [ ] **CRITICAL-01: Credential rotation** — rotate DATABASE_PASSWORD, SPOTIFY_CLIENT_SECRET, META_APP_SECRET, META_ACCESS_TOKEN, YOUTUBE_API_KEY, FERNET_KEY, SMTP_PASSWORD in `.env`. Re-encrypt `artist_credentials` after FERNET_KEY rotation. **Manual action required.**
+- [x] **Task #11: Update all dev-docs with security session** — DEVLOG.md, retro.md, checklist.md updated to reflect the full 2026-03-28 security hardening session (Brick 25: OWASP + RGPD). All implemented items documented.
+
+### P2 — Data Integrity (new, 2026-03-27 — audit)
+
+- [x] **Collecteurs silencieux — `instagram_api_collector.py` + `soundcloud_api_collector.py`** — `except Exception → self.db = None` permettait un run complet à 0 lignes avec DAG SUCCESS. Fix: suppression du try/except autour de `PostgresHandler.__init__`; échec DB = exception levée.
+- [x] **`spotify_api.py` `search_artist()` retournait `None`** — au lieu de `raise` sur API error ou artiste introuvable. Fix: `ValueError` si aucun artiste trouvé, `raise` dans le bloc `except`.
+- [x] **Validation email trop permissive dans `register.py`** — `'@' not in email` acceptait `a@`, `@b`, `@@`. Fix: `re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email)`.
+
+### P3 — Performance (new, 2026-03-27 — audit)
+
+- [x] **`get_artist_plan()` ouvrait 2–3 connexions DB par render** — fallback `db2` ouvert séparément. Fix: 1 seule requête avec LEFT JOIN `saas_artists ↔ artist_subscriptions ↔ subscription_plans`; promo + subscription + tier résolus en 1 round-trip. (`auth.py`)
+- [x] **`get_source_freshness()` — 7 requêtes séquentielles** — 1 `SELECT MAX()` par source à chaque chargement de la home. Fix: remplacé par 1 `UNION ALL` query. (`kpi_helpers.py`)
+- [x] **Index composites manquants** — `migration/016_performance_indexes.sql` ajoute 4 index : `s4a_song_timeline(artist_id, date DESC)`, `soundcloud_tracks_daily(artist_id, track_id, collected_at DESC)`, `meta_insights_performance_day(artist_id, day_date DESC)`, `track_popularity_history(artist_id, date DESC)`.
+
+### P2 — Data Integrity (new, 2026-03-30)
+
+- [ ] **Meta Ads DAG first-run backfill** — re-trigger `meta_ads_api_daily` without conf after smart date range fix. Expected: backfills from earliest campaign `start_time`, `rows_inserted > 0` in ETL Logs, freshness badge updates.
+- [ ] **SoundCloud DAG cursor pagination — confirm** — re-trigger `soundcloud_daily` and verify no hang, cursor-based `next_href` is followed, tracks upserted without duplicates.
+- [ ] **Instagram System User token — migration** — current token is personal (60-day, ~56 days remaining). Migrate to Business Manager System User token (never expires) before expiry. Guide: `.claude/dev-docs/meta-ads-credential-guide.md`. Requires 2FA SMS in Business Manager.
+
+### P1 — Security (new, 2026-03-30)
+
+- [ ] **Credential rotation** — `DATABASE_PASSWORD`, `SPOTIFY_CLIENT_SECRET`, `META_APP_SECRET`, `YOUTUBE_API_KEY`, `FERNET_KEY` (critical: re-encrypt all `artist_credentials` rows after rotation), `SMTP_PASSWORD`. `config/config.yaml` is in `.gitignore` but values were potentially exposed in shared dev environments. **Manual action required — no code change needed.**
+
+### Decisions / closed (2026-03-27)
+
+- ❌ **iMusician API** — no public API exists on any iMusician plan (confirmed 2026-03-27), including AMPLIFY Pro. CSV-only. `imusician_csv_watcher` DAG is the final architecture for this source. Contact iMusician support if an enterprise/white-label API becomes available.
+- ❌ **Apple Music API** — Apple Music for Artists has no public analytics API. MusicKit covers catalog/playback only. CSV export remains the only option.
+
 ---
 
 ## Brick Status
@@ -125,6 +197,14 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 | 20 | Multi-tenancy — artist_id propagation in all collectors + DAG iteration | ✅ | P2 |
 | 21 | Stripe integration — subscription plans, webhook, billing page | ✅ | P3 |
 | 22 | iMusician CSV import — parser, watcher DAG, Distributeur tab, Upload CSV page | ✅ | P2 |
+| 23 | Meta Ads API collector — direct pull (facebook_business SDK), daily DAG, CSV data-quality fixes | ✅ | P2 |
+| 24 | Instagram + Meta System User token migration — non-expiring tokens, DAG + guide updates | ✅ | P2 |
+| 25 | Security hardening — OWASP Top 10 + RGPD: SQL injection (postgres_handler), brute-force lockout, session fixation, SSRF, XSS, weak password policy, Fernet key env, promo TOCTOU, token expiry, upload cap, audit log | ✅ | P1 |
+| 26 | Rate limiting — session-based sliding window (10 attempts / 5 min) on login + TOTP challenge | ✅ | P1 |
+| 27 | GDPR Art. 17 erasure — cascading DELETE across 34 tables, 2-step admin confirmation, gdpr_erasure_log audit trail | ✅ | P2 |
+| 28 | TOTP 2FA — pyotp + qrcode enrollment in account.py, challenge step in login flow, disable-with-password | ✅ | P1 |
+| 29 | Onboarding tracker — 4-step progress bar on home page (credentials, DAG run, CSV, 2FA); auto-hidden when complete | ✅ | P3 |
+| 30 | Alerting dashboard — circuit breakers, freshness warnings, DAG failures, locked accounts, billing alerts | ✅ | P2 |
 
 ---
 
