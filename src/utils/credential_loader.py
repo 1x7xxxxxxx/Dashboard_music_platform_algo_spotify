@@ -154,8 +154,9 @@ def update_platform_secret(artist_id: int, platform: str,
 
         cur.close()
         conn.close()
-        logger.info(
-            f"update_platform_secret: '{secret_key}' updated for artist={artist_id} platform={platform}"
+        # INFO-02: use DEBUG to avoid leaking secret key names in shared Airflow logs
+        logger.debug(
+            f"update_platform_secret: token updated for artist={artist_id} platform={platform}"
             + (f" expires_at={expires_at}" if expires_at else "")
         )
     except Exception as e:
