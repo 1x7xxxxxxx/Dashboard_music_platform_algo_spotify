@@ -67,6 +67,20 @@ def _show_current_plan(db, artist_id: int):
     col2.metric("Monthly price", f"{float(price):.2f} €")
     col3.metric("Status", f"{status_color} {status.replace('_', ' ').title()}")
 
+    free_months_row = db.fetch_query(
+        "SELECT referral_free_months FROM saas_artists WHERE id = %s", (artist_id,)
+    )
+    free_months = free_months_row[0][0] if free_months_row else 0
+    if free_months > 0:
+        st.success(f"🎁 You have **{free_months} free month(s)** from referrals — applied before your next billing cycle.")
+
+    discount_row = db.fetch_query(
+        "SELECT first_month_discount_pct FROM saas_artists WHERE id = %s", (artist_id,)
+    )
+    discount_pct = discount_row[0][0] if discount_row else 0
+    if discount_pct > 0:
+        st.info(f"🏷️ **{discount_pct}% discount** will be applied to your first paid month (referral reward).")
+
     if period_end:
         if cancel_at_end:
             st.warning(
@@ -103,7 +117,7 @@ def _show_upgrade_section(current_plan: str = 'free'):
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("#### Basic — 9.90 €/mo")
+        st.markdown("#### Basic — 5.00 €/mo")
         st.markdown("""
 - All data sources (Meta, Instagram, SoundCloud, Apple Music)
 - Up to 3 artists
@@ -117,7 +131,7 @@ def _show_upgrade_section(current_plan: str = 'free'):
                 st.button("Upgrade to Basic", disabled=True, help="Set STRIPE_CHECKOUT_URL to enable")
 
     with col2:
-        st.markdown("#### Premium — 29.90 €/mo")
+        st.markdown("#### Premium — 15.00 €/mo")
         st.markdown("""
 - Everything in Basic
 - ML predictions + trigger algo

@@ -1,4 +1,5 @@
 """Handler pour les interactions avec PostgreSQL - VERSION OPTIMISÉE."""
+import re
 import psycopg2
 from psycopg2 import sql as pgsql
 from psycopg2.extras import execute_batch
@@ -7,6 +8,51 @@ from urllib.parse import urlparse
 import logging
 
 logger = logging.getLogger(__name__)
+
+# CRITICAL-02: allowlist of valid table names — any table not in this set is rejected
+# before query construction. Prevents SQL injection via table name interpolation.
+_ALLOWED_TABLES = frozenset({
+    'saas_artists', 'artist_credentials', 'saas_users',
+    'artists', 'tracks', 'track_popularity_history', 'artist_history',
+    's4a_songs_global', 's4a_song_timeline', 's4a_audience',
+    'soundcloud_tracks_daily', 'instagram_daily_stats',
+    'imusician_monthly_revenue', 'imusician_release_summary', 'imusician_sales_detail',
+    'ml_song_predictions', 'artist_wrapped',
+    'meta_campaigns', 'meta_adsets', 'meta_ads', 'meta_insights',
+    'meta_insights_performance', 'meta_insights_performance_day',
+    'meta_insights_performance_age', 'meta_insights_performance_country',
+    'meta_insights_performance_placement',
+    'meta_insights_engagement', 'meta_insights_engagement_day',
+    'meta_insights_engagement_age', 'meta_insights_engagement_country',
+    'meta_insights_engagement_placement',
+    'youtube_channels', 'youtube_channel_history', 'youtube_videos',
+    'youtube_video_stats', 'youtube_playlists', 'youtube_comments',
+    'apple_songs_performance', 'apple_daily_plays', 'apple_listeners', 'apple_songs_history',
+    'hypeddit_campaigns', 'hypeddit_daily_stats',
+    'subscription_plans', 'artist_subscriptions',
+    'referral_codes', 'referral_events',
+    'promo_codes', 'promo_events',
+    'etl_run_log', 'etl_circuit_breaker',
+    'admin_audit_log',
+})
+
+_VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
+
+
+def _validate_table(table: str) -> None:
+    """Raise ValueError if table is not in the allowlist."""
+    if table not in _ALLOWED_TABLES:
+        raise ValueError(f"SQL injection guard: table '{table}' is not in the allowed list")
+
+
+def _validate_columns(columns: List[str]) -> None:
+    """Raise ValueError if any column name contains non-identifier characters."""
+    for col in columns:
+        # Allow functional index expressions like (collected_at::date)
+        if col.startswith('('):
+            continue
+        if not _VALID_IDENTIFIER_RE.match(col):
+            raise ValueError(f"SQL injection guard: invalid column name '{col}'")
 
 
 class PostgresHandler:
@@ -166,18 +212,21 @@ class PostgresHandler:
             logger.warning(f"⚠️ insert_many appelé avec data vide pour {table}")
             return 0
         
+        _validate_table(table)
         try:
             columns = list(data[0].keys())
+            _validate_columns(columns)
             values = [[row.get(col) for col in columns] for row in data]
-            
-            columns_str = ', '.join(columns)
-            placeholders = ', '.join(['%s'] * len(columns))
-            
-            query = f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})"
-            
+
+            query = pgsql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                pgsql.Identifier(table),
+                pgsql.SQL(', ').join(map(pgsql.Identifier, columns)),
+                pgsql.SQL(', ').join(pgsql.Placeholder() * len(columns)),
+            )
+
             self.cursor.executemany(query, values)
             # ✅ Pas de commit nécessaire avec autocommit = True
-            
+
             logger.info(f"✅ {len(data)} ligne(s) insérée(s) dans {table}")
             return len(data)
         except Exception as e:
@@ -220,29 +269,46 @@ class PostgresHandler:
                 )
             data = list(seen.values())
 
+        _validate_table(table)
         self._ensure_connection()
         try:
             columns = list(data[0].keys())
+            _validate_columns(columns)
+            _validate_columns([c for c in conflict_columns if not c.startswith('(')])
+            _validate_columns(update_columns)
             values = [[row.get(col) for col in columns] for row in data]
 
-            columns_str = ', '.join(columns)
-            placeholders = ', '.join(['%s'] * len(columns))
-            conflict_str = ', '.join(conflict_columns)
-            update_str = ', '.join([f"{col} = EXCLUDED.{col}" for col in update_columns])
+            # Build INSERT ... ON CONFLICT ... DO UPDATE using psycopg2.sql to
+            # prevent any SQL injection via table/column name interpolation.
+            plain_conflict = [c for c in conflict_columns if not c.startswith('(')]
+            expr_conflict  = [c for c in conflict_columns if c.startswith('(')]
 
-            query = f"""
-                INSERT INTO {table} ({columns_str})
-                VALUES ({placeholders})
-                ON CONFLICT ({conflict_str})
-                DO UPDATE SET {update_str}
-            """
+            conflict_parts = (
+                [pgsql.Identifier(c) for c in plain_conflict]
+                + [pgsql.SQL(c) for c in expr_conflict]
+            )
+
+            query = pgsql.SQL(
+                "INSERT INTO {tbl} ({cols}) VALUES ({vals}) "
+                "ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+            ).format(
+                tbl=pgsql.Identifier(table),
+                cols=pgsql.SQL(', ').join(map(pgsql.Identifier, columns)),
+                vals=pgsql.SQL(', ').join(pgsql.Placeholder() * len(columns)),
+                conflict=pgsql.SQL(', ').join(conflict_parts),
+                updates=pgsql.SQL(', ').join(
+                    pgsql.SQL("{} = EXCLUDED.{}").format(
+                        pgsql.Identifier(c), pgsql.Identifier(c)
+                    )
+                    for c in update_columns
+                ),
+            )
 
             execute_batch(self.cursor, query, values)
             rows_affected = self.cursor.rowcount
             # ✅ Pas de commit nécessaire avec autocommit = True
-            
+
             logger.info(f"✅ {rows_affected} ligne(s) affectée(s) dans {table}")
-            
             return rows_affected
         except Exception as e:
             logger.error(f"❌ Erreur upsert_many sur {table}: {e}")

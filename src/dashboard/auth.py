@@ -12,6 +12,7 @@ Bootstrap:    if saas_users is empty, first-run admin creation form is shown.
 """
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -24,12 +25,59 @@ if _project_root not in sys.path:
 
 from src.utils.config_loader import config_loader
 
-_SESSION_KEYS = ['authenticated', 'username', 'name', 'artist_id', 'role']
+_SESSION_KEYS = ['authenticated', 'username', 'name', 'artist_id', 'role', 'user_id']
+
+# Brick 26: session-based rate limit (no reliable IP in Streamlit without reverse proxy)
+_RATE_MAX_ATTEMPTS = 10   # failures per session window
+_RATE_WINDOW_SECS  = 300  # 5-minute sliding window
+
+
+def _check_session_rate_limit() -> bool:
+    """Return False and display error if current session exceeds login rate limit."""
+    now = time.time()
+    window_start = st.session_state.get('_rate_window_start', now)
+    attempts = st.session_state.get('_rate_attempts', 0)
+
+    if now - window_start > _RATE_WINDOW_SECS:
+        st.session_state['_rate_window_start'] = now
+        st.session_state['_rate_attempts'] = 0
+        return True
+
+    if attempts >= _RATE_MAX_ATTEMPTS:
+        remaining = int(_RATE_WINDOW_SECS - (now - window_start))
+        st.error(f"Too many failed attempts. Please wait {remaining} seconds before trying again.")
+        return False
+    return True
+
+
+def _rate_record_failure():
+    now = time.time()
+    if 'rate_window_start' not in st.session_state:
+        st.session_state['_rate_window_start'] = now
+    st.session_state['_rate_attempts'] = st.session_state.get('_rate_attempts', 0) + 1
+
+
+def _rate_reset():
+    st.session_state.pop('_rate_attempts', None)
+    st.session_state.pop('_rate_window_start', None)
 
 
 # ─────────────────────────────────────────────
 # Password helpers
 # ─────────────────────────────────────────────
+
+_PW_RE = re.compile(r'^(?=.*[A-Za-z])(?=.*\d).{10,}$')
+
+
+def _validate_password_strength(pw: str) -> Optional[str]:
+    """Return an error string if the password is too weak, else None.
+
+    HIGH-04: minimum 10 characters with at least one letter and one digit.
+    """
+    if not _PW_RE.fullmatch(pw):
+        return "Password must be at least 10 characters and contain at least one letter and one digit."
+    return None
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -53,22 +101,65 @@ def _user_table_empty(db) -> bool:
     return len(rows) == 0
 
 
+_MAX_LOGIN_ATTEMPTS = 5
+_LOCKOUT_MINUTES    = 15
+
+
 def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict], Optional[str]]:
-    """Return (user_dict, None) on success, (None, error_msg) on failure."""
+    """Return (user_dict, None) on success, (None, error_msg) on failure.
+
+    HIGH-01: Enforces brute-force lockout — 5 consecutive failures → locked for 15 min.
+    HIGH-02: Never discloses the email address on unverified-account error.
+    """
+    from datetime import datetime, timezone
     rows = db.fetch_query(
-        "SELECT id, username, email, password_hash, artist_id, role, email_verified "
+        "SELECT id, username, email, password_hash, artist_id, role, email_verified, "
+        "       failed_login_attempts, locked_until, totp_enabled, totp_secret "
         "FROM saas_users WHERE username = %s AND active = TRUE LIMIT 1",
         (username.strip(),)
     )
     if not rows:
         return None, "Invalid username or password."
-    uid, uname, email, pw_hash, artist_id, role, email_verified = rows[0]
+
+    uid, uname, email, pw_hash, artist_id, role, email_verified, fail_count, locked_until, totp_enabled, totp_secret = rows[0]
+
+    # HIGH-01: check lockout before bcrypt (prevents timing oracle on locked accounts)
+    if locked_until:
+        now = datetime.now(timezone.utc)
+        locked_until_aware = locked_until if locked_until.tzinfo else locked_until.replace(tzinfo=timezone.utc)
+        if now < locked_until_aware:
+            remaining = int((locked_until_aware - now).total_seconds() // 60) + 1
+            return None, f"Account locked after too many failed attempts. Try again in {remaining} minute(s)."
+
     if not verify_password(password, pw_hash):
+        # Increment failure counter; lock if threshold reached
+        new_fail = (fail_count or 0) + 1
+        if new_fail >= _MAX_LOGIN_ATTEMPTS:
+            db.execute_query(
+                "UPDATE saas_users SET failed_login_attempts = %s, "
+                "locked_until = NOW() + INTERVAL '%s minutes' WHERE id = %s",
+                (new_fail, _LOCKOUT_MINUTES, uid)
+            )
+        else:
+            db.execute_query(
+                "UPDATE saas_users SET failed_login_attempts = %s WHERE id = %s",
+                (new_fail, uid)
+            )
         return None, "Invalid username or password."
+
+    # Successful authentication — reset failure counter
+    db.execute_query(
+        "UPDATE saas_users SET failed_login_attempts = 0, locked_until = NULL WHERE id = %s",
+        (uid,)
+    )
+
     if not email_verified:
-        return None, f"__unverified__{email}"
+        # HIGH-02: do NOT expose the email address in the error string
+        return None, "__unverified__"
+
     return {"id": uid, "username": uname, "email": email,
-            "artist_id": artist_id, "role": role}, None
+            "artist_id": artist_id, "role": role,
+            "totp_enabled": bool(totp_enabled), "totp_secret": totp_secret}, None
 
 
 def _resend_verification(username: str, email: str, db) -> None:
@@ -91,6 +182,53 @@ def _hydrate_session(user: dict) -> None:
     st.session_state['name']          = user['email']
     st.session_state['artist_id']     = user['artist_id']  # None = admin
     st.session_state['role']          = user['role']
+    st.session_state['user_id']       = user['id']
+
+
+# ─────────────────────────────────────────────
+# TOTP 2FA challenge (Brick 28)
+# ─────────────────────────────────────────────
+
+def _show_totp_challenge(db) -> None:
+    """Render the TOTP verification step after password auth succeeds."""
+    pending = st.session_state.get('_totp_pending')
+    if not pending:
+        return
+
+    st.title("🎵 Music Dashboard")
+    st.subheader("🔐 Two-factor authentication")
+    st.info(f"Signed in as **{pending['username']}**. Enter the 6-digit code from your authenticator app.")
+
+    with st.form("totp_challenge"):
+        code = st.text_input("Authentication code", max_chars=6, placeholder="000000")
+        col1, col2 = st.columns(2)
+        submitted = col1.form_submit_button("Verify", type="primary")
+        cancel    = col2.form_submit_button("Cancel")
+
+    if cancel:
+        st.session_state.pop('_totp_pending', None)
+        st.rerun()
+
+    if submitted:
+        try:
+            import pyotp
+            totp = pyotp.TOTP(pending['totp_secret'])
+            if totp.verify(code.strip(), valid_window=1):
+                user = dict(pending)
+                st.session_state.pop('_totp_pending', None)
+                _rate_reset()
+                st.session_state.clear()
+                _hydrate_session(user)
+                db.execute_query(
+                    "UPDATE saas_users SET updated_at = NOW() WHERE username = %s",
+                    (user['username'],)
+                )
+                st.rerun()
+            else:
+                _rate_record_failure()
+                st.error("Invalid authentication code. Please try again.")
+        except ImportError:
+            st.error("pyotp not installed. Run: pip install pyotp")
 
 
 # ─────────────────────────────────────────────
@@ -118,8 +256,9 @@ def _show_bootstrap_form(db) -> None:
         if pw != pw2:
             st.error("Passwords do not match.")
             return
-        if len(pw) < 8:
-            st.error("Password must be at least 8 characters.")
+        pw_error = _validate_password_strength(pw)
+        if pw_error:
+            st.error(pw_error)
             return
         try:
             db.execute_query(
@@ -165,6 +304,11 @@ def require_login() -> bool:
             _show_bootstrap_form(db)
             return False
 
+        # Brick 28: TOTP challenge takes priority over the login form
+        if st.session_state.get('_totp_pending'):
+            _show_totp_challenge(db)
+            return False
+
         st.title("🎵 Music Dashboard")
 
         with st.form("login"):
@@ -180,8 +324,21 @@ def require_login() -> bool:
             if not username or not password:
                 st.error("Please enter your username and password.")
                 return False
+
+            # Brick 26: session-based rate limit check
+            if not _check_session_rate_limit():
+                return False
+
             user, error = _authenticate_user(username, password, db)
             if user:
+                _rate_reset()
+                if user.get('totp_enabled'):
+                    # Brick 28: password OK but TOTP required — defer full hydration
+                    st.session_state['_totp_pending'] = user
+                    st.rerun()
+                    return False
+                # MEDIUM-01: clear pre-auth session state before hydrating
+                st.session_state.clear()
                 _hydrate_session(user)
                 db.execute_query(
                     "UPDATE saas_users SET updated_at = NOW() WHERE username = %s",
@@ -189,14 +346,21 @@ def require_login() -> bool:
                 )
                 st.rerun()
                 return True
-            if error and error.startswith("__unverified__"):
-                email = error.replace("__unverified__", "")
+            _rate_record_failure()
+            if error and error == "__unverified__":
+                # HIGH-02: do not disclose the email address
                 st.warning(
-                    f"📧 Please verify your email address before signing in. "
-                    f"Check your inbox at **{email}**."
+                    "📧 Please verify your email address before signing in. "
+                    "Check the inbox you registered with."
                 )
                 if st.button("Resend verification email"):
-                    _resend_verification(username, email, db)
+                    # Look up email separately only after the user explicitly requests it
+                    rows = db.fetch_query(
+                        "SELECT email FROM saas_users WHERE username = %s AND active = TRUE LIMIT 1",
+                        (username.strip(),)
+                    )
+                    if rows:
+                        _resend_verification(username, rows[0][0], db)
             else:
                 st.error(error or "Invalid username or password.")
         return False
@@ -233,8 +397,12 @@ def show_user_sidebar():
 # ─────────────────────────────────────────────
 
 def get_artist_id() -> Optional[int]:
-    """Return artist_id from session (None = admin, sees all data)."""
-    return st.session_state.get('artist_id', 1)
+    """Return artist_id from session (None = admin, sees all data).
+
+    Default is None — not 1. Callers that need a non-None fallback must
+    handle the None case explicitly (e.g. guard with is_admin() check).
+    """
+    return st.session_state.get('artist_id')
 
 
 def is_admin() -> bool:
@@ -256,29 +424,48 @@ def get_artist_plan() -> str:
 
     try:
         from src.dashboard.utils import get_db_connection
+        from datetime import datetime, timezone
         db = get_db_connection()
         if db is None:
             return 'free'
+
+        # Single query: promo state + subscription plan + tier fallback
         row = db.fetch_query(
             """
-            SELECT sp.name
-            FROM artist_subscriptions asub
-            JOIN subscription_plans sp ON sp.id = asub.plan_id
-            WHERE asub.artist_id = %s AND asub.status IN ('active', 'trialing')
+            SELECT
+                sa.promo_plan,
+                sa.promo_plan_expires_at,
+                sp.name        AS subscription_plan,
+                sa.tier
+            FROM saas_artists sa
+            LEFT JOIN artist_subscriptions asub
+                ON asub.artist_id = sa.id
+                AND asub.status IN ('active', 'trialing')
+            LEFT JOIN subscription_plans sp ON sp.id = asub.plan_id
+            WHERE sa.id = %s
             LIMIT 1
             """,
             (artist_id,),
         )
         db.close()
-        if row:
-            return row[0][0]
-        db2 = get_db_connection()
-        tier_row = db2.fetch_query(
-            "SELECT tier FROM saas_artists WHERE id = %s", (artist_id,)
-        )
-        db2.close()
-        if tier_row:
-            return tier_row[0][0]
+
+        if not row:
+            return 'free'
+
+        promo_plan, promo_expires, subscription_plan, tier = row[0]
+
+        # Promo takes precedence if still active
+        if promo_plan and (promo_expires is None or promo_expires > datetime.now(timezone.utc)):
+            return promo_plan
+
+        # Active Stripe subscription
+        if subscription_plan:
+            return subscription_plan
+
+        # Legacy tier fallback
+        if tier:
+            return tier
+
     except Exception:
         pass
     return 'free'
@@ -303,15 +490,24 @@ def require_plan(min_plan: str) -> bool:
     if st.button("→ Voir les plans et upgrader", key=f"_upgrade_btn_{min_plan}"):
         st.query_params["page"] = "upgrade"
         st.rerun()
-    return False
+    # MEDIUM-02: st.stop() ensures the calling view never renders gated content,
+    # even if the caller forgets to check the return value.
+    st.stop()
 
 
 def artist_id_sql_filter(table_alias: str = '') -> tuple:
     """Return (sql_fragment, params) to filter queries by artist_id.
 
     Returns ('', ()) for admin (no filter — sees all data).
-    Returns ('AND artist_id = %s', (id,)) for artist sessions.
+    Returns ('AND [alias.]artist_id = %s', (id,)) for artist sessions.
+
+    CRITICAL-03: table_alias is validated against an identifier allowlist to
+    prevent SQL injection when the fragment is interpolated into f-string queries.
     """
+    _ALIAS_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
+    if table_alias and not _ALIAS_RE.match(table_alias):
+        raise ValueError(f"artist_id_sql_filter: invalid table_alias '{table_alias}'")
+
     artist_id = get_artist_id()
     if artist_id is None:
         return "", ()

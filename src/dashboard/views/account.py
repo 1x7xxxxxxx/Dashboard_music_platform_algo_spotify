@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import verify_password, hash_password
+from src.dashboard.auth import verify_password, hash_password, _validate_password_strength
 
 
 def _get_user_row(db, username: str) -> dict | None:
@@ -24,7 +24,8 @@ def _get_user_row(db, username: str) -> dict | None:
                u.marketing_consent, u.marketing_consent_at,
                a.name  AS artist_name,
                a.slug  AS artist_slug,
-               a.tier  AS artist_tier
+               a.tier  AS artist_tier,
+               u.totp_enabled
         FROM saas_users u
         LEFT JOIN saas_artists a ON u.artist_id = a.id
         WHERE u.username = %s LIMIT 1
@@ -39,6 +40,7 @@ def _get_user_row(db, username: str) -> dict | None:
         "terms_accepted", "terms_accepted_at",
         "marketing_consent", "marketing_consent_at",
         "artist_name", "artist_slug", "artist_tier",
+        "totp_enabled",
     ]
     return dict(zip(cols, rows[0]))
 
@@ -82,8 +84,9 @@ def _section_change_password(db, user: dict) -> None:
     if not verify_password(current, user["password_hash"]):
         st.error("Current password is incorrect.")
         return
-    if len(new_pw) < 8:
-        st.error("New password must be at least 8 characters.")
+    pw_error = _validate_password_strength(new_pw)
+    if pw_error:
+        st.error(pw_error)
         return
     if new_pw != new_pw2:
         st.error("Passwords do not match.")
@@ -174,6 +177,85 @@ def _section_data_export(user: dict) -> None:
     )
 
 
+def _section_totp(db, user: dict) -> None:
+    """Brick 28 — TOTP 2FA enrollment and revocation."""
+    st.subheader("🔐 Two-factor authentication (2FA)")
+
+    totp_enabled = bool(user.get("totp_enabled"))
+
+    if totp_enabled:
+        st.success("✅ Two-factor authentication is **enabled** on your account.")
+        st.caption("Your authenticator app is required at each sign-in.")
+        st.markdown("---")
+        st.write("**Disable 2FA**")
+        with st.form("disable_totp"):
+            pw = st.text_input("Confirm your password to disable 2FA", type="password")
+            submitted = st.form_submit_button("Disable 2FA", type="secondary")
+        if submitted:
+            if not verify_password(pw, user["password_hash"]):
+                st.error("Incorrect password.")
+                return
+            db.execute_query(
+                "UPDATE saas_users SET totp_enabled = FALSE, totp_secret = NULL WHERE id = %s",
+                (user["id"],),
+            )
+            st.success("✅ 2FA disabled. You can re-enable it at any time.")
+            st.rerun()
+        return
+
+    # ── Enrollment flow ──────────────────────────────────────────────
+    st.info("Protect your account with a time-based one-time password (TOTP). "
+            "Compatible with Google Authenticator, Authy, and similar apps.")
+
+    # Generate or reuse pending secret stored in session
+    try:
+        import pyotp, qrcode, io
+    except ImportError:
+        st.error("Required packages not installed: `pip install pyotp qrcode[pil]`")
+        return
+
+    if 'totp_enroll_secret' not in st.session_state:
+        st.session_state['totp_enroll_secret'] = pyotp.random_base32()
+
+    secret = st.session_state['totp_enroll_secret']
+    issuer = "MusicDashboard"
+    account = user["email"]
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=account, issuer_name=issuer)
+
+    # Render QR code as PNG bytes
+    qr_img = qrcode.make(uri)
+    buf = io.BytesIO()
+    qr_img.save(buf, format="PNG")
+    buf.seek(0)
+
+    col_qr, col_info = st.columns([1, 2])
+    with col_qr:
+        st.image(buf.getvalue(), caption="Scan with your authenticator app", width=200)
+    with col_info:
+        st.write("**Manual entry key:**")
+        st.code(secret, language=None)
+        st.caption("Enter this key manually in your app if you cannot scan the QR code.")
+
+    st.markdown("---")
+    st.write("**Verify and activate**")
+    with st.form("enable_totp"):
+        code = st.text_input("Enter the 6-digit code from your app", max_chars=6, placeholder="000000")
+        submitted = st.form_submit_button("Activate 2FA", type="primary")
+
+    if submitted:
+        totp = pyotp.TOTP(secret)
+        if totp.verify(code.strip(), valid_window=1):
+            db.execute_query(
+                "UPDATE saas_users SET totp_secret = %s, totp_enabled = TRUE WHERE id = %s",
+                (secret, user["id"]),
+            )
+            st.session_state.pop('totp_enroll_secret', None)
+            st.success("✅ Two-factor authentication is now active on your account.")
+            st.rerun()
+        else:
+            st.error("Invalid code. Make sure your device clock is correct and try again.")
+
+
 def _section_delete_account() -> None:
     st.subheader("🗑️ Delete my account (RGPD Art. 17)")
     st.warning(
@@ -208,8 +290,8 @@ def show() -> None:
             st.error("User not found.")
             return
 
-        tab_profile, tab_password, tab_consent, tab_data = st.tabs([
-            "👤 Profile", "🔒 Password", "📧 Communications", "📦 My data"
+        tab_profile, tab_password, tab_2fa, tab_consent, tab_data = st.tabs([
+            "👤 Profile", "🔒 Password", "🔐 2FA", "📧 Communications", "📦 My data"
         ])
 
         with tab_profile:
@@ -217,6 +299,9 @@ def show() -> None:
 
         with tab_password:
             _section_change_password(db, user)
+
+        with tab_2fa:
+            _section_totp(db, user)
 
         with tab_consent:
             _section_consent(db, user)

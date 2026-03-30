@@ -1,4 +1,5 @@
 """Page d'accueil — KPI globaux, fraîcheur des sources, ROI Breakheaven."""
+import html as _html
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -46,13 +47,15 @@ def _section_freshness(db, artist_id):
         emoji, color, age_label = freshness_status(info['last_dt'])
         date_str = info['last_dt'].strftime("%d/%m %H:%M") if info['last_dt'] else "—"
         with col:
+            # HIGH-07: html.escape() on all interpolated values — defence-in-depth
+            # against stored XSS if a DB-sourced value ever reaches these variables.
             st.markdown(
-                f"""<div style="border:1px solid {color}; border-radius:8px;
-                    padding:8px 6px; background:{color}18; text-align:center;">
-                    <div style="font-size:1.2em;">{info['icon']}</div>
-                    <div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{label}</div>
-                    <div style="font-size:0.75em; color:{color};">{emoji} {age_label}</div>
-                    <div style="font-size:0.65em; color:#888;">{date_str}</div>
+                f"""<div style="border:1px solid {_html.escape(color)}; border-radius:8px;
+                    padding:8px 6px; background:{_html.escape(color)}18; text-align:center;">
+                    <div style="font-size:1.2em;">{_html.escape(str(info['icon']))}</div>
+                    <div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{_html.escape(label)}</div>
+                    <div style="font-size:0.75em; color:{_html.escape(color)};">{_html.escape(emoji)} {_html.escape(age_label)}</div>
+                    <div style="font-size:0.65em; color:#888;">{_html.escape(date_str)}</div>
                 </div>""",
                 unsafe_allow_html=True
             )
@@ -285,6 +288,46 @@ _STATE_COLOR = {
 }
 
 
+def _section_onboarding(db, artist_id: int) -> None:
+    """Brick 29 — Onboarding progress tracker for new artists."""
+    username = st.session_state.get('username', '')
+
+    # Run all four checks in one round-trip using UNION ALL
+    rows = db.fetch_query(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM artist_credentials  WHERE artist_id = %s) AS has_creds,
+            (SELECT COUNT(*) FROM etl_run_log         WHERE artist_id = %s AND status = 'success') AS has_runs,
+            (SELECT COUNT(*) FROM s4a_song_timeline   WHERE artist_id = %s LIMIT 1) AS has_csv,
+            (SELECT COALESCE(totp_enabled, FALSE)
+             FROM saas_users WHERE artist_id = %s LIMIT 1) AS has_2fa
+        """,
+        (artist_id, artist_id, artist_id, artist_id),
+    )
+    if not rows:
+        return
+
+    has_creds, has_runs, has_csv, has_2fa = rows[0]
+    steps = [
+        (bool(has_creds), "🔑 Configure API credentials", "credentials"),
+        (bool(has_runs),  "🚀 Run your first data collection", "trigger_algo"),
+        (bool(has_csv),   "📂 Upload a Spotify for Artists CSV", "upload_csv"),
+        (bool(has_2fa),   "🔐 Enable two-factor authentication", "account"),
+    ]
+    completed = sum(1 for done, *_ in steps if done)
+    if completed == len(steps):
+        return  # All done — hide the section
+
+    st.subheader(f"🚀 Getting started — {completed}/{len(steps)} steps completed")
+    st.progress(completed / len(steps))
+
+    for done, label, _page in steps:
+        icon = "✅" if done else "⬜"
+        st.markdown(f"{icon} {label}")
+
+    st.markdown("---")
+
+
 def _section_dag_status():
     """Résumé du dernier run de chaque DAG."""
     st.subheader("🚦 Statut des pipelines")
@@ -342,6 +385,10 @@ def show():
     artist_id = get_artist_id()  # None si admin
 
     try:
+        # Onboarding tracker — only shown to artists with incomplete setup
+        if artist_id is not None:
+            _section_onboarding(db, artist_id)
+
         _section_dag_status()
         st.markdown("---")
         _section_freshness(db, artist_id)

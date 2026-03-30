@@ -33,6 +33,10 @@ python-multipart>=0.0.9
 # --- Stripe billing (Brick 21) ---
 stripe>=8.0.0
 
+# --- TOTP 2FA (Brick 28) ---
+pyotp>=2.9.0
+qrcode[pil]>=7.4.2
+
 # --- Database Driver ---
 psycopg2-binary==2.9.9
 

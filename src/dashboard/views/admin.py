@@ -81,6 +81,101 @@ def _delete_artist_and_users(db, artist_id: int):
     db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
 
 
+# Platform data tables with artist_id — ordered to satisfy FK constraints
+_GDPR_PLATFORM_TABLES = [
+    # Subscriptions / billing
+    "artist_subscriptions",
+    "promo_events",
+    "referral_events",
+    "referral_codes",
+    # Credentials
+    "artist_credentials",
+    # Platform analytics
+    "s4a_song_timeline",
+    "s4a_spotify_data",
+    "track_popularity_history",
+    "youtube_channel_history",
+    "youtube_video_stats",
+    "soundcloud_tracks_daily",
+    "soundcloud_stats_daily",
+    "instagram_daily_stats",
+    "instagram_posts",
+    "meta_campaigns",
+    "meta_adsets",
+    "meta_ads",
+    "meta_insights",
+    "meta_insights_performance_day",
+    "meta_creative_assets",
+    "meta_creative_targeting",
+    "meta_ads_api_raw",
+    "meta_custom_conversions",
+    "apple_songs_history",
+    "apple_songs_performance",
+    "apple_top_content",
+    "hypeddit_overview",
+    "hypeddit_campaigns",
+    "ml_song_predictions",
+    "ml_training_features",
+    # Operations
+    "etl_run_log",
+    "etl_circuit_breaker",
+    "imusician_revenues",
+]
+
+
+def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> dict:
+    """RGPD Art. 17 — full erasure of all data for one artist.
+
+    Deletes platform data rows, then saas_users row(s), then saas_artists.
+    Returns {table: rows_deleted} summary logged to gdpr_erasure_log.
+    """
+    import json
+    # Capture identity before deletion for the audit record
+    id_rows = db.fetch_query(
+        "SELECT u.username, u.email FROM saas_users u WHERE u.artist_id = %s LIMIT 1",
+        (artist_id,),
+    )
+    username = id_rows[0][0] if id_rows else None
+    email    = id_rows[0][1] if id_rows else None
+
+    deleted: dict[str, int] = {}
+
+    for table in _GDPR_PLATFORM_TABLES:
+        try:
+            rows = db.fetch_query(
+                f"DELETE FROM {table} WHERE artist_id = %s RETURNING 1",
+                (artist_id,),
+            )
+            deleted[table] = len(rows) if rows else 0
+        except Exception:
+            deleted[table] = -1  # table may not exist in all deployments
+
+    # Delete user accounts linked to this artist
+    user_rows = db.fetch_query(
+        "DELETE FROM saas_users WHERE artist_id = %s RETURNING 1", (artist_id,)
+    )
+    deleted["saas_users"] = len(user_rows) if user_rows else 0
+
+    # Delete the artist record itself
+    db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
+    deleted["saas_artists"] = 1
+
+    # Audit log
+    try:
+        db.execute_query(
+            """
+            INSERT INTO gdpr_erasure_log
+                (admin_user_id, erased_artist_id, erased_username, erased_email, rows_deleted, reason)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (admin_user_id, artist_id, username, email, json.dumps(deleted), reason),
+        )
+    except Exception:
+        pass  # audit log failure must not prevent erasure completion
+
+    return deleted
+
+
 def _resend_verification(db, user_id: int, email: str, username: str) -> bool:
     import secrets
     from src.utils.verification_email import send_verification_email
@@ -148,7 +243,7 @@ def show():
     st.title("⚙️ Administration")
     st.markdown("---")
 
-    tab_artists, tab_users, tab_upload = st.tabs(["👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV"])
+    tab_artists, tab_users, tab_upload, tab_gdpr = st.tabs(["👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV", "🗑️ Effacement RGPD"])
 
     # ══════════════════════════════════════════
     # ONGLET 1 : GESTION DES ARTISTES
@@ -352,12 +447,25 @@ def show():
                 width="stretch",
             )
             csv_bytes = df_optin[['username', 'email', 'artist_name']].to_csv(index=False).encode()
-            st.download_button(
+            # RGPD Art. 5(1)(f) — record every access to personal data in audit log
+            clicked = st.download_button(
                 "⬇️ Exporter CSV",
                 data=csv_bytes,
                 file_name="optin_emails.csv",
                 mime="text/csv",
             )
+            if clicked:
+                try:
+                    _admin_id = st.session_state.get('user_id')
+                    db.execute_query(
+                        """
+                        INSERT INTO admin_audit_log (admin_user_id, action, detail)
+                        VALUES (%s, 'marketing_export', %s)
+                        """,
+                        (_admin_id, f"Exported {len(df_optin)} opt-in contacts"),
+                    )
+                except Exception:
+                    pass  # audit log failure must not block the download
         else:
             st.info("Aucun utilisateur n'a consenti aux communications marketing pour l'instant.")
 
@@ -412,3 +520,94 @@ def show():
                 st.exception(e)
 
         db.close()
+
+    # ══════════════════════════════════════════
+    # ONGLET 4 : EFFACEMENT RGPD ART. 17
+    # ══════════════════════════════════════════
+    with tab_gdpr:
+        st.subheader("🗑️ Effacement RGPD — Art. 17 (droit à l'oubli)")
+        st.warning(
+            "⚠️ Cette action **supprime définitivement** toutes les données d'un artiste : "
+            "compte utilisateur, credentials, historiques analytiques, abonnement. "
+            "Aucune restauration n'est possible. Un log d'audit est conservé.",
+            icon="⚠️",
+        )
+
+        db = get_db_connection()
+        if db is None:
+            st.error("❌ Base de données inaccessible.")
+        else:
+            try:
+                df_all = db.fetch_df(
+                    "SELECT a.id, a.name, a.slug, u.email "
+                    "FROM saas_artists a "
+                    "LEFT JOIN saas_users u ON u.artist_id = a.id "
+                    "ORDER BY a.id"
+                )
+            except Exception as e:
+                st.error(f"Erreur : {e}")
+                db.close()
+                df_all = None
+
+            if df_all is not None and not df_all.empty:
+                gdpr_options = {
+                    f"{r['id']} — {r['name']} ({r['email'] or '?'})": r['id']
+                    for _, r in df_all.iterrows()
+                }
+                sel_gdpr = st.selectbox("Artiste à effacer", list(gdpr_options.keys()), key="gdpr_sel")
+                gdpr_artist_id = gdpr_options[sel_gdpr]
+
+                reason = st.text_input(
+                    "Motif (obligatoire)",
+                    placeholder="ex : demande utilisateur du 28/03/2026",
+                    key="gdpr_reason",
+                )
+
+                if st.button("🗑️ Lancer l'effacement", type="primary", key="gdpr_erase_btn"):
+                    if not reason.strip():
+                        st.error("Le motif est obligatoire avant de lancer l'effacement.")
+                    else:
+                        st.session_state['_confirm_gdpr'] = gdpr_artist_id
+
+                if st.session_state.get('_confirm_gdpr') == gdpr_artist_id:
+                    st.error(
+                        f"⛔ DERNIÈRE CONFIRMATION — Effacer **{sel_gdpr}** ? "
+                        "Toutes les données seront supprimées de façon irréversible."
+                    )
+                    cc1, cc2 = st.columns(2)
+                    if cc1.button("✅ Confirmer l'effacement définitif", type="primary", key="gdpr_confirm"):
+                        admin_id = st.session_state.get('user_id')
+                        try:
+                            summary = _erase_artist_gdpr(db, gdpr_artist_id, admin_id, reason.strip())
+                            st.session_state.pop('_confirm_gdpr', None)
+                            total = sum(v for v in summary.values() if v > 0)
+                            st.success(
+                                f"✅ Effacement terminé — {total} lignes supprimées dans "
+                                f"{len(summary)} tables. Log d'audit enregistré."
+                            )
+                            with st.expander("Détail par table"):
+                                for tbl, cnt in summary.items():
+                                    st.write(f"- `{tbl}` : {cnt} ligne(s)")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erreur lors de l'effacement : {e}")
+                    if cc2.button("Annuler", key="gdpr_cancel"):
+                        st.session_state.pop('_confirm_gdpr', None)
+                        st.rerun()
+
+            elif df_all is not None:
+                st.info("Aucun artiste en base.")
+
+            if db:
+                try:
+                    df_log = db.fetch_df(
+                        "SELECT erased_artist_id, erased_username, erased_email, reason, executed_at "
+                        "FROM gdpr_erasure_log ORDER BY executed_at DESC LIMIT 50"
+                    )
+                    if not df_log.empty:
+                        st.markdown("---")
+                        st.subheader("📋 Historique des effacements")
+                        st.dataframe(df_log, hide_index=True, width="stretch")
+                except Exception:
+                    pass
+                db.close()

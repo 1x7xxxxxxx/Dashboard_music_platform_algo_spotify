@@ -27,10 +27,16 @@ st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide"
 config = config_loader.load()
 airflow_config = config.get('airflow', {})
 # Env vars take precedence over config.yaml — required for Railway deployment
+_airflow_pass = os.getenv('AIRFLOW_PASSWORD') or airflow_config.get('password')
+if not _airflow_pass:
+    raise RuntimeError(
+        "AIRFLOW_PASSWORD not configured. Set it in .env or config/config.yaml. "
+        "Never use a hardcoded default — it allows unauthenticated DAG triggering."
+    )
 airflow_trigger = AirflowTrigger(
     base_url=os.getenv('AIRFLOW_BASE_URL', airflow_config.get('base_url', 'http://localhost:8080')),
     username=os.getenv('AIRFLOW_USERNAME', airflow_config.get('username', 'admin')),
-    password=os.getenv('AIRFLOW_PASSWORD', airflow_config.get('password', 'admin')),
+    password=_airflow_pass,
 )
 
 def _verify_email(token: str) -> None:
@@ -46,20 +52,37 @@ def _verify_email(token: str) -> None:
         return
     try:
         rows = db.fetch_query(
-            "SELECT id, username, email_verified FROM saas_users "
+            "SELECT id, username, email_verified, verification_token_created_at "
+            "FROM saas_users "
             "WHERE verification_token = %s LIMIT 1",
             (token,)
         )
         if not rows:
             st.error("This verification link is invalid or has already been used.")
             return
-        uid, username, already_verified = rows[0]
+        uid, username, already_verified, token_created_at = rows[0]
         if already_verified:
             st.info(f"Account **{username}** is already verified. [Sign in](/)")
             return
+        # INFO-01: reject tokens older than 48 hours
+        if token_created_at:
+            from datetime import datetime, timezone, timedelta
+            now = datetime.now(timezone.utc)
+            created = token_created_at if token_created_at.tzinfo else token_created_at.replace(tzinfo=timezone.utc)
+            if now - created > timedelta(hours=48):
+                db.execute_query(
+                    "UPDATE saas_users SET verification_token = NULL, "
+                    "verification_token_created_at = NULL WHERE id = %s",
+                    (uid,)
+                )
+                st.error(
+                    "This verification link has expired (48 hours). "
+                    "Please register again or use the resend option on the sign-in page."
+                )
+                return
         db.execute_query(
-            "UPDATE saas_users SET email_verified = TRUE, verification_token = NULL "
-            "WHERE id = %s",
+            "UPDATE saas_users SET email_verified = TRUE, verification_token = NULL, "
+            "verification_token_created_at = NULL WHERE id = %s",
             (uid,)
         )
         st.success(
@@ -103,6 +126,7 @@ def show_navigation_menu(role: str = 'artist'):
         "🎁 Parrainage": "referral",
         "📊 Referral KPIs": "referral_kpi",
         "🎟️ Promo Codes": "promo_admin",
+        "🚨 Alertes": "alerts",
         "⚙️ Admin": "admin",
     }
     # Pages réservées admin (cachées pour le rôle 'artist')
@@ -240,6 +264,7 @@ def main():
     elif page == "promo_admin": from views.promo_admin import show; show()
     elif page == "upgrade": from views.upgrade import show; show()
     elif page == "perf_monitor": from views.perf_monitor import show; show()
+    elif page == "alerts": from views.alerts import show; show()
 
     # Record render time (rolling 100-entry log, stored in session state)
     _render_ms = int((time.perf_counter() - _t0) * 1000)
