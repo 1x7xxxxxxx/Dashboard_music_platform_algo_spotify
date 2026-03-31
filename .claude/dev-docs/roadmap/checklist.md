@@ -224,7 +224,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P2 — Data Integrity (new, 2026-03-31)
 
-- [ ] **s4a_audience playlist_adds / saves still 0** — all 819 rows confirmed 0 after re-import. Root cause unclear: either S4A audience CSV for this artist genuinely records 0 daily increments, or column name in export differs from `'playlist adds'` / `'saves'` (parser uses `row.get('playlist adds', 0)` with a space). **To verify**: open raw audience CSV and confirm column headers.
+- [x] **s4a_audience playlist_adds / saves still 0** — confirmed: `playlist_adds` is not present in `s4a_songs_global` CSV (neither 28d nor 12m format). Only source is `s4a_audience` daily timeline CSV (artist-level delta) which records 0 for this artist — genuine data. Saves ARE in songs_global CSV and import correctly. playlist_adds entry via manual form (`s4a_song_playlist_adds`) is the intended workflow.
 
 ---
 

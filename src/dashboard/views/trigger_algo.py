@@ -298,49 +298,59 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     # ── Ajouts en playlist (saisie manuelle) ─────────────────────────────────
     st.subheader("🎧 Ajouts en playlist")
     try:
+        # Most recent snapshot regardless of selected period
         pl_row = db.fetch_query(
-            "SELECT count FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s AND period_start = %s AND period_end = %s",
-            (artist_id, track, date_from, date_to),
+            "SELECT count, recorded_at FROM s4a_song_playlist_adds "
+            "WHERE artist_id = %s AND song = %s "
+            "ORDER BY recorded_at DESC LIMIT 1",
+            (artist_id, track),
+        ) if artist_id else db.fetch_query(
+            "SELECT count, recorded_at FROM s4a_song_playlist_adds "
+            "WHERE song = %s ORDER BY recorded_at DESC LIMIT 1",
+            (track,),
         )
-        current_pl_count = int(pl_row[0][0]) if pl_row else 0
+        current_pl_count = int(pl_row[0][0]) if pl_row and pl_row[0][0] is not None else 0
+        last_recorded = pl_row[0][1] if pl_row else None
     except Exception:
         current_pl_count = 0
+        last_recorded = None
 
     st.metric(
-        "Playlists ajoutées (période)",
+        "Playlists ajoutées",
         current_pl_count,
-        help="Nombre de playlists où cette track a été ajoutée sur la période sélectionnée. "
+        help=f"Dernier enregistrement : {last_recorded or '—'}. "
              "Donnée visible dans l'UI Spotify for Artists uniquement — à saisir manuellement.",
     )
 
     with st.expander("✏️ Mettre à jour", expanded=False):
-        st.caption(
-            f"Saisissez le nombre de playlists (visible dans S4A) "
-            f"pour la période du {date_from} au {date_to}."
-        )
-        with st.form(key=f"pl_count_form_{track}_{artist_id}_{date_from}_{date_to}"):
-            new_count = st.number_input(
+        st.caption("Saisissez le nombre de playlists affiché dans S4A pour cette track.")
+        with st.form(key=f"pl_count_form_{track}_{artist_id}", clear_on_submit=False):
+            fc1, fc2 = st.columns([2, 1])
+            new_count = fc1.number_input(
                 "Nombre de playlists",
                 min_value=0,
                 value=current_pl_count,
                 step=1,
+            )
+            entry_date = fc2.date_input(
+                "Date de relevé",
+                value=date_to,
+                format="YYYY-MM-DD",
             )
             if st.form_submit_button("Enregistrer", type="primary"):
                 try:
                     db.upsert_many(
                         table='s4a_song_playlist_adds',
                         data=[{
-                            'artist_id':    artist_id,
-                            'song':         track,
-                            'period_start': date_from,
-                            'period_end':   date_to,
-                            'count':        int(new_count),
+                            'artist_id':   artist_id,
+                            'song':        track,
+                            'recorded_at': entry_date,
+                            'count':       int(new_count),
                         }],
-                        conflict_columns=['artist_id', 'song', 'period_start', 'period_end'],
+                        conflict_columns=['artist_id', 'song', 'recorded_at'],
                         update_columns=['count', 'collected_at'],
                     )
-                    st.success(f"{int(new_count)} playlist(s) enregistrée(s).")
+                    st.success(f"{int(new_count)} playlist(s) enregistrée(s) au {entry_date}.")
                     st.rerun()
                 except Exception as exc:
                     st.error(f"Erreur : {exc}")
