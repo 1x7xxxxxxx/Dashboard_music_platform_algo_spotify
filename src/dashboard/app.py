@@ -115,6 +115,7 @@ def show_navigation_menu(role: str = 'artist'):
         "📄 Export PDF": "export_pdf",
         "⬇️ Export CSV": "export_csv",
         "🏗️ Monitoring ETL": "airflow_kpi",
+        "🗄️ Santé des données": "db_health",
         "🗂️ Historique ETL": "etl_logs",
         "🤖 Perf. Modèles ML": "ml_performance",
         "🔧 Liens & Outils": "useful_links",
@@ -249,6 +250,7 @@ def main():
     elif page == "export_pdf": from views.export_pdf import show; show()
     elif page == "export_csv": from views.export_csv import show; show()
     elif page == "airflow_kpi": from views.airflow_kpi import show; show()
+    elif page == "db_health": from views.db_health import show; show()
     elif page == "etl_logs": from views.etl_logs import show; show()
     elif page == "ml_performance": from views.ml_performance import show; show()
     elif page == "useful_links": from views.useful_links import show; show()

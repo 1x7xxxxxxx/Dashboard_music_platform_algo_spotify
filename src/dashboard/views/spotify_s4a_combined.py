@@ -135,9 +135,14 @@ def show():
     st.caption("Calculé : Somme des streams dédupliqués jour par jour")
     
     col1, col2 = st.columns(2)
-    default_start = datetime.now().date() - timedelta(days=365)
-    start_date_aud = col1.date_input("Début", value=default_start, key="date_aud_start")
-    end_date_aud = col2.date_input("Fin", value=datetime.now().date(), key="date_aud_end")
+    today = datetime.now().date()
+    try:
+        _rd_rows = db.fetch_query("SELECT MAX(release_date) FROM tracks")
+        _latest_release = _rd_rows[0][0] if _rd_rows and _rd_rows[0][0] else (today - timedelta(days=365))
+    except Exception:
+        _latest_release = today - timedelta(days=365)
+    start_date_aud = col1.date_input("Début", value=_latest_release, key="date_aud_start")
+    end_date_aud = col2.date_input("Fin", value=today, key="date_aud_end")
     
     audience_query = f"""
         SELECT date, SUM(streams) as daily_streams
@@ -183,31 +188,42 @@ def show():
     st.header("🎸 Détail par Chanson")
     
     songs_list = db.fetch_df(f"""
-        SELECT song, MIN(date) AS first_seen
-        FROM s4a_song_timeline
-        WHERE song NOT ILIKE %s
-        {artist_frag}
-        GROUP BY song
-        ORDER BY first_seen DESC
+        SELECT t.song
+        FROM (
+            SELECT song FROM s4a_song_timeline
+            WHERE song NOT ILIKE %s {artist_frag}
+            GROUP BY song
+        ) t
+        LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+        ORDER BY tk.release_date DESC NULLS LAST, t.song
     """, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
-    
+
     if not songs_list.empty:
         col1, col2, col3 = st.columns([2, 1, 1])
-        
+
         with col1:
             selected_song = st.selectbox("Sélectionner une chanson", songs_list['song'])
-        
+
+        try:
+            _sr = db.fetch_query(
+                "SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s LIMIT 1",
+                (selected_song,)
+            )
+            song_release_date = _sr[0][0] if _sr and _sr[0][0] else (today - timedelta(days=365))
+        except Exception:
+            song_release_date = today - timedelta(days=365)
+
         with col2:
             start_date_song = st.date_input(
-                "Début", 
-                value=datetime.now().date() - timedelta(days=365),
-                key="song_start"
+                "Début",
+                value=song_release_date,
+                key=f"song_start_{selected_song}"
             )
         with col3:
             end_date_song = st.date_input(
-                "Fin", 
-                value=datetime.now().date(),
-                key="song_end"
+                "Fin",
+                value=today,
+                key=f"song_end_{selected_song}"
             )
         
         # Même logique de déduplication ici aussi pour être cohérent

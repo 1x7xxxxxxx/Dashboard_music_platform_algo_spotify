@@ -83,24 +83,36 @@ def show():
         with st.expander("⚙️ Filtres du graphique", expanded=True):
             col_f1, col_f2 = st.columns(2)
 
-            # A. Filtre Période (Défaut : 30 derniers jours)
-            today = datetime.now().date()
-            start_default = today - timedelta(days=30)
-
-            date_range = col_f1.date_input(
-                "Période",
-                value=(start_default, today),
-                max_value=today,
-                format="DD/MM/YYYY"
-            )
-
-            # B. Filtre Titres — trié par dernière release (first_seen desc)
+            # B. Filtre Titres — trié par dernière release (first_seen desc), rendu en premier
+            # pour que first_seen du track sélectionné serve de borne gauche au filtre période.
             all_titles = df_latest.sort_values('first_seen', ascending=False)['title'].tolist()
-            selected_tracks = col_f2.multiselect(
-                "Filtrer par titres",
-                options=all_titles,
-                default=all_titles[:1],  # Dernière release par défaut
-            )
+            with col_f2:
+                selected_tracks = st.multiselect(
+                    "Filtrer par titres",
+                    options=all_titles,
+                    default=all_titles[:1],  # Dernière release par défaut
+                )
+
+            # A. Filtre Période — démarre à la first_seen du track sélectionné (ou J-30 si inconnu)
+            today = datetime.now().date()
+            default_track = (selected_tracks[0] if selected_tracks else all_titles[0]) if all_titles else None
+            if default_track is not None:
+                _row = df_latest[df_latest['title'] == default_track]
+                try:
+                    start_default = pd.to_datetime(_row['first_seen'].iloc[0]).date()
+                except Exception:
+                    start_default = today - timedelta(days=30)
+            else:
+                start_default = today - timedelta(days=30)
+
+            with col_f1:
+                date_range = st.date_input(
+                    "Période",
+                    value=(start_default, today),
+                    max_value=today,
+                    format="DD/MM/YYYY",
+                    key=f"sc_period_{default_track or 'all'}"
+                )
 
         # --- REQUÊTE & AFFICHAGE ---
         try:

@@ -215,25 +215,32 @@ def _compute_score_20(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── Tab 1 — Vue Globale ───────────────────────────────────────────────────────
-def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred):
+def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
     st.subheader("📊 Métriques sur la période sélectionnée")
 
-    # Listeners (artist-level, not track-level in s4a_audience)
+    # Select the appropriate s4a_songs_global snapshot window based on period length.
+    # ≤35 days → 28d snapshot; anything longer → 12m snapshot.
+    _period_days = (date_to - date_from).days
+    _tw = '28d' if _period_days <= 35 else '12m'
+
+    # Listeners — per-track snapshot from s4a_songs_global
     try:
-        if artist_id:
-            listeners = db.fetch_query(
-                "SELECT COALESCE(SUM(listeners), 0) FROM s4a_audience WHERE artist_id = %s AND date BETWEEN %s AND %s",
-                (artist_id, date_from, date_to)
-            )[0][0]
-        else:
-            listeners = db.fetch_query(
-                "SELECT COALESCE(SUM(listeners), 0) FROM s4a_audience WHERE date BETWEEN %s AND %s",
-                (date_from, date_to)
-            )[0][0]
+        _lrow = db.fetch_query(
+            "SELECT listeners FROM s4a_songs_global "
+            "WHERE artist_id = %s AND song = %s AND time_window = %s "
+            "ORDER BY collected_at DESC LIMIT 1",
+            (artist_id, track, _tw),
+        ) if artist_id else db.fetch_query(
+            "SELECT listeners FROM s4a_songs_global "
+            "WHERE song = %s AND time_window = %s "
+            "ORDER BY collected_at DESC LIMIT 1",
+            (track, _tw),
+        )
+        listeners = int(_lrow[0][0]) if _lrow and _lrow[0][0] is not None else None
     except Exception:
         listeners = None
 
-    # Streams (track-level)
+    # Streams — per-track cumulative over period from s4a_song_timeline
     try:
         if artist_id:
             streams = db.fetch_query(
@@ -248,26 +255,95 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred):
     except Exception:
         streams = None
 
-    # Saves (total from s4a_songs_global — no daily granularity available)
+    # Saves — per-track snapshot from s4a_songs_global
     try:
-        if artist_id:
-            saves_row = db.fetch_query(
-                "SELECT saves FROM s4a_songs_global WHERE song = %s AND artist_id = %s",
-                (track, artist_id)
-            )
-        else:
-            saves_row = db.fetch_query(
-                "SELECT saves FROM s4a_songs_global WHERE song = %s", (track,)
-            )
-        saves = int(saves_row[0][0]) if saves_row else None
+        _srow = db.fetch_query(
+            "SELECT saves FROM s4a_songs_global "
+            "WHERE artist_id = %s AND song = %s AND time_window = %s "
+            "ORDER BY collected_at DESC LIMIT 1",
+            (artist_id, track, _tw),
+        ) if artist_id else db.fetch_query(
+            "SELECT saves FROM s4a_songs_global "
+            "WHERE song = %s AND time_window = %s "
+            "ORDER BY collected_at DESC LIMIT 1",
+            (track, _tw),
+        )
+        saves = int(_srow[0][0]) if _srow and _srow[0][0] is not None else None
     except Exception:
         saves = None
 
+    # Playlist adds — manual entry from s4a_song_playlist_adds for the selected period
+    try:
+        _parow = db.fetch_query(
+            "SELECT count FROM s4a_song_playlist_adds "
+            "WHERE artist_id = %s AND song = %s AND period_start = %s AND period_end = %s",
+            (artist_id, track, date_from, date_to),
+        ) if artist_id else None
+        playlist_adds = int(_parow[0][0]) if _parow and _parow[0][0] is not None else 0
+    except Exception:
+        playlist_adds = 0
+
+    _tw_label = "28j" if _tw == '28d' else "12m"
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Listeners (période)", f"{int(listeners or 0):,}" if listeners is not None else "—")
-    col2.metric("Streams titre (période)", f"{int(streams or 0):,}" if streams is not None else "—")
-    col3.metric("Saves (total)", f"{int(saves or 0):,}" if saves is not None else "—")
-    col4.metric("Playlist adds", "N/A", help="Donnée non collectée dans les CSV S4A")
+    col1.metric(f"Listeners ({_tw_label})", f"{int(listeners or 0):,}" if listeners is not None else "—",
+                help=f"Snapshot {_tw_label} depuis s4a_songs_global (source : S4A export)")
+    col2.metric(f"Streams titre ({_tw_label})", f"{int(streams or 0):,}" if streams is not None else "—")
+    col3.metric(f"Saves ({_tw_label})", f"{int(saves or 0):,}" if saves is not None else "—",
+                help=f"Snapshot {_tw_label} depuis s4a_songs_global")
+    col4.metric("Playlist adds (période)", f"{int(playlist_adds):,}",
+                help="Saisie manuelle via la section Ajouts en playlist ci-dessous")
+
+    st.markdown("---")
+
+    # ── Ajouts en playlist (saisie manuelle) ─────────────────────────────────
+    st.subheader("🎧 Ajouts en playlist")
+    try:
+        pl_row = db.fetch_query(
+            "SELECT count FROM s4a_song_playlist_adds "
+            "WHERE artist_id = %s AND song = %s AND period_start = %s AND period_end = %s",
+            (artist_id, track, date_from, date_to),
+        )
+        current_pl_count = int(pl_row[0][0]) if pl_row else 0
+    except Exception:
+        current_pl_count = 0
+
+    st.metric(
+        "Playlists ajoutées (période)",
+        current_pl_count,
+        help="Nombre de playlists où cette track a été ajoutée sur la période sélectionnée. "
+             "Donnée visible dans l'UI Spotify for Artists uniquement — à saisir manuellement.",
+    )
+
+    with st.expander("✏️ Mettre à jour", expanded=False):
+        st.caption(
+            f"Saisissez le nombre de playlists (visible dans S4A) "
+            f"pour la période du {date_from} au {date_to}."
+        )
+        with st.form(key=f"pl_count_form_{track}_{artist_id}_{date_from}_{date_to}"):
+            new_count = st.number_input(
+                "Nombre de playlists",
+                min_value=0,
+                value=current_pl_count,
+                step=1,
+            )
+            if st.form_submit_button("Enregistrer", type="primary"):
+                try:
+                    db.upsert_many(
+                        table='s4a_song_playlist_adds',
+                        data=[{
+                            'artist_id':    artist_id,
+                            'song':         track,
+                            'period_start': date_from,
+                            'period_end':   date_to,
+                            'count':        int(new_count),
+                        }],
+                        conflict_columns=['artist_id', 'song', 'period_start', 'period_end'],
+                        update_columns=['count', 'collected_at'],
+                    )
+                    st.success(f"{int(new_count)} playlist(s) enregistrée(s).")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Erreur : {exc}")
 
     st.markdown("---")
 
@@ -298,10 +374,11 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred):
 
             display = df_bench[["song", "score_20", "dw_probability", "rr_probability",
                                 "radio_probability", "streams_28d"]].copy()
-            display["score_20"] = display["score_20"].round(1)
-            display["dw_probability"] = (display["dw_probability"] * 100).round(0).astype("Int64")
-            display["rr_probability"] = (display["rr_probability"] * 100).round(0).astype("Int64")
-            display["radio_probability"] = (display["radio_probability"] * 100).round(0).astype("Int64")
+            display["score_20"] = display["score_20"].fillna(0).round(1)
+            display["dw_probability"] = (display["dw_probability"].fillna(0) * 100).round(0).astype(int)
+            display["rr_probability"] = (display["rr_probability"].fillna(0) * 100).round(0).astype(int)
+            display["radio_probability"] = (display["radio_probability"].fillna(0) * 100).round(0).astype(int)
+            display["streams_28d"] = display["streams_28d"].fillna(0).astype(int)
             display.columns = ["Titre", "Score /20", "DW %", "RR %", "Radio %", "Streams 28j"]
 
             def _color_score(val):
@@ -318,6 +395,7 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred):
 
             styled = (
                 display.style
+                .format(na_rep="—")
                 .applymap(_color_score, subset=["Score /20"])
                 .apply(_highlight_selected, axis=1)
             )
@@ -344,10 +422,11 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred):
             )
         if not df_full.empty:
             df_full["date"] = pd.to_datetime(df_full["date"])
-            release_date = df_full["date"].min()
-            end_28 = release_date + timedelta(days=28)
-            df_28 = df_full[(df_full["date"] >= release_date) & (df_full["date"] <= end_28)].copy()
-            df_28["day_index"] = (df_28["date"] - release_date).dt.days
+            # Use actual release_date from tracks table; fall back to timeline min only if unavailable
+            rd = pd.Timestamp(release_date) if release_date else df_full["date"].min()
+            end_28 = rd + timedelta(days=28)
+            df_28 = df_full[(df_full["date"] >= rd) & (df_full["date"] <= end_28)].copy()
+            df_28["day_index"] = (df_28["date"] - rd).dt.days
             df_28["streams_cumul"] = df_28["streams"].cumsum()
             current_total = float(df_28["streams_cumul"].max()) if not df_28.empty else 0
             days_elapsed = int(df_28["day_index"].max()) if not df_28.empty else 0
@@ -367,7 +446,7 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred):
 
 
 # ── Tab 2 — Suivi Algorithmes ─────────────────────────────────────────────────
-def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred):
+def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
     st.subheader("📈 Streams & probabilités algorithmiques")
     try:
         if artist_id:
@@ -462,12 +541,13 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred):
 
         if not df_full.empty:
             df_full["date"] = pd.to_datetime(df_full["date"])
-            release_date = df_full["date"].min()
-            end_28 = release_date + timedelta(days=28)
+            # Use actual release_date from tracks table; fall back to timeline min only if unavailable
+            rd = pd.Timestamp(release_date) if release_date else df_full["date"].min()
+            end_28 = rd + timedelta(days=28)
             df_focus = df_full[
-                (df_full["date"] >= release_date) & (df_full["date"] <= end_28)
+                (df_full["date"] >= rd) & (df_full["date"] <= end_28)
             ].copy()
-            df_focus["day_index"] = (df_focus["date"] - release_date).dt.days
+            df_focus["day_index"] = (df_focus["date"] - rd).dt.days
             df_focus["streams_cumul"] = df_focus["streams"].cumsum()
 
             if not df_pop.empty:
@@ -986,16 +1066,25 @@ def show():
     artist_id = st.session_state.get("artist_id")
 
     try:
-        # Track list
+        # Track list — ordered by release_date DESC from tracks table.
+        # S4A CSVs replace '?' with '_' in song names, so the JOIN uses REPLACE().
         try:
             if artist_id:
                 tracks = db.fetch_df(
-                    "SELECT song FROM s4a_song_timeline WHERE song NOT ILIKE %s AND artist_id = %s GROUP BY song ORDER BY MIN(date) DESC",
+                    """SELECT t.song
+                       FROM (SELECT song FROM s4a_song_timeline
+                             WHERE song NOT ILIKE %s AND artist_id = %s GROUP BY song) t
+                       LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+                       ORDER BY tk.release_date DESC NULLS LAST, t.song""",
                     ("%1x7xxxxxxx%", artist_id)
                 )["song"].tolist()
             else:
                 tracks = db.fetch_df(
-                    "SELECT song FROM s4a_song_timeline WHERE song NOT ILIKE %s GROUP BY song ORDER BY MIN(date) DESC",
+                    """SELECT t.song
+                       FROM (SELECT song FROM s4a_song_timeline
+                             WHERE song NOT ILIKE %s GROUP BY song) t
+                       LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+                       ORDER BY tk.release_date DESC NULLS LAST, t.song""",
                     ("%1x7xxxxxxx%",)
                 )["song"].tolist()
         except Exception:
@@ -1006,21 +1095,84 @@ def show():
             return
 
         # Global selectors
+        today = date.today()
         sel1, sel2 = st.columns([2, 2])
         with sel1:
             selected_track = st.selectbox("🎵 Titre", tracks)
+
+        # Fetch release_date of selected track via tracks table (same '?' → '_' normalisation)
+        try:
+            rd_rows = db.fetch_query(
+                "SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s LIMIT 1",
+                (selected_track,)
+            )
+            track_release_date = rd_rows[0][0] if rd_rows and rd_rows[0][0] else (today - timedelta(days=28))
+        except Exception:
+            track_release_date = today - timedelta(days=28)
+
         with sel2:
-            today = date.today()
-            period = st.date_input(
-                "📅 Période", value=(today - timedelta(days=28), today),
-                max_value=today, key="trigger_period"
+            _PRESETS = [
+                "28 derniers jours",
+                "90 derniers jours",
+                "Mois en cours",
+                "Mois précédent",
+                "Mois / Année",
+                "Personnalisé",
+            ]
+            period_preset = st.selectbox(
+                "📅 Période",
+                _PRESETS,
+                key=f"period_preset_{selected_track}"
             )
 
-        if isinstance(period, (list, tuple)) and len(period) == 2:
-            date_from, date_to = period[0], period[1]
-        else:
-            date_from = today - timedelta(days=28)
+        # Sub-selectors rendered below the two-column row (full width)
+        import calendar as _cal
+        _MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
+        if period_preset == "28 derniers jours":
+            date_from, date_to = today - timedelta(days=28), today
+
+        elif period_preset == "90 derniers jours":
+            date_from, date_to = today - timedelta(days=90), today
+
+        elif period_preset == "Mois en cours":
+            date_from = today.replace(day=1)
             date_to = today
+
+        elif period_preset == "Mois précédent":
+            first_current = today.replace(day=1)
+            date_to = first_current - timedelta(days=1)
+            date_from = date_to.replace(day=1)
+
+        elif period_preset == "Mois / Année":
+            cm, cy = st.columns([1, 1])
+            sel_month = cm.selectbox(
+                "Mois", _MONTHS,
+                index=today.month - 1,
+                key=f"sel_month_{selected_track}"
+            )
+            sel_year = cy.selectbox(
+                "Année",
+                list(range(2022, today.year + 1))[::-1],
+                key=f"sel_year_{selected_track}"
+            )
+            month_num = _MONTHS.index(sel_month) + 1
+            date_from = date(sel_year, month_num, 1)
+            last_day = _cal.monthrange(sel_year, month_num)[1]
+            date_to = min(date(sel_year, month_num, last_day), today)
+
+        else:  # Personnalisé
+            _custom = st.date_input(
+                "Plage personnalisée",
+                value=(today - timedelta(days=28), today),
+                max_value=today,
+                key=f"period_custom_{selected_track}"
+            )
+            if isinstance(_custom, (list, tuple)) and len(_custom) == 2:
+                date_from, date_to = _custom[0], _custom[1]
+            else:
+                date_from, date_to = today - timedelta(days=28), today
 
         # Load ML prediction once — shared across tabs
         ml_pred = _load_ml_pred(db, selected_track, artist_id)
@@ -1033,9 +1185,9 @@ def show():
             "📈 Modèle",
         ])
         with tab1:
-            _show_tab_global(db, selected_track, artist_id, date_from, date_to, ml_pred)
+            _show_tab_global(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)
         with tab2:
-            _show_tab_algos(db, selected_track, artist_id, date_from, date_to, ml_pred)
+            _show_tab_algos(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)
         with tab3:
             _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to)
         with tab4:
