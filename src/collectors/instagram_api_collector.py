@@ -182,7 +182,7 @@ class InstagramCollector:
                 'followers_count': data.get('followers_count', 0),
                 'follows_count': data.get('follows_count', 0),
                 'media_count': data.get('media_count', 0),
-                'collected_at': datetime.now().strftime('%Y-%m-%d')
+                'collected_at': datetime.now()
             }
 
             print(f"✅ Données récupérées pour @{stats['username']} : {stats['followers_count']} abonnés.")
@@ -204,17 +204,12 @@ class InstagramCollector:
 
         print("💾 Sauvegarde en base de données...")
         
-        delete_query = "DELETE FROM instagram_daily_stats WHERE collected_at = CURRENT_DATE AND artist_id = %s"
+        delete_query = "DELETE FROM instagram_daily_stats WHERE collected_at::date = CURRENT_DATE AND artist_id = %s"
 
         insert_query = """
             INSERT INTO instagram_daily_stats
             (artist_id, ig_user_id, username, followers_count, follows_count, media_count, collected_at)
             VALUES (%(artist_id)s, %(ig_user_id)s, %(username)s, %(followers_count)s, %(follows_count)s, %(media_count)s, %(collected_at)s)
-            ON CONFLICT (artist_id, ig_user_id, collected_at) DO UPDATE SET
-                username = EXCLUDED.username,
-                followers_count = EXCLUDED.followers_count,
-                follows_count = EXCLUDED.follows_count,
-                media_count = EXCLUDED.media_count
         """
         
         try:

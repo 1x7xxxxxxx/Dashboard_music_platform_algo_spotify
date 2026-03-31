@@ -140,7 +140,7 @@ class SoundCloudCollector:
                     'likes_count': int(track.get('likes_count') or 0),
                     'reposts_count': int(track.get('reposts_count') or 0),
                     'comment_count': int(track.get('comment_count') or 0),
-                    'collected_at': datetime.now().strftime('%Y-%m-%d'),
+                    'collected_at': datetime.now(),
                 })
 
             url = data.get('next_href') if collection else None
@@ -157,7 +157,7 @@ class SoundCloudCollector:
             logger.warning("No tracks to save — skipping.")
             return
         self.db.execute_query(
-            "DELETE FROM soundcloud_tracks_daily WHERE collected_at = CURRENT_DATE AND artist_id = %s",
+            "DELETE FROM soundcloud_tracks_daily WHERE collected_at::date = CURRENT_DATE AND artist_id = %s",
             (self.artist_id,)
         )
         self.db.insert_many("soundcloud_tracks_daily", tracks)

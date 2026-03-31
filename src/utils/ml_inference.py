@@ -149,14 +149,14 @@ def build_features(db, artist_id: int, song: str) -> dict:
 
     # --- Catalog size ---
     catalog = db.fetch_query(
-        "SELECT COUNT(DISTINCT song) FROM s4a_songs_global WHERE artist_id = %s",
+        "SELECT COUNT(DISTINCT song) FROM s4a_songs_global WHERE artist_id = %s AND time_window = '12m'",
         (artist_id,)
     )
     n_songs = int(catalog[0][0]) if catalog else 1
 
     # --- Listeners / stream ratio (global) ---
     global_row = db.fetch_query(
-        "SELECT listeners, streams FROM s4a_songs_global WHERE artist_id = %s AND song = %s",
+        "SELECT listeners, streams FROM s4a_songs_global WHERE artist_id = %s AND song = %s AND time_window = '12m'",
         (artist_id, song)
     )
     listeners_global = int(global_row[0][0]) if global_row and global_row[0][0] else 0

@@ -93,6 +93,8 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P4 — Tech Debt (new)
 
+- [ ] **CSV upload audit log** — log table recording filename, artist_id, platform, row count, imported_at per upload. Low value: `collected_at` on each row already serves as implicit audit trail. Implement only if compliance/debugging requires full file-level traceability.
+
 - [x] **`init_db.sql` bootstrap gap** — 26 missing tables appended (S4A, Meta Ads, Meta Insights ×10, YouTube ×6, Apple Music ×4, Hypeddit ×2). Fresh install is now self-contained.
 - [x] **YouTube UNIQUE constraints** — `UNIQUE(artist_id, channel_id, collected_at::date)` and `UNIQUE(artist_id, video_id, collected_at::date)` added to `youtube_schema.py` + `migrations/003_youtube_unique.sql`.
 - [x] **`provide_context` deprecation** — removed `provide_context=True` from all 4 `PythonOperator` instances in `data_quality_check.py`. Functions already accept `**context`.
@@ -205,6 +207,24 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 | 28 | TOTP 2FA — pyotp + qrcode enrollment in account.py, challenge step in login flow, disable-with-password | ✅ | P1 |
 | 29 | Onboarding tracker — 4-step progress bar on home page (credentials, DAG run, CSV, 2FA); auto-hidden when complete | ✅ | P3 |
 | 30 | Alerting dashboard — circuit breakers, freshness warnings, DAG failures, locked accounts, billing alerts | ✅ | P2 |
+| 31 | S4A dashboard view audit — per-track KPIs (listeners, saves) from s4a_songs_global; dual-window (28d/12m) support; DB health view; playlist placement manual entry; s4a_audience saves/playlist_adds columns | ✅ | P3 |
+
+---
+
+### P3 — UX / Features (new, 2026-03-31)
+
+- [x] **S4A per-track KPIs fix** — Listeners and Saves in trigger_algo `_show_tab_global()` were sourced from `s4a_audience` (artist-level → same value for all tracks). Rebound to `s4a_songs_global` per-track snapshot with automatic `time_window` selection (≤35 days → `28d`, else `12m`).
+- [x] **s4a_songs_global dual-window** — migration 023 adds `time_window TEXT DEFAULT '12m'` + UNIQUE `(artist_id, song, time_window)`. Parser detects `28d` from filename tokens `28day/28d/28j`, else `12m`. `ml_inference.py` queries now filter `AND time_window = '12m'`.
+- [x] **s4a_audience saves + playlist_adds** — migration 020 adds columns. Parser maps `'playlist adds'` (with space) and `'saves'` from audience CSV.
+- [x] **Playlist placement manual entry** — migration 021 `s4a_song_playlists` (per-song playlist registry, unused for now). Migration 022 `s4a_song_playlist_adds(artist_id, song, period_start, period_end, count)` — stores manual count from S4A UI (not in CSV exports). `trigger_algo.py` Vue Globale shows count + update form.
+- [x] **DB health view** (`src/dashboard/views/db_health.py`) — 11 datasets, freshness table + horizontal bar chart (thresholds 14j/30j), 52-week heatmap, cumulative growth chart, batch sizes chart.
+- [x] **Styled dataframe NoneType crash** — `display.style.format(na_rep="—")` added as first call in Score /20 benchmark; `fillna(0)` on all numeric columns before styling.
+- [x] **Upload CSV multi-file auto-detection** — `_detect_platform(filename, columns)` priority-ordered detection; `accept_multiple_files=True`; per-file preview + 4-KPI import result.
+- [x] **upsert_many row count fix** — was returning `cursor.rowcount` (last batch only = 1); now returns `len(data)` post-dedup.
+
+### P2 — Data Integrity (new, 2026-03-31)
+
+- [ ] **s4a_audience playlist_adds / saves still 0** — all 819 rows confirmed 0 after re-import. Root cause unclear: either S4A audience CSV for this artist genuinely records 0 daily increments, or column name in export differs from `'playlist adds'` / `'saves'` (parser uses `row.get('playlist adds', 0)` with a space). **To verify**: open raw audience CSV and confirm column headers.
 
 ---
 

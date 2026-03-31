@@ -34,6 +34,8 @@ _ALLOWED_TABLES = frozenset({
     'promo_codes', 'promo_events',
     'etl_run_log', 'etl_circuit_breaker',
     'admin_audit_log',
+    's4a_song_playlists',
+    's4a_song_playlist_adds',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
@@ -305,8 +307,9 @@ class PostgresHandler:
             )
 
             execute_batch(self.cursor, query, values)
-            rows_affected = self.cursor.rowcount
-            # ✅ Pas de commit nécessaire avec autocommit = True
+            # cursor.rowcount after execute_batch reflects the last batch only — not the total.
+            # Return len(data) (post-deduplication) as the canonical row count.
+            rows_affected = len(data)
 
             logger.info(f"✅ {rows_affected} ligne(s) affectée(s) dans {table}")
             return rows_affected
