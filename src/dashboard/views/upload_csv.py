@@ -4,7 +4,7 @@ Accessible à tous les utilisateurs authentifiés.
 - Artiste : importe des CSV pour son propre artist_id.
 - Admin    : sélectionne l'artiste cible.
 
-Flux : Upload → Preview (10 premières lignes parsées) → Confirmer → Insert DB.
+Flux : Upload (multi-fichier) → Détection auto du type → Aperçu → Confirmer tout.
 """
 import sys
 from pathlib import Path
@@ -14,40 +14,42 @@ import pandas as pd
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
 
-# Garantit que la racine est dans sys.path pour les parsers
 _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
 
 # ─────────────────────────────────────────────
-# Parsers
+# Platform registry  (key → DB config)
 # ─────────────────────────────────────────────
 
-PLATFORMS = {
-    'S4A — Spotify for Artists (timeline)': {
-        'key': 's4a',
+_PLATFORMS = {
+    's4a': {
+        'label': 'S4A — Timeline par titre',
         'table': 's4a_song_timeline',
         'conflict_columns': ['artist_id', 'song', 'date'],
         'update_columns': ['streams', 'collected_at'],
-        # Each inner list = at least one match required (case-insensitive).
-        'required_columns': [
-            (['date'], "Date"),
-            (['streams', 'ecoutes', 'écoutes'], "Streams / Écoutes"),
-        ],
     },
-    'Apple Music (performance)': {
-        'key': 'apple',
+    's4a_songs_global': {
+        'label': 'S4A — Résumé titres',
+        'table': 's4a_songs_global',
+        'conflict_columns': ['artist_id', 'song', 'time_window'],
+        'update_columns': ['listeners', 'streams', 'saves', 'release_date', 'collected_at'],
+    },
+    's4a_audience': {
+        'label': 'S4A — Audience',
+        'table': 's4a_audience',
+        'conflict_columns': ['artist_id', 'date'],
+        'update_columns': ['listeners', 'streams', 'followers', 'playlist_adds', 'saves', 'collected_at'],
+    },
+    'apple': {
+        'label': 'Apple Music',
         'table': 'apple_songs_performance',
         'conflict_columns': ['artist_id', 'song_name'],
         'update_columns': ['plays', 'listeners', 'shazam_count'],
-        'required_columns': [
-            (['morceau', 'song', 'song title', 'title', 'track', 'titre'], "Song / Morceau"),
-            (['écoutes', 'plays', 'play count', 'lectures'], "Plays / Écoutes"),
-        ],
     },
-    'iMusician — Résumé par sortie': {
-        'key': 'imusician_summary',
+    'imusician_summary': {
+        'label': 'iMusician — Résumé par sortie',
         'table': 'imusician_release_summary',
         'conflict_columns': ['artist_id', 'barcode', 'year', 'month'],
         'update_columns': [
@@ -55,50 +57,83 @@ PLATFORMS = {
             'track_downloads_revenue', 'track_streams_revenue',
             'release_downloads_revenue', 'total_revenue', 'collected_at',
         ],
-        'required_columns': [
-            (['release title'], "Release title"),
-            (['track streams'], "Track streams"),
-            (['total revenue'], "Total revenue"),
-        ],
     },
-    'iMusician — Rapport de vente': {
-        'key': 'imusician_sales',
+    'imusician_sales': {
+        'label': 'iMusician — Rapport de vente',
         'table': 'imusician_sales_detail',
         'conflict_columns': [
             'artist_id', 'isrc', 'sales_year', 'sales_month',
             'statement_year', 'statement_month', 'shop', 'country', 'transaction_type',
         ],
         'update_columns': ['quantity', 'revenue_eur', 'collected_at'],
-        'required_columns': [
-            (['sales date'], "Sales date"),
-            (['isrc'], "ISRC"),
-            (['shop'], "Shop"),
-        ],
     },
 }
 
 
-def _validate_columns(df: pd.DataFrame, required_groups: list) -> list[dict]:
+# ─────────────────────────────────────────────
+# Auto-detection
+# ─────────────────────────────────────────────
+
+def _detect_platform(filename: str, columns: list[str]) -> str | None:
+    """Return a platform key from filename + column headers, or None if unknown.
+
+    Detection is ordered from most specific to least specific to avoid false positives.
     """
-    Check that each required column group has at least one match in df.columns.
+    name = filename.lower()
+    cols = {c.lower().strip() for c in columns}
 
-    Returns a list of dicts: {label, matched, found_col}.
-    """
-    cols_lower = [c.lower().strip() for c in df.columns]
-    results = []
-    for candidates, label in required_groups:
-        found = next((c for c in candidates if c in cols_lower), None)
-        results.append({'label': label, 'matched': found is not None, 'found': found})
-    return results
+    # iMusician — sales (ISRC + shop is highly specific)
+    if 'isrc' in cols and 'shop' in cols:
+        return 'imusician_sales'
+
+    # iMusician — summary
+    if 'release title' in cols and 'track streams' in cols:
+        return 'imusician_summary'
+
+    # Apple Music
+    if any(c in cols for c in ['morceau', 'song title']) and \
+       any(c in cols for c in ['écoutes', 'plays', 'play count', 'lectures']):
+        return 'apple'
+
+    # S4A audience (filename signal takes priority over column overlap with timeline)
+    if 'audience' in name and 'date' in cols and 'listeners' in cols:
+        return 's4a_audience'
+
+    # S4A songs-all (has release_date + saves at column level, or filename signal)
+    if ('songs-all' in name or 'songs_all' in name) and 'song' in cols:
+        return 's4a_songs_global'
+    if 'song' in cols and 'release_date' in cols and 'saves' in cols:
+        return 's4a_songs_global'
+
+    # S4A per-song timeline (filename has -timeline, columns are just date + streams)
+    if ('timeline' in name or 'timeline' in name) and 'date' in cols and \
+       any(c in cols for c in ['streams', 'ecoutes', 'écoutes']) and \
+       'audience' not in name and 'song' not in cols:
+        return 's4a'
+
+    return None
 
 
-def _parse_csv(platform_key: str, file, artist_id: int) -> list:
-    """Parse le fichier CSV selon la plateforme, retourne une liste de dicts."""
+# ─────────────────────────────────────────────
+# Parsing dispatch
+# ─────────────────────────────────────────────
+
+def _parse_file(platform_key: str, file, artist_id: int) -> list:
+    """Parse an uploaded file for the given platform key. Returns a list of row dicts."""
+    filename = getattr(file, 'name', '')
     df = pd.read_csv(file)
 
     if platform_key == 's4a':
         from src.transformers.s4a_csv_parser import S4ACSVParser
-        return S4ACSVParser().parse_timeline(df, artist_id=artist_id)
+        return S4ACSVParser().parse_timeline(df, artist_id=artist_id, filename=filename)
+
+    if platform_key == 's4a_songs_global':
+        from src.transformers.s4a_csv_parser import S4ACSVParser
+        return S4ACSVParser().parse_songs_global(df, artist_id=artist_id, filename=filename)
+
+    if platform_key == 's4a_audience':
+        from src.transformers.s4a_csv_parser import S4ACSVParser
+        return S4ACSVParser().parse_audience(df, artist_id=artist_id)
 
     if platform_key == 'apple':
         from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
@@ -121,8 +156,10 @@ def _parse_csv(platform_key: str, file, artist_id: int) -> list:
 
 def show():
     st.title("📂 Import CSV")
-    st.caption("Importez un fichier CSV exporté depuis une plateforme. "
-               "Un aperçu est affiché avant l'insertion en base.")
+    st.caption(
+        "Déposez jusqu'à une dizaine de fichiers CSV en une fois. "
+        "Le type est détecté automatiquement depuis le nom de fichier et les colonnes."
+    )
 
     db = get_db_connection()
     try:
@@ -143,97 +180,128 @@ def show():
                 st.error("Impossible de déterminer votre identifiant artiste.")
                 return
 
-        # ── Sélection plateforme + upload ─────────────────────────────
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            platform_label = st.selectbox("Plateforme", list(PLATFORMS.keys()))
-        platform_cfg = PLATFORMS[platform_label]
+        # ── Upload multi-fichier ───────────────────────────────────────
+        uploaded_files = st.file_uploader(
+            "Fichiers CSV",
+            type=["csv"],
+            accept_multiple_files=True,
+            help="Glissez tous vos fichiers CSV en même temps. "
+                 "Le type (S4A timeline, audience, songs-all, Apple, iMusician…) "
+                 "est détecté automatiquement.",
+            key=f"multi_upload_{target_artist_id}",
+        )
 
-        with c2:
-            uploaded = st.file_uploader(
-                "Fichier CSV",
-                type=["csv"],
-                help="Glissez le CSV exporté depuis la plateforme.",
-                key=f"upload_{platform_cfg['key']}_{target_artist_id}",
-            )
+        if not uploaded_files:
+            return
 
-        # ── Validation + Preview ─────────────────────────────────────
-        if uploaded:
-            # Step 1: read raw header for column validation
-            uploaded.seek(0)
+        # ── Détection + parsing de tous les fichiers ───────────────────
+        st.markdown("---")
+        st.subheader(f"🔍 Détection — {len(uploaded_files)} fichier(s)")
+
+        file_results = []  # list of dicts: filename, platform_key, label, rows, error
+
+        for f in uploaded_files:
+            entry = {'filename': f.name, 'platform_key': None, 'label': '—',
+                     'rows': [], 'error': None}
             try:
-                df_raw = pd.read_csv(uploaded, nrows=0)  # header only
-            except Exception as e:
-                st.error(f"❌ Impossible de lire le fichier CSV : {e}")
-                return
+                f.seek(0)
+                df_head = pd.read_csv(f, nrows=0)
+                platform_key = _detect_platform(f.name, df_head.columns.tolist())
 
-            st.markdown("---")
-            st.subheader("🔍 Validation")
+                if platform_key is None:
+                    entry['error'] = 'Type non reconnu — vérifiez le nom et les colonnes du fichier.'
+                else:
+                    entry['platform_key'] = platform_key
+                    entry['label'] = _PLATFORMS[platform_key]['label']
+                    f.seek(0)
+                    entry['rows'] = _parse_file(platform_key, f, target_artist_id)
+                    if not entry['rows']:
+                        entry['error'] = 'Aucune ligne valide détectée après parsing.'
 
-            # Column check
-            checks = _validate_columns(df_raw, platform_cfg['required_columns'])
-            all_ok = all(c['matched'] for c in checks)
+            except Exception as exc:
+                entry['error'] = str(exc)
 
-            col_v1, col_v2, col_v3 = st.columns(3)
-            col_v1.metric("Artiste cible", f"#{target_artist_id}")
-            col_v2.metric("Colonnes brutes détectées", len(df_raw.columns))
-            col_v3.metric("Validation colonnes", "✅ OK" if all_ok else "❌ Échec")
+            file_results.append(entry)
 
-            for check in checks:
-                icon = "✅" if check['matched'] else "❌"
-                detail = f"→ `{check['found']}`" if check['matched'] else "non trouvée"
-                st.markdown(f"{icon} **{check['label']}** {detail}")
+        # ── Tableau de détection ───────────────────────────────────────
+        summary_rows = []
+        for r in file_results:
+            if r['error']:
+                status = f"❌ {r['error']}"
+                count = '—'
+            else:
+                status = '✅ Prêt'
+                count = len(r['rows'])
+            summary_rows.append({
+                'Fichier': r['filename'],
+                'Type détecté': r['label'],
+                'Lignes': count,
+                'Statut': status,
+            })
 
-            if not all_ok:
-                missing = [c['label'] for c in checks if not c['matched']]
-                st.error(
-                    f"Colonnes requises manquantes : {', '.join(missing)}. "
-                    "Vérifiez que le bon fichier est sélectionné pour cette plateforme."
-                )
-                return
+        st.dataframe(pd.DataFrame(summary_rows), hide_index=True, width='stretch')
 
-            # Step 2: parse
-            uploaded.seek(0)
-            try:
-                rows = _parse_csv(platform_cfg['key'], uploaded, target_artist_id)
-            except Exception as e:
-                st.error(f"❌ Erreur de parsing : {e}")
-                st.exception(e)
-                return
+        # ── Aperçus (collapse par défaut) ──────────────────────────────
+        ok_results = [r for r in file_results if not r['error']]
+        if not ok_results:
+            st.error("Aucun fichier valide à importer.")
+            return
 
-            if not rows:
-                st.warning("Aucune ligne valide détectée dans ce fichier.")
-                return
+        for r in ok_results:
+            with st.expander(f"Aperçu — {r['filename']} ({len(r['rows'])} lignes)", expanded=False):
+                st.dataframe(pd.DataFrame(r['rows']).head(10), hide_index=True, width='stretch')
 
-            # Step 3: preview
-            df_preview = pd.DataFrame(rows)
-            st.markdown("---")
-            st.subheader(f"Aperçu — {len(rows)} ligne(s) à importer")
-            st.dataframe(
-                df_preview.head(10),
-                width="stretch",
-                hide_index=True,
-            )
-            if len(rows) > 10:
-                st.caption(f"… et {len(rows) - 10} ligne(s) supplémentaire(s) non affichées.")
+        # ── Confirmation ───────────────────────────────────────────────
+        st.markdown("---")
+        n_ok = len(ok_results)
+        n_skip = len(file_results) - n_ok
+        label = f"✅ Importer {n_ok} fichier(s)"
+        if n_skip:
+            label += f"  (⚠️ {n_skip} ignoré(s))"
 
-            # Step 4: confirm
-            st.markdown("---")
-            if st.button("✅ Confirmer l'import", type="primary"):
+        if st.button(label, type="primary"):
+            result_rows = []
+            total_ok = 0
+            total_err = 0
+
+            for r in ok_results:
+                cfg = _PLATFORMS[r['platform_key']]
                 try:
-                    db.upsert_many(
-                        table=platform_cfg['table'],
-                        data=rows,
-                        conflict_columns=platform_cfg['conflict_columns'],
-                        update_columns=platform_cfg['update_columns'],
+                    count = db.upsert_many(
+                        table=cfg['table'],
+                        data=r['rows'],
+                        conflict_columns=cfg['conflict_columns'],
+                        update_columns=cfg['update_columns'],
                     )
-                    st.success(
-                        f"✅ {len(rows)} ligne(s) importée(s) dans `{platform_cfg['table']}` "
-                        f"pour l'artiste #{target_artist_id}."
-                    )
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de l'insertion : {e}")
-                    st.exception(e)
+                    total_ok += count
+                    result_rows.append({
+                        'Fichier': r['filename'],
+                        'Type': r['label'],
+                        'Table': cfg['table'],
+                        'Lignes traitées': count,
+                        'Statut': '✅ OK',
+                    })
+                except Exception as exc:
+                    total_err += 1
+                    result_rows.append({
+                        'Fichier': r['filename'],
+                        'Type': r['label'],
+                        'Table': cfg['table'],
+                        'Lignes traitées': 0,
+                        'Statut': f'❌ {exc}',
+                    })
+
+            st.markdown("---")
+            st.subheader("📋 Résultats de l'import")
+
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Fichiers traités", len(ok_results))
+            k2.metric("Lignes insérées / mises à jour", f"{total_ok:,}")
+            k3.metric("Fichiers en erreur", total_err,
+                      delta=None if total_err == 0 else "⚠️", delta_color="inverse")
+            k4.metric("Fichiers ignorés (type inconnu)", n_skip)
+
+            st.dataframe(pd.DataFrame(result_rows), hide_index=True, width='stretch')
 
     finally:
         db.close()
