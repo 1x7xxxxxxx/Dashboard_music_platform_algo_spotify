@@ -162,9 +162,14 @@ class TestInsertMany:
         handler.cursor.executemany.assert_not_called()
 
     def test_inserts_correct_number_of_rows(self):
+        # Use an allowlisted table name. postgres_handler._validate_table
+        # rejects anything not in _ALLOWED_TABLES (SQL-injection guard added
+        # in commit d65b0a6). Table identity is irrelevant for this test —
+        # only that validation passes so insert_many's row-counting logic
+        # is exercised.
         handler = _make_handler()
         data = [{"col_a": 1, "col_b": "x"}, {"col_a": 2, "col_b": "y"}]
-        result = handler.insert_many("my_table", data)
+        result = handler.insert_many("subscription_plans", data)
         assert result == 2
         handler.cursor.executemany.assert_called_once()
 
@@ -189,7 +194,10 @@ class TestUpsertMany:
             {"artist_id": 1, "isrc": "FR123", "value": 20},  # duplicate key
         ]
         with patch("src.database.postgres_handler.execute_batch") as mock_batch:
-            handler.upsert_many("t", data, ["artist_id", "isrc"], ["value"])
+            # "subscription_plans" is an allowlisted placeholder (cf. comment
+            # on test_inserts_correct_number_of_rows). Table identity is
+            # irrelevant — dedup logic is what's tested.
+            handler.upsert_many("subscription_plans", data, ["artist_id", "isrc"], ["value"])
             args = mock_batch.call_args[0]
             # Third argument is the values list — should be deduplicated to 1 row
             assert len(args[2]) == 1
@@ -200,7 +208,7 @@ class TestUpsertMany:
         handler.cursor.rowcount = 2
         data = [{"col": 1}, {"col": 2}]
         with patch("src.database.postgres_handler.execute_batch") as mock_batch:
-            handler.upsert_many("t", data, ["(col::date)"], ["col"])
+            handler.upsert_many("subscription_plans", data, ["(col::date)"], ["col"])
             args = mock_batch.call_args[0]
             assert len(args[2]) == 2  # no dedup applied
 
@@ -210,7 +218,7 @@ class TestUpsertMany:
         with patch("src.database.postgres_handler.execute_batch",
                    side_effect=psycopg2.IntegrityError("constraint")):
             with pytest.raises(psycopg2.IntegrityError):
-                handler.upsert_many("t", [{"id": 1}], ["id"], ["id"])
+                handler.upsert_many("subscription_plans", [{"id": 1}], ["id"], ["id"])
 
 
 # =============================================================================
