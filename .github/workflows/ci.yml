@@ -33,6 +33,13 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: Install system dependencies (pycairo build deps via xhtml2pdf)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            pkg-config
+
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
 
