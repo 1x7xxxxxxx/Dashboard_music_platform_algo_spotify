@@ -58,8 +58,11 @@ jobs:
     # Deploys the FastAPI service to Railway on push to main.
     # Requires RAILWAY_TOKEN secret set in GitHub repository settings.
     # Set up: https://docs.railway.com/guides/github-actions
+    # Disabled 2026-05-11: RAILWAY_TOKEN secret is empty/expired. Re-enable
+    # by removing `if: false` once a fresh token is added in
+    # Settings -> Secrets and variables -> Actions -> RAILWAY_TOKEN.
     needs: lint-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: false  # Remove this line once RAILWAY_TOKEN is configured
     runs-on: ubuntu-latest
 
     steps:
