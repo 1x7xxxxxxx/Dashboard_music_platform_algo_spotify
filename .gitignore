@@ -72,6 +72,10 @@ machine_learning/data_analysis_ml_perso.ipynb
 htmlcov/
 *.cover
 
+# Graphify code index (machine-local, contains absolute paths)
+.mcp.json
+graphify-out/
+
 # Ignorer les fichiers de configuration locaux Airflow
 airflow.cfg
 unittests.cfg
