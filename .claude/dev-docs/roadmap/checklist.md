@@ -226,6 +226,16 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 - [x] **s4a_audience playlist_adds / saves still 0** — confirmed: `playlist_adds` is not present in `s4a_songs_global` CSV (neither 28d nor 12m format). Only source is `s4a_audience` daily timeline CSV (artist-level delta) which records 0 for this artist — genuine data. Saves ARE in songs_global CSV and import correctly. playlist_adds entry via manual form (`s4a_song_playlist_adds`) is the intended workflow.
 
+### P3 — UX / Features (new, 2026-04-12)
+
+- [ ] **Live user counter + registered users widget** (Brick 32) — display on the app (home page or landing) the number of currently active sessions and total registered artists.
+  Sub-tasks:
+  - [ ] Active sessions: query `saas_artists` + session table or use a lightweight `active_sessions` table (heartbeat updated on each page load, TTL ~5 min).
+  - [ ] Registered users: `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`.
+  - [ ] SEO name TBD — candidates: "Platform Pulse", "Live Community Stats", "Artist Network Activity", "Live Activity". Pick one with good search intent for music SaaS landing pages.
+  - [ ] Surface as a read-only widget (non-admin users see aggregate only, no PII).
+  Priority: P3. Prerequisite: decide whether to add a `active_sessions` heartbeat table (migration needed) or derive from existing session data.
+
 ---
 
 ## Completed

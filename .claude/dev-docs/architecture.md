@@ -23,7 +23,7 @@ graph TD
     C -->|upsert_many| D[(PostgreSQL<br/>spotify_etl<br/>port 5433)]
     C -->|metadata| E[(PostgreSQL<br/>airflow_db<br/>port 5433)]
 
-    D -->|fetch_df| F[Streamlit Dashboard<br/>local — port 8501]
+    D -->|fetch_df| F[streaMLytics<br/>Streamlit — port 8501]
 
     G[Fernet-encrypted credentials<br/>artist_credentials table] -->|credential_loader| C
     H[saas_artists table<br/>multi-tenant SaaS] -->|artist_id FK| D

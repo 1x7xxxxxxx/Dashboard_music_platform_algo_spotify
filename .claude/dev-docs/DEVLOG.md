@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-04-12 — Product naming
+
+**Decision:** App officially named **streaMLytics**.
+
+- Double reading: *Streamlytics* (streaming analytics) + *ML* capitalized → signals ML-powered product.
+- SEO rationale: "streaming analytics" is a searchable term in the music SaaS vertical. Brand name stays short; SEO weight carried by page title/meta description, not the name itself.
+- Brick 32 added to checklist: live user counter (active sessions + registered artists) widget, SEO name TBD → *streaMLytics Live* candidate.
+- Files updated: `CLAUDE.md`, `README.md`, `architecture.md`, `DEVLOG.md`, `checklist.md`.
+
+---
+
 ## 2026-03-30 (Session 4)
 
 ### Session summary

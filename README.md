@@ -1,6 +1,6 @@
-# 🎵 Music Platform Dashboard - ETL & Analytics
+# streaMLytics — Music Analytics Platform
 
-Dashboard complet d'analyse de données musicales croisant les sources **Spotify API**, **Spotify for Artists (CSV)**, **Meta Ads** et **YouTube**.
+Multi-tenant music analytics SaaS. Dashboard complet d'analyse de données musicales croisant les sources **Spotify API**, **Spotify for Artists (CSV)**, **Meta Ads**, **YouTube**, **SoundCloud**, **Instagram** et **Apple Music**. ML-powered.
 
 Le projet utilise une architecture **ELT moderne** containerisée avec Docker, orchestrée par Airflow et visualisée via Streamlit.
 
