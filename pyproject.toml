@@ -89,3 +89,25 @@ where = ["src"]
 [tool.ruff]
 # Existing ruff config lives in ruff.toml — keep it authoritative.
 extend = "ruff.toml"
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "src/api/main.py",          # FastAPI entry — exercised by integration tests we don't run in CI yet
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/tests/*",
+]
+branch = true
+
+[tool.coverage.report]
+# No fail_under threshold yet — we're measuring first, gating later (avoids
+# arbitrary number-chasing before there's a baseline).
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

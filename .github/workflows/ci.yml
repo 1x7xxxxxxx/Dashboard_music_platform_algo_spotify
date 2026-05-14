@@ -57,4 +57,16 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5433/spotify_etl
-        run: uv run pytest tests/ -v --tb=short
+        # --cov-report=xml: for codecov-style downstream tooling.
+        # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
+        # No --cov-fail-under: measure first, gate later.
+        run: uv run pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 7
+          if-no-files-found: ignore
