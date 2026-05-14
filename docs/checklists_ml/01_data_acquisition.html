@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Data Acquisition</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">Data Acquisition</h1><div class="subtitle reveal">Source-of-truth segment extracted from the unified ML checklist for exhaustive slide-deck generation.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~34 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Source-of-truth segment extracted from the unified ML checklist for
+exhaustive slide-deck generation.</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">2. Data Preparation &amp; EDA</h2></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">2.1 Checklist</h2><table class="compact-table"><thead><tr><th>#</th><th>Task</th><th>Methods / Tools</th><th>Pitfalls</th></tr></thead><tbody><tr><td>2.1</td><td><strong>Environment setup</strong></td><td><code class="inline">pandas</code>, <code class="inline">numpy</code>, <code class="inline">sklearn</code>, <code class="inline">seaborn</code>, <code class="inline">matplotlib</code></td><td>Pin versions in <code class="inline">requirements.txt</code></td></tr><tr><td>2.2</td><td><strong>Load data</strong></td><td><code class="inline">pd.read_csv</code>, <code class="inline">pd.read_excel</code>, <code class="inline">sqlite3</code>, InfluxDB client</td><td>Check encoding (UTF-8), separator</td></tr><tr><td>2.3</td><td><strong>Structural audit</strong></td><td><code class="inline">df.head()</code>, <code class="inline">df.tail()</code>, <code class="inline">df.dtypes</code>, <code class="inline">df.shape</code></td><td>int vs float ambiguity, object columns hiding numbers</td></tr><tr><td>2.4</td><td><strong>Duplicate detection</strong></td><td><code class="inline">df.duplicated().sum()</code></td><td>Deduplicate before split</td></tr><tr><td>2.5</td><td><strong>Column normalization</strong></td><td><code class="inline">.str.lower().str.strip().str.replace(&#x27; &#x27;, &#x27;_&#x27;)</code></td><td>Consistency with DB schema</td></tr><tr><td>2.6</td><td><strong>Descriptive stats</strong></td><td><code class="inline">df.describe()</code>, ydata-profiling / pandas-profiling</td><td>Great Expectations for schema validation</td></tr><tr><td>2.7</td><td><strong>Outlier identification</strong></td><td>IQR, Z-score, boxplot, scatter unreasonable pairs</td><td>Check sensor saturation (accel &gt; 16g)</td></tr><tr><td>2.7b</td><td><strong>Zeros masking missing data</strong></td><td><code class="inline">(df == 0).sum()</code> — distinguish true zero from missing-coded-as-zero using domain knowledge</td><td>e.g. RMS = 0 is physically impossible → recode as NaN before imputation</td></tr><tr><td>2.7c</td><td><strong>Impossible inter-variable relationships</strong></td><td>Detect domain-impossible combinations via scatter plots and business rules — e.g. listeners &gt; streams is physically impossible</td><td>Flag or remove rows violating hard domain constraints</td></tr><tr><td>2.8</td><td><strong>Spoiler / leakage detection</strong></td><td>Manual column audit: does feature know the future?</td><td>&quot;repair_date&quot;, &quot;maintenance_done&quot; columns</td></tr><tr><td>2.9</td><td><strong>Missing value analysis</strong></td><td><code class="inline">df.isna().sum() / len(df)</code>, Missingno matrix, dendogram</td><td>MCAR vs MAR vs MNAR → different strategies</td></tr><tr><td>2.10</td><td><strong>Univariate distributions</strong></td><td>Histograms, KDE, violinplot, boxplot</td><td>Heavy tail? → log-transform candidate</td></tr><tr><td>2.11</td><td><strong>Bivariate analysis</strong></td><td>Pairplot, jointplot, Pearson heatmap, Spearman ranking</td><td>Pearson assumes linearity → use Spearman for monotone relations</td></tr><tr><td>2.11b</td><td><strong>Non-parametric tests</strong></td><td>Mann-Whitney U (compare 2 groups), Kruskal-Wallis (compare 3+ groups), Wilcoxon signed-rank (paired samples) — use when normality assumption is violated</td><td><code class="inline">scipy.stats.mannwhitneyu</code>, <code class="inline">scipy.stats.kruskal</code>, <code class="inline">scipy.stats.wilcoxon</code></td></tr><tr><td>2.12</td><td><strong>Power law check</strong></td><td>Log-log plot</td><td>Frequency data (streams, followers) often power-law</td></tr><tr><td>2.13</td><td><strong>Feature dependency matrix</strong></td><td>Correlation matrix, Lasso path, RFE</td><td>Detect multicollinearity before modeling</td></tr><tr><td>2.14</td><td><strong>Interactive viz</strong></td><td>Bokeh, Plotly, UMAP 3D</td><td>Use for demo / presentation</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">2.2 Missing Data Decision Tree</h2></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart TD
+    A[Column has NaN] --> B["Compute NaN rate per column"]
+    B -->|"> 60%"| C[Drop column or binary flag]
+    B -->|"20-60%"| D{Which mechanism?}
+    B -->|"< 20%"| E[Impute]
+
+    D -->|MCAR| MCAR["Pure chance — e.g. random network dropout"]
+    D -->|MAR| MAR["Linked to another observed variable — e.g. sensor B always absent"]
+    D -->|MNAR| MNAR["Linked to its own value — e.g. vibration saturates sensor — DANGEROUS"]
+
+    MCAR --> E
+    MAR --> F[IterativeImputer or KNNImputer]
+    MNAR --> G[Add was_missing = 1 column then impute]
+
+    E --> H{Variable type}
+    H -->|Skewed numeric| I[Median]
+    H -->|Normal numeric| J[Mean]
+    H -->|Categorical| K[Mode or UNKNOWN]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede">---</p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">2.3 Fictional Scenario Library (narrative drift + alert + reco)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Statistical drift metrics (PSI, KS-test) tell you <strong>that</strong> something changed, not <strong>whether the alert chain works</strong>. Before any production release, each use case defined in §1.5 must have a library of synthetic scenarios that exercise the full pipeline: generate fake data → check feature drift → check alert fires (or does not) → check recommended action matches expectation.</p>
+<p class="lede"><strong>5 mandatory scenario types per use case:</strong></p>
+<table class="compact-table"><thead><tr><th>#</th><th>Scenario</th><th>Input</th><th>Expected drift</th><th>Expected alert</th><th>Expected recommendation</th></tr></thead><tbody><tr><td>1</td><td><strong>Nominal</strong></td><td>baseline synthetic stream, healthy distribution</td><td>PSI &lt; 0.1 on all features</td><td>none</td><td>no action</td></tr><tr><td>2</td><td><strong>Slow degradation</strong></td><td>progressive drift over N cycles</td><td>PSI crosses warn (0.1) then drift (0.2) in order</td><td><code class="inline">drift_status=warn</code> then <code class="inline">drift_status=drift</code> before any fault alert</td><td>schedule maintenance window</td></tr><tr><td>3</td><td><strong>Abrupt fault</strong></td><td>step change in 1+ critical features</td><td>sudden PSI &gt; 0.25</td><td>fault alert within expected latency (e.g. ≤ 30 s)</td><td>stop machine immediately</td></tr><tr><td>4</td><td><strong>Sensor fault</strong></td><td>axis stuck / biased / saturated</td><td><code class="inline">sensor_health</code> drift; feature distribution degenerate</td><td><code class="inline">sensor_health=drift</code> fires BEFORE model fault alert</td><td>check sensor, do not blame the tool</td></tr><tr><td>5</td><td><strong>Adversarial/boundary</strong></td><td>NaN, inf, future timestamps, duplicates, TZ-naïve records</td><td>pipeline rejects gracefully</td><td>no false alert</td><td>DLQ row + structured log</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Format per scenario</strong> (template):</p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">## Scenario — &lt;uc_id&gt;_&lt;scenario_type&gt;
+**State initial**: &lt;description&gt;
+**Event**: &lt;what is injected and how&gt;
+**Generator**: `tools/scenarios/&lt;uc_id&gt;_&lt;type&gt;.py --duration &lt;N&gt; --seed &lt;K&gt;`
+**Expected drift trace**: &lt;named features, direction, magnitude&gt;
+**Expected alert**: &lt;alert name, channel, latency bound&gt;
+**Expected recommendation**: &lt;human action&gt;
+**Verification**: `pytest tests/test_scenarios/test_&lt;uc_id&gt;_&lt;type&gt;.py`</pre></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Gate</strong> — before release:</p>
+<ul class="bullet-list"><li>[ ] Every use case from §1.5 has all 5 scenarios generated + tested</li><li>[ ] Scenario generators are deterministic (<code class="inline">--seed</code> flag) and reproducible in CI</li><li>[ ] Scenario test runtime ≤ 10 min total (use sampling, not full-length replay)</li><li>[ ] Adversarial scenario covers: NaN, ±inf, future timestamp, duplicate, TZ-naïve (see §2.4)</li></ul>
+<p class="lede"><strong>Anti-patterns:</strong></p>
+<ul class="bullet-list"><li>❌ Only testing the nominal path — you will never observe your alert chain under drift until production</li><li>❌ Reusing production data snapshots as &quot;scenarios&quot; — not reproducible, privacy risk, no labeled drift</li><li>❌ Sensor-fault and model-fault indistinguishable in alerts — human gets paged to the wrong place</li><li>❌ No latency bound on expected alert — &quot;fires eventually&quot; is not a contract</li></ul>
+<p class="lede">---</p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">2.4 Multi-Database Temporal Synchronization Checklist</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Applies as soon as the pipeline writes to <strong>≥ 2 stores</strong> (e.g. relational + time-series + stream queue) AND joins them by timestamp. Violations fail silently: joins return <code class="inline">NULL</code> instead of errors, off-by-TZ offsets stay within sane-looking magnitudes, and the model trains on misaligned pairs. Consolidated from reference project REX on <code class="inline">/etc/localtime</code> bind-mount, <code class="inline">fetch_plc_context_at</code> ±500 ms window, and Pilier 4 sync health snapshots.</p>
+<p class="lede"><strong>Clock discipline</strong></p>
+<ul class="bullet-list"><li>[ ] NTP or PTP client configured on <strong>all</strong> hosts (dev, CI, prod) — <code class="inline">chrony</code> preferred; alert on offset &gt; N ms (project-defined, e.g. 50 ms)</li><li>[ ] OS timezone = UTC on all hosts (<code class="inline">timedatectl show → Timezone=UTC</code>)</li><li>[ ] <strong>All</strong> Docker services declare <code class="inline">TZ=UTC</code> in compose <code class="inline">environment:</code> — parsed by a CI invariant test</li><li>[ ] <strong>Never</strong> bind-mount <code class="inline">/etc/localtime</code> into a container — it imports the host TZ and breaks time-window joins silently on non-UTC hosts (e.g. <code class="inline">Europe/Paris</code> = +3600 s offset, no SQL error)</li></ul>
+<p class="lede"><strong>Canonical timestamp format</strong> (producers)</p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><ul class="bullet-list"><li>[ ] All producers emit <code class="inline">datetime.now(timezone.utc).isoformat(timespec=&quot;milliseconds&quot;)</code> — never bare <code class="inline">datetime.now()</code>, never <code class="inline">utcnow()</code> (deprecated + naïve)</li><li>[ ] Schema columns are <code class="inline">TIMESTAMPTZ</code> (PG), ISO-8601 TEXT (SQLite), or native µs epoch (QuestDB) — never wall-clock local strings</li><li>[ ] Linter forbids <code class="inline">datetime.now()</code> / <code class="inline">datetime.utcnow()</code> outside the allow-list of cosmetic contexts (filenames, email subject)</li></ul>
+<p class="lede"><strong>Join window discipline</strong> (consumers)</p>
+<ul class="bullet-list"><li>[ ] Every cross-store join has an explicit <code class="inline">WINDOW_MS</code> constant, justified by source jitter (USB buffering, OPC UA polling, network RTT)</li><li>[ ] Record <code class="inline">diff_ms</code> per matched pair in the enriched row (debug + ship rule)</li><li>[ ] Outside-window rows: do NOT silently drop — write with <code class="inline">null_&lt;src&gt;_reason=&#x27;timeout&#x27;</code> so the null ratio is observable</li><li>[ ] KPI <code class="inline">null_&lt;src&gt;_ratio</code> exported to Grafana with project-defined ship threshold (e.g. ≤ 0.5 %)</li><li>[ ] KPI <code class="inline">p95(diff_ms)</code> exported with ship threshold (e.g. ≤ 20 ms on synthetic bench)</li></ul>
+<p class="lede"><strong>DLQ (dead letter queue)</strong></p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><ul class="bullet-list"><li>[ ] Append-only JSONL file for bulk-insert failures and parse errors (never drop, never overwrite)</li><li>[ ] Backlog size alert (e.g. &gt; 50 rows) — early signal that downstream is stuck</li><li>[ ] DLQ drain procedure documented (who, how, retention)</li></ul>
+<p class="lede"><strong>Mandatory invariant tests</strong></p>
+<ul class="bullet-list"><li>[ ] <code class="inline">test_timezone_invariant.py</code> (or equivalent) asserting:</li><li>[ ] Round-trip test: write timestamp in service A, read in service B, assert ISO string bit-identical</li></ul>
+<p class="lede"><strong>Anti-patterns:</strong></p>
+<ul class="bullet-list"><li>❌ Storing local wall-clock &quot;because Grafana shows UTC anyway&quot; — Grafana converts on display, but joins run on raw stored bytes</li><li>❌ Silent <code class="inline">LEFT JOIN</code> with no null-reason column — you lose the ability to measure sync health</li><li>❌ Widening the join window to reduce null ratio instead of fixing the producer&#x27;s jitter — hides the real problem</li><li>❌ One service on localtime &quot;for log readability&quot; — heterogeneous TZ = non-deterministic ordering under lexicographic comparison</li></ul></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Concrete example: see <code class="inline">.claude/rules/timesync.md</code> + <code class="inline">src/Application/tests/test_timezone_invariant.py</code> + §9.6.5 for the IPC-specific NTP config.</p>
+<p class="lede">---</p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">2.5 Statistical Tests — Workflow Catalog</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Every statistical test has the same 5-part contract: <strong>objective · null hypothesis H₀ · method · expected result · next action</strong>. Running a test without being able to state the next action is a waste. The table below is the project&#x27;s exhaustive reference; use the decision tree at the end to pick.</p>
+<p class="lede"><strong>General interpretation rule</strong> for all frequentist tests below:</p>
+<ul class="bullet-list"><li><code class="inline">p &lt; α</code> (typically α = 0.05, or α = 0.01 for strict) → <strong>reject H₀</strong> → the effect is statistically significant at the chosen level</li><li><code class="inline">p ≥ α</code> → <strong>fail to reject H₀</strong> → the data is compatible with H₀ (NOT &quot;H₀ is true&quot;)</li><li>Always report <strong>effect size</strong> alongside p-value — a tiny p on a huge sample with a negligible effect is not actionable</li></ul>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.a Normality tests (is this column ~Gaussian?)</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>H₀</th><th>scipy / statsmodels</th><th>When to use</th><th>Output you act on</th></tr></thead><tbody><tr><td><strong>Shapiro-Wilk</strong></td><td>sample is drawn from N(μ, σ²)</td><td><code class="inline">scipy.stats.shapiro(x)</code></td><td>n ≤ 5 000; most powerful for small samples</td><td>p &lt; α → non-normal → use non-parametric tests / log-transform / Box-Cox</td></tr><tr><td><strong>D&#x27;Agostino K²</strong></td><td>normal (skew + kurtosis)</td><td><code class="inline">scipy.stats.normaltest(x)</code></td><td>20 ≤ n ≤ 50 000; robust</td><td>same action as Shapiro-Wilk</td></tr><tr><td><strong>Anderson-Darling</strong></td><td>normal (weights tails)</td><td><code class="inline">scipy.stats.anderson(x, dist=&#x27;norm&#x27;)</code></td><td>detecting tail deviations</td><td>returns statistic + critical values per α; reject if stat &gt; crit</td></tr><tr><td><strong>Jarque-Bera</strong></td><td>skew=0, excess kurt=0</td><td><code class="inline">scipy.stats.jarque_bera(x)</code></td><td>finance / large n (&gt; 2 000)</td><td>rejects easily on large n — combine with Q-Q plot</td></tr><tr><td><strong>Lilliefors</strong> (KS + est. μ,σ)</td><td>normal</td><td><code class="inline">statsmodels.stats.diagnostic.lilliefors(x)</code></td><td>normality with unknown μ, σ</td><td>prefer to raw KS when μ, σ estimated from sample</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Example</strong></p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">from scipy import stats
+stat, p = stats.shapiro(df[&quot;rms_norm&quot;])
+if p &lt; 0.05:
+    print(&quot;Non-normal → use Mann-Whitney U, not t-test&quot;)</pre></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Workflow</strong> — run normality BEFORE choosing a mean-comparison test. Combine with Q-Q plot (<code class="inline">scipy.stats.probplot</code>). On n &gt; 10 000, formal tests reject even trivial deviations — visual Q-Q is more informative.</p>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.b Stationarity &amp; autocorrelation (time series)</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>H₀</th><th>Library</th><th>When to use</th><th>Action</th></tr></thead><tbody><tr><td><strong>ADF</strong> (Augmented Dickey-Fuller)</td><td>series has a unit root (non-stationary)</td><td><code class="inline">statsmodels.tsa.stattools.adfuller(x)</code></td><td>before ARIMA / linear time-series models</td><td>p &lt; α → stationary → OK to fit ARIMA(p,0,q)</td></tr><tr><td><strong>KPSS</strong></td><td>series is stationary (around deterministic trend)</td><td><code class="inline">statsmodels.tsa.stattools.kpss(x)</code></td><td>pair with ADF for cross-confirmation</td><td>p &lt; α → non-stationary → difference the series</td></tr><tr><td><strong>Phillips-Perron</strong></td><td>unit root, robust to heteroscedasticity</td><td><code class="inline">arch.unitroot.PhillipsPerron</code></td><td>ADF alt with serial correlation</td><td>same as ADF</td></tr><tr><td><strong>Zivot-Andrews</strong></td><td>unit root with unknown break</td><td><code class="inline">statsmodels.tsa.stattools.zivot_andrews</code></td><td>suspect a structural break</td><td>locates break date in output</td></tr><tr><td><strong>Durbin-Watson</strong></td><td>no autocorrelation in residuals</td><td><code class="inline">statsmodels.stats.stattools.durbin_watson(resid)</code></td><td>residual diagnostics after regression</td><td>DW ≈ 2 = OK; DW &lt; 1.5 = positive autocorr</td></tr><tr><td><strong>Ljung-Box</strong></td><td>joint autocorrelation = 0 up to lag k</td><td><code class="inline">statsmodels.stats.diagnostic.acorr_ljungbox</code></td><td>model residuals white noise?</td><td>p &lt; α → residuals still autocorrelated → model under-specified</td></tr><tr><td><strong>ACF / PACF plots</strong></td><td>—</td><td><code class="inline">statsmodels.graphics.tsaplots.plot_acf/pacf</code></td><td>choose ARIMA (p, q)</td><td>read decay + cutoffs</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Example — ADF + KPSS cross-check</strong></p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">from statsmodels.tsa.stattools import adfuller, kpss
+adf_stat, adf_p, *_ = adfuller(series)
+kpss_stat, kpss_p, *_ = kpss(series, regression=&quot;c&quot;)
+# Case 1: ADF rejects + KPSS fails to reject → stationary ✅
+# Case 2: ADF fails + KPSS rejects → non-stationary → difference
+# Case 3: both reject → trend-stationary → detrend
+# Case 4: both fail → not enough data, be cautious</pre></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.c Variance / homoscedasticity tests</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>H₀</th><th>scipy</th><th>When</th><th>Action</th></tr></thead><tbody><tr><td><strong>Levene</strong></td><td>equal variances across k groups</td><td><code class="inline">scipy.stats.levene(*groups, center=&#x27;median&#x27;)</code></td><td>robust to non-normality</td><td>p &lt; α → heteroscedastic → Welch t-test instead of Student</td></tr><tr><td><strong>Bartlett</strong></td><td>equal variances</td><td><code class="inline">scipy.stats.bartlett(*groups)</code></td><td>ONLY if all groups normal</td><td>stricter than Levene</td></tr><tr><td><strong>Fligner-Killeen</strong></td><td>equal variances</td><td><code class="inline">scipy.stats.fligner(*groups)</code></td><td>most robust to departures from normality</td><td>same action</td></tr><tr><td><strong>F-test</strong></td><td>σ₁² = σ₂²</td><td>manual or <code class="inline">scipy.stats.f</code></td><td>two groups, both normal</td><td>sensitive to non-normality</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.d Mean / median comparison (two groups)</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>H₀</th><th>Parametric?</th><th>scipy</th><th>When</th><th>Action</th></tr></thead><tbody><tr><td><strong>Student t-test (indep.)</strong></td><td>μ₁ = μ₂</td><td>yes (normal + equal var)</td><td><code class="inline">scipy.stats.ttest_ind(a, b)</code></td><td>n₁,n₂ ≥ 30 OR normal + equal var</td><td>p &lt; α → means differ</td></tr><tr><td><strong>Welch t-test</strong></td><td>μ₁ = μ₂, unequal var</td><td>yes</td><td><code class="inline">ttest_ind(a, b, equal_var=False)</code></td><td>unequal variances (Levene rejected)</td><td>same, <strong>default recommended</strong> over Student</td></tr><tr><td><strong>Paired t-test</strong></td><td>μ_diff = 0</td><td>yes</td><td><code class="inline">scipy.stats.ttest_rel(a, b)</code></td><td>same subject before/after</td><td>p &lt; α → intervention changed the mean</td></tr><tr><td><strong>Mann-Whitney U</strong></td><td>distributions equal (→ medians)</td><td>no</td><td><code class="inline">scipy.stats.mannwhitneyu(a, b)</code></td><td>non-normal, independent groups</td><td>p &lt; α → distributions differ</td></tr><tr><td><strong>Wilcoxon signed-rank</strong></td><td>median_diff = 0</td><td>no</td><td><code class="inline">scipy.stats.wilcoxon(a, b)</code></td><td>paired, non-normal</td><td>p &lt; α → paired diff not centered on 0</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Example — choose automatically</strong></p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">def compare_two(a, b, alpha=0.05):
+    from scipy import stats
+    _, pa = stats.shapiro(a)
+    _, pb = stats.shapiro(b)
+    if pa &gt; alpha and pb &gt; alpha:
+        _, plev = stats.levene(a, b)
+        return stats.ttest_ind(a, b, equal_var=(plev &gt; alpha))
+    return stats.mannwhitneyu(a, b, alternative=&quot;two-sided&quot;)</pre></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.e Mean / median comparison (≥ 3 groups)</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>H₀</th><th>Parametric?</th><th>scipy</th><th>When</th><th>Post-hoc</th></tr></thead><tbody><tr><td><strong>One-way ANOVA</strong></td><td>μ₁ = μ₂ = ... = μ_k</td><td>yes (normal + equal var)</td><td><code class="inline">scipy.stats.f_oneway(*groups)</code></td><td>normal, homoscedastic</td><td>Tukey HSD (<code class="inline">statsmodels.stats.multicomp.pairwise_tukeyhsd</code>)</td></tr><tr><td><strong>Welch ANOVA</strong></td><td>same, unequal var</td><td>yes</td><td><code class="inline">pingouin.welch_anova</code></td><td>normal, heteroscedastic</td><td>Games-Howell</td></tr><tr><td><strong>Kruskal-Wallis</strong></td><td>distributions equal</td><td>no</td><td><code class="inline">scipy.stats.kruskal(*groups)</code></td><td>non-normal, independent</td><td>Dunn test (<code class="inline">scikit-posthocs</code>)</td></tr><tr><td><strong>Friedman</strong></td><td>treatment effect = 0</td><td>no</td><td><code class="inline">scipy.stats.friedmanchisquare(*groups)</code></td><td>paired / repeated measures, non-normal</td><td>Nemenyi</td></tr><tr><td><strong>Two-way ANOVA</strong></td><td>main + interaction effects</td><td>yes</td><td><code class="inline">statsmodels.formula.api.ols + anova_lm</code></td><td>2 factors</td><td>simple effects analysis</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.f Proportions &amp; categorical</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>H₀</th><th>scipy / statsmodels</th><th>When</th><th>Action</th></tr></thead><tbody><tr><td><strong>Chi² goodness-of-fit</strong></td><td>observed = expected distribution</td><td><code class="inline">scipy.stats.chisquare(obs, exp)</code></td><td>single categorical vs reference</td><td>p &lt; α → distribution differs from expected</td></tr><tr><td><strong>Chi² independence</strong></td><td>two categorical variables independent</td><td><code class="inline">scipy.stats.chi2_contingency(table)</code></td><td>contingency table, n ≥ 5 per cell</td><td>p &lt; α → variables associated</td></tr><tr><td><strong>Fisher&#x27;s exact</strong></td><td>rows × cols independent</td><td><code class="inline">scipy.stats.fisher_exact(table)</code></td><td>2×2, small n (&lt; 5 per cell)</td><td>exact p-value, no large-sample approx</td></tr><tr><td><strong>McNemar</strong></td><td>marginal homogeneity</td><td><code class="inline">statsmodels.stats.contingency_tables.mcnemar</code></td><td>paired 2×2 (before/after on same subjects)</td><td>p &lt; α → change</td></tr><tr><td><strong>Cochran&#x27;s Q</strong></td><td>k paired proportions equal</td><td><code class="inline">statsmodels.stats.contingency_tables.cochrans_q</code></td><td>repeated binary measures</td><td>p &lt; α → at least one differs</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.g Correlation &amp; association</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>Scale</th><th>scipy</th><th>Assumes</th><th>Output</th></tr></thead><tbody><tr><td><strong>Pearson r</strong></td><td>interval/ratio, linear</td><td><code class="inline">scipy.stats.pearsonr(x, y)</code></td><td>linearity + normality of (x,y)</td><td>r ∈ [−1, 1] + p</td></tr><tr><td><strong>Spearman ρ</strong></td><td>ordinal / non-linear monotonic</td><td><code class="inline">scipy.stats.spearmanr(x, y)</code></td><td>monotone relation</td><td>rank correlation</td></tr><tr><td><strong>Kendall τ</strong></td><td>ordinal, small n</td><td><code class="inline">scipy.stats.kendalltau(x, y)</code></td><td>concordance-based</td><td>more robust than Spearman on ties</td></tr><tr><td><strong>Point-biserial</strong></td><td>continuous vs binary</td><td><code class="inline">scipy.stats.pointbiserialr(x, y)</code></td><td>normality within each binary group</td><td>same as Pearson on encoded binary</td></tr><tr><td><strong>φ (phi) / Cramér&#x27;s V</strong></td><td>two categorical</td><td><code class="inline">scipy.stats.contingency.association(table)</code></td><td>—</td><td>strength of association on [0, 1]</td></tr><tr><td><strong>Mutual Information</strong></td><td>any, non-linear</td><td><code class="inline">sklearn.feature_selection.mutual_info_regression</code></td><td>—</td><td>non-negative, not bounded above</td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Rule: never report <strong>only</strong> Pearson. Heteroscedastic / non-linear relations are invisible in r but obvious in Spearman or MI.</p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.h Distribution comparison (core for drift detection)</h3>
+<table class="compact-table"><thead><tr><th>Test</th><th>Two-sample question</th><th>scipy</th><th>Output</th><th>Threshold</th></tr></thead><tbody><tr><td><strong>KS two-sample</strong></td><td>same distribution? (EDF max gap)</td><td><code class="inline">scipy.stats.ks_2samp(ref, prod)</code></td><td>D, p</td><td>p &lt; 0.05 → drifted</td></tr><tr><td><strong>Anderson-Darling k-sample</strong></td><td>same distribution (tail-sensitive)</td><td><code class="inline">scipy.stats.anderson_ksamp([ref, prod])</code></td><td>stat, critical values</td><td>compare stat to crit</td></tr><tr><td><strong>Cramér-von Mises</strong></td><td>same distribution (integrated square gap)</td><td><code class="inline">scipy.stats.cramervonmises_2samp</code></td><td>stat, p</td><td>p &lt; 0.05 → drifted</td></tr><tr><td><strong>Epps-Singleton</strong></td><td>same distribution (char. func.)</td><td><code class="inline">scipy.stats.epps_singleton_2samp</code></td><td>stat, p</td><td>robust to discrete data</td></tr><tr><td><strong>PSI</strong> (Population Stability Index)</td><td>distribution shift (binned)</td><td>manual</td><td>PSI scalar</td><td>&lt; 0.1 stable · 0.1–0.2 warn · &gt; 0.2 drift</td></tr><tr><td><strong>KL divergence</strong></td><td>Σ p·log(p/q)</td><td><code class="inline">scipy.special.rel_entr(p, q).sum()</code></td><td>≥ 0</td><td>relative — pick project threshold</td></tr><tr><td><strong>Jensen-Shannon</strong></td><td>symmetric KL, bounded [0, log 2]</td><td><code class="inline">scipy.spatial.distance.jensenshannon(p, q)</code></td><td>[0, 1]</td><td>&lt; 0.1 / &lt; 0.2 typical</td></tr><tr><td><strong>Wasserstein / Earth Mover</strong></td><td>transport cost</td><td><code class="inline">scipy.stats.wasserstein_distance</code></td><td>≥ 0 (same units as x)</td><td>project-specific</td></tr><tr><td><strong>MMD</strong> (Maximum Mean Discrepancy)</td><td>RKHS distance</td><td><code class="inline">alibi-detect</code></td><td>scalar</td><td>reject H₀ of equal dist if permutation p &lt; α</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede"><strong>Example — PSI</strong></p></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">import numpy as np
+def psi(ref, prod, bins=10):
+    edges = np.quantile(ref, np.linspace(0, 1, bins+1))
+    edges[0], edges[-1] = -np.inf, np.inf
+    p = np.histogram(ref, edges)[0] / len(ref) + 1e-6
+    q = np.histogram(prod, edges)[0] / len(prod) + 1e-6
+    return np.sum((q - p) * np.log(q / p))</pre></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.i Multiple-testing correction (critical if &gt; 5 tests)</h3>
+<table class="compact-table"><thead><tr><th>Method</th><th>Trade-off</th><th>statsmodels</th></tr></thead><tbody><tr><td><strong>Bonferroni</strong></td><td>very conservative, family-wise error rate (FWER)</td><td><code class="inline">multipletests(pvals, method=&quot;bonferroni&quot;)</code></td></tr><tr><td><strong>Holm-Bonferroni</strong></td><td>step-down, uniformly more powerful than Bonferroni</td><td><code class="inline">method=&quot;holm&quot;</code></td></tr><tr><td><strong>Šidák</strong></td><td>slightly less conservative</td><td><code class="inline">method=&quot;sidak&quot;</code></td></tr><tr><td><strong>Benjamini-Hochberg (BH FDR)</strong></td><td>controls false discovery rate, more powerful</td><td><code class="inline">method=&quot;fdr_bh&quot;</code></td></tr><tr><td><strong>Benjamini-Yekutieli</strong></td><td>BH under dependence</td><td><code class="inline">method=&quot;fdr_by&quot;</code></td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Default recommendation: <strong>BH FDR</strong> for exploratory testing (e.g. 27 features × drift = 27 p-values). Bonferroni for confirmatory / safety-critical.</p>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.j Effect size (ALWAYS report alongside p-values)</h3>
+<table class="compact-table"><thead><tr><th>Context</th><th>Metric</th><th>Function</th><th>Rule of thumb</th></tr></thead><tbody><tr><td>Two means, normal</td><td><strong>Cohen&#x27;s d</strong></td><td><code class="inline">(mean1 − mean2) / pooled_std</code></td><td>0.2 small · 0.5 medium · 0.8 large</td></tr><tr><td>Two means, non-parametric</td><td><strong>Cliff&#x27;s δ</strong></td><td><code class="inline">pingouin.cliffs_delta</code></td><td>0.147 small · 0.33 medium · 0.474 large</td></tr><tr><td>ANOVA</td><td><strong>η² / partial η²</strong></td><td><code class="inline">statsmodels</code></td><td>0.01 / 0.06 / 0.14</td></tr><tr><td>Correlation</td><td><strong>r²</strong></td><td><code class="inline">scipy.stats.pearsonr(x,y)[0]**2</code></td><td>share of variance explained</td></tr><tr><td>Categorical</td><td><strong>Cramér&#x27;s V</strong></td><td><code class="inline">scipy.stats.contingency.association</code></td><td>0.1 / 0.3 / 0.5</td></tr><tr><td>Odds ratio</td><td><strong>OR / log-OR</strong></td><td><code class="inline">statsmodels.stats.Table2x2</code></td><td>1 = no effect</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.k Bootstrap &amp; permutation (when assumptions fail or no closed-form)</h3>
+<table class="compact-table"><thead><tr><th>Approach</th><th>scipy / library</th><th>Use case</th></tr></thead><tbody><tr><td><strong>Bootstrap CI</strong></td><td><code class="inline">scipy.stats.bootstrap</code></td><td>CI on any statistic (median, correlation)</td></tr><tr><td><strong>Permutation test</strong></td><td><code class="inline">scipy.stats.permutation_test</code></td><td>exact H₀ test by shuffling labels</td></tr><tr><td><strong>Monte Carlo simulation</strong></td><td>numpy</td><td>complex null, simulate → reject if observed extreme</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.l Bayesian alternatives (report both if stakeholder-facing)</h3>
+<table class="compact-table"><thead><tr><th>Approach</th><th>Library</th><th>Output</th><th>Interpretation</th></tr></thead><tbody><tr><td><strong>Bayes factor</strong></td><td><code class="inline">pingouin.ttest</code>, <code class="inline">BayesFactor</code> (R)</td><td>BF₁₀</td><td>&gt; 3 moderate · &gt; 10 strong evidence for H₁</td></tr><tr><td><strong>Posterior credible interval</strong></td><td><code class="inline">arviz</code>, <code class="inline">pymc</code></td><td>95 % HDI</td><td>direct probability statement on parameter</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.m Decision tree — which test do I run?</h3></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart TD
+    Q[What is the question?] --> Q1{Single sample vs reference?}
+    Q1 -->|"Is distribution ~ Gaussian?"| NORM[Shapiro / D'Agostino / Anderson-Darling / Jarque-Bera]
+    Q1 -->|"Single sample vs known dist?"| KS1[KS one-sample · Chi² goodness-of-fit]
+
+    Q --> Q2{Compare groups?}
+    Q2 -->|2 indep groups| TWOG[Normal? Shapiro on each]
+    TWOG -->|yes + equal var| ST[Welch t-test default · Student if var equal]
+    TWOG -->|not normal| MWU[Mann-Whitney U]
+    Q2 -->|2 paired| PAIR[Normal diff? → paired t-test · else Wilcoxon signed-rank]
+    Q2 -->|"≥ 3 indep"| KG[Normal + homoscedastic? → ANOVA · else Kruskal-Wallis]
+    Q2 -->|"≥ 3 paired"| KP[Normal? → repeated-measures ANOVA · else Friedman]
+
+    Q --> Q3{Time series?}
+    Q3 -->|stationarity| ADFKPSS[ADF + KPSS cross-check]
+    Q3 -->|residual autocorr| DWLJ[Durbin-Watson + Ljung-Box]
+
+    Q --> Q4{Categorical?}
+    Q4 -->|2 indep| CHI2[Chi² indep if n ≥ 5/cell · else Fisher exact]
+    Q4 -->|paired 2x2| MC[McNemar]
+    Q4 -->|k paired| COCH[Cochran Q]
+
+    Q --> Q5{Association?}
+    Q5 -->|linear, normal| P[Pearson r]
+    Q5 -->|monotonic| S[Spearman ρ]
+    Q5 -->|non-linear| MI[Mutual Information]
+
+    Q --> Q6{Drift between 2 distributions?}
+    Q6 --> PSI[PSI · KL · JS · Wasserstein · KS2 · MMD]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.n End-to-end workflow (applied to a new dataset)</h3>
+<ul class="bullet-list"><li><strong>Schema + ranges</strong> (Great Expectations / Pandera) — not a stat test, but the prereq</li><li><strong>Per-column normality</strong>: Shapiro-Wilk (n ≤ 5k) or D&#x27;Agostino, log Q-Q plot</li><li><strong>Stationarity</strong> if time-indexed: ADF + KPSS + plot</li><li><strong>Pairwise correlation</strong>: Pearson heatmap + Spearman heatmap side-by-side (detect non-linear)</li><li><strong>Variance equality</strong> across classes: Levene before group comparisons</li><li><strong>Group comparisons</strong>: pick test via decision tree; always output (statistic, p, effect size, CI)</li><li><strong>Drift / monitoring</strong>: PSI + KS on each feature vs reference; BH FDR if &gt; 5 features</li><li><strong>Document every rejected H₀ with action taken</strong> — a rejected H₀ with no action is noise</li></ul>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">2.5.o Anti-patterns</h3>
+<ul class="bullet-list"><li>❌ <strong>p-hacking</strong>: testing until p &lt; 0.05 → pre-register the hypothesis</li><li>❌ <strong>Ignoring multiple testing</strong>: 27 features × KS → ~1.35 false positives at α = 0.05 without correction</li><li>❌ <strong>Reporting only p, never effect size</strong>: large n guarantees p ≈ 0 on trivial differences</li><li>❌ <strong>Student t-test on non-normal small samples</strong>: false positive rate balloons — use Welch or MWU</li><li>❌ <strong>Using normality tests on n &gt; 10 000 and acting on them</strong>: any deviation rejects — rely on Q-Q plot instead</li><li>❌ <strong>Drawing causal conclusions from correlation tests</strong>: see §5.6 Causal Inference</li></ul></div></section>
+<section class="slide"><span class="slide-tag">2. Data Preparation &amp; EDA</span><div class="slide-content"><p class="lede">---</p></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>

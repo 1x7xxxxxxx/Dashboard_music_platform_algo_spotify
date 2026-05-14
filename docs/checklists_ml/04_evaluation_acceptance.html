@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evaluation &amp; Acceptance</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">Evaluation &amp; Acceptance</h1><div class="subtitle reveal">Source-of-truth segment extracted from the unified ML checklist for exhaustive slide-deck generation.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~20 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Source-of-truth segment extracted from the unified ML checklist for
+exhaustive slide-deck generation.</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">5. Evaluation &amp; Interpretation (XAI)</h2></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">5.1 Classification Metrics</h2><table class="compact-table"><thead><tr><th>Metric</th><th>Formula</th><th>When to prioritize</th></tr></thead><tbody><tr><td>Accuracy</td><td><code class="inline">(TP+TN) / N</code></td><td>Only if balanced classes</td></tr><tr><td>Precision</td><td><code class="inline">TP / (TP+FP)</code></td><td>Minimize false alarms (costly maintenance)</td></tr><tr><td>Recall</td><td><code class="inline">TP / (TP+FN)</code></td><td>Minimize missed faults (safety-critical)</td></tr><tr><td>F1-Score</td><td><code class="inline">2×P×R / (P+R)</code></td><td>Balanced imbalanced datasets</td></tr><tr><td>ROC-AUC</td><td>Area under ROC</td><td>Model discrimination ability across thresholds</td></tr><tr><td>PR-AUC</td><td>Area under Precision-Recall</td><td>Better than ROC for extreme imbalance</td></tr><tr><td>Gini</td><td><code class="inline">2×AUC - 1</code></td><td>Banking/insurance convention</td></tr><tr><td>Lift / Gain curve</td><td>Cumulative gain</td><td>Marketing / targeted action value</td></tr></tbody></table>
+<p class="lede"><strong>Additional plots:</strong> confusion matrix, calibration curve, learning curve, validation curve, discrimination threshold curve.</p></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">5.2 Regression Metrics</h2><table class="compact-table"><thead><tr><th>Metric</th><th>Formula</th><th>When to use</th></tr></thead><tbody><tr><td>R² / Adj-R²</td><td>Variance explained</td><td>General goodness of fit</td></tr><tr><td>Explained variance</td><td><code class="inline">1 - Var(y - ŷ) / Var(y)</code> — unlike R², does not penalize systematic offset (bias). <code class="inline">explained_variance_score()</code> in sklearn</td><td>When you want to separate bias from variance error</td></tr><tr><td>MAE</td><td>`mean(</td><td>y - ŷ</td><td>)`</td><td>Robust to outliers, interpretable</td></tr><tr><td>MSE / RMSE</td><td><code class="inline">mean((y - ŷ)²)</code></td><td>Penalizes large errors</td></tr><tr><td>MSLE</td><td><code class="inline">mean((log(1+y) - log(1+ŷ))²)</code></td><td>Exponential growth targets</td></tr></tbody></table>
+<p class="lede"><strong>Additional:</strong> residual plot, Breusch-Pagan heteroscedasticity test, Kolmogorov-Smirnov normality test, Q-Q plot / probability plot, prediction error diagram, MAE=f(epoch), LassoCV alpha vs error plot (plot CV error as function of alpha to find optimal regularization strength — <code class="inline">lasso.mse_path_</code> or <code class="inline">lasso.alpha_</code>).</p></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">5.3 XAI Checklist</h2><table class="compact-table"><thead><tr><th>#</th><th>Tool</th><th>Scope</th><th>Output</th></tr></thead><tbody><tr><td>5.1</td><td>Feature importance</td><td>Global</td><td>Bar chart (built-in XGBoost/RF)</td></tr><tr><td>5.2</td><td>SHAP summary plot</td><td>Global</td><td>Beeswarm — feature impact distribution</td></tr><tr><td>5.3</td><td>SHAP dependence plot</td><td>Global</td><td>Feature A vs SHAP value, colored by B</td></tr><tr><td>5.4</td><td>SHAP force plot</td><td>Local</td><td>Single prediction explanation</td></tr><tr><td>5.5</td><td>SHAP TimeSeriesExplainer</td><td>Global/Local</td><td>For LSTM / sequential models</td></tr><tr><td>5.6</td><td>LIME</td><td>Local</td><td>Perturbation-based, model-agnostic</td></tr><tr><td>5.7</td><td>Partial Dependence Plot (PDP)</td><td>Global</td><td>Marginal effect of one feature</td></tr><tr><td>5.8</td><td>Counterfactual</td><td>Local</td><td>&quot;What would need to change for different output?&quot;</td></tr><tr><td>5.9</td><td>Anchor</td><td>Local</td><td>Rule-based local explanation</td></tr><tr><td>5.10</td><td>Grad-CAM / Attention maps</td><td>Local</td><td>CNNs / Transformers</td></tr><tr><td>5.11</td><td>TreeInterpreter</td><td>Local</td><td>Decision path decomposition</td></tr><tr><td>5.12</td><td>Alibi</td><td>Global/Local</td><td>Production-grade XAI library</td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;"><strong>Note:</strong> If explainability is required, avoid PCA (destroys feature identity).</p>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.3b Deep-learning-specific explainability</h3></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><table class="compact-table"><thead><tr><th>Tool</th><th>Modality</th><th>Method</th><th>scipy / library</th></tr></thead><tbody><tr><td><strong>Captum</strong></td><td>PyTorch (any)</td><td>Integrated Gradients, DeepLIFT, DeepLiftShap, LayerGradCAM, Saliency, Occlusion</td><td><code class="inline">captum.attr</code></td></tr><tr><td><strong>Integrated Gradients</strong></td><td>any differentiable model</td><td>axiomatic attribution: path-integral of gradients from baseline to input</td><td>Captum <code class="inline">IntegratedGradients</code></td></tr><tr><td><strong>SmoothGrad</strong></td><td>any</td><td>averages gradients over noisy inputs to reduce saliency-map noise</td><td>Captum <code class="inline">NoiseTunnel</code></td></tr><tr><td><strong>Grad-CAM / Grad-CAM++</strong></td><td>CNNs</td><td>heatmap over spatial activations</td><td><code class="inline">pytorch-grad-cam</code></td></tr><tr><td><strong>Attention rollout</strong></td><td>Transformers</td><td>multiply attention matrices layer-by-layer</td><td>custom + <code class="inline">captum</code></td></tr><tr><td><strong>LRP</strong> (Layer-wise Relevance Propagation)</td><td>deep nets</td><td>back-propagates relevance from output to input</td><td><code class="inline">zennit</code>, <code class="inline">innvestigate</code></td></tr><tr><td><strong>DeepLIFT</strong></td><td>deep nets</td><td>compares activations to a reference; faster than IG</td><td>Captum <code class="inline">DeepLift</code></td></tr><tr><td><strong>Alibi Explain</strong></td><td>any</td><td>Anchors, counterfactuals, integrated gradients, prototypes — production-grade</td><td><code class="inline">alibi</code></td></tr><tr><td><strong>InterpretML</strong> (Microsoft)</td><td>tabular / glass-box</td><td>Explainable Boosting Machine (EBM) — intrinsically interpretable</td><td><code class="inline">interpret</code></td></tr><tr><td><strong>TCAV</strong> (Testing with Concept Activation Vectors)</td><td>CNNs, NLP</td><td>measures if a human concept (e.g. &quot;stripes&quot;) is used by the model</td><td><code class="inline">tcav</code></td></tr><tr><td><strong>SHAP DeepExplainer / GradientExplainer</strong></td><td>PyTorch / Keras</td><td>SHAP values for deep models</td><td><code class="inline">shap.DeepExplainer</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><p class="lede"><strong>Workflow</strong> — pick ONE primary local method (Integrated Gradients for signals, Grad-CAM for images, SHAP for tabular) and ONE global method (PDP + SHAP summary). Report BOTH on every model card.</p>
+<p class="lede"><strong>Gates</strong></p>
+<ul class="bullet-list"><li>[ ] Model card shows local explanation on ≥ 3 correct predictions + ≥ 3 wrong predictions</li><li>[ ] Explanations stable under small input perturbations (Lipschitz check — no drastic jump for ε noise)</li><li>[ ] For images/signals: the attribution map aligns with domain expert intuition (human sanity check)</li></ul>
+<p class="lede"><strong>Anti-patterns</strong></p>
+<ul class="bullet-list"><li>❌ Reporting only saliency maps — known to be unreliable (Adebayo et al. 2018 sanity checks); pair with IG</li><li>❌ Using SHAP on a model with &gt; 100 features and showing all 100 in the beeswarm — pick top-15</li><li>❌ &quot;Explainability&quot; == showing feature importance of a deep model — that&#x27;s not explanation, it&#x27;s aggregate</li></ul></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">5.5 Probability Calibration</h2><p class="lede">A model can have good ROC-AUC but badly calibrated probabilities — it predicts 0.9 when the true probability is 0.6. Calibration ensures <code class="inline">predict_proba()</code> reflects real-world frequencies.</p>
+<table class="compact-table"><thead><tr><th>Method</th><th>How it works</th><th>When to use</th></tr></thead><tbody><tr><td><strong>Platt Scaling</strong></td><td>Fits a logistic regression on top of raw scores</td><td>SVM, small datasets</td></tr><tr><td><strong>Isotonic Regression</strong></td><td>Fits a non-parametric monotone function on raw scores</td><td>Any model, larger datasets</td></tr><tr><td><code class="inline">CalibratedClassifierCV</code></td><td>Wraps any sklearn estimator with cross-validated calibration</td><td>General use</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">from sklearn.calibration import CalibratedClassifierCV, calibration_curve
+calibrated = CalibratedClassifierCV(base_model, method=&#x27;isotonic&#x27;, cv=5)
+calibrated.fit(X_train, y_train)
+# Plot: calibration_curve(y_true, y_prob, n_bins=10)
+# Perfect calibration = diagonal line</pre></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Use calibration when the <strong>probability value itself matters</strong> (risk scoring, cost-sensitive decisions) — not just the ranking.</p></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">5.4 Threshold Selection</h2></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart TD
+    A[Trained classifier] --> B[Compute proba on val set]
+    B --> C[Plot Precision-Recall curve]
+    C --> D{Business priority}
+    D -->|Minimize false alarms| E[Maximize Precision Raise threshold]
+    D -->|Minimize missed faults| F[Maximize Recall Lower threshold]
+    D -->|Balance| G[Maximize F1-Score Optimal threshold search]
+    E --> H[Store threshold in model pkl]
+    F --> H
+    G --> H
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">5.6 Causal Inference — correlation ≠ causation</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">A standard ML model answers <strong>&quot;what will happen?&quot;</strong> (prediction). Causal inference answers <strong>&quot;what would happen if I did X?&quot;</strong> (intervention). Most industrial questions are secretly causal — &quot;does the new PID tuning reduce wear?&quot;, &quot;did the coolant upgrade reduce fault rate?&quot;, &quot;which maintenance action lowers MTBF?&quot; — and a classifier cannot answer them. Predictive models exploit correlation; deploying a decision on a correlation that is not causal is how you get surprises in production.</p>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.a Core vocabulary</h3>
+<table class="compact-table"><thead><tr><th>Term</th><th>Definition</th></tr></thead><tbody><tr><td><strong>Treatment T</strong></td><td>the intervention whose effect we want to measure (1 = applied, 0 = not)</td></tr><tr><td><strong>Outcome Y</strong></td><td>the metric we care about (wear, downtime, fault rate)</td></tr><tr><td><strong>Confounder X</strong></td><td>a variable that influences both T and Y — if uncontrolled, it biases the estimate</td></tr><tr><td><strong>Mediator M</strong></td><td>T → M → Y; part of the causal path, do NOT control for it when estimating total effect</td></tr><tr><td><strong>Collider</strong></td><td>T → C ← Y; controlling for C creates a spurious association</td></tr><tr><td><strong>ATE</strong> (Average Treatment Effect)</td><td>E[Y(1) − Y(0)] across the whole population</td></tr><tr><td><strong>ATT</strong> (ATE on Treated)</td><td>E[Y(1) − Y(0) \</td><td>T=1] — effect on those who received the treatment</td></tr><tr><td><strong>CATE</strong> (Conditional ATE)</td><td>ATE conditional on covariates X — the &quot;personalized&quot; effect</td></tr><tr><td><strong>Counterfactual</strong></td><td>Y(1) for a unit that actually received T=0 — unobservable; estimated by the model</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.b Method catalog</h3>
+<table class="compact-table"><thead><tr><th>Method</th><th>When</th><th>Assumption</th><th>Library</th></tr></thead><tbody><tr><td><strong>Randomized Controlled Trial (RCT)</strong></td><td>you CAN randomize</td><td>random assignment removes confounding by construction</td><td>native — design the experiment</td></tr><tr><td><strong>Propensity Score Matching (PSM)</strong></td><td>observational, X observed</td><td>conditional ignorability (no unobserved confounder)</td><td><code class="inline">causalml.PropensityModel</code>, <code class="inline">dowhy</code></td></tr><tr><td><strong>Inverse Propensity Weighting (IPW)</strong></td><td>observational, X observed</td><td>same as PSM, + good overlap</td><td><code class="inline">econml</code></td></tr><tr><td><strong>Doubly Robust (AIPW, TMLE)</strong></td><td>observational</td><td>consistent if EITHER propensity OR outcome model is correct</td><td><code class="inline">econml.DRLearner</code>, <code class="inline">dowhy</code></td></tr><tr><td><strong>Instrumental Variable (IV)</strong></td><td>unobserved confounders exist, valid instrument available</td><td>IV is exogenous + affects Y only through T</td><td><code class="inline">econml.DMLIV</code>, <code class="inline">linearmodels.IV</code></td></tr><tr><td><strong>Regression Discontinuity (RD)</strong></td><td>treatment assigned on a cutoff (age, threshold)</td><td>continuity of potential outcomes at cutoff</td><td><code class="inline">rdrobust</code>, manual</td></tr><tr><td><strong>Difference-in-Differences (DiD)</strong></td><td>before/after + treatment/control groups</td><td>parallel trends</td><td><code class="inline">linearmodels.PanelOLS</code></td></tr><tr><td><strong>Synthetic Control</strong></td><td>1 treated unit, many donors</td><td>weighted combo of donors reproduces pre-treatment trajectory</td><td><code class="inline">SparseSC</code>, <code class="inline">pysyncon</code></td></tr><tr><td><strong>Causal Forests / DML</strong></td><td>heterogeneous CATE</td><td>flexible ML nuisance models</td><td><code class="inline">econml.CausalForest</code>, <code class="inline">dowhy</code></td></tr><tr><td><strong>Do-calculus / SCM</strong></td><td>structural model known</td><td>correct DAG</td><td><code class="inline">DoWhy</code>, <code class="inline">pgmpy</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.c Libraries</h3>
+<table class="compact-table"><thead><tr><th>Library</th><th>Strengths</th><th>Typical API</th></tr></thead><tbody><tr><td><strong>DoWhy</strong> (Microsoft)</td><td>4-step discipline: <strong>identify → estimate → refute → sensitivity</strong>; enforces DAG thinking</td><td><code class="inline">CausalModel(...).identify_effect().estimate_effect(...).refute_estimate(...)</code></td></tr><tr><td><strong>EconML</strong> (Microsoft)</td><td>rich ML-based estimators (Causal Forest, DML, Doubly Robust, Meta-learners)</td><td>scikit-learn-style <code class="inline">fit</code> / <code class="inline">effect</code></td></tr><tr><td><strong>CausalML</strong> (Uber)</td><td>uplift modeling (S/T/X/R-learners), marketing-flavored but generic</td><td><code class="inline">from causalml.inference.meta import XLearner</code></td></tr><tr><td><strong>pgmpy</strong></td><td>Bayesian networks, DAG learning, d-separation</td><td>inference over DAG</td></tr><tr><td><strong>CausalNex</strong> (QuantumBlack)</td><td>structure learning (NOTEARS) + Bayesian nets</td><td><code class="inline">StructureModel</code>, <code class="inline">InferenceEngine</code></td></tr><tr><td><strong>Ananke</strong></td><td>graphical causal inference, latent projection</td><td>academic but rigorous</td></tr><tr><td><strong>WhyNot</strong></td><td>simulation playground to stress-test causal methods</td><td>benchmarks</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.d Workflow (DoWhy-style 4-step)</h3></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart LR
+    A[Draw the DAG: domain knowledge] --> B[IDENTIFY causal effect via do-calculus / back-door]
+    B --> C[ESTIMATE with chosen method propensity / IV / DML]
+    C --> D[REFUTE: placebo, data subset, random common cause, unobserved-confounder sensitivity]
+    D --> E{All refutations pass?}
+    E -->|Yes| F[Report ATE with CI + assumptions]
+    E -->|No| G[Revisit DAG / data / method]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><ul class="bullet-list"><li><strong>Draw the DAG</strong> with domain experts — nodes = variables, arrows = assumed direct causal links</li><li><strong>Identify</strong> — does the DAG let you identify the effect? (DoWhy checks back-door / front-door / IV)</li><li><strong>Estimate</strong> — fit the chosen estimator, report point + 95 % CI</li><li><strong>Refute</strong> — mandatory: (a) placebo outcome → expect effect ≈ 0, (b) random common cause → expect unchanged, (c) data subset → expect stable, (d) unobserved-confounder sensitivity (how strong would a hidden confounder have to be to null the result?)</li></ul>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.e Example — did the PID re-tuning reduce wear?</h3></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">import pandas as pd
+from dowhy import CausalModel
+
+df = pd.DataFrame({&quot;treatment&quot;: ..., &quot;wear_index&quot;: ..., &quot;load&quot;: ..., &quot;material&quot;: ..., &quot;spindle_age&quot;: ...})
+model = CausalModel(
+    data=df,
+    treatment=&quot;treatment&quot;,
+    outcome=&quot;wear_index&quot;,
+    common_causes=[&quot;load&quot;, &quot;material&quot;, &quot;spindle_age&quot;],
+)
+identified = model.identify_effect(proceed_when_unidentifiable=False)
+estimate = model.estimate_effect(identified, method_name=&quot;backdoor.propensity_score_matching&quot;)
+print(estimate.value)  # e.g. -0.08 → PID tuning reduces wear_index by 0.08 on average
+refute = model.refute_estimate(identified, estimate, method_name=&quot;placebo_treatment_refuter&quot;)
+print(refute)  # placebo effect should be ≈ 0</pre></div></section>
+<section class="slide"><span class="slide-tag">5. Evaluation &amp; Interpretation (XAI)</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.f Anti-patterns</h3>
+<ul class="bullet-list"><li>❌ <strong>Controlling for a mediator</strong> → closes the causal path, under-estimates effect</li><li>❌ <strong>Controlling for a collider</strong> → opens a non-causal path, creates spurious effect</li><li>❌ <strong>Reporting a regression coefficient as &quot;causal effect&quot; without a DAG</strong> — classic confound</li><li>❌ <strong>RCT assumed when assignment was self-selected</strong> — propensity + sensitivity mandatory</li><li>❌ <strong>No refutation step</strong> — an un-refuted causal estimate is a fragile claim</li></ul>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">5.6.g Gates before acting on a causal estimate</h3>
+<ul class="bullet-list"><li>[ ] DAG signed off by domain expert (version-controlled in the repo)</li><li>[ ] Overlap / positivity check: propensity scores ∈ (ε, 1−ε) — no unit is near-certain to be in one arm</li><li>[ ] All 4 DoWhy refutations pass (placebo, random common cause, subset, unobserved confounder)</li><li>[ ] Sensitivity analysis shows the result survives plausible unobserved confounding</li></ul>
+<p class="lede">---</p></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>

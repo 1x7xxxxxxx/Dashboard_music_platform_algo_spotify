@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MLOps &amp; CI/CD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">MLOps &amp; CI/CD</h1><div class="subtitle reveal">Source-of-truth segment extracted from the unified ML checklist for exhaustive slide-deck generation.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~13 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Source-of-truth segment extracted from the unified ML checklist for
+exhaustive slide-deck generation.</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">13. Development Environment &amp; Tooling</h2></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><h2 class="slide-title reveal">13.1 Python Environment — venv &amp; Dependencies</h2><table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>13.1.1</td><td><strong>One venv per project</strong></td><td><code class="inline">python -m venv venv</code> at repo root — never install into system Python</td></tr><tr><td>13.1.2</td><td><strong>Activate before any work</strong></td><td><code class="inline">source venv/bin/activate</code> (Linux/Mac) or <code class="inline">venv\Scripts\activate</code> (Windows)</td></tr><tr><td>13.1.3</td><td><strong><code class="inline">.gitignore</code> the venv</strong></td><td>Add <code class="inline">venv/</code>, <code class="inline">__pycache__/</code>, <code class="inline">*.pyc</code>, <code class="inline">.env</code> to <code class="inline">.gitignore</code> — never commit</td></tr><tr><td>13.1.4</td><td><strong><code class="inline">requirements.txt</code> pinned for prod</strong></td><td>Use <code class="inline">==</code> for all dependencies in prod: <code class="inline">fastapi==0.111.0</code>. Reproducible builds.</td></tr><tr><td>13.1.5</td><td><strong><code class="inline">requirements-dev.txt</code> relaxed</strong></td><td>Dev/test deps use <code class="inline">&gt;=</code> or <code class="inline">~=</code> — allows minor upgrades without breaking prod lockfile</td></tr><tr><td>13.1.6</td><td><strong>Generate from current env</strong></td><td><code class="inline">pip freeze &gt; requirements.txt</code> after <code class="inline">pip install</code> — captures exact transitive deps</td></tr><tr><td>13.1.7</td><td><strong><code class="inline">pip-compile</code> for managed lockfile</strong></td><td><code class="inline">pip-tools</code>: write top-level deps in <code class="inline">requirements.in</code>, compile to <code class="inline">requirements.txt</code> with hashes</td></tr><tr><td>13.1.8</td><td><strong>Dependency audit</strong></td><td><code class="inline">pip-audit</code> or <code class="inline">safety check</code> — scan for known CVEs in installed packages</td></tr><tr><td>13.1.9</td><td><strong>Upgrade strategy</strong></td><td>Monthly: <code class="inline">pip list --outdated</code>, test upgrades in branch before merging to main</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong><code class="inline">pip freeze</code> includes everything</strong> — if your venv has dev tools (pytest, black, ipykernel), <code class="inline">pip freeze</code> will include them in <code class="inline">requirements.txt</code>. Use separate files or <code class="inline">pip-compile</code> with scoped inputs to avoid bloating the prod image.</p></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><h2 class="slide-title reveal">13.2 Docker Hub &amp; Image Registry</h2><table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>13.2.1</td><td><strong>Authenticate before push</strong></td><td><code class="inline">docker login</code> (Docker Hub) or <code class="inline">docker login &lt;acr&gt;.azurecr.io</code> (ACR) — use token, not password</td></tr><tr><td>13.2.2</td><td><strong>Token-based auth</strong></td><td>Docker Hub: use Access Token (Settings → Security), not account password. Revocable.</td></tr><tr><td>13.2.3</td><td><strong>Image naming convention</strong></td><td><code class="inline">registry/organisation/image-name:tag</code> — e.g. <code class="inline">myregistry.azurecr.io/your-org/your-api:v1.0</code></td></tr><tr><td>13.2.4</td><td><strong>Public vs private registry</strong></td><td>Docker Hub free tier: 1 private repo. Use ACR/ECR/GCR for enterprise or sensitive images.</td></tr><tr><td>13.2.5</td><td><strong>Push workflow</strong></td><td><code class="inline">docker build -t registry/image:tag .</code> → <code class="inline">docker push registry/image:tag</code></td></tr><tr><td>13.2.6</td><td><strong>Pull on deployment</strong></td><td><code class="inline">docker compose pull &amp;&amp; docker compose up -d</code> — always pull before restart in prod</td></tr><tr><td>13.2.7</td><td><strong>Tag strategy</strong></td><td><code class="inline">latest</code> = dev only. <code class="inline">v1.0</code> = stable release. <code class="inline">sha-abc1234</code> = CI build (traceable). Never use <code class="inline">latest</code> in prod.</td></tr><tr><td>13.2.8</td><td><strong><code class="inline">.dockerignore</code></strong></td><td>Must exclude: <code class="inline">venv/</code>, <code class="inline">.git/</code>, <code class="inline">__pycache__/</code>, <code class="inline">*.pyc</code>, <code class="inline">.env</code>, <code class="inline">tests/</code>, <code class="inline">*.md</code> — reduces image size and avoids leaking secrets</td></tr><tr><td>13.2.9</td><td><strong>Multi-stage Dockerfile</strong></td><td>Builder stage installs deps + compiles; runtime stage copies only artifacts. Reduces final image by 60–80%.</td></tr><tr><td>13.2.10</td><td><strong>Image vulnerability scan</strong></td><td><code class="inline">docker scout cves image:tag</code> (Docker Hub) or <code class="inline">trivy image image:tag</code> — scan before push to prod</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Multi-stage build</strong> — the most common mistake: running <code class="inline">pip install -r requirements.txt</code> in the final stage pulls build tools (gcc, headers) into prod. Use <code class="inline">--no-cache-dir</code> and a separate builder stage with only the compiled wheels copied over.</p></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><h2 class="slide-title reveal">13.3 Docker Compose — Operational Tips</h2><table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>13.3.1</td><td><strong>Validate before deploy</strong></td><td><code class="inline">docker compose config</code> — resolves all variables and prints merged config. Catches typos before <code class="inline">up</code>.</td></tr><tr><td>13.3.2</td><td><strong>Override files for environments</strong></td><td><code class="inline">docker-compose.yml</code> (base) + <code class="inline">docker-compose.override.yml</code> (auto-loaded for dev) + <code class="inline">docker-compose.prod.yml</code> (explicit: <code class="inline">docker compose -f docker-compose.yml -f docker-compose.prod.yml up</code>)</td></tr><tr><td>13.3.3</td><td><strong><code class="inline">docker compose profiles</code></strong></td><td>Optional services declared with <code class="inline">profiles: [mlflow]</code> — activated with <code class="inline">--profile mlflow</code>. Keeps base stack lean.</td></tr><tr><td>13.3.4</td><td><strong><code class="inline">depends_on</code> with health condition</strong></td><td><code class="inline">depends_on: db: condition: service_healthy</code> — waits for healthcheck to pass, not just container start</td></tr><tr><td>13.3.5</td><td><strong>Named volumes vs bind mounts</strong></td><td>Named volumes: managed by Docker, portable. Bind mounts: direct path on host, easier to inspect. Use bind mounts on IPC for NVMe partition access.</td></tr><tr><td>13.3.6</td><td><strong><code class="inline">docker compose down</code> vs <code class="inline">down -v</code></strong></td><td><code class="inline">down</code> stops containers and removes them. <code class="inline">down -v</code> <strong>also deletes named volumes</strong> (data loss). Never use <code class="inline">-v</code> in prod.</td></tr><tr><td>13.3.7</td><td><strong>Check running containers</strong></td><td><code class="inline">docker compose ps</code> — shows status, ports, health. <code class="inline">docker compose logs -f service</code> for tailing.</td></tr><tr><td>13.3.8</td><td><strong>Resource limits syntax</strong></td><td>Compose v3+: use <code class="inline">deploy.resources.limits</code> (not <code class="inline">mem_limit</code> at top level — deprecated in Swarm mode)</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong><code class="inline">docker compose down -v</code></strong> — destroys named volumes including databases. This is the #1 cause of accidental data loss in dev. Always double-check the command before running in a shared or production environment.</p></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><h2 class="slide-title reveal">13.4 Testing on a Clean Linux VM (Oracle VirtualBox / Vagrant)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Before deploying to production IPC, validate the full stack on a clean VM that mirrors the target OS exactly.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>13.4.1</td><td><strong>Match target OS exactly</strong></td><td>IPC runs Debian 12 → VM runs Debian 12. Avoid Ubuntu if prod is Debian (systemd and package versions differ).</td></tr><tr><td>13.4.2</td><td><strong>Start from a clean snapshot</strong></td><td>Take a VM snapshot after fresh OS install + Docker install. Always restore this snapshot before each full test run.</td></tr><tr><td>13.4.3</td><td><strong>No pre-installed dependencies</strong></td><td>The VM must NOT have Python packages, models, or configs from previous runs — tests the full installation procedure.</td></tr><tr><td>13.4.4</td><td><strong>Simulate the install procedure</strong></td><td>Run exactly the commands from your deployment runbook on the clean VM — if it breaks here, it will break on the IPC.</td></tr><tr><td>13.4.5</td><td><strong>Test <code class="inline">docker compose pull</code></strong></td><td>Simulate air-gapped: disable internet, verify that <code class="inline">docker compose up</code> works from local images only.</td></tr><tr><td>13.4.6</td><td><strong>Test power-loss scenario</strong></td><td>VM → Force power off (not graceful shutdown) → restart → verify SQLite WAL integrity and container auto-restart.</td></tr><tr><td>13.4.7</td><td><strong>Test udev rules</strong></td><td>Attach a USB device (or simulate with <code class="inline">socat</code>) — verify the alias <code class="inline">/dev/stm32_vibration</code> appears as expected.</td></tr><tr><td>13.4.8</td><td><strong>Vagrant for reproducible VMs</strong></td><td><code class="inline">Vagrantfile</code> defines the VM (box, memory, port forwards, provisioning script) — <code class="inline">vagrant up</code> reproduces the environment in one command. Commit <code class="inline">Vagrantfile</code> to repo.</td></tr><tr><td>13.4.9</td><td><strong>Shared folder for code</strong></td><td>Mount the project folder as a shared folder in VirtualBox — edit on host, run in VM. Faster iteration than re-building images.</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Oracle VirtualBox USB passthrough</strong> — to test USB devices (STM32) in VirtualBox, install the <strong>VirtualBox Extension Pack</strong> and add the USB device filter in VM settings. Without it, the VM cannot see USB devices even if physically connected.</p></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><h2 class="slide-title reveal">13.5 Pre-commit Hooks &amp; Code Quality</h2><table class="compact-table"><thead><tr><th>#</th><th>Tool</th><th>Purpose</th><th>Config</th></tr></thead><tbody><tr><td>13.5.1</td><td><strong>black</strong></td><td>Auto-format Python — removes all style debates</td><td><code class="inline">pyproject.toml</code>: <code class="inline">[tool.black]</code> line-length = 100</td></tr><tr><td>13.5.2</td><td><strong>isort</strong></td><td>Sort imports automatically</td><td><code class="inline">[tool.isort]</code> profile = &quot;black&quot;</td></tr><tr><td>13.5.3</td><td><strong>flake8</strong></td><td>Lint for PEP8 violations, unused imports</td><td><code class="inline">.flake8</code>: max-line-length = 100, ignore E203</td></tr><tr><td>13.5.4</td><td><strong>mypy</strong></td><td>Static type checking</td><td><code class="inline">mypy.ini</code>: strict = true (or per-module)</td></tr><tr><td>13.5.5</td><td><strong>pre-commit</strong></td><td>Run all of the above automatically on <code class="inline">git commit</code></td><td><code class="inline">.pre-commit-config.yaml</code> — <code class="inline">pre-commit install</code> once per clone</td></tr><tr><td>13.5.6</td><td><strong>bandit</strong></td><td>Security linter — detects hardcoded secrets, SQL injection patterns</td><td><code class="inline">bandit -r src/ -ll</code></td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong><code class="inline">pre-commit install</code></strong> — must be run once after cloning the repo. Without it, hooks are not active even if <code class="inline">.pre-commit-config.yaml</code> exists. Add a reminder to the repo README and <code class="inline">Makefile</code>.</p></div></section>
+<section class="slide"><span class="slide-tag">13. Development Environment &amp; Tooling</span><div class="slide-content"><h2 class="slide-title reveal">13.6 Makefile — Common Commands</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">A <code class="inline">Makefile</code> at repo root wraps recurring commands. One-word targets replace long commands that nobody remembers.</p>
+<table class="compact-table"><thead><tr><th>Target</th><th>Command it wraps</th><th>Purpose</th></tr></thead><tbody><tr><td><code class="inline">make install</code></td><td><code class="inline">pip install -r requirements.txt -r requirements-dev.txt</code></td><td>Set up dev environment</td></tr><tr><td><code class="inline">make test</code></td><td><code class="inline">pytest tests/ -v --tb=short</code></td><td>Run full test suite</td></tr><tr><td><code class="inline">make lint</code></td><td><code class="inline">black . &amp;&amp; isort . &amp;&amp; flake8 .</code></td><td>Format + lint</td></tr><tr><td><code class="inline">make build</code></td><td><code class="inline">docker build -t your-api:dev .</code></td><td>Build Docker image</td></tr><tr><td><code class="inline">make up</code></td><td><code class="inline">docker compose up --build</code></td><td>Start full stack</td></tr><tr><td><code class="inline">make down</code></td><td><code class="inline">docker compose down</code></td><td>Stop stack</td></tr><tr><td><code class="inline">make logs</code></td><td><code class="inline">docker compose logs -f api</code></td><td>Tail API logs</td></tr><tr><td><code class="inline">make load-test</code></td><td><code class="inline">locust -f locustfile.py --headless ...</code></td><td>Run load test</td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Makefile tabs</strong> — Makefile recipes must be indented with a real TAB character, not spaces. Most editors auto-convert. If <code class="inline">make</code> fails with <code class="inline">missing separator</code>, check indentation with <code class="inline">cat -A Makefile</code>.</p>
+<p class="lede">*Legend: ✅ Implemented | 🔵 Planned | ⚠️ In progress*</p></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>

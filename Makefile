@@ -1,0 +1,44 @@
+# streaMLytics — developer Makefile
+# Run from the repo root. Most targets assume Docker is up and the Windows venv
+# at venv/Scripts/python.exe is in place (we are WSL-side calling Windows binaries).
+
+PYTHON  := venv/Scripts/python.exe
+PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
+
+.PHONY: help up down logs test lint migrate dashboard sync clean
+
+help:        ## List available targets
+	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
+
+up:          ## docker-compose up -d (postgres + airflow)
+	docker-compose up -d
+	@sleep 3 && docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'postgres_spotify|airflow'
+
+down:        ## docker-compose down (keeps volumes)
+	docker-compose down
+
+logs:        ## Tail Airflow scheduler logs
+	docker-compose logs -f airflow-scheduler
+
+test:        ## Pytest suite (skips test_api.py — fastapi missing in venv)
+	$(PYTHON) -m pytest tests/ --ignore=tests/test_api.py -q
+
+lint:        ## Ruff lint on src/ and tests/
+	ruff check src/ tests/
+
+migrate:     ## Apply every migrations/*.sql idempotently against the live PG
+	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
+	@for f in migrations/*.sql; do \
+		echo ">> $$f"; \
+		docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl < $$f; \
+	done
+
+dashboard:   ## Launch Streamlit dashboard (foreground, port 8501)
+	cd src/dashboard && streamlit run app.py
+
+sync:        ## uv sync --frozen (installs from uv.lock)
+	uv sync --frozen
+
+clean:       ## Remove Python and ruff caches
+	find . -name __pycache__ -type d -prune -exec rm -rf {} +
+	rm -rf .ruff_cache .pytest_cache

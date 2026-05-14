@@ -1,0 +1,65 @@
+name: CD — Release
+
+# Continuous deployment.
+#
+# Current trigger: push to main. To switch to release-tag deploys instead
+# (recommended for prod), replace the `on:` block with:
+#
+#   on:
+#     push:
+#       tags: ['v*.*.*']
+#
+# Both jobs ship the same artifact; only the trigger differs. Pick one
+# strategy per environment.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-railway:
+    # Deploys the FastAPI service to Railway.
+    # Set up: https://docs.railway.com/guides/github-actions
+    # Required secret: RAILWAY_TOKEN
+    # Disabled 2026-05-11: RAILWAY_TOKEN is empty/expired. Re-enable by
+    # removing `if: false` once a fresh token is added at
+    # Settings -> Secrets and variables -> Actions -> RAILWAY_TOKEN.
+    if: false
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service api --detach
+
+  deploy-hetzner:
+    # Auto-deploy to Hetzner VPS via SSH.
+    # Required secrets:
+    #   HETZNER_HOST     — VPS IP or hostname (e.g. 65.21.x.x)
+    #   HETZNER_USER     — SSH user (e.g. root or deploy)
+    #   HETZNER_SSH_KEY  — private SSH key (generate: ssh-keygen -t ed25519)
+    # VPS setup (one-time): add the public key to ~/.ssh/authorized_keys.
+    if: false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key:      ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            cd /opt/music-dashboard
+            git pull origin main
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker compose exec -T airflow-scheduler airflow dags unpause meta_ads_api_daily || true
+            echo "Deploy done: $(date)"

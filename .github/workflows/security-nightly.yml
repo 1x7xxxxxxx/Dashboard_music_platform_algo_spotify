@@ -1,0 +1,45 @@
+name: Security — Nightly audit
+
+# Nightly security pass on main:
+#   - pip-audit: scans installed Python packages against the PyPI Advisory DB
+#   - gitleaks:  scans the full git history for committed secrets
+#
+# Failures are surfaced as workflow failures (annotated in the run summary).
+# No deploy gate — this is observational. Promote any HIGH/CRITICAL finding
+# to a P1 issue manually.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit dependencies
+        # --strict fails the run if any CVE is found at any severity.
+        # Use --vulnerability-service osv to query the OSV database too.
+        run: pip-audit -r requirements.txt --strict
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks needs full history to scan all commits
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

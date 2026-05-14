@@ -39,8 +39,8 @@ $([ "$HAS_ML" -eq 1 ] && echo "| CI/CD | `mlops/cicd.md` | Tests, Docker, pipeli
 | ADR | Decision | Rationale |
 |-----|----------|-----------|
 | ADR-000 | Bootstrap via setup-claude-code.sh | Standardised Claude Code config across org |
-| ADR-001 | TODO: first real architectural choice | TODO: constraint / trade-off that drove it |
-| ADR-002 | TODO | TODO |
+| [ADR-001](../../docs/adr/ADR-001-roadmap-multi-files-conserved.md) | Keep `roadmap/checklist.md` over baseline `ROADMAP.md` | Zero migration risk; existing slash commands/hooks still target it |
+| [ADR-002](../../docs/adr/ADR-002-no-alembic-no-repository-pattern.md) | Reject Alembic, repository pattern, observability stack from msdr reference | Criticality budget doesn't justify the infra cost on a CRUD SaaS |
 
 ---
 

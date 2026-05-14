@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Macro MLOps Overview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">Macro MLOps Overview</h1><div class="subtitle reveal">Macro reference for an end-to-end MLOps project. Each task gets one slide; each phase ends with a recap and a pointer to the dedicated deep deck.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~52 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Macro reference for an end-to-end MLOps project. Each task gets one slide;
+each phase ends with a recap and a pointer to the dedicated deep deck.</p>
+<p class="lede">This deck answers the question &quot;what do I need to do, in what order, to ship
+a working ML model to production?&quot; — without the operational depth (which
+lives in the per-phase decks 01–08).</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 1 — Data Preparation &amp; EDA</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Initialization</h2><p class="lede">Set up the working environment.
+- Import core libraries: pandas, numpy, scikit-learn, seaborn, matplotlib
+- Read source file (CSV, XLSX, SQL, time-series store)
+- Pin version of every dependency in <code class="inline">pyproject.toml</code> / <code class="inline">requirements.txt</code></p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Initial audit</h2><p class="lede">Verify dataset structural integrity.
+- <code class="inline">df.head()</code>, <code class="inline">df.tail()</code> — first / last rows
+- <code class="inline">df.dtypes</code> — type sanity check (int / float / object / datetime)
+- Detect duplicates: <code class="inline">df.duplicated().sum()</code>
+- Detect inputs with irregular relations between two variables (e.g. listeners &gt; streams)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Column cleanup</h2><p class="lede">Make variables easy to call from code.
+- Lowercase: <code class="inline">.str.lower()</code>
+- Strip whitespace
+- Replace spaces with underscores (snake_case)
+- Drop free-text columns that won&#x27;t be used downstream</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Descriptive analysis</h2><p class="lede">Understand statistical distribution and quality.
+- <code class="inline">df.describe()</code> — mean, std, min/max
+- ydata-profiling (ex Pandas Profiling) for a complete audit report
+- great-expectations for schema validation + profiling + documentation
+- Identify outliers and zero-as-missing values</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Spoilers / leakage hunt</h2><p class="lede">Avoid data leakage — predicting from the answer.
+- Drop columns that reveal the future (e.g. &quot;death_date&quot; when predicting survival, or &quot;amount_repaid&quot; when predicting default)
+- Drop columns derived from the target (multicollinearity with target)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Missing data analysis</h2><p class="lede">Identify the right imputation strategy.
+- Compute % NaN per column
+- Visualize: missingness matrix (Missingno), missingness dendrogram (do features go missing together?)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Visualization (Data Viz)</h2><p class="lede">Detect relations and visual patterns.
+- Numerical relations: pairplot, jointplot, heatmap (Pearson correlation)
+- Distributions: histograms, joint plot, box plot, violin plot, dependence matrix, RFE (recursive feature elimination)
+- Check power-law distribution if applicable
+- Non-parametric tests when normality fails</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 1 — Data Preparation &amp; EDA</span><div class="slide-content"><h2 class="slide-title reveal">Phase 1 deliverables</h2><ul class="bullet-list"><li>Cleaned dataset with documented schema</li><li>ydata-profiling HTML report attached to project repo</li><li>List of dropped columns + reason</li><li>Missingness strategy documented in <code class="inline">plan.md</code></li></ul>
+<p class="lede">→ <strong>Deep deck:</strong> <code class="inline">01_data_acquisition.html</code> for full reference.</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 2 — Feature Engineering &amp; Preprocessing</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Train / test split</h2><p class="lede">Guarantee an honest evaluation.
+- <code class="inline">train_test_split</code> 80/20 or 70/30 for IID data
+- Time series: <code class="inline">TimeSeriesSplit</code> — chronological split, never random shuffle
+- Verify both classes appear in both train and test</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Imputation</h2><p class="lede">Fill the gaps without biasing the model.
+- Compute statistics on TRAIN only, apply to TEST
+- Numerical: mean / median (<code class="inline">SimpleImputer</code>)
+- Categorical: mode / constant
+- Advanced: <code class="inline">KNNImputer</code>, <code class="inline">IterativeImputer</code>
+- Volume variables: <code class="inline">log1p</code> transform; clip negative artifacts to 0</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Categorical encoding</h2><p class="lede">Transform text into numbers.
+- One-Hot (<code class="inline">get_dummies</code>, <code class="inline">OneHotEncoder</code>) — use <code class="inline">drop_first=True</code> to avoid multicollinearity
+- Label Encoding — for ordinal categories or high cardinality
+- Frequency Encoding — replace by frequency of occurrence
+- <strong>Done BEFORE SMOTE</strong> — SMOTE needs numeric distances</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Standardization / scaling</h2><p class="lede">Same scale across all variables.
+- <code class="inline">StandardScaler</code> — mean=0, std=1 (ideal for SVM, KNN, Linear)
+- <code class="inline">MinMaxScaler</code> — [0, 1] (useful for neural networks)
+- <strong>Always: fit on TRAIN, transform on TEST</strong> — never the other way around</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Feature selection</h2><p class="lede">Reduce noise and complexity.
+- Variance Inflation Factor (<code class="inline">VIF &lt; 5</code>)
+- Log-transform (<code class="inline">np.log1p</code>) before scaling on extreme volume variables
+- Statistical tests: chi-squared, Kolmogorov-Smirnov, Spearman univariate
+- Wrappers: subset selection
+- Embedded: Lasso (automatic via L1 penalty)
+- Binning to bucket continuous values into intervals
+- Temporal dynamics: 7-day growth vs 21-day moving average → detect organic vs artificial signal
+- Cross-metrics: ratios like Listeners/Streams as retention scores
+- Drop zero-variance columns
+- Drop features with leakage (correlation with target via spurious mechanism)
+- Recursive Feature Elimination (RFE)
+- Radviz, parallel coordinates plot</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Target definition</h2><p class="lede">Define the y you actually want to predict.
+- Log-Knee (DW) method + active median for thresholding
+- Verify NO feature is computed from the target
+- Binarization: turn an asymmetric continuous target (with many zeros) into a binary problem (Trigger: yes/no)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Class balancing</h2><p class="lede">Help the model see rare cases.
+- <strong>Apply ONLY on TRAIN set</strong> — never on val / test
+- Oversampling: SMOTE, ADASYN (synthetic data generation)
+- Undersampling: random removal of majority class
+- SMOTE rationale: forces XGBoost to study successes — prevents lazy &quot;always predict 0&quot; behavior, preserves test-set distribution</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 2 — Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Phase 2 deliverables</h2><ul class="bullet-list"><li>Train / test split saved as artifacts (joblib)</li><li>Preprocessing Pipeline saved (scaler + imputer + encoder)</li><li>Feature catalog with formula + source</li></ul>
+<p class="lede">→ <strong>Deep deck:</strong> <code class="inline">02_feature_engineering.html</code>.</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 3 — Modeling &amp; Optimization</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 3 — Modeling &amp; Optimization</span><div class="slide-content"><h2 class="slide-title reveal">Baseline model</h2><p class="lede">Establish a floor score.
+- <code class="inline">DummyClassifier</code> (most_frequent / stratified) or <code class="inline">DummyRegressor</code> (mean / median)
+- If your real model doesn&#x27;t beat it by ≥ 5 %, treat as red flag</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 3 — Modeling &amp; Optimization</span><div class="slide-content"><h2 class="slide-title reveal">Algorithm selection</h2><p class="lede">Test different approaches.
+- Classification: LogReg, NB, SVM, KNN, DT, RF, XGBoost, LightGBM, CatBoost, TPOT
+- Regression: LinearReg, SVR, KNN, DT, XGBoost, LightGBM, DummyRegressor
+- Time series: ARIMA, LSTM, RNN, TCN
+- AutoML: TPOT (genetic algorithms), AutoGluon, FLAML
+- Stacking — careful with time series (no future leakage in meta-model)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 3 — Modeling &amp; Optimization</span><div class="slide-content"><h2 class="slide-title reveal">Cross-validation</h2><p class="lede">Verify model stability.
+- <code class="inline">cross_val_score</code> with k-fold
+- Confirms the model performs well across different parts of training data
+- Time series: <code class="inline">TimeSeriesSplit</code> — train always BEFORE val
+- Both classes must appear in train AND test of every fold</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 3 — Modeling &amp; Optimization</span><div class="slide-content"><h2 class="slide-title reveal">Hyperparameter optimization</h2><p class="lede">Find the optimal tuning.
+- <code class="inline">GridSearchCV</code> — exhaustive but slow
+- <code class="inline">RandomizedSearchCV</code> — random sampling, faster
+- Bayesian: Optuna, Hyperopt
+- <strong>Early stopping</strong> on boosted trees: <code class="inline">early_stopping_rounds</code> — algorithm stops just before memorizing training data</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 3 — Modeling &amp; Optimization</span><div class="slide-content"><h2 class="slide-title reveal">Overfit / underfit diagnosis</h2><p class="lede">Check whether the model memorizes vs generalizes.
+- Learning curves: train vs val loss / accuracy
+- Train ≫ val → overfit (regularize)
+- Train high AND val ≈ train → underfit (increase capacity)
+- Sweet spot: train low, gap &lt; 10 %
+- Plot metric vs epoch to spot epoch where overfit starts</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 3 — Modeling &amp; Optimization</span><div class="slide-content"><h2 class="slide-title reveal">Phase 3 deliverables</h2><ul class="bullet-list"><li>Best model registered in MLflow with seed + git SHA + dataset version</li><li>Learning curves saved as artifacts</li><li>HPO study saved (<code class="inline">study.pkl</code>) for replay</li></ul>
+<p class="lede">→ <strong>Deep deck:</strong> <code class="inline">03_model_training.html</code>.</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 4 — Evaluation &amp; Interpretation</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 4 — Evaluation &amp; Interpretation</span><div class="slide-content"><h2 class="slide-title reveal">Classification metrics</h2><p class="lede">Measure ranking quality.
+- Confusion matrix (TP / TN / FP / FN)
+- Validation curve, learning curve, threshold curve, calibration curve, lift curve
+- Accuracy (only on balanced classes)
+- Recall — find positives (safety-critical)
+- Precision — fewer false alarms (cost-critical)
+- F1 — balanced trade-off
+- ROC-AUC + Precision-Recall AUC</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 4 — Evaluation &amp; Interpretation</span><div class="slide-content"><h2 class="slide-title reveal">Regression metrics</h2><p class="lede">Measure error of prediction.
+- R² / Adjusted R² — explained variance
+- Feature importance, explained variance
+- MAE — robust to outliers
+- MSE / RMSE — penalizes large errors
+- MSLE — for exponential growth targets
+- Residual plot, Breusch-Pagan heteroscedasticity, Q-Q plot
+- Probability plot, prediction-error scatter
+- LassoCV alpha vs error sweep
+- MAE = f(epoch)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 4 — Evaluation &amp; Interpretation</span><div class="slide-content"><h2 class="slide-title reveal">Residual analysis (regression)</h2><p class="lede">Verify statistical validity.
+- Residual plot must be random (no pattern)
+- Breusch-Pagan: detect heteroscedasticity (variance not constant)
+- Normality test: Kolmogorov-Smirnov, Q-Q plot</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 4 — Evaluation &amp; Interpretation</span><div class="slide-content"><h2 class="slide-title reveal">Interpretation (XAI)</h2><p class="lede">Explain the &quot;why&quot; behind predictions.
+- Feature importance (variable weights)
+- SHAP — global beeswarm + local force plot + dependence plots
+- LIME — local explanation by perturbation
+- TreeInterpreter — exact decomposition for trees
+- Anchor — high-precision IF-THEN rules
+- Counterfactual — what minimal change flips the prediction</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 4 — Evaluation &amp; Interpretation</span><div class="slide-content"><h2 class="slide-title reveal">Threshold optimization</h2><p class="lede">Tune sensitivity to business cost.
+- Calibration curve
+- Search threshold on F1 / Recall over validation set
+- <strong>Persist threshold in model bundle</strong> — inference reads it, never hard-code 0.5</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 4 — Evaluation &amp; Interpretation</span><div class="slide-content"><h2 class="slide-title reveal">Phase 4 deliverables</h2><ul class="bullet-list"><li>Model card (one JSON sidecar) with all metrics + threshold + SHAP top-15</li><li>Confusion matrix + ROC + PR + calibration plots saved</li><li>Approval gate signed by domain expert</li></ul>
+<p class="lede">→ <strong>Deep deck:</strong> <code class="inline">04_evaluation_acceptance.html</code>.</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 5 — Dimensionality Reduction &amp; Clustering</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 5 — Dimensionality Reduction &amp; Clustering</span><div class="slide-content"><h2 class="slide-title reveal">Reduction</h2><p class="lede">Visualize or simplify data.
+- PCA — preserves global variance (linear). Scree plot, cumulative variance.
+- t-SNE / UMAP — local structure (non-linear, 2D / 3D viz)
+- PHATE — global + local trajectories
+- Curse of dimensionality: when n_features &gt; n_samples / 10
+- Visualization tools: 2D PC scatter, biplot, 3D Bokeh / Plotly</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 5 — Dimensionality Reduction &amp; Clustering</span><div class="slide-content"><h2 class="slide-title reveal">Clustering</h2><p class="lede">Find natural groups.
+- K-Means — centroid-based, requires k upfront
+- Hierarchical — dendrogram, cut at desired level
+- DBSCAN — density-based, handles noise (label = −1)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 5 — Dimensionality Reduction &amp; Clustering</span><div class="slide-content"><h2 class="slide-title reveal">Cluster validation</h2><p class="lede">Validate the relevance of the groups.
+- Elbow on inertia — find right k
+- Silhouette coefficient — cohesion of clusters
+- Calinski-Harabasz, Davies-Bouldin indices
+- Combined dashboard: 4-metric chart + per-cluster silhouette + dendrogram + PCA 2D viz + cluster-mean bar chart</p>
+<p class="lede">→ <strong>Deep deck:</strong> part of <code class="inline">02_feature_engineering.html</code> (clustering as feature) + <code class="inline">03_model_training.html</code> (when used as model).</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 6 — Time Series &amp; Deep Learning</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 6 — Time Series &amp; Deep Learning</span><div class="slide-content"><h2 class="slide-title reveal">Time-series specifics</h2><p class="lede">Sliding window + signal-processing features.
+- Window size W, step S — typical W=256, S=W/2 (50 % overlap)
+- FFT features per window: peak freq, peak magnitude, energy in N bands. Skip DC bin (index 0).
+- Statistical features per window: RMS, crest factor, kurtosis, skew, peak-to-peak (9 per axis × 3 axes = 27 features)
+- Stationarity check: ADF + KPSS tests
+- Architecture: 1D CNN, TCN, LSTM, Transformer (escalation order)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 6 — Time Series &amp; Deep Learning</span><div class="slide-content"><h2 class="slide-title reveal">Phase 6 deliverables</h2><ul class="bullet-list"><li>Windowed feature matrix saved</li><li>Architecture choice + discarded alternatives documented in ADR</li></ul>
+<p class="lede">→ <strong>Deep deck:</strong> §7 of <code class="inline">03_model_training.html</code>.</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</h2></div></section>
+<section class="slide"><span class="slide-tag">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</span><div class="slide-content"><h2 class="slide-title reveal">Save / persist</h2><p class="lede">Persist the trained model.
+- <code class="inline">pickle</code> or <code class="inline">joblib</code> (<code class="inline">dump</code> / <code class="inline">load</code>)
+- Save model AND transformers (scaler, imputer) — ideally as a single <code class="inline">Pipeline</code>
+- Or use MLflow <code class="inline">log_model</code> for versioning + registry</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</span><div class="slide-content"><h2 class="slide-title reveal">Production deployment</h2><p class="lede">Make the model accessible.
+- API: Flask, FastAPI
+- Containerization: Docker, Kubernetes
+- ETL pipeline upstream</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</span><div class="slide-content"><h2 class="slide-title reveal">Production monitoring</h2><p class="lede">Watch the model in the wild.
+- MLflow tracking + GitHub Actions CI/CD
+- Rollback to stable version on regression
+- Drift detection (PSI per feature) + automatic retrain trigger
+- Alerting with thresholds, email, security logs
+- Latency p95 + throughput (req/s) of prediction calls
+- Volume + traffic of requests handled
+- Infra health: CPU, memory, storage</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</span><div class="slide-content"><h2 class="slide-title reveal">Cyber security</h2><p class="lede">Lock down the surface.
+- OAuth 2.0 for auth
+- Encryption: TLS in transit, encryption at rest (HTTPS)
+- Rate limiting
+- Strict input validation (avoid injection attacks)
+- Data freshness (avoid stale-input prediction)
+- Access monitoring + audit log</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</span><div class="slide-content"><h2 class="slide-title reveal">Catalog the project ecosystem</h2><p class="lede">Know your boundaries.
+- Identify all I/O of the data: source → store → API → consumer
+- Document the network around the project: deployment method, dependencies
+- Different feature exports (CSV, parquet, time-series store)</p></div></section>
+<section class="slide"><span class="slide-tag">Phase 7 — Deployment &amp; Monitoring &amp; Cyber</span><div class="slide-content"><h2 class="slide-title reveal">Phase 7 deliverables</h2><ul class="bullet-list"><li>Deployed API with <code class="inline">/health</code>, <code class="inline">/predict</code>, <code class="inline">/version</code> routes</li><li>MLflow registered model + Staging tag</li><li>CI/CD pipeline green</li><li>Security review signed</li><li>Monitoring dashboard with SLO alerts wired</li></ul>
+<p class="lede">→ <strong>Deep decks:</strong>
+  - <code class="inline">05_deployment_edge.html</code> — edge deployment specifics
+  - <code class="inline">06_observability_drift.html</code> — monitoring + drift
+  - <code class="inline">07_mlops_cicd.html</code> — CI/CD pipeline
+  - <code class="inline">08_security_industrial.html</code> — cyber + industrial constraints</p>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Cross-reference summary</h2></div></section>
+<section class="slide"><span class="slide-tag">Cross-reference summary</span><div class="slide-content"><table class="compact-table"><thead><tr><th>Phase</th><th>Macro slide(s)</th><th>Deep deck</th></tr></thead><tbody><tr><td>1 EDA</td><td>8 tasks</td><td><code class="inline">01_data_acquisition.html</code></td></tr><tr><td>2 Feature eng.</td><td>7 tasks</td><td><code class="inline">02_feature_engineering.html</code></td></tr><tr><td>3 Modeling</td><td>5 tasks</td><td><code class="inline">03_model_training.html</code></td></tr><tr><td>4 Evaluation</td><td>5 tasks</td><td><code class="inline">04_evaluation_acceptance.html</code></td></tr><tr><td>5 Reduction / clustering</td><td>3 tasks</td><td><code class="inline">03_model_training.html</code> (§6)</td></tr><tr><td>6 TS / DL</td><td>1 wrap</td><td><code class="inline">03_model_training.html</code> (§7)</td></tr><tr><td>7 Deployment + monitoring + cyber</td><td>5 tasks</td><td>4 decks: 05 / 06 / 07 / 08</td></tr></tbody></table>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">Closing — golden rules</h2></div></section>
+<section class="slide"><span class="slide-tag">Closing — golden rules</span><div class="slide-content"><ul class="bullet-list"><li><strong>Always run a baseline.</strong> Beat it by ≥ 5 %, or stop and investigate.</li><li><strong>Always log seeds, dataset version, git SHA, hyperparameters in MLflow.</strong></li><li><strong>Always compute BOTH train_loss AND test_loss.</strong> Symmetric overfit + underfit detection.</li><li><strong>Never deploy without a rollback target.</strong> Register the previous champion.</li><li><strong>Never deploy without monitoring + drift detection.</strong> Drift is silent until it&#x27;s not.</li><li><strong>Never trust correlation as causation.</strong> Use causal inference for &quot;did X cause Y?&quot; questions.</li></ul></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>

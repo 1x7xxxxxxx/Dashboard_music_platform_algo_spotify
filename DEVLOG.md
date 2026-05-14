@@ -910,3 +910,37 @@ Ajoutées dans `pdf_exporter.py` : Spotify S4A top songs, YouTube, Instagram, Me
 3. Visiter `?page=register` sans auth → "X artistes utilisent streaMLytics".
 
 **Fichiers modifiés** : `migrations/026_active_sessions.sql` (nouveau), `src/database/saas_schema.py`, `src/database/postgres_handler.py`, `src/dashboard/utils/live_pulse.py` (nouveau), `src/dashboard/auth.py`, `src/dashboard/views/home.py`, `src/dashboard/views/register.py`, `tests/test_live_pulse.py` (nouveau), `.claude/dev-docs/roadmap/checklist.md`.
+
+## 2026-05-14 — Phase B : Fondations + cherry-pick msdr ✅
+
+### What changed
+Revue de la référence Airbus `msdr_predictive_maintenance` contre streaMLytics. Adoption de 3 patterns qui apportent un gain clair, rejet motivé de 7 patterns qui seraient du cargo-culting sur un SaaS CRUD non-safety-critical.
+
+### Adopté
+- **`Makefile`** (nouveau, 10 cibles) : `make up/down/logs/test/lint/migrate/dashboard/sync/clean`. Standardise les commandes, baisse le coût d'onboarding.
+- **`pyproject.toml`** + **`uv.lock`** (nouveaux) : migration de `requirements.txt` → `pyproject.toml` avec dev extras. `uv lock` résout 231 packages en 3.4s. `requirements.txt` conservé pour le Dockerfile/CI actuel (legacy parallel).
+- **CI/CD split** : `.github/workflows/ci.yml` épuré (lint+test only), nouveau `cd-release.yml` (Railway + Hetzner — `if: false` jusqu'à refresh secrets), nouveau `security-nightly.yml` (cron 03:00 UTC, `pip-audit --strict` + `gitleaks`).
+- **`docs/checklists_ml/`** (nouveau) : import des 10 checklists ML baseline (9 HTML + `unified_ml_checklist.md` 172 KB) depuis `claude_code_deployment_baseline`.
+- **`docs/adr/ADR-002-no-alembic-no-repository-pattern.md`** (nouveau) : ADR documentant les non-choix.
+
+### Rejeté (motivé dans ADR-002)
+- Alembic (26 migrations SQL plates marchent, rollback jamais utilisé)
+- Repository pattern (`PostgresHandler` direct + `_ALLOWED_TABLES` allowlist suffisent)
+- Domain/services DDD layer (over-engineered pour un CRUD SaaS)
+- Observability stack Prometheus/Grafana/OTel (pas d'astreinte, pas de SLO)
+- `infra/` dir (3 Dockerfiles + 1 compose.yml à la racine = lisibilité OK)
+- Streaming Redis/MQTT/FSM (pas de temps réel, batch suffit)
+- DR scripts (criticité ne le justifie pas)
+
+### Tests
+- `make test` : **183/183 verts** (suite globale hors `test_api.py` pré-cassé).
+- `uv lock` : résolution OK, 231 packages.
+- `make help` : 10 cibles listées correctement.
+
+### Differé Phase C (à confirmer plus tard)
+- `mypy.ini` soft sur les nouveaux fichiers seulement (pas strict sur ~30K LOC).
+- Adaptation des checklists ML au scope streamlytics (retirer les sections hardware industriel).
+- Verif manuelle Brick 32 (toujours en attente côté user).
+
+**Fichiers ajoutés** : `Makefile`, `pyproject.toml`, `uv.lock`, `docs/checklists_ml/*` (10), `docs/adr/ADR-002-no-alembic-no-repository-pattern.md`, `.github/workflows/cd-release.yml`, `.github/workflows/security-nightly.yml`.
+**Fichiers modifiés** : `.github/workflows/ci.yml` (extraction deploys), `.claude/dev-docs/ROADMAP.md` (table ADR à jour).

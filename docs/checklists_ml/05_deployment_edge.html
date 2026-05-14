@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Edge Deployment</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">Edge Deployment</h1><div class="subtitle reveal">Source-of-truth segment extracted from the unified ML checklist for exhaustive slide-deck generation.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~54 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Source-of-truth segment extracted from the unified ML checklist for
+exhaustive slide-deck generation.</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">9. Deployment &amp; MLOps</h2></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.0 ETL Pipeline Checklist</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;"><strong>ETL</strong> = Extract, Transform, Load — the data pipeline that feeds the ML system continuously.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Details</th></tr></thead><tbody><tr><td>9.0.1</td><td><strong>Identify all I/O</strong></td><td>Inventory every data source and sink: sensors, PLCs, APIs, DBs, exports (CSV, Parquet)</td></tr><tr><td>9.0.2</td><td><strong>Extract</strong></td><td>USB CDC / OPC UA / REST API / file ingestion — handle connection errors and retries</td></tr><tr><td>9.0.3</td><td><strong>Transform</strong></td><td>Cleaning, type casting, unit conversion, feature computation — same logic as training pipeline</td></tr><tr><td>9.0.4</td><td><strong>Load</strong></td><td>Insert into SQLite / InfluxDB / data lake — idempotent writes, deduplication</td></tr><tr><td>9.0.5</td><td><strong>Scheduling</strong></td><td>APScheduler, cron, Airflow — document frequency and SLA</td></tr><tr><td>9.0.6</td><td><strong>Monitoring</strong></td><td>Data freshness watchdog, volume checks, null rate alerts</td></tr><tr><td>9.0.7</td><td><strong>Export</strong></td><td>CSV / Parquet export endpoints for BI tools or audit</td></tr><tr><td>9.0.8</td><td><strong>Network topology</strong></td><td>Document all services, ports, VLANs, firewall rules — who talks to whom</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.0b Data Pipeline Orchestration</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Covers pipeline tooling, data quality gates, and feature freshness — the layer between raw ingestion and model training.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>9.0b.1</td><td><strong>Pipeline tool chosen</strong></td><td>APScheduler (simple), Airflow DAG (complex), Prefect flow (modern), dbt (SQL transforms) — document choice</td></tr><tr><td>9.0b.2</td><td><strong>Data lineage tracked</strong></td><td>Raw sensor → ETL transform → feature table → training dataset — every step auditable</td></tr><tr><td>9.0b.3</td><td><strong>Feature freshness SLA defined</strong></td><td>Example: features must be ≤ 1h old before triggering training; alert if stale</td></tr><tr><td>9.0b.4</td><td><strong>Data quality gates on ingestion</strong></td><td>Null rate &lt; 5% per column; value range checks (e.g. RMS ∈ [0, 16] m/s²); no duplicate timestamps in 100ms window</td></tr><tr><td>9.0b.5</td><td><strong>Quality gate library</strong></td><td>Great Expectations suite, dbt tests, or custom assertions — run on every batch</td></tr><tr><td>9.0b.6</td><td><strong>Idempotent pipeline</strong></td><td>Re-running the pipeline on the same data produces identical output — no double-inserts</td></tr><tr><td>9.0b.7</td><td><strong>Feature versioning</strong></td><td>Training job pins the feature set version used — immutable snapshot, not live table</td></tr><tr><td>9.0b.8</td><td><strong>Retraining dataset window</strong></td><td>Document strategy: last 90 days / all history / sliding window — matches §9.4 retraining strategy</td></tr><tr><td>9.0b.9</td><td><strong>Pipeline failure alerting</strong></td><td>Missing data batch triggers alert within 15 min — do not let stale features silently feed production model</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.1 Model Packaging Checklist</h2><table class="compact-table"><thead><tr><th>#</th><th>Task</th><th>Details</th></tr></thead><tbody><tr><td>9.1</td><td><strong>Save full pipeline</strong></td><td>Pickle/Joblib: model + scaler + imputer + OHE together, or sklearn <code class="inline">Pipeline</code></td></tr><tr><td>9.2</td><td><strong>Model metadata</strong></td><td>pkl contains: <code class="inline">{&#x27;model&#x27;, &#x27;threshold&#x27;, &#x27;features&#x27;, &#x27;train_date&#x27;, &#x27;metrics&#x27;, &#x27;version&#x27;}</code></td></tr><tr><td>9.3</td><td><strong>Model card</strong></td><td>Standardized doc: performance, bias, limits, training data description</td></tr><tr><td>9.4</td><td><strong>DVC versioning</strong></td><td><code class="inline">dvc add models/</code>, <code class="inline">dvc push</code> for reproducible model artifacts</td></tr><tr><td>9.5</td><td><strong>MLflow tracking</strong></td><td>Log: params, metrics, artifacts, model signature</td></tr><tr><td>9.6</td><td><strong>Rollback strategy</strong></td><td>Keep N-1 model version; auto-rollback if drift or metric degradation</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.1b MLflow Model Registry — Concrete Workflow</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">End-to-end workflow from experiment run to production serving.</p>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong><code class="inline">infer_signature</code></strong> — always pass <code class="inline">X_train</code> and <code class="inline">model.predict(X_train)</code> (not <code class="inline">y_train</code>) so MLflow captures input schema AND output schema. Missing signature breaks the model serving endpoint.
+⚠️ <strong><code class="inline">input_example</code></strong> — pass a sample of 3–5 rows from <code class="inline">X_train</code>. Required for the MLflow UI &quot;Try it&quot; tab and for automatic schema validation in the serving layer.
+⚠️ <strong><code class="inline">registered_model_name</code></strong> — if omitted, the model is logged as an artifact only, not registered in the registry. Transitions (Staging → Production) only work on registered models.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Command / Detail</th></tr></thead><tbody><tr><td>9.1b.1</td><td>MLflow server running</td><td><code class="inline">mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --port 5000</code></td></tr><tr><td>9.1b.2</td><td>Set tracking URI in scripts</td><td><code class="inline">mlflow.set_tracking_uri(&quot;http://localhost:5000&quot;)</code> or <code class="inline">MLFLOW_TRACKING_URI</code> env var</td></tr><tr><td>9.1b.3</td><td>Log run + register model</td><td><code class="inline">mlflow.sklearn.log_model(..., registered_model_name=&quot;model_name&quot;)</code></td></tr><tr><td>9.1b.4</td><td>Promote to Staging</td><td><code class="inline">client.transition_model_version_stage(name, version, stage=&quot;Staging&quot;)</code></td></tr><tr><td>9.1b.5</td><td>Validate on Staging</td><td>Run smoke tests against Staging version, compare metrics vs Production baseline</td></tr><tr><td>9.1b.6</td><td>Promote to Production</td><td><code class="inline">client.transition_model_version_stage(name, version, stage=&quot;Production&quot;)</code></td></tr><tr><td>9.1b.7</td><td>Archive old version</td><td><code class="inline">client.transition_model_version_stage(name, old_version, stage=&quot;Archived&quot;)</code></td></tr><tr><td>9.1b.8</td><td>Load Production model in API</td><td><code class="inline">mlflow.sklearn.load_model(f&quot;models:/your_xgboost_model/Production&quot;)</code></td></tr><tr><td>9.1b.9</td><td>Auto-rollback trigger</td><td>If metrics degrade: transition current Production → Archived, promote Archived → Production</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.2 MLOps Pipeline</h2></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart LR
+    subgraph Data["Data Layer"]
+        DB[(SQLite / InfluxDB)] --> DVC[DVC data versioning]
+    end
+
+    subgraph Training["Training"]
+        DVC --> TRAIN[ml/training/{xgboost,pca_gmm,tcn_forecast,wear_regressor}.py]
+        TRAIN --> MLFLOW[MLflow experiment tracking — Staging only ADR-021]
+        MLFLOW --> MODEL[/models/*.pkl + .pt + .joblib/]
+    end
+
+    subgraph Serving["Serving"]
+        MODEL --> API[FastAPI /predict endpoint]
+        API --> MONITOR[ml/pipelines/scoring.py hourly orchestrator]
+    end
+
+    subgraph Monitoring["Monitoring"]
+        MONITOR --> DRIFT[Drift detection KS-test / PSI / Chi²]
+        DRIFT -->|Drift detected| RETRAIN[GitHub Actions retrain trigger]
+        RETRAIN --> TRAIN
+    end
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.2b Environment Promotion Workflow (dev → staging → prod)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Three identical environments, different configs. Same Docker image promoted through stages — never rebuild per environment.</p>
+<table class="compact-table"><thead><tr><th>Environment</th><th>DB</th><th>Secrets</th><th>Monitoring</th><th>Image tag</th></tr></thead><tbody><tr><td><strong>Local / dev</strong></td><td>SQLite in-memory or local file</td><td><code class="inline">.env.local</code></td><td>None</td><td><code class="inline">image:dev</code> (mutable)</td></tr><tr><td><strong>Staging</strong></td><td>Copy of prod DB schema, synthetic data</td><td>GitHub Secrets / CI</td><td>Alerts silenced</td><td><code class="inline">image:v1.0-rc</code> (immutable)</td></tr><tr><td><strong>Production</strong></td><td>Real DB, persistent volume</td><td>Vault or Docker secrets</td><td>Full alerts</td><td><code class="inline">image:v1.0</code> (immutable, signed)</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block"># docker-compose.override.prod.yml — prod overrides applied on top of base compose
+services:
+  api:
+    image: myregistry/your-api:v1.0          # immutable tag, never &quot;latest&quot;
+    restart: unless-stopped
+    mem_limit: 4g
+    cpuset: &quot;2,3,4,5&quot;
+    environment:
+      - ENV=production
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    secrets:
+      - db_password
+      - smtp_password
+    logging:
+      driver: &quot;json-file&quot;
+      options:
+        max-size: &quot;10m&quot;
+        max-file: &quot;3&quot;</pre></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Detail</th></tr></thead><tbody><tr><td>9.2b.1</td><td><strong>Image tags are immutable</strong></td><td>Never use <code class="inline">latest</code> in staging or prod — tag with <code class="inline">v1.0</code> or git SHA</td></tr><tr><td>9.2b.2</td><td><strong>Same image, different config</strong></td><td><code class="inline">.env.staging</code> vs <code class="inline">.env.prod</code> — no code rebuild per environment</td></tr><tr><td>9.2b.3</td><td><strong>Secrets by environment</strong></td><td>Local: <code class="inline">.env</code> file. CI/CD: GitHub Secrets. Prod: HashiCorp Vault or Docker secrets</td></tr><tr><td>9.2b.4</td><td><strong>Smoke tests after each promotion</strong></td><td>Health check (<code class="inline">GET /system/metrics</code>), key prediction (<code class="inline">POST /predict</code>), drift check (<code class="inline">GET /drift-status</code>)</td></tr><tr><td>9.2b.5</td><td><strong>Staging mirrors prod data schema</strong></td><td>Use prod DB schema with synthetic or anonymized data — no schema surprises on promotion</td></tr><tr><td>9.2b.6</td><td><strong>Promotion gate</strong></td><td>CI pipeline must pass (unit tests + integration tests + load test baseline) before staging → prod</td></tr><tr><td>9.2b.7</td><td><strong>Resource limits in prod</strong></td><td><code class="inline">mem_limit</code>, <code class="inline">cpuset</code> defined per container in prod override — not in base compose</td></tr><tr><td>9.2b.8</td><td><strong>Image registry</strong></td><td>Push to Docker Hub or ACR: <code class="inline">docker build -t registry/your-app:v1.0 . &amp;&amp; docker push</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.3 Drift Detection Strategy</h2><table class="compact-table"><thead><tr><th>Drift Type</th><th>What changes</th><th>Method</th><th>How it works</th><th>Tool</th><th>Threshold</th></tr></thead><tbody><tr><td><strong>Data drift</strong></td><td>Input feature distributions</td><td>KS-Test (continuous)</td><td>Measures max distance between two CDFs — no normality assumption, sensitive to tail shifts</td><td><code class="inline">scipy.stats.ks_2samp</code> / Evidently</td><td>p-value &lt; 0.05</td></tr><tr><td><strong>Data drift</strong></td><td>Categorical input features</td><td>Chi² test</td><td>Compares observed vs expected frequencies per category — does not work on continuous data</td><td><code class="inline">scipy.stats.chi2_contingency</code> / Evidently</td><td>p-value &lt; 0.05</td></tr><tr><td><strong>Concept drift</strong></td><td>Relationship between features and target</td><td>PSI (Population Stability Index)</td><td>Bucketizes distribution (10-20 bins), computes <code class="inline">Σ (Actual% − Expected%) × ln(Actual%/Expected%)</code> per bin — originally from banking credit scoring</td><td>Evidently / custom</td><td>&lt; 0.1 stable, 0.1–0.2 watch, &gt; 0.2 retrain</td></tr><tr><td><strong>Target drift</strong></td><td>Label / target distribution</td><td>Jensen-Shannon divergence</td><td>Symmetric bounded version of KL divergence. Range [0,1]: 0 = identical, 1 = completely different. More stable than KL (never explodes when a probability is zero)</td><td><code class="inline">scipy.spatial.distance.jensenshannon</code> / Evidently</td><td>JS &gt; 0.1 = significant</td></tr><tr><td><strong>Prediction drift</strong></td><td>Model output distribution</td><td>KS-Test on predictions</td><td>Same as data drift but applied to the model&#x27;s output scores — catches silent failures</td><td>Custom / Evidently</td><td>p-value &lt; 0.05</td></tr><tr><td><strong>SHAP drift</strong></td><td>Feature importance in production</td><td>Compare mean absolute SHAP per feature</td><td>If a feature&#x27;s importance has shifted by more than 1σ vs training baseline, the feature-target relationship has changed (localized concept drift)</td><td>SHAP + scipy</td><td>Mean SHAP shift &gt; 1σ</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart TD
+    A["New production batch arrives"] --> B["For each input feature: compare prod distribution vs train distribution"]
+
+    B --> C{"Feature type?"}
+    C -->|Continuous| KS["KS-Test — scipy.stats.ks_2samp. Measures max gap between CDFs. Catches tail shifts. p-value < 0.05 = drift"]
+    C -->|Categorical| CHI["Chi² test — scipy.stats.chi2_contingency. Compares observed vs expected frequencies. p-value < 0.05 = drift"]
+
+    KS --> PSI["PSI check on same feature — bucketize into 10-20 bins. PSI = sum of (Actual - Expected) x ln(Actual/Expected). < 0.1 stable / 0.1-0.2 watch / > 0.2 retrain"]
+    CHI --> PSI
+
+    PSI --> TARGET["Target drift — Jensen-Shannon divergence on label distribution. Symmetric, bounded 0 to 1. JS > 0.1 = significant shift"]
+    TARGET --> PRED["Prediction drift — KS-Test on model output scores. Catches silent model failures even without labels"]
+    PRED --> SHAP["SHAP drift — compare mean absolute SHAP per feature vs training baseline. Shift > 1 sigma = feature-target relationship has changed"]
+
+    SHAP --> RESULT{"Any drift detected?"}
+    RESULT -->|"No drift"| OK["Continue serving — log metrics, update baseline periodically"]
+    RESULT -->|"Data or prediction drift"| WARN["Alert — investigate input pipeline or upstream data source"]
+    RESULT -->|"Concept drift — PSI > 0.2 or SHAP shift"| RETRAIN["Trigger retraining pipeline — see strategy §9.4"]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.3b Advanced ML Observability Platforms (SaaS + OSS)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">When Grafana + custom drift code stops scaling (many models, many features, many environments), dedicated ML observability platforms take over. They bundle drift, data quality, performance, fairness, root-cause analysis and alerting.</p>
+<table class="compact-table"><thead><tr><th>Platform</th><th>Type</th><th>Strengths</th><th>Trade-offs</th></tr></thead><tbody><tr><td><strong>Evidently AI</strong> (OSS)</td><td>library + UI</td><td>pre-built drift + perf reports (HTML + JSON), Airflow / MLflow hooks, test suite API</td><td>no managed UI in OSS tier; self-host</td></tr><tr><td><strong>NannyML</strong> (OSS + Cloud)</td><td>library</td><td><strong>performance estimation WITHOUT ground truth</strong> (CBPE, DLE) — rare and valuable when labels are delayed (maintenance world)</td><td>narrower UI than paid platforms</td></tr><tr><td><strong>Arize AI</strong> (SaaS)</td><td>managed</td><td>embedding drift (computer vision, NLP), fine-grained slicing, RAG + LLM tracing</td><td>paid</td></tr><tr><td><strong>WhyLabs</strong> (SaaS)</td><td>managed</td><td>privacy-preserving sketches (no raw data leaves), anomaly detection on data profiles</td><td>paid, learning curve</td></tr><tr><td><strong>Aporia</strong> (SaaS)</td><td>managed</td><td>no-code monitors, custom policies via YAML, Slack-native</td><td>paid</td></tr><tr><td><strong>Fiddler</strong> (SaaS)</td><td>managed</td><td>explainability + drift + fairness, strong for regulated industries</td><td>paid</td></tr><tr><td><strong>Censius</strong> (SaaS)</td><td>managed</td><td>all-in-one with lineage + alert triage</td><td>paid</td></tr><tr><td><strong>Superwise</strong> (SaaS)</td><td>managed</td><td>rules engine + streaming monitors</td><td>paid</td></tr><tr><td><strong>Seldon Alibi Detect</strong> (OSS)</td><td>library</td><td>adversarial + drift detectors (KS, MMD, learned kernels, Chi²), TF / PyTorch agnostic</td><td>library-only, you build the UI</td></tr><tr><td><strong>Deepchecks</strong> (OSS + Cloud)</td><td>library + UI</td><td>validation suites for data + model (pre-training + pre-deployment)</td><td>lighter on streaming monitoring</td></tr><tr><td><strong>MLflow + Grafana</strong> (OSS DIY)</td><td>DIY</td><td>full control, air-gap friendly</td><td>you own drift + alerting code</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><p class="lede"><strong>Selection rule</strong></p>
+<ul class="bullet-list"><li>Air-gapped IPC, regulated → Evidently + NannyML + Prometheus/Grafana</li><li>Cloud, many models, small team → Arize or WhyLabs</li><li>Heavy compliance (banking, healthcare) → Fiddler or Arize</li><li>Labels are delayed weeks/months → NannyML is almost unique in estimating performance without ground truth</li></ul>
+<p class="lede"><strong>Anti-patterns</strong></p>
+<ul class="bullet-list"><li>❌ Buying a SaaS observability platform before you ship your 2nd model — not enough signal, vendor lock-in risk</li><li>❌ Running both Evidently and a SaaS redundantly — pick ONE, delete the other</li><li>❌ Monitoring only input features and ignoring predictions + labels (when available) — blind spot on concept drift</li></ul></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.4 Retraining Strategy Decision Tree</h2></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart TD
+    A[Production model in service] --> B{Retraining trigger}
+
+    B -->|"Scheduled — weekly / monthly cron"| C[Scheduled retraining]
+    B -->|"Drift detected — KS or PSI threshold crossed"| D[Triggered retraining — automated pipeline]
+    B -->|"Each new labeled data point arrives"| CL[Continuous learning — online update. Risk: catastrophic forgetting. Use with warm start or rehearsal buffer]
+    B -->|"Major incident or label audit"| E[Human in the loop — manual review then retrain]
+
+    C --> F{Data strategy}
+    D --> F
+    CL --> F
+    E --> F
+
+    F -->|"Stable distribution"| G[Full retraining — all historical + new data]
+    F -->|"Distribution shift"| H[Sliding window — last N months only. Forgets old distribution intentionally]
+    F -->|"Minor drift or limited data"| I[Warm start — fine-tune from existing weights. Faster convergence]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.4b CI/CD → MLflow Auto-registration Loop</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">GitHub Actions workflow that triggers retraining, registers the model, validates it, and promotes or rejects it automatically.</p></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block"># .github/workflows/retrain.yml
+name: Retrain and Register Model
+on:
+  schedule:
+    - cron: &quot;0 2 * * 0&quot;          # Weekly Sunday 2am
+  workflow_dispatch:               # Manual trigger
+  repository_dispatch:
+    types: [drift-detected]        # Triggered by POST /admin/check-drift
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Train model
+        run: |
+          pip install -r requirements.txt
+          python -m ml.training.xgboost --no-search \
+            --output /models/candidate.pkl
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_URI }}
+
+      - name: Compare vs production baseline
+        run: |
+          python scripts/compare_models.py \
+            --candidate /models/candidate.pkl \
+            --baseline models:/your_xgboost_model/Production \
+            --min-f1-delta -0.02    # reject if F1 drops &gt; 2%
+
+      - name: Register to Staging if better
+        run: python scripts/promote_model.py --to Staging
+
+      - name: Run smoke tests on Staging
+        run: pytest tests/test_api.py -k &quot;predict&quot; --env staging
+
+      - name: Promote to Production
+        run: python scripts/promote_model.py --to Production</pre></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Detail</th></tr></thead><tbody><tr><td>9.4b.1</td><td>Retrain trigger</td><td>Scheduled cron + <code class="inline">repository_dispatch</code> event from <code class="inline">/admin/check-drift</code> endpoint</td></tr><tr><td>9.4b.2</td><td>Metrics comparison</td><td>Candidate must match or beat production: F1, precision, recall within tolerance</td></tr><tr><td>9.4b.3</td><td>Auto-register to Staging</td><td><code class="inline">mlflow.sklearn.log_model(..., registered_model_name=...)</code> then transition to Staging</td></tr><tr><td>9.4b.4</td><td>Smoke test Staging</td><td>API integration tests run against Staging model version</td></tr><tr><td>9.4b.5</td><td>Auto-promote to Production</td><td>Only if smoke tests pass and metrics gate cleared</td></tr><tr><td>9.4b.6</td><td>Auto-reject</td><td>If metrics gate fails: model stays in Staging, alert sent, human reviews</td></tr><tr><td>9.4b.7</td><td>Archive old Production</td><td>Transition previous Production → Archived after successful promotion</td></tr><tr><td>9.4b.8</td><td><strong>Docker layer cache in CI</strong></td><td>Add <code class="inline">cache-from: type=gha</code> + <code class="inline">cache-to: type=gha,mode=max</code> to <code class="inline">docker/build-push-action</code> — cuts build time from ~3 min to ~30s on cache hit</td></tr><tr><td>9.4b.9</td><td><strong>Tag image with git SHA</strong></td><td><code class="inline">tags: myregistry/your-api:${{ github.sha }}</code> — immutable, traceable to exact commit</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.5 Monitoring Dashboard Metrics</h2><p class="lede"><strong>9.5a — KPI Catalog Template (mandatory before any dashboard JSON is pushed)</strong></p>
+<p class="lede">Every KPI surfaced in Grafana and/or Streamlit MUST have one row in a central catalog file (<code class="inline">kpi_pipeline.md</code> or equivalent). No KPI row = no panel. This prevents &quot;mystery metrics&quot; that nobody owns and dashboards that grow faster than the contract.</p>
+<table class="compact-table"><thead><tr><th>KPI</th><th>Source module + endpoint</th><th>Formula / query</th><th>Thresholds (ok / warn / crit)</th><th>Refresh</th><th>Dashboard target</th><th>Owner</th><th>Linked use case</th></tr></thead><tbody><tr><td><code class="inline">rms_norm</code></td><td><code class="inline">acquisition.py</code> → <code class="inline">/data/latest</code></td><td>√(rms_x² + rms_y² + rms_z²)</td><td>&lt; 50 / 50–500 / ≥ 500 mg</td><td>per frame</td><td>Grafana <code class="inline">ops</code></td><td>platform</td><td>uc00_raw</td></tr><tr><td><code class="inline">health_score</code></td><td><code class="inline">domain/machine.py</code> formula + <code class="inline">database/repositories/quality_repo.py::compute_health_score</code> → <code class="inline">/health-score</code></td><td>weighted avg of IF, GMM, AE, RUL-norm</td><td>≥ 80 / 50–79 / &lt; 50</td><td>hourly</td><td>Streamlit <code class="inline">overview</code></td><td>ML</td><td>uc03_health</td></tr><tr><td><code class="inline">null_plc_ratio</code></td><td><code class="inline">sync_health.py</code></td><td><code class="inline">null_plc / total</code> over last 1 h</td><td>&lt; 0.5 % / 0.5–2 % / ≥ 2 %</td><td>60 s</td><td>Grafana <code class="inline">sync</code></td><td>platform</td><td>sync_infra</td></tr><tr><td><code class="inline">chrony_offset_ms</code></td><td><code class="inline">chronyc tracking</code></td><td>abs(offset) in ms</td><td>&lt; 10 / 10–50 / ≥ 50</td><td>60 s</td><td>Grafana <code class="inline">sync</code></td><td>platform</td><td>sync_infra</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><p class="lede"><strong>Rules</strong></p>
+<ul class="bullet-list"><li><strong>Grafana = real-time ops</strong> — refresh ≤ 60 s, time-series focus, on-call consumers</li><li><strong>Streamlit = offline / analysis</strong> — refresh manual or ≥ 5 min, narrative and drill-down, ML engineer consumers</li><li><strong>No overlap</strong> — a given named KPI appears in at most ONE of the two. If both views need it, make two distinct KPIs with suffixes (<code class="inline">health_score_live</code> vs <code class="inline">health_score_24h_avg</code>)</li><li><strong>Every KPI row MUST link back to a use case ID from §1.5</strong> (or be tagged <code class="inline">sync_infra</code> / <code class="inline">infra</code> for cross-cutting metrics)</li><li><strong>Every alert threshold is testable</strong> — the catalog row is the input to the scenario library in §2.3</li></ul>
+<p class="lede"><strong>Gate</strong> (automatable):</p>
+<ul class="bullet-list"><li>[ ] Linter compares Grafana <code class="inline">*.json</code> panel <code class="inline">title</code>/<code class="inline">measurement</code> against catalog table — fails CI on orphan panel or orphan catalog row</li><li>[ ] Every KPI has an owner (individual or team) — blank owner blocks merge</li></ul>
+<p class="lede"><strong>9.5 — Category overview (umbrella)</strong></p>
+<table class="compact-table"><thead><tr><th>Category</th><th>Metric</th><th>Alert Threshold</th></tr></thead><tbody><tr><td><strong>Infrastructure</strong></td><td>CPU, RAM, disk, Docker health</td><td>&gt; 80% sustained</td></tr><tr><td><strong>API</strong></td><td>Uptime, p50/p95/p99 latency, error rate (4xx/5xx), request throughput (req/s)</td><td>p95 &gt; 200ms, error &gt; 1%</td></tr><tr><td><strong>Model</strong></td><td>Prediction distribution, anomaly score trend, SHAP drift</td><td>Per-project baseline</td></tr><tr><td><strong>Data</strong></td><td>Input feature distributions, null rate, volume, data freshness</td><td>KS p-value &lt; 0.05</td></tr><tr><td><strong>Sync</strong></td><td>Clock offset (ms), cross-store join null ratio, join <code class="inline">diff_ms</code> p95, DLQ backlog</td><td>See §2.4 multi-DB sync checklist</td></tr><tr><td><strong>Business</strong></td><td>False alarm rate, missed faults, maintenance cost</td><td>Domain-specific</td></tr><tr><td><strong>Alerting channels</strong></td><td>Email via SMTP (fault alerts, weekly recap), security logs (access log anomalies), threshold-based alerts</td><td>Cooldown period to avoid alert storm — e.g. <code class="inline">ALERT_COOLDOWN_MIN=60</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.5b Model Validation Gates (Pre-deployment)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Run these checks before any model is promoted from Staging to Production. Gate = automated pass/fail.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Gate</th><th>Check</th><th>Pass criterion</th></tr></thead><tbody><tr><td>9.5b.1</td><td><strong>Baseline comparison</strong></td><td>Candidate F1 vs current Production F1</td><td>Candidate ≥ Production − 2% tolerance</td></tr><tr><td>9.5b.2</td><td><strong>Precision/Recall trade-off</strong></td><td>Verify threshold is set on val set, not test set</td><td>Threshold tuned on validation fold only</td></tr><tr><td>9.5b.3</td><td><strong>Inference latency</strong></td><td>p95 latency on full validation set (single-sample requests)</td><td>p95 &lt; 200ms</td></tr><tr><td>9.5b.4</td><td><strong>Memory footprint</strong></td><td>Model size in MB</td><td>Fits within container memory limit (&lt; 500 MB for edge)</td></tr><tr><td>9.5b.5</td><td><strong>Adversarial stability</strong></td><td>Add Gaussian noise (σ=0.1) to each feature, check prediction stability</td><td>Flip rate &lt; 5% of predictions</td></tr><tr><td>9.5b.6</td><td><strong>Feature drift check</strong></td><td>Validation set feature distributions vs training distributions</td><td>KS p-value &gt; 0.05 on all features</td></tr><tr><td>9.5b.7</td><td><strong>Holdout test</strong></td><td>Final metrics on never-touched test set</td><td>F1 &gt; project-defined minimum (e.g. 0.85)</td></tr><tr><td>9.5b.8</td><td><strong>Fairness check</strong></td><td>Demographic parity gap across protected groups (if applicable)</td><td>Gap &lt; 0.3</td></tr><tr><td>9.5b.9</td><td><strong>Reproducibility</strong></td><td>Re-run train pipeline from same git SHA + random seed → identical metrics</td><td>Metrics match within floating-point tolerance</td></tr><tr><td>9.5b.10</td><td><strong>Model card updated</strong></td><td>Model card documents train date, data version, known limits, metrics</td><td>File exists and is current</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.5c Prometheus + Grafana Monitoring (Concrete Setup)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Counter vs Gauge</strong> — use <code class="inline">Counter</code> for monotonically increasing values (requests, errors), <code class="inline">Gauge</code> for values that go up and down (drift score, queue size). Mixing them breaks PromQL rate calculations.
+⚠️ <strong><code class="inline">make_asgi_app()</code></strong> — mounts <code class="inline">/metrics</code> as a sub-application on FastAPI. Do NOT expose this endpoint publicly — add IP whitelist or internal-only routing in Nginx/Traefik.
+⚠️ <strong>Histogram buckets</strong> — define buckets matching your SLOs before deploying. Default buckets are too coarse for API latency. Example: <code class="inline">[0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0]</code>.</p>
+<p class="lede"><strong>Key Prometheus queries (PromQL):</strong></p>
+<table class="compact-table"><thead><tr><th>Metric</th><th>PromQL query</th><th>Alert threshold</th></tr></thead><tbody><tr><td>Requests/sec</td><td><code class="inline">rate(api_requests_total[5m])</code></td><td>—</td></tr><tr><td>p95 latency</td><td><code class="inline">histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[5m]))</code></td><td>&gt; 0.2s</td></tr><tr><td>Error rate</td><td><code class="inline">rate(api_requests_total{status=~&quot;5..&quot;}[5m]) / rate(api_requests_total[5m])</code></td><td>&gt; 1%</td></tr><tr><td>API down</td><td><code class="inline">absent(up{job=&quot;your-api&quot;})</code></td><td>Any absence</td></tr><tr><td>Drift score</td><td><code class="inline">model_drift_ks_score &gt; 0.05</code></td><td>&gt; 0.05</td></tr><tr><td>Disk usage</td><td><code class="inline">node_filesystem_avail_bytes{mountpoint=&quot;/data&quot;} / node_filesystem_size_bytes &lt; 0.2</code></td><td>&lt; 20% free</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block"># prometheus.yml — scrape config
+scrape_configs:
+  - job_name: &quot;your-api&quot;
+    static_configs:
+      - targets: [&quot;api:8000&quot;]
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  - job_name: &quot;node-exporter&quot;    # host CPU/RAM/disk
+    static_configs:
+      - targets: [&quot;node-exporter:9100&quot;]</pre></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Setup step</th><th>Command</th></tr></thead><tbody><tr><td>9.5c.1</td><td>Install prometheus_client</td><td><code class="inline">pip install prometheus-client</code></td></tr><tr><td>9.5c.2</td><td>Add Prometheus service to compose</td><td><code class="inline">image: prom/prometheus:latest</code>, volume for <code class="inline">prometheus.yml</code></td></tr><tr><td>9.5c.3</td><td>Add Grafana service to compose</td><td><code class="inline">image: grafana/grafana:latest</code>, port 3000</td></tr><tr><td>9.5c.4</td><td>Add node-exporter (host metrics)</td><td><code class="inline">image: prom/node-exporter:latest</code>, <code class="inline">network_mode: host</code></td></tr><tr><td>9.5c.5</td><td>Connect Grafana to Prometheus</td><td>Data source: <code class="inline">http://prometheus:9090</code></td></tr><tr><td>9.5c.6</td><td>Import dashboard</td><td>Grafana ID 1860 (Node Exporter Full) + custom API dashboard</td></tr><tr><td>9.5c.7</td><td>Configure Alertmanager</td><td>Alert rules in <code class="inline">alert_rules.yml</code>, channel: email or Slack webhook</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.6 Industrial IPC Deployment Checklist</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Applies when deploying on an embedded industrial PC (SIMATIC IPC BX-39A or equivalent fanless box). Full hardware specs and on-site procedures are in the project-specific brick26 dev-docs of the target repo.</p>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.1 Hardware &amp; OS</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.1</td><td>OS: Linux Debian (not Windows)</td><td>Confirmed for the reference project</td></tr><tr><td>9.6.2</td><td>NVMe partitioned: OS (~100 GB) + <code class="inline">/data</code> (~900 GB)</td><td>Keep OS partition headroom</td></tr><tr><td>9.6.3</td><td>Docker data root on <code class="inline">/data</code> partition</td><td><code class="inline">/etc/docker/daemon.json</code></td></tr><tr><td>9.6.4</td><td>udev rule: USB device fixed alias (<code class="inline">/dev/stm32_vibration</code>)</td><td>Survives reboots, ttyACM0/1 aliasing</td></tr><tr><td>9.6.5</td><td>BIOS: &quot;Restore on AC Power Loss&quot; = Enabled</td><td>Auto-restart after 24V cut</td></tr><tr><td>9.6.6</td><td><code class="inline">sudo systemctl enable docker</code> — Docker starts at boot</td><td></td></tr><tr><td>9.6.7</td><td>All containers: <code class="inline">restart: always</code></td><td></td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.2 CPU Isolation (real-time acquisition)</h3>
+<table class="compact-table"><thead><tr><th>Container</th><th>cpuset</th><th>Rationale</th></tr></thead><tbody><tr><td><code class="inline">receiver</code> (STM32 acquisition)</td><td><code class="inline">0,1</code></td><td>Real-time priority, isolated from ML load</td></tr><tr><td><code class="inline">api</code> + ML training</td><td><code class="inline">2,3,4,5,6,7</code></td><td>ML cannot starve acquisition</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.3 Docker Hardening</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.8</td><td>Log rotation: <code class="inline">max-size: &quot;10m&quot;</code>, <code class="inline">max-file: &quot;3&quot;</code> per container</td><td>Prevents log files filling disk</td></tr><tr><td>9.6.9</td><td><code class="inline">HEALTHCHECK CMD curl -f http://localhost:8000/system/metrics</code></td><td>Docker auto-restart on failure</td></tr><tr><td>9.6.10</td><td>Docker rootless mode or dedicated <code class="inline">app_svc</code> user</td><td>No root blast radius</td></tr><tr><td>9.6.11</td><td>Docker daemon: Unix socket only, no TCP exposure</td><td></td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.4 Dual-NIC Network (IT + OT)</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.12</td><td>Only ONE default gateway — on IT NIC</td><td>Two gateways = routing conflict</td></tr><tr><td>9.6.13</td><td>Static route for CNC subnet on OT NIC</td><td><code class="inline">ip route add &lt;CNC_net&gt; dev &lt;OT_NIC&gt;</code></td></tr><tr><td>9.6.14</td><td>Route persistent in <code class="inline">/etc/network/interfaces</code> or NetworkManager</td><td></td></tr><tr><td>9.6.15</td><td>Firewall: 8000+8501 open inbound on IT; 4840 (OPC UA) outbound on OT</td><td></td></tr><tr><td>9.6.16</td><td>OT container may need <code class="inline">network_mode: &quot;host&quot;</code></td><td>Required for PROFINET multicast/broadcast</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.5 Time Synchronization</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.17</td><td>NTP client configured to factory/corporate NTP server</td><td><code class="inline">systemd-timesyncd</code> or <code class="inline">chrony</code></td></tr><tr><td>9.6.18</td><td>OS timezone = UTC</td><td><code class="inline">timedatectl set-timezone UTC</code></td></tr><tr><td>9.6.19</td><td>Python: all timestamps <code class="inline">datetime.now(timezone.utc).isoformat(timespec=&quot;milliseconds&quot;)</code> — bare <code class="inline">datetime.now()</code>/<code class="inline">utcnow()</code> forbidden outside cosmetic use (see <code class="inline">.claude/rules/python.md</code>)</td><td></td></tr><tr><td>9.6.20</td><td>PostgreSQL: <code class="inline">TIMESTAMPTZ</code> columns + container <code class="inline">TZ=UTC</code> / <code class="inline">PGTZ=UTC</code> — verified in <code class="inline">database.py</code> + <code class="inline">.claude/rules/timesync.md</code> (gate <code class="inline">test_docker_compose_tz_utc_invariant</code>)</td><td>the reference project</td></tr><tr><td>9.6.21</td><td>QuestDB: native µs UTC epoch</td><td>Default</td></tr><tr><td>9.6.22a</td><td>InfluxDB (if used): native UTC</td><td>Default (reference only — not in the reference stack)</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.6 Power Loss Resilience</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.22</td><td>SIGTERM handler in <code class="inline">acquisition.py</code></td><td>On power loss: <code class="inline">PRAGMA wal_checkpoint(FULL)</code> before exit</td></tr><tr><td>9.6.23</td><td>Nightly SQLite backup: <code class="inline">rsync</code> to NAS or network share</td><td>Via cron</td></tr><tr><td>9.6.24</td><td>Daily BLOB purge: <code class="inline">POST /admin/purge-blobs?older_than_days=30</code></td><td>Prevents 1 TB saturation</td></tr><tr><td>9.6.25</td><td>Disk usage alert: cron warns if <code class="inline">/data</code> &gt; 80%</td><td></td></tr><tr><td>9.6.26</td><td>Heartbeat: <code class="inline">GET /system/metrics</code> pinged from monitoring every 60s</td><td>Detects silent Python crashes</td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.7 CNC / PLC Integration (Fanuc 30i)</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.27</td><td>Fanuc OPC UA add-on TCP:4840</td><td>Confirm licence + NodeIDs on-site</td></tr><tr><td>9.6.28</td><td><code class="inline">fanuc_reader.py</code> mock/real switch: <code class="inline">FANUC_MOCK=0</code> for production</td><td></td></tr><tr><td>9.6.29</td><td>Poll interval ≥ PLC scan time</td><td>Avoids flooding CNC communication processor</td></tr><tr><td>9.6.30</td><td>OPC UA Pub/Sub preferred over polling</td><td>Reduces OT network load</td></tr><tr><td>9.6.31</td><td>Variables to expose: spindle speed, feed rate, tool number, program number, alarm code, axes positions</td><td>Confirm NodeIDs on-site</td></tr><tr><td>9.6.32</td><td>OPC UA credentials (user/pass or cert) stored in <code class="inline">.env</code>, not hardcoded</td><td></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.8 Data Alignment (vibration ↔ CNC context)</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.33</td><td>STM32: ~1000 samples/s USB CDC</td><td></td></tr><tr><td>9.6.34</td><td>CNC (OPC UA): up to 50 polls/s Ethernet</td><td></td></tr><tr><td>9.6.35</td><td>Join strategy: ±500 ms time-window RMS → nearest CNC snapshot</td><td><code class="inline">fetch_plc_context_at</code> helper + <code class="inline">sync_joiner</code> materialises <code class="inline">acquisitions_enriched</code> with <code class="inline">diff_ms</code> (ADR-019 Pilier 2)</td></tr><tr><td>9.6.36</td><td>QuestDB ASOF join / Redis Streams consumer group with <code class="inline">WINDOW_MS=500</code> (env <code class="inline">SYNC_JOINER_WINDOW_MS</code>)</td><td>Cross-store join discipline per <code class="inline">.claude/rules/timesync.md</code></td></tr><tr><td>9.6.37</td><td>QuestDB measurements: <code class="inline">cnc_context</code> (CNC), <code class="inline">vibration</code> (STM32 ILP), <code class="inline">ml_scores</code>, <code class="inline">rms_forecast</code></td><td>PG holds the relational siblings <code class="inline">plc_snapshots</code>, <code class="inline">acquisitions</code>, <code class="inline">phase_windows</code></td></tr></tbody></table>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.9 Remote Access &amp; Disaster Recovery</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.38</td><td>SSH key-only, <code class="inline">PasswordAuthentication no</code></td><td></td></tr><tr><td>9.6.39</td><td>VPN: Tailscale or SINEMA Remote Connect</td><td>many corporate networks block direct port 22 to the public Internet</td></tr><tr><td>9.6.40</td><td>Code updates via <code class="inline">git pull</code> over VPN tunnel</td><td>Not USB key</td></tr><tr><td>9.6.41</td><td>Clonezilla full disk image after validation</td><td>~10 min restore on replacement IPC</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.6.10 OS &amp; Architecture Compatibility Matrix</h3>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Decide up front which OS family, distribution version, and CPU architectures the stack must support. Ambiguity here surfaces as broken wheels, missing glibc symbols, or QEMU-emulated containers running at 10% of native speed. Dev↔prod arch parity is the single biggest silent-failure source in industrial deployments.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Axis</th><th>Decision required</th><th>Notes</th></tr></thead><tbody><tr><td>9.6.42</td><td><strong>OS family</strong></td><td>Debian / Ubuntu LTS / RHEL / Alpine</td><td>Industrial IPCs usually ship Debian or a vendor-branded Debian (e.g. Siemens IndOS). Alpine saves space but uses musl libc — <strong>numpy/scipy/torch manylinux wheels are glibc-only</strong>, switching to Alpine forces source builds or <code class="inline">alpine+glibc</code> hacks</td></tr><tr><td>9.6.43</td><td><strong>Distribution version pin</strong></td><td><code class="inline">bookworm</code> / <code class="inline">bullseye</code> / <code class="inline">jammy</code> — and digest-pin the image</td><td><code class="inline">FROM python:3.11-slim-bookworm@sha256:...</code> — <code class="inline">:latest</code> or <code class="inline">:slim</code> drift silently between builds</td></tr><tr><td>9.6.44</td><td><strong>Target CPU arch(es)</strong></td><td><code class="inline">linux/amd64</code> / <code class="inline">linux/arm64</code> / <code class="inline">linux/arm/v7</code></td><td>Check the IPC datasheet — Siemens IPC BX-39A = x86_64 only; NVIDIA Jetson = arm64; Raspberry Pi 4 = arm64 (or armv7 on 32-bit OS)</td></tr><tr><td>9.6.45</td><td><strong>Multi-arch build pipeline</strong></td><td><code class="inline">docker buildx</code> with manifest list in CI</td><td><code class="inline">docker buildx build --platform linux/amd64,linux/arm64 --push</code> — without this, an <code class="inline">arm64</code> deployment will silently pull the amd64 image under QEMU</td></tr><tr><td>9.6.46</td><td><strong>Per-service platform pinning</strong></td><td><code class="inline">platform: linux/amd64</code> in compose for vendor images with no arm64 variant</td><td>QuestDB, Grafana OSS, MLflow: verify each image publishes the target arch on Docker Hub — else pin <code class="inline">platform:</code> to avoid QEMU</td></tr><tr><td>9.6.47</td><td><strong>Base image choice</strong></td><td><code class="inline">python:X.Y-slim-&lt;codename&gt;</code> vs <code class="inline">-bookworm</code> vs <code class="inline">-alpine</code></td><td>Default: <code class="inline">slim-bookworm</code> for ML (glibc, small). Never <code class="inline">alpine</code> for numpy/scipy/torch</td></tr><tr><td>9.6.48</td><td><strong>Dev↔prod arch parity</strong></td><td>same arch on dev laptop, CI runner, and target IPC — OR QEMU tested explicitly</td><td>WSL2 amd64 → IPC amd64 = OK. Dev on Apple Silicon arm64 → IPC amd64 = must validate in CI on amd64 runner</td></tr><tr><td>9.6.49</td><td><strong>Hardware constraints</strong></td><td>fanless thermal envelope, RAM ceiling, swap policy, NVMe endurance</td><td>Document <code class="inline">Tj_max</code>, min/recommended RAM for the full stack under load, swap disabled or sized, NVMe DWPD if log-heavy</td></tr><tr><td>9.6.50</td><td><strong>restart policy</strong></td><td><code class="inline">unless-stopped</code> on all services (NOT <code class="inline">always</code>)</td><td><code class="inline">always</code> causes boot loops on IPCs when a container fails at startup — the IPC reboots, container fails again, infinite loop. <code class="inline">unless-stopped</code> respects manual <code class="inline">docker stop</code></td></tr><tr><td>9.6.51</td><td><strong>USB / PCI device bindings</strong></td><td>udev rules for stable aliases + privileged only where needed</td><td>USB VID:PID → stable symlink (<code class="inline">/dev/stm32_vibration</code>); avoid <code class="inline">privileged: true</code> unless required</td></tr><tr><td>9.6.52</td><td><strong>Locale &amp; filesystem encoding</strong></td><td><code class="inline">LANG=C.UTF-8</code>, <code class="inline">LC_ALL=C.UTF-8</code> in compose env</td><td>Avoids <code class="inline">.encode()</code> surprises with non-ASCII filenames on fresh Debian installs</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><p class="lede"><strong>Gate</strong> (automatable):</p>
+<ul class="bullet-list"><li>[ ] <code class="inline">tests/test_compose_platform_invariant.py</code> parses <code class="inline">docker-compose.yml</code> and asserts:</li><li>[ ] CI matrix runs <code class="inline">docker buildx bake</code> on at least all target archs before release</li><li>[ ] <code class="inline">uname -m</code> on target IPC is logged on first boot + matches expected arch</li></ul>
+<p class="lede"><strong>Anti-patterns:</strong></p>
+<ul class="bullet-list"><li>❌ Using <code class="inline">:latest</code> tag for base images — breaks reproducibility + silent libc version bumps</li><li>❌ Dev on Apple Silicon deploying to amd64 IPC with no CI amd64 validation — QEMU differences bite at runtime</li><li>❌ Mixing Alpine and Debian base images across services — doubles the glibc/musl test matrix for no gain</li><li>❌ <code class="inline">restart: always</code> on industrial IPCs — confirmed boot-loop source</li></ul>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Cross-ref: see <code class="inline">.claude/rules/os_arch.md</code> for the short project-rule version + <code class="inline">deployment-constraints.md</code> for per-IPC REX entries.</p></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.7 Load Testing Checklist (Locust)</h2><table class="compact-table"><thead><tr><th>Metric</th><th>Target</th><th>Notes</th></tr></thead><tbody><tr><td>RPS (requests per second)</td><td>Baseline × 10</td><td>Peak load scenario</td></tr><tr><td>p50 latency</td><td>&lt; 50ms</td><td>Median user experience</td></tr><tr><td>p95 latency</td><td>&lt; 200ms</td><td>95% of requests</td></tr><tr><td>p99 latency</td><td>&lt; 500ms</td><td>Tail latency</td></tr><tr><td>Failure rate</td><td>&lt; 0.1%</td><td>Under load</td></tr><tr><td>Concurrent users</td><td>Production peak × 2</td><td>Safety margin</td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Task weights</strong> — in <code class="inline">locustfile.py</code>, assign <code class="inline">@task(N)</code> weights that reflect real traffic distribution (health checks more frequent than predictions). A flat distribution underestimates prediction endpoint stress.
+⚠️ <strong><code class="inline">--headless</code> + <code class="inline">--html</code></strong> — always export the HTML report in CI: <code class="inline">locust ... --headless --html locust_report.html</code>. Store it as a CI artifact for comparison across runs.</p></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block">locust -f locustfile.py --host http://staging:8000 \
+  --users 50 --spawn-rate 5 --run-time 10m --headless \
+  --html locust_report.html</pre></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Detail</th></tr></thead><tbody><tr><td>9.7.1</td><td>Run against staging (never prod)</td><td><code class="inline">--host http://staging:8000</code></td></tr><tr><td>9.7.2</td><td>Duration ≥ 10 min</td><td>Short bursts hide memory leaks and slow degradation</td></tr><tr><td>9.7.3</td><td>Ramp up gradually</td><td><code class="inline">--spawn-rate 5</code> — avoid thundering herd from t=0</td></tr><tr><td>9.7.4</td><td>Pass/fail criteria enforced</td><td>CI fails if p95 &gt; 200ms or failure_rate &gt; 0.1%</td></tr><tr><td>9.7.5</td><td>Monitor container resources during test</td><td><code class="inline">docker stats</code> — check for memory leaks under load</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.8 Deployment Strategies</h2></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart TD
+    A[New model version ready] --> B{Risk level?}
+
+    B -->|"Low — minor update"| BLUE["Blue/Green deployment Two identical environments Switch traffic 100% at once Instant rollback by switching back"]
+
+    B -->|"Medium — significant change"| CANARY["Canary deployment Route 5% traffic to new model Monitor metrics for 24-48h Gradually increase to 100% if stable"]
+
+    B -->|"High — major architecture change"| SHADOW["Shadow mode New model runs in parallel Receives same requests but results NOT served to users Compare outputs silently before any exposure"]
+
+    BLUE --> MONITOR["Monitor: latency, error rate, prediction drift"]
+    CANARY --> MONITOR
+    SHADOW --> MONITOR
+
+    MONITOR --> DECISION{Metrics OK?}
+    DECISION -->|Yes| PROMOTE["Promote to 100% — retire old version"]
+    DECISION -->|No| ROLLBACK["Rollback — restore previous version N-1 model always kept in model registry"]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>Strategy</th><th>Traffic exposure</th><th>Rollback speed</th><th>Use when</th></tr></thead><tbody><tr><td><strong>Blue/Green</strong></td><td>0% then 100% instantly</td><td>Immediate (switch back)</td><td>Low-risk updates, simple infra</td></tr><tr><td><strong>Canary</strong></td><td>5% → 25% → 100% gradually</td><td>Fast (reduce canary to 0%)</td><td>Medium-risk, monitor real traffic</td></tr><tr><td><strong>Shadow mode</strong></td><td>0% (parallel, silent)</td><td>N/A — no exposure</td><td>High-risk, validate before any exposure</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.8b Rollback Procedure (Step-by-Step)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">To use when metrics degrade after a promotion. Do not improvise under pressure — follow this sequence.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Command / Action</th></tr></thead><tbody><tr><td>9.8b.1</td><td>Confirm alert is not flaky</td><td>Check Grafana: is degradation sustained &gt; 5 min, or a spike?</td></tr><tr><td>9.8b.2</td><td>Identify the bad version</td><td><code class="inline">mlflow ui</code> → Models → your_xgboost_model → find current Production version</td></tr><tr><td>9.8b.3</td><td>Rollback model in registry</td><td><code class="inline">client.transition_model_version_stage(name, bad_version, stage=&quot;Archived&quot;)</code> then promote N-1 back to Production</td></tr><tr><td>9.8b.4</td><td>Rollback Docker image (if needed)</td><td><code class="inline">docker compose down &amp;&amp; docker compose up -d</code> with previous image tag in <code class="inline">.env</code></td></tr><tr><td>9.8b.5</td><td>Verify rollback</td><td>Run smoke tests: <code class="inline">pytest tests/test_api.py -k &quot;predict&quot;</code> + check Grafana p95 latency</td></tr><tr><td>9.8b.6</td><td>Confirm metrics recovered</td><td>Wait 5 min — verify p95 &lt; 200ms, error rate &lt; 1%, drift score stable</td></tr><tr><td>9.8b.7</td><td>Keep rollback state 24h</td><td>Do not re-promote until root cause is identified</td></tr><tr><td>9.8b.8</td><td>Post-mortem</td><td>Root cause: concept drift? data quality regression? code bug? Update §9.4 retraining strategy accordingly</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.9 Observability — Logs &amp; Traces</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Structured logging + distributed tracing. Enables incident investigation without SSH into production containers.</p>
+<h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.9.1 Structured Logging Standard</h3>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>One JSON object per line</strong> — every log event must be a single self-contained JSON object. Multi-line logs (stack traces, print statements) break log aggregators. Wrap exceptions: <code class="inline">logger.exception(&quot;predict.error&quot;, exc_info=True)</code> outputs the traceback as a single JSON field.
+⚠️ <strong><code class="inline">request_id</code></strong> — generate a UUID at the entry point of every request and propagate it through all downstream calls (DB query, model inference). Without it, correlating logs from different services for a single user request is impossible.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Rule</th><th>Detail</th></tr></thead><tbody><tr><td>9.9.1</td><td>JSON format</td><td>Every log line is valid JSON — no free-form strings</td></tr><tr><td>9.9.2</td><td>Mandatory fields</td><td><code class="inline">timestamp</code> (UTC ISO-8601), <code class="inline">level</code>, <code class="inline">event</code>, <code class="inline">request_id</code>, <code class="inline">service</code></td></tr><tr><td>9.9.3</td><td>Sensitive data masking</td><td>No raw sensor payloads, no passwords, no full IP addresses in logs</td></tr><tr><td>9.9.4</td><td>Log levels used correctly</td><td>DEBUG (dev only), INFO (normal ops), WARNING (degraded), ERROR (action needed), CRITICAL (service down)</td></tr><tr><td>9.9.5</td><td>Retention policy</td><td>Debug logs: 7 days. Info logs: 30 days. Audit/security logs: 1 year</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.9.2 Log Aggregation</h3>
+<table class="compact-table"><thead><tr><th>Stack</th><th>When to use</th><th>Setup</th></tr></thead><tbody><tr><td><strong>Grafana Loki + Promtail</strong></td><td>Already using Grafana (lightweight, no Elasticsearch)</td><td>Add <code class="inline">loki</code> and <code class="inline">promtail</code> services to compose, tail Docker log files</td></tr><tr><td><strong>ELK Stack</strong></td><td>Enterprise, full-text search needed</td><td>Elasticsearch + Logstash + Kibana — heavier but more powerful</td></tr><tr><td><strong>CloudWatch / Azure Monitor</strong></td><td>Cloud deployment</td><td>Native integration, no infra to manage</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block"># docker-compose addition for Loki log aggregation
+services:
+  loki:
+    image: grafana/loki:latest
+    ports: [&quot;3100:3100&quot;]
+    volumes: [&quot;loki_data:/loki&quot;]
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./promtail-config.yml:/etc/promtail/config.yml</pre></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.9.3 Distributed Tracing (OpenTelemetry)</h3>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong><code class="inline">FastAPIInstrumentor.instrument_app(app)</code></strong> — auto-instruments all FastAPI routes with zero code change. Every incoming request automatically gets a trace span with method, path, status code, and duration. Add custom child spans only for slow operations (DB query, model inference) that you want to profile individually.
+⚠️ <strong>OTLP vs Jaeger native protocol</strong> — prefer OTLP (OpenTelemetry Protocol) over the legacy Jaeger UDP format: OTLP is vendor-neutral and works with Tempo, Datadog, and Honeycomb without code changes.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Step</th><th>Detail</th></tr></thead><tbody><tr><td>9.9.6</td><td>Install OpenTelemetry</td><td><code class="inline">pip install opentelemetry-sdk opentelemetry-instrumentation-fastapi opentelemetry-exporter-otlp</code></td></tr><tr><td>9.9.7</td><td>Add Jaeger or Tempo service</td><td><code class="inline">image: jaegertracing/all-in-one:latest</code> — Jaeger UI on port 16686</td></tr><tr><td>9.9.8</td><td>Propagate trace context</td><td>Every downstream call (DB query, model inference) gets a child span</td></tr><tr><td>9.9.9</td><td>Use trace for incident investigation</td><td>Identify which span is slow: DB lock? Model load? Feature extraction?</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.10 Production Docker Compose Template</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Checklist for hardening a development <code class="inline">docker-compose.yml</code> for production. Apply as a diff/override file.</p></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">Code</h2><pre class="code-block"># docker-compose.prod.yml — production overrides
+version: &quot;3.9&quot;
+services:
+  receiver:
+    image: myregistry/your-receiver:v1.0   # immutable tag
+    restart: unless-stopped                 # better than always: won&#x27;t restart if manually stopped
+    mem_limit: 512m
+    cpuset: &quot;0,1&quot;                           # isolated for real-time acquisition
+    devices:
+      - &quot;/dev/stm32_vibration:/dev/ttyACM0&quot;
+    logging:
+      driver: &quot;json-file&quot;
+      options: {max-size: &quot;10m&quot;, max-file: &quot;3&quot;}
+
+  api:
+    image: myregistry/your-api:v1.0
+    restart: unless-stopped
+    mem_limit: 4g
+    cpuset: &quot;2,3,4,5,6,7&quot;
+    secrets: [db_password, smtp_password]
+    logging:
+      driver: &quot;json-file&quot;
+      options: {max-size: &quot;10m&quot;, max-file: &quot;3&quot;}
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;curl&quot;, &quot;-f&quot;, &quot;http://localhost:8000/system/metrics&quot;]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    image: myregistry/your-dashboard:v1.0
+    restart: unless-stopped
+    mem_limit: 2g
+    logging:
+      driver: &quot;json-file&quot;
+      options: {max-size: &quot;10m&quot;, max-file: &quot;3&quot;}
+
+secrets:
+  db_password:
+    external: true    # managed by Docker secrets or Vault, not .env
+  smtp_password:
+    external: true</pre></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Rule</th><th>Anti-pattern to avoid</th></tr></thead><tbody><tr><td>9.10.1</td><td>Use immutable image tags (<code class="inline">v1.0</code>, git SHA)</td><td>Never <code class="inline">image: myapp:latest</code> in prod</td></tr><tr><td>9.10.2</td><td><code class="inline">restart: unless-stopped</code> (not <code class="inline">always</code>)</td><td><code class="inline">always</code> restarts even manual stops — hard to maintain</td></tr><tr><td>9.10.3</td><td><code class="inline">mem_limit</code> per container</td><td>Without limits, one container OOM-kills all others</td></tr><tr><td>9.10.4</td><td>Log rotation on every container</td><td>Without it, logs fill the disk silently within weeks</td></tr><tr><td>9.10.5</td><td><code class="inline">healthcheck</code> on every service</td><td>Without it, Docker reports container &quot;Up&quot; even if app is frozen</td></tr><tr><td>9.10.6</td><td>Docker secrets for sensitive values</td><td><code class="inline">.env</code> files in prod are a security anti-pattern</td></tr><tr><td>9.10.7</td><td>Non-root user in Dockerfile</td><td><code class="inline">USER appuser</code> in Dockerfile — never run as root inside container</td></tr><tr><td>9.10.8</td><td>Read-only filesystem where possible</td><td><code class="inline">read_only: true</code> + explicit <code class="inline">tmpfs</code> mounts for writable dirs</td></tr><tr><td>9.10.9</td><td>Drop Linux capabilities</td><td><code class="inline">cap_drop: [ALL]</code>, add back only what&#x27;s needed (<code class="inline">cap_add: [NET_BIND_SERVICE]</code>)</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.11 Disaster Recovery</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">What to do when things break. Covers both IPC on-site (hardware failure) and cloud scenarios.</p>
+<table class="compact-table"><thead><tr><th>Scenario</th><th>RTO target</th><th>RPO target</th><th>Recovery procedure</th></tr></thead><tbody><tr><td>IPC hardware failure</td><td>30 min</td><td>24h (last nightly backup)</td><td>Restore Clonezilla image on replacement IPC → follow <code class="inline">operations/dr_runbook.md</code> §3-§4</td></tr><tr><td>Docker container crash</td><td>&lt; 1 min</td><td>0 (restart: unless-stopped)</td><td>Auto-restart; alert if restart loop</td></tr><tr><td>PostgreSQL volume corruption</td><td>&lt; 2h</td><td>24h (B44 nightly <code class="inline">pg_dump -Fc</code>)</td><td><code class="inline">operations/dr_runbook.md</code> §2 — drop <code class="inline">postgres_data</code>, <code class="inline">alembic upgrade head</code>, <code class="inline">pg_restore</code>, verify <code class="inline">alembic_version</code> matches MANIFEST</td></tr><tr><td>QuestDB volume corruption</td><td>&lt; 2h</td><td>24h</td><td>Stop questdb, untar <code class="inline">questdb.tar.gz</code> into <code class="inline">questdb_data</code>, restart — <code class="inline">operations/dr_runbook.md</code> §3 step 5</td></tr><tr><td>Model degradation</td><td>&lt; 15 min</td><td>0 (rollback to N-1)</td><td>MLflow registry rollback — see §9.8b</td></tr><tr><td>Full disk</td><td>&lt; 30 min</td><td>0</td><td>Run BLOB purge (<code class="inline">POST /admin/purge-blobs</code>), free space, restart</td></tr><tr><td>Network partition (OT isolated)</td><td>Continues autonomously</td><td>0 (local PG buffer)</td><td>STM32 + local acquisition continues; CNC data resumes on reconnect</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Command / Detail</th></tr></thead><tbody><tr><td>9.11.1</td><td>Nightly PG + QuestDB + MLflow backup (B44)</td><td><code class="inline">tools/dr_backup.sh</code> → <code class="inline">${BACKUP_DIR}/YYYY-MM-DD/{pg.dump, questdb.tar.gz, mlflow.dump, mlruns.tar.gz, MANIFEST.json}</code></td></tr><tr><td>9.11.2</td><td>Backup verification</td><td><code class="inline">tools/dr_restore.sh</code> runs <code class="inline">pg_restore -l</code>, sha256 match on the artifact tarball, TOC row-count diff — exits 0 only on success</td></tr><tr><td>9.11.3</td><td>Model artifacts backed up</td><td>MLflow artifacts tarred from <code class="inline">/data/mlruns</code> + <code class="inline">pg_dump</code> of the <code class="inline">mlflow</code> PG database</td></tr><tr><td>9.11.4</td><td>Clonezilla image for IPC</td><td>After each major system change; stored on NAS</td></tr><tr><td>9.11.5</td><td>Recovery runbook tested</td><td>Nightly <code class="inline">.github/workflows/dr-nightly.yml</code> exercises <code class="inline">dr_restore.sh</code>; gate via <code class="inline">/admin/last-backup</code> <code class="inline">age_hours ≤ 26</code></td></tr><tr><td>9.11.6</td><td>SIGTERM handler for clean shutdown</td><td><code class="inline">acquisition.py</code> flushes pending writes before exit — prevents torn writes in PG / QuestDB / Redis on power loss</td></tr><tr><td>9.11.7</td><td>Disk usage monitoring</td><td>Alert at 80% full (<code class="inline">node_filesystem_avail_bytes &lt; 20%</code> in Prometheus)</td></tr><tr><td>9.11.8</td><td>Document RTO/RPO per service</td><td>See <code class="inline">.claude/dev-docs/operations/dr_runbook.md</code> (B44 brick)</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.11.a Per-store backup matrix</h3>
+<table class="compact-table"><thead><tr><th>Store</th><th>Idiom</th><th>RPO target</th><th>Typical pitfall</th></tr></thead><tbody><tr><td><strong>PostgreSQL</strong></td><td><code class="inline">pg_dump -Fc</code> (custom, compressed, selective restore). Stream to off-host.</td><td>1–24 h</td><td>Dump without <code class="inline">alembic_version</code> / migration head is an orphan — unreviewable at restore</td></tr><tr><td><strong>QuestDB / InfluxDB</strong></td><td><code class="inline">CHECKPOINT CREATE</code> → tar of data volume → <code class="inline">CHECKPOINT RELEASE</code> in RETURN trap</td><td>1–24 h</td><td>Forgetting RELEASE on error = writer paused indefinitely; always trap</td></tr><tr><td><strong>SQLite</strong></td><td><code class="inline">sqlite3 .backup</code> (never <code class="inline">cp</code> — live WAL corruption)</td><td>1–24 h</td><td><code class="inline">cp</code> while WAL active = partial write; <code class="inline">.backup</code> is the only safe idiom</td></tr><tr><td><strong>MLflow artifacts</strong></td><td><code class="inline">tar</code> of <code class="inline">/mlruns/</code> + <code class="inline">.backup</code> on mlflow.db (or <code class="inline">pg_dump</code> if PG-backed)</td><td>24 h–1 w</td><td>Artifacts + backend out of sync = orphan run metadata</td></tr><tr><td><strong>Labels / ground truth</strong></td><td>Dedicated backup or source-of-truth in version control (DVC / git-lfs)</td><td>0 (immutable)</td><td>Mutable label tables break model auditability</td></tr><tr><td><strong>Container volumes</strong></td><td><code class="inline">docker run --volumes-from ... busybox tar czf</code> or named-volume snapshot</td><td>24 h</td><td>Bind-mount UID/GID drift between backup and restore host</td></tr><tr><td><strong>Object storage / cloud</strong></td><td>Native snapshot (S3 versioning, Azure Blob soft delete) + cross-region replication</td><td>1 h–1 d</td><td>Snapshot is not versioning is not replication — they fail for different reasons</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">9.11.b Historical data management</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Rule</th><th>Detail</th></tr></thead><tbody><tr><td>9.11.b.1</td><td><strong>Retention policy defined per store</strong></td><td>Raw / features / labels / artifacts have explicit TTLs; no &quot;forever by default&quot;</td></tr><tr><td>9.11.b.2</td><td><strong>GFS rotation</strong></td><td>Daily (7) + weekly (4) + monthly (3+) — tune to regulatory / audit horizon</td></tr><tr><td>9.11.b.3</td><td><strong>Retrain window ≤ retention window</strong></td><td>A model trained on data no longer backupable is not reproducible</td></tr><tr><td>9.11.b.4</td><td><strong>Each backup tagged with migration head</strong></td><td><code class="inline">alembic_version</code> / schema revision / code SHA written into MANIFEST</td></tr><tr><td>9.11.b.5</td><td><strong>MLflow runs pin dataset version</strong></td><td>DVC hash / dataset snapshot ID — not a live table query</td></tr><tr><td>9.11.b.6</td><td><strong>Destructive ops gated by env flag</strong></td><td><code class="inline">ALLOW_DESTRUCTIVE_DOWNGRADE=1</code> or equivalent — stray scripts cannot nuke the baseline</td></tr><tr><td>9.11.b.7</td><td><strong>Off-host + off-site</strong></td><td>Same-disk snapshot is not backup; require ≥2 physical copies on ≥2 media</td></tr><tr><td>9.11.b.8</td><td><strong>Automated restore drill</strong></td><td>Nightly / weekly CI job: backup → restore → integrity check → row-count diff</td></tr><tr><td>9.11.b.9</td><td><strong>Quarterly oldest-snapshot drill</strong></td><td>Verify format / codec / encryption key still readable for the oldest retained slot</td></tr><tr><td>9.11.b.10</td><td><strong>Alert on skipped backups</strong></td><td>Scheduler miss → alert within one SLA cycle — silent backup daemon is the worst failure mode</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>&quot;We have snapshots&quot; ≠ backup.</strong> A same-volume snapshot survives a file deletion but not a disk failure. A same-host snapshot survives a disk failure but not a host failure. A same-region replica survives a host failure but not a region loss. Size the backup tier to the disaster scenario — not to the convenient default.</p>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Untested backup = schrödinger&#x27;s backup.</strong> Every production incident post-mortem where backup failed shares the same root cause: the backup ran daily for years but was never restored. Automate the restore in CI, not just the backup.</p></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><h2 class="slide-title reveal">9.12 Kubernetes Deployment (optional — multi-node only)</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Use K8s when Docker Compose on a single IPC is no longer sufficient: multi-node, auto-scaling, HA. Not required for Phase 1.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>9.12.1</td><td>Deployment manifest</td><td><code class="inline">kind: Deployment</code> with <code class="inline">replicas: 2</code>, <code class="inline">image: myregistry/your-api:v1.0</code></td></tr><tr><td>9.12.2</td><td>Service manifest</td><td><code class="inline">kind: Service</code>, <code class="inline">type: ClusterIP</code> (internal) or <code class="inline">LoadBalancer</code> (external)</td></tr><tr><td>9.12.3</td><td>ConfigMap</td><td>Non-sensitive config (feature names, thresholds) as key-value pairs</td></tr><tr><td>9.12.4</td><td>Secret</td><td>Sensitive values (DB password, API keys) — never in ConfigMap</td></tr><tr><td>9.12.5</td><td>PersistentVolumeClaim</td><td>Model artifacts and datastore volumes (PG / QuestDB / MLflow artifacts) on persistent storage, not pod ephemeral disk</td></tr><tr><td>9.12.6</td><td>HorizontalPodAutoscaler</td><td><code class="inline">targetCPUUtilizationPercentage: 70</code>, min 2 replicas, max 10</td></tr><tr><td>9.12.7</td><td>Liveness + Readiness probes</td><td>Liveness: restart dead pod; Readiness: stop routing traffic to unready pod</td></tr><tr><td>9.12.8</td><td>Namespace isolation</td><td><code class="inline">namespace: your-app-prod</code> — isolated from other workloads</td></tr><tr><td>9.12.9</td><td>RBAC</td><td>ServiceAccount with minimal permissions — no cluster-admin for app pods</td></tr><tr><td>9.12.10</td><td>Deploy: <code class="inline">kubectl apply -f k8s/</code></td><td>Declarative — <code class="inline">kubectl apply</code> is idempotent; avoid <code class="inline">kubectl run</code> in prod</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">9. Deployment &amp; MLOps</span><div class="slide-content"><p class="lede">---</p></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>

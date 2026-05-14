@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Feature Engineering</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">Feature Engineering</h1><div class="subtitle reveal">Source-of-truth segment extracted from the unified ML checklist for exhaustive slide-deck generation.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~8 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Source-of-truth segment extracted from the unified ML checklist for
+exhaustive slide-deck generation.</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">3. Feature Engineering &amp; Preprocessing</h2></div></section>
+<section class="slide"><span class="slide-tag">3. Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">3.1 Preprocessing Order (MANDATORY)</h2></div></section>
+<section class="slide"><span class="slide-tag">3. Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">Diagram</h2><div class="mermaid-host"><div class="mermaid">
+flowchart LR
+    A[Raw DataFrame] --> B[1. Remove leakage columns]
+    B --> C[2. Train/Test split STRATIFIED or TIME-BASED]
+    C --> D[3. Fit imputer on TRAIN Transform TRAIN + TEST]
+    D --> E[4. Encode categoricals OHE / Label / Frequency]
+    E --> F[5. Log-transform volume variables on TRAIN]
+    F --> G[6. Fit scaler on TRAIN Transform TRAIN + TEST]
+    G --> H[7. SMOTE on TRAIN only never on TEST]
+    H --> I[Ready for modeling]
+</div></div></div></section>
+<section class="slide"><span class="slide-tag">3. Feature Engineering &amp; Preprocessing</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;"><strong>Golden rule:</strong> Fit everything on TRAIN. Apply to TEST. Never the other way.</p></div></section>
+<section class="slide"><span class="slide-tag">3. Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">3.2 Checklist</h2><table class="compact-table"><thead><tr><th>#</th><th>Task</th><th>Methods / Tools</th><th>Notes</th></tr></thead><tbody><tr><td>3.1</td><td><strong>Train/Test split</strong></td><td><code class="inline">train_test_split(stratify=y)</code> or <code class="inline">TimeSeriesSplit</code></td><td>Time series: always chronological, check both classes in each set</td></tr><tr><td>3.2</td><td><strong>Imputation</strong></td><td><code class="inline">SimpleImputer</code>, <code class="inline">KNNImputer</code>, <code class="inline">IterativeImputer</code></td><td>Fit on train only</td></tr><tr><td>3.3</td><td><strong>Log-transform</strong></td><td><code class="inline">np.log1p(x)</code> for volume/skewed vars</td><td>Values &lt; 0 → clip to 0 first</td></tr><tr><td>3.4</td><td><strong>Categorical encoding</strong></td><td>OHE (<code class="inline">drop_first=True</code>), LabelEncoder, FrequencyEncoder</td><td>OHE before SMOTE (SMOTE needs Euclidean distances)</td></tr><tr><td>3.5</td><td><strong>Scaling</strong></td><td><code class="inline">StandardScaler</code> (SVM/KNN/LR), <code class="inline">MinMaxScaler</code> (NN)</td><td>After split, fit on train</td></tr><tr><td>3.6</td><td><strong>Class imbalance</strong></td><td>SMOTE, ADASYN (over), RandomUnderSampler (under)</td><td>On TRAIN set only; XGBoost <code class="inline">scale_pos_weight</code> as alternative. SMOTE forces 50/50 balance during training → prevents model from being &quot;lazy&quot; (always predicting majority class) → forces it to learn the minority class signal. Does NOT bias the test set since applied only on train.</td></tr><tr><td>3.7</td><td><strong>Feature selection — filter</strong></td><td>Variance threshold, Chi², Spearman univariate</td><td>Remove zero-variance first</td></tr><tr><td>3.8</td><td><strong>Feature selection — wrapper</strong></td><td>RFE, sequential forward/backward</td><td>Expensive, use after filter</td></tr><tr><td>3.9</td><td><strong>Feature selection — embedded</strong></td><td>LassoCV, XGBoost feature_importances_</td><td>LassoCV for linear; XGB for non-linear</td></tr><tr><td>3.10</td><td><strong>VIF check</strong></td><td><code class="inline">VIF &lt; 5</code> per feature</td><td>Detect multicollinearity</td></tr><tr><td>3.11</td><td><strong>Temporal features</strong></td><td>7-day growth vs 21-day average, rolling statistics</td><td>Detects trend vs plateau</td></tr><tr><td>3.12</td><td><strong>Interaction features</strong></td><td><code class="inline">Listeners / Streams</code> retention ratio</td><td>Domain-specific cross-features</td></tr><tr><td>3.13</td><td><strong>Binning</strong></td><td><code class="inline">pd.cut</code>, <code class="inline">pd.qcut</code></td><td>Group continuous values into intervals</td></tr><tr><td>3.14b</td><td><strong>A/B test for collinear variable comparison</strong></td><td>Train Random Forest on two collinear candidates separately, compare feature importance — keeps the one with higher predictive signal independently</td><td>Alternative to VIF when domain knowledge is ambiguous</td></tr><tr><td>3.15</td><td><strong>Feature space visualization</strong></td><td>Radviz (<code class="inline">pd.plotting.radviz(df, &#x27;class&#x27;)</code>) — projects N-dimensional data onto a circle, each feature is an anchor point; Parallel coordinates (<code class="inline">pd.plotting.parallel_coordinates(df, &#x27;class&#x27;)</code>) — each vertical axis = one feature, each line = one sample</td><td>Use to visually assess class separability before modeling</td></tr><tr><td>3.14</td><td><strong>Target definition</strong></td><td>Log-Knee method, Median active, binarization of skewed target</td><td>Document threshold choice</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">3. Feature Engineering &amp; Preprocessing</span><div class="slide-content"><h2 class="slide-title reveal">3.3 Signal Processing Features (Vibration / Time-Series Sensor)</h2><table class="compact-table"><thead><tr><th>Feature</th><th>Formula</th><th>Axis</th><th>Use case</th></tr></thead><tbody><tr><td>RMS</td><td><code class="inline">sqrt(mean(x²))</code></td><td>X, Y, Z</td><td>Overall energy level</td></tr><tr><td>Crest Factor</td><td><code class="inline">peak / RMS</code></td><td>X, Y, Z</td><td>Impulsiveness → bearing fault</td></tr><tr><td>Peak Frequency</td><td><code class="inline">argmax(FFT[1:])</code></td><td>X, Y, Z</td><td>Dominant vibration mode</td></tr><tr><td>Peak Magnitude</td><td><code class="inline">max(FFT[1:])</code></td><td>X, Y, Z</td><td>Resonance strength</td></tr><tr><td>Mean</td><td><code class="inline">mean(x)</code></td><td>X, Y, Z</td><td>DC bias (imbalance)</td></tr><tr><td>Std</td><td><code class="inline">std(x)</code></td><td>X, Y, Z</td><td>Spread</td></tr><tr><td>Peak-to-peak</td><td><code class="inline">max - min</code></td><td>X, Y, Z</td><td>Amplitude</td></tr><tr><td>Skewness</td><td><code class="inline">skew(x)</code></td><td>X, Y, Z</td><td>Asymmetry</td></tr><tr><td>Kurtosis</td><td><code class="inline">kurt(x)</code></td><td>X, Y, Z</td><td>Impulsive peak detection</td></tr></tbody></table>
+<p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;"><strong>Note:</strong> Always exclude FFT bin 0 (DC component): <code class="inline">fft_mag[1:]</code></p>
+<p class="lede">---</p></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>

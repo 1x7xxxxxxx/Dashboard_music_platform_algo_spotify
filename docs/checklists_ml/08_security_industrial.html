@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Security &amp; Industrial Constraints</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg-primary: #1F1F1F;
+    --bg-surface: #2A2A2A;
+    --bg-surface-2: #333333;
+    --border: #3A3A3A;
+    --border-soft: #2F2F2F;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B5B5B5;
+    --text-muted: #888888;
+    --accent-navy: #6BAEDF;
+    --accent-orange: #E87C5C;
+    --accent-green: #5BB585;
+    --code-bg: #181818;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+    --title-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    --h2-size: clamp(1.25rem, 2.8vw, 2.25rem);
+    --h3-size: clamp(1rem, 2vw, 1.5rem);
+    --body-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    --small-size: clamp(0.7rem, 1vw, 0.9rem);
+    --code-size: clamp(0.7rem, 1.05vw, 0.95rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4rem);
+    --content-gap: clamp(0.6rem, 1.5vw, 1.2rem);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--slide-padding);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    gap: var(--content-gap);
+}
+
+h1.deck-title {
+    font-size: var(--title-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+h2.section-num {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    color: var(--accent-navy);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+h2.slide-title {
+    font-size: var(--h2-size);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.section-tag {
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+}
+.lede {
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 70ch;
+}
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+
+ul.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1vh, 0.9rem); }
+ul.bullet-list li { padding-left: 1.4em; position: relative; }
+ul.bullet-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-navy);
+    font-weight: 600;
+}
+ul.bullet-list li.warn::before { color: var(--accent-orange); content: "✕"; }
+ul.bullet-list li.do::before { color: var(--accent-green); content: "✓"; }
+
+pre.code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-navy);
+    border-radius: 6px;
+    padding: clamp(0.8rem, 1.5vw, 1.4rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    max-height: 65vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+code.inline {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+    color: var(--text-secondary);
+}
+.compact-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--accent-navy);
+    font-size: var(--small-size);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.compact-table td {
+    padding: 0.7em 1em;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.compact-table tr:last-child td { border-bottom: none; }
+.compact-table code { font-family: var(--font-mono); color: var(--text-primary); font-size: 0.92em; }
+
+.badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2em 0.7em;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.badge.info { background: rgba(107, 174, 223, 0.15); color: var(--accent-navy); border: 1px solid var(--accent-navy); }
+.badge.warn { background: rgba(232, 124, 92, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge.do { background: rgba(91, 181, 133, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+.mermaid-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: clamp(0.5rem, 1.5vw, 1.5rem);
+    overflow: hidden;
+}
+.mermaid-host .mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover {
+    background:
+        radial-gradient(ellipse at 30% 30%, rgba(31, 58, 95, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(46, 125, 91, 0.15) 0%, transparent 50%),
+        var(--bg-primary);
+    justify-content: center;
+}
+.cover h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.cover .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    color: var(--accent-navy);
+    margin-top: 0.8em;
+    font-weight: 400;
+}
+.cover .meta {
+    margin-top: 2.5em;
+    display: flex;
+    gap: 2em;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex-wrap: wrap;
+}
+
+.section-intro {
+    background: linear-gradient(135deg, rgba(31, 58, 95, 0.15) 0%, transparent 50%), var(--bg-primary);
+}
+
+.slide-num {
+    position: absolute;
+    bottom: calc(var(--slide-padding) * 0.5);
+    right: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+.slide-tag {
+    position: absolute;
+    top: calc(var(--slide-padding) * 0.5);
+    left: calc(var(--slide-padding) * 0.7);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-navy) 0%, var(--accent-green) 100%);
+    z-index: 100;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.reveal { opacity: 1; transform: none; transition: none; }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(1rem, 3vw, 2.5rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.7rem, 2.5vw, 1.8rem); --title-size: clamp(1.4rem, 4vw, 2.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<section class="slide cover"><div class="slide-content"><span class="section-tag reveal">Exhaustive Technical Reference</span><h1 class="reveal">Security &amp; Industrial Constraints</h1><div class="subtitle reveal">Source-of-truth segment extracted from the unified ML checklist for exhaustive slide-deck generation.</div><div class="meta reveal"><span>v 2026.05.03</span><span>~16 slides</span><span>Press → or ↓ to advance · F for fullscreen</span></div></div></section><section class="slide"><div class="slide-content"><p class="lede">Source-of-truth segment extracted from the unified ML checklist for
+exhaustive slide-deck generation.</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">10. Security</h2></div></section>
+<section class="slide"><span class="slide-tag">10. Security</span><div class="slide-content"><h2 class="slide-title reveal">10.1 Checklist</h2><table class="compact-table"><thead><tr><th>#</th><th>Layer</th><th>Method</th><th>Tool</th></tr></thead><tbody><tr><td>10.1</td><td><strong>Auth</strong></td><td>OAuth 2.0 + JWT tokens</td><td>python-jose, FastAPI OAuth2</td></tr><tr><td>10.2</td><td><strong>Transport</strong></td><td>HTTPS + TLS (min 1.2)</td><td>Let&#x27;s Encrypt, Certbot</td></tr><tr><td>10.3</td><td><strong>Rate limiting</strong></td><td>Per-IP or per-token limits</td><td>SlowAPI (FastAPI), Nginx, Kong</td></tr><tr><td>10.4</td><td><strong>Input validation</strong></td><td>Strict Pydantic schemas on all endpoints</td><td>FastAPI + Pydantic v2</td></tr><tr><td>10.5</td><td><strong>CORS</strong></td><td>Whitelist allowed origins</td><td>FastAPI <code class="inline">CORSMiddleware</code></td></tr><tr><td>10.6</td><td><strong>Secret management</strong></td><td>No secrets in code or .env committed</td><td>HashiCorp Vault, Docker secrets</td></tr><tr><td>10.7</td><td><strong>Logging &amp; Audit</strong></td><td>Structured logs, access logs, auth events</td><td>structlog, ELK Stack</td></tr><tr><td>10.8</td><td><strong>API Gateway</strong></td><td>Rate limiting, routing, auth at edge</td><td>Kong, Traefik</td></tr><tr><td>10.9</td><td><strong>Data encryption</strong></td><td>At rest (DB encryption) and in transit (TLS)</td><td>SQLCipher, TLS</td></tr><tr><td>10.10</td><td><strong>Data freshness</strong></td><td>Monitor data age, alert on stale feeds</td><td>Custom watchdog</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">10. Security</span><div class="slide-content"><h2 class="slide-title reveal">10.2 ML-Specific Security &amp; Fairness</h2><table class="compact-table"><thead><tr><th>#</th><th>Concern</th><th>Method</th><th>Tool</th></tr></thead><tbody><tr><td>10.11</td><td><strong>Selection bias</strong></td><td>Audit data collection process</td><td>Manual review + data lineage</td></tr><tr><td>10.12</td><td><strong>Proxy bias</strong></td><td>Detect features proxying protected attributes</td><td>Correlation analysis</td></tr><tr><td>10.13</td><td><strong>Label bias</strong></td><td>Audit labeling process, inter-rater agreement</td><td>Manual audit</td></tr><tr><td>10.14</td><td><strong>Fairness metrics</strong></td><td>Demographic parity, equalized odds &lt; 0.3</td><td>AIF360, Fairlearn</td></tr><tr><td>10.15</td><td><strong>Model robustness</strong></td><td>Input perturbation tests</td><td>KS-test on adversarial inputs</td></tr><tr><td>10.16</td><td><strong>Hallucination rate</strong></td><td>For LLM components — factuality check</td><td>Custom eval harness</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">10. Security</span><div class="slide-content"><h2 class="slide-title reveal">10.3 ML Model Security — Adversarial Threats</h2><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">Beyond classic app security (§10.1), ML models have unique attack surfaces. Covers poisoning, evasion, extraction, and inversion.</p>
+<table class="compact-table"><thead><tr><th>#</th><th>Attack type</th><th>Threat</th><th>Mitigation</th></tr></thead><tbody><tr><td>10.17</td><td><strong>Data poisoning</strong></td><td>Attacker injects malicious training samples to corrupt the model</td><td>Audit data provenance; anomaly-detect training samples before ingestion; track data lineage</td></tr><tr><td>10.18</td><td><strong>Evasion attack</strong></td><td>Attacker crafts inputs that fool the model at inference time (adversarial examples)</td><td>Adversarial training; input perturbation smoke tests (see §9.5b); reject inputs &gt; N σ from training distribution</td></tr><tr><td>10.19</td><td><strong>Model extraction</strong></td><td>Attacker queries the API repeatedly to reconstruct the model</td><td>Rate limit per token; do not return raw confidence scores (return class only or bucketed confidence); log abnormal query patterns</td></tr><tr><td>10.20</td><td><strong>Model inversion</strong></td><td>Attacker reconstructs training data from model outputs or gradients</td><td>Do not expose gradient information; add noise to confidence outputs (differential privacy)</td></tr><tr><td>10.21</td><td><strong>Prompt injection (LLM)</strong></td><td>Attacker embeds instructions in user input to override model behavior</td><td>Strict input schema validation; never concatenate raw user input into prompt templates</td></tr><tr><td>10.22</td><td><strong>Supply chain</strong></td><td>Malicious dependency or pre-trained model weight</td><td>Pin all dependencies (<code class="inline">==</code>); verify model checksums; use trusted model registries only</td></tr><tr><td>10.23</td><td><strong>Training data leakage</strong></td><td>Sensitive data memorized by model</td><td>Audit training data for PII before ingestion; differential privacy during training if sensitive</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">10. Security</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Audit item</th><th>Check</th></tr></thead><tbody><tr><td>10.24</td><td><strong>Model card published</strong></td><td>Documents: train data source, known failure modes, bias risks, performance by subgroup</td></tr><tr><td>10.25</td><td><strong>Version audit log</strong></td><td>Every production model version: who trained it, from what data, with what code SHA</td></tr><tr><td>10.26</td><td><strong>Reproducibility</strong></td><td><code class="inline">git SHA + random_seed + data_version → identical model metrics</code> — verified in CI</td></tr><tr><td>10.27</td><td><strong>Inference output scope</strong></td><td>API returns minimum necessary output — no raw feature importance, no confidence histogram exposed publicly</td></tr></tbody></table>
+<p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">11. Software Engineering — Architecture</h2></div></section>
+<section class="slide"><span class="slide-tag">11. Software Engineering — Architecture</span><div class="slide-content"><table class="compact-table"><thead><tr><th>#</th><th>Criterion</th><th>Principle</th><th>Reference example</th></tr></thead><tbody><tr><td>11.1</td><td><strong>SSOT per layer</strong></td><td>Each layer has one source of truth</td><td><code class="inline">database/__init__.py</code> (façade) re-exports 113+ helpers from 14 domain repos under <code class="inline">database/repositories/</code> — only PG access point</td></tr><tr><td>11.2</td><td><strong>Separation of concerns</strong></td><td>Each module has one clearly scoped responsibility</td><td><code class="inline">streaming/ingestion → ml/features → ml/inference → api → dashboard</code> (layered)</td></tr><tr><td>11.3</td><td><strong>API-First</strong></td><td>UI consumes API only, never DB directly</td><td><code class="inline">dashboard/app.py</code> + <code class="inline">dashboard/api_client.py</code> call REST endpoints only</td></tr><tr><td>11.4</td><td><strong>Abstraction layer for DB</strong></td><td>Functions like <code class="inline">get_data()</code> hide DB implementation</td><td>Schema lifecycle owned by Alembic since brick <code class="inline">alembic-pre-b44</code> (ADR-018) — see <code class="inline">database/migrations/versions/</code></td></tr><tr><td>11.5</td><td><strong>BLOB codec centralized</strong></td><td>Binary encode/decode in one module</td><td><code class="inline">utils/blob.py::pack_blob</code> / <code class="inline">unpack_blob</code> (carved Phase 12 polish — single seam used by acquisition + serializers)</td></tr><tr><td>11.6</td><td><strong>Multi-board via env vars</strong></td><td>Hardware IDs configurable without code change</td><td><code class="inline">BOARD_ID</code> env var → <code class="inline">board_id</code> column</td></tr><tr><td>11.7</td><td><strong>Idempotent writes</strong></td><td>Double insert does not corrupt DB</td><td><code class="inline">INSERT OR IGNORE</code> + composite key <code class="inline">(timestamp, board_id)</code></td></tr><tr><td>11.8</td><td><strong>Health endpoint</strong></td><td>External monitoring possible via <code class="inline">/health</code></td><td><code class="inline">GET /system/metrics</code> → uptime, last timestamp</td></tr><tr><td>11.9</td><td><strong>Env vars for all thresholds</strong></td><td>No magic numbers in code</td><td><code class="inline">IDLE_MAX</code>, <code class="inline">FAULT_MIN</code>, <code class="inline">ALERT_COOLDOWN_MIN</code> in <code class="inline">.env</code></td></tr><tr><td>11.10</td><td><strong>Firmware ↔ software mirror</strong></td><td>Critical constants identical on STM32 and Python side</td><td><code class="inline">SAMPLES=256</code>, <code class="inline">ODR=6667Hz</code> in <code class="inline">processing.py</code> AND <code class="inline">main.h</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">11. Software Engineering — Architecture</span><div class="slide-content"><p class="lede">---</p></div></section>
+<section class="slide section-intro"><span class="slide-tag">Section</span><div class="slide-content"><h2 class="section-num reveal">§</h2><h2 class="slide-title reveal">12. Software Engineering — Data &amp; Tests</h2></div></section>
+<section class="slide"><span class="slide-tag">12. Software Engineering — Data &amp; Tests</span><div class="slide-content"><h2 class="slide-title reveal">12.1 SQLite Best Practices</h2><table class="compact-table"><thead><tr><th>#</th><th>Rule</th><th>Implementation</th></tr></thead><tbody><tr><td>12.1</td><td>WAL mode</td><td><code class="inline">PRAGMA journal_mode=WAL</code> in <code class="inline">get_connection()</code></td></tr><tr><td>12.2</td><td>Indexed filter columns</td><td><code class="inline">CREATE INDEX idx_timestamp ON acquisitions(timestamp)</code></td></tr><tr><td>12.3</td><td>Backward-compatible migrations</td><td><code class="inline">ALTER TABLE ... ADD COLUMN</code> wrapped in <code class="inline">try/except</code></td></tr><tr><td>12.4</td><td>BLOB format documented</td><td><code class="inline">float32 LE</code>, <code class="inline">np.frombuffer(blob, dtype=np.float32)</code></td></tr><tr><td>12.5</td><td>FK hierarchy documented</td><td><code class="inline">tools → sessions → holes → acquisitions → quality_records</code> + ERD</td></tr><tr><td>12.6</td><td>Configurable BLOB purge</td><td><code class="inline">POST /admin/purge-blobs?older_than_days=30</code> → <code class="inline">raw_data = NULL</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">12. Software Engineering — Data &amp; Tests</span><div class="slide-content"><h2 class="slide-title reveal">12.2 Test Checklist</h2><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">12.2a Test Types</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Test type</th><th>Method</th><th>Coverage target</th></tr></thead><tbody><tr><td>12.1</td><td>Unit — preprocessing</td><td>Test each transform function in isolation</td><td><code class="inline">test_features.py</code>, <code class="inline">test_processing.py</code></td></tr><tr><td>12.2</td><td>Unit — signal parsing</td><td>Valid + malformed USB frames</td><td><code class="inline">test_acquisition.py::test_parse_data_line_valid</code></td></tr><tr><td>12.3</td><td>Unit — DB helpers</td><td>Insert, fetch, update on in-memory DB</td><td><code class="inline">test_database.py</code></td></tr><tr><td>12.4</td><td>Integration — API</td><td>TestClient + patched DB path</td><td><code class="inline">test_api.py</code></td></tr><tr><td>12.5</td><td>Integration — ML pipeline</td><td>Train + predict on synthetic data, F1 &gt; 0.8</td><td><code class="inline">test_train_xgboost.py</code></td></tr><tr><td>12.6</td><td>E2E — full pipeline</td><td>Staging environment, real-like data</td><td>Manual + CI</td></tr><tr><td>12.7</td><td>Performance — load</td><td>Locust: RPS, p50/p95/p99, failure rate</td><td><code class="inline">locustfile.py</code></td></tr><tr><td>12.8</td><td>Coverage report</td><td><code class="inline">pytest --cov=. --cov-report=html</code></td><td>Target &gt; 80%</td></tr><tr><td>12.9</td><td>Regression tests</td><td>Re-run full test suite on every PR — new code must not break existing tests</td><td>CI gate: all previously passing tests still pass</td></tr><tr><td>12.10</td><td>API contract tests</td><td>Validate response schema on every endpoint: field names, types, required fields</td><td><code class="inline">test_api.py</code> + Pydantic response models or <code class="inline">pytest-schema</code></td></tr><tr><td>12.11</td><td>Edge case / boundary tests</td><td>Null values, empty arrays, out-of-range inputs, max-length strings, zero division</td><td>One <code class="inline">test_edge_cases.py</code> per module or inline parametrized</td></tr><tr><td>12.12</td><td>Security tests</td><td>SQL injection strings, oversized payloads, malformed JSON on all POST endpoints</td><td><code class="inline">test_api_security.py</code> — expect 422 or 400, never 500</td></tr><tr><td>12.13</td><td>Dependency injection tests</td><td>Verify each function can be tested with injected mocks for external I/O (DB, USB, API)</td><td>Use <code class="inline">unittest.mock.patch</code> or <code class="inline">pytest-mock</code></td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">12. Software Engineering — Data &amp; Tests</span><div class="slide-content"><h3 style="font-size:var(--h3-size);font-weight:500;color:var(--accent-navy);margin-top:0.4em;">12.2b Test Infrastructure</h3>
+<table class="compact-table"><thead><tr><th>#</th><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td>12.14</td><td><strong><code class="inline">conftest.py</code> for shared fixtures</strong></td><td>DB connection, seeded data, mock USB port, test client — one <code class="inline">conftest.py</code> per test directory, inherited by all tests in subtree</td></tr><tr><td>12.15</td><td><strong><code class="inline">@pytest.mark.parametrize</code></strong></td><td>Use for exhaustive input coverage — one test function, multiple input sets. Avoids copy-paste test proliferation</td></tr><tr><td>12.16</td><td><strong>Mocking strategy</strong></td><td>Mock at the boundary: external I/O (DB, USB, network, filesystem). Never mock pure functions — test them directly. Never mock what you own.</td></tr><tr><td>12.17</td><td><strong>When NOT to mock</strong></td><td>DB layer: use in-memory SQLite (<code class="inline">sqlite:///:memory:</code>), not a mock. Mocking DB calls hides schema errors and query bugs.</td></tr><tr><td>12.18</td><td><strong>Test isolation</strong></td><td>Each test must be independent — no shared mutable state between tests. Use fixtures with function scope, not module/session scope for stateful resources.</td></tr><tr><td>12.19</td><td><strong>Deterministic tests</strong></td><td>Fix random seeds in all tests (<code class="inline">random.seed(42)</code>, <code class="inline">np.random.seed(42)</code>). Tests that produce different results on re-run are unreliable.</td></tr><tr><td>12.20</td><td><strong>Fast unit test suite</strong></td><td>Full unit test suite must run in &lt; 30s. Slow tests (DB, network, ML training) marked <code class="inline">@pytest.mark.slow</code> and excluded from pre-commit hook.</td></tr><tr><td>12.21</td><td><strong>Test naming convention</strong></td><td><code class="inline">test_&lt;unit&gt;<em>&lt;scenario&gt;</em>&lt;expected&gt;</code> — e.g. <code class="inline">test_parse_frame_malformed_raises_valueerror</code>. Readable failure messages without opening the code.</td></tr><tr><td>12.22</td><td><strong>CI test matrix</strong></td><td>Run tests on Python 3.10 + 3.11 minimum. Add OS matrix (Ubuntu + Windows) if cross-platform deployment is planned.</td></tr></tbody></table></div></section>
+<section class="slide"><span class="slide-tag">12. Software Engineering — Data &amp; Tests</span><div class="slide-content"><p class="lede" style="border-left:3px solid var(--accent-navy); padding-left:1em;">⚠️ <strong>Mock what you don&#x27;t own, test what you do</strong> — mocking the DB to test DB interaction is the most common testing mistake. It gives false confidence: the mock passes but the real query fails on a type mismatch or missing index. Use an in-memory SQLite instead.
+⚠️ <strong>100% coverage ≠ correct code</strong> — coverage measures lines executed, not correctness. A test that calls every line but asserts nothing achieves 100% coverage with zero value. Always assert the output, not just that the function runs.</p></div></section>
+<section class="slide"><span class="slide-tag">12. Software Engineering — Data &amp; Tests</span><div class="slide-content"><h2 class="slide-title reveal">12.3 Docker Checklist</h2><table class="compact-table"><thead><tr><th>#</th><th>Rule</th><th>Status</th></tr></thead><tbody><tr><td>12.9</td><td>3 core services: receiver / api / dashboard</td><td>✅</td></tr><tr><td>12.10</td><td>Optional services under Docker profiles (<code class="inline">--profile plc</code>, <code class="inline">--profile mlflow</code>)</td><td>✅</td></tr><tr><td>12.11</td><td>Named shared volumes: <code class="inline">sensor_data</code>, <code class="inline">model_data</code></td><td>✅</td></tr><tr><td>12.12</td><td><code class="inline">.env.example</code> documents all required variables</td><td>✅</td></tr><tr><td>12.13</td><td><code class="inline">requirements.txt</code> with pinned versions (<code class="inline">==</code>)</td><td>✅</td></tr><tr><td>12.14</td><td><code class="inline">HEALTHCHECK CMD curl -f http://localhost:8000/system/metrics</code></td><td>🔵</td></tr><tr><td>12.15</td><td>CI pipeline: <code class="inline">pytest</code> blocks merge on failure</td><td>🔵</td></tr></tbody></table>
+<p class="lede">---</p>
+<p class="lede">---</p></div></section>
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#2A2A2A', primaryTextColor: '#F0F0F0',
+        primaryBorderColor: '#6BAEDF', lineColor: '#6BAEDF',
+        secondaryColor: '#3A3A3A', tertiaryColor: '#1F1F1F',
+        background: '#1F1F1F', mainBkg: '#2A2A2A',
+        nodeBorder: '#6BAEDF', clusterBkg: '#2A2A2A', clusterBorder: '#3A3A3A',
+        edgeLabelBackground: '#1F1F1F',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: false },
+});
+
+function fitOneSVG(svg) {
+    const host = svg.closest('.mermaid-host');
+    if (!host) return;
+    try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 12;
+            svg.setAttribute('viewBox',
+                `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + 2 * pad} ${bbox.height + 2 * pad}`);
+        }
+    } catch (e) {}
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = r.width - padX, availH = r.height - padY;
+    if (availW <= 0 || availH <= 0) return;
+    const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+    const ratio = (vb[2] || 1) / (vb[3] || 1);
+    let w = availW, h = availW / ratio;
+    if (h > availH) { h = availH; w = availH * ratio; }
+    svg.style.width = Math.floor(w) + 'px';
+    svg.style.height = Math.floor(h) + 'px';
+    svg.style.maxWidth = 'none';
+    svg.style.maxHeight = 'none';
+}
+async function fitMermaidSVGs() {
+    await mermaid.run({ querySelector: '.mermaid' });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG);
+}
+let _fitDebounce;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitDebounce);
+    _fitDebounce = setTimeout(() =>
+        document.querySelectorAll('.mermaid-host svg').forEach(fitOneSVG), 120);
+});
+
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.total = this.slides.length;
+        this.current = 0;
+        this.numberSlides();
+        this.setupObserver();
+        this.setupKeyboard();
+        this.setupTouch();
+        this.progressEl = document.getElementById('progressBar');
+        this.updateProgress();
+    }
+    numberSlides() {
+        this.slides.forEach((s, i) => {
+            if (s.classList.contains('cover')) return;
+            const n = document.createElement('div');
+            n.className = 'slide-num';
+            n.textContent = String(i).padStart(3, '0') + ' / ' + String(this.total - 1).padStart(3, '0');
+            s.appendChild(n);
+        });
+    }
+    setupObserver() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.intersectionRatio > 0.5) {
+                    this.current = this.slides.indexOf(e.target);
+                    this.updateProgress();
+                    if (history.replaceState) history.replaceState(null, '', '#s' + this.current);
+                }
+            });
+        }, { threshold: [0.5] });
+        this.slides.forEach(s => obs.observe(s));
+    }
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            switch (e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.go(this.current + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.go(this.current - 1); break;
+                case 'Home': e.preventDefault(); this.go(0); break;
+                case 'End': e.preventDefault(); this.go(this.total - 1); break;
+                case 'f': case 'F':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+    setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dy) < 50) return;
+            this.go(this.current + (dy < 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    updateProgress() {
+        const pct = (this.current / Math.max(1, this.total - 1)) * 100;
+        this.progressEl.style.width = pct + '%';
+    }
+    go(i) {
+        if (i < 0 || i >= this.total) return;
+        this.slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fitMermaidSVGs();
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>
