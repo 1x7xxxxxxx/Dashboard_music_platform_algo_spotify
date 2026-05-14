@@ -204,3 +204,39 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 | 14 | FastAPI REST backend (JWT) | ✅ | P4 |
 | 15 | CI/CD Railway deployment | ✅ | P4 |
 | 16–17 | ML scoring DAG + ML dashboard views | ✅ | P3 |
+
+---
+
+## Tooling auxiliaire
+
+### RTK (Rust Token Killer) — user-level proxy
+
+If you see `rtk read`, `rtk pytest`, `rtk grep` in transcripts, that's the
+**RTK** utility (user-level binary, not a project dependency) filtering and
+compressing Bash output to save tokens (60-90 % typical, ~95 % at peak on this
+machine). Transparent — no install or config needed on this repo.
+
+- Pass-through any command : `rtk proxy <cmd>` (skip filtering, useful for
+  debugging an output that RTK might have truncated).
+- Inspect savings : `rtk gain` (global) / `rtk gain --history` (per-command).
+- Identify missed opportunities : `rtk discover` (scans Claude Code history).
+
+Reference: `~/.claude/RTK.md` (user-global config, not in this repo).
+
+### Graphify — local knowledge graph
+
+This repo carries an indexed code graph in `graphify-out/` (**gitignored** — local
+only). The MCP server in `.mcp.json` lets Claude Code query the graph; the
+PreToolUse hook on `Glob|Grep` reminds to read `graphify-out/GRAPH_REPORT.md`
+before brute-force searching files.
+
+Refresh after significant code changes (≥ 5 files):
+
+```bash
+graphify update .                                  # re-extract code, no LLM cost
+graphify cluster-only graphify-out/graph.json      # rerun clustering + regen report
+```
+
+The graph currently indexes 1500+ nodes across 94 detected communities. If you
+add or rename modules, regenerate so future `Glob`/`Grep` calls see the new
+structure.
