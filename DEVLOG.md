@@ -944,3 +944,56 @@ Revue de la référence Airbus `msdr_predictive_maintenance` contre streaMLytics
 
 **Fichiers ajoutés** : `Makefile`, `pyproject.toml`, `uv.lock`, `docs/checklists_ml/*` (10), `docs/adr/ADR-002-no-alembic-no-repository-pattern.md`, `.github/workflows/cd-release.yml`, `.github/workflows/security-nightly.yml`.
 **Fichiers modifiés** : `.github/workflows/ci.yml` (extraction deploys), `.claude/dev-docs/ROADMAP.md` (table ADR à jour).
+
+## 2026-05-14 — Phase D : Graphify regen + tooling doc + ML checklist filter + refactor audit ✅
+
+### What changed
+Suite à Phase B, audit complémentaire couvrant 4 axes : (1) état réel de
+graphify et RTK (les deux étaient déjà actifs, simplement non-documentés
+côté projet), (2) filtrage de la checklist ML 172 KB au scope streamlytics,
+(3) audit du refactor dashboard (rapport prioritisé, pas de code).
+
+### Livraisons
+- **Graphify** : `graphify update .` régénère le graph local (1532 nodes,
+  3106 edges, 94 communities — couvre Brick 32 + Phase B). `graphify-out/`
+  reste gitignored, regen = step opérationnel sans commit.
+- **`CLAUDE.md` — section "Tooling auxiliaire"** : commit `docs(tooling)`.
+  Documente RTK (user-level proxy, 95.6% efficiency observée) et graphify
+  (commands de refresh). Aucun code ajouté, juste de la doc onboarding.
+- **`docs/checklists_ml/RELEVANT_FOR_STREAMLYTICS.md`** : commit
+  `docs(checklists)`. Filtre les 13 sections de `unified_ml_checklist.md` :
+  ~60% applicables, ~40% rejetées (RL, time-series indus, Prometheus,
+  Kubernetes, DR — cohérent ADR-002). Soulève 3 questions P3 :
+  drift detection §9.3, MLflow registry §9.1b, retraining strategy §9.4.
+- **`.claude/dev-docs/refactor-audit-dashboard.md`** : commit `docs(refactor)`.
+  Rapport prioritisé des 7 pain points de `src/dashboard/` (14 257 lignes
+  totales) avec effort / risque / ROI par item. Top recommandations :
+  (1) context manager `project_db()` (1h, faible risque, 34 fichiers
+  simplifiés), (2) `trigger_algo.py` package split (4-6h, ROI élevé).
+  Pas de refactor effectif — user choisit dans une brique ultérieure.
+
+### Constats clés
+- Graphify et RTK étaient **déjà intégrés** au niveau infra (`.mcp.json`,
+  hook PreToolUse, RTK user-level) mais absents de `CLAUDE.md`. Gap doc
+  comblé.
+- `src/dashboard/views/` médiane 250 lignes (OK), 95e percentile 608 lignes,
+  pire offender 1209 (`trigger_algo.py`). Split de cet offender est *pré-fait*
+  par l'auteur original (5 `_show_tab_*` distincts) — l'effort se réduit à
+  déplacer en sous-fichiers.
+- 34 vues ouvrent une connexion DB manuellement avec un `try/finally:
+  db.close()` ; un context manager retirerait ~170 lignes de boilerplate.
+
+### Tests + non-régression
+- `make test` : 183/183 verts (inchangé).
+- `make lint` : mêmes 7 findings pré-existants (kpi_helpers + home + register),
+  rien de nouveau introduit par Phase D (qui est full-doc).
+
+### Hors scope, différé
+- Refactor effectif des pain points listés : user décide après lecture du
+  rapport. Trigger naturel = "next time you touch that view".
+- mypy.ini soft (toujours différé depuis Phase B).
+- Verif manuelle Brick 32 (toujours en attente côté user).
+- Push des commits sur `origin/main` (user décide quand).
+
+**Fichiers ajoutés** : `docs/checklists_ml/RELEVANT_FOR_STREAMLYTICS.md`, `.claude/dev-docs/refactor-audit-dashboard.md`.
+**Fichiers modifiés** : `CLAUDE.md` (section "Tooling auxiliaire"), `DEVLOG.md` (cette entrée).
