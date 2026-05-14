@@ -20,6 +20,8 @@ config/config.yaml
 .env
 .env.local
 .env.*
+!.env.example
+!.env.railway.example
 airflow/.env
 **/.env
 docker-compose.yml
