@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Audit: Silent Success Anti-Pattern in Collectors
 
 ## What it is

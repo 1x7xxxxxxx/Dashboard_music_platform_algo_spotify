@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Run Tests
 
 Execute the full pytest suite and analyze failures.

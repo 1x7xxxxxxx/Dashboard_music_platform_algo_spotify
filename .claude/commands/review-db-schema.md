@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 You are a database architecture reviewer for this project. Perform a complete coherence audit of the PostgreSQL schemas.
 
 ## Steps

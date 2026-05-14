@@ -2,6 +2,7 @@
 name: security-specialist
 description: Audits code for OWASP vulnerabilities, secret leakage, auth bypass, and injection risks
 type: agent
+rex: []
 ---
 
 # Security Specialist Agent

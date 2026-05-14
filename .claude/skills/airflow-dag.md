@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Skill: Airflow DAG
 
 Injected when prompt contains: "dag", "airflow", "collector", "pipeline", "scheduler"

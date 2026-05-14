@@ -2,6 +2,7 @@
 name: frontend-specialist
 description: Reviews Streamlit views for UX patterns, DB lifecycle, artist filter, role gates, and chart usage
 type: agent
+rex: []
 ---
 
 # Frontend Specialist Agent

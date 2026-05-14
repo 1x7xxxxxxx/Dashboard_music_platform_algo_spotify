@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 Read and analyze the recent Airflow logs to help diagnose pipeline issues.
 
 ## Steps

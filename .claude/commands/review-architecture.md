@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Review Architecture
 
 Audit the Mermaid diagrams in `.claude/dev-docs/architecture.md` against the current codebase state.

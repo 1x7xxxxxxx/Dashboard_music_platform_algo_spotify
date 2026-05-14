@@ -2,6 +2,7 @@
 name: test-reviewer
 description: Reviews test quality, coverage, fixture patterns, and edge case handling in unit tests
 type: agent
+rex: []
 ---
 
 # Test Reviewer Agent

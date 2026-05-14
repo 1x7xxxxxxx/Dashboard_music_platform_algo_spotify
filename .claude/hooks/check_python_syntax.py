@@ -9,6 +9,10 @@ Niveaux de sévérité :
   E9xx (syntax errors)   → exit 2  : Claude est bloqué et doit corriger
   F    (pyflakes)        → exit 0  : affiché à Claude à titre informatif
   Succès                 → exit 0  : silencieux
+
+---
+rex: []
+---
 """
 import json
 import sys

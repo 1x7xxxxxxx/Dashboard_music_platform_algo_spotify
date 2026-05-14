@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 You are an Airflow DAG pattern reviewer for this project. Audit all DAGs for structural consistency.
 
 ## Steps

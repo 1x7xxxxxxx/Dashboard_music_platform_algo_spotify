@@ -1,47 +1,101 @@
-Generate the documentation trio for a new feature, to preserve context across conversation compaction.
+---
+rex: []
+---
+
+Generate the documentation trio for a new feature/brick, to preserve context across conversation compaction.
 
 Feature name: $ARGUMENTS
 
 ## What to create
 
-Create three files under `.claude/dev-docs/$ARGUMENTS/`:
+Two files under `.claude/dev-docs/work-in-progress/$ARGUMENTS/`:
 
 ### 1. `plan.md` — Implementation plan
-Based on the current conversation, write a structured plan:
-- **Objective**: one sentence on the goal
-- **Affected files**: list with their roles (new / modified)
-- **Implementation steps**: numbered, each step actionable in one session
-- **Risks / watch-outs**: known pitfalls (e.g. ARTIST_NAME_FILTER, autocommit, imports inside DAG tasks)
-- **Out of scope**: what explicitly will NOT be done
 
-### 2. `context.md` — Technical context snapshot
-Capture the key facts needed to resume work after /clear:
-- DB tables involved (with key columns and UNIQUE constraints)
-- Related files already read in this session
-- Patterns being followed (which existing file is the reference implementation)
-- Current state: what exists vs what is missing
-- Open questions (if any)
-
-### 3. `checklist.md` — Task checklist
-A markdown checklist to track progress:
 ```markdown
-## $ARGUMENTS — Checklist
+# $ARGUMENTS — Implementation Plan
 
-### Implementation
-- [ ] Step 1...
-- [ ] Step 2...
+## Objective
+One sentence on what this brick/feature delivers.
 
-### Validation
-- [ ] Test locally (python airflow/debug_dag/debug_*.py or streamlit run)
-- [ ] Run /review-dag or /review-db-schema if relevant
-- [ ] Update DEVLOG.md
+## Affected files
+| File | Nature (new / modified) | Role |
+|------|------------------------|------|
 
-### Cleanup
-- [ ] /clear context after completion
+## Implementation steps
+1. Step 1 — specific, actionable
+2. Step 2 ...
+
+## Data / state changes
+- New tables / columns / measurements: ...
+- New env vars / secrets: ...
+- New external integrations: ...
+
+## Risks / watch-outs
+- ...
+
+## Out of scope
+- ...
 ```
+
+### 2. `context.md` — Technical snapshot (for resuming after /clear)
+
+```markdown
+# $ARGUMENTS — Technical Context
+
+## Current state
+- What already exists vs what is missing
+- Last known test count: X/X passing
+
+## Stack context
+- Languages / frameworks involved: ...
+- Data stores touched: ...
+- External services consumed: ...
+
+## Key files already read
+- path/to/file.ext — role
+
+## Patterns to follow
+- Reference implementation: [file with the closest existing pattern]
+- Conventions: see `.claude/rules/*.md`
+
+## Open questions
+- Question 1 — what needs to be confirmed before implementing
+- Question 2 — ...
+
+## Resolved questions
+- [Question text] → Answer (see DEVLOG YYYY-MM-DD)
+```
+
+## Project context (for this feature)
+
+Fill in your own. Suggested template:
+
+**Stack:** <data source> → <ingestion> → <store> → <api> → <ui>
+
+**Test command:** `<your test runner>`
+
+**Dev-docs deliverables index:**
+- `ROADMAP.md` — master tracker
+- `DEVLOG.md` — append session entry when done
+- `architecture/macro_architecture.md` — system Mermaid
+- `architecture/database_schema.md` — schema (if applicable)
+- `api/endpoints.md` — endpoints (if applicable)
+- `operations/alerting.md` — alerting (if applicable)
+- (other dev-docs your project relies on)
 
 ## After creating the files
 
 Tell the user:
-- The files are in `.claude/dev-docs/$ARGUMENTS/`
-- To resume after /clear: "Read .claude/dev-docs/$ARGUMENTS/context.md and continue with the checklist"
+- Files created in `.claude/dev-docs/work-in-progress/$ARGUMENTS/`
+- To resume after /clear: run `/resume`
+- When brick is complete: run the closing checklist below before archiving
+
+## Closing a brick (completion checklist)
+
+- [ ] All `- [ ]` steps in `plan.md` checked off
+- [ ] `ROADMAP.md` updated: brick ✅ with completion date
+- [ ] `DEVLOG.md` entry appended (Why / What changed / verification evidence)
+- [ ] `context.md` Open questions: resolved or deferred
+- [ ] Tests / smoke checks recorded
+- [ ] Move folder: `mv .claude/dev-docs/work-in-progress/$ARGUMENTS .claude/dev-docs/archives/brick-snapshots/$ARGUMENTS`

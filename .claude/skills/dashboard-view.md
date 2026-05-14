@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Skill: Dashboard View
 
 Injected when prompt contains: "dashboard", "view", "streamlit", "page", "show()"

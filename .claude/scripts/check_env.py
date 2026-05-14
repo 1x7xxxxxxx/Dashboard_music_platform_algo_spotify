@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """
-Type: Utility
-Purpose: Verify local development environment prerequisites.
-Checks: Python version, ruff, pytest, config.yaml, Docker containers.
-Usage: python3 .claude/scripts/check_env.py
+Generic environment prerequisite check.
+
+Verifies: Python ≥ 3.10, .env presence, .venv + pyyaml (for validate_rex.py),
+Docker daemon (optional). Project owners extend this script with stack-specific
+checks (DB ports, required tooling, ...).
+
+Run manually: python3 .claude/scripts/check_env.py
+Or via:       /check-env
+
+---
+rex: []
+---
 """
 import os
 import shutil
@@ -11,74 +19,109 @@ import subprocess
 import sys
 
 
-def check(label: str, ok: bool, detail: str = "") -> bool:
-    status = "✅" if ok else "❌"
-    line = f"  {status}  {label}"
-    if detail:
-        line += f"  ({detail})"
-    print(line)
-    return ok
+# ── Repo root ─────────────────────────────────────────────────────────────────
+SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))               # .claude/scripts/
+CLAUDE_DIR  = os.path.dirname(SCRIPT_DIR)                              # .claude/
+REPO_ROOT   = os.path.dirname(CLAUDE_DIR)                              # project root
+ENV_FILE    = os.path.join(REPO_ROOT, ".env")
+ENV_TEMPLATE = os.path.join(REPO_ROOT, ".env.template")
 
 
-def run(cmd: list[str], timeout: int = 5) -> tuple[bool, str]:
+def ok(msg: str)   -> None: print(f"  ✅  {msg}")
+def warn(msg: str) -> None: print(f"  ⚠️   {msg}")
+def fail(msg: str) -> None: print(f"  ❌  {msg}")
+
+
+# ── Checks ────────────────────────────────────────────────────────────────────
+
+def check_python() -> bool:
+    v = sys.version_info
+    if v >= (3, 10):
+        ok(f"Python {v.major}.{v.minor}.{v.micro}")
+        return True
+    fail(f"Python {v.major}.{v.minor} < 3.10 required")
+    return False
+
+
+def check_venv_pyyaml() -> bool:
+    venv_python = os.path.join(REPO_ROOT, ".venv", "bin", "python3")
+    if not os.path.exists(venv_python):
+        warn(".venv missing — run: python3 -m venv .venv && source .venv/bin/activate && pip install pyyaml")
+        return False
+    r = subprocess.run([venv_python, "-c", "import yaml"], capture_output=True, text=True)
+    if r.returncode == 0:
+        ok(".venv present + pyyaml installed")
+        return True
+    warn(".venv present but pyyaml missing — run: source .venv/bin/activate && pip install pyyaml")
+    return False
+
+
+def check_env_file() -> bool:
+    if not os.path.exists(ENV_FILE):
+        if os.path.exists(ENV_TEMPLATE):
+            warn(".env missing — copy .env.template to .env and fill in values")
+        else:
+            warn(".env missing (and no .env.template either — projects typically need both)")
+        return False
+    ok(".env present")
+    return True
+
+
+def check_docker() -> bool:
+    docker = shutil.which("docker")
+    if not docker:
+        win_path = "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe"
+        if os.path.exists(win_path):
+            docker = win_path
+    if not docker:
+        warn("docker not found — install Docker Desktop (skip if your project is non-containerized)")
+        return True  # non-blocking — many projects don't use Docker
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        return r.returncode == 0, (r.stdout + r.stderr).strip()
-    except Exception as e:
-        return False, str(e)
+        r = subprocess.run([docker, "info"], capture_output=True, timeout=4)
+        if r.returncode == 0:
+            ok("Docker daemon reachable")
+            return True
+        warn("Docker found but daemon not responding — start Docker Desktop")
+        return True  # non-blocking
+    except (subprocess.TimeoutExpired, OSError):
+        warn("Docker unreachable — start Docker Desktop")
+        return True  # non-blocking
 
 
-def main() -> int:
-    print("\n── Environment check ──────────────────────────")
-    failures = 0
+def check_git() -> bool:
+    if shutil.which("git"):
+        ok("git available")
+        return True
+    fail("git not found — install via your package manager")
+    return False
 
-    # Python version
-    version = sys.version_info
-    ok = version >= (3, 10)
-    if not check("Python ≥ 3.10", ok, f"{version.major}.{version.minor}.{version.micro}"):
-        failures += 1
 
-    # ruff
-    ok = shutil.which("ruff") is not None
-    if not check("ruff installed", ok, "pip install ruff" if not ok else ""):
-        failures += 1
+# ── Main ──────────────────────────────────────────────────────────────────────
 
-    # pytest
-    ok_run, out = run(["python3", "-m", "pytest", "--version"])
-    if not check("pytest installed", ok_run, out.split("\n")[0] if ok_run else "pip install pytest"):
-        failures += 1
+def main() -> None:
+    print("\n🔍 Environment Check")
+    print("─" * 50)
 
-    # config.yaml
-    config_path = "config/config.yaml"
-    ok = os.path.isfile(config_path)
-    if not check("config/config.yaml exists", ok, "copy from config/config.example.yaml" if not ok else ""):
-        failures += 1
+    results = {
+        "Python ≥ 3.10":     check_python(),
+        ".venv + pyyaml":     check_venv_pyyaml(),
+        ".env file":          check_env_file(),
+        "git":                check_git(),
+        "Docker (optional)":  check_docker(),
+    }
 
-    # .env or .env.local
-    ok = os.path.isfile(".env") or os.path.isfile(".env.local")
-    if not check(".env / .env.local exists", ok, "copy from .env.example" if not ok else ""):
-        failures += 1
-
-    # Docker (optional — don't fail if absent)
-    docker = shutil.which("docker") or "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe"
-    docker_ok = os.path.exists(docker) if not shutil.which("docker") else True
-    check("docker accessible", docker_ok, "optional — needed for Airflow")
-
-    if docker_ok:
-        ok_run, out = run([docker, "ps", "--format", "{{.Names}}"], timeout=4)
-        if ok_run:
-            for container in ("postgres_spotify_airflow", "airflow_scheduler", "airflow_webserver"):
-                running = container in out
-                check(f"  {container}", running, "docker-compose up -d" if not running else "")
-
-    print("──────────────────────────────────────────────")
-    if failures == 0:
-        print("  All prerequisites met.\n")
+    print("─" * 50)
+    passed = sum(results.values())
+    total  = len(results)
+    if passed == total:
+        print(f"✅  All {total} checks passed — environment ready\n")
     else:
-        print(f"  {failures} prerequisite(s) missing. Fix the items above before running.\n")
+        failed = [k for k, v in results.items() if not v]
+        print(f"⚠️   {passed}/{total} checks passed. Fix: {', '.join(failed)}\n")
 
-    return failures
+    print("ℹ️  Add project-specific checks in .claude/scripts/check_env.py "
+          "(DB ports, required CLIs, secret backup acknowledgement, etc.)")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

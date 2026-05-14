@@ -2,6 +2,7 @@
 name: backend-specialist
 description: Reviews collectors, DAGs, DB schemas, and utility patterns against project conventions
 type: agent
+rex: []
 ---
 
 # Backend Specialist Agent

@@ -1,16 +1,39 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/session_start.py"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/inject_context.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/inject_context.py"
           }
         ]
       }
     ],
     "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/guard_destructive.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/pre_commit_scan.py"
+          }
+        ]
+      },
       {
         "matcher": "Glob|Grep",
         "hooks": [
@@ -27,7 +50,25 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/check_python_syntax.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/check_python_syntax.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/check_roadmap_update.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/observe.py"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/pre_compact.py"
           }
         ]
       }
@@ -37,7 +78,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/session_summary.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/draft_rex.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/session_summary.py"
           }
         ]
       }

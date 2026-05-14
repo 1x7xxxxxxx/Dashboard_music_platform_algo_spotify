@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Skill: Response Protocol
 
 Applies to ALL responses, ALL files, ALL code. No exceptions.

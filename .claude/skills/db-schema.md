@@ -1,3 +1,7 @@
+---
+rex: []
+---
+
 # Skill: Database Schema
 
 Injected when prompt contains: "schema", "upsert", "postgres", "table", "migration", "database"
