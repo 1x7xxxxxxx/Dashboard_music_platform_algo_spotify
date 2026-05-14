@@ -1,7 +1,9 @@
 import os
 import streamlit as st
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator, Optional
 
 # Ajout du path pour trouver les modules src
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -9,7 +11,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
-def get_db_connection():
+
+def get_db_connection() -> Optional[PostgresHandler]:
     """
     Create a PostgreSQL connection.
 
@@ -34,3 +37,25 @@ def get_db_connection():
     except Exception as e:
         st.error(f"❌ Erreur de connexion BDD : {e}")
         return None
+
+
+@contextmanager
+def project_db() -> Iterator[PostgresHandler]:
+    """Open a Postgres connection scoped to a `with` block; guarantees close.
+
+    On connection failure, displays a Streamlit error and halts the page
+    via st.stop() — no need for the caller to check for None.
+
+    Usage:
+        with project_db() as db:
+            df = db.fetch_df("SELECT ...", params)
+            # render
+    """
+    db = get_db_connection()
+    if db is None:
+        st.error("❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`")
+        st.stop()
+    try:
+        yield db
+    finally:
+        db.close()

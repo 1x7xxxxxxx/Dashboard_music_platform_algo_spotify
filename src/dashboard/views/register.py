@@ -11,7 +11,7 @@ import re
 import secrets
 import streamlit as st
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
 from src.dashboard.auth import hash_password, _validate_password_strength
 from src.utils.verification_email import send_verification_email
 
@@ -281,70 +281,64 @@ def show():
             st.error(e)
         return
 
-    db = get_db_connection()
-    if db is None:
-        st.error("❌ Database unreachable. Make sure Docker is running.")
-        return
+    with project_db() as db:
+        try:
+            if _slug_taken(db, slug):
+                st.error(f"Slug '{slug}' is already taken. Choose a different one.")
+                return
+            if _username_taken(db, username):
+                st.error(f"Username '{username}' is already taken.")
+                return
+            if _email_taken(db, email):
+                st.error(f"Email '{email}' is already registered.")
+                return
 
-    try:
-        if _slug_taken(db, slug):
-            st.error(f"Slug '{slug}' is already taken. Choose a different one.")
-            return
-        if _username_taken(db, username):
-            st.error(f"Username '{username}' is already taken.")
-            return
-        if _email_taken(db, email):
-            st.error(f"Email '{email}' is already registered.")
-            return
+            # Resolve code type: promo takes priority over referral
+            promo = None
+            referrer_artist_id = None
+            discount_pct = 0
+            if referral_code:
+                promo = _validate_promo_code(db, referral_code)
+                if promo is None:
+                    referrer_artist_id = _validate_referral_code(db, referral_code)
+                    if referrer_artist_id is None:
+                        st.error(f"Code '{referral_code}' is not valid or has expired.")
+                        return
+                    discount_pct = 20
 
-        # Resolve code type: promo takes priority over referral
-        promo = None
-        referrer_artist_id = None
-        discount_pct = 0
-        if referral_code:
-            promo = _validate_promo_code(db, referral_code)
-            if promo is None:
-                referrer_artist_id = _validate_referral_code(db, referral_code)
-                if referrer_artist_id is None:
-                    st.error(f"Code '{referral_code}' is not valid or has expired.")
-                    return
-                discount_pct = 20
-
-        token = secrets.token_urlsafe(32)
-        _user_id, new_artist_id = _create_artist_and_user(
-            db, artist_name, slug, username, email, pw, token,
-            marketing_consent=marketing,
-            referred_by_code=referral_code if referrer_artist_id else '',
-            first_month_discount_pct=discount_pct,
-        )
-
-        if promo is not None:
-            _apply_promo(db, promo, new_artist_id, referral_code)
-        elif referrer_artist_id is not None:
-            _apply_referral(db, referrer_artist_id, new_artist_id, referral_code)
-
-        if promo:
-            discount_msg = f" Your **{promo['plan_target'].capitalize()} plan** is active for **{promo['duration_days']} days**."
-        elif discount_pct:
-            discount_msg = " Your **20% discount** will be applied to your first paid month."
-        else:
-            discount_msg = ""
-        email_sent = send_verification_email(email, username, token)
-        if email_sent:
-            st.success(
-                f"✅ Account created for **{artist_name}**!{discount_msg} "
-                f"A verification email has been sent to **{email}**. "
-                "Click the link in the email to activate your account."
+            token = secrets.token_urlsafe(32)
+            _user_id, new_artist_id = _create_artist_and_user(
+                db, artist_name, slug, username, email, pw, token,
+                marketing_consent=marketing,
+                referred_by_code=referral_code if referrer_artist_id else '',
+                first_month_discount_pct=discount_pct,
             )
-        else:
-            st.warning(
-                f"✅ Account created for **{artist_name}**,{discount_msg} but the verification email "
-                "could not be sent (SMTP not configured). "
-                "Ask an admin to manually verify your account."
-            )
-        st.link_button("→ Configurer votre dashboard (2 min)", "/?page=onboarding")
 
-    except Exception as e:
-        st.error(f"Registration failed: {e}")
-    finally:
-        db.close()
+            if promo is not None:
+                _apply_promo(db, promo, new_artist_id, referral_code)
+            elif referrer_artist_id is not None:
+                _apply_referral(db, referrer_artist_id, new_artist_id, referral_code)
+
+            if promo:
+                discount_msg = f" Your **{promo['plan_target'].capitalize()} plan** is active for **{promo['duration_days']} days**."
+            elif discount_pct:
+                discount_msg = " Your **20% discount** will be applied to your first paid month."
+            else:
+                discount_msg = ""
+            email_sent = send_verification_email(email, username, token)
+            if email_sent:
+                st.success(
+                    f"✅ Account created for **{artist_name}**!{discount_msg} "
+                    f"A verification email has been sent to **{email}**. "
+                    "Click the link in the email to activate your account."
+                )
+            else:
+                st.warning(
+                    f"✅ Account created for **{artist_name}**,{discount_msg} but the verification email "
+                    "could not be sent (SMTP not configured). "
+                    "Ask an admin to manually verify your account."
+                )
+            st.link_button("→ Configurer votre dashboard (2 min)", "/?page=onboarding")
+
+        except Exception as e:
+            st.error(f"Registration failed: {e}")

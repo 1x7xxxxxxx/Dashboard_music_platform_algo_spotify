@@ -11,8 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.utils import project_db
+from src.dashboard.auth import get_artist_id
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
@@ -388,35 +388,29 @@ def show():
     st.title("🎵 Music Platform Dashboard")
     st.markdown("---")
 
-    db = get_db_connection()
-    if db is None:
-        return
-
     artist_id = get_artist_id()  # None si admin
 
-    try:
-        # Onboarding tracker — only shown to artists with incomplete setup
-        if artist_id is not None:
-            _section_onboarding(db, artist_id)
+    with project_db() as db:
+        try:
+            # Onboarding tracker — only shown to artists with incomplete setup
+            if artist_id is not None:
+                _section_onboarding(db, artist_id)
 
-        _section_dag_status()
-        st.markdown("---")
-        _section_live_pulse(db)
-        st.markdown("---")
-        _section_freshness(db, artist_id)
-        st.markdown("---")
-        _section_streams(db, artist_id)
-        st.markdown("---")
-        _section_kpi_ml(db, artist_id)
-        st.markdown("---")
-        _section_roi(db, artist_id)
-        st.markdown("---")
-        _section_spotify_chart(db, artist_id)
-
-    except Exception as e:
-        st.error(f"Erreur d'affichage : {e}")
-    finally:
-        db.close()
+            _section_dag_status()
+            st.markdown("---")
+            _section_live_pulse(db)
+            st.markdown("---")
+            _section_freshness(db, artist_id)
+            st.markdown("---")
+            _section_streams(db, artist_id)
+            st.markdown("---")
+            _section_kpi_ml(db, artist_id)
+            st.markdown("---")
+            _section_roi(db, artist_id)
+            st.markdown("---")
+            _section_spotify_chart(db, artist_id)
+        except Exception as e:
+            st.error(f"Erreur d'affichage : {e}")
 
     st.markdown("---")
     _section_pdf_export(artist_id)
