@@ -281,6 +281,12 @@ def show():
                         'Lignes traitées': count,
                         'Statut': '✅ OK',
                     })
+                    db.execute_query(
+                        "INSERT INTO csv_upload_log "
+                        "(artist_id, filename, platform, row_count, status) "
+                        "VALUES (%s, %s, %s, %s, 'success')",
+                        (target_artist_id, r['filename'], r['platform_key'], count),
+                    )
                 except Exception as exc:
                     total_err += 1
                     result_rows.append({
@@ -290,6 +296,15 @@ def show():
                         'Lignes traitées': 0,
                         'Statut': f'❌ {exc}',
                     })
+                    try:
+                        db.execute_query(
+                            "INSERT INTO csv_upload_log "
+                            "(artist_id, filename, platform, row_count, status, error_message) "
+                            "VALUES (%s, %s, %s, 0, 'error', %s)",
+                            (target_artist_id, r['filename'], r['platform_key'], str(exc)[:500]),
+                        )
+                    except Exception:
+                        pass  # audit log failure must never block the UI
 
             st.markdown("---")
             st.subheader("📋 Résultats de l'import")

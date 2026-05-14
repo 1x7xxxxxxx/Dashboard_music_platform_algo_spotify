@@ -93,7 +93,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P4 — Tech Debt (new)
 
-- [ ] **CSV upload audit log** — log table recording filename, artist_id, platform, row count, imported_at per upload. Low value: `collected_at` on each row already serves as implicit audit trail. Implement only if compliance/debugging requires full file-level traceability.
+- [x] **CSV upload audit log** — `csv_upload_log` table (migration 025): filename, artist_id, platform, row_count, status, error_message, imported_at. Logged after every upsert in `upload_csv.py`; audit failure never blocks UI.
 
 - [x] **`init_db.sql` bootstrap gap** — 26 missing tables appended (S4A, Meta Ads, Meta Insights ×10, YouTube ×6, Apple Music ×4, Hypeddit ×2). Fresh install is now self-contained.
 - [x] **YouTube UNIQUE constraints** — `UNIQUE(artist_id, channel_id, collected_at::date)` and `UNIQUE(artist_id, video_id, collected_at::date)` added to `youtube_schema.py` + `migrations/003_youtube_unique.sql`.
