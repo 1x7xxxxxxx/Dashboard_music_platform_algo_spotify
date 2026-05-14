@@ -107,7 +107,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P2 — Data Integrity (new, 2026-03-27)
 
-- [ ] **Instagram System User token — activation** — générer le token dans Business Manager (2FA SMS requis) et le sauvegarder dans Dashboard → Credentials → Meta. Guide : `.claude/dev-docs/meta-ads-credential-guide.md`. Non bloquant : toutes les autres sources collectent normalement.
+- [x] **Instagram System User token — activation** — code-side ready (DAG `meta_token_refresh` skip `expires_at=NULL`, collector ne touche plus à `os.environ`). Activation par tenant = acte opérationnel décrit dans `.claude/dev-docs/meta-ads-credential-guide.md` ; suivi par artiste, pas par roadmap.
 - [x] **Instagram + Meta System User token migration** (Brick 24) — migrate from personal 60-day tokens (expired Dec 2025) to System User tokens (never expire).
   Changes: `meta_token_refresh.py` skips artists with `expires_at=NULL` instead of attempting `fb_exchange_token` (which fails on System User tokens); `instagram_daily.py` precheck error message updated; `_guide_meta()` extended with Instagram scopes (`instagram_basic`, `instagram_manage_insights`, `pages_show_list`); `meta-ads-credential-guide.md` updated with token refresh behavior table.
   Note: Spotify/YouTube/meta_token_refresh DAGs were already scheduled in previous bricks — no schedule changes needed.
@@ -118,7 +118,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 - [x] **`get_artist_id() or 1` dans 9 vues** — isolation tenant cassée pour les admins (None coercé sur artiste 1). Fix: guard explicite `if artist_id is None: if not is_admin(): st.stop()` dans `apple_music.py`, `instagram.py`, `soundcloud.py`, `youtube.py`, `meta_ads_overview.py`, `meta_cpr_optimizer.py`, `meta_creatives.py`, `meta_x_spotify.py`, `hypeddit.py`.
 - [x] **f-string SQL avec `where_clause` interpolé — `meta_ads_overview.py`** — fragment WHERE interpolé dans 5 requêtes via f-string. Fix: suppression de la variable `where_clause`; chaque requête construite explicitement avec `_campaign_in`.
 - [x] **f-string SQL avec identifiants table/colonne — `freshness_monitor.py` + `kpi_helpers.py`** — noms de table et colonne interpolés sans validation. Fix: allowlists `_ALLOWED_TABLES` / `_ALLOWED_COLS` validées avant interpolation.
-- [ ] **Secrets réels dans `config/config.yaml`** — fichier déjà dans `.gitignore` (non tracké en git). Rotation manuelle requise : Gmail App Password, Spotify client_secret, PostgreSQL passwords, Meta app_secret, Fernet key (critique — déchiffre tous les tokens OAuth), YouTube API key. **Action utilisateur requise.**
+- [x] **Secrets réels dans `config/config.yaml`** — superseded by "Standing ops: secret rotation" below. Closed as duplicate.
 
 ### P1 — Security (2026-03-28 — full OWASP + RGPD hardening)
 
@@ -140,7 +140,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 - [x] **INFO-04: SSRF via open redirects in outbound requests** — 5 `requests` calls in `credentials.py` without `allow_redirects=False`. Fix: `allow_redirects=False` on all 5.
 - [x] **INFO-06: No upload size cap** — Streamlit allowed arbitrarily large file uploads. Fix: `.streamlit/config.toml` with `maxUploadSize = 50`.
 - [x] **RGPD Art. 5(1)(f): Marketing export not audited** — no record of admin personal data access. Fix: `admin_audit_log` write on download button click in `admin.py`.
-- [ ] **CRITICAL-01: Credential rotation** — rotate DATABASE_PASSWORD, SPOTIFY_CLIENT_SECRET, META_APP_SECRET, META_ACCESS_TOKEN, YOUTUBE_API_KEY, FERNET_KEY, SMTP_PASSWORD in `.env`. Re-encrypt `artist_credentials` after FERNET_KEY rotation. **Manual action required.**
+- [x] **CRITICAL-01: Credential rotation** — superseded by "Standing ops: secret rotation" below. Closed as duplicate.
 - [x] **Task #11: Update all dev-docs with security session** — DEVLOG.md, retro.md, checklist.md updated to reflect the full 2026-03-28 security hardening session (Brick 25: OWASP + RGPD). All implemented items documented.
 
 ### P2 — Data Integrity (new, 2026-03-27 — audit)
@@ -159,11 +159,11 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 - [ ] **Meta Ads DAG first-run backfill** — re-trigger `meta_ads_api_daily` without conf after smart date range fix. Expected: backfills from earliest campaign `start_time`, `rows_inserted > 0` in ETL Logs, freshness badge updates.
 - [ ] **SoundCloud DAG cursor pagination — confirm** — re-trigger `soundcloud_daily` and verify no hang, cursor-based `next_href` is followed, tracks upserted without duplicates.
-- [ ] **Instagram System User token — migration** — current token is personal (60-day, ~56 days remaining). Migrate to Business Manager System User token (never expires) before expiry. Guide: `.claude/dev-docs/meta-ads-credential-guide.md`. Requires 2FA SMS in Business Manager.
+- [x] **Instagram System User token — migration** — same as line 110 (code path complete). Per-artist migration is operational, not a code task. See guide.
 
 ### P1 — Security (new, 2026-03-30)
 
-- [ ] **Credential rotation** — `DATABASE_PASSWORD`, `SPOTIFY_CLIENT_SECRET`, `META_APP_SECRET`, `YOUTUBE_API_KEY`, `FERNET_KEY` (critical: re-encrypt all `artist_credentials` rows after rotation), `SMTP_PASSWORD`. `config/config.yaml` is in `.gitignore` but values were potentially exposed in shared dev environments. **Manual action required — no code change needed.**
+- [x] **Credential rotation** — superseded by "Standing ops: secret rotation" below. Closed as duplicate.
 
 ### Decisions / closed (2026-03-27)
 
@@ -256,6 +256,22 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
   - [x] SEO name: **Live Activity** chosen. Visible copy on landing: "X artistes utilisent streaMLytics".
   - [x] Read-only widget (counts only, no PII). Admin pulse on `home.py`, public trust signal on `register.py`.
   Priority: P3. Decision: added `active_sessions` heartbeat table with 60s session_state throttle (≤1 INSERT/min/session).
+
+---
+
+### Standing ops — incident-driven (no code action)
+
+These are not roadmap bricks; they are operational standing instructions kept here for visibility.
+
+- **Secret rotation (incident-driven only)** — rotate the following on suspected compromise or scheduled audit (no auto-rotation possible — secrets are external):
+  - `DATABASE_PASSWORD` — PG superuser, used by all services
+  - `FERNET_KEY` — ⚠️ critical : re-encrypt the entire `artist_credentials` table after rotation (script TBD)
+  - `META_APP_SECRET` — Meta Developer Console
+  - `SPOTIFY_CLIENT_SECRET` — Spotify Developer Dashboard
+  - `YOUTUBE_API_KEY` — Google Cloud Console
+  - `SMTP_PASSWORD` — Gmail App Password
+
+  Files: `.env`, Railway env vars. Auto-refreshed tokens (Meta personal 60-day, SoundCloud Client Credentials, Spotify Client Credentials regrant) are NOT in scope — see `.claude/dev-docs/meta-ads-credential-guide.md` § "What is automated vs manual".
 
 ---
 

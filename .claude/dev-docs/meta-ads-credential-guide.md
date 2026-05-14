@@ -15,6 +15,22 @@ All artists share the same Meta app: **ETL_DASHBOARD_SPOTIFY**. Artists do NOT c
 
 ---
 
+## What is automated vs manual
+
+| Action | Automated? | Where |
+|---|---|---|
+| Refresh Meta personal long-lived token (60-day) | ✅ Auto | `meta_token_refresh` DAG, Mondays 07:00 UTC |
+| Refresh Meta System User token (no expiry) | N/A | Token never expires — DAG skips `expires_at=NULL` rows |
+| Refresh SoundCloud token (~1h TTL) | ✅ Auto | In-flight Client Credentials grant per DAG run |
+| Refresh Spotify access token | ✅ Auto | Spotipy Client Credentials regrant on each init |
+| YouTube API key | N/A | Static API key, no expiry |
+| **One-time activation of System User token (per artist)** | ❌ Manual | Steps 1-7 below — done once per tenant |
+| Rotate `FERNET_KEY` / `DATABASE_PASSWORD` / `META_APP_SECRET` / static API keys | ❌ Manual | Incident-driven only — see `roadmap/checklist.md` § "Standing ops" |
+
+**TL;DR** : after Step 1-7 below, no recurring action is required for this artist's Meta/Instagram data. The dashboard handles refresh in the background.
+
+---
+
 ## Step-by-step setup
 
 ### 1. Access Business Manager
@@ -126,3 +142,5 @@ The `meta_token_refresh` Airflow DAG (runs every Monday 07:00 UTC) handles two c
 | Personal long-lived token | Set (60 days rolling) | Refreshed automatically if < 30 days remaining |
 
 **Conclusion**: with a System User token, no periodic action is required. The token is valid indefinitely unless revoked manually in Business Manager.
+
+> See § "What is automated vs manual" at the top of this file for the full picture across all data sources (Spotify, YouTube, SoundCloud, Meta).
