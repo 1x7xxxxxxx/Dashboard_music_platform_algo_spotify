@@ -103,7 +103,6 @@ def _section_kpi_ml(db, artist_id):
     with c1:
         pop = get_spotify_popularity(db, artist_id)
         if pop:
-            delta_color = "normal" if pop['score'] >= 50 else "inverse"
             st.metric(
                 "🎵 Spotify Popularity",
                 f"{pop['score']} / 100",
@@ -138,7 +137,7 @@ def _section_spotify_chart(db, artist_id):
     st.subheader("📈 Évolution cumulée (Spotify S4A)")
     try:
         if artist_id is not None:
-            query = f"""
+            query = """
                 SELECT date, SUM(daily_max) AS value
                 FROM (
                     SELECT date, song, MAX(streams) AS daily_max
@@ -150,7 +149,7 @@ def _section_spotify_chart(db, artist_id):
             """
             df = db.fetch_df(query, (f"%{ARTIST_NAME_FILTER}%", artist_id))
         else:
-            query = f"""
+            query = """
                 SELECT date, SUM(daily_max) AS value
                 FROM (
                     SELECT date, song, MAX(streams) AS daily_max
@@ -255,17 +254,13 @@ def _section_pdf_export(artist_id):
                 st.error("WeasyPrint non installé : `pip install weasyprint`")
                 return
 
-            db2 = get_db_connection()
-            if db2 is None:
-                return
-            try:
-                with st.spinner("Génération…"):
-                    pdf_bytes = generate_pdf(db2, artist_id, months=12)
-                st.session_state['_home_pdf_bytes'] = pdf_bytes
-            except Exception as e:
-                st.error(f"Erreur : {e}")
-            finally:
-                db2.close()
+            with project_db() as db2:
+                try:
+                    with st.spinner("Génération…"):
+                        pdf_bytes = generate_pdf(db2, artist_id, months=12)
+                    st.session_state['_home_pdf_bytes'] = pdf_bytes
+                except Exception as e:
+                    st.error(f"Erreur : {e}")
 
     if st.session_state.get('_home_pdf_bytes'):
         now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -300,8 +295,6 @@ _STATE_COLOR = {
 
 def _section_onboarding(db, artist_id: int) -> None:
     """Brick 29 — Onboarding progress tracker for new artists."""
-    username = st.session_state.get('username', '')
-
     # Run all four checks in one round-trip using UNION ALL
     rows = db.fetch_query(
         """

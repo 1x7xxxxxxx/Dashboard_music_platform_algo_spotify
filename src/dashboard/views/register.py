@@ -127,7 +127,7 @@ def _apply_promo(db, promo: dict, artist_id: int, code: str) -> None:
             (promo['id'],),
         )
         if not incremented:
-            raise ValueError(f"Promo code already exhausted (race condition prevented).")
+            raise ValueError("Promo code already exhausted (race condition prevented).")
     else:
         db.execute_query(
             "UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = %s",

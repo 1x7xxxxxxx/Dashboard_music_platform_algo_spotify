@@ -1,5 +1,5 @@
 """Fonctions KPI réutilisables par toutes les views du dashboard."""
-from datetime import datetime, timedelta, date
+from datetime import datetime
 
 
 # Seuils de fraîcheur (en heures)
@@ -148,7 +148,7 @@ def get_total_streams_s4a(db, artist_id):
     """Total streams Spotify S4A (dédupliqué par MAX/jour/chanson)."""
     try:
         if artist_id is not None:
-            q = f"""
+            q = """
                 SELECT SUM(daily_max) FROM (
                     SELECT MAX(streams) AS daily_max
                     FROM s4a_song_timeline
@@ -158,7 +158,7 @@ def get_total_streams_s4a(db, artist_id):
             """
             row = db.fetch_query(q, (f"%{ARTIST_NAME_FILTER}%", artist_id))
         else:
-            q = f"""
+            q = """
                 SELECT SUM(daily_max) FROM (
                     SELECT MAX(streams) AS daily_max
                     FROM s4a_song_timeline
