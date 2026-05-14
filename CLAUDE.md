@@ -195,7 +195,7 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 
 ## MCP Servers
 
-All MCPs are declared at project level in `.mcp.json` (committed, no secrets — credentials are resolved at runtime via `${VAR}` from your shell environment or `.env.local`).
+All MCPs are declared at project level in `.mcp.json` — **gitignored, local-only**. Each developer maintains their own copy; credentials are resolved at runtime via `${VAR}` from your shell environment or `.env.local`. If you onboard a teammate, share the config out-of-band (1Password, secure channel) — never commit it.
 
 | MCP | Purpose | Required env var |
 |---|---|---|
