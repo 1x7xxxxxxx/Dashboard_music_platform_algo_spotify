@@ -43,18 +43,21 @@
 
 ## Open questions raised by the applicable rows (P3 backlog candidates)
 
-1. **§9.3 Drift detection on the scoring pipeline** — Should `machine_learning/`
-   compute PSI / KS-test per feature on a weekly cron, with an alert when any
-   feature drifts > 0.25? Decision pending. ROI grows with usage.
-2. **§9.1b MLflow Registry** — `machine_learning/` artifacts are file-based today
-   (pickle / json). Move to MLflow? ROI unclear at ~1 model. Re-evaluate if the
-   model count passes 3.
-3. **§9.4 Retraining strategy** — Automate retrain on drift OR keep manual
-   trigger via `views/trigger_algo.py`? Manual is fine while scoring is
-   infrequent; revisit when the trigger is hit > 1×/week.
+→ **Detailed analysis** : `.claude/dev-docs/refactor-audit-mlops.md` walks
+through 6 MLOps items with effort / risk / trigger conditions, after reading
+the actual project ML code (5 XGBoost models, MLflow tracking already
+in place, hardcoded `MODEL_PATHS` in `src/utils/ml_inference.py`).
 
-These are not commitments — just visible debt to schedule if the ML side of
-the product gains traction.
+TL;DR from that audit :
+
+1. **Tests de non-régression ML** (rank 1, 1–2 h) — fixture-based pytest assertions on `score_all_songs()` output. Catches silent model swaps. Trigger : next time you touch a model or `FEATURE_COLUMNS`.
+2. **Add `model_version` to `ml_song_predictions`** (rank 2, 30 min) — propagates `MODEL_VERSION` constant into the row so historical predictions are comparable across model bumps. Trigger : same as #1.
+3. **§9.1b MLflow Registry** (rank 3, 2 h) — currently file-path-pinned in `MODEL_PATHS`. Registry adds value only when concurrent training runs or A/B testing emerge.
+4. **§9.3 Drift detection** (rank 4, 4–6 h) — defer until a weird prediction triggers a "why ?" investigation. PSI per feature, weekly cron.
+5. **§9.4 Automated retraining** (rank 6) — defer indefinitely while cadence < 1×/month.
+
+The decisions here are NOT "yes do them" — they are "here is when each becomes
+worth doing".
 
 ## What is NOT a checklist gap (deliberate)
 
