@@ -261,7 +261,23 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P3 — Performance dashboard (long-term, 2026-05-14 audit)
 
-Audit statique complet effectué 2026-05-14. Vue par vue, file:line + gain estimé. Voir aussi `docs/adr/ADR-003-react-rewrite-deferred.md` pour l'option architecturale long-terme.
+Audit statique + live Lighthouse (page login publique) effectués 2026-05-14. Voir aussi `docs/adr/ADR-003-react-rewrite-deferred.md` pour l'option architecturale long-terme.
+
+**Mesures Lighthouse réelles (login page, headless desktop)** :
+
+| Métrique | Valeur | Score | Cible |
+|---|---|---|---|
+| Performance | 69/100 | — | ≥90 |
+| FCP (First Contentful Paint) | 3.7 s | 29 | <1.8 s |
+| **LCP (Largest Contentful Paint)** | **5.7 s** | 16 | <2.5 s |
+| TTI (Time To Interactive) | 5.7 s | 68 | <3.8 s |
+| CLS (Cumulative Layout Shift) | 0.066 | 97 | <0.1 ✅ |
+| TBT (Total Blocking Time) | 80 ms | 99 | <200 ms ✅ |
+| Speed Index | 3.7 s | 85 | <3.4 s |
+
+**Network breakdown** : 25 requêtes, 818 KiB total, **bundle JS Streamlit = 532 KiB** (`index.Drusyo5m.js`), 12 fichiers JS (550 KiB cumulé), **324 KiB de JS unused** sur la page login.
+
+**Conclusion live vs static** : le bottleneck #1 du *cold start* est le **bundle JS Streamlit** (pas Python). Les optimisations Python (cache, lazy imports) restent valides mais n'améliorent que les *renders subséquents*, pas le cold start. Cela renforce légèrement l'argument React (Next.js + code splitting → ~100-150 KiB initial bundle vs 532 KiB) mais ne change pas la décision ADR-003.
 
 - [ ] **N+1 Airflow DAG monitoring** (HIGH) — `airflow_kpi.py:209`, `home.py:350`, `credentials.py:118` : pattern `for dag_id in dag_list: monitor.get_runs_for_dag(dag_id, limit=1)` → ~15 appels API par render. Fix : batch via `monitor.get_kpis()` ou cache 60s. **Gain ~2-3 s/render.**
 - [ ] **`@st.cache_data(ttl=60)` sur 5 KPI helpers** (HIGH) — `kpi_helpers.py:147-200+` : `get_total_streams_s4a/youtube/soundcloud/apple()`, `get_spotify_popularity()`, `get_instagram_followers()`, `get_soundcloud_likes()`, `get_source_freshness()`. Métadonnées only, zéro changement comportemental. **Gain ~500-1000 ms.**
@@ -270,8 +286,9 @@ Audit statique complet effectué 2026-05-14. Vue par vue, file:line + gain estim
 - [ ] **Plotly area chart sampling** (LOW-MEDIUM) — `home.py:167` cumulative streams : `df = df[::max(1, len(df)//500)]` si >500 lignes. **Gain ~100-300 ms réseau lent.**
 - [ ] **Pagination admin + ETL logs** (HIGH si tables >1000 rows) — `admin.py:277,361,445`, `etl_logs.py:153` : `LIMIT 100` + bouton "load more" ou `st.dataframe(height=400)` pour scroll. **Gain conditional.**
 - [ ] **`SELECT *` → colonnes explicites** (LOW) — `apple_music.py:121`, `data_wrapped.py:30,40`. Dette tech mineure. **Gain <100 ms.**
+- [ ] **Disable Streamlit telemetry** (LOW privacy + perf) — confirmé par audit live : 2 calls externes au cold start (`data.streamlit.io/metrics.json` + `webhooks.fivetran.com/...`). Fix : ajouter `[browser]\ngatherUsageStats = false` dans `.streamlit/config.toml` (existe déjà avec `maxUploadSize`). **Gain ~50-100 ms + 0 leak privacy artistes.**
 
-**Estimated total** : ~2 jours de dev → -50 % temps de render moyen (de ~2-3s à ~1-1.5s). À traiter quand UX devient un pain point ou avant scaling >20 artistes actifs.
+**Estimated total** : ~2 jours de dev → -50 % temps de render moyen (de ~2-3s à ~1-1.5s) sur les pages internes. **Le cold start (LCP 5.7s) restera dominé par le bundle JS Streamlit (532 KiB) — irréductible sans changer de framework.**
 
 ### Standing ops — incident-driven (no code action)
 
