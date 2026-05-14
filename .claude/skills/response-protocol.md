@@ -74,10 +74,10 @@ Persists in: PostgreSQL spotify_etl (read-only view)
 
 ## Mandatory Background Deliverables
 
-After every substantive response (file created, file edited, architectural decision made), spawn a **single background general-purpose agent** to update these 4 files in one pass:
+After every substantive response (file created, file edited, architectural decision made), spawn a **single background general-purpose agent** to update these 4 deliverables in one pass:
 
 1. **`.claude/dev-docs/architecture.md`** — update Mermaid diagrams (macro + micro) to reflect the change
-2. **`.claude/dev-docs/retro.md`** — append one entry: `## YYYY-MM-DD HH:MM` + Changed/Why/Decisions/Status
+2. **Per-tool REX blocks** — for each `.claude/` tool modified with a durable lesson, append an entry to its frontmatter `rex:` block (see `.claude/rules/rex-format.md`). Replaces the legacy `retro.md` log.
 3. **`.claude/dev-docs/roadmap/checklist.md`** — mark completed items, add newly discovered work items
 4. **`DEVLOG.md`** — append session summary entry (Why, What changed, Technical choices, Status)
 

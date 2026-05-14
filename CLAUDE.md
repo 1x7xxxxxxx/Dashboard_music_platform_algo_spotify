@@ -127,10 +127,7 @@ When you need depth beyond `CLAUDE.md`, load these on demand :
 
 | File | Content |
 |---|---|
-| `.claude/dev-docs/architecture/macro_architecture.md` | System Mermaid diagram + data flow |
-| `.claude/dev-docs/architecture/database_schema.md` | Table inventory + ERD |
-| `.claude/dev-docs/architecture/scripts_reference.md` | Module-by-module inventory |
-| `.claude/dev-docs/architecture/stack_decision.md` | Why Postgres+Streamlit+Airflow vs alternatives |
+| `.claude/dev-docs/architecture.md` | System Mermaid diagram + data flow + table inventory |
 | `.claude/dev-docs/ROADMAP.md` | ADR table (link to `docs/adr/`) |
 | `.claude/dev-docs/roadmap/checklist.md` | Live brick tracker (open / completed) |
 | `docs/adr/ADR-001-*.md` | Roadmap-multi-files-conserved decision |
@@ -174,7 +171,7 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 ### Agents (`.claude/agents/`)
 | Agent | Role |
 |---|---|
-| `strategic-plan-architect` | Background: updates architecture.md, retro.md, checklist.md, DEVLOG.md |
+| `strategic-plan-architect` | Background: updates architecture.md, checklist.md, DEVLOG.md + per-tool REX blocks |
 | `code-architecture-reviewer` | Cold audit of modified code vs project patterns |
 | `build-error-resolver` | Diagnoses pytest failures when Stop hook signals ≥5 errors |
 | `web-research-specialist` | Web research — returns ≤500-word distilled summary |
@@ -198,33 +195,44 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 
 ## MCP Servers
 
-All configured in `~/.claude/settings.json` (never commit — contains credentials).
+All MCPs are declared at project level in `.mcp.json` (committed, no secrets — credentials are resolved at runtime via `${VAR}` from your shell environment or `.env.local`).
 
-### spotify-postgres (active)
-Direct SQL on `spotify_etl` via `mcp-postgres`. Requires Docker running.
-```json
-{ "spotify-postgres": { "command": "npx", "args": ["mcp-postgres"],
-  "env": { "DB_HOST": "localhost", "DB_PORT": "5433", "DB_USER": "postgres",
-            "DB_PASSWORD": "<see config.yaml>", "DB_NAME": "spotify_etl" } } }
-```
+| MCP | Purpose | Required env var |
+|---|---|---|
+| `graphify` | Local code knowledge graph (1500+ nodes) | — |
+| `spotify-postgres` | Direct SQL on `spotify_etl` (read-only) | `DB_PASSWORD` |
+| `github` | PR / Actions / issues review | `GITHUB_TOKEN` |
+| `chrome-devtools` | Streamlit UI inspection (console, Lighthouse) | — (Chromium installed in WSL2) |
+| `airflow` | DAG inspection via REST API (read-only) | `AIRFLOW_ADMIN_USERNAME`, `AIRFLOW_ADMIN_PASSWORD` |
 
-### chrome-devtools (setup required)
-Streamlit UI inspection, Lighthouse, console errors after UI modifications.
-```json
-{ "chrome-devtools": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-puppeteer"] } }
-```
+### Required setup before first use
 
-### sqlite (setup required)
-Local SQLite files (e.g., MLflow tracking database if not using PostgreSQL backend).
-```json
-{ "sqlite": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/path/to/db"] } }
-```
+1. **Export env vars** in `~/.bashrc` or `.env.local` (see `.env.example` § MCP Servers) :
+   ```bash
+   export DB_PASSWORD='<see config/config.yaml>'
+   export GITHUB_TOKEN='<PAT scopes: repo, read:org>'   # github.com/settings/tokens
+   export AIRFLOW_ADMIN_USERNAME='<see docker-compose.yml — _AIRFLOW_WWW_USER_USERNAME>'
+   export AIRFLOW_ADMIN_PASSWORD='<see docker-compose.yml — _AIRFLOW_WWW_USER_PASSWORD>'
+   ```
+2. **Chromium / Chrome auto-downloaded** by `chrome-devtools-mcp` on first run via puppeteer (no `apt install` needed). On WSL2 Ubuntu 24.04, the `chromium-browser` apt package is a snap shim that doesn't work — rely on puppeteer's bundled Chrome for Testing instead.
+3. **Install `uv`** if missing (for `airflow` MCP) : `pip install uv`
+4. **Restart Claude Code** so it re-reads `.mcp.json`.
 
-### docker (setup required — WSL2 prerequisite)
-Enable first: Docker Desktop → Settings → Resources → WSL Integration → enable distro.
-```json
-{ "docker": { "command": "docker", "args": ["run", "-i", "--rm", "-v", "/var/run/docker.sock:/var/run/docker.sock", "docker/mcp-toolkit"] } }
-```
+### Verification
+- `claude mcp` lists active servers and start-up errors
+- Each MCP can be tested by asking Claude an obvious query (e.g. "list spotify_etl tables", "list open PRs", "list DAGs and their status")
+
+### MCP selection rationale (May 2026)
+- **Postgres MCP** : official Anthropic server, read-only by default — safer than `crystaldba/postgres-mcp-pro` for exploratory use
+- **GitHub MCP** : official GitHub (Go-based) — supersedes the legacy TS `@modelcontextprotocol/server-github`
+- **Chrome DevTools MCP** : official Google server — supersedes the older `@modelcontextprotocol/server-puppeteer`
+- **Airflow MCP** : community `yangkyeongmo/mcp-server-apache-airflow` — no official Apache/Astronomer equivalent yet
+
+### Out-of-scope (intentionally excluded)
+- MLflow / Sentry MCPs : aucune dépendance détectée dans le repo
+- Filesystem / Sequential-thinking MCPs : redondants avec les outils natifs de Claude Code
+- Notion / Gmail / Drive : déjà disponibles côté Claude.ai (deferred tools)
+- Spotify Web API MCP : redondant avec `src/collectors/spotify_collector.py`
 
 ## Roadmap
 

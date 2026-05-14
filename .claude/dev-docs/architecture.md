@@ -3,8 +3,6 @@
 *Auto-updated by the `strategic-plan-architect` background agent after each session.*
 *Last updated: 2026-03-28*
 
-> **Full system audit** (51 tables · 15 DAGs · 7 collectors · 14 views · all thresholds): see [`system-audit.md`](system-audit.md)
-
 ---
 
 ## Macro Architecture (Service Level)
