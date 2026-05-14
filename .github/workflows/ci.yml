@@ -28,10 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.11"
-          cache: pip
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
 
       - name: Install system dependencies (pycairo build deps via xhtml2pdf)
         run: |
@@ -40,16 +43,18 @@ jobs:
             libcairo2-dev \
             pkg-config
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Install dependencies from lockfile
+        # --frozen: refuse to update uv.lock; CI must match what devs have locally.
+        # --extra dev: include pytest, ruff, httpx, pytest-mock, pytest-cov.
+        run: uv sync --frozen --extra dev
 
       - name: Lint (ruff) — new code (blocking)
-        run: ruff check src/api/ tests/test_api.py
+        run: uv run ruff check src/api/ tests/test_api.py
 
       - name: Lint (ruff) — legacy code (advisory)
-        run: ruff check src/ tests/ --exit-zero
+        run: uv run ruff check src/ tests/ --exit-zero
 
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5433/spotify_etl
-        run: pytest tests/ -v --tb=short
+        run: uv run pytest tests/ -v --tb=short
