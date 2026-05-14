@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-05-14 (suite) — Roadmap cleanup + auto-trigger DAG + Hetzner migration doc
+
+### Why
+Confusion utilisateur sur ce qui restait "à faire" : roadmap listait 5 items "ouverts" dont 3 doublons (rotation secrets) et 2 obsolètes (IG System User token — code-side complete depuis Brick 24). Demande connexe : pouvoir déclencher automatiquement le DAG dès qu'un artiste sauvegarde ses creds, et avis Hetzner vs Railway.
+
+### What changed
+- **`roadmap/checklist.md`** : fermé lignes 110/162 (IG token : code complete, action operational par tenant) ; consolidé lignes 121/143/166 (3 doublons rotation) en une seule section "Standing ops — incident-driven" en bas du fichier.
+- **`meta-ads-credential-guide.md`** : ajouté table "What is automated vs manual" couvrant les 5 sources (Meta perso/SystemUser, SoundCloud, Spotify, YouTube) + cross-ref dans la section refresh existante.
+- **`airflow/dags/ml_scoring_daily.py`** : reschedule `0 6 * * *` → `0 11 * * *`. L'ancien horaire tournait AVANT spotify(7h)/youtube(8h)/soundcloud(9h)/instagram(10h) → scoring sur données J-1.
+- **`src/dashboard/views/credentials.py`** : nouveau `_PLATFORM_DAG_MAP` + bloc trigger non-bloquant à la fin de `_handle_save()`. Quand l'artiste sauve des creds Spotify/YouTube/SoundCloud/Instagram/Meta, le DAG correspondant se déclenche immédiatement avec `conf={'artist_id': X}`. Toast UI sur succès ; warning si Airflow injoignable — la sauvegarde des creds reste effective.
+- **`migration-hetzner.md`** (nouveau, 250 lignes) : play-by-play migration Railway → Hetzner CX33 (€6.99/mo vs €30-50/mo). 11 sections : pré-reqs, hardening, Caddy + Let's Encrypt, GitHub Action deploy, backups quotidiens via Storage Box, DNS bascule, rollback. Estimé 1 journée.
+- **`GANTT.md`** : supprimé. Stub template jamais adapté (référençait BRICKS.md / generate-dev-docs.py inexistants).
+
+### Tests
+Pas de modification fonctionnelle des collecteurs/DAGs ; pytest non re-run. Lint ruff sur fichiers touchés OK (2 F401 pré-existants hors scope).
+
+### Commits
+- `60b4a44` — docs(roadmap): consolidate stale token/rotation entries
+- `07075a4` — feat(ux): auto-trigger DAG on credential save + ml_scoring reschedule + Hetzner migration doc
+- (this commit) — chore(devlog): log session + remove dead GANTT.md stub
+
+### Reste à faire (action utilisateur uniquement)
+- Re-trigger `meta_ads_api_daily` une fois → vérifier backfill ETL Logs
+- Re-trigger `soundcloud_daily` une fois → vérifier no-hang + cursor pagination
+- Activer token IG System User via Business Manager (pas urgent)
+- Quand prêt : exécuter `migration-hetzner.md` (~1 jour)
+
+---
+
 ## 2026-04-12 — Product naming
 
 **Decision:** App officially named **streaMLytics**.
