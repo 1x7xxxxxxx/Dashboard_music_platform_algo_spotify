@@ -1069,3 +1069,59 @@ Trade-off accepté : on perd les features cytoscape spécifiques (multi-layout s
 **Fichiers ajoutés** : `tools/dev/graphify_render_html.py`.
 **Fichiers supprimés** : `tools/graph_viewer.html`.
 **Fichiers modifiés** : `Makefile`, `CLAUDE.md`, `DEVLOG.md`.
+
+---
+
+## 2026-05-14 — Repo cleanup + security hardening + supply chain ✅
+
+### Why
+Session de consolidation : nettoyage du repo accumulé sur plusieurs sprints + un audit en 3 axes (`src/`, roadmap unicité, config layer) a révélé des P1/P2 non traités malgré 32 bricks livrées. Objectif : remettre le repo en état canonique avant de commencer Phase 2 du SaaS (cf. `ROADMAP.md` brick 33+).
+
+### What changed — 13 commits
+
+**Clean repo (3 commits)** — `a4fa11e` → `418fad5`
+- Nouveau dossier `.archive/` (gitignored) pour fichiers obsolètes ; ~22 fichiers déplacés (skills inutilisés, dev-docs stubs, security-reviewer agent doublon, retro.md/system-audit.md datés, archive/meta_api_v1/ legacy v1, brick-snapshots template).
+- CLAUDE.md aligné avec l'état réel : retrait des références ROADMAP.md (stub vide) et `/audit-collectors` (slash command inexistant), ajout meta-ads-credential-guide + refactor-audit-mlops dans le tableau "Reference docs", description agent `strategic-plan-architect` mise à jour pour pointer REX blocks (rules/rex-format.md) plutôt que `retro.md`.
+
+**P2 intégrité données (1 commit)** — `a0f86de`
+- `src/collectors/instagram_api_collector.py:97-98` et `:196-224` : `except Exception` warn-only remplacé par `logger.error` + `raise` (CLAUDE.md rule #6). Avant : SQL fail dans `save_to_db` retournait silencieusement et `run()` indiquait succès — données non collectées sans alerte. Token persist DB fail idem.
+- Dédup `requirements.txt` : retiré 3 doublons (python-dotenv, pandas, psycopg2-binary aux lignes 62-64).
+- `print()` → `logger.{info,warning,error}()` dans 4 collectors (28 sites, emojis strippés).
+- `datetime.now()` → `datetime.now(timezone.utc)` dans 13 sites `collected_at` (rule python.md). Les 3 sites filename strftime laissés (cosmétiques).
+
+**Runtime cohérent (1 commit)** — `52db15f`
+- `Dockerfile.airflow` : base image `apache/airflow:2.8.1-python3.10` → `python3.11`. Aligne avec `pyproject.toml requires-python = ">=3.11"`.
+- Rebuild + smoke test : 15 DAGs chargent sans erreur, sklearn 1.8.0 / xgboost 3.2.0 / shap 0.49.1 résolvent.
+
+**P1 sécurité — SQL allowlist (2 commits)** — `d41a842` + `997dcde`
+- `src/dashboard/views/{db_health,admin,airflow_kpi}.py` : appels explicites `validate_table()` / `validate_columns()` avant chaque f-string SQL qui interpole un identifiant (rule #8). Avant : allowlist implicite via constantes (`_DATASETS`, `_GDPR_PLATFORM_TABLES`, `_INSERTION_TARGETS`) — défense-en-profondeur incomplète.
+- db_health : validation hors try/except (dataset doit être allowlisté, sinon scream loud). admin GDPR : validation dans try/except (tables non-allowlistées tombent en `-1`, sémantique identique à "table missing"). airflow_kpi : tous targets allowlistés.
+- Promotion `_validate_table` → `validate_table` (et idem pour `_validate_columns`) en API publique : 6 sites internes postgres_handler + 3 sites externes + 1 commentaire test renommés. Évite la convention "import du privé".
+
+**Supply chain (2 commits)** — `6c323c9` + `e6513b4`
+- `.github/dependabot.yml` : pip hebdo (minor/patch groupés, security séparé, majors ignorés), github-actions mensuel, docker mensuel (auto-discovers Dockerfile + .airflow + .api). Boucle "CVE détecté → PR de fix" fermée (pip-audit dans security-nightly.yml restait observationnel).
+- `.github/workflows/ci.yml` : `setup-python` + `pip install -r requirements*.txt` → `astral-sh/setup-uv@v4` + `uv sync --frozen --extra dev`. CI lit désormais `uv.lock` (231 packages pinned). Sans ce changement, les PRs Dependabot qui bumpaient `uv.lock` n'auraient eu aucun effet sur CI.
+
+### Décisions explicites de non-faire
+
+- **Phase B1 (helper `get_table_freshness()`)** : audit avait surcompté à "12+ sites". Réelle dédup possible = 1-2 sites (les autres sont des strings de doc dans `useful_links.py` rendus en UI pour copier-coller psql, OU des GROUP BY subqueries différentes). Abstraction prématurée écartée.
+- **Phase C #1 (kpi_helpers.py consolider 6 `get_total_*`)** : agrégations toutes différentes (SUM(daily_max), DISTINCT ON, view_count last value). Branching `if artist_id is not None` ne peut pas être éliminé sans f-string SQL (interdit par rule #8). Pas de helper paramétré propre.
+- **Phase C #2 (meta_ads_api_collector split)** : fichier 753L mais déjà bien structuré (section headers, helpers groupés en tête, classe orchestrée). Split en 4 sous-modules = boilerplate (re-exports, passage état) sans gain net.
+
+### Out-of-scope reportés
+
+- `.env.railway.example` incomplet (Railway CI désactivé `if: false`).
+- Phase C #9 `credentials.py` 853L (vrai candidat split par plateforme, demande validation UI manuelle).
+- `check_roadmap_update.py` orphan refs (BRICKS.md, DEPLOYMENT.md inexistants, hook exit 0 toujours).
+- pytest sans `--cov` (gap d'observabilité, pas un bug).
+- `docker-compose.yml` credentials hardcodés (fichier gitignored, pattern à revoir).
+
+### Tests
+- `pytest tests/ -q --ignore=tests/test_api.py` → **193 passed** après chaque commit.
+- `test_api.py` reste cassé sur `ModuleNotFoundError: jose` (préexistant, env-only — `python-jose` pas installé localement, mais OK en CI).
+- Smoke Airflow : `docker exec airflow_scheduler airflow dags list-import-errors` → No data found.
+
+### Graphify
+- Refresh : 1581 nodes / 3150 edges / 114 communities (vs 1500/94 ce matin).
+
+**Fichiers modifiés/ajoutés** : `.archive/` (gitignored, 22 fichiers), `.gitignore`, `CLAUDE.md`, `.claude/dev-docs/architecture.md`, `.claude/skills/response-protocol.md`, `.claude/agents/strategic-plan-architect.md`, `Dockerfile.airflow`, `.github/dependabot.yml` (nouveau), `.github/workflows/ci.yml`, `requirements.txt`, `src/collectors/{instagram_api,meta_csv_watcher,meta_insight_watcher,s4a_csv_watcher,meta_ads_api,soundcloud_api,spotify_api,youtube}.py`, `src/dashboard/views/{db_health,admin,airflow_kpi}.py`, `src/database/postgres_handler.py`, `tests/test_postgres_handler.py`.

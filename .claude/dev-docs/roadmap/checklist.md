@@ -226,6 +226,23 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 - [x] **s4a_audience playlist_adds / saves still 0** — confirmed: `playlist_adds` is not present in `s4a_songs_global` CSV (neither 28d nor 12m format). Only source is `s4a_audience` daily timeline CSV (artist-level delta) which records 0 for this artist — genuine data. Saves ARE in songs_global CSV and import correctly. playlist_adds entry via manual form (`s4a_song_playlist_adds`) is the intended workflow.
 
+### P1 — Security hardening (closed, 2026-05-14)
+
+- [x] **Explicit SQL allowlist guards** — `db_health.py`, `admin.py`, `airflow_kpi.py` had f-string SQL with implicit allowlist (via constant lookup). Now call `validate_table()` / `validate_columns()` explicitly before each f-string per CLAUDE.md rule #8. Promoted both validators from private (`_validate_*`) to public API in postgres_handler. Commits `d41a842`, `997dcde`.
+
+### P2 — Data integrity (closed, 2026-05-14)
+
+- [x] **Instagram collector silent success** — `_refresh_access_token` and `save_to_db` swallowed exceptions and reported success. Both now `logger.error` + `raise`. Commit `a0f86de`.
+- [x] **`requirements.txt` duplicates** — python-dotenv, pandas, psycopg2-binary listed twice (rows 62-64 vs canonical block). Removed dupes. Commit `a0f86de`.
+
+### P3 — Infra / supply chain (closed, 2026-05-14)
+
+- [x] **Airflow base image → Python 3.11** — was 3.10, mismatched `pyproject.toml requires-python = ">=3.11"`. Smoke-validated (15 DAGs load, sklearn/xgboost/shap import). Commit `52db15f`.
+- [x] **Dependabot config** — pip weekly (groups), github-actions monthly, docker monthly. Closes the loop with `security-nightly.yml` pip-audit (detection → automated fix PR). Commit `6c323c9`.
+- [x] **CI on `uv sync --frozen`** — was `pip install -r requirements*.txt` which ignored uv.lock; CI and local devs could install different transitive deps. Now CI reads uv.lock (231 packages pinned). Necessary for Dependabot to be effective. Commit `e6513b4`.
+- [x] **Repo cleanup → `.archive/`** — ~22 obsolete files (unused skills, dev-docs stubs, archived agent doublons, dated retro/audit snapshots, legacy v1 collectors) moved to gitignored `.archive/`. CLAUDE.md aligned. Commits `a4fa11e`, `d60e570`, `418fad5`.
+- [x] **Collectors style sweep** — 28 `print()` → `logger.*()` and 13 `datetime.now()` → `datetime.now(timezone.utc)` (filename strftime exempt). Commit `a0f86de`.
+
 ### P3 — UX / Features (new, 2026-04-12)
 
 - [x] **Live user counter + registered users widget** (Brick 32) — display on the app (home page or landing) the number of currently active sessions and total registered artists. ✅ 2026-05-14
