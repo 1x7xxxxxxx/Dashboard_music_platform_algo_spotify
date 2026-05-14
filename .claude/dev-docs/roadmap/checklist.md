@@ -259,6 +259,20 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ---
 
+### P3 — Performance dashboard (long-term, 2026-05-14 audit)
+
+Audit statique complet effectué 2026-05-14. Vue par vue, file:line + gain estimé. Voir aussi `docs/adr/ADR-003-react-rewrite-deferred.md` pour l'option architecturale long-terme.
+
+- [ ] **N+1 Airflow DAG monitoring** (HIGH) — `airflow_kpi.py:209`, `home.py:350`, `credentials.py:118` : pattern `for dag_id in dag_list: monitor.get_runs_for_dag(dag_id, limit=1)` → ~15 appels API par render. Fix : batch via `monitor.get_kpis()` ou cache 60s. **Gain ~2-3 s/render.**
+- [ ] **`@st.cache_data(ttl=60)` sur 5 KPI helpers** (HIGH) — `kpi_helpers.py:147-200+` : `get_total_streams_s4a/youtube/soundcloud/apple()`, `get_spotify_popularity()`, `get_instagram_followers()`, `get_soundcloud_likes()`, `get_source_freshness()`. Métadonnées only, zéro changement comportemental. **Gain ~500-1000 ms.**
+- [ ] **Lazy imports plotly + pandas dans 19 vues** (MEDIUM) — déplacer `import plotly.express as px` du top-level au scope `show()` ou helper. `if TYPE_CHECKING:` pour les hints. Files : `airflow_kpi.py`, `apple_music.py`, `data_wrapped.py`, `db_health.py`, `etl_logs.py`, `home.py`, `hypeddit.py`, `imusician.py`, `instagram.py` (+10 autres). **Gain ~200-500 ms cold start.**
+- [ ] **`@st.fragment` sur widgets isolés** (MEDIUM) — `home.py:242-272` (PDF export button + download), `airflow_kpi.py:315-320` (window selector Today/7d/30d). Skip re-render global. **Gain ~300-500 ms par interaction.**
+- [ ] **Plotly area chart sampling** (LOW-MEDIUM) — `home.py:167` cumulative streams : `df = df[::max(1, len(df)//500)]` si >500 lignes. **Gain ~100-300 ms réseau lent.**
+- [ ] **Pagination admin + ETL logs** (HIGH si tables >1000 rows) — `admin.py:277,361,445`, `etl_logs.py:153` : `LIMIT 100` + bouton "load more" ou `st.dataframe(height=400)` pour scroll. **Gain conditional.**
+- [ ] **`SELECT *` → colonnes explicites** (LOW) — `apple_music.py:121`, `data_wrapped.py:30,40`. Dette tech mineure. **Gain <100 ms.**
+
+**Estimated total** : ~2 jours de dev → -50 % temps de render moyen (de ~2-3s à ~1-1.5s). À traiter quand UX devient un pain point ou avant scaling >20 artistes actifs.
+
 ### Standing ops — incident-driven (no code action)
 
 These are not roadmap bricks; they are operational standing instructions kept here for visibility.
