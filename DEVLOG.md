@@ -1036,3 +1036,36 @@ Côté graphify, le user demandait un viewer HTML. Confirmation que la CLI graph
 
 **Fichiers modifiés** : `CLAUDE.md`, `Makefile`, `DEVLOG.md`.
 **Fichiers ajoutés** : `tools/graph_viewer.html`.
+
+## 2026-05-14 — Switch from cytoscape viewer to native graphify HTML ✅
+
+### What changed
+Le viewer cytoscape `tools/graph_viewer.html` (introduit dans le commit précédent) nécessitait `make graph-viewer` → `python3 -m http.server` parce que Chrome bloque `fetch()` sur `file://`. Le user a signalé que dans son projet de référence msdr, il n'y a **pas** besoin de serveur — le HTML s'ouvre directement.
+
+Investigation : graphify expose `to_html()` dans `graphify.export` (alias `generate_html`) qui produit un HTML autonome avec vis-network bundled inline. La CLI ne l'expose pas en command direct, mais msdr a un script `tools/dev/graphify_render_html.py` qui l'appelle. Solution : porter ce script.
+
+### Livraisons
+- **`tools/dev/graphify_render_html.py`** (nouveau, 53 lignes) — copie quasi-littérale du script msdr. Charge `graph.json`, reconstruit NetworkX `G` + communities, appelle `ex.to_html()`. Lift le cap `MAX_NODES_FOR_VIZ` à 100k pour future-proof.
+- **`Makefile`** :
+  - Retiré : `make graph-refresh`, `make graph-viewer`
+  - Ajouté : `make graph-update` (= `graphify update .`), `make graph-html` (= script render), `make graph` (les deux en un)
+- **`tools/graph_viewer.html`** : **supprimé** (cytoscape viewer obsolete vs natif vis-network)
+- **`CLAUDE.md`** : section graphify mise à jour pour pointer vers le HTML autonome, plus aucune mention de serveur HTTP
+
+### Vérification
+- `python3 tools/dev/graphify_render_html.py` : OK, produit `graphify-out/graph.html` (1.3 MB, 1532 nodes / 3106 edges / 94 communities).
+- `make help` : 13 cibles, plus de `graph-viewer`, ajout de `graph-update` / `graph-html` / `graph`.
+- `tools/` : `dev/` (nouveau dossier avec le script), `tools/graph_viewer.html` supprimé.
+- `graphify-out/graph.html` : ouvrable direct en `file://`, vis-network inline, pas de serveur requis.
+
+### Rationale
+Mon viewer cytoscape avait des features sympas (regex search, 6 layouts switchables) mais introduisait du code maison à maintenir et obligeait à un workflow `make graph-viewer` + ouvrir URL. Le natif graphify (vis-network) est :
+- (a) maintenu upstream — pas de drift à gérer si graphify update son format
+- (b) **autonome** — `file://` marche, zero friction d'usage
+- (c) consistent avec le pattern msdr (le user a déjà cet usage en muscle memory)
+
+Trade-off accepté : on perd les features cytoscape spécifiques (multi-layout switcher, regex search), mais on gagne en simplicité d'usage et alignement avec la baseline msdr.
+
+**Fichiers ajoutés** : `tools/dev/graphify_render_html.py`.
+**Fichiers supprimés** : `tools/graph_viewer.html`.
+**Fichiers modifiés** : `Makefile`, `CLAUDE.md`, `DEVLOG.md`.

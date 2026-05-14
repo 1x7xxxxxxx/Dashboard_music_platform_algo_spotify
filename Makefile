@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate dashboard sync clean graph-viewer graph-refresh
+.PHONY: help up down logs test lint migrate dashboard sync clean graph graph-update graph-html
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -43,11 +43,12 @@ clean:       ## Remove Python and ruff caches
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
 	rm -rf .ruff_cache .pytest_cache
 
-graph-refresh:  ## graphify update . + cluster-only (re-extract code, rebuild GRAPH_REPORT.md)
+graph-update: ## Refresh graphify-out/graph.json + GRAPH_REPORT.md (AST only, no LLM)
 	graphify update .
-	@echo "graph-out updated: $$(stat -c '%y' graphify-out/graph.json)"
+	@echo "graph.json updated: $$(stat -c '%y' graphify-out/graph.json)"
 
-graph-viewer:   ## Serve tools/graph_viewer.html on http://localhost:8765
-	@echo "Open http://localhost:8765/tools/graph_viewer.html in your browser"
-	@echo "Ctrl+C to stop"
-	python3 -m http.server 8765
+graph-html:   ## Re-render graphify-out/graph.html (standalone, no server needed)
+	python3 tools/dev/graphify_render_html.py
+	@echo "Open graphify-out/graph.html directly in your browser (file://)"
+
+graph: graph-update graph-html ## Refresh graph.json + GRAPH_REPORT.md + graph.html in one shot
