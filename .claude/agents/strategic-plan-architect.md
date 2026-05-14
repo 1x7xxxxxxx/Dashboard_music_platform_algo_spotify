@@ -3,7 +3,12 @@ name: strategic-plan-architect
 description: "Background agent for ROADMAP + DEVLOG + retro + Mermaid updates. Launch after ≥3 .py files modified, new endpoint/table/ADR, or CLAUDE.md changed. Always run in background."
 tools: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"]
 model: opus
-rex: []
+rex:
+  - date: 2026-05-14
+    issue: "Mermaid update target was architecture/macro_architecture.md, a stub archived this session"
+    fix: "Repointed to .claude/dev-docs/architecture.md (canonical consolidated diagram file)"
+    severity: info
+    ref: DEVLOG#2026-05-14
 ---
 
 You are the strategic plan architect. Your job is to keep project documentation in sync after significant code changes.

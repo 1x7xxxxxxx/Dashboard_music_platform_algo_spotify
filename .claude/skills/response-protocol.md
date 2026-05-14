@@ -1,5 +1,10 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-14
+    issue: "Deliverable #2 listed retro.md as append target, contradicting rex-format.md which marks it deprecated"
+    fix: "Replaced 'append to retro.md' with 'append to per-tool REX block per rex-format.md'"
+    severity: info
+    ref: DEVLOG#2026-05-14
 ---
 
 # Skill: Response Protocol
