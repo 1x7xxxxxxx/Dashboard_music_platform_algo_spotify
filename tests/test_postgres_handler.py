@@ -162,7 +162,7 @@ class TestInsertMany:
         handler.cursor.executemany.assert_not_called()
 
     def test_inserts_correct_number_of_rows(self):
-        # Use an allowlisted table name. postgres_handler._validate_table
+        # Use an allowlisted table name. postgres_handler.validate_table
         # rejects anything not in _ALLOWED_TABLES (SQL-injection guard added
         # in commit d65b0a6). Table identity is irrelevant for this test —
         # only that validation passes so insert_many's row-counting logic

@@ -12,7 +12,7 @@ from datetime import date, timedelta
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
-from src.database.postgres_handler import _validate_table, _validate_columns
+from src.database.postgres_handler import validate_table, validate_columns
 
 
 # ── Dataset registry ──────────────────────────────────────────────────────────
@@ -54,8 +54,8 @@ def _load_health(db, artist_id) -> pd.DataFrame:
         table = ds['table']
         ts = ds.get('ts_col', 'collected_at')
         # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
-        _validate_table(table)
-        _validate_columns([ts])
+        validate_table(table)
+        validate_columns([ts])
         try:
             if artist_id:
                 r = db.fetch_query(
@@ -92,8 +92,8 @@ def _load_weekly_activity(db, artist_id) -> pd.DataFrame:
         table = ds['table']
         ts = ds.get('ts_col', 'collected_at')
         # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
-        _validate_table(table)
-        _validate_columns([ts])
+        validate_table(table)
+        validate_columns([ts])
         try:
             if artist_id:
                 df = db.fetch_df(

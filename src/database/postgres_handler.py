@@ -43,13 +43,13 @@ _ALLOWED_TABLES = frozenset({
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
 
 
-def _validate_table(table: str) -> None:
+def validate_table(table: str) -> None:
     """Raise ValueError if table is not in the allowlist."""
     if table not in _ALLOWED_TABLES:
         raise ValueError(f"SQL injection guard: table '{table}' is not in the allowed list")
 
 
-def _validate_columns(columns: List[str]) -> None:
+def validate_columns(columns: List[str]) -> None:
     """Raise ValueError if any column name contains non-identifier characters."""
     for col in columns:
         # Allow functional index expressions like (collected_at::date)
@@ -216,10 +216,10 @@ class PostgresHandler:
             logger.warning(f"⚠️ insert_many appelé avec data vide pour {table}")
             return 0
         
-        _validate_table(table)
+        validate_table(table)
         try:
             columns = list(data[0].keys())
-            _validate_columns(columns)
+            validate_columns(columns)
             values = [[row.get(col) for col in columns] for row in data]
 
             query = pgsql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
@@ -273,13 +273,13 @@ class PostgresHandler:
                 )
             data = list(seen.values())
 
-        _validate_table(table)
+        validate_table(table)
         self._ensure_connection()
         try:
             columns = list(data[0].keys())
-            _validate_columns(columns)
-            _validate_columns([c for c in conflict_columns if not c.startswith('(')])
-            _validate_columns(update_columns)
+            validate_columns(columns)
+            validate_columns([c for c in conflict_columns if not c.startswith('(')])
+            validate_columns(update_columns)
             values = [[row.get(col) for col in columns] for row in data]
 
             # Build INSERT ... ON CONFLICT ... DO UPDATE using psycopg2.sql to

@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import is_admin, get_artist_id
-from src.database.postgres_handler import _validate_table
+from src.database.postgres_handler import validate_table
 
 
 def _guard():
@@ -146,7 +146,7 @@ def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> d
             # CLAUDE.md rule #8 — explicit allowlist check before f-string SQL.
             # ValueError (table not allowlisted) falls into the except below and
             # records -1, same semantics as a missing table.
-            _validate_table(table)
+            validate_table(table)
             rows = db.fetch_query(
                 f"DELETE FROM {table} WHERE artist_id = %s RETURNING 1",
                 (artist_id,),
