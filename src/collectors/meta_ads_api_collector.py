@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
 from src.utils.meta_config import META_API_VERSION
 
@@ -267,7 +267,7 @@ class MetaAdsApiCollector:
                     'end_time':       c.get('stop_time'),
                     'created_time':   c.get('created_time'),
                     'updated_time':   c.get('updated_time'),
-                    'collected_at':   datetime.now(),
+                    'collected_at':   datetime.now(timezone.utc),
                 })
             logger.info(f"  {len(rows)} campaigns")
             return rows
@@ -329,7 +329,7 @@ class MetaAdsApiCollector:
                     'publisher_platforms': ','.join(tgt_dict.get('publisher_platforms', [])),
                     'instagram_positions': ','.join(tgt_dict.get('instagram_positions', [])),
                     'device_platforms':    ','.join(tgt_dict.get('device_platforms', [])),
-                    'collected_at':        datetime.now(),
+                    'collected_at':        datetime.now(timezone.utc),
                 })
             logger.info(f"  {len(rows)} adsets, {orphans} orphans skipped")
             return rows
@@ -364,7 +364,7 @@ class MetaAdsApiCollector:
                     'creative_id':  (a.get('creative') or {}).get('id'),
                     'created_time': a.get('created_time'),
                     'updated_time': a.get('updated_time'),
-                    'collected_at': datetime.now(),
+                    'collected_at': datetime.now(timezone.utc),
                 })
             logger.info(f"  {len(rows)} ads, {orphans} orphans skipped")
             return rows
@@ -519,7 +519,7 @@ class MetaAdsApiCollector:
                     'results':            row['results'],
                     'custom_conversions': row['custom_conversions'],
                     'cpr':                row['cpr'],
-                    'collected_at':       datetime.now(),
+                    'collected_at':       datetime.now(timezone.utc),
                 }
                 result['meta_insights_performance_day'].append(day_row)
             for row in e:

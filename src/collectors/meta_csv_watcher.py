@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import shutil
@@ -5,6 +6,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
@@ -37,7 +40,7 @@ class MetaCSVWatcher:
         os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
     def process_files(self):
-        print(f"📂 Analyse Config Meta dans : {RAW_DIR}")
+        logger.info(f"Analyzing Meta config in {RAW_DIR}")
         if not os.path.exists(RAW_DIR): return
 
         files = [f for f in os.listdir(RAW_DIR) if f.lower().endswith(('.xlsx', '.csv'))]
@@ -52,7 +55,7 @@ class MetaCSVWatcher:
                 data = result['data']
                 total = len(data['campaigns']) + len(data['adsets']) + len(data['ads'])
                 if total == 0:
-                    print("⚠️ 0 données trouvées.")
+                    logger.warning("No data found in file")
                     continue
 
                 # Insertion dans l'ordre (Campagne -> AdSet -> Ad)
@@ -60,11 +63,11 @@ class MetaCSVWatcher:
                 as_count = self.upsert_adsets(data['adsets'])
                 ad_count = self.upsert_ads(data['ads'])
 
-                print(f"   ✅ BDD : {c_count} Camps | {as_count} Sets | {ad_count} Ads")
+                logger.info(f"DB upsert: {c_count} campaigns, {as_count} adsets, {ad_count} ads")
                 self.archive_file(file)
 
             except Exception as e:
-                print(f"❌ CRASH sur {file}: {e}")
+                logger.error(f"Crash on {file}: {e}")
 
     # ==========================
     # UPSERTS COMPLETS
@@ -138,7 +141,7 @@ class MetaCSVWatcher:
                 self.db.execute_query(query, row)
                 count += 1
         except Exception as e:
-            print(f"⚠️ Erreur SQL : {e}")
+            logger.error(f"SQL error: {e}")
         return count
 
     def archive_file(self, filename):

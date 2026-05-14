@@ -9,7 +9,7 @@ import sys
 import time
 import logging
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -140,7 +140,7 @@ class SoundCloudCollector:
                     'likes_count': int(track.get('likes_count') or 0),
                     'reposts_count': int(track.get('reposts_count') or 0),
                     'comment_count': int(track.get('comment_count') or 0),
-                    'collected_at': datetime.now(),
+                    'collected_at': datetime.now(timezone.utc),
                 })
 
             url = data.get('next_href') if collection else None

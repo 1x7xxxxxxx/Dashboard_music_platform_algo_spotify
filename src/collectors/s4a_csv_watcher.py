@@ -1,9 +1,12 @@
+import logging
 import os
 import sys
 import shutil
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Setup chemin
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -32,37 +35,37 @@ class S4AWatcher:
         os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
     def process_files(self):
-        print("📂 Analyse du dossier data/raw...")
+        logger.info("Analyzing data/raw folder")
         
         files = [f for f in os.listdir(RAW_DIR) if f.lower().endswith('.csv')]
         
         if not files:
-            print("⚠️ Aucun fichier CSV à traiter.")
+            logger.warning("No CSV files to process")
             return
 
         for file in files:
             file_path = RAW_DIR / file
-            print(f"👉 Traitement de : {file}")
+            logger.info(f"Processing {file}")
 
             try:
                 # 1. Parsing
                 result = self.parser.parse_csv_file(file_path)
                 
                 if not result or not result.get('data'):
-                    print(f"   ⚠️ Fichier vide ou ignoré.")
+                    logger.warning(f"Empty or skipped file: {file}")
                     self.archive_file(file)
                     continue
 
                 # 2. Sauvegarde UPSERT (Mise à jour intelligente)
                 if result['type'] == 'song_timeline':
                     count = self.save_timeline_upsert(result['data'])
-                    print(f"   ✅ {count} lignes traitées pour '{result['data'][0]['song']}'")
+                    logger.info(f"{count} rows processed for '{result['data'][0]['song']}'")
                 
                 # 3. Archivage
                 self.archive_file(file)
 
             except Exception as e:
-                print(f"   ❌ Erreur critique sur {file}: {e}")
+                logger.error(f"Critical error on {file}: {e}")
 
     def save_timeline_upsert(self, data):
         """Insère ou Met à jour les données (évite les doublons)."""
@@ -86,7 +89,7 @@ class S4AWatcher:
                     count += 1
                 self.db.conn.commit()
         except Exception as e:
-            print(f"❌ Erreur SQL: {e}")
+            logger.error(f"SQL error: {e}")
             self.db.conn.rollback()
         
         return count
@@ -100,9 +103,9 @@ class S4AWatcher:
         
         try:
             shutil.move(str(src), str(dst))
-            print("   📦 Fichier archivé.")
+            logger.info("File archived")
         except Exception as e:
-            print(f"   ⚠️ Erreur archivage: {e}")
+            logger.warning(f"Archive error: {e}")
 
 if __name__ == "__main__":
     watcher = S4AWatcher()

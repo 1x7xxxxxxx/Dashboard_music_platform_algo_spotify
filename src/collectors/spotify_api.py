@@ -3,7 +3,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from typing import Dict, List, Optional, Any
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from src.utils.retry import retry
 
 # Configuration du logging
@@ -59,7 +59,7 @@ class SpotifyCollector:
                 'followers': artist['followers']['total'],
                 'popularity': artist['popularity'],
                 'genres': artist['genres'],
-                'collected_at': datetime.now()  # ✅ datetime object pour Postgres
+                'collected_at': datetime.now(timezone.utc)  # ✅ datetime object pour Postgres
             }
             
             logger.info(f"✅ Données récupérées pour l'artiste: {artist['name']}")
@@ -98,7 +98,7 @@ class SpotifyCollector:
                     'explicit': track['explicit'],
                     'album_name': track['album']['name'],
                     'release_date': release_date,
-                    'collected_at': datetime.now()
+                    'collected_at': datetime.now(timezone.utc)
                 }
                 tracks.append(track_data)
             

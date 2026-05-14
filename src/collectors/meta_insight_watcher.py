@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import shutil
@@ -5,6 +6,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
@@ -39,7 +42,7 @@ class MetaAdsWatcher:
         os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
     def process_files(self):
-        print(f"📂 Analyse Meta Ads dans : {RAW_DIR}")
+        logger.info(f"Analyzing Meta Ads in {RAW_DIR}")
         
         if not os.path.exists(RAW_DIR): return
 
@@ -50,7 +53,7 @@ class MetaAdsWatcher:
 
         for file in files:
             file_path = RAW_DIR / file
-            print(f"👉 Traitement de : {file}")
+            logger.info(f"Processing {file}")
 
             try:
                 result = self.parser.parse_csv(file_path)
@@ -58,11 +61,11 @@ class MetaAdsWatcher:
                 data = result['data']
                 
                 if result['type'] == 'error':
-                    print(f"❌ ERREUR DE PARSING sur {file}. Vérifiez le format.")
+                    logger.error(f"Parsing error on {file} — check format")
                     continue
 
                 if not data:
-                    print(f"⚠️ Fichier vide ou illisible.")
+                    logger.warning(f"Empty or unreadable file: {file}")
                     continue
 
                 count = 0
@@ -85,11 +88,11 @@ class MetaAdsWatcher:
                 elif ftype == 'engagement_country': count = self.upsert_engagement_country(data)
                 elif ftype == 'engagement_placement': count = self.upsert_engagement_placement(data)
                 
-                print(f"   ✅ {count} lignes insérées ({ftype})")
+                logger.info(f"{count} rows inserted ({ftype})")
                 self.archive_file(file)
 
             except Exception as e:
-                print(f"   ❌ Erreur critique sur {file}: {e}")
+                logger.error(f"Critical error on {file}: {e}")
                 raise
 
     def _execute_upsert(self, query, data):
@@ -100,7 +103,7 @@ class MetaAdsWatcher:
                 self.db.execute_query(query, {**row, 'artist_id': self.artist_id})
                 count += 1
         except Exception as e:
-            print(f"❌ Erreur SQL: {e}")
+            logger.error(f"SQL error: {e}")
         return count
 
     # =========================================================================
@@ -295,9 +298,9 @@ class MetaAdsWatcher:
         
         try:
             shutil.move(str(src), str(dst))
-            print(f"   📦 Fichier archivé : {new_name}")
+            logger.info(f"File archived as {new_name}")
         except Exception as e:
-            print(f"⚠️ Erreur archivage: {e}")
+            logger.warning(f"Archive error: {e}")
 
 if __name__ == "__main__":
     watcher = MetaAdsWatcher()

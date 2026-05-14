@@ -1,6 +1,6 @@
 """Collecteur pour YouTube Data API v3."""
 from googleapiclient.discovery import build
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional
 import logging
 from src.utils.retry import retry
@@ -58,7 +58,7 @@ class YouTubeCollector:
                 'view_count': int(stats.get('viewCount', 0)),
                 'thumbnail_url': snippet.get('thumbnails', {}).get('default', {}).get('url'),
                 'country': snippet.get('country'),
-                'collected_at': datetime.now()
+                'collected_at': datetime.now(timezone.utc)
             }
             
             logger.info(f"✅ Stats chaîne {snippet.get('title')}: {stats.get('subscriberCount')} abonnés")
@@ -119,7 +119,7 @@ class YouTubeCollector:
                         'description': snippet.get('description'),
                         'published_at': snippet.get('publishedAt'),
                         'thumbnail_url': snippet.get('thumbnails', {}).get('default', {}).get('url'),
-                        'collected_at': datetime.now()
+                        'collected_at': datetime.now(timezone.utc)
                     }
                     
                     videos.append(video_data)
@@ -175,7 +175,7 @@ class YouTubeCollector:
                         'favorite_count': int(stats.get('favoriteCount', 0)),
                         'duration': details.get('duration'),
                         'definition': details.get('definition'),
-                        'collected_at': datetime.now()
+                        'collected_at': datetime.now(timezone.utc)
                     }
                     
                     stats_list.append(data)
@@ -224,7 +224,7 @@ class YouTubeCollector:
                         'text': snippet.get('textDisplay'),
                         'like_count': int(snippet.get('likeCount', 0)),
                         'published_at': snippet.get('publishedAt'),
-                        'collected_at': datetime.now()
+                        'collected_at': datetime.now(timezone.utc)
                     }
                     
                     comments.append(comment_data)
@@ -278,7 +278,7 @@ class YouTubeCollector:
                         'video_count': int(details.get('itemCount', 0)),
                         'published_at': snippet.get('publishedAt'),
                         'thumbnail_url': snippet.get('thumbnails', {}).get('default', {}).get('url'),
-                        'collected_at': datetime.now()
+                        'collected_at': datetime.now(timezone.utc)
                     }
                     
                     playlists.append(playlist_data)

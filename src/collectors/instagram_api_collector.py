@@ -2,7 +2,7 @@ import os
 import sys
 import requests
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -95,7 +95,8 @@ class InstagramCollector:
                 )
                 logger.info(f"Meta access_token refreshed and persisted. New expires_at: {new_expires_at.date()}")
             except Exception as e:
-                logger.warning(f"Token persist to DB failed (non-blocking): {e}")
+                logger.error(f"Token persist to DB failed: {e}")
+                raise
 
             return True
 
@@ -132,7 +133,7 @@ class InstagramCollector:
     @retry(max_attempts=3, backoff="exponential")
     def fetch_stats(self):
         """Récupère les stats du compte."""
-        print(f"📸 Appel API Meta pour l'ID {self.ig_user_id}...")
+        logger.info(f"Calling Meta API for IG user {self.ig_user_id}")
         
         url = f"{self.base_url}/{self.ig_user_id}"
         params = {
@@ -182,10 +183,10 @@ class InstagramCollector:
                 'followers_count': data.get('followers_count', 0),
                 'follows_count': data.get('follows_count', 0),
                 'media_count': data.get('media_count', 0),
-                'collected_at': datetime.now()
+                'collected_at': datetime.now(timezone.utc)
             }
 
-            print(f"✅ Données récupérées pour @{stats['username']} : {stats['followers_count']} abonnés.")
+            logger.info(f"Fetched stats for @{stats['username']}: {stats['followers_count']} followers")
             return stats
 
         except ValueError:
@@ -195,14 +196,14 @@ class InstagramCollector:
 
     def save_to_db(self, stats):
         if not stats: 
-            print("⚠️ Pas de données à sauvegarder.")
+            logger.warning("No data to save")
             return
         
         if not self.db:
-            print("❌ Pas de connexion BDD active.")
+            logger.error("No active DB connection")
             return
 
-        print("💾 Sauvegarde en base de données...")
+        logger.info("Saving Instagram stats to database")
         
         delete_query = "DELETE FROM instagram_daily_stats WHERE collected_at::date = CURRENT_DATE AND artist_id = %s"
 
@@ -215,12 +216,13 @@ class InstagramCollector:
         try:
             self.db.execute_query(delete_query, (self.artist_id,))
             self.db.execute_query(insert_query, stats)
-            print("   ✅ Succès : Stats Instagram insérées.")
+            logger.info("Instagram stats inserted")
 
         except Exception as e:
-            print(f"❌ Erreur SQL: {e}")
+            logger.error(f"SQL error in save_to_db: {e}")
             if "relation" in str(e) and "does not exist" in str(e):
-                print("💡 TABLE MANQUANTE. Veuillez exécuter le script SQL de création.")
+                logger.error("Missing table — run the schema migration first")
+            raise
 
     def run(self):
         self._check_proactive_refresh()
