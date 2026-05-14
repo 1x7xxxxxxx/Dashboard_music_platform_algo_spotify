@@ -2,9 +2,15 @@
 
 USER root
 
-# Installer les dépendances système si nécessaire
+# System dependencies. build-essential + pkg-config + libcairo2-dev are
+# needed because pycairo (transitive of xhtml2pdf via rlpycairo) ships no
+# binary wheel and must be compiled from source. Without these, pip falls
+# back to source build for any package without a wheel and crashes on
+# "cc cannot compile" (Discovered 2026-05-14 during the sklearn deps fix).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+    build-essential \
+    pkg-config \
+    libcairo2-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

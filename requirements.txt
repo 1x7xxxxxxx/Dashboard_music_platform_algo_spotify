@@ -3,6 +3,8 @@ pandas==2.1.4
 psutil>=5.9.0
 numpy==1.26.2
 xgboost>=2.0.0
+# scikit-learn is an implicit runtime dep of xgboost 2.x — see pyproject.toml.
+scikit-learn>=1.3.0
 shap>=0.44.0
 
 # --- API Clients ---

@@ -12,6 +12,13 @@ dependencies = [
     "numpy==1.26.2",
     "psutil>=5.9.0",
     "xgboost>=2.0.0",
+    # scikit-learn is an implicit runtime dependency of xgboost 2.x:
+    # XGBClassifier.predict_proba() and XGBRegressor.predict() fail at call
+    # time with `sklearn needs to be installed` if it's missing. Discovered
+    # 2026-05-14 when ml_scoring_daily was found silently broken in the
+    # Airflow image (xgboost present, sklearn absent). Pin >=1.3 — xgboost 2
+    # uses the modern estimator API.
+    "scikit-learn>=1.3.0",
     "shap>=0.44.0",
 
     # API clients

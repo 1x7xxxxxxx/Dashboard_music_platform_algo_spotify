@@ -118,22 +118,21 @@ human review.
 
 **Defer indefinitely.** Revisit only if retraining cadence becomes weekly+.
 
-### #5 — Add `MODEL_VERSION` to prediction rows — quick win that I'd take (30 min)
+### #5 — Add `MODEL_VERSION` to prediction rows — **already in DB** (2026-05-14 correction)
 
-**Observation** : `MODEL_VERSION = "v1_noscaler"` is a constant but isn't
-written into `ml_song_predictions`. Without it in the row, you can't
-distinguish predictions made by v1 vs a future v2 if/when you bump.
+**My initial claim** : that `MODEL_VERSION` was missing from `ml_song_predictions`
+and needed a migration. **Wrong** — checked the live schema and the column is
+already there, included in the UNIQUE constraint `(artist_id, song,
+prediction_date, model_version)`, and `score_all_songs()` writes the current
+`MODEL_VERSION` constant ("v1_noscaler") into each row.
 
-**What to do** : add a `model_version` column to `ml_song_predictions`
-(migration 027), have `score_all_songs()` include it in the upserts. Now
-every row carries its provenance.
+**One minor inconsistency that's not worth fixing alone** : the column default
+is `'v1'` (from when the constant was named differently), but the code writes
+`'v1_noscaler'` explicitly. Since the explicit value always wins, the default
+is dead. Drop it in migration 027 only if you happen to touch the table for
+another reason.
 
-**Cost** : 30 min. Migration is trivial (`ALTER TABLE ADD COLUMN model_version
-TEXT DEFAULT 'v1_noscaler'` then drop the default).
-
-**Trigger** : do this next time you touch the scoring DAG. Without it, the
-first model version bump destroys the ability to compare apples to apples in
-historical predictions.
+Closing this item — no work needed on the DB or the inference code.
 
 ### #6 — Validation gates for `ml-promotion.yml` — checklist item §9.5b — defer
 
@@ -144,14 +143,57 @@ promotion process exists.
 
 ## Suggested order if you do attack MLOps
 
-| Rank | Item | Effort | Risk | When to trigger |
-|---|---|---|---|---|
-| 1 | #1 tests de non-régression ML | 1–2 h | Low | Next time you touch a model or `FEATURE_COLUMNS` |
-| 2 | #5 add `model_version` to predictions | 30 min | Low | Same trigger as #1, or any scoring DAG change |
-| 3 | #3 MLflow registry migration | 2 h | Low | When >1 person trains models, or A/B testing needed |
-| 4 | #2 drift detection | 4–6 h | Low | When a weird prediction triggers a "why?" |
-| 5 | #6 promotion gates | 1–2 h | Low | When `ml-promotion.yml` is created |
-| 6 | #4 auto-retrain | — | — | Only if cadence becomes weekly+ |
+| Rank | Item | Effort | Risk | When to trigger | Status |
+|---|---|---|---|---|---|
+| 1 | #1 tests de non-régression ML | 1–2 h | Low | Next time you touch a model or `FEATURE_COLUMNS` | **DONE 2026-05-14** (tests/test_ml_inference.py, 10 tests, baseline frozen) |
+| 2 | #5 add `model_version` to predictions | — | — | — | **Already in DB schema** (see #5 above) |
+| 3 | #3 MLflow registry migration | 2 h | Low | When >1 person trains models, or A/B testing needed | Open |
+| 4 | #2 drift detection | 4–6 h | Low | When a weird prediction triggers a "why?" | Open |
+| 5 | #6 promotion gates | 1–2 h | Low | When `ml-promotion.yml` is created | Open |
+| 6 | #4 auto-retrain | — | — | Only if cadence becomes weekly+ | Defer indefinitely |
+
+## Bug latents découverts en exécutant l'audit (2026-05-14)
+
+Deux problèmes que personne n'avait flagués, surfacés par le test fixture
+generation work :
+
+### Bug 1 — sklearn missing in Airflow image (P2)
+
+`Dockerfile.airflow` n'installait pas `scikit-learn`, qui est une dépendance
+implicite de `xgboost>=2.x` (les méthodes `predict_proba`/`predict` lèvent
+`RuntimeError: sklearn needs to be installed` sans). Le DAG
+`ml_scoring_daily` chargeait les modèles avec succès apparent mais
+échouait silencieusement à la prédiction — les `try/except` dans
+`score_song` avalaient l'erreur et renvoyaient `None`.
+
+**Impact** : `ml_song_predictions` n'a probablement pas reçu de prédictions
+correctes depuis l'install initial. À vérifier avec
+`SELECT MAX(prediction_date), COUNT(*) FROM ml_song_predictions GROUP BY model_version`.
+
+**Fix livré 2026-05-14** : `scikit-learn>=1.3.0` ajouté dans `requirements.txt`
+et `pyproject.toml`, `Dockerfile.airflow` étendu pour installer
+`build-essential` + `libcairo2-dev` + `pkg-config` (nécessaires pour le source
+build de `pycairo` via `rlpycairo` via `xhtml2pdf`). Images Airflow rebuildées.
+
+### Bug 2 — Regressors produce constant forecasts (P3, model QA)
+
+En appliquant `score_song()` sur 3 fixtures très différentes (fresh release,
+established song, viral breakout), les régresseurs `dw_streams_forecast_7d`
+et `rr_streams_forecast_7d` produisent **les mêmes valeurs** (7301 et 12
+respectivement) pour les 3 inputs. Les classifiers, eux, discriminent
+normalement.
+
+**Hypothèses** :
+- Les régresseurs ont été entraînés avec un input space différent de celui
+  des fixtures (qui utilisent des valeurs synthétiques plausibles).
+- Les régresseurs convergent en plateau pour les inputs hors-train-distribution.
+- Les features critiques pour les régresseurs ne sont pas dans `FEATURE_COLUMNS`
+  (`HowManySongsDoYouHaveInRadioRightNow` et `NonAlgoStreams28Days_log` sont
+  toujours 0/0 en prod par défaut — peut-être ces deux dominent les régresseurs).
+
+**Pas fixé ici** — ouvre une question de qualité modèle qui mérite une
+brique de QA dédiée. Le test de non-régression actuel l'**accepte** comme
+baseline (ce n'est pas un bug code, c'est une propriété du modèle).
 
 ## What I would NOT do, motivated
 
