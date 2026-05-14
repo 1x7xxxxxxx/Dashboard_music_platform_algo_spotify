@@ -1,6 +1,13 @@
 ---
 globs: [".claude/**/*.md", ".claude/hooks/*.py", ".claude/scripts/*.py"]
-rex: []
+rex:
+  - date: 2026-05-14
+    issue: "Schema doc still mandated manual issue/fix fill after /rex-promote was rewritten\
+  \ to auto-generate them"
+    fix: "Added \xA7 'Auto-fill via /rex-promote' documenting the 4 context sources and the\
+  \ lifted rule; renumbered flow (auto-promote \u2192 manual fallback \u2192 audit)"
+    severity: "info"
+    ref: "DEVLOG#2026-05-14"
 ---
 
 # REX format — {{PROJECT_NAME}} Claude Code config
@@ -64,9 +71,26 @@ Le validator parse la docstring, extrait le bloc entre `---` et le charge en YAM
 ## Flux opérationnel
 
 1. **Capture automatique (fin de session)** — le hook Stop `draft_rex.py` lit `observations.jsonl` + `git diff` et génère `.claude/sessions/pending-rex.md` avec N propositions pré-remplies (fichier cible, timestamp, diff résumé, `issue: ?` et `fix: ?` vides).
-2. **Validation humaine** — l'utilisateur édite `pending-rex.md`, remplit `issue` + `fix`, marque `validated: true` sur les entrées à promouvoir.
-3. **Promotion** — slash command `/rex-promote` lit `pending-rex.md`, injecte chaque entrée validée dans le bloc `rex:` de l'outil cible, puis supprime ou archive le fichier pending.
+2. **Promotion automatique** — slash command `/rex-promote` (depuis 2026-05-14) auto-remplit `issue` + `fix` à partir du contexte de session puis injecte dans le bloc `rex:` de l'outil cible en un seul appel. Voir § « Auto-fill via /rex-promote » ci-dessous.
+3. **Fallback manuel** — éditer `pending-rex.md` à la main (remplir `issue`/`fix`, marquer `validated: true`) puis appeler `python3 .claude/scripts/promote_rex.py` directement. Le script (aussi câblé au Stop hook chain) refuse les entrées avec stubs `?` ou `validated: false`.
 4. **Audit** — `.claude/scripts/validate_rex.py` vérifie que chaque outil expose une clé `rex:` (même vide) ; flag les outils sans REX après modifications répétées.
+
+### Auto-fill via `/rex-promote`
+
+Depuis 2026-05-14, le slash command `/rex-promote` peut générer lui-même `issue` + `fix` (+ `severity`, + `ref` optionnel) à partir de 4 sources de contexte :
+
+1. Snippets `edit.old` / `edit.new` (80 chars chacun) capturés dans `.claude/homunculus/<repo>/observations.jsonl`
+2. `git log --since=<session_start>` et `git diff HEAD` du fichier cible
+3. Relecture intégrale du fichier post-edit
+4. Dernière entrée de `.claude/dev-docs/DEVLOG.md` (pour la `ref:` si la date du jour matche un header)
+
+Le command promeut ensuite avec `validated: true` sans intervention humaine. Cela lève la règle historique « the human owns the content » pour ce flux automatique, tout en conservant :
+
+- l'immutabilité post-promotion (corrections = nouvelle entrée avec `ref:` pointant l'ancienne)
+- les contraintes de format (date ISO `YYYY-MM-DD`, `issue` ≤ 120 chars, `fix` ≤ 200 chars, `severity ∈ {info, warn, crit}`) — enforced par `validate_rex.py`
+- l'allowlist de dossiers cibles (`.claude/{agents,skills,commands,rules,hooks,scripts}`)
+
+Si une suggestion auto-générée viole les contraintes, le command reformule 1× ; sinon skip avec `reason: schema violation after 1 retry` (l'humain corrige manuellement). Pour conserver le contrat strict d'origine (zéro auto-fill), utiliser le fallback manuel décrit au point 3.
 
 ## Ce qui n'est pas un REX par outil
 
