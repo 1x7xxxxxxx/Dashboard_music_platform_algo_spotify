@@ -1,0 +1,50 @@
+[
+  {
+    "_label": "fresh_release_low_streams",
+    "StreamsLast7Days_log": 3.4,
+    "CurrentSpotifyFollowers_log": 7.8,
+    "HowManySongsDoYouHaveInRadioRightNow": 0.0,
+    "HowManySongsHasThisArtistEverReleased": 5.0,
+    "IsThisSongOptedIntoSpotifyDiscoveryMode": 1.0,
+    "ReleaseConsistencyNum": 0.5,
+    "DaysSinceRelease": 7.0,
+    "NonAlgoStreams28Days_log": 2.1,
+    "ListenersStreamRatio28Days_adj": 0.45,
+    "SavesLast28Days_adj": 0.05,
+    "PlaylistAddsLast28Days_adj": 0.02,
+    "ReleasePhaseEarly": 1.0,
+    "Velocity_Streams": 4.5
+  },
+  {
+    "_label": "established_song_steady",
+    "StreamsLast7Days_log": 8.2,
+    "CurrentSpotifyFollowers_log": 11.5,
+    "HowManySongsDoYouHaveInRadioRightNow": 0.0,
+    "HowManySongsHasThisArtistEverReleased": 25.0,
+    "IsThisSongOptedIntoSpotifyDiscoveryMode": 0.0,
+    "ReleaseConsistencyNum": 0.7,
+    "DaysSinceRelease": 365.0,
+    "NonAlgoStreams28Days_log": 7.8,
+    "ListenersStreamRatio28Days_adj": 0.62,
+    "SavesLast28Days_adj": 0.12,
+    "PlaylistAddsLast28Days_adj": 0.08,
+    "ReleasePhaseEarly": 0.0,
+    "Velocity_Streams": 1.0
+  },
+  {
+    "_label": "viral_breakout",
+    "StreamsLast7Days_log": 13.5,
+    "CurrentSpotifyFollowers_log": 13.2,
+    "HowManySongsDoYouHaveInRadioRightNow": 1.0,
+    "HowManySongsHasThisArtistEverReleased": 12.0,
+    "IsThisSongOptedIntoSpotifyDiscoveryMode": 1.0,
+    "ReleaseConsistencyNum": 0.85,
+    "DaysSinceRelease": 21.0,
+    "NonAlgoStreams28Days_log": 11.0,
+    "ListenersStreamRatio28Days_adj": 0.78,
+    "SavesLast28Days_adj": 0.22,
+    "PlaylistAddsLast28Days_adj": 0.15,
+    "ReleasePhaseEarly": 1.0,
+    "Velocity_Streams": 5.0
+  }
+]

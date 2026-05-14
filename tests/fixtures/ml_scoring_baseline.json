@@ -1,0 +1,29 @@
+{
+  "model_version": "v1_noscaler",
+  "rows": [
+    {
+      "_label": "fresh_release_low_streams",
+      "dw_probability": 0.2764228880405426,
+      "rr_probability": 0.002178444992750883,
+      "radio_probability": 0.9654995799064636,
+      "dw_streams_forecast_7d": 7301,
+      "rr_streams_forecast_7d": 12
+    },
+    {
+      "_label": "established_song_steady",
+      "dw_probability": 0.2633848190307617,
+      "rr_probability": 0.0025745511520653963,
+      "radio_probability": 0.9550468325614929,
+      "dw_streams_forecast_7d": 7301,
+      "rr_streams_forecast_7d": 12
+    },
+    {
+      "_label": "viral_breakout",
+      "dw_probability": 0.23686082661151886,
+      "rr_probability": 0.0029528404120355844,
+      "radio_probability": 0.9732740521430969,
+      "dw_streams_forecast_7d": 7301,
+      "rr_streams_forecast_7d": 12
+    }
+  ]
+}
