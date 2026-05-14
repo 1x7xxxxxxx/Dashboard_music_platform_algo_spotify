@@ -997,3 +997,42 @@ côté projet), (2) filtrage de la checklist ML 172 KB au scope streamlytics,
 
 **Fichiers ajoutés** : `docs/checklists_ml/RELEVANT_FOR_STREAMLYTICS.md`, `.claude/dev-docs/refactor-audit-dashboard.md`.
 **Fichiers modifiés** : `CLAUDE.md` (section "Tooling auxiliaire"), `DEVLOG.md` (cette entrée).
+
+## 2026-05-14 — CLAUDE.md rework + cytoscape graph viewer ✅
+
+### What changed
+Audit du `CLAUDE.md` post-Phase-D : 5 bugs détectés (double section "Cross-Cutting Rules", PowerShell-only migration, pas de mention `make`/`uv`/`pyproject.toml`, pas de pointeurs vers `dev-docs/architecture/*`). 4 edits ciblés appliqués. Le 5e (mention `make logs`) est couvert par la nouvelle table "Development tooling".
+
+Côté graphify, le user demandait un viewer HTML. Confirmation que la CLI graphify n'en produit pas (sortie native = `graph.json` + `GRAPH_REPORT.md` md). Implémentation d'un viewer maison `tools/graph_viewer.html` (cytoscape.js via CDN, ~250 lignes standalone). Servable via `make graph-viewer`.
+
+### Livraisons
+- **`CLAUDE.md`** :
+  - Consolidation de la double "Cross-Cutting Rules" (la 1re était un wrapper inutile)
+  - Nouvelle section "Running Migrations" recommandant `make migrate` (WSL/bash) et conservant PowerShell pour Windows-native
+  - Nouvelle table "Development tooling" (Makefile + pyproject.toml + uv.lock + ruff.toml)
+  - Nouvelle table "Reference docs (dev-docs/)" listant 10 pointeurs vers `dev-docs/architecture/`, `docs/adr/`, `docs/checklists_ml/`, `refactor-audit-dashboard.md`
+  - Mise à jour de la section graphify pour mentionner `make graph-refresh` et `make graph-viewer`
+- **`tools/graph_viewer.html`** (nouveau, 254 lignes) :
+  - cytoscape.js + fcose layout via CDN unpkg
+  - Click sur noeud → panneau latéral avec source_file, location, community, degree, voisins (cliquables)
+  - Regex search sur labels (dim/highlight)
+  - Switcher de layout (fcose / cose / circle / concentric / grid / breadthfirst)
+  - Coloration par community (palette 20 couleurs cyclique)
+  - Distinction edges EXTRACTED (plain) vs INFERRED (dashed, opacity 0.35)
+- **`Makefile`** :
+  - `make graph-refresh` — wrapper de `graphify update .`
+  - `make graph-viewer` — lance `python3 -m http.server 8765` puis indique l'URL du viewer
+
+### Vérification
+- `make help` : 12 cibles listées (avant : 10).
+- `make graph-refresh` : OK (~3s, mise à jour graph.json + GRAPH_REPORT.md).
+- Viewer : ouvert localement, charge bien le graph (1532 noeuds, 3106 edges, 94 communities).
+- Tests inchangés (Phase post-doc, pas de code applicatif touché).
+
+### Hors scope
+- Filtre par community dans le viewer (palette est cyclique → community 0 et 20 ont la même couleur ; négligeable pour usage actuel).
+- Export PNG/SVG du graph rendu (cytoscape supporte mais pas implémenté ici).
+- Embed du graph.json dans le HTML (pour permettre `file://` direct sans serveur) — gros fichier (1.7 MB) qui alourdirait inutilement le viewer.
+
+**Fichiers modifiés** : `CLAUDE.md`, `Makefile`, `DEVLOG.md`.
+**Fichiers ajoutés** : `tools/graph_viewer.html`.
