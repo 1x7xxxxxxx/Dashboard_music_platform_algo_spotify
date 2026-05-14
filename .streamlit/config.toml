@@ -1,0 +1,11 @@
+[server]
+# INFO-06: cap upload size to 50 MB to limit DoS via large file uploads
+maxUploadSize = 50
+# WSL2 + future Hetzner VPS: skip auto-open browser (gio fails on WSL2 without wslu;
+# headless servers have no browser at all). Open the URL manually in your browser.
+headless = true
+
+[browser]
+# Privacy + perf: skip Streamlit's built-in telemetry (data.streamlit.io/metrics.json
+# + webhooks.fivetran.com calls at cold start). Confirmed via Lighthouse audit 2026-05-14.
+gatherUsageStats = false

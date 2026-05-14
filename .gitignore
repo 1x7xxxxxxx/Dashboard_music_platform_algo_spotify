@@ -10,8 +10,9 @@ venv/
 env/
 ENV/
 
-# Streamlit
-.streamlit/
+# Streamlit — keep config.toml (infra/security: maxUploadSize, headless, telemetry off),
+# only ignore secrets.toml (legacy per-app secrets store)
+.streamlit/secrets.toml
 
 #Raccourcis
 Raccourcis.txt

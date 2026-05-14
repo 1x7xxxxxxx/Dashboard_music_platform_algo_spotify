@@ -286,7 +286,7 @@ Audit statique + live Lighthouse (page login publique) effectués 2026-05-14. Vo
 - [ ] **Plotly area chart sampling** (LOW-MEDIUM) — `home.py:167` cumulative streams : `df = df[::max(1, len(df)//500)]` si >500 lignes. **Gain ~100-300 ms réseau lent.**
 - [ ] **Pagination admin + ETL logs** (HIGH si tables >1000 rows) — `admin.py:277,361,445`, `etl_logs.py:153` : `LIMIT 100` + bouton "load more" ou `st.dataframe(height=400)` pour scroll. **Gain conditional.**
 - [ ] **`SELECT *` → colonnes explicites** (LOW) — `apple_music.py:121`, `data_wrapped.py:30,40`. Dette tech mineure. **Gain <100 ms.**
-- [ ] **Disable Streamlit telemetry** (LOW privacy + perf) — confirmé par audit live : 2 calls externes au cold start (`data.streamlit.io/metrics.json` + `webhooks.fivetran.com/...`). Fix : ajouter `[browser]\ngatherUsageStats = false` dans `.streamlit/config.toml` (existe déjà avec `maxUploadSize`). **Gain ~50-100 ms + 0 leak privacy artistes.**
+- [x] **Disable Streamlit telemetry + headless mode** — `.streamlit/config.toml` updated 2026-05-14 : `[browser] gatherUsageStats = false` (skip data.streamlit.io + fivetran calls) + `[server] headless = true` (skip auto-open browser, fixes WSL2 `gio` error + ready for Hetzner headless VPS).
 
 **Estimated total** : ~2 jours de dev → -50 % temps de render moyen (de ~2-3s à ~1-1.5s) sur les pages internes. **Le cold start (LCP 5.7s) restera dominé par le bundle JS Streamlit (532 KiB) — irréductible sans changer de framework.**
 
