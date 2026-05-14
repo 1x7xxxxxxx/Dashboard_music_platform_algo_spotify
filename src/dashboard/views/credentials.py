@@ -20,6 +20,18 @@ from src.utils.config_loader import config_loader
 from src.utils.meta_config import META_GRAPH_BASE_URL
 
 
+# platform_key → DAG to auto-trigger when credentials are saved.
+# CSV-driven sources (apple_music, imusician, s4a) are intentionally absent —
+# they pull from filesystem watchers, not on-demand from saved tokens.
+_PLATFORM_DAG_MAP = {
+    'spotify': 'spotify_api_daily',
+    'youtube': 'youtube_daily',
+    'soundcloud': 'soundcloud_daily',
+    'instagram': 'instagram_daily',
+    'meta': 'meta_ads_api_daily',
+}
+
+
 # ─────────────────────────────────────────────
 # Fernet helpers
 # ─────────────────────────────────────────────
@@ -845,6 +857,24 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                     "(app_id / app_secret manquants ou API inaccessible). "
                     "Le renouvellement automatique ne fonctionnera pas jusqu'au prochain save."
                 )
+
+        # Auto-trigger first data pull for this artist on this platform.
+        # Non-blocking: a DAG-trigger failure must NOT invalidate the credential save.
+        dag_id = _PLATFORM_DAG_MAP.get(platform_key)
+        if dag_id:
+            try:
+                import os
+                from src.utils.airflow_trigger import AirflowTrigger
+                trigger = AirflowTrigger(
+                    base_url=os.getenv('AIRFLOW_BASE_URL', 'http://localhost:8080'),
+                    username=os.getenv('AIRFLOW_ADMIN_USERNAME', 'admin'),
+                    password=os.environ['AIRFLOW_ADMIN_PASSWORD'],
+                )
+                result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})
+                if result.get('success'):
+                    st.toast(f"🚀 Collecte {platform_key} lancée — données disponibles dans ~2 min", icon="✅")
+            except Exception as trigger_err:
+                st.warning(f"⚠️ Credentials enregistrés mais déclenchement DAG échoué : {trigger_err}")
 
         st.success(f"✅ Credentials {platform_key} enregistrés.")
         st.rerun()

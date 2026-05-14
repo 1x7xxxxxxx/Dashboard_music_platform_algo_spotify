@@ -88,7 +88,7 @@ with DAG(
     dag_id='ml_scoring_daily',
     default_args=default_args,
     description='Scoring ML quotidien (XGBoost DW/RR/Radio) pour toutes les chansons actives',
-    schedule_interval='0 6 * * *',  # 06h00 UTC, après les DAGs de collecte
+    schedule_interval='0 11 * * *',  # 11h00 UTC — après spotify(7h)/youtube(8h)/soundcloud(9h)/instagram(10h)
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=['ml', 'scoring'],
