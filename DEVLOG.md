@@ -1125,3 +1125,46 @@ Session de consolidation : nettoyage du repo accumulé sur plusieurs sprints + u
 - Refresh : 1581 nodes / 3150 edges / 114 communities (vs 1500/94 ce matin).
 
 **Fichiers modifiés/ajoutés** : `.archive/` (gitignored, 22 fichiers), `.gitignore`, `CLAUDE.md`, `.claude/dev-docs/architecture.md`, `.claude/skills/response-protocol.md`, `.claude/agents/strategic-plan-architect.md`, `Dockerfile.airflow`, `.github/dependabot.yml` (nouveau), `.github/workflows/ci.yml`, `requirements.txt`, `src/collectors/{instagram_api,meta_csv_watcher,meta_insight_watcher,s4a_csv_watcher,meta_ads_api,soundcloud_api,spotify_api,youtube}.py`, `src/dashboard/views/{db_health,admin,airflow_kpi}.py`, `src/database/postgres_handler.py`, `tests/test_postgres_handler.py`.
+
+---
+
+## 2026-05-14 (suite) — Phase E wrap-up : REX promotion + hook fix + env + coverage ✅
+
+### What changed — 4 commits
+
+**REX promotion (`a3b13d9`)** — 2 drafts validés et injectés :
+- `strategic-plan-architect.md` : ref Mermaid pointait vers stub archivé → corrigée vers `architecture.md`
+- `response-protocol.md` : deliverable retro.md contredisait `rex-format.md` → remplacé par per-tool REX block
+- Validator `python3 .claude/scripts/validate_rex.py` → 42 tools OK / 0 errors
+
+**Hook orphan fix (`bcfe774`)** — `check_roadmap_update.py` était un **no-op silencieux** :
+- `_INCLUDE = "src/Application"` ne matchait jamais ce repo (code dans `src/`)
+- `_TRACKER_PATHS` pointait vers `ROADMAP.md` (archivé), `BRICKS.md` + `DEPLOYMENT.md` (inexistants)
+- Fix : `_INCLUDE = "src" + os.sep` avec excludes (`.claude/hooks`, `.claude/scripts`, `airflow/debug_dag`, `tests/`), trackers = `roadmap/checklist.md` + `DEVLOG.md`. Reminder écrit sur stderr (où Claude Code remonte les hooks), emoji stripped.
+
+**Env templates (`66f807d`)** — double bug :
+- `.gitignore` règle `.env.*` swallowait `.env.example` ET `.env.railway.example` → jamais trackés, invisibles au clone. Ajout `!.env.example` + `!.env.railway.example`.
+- `.env.railway.example` manquait les vars Stripe (Brick 21) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CHECKOUT_URL`, `STRIPE_PORTAL_URL` lues par `src/api/routers/stripe_webhook.py` + `billing.py`. L'audit avait flaggé SPOTIFY/META/YOUTUBE comme manquants, mais ces clés sont collector-side (Airflow local, pas Railway) — footer "Not required on Railway" ajouté pour bloquer les faux fix futurs.
+
+**Pytest coverage (`7376aae`)** — observabilité tests :
+- `pyproject.toml` : `[tool.coverage.run]` (branch coverage, source=src/, omit migrations/tests/__pycache__/api.main), `[tool.coverage.report]` (show_missing, exclude TYPE_CHECKING/__main__/NotImplementedError).
+- `ci.yml` : pytest gagne `--cov=src --cov-report=xml --cov-report=term-missing`, upload coverage.xml en artifact 7 jours.
+- **Pas de `fail_under`** : mesure d'abord, gate plus tard (éviter les seuils arbitraires sans baseline).
+
+### Skip explicite — Phase C #9 credentials.py (après lecture honnête)
+
+L'audit avait proposé "split par plateforme". Lecture du code révèle structure différente :
+- 244L helpers techniques (crypto, DB, mask) — shared
+- 90L `_test_*` (4 plateformes, ~25L chacun) — petits hooks data
+- 150L `_guide_*` (4 markdown guides) — text content
+- 250L **renderer générique paramétré** (`_render_platform_tab`, `_handle_save`) — UN codepath pour 7 plateformes
+- Reste : orchestrator `show()`, KPI, save handler
+
+**Pas d'UI par-plateforme à splitter**. Il y a UNE UI générique + 4 data-hooks. Splitter par plateforme = boilerplate (imports croisés) sans gain ; splitter par concern = 6 fichiers pour 1, downgrade de navigation. Le fichier est bien factorisé tel quel.
+
+C'est le 3e item Phase C rejeté après analyse (avec C#1 kpi_helpers et C#2 meta_ads_api_collector). Pattern observé : l'audit générique "fichier > 400L = split" ne survit pas à la lecture du code dans ce repo. Les vrais wins ont été ailleurs (P1 SQL allowlist, P2 silent success, supply chain).
+
+### Restant légitimement TODO
+
+- Hardcoded credentials dans `docker-compose.yml` (gitignored, mais pattern à revoir si on Compose-ifie autre chose)
+- Phase C autres items (#3-#8, #10) : aucun n'a été lu en détail aujourd'hui, mais le pattern Phase C #1/#2/#9 suggère que la majorité ne mérite pas un split. À ré-évaluer un par un si besoin futur.

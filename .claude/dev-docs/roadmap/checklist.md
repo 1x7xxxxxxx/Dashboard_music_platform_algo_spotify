@@ -242,6 +242,10 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 - [x] **CI on `uv sync --frozen`** — was `pip install -r requirements*.txt` which ignored uv.lock; CI and local devs could install different transitive deps. Now CI reads uv.lock (231 packages pinned). Necessary for Dependabot to be effective. Commit `e6513b4`.
 - [x] **Repo cleanup → `.archive/`** — ~22 obsolete files (unused skills, dev-docs stubs, archived agent doublons, dated retro/audit snapshots, legacy v1 collectors) moved to gitignored `.archive/`. CLAUDE.md aligned. Commits `a4fa11e`, `d60e570`, `418fad5`.
 - [x] **Collectors style sweep** — 28 `print()` → `logger.*()` and 13 `datetime.now()` → `datetime.now(timezone.utc)` (filename strftime exempt). Commit `a0f86de`.
+- [x] **REX promotion** — 2 drafts (`strategic-plan-architect`, `response-protocol`) validated and injected per `rules/rex-format.md`. Validator 42 tools OK. Commit `a3b13d9`.
+- [x] **`check_roadmap_update.py` hook** — was no-op (`_INCLUDE='src/Application'` mismatched repo, tracker paths pointed to non-existent files). Fixed to `_INCLUDE='src'` with proper excludes, trackers = `roadmap/checklist.md` + `DEVLOG.md`. Commit `bcfe774`.
+- [x] **`.env*.example` templates trackable** — `.gitignore` rule `.env.*` was swallowing the example onboarding files; added `!.env.example` + `!.env.railway.example` exceptions. Also added missing Stripe vars (Brick 21) to Railway example. Commit `66f807d`.
+- [x] **pytest coverage** — added `[tool.coverage]` config in `pyproject.toml`, `--cov=src --cov-report=xml` in CI, coverage.xml uploaded as 7-day artifact. No `fail_under` (measure first). Commit `7376aae`.
 
 ### P3 — UX / Features (new, 2026-04-12)
 
