@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-Hook PostToolUse — Reminder to update ROADMAP.md after Python code changes.
+Hook PostToolUse — Reminder to update the live tracker after Python code changes.
 
-Triggered after every Write or Edit on a .py file.
-Checks if ROADMAP.md was modified in the last 5 minutes.
-If not, prints a soft reminder. Always exits 0 (non-blocking).
+Triggered after every Write or Edit on a .py file under src/.
+Checks if the live tracker (roadmap/checklist.md) or DEVLOG.md was modified
+in the last 5 minutes. If not, prints a soft reminder. Always exits 0 (non-blocking).
 
 ---
-rex: []
+rex:
+  - date: 2026-05-14
+    issue: "Hook was a no-op: _INCLUDE='src/Application' mismatched repo, tracker paths pointed to archived/non-existent files"
+    fix: "Repointed to roadmap/checklist.md + DEVLOG.md, _INCLUDE='src' with hook/script/test excludes"
+    severity: warn
+    ref: DEVLOG#2026-05-14
 ---
 """
 import json
@@ -17,9 +22,8 @@ import time
 
 
 _TRACKER_PATHS = (
-    ".claude/dev-docs/ROADMAP.md",
-    ".claude/dev-docs/BRICKS.md",
-    ".claude/dev-docs/DEPLOYMENT.md",
+    ".claude/dev-docs/roadmap/checklist.md",
+    "DEVLOG.md",
 )
 _FRESHNESS_WINDOW_S = 300  # 5 minutes
 
@@ -39,11 +43,12 @@ def main():
         sys.exit(0)
 
     # Only fire for application source files — not tests, hooks, scripts, configs
-    _INCLUDE = os.path.join("src", "Application")
+    _INCLUDE = "src" + os.sep
     _EXCLUDE = (
-        os.path.join("src", "Application", "tests"),
+        os.sep + "tests" + os.sep,
         os.path.join(".claude", "hooks"),
         os.path.join(".claude", "scripts"),
+        os.path.join("airflow", "debug_dag"),
         "conftest.py",
         "setup.py",
         "setup.cfg",
@@ -73,7 +78,8 @@ def main():
     if youngest_age > _FRESHNESS_WINDOW_S:
         fname = os.path.basename(file_path)
         print(
-            f"📋 {fname} modified — remember to update ROADMAP.md / BRICKS.md / DEPLOYMENT.md"
+            f"{fname} modified — remember to update roadmap/checklist.md or DEVLOG.md",
+            file=sys.stderr,
         )
 
     sys.exit(0)
