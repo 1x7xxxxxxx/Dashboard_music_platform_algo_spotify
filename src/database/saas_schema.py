@@ -34,6 +34,16 @@ SAAS_SCHEMA = {
             ON artist_credentials(artist_id);
         CREATE INDEX IF NOT EXISTS idx_artist_credentials_platform
             ON artist_credentials(platform);
+    """,
+
+    'active_sessions': """
+        CREATE TABLE IF NOT EXISTS active_sessions (
+            artist_id      INTEGER     PRIMARY KEY REFERENCES saas_artists(id) ON DELETE CASCADE,
+            last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_active_sessions_heartbeat
+            ON active_sessions (last_heartbeat DESC);
     """
 }
 

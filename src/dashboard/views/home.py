@@ -39,6 +39,16 @@ def _freshness_badge(label, icon, last_dt):
     """
 
 
+def _section_live_pulse(db):
+    """Live Activity — 2 aggregate counters (Brick 32). No PII."""
+    from src.dashboard.utils.live_pulse import get_live_pulse
+    live, registered = get_live_pulse(db, ttl_minutes=5)
+    st.subheader("🟢 Live Activity")
+    c1, c2 = st.columns(2)
+    c1.metric("🟢 Active right now", f"{live:,}", help="Artists active within the last 5 minutes")
+    c2.metric("👥 Total registered", f"{registered:,}", help="Total active artist accounts")
+
+
 def _section_freshness(db, artist_id):
     st.subheader("📡 Fraîcheur des données")
     freshness = get_source_freshness(db, artist_id)
@@ -390,6 +400,8 @@ def show():
             _section_onboarding(db, artist_id)
 
         _section_dag_status()
+        st.markdown("---")
+        _section_live_pulse(db)
         st.markdown("---")
         _section_freshness(db, artist_id)
         st.markdown("---")

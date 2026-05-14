@@ -96,6 +96,35 @@ def _get_db():
     return get_db_connection()
 
 
+# Brick 32 — heartbeat throttle. With TTL=5 min on active_sessions, 60 s gives
+# ~5 heartbeats per liveness window: enough redundancy if one INSERT drops.
+_HEARTBEAT_THROTTLE_SECS = 60
+
+
+def _maybe_bump_heartbeat() -> None:
+    """Refresh active_sessions for the current artist, ≤1 write / 60 s / session.
+
+    Skips admins (artist_id is None) — admins are not counted as "live artists".
+    Fire-and-forget: any DB failure is logged inside bump_heartbeat and ignored.
+    """
+    artist_id = st.session_state.get('artist_id')
+    if artist_id is None:
+        return
+    last = st.session_state.get('_last_heartbeat_at', 0.0)
+    now = time.time()
+    if now - last <= _HEARTBEAT_THROTTLE_SECS:
+        return
+    from src.dashboard.utils.live_pulse import bump_heartbeat
+    db = _get_db()
+    if db is None:
+        return
+    try:
+        bump_heartbeat(db, artist_id)
+        st.session_state['_last_heartbeat_at'] = now
+    finally:
+        db.close()
+
+
 def _user_table_empty(db) -> bool:
     rows = db.fetch_query("SELECT 1 FROM saas_users LIMIT 1")
     return len(rows) == 0
@@ -292,6 +321,7 @@ def require_login() -> bool:
     Returns True if authenticated, False otherwise.
     """
     if st.session_state.get('authenticated'):
+        _maybe_bump_heartbeat()
         return True
 
     db = _get_db()

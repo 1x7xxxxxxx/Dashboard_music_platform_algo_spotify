@@ -81,3 +81,7 @@ airflow.cfg
 unittests.cfg
 airflow.db
 airflow-webserver.pid
+
+# Claude Code session state — never committed
+.claude/sessions/
+.claude/homunculus/

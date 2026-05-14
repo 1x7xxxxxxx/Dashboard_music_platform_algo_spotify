@@ -228,13 +228,13 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ### P3 — UX / Features (new, 2026-04-12)
 
-- [ ] **Live user counter + registered users widget** (Brick 32) — display on the app (home page or landing) the number of currently active sessions and total registered artists.
+- [x] **Live user counter + registered users widget** (Brick 32) — display on the app (home page or landing) the number of currently active sessions and total registered artists. ✅ 2026-05-14
   Sub-tasks:
-  - [ ] Active sessions: query `saas_artists` + session table or use a lightweight `active_sessions` table (heartbeat updated on each page load, TTL ~5 min).
-  - [ ] Registered users: `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`.
-  - [ ] SEO name TBD — candidates: "Platform Pulse", "Live Community Stats", "Artist Network Activity", "Live Activity". Pick one with good search intent for music SaaS landing pages.
-  - [ ] Surface as a read-only widget (non-admin users see aggregate only, no PII).
-  Priority: P3. Prerequisite: decide whether to add a `active_sessions` heartbeat table (migration needed) or derive from existing session data.
+  - [x] Active sessions: `active_sessions` table (heartbeat updated on each page load, TTL = 5 min). Migration 026.
+  - [x] Registered users: `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`.
+  - [x] SEO name: **Live Activity** chosen. Visible copy on landing: "X artistes utilisent streaMLytics".
+  - [x] Read-only widget (counts only, no PII). Admin pulse on `home.py`, public trust signal on `register.py`.
+  Priority: P3. Decision: added `active_sessions` heartbeat table with 60s session_state throttle (≤1 INSERT/min/session).
 
 ---
 

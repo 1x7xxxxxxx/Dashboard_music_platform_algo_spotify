@@ -212,6 +212,14 @@ def show():
     st.title("🎵 Create your account")
     st.caption("Join the Music Dashboard. Free plan — upgrade anytime.")
 
+    # Brick 32 — Live Activity (public trust signal). Count only, no PII.
+    # Cached 10 min server-side to absorb anonymous traffic bursts.
+    from src.dashboard.utils.live_pulse import get_registered_count_public
+    _registered = get_registered_count_public()
+    if _registered > 0:
+        st.metric("Live Activity", f"{_registered:,} artistes utilisent streaMLytics")
+        st.markdown("---")
+
     with st.form("register"):
         col1, col2 = st.columns(2)
 

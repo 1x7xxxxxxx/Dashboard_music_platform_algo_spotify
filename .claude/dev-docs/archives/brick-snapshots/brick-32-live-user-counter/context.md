@@ -1,6 +1,6 @@
-# Brick 32 — Technical context snapshot
+# Brick 32 — Technical context snapshot — BRICK COMPLETE 2026-05-14
 
-Captured 2026-05-14, post baseline merge (`f7b5fb0`), so the project conventions referenced here are current.
+Captured 2026-05-14, post baseline merge (`f7b5fb0`), so the project conventions referenced here are current. **Brick shipped 2026-05-14** — see DEVLOG entry `2026-05-14 — Brick 32 : Live Activity widget`. This folder is kept for historical reference; `/resume` will skip it via the `BRICK COMPLETE` marker.
 
 ## Why this brick
 

@@ -37,6 +37,7 @@ _ALLOWED_TABLES = frozenset({
     's4a_song_playlists',
     's4a_song_playlist_adds',
     'csv_upload_log',
+    'active_sessions',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')

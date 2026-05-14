@@ -883,3 +883,30 @@ Ajoutées dans `pdf_exporter.py` : Spotify S4A top songs, YouTube, Instagram, Me
 - Multiselect trié par `first_seen DESC`, défaut `[:1]` (dernière release uniquement).
 
 **Fichiers modifiés** : `app.py`, `billing.py`, `data_wrapped.py`, `soundcloud.py`, `export_csv.py`, `export_pdf.py`, `csv_exporter.py`, `pdf_exporter.py`, `requirements.txt`, `.env`
+
+## 2026-05-14 — Brick 32 : Live Activity widget ✅
+
+### What changed
+- **Migration 026** — new `active_sessions(artist_id PK FK → saas_artists, last_heartbeat TIMESTAMPTZ)` table with index on `last_heartbeat DESC`. Identity stays in `saas_artists`; activity is decoupled.
+- **`live_pulse.py`** (`src/dashboard/utils/`) — three helpers : `bump_heartbeat(db, artist_id)` (fire-and-forget UPSERT, swallows `psycopg2.Error`), `get_live_pulse(db, ttl_minutes=5) -> (live, registered)` (single round-trip), and `get_registered_count_public()` decorated `@st.cache_data(ttl=600)` for the anonymous landing widget.
+- **`auth.py`** — `_maybe_bump_heartbeat()` fired from `require_login()` short-circuit. Throttled at 60 s via `st.session_state['_last_heartbeat_at']`. Admins (`artist_id = None`) skipped.
+- **`home.py`** — `_section_live_pulse(db)` rendering 2 `st.metric` ("🟢 Active right now" / "👥 Total registered") inserted between `_section_dag_status()` and `_section_freshness()`.
+- **`register.py`** — `st.metric("Live Activity", f"{n:,} artistes utilisent streaMLytics")` at the top of `show()`. Count-only — zero PII.
+- **`postgres_handler.py`** — `'active_sessions'` added to `_ALLOWED_TABLES`. **`saas_schema.py`** — entry added to `SAAS_SCHEMA` dict so fresh installs include it.
+
+### Decisions
+- TTL = 5 min (roadmap default — accepted).
+- Throttle = 60 s (5 heartbeats / TTL window — enough redundancy without spam).
+- Public widget on `register.py` only — not duplicated on `home.py` (auth users already see the admin pulse).
+- SEO name = "Live Activity" (search intent clear; preuve sociale primaire, SEO secondaire vu les limites de Streamlit).
+
+### Tests
+- `tests/test_live_pulse.py` — 7 tests passent : upsert SQL shape + params, `psycopg2.Error` swallowed, non-DB exceptions propagated, count tuple, empty fallback, cutoff freshness, default TTL = 5 min.
+- Full test suite : **183 passed** (test_api.py skipped — pré-existant `ModuleNotFoundError: fastapi`).
+
+### Verification restante (manuelle, à faire avec Docker up)
+1. `Get-Content migrations/026_active_sessions.sql | docker exec -i <pg> psql -U postgres -d spotify_etl`
+2. Ouvrir 2 sessions incognito → 2 logins distincts → `home.py` doit afficher "Active right now: 2".
+3. Visiter `?page=register` sans auth → "X artistes utilisent streaMLytics".
+
+**Fichiers modifiés** : `migrations/026_active_sessions.sql` (nouveau), `src/database/saas_schema.py`, `src/database/postgres_handler.py`, `src/dashboard/utils/live_pulse.py` (nouveau), `src/dashboard/auth.py`, `src/dashboard/views/home.py`, `src/dashboard/views/register.py`, `tests/test_live_pulse.py` (nouveau), `.claude/dev-docs/roadmap/checklist.md`.
