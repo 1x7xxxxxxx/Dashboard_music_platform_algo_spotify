@@ -1,9 +1,6 @@
 """Vue Streamlit pour Apple Music."""
 import streamlit as st
-import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
@@ -13,7 +10,7 @@ def show():
     st.title("🍎 Apple Music Analytics")
     st.markdown("### Analyse des performances et croissance quotidienne")
     st.markdown("---")
-    
+
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
@@ -26,13 +23,13 @@ def show():
         # 1. KPIs GLOBAUX
         # ============================================================
         st.subheader("📊 Vue d'ensemble")
-        
+
         col1, col2, col3 = st.columns(3)
-        
+
         # Total des chansons
         songs_count = db.get_table_count('apple_songs_performance')
         col1.metric("🎵 Chansons Suivies", f"{songs_count:,}")
-        
+
         # Total Shazams et Plays (Dernier état connu)
         totals_query = """
             SELECT
@@ -43,17 +40,17 @@ def show():
         """
         result = db.fetch_query(totals_query, (artist_id,))
         total_plays, total_shazams = result[0] if result else (0, 0)
-        
+
         col2.metric("▶️ Total Streams (Cumul)", f"{total_plays:,}")
         col3.metric("⚡ Total Shazams (Cumul)", f"{total_shazams:,}")
-        
+
         st.markdown("---")
-        
+
         # ============================================================
         # 2. TOP CHANSONS (Barres)
         # ============================================================
         st.subheader("🏆 Top Chansons (Cumulé)")
-        
+
         top_query = """
             SELECT song_name, plays
             FROM apple_songs_performance
@@ -62,7 +59,7 @@ def show():
             LIMIT 10
         """
         df_top = db.fetch_df(top_query, (artist_id,))
-        
+
         if not df_top.empty:
             fig = px.bar(
                 df_top,
@@ -80,12 +77,12 @@ def show():
             st.plotly_chart(fig, width="stretch")
 
         st.markdown("---")
-        
+
         # ============================================================
         # 3. GRAPHIQUE DYNAMIQUE (CALCUL DIFFÉRENTIEL)
         # ============================================================
         st.subheader("📈 Croissance Quotidienne (Streams & Shazams)")
-        
+
         # Récupérer la liste des chansons — triée par dernière release (MIN date DESC)
         songs_list = db.fetch_df("""
             SELECT song_name FROM apple_songs_history
@@ -100,12 +97,12 @@ def show():
                 options=songs_list['song_name'].tolist(),
                 default=songs_list['song_name'].tolist()[:3]
             )
-            
+
             if selected_songs:
                 # ⚠️ LA MAGIE EST ICI : Requête SQL avec LAG() pour calculer la différence
                 # On calcule : Valeur Aujourd'hui - Valeur Hier
                 placeholders = ','.join(['%s'] * len(selected_songs))
-                
+
                 daily_calc_query = f"""
                     WITH daily_diff AS (
                         SELECT
@@ -125,14 +122,14 @@ def show():
                 """
 
                 df_daily = db.fetch_df(daily_calc_query, (artist_id, *selected_songs))
-                
+
                 if not df_daily.empty:
                     # Nettoyage des valeurs négatives (si Apple corrige ses chiffres à la baisse)
                     df_daily['daily_streams'] = df_daily['daily_streams'].apply(lambda x: max(0, x))
                     df_daily['daily_shazams'] = df_daily['daily_shazams'].apply(lambda x: max(0, x))
-                    
+
                     tab1, tab2 = st.tabs(["🎧 Streams / Jour", "⚡ Shazams / Jour"])
-                    
+
                     with tab1:
                         fig_streams = px.line(
                             df_daily, x='date', y='daily_streams', color='song_name',
@@ -140,7 +137,7 @@ def show():
                         )
                         fig_streams.update_layout(hovermode='x unified')
                         st.plotly_chart(fig_streams, width="stretch")
-                        
+
                     with tab2:
                         fig_shazams = px.bar(
                             df_daily, x='date', y='daily_shazams', color='song_name',
@@ -148,7 +145,7 @@ def show():
                         )
                         fig_shazams.update_layout(hovermode='x unified')
                         st.plotly_chart(fig_shazams, width="stretch")
-                        
+
                 else:
                     st.info("📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données).")
             else:
@@ -158,7 +155,7 @@ def show():
 
     except Exception as e:
         st.error(f"❌ Erreur : {e}")
-    
+
     finally:
         db.close()
 

@@ -85,7 +85,7 @@ def show():
                 df["Code expires"] = df["Code expires"].apply(lambda x: str(x) if x else "Never")
                 df["Max uses"] = df["Max uses"].apply(lambda x: "Unlimited" if x == 0 else x)
                 df["Notes"] = df["Notes"].fillna("")
-                st.dataframe(df.drop(columns=["ID"]), hide_index=True, use_container_width=True)
+                st.dataframe(df.drop(columns=["ID"]), hide_index=True, width="stretch")
 
                 st.markdown("---")
                 st.subheader("Disable / re-enable a code")
@@ -124,7 +124,7 @@ def show():
                     "Code", "Artist", "Redeemed on", "Plan granted", "Access expires"
                 ])
                 df_log["Access expires"] = df_log["Access expires"].apply(lambda x: str(x) if x else "—")
-                st.dataframe(df_log, hide_index=True, use_container_width=True)
+                st.dataframe(df_log, hide_index=True, width="stretch")
             else:
                 st.info("No redemptions yet.")
 

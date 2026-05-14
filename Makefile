@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate dashboard sync clean graph graph-update graph-html
+.PHONY: help up down logs test lint migrate dashboard sync clean graph graph-update graph-html hooks-install
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -20,8 +20,8 @@ down:        ## docker-compose down (keeps volumes)
 logs:        ## Tail Airflow scheduler logs
 	docker-compose logs -f airflow-scheduler
 
-test:        ## Pytest suite (skips test_api.py — fastapi missing in venv)
-	$(PYTHON) -m pytest tests/ --ignore=tests/test_api.py -q
+test:        ## Pytest suite — test_api.py auto-skips if dev extras absent
+	$(PYTHON) -m pytest tests/ -q
 
 lint:        ## Ruff lint on src/ and tests/
 	ruff check src/ tests/
@@ -36,12 +36,22 @@ migrate:     ## Apply every migrations/*.sql idempotently against the live PG
 dashboard:   ## Launch Streamlit dashboard (foreground, port 8501)
 	cd src/dashboard && streamlit run app.py
 
-sync:        ## uv sync --frozen (installs from uv.lock)
+sync:        ## uv sync --frozen + install pre-commit hooks (one-shot dev setup)
 	uv sync --frozen
+	@$(MAKE) --no-print-directory hooks-install
 
 clean:       ## Remove Python and ruff caches
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
 	rm -rf .ruff_cache .pytest_cache
+
+hooks-install: ## Install pre-commit hooks (ruff + secret scan + hygiene)
+	@if ! command -v pre-commit >/dev/null 2>&1; then \
+		echo "→ Installing pre-commit via pip..."; \
+		pip install --user pre-commit >/dev/null || pip install pre-commit; \
+	fi
+	@pre-commit install
+	@echo "✅ pre-commit hooks installed. Bypass once with: git commit --no-verify"
+	@echo "   Run on all files manually: pre-commit run --all-files"
 
 graph-update: ## Refresh graphify-out/graph.json + GRAPH_REPORT.md (AST only, no LLM)
 	graphify update .

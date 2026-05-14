@@ -141,7 +141,7 @@ def _render_table(df: pd.DataFrame) -> None:
             'track_name':    'Track liée',
             'budget_delta':  'Budget suggéré',
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -177,7 +177,7 @@ def _render_detail_cards(df: pd.DataFrame) -> None:
                 )
             elif score >= 5:
                 st.info(
-                    f"🟡 **Bon rapport** : augmenter légèrement (+10%) et surveiller l'évolution du CPR sur 7 jours."
+                    "🟡 **Bon rapport** : augmenter légèrement (+10%) et surveiller l'évolution du CPR sur 7 jours."
                 )
             elif score >= 3:
                 st.info("⚪ **Performance moyenne** : maintenir le budget actuel et attendre plus de données.")

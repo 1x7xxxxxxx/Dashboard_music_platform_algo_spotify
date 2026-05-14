@@ -143,7 +143,6 @@ def _section_data_export(user: dict) -> None:
         "Operational data (streams, analytics) is not included — it belongs to the platform."
     )
 
-    import pandas as pd
 
     export = {
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -209,7 +208,9 @@ def _section_totp(db, user: dict) -> None:
 
     # Generate or reuse pending secret stored in session
     try:
-        import pyotp, qrcode, io
+        import pyotp
+        import qrcode
+        import io
     except ImportError:
         st.error("Required packages not installed: `pip install pyotp qrcode[pil]`")
         return

@@ -86,7 +86,7 @@ def _render_table(df: pd.DataFrame) -> None:
             'avg_ctr': 'CTR moyen',
             'total_reach': 'Reach',
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 

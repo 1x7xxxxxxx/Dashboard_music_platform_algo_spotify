@@ -114,12 +114,15 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 
 | Topic | File / Command | Notes |
 |---|---|---|
-| Common commands | `Makefile` | `make help` lists 10 targets (up/down/logs/test/lint/migrate/dashboard/sync/clean). |
-| Dependency manifest | `pyproject.toml` | Canonical project deps + dev extras. Adopted in Phase B (commit `9708b83`). |
-| Lock file | `uv.lock` | Reproducible installs via `uv sync --frozen` (or `make sync`). 231 packages pinned. |
+| Common commands | `Makefile` | `make help` lists 11 targets (up/down/logs/test/lint/migrate/dashboard/sync/clean/graph/hooks-install). |
+| Dependency manifest | `pyproject.toml` | Canonical project deps + dev extras (pytest, ruff, pre-commit, detect-secrets). |
+| Lock file | `uv.lock` | Reproducible installs via `uv sync --frozen` (or `make sync`). |
 | Legacy install path | `requirements.txt` | Kept parallel for the existing Dockerfile + CI workflow. Dérivé de `pyproject.toml`. |
-| Lint config | `ruff.toml` | Authoritative ruff config. `pyproject.toml [tool.ruff]` just extends it. |
+| Lint config | `ruff.toml` | Authoritative ruff config. CI blocks on `ruff check src/ tests/` since 2026-05-14. |
 | Ruff binary | `pip install ruff==0.15.5` (dev extra) | Available system-wide as `/home/timothe/.local/bin/ruff`. |
+| Pre-commit hooks | `.pre-commit-config.yaml` + `make hooks-install` | Ruff + secret scan + hygiene on staged files. Chained from `make sync`. Bypass : `git commit --no-verify`. |
+| Secret baseline | `.secrets.baseline` | Versioned acknowledged-matches list. New secrets fail commit; update baseline via `detect-secrets scan --baseline .secrets.baseline`. |
+| Docker context | `.dockerignore` | Strict exclusions (venv/, .claude/, tests/, docs/...) — keeps build context < 50 MB on WSL2. |
 
 ## Reference docs (dev-docs/)
 

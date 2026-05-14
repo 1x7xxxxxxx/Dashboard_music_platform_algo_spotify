@@ -1,8 +1,10 @@
-"""Vue iMusician — saisie manuelle des revenus mensuels et visualisation."""
+"""Vue iMusician — saisie manuelle des revenus mensuels, visualisation, ROI Breakheaven."""
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+import plotly.graph_objects as go
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 import sys
 from pathlib import Path
 
@@ -10,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.utils.kpi_helpers import get_roi_data, get_monthly_roi_series
 
 
 MONTHS_FR = {
@@ -76,7 +79,9 @@ def show():
     st.title("💰 Distributeur — Revenus mensuels")
     st.markdown("Saisie manuelle des revenus générés via votre distributeur.")
 
-    tab_form, tab_data, tab_import = st.tabs(["✏️ Saisie", "📊 Données", "📂 Import CSV"])
+    tab_form, tab_data, tab_import, tab_roi = st.tabs(
+        ["✏️ Saisie", "📊 Données", "📂 Import CSV", "💹 ROI Breakheaven"]
+    )
 
     db = get_db_connection()
     try:
@@ -357,6 +362,66 @@ def show():
                                 except Exception as e:
                                     st.error(f"❌ Erreur lors de l'insertion : {e}")
                                     st.exception(e)
+
+        # ── Onglet 4 : ROI Breakheaven ──────────────────────────────────────
+        with tab_roi:
+            st.subheader("💹 ROI Breakheaven")
+            st.caption("Revenus iMusician vs dépenses Meta Ads sur la période sélectionnée")
+
+            now = datetime.now()
+            period_options = {
+                "3 derniers mois": 3,
+                "6 derniers mois": 6,
+                "12 derniers mois": 12,
+                "Cette année": None,
+            }
+            period_label = st.selectbox(
+                "Période", list(period_options.keys()), index=1, key="imusician_roi_period"
+            )
+            n_months = period_options[period_label]
+            if n_months is not None:
+                from_date = (now - relativedelta(months=n_months)).replace(day=1).date()
+            else:
+                from_date = date(now.year, 1, 1)
+            to_date = now.date()
+
+            roi = get_roi_data(db, artist_id, from_date, to_date)
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("💰 Revenus iMusician", f"{roi['revenue_eur']:,.2f} €")
+            c2.metric("📱 Dépenses Meta", f"{roi['meta_spend']:,.2f} €")
+
+            if roi['roi_pct'] is not None:
+                roi_label = f"{roi['roi_pct']:.1f} %"
+                roi_delta = "✅ Rentable" if roi['profitable'] else "⚠️ Déficitaire"
+                c3.metric(
+                    "📊 ROI", roi_label, roi_delta,
+                    delta_color="normal" if roi['profitable'] else "inverse"
+                )
+            else:
+                c3.metric("📊 ROI", "—", help="Requires Meta Ads spend data")
+
+            df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
+            if not df_series.empty:
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=df_series['period_date'], y=df_series['revenue_eur'],
+                    name="Revenus (€)", marker_color="#1DB954"
+                ))
+                fig.add_trace(go.Bar(
+                    x=df_series['period_date'], y=df_series['meta_spend'],
+                    name="Dépenses Meta (€)", marker_color="#FF4444"
+                ))
+                fig.update_layout(
+                    barmode='group',
+                    xaxis_tickformat='%b %Y',
+                    yaxis_title="Euros (€)",
+                    hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig, width="stretch")
+            else:
+                st.info("Aucune donnée de revenus ou dépenses sur cette période.")
 
     finally:
         db.close()

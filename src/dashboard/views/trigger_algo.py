@@ -272,11 +272,13 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     except Exception:
         saves = None
 
-    # Playlist adds — manual entry from s4a_song_playlist_adds for the selected period
+    # Playlist adds — most recent snapshot in the selected period (sémantique post-migration 024:
+    # 'count' est cumulatif par snapshot daté via recorded_at, pas incrémental par fenêtre)
     try:
         _parow = db.fetch_query(
             "SELECT count FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s AND period_start = %s AND period_end = %s",
+            "WHERE artist_id = %s AND song = %s AND recorded_at BETWEEN %s AND %s "
+            "ORDER BY recorded_at DESC LIMIT 1",
             (artist_id, track, date_from, date_to),
         ) if artist_id else None
         playlist_adds = int(_parow[0][0]) if _parow and _parow[0][0] is not None else 0

@@ -100,8 +100,6 @@ def build_features(db, artist_id: int, song: str) -> dict:
     Returns:
         dict avec les 13 features + raw values pour stockage dans features_json.
     """
-    today = "CURRENT_DATE"
-
     # --- Streams last 7 / 28 days ---
     row = db.fetch_query(
         """

@@ -84,7 +84,7 @@ def show():
                 top_rows,
                 columns=["Artist", "Referrals made", "Free months earned", "Code uses", "Code"],
             )
-            st.dataframe(df_top, hide_index=True, use_container_width=True)
+            st.dataframe(df_top, hide_index=True, width="stretch")
         else:
             st.info("No referrals recorded yet.")
 
@@ -116,7 +116,7 @@ def show():
                 columns=["Referrer", "Referred", "Code used", "Date", "Referred's plan"],
             )
             df_log["Date"] = df_log["Date"].astype(str)
-            st.dataframe(df_log, hide_index=True, use_container_width=True)
+            st.dataframe(df_log, hide_index=True, width="stretch")
         else:
             st.info("No referral events yet.")
 

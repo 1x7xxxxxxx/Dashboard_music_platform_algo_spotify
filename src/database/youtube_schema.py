@@ -17,14 +17,14 @@ YOUTUBE_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT unique_channel_id UNIQUE(channel_id)
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_channels_id 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_channels_id
         ON youtube_channels(channel_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_channels_collected 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_channels_collected
         ON youtube_channels(collected_at DESC);
     """,
-    
+
     'youtube_channel_history': """
         CREATE TABLE IF NOT EXISTS youtube_channel_history (
             id SERIAL PRIMARY KEY,
@@ -36,14 +36,14 @@ YOUTUBE_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, channel_id, (collected_at::date))
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_channel 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_channel
         ON youtube_channel_history(channel_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_date 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_date
         ON youtube_channel_history(collected_at DESC);
     """,
-    
+
     'youtube_videos': """
         CREATE TABLE IF NOT EXISTS youtube_videos (
             id SERIAL PRIMARY KEY,
@@ -59,17 +59,17 @@ YOUTUBE_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT unique_video_id UNIQUE(video_id)
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_videos_id 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_videos_id
         ON youtube_videos(video_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_videos_channel 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_videos_channel
         ON youtube_videos(channel_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_videos_published 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_videos_published
         ON youtube_videos(published_at DESC);
     """,
-    
+
     'youtube_video_stats': """
         CREATE TABLE IF NOT EXISTS youtube_video_stats (
             id SERIAL PRIMARY KEY,
@@ -82,17 +82,17 @@ YOUTUBE_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, video_id, (collected_at::date))
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_video 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_video
         ON youtube_video_stats(video_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_date 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_date
         ON youtube_video_stats(collected_at DESC);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_video_date 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_video_stats_video_date
         ON youtube_video_stats(video_id, collected_at DESC);
     """,
-    
+
     'youtube_playlists': """
         CREATE TABLE IF NOT EXISTS youtube_playlists (
             id SERIAL PRIMARY KEY,
@@ -107,14 +107,14 @@ YOUTUBE_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT unique_playlist_id UNIQUE(playlist_id)
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_playlists_id 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_playlists_id
         ON youtube_playlists(playlist_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_playlists_channel 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_playlists_channel
         ON youtube_playlists(channel_id);
     """,
-    
+
     'youtube_comments': """
         CREATE TABLE IF NOT EXISTS youtube_comments (
             id SERIAL PRIMARY KEY,
@@ -128,11 +128,11 @@ YOUTUBE_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT unique_comment_id UNIQUE(comment_id)
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_comments_video 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_comments_video
         ON youtube_comments(video_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_youtube_comments_published 
+
+        CREATE INDEX IF NOT EXISTS idx_youtube_comments_published
         ON youtube_comments(published_at DESC);
     """
 }
@@ -143,55 +143,55 @@ def create_youtube_tables():
     import sys
     from pathlib import Path
     sys.path.append(str(Path(__file__).parent.parent.parent))
-    
+
     from src.database.postgres_handler import PostgresHandler
     from src.utils.config_loader import config_loader
-    
+
     print("\n" + "="*70)
     print("🎬 CRÉATION TABLES YOUTUBE")
     print("="*70 + "\n")
-    
+
     config = config_loader.load()
     db = PostgresHandler(**config['database'])
-    
+
     try:
         for table_name, sql in YOUTUBE_SCHEMA.items():
             print(f"📋 Création de {table_name}...")
-            
+
             # Vérifier si la table existe déjà
             if db.table_exists(table_name):
                 print(f"   ⚠️  Table {table_name} existe déjà")
-            
+
             db.execute_query(sql)
             print(f"   ✅ Table {table_name} créée/vérifiée")
-        
+
         print("\n🔍 Vérification des colonnes...")
-        
+
         # Vérifier les colonnes de youtube_channels
         check_columns_query = """
-            SELECT column_name, data_type 
+            SELECT column_name, data_type
             FROM information_schema.columns
             WHERE table_name = 'youtube_channels'
             ORDER BY ordinal_position
         """
         columns = db.fetch_query(check_columns_query)
-        print(f"\n📊 Colonnes de youtube_channels :")
+        print("\n📊 Colonnes de youtube_channels :")
         for col_name, col_type in columns:
             print(f"   • {col_name} ({col_type})")
-        
+
         print("\n🔍 Comptage des enregistrements...")
         for table_name in YOUTUBE_SCHEMA.keys():
             count = db.get_table_count(table_name)
             print(f"   ✅ {table_name}: {count} enregistrement(s)")
-    
+
     except Exception as e:
         print(f"   ❌ Erreur : {e}")
         import traceback
         traceback.print_exc()
-    
+
     finally:
         db.close()
-    
+
     print("\n" + "="*70)
     print("✅ TABLES YOUTUBE CRÉÉES/VÉRIFIÉES")
     print("="*70 + "\n")

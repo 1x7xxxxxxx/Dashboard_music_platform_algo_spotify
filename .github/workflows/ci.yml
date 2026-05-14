@@ -36,11 +36,14 @@ jobs:
       - name: Set up Python 3.11
         run: uv python install 3.11
 
-      - name: Install system dependencies (pycairo build deps via xhtml2pdf)
+      - name: Install system dependencies (build tools for any wheel-less package)
+        # Historical: libcairo2-dev was needed for pycairo (xhtml2pdf transitive).
+        # Removed when PDF stack migrated to WeasyPrint (dashboard-only, not CI).
+        # build-essential + pkg-config kept as a safety net for source builds.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev \
+            build-essential \
             pkg-config
 
       - name: Install dependencies from lockfile
@@ -48,11 +51,11 @@ jobs:
         # --extra dev: include pytest, ruff, httpx, pytest-mock, pytest-cov.
         run: uv sync --frozen --extra dev
 
-      - name: Lint (ruff) — new code (blocking)
-        run: uv run ruff check src/api/ tests/test_api.py
-
-      - name: Lint (ruff) — legacy code (advisory)
-        run: uv run ruff check src/ tests/ --exit-zero
+      - name: Lint (ruff) — full project (blocking)
+        # Promoted from advisory to blocking on 2026-05-14 after baseline cleanup
+        # (44 → 0 errors). Any regression now fails CI; revert to --exit-zero only
+        # after explicit ADR.
+        run: uv run ruff check src/ tests/
 
       - name: Run tests
         env:

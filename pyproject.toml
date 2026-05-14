@@ -30,7 +30,7 @@ dependencies = [
     "streamlit==1.29.0",
     "plotly==5.18.0",
     "watchdog==3.0.0",
-    "xhtml2pdf>=0.2.11",
+    "weasyprint>=62.0",
     "openpyxl",                 # meta_insight xlsx watcher
 
     # Utilities
@@ -77,6 +77,9 @@ dev = [
     "pytest-cov>=5.0.0",
     "httpx>=0.27.0",
     "ruff==0.15.5",
+    # Pre-commit framework + secret scanner (.pre-commit-config.yaml)
+    "pre-commit>=4.6.0",
+    "detect-secrets>=1.5.0",
 ]
 
 [build-system]

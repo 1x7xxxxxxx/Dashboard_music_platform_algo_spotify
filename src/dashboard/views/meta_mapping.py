@@ -61,7 +61,7 @@ def show():
             else:
                 st.dataframe(
                     df[["campaign_name", "track_name", "created_at"]],
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 

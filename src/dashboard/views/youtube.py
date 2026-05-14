@@ -1,6 +1,5 @@
 """Vue Streamlit pour YouTube (Optimisée Dark Mode & Multi-Axes)."""
 import streamlit as st
-import pandas as pd
 import plotly.graph_objects as go
 import isodate
 from datetime import datetime, timedelta
@@ -20,7 +19,7 @@ def show():
     st.title("🎬 YouTube Analytics")
     st.markdown("### Analyse de la Chaîne et des Vidéos")
     st.markdown("---")
-    
+
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
@@ -33,7 +32,7 @@ def show():
         # 1. ANALYSE GLOBALE (CHAÎNE)
         # ============================================================================
         st.subheader("📈 Évolution de la Chaîne")
-        
+
         hist_query = """
             SELECT date(collected_at) as date,
                    MAX(subscriber_count) as subs,
@@ -44,10 +43,10 @@ def show():
             ORDER BY date
         """
         df_hist = db.fetch_df(hist_query, (artist_id,))
-        
+
         if not df_hist.empty:
             fig_channel = go.Figure()
-            
+
             # Axe Y1 (Gauche) : Abonnés (Zone remplie Rouge)
             fig_channel.add_trace(go.Scatter(
                 x=df_hist['date'], y=df_hist['subs'],
@@ -57,28 +56,26 @@ def show():
                 line=dict(color='#FF0000', width=2),
                 yaxis='y'
             ))
-            
+
             # Axe Y2 (Droite) : Vues Totales (Blanc/Gris clair pour Dark Mode)
             # ✅ CORRECTION COULEUR (Visible sur fond noir)
             fig_channel.add_trace(go.Scatter(
                 x=df_hist['date'], y=df_hist['views'],
                 name='Vues Totales',
                 mode='lines+markers',
-                line=dict(color='#E0E0E0', width=2, dash='dot'), 
+                line=dict(color='#E0E0E0', width=2, dash='dot'),
                 yaxis='y2'
             ))
-            
+
             fig_channel.update_layout(
                 title="Croissance : Abonnés vs Vues Totales",
                 xaxis=dict(title="Date"),
                 yaxis=dict(
-                    title="Abonnés", 
-                    titlefont=dict(color="#FF0000"),
+                    title=dict(text="Abonnés", font=dict(color="#FF0000")),
                     tickfont=dict(color="#FF0000")
                 ),
                 yaxis2=dict(
-                    title="Vues Cumulées",
-                    titlefont=dict(color="#E0E0E0"),
+                    title=dict(text="Vues Cumulées", font=dict(color="#E0E0E0")),
                     tickfont=dict(color="#E0E0E0"),
                     overlaying='y',
                     side='right',
@@ -89,13 +86,13 @@ def show():
                 height=450
             )
             st.plotly_chart(fig_channel, width="stretch")
-            
+
             # KPIs actuels
             latest = df_hist.iloc[-1]
             c1, c2 = st.columns(2)
             c1.metric("👥 Abonnés Actuels", f"{int(latest['subs']):,}")
             c2.metric("👁️ Vues Totales", f"{int(latest['views']):,}")
-            
+
         else:
             st.info("Pas encore d'historique pour la chaîne.")
 
@@ -183,23 +180,23 @@ def show():
                 df_filtered = df_filtered[df_filtered['type'] == selected_type]
 
             df_top = df_filtered.head(top_n)
-            
+
             if not df_top.empty:
                 # GRAPHIQUE 4 AXES (Vues, Likes, Coms, Ratio)
                 fig_top = go.Figure()
-                
+
                 # 1. Vues (Barres - Axe Gauche)
                 fig_top.add_trace(go.Bar(
-                    x=df_top['title'], 
+                    x=df_top['title'],
                     y=df_top['view_count'],
                     name='Vues',
                     marker_color='#FF0000', # Rouge
                     yaxis='y'
                 ))
-                
+
                 # 2. Likes (Ligne - Axe Droit 1)
                 fig_top.add_trace(go.Scatter(
-                    x=df_top['title'], 
+                    x=df_top['title'],
                     y=df_top['like_count'],
                     name='Likes',
                     mode='lines+markers',
@@ -209,7 +206,7 @@ def show():
 
                 # 3. Commentaires (Ligne - Axe Droit 2 - Décalé)
                 fig_top.add_trace(go.Scatter(
-                    x=df_top['title'], 
+                    x=df_top['title'],
                     y=df_top['comment_count'],
                     name='Commentaires',
                     mode='lines+markers',
@@ -220,41 +217,38 @@ def show():
                 # 4. Ratio Vues/Like (Ligne - Axe Droit 3 - Décalé)
                 # Note : Plus c'est bas, meilleur c'est
                 fig_top.add_trace(go.Scatter(
-                    x=df_top['title'], 
+                    x=df_top['title'],
                     y=df_top['ratio_views_like'],
                     name='Ratio Vues/Like',
                     mode='lines',
                     line=dict(color='#F1C40F', width=2, dash='dot'), # Jaune
                     yaxis='y4'
                 ))
-                
+
                 fig_top.update_layout(
                     title=f"Top {top_n} {selected_type}",
                     xaxis=dict(title="", tickangle=45),
-                    
+
                     # Axe 1 : Vues (Gauche)
                     yaxis=dict(
-                        title="Vues", 
-                        titlefont=dict(color="#FF0000"),
+                        title=dict(text="Vues", font=dict(color="#FF0000")),
                         tickfont=dict(color="#FF0000"),
                         side='left',
                         showgrid=True
                     ),
-                    
+
                     # Axe 2 : Likes (Droite)
                     yaxis2=dict(
-                        title="Likes",
-                        titlefont=dict(color="#2ECC71"),
+                        title=dict(text="Likes", font=dict(color="#2ECC71")),
                         tickfont=dict(color="#2ECC71"),
                         side='right',
                         overlaying='y',
                         showgrid=False
                     ),
-                    
+
                     # Axe 3 : Commentaires (Droite décalée)
                     yaxis3=dict(
-                        title="Coms",
-                        titlefont=dict(color="#9B59B6"),
+                        title=dict(text="Coms", font=dict(color="#9B59B6")),
                         tickfont=dict(color="#9B59B6"),
                         anchor="free",
                         overlaying='y',
@@ -265,8 +259,7 @@ def show():
 
                     # Axe 4 : Ratio (Droite décalée)
                     yaxis4=dict(
-                        title="Ratio V/L",
-                        titlefont=dict(color="#F1C40F"),
+                        title=dict(text="Ratio V/L", font=dict(color="#F1C40F")),
                         tickfont=dict(color="#F1C40F"),
                         anchor="free",
                         overlaying='y',
@@ -281,9 +274,9 @@ def show():
                     height=650,
                     margin=dict(b=100, r=50) # Marges pour les axes multiples
                 )
-                
+
                 st.plotly_chart(fig_top, width="stretch")
-                
+
             else:
                 st.info("Aucune vidéo dans cette catégorie.")
         else:

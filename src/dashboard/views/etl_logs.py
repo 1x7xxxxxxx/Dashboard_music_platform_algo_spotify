@@ -10,7 +10,6 @@ import html as _html
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import is_admin

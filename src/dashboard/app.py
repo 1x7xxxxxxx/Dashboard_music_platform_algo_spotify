@@ -24,6 +24,14 @@ from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 
 st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide")
 
+# Pandas 3.0 forward-compat: opt in now to the new fillna semantics so the
+# 28+ `df[col].fillna(0).astype(...)` patterns across views don't emit
+# FutureWarning and won't break silently when pandas 3 ships. The cast we
+# do explicitly after fillna keeps the final dtype deterministic — only the
+# intermediate silent downcasting is being disabled.
+import pandas as pd
+pd.set_option('future.no_silent_downcasting', True)
+
 config = config_loader.load()
 airflow_config = config.get('airflow', {})
 # Env vars take precedence over config.yaml — required for Railway deployment
@@ -148,6 +156,22 @@ def show_navigation_menu(role: str = 'artist'):
 
     return pages_display[st.sidebar.radio("Aller à ", list(pages_display.keys()), label_visibility="collapsed")]
 
+def show_live_activity_sidebar():
+    """Live Activity counters in the sidebar — visible on every page."""
+    try:
+        from src.dashboard.utils import project_db
+        from src.dashboard.utils.live_pulse import get_live_pulse
+        with project_db() as db:
+            live, registered = get_live_pulse(db, ttl_minutes=5)
+    except Exception:
+        return  # Silently skip if DB unavailable — keeps sidebar usable
+    st.sidebar.markdown("### 🟢 Live Activity")
+    c1, c2 = st.sidebar.columns(2)
+    c1.metric("🟢 Actifs", f"{live:,}", help="Artists active within the last 5 minutes")
+    c2.metric("👥 Total", f"{registered:,}", help="Total active artist accounts")
+    st.sidebar.markdown("---")
+
+
 def show_data_collection_panel():
     if st.sidebar.button("🚀 Lancer TOUTES les collectes", type="primary"):
         with st.sidebar.status("Synchronisation...", expanded=True):
@@ -224,10 +248,11 @@ def main():
     _show_cookie_notice()
 
     role = st.session_state.get('role', 'artist')
+    show_live_activity_sidebar()
     show_data_collection_panel()
     page = show_navigation_menu(role)
     show_user_sidebar()
-    
+
     _t0 = time.perf_counter()
 
     if page == "home":

@@ -1,5 +1,5 @@
 """Génération de rapports PDF artiste via WeasyPrint."""
-from datetime import datetime, date
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from src.dashboard.utils.kpi_helpers import (
@@ -840,8 +840,7 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
         sections  — dict {key: bool} des sections à inclure (None = toutes)
         songs     — liste de noms de chansons pour la section focus
     """
-    import io
-    from xhtml2pdf import pisa  # pure-Python, no system deps
+    from weasyprint import HTML
 
     now = datetime.now()
     if from_date is None:
@@ -854,8 +853,4 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
     data = collect_report_data(db, artist_id, from_date, to_date, songs=songs,
                                s4a_songs_filter=s4a_songs_filter)
     html_str = render_html(data, artist_name, sections=sections)
-    buf = io.BytesIO()
-    result = pisa.CreatePDF(html_str, dest=buf)
-    if result.err:
-        raise RuntimeError(f"PDF generation failed: {result.err}")
-    return buf.getvalue()
+    return HTML(string=html_str).write_pdf()

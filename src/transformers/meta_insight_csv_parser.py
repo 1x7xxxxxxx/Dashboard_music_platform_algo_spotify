@@ -7,7 +7,7 @@ warnings.simplefilter("ignore")
 logger = logging.getLogger(__name__)
 
 class MetaInsightParser:
-    
+
     def _clean_currency(self, val):
         if pd.isna(val) or val == '': return 0.0
         if isinstance(val, (int, float)): return float(val)
@@ -20,29 +20,29 @@ class MetaInsightParser:
 
     def detect_file_type(self, df):
         cols = [str(c).lower() for c in df.columns]
-        
+
         # 1. Identifier la Répartition
         breakdown = 'global'
-        if any(k in str(cols) for k in ['plateforme', 'plate-forme', 'platform', 'placement']): 
+        if any(k in str(cols) for k in ['plateforme', 'plate-forme', 'platform', 'placement']):
             breakdown = 'placement'
-        elif any('jour' in c for c in cols) or 'day' in cols: 
+        elif any('jour' in c for c in cols) or 'day' in cols:
             breakdown = 'day'
-        elif any('âge' in c for c in cols) or 'age' in cols: 
+        elif any('âge' in c for c in cols) or 'age' in cols:
             breakdown = 'age'
-        elif any('pays' in c for c in cols) or 'country' in cols: 
+        elif any('pays' in c for c in cols) or 'country' in cols:
             breakdown = 'country'
-        
+
         # 2. Identifier la Catégorie
         # Performance : contient Dépenses, Impressions ou Couverture
         is_performance = any(k in str(cols) for k in ['montant dépensé', 'amount spent', 'impressions', 'couverture', 'reach'])
-        
+
         # Engagement : contient Interaction, Réaction ou Commentaire (et PAS les métriques purement financières)
         is_engagement = any(k in str(cols) for k in ['interaction', 'réaction', 'reaction', 'comment'])
-        
+
         category = 'performance' # Par défaut
         if is_engagement and not is_performance:
             category = 'engagement'
-        
+
         return f"{category}_{breakdown}"
 
     def read_flexible(self, file_path):
@@ -55,7 +55,7 @@ class MetaInsightParser:
 
     def parse_csv(self, file_path: Path):
         print(f"🔍 [Parser] Analyse : {file_path.name}")
-        
+
         df_raw = self.read_flexible(file_path)
         if df_raw.empty: return {'type': 'error', 'data': []}
 
@@ -70,16 +70,16 @@ class MetaInsightParser:
                     found = True
                     break
             if found: break
-        
+
         if header_row is None:
-            print(f"❌ En-tête introuvable.")
+            print("❌ En-tête introuvable.")
             return {'type': 'error', 'data': []}
 
         # --- RECADRAGE ---
         df = df_raw.iloc[header_row+1:, header_col:].copy()
         cols = df_raw.iloc[header_row, header_col:].values
         df.columns = [str(x).strip().lower() for x in cols]
-        
+
         # --- CLEAN CAMPAGNE ---
         camp_col = next((c for c in df.columns if 'nom de la campagne' in c or 'campaign name' in c), None)
         if not camp_col: return {'type': 'error', 'data': []}
@@ -108,9 +108,9 @@ class MetaInsightParser:
         for _, row in df.iterrows():
             entry = {}
             entry['campaign_name'] = row.get(camp_col)
-            
+
             category, breakdown = full_type.split('_')
-            
+
             # 1. RÉPARTITIONS
             if breakdown == 'placement':
                 entry['platform'] = get_val(row, ['plate-forme', 'platform', 'plateforme'])

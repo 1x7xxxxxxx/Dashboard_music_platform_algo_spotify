@@ -100,7 +100,7 @@ def show():
             import pandas as pd
             df = pd.DataFrame(rows, columns=["Artist", "Joined on"])
             df["Joined on"] = df["Joined on"].astype(str)
-            st.dataframe(df, hide_index=True, use_container_width=True)
+            st.dataframe(df, hide_index=True, width="stretch")
 
         st.markdown("---")
 

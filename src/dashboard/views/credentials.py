@@ -792,7 +792,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                         )
                         data = r.json()
                         if r.status_code == 200 and data.get('access_token'):
-                            from datetime import timedelta as _td
                             new_token = data['access_token']
                             expires_in = data.get('expires_in', 5184000)
                             new_expires = pd.Timestamp.utcnow() + pd.Timedelta(seconds=expires_in)

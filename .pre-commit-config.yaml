@@ -1,0 +1,52 @@
+# Pre-commit hook configuration.
+#
+# Install once:  pip install pre-commit && pre-commit install
+# (or simply :   make hooks-install)
+#
+# Run on demand: pre-commit run --all-files
+# Bypass once  : git commit --no-verify
+#
+# The CI workflow at .github/workflows/ci.yml runs `ruff check` as a blocking
+# step. These hooks catch the same problems (and more) locally before push.
+
+repos:
+  # ── Ruff: Python lint (matches CI baseline 2026-05-14 = 0 errors) ─────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5      # keep in sync with pyproject.toml dev extras
+    hooks:
+      - id: ruff
+        args: [--fix]
+      # ruff-format is intentionally NOT enabled: the codebase predates ruff
+      # format and contains intentional style choices (alignment, line breaks).
+      # To enable, do a one-shot `ruff format src/ tests/` commit first, then
+      # add: - id: ruff-format here.
+
+  # ── Generic hygiene ───────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$         # markdown sometimes uses 2-space line breaks
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]   # 1 MB — protects against CSV/PDF mishaps
+      - id: detect-private-key
+
+  # ── Secret leakage detection ──────────────────────────────────────────
+  # Catches obvious AWS/GCP/Stripe keys committed by mistake. The .secrets.baseline
+  # file (auto-generated on first run) marks pre-existing acknowledged matches.
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            uv\.lock|
+            graphify-out/.*|
+            tests/fixtures/.*
+          )$

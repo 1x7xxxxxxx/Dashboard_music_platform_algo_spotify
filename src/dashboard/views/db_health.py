@@ -8,7 +8,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-from datetime import date, timedelta
+from datetime import date
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
@@ -70,7 +70,7 @@ def _load_health(db, artist_id) -> pd.DataFrame:
             last_date = pd.to_datetime(last_ts).date() if last_ts else None
             first_date = pd.to_datetime(first_ts).date() if first_ts else None
             age_days = (today - last_date).days if last_date else None
-        except Exception as exc:
+        except Exception:
             total, first_date, last_date, age_days = 0, None, None, None
 
         rows.append({

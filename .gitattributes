@@ -1,0 +1,15 @@
+# Normalize line endings — repo stores LF, working tree gets native EOL on
+# checkout. Fixes the CRLF/LF churn that occurs when Python scripts rewrite
+# files on WSL2 mounted from /mnt/c/.
+* text=auto eol=lf
+
+# Lock files and binary blobs explicit
+uv.lock      text eol=lf
+*.png        binary
+*.jpg        binary
+*.jpeg       binary
+*.gif        binary
+*.pdf        binary
+*.ico        binary
+*.woff       binary
+*.woff2      binary

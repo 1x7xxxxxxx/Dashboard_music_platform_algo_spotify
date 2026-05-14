@@ -46,7 +46,8 @@ def _db_ping_ms() -> int | None:
 def _system_metrics() -> dict:
     """Return CPU % and RSS memory in MB for the current process."""
     try:
-        import psutil, os
+        import psutil
+        import os
         proc = psutil.Process(os.getpid())
         return {
             'cpu_pct': proc.cpu_percent(interval=0.1),
@@ -141,7 +142,7 @@ def show():
     summary['min'] = summary['min'].astype(int)
     summary.columns = ['Page', 'Renders', 'Moy (ms)', 'Max (ms)', 'Min (ms)']
 
-    st.dataframe(summary, use_container_width=True, hide_index=True)
+    st.dataframe(summary, width="stretch", hide_index=True)
 
     # Sparkline
     import plotly.graph_objects as go
@@ -166,8 +167,8 @@ def show():
         yaxis_title='ms',
         showlegend=False,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Log brut
     with st.expander("Log brut (100 derniers renders)"):
-        st.dataframe(df[['ts', 'page', 'ms', 'badge']].iloc[::-1], use_container_width=True, hide_index=True)
+        st.dataframe(df[['ts', 'page', 'ms', 'badge']].iloc[::-1], width="stretch", hide_index=True)

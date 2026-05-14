@@ -156,7 +156,7 @@ def _show_meta_ads(db, artist_id):
             height=320,
             margin=dict(t=10, b=10, l=0, r=0),
         )
-        st.plotly_chart(fig_funnel, use_container_width=True)
+        st.plotly_chart(fig_funnel, width="stretch")
 
         # Taux de conversion par campagne
         if len(df_perf) > 1:
@@ -179,7 +179,7 @@ def _show_meta_ads(db, artist_id):
                     'lp_views': 'Vues LP',
                     'custom_conversions': 'Clics Spotify',
                 }),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -189,7 +189,7 @@ def _show_meta_ads(db, artist_id):
     # 📈 SECTION 2 : PERFORMANCE PAR CAMPAGNE (GRAPHIQUE PRINCIPAL)
     # ==============================================================================
     st.subheader("📊 Performance par Campagne")
-    
+
     if not df_perf.empty:
         df_chart = df_perf.copy()
         if not df_eng.empty:
@@ -227,12 +227,12 @@ def _show_meta_ads(db, artist_id):
             name='Interactions', marker_color='rgba(255, 166, 0, 0.7)',
             yaxis='y2', offsetgroup=2, visible=True
         ))
-        
+
         # Impressions
         fig.add_trace(go.Scatter(
             x=df_chart['campaign_name'], y=df_chart['impressions'],
             name='Impressions', mode='markers', marker=dict(symbol='star', size=10, color='#333'),
-            yaxis='y2', visible='legendonly' 
+            yaxis='y2', visible='legendonly'
         ))
 
         # Axe Y3 (Droite 2 - Ratios) - ACTIVÉS
@@ -260,9 +260,9 @@ def _show_meta_ads(db, artist_id):
             height=600,
             title="Vue 360° : Budget vs Volumes vs Ratios",
             xaxis=dict(title="Campagnes", domain=[0, 0.85]),
-            yaxis=dict(title="Budget (€)", titlefont=dict(color="#ff6361")),
-            yaxis2=dict(title="Volumes", titlefont=dict(color="#003f5c"), anchor="x", overlaying="y", side="right"),
-            yaxis3=dict(title="Ratios (€)", titlefont=dict(color="#bc5090"), anchor="free", overlaying="y", side="right", position=0.92),
+            yaxis=dict(title=dict(text="Budget (€)", font=dict(color="#ff6361"))),
+            yaxis2=dict(title=dict(text="Volumes", font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right"),
+            yaxis3=dict(title=dict(text="Ratios (€)", font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.92),
             legend=dict(orientation="h", y=1.12),
             hovermode="x unified",
             barmode='group'
@@ -297,9 +297,9 @@ def _show_meta_ads(db, artist_id):
         fig_time.update_layout(
             height=500, title="Dynamique Quotidienne", hovermode="x unified",
             xaxis=dict(domain=[0, 0.9]),
-            yaxis=dict(title="Budget (€)", titlefont=dict(color="#ff6361"), showgrid=False),
-            yaxis2=dict(title="Résultats", titlefont=dict(color="#003f5c"), anchor="x", overlaying="y", side="right", showgrid=False),
-            yaxis3=dict(title="CPR (€)", titlefont=dict(color="#bc5090"), anchor="free", overlaying="y", side="right", position=0.95, showgrid=False),
+            yaxis=dict(title=dict(text="Budget (€)", font=dict(color="#ff6361")), showgrid=False),
+            yaxis2=dict(title=dict(text="Résultats", font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right", showgrid=False),
+            yaxis3=dict(title=dict(text="CPR (€)", font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.95, showgrid=False),
             legend=dict(orientation="h", y=1.1)
         )
         st.plotly_chart(fig_time, width="stretch")
@@ -363,7 +363,7 @@ def _show_meta_ads(db, artist_id):
     # 📋 SECTION 5 : DONNÉES BRUTES (TABLEAU COMPLET)
     # ==============================================================================
     st.subheader("🗃️ Tableau Récapitulatif")
-    
+
     # ⚠️ %% in CTR column alias avoids Python IndexError in format strings
     _campaign_in_p = (
         f" AND p.campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
@@ -382,13 +382,13 @@ def _show_meta_ads(db, artist_id):
         " ORDER BY p.spend DESC"
     )
     df_full = db.fetch_df(query_full, params)
-    
+
     if not df_full.empty:
         st.dataframe(
             df_full.style.format({
                 "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
                 "CTR (%)": "{:,.2f}", "Saves": "{:,.0f}", "Clics": "{:,.0f}",
                 "Interactions": "{:,.0f}", "Shares": "{:,.0f}"
-            }), 
+            }),
             width="stretch",
         )

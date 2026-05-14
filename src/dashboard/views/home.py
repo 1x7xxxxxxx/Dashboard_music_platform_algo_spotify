@@ -1,11 +1,7 @@
-"""Page d'accueil — KPI globaux, fraîcheur des sources, ROI Breakheaven."""
+"""Page d'accueil — KPI globaux, fraîcheur des sources, statut des pipelines."""
 import html as _html
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, date
-from dateutil.relativedelta import relativedelta
+from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -18,9 +14,7 @@ from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
     get_total_streams_s4a, get_total_views_youtube,
     get_total_plays_soundcloud, get_total_plays_apple,
-    get_spotify_popularity, get_instagram_followers, get_soundcloud_likes,
-    get_roi_data, get_monthly_roi_series,
-    ARTIST_NAME_FILTER,
+    get_instagram_followers,
 )
 
 
@@ -37,16 +31,6 @@ def _freshness_badge(label, icon, last_dt):
         <div style="font-size:0.65em; color:#888;">{date_str}</div>
     </div>
     """
-
-
-def _section_live_pulse(db):
-    """Live Activity — 2 aggregate counters (Brick 32). No PII."""
-    from src.dashboard.utils.live_pulse import get_live_pulse
-    live, registered = get_live_pulse(db, ttl_minutes=5)
-    st.subheader("🟢 Live Activity")
-    c1, c2 = st.columns(2)
-    c1.metric("🟢 Active right now", f"{live:,}", help="Artists active within the last 5 minutes")
-    c2.metric("👥 Total registered", f"{registered:,}", help="Total active artist accounts")
 
 
 def _section_freshness(db, artist_id):
@@ -77,164 +61,34 @@ def _section_streams(db, artist_id):
     yt = get_total_views_youtube(db, artist_id)
     sc = get_total_plays_soundcloud(db, artist_id)
     apple = get_total_plays_apple(db, artist_id)
-    grand_total = s4a + yt + sc + apple
+    ig = get_instagram_followers(db, artist_id)
+    ig_count = ig['followers'] if ig else 0
+    grand_total = s4a + yt + sc + apple  # Instagram followers ≠ streams, not summed
 
     st.markdown(
         f"""<div style="text-align:center; padding:16px; background:#f0f2f6;
             border-radius:10px; margin-bottom:16px;">
-            <div style="color:#555; font-size:1em; font-weight:600;">🎧 Total toutes plateformes</div>
+            <div style="color:#555; font-size:1em; font-weight:600;">🎧 Total streams toutes plateformes</div>
             <div style="font-size:3em; color:#1DB954; font-weight:800;">{grand_total:,}</div>
         </div>""",
         unsafe_allow_html=True
     )
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("🎵 Spotify S4A", f"{s4a:,}")
     c2.metric("🎬 YouTube", f"{yt:,}")
     c3.metric("☁️ SoundCloud", f"{sc:,}")
     c4.metric("🍎 Apple Music", f"{apple:,}")
-
-
-def _section_kpi_ml(db, artist_id):
-    st.subheader("📊 KPI")
-    c1, c2, c3 = st.columns(3)
-
-    # Spotify popularity
-    with c1:
-        pop = get_spotify_popularity(db, artist_id)
-        if pop:
-            st.metric(
-                "🎵 Spotify Popularity",
-                f"{pop['score']} / 100",
-                help=f"Track : {pop['track']}"
-            )
-            st.progress(pop['score'] / 100)
-        else:
-            st.metric("🎵 Spotify Popularity", "—")
-
-    # Instagram followers
-    with c2:
-        ig = get_instagram_followers(db, artist_id)
-        if ig:
-            st.metric(
-                "📸 Instagram Followers",
-                f"{ig['followers']:,}",
-                help=f"Collecté le {ig['date']}"
-            )
-        else:
-            st.metric("📸 Instagram Followers", "—")
-
-    # SoundCloud likes
-    with c3:
-        likes = get_soundcloud_likes(db, artist_id)
-        sc_plays = get_total_plays_soundcloud(db, artist_id)
-        st.metric("☁️ SoundCloud Plays", f"{sc_plays:,}")
-        if likes:
-            st.caption(f"❤️ {likes:,} likes")
-
-
-def _section_spotify_chart(db, artist_id):
-    st.subheader("📈 Évolution cumulée (Spotify S4A)")
-    try:
-        if artist_id is not None:
-            query = """
-                SELECT date, SUM(daily_max) AS value
-                FROM (
-                    SELECT date, song, MAX(streams) AS daily_max
-                    FROM s4a_song_timeline
-                    WHERE song NOT ILIKE %s AND artist_id = %s
-                    GROUP BY date, song
-                ) sub
-                GROUP BY date ORDER BY date ASC
-            """
-            df = db.fetch_df(query, (f"%{ARTIST_NAME_FILTER}%", artist_id))
-        else:
-            query = """
-                SELECT date, SUM(daily_max) AS value
-                FROM (
-                    SELECT date, song, MAX(streams) AS daily_max
-                    FROM s4a_song_timeline
-                    WHERE song NOT ILIKE %s
-                    GROUP BY date, song
-                ) sub
-                GROUP BY date ORDER BY date ASC
-            """
-            df = db.fetch_df(query, (f"%{ARTIST_NAME_FILTER}%",))
-
-        if not df.empty:
-            df['date'] = pd.to_datetime(df['date'])
-            df['value'] = df['value'].cumsum()
-            fig = px.area(
-                df, x='date', y='value',
-                color_discrete_sequence=['#1DB954'],
-                labels={'value': 'Streams cumulés', 'date': ''}
-            )
-            fig.update_layout(yaxis_title="Streams cumulés", hovermode="x unified", showlegend=False)
-            st.plotly_chart(fig, width="stretch")
-        else:
-            st.info("Pas encore de données Spotify S4A.")
-    except Exception as e:
-        st.warning(f"Graphique indisponible : {e}")
-
-
-def _section_roi(db, artist_id):
-    st.subheader("💹 ROI Breakheaven")
-    st.caption("Revenus iMusician vs dépenses Meta Ads sur la période sélectionnée")
-
-    # Sélecteur de période
-    now = datetime.now()
-    period_options = {
-        "3 derniers mois": 3,
-        "6 derniers mois": 6,
-        "12 derniers mois": 12,
-        "Cette année": None,
-    }
-    period_label = st.selectbox(
-        "Période", list(period_options.keys()), index=1, label_visibility="collapsed"
+    # Instagram followers — colour-differentiated from stream platforms (rose Instagram)
+    c5.markdown(
+        f"""<div style="border:1px solid #E4405F; background:#E4405F18;
+            border-radius:8px; padding:10px 12px; text-align:center;
+            margin-top:4px;">
+            <div style="color:#666; font-size:0.85em;">📸 Instagram Followers</div>
+            <div style="font-size:1.75em; color:#E4405F; font-weight:700;">{ig_count:,}</div>
+        </div>""",
+        unsafe_allow_html=True
     )
-    n_months = period_options[period_label]
-    if n_months is not None:
-        from_date = (now - relativedelta(months=n_months)).replace(day=1).date()
-    else:
-        from_date = date(now.year, 1, 1)
-    to_date = now.date()
-
-    roi = get_roi_data(db, artist_id, from_date, to_date)
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("💰 Revenus iMusician", f"{roi['revenue_eur']:,.2f} €")
-    c2.metric("📱 Dépenses Meta", f"{roi['meta_spend']:,.2f} €")
-
-    if roi['roi_pct'] is not None:
-        roi_label = f"{roi['roi_pct']:.1f} %"
-        roi_delta = "✅ Rentable" if roi['profitable'] else "⚠️ Déficitaire"
-        c3.metric("📊 ROI", roi_label, roi_delta,
-                  delta_color="normal" if roi['profitable'] else "inverse")
-    else:
-        c3.metric("📊 ROI", "—", help="Requires Meta Ads spend data")
-
-    # Graphique mensuel si données
-    df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
-    if not df_series.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=df_series['period_date'], y=df_series['revenue_eur'],
-            name="Revenus (€)", marker_color="#1DB954"
-        ))
-        fig.add_trace(go.Bar(
-            x=df_series['period_date'], y=df_series['meta_spend'],
-            name="Dépenses Meta (€)", marker_color="#FF4444"
-        ))
-        fig.update_layout(
-            barmode='group',
-            xaxis_tickformat='%b %Y',
-            yaxis_title="Euros (€)",
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig, width="stretch")
-    else:
-        st.info("Aucune donnée de revenus ou dépenses sur cette période.")
 
 
 def _section_pdf_export(artist_id):
@@ -250,8 +104,12 @@ def _section_pdf_export(artist_id):
         if st.button("⚡ Rapport rapide", type="primary"):
             try:
                 from src.dashboard.utils.pdf_exporter import generate_pdf
-            except ImportError:
-                st.error("WeasyPrint non installé : `pip install weasyprint`")
+            except ImportError as e:
+                st.error(
+                    f"WeasyPrint non disponible : {e}. "
+                    "Installer : `pip install weasyprint` + libs système "
+                    "(libcairo2, libpango-1.0-0, libgdk-pixbuf-2.0-0)."
+                )
                 return
 
             with project_db() as db2:
@@ -391,27 +249,11 @@ def show():
 
             _section_dag_status()
             st.markdown("---")
-            _section_live_pulse(db)
-            st.markdown("---")
             _section_freshness(db, artist_id)
             st.markdown("---")
             _section_streams(db, artist_id)
-            st.markdown("---")
-            _section_kpi_ml(db, artist_id)
-            st.markdown("---")
-            _section_roi(db, artist_id)
-            st.markdown("---")
-            _section_spotify_chart(db, artist_id)
         except Exception as e:
             st.error(f"Erreur d'affichage : {e}")
 
     st.markdown("---")
     _section_pdf_export(artist_id)
-
-    st.markdown("---")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🔗 Airflow UI"):
-            st.markdown("[Ouvrir](http://localhost:8080)")
-    with c2:
-        st.code("docker-compose up -d")

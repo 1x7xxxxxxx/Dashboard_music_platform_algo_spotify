@@ -1,8 +1,7 @@
 """Parser S4A Intelligent (Supporte les CSV Timeline par fichier avec dates)."""
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 import logging
 import re  # Indispensable pour gérer les noms de fichiers changeants
 

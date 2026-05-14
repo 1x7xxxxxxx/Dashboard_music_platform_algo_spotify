@@ -7,13 +7,16 @@
 
 FROM python:3.11-slim
 
-# System deps for WeasyPrint (PDF export) + psycopg2
+# System deps for WeasyPrint (PDF export) + psycopg2.
+# Official WeasyPrint requirements: libpango-1.0-0 + libpangoft2-1.0-0 (FT API
+# used since v60+). libcairo2 + libgdk-pixbuf2 + libffi-dev + shared-mime-info
+# round out the rendering stack. libpangocairo is pulled transitively.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
         libpango-1.0-0 \
-        libpangocairo-1.0-0 \
+        libpangoft2-1.0-0 \
         libcairo2 \
-        libgdk-pixbuf2.0-0 \
+        libgdk-pixbuf-2.0-0 \
         libffi-dev \
         shared-mime-info \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -27,7 +30,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project source
 COPY src/ ./src/
 COPY config/ ./config/
-COPY .streamlit/ ./.streamlit/ 2>/dev/null || true
+COPY .streamlit/ ./.streamlit/
 
 # Streamlit config — disable usage stats, listen on $PORT
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0

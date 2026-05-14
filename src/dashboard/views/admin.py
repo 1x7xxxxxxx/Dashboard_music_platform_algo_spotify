@@ -2,12 +2,11 @@
 
 Accessible uniquement au rôle 'admin'.
 """
-import io
 import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import is_admin, get_artist_id
+from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table
 
 

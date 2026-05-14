@@ -6,7 +6,7 @@ and upgrade/manage links. Admin sees all artist subscriptions.
 import os
 import streamlit as st
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id, is_admin, get_artist_plan
+from src.dashboard.auth import get_artist_id, is_admin
 
 
 def show():

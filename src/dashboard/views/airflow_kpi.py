@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils import get_db_connection
-from src.utils.freshness_monitor import check_freshness, MONITOR_TARGETS
+from src.utils.freshness_monitor import check_freshness
 from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table, validate_columns
 
@@ -14,7 +13,7 @@ def get_quality_metrics():
     try:
         # On récupère la moyenne des 7 derniers jours par DAG
         query = """
-            SELECT 
+            SELECT
                 dag_id,
                 SUM(total_rows) as total_rows,
                 SUM(invalid_rows) as total_invalid,
@@ -166,8 +165,8 @@ def _section_run_logs():
             # Filtrer les lignes vides au début
             lines = log_text.strip().splitlines()
             # Affichage avec coloration des erreurs
-            error_lines = sum(1 for l in lines if 'ERROR' in l or 'CRITICAL' in l)
-            warning_lines = sum(1 for l in lines if 'WARNING' in l or 'WARN' in l)
+            error_lines = sum(1 for line in lines if 'ERROR' in line or 'CRITICAL' in line)
+            warning_lines = sum(1 for line in lines if 'WARNING' in line or 'WARN' in line)
 
             m1, m2, m3 = st.columns(3)
             m1.metric("Lignes totales", len(lines))
@@ -185,7 +184,7 @@ def _section_run_logs():
             # Extraire uniquement les lignes ERROR pour diagnostic rapide
             if error_lines > 0:
                 with st.expander(f"🔴 Lignes ERROR uniquement ({error_lines})", expanded=True):
-                    error_text = "\n".join(l for l in lines if 'ERROR' in l or 'CRITICAL' in l)
+                    error_text = "\n".join(line for line in lines if 'ERROR' in line or 'CRITICAL' in line)
                     st.code(error_text, language="text")
         else:
             st.info("Logs vides ou indisponibles.")
@@ -213,7 +212,6 @@ def _section_last_runs():
                 state = r.get('state') or '?'
                 icon = _STATE_ICON.get(state, '⚫')
                 start = r.get('start_date', '')
-                end = r.get('end_date', '')
                 dur_s = r.get('duration_sec')
                 dur_str = f"{dur_s:.0f}s" if dur_s else "—"
                 start_str = start[:16] if start else "—"

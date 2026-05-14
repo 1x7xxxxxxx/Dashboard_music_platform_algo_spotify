@@ -5,7 +5,6 @@ Affiche les artefacts MLflow (graphiques PNG) + tableau des scores en DB.
 """
 import os
 import streamlit as st
-import pandas as pd
 from pathlib import Path
 from src.dashboard.utils import get_db_connection
 

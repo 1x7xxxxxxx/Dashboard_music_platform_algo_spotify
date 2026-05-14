@@ -16,7 +16,7 @@ google-api-python-client==2.108.0
 streamlit==1.29.0
 plotly==5.18.0
 watchdog==3.0.0
-xhtml2pdf>=0.2.11
+weasyprint>=62.0
 
 # --- Utilities ---
 python-dateutil>=2.8.2

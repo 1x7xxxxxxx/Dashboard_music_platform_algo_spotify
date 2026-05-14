@@ -27,7 +27,7 @@ def _show_body(db, artist_id):
             c1, c2 = st.columns(2)
             sel_camp = c1.selectbox("Campagne Meta Ads", campaigns)
             sel_track = c2.selectbox("Titre Spotify", tracks)
-            
+
             if st.form_submit_button("💾 Enregistrer le lien"):
                 if sel_camp and sel_track:
                     try:
@@ -66,10 +66,10 @@ def _show_body(db, artist_id):
 
     # --- SÉLECTEUR CAMPAGNE ---
     col_filter, col_date = st.columns([1, 2])
-    
+
     with col_filter:
         selected_campaign = st.selectbox(
-            "Choisir la Campagne", 
+            "Choisir la Campagne",
             options=available_campaigns,
             index=0 if available_campaigns else None
         )
@@ -82,7 +82,7 @@ def _show_body(db, artist_id):
         try:
             q_start = "SELECT MIN(day_date) as start_date FROM meta_insights_performance_day WHERE campaign_name = %s"
             df_start = db.fetch_df(q_start, (selected_campaign,))
-            
+
             if not df_start.empty and df_start.iloc[0]['start_date']:
                 camp_start = pd.to_datetime(df_start.iloc[0]['start_date']).date()
                 default_start = camp_start
@@ -95,7 +95,7 @@ def _show_body(db, artist_id):
             value=(default_start, default_end),
             format="DD/MM/YYYY"
         )
-        
+
         if isinstance(date_range, tuple) and len(date_range) == 2:
             start_date, end_date = date_range
         else:
@@ -119,7 +119,7 @@ def _show_body(db, artist_id):
     # =========================================================================
     # 3. RÉCUPÉRATION DES DONNÉES
     # =========================================================================
-    
+
     # A. META ADS
     q_meta = """
         SELECT day_date as date, spend, results, cpr
@@ -150,19 +150,19 @@ def _show_body(db, artist_id):
                 ORDER BY date ASC
             """
             df_streams = db.fetch_df(q_streams, (artist_id, mapped_track.strip(), start_date, end_date))
-        except Exception as e: 
+        except Exception as e:
             st.error(f"Erreur Streams SQL: {e}")
             df_streams = pd.DataFrame()
 
         try:
             q_pop = """
-                SELECT date::date, popularity 
-                FROM track_popularity_history 
+                SELECT date::date, popularity
+                FROM track_popularity_history
                 WHERE TRIM(track_name) = %s AND date >= %s AND date <= %s
             """
             df_pop = db.fetch_df(q_pop, (mapped_track.strip(), start_date, end_date))
         except: df_pop = pd.DataFrame()
-        
+
         if not df_streams.empty:
             df_spotify = df_streams.copy()
             if not df_pop.empty:
@@ -175,7 +175,7 @@ def _show_body(db, artist_id):
     # =========================================================================
     # 4. FUSION ET NETTOYAGE
     # =========================================================================
-    
+
     all_dates = pd.concat([
         df_meta['date'] if 'date' in df_meta.columns else pd.Series(dtype='object'),
         df_hypeddit['date'] if 'date' in df_hypeddit.columns else pd.Series(dtype='object'),
@@ -183,7 +183,7 @@ def _show_body(db, artist_id):
     ]).dropna().unique()
 
     if len(all_dates) == 0:
-        st.warning(f"Aucune donnée trouvée.")
+        st.warning("Aucune donnée trouvée.")
         return
 
     df_master = pd.DataFrame({'date': sorted(all_dates)})
@@ -192,11 +192,11 @@ def _show_body(db, artist_id):
     if not df_meta.empty:
         df_meta['date'] = pd.to_datetime(df_meta['date'])
         df_master = pd.merge(df_master, df_meta, on='date', how='left')
-    
+
     if not df_hypeddit.empty:
         df_hypeddit['date'] = pd.to_datetime(df_hypeddit['date'])
         df_master = pd.merge(df_master, df_hypeddit, on='date', how='left')
-        
+
     if not df_spotify.empty:
         df_spotify['date'] = pd.to_datetime(df_spotify['date'])
         df_master = pd.merge(df_master, df_spotify, on='date', how='left')
@@ -222,32 +222,32 @@ def _show_body(db, artist_id):
     # =========================================================================
     # 5. GRAPHIQUE AVANCÉ
     # =========================================================================
-    
+
     fig = make_subplots(
         rows=3, cols=1,
         shared_xaxes=True,
         vertical_spacing=0.08,
         subplot_titles=(
-            "💰 Budget (Meta) vs Résultats vs Streams Cumulés", 
-            "🌪️ Trafic : Visites Hypeddit vs Clics Sortants", 
+            "💰 Budget (Meta) vs Résultats vs Streams Cumulés",
+            "🌪️ Trafic : Visites Hypeddit vs Clics Sortants",
             "🎧 Streaming : Streams Journaliers vs Popularité"
         ),
         specs=[
-            [{"secondary_y": True}], 
-            [{"secondary_y": True}], 
+            [{"secondary_y": True}],
+            [{"secondary_y": True}],
             [{"secondary_y": True}]
         ]
     )
 
     # --- ROW 1 : META FOCUS (Spend + Results + CPR + STREAMS CUMUL) ---
-    
+
     # 1. Budget (Barres - Axe Y1 Gauche)
     if 'spend' in df_master.columns:
         fig.add_trace(go.Bar(
             x=df_master['date'], y=df_master['spend'],
             name="Budget (€)", marker_color='rgba(255, 99, 97, 0.5)'
         ), row=1, col=1, secondary_y=False)
-    
+
     # 2. Résultats (Ligne - Axe Y2 Droite)
     if 'results' in df_master.columns:
         fig.add_trace(go.Scatter(
@@ -259,9 +259,9 @@ def _show_body(db, artist_id):
     if 'cpr_calc' in df_master.columns:
         fig.add_trace(go.Scatter(
             x=df_master['date'], y=df_master['cpr_calc'],
-            name="CPR (€)", mode='lines', 
+            name="CPR (€)", mode='lines',
             line=dict(color='#bc5090', width=2, dash='dot'),
-            yaxis='y7' 
+            yaxis='y7'
         ))
 
     # 4. STREAMS CUMULÉS (Ligne pleine - Axe CUSTOM Y8 Droite)
@@ -306,15 +306,14 @@ def _show_body(db, artist_id):
         showlegend=True,
         legend=dict(orientation="h", y=1.01),
         title_text=f"Analyse Détaillée : {selected_campaign}",
-        
+
         xaxis=dict(type='date'),
         xaxis2=dict(type='date'),
         xaxis3=dict(title="Date", type='date'),
 
         # AXE SUPPLEMENTAIRE CPR (Gauche)
         yaxis7=dict(
-            title="CPR (€)",
-            titlefont=dict(color="#bc5090"),
+            title=dict(text="CPR (€)", font=dict(color="#bc5090")),
             tickfont=dict(color="#bc5090"),
             anchor="free",
             overlaying="y",
@@ -325,8 +324,7 @@ def _show_body(db, artist_id):
 
         # AXE SUPPLEMENTAIRE STREAMS CUMULÉS (Droite)
         yaxis8=dict(
-            title="Cumul Streams",
-            titlefont=dict(color="#117733"),
+            title=dict(text="Cumul Streams", font=dict(color="#117733")),
             tickfont=dict(color="#117733"),
             anchor="free",
             overlaying="y",
@@ -335,7 +333,7 @@ def _show_body(db, artist_id):
             showgrid=False
         )
     )
-    
+
     fig.update_yaxes(title_text="Budget (€)", row=1, col=1, secondary_y=False)
     fig.update_yaxes(title_text="Volume Conv.", row=1, col=1, secondary_y=True)
     fig.update_yaxes(title_text="Visites", row=2, col=1, secondary_y=False)

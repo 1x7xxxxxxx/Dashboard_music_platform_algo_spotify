@@ -1,0 +1,84 @@
+# Docker build context exclusions.
+#
+# Purpose: keep the build context small so `COPY .` (and even `COPY src/`)
+# transfers fast — especially over the WSL2/9P boundary when the repo sits
+# on /mnt/c/. Without this file the context easily reaches 2+ GB.
+#
+# Note: this affects ALL Dockerfiles (Dockerfile, Dockerfile.airflow,
+# Dockerfile.api). Each Dockerfile only COPYs what it explicitly needs.
+
+# ── Python envs (1.6 GB+ each) ────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Caches ────────────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+
+# ── Build artifacts ───────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ── Git / VCS ─────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Project-specific (not needed in any image) ────────────────────────────
+.claude/
+graphify-out/
+docs/
+tests/
+migrations/
+data/
+.github/
+node_modules/
+
+# ── Secrets / local config ────────────────────────────────────────────────
+# Never bake credentials into images — they come from env vars at runtime.
+.env
+.env.local
+.env.*.local
+config/config.yaml
+.mcp.json
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Notebooks (only useful interactively) ─────────────────────────────────
+*.ipynb
+.ipynb_checkpoints/
+
+# ── Files specific to other Dockerfiles (avoid cross-contamination) ───────
+# Each Dockerfile only COPYs what it needs explicitly, but if any context
+# includes the others' deploy artifacts, exclude them here.
+*.tar
+*.tar.gz
+
+# ── Misc ─────────────────────────────────────────────────────────────────
+.DS_Store
+*.bak
+*.tmp

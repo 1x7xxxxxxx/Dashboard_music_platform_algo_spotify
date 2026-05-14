@@ -1,7 +1,6 @@
 import pandas as pd
 import logging
 from pathlib import Path
-from datetime import datetime
 import warnings
 
 warnings.simplefilter("ignore")
@@ -24,9 +23,9 @@ class MetaCSVParser:
 
     def parse(self, file_path: Path):
         print(f"🔧 [Config Parser] Analyse : {file_path.name}")
-        
+
         df = self.read_flexible(file_path)
-        
+
         # Scan pour trouver le header si le fichier a des lignes parasites au début
         if df.empty or 'Campaign ID' not in [str(c).strip() for c in df.columns]:
             # Mode Scan manuel
@@ -37,7 +36,7 @@ class MetaCSVParser:
                 if 'Campaign ID' in row_str:
                     header_idx = r
                     break
-            
+
             if header_idx is not None:
                 df = df_raw.iloc[header_idx+1:].copy()
                 df.columns = [str(x).strip() for x in df_raw.iloc[header_idx].values]
@@ -60,7 +59,7 @@ class MetaCSVParser:
             return str(val).strip() if pd.notna(val) else None
 
         for _, row in df.iterrows():
-            
+
             # --- 1. CAMPAGNES ---
             c_id = get_val(row, 'Campaign ID')
             if c_id:
@@ -81,20 +80,20 @@ class MetaCSVParser:
                     'adset_name': get_val(row, 'Ad Set Name'),
                     'status': get_val(row, 'Ad Set Run Status') or get_val(row, 'Ad Set Status'), # Fallback
                     'start_time': get_val(row, 'Ad Set Time Start'),
-                    
+
                     # Ciblage Géographique & Démographique
                     'countries': get_val(row, 'Countries'),
                     'cities': get_val(row, 'Cities'),
                     'gender': get_val(row, 'Gender'),
                     'age_min': get_val(row, 'Age Min'),
                     'age_max': get_val(row, 'Age Max'),
-                    
+
                     # Ciblage Avancé
                     'flexible_inclusions': get_val(row, 'Flexible Inclusions'),
                     'advantage_audience': get_val(row, 'Advantage Audience'),
                     'age_range': get_val(row, 'Age Range'),
                     'targeting_optimization': get_val(row, 'Targeting Optimization'),
-                    
+
                     # Placements
                     'publisher_platforms': get_val(row, 'Publisher Platforms'),
                     'instagram_positions': get_val(row, 'Instagram Positions'),
@@ -110,7 +109,7 @@ class MetaCSVParser:
                     'adset_id': as_id,
                     'campaign_id': c_id,
                     'ad_name': get_val(row, 'Ad Name'),
-                    
+
                     # Créa
                     'title': get_val(row, 'Title'),
                     'body': get_val(row, 'Body'),
@@ -123,7 +122,7 @@ class MetaCSVParser:
         res_ad = list(ads.values())
 
         print(f"   📊 Extraction : {len(res_c)} Camps | {len(res_as)} Sets | {len(res_ad)} Pubs")
-        
+
         return {
             'type': 'mixed_config',
             'data': {'campaigns': res_c, 'adsets': res_as, 'ads': res_ad}

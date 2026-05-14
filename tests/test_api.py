@@ -2,6 +2,10 @@
 
 Uses FastAPI TestClient — no real DB or Airflow required.
 The DB dependency is overridden with a mock ``PostgresHandler``-like object.
+
+Skipped gracefully when dev extras (fastapi, python-jose) aren't installed —
+local devs can run `make test` without setting up the full API stack, while CI
+(which installs --extra dev) still runs these tests.
 """
 import sys
 from pathlib import Path
@@ -9,7 +13,13 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from fastapi.testclient import TestClient
+
+# Skip whole module if the API stack isn't installed locally. Must run BEFORE
+# the `src.api.*` imports below — those transitively pull jose + fastapi.
+pytest.importorskip("jose", reason="dev extras not installed — run `make sync`")
+pytest.importorskip("fastapi", reason="dev extras not installed — run `make sync`")
+
+from fastapi.testclient import TestClient  # noqa: E402
 
 # Ensure project root on path
 _root = str(Path(__file__).resolve().parent.parent)
