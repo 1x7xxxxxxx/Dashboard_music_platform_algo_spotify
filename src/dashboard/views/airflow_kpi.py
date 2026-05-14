@@ -6,6 +6,7 @@ from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils import get_db_connection
 from src.utils.freshness_monitor import check_freshness, MONITOR_TARGETS
 from src.dashboard.auth import is_admin
+from src.database.postgres_handler import _validate_table, _validate_columns
 
 def get_quality_metrics():
     """Récupère les KPIs métiers depuis PostgreSQL."""
@@ -325,6 +326,10 @@ def _section_insertion_test():
     results = []
     try:
         for label, dag_id, table, col_date, description in _INSERTION_TARGETS:
+            # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
+            # interval comes from a static interval_map dict (no user input).
+            _validate_table(table)
+            _validate_columns([col_date])
             try:
                 rows = db.fetch_query(
                     f"""
