@@ -1,0 +1,68 @@
+# Dependabot configuration — automated dependency PRs.
+#
+# Coordinates with .github/workflows/security-nightly.yml (pip-audit detection):
+#   - pip-audit reports CVEs each night.
+#   - Dependabot opens the PR that actually fixes them.
+#
+# Conservative cadence: weekly for pip (noisy ecosystem), monthly for CI/Docker.
+# Minor/patch bumps are grouped to avoid PR floods; majors stay separate.
+
+version: 2
+
+updates:
+  # ─── Python (pip) ──────────────────────────────────────────────────────────
+  # Scans requirements.txt + requirements-dev.txt + pyproject.toml at root.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    # Manual review for majors — high blast radius
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ─── GitHub Actions ───────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # ─── Docker (3 Dockerfiles at root: Dockerfile, Dockerfile.airflow,
+  # Dockerfile.api). Dependabot auto-discovers all Dockerfile* in the dir. ───
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
