@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-05-14 (suite 2) — Auto-DEVLOG hook + baseline propagation + dashboard perf audit
+
+### Why
+Trois objectifs enchaînés en fin de session :
+1. Combler le gap "le DEVLOG ne se met pas à jour seul malgré l'infra existante" — appliquer au DEVLOG le pattern draft-then-promote déjà éprouvé pour les REX.
+2. Propager les modifs portables au repo `claude_code_deployment_baseline` pour que tous les futurs projets hériter du système.
+3. Audit perf concret du dashboard (statique + live Lighthouse) pour cadrer les actions long-terme et trancher la question "réécriture React/Next.js ?".
+
+### What changed
+
+**Auto-DEVLOG draft system (commits `5cf5720` streamlytics, `ca837cb` baseline)**
+- `.claude/hooks/draft_devlog.py` (NEW) — Stop hook qui écrit `.claude/sessions/pending-devlog.md` quand ≥3 fichiers réels (src/, airflow/, migrations/, tests/, docs/, build files) modifiés ET pas d'entrée DEVLOG du jour. Filtre exclut `.claude/` (couvert par draft_rex.py). Silent + non-bloquant.
+- `.claude/commands/devlog-promote.md` (NEW) — slash command miroir de `/rex-promote`. Lit le pending, valide `validated: true` + zéro `?` restant, prepend dans DEVLOG.md, supprime le pending.
+- `.claude/settings.json` — wire draft_devlog.py dans la chaîne Stop (entre draft_rex et promote_rex).
+- Baseline : mêmes 3 modifs propagées dans le payload + suppression du `templates/dev-docs/GANTT.md` mort + création de `tools/dev/repack-claude-payloads.sh` (script référencé par `setup-claude-code.sh:46` mais absent du disque).
+
+**Dashboard perf audit (commits `fd8f558` + `73fd236`)**
+- Audit statique : 7 hot points identifiés avec file:line + gain estimé. Top 2 : N+1 Airflow DAG monitoring (`airflow_kpi.py:209`, `home.py:350`, `credentials.py:118` — ~2-3s gain) ; `@st.cache_data` manquant sur 5 KPI helpers (`kpi_helpers.py:147-200+` — ~500-1000ms).
+- Audit live Lighthouse : login page = **69/100, LCP 5.7s, bundle JS Streamlit = 532 KiB (324 KiB unused)**. Confirme que le **cold start est JS-bound** et irréductible sans changer de framework. Workaround chrome-devtools-mcp WSL2 (Target closed) en lançant `npx lighthouse@12` direct sur Chrome bundled Puppeteer.
+- 8 items P3 ajoutés à `roadmap/checklist.md` § "Performance dashboard (long-term, 2026-05-14 audit)" — incluant un nouvel item "disable Streamlit telemetry" (2 calls externes vers `data.streamlit.io/metrics.json` + `webhooks.fivetran.com` détectés au cold start, aucune trace dans le source = built-in Streamlit).
+- `docs/adr/ADR-003-react-rewrite-deferred.md` (NEW) — ADR documente la décision de NE PAS lancer la réécriture React/Next.js maintenant. 4 trigger conditions explicites pour reconsidérer (UX feedback récurrent, besoin WebSocket/SSE, SEO public, scaling >50 artistes). Aucun trigger actif aujourd'hui. Stack cible documentée (Next.js 15 + Tailwind + shadcn + FastAPI existant + NextAuth + React Query + Recharts) + stratégie migration gradual (sous-domaine séparé, vue par vue, pas big-bang).
+
+### Tests
+Pas de tests modifiés cette session. Lint ruff OK sur les fichiers touchés (`draft_devlog.py` syntax check OK, JSON valide pour settings.json). Live audit Lighthouse = 69/100 (mesure réelle, pas test).
+
+### Commits
+- `5cf5720` — feat(hooks): add draft_devlog Stop hook + /devlog-promote slash command
+- `fd8f558` — docs(perf): static dashboard audit → P3 roadmap section + ADR-003 (React rewrite deferred)
+- `73fd236` — docs(perf): live Lighthouse audit calibration + Streamlit telemetry item
+- baseline `ca837cb` — feat(payload): add draft_devlog hook + /devlog-promote command + repack script; remove dead GANTT.md
+
+### Reste à faire
+**Code-side : rien.** Tout pushé sur `origin/main` (4 commits streamlytics au-dessus de cette session + 1 commit baseline).
+
+**Action utilisateur** :
+- Re-trigger `meta_ads_api_daily` une fois → vérifier backfill ETL Logs
+- Re-trigger `soundcloud_daily` une fois → vérifier no-hang + cursor pagination
+- (optionnel ~56j de marge) Activer token IG System User via Business Manager (2FA SMS)
+- (quand prêt) Exécuter `migration-hetzner.md` (~1 jour)
+- (à ton rythme) Traiter les 8 items P3 perf dashboard (~2 jours dev → -50% render time interne)
+
+**Vérifications smoke à faire** :
+- À ta prochaine session avec ≥3 fichiers modifiés : confirmer que `pending-devlog.md` apparaît à la fin de session
+- Tester l'auto-trigger DAG : sauve des creds Spotify dans le dashboard → vérifier toast + run dans Airflow UI
+- Live audit perf des vues internes (auth requise) — pas faisable cette session sans login
+
+### Cross-refs
+- `docs/adr/ADR-003-react-rewrite-deferred.md` — décision React deferred + triggers
+- `.claude/dev-docs/migration-hetzner.md` — play-by-play Hetzner CX33 (créé en (suite 1))
+- `.claude/dev-docs/meta-ads-credential-guide.md` — table "What is automated vs manual" (créée en (suite 1))
+- `.claude/dev-docs/roadmap/checklist.md` § "Performance dashboard" — 8 items P3 chiffrés
+- `.claude/dev-docs/roadmap/checklist.md` § "Standing ops" — rotation secrets incident-driven (consolidée en (suite 1))
+
+---
+
 ## 2026-05-14 (suite) — Roadmap cleanup + auto-trigger DAG + Hetzner migration doc
 
 ### Why
