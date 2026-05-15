@@ -194,7 +194,11 @@ class SoundCloudCollector:
                     'title': track.get('title'),
                     'permalink_url': track.get('permalink_url'),
                     'playback_count': int(track.get('playback_count') or 0),
-                    'likes_count': int(track.get('likes_count') or 0),
+                    # SC returns the like count under `favoritings_count` on
+                    # the user-token /tracks response; `likes_count` is 0/absent
+                    # there. The spike proved this (read both) — mirror it.
+                    'likes_count': int(track.get('likes_count')
+                                       or track.get('favoritings_count') or 0),
                     'reposts_count': int(track.get('reposts_count') or 0),
                     'comment_count': int(track.get('comment_count') or 0),
                     # SC API upload timestamp = true release date (None-safe).
