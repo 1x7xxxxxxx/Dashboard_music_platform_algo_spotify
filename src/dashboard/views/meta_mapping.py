@@ -19,10 +19,14 @@ def _load_campaigns(db, artist_id: int) -> list[str]:
 
 
 def _load_tracks(db, artist_id: int) -> list[str]:
+    # Source: s4a_song_timeline (integer artist_id, multi-tenant). The legacy
+    # `tracks` table stores Spotify-API artist_id as varchar (single-tenant),
+    # incompatible with the SaaS integer key. Mandatory 1x7 filter per CLAUDE.md.
     rows = db.fetch_query(
-        "SELECT DISTINCT track_name FROM tracks "
-        "WHERE artist_id = %s ORDER BY track_name",
-        (artist_id,)
+        "SELECT DISTINCT song FROM s4a_song_timeline "
+        "WHERE artist_id = %s AND song NOT ILIKE %s "
+        "ORDER BY song",
+        (artist_id, "%1x7xxxxxxx%")
     )
     return [r[0] for r in rows]
 

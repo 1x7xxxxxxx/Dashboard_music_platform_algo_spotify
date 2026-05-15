@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
@@ -23,8 +24,18 @@ def show():
 
 def _show_meta_ads(db, artist_id):
     try:
+        # Sort campaigns by launch date (MIN(day_date)) descending — most recent release first.
+        # LEFT JOIN keeps campaigns without day-level data, sorted to the end via NULLS LAST.
         df_list = db.fetch_df(
-            "SELECT DISTINCT campaign_name FROM meta_insights_performance WHERE artist_id = %s ORDER BY campaign_name DESC",
+            """
+            SELECT p.campaign_name, MIN(d.day_date) AS first_day
+            FROM meta_insights_performance p
+            LEFT JOIN meta_insights_performance_day d
+              ON d.campaign_name = p.campaign_name AND d.artist_id = p.artist_id
+            WHERE p.artist_id = %s
+            GROUP BY p.campaign_name
+            ORDER BY first_day DESC NULLS LAST, p.campaign_name DESC
+            """,
             (artist_id,)
         )
         all_campaigns = df_list['campaign_name'].dropna().tolist()
@@ -32,8 +43,8 @@ def _show_meta_ads(db, artist_id):
         st.error(f"Erreur connexion BDD: {e}")
         return
 
-    # Configuration des sélections par défaut
-    default_main = [all_campaigns[1]] if len(all_campaigns) > 1 else all_campaigns[:1]
+    # Default selection: latest release (most recently launched campaign).
+    default_main = all_campaigns[:1]
 
     # --- FILTRE PRINCIPAL ---
     st.subheader("🎯 Périmètre d'Analyse")
@@ -272,6 +283,67 @@ def _show_meta_ads(db, artist_id):
     st.markdown("---")
 
     # ==============================================================================
+    # 📊 SECTION 2b : COMPARAISON MULTI-MÉTRIQUES PAR CAMPAGNE
+    # ==============================================================================
+    st.subheader("📊 Comparaison multi-métriques par campagne")
+    st.caption("Une rangée par métrique, échelles indépendantes. Cliquez une entrée de légende pour la masquer.")
+
+    if not df_perf.empty:
+        df_multi = df_perf[['campaign_name', 'spend', 'impressions',
+                            'link_clicks', 'lp_views', 'custom_conversions']].copy()
+        if not df_eng.empty:
+            df_multi = df_multi.merge(
+                df_eng[['campaign_name', 'saves', 'shares', 'page_interactions']],
+                on='campaign_name', how='left',
+            )
+        else:
+            df_multi[['saves', 'shares', 'page_interactions']] = 0
+        df_multi = df_multi.fillna(0)
+
+        metric_labels = {
+            'spend':              'Dépenses (€)',
+            'impressions':        'Impressions',
+            'link_clicks':        'Clics pub',
+            'lp_views':           'Vues LP',
+            'custom_conversions': 'Clics Spotify',
+            'saves':              'Saves',
+            'shares':             'Shares',
+            'page_interactions':  'Interactions',
+        }
+        df_multi = df_multi.rename(columns=metric_labels)
+        df_long = df_multi.melt(
+            id_vars='campaign_name',
+            value_vars=list(metric_labels.values()),
+            var_name='Métrique',
+            value_name='Valeur',
+        )
+
+        fig_multi = px.bar(
+            df_long,
+            x='campaign_name', y='Valeur',
+            facet_row='Métrique',
+            color='Métrique',
+            category_orders={'Métrique': list(metric_labels.values())},
+            height=130 * len(metric_labels),
+            labels={'campaign_name': 'Campagne'},
+        )
+        # Independent Y-axis per metric so volumes (impressions) and small counts (shares) both visible
+        fig_multi.update_yaxes(matches=None, showticklabels=True, title_text="")
+        # Clean facet labels: "Métrique=Dépenses (€)" → "Dépenses (€)"
+        fig_multi.for_each_annotation(lambda a: a.update(text=a.text.split("=", 1)[-1]))
+        fig_multi.update_layout(
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(t=40, b=40, l=10, r=10),
+            bargap=0.3,
+        )
+        st.plotly_chart(fig_multi, width="stretch")
+    else:
+        st.info("Aucune donnée de campagne pour les filtres sélectionnés.")
+
+    st.markdown("---")
+
+    # ==============================================================================
     # ⏳ SECTION 3 : ÉVOLUTION TEMPORELLE
     # ==============================================================================
     st.subheader("⏳ Évolution Temporelle (Budget vs Résultat vs CPR)")
@@ -387,8 +459,9 @@ def _show_meta_ads(db, artist_id):
         st.dataframe(
             df_full.style.format({
                 "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
-                "CTR (%)": "{:,.2f}", "Saves": "{:,.0f}", "Clics": "{:,.0f}",
-                "Interactions": "{:,.0f}", "Shares": "{:,.0f}"
-            }),
+                "CTR (%)": "{:,.2f}",
+                "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
+                "Clics Spotify": "{:,.0f}", "Clics pub": "{:,.0f}",
+            }, na_rep="—"),
             width="stretch",
         )

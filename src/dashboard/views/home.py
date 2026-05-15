@@ -179,7 +179,7 @@ def _section_onboarding(db, artist_id: int) -> None:
     if completed == len(steps):
         return  # All done — hide the section
 
-    st.subheader(f"🚀 Getting started — {completed}/{len(steps)} steps completed")
+    st.markdown(f"#### 🚀 Getting started — {completed}/{len(steps)} steps completed")
     st.progress(completed / len(steps))
 
     for done, label, _page in steps:
@@ -236,7 +236,7 @@ def _section_dag_status():
 
 
 def show():
-    st.title("🎵 Music Platform Dashboard")
+    st.title("🎵 streaMLytics — Music platform dashboard")
     st.markdown("---")
 
     artist_id = get_artist_id()  # None si admin
@@ -247,13 +247,12 @@ def show():
             if artist_id is not None:
                 _section_onboarding(db, artist_id)
 
+            _section_streams(db, artist_id)
+            st.markdown("---")
+            _section_pdf_export(artist_id)
+            st.markdown("---")
             _section_dag_status()
             st.markdown("---")
             _section_freshness(db, artist_id)
-            st.markdown("---")
-            _section_streams(db, artist_id)
         except Exception as e:
             st.error(f"Erreur d'affichage : {e}")
-
-    st.markdown("---")
-    _section_pdf_export(artist_id)
