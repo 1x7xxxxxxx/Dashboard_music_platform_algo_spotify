@@ -192,11 +192,70 @@ def step_4_dry_run_insert(api_data):
     
     logger.info("✅ Logique de données valide.")
 
+def step_5_test_media():
+    print_header("Étape 5 : Test API Media (/{ig-user-id}/media)")
+    token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    user_id = os.getenv("INSTAGRAM_USER_ID")
+    from src.utils.meta_config import META_GRAPH_BASE_URL
+    url = f"{META_GRAPH_BASE_URL}/{user_id}/media"
+    params = {
+        'fields': 'id,caption,media_type,permalink,timestamp,'
+                  'like_count,comments_count',
+        'access_token': token, 'limit': 5,
+    }
+    logger.info(f"📡 Appel vers : {url}")
+    try:
+        r = requests.get(url, params=params)
+        logger.info(f"   Code HTTP : {r.status_code}")
+        if r.status_code == 200:
+            items = r.json().get('data', [])
+            logger.info(f"✅ {len(items)} média(s) récupéré(s) (page 1, limit 5)")
+            for m in items[:3]:
+                logger.info(
+                    f"   • {m.get('media_type')} {m.get('id')} "
+                    f"❤️{m.get('like_count')} 💬{m.get('comments_count')}"
+                )
+            return [m.get('id') for m in items]
+        logger.error(f"❌ Échec media : {r.text[:200]}")
+    except Exception as e:
+        logger.error(f"❌ Exception media : {e}")
+    return []
+
+
+def step_6_test_media_insights(media_ids):
+    print_header("Étape 6 : Test API Insights (/{media-id}/insights)")
+    if not media_ids:
+        logger.warning("⏩ Pas de media_id, test insights annulé.")
+        return
+    token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    from src.utils.meta_config import META_GRAPH_BASE_URL
+    mid = media_ids[0]
+    url = f"{META_GRAPH_BASE_URL}/{mid}/insights"
+    params = {'metric': 'impressions,reach,engagement,saved,shares',
+              'access_token': token}
+    logger.info(f"📡 Appel vers : {url}")
+    try:
+        r = requests.get(url, params=params)
+        logger.info(f"   Code HTTP : {r.status_code}")
+        if r.status_code == 200:
+            for it in r.json().get('data', []):
+                vals = it.get('values', [])
+                v = vals[0].get('value') if vals else None
+                logger.info(f"   • {it.get('name')} = {v}")
+            logger.info("✅ Insights OK.")
+        else:
+            logger.error(f"❌ Échec insights : {r.text[:200]}")
+    except Exception as e:
+        logger.error(f"❌ Exception insights : {e}")
+
+
 if __name__ == "__main__":
     if step_1_check_env():
         db_ok = step_2_check_database()
         data = step_3_test_api()
         if data:
             step_4_dry_run_insert(data)
-    
+        media_ids = step_5_test_media()
+        step_6_test_media_insights(media_ids)
+
     print("\n✅ Fin du diagnostic.")

@@ -224,10 +224,137 @@ class InstagramCollector:
                 logger.error("Missing table — run the schema migration first")
             raise
 
+    def _map_media(self, m: dict) -> dict:
+        return {
+            'artist_id': self.artist_id,
+            'media_id': m.get('id'),
+            'caption': m.get('caption'),
+            'media_type': m.get('media_type'),
+            'permalink': m.get('permalink'),
+            'media_url': m.get('media_url'),
+            'timestamp': m.get('timestamp'),
+            'like_count': m.get('like_count', 0) or 0,
+            'comments_count': m.get('comments_count', 0) or 0,
+            'collected_at': datetime.now(timezone.utc),
+        }
+
+    @retry(max_attempts=3, backoff="exponential")
+    def fetch_media(self, max_pages: int = 10) -> list:
+        """Fetch the account's posts via /{ig-user-id}/media (paginated, capped)."""
+        url = f"{self.base_url}/{self.ig_user_id}/media"
+        params = {
+            'fields': 'id,caption,media_type,permalink,media_url,'
+                      'timestamp,like_count,comments_count',
+            'access_token': self.access_token, 'limit': 50,
+        }
+        media, pages = [], 0
+        try:
+            while url and pages < max_pages:
+                resp = self.session.get(url, params=params if pages == 0 else None)
+                if resp.status_code == 401:
+                    raise ValueError(
+                        "Instagram API 401 — token expired/invalid. Action: "
+                        "Dashboard → Credentials → Meta → new long-lived token."
+                    )
+                if resp.status_code != 200:
+                    err = (resp.json().get('error', {})
+                           if resp.content else {})
+                    raise ValueError(
+                        f"Instagram media API {resp.status_code} "
+                        f"(code {err.get('code', '')}): {err.get('message', '')[:200]}"
+                    )
+                data = resp.json()
+                media.extend(self._map_media(m) for m in data.get('data', []))
+                url = data.get('paging', {}).get('next')
+                pages += 1
+            if pages >= max_pages and url:
+                logger.warning(f"IG media pagination cap ({max_pages}) hit — older posts skipped.")
+            logger.info(f"Fetched {len(media)} Instagram media item(s)")
+            return media
+        except ValueError:
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Instagram media fetch failed: {e}") from e
+
+    def _media_insight_row(self, mid: str, metrics: str, day) -> dict | None:
+        """One media's insights, or None if unsupported (400 code 100 → skip)."""
+        resp = self.session.get(
+            f"{self.base_url}/{mid}/insights",
+            params={'metric': metrics, 'access_token': self.access_token},
+        )
+        if resp.status_code == 401:
+            raise ValueError(
+                "Instagram API 401 — token expired/invalid. Action: "
+                "Dashboard → Credentials → Meta → new long-lived token."
+            )
+        if resp.status_code != 200:
+            err = resp.json().get('error', {}) if resp.content else {}
+            if resp.status_code == 400 and err.get('code') == 100:
+                logger.warning(f"Insights unsupported for media {mid} (code 100) — skipped.")
+                return None
+            raise ValueError(
+                f"Instagram insights API {resp.status_code} "
+                f"(code {err.get('code', '')}) media {mid}: {err.get('message', '')[:160]}"
+            )
+        vals = {}
+        for item in resp.json().get('data', []):
+            series = item.get('values', [])
+            vals[item.get('name')] = series[0].get('value', 0) if series else 0
+        return {
+            'artist_id': self.artist_id, 'media_id': mid, 'date': day,
+            'impressions': vals.get('impressions', 0), 'reach': vals.get('reach', 0),
+            'engagement': vals.get('engagement', 0), 'saved': vals.get('saved', 0),
+            'shares': vals.get('shares', 0),
+            'collected_at': datetime.now(timezone.utc),
+        }
+
+    @retry(max_attempts=3, backoff="exponential")
+    def fetch_media_insights(self, media_ids: list) -> list:
+        """Per-media insights; unsupported media are skipped, not fatal."""
+        metrics = "impressions,reach,engagement,saved,shares"
+        day = datetime.now(timezone.utc).date()
+        out = []
+        try:
+            for mid in media_ids:
+                if not mid:
+                    continue
+                row = self._media_insight_row(mid, metrics, day)
+                if row is not None:
+                    out.append(row)
+        except ValueError:
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Instagram insights fetch failed: {e}") from e
+        logger.info(f"Fetched insights for {len(out)} media item(s)")
+        return out
+
+    def save_media_to_db(self, media: list, insights: list) -> None:
+        if not self.db:
+            raise RuntimeError("Instagram media save: no DB connection")
+        if media:
+            self.db.upsert_many(
+                'instagram_media', media,
+                conflict_columns=['artist_id', 'media_id'],
+                update_columns=['caption', 'media_type', 'permalink', 'media_url',
+                                'timestamp', 'like_count', 'comments_count',
+                                'collected_at'],
+            )
+        if insights:
+            self.db.upsert_many(
+                'instagram_media_insights', insights,
+                conflict_columns=['artist_id', 'media_id', 'date'],
+                update_columns=['impressions', 'reach', 'engagement', 'saved',
+                                'shares', 'collected_at'],
+            )
+        logger.info(f"Saved {len(media)} media + {len(insights)} insight row(s)")
+
     def run(self):
         self._check_proactive_refresh()
         stats = self.fetch_stats()
         self.save_to_db(stats)
+        media = self.fetch_media()
+        insights = self.fetch_media_insights([m['media_id'] for m in media])
+        self.save_media_to_db(media, insights)
         if self.db:
             self.db.close()
 

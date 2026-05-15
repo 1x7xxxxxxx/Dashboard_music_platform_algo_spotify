@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
 
 def show():
@@ -52,16 +53,20 @@ def show():
         # 2. GRAPHIQUE D'ÉVOLUTION
         st.subheader("📈 Croissance de la communauté")
 
+        window = smart_period_filter(
+            db, table="instagram_daily_stats", date_column="collected_at",
+            artist_id=artist_id, key="ig_community",
+        )
+
         try:
-            # Historique 90 jours
-            query = """
+            frag, frag_params = window.sql_between("collected_at")
+            query = f"""
                 SELECT collected_at, followers_count, media_count
                 FROM instagram_daily_stats
-                WHERE artist_id = %s
-                  AND collected_at >= CURRENT_DATE - INTERVAL '90 days'
+                WHERE artist_id = %s {frag}
                 ORDER BY collected_at ASC
             """
-            df_hist = db.fetch_df(query, (artist_id,))
+            df_hist = db.fetch_df(query, (artist_id, *frag_params))
 
             if not df_hist.empty:
                 df_hist['collected_at'] = pd.to_datetime(df_hist['collected_at'])
@@ -71,7 +76,7 @@ def show():
                     df_hist,
                     x='collected_at',
                     y='followers_count',
-                    title="Évolution des Abonnés (90 jours)",
+                    title=f"Évolution des Abonnés ({window.label})",
                     markers=True,
                     color_discrete_sequence=['#E1306C']  # Couleur Insta
                 )
@@ -80,6 +85,55 @@ def show():
 
         except Exception as e:
             st.error(f"Erreur historique : {e}")
+
+        # 3. PUBLICATIONS RÉCENTES (posts + insights)
+        st.markdown("---")
+        st.subheader("📝 Publications récentes")
+
+        win_m = smart_period_filter(
+            db, table="instagram_media", date_column="timestamp",
+            artist_id=artist_id, key="ig_media",
+        )
+        try:
+            frag_m, params_m = win_m.sql_between("timestamp")
+            q_media = f"""
+                SELECT m.media_url, m.caption, m.media_type, m.permalink,
+                       m.timestamp, m.like_count, m.comments_count,
+                       i.impressions, i.reach, i.engagement, i.saved, i.shares
+                FROM instagram_media m
+                LEFT JOIN LATERAL (
+                    SELECT impressions, reach, engagement, saved, shares
+                    FROM instagram_media_insights ii
+                    WHERE ii.artist_id = m.artist_id
+                      AND ii.media_id = m.media_id
+                    ORDER BY ii.date DESC LIMIT 1
+                ) i ON TRUE
+                WHERE m.artist_id = %s {frag_m}
+                ORDER BY m.timestamp DESC
+            """
+            df_media = db.fetch_df(q_media, (artist_id, *params_m))
+
+            if df_media.empty:
+                st.info("Aucune publication collectée pour cette période.")
+            else:
+                st.dataframe(
+                    df_media,
+                    width="stretch",
+                    hide_index=True,
+                    column_config={
+                        "media_url": st.column_config.ImageColumn("Aperçu"),
+                        "permalink": st.column_config.LinkColumn(
+                            "Lien", display_text="Ouvrir"),
+                        "caption": st.column_config.TextColumn(
+                            "Légende", width="medium"),
+                        "timestamp": st.column_config.DatetimeColumn(
+                            "Publié le", format="DD/MM/YYYY"),
+                        "like_count": "❤️ Likes",
+                        "comments_count": "💬 Comm.",
+                    },
+                )
+        except Exception as e:
+            st.error(f"Erreur publications : {e}")
 
     finally:
         db.close()

@@ -16,6 +16,7 @@ _ALLOWED_TABLES = frozenset({
     'artists', 'tracks', 'track_popularity_history', 'artist_history',
     's4a_songs_global', 's4a_song_timeline', 's4a_audience',
     'soundcloud_tracks_daily', 'instagram_daily_stats',
+    'instagram_media', 'instagram_media_insights',
     'imusician_monthly_revenue', 'imusician_release_summary', 'imusician_sales_detail',
     'ml_song_predictions', 'artist_wrapped',
     'meta_campaigns', 'meta_adsets', 'meta_ads', 'meta_insights',
