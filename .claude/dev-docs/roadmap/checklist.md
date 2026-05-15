@@ -294,6 +294,10 @@ Audit statique + live Lighthouse (page login publique) effectués 2026-05-14. Vo
 
 **Estimated total** : ~2 jours de dev → -50 % temps de render moyen (de ~2-3s à ~1-1.5s) sur les pages internes. **Le cold start (LCP 5.7s) restera dominé par le bundle JS Streamlit (532 KiB) — irréductible sans changer de framework.**
 
+### P4 — Refactor program (2026-05-15)
+
+- [ ] **Dashboard refactor program** — sequenced queue R1–R6 (one file/PR, trigger-gated). Tracker: `.claude/dev-docs/roadmap/refactor-program.md` (spec: `refactor-audit-dashboard.md`). R1 `credentials.py`→package ✅ DONE (`acf8b6f`). Open: R2 `kpi_helpers.py` ruff (quick win), R4 `trigger_algo.py` split (high ROI, next edit), R5 `pdf_exporter.py`, R6 `revenue_forecast.py`. R3 = `view-session-adoption` error-class (no dup). Guardrails: no big-bang, no FastAPI/React, no service layers (ADR-002), never split <400 l.
+
 ### Standing ops — incident-driven (no code action)
 
 These are not roadmap bricks; they are operational standing instructions kept here for visibility.
