@@ -20,7 +20,7 @@ import hashlib
 import os
 import secrets
 import sys
-import threading
+import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -50,18 +50,21 @@ def _make_handler(expected_state: str, path: str):
 
         def do_GET(self):
             parsed = urllib.parse.urlparse(self.path)
-            if parsed.path != path:
-                self.send_response(404)
+            q = urllib.parse.parse_qs(parsed.query)
+            code = (q.get("code") or [None])[0]
+            err = (q.get("error") or [None])[0]
+            st = (q.get("state") or [None])[0]
+            # Ignore anything that isn't the real callback (favicon, probes,
+            # wrong path) so a stray request can't consume the one-shot.
+            if parsed.path != path or (not code and not err):
+                self.send_response(204)
                 self.end_headers()
                 return
-            q = urllib.parse.parse_qs(parsed.query)
-            _result["code"] = (q.get("code") or [None])[0]
-            _result["state"] = (q.get("state") or [None])[0]
-            _result["error"] = (q.get("error") or [None])[0]
+            _result["code"], _result["error"], _result["state"] = code, err, st
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.end_headers()
-            ok = _result["code"] and _result["state"] == expected_state
+            ok = code and st == expected_state
             msg = "✅ SoundCloud authorized — return to the terminal." if ok \
                 else "❌ Authorization failed — see terminal."
             self.wfile.write(msg.encode())
@@ -72,9 +75,14 @@ def _make_handler(expected_state: str, path: str):
 def _capture_code(redirect_uri: str, authorize_url: str,
                   client_id: str, challenge: str, state: str) -> str:
     parts = urllib.parse.urlparse(redirect_uri)
-    server = HTTPServer((parts.hostname, parts.port or 80),
-                        _make_handler(state, parts.path or "/"))
-    threading.Thread(target=server.handle_request, daemon=True).start()
+    try:
+        server = HTTPServer((parts.hostname, parts.port or 80),
+                            _make_handler(state, parts.path or "/"))
+    except OSError as e:
+        sys.exit(f"❌ cannot bind {parts.hostname}:{parts.port} ({e}). "
+                 "Close whatever uses that port or pass a free --redirect-uri "
+                 "(must also be registered on the SoundCloud app).")
+    server.timeout = 1  # handle_request returns each second so we can poll
 
     params = urllib.parse.urlencode({
         "client_id": client_id, "redirect_uri": redirect_uri,
@@ -87,16 +95,17 @@ def _capture_code(redirect_uri: str, authorize_url: str,
         webbrowser.open(url)
     except Exception:
         pass
-    print("Waiting for the redirect on "
-          f"{redirect_uri} … (Ctrl-C to abort)")
-    server_thread_done = threading.Event()
+    print(f"Waiting for the redirect on {redirect_uri} … (Ctrl-C to abort)")
 
-    def _wait():
-        while "code" not in _result and "error" not in _result:
-            server_thread_done.wait(0.3)
-    _wait_t = threading.Thread(target=_wait, daemon=True)
-    _wait_t.start()
-    _wait_t.join(timeout=300)
+    deadline = time.time() + 300
+    try:
+        while ("code" not in _result and "error" not in _result
+               and time.time() < deadline):
+            server.handle_request()  # blocks ≤1s (server.timeout), then loops
+    except KeyboardInterrupt:
+        sys.exit("\n❌ Aborted.")
+    finally:
+        server.server_close()
 
     if _result.get("error"):
         sys.exit(f"❌ SoundCloud returned error: {_result['error']}")
