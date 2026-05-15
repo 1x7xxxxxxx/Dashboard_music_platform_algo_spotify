@@ -40,6 +40,7 @@ _ALLOWED_TABLES = frozenset({
 })
 _ALLOWED_DATE_COLUMNS = frozenset({
     "day_date", "date", "collected_at", "first_seen", "timestamp",
+    "track_created_at",
 })
 _ALLOWED_ARTIST_COLUMNS = frozenset({"artist_id"})
 # Entity (track/song) label columns the entity_period_filter may select on.
@@ -188,18 +189,30 @@ class EntitySpec:
     """Per-view declaration for a release-anchored entity + period selector.
 
     `entity_column` is the label users pick and downstream queries filter on
-    (e.g. soundcloud `title`, apple `song_name`). Release date per entity is
-    `MIN(date_column)` — the same time-series column the period span uses.
+    (e.g. soundcloud `title`, apple `song_name`). "Latest release" ordering uses
+    `MIN(release_column)`; if `release_column` is None it falls back to
+    `date_column` (the time-series column the period span uses). Set
+    `release_column` to a true upload/release date (e.g. soundcloud
+    `track_created_at`) when `date_column` is merely the ingest time.
     """
     table: str
     entity_column: str
     date_column: str
     multi: bool = True
     default_count: int = 1
+    release_column: Optional[str] = None
+
+    @property
+    def _release_col(self) -> str:
+        return self.release_column or self.date_column
 
 
 def _validate_entity(spec: EntitySpec) -> None:
     _validate(spec.table, spec.date_column, "artist_id")
+    if spec._release_col not in _ALLOWED_DATE_COLUMNS:
+        raise ValueError(
+            f"entity_period_filter: release_column '{spec._release_col}' not in allowlist"
+        )
     if spec.entity_column not in _ALLOWED_ENTITY_COLUMNS:
         raise ValueError(
             f"entity_period_filter: entity_column '{spec.entity_column}' not in allowlist"
@@ -224,7 +237,7 @@ def _entity_options(
         f"SELECT {spec.entity_column} FROM {spec.table} WHERE 1=1"
         + (" AND artist_id = %s" if artist_id is not None else "")
         + f" GROUP BY {spec.entity_column} "
-        f"ORDER BY MIN({spec.date_column}) DESC NULLS LAST"
+        f"ORDER BY MIN({spec._release_col}) DESC NULLS LAST"
     )
     rows = db.fetch_query(sql, (artist_id,) if artist_id is not None else None)
     return [r[0] for r in rows] if rows else []
@@ -266,7 +279,7 @@ def entity_period_filter(
         if not sel_list:
             return None
         rows = db.fetch_query(
-            f"SELECT MIN({spec.date_column})::date FROM {spec.table} "
+            f"SELECT MIN({spec._release_col})::date FROM {spec.table} "
             f"WHERE artist_id = %s AND {spec.entity_column} = ANY(%s)",
             (artist_id, sel_list),
         )

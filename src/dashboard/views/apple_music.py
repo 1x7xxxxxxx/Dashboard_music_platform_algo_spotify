@@ -89,7 +89,7 @@ def show():
         selected_songs, window = entity_period_filter(
             db,
             spec=EntitySpec("apple_songs_history", "song_name", "date",
-                            multi=True, default_count=3),
+                            multi=True, default_count=1),
             artist_id=artist_id, key_prefix="apple_daily",
             label="🔍 Filtrer par chanson(s)",
         )
@@ -137,8 +137,7 @@ def show():
                         name=f"⚡ {song}", opacity=0.4, yaxis='y2',
                     ))
                 fig.update_layout(
-                    title=f"Croissance quotidienne — Streams (lignes) & "
-                          f"Shazams (barres) · {window.label}",
+                    title=f"Streams & Shazams par jour · {window.label}",
                     hovermode='x unified',
                     yaxis=dict(title="Streams / jour"),
                     yaxis2=dict(title="Shazams / jour", overlaying='y',

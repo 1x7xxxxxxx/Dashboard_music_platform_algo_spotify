@@ -64,3 +64,26 @@ def test_validate_rejects_bad_date_column():
 def test_entityspec_defaults():
     s = EntitySpec("soundcloud_tracks_daily", "title", "collected_at")
     assert s.multi is True and s.default_count == 1
+
+
+def test_release_col_defaults_to_date_column():
+    s = EntitySpec("soundcloud_tracks_daily", "title", "collected_at")
+    assert s.release_column is None
+    assert s._release_col == "collected_at"
+
+
+def test_release_col_uses_release_column_when_set():
+    s = EntitySpec("soundcloud_tracks_daily", "title", "collected_at",
+                    release_column="track_created_at")
+    assert s._release_col == "track_created_at"
+
+
+def test_validate_accepts_allowlisted_release_column():
+    _validate_entity(EntitySpec("soundcloud_tracks_daily", "title",
+                                "collected_at", release_column="track_created_at"))
+
+
+def test_validate_rejects_bad_release_column():
+    with pytest.raises(ValueError):
+        _validate_entity(EntitySpec("soundcloud_tracks_daily", "title",
+                                    "collected_at", release_column="evil"))
