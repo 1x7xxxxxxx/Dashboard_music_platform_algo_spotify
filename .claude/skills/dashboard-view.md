@@ -30,8 +30,8 @@ Injected when prompt contains: "dashboard", "view", "streamlit", "page", "show()
 | Rule | Detail |
 |---|---|
 | Entry point | `show()` — no arguments |
-| DB connection | `get_db_connection()` from `src/dashboard/utils/__init__.py` |
-| DB close | `db.close()` in `finally` block or context manager |
+| DB + artist | `with view_session() as (db, artist_id):` from `src/dashboard/utils` — opens 1 conn, resolves tenant, auto-closes, enforces rules #7/#9 |
+| DB close | handled by `view_session()` (legacy: `db.close()` in `finally`) |
 | Artist filter | `WHERE artist_id = %(artist_id)s` — value from `st.session_state['artist_id']` |
 | S4A mandatory filter | `AND song NOT ILIKE '%1x7xxxxxxx%'` on `s4a_song_timeline` |
 | Role gate | `if st.session_state.get('role') == 'admin':` |
@@ -48,20 +48,20 @@ Injected when prompt contains: "dashboard", "view", "streamlit", "page", "show()
 
 ## Code Patterns
 
-### Standard DB Query
+### Standard DB Query (use `view_session()`)
 ```python
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 
 def show():
-    db = get_db_connection()
-    try:
+    with view_session() as (db, artist_id):
         df = db.fetch_df(
-            "SELECT * FROM some_table WHERE artist_id = %(artist_id)s",
-            {"artist_id": st.session_state["artist_id"]}
+            "SELECT * FROM some_table WHERE artist_id = %s",
+            (artist_id,),
         )
-    finally:
-        db.close()
+        # render; connection auto-closed, non-admin invalid session auto-stopped
 ```
+`view_session()` replaces the `get_db_connection()` + manual `get_artist_id()`
+guard + `try/finally db.close()` boilerplate (rules #7 & #9 enforced).
 
 ### S4A Query (mandatory filter)
 ```python

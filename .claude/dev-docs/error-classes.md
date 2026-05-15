@@ -141,6 +141,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
   - 2026-05-15: catalogued. Heuristic — a view legitimately may call the helper twice in branches; manual triage.
+  - 2026-05-15: structural guard added — `view_session()` context manager (`src/dashboard/utils/__init__.py`) opens exactly 1 conn + auto-closes; CLAUDE.md #9 now mandates it for new views. Migrated views (instagram, soundcloud) can't regress. Existing un-migrated views keep the legacy manual guard (correct, not the bug) — class stays `open` until coverage is broad.
 
 ## naive-datetime-now
 - status: open

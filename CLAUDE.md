@@ -153,7 +153,7 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 4. **Priority**: P1 (crash/security) > P2 (data integrity) > P3 (UX) > P4 (tech debt). Never address P4 during a P1 session.
 5. **Background agent**: Spawn `strategic-plan-architect` only after ≥3 files changed in one session. Not after single-file edits.
 6. **Collectors must raise**: `except Exception` blocks in `src/collectors/` must always `raise` — never `return None`, `return []`, or `break` silently. Any deviation is a P2 data-integrity bug. Run `/audit-collectors` after touching any collector.
-7. **`get_artist_id()` guard**: Never write `get_artist_id() or 1`. Always use the explicit guard:
+7. **`get_artist_id()` guard**: Never write `get_artist_id() or 1`. New views MUST use the `view_session()` context manager (`src/dashboard/utils/__init__.py`) which encapsulates the guard — `with view_session() as (db, artist_id): ...`. The manual guard below is the legacy form (still valid in not-yet-migrated views):
    ```python
    artist_id = get_artist_id()
    if artist_id is None:
@@ -161,7 +161,7 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
        artist_id = 1  # admin fallback — document explicitly
    ```
 8. **SQL identifier allowlists**: Any f-string that interpolates a table name or column name must validate against a `frozenset` allowlist before execution. Values (user data) always use `%s` parameterization — never f-strings.
-9. **DB connections per request**: `get_artist_plan()` uses 1 single LEFT JOIN query. Views must open 1 connection in `show()` and close it in `finally`. Never open `db2` as a fallback inside the same function.
+9. **DB connections per request**: `get_artist_plan()` uses 1 single LEFT JOIN query. Views open exactly 1 connection via `view_session()` (auto-closed on exit) — never open `db2` as a fallback inside the same function. `view_session()` enforces this structurally.
 10. **Makefile fail-fast**: any target invoking a runtime dependency (Docker, the venv interpreter, the live Postgres, `uv`, `streamlit`) must declare a prerequisite that fails fast with an actionable message — the `dashboard: check-env` precedent. File-only targets (`clean`, `help`, `graph-html`) are exempt. A runtime target with no precondition is a P3 bug: it must name the fix command, never crash mid-execution. Error class: `make-fail-late` (`.claude/dev-docs/error-classes.md`); full spec `.claude/rules/makefile-fail-fast.md`.
 
 ### Skills (`.claude/skills/`) — load on demand via Skill tool only

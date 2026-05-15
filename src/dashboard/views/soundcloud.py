@@ -1,22 +1,14 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
-from src.dashboard.auth import get_artist_id, is_admin
 
 def show():
     st.title("☁️ SoundCloud - Performance")
     st.markdown("---")
 
-    db = get_db_connection()
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error("Session invalide."); st.stop()
-        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
-
-    try:
+    with view_session() as (db, artist_id):
         # =========================================================================
         # 1. KPIs GLOBAUX (Dernière date connue)
         # =========================================================================
@@ -162,9 +154,6 @@ def show():
                 hide_index=True,
                 width="stretch",
             )
-
-    finally:
-        db.close()
 
 if __name__ == "__main__":
     show()
