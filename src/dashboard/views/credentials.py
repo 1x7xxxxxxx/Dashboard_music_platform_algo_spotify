@@ -155,6 +155,11 @@ PLATFORMS = {
             {'key': 'client_id',     'label': 'Client ID',                        'secret': False},
             {'key': 'client_secret', 'label': 'Client Secret',                    'secret': True},
             {'key': 'user_id',       'label': 'User ID numérique (ex: 123456789)', 'secret': False},
+            # OAuth user-token path (optional): enables real per-track likes.
+            # Leave empty to keep the client_credentials fallback.
+            {'key': 'redirect_uri',  'label': 'Redirect URI (OAuth, optionnel)',  'secret': False,
+             'default': 'http://localhost:8888/callback'},
+            {'key': 'refresh_token', 'label': 'Refresh Token (OAuth, optionnel)', 'secret': True},
         ],
     },
     'meta': {
