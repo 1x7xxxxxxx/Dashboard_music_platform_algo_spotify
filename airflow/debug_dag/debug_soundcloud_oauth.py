@@ -51,10 +51,15 @@ def _get_user_token(client_id: str, client_secret: str, refresh_token: str) -> s
 
 
 def main() -> int:
-    cid = os.getenv("SOUNDCLOUD_CLIENT_ID")
-    csec = os.getenv("SOUNDCLOUD_CLIENT_SECRET")
-    uid = os.getenv("SOUNDCLOUD_USER_ID")
-    rtok = os.getenv("SOUNDCLOUD_REFRESH_TOKEN")
+    # strip("<>") + whitespace: tolerate placeholder-pasted creds (a literal
+    # "<secret>" reaches SoundCloud as invalid_client otherwise).
+    def _clean(v):
+        return (v or "").strip().strip("<>").strip()
+
+    cid = _clean(os.getenv("SOUNDCLOUD_CLIENT_ID"))
+    csec = _clean(os.getenv("SOUNDCLOUD_CLIENT_SECRET"))
+    uid = _clean(os.getenv("SOUNDCLOUD_USER_ID"))
+    rtok = _clean(os.getenv("SOUNDCLOUD_REFRESH_TOKEN"))
 
     if not all([cid, csec, uid, rtok]):
         logger.error("❌ NO-GO — missing one of SOUNDCLOUD_CLIENT_ID/CLIENT_SECRET/"
