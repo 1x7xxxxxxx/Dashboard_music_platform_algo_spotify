@@ -108,7 +108,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P1
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
-- signature: `! grep -rnE "get_artist_id\(\) *or *1" src/`
+- signature: `! grep -rnE "=[[:space:]]*get_artist_id\(\)[[:space:]]+or[[:space:]]+1" src/`
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#7 }
 - rex_ref: CLAUDE.md
@@ -116,6 +116,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-03-27: 9 views fixed with explicit guard. Pattern still ungrepped in CI until now.
   - 2026-05-15: catalogued, added to `make audit`.
+  - 2026-05-15: no-arg /sweep caught a FALSE POSITIVE — the prior signature `get_artist_id() *or *1` matched the `view_session()` docstring + CLAUDE.md rule text that *quote* the anti-pattern, breaking the `deterministic` (CI-safe) contract. Hardened to require assignment context `= get_artist_id() or 1` (verified 0 real hits, docstring excluded). `make audit` recipe synced to the same regex (no catalogue↔audit drift).
 
 ## sql-fstring-identifier
 - status: open

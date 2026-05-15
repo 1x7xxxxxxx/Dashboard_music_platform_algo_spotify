@@ -50,7 +50,7 @@ audit:       ## Sweep automatable error-class signatures (heuristic, non-blockin
 	echo "▶ collector-silent-success"; \
 	grep -n "return None\|return \[\]\|return {}\|return tracks\|return stats\|return data" src/collectors/*.py && rc=1 || true; \
 	echo "▶ artist-id-or-1"; \
-	grep -rnE "get_artist_id\(\) *or *1" src/ && rc=1 || true; \
+	grep -rnE "=[[:space:]]*get_artist_id\(\)[[:space:]]+or[[:space:]]+1" src/ && rc=1 || true; \
 	echo "▶ sql-fstring-identifier"; \
 	grep -rnE "f\"\"\"?[^\"]*(FROM|JOIN|INTO|UPDATE|TABLE) +\{" src/ --include=*.py && rc=1 || true; \
 	echo "▶ db-connection-per-show"; \
