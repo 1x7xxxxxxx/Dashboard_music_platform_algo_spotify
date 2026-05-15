@@ -76,7 +76,8 @@ def show():
             selected_tracks, window = entity_period_filter(
                 db,
                 spec=EntitySpec("soundcloud_tracks_daily", "title", "collected_at",
-                                multi=True, default_count=1),
+                                multi=True, default_count=1,
+                                release_column="track_created_at"),
                 artist_id=artist_id, key_prefix="sc",
                 label="Filtrer par titres",
             )

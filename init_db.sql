@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS soundcloud_tracks_daily (
     likes_count INTEGER DEFAULT 0,
     reposts_count INTEGER DEFAULT 0,
     comment_count INTEGER DEFAULT 0,
+    track_created_at TIMESTAMP,
     collected_at DATE DEFAULT CURRENT_DATE,
     UNIQUE(artist_id, track_id, collected_at)
 );

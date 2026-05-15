@@ -84,6 +84,7 @@ def run_soundcloud_collector(**context):
         client_id     = creds.get('client_id')     or os.getenv('SOUNDCLOUD_CLIENT_ID')
         client_secret = creds.get('client_secret') or os.getenv('SOUNDCLOUD_CLIENT_SECRET')
         user_id       = creds.get('user_id')       or os.getenv('SOUNDCLOUD_USER_ID')
+        refresh_token = creds.get('refresh_token') or os.getenv('SOUNDCLOUD_REFRESH_TOKEN')
         logger.info("  credentials chargés (DB + env vars fallback)")
 
         try:
@@ -92,6 +93,7 @@ def run_soundcloud_collector(**context):
                 client_id=client_id,
                 client_secret=client_secret,
                 user_id=user_id,
+                refresh_token=refresh_token,
             )
             collector.run()
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")

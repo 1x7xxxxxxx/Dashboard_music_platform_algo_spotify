@@ -31,11 +31,16 @@ class SoundCloudCollector:
     def __init__(self, artist_id: int = 1,
                  client_id: str = None,
                  client_secret: str = None,
-                 user_id: str = None):
+                 user_id: str = None,
+                 refresh_token: str = None):
         self.artist_id = artist_id
         self.client_id = client_id or os.getenv("SOUNDCLOUD_CLIENT_ID")
         self.client_secret = client_secret or os.getenv("SOUNDCLOUD_CLIENT_SECRET")
         self.user_id = user_id or os.getenv("SOUNDCLOUD_USER_ID")
+        # Optional OAuth user-token (B2 P2). Absent ⇒ client_credentials mode
+        # (unchanged behaviour). Present ⇒ user-context token → real per-track
+        # likes. Never raise on absence; it is opt-in per artist.
+        self.refresh_token = refresh_token or os.getenv("SOUNDCLOUD_REFRESH_TOKEN")
 
         self.db_host = os.getenv('DATABASE_HOST', 'localhost')
         self.db_port = os.getenv('DATABASE_PORT', '5432')
@@ -83,10 +88,62 @@ class SoundCloudCollector:
         self._token_expires_at = time.time() + expires_in - 60  # 60s safety margin
         logger.info("SoundCloud access token obtained (expires in %ds).", expires_in)
 
+    def _get_user_token(self) -> None:
+        """OAuth user-token (B2 P2): grant_type=refresh_token.
+
+        Yields a user-context token → the SC API returns real per-track
+        likes_count (client_credentials returns 0 for third-party reads).
+        SoundCloud rotates the refresh_token on use — the new one MUST be
+        persisted or the next run breaks. Non-200 raises (CLAUDE.md #6): no
+        silent fallback to client_credentials, which would mask a broken user
+        connection and silently restore likes=0.
+        """
+        r = self.session.post(
+            _TOKEN_ENDPOINT,
+            data={
+                'grant_type': 'refresh_token',
+                'client_id': self.client_id,
+                'client_secret': self.client_secret,
+                'refresh_token': self.refresh_token,
+            },
+            timeout=15,
+        )
+        if r.status_code != 200:
+            raise RuntimeError(
+                f"SoundCloud refresh_token grant failed: HTTP {r.status_code} "
+                f"— {r.text[:200]}. Re-connect SoundCloud in Dashboard → Credentials."
+            )
+        data = r.json()
+        self._access_token = data['access_token']
+        expires_in = int(data.get('expires_in', 3600))
+        self._token_expires_at = time.time() + expires_in - 60
+        new_rt = data.get('refresh_token')
+        if new_rt and new_rt != self.refresh_token:
+            self.refresh_token = new_rt
+            try:
+                from src.utils.credential_loader import update_platform_secret
+                update_platform_secret(
+                    self.artist_id, 'soundcloud', 'refresh_token', new_rt
+                )
+                logger.info("SoundCloud refresh_token rotated and persisted.")
+            except Exception as e:
+                logger.warning(
+                    "SoundCloud refresh_token rotated but NOT persisted (%s) — "
+                    "next run will fail until re-connected.", e
+                )
+        logger.info("SoundCloud user token obtained (expires in %ds).", expires_in)
+
     def _ensure_token(self) -> None:
-        """Renew token if absent or within 60s of expiry."""
+        """Renew token if absent or within 60s of expiry.
+
+        Dual-mode: refresh_token present → user-token (real likes); else the
+        client_credentials fallback (unchanged — likes=0 for 3rd-party reads).
+        """
         if not self._access_token or time.time() >= self._token_expires_at:
-            self._get_access_token()
+            if self.refresh_token:
+                self._get_user_token()
+            else:
+                self._get_access_token()
 
     @retry(max_attempts=3, backoff="exponential")
     def fetch_tracks(self) -> list:
@@ -140,6 +197,10 @@ class SoundCloudCollector:
                     'likes_count': int(track.get('likes_count') or 0),
                     'reposts_count': int(track.get('reposts_count') or 0),
                     'comment_count': int(track.get('comment_count') or 0),
+                    # SC API upload timestamp = true release date (None-safe).
+                    # entity_period_filter orders "latest release" by this
+                    # instead of MIN(collected_at) (= first ingest, not release).
+                    'track_created_at': track.get('created_at'),
                     'collected_at': datetime.now(timezone.utc),
                 })
 
