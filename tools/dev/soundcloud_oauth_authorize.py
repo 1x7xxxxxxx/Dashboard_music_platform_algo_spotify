@@ -146,6 +146,18 @@ def main() -> int:
               "(env or --client-id/--client-secret).", file=sys.stderr)
         return 2
 
+    # Strip whitespace and a wrapping <...> (placeholder pasted verbatim — a
+    # literal <secret> reaches SoundCloud as invalid_client otherwise).
+    args.client_id = args.client_id.strip().strip("<>")
+    args.client_secret = args.client_secret.strip().strip("<>")
+    for name, val in (("client-id", args.client_id),
+                      ("client-secret", args.client_secret)):
+        if not val or "<" in val or ">" in val or " " in val:
+            print(f"❌ --{name} looks like a placeholder, not the real value "
+                  f"(got {val!r}). Paste the actual credential — no < > or "
+                  "spaces.", file=sys.stderr)
+            return 2
+
     verifier, challenge = _pkce()
     state = secrets.token_urlsafe(24)
     code = _capture_code(args.redirect_uri, args.authorize_url,
