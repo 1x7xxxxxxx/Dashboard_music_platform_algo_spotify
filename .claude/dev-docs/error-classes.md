@@ -61,6 +61,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [unregistered-write-table](#unregistered-write-table) | P2 | deterministic | guarded | none |
 | [view-session-adoption](#view-session-adoption) | P4 | heuristic | open | none |
 | [mixed-date-timestamp](#mixed-date-timestamp) | P2 | heuristic | guarded | none |
+| [collector-shipped-dag-not-rerun](#collector-shipped-dag-not-rerun) | P3 | heuristic | open | none |
 
 ---
 
@@ -211,3 +212,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered live in `meta_x_spotify.py` (campaign with BOTH Meta + Spotify-popularity data → `all_dates` mixed types). Fixed commit `d264a5e` (`sorted(pd.to_datetime(all_dates))`). Project-wide sweep: this was the ONLY genuine instance; signature is noisy (matches any `sorted(df[col].unique())` incl. string/int cols — db_health/meta_creatives/imusician/ml_performance are false positives). Durable guard = dashboard-view skill Pitfall #5 (normalize date cols right after fetch_df). Heuristic + report-only — NOT CI/`make audit` (false-positive rate too high; flaky-gate antipattern).
+
+## collector-shipped-dag-not-rerun
+- status: open
+- severity: P3
+- kind: heuristic
+- symptom: a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the view shows "no data" — looks like a bug, is actually a stale-schedule. (Instagram `instagram_media`: collector committed 13:52 UTC, DAG last ran 10:00 UTC → 0 rows.)
+- signature: `docker exec <pg> psql -U postgres -d spotify_etl -tc "SELECT 'instagram_media' WHERE (SELECT COUNT(*) FROM instagram_media)=0 AND to_regclass('instagram_media') IS NOT NULL;"` (per-table; generalise: table exists + 0 rows while a sibling stats table has recent `MAX(collected_at)`)
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: dev-docs/error-classes.md (operational runbook) }
+- rex_ref: .claude/skills/airflow-dag.md
+- first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
+- History:
+  - 2026-05-15: catalogued from the Instagram "Publications récentes" empty report. NOT a code defect — operational: after shipping a collector method that populates a new table, the owning DAG must be re-triggered (it won't backfill until its next scheduled/manual run). Runbook: trigger the DAG, verify `SELECT COUNT(*) FROM <new_table>` > 0, smoke the view. Report-only (no CI gate — DB-state, not source).
