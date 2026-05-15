@@ -5,7 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import artist_id_sql_filter
+from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.auth import artist_id_sql_filter, get_artist_id
 
 # ⚠️ IMPORTANT : Le nom exact tel qu'il apparaît dans tes CSV pour la ligne "Total"
 ARTIST_NAME_FILTER = "1x7xxxxxxx"
@@ -236,7 +237,7 @@ def show():
     """, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
 
     if not songs_list.empty:
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2 = st.columns([2, 3])
 
         with col1:
             selected_song = st.selectbox("Sélectionner une chanson", songs_list['song'])
@@ -251,17 +252,12 @@ def show():
             song_release_date = today - timedelta(days=365)
 
         with col2:
-            start_date_song = st.date_input(
-                "Début",
-                value=song_release_date,
-                key=f"song_start_{selected_song}"
+            window = smart_period_filter(
+                db, table="s4a_song_timeline", date_column="date",
+                artist_id=get_artist_id(), key=f"s4a_song_{selected_song}",
+                latest_release=song_release_date, default_override="last_release",
             )
-        with col3:
-            end_date_song = st.date_input(
-                "Fin",
-                value=today,
-                key=f"song_end_{selected_song}"
-            )
+        frag, frag_params = window.sql_between("date")
 
         # Même logique de déduplication ici aussi pour être cohérent
         df_song = db.fetch_df(f"""
@@ -269,9 +265,9 @@ def show():
             FROM s4a_song_timeline
             WHERE song = %s
             {artist_frag}
-              AND date >= %s AND date <= %s
+            {frag}
             ORDER BY date, collected_at DESC
-        """, (selected_song, *artist_params, start_date_song, end_date_song))
+        """, (selected_song, *artist_params, *frag_params))
 
         if not df_song.empty:
             fig_song = px.line(
