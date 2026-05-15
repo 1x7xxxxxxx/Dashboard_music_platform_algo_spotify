@@ -202,8 +202,10 @@ def _show_body(db, artist_id):
         st.warning("Aucune donnée trouvée.")
         return
 
-    df_master = pd.DataFrame({'date': sorted(all_dates)})
-    df_master['date'] = pd.to_datetime(df_master['date'])
+    # all_dates may mix datetime.date (raw psycopg2 day_date) and pd.Timestamp
+    # (df_spotify after pd.to_datetime) — coerce to one type before sorting,
+    # else `sorted()` raises "Cannot compare Timestamp with datetime.date".
+    df_master = pd.DataFrame({'date': sorted(pd.to_datetime(all_dates))})
 
     if not df_meta.empty:
         df_meta['date'] = pd.to_datetime(df_meta['date'])
