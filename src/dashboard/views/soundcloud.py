@@ -16,7 +16,8 @@ def show():
             df_latest = db.fetch_df("""
                 SELECT DISTINCT ON (track_id)
                     track_id, title, permalink_url, playback_count,
-                    likes_count, reposts_count, comment_count, collected_at
+                    likes_count, reposts_count, comment_count,
+                    track_created_at, collected_at
                 FROM soundcloud_tracks_daily
                 WHERE artist_id = %s
                 ORDER BY track_id, collected_at DESC
@@ -56,6 +57,12 @@ def show():
                 c5.metric("🎵 Titres en ligne", total_tracks)
                 c6.metric("📅 Dernière mise à jour", last_date_str)
 
+                st.caption(
+                    "ℹ️ Likes & historique fiables depuis le 15/05/2026 "
+                    "(collecte OAuth user-token). Sources CSV S4A/Apple non "
+                    "liées — autre sujet."
+                )
+
             else:
                 st.warning("Aucune donnée SoundCloud trouvée. Lancez le collecteur.")
                 return
@@ -88,7 +95,8 @@ def show():
 
             # On récupère l'historique large (on filtre en Pandas pour plus de souplesse UI)
             query_hist = """
-                SELECT collected_at, title, playback_count
+                SELECT collected_at, title, playback_count,
+                       likes_count, reposts_count, comment_count
                 FROM soundcloud_tracks_daily
                 WHERE artist_id = %s
                 ORDER BY collected_at ASC
@@ -122,6 +130,45 @@ def show():
                         legend=dict(orientation="h", y=-0.2)  # Légende en bas pour ne pas cacher
                     )
                     st.plotly_chart(fig, width="stretch")
+
+                    # --- Évolution des métriques (base 100, échelles comparables) ---
+                    st.subheader("📈 Évolution des métriques (base 100)")
+                    _m = {'playback_count': 'Écoutes', 'likes_count': 'Likes',
+                          'reposts_count': 'Reposts', 'comment_count': 'Commentaires'}
+                    agg = (df_filtered.groupby('collected_at')[list(_m)]
+                           .sum().sort_index())
+                    norm_rows = []
+                    for col, lbl in _m.items():
+                        s = agg[col].astype('float')
+                        if col == 'likes_count':
+                            # pre-fix client_credentials 0s = not collected
+                            s = s[s > 0]
+                        s = s.dropna()
+                        if len(s) < 2 or not s.iloc[0]:
+                            continue
+                        base = s.iloc[0]
+                        for d, v in s.items():
+                            norm_rows.append({'date': d, 'Métrique': lbl,
+                                              'Base 100': round(v / base * 100, 2)})
+                    if norm_rows:
+                        df_norm = pd.DataFrame(norm_rows)
+                        fig_n = px.line(
+                            df_norm, x='date', y='Base 100', color='Métrique',
+                            title=f"Évolution des métriques — base 100 ({window.label})",
+                            markers=True,
+                        )
+                        fig_n.update_layout(
+                            hovermode="x unified",
+                            yaxis_title="Base 100 (1er pt = 100)",
+                        )
+                        st.plotly_chart(fig_n, width="stretch")
+                        st.caption(
+                            "Likes : fiables à partir du 15/05/2026 (collecte "
+                            "OAuth user-token) — points antérieurs masqués."
+                        )
+                    else:
+                        st.info("Pas assez d'historique pour une évolution "
+                                "(≥2 collectes par métrique).")
                 else:
                     st.info("Aucune donnée pour cette sélection (Vérifiez les dates ou les titres).")
             else:
@@ -137,12 +184,26 @@ def show():
         # =========================================================================
         st.subheader("🏆 Top Titres")
         if not df_latest.empty:
-            # Tri et Sélection des colonnes (Sans permalink_url)
-            df_top = df_latest.sort_values(by='playback_count', ascending=False)
+            df_top = df_latest.copy()
+            _eng = (df_top['likes_count'] + df_top['reposts_count']
+                    + df_top['comment_count'])
+            df_top['eng_total'] = _eng
+            _pc = df_top['playback_count'].replace(0, pd.NA)
+            df_top['eng_rate'] = (_eng / _pc * 100).round(1)
+            df_top['days_since'] = (
+                pd.Timestamp.now() - pd.to_datetime(df_top['track_created_at'])
+            ).dt.days
 
-            # On ne garde que les colonnes utiles
-            cols_to_show = ['title', 'playback_count', 'likes_count', 'reposts_count', 'comment_count']
+            sort_by = st.segmented_control(
+                "Trier par", ["Écoutes", "Engagement"],
+                default="Écoutes", key="sc_sort",
+            ) or "Écoutes"
+            sort_col = 'playback_count' if sort_by == "Écoutes" else 'eng_total'
+            df_top = df_top.sort_values(by=sort_col, ascending=False)
 
+            cols_to_show = ['title', 'playback_count', 'likes_count',
+                            'reposts_count', 'comment_count', 'eng_rate',
+                            'days_since']
             st.dataframe(
                 df_top[cols_to_show],
                 column_config={
@@ -150,7 +211,9 @@ def show():
                     "playback_count": st.column_config.NumberColumn("Écoutes", format="%d"),
                     "likes_count": st.column_config.NumberColumn("❤️ Likes", format="%d"),
                     "reposts_count": st.column_config.NumberColumn("🔄 Reposts", format="%d"),
-                    "comment_count": st.column_config.NumberColumn("💬 Coms", format="%d")
+                    "comment_count": st.column_config.NumberColumn("💬 Coms", format="%d"),
+                    "eng_rate": st.column_config.NumberColumn("💯 Engagement %", format="%.1f"),
+                    "days_since": st.column_config.NumberColumn("📅 Sorti il y a (j)", format="%d"),
                 },
                 hide_index=True,
                 width="stretch",
