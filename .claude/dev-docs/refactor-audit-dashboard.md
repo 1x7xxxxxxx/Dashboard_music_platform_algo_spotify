@@ -108,7 +108,29 @@ def show():
 
 ---
 
-### #3 — `views/credentials.py` (853 lines) — split by platform
+### #3 — `views/credentials.py` (853 lines) — split by platform ✅ DONE 2026-05-15
+
+> **Status: completed** (commit on `main`, 2026-05-15). The 893-line file is
+> now the package `src/dashboard/views/credentials/`. **As-built layout**
+> (deviates from the sketch below — `_registry.py` + `_render.py` added so
+> `router.py` is genuinely slim ~100 l instead of ~400 l; no cross-cutting
+> rule mandated the literal file list):
+> ```
+> credentials/
+>   __init__.py            # re-exports show()
+>   _core.py               # Fernet crypto + DB load/save + Airflow-state + consts
+>   _platform_spotify.py   # _test_spotify + _guide_spotify
+>   _platform_youtube.py   # _test_youtube + _guide_youtube
+>   _platform_soundcloud.py# _test_soundcloud + _guide_soundcloud
+>   _platform_meta.py      # _test_meta + _guide_meta
+>   _registry.py           # PLATFORMS + CONNECTION_TESTS + guide dispatch
+>   _render.py             # Streamlit render/form helpers + _handle_save
+>   router.py              # slim show()
+> ```
+> Pure cut/paste, zero logic change. Verified: ruff clean, pytest 237 passed,
+> import smoke resolves `from views.credentials import show`, blast radius
+> zero (only `app.py:324` imports it). The original sketch is kept below for
+> historical context.
 
 **Structure today** :
 - Core helpers : `_get_fernet`, `_encrypt_secrets`, `_decrypt_secrets`, `_mask`, `_fetch_dag_last_states`, `_load_credentials`, `_save_credentials`, `_decode_row`
@@ -215,7 +237,7 @@ If you want to **start somewhere** without overcommitting, follow this order :
 | 1 | #2 context manager `project_db()` | 1–1.5 h | Faible | Moderate | ✅ quick win — touches 34 files but each change is 1 line |
 | 2 | #4 ruff cleanup on `kpi_helpers.py` | 30 min | Faible | Faible | ✅ quick win — pure lint |
 | 3 | #1 `trigger_algo.py` package split | 4–6 h | Modéré | High | Wait for the next feature on that view |
-| 4 | #3 `credentials.py` split | 3–4 h | Modéré | Moyen | Wait until onboarding stabilizes |
+| 4 | #3 `credentials.py` split | 3–4 h | Modéré | Moyen | ✅ DONE 2026-05-15 |
 | 5 | #5 `pdf_exporter.py` template | 2–3 h | Faible | Moyen | Wait until next PDF feature |
 
 The "wait" trigger matters : refactoring a file you're about to modify is cheap
