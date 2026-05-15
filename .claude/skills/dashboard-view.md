@@ -128,6 +128,16 @@ check the column type. Cross-type comparison raises `UndefinedFunction:
 operator does not exist: character varying = integer`. See
 `.claude/dev-docs/audit-tracks-legacy.md` for the inventory.
 
+### 5. Mixed `datetime.date` / `pd.Timestamp` → sort/compare/merge crash
+psycopg2 returns DATE columns as `datetime.date`; `pd.to_datetime(df['date'])`
+yields `pd.Timestamp`. If one source df is converted and another isn't, then
+`sorted(pd.concat([...]).unique())` (or a `pd.merge` on `date`, or any `<`/`==`)
+raises `TypeError: Cannot compare Timestamp with datetime.date`. **Normalize
+every date column with `pd.to_datetime` immediately after `fetch_df`**, before
+any concat/sort/merge — never conditionally. Precedent (fixed):
+`src/dashboard/views/meta_x_spotify.py` `all_dates`. Class:
+`mixed-date-timestamp` (`.claude/dev-docs/error-classes.md`).
+
 ---
 
 ## Reference Implementations

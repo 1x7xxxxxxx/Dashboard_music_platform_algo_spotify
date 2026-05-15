@@ -60,6 +60,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [df-na-rep](#df-na-rep) | P3 | heuristic | guarded | none |
 | [unregistered-write-table](#unregistered-write-table) | P2 | deterministic | guarded | none |
 | [view-session-adoption](#view-session-adoption) | P4 | heuristic | open | none |
+| [mixed-date-timestamp](#mixed-date-timestamp) | P2 | heuristic | guarded | none |
 
 ---
 
@@ -197,3 +198,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: `view_session()` shipped + mandated for NEW views (CLAUDE.md #7/#9, dashboard-view skill). 2/32 views migrated (instagram, soundcloud — the clean try/finally shape). 30 remain on the legacy guard (try/except/finally or db-None/require_plan/helper-fn variants — migrating changes behaviour, so deliberately incremental). NOT CI-blocking: 30 valid views would make the gate permanently red (flaky-gate antipattern, cf. rules #6–#10). Status `open` = adoption backlog, not a defect; per-view migration is opt-in maintenance.
+
+## mixed-date-timestamp
+- status: guarded
+- severity: P2
+- kind: heuristic
+- symptom: a collection mixes psycopg2 `datetime.date` (raw DATE column) and `pd.Timestamp` (a `pd.to_datetime`'d Series); `sorted()` / `pd.merge` on `date` / any `<`/`==` then raises `TypeError: Cannot compare Timestamp with datetime.date`. Data-dependent — only fires when ≥2 sources contribute and only one was converted.
+- signature: `! grep -rnE "sorted\(" src/dashboard/views/ | grep -iE "date|_dates" | grep -v "pd\.to_datetime"`
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (Pitfall #5) }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
+- History:
+  - 2026-05-15: discovered live in `meta_x_spotify.py` (campaign with BOTH Meta + Spotify-popularity data → `all_dates` mixed types). Fixed commit `d264a5e` (`sorted(pd.to_datetime(all_dates))`). Project-wide sweep: this was the ONLY genuine instance; signature is noisy (matches any `sorted(df[col].unique())` incl. string/int cols — db_health/meta_creatives/imusician/ml_performance are false positives). Durable guard = dashboard-view skill Pitfall #5 (normalize date cols right after fetch_df). Heuristic + report-only — NOT CI/`make audit` (false-positive rate too high; flaky-gate antipattern).
