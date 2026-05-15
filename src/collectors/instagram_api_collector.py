@@ -24,11 +24,11 @@ class InstagramCollector:
         self.access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
         # L'ID du compte Instagram Business (pas le nom d'utilisateur)
         self.ig_user_id = os.getenv("INSTAGRAM_USER_ID")
-        
+
         # Récupération dynamique des infos BDD
         # Par défaut 5432 (interne docker), mais surchargeable via .env
         self.db_host = os.getenv('DATABASE_HOST', 'localhost')
-        self.db_port = os.getenv('DATABASE_PORT', '5432') 
+        self.db_port = os.getenv('DATABASE_PORT', '5432')
         self.db_name = os.getenv('DATABASE_NAME')
         self.db_user = os.getenv('DATABASE_USER')
         self.db_pass = os.getenv('DATABASE_PASSWORD')
@@ -40,7 +40,7 @@ class InstagramCollector:
         self.app_secret = os.getenv("META_APP_SECRET")
         self.base_url = META_GRAPH_BASE_URL
         self.session = requests.Session()
-        
+
         # Connexion BDD
         self.db = PostgresHandler(
             host=self.db_host,
@@ -134,16 +134,16 @@ class InstagramCollector:
     def fetch_stats(self):
         """Récupère les stats du compte."""
         logger.info(f"Calling Meta API for IG user {self.ig_user_id}")
-        
+
         url = f"{self.base_url}/{self.ig_user_id}"
         params = {
             'fields': 'username,followers_count,follows_count,media_count',
             'access_token': self.access_token
         }
-        
+
         try:
             response = self.session.get(url, params=params)
-            
+
             # Gestion précise des erreurs Token
             if response.status_code == 401:
                 err = response.json()
@@ -195,16 +195,16 @@ class InstagramCollector:
             raise RuntimeError(f"Instagram API request failed: {e}") from e
 
     def save_to_db(self, stats):
-        if not stats: 
+        if not stats:
             logger.warning("No data to save")
             return
-        
+
         if not self.db:
             logger.error("No active DB connection")
             return
 
         logger.info("Saving Instagram stats to database")
-        
+
         delete_query = "DELETE FROM instagram_daily_stats WHERE collected_at::date = CURRENT_DATE AND artist_id = %s"
 
         insert_query = """
@@ -212,7 +212,7 @@ class InstagramCollector:
             (artist_id, ig_user_id, username, followers_count, follows_count, media_count, collected_at)
             VALUES (%(artist_id)s, %(ig_user_id)s, %(username)s, %(followers_count)s, %(follows_count)s, %(media_count)s, %(collected_at)s)
         """
-        
+
         try:
             self.db.execute_query(delete_query, (self.artist_id,))
             self.db.execute_query(insert_query, stats)

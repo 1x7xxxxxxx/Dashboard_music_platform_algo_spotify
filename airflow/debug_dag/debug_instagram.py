@@ -45,16 +45,16 @@ def print_header(title):
 
 def step_1_check_env():
     print_header("Étape 1 : Vérification .env")
-    
+
     required = [
-        "INSTAGRAM_ACCESS_TOKEN", 
-        "INSTAGRAM_USER_ID", 
-        "DATABASE_HOST", 
-        "DATABASE_NAME", 
-        "DATABASE_USER", 
+        "INSTAGRAM_ACCESS_TOKEN",
+        "INSTAGRAM_USER_ID",
+        "DATABASE_HOST",
+        "DATABASE_NAME",
+        "DATABASE_USER",
         "DATABASE_PASSWORD"
     ]
-    
+
     missing = []
     for var in required:
         val = os.getenv(var)
@@ -72,13 +72,13 @@ def step_1_check_env():
 
 def step_2_check_database():
     print_header("Étape 2 : Connexion PostgreSQL")
-    
+
     if not DATABASE_AVAILABLE:
         return False
 
     host = os.getenv('DATABASE_HOST', 'localhost')
     port = os.getenv('DATABASE_PORT', '5432')
-    
+
     try:
         db = PostgresHandler(
             host=host,
@@ -88,7 +88,7 @@ def step_2_check_database():
             password=os.getenv('DATABASE_PASSWORD')
         )
         logger.info(f"✅ Connexion réussie vers {host}:{port}")
-        
+
         # Test existence table
         try:
             res = db.fetch_df("SELECT count(*) FROM instagram_daily_stats")
@@ -108,57 +108,57 @@ def step_2_check_database():
                 collected_at DATE NOT NULL
             );
             """)
-        
+
         db.close()
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Échec connexion BDD : {e}")
         return False
 
 def step_3_test_api():
     print_header("Étape 3 : Test API Meta (Instagram)")
-    
+
     token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
     user_id = os.getenv("INSTAGRAM_USER_ID")
     from src.utils.meta_config import META_GRAPH_BASE_URL
     base_url = META_GRAPH_BASE_URL
-    
+
     url = f"{base_url}/{user_id}"
     params = {
         'fields': 'username,followers_count',
         'access_token': token
     }
-    
+
     logger.info(f"📡 Appel vers : {url}")
-    
+
     try:
         response = requests.get(url, params=params)
-        
+
         logger.info(f"   Code HTTP : {response.status_code}")
-        
+
         if response.status_code == 200:
             data = response.json()
             logger.info("✅ SUCCÈS ! Token valide.")
             logger.info(f"   👤 Username : {data.get('username')}")
             logger.info(f"   📈 Abonnés : {data.get('followers_count')}")
             return data
-            
+
         elif response.status_code == 401:
             err = response.json().get('error', {})
             logger.error("❌ ERREUR 401 (Non autorisé)")
             logger.error(f"   Message : {err.get('message')}")
             logger.error("   ➡️  Le token est expiré ou invalide.")
-            
+
         elif response.status_code == 400:
             err = response.json().get('error', {})
             logger.error("❌ ERREUR 400 (Bad Request)")
             logger.error(f"   Message : {err.get('message')}")
             logger.error("   ➡️  Vérifiez l'ID utilisateur (INSTAGRAM_USER_ID).")
-            
+
         else:
             logger.error(f"❌ Erreur inconnue : {response.text}")
-            
+
     except Exception as e:
         logger.error(f"❌ Exception Python lors de l'appel : {e}")
 
@@ -166,7 +166,7 @@ def step_3_test_api():
 
 def step_4_dry_run_insert(api_data):
     print_header("Étape 4 : Simulation Insertion (Dry Run)")
-    
+
     if not api_data:
         logger.warning("⏩ Pas de données API, simulation annulée.")
         return
@@ -179,17 +179,17 @@ def step_4_dry_run_insert(api_data):
         'media_count': 0,   # Idem
         'collected_at': datetime.now().strftime('%Y-%m-%d')
     }
-    
+
     print("📝 Données prêtes pour l'insertion :")
     print(f"   {record}")
-    
+
     print("\n🔍 Requête SQL simulée :")
     print(f"""
     DELETE FROM instagram_daily_stats WHERE collected_at = '{record['collected_at']}';
     INSERT INTO instagram_daily_stats (ig_user_id, username, followers_count, ...)
     VALUES ('{record['ig_user_id']}', '{record['username']}', {record['followers_count']}, ...);
     """)
-    
+
     logger.info("✅ Logique de données valide.")
 
 def step_5_test_media():

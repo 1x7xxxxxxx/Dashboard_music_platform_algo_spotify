@@ -62,11 +62,11 @@ def validate_columns(columns: List[str]) -> None:
 
 class PostgresHandler:
     """Gestionnaire de connexion et opérations PostgreSQL."""
-    
+
     def __init__(self, host: str, port: int, database: str, user: str, password: str):
         """
         Initialise la connexion PostgreSQL.
-        
+
         Args:
             host: Hôte PostgreSQL
             port: Port PostgreSQL
@@ -81,9 +81,9 @@ class PostgresHandler:
         self.password = password
         self.conn = None
         self.cursor = None
-        
+
         self._connect()
-    
+
     @classmethod
     def from_url(cls, url: str) -> "PostgresHandler":
         """
@@ -136,11 +136,11 @@ class PostgresHandler:
         except psycopg2.OperationalError:
             logger.warning("⚠️ Connexion PostgreSQL interrompue — reconnexion automatique...")
             self._connect()
-    
+
     def execute_query(self, query: str, params: Optional[Tuple] = None) -> None:
         """
         Exécute une requête SQL (INSERT, UPDATE, DELETE, CREATE).
-        
+
         Args:
             query: Requête SQL
             params: Paramètres de la requête
@@ -154,15 +154,15 @@ class PostgresHandler:
             logger.error(f"❌ Erreur exécution requête: {e}")
             logger.error(f"   Query: {query[:200]}...")
             raise
-    
+
     def fetch_query(self, query: str, params: Optional[Tuple] = None) -> List[Tuple]:
         """
         Exécute une requête SELECT et retourne les résultats.
-        
+
         Args:
             query: Requête SQL SELECT
             params: Paramètres de la requête
-            
+
         Returns:
             Liste de tuples avec les résultats
         """
@@ -176,15 +176,15 @@ class PostgresHandler:
             logger.error(f"❌ Erreur fetch requête: {e}")
             logger.error(f"   Query: {query[:200]}...")
             raise
-    
+
     def fetch_df(self, query: str, params: Optional[Tuple] = None):
         """
         Exécute une requête SELECT et retourne un DataFrame pandas.
-        
+
         Args:
             query: Requête SQL SELECT
             params: Paramètres de la requête
-            
+
         Returns:
             DataFrame pandas
         """
@@ -201,22 +201,22 @@ class PostgresHandler:
             logger.error(f"❌ Erreur fetch DataFrame: {e}")
             logger.error(f"   Query: {query[:200]}...")
             raise
-    
+
     def insert_many(self, table: str, data: List[Dict[str, Any]]) -> int:
         """
         Insert multiple rows efficacement.
-        
+
         Args:
             table: Nom de la table
             data: Liste de dictionnaires {colonne: valeur}
-            
+
         Returns:
             Nombre de lignes insérées
         """
         if not data:
             logger.warning(f"⚠️ insert_many appelé avec data vide pour {table}")
             return 0
-        
+
         validate_table(table)
         try:
             columns = list(data[0].keys())
@@ -237,18 +237,18 @@ class PostgresHandler:
         except Exception as e:
             logger.error(f"❌ Erreur insert_many sur {table}: {e}")
             raise
-    
-    def upsert_many(self, table: str, data: List[Dict[str, Any]], 
+
+    def upsert_many(self, table: str, data: List[Dict[str, Any]],
                     conflict_columns: List[str], update_columns: List[str]) -> int:
         """
         Upsert (INSERT ... ON CONFLICT UPDATE) multiple rows.
-        
+
         Args:
             table: Nom de la table
             data: Liste de dictionnaires
             conflict_columns: Colonnes pour détection conflit
             update_columns: Colonnes à mettre à jour si conflit
-            
+
         Returns:
             Nombre de lignes affectées
         """
@@ -320,18 +320,18 @@ class PostgresHandler:
             logger.error(f"❌ Erreur upsert_many sur {table}: {e}")
             logger.error(f"   Data sample: {data[0] if data else 'empty'}")
             raise
-    
+
     def table_exists(self, table_name: str) -> bool:
         """Vérifie si une table existe."""
         query = """
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
+                SELECT FROM information_schema.tables
                 WHERE table_name = %s
             )
         """
         result = self.fetch_query(query, (table_name,))
         return result[0][0] if result else False
-    
+
     def get_table_count(self, table_name: str) -> int:
         """Retourne le nombre de lignes dans une table."""
         try:
@@ -345,7 +345,7 @@ class PostgresHandler:
         except Exception as e:
             logger.error(f"❌ Erreur get_table_count pour {table_name}: {e}")
             return 0
-    
+
     def close(self) -> None:
         """Ferme la connexion PostgreSQL."""
         if self.cursor:
@@ -353,11 +353,11 @@ class PostgresHandler:
         if self.conn:
             self.conn.close()
         logger.info("🔒 Connexion PostgreSQL fermée")
-    
+
     def __enter__(self):
         """Context manager entry."""
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.close()
