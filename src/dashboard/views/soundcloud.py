@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from src.dashboard.utils import get_db_connection
-from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
 
 def show():
@@ -79,38 +79,15 @@ def show():
         # =========================================================================
         st.subheader("📈 Évolution des écoutes")
 
-        # --- FILTRES ---
+        # --- FILTRES --- (entity + smart period, factorisés)
         with st.expander("⚙️ Filtres du graphique", expanded=True):
-            col_f1, col_f2 = st.columns(2)
-
-            # B. Filtre Titres — trié par dernière release (first_seen desc), rendu en premier
-            # pour que first_seen du track sélectionné serve de borne gauche au filtre période.
-            all_titles = df_latest.sort_values('first_seen', ascending=False)['title'].tolist()
-            with col_f2:
-                selected_tracks = st.multiselect(
-                    "Filtrer par titres",
-                    options=all_titles,
-                    default=all_titles[:1],  # Dernière release par défaut
-                )
-
-            # A. Filtre Période — "Depuis dernière release" = first_seen du track sélectionné
-            default_track = (selected_tracks[0] if selected_tracks else all_titles[0]) if all_titles else None
-
-            def _release_resolver():
-                if default_track is None:
-                    return None
-                _row = df_latest[df_latest['title'] == default_track]
-                try:
-                    return pd.to_datetime(_row['first_seen'].iloc[0]).date()
-                except Exception:
-                    return None
-
-            with col_f1:
-                window = smart_period_filter(
-                    db, table="soundcloud_tracks_daily", date_column="collected_at",
-                    artist_id=artist_id, key=f"sc_{default_track or 'all'}",
-                    latest_release_resolver=_release_resolver,
-                )
+            selected_tracks, window = entity_period_filter(
+                db,
+                spec=EntitySpec("soundcloud_tracks_daily", "title", "collected_at",
+                                multi=True, default_count=1),
+                artist_id=artist_id, key_prefix="sc",
+                label="Filtrer par titres",
+            )
 
         # --- REQUÊTE & AFFICHAGE ---
         try:

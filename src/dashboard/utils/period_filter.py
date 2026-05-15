@@ -42,6 +42,8 @@ _ALLOWED_DATE_COLUMNS = frozenset({
     "day_date", "date", "collected_at", "first_seen", "timestamp",
 })
 _ALLOWED_ARTIST_COLUMNS = frozenset({"artist_id"})
+# Entity (track/song) label columns the entity_period_filter may select on.
+_ALLOWED_ENTITY_COLUMNS = frozenset({"title", "song_name", "song"})
 
 _PRESETS = {
     "current": "📅 En cours",
@@ -179,3 +181,100 @@ def smart_period_filter(
     return _resolve_window(
         preset, grain, _dt.date.today(), span_min, span_max, latest_release, custom,
     )
+
+
+@dataclass(frozen=True)
+class EntitySpec:
+    """Per-view declaration for a release-anchored entity + period selector.
+
+    `entity_column` is the label users pick and downstream queries filter on
+    (e.g. soundcloud `title`, apple `song_name`). Release date per entity is
+    `MIN(date_column)` — the same time-series column the period span uses.
+    """
+    table: str
+    entity_column: str
+    date_column: str
+    multi: bool = True
+    default_count: int = 1
+
+
+def _validate_entity(spec: EntitySpec) -> None:
+    _validate(spec.table, spec.date_column, "artist_id")
+    if spec.entity_column not in _ALLOWED_ENTITY_COLUMNS:
+        raise ValueError(
+            f"entity_period_filter: entity_column '{spec.entity_column}' not in allowlist"
+        )
+
+
+def _entity_default(options: list, multi: bool, n: int):
+    """Pure: latest-N (multi) or latest (single) from release-DESC options."""
+    if not options:
+        return [] if multi else None
+    return options[:max(1, n)] if multi else options[0]
+
+
+def _entity_key(prefix: str, primary: Optional[str]) -> str:
+    return f"{prefix}_{primary or 'all'}"
+
+
+def _entity_options(
+    db: PostgresHandler, spec: EntitySpec, artist_id: Optional[int],
+) -> list:
+    sql = (
+        f"SELECT {spec.entity_column} FROM {spec.table} WHERE 1=1"
+        + (" AND artist_id = %s" if artist_id is not None else "")
+        + f" GROUP BY {spec.entity_column} "
+        f"ORDER BY MIN({spec.date_column}) DESC NULLS LAST"
+    )
+    rows = db.fetch_query(sql, (artist_id,) if artist_id is not None else None)
+    return [r[0] for r in rows] if rows else []
+
+
+def entity_period_filter(
+    db: PostgresHandler,
+    *,
+    spec: EntitySpec,
+    artist_id: Optional[int],
+    key_prefix: str,
+    label: str = "Filtrer",
+):
+    """Render entity selector + the shared period filter (release-anchored).
+
+    Returns `(selection, PeriodWindow)` — `selection` is a list when
+    `spec.multi`, else a scalar (or None). Replaces the per-view duplicated
+    resolver/sort/key wiring; the period UI is the unchanged smart_period_filter.
+    """
+    _validate_entity(spec)
+    options = _entity_options(db, spec, artist_id)
+    default = _entity_default(options, spec.multi, spec.default_count)
+
+    if spec.multi:
+        selection = st.multiselect(
+            label, options, default=default, key=f"{key_prefix}_ent",
+        )
+    else:
+        idx = options.index(default) if default in options else 0
+        selection = st.selectbox(
+            label, options, index=idx if options else None,
+            key=f"{key_prefix}_ent",
+        )
+
+    sel_list = selection if spec.multi else ([selection] if selection else [])
+    primary = sel_list[0] if sel_list else (options[0] if options else None)
+
+    def _release_resolver() -> Optional[_dt.date]:
+        if not sel_list:
+            return None
+        rows = db.fetch_query(
+            f"SELECT MIN({spec.date_column})::date FROM {spec.table} "
+            f"WHERE artist_id = %s AND {spec.entity_column} = ANY(%s)",
+            (artist_id, sel_list),
+        )
+        return rows[0][0] if rows and rows[0][0] else None
+
+    window = smart_period_filter(
+        db, table=spec.table, date_column=spec.date_column,
+        artist_id=artist_id, key=_entity_key(key_prefix, primary),
+        latest_release_resolver=_release_resolver,
+    )
+    return selection, window
