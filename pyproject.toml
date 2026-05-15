@@ -27,7 +27,7 @@ dependencies = [
     "google-api-python-client==2.108.0",
 
     # Dashboard (Streamlit + plotly + PDF rendering)
-    "streamlit==1.29.0",
+    "streamlit==1.54.0",
     "plotly==5.18.0",
     "watchdog==3.0.0",
     "weasyprint>=62.0",

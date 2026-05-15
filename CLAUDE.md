@@ -100,7 +100,7 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 
 ### Adding a New View
 1. Create `src/dashboard/views/<name>.py` with a `show()` function (no arguments).
-2. Add to `pages` dict in `show_navigation_menu()` in `app.py`.
+2. Add `("<label>", "<name>")` to the relevant section in the `_NAV_SECTIONS` constant in `app.py` (sidebar is grouped by section; pick the section matching the user journey). Admin-only pages: also add the key to `_ADMIN_ONLY`.
 3. Add routing: `elif page == "<name>": from views.<name> import show; show()`.
 → Full patterns (DB queries, artist filter, role gate): `.claude/skills/dashboard-view.md`
 
@@ -162,6 +162,7 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
    ```
 8. **SQL identifier allowlists**: Any f-string that interpolates a table name or column name must validate against a `frozenset` allowlist before execution. Values (user data) always use `%s` parameterization — never f-strings.
 9. **DB connections per request**: `get_artist_plan()` uses 1 single LEFT JOIN query. Views must open 1 connection in `show()` and close it in `finally`. Never open `db2` as a fallback inside the same function.
+10. **Makefile fail-fast**: any target invoking a runtime dependency (Docker, the venv interpreter, the live Postgres, `uv`, `streamlit`) must declare a prerequisite that fails fast with an actionable message — the `dashboard: check-env` precedent. File-only targets (`clean`, `help`, `graph-html`) are exempt. A runtime target with no precondition is a P3 bug: it must name the fix command, never crash mid-execution. Error class: `make-fail-late` (`.claude/dev-docs/error-classes.md`); full spec `.claude/rules/makefile-fail-fast.md`.
 
 ### Skills (`.claude/skills/`) — load on demand via Skill tool only
 | File | Use when |

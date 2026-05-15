@@ -32,6 +32,19 @@ jobs:
         # Use --vulnerability-service osv to query the OSV database too.
         run: pip-audit -r requirements.txt --strict
 
+  error-class-audit:
+    # Heuristic sweep of the catalogue's automatable signatures
+    # (.claude/dev-docs/error-classes.md). Observational by design — these are
+    # grep heuristics with known false positives (e.g. cosmetic datetime.now()).
+    # Promote any genuine hit to a P-tier issue manually. NOT a CI/deploy gate
+    # (kept out of ci.yml on purpose to avoid flaky-red builds).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run error-class audit
+        run: make audit
+
   gitleaks:
     runs-on: ubuntu-latest
     steps:

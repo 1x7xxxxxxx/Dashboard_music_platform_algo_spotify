@@ -21,6 +21,18 @@ repos:
       # To enable, do a one-shot `ruff format src/ tests/` commit first, then
       # add: - id: ruff-format here.
 
+  # ── Manifest pin parity (error class: streamlit-pin-drift) ────────────
+  # Local hook (no network). Runs only when a manifest changes. Same script
+  # the ci.yml blocking step runs. See .claude/dev-docs/error-classes.md.
+  - repo: local
+    hooks:
+      - id: manifest-consistency
+        name: manifest consistency (pyproject/requirements/uv.lock)
+        language: system
+        entry: python3 tools/dev/check_manifest_consistency.py
+        files: '^(pyproject\.toml|requirements\.txt|uv\.lock)$'
+        pass_filenames: false
+
   # ── Generic hygiene ───────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

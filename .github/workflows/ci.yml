@@ -51,6 +51,12 @@ jobs:
         # --extra dev: include pytest, ruff, httpx, pytest-mock, pytest-cov.
         run: uv sync --frozen --extra dev
 
+      - name: Manifest consistency (blocking)
+        # Deterministic, sub-second, zero-network. Catches pin drift across
+        # pyproject.toml / requirements.txt / uv.lock (error class
+        # streamlit-pin-drift) before it ships a prod≠dev image.
+        run: uv run python tools/dev/check_manifest_consistency.py
+
       - name: Lint (ruff) — full project (blocking)
         # Promoted from advisory to blocking on 2026-05-14 after baseline cleanup
         # (44 → 0 errors). Any regression now fails CI; revert to --exit-zero only

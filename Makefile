@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate dashboard sync clean graph graph-update graph-html hooks-install
+.PHONY: help up down logs test lint migrate dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -40,6 +40,24 @@ check-env:   ## Verify critical imports + pip dep coherence (canary check)
 	@python3 -c "import socket,sys; s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex(('127.0.0.1',5433)))" 2>/dev/null \
 		|| { echo "❌ PostgreSQL unreachable on localhost:5433. Run: make up"; exit 1; }
 	@echo "✅ env check passed"
+
+check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock
+	@python3 tools/dev/check_manifest_consistency.py && echo "✅ manifests consistent"
+
+audit:       ## Sweep automatable error-class signatures (heuristic, non-blocking)
+	@# source of truth: .claude/dev-docs/error-classes.md (keep in sync)
+	@rc=0; \
+	echo "▶ collector-silent-success"; \
+	grep -n "return None\|return \[\]\|return {}\|return tracks\|return stats\|return data" src/collectors/*.py && rc=1 || true; \
+	echo "▶ artist-id-or-1"; \
+	grep -rnE "get_artist_id\(\) *or *1" src/ && rc=1 || true; \
+	echo "▶ sql-fstring-identifier"; \
+	grep -rnE "f\"\"\"?[^\"]*(FROM|JOIN|INTO|UPDATE|TABLE) +\{" src/ --include=*.py && rc=1 || true; \
+	echo "▶ db-connection-per-show"; \
+	for f in $$(grep -rl get_db_connection src/dashboard/views/ 2>/dev/null); do n=$$(grep -c "get_db_connection(" "$$f"); [ "$$n" -gt 1 ] && echo "$$f: $$n" && rc=1; done; true; \
+	echo "▶ naive-datetime-now"; \
+	grep -rnE "[^.a-z]datetime\.now\(\)" src/ --include=*.py 2>/dev/null | grep -viE "strftime|filename|pdf|email" && rc=1 || true; \
+	if [ $$rc -eq 0 ]; then echo "✅ audit clean"; else echo "⚠ audit found matches — heuristic, triage manually (nightly non-blocking)"; exit 1; fi
 
 dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
 	streamlit run src/dashboard/app.py
