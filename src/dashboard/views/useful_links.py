@@ -236,18 +236,29 @@ def show():
 1. [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → ton app
 2. Copier **Client ID** et **Client Secret**
 3. Dashboard → **🔑 Credentials API** → Spotify → Save
-4. Si OAuth expiré : relancer le flow d'auth dans le DAG ou via `python airflow/debug_dag/debug_spotify_api.py`
+4. Retrigger : `spotify_api_daily` dans Airflow
+
+ℹ️ Le collecteur utilise le flow **client_credentials** : le token d'accès
+(~1 h) est re-généré automatiquement à chaque run. **Aucun refresh_token,
+aucun flow OAuth, aucune action récurrente.** Le seul cas d'intervention :
+`client_secret` révoqué/régénéré côté Spotify → recoller dans le dashboard.
 
 **DAG concerné** : `spotify_api_daily`
 """)
 
-        with st.expander("🎬 YouTube — OAuth 2.0"):
+        with st.expander("🎬 YouTube — Clé API (YouTube Data API v3)"):
             st.markdown("""
-1. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) → ton projet
-2. Télécharger le fichier `credentials.json` (OAuth 2.0 Client ID)
-3. Placer dans le dossier configuré (voir `config/config.yaml` → `youtube.credentials_path`)
-4. Premier lancement : `python scripts/test_youtube_auth.py` pour générer le `token.json`
-5. Les tokens YouTube se rafraîchissent automatiquement (refresh_token long terme)
+1. [console.cloud.google.com/apis/library/youtube.googleapis.com](https://console.cloud.google.com/apis/library/youtube.googleapis.com) → **Activer** l'API YouTube Data API v3
+2. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) → **Créer des identifiants → Clé API**
+3. (Recommandé) Restreindre la clé à *YouTube Data API v3*
+4. Récupérer le **Channel ID** (format `UC…`) : YouTube Studio → Paramètres → Chaîne → Paramètres avancés
+5. Dashboard → **🔑 Credentials API** → YouTube → coller `api_key` + `channel_id` → Save
+6. Retrigger : `youtube_daily` dans Airflow
+
+ℹ️ Le collecteur utilise une **clé API statique** (`developerKey`), **pas
+OAuth**. Une clé API **n'expire pas** et **ne se rafraîchit pas**. Si elle
+est révoquée ou que le quota journalier est dépassé : régénérer une clé dans
+Google Cloud Console et la recoller.
 
 **DAG concerné** : `youtube_daily`
 """)
@@ -285,10 +296,13 @@ Si les DAGs `meta_csv_watcher_config` et `meta_insights_watcher` échouent → v
 
         st.divider()
         st.subheader("Scripts utilitaires")
-        _cmd("Vérifier les clés API Meta", "python scripts/check_api_keys_meta.py")
-        _cmd("Tester l'auth YouTube", "python scripts/test_youtube_auth.py")
-        _cmd("Créer les tables manquantes en DB", "docker exec -i dashboard_music_platform_algo_spotify-postgres-1 psql -U postgres -d spotify_etl < scripts/create_missing_tables.sql")
+        _cmd("Appliquer les migrations manquantes en DB", "make migrate")
         _cmd("Gérer le mapping artistes", "python scripts/manage_mapping.py")
+        st.caption(
+            "Spotify (client_credentials) et YouTube (clé API statique) "
+            "n'ont aucun script d'auth : tester depuis Dashboard → "
+            "Credentials → bouton « Tester la connexion » de la plateforme."
+        )
 
         st.divider()
         st.subheader("Vérifications rapides DB")

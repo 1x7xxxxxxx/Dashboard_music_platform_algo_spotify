@@ -133,20 +133,22 @@ def _fetch_dag_last_states() -> dict:
 PLATFORMS = {
     'spotify': {
         'label': '🎵 Spotify',
+        # Collector uses client_credentials only (spotify_api.py) — no
+        # redirect_uri / refresh_token needed (those were dormant + misleading).
         'fields': [
             {'key': 'client_id',     'label': 'Client ID',     'secret': False},
             {'key': 'client_secret', 'label': 'Client Secret', 'secret': True},
-            {'key': 'redirect_uri',  'label': 'Redirect URI',  'secret': False,
-             'default': 'http://localhost:8888/callback'},
-            {'key': 'refresh_token', 'label': 'Refresh Token', 'secret': True},
         ],
     },
     'youtube': {
         'label': '🎬 YouTube',
+        # Collector uses a static Data-API key (youtube_collector.py
+        # developerKey) + channel_id — NOT OAuth. The old client_id/
+        # client_secret/refresh_token fields were dormant and made per-tenant
+        # config impossible (no api_key field at all).
         'fields': [
-            {'key': 'client_id',     'label': 'Client ID',     'secret': False},
-            {'key': 'client_secret', 'label': 'Client Secret', 'secret': True},
-            {'key': 'refresh_token', 'label': 'Refresh Token', 'secret': True},
+            {'key': 'api_key',    'label': 'API Key (YouTube Data API v3)', 'secret': True},
+            {'key': 'channel_id', 'label': 'Channel ID (UC…)',             'secret': False},
         ],
     },
     'soundcloud': {
@@ -279,24 +281,24 @@ def _test_spotify(fields: dict) -> tuple:
 
 
 def _test_youtube(fields: dict) -> tuple:
-    if not fields.get('refresh_token'):
-        return False, "Refresh token requis pour tester YouTube."
+    # Validate the Data-API key the collector actually uses (developerKey),
+    # via a key-only endpoint (no channel needed). i18nLanguages is the
+    # cheapest read that exercises the key.
+    api_key = fields.get('api_key', '')
+    if not api_key:
+        return False, "API Key requise pour tester YouTube."
     try:
-        r = requests.post(
-            'https://oauth2.googleapis.com/token',
-            data={
-                'client_id':     fields.get('client_id', ''),
-                'client_secret': fields.get('client_secret', ''),
-                'refresh_token': fields.get('refresh_token', ''),
-                'grant_type':    'refresh_token',
-            },
+        r = requests.get(
+            'https://www.googleapis.com/youtube/v3/i18nLanguages',
+            params={'part': 'snippet', 'key': api_key},
             timeout=10,
             allow_redirects=False,  # INFO-04
         )
         data = r.json()
-        if r.status_code == 200 and data.get('access_token'):
-            return True, f"Access token obtenu (expire dans {data.get('expires_in', '?')}s) ✅"
-        return False, data.get('error_description', data.get('error', r.text[:150]))
+        if r.status_code == 200 and data.get('items'):
+            return True, "Clé API valide ✅"
+        err = data.get('error', {})
+        return False, err.get('message', r.text[:150]) if isinstance(err, dict) else str(err)
     except Exception as e:
         return False, str(e)
 
@@ -588,24 +590,27 @@ def _guide_spotify():
     with st.expander("🎵 Comment obtenir les credentials Spotify ?", expanded=False):
         st.markdown(
             "1. Aller sur **[developers.spotify.com](https://developer.spotify.com/dashboard)** → Log in → **Create App**\n"
-            "2. Renseigner un nom + ajouter `http://localhost:8888/callback` comme **Redirect URI**\n"
-            "3. Copier le **Client ID** et le **Client Secret** depuis le tableau de bord\n"
-            "4. Lancer le script d'auth pour obtenir le **Refresh Token** :\n"
+            "2. Renseigner un nom (la Redirect URI n'a pas d'importance ici)\n"
+            "3. Copier le **Client ID** et le **Client Secret** → les coller ci-dessous\n"
         )
-        st.code("python src/collectors/spotify_auth.py", language="bash")
+        st.info("Le collecteur utilise le flux **client_credentials** : pas de "
+                "Redirect URI ni de Refresh Token à gérer, le token se "
+                "renouvelle seul à chaque run.")
 
 
 def _guide_youtube():
     with st.expander("🎬 Comment obtenir les credentials YouTube ?", expanded=False):
         st.markdown(
-            "1. Aller sur **[console.cloud.google.com](https://console.cloud.google.com)** → Créer un projet\n"
+            "1. **[console.cloud.google.com](https://console.cloud.google.com)** → créer/choisir un projet\n"
             "2. **APIs & Services → Bibliothèque** → activer **YouTube Data API v3**\n"
-            "3. **APIs & Services → Identifiants → Créer des identifiants → ID client OAuth 2.0 → Application de bureau**\n"
-            "4. Télécharger le JSON → extraire **Client ID** et **Client Secret**\n"
-            "5. Lancer le script d'auth pour obtenir le **Refresh Token** :\n"
+            "3. **APIs & Services → Identifiants → Créer des identifiants → Clé API**\n"
+            "4. (recommandé) Restreindre la clé à **YouTube Data API v3**\n"
+            "5. Coller la clé dans **API Key** ci-dessous\n"
+            "6. **Channel ID** : sur la chaîne YouTube → *Paramètres avancés* "
+            "→ ID de chaîne (commence par `UC…`)\n"
         )
-        st.code("python src/collectors/youtube_auth.py", language="bash")
-        st.info("Le Refresh Token YouTube est permanent tant que l'accès n'est pas révoqué.")
+        st.info("Le collecteur utilise une **clé API statique** (pas d'OAuth) : "
+                "la clé n'expire pas, aucun refresh à gérer.")
 
 
 def _render_global_kpi(existing: dict, dag_states: dict) -> None:

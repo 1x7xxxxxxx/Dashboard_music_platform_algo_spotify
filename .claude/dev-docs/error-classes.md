@@ -63,6 +63,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [mixed-date-timestamp](#mixed-date-timestamp) | P2 | heuristic | guarded | none |
 | [collector-shipped-dag-not-rerun](#collector-shipped-dag-not-rerun) | P3 | heuristic | open | none |
 | [ingest-time-as-release-date](#ingest-time-as-release-date) | P3 | heuristic | guarded | none |
+| [operator-guidance-phantom-or-wrong-auth](#operator-guidance-phantom-or-wrong-auth) | P3 | heuristic | guarded | none |
 
 ---
 
@@ -239,3 +240,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered live (SoundCloud default track wrong). Root cause: `entity_period_filter` ordered by `MIN(collected_at)` = first ingest, not upload date. Fixed: SC API `track.created_at` → `soundcloud_tracks_daily.track_created_at` (migration 028) + `EntitySpec.release_column` + `soundcloud.py release_column="track_created_at"`. Sweep: only real instance was SC (fixed); `apple_music.py` is the ACCEPTED proxy (no Apple API created_at, `tracks` name-join rejected as over-reach — documented, not a defect). Durable guard = dashboard-view skill Pitfall #6. Heuristic/report-only — NOT CI/`make audit` (broad collected_at-DESC is legit "latest snapshot" everywhere → flaky-gate antipattern).
+
+## operator-guidance-phantom-or-wrong-auth
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: operator-facing text (failure-alert root-cause map, Credentials help UI, setup guides) instructs running a script that does not exist, or describes an auth model the collector does not use (e.g. "renew the Spotify refresh_token" / "YouTube OAuth refresh" when Spotify = client_credentials and YouTube = static API key) → at incident time the operator follows a dead end, the real fix (re-paste a rotated secret / regenerate an API key) is never surfaced, MTTR balloons.
+- signature: `! grep -rnE "spotify_auth\.py|youtube_auth\.py|test_youtube_auth|check_api_keys_meta|create_missing_tables|Refresh Token (Spotify|YouTube)|YouTube — OAuth" src/utils/alert_root_cause.py src/dashboard/views/useful_links.py src/dashboard/views/credentials.py .claude/dev-docs/*guide*.md`
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
+- rex_ref: .claude/dev-docs/token-management-bilan.md
+- first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
+- History:
+  - 2026-05-15: discovered via the token-management bilan (`credentials.py` exposed dormant Spotify `refresh_token`/`redirect_uri` + YouTube OAuth fields the collectors never read). Explore sweep found the SAME class in `alert_root_cause.py` (Spotify entry pointed at phantom `python src/collectors/spotify_auth.py` "to renew the refresh token" — Spotify has none; YouTube entry said "renew the OAuth Refresh Token" — it's a static API key) and `useful_links.py` (YouTube setup expander built on `credentials.json`/`token.json`/phantom `scripts/test_youtube_auth.py` + "tokens auto-refresh" myth; Spotify expander "relancer le flow d'auth"; "Scripts utilitaires" listed 3 phantom commands: `test_youtube_auth.py`, `check_api_keys_meta.py`, `scripts/create_missing_tables.sql`). Ground truth: Spotify=client_credentials (re-granted each run, NO refresh token); YouTube=static `developerKey` (no OAuth, no expiry); SoundCloud=client_credentials default + opt-in auto-rotating user-token; Meta/IG=System User token (never expires). Real scripts in `scripts/` = only `backup_db.sh`, `manage_mapping.py`, `test_email.py`. All instances fixed this pass (credentials.py field-list/_test_youtube/_guide_*; alert_root_cause.py spotify+youtube entries; useful_links.py YouTube+Spotify expanders + scripts list → `make migrate` + a "no auth script — use the Test button" caption). Durable guard = this catalogue entry + token-management-bilan.md as the canonical per-platform auth model. Heuristic + report-only — NOT CI/`make audit`: the signature would self-match any doc that *quotes* the anti-pattern (the artist-id-or-1 false-positive lesson), so it is deliberately scoped to the 3 operator-facing source files + `*guide*.md` only, and excludes this catalogue + the bilan. Re-run after edits → 0 hits (class cleared).

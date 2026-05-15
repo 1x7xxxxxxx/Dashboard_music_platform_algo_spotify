@@ -40,12 +40,12 @@ PLATFORM_ACTIONS = {
         'developers.facebook.com → Graph API Explorer → renouveler le Long-lived token'
     ),
     'youtube': (
-        'Refresh Token YouTube invalide',
-        'console.cloud.google.com → OAuth → renouveler le Refresh Token YouTube Data API v3'
+        'Clé API YouTube invalide ou quota dépassé',
+        'Google Cloud Console → APIs & Services → Identifiants : régénérer la clé API, puis Dashboard → Credentials → YouTube'
     ),
     'spotify': (
-        'Refresh Token Spotify invalide',
-        'Lancer : python src/collectors/spotify_auth.py pour renouveler le Refresh Token'
+        'Spotify client_secret invalide ou révoqué',
+        'Dashboard → Credentials → Spotify : recoller client_id/client_secret depuis developers.spotify.com'
     ),
 }
 
