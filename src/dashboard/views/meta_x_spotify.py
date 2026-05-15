@@ -2,9 +2,29 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
+
+
+def _default_campaign_index(db, artist_id, available_campaigns: list) -> int:
+    """Index of the campaign mapped to the most recent release (else 0)."""
+    if not available_campaigns:
+        return 0
+    try:
+        rows = db.fetch_query(
+            "SELECT m.campaign_name FROM campaign_track_mapping m "
+            "JOIN tracks t ON TRIM(t.track_name) = TRIM(m.track_name) "
+            "WHERE m.campaign_name = ANY(%s) "
+            "ORDER BY t.release_date DESC NULLS LAST LIMIT 1",
+            (available_campaigns,),
+        )
+        if rows and rows[0][0] in available_campaigns:
+            return available_campaigns.index(rows[0][0])
+    except Exception:
+        pass
+    return 0
+
 
 def _show_body(db, artist_id):
     """Main view body — db.close() is handled by show()."""
@@ -71,39 +91,35 @@ def _show_body(db, artist_id):
         selected_campaign = st.selectbox(
             "Choisir la Campagne",
             options=available_campaigns,
-            index=0 if available_campaigns else None
+            index=_default_campaign_index(db, artist_id, available_campaigns)
+            if available_campaigns else None,
         )
-
-    # --- LOGIQUE INTELLIGENTE DE DATE ---
-    default_start = datetime.now().date() - timedelta(days=30)
-    default_end = datetime.now().date()
-
-    if selected_campaign:
-        try:
-            q_start = "SELECT MIN(day_date) as start_date FROM meta_insights_performance_day WHERE campaign_name = %s"
-            df_start = db.fetch_df(q_start, (selected_campaign,))
-
-            if not df_start.empty and df_start.iloc[0]['start_date']:
-                camp_start = pd.to_datetime(df_start.iloc[0]['start_date']).date()
-                default_start = camp_start
-                default_end = camp_start + timedelta(days=30)
-        except Exception: pass
-
-    with col_date:
-        date_range = st.date_input(
-            "Période d'analyse",
-            value=(default_start, default_end),
-            format="DD/MM/YYYY"
-        )
-
-        if isinstance(date_range, tuple) and len(date_range) == 2:
-            start_date, end_date = date_range
-        else:
-            start_date, end_date = default_start, default_end
 
     if not selected_campaign:
         st.info("Sélectionnez une campagne.")
         return
+
+    # Période ancrée au début de la campagne (ici la "release" = lancement campagne)
+    camp_start = None
+    try:
+        df_start = db.fetch_df(
+            "SELECT MIN(day_date) AS s FROM meta_insights_performance_day "
+            "WHERE artist_id = %s AND campaign_name = %s",
+            (artist_id, selected_campaign),
+        )
+        if not df_start.empty and df_start.iloc[0]['s']:
+            camp_start = pd.to_datetime(df_start.iloc[0]['s']).date()
+    except Exception:
+        pass
+
+    with col_date:
+        window = smart_period_filter(
+            db, table="meta_insights_performance_day", date_column="day_date",
+            artist_id=artist_id, key=f"mxs_{selected_campaign}",
+            latest_release=camp_start, default_override="last_release",
+        )
+        st.caption("Période par défaut = depuis le début de la campagne.")
+    start_date, end_date = window.start, window.end
 
     # --- RÉCUPÉRATION DU TITRE ASSOCIÉ ---
     mapped_track = None

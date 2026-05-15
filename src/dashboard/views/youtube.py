@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import isodate
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
 
 def parse_duration(duration_str):
@@ -33,16 +34,21 @@ def show():
         # ============================================================================
         st.subheader("📈 Évolution de la Chaîne")
 
-        hist_query = """
+        window = smart_period_filter(
+            db, table="youtube_channel_history", date_column="collected_at",
+            artist_id=artist_id, key="yt_channel", default_override="all",
+        )
+        frag, frag_params = window.sql_between("collected_at")
+        hist_query = f"""
             SELECT date(collected_at) as date,
                    MAX(subscriber_count) as subs,
                    MAX(view_count) as views
             FROM youtube_channel_history
-            WHERE artist_id = %s
+            WHERE artist_id = %s {frag}
             GROUP BY date(collected_at)
             ORDER BY date
         """
-        df_hist = db.fetch_df(hist_query, (artist_id,))
+        df_hist = db.fetch_df(hist_query, (artist_id, *frag_params))
 
         if not df_hist.empty:
             fig_channel = go.Figure()

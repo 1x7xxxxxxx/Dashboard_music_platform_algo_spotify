@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
 
 def show():
@@ -93,35 +93,28 @@ def show():
                     default=all_titles[:1],  # Dernière release par défaut
                 )
 
-            # A. Filtre Période — démarre à la first_seen du track sélectionné (ou J-30 si inconnu)
-            today = datetime.now().date()
+            # A. Filtre Période — "Depuis dernière release" = first_seen du track sélectionné
             default_track = (selected_tracks[0] if selected_tracks else all_titles[0]) if all_titles else None
-            if default_track is not None:
+
+            def _release_resolver():
+                if default_track is None:
+                    return None
                 _row = df_latest[df_latest['title'] == default_track]
                 try:
-                    start_default = pd.to_datetime(_row['first_seen'].iloc[0]).date()
+                    return pd.to_datetime(_row['first_seen'].iloc[0]).date()
                 except Exception:
-                    start_default = today - timedelta(days=30)
-            else:
-                start_default = today - timedelta(days=30)
+                    return None
 
             with col_f1:
-                date_range = st.date_input(
-                    "Période",
-                    value=(start_default, today),
-                    max_value=today,
-                    format="DD/MM/YYYY",
-                    key=f"sc_period_{default_track or 'all'}"
+                window = smart_period_filter(
+                    db, table="soundcloud_tracks_daily", date_column="collected_at",
+                    artist_id=artist_id, key=f"sc_{default_track or 'all'}",
+                    latest_release_resolver=_release_resolver,
                 )
 
         # --- REQUÊTE & AFFICHAGE ---
         try:
-            # Gestion sécurisée des dates (si l'utilisateur ne sélectionne qu'une date)
-            if isinstance(date_range, tuple) and len(date_range) == 2:
-                start_d, end_d = date_range
-            else:
-                start_d = start_default
-                end_d = today
+            start_d, end_d = window.start, window.end
 
             # On récupère l'historique large (on filtre en Pandas pour plus de souplesse UI)
             query_hist = """

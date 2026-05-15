@@ -1,8 +1,10 @@
 """Vue Streamlit pour Apple Music."""
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
 
 def show():
@@ -99,10 +101,24 @@ def show():
             )
 
             if selected_songs:
-                # ⚠️ LA MAGIE EST ICI : Requête SQL avec LAG() pour calculer la différence
-                # On calcule : Valeur Aujourd'hui - Valeur Hier
                 placeholders = ','.join(['%s'] * len(selected_songs))
 
+                def _apple_release():
+                    rows = db.fetch_query(
+                        f"SELECT MIN(date) FROM apple_songs_history "
+                        f"WHERE artist_id = %s AND song_name IN ({placeholders})",
+                        (artist_id, *selected_songs),
+                    )
+                    return rows[0][0] if rows and rows[0][0] else None
+
+                window = smart_period_filter(
+                    db, table="apple_songs_history", date_column="date",
+                    artist_id=artist_id, key="apple_daily",
+                    latest_release_resolver=_apple_release,
+                )
+                frag, frag_params = window.sql_between("date")
+
+                # Requête SQL avec LAG() : Valeur Aujourd'hui - Valeur Hier
                 daily_calc_query = f"""
                     WITH daily_diff AS (
                         SELECT
@@ -116,35 +132,41 @@ def show():
                         WHERE artist_id = %s AND song_name IN ({placeholders})
                     )
                     SELECT * FROM daily_diff
-                    WHERE daily_streams IS NOT NULL
-                    AND date >= CURRENT_DATE - INTERVAL '30 days'
+                    WHERE daily_streams IS NOT NULL {frag}
                     ORDER BY date
                 """
 
-                df_daily = db.fetch_df(daily_calc_query, (artist_id, *selected_songs))
+                df_daily = db.fetch_df(
+                    daily_calc_query, (artist_id, *selected_songs, *frag_params)
+                )
 
                 if not df_daily.empty:
                     # Nettoyage des valeurs négatives (si Apple corrige ses chiffres à la baisse)
                     df_daily['daily_streams'] = df_daily['daily_streams'].apply(lambda x: max(0, x))
                     df_daily['daily_shazams'] = df_daily['daily_shazams'].apply(lambda x: max(0, x))
 
-                    tab1, tab2 = st.tabs(["🎧 Streams / Jour", "⚡ Shazams / Jour"])
-
-                    with tab1:
-                        fig_streams = px.line(
-                            df_daily, x='date', y='daily_streams', color='song_name',
-                            title="Nouveaux Streams par Jour", markers=True
-                        )
-                        fig_streams.update_layout(hovermode='x unified')
-                        st.plotly_chart(fig_streams, width="stretch")
-
-                    with tab2:
-                        fig_shazams = px.bar(
-                            df_daily, x='date', y='daily_shazams', color='song_name',
-                            title="Nouveaux Shazams par Jour", barmode='group'
-                        )
-                        fig_shazams.update_layout(hovermode='x unified')
-                        st.plotly_chart(fig_shazams, width="stretch")
+                    fig = go.Figure()
+                    for song in df_daily['song_name'].unique():
+                        d = df_daily[df_daily['song_name'] == song]
+                        fig.add_trace(go.Scatter(
+                            x=d['date'], y=d['daily_streams'],
+                            name=f"🎧 {song}", mode='lines+markers', yaxis='y',
+                        ))
+                        fig.add_trace(go.Bar(
+                            x=d['date'], y=d['daily_shazams'],
+                            name=f"⚡ {song}", opacity=0.4, yaxis='y2',
+                        ))
+                    fig.update_layout(
+                        title=f"Croissance quotidienne — Streams (lignes) & "
+                              f"Shazams (barres) · {window.label}",
+                        hovermode='x unified',
+                        yaxis=dict(title="Streams / jour"),
+                        yaxis2=dict(title="Shazams / jour", overlaying='y',
+                                    side='right', showgrid=False),
+                        barmode='group',
+                        legend=dict(orientation='h'),
+                    )
+                    st.plotly_chart(fig, width="stretch")
 
                 else:
                     st.info("📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données).")
