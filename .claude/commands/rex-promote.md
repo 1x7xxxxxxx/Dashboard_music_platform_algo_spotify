@@ -7,6 +7,13 @@ rex:
   \ rule"
     severity: "info"
     ref: "DEVLOG#2026-05-14"
+  - date: 2026-05-14
+    issue: "Manual issue/fix fill step left pending-rex.md stubs un-promoted across sessions;\
+  \ nobody filled them in"
+    fix: "Rewrote command to auto-generate issue/fix/severity from observations.jsonl + git\
+  \ diff + file re-read + DEVLOG, then promote with validated:true in one call"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-14"
 ---
 
 Auto-suggest + auto-promote REX drafts from `.claude/sessions/pending-rex.md` into each target tool's `rex:` frontmatter block.

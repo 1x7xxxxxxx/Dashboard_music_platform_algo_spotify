@@ -8,6 +8,13 @@ rex:
   \ lifted rule; renumbered flow (auto-promote \u2192 manual fallback \u2192 audit)"
     severity: "info"
     ref: "DEVLOG#2026-05-14"
+  - date: 2026-05-14
+    issue: "Strict 'human owns content' rule contradicted the new /rex-promote auto-fill flow\
+  \ introduced same session"
+    fix: "Added '\xA7 Auto-fill via /rex-promote' documenting lifted contract; format constraints\
+  \ (date, char limits, severity, target dirs) still enforced by validate_rex.py"
+    severity: "info"
+    ref: "DEVLOG#2026-05-14"
 ---
 
 # REX format — {{PROJECT_NAME}} Claude Code config

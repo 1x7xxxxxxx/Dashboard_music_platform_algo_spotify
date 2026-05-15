@@ -226,6 +226,10 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 - [x] **s4a_audience playlist_adds / saves still 0** — confirmed: `playlist_adds` is not present in `s4a_songs_global` CSV (neither 28d nor 12m format). Only source is `s4a_audience` daily timeline CSV (artist-level delta) which records 0 for this artist — genuine data. Saves ARE in songs_global CSV and import correctly. playlist_adds entry via manual form (`s4a_song_playlist_adds`) is the intended workflow.
 
+### P2 — Data Integrity (new, 2026-05-14)
+
+- [ ] **Migrate `tracks` table to multi-tenant** — `artist_id` is currently `VARCHAR(50)` (legacy Spotify ID); 4 readers (`meta_x_spotify`, `spotify_s4a_combined` ×2, `trigger_algo`) currently don't filter by artist_id → cross-tenant leak once a 2nd artist ingests. 1 writer (`spotify_api_daily`). Add `saas_artists.spotify_artist_id` + `tracks.saas_artist_id` (FK to `saas_artists.id`), backfill, update queries. See `.claude/dev-docs/audit-tracks-legacy.md`.
+
 ### P1 — Security hardening (closed, 2026-05-14)
 
 - [x] **Explicit SQL allowlist guards** — `db_health.py`, `admin.py`, `airflow_kpi.py` had f-string SQL with implicit allowlist (via constant lookup). Now call `validate_table()` / `validate_columns()` explicitly before each f-string per CLAUDE.md rule #8. Promoted both validators from private (`_validate_*`) to public API in postgres_handler. Commits `d41a842`, `997dcde`.
