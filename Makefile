@@ -33,8 +33,16 @@ migrate:     ## Apply every migrations/*.sql idempotently against the live PG
 		docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl < $$f; \
 	done
 
-dashboard:   ## Launch Streamlit dashboard (foreground, port 8501)
-	cd src/dashboard && streamlit run app.py
+check-env:   ## Verify critical imports + pip dep coherence (canary check)
+	@python3 -c "import isodate, streamlit, plotly, pandas, psycopg2" 2>/dev/null \
+		|| { echo "❌ Missing dashboard deps. Run: make sync"; exit 1; }
+	@python3 -m pip check 2>&1 | grep -E "^[^[:space:]]" | head -10 || true
+	@python3 -c "import socket,sys; s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex(('127.0.0.1',5433)))" 2>/dev/null \
+		|| { echo "❌ PostgreSQL unreachable on localhost:5433. Run: make up"; exit 1; }
+	@echo "✅ env check passed"
+
+dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
+	streamlit run src/dashboard/app.py
 
 sync:        ## uv sync --frozen + install pre-commit hooks (one-shot dev setup)
 	uv sync --frozen
