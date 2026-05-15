@@ -11,6 +11,7 @@ import plotly.express as px
 from datetime import date
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.ui import show_empty_state
 from src.dashboard.auth import get_artist_id, is_admin
 from src.database.postgres_handler import validate_table, validate_columns
 
@@ -177,8 +178,7 @@ def _show_freshness_bar(df_health: pd.DataFrame):
     st.caption("Jours depuis le dernier import — vert ≤14j, orange ≤30j, rouge >30j")
 
     df = df_health[df_health['total'] > 0].copy()
-    if df.empty:
-        st.info("Aucun dataset peuplé.")
+    if show_empty_state(df, "Aucun dataset peuplé."):
         return
 
     df = df.sort_values('age_days', ascending=True, na_position='last')
@@ -214,8 +214,7 @@ def _show_heatmap(df_weekly: pd.DataFrame):
     st.subheader("📅 Activité d'import — heatmap par semaine")
     st.caption("Chaque cellule = nouvelles lignes intégrées cette semaine. Blanc = aucune activité.")
 
-    if df_weekly.empty:
-        st.info("Aucune donnée d'activité disponible.")
+    if show_empty_state(df_weekly, "Aucune donnée d'activité disponible."):
         return
 
     df_weekly['week'] = pd.to_datetime(df_weekly['week'])
@@ -223,8 +222,7 @@ def _show_heatmap(df_weekly: pd.DataFrame):
     cutoff = pd.Timestamp(date.today()) - pd.Timedelta(weeks=52)
     df_weekly = df_weekly[df_weekly['week'] >= cutoff]
 
-    if df_weekly.empty:
-        st.info("Aucune activité sur les 52 dernières semaines.")
+    if show_empty_state(df_weekly, "Aucune activité sur les 52 dernières semaines."):
         return
 
     pivot = df_weekly.pivot_table(
@@ -257,8 +255,7 @@ def _show_cumulative(df_cumul: pd.DataFrame):
     st.subheader("📈 Croissance cumulative des datasets")
     st.caption("Un plateau = plus aucun import sur ce dataset.")
 
-    if df_cumul.empty:
-        st.info("Aucune donnée disponible.")
+    if show_empty_state(df_cumul, "Aucune donnée disponible."):
         return
 
     # Dataset selector
@@ -303,8 +300,7 @@ def _show_batch_sizes(df_weekly: pd.DataFrame):
     st.subheader("📦 Taille des imports par semaine")
     st.caption("Lots très petits ou très grands peuvent indiquer une anomalie de collecte.")
 
-    if df_weekly.empty:
-        st.info("Aucune donnée disponible.")
+    if show_empty_state(df_weekly, "Aucune donnée disponible."):
         return
 
     df_weekly = df_weekly.copy()

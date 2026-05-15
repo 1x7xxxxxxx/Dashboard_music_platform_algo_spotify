@@ -82,10 +82,14 @@ if st.session_state.get("role") == "admin":
 ```
 
 ### Empty State Handling
+Use `show_empty_state` (`src/dashboard/utils/ui.py`) — factors the
+`if df.empty: st.info(...); return` pattern; caller keeps the early return:
 ```python
-if df.empty:
-    st.info("No data available for the selected period.")
+from src.dashboard.utils.ui import show_empty_state
+
+if show_empty_state(df, "Aucune donnée pour cette période."):
     return
+# level="warning" / "error" for non-info severities
 ```
 
 ---
