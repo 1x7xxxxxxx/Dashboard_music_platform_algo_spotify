@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-05-15 — YouTube collector silent-success fix + credentials.py → package + refactor program
+
+### Why
+Close the last open `collector-silent-success` P2 (YouTube collector returned partial
+data inside `except` — a truncated fetch could mark a DAG SUCCESS). Land R1 of the
+dashboard refactor: `credentials.py` was the worst single-file offender (892 lines)
+in `refactor-audit-dashboard.md` (#3). Persist a sequenced refactor queue so future
+splits are trigger-gated, not ad-hoc.
+
+### What changed
+- `src/collectors/youtube_collector.py` — `get_video_comments()` and `get_playlists()`:
+  `return [partial]` in `except` → `raise` (CLAUDE.md rule #6). `audit-collectors.md`
+  status table corrected; `error-classes.md` `collector-silent-success` History appended.
+  Commit `3b63984`.
+- `src/dashboard/views/credentials.py` (892 l) → package `views/credentials/`
+  (9 modules: `__init__`, `router`, `_core`, `_registry`, `_render`,
+  `_platform_{spotify,youtube,soundcloud,meta}`). Pure cut/paste, zero logic change.
+  Public surface unchanged (`from views.credentials import show`). The
+  `_fetch_dag_last_states` Airflow N+1 helper moved to `credentials/_core.py`.
+  `refactor-audit-dashboard.md` #3 marked DONE with as-built layout. Commit `acf8b6f`.
+- `.claude/dev-docs/roadmap/refactor-program.md` (NEW) — sequenced R1–R6 queue +
+  guardrails (no big-bang, no FastAPI/React, no service layers per ADR-002, never
+  split <400 l) + DoD. P4 brick line added to `checklist.md`. Commit `c30d004`.
+- `.claude/dev-docs/architecture.md` — Dashboard Views Map entry `credentials.py`
+  → `credentials/` (package); added package-layout block + YouTube compliance note;
+  linked (not duplicated) to `refactor-program.md`.
+
+### Tests
+`python3 -m pytest tests/ -q` → **237 passed** (unchanged — both code commits are
+behavior-preserving). Ruff clean; import smoke OK; blast radius zero throughout.
+
+### Reste à faire
+R2 `kpi_helpers.py` ruff (quick win), R4 `trigger_algo.py` split (next edit),
+R5 `pdf_exporter.py`, R6 `revenue_forecast.py`. Open P2 items unchanged
+(`tracks` multi-tenant migration; Meta/SoundCloud DAG re-trigger verification).
+
+### Cross-refs
+- `.claude/dev-docs/roadmap/refactor-program.md` — R1–R6 sequenced queue + DoD
+- `.claude/dev-docs/refactor-audit-dashboard.md` #3 — credentials split spec (DONE)
+- `.claude/dev-docs/error-classes.md` — `collector-silent-success` History
+- `.claude/dev-docs/architecture.md` — Dashboard Views Map + credentials package block
+
+---
+
 ## 2026-05-14 (suite 2) — Auto-DEVLOG hook + baseline propagation + dashboard perf audit
 
 ### Why

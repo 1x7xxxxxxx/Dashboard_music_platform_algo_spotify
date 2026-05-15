@@ -1,7 +1,7 @@
 # Architecture Diagrams
 
 *Auto-updated by the `strategic-plan-architect` background agent after each session.*
-*Last updated: 2026-03-28*
+*Last updated: 2026-05-15*
 
 ---
 
@@ -171,8 +171,36 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `ml_performance.py` | ML Performance | ml_song_predictions, mlruns | admin |
 | `airflow_kpi.py` | Airflow KPI | Airflow REST API | admin |
 | `admin.py` | Admin | saas_artists, artist_credentials | admin |
-| `credentials.py` | Credentials API | artist_credentials | all |
+| `credentials/` (package) | Credentials API | artist_credentials | all |
 | `upload_csv.py` | Upload CSV | all CSV-sourced tables | all |
 | `export_csv.py` | Export CSV (ZIP or Excel) | all tables | all |
 | `export_pdf.py` | Export PDF (xhtml2pdf; S4A, YouTube, Instagram, Meta, SoundCloud, Apple Music) | all tables | all |
 | `useful_links.py` | Useful Links | static | admin |
+
+> **`credentials/` package (since 2026-05-15, commit `acf8b6f` — refactor R1):**
+> The former 892-line single-file `views/credentials.py` was split into a package
+> (pure cut/paste, zero logic change). Public surface unchanged:
+> `from views.credentials import show`.
+>
+> | Module | Role |
+> |---|---|
+> | `__init__.py` | re-exports `show` (stable import path) |
+> | `router.py` | slim `show()` entry point |
+> | `_core.py` | Fernet crypto + DB load/save + Airflow-state + constants |
+> | `_registry.py` | `PLATFORMS` dict + `CONNECTION_TESTS` + guide dispatch |
+> | `_render.py` | Streamlit render/form helpers + `_handle_save` |
+> | `_platform_spotify.py` / `_platform_youtube.py` / `_platform_soundcloud.py` / `_platform_meta.py` | per-platform connection-test + setup-guide pair |
+>
+> The `_fetch_dag_last_states` Airflow N+1 helper moved from `credentials.py:118`
+> to `credentials/_core.py` (referenced in the P3 perf item). This is R1 of the
+> sequenced dashboard refactor program — full R1–R6 queue, guardrails and DoD
+> live in `.claude/dev-docs/roadmap/refactor-program.md` (spec:
+> `refactor-audit-dashboard.md` #3). Not duplicated here.
+
+> **YouTube collector — silent-success compliance (since 2026-05-15, commit `3b63984`):**
+> `youtube_collector.py` `get_video_comments()` and `get_playlists()` previously
+> `return [partial]` inside their `except` blocks — a P2 collector-silent-success
+> bug (a partial fetch could mark a DAG SUCCESS with truncated data). Both now
+> `raise`, matching CLAUDE.md cross-cutting rule #6. The YouTube collector is now
+> fully compliant; `audit-collectors.md` status table corrected and
+> `error-classes.md` `collector-silent-success` History appended.

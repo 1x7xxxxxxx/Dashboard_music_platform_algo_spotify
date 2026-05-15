@@ -239,6 +239,10 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 - [x] **Instagram collector silent success** — `_refresh_access_token` and `save_to_db` swallowed exceptions and reported success. Both now `logger.error` + `raise`. Commit `a0f86de`.
 - [x] **`requirements.txt` duplicates** — python-dotenv, pandas, psycopg2-binary listed twice (rows 62-64 vs canonical block). Removed dupes. Commit `a0f86de`.
 
+### P2 — Data integrity (closed, 2026-05-15)
+
+- [x] **YouTube collector silent success** — `get_video_comments()` and `get_playlists()` did `return [partial]` inside `except` → a truncated fetch could mark a DAG SUCCESS. Both now `raise` (CLAUDE.md rule #6). YouTube collector now fully silent-success-compliant; `audit-collectors.md` status table corrected, `error-classes.md` `collector-silent-success` History appended. Commit `3b63984`.
+
 ### P3 — Infra / supply chain (closed, 2026-05-14)
 
 - [x] **Airflow base image → Python 3.11** — was 3.10, mismatched `pyproject.toml requires-python = ">=3.11"`. Smoke-validated (15 DAGs load, sklearn/xgboost/shap import). Commit `52db15f`.
@@ -296,7 +300,7 @@ Audit statique + live Lighthouse (page login publique) effectués 2026-05-14. Vo
 
 ### P4 — Refactor program (2026-05-15)
 
-- [ ] **Dashboard refactor program** — sequenced queue R1–R6 (one file/PR, trigger-gated). Tracker: `.claude/dev-docs/roadmap/refactor-program.md` (spec: `refactor-audit-dashboard.md`). R1 `credentials.py`→package ✅ DONE (`acf8b6f`). Open: R2 `kpi_helpers.py` ruff (quick win), R4 `trigger_algo.py` split (high ROI, next edit), R5 `pdf_exporter.py`, R6 `revenue_forecast.py`. R3 = `view-session-adoption` error-class (no dup). Guardrails: no big-bang, no FastAPI/React, no service layers (ADR-002), never split <400 l.
+- [ ] **Dashboard refactor program** — sequenced queue R1–R6 (one file/PR, trigger-gated). Tracker: `.claude/dev-docs/roadmap/refactor-program.md` (created `c30d004`, spec: `refactor-audit-dashboard.md`). R1 `credentials.py`→package ✅ DONE (`acf8b6f`, 2026-05-15 — closes audit #3, 237 pytest unchanged, blast radius zero). Open: R2 `kpi_helpers.py` ruff (quick win), R4 `trigger_algo.py` split (high ROI, next edit), R5 `pdf_exporter.py`, R6 `revenue_forecast.py`. R3 = `view-session-adoption` error-class (no dup). Guardrails: no big-bang, no FastAPI/React, no service layers (ADR-002), never split <400 l.
 
 ### Standing ops — incident-driven (no code action)
 

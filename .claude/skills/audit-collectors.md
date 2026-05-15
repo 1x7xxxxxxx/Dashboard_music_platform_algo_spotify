@@ -1,5 +1,10 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-15
+    issue: "Skill listed only empty returns (None/[]/{}); missed the return-partial-in-except variant YouTube collector used"
+    fix: "Treat ANY non-raising return inside a collector except block as silent-success, including partial/truncated data. youtube_collector get_video_comments/get_playlists now raise"
+    ref: "DEVLOG#2026-05-15"
+    severity: warn
 ---
 
 # Audit: Silent Success Anti-Pattern in Collectors
