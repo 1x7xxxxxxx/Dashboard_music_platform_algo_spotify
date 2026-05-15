@@ -58,6 +58,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [db-connection-per-show](#db-connection-per-show) | P3 | heuristic | open | none |
 | [naive-datetime-now](#naive-datetime-now) | P2 | heuristic | open | none |
 | [df-na-rep](#df-na-rep) | P3 | heuristic | guarded | none |
+| [unregistered-write-table](#unregistered-write-table) | P2 | deterministic | guarded | none |
 
 ---
 
@@ -167,3 +168,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-05-14: `lint_dashboard_view.py` PostToolUse hook added (warns on save).
   - 2026-05-15: catalogued so `make audit` also sweeps the existing tree (the hook only catches new edits).
+
+## unregistered-write-table
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a cryptic `ValueError` at write time, the DAG fails or silently leaves a data gap.
+- signature: `python3 -c "import re,pathlib,sys; ph=pathlib.Path('src/database/postgres_handler.py').read_text(); a=set(re.findall(r\"'([a-z0-9_]+)'\", re.search(r'_ALLOWED_TABLES = frozenset\(\{(.*?)\}\)', ph, re.S).group(1))); bad={m.group(1) for p in pathlib.Path('src').rglob('*.py') for m in re.finditer(r'(?:upsert_many|insert_many)\(\s*[\\'\\\"]([a-z0-9_]+)', p.read_text(errors='ignore'))}-a; sys.exit(1 if bad else 0)"`
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_allowed_tables_coverage.py }
+- rex_ref: .claude/skills/db-schema.md
+- first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
+- History:
+  - 2026-05-15: discovered while adding `instagram_media`/`instagram_media_insights` (plan flagged it as the "highest gotcha"); both registered correctly so 0 live hits. Wired `tests/test_allowed_tables_coverage.py` (blocks via the existing CI pytest job). Canonical signature lives in the test; the inline one-liner above is the catalogue/`make audit` mirror.

@@ -1,5 +1,12 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-15
+    issue: "New table written via upsert_many but not added to _ALLOWED_TABLES \u2192 cryptic\
+  \ SQL-guard ValueError, DAG silently fails"
+    fix: "Catalogued class unregistered-write-table + tests/test_allowed_tables_coverage.py\
+  \ blocks CI; db-schema.md must document the _ALLOWED_TABLES registration step"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-15"
 ---
 
 # Skill: Database Schema
