@@ -62,6 +62,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [view-session-adoption](#view-session-adoption) | P4 | heuristic | open | none |
 | [mixed-date-timestamp](#mixed-date-timestamp) | P2 | heuristic | guarded | none |
 | [collector-shipped-dag-not-rerun](#collector-shipped-dag-not-rerun) | P3 | heuristic | open | none |
+| [ingest-time-as-release-date](#ingest-time-as-release-date) | P3 | heuristic | guarded | none |
 
 ---
 
@@ -225,3 +226,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: catalogued from the Instagram "Publications récentes" empty report. NOT a code defect — operational: after shipping a collector method that populates a new table, the owning DAG must be re-triggered (it won't backfill until its next scheduled/manual run). Runbook: trigger the DAG, verify `SELECT COUNT(*) FROM <new_table>` > 0, smoke the view. Report-only (no CI gate — DB-state, not source).
+
+## ingest-time-as-release-date
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: an `entity_period_filter`/`EntitySpec` orders "latest release" by `MIN(date_column)` where `date_column` is the ingest timestamp (`collected_at`) → default entity = first one WE collected, not the most recently released; "Depuis dernière release" anchors wrong. SoundCloud default track was visibly the wrong one.
+- signature: `! grep -rn -A2 "EntitySpec(" src/dashboard/views/ | grep -B2 "collected_at" | grep -L "release_column"` (narrow: EntitySpec with date_column=collected_at lacking release_column — ~0 false positives; broad `collected_at DESC` greps are NOT this class — that's legit "latest snapshot")
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (Pitfall #6) }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
+- History:
+  - 2026-05-15: discovered live (SoundCloud default track wrong). Root cause: `entity_period_filter` ordered by `MIN(collected_at)` = first ingest, not upload date. Fixed: SC API `track.created_at` → `soundcloud_tracks_daily.track_created_at` (migration 028) + `EntitySpec.release_column` + `soundcloud.py release_column="track_created_at"`. Sweep: only real instance was SC (fixed); `apple_music.py` is the ACCEPTED proxy (no Apple API created_at, `tracks` name-join rejected as over-reach — documented, not a defect). Durable guard = dashboard-view skill Pitfall #6. Heuristic/report-only — NOT CI/`make audit` (broad collected_at-DESC is legit "latest snapshot" everywhere → flaky-gate antipattern).

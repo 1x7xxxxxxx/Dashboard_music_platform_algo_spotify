@@ -138,6 +138,17 @@ any concat/sort/merge — never conditionally. Precedent (fixed):
 `src/dashboard/views/meta_x_spotify.py` `all_dates`. Class:
 `mixed-date-timestamp` (`.claude/dev-docs/error-classes.md`).
 
+### 6. `entity_period_filter`: `collected_at` is ingest time, not release date
+`EntitySpec(table, entity, date_column)` orders "latest release" by
+`MIN(date_column)`. If `date_column` is the ingest timestamp (`collected_at`),
+the default entity = first one WE collected, NOT the most recently released —
+wrong default + wrong "Depuis dernière release" anchor (backfill / late-added
+rows). When a true upload/release date exists, pass `release_column=` (e.g.
+soundcloud `track_created_at`); the period span still uses `date_column`.
+Precedent (fixed): `soundcloud.py` `release_column="track_created_at"`.
+Accepted exception: `apple_music.py` (no Apple API created_at — `MIN(date)`
+proxy, do NOT name-join `tracks`). Class: `ingest-time-as-release-date`.
+
 ---
 
 ## Reference Implementations
