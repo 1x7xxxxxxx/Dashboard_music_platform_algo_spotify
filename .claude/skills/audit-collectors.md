@@ -79,7 +79,7 @@ if artists_with_creds > 0 and successful_fetches == 0:
 | File | Status |
 |---|---|
 | `src/collectors/spotify_api.py` | ✅ Fixed — get_artist_info, get_artist_top_tracks now raise |
-| `src/collectors/youtube_collector.py` | ✅ Fixed — get_channel_stats, get_channel_videos, get_video_stats now raise |
+| `src/collectors/youtube_collector.py` | ✅ Fixed — get_channel_stats, get_channel_videos, get_video_stats, get_video_comments, get_playlists now raise (2026-05-15: comments/playlists were missed in the 2026-03-25 pass, caught + fixed) |
 | `src/collectors/soundcloud_api_collector.py` | ✅ Fixed — non-200 raises ValueError; outer except re-raises ValueError |
 | `src/collectors/instagram_api_collector.py` | ✅ Fixed — 401/400 raise ValueError; generic raises RuntimeError |
 | `airflow/dags/youtube_daily.py` | ✅ Fixed — zero-row guard after artist loop |
