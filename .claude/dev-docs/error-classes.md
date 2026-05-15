@@ -59,6 +59,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [naive-datetime-now](#naive-datetime-now) | P2 | heuristic | open | none |
 | [df-na-rep](#df-na-rep) | P3 | heuristic | guarded | none |
 | [unregistered-write-table](#unregistered-write-table) | P2 | deterministic | guarded | none |
+| [view-session-adoption](#view-session-adoption) | P4 | heuristic | open | none |
 
 ---
 
@@ -182,3 +183,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered while adding `instagram_media`/`instagram_media_insights` (plan flagged it as the "highest gotcha"); both registered correctly so 0 live hits. Wired `tests/test_allowed_tables_coverage.py` (blocks via the existing CI pytest job). Canonical signature lives in the test; the inline one-liner above is the catalogue/`make audit` mirror.
+
+## view-session-adoption
+- status: open
+- severity: P4
+- kind: heuristic
+- symptom: a view uses raw `get_db_connection()` + the manual `get_artist_id()` guard instead of the `view_session()` context manager. The manual form is correct but not structurally enforced — every copy is a fresh chance to reintroduce `db-connection-per-show` / `artist-id-or-1`. Adoption backlog tracker.
+- signature: `! for f in src/dashboard/views/*.py; do grep -q "import get_db_connection" "$f" && ! grep -q view_session "$f" && echo "$f"; done | grep .`
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
+- History:
+  - 2026-05-15: `view_session()` shipped + mandated for NEW views (CLAUDE.md #7/#9, dashboard-view skill). 2/32 views migrated (instagram, soundcloud — the clean try/finally shape). 30 remain on the legacy guard (try/except/finally or db-None/require_plan/helper-fn variants — migrating changes behaviour, so deliberately incremental). NOT CI-blocking: 30 valid views would make the gate permanently red (flaky-gate antipattern, cf. rules #6–#10). Status `open` = adoption backlog, not a defect; per-view migration is opt-in maintenance.
