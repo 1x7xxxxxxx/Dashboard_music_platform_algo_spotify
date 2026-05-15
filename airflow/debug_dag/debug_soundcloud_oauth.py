@@ -31,7 +31,14 @@ _TOKEN_ENDPOINT = "https://api.soundcloud.com/oauth2/token"
 _API_BASE = "https://api.soundcloud.com"
 
 
-def _get_user_token(client_id: str, client_secret: str, refresh_token: str) -> str:
+def _get_user_token(client_id: str, client_secret: str,
+                    refresh_token: str) -> tuple[str, str]:
+    """Returns (access_token, effective_refresh_token).
+
+    SoundCloud rotates the refresh_token on every refresh grant — the input
+    `refresh_token` is now spent. The CALLER must store the returned effective
+    one (the rotated value if any), else the next run is dead-on-arrival.
+    """
     r = requests.post(
         _TOKEN_ENDPOINT,
         data={
@@ -45,9 +52,11 @@ def _get_user_token(client_id: str, client_secret: str, refresh_token: str) -> s
     if r.status_code != 200:
         raise RuntimeError(f"refresh_token grant failed: HTTP {r.status_code} — {r.text[:200]}")
     data = r.json()
-    if 'refresh_token' in data and data['refresh_token'] != refresh_token:
-        logger.warning("⚠️ SoundCloud rotated the refresh_token — P2 MUST persist the new one.")
-    return data['access_token']
+    effective = data.get('refresh_token') or refresh_token
+    if effective != refresh_token:
+        logger.warning("🔁 SoundCloud ROTATED the refresh_token — the one you "
+                       "minted is now SPENT. Store the rotated value printed below.")
+    return data['access_token'], effective
 
 
 def main() -> int:
@@ -68,7 +77,7 @@ def main() -> int:
         return 1
 
     try:
-        token = _get_user_token(cid, csec, rtok)
+        token, effective_rt = _get_user_token(cid, csec, rtok)
         logger.info("✅ User token obtained via refresh_token grant.")
     except Exception as e:
         logger.error(f"❌ NO-GO — token grant failed: {e}")
@@ -91,9 +100,14 @@ def main() -> int:
         logger.info(f"   • {lk:>6}  {title}")
 
     max_likes = max((lk for _, lk in likes), default=0)
+    print("\n" + "=" * 64)
+    print("🔑 STORE THIS refresh_token in Dashboard → Credentials → SoundCloud")
+    print("   (the one you minted is now SPENT — SoundCloud rotates on use):")
+    print(f"\n   {effective_rt}\n")
+    print("=" * 64)
     if max_likes > 0:
         logger.info(f"✅ GO — max likes_count = {max_likes} (> 0). User token exposes "
-                    "real likes. Proceed to B2 P2 (dual-mode collector).")
+                    "real likes. Paste the token above into the dashboard.")
         return 0
     logger.error("❌ NO-GO — all likes_count still 0 even with a user token. "
                  "The OAuth path does not solve it; do NOT proceed to B2 P2.")
