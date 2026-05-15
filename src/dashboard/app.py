@@ -22,7 +22,7 @@ from src.utils.airflow_trigger import AirflowTrigger
 from src.dashboard.auth import require_login, show_user_sidebar, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 
-st.set_page_config(page_title="Music Dashboard", page_icon="🎵", layout="wide")
+st.set_page_config(page_title="streaMLytics", page_icon="🎵", layout="wide")
 
 # Pandas 3.0 forward-compat: opt in now to the new fillna semantics so the
 # 28+ `df[col].fillna(0).astype(...)` patterns across views don't emit
@@ -101,60 +101,111 @@ def _verify_email(token: str) -> None:
         db.close()
 
 
+# Sidebar layout: ordered sections, each (stable_id, header_label, [(item_label, page_key), ...]).
+# Order = user journey. Empty header = no visual separator (top entry).
+_NAV_SECTIONS = [
+    ("start",     "",                       [("🏠 Accueil", "home")]),
+    ("data",      "📁 Données",             [("📂 Import CSV", "upload_csv"),
+                                             ("🗄️ Santé des données", "db_health")]),
+    ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
+                                             ("🎵 META x Spotify", "meta_x_spotify"),
+                                             ("🎎 Apple Music", "apple_music"),
+                                             ("🎬 YouTube", "youtube"),
+                                             ("☁️ SoundCloud", "soundcloud"),
+                                             ("📸 Instagram", "instagram"),
+                                             ("📱 Hypeddit", "hypeddit")]),
+    ("ads",       "📣 Publicité Meta Ads",  [("📱 Vue d'ensemble", "meta_ads_overview"),
+                                             ("🎨 Créatives", "meta_creatives"),
+                                             ("📊 CPR Optimizer", "meta_cpr_optimizer"),
+                                             ("🔗 Mapping", "meta_mapping")]),
+    ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
+                                             ("📈 Prévisions revenus", "revenue_forecast")]),
+    ("reports",   "📑 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
+                                             ("📄 Export PDF", "export_pdf"),
+                                             ("⬇️ Export CSV", "export_csv")]),
+    ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
+                                             ("🔑 Credentials API", "credentials"),
+                                             ("💳 Billing", "billing"),
+                                             ("🎁 Parrainage", "referral")]),
+    ("advanced",  "🧪 Avancé",              [("🚀 Road to Algo (ML)", "trigger_algo")]),
+    ("admin",     "🛠️ Admin / Ops",        [("⚡ Perf. Dashboard", "perf_monitor"),
+                                             ("🏗️ Monitoring ETL", "airflow_kpi"),
+                                             ("🗂️ Historique ETL", "etl_logs"),
+                                             ("🤖 Perf. Modèles ML", "ml_performance"),
+                                             ("🚨 Alertes", "alerts"),
+                                             ("📊 Referral KPIs", "referral_kpi"),
+                                             ("🎟️ Promo Codes", "promo_admin"),
+                                             ("🔧 Liens & Outils", "useful_links"),
+                                             ("⚙️ Admin", "admin")]),
+]
+# Pages réservées admin (cachées pour le rôle 'artist')
+_ADMIN_ONLY = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links',
+               'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor'}
+
+
+def _on_nav_select(skey: str, all_skeys: list):
+    """Radio callback: keep a single active page across all section radios."""
+    val = st.session_state.get(skey)
+    if val is None:
+        return  # deselection echo — ignore
+    st.session_state['_nav_page'] = val
+    for other in all_skeys:
+        if other != skey:
+            st.session_state[other] = None
+
+
 def show_navigation_menu(role: str = 'artist'):
     st.sidebar.title("🎵 Navigation")
-    pages_all = {
-        "🏠 Accueil": "home",
-        "⚡ Perf. Dashboard": "perf_monitor",
-        "🚀 Road to Algo (ML)": "trigger_algo",
-        "📱 Meta Ads - Vue d'ensemble": "meta_ads_overview",
-        "🎵 META x Spotify": "meta_x_spotify",
-        "🎵 Spotify & S4A": "spotify_s4a_combined",
-        "📱 Hypeddit": "hypeddit",
-        "☁️ SoundCloud": "soundcloud",
-        "📸 Instagram": "instagram",
-        "🎎 Apple Music": "apple_music",
-        "🎬 YouTube": "youtube",
-        "🎁 Data Wrapped": "data_wrapped",
-        "💰 Distributeur": "imusician",
-        "🔑 Credentials API": "credentials",
-        "👤 Mon compte": "account",
-        "📂 Import CSV": "upload_csv",
-        "📄 Export PDF": "export_pdf",
-        "⬇️ Export CSV": "export_csv",
-        "🏗️ Monitoring ETL": "airflow_kpi",
-        "🗄️ Santé des données": "db_health",
-        "🗂️ Historique ETL": "etl_logs",
-        "🤖 Perf. Modèles ML": "ml_performance",
-        "🔧 Liens & Outils": "useful_links",
-        "💳 Billing": "billing",
-        "📈 Prévisions revenus": "revenue_forecast",
-        "🔗 Meta Mapping": "meta_mapping",
-        "🎨 Créatives Meta Ads": "meta_creatives",
-        "📊 CPR Optimizer": "meta_cpr_optimizer",
-        "🎁 Parrainage": "referral",
-        "📊 Referral KPIs": "referral_kpi",
-        "🎟️ Promo Codes": "promo_admin",
-        "🚨 Alertes": "alerts",
-        "⚙️ Admin": "admin",
-    }
-    # Pages réservées admin (cachées pour le rôle 'artist')
-    _admin_only = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links', 'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor'}
-    visible = pages_all if role == 'admin' else {k: v for k, v in pages_all.items() if v not in _admin_only}
 
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
     plan = get_artist_plan()
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible  # premium: unrestricted
 
-    pages_display = {}
-    for label, key in visible.items():
-        if is_all or key in ALWAYS_ACCESSIBLE or key in accessible:
-            pages_display[label] = key
-        else:
-            pages_display[f"🔒 {label}"] = 'upgrade'
+    def _is_locked(key: str) -> bool:
+        return not (is_all or key in ALWAYS_ACCESSIBLE or key in accessible)
 
-    return pages_display[st.sidebar.radio("Aller à ", list(pages_display.keys()), label_visibility="collapsed")]
+    # Filter sections by role; drop empty sections entirely (no orphan header)
+    rendered = []  # list of (skey, header, [(label, key), ...])
+    for sec_id, header, items in _NAV_SECTIONS:
+        vis = [(lbl, key) for lbl, key in items
+               if role == 'admin' or key not in _ADMIN_ONLY]
+        if vis:
+            rendered.append((f"_nav_{sec_id}", header, vis))
+
+    all_skeys = [skey for skey, _, _ in rendered]
+    visible_keys = {key for _, _, items in rendered for _, key in items}
+
+    # Init / repair before any widget is instantiated (legal here, not after).
+    # Triggers on first load OR when the active page is no longer visible
+    # (role/plan change) — falls back to home.
+    if st.session_state.get('_nav_page') not in visible_keys:
+        st.session_state['_nav_page'] = 'home'
+        for skey in all_skeys:
+            st.session_state[skey] = None
+        st.session_state['_nav_start'] = 'home'  # home lives in the first section
+
+    label_by_key = {key: lbl for _, _, items in rendered for lbl, key in items}
+
+    def _fmt(key: str) -> str:
+        return f"🔒 {label_by_key[key]}" if _is_locked(key) else label_by_key[key]
+
+    for skey, header, items in rendered:
+        if header:
+            st.sidebar.markdown(f"###### {header}")
+        st.sidebar.radio(
+            header or "Navigation",
+            [key for _, key in items],
+            key=skey,
+            index=None,
+            format_func=_fmt,
+            label_visibility="collapsed",
+            on_change=_on_nav_select,
+            args=(skey, all_skeys),
+        )
+
+    page_key = st.session_state.get('_nav_page', 'home')
+    return 'upgrade' if _is_locked(page_key) else page_key
 
 def show_live_activity_sidebar():
     """Live Activity counters in the sidebar — visible on every page."""

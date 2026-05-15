@@ -1,5 +1,13 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-14
+    issue: "Skill had no pitfall section, so Claude rewrote known view bugs (na_rep, tight subplot\
+  \ spacing, varchar artist_id)"
+    fix: "Appended 'Common Pitfalls' section with 4 entries: .style.format na_rep, make_subplots\
+  \ spacing (use px.bar facet_row), .streamlit/config cwd, multi-tenant artist_id\
+  \ types"
+    severity: "info"
+    ref: "DEVLOG#2026-05-14"
 ---
 
 # Skill: Dashboard View
@@ -33,7 +41,7 @@ Injected when prompt contains: "dashboard", "view", "streamlit", "page", "show()
 ## Registration (3 steps)
 
 1. Create `src/dashboard/views/<name>.py` with `show()` function
-2. Add entry to `pages` dict in `show_navigation_menu()` in `app.py`
+2. Add `("<label>", "<name>")` to the relevant section in `_NAV_SECTIONS` (`app.py`) — the sidebar is grouped by section, pick the one matching the user journey. Admin-only pages: also add the key to `_ADMIN_ONLY`.
 3. Add routing: `elif page == "<name>": from views.<name> import show; show()`
 
 ---
@@ -79,6 +87,42 @@ if df.empty:
     st.info("No data available for the selected period.")
     return
 ```
+
+---
+
+## Common Pitfalls (learned the hard way)
+
+### 1. `df.style.format({...})` crashes on NULL columns
+Pandas styler invokes `"{:,.2f}".format(value)` and Python raises `TypeError`
+when `value is None`. LEFT JOIN, NULLIF, and SUM/AVG over empty windows all
+produce NULL. **Always** pass `na_rep="—"`:
+
+```python
+st.dataframe(df.style.format({"CPR": "{:,.2f} €"}, na_rep="—"))
+```
+Precedent: `src/dashboard/views/trigger_algo.py:411`.
+
+### 2. Plotly `make_subplots` with tight `vertical_spacing` renders empty bars
+`make_subplots(rows=N, subplot_titles=[...], vertical_spacing=0.025)` with
+N≥6 silently produces zero-height plot areas — titles consume the layout
+budget, no exception raised. Two safe options:
+- `vertical_spacing ≥ 0.05` AND keep height ≥ 120px per row, OR
+- Use `plotly.express.bar(df_long, facet_row='metric')` + `update_yaxes(matches=None)` — auto-handles spacing.
+
+Precedent (working): `src/dashboard/views/meta_ads_overview.py` "Comparaison multi-métriques" section.
+
+### 3. `.streamlit/config.toml` is cwd-relative
+Streamlit reads `.streamlit/config.toml` from the directory you launch from.
+If `make dashboard` does `cd src/dashboard && streamlit run app.py`, the
+repo-root config is invisible (`headless = true` not applied → `gio:`
+errors on WSL2). Launch from repo root: `streamlit run src/dashboard/app.py`.
+
+### 4. Multi-tenant: never assume `artist_id` is int across all tables
+Some legacy tables (e.g. `tracks`) store `artist_id` as **VARCHAR(50)** (Spotify
+artist ID), not the SaaS integer. Before adding a new query: `\d <table>` and
+check the column type. Cross-type comparison raises `UndefinedFunction:
+operator does not exist: character varying = integer`. See
+`.claude/dev-docs/audit-tracks-legacy.md` for the inventory.
 
 ---
 
