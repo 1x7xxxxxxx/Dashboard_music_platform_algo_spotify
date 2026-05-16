@@ -5,7 +5,7 @@
 #
 # In Railway: set DATABASE_URL and PORT is injected automatically.
 
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # System deps for WeasyPrint (PDF export) + psycopg2.
 # Official WeasyPrint requirements: libpango-1.0-0 + libpangoft2-1.0-0 (FT API
