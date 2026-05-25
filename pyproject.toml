@@ -76,7 +76,7 @@ dev = [
     "pytest-mock>=3.12.0",
     "pytest-cov>=5.0.0",
     "httpx>=0.27.0",
-    "ruff==0.15.13",
+    "ruff==0.15.14",
     # Pre-commit framework + secret scanner (.pre-commit-config.yaml)
     "pre-commit>=4.6.0",
     "detect-secrets>=1.5.0",
