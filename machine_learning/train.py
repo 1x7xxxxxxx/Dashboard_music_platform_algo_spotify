@@ -27,6 +27,7 @@ import os
 import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_absolute_error, r2_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier, XGBRegressor
@@ -143,9 +144,17 @@ def _reg() -> XGBRegressor:
     )
 
 
-def train_classifiers(ds: pd.DataFrame) -> dict:
+def train_classifiers(ds: pd.DataFrame) -> tuple[dict, dict]:
+    """Train the 3 trigger classifiers + fit a Platt (sigmoid) calibrator each.
+
+    XGBoost probabilities are poorly calibrated; the verdict banner's 20/50% bands
+    only mean something on calibrated probabilities. Platt scaling (2 params) is
+    robust on this small test set. Calibrator is fit on the held-out test split and
+    stored in calibration.json; ml_inference applies it so stored probabilities are
+    calibrated. Returns (metrics, calibration).
+    """
     X = ds[FEATURE_COLUMNS]
-    results = {}
+    results, calibration = {}, {}
     for algo, use_smote in (("dw", True), ("rr", True), ("radio", False)):
         y = ds[f"y_{algo}"]
         Xtr, Xte, ytr, yte = train_test_split(
@@ -154,11 +163,30 @@ def train_classifiers(ds: pd.DataFrame) -> dict:
         if use_smote and ytr.sum() >= 6:
             Xtr, ytr = SMOTE(random_state=RANDOM_STATE).fit_resample(Xtr, ytr)
         clf = _clf().fit(Xtr, ytr)
-        auc = roc_auc_score(yte, clf.predict_proba(Xte)[:, 1]) if yte.nunique() > 1 else float("nan")
+        p_raw = clf.predict_proba(Xte)[:, 1]
+        auc = roc_auc_score(yte, p_raw) if yte.nunique() > 1 else float("nan")
         clf.save_model(os.path.join(OUT_DIR, f"{algo}_classifier.ubj"))
+        # Platt sigmoid: calibrated = sigmoid(coef * p_raw + intercept).
+        if yte.nunique() > 1:
+            lr = LogisticRegression().fit(p_raw.reshape(-1, 1), yte)
+            calibration[algo] = {"coef": float(lr.coef_[0, 0]),
+                                 "intercept": float(lr.intercept_[0])}
         results[algo] = {"auc": round(float(auc), 3), "n_test": int(len(yte)), "positives": int(y.sum())}
-        print(f"  [clf] {algo:5s} AUC={auc:.3f}  test_n={len(yte)}  positives={int(y.sum())}/{len(y)}")
-    return results
+        print(f"  [clf] {algo:5s} AUC={auc:.3f}  test_n={len(yte)}  positives={int(y.sum())}/{len(y)}"
+              f"  calibrated={'yes' if algo in calibration else 'no'}")
+    return results, calibration
+
+
+def feature_stats(ds: pd.DataFrame) -> dict:
+    """Per-feature training distribution (mean/std/min/max) for live drift checks.
+
+    ml_inference.check_drift compares live feature values to this envelope and flags
+    out-of-distribution inputs (model trained on a narrow N=508 sample).
+    """
+    X = ds[FEATURE_COLUMNS]
+    return {col: {"mean": round(float(X[col].mean()), 4), "std": round(float(X[col].std()), 4),
+                  "min": round(float(X[col].min()), 4), "max": round(float(X[col].max()), 4)}
+            for col in FEATURE_COLUMNS}
 
 
 def train_regressors(ds: pd.DataFrame) -> dict:
@@ -227,25 +255,26 @@ def main() -> None:
     print(f"rows={len(df)}  cols={df.shape[1]}\n")
 
     ds = build_dataset(df.copy())
-    print("Classifiers (scaler-free):")
-    clf_metrics = train_classifiers(ds)
+    print("Classifiers (scaler-free, Platt-calibrated):")
+    clf_metrics, calibration = train_classifiers(ds)
     print("Volume regressors:")
     reg_metrics = train_regressors(ds)
     print("Popularity Index regressor:")
     pi_metrics = train_pi(df.copy())
-    print("Exporting PI threshold tables...")
+    print("Exporting PI threshold tables + feature stats...")
     thresholds = export_threshold_tables(df.copy())
+    stats = feature_stats(ds)
 
     metrics = {
         "model_version": MODEL_VERSION, "rows": int(len(df)),
         "features": FEATURE_COLUMNS, "classifiers": clf_metrics,
-        "regressors": reg_metrics, "pi": pi_metrics,
+        "regressors": reg_metrics, "pi": pi_metrics, "feature_stats": stats,
     }
-    with open(os.path.join(OUT_DIR, "metrics.json"), "w") as f:
-        json.dump(metrics, f, indent=2)
-    with open(os.path.join(OUT_DIR, "threshold_tables.json"), "w") as f:
-        json.dump(thresholds, f, indent=2)
-    print(f"\n✅ Saved 7 models + metrics.json + threshold_tables.json -> {OUT_DIR}")
+    for name, obj in (("metrics.json", metrics), ("threshold_tables.json", thresholds),
+                      ("calibration.json", calibration)):
+        with open(os.path.join(OUT_DIR, name), "w") as f:
+            json.dump(obj, f, indent=2)
+    print(f"\n✅ Saved 7 models + metrics/threshold/calibration json -> {OUT_DIR}")
 
 
 if __name__ == "__main__":

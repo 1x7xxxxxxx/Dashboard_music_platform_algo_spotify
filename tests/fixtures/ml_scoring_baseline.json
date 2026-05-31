@@ -3,9 +3,9 @@
   "rows": [
     {
       "_label": "fresh_release_low_streams",
-      "dw_probability": 0.021386565640568733,
-      "rr_probability": 0.00919802114367485,
-      "radio_probability": 0.009622775949537754,
+      "dw_probability": 0.09833119460379328,
+      "rr_probability": 0.07743046133566611,
+      "radio_probability": 0.1446337840095451,
       "dw_streams_forecast_7d": 2088,
       "rr_streams_forecast_7d": 351,
       "radio_streams_forecast_7d": 0,
@@ -13,9 +13,9 @@
     },
     {
       "_label": "established_song_steady",
-      "dw_probability": 0.14543700218200684,
-      "rr_probability": 0.002868583658710122,
-      "radio_probability": 0.9024183750152588,
+      "dw_probability": 0.1467169632667217,
+      "rr_probability": 0.07599783984874202,
+      "radio_probability": 0.7919407881001944,
       "dw_streams_forecast_7d": 542,
       "rr_streams_forecast_7d": 181,
       "radio_streams_forecast_7d": 4358,
@@ -23,9 +23,9 @@
     },
     {
       "_label": "viral_breakout",
-      "dw_probability": 0.36196544766426086,
-      "rr_probability": 0.6876094341278076,
-      "radio_probability": 0.9681684970855713,
+      "dw_probability": 0.2757122831604786,
+      "rr_probability": 0.4231680911248493,
+      "radio_probability": 0.8272118105527586,
       "dw_streams_forecast_7d": 0,
       "rr_streams_forecast_7d": 1226,
       "radio_streams_forecast_7d": 32247,

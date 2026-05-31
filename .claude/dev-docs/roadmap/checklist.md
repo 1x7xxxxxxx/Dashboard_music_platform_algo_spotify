@@ -396,5 +396,14 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 - [x] **Budget pacing calculator** — spread budget over the eval window to avoid the velocity spike. ✅ 2026-05-31
 - [x] **Snowball radar** — catalogue scan (radio_probability ≥0.5) bypassing the imputed-0 radio-count feature. ✅ 2026-05-31
 - [x] **Resurrection data foundation** — `s4a_song_saves_daily` table + daily writer (migration 038). ✅ 2026-05-31
-- [ ] **Resurrection alert (activation)** — `detect_saves_resurrection` is dormant until ~2 weeks of saves history accrue; optional email wiring via `alert_monitor`.
-- [ ] **Phase-2 data acquisition** — 3 model features still imputed-to-0 (`NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow`, `DiscoveryMode`); caps model precision + snowball/resurrection. Needs the S4A source split.
+- [x] **Resurrection alert (activation)** — `detect_saves_resurrection` wired into the `alert_monitor` consolidated email as a green "opportunities" section. Dormant until ~2 weeks of saves history accrue. ✅ 2026-05-31
+- [x] **Probability calibration (Platt)** — sigmoid calibrator per classifier (`calibration.json`), applied in `score_song`; verdict bands now real probabilities. ✅ 2026-05-31
+- [x] **Drift detection foundation** — training `feature_stats` exported; `ml_inference.check_drift` flags out-of-distribution inputs, logged per song in the scoring DAG. ✅ 2026-05-31
+
+## Long-term ML hardening (roadmap)
+
+- [ ] **Phase-2 data acquisition** — 3 model features still imputed-to-0 (`NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow`, `DiscoveryMode`); caps model precision + snowball/resurrection. Needs the S4A source split (organic vs algo streams) + Discovery Mode status (artist input or S4A API). **Highest-leverage long-term item.**
+- [ ] **More training data + per-tenant evaluation** — model trained on N=508 / 102 test (single anonymised set). Accumulate live labelled data; evaluate generalisation across tenants before trusting absolute probabilities.
+- [ ] **Drift dashboard surface + alerting** — `check_drift` currently only logs in the DAG; surface a drift badge in the Model tab and route persistent drift into `alert_monitor`.
+- [ ] **RR volume regressor** — suppressed (R²≈0.55 on 28d target, notification-CTR noise). Revisit once Phase-2 features land; stays classification-only meanwhile.
+- [ ] **Resurrection tuning** — thresholds in `detect_saves_resurrection` (min_age 180d, 2x baseline, min_spark 50) are heuristic; recalibrate once real saves history exists.

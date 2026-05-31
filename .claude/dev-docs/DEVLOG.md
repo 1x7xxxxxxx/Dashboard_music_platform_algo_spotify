@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-05-31 — WAVE 9: ML hardening — calibration + drift foundation + resurrection alert activation
+
+### Why
+The verdict banner shipped 20/50% decision bands on UNCALIBRATED probabilities (a heuristic, not
+real likelihoods). The resurrection detection was built but dormant and unwired. And the model
+extrapolates blindly outside its N=508 training envelope with no monitoring. These are the buildable
+long-term fixes; the rest (Phase-2 data, more data, per-tenant) are roadmapped.
+
+### What changed
+- `machine_learning/train.py` — Platt (sigmoid) calibrator per classifier fit on the held-out test
+  split → `calibration.json`; `feature_stats` (mean/std/min/max) exported to metrics.json for drift.
+- `src/utils/ml_inference.py` — `_calibrate` applied to the 3 probs in `score_song` (stored probs now
+  calibrated); `check_drift` flags |z|>4 features vs training envelope, logged per song in scoring.
+- `src/dashboard/views/trigger_algo.py` — verdict caption updated (probs now calibrated, bands real).
+- `airflow/dags/alert_monitor.py` — new `check_resurrection_sparks` task scans all artists via
+  `detect_saves_resurrection`, adds a green "opportunities" section + subject tag to the consolidated
+  email (dormant until saves history accrues).
+- Roadmap (`checklist.md`) — "Long-term ML hardening" section: Phase-2 data (highest leverage), more
+  training data + per-tenant eval, drift dashboard surface, RR regressor, resurrection tuning.
+
+### Tests
+285 passed, 1 skipped. Baseline regenerated (calibrated probs). Calibration + drift smoke-tested.
+
+---
+
 ## 2026-05-31 — WAVE 8: scaler-free retrain + PI model + decision layer + resurrection foundation
 
 ### Why

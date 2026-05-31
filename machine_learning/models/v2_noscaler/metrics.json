@@ -55,5 +55,85 @@
       "CurrentSpotifyFollowers",
       "DaysSinceRelease"
     ]
+  },
+  "feature_stats": {
+    "StreamsLast7Days_log": {
+      "mean": 6.8689,
+      "std": 1.9128,
+      "min": 1.0986,
+      "max": 12.308
+    },
+    "CurrentSpotifyFollowers_log": {
+      "mean": 6.8306,
+      "std": 1.6043,
+      "min": 1.3863,
+      "max": 11.3269
+    },
+    "HowManySongsDoYouHaveInRadioRightNow": {
+      "mean": 9.2421,
+      "std": 7.5171,
+      "min": 0.0,
+      "max": 59.0
+    },
+    "HowManySongsHasThisArtistEverReleased": {
+      "mean": 35.8878,
+      "std": 57.6877,
+      "min": 1.0,
+      "max": 963.0
+    },
+    "IsThisSongOptedIntoSpotifyDiscoveryMode": {
+      "mean": 0.1654,
+      "std": 0.3719,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "ReleaseConsistencyNum": {
+      "mean": 9.1289,
+      "std": 4.3282,
+      "min": 1.5,
+      "max": 14.0
+    },
+    "DaysSinceRelease": {
+      "mean": 317.815,
+      "std": 595.2286,
+      "min": 1.0,
+      "max": 6296.0
+    },
+    "NonAlgoStreams28Days_log": {
+      "mean": 7.6982,
+      "std": 1.7869,
+      "min": 0.0,
+      "max": 12.9994
+    },
+    "ListenersStreamRatio28Days_adj": {
+      "mean": 2.4992,
+      "std": 4.0264,
+      "min": 1.0,
+      "max": 61.5536
+    },
+    "SavesLast28Days_adj": {
+      "mean": 511.8012,
+      "std": 1103.8037,
+      "min": 0.0,
+      "max": 12003.0
+    },
+    "PlaylistAddsLast28Days_adj": {
+      "mean": 463.4075,
+      "std": 1167.5669,
+      "min": 0.0,
+      "max": 13038.0
+    },
+    "ReleasePhaseEarly": {
+      "mean": 0.313,
+      "std": 0.4642,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "Velocity_Streams": {
+      "mean": 1.703,
+      "std": 1.5537,
+      "min": 0.029,
+      "max": 5.0
+    }
   }
 }

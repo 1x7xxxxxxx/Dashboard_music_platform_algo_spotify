@@ -78,6 +78,11 @@ rex:
     fix: "Bypass the dead ML feature: scan the catalogue via ml_song_predictions.radio_probability >=0.5; label it a model proxy, not the real radio count"
     severity: "info"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "Verdict banner shipped 20/50% decision bands on UNCALIBRATED XGB probs — a heuristic sold as real likelihoods"
+    fix: "Platt-calibrate each classifier on the held-out split (calibration.json), apply in score_song; the bands now mean real trigger probabilities"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Dashboard View

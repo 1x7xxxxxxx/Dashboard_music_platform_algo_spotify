@@ -65,12 +65,60 @@ PI_FEATURE_COLUMNS = [
 ]
 
 _model_cache = {}
+_aux_cache = {}
 
 
 def _resolve_path(relative_path: str) -> str:
     """Résout le chemin absolu vers un modèle."""
     base = os.path.abspath(_MODELS_DIR)
     return os.path.join(base, relative_path)
+
+
+def _load_json(name: str) -> dict:
+    """Charge (et met en cache) un JSON auxiliaire du dossier modèles. {} si absent."""
+    if name not in _aux_cache:
+        import json
+        try:
+            with open(_resolve_path(name), encoding="utf-8") as f:
+                _aux_cache[name] = json.load(f)
+        except (OSError, ValueError):
+            _aux_cache[name] = {}
+    return _aux_cache[name]
+
+
+def _calibrate(algo: str, p_raw):
+    """Applique la calibration Platt (sigmoid) si disponible, sinon renvoie p_raw.
+
+    calibrated = sigmoid(coef * p_raw + intercept) — voir machine_learning/train.py.
+    Rend les probabilités directement interprétables (bandes 20/50% de la bannière
+    verdict). Identité si calibration.json absent (rétro-compatible).
+    """
+    if p_raw is None:
+        return None
+    c = _load_json("calibration.json").get(algo)
+    if not c:
+        return float(p_raw)
+    z = c["coef"] * float(p_raw) + c["intercept"]
+    return float(1.0 / (1.0 + np.exp(-z)))
+
+
+def check_drift(features: dict, z_max: float = 4.0) -> list:
+    """Liste des features live hors de la distribution d'entraînement (|z| > z_max).
+
+    Compare aux stats figées dans metrics.json (feature_stats). Monitoring : un
+    modèle entraîné sur N=508 extrapole mal hors enveloppe. Retourne [] si stats
+    absentes ou tout en distribution.
+    """
+    stats = _load_json("metrics.json").get("feature_stats", {})
+    drifted = []
+    for col, s in stats.items():
+        val = features.get(col)
+        std = s.get("std") or 0.0
+        if val is None or std <= 0:
+            continue
+        if abs((float(val) - s["mean"]) / std) > z_max:
+            drifted.append(col)
+    return drifted
 
 
 def load_model(model_key: str):
@@ -264,21 +312,21 @@ def score_song(features: dict) -> dict:
 
     try:
         dw_clf = load_model("dw_classifier")
-        dw_prob = float(dw_clf.predict_proba(X)[0, 1])
+        dw_prob = _calibrate("dw", dw_clf.predict_proba(X)[0, 1])
     except Exception as e:
         logger.warning(f"DW classifier indisponible: {e}")
         dw_prob = None
 
     try:
         rr_clf = load_model("rr_classifier")
-        rr_prob = float(rr_clf.predict_proba(X)[0, 1])
+        rr_prob = _calibrate("rr", rr_clf.predict_proba(X)[0, 1])
     except Exception as e:
         logger.warning(f"RR classifier indisponible: {e}")
         rr_prob = None
 
     try:
         radio_clf = load_model("radio_classifier")
-        radio_prob = float(radio_clf.predict_proba(X)[0, 1])
+        radio_prob = _calibrate("radio", radio_clf.predict_proba(X)[0, 1])
     except Exception as e:
         logger.warning(f"Radio classifier indisponible: {e}")
         radio_prob = None
@@ -365,6 +413,10 @@ def score_all_songs(db, artist_id: int) -> list[dict]:
                 continue
 
             predictions = score_song(features)
+
+            drifted = check_drift(features)
+            if drifted:
+                logger.warning(f"  Drift {song!r}: features hors distribution {drifted}")
 
             # Préparer features_json (sans les clés _raw_* internes)
             features_clean = {k: v for k, v in features.items() if not k.startswith("_")}

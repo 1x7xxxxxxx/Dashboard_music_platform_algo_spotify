@@ -394,8 +394,8 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
     if note:
         st.caption(f"ℹ️ Fiabilité du score : {note}")
     st.caption(
-        "Probabilités non calibrées — les seuils 20 %/50 % sont des bandes de décision, "
-        "pas des probabilités absolues."
+        "Probabilités calibrées (Platt) — les seuils 20 %/50 % correspondent à de vraies "
+        "probabilités de déclenchement."
     )
 
 

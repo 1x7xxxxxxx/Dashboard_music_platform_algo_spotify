@@ -35,6 +35,11 @@ rex:
     fix: "Rule 9: train on EXACTLY what inference recomputes. Dropped scaler (XGB-invariant), used raw counts + streams/listeners ratio, fixed ReleasePhaseEarly<35"
     ref: "DEVLOG#2026-05-31"
     severity: crit
+  - date: 2026-05-31
+    issue: "Model extrapolated outside its N=508 training envelope with no monitoring — silent out-of-distribution outputs"
+    fix: "Rule 10: export training feature_stats; check_drift flags |z|>4 inputs, logged per song in the scoring DAG. OOD input = unreliable prediction"
+    ref: "DEVLOG#2026-05-31"
+    severity: warn
 ---
 
 # Audit: Silent Success Anti-Pattern in Collectors

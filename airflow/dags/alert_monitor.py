@@ -205,6 +205,42 @@ def check_data_freshness(**context):
     return serializable
 
 
+def check_resurrection_sparks(**context):
+    """Detect long-tail songs with a sudden saves spike across all active artists.
+
+    Dormant until ~2 weeks of daily saves history accumulate (s4a_song_saves_daily,
+    written by ml_scoring_daily). Sparks are opportunities (re-ignite with a small
+    ad budget), not failures — surfaced as a green section in the consolidated email.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.saves_history import detect_saves_resurrection
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    sparks = []
+    try:
+        artists = db.fetch_query(
+            "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
+        )
+        for artist_id, name in (artists or []):
+            for s in detect_saves_resurrection(db, artist_id):
+                sparks.append({
+                    'artist_id': artist_id, 'artist_name': name, 'song': s['song'],
+                    'age_days': s['age_days'], 'recent_gain': s['recent_gain'],
+                })
+    finally:
+        db.close()
+
+    logger.info(f"Resurrection check: {len(sparks)} spark(s) detected")
+    context['task_instance'].xcom_push(key='resurrection_sparks', value=sparks)
+    return sparks
+
+
 # ─────────────────────────────────────────────────────────────────
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
@@ -217,9 +253,10 @@ def send_consolidated_alert(**context):
     failing_dags = ti.xcom_pull(task_ids='check_dag_failures', key='failing_dags') or {}
     freshness = ti.xcom_pull(task_ids='check_data_freshness', key='freshness_results') or []
     missing_creds = ti.xcom_pull(task_ids='check_credentials_all', key='missing_credentials') or []
+    sparks = ti.xcom_pull(task_ids='check_resurrection_sparks', key='resurrection_sparks') or []
 
     stale_sources = [r for r in freshness if r['stale']]
-    has_issues = failing_dags or stale_sources or missing_creds
+    has_issues = failing_dags or stale_sources or missing_creds or sparks
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -326,6 +363,37 @@ def send_consolidated_alert(**context):
           <tbody>{rows}</tbody>
         </table>""")
 
+    # Section: resurrection sparks (opportunities, not failures)
+    if sparks:
+        rows = ''
+        for s in sparks:
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">
+                {s['artist_name']} <span style="color:#888">(id={s['artist_id']})</span>
+              </td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>{s['song']}</b>
+                <span style="color:#888;font-size:0.85em"> — {s['age_days']} j</span></td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#27ae60">
+                +{s['recent_gain']} saves récents → injecter un petit budget Ads pour réveiller le Discover Weekly
+              </td>
+            </tr>"""
+
+        sections.append(f"""
+        <h2 style="color:#27ae60;border-left:4px solid #27ae60;padding-left:10px">
+          ✨ Résurrection longue traîne ({len(sparks)})
+        </h2>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead>
+            <tr style="background:#f3fbf5">
+              <th style="padding:8px 12px;text-align:left">Artiste</th>
+              <th style="padding:8px 12px;text-align:left">Titre</th>
+              <th style="padding:8px 12px;text-align:left">Opportunité</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
     # OK sources footer
     ok_sources = [r['source'] for r in freshness if not r['stale']]
     ok_line = ''
@@ -353,6 +421,8 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"{len(stale_sources)} source(s) stale")
     if missing_creds:
         subject_parts.append(f"{len(missing_creds)} credential(s) manquant(s)")
+    if sparks:
+        subject_parts.append(f"✨ {len(sparks)} résurrection(s)")
 
     subject = ' | '.join(subject_parts)
     EmailAlert().send_alert(subject, body)
@@ -389,10 +459,15 @@ with DAG(
         python_callable=check_data_freshness,
     )
 
+    t_resurrection = PythonOperator(
+        task_id='check_resurrection_sparks',
+        python_callable=check_resurrection_sparks,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
         trigger_rule='all_done',
     )
 
-    [t_creds, t_failures, t_freshness] >> t_alert
+    [t_creds, t_failures, t_freshness, t_resurrection] >> t_alert
