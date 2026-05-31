@@ -83,6 +83,11 @@ rex:
     fix: "Platt-calibrate each classifier on the held-out split (calibration.json), apply in score_song; the bands now mean real trigger probabilities"
     severity: "warn"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "User SHAP notes contradicted each other AND the encoded zones; picking one note risked degrading the registry"
+    fix: "derive_thresholds.py computes success-rate knees from data_anon.csv → align algo_knowledge to data, not a note. Velocity stopped penalising 1.2-2.0 (no knee), malus only >3.5"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Dashboard View

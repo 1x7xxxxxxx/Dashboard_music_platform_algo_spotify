@@ -20,17 +20,179 @@
     "dw": {
       "auc": 0.937,
       "n_test": 102,
-      "positives": 104
+      "positives": 104,
+      "importance": [
+        {
+          "feature": "StreamsLast7Days_log",
+          "gain": 0.2421
+        },
+        {
+          "feature": "NonAlgoStreams28Days_log",
+          "gain": 0.1912
+        },
+        {
+          "feature": "DaysSinceRelease",
+          "gain": 0.0884
+        },
+        {
+          "feature": "IsThisSongOptedIntoSpotifyDiscoveryMode",
+          "gain": 0.0837
+        },
+        {
+          "feature": "ReleasePhaseEarly",
+          "gain": 0.0665
+        },
+        {
+          "feature": "ReleaseConsistencyNum",
+          "gain": 0.0641
+        },
+        {
+          "feature": "Velocity_Streams",
+          "gain": 0.05
+        },
+        {
+          "feature": "SavesLast28Days_adj",
+          "gain": 0.0486
+        },
+        {
+          "feature": "PlaylistAddsLast28Days_adj",
+          "gain": 0.0471
+        },
+        {
+          "feature": "HowManySongsDoYouHaveInRadioRightNow",
+          "gain": 0.0326
+        },
+        {
+          "feature": "HowManySongsHasThisArtistEverReleased",
+          "gain": 0.0311
+        },
+        {
+          "feature": "ListenersStreamRatio28Days_adj",
+          "gain": 0.0276
+        },
+        {
+          "feature": "CurrentSpotifyFollowers_log",
+          "gain": 0.0271
+        }
+      ]
     },
     "rr": {
       "auc": 0.952,
       "n_test": 102,
-      "positives": 100
+      "positives": 100,
+      "importance": [
+        {
+          "feature": "DaysSinceRelease",
+          "gain": 0.2815
+        },
+        {
+          "feature": "ReleasePhaseEarly",
+          "gain": 0.1983
+        },
+        {
+          "feature": "HowManySongsDoYouHaveInRadioRightNow",
+          "gain": 0.1622
+        },
+        {
+          "feature": "SavesLast28Days_adj",
+          "gain": 0.0545
+        },
+        {
+          "feature": "CurrentSpotifyFollowers_log",
+          "gain": 0.0495
+        },
+        {
+          "feature": "Velocity_Streams",
+          "gain": 0.0433
+        },
+        {
+          "feature": "ListenersStreamRatio28Days_adj",
+          "gain": 0.0424
+        },
+        {
+          "feature": "ReleaseConsistencyNum",
+          "gain": 0.0403
+        },
+        {
+          "feature": "StreamsLast7Days_log",
+          "gain": 0.0395
+        },
+        {
+          "feature": "NonAlgoStreams28Days_log",
+          "gain": 0.0322
+        },
+        {
+          "feature": "PlaylistAddsLast28Days_adj",
+          "gain": 0.0304
+        },
+        {
+          "feature": "HowManySongsHasThisArtistEverReleased",
+          "gain": 0.0258
+        },
+        {
+          "feature": "IsThisSongOptedIntoSpotifyDiscoveryMode",
+          "gain": 0.0
+        }
+      ]
     },
     "radio": {
       "auc": 0.936,
       "n_test": 102,
-      "positives": 239
+      "positives": 239,
+      "importance": [
+        {
+          "feature": "StreamsLast7Days_log",
+          "gain": 0.2367
+        },
+        {
+          "feature": "NonAlgoStreams28Days_log",
+          "gain": 0.0995
+        },
+        {
+          "feature": "PlaylistAddsLast28Days_adj",
+          "gain": 0.0971
+        },
+        {
+          "feature": "ListenersStreamRatio28Days_adj",
+          "gain": 0.0825
+        },
+        {
+          "feature": "Velocity_Streams",
+          "gain": 0.0787
+        },
+        {
+          "feature": "CurrentSpotifyFollowers_log",
+          "gain": 0.069
+        },
+        {
+          "feature": "ReleaseConsistencyNum",
+          "gain": 0.0682
+        },
+        {
+          "feature": "DaysSinceRelease",
+          "gain": 0.0599
+        },
+        {
+          "feature": "ReleasePhaseEarly",
+          "gain": 0.053
+        },
+        {
+          "feature": "HowManySongsDoYouHaveInRadioRightNow",
+          "gain": 0.0484
+        },
+        {
+          "feature": "HowManySongsHasThisArtistEverReleased",
+          "gain": 0.0416
+        },
+        {
+          "feature": "SavesLast28Days_adj",
+          "gain": 0.0361
+        },
+        {
+          "feature": "IsThisSongOptedIntoSpotifyDiscoveryMode",
+          "gain": 0.0293
+        }
+      ]
     }
   },
   "regressors": {

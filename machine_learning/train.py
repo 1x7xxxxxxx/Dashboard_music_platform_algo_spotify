@@ -171,7 +171,12 @@ def train_classifiers(ds: pd.DataFrame) -> tuple[dict, dict]:
             lr = LogisticRegression().fit(p_raw.reshape(-1, 1), yte)
             calibration[algo] = {"coef": float(lr.coef_[0, 0]),
                                  "intercept": float(lr.intercept_[0])}
-        results[algo] = {"auc": round(float(auc), 3), "n_test": int(len(yte)), "positives": int(y.sum())}
+        # Gain-based feature importance, ranked desc (proxy for SHAP magnitude).
+        ranking = sorted(zip(FEATURE_COLUMNS, clf.feature_importances_),
+                         key=lambda t: t[1], reverse=True)
+        importance = [{"feature": f, "gain": round(float(g), 4)} for f, g in ranking]
+        results[algo] = {"auc": round(float(auc), 3), "n_test": int(len(yte)),
+                         "positives": int(y.sum()), "importance": importance}
         print(f"  [clf] {algo:5s} AUC={auc:.3f}  test_n={len(yte)}  positives={int(y.sum())}/{len(y)}"
               f"  calibrated={'yes' if algo in calibration else 'no'}")
     return results, calibration
@@ -270,11 +275,13 @@ def main() -> None:
         "features": FEATURE_COLUMNS, "classifiers": clf_metrics,
         "regressors": reg_metrics, "pi": pi_metrics, "feature_stats": stats,
     }
+    importance = {algo: m["importance"] for algo, m in clf_metrics.items()}
     for name, obj in (("metrics.json", metrics), ("threshold_tables.json", thresholds),
-                      ("calibration.json", calibration)):
+                      ("calibration.json", calibration),
+                      ("feature_importance.json", importance)):
         with open(os.path.join(OUT_DIR, name), "w") as f:
             json.dump(obj, f, indent=2)
-    print(f"\n✅ Saved 7 models + metrics/threshold/calibration json -> {OUT_DIR}")
+    print(f"\n✅ Saved 7 models + metrics/threshold/calibration/importance json -> {OUT_DIR}")
 
 
 if __name__ == "__main__":

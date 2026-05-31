@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-05-31 — WAVE 10: empirical threshold reconciliation + phase/Discovery-Mode/importance features
+
+### Why
+A new batch of the user's SHAP notes contradicted each other AND the encoded algo_knowledge zones
+(velocity, saves, ratio, catalogue, organic). Rather than arbitrate between conflicting human notes,
+the thresholds were re-derived from data_anon.csv. Plus 3 new decision features the registry lacked.
+
+### What changed
+- `machine_learning/derive_thresholds.py` (NEW) — per algo/feature success-rate knees from the training
+  data (built with the exact inference feature definitions). Output: thresholds_derived.json.
+- `src/dashboard/utils/algo_knowledge.py` — 5 DW zones recalibrated to the data:
+  Velocity (the old (1.2,5,malus) wrongly penalised the healthy 1.2-2.0 zone → now neutral, malus only
+  >3.5); Saves (bonus 50→165); NonAlgoStreams (5000→~3900); PlaylistAdds (200→175); Followers bonus
+  (1600→2650); ListenersStreamRatio malus (2.2→1.6). `velocity_penalty_threshold("DW")` now 3.5.
+- `src/dashboard/views/trigger_algo.py` — `_show_phase_strategy` (Phase 1 RR / 2 DW / 3 Radio by age +
+  the phase's action), `_show_discovery_mode_protocol` (activate/kill-switch), `_show_feature_importance`
+  (ranked 13-variable hierarchy per algo).
+- `machine_learning/train.py` — exports feature_importance.json (gain per classifier). Gain top-3 for DW
+  (StreamsLast7Days, NonAlgoStreams, DaysSinceRelease) matches the user's SHAP hierarchy.
+
+### Tests
+285 passed, 1 skipped. Baseline unchanged (same seed). Recalibration smoke-tested (velocity@1.5 now neutral).
+
+---
+
 ## 2026-05-31 — WAVE 9: ML hardening — calibration + drift foundation + resurrection alert activation
 
 ### Why

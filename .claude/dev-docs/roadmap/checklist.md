@@ -399,6 +399,8 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 - [x] **Resurrection alert (activation)** — `detect_saves_resurrection` wired into the `alert_monitor` consolidated email as a green "opportunities" section. Dormant until ~2 weeks of saves history accrue. ✅ 2026-05-31
 - [x] **Probability calibration (Platt)** — sigmoid calibrator per classifier (`calibration.json`), applied in `score_song`; verdict bands now real probabilities. ✅ 2026-05-31
 - [x] **Drift detection foundation** — training `feature_stats` exported; `ml_inference.check_drift` flags out-of-distribution inputs, logged per song in the scoring DAG. ✅ 2026-05-31
+- [x] **Empirical threshold reconciliation** — `derive_thresholds.py` computes success-rate knees from data; recalibrated 5 DW zones in algo_knowledge (velocity no longer penalises 1.2-2.0; saves 50→165; organic→3900; adds→175; followers bonus→2650). ✅ 2026-05-31
+- [x] **Phase strategy + Discovery Mode protocol + variable hierarchy** — `_show_phase_strategy`, `_show_discovery_mode_protocol`, `_show_feature_importance` (gain-ranked) in trigger_algo. ✅ 2026-05-31
 
 ## Long-term ML hardening (roadmap)
 

@@ -19,8 +19,10 @@ def test_zone_for_value_days_since_release_golden_age():
 
 
 def test_zone_for_value_velocity_rejects_buzz():
-    assert ak.zone_for_value("DW", "Velocity_Streams", 0.5) == "bonus"
-    assert ak.zone_for_value("DW", "Velocity_Streams", 3.0) == "malus"
+    # Recalibrated from data (2026-05-31): 1.2-2.0 is healthy (neutral); penalty
+    # only at the suspect peak (>3.5).
+    assert ak.zone_for_value("DW", "Velocity_Streams", 1.5) == "neutral"
+    assert ak.zone_for_value("DW", "Velocity_Streams", 4.0) == "malus"
 
 
 def test_zone_for_value_handles_none_and_unknown():
@@ -95,19 +97,21 @@ def test_radio_catalog_green_mountain():
 
 
 def test_radio_velocity_stricter_than_dw():
-    # 1.3 is fine for Radio (<1.5) but already malus for DW (>1.2).
-    assert ak.zone_for_value("RADIO", "Velocity_Streams", 1.3) == "bonus"
-    assert ak.zone_for_value("DW", "Velocity_Streams", 1.3) == "malus"
+    # After the 2026-05-31 recalibration, Radio (malus >1.5) is stricter than DW
+    # (malus only >3.5): 2.0 is suspect for Radio but still healthy for DW.
+    assert ak.zone_for_value("RADIO", "Velocity_Streams", 2.0) == "malus"
+    assert ak.zone_for_value("DW", "Velocity_Streams", 2.0) == "neutral"
 
 
 def test_velocity_penalty_threshold_matches_zones():
     # Single source of truth for the hyper-growth cutoff used by the budget cross-link.
-    assert ak.velocity_penalty_threshold("DW") == 1.2
+    assert ak.velocity_penalty_threshold("DW") == 3.5    # recalibrated (was 1.2)
     assert ak.velocity_penalty_threshold("RADIO") == 1.5
-    # The threshold is exactly the malus boundary, not a hardcoded literal.
-    for algo, thr in (("DW", 1.2), ("RADIO", 1.5)):
-        assert ak.zone_for_value(algo, "Velocity_Streams", thr) == "malus"
-        assert ak.zone_for_value(algo, "Velocity_Streams", thr - 0.01) == "bonus"
+    # The threshold is exactly the malus boundary. Below it: DW=neutral, RADIO=bonus.
+    assert ak.zone_for_value("DW", "Velocity_Streams", 3.5) == "malus"
+    assert ak.zone_for_value("DW", "Velocity_Streams", 3.49) == "neutral"
+    assert ak.zone_for_value("RADIO", "Velocity_Streams", 1.5) == "malus"
+    assert ak.zone_for_value("RADIO", "Velocity_Streams", 1.49) == "bonus"
 
 
 def test_radio_has_no_calibration_bands():
@@ -203,7 +207,7 @@ def test_rr_coach_ranks_actionable_levers():
 def test_coach_ranks_velocity_smooth_first():
     feats = {
         "StreamsLast7Days_log": math.log1p(1500),   # below DW péage 2000 → raise
-        "Velocity_Streams": 3.0,                     # too high → smooth (top)
+        "Velocity_Streams": 4.0,                     # suspect peak >3.5 → smooth (top)
         "CurrentSpotifyFollowers_log": math.log1p(900),
     }
     actions = ak.build_coach_actions("DW", feats)

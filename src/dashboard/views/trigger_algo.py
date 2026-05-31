@@ -457,6 +457,91 @@ def _show_resurrection_radar(db, artist_id) -> None:
         )
 
 
+_PHASES = [
+    (0, 35, "🚀 Phase 1 — Release Radar (0-35 j)",
+     "Fenêtre de tir RR. Maximise les **clics/CTR** via Meta Ads sur une audience "
+     "high-intent. **N'active PAS le Discovery Mode** (impact nul sur RR, −30 % de "
+     "royalties pour rien). Objectif : convertir en followers + ≥ ~2 000 streams récents."),
+    (35, 90, "🎧 Phase 2 — Discover Weekly (35-90 j)",
+     "Le Release Radar s'arrête : c'est le moment de **réveiller le DW**, ne coupe pas "
+     "le budget. Pivote vers l'**engagement qualitatif** — CTA explicite « Ajoutez ce "
+     "titre en playlist » (vise ~175 ajouts + ~165 saves/28j), pas « écoutez »."),
+    (90, 10_000, "📻 Phase 3 — Radio & longue traîne (90 j+)",
+     "Stabilise la rentabilité. **Active le Discovery Mode** pour forcer l'entrée en "
+     "Radio, puis applique le **kill-switch royalties** une fois le titre installé "
+     "(> 10 000 streams/j en Radio) : l'inertie organique suffit, récupère tes 30 %."),
+]
+
+
+def _show_phase_strategy(ml_pred: dict | None) -> None:
+    """Per-song strategic phase (1/2/3 by age) + the action that phase calls for."""
+    if not ml_pred:
+        return
+    try:
+        feats = json.loads(ml_pred.get("features_json") or "{}")
+        days = float(feats.get("DaysSinceRelease"))
+    except (ValueError, TypeError):
+        return
+    for lo, hi, title, advice in _PHASES:
+        if lo <= days < hi:
+            st.markdown(f"**{title}** · titre à J+{int(days)}")
+            st.caption(advice)
+            break
+
+
+@st.cache_data(ttl=3600)
+def _load_feature_importance() -> dict | None:
+    """Gain-based feature importance per algo, exported by machine_learning/train.py."""
+    try:
+        from src.utils.ml_inference import _resolve_path
+        with open(_resolve_path("feature_importance.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _clean_feat(name: str) -> str:
+    return (name.replace("_log", "").replace("_adj", "")
+            .replace("Last28Days", " 28j").replace("Last7Days", " 7j"))
+
+
+def _show_feature_importance() -> None:
+    """Ranked variable hierarchy per algorithm (gain XGBoost ≈ SHAP magnitude)."""
+    imp = _load_feature_importance()
+    if not imp:
+        return
+    with st.expander("📊 Hiérarchie des 13 variables par algorithme", expanded=False):
+        st.caption("Poids relatif de chaque variable dans la décision du modèle "
+                   "(gain XGBoost — proxy de l'importance SHAP globale).")
+        cols = st.columns(3)
+        algos = [("dw", "Discover Weekly"), ("rr", "Release Radar"), ("radio", "Radio")]
+        for col, (algo, label) in zip(cols, algos):
+            with col:
+                st.markdown(f"**{label}**")
+                rows = imp.get(algo, [])
+                total = sum(r["gain"] for r in rows) or 1.0
+                for i, r in enumerate(rows[:8], 1):
+                    st.caption(f"{i}. {_clean_feat(r['feature'])} — {r['gain'] / total:.0%}")
+
+
+def _show_discovery_mode_protocol() -> None:
+    """Static Discovery Mode activation/kill-switch protocol (the 'pay-to-play' paradox)."""
+    with st.expander("🎚️ Protocole Discovery Mode (activation & kill-switch)", expanded=False):
+        st.markdown(
+            "- **Release Radar (semaine 1)** : impact **nul** — ne sacrifie pas 30 % de "
+            "tes royalties, c'est inefficace.\n"
+            "- **Radio (mois 3+)** : **levier d'activation** — il force l'entrée en Radio "
+            "(le « videur VIP »), mais ne scale pas le volume.\n"
+            "- **Kill-switch** : dès qu'un titre dépasse **~10 000 streams/jour en Radio**, "
+            "**désactive** le Discovery Mode — l'inertie organique suffit, tu récupères "
+            "ta marge de 30 %."
+        )
+        st.caption(
+            "Statut Discovery Mode live non collecté (imputé à 0 à l'inférence) — "
+            "protocole affiché à titre indicatif."
+        )
+
+
 @st.cache_resource
 def _load_xgb_model(model_key: str):
     """Load and cache an XGBoost Booster from mlruns. Returns None if unavailable."""
@@ -739,10 +824,13 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 # ── Tab 2 — Suivi Algorithmes ─────────────────────────────────────────────────
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
     _show_verdict_banner(ml_pred)
+    _show_phase_strategy(ml_pred)
     _show_radio_snowball(db, artist_id)
     _show_resurrection_radar(db, artist_id)
     st.divider()
     _show_pi_gate_section(ml_pred)
+    _show_feature_importance()
+    _show_discovery_mode_protocol()
     st.divider()
     st.subheader("📈 Streams & probabilités algorithmiques")
     try:

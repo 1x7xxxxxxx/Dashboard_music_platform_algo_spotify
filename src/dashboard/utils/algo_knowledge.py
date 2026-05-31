@@ -35,14 +35,14 @@ DW_FEATURE_ZONES = {
     "NonAlgoStreams28Days": {
         "json_key": "NonAlgoStreams28Days_log", "decode": "expm1", "live_unavailable": True,
         "label": "Streams non-algo (28j)", "unit": "streams/28j",
+        # Recalibrated 2026-05-31 from data (bonus knee ~3 886, not 5 000).
         "zones": [
-            (0, 4500, "malus", "Vallée organique (moyenne catalogue ~1 904)"),
-            (4500, 5000, "neutral", "Bascule"),
-            (5000, None, "bonus", "Proof-of-concept validé"),
+            (0, 3840, "malus", "Vallée organique — traction insuffisante"),
+            (3840, None, "bonus", "Proof-of-concept organique validé (~3.9k/28j)"),
         ],
-        "target": 5000,
-        "lever": "Génère ≥ 5 000 streams organiques actifs/28j (recherche, profil) "
-                 "— l'autoplay ne compte pas.",
+        "target": 3900,
+        "lever": "Génère ≥ ~3 900 streams organiques actifs/28j (recherche, profil) "
+                 "— l'autoplay ne compte pas (knee empirique).",
     },
     "DaysSinceRelease": {
         "json_key": "DaysSinceRelease", "decode": "identity", "actionable": False,
@@ -58,25 +58,30 @@ DW_FEATURE_ZONES = {
     "Velocity_Streams": {
         "json_key": "Velocity_Streams", "decode": "identity",
         "label": "Vélocité", "unit": "ratio",
+        # Recalibrated 2026-05-31 from data_anon.csv (derive_thresholds.py): no
+        # success knee in the 1.2-2.0 range — the old (1.2,5,malus) wrongly
+        # penalised healthy growth. Penalty kept only at the suspect-peak (>3.5).
         "zones": [
-            (0, 1.2, "bonus", "Croissance stable/saine (sweet 0.3-0.8)"),
-            (1.2, 5, "malus", "Buzz instable — rejeté par DW"),
+            (0, 3.5, "neutral", "Croissance fluide — pas de pénalité (sweet 1.2-2.0)"),
+            (3.5, 5, "malus", "Pic suspect (> 3.5) — anti-fraude Spotify"),
         ],
         "target": None,
-        "lever": "Vise une croissance régulière (0.3-0.8) ; les pics viraux brutaux "
-                 "(> 1.2) sont pénalisés (suspicion d'achat de streams).",
+        "lever": "Une croissance 1.2-2.0 est idéale et non pénalisée ; seul un pic "
+                 "> 3.5 (volume soudain, suspicion de bots) déclenche un malus.",
     },
     "CurrentSpotifyFollowers": {
         "json_key": "CurrentSpotifyFollowers_log", "decode": "expm1",
         "label": "Followers Spotify", "unit": "followers",
+        # Recalibrated 2026-05-31: malus<1 000 kept (consistent narrative), but the
+        # strong-bonus knee is ~2 650 in the data (was 1 600).
         "zones": [
-            (0, 1000, "malus", "Crédibilité non validée"),
-            (1000, 1600, "neutral", "En cours de qualification"),
-            (1600, None, "bonus", "Artiste qualifié (≥ 1 600-2 000)"),
+            (0, 1000, "malus", "Crédibilité non validée (< 1 000)"),
+            (1000, 2650, "neutral", "En cours de qualification"),
+            (2650, None, "bonus", "Autorité confirmée (≥ ~2 650)"),
         ],
-        "target": 1600,
-        "lever": "Convertis ≥ 1 600-2 000 abonnés : variable de qualification, "
-                 "pas d'amplification.",
+        "target": 2650,
+        "lever": "Le seuil de bascule est ~1 000 abonnés ; le vrai bonus d'autorité "
+                 "n'arrive qu'à ~2 650 (knee empirique).",
     },
     "HowManySongsDoYouHaveInRadioRightNow": {
         "json_key": "HowManySongsDoYouHaveInRadioRightNow", "decode": "identity",
@@ -92,33 +97,41 @@ DW_FEATURE_ZONES = {
     "ListenersStreamRatio28Days": {
         "json_key": "ListenersStreamRatio28Days_adj", "decode": "identity",
         "label": "Écoutes / auditeur (28j)", "unit": "ratio",
+        # Recalibrated 2026-05-31: data malus knee ~1.6 (not 2.2); no sustained
+        # bonus zone for DW — the >4 suspect band is kept.
         "zones": [
-            (0, 2.2, "malus", "Faible réécoute"),
-            (2.2, 4, "bonus", "Fidélité saine"),
-            (4, None, "malus", "Ratio suspect"),
+            (0, 1.6, "malus", "Faible réécoute (< ~1.6)"),
+            (1.6, 4, "neutral", "Réécoute correcte"),
+            (4, None, "malus", "Ratio suspect (bots / méga-hit)"),
         ],
-        "target": 2.2,
-        "lever": "Vise 2.2-4 écoutes par auditeur.",
+        "target": 1.6,
+        "lever": "Dépasse ~1.6 écoute/auditeur ; au-delà de 4 le ratio devient suspect.",
     },
     "SavesLast28Days": {
         "json_key": "SavesLast28Days_adj", "decode": "identity",
         "label": "Saves (28j)", "unit": "saves",
+        # Recalibrated 2026-05-31 from data (knee: malus<=76, bonus>=165). The old
+        # bonus@50 was too low; the user's 350-500 note too high — data says ~165.
         "zones": [
-            (0, 50, "neutral", "Sous le seuil de bonus max"),
-            (50, None, "bonus", "Bonus maximal"),
+            (0, 76, "malus", "Engagement faible (< ~76/28j)"),
+            (76, 165, "neutral", "Zone de bascule"),
+            (165, None, "bonus", "Signal de qualité — bonus DW"),
         ],
-        "target": 50,
-        "lever": "≈ 50 saves/28j peut déclencher le bonus maximal instantanément.",
+        "target": 165,
+        "lever": "Vise ≥ ~165 saves/28j : c'est là que l'impact DW devient nettement "
+                 "positif (knee empirique, pas la valeur survendue de 500).",
     },
     "PlaylistAddsLast28Days": {
         "json_key": "PlaylistAddsLast28Days_adj", "decode": "identity",
         "label": "Ajouts playlist (28j)", "unit": "ajouts",
+        # Recalibrated 2026-05-31 from data (bonus knee ~172).
         "zones": [
-            (0, 200, "malus", "Sous le seuil"),
-            (200, None, "bonus", "Bonus"),
+            (0, 175, "malus", "Sous le seuil de bascule"),
+            (175, None, "bonus", "Signal d'engagement le plus fort (Or)"),
         ],
-        "target": 200,
-        "lever": "Dépasse 200 ajouts playlist/28j.",
+        "target": 175,
+        "lever": "Dépasse ~175 ajouts playlist utilisateurs/28j — le signal "
+                 "d'intention le plus fort pour le DW.",
     },
     "ReleaseConsistencyNum": {
         "json_key": "ReleaseConsistencyNum", "decode": "identity",
