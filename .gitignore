@@ -89,6 +89,7 @@ airflow-webserver.pid
 # Claude Code session state — never committed
 .claude/sessions/
 .claude/homunculus/
+.claude/scheduled_tasks.lock
 
 # Local archive — obsolete files kept on disk but excluded from repo
 .archive/
