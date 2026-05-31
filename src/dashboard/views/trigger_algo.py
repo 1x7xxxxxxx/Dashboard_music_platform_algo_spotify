@@ -491,6 +491,15 @@ _TRIGGER_STREAM_TARGETS = {
     "Radio": 8423,
 }
 
+# Per-algo 28-day streams/listeners gates, derived from data_anon.csv success-rate
+# knees (machine_learning/derive_thresholds.py). DW 9200/4100 = user's note, validated
+# (both sit in the bin where the DW success rate jumps above base).
+_GATE_28D = {
+    "Discover Weekly": {"streams": 9200, "listeners": 4100},
+    "Release Radar": {"streams": 1300, "listeners": 600},
+    "Radio": {"streams": 8400, "listeners": 4000},
+}
+
 _PHASES = [
     (0, 35, "🚀 Phase 1 — Release Radar (0-35 j)",
      "Fenêtre de tir RR. Maximise les **clics/CTR** via Meta Ads sur une audience "
@@ -856,6 +865,34 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
 
 # ── Tab 2 — Suivi Algorithmes ─────────────────────────────────────────────────
+def _show_28d_gate(db, track: str, artist_id) -> None:
+    """28-day streams/listeners gate per algo — is the track above each trigger threshold?
+
+    Per-song listeners only exist as the 28-day snapshot (s4a_songs_global), not a daily
+    series, so this is a gate panel rather than a chart line.
+    """
+    try:
+        row = db.fetch_query(
+            """SELECT listeners, streams FROM s4a_songs_global
+               WHERE artist_id = %s AND song = %s AND time_window = '28d' LIMIT 1""",
+            (artist_id, track),
+        )
+    except Exception:
+        return
+    if not row or row[0][0] is None:
+        return
+    listeners, streams = int(row[0][0] or 0), int(row[0][1] or 0)
+    st.markdown("**🚪 Porte 28 jours — streams & listeners vs seuils par algo**")
+    st.caption(f"Ce titre (28j) : **{streams:,} streams** · **{listeners:,} listeners**.")
+    cols = st.columns(len(_GATE_28D))
+    for col, (algo, g) in zip(cols, _GATE_28D.items()):
+        with col:
+            st.markdown(f"**{algo}**")
+            st.caption(f"{'✅' if streams >= g['streams'] else '❌'} streams ≥ {g['streams']:,}")
+            st.caption(f"{'✅' if listeners >= g['listeners'] else '❌'} listeners ≥ {g['listeners']:,}")
+    st.caption("Seuils 28j approximatifs, dérivés de data_anon.csv (knee du taux de succès).")
+
+
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
     _show_verdict_banner(ml_pred)
     _show_phase_strategy(ml_pred)
@@ -880,6 +917,10 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                    ORDER BY prediction_date""",
                 (track, artist_id, date_from, date_to)
             )
+            df_pi = db.fetch_df(
+                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s AND artist_id = %s AND date BETWEEN %s AND %s ORDER BY date",
+                (track, artist_id, date_from, date_to)
+            )
         else:
             df_streams = db.fetch_df(
                 "SELECT date, streams FROM s4a_song_timeline WHERE song = %s AND date BETWEEN %s AND %s ORDER BY date",
@@ -890,6 +931,10 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                    FROM ml_song_predictions
                    WHERE song = %s AND prediction_date BETWEEN %s AND %s
                    ORDER BY prediction_date""",
+                (track, date_from, date_to)
+            )
+            df_pi = db.fetch_df(
+                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s AND date BETWEEN %s AND %s ORDER BY date",
                 (track, date_from, date_to)
             )
 
@@ -923,17 +968,26 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             else:
                 st.caption("Aucun historique de probabilités ML sur cette période.")
 
+            if not df_pi.empty:
+                df_pi["date"] = pd.to_datetime(df_pi["date"])
+                fig.add_trace(go.Scatter(
+                    x=df_pi["date"], y=df_pi["popularity"],
+                    name="Popularity Index", mode="lines",
+                    line=dict(color="#FFFFFF", width=1.5, dash="dot")
+                ), secondary_y=True)
+
             fig.update_layout(
                 title=f"Streams & probabilités — {track}",
                 hovermode="x unified", height=480,
                 legend=dict(orientation="h", y=1.12)
             )
             fig.update_yaxes(title_text="Streams", secondary_y=False)
-            fig.update_yaxes(title_text="Probabilité algo (%)", secondary_y=True, range=[0, 100])
+            fig.update_yaxes(title_text="Proba algo (%) / Popularity Index", secondary_y=True, range=[0, 100])
             st.plotly_chart(fig, width='stretch')
     except Exception as e:
         st.warning(f"Graphique streams/probas indisponible : {e}")
 
+    _show_28d_gate(db, track, artist_id)
     st.markdown("---")
 
     # J+28 trajectory (conserved from original)

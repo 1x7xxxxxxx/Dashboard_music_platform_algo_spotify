@@ -402,6 +402,7 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 - [x] **Empirical threshold reconciliation** — `derive_thresholds.py` computes success-rate knees from data; recalibrated 5 DW zones in algo_knowledge (velocity no longer penalises 1.2-2.0; saves 50→165; organic→3900; adds→175; followers bonus→2650). ✅ 2026-05-31
 - [x] **Phase strategy + Discovery Mode protocol + variable hierarchy** — `_show_phase_strategy`, `_show_discovery_mode_protocol`, `_show_feature_importance` (gain-ranked) in trigger_algo. ✅ 2026-05-31
 - [x] **ML KPI gaps** — LIME local explanation (`_show_lime_explanation` + lime_background.json + `lime` dep), Meta-lever scoring on real Meta perf (`_show_meta_lever_scoring`), calibrated budget-to-trigger (`_TRIGGER_STREAM_TARGETS`), PI-driven breakeven (`_show_pi_breakeven`). 6/7 requested graphs already existed. ✅ 2026-05-31
+- [x] **PI line + 28d gate** — Popularity Index added to the main algos chart; `_GATE_28D` + `_show_28d_gate` (28d streams/listeners vs validated per-algo thresholds, DW 9200/4100). ✅ 2026-05-31
 
 ## Long-term ML hardening (roadmap)
 

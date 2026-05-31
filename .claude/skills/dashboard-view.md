@@ -98,6 +98,11 @@ rex:
     fix: "Score levers on real Meta perf: join campaign_track_mapping ↔ meta_insights_performance (CPR/CTR) + meta_ads.call_to_action, rank what worked"
     severity: "info"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "Combined algos chart lacked PI + a 28d listeners gate; per-song daily listeners don't exist (snapshot only)"
+    fix: "Added PI line (track_popularity_history) on the % axis + a 28d gate panel (s4a_songs_global snapshot) vs data-validated thresholds (DW 9200/4100)"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Dashboard View

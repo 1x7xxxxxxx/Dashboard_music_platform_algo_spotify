@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-05-31 — WAVE 12: PI on the main algos chart + 28-day streams/listeners gate
+
+### Why
+Verifying the user's paper notes: ROI/actual-vs-predicted/residuals/PI-breakeven already exist. The only
+gap was the combined chart lacking the PI line and the 28-day streams/listeners gate. User-supplied DW
+thresholds (9200 streams / 4100 listeners per 28d) were validated against data_anon.csv (both sit in the
+bin where the DW success rate jumps above base). Per-algo derived: DW 9200/4100, RR 1300/600, Radio 8400/4000.
+
+### What changed
+- `src/dashboard/views/trigger_algo.py`:
+  - `_show_tab_algos` main chart: added the Popularity Index line (track_popularity_history, per-track
+    daily) on the secondary axis (PI 0-100 shares the probability scale) → one chart with streams + PI +
+    the 3 trigger probabilities.
+  - `_GATE_28D` constant + `_show_28d_gate`: the track's 28d streams/listeners (s4a_songs_global snapshot)
+    vs the per-algo validated thresholds, ✓/✗ per algo. Per-song listeners only exist as a 28d snapshot
+    (no daily series), so a gate panel rather than a chart line.
+
+### Tests
+285 passed, 1 skipped. PI + gate queries smoke-tested on live DB (artist 1). No retrain → baseline unchanged.
+
+---
+
 ## 2026-05-31 — WAVE 11: ML KPI gaps (LIME + Meta-lever scoring + calibrated budget + PI breakeven)
 
 ### Why
