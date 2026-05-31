@@ -1,14 +1,14 @@
 """Inférence ML pour le scoring quotidien des chansons.
 
-Charge les modèles XGBoost depuis machine_learning/mlruns/ et prédit:
+Charge les modèles XGBoost (v2_noscaler) depuis machine_learning/models/ et prédit:
 - dw_probability  : probabilité d'être propulsé en Discover Weekly
 - rr_probability  : probabilité d'être propulsé en Release Radar
 - radio_probability: probabilité d'être propulsé en Radio Spotify
+- pi_forecast     : Popularity Index (0-100) prédit
 
-Remarque : les modèles ont été entraînés avec StandardScaler. Ce module
-applique uniquement les transformations log (critiques), sans scaling.
-Les probabilités sont donc indicatives (comparaison relative entre chansons),
-pas des probabilités absolues calibrées.
+Modèles entraînés par machine_learning/train.py, SANS StandardScaler et sur
+exactement le même contrat de features que ce module construit (cf. FEATURE_COLUMNS).
+Les probabilités sont donc directement exploitables (plus de skew train/serve).
 """
 import os
 import logging
@@ -23,21 +23,25 @@ logger = logging.getLogger(__name__)
 # Chemins vers les meilleurs modèles (dernier run par expérience)
 # Résolu à l'exécution pour supporter Airflow (/opt/airflow/) et local.
 # ---------------------------------------------------------------------------
-_MLRUNS_DIR = os.environ.get(
+MODEL_VERSION = "v2_noscaler"
+
+_MODELS_DIR = os.environ.get(
     "ML_MODELS_PATH",
-    os.path.join(os.path.dirname(__file__), "..", "..", "machine_learning", "mlruns")
+    os.path.join(os.path.dirname(__file__), "..", "..", "machine_learning", "models", MODEL_VERSION)
 )
 
 MODEL_PATHS = {
-    "dw_classifier":    "2/models/m-5487d6f842b84d099659332045aad1db/artifacts/model.ubj",
-    "radio_classifier": "3/models/m-77b18d0a6bfc458891e39128d1ee11d1/artifacts/model.ubj",
-    "rr_classifier":    "4/models/m-6331266b24604c65b1494a798b0be03d/artifacts/model.ubj",
-    "dw_regressor":     "5/models/m-3e9e570baa7348bfb504d698d9084d1b/artifacts/model.ubj",
-    "rr_regressor":     "7/models/m-e8b2e7dce68e4759832f7261dc59955f/artifacts/model.ubj",
-    "radio_regressor":  "6/models/m-3eb19b69b4344356819433eb63d7d978/artifacts/model.ubj",
+    "dw_classifier":    "dw_classifier.ubj",
+    "radio_classifier": "radio_classifier.ubj",
+    "rr_classifier":    "rr_classifier.ubj",
+    "dw_regressor":     "dw_regressor.ubj",
+    "rr_regressor":     "rr_regressor.ubj",
+    "radio_regressor":  "radio_regressor.ubj",
+    "pi_regressor":     "pi_regressor.ubj",
 }
 
-# Ordre des features attendu par les modèles (issu du notebook)
+# Ordre des features attendu par les classifieurs/régresseurs de volume.
+# DOIT rester strictement aligné sur machine_learning/train.py:FEATURE_COLUMNS.
 FEATURE_COLUMNS = [
     "StreamsLast7Days_log",
     "CurrentSpotifyFollowers_log",
@@ -54,14 +58,18 @@ FEATURE_COLUMNS = [
     "Velocity_Streams",
 ]
 
-MODEL_VERSION = "v1_noscaler"
+# Features du régresseur PI (ordre exact de train.py:PI_FEATURES) — valeurs brutes.
+PI_FEATURE_COLUMNS = [
+    "ListenersLast28Days", "StreamsLast28Days", "SavesLast28Days",
+    "PlaylistAddsLast28Days", "CurrentSpotifyFollowers", "DaysSinceRelease",
+]
 
 _model_cache = {}
 
 
 def _resolve_path(relative_path: str) -> str:
     """Résout le chemin absolu vers un modèle."""
-    base = os.path.abspath(_MLRUNS_DIR)
+    base = os.path.abspath(_MODELS_DIR)
     return os.path.join(base, relative_path)
 
 
@@ -133,7 +141,11 @@ def build_features(db, artist_id: int, song: str) -> dict:
         delta = date.today() - first_date
         days_since = max(0, delta.days)
 
-    # Velocity : (avg last 7d) / (avg prior 21d) — clipped [0, 5]
+    # Velocity : (avg last 7d) / (avg prior 21d) — clipped [0, 5].
+    # NOTE: must mirror the training feature engineering exactly (data_anon.csv
+    # pipeline): no-prior-with-streams → 5.0, no-streams → 1.0. Changing this
+    # inference-side alone introduces train/serve skew. The "fresh release wrongly
+    # treated as a 5x suspect-peak" issue is a training-pipeline fix → retrain bundle.
     avg_7d = s7 / 7.0
     avg_prior = s_prev21 / 21.0 if s_prev21 > 0 else 0
     if avg_prior > 0:
@@ -213,7 +225,9 @@ def build_features(db, artist_id: int, song: str) -> dict:
         "ListenersStreamRatio28Days_adj": float(ratio),
         "SavesLast28Days_adj": float(saves_28d),
         "PlaylistAddsLast28Days_adj": float(playlist_adds_28d),
-        "ReleasePhaseEarly": 1.0 if days_since < 30 else 0.0,
+        # Threshold 35 (not 30): mirrors the training label ReleasePhaseEarly
+        # (TRUE iff released within the last 35 days — verified in data_anon.csv).
+        "ReleasePhaseEarly": 1.0 if days_since < 35 else 0.0,
         "Velocity_Streams": float(velocity),
     }
 
@@ -221,6 +235,14 @@ def build_features(db, artist_id: int, song: str) -> dict:
     features["_raw_streams_7d"] = s7
     features["_raw_streams_28d"] = s28
     features["_raw_followers"] = followers
+
+    # Raw inputs for the PI regressor (order = PI_FEATURE_COLUMNS). 28-day window
+    # globals mirror the training columns ListenersLast28Days / StreamsLast28Days /
+    # SavesLast28Days / PlaylistAddsLast28Days.
+    features["_pi_inputs"] = [
+        float(listeners_global), float(streams_global), float(saves_28d),
+        float(playlist_adds_28d), float(followers), float(days_since),
+    ]
 
     return features
 
@@ -282,6 +304,18 @@ def score_song(features: dict) -> dict:
         logger.warning(f"Radio regressor indisponible: {e}")
         radio_forecast = None
 
+    # PI regressor uses its own raw-feature vector (different from FEATURE_COLUMNS).
+    pi_inputs = features.get("_pi_inputs")
+    try:
+        if pi_inputs is None:
+            raise ValueError("_pi_inputs absent des features")
+        pi_reg = load_model("pi_regressor")
+        X_pi = pd.DataFrame([pi_inputs], columns=PI_FEATURE_COLUMNS)
+        pi_forecast = int(np.clip(pi_reg.predict(X_pi)[0], 0, 100))
+    except Exception as e:
+        logger.warning(f"PI regressor indisponible: {e}")
+        pi_forecast = None
+
     return {
         "dw_probability": dw_prob,
         "rr_probability": rr_prob,
@@ -289,6 +323,7 @@ def score_song(features: dict) -> dict:
         "dw_streams_forecast_7d": dw_forecast,
         "rr_streams_forecast_7d": rr_forecast,
         "radio_streams_forecast_7d": radio_forecast,
+        "pi_forecast": pi_forecast,
     }
 
 
@@ -347,6 +382,7 @@ def score_all_songs(db, artist_id: int) -> list[dict]:
                 "dw_streams_forecast_7d": predictions.get("dw_streams_forecast_7d"),
                 "rr_streams_forecast_7d": predictions.get("rr_streams_forecast_7d"),
                 "radio_streams_forecast_7d": predictions.get("radio_streams_forecast_7d"),
+                "pi_forecast_7d": predictions.get("pi_forecast"),
                 "model_version": MODEL_VERSION,
                 "features_json": json.dumps(features_clean),
             }

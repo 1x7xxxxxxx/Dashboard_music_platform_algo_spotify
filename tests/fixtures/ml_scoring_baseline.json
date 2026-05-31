@@ -1,32 +1,35 @@
 {
-  "model_version": "v1_noscaler",
+  "model_version": "v2_noscaler",
   "rows": [
     {
       "_label": "fresh_release_low_streams",
-      "dw_probability": 0.2764228880405426,
-      "rr_probability": 0.002178444992750883,
-      "radio_probability": 0.9654995799064636,
-      "dw_streams_forecast_7d": 7301,
-      "rr_streams_forecast_7d": 12,
-      "radio_streams_forecast_7d": 130888
+      "dw_probability": 0.021386565640568733,
+      "rr_probability": 0.00919802114367485,
+      "radio_probability": 0.009622775949537754,
+      "dw_streams_forecast_7d": 2088,
+      "rr_streams_forecast_7d": 351,
+      "radio_streams_forecast_7d": 0,
+      "pi_forecast": 8
     },
     {
       "_label": "established_song_steady",
-      "dw_probability": 0.2633848190307617,
-      "rr_probability": 0.0025745511520653963,
-      "radio_probability": 0.9550468325614929,
-      "dw_streams_forecast_7d": 7301,
-      "rr_streams_forecast_7d": 12,
-      "radio_streams_forecast_7d": 180615
+      "dw_probability": 0.14543700218200684,
+      "rr_probability": 0.002868583658710122,
+      "radio_probability": 0.9024183750152588,
+      "dw_streams_forecast_7d": 542,
+      "rr_streams_forecast_7d": 181,
+      "radio_streams_forecast_7d": 4358,
+      "pi_forecast": 37
     },
     {
       "_label": "viral_breakout",
-      "dw_probability": 0.23686082661151886,
-      "rr_probability": 0.0029528404120355844,
-      "radio_probability": 0.9732740521430969,
-      "dw_streams_forecast_7d": 7301,
-      "rr_streams_forecast_7d": 12,
-      "radio_streams_forecast_7d": 180620
+      "dw_probability": 0.36196544766426086,
+      "rr_probability": 0.6876094341278076,
+      "radio_probability": 0.9681684970855713,
+      "dw_streams_forecast_7d": 0,
+      "rr_streams_forecast_7d": 1226,
+      "radio_streams_forecast_7d": 32247,
+      "pi_forecast": 54
     }
   ]
 }

@@ -1,0 +1,59 @@
+{
+  "model_version": "v2_noscaler",
+  "rows": 508,
+  "features": [
+    "StreamsLast7Days_log",
+    "CurrentSpotifyFollowers_log",
+    "HowManySongsDoYouHaveInRadioRightNow",
+    "HowManySongsHasThisArtistEverReleased",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode",
+    "ReleaseConsistencyNum",
+    "DaysSinceRelease",
+    "NonAlgoStreams28Days_log",
+    "ListenersStreamRatio28Days_adj",
+    "SavesLast28Days_adj",
+    "PlaylistAddsLast28Days_adj",
+    "ReleasePhaseEarly",
+    "Velocity_Streams"
+  ],
+  "classifiers": {
+    "dw": {
+      "auc": 0.937,
+      "n_test": 102,
+      "positives": 104
+    },
+    "rr": {
+      "auc": 0.952,
+      "n_test": 102,
+      "positives": 100
+    },
+    "radio": {
+      "auc": 0.936,
+      "n_test": 102,
+      "positives": 239
+    }
+  },
+  "regressors": {
+    "dw": {
+      "r2": 0.366
+    },
+    "rr": {
+      "r2": 0.548
+    },
+    "radio": {
+      "r2": 0.564
+    }
+  },
+  "pi": {
+    "r2": 0.937,
+    "mae": 1.89,
+    "features": [
+      "ListenersLast28Days",
+      "StreamsLast28Days",
+      "SavesLast28Days",
+      "PlaylistAddsLast28Days",
+      "CurrentSpotifyFollowers",
+      "DaysSinceRelease"
+    ]
+  }
+}

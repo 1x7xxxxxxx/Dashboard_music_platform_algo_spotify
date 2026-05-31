@@ -220,7 +220,7 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
             rows = db.fetch_query(
                 """SELECT dw_probability, rr_probability, radio_probability,
                           dw_streams_forecast_7d, rr_streams_forecast_7d,
-                          radio_streams_forecast_7d,
+                          radio_streams_forecast_7d, pi_forecast_7d,
                           prediction_date, model_version, features_json
                    FROM ml_song_predictions
                    WHERE artist_id = %s AND song = %s
@@ -231,7 +231,7 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
             rows = db.fetch_query(
                 """SELECT dw_probability, rr_probability, radio_probability,
                           dw_streams_forecast_7d, rr_streams_forecast_7d,
-                          radio_streams_forecast_7d,
+                          radio_streams_forecast_7d, pi_forecast_7d,
                           prediction_date, model_version, features_json
                    FROM ml_song_predictions
                    WHERE song = %s
@@ -243,12 +243,104 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
             return {
                 "dw_probability": r[0], "rr_probability": r[1], "radio_probability": r[2],
                 "dw_streams_forecast_7d": r[3], "rr_streams_forecast_7d": r[4],
-                "radio_streams_forecast_7d": r[5],
-                "prediction_date": r[6], "model_version": r[7], "features_json": r[8],
+                "radio_streams_forecast_7d": r[5], "pi_forecast_7d": r[6],
+                "prediction_date": r[7], "model_version": r[8], "features_json": r[9],
             }
     except Exception:
         pass
     return None
+
+
+@st.cache_data(ttl=3600)
+def _load_threshold_tables() -> dict | None:
+    """PI-bracket trigger probabilities exported by machine_learning/train.py."""
+    try:
+        from src.utils.ml_inference import _resolve_path
+        path = _resolve_path("threshold_tables.json")
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+_PI_BINS = [(0, 10, "0-10"), (11, 20, "11-20"), (21, 30, "21-30"),
+            (31, 40, "31-40"), (41, 50, "41-50"), (51, 10_000, "50+")]
+
+
+def _pi_bracket(pi) -> str | None:
+    if pi is None:
+        return None
+    for lo, hi, label in _PI_BINS:
+        if lo <= pi <= hi:
+            return label
+    return None
+
+
+def _show_pi_gate_section(ml_pred: dict | None) -> None:
+    """B2 — 'you are HERE' on the PI→trigger curves, from the song's PI forecast."""
+    st.subheader("🚪 Portes algorithmiques par Popularity Index")
+    st.caption(
+        "Le Popularity Index (0-100) est la porte d'entrée de chaque algorithme. "
+        "La barre noire situe votre titre ; n = taille d'échantillon par tranche."
+    )
+    tables = _load_threshold_tables()
+    if not tables:
+        show_empty_state("Tables de seuils PI indisponibles — lancer `python3 machine_learning/train.py`.")
+        return
+
+    pi = ml_pred.get("pi_forecast_7d") if ml_pred else None
+    here = _pi_bracket(pi)
+    if pi is not None:
+        st.metric("Popularity Index prédit", f"{int(pi)} / 100",
+                  help="Régresseur PI v2_noscaler (R²=0.937, MAE=1.9 points).")
+    else:
+        st.info("Pas de PI prédit pour ce titre (scoring ML quotidien non encore exécuté).")
+
+    brackets = tables.get("pi_brackets", [])
+    algos = [("release_radar", "Release Radar (<35j)", "#4C78A8"),
+             ("discover_weekly", "Discover Weekly", "#E45756"),
+             ("radio", "Radio", "#54A24B")]
+    fig = make_subplots(rows=1, cols=3, subplot_titles=[a[1] for a in algos])
+    for i, (key, _label, color) in enumerate(algos, start=1):
+        data = tables.get(key, {})
+        probs = [data.get(b, {}).get("prob") for b in brackets]
+        ns = [data.get(b, {}).get("n", 0) for b in brackets]
+        colors = ["#111111" if b == here else color for b in brackets]
+        fig.add_trace(go.Bar(
+            x=brackets, y=probs, marker_color=colors,
+            text=[f"n={n}" for n in ns], textposition="outside",
+            hovertemplate="PI %{x}<br>%{y:.0f}% déclenchement<br>%{text}<extra></extra>",
+            showlegend=False,
+        ), row=1, col=i)
+        fig.update_yaxes(range=[0, 112], row=1, col=i)
+    fig.update_layout(height=360, margin=dict(t=46, b=20))
+    st.plotly_chart(fig, width='stretch')
+
+    def _fmt(p):
+        return f"{p:.0f}%" if p is not None else "n/a"
+
+    if here:
+        rr = tables.get("release_radar", {}).get(here, {}).get("prob")
+        dw = tables.get("discover_weekly", {}).get(here, {}).get("prob")
+        radio = tables.get("radio", {}).get(here, {}).get("prob")
+        st.markdown(
+            f"À **PI {here}**, vos chances de déclenchement : "
+            f"Release Radar **{_fmt(rr)}** · Discover Weekly **{_fmt(dw)}** · Radio **{_fmt(radio)}**."
+        )
+        # Reco engine — the highest-leverage DW gate (DW is the hardest door).
+        dw_data = tables.get("discover_weekly", {})
+        best = max(
+            ((b, dw_data.get(b, {}).get("prob")) for b in brackets
+             if dw_data.get(b, {}).get("prob") is not None),
+            key=lambda t: t[1], default=(None, None),
+        )
+        if best[0] and best[0] != here:
+            st.info(
+                f"🎯 Levier #1 — le sésame Discover Weekly est à **PI {best[0]}** "
+                f"({best[1]:.0f}% de déclenchement). Concentrez streams organiques + saves "
+                f"pour pousser le PI vers cette tranche avant de scaler le budget."
+            )
+    st.caption(tables.get("note", ""))
 
 
 @st.cache_resource
@@ -532,6 +624,8 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
 # ── Tab 2 — Suivi Algorithmes ─────────────────────────────────────────────────
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
+    _show_pi_gate_section(ml_pred)
+    st.divider()
     st.subheader("📈 Streams & probabilités algorithmiques")
     try:
         if artist_id:

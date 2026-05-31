@@ -9,11 +9,12 @@
     "ReleaseConsistencyNum": 0.5,
     "DaysSinceRelease": 7.0,
     "NonAlgoStreams28Days_log": 2.1,
-    "ListenersStreamRatio28Days_adj": 0.45,
-    "SavesLast28Days_adj": 0.05,
-    "PlaylistAddsLast28Days_adj": 0.02,
+    "ListenersStreamRatio28Days_adj": 2.0,
+    "SavesLast28Days_adj": 10.0,
+    "PlaylistAddsLast28Days_adj": 5.0,
     "ReleasePhaseEarly": 1.0,
-    "Velocity_Streams": 4.5
+    "Velocity_Streams": 4.5,
+    "_pi_inputs": [200.0, 400.0, 10.0, 5.0, 2440.0, 7.0]
   },
   {
     "_label": "established_song_steady",
@@ -25,11 +26,12 @@
     "ReleaseConsistencyNum": 0.7,
     "DaysSinceRelease": 365.0,
     "NonAlgoStreams28Days_log": 7.8,
-    "ListenersStreamRatio28Days_adj": 0.62,
-    "SavesLast28Days_adj": 0.12,
-    "PlaylistAddsLast28Days_adj": 0.08,
+    "ListenersStreamRatio28Days_adj": 2.0,
+    "SavesLast28Days_adj": 2000.0,
+    "PlaylistAddsLast28Days_adj": 1200.0,
     "ReleasePhaseEarly": 0.0,
-    "Velocity_Streams": 1.0
+    "Velocity_Streams": 1.0,
+    "_pi_inputs": [30000.0, 60000.0, 2000.0, 1200.0, 98700.0, 365.0]
   },
   {
     "_label": "viral_breakout",
@@ -41,10 +43,11 @@
     "ReleaseConsistencyNum": 0.85,
     "DaysSinceRelease": 21.0,
     "NonAlgoStreams28Days_log": 11.0,
-    "ListenersStreamRatio28Days_adj": 0.78,
-    "SavesLast28Days_adj": 0.22,
-    "PlaylistAddsLast28Days_adj": 0.15,
+    "ListenersStreamRatio28Days_adj": 3.0,
+    "SavesLast28Days_adj": 40000.0,
+    "PlaylistAddsLast28Days_adj": 25000.0,
     "ReleasePhaseEarly": 1.0,
-    "Velocity_Streams": 5.0
+    "Velocity_Streams": 5.0,
+    "_pi_inputs": [300000.0, 900000.0, 40000.0, 25000.0, 540000.0, 21.0]
   }
 ]

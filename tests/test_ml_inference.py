@@ -1,7 +1,7 @@
 """Non-regression tests for src/utils/ml_inference.py.
 
-Why this file exists : 5 XGBoost models live as hard-coded paths in
-MODEL_PATHS (src/utils/ml_inference.py:30-36). A typo in a path, a swap of
+Why this file exists : 7 XGBoost models live as hard-coded paths in
+MODEL_PATHS (src/utils/ml_inference.py). A typo in a path, a swap of
 a UBJ artifact, or a reorder of FEATURE_COLUMNS would silently change
 predictions. These tests catch that at PR time.
 
@@ -38,6 +38,7 @@ EXPECTED_KEYS = {
     "dw_streams_forecast_7d",
     "rr_streams_forecast_7d",
     "radio_streams_forecast_7d",
+    "pi_forecast",
 }
 PROBABILITY_KEYS = {"dw_probability", "rr_probability", "radio_probability"}
 FORECAST_KEYS = {
@@ -52,7 +53,9 @@ def fixtures() -> list[dict]:
 
 
 def _features(fx: dict) -> dict:
-    return {k: v for k, v in fx.items() if not k.startswith("_")}
+    # Keep _pi_inputs (the PI regressor reads it); drop only _label, matching what
+    # build_features() hands to score_song in production.
+    return {k: v for k, v in fx.items() if k != "_label"}
 
 
 def _models_loadable() -> bool:
@@ -77,10 +80,11 @@ class TestStructure:
     def test_feature_columns_are_unique(self):
         assert len(set(FEATURE_COLUMNS)) == len(FEATURE_COLUMNS)
 
-    def test_model_paths_has_six_models(self):
+    def test_model_paths_has_seven_models(self):
         assert set(MODEL_PATHS) == {
             "dw_classifier", "radio_classifier", "rr_classifier",
             "dw_regressor", "rr_regressor", "radio_regressor",
+            "pi_regressor",
         }
 
     def test_model_version_is_non_empty_string(self):

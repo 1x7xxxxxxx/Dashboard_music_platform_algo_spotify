@@ -20,6 +20,11 @@ rex:
   \ generate_ml_baseline.py)"
     severity: "warn"
     ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-31
+    issue: "Adding pi_forecast_7d showed '5 synced edits' was incomplete: ml_schema.py (ML_SCHEMA) had silently drifted"
+    fix: "A new prediction column needs 6 synced points, not 5: also src/database/ml_schema.py. Audit that file for drift vs init_db.sql when touching ml_song_predictions; caught + backfilled radio + pi columns"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Database Schema

@@ -2,8 +2,8 @@
 """Regenerate tests/fixtures/ml_scoring_baseline.json from the current models.
 
 Run this in an environment where xgboost is installed and the models in
-machine_learning/mlruns/ are loadable. The output file is committed and used
-by tests/test_ml_inference.py to detect silent model swaps.
+machine_learning/models/<MODEL_VERSION>/ are loadable. The output file is
+committed and used by tests/test_ml_inference.py to detect silent model swaps.
 
 When to re-run :
 - After deliberately updating a model artifact in MODEL_PATHS.
@@ -33,7 +33,9 @@ def main() -> None:
 
     for fx in fixtures:
         label = fx["_label"]
-        features = {k: v for k, v in fx.items() if not k.startswith("_")}
+        # Keep _pi_inputs (consumed by the PI regressor); drop only _label so the
+        # vector matches what build_features() hands to score_song in production.
+        features = {k: v for k, v in fx.items() if k != "_label"}
         missing = [c for c in FEATURE_COLUMNS if c not in features]
         if missing:
             raise SystemExit(f"fixture {label!r} missing features: {missing}")
@@ -41,7 +43,7 @@ def main() -> None:
         if any(v is None for v in out.values()):
             raise SystemExit(
                 f"fixture {label!r} produced None — models not loaded. "
-                "Make sure xgboost is installed and machine_learning/mlruns/ "
+                "Make sure xgboost is installed and machine_learning/models/ "
                 "is reachable."
             )
         baseline["rows"].append({"_label": label, **out})

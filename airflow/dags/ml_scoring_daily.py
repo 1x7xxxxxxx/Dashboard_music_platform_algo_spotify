@@ -71,7 +71,7 @@ def run_ml_scoring(**context):
                 "days_since_release", "streams_7d", "streams_28d",
                 "dw_probability", "rr_probability", "radio_probability",
                 "dw_streams_forecast_7d", "rr_streams_forecast_7d",
-                "radio_streams_forecast_7d",
+                "radio_streams_forecast_7d", "pi_forecast_7d",
                 "features_json",
             ]
 
