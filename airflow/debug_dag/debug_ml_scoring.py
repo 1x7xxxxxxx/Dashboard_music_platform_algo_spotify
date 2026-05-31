@@ -29,12 +29,12 @@ def main():
 
     from src.utils.config_loader import config_loader
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.ml_inference import score_all_songs, MODEL_VERSION, _MLRUNS_DIR
+    from src.utils.ml_inference import score_all_songs, MODEL_VERSION, _MODELS_DIR
 
     print("=" * 70)
     print("ML SCORING — DEBUG")
     print("=" * 70)
-    print(f"  Répertoire modèles : {os.path.abspath(_MLRUNS_DIR)}")
+    print(f"  Répertoire modèles : {os.path.abspath(_MODELS_DIR)}")
     print(f"  Model version      : {MODEL_VERSION}")
     print()
 
@@ -79,7 +79,7 @@ def main():
                 song_short = r['song'][:34]
                 print(f"  {song_short:<35} {dw:>6} {rr:>6} {radio:>7} {dw7:>8} {rr7:>8}")
 
-            print(f"\n  Upsert dans DB ? (dry-run — pas d'écriture en mode debug)")
+            print("\n  Upsert dans DB ? (dry-run — pas d'écriture en mode debug)")
 
     finally:
         db.close()

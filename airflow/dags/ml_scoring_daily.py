@@ -39,6 +39,7 @@ def run_ml_scoring(**context):
     from src.database.postgres_handler import PostgresHandler
     from src.utils.credential_loader import get_active_artists
     from src.utils.ml_inference import score_all_songs
+    from src.utils.saves_history import snapshot_saves
     import os
 
     db_cfg = {
@@ -78,6 +79,10 @@ def run_ml_scoring(**context):
             db.upsert_many("ml_song_predictions", rows, conflict_cols, update_cols)
             logger.info(f"  → {len(rows)} prédictions upsertées pour {name!r}")
             total_inserted += len(rows)
+
+            # Historise the daily saves snapshot (feeds the resurrection radar).
+            saved = snapshot_saves(db, artist_id)
+            logger.info(f"  → {saved} snapshots saves historisés pour {name!r}")
 
     finally:
         db.close()

@@ -385,3 +385,16 @@ These are not roadmap bricks; they are operational standing instructions kept he
 ## Completed
 
 All bricks (1–19) fully implemented. Session implementation notes were archived in `saas-db-migration/checklist.md` (deleted 2026-03-23 — no longer needed).
+
+---
+
+## ML decision layer (2026-05-31, WAVE 8)
+
+- [x] **Scaler-free retrain + PI model** — `machine_learning/train.py`, models in `models/v2_noscaler/`; `pi_forecast_7d` column (migration 037). ✅ 2026-05-31
+- [x] **B2 "Portes par PI"** — per-song positioning on the PI→trigger curves (`threshold_tables.json`). ✅ 2026-05-31
+- [x] **Verdict banner 🔴🟠🟢** — consolidated kill/optimize/scale on argmax of the 3 probs. ✅ 2026-05-31
+- [x] **Budget pacing calculator** — spread budget over the eval window to avoid the velocity spike. ✅ 2026-05-31
+- [x] **Snowball radar** — catalogue scan (radio_probability ≥0.5) bypassing the imputed-0 radio-count feature. ✅ 2026-05-31
+- [x] **Resurrection data foundation** — `s4a_song_saves_daily` table + daily writer (migration 038). ✅ 2026-05-31
+- [ ] **Resurrection alert (activation)** — `detect_saves_resurrection` is dormant until ~2 weeks of saves history accrue; optional email wiring via `alert_monitor`.
+- [ ] **Phase-2 data acquisition** — 3 model features still imputed-to-0 (`NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow`, `DiscoveryMode`); caps model precision + snowball/resurrection. Needs the S4A source split.

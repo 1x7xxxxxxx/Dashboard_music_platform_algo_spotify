@@ -45,7 +45,7 @@ graph LR
     CL -->|reads| DB
     COL -->|upsert_many via| PH
 
-    ML[ml_scoring_daily DAG] -->|loads model| MLR[machine_learning/mlruns/]
+    ML[ml_scoring_daily DAG] -->|loads model| MLR[machine_learning/models/v2_noscaler/]
     ML -->|scores via| INF[ml_inference.py]
     INF -->|writes| DB
 
@@ -96,7 +96,7 @@ graph LR
 | Instagram | `instagram_api_collector.py` | `instagram_media`, `instagram_stories` | `instagram_daily` |
 | Apple Music | `apple_music_csv_parser.py` | `apple_songs_performance`, `apple_daily_plays`, `apple_listeners` | `apple_music_csv_watcher` |
 | iMusician | manual entry + CSV import | `imusician_sales_detail` (raw, per-line) → `imusician_monthly_revenue` (DERIVED, rolled up) | `imusician_csv_watcher` |
-| ML scoring | `ml_inference.py` | `ml_song_predictions` | `ml_scoring_daily` |
+| ML scoring | `ml_inference.py` (v2_noscaler) | `ml_song_predictions` (+`pi_forecast_7d`), `s4a_song_saves_daily` (saves history → resurrection radar) | `ml_scoring_daily` |
 | Algo lifecycle benchmark | `machine_learning/export_lifecycle_benchmark.py` (offline) | `algo_lifecycle_benchmark` (GLOBAL / non-tenant, read-only, NOT in `_ALLOWED_TABLES`) | none (manual seed via migration 035; PROVISIONAL) |
 
 > **Meta Ads — SINGLE ingestion path (since 2026-05-29 — legacy CSV stack archived):**

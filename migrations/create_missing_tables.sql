@@ -375,6 +375,17 @@ CREATE INDEX IF NOT EXISTS idx_s4a_audience_artist ON s4a_audience(artist_id);
 -- (remplacée par (artist_id, song, date) pour le support multi-artiste)
 ALTER TABLE s4a_song_timeline DROP CONSTRAINT IF EXISTS unique_song_date;
 
+-- Daily saves history (resurrection radar) — time series s4a_songs_global lacks
+CREATE TABLE IF NOT EXISTS s4a_song_saves_daily (
+    id SERIAL PRIMARY KEY,
+    artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
+    song VARCHAR(255) NOT NULL,
+    snapshot_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    saves INTEGER,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(artist_id, song, snapshot_date)
+);
+
 -- ============================================================
 -- Confirmation
 -- ============================================================
@@ -392,6 +403,7 @@ WHERE table_schema = 'public'
     'meta_insights_performance_placement',
     'meta_insights_engagement', 'meta_insights_engagement_day',
     'meta_insights_engagement_age', 'meta_insights_engagement_country',
-    'meta_insights_engagement_placement'
+    'meta_insights_engagement_placement',
+    's4a_song_saves_daily'
   )
 ORDER BY table_name;

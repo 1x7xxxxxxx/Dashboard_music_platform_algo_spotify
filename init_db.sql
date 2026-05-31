@@ -295,6 +295,17 @@ CREATE TABLE IF NOT EXISTS s4a_audience (
     UNIQUE(artist_id, date)
 );
 
+-- Daily saves history (time series s4a_songs_global lacks) → resurrection radar
+CREATE TABLE IF NOT EXISTS s4a_song_saves_daily (
+    id SERIAL PRIMARY KEY,
+    artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
+    song VARCHAR(255) NOT NULL,
+    snapshot_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    saves INTEGER,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(artist_id, song, snapshot_date)
+);
+
 CREATE INDEX IF NOT EXISTS idx_s4a_songs_song ON s4a_songs_global(song);
 CREATE INDEX IF NOT EXISTS idx_s4a_songs_streams ON s4a_songs_global(streams DESC);
 CREATE INDEX IF NOT EXISTS idx_s4a_timeline_song ON s4a_song_timeline(song);

@@ -343,6 +343,120 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
     st.caption(tables.get("note", ""))
 
 
+def _show_verdict_banner(ml_pred: dict | None) -> None:
+    """Consolidated kill / optimize / scale decision at the top of the algos tab.
+
+    Headline verdict on the best algorithmic opportunity (max of the 3 probs).
+    Probabilities are NOT calibrated, so the 20/50% bands are decision heuristics,
+    not exact likelihoods — the caveat is surfaced via ak.calibration_note().
+    """
+    if not ml_pred:
+        return
+    labels = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
+    scored = {
+        "DW": ml_pred.get("dw_probability"),
+        "RR": ml_pred.get("rr_probability"),
+        "RADIO": ml_pred.get("radio_probability"),
+    }
+    scored = {k: v for k, v in scored.items() if v is not None}
+    if not scored:
+        return
+    best_algo = max(scored, key=scored.get)
+    best_prob = scored[best_algo]
+
+    try:
+        feats = json.loads(ml_pred.get("features_json") or "{}")
+    except (ValueError, TypeError):
+        feats = {}
+
+    if best_prob < 0.20:
+        st.error(
+            f"🔴 **STOP** — signaux algorithmiques faibles (meilleure piste : "
+            f"{labels[best_algo]} {best_prob:.0%}). Stoppez vos Meta Ads sur ce titre "
+            f"pour préserver votre budget."
+        )
+    elif best_prob < 0.50:
+        st.warning(
+            f"🟠 **OPTIMISER** — potentiel détecté ({labels[best_algo]} {best_prob:.0%}), "
+            f"mais il manque un déclencheur."
+        )
+        actions = ak.build_coach_actions(best_algo, feats)
+        if actions:
+            a = actions[0]
+            st.caption(f"🎯 Levier #1 — {a['label']} : {a['lever']}")
+    else:
+        st.success(
+            f"🟢 **SCALER** — ADN de hit détecté ({labels[best_algo]} {best_prob:.0%}). "
+            f"L'algorithme est prêt à prendre le relais : augmentez votre budget quotidien "
+            f"de ~20 % pour maximiser l'effet boule de neige."
+        )
+    note = ak.calibration_note(best_algo, best_prob)
+    if note:
+        st.caption(f"ℹ️ Fiabilité du score : {note}")
+    st.caption(
+        "Probabilités non calibrées — les seuils 20 %/50 % sont des bandes de décision, "
+        "pas des probabilités absolues."
+    )
+
+
+def _show_radio_snowball(db, artist_id) -> None:
+    """Snowball radar — count catalogue songs the model rates as radio-active.
+
+    Proxy via radio_probability >= 0.5 (NOT the imputed-to-0 feature
+    HowManySongsDoYouHaveInRadioRightNow). 3+ active songs is the "trusted artist"
+    signal: a new release is then more likely to get an algorithmic free pass.
+    """
+    df = _load_scored_tracks(db, artist_id)
+    if df is None or "radio_probability" not in df:
+        return
+    n = int((df["radio_probability"].fillna(0) >= 0.5).sum())
+    if n >= 3:
+        st.success(
+            f"🏆 **Statut « Valeur Sûre »** — {n} titres en radio algorithmique active. "
+            f"Moment idéal pour sortir un nouveau single : il sera poussé plus facilement."
+        )
+    elif n >= 1:
+        st.info(
+            f"🔥 **En chauffe** — {n} titre(s) en radio active. Atteignez 3 titres pour "
+            f"débloquer le « passe-droit » algorithmique sur vos prochaines sorties."
+        )
+    else:
+        st.caption(
+            "❄️ Aucun titre en radio algorithmique active (estimation modèle). "
+            "Concentrez les efforts pour percer un premier titre."
+        )
+    st.caption(
+        "Effet boule de neige — estimation modèle (radio_probability ≥ 0,5), pas le "
+        "décompte radio réel (donnée non collectée à l'inférence)."
+    )
+
+
+def _show_resurrection_radar(db, artist_id) -> None:
+    """Long-tail resurrection radar — old songs (>6 mo) with a sudden saves spike.
+
+    Dormant until ~2 weeks of daily saves history accumulate (snapshot written by
+    the ml_scoring_daily DAG → src/utils/saves_history.snapshot_saves).
+    """
+    try:
+        from src.utils.saves_history import detect_saves_resurrection
+        sparks = detect_saves_resurrection(db, artist_id)
+    except Exception:
+        return
+    st.subheader("✨ Résurrection longue traîne")
+    if not sparks:
+        st.caption(
+            "Aucune étincelle détectée sur vos anciens titres (> 6 mois). Le radar "
+            "s'active une fois ~2 semaines d'historique de saves accumulées "
+            "(collecte quotidienne automatique)."
+        )
+        return
+    for s in sparks[:5]:
+        st.success(
+            f"✨ **{s['song']}** ({s['age_days']} j) — +{s['recent_gain']} saves récents. "
+            f"Injectez un petit budget Ads aujourd'hui pour réveiller le Discover Weekly."
+        )
+
+
 @st.cache_resource
 def _load_xgb_model(model_key: str):
     """Load and cache an XGBoost Booster from mlruns. Returns None if unavailable."""
@@ -624,6 +738,10 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
 # ── Tab 2 — Suivi Algorithmes ─────────────────────────────────────────────────
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
+    _show_verdict_banner(ml_pred)
+    _show_radio_snowball(db, artist_id)
+    _show_resurrection_radar(db, artist_id)
+    st.divider()
     _show_pi_gate_section(ml_pred)
     st.divider()
     st.subheader("📈 Streams & probabilités algorithmiques")
@@ -855,6 +973,58 @@ def _show_velocity_budget_advice(db, track, artist_id, spent):
     )
 
 
+def _show_budget_pacing_calculator(db, artist_id) -> None:
+    """Proactive budget-pacing planner: spread spend over the algo eval window to
+    avoid the velocity-spike penalty. The euro->velocity mapping is heuristic (no
+    model): the deliverable is the smoothing recommendation, not a guaranteed
+    target velocity. Complements the reactive _show_velocity_budget_advice.
+    """
+    st.subheader("📅 Lisseur de budget (Pacing)")
+    default_budget, current_daily = 200.0, 0.0
+    try:
+        if artist_id:
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(lifetime_budget),0), COALESCE(SUM(daily_budget),0) "
+                "FROM meta_campaigns WHERE artist_id = %s AND status = 'ACTIVE'", (artist_id,))
+        else:
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(lifetime_budget),0), COALESCE(SUM(daily_budget),0) "
+                "FROM meta_campaigns WHERE status = 'ACTIVE'")
+        default_budget = float(row[0][0] or 0) or 200.0
+        current_daily = float(row[0][1] or 0)
+    except Exception:
+        pass
+
+    c1, c2 = st.columns(2)
+    budget = c1.number_input("Budget à étaler (€)", min_value=0.0,
+                             value=float(round(default_budget, 2)), step=10.0)
+    window = c2.number_input("Fenêtre de lissage (jours)", min_value=7, max_value=90,
+                             value=28, step=1, help="28 j = fenêtre d'évaluation des algos.")
+    if budget <= 0:
+        return
+    per_day = budget / window
+    st.metric("Dépense quotidienne recommandée", f"{per_day:,.2f} €/jour")
+    vthr = ak.velocity_penalty_threshold("DW")
+    vtxt = f"~{vthr:g}" if vthr else "le seuil de pénalité"
+    st.info(
+        f"Étalez **{budget:,.0f} €** sur **{window} jours** (~{per_day:,.0f} €/jour) pour "
+        f"maintenir une croissance organique et éviter le « pic suspect » que le Discover "
+        f"Weekly pénalise (vélocité au-delà de {vtxt})."
+    )
+    if current_daily > 0:
+        burn_days = budget / current_daily
+        if burn_days < 14:
+            st.warning(
+                f"⚠️ Votre budget quotidien actuel (~{current_daily:,.0f} €/jour) épuiserait "
+                f"ce budget en ~{burn_days:.0f} jours → risque de pic de vélocité. "
+                f"Réduisez à ~{per_day:,.0f} €/jour."
+            )
+    st.caption(
+        "Le lien €→vélocité est une heuristique de lissage (étalement sur la fenêtre "
+        "d'éval), pas une vélocité-cible garantie."
+    )
+
+
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
     _show_budget_tier_selector(db, artist_id)
     st.markdown("---")
@@ -939,6 +1109,9 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             "collectée (Phase 2 — split par source S4A) : ce seuil est affiché comme "
             "**cible**, pas comme un écart calculé sur vos données."
         )
+    st.markdown("---")
+
+    _show_budget_pacing_calculator(db, artist_id)
     st.markdown("---")
 
     # 2. Groover / Fluence simulator

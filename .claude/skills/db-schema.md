@@ -25,6 +25,11 @@ rex:
     fix: "A new prediction column needs 6 synced points, not 5: also src/database/ml_schema.py. Audit that file for drift vs init_db.sql when touching ml_song_predictions; caught + backfilled radio + pi columns"
     severity: "warn"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "Resurrection alert needed a saves time series but s4a_songs_global is a 28-day snapshot only"
+    fix: "Created s4a_song_saves_daily history table + a daily snapshot writer in the ml_scoring DAG; detection stays dormant until ~2 weeks of history accrue"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Database Schema

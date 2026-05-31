@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-05-31 — WAVE 8: scaler-free retrain + PI model + decision layer + resurrection foundation
+
+### Why
+The deployed models were trained WITH StandardScaler but inference applied none, so the served
+probabilities were structurally wrong (z-score thresholds fed raw values). The user's product notes
+also asked for a consolidated decision UI, a budget pacing planner, a snowball radar and a long-tail
+resurrection alert. The training data (`data_anon.csv`) was finally copied into the repo, unblocking
+a reproducible retrain.
+
+### What changed
+- `machine_learning/train.py` (NEW) — reproducible, scaler-free training (replaces the 104 MB notebook).
+  Trains 3 classifiers + 3 volume regressors + the PI regressor on EXACTLY the served feature contract
+  (raw Saves/PlaylistAdds counts + streams/listeners ratio — the CSV `_adj` cols are unreproducible).
+  Verified: DW AUC 0.878→0.937, RR 0.952, Radio 0.936, PI R²=0.937/MAE 1.9 (exact). Models committed
+  to `machine_learning/models/v2_noscaler/` (old `mlruns/` was gitignored → prod inference was broken).
+- `src/utils/ml_inference.py` — MODEL_VERSION v2_noscaler, PI inference (`pi_forecast`), ReleasePhaseEarly<35,
+  velocity train/serve note. `pi_forecast_7d` column added across the 6 synced points (init_db, create_missing,
+  ml_schema — caught radio drift, migration 037, DAG update_cols, regen frozen baseline).
+- `src/dashboard/views/trigger_algo.py` — B2 "Portes par PI" (threshold_tables.json) + decision layer:
+  `_show_verdict_banner` (🔴🟠🟢 kill/optimize/scale on argmax of the 3 probs), `_show_radio_snowball`
+  (catalogue scan via radio_probability — bypasses the imputed-0 radio-count feature), `_show_resurrection_radar`
+  (dormant), `_show_budget_pacing_calculator` (spread budget over the eval window).
+- Resurrection data foundation: `s4a_song_saves_daily` table (init_db + create_missing + `saves_history_schema.py`
+  + migration 038 + `_ALLOWED_TABLES`), `src/utils/saves_history.py` (`snapshot_saves` + `detect_saves_resurrection`),
+  snapshot wired into `ml_scoring_daily` DAG. Fixed `debug_ml_scoring.py` import (`_MLRUNS_DIR`→`_MODELS_DIR`).
+
+### Tests
+285 passed, 1 skipped. Migrations 037 + 038 applied to spotify_etl. Writer smoke-tested (11 rows, artist 1).
+Phase-2 data (3 imputed-to-0 features) remains the ceiling on model precision + snowball/resurrection.
+
+---
+
 ## 2026-05-31 — WAVE 7: Release Radar volume regressor suppressed (R²=0.32, product-protective)
 
 ### Why

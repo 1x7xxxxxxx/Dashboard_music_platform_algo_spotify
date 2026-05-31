@@ -68,6 +68,16 @@ rex:
   \ diagnostic"
     severity: "warn"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "Decision signals (probs/SHAP/velocity) were scattered across 6 tabs — no single kill/optimize/scale call"
+    fix: "_show_verdict_banner: argmax of the 3 algo probs → 20/50% bands. Probs uncalibrated so the bands are decision heuristics, surfaced via ak.calibration_note"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "Snowball radar relied on HowManySongsInRadioRightNow, imputed-to-0 at inference → unusable directly"
+    fix: "Bypass the dead ML feature: scan the catalogue via ml_song_predictions.radio_probability >=0.5; label it a model proxy, not the real radio count"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Dashboard View
