@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS saas_artists (
     tier VARCHAR(20) NOT NULL DEFAULT 'basic'
         CHECK (tier IN ('basic', 'premium')),
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Bridge to the Spotify-API artist id (see migration 039). Maps a SaaS
+    -- tenant to the varchar id used by `tracks.artist_id` / `artists.artist_id`.
+    spotify_artist_id VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -47,7 +50,8 @@ CREATE TABLE IF NOT EXISTS artists (
 CREATE TABLE IF NOT EXISTS tracks (
     track_id VARCHAR(50) PRIMARY KEY,
     track_name VARCHAR(255) NOT NULL,
-    artist_id VARCHAR(50) REFERENCES artists(artist_id),
+    artist_id VARCHAR(50) REFERENCES artists(artist_id),  -- legacy Spotify-API id
+    saas_artist_id INTEGER REFERENCES saas_artists(id),   -- SaaS tenant (migration 039)
     popularity INTEGER DEFAULT 0,
     duration_ms INTEGER,
     explicit BOOLEAN DEFAULT FALSE,
@@ -55,6 +59,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     release_date DATE,
     collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_tracks_saas_artist ON tracks (saas_artist_id);
 
 CREATE TABLE IF NOT EXISTS track_popularity_history (
     id SERIAL PRIMARY KEY,
@@ -305,6 +310,19 @@ CREATE TABLE IF NOT EXISTS s4a_song_saves_daily (
     collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(artist_id, song, snapshot_date)
 );
+
+-- Manual per-song Discovery-Mode opt-in (S4A-UI-only, no API — migration 040).
+-- Un-imputes the model feature IsThisSongOptedIntoSpotifyDiscoveryMode.
+CREATE TABLE IF NOT EXISTS s4a_song_discovery_mode (
+    artist_id    INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    song         TEXT    NOT NULL,
+    opted_in     BOOLEAN NOT NULL DEFAULT FALSE,
+    collected_at TIMESTAMPTZ DEFAULT now(),
+    recorded_at  DATE    NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (artist_id, song, recorded_at)
+);
+CREATE INDEX IF NOT EXISTS idx_s4a_discovery_mode_artist_song
+    ON s4a_song_discovery_mode (artist_id, song);
 
 CREATE INDEX IF NOT EXISTS idx_s4a_songs_song ON s4a_songs_global(song);
 CREATE INDEX IF NOT EXISTS idx_s4a_songs_streams ON s4a_songs_global(streams DESC);

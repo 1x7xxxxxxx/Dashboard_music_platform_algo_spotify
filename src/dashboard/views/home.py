@@ -91,8 +91,13 @@ def _section_streams(db, artist_id):
     )
 
 
+@st.fragment
 def _section_pdf_export(artist_id):
-    """Raccourci vers la page Export PDF + génération rapide (toutes sections, 12 mois)."""
+    """Raccourci vers la page Export PDF + génération rapide (toutes sections, 12 mois).
+
+    @st.fragment: the "Rapport rapide" button + download only re-run this section,
+    not the whole home page (KPIs, DAG status grid, cumulative charts).
+    """
     st.subheader("📄 Rapport PDF")
     col_btn, col_full, col_info = st.columns([1, 1, 2])
 
@@ -205,13 +210,14 @@ def _section_dag_status():
         st.warning("Aucun DAG trouvé. Vérifier que Airflow est lancé.")
         return
 
+    # Single batch call for every DAG's latest run (was N+1: one call per DAG).
+    last_states = monitor.get_all_dags_last_state()
     rows = []
     for dag_id in dag_list:
-        runs = monitor.get_runs_for_dag(dag_id, limit=1)
-        if not runs:
+        r = last_states.get(dag_id)
+        if not r:
             rows.append((dag_id, None, None, None))
         else:
-            r = runs[0]
             rows.append((dag_id, r['state'], r['start_date'], r['end_date']))
 
     # Grille responsive : 5 colonnes

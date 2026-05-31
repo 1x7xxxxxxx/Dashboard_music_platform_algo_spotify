@@ -46,13 +46,11 @@ def refresh_meta_tokens(**context):
     """Exchange Meta tokens for all active artists whose token expires soon."""
     import os
     import requests
-    from datetime import timezone
 
     from src.utils.credential_loader import (
         get_active_artists,
         load_platform_credentials,
         update_platform_secret,
-        save_platform_credentials,
     )
 
     artists = get_active_artists()
@@ -176,6 +174,7 @@ with DAG(
     schedule_interval='0 7 * * 1',  # every Monday at 07:00 UTC
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    max_active_runs=1,  # avoid concurrent token exchanges on the same Meta app
     tags=['meta', 'instagram', 'credentials'],
 ) as dag:
 

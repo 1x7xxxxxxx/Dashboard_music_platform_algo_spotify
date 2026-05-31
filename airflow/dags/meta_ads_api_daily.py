@@ -6,7 +6,6 @@ Skips artists with no Meta credentials (WARNING log, no failure).
 Raises if the collector fails for an artist that has credentials.
 """
 import sys
-import os
 import logging
 
 sys.path.insert(0, '/opt/airflow')
@@ -84,6 +83,7 @@ with DAG(
     schedule_interval='0 5 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    max_active_runs=1,  # concurrent runs hammer the same ad-account → Meta throttle 80004
     tags=['meta', 'ads', 'api'],
 ) as dag:
 

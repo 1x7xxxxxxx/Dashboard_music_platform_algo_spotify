@@ -17,6 +17,8 @@ from statistics import median
 import numpy as np
 import pandas as pd
 
+from src.utils.track_matching import normalize_track_title
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -102,9 +104,11 @@ def _calibrate(algo: str, p_raw):
     return float(1.0 / (1.0 + np.exp(-z)))
 
 
-# Features imputed to 0 at inference (no live source yet — Phase 2). They are
-# permanently out-of-distribution BY DESIGN, so they are excluded from drift
-# detection (already surfaced by the imputation caveat) to avoid crying wolf.
+# Features excluded from drift detection. The first two are imputed to 0 (no live
+# source yet — Phase 2), hence permanently out-of-distribution BY DESIGN. Discovery
+# Mode now has a manual source (s4a_song_discovery_mode) but stays excluded because
+# it is a bounded binary 0/1 flag — a z-score drift test on it is meaningless and
+# would cry wolf whenever most songs are un-opted (0).
 _IMPUTED_FEATURES = frozenset({
     "NonAlgoStreams28Days_log",
     "HowManySongsDoYouHaveInRadioRightNow",
@@ -168,9 +172,10 @@ def build_features(db, artist_id: int, song: str) -> dict:
     Calculées depuis la DB : streams, followers, catalogue, vélocité,
     DaysSinceRelease, ratio écoutes/auditeur (streams par auditeur, aligné sur
     l'entraînement), Saves (s4a_songs_global), PlaylistAdds
-    (s4a_song_playlist_adds), ReleaseConsistency (cadence médiane des sorties).
+    (s4a_song_playlist_adds), DiscoveryMode (saisie manuelle —
+    s4a_song_discovery_mode), ReleaseConsistency (cadence médiane des sorties).
     Encore imputées faute de source : NonAlgoStreams28Days (split par source —
-    Phase 2), HowManySongsDoYouHaveInRadioRightNow, DiscoveryMode (API S4A).
+    Phase 2), HowManySongsDoYouHaveInRadioRightNow.
 
     Returns:
         dict avec les 13 features + raw values pour stockage dans features_json.
@@ -195,12 +200,22 @@ def build_features(db, artist_id: int, song: str) -> dict:
     s7, s28, s_prev21, first_date = row[0]
     s7, s28, s_prev21 = int(s7 or 0), int(s28 or 0), int(s_prev21 or 0)
 
-    # DaysSinceRelease
+    # DaysSinceRelease — prefer the authoritative per-song release date from
+    # track_release_reference (matched on the normalized title). The timeline
+    # MIN(date) is unreliable: history was backfilled in one import, so every song
+    # shares the same first-appearance date. Fall back to the timeline first_date
+    # only when no reference row matches this song.
+    from datetime import date
+    _ref = db.fetch_query(
+        """SELECT release_date FROM track_release_reference
+           WHERE artist_id = %s AND match_key = %s AND release_date IS NOT NULL
+           LIMIT 1""",
+        (artist_id, normalize_track_title(song)),
+    )
+    release_basis = (_ref[0][0] if _ref and _ref[0][0] else None) or first_date
     days_since = 0
-    if first_date:
-        from datetime import date
-        delta = date.today() - first_date
-        days_since = max(0, delta.days)
+    if release_basis:
+        days_since = max(0, (date.today() - release_basis).days)
 
     # Velocity : (avg last 7d) / (avg prior 21d) — clipped [0, 5].
     # NOTE: must mirror the training feature engineering exactly (data_anon.csv
@@ -249,6 +264,15 @@ def build_features(db, artist_id: int, song: str) -> dict:
     # zone; realigned with the training definition.
     ratio = streams_global / listeners_global if listeners_global > 0 else 0.0
 
+    # --- Discovery Mode opt-in (latest manual S4A entry; default 0 = not opted in) ---
+    dm_row = db.fetch_query(
+        """SELECT opted_in FROM s4a_song_discovery_mode
+           WHERE artist_id = %s AND song = %s
+           ORDER BY recorded_at DESC LIMIT 1""",
+        (artist_id, song),
+    )
+    discovery_mode = 1.0 if (dm_row and dm_row[0][0]) else 0.0
+
     # --- Playlist adds (last 28 days) from manual S4A entries ---
     pa_row = db.fetch_query(
         """SELECT COALESCE(SUM(count), 0) FROM s4a_song_playlist_adds
@@ -279,7 +303,7 @@ def build_features(db, artist_id: int, song: str) -> dict:
         "CurrentSpotifyFollowers_log": float(np.log1p(followers)),
         "HowManySongsDoYouHaveInRadioRightNow": 0.0,   # non disponible (pas de source)
         "HowManySongsHasThisArtistEverReleased": float(n_songs),
-        "IsThisSongOptedIntoSpotifyDiscoveryMode": 0.0,  # non disponible (API S4A)
+        "IsThisSongOptedIntoSpotifyDiscoveryMode": discovery_mode,  # manual S4A entry (s4a_song_discovery_mode)
         "ReleaseConsistencyNum": float(release_consistency),
         "DaysSinceRelease": float(days_since),
         "NonAlgoStreams28Days_log": 0.0,                 # non disponible (split par source — Phase 2)

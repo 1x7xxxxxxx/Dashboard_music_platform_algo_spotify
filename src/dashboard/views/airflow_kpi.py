@@ -202,13 +202,14 @@ def _section_last_runs():
         st.error("❌ API Airflow inaccessible. Vérifiez que Docker est lancé.")
         return
 
-    # Fetch last run for every DAG in parallel (sequential calls — Airflow API)
+    # Fetch the last run of every DAG in a single batch call (was N+1: one API
+    # round-trip per DAG).
     rows = []
     with st.spinner("Récupération des dernières exécutions..."):
+        last_states = monitor.get_all_dags_last_state()
         for dag_id in dag_list:
-            runs = monitor.get_runs_for_dag(dag_id, limit=1)
-            if runs:
-                r = runs[0]
+            r = last_states.get(dag_id)
+            if r:
                 state = r.get('state') or '?'
                 icon = _STATE_ICON.get(state, '⚫')
                 start = r.get('start_date', '')
@@ -297,8 +298,13 @@ _INSERTION_TARGETS = [
 ]
 
 
+@st.fragment
 def _section_insertion_test():
-    """Vérifie directement en DB combien de lignes ont été insérées par chaque DAG."""
+    """Vérifie directement en DB combien de lignes ont été insérées par chaque DAG.
+
+    @st.fragment: the window selectbox only re-runs this section, not the whole
+    Monitoring page (which re-fetches all DAG states + KPIs on every rerun).
+    """
     st.subheader("🗄️ Test d'insertion PostgreSQL par DAG")
     st.caption(
         "Comptage direct dans les tables sources — indépendant d'Airflow. "

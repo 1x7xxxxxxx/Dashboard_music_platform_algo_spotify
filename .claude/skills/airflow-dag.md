@@ -1,5 +1,10 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-31
+    issue: "Collector DAGs lacked max_active_runs → concurrent runs (per-save auto-trigger) hit Meta throttle 80004"
+    fix: "Set max_active_runs=1 on all 8 external-API DAGs (meta/ig/soundcloud/spotify/youtube + token_refresh/ml_scoring/digest); added it to this skill's template + checklist"
+    severity: warn
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Airflow DAG
@@ -40,7 +45,18 @@ dag = DAG(
     schedule_interval="@daily",
     start_date=datetime(2024, 1, 1),
     catchup=False,
+    max_active_runs=1,                        # 5. ALWAYS — serialize runs (see below)
 )
+```
+
+**`max_active_runs=1` is mandatory.** Without it, multiple triggers (manual button,
+credential-save auto-trigger, retries, scheduler) run the SAME DAG concurrently against
+the SAME external account → instant rate-limit (e.g. Meta BUC `code 80004`). The
+dashboard auto-triggers a collector DAG on every credential save, so rapid re-saves can
+spawn N concurrent runs. `max_active_runs=1` converts that into a safe serial queue.
+
+```python
+# (template continues — operators)
 
 def collect_data(**context):
     from src.collectors.my_collector import MyCollector  # 4. imports INSIDE task function
@@ -103,6 +119,7 @@ from src.collectors.my_collector import MyCollector
 - [ ] `sys.path.insert(0, '/opt/airflow')` at top of file
 - [ ] `default_args` has all 4 mandatory keys
 - [ ] `dag_id` matches filename (without `.py`)
+- [ ] `max_active_runs=1` set (serialize — concurrent runs on the same external account throttle)
 - [ ] All `src.*` imports are inside task functions
 - [ ] `on_failure_callback` set
 - [ ] `debug_dag/debug_<name>.py` created and runnable

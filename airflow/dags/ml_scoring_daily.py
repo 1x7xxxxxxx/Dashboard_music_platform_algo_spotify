@@ -97,6 +97,7 @@ with DAG(
     schedule_interval='0 11 * * *',  # 11h00 UTC — après spotify(7h)/youtube(8h)/soundcloud(9h)/instagram(10h)
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    max_active_runs=1,  # avoid overlapping scoring runs double-writing predictions
     tags=['ml', 'scoring'],
 ) as dag:
 

@@ -13,6 +13,7 @@ from src.utils.meta_config import META_GRAPH_BASE_URL
 from ._core import (
     _PLATFORM_DAG_MAP,
     _STATE_ICON,
+    META_TOKEN_NEVER_EXPIRES,
     PLATFORM_TO_DAGS,
     _decode_row,
     _encrypt_secrets,
@@ -222,19 +223,28 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                         data = r.json()
                         if r.status_code == 200 and data.get('access_token'):
                             new_token = data['access_token']
-                            expires_in = data.get('expires_in', 5184000)
-                            new_expires = pd.Timestamp.utcnow() + pd.Timedelta(seconds=expires_in)
-                            # Save new token + expires_at
+                            # System User tokens come back with expires_in == 0 (never expire).
+                            # Default to 0 (not 60 days) so we don't stamp a false expiry.
+                            expires_in = data.get('expires_in', 0)
+                            # Save new token (expires_at handled below)
                             secrets = {f['key']: current.get(f['key'], '') for f in fields_def_meta if f['secret']}
                             secrets['access_token'] = new_token
                             encrypted_blob = _encrypt_secrets(secrets)
                             _save_credentials(db, artist_id, 'meta', encrypted_blob,
                                               {f['key']: current.get(f['key'], '') for f in fields_def_meta if not f['secret']})
-                            db.execute_query(
-                                "UPDATE artist_credentials SET expires_at = %s WHERE artist_id = %s AND platform = 'meta'",
-                                (new_expires.to_pydatetime(), artist_id)
-                            )
-                            st.success(f"✅ Token renouvelé — expire le {new_expires.strftime('%d/%m/%Y')} ({expires_in // 86400} jours)")
+                            if expires_in and expires_in > 0:
+                                new_expires = pd.Timestamp.utcnow() + pd.Timedelta(seconds=expires_in)
+                                db.execute_query(
+                                    "UPDATE artist_credentials SET expires_at = %s WHERE artist_id = %s AND platform = 'meta'",
+                                    (new_expires.to_pydatetime(), artist_id)
+                                )
+                                st.success(f"✅ Token renouvelé — expire le {new_expires.strftime('%d/%m/%Y')} ({expires_in // 86400} jours)")
+                            else:
+                                db.execute_query(
+                                    "UPDATE artist_credentials SET expires_at = NULL WHERE artist_id = %s AND platform = 'meta'",
+                                    (artist_id,)
+                                )
+                                st.success("✅ Token enregistré — n'expire pas (System User).")
                             st.rerun()
                         else:
                             err = data.get('error', {})
@@ -273,7 +283,16 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 extra.get('app_id', ''),
                 secrets.get('app_secret', ''),
             )
-            if expiry:
+            if expiry == META_TOKEN_NEVER_EXPIRES:
+                # System User token — never expires. NULL so meta_token_refresh skips it
+                # (Brick 24) instead of attempting a pointless fb_exchange_token.
+                db.execute_query(
+                    "UPDATE artist_credentials SET expires_at = NULL "
+                    "WHERE artist_id = %s AND platform = 'meta'",
+                    (artist_id,),
+                )
+                st.info("ℹ️ Token System User détecté — n'expire pas, aucun renouvellement requis.")
+            elif expiry:
                 db.execute_query(
                     "UPDATE artist_credentials SET expires_at = %s "
                     "WHERE artist_id = %s AND platform = 'meta'",

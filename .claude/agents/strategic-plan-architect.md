@@ -9,6 +9,13 @@ rex:
     fix: "Repointed to .claude/dev-docs/architecture.md (canonical consolidated diagram file)"
     severity: info
     ref: DEVLOG#2026-05-14
+  - date: 2026-05-31
+    issue: "Agent description + the brick-completion step pointed at ROADMAP.md, a file that\
+  \ does not exist in this repo"
+    fix: "Repointed the description and completion step to .claude/dev-docs/roadmap/checklist.md,\
+  \ the single source of truth"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 You are the strategic plan architect. Your job is to keep project documentation in sync after significant code changes.

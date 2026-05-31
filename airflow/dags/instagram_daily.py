@@ -94,6 +94,7 @@ with DAG(
     schedule_interval='0 10 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    max_active_runs=1,  # concurrent runs hammer the same Meta/IG Graph API → throttle
     tags=['social', 'instagram']
 ) as dag:
 

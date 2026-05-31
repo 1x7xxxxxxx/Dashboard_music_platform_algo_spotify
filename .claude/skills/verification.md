@@ -3,7 +3,13 @@ name: verification
 description: "Iron law + 4-phase gate. Use before any completion claim and after any non-trivial code change."
 origin: superpowers + ECC (generic)
 date_added: "2026-04-18"
-rex: []
+rex:
+  - date: 2026-05-31
+    issue: "Verification trigger referenced moving a brick to Completed in ROADMAP.md, a nonexistent\
+  \ file here"
+    fix: "Repointed to checking off a brick as completed in .claude/dev-docs/roadmap/checklist.md"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Verification

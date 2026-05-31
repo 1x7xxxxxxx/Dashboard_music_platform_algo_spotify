@@ -1183,3 +1183,33 @@ Audit roadmap/déploiement demandé. Découvert que `/resume`, `/sprint`, `/adr`
 
 ### Tests
 `python3 -m pytest tests/ -q` → **285 passed, 1 skipped**. `session_summary.py` AST OK + ruff clean après fix E741. `validate_rex.py` clean (48 tools). `checklist.md` inchangée (md5 == HEAD).
+
+---
+
+## 2026-05-31 (suite 2) — Backlog "tout ce qu'on peut faire" : tracks multi-tenant, perf batch, render-smoke harness, Discovery Mode
+
+### Why
+Après `/resume`, balayage de tous les items checklist actionnables **sans dépendance live** (DAG re-trigger, artefacts ML, capture S4A Phase-2 = exclus). Priorité P2 → P3 → P4, chaque lot vérifié (ruff + pytest) avant le suivant.
+
+### What changed
+
+**P2 — `tracks` → multi-tenant (fuite cross-tenant fermée).** `migrations/039_tracks_multi_tenant.sql` : `saas_artists.spotify_artist_id` (pont) + `tracks.saas_artist_id` FK + index, **auto-bridge idempotent non-ambigu** (1 seul tenant actif ⊗ 1 seul `artist_id` distinct → lien auto ; no-op dès qu'un 2e tenant existe). Appliqué au live (saas id=1 ← `7sbfafbLjNZGZJZjZ3xoPB`, 11 tracks). Writer `spotify_api_daily.collect_spotify_top_tracks` résout + stampe `saas_artist_id` (warn si non-ponté). 4 readers filtrés par tenant : `spotify_s4a_combined` ×3, `trigger_algo` ×2 (branche admin laissée non-filtrée), `meta_x_spotify` ×1 ; admin (None) = pas de filtre. `init_db.sql` MAJ. Varchar `tracks.artist_id` legacy conservé (drop dans un cycle ultérieur). `audit-tracks-legacy.md` marqué RESOLVED.
+
+**P3 perf.** (1) `@st.cache_data(ttl=60)` sur 8 getters read-only de `kpi_helpers.py` — handle DB passé en `_db` (underscore → exclu de la clé de cache, clé = artist_id ; aucun caller Airflow → décorateur sûr). (2) **N+1 Airflow** : nouveau `AirflowMonitor.get_all_dags_last_state()` = 1 POST batch `~/dagRuns/list` (vs ~15 appels), fallback per-DAG si endpoint indispo ; 3 callers repointés (`airflow_kpi`, `home`, `credentials/_core`). Non smoke-testé live (webserver Airflow down) — le fallback garantit la correction. (3) `@st.fragment` sur `home._section_pdf_export` + `airflow_kpi._section_insertion_test` (rerun isolé). (4) Downsampling >500 pts du cumulatif S4A (`spotify_s4a_combined`, dernier point conservé). (5) `SELECT *` → littéral dans le CTE `apple_music` ; `data_wrapped` gardé générique **par design** (`.to_dict()` + colonnes dynamiques, cf. DEVLOG#2026-05-29). **Lazy imports DÉ-PRIORISÉ** (pas bloqué) : `app.py` charge déjà les vues lazy par page → déplacer `import plotly` dans `show()` gagne ≈0, et le bundle JS domine le cold start.
+
+**P3 ML — `DaysSinceRelease`.** `ml_inference.build_features` résout la date de sortie **par chanson** depuis `track_release_reference` (match sur `normalize_track_title`), fallback timeline `MIN(date)` uniquement sans match (le backfill one-shot donnait la même first-appearance à tous les titres). Vérifié end-to-end.
+
+**NOUVEAU — harnais render-smoke.** `tests/test_views_render_smoke.py` : `AppTest`-exécute les `show()` des **36 vues** (session admin, DB live), assert "aucune exception". Comble le trou "zéro couverture render" (classe de régression qui passait au vert, cf. WAVE 3). Skip module si Postgres injoignable (CI sans DB). 36 pass en ~13 s. C'est ce harnais qui a dé-risqué les `@st.fragment` ci-dessus.
+
+**Phase-2 ML — Discovery Mode (un-impute feature).** `migrations/040_s4a_song_discovery_mode.sql` (table calquée sur `s4a_song_playlist_adds`, opt-in daté par chanson) + `init_db.sql` + `_ALLOWED_TABLES`. `build_features` source `IsThisSongOptedIntoSpotifyDiscoveryMode` depuis la dernière saisie (défaut 0.0). `trigger_algo` : metric "🔭 Discovery Mode" + formulaire opt-in manuel. Gardé dans `_IMPUTED_FEATURES` (exclu du drift — flag binaire, z-score sans sens). End-to-end vérifié (feature 0→1 à l'opt-in). Reste imputés : `NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow` (Phase-2).
+
+**REX.** `/rex-promote` : 4 entrées injectées (`strategic-plan-architect`, `dev-docs`, `rex-format`, `verification`) reconstruites depuis le diff `2d7a84f` (repoint ROADMAP.md→checklist.md) ; 4 drafts droppés (doublons — adr/resume/sprint/session_summary avaient déjà une entrée 2026-05-31). Validator : 48 tools OK.
+
+### Tests
+`python3 -m pytest tests/ -q` → **321 passed, 1 skipped** (285 + 36 render-smoke). `ruff check src/ tests/` clean. Migrations 039 + 040 appliquées au live + vérifiées (backfill, feature flip). `validate_rex.py` → 48 tools, 0 erreur.
+
+### Reste à faire (bloqué / hors-scope headless)
+- **Live infra** : confirmation re-trigger DAG Meta/SoundCloud, backfill Meta Ads (Airflow webserver down).
+- **Artefacts/data externes** : courbe calibration RR, re-seed benchmark, items Phase-2 capture/retrain.
+- **À scoper, pas à bricoler à l'aveugle** : Meta per-chunk insight persistence + rename-guard `campaign_name` (collecteur throttle-sensible, compte de test throttlé).
+- **Faible valeur** : pagination admin/etl_logs (gain ~nul à la taille actuelle).

@@ -1,6 +1,14 @@
 """Fonctions KPI réutilisables par toutes les views du dashboard."""
 from datetime import datetime
 
+import streamlit as st
+
+# Read-only metadata getters below are wrapped in @st.cache_data(ttl=60). The DB
+# handle is passed as `_db` (leading underscore) so Streamlit excludes the
+# unhashable connection from the cache key — entries are keyed on artist_id only.
+# 60s TTL: pure read metadata, no behavioural change, saves repeat round-trips on
+# re-render. kpi_helpers is imported only by Streamlit views (no Airflow caller).
+
 
 # Seuils de fraîcheur (en heures)
 _FRESH_H = 24
@@ -78,12 +86,14 @@ _ALLOWED_COLS       = frozenset(s["col"]        for s in SOURCES_CONFIG)
 _ALLOWED_ARTIST_COLS = frozenset(s["artist_col"] for s in SOURCES_CONFIG if s.get("artist_col"))
 
 
-def get_source_freshness(db, artist_id):
+@st.cache_data(ttl=60)
+def get_source_freshness(_db, artist_id):
     """Return {label: {icon, last_dt}} for each source in a single UNION ALL query.
 
     Replaces 7 sequential SELECT MAX() calls with one round-trip.
     Identifiers are validated against allowlists before interpolation.
     """
+    db = _db
     # Validate all identifiers against allowlists before building the query
     for src in SOURCES_CONFIG:
         if src["table"] not in _ALLOWED_TABLES:
@@ -144,8 +154,10 @@ def freshness_status(last_dt):
 
 # ─── KPI Streams ────────────────────────────────────────────────────────────
 
-def get_total_streams_s4a(db, artist_id):
+@st.cache_data(ttl=60)
+def get_total_streams_s4a(_db, artist_id):
     """Total streams Spotify S4A (dédupliqué par MAX/jour/chanson)."""
+    db = _db
     try:
         if artist_id is not None:
             q = """
@@ -172,8 +184,10 @@ def get_total_streams_s4a(db, artist_id):
         return 0
 
 
-def get_total_views_youtube(db, artist_id):
+@st.cache_data(ttl=60)
+def get_total_views_youtube(_db, artist_id):
     """Total vues YouTube (compteur global chaîne, dernière valeur)."""
+    db = _db
     try:
         if artist_id is not None:
             q = "SELECT view_count FROM youtube_channel_history WHERE artist_id = %s ORDER BY collected_at DESC LIMIT 1"
@@ -186,8 +200,10 @@ def get_total_views_youtube(db, artist_id):
         return 0
 
 
-def get_total_plays_soundcloud(db, artist_id):
+@st.cache_data(ttl=60)
+def get_total_plays_soundcloud(_db, artist_id):
     """Total plays SoundCloud (dernière snapshot disponible)."""
+    db = _db
     try:
         if artist_id is not None:
             q = """
@@ -213,8 +229,10 @@ def get_total_plays_soundcloud(db, artist_id):
         return 0
 
 
-def get_total_plays_apple(db, artist_id):
+@st.cache_data(ttl=60)
+def get_total_plays_apple(_db, artist_id):
     """Total plays Apple Music."""
+    db = _db
     try:
         if artist_id is not None:
             row = db.fetch_query(
@@ -230,8 +248,10 @@ def get_total_plays_apple(db, artist_id):
 
 # ─── KPI ML ─────────────────────────────────────────────────────────────────
 
-def get_spotify_popularity(db, artist_id):
+@st.cache_data(ttl=60)
+def get_spotify_popularity(_db, artist_id):
     """Score de popularité Spotify (dernier enregistrement)."""
+    db = _db
     try:
         if artist_id is not None:
             row = db.fetch_query(
@@ -249,8 +269,10 @@ def get_spotify_popularity(db, artist_id):
     return None
 
 
-def get_instagram_followers(db, artist_id):
+@st.cache_data(ttl=60)
+def get_instagram_followers(_db, artist_id):
     """Nombre d'abonnés Instagram (dernier snapshot)."""
+    db = _db
     try:
         if artist_id is not None:
             row = db.fetch_query(
@@ -269,8 +291,10 @@ def get_instagram_followers(db, artist_id):
     return None
 
 
-def get_soundcloud_likes(db, artist_id):
+@st.cache_data(ttl=60)
+def get_soundcloud_likes(_db, artist_id):
     """Total likes SoundCloud (dernière snapshot)."""
+    db = _db
     try:
         if artist_id is not None:
             q = """

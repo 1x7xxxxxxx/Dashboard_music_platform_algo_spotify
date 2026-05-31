@@ -1,5 +1,12 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-31
+    issue: "/dev-docs listed ROADMAP.md as the master tracker, a file that does not exist in\
+  \ this repo"
+    fix: "Repointed to .claude/dev-docs/roadmap/checklist.md as the single source of truth\
+  \ (there is no ROADMAP.md)"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 Generate the documentation trio for a new feature/brick, to preserve context across conversation compaction.

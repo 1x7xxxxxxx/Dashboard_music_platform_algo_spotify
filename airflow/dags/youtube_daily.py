@@ -119,7 +119,7 @@ def collect_youtube_data(**context):
                         data['channel_stats']['collected_at'],
                     )
                 )
-                logger.info(f'  Channel + history stored')
+                logger.info('  Channel + history stored')
 
             if data['videos']:
                 videos_with_artist = [{**v, 'artist_id': saas_artist_id} for v in data['videos']]
@@ -192,9 +192,10 @@ with DAG(
     schedule_interval='0 8 * * *',  # Daily 08:00 UTC (10:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
+    max_active_runs=1,  # serialize external-API collection to protect the daily YouTube quota
     tags=['youtube', 'api', 'production'],
 ) as dag:
-    
+
     collect_task = PythonOperator(
         task_id='collect_youtube_data',
         python_callable=collect_youtube_data,

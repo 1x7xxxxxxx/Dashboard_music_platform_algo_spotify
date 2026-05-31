@@ -107,11 +107,12 @@ def _fetch_dag_last_states() -> dict:
         from src.dashboard.utils.airflow_monitor import AirflowMonitor
         monitor = AirflowMonitor()
         all_ids = {d for dags in PLATFORM_TO_DAGS.values() for d in dags}
+        # Single batch call for all DAGs' latest run (was N+1: one call per DAG).
+        last_states = monitor.get_all_dags_last_state()
         result = {}
         for dag_id in all_ids:
-            runs = monitor.get_runs_for_dag(dag_id, limit=1)
-            if runs:
-                r = runs[0]
+            r = last_states.get(dag_id)
+            if r:
                 result[dag_id] = {
                     'state': r.get('state'),
                     'date': (r.get('start_date') or '')[:16] or '—',
@@ -201,10 +202,21 @@ def _save_credentials(db, artist_id: int, platform: str,
     )
 
 
-def _fetch_meta_token_expiry(token: str, app_id: str, app_secret: str) -> datetime | None:
-    """Appelle /debug_token pour récupérer la vraie date d'expiration du token Meta.
+# Sentinel returned by _fetch_meta_token_expiry for never-expiring tokens.
+META_TOKEN_NEVER_EXPIRES = "never"
 
-    Non bloquant : retourne None si l'appel échoue (réseau, secrets manquants).
+
+def _fetch_meta_token_expiry(token: str, app_id: str, app_secret: str):
+    """Appelle /debug_token pour récupérer la date d'expiration du token Meta.
+
+    Non bloquant. Returns one of three states:
+      - datetime                    → real expiry (personal long-lived token)
+      - META_TOKEN_NEVER_EXPIRES    → never expires (System User token, expires_at==0)
+      - None                        → could not determine (network / missing secrets)
+
+    The caller must map META_TOKEN_NEVER_EXPIRES → set expires_at NULL (so the weekly
+    refresh DAG skips it), NOT to a warning. Conflating "never expires" with "unknown"
+    is what left a stale/false 60-day expiry on System User tokens.
     """
     if not token or not app_id or not app_secret:
         return None
@@ -220,6 +232,9 @@ def _fetch_meta_token_expiry(token: str, app_id: str, app_secret: str) -> dateti
         )
         data = r.json().get('data', {})
         expires_at = data.get('expires_at')  # Unix timestamp, 0 = never-expiring System token
+        # System User tokens never expire: debug_token reports expires_at==0 and/or type.
+        if data.get('type') == 'SYSTEM_USER' or expires_at == 0:
+            return META_TOKEN_NEVER_EXPIRES
         if expires_at and expires_at > 0:
             return datetime.utcfromtimestamp(expires_at)
     except Exception:

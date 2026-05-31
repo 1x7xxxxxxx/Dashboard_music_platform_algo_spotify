@@ -136,7 +136,8 @@ def show():
                     FROM apple_songs_history
                     WHERE artist_id = %s AND song_name IN ({placeholders})
                 )
-                SELECT * FROM daily_diff
+                SELECT date, song_name, plays, shazam_count, daily_streams, daily_shazams
+                FROM daily_diff
                 WHERE daily_streams IS NOT NULL {frag}
                 ORDER BY date
             """

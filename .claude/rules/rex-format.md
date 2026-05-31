@@ -15,6 +15,12 @@ rex:
   \ (date, char limits, severity, target dirs) still enforced by validate_rex.py"
     severity: "info"
     ref: "DEVLOG#2026-05-14"
+  - date: 2026-05-31
+    issue: "Counter-example routed cross-cutting decisions to ROADMAP.md (nonexistent); ADRs\
+  \ actually live in docs/adr/"
+    fix: "Repointed: transverse decisions go to docs/adr/ as ADR-0NN; single source is roadmap/checklist.md"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # REX format — {{PROJECT_NAME}} Claude Code config

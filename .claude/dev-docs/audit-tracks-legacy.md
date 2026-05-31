@@ -1,5 +1,11 @@
 # Audit — `tracks` legacy table (multi-tenant non-conformance)
 
+> **RESOLVED 2026-05-31** — `migrations/039_tracks_multi_tenant.sql` implemented the
+> recommended path below (bridge column + `saas_artist_id` FK + backfill; 4 readers and
+> the writer updated). The legacy varchar `tracks.artist_id` is kept for now and will be
+> dropped in a later release cycle once no caller depends on it. This doc is retained as
+> the design rationale.
+
 Generated 2026-05-14 after `meta_mapping.py` crashed with `operator does not exist: character varying = integer`.
 
 ## Schema

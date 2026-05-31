@@ -20,6 +20,14 @@ def show():
     db = get_db_connection()
     artist_frag, artist_params = artist_id_sql_filter()
 
+    # `tracks` is keyed by the SaaS integer `saas_artist_id` (migration 039), a
+    # different column than the generic `artist_id` filter above. Admin (None) =
+    # no filter (sees all tenants).
+    _aid = get_artist_id()
+    _track_frag = "AND saas_artist_id = %s" if _aid is not None else ""
+    _track_join_frag = "AND tk.saas_artist_id = %s" if _aid is not None else ""
+    _track_params = (_aid,) if _aid is not None else ()
+
     # ============================================================================
     # 1. RÉCUPÉRATION DES DONNÉES GLOBALES (DÉDUPLIQUÉES)
     # ============================================================================
@@ -138,7 +146,9 @@ def show():
     col1, col2 = st.columns(2)
     today = datetime.now().date()
     try:
-        _rd_rows = db.fetch_query("SELECT MAX(release_date) FROM tracks")
+        _rd_rows = db.fetch_query(
+            f"SELECT MAX(release_date) FROM tracks WHERE 1=1 {_track_frag}", _track_params
+        )
         _latest_release = _rd_rows[0][0] if _rd_rows and _rd_rows[0][0] else (today - timedelta(days=365))
     except Exception:
         _latest_release = today - timedelta(days=365)
@@ -203,6 +213,14 @@ def show():
         if not df_cum.empty:
             df_cum['date'] = pd.to_datetime(df_cum['date'])
             df_cum['value'] = df_cum['value'].cumsum()
+            # Downsample very long series before plotting (cumulative is monotonic,
+            # so every-Nth-point preserves the shape). Always keep the last point
+            # so the final cumulative total is never understated.
+            if len(df_cum) > 500:
+                step = len(df_cum) // 500
+                df_cum = pd.concat(
+                    [df_cum.iloc[::step], df_cum.iloc[[-1]]]
+                ).drop_duplicates(subset='date')
             fig_cum = px.area(
                 df_cum, x='date', y='value',
                 color_discrete_sequence=['#1DB954'],
@@ -232,9 +250,9 @@ def show():
             WHERE song NOT ILIKE %s {artist_frag}
             GROUP BY song
         ) t
-        LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+        LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song {_track_join_frag}
         ORDER BY tk.release_date DESC NULLS LAST, t.song
-    """, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
+    """, (f"%{ARTIST_NAME_FILTER}%", *artist_params, *_track_params))
 
     if not songs_list.empty:
         col1, col2 = st.columns([2, 3])
@@ -244,8 +262,8 @@ def show():
 
         try:
             _sr = db.fetch_query(
-                "SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s LIMIT 1",
-                (selected_song,)
+                f"SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s {_track_frag} LIMIT 1",
+                (selected_song, *_track_params)
             )
             song_release_date = _sr[0][0] if _sr and _sr[0][0] else (today - timedelta(days=365))
         except Exception:

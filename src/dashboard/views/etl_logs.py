@@ -138,6 +138,20 @@ def _section_run_history(db):
         st.info("Aucun run correspondant.")
         return
 
+    # Honest truncation notice — the LIMIT 200 above silently hides older runs,
+    # which reads as "all runs shown" when the table has grown past 200.
+    if len(df) >= 200:
+        _total_row = db.fetch_query(
+            f"SELECT COUNT(*) FROM etl_run_log WHERE {where}",
+            tuple(params) if params else None,
+        )
+        _total = _total_row[0][0] if _total_row else len(df)
+        if _total > len(df):
+            st.caption(
+                f"⚠️ Affichage des 200 runs les plus récents sur {_total:,} au total — "
+                "affinez via les filtres ci-dessus."
+            )
+
     # Format columns
     df['started_at'] = pd.to_datetime(df['started_at']).dt.strftime('%d/%m %H:%M')
     df['duration'] = df['duration_ms'].apply(

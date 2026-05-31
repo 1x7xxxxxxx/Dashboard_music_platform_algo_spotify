@@ -10,13 +10,16 @@ def _default_campaign_index(db, artist_id, available_campaigns: list) -> int:
     """Index of the campaign mapped to the most recent release (else 0)."""
     if not available_campaigns:
         return 0
+    # tracks is tenant-scoped by saas_artist_id (migration 039); admin (None) = no filter.
+    _track_frag = "AND t.saas_artist_id = %s" if artist_id is not None else ""
+    _params = (available_campaigns,) if artist_id is None else (available_campaigns, artist_id)
     try:
         rows = db.fetch_query(
             "SELECT m.campaign_name FROM campaign_track_mapping m "
             "JOIN tracks t ON TRIM(t.track_name) = TRIM(m.track_name) "
-            "WHERE m.campaign_name = ANY(%s) "
+            f"WHERE m.campaign_name = ANY(%s) {_track_frag} "
             "ORDER BY t.release_date DESC NULLS LAST LIMIT 1",
-            (available_campaigns,),
+            _params,
         )
         if rows and rows[0][0] in available_campaigns:
             return available_campaigns.index(rows[0][0])

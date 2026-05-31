@@ -39,7 +39,6 @@ default_args = {
 
 def send_weekly_digest(**context):
     """Build and send one digest email per active artist."""
-    import os
     from src.database.postgres_handler import PostgresHandler
     from src.utils.credential_loader import get_active_artists
     from src.utils.email_alerts import EmailAlert
@@ -274,6 +273,7 @@ with DAG(
     schedule_interval='0 8 * * 1',  # Every Monday at 08:00 UTC
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    max_active_runs=1,  # avoid concurrent runs sending duplicate digest emails
     tags=['email', 'digest', 'monitoring'],
 ) as dag:
 

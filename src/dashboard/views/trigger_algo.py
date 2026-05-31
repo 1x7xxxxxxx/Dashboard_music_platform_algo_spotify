@@ -800,6 +800,60 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
                 except Exception as exc:
                     st.error(f"Erreur : {exc}")
 
+    # ── Discovery Mode (saisie manuelle) ─────────────────────────────────────
+    # S4A-UI-only signal (no API). Un-impute le feature ML
+    # IsThisSongOptedIntoSpotifyDiscoveryMode (sinon imputé à 0).
+    st.subheader("🔭 Discovery Mode")
+    try:
+        dm_row = db.fetch_query(
+            "SELECT opted_in, recorded_at FROM s4a_song_discovery_mode "
+            "WHERE artist_id = %s AND song = %s "
+            "ORDER BY recorded_at DESC LIMIT 1",
+            (artist_id, track),
+        ) if artist_id else db.fetch_query(
+            "SELECT opted_in, recorded_at FROM s4a_song_discovery_mode "
+            "WHERE song = %s ORDER BY recorded_at DESC LIMIT 1",
+            (track,),
+        )
+        current_dm = bool(dm_row[0][0]) if dm_row and dm_row[0][0] is not None else False
+        dm_recorded = dm_row[0][1] if dm_row else None
+    except Exception:
+        current_dm = False
+        dm_recorded = None
+
+    st.metric(
+        "Discovery Mode",
+        "Activé" if current_dm else "Désactivé",
+        help=f"Dernier relevé : {dm_recorded or '—'}. Visible dans Spotify for Artists "
+             "uniquement — à saisir manuellement. Alimente la prédiction ML.",
+    )
+
+    if artist_id:
+        with st.expander("✏️ Mettre à jour", expanded=False):
+            with st.form(key=f"dm_form_{track}_{artist_id}", clear_on_submit=False):
+                dc1, dc2 = st.columns([2, 1])
+                new_dm = dc1.checkbox("Opt-in Discovery Mode pour cette track", value=current_dm)
+                dm_date = dc2.date_input("Date de relevé", value=date_to, format="YYYY-MM-DD")
+                if st.form_submit_button("Enregistrer", type="primary"):
+                    try:
+                        db.upsert_many(
+                            table='s4a_song_discovery_mode',
+                            data=[{
+                                'artist_id':   artist_id,
+                                'song':        track,
+                                'recorded_at': dm_date,
+                                'opted_in':    bool(new_dm),
+                            }],
+                            conflict_columns=['artist_id', 'song', 'recorded_at'],
+                            update_columns=['opted_in', 'collected_at'],
+                        )
+                        st.success(
+                            f"Discovery Mode {'activé' if new_dm else 'désactivé'} au {dm_date}."
+                        )
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Erreur : {exc}")
+
     st.markdown("---")
 
     # Score /20 benchmark
@@ -2095,8 +2149,9 @@ def show():
                        FROM (SELECT song FROM s4a_song_timeline
                              WHERE song NOT ILIKE %s AND artist_id = %s GROUP BY song) t
                        LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+                                              AND tk.saas_artist_id = %s
                        ORDER BY tk.release_date DESC NULLS LAST, t.song""",
-                    ("%1x7xxxxxxx%", artist_id)
+                    ("%1x7xxxxxxx%", artist_id, artist_id)
                 )["song"].tolist()
             else:
                 tracks = db.fetch_df(
@@ -2120,11 +2175,14 @@ def show():
         with sel1:
             selected_track = st.selectbox("🎵 Titre", tracks)
 
-        # Fetch release_date of selected track via tracks table (same '?' → '_' normalisation)
+        # Fetch release_date of selected track via tracks table (same '?' → '_' normalisation).
+        # tracks is tenant-scoped by saas_artist_id (migration 039); admin (None) = no filter.
+        _track_frag = "AND saas_artist_id = %s" if artist_id else ""
+        _track_params = (artist_id,) if artist_id else ()
         try:
             rd_rows = db.fetch_query(
-                "SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s LIMIT 1",
-                (selected_track,)
+                f"SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s {_track_frag} LIMIT 1",
+                (selected_track, *_track_params)
             )
             track_release_date = rd_rows[0][0] if rd_rows and rd_rows[0][0] else (today - timedelta(days=28))
         except Exception:
