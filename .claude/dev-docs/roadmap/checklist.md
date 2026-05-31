@@ -403,11 +403,13 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 - [x] **Phase strategy + Discovery Mode protocol + variable hierarchy** — `_show_phase_strategy`, `_show_discovery_mode_protocol`, `_show_feature_importance` (gain-ranked) in trigger_algo. ✅ 2026-05-31
 - [x] **ML KPI gaps** — LIME local explanation (`_show_lime_explanation` + lime_background.json + `lime` dep), Meta-lever scoring on real Meta perf (`_show_meta_lever_scoring`), calibrated budget-to-trigger (`_TRIGGER_STREAM_TARGETS`), PI-driven breakeven (`_show_pi_breakeven`). 6/7 requested graphs already existed. ✅ 2026-05-31
 - [x] **PI line + 28d gate** — Popularity Index added to the main algos chart; `_GATE_28D` + `_show_28d_gate` (28d streams/listeners vs validated per-algo thresholds, DW 9200/4100). ✅ 2026-05-31
+- [x] **Drift surface + alerting** — `_show_drift_status` (OOD features per track, Explainabilité tab) + `check_drift_anomalies` task in alert_monitor (systemic drift >50% of predictions → email). `check_drift` now excludes the imputed features (permanently OOD by design). ✅ 2026-05-31
 
 ## Long-term ML hardening (roadmap)
 
-- [ ] **Phase-2 data acquisition** — 3 model features still imputed-to-0 (`NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow`, `DiscoveryMode`); caps model precision + snowball/resurrection. Needs the S4A source split (organic vs algo streams) + Discovery Mode status (artist input or S4A API). **Highest-leverage long-term item.**
+- [ ] **Phase-2 data acquisition** — 2 model features still imputed-to-0 (`NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow`); cap model precision + snowball/resurrection. Needs the S4A source split (organic vs algo streams) + a real radio-count source. **Highest-leverage long-term item.**
+- [ ] **Discovery Mode manual input** — cheapest Phase-2 win: `IsThisSongOptedIntoSpotifyDiscoveryMode` is artist-controlled, so a manual per-song input (like playlist_adds) un-imputes it without any external API. Marginal SHAP weight (rank 13) → low priority but trivially unblockable.
 - [ ] **More training data + per-tenant evaluation** — model trained on N=508 / 102 test (single anonymised set). Accumulate live labelled data; evaluate generalisation across tenants before trusting absolute probabilities.
-- [ ] **Drift dashboard surface + alerting** — `check_drift` currently only logs in the DAG; surface a drift badge in the Model tab and route persistent drift into `alert_monitor`.
+- [ ] **Automated retraining on live outcomes** — `data_anon.csv` is a one-time snapshot; once `ml_song_predictions` accrues real trigger outcomes, retrain on live per-tenant data (MLOps: outcome labelling + scheduled retrain + champion/challenger).
 - [ ] **RR volume regressor** — suppressed (R²≈0.55 on 28d target, notification-CTR noise). Revisit once Phase-2 features land; stays classification-only meanwhile.
 - [ ] **Resurrection tuning** — thresholds in `detect_saves_resurrection` (min_age 180d, 2x baseline, min_spark 50) are heuristic; recalibrate once real saves history exists.

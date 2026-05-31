@@ -241,6 +241,50 @@ def check_resurrection_sparks(**context):
     return sparks
 
 
+def check_drift_anomalies(**context):
+    """Flag SYSTEMIC ML input drift: a feature out-of-distribution across most of the
+    latest predictions usually means a data-pipeline break (the model extrapolates
+    blindly). Reuses ml_inference.check_drift; a feature drifting in >50% of songs
+    is surfaced in the consolidated email.
+    """
+    import json as _json
+    from collections import Counter
+
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.ml_inference import check_drift
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    counter, total = Counter(), 0
+    try:
+        rows = db.fetch_query(
+            """SELECT features_json FROM ml_song_predictions
+               WHERE prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions)
+                 AND features_json IS NOT NULL"""
+        )
+        for (fj,) in (rows or []):
+            try:
+                feats = _json.loads(fj) if isinstance(fj, str) else fj
+            except (ValueError, TypeError):
+                continue
+            total += 1
+            for f in check_drift(feats):
+                counter[f] += 1
+    finally:
+        db.close()
+
+    systemic = [{'feature': f, 'count': c, 'total': total}
+                for f, c in counter.items() if total and c / total > 0.5]
+    logger.info(f"Drift check: {len(systemic)} systemic drift(s) over {total} predictions")
+    context['task_instance'].xcom_push(key='drift_anomalies', value=systemic)
+    return systemic
+
+
 # ─────────────────────────────────────────────────────────────────
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
@@ -254,9 +298,10 @@ def send_consolidated_alert(**context):
     freshness = ti.xcom_pull(task_ids='check_data_freshness', key='freshness_results') or []
     missing_creds = ti.xcom_pull(task_ids='check_credentials_all', key='missing_credentials') or []
     sparks = ti.xcom_pull(task_ids='check_resurrection_sparks', key='resurrection_sparks') or []
+    drift = ti.xcom_pull(task_ids='check_drift_anomalies', key='drift_anomalies') or []
 
     stale_sources = [r for r in freshness if r['stale']]
-    has_issues = failing_dags or stale_sources or missing_creds or sparks
+    has_issues = failing_dags or stale_sources or missing_creds or sparks or drift
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -394,6 +439,20 @@ def send_consolidated_alert(**context):
           <tbody>{rows}</tbody>
         </table>""")
 
+    # Section: systemic ML input drift (data-pipeline health)
+    if drift:
+        items = ''.join(
+            f"<li><b>{d['feature']}</b> — hors distribution sur "
+            f"{d['count']}/{d['total']} prédictions</li>" for d in drift
+        )
+        sections.append(f"""
+        <h2 style="color:#e67e22;border-left:4px solid #e67e22;padding-left:10px">
+          📉 Drift d'entrée ML ({len(drift)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Variable(s) hors de l'enveloppe d'entraînement
+          sur la majorité des prédictions — vérifier le pipeline de features S4A.</p>
+        <ul style="font-size:0.9em">{items}</ul>""")
+
     # OK sources footer
     ok_sources = [r['source'] for r in freshness if not r['stale']]
     ok_line = ''
@@ -423,6 +482,8 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"{len(missing_creds)} credential(s) manquant(s)")
     if sparks:
         subject_parts.append(f"✨ {len(sparks)} résurrection(s)")
+    if drift:
+        subject_parts.append(f"📉 {len(drift)} drift(s)")
 
     subject = ' | '.join(subject_parts)
     EmailAlert().send_alert(subject, body)
@@ -464,10 +525,15 @@ with DAG(
         python_callable=check_resurrection_sparks,
     )
 
+    t_drift = PythonOperator(
+        task_id='check_drift_anomalies',
+        python_callable=check_drift_anomalies,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
         trigger_rule='all_done',
     )
 
-    [t_creds, t_failures, t_freshness, t_resurrection] >> t_alert
+    [t_creds, t_failures, t_freshness, t_resurrection, t_drift] >> t_alert

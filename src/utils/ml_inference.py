@@ -102,16 +102,29 @@ def _calibrate(algo: str, p_raw):
     return float(1.0 / (1.0 + np.exp(-z)))
 
 
+# Features imputed to 0 at inference (no live source yet — Phase 2). They are
+# permanently out-of-distribution BY DESIGN, so they are excluded from drift
+# detection (already surfaced by the imputation caveat) to avoid crying wolf.
+_IMPUTED_FEATURES = frozenset({
+    "NonAlgoStreams28Days_log",
+    "HowManySongsDoYouHaveInRadioRightNow",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode",
+})
+
+
 def check_drift(features: dict, z_max: float = 4.0) -> list:
     """Liste des features live hors de la distribution d'entraînement (|z| > z_max).
 
     Compare aux stats figées dans metrics.json (feature_stats). Monitoring : un
-    modèle entraîné sur N=508 extrapole mal hors enveloppe. Retourne [] si stats
+    modèle entraîné sur N=508 extrapole mal hors enveloppe. Les features imputées
+    (Phase 2) sont exclues — toujours OOD par construction. Retourne [] si stats
     absentes ou tout en distribution.
     """
     stats = _load_json("metrics.json").get("feature_stats", {})
     drifted = []
     for col, s in stats.items():
+        if col in _IMPUTED_FEATURES:
+            continue
         val = features.get(col)
         std = s.get("std") or 0.0
         if val is None or std <= 0:

@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-05-31 — WAVE 13: drift surface + alert (completes the WAVE 9 drift foundation)
+
+### Why
+The WAVE 9 drift foundation (`check_drift`) only logged in the scoring DAG. Completed it — the
+buildable long-term fix — and roadmapped the rest (genuinely data-blocked: Phase-2 sources, more
+training data, per-tenant eval, automated retraining).
+
+### What changed
+- `src/dashboard/views/trigger_algo.py`: `_show_drift_status` in the Explainabilité tab — flags the
+  current track's out-of-distribution features (|z|>4) → "prediction extrapolates, less reliable".
+- `airflow/dags/alert_monitor.py`: `check_drift_anomalies` task — scans the latest predictions, flags
+  SYSTEMIC drift (a feature OOD on >50% of songs = likely pipeline break) into the consolidated email
+  (orange section + subject tag).
+- `src/utils/ml_inference.py`: `check_drift` now excludes the imputed features (`_IMPUTED_FEATURES`) —
+  they are permanently OOD by design (Phase 2), so including them was permanent false-alarm noise
+  (caught by the live scan: NonAlgoStreams flagged on 11/11 → now correctly excluded).
+- Roadmap: drift surface/alert marked done; added "Discovery Mode manual input" (cheapest Phase-2 win)
+  and "Automated retraining on live outcomes"; Phase-2 imputed list down to 2 features.
+
+### Tests
+285 passed, 1 skipped. Drift scan smoke-tested on live DB (clean after excluding imputed features).
+
+---
+
 ## 2026-05-31 — WAVE 12: PI on the main algos chart + 28-day streams/listeners gate
 
 ### Why

@@ -213,6 +213,23 @@ def _show_imputation_caveat(feats: dict, feature_columns) -> None:
     )
 
 
+def _show_drift_status(feats: dict) -> None:
+    """Flag features outside the training envelope (|z|>4) → unreliable prediction."""
+    try:
+        from src.utils.ml_inference import check_drift
+    except Exception:
+        return
+    drifted = check_drift(feats or {})
+    if drifted:
+        st.warning(
+            f"📉 **Drift détecté** : {len(drifted)} variable(s) hors de l'enveloppe "
+            f"d'entraînement (|z| > 4) — {', '.join(drifted)}. La prédiction extrapole "
+            "et est moins fiable pour ce titre."
+        )
+    else:
+        st.caption("📉 Drift : toutes les variables sont dans l'enveloppe d'entraînement.")
+
+
 # ── Data helpers ─────────────────────────────────────────────────────────────
 def _load_ml_pred(db, track: str, artist_id) -> dict | None:
     try:
@@ -1620,6 +1637,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
         return
 
     _show_imputation_caveat(feats, FEATURE_COLUMNS)
+    _show_drift_status(feats)
 
     _calib = ak.calibration_note("DW", ml_pred.get("dw_probability"))
     if _calib:

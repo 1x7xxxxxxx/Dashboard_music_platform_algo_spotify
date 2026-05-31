@@ -40,6 +40,11 @@ rex:
     fix: "Rule 10: export training feature_stats; check_drift flags |z|>4 inputs, logged per song in the scoring DAG. OOD input = unreliable prediction"
     ref: "DEVLOG#2026-05-31"
     severity: warn
+  - date: 2026-05-31
+    issue: "Drift detector flagged the imputed-to-0 features (NonAlgoStreams) on 100% of predictions — permanent false alarm"
+    fix: "check_drift excludes _IMPUTED_FEATURES (permanently OOD by design, already covered by the imputation caveat); drift now flags only genuine live-feature OOD"
+    ref: "DEVLOG#2026-05-31"
+    severity: info
 ---
 
 # Audit: Silent Success Anti-Pattern in Collectors
