@@ -20,6 +20,7 @@ dependencies = [
     # uses the modern estimator API.
     "scikit-learn>=1.3.0",
     "shap>=0.44.0",
+    "lime>=0.2.0",
 
     # API clients
     "facebook-business==18.0.5",

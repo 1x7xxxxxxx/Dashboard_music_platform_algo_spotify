@@ -88,6 +88,16 @@ rex:
     fix: "derive_thresholds.py computes success-rate knees from data_anon.csv → align algo_knowledge to data, not a note. Velocity stopped penalising 1.2-2.0 (no knee), malus only >3.5"
     severity: "warn"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "User asked to 'integrate' 7 ML graphs but 6/7 already existed in trigger_algo.py (SHAP waterfall, ROI, residuals)"
+    fix: "Map the existing tabs before building — only LIME + Meta-lever scoring were real gaps. Reuse meta_cpr_optimizer's join, don't rebuild the 6 charts"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
+  - date: 2026-05-31
+    issue: "Marketing levers were generic hardcoded text, decoupled from the artist's actual Meta Ads results"
+    fix: "Score levers on real Meta perf: join campaign_track_mapping ↔ meta_insights_performance (CPR/CTR) + meta_ads.call_to_action, rank what worked"
+    severity: "info"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Dashboard View

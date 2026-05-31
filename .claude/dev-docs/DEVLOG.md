@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-05-31 — WAVE 11: ML KPI gaps (LIME + Meta-lever scoring + calibrated budget + PI breakeven)
+
+### Why
+The user listed 7 ML graphs to "integrate" — but 6/7 already existed in trigger_algo.py (score /20,
+streams+probabilities, SHAP waterfall, ROI regression, actual-vs-predicted+residuals, breakeven). Only
+4 real gaps remained: LIME, marketing levers tied to REAL Meta data, hardcoded budget targets, PI not
+central to breakeven.
+
+### What changed
+- `src/dashboard/views/trigger_algo.py`:
+  - Budget tab: `_TRIGGER_STREAM_TARGETS` (RR 417 / DW 1333 / Radio 8423, SHAP Class-1 volumes) replaces
+    the hardcoded 1k/10k — 3 per-algo "budget to trigger" estimates.
+  - `_show_pi_breakeven`: surfaces the PI gate each algo needs vs the current pi_forecast_7d (PI now
+    central to break-even, not a decorative overlay).
+  - `_show_meta_lever_scoring`: joins the track's mapped campaigns (campaign_track_mapping) to real Meta
+    perf (meta_insights_performance CPR/CTR/results) + ads' call_to_action — ranks which lever/CTA
+    actually performed. Reuses the meta_cpr_optimizer join pattern.
+  - `_show_lime_explanation`: local LIME explanation for the DW prediction (complements SHAP), graceful
+    fallback. Explainability tab signature now takes db + artist_id.
+- `machine_learning/train.py`: exports lime_background.json (508×13 training feature sample).
+- `pyproject.toml` / `requirements.txt`: add `lime>=0.2.0`.
+
+### Tests
+285 passed, 1 skipped. LIME + Meta-lever queries smoke-tested on live DB (artist 1). Baseline unchanged.
+
+---
+
 ## 2026-05-31 — WAVE 10: empirical threshold reconciliation + phase/Discovery-Mode/importance features
 
 ### Why

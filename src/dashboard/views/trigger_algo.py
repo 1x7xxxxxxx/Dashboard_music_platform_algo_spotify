@@ -343,6 +343,32 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
     st.caption(tables.get("note", ""))
 
 
+def _show_pi_breakeven(ml_pred: dict | None) -> None:
+    """PI-driven breakeven: the Popularity Index gates algorithmic revenue, so the
+    real break-even question is whether the PI crosses each algo's trigger gate.
+    """
+    if not ml_pred:
+        return
+    pi = ml_pred.get("pi_forecast_7d")
+    tables = _load_threshold_tables()
+    if pi is None or not tables:
+        return
+    brackets = tables.get("pi_brackets", [])
+    here = _pi_bracket(pi)
+    st.markdown("**🎯 Rentabilité pilotée par le Popularity Index**")
+    st.caption(f"PI prédit actuel : **{int(pi)} / 100** (tranche {here}). Tu ne rentabilises "
+               "via un algo que si ton PI franchit sa porte de déclenchement.")
+    for key, label in (("discover_weekly", "Discover Weekly"),
+                       ("radio", "Radio"), ("release_radar", "Release Radar")):
+        data = tables.get(key, {})
+        gate = next((b for b in brackets if (data.get(b, {}).get("prob") or 0) >= 50), None)
+        if not gate:
+            continue
+        reached = here and brackets.index(here) >= brackets.index(gate)
+        status = "✅ porte atteinte" if reached else f"⛔ requiert PI {gate}"
+        st.markdown(f"- **{label}** : porte à PI **{gate}** — {status}")
+
+
 def _show_verdict_banner(ml_pred: dict | None) -> None:
     """Consolidated kill / optimize / scale decision at the top of the algos tab.
 
@@ -456,6 +482,14 @@ def _show_resurrection_radar(db, artist_id) -> None:
             f"Injectez un petit budget Ads aujourd'hui pour réveiller le Discover Weekly."
         )
 
+
+# Per-algo SHAP "Class 1" trigger stream volumes (user's SHAP notes), used for the
+# budget-to-trigger estimate instead of the legacy round 1k/10k heuristics.
+_TRIGGER_STREAM_TARGETS = {
+    "Release Radar": 417,
+    "Discover Weekly": 1333,
+    "Radio": 8423,
+}
 
 _PHASES = [
     (0, 35, "🚀 Phase 1 — Release Radar (0-35 j)",
@@ -1160,16 +1194,16 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
         if total_streams > 0 and total_spend > 0:
             cost_per_stream = total_spend / total_streams
             b4.metric("Coût / stream", f"{cost_per_stream:.4f} €")
-            st.markdown("**Estimation pour atteindre les seuils :**")
-            seuils = {"Release Radar (1k streams)": 1000, "Discover Weekly (10k streams)": 10000}
-            est_cols = st.columns(2)
-            for i, (label, seuil) in enumerate(seuils.items()):
+            st.markdown("**Budget estimé pour déclencher chaque playlist :**")
+            est_cols = st.columns(len(_TRIGGER_STREAM_TARGETS))
+            for i, (label, seuil) in enumerate(_TRIGGER_STREAM_TARGETS.items()):
                 cost_est = cost_per_stream * seuil
                 with est_cols[i]:
                     if remaining >= cost_est:
-                        st.success(f"**{label}**\n\nCoût estimé : {cost_est:.2f} €\n\n✅ Budget suffisant")
+                        st.success(f"**{label}**\n\n~{seuil:,} streams · {cost_est:.2f} €\n\n✅ Budget suffisant")
                     else:
-                        st.error(f"**{label}**\n\nCoût estimé : {cost_est:.2f} €\n\n❌ Manque {cost_est - remaining:.2f} €")
+                        st.error(f"**{label}**\n\n~{seuil:,} streams · {cost_est:.2f} €\n\n❌ Manque {cost_est - remaining:.2f} €")
+            st.caption("Volumes de déclenchement SHAP (Classe 1) par algo, pas des arrondis 1k/10k.")
         else:
             b4.metric("Coût / stream", "—")
             if lifetime_budget == 0:
@@ -1309,6 +1343,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
 
     # 4. Breakeven
     st.subheader("⚖️ Breakeven — Cumul spend vs Cumul revenue")
+    _show_pi_breakeven(_load_ml_pred(db, track, artist_id))
     try:
         if artist_id:
             df_spend_d = db.fetch_df(
@@ -1403,7 +1438,110 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
 
 
 # ── Tab 4 — Explainabilité SHAP ───────────────────────────────────────────────
-def _show_tab_explainability(ml_pred, track: str):
+_META_LEVER_QUERY = """
+SELECT
+    ctm.campaign_name,
+    perf.spend, perf.results, perf.cpr, perf.ctr, perf.link_clicks,
+    cta.ctas
+FROM campaign_track_mapping ctm
+LEFT JOIN (
+    SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results,
+           CASE WHEN SUM(results) > 0 THEN SUM(spend)::numeric / SUM(results) END AS cpr,
+           AVG(NULLIF(ctr, 0)) AS ctr, SUM(link_clicks) AS link_clicks
+    FROM meta_insights_performance WHERE artist_id = %s GROUP BY campaign_name
+) perf ON LOWER(perf.campaign_name) = LOWER(ctm.campaign_name)
+LEFT JOIN (
+    SELECT mc.campaign_name, string_agg(DISTINCT a.call_to_action, ', ') AS ctas
+    FROM meta_campaigns mc JOIN meta_ads a ON a.campaign_id = mc.campaign_id
+    WHERE mc.artist_id = %s AND a.call_to_action IS NOT NULL
+    GROUP BY mc.campaign_name
+) cta ON LOWER(cta.campaign_name) = LOWER(ctm.campaign_name)
+WHERE ctm.artist_id = %s AND LOWER(ctm.track_name) = LOWER(%s)
+ORDER BY perf.cpr ASC NULLS LAST
+"""
+
+
+def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
+    """Score the marketing levers against REAL Meta Ads performance for this track.
+
+    Joins the track's mapped campaigns (campaign_track_mapping) to their CSV perf
+    (meta_insights_performance: CPR/CTR/results) + the ads' call_to_action — so the
+    generic SHAP levers become "which campaign/CTA actually performed". Reuses the
+    meta_cpr_optimizer join pattern.
+    """
+    st.markdown("---")
+    st.markdown("**🎯 Leviers marketing — performance Meta Ads réelle de ce titre**")
+    try:
+        df = db.fetch_df(_META_LEVER_QUERY, (artist_id, artist_id, artist_id, track))
+    except Exception as e:
+        st.caption(f"Données Meta indisponibles : {e}")
+        return
+    if df is None or df.empty:
+        st.caption("Aucune campagne Meta mappée à ce titre — mappe-les dans la vue "
+                   "« Meta ↔ Spotify » pour scorer tes leviers sur les perfs réelles.")
+        return
+
+    df = df.copy()
+    df["cpr"] = pd.to_numeric(df["cpr"], errors="coerce")
+    df["ctr"] = pd.to_numeric(df["ctr"], errors="coerce")
+    show = df.rename(columns={
+        "campaign_name": "Campagne", "spend": "Spend €", "results": "Results",
+        "cpr": "CPR €", "ctr": "CTR %", "link_clicks": "Clics", "ctas": "CTA",
+    })
+    st.dataframe(show, hide_index=True, width='stretch')
+
+    scored = df.dropna(subset=["cpr"])
+    if not scored.empty:
+        best = scored.loc[scored["cpr"].idxmin()]
+        worst = scored.loc[scored["cpr"].idxmax()]
+        st.success(f"✅ Meilleur levier : **{best['campaign_name']}** — CPR {best['cpr']:.3f} € "
+                   f"({best['ctas'] or 'CTA n/d'})")
+        if worst["campaign_name"] != best["campaign_name"]:
+            st.warning(f"⚠️ Moins efficace : **{worst['campaign_name']}** — CPR {worst['cpr']:.3f} € "
+                       f"→ réalloue vers le CTA/audience qui performe.")
+    st.caption("CPR = coût par résultat (plus bas = mieux). Croise avec le levier SHAP "
+               "pénalisé : le CTA « Ajouter en playlist » bat « Écouter » sur le DW.")
+
+
+def _show_lime_explanation(ml_pred: dict | None) -> None:
+    """Local LIME explanation for the current track's DW prediction.
+
+    Complements the SHAP waterfall with an alternative local view (perturbation-based
+    instead of game-theoretic). Graceful fallback if `lime` or the background sample
+    is unavailable.
+    """
+    if not ml_pred:
+        return
+    try:
+        feats = json.loads(ml_pred.get("features_json") or "{}")
+    except (ValueError, TypeError):
+        return
+    with st.expander("🍋 Explication locale LIME — Discover Weekly", expanded=False):
+        try:
+            from lime.lime_tabular import LimeTabularExplainer
+
+            from src.utils.ml_inference import FEATURE_COLUMNS, _resolve_path, load_model
+            with open(_resolve_path("lime_background.json"), encoding="utf-8") as f:
+                background = np.array(json.load(f), dtype=float)
+            model = load_model("dw_classifier")
+            x = np.array([float(feats.get(c, 0.0)) for c in FEATURE_COLUMNS])
+            explainer = LimeTabularExplainer(
+                background, feature_names=FEATURE_COLUMNS, mode="classification",
+                class_names=["pas DW", "DW"], discretize_continuous=True, random_state=42)
+            exp = explainer.explain_instance(
+                x, lambda a: model.predict_proba(pd.DataFrame(a, columns=FEATURE_COLUMNS)),
+                num_features=8)
+            for cond, weight in exp.as_list():
+                st.caption(f"{'🟢' if weight > 0 else '🔴'} {cond} · {weight:+.3f}")
+            st.caption("Contribution locale de chaque condition à la proba DW "
+                       "(complément du SHAP waterfall — vue par perturbation).")
+        except ImportError:
+            st.caption("Module `lime` non installé — `pip install lime`.")
+        except Exception as e:
+            st.caption(f"LIME indisponible : {e}")
+
+
+def _show_tab_explainability(db, ml_pred, track: str, artist_id):
     if not ml_pred:
         st.info("Aucune prédiction ML disponible pour ce titre. Lancez le DAG `ml_scoring_daily`.")
         return
@@ -1545,6 +1683,8 @@ def _show_tab_explainability(ml_pred, track: str):
                 st.warning(_recovery)
         st.markdown("---")
     _show_key_factors(features_json)
+    _show_lime_explanation(ml_pred)
+    _show_meta_lever_scoring(db, track, artist_id)
 
 
 # ── Tab 5 — Modèle : Actual vs Predicted & Résidus ────────────────────────────
@@ -2001,7 +2141,7 @@ def show():
         with tab3:
             _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to)
         with tab4:
-            _show_tab_explainability(ml_pred, selected_track)
+            _show_tab_explainability(db, ml_pred, selected_track, artist_id)
         with tab5:
             _show_tab_model(db, selected_track, artist_id)
         with tab6:

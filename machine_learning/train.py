@@ -276,12 +276,15 @@ def main() -> None:
         "regressors": reg_metrics, "pi": pi_metrics, "feature_stats": stats,
     }
     importance = {algo: m["importance"] for algo, m in clf_metrics.items()}
+    # LIME needs the training feature distribution as a background sample.
+    lime_background = ds[FEATURE_COLUMNS].round(4).values.tolist()
     for name, obj in (("metrics.json", metrics), ("threshold_tables.json", thresholds),
                       ("calibration.json", calibration),
-                      ("feature_importance.json", importance)):
+                      ("feature_importance.json", importance),
+                      ("lime_background.json", lime_background)):
         with open(os.path.join(OUT_DIR, name), "w") as f:
             json.dump(obj, f, indent=2)
-    print(f"\n✅ Saved 7 models + metrics/threshold/calibration/importance json -> {OUT_DIR}")
+    print(f"\n✅ Saved 7 models + metrics/threshold/calibration/importance/lime json -> {OUT_DIR}")
 
 
 if __name__ == "__main__":
