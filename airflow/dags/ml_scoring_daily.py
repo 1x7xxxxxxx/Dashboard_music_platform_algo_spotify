@@ -38,7 +38,7 @@ def run_ml_scoring(**context):
     """Scoring ML pour tous les artistes actifs."""
     from src.database.postgres_handler import PostgresHandler
     from src.utils.credential_loader import get_active_artists
-    from src.utils.ml_inference import score_all_songs, MODEL_VERSION
+    from src.utils.ml_inference import score_all_songs
     import os
 
     db_cfg = {
@@ -71,6 +71,7 @@ def run_ml_scoring(**context):
                 "days_since_release", "streams_7d", "streams_28d",
                 "dw_probability", "rr_probability", "radio_probability",
                 "dw_streams_forecast_7d", "rr_streams_forecast_7d",
+                "radio_streams_forecast_7d",
                 "features_json",
             ]
 

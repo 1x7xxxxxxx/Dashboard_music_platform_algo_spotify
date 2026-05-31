@@ -7,6 +7,19 @@ rex:
   \ blocks CI; db-schema.md must document the _ALLOWED_TABLES registration step"
     severity: "warn"
     ref: "DEVLOG#2026-05-15"
+  - date: 2026-05-29
+    issue: "Unsure whether a global read-only reference table seeded via migration belongs in _ALLOWED_TABLES"
+    fix: "Read-only reference tables (no upsert/insert) must stay OUT of _ALLOWED_TABLES (write-only guard); algo_lifecycle_benchmark is seeded via migration 035 + init_db.sql"
+    severity: "info"
+    ref: "DEVLOG#2026-05-29"
+  - date: 2026-05-30
+    issue: "New column radio_streams_forecast_7d: local tests passed but fresh installs + the\
+  \ frozen pytest baseline broke"
+    fix: "A new prediction column needs 5 synced edits: init_db.sql, create_missing_tables.sql,\
+  \ a numbered migration, the DAG upsert update_cols, and the frozen baseline (regen\
+  \ generate_ml_baseline.py)"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-30"
 ---
 
 # Skill: Database Schema

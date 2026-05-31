@@ -37,9 +37,12 @@ EXPECTED_KEYS = {
     "radio_probability",
     "dw_streams_forecast_7d",
     "rr_streams_forecast_7d",
+    "radio_streams_forecast_7d",
 }
 PROBABILITY_KEYS = {"dw_probability", "rr_probability", "radio_probability"}
-FORECAST_KEYS = {"dw_streams_forecast_7d", "rr_streams_forecast_7d"}
+FORECAST_KEYS = {
+    "dw_streams_forecast_7d", "rr_streams_forecast_7d", "radio_streams_forecast_7d",
+}
 BASELINE_TOLERANCE = 0.05  # ±5 % drift threshold
 
 
@@ -74,10 +77,10 @@ class TestStructure:
     def test_feature_columns_are_unique(self):
         assert len(set(FEATURE_COLUMNS)) == len(FEATURE_COLUMNS)
 
-    def test_model_paths_has_five_models(self):
+    def test_model_paths_has_six_models(self):
         assert set(MODEL_PATHS) == {
             "dw_classifier", "radio_classifier", "rr_classifier",
-            "dw_regressor", "rr_regressor",
+            "dw_regressor", "rr_regressor", "radio_regressor",
         }
 
     def test_model_version_is_non_empty_string(self):

@@ -3,8 +3,8 @@
 Type: Feature
 Uses: ml_song_predictions, s4a_song_timeline, s4a_audience, s4a_songs_global,
       meta_campaigns, meta_insights_performance_day, imusician_monthly_revenue,
-      track_popularity_history
-Depends on: get_db_connection, kpi_helpers.get_monthly_roi_series,
+      track_popularity_history, algo_lifecycle_benchmark
+Depends on: view_session, ui.show_empty_state, kpi_helpers.get_monthly_roi_series,
             ml_inference.FEATURE_COLUMNS / MODEL_PATHS / _resolve_path
 """
 import json
@@ -15,7 +15,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import date, timedelta
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session, ml_widgets
+from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils.ui import show_empty_state
 
 
 # ── Feature labels & marketing actions ──────────────────────────────────────
@@ -65,6 +67,26 @@ _MARKETING_ACTIONS = {
 }
 
 
+# ── Algorithm thresholds (single source of truth) ────────────────────────────
+# Elbow thresholds learned from the training-set distribution on 28-day streams.
+# These are the exact cut-offs the XGBoost classifiers were trained against
+# (machine_learning/data_analysis_ml_perso.ipynb : y = <algo>StreamsLast28Days > t).
+ELBOW_THRESHOLDS_28D = {"DW": 137, "RR": 130, "RADIO": 639}
+# Legacy round-number stream goals used by the pre-ML heuristic display. Kept for
+# continuity but labelled explicitly as heuristic — they are NOT the elbow values.
+HEURISTIC_GOALS = {"RR": 1000, "DW": 10000}
+
+# Model inputs still imputed to 0 at inference (no source yet — Phase 2 / S4A API).
+# Saves, PlaylistAdds, ReleaseConsistency and the listeners/streams ratio are now
+# computed live (see ml_inference.build_features). Surfaced in the Explainabilité
+# tab so probabilities are read as indicative.
+_IMPUTED_FEATURES = {
+    "HowManySongsDoYouHaveInRadioRightNow",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode",
+    "NonAlgoStreams28Days_log",
+}
+
+
 # ── Existing helpers (unchanged) ─────────────────────────────────────────────
 def _display_prob_bar(label: str, prob: float | None, forecast: int | None = None):
     if prob is None:
@@ -75,37 +97,59 @@ def _display_prob_bar(label: str, prob: float | None, forecast: int | None = Non
     st.write(f"**{label}** {badge} — {pct * 100:.0f}%")
     st.progress(pct)
     if forecast is not None and forecast > 0:
-        st.caption(f"Forecast streams 7j si activé : ~{forecast:,}")
+        ml_widgets.render_floor_forecast("Volume estimé", forecast)
 
 
 def _show_ml_section(pred: dict):
     pred_date = pred.get("prediction_date", "—")
     model_v = pred.get("model_version", "v1")
     st.caption(f"Prédiction ML du **{pred_date}** — modèle `{model_v}`")
-    _display_prob_bar("📡 Release Radar", pred.get("rr_probability"), pred.get("rr_streams_forecast_7d"))
+    # RR volume regressor is unreliable (R²=0.32, notification-CTR noise) — gate the
+    # forecast OUT and show the classification-only status caption instead.
+    _rr_forecast = (pred.get("rr_streams_forecast_7d")
+                    if ak.volume_forecast_reliable("RR") else None)
+    _display_prob_bar("📡 Release Radar", pred.get("rr_probability"), _rr_forecast)
+    _rr_note = ak.volume_suppressed_note("RR")
+    if _rr_note and pred.get("rr_probability") is not None:
+        st.caption(f"📨 {_rr_note}")
     _display_prob_bar("💎 Discover Weekly", pred.get("dw_probability"), pred.get("dw_streams_forecast_7d"))
-    _display_prob_bar("📻 Radio Spotify", pred.get("radio_probability"))
+    ml_widgets.render_calibration_badge("DW", pred.get("dw_probability"))
+    _display_prob_bar("📻 Radio Spotify", pred.get("radio_probability"),
+                      pred.get("radio_streams_forecast_7d"))
 
 
 def _show_heuristic_section(current_total: float, current_pop: float):
     st.info("⚠️ **Mode Heuristique** — Aucune prédiction ML disponible. "
             "Lancez le DAG `ml_scoring_daily` pour obtenir des probabilités ML.")
-    GOAL_RR = 1000
-    GOAL_DW_S = 10000
+    GOAL_RR = HEURISTIC_GOALS["RR"]
+    GOAL_DW_S = HEURISTIC_GOALS["DW"]
     GOAL_DW_P = 30
+    GOAL_RADIO = ELBOW_THRESHOLDS_28D["RADIO"]
     pct_rr = min(current_total / GOAL_RR, 1.0)
     pct_dw = (min(current_total / GOAL_DW_S, 1.0) + min(current_pop / GOAL_DW_P, 1.0)) / 2
+    pct_radio = min(current_total / GOAL_RADIO, 1.0)
     st.write(f"**📡 Release Radar** ({int(pct_rr * 100)}%)")
     st.progress(pct_rr)
     if pct_rr >= 1.0:
         st.caption("✅ Trigger théoriquement activé !")
     else:
-        st.caption(f"Manque {GOAL_RR - current_total:,.0f} streams (seuil heuristique)")
+        st.caption(f"Manque {GOAL_RR - current_total:,.0f} streams (seuil heuristique arrondi)")
     st.write(f"**💎 Discover Weekly** ({int(pct_dw * 100)}%)")
     st.progress(pct_dw)
     col1, col2 = st.columns(2)
     col1.info(f"Streams : {min(current_total / GOAL_DW_S, 1.0) * 100:.0f}% (obj. 10k)")
     col2.info(f"Popularité : {min(current_pop / GOAL_DW_P, 1.0) * 100:.0f}% (obj. 30)")
+    st.write(f"**📻 Radio Spotify** ({int(pct_radio * 100)}%)")
+    st.progress(pct_radio)
+    if pct_radio >= 1.0:
+        st.caption("✅ Seuil Radio (elbow) atteint !")
+    else:
+        st.caption(f"Manque {GOAL_RADIO - current_total:,.0f} streams (seuil elbow 28j)")
+    st.caption(
+        "ℹ️ Les cibles 1k/10k sont des **heuristiques arrondies**. Les vrais seuils "
+        f"d'entraînement (elbow, 28j) sont ~{ELBOW_THRESHOLDS_28D['DW']} (DW), "
+        f"~{ELBOW_THRESHOLDS_28D['RR']} (RR), ~{ELBOW_THRESHOLDS_28D['RADIO']} (Radio) streams."
+    )
 
 
 def _show_key_factors(features_json):
@@ -152,6 +196,23 @@ def _show_key_factors(features_json):
             st.caption("Aucun facteur négatif détecté.")
 
 
+def _show_imputation_caveat(feats: dict, feature_columns) -> None:
+    """Warn which model inputs are imputed/absent → probabilities are indicative."""
+    missing = [f for f in feature_columns if f not in feats]
+    zeroed = [f for f in feature_columns
+              if f in feats and f in _IMPUTED_FEATURES and float(feats.get(f, 0.0)) == 0.0]
+    flagged = sorted(set(missing) | set(zeroed))
+    if not flagged:
+        return
+    labels = [_FEATURE_LABELS.get(f, (f, True))[0] for f in flagged]
+    st.warning(
+        f"⚠️ **{len(flagged)}/{len(feature_columns)} variables imputées à 0/neutre** "
+        "faute de données S4A : les probabilités sont **indicatives, non calibrées** "
+        "(comparaison relative entre titres, pas une probabilité absolue).\n\n"
+        "Variables concernées : " + ", ".join(labels) + "."
+    )
+
+
 # ── Data helpers ─────────────────────────────────────────────────────────────
 def _load_ml_pred(db, track: str, artist_id) -> dict | None:
     try:
@@ -159,6 +220,7 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
             rows = db.fetch_query(
                 """SELECT dw_probability, rr_probability, radio_probability,
                           dw_streams_forecast_7d, rr_streams_forecast_7d,
+                          radio_streams_forecast_7d,
                           prediction_date, model_version, features_json
                    FROM ml_song_predictions
                    WHERE artist_id = %s AND song = %s
@@ -169,6 +231,7 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
             rows = db.fetch_query(
                 """SELECT dw_probability, rr_probability, radio_probability,
                           dw_streams_forecast_7d, rr_streams_forecast_7d,
+                          radio_streams_forecast_7d,
                           prediction_date, model_version, features_json
                    FROM ml_song_predictions
                    WHERE song = %s
@@ -180,7 +243,8 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
             return {
                 "dw_probability": r[0], "rr_probability": r[1], "radio_probability": r[2],
                 "dw_streams_forecast_7d": r[3], "rr_streams_forecast_7d": r[4],
-                "prediction_date": r[5], "model_version": r[6], "features_json": r[7],
+                "radio_streams_forecast_7d": r[5],
+                "prediction_date": r[6], "model_version": r[7], "features_json": r[8],
             }
     except Exception:
         pass
@@ -212,6 +276,34 @@ def _compute_score_20(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["score_20"] = (composite / max_val * 20) if max_val > 0 else 0.0
     return df
+
+
+def _load_scored_tracks(db, artist_id):
+    """Latest-date scored tracks with score_20, sorted desc. None if empty.
+
+    Shared by the Vue Globale benchmark table and the Budget top-N% selector.
+    """
+    cols = """song, dw_probability, rr_probability, radio_probability, streams_28d,
+              CAST(features_json->>'Velocity_Streams' AS FLOAT) AS velocity"""
+    try:
+        if artist_id:
+            df = db.fetch_df(
+                f"""SELECT {cols} FROM ml_song_predictions
+                    WHERE artist_id = %s AND prediction_date = (
+                        SELECT MAX(prediction_date) FROM ml_song_predictions WHERE artist_id = %s
+                    )""",
+                (artist_id, artist_id),
+            )
+        else:
+            df = db.fetch_df(
+                f"""SELECT {cols} FROM ml_song_predictions
+                    WHERE prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions)"""
+            )
+    except Exception:
+        return None
+    if df is None or df.empty:
+        return None
+    return _compute_score_20(df).sort_values("score_20", ascending=False)
 
 
 # ── Tab 1 — Vue Globale ───────────────────────────────────────────────────────
@@ -362,28 +454,9 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     # Score /20 benchmark
     st.subheader("🏆 Score /20 — Benchmark toutes les tracks")
     try:
-        if artist_id:
-            df_bench = db.fetch_df(
-                """SELECT song, dw_probability, rr_probability, radio_probability, streams_28d,
-                          CAST(features_json->>'Velocity_Streams' AS FLOAT) AS velocity
-                   FROM ml_song_predictions
-                   WHERE artist_id = %s AND prediction_date = (
-                       SELECT MAX(prediction_date) FROM ml_song_predictions WHERE artist_id = %s
-                   )""",
-                (artist_id, artist_id)
-            )
-        else:
-            df_bench = db.fetch_df(
-                """SELECT song, dw_probability, rr_probability, radio_probability, streams_28d,
-                          CAST(features_json->>'Velocity_Streams' AS FLOAT) AS velocity
-                   FROM ml_song_predictions
-                   WHERE prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions)"""
-            )
+        df_bench = _load_scored_tracks(db, artist_id)
 
-        if not df_bench.empty:
-            df_bench = _compute_score_20(df_bench)
-            df_bench = df_bench.sort_values("score_20", ascending=False)
-
+        if df_bench is not None and not df_bench.empty:
             display = df_bench[["song", "score_20", "dw_probability", "rr_probability",
                                 "radio_probability", "streams_28d"]].copy()
             display["score_20"] = display["score_20"].fillna(0).round(1)
@@ -583,10 +656,19 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 name="Index Popularité", mode="lines",
                 line=dict(color="#ffffff", width=2, dash="dot")
             ), secondary_y=True)
-            fig2.add_hline(y=1000, line_dash="dash", line_color="orange",
-                           annotation_text="Seuil Release Radar (1k)", secondary_y=False)
-            fig2.add_hline(y=10000, line_dash="dash", line_color="cyan",
-                           annotation_text="Seuil DW (10k)", secondary_y=False)
+            # Elbow thresholds (training distribution, 28j) — solid lines, much
+            # lower than the round heuristics: this is the honest model cut-off.
+            fig2.add_hline(y=ELBOW_THRESHOLDS_28D["RR"], line_dash="solid", line_color="orange",
+                           annotation_text=f"RR elbow ({ELBOW_THRESHOLDS_28D['RR']})", secondary_y=False)
+            fig2.add_hline(y=ELBOW_THRESHOLDS_28D["RADIO"], line_dash="solid", line_color="#FFE66D",
+                           annotation_text=f"Radio elbow ({ELBOW_THRESHOLDS_28D['RADIO']})", secondary_y=False)
+            fig2.add_hline(y=ELBOW_THRESHOLDS_28D["DW"], line_dash="solid", line_color="cyan",
+                           annotation_text=f"DW elbow ({ELBOW_THRESHOLDS_28D['DW']})", secondary_y=False)
+            # Legacy round-number heuristic goals — dashed lines for continuity.
+            fig2.add_hline(y=HEURISTIC_GOALS["RR"], line_dash="dash", line_color="orange",
+                           annotation_text=f"RR heuristique ({HEURISTIC_GOALS['RR']:,})", secondary_y=False)
+            fig2.add_hline(y=HEURISTIC_GOALS["DW"], line_dash="dash", line_color="cyan",
+                           annotation_text=f"DW heuristique ({HEURISTIC_GOALS['DW']:,})", secondary_y=False)
             fig2.update_layout(
                 title=f"Trajectoire de '{track}' (28 premiers jours)",
                 xaxis_title="Jours depuis la sortie (J+)",
@@ -602,9 +684,9 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 avg_daily = current_total / days_elapsed
                 projected_28 = avg_daily * 28
                 st.info(f"🔮 **Projection :** À ce rythme → ~**{projected_28:,.0f} streams** en 28j.")
-                if projected_28 > 10000:
+                if projected_28 > HEURISTIC_GOALS["DW"]:
                     st.success("🌟 Trajectoire favorable pour Discover Weekly.")
-                elif projected_28 > 1000:
+                elif projected_28 > HEURISTIC_GOALS["RR"]:
                     st.warning("⚠️ Release Radar probable, Discover Weekly hors de portée sans boost.")
                 else:
                     st.error("📉 Trajectoire insuffisante pour les algos majeurs.")
@@ -613,7 +695,76 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
 
 
 # ── Tab 3 — Budget & ROI ──────────────────────────────────────────────────────
+def _show_budget_tier_selector(db, artist_id):
+    """A&R portfolio tool: select the top-N% tracks by score (lift/precision tradeoff)."""
+    st.subheader("🎯 Sélection A&R par budget (top-N%)")
+    df = _load_scored_tracks(db, artist_id)
+    if df is None or len(df) < 3:
+        st.info("Outil disponible dès ≥ 3 titres scorés (échelle catalogue). "
+                "Lancez le DAG `ml_scoring_daily`.")
+        return
+    m = ak.ALGO_MODEL_METRICS.get("DW", {})
+    n = len(df)
+    pct = st.slider("Pousser le top N% par score", 10, 100, 20, step=10,
+                    help="Seuil bas → précision haute (peu de gâchis) ; seuil haut → recall élevé.")
+    k = max(1, (n * pct + 99) // 100)
+    sel = df.head(k)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Titres sélectionnés", f"{k}/{n}")
+    c2.metric("Précision modèle", f"{m.get('precision', 0) * 100:.0f}%")
+    if pct <= 10:
+        c3.metric("Lift top-10%", f"×{m.get('lift_top10', 0):.1f}")
+    else:
+        c3.metric("Recall (rappel)", f"{m.get('recall', 0) * 100:.0f}%")
+    st.caption("Budget serré → vise le top 10% (précision quasi parfaite, peu de gâchis). "
+               "Gros budget → baisse le seuil pour capter plus d'opportunités (recall ↑, précision ↓).")
+    show = sel[["song", "score_20"]].copy()
+    show["score_20"] = show["score_20"].fillna(0).round(1)
+    show.columns = ["Titre à pousser", "Score /20"]
+    st.dataframe(show, hide_index=True, width="stretch")
+
+
+def _show_velocity_budget_advice(db, track, artist_id, spent):
+    """Concrete spend-smoothing advice when the track's velocity is too high.
+
+    Cross-links the Explainabilité coach's qualitative 'smooth velocity' action to
+    a euro amount: hyper-growth gets penalised, so suggest a ~30% spend cut to
+    smooth the traffic. Thresholds come from algo_knowledge (no hardcoded cutoff).
+    """
+    try:
+        if artist_id:
+            rows = db.fetch_query(
+                """SELECT CAST(features_json->>'Velocity_Streams' AS FLOAT)
+                   FROM ml_song_predictions WHERE song = %s AND artist_id = %s
+                   ORDER BY prediction_date DESC LIMIT 1""",
+                (track, artist_id))
+        else:
+            rows = db.fetch_query(
+                """SELECT CAST(features_json->>'Velocity_Streams' AS FLOAT)
+                   FROM ml_song_predictions WHERE song = %s
+                   ORDER BY prediction_date DESC LIMIT 1""",
+                (track,))
+        vel = float(rows[0][0]) if rows and rows[0][0] is not None else None
+    except Exception:
+        return
+    # Gate + displayed cutoffs derive from algo_knowledge zones (single source of
+    # truth) — the DW malus zone is the stricter/lower trigger.
+    if vel is None or ak.zone_for_value("DW", "Velocity_Streams", vel) != "malus":
+        return
+    dw_thr = ak.velocity_penalty_threshold("DW")
+    radio_thr = ak.velocity_penalty_threshold("RADIO")
+    reduced = spent * 0.7
+    st.warning(
+        f"⚡ Vélocité élevée ({vel:.2f}) sur « {track} » — la Radio (seuil {radio_thr:g}) "
+        f"et le DW ({dw_thr:g}) pénalisent l'hyper-croissance (« feu de paille »). Suggestion : "
+        f"réduire la dépense de ~30 % ({spent:,.0f} € → {reduced:,.0f} €) pour lisser le trafic."
+    )
+
+
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
+    _show_budget_tier_selector(db, artist_id)
+    st.markdown("---")
+
     # 1. Budget Meta restant
     st.subheader("💶 Budget Meta Ads")
     try:
@@ -671,9 +822,29 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             b4.metric("Coût / stream", "—")
             if lifetime_budget == 0:
                 st.info("Aucune campagne Meta active trouvée pour cet artiste.")
+
+        if total_spend > 0:
+            _show_velocity_budget_advice(db, track, artist_id, total_spend)
     except Exception as e:
         st.warning(f"Budget Meta indisponible : {e}")
 
+    st.markdown("---")
+
+    # 1bis. Organic scaling threshold (volume) — static target until Phase 2 data.
+    st.subheader("🔊 Seuil de scaling organique (volume DW)")
+    _scale = ak.volume_scaling_threshold("DW")
+    if _scale:
+        st.info(
+            f"Pour déclencher le **scaling de volume** du Discover Weekly, vise un socle "
+            f"d'au moins **~{_scale:,} streams organiques/28j** (recherche, profil — hors "
+            f"autoplay). Sous ce seuil, l'impact sur le volume est plat ; au-delà, Spotify "
+            f"« ouvre les vannes » et multiplie le débit."
+        )
+        st.caption(
+            "⚠️ La valeur organique live (NonAlgoStreams par source) n'est pas encore "
+            "collectée (Phase 2 — split par source S4A) : ce seuil est affiché comme "
+            "**cible**, pas comme un écart calculé sur vos données."
+        )
     st.markdown("---")
 
     # 2. Groover / Fluence simulator
@@ -901,6 +1072,12 @@ def _show_tab_explainability(ml_pred, track: str):
         _show_key_factors(features_json)
         return
 
+    _show_imputation_caveat(feats, FEATURE_COLUMNS)
+
+    _calib = ak.calibration_note("DW", ml_pred.get("dw_probability"))
+    if _calib:
+        st.info(f"📖 Lecture des probabilités (modèle non calibré) : {_calib}")
+
     try:
         import shap
         import matplotlib
@@ -945,19 +1122,90 @@ def _show_tab_explainability(ml_pred, track: str):
                 except Exception as e:
                     st.warning(f"SHAP {algo_label} : {e}")
 
+        # Regressor (volume) waterfall + natural-language autopsy. The forecast is a
+        # FLOOR: its SHAP "receipt" explains why the conservative volume is what it is.
+        with st.expander("🧾 Autopsie du VOLUME prédit (régresseur DW) — plancher", expanded=False):
+            ml_widgets.render_regressor_badge("DW")
+            reg = _load_xgb_model("dw_regressor")
+            if reg is None:
+                st.warning("Modèle `dw_regressor` introuvable dans machine_learning/mlruns/.")
+            else:
+                try:
+                    reg_explainer = shap.TreeExplainer(reg)
+                    reg_exp = reg_explainer(X_df)
+                    shap.plots.waterfall(reg_exp[0], max_display=13, show=False)
+                    st.pyplot(plt.gcf(), clear_figure=True)
+                    baseline = float(np.ravel(reg_exp[0].base_values)[0])
+                    values = [float(v) for v in np.ravel(reg_exp[0].values)]
+                    prediction = baseline + sum(values)
+                    contributions = [
+                        {"label": _FEATURE_LABELS.get(col, (col, True))[0], "value": values[i]}
+                        for i, col in enumerate(FEATURE_COLUMNS) if i < len(values)
+                    ]
+                    ml_widgets.render_shap_narrative(
+                        "Discover Weekly (volume)", baseline, max(0.0, prediction), contributions)
+                    st.caption("Valeurs SHAP en streams 7j. À lire comme un plancher : "
+                               "le régresseur sous-estime les hits (voir badge ci-dessus).")
+                except Exception as e:
+                    st.warning(f"SHAP régresseur DW : {e}")
+
+        # Radio volume regressor (MLflow exp 6) — same floor reading. Recent fuel
+        # dominates; quality signals (saves, playlist adds) go flat for volume.
+        with st.expander("🧾 Autopsie du VOLUME Radio prédit (régresseur) — plancher", expanded=False):
+            ml_widgets.render_regressor_badge("RADIO")
+            reg = _load_xgb_model("radio_regressor")
+            if reg is None:
+                st.warning("Modèle `radio_regressor` introuvable dans machine_learning/mlruns/.")
+            else:
+                try:
+                    reg_explainer = shap.TreeExplainer(reg)
+                    reg_exp = reg_explainer(X_df)
+                    shap.plots.waterfall(reg_exp[0], max_display=13, show=False)
+                    st.pyplot(plt.gcf(), clear_figure=True)
+                    baseline = float(np.ravel(reg_exp[0].base_values)[0])
+                    values = [float(v) for v in np.ravel(reg_exp[0].values)]
+                    prediction = baseline + sum(values)
+                    contributions = [
+                        {"label": _FEATURE_LABELS.get(col, (col, True))[0], "value": values[i]}
+                        for i, col in enumerate(FEATURE_COLUMNS) if i < len(values)
+                    ]
+                    ml_widgets.render_shap_narrative(
+                        "Radio (volume)", baseline, max(0.0, prediction), contributions)
+                    st.caption("Valeurs SHAP en streams 7j. Le carburant récent domine ; "
+                               "saves/playlists sont plats sur le volume (voir badge).")
+                except Exception as e:
+                    st.warning(f"SHAP régresseur Radio : {e}")
+
     st.markdown("---")
+    st.subheader("🧭 Coach & curseurs de décision par algorithme")
+    for _algo in ak.populated_algos():
+        st.markdown(f"### {ak.ALGO_LABELS.get(_algo, _algo)}")
+        ml_widgets.render_coach(_algo, feats)
+        ml_widgets.render_feature_gauges(_algo, feats)
+        if _algo in ak.volume_algos():
+            ml_widgets.render_volume_gauges(_algo, feats)
+        if _algo == "RADIO":
+            _recovery = ak.radio_discovery_recovery_note(feats)
+            if _recovery:
+                st.warning(_recovery)
+        st.markdown("---")
     _show_key_factors(features_json)
 
 
 # ── Tab 5 — Modèle : Actual vs Predicted & Résidus ────────────────────────────
 def _show_tab_model(db, track: str, artist_id):
+    for _algo in ak.populated_algos():
+        if _algo in ak.ALGO_MODEL_METRICS:
+            ml_widgets.render_classification_scorecard(_algo, compact=True)
+    st.markdown("---")
     st.subheader("📊 Actual vs Predicted — Streams 7j")
     try:
         if artist_id:
             df_hist = db.fetch_df(
                 """SELECT prediction_date, streams_7d AS actual,
                           dw_streams_forecast_7d AS predicted_dw,
-                          rr_streams_forecast_7d AS predicted_rr
+                          rr_streams_forecast_7d AS predicted_rr,
+                          radio_streams_forecast_7d AS predicted_radio
                    FROM ml_song_predictions
                    WHERE song = %s AND artist_id = %s AND streams_7d IS NOT NULL
                    ORDER BY prediction_date ASC LIMIT 60""",
@@ -967,7 +1215,8 @@ def _show_tab_model(db, track: str, artist_id):
             df_hist = db.fetch_df(
                 """SELECT prediction_date, streams_7d AS actual,
                           dw_streams_forecast_7d AS predicted_dw,
-                          rr_streams_forecast_7d AS predicted_rr
+                          rr_streams_forecast_7d AS predicted_rr,
+                          radio_streams_forecast_7d AS predicted_radio
                    FROM ml_song_predictions
                    WHERE song = %s AND streams_7d IS NOT NULL
                    ORDER BY prediction_date ASC LIMIT 60""",
@@ -981,7 +1230,7 @@ def _show_tab_model(db, track: str, artist_id):
         df_hist = df_hist.dropna(subset=["actual", "predicted_dw"])
         df_hist["prediction_date"] = pd.to_datetime(df_hist["prediction_date"])
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             st.write("**DW forecast**")
@@ -1032,8 +1281,42 @@ def _show_tab_model(db, track: str, artist_id):
                     height=340, showlegend=True
                 )
                 st.plotly_chart(fig_rr, width='stretch')
+                if not ak.volume_forecast_reliable("RR"):
+                    st.caption("⚠️ R²=0.32 — diagnostic uniquement, PAS une prévision. "
+                               "Le volume Release Radar n'est pas prédictible (bruit lié "
+                               "au taux d'ouverture des notifications).")
             else:
                 st.info("Pas de prédictions RR disponibles pour ce titre.")
+
+        with col3:
+            df_radio = (df_hist.dropna(subset=["predicted_radio"])
+                        if "predicted_radio" in df_hist.columns else df_hist.iloc[0:0])
+            if not df_radio.empty:
+                st.write("**Radio forecast**")
+                max_val_radio = max(float(df_radio["actual"].max()),
+                                    float(df_radio["predicted_radio"].max()))
+                fig_radio = go.Figure()
+                fig_radio.add_trace(go.Scatter(
+                    x=df_radio["predicted_radio"].astype(float),
+                    y=df_radio["actual"].astype(float),
+                    mode="markers",
+                    marker=dict(color="#FFA500", size=8),
+                    name="Points",
+                    text=df_radio["prediction_date"].dt.strftime("%Y-%m-%d"),
+                    hovertemplate="Date: %{text}<br>Forecast Radio: %{x:,}<br>Actuel: %{y:,}"
+                ))
+                fig_radio.add_trace(go.Scatter(
+                    x=[0, max_val_radio], y=[0, max_val_radio], mode="lines",
+                    name="Prédiction parfaite",
+                    line=dict(color="gray", dash="dash", width=1)
+                ))
+                fig_radio.update_layout(
+                    xaxis_title="Forecast Radio (streams 7j)", yaxis_title="Actuel (streams 7j)",
+                    height=340, showlegend=True
+                )
+                st.plotly_chart(fig_radio, width='stretch')
+            else:
+                st.info("Pas de prédictions Radio disponibles pour ce titre.")
 
         st.markdown("---")
         st.subheader("📉 Résidus dans le temps (Actuel − Forecast DW)")
@@ -1065,6 +1348,167 @@ def _show_tab_model(db, track: str, artist_id):
         st.warning(f"Graphique Actual vs Predicted indisponible : {e}")
 
 
+# ── Tab 6 — Cycle de vie & Benchmark ──────────────────────────────────────────
+# (label, order, lower_week_inclusive, upper_week_exclusive)
+_LIFECYCLE_AGE_BINS = [
+    ("0-5", 1, 0, 5), ("5-10", 2, 5, 10), ("10-25", 3, 10, 25),
+    ("25-50", 4, 25, 50), ("50-100", 5, 50, 100), ("100+", 6, 100, 10**9),
+]
+_LIFECYCLE_PALETTE = {"DW": "rgb(0,200,220)", "RR": "rgb(255,165,0)", "RADIO": "rgb(29,185,84)"}
+_LIFECYCLE_LABELS = {"DW": "💎 Discover Weekly", "RR": "📡 Release Radar", "RADIO": "📻 Radio"}
+
+
+@st.cache_data(ttl=3600)
+def _load_lifecycle_benchmark(_db, dataset_version="v1"):
+    """Load the GLOBAL cohort lifecycle curves. `_db` underscored → not hashed."""
+    try:
+        return _db.fetch_df(
+            """SELECT algorithm, age_week_bin, age_week_bin_order,
+                      ratio_q1, ratio_median, ratio_q3,
+                      total_stream_median, sample_count
+               FROM algo_lifecycle_benchmark
+               WHERE dataset_version = %s
+               ORDER BY age_week_bin_order""",
+            (dataset_version,),
+        )
+    except Exception:
+        return None
+
+
+def _compute_age_weeks(release_date):
+    if release_date is None:
+        return None
+    return max(0, (date.today() - release_date).days // 7)
+
+
+def _age_week_order(age_weeks):
+    """Map an age-in-weeks to its benchmark bin (order, label)."""
+    if age_weeks is None:
+        return None, None
+    for label, order, lo, hi in _LIFECYCLE_AGE_BINS:
+        if lo <= age_weeks < hi:
+            return order, label
+    return None, None
+
+
+def _lifecycle_band_fig(curve_df, algo_label, live_order, color):
+    x = list(curve_df["age_week_bin_order"])
+    rgba = color.replace("rgb(", "rgba(").replace(")", ", 0.18)")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x, y=curve_df["ratio_q3"], mode="lines",
+                             line=dict(width=0), showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=x, y=curve_df["ratio_q1"], mode="lines", line=dict(width=0),
+                             fill="tonexty", fillcolor=rgba, name="P25–P75 (cohorte)"))
+    fig.add_trace(go.Scatter(x=x, y=curve_df["ratio_median"], mode="lines+markers",
+                             line=dict(color=color, width=3), name="Médiane cohorte"))
+    fig.add_hline(y=1.0, line_dash="dot", line_color="grey",
+                  annotation_text="Moyenne catégorie (1.0×)")
+    if live_order is not None:
+        fig.add_vline(x=live_order, line_dash="dash", line_color="#ffffff",
+                      annotation_text="Ce titre", annotation_position="top")
+    fig.update_layout(title=f"{algo_label} — ratio de standardisation par âge",
+                      height=300, xaxis_title="Âge du titre (semaines)",
+                      yaxis_title="Ratio (titre / moyenne catégorie)",
+                      hovermode="x unified", legend=dict(orientation="h", y=1.18),
+                      margin=dict(t=70))
+    fig.update_xaxes(tickmode="array", tickvals=x, ticktext=list(curve_df["age_week_bin"]))
+    return fig
+
+
+def _standardization_block(db, track, artist_id, age_weeks, benchmark_df):
+    st.markdown("#### 📍 Position de ce titre vs cohorte")
+    if age_weeks is None:
+        st.info("Date de sortie inconnue — impossible de situer le titre.")
+        return
+    order, bin_label = _age_week_order(age_weeks)
+    ref = benchmark_df[benchmark_df["age_week_bin_order"] == order]["total_stream_median"].dropna()
+    if ref.empty:
+        st.info(
+            f"Âge : **{age_weeks} sem.** (tranche {bin_label}). Référence cohorte "
+            "total-streams indisponible (artefact provisoire) — seul l'âge est "
+            "superposé sur les courbes ci-dessus."
+        )
+        return
+    try:
+        if artist_id:
+            rows = db.fetch_query(
+                """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
+                   WHERE song = %s AND artist_id = %s
+                     AND song NOT ILIKE %s AND date >= CURRENT_DATE - 28""",
+                (track, artist_id, "%1x7xxxxxxx%"))
+        else:
+            rows = db.fetch_query(
+                """SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline
+                   WHERE song = %s AND song NOT ILIKE %s AND date >= CURRENT_DATE - 28""",
+                (track, "%1x7xxxxxxx%"))
+        live_28d = float(rows[0][0]) if rows else 0.0
+    except Exception:
+        st.info("Streams du titre indisponibles.")
+        return
+    cohort_med = float(ref.iloc[0])
+    ratio = live_28d / cohort_med if cohort_med > 0 else 0.0
+    st.metric(f"Position vs cohorte (tranche {bin_label})", f"{ratio:.2f}×",
+              delta=f"{(ratio - 1) * 100:+.0f}% vs médiane")
+    st.caption(
+        "Ratio basé sur le **total** des streams (toutes sources, 28j). La "
+        "répartition par algorithme provient de la cohorte globale et n'est PAS "
+        "mesurée sur ce titre."
+    )
+
+
+def _lifecycle_legend():
+    with st.expander("ℹ️ Comprendre les courbes de vie & la standardisation", expanded=False):
+        st.markdown(
+            "**Ratio de standardisation** : compare les streams de ce titre à la moyenne "
+            "des titres de la même *catégorie de poids* (décile de followers pour DW/RR, "
+            "bucket de popularité pour Radio). **1.0× = dans la moyenne**, >1.0× = "
+            "au-dessus, <1.0× = en dessous. Le ratio porte sur le **total** des streams ; "
+            "la ventilation par algorithme vient de la cohorte globale.\n\n"
+            "**Phases du cycle de vie :**\n"
+            "- 🕳️ **Vallée de la mort** (Radio, sem. 5-10) : creux algorithmique après l'élan initial.\n"
+            "- 📈 **Résurrection** (Radio, sem. 25-100+) : reprise long-tail si l'engagement tient.\n"
+            "- 🧗 **Falaise** (Release Radar, après sem. 5-6) : RR cible la nouveauté, l'exposition chute vite.\n"
+            "- ♾️ **Pas d'expiration** (Discover Weekly) : DW peut ré-exposer un titre durablement.\n\n"
+            "Courbes = bande P25-P75 + médiane d'une cohorte **globale** (statique). "
+            "Ligne verticale blanche = âge actuel de votre titre."
+        )
+
+
+def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
+    st.subheader("📉 Cycle de vie algorithmique & standardisation")
+    if show_empty_state(
+        benchmark_df,
+        "Benchmark indisponible — artefact non généré "
+        "(voir migration 035 / export_lifecycle_benchmark.py).",
+        level="warning",
+    ):
+        return
+
+    age_weeks = _compute_age_weeks(release_date)
+    live_order, live_bin = _age_week_order(age_weeks)
+    c1, c2 = st.columns([1, 2])
+    c1.metric("Âge du titre", f"{age_weeks} sem." if age_weeks is not None else "—")
+    c2.caption(f"Sortie : {release_date or '—'} · tranche {live_bin or '—'} · "
+               "courbes = cohorte globale statique")
+    _lifecycle_legend()
+
+    for algo in ("DW", "RR", "RADIO"):
+        curve = benchmark_df[benchmark_df["algorithm"] == algo].sort_values("age_week_bin_order")
+        if curve.empty:
+            continue
+        st.plotly_chart(
+            _lifecycle_band_fig(curve, _LIFECYCLE_LABELS[algo], live_order, _LIFECYCLE_PALETTE[algo]),
+            width="stretch",
+        )
+
+    st.markdown("---")
+    _standardization_block(db, track, artist_id, age_weeks, benchmark_df)
+    st.divider()
+    with st.expander("🗒️ Notes & analyses à venir"):
+        st.caption("Espace réservé pour intégrer les prochaines analyses "
+                   "(distribution complète en boxplots, segmentation par décile, etc.).")
+
+
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 def show():
     from src.dashboard.auth import require_plan
@@ -1074,10 +1518,7 @@ def show():
     st.title("🚀 Road to Algorithms (J+28)")
     st.markdown("Suivi ML, budget, ROI et explainabilité des scores algorithmiques.")
 
-    db = get_db_connection()
-    artist_id = st.session_state.get("artist_id")
-
-    try:
+    with view_session() as (db, artist_id):
         # Track list — ordered by release_date DESC from tracks table.
         # S4A CSVs replace '?' with '_' in song names, so the JOIN uses REPLACE().
         try:
@@ -1186,15 +1627,17 @@ def show():
             else:
                 date_from, date_to = today - timedelta(days=28), today
 
-        # Load ML prediction once — shared across tabs
+        # Load ML prediction + global benchmark once — shared across tabs
         ml_pred = _load_ml_pred(db, selected_track, artist_id)
+        benchmark_df = _load_lifecycle_benchmark(db)
 
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "🎯 Vue Globale",
             "📊 Suivi Algorithmes",
             "💰 Budget & ROI",
             "🔍 Explainabilité",
             "📈 Modèle",
+            "📉 Cycle de vie & Benchmark",
         ])
         with tab1:
             _show_tab_global(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)
@@ -1206,6 +1649,6 @@ def show():
             _show_tab_explainability(ml_pred, selected_track)
         with tab5:
             _show_tab_model(db, selected_track, artist_id)
-
-    finally:
-        db.close()
+        with tab6:
+            _show_tab_lifecycle(db, selected_track, artist_id,
+                                release_date=track_release_date, benchmark_df=benchmark_df)

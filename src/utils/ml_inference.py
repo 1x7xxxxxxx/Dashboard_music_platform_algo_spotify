@@ -12,6 +12,8 @@ pas des probabilités absolues calibrées.
 """
 import os
 import logging
+from statistics import median
+
 import numpy as np
 import pandas as pd
 
@@ -32,6 +34,7 @@ MODEL_PATHS = {
     "rr_classifier":    "4/models/m-6331266b24604c65b1494a798b0be03d/artifacts/model.ubj",
     "dw_regressor":     "5/models/m-3e9e570baa7348bfb504d698d9084d1b/artifacts/model.ubj",
     "rr_regressor":     "7/models/m-e8b2e7dce68e4759832f7261dc59955f/artifacts/model.ubj",
+    "radio_regressor":  "6/models/m-3eb19b69b4344356819433eb63d7d978/artifacts/model.ubj",
 }
 
 # Ordre des features attendu par les modèles (issu du notebook)
@@ -93,9 +96,12 @@ def load_model(model_key: str):
 def build_features(db, artist_id: int, song: str) -> dict:
     """Construit le vecteur de features pour une chanson depuis la DB.
 
-    Features disponibles en DB : calculées exactement.
-    Features absentes : imputées à 0 (NonAlgoStreams, Saves, PlaylistAdds)
-    ou à une valeur neutre (ReleaseConsistencyNum=0.5).
+    Calculées depuis la DB : streams, followers, catalogue, vélocité,
+    DaysSinceRelease, ratio écoutes/auditeur (streams par auditeur, aligné sur
+    l'entraînement), Saves (s4a_songs_global), PlaylistAdds
+    (s4a_song_playlist_adds), ReleaseConsistency (cadence médiane des sorties).
+    Encore imputées faute de source : NonAlgoStreams28Days (split par source —
+    Phase 2), HowManySongsDoYouHaveInRadioRightNow, DiscoveryMode (API S4A).
 
     Returns:
         dict avec les 13 features + raw values pour stockage dans features_json.
@@ -152,28 +158,61 @@ def build_features(db, artist_id: int, song: str) -> dict:
     )
     n_songs = int(catalog[0][0]) if catalog else 1
 
-    # --- Listeners / stream ratio (global) ---
+    # --- Song snapshot (listeners / streams / saves) ---
+    # Prefer the '28d' window (matches the *28Days features); fall back to '12m'.
     global_row = db.fetch_query(
-        "SELECT listeners, streams FROM s4a_songs_global WHERE artist_id = %s AND song = %s AND time_window = '12m'",
+        """SELECT listeners, streams, saves
+           FROM s4a_songs_global
+           WHERE artist_id = %s AND song = %s AND time_window IN ('28d', '12m')
+           ORDER BY CASE time_window WHEN '28d' THEN 0 ELSE 1 END
+           LIMIT 1""",
         (artist_id, song)
     )
     listeners_global = int(global_row[0][0]) if global_row and global_row[0][0] else 0
     streams_global = int(global_row[0][1]) if global_row and global_row[0][1] else 0
-    ratio = listeners_global / max(streams_global, 1)
+    saves_28d = int(global_row[0][2]) if global_row and global_row[0][2] else 0
+    # Streams per listener — training sweet-spot 2.2-4. Was inverted AND clamped
+    # to 1.0 (listeners/streams), so the live feature could never reach its bonus
+    # zone; realigned with the training definition.
+    ratio = streams_global / listeners_global if listeners_global > 0 else 0.0
+
+    # --- Playlist adds (last 28 days) from manual S4A entries ---
+    pa_row = db.fetch_query(
+        """SELECT COALESCE(SUM(count), 0) FROM s4a_song_playlist_adds
+           WHERE artist_id = %s AND song = %s AND recorded_at >= CURRENT_DATE - 28""",
+        (artist_id, song)
+    )
+    playlist_adds_28d = int(pa_row[0][0]) if pa_row and pa_row[0][0] else 0
+
+    # --- Release consistency: median weeks between successive releases ---
+    # Source = real release dates (track_release_reference, per-tenant). The
+    # timeline first-appearance is NOT usable here: history is backfilled in one
+    # import so every song shares the same first date. Neutral 0.5 only when
+    # there are < 2 distinct release dates to measure a cadence.
+    rel_rows = db.fetch_query(
+        """SELECT release_date FROM track_release_reference
+           WHERE artist_id = %s AND release_date IS NOT NULL""",
+        (artist_id,)
+    )
+    rel_dates = sorted({r[0] for r in (rel_rows or []) if r[0]})
+    if len(rel_dates) >= 2:
+        gaps = [(rel_dates[i] - rel_dates[i - 1]).days / 7.0 for i in range(1, len(rel_dates))]
+        release_consistency = float(median(gaps))
+    else:
+        release_consistency = 0.5
 
     features = {
-        # Computed features
         "StreamsLast7Days_log": float(np.log1p(s7)),
         "CurrentSpotifyFollowers_log": float(np.log1p(followers)),
-        "HowManySongsDoYouHaveInRadioRightNow": 0.0,   # non disponible
+        "HowManySongsDoYouHaveInRadioRightNow": 0.0,   # non disponible (pas de source)
         "HowManySongsHasThisArtistEverReleased": float(n_songs),
-        "IsThisSongOptedIntoSpotifyDiscoveryMode": 0.0,  # non disponible
-        "ReleaseConsistencyNum": 0.5,                    # valeur neutre
+        "IsThisSongOptedIntoSpotifyDiscoveryMode": 0.0,  # non disponible (API S4A)
+        "ReleaseConsistencyNum": float(release_consistency),
         "DaysSinceRelease": float(days_since),
-        "NonAlgoStreams28Days_log": 0.0,                 # non disponible
-        "ListenersStreamRatio28Days_adj": float(min(ratio, 1.0)),
-        "SavesLast28Days_adj": 0.0,                      # non disponible
-        "PlaylistAddsLast28Days_adj": 0.0,               # non disponible
+        "NonAlgoStreams28Days_log": 0.0,                 # non disponible (split par source — Phase 2)
+        "ListenersStreamRatio28Days_adj": float(ratio),
+        "SavesLast28Days_adj": float(saves_28d),
+        "PlaylistAddsLast28Days_adj": float(playlist_adds_28d),
         "ReleasePhaseEarly": 1.0 if days_since < 30 else 0.0,
         "Velocity_Streams": float(velocity),
     }
@@ -194,7 +233,7 @@ def score_song(features: dict) -> dict:
 
     Returns:
         dict avec dw_probability, rr_probability, radio_probability,
-        dw_streams_forecast_7d, rr_streams_forecast_7d.
+        dw_streams_forecast_7d, rr_streams_forecast_7d, radio_streams_forecast_7d.
         Retourne None si un modèle est indisponible.
     """
     # Construire le DataFrame dans l'ordre exact
@@ -236,12 +275,20 @@ def score_song(features: dict) -> dict:
         logger.warning(f"RR regressor indisponible: {e}")
         rr_forecast = None
 
+    try:
+        radio_reg = load_model("radio_regressor")
+        radio_forecast = max(0, int(radio_reg.predict(X)[0]))
+    except Exception as e:
+        logger.warning(f"Radio regressor indisponible: {e}")
+        radio_forecast = None
+
     return {
         "dw_probability": dw_prob,
         "rr_probability": rr_prob,
         "radio_probability": radio_prob,
         "dw_streams_forecast_7d": dw_forecast,
         "rr_streams_forecast_7d": rr_forecast,
+        "radio_streams_forecast_7d": radio_forecast,
     }
 
 
@@ -299,6 +346,7 @@ def score_all_songs(db, artist_id: int) -> list[dict]:
                 "radio_probability": predictions.get("radio_probability"),
                 "dw_streams_forecast_7d": predictions.get("dw_streams_forecast_7d"),
                 "rr_streams_forecast_7d": predictions.get("rr_streams_forecast_7d"),
+                "radio_streams_forecast_7d": predictions.get("radio_streams_forecast_7d"),
                 "model_version": MODEL_VERSION,
                 "features_json": json.dumps(features_clean),
             }

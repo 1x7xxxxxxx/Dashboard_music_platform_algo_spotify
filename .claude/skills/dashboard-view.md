@@ -8,6 +8,66 @@ rex:
   \ types"
     severity: "info"
     ref: "DEVLOG#2026-05-14"
+  - date: 2026-05-29
+    issue: "Meta breakdown tables are lifetime aggregates (no date) with ISO-2 codes; chart assumed period filter + ISO-3 map"
+    fix: "Period filter only on datable tables; choropleth needs ISO-2→ISO-3 (pycountry via utils/geo.py); per-creative breakdowns required NEW ad/adset tables (campaign grain != creative grain)"
+    severity: "info"
+    ref: "DEVLOG#2026-05-29"
+  - date: 2026-05-29
+    issue: "ML decision gauges trusted inference features imputed-to-0 or inverted+clamped vs the trained definition"
+    fix: "algo_knowledge flags live_unavailable/divergent features instead of trusting them; recovered Saves/PlaylistAdds/ReleaseConsistency from DB + fixed ratio (streams/listener, unclamped) in ml_inference"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-29"
+  - date: 2026-05-29
+    issue: "ReleaseConsistency from timeline first-appearance was all-zero: backfill gives every song one identical first date"
+    fix: "Use real per-tenant dates from track_release_reference for cadence; never derive release dates from backfilled timeline MIN(date)"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-29"
+  - date: 2026-05-30
+    issue: "Tempted to reuse DW feature thresholds for Radio, but Radio rules differ/invert (age, velocity, catalog)"
+    fix: "Keep per-algo zone sets in algo_knowledge.ALGO_FEATURE_ZONES (algo-keyed); never generalize one algorithm's SHAP thresholds to another. Radio populated separately from DW"
+    severity: "info"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-30
+    issue: "A view hardcoded the velocity cutoff (1.2/1.5) as literals, duplicating zone logic already in algo_knowledge"
+    fix: "Added ak.velocity_penalty_threshold(algo) single-source helper; route both the gate and the displayed number through it. Views never re-encode a threshold that lives in algo_knowledge"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-30
+    issue: "Encoding RR zones from the prose SHAP summary missed feature #4 and oversimplified another (cliff vs firing window)"
+    fix: "Encode algo decision zones from the SHAP zoom ARTIFACTS (mlruns/4/.../5_SHAP_Zoom_*.png), not the prose summary; pixel-verify the scorecard against the Dashboard_Performances PNG"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-30
+    issue: "Divergent gauge message hardcoded 'bornée à ≤1.0' for one feature; wrong for RR PlaylistAdds (a song-age confound)"
+    fix: "Per-feature warning strings must be data-driven (read divergent_note from the zone spec), never hardcoded for one expected feature; mark confound features actionable:False to exclude from coach"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-30
+    issue: "Adding a 2nd zone set (volume regressor) duplicated the classification zone helpers"
+    fix: "Generalize the zone helpers with a registry= arg so one machinery serves both ALGO_FEATURE_ZONES and ALGO_VOLUME_ZONES; thread it through ml_widgets gauges too"
+    severity: "info"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-30
+    issue: "Re-audited ListenersStreamRatio as the tracked inverted+clamped P2 bug; already fixed in ml_inference.py:176"
+    fix: "Before re-flagging a known bug candidate, read the live code. ListenersStreamRatio is now streams/listeners unclamped (fixed 2026-05-29); close stale bug-candidate notes once confirmed in source"
+    severity: "info"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-30
+    issue: "Imputed-0 feature (RadioCount) rendered a fake live '0' gauge in a new volume zone\
+  \ \u2014 live_unavailable wasn't re-set"
+    fix: "live_unavailable is per zone-set, not inherited: flag the feature in EACH spec (ALGO_VOLUME_ZONES\
+  \ too) so the gauge routes to the pedagogic expander"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-30"
+  - date: 2026-05-31
+    issue: "RR volume regressor (R\xB2=0.32, noise) was shown to users as a forecast \u2014 a\
+  \ false financial promise"
+    fix: "Gate user forecasts on ak.volume_forecast_reliable(algo) (data-driven flag, not if-algo==RR);\
+  \ low-R\xB2 regressors ship classification-only, the scatter stays as a labelled\
+  \ diagnostic"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-31"
 ---
 
 # Skill: Dashboard View
@@ -148,6 +208,42 @@ soundcloud `track_created_at`); the period span still uses `date_column`.
 Precedent (fixed): `soundcloud.py` `release_column="track_created_at"`.
 Accepted exception: `apple_music.py` (no Apple API created_at — `MIN(date)`
 proxy, do NOT name-join `tracks`). Class: `ingest-time-as-release-date`.
+
+### 7. Aggregate breakdown tables have no date dim → no period filter
+`meta_insights_performance_{country,placement,age}` (and the ad/adset-grain
+variants) are **lifetime aggregates** keyed by `(artist_id, entity, dimension)` —
+there is NO `date`/`day_date` column. Do not wire `smart_date_range` to them:
+filter by **entity** (campaign/adset/creative) instead, and label the data as
+lifetime. Period filters belong on datable tables (`meta_insights` ad-level,
+`*_performance_day`). Precedent: `meta_breakdowns.py`.
+
+### 8. Choropleth needs ISO-3, Meta stores ISO-2
+Meta `country` columns are ISO-3166 **alpha-2** ('US','FR'); `px.choropleth`
+needs **alpha-3** with `locationmode='ISO-3'`. Convert via `utils/geo.iso2_to_iso3`
+(pycountry wrapper) and `.dropna(subset=['iso3'])` before plotting — unmapped
+codes silently vanish otherwise. Precedent: `meta_breakdowns.py::_render_performance`.
+
+### 9. Entity filters: order by recency in SQL, never `sorted()`
+A `selectbox`/`multiselect` over entities (campaign, ad set, ad, track, video…)
+must list the **most recent first** (last launched/released on top), so the user
+lands on what they're working on now. Do it in **SQL** — `ORDER BY <recency_col>
+DESC NULLS LAST` — and keep that order through to the widget. Never `sorted(...)`
+the options in Python (it re-alphabetises and buries the latest entity).
+
+There is no generic helper: the recency column differs per table, so it's a
+convention, not a function.
+
+| Table | Recency column |
+|---|---|
+| `meta_campaigns` / `meta_adsets` | `start_time` |
+| `meta_ads` | `created_time` |
+| `soundcloud_tracks*` | `track_created_at` |
+| `youtube_videos` | `published_at` |
+| S4A releases | `release_date` (`track_release_reference`) |
+
+For a list derived from an already-fetched DataFrame, carry the recency column and
+`df.sort_values(recency, ascending=False, na_position='last')[label].drop_duplicates()`.
+Precedents: `meta_breakdowns.py` cascade, `meta_creatives.py` campaign/creative pickers.
 
 ---
 

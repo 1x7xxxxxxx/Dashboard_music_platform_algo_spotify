@@ -5,8 +5,10 @@ Affiche les artefacts MLflow (graphiques PNG) + tableau des scores en DB.
 """
 import os
 import streamlit as st
+import pandas as pd
 from pathlib import Path
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, ml_widgets
+from src.dashboard.utils.algo_knowledge import ALGO_MODEL_METRICS, populated_algos
 
 # ---------------------------------------------------------------------------
 # Chemins artefacts (identiques à ml_inference.py)
@@ -21,6 +23,7 @@ _MODELS = [
     ("3", "3f1c8ca12a7f40669f60ff5ce4e3b3cf", "Radio Spotify — Classifier", "classifier"),
     ("5", "98d183115d0d4c56992bd1abf9e61fc6", "Discover Weekly — Regressor", "regressor"),
     ("7", "d0bdf95917684d8a87a2525b83e3245a", "Release Radar — Regressor", "regressor"),
+    ("6", "16155f62fb45445eaf1c98dfd99fc4a3", "Radio Spotify — Regressor", "regressor"),  # pragma: allowlist secret
 ]
 
 
@@ -83,18 +86,35 @@ def _show_predictions_tab(db):
 
     st.write(f"**{len(df)} prédiction(s) trouvée(s)**")
 
-    # Sélecteur de chanson pour filtrer
-    songs = ["(toutes)"] + sorted(df["song"].unique().tolist())
+    # Sélecteur de chanson — sortie la plus récente en haut (days_since_release asc).
+    songs = ["(toutes)"] + (
+        df.sort_values("days_since_release", ascending=True, na_position="last")
+          ["song"].drop_duplicates().tolist()
+    )
     selected = st.selectbox("Filtrer par chanson", songs)
     if selected != "(toutes)":
         df = df[df["song"] == selected]
 
-    # Formatage colonnes probabilités en %
+    # Formatage colonnes probabilités en %. Postgres NUMERIC arrives as Decimal
+    # (object dtype) → coerce to float first, else .round() raises "Expected
+    # numeric dtype". NaN (NULL) is rendered as "—" rather than "nan%".
     for col in ["dw_prob", "rr_prob", "radio_prob"]:
         if col in df.columns:
-            df[col] = (df[col] * 100).round(1).astype(str) + "%"
+            pct = (pd.to_numeric(df[col], errors="coerce") * 100).round(1)
+            df[col] = pct.map(lambda v: f"{v}%" if pd.notna(v) else "—")
 
     st.dataframe(df, width="stretch")
+
+
+def _show_scorecard_tab():
+    """Classification scorecards (offline test-set metrics) per algorithm."""
+    st.caption("Métriques d'évaluation hors-ligne (jeu de test). Source : analyse `machine_learning/`.")
+    for algo in populated_algos():  # canonical order, single source of truth
+        if algo in ALGO_MODEL_METRICS:
+            ml_widgets.render_classification_scorecard(algo, compact=False)
+            st.markdown("---")
+        else:
+            st.caption(f"{algo} : scorecard de classification non encore disponible.")
 
 
 def show():
@@ -109,7 +129,10 @@ def show():
     db = get_db_connection()
 
     try:
-        tab_labels = [label for _, _, label, _ in _MODELS] + ["🎯 Prédictions en DB"]
+        tab_labels = (
+            [label for _, _, label, _ in _MODELS]
+            + ["📋 Scorecard classification", "🎯 Prédictions en DB"]
+        )
         tabs = st.tabs(tab_labels)
 
         for i, (exp_id, run_id, label, _) in enumerate(_MODELS):
@@ -117,6 +140,9 @@ def show():
                 st.subheader(label)
                 st.caption(f"Expérience MLflow n°{exp_id} — run `{run_id[:8]}…`")
                 _show_model_tab(exp_id, run_id, label)
+
+        with tabs[-2]:
+            _show_scorecard_tab()
 
         with tabs[-1]:
             _show_predictions_tab(db)

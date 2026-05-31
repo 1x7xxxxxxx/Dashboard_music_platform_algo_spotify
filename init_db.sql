@@ -196,6 +196,7 @@ CREATE TABLE IF NOT EXISTS ml_song_predictions (
     radio_probability FLOAT,
     dw_streams_forecast_7d INTEGER,
     rr_streams_forecast_7d INTEGER,
+    radio_streams_forecast_7d INTEGER,
     model_version VARCHAR(50) DEFAULT 'v1',
     features_json JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -205,6 +206,29 @@ CREATE TABLE IF NOT EXISTS ml_song_predictions (
 CREATE INDEX IF NOT EXISTS idx_ml_predictions_artist ON ml_song_predictions(artist_id);
 CREATE INDEX IF NOT EXISTS idx_ml_predictions_song_date ON ml_song_predictions(artist_id, song, prediction_date DESC);
 CREATE INDEX IF NOT EXISTS idx_ml_predictions_date ON ml_song_predictions(prediction_date DESC);
+
+-- Global (non-tenant) algorithmic lifecycle benchmark — read-only cohort curves.
+-- Seeded by migrations/035_algo_lifecycle_benchmark.sql; see src/database/benchmark_schema.py.
+CREATE TABLE IF NOT EXISTS algo_lifecycle_benchmark (
+    id                   SERIAL PRIMARY KEY,
+    algorithm            TEXT NOT NULL,
+    weight_category_type TEXT NOT NULL,
+    age_week_bin         TEXT NOT NULL,
+    age_week_bin_order   SMALLINT NOT NULL,
+    ratio_min            DOUBLE PRECISION,
+    ratio_q1             DOUBLE PRECISION,
+    ratio_median         DOUBLE PRECISION,
+    ratio_q3             DOUBLE PRECISION,
+    ratio_max            DOUBLE PRECISION,
+    total_stream_median  DOUBLE PRECISION,
+    sample_count         INTEGER NOT NULL,
+    dataset_version      TEXT NOT NULL DEFAULT 'v1',
+    exported_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (algorithm, age_week_bin, dataset_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_algo_lifecycle_lookup
+    ON algo_lifecycle_benchmark (dataset_version, algorithm, age_week_bin_order);
 
 -- ============================================================
 -- 10. Artist Wrapped — annual Spotify for Artists metrics

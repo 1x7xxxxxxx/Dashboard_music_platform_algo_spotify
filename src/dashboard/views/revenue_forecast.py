@@ -21,6 +21,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.auth import get_artist_id, is_admin
 
 
@@ -483,6 +484,7 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                 radio_probability,
                 dw_streams_forecast_7d,
                 rr_streams_forecast_7d,
+                radio_streams_forecast_7d,
                 streams_7d,
                 streams_28d
             FROM ml_song_predictions
@@ -501,9 +503,26 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
         ml_df = ml_df.sort_values('dw_probability', ascending=False).reset_index(drop=True)
         ml_df['prediction_date'] = pd.to_datetime(ml_df['prediction_date']).dt.strftime('%Y-%m-%d')
 
+        # Probabilities can be NULL (a model that fails to score writes None →
+        # the Series becomes object dtype, and .round() would raise TypeError).
+        # Coerce to numeric and render NaN as a dash. Mirrors ml_performance.py.
         for col in ['dw_probability', 'rr_probability', 'radio_probability']:
-            ml_df[col] = (ml_df[col] * 100).round(1).astype(str) + '%'
+            if col in ml_df.columns:
+                pct = (pd.to_numeric(ml_df[col], errors='coerce') * 100).round(1)
+                ml_df[col] = pct.map(lambda v: f"{v}%" if pd.notna(v) else "—")
 
+        # RR volume regressor is unreliable (R²=0.32) — drop its floor column so the ROI
+        # table never shows a Release Radar stream forecast (classification-only by design).
+        if not ak.volume_forecast_reliable("RR"):
+            ml_df = ml_df.drop(columns=['rr_streams_forecast_7d'], errors='ignore')
+
+        st.caption(
+            "🛡️ Les colonnes *plancher* sont des **estimations worst-case** : le modèle "
+            "de volume sous-estime les hits, le potentiel réel est souvent supérieur. "
+            "Le Release Radar n'a pas de colonne volume : son débit dépend du taux "
+            "d'ouverture des notifications (non prédictible) — on s'appuie sur sa "
+            "classification (AUC 0.96)."
+        )
         st.dataframe(
             ml_df.rename(columns={
                 'song': 'Track',
@@ -511,8 +530,9 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                 'dw_probability': 'Discovery Weekly (%)',
                 'rr_probability': 'Release Radar (%)',
                 'radio_probability': 'Radio (%)',
-                'dw_streams_forecast_7d': 'Streams DW 7j (prédit)',
-                'rr_streams_forecast_7d': 'Streams RR 7j (prédit)',
+                'dw_streams_forecast_7d': 'Streams DW 7j (plancher ≥)',
+                'rr_streams_forecast_7d': 'Streams RR 7j (plancher ≥)',
+                'radio_streams_forecast_7d': 'Streams Radio 7j (plancher ≥)',
                 'streams_7d': 'Streams 7j (réels)',
                 'streams_28d': 'Streams 28j (réels)',
             }),

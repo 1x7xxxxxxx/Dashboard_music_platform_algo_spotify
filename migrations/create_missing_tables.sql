@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS ml_song_predictions (
     radio_probability FLOAT,
     dw_streams_forecast_7d INTEGER,
     rr_streams_forecast_7d INTEGER,
+    radio_streams_forecast_7d INTEGER,
     model_version VARCHAR(50) DEFAULT 'v1',
     features_json JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
