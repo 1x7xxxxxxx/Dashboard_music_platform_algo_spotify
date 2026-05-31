@@ -5,7 +5,11 @@ Hook Stop — Session summary: git + Docker + session length + pytest + delivera
 Runs at end of session. Silent if nothing to report. Always exits 0.
 
 ---
-rex: []
+rex:
+  - date: 2026-05-31
+    issue: "_DELIVERABLES + the latest.md resume pointer referenced ROADMAP.md, which does not exist in this repo"
+    fix: "Repointed both to .claude/dev-docs/roadmap/checklist.md (the single source of truth)"
+    severity: warn
 ---
 """
 import json
@@ -13,7 +17,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -40,7 +43,7 @@ _SESSION_TURNS_WARN = 20
 # Deliverable files to check for freshness (relative to repo root).
 # REX is no longer a freshness target — captured per-tool via frontmatter (see rex-format.md).
 _DELIVERABLES = {
-    "ROADMAP.md":        ".claude/dev-docs/ROADMAP.md",
+    "checklist.md":      ".claude/dev-docs/roadmap/checklist.md",
     "DEVLOG.md":         "DEVLOG.md",
 }
 
@@ -55,16 +58,16 @@ def get_git_changes() -> list[str]:
     if result.returncode != 0:
         return []
     return [
-        l for l in result.stdout.strip().splitlines()
-        if not any(pat in l for pat in _SKIP_PATTERNS)
+        line for line in result.stdout.strip().splitlines()
+        if not any(pat in line for pat in _SKIP_PATTERNS)
     ]
 
 
 def format_git_summary(lines: list[str]) -> str:
-    modified = [l for l in lines if l.startswith((" M", "M "))]
-    deleted  = [l for l in lines if l.startswith((" D", "D "))]
-    new      = [l for l in lines if l.startswith("?")]
-    staged   = [l for l in lines if not l.startswith((" ", "?"))]
+    modified = [line for line in lines if line.startswith((" M", "M "))]
+    deleted  = [line for line in lines if line.startswith((" D", "D "))]
+    new      = [line for line in lines if line.startswith("?")]
+    staged   = [line for line in lines if not line.startswith((" ", "?"))]
 
     counts = []
     if modified: counts.append(f"✏️  {len(modified)} modifié(s)")
@@ -76,7 +79,7 @@ def format_git_summary(lines: list[str]) -> str:
     detail = "\n  ".join([""] + lines[:5])
     if len(lines) > 5:
         detail += f"\n  … et {len(lines) - 5} autre(s)"
-    reminder = '\n💡 Before /clear : update DEVLOG.md, check off ROADMAP.md items, run /retro to promote pending REX drafts'
+    reminder = '\n💡 Before /clear : update DEVLOG.md, check off checklist.md items, run /retro to promote pending REX drafts'
     return header + detail + reminder
 
 
@@ -165,7 +168,7 @@ def run_pytest_summary(repo_root: str) -> str | None:
             return f"\n✅ Tests: {last_line}"
         else:
             msg = f"\n❌ Tests failing:\n  {last_line}"
-            failures = sum(1 for l in output.splitlines() if " FAILED" in l)
+            failures = sum(1 for line in output.splitlines() if " FAILED" in line)
             if failures >= 5:
                 msg += f"\n  → {failures} failures — consider spawning build-error-resolver agent"
             return msg
@@ -304,7 +307,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     branch = _git_branch(repo_root)
-    git_str = "\n".join(f"  {l}" for l in git_changes[:10]) or "  (clean)"
+    git_str = "\n".join(f"  {line}" for line in git_changes[:10]) or "  (clean)"
     devlog = _latest_devlog_title(repo_root)
     wip = _wip_snapshot(repo_root)
 
@@ -317,7 +320,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
         f"## Active WIP\n{wip}\n\n"
         f"## Resume instructions\n"
         f"After /clear or session restart:\n"
-        f"1. Run `/resume` to reload sprint + WIP state\n"
+        f"1. Run `/resume` (reads `.claude/dev-docs/roadmap/checklist.md` — the single source of truth)\n"
         f"2. Re-run `python3 -m pytest tests/ -q` to confirm test state\n"
     )
     try:
@@ -398,7 +401,7 @@ def main():
 
     # 4. Pytest hint — not auto-run (too expensive per Stop).
     # Run manually: python3 -m pytest src/Application/tests/ -q --tb=short
-    py_changes = [l for l in changes if l.endswith(".py")]
+    py_changes = [line for line in changes if line.endswith(".py")]
     if py_changes:
         sections.append(
             f"\n🧪 {len(py_changes)} .py file(s) changed — run tests before /clear:\n"
@@ -420,7 +423,7 @@ def main():
         sections.append(
             "\n📋 Post-session deliverables not updated:\n"
             + "\n".join(deliverable_warnings)
-            + "\n  → Update ROADMAP.md, DEVLOG.md before /clear; run /retro to promote pending REX drafts"
+            + "\n  → Update checklist.md, DEVLOG.md before /clear; run /retro to promote pending REX drafts"
         )
 
     # 7. Observations visibility
