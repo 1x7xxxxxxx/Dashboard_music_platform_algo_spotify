@@ -39,7 +39,7 @@ Run after every feature completion, before declaring a brick done, before any de
 ### When to Use
 
 - After modifying any module that other code depends on
-- Before moving a brick from Active to Completed in `ROADMAP.md`
+- Before checking off a brick as completed in `.claude/dev-docs/roadmap/checklist.md`
 - After a schema change / migration
 - Before `docker compose build` / `docker buildx` / any deploy
 

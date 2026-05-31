@@ -1168,3 +1168,18 @@ C'est le 3e item Phase C rejeté après analyse (avec C#1 kpi_helpers et C#2 met
 
 - Hardcoded credentials dans `docker-compose.yml` (gitignored, mais pattern à revoir si on Compose-ifie autre chose)
 - Phase C autres items (#3-#8, #10) : aucun n'a été lu en détail aujourd'hui, mais le pattern Phase C #1/#2/#9 suggère que la majorité ne mérite pas un split. À ré-évaluer un par un si besoin futur.
+
+---
+
+## 2026-05-31 (suite) — Source unique = roadmap/checklist.md : config repointée + RR/RADIO calibration export + make migrate
+
+### Why
+Audit roadmap/déploiement demandé. Découvert que `/resume`, `/sprint`, `/adr`, le hook `session_summary.py` et l'agent `strategic-plan-architect` lisaient `.claude/dev-docs/ROADMAP.md` + `.claude/dev-docs/work-in-progress/` — **deux chemins inexistants dans ce repo** (résidus d'un template d'autre projet). `/resume` ne ressortait donc rien. Pas de `deployment.md` non plus. La vraie source unique est `.claude/dev-docs/roadmap/checklist.md`.
+
+### What changed
+- **Source unique = `checklist.md`.** Repointé : `.claude/commands/{resume,sprint,adr}.md` (réécrits pour lire checklist.md + `docs/adr/`), `.claude/hooks/session_summary.py` (`_DELIVERABLES` + snapshot resume + reminders), `.claude/agents/strategic-plan-architect.md`, `.claude/rules/rex-format.md`, `.claude/commands/dev-docs.md`, `.claude/skills/verification.md`. REX colocalisé ajouté (resume/sprint/adr/session_summary) — `validate_rex.py` : 48 tools OK, 0 erreur. `check_roadmap_update.py` était déjà correct ; `pre_compact.py`/`session_summary.py` gèrent l'absence de `work-in-progress/` sans crash (smoke rc=0). Au passage, fix de 8 E741 préexistants (`l` → `line`) dans session_summary.py pour passer pre-commit.
+- **`make migrate` appliqué** — Postgres up ; migrations 036 (radio_streams_forecast_7d) + 037 (pi_forecast_7d) + 038 (s4a_song_saves_daily) confirmées présentes. Lève le "RUNTIME STEP PENDING".
+- **`machine_learning/export_calibration_bands.py`** (nouveau) — bandes de calibration RR/RADIO depuis les classifieurs sauvegardés (load-only, pas de retrain). NON câblé dans `ALGO_CALIBRATION_BANDS` : mismatch score brut (consumer `calibration_note`) vs Platt-calibré (export) à réconcilier d'abord.
+
+### Tests
+`python3 -m pytest tests/ -q` → **285 passed, 1 skipped**. `session_summary.py` AST OK + ruff clean après fix E741. `validate_rex.py` clean (48 tools). `checklist.md` inchangée (md5 == HEAD).

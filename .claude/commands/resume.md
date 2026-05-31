@@ -1,56 +1,68 @@
 ---
-rex: []
+rex:
+  - date: 2026-05-31
+    issue: "resume read ROADMAP.md + work-in-progress/ — neither exists here, so /resume returned nothing useful"
+    fix: "Repointed to the single source of truth .claude/dev-docs/roadmap/checklist.md + docs/adr/ + the Stop-hook session snapshot"
+    severity: warn
 ---
 
 Resume the current session context after a /clear or session restart.
 
+The **single source of truth** for this project is
+`.claude/dev-docs/roadmap/checklist.md` (there is no `ROADMAP.md` and no
+`work-in-progress/` here — do not look for them).
+
 ## What to do
 
-1. Read `.claude/dev-docs/ROADMAP.md` — extract only the `## Current Sprint` section.
+1. Read `.claude/dev-docs/roadmap/checklist.md`. Extract **only the still-open
+   items** (`- [ ]`). Group them by the priority of their enclosing section
+   heading (P1 > P2 > P3 > P4). Ignore everything under `## Completed`, and ignore
+   `[x]` items. There are typically ~20 open items — summarise, don't dump all.
 
-2. List files in `.claude/dev-docs/work-in-progress/` (excluding README.md). For each subfolder found:
-   - Read the first 10 lines of `context.md` — **skip the folder entirely** if it contains `COMPLETED` or `BRICK COMPLETE` (it should have been archived; ignore it silently)
-   - Otherwise: read **full** `context.md` — show the `## Current state` section AND the `## Open questions` section (list all unanswered questions)
-   - Read `plan.md` — show objective and remaining steps (unchecked `- [ ]` items only)
+2. Read the latest session snapshot the Stop hook writes (auto-loaded into context
+   at session start under "Session State"). Surface its `## Git branch`,
+   `## Git status`, and `## Active WIP` lines. If it is absent, skip silently.
 
-3. Read the last 5 entries from `DEVLOG.md` (repo root) — show title + "What changed" lines only, no full body.
+3. Read the last 5 entries from `DEVLOG.md` (repo root) — show title + "What
+   changed" lines only, no full body.
 
-4. Read `.claude/dev-docs/archives/_archived_retro.md` — scan the **last 3 entries** for lines containing `Next session:`, `Deferred`, `⬜`, or `prochaine session`. Surface them as **Deferred actions** (max 4 items, skip if none found). Also read `.claude/sessions/pending-rex.md` if it exists and list any un-promoted REX drafts (session cleanup reminder).
+4. If `.claude/sessions/pending-rex.md` exists, list any un-promoted REX drafts
+   (session-cleanup reminder).
 
-5. Read `.claude/dev-docs/ROADMAP.md` — scan the `## Architecture Decision Records` section. Show the 2 ADRs most relevant to the active WIP bricks (match by brick name, technology keyword, or domain). Show: ADR number + title + one-line rationale. Skip if no WIP is active.
+5. Scan `docs/adr/` (files `ADR-0NN-*.md`). Show the 1–2 ADRs most relevant to the
+   open P1/P2 items (match by keyword/domain). Show: ADR number + title +
+   one-line rationale. Skip if nothing relevant.
 
 6. Output a compact session brief in this format:
 
 ---
 **Session Brief — YYYY-MM-DD**
 
-**Active sprint:**
-<P1 items from Current Sprint, 3 lines max>
+**Branch:** <branch> (<clean | N files modified>)
 
-**Work in progress:**
-<feature name> — <one-line state>
-  Open questions: <questions from ## Open questions, one per line>
-(or "None — start a new feature with /dev-docs <name>")
-
-**Deferred from last sessions:**
-- <deferred action or Next session item>
-(omit section if nothing deferred)
+**Open — by priority (from checklist.md):**
+- P1: <open P1 items, or "none">
+- P2: <open P2 items, max 4>
+- P3: <count> open (<1-line theme>)
+- P4: <count> open (<1-line theme>)
 
 **Relevant ADRs:**
 - ADR-XXX: <title> — <rationale>
-(omit section if no WIP active)
+(omit if none relevant)
 
 **Last changes:**
 - YYYY-MM-DD: <DEVLOG title>
 - ...
 
 **Suggested next action:**
-<first unchecked P1 item from ROADMAP.md Active Development>
+<the highest-priority open item that is actionable now — skip items the checklist
+marks as BLOCKED / awaiting a live data source / deploy-gated>
 ---
 
-7. If no work-in-progress folder exists and no P1 is open: tell the user the project is in a clean state and suggest running `/sprint` for a full status.
+7. If no open P1/P2 items remain: tell the user the actionable backlog is clear
+   and the rest is P3/P4 or blocked, then suggest `/sprint` for the full picture.
 
 ## When to use
 
-Run `/resume` as the very first command after any `/clear` or new session start when a feature was in progress.
-Order: `/resume` first → then work. Not `/sprint` (that's for roadmap overview only).
+Run `/resume` as the very first command after any `/clear` or new session start.
+Order: `/resume` first → then work.

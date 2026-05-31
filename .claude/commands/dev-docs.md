@@ -76,7 +76,7 @@ Fill in your own. Suggested template:
 **Test command:** `<your test runner>`
 
 **Dev-docs deliverables index:**
-- `ROADMAP.md` — master tracker
+- `.claude/dev-docs/roadmap/checklist.md` — the single source of truth (master tracker; there is no `ROADMAP.md`)
 - `DEVLOG.md` — append session entry when done
 - `architecture/macro_architecture.md` — system Mermaid
 - `architecture/database_schema.md` — schema (if applicable)
@@ -94,7 +94,7 @@ Tell the user:
 ## Closing a brick (completion checklist)
 
 - [ ] All `- [ ]` steps in `plan.md` checked off
-- [ ] `ROADMAP.md` updated: brick ✅ with completion date
+- [ ] `.claude/dev-docs/roadmap/checklist.md` updated: item checked `[x]` with completion date
 - [ ] `DEVLOG.md` entry appended (Why / What changed / verification evidence)
 - [ ] `context.md` Open questions: resolved or deferred
 - [ ] Tests / smoke checks recorded

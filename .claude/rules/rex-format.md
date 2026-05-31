@@ -101,7 +101,7 @@ Si une suggestion auto-générée viole les contraintes, le command reformule 1�
 
 ## Ce qui n'est pas un REX par outil
 
-- Decisions architecturales transverses (ex: « <your time-series DB> + PG dual-store », « Redis Streams pour sync event bus ») → restent dans `ROADMAP.md` comme ADR.
+- Decisions architecturales transverses → vont dans `docs/adr/` comme fichiers ADR-0NN (il n'y a pas de `ROADMAP.md` dans ce repo ; la source unique est `.claude/dev-docs/roadmap/checklist.md`).
 - Problèmes purement business code (ex: « acquisition.py log flooding ») qui n'extraient pas une règle pour un outil Claude Code → restent dans `_archived_REX.md`.
 - Bugs ouverts / TODOs → `BRICKS.md` ou issue tracker, pas REX. REX capture un apprentissage après fix.
 
