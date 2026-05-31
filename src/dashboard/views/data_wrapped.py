@@ -34,20 +34,14 @@ def _load_wrapped(db, artist_id):
 
 
 def _load_row_for_year(db, artist_id, year):
-    """Return existing row as dict, or empty dict if not found."""
-    rows = db.fetch_query(
+    """Return existing row as dict (keyed by column name), or empty dict if not found."""
+    df = db.fetch_df(
         "SELECT * FROM artist_wrapped WHERE artist_id = %s AND year = %s",
         (artist_id, year)
     )
-    if not rows:
+    if df.empty:
         return {}
-    cols = [
-        'id', 'artist_id', 'year', 'listeners', 'streams', 'hours_listened',
-        'countries', 'listener_gain', 'stream_gain', 'save_gain',
-        'playlist_add_gain', 'saves', 'playlist_adds',
-        'top_artist_name', 'top_artist_fan_pct', 'updated_at'
-    ]
-    return dict(zip(cols, rows[0]))
+    return df.iloc[0].to_dict()
 
 
 def _upsert_wrapped(db, artist_id, year, values: dict):
@@ -56,9 +50,9 @@ def _upsert_wrapped(db, artist_id, year, values: dict):
         INSERT INTO artist_wrapped (
             artist_id, year,
             listeners, streams, hours_listened, countries,
-            listener_gain, stream_gain, save_gain, playlist_add_gain,
+            listener_gain_pct, stream_gain_pct, save_gain_pct, playlist_add_gain_pct,
             saves, playlist_adds,
-            top_artist_name, top_artist_fan_pct,
+            top_fans_count, top_fans_rank,
             updated_at
         ) VALUES (
             %s, %s,
@@ -73,24 +67,24 @@ def _upsert_wrapped(db, artist_id, year, values: dict):
             streams             = EXCLUDED.streams,
             hours_listened      = EXCLUDED.hours_listened,
             countries           = EXCLUDED.countries,
-            listener_gain       = EXCLUDED.listener_gain,
-            stream_gain         = EXCLUDED.stream_gain,
-            save_gain           = EXCLUDED.save_gain,
-            playlist_add_gain   = EXCLUDED.playlist_add_gain,
+            listener_gain_pct       = EXCLUDED.listener_gain_pct,
+            stream_gain_pct         = EXCLUDED.stream_gain_pct,
+            save_gain_pct           = EXCLUDED.save_gain_pct,
+            playlist_add_gain_pct   = EXCLUDED.playlist_add_gain_pct,
             saves               = EXCLUDED.saves,
             playlist_adds       = EXCLUDED.playlist_adds,
-            top_artist_name     = EXCLUDED.top_artist_name,
-            top_artist_fan_pct  = EXCLUDED.top_artist_fan_pct,
+            top_fans_count      = EXCLUDED.top_fans_count,
+            top_fans_rank       = EXCLUDED.top_fans_rank,
             updated_at          = NOW()
         """,
         (
             artist_id, year,
             values['listeners'], values['streams'], values['hours_listened'],
             values['countries'],
-            values['listener_gain'], values['stream_gain'],
-            values['save_gain'], values['playlist_add_gain'],
+            values['listener_gain_pct'], values['stream_gain_pct'],
+            values['save_gain_pct'], values['playlist_add_gain_pct'],
             values['saves'], values['playlist_adds'],
-            values['top_artist_name'] or None, values['top_artist_fan_pct'],
+            values['top_fans_count'], values['top_fans_rank'],
         )
     )
 
@@ -115,6 +109,12 @@ def _fmt_big(n):
     if abs(n) >= 1_000:
         return f"{n/1_000:.1f}K"
     return str(n)
+
+
+def _fmt_pct(v):
+    if v is None:
+        return "—"
+    return f"{float(v):+.1f}%"
 
 
 def _line_chart(df, col, title, color="#1DB954", fmt_fn=None):
@@ -150,7 +150,8 @@ def _line_chart(df, col, title, color="#1DB954", fmt_fn=None):
     return fig
 
 
-def _bar_gain_chart(df, col, title, pos_color="#1DB954", neg_color="#e63946"):
+def _bar_gain_chart(df, col, title, pos_color="#1DB954", neg_color="#e63946",
+                    fmt_fn=_fmt_big):
     df_plot = df[['year', col]].dropna().sort_values('year')
     if df_plot.empty:
         return None
@@ -159,7 +160,7 @@ def _bar_gain_chart(df, col, title, pos_color="#1DB954", neg_color="#e63946"):
         x=df_plot['year'],
         y=df_plot[col],
         marker_color=colors,
-        text=[_fmt_big(v) for v in df_plot[col]],
+        text=[fmt_fn(v) for v in df_plot[col]],
         textposition='outside',
     ))
     fig.update_layout(
@@ -170,6 +171,38 @@ def _bar_gain_chart(df, col, title, pos_color="#1DB954", neg_color="#e63946"):
         hovermode='x unified',
         margin=dict(t=40, b=20),
         height=260,
+    )
+    return fig
+
+
+def _multi_line_chart(df, series, title, log_scale=False):
+    """Combine several volume metrics on one chart. series: list of (col, label, color)."""
+    df_s = df.sort_values('year')
+    fig = go.Figure()
+    has_data = False
+    for col, label, color in series:
+        if col not in df_s.columns:
+            continue
+        sub = df_s[['year', col]].dropna()
+        if sub.empty:
+            continue
+        has_data = True
+        fig.add_trace(go.Scatter(
+            x=sub['year'], y=sub[col],
+            mode='lines+markers', name=label,
+            line=dict(width=2.5, color=color), marker=dict(size=8),
+            hovertemplate=f"{label}: %{{y:,.0f}}<extra></extra>",
+        ))
+    if not has_data:
+        return None
+    fig.update_layout(
+        title=title,
+        xaxis=dict(dtick=1, tickformat='d'),
+        yaxis=dict(title='', type='log' if log_scale else 'linear'),
+        hovermode='x unified',
+        margin=dict(t=60, b=20),
+        height=400,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
     )
     return fig
 
@@ -236,8 +269,9 @@ def show():
                     "Listeners", min_value=0, value=int(g('listeners') or 0), step=1000
                 )
             with c2:
-                listener_gain = st.number_input(
-                    "Gain listeners", value=int(g('listener_gain') or 0), step=100
+                listener_gain_pct = st.number_input(
+                    "Gain listeners (%)", value=float(g('listener_gain_pct') or 0.0),
+                    step=0.1, format="%.1f", help="Croissance annuelle en %, ex: 45.3"
                 )
             with c3:
                 countries = st.number_input(
@@ -251,8 +285,9 @@ def show():
                     "Streams totaux", min_value=0, value=int(g('streams') or 0), step=10000
                 )
             with c5:
-                stream_gain = st.number_input(
-                    "Gain streams", value=int(g('stream_gain') or 0), step=1000
+                stream_gain_pct = st.number_input(
+                    "Gain streams (%)", value=float(g('stream_gain_pct') or 0.0),
+                    step=0.1, format="%.1f", help="Croissance annuelle en %, ex: 45.3"
                 )
             with c6:
                 hours_listened = st.number_input(
@@ -267,30 +302,34 @@ def show():
                     "Saves", min_value=0, value=int(g('saves') or 0), step=100
                 )
             with c8:
-                save_gain = st.number_input(
-                    "Gain saves", value=int(g('save_gain') or 0), step=100
+                save_gain_pct = st.number_input(
+                    "Gain saves (%)", value=float(g('save_gain_pct') or 0.0),
+                    step=0.1, format="%.1f", help="Croissance annuelle en %, ex: 45.3"
                 )
             with c9:
                 playlist_adds = st.number_input(
                     "Playlist adds", min_value=0, value=int(g('playlist_adds') or 0), step=100
                 )
             with c10:
-                playlist_add_gain = st.number_input(
-                    "Gain playlist adds", value=int(g('playlist_add_gain') or 0), step=100
+                playlist_add_gain_pct = st.number_input(
+                    "Gain playlist adds (%)",
+                    value=float(g('playlist_add_gain_pct') or 0.0),
+                    step=0.1, format="%.1f", help="Croissance annuelle en %, ex: 45.3"
                 )
 
-            st.markdown("**Top artiste similaire**")
+            st.markdown("**Super-fans (vous dans leur top artistes)**")
             ct1, ct2 = st.columns(2)
             with ct1:
-                top_artist_name = st.text_input(
-                    "Artiste (top fans)", value=g('top_artist_name') or "",
-                    placeholder="Ex: Nekfeu"
+                top_fans_count = st.number_input(
+                    "Nombre de fans", min_value=0,
+                    value=int(g('top_fans_count') or 0), step=1,
+                    help="Fans qui vous avaient en top artiste, ex: 11"
                 )
             with ct2:
-                top_artist_fan_pct = st.number_input(
-                    "% fans communs", min_value=0.0, max_value=100.0,
-                    value=float(g('top_artist_fan_pct') or 0.0),
-                    step=0.1, format="%.1f"
+                top_fans_rank = st.number_input(
+                    "Rang (vous dans leur top N)", min_value=1,
+                    value=int(g('top_fans_rank') or 5), step=1,
+                    help="Ex: 5 = vous étiez dans leur top 5"
                 )
 
             st.markdown("---")
@@ -299,11 +338,13 @@ def show():
                     _upsert_wrapped(db, target_artist_id, int(year), {
                         'listeners': listeners, 'streams': streams,
                         'hours_listened': hours_listened, 'countries': countries,
-                        'listener_gain': listener_gain, 'stream_gain': stream_gain,
-                        'save_gain': save_gain, 'playlist_add_gain': playlist_add_gain,
+                        'listener_gain_pct': listener_gain_pct,
+                        'stream_gain_pct': stream_gain_pct,
+                        'save_gain_pct': save_gain_pct,
+                        'playlist_add_gain_pct': playlist_add_gain_pct,
                         'saves': saves, 'playlist_adds': playlist_adds,
-                        'top_artist_name': top_artist_name,
-                        'top_artist_fan_pct': top_artist_fan_pct,
+                        'top_fans_count': top_fans_count,
+                        'top_fans_rank': top_fans_rank,
                     })
                     st.success(f"✅ Données {int(year)} enregistrées.")
                     st.rerun()
@@ -344,36 +385,43 @@ def show():
                 latest = df.iloc[0]
                 k1, k2, k3, k4 = st.columns(4)
                 k1.metric("Listeners", _fmt_big(latest.get('listeners')),
-                          delta=_fmt_big(latest.get('listener_gain')))
+                          delta=_fmt_pct(latest.get('listener_gain_pct')))
                 k2.metric("Streams", _fmt_big(latest.get('streams')),
-                          delta=_fmt_big(latest.get('stream_gain')))
+                          delta=_fmt_pct(latest.get('stream_gain_pct')))
                 k3.metric("Saves", _fmt_big(latest.get('saves')),
-                          delta=_fmt_big(latest.get('save_gain')))
+                          delta=_fmt_pct(latest.get('save_gain_pct')))
                 k4.metric("Pays", _fmt_big(latest.get('countries')))
 
                 st.markdown("---")
 
-                # Section — Audience
-                st.markdown("#### Audience")
-                col_l, col_c = st.columns(2)
-                with col_l:
-                    fig = _line_chart(df, 'listeners', "Listeners", fmt_fn=_fmt_big)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                with col_c:
-                    fig = _line_chart(df, 'countries', "Pays touchés",
-                                      color="#457b9d", fmt_fn=_fmt_big)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-
-                fig = _bar_gain_chart(df, 'listener_gain', "Gain listeners / an")
+                # Combined evolution — listeners / streams / saves / playlist adds
+                st.markdown("#### Évolution combinée")
+                log_scale = st.toggle(
+                    "Échelle logarithmique",
+                    value=False, key="wrapped_log_scale",
+                    help="Recommandé si les volumes diffèrent fortement "
+                         "(ex: streams ≫ saves), pour voir toutes les courbes.",
+                )
+                fig = _multi_line_chart(
+                    df,
+                    [
+                        ('listeners', 'Listeners', '#1DB954'),
+                        ('streams', 'Streams', '#457b9d'),
+                        ('saves', 'Saves', '#e9c46a'),
+                        ('playlist_adds', 'Playlist adds', '#f4a261'),
+                    ],
+                    "Listeners · Streams · Saves · Playlist adds",
+                    log_scale=log_scale,
+                )
                 if fig:
                     st.plotly_chart(fig, width="stretch")
 
-                st.markdown("#### Streams & Écoute")
-                col_s, col_h = st.columns(2)
-                with col_s:
-                    fig = _line_chart(df, 'streams', "Streams", fmt_fn=_fmt_big)
+                # Secondary volumes — countries & hours
+                st.markdown("#### Pays & écoute")
+                col_c, col_h = st.columns(2)
+                with col_c:
+                    fig = _line_chart(df, 'countries', "Pays touchés",
+                                      color="#457b9d", fmt_fn=_fmt_big)
                     if fig:
                         st.plotly_chart(fig, width="stretch")
                 with col_h:
@@ -382,43 +430,48 @@ def show():
                     if fig:
                         st.plotly_chart(fig, width="stretch")
 
-                fig = _bar_gain_chart(df, 'stream_gain', "Gain streams / an")
-                if fig:
-                    st.plotly_chart(fig, width="stretch")
-
-                st.markdown("#### Engagement")
-                col_sv, col_pl = st.columns(2)
-                with col_sv:
-                    fig = _line_chart(df, 'saves', "Saves", fmt_fn=_fmt_big)
+                # Annual gains (%)
+                st.markdown("#### Gains annuels (%)")
+                col_lg, col_stg = st.columns(2)
+                with col_lg:
+                    fig = _bar_gain_chart(df, 'listener_gain_pct',
+                                          "Gain listeners / an (%)", fmt_fn=_fmt_pct)
                     if fig:
                         st.plotly_chart(fig, width="stretch")
-                with col_pl:
-                    fig = _line_chart(df, 'playlist_adds', "Playlist adds",
-                                      color="#f4a261", fmt_fn=_fmt_big)
+                with col_stg:
+                    fig = _bar_gain_chart(df, 'stream_gain_pct',
+                                          "Gain streams / an (%)", fmt_fn=_fmt_pct)
                     if fig:
                         st.plotly_chart(fig, width="stretch")
 
                 col_sg, col_pg = st.columns(2)
                 with col_sg:
-                    fig = _bar_gain_chart(df, 'save_gain', "Gain saves / an")
+                    fig = _bar_gain_chart(df, 'save_gain_pct',
+                                          "Gain saves / an (%)", fmt_fn=_fmt_pct)
                     if fig:
                         st.plotly_chart(fig, width="stretch")
                 with col_pg:
-                    fig = _bar_gain_chart(df, 'playlist_add_gain', "Gain playlist adds / an")
+                    fig = _bar_gain_chart(df, 'playlist_add_gain_pct',
+                                          "Gain playlist adds / an (%)", fmt_fn=_fmt_pct)
                     if fig:
                         st.plotly_chart(fig, width="stretch")
 
-                # Top artist similarity
-                top_rows = df[df['top_artist_name'].notna()][
-                    ['year', 'top_artist_name', 'top_artist_fan_pct']
+                # Super-fans — fans who ranked the artist in their top N
+                top_rows = df[df['top_fans_count'].notna()][
+                    ['year', 'top_fans_count', 'top_fans_rank']
                 ].sort_values('year')
                 if not top_rows.empty:
-                    st.markdown("#### Top artiste similaire")
+                    st.markdown("#### Super-fans (vous dans leur top artistes)")
+                    fig = _line_chart(df, 'top_fans_count',
+                                      "Fans vous ayant en top artiste",
+                                      color="#9d4edd", fmt_fn=_fmt_big)
+                    if fig:
+                        st.plotly_chart(fig, width="stretch")
                     st.dataframe(
                         top_rows.rename(columns={
                             'year': 'Année',
-                            'top_artist_name': 'Artiste',
-                            'top_artist_fan_pct': '% fans communs',
+                            'top_fans_count': 'Nb fans',
+                            'top_fans_rank': 'Rang (top N)',
                         }),
                         hide_index=True,
                         width="stretch",
@@ -436,18 +489,18 @@ def show():
                 st.info("Aucune donnée enregistrée.")
             else:
                 display_cols = [
-                    'year', 'listeners', 'listener_gain', 'streams', 'stream_gain',
-                    'hours_listened', 'countries', 'saves', 'save_gain',
-                    'playlist_adds', 'playlist_add_gain',
-                    'top_artist_name', 'top_artist_fan_pct',
+                    'year', 'listeners', 'listener_gain_pct', 'streams', 'stream_gain_pct',
+                    'hours_listened', 'countries', 'saves', 'save_gain_pct',
+                    'playlist_adds', 'playlist_add_gain_pct',
+                    'top_fans_count', 'top_fans_rank',
                 ]
                 rename_map = {
                     'year': 'Année', 'listeners': 'Listeners',
-                    'listener_gain': '△ Listeners', 'streams': 'Streams',
-                    'stream_gain': '△ Streams', 'hours_listened': 'Heures écoute',
-                    'countries': 'Pays', 'saves': 'Saves', 'save_gain': '△ Saves',
-                    'playlist_adds': 'Playlist adds', 'playlist_add_gain': '△ PL adds',
-                    'top_artist_name': 'Top artiste', 'top_artist_fan_pct': '% fans communs',
+                    'listener_gain_pct': '△ Listeners %', 'streams': 'Streams',
+                    'stream_gain_pct': '△ Streams %', 'hours_listened': 'Heures écoute',
+                    'countries': 'Pays', 'saves': 'Saves', 'save_gain_pct': '△ Saves %',
+                    'playlist_adds': 'Playlist adds', 'playlist_add_gain_pct': '△ PL adds %',
+                    'top_fans_count': 'Super-fans', 'top_fans_rank': 'Rang (top N)',
                 }
                 existing_cols = [c for c in display_cols if c in df_raw.columns]
                 st.dataframe(

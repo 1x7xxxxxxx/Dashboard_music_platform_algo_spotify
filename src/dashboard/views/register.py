@@ -13,11 +13,15 @@ import streamlit as st
 
 from src.dashboard.utils import project_db
 from src.dashboard.auth import hash_password, _validate_password_strength
-from src.utils.verification_email import send_verification_email
+from src.utils.verification_email import send_verification_email, send_welcome_email
+from src.utils.plan_history import log_plan_change
 
 
 _SLUG_RE    = re.compile(r'^[a-z0-9_-]+$')
 _USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+
+# Every new account gets a full-access (premium) trial for this many days.
+WELCOME_TRIAL_DAYS = 30
 
 
 def _validate(artist_name, slug, username, email, pw, pw2, terms: bool) -> list[str]:
@@ -147,6 +151,22 @@ def _apply_promo(db, promo: dict, artist_id: int, code: str) -> None:
         (promo['id'], artist_id),
     )
     # Note: uses_count increment is already handled atomically above.
+
+
+def _grant_welcome_trial(db, artist_id: int, trial_days: int = WELCOME_TRIAL_DAYS) -> None:
+    """Grant a full-access (premium) trial for `trial_days` to a new account.
+
+    Reuses the promo_plan precedence in get_artist_plan() — no promo_codes row is
+    consumed. Sentinel code 'WELCOME_TRIAL' marks the source for auditing.
+    """
+    from datetime import datetime, timezone, timedelta
+    expires_at = datetime.now(timezone.utc) + timedelta(days=trial_days)
+    db.execute_query(
+        "UPDATE saas_artists "
+        "SET promo_code_used = %s, promo_plan = 'premium', promo_plan_expires_at = %s "
+        "WHERE id = %s",
+        ('WELCOME_TRIAL', expires_at, artist_id),
+    )
 
 
 def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: str) -> None:
@@ -315,17 +335,27 @@ def show():
             )
 
             if promo is not None:
+                # Explicit promo code overrides the default welcome trial.
                 _apply_promo(db, promo, new_artist_id, referral_code)
-            elif referrer_artist_id is not None:
-                _apply_referral(db, referrer_artist_id, new_artist_id, referral_code)
+                log_plan_change(db, new_artist_id, promo['plan_target'], 'promo')
+            else:
+                # Default: every new account gets a full-access (premium) trial.
+                if referrer_artist_id is not None:
+                    _apply_referral(db, referrer_artist_id, new_artist_id, referral_code)
+                _grant_welcome_trial(db, new_artist_id, WELCOME_TRIAL_DAYS)
+                log_plan_change(db, new_artist_id, 'premium', 'welcome_trial')
 
             if promo:
                 discount_msg = f" Your **{promo['plan_target'].capitalize()} plan** is active for **{promo['duration_days']} days**."
-            elif discount_pct:
-                discount_msg = " Your **20% discount** will be applied to your first paid month."
             else:
-                discount_msg = ""
+                discount_msg = (
+                    f" Vous bénéficiez de **{WELCOME_TRIAL_DAYS} jours d'accès Premium offerts**."
+                )
+                if discount_pct:
+                    discount_msg += " Un **rabais de 20%** sera appliqué à votre premier mois payant."
             email_sent = send_verification_email(email, username, token)
+            # Welcome email recapping the first onboarding actions (non-blocking).
+            send_welcome_email(email, username, WELCOME_TRIAL_DAYS)
             if email_sent:
                 st.success(
                     f"✅ Account created for **{artist_name}**!{discount_msg} "

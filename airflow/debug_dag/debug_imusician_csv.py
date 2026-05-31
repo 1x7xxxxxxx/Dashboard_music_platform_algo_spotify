@@ -188,6 +188,7 @@ def step_4_dry_run(parsed_results):
 def step_5_real_upsert(parsed_results):
     _section('STEP 5 — Real upsert (writes to DB)')
     db = _get_db()
+    sales_artist_ids = set()
     try:
         for result in parsed_results:
             csv_type = result['type']
@@ -221,6 +222,19 @@ def step_5_real_upsert(parsed_results):
                     update_columns=['quantity', 'revenue_eur', 'collected_at'],
                 )
                 logger.info(f'  ✅ sales_detail: {n} row(s) upserted')
+                sales_artist_ids.update(
+                    row['artist_id'] for row in data if row.get('artist_id')
+                )
+
+        # Roll detail up into monthly_revenue (Distributeur + forecast views read it).
+        # Best-effort: never fail the import on a roll-up error. Same hook as upload_csv.
+        for aid in sorted(sales_artist_ids):
+            try:
+                from src.utils.imusician_rollup import rollup_sales_to_monthly
+                n_months = rollup_sales_to_monthly(db, aid)
+                logger.info(f'  ✅ monthly_revenue rolled up: {n_months} month(s) for artist {aid}')
+            except Exception as e:
+                logger.error(f'  monthly_revenue roll-up failed for artist {aid} (non-blocking): {e}')
     finally:
         db.close()
 

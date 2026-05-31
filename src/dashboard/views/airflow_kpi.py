@@ -291,7 +291,7 @@ _INSERTION_TARGETS = [
     ("☁️ SoundCloud",     "soundcloud_daily",          "soundcloud_tracks_daily",       "collected_at", "Tracks SoundCloud avec play/likes/reposts"),
     ("📸 Instagram",      "instagram_daily",           "instagram_daily_stats",         "collected_at", "Stats Instagram journalières"),
     ("🎬 YouTube",        "youtube_daily",             "youtube_channel_history",       "collected_at", "Historique chaîne YouTube"),
-    ("📱 Meta Ads",       "meta_insights_dag",         "meta_insights_performance_day", "collected_at", "Insights Meta Ads par jour"),
+    ("📱 Meta Ads",       "meta_ads_api_daily",        "meta_insights_performance_day", "collected_at", "Insights Meta Ads par jour"),
     ("🎎 Apple Music",    "apple_music_csv_watcher",   "apple_songs_performance",       "collected_at", "Performance Apple Music"),
     ("🤖 ML Scoring",     "ml_scoring_daily",          "ml_song_predictions",           "prediction_date", "Prédictions ML par chanson"),
 ]

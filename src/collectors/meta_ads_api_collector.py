@@ -21,39 +21,136 @@ import json
 import logging
 import os
 import time
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
 from src.utils.meta_config import META_API_VERSION
 
 logger = logging.getLogger(__name__)
 
-# Meta API error code for rate-limit (transient, safe to retry)
-_META_RATE_LIMIT_CODE = 17
-_META_RATE_LIMIT_WAIT = 60  # seconds to wait before retry
+# Meta throttling error codes (all transient, safe to retry with backoff):
+#   17    — user-level rate limit
+#   4     — app-level request limit ("Application request limit reached")
+#   80004 — ads-management business-use-case throttle ("too many calls to this ad-account")
+#   32    — page-level rate limit
+# A backfill that includes archived ads multiplies call volume, so the run must
+# back off on ALL of these — handling only code 17 made the placement-insights call
+# hard-fail on code 4.
+_META_THROTTLE_CODES = frozenset({4, 17, 32, 80004})
+_META_RATE_LIMIT_WAIT = 60  # base seconds; multiplied per attempt (exponential)
+
+# Meta retains insights for 37 months; a time_range start beyond that returns API
+# error #3018. We clamp the backfill floor to 36 months — one month inside the hard
+# limit so a request never trips on time-of-day/timezone boundary rounding. Archived
+# campaigns (now in scope via the broadened status filters) can carry very old or
+# even epoch start_time values, which would otherwise push the backfill to 1970.
+_META_INSIGHTS_RETENTION_MONTHS = 36
+
+# effective_status allowlists per object level. A PAUSED *campaign* propagates
+# CAMPAIGN_PAUSED to its ad sets and CAMPAIGN_PAUSED/ADSET_PAUSED to its ads — those
+# values are NOT 'PAUSED', so a ['ACTIVE','PAUSED'] filter silently excludes every
+# ad of a paused/archived campaign. The ad would then be absent from meta_ads, and
+# its ad-level insights (which the API *does* return) get dropped by the ad_id FK
+# guard in _fetch_ad_insights → campaign-level spend present, per-creative detail
+# missing. Include the paused/archived states so historical ads are refreshed.
+_CAMPAIGN_STATUSES = ['ACTIVE', 'PAUSED', 'ARCHIVED', 'IN_PROCESS', 'WITH_ISSUES']
+_ADSET_STATUSES = ['ACTIVE', 'PAUSED', 'CAMPAIGN_PAUSED', 'ARCHIVED',
+                   'IN_PROCESS', 'WITH_ISSUES']
+_AD_STATUSES = ['ACTIVE', 'PAUSED', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'ARCHIVED',
+                'IN_PROCESS', 'WITH_ISSUES']
 
 
-def _meta_list(callable_fn, *args, max_retries: int = 3, **kwargs) -> list:
-    """Call a facebook_business SDK list method, retrying on rate-limit (code 17)."""
+def _meta_retry(callable_fn, *args, max_retries: int = 4, **kwargs):
+    """Call a facebook_business SDK method, retrying any throttle code with exponential backoff.
+
+    Works for both list edges (get_insights, get_ads…) and single-object reads
+    (AdCreative.api_get). Returns the callable's raw result.
+    """
     from facebook_business.exceptions import FacebookRequestError
     for attempt in range(1, max_retries + 1):
         try:
-            return list(callable_fn(*args, **kwargs))
+            return callable_fn(*args, **kwargs)
         except FacebookRequestError as exc:
-            if exc.api_error_code() == _META_RATE_LIMIT_CODE and attempt < max_retries:
-                wait = _META_RATE_LIMIT_WAIT * attempt
+            if exc.api_error_code() in _META_THROTTLE_CODES and attempt < max_retries:
+                wait = _META_RATE_LIMIT_WAIT * (2 ** (attempt - 1))  # 60s, 120s, 240s
                 logger.warning(
-                    f"Meta rate limit (code 17) — attempt {attempt}/{max_retries}. "
-                    f"Waiting {wait}s before retry..."
+                    f"Meta throttle (code {exc.api_error_code()}) — attempt "
+                    f"{attempt}/{max_retries}. Waiting {wait}s before retry..."
                 )
                 time.sleep(wait)
             else:
                 raise
 
-# Action types that count as campaign "results".
-# Only offsite_conversion.custom (Spotify button click via Hypeddit CAPI) — link_click
-# excluded to avoid double-counting: a fan who clicks the ad AND the Spotify button
-# would otherwise inflate results and deflate CPR.
-_RESULT_ACTION_TYPES = frozenset(['offsite_conversion.custom'])
+
+def _meta_list(callable_fn, *args, **kwargs) -> list:
+    """Throttle-aware list call — materialises the cursor INSIDE the retry loop.
+
+    The SDK raises during cursor iteration (load_next_page), so list() must run
+    within _meta_retry or a paging throttle would escape un-retried.
+    """
+    return _meta_retry(lambda: list(callable_fn(*args, **kwargs)))
+
+# "Results" = Meta's native result, which keys off the AD SET's optimization_goal
+# (mirrors the "Results" column in Ads Manager — Meta counts the optimization event).
+# Each goal maps to the action_type that counts as its result. The special sentinel
+# 'offsite_conversion' is a PREFIX match: it sums every action_type starting with
+# 'offsite_conversion.' (custom + pixel + id-suffixed variants like
+# 'offsite_conversion.custom.1234567890'), because Meta appends the conversion id to
+# the action_type — an exact match on 'offsite_conversion.custom' silently returns 0.
+# None means the goal has no action-based result (reach/impressions/awareness).
+_OFFSITE_PREFIX = 'offsite_conversion'
+
+_GOAL_RESULT_ACTION = {
+    'OFFSITE_CONVERSIONS':  _OFFSITE_PREFIX,
+    'ONSITE_CONVERSIONS':   'onsite_conversion',
+    'LEAD_GENERATION':      _OFFSITE_PREFIX,
+    'QUALITY_LEAD':         _OFFSITE_PREFIX,
+    'LINK_CLICKS':          'link_click',
+    'LANDING_PAGE_VIEWS':   'landing_page_view',
+    'POST_ENGAGEMENT':      'post_engagement',
+    'PAGE_LIKES':           'like',
+    'THRUPLAY':             'video_view',
+    'VIDEO_VIEWS':          'video_view',
+    'REACH':                None,
+    'IMPRESSIONS':          None,
+    'AD_RECALL_LIFT':       None,
+}
+
+# Goals whose result is a (paid) conversion → CPR ("cost per result") is meaningful.
+# For engagement/traffic/reach goals CPR is suppressed (would imply a conversion).
+_CONVERSION_GOALS = frozenset([
+    'OFFSITE_CONVERSIONS', 'ONSITE_CONVERSIONS', 'LEAD_GENERATION', 'QUALITY_LEAD',
+])
+
+
+def _results_for_goal(actions: dict, goal: str) -> int:
+    """Sum the action(s) that count as the campaign's result for a given optimization goal.
+
+    Falls back to offsite-conversion prefix sum for unknown goals (best effort, never
+    silently 0 for a goal we simply haven't mapped). Returns 0 for reach/impression goals.
+    """
+    g = (goal or '').upper()
+    if g in _GOAL_RESULT_ACTION:
+        match = _GOAL_RESULT_ACTION[g]
+        if match is None:
+            return 0
+    else:
+        match = _OFFSITE_PREFIX  # unknown goal → assume conversion intent
+    if match in (_OFFSITE_PREFIX, 'onsite_conversion'):
+        return sum(v for k, v in actions.items() if k.startswith(match))
+    return actions.get(match, 0)
+
+
+def _is_conversion_goal(goal: str) -> bool:
+    """True if the goal's result is a (paid) conversion → CPR is meaningful.
+
+    Unknown goals are treated as conversion intent, mirroring _results_for_goal's fallback.
+    """
+    g = (goal or '').upper()
+    if g in _GOAL_RESULT_ACTION:
+        return _GOAL_RESULT_ACTION[g] in (_OFFSITE_PREFIX, 'onsite_conversion')
+    return True
+
 
 # Mapping from Meta action_type to engagement table column
 _ENGAGEMENT_MAP = {
@@ -71,7 +168,7 @@ _ENGAGEMENT_MAP = {
 # Helper: extract performance + engagement dicts from a single insight object
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _extract_perf(insight, artist_id: int) -> dict:
+def _extract_perf(insight, artist_id: int, goal: str = None) -> dict:
     spend = float(insight.get('spend') or 0)
     impressions = int(insight.get('impressions') or 0)
     reach = int(insight.get('reach') or 0)
@@ -80,19 +177,25 @@ def _extract_perf(insight, artist_id: int) -> dict:
     cpm_raw = float(insight.get('cpm') or 0)
     ctr = float(insight.get('ctr') or 0)
 
-    custom_conversions = 0
-    lp_views = 0
+    # Aggregate every action type once (action_type → summed value).
+    actions = {}
     for action in (insight.get('actions') or []):
         atype = action['action_type']
-        val = int(float(action['value']))
-        if atype == 'offsite_conversion.custom':
-            custom_conversions += val
-        elif atype == 'landing_page_view':
-            lp_views += val
+        actions[atype] = actions.get(atype, 0) + int(float(action['value']))
 
-    # results = custom_conversions (Spotify button clicks) — the metric Meta bills on.
-    # link_clicks (inline_link_clicks) tracks ad clicks separately, upstream in the funnel.
-    results = custom_conversions
+    # custom_conversions = Spotify button clicks via Hypeddit CAPI. Prefix match catches
+    # the id-suffixed action_type ('offsite_conversion.custom.<id>') Meta actually returns.
+    custom_conversions = sum(
+        v for k, v in actions.items() if k.startswith('offsite_conversion.custom')
+    )
+    lp_views = actions.get('landing_page_view', 0)
+
+    # results = Meta's native result for this ad set's optimization goal.
+    results = _results_for_goal(actions, goal)
+
+    # CPR ("cost per result") is only meaningful for conversion goals — suppressed
+    # otherwise so an engagement/traffic cost-per-action is not mistaken for a conversion CPR.
+    cpr = round(spend / results, 4) if (_is_conversion_goal(goal) and results > 0) else None
 
     return {
         'artist_id':          artist_id,
@@ -103,7 +206,7 @@ def _extract_perf(insight, artist_id: int) -> dict:
         'frequency':          frequency,
         'results':            results,
         'custom_conversions': custom_conversions,
-        'cpr':                round(spend / results, 4) if results > 0 else None,
+        'cpr':                cpr,
         'cpm':                cpm_raw or None,
         'link_clicks':        link_clicks,
         'cpc':                round(spend / link_clicks, 4) if link_clicks > 0 else None,
@@ -187,7 +290,8 @@ class MetaAdsApiCollector:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    def run(self, full_history: bool = False, insights_only: bool = False) -> int:
+    def run(self, full_history: bool = False, insights_only: bool = False,
+            fetch_creatives: bool = True) -> int:
         """Full collection pipeline. Returns total insight rows inserted.
 
         full_history=False  : smart incremental — starts from MAX(day_date)-3d in DB,
@@ -196,16 +300,22 @@ class MetaAdsApiCollector:
         insights_only=True  : skip campaigns/adsets/ads/creatives fetch (already in DB);
                               only run the 4 insight API calls. Reduces API call count by ~75%.
                               Requires at least one prior full run to have populated config tables.
+        fetch_creatives=False: skip the per-creative content fetch (title/body/CTA). That
+                              loop is one API call PER creative — the dominant rate-limit
+                              driver on a full_history backfill — and the Créatives view
+                              does not display those columns. Skip it to stay under the
+                              account throttle when backfilling many archived ads.
         """
         if insights_only:
             # Load campaign list from DB (needed for full_history start-date calculation)
             campaigns_db = self.db.fetch_query(
-                "SELECT campaign_id, campaign_name, start_time FROM meta_campaigns "
+                "SELECT campaign_id, campaign_name, start_time, objective FROM meta_campaigns "
                 "WHERE artist_id = %s",
                 (self.artist_id,),
             )
             campaigns = [
-                {'campaign_id': r[0], 'campaign_name': r[1], 'start_time': str(r[2]) if r[2] else None}
+                {'campaign_id': r[0], 'campaign_name': r[1],
+                 'start_time': str(r[2]) if r[2] else None, 'objective': r[3]}
                 for r in (campaigns_db or [])
             ]
             logger.info(
@@ -222,9 +332,15 @@ class MetaAdsApiCollector:
 
             ads = self._fetch_ads(valid_adset_ids)
 
-            creatives = self._fetch_creatives(ads)
+            creatives = self._fetch_creatives(ads) if fetch_creatives else []
+            if not fetch_creatives:
+                logger.info("  creative content fetch skipped (fetch_creatives=False)")
 
-        insights = self._fetch_all_insights(campaigns, full_history=full_history)
+        # adsets/ads (or DB fallback in insights_only) resolve each insight's optimization
+        # goal → its native "result" action. See _build_goal_maps / _results_for_goal.
+        insights = self._fetch_all_insights(
+            campaigns, adsets=adsets, ads=ads, full_history=full_history,
+        )
 
         self._upsert_all(campaigns, adsets, ads, creatives, insights)
 
@@ -253,7 +369,7 @@ class MetaAdsApiCollector:
             for c in _meta_list(
                 self.ad_account.get_campaigns,
                 fields=fields,
-                params={'limit': 500, 'effective_status': ['ACTIVE', 'PAUSED']},
+                params={'limit': 500, 'effective_status': _CAMPAIGN_STATUSES},
             ):
                 rows.append({
                     'campaign_id':    c['id'],
@@ -289,7 +405,7 @@ class MetaAdsApiCollector:
             for a in _meta_list(
                 self.ad_account.get_ad_sets,
                 fields=fields,
-                params={'limit': 500, 'effective_status': ['ACTIVE', 'PAUSED']},
+                params={'limit': 500, 'effective_status': _ADSET_STATUSES},
             ):
                 if a['campaign_id'] not in valid_campaign_ids:
                     orphans += 1
@@ -349,7 +465,7 @@ class MetaAdsApiCollector:
             for a in _meta_list(
                 self.ad_account.get_ads,
                 fields=fields,
-                params={'limit': 500, 'effective_status': ['ACTIVE', 'PAUSED']},
+                params={'limit': 500, 'effective_status': _AD_STATUSES},
             ):
                 if a['adset_id'] not in valid_adset_ids:
                     orphans += 1
@@ -401,7 +517,7 @@ class MetaAdsApiCollector:
             creative_map = {}
             for cid in creative_ids:
                 try:
-                    cr = AdCreative(cid).api_get(fields=fields)
+                    cr = _meta_retry(AdCreative(cid).api_get, fields=fields)
                     creative_map[cid] = {
                         'title':          cr.get('title'),
                         'body':           cr.get('body'),
@@ -434,16 +550,21 @@ class MetaAdsApiCollector:
 
     # ── Fetch: insights (all 10 tables) ──────────────────────────────────────
 
-    def _fetch_all_insights(self, campaigns: list, full_history: bool = False) -> dict:
-        """Return {table_name: [rows]} for all 10 insight tables.
+    def _fetch_all_insights(self, campaigns: list, adsets: list = None,
+                            ads: list = None, full_history: bool = False) -> dict:
+        """Return {table_name: [rows]} for all 11 insight tables.
 
-        Makes 4 API calls per time chunk:
-          1. time_increment=1, no breakdown  → global/day tables (performance + engagement)
-          2. breakdown=['age']               → age tables
-          3. breakdown=['country']           → country tables
-          4. breakdown=['publisher_platform','platform_position'] → placement tables
+        Per time chunk: campaign daily/global + ad-level (meta_insights). Plus 3 aggregate
+        breakdown calls (age/country/placement). The result action for each row is resolved
+        from the ad set optimization goal (campaign-dominant goal for campaign-level rows,
+        exact per-ad goal for ad-level rows).
         """
         today = date.today()
+
+        # Resolve optimization goals: dominant per campaign, exact per ad/adset.
+        goal_by_campaign, goal_by_ad, goal_by_adset = self._build_goal_maps(
+            campaigns, adsets or [], ads or [],
+        )
 
         def _earliest_campaign_start() -> date:
             """Return the earliest campaign start_time, fallback to 1 year ago."""
@@ -477,6 +598,15 @@ class MetaAdsApiCollector:
                     f"backfilling from {history_start}"
                 )
 
+        # Clamp to Meta's insights retention window (API error #3018 otherwise).
+        retention_floor = today - relativedelta(months=_META_INSIGHTS_RETENTION_MONTHS)
+        if history_start < retention_floor:
+            logger.info(
+                f"Clamping backfill start {history_start} → {retention_floor} "
+                f"(Meta {_META_INSIGHTS_RETENTION_MONTHS}-month insights retention)"
+            )
+            history_start = retention_floor
+
         # Aggregate tables (age/country/placement) always use full range in one shot
         aggregate_start = history_start
 
@@ -500,12 +630,30 @@ class MetaAdsApiCollector:
             'meta_insights_engagement_country':    [],
             'meta_insights_performance_placement': [],
             'meta_insights_engagement_placement':  [],
+            'meta_insights':                       [],  # ad-level (Créatives view)
+            # Ad/adset-level breakdowns (multi-grain Breakdowns view) — perf + engagement.
+            'meta_insights_performance_ad_country':      [],
+            'meta_insights_engagement_ad_country':       [],
+            'meta_insights_performance_ad_placement':    [],
+            'meta_insights_engagement_ad_placement':     [],
+            'meta_insights_performance_ad_age':          [],
+            'meta_insights_engagement_ad_age':           [],
+            'meta_insights_performance_adset_country':   [],
+            'meta_insights_engagement_adset_country':    [],
+            'meta_insights_performance_adset_placement': [],
+            'meta_insights_engagement_adset_placement':  [],
+            'meta_insights_performance_adset_age':       [],
+            'meta_insights_engagement_adset_age':        [],
         }
 
-        # 1. Global / daily (monthly chunks)
+        # 1. Global / daily (monthly chunks) + ad-level
         logger.info(f"  Fetching daily insights ({len(chunks)} monthly chunks)...")
         for since, until in chunks:
-            p, e = self._call_insights(since, until, breakdown=None, time_increment=1)
+            result['meta_insights'].extend(
+                self._fetch_ad_insights(since, until, goal_by_ad)
+            )
+            p, e = self._call_insights(since, until, breakdown=None, time_increment=1,
+                                       goal_by_campaign=goal_by_campaign)
             for row in p:
                 row['date_start'] = row.pop('_date')
                 result['meta_insights_performance'].append(row)
@@ -533,7 +681,8 @@ class MetaAdsApiCollector:
         logger.info("  Fetching age breakdown...")
         since = aggregate_start.strftime('%Y-%m-%d')
         until = today.strftime('%Y-%m-%d')
-        p, e = self._call_insights(since, until, breakdown=['age'])
+        p, e = self._call_insights(since, until, breakdown=['age'],
+                                   goal_by_campaign=goal_by_campaign)
         for row in p:
             row.pop('_date', None)
             result['meta_insights_performance_age'].append(row)
@@ -543,7 +692,8 @@ class MetaAdsApiCollector:
 
         # 3. Country breakdown
         logger.info("  Fetching country breakdown...")
-        p, e = self._call_insights(since, until, breakdown=['country'])
+        p, e = self._call_insights(since, until, breakdown=['country'],
+                                   goal_by_campaign=goal_by_campaign)
         for row in p:
             row.pop('_date', None)
             result['meta_insights_performance_country'].append(row)
@@ -556,6 +706,7 @@ class MetaAdsApiCollector:
         p, e = self._call_insights(
             since, until,
             breakdown=['publisher_platform', 'platform_position'],
+            goal_by_campaign=goal_by_campaign,
         )
         for row in p:
             row.pop('_date', None)
@@ -563,6 +714,21 @@ class MetaAdsApiCollector:
         for row in e:
             row.pop('_date', None)
             result['meta_insights_engagement_placement'].append(row)
+
+        # 5. Ad-level & adset-level breakdowns (full range, one call per dim×level —
+        #    each call yields BOTH perf and engagement rows). Powers the Breakdowns view.
+        _bd_levels = (('ad', 'ad_id', goal_by_ad), ('adset', 'adset_id', goal_by_adset))
+        _bd_dims = (
+            (['country'], 'country'),
+            (['publisher_platform', 'platform_position'], 'placement'),
+            (['age'], 'age'),
+        )
+        for level, id_field, goal_map in _bd_levels:
+            for breakdown, suffix in _bd_dims:
+                logger.info(f"  Fetching {level} {suffix} breakdown...")
+                p, e = self._fetch_breakdown(since, until, level, id_field, breakdown, goal_map)
+                result[f'meta_insights_performance_{level}_{suffix}'] = p
+                result[f'meta_insights_engagement_{level}_{suffix}'] = e
 
         for tbl, rows in result.items():
             logger.info(f"    {tbl}: {len(rows)} rows")
@@ -574,8 +740,9 @@ class MetaAdsApiCollector:
         until: str,
         breakdown: list = None,
         time_increment: int = None,
+        goal_by_campaign: dict = None,
     ) -> tuple:
-        """Single API insights call. Returns (perf_rows, eng_rows)."""
+        """Single campaign-level API insights call. Returns (perf_rows, eng_rows)."""
         try:
             fields = [
                 'campaign_name', 'date_start', 'impressions', 'reach',
@@ -594,7 +761,8 @@ class MetaAdsApiCollector:
 
             perf_rows, eng_rows = [], []
             for insight in _meta_list(self.ad_account.get_insights, fields=fields, params=params):
-                base_perf = _extract_perf(insight, self.artist_id)
+                goal = (goal_by_campaign or {}).get(insight.get('campaign_name'))
+                base_perf = _extract_perf(insight, self.artist_id, goal)
                 base_eng = _extract_eng(insight, self.artist_id)
 
                 # Attach dimension columns
@@ -619,6 +787,149 @@ class MetaAdsApiCollector:
             return perf_rows, eng_rows
         except Exception:
             logger.exception(f"_call_insights failed (since={since} until={until} breakdown={breakdown})")
+            raise
+
+    def _fetch_breakdown(self, since: str, until: str, level: str, id_field: str,
+                         breakdown: list, goal_by_entity: dict) -> tuple:
+        """Ad-level OR adset-level breakdown (country/placement/age). Returns (perf, eng).
+
+        Single full-range aggregate call (like the campaign breakdowns). Keyed by
+        ad_id/adset_id; only entities already in meta_ads/meta_adsets (present in
+        goal_by_entity) are kept, to honour the FK. Results/CPR use the entity's exact
+        optimization goal. The junk `campaign_name` from _extract_* is trimmed at upsert.
+        """
+        try:
+            fields = [
+                id_field, 'date_start', 'impressions', 'reach', 'spend', 'frequency',
+                'cpm', 'cpc', 'ctr', 'actions', 'cost_per_action_type', 'inline_link_clicks',
+            ]
+            params = {
+                'level': level,
+                'time_range': {'since': since, 'until': until},
+                'breakdowns': breakdown,
+                'limit': 5000,
+            }
+            perf_rows, eng_rows = [], []
+            for insight in _meta_list(self.ad_account.get_insights, fields=fields, params=params):
+                eid = insight.get(id_field)
+                if not eid or eid not in goal_by_entity:
+                    continue  # unknown entity → would violate the ad_id/adset_id FK
+                goal = goal_by_entity.get(eid)
+                base_perf = _extract_perf(insight, self.artist_id, goal)
+                base_eng = _extract_eng(insight, self.artist_id)
+                base_perf[id_field] = eid
+                base_eng[id_field] = eid
+
+                if 'age' in breakdown:
+                    base_perf['age_range'] = insight.get('age', 'Unknown')
+                    base_eng['age_range'] = insight.get('age', 'Unknown')
+                if 'country' in breakdown:
+                    base_perf['country'] = insight.get('country', 'Unknown')
+                    base_eng['country'] = insight.get('country', 'Unknown')
+                if 'publisher_platform' in breakdown:
+                    base_perf['platform'] = insight.get('publisher_platform', 'Unknown')
+                    base_perf['placement'] = insight.get('platform_position', 'Unknown')
+                    base_eng['platform'] = insight.get('publisher_platform', 'Unknown')
+                    base_eng['placement'] = insight.get('platform_position', 'Unknown')
+
+                perf_rows.append(base_perf)
+                eng_rows.append(base_eng)
+            return perf_rows, eng_rows
+        except Exception:
+            logger.exception(
+                f"_fetch_breakdown failed (level={level} breakdown={breakdown} "
+                f"since={since} until={until})"
+            )
+            raise
+
+    # ── Goal resolution + ad-level insights ────────────────────────────────────
+
+    def _build_goal_maps(self, campaigns: list, adsets: list, ads: list) -> tuple:
+        """Return (goal_by_campaign, goal_by_ad, goal_by_adset).
+
+        goal_by_campaign uses the DOMINANT optimization_goal among a campaign's ad sets
+        (campaign-level insights cannot be split per ad set). goal_by_ad and goal_by_adset
+        are exact. Falls back to the DB when adsets/ads are not provided (insights_only).
+        """
+        if not adsets:
+            rows = self.db.fetch_query(
+                "SELECT adset_id, campaign_id, optimization_goal "
+                "FROM meta_adsets WHERE artist_id = %s",
+                (self.artist_id,),
+            )
+            adsets = [{'adset_id': r[0], 'campaign_id': r[1], 'optimization_goal': r[2]}
+                      for r in (rows or [])]
+        if not ads:
+            rows = self.db.fetch_query(
+                "SELECT ad_id, adset_id FROM meta_ads WHERE artist_id = %s",
+                (self.artist_id,),
+            )
+            ads = [{'ad_id': r[0], 'adset_id': r[1]} for r in (rows or [])]
+
+        cid_to_name = {c['campaign_id']: c['campaign_name'] for c in campaigns}
+        goal_by_adset = {a['adset_id']: a.get('optimization_goal') for a in adsets}
+
+        counter = defaultdict(Counter)
+        for a in adsets:
+            goal = a.get('optimization_goal')
+            cname = cid_to_name.get(a.get('campaign_id'))
+            if goal and cname:
+                counter[cname][goal] += 1
+        goal_by_campaign = {cn: c.most_common(1)[0][0] for cn, c in counter.items()}
+
+        goal_by_ad = {ad['ad_id']: goal_by_adset.get(ad['adset_id']) for ad in ads}
+        return goal_by_campaign, goal_by_ad, goal_by_adset
+
+    def _fetch_ad_insights(self, since: str, until: str, goal_by_ad: dict) -> list:
+        """Ad-level daily insights → rows for meta_insights (powers the Créatives view).
+
+        `conversions` = the ad set goal's native result (via _results_for_goal); only ads
+        already known in meta_ads (present in goal_by_ad) are kept, to honour the ad_id FK.
+        """
+        try:
+            fields = [
+                'ad_id', 'date_start', 'impressions', 'clicks', 'spend', 'reach',
+                'frequency', 'cpc', 'cpm', 'ctr', 'actions',
+            ]
+            params = {
+                'level': 'ad',
+                'time_range': {'since': since, 'until': until},
+                'time_increment': 1,
+                'limit': 5000,
+            }
+            rows = []
+            for insight in _meta_list(self.ad_account.get_insights, fields=fields, params=params):
+                ad_id = insight.get('ad_id')
+                if not ad_id or ad_id not in goal_by_ad:
+                    continue  # unknown ad → would violate meta_insights.ad_id FK
+                actions = {}
+                for action in (insight.get('actions') or []):
+                    atype = action['action_type']
+                    actions[atype] = actions.get(atype, 0) + int(float(action['value']))
+
+                goal = goal_by_ad.get(ad_id)
+                conversions = _results_for_goal(actions, goal)
+                spend = float(insight.get('spend') or 0)
+                is_conversion = _is_conversion_goal(goal)
+                rows.append({
+                    'artist_id':           self.artist_id,
+                    'ad_id':               ad_id,
+                    'date':                insight.get('date_start'),
+                    'impressions':         int(insight.get('impressions') or 0),
+                    'clicks':              int(insight.get('clicks') or 0),
+                    'spend':               spend,
+                    'reach':               int(insight.get('reach') or 0),
+                    'frequency':           float(insight.get('frequency') or 0),
+                    'cpc':                 float(insight.get('cpc') or 0),
+                    'cpm':                 float(insight.get('cpm') or 0),
+                    'ctr':                 float(insight.get('ctr') or 0),
+                    'conversions':         conversions,
+                    'cost_per_conversion': (round(spend / conversions, 4)
+                                            if (is_conversion and conversions > 0) else 0),
+                })
+            return rows
+        except Exception:
+            logger.exception(f"_fetch_ad_insights failed (since={since} until={until})")
             raise
 
     # ── Upsert ────────────────────────────────────────────────────────────────
@@ -722,6 +1033,10 @@ class MetaAdsApiCollector:
                     'page_interactions', 'post_reactions', 'comments',
                     'saves', 'shares', 'link_clicks', 'post_likes',
                 ],
+                'meta_insights': [
+                    'impressions', 'clicks', 'spend', 'reach', 'frequency',
+                    'cpc', 'cpm', 'ctr', 'conversions', 'cost_per_conversion',
+                ],
             }
 
             _conflict_cols = {
@@ -735,7 +1050,23 @@ class MetaAdsApiCollector:
                 'meta_insights_engagement_age':        ['artist_id', 'campaign_name', 'age_range'],
                 'meta_insights_engagement_country':    ['artist_id', 'campaign_name', 'country'],
                 'meta_insights_engagement_placement':  ['artist_id', 'campaign_name', 'platform', 'placement'],
+                'meta_insights':                       ['artist_id', 'ad_id', 'date'],
             }
+
+            # Ad/adset-level breakdown tables share column sets — generate their 12 entries.
+            _perf_bd_cols = ['spend', 'impressions', 'reach', 'results', 'custom_conversions', 'cpr']
+            _eng_bd_cols = ['page_interactions', 'post_reactions', 'comments',
+                            'saves', 'shares', 'link_clicks', 'post_likes']
+            _bd_dim_keys = {'country': ['country'],
+                            'placement': ['platform', 'placement'],
+                            'age': ['age_range']}
+            for _lvl, _idf in (('ad', 'ad_id'), ('adset', 'adset_id')):
+                for _dim, _dimcols in _bd_dim_keys.items():
+                    _key = ['artist_id', _idf, *_dimcols]
+                    _insight_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _perf_bd_cols
+                    _insight_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _eng_bd_cols
+                    _conflict_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _key
+                    _conflict_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _key
 
             for tbl, rows in insights.items():
                 if not rows:

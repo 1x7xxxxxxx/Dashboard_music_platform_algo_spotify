@@ -7,39 +7,148 @@ Persists in: read-only
 """
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.auth import get_artist_id, is_admin, require_plan
 
+# All-creatives daily series (for the heatmap + cumulative-budget charts).
+_QUERY_TS_ALL = """
+SELECT ma.ad_name AS creative_name, mi.date::date AS date,
+       SUM(mi.spend) AS spend
+FROM meta_insights mi
+JOIN meta_ads ma ON ma.ad_id = mi.ad_id
+WHERE ma.artist_id = %s
+GROUP BY ma.ad_name, mi.date
+ORDER BY mi.date
+"""
 
-_QUERY_CREATIVES = """
+
+# Each metric gets its own Y-axis (scales differ wildly: € vs thousands of impressions).
+# (label, column, weekly-resample aggregation, colour, visible-by-default, derived)
+# Non-default metrics start as 'legendonly' → the chart opens readable; click the
+# legend to toggle any metric (and its axis) on/off. `derived` metrics (CPR) are NOT
+# fetched/resampled directly — they are recomputed from aggregated columns afterwards.
+_TIMELINE_METRICS = [
+    ("Dépense (€)", "spend",       "sum",  "#ff6b35", True,  False),
+    ("Impressions", "impressions", "sum",  "#1f77b4", True,  False),
+    ("Clics",       "clicks",      "sum",  "#2ca02c", False, False),
+    ("Reach",       "reach",       "sum",  "#9467bd", False, False),
+    ("Résultats",   "conversions", "sum",  "#d62728", False, False),
+    ("CTR (%)",     "ctr",         "mean", "#e6b800", False, False),
+    ("CPR (€)",     "cpr",         None,   "#17becf", True,  True),
+]
+
+
+# total_results = the ad set goal's native result (mi.conversions, objective-aware).
+# CPR is shown ONLY for conversion goals (cost-per-result on an engagement/traffic ad
+# would imply a conversion that didn't happen — see collector _CONVERSION_GOALS).
+_CONVERSION_GOALS_SQL = "('OFFSITE_CONVERSIONS','ONSITE_CONVERSIONS','LEAD_GENERATION','QUALITY_LEAD')"
+
+_QUERY_CREATIVES = f"""
 SELECT
     ma.ad_name                                                          AS creative_name,
     mc.campaign_name,
     SUM(mi.spend)                                                       AS total_spend,
     SUM(mi.conversions)                                                 AS total_results,
-    CASE WHEN SUM(mi.conversions) > 0
+    CASE WHEN BOOL_OR(ads.optimization_goal IN {_CONVERSION_GOALS_SQL})
+              AND SUM(mi.conversions) > 0
          THEN ROUND(SUM(mi.spend)::numeric / SUM(mi.conversions), 2)
          ELSE NULL END                                                  AS cpr,
     ROUND(AVG(mi.ctr) * 100, 2)                                        AS avg_ctr,
     SUM(mi.reach)                                                       AS total_reach,
-    SUM(mi.impressions)                                                 AS total_impressions
+    SUM(mi.impressions)                                                 AS total_impressions,
+    SUM(mi.clicks)                                                      AS total_clicks,
+    MAX(mc.start_time)                                                  AS campaign_start,
+    MAX(ma.created_time)                                                AS creative_created
 FROM meta_ads ma
 JOIN meta_insights mi ON mi.ad_id = ma.ad_id
 JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
+LEFT JOIN meta_adsets ads ON ads.adset_id = ma.adset_id
 WHERE ma.artist_id = %s
 GROUP BY ma.ad_name, mc.campaign_name
 HAVING SUM(mi.spend) > 0
-ORDER BY
-    CASE WHEN SUM(mi.conversions) > 0
-         THEN SUM(mi.spend) / SUM(mi.conversions)
-         ELSE 999999 END ASC
+ORDER BY cpr ASC NULLS LAST, total_results DESC
 """
+
+# Campaigns whose ads exist in meta_ads but have NO ad-level insights — absent
+# from the CPR ranking above. `campaign_spend` is the CAMPAIGN-level spend from
+# meta_insights_performance_day: when > 0 the campaign DID deliver and was
+# collected at campaign level, but the per-creative (ad-level) breakdown is
+# missing (incremental window passed, or ads archived/deleted on Meta) and needs
+# a full-history backfill. When 0, the campaign simply never spent.
+_QUERY_UNCOLLECTED = """
+SELECT mc.campaign_name,
+       COUNT(DISTINCT ma.ad_id)        AS ads,
+       COALESCE(cl.campaign_spend, 0)  AS campaign_spend
+FROM meta_campaigns mc
+JOIN meta_ads ma ON ma.campaign_id = mc.campaign_id
+LEFT JOIN meta_insights mi ON mi.ad_id = ma.ad_id
+LEFT JOIN (
+    SELECT campaign_name, SUM(spend) AS campaign_spend
+    FROM meta_insights_performance_day
+    WHERE artist_id = %s
+    GROUP BY campaign_name
+) cl ON cl.campaign_name = mc.campaign_name
+WHERE mc.artist_id = %s
+GROUP BY mc.campaign_name, cl.campaign_spend
+HAVING COALESCE(SUM(mi.spend), 0) = 0
+ORDER BY cl.campaign_spend DESC NULLS LAST, mc.campaign_name
+"""
+
+
+def _render_uncollected_notice(uncollected: pd.DataFrame) -> None:
+    """Warn about campaigns with ads but no ad-level (per-creative) insights."""
+    if uncollected is None or uncollected.empty:
+        return
+    df = uncollected.dropna(subset=['campaign_name'])
+    if df.empty:
+        return
+    # Split: delivered (campaign-level spend exists, only ad-level missing) vs
+    # never-spent (no delivery at all).
+    spent = df['campaign_spend'].astype(float) > 0
+    n_delivered = int(spent.sum())
+    n_total = len(df)
+
+    with st.expander(
+        f"⚠️ {n_total} campagne(s) absente(s) du classement par créative",
+        expanded=False,
+    ):
+        if n_delivered:
+            st.markdown(
+                f"**{n_delivered} campagne(s) ont bien dépensé** (collectées au niveau "
+                "campagne) mais **leur détail par créative (ad-level) n'a pas été "
+                "collecté**. Cas typique : campagne **en pause ou archivée** — ses "
+                "publicités passent en statut `CAMPAIGN_PAUSED`/`ARCHIVED` et ne sont "
+                "rechargées que par une collecte **full-history complète** (qui re-fetche "
+                "la config ads, pas seulement les insights) :\n"
+                "- Airflow → DAG `meta_ads_api_daily` → *Trigger DAG w/ config* "
+                "`{\"full_history\": true}` (run **non** `insights_only`), ou\n"
+                "- en local : `python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`\n\n"
+                "_Réserves :_ (1) le détail par créative n'est récupérable que si les "
+                "publicités existent encore côté Meta (non supprimées) ; (2) Meta ne "
+                "conserve les insights que **~37 mois** — au-delà, seul le total campagne "
+                "reste disponible."
+            )
+        st.dataframe(
+            df.rename(columns={
+                'campaign_name': 'Campagne',
+                'ads': 'Publicités',
+                'campaign_spend': 'Dépense campagne (€)',
+            }).style.format({'Dépense campagne (€)': '{:,.2f} €'}, na_rep='—'),
+            hide_index=True, width="stretch",
+        )
 
 
 def _badge(cpr: float, median: float) -> str:
     if pd.isna(cpr):
         return "⚫ Pas de résultat"
+    # cpr arrives as Decimal (Postgres numeric); median as numpy float from
+    # .median() — coerce both to float so the division can't raise on mixed types.
+    cpr = float(cpr)
+    median = float(median) if pd.notna(median) else 0.0
     ratio = cpr / median if median > 0 else 1.0
     if ratio <= 0.75:
         return "🟢 Top créative"
@@ -95,8 +204,250 @@ def _render_bar_chart(df: pd.DataFrame) -> None:
     chart_df = df[df['cpr'].notna()].copy()
     if chart_df.empty:
         return
+    # cpr is Postgres NUMERIC → Decimal; Altair can't infer its vegalite type and
+    # warns "I don't know how to infer vegalite type from 'decimal'". Coerce to float.
+    chart_df['cpr'] = pd.to_numeric(chart_df['cpr'], errors='coerce').astype(float)
     chart_df = chart_df.set_index('creative_name')[['cpr']].rename(columns={'cpr': 'CPR (€)'})
     st.bar_chart(chart_df, color="#ff6b35")
+
+
+def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> None:
+    """Per-creative multi-metric timeline (one Y-axis per metric, legend toggle).
+
+    The creative list honours the page's campaign filter. The period filter is
+    data-bounded (smart_date_range). Each metric has its own Y-axis; non-default
+    metrics start collapsed and are toggled via the legend.
+    """
+    st.markdown("---")
+    st.subheader("📈 Évolution d'une créative dans le temps")
+
+    # Honour the page-level campaign filter for the creative dropdown.
+    campaign_clause = "" if selected_campaign == "Toutes" else " AND mc.campaign_name = %s"
+    name_params = (artist_id,) if selected_campaign == "Toutes" else (artist_id, selected_campaign)
+    names = db.fetch_df(
+        f"""SELECT ma.ad_name, MAX(ma.created_time) AS last_created
+            FROM meta_ads ma
+            JOIN meta_insights mi ON mi.ad_id = ma.ad_id
+            JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
+            WHERE ma.artist_id = %s AND ma.ad_name IS NOT NULL{campaign_clause}
+            GROUP BY ma.ad_name
+            ORDER BY last_created DESC NULLS LAST, ma.ad_name""",
+        name_params,
+    )
+    if names.empty:
+        st.info("Aucune créative avec des insights ad-level pour cette sélection.")
+        return
+
+    creative = st.selectbox("Créative", names['ad_name'].tolist(), key="tl_creative")
+
+    ts = db.fetch_df(
+        f"""SELECT mi.date::date AS date,
+                   SUM(mi.spend)       AS spend,
+                   SUM(mi.impressions) AS impressions,
+                   SUM(mi.clicks)      AS clicks,
+                   SUM(mi.reach)       AS reach,
+                   SUM(mi.conversions) AS conversions,
+                   AVG(mi.ctr)         AS ctr
+            FROM meta_insights mi
+            JOIN meta_ads ma ON ma.ad_id = mi.ad_id
+            JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
+            WHERE ma.artist_id = %s AND ma.ad_name = %s{campaign_clause}
+            GROUP BY mi.date ORDER BY mi.date""",
+        (artist_id, creative) if selected_campaign == "Toutes"
+        else (artist_id, creative, selected_campaign),
+    )
+    if ts.empty:
+        st.info("Pas de séries temporelles pour cette créative.")
+        return
+    ts['date'] = pd.to_datetime(ts['date'])
+
+    d_from, d_to = smart_date_range("Période", ts['date'].min(), ts['date'].max(), key="tl")
+    mask = (ts['date'] >= pd.Timestamp(d_from)) & (ts['date'] <= pd.Timestamp(d_to))
+    tsf = ts.loc[mask].copy()
+    if tsf.empty:
+        st.info("Aucune donnée sur la période sélectionnée.")
+        return
+
+    # Decimal (Postgres NUMERIC) → float, else Plotly mis-types the columns.
+    for _, col, _, _, _, derived in _TIMELINE_METRICS:
+        if not derived:
+            tsf[col] = pd.to_numeric(tsf[col], errors='coerce').astype(float)
+    tsf['ctr'] = tsf['ctr'] * 100  # match the ranking table's CTR % convention
+
+    # Smart granularity: weekly down-sampling past ~120 days keeps the lines readable.
+    span_days = int((tsf['date'].max() - tsf['date'].min()).days)
+    if span_days > 120:
+        agg_map = {col: agg for _, col, agg, _, _, derived in _TIMELINE_METRICS if not derived}
+        tsf = tsf.set_index('date').resample('W').agg(agg_map).reset_index()
+        granularity = "hebdomadaire"
+    else:
+        granularity = "journalière"
+
+    # CPR derived from AGGREGATED spend/results (never an average of daily CPRs).
+    # NaN where no result on the period → the line simply gaps there.
+    tsf['cpr'] = (tsf['spend'] / tsf['conversions'].where(tsf['conversions'] != 0)).astype(float)
+
+    # One Y-axis per metric (autoshift spreads them so they don't overlap). Legend
+    # click toggles a metric and its axis; non-default metrics open as 'legendonly'.
+    fig = go.Figure()
+    layout = {"hovermode": "x unified", "xaxis": {"title": ""},
+              "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02,
+                         "xanchor": "right", "x": 1},
+              "margin": {"t": 40}}
+    for i, (label, col, _, color, visible, _) in enumerate(_TIMELINE_METRICS):
+        axis_id = "y" if i == 0 else f"y{i + 1}"
+        fig.add_trace(go.Scatter(
+            x=tsf['date'], y=tsf[col], name=label, mode="lines+markers",
+            line={"color": color}, marker={"color": color},
+            yaxis=axis_id, visible=True if visible else "legendonly",
+        ))
+        axis_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+        axis_cfg = {"title": {"text": label, "font": {"color": color}},
+                    "tickfont": {"color": color}}
+        if i > 0:
+            axis_cfg.update({"overlaying": "y", "side": "right" if i % 2 else "left",
+                             "anchor": "free", "autoshift": True})
+        layout[axis_key] = axis_cfg
+    fig.update_layout(**layout)
+    st.plotly_chart(fig, width="stretch")
+    st.caption(
+        f"Créative **{creative}** · granularité {granularity} · "
+        f"{d_from:%d/%m/%Y} → {d_to:%d/%m/%Y}. "
+        "Cliquez une métrique dans la légende pour l'afficher/masquer (double-clic = isoler)."
+    )
+
+
+def _render_scatter(df: pd.DataFrame) -> None:
+    """#1 — bubble comparison: spend × CPR, size=impressions, color=CTR."""
+    d = df.copy()
+    for c in ('total_spend', 'cpr', 'total_impressions', 'avg_ctr'):
+        d[c] = pd.to_numeric(d[c], errors='coerce')
+    d = d.dropna(subset=['total_spend', 'cpr'])
+    if d.empty:
+        st.info("Aucune créative avec un CPR (résultats) pour ce scatter.")
+        return
+    fig = px.scatter(
+        d, x='total_spend', y='cpr', size='total_impressions', color='avg_ctr',
+        hover_name='creative_name', color_continuous_scale='Viridis', size_max=40,
+        labels={'total_spend': 'Dépense (€)', 'cpr': 'CPR (€)',
+                'avg_ctr': 'CTR moyen (%)', 'total_impressions': 'Impressions'},
+    )
+    fig.update_layout(height=460)
+    st.plotly_chart(fig, width="stretch")
+    st.caption("Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
+               "Les créatives sans résultat (CPR absent) ne sont pas tracées.")
+
+
+def _render_efficiency(df: pd.DataFrame) -> None:
+    """#4 — CTR / CPM / CPC per creative (top 15 by spend)."""
+    d = df.copy()
+    d['total_spend'] = pd.to_numeric(d['total_spend'], errors='coerce').fillna(0.0)
+    d['total_impressions'] = pd.to_numeric(d['total_impressions'], errors='coerce').fillna(0)
+    d['total_clicks'] = pd.to_numeric(d['total_clicks'], errors='coerce').fillna(0)
+    d['CTR (%)'] = pd.to_numeric(d['avg_ctr'], errors='coerce')
+    d['CPM (€)'] = (d['total_spend'] / d['total_impressions'].where(d['total_impressions'] != 0) * 1000).astype(float)
+    d['CPC (€)'] = (d['total_spend'] / d['total_clicks'].where(d['total_clicks'] != 0)).astype(float)
+    d = d.sort_values('total_spend', ascending=False).head(15)
+    metric = st.radio("Indicateur", ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
+    fig = px.bar(d, x='creative_name', y=metric, color=metric,
+                 color_continuous_scale='Tealrose', labels={'creative_name': ''})
+    fig.update_layout(height=420, coloraxis_showscale=False)
+    st.plotly_chart(fig, width="stretch")
+
+
+def _render_funnel(df: pd.DataFrame) -> None:
+    """#3 — Impressions → Clics → Résultats funnel for one creative."""
+    names = (df.dropna(subset=['creative_name'])
+               .sort_values('creative_created', ascending=False, na_position='last')
+               ['creative_name'].drop_duplicates().tolist())
+    if not names:
+        st.info("Aucune créative.")
+        return
+    sel = st.selectbox("Créative", names, key="funnel_creative")
+    r = df[df['creative_name'] == sel].iloc[0]
+    imp = int(pd.to_numeric(r['total_impressions'], errors='coerce') or 0)
+    clk = int(pd.to_numeric(r['total_clicks'], errors='coerce') or 0)
+    res = int(pd.to_numeric(r['total_results'], errors='coerce') or 0)
+    fig = go.Figure(go.Funnel(
+        y=['Impressions', 'Clics', 'Résultats'], x=[imp, clk, res],
+        textinfo="value+percent initial", marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35']},
+    ))
+    fig.update_layout(height=400)
+    st.plotly_chart(fig, width="stretch")
+
+
+def _render_fatigue(db, artist_id: int) -> None:
+    """#2 — frequency (↗) vs CTR (↘) over time: ad-fatigue detector."""
+    names = db.fetch_df(
+        """SELECT ma.ad_name, MAX(ma.created_time) AS last_created
+           FROM meta_ads ma JOIN meta_insights mi ON mi.ad_id = ma.ad_id
+           WHERE ma.artist_id = %s AND ma.ad_name IS NOT NULL
+           GROUP BY ma.ad_name ORDER BY last_created DESC NULLS LAST, ma.ad_name""",
+        (artist_id,),
+    )
+    if names.empty:
+        st.info("Aucune créative.")
+        return
+    sel = st.selectbox("Créative", names['ad_name'].tolist(), key="fatigue_creative")
+    ts = db.fetch_df(
+        """SELECT mi.date::date AS date, AVG(mi.frequency) AS frequency, AVG(mi.ctr) * 100 AS ctr
+           FROM meta_insights mi JOIN meta_ads ma ON ma.ad_id = mi.ad_id
+           WHERE ma.artist_id = %s AND ma.ad_name = %s GROUP BY mi.date ORDER BY mi.date""",
+        (artist_id, sel),
+    )
+    if ts.empty:
+        st.info("Pas de séries temporelles pour cette créative.")
+        return
+    ts['date'] = pd.to_datetime(ts['date'])
+    ts['frequency'] = pd.to_numeric(ts['frequency'], errors='coerce').astype(float)
+    ts['ctr'] = pd.to_numeric(ts['ctr'], errors='coerce').astype(float)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ts['date'], y=ts['frequency'], name='Fréquence',
+                             mode='lines+markers', line={'color': '#d62728'}))
+    fig.add_trace(go.Scatter(x=ts['date'], y=ts['ctr'], name='CTR (%)', yaxis='y2',
+                             mode='lines+markers', line={'color': '#1f77b4'}))
+    fig.update_layout(
+        hovermode="x unified",
+        yaxis={'title': {'text': 'Fréquence', 'font': {'color': '#d62728'}}},
+        yaxis2={'title': {'text': 'CTR (%)', 'font': {'color': '#1f77b4'}},
+                'overlaying': 'y', 'side': 'right'},
+        legend={'orientation': 'h', 'y': 1.02, 'x': 1, 'xanchor': 'right'}, height=420,
+    )
+    st.plotly_chart(fig, width="stretch")
+    st.caption("Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative.")
+
+
+def _render_activity(ts_all: pd.DataFrame) -> None:
+    """#5 heatmap (creative × week) + #6 cumulative spend area."""
+    if ts_all is None or ts_all.empty:
+        st.info("Aucune série de dépense par créative.")
+        return
+    d = ts_all.copy()
+    d['date'] = pd.to_datetime(d['date'])
+    d['spend'] = pd.to_numeric(d['spend'], errors='coerce').fillna(0.0)
+    d['week'] = d['date'].dt.to_period('W').dt.start_time
+
+    weekly = d.groupby(['creative_name', 'week'], as_index=False)['spend'].sum()
+    top = weekly.groupby('creative_name')['spend'].sum().nlargest(20).index
+    hm = weekly[weekly['creative_name'].isin(top)]
+    st.markdown("**🗓️ Dépense par créative et par semaine**")
+    fig = px.density_heatmap(
+        hm, x='week', y='creative_name', z='spend', histfunc='sum',
+        color_continuous_scale='Oranges', labels={'week': '', 'creative_name': '', 'spend': 'Dépense (€)'},
+    )
+    fig.update_layout(height=520)
+    st.plotly_chart(fig, width="stretch")
+
+    st.markdown("---")
+    st.markdown("**💰 Dépense cumulée par créative**")
+    g = weekly.sort_values('week').copy()
+    g['cum'] = g.groupby('creative_name')['spend'].cumsum()
+    top12 = g.groupby('creative_name')['cum'].max().nlargest(12).index
+    g = g[g['creative_name'].isin(top12)]
+    fig2 = px.area(g, x='week', y='cum', color='creative_name',
+                   labels={'week': '', 'cum': 'Dépense cumulée (€)', 'creative_name': 'Créative'})
+    fig2.update_layout(height=480)
+    st.plotly_chart(fig2, width="stretch")
 
 
 def show() -> None:
@@ -118,43 +469,71 @@ def show() -> None:
 
     try:
         df = db.fetch_df(_QUERY_CREATIVES, (artist_id,))
+        uncollected = db.fetch_df(_QUERY_UNCOLLECTED, (artist_id, artist_id))
+
+        _render_uncollected_notice(uncollected)
+
+        if df.empty:
+            st.info(
+                "Aucune donnée de créative disponible. "
+                "Vérifiez que le DAG **meta_ads_api_daily** a bien collecté des données "
+                "via l'API Meta Ads (tables `meta_ads` + `meta_insights`)."
+            )
+            return
+
+        # Filtres — campagnes les plus récentes en haut (par start_time desc).
+        camp_order = (
+            df.dropna(subset=['campaign_name'])
+              .sort_values('campaign_start', ascending=False, na_position='last')
+              ['campaign_name'].drop_duplicates().tolist()
+        )
+        campaigns = ["Toutes"] + camp_order
+        col_filter, _ = st.columns([2, 4])
+        selected_campaign = col_filter.selectbox("Filtrer par campagne", campaigns)
+
+        if selected_campaign != "Toutes":
+            df = df[df['campaign_name'] == selected_campaign]
+
+        if df.empty:
+            st.warning("Aucune créative pour cette campagne.")
+            return
+
+        _render_kpi_row(df)
+        st.markdown("---")
+
+        t_rank, t_cmp, t_funnel, t_evo, t_fatigue, t_act = st.tabs([
+            "📋 Classement", "🫧 Comparaison", "🔻 Funnel",
+            "📈 Évolution", "🪫 Fatigue", "🗓️ Activité",
+        ])
+
+        with t_rank:
+            _render_table(df)
+            median_cpr = df[df['cpr'].notna()]['cpr'].median()
+            if pd.notna(median_cpr):
+                st.caption(
+                    f"🟢 Top créative = CPR ≤ {median_cpr * 0.75:.2f}€ | "
+                    f"🟡 Moyenne = CPR ≤ {median_cpr * 1.25:.2f}€ | "
+                    f"🔴 Sous-performante = CPR > {median_cpr * 1.25:.2f}€"
+                )
+            st.markdown("---")
+            _render_bar_chart(df)
+
+        with t_cmp:
+            _render_scatter(df)
+            st.markdown("---")
+            _render_efficiency(df)
+
+        with t_funnel:
+            _render_funnel(df)
+
+        with t_evo:
+            _render_creative_timeline(db, artist_id, selected_campaign)
+
+        with t_fatigue:
+            _render_fatigue(db, artist_id)
+
+        with t_act:
+            ts_all = db.fetch_df(_QUERY_TS_ALL, (artist_id,))
+            _render_activity(ts_all)
     finally:
         db.close()
-
-    if df.empty:
-        st.info(
-            "Aucune donnée de créative disponible. "
-            "Vérifiez que le DAG **meta_insights_dag** a bien collecté des données "
-            "via l'API Meta Ads (tables `meta_ads` + `meta_insights`)."
-        )
-        return
-
-    # Filtres
-    campaigns = ["Toutes"] + sorted(df['campaign_name'].dropna().unique().tolist())
-    col_filter, _ = st.columns([2, 4])
-    selected_campaign = col_filter.selectbox("Filtrer par campagne", campaigns)
-
-    if selected_campaign != "Toutes":
-        df = df[df['campaign_name'] == selected_campaign]
-
-    if df.empty:
-        st.warning("Aucune créative pour cette campagne.")
-        return
-
-    _render_kpi_row(df)
-    st.markdown("---")
-
-    tab_table, tab_chart = st.tabs(["📋 Tableau", "📊 Graphique CPR"])
-
-    with tab_table:
-        _render_table(df)
-        median_cpr = df[df['cpr'].notna()]['cpr'].median()
-        st.caption(
-            f"🟢 Top créative = CPR ≤ {median_cpr * 0.75:.2f}€ | "
-            f"🟡 Moyenne = CPR ≤ {median_cpr * 1.25:.2f}€ | "
-            f"🔴 Sous-performante = CPR > {median_cpr * 1.25:.2f}€"
-        )
-
-    with tab_chart:
-        _render_bar_chart(df)
-        st.caption("Créatives triées du meilleur au pire CPR. Barres plus courtes = plus efficaces.")

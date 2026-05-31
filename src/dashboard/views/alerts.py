@@ -177,6 +177,110 @@ def _section_billing_alerts(db) -> int:
     return len(rows)
 
 
+# ── Admin: subscription analytics ─────────────────────────────────
+
+def _section_plan_evolution(db) -> None:
+    """Stacked-area chart of the number of artists per plan over time.
+
+    Reconstructs each artist's effective plan as-of monthly snapshots from the
+    append-only subscription_plan_history table (seeded by migration 029's
+    backfill). Returns nothing — purely informational (no alert count).
+    """
+    import plotly.express as px
+
+    rows = db.fetch_query(
+        "SELECT artist_id, plan, changed_at FROM subscription_plan_history "
+        "ORDER BY changed_at"
+    )
+    if not rows:
+        st.info(
+            "Aucun historique de plan pour l'instant. Le graphique se remplit "
+            "au fil des inscriptions et des changements de plan."
+        )
+        return
+
+    hist = pd.DataFrame(rows, columns=['artist_id', 'plan', 'changed_at'])
+    # Normalise to tz-naive UTC so comparisons with the bucket timestamps work.
+    hist['changed_at'] = pd.to_datetime(hist['changed_at'], utc=True).dt.tz_localize(None)
+
+    start = hist['changed_at'].min().normalize().replace(day=1)
+    today = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    buckets = pd.date_range(start=start, end=today, freq='MS')
+    # Always include "now" as the final point so the latest state is shown.
+    buckets = buckets.append(pd.DatetimeIndex([today])).unique()
+
+    records = []
+    for b in buckets:
+        asof = hist[hist['changed_at'] <= b]
+        if asof.empty:
+            continue
+        latest = asof.sort_values('changed_at').groupby('artist_id').tail(1)
+        counts = latest['plan'].value_counts()
+        for plan in ('free', 'basic', 'premium'):
+            records.append({'Date': b, 'Plan': plan.capitalize(),
+                            'Artistes': int(counts.get(plan, 0))})
+
+    chart_df = pd.DataFrame(records)
+    fig = px.area(
+        chart_df, x='Date', y='Artistes', color='Plan',
+        category_orders={'Plan': ['Free', 'Basic', 'Premium']},
+        color_discrete_map={'Free': '#9E9E9E', 'Basic': '#2196F3', 'Premium': '#1DB954'},
+        title="Évolution du nombre d'artistes — total et par plan",
+    )
+    # Explicit total-artists line on top of the per-plan stacked areas.
+    totals = chart_df.groupby('Date', as_index=False)['Artistes'].sum()
+    fig.add_scatter(
+        x=totals['Date'], y=totals['Artistes'],
+        mode='lines+markers', name='Total artistes',
+        line=dict(color='#FFFFFF', width=2, dash='dot'),
+    )
+    fig.update_layout(hovermode='x unified', height=400, legend_title_text='')
+    st.plotly_chart(fig, width="stretch")
+
+    # Current snapshot KPIs (latest bucket).
+    latest_date = chart_df['Date'].max()
+    snap = chart_df[chart_df['Date'] == latest_date]
+    cols = st.columns(4)
+    cols[0].metric("Total artistes", int(snap['Artistes'].sum()))
+    for col, plan in zip(cols[1:], ['Free', 'Basic', 'Premium']):
+        val = int(snap[snap['Plan'] == plan]['Artistes'].sum())
+        col.metric(plan, val)
+
+
+def _section_users_table(db) -> None:
+    """Table of every user: email, signup date, and effective plan."""
+    from datetime import datetime, timezone
+
+    rows = db.fetch_query(
+        "SELECT u.email, u.username, u.role, u.created_at, "
+        "       a.tier, a.promo_plan, a.promo_plan_expires_at "
+        "FROM saas_users u "
+        "LEFT JOIN saas_artists a ON a.id = u.artist_id "
+        "ORDER BY u.created_at DESC"
+    )
+    if not rows:
+        st.info("Aucun utilisateur enregistré.")
+        return
+
+    now = datetime.now(timezone.utc)
+
+    def _effective_plan(tier, promo_plan, promo_exp) -> str:
+        if promo_plan and (promo_exp is None or promo_exp > now):
+            return promo_plan
+        return tier or 'free'
+
+    table = []
+    for email, username, role, created_at, tier, promo_plan, promo_exp in rows:
+        table.append({
+            "Email": email,
+            "Username": username,
+            "Rôle": role,
+            "Inscription": created_at.strftime('%Y-%m-%d') if created_at else "—",
+            "Plan": _effective_plan(tier, promo_plan, promo_exp).capitalize(),
+        })
+    st.dataframe(pd.DataFrame(table), width="stretch", hide_index=True)
+
+
 # ── Entry point ───────────────────────────────────────────────────
 
 def show():
@@ -217,6 +321,12 @@ def show():
             st.markdown("---")
             st.subheader("💳 Billing Alerts")
             total_alerts += _section_billing_alerts(db)
+            st.markdown("---")
+            st.subheader("📈 Évolution des plans")
+            _section_plan_evolution(db)
+            st.markdown("---")
+            st.subheader("👥 Utilisateurs (email & date d'inscription)")
+            _section_users_table(db)
 
         if total_alerts == 0:
             st.balloons()

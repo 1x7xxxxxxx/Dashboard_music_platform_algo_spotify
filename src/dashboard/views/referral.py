@@ -51,7 +51,12 @@ def show():
         # ── Your code ─────────────────────────────────────────────────────
         st.subheader("Your referral code")
         st.code(code, language=None)
-        st.caption("Share this code with other artists. They enter it during registration to get **20% off their first month**.")
+        st.caption(
+            "Code **unique** et permanent attribué à votre compte. Partagez-le : "
+            "les artistes qui l'utilisent à l'inscription obtiennent **20% sur leur "
+            "premier mois**. (Rappel : chaque nouvel inscrit reçoit aussi **30 jours "
+            "d'accès Premium offerts** automatiquement.)"
+        )
 
         st.markdown("---")
 

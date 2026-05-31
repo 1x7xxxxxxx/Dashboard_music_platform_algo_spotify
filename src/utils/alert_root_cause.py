@@ -79,8 +79,7 @@ def _dag_to_platform(dag_id: str) -> str:
     mapping = {
         'soundcloud_daily': 'soundcloud',
         'instagram_daily': 'instagram',
-        'meta_insights_dag': 'meta',
-        'meta_config_dag': 'meta',
+        'meta_ads_api_daily': 'meta',
         'youtube_daily': 'youtube',
         'spotify_api_daily': 'spotify',
     }

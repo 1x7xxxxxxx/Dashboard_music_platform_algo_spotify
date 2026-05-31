@@ -148,3 +148,60 @@ class TestExtractEng:
         assert row["comments"]       == 3
         assert row["saves"]          == 7
         assert row["link_clicks"]    == 20
+
+
+# ---------------------------------------------------------------------------
+# _extract_perf — results driven by campaign objective (Meta's native "Results")
+# ---------------------------------------------------------------------------
+
+class TestExtractPerfGoal:
+    """results must match the AD SET optimization_goal, not always custom conversions.
+
+    Regression guard for the engagement-campaign bug: results was hardcoded to
+    offsite_conversion.custom, which (a) returned 0 for engagement/traffic goals and
+    (b) missed the id-suffixed action_type Meta actually returns
+    ('offsite_conversion.custom.<id>'). CPR is shown only for conversion goals.
+    """
+
+    _ACTIONS = [
+        {"action_type": "post_engagement",               "value": "1887"},
+        {"action_type": "link_click",                    "value": "80"},
+        {"action_type": "offsite_conversion.custom.123", "value": "12"},
+    ]
+
+    def test_post_engagement_goal(self):
+        row = _extract_perf(_insight(spend="20.00", actions=self._ACTIONS),
+                            artist_id=1, goal="POST_ENGAGEMENT")
+        assert row["results"] == 1887
+        assert row["cpr"] is None  # engagement goal → CPR suppressed
+
+    def test_link_clicks_goal(self):
+        row = _extract_perf(_insight(actions=self._ACTIONS), artist_id=1,
+                            goal="LINK_CLICKS")
+        assert row["results"] == 80
+        assert row["cpr"] is None  # traffic goal → CPR suppressed
+
+    def test_offsite_conversions_goal_prefix_match(self):
+        """The id-suffixed action_type must be counted (core of the bug)."""
+        row = _extract_perf(_insight(spend="24.00", actions=self._ACTIONS),
+                            artist_id=1, goal="OFFSITE_CONVERSIONS")
+        assert row["results"] == 12
+        assert row["cpr"] == round(24.0 / 12, 4)  # conversion goal → CPR shown
+
+    def test_custom_conversions_prefix_match(self):
+        actions = [{"action_type": "offsite_conversion.custom.999", "value": "7"}]
+        row = _extract_perf(_insight(actions=actions), artist_id=1,
+                            goal="OFFSITE_CONVERSIONS")
+        assert row["custom_conversions"] == 7  # prefix match catches the id suffix
+
+    def test_reach_goal_has_no_action_result(self):
+        row = _extract_perf(_insight(actions=self._ACTIONS), artist_id=1, goal="REACH")
+        assert row["results"] == 0
+        assert row["cpr"] is None
+
+    def test_unknown_goal_falls_back_to_offsite_conversions(self):
+        actions = [{"action_type": "offsite_conversion.fb_pixel_purchase", "value": "4"}]
+        row = _extract_perf(_insight(spend="8.00", actions=actions),
+                            artist_id=1, goal=None)
+        assert row["results"] == 4
+        assert row["cpr"] == round(8.0 / 4, 4)  # unknown goal → conversion intent → CPR shown

@@ -73,7 +73,7 @@ print("\n🔍 Root cause detection test")
 test_cases = [
     ("401 Unauthorized", "soundcloud_daily"),
     ("connection refused", "youtube_daily"),
-    ("relation does not exist", "meta_insights_dag"),
+    ("relation does not exist", "meta_ads_api_daily"),
     ("timeout", "instagram_daily"),
     ("", "spotify_api_daily"),
 ]

@@ -338,7 +338,7 @@ def require_login() -> bool:
             _show_totp_challenge(db)
             return False
 
-        st.title("🎵 Music Dashboard")
+        st.title("🎵 streaMLytics")
 
         with st.form("login"):
             st.subheader("Sign in")

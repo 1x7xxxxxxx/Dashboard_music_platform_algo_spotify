@@ -53,12 +53,14 @@ def show():
         if not df_hist.empty:
             fig_channel = go.Figure()
 
-            # Axe Y1 (Gauche) : Abonnés (Zone remplie Rouge)
+            # Axe Y1 (Gauche) : Abonnés (ligne + marqueurs, PAS de remplissage)
+            # fill='tozeroy' ancrait la bande à 0 → avec des comptes absolus élevés,
+            # les variations quotidiennes paraissaient plates. On garde une ligne
+            # simple et on resserre l'axe sur la plage réelle (voir update_layout).
             fig_channel.add_trace(go.Scatter(
                 x=df_hist['date'], y=df_hist['subs'],
                 name='Abonnés',
-                mode='lines',
-                fill='tozeroy',
+                mode='lines+markers',
                 line=dict(color='#FF0000', width=2),
                 yaxis='y'
             ))
@@ -73,19 +75,34 @@ def show():
                 yaxis='y2'
             ))
 
+            # Smart range: zoom the subscriber axis onto the actual data band
+            # with a small margin, instead of starting at 0. Makes day-to-day
+            # evolution visible even when absolute counts are large. Falls back
+            # to autorange when the series is flat (min == max).
+            subs_min, subs_max = float(df_hist['subs'].min()), float(df_hist['subs'].max())
+            subs_span = subs_max - subs_min
+            if subs_span > 0:
+                margin = max(subs_span * 0.10, 1)
+                subs_range = [subs_min - margin, subs_max + margin]
+            else:
+                subs_range = None  # flat series → let Plotly autorange
+
             fig_channel.update_layout(
                 title="Croissance : Abonnés vs Vues Totales",
                 xaxis=dict(title="Date"),
                 yaxis=dict(
                     title=dict(text="Abonnés", font=dict(color="#FF0000")),
-                    tickfont=dict(color="#FF0000")
+                    tickfont=dict(color="#FF0000"),
+                    range=subs_range,
+                    tickformat="~s",  # SI suffix (1.2k, 3.4M) — legible at any scale
                 ),
                 yaxis2=dict(
                     title=dict(text="Vues Cumulées", font=dict(color="#E0E0E0")),
                     tickfont=dict(color="#E0E0E0"),
                     overlaying='y',
                     side='right',
-                    showgrid=False
+                    showgrid=False,
+                    tickformat="~s",
                 ),
                 hovermode='x unified',
                 legend=dict(orientation="h", y=1.1),

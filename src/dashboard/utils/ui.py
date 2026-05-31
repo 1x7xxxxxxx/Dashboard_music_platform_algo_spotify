@@ -11,9 +11,48 @@ views:  `if df.empty: st.info(...); return`  →  `if show_empty_state(df, msg):
 """
 from __future__ import annotations
 
+from datetime import date as _date
+
 import streamlit as st
 
 _LEVELS = frozenset({"info", "warning", "error"})
+
+
+def smart_date_range(label, min_date, max_date, *, key):
+    """Data-bounded period selector. Returns (from_date, to_date) as date objects.
+
+    "Smart" = the choices are derived from the actual data span [min_date, max_date],
+    so the user can never land on an empty window (the classic "last 6 months" trap
+    when the data is older). Presets: full history, one entry per calendar year
+    actually covered, and a custom range bounded to [min, max]. Default = full span.
+
+    Returns (None, None) when min/max are None (no data). Accepts date or datetime.
+    """
+    if min_date is None or max_date is None:
+        return None, None
+    min_d = min_date.date() if hasattr(min_date, "date") else min_date
+    max_d = max_date.date() if hasattr(max_date, "date") else max_date
+    if min_d > max_d:
+        min_d, max_d = max_d, min_d
+
+    presets = {"Tout l'historique": (min_d, max_d)}
+    for y in range(min_d.year, max_d.year + 1):
+        start, end = max(_date(y, 1, 1), min_d), min(_date(y, 12, 31), max_d)
+        if start <= end:
+            presets[f"Année {y}"] = (start, end)
+    presets["Plage personnalisée"] = None
+
+    choice = st.selectbox(label, list(presets.keys()), key=f"{key}_preset")
+    if choice != "Plage personnalisée":
+        return presets[choice]
+
+    rng = st.date_input(
+        "Plage", value=(min_d, max_d), min_value=min_d, max_value=max_d,
+        key=f"{key}_range",
+    )
+    if isinstance(rng, (tuple, list)) and len(rng) == 2:
+        return rng[0], rng[1]
+    return min_d, max_d  # single-date mid-selection → fall back to full span
 
 
 def show_empty_state(df, message: str, *, level: str = "info") -> bool:

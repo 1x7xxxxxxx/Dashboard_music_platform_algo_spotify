@@ -131,9 +131,16 @@ async def stripe_webhook(request: Request):
                     (int(artist_id), plan_id, customer_id, subscription_id),
                 )
                 # Also update saas_artists.tier
+                _tier = plan_name if plan_name in ('basic', 'premium') else 'basic'
                 cur.execute(
                     "UPDATE saas_artists SET tier = %s WHERE id = %s",
-                    (plan_name if plan_name in ('basic', 'premium') else 'basic', int(artist_id)),
+                    (_tier, int(artist_id)),
+                )
+                # Audit the plan transition for the Alerts plan-evolution chart.
+                cur.execute(
+                    "INSERT INTO subscription_plan_history (artist_id, plan, source) "
+                    "VALUES (%s, %s, 'stripe_webhook')",
+                    (int(artist_id), _tier),
                 )
                 conn.commit()
                 cur.close()

@@ -85,14 +85,39 @@ def show():
         # ============================================================
         st.subheader("📈 Croissance Quotidienne (Streams & Shazams)")
 
-        # Sélecteur chansons + filtre période (factorisés via entity_period_filter)
-        selected_songs, window = entity_period_filter(
+        # Pre-select the latest *real* release using the canonical reference
+        # (track_release_reference, fed by S4A release dates). Apple's CSV has no
+        # release date, so we map each Apple song_name → match_key → release_date
+        # and pre-seed the selectbox with the most recently released track. Only
+        # on first load — a user's later choice persists via session_state.
+        _ent_key = "apple_daily_ent"
+        if _ent_key not in st.session_state:
+            from src.utils.track_matching import normalize_track_title, get_release_dates
+            rel_by_key = get_release_dates(db, artist_id)
+            if rel_by_key:
+                songs = db.fetch_query(
+                    "SELECT DISTINCT song_name FROM apple_songs_history WHERE artist_id = %s",
+                    (artist_id,),
+                )
+                best_song, best_date = None, None
+                for (sn,) in (songs or []):
+                    rd = rel_by_key.get(normalize_track_title(sn))
+                    if rd and (best_date is None or rd > best_date):
+                        best_song, best_date = sn, rd
+                if best_song is not None:
+                    st.session_state[_ent_key] = best_song
+                    st.caption(f"Dernière sortie détectée : **{best_song}** ({best_date}).")
+
+        # Sélecteur chanson + filtre période (factorisés via entity_period_filter).
+        selected_song, window = entity_period_filter(
             db,
             spec=EntitySpec("apple_songs_history", "song_name", "date",
-                            multi=True, default_count=1),
+                            multi=False, default_count=1),
             artist_id=artist_id, key_prefix="apple_daily",
-            label="🔍 Filtrer par chanson(s)",
+            label="🔍 Chanson (dernière release par défaut)",
         )
+        # Normalise scalar → list so the IN (...) fragment below stays valid.
+        selected_songs = [selected_song] if selected_song else []
 
         if selected_songs:
             placeholders = ','.join(['%s'] * len(selected_songs))

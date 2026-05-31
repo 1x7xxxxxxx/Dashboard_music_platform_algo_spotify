@@ -8,7 +8,8 @@ import pytest
 
 from src.transformers.s4a_csv_parser import S4ACSVParser
 from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
-from src.transformers.meta_csv_parser import MetaCSVParser
+# MetaCSVParser tests removed — the legacy Meta CSV stack was archived to
+# archive/legacy_meta_csv/ (superseded by src/collectors/meta_ads_api_collector.py).
 
 
 # =============================================================================
@@ -188,73 +189,3 @@ class TestAppleMusicParseDailyPlays:
         assert result["type"] == "daily_plays"
         assert len(result["data"]) == 2
         assert result["data"][0]["plays"] == 100
-
-
-# =============================================================================
-# MetaCSVParser
-# =============================================================================
-
-class TestMetaCSVParser:
-    parser = MetaCSVParser()
-
-    def _make_tab_csv(self, tmp_csv, rows: list[dict]):
-        """Génère un TSV UTF-8 avec les colonnes Meta standard."""
-        columns = ["Campaign ID", "Campaign Name", "Campaign Start Time",
-                   "Ad Set ID", "Ad Set Name", "Ad Set Run Status",
-                   "Ad Set Time Start", "Countries", "Cities", "Gender",
-                   "Age Min", "Age Max", "Flexible Inclusions", "Advantage Audience",
-                   "Age Range", "Targeting Optimization", "Publisher Platforms",
-                   "Instagram Positions", "Device Platforms",
-                   "Ad ID", "Ad Name", "Title", "Body", "Video File Name", "Call to Action"]
-        header = "\t".join(columns)
-        lines = [header]
-        for r in rows:
-            lines.append("\t".join(str(r.get(c, "")) for c in columns))
-        content = "\n".join(lines)
-        return tmp_csv("meta_config.csv", content, "utf-8")
-
-    def test_parse_single_row(self, tmp_csv):
-        rows = [{"Campaign ID": "123", "Campaign Name": "Test Camp",
-                 "Ad Set ID": "456", "Ad Set Name": "Set 1",
-                 "Ad ID": "789", "Ad Name": "Ad 1"}]
-        path = self._make_tab_csv(tmp_csv, rows)
-        result = self.parser.parse(path)
-        assert result["type"] == "mixed_config"
-        assert len(result["data"]["campaigns"]) == 1
-        assert result["data"]["campaigns"][0]["campaign_id"] == "123"
-        assert len(result["data"]["adsets"]) == 1
-        assert len(result["data"]["ads"]) == 1
-
-    def test_parse_multiple_rows_dedup(self, tmp_csv):
-        """Deux lignes avec le même Campaign ID → une seule campagne."""
-        rows = [
-            {"Campaign ID": "100", "Campaign Name": "Camp A",
-             "Ad Set ID": "200", "Ad Set Name": "Set A",
-             "Ad ID": "300", "Ad Name": "Ad A"},
-            {"Campaign ID": "100", "Campaign Name": "Camp A",
-             "Ad Set ID": "201", "Ad Set Name": "Set B",
-             "Ad ID": "301", "Ad Name": "Ad B"},
-        ]
-        path = self._make_tab_csv(tmp_csv, rows)
-        result = self.parser.parse(path)
-        assert len(result["data"]["campaigns"]) == 1
-        assert len(result["data"]["adsets"]) == 2
-        assert len(result["data"]["ads"]) == 2
-
-    def test_parse_missing_campaign_id_returns_error(self, tmp_csv):
-        """Fichier sans colonne 'Campaign ID' → type='error'."""
-        content = "Foo\tBar\nval1\tval2\n"
-        path = tmp_csv("bad_meta.csv", content, "utf-8")
-        result = self.parser.parse(path)
-        assert result["type"] == "error"
-
-    def test_parse_float_ids_stripped(self, tmp_csv):
-        """Les IDs comme '123.0' doivent être normalisés en '123'."""
-        rows = [{"Campaign ID": "123.0", "Campaign Name": "Camp",
-                 "Ad Set ID": "456.0", "Ad Set Name": "Set",
-                 "Ad ID": "789.0", "Ad Name": "Ad"}]
-        path = self._make_tab_csv(tmp_csv, rows)
-        result = self.parser.parse(path)
-        assert result["data"]["campaigns"][0]["campaign_id"] == "123"
-        assert result["data"]["adsets"][0]["adset_id"] == "456"
-        assert result["data"]["ads"][0]["ad_id"] == "789"

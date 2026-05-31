@@ -82,3 +82,6 @@ logs/
 .DS_Store
 *.bak
 *.tmp
+
+# Archived legacy code (not part of the build)
+archive/

@@ -89,7 +89,7 @@ PLATFORM_TO_DAGS = {
     'spotify':    ['spotify_api_daily'],
     'youtube':    ['youtube_daily'],
     'soundcloud': ['soundcloud_daily'],
-    'meta':       ['meta_insights_dag', 'instagram_daily'],
+    'meta':       ['meta_ads_api_daily', 'instagram_daily'],
 }
 
 _STATE_ICON = {
@@ -121,6 +121,50 @@ def _fetch_dag_last_states() -> dict:
         return result
     except Exception:
         return {}
+
+
+# ─────────────────────────────────────────────
+# App-level (env / config.yaml) credential detection
+# ─────────────────────────────────────────────
+
+# Platforms whose credentials may live at the app level (env vars / config.yaml)
+# instead of the per-artist artist_credentials table. The collector DAGs read
+# these with a DB-then-env fallback (e.g. spotify_api_daily, youtube_daily), so
+# the dashboard must NOT show '❌ Non configuré' when only the app-level path is
+# wired. Each entry: (env_var_names, config.yaml section key).
+_APP_LEVEL_CREDS = {
+    'spotify': (('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), 'spotify'),
+    'youtube': (('YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID'), 'youtube'),
+}
+
+# Placeholder values shipped in config.example.yaml — never count as configured.
+_CONFIG_PLACEHOLDER_PREFIX = 'VOTRE_'
+
+
+def app_level_configured(platform_key: str) -> bool:
+    """True if a platform is configured at the app level (env or config.yaml).
+
+    Mirrors the DB-then-env fallback used by the collector DAGs so the
+    credentials view reflects Spotify/YouTube as configured even when there is
+    no artist_credentials row (their keys live in .env / config.yaml).
+    """
+    import os
+    entry = _APP_LEVEL_CREDS.get(platform_key)
+    if not entry:
+        return False
+    env_keys, cfg_section = entry
+    if all(os.getenv(k) for k in env_keys):
+        return True
+    try:
+        section = (config_loader.load() or {}).get(cfg_section) or {}
+    except Exception:
+        return False
+    if not isinstance(section, dict):
+        return bool(section)
+    return any(
+        v and not str(v).startswith(_CONFIG_PLACEHOLDER_PREFIX)
+        for v in section.values()
+    )
 
 
 # ─────────────────────────────────────────────

@@ -3,16 +3,44 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, date
-from dateutil.relativedelta import relativedelta
+from datetime import datetime
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import get_roi_data, get_monthly_roi_series
+
+
+def _roi_data_span(db, artist_id):
+    """Return (min_date, max_date) spanning iMusician revenue + Meta spend, or (None, None).
+
+    The ROI filter is bounded to this so the default window always contains data —
+    a fixed "last 6 months" returned zero because Meta spend is historical.
+    """
+    if artist_id is not None:
+        rows = db.fetch_query(
+            """SELECT MIN(d), MAX(d) FROM (
+                   SELECT make_date(year, month, 1) AS d FROM imusician_monthly_revenue WHERE artist_id = %s
+                   UNION ALL
+                   SELECT day_date::date FROM meta_insights_performance_day WHERE artist_id = %s
+               ) t""",
+            (artist_id, artist_id),
+        )
+    else:
+        rows = db.fetch_query(
+            """SELECT MIN(d), MAX(d) FROM (
+                   SELECT make_date(year, month, 1) AS d FROM imusician_monthly_revenue
+                   UNION ALL
+                   SELECT day_date::date FROM meta_insights_performance_day
+               ) t"""
+        )
+    if rows and rows[0][0]:
+        return rows[0][0], rows[0][1]
+    return None, None
 
 
 MONTHS_FR = {
@@ -50,23 +78,6 @@ def _load_revenues(db, artist_id):
         return db.fetch_df(query, (artist_id,))
 
 
-def _upsert_revenue(db, artist_id, year, month, revenue_eur, notes):
-    """Insère ou met à jour un revenu mensuel."""
-    db.execute_query(
-        """
-        INSERT INTO imusician_monthly_revenue
-            (artist_id, year, month, revenue_eur, notes, updated_at)
-        VALUES (%s, %s, %s, %s, %s, NOW())
-        ON CONFLICT (artist_id, year, month)
-        DO UPDATE SET
-            revenue_eur = EXCLUDED.revenue_eur,
-            notes = EXCLUDED.notes,
-            updated_at = NOW()
-        """,
-        (artist_id, year, month, revenue_eur, notes or None)
-    )
-
-
 def _delete_revenue(db, artist_id, year, month):
     """Supprime un enregistrement de revenu."""
     db.execute_query(
@@ -77,70 +88,26 @@ def _delete_revenue(db, artist_id, year, month):
 
 def show():
     st.title("💰 Distributeur — Revenus mensuels")
-    st.markdown("Saisie manuelle des revenus générés via votre distributeur.")
-
-    tab_form, tab_data, tab_import, tab_roi = st.tabs(
-        ["✏️ Saisie", "📊 Données", "📂 Import CSV", "💹 ROI Breakheaven"]
+    st.markdown(
+        "Visualisation des revenus générés via votre distributeur. "
+        "L'import des fichiers iMusician se fait depuis la page **📂 Import CSV**."
     )
+
+    tab_data, tab_roi = st.tabs(["📊 Données", "💹 ROI Breakheaven"])
 
     db = get_db_connection()
     try:
         artist_id, _ = _get_artist_filter()
 
-        # ── Onglet 1 : Formulaire de saisie ─────────────────────────────────
-        with tab_form:
-            st.subheader("Ajouter / modifier un revenu mensuel")
-
-            # Si admin, sélection de l'artiste
-            target_artist_id = artist_id
-            if is_admin():
-                artists_df = db.fetch_df(
-                    "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
-                )
-                if artists_df.empty:
-                    st.warning("Aucun artiste actif trouvé.")
-                    return
-                artist_options = {row['name']: row['id'] for _, row in artists_df.iterrows()}
-                selected_name = st.selectbox("Artiste cible", list(artist_options.keys()))
-                target_artist_id = artist_options[selected_name]
-
-            col1, col2 = st.columns(2)
-            with col1:
-                year = st.number_input(
-                    "Année", min_value=2015, max_value=datetime.now().year + 1,
-                    value=datetime.now().year, step=1
-                )
-            with col2:
-                month_label = st.selectbox(
-                    "Mois",
-                    options=list(MONTHS_FR.keys()),
-                    format_func=lambda m: MONTHS_FR[m],
-                    index=datetime.now().month - 1
-                )
-
-            revenue = st.number_input(
-                "Revenu total (€)", min_value=0.0, max_value=999999.0,
-                value=0.0, step=0.01, format="%.2f"
-            )
-            notes = st.text_input("Notes (optionnel)", placeholder="Ex: reversal Q1, promo release…")
-
-            if st.button("💾 Enregistrer", type="primary"):
-                if target_artist_id is None:
-                    st.error("Impossible de déterminer l'artiste cible.")
-                else:
-                    try:
-                        _upsert_revenue(db, target_artist_id, int(year), int(month_label), revenue, notes)
-                        st.success(f"✅ {MONTHS_FR[month_label]} {year} — {revenue:.2f} € enregistré.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erreur d'enregistrement : {e}")
-
-        # ── Onglet 2 : Données + graphique ──────────────────────────────────
+        # ── Onglet : Données + graphique ────────────────────────────────────
         with tab_data:
             df = _load_revenues(db, artist_id)
 
             if df.empty:
-                st.info("Aucun revenu enregistré. Utilisez l'onglet Saisie pour commencer.")
+                st.info(
+                    "Aucun revenu enregistré. Importez un export iMusician "
+                    "depuis la page **📂 Import CSV**."
+                )
             else:
                 # Colonne lisible mois/année
                 df['period'] = df.apply(
@@ -256,172 +223,58 @@ def show():
                                 except Exception as e:
                                     st.error(f"Erreur : {e}")
 
-        # ── Onglet 3 : Import CSV iMusician ─────────────────────────────────
-        with tab_import:
-            st.subheader("Import CSV iMusician")
-            st.markdown(
-                "Importez un fichier exporté depuis iMusician. "
-                "Deux formats sont supportés :\n"
-                "- **Résumé par sortie** (`Statement date`, `Release title`, `Total revenue`, …)\n"
-                "- **Rapport de vente** (`Sales date`, `ISRC`, `Shop`, `Country`, …)"
-            )
-
-            imp_artist_id = artist_id
-            if is_admin():
-                imp_artists_df = db.fetch_df(
-                    "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
-                )
-                if imp_artists_df.empty:
-                    st.warning("Aucun artiste actif.")
-                else:
-                    imp_opts = {row['name']: row['id'] for _, row in imp_artists_df.iterrows()}
-                    imp_sel = st.selectbox("Artiste cible", list(imp_opts.keys()), key="imp_artist")
-                    imp_artist_id = imp_opts[imp_sel]
-
-            uploaded_csv = st.file_uploader(
-                "Fichier CSV iMusician",
-                type=["csv"],
-                key="imusician_csv_upload",
-                help="Glissez le fichier exporté depuis iMusician (Résumé ou Rapport de vente).",
-            )
-
-            if uploaded_csv:
-                import io
-                from src.transformers.imusician_csv_parser import IMusicianCSVParser
-
-                uploaded_csv.seek(0)
-                try:
-                    raw_df = pd.read_csv(io.BytesIO(uploaded_csv.read()))
-                except Exception as e:
-                    st.error(f"❌ Impossible de lire le fichier : {e}")
-                else:
-                    parser = IMusicianCSVParser()
-                    detected = parser.detect_csv_type(raw_df)
-
-                    if detected == 'release_summary':
-                        badge = "✅ **Résumé par sortie** détecté"
-                        table_name = 'imusician_release_summary'
-                        conflict_cols = ['artist_id', 'barcode', 'year', 'month']
-                        update_cols = [
-                            'release_title', 'track_downloads', 'track_streams',
-                            'release_downloads', 'track_downloads_revenue',
-                            'track_streams_revenue', 'release_downloads_revenue',
-                            'total_revenue', 'collected_at',
-                        ]
-                    elif detected == 'sales_detail':
-                        badge = "✅ **Rapport de vente** détecté"
-                        table_name = 'imusician_sales_detail'
-                        conflict_cols = [
-                            'artist_id', 'isrc', 'sales_year', 'sales_month',
-                            'statement_year', 'statement_month', 'shop', 'country',
-                            'transaction_type',
-                        ]
-                        update_cols = ['quantity', 'revenue_eur', 'collected_at']
-                    else:
-                        badge = None
-
-                    if badge is None:
-                        st.error(
-                            "❌ Format non reconnu. Vérifiez que le fichier correspond "
-                            "à un export iMusician (colonnes attendues : "
-                            "`Release title` / `Total revenue` pour le résumé, "
-                            "ou `Sales date` / `ISRC` / `Shop` pour le rapport de vente)."
-                        )
-                    else:
-                        st.markdown(badge)
-
-                        if detected == 'release_summary':
-                            parsed_rows = parser.parse_release_summary(raw_df, artist_id=imp_artist_id)
-                        else:
-                            parsed_rows = parser.parse_sales_detail(raw_df, artist_id=imp_artist_id)
-
-                        if not parsed_rows:
-                            st.warning("Aucune ligne valide extraite du fichier.")
-                        else:
-                            st.dataframe(
-                                pd.DataFrame(parsed_rows).head(10),
-                                width="stretch",
-                                hide_index=True,
-                            )
-                            if len(parsed_rows) > 10:
-                                st.caption(f"… et {len(parsed_rows) - 10} ligne(s) non affichées.")
-
-                            st.markdown("---")
-                            if st.button("✅ Confirmer l'import", type="primary", key="imusician_confirm"):
-                                try:
-                                    db.upsert_many(
-                                        table=table_name,
-                                        data=parsed_rows,
-                                        conflict_columns=conflict_cols,
-                                        update_columns=update_cols,
-                                    )
-                                    st.success(
-                                        f"✅ {len(parsed_rows)} ligne(s) importée(s) "
-                                        f"dans `{table_name}` pour l'artiste #{imp_artist_id}."
-                                    )
-                                except Exception as e:
-                                    st.error(f"❌ Erreur lors de l'insertion : {e}")
-                                    st.exception(e)
-
-        # ── Onglet 4 : ROI Breakheaven ──────────────────────────────────────
+        # ── Onglet : ROI Breakheaven ────────────────────────────────────────
         with tab_roi:
             st.subheader("💹 ROI Breakheaven")
             st.caption("Revenus iMusician vs dépenses Meta Ads sur la période sélectionnée")
 
-            now = datetime.now()
-            period_options = {
-                "3 derniers mois": 3,
-                "6 derniers mois": 6,
-                "12 derniers mois": 12,
-                "Cette année": None,
-            }
-            period_label = st.selectbox(
-                "Période", list(period_options.keys()), index=1, key="imusician_roi_period"
-            )
-            n_months = period_options[period_label]
-            if n_months is not None:
-                from_date = (now - relativedelta(months=n_months)).replace(day=1).date()
-            else:
-                from_date = date(now.year, 1, 1)
-            to_date = now.date()
+            span_min, span_max = _roi_data_span(db, artist_id)
+            from_date, to_date = smart_date_range("Période", span_min, span_max, key="imusician_roi")
 
-            roi = get_roi_data(db, artist_id, from_date, to_date)
-
-            c1, c2, c3 = st.columns(3)
-            c1.metric("💰 Revenus iMusician", f"{roi['revenue_eur']:,.2f} €")
-            c2.metric("📱 Dépenses Meta", f"{roi['meta_spend']:,.2f} €")
-
-            if roi['roi_pct'] is not None:
-                roi_label = f"{roi['roi_pct']:.1f} %"
-                roi_delta = "✅ Rentable" if roi['profitable'] else "⚠️ Déficitaire"
-                c3.metric(
-                    "📊 ROI", roi_label, roi_delta,
-                    delta_color="normal" if roi['profitable'] else "inverse"
+            if from_date is None:
+                st.info(
+                    "Aucune donnée de revenus iMusician ni de dépenses Meta Ads pour cet artiste. "
+                    "Importez un export iMusician (page Import CSV) et lancez la collecte Meta "
+                    "depuis l'accueil."
                 )
             else:
-                c3.metric("📊 ROI", "—", help="Requires Meta Ads spend data")
+                roi = get_roi_data(db, artist_id, from_date, to_date)
 
-            df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
-            if not df_series.empty:
-                fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    x=df_series['period_date'], y=df_series['revenue_eur'],
-                    name="Revenus (€)", marker_color="#1DB954"
-                ))
-                fig.add_trace(go.Bar(
-                    x=df_series['period_date'], y=df_series['meta_spend'],
-                    name="Dépenses Meta (€)", marker_color="#FF4444"
-                ))
-                fig.update_layout(
-                    barmode='group',
-                    xaxis_tickformat='%b %Y',
-                    yaxis_title="Euros (€)",
-                    hovermode="x unified",
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
-                st.plotly_chart(fig, width="stretch")
-            else:
-                st.info("Aucune donnée de revenus ou dépenses sur cette période.")
+                c1, c2, c3 = st.columns(3)
+                c1.metric("💰 Revenus iMusician", f"{roi['revenue_eur']:,.2f} €")
+                c2.metric("📱 Dépenses Meta", f"{roi['meta_spend']:,.2f} €")
+
+                if roi['roi_pct'] is not None:
+                    roi_label = f"{roi['roi_pct']:.1f} %"
+                    roi_delta = "✅ Rentable" if roi['profitable'] else "⚠️ Déficitaire"
+                    c3.metric(
+                        "📊 ROI", roi_label, roi_delta,
+                        delta_color="normal" if roi['profitable'] else "inverse"
+                    )
+                else:
+                    c3.metric("📊 ROI", "—", help="Aucune dépense Meta sur la période — élargissez le filtre")
+
+                df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
+                if not df_series.empty:
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=df_series['period_date'], y=df_series['revenue_eur'],
+                        name="Revenus (€)", marker_color="#1DB954"
+                    ))
+                    fig.add_trace(go.Bar(
+                        x=df_series['period_date'], y=df_series['meta_spend'],
+                        name="Dépenses Meta (€)", marker_color="#FF4444"
+                    ))
+                    fig.update_layout(
+                        barmode='group',
+                        xaxis_tickformat='%b %Y',
+                        yaxis_title="Euros (€)",
+                        hovermode="x unified",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    st.plotly_chart(fig, width="stretch")
+                else:
+                    st.info("Aucune donnée de revenus ou dépenses sur cette période.")
 
     finally:
         db.close()

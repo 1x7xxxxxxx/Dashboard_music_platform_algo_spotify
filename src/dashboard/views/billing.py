@@ -6,7 +6,51 @@ and upgrade/manage links. Admin sees all artist subscriptions.
 import os
 import streamlit as st
 from src.dashboard.utils import get_db_connection
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.auth import get_artist_id, is_admin, get_artist_plan
+
+
+# ── Plan display catalogue (single source of truth for the 3-column layout) ──
+# Prices align with migration 014 (Basic 5€, Premium 15€). Features are folded
+# in here so the page no longer needs a separate comparison table.
+_PLAN_CARDS = {
+    'free': {
+        'label': '🆓 Free',
+        'price': '0 €/mois',
+        'max_artists': '1 artiste',
+        'features': [
+            "Toutes les analytics plateformes (Spotify, Apple Music, "
+            "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)",
+            "Revenus distributeur (iMusician)",
+            "Import & export CSV",
+            "Data Wrapped annuel",
+            "Credentials API & mapping Meta × Spotify",
+        ],
+    },
+    'basic': {
+        'label': '⭐ Basic',
+        'price': '5 €/mois',
+        'max_artists': "Jusqu'à 3 artistes",
+        'features': [
+            "Tout ce que contient Free",
+            "🚀 Road to Algo — prédictions ML",
+            "📈 Prévisions de revenus (ML)",
+            "📄 Export PDF",
+        ],
+    },
+    'premium': {
+        'label': '💎 Premium',
+        'price': '15 €/mois',
+        'max_artists': "Jusqu'à 10 artistes",
+        'features': [
+            "Tout ce que contient Basic",
+            "🎨 Créatives Meta Ads",
+            "📊 CPR Optimizer",
+            "Support prioritaire",
+        ],
+    },
+}
+_PLAN_ORDER = ['free', 'basic', 'premium']
+_PLAN_RANK = {'free': 0, 'basic': 1, 'premium': 2}
 
 
 def show():
@@ -26,8 +70,10 @@ def show():
 
         st.markdown("---")
 
-        # ── Plan comparison table ─────────────────────────────────────────
-        _show_plan_comparison(db)
+        # ── Offres (3 colonnes Free / Basic / Premium) ───────────────────
+        # authoritative plan (includes the promo/trial precedence)
+        current_plan = None if admin else get_artist_plan()
+        _render_plan_columns(current_plan)
 
     finally:
         db.close()
@@ -48,9 +94,15 @@ def _show_current_plan(db, artist_id: int):
     )
 
     if not row:
-        # No subscription row → free plan
-        st.info("You are on the **Free** plan. Upgrade to unlock more features.")
-        _show_upgrade_section()
+        # No subscription row → free plan (or active promo trial)
+        plan = get_artist_plan()
+        if plan == 'free':
+            st.info("Vous êtes sur le plan **Free**. Découvrez les offres ci-dessous.")
+        else:
+            st.success(
+                f"🎁 Accès **{plan.capitalize()}** actif (essai de bienvenue). "
+                "Voir les offres ci-dessous pour la suite."
+            )
         return
 
     plan_name, price, status, period_end, cancel_at_end, customer_id, sub_id = row[0]
@@ -105,46 +157,57 @@ def _show_current_plan(db, artist_id: int):
                 "To manage your subscription, contact support or set `STRIPE_PORTAL_URL` in your environment."
             )
 
-    if plan_name != 'premium':
-        st.markdown("---")
-        _show_upgrade_section(current_plan=plan_name)
+    # Offres rendered by show() → _render_plan_columns (3-column layout).
 
 
-def _show_upgrade_section(current_plan: str = 'free'):
-    st.subheader("Upgrade your plan")
+def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
+    """Render the call-to-action for one plan card.
+
+    Greyed/disabled buttons are avoided: when Stripe checkout is not configured
+    we still show an enabled button that explains how to upgrade, instead of a
+    dead disabled control.
+    """
+    # Current plan → badge, no CTA
+    if current_plan is not None and target_plan == current_plan:
+        st.success("✅ Votre plan actuel")
+        return
+    # Lower or equal rank than the current plan → already included
+    if current_plan is not None and _PLAN_RANK[target_plan] <= _PLAN_RANK[current_plan]:
+        st.caption("Inclus dans votre plan")
+        return
+    if target_plan == 'free':
+        st.caption("Plan gratuit — aucune action requise")
+        return
 
     checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
+    label = f"Passer à {target_plan.capitalize()}"
+    if checkout_url:
+        st.link_button(label, f"{checkout_url}?plan={target_plan}", type="primary")
+    else:
+        # No Stripe configured: enabled button that surfaces the manual path.
+        if st.button(label, type="primary", key=f"upgrade_{target_plan}"):
+            st.info(
+                "💳 Le paiement en ligne arrive bientôt. En attendant, "
+                "contactez-nous pour activer ce plan dès maintenant."
+            )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("#### Basic — 5.00 €/mo")
-        st.markdown("""
-- All data sources (Meta, Instagram, SoundCloud, Apple Music)
-- Up to 3 artists
-- CSV import & export
-- Credentials management
-        """)
-        if current_plan == 'free':
-            if checkout_url:
-                st.link_button("Upgrade to Basic", f"{checkout_url}?plan=basic", type="primary")
-            else:
-                st.button("Upgrade to Basic", disabled=True, help="Set STRIPE_CHECKOUT_URL to enable")
 
-    with col2:
-        st.markdown("#### Premium — 15.00 €/mo")
-        st.markdown("""
-- Everything in Basic
-- ML predictions + trigger algo
-- Data Wrapped annual report
-- PDF export
-- Up to 10 artists
-- Weekly email digest
-        """)
-        if current_plan in ('free', 'basic'):
-            if checkout_url:
-                st.link_button("Upgrade to Premium", f"{checkout_url}?plan=premium", type="primary")
-            else:
-                st.button("Upgrade to Premium", disabled=True, help="Set STRIPE_CHECKOUT_URL to enable")
+def _render_plan_columns(current_plan: str | None) -> None:
+    """3-column Free / Basic / Premium offer layout (replaces the table)."""
+    st.subheader("Nos offres")
+    cols = st.columns(3)
+    for col, plan_key in zip(cols, _PLAN_ORDER):
+        card = _PLAN_CARDS[plan_key]
+        with col:
+            is_current = current_plan is not None and plan_key == current_plan
+            header = f"### {card['label']}"
+            if is_current:
+                header += " ✅"
+            st.markdown(header)
+            st.markdown(f"**{card['price']}**  ·  {card['max_artists']}")
+            st.markdown("\n".join(f"- {f}" for f in card['features']))
+            st.markdown("")
+            _upgrade_cta(plan_key, current_plan)
 
 
 def _show_admin_view(db):
@@ -197,32 +260,3 @@ def _show_admin_view(db):
         import pandas as pd
         df_mrr = pd.DataFrame(rev_rows, columns=["Plan", "Artists", "MRR (€)"])
         st.dataframe(df_mrr, width="stretch", hide_index=True)
-
-
-def _show_plan_comparison(db):
-    st.subheader("Plan comparison")
-
-    rows = db.fetch_query(
-        "SELECT name, price_monthly, max_artists, features FROM subscription_plans WHERE active ORDER BY price_monthly"
-    )
-
-    if not rows:
-        return
-
-    import json
-    import pandas as pd
-
-    table_data = []
-    for name, price, max_artists, features_raw in rows:
-        try:
-            features = json.loads(features_raw) if isinstance(features_raw, str) else (features_raw or [])
-        except Exception:
-            features = []
-        table_data.append({
-            "Plan": name.capitalize(),
-            "Price/mo": f"{float(price):.2f} €",
-            "Max artists": max_artists,
-            "Features": "All" if "*" in features else ", ".join(features),
-        })
-
-    st.dataframe(pd.DataFrame(table_data), width="stretch", hide_index=True)

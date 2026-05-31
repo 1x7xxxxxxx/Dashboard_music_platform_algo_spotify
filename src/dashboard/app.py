@@ -1,4 +1,10 @@
 """Application Streamlit principale avec déclenchement des DAGs."""
+import warnings
+
+# Harmless duplicate-matplotlib warning (Axes3D import) emitted transitively at import
+# time — silenced before any view imports matplotlib/altair so it never reaches the UI/logs.
+warnings.filterwarnings("ignore", message="Unable to import Axes3D")
+
 import streamlit as st
 from pathlib import Path
 import sys
@@ -105,7 +111,10 @@ def _verify_email(token: str) -> None:
 # Order = user journey. Empty header = no visual separator (top entry).
 _NAV_SECTIONS = [
     ("start",     "",                       [("🏠 Accueil", "home")]),
-    ("data",      "📁 Données",             [("📂 Import CSV", "upload_csv"),
+    ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
+                                             ("🔑 Credentials API", "credentials"),
+                                             ("📂 Import CSV", "upload_csv"),
+                                             ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -117,15 +126,14 @@ _NAV_SECTIONS = [
     ("advanced",  "🔮 Prédiction algos Spotify", [("🚀 Road to Algo (ML)", "trigger_algo")]),
     ("ads",       "📣 Publicité Meta Ads",  [("📱 Vue d'ensemble", "meta_ads_overview"),
                                              ("🎨 Créatives", "meta_creatives"),
-                                             ("📊 CPR Optimizer", "meta_cpr_optimizer"),
-                                             ("🔗 Mapping", "meta_mapping")]),
+                                             ("🌍 Breakdowns Meta", "meta_breakdowns"),
+                                             ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
     ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
     ("reports",   "📑 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
                                              ("📄 Export PDF", "export_pdf"),
                                              ("⬇️ Export CSV", "export_csv")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
-                                             ("🔑 Credentials API", "credentials"),
                                              ("💳 Billing", "billing"),
                                              ("🎁 Parrainage", "referral")]),
     ("admin",     "🛠️ Admin / Ops",        [("⚡ Perf. Dashboard", "perf_monitor"),
@@ -229,7 +237,7 @@ def show_data_collection_panel():
             dags = [("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
                     ("soundcloud_daily", "SoundCloud"), ("instagram_daily", "Instagram"),
                     ("s4a_csv_watcher", "CSV S4A"), ("apple_music_csv_watcher", "CSV Apple"),
-                    ("meta_csv_watcher_config", "Meta Config"), ("meta_insights_watcher", "Meta Stats")]
+                    ("meta_ads_api_daily", "Meta Ads")]
             for dag_id, label in dags:
                 try:
                     if airflow_trigger.trigger_dag(dag_id).get('success'): st.write(f"✅ {label}")
@@ -322,6 +330,7 @@ def main():
     elif page == "data_wrapped": from views.data_wrapped import show; show()
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
+    elif page == "process_guide": from views.process_guide import show; show()
     elif page == "upload_csv": from views.upload_csv import show; show()
     elif page == "export_pdf": from views.export_pdf import show; show()
     elif page == "export_csv": from views.export_csv import show; show()
@@ -336,6 +345,7 @@ def main():
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
     elif page == "meta_creatives": from views.meta_creatives import show; show()
+    elif page == "meta_breakdowns": from views.meta_breakdowns import show; show()
     elif page == "meta_cpr_optimizer": from views.meta_cpr_optimizer import show; show()
     elif page == "referral": from views.referral import show; show()
     elif page == "referral_kpi": from views.referral_admin import show; show()

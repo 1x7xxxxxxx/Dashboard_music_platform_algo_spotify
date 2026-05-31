@@ -59,12 +59,13 @@ PLAN_FEATURES = {
               'meta_ads_overview', 'instagram', 'soundcloud', 'apple_music',
               'hypeddit', 'imusician', 'upload_csv', 'credentials',
               'export_csv', 'data_wrapped', 'meta_mapping',
-              'trigger_algo', 'export_pdf', 'referral'},
+              # ML access lives in Basic: scoring/prediction + revenue forecast
+              'trigger_algo', 'revenue_forecast', 'export_pdf', 'referral'},
     'premium': {'*'},  # all features including meta_creatives, meta_cpr_optimizer
 }
 
-# Pages always accessible regardless of plan (account management + billing)
-ALWAYS_ACCESSIBLE = {'account', 'billing'}
+# Pages always accessible regardless of plan (account management + billing + help)
+ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide'}
 
 PLAN_RANK = {'free': 0, 'basic': 1, 'premium': 2}
 

@@ -26,6 +26,15 @@ _ALLOWED_TABLES = frozenset({
     'meta_insights_engagement', 'meta_insights_engagement_day',
     'meta_insights_engagement_age', 'meta_insights_engagement_country',
     'meta_insights_engagement_placement',
+    # Ad/adset-level breakdowns (multi-grain Breakdowns view)
+    'meta_insights_performance_ad_country', 'meta_insights_performance_ad_placement',
+    'meta_insights_performance_ad_age',
+    'meta_insights_performance_adset_country', 'meta_insights_performance_adset_placement',
+    'meta_insights_performance_adset_age',
+    'meta_insights_engagement_ad_country', 'meta_insights_engagement_ad_placement',
+    'meta_insights_engagement_ad_age',
+    'meta_insights_engagement_adset_country', 'meta_insights_engagement_adset_placement',
+    'meta_insights_engagement_adset_age',
     'youtube_channels', 'youtube_channel_history', 'youtube_videos',
     'youtube_video_stats', 'youtube_playlists', 'youtube_comments',
     'apple_songs_performance', 'apple_daily_plays', 'apple_listeners', 'apple_songs_history',
@@ -39,6 +48,8 @@ _ALLOWED_TABLES = frozenset({
     's4a_song_playlist_adds',
     'csv_upload_log',
     'active_sessions',
+    'subscription_plan_history',
+    'track_release_reference',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')

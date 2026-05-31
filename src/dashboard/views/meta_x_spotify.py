@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
@@ -29,56 +28,22 @@ def _default_campaign_index(db, artist_id, available_campaigns: list) -> int:
 def _show_body(db, artist_id):
     """Main view body — db.close() is handled by show()."""
 
-    # =========================================================================
-    # 1. SECTION CONFIGURATION (MAPPING)
-    # =========================================================================
-    with st.expander("⚙️ Gérer les associations (Campagnes <-> Titres)", expanded=False):
-        try:
-            df_camps = db.fetch_df("SELECT DISTINCT campaign_name FROM meta_campaigns ORDER BY campaign_name")
-            campaigns = df_camps['campaign_name'].tolist()
-        except: campaigns = []
-
-        try:
-            df_tracks = db.fetch_df("SELECT track_name FROM tracks ORDER BY release_date DESC NULLS LAST, track_name")
-            tracks = df_tracks['track_name'].tolist()
-        except: tracks = []
-
-        with st.form("mapping_form"):
-            c1, c2 = st.columns(2)
-            sel_camp = c1.selectbox("Campagne Meta Ads", campaigns)
-            sel_track = c2.selectbox("Titre Spotify", tracks)
-
-            if st.form_submit_button("💾 Enregistrer le lien"):
-                if sel_camp and sel_track:
-                    try:
-                        db.execute_query(
-                            """
-                            INSERT INTO campaign_track_mapping (campaign_name, track_name)
-                            VALUES (%s, %s)
-                            ON CONFLICT (campaign_name, track_name) DO NOTHING
-                            """,
-                            (sel_camp, sel_track),
-                        )
-                        st.success(f"✅ Lien activé : {sel_camp} -> {sel_track}")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erreur SQL : {e}")
-
-        try:
-            curr_map = db.fetch_df("SELECT campaign_name, track_name, created_at FROM campaign_track_mapping ORDER BY created_at DESC")
-            if not curr_map.empty:
-                st.dataframe(curr_map, width="stretch", hide_index=True)
-        except: pass
-
-    st.markdown("---")
+    # Campaign↔track mapping is managed exclusively in the dedicated Mapping page
+    # (src/dashboard/views/meta_mapping.py). This view only *reads* the mapping.
 
     # =========================================================================
-    # 2. ANALYSE CROISÉE (SMART FILTER)
+    # ANALYSE CROISÉE (SMART FILTER)
     # =========================================================================
     st.header("📊 Performance 360°")
+    st.caption(
+        "ℹ️ Les associations campagne ↔ titre se gèrent dans "
+        "**📁 Données → 🔗 Mapping Spotify × Meta Ads (nom de campagne)**."
+    )
 
     try:
-        q_camp_list = "SELECT DISTINCT campaign_name FROM meta_insights_performance_day WHERE artist_id = %s ORDER BY campaign_name DESC"
+        q_camp_list = ("SELECT campaign_name FROM meta_insights_performance_day "
+                       "WHERE artist_id = %s GROUP BY campaign_name "
+                       "ORDER BY MAX(day_date) DESC NULLS LAST")  # campagne la plus récente en haut
         camp_list_df = db.fetch_df(q_camp_list, (artist_id,))
         available_campaigns = camp_list_df['campaign_name'].tolist()
     except:
@@ -219,8 +184,8 @@ def _show_body(db, artist_id):
         df_spotify['date'] = pd.to_datetime(df_spotify['date'])
         df_master = pd.merge(df_master, df_spotify, on='date', how='left')
 
-    # Force conversion to float
-    cols_num = ['spend', 'results', 'cpr', 'hypeddit_clicks', 'hypeddit_visits', 'streams', 'popularity']
+    # Force conversion to float (cpr handled separately — must stay nullable)
+    cols_num = ['spend', 'results', 'hypeddit_clicks', 'hypeddit_visits', 'streams', 'popularity']
     for c in cols_num:
         if c in df_master.columns:
             df_master[c] = pd.to_numeric(df_master[c], errors='coerce').fillna(0).astype(float)
@@ -228,145 +193,91 @@ def _show_body(db, artist_id):
     if 'popularity' in df_master.columns:
         df_master['popularity'] = df_master['popularity'].replace(0, pd.NA).ffill().fillna(0)
 
-    if 'spend' in df_master.columns and 'results' in df_master.columns:
-        df_master['cpr_calc'] = df_master.apply(lambda x: x['spend']/x['results'] if x['results'] > 0 else 0.0, axis=1)
-
-    # --- NOUVEAU : CALCUL STREAMS CUMULÉS ---
-    if 'streams' in df_master.columns:
-        df_master['streams_cumul'] = df_master['streams'].cumsum()
+    # CPR comes straight from the collector, which already suppresses it (NULL) for
+    # non-conversion goals (engagement/traffic). NaN is kept as-is → chart shows a gap,
+    # table shows "—". No spend/results recompute — that would fabricate a CPR Meta hid.
+    if 'cpr' in df_master.columns:
+        df_master['cpr_display'] = pd.to_numeric(df_master['cpr'], errors='coerce')
     else:
-        df_master['streams_cumul'] = 0.0
+        df_master['cpr_display'] = pd.NA
 
     # =========================================================================
     # 5. GRAPHIQUE AVANCÉ
     # =========================================================================
 
-    fig = make_subplots(
-        rows=3, cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.08,
-        subplot_titles=(
-            "💰 Budget (Meta) vs Résultats vs Streams Cumulés",
-            "🌪️ Trafic : Visites Hypeddit vs Clics Sortants",
-            "🎧 Streaming : Streams Journaliers vs Popularité"
-        ),
-        specs=[
-            [{"secondary_y": True}],
-            [{"secondary_y": True}],
-            [{"secondary_y": True}]
-        ]
-    )
+    # Combined chart — every metric rebased to 100 at the first non-zero day of the
+    # period, so disparate scales (€, streams, 0-100 popularity, CPR) share ONE % axis.
+    # No overlapping right-hand axes, a single bar-free plot. Absolute values live in the
+    # raw-data table and in the hover. Budget = faint filled area for visual context.
+    def _index100(col):
+        """Return (indexed_to_100_series, raw_series) or (None, None) if no positive base."""
+        if col not in df_master.columns:
+            return None, None
+        raw = pd.to_numeric(df_master[col], errors='coerce')
+        positive = raw[raw > 0]
+        if positive.empty:
+            return None, None
+        return raw / positive.iloc[0] * 100, raw
 
-    # --- ROW 1 : META FOCUS (Spend + Results + CPR + STREAMS CUMUL) ---
+    fig = go.Figure()
 
-    # 1. Budget (Barres - Axe Y1 Gauche)
-    if 'spend' in df_master.columns:
-        fig.add_trace(go.Bar(
-            x=df_master['date'], y=df_master['spend'],
-            name="Budget (€)", marker_color='rgba(255, 99, 97, 0.5)'
-        ), row=1, col=1, secondary_y=False)
-
-    # 2. Résultats (Ligne - Axe Y2 Droite)
-    if 'results' in df_master.columns:
+    # Budget — faint filled area (context only), indexed like the rest
+    idx, raw = _index100('spend')
+    if idx is not None:
         fig.add_trace(go.Scatter(
-            x=df_master['date'], y=df_master['results'],
-            name="Résultats (Vol)", mode='lines+markers', line=dict(color='#003f5c', width=3)
-        ), row=1, col=1, secondary_y=True)
-
-    # 3. CPR (Pointillés - Axe CUSTOM Y7 Gauche)
-    if 'cpr_calc' in df_master.columns:
-        fig.add_trace(go.Scatter(
-            x=df_master['date'], y=df_master['cpr_calc'],
-            name="CPR (€)", mode='lines',
-            line=dict(color='#bc5090', width=2, dash='dot'),
-            yaxis='y7'
+            x=df_master['date'], y=idx, name="Budget (€)", mode='lines',
+            line=dict(color='#ff6361', width=0), fill='tozeroy',
+            fillcolor='rgba(255, 99, 97, 0.12)',
+            customdata=raw, hovertemplate="Budget : %{customdata:,.2f} €<extra></extra>",
         ))
 
-    # 4. STREAMS CUMULÉS (Ligne pleine - Axe CUSTOM Y8 Droite)
-    if 'streams_cumul' in df_master.columns:
+    # (column, legend label, colour, dash, absolute hover format)
+    _series = [
+        ('results',         "Résultats",         '#003f5c', None,   ',.0f'),
+        ('streams',         "Streams / jour",    '#1DB954', None,   ',.0f'),
+        ('hypeddit_visits', "Visites Hypeddit",  '#ffa600', None,   ',.0f'),
+        ('hypeddit_clicks', "Clics vers Stores", '#58508d', 'dash', ',.0f'),
+        ('cpr_display',     "CPR (€)",           '#bc5090', 'dot',  ',.2f'),
+        ('popularity',      "Popularité",        '#00D166', None,   ',.0f'),
+    ]
+    for col, label, color, dash, fmt in _series:
+        idx, raw = _index100(col)
+        if idx is None:
+            continue
         fig.add_trace(go.Scatter(
-            x=df_master['date'], y=df_master['streams_cumul'],
-            name="Streams Cumulés", mode='lines', fill='tozeroy',
-            line=dict(color='#117733', width=1), # Vert Foncé
-            yaxis='y8'
+            x=df_master['date'], y=idx, name=label, mode='lines',
+            line=dict(color=color, width=2, dash=dash), customdata=raw,
+            hovertemplate=f"{label} : %{{customdata:{fmt}}} (idx %{{y:.0f}})<extra></extra>",
         ))
 
-    # --- ROW 2 : HYPEDDIT ---
-    if 'hypeddit_visits' in df_master.columns:
-        fig.add_trace(go.Scatter(
-            x=df_master['date'], y=df_master['hypeddit_visits'],
-            name="Visites Hypeddit", mode='lines', line=dict(color='#ffa600', width=2)
-        ), row=2, col=1, secondary_y=False)
-
-    if 'hypeddit_clicks' in df_master.columns:
-        fig.add_trace(go.Bar(
-            x=df_master['date'], y=df_master['hypeddit_clicks'],
-            name="Clics vers Stores", marker_color='rgba(88, 80, 141, 0.6)'
-        ), row=2, col=1, secondary_y=True)
-
-    # --- ROW 3 : SPOTIFY ---
-    if 'streams' in df_master.columns:
-        fig.add_trace(go.Bar(
-            x=df_master['date'], y=df_master['streams'],
-            name="Streams Jour", marker_color='rgba(29, 185, 84, 0.7)' # Vert Spotify
-        ), row=3, col=1, secondary_y=False)
-
-    if 'popularity' in df_master.columns:
-        fig.add_trace(go.Scatter(
-            x=df_master['date'], y=df_master['popularity'],
-            name="Popularité", mode='lines', line=dict(color='#00D166', width=2) # Vert Fluo
-        ), row=3, col=1, secondary_y=True)
-
-    # MISE EN FORME AVANCÉE
     fig.update_layout(
-        height=900,
+        height=560,
         hovermode="x unified",
         showlegend=True,
-        legend=dict(orientation="h", y=1.01),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
         title_text=f"Analyse Détaillée : {selected_campaign}",
-
-        xaxis=dict(type='date'),
-        xaxis2=dict(type='date'),
-        xaxis3=dict(title="Date", type='date'),
-
-        # AXE SUPPLEMENTAIRE CPR (Gauche)
-        yaxis7=dict(
-            title=dict(text="CPR (€)", font=dict(color="#bc5090")),
-            tickfont=dict(color="#bc5090"),
-            anchor="free",
-            overlaying="y",
-            side="right",
-            position=0.05,
-            showgrid=False
-        ),
-
-        # AXE SUPPLEMENTAIRE STREAMS CUMULÉS (Droite)
-        yaxis8=dict(
-            title=dict(text="Cumul Streams", font=dict(color="#117733")),
-            tickfont=dict(color="#117733"),
-            anchor="free",
-            overlaying="y",
-            side="right",
-            position=0.95, # A droite de l'axe Y2
-            showgrid=False
-        )
+        separators=", ",
+        xaxis=dict(title="Date", type='date'),
+        yaxis=dict(title="Indice (base 100 = début de période)", rangemode='tozero'),
     )
-
-    fig.update_yaxes(title_text="Budget (€)", row=1, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="Volume Conv.", row=1, col=1, secondary_y=True)
-    fig.update_yaxes(title_text="Visites", row=2, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="Clics Sortants", row=2, col=1, secondary_y=True)
-    fig.update_yaxes(title_text="Streams Jour", row=3, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="Index Pop.", row=3, col=1, secondary_y=True, range=[0, 100])
+    fig.add_hline(y=100, line_dash="dot", line_color="rgba(0,0,0,0.25)",
+                  annotation_text="base 100", annotation_position="top left")
 
     st.plotly_chart(fig, width="stretch")
+    st.caption(
+        "Séries indexées (base 100 = 1er jour non nul de la période) pour comparer des "
+        "échelles différentes sur un seul axe. Valeurs absolues au survol et dans le tableau."
+    )
 
     # --- TABLEAU ---
     with st.expander("🔎 Voir les données brutes"):
         st.dataframe(
             df_master.sort_values('date', ascending=False).style.format({
-                "spend": "{:.2f}", "cpr_calc": "{:.2f}", "streams": "{:.0f}", "streams_cumul": "{:.0f}", "popularity": "{:.0f}"
-            }),
+                "spend": "{:.2f}",
+                "cpr_display": "{:.2f}",
+                "streams": lambda v: f"{v:,.0f}".replace(",", " "),
+                "popularity": "{:.0f}",
+            }, na_rep="—"),
             width="stretch",
         )
 

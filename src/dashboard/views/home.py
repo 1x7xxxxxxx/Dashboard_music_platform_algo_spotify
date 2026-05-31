@@ -137,8 +137,7 @@ _DAG_LABELS = {
     "instagram_daily":          ("📸", "Instagram"),
     "s4a_csv_watcher":          ("📂", "CSV S4A"),
     "apple_music_csv_watcher":  ("🍎", "Apple Music"),
-    "meta_csv_watcher_config":  ("📊", "Meta Config"),
-    "meta_insights_watcher":    ("📊", "Meta Insights"),
+    "meta_ads_api_daily":       ("📊", "Meta Ads"),
     "ml_scoring_daily":         ("🤖", "ML Scoring"),
     "data_quality_check":       ("🔍", "Qualité données"),
 }
@@ -160,27 +159,29 @@ def _section_onboarding(db, artist_id: int) -> None:
             (SELECT COUNT(*) FROM artist_credentials  WHERE artist_id = %s) AS has_creds,
             (SELECT COUNT(*) FROM etl_run_log         WHERE artist_id = %s AND status = 'success') AS has_runs,
             (SELECT COUNT(*) FROM s4a_song_timeline   WHERE artist_id = %s LIMIT 1) AS has_csv,
-            (SELECT COALESCE(totp_enabled, FALSE)
-             FROM saas_users WHERE artist_id = %s LIMIT 1) AS has_2fa
+            (SELECT COUNT(*) FROM apple_songs_performance WHERE artist_id = %s LIMIT 1) AS has_apple
         """,
         (artist_id, artist_id, artist_id, artist_id),
     )
     if not rows:
         return
 
-    has_creds, has_runs, has_csv, has_2fa = rows[0]
+    has_creds, has_runs, has_csv, has_apple = rows[0]
     steps = [
         (bool(has_creds), "🔑 Configure API credentials", "credentials"),
-        (bool(has_runs),  "🚀 Run your first data collection", "trigger_algo"),
         (bool(has_csv),   "📂 Upload a Spotify for Artists CSV", "upload_csv"),
-        (bool(has_2fa),   "🔐 Enable two-factor authentication", "account"),
+        (bool(has_apple), "🍎 Upload an Apple Music CSV", "upload_csv"),
+        (bool(has_runs),  "🚀 Run your first data collection", "trigger_algo"),
     ]
     completed = sum(1 for done, *_ in steps if done)
-    if completed == len(steps):
-        return  # All done — hide the section
+    all_done = completed == len(steps)
 
-    st.markdown(f"#### 🚀 Getting started — {completed}/{len(steps)} steps completed")
-    st.progress(completed / len(steps))
+    if all_done:
+        st.markdown("#### ✅ Getting started — configuration terminée")
+        st.success("Toutes les étapes de mise en route sont complètes. 🎉")
+    else:
+        st.markdown(f"#### 🚀 Getting started — {completed}/{len(steps)} steps completed")
+        st.progress(completed / len(steps))
 
     for done, label, _page in steps:
         icon = "✅" if done else "⬜"

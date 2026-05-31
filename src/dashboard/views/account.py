@@ -6,7 +6,6 @@ Depends on: saas_users, saas_artists
 RGPD: covers Art. 15 (access), Art. 16 (rectification), Art. 17 (partial — deletion via admin),
       Art. 21 (opposition marketing).
 """
-import json
 from datetime import datetime, timezone
 
 import streamlit as st
@@ -117,9 +116,15 @@ def _section_consent(db, user: dict) -> None:
             f"Last updated : {pd.to_datetime(user['marketing_consent_at']).strftime('%d/%m/%Y %H:%M')}"
         )
 
+    # Email alerts checked by default: for users who never set a preference,
+    # the toggle defaults to ON (and is persisted as opt-in on first view).
+    # Users who explicitly opted out keep their choice.
+    ever_set = user.get("marketing_consent_at") is not None
+    default_val = current_consent if ever_set else True
+
     new_consent = st.toggle(
-        "Receive marketing communications by email",
-        value=current_consent,
+        "Receive email alerts & communications",
+        value=default_val,
         key="marketing_toggle",
     )
 
@@ -134,46 +139,6 @@ def _section_consent(db, user: dict) -> None:
         else:
             st.success("✅ You have opted out. You will no longer receive marketing emails.")
         st.rerun()
-
-
-def _section_data_export(user: dict) -> None:
-    st.subheader("📦 Export my data (RGPD Art. 15)")
-    st.caption(
-        "Download a copy of all personal data associated with your account. "
-        "Operational data (streams, analytics) is not included — it belongs to the platform."
-    )
-
-
-    export = {
-        "exported_at": datetime.now(timezone.utc).isoformat(),
-        "account": {
-            "username":            user.get("username"),
-            "email":               user.get("email"),
-            "role":                user.get("role"),
-            "email_verified":      user.get("email_verified"),
-            "created_at":          str(user.get("created_at", "")),
-            "terms_accepted":      user.get("terms_accepted"),
-            "terms_accepted_at":   str(user.get("terms_accepted_at", "")),
-            "marketing_consent":   user.get("marketing_consent"),
-            "marketing_consent_at": str(user.get("marketing_consent_at", "")),
-        },
-        "artist": {
-            "name": user.get("artist_name"),
-            "slug": user.get("artist_slug"),
-            "tier": user.get("artist_tier"),
-        },
-        "note": (
-            "Credentials (API tokens) are stored encrypted and are not included in this export "
-            "for security reasons. Contact the admin to obtain them separately."
-        ),
-    }
-
-    st.download_button(
-        label="⬇️ Download my data (JSON)",
-        data=json.dumps(export, indent=2, ensure_ascii=False),
-        file_name=f"my_data_{user['username']}.json",
-        mime="application/json",
-    )
 
 
 def _section_totp(db, user: dict) -> None:
@@ -291,12 +256,16 @@ def show() -> None:
             st.error("User not found.")
             return
 
-        tab_profile, tab_password, tab_2fa, tab_consent, tab_data = st.tabs([
-            "👤 Profile", "🔒 Password", "🔐 2FA", "📧 Communications", "📦 My data"
+        tab_profile, tab_password, tab_2fa, tab_consent = st.tabs([
+            "👤 Profile", "🔒 Password", "🔐 2FA", "📧 Communications"
         ])
 
         with tab_profile:
             _section_profile(user)
+            # Data-export tab removed (redundant with the Export CSV page); the
+            # RGPD account-deletion path stays here so it remains reachable.
+            st.markdown("---")
+            _section_delete_account()
 
         with tab_password:
             _section_change_password(db, user)
@@ -306,11 +275,6 @@ def show() -> None:
 
         with tab_consent:
             _section_consent(db, user)
-
-        with tab_data:
-            _section_data_export(user)
-            st.markdown("---")
-            _section_delete_account()
 
     finally:
         db.close()

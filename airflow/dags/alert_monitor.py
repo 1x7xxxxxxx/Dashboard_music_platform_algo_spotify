@@ -31,8 +31,7 @@ MONITORED_DAGS = [
     'youtube_daily',
     'soundcloud_daily',
     'instagram_daily',
-    'meta_insights_dag',
-    'meta_config_dag',
+    'meta_ads_api_daily',
     'apple_music_csv_watcher',
     's4a_csv_watcher',
     'ml_scoring_daily',
@@ -173,7 +172,6 @@ def check_dag_failures(**context):
 
 def check_data_freshness(**context):
     """Run freshness check on all monitored data sources."""
-    import os
     from src.database.postgres_handler import PostgresHandler
     from src.utils.freshness_monitor import check_freshness
 

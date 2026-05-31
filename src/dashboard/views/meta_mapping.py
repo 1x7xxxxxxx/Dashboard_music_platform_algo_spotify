@@ -11,8 +11,9 @@ from src.dashboard.utils import get_db_connection
 
 def _load_campaigns(db, artist_id: int) -> list[str]:
     rows = db.fetch_query(
-        "SELECT DISTINCT campaign_name FROM meta_campaigns "
-        "WHERE artist_id = %s ORDER BY campaign_name",
+        "SELECT campaign_name FROM meta_campaigns "
+        "WHERE artist_id = %s GROUP BY campaign_name "
+        "ORDER BY MAX(start_time) DESC NULLS LAST, campaign_name",
         (artist_id,)
     )
     return [r[0] for r in rows]

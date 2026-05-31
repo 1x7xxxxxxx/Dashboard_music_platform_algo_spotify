@@ -3,7 +3,18 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.auth import get_artist_id, is_admin
+
+# Meta gender targeting codes → labels (empty = no restriction = everyone).
+_GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
+# Adset targeting attribute the user can slice performance by (#9 Ciblage vs perf).
+_TARGETING_DIMS = {
+    "Objectif d'optimisation": "optimization_goal",
+    "Genre ciblé": "gender",
+    "Plateformes": "publisher_platforms",
+    "Tranche d'âge": "age_band",
+}
 
 def show():
     st.title("📱 Méta Ads - Analyse Stratégique")
@@ -225,7 +236,7 @@ def _show_meta_ads(db, artist_id):
         # Axe Y2 (Droite 1 - Barres fines)
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['results'],
-            name='Résultats (Vol)', marker_color='rgba(0, 63, 92, 0.9)',
+            name='Résultats natifs Meta (selon objectif)', marker_color='rgba(0, 63, 92, 0.9)',
             yaxis='y2', offsetgroup=2
         ))
         fig.add_trace(go.Bar(
@@ -465,3 +476,42 @@ def _show_meta_ads(db, artist_id):
             }, na_rep="—"),
             width="stretch",
         )
+
+    # ==============================================================================
+    # 🎯 SECTION 6 : CIBLAGE vs PERFORMANCE (#9) — quel ciblage adset performe
+    # ==============================================================================
+    st.markdown("---")
+    st.subheader("🎯 Ciblage vs Performance")
+    st.caption("Dépense & CPR agrégés par attribut de ciblage des ad sets (résultats ad-level).")
+
+    df_tgt = db.fetch_df(
+        """
+        SELECT s.optimization_goal, s.gender, s.publisher_platforms,
+               s.age_min, s.age_max,
+               SUM(mi.spend) AS spend, SUM(mi.conversions) AS results
+        FROM meta_adsets s
+        JOIN meta_ads a ON a.adset_id = s.adset_id
+        JOIN meta_insights mi ON mi.ad_id = a.ad_id
+        WHERE s.artist_id = %s
+        GROUP BY s.optimization_goal, s.gender, s.publisher_platforms, s.age_min, s.age_max
+        """,
+        (artist_id,),
+    )
+    if df_tgt.empty:
+        st.info("Aucune donnée de ciblage ad set disponible.")
+    else:
+        df_tgt['gender'] = df_tgt['gender'].fillna('').astype(str).map(
+            lambda g: _GENDER_LABELS.get(g, g or 'Tous'))
+        df_tgt['publisher_platforms'] = df_tgt['publisher_platforms'].fillna('').replace('', 'Toutes')
+        df_tgt['optimization_goal'] = df_tgt['optimization_goal'].fillna('Inconnu')
+        df_tgt['age_band'] = (
+            df_tgt['age_min'].fillna('').astype(str) + '–' + df_tgt['age_max'].fillna('').astype(str)
+        ).str.strip('–').replace('', 'Non spécifié')
+
+        dim_label = st.selectbox("Découper par", list(_TARGETING_DIMS.keys()), key="tgt_dim")
+        dim_col = _TARGETING_DIMS[dim_label]
+        agg = df_tgt.groupby(dim_col, as_index=False).agg(spend=('spend', 'sum'),
+                                                          results=('results', 'sum'))
+        fig_tgt = pareto_spend_cpr(agg, dim_col, f"Dépense & CPR par {dim_label.lower()}")
+        if fig_tgt is not None:
+            st.plotly_chart(fig_tgt, width="stretch")

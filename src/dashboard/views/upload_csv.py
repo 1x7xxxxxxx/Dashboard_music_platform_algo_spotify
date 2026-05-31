@@ -161,6 +161,31 @@ def show():
         "Le type est détecté automatiquement depuis le nom de fichier et les colonnes."
     )
 
+    with st.expander("📋 Quels fichiers CSV importer ?", expanded=False):
+        st.markdown(
+            "Les types suivants sont reconnus automatiquement :\n\n"
+            "- **Spotify for Artists — Timeline par titre** "
+            "(export S4A `…-timeline.csv` : colonnes `date`, `streams`).\n"
+            "- **Spotify for Artists — Résumé titres** "
+            "(export S4A `songs-all…csv` : colonnes `song`, `release_date`, `saves`).\n"
+            "- **Spotify for Artists — Audience** "
+            "(export S4A `…audience.csv` : colonnes `date`, `listeners`).\n"
+            "- **Apple Music** "
+            "(export Apple Music for Artists : colonnes `Morceau`/`Song Title` + "
+            "`Écoutes`/`Plays`).\n"
+            "- **iMusician — Résumé par sortie** "
+            "(colonnes `Release title`, `Track streams`).\n"
+            "- **iMusician — Rapport de vente** "
+            "(colonnes `ISRC`, `Shop`).\n"
+        )
+
+    st.info(
+        "🔗 **Mapping Spotify × Meta Ads** — après avoir **lancé la collecte "
+        "depuis la page d'accueil**, pensez à faire le mapping "
+        "(menu **📣 Publicité Meta Ads → Mapping Spotify × Meta Ads (nom de campagne)**) "
+        "pour relier vos campagnes Meta à vos titres Spotify."
+    )
+
     db = get_db_connection()
     try:
         # ── Sélection artiste ──────────────────────────────────────────
@@ -305,6 +330,30 @@ def show():
                         )
                     except Exception:
                         pass  # audit log failure must never block the UI
+
+            # If S4A global summary was imported, rebuild the canonical
+            # release-date reference (authoritative source for "latest release"
+            # across all platforms). Non-blocking — never fails the import.
+            if any(r['platform_key'] == 's4a_songs_global' for r in ok_results):
+                try:
+                    from src.utils.track_matching import rebuild_release_reference
+                    n_ref = rebuild_release_reference(db, target_artist_id)
+                    if n_ref:
+                        st.caption(f"🎵 Référentiel de sorties mis à jour ({n_ref} titres).")
+                except Exception as exc:  # noqa: BLE001 — reference is best-effort
+                    st.caption(f"⚠️ Référentiel de sorties non mis à jour : {exc}")
+
+            # If an iMusician sales report was imported, roll its per-line detail up
+            # into monthly_revenue so the Distributeur view + ROI surface it. Manual
+            # entries are preserved. Non-blocking — never fails the import.
+            if any(r['platform_key'] == 'imusician_sales' for r in ok_results):
+                try:
+                    from src.utils.imusician_rollup import rollup_sales_to_monthly
+                    n_months = rollup_sales_to_monthly(db, target_artist_id)
+                    if n_months:
+                        st.caption(f"💰 Revenus mensuels agrégés ({n_months} mois) — visibles dans Distributeur.")
+                except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
+                    st.caption(f"⚠️ Agrégation des revenus mensuels non effectuée : {exc}")
 
             st.markdown("---")
             st.subheader("📋 Résultats de l'import")

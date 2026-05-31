@@ -95,6 +95,7 @@ def process_csv_files(**context):
     archive_dir.mkdir(parents=True, exist_ok=True)
 
     processed = 0
+    sales_imported = False
 
     for path_str in csv_files:
         csv_file = Path(path_str)
@@ -137,6 +138,7 @@ def process_csv_files(**context):
                     update_columns=['quantity', 'revenue_eur', 'collected_at'],
                 )
                 logger.info(f"  sales_detail upserted: {n} row(s)")
+                sales_imported = True
 
             # Archive
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -147,6 +149,17 @@ def process_csv_files(**context):
         except Exception as e:
             logger.error(f"Error on {csv_file.name}: {e}")
             continue
+
+    # Roll detail up into monthly_revenue so the Distributeur + revenue-forecast
+    # views (which read imusician_monthly_revenue) reflect the import. Best-effort:
+    # a roll-up failure must not fail the import. Same hook as the Streamlit path.
+    if sales_imported:
+        try:
+            from src.utils.imusician_rollup import rollup_sales_to_monthly
+            n_months = rollup_sales_to_monthly(db, artist_id)
+            logger.info(f"  monthly_revenue rolled up: {n_months} month(s) for artist {artist_id}")
+        except Exception as e:
+            logger.error(f"monthly_revenue roll-up failed (non-blocking): {e}")
 
     db.close()
     logger.info(f"Done. {processed}/{len(csv_files)} file(s) processed.")

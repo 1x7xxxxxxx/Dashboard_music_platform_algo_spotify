@@ -39,6 +39,9 @@ def _update_artist(db, artist_id: int, name: str, tier: str):
         "UPDATE saas_artists SET name = %s, tier = %s WHERE id = %s",
         (name.strip(), tier, artist_id)
     )
+    # Audit the plan transition for the Alerts plan-evolution chart.
+    from src.utils.plan_history import log_plan_change
+    log_plan_change(db, artist_id, tier, 'admin_edit')
 
 
 def _toggle_active(db, artist_id: int, active: bool):

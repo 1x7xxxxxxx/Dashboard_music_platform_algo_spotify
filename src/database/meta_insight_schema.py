@@ -228,6 +228,12 @@ META_INSIGHT_SCHEMA = {
         CREATE INDEX IF NOT EXISTS idx_mie_pl_campaign ON meta_insights_engagement_placement(campaign_name);
         CREATE INDEX IF NOT EXISTS idx_mie_pl_platform ON meta_insights_engagement_placement(platform);
     """,
+    # NOTE: the 12 AD/ADSET-level breakdown tables (meta_insights_{performance,engagement}
+    # _{ad,adset}_{country,placement,age}) are defined in migrations/032_meta_ad_adset_breakdowns.sql
+    # and intentionally NOT duplicated here — this dict is documentation-only (tables are
+    # created via `make migrate`, never from this module), so a second copy would only risk drift.
+    # They are keyed by ad_id/adset_id (FK to meta_ads/meta_adsets) and registered in
+    # postgres_handler._ALLOWED_TABLES + the collector's _upsert_all dicts.
 }
 
 

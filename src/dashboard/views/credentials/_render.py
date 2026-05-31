@@ -19,6 +19,7 @@ from ._core import (
     _fetch_meta_token_expiry,
     _mask,
     _save_credentials,
+    app_level_configured,
 )
 from ._registry import PLATFORMS, CONNECTION_TESTS, _render_platform_guide
 
@@ -27,7 +28,11 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
     """Summary row: one metric per platform showing credentials + last DAG run."""
     cols = st.columns(len(PLATFORMS))
     for col, (platform_key, platform_info) in zip(cols, PLATFORMS.items()):
-        has_creds = platform_key in existing
+        has_db_creds = platform_key in existing
+        # App-level keys (env / config.yaml) count as configured too — the
+        # collectors fall back to them, so a missing DB row is not "unconfigured".
+        has_app_creds = app_level_configured(platform_key)
+        has_creds = has_db_creds or has_app_creds
         dags = PLATFORM_TO_DAGS.get(platform_key, [])
 
         # Last run state across all DAGs for this platform (worst state wins)
@@ -49,7 +54,12 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
             run_label = 'Jamais exécuté'
 
         creds_icon = '✅' if has_creds else '❌'
-        creds_label = 'Connecté' if has_creds else 'Non configuré'
+        if has_db_creds:
+            creds_label = 'Connecté'
+        elif has_app_creds:
+            creds_label = 'Configuré (clé plateforme)'
+        else:
+            creds_label = 'Non configuré'
 
         col.metric(
             label=platform_info['label'],

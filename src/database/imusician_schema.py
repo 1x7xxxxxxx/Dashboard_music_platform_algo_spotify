@@ -9,6 +9,7 @@ IMUSICIAN_SCHEMA = {
             month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
             revenue_eur NUMERIC(10, 2) NOT NULL DEFAULT 0,
             notes TEXT,
+            source TEXT NOT NULL DEFAULT 'manual',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT unique_imusician_artist_month UNIQUE(artist_id, year, month)

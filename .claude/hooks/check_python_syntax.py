@@ -11,7 +11,12 @@ Niveaux de sévérité :
   Succès                 → exit 0  : silencieux
 
 ---
-rex: []
+rex:
+  - date: 2026-05-30
+    issue: "Failed Edit left a new helper defined-but-never-called; pytest+ruff green (no F-rule flags unused module-level defs)"
+    fix: "After an Edit returns an error, verify the call site/wiring actually landed; tests+ruff prove syntax, not reachability of a new top-level def"
+    severity: "warn"
+    ref: "DEVLOG#2026-05-30"
 ---
 """
 import json

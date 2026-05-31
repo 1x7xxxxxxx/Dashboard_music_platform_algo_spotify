@@ -148,8 +148,7 @@ def show():
             ("instagram_daily", "Instagram quotidien"),
             ("s4a_csv_watcher", "CSV Spotify for Artists"),
             ("apple_music_csv_watcher", "CSV Apple Music"),
-            ("meta_csv_watcher_config", "Meta Ads Config CSV"),
-            ("meta_insights_watcher", "Meta Insights CSV"),
+            ("meta_ads_api_daily", "Meta Ads API"),
             ("ml_scoring_daily", "ML Scoring quotidien"),
             ("data_quality_check", "Qualité des données"),
         ]
@@ -266,9 +265,9 @@ Google Cloud Console et la recoller.
         with st.expander("📊 Meta Ads — Même token que Instagram"):
             st.markdown("""
 Le même long-lived token Meta sert pour Instagram **et** Meta Ads.
-Si les DAGs `meta_csv_watcher_config` et `meta_insights_watcher` échouent → vérifier le token Instagram.
+Si le DAG `meta_ads_api_daily` échoue → vérifier le token Instagram.
 
-**DAGs concernés** : `meta_csv_watcher_config`, `meta_insights_watcher`
+**DAG concerné** : `meta_ads_api_daily`
 """)
 
     # ─────────────────────────────────────────────
@@ -285,8 +284,7 @@ Si les DAGs `meta_csv_watcher_config` et `meta_insights_watcher` échouent → v
             ("debug_instagram.py", "instagram_daily", "Test collecte Instagram"),
             ("debug_s4a.py", "s4a_csv_watcher", "Test traitement CSV S4A"),
             ("debug_apple_music.py", "apple_music_csv_watcher", "Test traitement CSV Apple Music"),
-            ("debug_meta_config.py", "meta_csv_watcher_config", "Test CSV Meta Ads config"),
-            ("debug_meta_insights.py", "meta_insights_watcher", "Test CSV Meta Insights"),
+            ("debug_meta_ads_api.py", "meta_ads_api_daily", "Test collecte Meta Ads API"),
             ("debug_ml_scoring.py", "ml_scoring_daily", "Test scoring ML"),
         ]
 
