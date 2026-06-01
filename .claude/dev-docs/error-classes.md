@@ -64,6 +64,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [collector-shipped-dag-not-rerun](#collector-shipped-dag-not-rerun) | P3 | heuristic | open | none |
 | [ingest-time-as-release-date](#ingest-time-as-release-date) | P3 | heuristic | guarded | none |
 | [operator-guidance-phantom-or-wrong-auth](#operator-guidance-phantom-or-wrong-auth) | P3 | heuristic | guarded | none |
+| [object-dtype-numeric-op](#object-dtype-numeric-op) | P3 | heuristic | guarded | none |
+| [tz-aware-naive-mix](#tz-aware-naive-mix) | P3 | heuristic | guarded | none |
+| [snapshot-fixture-hook-reflow](#snapshot-fixture-hook-reflow) | P3 | deterministic | guarded | none |
 
 ---
 
@@ -255,3 +258,43 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered via the token-management bilan (`credentials.py` exposed dormant Spotify `refresh_token`/`redirect_uri` + YouTube OAuth fields the collectors never read). Explore sweep found the SAME class in `alert_root_cause.py` (Spotify entry pointed at phantom `python src/collectors/spotify_auth.py` "to renew the refresh token" — Spotify has none; YouTube entry said "renew the OAuth Refresh Token" — it's a static API key) and `useful_links.py` (YouTube setup expander built on `credentials.json`/`token.json`/phantom `scripts/test_youtube_auth.py` + "tokens auto-refresh" myth; Spotify expander "relancer le flow d'auth"; "Scripts utilitaires" listed 3 phantom commands: `test_youtube_auth.py`, `check_api_keys_meta.py`, `scripts/create_missing_tables.sql`). Ground truth: Spotify=client_credentials (re-granted each run, NO refresh token); YouTube=static `developerKey` (no OAuth, no expiry); SoundCloud=client_credentials default + opt-in auto-rotating user-token; Meta/IG=System User token (never expires). Real scripts in `scripts/` = only `backup_db.sh`, `manage_mapping.py`, `test_email.py`. All instances fixed this pass (credentials.py field-list/_test_youtube/_guide_*; alert_root_cause.py spotify+youtube entries; useful_links.py YouTube+Spotify expanders + scripts list → `make migrate` + a "no auth script — use the Test button" caption). Durable guard = this catalogue entry + token-management-bilan.md as the canonical per-platform auth model. Heuristic + report-only — NOT CI/`make audit`: the signature would self-match any doc that *quotes* the anti-pattern (the artist-id-or-1 false-positive lesson), so it is deliberately scoped to the 3 operator-facing source files + `*guide*.md` only, and excludes this catalogue + the bilan. Re-run after edits → 0 hits (class cleared).
+
+## object-dtype-numeric-op
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: a numeric DB column that contains a NULL loads as pandas `object` dtype; subsequent arithmetic + `Series.round(n)` then raises `TypeError: Expected numeric dtype, got object instead.` at render → the view crashes. Data-dependent — only fires once a row is NULL (LEFT JOIN, empty window, a model that failed to score).
+- signature: `! grep -rnE "\)\.round\(" src/dashboard/views/ | grep -v "to_numeric"`
+- autofix: none
+- guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py (AppTest renders every view against the live DB → catches it when a NULL is present) }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-05-29 (ref: DEVLOG#2026-05-29)
+- History:
+  - 2026-05-29: first hit in `revenue_forecast.py` — `ml_song_predictions.{dw,rr,radio}_probability` can be NULL (a model that fails to score writes None) → object Series → `(ml_df[col]*100).round(1)` raised. Fixed with `pd.to_numeric(errors='coerce')` + `.map(...)`.
+  - 2026-06-01: second instance in `soundcloud.py` — a NULL in `likes_count`/`reposts_count`/`comment_count` made the column object → `(_eng / _pc * 100).round(1)` raised. Surfaced by the render-smoke harness against fresh live data. Fixed identically (`pd.to_numeric(errors='coerce')` + `.where(_pc != 0)`). Two independent hits → catalogued. Durable fix: coerce every DB numeric column with `pd.to_numeric(..., errors='coerce')` (then `.fillna(0)` or `.where(...)`) BEFORE any arithmetic / `.round()`. Heuristic + report-only — the signature matches any pre-rounded arithmetic (noisy); the render-smoke harness is the real net.
+
+## tz-aware-naive-mix
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: a column of ISO timestamp strings where some carry a tz offset (`+00:00`) and some are naive → `pd.to_datetime(series)` or a Plotly datetime coercion (`px.timeline`, scatter x-axis) raises `ValueError: Cannot mix tz-aware with tz-naive values, at position N`. Data-dependent (only fires when old naive rows and new tz-aware rows coexist). Sibling of `mixed-date-timestamp` (that one mixes `datetime.date` vs `pd.Timestamp`; this one mixes tz-aware vs naive inside one `to_datetime`).
+- signature: `! grep -rnE "pd\.to_datetime\(" src/dashboard/views/ | grep -vE "utc=True|errors="`
+- autofix: none
+- guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
+- History:
+  - 2026-06-01: `airflow_kpi.py` `df_runs` `start_date`/`end_date` (Airflow REST ISO strings, mixed offsets across old vs recent runs) → `pd.to_datetime` + `px.timeline` raised "at position 26". Surfaced by the render-smoke harness on fresh live data. Fixed by normalising both columns once at source: `pd.to_datetime(col, utc=True, errors='coerce').dt.tz_localize(None)`. Durable fix: when building a datetime column from heterogeneous string sources, always pass `utc=True` then drop the tz (`.dt.tz_localize(None)`) so every consumer sees uniform naive-UTC. Heuristic + report-only (the grep matches benign `to_datetime` calls). Related: `mixed-date-timestamp`.
+
+## snapshot-fixture-hook-reflow
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a byte-exact golden/snapshot fixture under `tests/fixtures/` is silently reflowed by the `trailing-whitespace` / `end-of-file-fixer` pre-commit hooks → the committed golden no longer matches the producer's real output, so the snapshot test that compares against it fails (or, worse, the golden gets regenerated to match the mangled bytes and the test then passes against wrong data).
+- signature: `! { test -d tests/fixtures && ! grep -q "tests/fixtures" .pre-commit-config.yaml; }`
+- autofix: none
+- guard: { type: pre-commit, ref: .pre-commit-config.yaml (exclude `^tests/fixtures/` on trailing-whitespace + end-of-file-fixer) }
+- rex_ref: .pre-commit-config.yaml
+- first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
+- History:
+  - 2026-06-01: hit while landing R5's `tests/fixtures/pdf_report_golden.html` (the `render_html` snapshot). The eof/trailing hooks stripped a final newline + trailing spaces that the HTML template legitimately emits → golden ≠ `render_html()` output. Fixed by excluding `^tests/fixtures/` from both hooks (detect-secrets already excluded `tests/fixtures/.*`). Rule: any byte-exact fixture directory must be excluded from reflowing hygiene hooks the moment it is introduced.
