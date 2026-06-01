@@ -1245,3 +1245,20 @@ Après le backfill Meta, l'utilisateur a demandé de traiter **tout le bucket "a
 
 ### Tests
 `python3 -m pytest tests/ -q` → **325 passed** (dont les 2 vues réparées repassent au render-smoke, +6 meta). `ruff check src/ tests/` clean.
+
+---
+
+## 2026-06-01 (suite 2) — Refactor program R2/R4/R5/R6 (move-only, séparé en commits)
+
+### Why
+Sur demande explicite « tout faire » du bucket actionnable, exécution des refactors R2/R4/R5/R6 du programme — en forçant les triggers (non déclenchés) mais en respectant les garde-fous : un commit/PR par item, zéro changement de comportement, vérifié par render-smoke + pytest.
+
+### What changed
+- **R2 (kpi_helpers)** — clos *verify-and-close* : déjà ruff-clean sous la config autoritaire (E501 ignoré pour SQL ; F401/F541 de l'audit nettoyés depuis). Zéro edit fabriqué.
+- **R4 (trigger_algo → package)** — le monolithe avait **doublé** (2279 l, 6 tabs, ~40 fns). Scindé en package : `router.py` (show() slim), un `_tab_*.py` par onglet, `_common.py` = **les 47 helpers/loaders/constantes partagés** (module unique → pas de cycle inter-tabs ; vérifié : les 6 tab-fns ne sont appelées que par show(), seul `show` est importé dehors). Généré via script AST calculant les imports exacts par module. `pytest` 325 inchangé, render-smoke[trigger_algo] vert, `show` résolu depuis `router`.
+- **R5 (pdf_exporter)** — rejeté le mega `_render_section` esquissé (les 6 renderers diffèrent trop pour être byte-identiques) ; extrait 3 primitives exactes (`_html_table`/`_kpi_card`/`_kpi_grid`) utilisées par 7 renderers. **Filet snapshot** : `tests/test_pdf_exporter.py` compare `render_html` à un golden (`tests/fixtures/pdf_report_golden.html`, freshness_status monkeypatché) → **byte-identique** avant/après. pdf_exporter avait 0 test, maintenant 2. Hooks whitespace exclus sur `tests/fixtures/` pour préserver le golden.
+- **R6 (revenue_forecast)** — math déterministe extraite vers `utils/revenue_forecast.py` : 3 loaders DB (déplacés, ré-aliasés → call-sites inchangés) + `project_mrr`/`ltv_global`/`ltv_scenarios`. `tests/test_revenue_forecast.py` (+8). Le tab de 285 l `_tab_artist_forecast` garde sa math interleaved (extraction profonde plus risquée sans golden → passe future, son propre trigger). Vue 628→586 l.
+- Trackers `refactor-program.md` + `refactor-audit-dashboard.md` (#1/#4/#5/#6) marqués DONE avec notes as-built (déviations documentées, Rule #2).
+
+### Tests
+`python3 -m pytest tests/ -q` → **335 passed, 1 skipped** (325 + 8 R6 + 2 R5). `ruff check src/ tests/` clean. 5 commits séparés (3575959 P2 meta, 60030d3 fixes, e5fe71c docs, d84c53a R4, 905202b R5, e8fc0c6 R6).
