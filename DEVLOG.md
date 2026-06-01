@@ -1213,3 +1213,35 @@ Après `/resume`, balayage de tous les items checklist actionnables **sans dépe
 - **Artefacts/data externes** : courbe calibration RR, re-seed benchmark, items Phase-2 capture/retrain.
 - **À scoper, pas à bricoler à l'aveugle** : Meta per-chunk insight persistence + rename-guard `campaign_name` (collecteur throttle-sensible, compte de test throttlé).
 - **Faible valeur** : pagination admin/etl_logs (gain ~nul à la taille actuelle).
+
+---
+
+## 2026-06-01 — Meta Ads full_history backfill réussi (P2 fermé) — live ops via Airflow MCP
+
+### Why
+Session live : Airflow webserver de nouveau up. L'utilisateur a lancé la collecte complète ("Lancer TOUTES") puis demandé de finir le backfill Meta Ads (item P2 ouvert depuis 2026-03-30, bloqué sur le throttle BUC `code 80004`).
+
+### What changed
+- **Backfill Meta Ads terminé — item P2 fermé.** Diagnostic live (logs DAG via `docker exec` + Airflow MCP read-only) : le `code 80004` n'était PAS un blocage de fond mais un artefact de quota épuisé — plusieurs runs Meta lancés coup sur coup (scheduled + 2 daily manuels via le bouton + un full_history) ont saturé l'ad-account ; le full_history a wall-throttlé ~26 min sur le fetch per-creative, puis a été tué. **Fix qui marche** : arrêt de toute activité Meta → cooldown ~60 min → UN seul run `full_history` solo sur quota reposé → succès en ~4 min, **zéro throttle** : 34 campaigns, 69 adsets, 144 ads, 144 creatives, **13139 lignes d'insights sur 23 tables** (dont tous les breakdowns ad/adset × country/placement/age, vides jusque-là). `meta_insights_performance_day` couvre 2023-08-24 → 2024-09-29 (231 lignes / 205 jours) = durée de vie complète des campagnes ; ne dépasse pas 2024-09-30 car l'ad-account n'a aucune dépense depuis (le daily ne trouve rien de plus récent) — le critère "past 2024-09-30" de la checklist était une hypothèse erronée.
+- **Règle opérationnelle confirmée** : `max_active_runs=1` (déjà en place sur les 13 DAGs) + UN run solo sur quota reposé = la façon fiable de lancer un full_history Meta. Ne jamais enchaîner des runs Meta concurrents/back-to-back. Le bouton "Lancer TOUTES" re-queue un run Meta à chaque clic → tenu en file par le cap (vérifié live : run redondant annulé via PATCH state=failed sur le dagRun + la task pour bloquer l'auto-retry).
+- **Note non-régressée** : le gap "Meta per-chunk insight persistence" reste ouvert (un throttle sur un appel agrégat tardif jette tout le run) — séparé, candidat hardening.
+
+### Tests
+Pas de changement de code (ops live uniquement). Vérif DB : `SELECT MIN/MAX(day_date), COUNT(*) FROM meta_insights_performance_day WHERE artist_id=1` → 2023-08-24 / 2024-09-29 / 231. Log DAG : `success`, return code 0, 0× `80004` sur le run final.
+
+---
+
+## 2026-06-01 (suite) — Backlog actionnable : Meta per-chunk persistence + rename-guard, 2 render-crash fixes, R2 closé
+
+### Why
+Après le backfill Meta, l'utilisateur a demandé de traiter **tout le bucket "actionnable maintenant"** de la roadmap (code pur, zéro dépendance externe). Au passage, le harnais render-smoke a détecté 2 crashs introduits par les données live du jour.
+
+### What changed
+- **P2 — Meta per-chunk insight persistence** (`meta_ads_api_collector.py`). `run()` jetait tout le run sur un throttle tardif (fetch complet en mémoire → un seul `_upsert_all` final). Désormais : config (campaigns/adsets/ads/creatives) upsertée **en amont** via `_upsert_config`, puis `_fetch_all_insights` persiste **chaque chunk mensuel + chaque breakdown dès qu'il est récupéré** via `persist_cb` (`_persist_insights`). `_upsert_all` supprimé → scindé en `_upsert_config` + `_insight_upsert_maps` (source unique des maps colonnes/clés) + `_persist_insights`. Un throttle tardif conserve désormais tous les mois déjà fetchés.
+- **P2 — rename-guard `campaign_name`** (`meta_ads_api_collector.py`). `_prune_renamed_campaigns()` supprime les lignes campaign-grain dont le `campaign_name` n'est plus renvoyé par l'API (grains ad/adset keyés par id = immunisés). Gardé : fetch vide = no-op (jamais de mass-delete) ; `validate_table()` (rule #8) ; DELETE artist-scopé + `campaign_name <> ALL(%s)` paramétré ; `_CAMPAIGN_GRAIN_TABLES` frozenset (10 tables).
+- **Tests** : `tests/test_meta_ads_collector.py` +6 (20→26) — trimming colonnes, **preuve de durabilité** (throttle au chunk 2 → chunk 1 persisté), prune (no-op vide + 10 DELETE scopés). Blast radius nul (helpers d'extraction pure intacts ; `_upsert_all`/`_fetch_all_insights` n'étaient appelés que par `run()`).
+- **2 render-crash fixes** (data-driven, indépendants du refactor — prouvé par `git stash`). `airflow_kpi.py` : `df_runs` start/end_date = ISO strings tz-mixtes → `pd.to_datetime`/`px.timeline` "Cannot mix tz-aware with tz-naive" ; normalisés en naive-UTC une fois (`utc=True` + `tz_localize(None)`). `soundcloud.py` : un NULL dans likes/reposts/comment rendait la colonne object → `(_eng/_pc*100).round(1)` "Expected numeric dtype, got object" ; coercition `pd.to_numeric(errors='coerce')` + `.where(_pc!=0)` (même pattern que le fix `revenue_forecast`).
+- **R2 (refactor-program) closé** — `kpi_helpers.py` déjà ruff-clean sous la config autoritaire (`E501` ignoré pour les SQL ; F401/F541 de l'audit déjà nettoyés par le sweep de mai). Verify-and-close, zéro edit fabriqué. Trackers `refactor-program.md` + `refactor-audit-dashboard.md` (#4) marqués DONE.
+
+### Tests
+`python3 -m pytest tests/ -q` → **325 passed** (dont les 2 vues réparées repassent au render-smoke, +6 meta). `ruff check src/ tests/` clean.

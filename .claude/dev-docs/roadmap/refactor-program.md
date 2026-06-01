@@ -21,7 +21,7 @@ files we're about to touch anyway (cheap) and never gold-plate stable code.
 | # | Item | Effort | Risk | ROI | Trigger | Status |
 |---|---|---|---|---|---|---|
 | R1 | `credentials.py` → package (audit #3) | 3–4 h | Mod | Moy | fired (token-auth work) | ✅ **DONE 2026-05-15** (`acf8b6f`) |
-| R2 | `kpi_helpers.py` ruff cleanup (audit #4) | 30 m | Faible | Faible | any time (quick win) | ⬜ open |
+| R2 | `kpi_helpers.py` ruff cleanup (audit #4) | 30 m | Faible | Faible | any time (quick win) | ✅ **DONE 2026-06-01** (already clean) |
 | R3 | `view_session()`/`project_db()` adoption (audit #2) | ~1.5 h | Faible | Moy | per-view, opt-in | ⏳ partial — see note |
 | R4 | `trigger_algo.py` (1209 l) → package (audit #1) | 4–6 h | Mod | **High** | next edit to that view | ⬜ open |
 | R5 | `pdf_exporter.py` (856 l) → `_render_section()` (audit #5) | 2–3 h | Faible | Moy | next PDF feature | ⬜ open |

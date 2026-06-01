@@ -159,7 +159,13 @@ src/dashboard/views/credentials/
 
 ---
 
-### #4 — `utils/kpi_helpers.py` (418 lines + 7 ruff findings) — lint cleanup
+### #4 — `utils/kpi_helpers.py` (418 lines + 7 ruff findings) — lint cleanup ✅ DONE 2026-06-01
+
+**As-built:** closed as already-resolved. `ruff check src/` (authoritative `ruff.toml`,
+`select=[E,F,W]`, `E501` ignored for SQL strings) reports zero findings for this file —
+the F401 (`date`) and F541 (placeholder-less f-strings) noted below were cleared by the
+May 2026 collectors/style sweep commits. The remaining long-SQL lines are intentionally
+covered by the project-wide `E501` ignore. No behaviour change needed; verify-and-close.
 
 **Issues** (from `rtk proxy ruff check`) :
 - `F401` : unused imports (`date` at line 2, likely others)
