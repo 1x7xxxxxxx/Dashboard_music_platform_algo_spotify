@@ -38,8 +38,10 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: \.md$         # markdown sometimes uses 2-space line breaks
+        # markdown uses 2-space line breaks; tests/fixtures hold byte-exact snapshots
+        exclude: (\.md$|^tests/fixtures/)
       - id: end-of-file-fixer
+        exclude: ^tests/fixtures/   # byte-exact golden snapshots must not be reflowed
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict

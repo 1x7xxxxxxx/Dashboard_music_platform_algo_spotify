@@ -470,6 +470,27 @@ def _badge(emoji, label):
     return f'<span class="badge {css}">{emoji} {label}</span>'
 
 
+# ── HTML primitives shared by the platform renderers (exact-string, move-only) ──
+
+def _html_table(headers, rows_html):
+    """`<table>` with a `<thead>` row of `headers` and the given `<tbody>` rows."""
+    th = "".join(f"<th>{h}</th>" for h in headers)
+    return (f'<table><thead><tr>{th}</tr></thead>'
+            f'<tbody>{rows_html}</tbody></table>')
+
+
+def _kpi_card(val_html, label, *, card_style="", val_style=""):
+    """A single `kpi-card` (value + label), with optional card/value inline styles."""
+    cs = f' style="{card_style}"' if card_style else ""
+    vs = f' style="{val_style}"' if val_style else ""
+    return (f'<div class="kpi-card"{cs}><div class="kpi-val"{vs}>{val_html}</div>'
+            f'<div class="kpi-lbl">{label}</div></div>')
+
+
+def _kpi_grid(cards_html):
+    return f'<div class="kpi-grid">{cards_html}</div>'
+
+
 def _render_freshness(freshness):
     rows = []
     for label, info in freshness.items():
@@ -492,17 +513,13 @@ def _render_streams(streams):
         ("☁️ SoundCloud",   streams['soundcloud']),
         ("🍎 Apple Music",  streams['apple']),
     ]
-    total_card = (
-        f'<div class="kpi-card" style="border-color:#1DB954; background:#f0faf3;">'
-        f'<div class="kpi-val" style="font-size:22pt;">{streams["total"]:,}</div>'
-        f'<div class="kpi-lbl">🎧 Total toutes plateformes</div></div>'
+    total_card = _kpi_card(
+        f'{streams["total"]:,}', "🎧 Total toutes plateformes",
+        card_style="border-color:#1DB954; background:#f0faf3;",
+        val_style="font-size:22pt;",
     )
-    cards = "".join(
-        f'<div class="kpi-card"><div class="kpi-val">{v:,}</div>'
-        f'<div class="kpi-lbl">{lbl}</div></div>'
-        for lbl, v in items
-    )
-    return f'<div class="kpi-grid">{total_card}{cards}</div>'
+    cards = "".join(_kpi_card(f'{v:,}', lbl) for lbl, v in items)
+    return _kpi_grid(total_card + cards)
 
 
 def _render_kpi(pop, ig, likes, sc_plays):
@@ -613,23 +630,16 @@ def _render_s4a_top_songs(songs):
         f"<tr><td>{s[0]}</td><td>{s[1]:,}</td><td>{s[2]:,}</td></tr>"
         for s in songs
     )
-    return (
-        f'<table><thead><tr><th>Chanson</th><th>Streams (période)</th>'
-        f'<th>Streams 7 derniers jours</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table>'
-    )
+    return _html_table(
+        ['Chanson', 'Streams (période)', 'Streams 7 derniers jours'], rows)
 
 
 def _render_youtube(yt):
     if not yt:
         return '<p class="no-data">Aucune donnée YouTube disponible.</p>'
-    header = (
-        f'<div class="kpi-grid">'
-        f'<div class="kpi-card"><div class="kpi-val">{yt["subscriber_count"]:,}</div>'
-        f'<div class="kpi-lbl">Abonnés</div></div>'
-        f'<div class="kpi-card"><div class="kpi-val">{yt["total_views"]:,}</div>'
-        f'<div class="kpi-lbl">Vues totales (chaîne)</div></div>'
-        f'</div>'
+    header = _kpi_grid(
+        _kpi_card(f'{yt["subscriber_count"]:,}', "Abonnés")
+        + _kpi_card(f'{yt["total_views"]:,}', "Vues totales (chaîne)")
     )
     if not yt['videos']:
         return header + '<p class="no-data">Aucune vidéo trouvée.</p>'
@@ -638,24 +648,17 @@ def _render_youtube(yt):
         f"<td>{v[2]:,}</td><td>{v[3]:,}</td><td>{v[4]:,}</td></tr>"
         for v in yt['videos']
     )
-    table = (
-        f'<table><thead><tr><th>Titre</th><th>Publiée</th>'
-        f'<th>Vues</th><th>Likes</th><th>Commentaires</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table>'
-    )
+    table = _html_table(
+        ['Titre', 'Publiée', 'Vues', 'Likes', 'Commentaires'], rows)
     return header + table
 
 
 def _render_instagram(ig):
     if not ig:
         return '<p class="no-data">Aucune donnée Instagram disponible.</p>'
-    summary = (
-        f'<div class="kpi-grid">'
-        f'<div class="kpi-card"><div class="kpi-val">{ig["followers"]:,}</div>'
-        f'<div class="kpi-lbl">@{ig["username"]} — Abonnés</div></div>'
-        f'<div class="kpi-card"><div class="kpi-val">{ig["media_count"]:,}</div>'
-        f'<div class="kpi-lbl">Publications</div></div>'
-        f'</div>'
+    summary = _kpi_grid(
+        _kpi_card(f'{ig["followers"]:,}', f'@{ig["username"]} — Abonnés')
+        + _kpi_card(f'{ig["media_count"]:,}', "Publications")
     )
     if not ig['history']:
         return summary
@@ -664,9 +667,8 @@ def _render_instagram(ig):
         for h in ig['history'][-10:]
     )
     table = (
-        f'<h3>Évolution abonnés — 10 dernières entrées (30 j)</h3>'
-        f'<table><thead><tr><th>Date</th><th>Abonnés</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table>'
+        '<h3>Évolution abonnés — 10 dernières entrées (30 j)</h3>'
+        + _html_table(['Date', 'Abonnés'], rows)
     )
     return summary + table
 
@@ -674,25 +676,18 @@ def _render_instagram(ig):
 def _render_meta(meta):
     if not meta or not meta['campaigns']:
         return '<p class="no-data">Aucune donnée Meta Ads disponible.</p>'
-    summary = (
-        f'<div class="kpi-grid">'
-        f'<div class="kpi-card"><div class="kpi-val" style="color:#FF4444;">'
-        f'{meta["total_spend"]:,.2f} €</div>'
-        f'<div class="kpi-lbl">Dépenses totales</div></div>'
-        f'<div class="kpi-card"><div class="kpi-val">{meta["total_results"]:,}</div>'
-        f'<div class="kpi-lbl">Résultats totaux</div></div>'
-        f'</div>'
+    summary = _kpi_grid(
+        _kpi_card(f'{meta["total_spend"]:,.2f} €', "Dépenses totales",
+                  val_style="color:#FF4444;")
+        + _kpi_card(f'{meta["total_results"]:,}', "Résultats totaux")
     )
     rows = "".join(
         f"<tr><td>{c[0]}</td><td>{c[1]:,.2f} €</td><td>{c[2]:,}</td>"
         f"<td>{c[3]:,}</td><td>{c[4]:,}</td><td>{c[5]:,}</td></tr>"
         for c in meta['campaigns']
     )
-    table = (
-        f'<table><thead><tr><th>Campagne</th><th>Dépenses</th><th>Résultats</th>'
-        f'<th>Impressions</th><th>Reach</th><th>Clics</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table>'
-    )
+    table = _html_table(
+        ['Campagne', 'Dépenses', 'Résultats', 'Impressions', 'Reach', 'Clics'], rows)
     return summary + table
 
 
@@ -704,23 +699,16 @@ def _render_soundcloud_tracks(tracks):
         f"<td>{t[3]:,}</td><td>{t[4]:,}</td></tr>"
         for t in tracks
     )
-    return (
-        f'<table><thead><tr><th>Titre</th><th>Plays</th><th>Likes</th>'
-        f'<th>Reposts</th><th>Commentaires</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table>'
-    )
+    return _html_table(
+        ['Titre', 'Plays', 'Likes', 'Reposts', 'Commentaires'], rows)
 
 
 def _render_apple(apple):
     if not apple:
         return '<p class="no-data">Aucune donnée Apple Music disponible.</p>'
-    summary = (
-        f'<div class="kpi-grid">'
-        f'<div class="kpi-card"><div class="kpi-val">{apple["total_plays"]:,}</div>'
-        f'<div class="kpi-lbl">Plays totaux</div></div>'
-        f'<div class="kpi-card"><div class="kpi-val">{apple["total_shazams"]:,}</div>'
-        f'<div class="kpi-lbl">Shazams</div></div>'
-        f'</div>'
+    summary = _kpi_grid(
+        _kpi_card(f'{apple["total_plays"]:,}', "Plays totaux")
+        + _kpi_card(f'{apple["total_shazams"]:,}', "Shazams")
     )
     if not apple['top_songs']:
         return summary
@@ -728,10 +716,7 @@ def _render_apple(apple):
         f"<tr><td>{s[0]}</td><td>{s[1]:,}</td></tr>"
         for s in apple['top_songs']
     )
-    table = (
-        f'<table><thead><tr><th>Chanson</th><th>Plays</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table>'
-    )
+    table = _html_table(['Chanson', 'Plays'], rows)
     return summary + table
 
 

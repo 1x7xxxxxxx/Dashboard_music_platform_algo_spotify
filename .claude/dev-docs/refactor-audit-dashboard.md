@@ -196,7 +196,20 @@ without touching behavior.
 
 ---
 
-### #5 — `utils/pdf_exporter.py` (861 lines) — template-based render
+### #5 — `utils/pdf_exporter.py` (861 lines) — template-based render ✅ DONE 2026-06-01
+
+**As-built (deviates from the sketch — Rule #2):** the sketched single
+`_render_section(title, kpis, table_data)` mega-helper was rejected — the 6 platform
+renderers differ in per-column formatting, optional KPI-card styles (Meta's red spend),
+intermediate `<h3>`, and post-KPI empty-guards, so one generic helper could not reproduce
+every fragment byte-for-byte and would over-abstract. Instead extracted three **exact-string
+primitives** — `_html_table(headers, rows_html)`, `_kpi_card(val, label, *, card_style,
+val_style)`, `_kpi_grid(cards)` — and routed the 7 duplicated renderers (streams, s4a_top_songs,
+youtube, instagram, meta, soundcloud_tracks, apple) through them. Smaller net reduction
+(~15 l) than the sketched ~300, but **provably zero behaviour change**: new
+`tests/test_pdf_exporter.py` snapshots `render_html` against a golden file
+(`tests/fixtures/pdf_report_golden.html`, freshness_status monkeypatched for determinism) —
+byte-identical before/after. pdf_exporter previously had **zero tests**; now 2.
 
 **Today** : repeats a `_collect_<platform>(...)` + `_render_<platform>(...)`
 pattern for ~6 platforms. The render code is structurally similar across
