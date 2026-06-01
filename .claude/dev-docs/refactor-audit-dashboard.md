@@ -227,7 +227,18 @@ Replace ~6 `_render_*` with calls to it. Estimated reduction : ~300 lines.
 
 ---
 
-### #6 — `views/revenue_forecast.py` (608 lines) — split calc / UI
+### #6 — `views/revenue_forecast.py` (608 lines) — split calc / UI ✅ DONE 2026-06-01
+
+**As-built:** new `src/dashboard/utils/revenue_forecast.py` holds the 3 read-only DB
+loaders (moved verbatim, aliased back in the view so call sites are unchanged) plus the
+cleanly-separable forecast math lifted out of the tabs: `project_mrr()` (compound MRR/ARR
+projection + target-month detection), `ltv_global()` (ARPU ÷ churn) and `ltv_scenarios()`
+(plan×duration grid). `_tab_projection` / `_tab_ltv` now call these. New
+`tests/test_revenue_forecast.py` (8 tests) covers the math that was previously untestable.
+View 628 → 586 l. **Deliberate partial scope (Rule #2):** the 285-line `_tab_artist_forecast`
+keeps its interleaved math — deep extraction there is higher-risk with no golden and lower
+confidence; left as a future pass when forecast accuracy is actually questioned (the item's
+own trigger). Verified: ruff clean, pytest +8 (335), render-smoke[revenue_forecast] green.
 
 **Today** : forecasting math (Prophet ? linear regression ?) interleaved with
 Streamlit rendering.

@@ -9,7 +9,6 @@ Artist: 1 tab (Projection Artistique — own data only)
 """
 import sys
 from pathlib import Path
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 import numpy as np
@@ -23,45 +22,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.utils.revenue_forecast import (
+    load_subscriptions as _load_subscriptions,
+    load_artist_revenues as _load_artist_revenues,
+    load_artists as _load_artists,
+    project_mrr,
+    ltv_global,
+    ltv_scenarios,
+)
 
 
-# ─────────────────────────────────────────────
-# DB helpers
-# ─────────────────────────────────────────────
-
-def _load_subscriptions(db) -> pd.DataFrame:
-    return db.fetch_df("""
-        SELECT
-            sa.name            AS artist_name,
-            sp.name            AS plan,
-            sp.price_monthly   AS price,
-            asub.status,
-            asub.cancel_at_period_end,
-            asub.current_period_start,
-            asub.current_period_end
-        FROM artist_subscriptions asub
-        JOIN subscription_plans sp  ON sp.id  = asub.plan_id
-        JOIN saas_artists        sa  ON sa.id  = asub.artist_id
-        ORDER BY sp.price_monthly DESC, sa.name
-    """)
-
-
-def _load_artist_revenues(db, artist_id: int) -> pd.DataFrame:
-    return db.fetch_df(
-        """
-        SELECT year, month, revenue_eur
-        FROM imusician_monthly_revenue
-        WHERE artist_id = %s
-        ORDER BY year ASC, month ASC
-        """,
-        (artist_id,),
-    )
-
-
-def _load_artists(db) -> pd.DataFrame:
-    return db.fetch_df(
-        "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
-    )
+# DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
+# (refactor R6 — calc/UI split). Imported above; call sites unchanged via aliases.
 
 
 # ─────────────────────────────────────────────
@@ -168,20 +140,14 @@ def _tab_projection(db) -> None:
 
     mrr_target = st.number_input("MRR cible (€) — ligne de référence", value=500.0, step=50.0)
 
-    # Build projection
-    mrr_vals, arr_vals, months_list = [], [], []
-    target_month = None
-    for t in range(months + 1):
-        mrr_t = mrr_0_custom * ((1 + growth_rate / 100) ** t)
-        if enterprise_on:
-            mrr_t += ent_price * min(t * ent_per_month, t * ent_per_month)
-        arr_t = mrr_t * 12
-        mrr_vals.append(round(mrr_t, 2))
-        arr_vals.append(round(arr_t, 2))
-        label = (datetime.today().replace(day=1) + relativedelta(months=t)).strftime('%Y-%m')
-        months_list.append(label)
-        if target_month is None and mrr_t >= mrr_target:
-            target_month = t
+    # Build projection (pure math extracted to utils.revenue_forecast.project_mrr)
+    proj = project_mrr(
+        mrr_0_custom, growth_rate, months,
+        enterprise_on=enterprise_on, ent_price=ent_price,
+        ent_per_month=ent_per_month, mrr_target=mrr_target,
+    )
+    months_list, mrr_vals, arr_vals, target_month = (
+        proj['months'], proj['mrr'], proj['arr'], proj['target_month'])
 
     proj_df = pd.DataFrame({'Mois': months_list, 'MRR (€)': mrr_vals, 'ARR (€)': arr_vals})
 
@@ -245,27 +211,19 @@ def _tab_ltv(db) -> None:
             help=f"Valeur estimée depuis les annulations en attente : {churn_from_db:.1f}%",
         )
 
-    ltv_global = arpu / (churn_rate / 100) if churn_rate > 0 else 0.0
+    ltv_val = ltv_global(arpu, churn_rate)
 
     c1, c2, c3 = st.columns(3)
     c1.metric("ARPU", f"{arpu:,.2f} €")
     c2.metric("Churn mensuel", f"{churn_rate:.1f}%")
-    c3.metric("LTV globale", f"{ltv_global:,.2f} €")
+    c3.metric("LTV globale", f"{ltv_val:,.2f} €")
 
     st.markdown("---")
     st.markdown("#### LTV par scénario de durée de rétention")
 
     plans = [('basic', 9.90), ('premium', 29.90)]
     durations = [6, 12, 24, 36]
-    ltv_rows = []
-    for plan_name, default_price in plans:
-        for d in durations:
-            ltv_rows.append({
-                'Plan': plan_name,
-                'Durée (mois)': d,
-                'LTV (€)': round(default_price * d, 2),
-            })
-    ltv_df = pd.DataFrame(ltv_rows)
+    ltv_df = pd.DataFrame(ltv_scenarios(plans, durations))
 
     fig = px.bar(
         ltv_df, x='LTV (€)', y='Durée (mois)', color='Plan',
