@@ -205,3 +205,108 @@ class TestExtractPerfGoal:
                             artist_id=1, goal=None)
         assert row["results"] == 4
         assert row["cpr"] == round(8.0 / 4, 4)  # unknown goal → conversion intent → CPR shown
+
+
+# ---------------------------------------------------------------------------
+# Per-chunk persistence (a late throttle must not discard earlier insights)
+# ---------------------------------------------------------------------------
+
+class _FakeDB:
+    """Records upserts / deletes without touching a real Postgres."""
+
+    def __init__(self):
+        self.upserts = []   # [(table, rows)]
+        self.deletes = []   # [(query, params)]
+
+    def upsert_many(self, table, data, conflict_columns=None, update_columns=None):
+        self.upserts.append((table, [dict(r) for r in data]))
+        return len(data)
+
+    def execute_query(self, query, params=None):
+        self.deletes.append((query, params))
+
+    def fetch_query(self, query, params=None):
+        return []
+
+
+def _bare_collector(db):
+    """Build a collector without running __init__ (no Meta creds / API needed)."""
+    from src.collectors.meta_ads_api_collector import MetaAdsApiCollector
+    c = MetaAdsApiCollector.__new__(MetaAdsApiCollector)
+    c.artist_id = 1
+    c.db = db
+    return c
+
+
+class TestPersistInsights:
+
+    def test_trims_unknown_columns_and_skips_empty(self):
+        db = _FakeDB()
+        c = _bare_collector(db)
+        c._persist_insights({
+            'meta_insights_performance_day': [{
+                'artist_id': 1, 'campaign_name': 'C', 'day_date': '2026-01-01',
+                'spend': 1.0, 'impressions': 10, 'reach': 8, 'results': 2,
+                'custom_conversions': 2, 'cpr': 0.5, 'collected_at': 'ts',
+                '_date': 'LEAK', 'frequency': 'LEAK',   # not in the table's column set
+            }],
+            'meta_insights_performance_age': [],          # empty → skipped
+        })
+        assert len(db.upserts) == 1                       # empty table not upserted
+        table, rows = db.upserts[0]
+        assert table == 'meta_insights_performance_day'
+        assert '_date' not in rows[0] and 'frequency' not in rows[0]
+        assert rows[0]['campaign_name'] == 'C'
+
+    def test_late_throttle_keeps_earlier_chunk(self):
+        from datetime import date, timedelta
+        db = _FakeDB()
+        c = _bare_collector(db)
+        c._build_goal_maps = lambda *a, **k: ({}, {}, {})
+        c._fetch_ad_insights = lambda *a, **k: []
+
+        calls = {'n': 0}
+
+        def fake_call_insights(since, until, breakdown=None, time_increment=None,
+                               goal_by_campaign=None):
+            calls['n'] += 1
+            if calls['n'] == 1:                           # first monthly chunk OK
+                return ([{'_date': since, 'artist_id': 1, 'campaign_name': 'C',
+                          'spend': 1.0, 'impressions': 10, 'reach': 8, 'results': 2,
+                          'custom_conversions': 2, 'cpr': 0.5}], [])
+            raise RuntimeError("Meta throttle (simulated) on chunk 2")
+
+        c._call_insights = fake_call_insights
+
+        # start_time ~70 days ago → at least two monthly chunks
+        start = (date.today().replace(day=1) - timedelta(days=70)).isoformat()
+        campaigns = [{'campaign_id': '1', 'campaign_name': 'C', 'start_time': start}]
+
+        with pytest.raises(RuntimeError):
+            c._fetch_all_insights(campaigns, full_history=True,
+                                  persist_cb=c._persist_insights)
+
+        # The first chunk was persisted BEFORE the throttle aborted the run.
+        persisted = {t for t, _ in db.upserts}
+        assert 'meta_insights_performance' in persisted
+        assert 'meta_insights_performance_day' in persisted
+
+
+class TestPruneRenamedCampaigns:
+
+    def test_empty_campaigns_is_noop(self):
+        db = _FakeDB()
+        _bare_collector(db)._prune_renamed_campaigns([])
+        assert db.deletes == []
+
+    def test_deletes_stale_names_across_campaign_grain_tables(self):
+        from src.collectors.meta_ads_api_collector import _CAMPAIGN_GRAIN_TABLES
+        db = _FakeDB()
+        c = _bare_collector(db)
+        c._prune_renamed_campaigns([
+            {'campaign_name': 'C2'}, {'campaign_name': 'C1'}, {'campaign_name': None},
+        ])
+        assert len(db.deletes) == len(_CAMPAIGN_GRAIN_TABLES)
+        for query, params in db.deletes:
+            assert 'DELETE FROM' in query and 'campaign_name <> ALL' in query
+            assert params == (1, ['C1', 'C2'])           # sorted, NULL dropped, scoped by artist_id

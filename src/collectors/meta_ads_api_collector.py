@@ -59,6 +59,19 @@ _ADSET_STATUSES = ['ACTIVE', 'PAUSED', 'CAMPAIGN_PAUSED', 'ARCHIVED',
 _AD_STATUSES = ['ACTIVE', 'PAUSED', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'ARCHIVED',
                 'IN_PROCESS', 'WITH_ISSUES']
 
+# Campaign-grain insight tables key by campaign_name (not campaign_id), so a campaign
+# RENAME orphans stale rows under the old name. Ad/adset-grain tables key by entity id
+# and are immune. _prune_renamed_campaigns deletes rows whose campaign_name is no longer
+# returned by the API; it is guarded against an empty fetch (never a mass delete).
+_CAMPAIGN_GRAIN_TABLES = frozenset({
+    'meta_insights_performance', 'meta_insights_performance_day',
+    'meta_insights_performance_age', 'meta_insights_performance_country',
+    'meta_insights_performance_placement',
+    'meta_insights_engagement', 'meta_insights_engagement_day',
+    'meta_insights_engagement_age', 'meta_insights_engagement_country',
+    'meta_insights_engagement_placement',
+})
+
 
 def _meta_retry(callable_fn, *args, max_retries: int = 4, **kwargs):
     """Call a facebook_business SDK method, retrying any throttle code with exponential backoff.
@@ -336,13 +349,20 @@ class MetaAdsApiCollector:
             if not fetch_creatives:
                 logger.info("  creative content fetch skipped (fetch_creatives=False)")
 
+            # Persist config tables up front, before the long insight fetch: a throttle
+            # mid-insights then can't discard the campaign/adset/ad/creative work.
+            self._upsert_config(campaigns, adsets, ads, creatives)
+            # Drop rows orphaned by a campaign rename (campaign-grain tables key by name).
+            self._prune_renamed_campaigns(campaigns)
+
         # adsets/ads (or DB fallback in insights_only) resolve each insight's optimization
         # goal → its native "result" action. See _build_goal_maps / _results_for_goal.
+        # persist_cb upserts each chunk/breakdown as it is fetched, so a late throttle
+        # keeps all earlier insights (no more all-or-nothing run).
         insights = self._fetch_all_insights(
             campaigns, adsets=adsets, ads=ads, full_history=full_history,
+            persist_cb=self._persist_insights,
         )
-
-        self._upsert_all(campaigns, adsets, ads, creatives, insights)
 
         total_insight_rows = sum(len(v) for v in insights.values())
         logger.info(
@@ -551,7 +571,8 @@ class MetaAdsApiCollector:
     # ── Fetch: insights (all 10 tables) ──────────────────────────────────────
 
     def _fetch_all_insights(self, campaigns: list, adsets: list = None,
-                            ads: list = None, full_history: bool = False) -> dict:
+                            ads: list = None, full_history: bool = False,
+                            persist_cb=None) -> dict:
         """Return {table_name: [rows]} for all 11 insight tables.
 
         Per time chunk: campaign daily/global + ad-level (meta_insights). Plus 3 aggregate
@@ -646,18 +667,32 @@ class MetaAdsApiCollector:
             'meta_insights_engagement_adset_age':        [],
         }
 
-        # 1. Global / daily (monthly chunks) + ad-level
+        # persist() upserts a stage's tables as soon as they are fetched (per-chunk
+        # durability); a no-op when no callback is supplied (keeps the fetch pure for tests).
+        def persist(partial):
+            if persist_cb:
+                persist_cb(partial)
+
+        # 1. Global / daily (monthly chunks) + ad-level — persisted per chunk so a late
+        #    throttle keeps every month already fetched.
         logger.info(f"  Fetching daily insights ({len(chunks)} monthly chunks)...")
         for since, until in chunks:
-            result['meta_insights'].extend(
+            chunk = {
+                'meta_insights':                 [],
+                'meta_insights_performance':     [],
+                'meta_insights_performance_day': [],
+                'meta_insights_engagement':      [],
+                'meta_insights_engagement_day':  [],
+            }
+            chunk['meta_insights'].extend(
                 self._fetch_ad_insights(since, until, goal_by_ad)
             )
             p, e = self._call_insights(since, until, breakdown=None, time_increment=1,
                                        goal_by_campaign=goal_by_campaign)
             for row in p:
                 row['date_start'] = row.pop('_date')
-                result['meta_insights_performance'].append(row)
-                day_row = {
+                chunk['meta_insights_performance'].append(row)
+                chunk['meta_insights_performance_day'].append({
                     'artist_id':          row['artist_id'],
                     'campaign_name':      row['campaign_name'],
                     'day_date':           row['date_start'],
@@ -668,14 +703,16 @@ class MetaAdsApiCollector:
                     'custom_conversions': row['custom_conversions'],
                     'cpr':                row['cpr'],
                     'collected_at':       datetime.now(timezone.utc),
-                }
-                result['meta_insights_performance_day'].append(day_row)
+                })
             for row in e:
                 row['date_start'] = row.pop('_date')
-                result['meta_insights_engagement'].append(row)
+                chunk['meta_insights_engagement'].append(row)
                 day_row = {k: v for k, v in row.items() if k != 'date_start'}
                 day_row['day_date'] = row['date_start']
-                result['meta_insights_engagement_day'].append(day_row)
+                chunk['meta_insights_engagement_day'].append(day_row)
+            persist(chunk)
+            for k, v in chunk.items():
+                result[k].extend(v)
 
         # 2. Age breakdown (full range, single call)
         logger.info("  Fetching age breakdown...")
@@ -689,6 +726,8 @@ class MetaAdsApiCollector:
         for row in e:
             row.pop('_date', None)
             result['meta_insights_engagement_age'].append(row)
+        persist({'meta_insights_performance_age': result['meta_insights_performance_age'],
+                 'meta_insights_engagement_age': result['meta_insights_engagement_age']})
 
         # 3. Country breakdown
         logger.info("  Fetching country breakdown...")
@@ -700,6 +739,8 @@ class MetaAdsApiCollector:
         for row in e:
             row.pop('_date', None)
             result['meta_insights_engagement_country'].append(row)
+        persist({'meta_insights_performance_country': result['meta_insights_performance_country'],
+                 'meta_insights_engagement_country': result['meta_insights_engagement_country']})
 
         # 4. Placement breakdown
         logger.info("  Fetching placement breakdown...")
@@ -714,6 +755,8 @@ class MetaAdsApiCollector:
         for row in e:
             row.pop('_date', None)
             result['meta_insights_engagement_placement'].append(row)
+        persist({'meta_insights_performance_placement': result['meta_insights_performance_placement'],
+                 'meta_insights_engagement_placement': result['meta_insights_engagement_placement']})
 
         # 5. Ad-level & adset-level breakdowns (full range, one call per dim×level —
         #    each call yields BOTH perf and engagement rows). Powers the Breakdowns view.
@@ -727,8 +770,11 @@ class MetaAdsApiCollector:
             for breakdown, suffix in _bd_dims:
                 logger.info(f"  Fetching {level} {suffix} breakdown...")
                 p, e = self._fetch_breakdown(since, until, level, id_field, breakdown, goal_map)
-                result[f'meta_insights_performance_{level}_{suffix}'] = p
-                result[f'meta_insights_engagement_{level}_{suffix}'] = e
+                pt = f'meta_insights_performance_{level}_{suffix}'
+                et = f'meta_insights_engagement_{level}_{suffix}'
+                result[pt] = p
+                result[et] = e
+                persist({pt: p, et: e})
 
         for tbl, rows in result.items():
             logger.info(f"    {tbl}: {len(rows)} rows")
@@ -934,14 +980,11 @@ class MetaAdsApiCollector:
 
     # ── Upsert ────────────────────────────────────────────────────────────────
 
-    def _upsert_all(
-        self,
-        campaigns: list,
-        adsets: list,
-        ads: list,
-        creatives: list,
-        insights: dict,
-    ):
+    def _upsert_config(self, campaigns: list, adsets: list, ads: list, creatives: list):
+        """Upsert the 4 config tables (campaigns/adsets/ads + creative enrichment).
+
+        Called before the insight fetch so a later throttle cannot discard config work.
+        """
         try:
             if campaigns:
                 self.db.upsert_many(
@@ -992,10 +1035,45 @@ class MetaAdsApiCollector:
                         """,
                         cr,
                     )
+        except Exception:
+            logger.exception("_upsert_config failed")
+            raise
 
-            # Insight tables
-            # Columns allowed in each insight table (INSERT uses only these keys)
-            _insight_cols = {
+    def _prune_renamed_campaigns(self, campaigns: list):
+        """Delete campaign-grain insight rows whose campaign_name no longer exists.
+
+        Campaign-grain tables key by campaign_name, so a campaign RENAME orphans stale
+        rows under the old name (ad/adset grains key by id and are immune). Guarded: an
+        empty campaign list (failed/partial fetch) is a no-op — never a mass delete.
+        """
+        from src.database.postgres_handler import validate_table
+        names = sorted({c['campaign_name'] for c in campaigns if c.get('campaign_name')})
+        if not names:
+            return
+        try:
+            for tbl in _CAMPAIGN_GRAIN_TABLES:
+                validate_table(tbl)
+                self.db.execute_query(
+                    f"DELETE FROM {tbl} WHERE artist_id = %s AND campaign_name <> ALL(%s)",
+                    (self.artist_id, names),
+                )
+            logger.info(
+                f"  campaign-name prune ran across {len(_CAMPAIGN_GRAIN_TABLES)} "
+                f"campaign-grain tables ({len(names)} current campaigns)"
+            )
+        except Exception:
+            logger.exception("_prune_renamed_campaigns failed")
+            raise
+
+    @staticmethod
+    def _insight_upsert_maps() -> tuple:
+        """Return (insight_cols, conflict_cols) for every insight table.
+
+        Single source of truth for the upsert column/key config, shared by the
+        per-chunk persistence path (_persist_insights).
+        """
+        # Columns allowed in each insight table (INSERT uses only these keys)
+        _insight_cols = {
                 'meta_insights_performance': [
                     'spend', 'impressions', 'reach', 'frequency', 'results',
                     'custom_conversions', 'cpr', 'cpm', 'link_clicks', 'cpc', 'ctr', 'lp_views',
@@ -1039,46 +1117,55 @@ class MetaAdsApiCollector:
                 ],
             }
 
-            _conflict_cols = {
-                'meta_insights_performance':           ['artist_id', 'campaign_name', 'date_start'],
-                'meta_insights_performance_day':       ['artist_id', 'campaign_name', 'day_date'],
-                'meta_insights_performance_age':       ['artist_id', 'campaign_name', 'age_range'],
-                'meta_insights_performance_country':   ['artist_id', 'campaign_name', 'country'],
-                'meta_insights_performance_placement': ['artist_id', 'campaign_name', 'platform', 'placement'],
-                'meta_insights_engagement':            ['artist_id', 'campaign_name', 'date_start'],
-                'meta_insights_engagement_day':        ['artist_id', 'campaign_name', 'day_date'],
-                'meta_insights_engagement_age':        ['artist_id', 'campaign_name', 'age_range'],
-                'meta_insights_engagement_country':    ['artist_id', 'campaign_name', 'country'],
-                'meta_insights_engagement_placement':  ['artist_id', 'campaign_name', 'platform', 'placement'],
-                'meta_insights':                       ['artist_id', 'ad_id', 'date'],
-            }
+        _conflict_cols = {
+            'meta_insights_performance':           ['artist_id', 'campaign_name', 'date_start'],
+            'meta_insights_performance_day':       ['artist_id', 'campaign_name', 'day_date'],
+            'meta_insights_performance_age':       ['artist_id', 'campaign_name', 'age_range'],
+            'meta_insights_performance_country':   ['artist_id', 'campaign_name', 'country'],
+            'meta_insights_performance_placement': ['artist_id', 'campaign_name', 'platform', 'placement'],
+            'meta_insights_engagement':            ['artist_id', 'campaign_name', 'date_start'],
+            'meta_insights_engagement_day':        ['artist_id', 'campaign_name', 'day_date'],
+            'meta_insights_engagement_age':        ['artist_id', 'campaign_name', 'age_range'],
+            'meta_insights_engagement_country':    ['artist_id', 'campaign_name', 'country'],
+            'meta_insights_engagement_placement':  ['artist_id', 'campaign_name', 'platform', 'placement'],
+            'meta_insights':                       ['artist_id', 'ad_id', 'date'],
+        }
 
-            # Ad/adset-level breakdown tables share column sets — generate their 12 entries.
-            _perf_bd_cols = ['spend', 'impressions', 'reach', 'results', 'custom_conversions', 'cpr']
-            _eng_bd_cols = ['page_interactions', 'post_reactions', 'comments',
-                            'saves', 'shares', 'link_clicks', 'post_likes']
-            _bd_dim_keys = {'country': ['country'],
-                            'placement': ['platform', 'placement'],
-                            'age': ['age_range']}
-            for _lvl, _idf in (('ad', 'ad_id'), ('adset', 'adset_id')):
-                for _dim, _dimcols in _bd_dim_keys.items():
-                    _key = ['artist_id', _idf, *_dimcols]
-                    _insight_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _perf_bd_cols
-                    _insight_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _eng_bd_cols
-                    _conflict_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _key
-                    _conflict_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _key
+        # Ad/adset-level breakdown tables share column sets — generate their 12 entries.
+        _perf_bd_cols = ['spend', 'impressions', 'reach', 'results', 'custom_conversions', 'cpr']
+        _eng_bd_cols = ['page_interactions', 'post_reactions', 'comments',
+                        'saves', 'shares', 'link_clicks', 'post_likes']
+        _bd_dim_keys = {'country': ['country'],
+                        'placement': ['platform', 'placement'],
+                        'age': ['age_range']}
+        for _lvl, _idf in (('ad', 'ad_id'), ('adset', 'adset_id')):
+            for _dim, _dimcols in _bd_dim_keys.items():
+                _key = ['artist_id', _idf, *_dimcols]
+                _insight_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _perf_bd_cols
+                _insight_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _eng_bd_cols
+                _conflict_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _key
+                _conflict_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _key
 
+        return _insight_cols, _conflict_cols
+
+    def _persist_insights(self, insights: dict):
+        """Upsert a subset of insight tables (per-chunk durability).
+
+        Called after each fetched chunk/breakdown so a later throttle never discards
+        already-fetched insights — replaces the old all-or-nothing end-of-run upsert.
+        """
+        try:
+            insight_cols, conflict_cols = self._insight_upsert_maps()
             for tbl, rows in insights.items():
                 if not rows:
                     continue
-                allowed = set(_conflict_cols[tbl]) | set(_insight_cols[tbl])
+                allowed = set(conflict_cols[tbl]) | set(insight_cols[tbl])
                 trimmed = [{k: v for k, v in r.items() if k in allowed} for r in rows]
                 self.db.upsert_many(
                     tbl, trimmed,
-                    conflict_columns=_conflict_cols[tbl],
-                    update_columns=_insight_cols[tbl],
+                    conflict_columns=conflict_cols[tbl],
+                    update_columns=insight_cols[tbl],
                 )
-
         except Exception:
-            logger.exception("_upsert_all failed")
+            logger.exception("_persist_insights failed")
             raise

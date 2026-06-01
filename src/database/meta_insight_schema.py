@@ -233,7 +233,7 @@ META_INSIGHT_SCHEMA = {
     # and intentionally NOT duplicated here — this dict is documentation-only (tables are
     # created via `make migrate`, never from this module), so a second copy would only risk drift.
     # They are keyed by ad_id/adset_id (FK to meta_ads/meta_adsets) and registered in
-    # postgres_handler._ALLOWED_TABLES + the collector's _upsert_all dicts.
+    # postgres_handler._ALLOWED_TABLES + the collector's _insight_upsert_maps dicts.
 }
 
 
