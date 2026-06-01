@@ -103,6 +103,16 @@ rex:
     fix: "Added PI line (track_popularity_history) on the % axis + a 28d gate panel (s4a_songs_global snapshot) vs data-validated thresholds (DW 9200/4100)"
     severity: "info"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-06-01
+    issue: "A NULL in a numeric column loads as object dtype → arithmetic + .round() raised 'Expected numeric dtype, got object'"
+    fix: "Coerce every DB numeric column with pd.to_numeric(errors='coerce') (+fillna/where) BEFORE arithmetic/.round(); render-smoke catches live NULLs. Class object-dtype-numeric-op"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-01"
+  - date: 2026-06-01
+    issue: "Mixed-offset ISO timestamp strings → pd.to_datetime/px.timeline raised 'Cannot mix tz-aware with tz-naive values'"
+    fix: "Normalise heterogeneous datetime string columns at source: pd.to_datetime(col, utc=True, errors='coerce').dt.tz_localize(None). Class tz-aware-naive-mix"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-01"
 ---
 
 # Skill: Dashboard View
@@ -279,6 +289,36 @@ convention, not a function.
 For a list derived from an already-fetched DataFrame, carry the recency column and
 `df.sort_values(recency, ascending=False, na_position='last')[label].drop_duplicates()`.
 Precedents: `meta_breakdowns.py` cascade, `meta_creatives.py` campaign/creative pickers.
+
+### 10. Coerce DB numerics before arithmetic (`object` dtype crash)
+
+A numeric column with **any** NULL row loads as pandas `object` dtype; subsequent
+arithmetic + `Series.round(n)` then raises `TypeError: Expected numeric dtype, got
+object instead.` at render. Data-dependent — green until a row goes NULL (LEFT JOIN,
+empty window, a model that failed to score).
+
+Coerce **every** DB numeric column before any arithmetic/`.round()`:
+```python
+likes = pd.to_numeric(df["likes_count"], errors="coerce").fillna(0)
+pc    = pd.to_numeric(df["playback_count"], errors="coerce")
+df["eng_rate"] = (likes / pc.where(pc != 0) * 100).round(1)   # 0/NULL → NaN, never crashes
+```
+Precedents: `soundcloud.py` eng_rate, `revenue_forecast.py` ML probs. Error class
+`object-dtype-numeric-op`; the render-smoke harness is the net.
+
+### 11. Normalise heterogeneous datetime columns to naive-UTC at source
+
+A column of ISO timestamp strings where some carry a tz offset (`+00:00`) and some are
+naive (older rows) makes `pd.to_datetime(series)` **and** Plotly datetime coercion
+(`px.timeline`, scatter x) raise `ValueError: Cannot mix tz-aware with tz-naive values,
+at position N`. Normalise **once, at the point you build the column** — not per chart:
+```python
+for col in ("start_date", "end_date"):
+    df[col] = pd.to_datetime(df[col], utc=True, errors="coerce").dt.tz_localize(None)
+```
+`utc=True` unifies the offsets; `.dt.tz_localize(None)` drops the tz so every consumer
+sees plain naive-UTC. Precedent: `airflow_kpi.py` `df_runs`. Error class
+`tz-aware-naive-mix` (sibling of Pitfall #5). 
 
 ---
 
