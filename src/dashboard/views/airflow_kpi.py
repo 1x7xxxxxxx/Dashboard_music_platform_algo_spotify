@@ -445,7 +445,17 @@ def show():
             st.error("❌ API Airflow injoignable.")
             return
 
-        df_runs = af_data['raw_data']
+        df_runs = af_data['raw_data'].copy()
+
+        # Run timestamps arrive as ISO strings; some carry a tz offset (+00:00) and some
+        # are naive (older rows), so pd.to_datetime / px.timeline raise "Cannot mix
+        # tz-aware with tz-naive values". Coerce both columns to naive-UTC once so every
+        # downstream consumer (timeline + daily trend) is safe.
+        for _col in ('start_date', 'end_date'):
+            if _col in df_runs.columns:
+                df_runs[_col] = pd.to_datetime(
+                    df_runs[_col], utc=True, errors='coerce'
+                ).dt.tz_localize(None)
 
         if not df_runs.empty:
             stats_tech = []

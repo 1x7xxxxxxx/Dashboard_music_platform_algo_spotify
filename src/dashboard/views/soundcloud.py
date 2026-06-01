@@ -185,11 +185,15 @@ def show():
         st.subheader("🏆 Top Titres")
         if not df_latest.empty:
             df_top = df_latest.copy()
-            _eng = (df_top['likes_count'] + df_top['reposts_count']
-                    + df_top['comment_count'])
-            df_top['eng_total'] = _eng
-            _pc = df_top['playback_count'].replace(0, pd.NA)
-            df_top['eng_rate'] = (_eng / _pc * 100).round(1)
+            # Coerce to numeric first: a NULL in any count makes the column object dtype,
+            # so the raw arithmetic + .round(1) raised "Expected numeric dtype, got object".
+            _likes = pd.to_numeric(df_top['likes_count'], errors='coerce').fillna(0)
+            _reposts = pd.to_numeric(df_top['reposts_count'], errors='coerce').fillna(0)
+            _comments = pd.to_numeric(df_top['comment_count'], errors='coerce').fillna(0)
+            _pc = pd.to_numeric(df_top['playback_count'], errors='coerce')
+            _eng = _likes + _reposts + _comments
+            df_top['eng_total'] = _eng.astype(int)
+            df_top['eng_rate'] = (_eng / _pc.where(_pc != 0) * 100).round(1)
             df_top['days_since'] = (
                 pd.Timestamp.now() - pd.to_datetime(df_top['track_created_at'])
             ).dt.days
