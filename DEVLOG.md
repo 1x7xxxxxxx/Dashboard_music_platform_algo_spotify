@@ -1312,3 +1312,9 @@ Suite logique de la re-dérivation : transformer les *découvertes* du `COMPARIS
 
 ### Tests
 `PYTHONPATH=. python3 -m pytest tests/ -q` → **302 passed**. `ruff check src/ tests/ machine_learning/` clean. `render_lever_sensitivity` vérifié headless (AppTest, selectbox OK). Export lifecycle v2 régénéré et vérifié (médianes non nulles, RR limité aux bins précoces). **À appliquer :** `make migrate` (migration 041) pour activer le benchmark v2 en prod.
+
+### Déploiement (2026-06-05, exécuté)
+- Commit `76ace9b` (tout le workstream ML v3 + features ; pre-commit hooks verts).
+- Stack démarrée (`docker-compose up -d`) ; `make migrate` appliqué → **benchmark lifecycle v2 LIVE** (14 lignes `dataset_version='v2'`, toutes avec `total_stream_median` peuplé, vs v1 0/18). Le loader sert maintenant v2.
+- Conteneur Airflow vérifié : `MODEL_VERSION=v3`, 8 modèles montés (dont `rr_premiere_classifier.ubj`). `score_song` + `estimate_rr_prerelease` produisent la bonne sortie v3 in-container (DW volume `None`, RR/Radio via expm1, estimateur OK).
+- `ml_scoring_daily` dépausé + déclenché → **success**, mais **0 ligne écrite** : les streams s'arrêtent au **2026-03-29** (>35 j avant le 2026-06-05) → aucun titre « actif » (fenêtre `CURRENT_DATE-35`). **Pas un bug** : les prédictions v3 se peupleront automatiquement dès qu'une collecte S4A fraîche aura lieu (le dashboard montre encore les 22 lignes v1_noscaler de 2026-04-03 d'ici là). Non trafiqué (forcer l'horloge donnerait des features à zéro).
