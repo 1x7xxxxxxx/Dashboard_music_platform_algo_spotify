@@ -40,7 +40,10 @@ def main() -> None:
         if missing:
             raise SystemExit(f"fixture {label!r} missing features: {missing}")
         out = score_song(features)
-        if any(v is None for v in out.values()):
+        # dw_streams_forecast_7d is intentionally None in v3 (DW volume suppressed,
+        # R²<0). Any OTHER None means the models failed to load.
+        _suppressed = {"dw_streams_forecast_7d"}
+        if any(v is None for k, v in out.items() if k not in _suppressed):
             raise SystemExit(
                 f"fixture {label!r} produced None — models not loaded. "
                 "Make sure xgboost is installed and machine_learning/models/ "

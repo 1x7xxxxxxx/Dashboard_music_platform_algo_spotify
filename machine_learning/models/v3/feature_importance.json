@@ -1,0 +1,164 @@
+{
+  "dw": [
+    {
+      "feature": "NonAlgoStreams28Days_log",
+      "gain": 0.2943
+    },
+    {
+      "feature": "ReleasePhaseEarly",
+      "gain": 0.11
+    },
+    {
+      "feature": "StreamsLast7Days_log",
+      "gain": 0.0992
+    },
+    {
+      "feature": "PlaylistAddsLast28Days_adj",
+      "gain": 0.0787
+    },
+    {
+      "feature": "DaysSinceRelease",
+      "gain": 0.07
+    },
+    {
+      "feature": "Velocity_Streams",
+      "gain": 0.0674
+    },
+    {
+      "feature": "IsThisSongOptedIntoSpotifyDiscoveryMode",
+      "gain": 0.0527
+    },
+    {
+      "feature": "SavesLast28Days_adj",
+      "gain": 0.0447
+    },
+    {
+      "feature": "ReleaseConsistencyNum",
+      "gain": 0.0433
+    },
+    {
+      "feature": "CurrentSpotifyFollowers_log",
+      "gain": 0.0375
+    },
+    {
+      "feature": "HowManySongsDoYouHaveInRadioRightNow",
+      "gain": 0.035
+    },
+    {
+      "feature": "ListenersStreamRatio28Days_adj",
+      "gain": 0.0341
+    },
+    {
+      "feature": "HowManySongsHasThisArtistEverReleased",
+      "gain": 0.033
+    }
+  ],
+  "rr": [
+    {
+      "feature": "ReleasePhaseEarly",
+      "gain": 0.4176
+    },
+    {
+      "feature": "DaysSinceRelease",
+      "gain": 0.1773
+    },
+    {
+      "feature": "HowManySongsDoYouHaveInRadioRightNow",
+      "gain": 0.0842
+    },
+    {
+      "feature": "CurrentSpotifyFollowers_log",
+      "gain": 0.0725
+    },
+    {
+      "feature": "SavesLast28Days_adj",
+      "gain": 0.05
+    },
+    {
+      "feature": "ReleaseConsistencyNum",
+      "gain": 0.0395
+    },
+    {
+      "feature": "Velocity_Streams",
+      "gain": 0.0352
+    },
+    {
+      "feature": "StreamsLast7Days_log",
+      "gain": 0.0299
+    },
+    {
+      "feature": "PlaylistAddsLast28Days_adj",
+      "gain": 0.0295
+    },
+    {
+      "feature": "NonAlgoStreams28Days_log",
+      "gain": 0.0224
+    },
+    {
+      "feature": "ListenersStreamRatio28Days_adj",
+      "gain": 0.0218
+    },
+    {
+      "feature": "HowManySongsHasThisArtistEverReleased",
+      "gain": 0.0202
+    },
+    {
+      "feature": "IsThisSongOptedIntoSpotifyDiscoveryMode",
+      "gain": 0.0
+    }
+  ],
+  "radio": [
+    {
+      "feature": "StreamsLast7Days_log",
+      "gain": 0.2271
+    },
+    {
+      "feature": "NonAlgoStreams28Days_log",
+      "gain": 0.1275
+    },
+    {
+      "feature": "ListenersStreamRatio28Days_adj",
+      "gain": 0.0838
+    },
+    {
+      "feature": "Velocity_Streams",
+      "gain": 0.0768
+    },
+    {
+      "feature": "DaysSinceRelease",
+      "gain": 0.0751
+    },
+    {
+      "feature": "CurrentSpotifyFollowers_log",
+      "gain": 0.067
+    },
+    {
+      "feature": "PlaylistAddsLast28Days_adj",
+      "gain": 0.0669
+    },
+    {
+      "feature": "HowManySongsHasThisArtistEverReleased",
+      "gain": 0.058
+    },
+    {
+      "feature": "ReleaseConsistencyNum",
+      "gain": 0.0511
+    },
+    {
+      "feature": "ReleasePhaseEarly",
+      "gain": 0.0479
+    },
+    {
+      "feature": "HowManySongsDoYouHaveInRadioRightNow",
+      "gain": 0.0404
+    },
+    {
+      "feature": "SavesLast28Days_adj",
+      "gain": 0.0395
+    },
+    {
+      "feature": "IsThisSongOptedIntoSpotifyDiscoveryMode",
+      "gain": 0.0391
+    }
+  ]
+}

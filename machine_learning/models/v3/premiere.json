@@ -1,0 +1,25 @@
+{
+  "features": [
+    "CurrentSpotifyFollowers_log",
+    "HowManySongsHasThisArtistEverReleased",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode",
+    "ReleaseConsistencyNum",
+    "DaysSinceRelease",
+    "ReleasePhaseEarly"
+  ],
+  "calibration": {
+    "coef": 4.209422510600936,
+    "intercept": -2.6554190902687984
+  },
+  "cv": {
+    "auc": 0.923,
+    "auc_ci": [
+      0.878,
+      0.961
+    ],
+    "ap": 0.744
+  },
+  "positives": 100,
+  "n": 508,
+  "note": "Release-day metadata-only RR estimator (no streams). group-CV by NameID, OOF-Platt calibration."
+}

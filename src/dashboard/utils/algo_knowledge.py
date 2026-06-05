@@ -522,14 +522,33 @@ ALGO_VOLUME_ZONES = {
     "RADIO": RADIO_VOLUME_ZONES,
 }
 
-# ── Calibration bands (Discover Weekly) ───────────────────────────────────────
-# Raw classifier score → real-world reliability, read off the calibration curve.
+# ── Calibration bands (DW / RR / RADIO) ───────────────────────────────────────
+# Calibrated score → real-world reliability, measured empirically on out-of-fold
+# group-CV predictions of v3 (analysis/05_calibration_bands.py). v3's Platt
+# calibration is fit on OOF predictions (not the test split), so the calibrated
+# probabilities track reality well — most bands now read "fiable" instead of the old
+# v1 over-confidence warnings. RR and RADIO are populated (closes the open item).
 ALGO_CALIBRATION_BANDS = {
     "DW": [
-        (0.0, 0.2, "⚠️ Sur-confiance sur les flops : fiabilité réelle proche de 0%."),
-        (0.2, 0.4, "Sous-estimé : réussite réelle ~50-65% (mieux que le score affiché)."),
-        (0.4, 0.7, "Zone intermédiaire : fiabilité variable, à confirmer."),
-        (0.7, 1.01, "⚠️ Sur-confiance : un score ~0.85 ne vaut qu'~50% de réussite réelle."),
+        (0.0, 0.2, "Fiable : score ≈ réalité (réussite observée ~7%, n=384)."),
+        (0.2, 0.4, "Fiable : score ≈ réalité (réussite observée ~35%, n=23)."),
+        (0.4, 0.6, "Sous-estimé : réussite réelle ~69% (mieux que le score affiché)."),
+        (0.6, 0.8, "Fiable : score ≈ réalité (réussite observée ~66%, n=59)."),
+        (0.8, 1.01, "Fiable : score ≈ réalité (réussite observée ~92%, n=13)."),
+    ],
+    "RR": [
+        (0.0, 0.2, "Fiable : score ≈ réalité (réussite observée ~7%, n=395)."),
+        (0.2, 0.4, "Fiable : score ≈ réalité (réussite observée ~30%, n=20)."),
+        (0.4, 0.6, "Fiable : score ≈ réalité (réussite observée ~50%, n=26)."),
+        (0.6, 0.8, "Fiable : score ≈ réalité (réussite observée ~71%, n=41)."),
+        (0.8, 1.01, "Fiable : score ≈ réalité (réussite observée ~96%, n=26)."),
+    ],
+    "RADIO": [
+        (0.0, 0.2, "Fiable : score ≈ réalité (réussite observée ~6%, n=209)."),
+        (0.2, 0.4, "Sous-estimé : réussite réelle ~55% (mieux que le score affiché)."),
+        (0.4, 0.6, "Fiable : score ≈ réalité (réussite observée ~56%, n=27)."),
+        (0.6, 0.8, "Fiable : score ≈ réalité (réussite observée ~59%, n=51)."),
+        (0.8, 1.01, "Fiable : score ≈ réalité (réussite observée ~90%, n=168)."),
     ],
 }
 
@@ -539,47 +558,54 @@ ALGO_CALIBRATION_BANDS = {
 # safe). Consequence: the forecast must be read as a conservative FLOOR (worst-case),
 # never a ceiling. These numbers feed the "hungry model" badge + the floor disclaimer.
 ALGO_REGRESSOR_METRICS = {
+    # v3 (2026-06-05): R² recomputed by GroupKFold on a log1p target. DW volume is
+    # NOT predictable (R²<0 — worse than predicting the mean), so it is now suppressed
+    # like RR. The honest group-CV killed the optimistic v1 numbers (DW 0.366, Radio
+    # 0.63) that came from a leaky random split.
     "DW": {
-        "model_version": "v1", "train_n": 300, "mrd_pct": 347.99,
-        "best_n_estimators": 143, "bias": "under",
+        "model_version": "v3", "train_n": 508, "r2": -0.08, "bias": "noise",
+        "volume_reliable": False,
+        "suppressed_note": (
+            "Drapeau levé ✅ — mais le VOLUME Discover Weekly n'est pas prédictible "
+            "(R²<0 en validation honnête : pire qu'une simple moyenne). On s'appuie sur la "
+            "classification (AUC 0.92) et les leviers (saves, playlist-adds), pas sur une "
+            "prévision de streams."
+        ),
         "interpretation": (
-            "Régresseur très conservateur : il sous-estime systématiquement les gros "
-            "succès (ex. 12 000 streams réels prédits ~1 500). À lire comme un PLANCHER "
-            "(pire cas), jamais un plafond. Erreur relative (MRD) ~348 % et ~300 titres "
-            "d'entraînement seulement → précision en hausse à mesure que le dataset grandit."
+            "Régresseur de volume DW NON fiable : R²<0 en group-CV (la cible volume est "
+            "dominée par quelques outliers viraux). Volume masqué des surfaces utilisateur ; "
+            "conservé en diagnostic uniquement. La classification, elle, reste solide."
         ),
     },
     "RADIO": {
-        "model_version": "v1", "train_n": 300, "r2": 0.63, "bias": "under",
+        "model_version": "v3", "train_n": 508, "r2": 0.33, "bias": "under",
         "interpretation": (
-            "Régresseur Radio robuste (R²=0.63) mais conservateur : il refuse de parier "
-            "sur la viralité extrême — un hit réel à +400 000 streams a été largement "
-            "sous-estimé. À lire comme un VOLUME DE CROISIÈRE plancher, jamais un plafond : "
-            "les emballements externes (TikTok, sync) sont hors-modèle. La learning curve "
-            "montre un écart train/validation qui se resserre avec les données → précision "
-            "croissante au-delà de ~300 titres."
+            "Régresseur Radio le moins mauvais des trois (R²=0.33 en validation honnête "
+            "par chanson, cible log) mais reste faible : à lire comme un PLANCHER de volume "
+            "de croisière, jamais un plafond. Les emballements externes (TikTok, sync) sont "
+            "hors-modèle. v1 affichait R²=0.63 — c'était un mirage de split aléatoire fuité."
         ),
     },
-    # RR volume is NOT reliably predictable (R²=0.32) — driven by notification open-rate
-    # (a human/chaotic Friday-morning factor), not by the algorithm. SHAP is a flat line
-    # at zero broken by 2-3 outliers; every lever (followers, recent streams, saves,
-    # playlist-adds) is flat. `volume_reliable: False` gates the forecast OUT of every
-    # user-facing surface — RR ships as classification-only (AUC 0.96). The regression
-    # artifacts stay in the admin model-perf tab + the diagnostic scatter as honest
-    # "R²=0.32 — diagnostic, not a forecast" evidence.
+    # RR volume is NOT reliably predictable (R²=0.23 group-CV) — driven by notification
+    # open-rate (a human/chaotic Friday-morning factor), not by the algorithm. Every
+    # lever (followers, recent streams, saves, playlist-adds) is flat. `volume_reliable:
+    # False` gates the forecast OUT of every user-facing surface — RR ships as
+    # classification-only (AUC 0.94). The regression artifacts stay in the admin
+    # model-perf tab + the diagnostic scatter as honest "diagnostic, not a forecast".
     "RR": {
-        "model_version": "v1", "train_n": 300, "r2": 0.32, "bias": "noise",
+        "model_version": "v3", "train_n": 508, "r2": 0.23, "bias": "noise",
         "volume_reliable": False,
         "suppressed_note": (
-            "Abonnés notifiés ✅ — le volume Release Radar n'est PAS prédictible : il dépend "
-            "du taux d'ouverture des notifications (facteur humain), pas de l'algorithme. "
-            "On s'appuie sur la classification (AUC 0.96), pas sur une prévision de streams/€."
+            "Abonnés notifiés ✅ — le volume Release Radar n'est PAS prédictible (R²=0.23 en "
+            "validation honnête) : il dépend du taux d'ouverture des notifications (facteur "
+            "humain), pas de l'algorithme. On s'appuie sur la classification (AUC 0.94), "
+            "pas sur une prévision de streams/€."
         ),
         "interpretation": (
-            "Régresseur Release Radar NON fiable (R²=0.32) : il cherche de la logique dans "
-            "du bruit. Cassé par 2-3 outliers viraux, il prédit même des volumes négatifs sur "
-            "de vrais hits. Volume masqué des surfaces utilisateur pour éviter de fausses "
-            "promesses financières ; conservé ici comme diagnostic uniquement."
+            "Régresseur Release Radar NON fiable (R²=0.23 en validation honnête) : il cherche "
+            "de la logique dans du bruit. Cassé par 2-3 outliers viraux. Volume masqué des "
+            "surfaces utilisateur pour éviter de fausses promesses financières ; conservé ici "
+            "comme diagnostic uniquement."
         ),
     },
 }
@@ -591,45 +617,52 @@ FORECAST_FLOOR_DISCLAIMER = (
 )
 
 # ── Classification scorecard metrics ──────────────────────────────────────────
+# v3 (2026-06-05): all fields recomputed from out-of-fold group-CV by song
+# (StratifiedGroupKFold on NameID, 5×3) — not a single random split (30.7% of rows
+# are repeat songs → a random split leaks the same song into train+test). Confusion
+# at calibrated-prob threshold 0.5. `auc_ci` = 2.5–97.5% band over folds (N=508 is
+# small → the band is wide and must be shown). Source: analysis/06_scorecard_metrics.py.
 ALGO_MODEL_METRICS = {
     "DW": {
-        "model_version": "v1", "test_n": 102,
-        "confusion": {"TN": 74, "FP": 5, "FN": 11, "TP": 12},
-        "auc": 0.878, "f1": 0.60, "accuracy": 0.843,
-        "precision": 0.705, "recall": 0.521, "pr_ap": 0.77, "lift_top10": 3.5,
-        "baseline_accuracy": 0.774,
+        "model_version": "v3", "test_n": 508, "eval": "group-CV (OOF)",
+        "confusion": {"TN": 379, "FP": 25, "FN": 38, "TP": 66},
+        "auc": 0.917, "auc_ci": [0.846, 0.977], "f1": 0.677, "accuracy": 0.876,
+        "precision": 0.725, "recall": 0.635, "pr_ap": 0.746, "lift_top10": 3.8,
+        "baseline_accuracy": 0.795,
         "interpretation": (
-            "Quand le modèle lève le drapeau, il a raison ~7 fois sur 10 (précision 70%), "
-            "mais il rate ~48% des hits (recall 52%). AUC 0.88 = bon pouvoir de classement. "
-            "Piège : l'accuracy 84% n'est que +7 pts vs un modèle qui prédirait toujours "
-            "« échec » (77%)."
+            "AUC 0.917 [0.85–0.98] en validation honnête par chanson. Discover Weekly est "
+            "un modèle de LEVIERS : sans regarder les streams, sa performance tient presque "
+            "(AUC 0.91) — le signal vient des Saves et des PlaylistAdds. Pousser les saves "
+            "fait donc réellement bouger les chances DW (le cadre marketing est justifié). "
+            "Quand il lève le drapeau il a raison ~7 fois sur 10 (précision 73%) et capte "
+            "64% des hits. Bande de confiance large : N=508, lire ±0.06 sur l'AUC."
         ),
     },
     "RR": {
-        "model_version": "v1", "test_n": 102,
-        "confusion": {"TN": 76, "FP": 6, "FN": 4, "TP": 16},
-        "auc": 0.961, "f1": 0.762, "accuracy": 0.902,
-        "precision": 0.727, "recall": 0.80, "pr_ap": 0.88, "lift_top10": 5.1,
-        "baseline_accuracy": 0.804,
+        "model_version": "v3", "test_n": 508, "eval": "group-CV (OOF)",
+        "confusion": {"TN": 388, "FP": 20, "FN": 39, "TP": 61},
+        "auc": 0.936, "auc_ci": [0.901, 0.979], "f1": 0.674, "accuracy": 0.884,
+        "precision": 0.753, "recall": 0.61, "pr_ap": 0.80, "lift_top10": 4.6,
+        "baseline_accuracy": 0.803,
         "interpretation": (
-            "AUC 0.961 = sniper : quand il dit « Release Radar », il a ~73% de raison "
-            "(précision) et capte 80% des hits (recall). Lift top-décile ×5.1 = un label "
-            "qui investit en Meta Ads sur ses prédictions multiplie par 5 ses chances de "
-            "ROI vs un tir à l'aveugle. Piège accuracy modéré : 90% vs 80% (toujours-échec) "
-            "— la fenêtre RR est rare, d'où une base déséquilibrée."
+            "AUC 0.936 [0.90–0.98] — et surtout une VRAIE prévision : Release Radar reste à "
+            "AUC 0.92 à partir des seules métadonnées de sortie (ancienneté, taille de "
+            "l'artiste), sans aucun stream. Tu peux donc annoncer les chances RR dès le jour "
+            "de sortie, avant la moindre écoute — c'est un outil de planification. Lift "
+            "top-décile ×4.6 : investir en Meta Ads sur ses prédictions multiplie le ROI."
         ),
     },
     "RADIO": {
-        "model_version": "v1", "test_n": 102,
-        "confusion": {"TN": 47, "FP": 7, "FN": 7, "TP": 41},
-        "auc": 0.941, "f1": 0.854, "accuracy": 0.863,
-        "precision": 0.854, "recall": 0.854, "pr_ap": None, "lift_top10": 2.1,
-        "baseline_accuracy": 0.529,
+        "model_version": "v3", "test_n": 508, "eval": "group-CV (OOF)",
+        "confusion": {"TN": 227, "FP": 42, "FN": 49, "TP": 190},
+        "auc": 0.925, "auc_ci": [0.882, 0.967], "f1": 0.807, "accuracy": 0.821,
+        "precision": 0.819, "recall": 0.795, "pr_ap": 0.915, "lift_top10": 2.0,
+        "baseline_accuracy": 0.53,
         "interpretation": (
-            "AUC 0.941 = discrimination quasi parfaite : quand il dit « Radio », tu peux "
-            "y aller. Jeu de test équilibré (54 échecs / 48 succès) → l'accuracy 86% est un "
-            "vrai gain vs 53% (toujours-échec), contrairement au DW. Symétrie des erreurs "
-            "(7 FP / 7 FN)."
+            "AUC 0.925 [0.88–0.97], base équilibrée (47% de hits) → AP 0.92 très élevé. "
+            "MAIS Radio est un DIAGNOSTIC de momentum, pas une prévision : privé des streams "
+            "récents, sa performance s'effondre (AUC 0.93 → 0.77). À lire comme « ce titre "
+            "tourne fort en ce moment », pas comme « ce titre va percer ». Erreurs ~symétriques."
         ),
     },
 }

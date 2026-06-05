@@ -41,9 +41,10 @@ EXPECTED_KEYS = {
     "pi_forecast",
 }
 PROBABILITY_KEYS = {"dw_probability", "rr_probability", "radio_probability"}
-FORECAST_KEYS = {
-    "dw_streams_forecast_7d", "rr_streams_forecast_7d", "radio_streams_forecast_7d",
-}
+# v3: DW volume is suppressed (R²<0 group-CV) → dw_streams_forecast_7d is always None.
+# Only RR/Radio regressors emit a numeric floor.
+SUPPRESSED_FORECAST_KEYS = {"dw_streams_forecast_7d"}
+FORECAST_KEYS = {"rr_streams_forecast_7d", "radio_streams_forecast_7d"}
 BASELINE_TOLERANCE = 0.05  # ±5 % drift threshold
 
 
@@ -80,11 +81,12 @@ class TestStructure:
     def test_feature_columns_are_unique(self):
         assert len(set(FEATURE_COLUMNS)) == len(FEATURE_COLUMNS)
 
-    def test_model_paths_has_seven_models(self):
+    def test_model_paths_has_eight_models(self):
+        # 7 scoring models + the pre-release RR estimator (rr_premiere_classifier).
         assert set(MODEL_PATHS) == {
             "dw_classifier", "radio_classifier", "rr_classifier",
             "dw_regressor", "rr_regressor", "radio_regressor",
-            "pi_regressor",
+            "pi_regressor", "rr_premiere_classifier",
         }
 
     def test_model_version_is_non_empty_string(self):
@@ -122,12 +124,35 @@ class TestValueRanges:
                 assert f >= 0, f"{fx['_label']}: {key}={f} negative"
                 assert math.isfinite(f)
 
+    def test_suppressed_dw_volume_is_none(self, fixtures):
+        # DW volume regressor is suppressed in v3 — surfacing a number would mislead.
+        for fx in fixtures:
+            out = score_song(_features(fx))
+            assert out["dw_streams_forecast_7d"] is None, fx["_label"]
+
     def test_no_nan_anywhere(self, fixtures):
         for fx in fixtures:
             out = score_song(_features(fx))
             for key, value in out.items():
+                if key in SUPPRESSED_FORECAST_KEYS:
+                    assert value is None, f"{fx['_label']}: {key} expected None (suppressed)"
+                    continue
                 assert value is not None, f"{fx['_label']}: {key} None"
                 assert math.isfinite(value), f"{fx['_label']}: {key}={value} not finite"
+
+    def test_prerelease_rr_estimator_in_unit_interval(self):
+        from src.utils.ml_inference import estimate_rr_prerelease
+        # Calibrated probability over the RR firing window stays in [0, 1].
+        for d in (0, 14, 28, 40):
+            out = estimate_rr_prerelease(3000, d, 12, 4.0, False)
+            assert out is not None and 0.0 <= out["rr_probability"] <= 1.0, d
+
+    def test_prerelease_rr_discovery_mode_is_flat(self):
+        # Domain truth: Discovery Mode does NOT influence Release Radar.
+        from src.utils.ml_inference import estimate_rr_prerelease
+        off = estimate_rr_prerelease(3000, 7, 12, 4.0, False)["rr_probability"]
+        on = estimate_rr_prerelease(3000, 7, 12, 4.0, True)["rr_probability"]
+        assert abs(off - on) < 0.05
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -158,6 +183,10 @@ class TestBaselineRegression:
             for key in EXPECTED_KEYS:
                 actual = out[key]
                 ref = expected[key]
+                # Suppressed forecast (e.g. DW volume) is None in both.
+                if ref is None:
+                    assert actual is None, f"{label}/{key}: baseline None but got {actual}"
+                    continue
                 # Allow exact match when ref is 0 (avoid div by zero)
                 if ref == 0:
                     assert actual == 0, f"{label}/{key}: baseline=0 but got {actual}"

@@ -98,10 +98,20 @@ def _show_ml_section(pred: dict):
     _rr_note = ak.volume_suppressed_note("RR")
     if _rr_note and pred.get("rr_probability") is not None:
         st.caption(f"📨 {_rr_note}")
-    _display_prob_bar("💎 Discover Weekly", pred.get("dw_probability"), pred.get("dw_streams_forecast_7d"))
+    # DW volume is also suppressed in v3 (R²<0 group-CV) — gate the forecast OUT and
+    # show the classification-only status, same pattern as RR.
+    _dw_forecast = (pred.get("dw_streams_forecast_7d")
+                    if ak.volume_forecast_reliable("DW") else None)
+    _display_prob_bar("💎 Discover Weekly", pred.get("dw_probability"), _dw_forecast)
     ml_widgets.render_calibration_badge("DW", pred.get("dw_probability"))
+    _dw_note = ak.volume_suppressed_note("DW")
+    if _dw_note and pred.get("dw_probability") is not None:
+        st.caption(f"💎 {_dw_note}")
+    # Calibration is now populated for RR + Radio too (v3) — surface it.
+    ml_widgets.render_calibration_badge("RR", pred.get("rr_probability"))
     _display_prob_bar("📻 Radio Spotify", pred.get("radio_probability"),
                       pred.get("radio_streams_forecast_7d"))
+    ml_widgets.render_calibration_badge("RADIO", pred.get("radio_probability"))
 
 
 def _show_heuristic_section(current_total: float, current_pop: float):
@@ -182,21 +192,35 @@ def _show_key_factors(features_json):
             st.caption("Aucun facteur négatif détecté.")
 
 
+_DM_KEY = "IsThisSongOptedIntoSpotifyDiscoveryMode"
+
+
 def _show_imputation_caveat(feats: dict, feature_columns) -> None:
     """Warn which model inputs are imputed/absent → probabilities are indicative."""
     missing = [f for f in feature_columns if f not in feats]
     zeroed = [f for f in feature_columns
               if f in feats and f in _IMPUTED_FEATURES and float(feats.get(f, 0.0)) == 0.0]
-    flagged = sorted(set(missing) | set(zeroed))
-    if not flagged:
-        return
-    labels = [_FEATURE_LABELS.get(f, (f, True))[0] for f in flagged]
-    st.warning(
-        f"⚠️ **{len(flagged)}/{len(feature_columns)} variables imputées à 0/neutre** "
-        "faute de données S4A : les probabilités sont **indicatives, non calibrées** "
-        "(comparaison relative entre titres, pas une probabilité absolue).\n\n"
-        "Variables concernées : " + ", ".join(labels) + "."
-    )
+    flagged = set(missing) | set(zeroed)
+    # Discovery Mode has a manual source: a KNOWN opt-out is real data, not imputed.
+    dm_known = bool(feats.get("discovery_mode_known"))
+    if dm_known:
+        flagged.discard(_DM_KEY)
+    if flagged:
+        labels = [_FEATURE_LABELS.get(f, (f, True))[0] for f in sorted(flagged)]
+        st.warning(
+            f"⚠️ **{len(flagged)}/{len(feature_columns)} variables imputées à 0/neutre** "
+            "faute de données S4A : les probabilités sont **indicatives, non calibrées** "
+            "(comparaison relative entre titres, pas une probabilité absolue).\n\n"
+            "Variables concernées : " + ", ".join(labels) + "."
+        )
+    if not dm_known:
+        st.caption("ℹ️ **Discovery Mode non renseigné** pour ce titre → traité comme "
+                   "désactivé (peut fausser DW/Radio). Saisissez-le dans l'onglet "
+                   "« 🎯 Vue Globale » pour fiabiliser le score.")
+    else:
+        opted = float(feats.get(_DM_KEY, 0.0)) >= 0.5
+        st.caption(f"✅ Discovery Mode renseigné : **{'activé' if opted else 'désactivé'}** "
+                   "(donnée réelle, non imputée).")
 
 
 def _show_drift_status(feats: dict) -> None:
@@ -294,7 +318,8 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
     here = _pi_bracket(pi)
     if pi is not None:
         st.metric("Popularity Index prédit", f"{int(pi)} / 100",
-                  help="Régresseur PI v2_noscaler (R²=0.937, MAE=1.9 points).")
+                  help="Régresseur PI (modèle v3). R²=0.92 [0.88–0.94] validé en "
+                       "group-CV par chanson, MAE ~2 pts — robuste (vérifié 2026-06-05).")
     else:
         st.info("Pas de PI prédit pour ce titre (scoring ML quotidien non encore exécuté).")
 
@@ -901,9 +926,14 @@ _LIFECYCLE_LABELS = {"DW": "💎 Discover Weekly", "RR": "📡 Release Radar", "
 
 
 @st.cache_data(ttl=3600)
-def _load_lifecycle_benchmark(_db, dataset_version="v1"):
-    """Load the GLOBAL cohort lifecycle curves. `_db` underscored → not hashed."""
-    try:
+def _load_lifecycle_benchmark(_db, dataset_version="v2"):
+    """Load the GLOBAL cohort lifecycle curves. `_db` underscored → not hashed.
+
+    Prefers v2 (conditioned-on-trigger seed, migration 041 — meaningful medians +
+    populated total_stream_median). Falls back to v1 when v2 is absent (migration not yet
+    applied) so the tab never regresses to "benchmark indisponible".
+    """
+    def _fetch(version):
         return _db.fetch_df(
             """SELECT algorithm, age_week_bin, age_week_bin_order,
                       ratio_q1, ratio_median, ratio_q3,
@@ -911,8 +941,13 @@ def _load_lifecycle_benchmark(_db, dataset_version="v1"):
                FROM algo_lifecycle_benchmark
                WHERE dataset_version = %s
                ORDER BY age_week_bin_order""",
-            (dataset_version,),
+            (version,),
         )
+    try:
+        df = _fetch(dataset_version)
+        if (df is None or df.empty) and dataset_version != "v1":
+            return _fetch("v1")
+        return df
     except Exception:
         return None
 

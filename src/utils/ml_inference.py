@@ -1,14 +1,18 @@
 """Inférence ML pour le scoring quotidien des chansons.
 
-Charge les modèles XGBoost (v2_noscaler) depuis machine_learning/models/ et prédit:
+Charge les modèles XGBoost (v3) depuis machine_learning/models/ et prédit:
 - dw_probability  : probabilité d'être propulsé en Discover Weekly
 - rr_probability  : probabilité d'être propulsé en Release Radar
 - radio_probability: probabilité d'être propulsé en Radio Spotify
 - pi_forecast     : Popularity Index (0-100) prédit
 
-Modèles entraînés par machine_learning/train.py, SANS StandardScaler et sur
-exactement le même contrat de features que ce module construit (cf. FEATURE_COLUMNS).
-Les probabilités sont donc directement exploitables (plus de skew train/serve).
+Modèles v3 (machine_learning/analysis/03_train.py) : validés en group-CV par chanson
+(StratifiedGroupKFold sur NameID), SANS SMOTE, calibration Platt ajustée hors-fold
+(OOF) et non plus sur le test split. Les régresseurs de volume sont entraînés sur une
+cible log1p — l'inférence applique donc expm1 (cf. _volume_forecast).
+Contrat de features inchangé vs v2 (13 features). NOTE: NonAlgoStreams28Days_log et
+HowManySongsDoYouHaveInRadioRightNow restent imputées à 0 faute de source live
+(skew train/serve résiduel, levé en Phase 2 — l'UI affiche un avertissement).
 """
 import os
 import logging
@@ -25,7 +29,7 @@ logger = logging.getLogger(__name__)
 # Chemins vers les meilleurs modèles (dernier run par expérience)
 # Résolu à l'exécution pour supporter Airflow (/opt/airflow/) et local.
 # ---------------------------------------------------------------------------
-MODEL_VERSION = "v2_noscaler"
+MODEL_VERSION = "v3"
 
 _MODELS_DIR = os.environ.get(
     "ML_MODELS_PATH",
@@ -40,7 +44,20 @@ MODEL_PATHS = {
     "rr_regressor":     "rr_regressor.ubj",
     "radio_regressor":  "radio_regressor.ubj",
     "pi_regressor":     "pi_regressor.ubj",
+    # Pre-release RR estimator: metadata-only (no streams), AUC 0.92. Served by
+    # estimate_rr_prerelease() as a what-if planning tool, NOT by the daily scoring DAG.
+    "rr_premiere_classifier": "rr_premiere_classifier.ubj",
 }
+
+# Serving contract for the pre-release estimator (= premiere.json["features"] order).
+PREMIERE_FEATURE_COLUMNS = [
+    "CurrentSpotifyFollowers_log",
+    "HowManySongsHasThisArtistEverReleased",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode",
+    "ReleaseConsistencyNum",
+    "DaysSinceRelease",
+    "ReleasePhaseEarly",
+]
 
 # Ordre des features attendu par les classifieurs/régresseurs de volume.
 # DOIT rester strictement aligné sur machine_learning/train.py:FEATURE_COLUMNS.
@@ -86,6 +103,22 @@ def _load_json(name: str) -> dict:
         except (OSError, ValueError):
             _aux_cache[name] = {}
     return _aux_cache[name]
+
+
+def _volume_forecast(model_key: str, X) -> int | None:
+    """Volume forecast for a log-target regressor: expm1(pred), floored at 0.
+
+    v3 regressors are trained on log1p(streams) (the raw target gives negative R²
+    under honest group-CV). The model returns log space → invert with expm1. Returns
+    None if the model is unavailable. The forecast is a conservative FLOOR, not a
+    point estimate (all volume R² < 0.5 — see ALGO_REGRESSOR_METRICS).
+    """
+    try:
+        reg = load_model(model_key)
+        return max(0, int(np.expm1(reg.predict(X)[0])))
+    except Exception as e:
+        logger.warning(f"{model_key} indisponible: {e}")
+        return None
 
 
 def _calibrate(algo: str, p_raw):
@@ -272,6 +305,9 @@ def build_features(db, artist_id: int, song: str) -> dict:
         (artist_id, song),
     )
     discovery_mode = 1.0 if (dm_row and dm_row[0][0]) else 0.0
+    # A 0 means BOTH "opted-out" and "never entered" — track which, so the UI can tell a
+    # real opt-out from a missing-data 0 (Discovery Mode has no API source; ~35% unknown).
+    discovery_mode_known = bool(dm_row)
 
     # --- Playlist adds (last 28 days) from manual S4A entries ---
     pa_row = db.fetch_query(
@@ -320,6 +356,9 @@ def build_features(db, artist_id: int, song: str) -> dict:
     features["_raw_streams_7d"] = s7
     features["_raw_streams_28d"] = s28
     features["_raw_followers"] = followers
+    # Persisted (no underscore) so the dashboard distinguishes a real Discovery-Mode
+    # opt-out from a missing-data 0. Ignored by the model (not in FEATURE_COLUMNS).
+    features["discovery_mode_known"] = discovery_mode_known
 
     # Raw inputs for the PI regressor (order = PI_FEATURE_COLUMNS). 28-day window
     # globals mirror the training columns ListenersLast28Days / StreamsLast28Days /
@@ -368,26 +407,12 @@ def score_song(features: dict) -> dict:
         logger.warning(f"Radio classifier indisponible: {e}")
         radio_prob = None
 
-    try:
-        dw_reg = load_model("dw_regressor")
-        dw_forecast = max(0, int(dw_reg.predict(X)[0]))
-    except Exception as e:
-        logger.warning(f"DW regressor indisponible: {e}")
-        dw_forecast = None
-
-    try:
-        rr_reg = load_model("rr_regressor")
-        rr_forecast = max(0, int(rr_reg.predict(X)[0]))
-    except Exception as e:
-        logger.warning(f"RR regressor indisponible: {e}")
-        rr_forecast = None
-
-    try:
-        radio_reg = load_model("radio_regressor")
-        radio_forecast = max(0, int(radio_reg.predict(X)[0]))
-    except Exception as e:
-        logger.warning(f"Radio regressor indisponible: {e}")
-        radio_forecast = None
+    # Log-target regressors (expm1). DW volume is suppressed: its honest group-CV R²
+    # is negative (worse than the mean) — surfacing a number would mislead. RR/Radio
+    # are floors only (R² 0.23/0.33). The display layer gates on ALGO_REGRESSOR_METRICS.
+    dw_forecast = None
+    rr_forecast = _volume_forecast("rr_regressor", X)
+    radio_forecast = _volume_forecast("radio_regressor", X)
 
     # PI regressor uses its own raw-feature vector (different from FEATURE_COLUMNS).
     pi_inputs = features.get("_pi_inputs")
@@ -410,6 +435,81 @@ def score_song(features: dict) -> dict:
         "radio_streams_forecast_7d": radio_forecast,
         "pi_forecast": pi_forecast,
     }
+
+
+_ALGO_CLF_KEY = {"DW": "dw", "RR": "rr", "RADIO": "radio"}
+
+
+def local_sensitivity(algo: str, feature: str, feats: dict, n_points: int = 25) -> dict | None:
+    """Per-song local sensitivity: sweep ONE feature, recompute the calibrated probability.
+
+    This is honest *local* partial dependence — "for THIS song, if you move this lever, the
+    odds move like so" — NOT a global "+X = +Y%" rule (XGBoost is non-linear, so the curve is
+    specific to this song's other features). Sweeps the lever in human units (expm1 for _log
+    features), holding everything else fixed. Returns {x_human, probs, current} or None.
+    """
+    key = _ALGO_CLF_KEY.get(algo)
+    if key is None or feature not in FEATURE_COLUMNS or not feats:
+        return None
+    base = [float(feats.get(c, 0.0)) for c in FEATURE_COLUMNS]
+    idx = FEATURE_COLUMNS.index(feature)
+    is_log = feature.endswith("_log")
+    cur_human = float(np.expm1(base[idx])) if is_log else base[idx]
+    stats = _load_json("metrics.json").get("feature_stats", {}).get(feature, {})
+    # Upper bound = the bulk of the training distribution (mean+3σ), capped by the max, so
+    # the curve has resolution in the meaningful range instead of a long flat tail.
+    hi_model = stats.get("max", base[idx] * 2 or 1.0)
+    if "mean" in stats and "std" in stats:
+        hi_model = min(hi_model, stats["mean"] + 3.0 * stats["std"])
+    hi_human = float(np.expm1(hi_model)) if is_log else float(hi_model)
+    hi_human = max(hi_human, cur_human * 1.5, 1.0)
+    try:
+        clf = load_model(f"{key}_classifier")
+    except Exception as e:
+        logger.warning(f"local_sensitivity {algo}/{feature} indisponible: {e}")
+        return None
+    xs = np.linspace(0.0, hi_human, n_points)
+    probs = []
+    for xh in xs:
+        vec = base.copy()
+        vec[idx] = float(np.log1p(xh)) if is_log else float(xh)
+        X = pd.DataFrame([vec], columns=FEATURE_COLUMNS)
+        probs.append(_calibrate(key, float(clf.predict_proba(X)[0, 1])))
+    return {"feature": feature, "x_human": xs.tolist(), "probs": probs, "current": cur_human}
+
+
+def estimate_rr_prerelease(followers: float, days_since_release: float,
+                           catalog_size: float, release_consistency_weeks: float,
+                           discovery_mode: bool) -> dict | None:
+    """Pre-release Release Radar probability from release-day metadata only (no streams).
+
+    Serves models/v3/rr_premiere_classifier.ubj (AUC ~0.92 group-CV). A what-if planning
+    tool: estimate RR odds BEFORE any stream exists, from artist size, catalogue depth,
+    release cadence, song age and the Discovery-Mode choice. Returns the Platt-calibrated
+    probability + the model's CV band, or None if the model/metadata is unavailable.
+    """
+    meta = _load_json("premiere.json")
+    feats = {
+        "CurrentSpotifyFollowers_log": float(np.log1p(max(0.0, followers))),
+        "HowManySongsHasThisArtistEverReleased": float(max(0.0, catalog_size)),
+        "IsThisSongOptedIntoSpotifyDiscoveryMode": 1.0 if discovery_mode else 0.0,
+        "ReleaseConsistencyNum": float(max(0.0, release_consistency_weeks)),
+        "DaysSinceRelease": float(max(0.0, days_since_release)),
+        "ReleasePhaseEarly": 1.0 if days_since_release < 35 else 0.0,
+    }
+    X = pd.DataFrame([[feats[c] for c in PREMIERE_FEATURE_COLUMNS]],
+                     columns=PREMIERE_FEATURE_COLUMNS)
+    try:
+        clf = load_model("rr_premiere_classifier")
+        p_raw = float(clf.predict_proba(X)[0, 1])
+    except Exception as e:
+        logger.warning(f"RR premiere estimator indisponible: {e}")
+        return None
+    cal = meta.get("calibration")
+    if cal:
+        z = cal["coef"] * p_raw + cal["intercept"]
+        p_raw = float(1.0 / (1.0 + np.exp(-z)))
+    return {"rr_probability": p_raw, "cv": meta.get("cv", {})}
 
 
 def score_all_songs(db, artist_id: int) -> list[dict]:

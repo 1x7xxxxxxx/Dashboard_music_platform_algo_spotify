@@ -150,6 +150,9 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
     for _algo in ak.populated_algos():
         st.markdown(f"### {ak.ALGO_LABELS.get(_algo, _algo)}")
         ml_widgets.render_coach(_algo, feats)
+        # DW is the lever model (forecast.md §5): show the local marginal payoff of a lever.
+        if _algo == "DW":
+            ml_widgets.render_lever_sensitivity(_algo, feats)
         ml_widgets.render_feature_gauges(_algo, feats)
         if _algo in ak.volume_algos():
             ml_widgets.render_volume_gauges(_algo, feats)

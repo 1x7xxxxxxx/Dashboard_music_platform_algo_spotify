@@ -27,14 +27,22 @@ def render_classification_scorecard(algo: str, *, compact: bool = False) -> None
     if not m:
         st.info("Pas de scorecard de classification pour cet algorithme.")
         return
+    _eval = m.get("eval", "test")
     st.markdown(f"#### 📋 Qualité du classifieur — {algo} "
-                f"(modèle `{m['model_version']}`, n={m['test_n']})")
+                f"(modèle `{m['model_version']}`, {_eval}, n={m['test_n']})")
     cols = st.columns(5)
-    cols[0].metric("AUC", f"{m['auc']:.3f}")
+    _ci = m.get("auc_ci")
+    cols[0].metric("AUC", f"{m['auc']:.3f}",
+                   help=(f"Intervalle 95% : [{_ci[0]:.3f} – {_ci[1]:.3f}] "
+                         f"(N={m['test_n']} → bande large, à lire avec prudence)"
+                         if _ci else None))
     cols[1].metric("Précision", f"{m['precision'] * 100:.0f}%")
     cols[2].metric("Recall", f"{m['recall'] * 100:.0f}%")
     cols[3].metric("F1", f"{m['f1']:.2f}")
     cols[4].metric("Lift top-10%", f"×{m['lift_top10']:.1f}")
+    if _ci:
+        st.caption(f"AUC validée par chanson (group-CV), intervalle 95% "
+                   f"**[{_ci[0]:.3f} – {_ci[1]:.3f}]** — pas un point unique.")
     st.caption(
         f"⚠️ Piège accuracy : {m['accuracy'] * 100:.1f}% vs "
         f"{m['baseline_accuracy'] * 100:.1f}% pour un modèle qui prédirait toujours « échec »."
@@ -54,6 +62,113 @@ def render_classification_scorecard(algo: str, *, compact: bool = False) -> None
                       margin=dict(t=50))
     st.plotly_chart(fig, width="stretch", key=f"cm_{algo}")
     st.info(m["interpretation"])
+
+
+# ── Pre-release Release Radar estimator (what-if, no DB) ──────────────────────
+def render_prerelease_rr_estimator() -> None:
+    """Ephemeral RR-odds calculator from release-day metadata only (no streams).
+
+    Exploits the v3 finding (forecast.md §5): RR keeps AUC ~0.92 from artist size +
+    catalogue + release timing ALONE, so its odds are estimable BEFORE the first stream.
+    Pure what-if — no DB write. Renders inputs + the RR-probability curve over the firing
+    window (0–40 days). Degrades to an info box if the metadata-only model is unavailable.
+    """
+    from src.utils.ml_inference import estimate_rr_prerelease
+
+    st.markdown("#### 🔮 Simulateur Release Radar (pré-sortie)")
+    st.caption("Estime les chances Release Radar **avant la moindre écoute**, à partir des "
+               "seules métadonnées de sortie (modèle métadonnées-seules, AUC 0.92 validée "
+               "par chanson). Outil de planification — aucune donnée enregistrée.")
+    c1, c2, c3 = st.columns(3)
+    followers = c1.number_input("Followers Spotify", min_value=0, value=3000, step=100,
+                                key="pre_rr_followers")
+    catalog = c2.number_input("Titres déjà sortis", min_value=0, value=12, step=1,
+                              key="pre_rr_catalog")
+    cadence = c3.number_input("Cadence de sortie (semaines)", min_value=0.0, value=4.0,
+                              step=0.5, key="pre_rr_cadence")
+    discovery = st.checkbox("Discovery Mode activé", value=False, key="pre_rr_dm",
+                            help="Note : le modèle confirme que Discovery Mode n'influence "
+                                 "PAS Release Radar (effet plat) — utile pour DW/Radio.")
+
+    probe = estimate_rr_prerelease(followers, 14, catalog, cadence, discovery)
+    if probe is None:
+        st.info("Modèle pré-sortie indisponible (artefact `rr_premiere_classifier` absent).")
+        return
+
+    days = list(range(0, 41))
+    probs = [estimate_rr_prerelease(followers, d, catalog, cadence, discovery)["rr_probability"]
+             for d in days]
+    best_i = max(range(len(days)), key=lambda i: probs[i])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=days, y=[p * 100 for p in probs], mode="lines",
+                             line=dict(color="rgb(255,165,0)", width=3), name="P(RR)"))
+    fig.add_vline(x=days[best_i], line_color="#ffffff", line_dash="dash", line_width=2)
+    fig.update_layout(height=260, margin=dict(t=30, b=30),
+                      title="Probabilité Release Radar selon l'âge du titre",
+                      xaxis_title="jours après sortie", yaxis_title="P(RR) %",
+                      yaxis_range=[0, 100], showlegend=False)
+    st.plotly_chart(fig, width="stretch", key="pre_rr_curve")
+    cv = probe.get("cv", {})
+    band = cv.get("auc_ci")
+    st.success(f"🎯 Pic d'éligibilité estimé à **J+{days[best_i]}** "
+               f"(**{probs[best_i] * 100:.0f}%**). Fenêtre Release Radar 0–40 j.")
+    if band:
+        st.caption(f"Modèle métadonnées-seules : AUC {cv.get('auc')} [{band[0]}–{band[1]}] "
+                   "(group-CV par chanson, N=508). Estimation indicative, pas une garantie.")
+    note = ak.calibration_note("RR", probs[best_i])
+    if note:
+        st.caption(f"🎯 Calibration : {note}")
+
+
+# ── Local lever sensitivity (per-song partial dependence) ─────────────────────
+def render_lever_sensitivity(algo: str, feats: dict) -> None:
+    """For THIS song, sweep one actionable lever and plot the calibrated-prob curve.
+
+    Honest *local* partial dependence — specific to this song's other features, NOT a
+    global "+X saves = +Y%" rule (the model is non-linear). Lets the artist see the real
+    marginal payoff of pushing a lever toward its target. Picks the actionable, live
+    levers from ALGO_FEATURE_ZONES; degrades silently if the model/features are absent.
+    """
+    import numpy as np
+
+    from src.utils.ml_inference import local_sensitivity
+
+    zones = ak.ALGO_FEATURE_ZONES.get(algo, {})
+    levers = {spec["label"]: (fid, spec) for fid, spec in zones.items()
+              if spec.get("json_key") and not spec.get("live_unavailable")
+              and not spec.get("divergent") and spec.get("actionable") is not False}
+    if not levers or not feats:
+        return
+    st.markdown("**🎛️ Sensibilité locale — bouger un levier sur CE titre**")
+    choice = st.selectbox("Levier à simuler", list(levers), key=f"sens_sel_{algo}")
+    fid, spec = levers[choice]
+    res = local_sensitivity(algo, spec["json_key"], feats)
+    if res is None:
+        st.caption("Sensibilité indisponible (modèle ou features absents).")
+        return
+    xs = res["x_human"]
+    probs = [p * 100 for p in res["probs"]]
+    cur = res["current"]
+    cur_p = float(np.interp(cur, xs, probs))
+    unit = spec.get("unit", "")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=xs, y=probs, mode="lines", line=dict(color="#1DB954", width=3)))
+    fig.add_vline(x=cur, line_color="#ffffff", line_dash="dash", line_width=2)
+    target = spec.get("target")
+    gain_msg = ""
+    if target:
+        tp = float(np.interp(target, xs, probs))
+        fig.add_vline(x=target, line_color="orange", line_dash="dot", line_width=2)
+        gain_msg = (f" Passer de **{cur:,.0f}** à la cible **{target:,.0f}** {unit} : "
+                    f"P({algo}) **{cur_p:.0f}% → {tp:.0f}%** ({tp - cur_p:+.0f} pts).")
+    fig.update_layout(height=240, margin=dict(t=30, b=30), showlegend=False,
+                      title=f"P({algo}) selon « {spec['label']} »",
+                      xaxis_title=unit or spec["label"], yaxis_title="P %",
+                      yaxis_range=[0, 100])
+    st.plotly_chart(fig, width="stretch", key=f"sens_curve_{algo}_{fid}")
+    st.caption(f"Trait blanc = valeur actuelle (~{cur:,.0f} {unit})." + gain_msg)
+    st.caption("⚠️ Sensibilité *locale* à ce titre — pas une règle générale "
+               "(le modèle est non-linéaire ; l'effet dépend des autres variables).")
 
 
 # ── Calibration badge ─────────────────────────────────────────────────────────

@@ -1262,3 +1262,53 @@ Sur demande explicite « tout faire » du bucket actionnable, exécution des ref
 
 ### Tests
 `python3 -m pytest tests/ -q` → **335 passed, 1 skipped** (325 + 8 R6 + 2 R5). `ruff check src/ tests/` clean. 5 commits séparés (3575959 P2 meta, 60030d3 fixes, e5fe71c docs, d84c53a R4, 905202b R5, e8fc0c6 R6).
+
+---
+
+## 2026-06-05 — WAVE 8 : re-dérivation ML indépendante depuis data_anon.csv → v3
+
+### Why
+Demande explicite : reprendre la modélisation ML « à zéro » depuis `data_anon.csv` pour comparer ma méthodologie à celle du notebook/`train.py`, apprendre des divergences, et maximiser la valeur prédictive du dashboard. Décisions cadrées : full takeover, les 7 modèles, cible identique + variante forward-looking.
+
+### What changed
+- **Phase A/B (audit + validation honnête)** — `machine_learning/analysis/01_audit.py`, `02_validate.py`. Trois découvertes : (1) **30.7% des lignes sont des doublons de chanson** (`NameID`, un titre = 22 snapshots) → un split aléatoire fuite → bascule en **StratifiedGroupKFold par chanson** ; l'inflation reste modeste (~0.02 AUC) → **les AUC de v2 tiennent**. (2) **SMOTE nuit** légèrement (RR AP 0.80→0.74) → supprimé. (3) calibration Platt ajustée sur le **test split** (optimiste) → v3 l'ajuste **hors-fold (OOF)**.
+- **Phase C (modèles v3)** — `03_train.py` → `machine_learning/models/v3/`. Bilan régresseurs en group-CV : **tous faibles** (DW R²<0, RR 0.23, Radio 0.33 cible log) — la cible brute donnait R²<0, passage à **log1p** (l'inférence applique `expm1`). Constat clé : retirer les 2 features jamais servies (`NonAlgoStreams28Days`, `RadioCount`) coûte **≤0.004 AUC** — le skew train/serve est gratuit à supprimer ; **mais l'utilisateur a choisi de garder les 13 features** (revisite en Phase 2), donc v3 ré-entraîné sur 13.
+- **Phase D (forward-looking)** — `04_forecast_variant.py` : **RR = vraie prévision** (AUC 0.92 à partir des seules métadonnées de sortie, sans aucun stream), **DW = modèle de leviers** (saves + playlist-adds), **Radio = diagnostic de momentum** (s'effondre sans streams concurrents). Recadrage produit majeur.
+- **Phase E** — `machine_learning/COMPARISON_REPORT.md` (document pédagogique : table de diff méthodo, accords/désaccords chiffrés, recommandations classées).
+- **Phase F (ship)** — `ml_inference.py` : `MODEL_VERSION="v3"`, `_volume_forecast` (expm1), **DW volume supprimé** (R²<0). `algo_knowledge.py` : `ALGO_MODEL_METRICS` recalculés en group-CV OOF + `auc_ci` (bande 95%), `ALGO_REGRESSOR_METRICS` honnêtes (DW+RR `volume_reliable:False`, Radio plancher R²=0.33), **`ALGO_CALIBRATION_BANDS` RR+RADIO peuplées** (mesurées empiriquement, `05_calibration_bands.py` — clôt l'item ouvert), copies d'interprétation par algo (§5). `ml_widgets.py` : bande de confiance AUC dans la scorecard. `_common.py` : badges calibration DW/RR/RADIO + note de suppression DW. `revenue_forecast.py` + `_common.py` : libellés AUC/version rafraîchis.
+- **Calibration v3 bien calibrée** : la plupart des bandes lisent « fiable : score ≈ réalité » (gros gain d'honnêteté vs les avertissements de sur-confiance de v1).
+
+### Tests
+`PYTHONPATH=. python3 -m pytest tests/ -q` → **300 passed, 37 skipped** (render-smoke skip = pas de DB locale). `ruff check` clean. Baseline ML régénérée pour v3 (`tests/fixtures/ml_scoring_baseline.json`, DW volume = None) ; `test_ml_inference` + `test_algo_knowledge` mis à jour pour le comportement v3. **Note :** garder 13 features = le skew NonAlgoStreams/RadioCount demeure → la donnée live Phase 2 reste prioritaire (l'UI conserve le caveat d'imputation).
+
+---
+
+## 2026-06-05 (suite) — WAVE 8 part 2 : les découvertes v3 deviennent des features
+
+### Why
+Suite logique de la re-dérivation : transformer les *découvertes* du `COMPARISON_REPORT.md` §5 en vraies features de l'app, et router le reste en roadmap. Décision utilisateur : 4 features maintenant, estimateur RR en calculateur éphémère.
+
+### What changed
+- **(A) Estimateur Release Radar pré-sortie** — la découverte phare (RR prédictible avant la moindre écoute). Nouveau modèle métadonnées-seules `models/v3/rr_premiere_classifier.ubj` + `premiere.json` (`analysis/07_train_premiere.py`, **AUC 0.923 [0.88–0.96]** group-CV, OOF-Platt). `ml_inference.estimate_rr_prerelease(followers, jours, catalogue, cadence, discovery)`. Widget éphémère `ml_widgets.render_prerelease_rr_estimator()` (inputs + courbe P(RR) sur J0–J40, pic d'éligibilité) dans un expander de l'onglet Algos — aucune écriture DB. Bonus : le modèle confirme que Discovery Mode n'influence PAS RR (effet plat).
+- **(B) ROI espéré (onglet Budget)** — `_tab_budget_roi._render_expected_value()` : coût-par-trigger existant ÷ **P(déclenchement) calibrée** = coût ajusté au risque + « meilleur pari ». Honnête (valeur espérée, pas promesse), gaté par `calibration_note`. Réutilise `_TRIGGER_STREAM_TARGETS` + `_load_ml_pred`.
+- **(C) Validation PI en group-CV** — `analysis/08_validate_pi.py` : **R²=0.923 [0.88–0.94], MAE 2.0 pts** par GroupKFold/NameID → le PI est *réellement* robuste (pas optimiste). Écrit dans `metrics.json` (bloc `pi`) + texte d'aide UI corrigé (était « non revalidé »).
+- **(D) Couverture Discovery Mode** — `build_features` estampille `discovery_mode_known` (ligne `s4a_song_discovery_mode` présente ou non). `_show_imputation_caveat` distingue un vrai opt-out d'un 0-par-défaut : si inconnu → invite de saisie (Vue Globale), si connu → « donnée réelle ». `MODEL_PATHS` passe à 8 modèles.
+- **Roadmap** — 5 items P4 ajoutés : leviers DW quantifiés (sensibilité locale), re-seed lifecycle (conditionner sur titres déclencheurs), capture live par algo (Phase 2), éval per-tenant + ré-entraînement, passage au contrat 11 features.
+
+### Tests
+`PYTHONPATH=. python3 -m pytest tests/ -q` → **302 passed** (+2 tests estimateur RR : intervalle [0,1] sur la fenêtre + Discovery Mode plat). `ruff check src/ tests/ machine_learning/analysis/` clean. Widget estimateur vérifié headless via AppTest (rend sans DB, « Pic d'éligibilité J+23 »). **À déployer comme v2 :** `git add machine_learning/models/v3/` (modèles non commités, non-gitignorés) + relancer `ml_scoring_daily` pour repeupler `ml_song_predictions` en v3.
+
+---
+
+## 2026-06-05 (suite 2) — Roadmap : items actionnables traités + déduplication
+
+### Why
+« Fais tout » sur le listing roadmap : traiter les 2 items réellement actionnables (leviers DW quantifiés, re-seed lifecycle) et nettoyer les doublons que mes ajouts WAVE 8 avaient introduits. Le reste (Phase 2, per-tenant, RR volume, 11-feat, resurrection) est génuinement bloqué sur de la donnée live → reste en roadmap.
+
+### What changed
+- **Leviers DW quantifiés (sensibilité locale)** — `ml_inference.local_sensitivity(algo, feature, feats)` : balaye UN levier du titre courant (borne haute = moyenne+3σ pour la résolution), recalcule la proba calibrée. `ml_widgets.render_lever_sensitivity()` : selectbox du levier + courbe P(DW) + gain marginal vers la cible (« de X à cible Y : P 11% → 24% »). Câblé dans l'onglet Explainabilité (DW uniquement = le modèle de leviers). Captionné **sensibilité *locale*, pas une règle globale** (modèle non-linéaire). Vérifié : saves 0→3000 → P(DW) 11%→24% puis plateau (rendements décroissants honnêtes).
+- **Re-seed benchmark lifecycle (conditionné)** — `export_lifecycle_benchmark.py` conditionne désormais sur la **cohorte déclencheuse** (DW>137/RR>130/Radio>639, min 5 titres/bin) : les médianes DW ne sont plus écrasées à 0 et `total_stream_median` est peuplé (était NULL). `migrations/041_lifecycle_benchmark_v2.sql` (`dataset_version='v2'`). Loader `_load_lifecycle_benchmark` par défaut v2 avec **fallback v1** (zéro régression avant `make migrate`). Changement sémantique assumé : la courbe lit « parmi les titres qui ONT déclenché » ; RR ne couvre que 0–10 sem (il déclenche près de la sortie). **Nécessite `make migrate`.**
+- **Dédup roadmap** — 12 lignes ouvertes → ~6 sujets distincts. Les 2 items ci-dessus passés `[x]` ; ancien item « seed provisoire » marqué fait (→ 041) ; doublons Phase-2 (352) réduits en cross-ref vers l'entrée canonique (429) ; doublons per-tenant supprimés de la section WAVE 8 (déjà dans « Long-term ML hardening ») ; R² du régresseur RV RR corrigé (≈0.55 → 0.23 honnête v3).
+
+### Tests
+`PYTHONPATH=. python3 -m pytest tests/ -q` → **302 passed**. `ruff check src/ tests/ machine_learning/` clean. `render_lever_sensitivity` vérifié headless (AppTest, selectbox OK). Export lifecycle v2 régénéré et vérifié (médianes non nulles, RR limité aux bins précoces). **À appliquer :** `make migrate` (migration 041) pour activer le benchmark v2 en prod.

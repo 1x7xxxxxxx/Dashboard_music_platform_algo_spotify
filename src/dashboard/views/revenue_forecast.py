@@ -479,7 +479,7 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
             "de volume sous-estime les hits, le potentiel réel est souvent supérieur. "
             "Le Release Radar n'a pas de colonne volume : son débit dépend du taux "
             "d'ouverture des notifications (non prédictible) — on s'appuie sur sa "
-            "classification (AUC 0.96)."
+            "classification (AUC 0.94, validée par chanson)."
         )
         st.dataframe(
             ml_df.rename(columns={

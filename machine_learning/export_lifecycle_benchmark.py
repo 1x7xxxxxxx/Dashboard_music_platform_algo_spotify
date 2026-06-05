@@ -26,6 +26,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from train import TARGET_THRESHOLDS  # noqa: E402  (DW>137, RR>130, RADIO>639)
+
+# A song "triggered" an algo when its 28d algo streams clear the elbow threshold. The
+# v1 seed pooled ALL songs, so >80% non-triggering zeros crushed the median ratio toward
+# 0 (useless benchmark). v2 conditions on the TRIGGERING cohort: the curve answers "among
+# songs that DID trigger, how does the lifecycle look?" — and total_stream_median becomes
+# meaningful (no longer NULL) so the live standardization overlay has a real reference.
+_THRESH = {"DW": TARGET_THRESHOLDS["dw"], "RR": TARGET_THRESHOLDS["rr"],
+           "RADIO": TARGET_THRESHOLDS["radio"]}
+_MIN_BIN = 5  # skip age bins with fewer triggering songs (noisy quartiles)
+
 # (label, order, lower_week_inclusive, upper_week_exclusive)
 AGE_BINS = [
     ("0-5", 1, 0, 5),
@@ -63,7 +75,7 @@ def _weight_buckets(series: pd.Series) -> pd.Series:
     return pd.Series(0, index=series.index)
 
 
-def build_rows(df: pd.DataFrame, version: str) -> list[dict]:
+def build_rows(df: pd.DataFrame, version: str, condition_on_trigger: bool = True) -> list[dict]:
     df = df.copy()
     df["_age_weeks"] = (df["DaysSinceRelease"].astype(float) / 7.0)
     df[["_bin", "_order"]] = df["_age_weeks"].apply(lambda w: pd.Series(_age_bin(w)))
@@ -76,6 +88,12 @@ def build_rows(df: pd.DataFrame, version: str) -> list[dict]:
                   file=sys.stderr)
             continue
         sub = df.dropna(subset=[stream_col, weight_col]).copy()
+        if condition_on_trigger:
+            # Keep only the triggering cohort (clears the elbow threshold).
+            sub = sub[sub[stream_col] > _THRESH[algo]].copy()
+            if sub.empty:
+                print(f"-- WARN: no triggering songs for {algo}; skipped", file=sys.stderr)
+                continue
         sub["_bucket"] = _weight_buckets(sub[weight_col])
         bucket_mean = sub.groupby("_bucket")[stream_col].transform("mean")
         sub["_ratio"] = sub[stream_col] / bucket_mean.replace(0, np.nan)
@@ -83,7 +101,10 @@ def build_rows(df: pd.DataFrame, version: str) -> list[dict]:
 
         for label, order, _lo, _hi in AGE_BINS:
             g = sub[sub["_bin"] == label]
-            if g.empty:
+            if len(g) < _MIN_BIN:
+                if not g.empty:
+                    print(f"-- skip {algo}/{label}: only {len(g)} triggering songs (<{_MIN_BIN})",
+                          file=sys.stderr)
                 continue
             r = g["_ratio"]
             total_med = (float(g[TOTAL_STREAMS_COL].median())
@@ -126,7 +147,9 @@ def to_sql(rows: list[dict]) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("csv", help="path to data_anon.csv")
-    ap.add_argument("--version", default="v1", help="dataset_version tag (default: v1)")
+    ap.add_argument("--version", default="v2", help="dataset_version tag (default: v2)")
+    ap.add_argument("--all-songs", action="store_true",
+                    help="legacy v1 behaviour: pool ALL songs (medians crushed to ~0)")
     args = ap.parse_args()
 
     path = Path(args.csv)
@@ -134,7 +157,7 @@ def main() -> None:
         sys.exit(f"❌ dataset not found: {path} (data_anon.csv is not committed to the repo)")
 
     df = pd.read_csv(path)
-    rows = build_rows(df, args.version)
+    rows = build_rows(df, args.version, condition_on_trigger=not args.all_songs)
     if not rows:
         sys.exit("❌ no rows produced — check column names in the dataset")
     print(to_sql(rows))

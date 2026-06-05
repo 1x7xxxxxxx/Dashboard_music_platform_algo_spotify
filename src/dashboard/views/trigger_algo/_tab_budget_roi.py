@@ -15,6 +15,48 @@ from ._common import (
 )
 
 
+# Maps the cost-target labels to (ml_pred probability key, calibration-band algo key).
+_EV_ALGO_KEYS = {
+    "Release Radar": ("rr_probability", "RR"),
+    "Discover Weekly": ("dw_probability", "DW"),
+    "Radio": ("radio_probability", "RADIO"),
+}
+
+
+def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
+    """Risk-adjusted cost-per-trigger = nominal cost / P(trigger).
+
+    The nominal cost-to-trigger assumes the push always converts. It does not: the model
+    gives P(trigger). Dividing the cost by P yields the honest effective € per trigger
+    actually obtained, and ranks where a euro is most likely to convert. Expected value,
+    never a promise — gated by the calibration caveat per algo.
+    """
+    st.markdown("**Coût ajusté au risque (coût ÷ probabilité de déclenchement) :**")
+    rows = []
+    for label, seuil in _TRIGGER_STREAM_TARGETS.items():
+        key, algo = _EV_ALGO_KEYS[label]
+        p = ml_pred.get(key)
+        if p is None or p <= 0:
+            continue
+        cost_est = cost_per_stream * seuil
+        rows.append((label, algo, float(p), cost_est, cost_est / float(p)))
+    if not rows:
+        st.caption("Probabilités ML indisponibles pour ce titre (lancez `ml_scoring_daily`).")
+        return
+    cols = st.columns(len(rows))
+    for col, (label, algo, p, cost_est, adj) in zip(cols, rows):
+        with col:
+            st.metric(label, f"{adj:,.2f} €",
+                      help=f"Coût nominal {cost_est:,.2f} € ÷ P={p * 100:.0f}% de déclenchement.")
+            st.caption(f"P={p * 100:.0f}% · nominal {cost_est:,.0f} €")
+    best = min(rows, key=lambda r: r[4])
+    st.success(f"🎯 Meilleur pari : **{best[0]}** — chaque euro y a le plus de chances "
+               f"de convertir en déclenchement (coût ajusté {best[4]:,.0f} €).")
+    note = ak.calibration_note(best[1], best[2])
+    if note:
+        st.caption(f"🎯 Fiabilité du score : {note}")
+
+
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
     _show_budget_tier_selector(db, artist_id)
     st.markdown("---")
@@ -72,6 +114,9 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                     else:
                         st.error(f"**{label}**\n\n~{seuil:,} streams · {cost_est:.2f} €\n\n❌ Manque {cost_est - remaining:.2f} €")
             st.caption("Volumes de déclenchement SHAP (Classe 1) par algo, pas des arrondis 1k/10k.")
+            _ev_pred = _load_ml_pred(db, track, artist_id)
+            if _ev_pred:
+                _render_expected_value(_ev_pred, cost_per_stream)
         else:
             b4.metric("Coût / stream", "—")
             if lifetime_budget == 0:

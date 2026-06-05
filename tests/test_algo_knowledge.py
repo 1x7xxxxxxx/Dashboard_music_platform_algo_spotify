@@ -53,10 +53,12 @@ def test_decode_feature_value_log_and_identity():
 
 
 def test_calibration_note_zones():
-    assert "0%" in ak.calibration_note("DW", 0.05)
+    # v3: bands measured on OOF group-CV calibrated probabilities. All three algos
+    # populated; the well-calibrated v3 scores read "fiable" in most bands.
+    assert ak.calibration_note("DW", 0.05) is not None
     assert ak.calibration_note("DW", 0.30) is not None
-    assert "~50%" in ak.calibration_note("DW", 0.85)
-    assert ak.calibration_note("RR", 0.85) is None  # no RR calibration curve exists
+    assert ak.calibration_note("DW", 0.85) is not None
+    assert ak.calibration_note("RR", 0.85) is not None  # v3 populates RR bands
     assert ak.calibration_note("DW", None) is None
 
 
@@ -114,14 +116,15 @@ def test_velocity_penalty_threshold_matches_zones():
     assert ak.zone_for_value("RADIO", "Velocity_Streams", 1.49) == "bonus"
 
 
-def test_radio_has_no_calibration_bands():
-    assert ak.calibration_note("RADIO", 0.85) is None
+def test_radio_has_calibration_bands():
+    # v3 populated RADIO calibration bands (was DW-only in v1/v2).
+    assert ak.calibration_note("RADIO", 0.85) is not None
 
 
 def test_radio_scorecard_balanced_baseline():
     m = ak.ALGO_MODEL_METRICS["RADIO"]
-    assert m["confusion"] == {"TN": 47, "FP": 7, "FN": 7, "TP": 41}
-    assert m["baseline_accuracy"] < m["accuracy"]  # real lift, unlike DW
+    assert m["confusion"] == {"TN": 227, "FP": 42, "FN": 49, "TP": 190}
+    assert m["baseline_accuracy"] < m["accuracy"]  # real lift (balanced base)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -171,16 +174,18 @@ def test_rr_playlist_adds_is_divergent_and_never_coached():
     assert "PlaylistAddsLast28Days" not in flagged
 
 
-def test_rr_has_no_calibration_bands():
-    assert ak.calibration_note("RR", 0.85) is None
+def test_rr_has_calibration_bands():
+    # v3 populated RR calibration bands (was absent in v1/v2).
+    assert ak.calibration_note("RR", 0.85) is not None
 
 
 def test_rr_scorecard_matches_artifact():
     m = ak.ALGO_MODEL_METRICS["RR"]
-    assert m["confusion"] == {"TN": 76, "FP": 6, "FN": 4, "TP": 16}
-    assert m["auc"] == 0.961
-    assert m["lift_top10"] == 5.1
-    # n must equal the test sample and accuracy must beat the always-fail baseline.
+    assert m["confusion"] == {"TN": 388, "FP": 20, "FN": 39, "TP": 61}
+    assert m["auc"] == 0.936
+    assert m["lift_top10"] == 4.6
+    assert m["auc_ci"][0] < m["auc"] < m["auc_ci"][1]  # CI band brackets the point
+    # n must equal the OOF sample and accuracy must beat the always-fail baseline.
     cm = m["confusion"]
     assert sum(cm.values()) == m["test_n"]
     assert m["baseline_accuracy"] < m["accuracy"]
@@ -343,22 +348,23 @@ def test_regressor_note_and_floor_disclaimer():
 
 
 def test_volume_forecast_reliability_gate():
-    # DW + Radio are trustworthy regressors → forecast shown.
-    assert ak.volume_forecast_reliable("DW") is True
+    # v3: only Radio keeps a (weak) forecast floor. DW (R²<0) and RR (R²=0.23, noise)
+    # are both suppressed under honest group-CV.
     assert ak.volume_forecast_reliable("RADIO") is True
-    # RR (R²=0.32, notification-CTR noise) → forecast suppressed.
+    assert ak.volume_forecast_reliable("DW") is False
     assert ak.volume_forecast_reliable("RR") is False
     # Unknown algo defaults to reliable (no false suppression).
     assert ak.volume_forecast_reliable("UNKNOWN") is True
 
 
 def test_volume_suppressed_note():
-    # Reliable regressors expose no suppression note.
-    assert ak.volume_suppressed_note("DW") is None
+    # Radio's forecast is reliable enough → no suppression note.
     assert ak.volume_suppressed_note("RADIO") is None
-    # RR returns the classification-only caption shown instead of a forecast.
-    note = ak.volume_suppressed_note("RR")
-    assert note is not None and "AUC 0.96" in note
+    # DW + RR return the classification-only caption shown instead of a forecast.
+    rr_note = ak.volume_suppressed_note("RR")
+    assert rr_note is not None and "AUC 0.94" in rr_note
+    dw_note = ak.volume_suppressed_note("DW")
+    assert dw_note is not None and "classification" in dw_note.lower()
 
 
 def test_radio_volume_zones_populated():

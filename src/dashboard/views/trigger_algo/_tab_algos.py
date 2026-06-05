@@ -4,6 +4,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from src.dashboard.utils import ml_widgets
 from ._common import (
     ELBOW_THRESHOLDS_28D,
     HEURISTIC_GOALS,
@@ -27,6 +28,9 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
     _show_pi_gate_section(ml_pred)
     _show_feature_importance()
     _show_discovery_mode_protocol()
+    st.divider()
+    with st.expander("🔮 Simulateur Release Radar (pré-sortie) — planifier une sortie"):
+        ml_widgets.render_prerelease_rr_estimator()
     st.divider()
     st.subheader("📈 Streams & probabilités algorithmiques")
     try:
