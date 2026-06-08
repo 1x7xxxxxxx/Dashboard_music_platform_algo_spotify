@@ -22,6 +22,28 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+# Characters S4A replaces with '_' in export filenames (Windows-reserved set).
+# s4a_song_timeline / ml_song_predictions are filename-derived (so they carry
+# '_'), while CSV/API tables (s4a_songs_global, tracks, track_popularity_history,
+# campaign_track_mapping) keep the real chars. canonical_song() bridges the two
+# for EXACT per-track joins — unlike normalize_track_title(), it preserves accents
+# and remix/original markers, so distinct tracks stay distinct.
+_FS_INVALID_CHARS = r'<>:"/\|?*'
+_FS_INVALID_TO = '_' * len(_FS_INVALID_CHARS)
+
+
+def canonical_song(name: str) -> str:
+    """Map a title to the filename-derived form (S4A-invalid chars -> '_')."""
+    if not name:
+        return ''
+    return ''.join('_' if c in _FS_INVALID_CHARS else c for c in str(name))
+
+
+def canonical_song_sql(col: str) -> str:
+    """SQL expression mirroring canonical_song(). `col` must be a trusted identifier
+    (a column name from our own code), never user input."""
+    return f"translate({col}, '{_FS_INVALID_CHARS}', '{_FS_INVALID_TO}')"
+
 
 def _strip_accents(text: str) -> str:
     return ''.join(

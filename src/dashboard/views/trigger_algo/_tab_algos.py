@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import ml_widgets
+from src.utils.track_matching import canonical_song_sql
 from ._common import (
     ELBOW_THRESHOLDS_28D,
     HEURISTIC_GOALS,
@@ -47,7 +48,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 (track, artist_id, date_from, date_to)
             )
             df_pi = db.fetch_df(
-                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s AND artist_id = %s AND date BETWEEN %s AND %s ORDER BY date",
+                f"SELECT date, popularity FROM track_popularity_history WHERE {canonical_song_sql('track_name')} = %s AND artist_id = %s AND date BETWEEN %s AND %s ORDER BY date",
                 (track, artist_id, date_from, date_to)
             )
         else:
@@ -63,7 +64,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 (track, date_from, date_to)
             )
             df_pi = db.fetch_df(
-                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s AND date BETWEEN %s AND %s ORDER BY date",
+                f"SELECT date, popularity FROM track_popularity_history WHERE {canonical_song_sql('track_name')} = %s AND date BETWEEN %s AND %s ORDER BY date",
                 (track, date_from, date_to)
             )
 
@@ -128,7 +129,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 (track, artist_id)
             )
             df_pop = db.fetch_df(
-                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s AND artist_id = %s ORDER BY date ASC",
+                f"SELECT date, popularity FROM track_popularity_history WHERE {canonical_song_sql('track_name')} = %s AND artist_id = %s ORDER BY date ASC",
                 (track, artist_id)
             )
         else:
@@ -137,7 +138,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 (track,)
             )
             df_pop = db.fetch_df(
-                "SELECT date, popularity FROM track_popularity_history WHERE track_name = %s ORDER BY date ASC",
+                f"SELECT date, popularity FROM track_popularity_history WHERE {canonical_song_sql('track_name')} = %s ORDER BY date ASC",
                 (track,)
             )
 

@@ -2,6 +2,7 @@
 from datetime import date
 from datetime import timedelta
 from src.dashboard.utils import view_session
+from src.utils.track_matching import canonical_song_sql
 import streamlit as st
 from ._common import (
     _load_lifecycle_benchmark,
@@ -29,20 +30,20 @@ def show():
         try:
             if artist_id:
                 tracks = db.fetch_df(
-                    """SELECT t.song
+                    f"""SELECT t.song
                        FROM (SELECT song FROM s4a_song_timeline
                              WHERE song NOT ILIKE %s AND artist_id = %s GROUP BY song) t
-                       LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+                       LEFT JOIN tracks tk ON {canonical_song_sql('tk.track_name')} = t.song
                                               AND tk.saas_artist_id = %s
                        ORDER BY tk.release_date DESC NULLS LAST, t.song""",
                     ("%1x7xxxxxxx%", artist_id, artist_id)
                 )["song"].tolist()
             else:
                 tracks = db.fetch_df(
-                    """SELECT t.song
+                    f"""SELECT t.song
                        FROM (SELECT song FROM s4a_song_timeline
                              WHERE song NOT ILIKE %s GROUP BY song) t
-                       LEFT JOIN tracks tk ON REPLACE(tk.track_name, '?', '_') = t.song
+                       LEFT JOIN tracks tk ON {canonical_song_sql('tk.track_name')} = t.song
                        ORDER BY tk.release_date DESC NULLS LAST, t.song""",
                     ("%1x7xxxxxxx%",)
                 )["song"].tolist()
@@ -65,7 +66,7 @@ def show():
         _track_params = (artist_id,) if artist_id else ()
         try:
             rd_rows = db.fetch_query(
-                f"SELECT release_date FROM tracks WHERE REPLACE(track_name, '?', '_') = %s {_track_frag} LIMIT 1",
+                f"SELECT release_date FROM tracks WHERE {canonical_song_sql('track_name')} = %s {_track_frag} LIMIT 1",
                 (selected_track, *_track_params)
             )
             track_release_date = rd_rows[0][0] if rd_rows and rd_rows[0][0] else (today - timedelta(days=28))

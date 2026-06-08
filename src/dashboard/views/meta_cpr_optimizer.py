@@ -11,6 +11,7 @@ import pandas as pd
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin, require_plan
+from src.utils.track_matching import canonical_song_sql
 
 
 # ── Seuils score ─────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ def _get_recommendation(score: float) -> tuple[str, str, str]:
     return "🔴 Réduire", "-30%", "#dc3545"
 
 
-_QUERY_OPTIMIZER = """
+_QUERY_OPTIMIZER = f"""
 SELECT
     ctm.campaign_name,
     ctm.track_name,
@@ -62,7 +63,7 @@ LEFT JOIN (
     FROM ml_song_predictions
     WHERE artist_id = %s
     ORDER BY song, prediction_date DESC
-) ml ON LOWER(ml.song) = LOWER(ctm.track_name)
+) ml ON LOWER(ml.song) = LOWER({canonical_song_sql('ctm.track_name')})
 WHERE ctm.artist_id = %s
 ORDER BY mip.cpr ASC NULLS LAST
 """
