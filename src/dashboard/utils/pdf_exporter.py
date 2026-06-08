@@ -1,6 +1,13 @@
 """Génération de rapports PDF artiste via WeasyPrint."""
+import re
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+# WeasyPrint's base fonts have no emoji glyphs (they render as tofu boxes), so we
+# strip emoji from the final HTML. The matplotlib charts carry no emoji.
+_EMOJI_RE = re.compile(
+    "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF✀-➿️⭐⬆☁❤]+"
+)
 
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
@@ -29,48 +36,97 @@ ALL_SECTIONS = {
 # ─── CSS ─────────────────────────────────────────────────────────────────────
 
 _CSS = """
+@page { size: A4; margin: 15mm 14mm 16mm 14mm;
+        @bottom-center { content: "streaMLytics  ·  Page " counter(page) " / " counter(pages);
+                         font-size: 7.5pt; color: #b8b8b8; } }
+@page :first { margin: 0; @bottom-center { content: none; } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-       font-size: 11pt; color: #1a1a2e; background: #fff; }
-.page { padding: 28px 36px; max-width: 900px; margin: auto; }
-h1  { font-size: 20pt; color: #1DB954; margin-bottom: 4px; }
-h2  { font-size: 13pt; color: #1a1a2e; border-left: 4px solid #1DB954;
-      padding-left: 8px; margin: 22px 0 10px 0; }
-h3  { font-size: 10.5pt; color: #444; margin: 14px 0 6px 0; }
-.subtitle { color: #666; font-size: 9pt; margin-bottom: 24px; }
-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-th  { background: #1DB954; color: #fff; font-size: 9.5pt;
-      padding: 6px 10px; text-align: left; }
-td  { padding: 5px 10px; font-size: 10pt; border-bottom: 1px solid #eee; }
-tr:nth-child(even) td { background: #f8f8f8; }
+       font-size: 10.5pt; color: #1a1a2e; background: #fff; }
+.content { padding: 0 2mm; }
+
+/* ── Cover (full first page) ── */
+.cover { height: 297mm; padding: 60mm 24mm 24mm 24mm;
+         background: linear-gradient(150deg, #191414 0%, #0d3b22 55%, #1DB954 130%);
+         color: #fff; page-break-after: always; }
+.cover .eyebrow { font-size: 11pt; letter-spacing: 3px; text-transform: uppercase;
+                  color: #1DB954; font-weight: 700; }
+.cover h1 { font-size: 40pt; line-height: 1.05; margin: 6px 0 2px 0; color: #fff; border: 0; }
+.cover .meta { font-size: 12pt; color: #cfe9d8; margin-top: 14px; }
+.cover .cov-kpis { display: flex; gap: 9px; margin-top: 46mm; }
+.cover .cov-kpi { flex: 1 1 0; min-width: 0; background: rgba(255,255,255,0.08);
+                  border: 1px solid rgba(255,255,255,0.18); border-radius: 12px;
+                  padding: 14px 8px; text-align: center; }
+.cover .cov-kpi .v { font-size: 19pt; font-weight: 800; color: #fff; }
+.cover .cov-kpi .l { font-size: 8pt; color: #bfe8cd; margin-top: 4px;
+                     text-transform: uppercase; letter-spacing: 1px; }
+
+/* ── Sections ── */
+h1 { font-size: 18pt; color: #1DB954; }
+h2 { font-size: 14pt; color: #11261a; margin: 26px 0 12px 0; padding-bottom: 6px;
+     border-bottom: 2px solid #1DB954; page-break-after: avoid; }
+h3 { font-size: 10.5pt; color: #444; margin: 14px 0 6px 0; }
+.section { page-break-inside: avoid; margin-bottom: 8px; }
+.subtitle { color: #666; font-size: 9pt; margin-bottom: 18px; }
+.lead { background: #f0faf3; border-left: 4px solid #1DB954; border-radius: 6px;
+        padding: 10px 14px; font-size: 9.5pt; color: #2a4a38; margin: 4px 0 14px 0; }
+
+/* ── Tables ── */
+table { width: 100%; border-collapse: collapse; margin: 6px 0 12px 0; }
+th { background: #11261a; color: #fff; font-size: 8.5pt; padding: 7px 10px;
+     text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
+td { padding: 6px 10px; font-size: 9.5pt; border-bottom: 1px solid #eee; }
+tr:nth-child(even) td { background: #f7faf8; }
+
+/* ── Badges & cards ── */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
          font-size: 8.5pt; font-weight: 600; color: #fff; }
-.green  { background: #1DB954; }
-.orange { background: #FFA500; }
-.red    { background: #FF4444; }
-.gray   { background: #888; }
-.kpi-grid { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
-.kpi-card { flex: 1; min-width: 130px; border: 1px solid #e0e0e0;
-            border-radius: 8px; padding: 10px 14px; text-align: center; }
-.kpi-val  { font-size: 17pt; font-weight: 800; color: #1DB954; }
-.kpi-lbl  { font-size: 8pt; color: #666; margin-top: 2px; }
-.roi-card { background: #f0faf3; border: 1px solid #1DB954; border-radius: 8px;
+.green { background: #1DB954; } .orange { background: #FFA500; }
+.red { background: #FF4444; } .gray { background: #888; }
+.kpi-grid { display: flex; gap: 9px; margin: 6px 0 12px 0; }
+.kpi-card { flex: 1 1 0; min-width: 0; border: 1px solid #e6e6e6; background: #fff;
+            border-radius: 10px; padding: 12px 8px; text-align: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.kpi-val { font-size: 14.5pt; font-weight: 800; color: #1DB954; }
+.kpi-lbl { font-size: 8pt; color: #777; margin-top: 3px; }
+.roi-card { background: #f0faf3; border: 1px solid #1DB954; border-radius: 10px;
             padding: 14px 18px; margin-bottom: 12px; }
-.roi-row  { display: flex; gap: 32px; }
-.roi-item { flex: 1; }
-.song-block { border: 1px solid #e0e0e0; border-radius: 8px;
-              padding: 12px 16px; margin-bottom: 14px; }
-.song-title { font-weight: 700; font-size: 11pt; color: #1DB954;
-              margin-bottom: 8px; }
-.prob-bar-wrap { background: #eee; border-radius: 4px; height: 10px;
-                 width: 100%; margin: 2px 0 6px 0; }
+.roi-row { display: flex; gap: 32px; } .roi-item { flex: 1; }
+
+/* ── Charts ── */
+.chart { width: 100%; margin: 8px 0 14px 0; page-break-inside: avoid; }
+.chart img { width: 100%; border: 1px solid #eee; border-radius: 8px; }
+.chart-row { display: flex; gap: 14px; page-break-inside: avoid; }
+.chart-row .chart { flex: 1; }
+
+/* ── Song / spotlight ── */
+.song-block { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; }
+.song-title { font-weight: 700; font-size: 11pt; color: #1DB954; margin-bottom: 8px; }
+.spotlight { background: #11261a; color: #fff; border-radius: 12px; padding: 18px 22px;
+             margin: 6px 0 14px 0; page-break-inside: avoid; }
+.spotlight h2 { color: #fff; border-color: #1DB954; margin-top: 0; }
+.spotlight .name { font-size: 16pt; font-weight: 800; color: #1DB954; }
+.prob-bar-wrap { background: #eee; border-radius: 4px; height: 10px; width: 100%; margin: 2px 0 6px 0; }
 .prob-bar { background: #1DB954; border-radius: 4px; height: 10px; }
-.no-data  { color: #aaa; font-style: italic; font-size: 9pt; }
-.footer   { margin-top: 36px; font-size: 7.5pt; color: #aaa; text-align: center;
-            border-top: 1px solid #eee; padding-top: 10px; }
+.no-data { color: #aaa; font-style: italic; font-size: 9pt; }
+.footer { margin-top: 30px; font-size: 7.5pt; color: #aaa; text-align: center;
+          border-top: 1px solid #eee; padding-top: 10px; }
 """
 
 # ─── Helpers DB ───────────────────────────────────────────────────────────────
+
+def _latest_release(db, artist_id):
+    """Latest released track in the timeline ('_') form, or None."""
+    try:
+        rows = db.fetch_query(
+            "SELECT REPLACE(track_name, '?', '_') FROM tracks "
+            "WHERE saas_artist_id = %s AND release_date IS NOT NULL "
+            "ORDER BY release_date DESC LIMIT 1",
+            (artist_id,))
+        return rows[0][0] if rows else None
+    except Exception:
+        return None
+
 
 def _get_artist_name(db, artist_id):
     if artist_id is None:
@@ -441,7 +497,20 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs
     sc_tracks        = _collect_soundcloud_tracks(db, artist_id)
     apple_data       = _collect_apple(db, artist_id)
 
+    # Latest release (timeline '_' form) + embedded chart images (base64 PNG).
+    latest_release = _latest_release(db, artist_id)
+    from src.dashboard.utils import pdf_charts
+    streams_dict = {'s4a': s4a, 'youtube': yt, 'soundcloud': sc, 'apple': apple}
+    charts = {
+        'streams':  pdf_charts.streams_timeline(db, artist_id, from_date, to_date),
+        'platform': pdf_charts.platform_breakdown(streams_dict),
+        'ml':       pdf_charts.ml_probabilities(db, artist_id, latest_release) if latest_release else None,
+        'roi':      pdf_charts.roi_breakeven(roi),
+    }
+
     return {
+        'latest_release':  latest_release,
+        'charts':          charts,
         'generated_at':    now,
         'period_months':   months,
         'from_date':       from_date,
@@ -720,6 +789,31 @@ def _render_apple(apple):
     return summary + table
 
 
+def _chart(uri, caption=None):
+    """Wrap a base64 chart URI in a figure block; empty string if no chart."""
+    if not uri:
+        return ""
+    cap = f'<div class="kpi-lbl" style="text-align:center">{caption}</div>' if caption else ""
+    return f'<div class="chart"><img src="{uri}"/>{cap}</div>'
+
+
+def _cover_kpis(data) -> str:
+    pop = data.get('spotify_popularity') or {}
+    ig = data.get('instagram') or {}
+    roi = data.get('roi') or {}
+    roi_pct = roi.get('roi_pct')
+    cards = [
+        (f"{data['streams']['total']:,}", "Streams toutes plateformes"),
+        (f"{pop['score']}/100" if pop.get('score') is not None else "—", "Popularité Spotify"),
+        (f"{ig['followers']:,}" if ig.get('followers') is not None else "—", "Followers Instagram"),
+        (f"{roi_pct:.0f}%" if roi_pct is not None else "—", "ROI période"),
+    ]
+    return "".join(
+        f'<div class="cov-kpi"><div class="v">{v}</div><div class="l">{lbl}</div></div>'
+        for v, lbl in cards
+    )
+
+
 def render_html(data, artist_name, sections=None):
     """
     Génère la chaîne HTML du rapport.
@@ -730,16 +824,30 @@ def render_html(data, artist_name, sections=None):
 
     gen_dt = data['generated_at'].strftime("%d/%m/%Y à %H:%M")
     period = f"{data['from_date'].strftime('%d/%m/%Y')} → {data['to_date'].strftime('%d/%m/%Y')}"
+    charts = data.get('charts', {})
 
     body_parts = []
 
+    # Spotlight on the latest release (probabilities chart) — top of the report.
+    if charts.get('ml') and data.get('latest_release'):
+        body_parts.append(
+            f"""<div class="spotlight">
+              <h2>🚀 Dernière sortie — focus algorithmes</h2>
+              <div class="name">{data['latest_release']}</div>
+              {_chart(charts['ml'])}
+            </div>"""
+        )
+
     if sections.get('freshness'):
         body_parts.append(
-            f"<h2>📡 Fraîcheur des données</h2>\n{_render_freshness(data['freshness'])}"
+            f"<div class='section'><h2>📡 Fraîcheur des données</h2>\n{_render_freshness(data['freshness'])}</div>"
         )
     if sections.get('streams'):
         body_parts.append(
-            f"<h2>🎧 Streams totaux</h2>\n{_render_streams(data['streams'])}"
+            "<div class='section'><h2>🎧 Streams totaux</h2>\n"
+            f"{_render_streams(data['streams'])}\n"
+            f"<div class='chart-row'>{_chart(charts.get('streams'))}{_chart(charts.get('platform'))}</div>"
+            "</div>"
         )
     if sections.get('kpi'):
         body_parts.append(
@@ -748,8 +856,9 @@ def render_html(data, artist_name, sections=None):
         )
     if sections.get('roi'):
         body_parts.append(
-            f"<h2>💹 ROI Breakheaven</h2>\n"
-            f"{_render_roi(data['roi'], data['from_date'], data['to_date'])}"
+            "<div class='section'><h2>💹 ROI Breakeven</h2>\n"
+            f"{_render_roi(data['roi'], data['from_date'], data['to_date'])}\n"
+            f"{_chart(charts.get('roi'))}</div>"
         )
     if sections.get('s4a_songs'):
         body_parts.append(
@@ -793,18 +902,19 @@ def render_html(data, artist_name, sections=None):
 <head><meta charset="utf-8"><title>Rapport — {artist_name}</title>
 <style>{_CSS}</style></head>
 <body>
-<div class="page">
-  <h1>🎵 Music Platform Dashboard</h1>
-  <div class="subtitle">
-    Rapport artiste — <b>{artist_name}</b><br>
-    Période : {period} &nbsp;|&nbsp; Généré le {gen_dt}
-  </div>
+<div class="cover">
+  <div class="eyebrow">streaMLytics · Rapport artiste</div>
+  <h1>{artist_name}</h1>
+  <div class="meta">Période : {period}<br>Généré le {gen_dt}</div>
+  <div class="cov-kpis">{_cover_kpis(data)}</div>
+</div>
 
+<div class="content">
   {body_html}
 
   <div class="footer">
-    Généré automatiquement par Music Platform Dashboard &nbsp;|&nbsp;
-    Ne pas diffuser sans autorisation &nbsp;|&nbsp; {gen_dt}
+    Généré automatiquement par streaMLytics &nbsp;|&nbsp;
+    Confidentiel — ne pas diffuser sans autorisation &nbsp;|&nbsp; {gen_dt}
   </div>
 </div>
 </body>
@@ -837,5 +947,5 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
 
     data = collect_report_data(db, artist_id, from_date, to_date, songs=songs,
                                s4a_songs_filter=s4a_songs_filter)
-    html_str = render_html(data, artist_name, sections=sections)
+    html_str = _EMOJI_RE.sub("", render_html(data, artist_name, sections=sections))
     return HTML(string=html_str).write_pdf()

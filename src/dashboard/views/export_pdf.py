@@ -11,6 +11,7 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.pdf_exporter import (
     get_available_songs, get_artists_list, generate_pdf, ALL_SECTIONS,
+    _latest_release,
 )
 
 
@@ -107,16 +108,18 @@ def _show_form(db):
 
     st.markdown("---")
 
-    # ── Ligne 2 : Sections à inclure ────────────────────────────────────────
+    # ── Ligne 2 : Sections à inclure (toutes cochées par défaut) ─────────────
     st.markdown("**📑 Sections à inclure**")
     sec_cols = st.columns(len(ALL_SECTIONS))
     sections = {}
-    defaults = {'freshness': True, 'streams': True, 'kpi': True, 'roi': True, 'songs': False}
     for col, (key, label) in zip(sec_cols, ALL_SECTIONS.items()):
-        sections[key] = col.checkbox(label, value=defaults.get(key, True), key=f"sec_{key}")
+        sections[key] = col.checkbox(label, value=True, key=f"sec_{key}")
 
     # ── Ligne 3 : Sélecteurs de chansons (conditionnels) ────────────────────
     available = get_available_songs(db, report_artist_id)
+    # Auto-focus the latest release for the song selectors.
+    latest = _latest_release(db, report_artist_id)
+    _default_song = [latest] if latest and latest in available else available[:1]
 
     s4a_songs_filter = None
     if sections.get('s4a_songs'):
@@ -126,7 +129,7 @@ def _show_form(db):
             with col_s4a:
                 s4a_sel = st.multiselect(
                     "Chansons S4A", available,
-                    default=available[:1],
+                    default=_default_song,
                     label_visibility="collapsed",
                     placeholder="Toutes les chansons (défaut top 15)…",
                     key="sec_s4a_songs_sel",
@@ -144,7 +147,7 @@ def _show_form(db):
         st.markdown("**🔬 Focus ML — Chansons à inclure**")
         if available:
             selected_songs = st.multiselect(
-                "Chansons ML", available, default=available[:5],
+                "Chansons ML", available, default=_default_song,
                 label_visibility="collapsed",
                 placeholder="Choisissez une ou plusieurs chansons…",
                 key="sec_songs_sel",
