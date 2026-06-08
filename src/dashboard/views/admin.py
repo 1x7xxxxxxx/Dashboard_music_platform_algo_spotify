@@ -244,13 +244,58 @@ def _upload_apple(db, artist_id: int, file):
 # View
 # ─────────────────────────────────────────────
 
+_TOKEN_MATRIX = [
+    {"Plateforme": "🎵 Spotify", "Type de token": "client_credentials (~1 h)",
+     "Expiration": "1 h", "Rafraîchissement": "Auto à chaque collecte (re-grant)",
+     "Action artiste": "Aucune", "Action admin": "Aucune (secret roté → re-coller)"},
+    {"Plateforme": "🎬 YouTube", "Type de token": "Clé API statique",
+     "Expiration": "Jamais", "Rafraîchissement": "N/A",
+     "Action artiste": "Aucune", "Action admin": "Aucune (clé révoquée → remplacer)"},
+    {"Plateforme": "☁️ SoundCloud", "Type de token": "client_credentials (app partagée)",
+     "Expiration": "1 h", "Rafraîchissement": "Auto à chaque run",
+     "Action artiste": "Aucune", "Action admin": "Aucune"},
+    {"Plateforme": "📱 Meta (System User)", "Type de token": "Long-lived",
+     "Expiration": "Jamais (expires_at = NULL)",
+     "Rafraîchissement": "N/A — le DAG meta_token_refresh saute les tokens sans expiration",
+     "Action artiste": "Aucune", "Action admin": "Seulement si révoqué manuellement"},
+    {"Plateforme": "📱 Meta (perso 60 j, legacy)", "Type de token": "User token roulant",
+     "Expiration": "60 jours",
+     "Rafraîchissement": "Auto ×2 : DAG hebdo (<30 j) + collecteur proactif (<15 j), persistés",
+     "Action artiste": "Aucune", "Action admin": "Aucune (migrer vers System User)"},
+]
+
+
+def _render_token_management() -> None:
+    """Admin reference: per-platform token type, expiry and auto-refresh."""
+    st.subheader("🔑 Tokens & rafraîchissement — référence")
+    st.caption(
+        "Régime permanent : **aucune action récurrente** pour l'artiste ni pour "
+        "l'admin — chaque token est soit non-expirant, soit auto-renouvelé. Le seul "
+        "geste admin possible est la réparation après une révocation/rotation manuelle "
+        "côté plateforme."
+    )
+    st.dataframe(pd.DataFrame(_TOKEN_MATRIX), hide_index=True, width="stretch")
+    st.info(
+        "Persistance des rotations : `update_platform_secret` (Fernet) — nécessite "
+        "`FERNET_KEY` dans le conteneur Airflow. Apps partagées (SoundCloud/Meta) : "
+        "`SOUNDCLOUD_CLIENT_ID/SECRET`, `META_ACCESS_TOKEN/APP_ID/APP_SECRET` en `.env`."
+    )
+
+
 def show():
     _guard()
 
     st.title("⚙️ Administration")
     st.markdown("---")
 
-    tab_artists, tab_users, tab_upload, tab_gdpr = st.tabs(["👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV", "🗑️ Effacement RGPD"])
+    tab_artists, tab_users, tab_upload, tab_gdpr, tab_tokens = st.tabs(
+        ["👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV", "🗑️ Effacement RGPD", "🔑 Tokens"])
+
+    # ══════════════════════════════════════════
+    # ONGLET 5 : GESTION DES TOKENS (référence admin)
+    # ══════════════════════════════════════════
+    with tab_tokens:
+        _render_token_management()
 
     # ══════════════════════════════════════════
     # ONGLET 1 : GESTION DES ARTISTES
