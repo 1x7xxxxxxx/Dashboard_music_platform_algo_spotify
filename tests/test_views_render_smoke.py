@@ -47,8 +47,8 @@ VIEWS = [
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
-    "process_credentials", "process_import", "promo_admin", "referral", "referral_admin",
-    "reglages", "revenue_forecast", "soundcloud",
+    "promo_admin", "referral", "referral_admin",
+    "revenue_forecast", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "useful_links",
     "youtube",
 ]

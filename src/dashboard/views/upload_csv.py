@@ -166,10 +166,8 @@ def show():
         "Le type est détecté automatiquement depuis le nom de fichier et les colonnes."
     )
 
-    st.info(
-        "📖 Besoin d'aide pour télécharger vos CSV ? Le guide complet "
-        "(étapes + captures) est dans **📖 Process — Import CSV** (section 📁 Données)."
-    )
+    from src.dashboard.content.csv_guides_st import render_csv_guides
+    render_csv_guides()
 
     st.info(
         "🔗 **Mapping Spotify × Meta Ads** — après avoir **lancé la collecte "
