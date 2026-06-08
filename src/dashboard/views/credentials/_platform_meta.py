@@ -4,6 +4,8 @@ Type: Sub
 Uses: requests, streamlit, META_GRAPH_BASE_URL
 Pure relocation from the former credentials.py — no logic change.
 """
+import os
+
 import requests
 import streamlit as st
 
@@ -11,10 +13,16 @@ from src.utils.meta_config import META_GRAPH_BASE_URL
 
 
 def _test_meta(fields: dict) -> tuple:
+    # Shared System User token comes from the platform env; the artist only
+    # provides their account_id. A stored per-artist token (if any) wins.
+    token = fields.get('access_token', '').strip() or os.getenv('META_ACCESS_TOKEN', '')
+    if not token:
+        return False, ("App Meta non configurée côté plateforme (META_ACCESS_TOKEN) — "
+                       "contactez l'administrateur.")
     try:
         r = requests.get(
             f'{META_GRAPH_BASE_URL}/me',
-            params={'access_token': fields.get('access_token', ''), 'fields': 'id,name'},
+            params={'access_token': token, 'fields': 'id,name'},
             timeout=10,
             allow_redirects=False,  # INFO-04
         )

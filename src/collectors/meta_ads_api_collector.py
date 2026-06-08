@@ -275,6 +275,13 @@ class MetaAdsApiCollector:
     def _load_credentials(self) -> dict:
         from src.utils.credential_loader import load_platform_credentials
         creds = load_platform_credentials(self.artist_id, 'meta')
+        # Shared System User app falls back to env, so an artist only needs to
+        # provide their own account_id. Per-artist stored values always win
+        # (additive — existing tenants are unchanged).
+        creds['access_token'] = creds.get('access_token') or os.getenv('META_ACCESS_TOKEN')
+        creds['app_id'] = creds.get('app_id') or os.getenv('META_APP_ID')
+        creds['app_secret'] = creds.get('app_secret') or os.getenv('META_APP_SECRET')
+        creds['account_id'] = creds.get('account_id') or os.getenv('META_AD_ACCOUNT_ID')
         missing = [k for k in ('access_token', 'app_id', 'app_secret', 'account_id')
                    if not creds.get(k)]
         if missing:

@@ -4,22 +4,25 @@ Type: Sub
 Uses: requests, streamlit
 Pure relocation from the former credentials.py — no logic change.
 """
+import os
+
 import requests
 import streamlit as st
 
 
 def _test_soundcloud(fields: dict) -> tuple:
     """Test SoundCloud via OAuth 2.0 Client Credentials flow (official API)."""
-    client_id     = fields.get('client_id', '').strip()
-    client_secret = fields.get('client_secret', '').strip()
+    # The artist only provides user_id; app credentials come from the shared env
+    # app (SOUNDCLOUD_CLIENT_ID/SECRET), with a per-artist stored override if any.
     user_id       = fields.get('user_id', '').strip()
+    client_id     = fields.get('client_id', '').strip() or os.getenv('SOUNDCLOUD_CLIENT_ID', '')
+    client_secret = fields.get('client_secret', '').strip() or os.getenv('SOUNDCLOUD_CLIENT_SECRET', '')
 
-    if not client_id:
-        return False, "Client ID vide — créer une app sur soundcloud.com/you/apps."
-    if not client_secret:
-        return False, "Client Secret vide — disponible sur soundcloud.com/you/apps après création de l'app."
     if not user_id:
-        return False, "User ID vide — ID numérique visible dans l'URL de ton profil SoundCloud."
+        return False, "User ID vide — voir le guide ci-dessus pour le trouver (/discover)."
+    if not client_id or not client_secret:
+        return False, ("App SoundCloud non configurée côté plateforme "
+                       "(SOUNDCLOUD_CLIENT_ID/SECRET) — contactez l'administrateur.")
 
     try:
         # Step 1: obtain token

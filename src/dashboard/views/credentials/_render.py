@@ -22,7 +22,8 @@ from ._core import (
     _save_credentials,
     app_level_configured,
 )
-from ._registry import PLATFORMS, CONNECTION_TESTS, _render_platform_guide
+from ._registry import PLATFORMS, CONNECTION_TESTS
+from src.dashboard.content.credential_guides_st import render_credential_guide_for
 
 
 def _render_global_kpi(existing: dict, dag_states: dict) -> None:
@@ -91,8 +92,8 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     if dag_states is not None:
         _render_dag_status_badge(platform_key, dag_states)
 
-    # ── Guide ──────────────────────────────────────────────────────────
-    _render_platform_guide(platform_key)
+    # ── Guide (rich single-source content + screenshots + example values) ──
+    render_credential_guide_for(platform_key)
 
     # ── Statut actuel ──────────────────────────────────────────────────
     if existing_row:
