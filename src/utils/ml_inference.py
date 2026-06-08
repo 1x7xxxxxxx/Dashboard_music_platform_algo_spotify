@@ -309,10 +309,13 @@ def build_features(db, artist_id: int, song: str) -> dict:
     # real opt-out from a missing-data 0 (Discovery Mode has no API source; ~35% unknown).
     discovery_mode_known = bool(dm_row)
 
-    # --- Playlist adds (last 28 days) from manual S4A entries ---
+    # --- Playlist adds (28-day snapshot) from manual S4A entries ---
+    # Latest '28d' windowed snapshot (migration 044); not a sum, to match how S4A
+    # reports the figure and how it is entered in the Saisie S4A grid.
     pa_row = db.fetch_query(
-        """SELECT COALESCE(SUM(count), 0) FROM s4a_song_playlist_adds
-           WHERE artist_id = %s AND song = %s AND recorded_at >= CURRENT_DATE - 28""",
+        """SELECT count FROM s4a_song_playlist_adds
+           WHERE artist_id = %s AND song = %s AND time_window = '28d'
+           ORDER BY recorded_at DESC LIMIT 1""",
         (artist_id, song)
     )
     playlist_adds_28d = int(pa_row[0][0]) if pa_row and pa_row[0][0] else 0

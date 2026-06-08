@@ -48,7 +48,7 @@ VIEWS = [
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
     "promo_admin", "referral", "referral_admin",
-    "revenue_forecast", "soundcloud",
+    "revenue_forecast", "saisie_s4a", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "useful_links",
     "youtube",
 ]

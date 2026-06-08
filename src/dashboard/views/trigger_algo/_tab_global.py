@@ -66,14 +66,14 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     except Exception:
         saves = None
 
-    # Playlist adds — most recent snapshot in the selected period (sémantique post-migration 024:
-    # 'count' est cumulatif par snapshot daté via recorded_at, pas incrémental par fenêtre)
+    # Playlist adds — latest 28d windowed snapshot (migration 044). Entry is done
+    # in bulk on the dedicated "📝 Saisie S4A" page.
     try:
         _parow = db.fetch_query(
             "SELECT count FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s AND recorded_at BETWEEN %s AND %s "
+            "WHERE artist_id = %s AND song = %s AND time_window = '28d' "
             "ORDER BY recorded_at DESC LIMIT 1",
-            (artist_id, track, date_from, date_to),
+            (artist_id, track),
         ) if artist_id else None
         playlist_adds = int(_parow[0][0]) if _parow and _parow[0][0] is not None else 0
     except Exception:
@@ -86,25 +86,20 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     col2.metric(f"Streams titre ({_tw_label})", f"{int(streams or 0):,}" if streams is not None else "—")
     col3.metric(f"Saves ({_tw_label})", f"{int(saves or 0):,}" if saves is not None else "—",
                 help=f"Snapshot {_tw_label} depuis s4a_songs_global")
-    col4.metric("Playlist adds (période)", f"{int(playlist_adds):,}",
-                help="Saisie manuelle via la section Ajouts en playlist ci-dessous")
+    col4.metric("Playlist adds (28j)", f"{int(playlist_adds):,}",
+                help="Snapshot 28j — saisie dans « 📝 Saisie S4A » (section Données)")
 
     st.markdown("---")
 
-    # ── Ajouts en playlist (saisie manuelle) ─────────────────────────────────
+    # ── Ajouts en playlist (lecture seule — saisie dans 📝 Saisie S4A) ───────────
     st.subheader("🎧 Ajouts en playlist")
     try:
-        # Most recent snapshot regardless of selected period
         pl_row = db.fetch_query(
             "SELECT count, recorded_at FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s "
+            "WHERE artist_id = %s AND song = %s AND time_window = '28d' "
             "ORDER BY recorded_at DESC LIMIT 1",
             (artist_id, track),
-        ) if artist_id else db.fetch_query(
-            "SELECT count, recorded_at FROM s4a_song_playlist_adds "
-            "WHERE song = %s ORDER BY recorded_at DESC LIMIT 1",
-            (track,),
-        )
+        ) if artist_id else None
         current_pl_count = int(pl_row[0][0]) if pl_row and pl_row[0][0] is not None else 0
         last_recorded = pl_row[0][1] if pl_row else None
     except Exception:
@@ -112,31 +107,11 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
         last_recorded = None
 
     st.metric(
-        "Playlists ajoutées",
+        "Playlists ajoutées (28j)",
         current_pl_count,
-        help=f"Dernier enregistrement : {last_recorded or '—'}. "
-             "Donnée visible dans l'UI Spotify for Artists uniquement — à saisir manuellement.",
+        help=f"Dernier relevé : {last_recorded or '—'}.",
     )
-    with st.expander("✏️ Mettre à jour les playlists (saisie manuelle)", expanded=False):
-        st.caption("Saisissez le nombre de playlists affiché dans S4A pour ce titre.")
-        with st.form(key=f"pl_count_form_{track}_{artist_id}", clear_on_submit=False):
-            fc1, fc2 = st.columns([2, 1])
-            new_count = fc1.number_input("Nombre de playlists", min_value=0,
-                                         value=current_pl_count, step=1)
-            entry_date = fc2.date_input("Date de relevé", value=date_to, format="YYYY-MM-DD")
-            if st.form_submit_button("Enregistrer", type="primary"):
-                try:
-                    db.upsert_many(
-                        table='s4a_song_playlist_adds',
-                        data=[{'artist_id': artist_id, 'song': track,
-                               'recorded_at': entry_date, 'count': int(new_count)}],
-                        conflict_columns=['artist_id', 'song', 'recorded_at'],
-                        update_columns=['count', 'collected_at'],
-                    )
-                    st.success(f"{int(new_count)} playlist(s) enregistrée(s) au {entry_date}.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Erreur : {exc}")
+    st.caption("✏️ Saisie (7j/28j/12m + plage perso) dans **📝 Saisie S4A** (section Données).")
 
     # ── Discovery Mode (saisie manuelle) ─────────────────────────────────────
     # S4A-UI-only signal (no API). Un-impute le feature ML
@@ -162,29 +137,9 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     st.metric(
         "Discovery Mode",
         "Activé" if current_dm else "Désactivé",
-        help=f"Dernier relevé : {dm_recorded or '—'}. Visible dans Spotify for Artists "
-             "uniquement — à saisir manuellement. Alimente la prédiction ML.",
+        help=f"Dernier relevé : {dm_recorded or '—'}. Alimente la prédiction ML.",
     )
-    if artist_id:
-        with st.expander("✏️ Mettre à jour le Discovery Mode (saisie manuelle)", expanded=False):
-            with st.form(key=f"dm_form_{track}_{artist_id}", clear_on_submit=False):
-                dc1, dc2 = st.columns([2, 1])
-                new_dm = dc1.checkbox("Opt-in Discovery Mode pour ce titre", value=current_dm)
-                dm_date = dc2.date_input("Date de relevé", value=date_to, format="YYYY-MM-DD")
-                if st.form_submit_button("Enregistrer", type="primary"):
-                    try:
-                        db.upsert_many(
-                            table='s4a_song_discovery_mode',
-                            data=[{'artist_id': artist_id, 'song': track,
-                                   'recorded_at': dm_date, 'opted_in': bool(new_dm)}],
-                            conflict_columns=['artist_id', 'song', 'recorded_at'],
-                            update_columns=['opted_in', 'collected_at'],
-                        )
-                        st.success(
-                            f"Discovery Mode {'activé' if new_dm else 'désactivé'} au {dm_date}.")
-                        st.rerun()
-                    except Exception as exc:
-                        st.error(f"Erreur : {exc}")
+    st.caption("✏️ Saisie dans **📝 Saisie S4A** (section Données).")
 
     st.markdown("---")
 

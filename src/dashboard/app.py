@@ -114,6 +114,7 @@ _NAV_SECTIONS = [
     ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
+                                             ("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
                                              ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
@@ -332,6 +333,7 @@ def main():
     elif page == "credentials": from views.credentials import show; show()
     elif page == "process_guide": from views.process_guide import show; show()
     elif page == "upload_csv": from views.upload_csv import show; show()
+    elif page == "saisie_s4a": from views.saisie_s4a import show; show()
     elif page == "export_pdf": from views.export_pdf import show; show()
     elif page == "export_csv": from views.export_csv import show; show()
     elif page == "airflow_kpi": from views.airflow_kpi import show; show()
