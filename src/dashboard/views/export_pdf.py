@@ -23,11 +23,15 @@ def _resolve_period(period_label, custom_from, custom_to):
         "6 derniers mois":  6,
         "12 derniers mois": 12,
         "Cette année":      None,
+        "Depuis le début":  "all",
         "Personnalisé":     "custom",
     }
     v = mapping[period_label]
     if v == "custom":
         return custom_from, custom_to
+    if v == "all":
+        # Far-past start to capture the full history (catalogue began well after).
+        return date(2015, 1, 1), now.date()
     if v is None:
         return date(now.year, 1, 1), now.date()
     return (now - relativedelta(months=v)).replace(day=1).date(), now.date()
@@ -85,7 +89,7 @@ def _show_form(db):
         st.markdown("**📅 Période**")
         period_label = st.selectbox(
             "Période", ["3 derniers mois", "6 derniers mois", "12 derniers mois",
-                        "Cette année", "Personnalisé"],
+                        "Cette année", "Depuis le début", "Personnalisé"],
             index=2, label_visibility="collapsed"
         )
 
