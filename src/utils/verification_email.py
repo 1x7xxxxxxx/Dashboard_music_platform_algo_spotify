@@ -6,8 +6,11 @@ Depends on: smtp section in config/config.yaml
 """
 import smtplib
 import logging
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +22,26 @@ def _smtp_config() -> dict:
     return config_loader.load().get('smtp', {})
 
 
-def _send_html(to_email: str, subject: str, html: str) -> bool:
+def _attach_pdf(msg: MIMEMultipart, path: str) -> bool:
+    """Attach a PDF to the message. Non-raising — missing file logs + skips."""
+    p = Path(path)
+    if not p.exists():
+        logger.warning("Attachment missing, sending without it: %s", path)
+        return False
+    part = MIMEBase('application', 'pdf')
+    part.set_payload(p.read_bytes())
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', 'attachment', filename=p.name)
+    msg.attach(part)
+    return True
+
+
+def _send_html(to_email: str, subject: str, html: str,
+               attachment_path: str | None = None) -> bool:
     """Send one HTML email via the configured SMTP relay. Non-raising.
 
-    Returns False (and logs) when SMTP is not configured or sending fails.
+    Returns False (and logs) when SMTP is not configured or sending fails. An
+    optional PDF attachment is added when the path exists (missing = sent anyway).
     """
     cfg = _smtp_config()
     smtp_host = cfg.get('host', 'smtp.gmail.com')
@@ -36,11 +55,16 @@ def _send_html(to_email: str, subject: str, html: str) -> bool:
         return False
 
     try:
-        msg = MIMEMultipart('alternative')
+        # 'mixed' so the HTML body and the PDF coexist; HTML nested in 'alternative'.
+        msg = MIMEMultipart('mixed')
         msg['From']    = f"{from_name} <{smtp_user}>"
         msg['To']      = to_email
         msg['Subject'] = subject
-        msg.attach(MIMEText(html, 'html'))
+        body = MIMEMultipart('alternative')
+        body.attach(MIMEText(html, 'html'))
+        msg.attach(body)
+        if attachment_path:
+            _attach_pdf(msg, attachment_path)
 
         with smtplib.SMTP(smtp_host, smtp_port) as server:
             server.starttls()
@@ -83,11 +107,27 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30) -> bo
             </a>
         </p>
         <p style="color: #888; font-size: 12px;">
+            📎 Le <strong>guide PDF d'import des CSV</strong> (Spotify for Artists, Apple Music,
+            iMusician) est en pièce jointe.<br>
             Besoin d'aide ? Consultez la page « 📋 Guide de démarrage » dans l'application.
         </p>
     </body></html>
     """
-    return _send_html(to_email, "🎵 Bienvenue — vos premières actions sur streaMLytics", html)
+    pdf = _guide_pdf_path()
+    return _send_html(
+        to_email, "🎵 Bienvenue — vos premières actions sur streaMLytics", html,
+        attachment_path=str(pdf) if pdf and pdf.exists() else None,
+    )
+
+
+def _guide_pdf_path():
+    """Path to the prebuilt onboarding guide PDF, or None if the module is unavailable."""
+    try:
+        from src.dashboard.guides.guide_pdf import output_pdf_path
+        return output_pdf_path()
+    except Exception as e:  # noqa: BLE001 — attachment is best-effort, never blocks signup
+        logger.warning("Guide PDF path unavailable: %s", e)
+        return None
 
 
 def send_verification_email(to_email: str, username: str, token: str) -> bool:
