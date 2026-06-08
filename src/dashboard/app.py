@@ -112,9 +112,12 @@ def _verify_email(token: str) -> None:
 _NAV_SECTIONS = [
     ("start",     "",                       [("🏠 Accueil", "home")]),
     ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
+                                             ("📖 Process — Credentials", "process_credentials"),
                                              ("🔑 Credentials API", "credentials"),
+                                             ("📖 Process — Import CSV", "process_import"),
                                              ("📂 Import CSV", "upload_csv"),
                                              ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
+                                             ("⚙️ Réglages (saisie manuelle)", "reglages"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -331,7 +334,10 @@ def main():
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
     elif page == "process_guide": from views.process_guide import show; show()
+    elif page == "process_credentials": from views.process_credentials import show; show()
+    elif page == "process_import": from views.process_import import show; show()
     elif page == "upload_csv": from views.upload_csv import show; show()
+    elif page == "reglages": from views.reglages import show; show()
     elif page == "export_pdf": from views.export_pdf import show; show()
     elif page == "export_csv": from views.export_csv import show; show()
     elif page == "airflow_kpi": from views.airflow_kpi import show; show()

@@ -117,39 +117,7 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
         help=f"Dernier enregistrement : {last_recorded or '—'}. "
              "Donnée visible dans l'UI Spotify for Artists uniquement — à saisir manuellement.",
     )
-
-    with st.expander("✏️ Mettre à jour", expanded=False):
-        st.caption("Saisissez le nombre de playlists affiché dans S4A pour cette track.")
-        with st.form(key=f"pl_count_form_{track}_{artist_id}", clear_on_submit=False):
-            fc1, fc2 = st.columns([2, 1])
-            new_count = fc1.number_input(
-                "Nombre de playlists",
-                min_value=0,
-                value=current_pl_count,
-                step=1,
-            )
-            entry_date = fc2.date_input(
-                "Date de relevé",
-                value=date_to,
-                format="YYYY-MM-DD",
-            )
-            if st.form_submit_button("Enregistrer", type="primary"):
-                try:
-                    db.upsert_many(
-                        table='s4a_song_playlist_adds',
-                        data=[{
-                            'artist_id':   artist_id,
-                            'song':        track,
-                            'recorded_at': entry_date,
-                            'count':       int(new_count),
-                        }],
-                        conflict_columns=['artist_id', 'song', 'recorded_at'],
-                        update_columns=['count', 'collected_at'],
-                    )
-                    st.success(f"{int(new_count)} playlist(s) enregistrée(s) au {entry_date}.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Erreur : {exc}")
+    st.caption("✏️ Saisie déplacée dans **⚙️ Réglages (saisie manuelle)** (section Données).")
 
     # ── Discovery Mode (saisie manuelle) ─────────────────────────────────────
     # S4A-UI-only signal (no API). Un-impute le feature ML
@@ -178,32 +146,7 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
         help=f"Dernier relevé : {dm_recorded or '—'}. Visible dans Spotify for Artists "
              "uniquement — à saisir manuellement. Alimente la prédiction ML.",
     )
-
-    if artist_id:
-        with st.expander("✏️ Mettre à jour", expanded=False):
-            with st.form(key=f"dm_form_{track}_{artist_id}", clear_on_submit=False):
-                dc1, dc2 = st.columns([2, 1])
-                new_dm = dc1.checkbox("Opt-in Discovery Mode pour cette track", value=current_dm)
-                dm_date = dc2.date_input("Date de relevé", value=date_to, format="YYYY-MM-DD")
-                if st.form_submit_button("Enregistrer", type="primary"):
-                    try:
-                        db.upsert_many(
-                            table='s4a_song_discovery_mode',
-                            data=[{
-                                'artist_id':   artist_id,
-                                'song':        track,
-                                'recorded_at': dm_date,
-                                'opted_in':    bool(new_dm),
-                            }],
-                            conflict_columns=['artist_id', 'song', 'recorded_at'],
-                            update_columns=['opted_in', 'collected_at'],
-                        )
-                        st.success(
-                            f"Discovery Mode {'activé' if new_dm else 'désactivé'} au {dm_date}."
-                        )
-                        st.rerun()
-                    except Exception as exc:
-                        st.error(f"Erreur : {exc}")
+    st.caption("✏️ Saisie déplacée dans **⚙️ Réglages (saisie manuelle)** (section Données).")
 
     st.markdown("---")
 
