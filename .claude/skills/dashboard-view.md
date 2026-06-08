@@ -128,6 +128,16 @@ rex:
     fix: "screenshot_path() resolves by filename anywhere under the assets dir via rglob (flat OR subfolder), falling back to flat path for graceful-missing"
     severity: "info"
     ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Manual-entry forms + how-to guides split into standalone views felt like a doublon; user reverted to inline"
+    fix: "Keep manual entry + guides inline in the actionable page (Vue Globale expanders), not standalone pages unless content is large/shared. One content module, rendered at point of use"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "SoundCloud/Meta forms asked artists for app Client ID/Secret/token, but those are a shared admin app"
+    fix: "Artist provides only the per-tenant pointer (user_id / account_id); app creds come from env via an ADDITIVE collector+test fallback (stored per-artist wins). Token lifecycle lives in the admin view"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
 ---
 
 # Skill: Dashboard View
