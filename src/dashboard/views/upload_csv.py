@@ -46,7 +46,7 @@ _PLATFORMS = {
         'label': 'Apple Music',
         'table': 'apple_songs_performance',
         'conflict_columns': ['artist_id', 'song_name'],
-        'update_columns': ['plays', 'listeners', 'shazam_count'],
+        'update_columns': ['plays', 'listeners', 'shazam_count', 'collected_at'],
     },
     'imusician_summary': {
         'label': 'iMusician — Résumé par sortie',
@@ -136,8 +136,13 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
         return S4ACSVParser().parse_audience(df, artist_id=artist_id)
 
     if platform_key == 'apple':
+        # _detect_platform only routes songs-performance CSVs here (morceau/song + plays);
+        # parse_songs_performance does not inject artist_id, so add it per row.
         from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
-        return AppleMusicCSVParser().parse(df, artist_id=artist_id)
+        rows = AppleMusicCSVParser().parse_songs_performance(df)
+        for row in rows:
+            row['artist_id'] = artist_id
+        return rows
 
     if platform_key == 'imusician_summary':
         from src.transformers.imusician_csv_parser import IMusicianCSVParser
@@ -161,23 +166,10 @@ def show():
         "Le type est détecté automatiquement depuis le nom de fichier et les colonnes."
     )
 
-    with st.expander("📋 Quels fichiers CSV importer ?", expanded=False):
-        st.markdown(
-            "Les types suivants sont reconnus automatiquement :\n\n"
-            "- **Spotify for Artists — Timeline par titre** "
-            "(export S4A `…-timeline.csv` : colonnes `date`, `streams`).\n"
-            "- **Spotify for Artists — Résumé titres** "
-            "(export S4A `songs-all…csv` : colonnes `song`, `release_date`, `saves`).\n"
-            "- **Spotify for Artists — Audience** "
-            "(export S4A `…audience.csv` : colonnes `date`, `listeners`).\n"
-            "- **Apple Music** "
-            "(export Apple Music for Artists : colonnes `Morceau`/`Song Title` + "
-            "`Écoutes`/`Plays`).\n"
-            "- **iMusician — Résumé par sortie** "
-            "(colonnes `Release title`, `Track streams`).\n"
-            "- **iMusician — Rapport de vente** "
-            "(colonnes `ISRC`, `Shop`).\n"
-        )
+    st.info(
+        "📖 Besoin d'aide pour télécharger vos CSV ? Le guide complet "
+        "(étapes + captures) est dans **📖 Process — Import CSV** (section 📁 Données)."
+    )
 
     st.info(
         "🔗 **Mapping Spotify × Meta Ads** — après avoir **lancé la collecte "

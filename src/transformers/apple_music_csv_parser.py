@@ -1,7 +1,7 @@
 """Parser AMÉLIORÉ pour les CSV Apple Music for Artists avec support FR/EN."""
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import logging
 
@@ -151,7 +151,7 @@ class AppleMusicCSVParser:
                     'album_name': str(row[album_col]) if album_col and not pd.isna(row[album_col]) else None,
                     'plays': self.clean_number(row[plays_col]),
                     'listeners': self.clean_number(row[listeners_col]) if listeners_col else 0,
-                    'collected_at': datetime.now()
+                    'collected_at': datetime.now(timezone.utc)
                 }
 
                 # Champs optionnels (si tables étendues)
@@ -201,7 +201,7 @@ class AppleMusicCSVParser:
                     'song_name': str(row[song_col]) if song_col else 'Unknown',
                     'date': date,
                     'plays': self.clean_number(row[plays_col]),
-                    'collected_at': datetime.now()
+                    'collected_at': datetime.now(timezone.utc)
                 }
 
                 data.append(record)
@@ -240,7 +240,7 @@ class AppleMusicCSVParser:
                 record = {
                     'date': date,
                     'listeners': self.clean_number(row[listeners_col]),
-                    'collected_at': datetime.now()
+                    'collected_at': datetime.now(timezone.utc)
                 }
 
                 data.append(record)
