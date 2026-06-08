@@ -110,11 +110,11 @@ def _verify_email(token: str) -> None:
 # Sidebar layout: ordered sections, each (stable_id, header_label, [(item_label, page_key), ...]).
 # Order = user journey. Empty header = no visual separator (top entry).
 _NAV_SECTIONS = [
-    ("start",     "",                       [("🏠 Accueil", "home")]),
+    ("start",     "",                       [("🏠 Accueil", "home"),
+                                             ("📄 Export PDF", "export_pdf")]),
     ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
-                                             ("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
                                              ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
@@ -124,7 +124,8 @@ _NAV_SECTIONS = [
                                              ("☁️ SoundCloud", "soundcloud"),
                                              ("📸 Instagram", "instagram"),
                                              ("📱 Hypeddit", "hypeddit")]),
-    ("advanced",  "🔮 Prédiction algos Spotify", [("🚀 Road to Algo (ML)", "trigger_algo")]),
+    ("advanced",  "🔮 Prédiction algos Spotify", [("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
+                                             ("🚀 Road to Algo (ML)", "trigger_algo")]),
     ("ads",       "📣 Publicité Meta Ads",  [("📱 Vue d'ensemble", "meta_ads_overview"),
                                              ("🎨 Créatives", "meta_creatives"),
                                              ("🌍 Breakdowns Meta", "meta_breakdowns"),
@@ -132,7 +133,6 @@ _NAV_SECTIONS = [
     ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
     ("reports",   "📑 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
-                                             ("📄 Export PDF", "export_pdf"),
                                              ("⬇️ Export CSV", "export_csv")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
                                              ("💳 Billing", "billing"),
