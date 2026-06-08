@@ -45,6 +45,16 @@ rex:
     fix: "check_drift excludes _IMPUTED_FEATURES (permanently OOD by design, already covered by the imputation caveat); drift now flags only genuine live-feature OOD"
     ref: "DEVLOG#2026-05-31"
     severity: info
+  - date: 2026-06-08
+    issue: "iMusician parser checked required columns INSIDE the row loop; missing col → per-row KeyError caught → 0 rows + SUCCESS"
+    fix: "Hoist required-column validation out of the loop (_require_cols fail-fast before iterating); the per-row try/except must never be able to swallow a structural-schema error into a zero-row success"
+    ref: "DEVLOG#2026-06-08"
+    severity: warn
+  - date: 2026-06-08
+    issue: "Watcher check_for_new_csv wrapped the dir scan in try/except → 'skip_processing'; a scan failure became a 0-row SUCCESS"
+    fix: "Removed the try/except in s4a + apple watchers so a scan failure FAILS the task (retry + callback fire); a directory scan must never route its own error to the skip branch"
+    ref: "DEVLOG#2026-06-08"
+    severity: warn
 ---
 
 # Audit: Silent Success Anti-Pattern in Collectors

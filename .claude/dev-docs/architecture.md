@@ -99,6 +99,17 @@ graph LR
 | ML scoring | `ml_inference.py` (v2_noscaler) | `ml_song_predictions` (+`pi_forecast_7d`), `s4a_song_saves_daily` (saves history → resurrection radar) | `ml_scoring_daily` |
 | Algo lifecycle benchmark | `machine_learning/export_lifecycle_benchmark.py` (offline) | `algo_lifecycle_benchmark` (GLOBAL / non-tenant, read-only, NOT in `_ALLOWED_TABLES`) | none (manual seed via migration 035; PROVISIONAL) |
 
+> **Song-title convention boundary (since 2026-06-08, error class `song-name-convention-mismatch`):**
+> Filename-derived tables (`s4a_song_timeline`, `ml_song_predictions`, the manual-entry tables) carry
+> `_` because S4A replaces the Windows-reserved set `< > : " / \ | ? *` in export filenames, while
+> CSV/API-derived tables (`s4a_songs_global`, `s4a_song_saves_daily`, `tracks`,
+> `track_popularity_history`, `campaign_track_mapping`) keep the real characters. Any **exact-match
+> title join across this boundary** must route the CSV/API side through `canonical_song_sql()` (or
+> normalise on write via `canonical_song()`) — both single-sourced in `src/utils/track_matching.py`
+> (preserve accents/remix, unlike `normalize_track_title()`). Applied: `parse_songs_global`
+> (write-side), `_tab_algos.py`, `meta_cpr_optimizer.py`, `router.py` (query-side); migration 043
+> backfilled existing `?`-titled rows. `track_release_reference` was already immune.
+
 > **Meta Ads — SINGLE ingestion path (since 2026-05-29 — legacy CSV stack archived):**
 >
 > ⚠️ **Single-writer consolidation (2026-05-29, P2 fix):** the Meta tables previously had a DUAL WRITER — the API collector AND the one-time Dec-2025 legacy Meta CSV stack — writing with incompatible conventions (aggregate `'All'` total rows + French placement labels vs API snake_case), inflating campaign-grain breakdown spend ~2×. The entire redundant CSV stack (8 files: DAGs `meta_config_dag`/`meta_insights_dag`, watchers `meta_csv_watcher`/`meta_insight_watcher`, parsers, debug scripts) is now ARCHIVED to `archive/legacy_meta_csv/`; all dashboard/alerting references repointed to the canonical `meta_ads_api_daily`; `archive/` added to `.dockerignore`. **The Meta tables now have exactly ONE writer (`meta_ads_api_collector` / `meta_ads_api_daily`) → the double-count cannot recur.** Residual (low risk): campaign-grain breakdowns key on `campaign_name`, so a future campaign RENAME could re-introduce stale rows (ad/adset grains key by ID, immune). The spurious rows were already cleaned (all grains reconcile to the day total).
@@ -204,6 +215,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `process_guide.py` | 📋 Guide de démarrage (since 2026-05-28) — downloadable PDF (WeasyPrint, HTML fallback) | static | all |
 | `billing.py` | Billing — 3-column Free/Basic/Premium since 2026-05-28 | subscription_plans, artist_subscriptions, subscription_plan_history | all |
 | `alerts.py` | Alerting — + plan-evolution stacked-area + users table (admin) since 2026-05-28 | subscription_plan_history, saas_artists, circuit/freshness/billing alerts | admin |
+| `reglages.py` | ⚙️ Réglages — Saisie manuelle (since 2026-06-08, "Données" section) — playlist-adds + Discovery-Mode forms split out of trigger_algo Vue Globale (S4A-UI-only signals, no API) | s4a_song_timeline + tracks (read) → s4a_song_playlist_adds, s4a_song_discovery_mode (write) | all |
 | `upload_csv.py` | Upload CSV | all CSV-sourced tables | all |
 | `export_csv.py` | Export CSV (ZIP or Excel) | all tables | all |
 | `export_pdf.py` | Export PDF (xhtml2pdf; S4A, YouTube, Instagram, Meta, SoundCloud, Apple Music) | all tables | all |

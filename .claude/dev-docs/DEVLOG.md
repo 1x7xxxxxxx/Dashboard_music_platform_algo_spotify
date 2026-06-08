@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-06-08 — CSV import audit + canonical_song join fix + Réglages split + Phase-2 live validation
+
+### Why
+The Apple CSV upload always crashed (dead method name), several CSV paths reported zero-row
+SUCCESS instead of failing, and exact-match title joins silently dropped every `?`-titled track
+(filename-derived tables carry `_`, CSV/API tables keep the real char). With 13 fresh S4A files
+imported, this was also the first chance to validate the v3 model end-to-end on live data.
+
+### What changed
+**(a) Réglages view split** — new `src/dashboard/views/reglages.py` ("⚙️ Réglages — Saisie
+manuelle"): the two manual-entry forms (playlist adds → `s4a_song_playlist_adds`, Discovery Mode
+→ `s4a_song_discovery_mode`) moved out of trigger_algo Vue Globale; `_tab_global.py` keeps the
+read-only tiles + a pointer caption. Nav entry under "📁 Données" + routing in `app.py`; added
+`reglages` to `tests/test_views_render_smoke.py`.
+
+**(b) CSV import audit (Phase 1) + P1/P2 hardening** — `upload_csv.py`: Apple branch called the
+non-existent `AppleMusicCSVParser().parse()` (always crashed) → `parse_songs_performance()` +
+per-row `artist_id` injection. `s4a_csv_watcher` + `apple_music_csv_watcher`: removed the
+`try/except → 'skip_processing'` in `check_for_new_csv` so a scan failure FAILS (retry +
+callback) instead of a silent zero-row SUCCESS. `s4a_songs_global` upsert conflict key now
+includes `time_window` (+ best-effort `rebuild_release_reference`; note: the DAG `parse_csv_file`
+path is timeline-only, upload UI is canonical for songs_global). `_detect_window` now raises on an
+unmarked filename instead of defaulting to `'12m'`. iMusician parser: required-column check
+hoisted out of the row loop (`_require_cols()` fail-fast) — was caught per-row → 0 rows + SUCCESS.
+Apple history: per-row DELETE+INSERT → atomic `ON CONFLICT DO UPDATE` (migration 042 adds the
+UNIQUE key). Naive `datetime.now()` → `datetime.now(timezone.utc)` in apple + imusician parsers +
+apple DAG.
+
+**(c) song-name-convention-mismatch (new error class)** — new single-source `canonical_song()` +
+`canonical_song_sql()` in `src/utils/track_matching.py` (covers the full Windows-reserved set,
+preserves accents/remix). Applied write-side in `parse_songs_global` and query-side in
+`_tab_algos.py` (PI ×4), `meta_cpr_optimizer.py`, `router.py` (×3, replacing ad-hoc
+`REPLACE(...,'?','_')`). Migration 043 backfills `s4a_songs_global` + `s4a_song_saves_daily`.
+Guard: `tests/test_song_canonical.py` (5 tests); class catalogued in `error-classes.md`.
+
+**(d) Phase-2 end-to-end validation** — user imported 13 fresh S4A files (11 timelines to
+2026-06-07 + audience + songs-1year). Re-ran `ml_scoring_daily` → `ml_song_predictions` now carries
+model_version `v3` with non-NULL DW/RR/Radio probs for 11 songs (was v1_noscaler/NULL); Vue Globale
+streams 28j + score /20 + probas populate. Low probs (~7% DW/RR, ~11% Radio) are honest — tracks at
+100–250 streams/28d, far below the ~4–9k thresholds.
+
+### Tests
+344 passed, 1 skipped. Migrations 042 + 043 added (idempotent).
+
+---
+
 ## 2026-05-31 — WAVE 13: drift surface + alert (completes the WAVE 9 drift foundation)
 
 ### Why

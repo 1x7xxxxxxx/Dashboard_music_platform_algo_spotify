@@ -30,6 +30,11 @@ rex:
     fix: "Created s4a_song_saves_daily history table + a daily snapshot writer in the ml_scoring DAG; detection stays dormant until ~2 weeks of history accrue"
     severity: "info"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-06-08
+    issue: "upsert config for apple_songs_performance omitted collected_at from update_columns -> freshness frozen on re-import"
+    fix: "Include collected_at in update_columns for snapshot tables (match s4a_*); on conflict the timestamp must refresh, else the view shows stale freshness despite new values"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
 ---
 
 # Skill: Database Schema

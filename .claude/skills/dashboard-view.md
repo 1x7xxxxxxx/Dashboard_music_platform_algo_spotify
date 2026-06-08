@@ -113,6 +113,21 @@ rex:
     fix: "Normalise heterogeneous datetime string columns at source: pd.to_datetime(col, utc=True, errors='coerce').dt.tz_localize(None). Class tz-aware-naive-mix"
     severity: "warn"
     ref: "DEVLOG#2026-06-01"
+  - date: 2026-06-08
+    issue: "Exact-match title join across the filename(_)/CSV(real-char) boundary silently returned 0 for ?-titled tracks"
+    fix: "Route the CSV/API side of every cross-convention title join through canonical_song_sql() (src/utils/track_matching.py); ad-hoc REPLACE(.,'?','_') only covered '?'. Class song-name-convention-mismatch"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "st.image(width='content'|'stretch') upscaled small screenshots to column width -> pixelated/blurry"
+    fix: "Pass an explicit pixel width = native width capped (PIL Image.width, min(w, 720)); never upscale. 'content' is NOT native size in Streamlit 1.54"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Guide screenshots moved into per-platform subfolders -> flat assets_dir()/filename lookup broke (0 images)"
+    fix: "screenshot_path() resolves by filename anywhere under the assets dir via rglob (flat OR subfolder), falling back to flat path for graceful-missing"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
 ---
 
 # Skill: Dashboard View
