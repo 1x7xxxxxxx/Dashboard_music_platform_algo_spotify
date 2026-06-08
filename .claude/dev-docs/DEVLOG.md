@@ -2,6 +2,63 @@
 
 ---
 
+## 2026-06-08 (suite) — Onboarding merge-back, shared-app credentials, windowed S4A entry, PDF redesign
+
+### Why
+The earlier half had split onboarding into standalone pages (Process-Credentials, Process-Import,
+Réglages). On review they read as doublons — the how-to belongs next to the action, not on a separate
+page. In parallel: the SoundCloud/Meta credential forms wrongly asked artists for the shared *app*
+secrets; playlist-adds were a single cumulative count (wrong for manual windowed S4A figures); and the
+client-facing PDF looked nothing like the app it summarises.
+
+### What changed
+**(a) Onboarding merged back inline (refactor)** — dropped `process_credentials.py`,
+`process_import.py`, `reglages.py` (all created earlier this session, removed in `ed9e688`). The rich
+guides now render at point of use: per-platform tab in Credentials, full download guide above the CSV
+uploader. Manual entry (playlist adds + Discovery Mode) went back to `_tab_global.py` inline expanders,
+then to a dedicated Saisie S4A grid (see (c)). Lesson: keep manual entry + how-to inline in the
+actionable page; one content module rendered in-place beats a standalone view.
+
+**(b) Credentials overhaul + shared-app model** (`8d17fb3`, `53ca6d8`) — new single-source content
+modules `src/dashboard/content/credential_guides.py` + `credential_guides_st.py` (Spotify, YouTube,
+SoundCloud, Meta: steps, 9 screenshots under `assets/credential_guide/`, clickable URLs, example
+values), rendered per-platform tab via `credentials/_render.py` (replaces the old prose `_guide_*`).
+Shared-app: a SoundCloud artist provides only `user_id`, a Meta artist only the Ad Account ID; app
+creds come from env (`SOUNDCLOUD_CLIENT_ID/SECRET`, `META_ACCESS_TOKEN/APP_ID/APP_SECRET`) via an
+ADDITIVE fallback in `meta_ads_api_collector._load_credentials` + the connection tests (`_test_soundcloud`,
+`_test_meta`) — **stored per-artist creds still win**, so existing tenants are unchanged; forms reduced
+in `_registry.py`. Instagram stays admin/env. New admin "🔑 Tokens" reference tab (token type / expiry /
+refresh / artist-vs-admin action per platform) — makes explicit that no recurring token action is
+required by anyone; token lifecycle moved out of the artist view.
+
+**(c) Windowed playlist adds + Saisie S4A grid** (`5c9f605`) — migration 044: `s4a_song_playlist_adds`
+gains `time_window` (7d/28d/12m/custom) + `period_start`/`period_end`; PK now
+`(artist_id, song, time_window, recorded_at)`. Was a single cumulative count summed over 28 days —
+wrong for manual windowed entry. New page `views/saisie_s4a.py`: a bulk `st.data_editor` grid
+(row/track × 7j/28j/12m + Discovery Mode) with grouped save, plus a custom date-range section
+(`period_start`/`end`, `recorded_at=period_end`) for the first days after a release. `ml_inference`:
+`PlaylistAddsLast28Days` now reads the latest `'28d'` snapshot (not SUM-last-28-days). Vue Globale
+playlist/Discovery tiles are read-only (28d snapshot) and point to Saisie S4A.
+
+**(d) Nav** (`14e5270`) — Saisie S4A placed above Road to Algo (Prédiction algos section); Export PDF
+promoted right after Accueil.
+
+**(e) Export PDF visual redesign** (`175c07a`, `fe839e7`) — new `src/dashboard/utils/pdf_charts.py`:
+matplotlib → base64 PNG (NO new dependency — kaleido is absent so plotly→png is not used) for streams
+timeline, platform breakdown, ML trigger probabilities, ROI vs spend. `pdf_exporter.py`: branded
+full-page cover (artist, period, 4 headline KPIs), modern CSS (cards, `@page` counters, page-breaks), a
+"Dernière sortie" spotlight using the latest release's probability chart, charts embedded in
+Streams/ROI sections. **Emoji stripped from the final HTML** before `write_pdf` (WeasyPrint base fonts
+have no emoji glyphs → tofu). New "Depuis le début" (all-time) period option. `export_pdf.py`: all
+sections checked by default; song selectors auto-focus the latest release (`_latest_release`).
+Regenerated the byte-exact golden `tests/fixtures/pdf_report_golden.html` since the HTML changed.
+
+### Tests
+350 passed, 1 skipped. Migration 044 added (idempotent). Only 044 is new to this half (042/043 landed
+in the earlier half).
+
+---
+
 ## 2026-06-08 — CSV import audit + canonical_song join fix + Réglages split + Phase-2 live validation
 
 ### Why

@@ -138,6 +138,16 @@ rex:
     fix: "Artist provides only the per-tenant pointer (user_id / account_id); app creds come from env via an ADDITIVE collector+test fallback (stored per-artist wins). Token lifecycle lives in the admin view"
     severity: "info"
     ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Emoji in the WeasyPrint PDF rendered as tofu boxes (base fonts ship no emoji glyphs)"
+    fix: "Strip emoji from the final HTML before write_pdf. For charts use matplotlib->base64 PNG (utils/pdf_charts.py) - kaleido is absent so plotly->png is unavailable; no new dependency added"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08 (suite)"
+  - date: 2026-06-08
+    issue: "Changed render_html output but the byte-exact golden pdf_report_golden.html still pinned old bytes -> snapshot failed"
+    fix: "Any render_html change requires regenerating tests/fixtures/pdf_report_golden.html in the same commit; it is byte-exact (see class snapshot-fixture-hook-reflow, kept out of reflow hooks)"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08 (suite)"
 ---
 
 # Skill: Dashboard View

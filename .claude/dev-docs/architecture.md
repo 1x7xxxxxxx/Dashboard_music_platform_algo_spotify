@@ -215,10 +215,10 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `process_guide.py` | 📋 Guide de démarrage (since 2026-05-28) — downloadable PDF (WeasyPrint, HTML fallback) | static | all |
 | `billing.py` | Billing — 3-column Free/Basic/Premium since 2026-05-28 | subscription_plans, artist_subscriptions, subscription_plan_history | all |
 | `alerts.py` | Alerting — + plan-evolution stacked-area + users table (admin) since 2026-05-28 | subscription_plan_history, saas_artists, circuit/freshness/billing alerts | admin |
-| `reglages.py` | ⚙️ Réglages — Saisie manuelle (since 2026-06-08, "Données" section) — playlist-adds + Discovery-Mode forms split out of trigger_algo Vue Globale (S4A-UI-only signals, no API) | s4a_song_timeline + tracks (read) → s4a_song_playlist_adds, s4a_song_discovery_mode (write) | all |
+| `saisie_s4a.py` | 📝 Saisie S4A (since 2026-06-08, "Prédiction algos" section, above Road to Algo) — bulk `st.data_editor` grid (track × 7j/28j/12m + Discovery Mode) with grouped save + a custom date-range section for the days after a release. Replaced the short-lived `reglages.py` standalone view (deleted same session). S4A-UI-only signals, no API. | s4a_song_timeline + tracks (read) → s4a_song_playlist_adds (windowed, migration 044), s4a_song_discovery_mode (write) | all |
 | `upload_csv.py` | Upload CSV | all CSV-sourced tables | all |
 | `export_csv.py` | Export CSV (ZIP or Excel) | all tables | all |
-| `export_pdf.py` | Export PDF (xhtml2pdf; S4A, YouTube, Instagram, Meta, SoundCloud, Apple Music) | all tables | all |
+| `export_pdf.py` | Export PDF (WeasyPrint; promoted right after Accueil since 2026-06-08) — full visual redesign 2026-06-08: branded cover + headline KPIs, "Dernière sortie" spotlight, charts embedded via `utils/pdf_charts.py` (matplotlib→base64 PNG, no new dep); emoji stripped before `write_pdf` (WeasyPrint base fonts lack glyphs); "Depuis le début" all-time period; sections all-checked by default, song selectors auto-focus latest release | all tables | all |
 | `useful_links.py` | Useful Links | static | admin |
 
 > **`credentials/` package (since 2026-05-15, commit `acf8b6f` — refactor R1):**
@@ -232,8 +232,17 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 > | `router.py` | slim `show()` entry point |
 > | `_core.py` | Fernet crypto + DB load/save + Airflow-state + constants |
 > | `_registry.py` | `PLATFORMS` dict + `CONNECTION_TESTS` + guide dispatch |
-> | `_render.py` | Streamlit render/form helpers + `_handle_save` |
-> | `_platform_spotify.py` / `_platform_youtube.py` / `_platform_soundcloud.py` / `_platform_meta.py` | per-platform connection-test + setup-guide pair |
+> | `_render.py` | Streamlit render/form helpers + `_handle_save`; renders the per-platform setup guide inline (since 2026-06-08, from the content modules — replaces the old prose `_guide_*`) |
+> | `_platform_spotify.py` / `_platform_youtube.py` / `_platform_soundcloud.py` / `_platform_meta.py` | per-platform connection test. SoundCloud/Meta tests fall back to env app creds (ADDITIVE, since 2026-06-08) when the artist supplied only `user_id`/`account_id` |
+>
+> **Shared-app credentials + single-source guides (since 2026-06-08, commits `8d17fb3`/`53ca6d8`):**
+> Setup-guide content lives in `src/dashboard/content/credential_guides.py` (+ `_st.py` render helper) —
+> one source for Spotify/YouTube/SoundCloud/Meta (steps, screenshots under `assets/credential_guide/`,
+> URLs, example values), rendered per-platform tab. The app creds for the *shared* SoundCloud/Meta app
+> resolve from env (`SOUNDCLOUD_CLIENT_ID/SECRET`, `META_ACCESS_TOKEN/APP_ID/APP_SECRET`) when the artist
+> supplied only the per-tenant pointer; stored per-artist creds always win (existing tenants unchanged).
+> Token lifecycle (type / expiry / refresh / who acts) is documented in the admin "🔑 Tokens" tab, not the
+> artist view.
 >
 > The `_fetch_dag_last_states` Airflow N+1 helper moved from `credentials.py:118`
 > to `credentials/_core.py` (referenced in the P3 perf item). This is R1 of the
