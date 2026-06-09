@@ -52,6 +52,8 @@ _ALLOWED_TABLES = frozenset({
     'track_release_reference',
     's4a_song_saves_daily',
     's4a_song_discovery_mode',
+    'track_platform_link',
+    'campaign_track_mapping',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')

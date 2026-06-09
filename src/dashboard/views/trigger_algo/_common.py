@@ -61,6 +61,9 @@ _MARKETING_ACTIONS = {
 }
 
 
+# Minimum algo-streams a playlist GENERATES at trigger onset over 28d (elbow of the
+# training-data curve). It is the start-of-trigger detection floor — the least the
+# playlist itself emits once it fires, NOT streams the artist must produce to trigger it.
 ELBOW_THRESHOLDS_28D = {"DW": 137, "RR": 130, "RADIO": 639}
 
 
@@ -138,13 +141,16 @@ def _show_heuristic_section(current_total: float, current_pop: float):
     st.write(f"**📻 Radio Spotify** ({int(pct_radio * 100)}%)")
     st.progress(pct_radio)
     if pct_radio >= 1.0:
-        st.caption("✅ Seuil Radio (elbow) atteint !")
+        st.caption("✅ Streams 28j au niveau d'un trigger Radio détecté.")
     else:
-        st.caption(f"Manque {GOAL_RADIO - current_total:,.0f} streams (seuil elbow 28j)")
+        st.caption(f"Streams 28j ({current_total:,.0f}) sous le niveau de détection d'un "
+                   f"trigger Radio (~{GOAL_RADIO:,.0f} algo-streams émis par la playlist).")
     st.caption(
-        "ℹ️ Les cibles 1k/10k sont des **heuristiques arrondies**. Les vrais seuils "
-        f"d'entraînement (elbow, 28j) sont ~{ELBOW_THRESHOLDS_28D['DW']} (DW), "
-        f"~{ELBOW_THRESHOLDS_28D['RR']} (RR), ~{ELBOW_THRESHOLDS_28D['RADIO']} (Radio) streams."
+        "ℹ️ Les cibles 1k/10k sont des **heuristiques arrondies**. Les seuils elbow "
+        f"(~{ELBOW_THRESHOLDS_28D['DW']} DW · ~{ELBOW_THRESHOLDS_28D['RR']} RR · "
+        f"~{ELBOW_THRESHOLDS_28D['RADIO']} Radio) sont le **minimum d'algo-streams qu'une "
+        "playlist génère** au début d'un trigger — un signal de détection, **pas** un "
+        "objectif de streams à produire soi-même pour déclencher."
     )
 
 
@@ -307,7 +313,7 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
     st.subheader("🚪 Portes algorithmiques par Popularity Index")
     st.caption(
         "Le Popularity Index (0-100) est la porte d'entrée de chaque algorithme. "
-        "La barre noire situe votre titre ; n = taille d'échantillon par tranche."
+        "La barre blanche situe votre titre ; n = taille d'échantillon par tranche."
     )
     tables = _load_threshold_tables()
     if not tables:
@@ -332,9 +338,13 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
         data = tables.get(key, {})
         probs = [data.get(b, {}).get("prob") for b in brackets]
         ns = [data.get(b, {}).get("n", 0) for b in brackets]
-        colors = ["#111111" if b == here else color for b in brackets]
+        # Highlight the song's current bracket in white (visible on the dark
+        # theme — the former #111111 was invisible on the near-black background).
+        colors = ["#FFFFFF" if b == here else color for b in brackets]
+        line_widths = [2 if b == here else 0 for b in brackets]
         fig.add_trace(go.Bar(
             x=brackets, y=probs, marker_color=colors,
+            marker_line=dict(color="#1DB954", width=line_widths),
             text=[f"n={n}" for n in ns], textposition="outside",
             hovertemplate="PI %{x}<br>%{y:.0f}% déclenchement<br>%{text}<extra></extra>",
             showlegend=False,
@@ -510,6 +520,8 @@ def _show_resurrection_radar(db, artist_id) -> None:
         )
 
 
+# Algo-streams an *established* trigger sustains over 28d (output the playlist emits once
+# fully kicked in) — NOT a stream target the artist must hit to cause the trigger.
 _TRIGGER_STREAM_TARGETS = {
     "Release Radar": 417,
     "Discover Weekly": 1333,
@@ -624,15 +636,19 @@ def _load_xgb_model(model_key: str):
 
 
 def _compute_score_20(df: pd.DataFrame) -> pd.DataFrame:
-    """Add score_20 column normalised to /20 across all rows."""
+    """Add score_20 column min-max scaled to /20 (best track = 20, worst = 0)."""
     dw = df["dw_probability"].fillna(0).astype(float)
     rr = df["rr_probability"].fillna(0).astype(float)
     radio = df["radio_probability"].fillna(0).astype(float)
     vel = df["velocity"].fillna(0).astype(float).clip(0, 5) / 5.0
     composite = 0.35 * dw + 0.35 * rr + 0.20 * radio + 0.10 * vel
     max_val = composite.max()
+    min_val = composite.min()
+    span = max_val - min_val
     df = df.copy()
-    df["score_20"] = (composite / max_val * 20) if max_val > 0 else 0.0
+    # Min-max stretch over the full 0-20 range. Degenerate catalogue (1 track or
+    # all-equal composites) → span 0 → everyone gets 20.0 (no meaningful ranking).
+    df["score_20"] = ((composite - min_val) / span * 20) if span > 0 else 20.0
     return df
 
 

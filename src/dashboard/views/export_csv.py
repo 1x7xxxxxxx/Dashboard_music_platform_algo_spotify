@@ -67,6 +67,7 @@ def show():
             "Meta Ads": ["meta_campaigns", "meta_adsets", "meta_ads", "meta_insights_performance_day"],
             "Hypeddit": ["hypeddit_campaigns", "hypeddit_daily_stats"],
             "Distributeur": ["imusician_monthly_revenue"],
+            "Machine Learning": ["ml_song_predictions", "algo_lifecycle_benchmark"],
         }
 
         st.subheader("📋 Sources à inclure")
@@ -123,6 +124,13 @@ def show():
                     st.session_state["_export_csv_bytes"] = buf.getvalue()
                     st.session_state["_export_csv_fmt"] = "zip"
                 st.session_state["_export_csv_artist"] = export_artist_name
+                try:
+                    from src.dashboard.utils.usage_tracker import track
+                    track('csv_export', page='export_csv',
+                          meta={'fmt': st.session_state.get('_export_csv_fmt'),
+                                'n_tables': len(selected_tables)})
+                except Exception:
+                    pass
                 st.success("Fichier prêt — cliquez sur Télécharger ci-dessous.")
             except Exception as e:
                 st.error(f"Erreur lors de la génération : {e}")

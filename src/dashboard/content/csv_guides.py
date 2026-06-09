@@ -209,3 +209,7 @@ _IMUSICIAN = PlatformGuide(
 )
 
 CSV_GUIDES: tuple[PlatformGuide, ...] = (_S4A, _APPLE, _IMUSICIAN)
+
+# NOTE: API-credential guides are NOT here — they live (with their screenshots) in
+# src/dashboard/content/credential_guides.py (CREDENTIAL_GUIDES), the single source
+# shared by the in-app "Process — Credentials" view and the onboarding PDF.

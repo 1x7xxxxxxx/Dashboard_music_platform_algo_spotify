@@ -66,7 +66,7 @@ def _verify_email(token: str) -> None:
         return
     try:
         rows = db.fetch_query(
-            "SELECT id, username, email_verified, verification_token_created_at "
+            "SELECT id, username, email, email_verified, verification_token_created_at "
             "FROM saas_users "
             "WHERE verification_token = %s LIMIT 1",
             (token,)
@@ -74,7 +74,7 @@ def _verify_email(token: str) -> None:
         if not rows:
             st.error("This verification link is invalid or has already been used.")
             return
-        uid, username, already_verified, token_created_at = rows[0]
+        uid, username, email, already_verified, token_created_at = rows[0]
         if already_verified:
             st.info(f"Account **{username}** is already verified. [Sign in](/)")
             return
@@ -99,9 +99,52 @@ def _verify_email(token: str) -> None:
             "verification_token_created_at = NULL WHERE id = %s",
             (uid,)
         )
+        # Welcome email + onboarding guide PDF — sent now (account confirmed), NOT at
+        # signup, so the guide lands only once the address is proven deliverable.
+        try:
+            from src.dashboard.views.register import WELCOME_TRIAL_DAYS
+            from src.utils.verification_email import send_welcome_email
+            send_welcome_email(email, username, WELCOME_TRIAL_DAYS, user_id=uid)
+        except Exception:
+            pass  # best-effort — never block verification on the welcome email
         st.success(
             f"✅ Email verified! Welcome, **{username}**. "
-            "You can now [sign in](/)."
+            "We've emailed you a welcome guide. You can now [sign in](/)."
+        )
+    finally:
+        db.close()
+
+
+def _unsubscribe(uid: str, token: str) -> None:
+    """Handle the one-click unsubscribe link (?page=unsubscribe&uid=&t=).
+
+    Verifies the HMAC token, then sets marketing_consent=FALSE for that user — no
+    login required. Mirrors the toggle in 'Mon compte → Communications'.
+    """
+    st.title("📧 Désinscription")
+    from src.utils.verification_email import verify_unsubscribe_token
+    try:
+        user_id = int(uid)
+    except (TypeError, ValueError):
+        st.error("Lien de désinscription invalide.")
+        return
+    if not verify_unsubscribe_token(user_id, token):
+        st.error("Lien de désinscription invalide ou expiré.")
+        return
+    from src.dashboard.utils import get_db_connection
+    db = get_db_connection()
+    if db is None:
+        st.error("Base de données injoignable. Réessayez plus tard.")
+        return
+    try:
+        db.execute_query(
+            "UPDATE saas_users SET marketing_consent = FALSE, marketing_consent_at = now() "
+            "WHERE id = %s",
+            (user_id,),
+        )
+        st.success(
+            "✅ C'est fait — vous ne recevrez plus de communications marketing. "
+            "Vous pouvez réactiver l'option à tout moment dans « Mon compte → Communications »."
         )
     finally:
         db.close()
@@ -111,11 +154,13 @@ def _verify_email(token: str) -> None:
 # Order = user journey. Empty header = no visual separator (top entry).
 _NAV_SECTIONS = [
     ("start",     "",                       [("🏠 Accueil", "home"),
-                                             ("📄 Export PDF", "export_pdf")]),
+                                             ("📄 Export PDF", "export_pdf"),
+                                             ("⬇️ Export CSV", "export_csv")]),
     ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
                                              ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
+                                             ("🧩 Mapping multi-plateformes", "track_mapping"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -132,12 +177,12 @@ _NAV_SECTIONS = [
                                              ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
     ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
-    ("reports",   "📑 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
-                                             ("⬇️ Export CSV", "export_csv")]),
+    ("reports",   "🎁 Data Wrapped",        [("🎁 Data Wrapped", "data_wrapped")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
                                              ("💳 Billing", "billing"),
                                              ("🎁 Parrainage", "referral")]),
     ("admin",     "🛠️ Admin / Ops",        [("⚡ Perf. Dashboard", "perf_monitor"),
+                                             ("📈 Usage Analytics", "usage_analytics"),
                                              ("🏗️ Monitoring ETL", "airflow_kpi"),
                                              ("🗂️ Historique ETL", "etl_logs"),
                                              ("🤖 Perf. Modèles ML", "ml_performance"),
@@ -149,7 +194,8 @@ _NAV_SECTIONS = [
 ]
 # Pages réservées admin (cachées pour le rôle 'artist')
 _ADMIN_ONLY = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links',
-               'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor'}
+               'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor',
+               'usage_analytics'}
 
 
 def _on_nav_select(skey: str, all_skeys: list):
@@ -164,7 +210,8 @@ def _on_nav_select(skey: str, all_skeys: list):
 
 
 def show_navigation_menu(role: str = 'artist'):
-    st.sidebar.title("🎵 Navigation")
+    from src.dashboard.utils.i18n import t
+    st.sidebar.title(t("nav.title", "🎵 Navigation"))
 
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
     plan = get_artist_plan()
@@ -194,14 +241,16 @@ def show_navigation_menu(role: str = 'artist'):
             st.session_state[skey] = None
         st.session_state['_nav_start'] = 'home'  # home lives in the first section
 
-    label_by_key = {key: lbl for _, _, items in rendered for lbl, key in items}
+    label_by_key = {key: t(f"nav.item.{key}", lbl)
+                    for _, _, items in rendered for lbl, key in items}
 
     def _fmt(key: str) -> str:
         return f"🔒 {label_by_key[key]}" if _is_locked(key) else label_by_key[key]
 
     for skey, header, items in rendered:
         if header:
-            st.sidebar.markdown(f"###### {header}")
+            sec_id = skey[len("_nav_"):]
+            st.sidebar.markdown(f"###### {t(f'nav.section.{sec_id}', header)}")
         st.sidebar.radio(
             header or "Navigation",
             [key for _, key in items],
@@ -277,44 +326,11 @@ def _show_cookie_notice():
             st.rerun()
 
 
-def main():
-    # Public routes — accessible without authentication
-    _page_param = st.query_params.get("page")
-
-    if _page_param == "register":
-        from views.register import show as show_register
-        show_register()
-        st.stop()
-
-    if _page_param == "privacy":
-        from views.privacy import show as show_privacy
-        show_privacy()
-        st.stop()
-
-    if _page_param == "verify":
-        _token = st.query_params.get("token", "")
-        _verify_email(_token)
-        st.stop()
-
-    if not require_login():
-        st.stop()
-
-    if _page_param == "onboarding":
-        from views.onboarding import show as show_onboarding
-        show_onboarding()
-        st.stop()
-
-    _check_db_health()
-    _show_cookie_notice()
-
-    role = st.session_state.get('role', 'artist')
-    show_live_activity_sidebar()
-    show_data_collection_panel()
-    page = show_navigation_menu(role)
-    show_user_sidebar()
-
-    _t0 = time.perf_counter()
-
+def _render_page(page):
+    """Dispatch a page key to its view's show(). Wrapped by main()'s error handler
+    (C1) — a view crash is caught, alerted, and shown as a friendly message instead
+    of Streamlit's raw red traceback. Streamlit st.stop()/st.rerun() signals pass
+    through (re-raised in main)."""
     if page == "home":
         from views.home import show; show()
 
@@ -344,6 +360,7 @@ def main():
     elif page == "billing": from views.billing import show; show()
     elif page == "revenue_forecast": from views.revenue_forecast import show; show()
     elif page == "meta_mapping": from views.meta_mapping import show; show()
+    elif page == "track_mapping": from views.track_mapping import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
     elif page == "meta_creatives": from views.meta_creatives import show; show()
@@ -354,7 +371,85 @@ def main():
     elif page == "promo_admin": from views.promo_admin import show; show()
     elif page == "upgrade": from views.upgrade import show; show()
     elif page == "perf_monitor": from views.perf_monitor import show; show()
+    elif page == "usage_analytics": from views.usage_analytics import show; show()
     elif page == "alerts": from views.alerts import show; show()
+
+
+def main():
+    # Public routes — accessible without authentication
+    _page_param = st.query_params.get("page")
+
+    if _page_param == "register":
+        from views.register import show as show_register
+        show_register()
+        st.stop()
+
+    if _page_param == "privacy":
+        from views.privacy import show as show_privacy
+        show_privacy()
+        st.stop()
+
+    if _page_param == "verify":
+        _token = st.query_params.get("token", "")
+        _verify_email(_token)
+        st.stop()
+
+    if _page_param == "unsubscribe":
+        _unsubscribe(st.query_params.get("uid", ""), st.query_params.get("t", ""))
+        st.stop()
+
+    if not require_login():
+        st.stop()
+
+    if _page_param == "onboarding":
+        from views.onboarding import show as show_onboarding
+        show_onboarding()
+        st.stop()
+
+    # Deep-link into an authenticated page from an email/PDF link (e.g. the onboarding
+    # guide's "Tester la connexion" → ?page=credentials). Set the active page once, then
+    # drop the param so navigation isn't pinned and the user can move freely afterwards.
+    if _page_param:
+        _nav_keys = {key for _, _, items in _NAV_SECTIONS for _, key in items}
+        if _page_param in _nav_keys:
+            st.session_state['_nav_page'] = _page_param
+            try:
+                del st.query_params['page']
+            except Exception:
+                pass
+
+    _check_db_health()
+    _show_cookie_notice()
+
+    role = st.session_state.get('role', 'artist')
+    # Brand logo at the very top of the sidebar (just above Live Activity).
+    from src.dashboard.utils import logo_html
+    _sb_logo = logo_html(variant="adaptive", max_width=220)
+    if _sb_logo:
+        st.sidebar.markdown(_sb_logo, unsafe_allow_html=True)
+    # Language toggle — set before the nav so the whole sidebar renders in the choice.
+    from src.dashboard.utils.i18n import language_selector
+    language_selector()
+    show_live_activity_sidebar()
+    show_data_collection_panel()
+    page = show_navigation_menu(role)
+    show_user_sidebar()
+
+    # First-party usage tracking — deduped per session (no inflation on rerun).
+    from src.dashboard.utils.usage_tracker import track_page_view
+    track_page_view(page)
+
+    _t0 = time.perf_counter()
+
+    try:
+        _render_page(page)
+    except Exception as _exc:                       # noqa: BLE001 — central view guard
+        from src.dashboard.utils.error_alert import is_control_flow, notify_app_error
+        if is_control_flow(_exc):
+            raise                                   # st.stop()/st.rerun() must propagate
+        notify_app_error(page, _exc)
+        st.error("❌ Une erreur est survenue sur cette page. Réessayez ; "
+                 "l'administrateur a été notifié si le problème persiste.")
 
     # Record render time (rolling 100-entry log, stored in session state)
     _render_ms = int((time.perf_counter() - _t0) * 1000)

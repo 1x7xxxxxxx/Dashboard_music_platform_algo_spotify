@@ -18,11 +18,63 @@ from ._tab_model import _show_tab_model
 
 def show():
     from src.dashboard.auth import require_plan
-    if not require_plan('basic'):
+    if not require_plan('premium'):
         return
 
     st.title("🚀 Road to Algorithms (J+28)")
     st.markdown("Suivi ML, budget, ROI et explainabilité des scores algorithmiques.")
+
+    with st.expander("📖 Comment lire cette page (guide artiste) — à ouvrir une fois", expanded=False):
+        st.markdown(
+            "Cette page répond à **une seule question** : *« Spotify va-t-il pousser mon "
+            "titre tout seul dans ses algorithmes ? »* Les **28 premiers jours** après la "
+            "sortie (J+28) sont décisifs — c'est la fenêtre où les algorithmes décident.\n\n"
+
+            "**🎚️ Les 3 algorithmes suivis**\n"
+            "- 💎 **Discover Weekly (DW)** — playlist perso hebdomadaire envoyée à des auditeurs "
+            "qui ne te connaissent PAS encore. C'est la découverte pure, le Graal pour gagner de "
+            "nouveaux fans. La porte la plus dure à ouvrir.\n"
+            "- 📡 **Release Radar (RR)** — playlist hebdo poussée à **tes abonnés** à chaque "
+            "sortie. Plus facile à déclencher (ils te suivent déjà), mais touche surtout ton "
+            "audience existante.\n"
+            "- 📻 **Radio** — flux algorithmique « infini » qui enchaîne des titres similaires. "
+            "Signe que Spotify te juge « fiable » pour nourrir ses recommandations. Demande le "
+            "plus de volume de streams.\n\n"
+
+            "**🔢 Les 2 chiffres à NE PAS confondre**\n"
+            "- **DW % / RR % / Radio %** = probabilité **absolue et calibrée** de déclenchement "
+            "(50 % = vraiment 1 chance sur 2). C'est LA mesure de ta vraie chance. Bandes de "
+            "décision : 🔴 < 20 % **STOP** · 🟠 20–50 % **OPTIMISER** · 🟢 ≥ 50 % **SCALER**.\n"
+            "- **Score /20** = **classement interne** de ton catalogue (meilleur titre = 20, "
+            "pire = 0). Sert à savoir *quel titre pousser en priorité*, PAS à lire une chance de "
+            "trigger. Un titre peut être 20/20 avec seulement 10 % de proba réelle.\n\n"
+
+            "**🧭 Les notions clés**\n"
+            "- **Popularity Index (0–100)** — la « note de popularité » Spotify du titre. C'est "
+            "la porte d'entrée : chaque algo a un PI minimum. Plus ton PI monte, plus les portes "
+            "s'ouvrent.\n"
+            "- **Seuils elbow (28j)** — volume d'algo-streams **générés par la playlist "
+            "elle-même** qui marque le *début* d'un trigger : **~130 (RR)**, **~137 (DW)**, "
+            "**~639 (Radio)**. C'est le minimum que la playlist produit une fois déclenchée — "
+            "**pas** le nombre de streams à générer soi-même pour la déclencher.\n"
+            "- **Velocity (momentum)** — vitesse d'accélération récente des streams. Un titre qui "
+            "monte vite est favorisé ; un titre à plat stagne.\n"
+            "- **Discovery Mode** — option Spotify (commission sur tes royalties) qui force "
+            "l'entrée en Radio. À activer/désactiver selon le contexte (onglet Suivi "
+            "Algorithmes).\n\n"
+
+            "**🗂️ Les onglets**\n"
+            "- 🎯 **Vue Globale** — métriques du titre + probas + son classement /20.\n"
+            "- 📊 **Suivi Algorithmes** — verdict, leviers d'action, trajectoire J+28, portes par PI.\n"
+            "- 💰 **Budget & ROI** — combien dépenser en pub et quand.\n"
+            "- 🔍 **Explainabilité** — *pourquoi* le modèle donne ce score (SHAP, leviers).\n"
+            "- 📈 **Modèle** — fiabilité technique du modèle ML.\n"
+            "- 📉 **Cycle de vie & Benchmark** — où en est ton titre vs les autres, dans le temps.\n\n"
+
+            "⚠️ **Limite honnête** : le modèle prédit BIEN *si* un titre va déclencher "
+            "(classification, AUC ~0.92), mais MAL *combien* de streams il fera (le volume n'est "
+            "pas fiable). **Fie-toi aux %, pas aux prévisions de volume en €.**"
+        )
 
     with view_session() as (db, artist_id):
         # Track list — ordered by release_date DESC from tracks table.

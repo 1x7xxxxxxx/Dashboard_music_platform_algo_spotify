@@ -148,6 +148,21 @@ rex:
     fix: "Any render_html change requires regenerating tests/fixtures/pdf_report_golden.html in the same commit; it is byte-exact (see class snapshot-fixture-hook-reflow, kept out of reflow hooks)"
     severity: "info"
     ref: "DEVLOG#2026-06-08 (suite)"
+  - date: 2026-06-09
+    issue: "New view track_mapping opened DB via get_db_connection()+try/finally instead of view_session() — violates CLAUDE rule #7"
+    fix: "Migrated track_mapping + meta_mapping to `with view_session() as (db, artist_id)`; every NEW view MUST use it (handles artist_id guard + admin fallback + close)"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-09"
+  - date: 2026-06-09
+    issue: "try/except around the view dispatch swallowed Streamlit st.stop()/st.rerun() control-flow exceptions -> nav broke"
+    fix: "Re-raise when type(exc).__name__ in {RerunException,StopException} (error_alert.is_control_flow) BEFORE alerting; verified those exact names on Streamlit 1.54"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-09"
+  - date: 2026-06-09
+    issue: "Export PDF moved to free tier let free users tick premium ML/forecast/Meta sections -> paywall leak in the PDF"
+    fix: "Added PREMIUM_SECTIONS frozenset (pdf_exporter); export_pdf locks those checkboxes for non-premium AND strips them at generation (defense-in-depth)"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-09"
 ---
 
 # Skill: Dashboard View

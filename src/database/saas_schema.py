@@ -6,8 +6,8 @@ SAAS_SCHEMA = {
             id SERIAL PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             slug VARCHAR(100) NOT NULL UNIQUE,
-            tier VARCHAR(20) NOT NULL DEFAULT 'basic'
-                CHECK (tier IN ('basic', 'premium')),
+            tier VARCHAR(20) NOT NULL DEFAULT 'free'
+                CHECK (tier IN ('free', 'premium')),
             active BOOLEAN NOT NULL DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );

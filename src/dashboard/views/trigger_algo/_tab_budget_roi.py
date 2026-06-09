@@ -1,4 +1,5 @@
 """trigger_algo — _show_tab_budget_roi (move-only split)."""
+from datetime import date
 from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak
 import numpy as np
@@ -58,6 +59,11 @@ def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
 
 
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
+    st.caption(
+        "💰 **Décision budget** — quels titres pousser en priorité (top-N% par score), ton "
+        "budget Meta Ads restant, et le coût ajusté au risque (coût ÷ probabilité de "
+        "déclenchement) = le vrai € à payer pour espérer ouvrir une porte algorithmique."
+    )
     _show_budget_tier_selector(db, artist_id)
     st.markdown("---")
 
@@ -200,14 +206,23 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
 
     # 3. ROI regression
     st.subheader("📉 ROI — Régression linéaire (mensuel)")
+    st.caption(
+        "Sur **tout l'historique mensuel** disponible (revenue iMusician × spend Meta Ads), "
+        "indépendamment de la période choisie en haut : une régression mensuelle a besoin de "
+        "plusieurs mois, qu'une fenêtre J+28 ne peut pas fournir."
+    )
     try:
         from scipy import stats as sp_stats
         from src.dashboard.utils.kpi_helpers import get_monthly_roi_series
 
-        df_roi = get_monthly_roi_series(db, artist_id, date_from, date_to)
+        # All-time window on purpose — monthly ROI is a long-horizon analysis, decoupled
+        # from the J+28 period selector (date_from/date_to) which captures ≤ 1 month.
+        df_roi = get_monthly_roi_series(db, artist_id, date(2000, 1, 1), date.today())
         if df_roi is not None and not df_roi.empty:
             df_roi = df_roi.dropna(subset=["meta_spend", "revenue_eur"])
-            df_valid = df_roi[(df_roi["meta_spend"] > 0) | (df_roi["revenue_eur"] > 0)]
+            # Both signals must be present in the month — a spend→revenue regression is
+            # meaningless on revenue-only months (spend = 0 cloud) or spend-only months.
+            df_valid = df_roi[(df_roi["meta_spend"] > 0) & (df_roi["revenue_eur"] > 0)]
             if len(df_valid) >= 2:
                 x = df_valid["meta_spend"].astype(float).values
                 y = df_valid["revenue_eur"].astype(float).values
@@ -244,9 +259,11 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 rc2.metric("Pente", f"{slope:.2f} €/€", help="Revenue généré par € investi en Meta Ads")
                 rc3.metric("p-value", f"{p_value:.3f}", help="< 0.05 = corrélation statistiquement significative")
             else:
-                st.info("Données insuffisantes (minimum 2 mois avec spend + revenue).")
+                st.info("Données insuffisantes : il faut au moins 2 mois où coexistent un "
+                        "spend Meta Ads ET un revenue iMusician.")
         else:
-            st.info("Pas de données revenue/spend pour calculer la régression ROI.")
+            st.info("Pas de données revenue/spend pour calculer la régression ROI "
+                    "(aucun mois avec spend Meta Ads + revenue iMusician dans l'historique).")
     except ImportError:
         st.warning("scipy non disponible — régression désactivée.")
     except Exception as e:

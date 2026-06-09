@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-06-09 — Pricing 2-tier, B1 cross-platform mapping, robustness (B3/C1/C2), i18n infra
+
+**Tarification → 2 tiers (free 0€ / premium 10€)** — `basic` retiré, fusionné dans premium.
+- Source unique `PLAN_FEATURES` + `PLAN_CATALOG` dans `stripe_schema.py` ; `normalize_plan()`
+  rabat tout `basic` résiduel sur premium. `billing.py`/`upgrade.py`/`auth.py`/`revenue_forecast.py`
+  lisent le catalogue (fin du drift de prix sur 4 sources). Migrations **047** (alignement
+  prix/features) + **048** (basic→premium + désactivation plan basic).
+- **Bug latent corrigé** : `saas_artists.tier` avait `DEFAULT 'basic'` + `CHECK IN('basic','premium')`
+  → rejetait `'free'` (register.py insère `tier='free'`) et aurait donné premium en fallback
+  post-essai. Migration 048 : `DEFAULT 'free'` + `CHECK IN('free','premium')`.
+- Export PDF → free ; revenue_forecast → premium. CTA contact (optim. campagnes) sur billing/upgrade.
+
+**Export PDF — leak paywall corrigé** : un free pouvait inclure les sections ML/prévisions/Meta
+avancé. `PREMIUM_SECTIONS` (pdf_exporter) → verrou UI + strip à la génération pour non-premium.
+
+**Admin — onglet 📊 Supervision** : business (MRR/ARPU/inscriptions) + fraîcheur données par
+plateforme (révèle Meta 617j / Apple 180j obsolètes).
+
+**B1 — Mapping cross-plateforme + suggestions** (LIVRÉ) : migration **049** (`track_platform_link`
++ provenance sur `campaign_track_mapping`), moteur pur `src/utils/track_mapping_suggest.py`
+(`title_similarity` containment 0.90 / remix-disagreement 0.0, `date_proximity` halflife 14j ;
++15 tests), vue `views/track_mapping.py` 3 onglets (suggestions par plateforme S4A/Spotify/Apple/
+SC/YT, Meta campagnes title+date, vue unifiée). `track_name` stocké en `_`-form (`canonical_song`)
+pour matcher `s4a_song_timeline.song` (join meta_x_spotify).
+
+**Robustesse** :
+- **B3** : `track_mapping`+`meta_mapping` migrés vers `view_session()` (rule #7).
+- **C1** : `utils/error_alert.py` (`notify_app_error` fail-silent, rate-limité, email admin) ;
+  dispatch des vues extrait en `_render_page()` + guard try/except dans `app.py` — **re-raise des
+  signaux Streamlit** `RerunException`/`StopException` (sinon nav cassée). +4 tests.
+- **C2** : `tools/db_backup.sh` (pg_dump→gzip+rétention) + `tools/db_restore_test.sh` (drill) +
+  `make backup`/`backup-test`. Drill validé (78 tables, 13794 lignes restaurées). Cron = Phase D.
+
+**C4 — i18n EN/FR (infra)** : `utils/i18n.py` (`t()` FR-source/fallback EN), toggle sidebar,
+navigation entièrement traduite (titre+8 sections+35 items), +5 tests (garde-fou trad EN).
+
+**Emails onboarding** (début de session) : welcome+guide PDF à la **vérification** (pas signup),
+guide PDF = **API+CSV** (renommé `onboarding_guide.pdf`, réutilise `credential_guides` + screenshots),
+DAG `onboarding_report` (1er rapport post-collecte S4A), lien désinscription HMAC, `APP_BASE_URL` env.
+
+**Docs/roadmap** : `deployment.md` créé (programme déploiement différé), `checklist.md` section
+« Pré-déploiement program A→B→C→D », `architecture.md` (2-tiers). Graphify régénéré
+(2692 nœuds/5248 edges). **384 tests verts**, ruff clean.
+
+---
+
 ## 2026-06-08 (suite) — Onboarding merge-back, shared-app credentials, windowed S4A entry, PDF redesign
 
 ### Why

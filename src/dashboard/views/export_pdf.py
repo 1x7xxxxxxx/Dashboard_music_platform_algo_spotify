@@ -1,6 +1,6 @@
 """Page Export PDF — Rapport artiste paramétrable."""
 import streamlit as st
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import sys
 from pathlib import Path
@@ -11,40 +11,53 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.pdf_exporter import (
     get_available_songs, get_artists_list, generate_pdf, ALL_SECTIONS,
-    _latest_release,
+    _latest_release, _get_artist_name, _release_date,
 )
+
+
+def _slug(s: str) -> str:
+    """Filesystem-safe token: alnum kept, everything else → underscore."""
+    s = (s or "").strip()
+    out = "".join(c if c.isalnum() else "_" for c in s)
+    out = "_".join(p for p in out.split("_") if p)  # collapse repeats
+    return (out or "NA")[:40]
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-def _resolve_period(period_label, custom_from, custom_to):
+def _resolve_period(period_label, custom_from, custom_to, release_date=None):
     now = datetime.now()
-    mapping = {
-        "3 derniers mois":  3,
-        "6 derniers mois":  6,
-        "12 derniers mois": 12,
-        "Cette année":      None,
-        "Depuis le début":  "all",
-        "Personnalisé":     "custom",
-    }
-    v = mapping[period_label]
-    if v == "custom":
+    today = now.date()
+    if period_label == "Personnalisé":
         return custom_from, custom_to
-    if v == "all":
+    if period_label == "28 derniers jours":
+        return today - timedelta(days=28), today
+    if period_label == "Depuis la sortie de la track":
+        # Release date of the selected track (earliest if several) — else full history.
+        return (release_date or date(2015, 1, 1)), today
+    if period_label == "Depuis le début":
         # Far-past start to capture the full history (catalogue began well after).
-        return date(2015, 1, 1), now.date()
-    if v is None:
-        return date(now.year, 1, 1), now.date()
-    return (now - relativedelta(months=v)).replace(day=1).date(), now.date()
+        return date(2015, 1, 1), today
+    if period_label == "Cette année":
+        return date(now.year, 1, 1), today
+    months = {"3 derniers mois": 3, "6 derniers mois": 6, "12 derniers mois": 12}[period_label]
+    return (now - relativedelta(months=months)).replace(day=1).date(), today
+
+
+def _selected_release_date(db, artist_id, tracks):
+    """Earliest real release date among the selected tracks, or None if none resolve."""
+    dates = []
+    for t in tracks:
+        rd = _release_date(db, artist_id, t, None)
+        if rd:
+            dates.append(rd)
+    return min(dates) if dates else None
 
 
 # ─── UI ──────────────────────────────────────────────────────────────────────
 
 def show():
-    from src.dashboard.auth import require_plan
-    if not require_plan('basic'):
-        return
-
+    # Export PDF is a Free-tier feature (no plan gate).
     st.title("📄 Export PDF — Rapport Artiste")
     st.caption(
         "Configurez le rapport, sélectionnez les sections et les chansons à inclure, "
@@ -83,16 +96,22 @@ def _show_form(db):
             report_artist_name = selected_name
         else:
             report_artist_id   = get_artist_id()
-            report_artist_name = st.session_state.get('name', f'Artiste #{report_artist_id}')
+            # Real artist name from saas_artists — NOT session['name'] (that's the email).
+            report_artist_name = _get_artist_name(db, report_artist_id)
             st.info(f"👤 {report_artist_name}")
 
     with col_period:
         st.markdown("**📅 Période**")
         period_label = st.selectbox(
-            "Période", ["3 derniers mois", "6 derniers mois", "12 derniers mois",
-                        "Cette année", "Depuis le début", "Personnalisé"],
-            index=2, label_visibility="collapsed"
+            "Période", ["28 derniers jours", "3 derniers mois", "6 derniers mois",
+                        "12 derniers mois", "Cette année", "Depuis le début",
+                        "Depuis la sortie de la track", "Personnalisé"],
+            index=5, label_visibility="collapsed"
         )
+        st.caption("Les sections pub & revenus (Meta, Hypeddit, ROI…) sont toujours "
+                   "calculées **depuis le début** ; la période ci-dessus ne filtre que le "
+                   "streaming (S4A, YouTube, etc.). « Depuis la sortie de la track » utilise "
+                   "la date de sortie de la chanson sélectionnée (la plus ancienne si plusieurs).")
 
     with col_custom:
         if period_label == "Personnalisé":
@@ -104,16 +123,30 @@ def _show_form(db):
             custom_from = custom_to = None
             st.empty()
 
-    from_date, to_date = _resolve_period(period_label, custom_from, custom_to)
-
     st.markdown("---")
 
     # ── Ligne 2 : Sections à inclure (toutes cochées par défaut) ─────────────
+    # Premium-only sections (ML, prévisions, Meta breakdowns/×Spotify) are locked
+    # for non-premium users so the free PDF can't leak paywalled content.
+    from src.dashboard.auth import get_artist_plan
+    from src.dashboard.utils.pdf_exporter import PREMIUM_SECTIONS
+    is_premium = admin or get_artist_plan() == 'premium'
     st.markdown("**📑 Sections à inclure**")
-    sec_cols = st.columns(len(ALL_SECTIONS))
+    if not is_premium:
+        st.caption("🔒 Les sections **Premium** (ML, prévisions, Meta avancé) nécessitent le "
+                   "plan Premium — verrouillées ci-dessous.")
     sections = {}
-    for col, (key, label) in zip(sec_cols, ALL_SECTIONS.items()):
-        sections[key] = col.checkbox(label, value=True, key=f"sec_{key}")
+    items = list(ALL_SECTIONS.items())
+    _per_row = 5
+    for i in range(0, len(items), _per_row):
+        cols = st.columns(_per_row)
+        for col, (key, label) in zip(cols, items[i:i + _per_row]):
+            if key in PREMIUM_SECTIONS and not is_premium:
+                col.checkbox(f"🔒 {label}", value=False, key=f"sec_{key}", disabled=True,
+                             help="Section Premium — passez au plan Premium pour l'inclure.")
+                sections[key] = False
+            else:
+                sections[key] = col.checkbox(label, value=True, key=f"sec_{key}")
 
     # ── Ligne 3 : Sélecteurs de chansons (conditionnels) ────────────────────
     available = get_available_songs(db, report_artist_id)
@@ -160,7 +193,24 @@ def _show_form(db):
 
     st.markdown("---")
 
+    # ── Résolution de la période (après les sélecteurs : « Depuis la sortie » a
+    #    besoin des chansons choisies) ─────────────────────────────────────────
+    release_date = None
+    if period_label == "Depuis la sortie de la track":
+        _picked = list(dict.fromkeys((s4a_songs_filter or []) + (selected_songs or [])))
+        if not _picked and latest:
+            _picked = [latest]
+        release_date = _selected_release_date(db, report_artist_id, _picked)
+        if release_date is None:
+            st.warning("Aucune date de sortie connue pour la sélection — le rapport couvrira "
+                       "tout l'historique. Sélectionnez une chanson avec une date de sortie.")
+    from_date, to_date = _resolve_period(period_label, custom_from, custom_to, release_date)
+
     # ── Aperçu du rapport ───────────────────────────────────────────────────
+    # Defense-in-depth: never let a non-premium request carry premium sections.
+    if not is_premium:
+        sections = {k: (v and k not in PREMIUM_SECTIONS) for k, v in sections.items()}
+
     active_sections = [ALL_SECTIONS[k] for k, v in sections.items() if v]
     period_str = f"{from_date.strftime('%d/%m/%Y')} → {to_date.strftime('%d/%m/%Y')}"
     st.caption(
@@ -194,23 +244,59 @@ def _show_form(db):
                     songs=selected_songs if sections.get('songs') else None,
                     s4a_songs_filter=s4a_songs_filter,
                 )
+            # Track token for the filename: the single selected song, else ALL_TRACK.
+            _picked = (s4a_songs_filter or []) + (selected_songs or [])
+            _track = _picked[0] if len(set(_picked)) == 1 else "ALL_TRACK"
             st.session_state['_export_pdf_bytes']  = pdf_bytes
             st.session_state['_export_pdf_artist'] = report_artist_name
-            st.success("PDF généré avec succès !")
+            st.session_state['_export_pdf_track']  = _track
+            st.session_state['_export_pdf_autodl'] = True  # trigger one auto-download
+            try:
+                from src.dashboard.utils.usage_tracker import track
+                track('pdf_generate', page='export_pdf',
+                      meta={'sections': [k for k, v in sections.items() if v]})
+            except Exception:
+                pass
         except Exception as e:
             st.error(f"Erreur lors de la génération : {e}")
         finally:
             db2.close()
 
-    # ── Bouton Télécharger (persiste entre reruns) ───────────────────────────
+    # ── Téléchargement (auto au moment de la génération + bouton de secours) ──
     if st.session_state.get('_export_pdf_bytes'):
-        ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
-        slug     = (st.session_state.get('_export_pdf_artist') or 'artiste').replace(" ", "_").lower()
-        filename = f"rapport_{slug}_{ts}.pdf"
+        day      = datetime.now().strftime("%Y%m%d")
+        artist_s = _slug(st.session_state.get('_export_pdf_artist') or 'artiste')
+        track_s  = _slug(st.session_state.get('_export_pdf_track') or 'ALL_TRACK')
+        filename = f"{artist_s}_{track_s}_{day}.pdf"
+
+        # Auto-download once, right after generation. The anchor is created + clicked in
+        # the PARENT document (not the sandboxed component iframe) so it inherits the
+        # transient user activation from the "Générer" click — that's what lets the
+        # browser allow the download. Falls back silently if the parent is unreachable.
+        if st.session_state.pop('_export_pdf_autodl', False):
+            import base64 as _b64
+            import streamlit.components.v1 as _components
+            b64 = _b64.b64encode(st.session_state['_export_pdf_bytes']).decode('ascii')
+            _components.html(
+                f"""<script>
+                try {{
+                  const d = window.parent.document;
+                  const a = d.createElement('a');
+                  a.href = 'data:application/pdf;base64,{b64}';
+                  a.download = {filename!r};
+                  d.body.appendChild(a); a.click();
+                  setTimeout(function(){{ a.remove(); }}, 1500);
+                }} catch (e) {{}}
+                </script>""",
+                height=0,
+            )
+
+        st.success("✅ Rapport prêt. Téléchargement lancé — sinon, bouton ci-dessous.")
         st.download_button(
             label="⬇️ Télécharger le rapport",
             data=st.session_state['_export_pdf_bytes'],
             file_name=filename,
             mime="application/pdf",
+            type="primary",
             width="content",
         )

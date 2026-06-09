@@ -257,8 +257,11 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 > `admin.py` (admin_edit), `api/routers/stripe_webhook.py` (stripe_webhook). New signups
 > auto-receive a 30-day premium trial (`WELCOME_TRIAL_DAYS`) resolved via `promo_plan`
 > precedence in `get_artist_plan()`, plus a `send_welcome_email()` recap. `alerts.py`
-> renders a plan-evolution stacked-area chart + a users table from this table. ML access
-> (`revenue_forecast`) moved into the Basic tier (`PLAN_FEATURES['basic']`).
+> renders a plan-evolution stacked-area chart + a users table from this table. Tiering
+> (2026-06-09): **2 tiers only** — `free` (analytics + Export PDF) and `premium`
+> (`{'*'}`: Road to Algo/ML, revenue_forecast, Meta advanced). The retired `basic`
+> collapses onto premium via `stripe_schema.normalize_plan()`; PDF export gates
+> Premium-only sections (`PREMIUM_SECTIONS`).
 >
 > **Road to Algorithms knowledge layer (since 2026-05-29 — WAVE 2/3/4):**
 > `dashboard/utils/algo_knowledge.py` is the PURE, algo-keyed source of truth

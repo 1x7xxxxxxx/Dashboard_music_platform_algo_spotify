@@ -282,14 +282,100 @@ def _render_token_management() -> None:
     )
 
 
+def _supervision_freshness(db) -> pd.DataFrame:
+    """Per-platform last-data date + freshness flag. Each query guarded (autocommit
+    handler → a missing table doesn't poison the next query)."""
+    import datetime as _dt
+    checks = [
+        ("Spotify S4A",    "SELECT MAX(date) FROM s4a_song_timeline"),
+        ("Meta Ads",       "SELECT MAX(day_date) FROM meta_insights_performance_day"),
+        ("Instagram",      "SELECT MAX(collected_at)::date FROM instagram_daily_stats"),
+        ("SoundCloud",     "SELECT MAX(collected_at)::date FROM soundcloud_tracks_daily"),
+        ("YouTube",        "SELECT MAX(collected_at)::date FROM youtube_video_stats"),
+        ("Apple Music",    "SELECT MAX(collected_at)::date FROM apple_songs_history"),
+        ("ML prédictions", "SELECT MAX(prediction_date) FROM ml_song_predictions"),
+    ]
+    today = _dt.date.today()
+    rows = []
+    for label, sql in checks:
+        try:
+            r = db.fetch_query(sql)
+            last = r[0][0] if r and r[0] else None
+        except Exception:
+            last = None
+        if last is None or not hasattr(last, "year"):
+            rows.append((label, "—", "❓ inconnu"))
+            continue
+        age = (today - last).days
+        flag = ("🟢 à jour" if age <= 2 else "🟠 en retard" if age <= 7 else "🔴 obsolète")
+        rows.append((label, str(last), f"{flag} ({age} j)"))
+    return pd.DataFrame(rows, columns=["Plateforme", "Dernière donnée", "État"])
+
+
+def _render_supervision(db):
+    # ── Business ──────────────────────────────────────────────────────────
+    st.subheader("📊 Business — inscriptions & abonnements")
+    su = db.fetch_query(
+        "SELECT COUNT(*) FILTER (WHERE created_at >= now() - interval '7 days'), "
+        "       COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days'), "
+        "       COUNT(*) FILTER (WHERE email_verified), COUNT(*) "
+        "FROM saas_users WHERE role <> 'admin'"
+    )
+    s7, s30, verified, total_u = (su[0] if su else (0, 0, 0, 0))
+    na = db.fetch_query("SELECT COUNT(*) FROM saas_artists WHERE active")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Inscriptions 7 j", s7 or 0)
+    c2.metric("Inscriptions 30 j", s30 or 0)
+    c3.metric("Comptes vérifiés", f"{verified or 0}/{total_u or 0}")
+    c4.metric("Artistes actifs", na[0][0] if na else 0)
+
+    rev = db.fetch_query(
+        "SELECT sp.name, COUNT(*), SUM(sp.price_monthly) "
+        "FROM artist_subscriptions a JOIN subscription_plans sp ON sp.id = a.plan_id "
+        "WHERE a.status = 'active' GROUP BY sp.name, sp.price_monthly ORDER BY sp.price_monthly"
+    )
+    if rev:
+        mrr = sum(float(r[2] or 0) for r in rev)
+        paying = sum(int(r[1]) for r in rev)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("MRR (abonnements actifs)", f"{mrr:.2f} €")
+        m2.metric("Abonnés payants", paying)
+        m3.metric("ARPU", f"{mrr / paying:.2f} €" if paying else "—")
+        st.dataframe(pd.DataFrame(rev, columns=["Plan", "Abonnés", "MRR (€)"]),
+                     hide_index=True, width="stretch")
+    else:
+        st.caption("Aucun abonnement payant actif (tous en Free / essai de bienvenue).")
+
+    # ── Technique ─────────────────────────────────────────────────────────
+    st.markdown("---")
+    st.subheader("🩺 Technique — fraîcheur des données par plateforme")
+    st.dataframe(_supervision_freshness(db), hide_index=True, width="stretch")
+    st.caption(
+        "🟢 ≤ 2 j · 🟠 ≤ 7 j · 🔴 > 7 j · ❓ table absente/illisible. "
+        "Détails : pages **Airflow KPI**, **ETL Logs**, **DB Health**."
+    )
+
+
 def show():
     _guard()
 
     st.title("⚙️ Administration")
     st.markdown("---")
 
-    tab_artists, tab_users, tab_upload, tab_gdpr, tab_tokens = st.tabs(
-        ["👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV", "🗑️ Effacement RGPD", "🔑 Tokens"])
+    (tab_supervision, tab_artists, tab_users, tab_upload,
+     tab_gdpr, tab_tokens) = st.tabs(
+        ["📊 Supervision", "👥 Artistes", "👤 Utilisateurs", "📂 Upload CSV",
+         "🗑️ Effacement RGPD", "🔑 Tokens"])
+
+    # ══════════════════════════════════════════
+    # ONGLET 0 : SUPERVISION (business + technique)
+    # ══════════════════════════════════════════
+    with tab_supervision:
+        db = get_db_connection()
+        try:
+            _render_supervision(db)
+        finally:
+            db.close()
 
     # ══════════════════════════════════════════
     # ONGLET 5 : GESTION DES TOKENS (référence admin)
@@ -338,7 +424,7 @@ def show():
                 c1, c2, c3 = st.columns(3)
                 new_name = c1.text_input("Nom *")
                 new_slug = c2.text_input("Slug * (unique, minuscules)")
-                new_tier = c3.selectbox("Tier", ["basic", "premium"])
+                new_tier = c3.selectbox("Tier", ["free", "premium"])
                 if st.form_submit_button("Créer", type="primary"):
                     if not new_name or not new_slug:
                         st.error("Nom et slug obligatoires.")
@@ -365,8 +451,8 @@ def show():
                     edit_name = c1.text_input("Nom", value=sel['name'])
                     edit_tier = c2.selectbox(
                         "Tier",
-                        ["basic", "premium"],
-                        index=0 if sel['tier'] == 'basic' else 1
+                        ["free", "premium"],
+                        index=0 if sel['tier'] == 'free' else 1
                     )
                     edit_active = st.checkbox("Actif", value=bool(sel['active']))
 

@@ -54,7 +54,7 @@ def show():
         st.subheader("🏆 Top Chansons (Cumulé)")
 
         top_query = """
-            SELECT song_name, plays
+            SELECT song_name, plays, shazam_count
             FROM apple_songs_performance
             WHERE artist_id = %s
             ORDER BY plays DESC
@@ -72,11 +72,19 @@ def show():
                 title="Top 10 par Streams",
                 labels={'plays': 'Streams', 'song_name': ''},
                 color='plays',
-                color_continuous_scale='Reds'
+                color_continuous_scale='Reds',
+                custom_data=['shazam_count'],
             )
-            fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+            fig.update_traces(
+                texttemplate='%{text:,.0f}', textposition='outside',
+                hovertemplate='%{y}<br>Streams : %{x:,.0f}<br>⚡ Shazams : %{customdata[0]:,.0f}<extra></extra>',
+            )
             fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
             st.plotly_chart(fig, width="stretch")
+            with st.expander("⚡ Shazams par chanson (Top 10)"):
+                _df_sh = df_top[['song_name', 'shazam_count']].rename(
+                    columns={'song_name': 'Chanson', 'shazam_count': 'Shazams'})
+                st.dataframe(_df_sh, hide_index=True, width="stretch")
 
         st.markdown("---")
 

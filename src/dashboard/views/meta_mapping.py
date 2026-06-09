@@ -6,7 +6,7 @@ Persists in: campaign_track_mapping (PostgreSQL spotify_etl)
 """
 import streamlit as st
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 
 
 def _load_campaigns(db, artist_id: int) -> list[str]:
@@ -45,17 +45,7 @@ def show():
     st.title("🔗 Meta × Spotify — Campaign Mapping")
     st.caption("Link your Meta ad campaigns to Spotify track names for attribution analysis.")
 
-    artist_id = st.session_state.get("artist_id")
-    if not artist_id:
-        st.error("Session error: artist_id missing.")
-        return
-
-    db = get_db_connection()
-    if db is None:
-        st.error("Database unreachable.")
-        return
-
-    try:
+    with view_session() as (db, artist_id):
         tab_list, tab_add = st.tabs(["Existing mappings", "Add / Remove"])
 
         # ── Tab 1 : existing mappings ─────────────────────────────────────────
@@ -123,6 +113,3 @@ def show():
                 )
                 st.success(f"Mapped **{campaign}** → **{track}**")
                 st.rerun()
-
-    finally:
-        db.close()

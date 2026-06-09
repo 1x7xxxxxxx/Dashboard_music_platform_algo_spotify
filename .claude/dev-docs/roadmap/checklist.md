@@ -432,3 +432,99 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 - [ ] **Automated retraining on live outcomes** — `data_anon.csv` is a one-time snapshot; once `ml_song_predictions` accrues real trigger outcomes, retrain on live per-tenant data (MLOps: outcome labelling + scheduled retrain + champion/challenger).
 - [ ] **RR volume regressor** — suppressed (R²=0.23 group-CV on the log target, notification-CTR noise — v3 honest figure, was misreported ≈0.55). Revisit once Phase-2 features land; stays classification-only meanwhile.
 - [ ] **Resurrection tuning** — thresholds in `detect_saves_resurrection` (min_age 180d, 2x baseline, min_spark 50) are heuristic; recalibrate once real saves history exists.
+
+---
+
+## P3 — Product usage tracking (spec'd 2026-06-09, Option A — homegrown)
+
+Goal: know what end-users (artists) actually do in the app (pages visited, features
+used, drop-offs, dead features). **Decision: build a lightweight server-side event log
+in Postgres rather than PostHog** — Streamlit's rerun/DOM model makes PostHog's JS
+autocapture/session-replay unusable (see Deferred § below); a homegrown table reuses the
+DB + auth + admin-view stack already in place, with zero third-party egress / RGPD cost.
+
+- [x] **`usage_events` table + tracking hook + admin view** — SHIPPED 2026-06-09
+  (`migrations/045_usage_events.sql`, `src/dashboard/utils/usage_tracker.py` fail-silent
+  `track()`/`track_page_view()`, `views/usage_analytics.py` admin view). Spec below kept for
+  reference.
+- [x] (spec) **`usage_events` table + tracking hook + admin view** — original spec:
+  - **Schema** (`migrations/045_usage_events.sql` + `init_db.sql` + add to `_ALLOWED_TABLES`):
+    `usage_events(id BIGSERIAL PK, artist_id INT, role TEXT, session_id TEXT, event TEXT NOT NULL,
+    page TEXT, ts TIMESTAMPTZ DEFAULT now(), meta JSONB)`. Indexes on `(ts)`, `(artist_id, ts)`,
+    `(event)`. Use UTC-aware `ts` (rules/python.md). Retention: prune > N months via a tiny
+    step in an existing daily DAG (or a `DELETE` in `data_quality_check`).
+  - **Writer** (`src/dashboard/utils/usage_tracker.py`, NEW): `track(event, page=None, meta=None)`
+    → single INSERT via `PostgresHandler.execute_query` (autocommit). **Fail-silent** (try/except,
+    never raise — telemetry must NOT break or slow a page; this is the deliberate inverse of the
+    collector "must raise" rule). `distinct_id = artist_id` from `get_artist_id()`; `session_id`
+    from a `st.session_state['_session_id']` set once (uuid4).
+  - **Page-view hook**: in `app.py::main()`, right after `page = show_navigation_menu(role)`
+    (line ~313, the single routing choke-point), call `track('page_view', page=page)` **only when
+    the page changed** vs `st.session_state['_last_tracked_page']` — Streamlit reruns on every
+    widget interaction, so logging every rerun would massively inflate counts.
+  - **Key action events** (explicit `track()` calls): `pdf_generate`, `csv_export`,
+    `dag_trigger`, `login`, plus `error` (wrap nothing new — just call where errors are already
+    caught). Keep the taxonomy small and stable.
+  - **Admin view** (`views/usage_analytics.py`, admin-only — add to `_NAV_SECTIONS` admin section
+    + `_ADMIN_ONLY` + routing): top pages (bar), events/day (line), active artists, least-used
+    pages ("dead features"), simple funnel (login→page→action). Reuse `kpi_helpers`/`charts.py`
+    patterns; gate behind `is_admin()`.
+  - **RGPD**: first-party, no egress. The app already has a cookie notice
+    (`_show_cookie_notice`) + a `?page=privacy` policy — extend the policy text to mention
+    in-app usage analytics. No new consent vendor needed for first-party functional analytics,
+    but confirm wording.
+  - **Verification**: migrate; click around → rows land; rerun a page (widget interaction) →
+    NO duplicate page_view; admin view renders; render-smoke + a small unit test on
+    `usage_tracker.track` (fail-silent on bad DB). Effort ≈ ½–1 j.
+
+## Pré-déploiement program (2026-06-09)
+
+Ordered A→B→C→D. **Deployment (Docker containerization + Hetzner) is the LAST phase** and is
+parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pricing is now
+**2 tiers** free(0€)/premium(10€) — basic retired (migrations 047/048).
+
+- [x] **A — Validations & gate** : 375 tests verts ; tiers free/premium validés + alignés
+  (code+DB+billing/upgrade) ; vue admin **📊 Supervision** (business + fraîcheur données) ;
+  leak Export-PDF des sections premium corrigé (`PREMIUM_SECTIONS`).
+- [x] **B1 — Mapping cross-plateforme + suggestions** (LIVRÉ 2026-06-09) :
+  `migrations/049_track_platform_link.sql`, moteur pur `src/utils/track_mapping_suggest.py`
+  (+15 tests), vue `views/track_mapping.py` — 3 onglets : suggestions par plateforme
+  (S4A/Spotify/Apple/SC/YT, accept/reject + bulk), **Meta campagnes** (title-sim + date-proximity,
+  écrit `campaign_track_mapping` en `_`-form), vue unifiée. Validé sur données réelles.
+- [ ] **B2 — DistroKid** : pré-câblage pattern iMusician (8 fichiers), **bloqué** sur export data.
+- [x] **B3 — Refactor ciblé** (2026-06-09) : vues mapping (`track_mapping`, `meta_mapping`) migrées vers `view_session()` (rule #7). Reste : adoption `view_session()` sur les vues legacy au fil des touches (audit #2).
+- [x] **C1 — Alerting erreurs app** (2026-06-09) : `src/dashboard/utils/error_alert.py` (`notify_app_error`, fail-silent, rate-limité, re-raise des signaux st.stop/st.rerun) ; dispatch des vues extrait en `_render_page()` + guard try/except dans `app.py` ; +4 tests.
+- [x] **C2 — Backup DB** (2026-06-09) : `tools/db_backup.sh` (pg_dump→gzip + rétention) + `tools/db_restore_test.sh` (drill restauration) + `make backup` / `make backup-test`. Drill validé (78 tables restaurées). Cron VPS = Phase D.
+- [ ] **C3 — Hardening sécurité (code)** : rate-limit API FastAPI, timeout session, headers.
+- [~] **C4 — i18n EN/FR** (infra livrée 2026-06-09) : `src/dashboard/utils/i18n.py` (`t()` helper,
+  FR source + fallback, EN dict), **toggle sidebar** (`language_selector`), **navigation
+  entièrement traduite** (titre + sections + 35 items), +5 tests (garde-fou : tout item nav a sa
+  trad EN). **Reste** (selon périmètre à décider) : login/inscription, compte, billing, vues.
+- [ ] **C5 — Benchmark VPS** : streaMLytics + n8n + MT5 (Windows-only) + génération vidéo + scraping → topologie + sizing.
+- [ ] **D — Déploiement + pentest** (DERNIER, hors scope actuel) : voir `deployment.md`.
+
+## Deferred — revisit ONLY if migrating to React (ADR-003 reversal)
+
+Items that are currently irrelevant / worked-around **because of Streamlit** and would become
+natural (or need redoing) under a React/Next.js front-end. Parked here per user request
+(2026-06-09) so a future migration picks them up. ADR-003 currently keeps Streamlit.
+
+- [ ] **PostHog full client-side analytics** — autocapture, **session replay**, heatmaps,
+  client funnels/retention. Blocked today: Streamlit strips `<script>` and sandboxes
+  `components.html` iframes, and re-runs the whole script (no stable DOM / client event model).
+  Under React the standard JS snippet drops in → reconsider PostHog (cloud-w/-consent or
+  self-host) and likely retire the homegrown event log's *capture* layer (the `usage_events`
+  table can remain as a server-side sink). Needs RGPD consent banner for a 3rd-party processor.
+- [ ] **Interactive / exact-parity report charts (PDF & in-app)** — the PDF export rebuilds
+  every chart in **matplotlib→PNG** (`pdf_charts.py`) because `kaleido` (Plotly→image) is absent
+  and Streamlit can't headless-render its Plotly figures. Under React, reports could share the
+  *same* chart components (client-side render / a proper reporting service), giving interactive
+  + pixel-parity charts and removing the matplotlib duplication. ref: export-pdf overhaul
+  2026-06-09.
+- [ ] **Cold-start bundle / perf** — already audited (line ~295): the #1 cold-start bottleneck
+  is the **Streamlit JS bundle** (~532 KiB), not Python. React+Next (code-splitting → ~100–150
+  KiB initial) is the structural fix. Python-side caching/lazy-import work stays valid for
+  subsequent renders only.
+- [ ] **Rich client interactions** — anything that fought the rerun model (live event hooks,
+  drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
+  first-class under React; revisit UX patterns that were simplified to fit Streamlit.

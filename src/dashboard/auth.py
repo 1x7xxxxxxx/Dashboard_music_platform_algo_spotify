@@ -211,6 +211,11 @@ def _hydrate_session(user: dict) -> None:
     st.session_state['artist_id']     = user['artist_id']  # None = admin
     st.session_state['role']          = user['role']
     st.session_state['user_id']       = user['id']
+    try:
+        from src.dashboard.utils.usage_tracker import track
+        track('login')
+    except Exception:
+        pass
 
 
 # ─────────────────────────────────────────────
@@ -338,12 +343,22 @@ def require_login() -> bool:
             _show_totp_challenge(db)
             return False
 
-        st.title("🎵 streaMLytics")
+        from src.dashboard.utils import logo_html
+        _logo = logo_html(variant="adaptive", max_width=320, center=True)
+        if _logo:
+            st.markdown(_logo, unsafe_allow_html=True)
+        else:
+            st.title("🎵 streaMLytics")
 
         with st.form("login"):
             st.subheader("Sign in")
-            username  = st.text_input("Username")
-            password  = st.text_input("Password", type="password")
+            # Stable keys → stable DOM ids → the browser keeps remembering the username
+            # even when elements above the form change (e.g. the logo).
+            username  = st.text_input("Username", key="login_username",
+                                      autocomplete="username")
+            password  = st.text_input("Password", type="password",
+                                      key="login_password",
+                                      autocomplete="current-password")
             submitted = st.form_submit_button("Sign in", type="primary")
 
         st.markdown("[Don't have an account? **Create one**](?page=register)")
@@ -439,11 +454,12 @@ def is_admin() -> bool:
 
 
 def get_artist_plan() -> str:
-    """Return the current artist's plan: 'free' | 'basic' | 'premium'.
+    """Return the current artist's plan: 'free' | 'premium'.
 
-    Reads artist_subscriptions from DB; falls back to saas_artists.tier.
-    Returns 'premium' for admin sessions (unrestricted access).
+    Reads artist_subscriptions from DB; falls back to saas_artists.tier. Any retired
+    'basic' value is collapsed onto 'premium'. Returns 'premium' for admin sessions.
     """
+    from src.database.stripe_schema import normalize_plan
     if is_admin():
         return 'premium'
 
@@ -485,15 +501,15 @@ def get_artist_plan() -> str:
 
         # Promo takes precedence if still active
         if promo_plan and (promo_expires is None or promo_expires > datetime.now(timezone.utc)):
-            return promo_plan
+            return normalize_plan(promo_plan)
 
         # Active Stripe subscription
         if subscription_plan:
-            return subscription_plan
+            return normalize_plan(subscription_plan)
 
         # Legacy tier fallback
         if tier:
-            return tier
+            return normalize_plan(tier)
 
     except Exception:
         pass
@@ -505,12 +521,12 @@ def require_plan(min_plan: str) -> bool:
 
     Returns True if access is allowed, False if blocked.
     """
-    from src.database.stripe_schema import PLAN_RANK
+    from src.database.stripe_schema import PLAN_CATALOG, PLAN_RANK
     current_plan = get_artist_plan()
     if PLAN_RANK.get(current_plan, 0) >= PLAN_RANK.get(min_plan, 0):
         return True
 
-    plan_labels = {'basic': 'Basic (9.90€/mo)', 'premium': 'Premium (29.90€/mo)'}
+    plan_labels = {p: f"{c['label']} ({c['price_eur']}€/mo)" for p, c in PLAN_CATALOG.items()}
     st.warning(
         f"🔒 This feature requires the **{plan_labels.get(min_plan, min_plan)}** plan. "
         f"Your current plan: **{current_plan}**.",

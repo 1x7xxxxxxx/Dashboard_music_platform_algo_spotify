@@ -30,6 +30,7 @@ from src.dashboard.utils.revenue_forecast import (
     ltv_global,
     ltv_scenarios,
 )
+from src.database.stripe_schema import PLAN_CATALOG as _CAT
 
 
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
@@ -117,15 +118,14 @@ def _tab_projection(db) -> None:
         growth_rate = st.slider("Taux de croissance mensuel (%)", 0, 30, 5)
         months      = st.select_slider("Mois à projeter", options=[6, 12, 24, 36], value=12)
     with c2:
-        price_basic   = st.number_input("Prix Basic (€/mois)", value=9.90, step=0.10, format="%.2f")
-        price_premium = st.number_input("Prix Premium (€/mois)", value=29.90, step=0.10, format="%.2f")
+        price_premium = st.number_input("Prix Premium (€/mois)", value=float(_CAT['premium']['price_eur']), step=0.10, format="%.2f")
 
-    # Recalc MRR0 avec prix custom
+    # Recalc MRR0 avec prix custom (un seul plan payant : Premium)
+    _p_premium = _CAT['premium']['price_eur']
     if not active_paying.empty:
         mrr_0_custom = float(
             active_paying['price'].map(
-                lambda p: price_basic if abs(p - 9.90) < 0.01 else
-                          price_premium if abs(p - 29.90) < 0.01 else p
+                lambda p: price_premium if abs(p - _p_premium) < 0.01 else p
             ).sum()
         )
     else:
@@ -221,7 +221,7 @@ def _tab_ltv(db) -> None:
     st.markdown("---")
     st.markdown("#### LTV par scénario de durée de rétention")
 
-    plans = [('basic', 9.90), ('premium', 29.90)]
+    plans = [('premium', _CAT['premium']['price_eur'])]
     durations = [6, 12, 24, 36]
     ltv_df = pd.DataFrame(ltv_scenarios(plans, durations))
 
@@ -388,22 +388,23 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                 "Connectez Meta via **Credentials API** et déclenchez le DAG Meta Insights.")
     else:
         roi_df = roi_df.sort_values('period_date')
+        # VRAI ROI = (revenus − dépenses) / dépenses × 100 (0 % = équilibre).
         roi_df['roi_pct'] = roi_df.apply(
-            lambda r: round(r['revenue_eur'] / r['meta_spend'] * 100, 1)
+            lambda r: round((r['revenue_eur'] - r['meta_spend']) / r['meta_spend'] * 100, 1)
             if r['meta_spend'] > 0 else None,
             axis=1,
         )
         total_rev   = float(roi_df['revenue_eur'].sum())
         total_spend = float(roi_df['meta_spend'].sum())
-        global_roi  = round(total_rev / total_spend * 100, 1) if total_spend > 0 else 0.0
+        global_roi  = round((total_rev - total_spend) / total_spend * 100, 1) if total_spend > 0 else 0.0
         avg_spend   = float(roi_df['meta_spend'].mean())
 
         rc1, rc2, rc3 = st.columns(3)
         rc1.metric("Dépense Meta totale", f"{total_spend:,.2f} €")
         rc2.metric("Revenu iMusician total", f"{total_rev:,.2f} €")
         rc3.metric("ROI global", f"{global_roi:.1f}%",
-                   delta="rentable" if global_roi >= 100 else "déficitaire",
-                   delta_color="normal" if global_roi >= 100 else "inverse")
+                   delta="rentable" if global_roi >= 0 else "déficitaire",
+                   delta_color="normal" if global_roi >= 0 else "inverse")
 
         fig_roi = go.Figure()
         fig_roi.add_trace(go.Bar(

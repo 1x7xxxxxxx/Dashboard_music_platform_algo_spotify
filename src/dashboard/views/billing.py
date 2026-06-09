@@ -7,50 +7,47 @@ import os
 import streamlit as st
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin, get_artist_plan
+from src.database.stripe_schema import PLAN_CATALOG, PLAN_RANK, SERVICE_CONTACT_EMAIL
 
 
-# ── Plan display catalogue (single source of truth for the 3-column layout) ──
-# Prices align with migration 014 (Basic 5€, Premium 15€). Features are folded
-# in here so the page no longer needs a separate comparison table.
+def _price_str(plan: str) -> str:
+    p = PLAN_CATALOG[plan]['price_eur']
+    return "0 €/mois" if p == 0 else f"{p} €/mois"
+
+
+# ── Plan display catalogue (3-column layout). Prices come from PLAN_CATALOG
+# (single source of truth); curated bullets mirror PLAN_FEATURES (validated 2026-06-09:
+# Export PDF in Free, Revenue forecast Premium-only, Basic 5€ / Premium 10€). ──
 _PLAN_CARDS = {
     'free': {
         'label': '🆓 Free',
-        'price': '0 €/mois',
+        'price': _price_str('free'),
         'max_artists': '1 artiste',
         'features': [
             "Toutes les analytics plateformes (Spotify, Apple Music, "
             "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)",
             "Revenus distributeur (iMusician)",
             "Import & export CSV",
+            "📄 Export PDF du rapport",
             "Data Wrapped annuel",
             "Credentials API & mapping Meta × Spotify",
         ],
     },
-    'basic': {
-        'label': '⭐ Basic',
-        'price': '5 €/mois',
-        'max_artists': "Jusqu'à 3 artistes",
-        'features': [
-            "Tout ce que contient Free",
-            "🚀 Road to Algo — prédictions ML",
-            "📈 Prévisions de revenus (ML)",
-            "📄 Export PDF",
-        ],
-    },
     'premium': {
         'label': '💎 Premium',
-        'price': '15 €/mois',
+        'price': _price_str('premium'),
         'max_artists': "Jusqu'à 10 artistes",
         'features': [
-            "Tout ce que contient Basic",
+            "Tout ce que contient Free",
+            "🚀 Road to Algo — prédictions ML (Discover Weekly / Release Radar / Radio)",
+            "📈 Prévisions de revenus (ML)",
             "🎨 Créatives Meta Ads",
             "📊 CPR Optimizer",
             "Support prioritaire",
         ],
     },
 }
-_PLAN_ORDER = ['free', 'basic', 'premium']
-_PLAN_RANK = {'free': 0, 'basic': 1, 'premium': 2}
+_PLAN_ORDER = ['free', 'premium']
 
 
 def show():
@@ -75,8 +72,26 @@ def show():
         current_plan = None if admin else get_artist_plan()
         _render_plan_columns(current_plan)
 
+        _render_service_cta()
+
     finally:
         db.close()
+
+
+def _render_service_cta() -> None:
+    """Done-for-you marketing-campaign optimization — manual service, call-first."""
+    st.markdown("---")
+    st.subheader("🎯 Optimisation de vos campagnes marketing (service sur-mesure)")
+    st.markdown(
+        "Vous voulez déléguer l'optimisation de vos campagnes (Meta Ads & cie) ? "
+        "Je peux m'en occuper directement. **Un appel préalable est requis** pour vérifier "
+        "que ça colle à votre projet et définir le budget que vous souhaitez investir.\n\n"
+        f"📧 Contact : **{SERVICE_CONTACT_EMAIL}**"
+    )
+    st.link_button(
+        "✉️ Me contacter pour l'optimisation",
+        f"mailto:{SERVICE_CONTACT_EMAIL}?subject=Optimisation%20campagnes%20marketing%20-%20streaMLytics",
+    )
 
 
 def _show_current_plan(db, artist_id: int):
@@ -172,7 +187,7 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
         st.success("✅ Votre plan actuel")
         return
     # Lower or equal rank than the current plan → already included
-    if current_plan is not None and _PLAN_RANK[target_plan] <= _PLAN_RANK[current_plan]:
+    if current_plan is not None and PLAN_RANK[target_plan] <= PLAN_RANK[current_plan]:
         st.caption("Inclus dans votre plan")
         return
     if target_plan == 'free':
@@ -195,7 +210,7 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
 def _render_plan_columns(current_plan: str | None) -> None:
     """3-column Free / Basic / Premium offer layout (replaces the table)."""
     st.subheader("Nos offres")
-    cols = st.columns(3)
+    cols = st.columns(len(_PLAN_ORDER))
     for col, plan_key in zip(cols, _PLAN_ORDER):
         card = _PLAN_CARDS[plan_key]
         with col:

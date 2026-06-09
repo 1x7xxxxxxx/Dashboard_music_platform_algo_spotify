@@ -13,6 +13,11 @@ from ._common import (
 
 
 def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
+    st.caption(
+        "📉 **Maturité & comparaison** — où en est ton titre dans son cycle de vie "
+        "algorithmique (semaine après semaine) et comment il se situe face à un benchmark "
+        "de référence. Utile pour distinguer un titre « jeune » d'un titre qui décroche."
+    )
     st.subheader("📉 Cycle de vie algorithmique & standardisation")
     if show_empty_state(
         benchmark_df,

@@ -2,6 +2,8 @@
 import os
 import smtplib
 import logging
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -39,6 +41,45 @@ class EmailAlert:
             return True
         except Exception as e:
             logger.error(f"❌ Échec envoi email : {e}")
+            return False
+
+    def send_email(self, to_email: str, subject: str, html: str,
+                   attachment_bytes: bytes | None = None,
+                   attachment_name: str = "rapport.pdf") -> bool:
+        """Send one HTML email to a specific recipient, optional PDF attachment.
+
+        Env-var SMTP (DAG context). Unlike send_alert (admin-only ALERT_EMAIL,
+        no attachment), this targets a client address and can attach a PDF.
+        Non-raising — returns False (and logs) when SMTP creds are missing or send fails.
+        """
+        if not self.smtp_user or not self.smtp_password or not to_email:
+            logger.warning("⚠️ SMTP non configuré ou destinataire manquant — email '%s' ignoré.",
+                           subject)
+            return False
+        try:
+            msg = MIMEMultipart('mixed')
+            msg['From'] = self.smtp_user
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            body = MIMEMultipart('alternative')
+            body.attach(MIMEText(html, 'html'))
+            msg.attach(body)
+            if attachment_bytes:
+                part = MIMEBase('application', 'pdf')
+                part.set_payload(attachment_bytes)
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', 'attachment', filename=attachment_name)
+                msg.attach(part)
+
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_password)
+                server.send_message(msg)
+
+            logger.info("✅ Email '%s' envoyé à %s", subject, to_email)
+            return True
+        except Exception as e:
+            logger.error("❌ Échec envoi email '%s' à %s : %s", subject, to_email, e)
             return False
 
 

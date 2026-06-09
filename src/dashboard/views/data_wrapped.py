@@ -2,7 +2,7 @@
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import date, datetime
 import sys
 from pathlib import Path
 
@@ -10,6 +10,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.utils.kpi_helpers import (
+    get_instagram_followers,
+    get_roi_data,
+    get_soundcloud_likes,
+    get_source_freshness,
+    get_spotify_popularity,
+    get_total_plays_apple,
+    get_total_plays_soundcloud,
+    get_total_streams_s4a,
+    get_total_views_youtube,
+)
+
+_ARTIST_FILTER = "%1x7xxxxxxx%"
 
 
 # ---------------------------------------------------------------------------
@@ -208,17 +221,142 @@ def _multi_line_chart(df, series, title, log_scale=False):
 
 
 # ---------------------------------------------------------------------------
+# Recap auto — all-time multi-platform bilan (read-only, reuses kpi_helpers)
+# ---------------------------------------------------------------------------
+
+def _recap_spotify(db, aid):
+    st.subheader("🎧 Spotify")
+    total = get_total_streams_s4a(db, aid)
+    pop = get_spotify_popularity(db, aid)
+    try:
+        arow = db.fetch_query(
+            "SELECT listeners, followers FROM s4a_audience WHERE artist_id = %s "
+            "ORDER BY date DESC LIMIT 1", (aid,))
+        followers = int(arow[0][1]) if arow and arow[0][1] is not None else None
+    except Exception:
+        followers = None
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Streams totaux (S4A)", _fmt_big(total) if total else "—")
+    c2.metric("Popularité Spotify", pop["score"] if pop else "—",
+              help=f"Titre : {pop['track']}" if pop else None)
+    c3.metric("Followers (dernier relevé)", _fmt_big(followers) if followers is not None else "—")
+
+    st.markdown("#### 🏆 Top 5 titres (streams cumulés)")
+    try:
+        df_top = db.fetch_df(
+            "SELECT song, SUM(daily_max) AS streams FROM ("
+            "  SELECT song, date, MAX(streams) AS daily_max FROM s4a_song_timeline"
+            "  WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY song, date) t "
+            "GROUP BY song ORDER BY streams DESC LIMIT 5", (aid, _ARTIST_FILTER))
+        if df_top is not None and not df_top.empty:
+            fig = go.Figure(go.Bar(
+                x=df_top["streams"], y=df_top["song"], orientation="h",
+                marker_color="#1DB954"))
+            fig.update_layout(height=240, margin=dict(t=10, b=10),
+                              yaxis=dict(autorange="reversed"), xaxis_title="Streams cumulés")
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.caption("Aucun titre S4A pour cet artiste.")
+    except Exception:
+        st.caption("Top titres indisponible.")
+
+
+def _recap_platforms(db, aid):
+    st.subheader("📺 Autres plateformes")
+    yt = get_total_views_youtube(db, aid)
+    apple = get_total_plays_apple(db, aid)
+    sc = get_total_plays_soundcloud(db, aid)
+    sc_likes = get_soundcloud_likes(db, aid)
+    ig = get_instagram_followers(db, aid)
+    p1, p2, p3, p4 = st.columns(4)
+    p1.metric("YouTube — vues", _fmt_big(yt) if yt else "—")
+    p2.metric("Apple Music — plays", _fmt_big(apple) if apple else "—")
+    p3.metric("SoundCloud — plays", _fmt_big(sc) if sc else "—",
+              help=f"{_fmt_big(sc_likes)} likes" if sc_likes else None)
+    p4.metric("Instagram — followers", _fmt_big(ig["followers"]) if ig else "—")
+
+
+def _recap_revenue(db, aid):
+    st.subheader("💶 Revenus & publicité (carrière)")
+    roi = get_roi_data(db, aid, date(2000, 1, 1), date.today())
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Revenu iMusician", f"{roi['revenue_eur']:,.0f} €")
+    r2.metric("Dépense Meta Ads", f"{roi['meta_spend']:,.0f} €")
+    roi_pct = roi.get("roi_pct")
+    r3.metric("ROI", f"{roi_pct:.0f} %" if roi_pct is not None else "—",
+              delta="rentable" if roi.get("profitable") else None)
+
+
+def _recap_ml(db, aid):
+    st.subheader("🔮 Highlight ML")
+    try:
+        df_ml = db.fetch_df(
+            "SELECT song, dw_probability, rr_probability, radio_probability "
+            "FROM ml_song_predictions WHERE artist_id = %s AND song NOT ILIKE %s "
+            "AND prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions "
+            "WHERE artist_id = %s)", (aid, _ARTIST_FILTER, aid))
+    except Exception:
+        df_ml = None
+    if df_ml is None or df_ml.empty:
+        st.caption("Aucune prédiction ML — lance le DAG `ml_scoring_daily`.")
+        return
+    cols = ["dw_probability", "rr_probability", "radio_probability"]
+    df_ml["best"] = df_ml[cols].max(axis=1)
+    top = df_ml.sort_values("best", ascending=False).iloc[0]
+    labels = {"dw_probability": "Discover Weekly", "rr_probability": "Release Radar",
+              "radio_probability": "Radio"}
+    probs = {labels[c]: (top[c] or 0) for c in cols}
+    best_algo = max(probs, key=probs.get)
+    st.success(f"🔮 Titre le plus prometteur : **{top['song']}** — "
+               f"{best_algo} **{probs[best_algo] * 100:.0f}%**")
+    st.caption("Probabilité absolue de déclenchement (sortie calibrée du modèle). "
+               "Voir « 🚀 Road to Algo (ML) » pour le détail.")
+
+
+def _recap_freshness(db, aid):
+    st.subheader("🩺 Fraîcheur des données")
+    try:
+        fresh = get_source_freshness(db, aid)
+    except Exception:
+        st.caption("Fraîcheur indisponible.")
+        return
+    items = list(fresh.items())
+    cols = st.columns(4)
+    for i, (label, info) in enumerate(items):
+        dt = info.get("last_dt")
+        cols[i % 4].caption(
+            f"{info.get('icon', '')} {label} : "
+            f"{dt.strftime('%Y-%m-%d') if dt else '—'}")
+
+
+def _show_recap_tab(db, aid):
+    st.caption(
+        "Bilan **automatique** toutes plateformes (carrière / all-time), calculé "
+        "depuis tes données collectées. « — » = source non connectée ou vide.")
+    _recap_spotify(db, aid)
+    st.markdown("---")
+    _recap_platforms(db, aid)
+    st.markdown("---")
+    _recap_revenue(db, aid)
+    st.markdown("---")
+    _recap_ml(db, aid)
+    st.markdown("---")
+    _recap_freshness(db, aid)
+
+
+# ---------------------------------------------------------------------------
 # Main view
 # ---------------------------------------------------------------------------
 
 def show():
-    st.title("🎁 Data Wrapped — Bilan annuel")
+    st.title("🎁 Data Wrapped — Bilan")
     st.markdown(
-        "Saisie manuelle des métriques annuelles Spotify for Artists "
-        "(téléchargées en fin d'année) et évolution année par année."
+        "**Recap auto** toutes plateformes (carrière) + saisie manuelle des métriques "
+        "annuelles Spotify for Artists et évolution année par année."
     )
 
-    tab_form, tab_charts, tab_data = st.tabs(["✏️ Saisie", "📊 Évolution", "🗃️ Données"])
+    tab_recap, tab_form, tab_charts, tab_data = st.tabs(
+        ["🎁 Recap auto", "✏️ Saisie", "📊 Évolution", "🗃️ Données"])
 
     db = get_db_connection()
     if db is None:
@@ -240,6 +378,13 @@ def show():
             name_row = db.fetch_query("SELECT name FROM saas_artists WHERE id = %s", (aid,))
             name = name_row[0][0] if name_row else f"Artiste {aid}"
             artist_options = {name: aid}
+
+        # ── Onglet 0 : Recap auto ───────────────────────────────────────────
+        with tab_recap:
+            recap_name = st.selectbox(
+                "Artiste", list(artist_options.keys()), key="recap_artist"
+            )
+            _show_recap_tab(db, artist_options[recap_name])
 
         # ── Onglet 1 : Formulaire ───────────────────────────────────────────
         with tab_form:

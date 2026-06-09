@@ -5,19 +5,20 @@
 @page { size: A4; margin: 15mm 14mm 16mm 14mm;
         @bottom-center { content: "streaMLytics  ·  Page " counter(page) " / " counter(pages);
                          font-size: 7.5pt; color: #b8b8b8; } }
-@page :first { margin: 0; @bottom-center { content: none; } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
        font-size: 10.5pt; color: #1a1a2e; background: #fff; }
 .content { padding: 0 2mm; }
 
-/* ── Cover (full first page) ── */
-.cover { height: 297mm; padding: 60mm 24mm 24mm 24mm;
-         background: linear-gradient(150deg, #191414 0%, #0d3b22 55%, #1DB954 130%);
-         color: #fff; page-break-after: always; }
-.cover .eyebrow { font-size: 11pt; letter-spacing: 3px; text-transform: uppercase;
+/* ── Cover banner (top of page 1, NOT full page — completeness + freshness follow) ── */
+.cover { padding: 22px 26px 20px 26px; border-radius: 14px; margin-bottom: 16px;
+         background: linear-gradient(150deg, #191414 0%, #0d3b22 60%, #1DB954 135%);
+         color: #fff; page-break-inside: avoid; }
+.cover .cov-logo { margin-bottom: 12px; }
+.cover .cov-logo svg { width: 260px; height: auto; }
+.cover .eyebrow { font-size: 10pt; letter-spacing: 3px; text-transform: uppercase;
                   color: #1DB954; font-weight: 700; }
-.cover h1 { font-size: 40pt; line-height: 1.05; margin: 6px 0 2px 0; color: #fff; border: 0; }
+.cover h1 { font-size: 26pt; line-height: 1.05; margin: 4px 0 2px 0; color: #fff; border: 0; }
 .cover .meta { font-size: 12pt; color: #cfe9d8; margin-top: 14px; }
 .cover .cov-kpis { display: flex; gap: 9px; margin-top: 46mm; }
 .cover .cov-kpi { flex: 1 1 0; min-width: 0; background: rgba(255,255,255,0.08);
@@ -43,6 +44,10 @@ th { background: #11261a; color: #fff; font-size: 8.5pt; padding: 7px 10px;
      text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
 td { padding: 6px 10px; font-size: 9.5pt; border-bottom: 1px solid #eee; }
 tr:nth-child(even) td { background: #f7faf8; }
+table.compact th, table.compact td { padding: 2.5px 8px; font-size: 8pt; }
+.status-row { display: flex; gap: 16px; page-break-inside: avoid; }
+.status-col { flex: 1; min-width: 0; }
+.status-col h3 { margin: 2px 0 4px 0; }
 
 /* ── Badges & cards ── */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
@@ -80,68 +85,80 @@ tr:nth-child(even) td { background: #f7faf8; }
 </style></head>
 <body>
 <div class="cover">
-  <div class="eyebrow">streaMLytics · Rapport artiste</div>
+  <div class="cov-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 120" width="470" height="120" role="img" aria-label="streaMLytics">
+  <defs>
+    <linearGradient id="gl" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#1DB954"/>
+      <stop offset="1" stop-color="#1ED760"/>
+    </linearGradient>
+  </defs>
+  <!-- mark -->
+  <rect x="2" y="2" width="116" height="116" rx="26" fill="#191414"/>
+  <g fill="url(#gl)">
+    <rect x="20" y="70" width="13" height="32" rx="5"/>
+    <rect x="39" y="54" width="13" height="48" rx="5"/>
+    <rect x="58" y="62" width="13" height="40" rx="5"/>
+    <rect x="77" y="34" width="13" height="68" rx="5"/>
+  </g>
+  <polyline points="26,70 45,54 64,62 83,34 100,24" fill="none"
+            stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="100" cy="24" r="6" fill="#FFFFFF"/>
+  <circle cx="100" cy="24" r="3" fill="#1DB954"/>
+  <!-- wordmark -->
+  <text x="140" y="74" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+        font-size="46" font-weight="800" letter-spacing="-1">
+    <tspan fill="#FFFFFF">strea</tspan><tspan fill="#1ED760">ML</tspan><tspan fill="#FFFFFF">ytics</tspan>
+  </text>
+  <text x="142" y="98" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+        font-size="14" letter-spacing="4" fill="#9fe3b8">MUSIC ANALYTICS</text>
+</svg>
+</div>
+  <div class="eyebrow">Rapport artiste</div>
   <h1>Test Artist</h1>
   <div class="meta">Période : 01/01/2025 → 01/01/2026<br>Généré le 15/01/2026 à 09:30</div>
-  <div class="cov-kpis"><div class="cov-kpi"><div class="v">24,500</div><div class="l">Streams toutes plateformes</div></div><div class="cov-kpi"><div class="v">42/100</div><div class="l">Popularité Spotify</div></div><div class="cov-kpi"><div class="v">5,000</div><div class="l">Followers Instagram</div></div><div class="cov-kpi"><div class="v">18%</div><div class="l">ROI période</div></div></div>
 </div>
 
 <div class="content">
-  <div class='section'><h2>📡 Fraîcheur des données</h2>
-<table>
-      <thead><tr><th>Source</th><th>Statut</th><th>Dernière MAJ</th></tr></thead>
-      <tbody><tr><td>🎵 Spotify S4A</td><td><span class="badge green">🟢 à jour</span></td><td>14/01/2026 08:00</td></tr><tr><td>🎬 YouTube</td><td><span class="badge green">🟢 à jour</span></td><td>14/01/2026 08:00</td></tr></tbody></table></div>
+  <div class='section'><h2>📋 État des données</h2>
+<div class='status-row'><div class='status-col'><h3>📋 Complétude</h3><table class="compact"><thead><tr><th>Source</th><th>Statut</th></tr></thead><tbody><tr><td>Spotify S4A</td><td><span class="badge green">présent</span></td></tr><tr><td>YouTube</td><td><span class="badge green">présent</span></td></tr><tr><td>Instagram</td><td><span class="badge green">présent</span></td></tr><tr><td>SoundCloud</td><td><span class="badge green">présent</span></td></tr><tr><td>Apple Music</td><td><span class="badge green">présent</span></td></tr><tr><td>Meta Ads</td><td><span class="badge green">présent</span></td></tr><tr><td>Hypeddit</td><td><span class="badge gray">à renseigner / vide</span></td></tr><tr><td>Revenu iMusician</td><td><span class="badge green">présent</span></td></tr><tr><td>Prédictions ML</td><td><span class="badge gray">à renseigner / vide</span></td></tr><tr><td>Data Wrapped (saisie)</td><td><span class="badge gray">à renseigner / vide</span></td></tr></tbody></table></div><div class='status-col'><h3>📡 Fraîcheur des sources</h3><table class="compact">
+      <thead><tr><th>Source</th><th>Dernière collecte</th></tr></thead>
+      <tbody><tr><td>🎵 Spotify S4A</td><td><span class="badge green">🟢 à jour</span></td></tr><tr><td>🎬 YouTube</td><td><span class="badge green">🟢 à jour</span></td></tr></tbody></table></div></div></div>
 
-<div class='section'><h2>🎧 Streams totaux</h2>
-<div class="kpi-grid"><div class="kpi-card" style="border-color:#1DB954; background:#f0faf3;"><div class="kpi-val" style="font-size:22pt;">24,500</div><div class="kpi-lbl">🎧 Total toutes plateformes</div></div><div class="kpi-card"><div class="kpi-val">12,000</div><div class="kpi-lbl">🎵 Spotify S4A</div></div><div class="kpi-card"><div class="kpi-val">8,000</div><div class="kpi-lbl">🎬 YouTube</div></div><div class="kpi-card"><div class="kpi-val">3,000</div><div class="kpi-lbl">☁️ SoundCloud</div></div><div class="kpi-card"><div class="kpi-val">1,500</div><div class="kpi-lbl">🍎 Apple Music</div></div></div>
-<div class='chart-row'></div></div>
+<div class='section'><h2>🏠 Vue d'ensemble</h2>
+<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">24,500</div><div class="kpi-lbl">Total streams (toutes plateformes)</div></div><div class="kpi-card"><div class="kpi-val">12,000</div><div class="kpi-lbl">Streams Spotify S4A</div></div><div class="kpi-card"><div class="kpi-val">8,000</div><div class="kpi-lbl">Vues YouTube</div></div><div class="kpi-card"><div class="kpi-val">3,000</div><div class="kpi-lbl">Plays SoundCloud</div></div><div class="kpi-card"><div class="kpi-val">1,500</div><div class="kpi-lbl">Plays Apple Music</div></div><div class="kpi-card"><div class="kpi-val">5,000</div><div class="kpi-lbl">Followers Instagram</div></div></div></div>
 
-<h2>📊 KPI</h2>
-<table>
-      <thead><tr><th>Métrique</th><th>Valeur</th><th>Détail</th></tr></thead>
-      <tbody><tr><td>🎵 Spotify Popularity</td><td><b>42 / 100</b></td><td>Hit Song</td></tr><tr><td>📸 Instagram Followers</td><td><b>5,000</b></td><td>2026-01-14</td></tr><tr><td>☁️ SoundCloud Plays</td><td><b>3,000</b></td><td>❤️ 320 likes</td></tr></tbody></table>
+<div class='section'><h2>📁 Données — connexions & mapping</h2>
+<h3>Connexions par plateforme</h3><p class="no-data">Statut credentials indisponible.</p><h3>Mapping campagne ↔ titre</h3><p class="no-data">Aucun mapping campagne ↔ titre saisi.</p></div>
 
-<div class='section'><h2>💹 ROI Breakeven</h2>
+<div class='section'><h2>🎵 Spotify S4A — évolution</h2>
+<p class='subtitle'>Tout le catalogue — 0 titres (indépendant des chansons sélectionnées).</p></div>
 
-    <div class="roi-card">
-      <p style="font-size:8.5pt;color:#555;margin-bottom:10px;">Période : 01/01/2025 → 01/01/2026</p>
-      <div class="roi-row">
-        <div class="roi-item">
-          <div class="kpi-val" style="font-size:14pt;">210.50 €</div>
-          <div class="kpi-lbl">💰 Revenus iMusician</div>
-        </div>
-        <div class="roi-item">
-          <div class="kpi-val" style="font-size:14pt;color:#FF4444;">80.00 €</div>
-          <div class="kpi-lbl">📱 Dépenses Meta Ads</div>
-        </div>
-        <div class="roi-item">
-          <div class="kpi-val" style="font-size:14pt;">18.4 %</div>
-          <div class="kpi-lbl">📊 ROI — ✅ Rentable</div>
-        </div>
-      </div>
-    </div>
+<div class='section'><h2>🎵 Spotify S4A — chansons</h2>
+<table><thead><tr><th>Chanson</th><th>Streams (période)</th><th>Streams 7 derniers jours</th></tr></thead><tbody><tr><td>Song A</td><td>9,000</td><td>700</td></tr><tr><td>Song B</td><td>3,000</td><td>120</td></tr></tbody></table></div>
+
+<div class='section'><h2>🔗 Meta × Spotify</h2>
+<p class="no-data">Pas assez de données campagne/streams.</p></div>
+
+<div class='section'><h2>🍎 Apple Music (cumul carrière)</h2>
+<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">1,500</div><div class="kpi-lbl">Plays totaux</div></div><div class="kpi-card"><div class="kpi-val">60</div><div class="kpi-lbl">Shazams</div></div></div></div>
+
+<div class='section'><h2>🎬 YouTube</h2>
+
+<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">1,500</div><div class="kpi-lbl">Abonnés</div></div><div class="kpi-card"><div class="kpi-val">250,000</div><div class="kpi-lbl">Vues totales (chaîne)</div></div></div></div>
+
+<div class='section'><h2>☁️ SoundCloud (cumul carrière)</h2>
+<table><thead><tr><th>Titre</th><th>Plays</th><th>Likes</th><th>Reposts</th><th>Commentaires</th></tr></thead><tbody><tr><td>Track X</td><td>3,000</td><td>200</td><td>15</td><td>8</td></tr></tbody></table></div>
+
+<div class='section'><h2>📸 Instagram</h2>
+
+<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">5,000</div><div class="kpi-lbl">@artist — Abonnés</div></div><div class="kpi-card"><div class="kpi-val">120</div><div class="kpi-lbl">Publications</div></div></div></div>
+
+<div class='section'><h2>📣 Hypeddit</h2>
+<p class="no-data">Aucune donnée Hypeddit disponible.</p>
 </div>
 
-<h2>🎵 Spotify S4A — Top chansons</h2>
-<table><thead><tr><th>Chanson</th><th>Streams (période)</th><th>Streams 7 derniers jours</th></tr></thead><tbody><tr><td>Song A</td><td>9,000</td><td>700</td></tr><tr><td>Song B</td><td>3,000</td><td>120</td></tr></tbody></table>
-
-<h2>🎬 YouTube</h2>
-<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">1,500</div><div class="kpi-lbl">Abonnés</div></div><div class="kpi-card"><div class="kpi-val">250,000</div><div class="kpi-lbl">Vues totales (chaîne)</div></div></div><table><thead><tr><th>Titre</th><th>Publiée</th><th>Vues</th><th>Likes</th><th>Commentaires</th></tr></thead><tbody><tr><td>Clip 1</td><td>2025-12-01</td><td>40,000</td><td>1,200</td><td>80</td></tr></tbody></table>
-
-<h2>📸 Instagram</h2>
-<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">5,000</div><div class="kpi-lbl">@artist — Abonnés</div></div><div class="kpi-card"><div class="kpi-val">120</div><div class="kpi-lbl">Publications</div></div></div><h3>Évolution abonnés — 10 dernières entrées (30 j)</h3><table><thead><tr><th>Date</th><th>Abonnés</th></tr></thead><tbody><tr><td>2026-01-13</td><td>4,980</td></tr><tr><td>2026-01-14</td><td>5,000</td></tr></tbody></table>
-
-<h2>📱 Meta Ads</h2>
-<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val" style="color:#FF4444;">80.00 €</div><div class="kpi-lbl">Dépenses totales</div></div><div class="kpi-card"><div class="kpi-val">42</div><div class="kpi-lbl">Résultats totaux</div></div></div><table><thead><tr><th>Campagne</th><th>Dépenses</th><th>Résultats</th><th>Impressions</th><th>Reach</th><th>Clics</th></tr></thead><tbody><tr><td>Campagne 1</td><td>80.00 €</td><td>42</td><td>50,000</td><td>30,000</td><td>900</td></tr></tbody></table>
-
-<h2>☁️ SoundCloud — Tracks</h2>
-<table><thead><tr><th>Titre</th><th>Plays</th><th>Likes</th><th>Reposts</th><th>Commentaires</th></tr></thead><tbody><tr><td>Track X</td><td>3,000</td><td>200</td><td>15</td><td>8</td></tr></tbody></table>
-
-<h2>🍎 Apple Music</h2>
-<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val">1,500</div><div class="kpi-lbl">Plays totaux</div></div><div class="kpi-card"><div class="kpi-val">60</div><div class="kpi-lbl">Shazams</div></div></div><table><thead><tr><th>Chanson</th><th>Plays</th></tr></thead><tbody><tr><td>Song A</td><td>1,200</td></tr></tbody></table>
-
-<h2>🔬 Focus chansons (ML)</h2>
-
+<div class='section'><h2>🔮 Prédiction algorithmique (J+28)</h2>
+<h3>🏆 Score /20 — tracks du rapport</h3><p class="no-data">Score /20 indisponible (lancez `ml_scoring_daily`).</p>
         <div class="song-block">
           <div class="song-title">🎵 Hit Song</div>
           <table style="width:auto;margin-bottom:0;">
@@ -171,7 +188,45 @@ tr:nth-child(even) td { background: #f7faf8; }
             <p style="font-size:7.5pt;color:#aaa;margin-top:4px;">
               Prédiction du 2026-01-14
             </p>
+        </div></div>
+
+<h2>🔬 Explainabilité ML (SHAP &amp; curseurs)</h2><p class="no-data">Aucune prédiction ML disponible.</p>
+
+<div class='section'><h2>📱 Meta Ads (cumul carrière)</h2>
+
+<div class="kpi-grid"><div class="kpi-card"><div class="kpi-val" style="color:#FF4444;">80.00 €</div><div class="kpi-lbl">Dépenses totales</div></div><div class="kpi-card"><div class="kpi-val">42</div><div class="kpi-lbl">Résultats totaux</div></div></div><table><thead><tr><th>Campagne</th><th>Dépenses</th><th>Résultats</th><th>Impressions</th><th>Reach</th><th>CPR</th></tr></thead><tbody><tr><td>Campagne 1</td><td>80.00 €</td><td>42</td><td>50,000</td><td>30,000</td><td>900.00 €</td></tr></tbody></table></div>
+
+<div class='section'><h2>🌍 Meta — Répartitions (pays · placement · âge)</h2>
+<p class="no-data">Aucune répartition Meta disponible.</p></div>
+
+<div class='section'><h2>💹 ROI Breakeven</h2>
+
+    <div class="roi-card">
+      <p style="font-size:8.5pt;color:#555;margin-bottom:10px;">Depuis le début (tout l'historique)</p>
+      <div class="roi-row">
+        <div class="roi-item">
+          <div class="kpi-val" style="font-size:14pt;">210.50 €</div>
+          <div class="kpi-lbl">💰 Revenus iMusician</div>
         </div>
+        <div class="roi-item">
+          <div class="kpi-val" style="font-size:14pt;color:#FF4444;">80.00 €</div>
+          <div class="kpi-lbl">📱 Dépenses Meta Ads</div>
+        </div>
+        <div class="roi-item">
+          <div class="kpi-val" style="font-size:14pt;color:#1DB954;">130.50 €</div>
+          <div class="kpi-lbl">Net (revenus − dépenses)</div>
+        </div>
+        <div class="roi-item">
+          <div class="kpi-val" style="font-size:14pt;color:#1DB954;">+163.1 %</div>
+          <div class="kpi-lbl">📊 ROI — ✅ Rentable</div>
+        </div>
+      </div>
+    </div>
+</div>
+
+<div class='section'><h2>📈 Prévisions revenus</h2>
+<p class="no-data">Aucune donnée de revenus pour la projection.</p>
+</div>
 
   <div class="footer">
     Généré automatiquement par streaMLytics &nbsp;|&nbsp;

@@ -17,6 +17,11 @@ from ._common import (
 
 
 def _show_tab_explainability(db, ml_pred, track: str, artist_id):
+    st.caption(
+        "🔍 **Le pourquoi du score** — quels facteurs poussent ou plombent chaque "
+        "probabilité (graphiques SHAP), et le coach qui traduit ça en leviers d'action "
+        "concrets. Barres rouges = ça aide le score, bleues = ça le pénalise."
+    )
     if not ml_pred:
         st.info("Aucune prédiction ML disponible pour ce titre. Lancez le DAG `ml_scoring_daily`.")
         return

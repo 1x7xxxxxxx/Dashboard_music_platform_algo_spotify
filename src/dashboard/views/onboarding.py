@@ -12,14 +12,14 @@ from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
 
 
-# Platforms and which plan they require
+# Platforms and which plan they require — all platform connectors are Free-tier.
 _PLATFORM_META = {
-    'spotify':    {'label': 'Spotify API',  'plan': 'free',  'icon': '🎵'},
-    'youtube':    {'label': 'YouTube',       'plan': 'free',  'icon': '🎬'},
-    'meta':       {'label': 'Meta Ads',      'plan': 'basic', 'icon': '📱'},
-    'instagram':  {'label': 'Instagram',     'plan': 'basic', 'icon': '📸'},
-    'soundcloud': {'label': 'SoundCloud',    'plan': 'basic', 'icon': '☁️'},
-    'apple_music':{'label': 'Apple Music',   'plan': 'basic', 'icon': '🎎'},
+    'spotify':    {'label': 'Spotify API',  'plan': 'free', 'icon': '🎵'},
+    'youtube':    {'label': 'YouTube',       'plan': 'free', 'icon': '🎬'},
+    'meta':       {'label': 'Meta Ads',      'plan': 'free', 'icon': '📱'},
+    'instagram':  {'label': 'Instagram',     'plan': 'free', 'icon': '📸'},
+    'soundcloud': {'label': 'SoundCloud',    'plan': 'free', 'icon': '☁️'},
+    'apple_music':{'label': 'Apple Music',   'plan': 'free', 'icon': '🎎'},
 }
 
 _STEP_KEY = '_onboarding_step'
@@ -53,21 +53,22 @@ def _step_welcome(plan: str) -> None:
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
-    col_free, col_basic, col_premium = st.columns(3)
+    col_free, col_premium = st.columns(2)
 
     plan_data = [
-        ('free',    'Free',    ['🏠 Accueil', '🎵 Spotify & S4A', '🎬 YouTube']),
-        ('basic',   'Basic',   ['+ 📱 Meta Ads', '+ 📸 Instagram', '+ ☁️ SoundCloud',
-                                '+ 🎎 Apple Music', '+ 💰 iMusician', '+ 📂 Import CSV']),
-        ('premium', 'Premium', ['+ 🚀 Road to Algo (ML)', '+ 📄 Export PDF',
-                                '+ 📈 Prévisions revenus', '+ 🔀 META x Spotify']),
+        ('free',    'Free',    ['🏠 Accueil', '🎵 Spotify & S4A', '🎬 YouTube',
+                                '📱 Meta Ads', '📸 Instagram', '☁️ SoundCloud',
+                                '🎎 Apple Music', '💰 iMusician', '📂 Import CSV',
+                                '📄 Export PDF', '🎁 Data Wrapped']),
+        ('premium', 'Premium', ['+ 🚀 Road to Algo (ML)', '+ 📈 Prévisions revenus',
+                                '+ 🔀 META x Spotify', '+ 🎨 Créatives & CPR Meta']),
     ]
 
-    plan_ranks = {'free': 0, 'basic': 1, 'premium': 2}
+    plan_ranks = {'free': 0, 'premium': 1}
     current_rank = plan_ranks.get(plan, 0)
 
     for col, (tier_key, tier_label, features) in zip(
-        [col_free, col_basic, col_premium], plan_data
+        [col_free, col_premium], plan_data
     ):
         with col:
             tier_rank = plan_ranks[tier_key]
@@ -104,7 +105,7 @@ def _step_credentials(plan: str, artist_id: int) -> None:
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
-    plan_ranks = {'free': 0, 'basic': 1, 'premium': 2}
+    plan_ranks = {'free': 0, 'premium': 1}
     current_rank = plan_ranks.get(plan, 0)
 
     for platform_key, meta in _PLATFORM_META.items():

@@ -325,7 +325,9 @@ def get_soundcloud_likes(_db, artist_id):
 def get_roi_data(db, artist_id, from_date, to_date):
     """
     Calcule le ROI iMusician / Meta Ads pour une période donnée.
-    Retourne un dict avec revenue_eur, meta_spend, roi_pct, breakeven_date.
+    Retourne revenue_eur, meta_spend, roi_pct, profitable.
+    roi_pct = VRAI ROI = (revenus − dépenses) / dépenses × 100
+    (0 % = équilibre, négatif = perte). Pas un ratio revenus/dépenses.
     """
     result = {
         'revenue_eur': 0.0,
@@ -374,7 +376,8 @@ def get_roi_data(db, artist_id, from_date, to_date):
         pass
 
     if result['meta_spend'] > 0:
-        result['roi_pct'] = (result['revenue_eur'] / result['meta_spend']) * 100
+        result['roi_pct'] = (
+            (result['revenue_eur'] - result['meta_spend']) / result['meta_spend']) * 100
         result['profitable'] = result['revenue_eur'] >= result['meta_spend']
 
     return result

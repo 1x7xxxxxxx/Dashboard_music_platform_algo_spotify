@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="streaMLytics mark">
+  <defs>
+    <linearGradient id="g" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#1DB954"/>
+      <stop offset="1" stop-color="#1ED760"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="116" height="116" rx="26" fill="#191414"/>
+  <!-- equalizer bars trending up -->
+  <g fill="url(#g)">
+    <rect x="20" y="70" width="13" height="32" rx="5"/>
+    <rect x="39" y="54" width="13" height="48" rx="5"/>
+    <rect x="58" y="62" width="13" height="40" rx="5"/>
+    <rect x="77" y="34" width="13" height="68" rx="5"/>
+  </g>
+  <!-- analytics trend line over the bar tops -->
+  <polyline points="26,70 45,54 64,62 83,34 100,24" fill="none"
+            stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="100" cy="24" r="6" fill="#FFFFFF"/>
+  <circle cx="100" cy="24" r="3" fill="#1DB954"/>
+</svg>

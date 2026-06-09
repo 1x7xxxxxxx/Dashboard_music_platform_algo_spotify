@@ -1,7 +1,6 @@
 """Page d'accueil — KPI globaux, fraîcheur des sources, statut des pipelines."""
 import html as _html
 import streamlit as st
-from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -89,50 +88,6 @@ def _section_streams(db, artist_id):
         </div>""",
         unsafe_allow_html=True
     )
-
-
-@st.fragment
-def _section_pdf_export(artist_id):
-    """Raccourci vers la page Export PDF + génération rapide (toutes sections, 12 mois).
-
-    @st.fragment: the "Rapport rapide" button + download only re-run this section,
-    not the whole home page (KPIs, DAG status grid, cumulative charts).
-    """
-    st.subheader("📄 Rapport PDF")
-    col_btn, col_full, col_info = st.columns([1, 1, 2])
-
-    with col_info:
-        st.caption("Rapport rapide (12 mois, toutes sections). "
-                   "Pour personnaliser : **📄 Export PDF** dans le menu.")
-
-    with col_btn:
-        if st.button("⚡ Rapport rapide", type="primary"):
-            try:
-                from src.dashboard.utils.pdf_exporter import generate_pdf
-            except ImportError as e:
-                st.error(
-                    f"WeasyPrint non disponible : {e}. "
-                    "Installer : `pip install weasyprint` + libs système "
-                    "(libcairo2, libpango-1.0-0, libgdk-pixbuf-2.0-0)."
-                )
-                return
-
-            with project_db() as db2:
-                try:
-                    with st.spinner("Génération…"):
-                        pdf_bytes = generate_pdf(db2, artist_id, months=12)
-                    st.session_state['_home_pdf_bytes'] = pdf_bytes
-                except Exception as e:
-                    st.error(f"Erreur : {e}")
-
-    if st.session_state.get('_home_pdf_bytes'):
-        now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        col_full.download_button(
-            label="⬇️ Télécharger",
-            data=st.session_state['_home_pdf_bytes'],
-            file_name=f"rapport_{now_str}.pdf",
-            mime="application/pdf",
-        )
 
 
 _DAG_LABELS = {
@@ -256,8 +211,7 @@ def show():
 
             _section_streams(db, artist_id)
             st.markdown("---")
-            _section_pdf_export(artist_id)
-            st.markdown("---")
+            # PDF shortcut removed here — redundant with the dedicated "📄 Export PDF" page.
             _section_dag_status()
             st.markdown("---")
             _section_freshness(db, artist_id)

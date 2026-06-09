@@ -1,6 +1,7 @@
 """trigger_algo — _show_tab_global (move-only split)."""
 from datetime import timedelta
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from ._common import (
     _load_scored_tracks,
@@ -10,6 +11,10 @@ from ._common import (
 
 
 def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
+    st.caption(
+        "🎯 **Vue d'ensemble** — les chiffres clés du titre sur la période, l'évolution de "
+        "ses probabilités de trigger, et son rang /20 dans ton catalogue. Commence ici."
+    )
     st.subheader("📊 Métriques sur la période sélectionnée")
 
     # Select the appropriate s4a_songs_global snapshot window based on period length.
@@ -91,60 +96,79 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
     st.markdown("---")
 
-    # ── Ajouts en playlist (lecture seule — saisie dans 📝 Saisie S4A) ───────────
-    st.subheader("🎧 Ajouts en playlist")
-    try:
-        pl_row = db.fetch_query(
-            "SELECT count, recorded_at FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s AND time_window = '28d' "
-            "ORDER BY recorded_at DESC LIMIT 1",
-            (artist_id, track),
-        ) if artist_id else None
-        current_pl_count = int(pl_row[0][0]) if pl_row and pl_row[0][0] is not None else 0
-        last_recorded = pl_row[0][1] if pl_row else None
-    except Exception:
-        current_pl_count = 0
-        last_recorded = None
-
-    st.metric(
-        "Playlists ajoutées (28j)",
-        current_pl_count,
-        help=f"Dernier relevé : {last_recorded or '—'}.",
+    # Trigger-probability trend — the selected track's 3 algo probabilities over
+    # the selected period. The dashed 50 % line is the decision threshold.
+    st.subheader("🎚️ Évolution du taux de trigger (titre sélectionné)")
+    st.caption(
+        "Probabilité de déclenchement DW / RR / Radio du titre dans le temps. "
+        "La ligne pointillée à 50 % marque le seuil de déclenchement décisionnel."
     )
-    st.caption("✏️ Saisie (7j/28j/12m + plage perso) dans **📝 Saisie S4A** (section Données).")
-
-    # ── Discovery Mode (saisie manuelle) ─────────────────────────────────────
-    # S4A-UI-only signal (no API). Un-impute le feature ML
-    # IsThisSongOptedIntoSpotifyDiscoveryMode (sinon imputé à 0).
-    st.subheader("🔭 Discovery Mode")
     try:
-        dm_row = db.fetch_query(
-            "SELECT opted_in, recorded_at FROM s4a_song_discovery_mode "
-            "WHERE artist_id = %s AND song = %s "
-            "ORDER BY recorded_at DESC LIMIT 1",
-            (artist_id, track),
-        ) if artist_id else db.fetch_query(
-            "SELECT opted_in, recorded_at FROM s4a_song_discovery_mode "
-            "WHERE song = %s ORDER BY recorded_at DESC LIMIT 1",
-            (track,),
-        )
-        current_dm = bool(dm_row[0][0]) if dm_row and dm_row[0][0] is not None else False
-        dm_recorded = dm_row[0][1] if dm_row else None
-    except Exception:
-        current_dm = False
-        dm_recorded = None
-
-    st.metric(
-        "Discovery Mode",
-        "Activé" if current_dm else "Désactivé",
-        help=f"Dernier relevé : {dm_recorded or '—'}. Alimente la prédiction ML.",
-    )
-    st.caption("✏️ Saisie dans **📝 Saisie S4A** (section Données).")
+        if artist_id:
+            df_trig = db.fetch_df(
+                """SELECT prediction_date, dw_probability, rr_probability, radio_probability
+                   FROM ml_song_predictions
+                   WHERE song = %s AND artist_id = %s AND prediction_date BETWEEN %s AND %s
+                   ORDER BY prediction_date""",
+                (track, artist_id, date_from, date_to),
+            )
+        else:
+            df_trig = db.fetch_df(
+                """SELECT prediction_date, dw_probability, rr_probability, radio_probability
+                   FROM ml_song_predictions
+                   WHERE song = %s AND prediction_date BETWEEN %s AND %s
+                   ORDER BY prediction_date""",
+                (track, date_from, date_to),
+            )
+        if df_trig.empty:
+            st.info("Aucun historique de probabilités ML sur cette période.")
+        else:
+            df_trig["prediction_date"] = pd.to_datetime(df_trig["prediction_date"])
+            fig_trig = go.Figure()
+            for col, name, color in [
+                ("dw_probability", "Discover Weekly", "#FF6B6B"),
+                ("rr_probability", "Release Radar", "#4ECDC4"),
+                ("radio_probability", "Radio", "#FFE66D"),
+            ]:
+                fig_trig.add_trace(go.Scatter(
+                    x=df_trig["prediction_date"], y=df_trig[col] * 100,
+                    name=name, mode="lines+markers", line=dict(color=color, width=2)
+                ))
+            fig_trig.add_hline(
+                y=50, line_dash="dash", line_color="#888888",
+                annotation_text="Seuil trigger 50 %"
+            )
+            fig_trig.update_layout(
+                hovermode="x unified", height=380,
+                legend=dict(orientation="h", y=1.15),
+                xaxis=dict(title="Date de prédiction"),
+                yaxis=dict(title="Probabilité de trigger (%)", range=[0, 100])
+            )
+            st.plotly_chart(fig_trig, width='stretch')
+    except Exception as e:
+        st.warning(f"Courbe taux de trigger indisponible : {e}")
 
     st.markdown("---")
 
+    # Note: les relevés « Ajouts en playlist » et « Discovery Mode » se saisissent
+    # et se consultent dans la page « 📝 Saisie S4A » (section Données). On ne les
+    # ré-affiche plus ici pour éviter la redondance ; ils alimentent la prédiction
+    # ML et restent visibles dans le KPI compact « Playlist adds » ci-dessus.
+
     # Score /20 benchmark
     st.subheader("🏆 Score /20 — Benchmark toutes les tracks")
+    st.caption(
+        "⚖️ Score **relatif** (classement, pas une proba) : "
+        "`0.35·DW + 0.35·RR + 0.20·Radio + 0.10·velocity`, puis étiré en **min-max** sur "
+        "le catalogue → le **meilleur titre = 20.0, le pire = 0.0**, les autres répartis "
+        "entre les deux. C'est un classement interne : 20.0 ne veut PAS dire « 100 % de "
+        "chance de trigger », et 0.0 ne veut PAS dire « aucune chance » (juste dernier du "
+        "catalogue). **`Streams 28j` n'entre pas dans le calcul** (colonne de contexte). "
+        "Quand les probas DW/RR/Radio sont très proches d'un titre à l'autre, c'est la "
+        "**velocity** (momentum récent, 10 % du poids) qui départage. Pour la probabilité "
+        "**absolue** de déclenchement, lis les colonnes DW % / RR % / Radio % (sorties "
+        "calibrées du modèle), pas le score."
+    )
     try:
         df_bench = _load_scored_tracks(db, artist_id)
 
@@ -172,7 +196,7 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
             styled = (
                 display.style
-                .format(na_rep="—")
+                .format({"Score /20": "{:.1f}"}, na_rep="—")
                 .applymap(_color_score, subset=["Score /20"])
                 .apply(_highlight_selected, axis=1)
             )

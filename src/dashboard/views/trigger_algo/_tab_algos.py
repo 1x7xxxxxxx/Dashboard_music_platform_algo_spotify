@@ -8,7 +8,6 @@ from src.dashboard.utils import ml_widgets
 from src.utils.track_matching import canonical_song_sql
 from ._common import (
     ELBOW_THRESHOLDS_28D,
-    HEURISTIC_GOALS,
     _show_28d_gate,
     _show_discovery_mode_protocol,
     _show_feature_importance,
@@ -21,6 +20,11 @@ from ._common import (
 
 
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
+    st.caption(
+        "📊 **Suivi & action** — le verdict (STOP / OPTIMISER / SCALER), les leviers concrets "
+        "pour ouvrir chaque porte algorithmique, ta position sur les courbes PI, et la "
+        "trajectoire des 28 premiers jours vs les seuils réels de déclenchement."
+    )
     _show_verdict_banner(ml_pred)
     _show_phase_strategy(ml_pred)
     _show_radio_snowball(db, artist_id)
@@ -174,19 +178,9 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 name="Index Popularité", mode="lines",
                 line=dict(color="#ffffff", width=2, dash="dot")
             ), secondary_y=True)
-            # Elbow thresholds (training distribution, 28j) — solid lines, much
-            # lower than the round heuristics: this is the honest model cut-off.
-            fig2.add_hline(y=ELBOW_THRESHOLDS_28D["RR"], line_dash="solid", line_color="orange",
-                           annotation_text=f"RR elbow ({ELBOW_THRESHOLDS_28D['RR']})", secondary_y=False)
-            fig2.add_hline(y=ELBOW_THRESHOLDS_28D["RADIO"], line_dash="solid", line_color="#FFE66D",
-                           annotation_text=f"Radio elbow ({ELBOW_THRESHOLDS_28D['RADIO']})", secondary_y=False)
-            fig2.add_hline(y=ELBOW_THRESHOLDS_28D["DW"], line_dash="solid", line_color="cyan",
-                           annotation_text=f"DW elbow ({ELBOW_THRESHOLDS_28D['DW']})", secondary_y=False)
-            # Legacy round-number heuristic goals — dashed lines for continuity.
-            fig2.add_hline(y=HEURISTIC_GOALS["RR"], line_dash="dash", line_color="orange",
-                           annotation_text=f"RR heuristique ({HEURISTIC_GOALS['RR']:,})", secondary_y=False)
-            fig2.add_hline(y=HEURISTIC_GOALS["DW"], line_dash="dash", line_color="cyan",
-                           annotation_text=f"DW heuristique ({HEURISTIC_GOALS['DW']:,})", secondary_y=False)
+            # Trigger thresholds are intentionally NOT drawn as reference lines: they are
+            # algo-streams the playlists GENERATE (detection signal), not a target on the
+            # song's own cumulative streams. They are described in the caption below instead.
             fig2.update_layout(
                 title=f"Trajectoire de '{track}' (28 premiers jours)",
                 xaxis_title="Jours depuis la sortie (J+)",
@@ -196,17 +190,29 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             fig2.update_yaxes(title_text="Volume Streams", secondary_y=False)
             fig2.update_yaxes(title_text="Popularité (0-100)", secondary_y=True, range=[0, 100])
             st.plotly_chart(fig2, width='stretch')
+            st.caption(
+                "Courbe = streams cumulés du titre sur ses 28 premiers jours. "
+                "ℹ️ **À propos des seuils de trigger :** quand une playlist algorithmique se "
+                "déclenche, elle génère elle-même un volume d'algo-streams (28j) qui démarre "
+                "autour de **~130 (RR)**, **~137 (DW)**, **~639 (Radio)** et se stabilise vers "
+                "**~417 / ~1 333 / ~8 423** une fois installée. Ce sont des volumes **produits "
+                "par les playlists** (signal de détection) — **pas** un objectif de streams à "
+                "atteindre soi-même pour les déclencher. C'est pourquoi ils ne sont pas tracés "
+                "comme des lignes-cibles sur ta courbe."
+            )
 
             # Linear projection fallback
             if not ml_pred and 5 <= days_elapsed < 28:
                 avg_daily = current_total / days_elapsed
                 projected_28 = avg_daily * 28
                 st.info(f"🔮 **Projection :** À ce rythme → ~**{projected_28:,.0f} streams** en 28j.")
-                if projected_28 > HEURISTIC_GOALS["DW"]:
-                    st.success("🌟 Trajectoire favorable pour Discover Weekly.")
-                elif projected_28 > HEURISTIC_GOALS["RR"]:
-                    st.warning("⚠️ Release Radar probable, Discover Weekly hors de portée sans boost.")
+                if projected_28 > ELBOW_THRESHOLDS_28D["DW"]:
+                    st.success("🌟 Volume cohérent avec un trigger Discover Weekly amorcé "
+                               "(au niveau d'algo-streams qu'une playlist émet à son début).")
+                elif projected_28 > ELBOW_THRESHOLDS_28D["RR"]:
+                    st.warning("⚠️ Au niveau d'un début de trigger Release Radar ; "
+                               "Discover Weekly encore juste.")
                 else:
-                    st.error("📉 Trajectoire insuffisante pour les algos majeurs.")
+                    st.error("📉 Sous le niveau d'algo-streams d'un trigger qui démarre.")
     except Exception as e:
         st.warning(f"Trajectoire J+28 indisponible : {e}")

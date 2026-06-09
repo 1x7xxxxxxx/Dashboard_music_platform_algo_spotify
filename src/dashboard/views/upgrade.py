@@ -7,7 +7,14 @@ Depends on: billing view (Stripe portal CTA)
 import streamlit as st
 
 from src.dashboard.auth import get_artist_plan
-from src.database.stripe_schema import PLAN_FEATURES, PLAN_RANK
+from src.database.stripe_schema import (
+    PLAN_CATALOG, PLAN_FEATURES, PLAN_RANK, SERVICE_CONTACT_EMAIL,
+)
+
+
+def _price_label(plan: str) -> str:
+    p = PLAN_CATALOG[plan]['price_eur']
+    return "0€" if p == 0 else f"{p}€/mo"
 
 
 # Human-readable labels for each page key
@@ -35,23 +42,21 @@ _PAGE_LABELS = {
 }
 
 _PLAN_DISPLAY = {
-    'free':    {'label': 'Free',    'price': '0€',       'color': '#6c757d'},
-    'basic':   {'label': 'Basic',   'price': '9.90€/mo', 'color': '#0d6efd'},
-    'premium': {'label': 'Premium', 'price': '29.90€/mo','color': '#fd7e14'},
+    'free':    {'label': 'Free',    'price': _price_label('free'),    'color': '#6c757d'},
+    'premium': {'label': 'Premium', 'price': _price_label('premium'), 'color': '#fd7e14'},
 }
 
 
 def _feature_list(plan: str) -> list[str]:
-    """Return readable feature list for a given plan."""
+    """Return readable feature list for a given plan (premium = extras over Free)."""
     if plan == 'premium':
         return [
-            'Tout le contenu Basic',
-            '🚀 Road to Algo (ML scoring)',
-            'Export PDF',
-            'Prévisions revenus',
+            '🚀 Road to Algo — prédictions ML',
+            '📈 Prévisions de revenus (ML)',
+            '🎨 Créatives Meta Ads',
+            '📊 CPR Optimizer',
             'META x Spotify',
-            'Meta Mapping',
-            'Monitoring ETL (admin)',
+            'Support prioritaire',
         ]
     keys = PLAN_FEATURES.get(plan, set())
     return [_PAGE_LABELS.get(k, k) for k in sorted(keys)]
@@ -68,7 +73,7 @@ def show() -> None:
     )
     st.markdown("---")
 
-    col_free, col_basic, col_premium = st.columns(3)
+    col_free, col_premium = st.columns(2)
 
     # ── FREE ──────────────────────────────────────────────
     with col_free:
@@ -84,30 +89,6 @@ def show() -> None:
         if is_current:
             st.success("Plan actuel")
 
-    # ── BASIC ─────────────────────────────────────────────
-    with col_basic:
-        is_current = current_plan == 'basic'
-        can_upgrade = current_rank < PLAN_RANK['basic']
-        st.markdown(
-            f"### {_PLAN_DISPLAY['basic']['label']}"
-            + (" ← *votre plan*" if is_current else "")
-        )
-        st.markdown(f"**{_PLAN_DISPLAY['basic']['price']}**")
-        st.markdown("---")
-        # Show free features first, then basic additions
-        for feat in _feature_list('free'):
-            st.markdown(f"✅ {feat}")
-        basic_extras = sorted(
-            PLAN_FEATURES['basic'] - PLAN_FEATURES['free']
-        )
-        for key in basic_extras:
-            st.markdown(f"✅ {_PAGE_LABELS.get(key, key)}")
-        st.markdown("---")
-        if is_current:
-            st.success("Plan actuel")
-        elif can_upgrade:
-            st.link_button("Passer à Basic →", "/?page=billing", type="primary")
-
     # ── PREMIUM ───────────────────────────────────────────
     with col_premium:
         is_current = current_plan == 'premium'
@@ -118,6 +99,7 @@ def show() -> None:
         )
         st.markdown(f"**{_PLAN_DISPLAY['premium']['price']}**")
         st.markdown("---")
+        st.markdown("✅ **Tout le contenu Free, plus :**")
         for feat in _feature_list('premium'):
             st.markdown(f"✅ {feat}")
         st.markdown("---")
@@ -130,4 +112,9 @@ def show() -> None:
     st.caption(
         "Les paiements sont gérés via Stripe. "
         "Annulation possible à tout moment depuis la page Billing."
+    )
+    st.markdown(
+        "🎯 **Besoin qu'on optimise vos campagnes marketing pour vous ?** Service sur-mesure "
+        f"(appel préalable pour valider le fit + le budget) — 📧 [{SERVICE_CONTACT_EMAIL}]"
+        f"(mailto:{SERVICE_CONTACT_EMAIL}?subject=Optimisation%20campagnes%20-%20streaMLytics)"
     )

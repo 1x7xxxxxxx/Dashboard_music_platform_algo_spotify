@@ -74,6 +74,32 @@ def normalize_track_title(name: str) -> str:
     return s
 
 
+def track_title_matches(query: str, candidate: str) -> bool:
+    """True if `candidate` (a platform title) refers to the same track as `query`
+    (the S4A song), tolerant to cross-platform noise.
+
+    Strategy: normalize both, then accept on equality OR containment — which absorbs
+    artist prefixes ("1x7xxxxxxx - …") and suffixes ("(free download)") that survive
+    normalization. Base vs remix stay DISTINCT: a containment match is only allowed
+    when both sides agree on remix status (normalize_track_title appends "remix").
+    """
+    q = normalize_track_title(query)
+    c = normalize_track_title(candidate)
+    if not q or not c:
+        return False
+    if q == c:
+        return True
+    q_tok, c_tok = q.split(), c.split()
+    # Remix is a distinct release: only match base↔base or remix↔remix.
+    if ('remix' in q_tok) != ('remix' in c_tok):
+        return False
+    qb = ' '.join(t for t in q_tok if t != 'remix')
+    cb = ' '.join(t for t in c_tok if t != 'remix')
+    if not qb or not cb:
+        return False
+    return qb in cb or cb in qb
+
+
 def rebuild_release_reference(db, artist_id: int) -> int:
     """Rebuild track_release_reference for one artist from s4a_songs_global.
 

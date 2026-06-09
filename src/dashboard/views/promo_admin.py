@@ -142,7 +142,7 @@ def show():
 
                 plan_input = col2.selectbox(
                     "Plan granted *",
-                    options=["basic", "premium"],
+                    options=["premium"],
                     format_func=str.capitalize,
                 )
 
