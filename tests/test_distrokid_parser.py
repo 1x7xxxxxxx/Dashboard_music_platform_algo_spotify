@@ -60,6 +60,11 @@ class TestReading:
         # covered by parse_file returning type=None on garbage below.
 
 
+@pytest.mark.skipif(
+    not FIXTURE.exists(),
+    reason="distrokid_bank_sample.csv absent — gitignored real sales data (*.csv), "
+           "present locally only. TestDetect/TestReading cover parsing with inline data.",
+)
 class TestParseSales:
     def test_fixture_parses(self, parser):
         result = parser.parse_file(FIXTURE, artist_id=7)
