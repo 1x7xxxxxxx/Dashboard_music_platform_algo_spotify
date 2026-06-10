@@ -2,6 +2,155 @@
 
 ---
 
+## 2026-06-09 — Pricing 2-tier, B1 cross-platform mapping, robustness (B3/C1/C2), i18n infra
+
+**Tarification → 2 tiers (free 0€ / premium 10€)** — `basic` retiré, fusionné dans premium.
+- Source unique `PLAN_FEATURES` + `PLAN_CATALOG` dans `stripe_schema.py` ; `normalize_plan()`
+  rabat tout `basic` résiduel sur premium. `billing.py`/`upgrade.py`/`auth.py`/`revenue_forecast.py`
+  lisent le catalogue (fin du drift de prix sur 4 sources). Migrations **047** (alignement
+  prix/features) + **048** (basic→premium + désactivation plan basic).
+- **Bug latent corrigé** : `saas_artists.tier` avait `DEFAULT 'basic'` + `CHECK IN('basic','premium')`
+  → rejetait `'free'` (register.py insère `tier='free'`) et aurait donné premium en fallback
+  post-essai. Migration 048 : `DEFAULT 'free'` + `CHECK IN('free','premium')`.
+- Export PDF → free ; revenue_forecast → premium. CTA contact (optim. campagnes) sur billing/upgrade.
+
+**Export PDF — leak paywall corrigé** : un free pouvait inclure les sections ML/prévisions/Meta
+avancé. `PREMIUM_SECTIONS` (pdf_exporter) → verrou UI + strip à la génération pour non-premium.
+
+**Admin — onglet 📊 Supervision** : business (MRR/ARPU/inscriptions) + fraîcheur données par
+plateforme (révèle Meta 617j / Apple 180j obsolètes).
+
+**B1 — Mapping cross-plateforme + suggestions** (LIVRÉ) : migration **049** (`track_platform_link`
++ provenance sur `campaign_track_mapping`), moteur pur `src/utils/track_mapping_suggest.py`
+(`title_similarity` containment 0.90 / remix-disagreement 0.0, `date_proximity` halflife 14j ;
++15 tests), vue `views/track_mapping.py` 3 onglets (suggestions par plateforme S4A/Spotify/Apple/
+SC/YT, Meta campagnes title+date, vue unifiée). `track_name` stocké en `_`-form (`canonical_song`)
+pour matcher `s4a_song_timeline.song` (join meta_x_spotify).
+
+**Robustesse** :
+- **B3** : `track_mapping`+`meta_mapping` migrés vers `view_session()` (rule #7).
+- **C1** : `utils/error_alert.py` (`notify_app_error` fail-silent, rate-limité, email admin) ;
+  dispatch des vues extrait en `_render_page()` + guard try/except dans `app.py` — **re-raise des
+  signaux Streamlit** `RerunException`/`StopException` (sinon nav cassée). +4 tests.
+- **C2** : `tools/db_backup.sh` (pg_dump→gzip+rétention) + `tools/db_restore_test.sh` (drill) +
+  `make backup`/`backup-test`. Drill validé (78 tables, 13794 lignes restaurées). Cron = Phase D.
+
+**C4 — i18n EN/FR (infra)** : `utils/i18n.py` (`t()` FR-source/fallback EN), toggle sidebar,
+navigation entièrement traduite (titre+8 sections+35 items), +5 tests (garde-fou trad EN).
+
+**Emails onboarding** (début de session) : welcome+guide PDF à la **vérification** (pas signup),
+guide PDF = **API+CSV** (renommé `onboarding_guide.pdf`, réutilise `credential_guides` + screenshots),
+DAG `onboarding_report` (1er rapport post-collecte S4A), lien désinscription HMAC, `APP_BASE_URL` env.
+
+**Docs/roadmap** : `deployment.md` créé (programme déploiement différé), `checklist.md` section
+« Pré-déploiement program A→B→C→D », `architecture.md` (2-tiers). Graphify régénéré
+(2692 nœuds/5248 edges). **384 tests verts**, ruff clean.
+
+---
+
+## 2026-06-08 (suite) — Onboarding merge-back, shared-app credentials, windowed S4A entry, PDF redesign
+
+### Why
+The earlier half had split onboarding into standalone pages (Process-Credentials, Process-Import,
+Réglages). On review they read as doublons — the how-to belongs next to the action, not on a separate
+page. In parallel: the SoundCloud/Meta credential forms wrongly asked artists for the shared *app*
+secrets; playlist-adds were a single cumulative count (wrong for manual windowed S4A figures); and the
+client-facing PDF looked nothing like the app it summarises.
+
+### What changed
+**(a) Onboarding merged back inline (refactor)** — dropped `process_credentials.py`,
+`process_import.py`, `reglages.py` (all created earlier this session, removed in `ed9e688`). The rich
+guides now render at point of use: per-platform tab in Credentials, full download guide above the CSV
+uploader. Manual entry (playlist adds + Discovery Mode) went back to `_tab_global.py` inline expanders,
+then to a dedicated Saisie S4A grid (see (c)). Lesson: keep manual entry + how-to inline in the
+actionable page; one content module rendered in-place beats a standalone view.
+
+**(b) Credentials overhaul + shared-app model** (`8d17fb3`, `53ca6d8`) — new single-source content
+modules `src/dashboard/content/credential_guides.py` + `credential_guides_st.py` (Spotify, YouTube,
+SoundCloud, Meta: steps, 9 screenshots under `assets/credential_guide/`, clickable URLs, example
+values), rendered per-platform tab via `credentials/_render.py` (replaces the old prose `_guide_*`).
+Shared-app: a SoundCloud artist provides only `user_id`, a Meta artist only the Ad Account ID; app
+creds come from env (`SOUNDCLOUD_CLIENT_ID/SECRET`, `META_ACCESS_TOKEN/APP_ID/APP_SECRET`) via an
+ADDITIVE fallback in `meta_ads_api_collector._load_credentials` + the connection tests (`_test_soundcloud`,
+`_test_meta`) — **stored per-artist creds still win**, so existing tenants are unchanged; forms reduced
+in `_registry.py`. Instagram stays admin/env. New admin "🔑 Tokens" reference tab (token type / expiry /
+refresh / artist-vs-admin action per platform) — makes explicit that no recurring token action is
+required by anyone; token lifecycle moved out of the artist view.
+
+**(c) Windowed playlist adds + Saisie S4A grid** (`5c9f605`) — migration 044: `s4a_song_playlist_adds`
+gains `time_window` (7d/28d/12m/custom) + `period_start`/`period_end`; PK now
+`(artist_id, song, time_window, recorded_at)`. Was a single cumulative count summed over 28 days —
+wrong for manual windowed entry. New page `views/saisie_s4a.py`: a bulk `st.data_editor` grid
+(row/track × 7j/28j/12m + Discovery Mode) with grouped save, plus a custom date-range section
+(`period_start`/`end`, `recorded_at=period_end`) for the first days after a release. `ml_inference`:
+`PlaylistAddsLast28Days` now reads the latest `'28d'` snapshot (not SUM-last-28-days). Vue Globale
+playlist/Discovery tiles are read-only (28d snapshot) and point to Saisie S4A.
+
+**(d) Nav** (`14e5270`) — Saisie S4A placed above Road to Algo (Prédiction algos section); Export PDF
+promoted right after Accueil.
+
+**(e) Export PDF visual redesign** (`175c07a`, `fe839e7`) — new `src/dashboard/utils/pdf_charts.py`:
+matplotlib → base64 PNG (NO new dependency — kaleido is absent so plotly→png is not used) for streams
+timeline, platform breakdown, ML trigger probabilities, ROI vs spend. `pdf_exporter.py`: branded
+full-page cover (artist, period, 4 headline KPIs), modern CSS (cards, `@page` counters, page-breaks), a
+"Dernière sortie" spotlight using the latest release's probability chart, charts embedded in
+Streams/ROI sections. **Emoji stripped from the final HTML** before `write_pdf` (WeasyPrint base fonts
+have no emoji glyphs → tofu). New "Depuis le début" (all-time) period option. `export_pdf.py`: all
+sections checked by default; song selectors auto-focus the latest release (`_latest_release`).
+Regenerated the byte-exact golden `tests/fixtures/pdf_report_golden.html` since the HTML changed.
+
+### Tests
+350 passed, 1 skipped. Migration 044 added (idempotent). Only 044 is new to this half (042/043 landed
+in the earlier half).
+
+---
+
+## 2026-06-08 — CSV import audit + canonical_song join fix + Réglages split + Phase-2 live validation
+
+### Why
+The Apple CSV upload always crashed (dead method name), several CSV paths reported zero-row
+SUCCESS instead of failing, and exact-match title joins silently dropped every `?`-titled track
+(filename-derived tables carry `_`, CSV/API tables keep the real char). With 13 fresh S4A files
+imported, this was also the first chance to validate the v3 model end-to-end on live data.
+
+### What changed
+**(a) Réglages view split** — new `src/dashboard/views/reglages.py` ("⚙️ Réglages — Saisie
+manuelle"): the two manual-entry forms (playlist adds → `s4a_song_playlist_adds`, Discovery Mode
+→ `s4a_song_discovery_mode`) moved out of trigger_algo Vue Globale; `_tab_global.py` keeps the
+read-only tiles + a pointer caption. Nav entry under "📁 Données" + routing in `app.py`; added
+`reglages` to `tests/test_views_render_smoke.py`.
+
+**(b) CSV import audit (Phase 1) + P1/P2 hardening** — `upload_csv.py`: Apple branch called the
+non-existent `AppleMusicCSVParser().parse()` (always crashed) → `parse_songs_performance()` +
+per-row `artist_id` injection. `s4a_csv_watcher` + `apple_music_csv_watcher`: removed the
+`try/except → 'skip_processing'` in `check_for_new_csv` so a scan failure FAILS (retry +
+callback) instead of a silent zero-row SUCCESS. `s4a_songs_global` upsert conflict key now
+includes `time_window` (+ best-effort `rebuild_release_reference`; note: the DAG `parse_csv_file`
+path is timeline-only, upload UI is canonical for songs_global). `_detect_window` now raises on an
+unmarked filename instead of defaulting to `'12m'`. iMusician parser: required-column check
+hoisted out of the row loop (`_require_cols()` fail-fast) — was caught per-row → 0 rows + SUCCESS.
+Apple history: per-row DELETE+INSERT → atomic `ON CONFLICT DO UPDATE` (migration 042 adds the
+UNIQUE key). Naive `datetime.now()` → `datetime.now(timezone.utc)` in apple + imusician parsers +
+apple DAG.
+
+**(c) song-name-convention-mismatch (new error class)** — new single-source `canonical_song()` +
+`canonical_song_sql()` in `src/utils/track_matching.py` (covers the full Windows-reserved set,
+preserves accents/remix). Applied write-side in `parse_songs_global` and query-side in
+`_tab_algos.py` (PI ×4), `meta_cpr_optimizer.py`, `router.py` (×3, replacing ad-hoc
+`REPLACE(...,'?','_')`). Migration 043 backfills `s4a_songs_global` + `s4a_song_saves_daily`.
+Guard: `tests/test_song_canonical.py` (5 tests); class catalogued in `error-classes.md`.
+
+**(d) Phase-2 end-to-end validation** — user imported 13 fresh S4A files (11 timelines to
+2026-06-07 + audience + songs-1year). Re-ran `ml_scoring_daily` → `ml_song_predictions` now carries
+model_version `v3` with non-NULL DW/RR/Radio probs for 11 songs (was v1_noscaler/NULL); Vue Globale
+streams 28j + score /20 + probas populate. Low probs (~7% DW/RR, ~11% Radio) are honest — tracks at
+100–250 streams/28d, far below the ~4–9k thresholds.
+
+### Tests
+344 passed, 1 skipped. Migrations 042 + 043 added (idempotent).
+
+---
+
 ## 2026-05-31 — WAVE 13: drift surface + alert (completes the WAVE 9 drift foundation)
 
 ### Why

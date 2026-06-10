@@ -22,6 +22,28 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+# Characters S4A replaces with '_' in export filenames (Windows-reserved set).
+# s4a_song_timeline / ml_song_predictions are filename-derived (so they carry
+# '_'), while CSV/API tables (s4a_songs_global, tracks, track_popularity_history,
+# campaign_track_mapping) keep the real chars. canonical_song() bridges the two
+# for EXACT per-track joins — unlike normalize_track_title(), it preserves accents
+# and remix/original markers, so distinct tracks stay distinct.
+_FS_INVALID_CHARS = r'<>:"/\|?*'
+_FS_INVALID_TO = '_' * len(_FS_INVALID_CHARS)
+
+
+def canonical_song(name: str) -> str:
+    """Map a title to the filename-derived form (S4A-invalid chars -> '_')."""
+    if not name:
+        return ''
+    return ''.join('_' if c in _FS_INVALID_CHARS else c for c in str(name))
+
+
+def canonical_song_sql(col: str) -> str:
+    """SQL expression mirroring canonical_song(). `col` must be a trusted identifier
+    (a column name from our own code), never user input."""
+    return f"translate({col}, '{_FS_INVALID_CHARS}', '{_FS_INVALID_TO}')"
+
 
 def _strip_accents(text: str) -> str:
     return ''.join(
@@ -50,6 +72,32 @@ def normalize_track_title(name: str) -> str:
     s = re.sub(r'[^a-z0-9]+', ' ', s).strip()
     s = re.sub(r'\s+', ' ', s)
     return s
+
+
+def track_title_matches(query: str, candidate: str) -> bool:
+    """True if `candidate` (a platform title) refers to the same track as `query`
+    (the S4A song), tolerant to cross-platform noise.
+
+    Strategy: normalize both, then accept on equality OR containment — which absorbs
+    artist prefixes ("1x7xxxxxxx - …") and suffixes ("(free download)") that survive
+    normalization. Base vs remix stay DISTINCT: a containment match is only allowed
+    when both sides agree on remix status (normalize_track_title appends "remix").
+    """
+    q = normalize_track_title(query)
+    c = normalize_track_title(candidate)
+    if not q or not c:
+        return False
+    if q == c:
+        return True
+    q_tok, c_tok = q.split(), c.split()
+    # Remix is a distinct release: only match base↔base or remix↔remix.
+    if ('remix' in q_tok) != ('remix' in c_tok):
+        return False
+    qb = ' '.join(t for t in q_tok if t != 'remix')
+    cb = ' '.join(t for t in c_tok if t != 'remix')
+    if not qb or not cb:
+        return False
+    return qb in cb or cb in qb
 
 
 def rebuild_release_reference(db, artist_id: int) -> int:

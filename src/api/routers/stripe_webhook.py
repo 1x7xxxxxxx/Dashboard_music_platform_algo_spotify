@@ -105,7 +105,9 @@ async def stripe_webhook(request: Request):
             customer_id = data.get("customer")
             subscription_id = data.get("subscription")
             artist_id = data.get("metadata", {}).get("artist_id")
-            plan_name = data.get("metadata", {}).get("plan_name", "basic")
+            plan_name = data.get("metadata", {}).get("plan_name", "premium")
+            if plan_name == "basic":          # retired tier → premium
+                plan_name = "premium"
 
             if artist_id and customer_id:
                 cur = conn.cursor()
@@ -131,7 +133,7 @@ async def stripe_webhook(request: Request):
                     (int(artist_id), plan_id, customer_id, subscription_id),
                 )
                 # Also update saas_artists.tier
-                _tier = plan_name if plan_name in ('basic', 'premium') else 'basic'
+                _tier = plan_name if plan_name in ('free', 'premium') else 'premium'
                 cur.execute(
                     "UPDATE saas_artists SET tier = %s WHERE id = %s",
                     (_tier, int(artist_id)),

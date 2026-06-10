@@ -9,7 +9,7 @@ Two CSV formats exported from iMusician:
   - sales_detail    : "Rapport de vente"  — per-ISRC/shop/country line items
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -82,6 +82,13 @@ class IMusicianCSVParser:
                 return c
         return None
 
+    @classmethod
+    def _require_cols(cls, df: pd.DataFrame, names: List[str]) -> None:
+        """Raise ValueError if any required column is absent (fail fast, not per-row)."""
+        missing = [n for n in names if cls._col(df, n) is None]
+        if missing:
+            raise ValueError(f"Missing required column(s): {', '.join(missing)}")
+
     # ─────────────────────────────────────────────
     # Parsers
     # ─────────────────────────────────────────────
@@ -89,11 +96,12 @@ class IMusicianCSVParser:
     def parse_release_summary(self, df: pd.DataFrame, artist_id: int) -> List[Dict]:
         """Parse a 'Résumé par sortie' CSV into a list of dicts for imusician_release_summary."""
         df = df.dropna(how='all')
+        self._require_cols(df, ['Statement date', 'Release title', 'Total revenue'])
+        stmt_col = self._col(df, 'Statement date')
         rows = []
 
         for idx, row in df.iterrows():
             try:
-                stmt_col = self._col(df, 'Statement date')
                 year, month = self._parse_yyyymm(row[stmt_col])
 
                 rows.append({
@@ -109,7 +117,7 @@ class IMusicianCSVParser:
                     'track_streams_revenue':      self._clean_numeric(row.get(self._col(df, 'Track streams revenue') or '')),
                     'release_downloads_revenue':  self._clean_numeric(row.get(self._col(df, 'Release downloads revenue') or '')),
                     'total_revenue':              self._clean_numeric(row.get(self._col(df, 'Total revenue') or '')),
-                    'collected_at':               datetime.now(),
+                    'collected_at':               datetime.now(timezone.utc),
                 })
             except Exception as e:
                 logger.warning(f"Row {idx} skipped: {e}")
@@ -121,12 +129,15 @@ class IMusicianCSVParser:
     def parse_sales_detail(self, df: pd.DataFrame, artist_id: int) -> List[Dict]:
         """Parse a 'Rapport de vente' CSV into a list of dicts for imusician_sales_detail."""
         df = df.dropna(how='all')
+        self._require_cols(df, ['Sales date', 'Statement date', 'ISRC', 'Shop'])
+        sales_col = self._col(df, 'Sales date')
+        stmt_col = self._col(df, 'Statement date')
         rows = []
 
         for idx, row in df.iterrows():
             try:
-                sales_year, sales_month       = self._parse_yyyymm(row[self._col(df, 'Sales date')])
-                statement_year, statement_month = self._parse_yyyymm(row[self._col(df, 'Statement date')])
+                sales_year, sales_month       = self._parse_yyyymm(row[sales_col])
+                statement_year, statement_month = self._parse_yyyymm(row[stmt_col])
 
                 rows.append({
                     'artist_id':       artist_id,
@@ -145,7 +156,7 @@ class IMusicianCSVParser:
                     'country':         str(row.get(self._col(df, 'Country') or '', '') or '').strip() or None,
                     'quantity':        self._clean_numeric(row.get(self._col(df, 'Quantity') or ''), int),
                     'revenue_eur':     self._clean_numeric(row.get(self._col(df, 'Revenue EUR') or '')),
-                    'collected_at':    datetime.now(),
+                    'collected_at':    datetime.now(timezone.utc),
                 })
             except Exception as e:
                 logger.warning(f"Row {idx} skipped: {e}")

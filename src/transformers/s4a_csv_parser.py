@@ -5,6 +5,8 @@ from typing import Dict, Optional
 import logging
 import re  # Indispensable pour gérer les noms de fichiers changeants
 
+from src.utils.track_matching import canonical_song
+
 logger = logging.getLogger(__name__)
 
 _ARTIST_FILTER = '1x7xxxxxxx'
@@ -86,17 +88,31 @@ class S4ACSVParser:
         return data
 
     def _detect_window(self, filename: str) -> str:
-        """Return '28d' or '12m' from filename heuristic."""
+        """Return '28d' or '12m' from the filename marker. Raises if ambiguous.
+
+        Never defaults: a 28d export silently tagged '12m' (or vice-versa)
+        corrupts every window-filtered query downstream. Force an explicit marker.
+        """
         name = filename.lower()
         if any(t in name for t in ('28day', '28d', '28j')):
             return '28d'
-        return '12m'
+        # '1year' is how S4A auto-names the 12-month "Titres" export; 'songs-all'
+        # (the "depuis le début" export) carries no window marker and is rejected
+        # on purpose — its listeners/saves columns come back all-zero.
+        if any(t in name for t in ('12m', '12month', '12mois', '1year', '1-year',
+                                   'oneyear', '365d', '1y', '1an')):
+            return '12m'
+        raise ValueError(
+            "Cannot determine the time window from the filename "
+            f"({filename!r}). Use the 12-month export (named '…-songs-1year.csv') "
+            "or rename the file to include '28d'/'28j' or '12m'/'1year'."
+        )
 
     def parse_songs_global(self, df: pd.DataFrame, artist_id: int, filename: str = '') -> list:
         """Parse a songs-all CSV (headers: song, listeners, streams, saves, release_date).
 
         Filters out the artist-level total row (1x7xxxxxxx).
-        window is derived from the filename: '28d' if the name contains 28day/28d/28j, else '12m'.
+        window is derived from the filename marker (28d vs 12m); raises if absent.
         """
         df.columns = df.columns.str.strip().str.lower()
         window = self._detect_window(filename)
@@ -107,6 +123,11 @@ class S4ACSVParser:
                 song = str(row.get('song', '')).strip()
                 if not song or _ARTIST_FILTER.lower() in song.lower():
                     continue
+                # Canonical key: the CSV keeps S4A-invalid chars (?, /, …) but
+                # s4a_song_timeline (filename-derived) and ml_song_predictions use
+                # '_', so exact-match joins (Vue Globale tiles, ml_inference Saves
+                # feature) need the same form. Single source: canonical_song().
+                song = canonical_song(song)
 
                 release_date = None
                 try:

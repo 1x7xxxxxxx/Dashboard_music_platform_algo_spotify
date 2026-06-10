@@ -20,23 +20,39 @@ import socket
 
 import pytest
 
-# ── DB reachability gate ─────────────────────────────────────────────────────
-# Views open a real connection via get_db_connection(); skip the whole module when
-# the local Postgres isn't up rather than failing in a DB-less environment (CI).
+# ── DB readiness gate ────────────────────────────────────────────────────────
+# Views open a real connection via get_db_connection() and query real tables, so
+# skip the whole module unless a *provisioned* Postgres is up. A TCP check alone is
+# insufficient: CI starts an EMPTY `postgres:17` service on 5433 (schema never
+# migrated), so the socket connects but every view fails with 'relation … does not
+# exist'. Gate on a core table's presence so the suite runs locally (real populated
+# DB) and skips cleanly against an unprovisioned CI DB.
 _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
 
-def _db_reachable() -> bool:
+def _db_ready() -> bool:
     try:
         with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
-            return True
+            pass
     except OSError:
+        return False
+    # Socket is up — confirm the app schema is actually loaded (a core table exists).
+    try:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        try:
+            db.fetch_query("SELECT 1 FROM saas_artists LIMIT 1")
+            return True
+        finally:
+            db.close()
+    except Exception:
         return False
 
 
 pytestmark = pytest.mark.skipif(
-    not _db_reachable(),
-    reason=f"Postgres not reachable on {_DB_HOST}:{_DB_PORT} — render-smoke needs the live DB",
+    not _db_ready(),
+    reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} "
+           "(socket down or schema not migrated) — render-smoke needs the live DB",
 )
 
 # Every view wired into app.py's dispatch (src/dashboard/app.py). Keep in sync when
@@ -47,9 +63,10 @@ VIEWS = [
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
-    "promo_admin", "referral", "referral_admin", "revenue_forecast", "soundcloud",
-    "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "useful_links",
-    "youtube",
+    "promo_admin", "referral", "referral_admin",
+    "revenue_forecast", "saisie_s4a", "soundcloud",
+    "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "usage_analytics",
+    "useful_links", "youtube",
 ]
 
 # AppTest re-execs a script string in a fresh interpreter path, so the script must

@@ -11,6 +11,7 @@ import plotly.express as px
 from datetime import date
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import show_empty_state
 from src.dashboard.auth import get_artist_id, is_admin
 from src.database.postgres_handler import validate_table, validate_columns
@@ -140,50 +141,57 @@ def _load_cumulative(db, artist_id) -> pd.DataFrame:
 # ── Section renderers ─────────────────────────────────────────────────────────
 
 def _show_health_table(df_health: pd.DataFrame):
-    st.subheader("🏥 État des datasets")
+    st.subheader(t("db_health.table_header", "🏥 État des datasets"))
 
     # KPI summary row
     populated = df_health[df_health['total'] > 0]
     stale     = populated[populated['age_days'] > _FRESHNESS_ERROR_DAYS]
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Datasets actifs",    len(populated))
-    k2.metric("Datasets vides",     len(df_health) - len(populated))
-    k3.metric("Total lignes DB",    f"{df_health['total'].sum():,}")
-    k4.metric("Datasets obsolètes (>30j)", len(stale),
+    k1.metric(t("db_health.kpi_active", "Datasets actifs"),    len(populated))
+    k2.metric(t("db_health.kpi_empty", "Datasets vides"),     len(df_health) - len(populated))
+    k3.metric(t("db_health.kpi_total_rows", "Total lignes DB"),    f"{df_health['total'].sum():,}")
+    k4.metric(t("db_health.kpi_stale", "Datasets obsolètes (>30j)"), len(stale),
               delta=None if stale.empty else "⚠️", delta_color="inverse")
 
     # Detail table
+    col_total = t("db_health.col_total_rows", "Lignes totales")
+    col_first = t("db_health.col_first_import", "Premier import")
+    col_last  = t("db_health.col_last_import", "Dernier import")
+    col_age   = t("db_health.col_age_days", "Âge (jours)")
     display = df_health[[
         'label', 'table', 'total', 'first_date', 'last_date', 'age_days'
     ]].copy()
     display.columns = [
-        'Dataset', 'Table', 'Lignes totales',
-        'Premier import', 'Dernier import', 'Âge (jours)'
+        t("db_health.col_dataset", "Dataset"), t("db_health.col_table", "Table"), col_total,
+        col_first, col_last, col_age
     ]
-    display['Lignes totales'] = display['Lignes totales'].apply(lambda x: f"{x:,}")
-    display['Âge (jours)'] = display['Âge (jours)'].apply(
-        lambda x: f"{x}j" if x is not None else "—"
+    display[col_total] = display[col_total].apply(lambda x: f"{x:,}")
+    display[col_age] = display[col_age].apply(
+        lambda x: t("db_health.age_days_suffix", "{n}j").format(n=x) if x is not None else "—"
     )
-    display['Premier import'] = display['Premier import'].apply(
+    display[col_first] = display[col_first].apply(
         lambda x: str(x) if x else "—"
     )
-    display['Dernier import'] = display['Dernier import'].apply(
+    display[col_last] = display[col_last].apply(
         lambda x: str(x) if x else "—"
     )
     st.dataframe(display, hide_index=True, width='stretch')
 
 
 def _show_freshness_bar(df_health: pd.DataFrame):
-    st.subheader("⏱️ Fraîcheur par dataset")
-    st.caption("Jours depuis le dernier import — vert ≤14j, orange ≤30j, rouge >30j")
+    st.subheader(t("db_health.freshness_header", "⏱️ Fraîcheur par dataset"))
+    st.caption(t("db_health.freshness_caption",
+                 "Jours depuis le dernier import — vert ≤14j, orange ≤30j, rouge >30j"))
 
     df = df_health[df_health['total'] > 0].copy()
-    if show_empty_state(df, "Aucun dataset peuplé."):
+    if show_empty_state(df, t("db_health.no_populated", "Aucun dataset peuplé.")):
         return
 
     df = df.sort_values('age_days', ascending=True, na_position='last')
     df['color'] = df['age_days'].apply(_freshness_color)
-    df['age_label'] = df['age_days'].apply(lambda x: f"{x}j" if x is not None else "—")
+    df['age_label'] = df['age_days'].apply(
+        lambda x: t("db_health.age_days_suffix", "{n}j").format(n=x) if x is not None else "—"
+    )
 
     fig = go.Figure(go.Bar(
         x=df['age_days'].fillna(0),
@@ -192,15 +200,18 @@ def _show_freshness_bar(df_health: pd.DataFrame):
         marker_color=df['color'],
         text=df['age_label'],
         textposition='outside',
-        hovertemplate='<b>%{y}</b><br>%{x} jours depuis le dernier import<extra></extra>',
+        hovertemplate='<b>%{y}</b><br>%{x} '
+                      + t("db_health.freshness_xaxis", "Jours depuis le dernier import")
+                      + '<extra></extra>',
     ))
+    _vline = t("db_health.vline_label", "{n}j")
     fig.add_vline(x=_FRESHNESS_WARN_DAYS,  line_dash='dash', line_color='#FFA500',
-                  annotation_text=f'{_FRESHNESS_WARN_DAYS}j', annotation_position='top right')
+                  annotation_text=_vline.format(n=_FRESHNESS_WARN_DAYS), annotation_position='top right')
     fig.add_vline(x=_FRESHNESS_ERROR_DAYS, line_dash='dash', line_color='#FF6B6B',
-                  annotation_text=f'{_FRESHNESS_ERROR_DAYS}j', annotation_position='top right')
+                  annotation_text=_vline.format(n=_FRESHNESS_ERROR_DAYS), annotation_position='top right')
     fig.update_layout(
         height=max(300, len(df) * 42),
-        xaxis_title="Jours depuis le dernier import",
+        xaxis_title=t("db_health.freshness_xaxis", "Jours depuis le dernier import"),
         yaxis_title=None,
         margin=dict(l=0, r=60, t=20, b=40),
         plot_bgcolor='rgba(0,0,0,0)',
@@ -211,10 +222,11 @@ def _show_freshness_bar(df_health: pd.DataFrame):
 
 
 def _show_heatmap(df_weekly: pd.DataFrame):
-    st.subheader("📅 Activité d'import — heatmap par semaine")
-    st.caption("Chaque cellule = nouvelles lignes intégrées cette semaine. Blanc = aucune activité.")
+    st.subheader(t("db_health.heatmap_header", "📅 Activité d'import — heatmap par semaine"))
+    st.caption(t("db_health.heatmap_caption",
+                 "Chaque cellule = nouvelles lignes intégrées cette semaine. Blanc = aucune activité."))
 
-    if show_empty_state(df_weekly, "Aucune donnée d'activité disponible."):
+    if show_empty_state(df_weekly, t("db_health.no_activity_data", "Aucune donnée d'activité disponible.")):
         return
 
     df_weekly['week'] = pd.to_datetime(df_weekly['week'])
@@ -222,7 +234,7 @@ def _show_heatmap(df_weekly: pd.DataFrame):
     cutoff = pd.Timestamp(date.today()) - pd.Timedelta(weeks=52)
     df_weekly = df_weekly[df_weekly['week'] >= cutoff]
 
-    if show_empty_state(df_weekly, "Aucune activité sur les 52 dernières semaines."):
+    if show_empty_state(df_weekly, t("db_health.no_activity_52w", "Aucune activité sur les 52 dernières semaines.")):
         return
 
     pivot = df_weekly.pivot_table(
@@ -252,16 +264,16 @@ def _show_heatmap(df_weekly: pd.DataFrame):
 
 
 def _show_cumulative(df_cumul: pd.DataFrame):
-    st.subheader("📈 Croissance cumulative des datasets")
-    st.caption("Un plateau = plus aucun import sur ce dataset.")
+    st.subheader(t("db_health.cumul_header", "📈 Croissance cumulative des datasets"))
+    st.caption(t("db_health.cumul_caption", "Un plateau = plus aucun import sur ce dataset."))
 
-    if show_empty_state(df_cumul, "Aucune donnée disponible."):
+    if show_empty_state(df_cumul, t("db_health.no_data", "Aucune donnée disponible.")):
         return
 
     # Dataset selector
     all_datasets = sorted(df_cumul['dataset'].unique())
     selected = st.multiselect(
-        "Datasets à afficher",
+        t("db_health.datasets_to_show", "Datasets à afficher"),
         options=all_datasets,
         default=all_datasets,
         key="db_health_cumul_select",
@@ -286,7 +298,7 @@ def _show_cumulative(df_cumul: pd.DataFrame):
     fig.update_layout(
         height=420,
         xaxis_title=None,
-        yaxis_title="Lignes cumulées",
+        yaxis_title=t("db_health.cumul_yaxis", "Lignes cumulées"),
         hovermode='x unified',
         legend=dict(orientation='h', y=-0.2),
         plot_bgcolor='rgba(0,0,0,0)',
@@ -297,10 +309,11 @@ def _show_cumulative(df_cumul: pd.DataFrame):
 
 
 def _show_batch_sizes(df_weekly: pd.DataFrame):
-    st.subheader("📦 Taille des imports par semaine")
-    st.caption("Lots très petits ou très grands peuvent indiquer une anomalie de collecte.")
+    st.subheader(t("db_health.batch_header", "📦 Taille des imports par semaine"))
+    st.caption(t("db_health.batch_caption",
+                 "Lots très petits ou très grands peuvent indiquer une anomalie de collecte."))
 
-    if show_empty_state(df_weekly, "Aucune donnée disponible."):
+    if show_empty_state(df_weekly, t("db_health.no_data", "Aucune donnée disponible.")):
         return
 
     df_weekly = df_weekly.copy()
@@ -309,13 +322,13 @@ def _show_batch_sizes(df_weekly: pd.DataFrame):
     df_plot = df_weekly[df_weekly['week'] >= cutoff]
 
     if df_plot.empty:
-        st.info("Aucune activité sur les 26 dernières semaines.")
+        st.info(t("db_health.no_activity_26w", "Aucune activité sur les 26 dernières semaines."))
         return
 
     # Dataset filter
     all_datasets = sorted(df_plot['dataset'].unique())
     selected = st.multiselect(
-        "Datasets à afficher",
+        t("db_health.datasets_to_show", "Datasets à afficher"),
         options=all_datasets,
         default=all_datasets[:5] if len(all_datasets) > 5 else all_datasets,
         key="db_health_batch_select",
@@ -339,7 +352,7 @@ def _show_batch_sizes(df_weekly: pd.DataFrame):
         height=380,
         barmode='group',
         xaxis_title=None,
-        yaxis_title="Nouvelles lignes",
+        yaxis_title=t("db_health.batch_yaxis", "Nouvelles lignes"),
         hovermode='x unified',
         legend=dict(orientation='h', y=-0.25),
         plot_bgcolor='rgba(0,0,0,0)',
@@ -352,19 +365,19 @@ def _show_batch_sizes(df_weekly: pd.DataFrame):
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 
 def show():
-    st.title("🗄️ Santé des données")
-    st.markdown("Suivi des imports, fraîcheur et volumes par dataset PostgreSQL.")
+    st.title(t("db_health.title", "🗄️ Santé des données"))
+    st.markdown(t("db_health.intro", "Suivi des imports, fraîcheur et volumes par dataset PostgreSQL."))
 
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide.")
+            st.error(t("db_health.session_invalid", "Session invalide."))
             st.stop()
         artist_id = None  # admin: cross-tenant view
 
     try:
-        with st.spinner("Chargement des métriques DB…"):
+        with st.spinner(t("db_health.spinner", "Chargement des métriques DB…")):
             df_health  = _load_health(db, artist_id)
             df_weekly  = _load_weekly_activity(db, artist_id)
             df_cumul   = _load_cumulative(db, artist_id)

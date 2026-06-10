@@ -1,13 +1,13 @@
 """Page d'accueil — KPI globaux, fraîcheur des sources, statut des pipelines."""
 import html as _html
 import streamlit as st
-from datetime import datetime
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import project_db
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils.kpi_helpers import (
@@ -34,7 +34,7 @@ def _freshness_badge(label, icon, last_dt):
 
 
 def _section_freshness(db, artist_id):
-    st.subheader("📡 Fraîcheur des données")
+    st.subheader(t("home.freshness_header", "📡 Fraîcheur des données"))
     freshness = get_source_freshness(db, artist_id)
     cols = st.columns(len(freshness))
     for col, (label, info) in zip(cols, freshness.items()):
@@ -56,7 +56,7 @@ def _section_freshness(db, artist_id):
 
 
 def _section_streams(db, artist_id):
-    st.subheader("🎧 Streams totaux")
+    st.subheader(t("home.streams_header", "🎧 Streams totaux"))
     s4a = get_total_streams_s4a(db, artist_id)
     yt = get_total_views_youtube(db, artist_id)
     sc = get_total_plays_soundcloud(db, artist_id)
@@ -68,7 +68,7 @@ def _section_streams(db, artist_id):
     st.markdown(
         f"""<div style="text-align:center; padding:16px; background:#f0f2f6;
             border-radius:10px; margin-bottom:16px;">
-            <div style="color:#555; font-size:1em; font-weight:600;">🎧 Total streams toutes plateformes</div>
+            <div style="color:#555; font-size:1em; font-weight:600;">{t("home.total_all_platforms", "🎧 Total streams toutes plateformes")}</div>
             <div style="font-size:3em; color:#1DB954; font-weight:800;">{grand_total:,}</div>
         </div>""",
         unsafe_allow_html=True
@@ -84,55 +84,11 @@ def _section_streams(db, artist_id):
         f"""<div style="border:1px solid #E4405F; background:#E4405F18;
             border-radius:8px; padding:10px 12px; text-align:center;
             margin-top:4px;">
-            <div style="color:#666; font-size:0.85em;">📸 Instagram Followers</div>
+            <div style="color:#666; font-size:0.85em;">{t("home.ig_followers", "📸 Followers Instagram")}</div>
             <div style="font-size:1.75em; color:#E4405F; font-weight:700;">{ig_count:,}</div>
         </div>""",
         unsafe_allow_html=True
     )
-
-
-@st.fragment
-def _section_pdf_export(artist_id):
-    """Raccourci vers la page Export PDF + génération rapide (toutes sections, 12 mois).
-
-    @st.fragment: the "Rapport rapide" button + download only re-run this section,
-    not the whole home page (KPIs, DAG status grid, cumulative charts).
-    """
-    st.subheader("📄 Rapport PDF")
-    col_btn, col_full, col_info = st.columns([1, 1, 2])
-
-    with col_info:
-        st.caption("Rapport rapide (12 mois, toutes sections). "
-                   "Pour personnaliser : **📄 Export PDF** dans le menu.")
-
-    with col_btn:
-        if st.button("⚡ Rapport rapide", type="primary"):
-            try:
-                from src.dashboard.utils.pdf_exporter import generate_pdf
-            except ImportError as e:
-                st.error(
-                    f"WeasyPrint non disponible : {e}. "
-                    "Installer : `pip install weasyprint` + libs système "
-                    "(libcairo2, libpango-1.0-0, libgdk-pixbuf-2.0-0)."
-                )
-                return
-
-            with project_db() as db2:
-                try:
-                    with st.spinner("Génération…"):
-                        pdf_bytes = generate_pdf(db2, artist_id, months=12)
-                    st.session_state['_home_pdf_bytes'] = pdf_bytes
-                except Exception as e:
-                    st.error(f"Erreur : {e}")
-
-    if st.session_state.get('_home_pdf_bytes'):
-        now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        col_full.download_button(
-            label="⬇️ Télécharger",
-            data=st.session_state['_home_pdf_bytes'],
-            file_name=f"rapport_{now_str}.pdf",
-            mime="application/pdf",
-        )
 
 
 _DAG_LABELS = {
@@ -173,19 +129,21 @@ def _section_onboarding(db, artist_id: int) -> None:
 
     has_creds, has_runs, has_csv, has_apple = rows[0]
     steps = [
-        (bool(has_creds), "🔑 Configure API credentials", "credentials"),
-        (bool(has_csv),   "📂 Upload a Spotify for Artists CSV", "upload_csv"),
-        (bool(has_apple), "🍎 Upload an Apple Music CSV", "upload_csv"),
-        (bool(has_runs),  "🚀 Run your first data collection", "trigger_algo"),
+        (bool(has_creds), t("home.onboarding_creds", "🔑 Configurer les credentials API"), "credentials"),
+        (bool(has_csv),   t("home.onboarding_s4a", "📂 Importer un CSV Spotify for Artists"), "upload_csv"),
+        (bool(has_apple), t("home.onboarding_apple", "🍎 Importer un CSV Apple Music"), "upload_csv"),
+        (bool(has_runs),  t("home.onboarding_run", "🚀 Lancer votre première collecte de données"), "trigger_algo"),
     ]
     completed = sum(1 for done, *_ in steps if done)
     all_done = completed == len(steps)
 
     if all_done:
-        st.markdown("#### ✅ Getting started — configuration terminée")
-        st.success("Toutes les étapes de mise en route sont complètes. 🎉")
+        st.markdown(t("home.onboarding_done_header", "#### ✅ Mise en route — configuration terminée"))
+        st.success(t("home.onboarding_done", "Toutes les étapes de mise en route sont complètes. 🎉"))
     else:
-        st.markdown(f"#### 🚀 Getting started — {completed}/{len(steps)} steps completed")
+        st.markdown(t("home.onboarding_progress",
+                      "#### 🚀 Mise en route — {done}/{total} étapes complétées").format(
+                          done=completed, total=len(steps)))
         st.progress(completed / len(steps))
 
     for done, label, _page in steps:
@@ -197,17 +155,17 @@ def _section_onboarding(db, artist_id: int) -> None:
 
 def _section_dag_status():
     """Résumé du dernier run de chaque DAG."""
-    st.subheader("🚦 Statut des pipelines")
+    st.subheader(t("home.dag_header", "🚦 Statut des pipelines"))
 
     monitor = AirflowMonitor()
     try:
         dag_list = monitor.get_dag_list()
     except Exception:
-        st.warning("API Airflow inaccessible — démarrer Docker.")
+        st.warning(t("home.airflow_unreachable", "API Airflow inaccessible — démarrer Docker."))
         return
 
     if not dag_list:
-        st.warning("Aucun DAG trouvé. Vérifier que Airflow est lancé.")
+        st.warning(t("home.no_dags", "Aucun DAG trouvé. Vérifier que Airflow est lancé."))
         return
 
     # Single batch call for every DAG's latest run (was N+1: one call per DAG).
@@ -225,8 +183,9 @@ def _section_dag_status():
     cols = st.columns(n_cols)
     for i, (dag_id, state, start, end) in enumerate(rows):
         icon_dag, label = _DAG_LABELS.get(dag_id, ("⚙️", dag_id))
+        label = t(f"home.dag.{dag_id}", label)
         color, state_icon = _STATE_COLOR.get(state, ("#888888", "⚫"))
-        state_label = state or "jamais lancé"
+        state_label = state or t("home.never_run", "jamais lancé")
         date_str = start[:16].replace("T", " ") if start else "—"
 
         with cols[i % n_cols]:
@@ -243,7 +202,7 @@ def _section_dag_status():
 
 
 def show():
-    st.title("🎵 streaMLytics — Music platform dashboard")
+    st.title(t("home.title", "🎵 streaMLytics — Dashboard plateformes musicales"))
     st.markdown("---")
 
     artist_id = get_artist_id()  # None si admin
@@ -256,10 +215,9 @@ def show():
 
             _section_streams(db, artist_id)
             st.markdown("---")
-            _section_pdf_export(artist_id)
-            st.markdown("---")
+            # PDF shortcut removed here — redundant with the dedicated "📄 Export PDF" page.
             _section_dag_status()
             st.markdown("---")
             _section_freshness(db, artist_id)
         except Exception as e:
-            st.error(f"Erreur d'affichage : {e}")
+            st.error(t("home.display_error", "Erreur d'affichage : {err}").format(err=e))

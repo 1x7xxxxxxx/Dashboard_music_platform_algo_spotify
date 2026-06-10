@@ -8,18 +8,19 @@ Accessible via /?page=onboarding (authenticated route).
 import streamlit as st
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
 
 
-# Platforms and which plan they require
+# Platforms and which plan they require — all platform connectors are Free-tier.
 _PLATFORM_META = {
-    'spotify':    {'label': 'Spotify API',  'plan': 'free',  'icon': '🎵'},
-    'youtube':    {'label': 'YouTube',       'plan': 'free',  'icon': '🎬'},
-    'meta':       {'label': 'Meta Ads',      'plan': 'basic', 'icon': '📱'},
-    'instagram':  {'label': 'Instagram',     'plan': 'basic', 'icon': '📸'},
-    'soundcloud': {'label': 'SoundCloud',    'plan': 'basic', 'icon': '☁️'},
-    'apple_music':{'label': 'Apple Music',   'plan': 'basic', 'icon': '🎎'},
+    'spotify':    {'label': 'Spotify API',  'plan': 'free', 'icon': '🎵'},
+    'youtube':    {'label': 'YouTube',       'plan': 'free', 'icon': '🎬'},
+    'meta':       {'label': 'Meta Ads',      'plan': 'free', 'icon': '📱'},
+    'instagram':  {'label': 'Instagram',     'plan': 'free', 'icon': '📸'},
+    'soundcloud': {'label': 'SoundCloud',    'plan': 'free', 'icon': '☁️'},
+    'apple_music':{'label': 'Apple Music',   'plan': 'free', 'icon': '🎎'},
 }
 
 _STEP_KEY = '_onboarding_step'
@@ -44,30 +45,35 @@ def _get_configured_platforms(artist_id: int) -> set[str]:
 
 
 def _step_welcome(plan: str) -> None:
-    st.title("🎵 Bienvenue sur Music Dashboard !")
+    st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur Music Dashboard !"))
     st.markdown(
-        f"Votre compte a été créé avec le plan **{plan.capitalize()}**. "
-        "Voici ce qui est inclus dans votre plan actuel :"
+        t("onboarding.welcome_body",
+          "Votre compte a été créé avec le plan **{plan}**. "
+          "Voici ce qui est inclus dans votre plan actuel :").format(plan=plan.capitalize())
     )
 
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
-    col_free, col_basic, col_premium = st.columns(3)
+    col_free, col_premium = st.columns(2)
 
     plan_data = [
-        ('free',    'Free',    ['🏠 Accueil', '🎵 Spotify & S4A', '🎬 YouTube']),
-        ('basic',   'Basic',   ['+ 📱 Meta Ads', '+ 📸 Instagram', '+ ☁️ SoundCloud',
-                                '+ 🎎 Apple Music', '+ 💰 iMusician', '+ 📂 Import CSV']),
-        ('premium', 'Premium', ['+ 🚀 Road to Algo (ML)', '+ 📄 Export PDF',
-                                '+ 📈 Prévisions revenus', '+ 🔀 META x Spotify']),
+        ('free',    'Free',    [t("nav.item.home", "🏠 Accueil"), '🎵 Spotify & S4A', '🎬 YouTube',
+                                '📱 Meta Ads', '📸 Instagram', '☁️ SoundCloud',
+                                '🎎 Apple Music', '💰 iMusician',
+                                t("nav.item.upload_csv", "📂 Import CSV"),
+                                t("nav.item.export_pdf", "📄 Export PDF"), '🎁 Data Wrapped']),
+        ('premium', 'Premium', ['+ 🚀 Road to Algo (ML)',
+                                t("onboarding.feat_revenue", "+ 📈 Prévisions revenus"),
+                                '+ 🔀 META x Spotify',
+                                t("onboarding.feat_creatives", "+ 🎨 Créatives & CPR Meta")]),
     ]
 
-    plan_ranks = {'free': 0, 'basic': 1, 'premium': 2}
+    plan_ranks = {'free': 0, 'premium': 1}
     current_rank = plan_ranks.get(plan, 0)
 
     for col, (tier_key, tier_label, features) in zip(
-        [col_free, col_basic, col_premium], plan_data
+        [col_free, col_premium], plan_data
     ):
         with col:
             tier_rank = plan_ranks[tier_key]
@@ -76,7 +82,7 @@ def _step_welcome(plan: str) -> None:
 
             header = f"**{tier_label}**"
             if is_current:
-                header += " ← *votre plan*"
+                header += t("onboarding.your_plan", " ← *votre plan*")
             st.markdown(header)
 
             for feat in features:
@@ -84,19 +90,21 @@ def _step_welcome(plan: str) -> None:
                 st.markdown(f"{icon} {feat}")
 
             if is_locked:
-                st.link_button(f"Passer à {tier_label} →", "/?page=billing")
+                st.link_button(t("onboarding.upgrade_to", "Passer à {tier} →").format(tier=tier_label),
+                               "/?page=billing")
 
     st.markdown("---")
-    if st.button("Suivant : Configurer mes données →", type="primary"):
+    if st.button(t("onboarding.next_data", "Suivant : Configurer mes données →"), type="primary"):
         st.session_state[_STEP_KEY] = 2
         st.rerun()
 
 
 def _step_credentials(plan: str, artist_id: int) -> None:
-    st.title("🔑 Configurer vos sources de données")
+    st.title(t("onboarding.creds_title", "🔑 Configurer vos sources de données"))
     st.markdown(
-        "Connectez vos plateformes pour commencer à collecter des données. "
-        "Vous pouvez compléter cette étape plus tard depuis **Credentials API**."
+        t("onboarding.creds_body",
+          "Connectez vos plateformes pour commencer à collecter des données. "
+          "Vous pouvez compléter cette étape plus tard depuis **Credentials API**.")
     )
     st.markdown("---")
 
@@ -104,7 +112,7 @@ def _step_credentials(plan: str, artist_id: int) -> None:
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
-    plan_ranks = {'free': 0, 'basic': 1, 'premium': 2}
+    plan_ranks = {'free': 0, 'premium': 1}
     current_rank = plan_ranks.get(plan, 0)
 
     for platform_key, meta in _PLATFORM_META.items():
@@ -112,47 +120,53 @@ def _step_credentials(plan: str, artist_id: int) -> None:
         is_accessible = is_all or required_rank <= current_rank
 
         connected = platform_key in configured
-        status = "✅ Connecté" if connected else "❌ Non configuré"
+        status = t("onboarding.connected", "✅ Connecté") if connected \
+            else t("onboarding.not_configured", "❌ Non configuré")
 
         if is_accessible:
             cols = st.columns([3, 1, 1])
             cols[0].markdown(f"{meta['icon']} **{meta['label']}** — {status}")
             if not connected:
-                cols[1].link_button("Configurer →", "/?page=credentials")
+                cols[1].link_button(t("onboarding.configure_btn", "Configurer →"), "/?page=credentials")
         else:
             st.markdown(
-                f"🔒 {meta['icon']} **{meta['label']}** — "
-                f"*Disponible en plan {meta['plan'].capitalize()}*"
+                t("onboarding.locked_platform",
+                  "🔒 {icon} **{label}** — *Disponible en plan {plan}*").format(
+                      icon=meta['icon'], label=meta['label'], plan=meta['plan'].capitalize())
             )
 
     st.markdown("---")
     col_back, col_next = st.columns([1, 3])
-    if col_back.button("← Retour"):
+    if col_back.button(t("onboarding.back", "← Retour")):
         st.session_state[_STEP_KEY] = 1
         st.rerun()
-    if col_next.button("Suivant : Terminer →", type="primary"):
+    if col_next.button(t("onboarding.next_finish", "Suivant : Terminer →"), type="primary"):
         st.session_state[_STEP_KEY] = 3
         st.rerun()
 
 
 def _step_ready() -> None:
-    st.title("🎉 C'est parti !")
+    st.title(t("onboarding.ready_title", "🎉 C'est parti !"))
     st.success(
-        "Votre tableau de bord est prêt. Vous pouvez configurer vos credentials "
-        "à tout moment depuis **Credentials API** dans la navigation."
+        t("onboarding.ready_body",
+          "Votre tableau de bord est prêt. Vous pouvez configurer vos credentials "
+          "à tout moment depuis **Credentials API** dans la navigation.")
     )
     st.markdown("---")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.link_button("🏠 Aller au dashboard →", "/?page=home", type="primary")
+        st.link_button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
+                       "/?page=home", type="primary")
     with col2:
-        st.link_button("🔑 Configurer les credentials", "/?page=credentials")
+        st.link_button(t("onboarding.configure_creds", "🔑 Configurer les credentials"),
+                       "/?page=credentials")
 
     st.markdown("---")
     st.caption(
-        "💡 Astuce : Lancez la collecte de données depuis le bouton "
-        "**Lancer TOUTES les collectes** dans la barre latérale."
+        t("onboarding.tip",
+          "💡 Astuce : Lancez la collecte de données depuis le bouton "
+          "**Lancer TOUTES les collectes** dans la barre latérale.")
     )
 
 
@@ -165,8 +179,12 @@ def show() -> None:
     artist_id = get_artist_id()
 
     # Step progress indicator
-    steps = ["1. Bienvenue", "2. Données", "3. Prêt !"]
-    st.sidebar.markdown("### Étapes")
+    steps = [
+        t("onboarding.step1", "1. Bienvenue"),
+        t("onboarding.step2", "2. Données"),
+        t("onboarding.step3", "3. Prêt !"),
+    ]
+    st.sidebar.markdown(t("onboarding.steps_header", "### Étapes"))
     for i, label in enumerate(steps, 1):
         prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
         st.sidebar.markdown(f"{prefix} {label}")

@@ -11,7 +11,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
 STATUS_COLORS = {
@@ -31,18 +32,13 @@ CIRCUIT_COLORS = {
 
 def show():
     if not is_admin():
-        st.error("🔒 Accès réservé aux administrateurs.")
+        st.error(t("etl_logs.admin_only", "🔒 Accès réservé aux administrateurs."))
         return
 
-    st.title("🗂️ Historique ETL")
-    st.caption("Logs des runs Airflow persistés en base — table `etl_run_log`")
+    st.title(t("etl_logs.title", "🗂️ Historique ETL"))
+    st.caption(t("etl_logs.caption", "Logs des runs Airflow persistés en base — table `etl_run_log`"))
 
-    db = get_db_connection()
-    if db is None:
-        st.error("❌ Base de données inaccessible.")
-        return
-
-    try:
+    with project_db() as db:
         _section_kpis(db)
         st.markdown("---")
         _section_run_history(db)
@@ -50,8 +46,6 @@ def show():
         _section_trend(db)
         st.markdown("---")
         _section_circuit_breakers(db)
-    finally:
-        db.close()
 
 
 # ── KPIs ─────────────────────────────────────────────────────────
@@ -71,43 +65,49 @@ def _section_kpis(db):
         """
     )
     if not rows or not rows[0][0]:
-        st.info("Aucun run enregistré dans les 7 derniers jours. "
-                "Vérifiez que `DagRunLogger` est utilisé dans vos DAGs.")
+        st.info(t("etl_logs.kpis_empty",
+                  "Aucun run enregistré dans les 7 derniers jours. "
+                  "Vérifiez que `DagRunLogger` est utilisé dans vos DAGs."))
         return
 
     total, ok, failed, partial, avg_ms, total_rows = rows[0]
     success_rate = round(100 * (ok or 0) / total, 1) if total else 0
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Runs (7j)", total)
-    c2.metric("Taux succès", f"{success_rate}%",
+    c1.metric(t("etl_logs.kpi_runs", "Runs (7j)"), total)
+    c2.metric(t("etl_logs.kpi_success_rate", "Taux succès"), f"{success_rate}%",
               delta=f"{ok} OK / {failed} KO",
               delta_color="normal")
-    c3.metric("Durée moyenne", f"{avg_ms or 0:,} ms")
-    c4.metric("Lignes insérées", f"{int(total_rows or 0):,}")
-    c5.metric("Runs en échec", failed,
+    c3.metric(t("etl_logs.kpi_avg_duration", "Durée moyenne"), f"{avg_ms or 0:,} ms")
+    c4.metric(t("etl_logs.kpi_rows_inserted", "Lignes insérées"), f"{int(total_rows or 0):,}")
+    c5.metric(t("etl_logs.kpi_failed_runs", "Runs en échec"), failed,
               delta_color="inverse")
 
 
 # ── Run history table ─────────────────────────────────────────────
 
 def _section_run_history(db):
-    st.subheader("Derniers runs")
+    st.subheader(t("etl_logs.history_header", "Derniers runs"))
 
     # Filters
     col_dag, col_status, col_days = st.columns(3)
-    dag_filter = col_dag.text_input("Filtrer par DAG", placeholder="ex: soundcloud")
-    status_filter = col_status.selectbox(
-        "Statut", ["Tous", "success", "failed", "partial", "running", "skipped"]
+    dag_filter = col_dag.text_input(
+        t("etl_logs.filter_dag", "Filtrer par DAG"),
+        placeholder=t("etl_logs.filter_dag_placeholder", "ex: soundcloud"),
     )
-    days = col_days.slider("Fenêtre (jours)", 1, 30, 7)
+    status_filter = col_status.selectbox(
+        t("etl_logs.filter_status", "Statut"),
+        [t("etl_logs.filter_status_all", "Tous"),
+         "success", "failed", "partial", "running", "skipped"],
+    )
+    days = col_days.slider(t("etl_logs.filter_window", "Fenêtre (jours)"), 1, 30, 7)
 
     conditions = ["started_at >= NOW() - INTERVAL '%s days'" % days]
     params = []
     if dag_filter:
         conditions.append("dag_id ILIKE %s")
         params.append(f'%{dag_filter}%')
-    if status_filter != "Tous":
+    if status_filter != t("etl_logs.filter_status_all", "Tous"):
         conditions.append("status = %s")
         params.append(status_filter)
 
@@ -135,7 +135,7 @@ def _section_run_history(db):
     )
 
     if df.empty:
-        st.info("Aucun run correspondant.")
+        st.info(t("etl_logs.no_matching_runs", "Aucun run correspondant."))
         return
 
     # Honest truncation notice — the LIMIT 200 above silently hides older runs,
@@ -148,8 +148,9 @@ def _section_run_history(db):
         _total = _total_row[0][0] if _total_row else len(df)
         if _total > len(df):
             st.caption(
-                f"⚠️ Affichage des 200 runs les plus récents sur {_total:,} au total — "
-                "affinez via les filtres ci-dessus."
+                t("etl_logs.truncation_notice",
+                  "⚠️ Affichage des 200 runs les plus récents sur {total} au total — "
+                  "affinez via les filtres ci-dessus.").format(total=f"{_total:,}")
             )
 
     # Format columns
@@ -168,19 +169,20 @@ def _section_run_history(db):
         hide_index=True,
         width='stretch',
         column_config={
-            'status': st.column_config.TextColumn('Status'),
-            'rows_inserted': st.column_config.NumberColumn('Rows OK'),
-            'rows_failed': st.column_config.NumberColumn('Rows KO'),
-            'duration': st.column_config.TextColumn('Durée'),
-            'dag_id': st.column_config.TextColumn('DAG'),
-            'started_at': st.column_config.TextColumn('Démarré'),
+            'status': st.column_config.TextColumn(t("etl_logs.col_status", "Status")),
+            'rows_inserted': st.column_config.NumberColumn(t("etl_logs.col_rows_ok", "Rows OK")),
+            'rows_failed': st.column_config.NumberColumn(t("etl_logs.col_rows_ko", "Rows KO")),
+            'duration': st.column_config.TextColumn(t("etl_logs.col_duration", "Durée")),
+            'dag_id': st.column_config.TextColumn(t("etl_logs.col_dag", "DAG")),
+            'started_at': st.column_config.TextColumn(t("etl_logs.col_started", "Démarré")),
         },
     )
 
     # Expandable error details
     failed_df = df[df['status'] == 'failed']
     if not failed_df.empty:
-        with st.expander(f"❌ Détail des {len(failed_df)} erreurs"):
+        with st.expander(t("etl_logs.error_expander",
+                           "❌ Détail des {count} erreurs").format(count=len(failed_df))):
             for _, row in failed_df.iterrows():
                 st.markdown(
                     f"**{row['dag_id']}** `{row['started_at']}` — "
@@ -191,7 +193,7 @@ def _section_run_history(db):
 # ── Trend chart ───────────────────────────────────────────────────
 
 def _section_trend(db):
-    st.subheader("Tendance par DAG (14 jours)")
+    st.subheader(t("etl_logs.trend_header", "Tendance par DAG (14 jours)"))
 
     df = db.fetch_df(
         """
@@ -207,7 +209,7 @@ def _section_trend(db):
         """
     )
     if df.empty:
-        st.info("Pas assez de données pour afficher la tendance.")
+        st.info(t("etl_logs.trend_empty", "Pas assez de données pour afficher la tendance."))
         return
 
     df['day'] = pd.to_datetime(df['day'])
@@ -219,7 +221,9 @@ def _section_trend(db):
         facet_col='dag_id',
         facet_col_wrap=3,
         color_discrete_map=STATUS_COLORS,
-        labels={'runs': 'Runs', 'day': 'Date', 'status': 'Statut'},
+        labels={'runs': t("etl_logs.chart_runs", "Runs"),
+                'day': t("etl_logs.chart_date", "Date"),
+                'status': t("etl_logs.chart_status", "Statut")},
         height=400,
     )
     fig.update_layout(margin=dict(l=0, r=0, t=30, b=0))
@@ -229,10 +233,11 @@ def _section_trend(db):
 # ── Circuit breakers ──────────────────────────────────────────────
 
 def _section_circuit_breakers(db):
-    st.subheader("🔌 Circuit Breakers")
+    st.subheader(t("etl_logs.cb_header", "🔌 Circuit Breakers"))
     st.caption(
-        "Si un circuit est OPEN, le DAG correspondant skip la collecte "
-        "pour éviter de brûler des retries sur des credentials connus-cassés."
+        t("etl_logs.cb_caption",
+          "Si un circuit est OPEN, le DAG correspondant skip la collecte "
+          "pour éviter de brûler des retries sur des credentials connus-cassés.")
     )
 
     rows = db.fetch_query(
@@ -245,7 +250,8 @@ def _section_circuit_breakers(db):
     )
 
     if not rows:
-        st.success("✅ Aucun circuit breaker enregistré — toutes les plateformes sont en fonctionnement normal.")
+        st.success(t("etl_logs.cb_none",
+                     "✅ Aucun circuit breaker enregistré — toutes les plateformes sont en fonctionnement normal."))
         return
 
     for row in rows:
@@ -258,29 +264,39 @@ def _section_circuit_breakers(db):
             with col_info:
                 # HIGH-06: html.escape() on all DB-sourced values inside unsafe_allow_html
                 st.markdown(
-                    f"{icon} **{_html.escape(str(platform))}** (artiste #{int(artist_id)}) — "
-                    f"<span style='color:{_html.escape(color)};font-weight:bold'>"
-                    f"{_html.escape(state.upper())}</span> "
-                    f"— {int(failures)} échec(s)",
+                    t("etl_logs.cb_failures",
+                      "{icon} **{platform}** (artiste #{artist_id}) — "
+                      "<span style='color:{color};font-weight:bold'>{state}</span> "
+                      "— {failures} échec(s)").format(
+                          icon=icon,
+                          platform=_html.escape(str(platform)),
+                          artist_id=int(artist_id),
+                          color=_html.escape(color),
+                          state=_html.escape(state.upper()),
+                          failures=int(failures),
+                      ),
                     unsafe_allow_html=True,
                 )
                 if last_fail:
                     st.caption(
-                        f"Dernier échec : {pd.to_datetime(last_fail).strftime('%d/%m %H:%M')} | "
-                        + (f"Prochain retry : {pd.to_datetime(reset_at).strftime('%d/%m %H:%M')}" if reset_at else "")
+                        t("etl_logs.cb_last_failure", "Dernier échec : {last_fail} | ").format(
+                            last_fail=pd.to_datetime(last_fail).strftime('%d/%m %H:%M'))
+                        + (t("etl_logs.cb_next_retry", "Prochain retry : {reset_at}").format(
+                            reset_at=pd.to_datetime(reset_at).strftime('%d/%m %H:%M')) if reset_at else "")
                     )
                 if last_error:
-                    st.caption(f"Erreur : {last_error[:120]}")
+                    st.caption(t("etl_logs.cb_error", "Erreur : {error}").format(error=last_error[:120]))
 
             with col_btn:
-                if state != 'closed' and st.button("↺ Reset", key=f"cb_{platform}_{artist_id}"):
+                if state != 'closed' and st.button(t("etl_logs.cb_reset_btn", "↺ Reset"),
+                                                   key=f"cb_{platform}_{artist_id}"):
                     try:
                         from src.utils.circuit_breaker import reset_circuit
                         reset_circuit(platform, artist_id)
-                        st.success(f"Circuit {platform} réinitialisé.")
+                        st.success(t("etl_logs.cb_reset_ok", "Circuit {platform} réinitialisé.").format(platform=platform))
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Erreur : {e}")
+                        st.error(t("etl_logs.cb_reset_err", "Erreur : {err}").format(err=e))
 
 
 def _st_color(status: str) -> str:

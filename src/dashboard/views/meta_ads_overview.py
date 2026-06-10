@@ -2,12 +2,19 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 from src.dashboard.utils.charts import pareto_spend_cpr
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.utils.i18n import t
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
+_GENDER_SLUGS = {'Hommes': 'men', 'Femmes': 'women', 'Tous': 'all'}
+
+
+def _gender_label(code: str) -> str:
+    fr = _GENDER_LABELS.get(code, code or 'Tous')
+    slug = _GENDER_SLUGS.get(fr)
+    return t(f"meta_ads_overview.gender.{slug}", fr) if slug else fr
 # Adset targeting attribute the user can slice performance by (#9 Ciblage vs perf).
 _TARGETING_DIMS = {
     "Objectif d'optimisation": "optimization_goal",
@@ -17,20 +24,11 @@ _TARGETING_DIMS = {
 }
 
 def show():
-    st.title("📱 Méta Ads - Analyse Stratégique")
+    st.title(t("meta_ads_overview.title", "📱 Méta Ads - Analyse Stratégique"))
 
     # --- 1. CONNEXION & FILTRES ---
-    db = get_db_connection()
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error("Session invalide."); st.stop()
-        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
-
-    try:
+    with view_session() as (db, artist_id):
         _show_meta_ads(db, artist_id)
-    finally:
-        db.close()
 
 
 def _show_meta_ads(db, artist_id):
@@ -51,16 +49,16 @@ def _show_meta_ads(db, artist_id):
         )
         all_campaigns = df_list['campaign_name'].dropna().tolist()
     except Exception as e:
-        st.error(f"Erreur connexion BDD: {e}")
+        st.error(t("meta_ads_overview.db_error", "Erreur connexion BDD: {e}").format(e=e))
         return
 
     # Default selection: latest release (most recently launched campaign).
     default_main = all_campaigns[:1]
 
     # --- FILTRE PRINCIPAL ---
-    st.subheader("🎯 Périmètre d'Analyse")
+    st.subheader(t("meta_ads_overview.scope", "🎯 Périmètre d'Analyse"))
     selected_campaigns = st.multiselect(
-        "Sélectionnez les campagnes à analyser :",
+        t("meta_ads_overview.select_campaigns", "Sélectionnez les campagnes à analyser :"),
         options=all_campaigns,
         default=default_main
     )
@@ -109,39 +107,42 @@ def _show_meta_ads(db, artist_id):
         cpc = (tot_spend / tot_clicks)       if tot_clicks > 0 else 0
         cpr = (tot_spend / tot_conv)         if tot_conv > 0 else 0
 
-        st.markdown("### 🚀 Performance Globale")
+        st.markdown(t("meta_ads_overview.global_perf", "### 🚀 Performance Globale"))
         k1, k2, k3, k4, k5, k6 = st.columns(6)
-        k1.metric("Dépenses", f"{tot_spend:,.0f} €")
-        k2.metric("Impressions", f"{tot_impr:,.0f}")
-        k3.metric("Clics Lien", f"{tot_clicks:,.0f}")
+        k1.metric(t("meta_ads_overview.spend", "Dépenses"), f"{tot_spend:,.0f} €")
+        k2.metric(t("meta_ads_overview.impressions", "Impressions"), f"{tot_impr:,.0f}")
+        k3.metric(t("meta_ads_overview.link_clicks", "Clics Lien"), f"{tot_clicks:,.0f}")
         k4.metric("CPM", f"{cpm:.2f} €")
         k5.metric("CPC", f"{cpc:.2f} €")
-        k6.metric("CPR (Clics Spotify)", f"{cpr:.2f} €" if tot_conv > 0 else "— (CAPI requis)", delta_color="inverse")
+        k6.metric(t("meta_ads_overview.cpr_spotify", "CPR (Clics Spotify)"),
+                  f"{cpr:.2f} €" if tot_conv > 0 else t("meta_ads_overview.capi_required", "— (CAPI requis)"),
+                  delta_color="inverse")
 
         # Engagement
         if not df_eng.empty:
             for c in ['saves', 'shares', 'page_interactions']: df_eng[c] = pd.to_numeric(df_eng[c], errors='coerce').fillna(0)
-            st.markdown("##### ❤️ Engagement")
+            st.markdown(t("meta_ads_overview.engagement", "##### ❤️ Engagement"))
             e1, e2, e3 = st.columns(3)
             e1.metric("💾 Saves", f"{df_eng['saves'].sum():,.0f}")
             e2.metric("🔄 Shares", f"{df_eng['shares'].sum():,.0f}")
-            e3.metric("⚡ Interactions Totales", f"{df_eng['page_interactions'].sum():,.0f}")
+            e3.metric(t("meta_ads_overview.total_interactions", "⚡ Interactions Totales"), f"{df_eng['page_interactions'].sum():,.0f}")
 
     st.markdown("---")
 
     # ==============================================================================
     # 🔽 SECTION 1b : FUNNEL HYPEDDIT (Impressions → Clics → LP → Spotify)
     # ==============================================================================
-    st.subheader("🔽 Funnel de conversion Hypeddit")
+    st.subheader(t("meta_ads_overview.funnel_title", "🔽 Funnel de conversion Hypeddit"))
 
     if not df_perf.empty:
         has_capi = tot_conv > 0
         if not has_capi:
-            st.info(
+            st.info(t(
+                "meta_ads_overview.capi_info",
                 "Les clics Spotify (CAPI) seront visibles ici une fois le "
                 "Conversions API configuré sur Hypeddit. "
                 "Les 3 premières étapes du funnel sont déjà disponibles."
-            )
+            ))
 
         # Taux de conversion à chaque étape
         ctr_pct       = (tot_clicks / tot_impr * 100) if tot_impr > 0 else 0
@@ -150,20 +151,25 @@ def _show_meta_ads(db, artist_id):
 
         # KPIs d'étape
         f1, f2, f3, f4 = st.columns(4)
-        f1.metric("Impressions",   f"{tot_impr:,.0f}")
-        f2.metric("Clics sur pub", f"{tot_clicks:,.0f}", help=f"CTR : {ctr_pct:.2f} %")
-        f3.metric("Vues LP",       f"{tot_lp:,.0f}",     help=f"LP open rate : {lp_open_pct:.1f} % des clics")
+        f1.metric(t("meta_ads_overview.impressions", "Impressions"),   f"{tot_impr:,.0f}")
+        f2.metric(t("meta_ads_overview.ad_clicks", "Clics sur pub"), f"{tot_clicks:,.0f}",
+                  help=t("meta_ads_overview.ctr_help", "CTR : {v} %").format(v=f"{ctr_pct:.2f}"))
+        f3.metric(t("meta_ads_overview.lp_views", "Vues LP"),       f"{tot_lp:,.0f}",
+                  help=t("meta_ads_overview.lp_open_help", "LP open rate : {v} % des clics").format(v=f"{lp_open_pct:.1f}"))
         if has_capi:
-            f4.metric("Clics Spotify", f"{tot_conv:,.0f}", help=f"Taux LP→Spotify : {spotify_pct:.1f} %")
+            f4.metric(t("meta_ads_overview.spotify_clicks", "Clics Spotify"), f"{tot_conv:,.0f}",
+                      help=t("meta_ads_overview.lp_spotify_help", "Taux LP→Spotify : {v} %").format(v=f"{spotify_pct:.1f}"))
         else:
-            f4.metric("Clics Spotify", "— (CAPI)")
+            f4.metric(t("meta_ads_overview.spotify_clicks", "Clics Spotify"), "— (CAPI)")
 
         # Funnel chart
-        funnel_labels  = ["Impressions", "Clics pub", "Vues LP"]
+        funnel_labels  = [t("meta_ads_overview.impressions", "Impressions"),
+                          t("meta_ads_overview.funnel_clicks", "Clics pub"),
+                          t("meta_ads_overview.lp_views", "Vues LP")]
         funnel_values  = [tot_impr, tot_clicks, tot_lp]
         funnel_colors  = ["#636efa", "#00cc96", "#EF553B"]
         if has_capi:
-            funnel_labels.append("Clics Spotify")
+            funnel_labels.append(t("meta_ads_overview.spotify_clicks", "Clics Spotify"))
             funnel_values.append(tot_conv)
             funnel_colors.append("#1DB954")
 
@@ -195,11 +201,11 @@ def _show_meta_ads(db, artist_id):
 
             st.dataframe(
                 df_rates[display_cols].rename(columns={
-                    'campaign_name': 'Campagne',
-                    'impressions': 'Impressions',
-                    'link_clicks': 'Clics pub',
-                    'lp_views': 'Vues LP',
-                    'custom_conversions': 'Clics Spotify',
+                    'campaign_name': t("meta_ads_overview.col_campaign", "Campagne"),
+                    'impressions': t("meta_ads_overview.impressions", "Impressions"),
+                    'link_clicks': t("meta_ads_overview.funnel_clicks", "Clics pub"),
+                    'lp_views': t("meta_ads_overview.lp_views", "Vues LP"),
+                    'custom_conversions': t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
                 }),
                 width="stretch",
                 hide_index=True,
@@ -210,7 +216,7 @@ def _show_meta_ads(db, artist_id):
     # ==============================================================================
     # 📈 SECTION 2 : PERFORMANCE PAR CAMPAGNE (GRAPHIQUE PRINCIPAL)
     # ==============================================================================
-    st.subheader("📊 Performance par Campagne")
+    st.subheader(t("meta_ads_overview.perf_by_campaign", "📊 Performance par Campagne"))
 
     if not df_perf.empty:
         df_chart = df_perf.copy()
@@ -229,31 +235,33 @@ def _show_meta_ads(db, artist_id):
         # Axe Y1 (Gauche - Barres)
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['spend'],
-            name='Budget (€)', marker_color='rgba(255, 99, 97, 0.5)',
+            name=t("meta_ads_overview.budget_eur", "Budget (€)"), marker_color='rgba(255, 99, 97, 0.5)',
             yaxis='y', offsetgroup=1
         ))
 
         # Axe Y2 (Droite 1 - Barres fines)
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['results'],
-            name='Résultats natifs Meta (selon objectif)', marker_color='rgba(0, 63, 92, 0.9)',
+            name=t("meta_ads_overview.native_results", "Résultats natifs Meta (selon objectif)"),
+            marker_color='rgba(0, 63, 92, 0.9)',
             yaxis='y2', offsetgroup=2
         ))
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['link_clicks'],
-            name='Clics Lien', marker_color='rgba(88, 80, 141, 0.7)',
+            name=t("meta_ads_overview.link_clicks", "Clics Lien"), marker_color='rgba(88, 80, 141, 0.7)',
             yaxis='y2', offsetgroup=2, visible=True
         ))
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['page_interactions'],
-            name='Interactions', marker_color='rgba(255, 166, 0, 0.7)',
+            name=t("meta_ads_overview.interactions", "Interactions"), marker_color='rgba(255, 166, 0, 0.7)',
             yaxis='y2', offsetgroup=2, visible=True
         ))
 
         # Impressions
         fig.add_trace(go.Scatter(
             x=df_chart['campaign_name'], y=df_chart['impressions'],
-            name='Impressions', mode='markers', marker=dict(symbol='star', size=10, color='#333'),
+            name=t("meta_ads_overview.impressions", "Impressions"), mode='markers',
+            marker=dict(symbol='star', size=10, color='#333'),
             yaxis='y2', visible='legendonly'
         ))
 
@@ -280,11 +288,11 @@ def _show_meta_ads(db, artist_id):
 
         fig.update_layout(
             height=600,
-            title="Vue 360° : Budget vs Volumes vs Ratios",
-            xaxis=dict(title="Campagnes", domain=[0, 0.85]),
-            yaxis=dict(title=dict(text="Budget (€)", font=dict(color="#ff6361"))),
-            yaxis2=dict(title=dict(text="Volumes", font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right"),
-            yaxis3=dict(title=dict(text="Ratios (€)", font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.92),
+            title=t("meta_ads_overview.chart_360", "Vue 360° : Budget vs Volumes vs Ratios"),
+            xaxis=dict(title=t("meta_ads_overview.campaigns", "Campagnes"), domain=[0, 0.85]),
+            yaxis=dict(title=dict(text=t("meta_ads_overview.budget_eur", "Budget (€)"), font=dict(color="#ff6361"))),
+            yaxis2=dict(title=dict(text=t("meta_ads_overview.volumes", "Volumes"), font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right"),
+            yaxis3=dict(title=dict(text=t("meta_ads_overview.ratios_eur", "Ratios (€)"), font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.92),
             legend=dict(orientation="h", y=1.12),
             hovermode="x unified",
             barmode='group'
@@ -296,8 +304,9 @@ def _show_meta_ads(db, artist_id):
     # ==============================================================================
     # 📊 SECTION 2b : COMPARAISON MULTI-MÉTRIQUES PAR CAMPAGNE
     # ==============================================================================
-    st.subheader("📊 Comparaison multi-métriques par campagne")
-    st.caption("Une rangée par métrique, échelles indépendantes. Cliquez une entrée de légende pour la masquer.")
+    st.subheader(t("meta_ads_overview.multi_metric", "📊 Comparaison multi-métriques par campagne"))
+    st.caption(t("meta_ads_overview.multi_metric_caption",
+                 "Une rangée par métrique, échelles indépendantes. Cliquez une entrée de légende pour la masquer."))
 
     if not df_perf.empty:
         df_multi = df_perf[['campaign_name', 'spend', 'impressions',
@@ -312,31 +321,33 @@ def _show_meta_ads(db, artist_id):
         df_multi = df_multi.fillna(0)
 
         metric_labels = {
-            'spend':              'Dépenses (€)',
-            'impressions':        'Impressions',
-            'link_clicks':        'Clics pub',
-            'lp_views':           'Vues LP',
-            'custom_conversions': 'Clics Spotify',
+            'spend':              t("meta_ads_overview.spend_eur", "Dépenses (€)"),
+            'impressions':        t("meta_ads_overview.impressions", "Impressions"),
+            'link_clicks':        t("meta_ads_overview.funnel_clicks", "Clics pub"),
+            'lp_views':           t("meta_ads_overview.lp_views", "Vues LP"),
+            'custom_conversions': t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
             'saves':              'Saves',
             'shares':             'Shares',
-            'page_interactions':  'Interactions',
+            'page_interactions':  t("meta_ads_overview.interactions", "Interactions"),
         }
+        var_col = t("meta_ads_overview.metric", "Métrique")
+        val_col = t("meta_ads_overview.value", "Valeur")
         df_multi = df_multi.rename(columns=metric_labels)
         df_long = df_multi.melt(
             id_vars='campaign_name',
             value_vars=list(metric_labels.values()),
-            var_name='Métrique',
-            value_name='Valeur',
+            var_name=var_col,
+            value_name=val_col,
         )
 
         fig_multi = px.bar(
             df_long,
-            x='campaign_name', y='Valeur',
-            facet_row='Métrique',
-            color='Métrique',
-            category_orders={'Métrique': list(metric_labels.values())},
+            x='campaign_name', y=val_col,
+            facet_row=var_col,
+            color=var_col,
+            category_orders={var_col: list(metric_labels.values())},
             height=130 * len(metric_labels),
-            labels={'campaign_name': 'Campagne'},
+            labels={'campaign_name': t("meta_ads_overview.col_campaign", "Campagne")},
         )
         # Independent Y-axis per metric so volumes (impressions) and small counts (shares) both visible
         fig_multi.update_yaxes(matches=None, showticklabels=True, title_text="")
@@ -350,14 +361,14 @@ def _show_meta_ads(db, artist_id):
         )
         st.plotly_chart(fig_multi, width="stretch")
     else:
-        st.info("Aucune donnée de campagne pour les filtres sélectionnés.")
+        st.info(t("meta_ads_overview.no_campaign_data", "Aucune donnée de campagne pour les filtres sélectionnés."))
 
     st.markdown("---")
 
     # ==============================================================================
     # ⏳ SECTION 3 : ÉVOLUTION TEMPORELLE
     # ==============================================================================
-    st.subheader("⏳ Évolution Temporelle (Budget vs Résultat vs CPR)")
+    st.subheader(t("meta_ads_overview.time_evolution", "⏳ Évolution Temporelle (Budget vs Résultat vs CPR)"))
 
     query_day = (
         "SELECT day_date, SUM(spend) as spend, SUM(results) as results, "
@@ -373,28 +384,28 @@ def _show_meta_ads(db, artist_id):
         df_day['cpr'] = (df_day['spend'] / df_day['custom_conversions']).where(df_day['custom_conversions'] > 0).fillna(0)
 
         fig_time = go.Figure()
-        fig_time.add_trace(go.Bar(x=df_day['day_date'], y=df_day['spend'], name='Dépenses (€)', marker_color='rgba(255, 99, 97, 0.4)', yaxis='y'))
-        fig_time.add_trace(go.Scatter(x=df_day['day_date'], y=df_day['custom_conversions'], name='Clics Spotify', mode='lines', line=dict(color='#1DB954', width=3), yaxis='y2'))
+        fig_time.add_trace(go.Bar(x=df_day['day_date'], y=df_day['spend'], name=t("meta_ads_overview.spend_eur", "Dépenses (€)"), marker_color='rgba(255, 99, 97, 0.4)', yaxis='y'))
+        fig_time.add_trace(go.Scatter(x=df_day['day_date'], y=df_day['custom_conversions'], name=t("meta_ads_overview.spotify_clicks", "Clics Spotify"), mode='lines', line=dict(color='#1DB954', width=3), yaxis='y2'))
         fig_time.add_trace(go.Scatter(x=df_day['day_date'], y=df_day['cpr'], name='CPR (€)', mode='lines+markers', line=dict(color='#bc5090', width=2, dash='dot'), yaxis='y3'))
 
         fig_time.update_layout(
-            height=500, title="Dynamique Quotidienne", hovermode="x unified",
+            height=500, title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"), hovermode="x unified",
             xaxis=dict(domain=[0, 0.9]),
-            yaxis=dict(title=dict(text="Budget (€)", font=dict(color="#ff6361")), showgrid=False),
-            yaxis2=dict(title=dict(text="Résultats", font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right", showgrid=False),
+            yaxis=dict(title=dict(text=t("meta_ads_overview.budget_eur", "Budget (€)"), font=dict(color="#ff6361")), showgrid=False),
+            yaxis2=dict(title=dict(text=t("meta_ads_overview.results", "Résultats"), font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right", showgrid=False),
             yaxis3=dict(title=dict(text="CPR (€)", font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.95, showgrid=False),
             legend=dict(orientation="h", y=1.1)
         )
         st.plotly_chart(fig_time, width="stretch")
     else:
-        st.info("Pas de données temporelles.")
+        st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
 
     st.markdown("---")
 
     # ==============================================================================
     # 🌍 SECTION 4 : PARETOS (PAYS, PLACEMENT, AGE)
     # ==============================================================================
-    st.subheader("🎯 Répartitions & Efficacité (Pareto CPR)")
+    st.subheader(t("meta_ads_overview.pareto_section", "🎯 Répartitions & Efficacité (Pareto CPR)"))
 
     def create_pareto_chart(df, x_col, title):
         if df.empty: return None
@@ -404,11 +415,11 @@ def _show_meta_ads(db, artist_id):
         df = df.sort_values('spend', ascending=False).head(15)
 
         fig = go.Figure()
-        fig.add_trace(go.Bar(x=df[x_col], y=df['spend'], name='Dépenses (€)', marker_color='rgba(0, 63, 92, 0.6)', yaxis='y'))
+        fig.add_trace(go.Bar(x=df[x_col], y=df['spend'], name=t("meta_ads_overview.spend_eur", "Dépenses (€)"), marker_color='rgba(0, 63, 92, 0.6)', yaxis='y'))
         fig.add_trace(go.Scatter(x=df[x_col], y=df['cpr'], name='CPR (€)', mode='lines+markers+text', text=df['cpr'].apply(lambda x: f"{x:.2f}€"), textposition="top center", line=dict(color='#ff6361', width=3), yaxis='y2'))
 
         fig.update_layout(
-            title=title, yaxis=dict(title="Dépenses (€)", showgrid=False),
+            title=title, yaxis=dict(title=t("meta_ads_overview.spend_eur", "Dépenses (€)"), showgrid=False),
             yaxis2=dict(title="CPR (€)", overlaying='y', side='right', showgrid=False),
             showlegend=False, height=400
         )
@@ -434,18 +445,18 @@ def _show_meta_ads(db, artist_id):
 
     c1, c2 = st.columns(2)
     with c1:
-        if fig_country := create_pareto_chart(df_country, 'country', "Pays (Top Dépenses)"): st.plotly_chart(fig_country, width="stretch")
+        if fig_country := create_pareto_chart(df_country, 'country', t("meta_ads_overview.pareto_country", "Pays (Top Dépenses)")): st.plotly_chart(fig_country, width="stretch")
     with c2:
-        if fig_place := create_pareto_chart(df_place, 'placement', "Placements"): st.plotly_chart(fig_place, width="stretch")
+        if fig_place := create_pareto_chart(df_place, 'placement', t("meta_ads_overview.pareto_placement", "Placements")): st.plotly_chart(fig_place, width="stretch")
 
-    if fig_age := create_pareto_chart(df_age, 'age_range', "Performance par Âge"): st.plotly_chart(fig_age, width="stretch")
+    if fig_age := create_pareto_chart(df_age, 'age_range', t("meta_ads_overview.pareto_age", "Performance par Âge")): st.plotly_chart(fig_age, width="stretch")
 
     st.markdown("---")
 
     # ==============================================================================
     # 📋 SECTION 5 : DONNÉES BRUTES (TABLEAU COMPLET)
     # ==============================================================================
-    st.subheader("🗃️ Tableau Récapitulatif")
+    st.subheader(t("meta_ads_overview.summary_table", "🗃️ Tableau Récapitulatif"))
 
     # ⚠️ %% in CTR column alias avoids Python IndexError in format strings
     _campaign_in_p = (
@@ -481,8 +492,9 @@ def _show_meta_ads(db, artist_id):
     # 🎯 SECTION 6 : CIBLAGE vs PERFORMANCE (#9) — quel ciblage adset performe
     # ==============================================================================
     st.markdown("---")
-    st.subheader("🎯 Ciblage vs Performance")
-    st.caption("Dépense & CPR agrégés par attribut de ciblage des ad sets (résultats ad-level).")
+    st.subheader(t("meta_ads_overview.targeting_perf", "🎯 Ciblage vs Performance"))
+    st.caption(t("meta_ads_overview.targeting_caption",
+                 "Dépense & CPR agrégés par attribut de ciblage des ad sets (résultats ad-level)."))
 
     df_tgt = db.fetch_df(
         """
@@ -498,20 +510,27 @@ def _show_meta_ads(db, artist_id):
         (artist_id,),
     )
     if df_tgt.empty:
-        st.info("Aucune donnée de ciblage ad set disponible.")
+        st.info(t("meta_ads_overview.no_targeting_data", "Aucune donnée de ciblage ad set disponible."))
     else:
-        df_tgt['gender'] = df_tgt['gender'].fillna('').astype(str).map(
-            lambda g: _GENDER_LABELS.get(g, g or 'Tous'))
-        df_tgt['publisher_platforms'] = df_tgt['publisher_platforms'].fillna('').replace('', 'Toutes')
-        df_tgt['optimization_goal'] = df_tgt['optimization_goal'].fillna('Inconnu')
+        df_tgt['gender'] = df_tgt['gender'].fillna('').astype(str).map(_gender_label)
+        df_tgt['publisher_platforms'] = df_tgt['publisher_platforms'].fillna('').replace(
+            '', t("meta_ads_overview.all_platforms", 'Toutes'))
+        df_tgt['optimization_goal'] = df_tgt['optimization_goal'].fillna(
+            t("meta_ads_overview.unknown", 'Inconnu'))
         df_tgt['age_band'] = (
             df_tgt['age_min'].fillna('').astype(str) + '–' + df_tgt['age_max'].fillna('').astype(str)
-        ).str.strip('–').replace('', 'Non spécifié')
+        ).str.strip('–').replace('', t("meta_ads_overview.age_unspecified", 'Non spécifié'))
 
-        dim_label = st.selectbox("Découper par", list(_TARGETING_DIMS.keys()), key="tgt_dim")
+        dim_label = st.selectbox(
+            t("meta_ads_overview.slice_by", "Découper par"), list(_TARGETING_DIMS.keys()),
+            key="tgt_dim",
+            format_func=lambda lbl: t(f"meta_ads_overview.dim.{_TARGETING_DIMS[lbl]}", lbl))
         dim_col = _TARGETING_DIMS[dim_label]
+        dim_disp = t(f"meta_ads_overview.dim.{dim_col}", dim_label)
         agg = df_tgt.groupby(dim_col, as_index=False).agg(spend=('spend', 'sum'),
                                                           results=('results', 'sum'))
-        fig_tgt = pareto_spend_cpr(agg, dim_col, f"Dépense & CPR par {dim_label.lower()}")
+        fig_tgt = pareto_spend_cpr(
+            agg, dim_col,
+            t("meta_ads_overview.pareto_by_dim", "Dépense & CPR par {dim}").format(dim=dim_disp.lower()))
         if fig_tgt is not None:
             st.plotly_chart(fig_tgt, width="stretch")

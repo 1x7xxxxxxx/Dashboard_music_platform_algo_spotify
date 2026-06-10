@@ -46,45 +46,28 @@ default_args = {
 def check_for_new_csv(**context):
     """
     Vérifie s'il y a de nouveaux CSV à traiter dans le dossier raw.
-    
+
     Returns:
         str: 'process_csv' si fichiers trouvés, 'skip_processing' sinon
     """
-    try:
-        # Dossier où les CSV sont déposés
-        raw_dir = Path('/opt/airflow/data/raw/spotify_for_artists')
-        raw_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Chercher tous les fichiers .csv
-        csv_files = list(raw_dir.glob('*.csv'))
-        
-        logger.info(f'📁 Scan du dossier: {raw_dir}')
-        logger.info(f'📊 {len(csv_files)} fichier(s) CSV trouvé(s)')
-        
-        if csv_files:
-            # Afficher la liste des fichiers
-            for csv_file in csv_files:
-                logger.info(f'   📄 {csv_file.name}')
-            
-            # Pousser la liste des fichiers dans XCom pour la tâche suivante
-            file_paths = [str(f) for f in csv_files]
-            context['task_instance'].xcom_push(
-                key='csv_files',
-                value=file_paths
-            )
-            
-            # Indiquer qu'il faut traiter les fichiers
-            return 'process_csv_files'
-        else:
-            logger.info('ℹ️  Aucun nouveau CSV à traiter')
-            # Passer à la tâche de fin sans traitement
-            return 'skip_processing'
-        
-    except Exception as e:
-        logger.error(f'❌ Erreur lors de la vérification des CSV: {e}')
-        import traceback
-        logger.error(traceback.format_exc())
+    # No try/except: a scan failure (permissions, XCom) must FAIL the task so the
+    # retry + failure callback engage — never silently route to skip_processing
+    # (a zero-row SUCCESS run that hides the error).
+    raw_dir = Path('/opt/airflow/data/raw/spotify_for_artists')
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_files = list(raw_dir.glob('*.csv'))
+    logger.info(f'📁 Scan du dossier: {raw_dir}')
+    logger.info(f'📊 {len(csv_files)} fichier(s) CSV trouvé(s)')
+
+    if not csv_files:
+        logger.info('ℹ️  Aucun nouveau CSV à traiter')
         return 'skip_processing'
+
+    for csv_file in csv_files:
+        logger.info(f'   📄 {csv_file.name}')
+    context['task_instance'].xcom_push(key='csv_files', value=[str(f) for f in csv_files])
+    return 'process_csv_files'
 
 
 def process_csv_files(**context):
@@ -94,24 +77,24 @@ def process_csv_files(**context):
     try:
         from src.transformers.s4a_csv_parser import S4ACSVParser
         from src.database.postgres_handler import PostgresHandler
-        
+
         logger.info('='*70)
         logger.info('🔄 TRAITEMENT DES CSV SPOTIFY FOR ARTISTS')
         logger.info('='*70)
-        
+
         # Récupérer la liste des fichiers depuis XCom
         csv_files = context['task_instance'].xcom_pull(
             task_ids='check_new_csv',
             key='csv_files'
         )
-        
+
         if not csv_files:
             logger.warning('⚠️  Aucun fichier CSV dans XCom')
             return 0
-        
+
         # Initialiser le parser
         parser = S4ACSVParser()
-        
+
         # Connexion à PostgreSQL
         db = PostgresHandler(
             host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -120,7 +103,7 @@ def process_csv_files(**context):
             user=os.getenv('DATABASE_USER', 'postgres'),
             password=os.getenv('DATABASE_PASSWORD')
         )
-        
+
         # artist_id depuis conf ou défaut 1
         conf = context.get('dag_run').conf or {}
         artist_id = int(conf.get('artist_id', 1))
@@ -154,20 +137,33 @@ def process_csv_files(**context):
             # Injecter artist_id dans chaque ligne
             for row in data:
                 row['artist_id'] = artist_id
-            
+
             logger.info(f'   🏷️  Type: {csv_type}')
             logger.info(f'   📊 Enregistrements: {len(data)}')
-            
+
             # Stocker dans PostgreSQL selon le type
             try:
                 if csv_type == 'songs_global':
+                    # NOTE: parse_csv_file currently builds no songs_global rows
+                    # (timeline-only), so this branch is inactive — the upload UI is
+                    # the canonical songs_global path. Keys aligned to the schema +
+                    # upload view so it stays correct if the parser is extended:
+                    # time_window is part of the UNIQUE constraint (28d vs 12m).
                     count = db.upsert_many(
                         table='s4a_songs_global',
                         data=data,
-                        conflict_columns=['artist_id', 'song'],
-                        update_columns=['listeners', 'streams', 'saves', 'release_date', 'collected_at']
+                        conflict_columns=['artist_id', 'song', 'time_window'],
+                        update_columns=['listeners', 'streams', 'saves', 'release_date',
+                                        'time_window', 'collected_at']
                     )
                     logger.info(f'   ✅ {count} chanson(s) stockée(s)')
+                    # Mirror the upload view: rebuild the canonical release-date
+                    # reference after a songs_global import. Best-effort.
+                    try:
+                        from src.utils.track_matching import rebuild_release_reference
+                        rebuild_release_reference(db, artist_id)
+                    except Exception as ref_exc:  # noqa: BLE001 — reference is best-effort
+                        logger.warning(f'   ⚠️ release reference not rebuilt: {ref_exc}')
 
                 elif csv_type == 'song_timeline':
                     count = db.upsert_many(
@@ -186,47 +182,47 @@ def process_csv_files(**context):
                         update_columns=['listeners', 'streams', 'followers', 'collected_at']
                     )
                     logger.info(f'   ✅ {count} jour(s) d\'audience stocké(s)')
-                
+
                 else:
                     logger.error(f'   ❌ Type non supporté: {csv_type}')
                     continue
-                
+
                 total_records += len(data)
-                
+
                 # Archiver le fichier traité avec succès
                 archive_dir = Path('/opt/airflow/data/processed/spotify_for_artists')
                 archive_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 # Nom du fichier archivé avec timestamp
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 new_name = f"{csv_file.stem}_{timestamp}{csv_file.suffix}"
                 archive_path = archive_dir / new_name
-                
+
                 # Déplacer le fichier
                 csv_file.rename(archive_path)
                 logger.info(f'   📦 Archivé: {archive_path.name}')
-                
+
                 processed_count += 1
-                
+
             except Exception as e:
                 logger.error(f'   ❌ Erreur stockage: {e}')
                 import traceback
                 logger.error(traceback.format_exc())
                 continue
-        
+
         # Fermer la connexion DB
         db.close()
-        
+
         # Résumé final
         logger.info('\n' + '='*70)
-        logger.info(f'✅ TRAITEMENT TERMINÉ')
+        logger.info('✅ TRAITEMENT TERMINÉ')
         logger.info('='*70)
         logger.info(f'📊 Fichiers traités: {processed_count}/{len(csv_files)}')
         logger.info(f'📊 Enregistrements stockés: {total_records}')
         logger.info('='*70)
-        
+
         return processed_count
-        
+
     except Exception as e:
         logger.error(f'❌ Erreur globale traitement CSV: {e}')
         import traceback
@@ -245,32 +241,32 @@ with DAG(
     tags=['spotify', 's4a', 'csv', 'production'],
     max_active_runs=1,  # Une seule exécution à la fois
 ) as dag:
-    
+
     # Tâche 1: Vérifier s'il y a de nouveaux CSV (avec branchement)
     check_csv_task = BranchPythonOperator(
         task_id='check_new_csv',
         python_callable=check_for_new_csv,
         provide_context=True,
     )
-    
+
     # Tâche 2: Traiter les CSV trouvés
     process_csv_task = PythonOperator(
         task_id='process_csv_files',
         python_callable=process_csv_files,
         provide_context=True,
     )
-    
+
     # Tâche 3: Fin (si pas de fichiers à traiter)
     skip_task = EmptyOperator(
         task_id='skip_processing'
     )
-    
+
     # Tâche 4: Fin (après traitement)
     end_task = EmptyOperator(
         task_id='end',
         trigger_rule='none_failed_min_one_success'  # Continue si au moins une branche réussit
     )
-    
+
     # Définir le flux d'exécution
     # Le check_csv_task décide quelle branche prendre
     check_csv_task >> [process_csv_task, skip_task]

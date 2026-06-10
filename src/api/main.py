@@ -28,6 +28,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from src.api.routers import auth, artists, streams, youtube, ml, kpis, stripe_webhook  # noqa: E402
+from src.api.security import install as install_security  # noqa: E402
 
 app = FastAPI(
     title="Music Platform API",
@@ -39,6 +40,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# C3 hardening: sliding-window rate limit + security response headers
+install_security(app)
 
 # Allow the local Streamlit dashboard and any future frontend to call the API
 app.add_middleware(

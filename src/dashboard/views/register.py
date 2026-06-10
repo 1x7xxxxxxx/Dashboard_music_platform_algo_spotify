@@ -12,8 +12,9 @@ import secrets
 import streamlit as st
 
 from src.dashboard.utils import project_db
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import hash_password, _validate_password_strength
-from src.utils.verification_email import send_verification_email, send_welcome_email
+from src.utils.verification_email import send_verification_email
 from src.utils.plan_history import log_plan_change
 
 
@@ -27,20 +28,24 @@ WELCOME_TRIAL_DAYS = 30
 def _validate(artist_name, slug, username, email, pw, pw2, terms: bool) -> list[str]:
     errors = []
     if not artist_name.strip():
-        errors.append("Artist name is required.")
+        errors.append(t("register.err_artist_name", "Le nom d'artiste est requis."))
     if not _SLUG_RE.fullmatch(slug):
-        errors.append("Slug: lowercase letters, digits, hyphens and underscores only.")
+        errors.append(t("register.err_slug",
+                        "Slug : lettres minuscules, chiffres, tirets et underscores uniquement."))
     if not _USERNAME_RE.fullmatch(username):
-        errors.append("Username: 3–50 characters, letters/digits/underscores only.")
+        errors.append(t("register.err_username",
+                        "Nom d'utilisateur : 3–50 caractères, lettres/chiffres/underscores uniquement."))
     if not email or not re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
-        errors.append("A valid email address is required.")
+        errors.append(t("register.err_email", "Une adresse email valide est requise."))
     pw_error = _validate_password_strength(pw)
     if pw_error:
         errors.append(pw_error)
     if pw != pw2:
-        errors.append("Passwords do not match.")
+        errors.append(t("register.err_pw_mismatch", "Les mots de passe ne correspondent pas."))
     if not terms:
-        errors.append("You must accept the Privacy Policy and Terms of Use to register.")
+        errors.append(t("register.err_terms",
+                        "Vous devez accepter la Politique de confidentialité et les Conditions "
+                        "d'utilisation pour vous inscrire."))
     return errors
 
 
@@ -229,29 +234,33 @@ def _create_artist_and_user(
 
 
 def show():
-    st.title("🎵 Create your account")
-    st.caption("Join the Music Dashboard. Free plan — upgrade anytime.")
+    st.title(t("register.title", "🎵 Créez votre compte"))
+    st.caption(t("register.subtitle",
+                 "Rejoignez Music Dashboard. Plan gratuit — passez à un plan supérieur à tout moment."))
 
     # Brick 32 — Live Activity (public trust signal). Count only, no PII.
     # Cached 10 min server-side to absorb anonymous traffic bursts.
     from src.dashboard.utils.live_pulse import get_registered_count_public
     _registered = get_registered_count_public()
     if _registered > 0:
-        st.metric("Live Activity", f"{_registered:,} artistes utilisent streaMLytics")
+        st.metric("Live Activity",
+                  t("register.live_activity", "{n} artistes utilisent streaMLytics").format(
+                      n=f"{_registered:,}"))
         st.markdown("---")
 
     with st.form("register"):
         col1, col2 = st.columns(2)
 
         artist_name = col1.text_input(
-            "Artist name *",
-            placeholder="e.g. 1x7xxxxxxx",
-            help="Your public artist name.",
+            t("register.artist_name", "Nom d'artiste *"),
+            placeholder=t("register.artist_name_ph", "ex. 1x7xxxxxxx"),
+            help=t("register.artist_name_help", "Votre nom d'artiste public."),
         )
         slug = col2.text_input(
-            "Slug *",
-            placeholder="e.g. 1x7xxxxxxx",
-            help="Unique identifier — lowercase, no spaces. Auto-filled from artist name.",
+            t("register.slug", "Slug *"),
+            placeholder=t("register.slug_ph", "ex. 1x7xxxxxxx"),
+            help=t("register.slug_help",
+                   "Identifiant unique — minuscules, sans espaces. Auto-rempli depuis le nom d'artiste."),
         )
 
         # Auto-fill slug from artist name
@@ -260,37 +269,44 @@ def show():
             slug = re.sub(r'-+', '-', slug).strip('-')
 
         username = st.text_input(
-            "Username *",
-            placeholder="e.g. john_artist",
-            help="Used to log in. 3–50 characters.",
+            t("register.username", "Nom d'utilisateur *"),
+            placeholder=t("register.username_ph", "ex. john_artist"),
+            help=t("register.username_help", "Utilisé pour vous connecter. 3–50 caractères."),
         )
-        email = st.text_input("Email *", placeholder="you@example.com")
+        email = st.text_input(t("register.email", "Email *"),
+                              placeholder=t("register.email_ph", "vous@exemple.com"))
 
         col3, col4 = st.columns(2)
-        pw  = col3.text_input("Password *", type="password", help="Minimum 8 characters.")
-        pw2 = col4.text_input("Confirm password *", type="password")
+        pw  = col3.text_input(t("register.password", "Mot de passe *"), type="password",
+                              help=t("register.pw_help", "8 caractères minimum."))
+        pw2 = col4.text_input(t("register.confirm_password", "Confirmer le mot de passe *"), type="password")
 
         referral_code = st.text_input(
-            "Promo or referral code (optional)",
-            placeholder="e.g. A3F8C1",
-            help="Promo code (free access) or referral code from a friend (20% off first month).",
+            t("register.referral_code", "Code promo ou parrainage (optionnel)"),
+            placeholder=t("register.referral_ph", "ex. A3F8C1"),
+            help=t("register.referral_help",
+                   "Code promo (accès gratuit) ou code de parrainage d'un ami "
+                   "(20% sur le premier mois)."),
         ).strip().upper()
 
         st.markdown("---")
         terms = st.checkbox(
-            "I accept the [Privacy Policy](?page=privacy) and Terms of Use *",
+            t("register.terms_checkbox",
+              "J'accepte la [Politique de confidentialité](?page=privacy) et les Conditions d'utilisation *"),
             value=False,
-            help="Required to create an account.",
+            help=t("register.terms_help", "Requis pour créer un compte."),
         )
         marketing = st.checkbox(
-            "I agree to receive news, updates and marketing communications by email (optional)",
+            t("register.marketing_checkbox",
+              "J'accepte de recevoir des actualités, mises à jour et communications marketing "
+              "par email (optionnel)"),
             value=False,
-            help="You can withdraw this consent at any time.",
+            help=t("register.marketing_help", "Vous pouvez retirer ce consentement à tout moment."),
         )
 
-        submitted = st.form_submit_button("Create account", type="primary")
+        submitted = st.form_submit_button(t("register.submit", "Créer le compte"), type="primary")
 
-    st.markdown("[Already have an account? **Sign in**](?page=login)")
+    st.markdown(t("register.already_have", "[Vous avez déjà un compte ? **Connectez-vous**](?page=login)"))
 
     if not submitted:
         return
@@ -304,13 +320,16 @@ def show():
     with project_db() as db:
         try:
             if _slug_taken(db, slug):
-                st.error(f"Slug '{slug}' is already taken. Choose a different one.")
+                st.error(t("register.slug_taken",
+                           "Le slug '{slug}' est déjà pris. Choisissez-en un autre.").format(slug=slug))
                 return
             if _username_taken(db, username):
-                st.error(f"Username '{username}' is already taken.")
+                st.error(t("register.username_taken",
+                           "Le nom d'utilisateur '{u}' est déjà pris.").format(u=username))
                 return
             if _email_taken(db, email):
-                st.error(f"Email '{email}' is already registered.")
+                st.error(t("register.email_taken",
+                           "L'email '{e}' est déjà enregistré.").format(e=email))
                 return
 
             # Resolve code type: promo takes priority over referral
@@ -322,7 +341,9 @@ def show():
                 if promo is None:
                     referrer_artist_id = _validate_referral_code(db, referral_code)
                     if referrer_artist_id is None:
-                        st.error(f"Code '{referral_code}' is not valid or has expired.")
+                        st.error(t("register.code_invalid",
+                                   "Le code '{code}' n'est pas valide ou a expiré.").format(
+                                       code=referral_code))
                         return
                     discount_pct = 20
 
@@ -346,29 +367,39 @@ def show():
                 log_plan_change(db, new_artist_id, 'premium', 'welcome_trial')
 
             if promo:
-                discount_msg = f" Your **{promo['plan_target'].capitalize()} plan** is active for **{promo['duration_days']} days**."
+                discount_msg = t("register.promo_active",
+                                 " Votre **plan {plan}** est actif pendant **{days} jours**.").format(
+                                     plan=promo['plan_target'].capitalize(),
+                                     days=promo['duration_days'])
             else:
-                discount_msg = (
-                    f" Vous bénéficiez de **{WELCOME_TRIAL_DAYS} jours d'accès Premium offerts**."
-                )
+                discount_msg = t("register.welcome_trial",
+                                 " Vous bénéficiez de **{days} jours d'accès Premium offerts**.").format(
+                                     days=WELCOME_TRIAL_DAYS)
                 if discount_pct:
-                    discount_msg += " Un **rabais de 20%** sera appliqué à votre premier mois payant."
+                    discount_msg += t("register.referral_discount",
+                                      " Un **rabais de 20%** sera appliqué à votre premier mois payant.")
             email_sent = send_verification_email(email, username, token)
-            # Welcome email recapping the first onboarding actions (non-blocking).
-            send_welcome_email(email, username, WELCOME_TRIAL_DAYS)
+            # The welcome email + onboarding guide PDF is sent AFTER the user confirms
+            # their address (see app._verify_email), not here — so the guide only reaches
+            # a proven-deliverable inbox.
             if email_sent:
                 st.success(
-                    f"✅ Account created for **{artist_name}**!{discount_msg} "
-                    f"A verification email has been sent to **{email}**. "
-                    "Click the link in the email to activate your account."
+                    t("register.success",
+                      "✅ Compte créé pour **{name}** !{msg} "
+                      "Un email de vérification a été envoyé à **{email}**. "
+                      "Cliquez sur le lien dans l'email pour activer votre compte.").format(
+                          name=artist_name, msg=discount_msg, email=email)
                 )
             else:
                 st.warning(
-                    f"✅ Account created for **{artist_name}**,{discount_msg} but the verification email "
-                    "could not be sent (SMTP not configured). "
-                    "Ask an admin to manually verify your account."
+                    t("register.email_failed",
+                      "✅ Compte créé pour **{name}**,{msg} mais l'email de vérification "
+                      "n'a pas pu être envoyé (SMTP non configuré). "
+                      "Demandez à un admin de vérifier votre compte manuellement.").format(
+                          name=artist_name, msg=discount_msg)
                 )
-            st.link_button("→ Configurer votre dashboard (2 min)", "/?page=onboarding")
+            st.link_button(t("register.onboarding_btn", "→ Configurer votre dashboard (2 min)"),
+                           "/?page=onboarding")
 
         except Exception as e:
-            st.error(f"Registration failed: {e}")
+            st.error(t("register.failed", "Échec de l'inscription : {err}").format(err=e))

@@ -1,17 +1,24 @@
 """trigger_algo — _show_tab_model (move-only split)."""
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils import ml_widgets
+from src.dashboard.utils.i18n import t
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 
 def _show_tab_model(db, track: str, artist_id):
+    st.caption(t(
+        "trigger_algo.model.caption",
+        "📈 **Sous le capot** — la fiabilité technique du modèle ML : précision de "
+        "classification par algo, et comparaison « prédit vs réel ». Pour juger à quel "
+        "point tu peux faire confiance aux probabilités affichées dans les autres onglets."
+    ))
     for _algo in ak.populated_algos():
         if _algo in ak.ALGO_MODEL_METRICS:
             ml_widgets.render_classification_scorecard(_algo, compact=True)
     st.markdown("---")
-    st.subheader("📊 Actual vs Predicted — Streams 7j")
+    st.subheader(t("trigger_algo.model.actual_vs_pred", "📊 Actual vs Predicted — Streams 7j"))
     try:
         if artist_id:
             df_hist = db.fetch_df(
@@ -37,42 +44,54 @@ def _show_tab_model(db, track: str, artist_id):
             )
 
         if df_hist.empty or len(df_hist) < 2:
-            st.info("Historique insuffisant (minimum 2 prédictions avec streams_7d renseigné).")
+            st.info(t("trigger_algo.model.insufficient_history",
+                      "Historique insuffisant (minimum 2 prédictions avec streams_7d renseigné)."))
             return
 
-        df_hist = df_hist.dropna(subset=["actual", "predicted_dw"])
+        # Only `actual` is guaranteed (SQL filters streams_7d IS NOT NULL). Each algo
+        # subplot drops NaN on its OWN forecast column — do NOT drop on predicted_dw
+        # globally: the DW volume regressor is frozen by design (R²<0), so predicted_dw
+        # is always NULL and a global dropna would wipe RR/Radio too.
+        df_hist = df_hist.dropna(subset=["actual"])
         df_hist["prediction_date"] = pd.to_datetime(df_hist["prediction_date"])
 
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.write("**DW forecast**")
-            max_val = max(float(df_hist["actual"].max()), float(df_hist["predicted_dw"].max()))
-            fig_dw = go.Figure()
-            fig_dw.add_trace(go.Scatter(
-                x=df_hist["predicted_dw"].astype(float),
-                y=df_hist["actual"].astype(float),
-                mode="markers",
-                marker=dict(color="#1DB954", size=8),
-                name="Points",
-                text=df_hist["prediction_date"].dt.strftime("%Y-%m-%d"),
-                hovertemplate="Date: %{text}<br>Forecast DW: %{x:,}<br>Actuel: %{y:,}"
-            ))
-            fig_dw.add_trace(go.Scatter(
-                x=[0, max_val], y=[0, max_val], mode="lines",
-                name="Prédiction parfaite",
-                line=dict(color="gray", dash="dash", width=1)
-            ))
-            fig_dw.update_layout(
-                xaxis_title="Forecast DW (streams 7j)", yaxis_title="Actuel (streams 7j)",
-                height=340, showlegend=True
-            )
-            st.plotly_chart(fig_dw, width='stretch')
+            st.write(t("trigger_algo.model.dw_forecast", "**DW forecast**"))
+            df_dw = df_hist.dropna(subset=["predicted_dw"])
+            if df_dw.empty:
+                st.info(t("trigger_algo.model.dw_frozen",
+                          "Volume DW non prédit — le régresseur DW est gelé (R²<0 en "
+                          "validation honnête, pire qu'une moyenne). C'est **voulu**, pas un "
+                          "manque de données : fie-toi à la probabilité DW, pas au volume."))
+            else:
+                max_val = max(float(df_dw["actual"].max()), float(df_dw["predicted_dw"].max()))
+                fig_dw = go.Figure()
+                fig_dw.add_trace(go.Scatter(
+                    x=df_dw["predicted_dw"].astype(float),
+                    y=df_dw["actual"].astype(float),
+                    mode="markers",
+                    marker=dict(color="#1DB954", size=8),
+                    name="Points",
+                    text=df_dw["prediction_date"].dt.strftime("%Y-%m-%d"),
+                    hovertemplate="Date: %{text}<br>Forecast DW: %{x:,}<br>Actuel: %{y:,}"
+                ))
+                fig_dw.add_trace(go.Scatter(
+                    x=[0, max_val], y=[0, max_val], mode="lines",
+                    name="Prédiction parfaite",
+                    line=dict(color="gray", dash="dash", width=1)
+                ))
+                fig_dw.update_layout(
+                    xaxis_title="Forecast DW (streams 7j)", yaxis_title="Actuel (streams 7j)",
+                    height=340, showlegend=True
+                )
+                st.plotly_chart(fig_dw, width='stretch')
 
         with col2:
             df_rr = df_hist.dropna(subset=["predicted_rr"])
             if not df_rr.empty:
-                st.write("**RR forecast**")
+                st.write(t("trigger_algo.model.rr_forecast", "**RR forecast**"))
                 max_val_rr = max(float(df_rr["actual"].max()), float(df_rr["predicted_rr"].max()))
                 fig_rr = go.Figure()
                 fig_rr.add_trace(go.Scatter(
@@ -95,17 +114,19 @@ def _show_tab_model(db, track: str, artist_id):
                 )
                 st.plotly_chart(fig_rr, width='stretch')
                 if not ak.volume_forecast_reliable("RR"):
-                    st.caption("⚠️ R²=0.32 — diagnostic uniquement, PAS une prévision. "
-                               "Le volume Release Radar n'est pas prédictible (bruit lié "
-                               "au taux d'ouverture des notifications).")
+                    st.caption(t("trigger_algo.model.rr_r2_caption",
+                                 "⚠️ R²=0.32 — diagnostic uniquement, PAS une prévision. "
+                                 "Le volume Release Radar n'est pas prédictible (bruit lié "
+                                 "au taux d'ouverture des notifications)."))
             else:
-                st.info("Pas de prédictions RR disponibles pour ce titre.")
+                st.info(t("trigger_algo.model.no_rr_pred",
+                          "Pas de prédictions RR disponibles pour ce titre."))
 
         with col3:
             df_radio = (df_hist.dropna(subset=["predicted_radio"])
                         if "predicted_radio" in df_hist.columns else df_hist.iloc[0:0])
             if not df_radio.empty:
-                st.write("**Radio forecast**")
+                st.write(t("trigger_algo.model.radio_forecast", "**Radio forecast**"))
                 max_val_radio = max(float(df_radio["actual"].max()),
                                     float(df_radio["predicted_radio"].max()))
                 fig_radio = go.Figure()
@@ -129,33 +150,46 @@ def _show_tab_model(db, track: str, artist_id):
                 )
                 st.plotly_chart(fig_radio, width='stretch')
             else:
-                st.info("Pas de prédictions Radio disponibles pour ce titre.")
+                st.info(t("trigger_algo.model.no_radio_pred",
+                          "Pas de prédictions Radio disponibles pour ce titre."))
 
         st.markdown("---")
-        st.subheader("📉 Résidus dans le temps (Actuel − Forecast DW)")
-        df_hist["residual"] = df_hist["actual"].astype(float) - df_hist["predicted_dw"].astype(float)
-        colors = ["#1DB954" if r >= 0 else "#FF6B6B" for r in df_hist["residual"]]
+        st.subheader(t("trigger_algo.model.residuals_header",
+                       "📉 Résidus dans le temps (Actuel − Forecast DW)"))
+        df_res = df_hist.dropna(subset=["predicted_dw"]).copy()
+        if df_res.empty:
+            st.info(t("trigger_algo.model.no_residuals",
+                      "Résidus DW indisponibles — le volume DW n'est pas prédit (régresseur "
+                      "gelé par design). Rien d'anormal pour ce titre."))
+        else:
+            df_res["residual"] = df_res["actual"].astype(float) - df_res["predicted_dw"].astype(float)
+            colors = ["#1DB954" if r >= 0 else "#FF6B6B" for r in df_res["residual"]]
 
-        fig_res = go.Figure()
-        fig_res.add_trace(go.Bar(
-            x=df_hist["prediction_date"], y=df_hist["residual"],
-            marker_color=colors, name="Résidu",
-            hovertemplate="Date: %{x}<br>Résidu: %{y:,.0f}"
-        ))
-        fig_res.add_hline(y=0, line_color="white", line_width=1)
-        fig_res.update_layout(
-            title="Vert = sous-prédit (actuel > forecast) | Rouge = sur-prédit",
-            xaxis_title="Date de prédiction",
-            yaxis_title="Actuel − Forecast DW (streams)",
-            height=340, hovermode="x unified"
-        )
-        st.plotly_chart(fig_res, width='stretch')
+            fig_res = go.Figure()
+            fig_res.add_trace(go.Bar(
+                x=df_res["prediction_date"], y=df_res["residual"],
+                marker_color=colors, name="Résidu",
+                hovertemplate="Date: %{x}<br>Résidu: %{y:,.0f}"
+            ))
+            fig_res.add_hline(y=0, line_color="white", line_width=1)
+            fig_res.update_layout(
+                title="Vert = sous-prédit (actuel > forecast) | Rouge = sur-prédit",
+                xaxis_title="Date de prédiction",
+                yaxis_title="Actuel − Forecast DW (streams)",
+                height=340, hovermode="x unified"
+            )
+            st.plotly_chart(fig_res, width='stretch')
 
-        mean_res = df_hist["residual"].mean()
-        std_res = df_hist["residual"].std()
-        st.caption(f"Biais moyen : {mean_res:,.0f} streams | Écart-type : {std_res:,.0f} streams")
-        if len(df_hist) >= 3 and abs(mean_res) > std_res:
-            st.warning("Biais systématique détecté — le modèle sur- ou sous-prédit de façon consistante pour ce titre.")
+            mean_res = df_res["residual"].mean()
+            std_res = df_res["residual"].std()
+            st.caption(t("trigger_algo.model.bias_caption",
+                         "Biais moyen : {mean:,.0f} streams | Écart-type : {std:,.0f} streams")
+                       .format(mean=mean_res, std=std_res))
+            if len(df_res) >= 3 and abs(mean_res) > std_res:
+                st.warning(t("trigger_algo.model.systematic_bias",
+                             "Biais systématique détecté — le modèle sur- ou sous-prédit "
+                             "de façon consistante pour ce titre."))
 
     except Exception as e:
-        st.warning(f"Graphique Actual vs Predicted indisponible : {e}")
+        st.warning(t("trigger_algo.model.chart_unavailable",
+                     "Graphique Actual vs Predicted indisponible : {err}").format(err=e))

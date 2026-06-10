@@ -99,6 +99,17 @@ graph LR
 | ML scoring | `ml_inference.py` (v2_noscaler) | `ml_song_predictions` (+`pi_forecast_7d`), `s4a_song_saves_daily` (saves history → resurrection radar) | `ml_scoring_daily` |
 | Algo lifecycle benchmark | `machine_learning/export_lifecycle_benchmark.py` (offline) | `algo_lifecycle_benchmark` (GLOBAL / non-tenant, read-only, NOT in `_ALLOWED_TABLES`) | none (manual seed via migration 035; PROVISIONAL) |
 
+> **Song-title convention boundary (since 2026-06-08, error class `song-name-convention-mismatch`):**
+> Filename-derived tables (`s4a_song_timeline`, `ml_song_predictions`, the manual-entry tables) carry
+> `_` because S4A replaces the Windows-reserved set `< > : " / \ | ? *` in export filenames, while
+> CSV/API-derived tables (`s4a_songs_global`, `s4a_song_saves_daily`, `tracks`,
+> `track_popularity_history`, `campaign_track_mapping`) keep the real characters. Any **exact-match
+> title join across this boundary** must route the CSV/API side through `canonical_song_sql()` (or
+> normalise on write via `canonical_song()`) — both single-sourced in `src/utils/track_matching.py`
+> (preserve accents/remix, unlike `normalize_track_title()`). Applied: `parse_songs_global`
+> (write-side), `_tab_algos.py`, `meta_cpr_optimizer.py`, `router.py` (query-side); migration 043
+> backfilled existing `?`-titled rows. `track_release_reference` was already immune.
+
 > **Meta Ads — SINGLE ingestion path (since 2026-05-29 — legacy CSV stack archived):**
 >
 > ⚠️ **Single-writer consolidation (2026-05-29, P2 fix):** the Meta tables previously had a DUAL WRITER — the API collector AND the one-time Dec-2025 legacy Meta CSV stack — writing with incompatible conventions (aggregate `'All'` total rows + French placement labels vs API snake_case), inflating campaign-grain breakdown spend ~2×. The entire redundant CSV stack (8 files: DAGs `meta_config_dag`/`meta_insights_dag`, watchers `meta_csv_watcher`/`meta_insight_watcher`, parsers, debug scripts) is now ARCHIVED to `archive/legacy_meta_csv/`; all dashboard/alerting references repointed to the canonical `meta_ads_api_daily`; `archive/` added to `.dockerignore`. **The Meta tables now have exactly ONE writer (`meta_ads_api_collector` / `meta_ads_api_daily`) → the double-count cannot recur.** Residual (low risk): campaign-grain breakdowns key on `campaign_name`, so a future campaign RENAME could re-introduce stale rows (ad/adset grains key by ID, immune). The spurious rows were already cleaned (all grains reconcile to the day total).
@@ -204,9 +215,10 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `process_guide.py` | 📋 Guide de démarrage (since 2026-05-28) — downloadable PDF (WeasyPrint, HTML fallback) | static | all |
 | `billing.py` | Billing — 3-column Free/Basic/Premium since 2026-05-28 | subscription_plans, artist_subscriptions, subscription_plan_history | all |
 | `alerts.py` | Alerting — + plan-evolution stacked-area + users table (admin) since 2026-05-28 | subscription_plan_history, saas_artists, circuit/freshness/billing alerts | admin |
+| `saisie_s4a.py` | 📝 Saisie S4A (since 2026-06-08, "Prédiction algos" section, above Road to Algo) — bulk `st.data_editor` grid (track × 7j/28j/12m + Discovery Mode) with grouped save + a custom date-range section for the days after a release. Replaced the short-lived `reglages.py` standalone view (deleted same session). S4A-UI-only signals, no API. | s4a_song_timeline + tracks (read) → s4a_song_playlist_adds (windowed, migration 044), s4a_song_discovery_mode (write) | all |
 | `upload_csv.py` | Upload CSV | all CSV-sourced tables | all |
 | `export_csv.py` | Export CSV (ZIP or Excel) | all tables | all |
-| `export_pdf.py` | Export PDF (xhtml2pdf; S4A, YouTube, Instagram, Meta, SoundCloud, Apple Music) | all tables | all |
+| `export_pdf.py` | Export PDF (WeasyPrint; promoted right after Accueil since 2026-06-08) — full visual redesign 2026-06-08: branded cover + headline KPIs, "Dernière sortie" spotlight, charts embedded via `utils/pdf_charts.py` (matplotlib→base64 PNG, no new dep); emoji stripped before `write_pdf` (WeasyPrint base fonts lack glyphs); "Depuis le début" all-time period; sections all-checked by default, song selectors auto-focus latest release | all tables | all |
 | `useful_links.py` | Useful Links | static | admin |
 
 > **`credentials/` package (since 2026-05-15, commit `acf8b6f` — refactor R1):**
@@ -220,8 +232,17 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 > | `router.py` | slim `show()` entry point |
 > | `_core.py` | Fernet crypto + DB load/save + Airflow-state + constants |
 > | `_registry.py` | `PLATFORMS` dict + `CONNECTION_TESTS` + guide dispatch |
-> | `_render.py` | Streamlit render/form helpers + `_handle_save` |
-> | `_platform_spotify.py` / `_platform_youtube.py` / `_platform_soundcloud.py` / `_platform_meta.py` | per-platform connection-test + setup-guide pair |
+> | `_render.py` | Streamlit render/form helpers + `_handle_save`; renders the per-platform setup guide inline (since 2026-06-08, from the content modules — replaces the old prose `_guide_*`) |
+> | `_platform_spotify.py` / `_platform_youtube.py` / `_platform_soundcloud.py` / `_platform_meta.py` | per-platform connection test. SoundCloud/Meta tests fall back to env app creds (ADDITIVE, since 2026-06-08) when the artist supplied only `user_id`/`account_id` |
+>
+> **Shared-app credentials + single-source guides (since 2026-06-08, commits `8d17fb3`/`53ca6d8`):**
+> Setup-guide content lives in `src/dashboard/content/credential_guides.py` (+ `_st.py` render helper) —
+> one source for Spotify/YouTube/SoundCloud/Meta (steps, screenshots under `assets/credential_guide/`,
+> URLs, example values), rendered per-platform tab. The app creds for the *shared* SoundCloud/Meta app
+> resolve from env (`SOUNDCLOUD_CLIENT_ID/SECRET`, `META_ACCESS_TOKEN/APP_ID/APP_SECRET`) when the artist
+> supplied only the per-tenant pointer; stored per-artist creds always win (existing tenants unchanged).
+> Token lifecycle (type / expiry / refresh / who acts) is documented in the admin "🔑 Tokens" tab, not the
+> artist view.
 >
 > The `_fetch_dag_last_states` Airflow N+1 helper moved from `credentials.py:118`
 > to `credentials/_core.py` (referenced in the P3 perf item). This is R1 of the
@@ -236,8 +257,11 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 > `admin.py` (admin_edit), `api/routers/stripe_webhook.py` (stripe_webhook). New signups
 > auto-receive a 30-day premium trial (`WELCOME_TRIAL_DAYS`) resolved via `promo_plan`
 > precedence in `get_artist_plan()`, plus a `send_welcome_email()` recap. `alerts.py`
-> renders a plan-evolution stacked-area chart + a users table from this table. ML access
-> (`revenue_forecast`) moved into the Basic tier (`PLAN_FEATURES['basic']`).
+> renders a plan-evolution stacked-area chart + a users table from this table. Tiering
+> (2026-06-09): **2 tiers only** — `free` (analytics + Export PDF) and `premium`
+> (`{'*'}`: Road to Algo/ML, revenue_forecast, Meta advanced). The retired `basic`
+> collapses onto premium via `stripe_schema.normalize_plan()`; PDF export gates
+> Premium-only sections (`PREMIUM_SECTIONS`).
 >
 > **Road to Algorithms knowledge layer (since 2026-05-29 — WAVE 2/3/4):**
 > `dashboard/utils/algo_knowledge.py` is the PURE, algo-keyed source of truth

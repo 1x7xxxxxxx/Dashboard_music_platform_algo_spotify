@@ -349,7 +349,7 @@ Audit statique + live Lighthouse (page login publique) effectués 2026-05-14. Vo
 - [x] **WAVE 7 — Release Radar volume regressor SUPPRESSED (R²=0.32, product-protective)** — opposite of WAVE 6: the RR volume regressor (exp 7) scores R²=0.32 (SHAP = flat line at zero broken by 2-3 viral outliers; followers/recent-streams/saves/playlist-adds all flat — RR volume is notification-CTR noise, not algorithmic). Per the user's data-science verdict, the forecast must NOT reach users (false financial promise) — RR ships **classification-only** (AUC 0.96). **Knowledge (P3):** `ALGO_REGRESSOR_METRICS["RR"]` with `volume_reliable: False` + `r2: 0.32` + `suppressed_note` + interpretation; new single-source helpers `volume_forecast_reliable(algo)` (default True, explicit-False gate — no `if algo=="RR"` hardcoding) and `volume_suppressed_note(algo)`. **Gate the 2 user surfaces (P3):** `trigger_algo._show_ml_section` passes `None` as the RR forecast + shows the "abonnés notifiés, volume non prédictible" caption; `revenue_forecast.py` drops the `rr_streams_forecast_7d` floor column when unreliable + updated caption. **Diagnostics kept honest (P4):** the Modèle-tab RR Actual-vs-Predicted scatter + admin `ml_performance` exp 7 artifacts stay, now captioned "R²=0.32 — diagnostic, PAS une prévision". **No pipeline change:** `rr_streams_forecast_7d` still computed/persisted (diagnostics read it); only display is gated. `tests/test_algo_knowledge.py`: `regressor_note("RR")` now non-None + `test_volume_forecast_reliability_gate` + `test_volume_suppressed_note`. 285 pytest pass (283→+2), ruff clean. ref: DEVLOG#2026-05-31.
 - [x] **RR (+ RADIO) calibration bands** — DONE 2026-06-05 (WAVE 8 — independent re-derivation). Instead of a notebook PNG, the bands are measured empirically from v3 out-of-fold group-CV calibrated probabilities (`machine_learning/analysis/05_calibration_bands.py`): per-bin observed positive rate → `ALGO_CALIBRATION_BANDS["RR"]` and `["RADIO"]` now populated. v3's OOF-Platt calibration is well-behaved, so most bands read "fiable : score ≈ réalité" (a big honesty upgrade over v1's over-confidence warnings). `test_rr_has_calibration_bands` / `test_radio_has_calibration_bands` updated.
 - [x] **Replace provisional `algo_lifecycle_benchmark` seed with real export** — DONE 2026-06-05. Re-seeded from `data_anon.csv` via the conditioned export (`migrations/041_lifecycle_benchmark_v2.sql`, `dataset_version='v2'`): conditions on the triggering cohort so DW medians are no longer crushed to 0 and `total_stream_median` is populated. Loader prefers v2 (falls back to v1). **Needs `make migrate`.** See WAVE 8 follow-ups below.
-- [ ] **Phase 2 — live per-algorithm stream capture from S4A** → **canonical entry: "Phase-2 data acquisition" in Long-term ML hardening below.** Extra context specific to this view: `s4a_song_timeline` is total-streams only, so per-tenant *live* lifecycle curves (vs the static v2 cohort) need the per-algo split; the volume layer's imputed-0 features (`NonAlgoStreams28Days`, `DiscoveryMode`, `RadioCount`) and the Radio superstar lever auto-upgrade from rule/static-target mode to live deltas once Phase 2 lands. (Surfaced 2026-05-29.)
+- [x] **Phase 2 — live per-algorithm stream capture from S4A** → **CLOSED AS MANUAL (2026-06-10, ADR-004)** — see canonical entry "Phase-2 data acquisition" in Long-term ML hardening below. S4A has no source-split export; auto-capture rejected, manual entry shipped (mig 052). Extra context specific to this view: `s4a_song_timeline` is total-streams only, so per-tenant *live* lifecycle curves (vs the static v2 cohort) need the per-algo split; the volume layer's imputed-0 features (`NonAlgoStreams28Days`, `DiscoveryMode`, `RadioCount`) and the Radio superstar lever auto-upgrade from rule/static-target mode to live deltas once Phase 2 lands. (Surfaced 2026-05-29.)
 - [x] **`ListenersStreamRatio28Days_adj` inverted + clamped (P2) — FIXED** — `ml_inference.build_features` now computes `streams/listeners` unclamped (was `min(listeners/streams, 1.0)`), matching the SHAP 2.2–4 sweet-spot; `divergent` flag removed from `algo_knowledge`. (2026-05-29.)
 - [x] **Recover imputed DW features** — Saves (`s4a_songs_global.saves`, 28d window), PlaylistAdds (`s4a_song_playlist_adds`), ReleaseConsistency (median weeks between real release dates in `track_release_reference`, NOT the all-identical backfilled timeline first-appearance) now computed live; `_IMPUTED_FEATURES` reduced to the 3 genuinely sourceless (NonAlgoStreams28Days → Phase 2, RadioRightNow, DiscoveryMode). REX in `dashboard-view.md`. (2026-05-29.)
 - [x] **`DaysSinceRelease` uses backfilled timeline MIN(date)** — FIXED 2026-05-31. `ml_inference.build_features` now resolves the per-song release date from `track_release_reference` (matched on `normalize_track_title(song)` → `match_key`), falling back to the timeline `MIN(date)` only when no reference row matches. `ReleasePhaseEarly` follows automatically (derived from `days_since`). Note: stored `ml_song_predictions.features_json` keep the stale value until the next `ml_scoring_daily` re-score (live trigger_algo render is correct immediately).
@@ -426,9 +426,138 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 
 ## Long-term ML hardening (roadmap)
 
-- [ ] **Phase-2 data acquisition** — 2 model features still imputed-to-0 (`NonAlgoStreams28Days`, `HowManySongsDoYouHaveInRadioRightNow`); cap model precision + snowball/resurrection. Needs the S4A source split (organic vs algo streams) + a real radio-count source. **Highest-leverage long-term item.**
+- [x] **Phase-2 data acquisition — CLOSED AS MANUAL (2026-06-10, ADR-004).** The 2 ex-imputed features are now sourced from manual entry: `NonAlgoStreams28Days` → `s4a_song_nonalgo_streams`, `HowManySongsDoYouHaveInRadioRightNow` → `s4a_artist_radio_count` (migration 052), captured in the Saisie S4A form, read by `ml_inference.build_features` (default 0 when no entry). **Automatic capture rejected:** the artist confirmed S4A shows the source split on-screen only (no CSV export → parser+watcher impossible), and scraping the authed S4A UI is ToS-violating + per-tenant-credential-heavy + fragile (see ADR-004). **Reopen only if** Spotify exposes the split via a CSV export or official API → then a cheap DistroKid-style parser+watcher. 416 tests pass.
 - [x] **Discovery Mode manual input** — DONE 2026-05-31. `migrations/040_s4a_song_discovery_mode.sql` (table mirrors `s4a_song_playlist_adds`: per-song dated opt-in, latest `recorded_at` wins) + `init_db.sql` + `_ALLOWED_TABLES`. `ml_inference.build_features` sources `IsThisSongOptedIntoSpotifyDiscoveryMode` from the latest manual entry (default 0.0). `trigger_algo` gains a "🔭 Discovery Mode" metric + manual opt-in form (after Ajouts playlist). Kept in `_IMPUTED_FEATURES` (drift-excluded) — bounded binary flag, z-score drift is meaningless. End-to-end verified (feature flips 0→1 on opt-in); render-smoke + 321 pytest green. Marginal SHAP weight (rank 13) but un-imputes one of the 3 sourceless features with zero external API.
 - [ ] **More training data + per-tenant evaluation** — model trained on N=508 / 102 test (single anonymised set). Accumulate live labelled data; evaluate generalisation across tenants before trusting absolute probabilities.
 - [ ] **Automated retraining on live outcomes** — `data_anon.csv` is a one-time snapshot; once `ml_song_predictions` accrues real trigger outcomes, retrain on live per-tenant data (MLOps: outcome labelling + scheduled retrain + champion/challenger).
 - [ ] **RR volume regressor** — suppressed (R²=0.23 group-CV on the log target, notification-CTR noise — v3 honest figure, was misreported ≈0.55). Revisit once Phase-2 features land; stays classification-only meanwhile.
 - [ ] **Resurrection tuning** — thresholds in `detect_saves_resurrection` (min_age 180d, 2x baseline, min_spark 50) are heuristic; recalibrate once real saves history exists.
+
+---
+
+## P3 — Product usage tracking (spec'd 2026-06-09, Option A — homegrown)
+
+Goal: know what end-users (artists) actually do in the app (pages visited, features
+used, drop-offs, dead features). **Decision: build a lightweight server-side event log
+in Postgres rather than PostHog** — Streamlit's rerun/DOM model makes PostHog's JS
+autocapture/session-replay unusable (see Deferred § below); a homegrown table reuses the
+DB + auth + admin-view stack already in place, with zero third-party egress / RGPD cost.
+
+- [x] **`usage_events` table + tracking hook + admin view** — SHIPPED 2026-06-09
+  (`migrations/045_usage_events.sql`, `src/dashboard/utils/usage_tracker.py` fail-silent
+  `track()`/`track_page_view()`, `views/usage_analytics.py` admin view). Spec below kept for
+  reference.
+- [x] (spec) **`usage_events` table + tracking hook + admin view** — original spec:
+  - **Schema** (`migrations/045_usage_events.sql` + `init_db.sql` + add to `_ALLOWED_TABLES`):
+    `usage_events(id BIGSERIAL PK, artist_id INT, role TEXT, session_id TEXT, event TEXT NOT NULL,
+    page TEXT, ts TIMESTAMPTZ DEFAULT now(), meta JSONB)`. Indexes on `(ts)`, `(artist_id, ts)`,
+    `(event)`. Use UTC-aware `ts` (rules/python.md). Retention: prune > N months via a tiny
+    step in an existing daily DAG (or a `DELETE` in `data_quality_check`).
+  - **Writer** (`src/dashboard/utils/usage_tracker.py`, NEW): `track(event, page=None, meta=None)`
+    → single INSERT via `PostgresHandler.execute_query` (autocommit). **Fail-silent** (try/except,
+    never raise — telemetry must NOT break or slow a page; this is the deliberate inverse of the
+    collector "must raise" rule). `distinct_id = artist_id` from `get_artist_id()`; `session_id`
+    from a `st.session_state['_session_id']` set once (uuid4).
+  - **Page-view hook**: in `app.py::main()`, right after `page = show_navigation_menu(role)`
+    (line ~313, the single routing choke-point), call `track('page_view', page=page)` **only when
+    the page changed** vs `st.session_state['_last_tracked_page']` — Streamlit reruns on every
+    widget interaction, so logging every rerun would massively inflate counts.
+  - **Key action events** (explicit `track()` calls): `pdf_generate`, `csv_export`,
+    `dag_trigger`, `login`, plus `error` (wrap nothing new — just call where errors are already
+    caught). Keep the taxonomy small and stable.
+  - **Admin view** (`views/usage_analytics.py`, admin-only — add to `_NAV_SECTIONS` admin section
+    + `_ADMIN_ONLY` + routing): top pages (bar), events/day (line), active artists, least-used
+    pages ("dead features"), simple funnel (login→page→action). Reuse `kpi_helpers`/`charts.py`
+    patterns; gate behind `is_admin()`.
+  - **RGPD**: first-party, no egress. The app already has a cookie notice
+    (`_show_cookie_notice`) + a `?page=privacy` policy — extend the policy text to mention
+    in-app usage analytics. No new consent vendor needed for first-party functional analytics,
+    but confirm wording.
+  - **Verification**: migrate; click around → rows land; rerun a page (widget interaction) →
+    NO duplicate page_view; admin view renders; render-smoke + a small unit test on
+    `usage_tracker.track` (fail-silent on bad DB). Effort ≈ ½–1 j.
+
+## Pré-déploiement program (2026-06-09)
+
+Ordered A→B→C→D. **Deployment (Docker containerization + Hetzner) is the LAST phase** and is
+parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pricing is now
+**2 tiers** free(0€)/premium(10€) — basic retired (migrations 047/048).
+
+- [x] **A — Validations & gate** : 375 tests verts ; tiers free/premium validés + alignés
+  (code+DB+billing/upgrade) ; vue admin **📊 Supervision** (business + fraîcheur données) ;
+  leak Export-PDF des sections premium corrigé (`PREMIUM_SECTIONS`).
+- [x] **B1 — Mapping cross-plateforme + suggestions** (LIVRÉ 2026-06-09) :
+  `migrations/049_track_platform_link.sql`, moteur pur `src/utils/track_mapping_suggest.py`
+  (+15 tests), vue `views/track_mapping.py` — 3 onglets : suggestions par plateforme
+  (S4A/Spotify/Apple/SC/YT, accept/reject + bulk), **Meta campagnes** (title-sim + date-proximity,
+  écrit `campaign_track_mapping` en `_`-form), vue unifiée. Validé sur données réelles.
+- [x] **B2 — DistroKid** (phases 1+2 livrées 2026-06-10) :
+  **Phase 1 — saisie manuelle** : table `distrokid_monthly_revenue` (migration 050,
+  `distrokid_schema.py`) ; vue Distributeur partagée (`imusician.py`) — sélecteur
+  iMusician/DistroKid/Tous (chart empilé), formulaire de saisie mensuelle EUR
+  (défaut = mois précédent), suppression distributor-aware ; ROI Breakheaven somme
+  les 2 sources (`kpi_helpers` UNION ALL ×4) ; +5 tests (`test_distrokid_revenue.py`).
+  **Phase 2 — import « bank details »** : parser `src/transformers/distrokid_parser.py`
+  (TSV **ou** CSV sniffé, fallback latin-1, schéma 15 col post-juillet-2025 + legacy
+  `Song/Album`, dédup pré-upsert) ; table `distrokid_sales_detail` USD NUMERIC(14,10)
+  (migration 051, `distrokid_csv_schema.py`) ; rollup USD→EUR `distrokid_rollup.py`
+  (taux `DISTROKID_USD_EUR_RATE` défaut 0.92, modifiable par import, préserve les
+  saisies manuelles) ; intégration Upload CSV (uploader accepte `.tsv`, lecture headers
+  robuste encodage+délimiteur, champ taux, hook rollup) ; DAG `distrokid_csv_watcher`
+  (15 min, max_active_runs=1, watch `data/raw/distrokid/`) + `debug_distrokid_csv.py` ;
+  guide in-app (`csv_guides.py`). Fixture réelle `tests/fixtures/distrokid_bank_sample.csv`
+  (BetterKid) ; +17 tests parser. **Validé end-to-end live** : 22 lignes → 4 mois EUR,
+  idempotent, DAG chargé sans import error. Format : `dev-docs/distrokid-export-format.md`.
+  ⚠️ Reste à confirmer sur TON premier export réel (le sample BetterKid fait foi pour le
+  schéma, pas pour l'extension/zip exacts).
+- [x] **B3 — Refactor ciblé** (2026-06-09) : vues mapping (`track_mapping`, `meta_mapping`) migrées vers `view_session()` (rule #7). Reste : adoption `view_session()` sur les vues legacy au fil des touches (audit #2).
+- [x] **C1 — Alerting erreurs app** (2026-06-09) : `src/dashboard/utils/error_alert.py` (`notify_app_error`, fail-silent, rate-limité, re-raise des signaux st.stop/st.rerun) ; dispatch des vues extrait en `_render_page()` + guard try/except dans `app.py` ; +4 tests.
+- [x] **C2 — Backup DB** (2026-06-09) : `tools/db_backup.sh` (pg_dump→gzip + rétention) + `tools/db_restore_test.sh` (drill restauration) + `make backup` / `make backup-test`. Drill validé (78 tables restaurées). Cron VPS = Phase D.
+- [x] **C3 — Hardening sécurité (code)** (2026-06-10) : (1) rate-limit FastAPI —
+  `src/api/security.py` (NEW), fenêtre glissante en mémoire par IP (120 req/60s global,
+  10/300s sur `POST /auth/token`), 429 + Retry-After, `/health` exempt, IP via 1er hop
+  X-Forwarded-For derrière proxy ; (2) security headers middleware (nosniff, X-Frame-Options
+  DENY, Referrer-Policy, HSTS, Permissions-Policy, CSP `default-src 'none'` sauf /docs+/redoc,
+  Cache-Control no-store) — headers outermost donc présents aussi sur les 429 ; (3) timeout
+  d'inactivité session Streamlit — `auth.py::_session_idle_expired` dans `require_login()`
+  (défaut 60 min, `SESSION_IDLE_TIMEOUT_MINUTES`), session clear + notice à la reconnexion.
+  Env vars documentées dans `.env.example`. +14 tests (`test_api_security.py`, TestClient
+  sans DB). Limiteur in-memory single-process assumé (ADR-002 : pas de Redis/slowapi) —
+  re-évaluer si l'API passe multi-worker en phase D.
+- [x] **C4 — i18n EN/FR** (infra 2026-06-09 ; **couverture complète 2026-06-10**) :
+  `src/dashboard/utils/i18n.py` (`t()` helper, FR source + fallback), **toggle sidebar**
+  (`language_selector`), **navigation entièrement traduite**, +5 tests (garde-fou nav).
+  **Couverture totale** : catalogues EN par vue sous `i18n_catalog/` (~47 modules, ~2150 clés,
+  auto-mergés par `_load_catalogs()`) — **toutes les vues** (login/inscription, compte, billing,
+  admin/ops, packages `trigger_algo/` + `credentials/`, `ml_widgets`, guides CSV). Vérifié :
+  410 tests verts, render-smoke live sur les 37 vues, ruff clean, 0 clé sans EN. Commits
+  `a672725` + `cde230c`. FR conservé par design : prose `csv_guides.py` (partagé PDF) +
+  constantes de labels au niveau module (résolution langue au runtime).
+- [ ] **C5 — Benchmark VPS** : streaMLytics + n8n + MT5 (Windows-only) + génération vidéo + scraping → topologie + sizing.
+- [ ] **D — Déploiement + pentest** (DERNIER, hors scope actuel) : voir `deployment.md`.
+
+## Deferred — revisit ONLY if migrating to React (ADR-003 reversal)
+
+Items that are currently irrelevant / worked-around **because of Streamlit** and would become
+natural (or need redoing) under a React/Next.js front-end. Parked here per user request
+(2026-06-09) so a future migration picks them up. ADR-003 currently keeps Streamlit.
+
+- [ ] **PostHog full client-side analytics** — autocapture, **session replay**, heatmaps,
+  client funnels/retention. Blocked today: Streamlit strips `<script>` and sandboxes
+  `components.html` iframes, and re-runs the whole script (no stable DOM / client event model).
+  Under React the standard JS snippet drops in → reconsider PostHog (cloud-w/-consent or
+  self-host) and likely retire the homegrown event log's *capture* layer (the `usage_events`
+  table can remain as a server-side sink). Needs RGPD consent banner for a 3rd-party processor.
+- [ ] **Interactive / exact-parity report charts (PDF & in-app)** — the PDF export rebuilds
+  every chart in **matplotlib→PNG** (`pdf_charts.py`) because `kaleido` (Plotly→image) is absent
+  and Streamlit can't headless-render its Plotly figures. Under React, reports could share the
+  *same* chart components (client-side render / a proper reporting service), giving interactive
+  + pixel-parity charts and removing the matplotlib duplication. ref: export-pdf overhaul
+  2026-06-09.
+- [ ] **Cold-start bundle / perf** — already audited (line ~295): the #1 cold-start bottleneck
+  is the **Streamlit JS bundle** (~532 KiB), not Python. React+Next (code-splitting → ~100–150
+  KiB initial) is the structural fix. Python-side caching/lazy-import work stays valid for
+  subsequent renders only.
+- [ ] **Rich client interactions** — anything that fought the rerun model (live event hooks,
+  drag/drop, fine-grained widget state, real-time updates without full reruns) becomes
+  first-class under React; revisit UX patterns that were simplified to fit Streamlit.

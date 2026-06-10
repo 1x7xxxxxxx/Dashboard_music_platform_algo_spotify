@@ -7,7 +7,8 @@ import os
 import streamlit as st
 import pandas as pd
 from pathlib import Path
-from src.dashboard.utils import get_db_connection, ml_widgets
+from src.dashboard.utils import project_db, ml_widgets
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.algo_knowledge import ALGO_MODEL_METRICS, populated_algos
 
 # ---------------------------------------------------------------------------
@@ -39,7 +40,9 @@ def _show_model_tab(exp_id: str, run_id: str, label: str):
     """Affiche les artefacts PNG d'un modèle donné."""
     pngs = _get_artifacts(exp_id, run_id)
     if not pngs:
-        st.warning(f"Aucun artefact PNG trouvé pour ce run (`mlruns/{exp_id}/{run_id}/`).")
+        st.warning(t("ml_performance.no_artifacts",
+                     "Aucun artefact PNG trouvé pour ce run (`mlruns/{exp_id}/{run_id}/`).").format(
+                         exp_id=exp_id, run_id=run_id))
         return
     for png in pngs:
         st.image(str(png), caption=png.stem.replace("_", " "), width="stretch")
@@ -77,22 +80,26 @@ def _show_predictions_tab(db):
                    LIMIT 200"""
             )
     except Exception as e:
-        st.error(f"Erreur lors de la récupération des prédictions : {e}")
+        st.error(t("ml_performance.predictions_error",
+                   "Erreur lors de la récupération des prédictions : {err}").format(err=e))
         return
 
     if df.empty:
-        st.info("Aucune prédiction en base. Lancez le DAG `ml_scoring_daily` pour générer les scores.")
+        st.info(t("ml_performance.no_predictions",
+                  "Aucune prédiction en base. Lancez le DAG `ml_scoring_daily` pour générer les scores."))
         return
 
-    st.write(f"**{len(df)} prédiction(s) trouvée(s)**")
+    st.write(t("ml_performance.predictions_count",
+               "**{count} prédiction(s) trouvée(s)**").format(count=len(df)))
 
     # Sélecteur de chanson — sortie la plus récente en haut (days_since_release asc).
-    songs = ["(toutes)"] + (
+    all_label = t("ml_performance.songs_all", "(toutes)")
+    songs = [all_label] + (
         df.sort_values("days_since_release", ascending=True, na_position="last")
           ["song"].drop_duplicates().tolist()
     )
-    selected = st.selectbox("Filtrer par chanson", songs)
-    if selected != "(toutes)":
+    selected = st.selectbox(t("ml_performance.filter_by_song", "Filtrer par chanson"), songs)
+    if selected != all_label:
         df = df[df["song"] == selected]
 
     # Formatage colonnes probabilités en %. Postgres NUMERIC arrives as Decimal
@@ -108,37 +115,41 @@ def _show_predictions_tab(db):
 
 def _show_scorecard_tab():
     """Classification scorecards (offline test-set metrics) per algorithm."""
-    st.caption("Métriques d'évaluation hors-ligne (jeu de test). Source : analyse `machine_learning/`.")
+    st.caption(t("ml_performance.scorecard_caption",
+                 "Métriques d'évaluation hors-ligne (jeu de test). Source : analyse `machine_learning/`."))
     for algo in populated_algos():  # canonical order, single source of truth
         if algo in ALGO_MODEL_METRICS:
             ml_widgets.render_classification_scorecard(algo, compact=False)
             st.markdown("---")
         else:
-            st.caption(f"{algo} : scorecard de classification non encore disponible.")
+            st.caption(t("ml_performance.scorecard_unavailable",
+                         "{algo} : scorecard de classification non encore disponible.").format(algo=algo))
 
 
 def show():
     # Admin uniquement
     if st.session_state.get("role") != "admin":
-        st.error("⛔ Accès réservé aux administrateurs.")
+        st.error(t("ml_performance.access_denied", "⛔ Accès réservé aux administrateurs."))
         return
 
-    st.title("🤖 Performance des Modèles ML")
-    st.markdown("Artefacts MLflow des modèles actifs + suivi des scores en base de données.")
+    st.title(t("ml_performance.title", "🤖 Performance des Modèles ML"))
+    st.markdown(t("ml_performance.intro",
+                  "Artefacts MLflow des modèles actifs + suivi des scores en base de données."))
 
-    db = get_db_connection()
-
-    try:
+    with project_db() as db:
         tab_labels = (
             [label for _, _, label, _ in _MODELS]
-            + ["📋 Scorecard classification", "🎯 Prédictions en DB"]
+            + [t("ml_performance.tab_scorecard", "📋 Scorecard classification"),
+               t("ml_performance.tab_predictions", "🎯 Prédictions en DB")]
         )
         tabs = st.tabs(tab_labels)
 
         for i, (exp_id, run_id, label, _) in enumerate(_MODELS):
             with tabs[i]:
                 st.subheader(label)
-                st.caption(f"Expérience MLflow n°{exp_id} — run `{run_id[:8]}…`")
+                st.caption(t("ml_performance.mlflow_experiment",
+                             "Expérience MLflow n°{exp_id} — run `{run_id}…`").format(
+                                 exp_id=exp_id, run_id=run_id[:8]))
                 _show_model_tab(exp_id, run_id, label)
 
         with tabs[-2]:
@@ -146,6 +157,3 @@ def show():
 
         with tabs[-1]:
             _show_predictions_tab(db)
-
-    finally:
-        db.close()

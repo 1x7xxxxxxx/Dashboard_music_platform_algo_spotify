@@ -93,3 +93,4 @@ airflow-webserver.pid
 
 # Local archive — obsolete files kept on disk but excluded from repo
 .archive/
+backups/

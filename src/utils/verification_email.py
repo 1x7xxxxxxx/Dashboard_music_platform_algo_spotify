@@ -4,14 +4,20 @@ Type: Utility
 Uses: config_loader, smtplib
 Depends on: smtp section in config/config.yaml
 """
+import os
 import smtplib
 import logging
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "http://localhost:8501"
+# Public base URL used in verification + welcome links. Override in prod via the
+# APP_BASE_URL env var (e.g. https://app.streamlytics.io); defaults to local dev.
+_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
 
 
 def _smtp_config() -> dict:
@@ -19,10 +25,26 @@ def _smtp_config() -> dict:
     return config_loader.load().get('smtp', {})
 
 
-def _send_html(to_email: str, subject: str, html: str) -> bool:
+def _attach_pdf(msg: MIMEMultipart, path: str) -> bool:
+    """Attach a PDF to the message. Non-raising — missing file logs + skips."""
+    p = Path(path)
+    if not p.exists():
+        logger.warning("Attachment missing, sending without it: %s", path)
+        return False
+    part = MIMEBase('application', 'pdf')
+    part.set_payload(p.read_bytes())
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', 'attachment', filename=p.name)
+    msg.attach(part)
+    return True
+
+
+def _send_html(to_email: str, subject: str, html: str,
+               attachment_path: str | None = None) -> bool:
     """Send one HTML email via the configured SMTP relay. Non-raising.
 
-    Returns False (and logs) when SMTP is not configured or sending fails.
+    Returns False (and logs) when SMTP is not configured or sending fails. An
+    optional PDF attachment is added when the path exists (missing = sent anyway).
     """
     cfg = _smtp_config()
     smtp_host = cfg.get('host', 'smtp.gmail.com')
@@ -36,11 +58,16 @@ def _send_html(to_email: str, subject: str, html: str) -> bool:
         return False
 
     try:
-        msg = MIMEMultipart('alternative')
+        # 'mixed' so the HTML body and the PDF coexist; HTML nested in 'alternative'.
+        msg = MIMEMultipart('mixed')
         msg['From']    = f"{from_name} <{smtp_user}>"
         msg['To']      = to_email
         msg['Subject'] = subject
-        msg.attach(MIMEText(html, 'html'))
+        body = MIMEMultipart('alternative')
+        body.attach(MIMEText(html, 'html'))
+        msg.attach(body)
+        if attachment_path:
+            _attach_pdf(msg, attachment_path)
 
         with smtplib.SMTP(smtp_host, smtp_port) as server:
             server.starttls()
@@ -54,25 +81,32 @@ def _send_html(to_email: str, subject: str, html: str) -> bool:
         return False
 
 
-def send_welcome_email(to_email: str, username: str, trial_days: int = 30) -> bool:
+def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
+                       user_id: int | None = None) -> bool:
     """Welcome email recapping the first onboarding actions. Non-raising.
 
-    Sent right after signup. Recaps: enter credentials, launch collection,
-    map Meta campaigns to Spotify tracks. Also announces the full-access trial.
+    Sent once the address is verified. Recaps the onboarding sequence in execution
+    order: enter credentials → import CSVs → map Meta campaigns → launch collection
+    → explore. Announces the trial and carries the API+CSV guide PDF as attachment.
     """
     onboarding_url = f"{_BASE_URL}?page=onboarding"
+    unsub_footer = _unsubscribe_footer(user_id)
     html = f"""
     <html><body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
         <h2 style="color: #1DB954;">🎵 Bienvenue sur streaMLytics, {username} !</h2>
         <p>Votre compte est créé avec <strong>{trial_days} jours d'accès complet (Premium)</strong> offerts. 🎁</p>
-        <h3>Vos premières actions :</h3>
+        <h3>Vos premières actions, dans l'ordre :</h3>
         <ol>
-            <li><strong>Saisir vos credentials API</strong> (Spotify, YouTube, Meta Ads…)
-                dans la page <em>🔑 Credentials API</em>.</li>
+            <li><strong>Saisir vos credentials API</strong> (Spotify, YouTube, SoundCloud,
+                Meta Ads) dans la page <em>🔑 Credentials API</em>.</li>
+            <li><strong>Importer vos fichiers CSV</strong> (Spotify for Artists, Apple Music,
+                iMusician) via la page <em>📥 Import CSV</em> — suivez le <strong>guide PDF
+                joint</strong> pour les exporter puis les déposer.</li>
+            <li><strong>Mapper vos campagnes Meta Ads à vos titres Spotify</strong>
+                dans <em>🔗 Mapping Spotify × Meta Ads</em> (à faire <em>avant</em> la collecte,
+                pour relier dépenses et streams dès le premier run).</li>
             <li><strong>Lancer la collecte</strong> via le bouton
                 « 🚀 Lancer TOUTES les collectes » dans la barre latérale.</li>
-            <li><strong>Mapper vos campagnes Meta Ads à vos titres Spotify</strong>
-                dans <em>🔗 Mapping Spotify × Meta Ads</em> pour relier dépenses et streams.</li>
             <li>Explorer vos dashboards analytics et la prédiction ML « Road to Algo ».</li>
         </ol>
         <p style="text-align: center; margin: 30px 0;">
@@ -83,11 +117,69 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30) -> bo
             </a>
         </p>
         <p style="color: #888; font-size: 12px;">
+            📎 Le <strong>guide PDF de démarrage (API + import CSV)</strong> est en pièce jointe.<br>
             Besoin d'aide ? Consultez la page « 📋 Guide de démarrage » dans l'application.
         </p>
+        {unsub_footer}
     </body></html>
     """
-    return _send_html(to_email, "🎵 Bienvenue — vos premières actions sur streaMLytics", html)
+    pdf = _guide_pdf_path()
+    return _send_html(
+        to_email, "🎵 Bienvenue — vos premières actions sur streaMLytics", html,
+        attachment_path=str(pdf) if pdf and pdf.exists() else None,
+    )
+
+
+def _unsub_secret() -> bytes:
+    """Signing key for unsubscribe tokens — same value in app + DAG so links verify
+    in both contexts. Prefers env FERNET_KEY (set in the Airflow container), falls back
+    to config.yaml fernet_key (app context), then a constant last-resort."""
+    key = os.environ.get('FERNET_KEY')
+    if not key:
+        try:
+            from src.utils.config_loader import config_loader
+            key = config_loader.load().get('fernet_key')
+        except Exception:
+            key = None
+    return str(key or 'streamlytics-unsub-fallback').encode()
+
+
+def unsubscribe_token(user_id: int) -> str:
+    """Stable HMAC token tying an unsubscribe link to one user id (no DB column needed)."""
+    import hashlib
+    import hmac
+    return hmac.new(_unsub_secret(), str(user_id).encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def verify_unsubscribe_token(user_id: int, token: str) -> bool:
+    """Constant-time check that `token` matches the expected token for `user_id`."""
+    import hmac
+    if not token:
+        return False
+    return hmac.compare_digest(unsubscribe_token(user_id), token)
+
+
+def _unsubscribe_footer(user_id: int | None) -> str:
+    """One-click unsubscribe link (sets marketing_consent=FALSE), or a static notice."""
+    if user_id is None:
+        return ("<p style='color:#aaa;font-size:11px;margin-top:24px;border-top:1px solid #eee;"
+                "padding-top:8px;'>Pour ne plus recevoir ces emails, décochez l'option dans "
+                "<em>Mon compte → Communications</em>.</p>")
+    url = f"{_BASE_URL}?page=unsubscribe&uid={user_id}&t={unsubscribe_token(user_id)}"
+    return (f"<p style='color:#aaa;font-size:11px;margin-top:24px;border-top:1px solid #eee;"
+            f"padding-top:8px;'>Vous recevez cet email car vous avez un compte streaMLytics. "
+            f"<a href='{url}' style='color:#aaa;'>Se désinscrire des communications</a> "
+            f"(décoche automatiquement l'option email de votre compte).</p>")
+
+
+def _guide_pdf_path():
+    """Path to the prebuilt onboarding guide PDF, or None if the module is unavailable."""
+    try:
+        from src.dashboard.guides.guide_pdf import output_pdf_path
+        return output_pdf_path()
+    except Exception as e:  # noqa: BLE001 — attachment is best-effort, never blocks signup
+        logger.warning("Guide PDF path unavailable: %s", e)
+        return None
 
 
 def send_verification_email(to_email: str, username: str, token: str) -> bool:

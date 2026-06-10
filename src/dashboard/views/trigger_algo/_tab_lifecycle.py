@@ -1,4 +1,5 @@
 """trigger_algo — _show_tab_lifecycle (move-only split)."""
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import show_empty_state
 import streamlit as st
 from ._common import (
@@ -13,11 +14,19 @@ from ._common import (
 
 
 def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
-    st.subheader("📉 Cycle de vie algorithmique & standardisation")
+    st.caption(t(
+        "trigger_algo.lifecycle.caption",
+        "📉 **Maturité & comparaison** — où en est ton titre dans son cycle de vie "
+        "algorithmique (semaine après semaine) et comment il se situe face à un benchmark "
+        "de référence. Utile pour distinguer un titre « jeune » d'un titre qui décroche."
+    ))
+    st.subheader(t("trigger_algo.lifecycle.header",
+                   "📉 Cycle de vie algorithmique & standardisation"))
     if show_empty_state(
         benchmark_df,
-        "Benchmark indisponible — artefact non généré "
-        "(voir migration 035 / export_lifecycle_benchmark.py).",
+        t("trigger_algo.lifecycle.no_benchmark",
+          "Benchmark indisponible — artefact non généré "
+          "(voir migration 035 / export_lifecycle_benchmark.py)."),
         level="warning",
     ):
         return
@@ -25,9 +34,11 @@ def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
     age_weeks = _compute_age_weeks(release_date)
     live_order, live_bin = _age_week_order(age_weeks)
     c1, c2 = st.columns([1, 2])
-    c1.metric("Âge du titre", f"{age_weeks} sem." if age_weeks is not None else "—")
-    c2.caption(f"Sortie : {release_date or '—'} · tranche {live_bin or '—'} · "
-               "courbes = cohorte globale statique")
+    c1.metric(t("trigger_algo.lifecycle.age_metric", "Âge du titre"),
+              f"{age_weeks} sem." if age_weeks is not None else "—")
+    c2.caption(t("trigger_algo.lifecycle.release_caption",
+                 "Sortie : {release} · tranche {bin} · courbes = cohorte globale statique")
+               .format(release=release_date or '—', bin=live_bin or '—'))
     _lifecycle_legend()
 
     for algo in ("DW", "RR", "RADIO"):
@@ -42,6 +53,7 @@ def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
     st.markdown("---")
     _standardization_block(db, track, artist_id, age_weeks, benchmark_df)
     st.divider()
-    with st.expander("🗒️ Notes & analyses à venir"):
-        st.caption("Espace réservé pour intégrer les prochaines analyses "
-                   "(distribution complète en boxplots, segmentation par décile, etc.).")
+    with st.expander(t("trigger_algo.lifecycle.notes_expander", "🗒️ Notes & analyses à venir")):
+        st.caption(t("trigger_algo.lifecycle.notes_body",
+                     "Espace réservé pour intégrer les prochaines analyses "
+                     "(distribution complète en boxplots, segmentation par décile, etc.)."))

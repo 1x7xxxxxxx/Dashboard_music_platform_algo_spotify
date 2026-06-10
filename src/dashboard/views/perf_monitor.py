@@ -15,6 +15,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.auth import is_admin
+from src.dashboard.utils.i18n import t
 
 # Thresholds in ms
 _GREEN  = 1_000
@@ -59,14 +60,14 @@ def _system_metrics() -> dict:
 
 def show():
     if not is_admin():
-        st.error("Accès réservé aux admins.")
+        st.error(t("perf_monitor.admin_only", "Accès réservé aux admins."))
         st.stop()
 
-    st.title("⚡ Performance Dashboard")
-    st.caption("Temps de rendu Streamlit par page · Session courante uniquement (non persisté entre sessions)")
+    st.title(t("perf_monitor.title", "⚡ Performance Dashboard"))
+    st.caption(t("perf_monitor.caption", "Temps de rendu Streamlit par page · Session courante uniquement (non persisté entre sessions)"))
 
     # ── Section 1 : KPIs instantanés ─────────────────────────────────────────
-    st.subheader("État en temps réel")
+    st.subheader(t("perf_monitor.realtime_header", "État en temps réel"))
 
     db_ms  = _db_ping_ms()
     sys_m  = _system_metrics()
@@ -77,37 +78,37 @@ def show():
 
     with col1:
         if last:
-            st.metric("Dernier rendu", _render_badge(last['ms']), help="Temps Python pour rendre la dernière page (DB + calculs + Streamlit)")
+            st.metric(t("perf_monitor.metric_last_render", "Dernier rendu"), _render_badge(last['ms']), help=t("perf_monitor.help_last_render", "Temps Python pour rendre la dernière page (DB + calculs + Streamlit)"))
         else:
-            st.metric("Dernier rendu", "— (navigue vers une page)")
+            st.metric(t("perf_monitor.metric_last_render", "Dernier rendu"), t("perf_monitor.no_render_yet", "— (navigue vers une page)"))
 
     with col2:
         if db_ms is None:
-            st.metric("DB ping", "❌ Inaccessible")
+            st.metric(t("perf_monitor.metric_db_ping", "DB ping"), t("perf_monitor.db_unreachable", "❌ Inaccessible"))
         else:
-            st.metric("DB ping", _render_badge(db_ms), help="Latence aller-retour SELECT 1 sur PostgreSQL")
+            st.metric(t("perf_monitor.metric_db_ping", "DB ping"), _render_badge(db_ms), help=t("perf_monitor.help_db_ping", "Latence aller-retour SELECT 1 sur PostgreSQL"))
 
     with col3:
         if sys_m['ram_mb'] is not None:
             ram = sys_m['ram_mb']
             color = "🟢" if ram < 400 else ("🟠" if ram < 800 else "🔴")
-            st.metric("RAM process", f"{color} {ram:.0f} MB", help="Mémoire RSS du process Streamlit")
+            st.metric(t("perf_monitor.metric_ram", "RAM process"), f"{color} {ram:.0f} MB", help=t("perf_monitor.help_ram", "Mémoire RSS du process Streamlit"))
         else:
-            st.metric("RAM process", "psutil non installé")
+            st.metric(t("perf_monitor.metric_ram", "RAM process"), t("perf_monitor.psutil_missing", "psutil non installé"))
 
     with col4:
         if sys_m['cpu_pct'] is not None:
             cpu = sys_m['cpu_pct']
             color = "🟢" if cpu < 30 else ("🟠" if cpu < 70 else "🔴")
-            st.metric("CPU process", f"{color} {cpu:.1f} %", help="CPU du process Streamlit sur 0.1s")
+            st.metric(t("perf_monitor.metric_cpu", "CPU process"), f"{color} {cpu:.1f} %", help=t("perf_monitor.help_cpu", "CPU du process Streamlit sur 0.1s"))
         else:
-            st.metric("CPU process", "psutil non installé")
+            st.metric(t("perf_monitor.metric_cpu", "CPU process"), t("perf_monitor.psutil_missing", "psutil non installé"))
 
     st.markdown("---")
 
     # ── Section 2 : Seuils de migration ──────────────────────────────────────
-    st.subheader("Seuils d'alerte")
-    st.markdown("""
+    st.subheader(t("perf_monitor.thresholds_header", "Seuils d'alerte"))
+    st.markdown(t("perf_monitor.thresholds_table", """
 | Indicateur | 🟢 OK | 🟠 Surveiller | 🔴 Migrer |
 |---|---|---|---|
 | Render time | < 1 000 ms | 1 000 – 3 000 ms | > 3 000 ms |
@@ -116,15 +117,15 @@ def show():
 | CPU process | < 30 % | 30 – 70 % | > 70 % |
 
 **Déclencheur de migration Streamlit → React/Next.js** : render time > 3 000 ms de façon répétée avec plusieurs artistes connectés simultanément.
-""")
+"""))
 
     st.markdown("---")
 
     # ── Section 3 : Historique session ───────────────────────────────────────
-    st.subheader(f"Historique session ({len(log)} renders)")
+    st.subheader(t("perf_monitor.history_header", "Historique session ({count} renders)").format(count=len(log)))
 
     if not log:
-        st.info("Navigue vers plusieurs pages pour alimenter l'historique.")
+        st.info(t("perf_monitor.history_empty", "Navigue vers plusieurs pages pour alimenter l'historique."))
         return
 
     df = pd.DataFrame(log)
@@ -140,7 +141,13 @@ def show():
     summary['moy'] = summary['moy'].round(0).astype(int)
     summary['max'] = summary['max'].astype(int)
     summary['min'] = summary['min'].astype(int)
-    summary.columns = ['Page', 'Renders', 'Moy (ms)', 'Max (ms)', 'Min (ms)']
+    summary.columns = [
+        t("perf_monitor.col_page", "Page"),
+        t("perf_monitor.col_renders", "Renders"),
+        t("perf_monitor.col_avg", "Moy (ms)"),
+        t("perf_monitor.col_max", "Max (ms)"),
+        t("perf_monitor.col_min", "Min (ms)"),
+    ]
 
     st.dataframe(summary, width="stretch", hide_index=True)
 
@@ -163,12 +170,12 @@ def show():
     fig.update_layout(
         height=280,
         margin=dict(t=10, b=10, l=0, r=0),
-        xaxis_title='Heure',
+        xaxis_title=t("perf_monitor.axis_time", "Heure"),
         yaxis_title='ms',
         showlegend=False,
     )
     st.plotly_chart(fig, width="stretch")
 
     # Log brut
-    with st.expander("Log brut (100 derniers renders)"):
+    with st.expander(t("perf_monitor.raw_log_expander", "Log brut (100 derniers renders)")):
         st.dataframe(df[['ts', 'page', 'ms', 'badge']].iloc[::-1], width="stretch", hide_index=True)

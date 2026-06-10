@@ -4,22 +4,29 @@ Type: Sub
 Uses: requests, streamlit
 Pure relocation from the former credentials.py — no logic change.
 """
+import os
+
 import requests
 import streamlit as st
+
+from src.dashboard.utils.i18n import t
 
 
 def _test_soundcloud(fields: dict) -> tuple:
     """Test SoundCloud via OAuth 2.0 Client Credentials flow (official API)."""
-    client_id     = fields.get('client_id', '').strip()
-    client_secret = fields.get('client_secret', '').strip()
+    # The artist only provides user_id; app credentials come from the shared env
+    # app (SOUNDCLOUD_CLIENT_ID/SECRET), with a per-artist stored override if any.
     user_id       = fields.get('user_id', '').strip()
+    client_id     = fields.get('client_id', '').strip() or os.getenv('SOUNDCLOUD_CLIENT_ID', '')
+    client_secret = fields.get('client_secret', '').strip() or os.getenv('SOUNDCLOUD_CLIENT_SECRET', '')
 
-    if not client_id:
-        return False, "Client ID vide — créer une app sur soundcloud.com/you/apps."
-    if not client_secret:
-        return False, "Client Secret vide — disponible sur soundcloud.com/you/apps après création de l'app."
     if not user_id:
-        return False, "User ID vide — ID numérique visible dans l'URL de ton profil SoundCloud."
+        return False, t("credentials.soundcloud.user_id_empty",
+                        "User ID vide — voir le guide ci-dessus pour le trouver (/discover).")
+    if not client_id or not client_secret:
+        return False, t("credentials.soundcloud.app_not_configured",
+                        "App SoundCloud non configurée côté plateforme "
+                        "(SOUNDCLOUD_CLIENT_ID/SECRET) — contactez l'administrateur.")
 
     try:
         # Step 1: obtain token
@@ -38,7 +45,8 @@ def _test_soundcloud(fields: dict) -> tuple:
 
         token = r.json().get('access_token')
         if not token:
-            return False, "Token absent dans la réponse OAuth."
+            return False, t("credentials.soundcloud.token_missing",
+                            "Token absent dans la réponse OAuth.")
 
         # Step 2: fetch tracks
         r2 = requests.get(
@@ -50,59 +58,78 @@ def _test_soundcloud(fields: dict) -> tuple:
         )
         if r2.status_code == 200:
             count = len(r2.json().get('collection', []))
-            return True, f"API SoundCloud OAuth OK — {count} track(s) récupéré(s) pour user {user_id} ✅"
+            return True, t("credentials.soundcloud.test_ok",
+                           "API SoundCloud OAuth OK — {count} track(s) récupéré(s) pour user {user_id} ✅").format(
+                               count=count, user_id=user_id)
         if r2.status_code == 404:
-            return False, f"404 — User ID '{user_id}' introuvable. Vérifier que c'est bien l'ID numérique."
+            return False, t("credentials.soundcloud.not_found",
+                            "404 — User ID '{user_id}' introuvable. Vérifier que c'est bien l'ID numérique.").format(
+                                user_id=user_id)
         return False, f"HTTP {r2.status_code} — {r2.text[:200]}"
     except Exception as e:
         return False, str(e)
 
 
 def _guide_soundcloud():
-    with st.expander("☁️ Comment obtenir les credentials SoundCloud ?", expanded=False):
-        st.info(
+    with st.expander(t("credentials.soundcloud.guide_title",
+                       "☁️ Comment obtenir les credentials SoundCloud ?"), expanded=False):
+        st.info(t(
+            "credentials.soundcloud.guide_info",
             "**Admin (toi)** : crée une app une seule fois sur soundcloud.com/you/apps — "
             "le `Client ID` et le `Client Secret` sont partagés par tous les artistes.\n\n"
             "**Chaque artiste** : fournit uniquement son `User ID` numérique."
-        )
+        ))
 
-        st.markdown("### Admin — Créer l'app (une seule fois)")
+        st.markdown(t("credentials.soundcloud.admin_header",
+                      "### Admin — Créer l'app (une seule fois)"))
         admin_steps = [
-            ("Prérequis", "Avoir un abonnement **Artist Pro** actif sur SoundCloud."),
-            ("Créer l'app", "Aller sur **soundcloud.com/you/apps** → **Register a new application**. "
-             "Nom : ne pas utiliser le mot « SoundCloud » (ex : `ETL Airflow Dashboard`). "
-             "Redirect URI : `http://localhost` (non utilisée)."),
-            ("Copier les credentials", "Sur la page de l'app, copier le **Client ID** et le **Client Secret** "
-             "et les saisir dans le formulaire ci-dessous."),
+            (t("credentials.soundcloud.admin_prereq_title", "Prérequis"),
+             t("credentials.soundcloud.admin_prereq_desc",
+               "Avoir un abonnement **Artist Pro** actif sur SoundCloud.")),
+            (t("credentials.soundcloud.admin_create_title", "Créer l'app"),
+             t("credentials.soundcloud.admin_create_desc",
+               "Aller sur **soundcloud.com/you/apps** → **Register a new application**. "
+               "Nom : ne pas utiliser le mot « SoundCloud » (ex : `ETL Airflow Dashboard`). "
+               "Redirect URI : `http://localhost` (non utilisée).")),
+            (t("credentials.soundcloud.admin_copy_title", "Copier les credentials"),
+             t("credentials.soundcloud.admin_copy_desc",
+               "Sur la page de l'app, copier le **Client ID** et le **Client Secret** "
+               "et les saisir dans le formulaire ci-dessous.")),
         ]
         for i, (title, desc) in enumerate(admin_steps, 1):
             st.markdown(f"**{i}. {title}** — {desc}")
 
-        st.markdown("### Artiste — Trouver son User ID")
-        st.markdown("Deux méthodes :")
+        st.markdown(t("credentials.soundcloud.artist_header",
+                      "### Artiste — Trouver son User ID"))
+        st.markdown(t("credentials.soundcloud.two_methods", "Deux méthodes :"))
 
-        st.markdown("**Méthode 1 — URL directe (la plus simple)**")
+        st.markdown(t("credentials.soundcloud.method1_title",
+                      "**Méthode 1 — URL directe (la plus simple)**"))
         st.code("https://soundcloud.com/api/users/monpseudo", language="text")
-        st.markdown(
+        st.markdown(t(
+            "credentials.soundcloud.method1_desc",
             "Ouvrir cette URL dans le navigateur (remplacer `monpseudo` par le slug du profil). "
             "La réponse JSON contient `\"id\": 123456789` — c'est le User ID à copier."
-        )
+        ))
 
-        st.markdown("**Méthode 2 — DevTools**")
+        st.markdown(t("credentials.soundcloud.method2_title", "**Méthode 2 — DevTools**"))
         devtools_steps = [
-            "Aller sur **soundcloud.com** connecté à son compte.",
-            "Appuyer sur **F12** → onglet **Network**.",
-            "Jouer n'importe quelle piste.",
-            "Filtrer les requêtes par `/users/` — l'URL contient `/users/123456789`.",
-            "Copier le nombre — c'est le User ID.",
+            t("credentials.soundcloud.devtools_1",
+              "Aller sur **soundcloud.com** connecté à son compte."),
+            t("credentials.soundcloud.devtools_2", "Appuyer sur **F12** → onglet **Network**."),
+            t("credentials.soundcloud.devtools_3", "Jouer n'importe quelle piste."),
+            t("credentials.soundcloud.devtools_4",
+              "Filtrer les requêtes par `/users/` — l'URL contient `/users/123456789`."),
+            t("credentials.soundcloud.devtools_5", "Copier le nombre — c'est le User ID."),
         ]
         for step in devtools_steps:
             st.markdown(f"- {step}")
 
-        st.markdown("### Note")
-        st.markdown(
+        st.markdown(t("credentials.soundcloud.note_header", "### Note"))
+        st.markdown(t(
+            "credentials.soundcloud.note_body",
             "- `Client ID` et `Client Secret` sont **permanents** — pas de rotation automatique.\n"
             "- Les access tokens OAuth sont renouvelés **automatiquement** par le DAG à chaque run (TTL 3600s).\n"
             "- Création d'app réservée aux comptes **Artist Pro**. "
             "Si les inscriptions sont fermées, contacter `soundcloud-api@soundcloud.com`."
-        )
+        ))

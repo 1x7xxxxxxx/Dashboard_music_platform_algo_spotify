@@ -11,6 +11,31 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.database.postgres_handler import PostgresHandler
 from src.utils.config_loader import config_loader
 
+_ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+
+
+@st.cache_data
+def logo_html(variant: str = "dark", max_width: int = 220, center: bool = False) -> str:
+    """streaMLytics wordmark as a base64 data-URI <img> (SVG renders reliably).
+
+    variant: 'dark' (dark text, light bg) | 'light' (white text, dark bg).
+    """
+    import base64
+    name = {
+        "light": "logo_horizontal_light.svg",
+        "dark": "logo_horizontal_dark.svg",
+        "adaptive": "logo_horizontal_adaptive.svg",
+    }.get(variant, "logo_horizontal_adaptive.svg")
+    try:
+        b64 = base64.b64encode((_ASSETS_DIR / name).read_bytes()).decode("ascii")
+    except Exception:
+        return ""
+    img = (f'<img src="data:image/svg+xml;base64,{b64}" '
+           f'style="width:100%;max-width:{max_width}px;" alt="streaMLytics"/>')
+    if center:
+        return f'<div style="text-align:center;margin:8px 0 18px 0;">{img}</div>'
+    return img
+
 
 def get_db_connection() -> Optional[PostgresHandler]:
     """
@@ -51,9 +76,11 @@ def project_db() -> Iterator[PostgresHandler]:
             df = db.fetch_df("SELECT ...", params)
             # render
     """
+    from src.dashboard.utils.i18n import t
     db = get_db_connection()
     if db is None:
-        st.error("❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`")
+        st.error(t("ui.db_unreachable",
+                   "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`"))
         st.stop()
     try:
         yield db
@@ -77,11 +104,12 @@ def view_session() -> Iterator[tuple[PostgresHandler, int]]:
                 ...  # body; connection closed automatically
     """
     from src.dashboard.auth import get_artist_id, is_admin
+    from src.dashboard.utils.i18n import t
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide.")
+            st.error(t("ui.invalid_session", "Session invalide."))
             st.stop()
         artist_id = 1  # admin fallback — full cross-tenant view (Admin panel)
     try:

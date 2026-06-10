@@ -67,6 +67,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [object-dtype-numeric-op](#object-dtype-numeric-op) | P3 | heuristic | guarded | none |
 | [tz-aware-naive-mix](#tz-aware-naive-mix) | P3 | heuristic | guarded | none |
 | [snapshot-fixture-hook-reflow](#snapshot-fixture-hook-reflow) | P3 | deterministic | guarded | none |
+| [song-name-convention-mismatch](#song-name-convention-mismatch) | P2 | heuristic | guarded | none |
 
 ---
 
@@ -298,3 +299,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
 - History:
   - 2026-06-01: hit while landing R5's `tests/fixtures/pdf_report_golden.html` (the `render_html` snapshot). The eof/trailing hooks stripped a final newline + trailing spaces that the HTML template legitimately emits → golden ≠ `render_html()` output. Fixed by excluding `^tests/fixtures/` from both hooks (detect-secrets already excluded `tests/fixtures/.*`). Rule: any byte-exact fixture directory must be excluded from reflowing hygiene hooks the moment it is introduced.
+
+## song-name-convention-mismatch
+- status: guarded
+- severity: P2
+- kind: heuristic
+- symptom: an exact-match join on a song/track title between a FILENAME-derived table (`s4a_song_timeline`, `ml_song_predictions`, manual-entry tables — they carry `_` because S4A replaces `< > : " / \ | ? *` with `_` in export filenames) and a CSV/API-derived table (`s4a_songs_global`, `tracks`, `track_popularity_history`, `campaign_track_mapping` — they keep the real chars) silently returns 0 rows / empty for every title containing one of those chars. The dashboard shows "—" or imputes a 0 ML feature; no error is raised.
+- signature: `! { grep -rnE "track_name *=|track_name\)" src/dashboard --include=*.py | grep -iE "%s|LOWER\(" | grep -viE "translate|canonical_song_sql|REPLACE"; }`
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: src/utils/track_matching.py — canonical_song()/canonical_song_sql() single-source helper; regression test tests/test_song_canonical.py }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-06-08 (ref: DEVLOG#2026-06-08)
+- History:
+  - 2026-06-08: discovered live — Vue Globale showed no Listeners/Saves for "Qui a bu le crachoir du saloon ?" because `s4a_songs_global` kept `?` while the timeline-derived selector passed `_`. Same class also silently zeroed the ml_inference Saves/listeners feature for all `?` titles, blanked the PI line (`track_popularity_history`) in Suivi Algorithmes, and excluded `?` tracks from the Meta CPR optimizer join (`campaign_track_mapping`). Fix: write-side normalisation in `parse_songs_global` via `canonical_song()` (+ migration 043 backfilling existing rows incl. `s4a_song_saves_daily`), and query-side `canonical_song_sql()` on the CSV/API side of every cross-convention join (`_tab_algos` PI ×4, `meta_cpr_optimizer`, `router` tracks join ×3). `track_release_reference` was already immune (its `normalize_track_title` strips both `?` and `_`). Heuristic + manual triage — the signature also matches same-convention joins (false positives); the durable guard is to route every cross-convention title join through `canonical_song_sql()`.

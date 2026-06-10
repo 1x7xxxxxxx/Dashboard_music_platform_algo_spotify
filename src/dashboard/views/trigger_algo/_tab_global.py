@@ -1,7 +1,9 @@
 """trigger_algo — _show_tab_global (move-only split)."""
 from datetime import timedelta
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
+from src.dashboard.utils.i18n import t
 from ._common import (
     _load_scored_tracks,
     _show_heuristic_section,
@@ -10,7 +12,12 @@ from ._common import (
 
 
 def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
-    st.subheader("📊 Métriques sur la période sélectionnée")
+    st.caption(t(
+        "trigger_algo.global.caption",
+        "🎯 **Vue d'ensemble** — les chiffres clés du titre sur la période, l'évolution de "
+        "ses probabilités de trigger, et son rang /20 dans ton catalogue. Commence ici."
+    ))
+    st.subheader(t("trigger_algo.global.metrics_header", "📊 Métriques sur la période sélectionnée"))
 
     # Select the appropriate s4a_songs_global snapshot window based on period length.
     # ≤35 days → 28d snapshot; anything longer → 12m snapshot.
@@ -66,14 +73,14 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
     except Exception:
         saves = None
 
-    # Playlist adds — most recent snapshot in the selected period (sémantique post-migration 024:
-    # 'count' est cumulatif par snapshot daté via recorded_at, pas incrémental par fenêtre)
+    # Playlist adds — latest 28d windowed snapshot (migration 044). Entry is done
+    # in bulk on the dedicated "📝 Saisie S4A" page.
     try:
         _parow = db.fetch_query(
             "SELECT count FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s AND recorded_at BETWEEN %s AND %s "
+            "WHERE artist_id = %s AND song = %s AND time_window = '28d' "
             "ORDER BY recorded_at DESC LIMIT 1",
-            (artist_id, track, date_from, date_to),
+            (artist_id, track),
         ) if artist_id else None
         playlist_adds = int(_parow[0][0]) if _parow and _parow[0][0] is not None else 0
     except Exception:
@@ -81,134 +88,102 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
     _tw_label = "28j" if _tw == '28d' else "12m"
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric(f"Listeners ({_tw_label})", f"{int(listeners or 0):,}" if listeners is not None else "—",
-                help=f"Snapshot {_tw_label} depuis s4a_songs_global (source : S4A export)")
-    col2.metric(f"Streams titre ({_tw_label})", f"{int(streams or 0):,}" if streams is not None else "—")
-    col3.metric(f"Saves ({_tw_label})", f"{int(saves or 0):,}" if saves is not None else "—",
-                help=f"Snapshot {_tw_label} depuis s4a_songs_global")
-    col4.metric("Playlist adds (période)", f"{int(playlist_adds):,}",
-                help="Saisie manuelle via la section Ajouts en playlist ci-dessous")
+    col1.metric(t("trigger_algo.global.listeners_metric", "Listeners ({win})").format(win=_tw_label),
+                f"{int(listeners or 0):,}" if listeners is not None else "—",
+                help=t("trigger_algo.global.listeners_help",
+                       "Snapshot {win} depuis s4a_songs_global (source : S4A export)").format(win=_tw_label))
+    col2.metric(t("trigger_algo.global.streams_metric", "Streams titre ({win})").format(win=_tw_label),
+                f"{int(streams or 0):,}" if streams is not None else "—")
+    col3.metric(t("trigger_algo.global.saves_metric", "Saves ({win})").format(win=_tw_label),
+                f"{int(saves or 0):,}" if saves is not None else "—",
+                help=t("trigger_algo.global.saves_help",
+                       "Snapshot {win} depuis s4a_songs_global").format(win=_tw_label))
+    col4.metric(t("trigger_algo.global.playlist_adds_metric", "Playlist adds (28j)"),
+                f"{int(playlist_adds):,}",
+                help=t("trigger_algo.global.playlist_adds_help",
+                       "Snapshot 28j — saisie dans « 📝 Saisie S4A » (section Données)"))
 
     st.markdown("---")
 
-    # ── Ajouts en playlist (saisie manuelle) ─────────────────────────────────
-    st.subheader("🎧 Ajouts en playlist")
+    # Trigger-probability trend — the selected track's 3 algo probabilities over
+    # the selected period. The dashed 50 % line is the decision threshold.
+    st.subheader(t("trigger_algo.global.trigger_trend_header",
+                   "🎚️ Évolution du taux de trigger (titre sélectionné)"))
+    st.caption(t(
+        "trigger_algo.global.trigger_trend_caption",
+        "Probabilité de déclenchement DW / RR / Radio du titre dans le temps. "
+        "La ligne pointillée à 50 % marque le seuil de déclenchement décisionnel."
+    ))
     try:
-        # Most recent snapshot regardless of selected period
-        pl_row = db.fetch_query(
-            "SELECT count, recorded_at FROM s4a_song_playlist_adds "
-            "WHERE artist_id = %s AND song = %s "
-            "ORDER BY recorded_at DESC LIMIT 1",
-            (artist_id, track),
-        ) if artist_id else db.fetch_query(
-            "SELECT count, recorded_at FROM s4a_song_playlist_adds "
-            "WHERE song = %s ORDER BY recorded_at DESC LIMIT 1",
-            (track,),
-        )
-        current_pl_count = int(pl_row[0][0]) if pl_row and pl_row[0][0] is not None else 0
-        last_recorded = pl_row[0][1] if pl_row else None
-    except Exception:
-        current_pl_count = 0
-        last_recorded = None
-
-    st.metric(
-        "Playlists ajoutées",
-        current_pl_count,
-        help=f"Dernier enregistrement : {last_recorded or '—'}. "
-             "Donnée visible dans l'UI Spotify for Artists uniquement — à saisir manuellement.",
-    )
-
-    with st.expander("✏️ Mettre à jour", expanded=False):
-        st.caption("Saisissez le nombre de playlists affiché dans S4A pour cette track.")
-        with st.form(key=f"pl_count_form_{track}_{artist_id}", clear_on_submit=False):
-            fc1, fc2 = st.columns([2, 1])
-            new_count = fc1.number_input(
-                "Nombre de playlists",
-                min_value=0,
-                value=current_pl_count,
-                step=1,
+        if artist_id:
+            df_trig = db.fetch_df(
+                """SELECT prediction_date, dw_probability, rr_probability, radio_probability
+                   FROM ml_song_predictions
+                   WHERE song = %s AND artist_id = %s AND prediction_date BETWEEN %s AND %s
+                   ORDER BY prediction_date""",
+                (track, artist_id, date_from, date_to),
             )
-            entry_date = fc2.date_input(
-                "Date de relevé",
-                value=date_to,
-                format="YYYY-MM-DD",
+        else:
+            df_trig = db.fetch_df(
+                """SELECT prediction_date, dw_probability, rr_probability, radio_probability
+                   FROM ml_song_predictions
+                   WHERE song = %s AND prediction_date BETWEEN %s AND %s
+                   ORDER BY prediction_date""",
+                (track, date_from, date_to),
             )
-            if st.form_submit_button("Enregistrer", type="primary"):
-                try:
-                    db.upsert_many(
-                        table='s4a_song_playlist_adds',
-                        data=[{
-                            'artist_id':   artist_id,
-                            'song':        track,
-                            'recorded_at': entry_date,
-                            'count':       int(new_count),
-                        }],
-                        conflict_columns=['artist_id', 'song', 'recorded_at'],
-                        update_columns=['count', 'collected_at'],
-                    )
-                    st.success(f"{int(new_count)} playlist(s) enregistrée(s) au {entry_date}.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Erreur : {exc}")
-
-    # ── Discovery Mode (saisie manuelle) ─────────────────────────────────────
-    # S4A-UI-only signal (no API). Un-impute le feature ML
-    # IsThisSongOptedIntoSpotifyDiscoveryMode (sinon imputé à 0).
-    st.subheader("🔭 Discovery Mode")
-    try:
-        dm_row = db.fetch_query(
-            "SELECT opted_in, recorded_at FROM s4a_song_discovery_mode "
-            "WHERE artist_id = %s AND song = %s "
-            "ORDER BY recorded_at DESC LIMIT 1",
-            (artist_id, track),
-        ) if artist_id else db.fetch_query(
-            "SELECT opted_in, recorded_at FROM s4a_song_discovery_mode "
-            "WHERE song = %s ORDER BY recorded_at DESC LIMIT 1",
-            (track,),
-        )
-        current_dm = bool(dm_row[0][0]) if dm_row and dm_row[0][0] is not None else False
-        dm_recorded = dm_row[0][1] if dm_row else None
-    except Exception:
-        current_dm = False
-        dm_recorded = None
-
-    st.metric(
-        "Discovery Mode",
-        "Activé" if current_dm else "Désactivé",
-        help=f"Dernier relevé : {dm_recorded or '—'}. Visible dans Spotify for Artists "
-             "uniquement — à saisir manuellement. Alimente la prédiction ML.",
-    )
-
-    if artist_id:
-        with st.expander("✏️ Mettre à jour", expanded=False):
-            with st.form(key=f"dm_form_{track}_{artist_id}", clear_on_submit=False):
-                dc1, dc2 = st.columns([2, 1])
-                new_dm = dc1.checkbox("Opt-in Discovery Mode pour cette track", value=current_dm)
-                dm_date = dc2.date_input("Date de relevé", value=date_to, format="YYYY-MM-DD")
-                if st.form_submit_button("Enregistrer", type="primary"):
-                    try:
-                        db.upsert_many(
-                            table='s4a_song_discovery_mode',
-                            data=[{
-                                'artist_id':   artist_id,
-                                'song':        track,
-                                'recorded_at': dm_date,
-                                'opted_in':    bool(new_dm),
-                            }],
-                            conflict_columns=['artist_id', 'song', 'recorded_at'],
-                            update_columns=['opted_in', 'collected_at'],
-                        )
-                        st.success(
-                            f"Discovery Mode {'activé' if new_dm else 'désactivé'} au {dm_date}."
-                        )
-                        st.rerun()
-                    except Exception as exc:
-                        st.error(f"Erreur : {exc}")
+        if df_trig.empty:
+            st.info(t("trigger_algo.global.no_ml_history",
+                      "Aucun historique de probabilités ML sur cette période."))
+        else:
+            df_trig["prediction_date"] = pd.to_datetime(df_trig["prediction_date"])
+            fig_trig = go.Figure()
+            for col, name, color in [
+                ("dw_probability", "Discover Weekly", "#FF6B6B"),
+                ("rr_probability", "Release Radar", "#4ECDC4"),
+                ("radio_probability", "Radio", "#FFE66D"),
+            ]:
+                fig_trig.add_trace(go.Scatter(
+                    x=df_trig["prediction_date"], y=df_trig[col] * 100,
+                    name=name, mode="lines+markers", line=dict(color=color, width=2)
+                ))
+            fig_trig.add_hline(
+                y=50, line_dash="dash", line_color="#888888",
+                annotation_text=t("trigger_algo.global.threshold_50", "Seuil trigger 50 %")
+            )
+            fig_trig.update_layout(
+                hovermode="x unified", height=380,
+                legend=dict(orientation="h", y=1.15),
+                xaxis=dict(title=t("trigger_algo.global.axis_pred_date", "Date de prédiction")),
+                yaxis=dict(title=t("trigger_algo.global.axis_trigger_proba",
+                                   "Probabilité de trigger (%)"), range=[0, 100])
+            )
+            st.plotly_chart(fig_trig, width='stretch')
+    except Exception as e:
+        st.warning(t("trigger_algo.global.trigger_curve_unavailable",
+                     "Courbe taux de trigger indisponible : {err}").format(err=e))
 
     st.markdown("---")
+
+    # Note: les relevés « Ajouts en playlist » et « Discovery Mode » se saisissent
+    # et se consultent dans la page « 📝 Saisie S4A » (section Données). On ne les
+    # ré-affiche plus ici pour éviter la redondance ; ils alimentent la prédiction
+    # ML et restent visibles dans le KPI compact « Playlist adds » ci-dessus.
 
     # Score /20 benchmark
-    st.subheader("🏆 Score /20 — Benchmark toutes les tracks")
+    st.subheader(t("trigger_algo.global.score20_header", "🏆 Score /20 — Benchmark toutes les tracks"))
+    st.caption(t(
+        "trigger_algo.global.score20_caption",
+        "⚖️ Score **relatif** (classement, pas une proba) : "
+        "`0.35·DW + 0.35·RR + 0.20·Radio + 0.10·velocity`, puis étiré en **min-max** sur "
+        "le catalogue → le **meilleur titre = 20.0, le pire = 0.0**, les autres répartis "
+        "entre les deux. C'est un classement interne : 20.0 ne veut PAS dire « 100 % de "
+        "chance de trigger », et 0.0 ne veut PAS dire « aucune chance » (juste dernier du "
+        "catalogue). **`Streams 28j` n'entre pas dans le calcul** (colonne de contexte). "
+        "Quand les probas DW/RR/Radio sont très proches d'un titre à l'autre, c'est la "
+        "**velocity** (momentum récent, 10 % du poids) qui départage. Pour la probabilité "
+        "**absolue** de déclenchement, lis les colonnes DW % / RR % / Radio % (sorties "
+        "calibrées du modèle), pas le score."
+    ))
     try:
         df_bench = _load_scored_tracks(db, artist_id)
 
@@ -236,20 +211,22 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
 
             styled = (
                 display.style
-                .format(na_rep="—")
+                .format({"Score /20": "{:.1f}"}, na_rep="—")
                 .applymap(_color_score, subset=["Score /20"])
                 .apply(_highlight_selected, axis=1)
             )
             st.dataframe(styled, hide_index=True, width='stretch')
         else:
-            st.info("Aucune prédiction ML disponible pour le benchmark.")
+            st.info(t("trigger_algo.global.no_benchmark_pred",
+                      "Aucune prédiction ML disponible pour le benchmark."))
     except Exception as e:
-        st.warning(f"Score benchmark indisponible : {e}")
+        st.warning(t("trigger_algo.global.benchmark_unavailable",
+                     "Score benchmark indisponible : {err}").format(err=e))
 
     st.markdown("---")
 
     # J+28 quick stats + probability bars
-    st.subheader("🎯 Objectifs Algorithmiques (J+28)")
+    st.subheader(t("trigger_algo.global.objectives_header", "🎯 Objectifs Algorithmiques (J+28)"))
     try:
         if artist_id:
             df_full = db.fetch_df(
@@ -272,9 +249,12 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
             current_total = float(df_28["streams_cumul"].max()) if not df_28.empty else 0
             days_elapsed = int(df_28["day_index"].max()) if not df_28.empty else 0
             c1, c2 = st.columns(2)
-            c1.metric("Jours écoulés (J+28)", f"{days_elapsed}/28",
-                      delta=f"{max(0, 28 - days_elapsed)} restants", delta_color="inverse")
-            c2.metric("Streams cumulés J+28", f"{current_total:,.0f}")
+            c1.metric(t("trigger_algo.global.days_elapsed_metric", "Jours écoulés (J+28)"),
+                      f"{days_elapsed}/28",
+                      delta=t("trigger_algo.global.days_remaining", "{n} restants")
+                      .format(n=max(0, 28 - days_elapsed)), delta_color="inverse")
+            c2.metric(t("trigger_algo.global.cumul_streams_metric", "Streams cumulés J+28"),
+                      f"{current_total:,.0f}")
         else:
             current_total, days_elapsed = 0, 0
     except Exception:

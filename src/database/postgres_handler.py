@@ -18,6 +18,7 @@ _ALLOWED_TABLES = frozenset({
     'soundcloud_tracks_daily', 'instagram_daily_stats',
     'instagram_media', 'instagram_media_insights',
     'imusician_monthly_revenue', 'imusician_release_summary', 'imusician_sales_detail',
+    'distrokid_monthly_revenue', 'distrokid_sales_detail',
     'ml_song_predictions', 'artist_wrapped',
     'meta_campaigns', 'meta_adsets', 'meta_ads', 'meta_insights',
     'meta_insights_performance', 'meta_insights_performance_day',
@@ -52,6 +53,10 @@ _ALLOWED_TABLES = frozenset({
     'track_release_reference',
     's4a_song_saves_daily',
     's4a_song_discovery_mode',
+    's4a_song_nonalgo_streams',
+    's4a_artist_radio_count',
+    'track_platform_link',
+    'campaign_track_mapping',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')

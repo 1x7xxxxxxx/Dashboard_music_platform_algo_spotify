@@ -198,6 +198,19 @@ without touching behavior.
 
 ### #5 — `utils/pdf_exporter.py` (861 lines) — template-based render ✅ DONE 2026-06-01
 
+> **Update 2026-06-10 — package split (the file had re-grown to 1734 l via WAVE
+> 1-9 song/ML/forecast sections).** `pdf_exporter.py` → package
+> `pdf_exporter/` (`_config.py` constants/CSS, `_collectors.py` ~37 `_collect_*`,
+> `_renderers.py` ~24 `_render_*`+primitives, `_report.py` 3 orchestrators,
+> `__init__.py` re-exports the public surface incl. the `_`-prefixed names the
+> view imports). **Move-only**, AST-extracted (verbatim segments). The golden test
+> (`test_render_html_matches_golden`) proved byte-identical HTML output. One
+> load-bearing fix: `_render_freshness` resolves `freshness_status` via the package
+> root (`_pkg.freshness_status`) so the test's `monkeypatch.setattr(pdf_exporter,
+> "freshness_status", …)` still bites; and `_ASSETS` gained one `.parent` (module
+> moved one dir deeper). Verified: 418 passed / 2 skipped (= baseline), ruff clean,
+> render-smoke[export_pdf] green. The mega-helper abstraction stays rejected (below).
+
 **As-built (deviates from the sketch — Rule #2):** the sketched single
 `_render_section(title, kpis, table_data)` mega-helper was rejected — the 6 platform
 renderers differ in per-column formatting, optional KPI-card styles (Meta's red spend),

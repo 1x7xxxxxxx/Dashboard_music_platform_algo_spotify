@@ -30,6 +30,16 @@ rex:
     fix: "Created s4a_song_saves_daily history table + a daily snapshot writer in the ml_scoring DAG; detection stays dormant until ~2 weeks of history accrue"
     severity: "info"
     ref: "DEVLOG#2026-05-31"
+  - date: 2026-06-08
+    issue: "upsert config for apple_songs_performance omitted collected_at from update_columns -> freshness frozen on re-import"
+    fix: "Include collected_at in update_columns for snapshot tables (match s4a_*); on conflict the timestamp must refresh, else the view shows stale freshness despite new values"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Manual-entry playlist adds stored as one cumulative count then SUM-ed over 28d -> double-counts windowed S4A figures"
+    fix: "Model windowed manual figures as snapshots: add a time_window dim (7d/28d/12m/custom) to the PK (migration 044); read the latest '28d' snapshot, never SUM rows. Each S4A figure maps to its own row"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-08 (suite)"
 ---
 
 # Skill: Database Schema

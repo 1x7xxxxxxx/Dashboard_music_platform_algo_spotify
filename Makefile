@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit
+.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -32,6 +32,14 @@ migrate:     ## Apply every migrations/*.sql idempotently against the live PG
 		echo ">> $$f"; \
 		docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl < $$f; \
 	done
+
+backup:      ## Dump spotify_etl → backups/*.sql.gz (+ retention)
+	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
+	@bash tools/db_backup.sh
+
+backup-test: ## Restore the latest backup into a throwaway DB + verify (drill)
+	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
+	@bash tools/db_restore_test.sh
 
 check-env:   ## Verify critical imports + pip dep coherence (canary check)
 	@python3 -c "import isodate, streamlit, plotly, pandas, psycopg2" 2>/dev/null \

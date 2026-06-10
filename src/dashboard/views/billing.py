@@ -6,55 +6,61 @@ and upgrade/manage links. Admin sees all artist subscriptions.
 import os
 import streamlit as st
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin, get_artist_plan
+from src.database.stripe_schema import PLAN_CATALOG, PLAN_RANK, SERVICE_CONTACT_EMAIL
 
 
-# ── Plan display catalogue (single source of truth for the 3-column layout) ──
-# Prices align with migration 014 (Basic 5€, Premium 15€). Features are folded
-# in here so the page no longer needs a separate comparison table.
-_PLAN_CARDS = {
-    'free': {
-        'label': '🆓 Free',
-        'price': '0 €/mois',
-        'max_artists': '1 artiste',
-        'features': [
-            "Toutes les analytics plateformes (Spotify, Apple Music, "
-            "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)",
-            "Revenus distributeur (iMusician)",
-            "Import & export CSV",
-            "Data Wrapped annuel",
-            "Credentials API & mapping Meta × Spotify",
-        ],
-    },
-    'basic': {
-        'label': '⭐ Basic',
-        'price': '5 €/mois',
-        'max_artists': "Jusqu'à 3 artistes",
-        'features': [
-            "Tout ce que contient Free",
-            "🚀 Road to Algo — prédictions ML",
-            "📈 Prévisions de revenus (ML)",
-            "📄 Export PDF",
-        ],
-    },
-    'premium': {
-        'label': '💎 Premium',
-        'price': '15 €/mois',
-        'max_artists': "Jusqu'à 10 artistes",
-        'features': [
-            "Tout ce que contient Basic",
-            "🎨 Créatives Meta Ads",
-            "📊 CPR Optimizer",
-            "Support prioritaire",
-        ],
-    },
-}
-_PLAN_ORDER = ['free', 'basic', 'premium']
-_PLAN_RANK = {'free': 0, 'basic': 1, 'premium': 2}
+def _price_str(plan: str) -> str:
+    p = PLAN_CATALOG[plan]['price_eur']
+    if p == 0:
+        return t("billing.price_free", "0 €/mois")
+    return t("billing.price_monthly", "{p} €/mois").format(p=p)
+
+
+# ── Plan display catalogue (3-column layout). Prices come from PLAN_CATALOG
+# (single source of truth); curated bullets mirror PLAN_FEATURES (validated 2026-06-09:
+# Export PDF in Free, Revenue forecast Premium-only, Basic 5€ / Premium 10€).
+# Built per-render (not at import) so t() resolves the session language. ──
+def _plan_cards() -> dict:
+    return {
+        'free': {
+            'label': t("billing.plan_free_label", "🆓 Free"),
+            'price': _price_str('free'),
+            'max_artists': t("billing.one_artist", "1 artiste"),
+            'features': [
+                t("billing.feat_all_analytics",
+                  "Toutes les analytics plateformes (Spotify, Apple Music, "
+                  "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)"),
+                t("billing.feat_distributor", "Revenus distributeur (iMusician)"),
+                t("billing.feat_csv", "Import & export CSV"),
+                t("billing.feat_pdf", "📄 Export PDF du rapport"),
+                t("billing.feat_wrapped", "Data Wrapped annuel"),
+                t("billing.feat_credentials", "Credentials API & mapping Meta × Spotify"),
+            ],
+        },
+        'premium': {
+            'label': t("billing.plan_premium_label", "💎 Premium"),
+            'price': _price_str('premium'),
+            'max_artists': t("billing.up_to_10", "Jusqu'à 10 artistes"),
+            'features': [
+                t("billing.feat_everything_free", "Tout ce que contient Free"),
+                t("billing.feat_road_to_algo",
+                  "🚀 Road to Algo — prédictions ML (Discover Weekly / Release Radar / Radio)"),
+                t("billing.feat_revenue_forecast", "📈 Prévisions de revenus (ML)"),
+                t("billing.feat_creatives", "🎨 Créatives Meta Ads"),
+                t("billing.feat_cpr", "📊 CPR Optimizer"),
+                t("billing.feat_support", "Support prioritaire"),
+            ],
+        },
+    }
+
+
+_PLAN_ORDER = ['free', 'premium']
 
 
 def show():
-    st.title("💳 Billing & Subscription")
+    st.title(t("billing.title", "💳 Facturation & Abonnement"))
     st.markdown("---")
 
     db = get_db_connection()
@@ -75,8 +81,28 @@ def show():
         current_plan = None if admin else get_artist_plan()
         _render_plan_columns(current_plan)
 
+        _render_service_cta()
+
     finally:
         db.close()
+
+
+def _render_service_cta() -> None:
+    """Done-for-you marketing-campaign optimization — manual service, call-first."""
+    st.markdown("---")
+    st.subheader(t("billing.service_header",
+                   "🎯 Optimisation de vos campagnes marketing (service sur-mesure)"))
+    st.markdown(
+        t("billing.service_body",
+          "Vous voulez déléguer l'optimisation de vos campagnes (Meta Ads & cie) ? "
+          "Je peux m'en occuper directement. **Un appel préalable est requis** pour vérifier "
+          "que ça colle à votre projet et définir le budget que vous souhaitez investir.\n\n"
+          "📧 Contact : **{email}**").format(email=SERVICE_CONTACT_EMAIL)
+    )
+    st.link_button(
+        t("billing.service_btn", "✉️ Me contacter pour l'optimisation"),
+        f"mailto:{SERVICE_CONTACT_EMAIL}?subject=Optimisation%20campagnes%20marketing%20-%20streaMLytics",
+    )
 
 
 def _show_current_plan(db, artist_id: int):
@@ -97,11 +123,13 @@ def _show_current_plan(db, artist_id: int):
         # No subscription row → free plan (or active promo trial)
         plan = get_artist_plan()
         if plan == 'free':
-            st.info("Vous êtes sur le plan **Free**. Découvrez les offres ci-dessous.")
+            st.info(t("billing.free_plan_info",
+                      "Vous êtes sur le plan **Free**. Découvrez les offres ci-dessous."))
         else:
             st.success(
-                f"🎁 Accès **{plan.capitalize()}** actif (essai de bienvenue). "
-                "Voir les offres ci-dessous pour la suite."
+                t("billing.trial_active",
+                  "🎁 Accès **{plan}** actif (essai de bienvenue). "
+                  "Voir les offres ci-dessous pour la suite.").format(plan=plan.capitalize())
             )
         return
 
@@ -115,46 +143,57 @@ def _show_current_plan(db, artist_id: int):
     }.get(status, '⚪')
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Plan", plan_name.capitalize())
-    col2.metric("Monthly price", f"{float(price):.2f} €")
-    col3.metric("Status", f"{status_color} {status.replace('_', ' ').title()}")
+    col1.metric(t("billing.metric_plan", "Plan"), plan_name.capitalize())
+    col2.metric(t("billing.metric_price", "Prix mensuel"), f"{float(price):.2f} €")
+    col3.metric(t("billing.metric_status", "Statut"), f"{status_color} {status.replace('_', ' ').title()}")
 
     free_months_row = db.fetch_query(
         "SELECT referral_free_months FROM saas_artists WHERE id = %s", (artist_id,)
     )
     free_months = free_months_row[0][0] if free_months_row else 0
     if free_months > 0:
-        st.success(f"🎁 You have **{free_months} free month(s)** from referrals — applied before your next billing cycle.")
+        st.success(t("billing.free_months",
+                     "🎁 Vous avez **{n} mois gratuit(s)** grâce au parrainage — appliqués "
+                     "avant votre prochain cycle de facturation.").format(n=free_months))
 
     discount_row = db.fetch_query(
         "SELECT first_month_discount_pct FROM saas_artists WHERE id = %s", (artist_id,)
     )
     discount_pct = discount_row[0][0] if discount_row else 0
     if discount_pct > 0:
-        st.info(f"🏷️ **{discount_pct}% discount** will be applied to your first paid month (referral reward).")
+        st.info(t("billing.discount",
+                  "🏷️ Un **rabais de {pct}%** sera appliqué à votre premier mois payant "
+                  "(récompense parrainage).").format(pct=discount_pct))
 
     if period_end:
         if cancel_at_end:
             st.warning(
-                f"⚠️ Your subscription is set to **cancel on {period_end.strftime('%Y-%m-%d')}**. "
-                "Reactivate via the Stripe portal below."
+                t("billing.cancel_warning",
+                  "⚠️ Votre abonnement sera **résilié le {date}**. "
+                  "Réactivez-le via le portail Stripe ci-dessous.").format(
+                      date=period_end.strftime('%Y-%m-%d'))
             )
         else:
-            st.caption(f"Next renewal: {period_end.strftime('%Y-%m-%d')}")
+            st.caption(t("billing.next_renewal", "Prochain renouvellement : {date}").format(
+                date=period_end.strftime('%Y-%m-%d')))
 
     if status == 'past_due':
         st.error(
-            "❌ Your last payment failed. Update your payment method to restore access.",
+            t("billing.payment_failed",
+              "❌ Votre dernier paiement a échoué. Mettez à jour votre moyen de paiement "
+              "pour rétablir l'accès."),
             icon="💳",
         )
 
     if customer_id:
         stripe_portal_url = os.getenv("STRIPE_PORTAL_URL", "")
         if stripe_portal_url:
-            st.link_button("Manage subscription (Stripe portal)", stripe_portal_url)
+            st.link_button(t("billing.manage_sub", "Gérer l'abonnement (portail Stripe)"), stripe_portal_url)
         else:
             st.caption(
-                "To manage your subscription, contact support or set `STRIPE_PORTAL_URL` in your environment."
+                t("billing.portal_unset",
+                  "Pour gérer votre abonnement, contactez le support ou définissez "
+                  "`STRIPE_PORTAL_URL` dans votre environnement.")
             )
 
     # Offres rendered by show() → _render_plan_columns (3-column layout).
@@ -169,35 +208,37 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
     """
     # Current plan → badge, no CTA
     if current_plan is not None and target_plan == current_plan:
-        st.success("✅ Votre plan actuel")
+        st.success(t("billing.current_plan_badge", "✅ Votre plan actuel"))
         return
     # Lower or equal rank than the current plan → already included
-    if current_plan is not None and _PLAN_RANK[target_plan] <= _PLAN_RANK[current_plan]:
-        st.caption("Inclus dans votre plan")
+    if current_plan is not None and PLAN_RANK[target_plan] <= PLAN_RANK[current_plan]:
+        st.caption(t("billing.included", "Inclus dans votre plan"))
         return
     if target_plan == 'free':
-        st.caption("Plan gratuit — aucune action requise")
+        st.caption(t("billing.free_no_action", "Plan gratuit — aucune action requise"))
         return
 
     checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
-    label = f"Passer à {target_plan.capitalize()}"
+    label = t("billing.upgrade_to", "Passer à {plan}").format(plan=target_plan.capitalize())
     if checkout_url:
         st.link_button(label, f"{checkout_url}?plan={target_plan}", type="primary")
     else:
         # No Stripe configured: enabled button that surfaces the manual path.
         if st.button(label, type="primary", key=f"upgrade_{target_plan}"):
             st.info(
-                "💳 Le paiement en ligne arrive bientôt. En attendant, "
-                "contactez-nous pour activer ce plan dès maintenant."
+                t("billing.payment_soon",
+                  "💳 Le paiement en ligne arrive bientôt. En attendant, "
+                  "contactez-nous pour activer ce plan dès maintenant.")
             )
 
 
 def _render_plan_columns(current_plan: str | None) -> None:
     """3-column Free / Basic / Premium offer layout (replaces the table)."""
-    st.subheader("Nos offres")
-    cols = st.columns(3)
+    st.subheader(t("billing.offers_header", "Nos offres"))
+    plan_cards = _plan_cards()
+    cols = st.columns(len(_PLAN_ORDER))
     for col, plan_key in zip(cols, _PLAN_ORDER):
-        card = _PLAN_CARDS[plan_key]
+        card = plan_cards[plan_key]
         with col:
             is_current = current_plan is not None and plan_key == current_plan
             header = f"### {card['label']}"
@@ -211,7 +252,7 @@ def _render_plan_columns(current_plan: str | None) -> None:
 
 
 def _show_admin_view(db):
-    st.subheader("All artist subscriptions")
+    st.subheader(t("billing.admin_header", "Tous les abonnements artistes"))
 
     rows = db.fetch_query(
         """
@@ -226,13 +267,21 @@ def _show_admin_view(db):
     )
 
     if not rows:
-        st.info("No artists found.")
+        st.info(t("billing.no_artists", "Aucun artiste trouvé."))
         return
 
     import pandas as pd
     df = pd.DataFrame(rows, columns=["Artist", "Tier", "Plan", "Status", "Period End", "Stripe Customer"])
     df["Period End"] = df["Period End"].apply(lambda x: x.strftime('%Y-%m-%d') if x else "—")
     df["Stripe Customer"] = df["Stripe Customer"].apply(lambda x: x[:8] + "…" if x else "—")
+    df.columns = [
+        t("common.artist", "Artiste"),
+        t("billing.col_tier", "Tier"),
+        t("billing.col_plan", "Plan"),
+        t("billing.col_status", "Statut"),
+        t("billing.col_period_end", "Fin de période"),
+        t("billing.col_stripe", "Client Stripe"),
+    ]
     st.dataframe(df, width="stretch", hide_index=True)
 
     # Revenue summary
@@ -249,14 +298,18 @@ def _show_admin_view(db):
 
     if rev_rows:
         st.markdown("---")
-        st.subheader("MRR breakdown")
+        st.subheader(t("billing.mrr_header", "Répartition du MRR"))
         col1, col2, col3 = st.columns(3)
         total_mrr = sum(float(r[2] or 0) for r in rev_rows)
         total_artists = sum(int(r[1]) for r in rev_rows)
-        col1.metric("Total MRR", f"{total_mrr:.2f} €")
-        col2.metric("Paying artists", total_artists)
+        col1.metric(t("billing.total_mrr", "MRR total"), f"{total_mrr:.2f} €")
+        col2.metric(t("billing.paying_artists", "Artistes payants"), total_artists)
         col3.metric("ARPU", f"{(total_mrr / total_artists):.2f} €" if total_artists else "—")
 
         import pandas as pd
-        df_mrr = pd.DataFrame(rev_rows, columns=["Plan", "Artists", "MRR (€)"])
+        df_mrr = pd.DataFrame(rev_rows, columns=[
+            t("billing.col_plan", "Plan"),
+            t("billing.col_artists", "Artistes"),
+            t("billing.col_mrr", "MRR (€)"),
+        ])
         st.dataframe(df_mrr, width="stretch", hide_index=True)

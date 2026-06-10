@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.csv_exporter import export_all, export_excel, table_names as _all_table_names
 
@@ -17,11 +18,12 @@ def _get_artists_list(db) -> list[dict]:
 
 
 def show():
-    st.title("⬇️ Export CSV — Données artiste")
-    st.caption(
+    st.title(t("export_csv.title", "⬇️ Export CSV — Données artiste"))
+    st.caption(t(
+        "export_csv.caption",
         "Téléchargez toutes vos données sous forme d'un fichier ZIP "
         "(un CSV par table). Vos données uniquement — filtrées par artiste."
-    )
+    ))
     st.markdown("---")
 
     db = get_db_connection()
@@ -35,18 +37,23 @@ def show():
         if admin:
             artists = _get_artists_list(db)
             if not artists:
-                st.warning("Aucun artiste actif en base.")
+                st.warning(t("export_csv.no_active_artist", "Aucun artiste actif en base."))
                 return
             artist_options = {a["name"]: a["id"] for a in artists}
             col1, _ = st.columns([2, 4])
             with col1:
-                selected_name = st.selectbox("👤 Artiste à exporter", list(artist_options.keys()))
+                selected_name = st.selectbox(
+                    t("export_csv.artist_select", "👤 Artiste à exporter"),
+                    list(artist_options.keys()))
             export_artist_id = artist_options[selected_name]
             export_artist_name = selected_name
         else:
             export_artist_id = get_artist_id()
-            export_artist_name = st.session_state.get("name", f"Artiste #{export_artist_id}")
-            st.info(f"👤 Export pour : **{export_artist_name}**")
+            export_artist_name = st.session_state.get(
+                "name",
+                t("export_csv.artist_fallback", "Artiste #{id}").format(id=export_artist_id))
+            st.info(t("export_csv.export_for", "👤 Export pour : **{name}**")
+                    .format(name=export_artist_name))
 
         st.markdown("---")
 
@@ -67,18 +74,20 @@ def show():
             "Meta Ads": ["meta_campaigns", "meta_adsets", "meta_ads", "meta_insights_performance_day"],
             "Hypeddit": ["hypeddit_campaigns", "hypeddit_daily_stats"],
             "Distributeur": ["imusician_monthly_revenue"],
+            "Machine Learning": ["ml_song_predictions", "algo_lifecycle_benchmark"],
         }
 
-        st.subheader("📋 Sources à inclure")
+        st.subheader(t("export_csv.sources_header", "📋 Sources à inclure"))
         col_sel, col_desel = st.columns([1, 5])
-        if col_sel.button("Tout sélectionner"):
+        if col_sel.button(t("export_csv.select_all", "Tout sélectionner")):
             for k in _SOURCE_GROUPS:
                 st.session_state[f"src_{k}"] = True
         selected_tables: list[str] = []
         cols = st.columns(4)
         for i, (source, tbls) in enumerate(_SOURCE_GROUPS.items()):
+            _slug_src = source.lower().replace(" ", "_")
             checked = cols[i % 4].checkbox(
-                source,
+                t(f"export_csv.source.{_slug_src}", source),
                 value=st.session_state.get(f"src_{source}", True),
                 key=f"src_{source}",
             )
@@ -86,23 +95,25 @@ def show():
                 selected_tables.extend(tbls)
 
         if not selected_tables:
-            st.warning("Sélectionnez au moins une source.")
+            st.warning(t("export_csv.select_one_source", "Sélectionnez au moins une source."))
 
-        st.caption(f"{len(selected_tables)} table(s) sélectionnée(s) sur {len(_all_table_names())}.")
+        st.caption(t("export_csv.tables_selected",
+                     "{n} table(s) sélectionnée(s) sur {total}.")
+                   .format(n=len(selected_tables), total=len(_all_table_names())))
         st.markdown("---")
 
         # ── Format d'export ──────────────────────────────────────────────
         col_fmt, col_btn, _ = st.columns([1, 1, 2])
         with col_fmt:
             fmt = st.radio(
-                "Format",
+                t("export_csv.format", "Format"),
                 ["ZIP (CSV)", "Excel (.xlsx)"],
                 horizontal=True,
             )
         with col_btn:
             st.markdown("&nbsp;", unsafe_allow_html=True)
             generate_clicked = st.button(
-                "📦 Préparer l'export",
+                t("export_csv.prepare_btn", "📦 Préparer l'export"),
                 type="primary",
                 disabled=not selected_tables,
             )
@@ -113,19 +124,29 @@ def show():
                 return
             try:
                 if fmt == "Excel (.xlsx)":
-                    with st.spinner("Génération du fichier Excel en cours…"):
+                    with st.spinner(t("export_csv.spinner_xlsx",
+                                      "Génération du fichier Excel en cours…")):
                         buf = export_excel(db2, export_artist_id, tables=selected_tables or None)
                     st.session_state["_export_csv_bytes"] = buf.getvalue()
                     st.session_state["_export_csv_fmt"] = "xlsx"
                 else:
-                    with st.spinner("Génération du ZIP en cours…"):
+                    with st.spinner(t("export_csv.spinner_zip", "Génération du ZIP en cours…")):
                         buf = export_all(db2, export_artist_id, tables=selected_tables or None)
                     st.session_state["_export_csv_bytes"] = buf.getvalue()
                     st.session_state["_export_csv_fmt"] = "zip"
                 st.session_state["_export_csv_artist"] = export_artist_name
-                st.success("Fichier prêt — cliquez sur Télécharger ci-dessous.")
+                try:
+                    from src.dashboard.utils.usage_tracker import track
+                    track('csv_export', page='export_csv',
+                          meta={'fmt': st.session_state.get('_export_csv_fmt'),
+                                'n_tables': len(selected_tables)})
+                except Exception:
+                    pass
+                st.success(t("export_csv.ready",
+                             "Fichier prêt — cliquez sur Télécharger ci-dessous."))
             except Exception as e:
-                st.error(f"Erreur lors de la génération : {e}")
+                st.error(t("export_csv.gen_error",
+                           "Erreur lors de la génération : {err}").format(err=e))
             finally:
                 db2.close()
 
@@ -140,7 +161,8 @@ def show():
             mime      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" \
                         if file_fmt == "xlsx" else "application/zip"
             st.download_button(
-                label=f"⬇️ Télécharger le fichier (.{file_fmt})",
+                label=t("export_csv.download_btn",
+                        "⬇️ Télécharger le fichier (.{ext})").format(ext=file_fmt),
                 data=st.session_state["_export_csv_bytes"],
                 file_name=filename,
                 mime=mime,

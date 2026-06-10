@@ -113,6 +113,56 @@ rex:
     fix: "Normalise heterogeneous datetime string columns at source: pd.to_datetime(col, utc=True, errors='coerce').dt.tz_localize(None). Class tz-aware-naive-mix"
     severity: "warn"
     ref: "DEVLOG#2026-06-01"
+  - date: 2026-06-08
+    issue: "Exact-match title join across the filename(_)/CSV(real-char) boundary silently returned 0 for ?-titled tracks"
+    fix: "Route the CSV/API side of every cross-convention title join through canonical_song_sql() (src/utils/track_matching.py); ad-hoc REPLACE(.,'?','_') only covered '?'. Class song-name-convention-mismatch"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "st.image(width='content'|'stretch') upscaled small screenshots to column width -> pixelated/blurry"
+    fix: "Pass an explicit pixel width = native width capped (PIL Image.width, min(w, 720)); never upscale. 'content' is NOT native size in Streamlit 1.54"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Guide screenshots moved into per-platform subfolders -> flat assets_dir()/filename lookup broke (0 images)"
+    fix: "screenshot_path() resolves by filename anywhere under the assets dir via rglob (flat OR subfolder), falling back to flat path for graceful-missing"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Manual-entry forms + how-to guides split into standalone views felt like a doublon; user reverted to inline"
+    fix: "Keep manual entry + guides inline in the actionable page (Vue Globale expanders), not standalone pages unless content is large/shared. One content module, rendered at point of use"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "SoundCloud/Meta forms asked artists for app Client ID/Secret/token, but those are a shared admin app"
+    fix: "Artist provides only the per-tenant pointer (user_id / account_id); app creds come from env via an ADDITIVE collector+test fallback (stored per-artist wins). Token lifecycle lives in the admin view"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08"
+  - date: 2026-06-08
+    issue: "Emoji in the WeasyPrint PDF rendered as tofu boxes (base fonts ship no emoji glyphs)"
+    fix: "Strip emoji from the final HTML before write_pdf. For charts use matplotlib->base64 PNG (utils/pdf_charts.py) - kaleido is absent so plotly->png is unavailable; no new dependency added"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08 (suite)"
+  - date: 2026-06-08
+    issue: "Changed render_html output but the byte-exact golden pdf_report_golden.html still pinned old bytes -> snapshot failed"
+    fix: "Any render_html change requires regenerating tests/fixtures/pdf_report_golden.html in the same commit; it is byte-exact (see class snapshot-fixture-hook-reflow, kept out of reflow hooks)"
+    severity: "info"
+    ref: "DEVLOG#2026-06-08 (suite)"
+  - date: 2026-06-09
+    issue: "New view track_mapping opened DB via get_db_connection()+try/finally instead of view_session() — violates CLAUDE rule #7"
+    fix: "Migrated track_mapping + meta_mapping to `with view_session() as (db, artist_id)`; every NEW view MUST use it (handles artist_id guard + admin fallback + close)"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-09"
+  - date: 2026-06-09
+    issue: "try/except around the view dispatch swallowed Streamlit st.stop()/st.rerun() control-flow exceptions -> nav broke"
+    fix: "Re-raise when type(exc).__name__ in {RerunException,StopException} (error_alert.is_control_flow) BEFORE alerting; verified those exact names on Streamlit 1.54"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-09"
+  - date: 2026-06-09
+    issue: "Export PDF moved to free tier let free users tick premium ML/forecast/Meta sections -> paywall leak in the PDF"
+    fix: "Added PREMIUM_SECTIONS frozenset (pdf_exporter); export_pdf locks those checkboxes for non-premium AND strips them at generation (defense-in-depth)"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-09"
 ---
 
 # Skill: Dashboard View

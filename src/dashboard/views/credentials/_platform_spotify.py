@@ -7,6 +7,8 @@ Pure relocation from the former credentials.py — no logic change.
 import requests
 import streamlit as st
 
+from src.dashboard.utils.i18n import t
+
 
 def _test_spotify(fields: dict) -> tuple:
     try:
@@ -19,19 +21,23 @@ def _test_spotify(fields: dict) -> tuple:
         )
         data = r.json()
         if r.status_code == 200 and data.get('access_token'):
-            return True, "Token client_credentials obtenu ✅"
+            return True, t("credentials.spotify.test_ok",
+                           "Token client_credentials obtenu ✅")
         return False, data.get('error_description', r.text[:150])
     except Exception as e:
         return False, str(e)
 
 
 def _guide_spotify():
-    with st.expander("🎵 Comment obtenir les credentials Spotify ?", expanded=False):
-        st.markdown(
+    with st.expander(t("credentials.spotify.guide_title",
+                       "🎵 Comment obtenir les credentials Spotify ?"), expanded=False):
+        st.markdown(t(
+            "credentials.spotify.guide_steps",
             "1. Aller sur **[developers.spotify.com](https://developer.spotify.com/dashboard)** → Log in → **Create App**\n"
             "2. Renseigner un nom (la Redirect URI n'a pas d'importance ici)\n"
             "3. Copier le **Client ID** et le **Client Secret** → les coller ci-dessous\n"
-        )
-        st.info("Le collecteur utilise le flux **client_credentials** : pas de "
-                "Redirect URI ni de Refresh Token à gérer, le token se "
-                "renouvelle seul à chaque run.")
+        ))
+        st.info(t("credentials.spotify.guide_info",
+                  "Le collecteur utilise le flux **client_credentials** : pas de "
+                  "Redirect URI ni de Refresh Token à gérer, le token se "
+                  "renouvelle seul à chaque run."))

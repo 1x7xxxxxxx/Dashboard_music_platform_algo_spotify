@@ -137,11 +137,12 @@ def _calibrate(algo: str, p_raw):
     return float(1.0 / (1.0 + np.exp(-z)))
 
 
-# Features excluded from drift detection. The first two are imputed to 0 (no live
-# source yet — Phase 2), hence permanently out-of-distribution BY DESIGN. Discovery
-# Mode now has a manual source (s4a_song_discovery_mode) but stays excluded because
-# it is a bounded binary 0/1 flag — a z-score drift test on it is meaningless and
-# would cry wolf whenever most songs are un-opted (0).
+# Features excluded from drift detection. All three now have a manual source
+# (Saisie S4A): NonAlgoStreams28Days → s4a_song_nonalgo_streams, RadioCount →
+# s4a_artist_radio_count, Discovery Mode → s4a_song_discovery_mode. They stay
+# excluded because coverage is partial and tenant-driven: most songs/artists have
+# no entry and default to 0, so a z-score drift test would cry wolf on the 0-heavy
+# distribution rather than detect real model drift.
 _IMPUTED_FEATURES = frozenset({
     "NonAlgoStreams28Days_log",
     "HowManySongsDoYouHaveInRadioRightNow",
@@ -199,6 +200,26 @@ def load_model(model_key: str):
     return model
 
 
+def _latest_radio_count(db, artist_id: int) -> int:
+    """# of songs currently in Spotify Radio — latest manual S4A entry, 0 if none."""
+    row = db.fetch_query(
+        """SELECT song_count FROM s4a_artist_radio_count
+           WHERE artist_id = %s ORDER BY recorded_at DESC LIMIT 1""",
+        (artist_id,),
+    )
+    return int(row[0][0]) if row and row[0][0] is not None else 0
+
+
+def _latest_nonalgo_28d(db, artist_id: int, song: str) -> int:
+    """28-day non-algo (organic) streams — latest manual S4A entry, 0 if none."""
+    row = db.fetch_query(
+        """SELECT streams_28d FROM s4a_song_nonalgo_streams
+           WHERE artist_id = %s AND song = %s ORDER BY recorded_at DESC LIMIT 1""",
+        (artist_id, song),
+    )
+    return int(row[0][0]) if row and row[0][0] is not None else 0
+
+
 def build_features(db, artist_id: int, song: str) -> dict:
     """Construit le vecteur de features pour une chanson depuis la DB.
 
@@ -206,9 +227,10 @@ def build_features(db, artist_id: int, song: str) -> dict:
     DaysSinceRelease, ratio écoutes/auditeur (streams par auditeur, aligné sur
     l'entraînement), Saves (s4a_songs_global), PlaylistAdds
     (s4a_song_playlist_adds), DiscoveryMode (saisie manuelle —
-    s4a_song_discovery_mode), ReleaseConsistency (cadence médiane des sorties).
-    Encore imputées faute de source : NonAlgoStreams28Days (split par source —
-    Phase 2), HowManySongsDoYouHaveInRadioRightNow.
+    s4a_song_discovery_mode), ReleaseConsistency (cadence médiane des sorties),
+    NonAlgoStreams28Days (saisie manuelle — s4a_song_nonalgo_streams) et
+    HowManySongsDoYouHaveInRadioRightNow (saisie manuelle — s4a_artist_radio_count),
+    toutes deux défaut 0 sans saisie (migration 052).
 
     Returns:
         dict avec les 13 features + raw values pour stockage dans features_json.
@@ -309,13 +331,22 @@ def build_features(db, artist_id: int, song: str) -> dict:
     # real opt-out from a missing-data 0 (Discovery Mode has no API source; ~35% unknown).
     discovery_mode_known = bool(dm_row)
 
-    # --- Playlist adds (last 28 days) from manual S4A entries ---
+    # --- Playlist adds (28-day snapshot) from manual S4A entries ---
+    # Latest '28d' windowed snapshot (migration 044); not a sum, to match how S4A
+    # reports the figure and how it is entered in the Saisie S4A grid.
     pa_row = db.fetch_query(
-        """SELECT COALESCE(SUM(count), 0) FROM s4a_song_playlist_adds
-           WHERE artist_id = %s AND song = %s AND recorded_at >= CURRENT_DATE - 28""",
+        """SELECT count FROM s4a_song_playlist_adds
+           WHERE artist_id = %s AND song = %s AND time_window = '28d'
+           ORDER BY recorded_at DESC LIMIT 1""",
         (artist_id, song)
     )
     playlist_adds_28d = int(pa_row[0][0]) if pa_row and pa_row[0][0] else 0
+
+    # --- NonAlgoStreams28Days + Radio count (manual S4A entries; default 0) ---
+    # Both un-imputed by migration 052. log1p mirrors the training transform for the
+    # non-algo stream volume; radio count is a raw per-artist integer.
+    nonalgo_28d = _latest_nonalgo_28d(db, artist_id, song)
+    radio_count = _latest_radio_count(db, artist_id)
 
     # --- Release consistency: median weeks between successive releases ---
     # Source = real release dates (track_release_reference, per-tenant). The
@@ -337,12 +368,12 @@ def build_features(db, artist_id: int, song: str) -> dict:
     features = {
         "StreamsLast7Days_log": float(np.log1p(s7)),
         "CurrentSpotifyFollowers_log": float(np.log1p(followers)),
-        "HowManySongsDoYouHaveInRadioRightNow": 0.0,   # non disponible (pas de source)
+        "HowManySongsDoYouHaveInRadioRightNow": float(radio_count),  # manual S4A entry (s4a_artist_radio_count)
         "HowManySongsHasThisArtistEverReleased": float(n_songs),
         "IsThisSongOptedIntoSpotifyDiscoveryMode": discovery_mode,  # manual S4A entry (s4a_song_discovery_mode)
         "ReleaseConsistencyNum": float(release_consistency),
         "DaysSinceRelease": float(days_since),
-        "NonAlgoStreams28Days_log": 0.0,                 # non disponible (split par source — Phase 2)
+        "NonAlgoStreams28Days_log": float(np.log1p(nonalgo_28d)),  # manual S4A entry (s4a_song_nonalgo_streams)
         "ListenersStreamRatio28Days_adj": float(ratio),
         "SavesLast28Days_adj": float(saves_28d),
         "PlaylistAddsLast28Days_adj": float(playlist_adds_28d),

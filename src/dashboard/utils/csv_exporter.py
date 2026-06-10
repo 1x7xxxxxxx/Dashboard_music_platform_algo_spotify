@@ -125,6 +125,24 @@ _TABLES = [
         "SELECT * FROM imusician_monthly_revenue WHERE artist_id = %s ORDER BY year, month",
         lambda aid: (aid,),
     ),
+    # ── Machine Learning ─────────────────────────────────────────────────
+    # Per-artist ML scoring history: trigger probabilities, volume forecasts and
+    # the full 13-feature input vector (features_json). The `song` column can carry
+    # the S4A "Total" row, so the 1x7xxxxxxx filter applies here too.
+    (
+        "ml_song_predictions",
+        "SELECT * FROM ml_song_predictions WHERE artist_id = %s "
+        "AND song NOT ILIKE '%%1x7xxxxxxx%%' ORDER BY prediction_date DESC, song",
+        lambda aid: (aid,),
+    ),
+    # Global cohort reference curves (no artist_id) — shipped for context so the
+    # exported predictions can be read against the training benchmark.
+    (
+        "algo_lifecycle_benchmark",
+        "SELECT * FROM algo_lifecycle_benchmark "
+        "ORDER BY dataset_version DESC, algorithm, age_week_bin_order",
+        lambda aid: (),
+    ),
 ]
 
 

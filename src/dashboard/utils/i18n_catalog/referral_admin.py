@@ -1,0 +1,25 @@
+"""EN catalog for the referral_admin view."""
+
+EN = {
+    "referral_admin.admin_only": "⛔ Admin access only.",
+    "referral_admin.title": "📊 Referral Program — KPIs",
+    "referral_admin.db_unreachable": "❌ Database unreachable.",
+    "referral_admin.metric_total_referrals": "Total referrals",
+    "referral_admin.metric_converted": "Converted to paid",
+    "referral_admin.metric_conversion_rate": "Conversion rate",
+    "referral_admin.metric_free_months": "Free months granted",
+    "referral_admin.top_referrers": "Top referrers",
+    "referral_admin.col_artist": "Artist",
+    "referral_admin.col_referrals_made": "Referrals made",
+    "referral_admin.col_free_months_earned": "Free months earned",
+    "referral_admin.col_code_uses": "Code uses",
+    "referral_admin.col_code": "Code",
+    "referral_admin.no_referrals": "No referrals recorded yet.",
+    "referral_admin.all_events": "All referral events",
+    "referral_admin.col_referrer": "Referrer",
+    "referral_admin.col_referred": "Referred",
+    "referral_admin.col_code_used": "Code used",
+    "referral_admin.col_date": "Date",
+    "referral_admin.col_referred_plan": "Referred's plan",
+    "referral_admin.no_events": "No referral events yet.",
+}

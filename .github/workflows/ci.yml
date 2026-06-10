@@ -66,6 +66,12 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5433/spotify_etl
+          # Dummy Airflow creds: src/dashboard/app.py raises at IMPORT when
+          # AIRFLOW_PASSWORD is unset (anti unauthenticated-DAG-trigger guard).
+          # No real Airflow is contacted by the suite — this only lets app.py
+          # import (e.g. test_i18n reads app._NAV_SECTIONS).
+          AIRFLOW_USERNAME: ci
+          AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
         # --cov-report=xml: for codecov-style downstream tooling.
         # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
         # No --cov-fail-under: measure first, gate later.

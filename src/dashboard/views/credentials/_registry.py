@@ -40,25 +40,22 @@ PLATFORMS = {
     },
     'soundcloud': {
         'label': '☁️ SoundCloud',
+        # Artist provides only their numeric user_id; the app credentials
+        # (client_id/client_secret) come from the shared env app, not per-artist.
+        # The optional OAuth real-likes path is an admin runbook (mint script),
+        # not exposed in the artist form.
         'fields': [
-            {'key': 'client_id',     'label': 'Client ID',                        'secret': False},
-            {'key': 'client_secret', 'label': 'Client Secret',                    'secret': True},
-            {'key': 'user_id',       'label': 'User ID numérique (ex: 123456789)', 'secret': False},
-            # OAuth user-token path (optional): enables real per-track likes.
-            # Leave empty to keep the client_credentials fallback.
-            {'key': 'redirect_uri',  'label': 'Redirect URI (OAuth, optionnel)',  'secret': False,
-             'default': 'http://localhost:8888/callback'},
-            {'key': 'refresh_token', 'label': 'Refresh Token (OAuth, optionnel)', 'secret': True},
+            {'key': 'user_id', 'label': 'User ID numérique (ex: 377065610)', 'secret': False},
         ],
     },
     'meta': {
         'label': '📱 Meta / Instagram',
+        # Shared System User app (access_token/app_id/app_secret) comes from the
+        # platform env; the artist provides only their own Ad Account ID. Instagram
+        # is admin-configured (env). Stored per-artist app creds still take
+        # precedence in the collector if present.
         'fields': [
-            {'key': 'access_token', 'label': 'Access Token (Long-lived)',       'secret': True},
-            {'key': 'app_secret',   'label': 'App Secret',                      'secret': True},
-            {'key': 'app_id',       'label': 'App ID',                          'secret': False},
-            {'key': 'account_id',   'label': 'Ad Account ID (act_…)',           'secret': False},
-            {'key': 'ig_user_id',   'label': 'Instagram Business Account ID',   'secret': False},
+            {'key': 'account_id', 'label': 'Ad Account ID (act_… ou numérique)', 'secret': False},
         ],
     },
 }

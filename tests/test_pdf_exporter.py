@@ -85,3 +85,16 @@ def test_empty_sections_render_no_data_guards():
     assert html.count("no-data") >= 3
     assert "Aucune donnée YouTube disponible." in html
     assert "Aucune donnée Meta Ads disponible." in html
+
+
+def test_render_html_english_translates():
+    """lang='en' produces an English report — locks in PDF bilinguality.
+    FR remains the byte-identical golden (default); EN is asserted by markers
+    rather than a second golden (avoids maintaining two snapshots)."""
+    html = pdf_exporter.render_html(_sample_data(), "Test Artist", lang="en")
+    assert '<html lang="en">' in html
+    for fr in ("Abonnés", "Dépenses totales", "Rapport artiste",
+               "Généré automatiquement", "Aucune donnée"):
+        assert fr not in html, f"untranslated FR string leaked into EN report: {fr!r}"
+    for en in ("Subscribers", "Artist report", "Generated automatically"):
+        assert en in html, f"expected English string missing: {en!r}"
