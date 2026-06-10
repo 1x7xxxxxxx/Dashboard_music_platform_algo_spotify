@@ -52,7 +52,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
     _show_imputation_caveat(feats, FEATURE_COLUMNS)
     _show_drift_status(feats)
 
-    _calib = ak.calibration_note("DW", ml_pred.get("dw_probability"))
+    _calib = ml_widgets.calibration_note_text("DW", ml_pred.get("dw_probability"))
     if _calib:
         st.info(t("trigger_algo.explain.calib_note",
                   "📖 Lecture des probabilités (modèle non calibré) : {note}").format(note=_calib))
@@ -127,7 +127,8 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                     values = [float(v) for v in np.ravel(reg_exp[0].values)]
                     prediction = baseline + sum(values)
                     contributions = [
-                        {"label": _FEATURE_LABELS.get(col, (col, True))[0], "value": values[i]}
+                        {"label": t(f"algo.label.{col}", _FEATURE_LABELS.get(col, (col, True))[0]),
+                         "value": values[i]}
                         for i, col in enumerate(FEATURE_COLUMNS) if i < len(values)
                     ]
                     ml_widgets.render_shap_narrative(
@@ -160,7 +161,8 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                     values = [float(v) for v in np.ravel(reg_exp[0].values)]
                     prediction = baseline + sum(values)
                     contributions = [
-                        {"label": _FEATURE_LABELS.get(col, (col, True))[0], "value": values[i]}
+                        {"label": t(f"algo.label.{col}", _FEATURE_LABELS.get(col, (col, True))[0]),
+                         "value": values[i]}
                         for i, col in enumerate(FEATURE_COLUMNS) if i < len(values)
                     ]
                     ml_widgets.render_shap_narrative(
@@ -186,7 +188,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
         if _algo in ak.volume_algos():
             ml_widgets.render_volume_gauges(_algo, feats)
         if _algo == "RADIO":
-            _recovery = ak.radio_discovery_recovery_note(feats)
+            _recovery = ml_widgets.radio_recovery_text(feats)
             if _recovery:
                 st.warning(_recovery)
         st.markdown("---")

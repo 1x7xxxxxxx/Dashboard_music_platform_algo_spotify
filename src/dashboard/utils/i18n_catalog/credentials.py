@@ -256,4 +256,161 @@ EN = {
         "(2) `act_` prefix in Ad Account ID → remove it, the dashboard adds it. "
         "(3) Scope `read_insights` only → re-run with `ads_read` + `ads_management`."
     ),
+    # ── credential_guides_st.py — renderer chrome ──────────────────────
+    "credentials.guide.list_header": (
+        "**How to obtain the credentials for each platform?**"
+    ),
+    "credentials.guide.portal": "🔗 Portal: [{url}]({url})",
+    "credentials.guide.col_field": "Field",
+    "credentials.guide.col_example": "Example (fake)",
+    "credentials.guide.col_note": "Note",
+    "credentials.guide.paste_caption": "Values to paste into 🔑 API Credentials:",
+    # ── credential_guides.py — Spotify guide ───────────────────────────
+    "credentials.guide.spotify.expander": "{icon} {title} — obtain the credentials",
+    "credentials.guide.spotify.intro": (
+        "You only have **2 values** to retrieve: the **Client ID** and the "
+        "**Client Secret**."
+    ),
+    "credentials.guide.spotify.step_1": (
+        "Go to developer.spotify.com/dashboard and log in with "
+        "your **usual Spotify account** (no paid account required)."
+    ),
+    "credentials.guide.spotify.step_2": "Click **Create app**.",
+    "credentials.guide.spotify.step_3": (
+        "Fill in: **App name** (e.g. `ETL Dashboard`), a **description**, "
+        "and **Redirect URI** = `http://127.0.0.1:8888/callback` (dummy value, "
+        "see the note below). Check **Web API**, then **Save**."
+    ),
+    "credentials.guide.spotify.step_4": (
+        "On the app page → **Settings / Basic Information**: copy the "
+        "**Client ID** and the **Client secret** (copy button ⧉)."
+    ),
+    "credentials.guide.spotify.step_4_caption": (
+        "Basic Information → Client ID + Client secret"
+    ),
+    "credentials.guide.spotify.step_5": (
+        "Paste the 2 values into **🔑 API Credentials → Spotify**, then "
+        "**Test connection**."
+    ),
+    "credentials.guide.spotify.note_1": "32 hexadecimal characters",
+    "credentials.guide.spotify.note_2": "32 characters — keep it private",
+    "credentials.guide.spotify.note": (
+        "**Redirect URI**: return URL after an OAuth login. Our "
+        "`client_credentials` flow has no login → this URL is **never used**, "
+        "but Spotify requires you to enter at least one. Set "
+        "`http://127.0.0.1:8888/callback` and forget about it. The app stays in "
+        "**Development mode**, which is sufficient."
+    ),
+    # ── credential_guides.py — YouTube guide ───────────────────────────
+    "credentials.guide.youtube.expander": "{icon} {title} — obtain the credentials",
+    "credentials.guide.youtube.intro": (
+        "**2 values** to retrieve: the **API key** (YouTube Data API v3) and your "
+        "**channel ID**."
+    ),
+    "credentials.guide.youtube.step_1": (
+        "On [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
+        "create (or select) a project, then click **+ Enable APIs "
+        "and services**."
+    ),
+    "credentials.guide.youtube.step_1_caption": "APIs and services → Enable APIs",
+    "credentials.guide.youtube.step_2": (
+        "In the [API Library](https://console.cloud.google.com/apis/library), "
+        "search for **YouTube Data API v3**."
+    ),
+    "credentials.guide.youtube.step_2_caption": "Library → search for the API",
+    "credentials.guide.youtube.step_3": "Click the **YouTube Data API v3** result.",
+    "credentials.guide.youtube.step_3_caption": "API selection",
+    "credentials.guide.youtube.step_4": (
+        "Click **Enable**; the product page must display **API enabled**."
+    ),
+    "credentials.guide.youtube.step_4_caption": "API enabled",
+    "credentials.guide.youtube.step_5": (
+        "Go to [Credentials](https://console.cloud.google.com/apis/credentials) → "
+        "**Create credentials → API key**, then **Show key** and copy it."
+    ),
+    "credentials.guide.youtube.step_5_caption": (
+        "Credentials → API key → Show key"
+    ),
+    "credentials.guide.youtube.step_6": (
+        "Retrieve the **Channel ID**: on "
+        "[youtube.com/account_advanced](https://www.youtube.com/account_advanced) → "
+        "**Channel ID** → **Copy** (starts with `UC…`)."
+    ),
+    "credentials.guide.youtube.step_6_caption": (
+        "YouTube → Advanced settings → Channel ID"
+    ),
+    "credentials.guide.youtube.step_7": (
+        "Paste the **API key** + the **Channel ID** into **🔑 API Credentials → YouTube**."
+    ),
+    "credentials.guide.youtube.note_1": "starts with 'AIza', ~39 characters",
+    "credentials.guide.youtube.note_2": "starts with 'UC', 24 characters",
+    "credentials.guide.youtube.note": (
+        "Free quota ~10,000 units/day; exceeding it returns 403 (temporary)."
+    ),
+    # ── credential_guides.py — SoundCloud guide ────────────────────────
+    "credentials.guide.soundcloud.expander": "{icon} {title} — obtain the credentials",
+    "credentials.guide.soundcloud.intro": (
+        "A **single value** to provide: your SoundCloud **User ID** (a number). "
+        "Streams and followers are then collected automatically."
+    ),
+    "credentials.guide.soundcloud.step_1": (
+        "Logged into SoundCloud, open "
+        "[soundcloud.com/discover](https://soundcloud.com/discover)."
+    ),
+    "credentials.guide.soundcloud.step_2": (
+        "Show the page **source code** (**Ctrl+U**), then search "
+        "(**Ctrl+F**) for `soundcloud:users:` — the **number** right after is your "
+        "**User ID** (e.g. `377065610`)."
+    ),
+    "credentials.guide.soundcloud.step_2_caption": (
+        "Source code → soundcloud:users:<your ID>"
+    ),
+    "credentials.guide.soundcloud.step_3": (
+        "Paste this **User ID** into **🔑 API Credentials → SoundCloud**, then "
+        "**Test connection**."
+    ),
+    "credentials.guide.soundcloud.note_1": (
+        "the number found in the source code of /discover"
+    ),
+    # ── credential_guides.py — Meta guide ──────────────────────────────
+    "credentials.guide.meta.expander": "{icon} {title} — obtain the credentials",
+    "credentials.guide.meta.intro": (
+        "Meta is **configured at the platform level** (shared app). You "
+        "provide **only your Ad Account ID**; the token, the app and "
+        "Instagram are managed by the administrator."
+    ),
+    "credentials.guide.meta.step_1": (
+        "Open the **Ads Manager** "
+        "([adsmanager.facebook.com](https://adsmanager.facebook.com/)) and "
+        "log in. Select the right account if you have several."
+    ),
+    "credentials.guide.meta.step_2": (
+        "**Easiest method — via the URL.** Look at the **address "
+        "bar** of your browser (at the very top). The URL contains a "
+        "**`act=`** parameter, for example:\n\n"
+        "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
+        "Your **Ad Account ID** is the **number right after `act=`** and "
+        "**before the next `&`**. Tip: double-click that number to "
+        "select it, then **Ctrl+C**."
+    ),
+    "credentials.guide.meta.step_2_caption": (
+        "The number after act= in the address bar"
+    ),
+    "credentials.guide.meta.step_3": (
+        "⚠️ Do not confuse it with `business_id=…` (your Business Manager) or "
+        "with an **ad set ID**: only the number "
+        "after **`act=`** is the correct one."
+    ),
+    "credentials.guide.meta.step_4": (
+        "Paste this number into **🔑 API Credentials → Meta / Instagram**, then "
+        "**Test connection**. (The `act_` prefix is added automatically.)"
+    ),
+    "credentials.guide.meta.note_1": (
+        "the only field — number or prefixed with 'act_'"
+    ),
+    "credentials.guide.meta.note": (
+        "**Admin prerequisite**: your ad account must be linked to the "
+        "shared app (System User) in Business Manager for collection to "
+        "work. Instagram is attached on the admin side."
+    ),
 }

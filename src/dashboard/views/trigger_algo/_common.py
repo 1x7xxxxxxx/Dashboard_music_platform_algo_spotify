@@ -103,7 +103,7 @@ def _show_ml_section(pred: dict):
     _rr_forecast = (pred.get("rr_streams_forecast_7d")
                     if ak.volume_forecast_reliable("RR") else None)
     _display_prob_bar("📡 Release Radar", pred.get("rr_probability"), _rr_forecast)
-    _rr_note = ak.volume_suppressed_note("RR")
+    _rr_note = ml_widgets.suppressed_note_text("RR")
     if _rr_note and pred.get("rr_probability") is not None:
         st.caption(f"📨 {_rr_note}")
     # DW volume is also suppressed in v3 (R²<0 group-CV) — gate the forecast OUT and
@@ -112,7 +112,7 @@ def _show_ml_section(pred: dict):
                     if ak.volume_forecast_reliable("DW") else None)
     _display_prob_bar("💎 Discover Weekly", pred.get("dw_probability"), _dw_forecast)
     ml_widgets.render_calibration_badge("DW", pred.get("dw_probability"))
-    _dw_note = ak.volume_suppressed_note("DW")
+    _dw_note = ml_widgets.suppressed_note_text("DW")
     if _dw_note and pred.get("dw_probability") is not None:
         st.caption(f"💎 {_dw_note}")
     # Calibration is now populated for RR + Radio too (v3) — surface it.
@@ -179,6 +179,7 @@ def _show_key_factors(features_json):
     for key, (label, high_is_good) in _FEATURE_LABELS.items():
         if key not in feats:
             continue
+        label = t(f"algo.label.{key}", label)
         val = float(feats[key])
         is_positive = (val > 0.5 and high_is_good) or (val <= 0.5 and not high_is_good)
         if "_log" in key:
@@ -227,7 +228,8 @@ def _show_imputation_caveat(feats: dict, feature_columns) -> None:
     if dm_known:
         flagged.discard(_DM_KEY)
     if flagged:
-        labels = [_FEATURE_LABELS.get(f, (f, True))[0] for f in sorted(flagged)]
+        labels = [t(f"algo.label.{f}", _FEATURE_LABELS.get(f, (f, True))[0])
+                  for f in sorted(flagged)]
         st.warning(t(
             "trigger_algo.common.imputation_warning",
             "⚠️ **{n}/{total} variables imputées à 0/neutre** "
@@ -482,8 +484,10 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
         actions = ak.build_coach_actions(best_algo, feats)
         if actions:
             a = actions[0]
+            _lever = ml_widgets.lever_text(best_algo, a['feature'], a)
+            _label = ml_widgets.label_text(a['feature'], a)
             st.caption(t("trigger_algo.common.verdict_lever1", "🎯 Levier #1 — {label} : {lever}")
-                       .format(label=a['label'], lever=a['lever']))
+                       .format(label=_label, lever=_lever))
     else:
         st.success(t(
             "trigger_algo.common.verdict_scale",
@@ -491,7 +495,7 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
             "L'algorithme est prêt à prendre le relais : augmentez votre budget quotidien "
             "de ~20 % pour maximiser l'effet boule de neige."
         ).format(algo=labels[best_algo], prob=best_prob))
-    note = ak.calibration_note(best_algo, best_prob)
+    note = ml_widgets.calibration_note_text(best_algo, best_prob)
     if note:
         st.caption(t("trigger_algo.common.verdict_reliability", "ℹ️ Fiabilité du score : {note}")
                    .format(note=note))

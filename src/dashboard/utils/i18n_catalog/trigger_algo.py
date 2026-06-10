@@ -599,4 +599,265 @@ EN = {
         "Curves = P25-P75 band + median of a **global** cohort (static). "
         "White vertical line = your track's current age."
     ),
+
+    # ── Feature display labels (rendered via ml_widgets.label_text) ────────────
+    # algo-independent: keyed by fid only — slug: algo.label.<fid>.
+    # Source FR strings live in algo_knowledge.py (ALGO_FEATURE_ZONES/ALGO_VOLUME_ZONES).
+    "algo.label.StreamsLast7Days": "7-day streams",
+    "algo.label.CurrentSpotifyFollowers": "Spotify followers",
+    "algo.label.HowManySongsHasThisArtistEverReleased": "Catalogue size",
+    "algo.label.DaysSinceRelease": "Track age",
+    "algo.label.ListenersStreamRatio28Days": "Plays / listener (28d)",
+    "algo.label.Velocity_Streams": "Velocity",
+    "algo.label.ReleasePhaseEarly": "Release phase",
+    "algo.label.ReleaseConsistencyNum": "Release cadence",
+    "algo.label.HowManySongsDoYouHaveInRadioRightNow": "Tracks in Radio",
+    "algo.label.IsThisSongOptedIntoSpotifyDiscoveryMode": "Discovery Mode",
+    "algo.label.NonAlgoStreams28Days": "Non-algo streams (28d)",
+    "algo.label.SavesLast28Days": "Saves (28d)",
+    "algo.label.PlaylistAddsLast28Days": "Playlist adds (28d)",
+    # SHAP-narrative / key-factor labels (_FEATURE_LABELS, suffixed keys) —
+    # slug: algo.label.<col>. FR source lives in trigger_algo/_common.py.
+    # Keys without _log/_adj suffix collide with the fid labels above (same
+    # feature, one EN value serves both contexts) — only the distinct ones below.
+    "algo.label.StreamsLast7Days_log": "7-day streams",
+    "algo.label.CurrentSpotifyFollowers_log": "Spotify followers",
+    "algo.label.ListenersStreamRatio28Days_adj": "Listener/stream ratio (loyalty)",
+    "algo.label.NonAlgoStreams28Days_log": "Non-algo streams (28d)",
+    "algo.label.SavesLast28Days_adj": "Saves (28d)",
+    "algo.label.PlaylistAddsLast28Days_adj": "Playlist adds (28d)",
+
+    # ── algo_knowledge coaching prose (rendered via ml_widgets resolvers) ──────
+    # Entry/classification levers (ALGO_FEATURE_ZONES) — slug:
+    # algo.lever.entry.<ALGO>.<feature>. FR source lives inline in algo_knowledge.py.
+    "algo.lever.entry.DW.StreamsLast7Days": (
+        "The first euro to cross ~1,000→2,000 streams/7d is the most cost-effective; "
+        "beyond 2,500 the marginal impact fades."
+    ),
+    "algo.lever.entry.DW.NonAlgoStreams28Days": (
+        "Generate ≥ ~3,900 active organic streams/28d (search, profile) — autoplay "
+        "doesn't count (empirical knee)."
+    ),
+    "algo.lever.entry.DW.DaysSinceRelease":
+        "Get past the 60-day mark: the DW golden age runs from ~2 months → 1 year.",
+    "algo.lever.entry.DW.Velocity_Streams": (
+        "Growth of 1.2-2.0 is ideal and unpenalised; only a spike > 3.5 (sudden volume, "
+        "suspected bots) triggers a malus."
+    ),
+    "algo.lever.entry.DW.CurrentSpotifyFollowers": (
+        "The tipping threshold is ~1,000 followers; the real authority bonus only "
+        "kicks in at ~2,650 (empirical knee)."
+    ),
+    "algo.lever.entry.DW.HowManySongsDoYouHaveInRadioRightNow":
+        "Having ≥ 9 tracks in Radio rotation grants a momentum bonus.",
+    "algo.lever.entry.DW.ListenersStreamRatio28Days":
+        "Get past ~1.6 streams/listener; beyond 4 the ratio becomes suspect.",
+    "algo.lever.entry.DW.SavesLast28Days": (
+        "Aim for ≥ ~165 saves/28d: that's where the DW impact turns clearly positive "
+        "(empirical knee, not the over-hyped figure of 500)."
+    ),
+    "algo.lever.entry.DW.PlaylistAddsLast28Days": (
+        "Get past ~175 user playlist adds/28d — the strongest intent signal for DW."
+    ),
+    "algo.lever.entry.DW.ReleaseConsistencyNum": (
+        "Space your releases at least ~6 weeks apart (ideally up to 14) so you don't "
+        "cannibalise the velocity of the previous one."
+    ),
+    "algo.lever.entry.DW.HowManySongsHasThisArtistEverReleased":
+        "Better 10 tracks worked hard than 50 lying dormant.",
+    "algo.lever.entry.DW.IsThisSongOptedIntoSpotifyDiscoveryMode":
+        "Discovery Mode: a slight edge but a microscopic impact.",
+    "algo.lever.entry.DW.ReleasePhaseEarly": (
+        "In the first 4-5 weeks, DW applies a probation malus; it's the Release Radar "
+        "that carries you at this stage."
+    ),
+    "algo.lever.entry.RR.DaysSinceRelease": (
+        "RR only fires within the ~7→40 day window: it's a time gate, not a lever. "
+        "Concentrate all the effort on that slot."
+    ),
+    "algo.lever.entry.RR.StreamsLast7Days": (
+        "Generate ≥ 2,000 streams during release week (Meta Ads « Traffic » on Friday): "
+        "it's the impulse that fires RR at full throttle."
+    ),
+    "algo.lever.entry.RR.CurrentSpotifyFollowers": (
+        "RR is a notification to followers: convert ≥ 2,300 followers so Spotify is "
+        "forced to trigger the send."
+    ),
+    "algo.lever.entry.RR.ReleaseConsistencyNum": (
+        "Space your releases (~14 wk): each track then gets a full RR notification "
+        "window instead of cannibalising itself."
+    ),
+    "algo.lever.entry.RR.IsThisSongOptedIntoSpotifyDiscoveryMode": (
+        "SHAP flat at zero: Discovery Mode has NO impact on RR. Don't sacrifice 30% of "
+        "royalties in week 1 — enable it in month 2 for Radio."
+    ),
+    "algo.lever.entry.RR.PlaylistAddsLast28Days":
+        "Ignore this signal for RR: it measures age, not engagement.",
+    "algo.lever.entry.RADIO.StreamsLast7Days": (
+        "Cross ~2,000 streams/7d (critical threshold) — beyond that, a guaranteed Radio "
+        "entry ticket."
+    ),
+    "algo.lever.entry.RADIO.Velocity_Streams": (
+        "Radio hates hyper-growth: keep velocity < 1.5 (ideal 0.5-1.2). A spike = "
+        "blacklist. Smooth the traffic."
+    ),
+    "algo.lever.entry.RADIO.NonAlgoStreams28Days": (
+        "Bring in ≥ 2,000 organic streams/28d: Radio relays real demand, it doesn't "
+        "create it."
+    ),
+    "algo.lever.entry.RADIO.CurrentSpotifyFollowers":
+        "Reach 2,000 followers — Radio safety cap.",
+    "algo.lever.entry.RADIO.HowManySongsDoYouHaveInRadioRightNow": (
+        "Getting a single track into Radio unlocks a trust bonus on every subsequent "
+        "release."
+    ),
+    "algo.lever.entry.RADIO.HowManySongsHasThisArtistEverReleased":
+        "Aim for 10-20 tracks in the catalogue — Radio trust peak.",
+    "algo.lever.entry.RADIO.DaysSinceRelease": (
+        "Radio removes the newness bonus after ~50d but doesn't kill you: with good "
+        "retention, it plays you for years."
+    ),
+    "algo.lever.entry.RADIO.IsThisSongOptedIntoSpotifyDiscoveryMode": (
+        "Ticking Discovery Mode (Spotify for Artists, −30% royalties) almost forces "
+        "the Radio door open."
+    ),
+    "algo.lever.entry.RADIO.SavesLast28Days": (
+        "Increase saves (retention) — Radio rewards loyalty over the long run."
+    ),
+    "algo.divnote.RR.PlaylistAddsLast28Days": (
+        "Misleading negative SHAP: tracks with high adds are already old (3-4 wk) and "
+        "outside the RR window — it's a proxy for age, not a lever. Above all, don't "
+        "cut your playlist adds."
+    ),
+
+    # Volume/regressor levers (ALGO_VOLUME_ZONES) — slug: algo.lever.vol.<ALGO>.<feature>.
+    "algo.lever.vol.DW.StreamsLast7Days": (
+        "Cross ~6,000 streams over 7 days: beyond that, DW adds a vertical bonus of "
+        "+400 to +800 streams to the predicted volume (spark effect)."
+    ),
+    "algo.lever.vol.DW.NonAlgoStreams28Days": (
+        "Bring in 6,000–10,000 active organic streams/28d (search, profile — autoplay "
+        "doesn't count): it's the #1 multiplier of DW volume."
+    ),
+    "algo.lever.vol.DW.SavesLast28Days": (
+        "Saves buy the ENTRY into DW (classification) but don't increase the VOLUME "
+        "once inside: don't over-invest here to scale."
+    ),
+    "algo.lever.vol.DW.PlaylistAddsLast28Days": (
+        "Like saves: an entry lever, not a volume one. DW throughput comes from organic "
+        "fuel, not playlist adds."
+    ),
+    "algo.lever.vol.RADIO.StreamsLast7Days": (
+        "Radio VOLUME is driven by recent fuel (dominant SHAP): inject external traffic "
+        "to cross cruising velocity (~10,000 streams/day). Beyond that, the algo "
+        "amplifies massively. Provisional thresholds (qualitative SHAP, ~300 tracks)."
+    ),
+    "algo.lever.vol.RADIO.HowManySongsDoYouHaveInRadioRightNow": (
+        "The only NON-flat catalogue feature for volume: the more tracks you have active "
+        "in Radio, the more Spotify over-distributes the next ones (artist trust score). "
+        "Build a steady Radio catalogue."
+    ),
+    "algo.lever.vol.RADIO.IsThisSongOptedIntoSpotifyDiscoveryMode": (
+        "PARADOX: Discovery Mode almost guarantees ENTRY into Radio (classification) but "
+        "is SHAP-flat at zero on VOLUME. Once at cruising velocity, turn it off to "
+        "recover 30% of royalties — the algo keeps pushing via your organic velocity."
+    ),
+    "algo.lever.vol.RADIO.SavesLast28Days": (
+        "Saves buy the ENTRY into Radio (classification) but don't increase the VOLUME "
+        "broadcast: don't over-invest here to scale throughput."
+    ),
+    "algo.lever.vol.RADIO.PlaylistAddsLast28Days": (
+        "Like saves: an entry lever, not a volume one. Radio throughput comes from "
+        "recent fuel, not playlist adds."
+    ),
+    "algo.lever.vol.RADIO.ListenersStreamRatio28Days": (
+        "The replay ratio proves quality at entry but stays flat on VOLUME: it doesn't "
+        "multiply the number of streams broadcast."
+    ),
+
+    # Radio margin-recovery note (cruising-velocity Discovery Mode) — interpolated.
+    "algo.recovery.radio": (
+        "💸 Cruising velocity reached (~{val:,.0f} streams/7d ≥ {target:,.0f}). "
+        "If Discovery Mode is enabled on this track, turn it off: it has done its Radio "
+        "entry job but adds no volume (SHAP flat at zero). You recover ~30% of "
+        "royalties — the algo keeps pushing via your organic velocity."
+    ),
+
+    # Volume-regressor interpretation (hungry-model badge) — slug: algo.regressor.<ALGO>.
+    "algo.regressor.DW": (
+        "DW volume regressor NOT reliable: R²<0 in group-CV (the volume target is "
+        "dominated by a few viral outliers). Volume hidden from user surfaces; kept as "
+        "a diagnostic only. Classification, however, stays solid."
+    ),
+    "algo.regressor.RADIO": (
+        "The least-bad Radio regressor of the three (R²=0.33 in honest per-song "
+        "validation, log target) but still weak: read it as a FLOOR of cruising volume, "
+        "never a ceiling. External surges (TikTok, sync) are out-of-model. v1 showed "
+        "R²=0.63 — that was a leaked random-split mirage."
+    ),
+    "algo.regressor.RR": (
+        "Release Radar regressor NOT reliable (R²=0.23 in honest validation): it hunts "
+        "for logic in noise. Broken by 2-3 viral outliers. Volume hidden from user "
+        "surfaces to avoid false financial promises; kept here as a diagnostic only."
+    ),
+
+    # 'Forecast suppressed' captions — slug: algo.suppressed.<ALGO>.
+    "algo.suppressed.DW": (
+        "Flag raised ✅ — but Discover Weekly VOLUME is not predictable (R²<0 in honest "
+        "validation: worse than a plain average). We rely on classification (AUC 0.92) "
+        "and the levers (saves, playlist-adds), not on a stream forecast."
+    ),
+    "algo.suppressed.RR": (
+        "Followers notified ✅ — Release Radar volume is NOT predictable (R²=0.23 in "
+        "honest validation): it depends on the notification open rate (a human factor), "
+        "not the algorithm. We rely on classification (AUC 0.94), not a streams/€ forecast."
+    ),
+
+    # Classification-scorecard interpretation — slug: algo.model.<ALGO>.
+    "algo.model.DW": (
+        "AUC 0.917 [0.85–0.98] in honest per-song validation. Discover Weekly is a "
+        "LEVERS model: without looking at streams, its performance nearly holds "
+        "(AUC 0.91) — the signal comes from Saves and PlaylistAdds. Pushing saves "
+        "therefore really moves the DW odds (the marketing framing is justified). "
+        "When it raises the flag it's right ~7 times out of 10 (precision 73%) and "
+        "captures 64% of hits. Wide confidence band: N=508, read ±0.06 on the AUC."
+    ),
+    "algo.model.RR": (
+        "AUC 0.936 [0.90–0.98] — and above all a REAL forecast: Release Radar stays at "
+        "AUC 0.92 from release metadata alone (age, artist size), with no streams at "
+        "all. You can therefore announce the RR odds on release day, before a single "
+        "listen — it's a planning tool. Top-decile lift ×4.6: investing in Meta Ads on "
+        "its predictions multiplies the ROI."
+    ),
+    "algo.model.RADIO": (
+        "AUC 0.925 [0.88–0.97], balanced base (47% hits) → AP 0.92 very high. BUT Radio "
+        "is a momentum DIAGNOSTIC, not a forecast: stripped of recent streams, its "
+        "performance collapses (AUC 0.93 → 0.77). Read it as « this track is playing "
+        "strong right now », not « this track will break out ». Errors ~symmetric."
+    ),
+
+    # Calibration bands — slug: algo.calib.<ALGO>.<lower_bound×100>.
+    "algo.calib.DW.0": "Reliable: score ≈ reality (observed success ~7%, n=384).",
+    "algo.calib.DW.20": "Reliable: score ≈ reality (observed success ~35%, n=23).",
+    "algo.calib.DW.40":
+        "Underestimated: real success ~69% (better than the displayed score).",
+    "algo.calib.DW.60": "Reliable: score ≈ reality (observed success ~66%, n=59).",
+    "algo.calib.DW.80": "Reliable: score ≈ reality (observed success ~92%, n=13).",
+    "algo.calib.RR.0": "Reliable: score ≈ reality (observed success ~7%, n=395).",
+    "algo.calib.RR.20": "Reliable: score ≈ reality (observed success ~30%, n=20).",
+    "algo.calib.RR.40": "Reliable: score ≈ reality (observed success ~50%, n=26).",
+    "algo.calib.RR.60": "Reliable: score ≈ reality (observed success ~71%, n=41).",
+    "algo.calib.RR.80": "Reliable: score ≈ reality (observed success ~96%, n=26).",
+    "algo.calib.RADIO.0": "Reliable: score ≈ reality (observed success ~6%, n=209).",
+    "algo.calib.RADIO.20":
+        "Underestimated: real success ~55% (better than the displayed score).",
+    "algo.calib.RADIO.40": "Reliable: score ≈ reality (observed success ~56%, n=27).",
+    "algo.calib.RADIO.60": "Reliable: score ≈ reality (observed success ~59%, n=51).",
+    "algo.calib.RADIO.80": "Reliable: score ≈ reality (observed success ~90%, n=168).",
+
+    # Forecast-floor disclaimer — slug: algo.disclaimer.floor.
+    "algo.disclaimer.floor": (
+        "Estimate = **guaranteed floor** (worst-case). The model underestimates hits: "
+        "the real potential is often much higher if it catches fire."
+    ),
 }

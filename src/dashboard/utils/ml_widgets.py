@@ -22,6 +22,99 @@ _VERDICT_FILL = {
 _VERDICT_BADGE = {"malus": "🔴", "neutral": "⬜", "bonus": "🟢"}
 
 
+# ── i18n resolvers for algo_knowledge prose ───────────────────────────────────
+# algo_knowledge.py is a pure, streamlit-free, unit-tested source of truth whose
+# coaching prose stays French. These helpers translate at the RENDER layer: each
+# maps a stable identifier already present in the data (registry kind + algo +
+# feature, or algo alone) to a namespaced i18n key, with the FR data string as the
+# `t()` default. EN translations live in i18n_catalog/trigger_algo.py. Keep the
+# slug scheme stable so EN keys keep resolving.
+def _registry_kind(registry: dict | None) -> str:
+    """'vol' for the volume/regressor zones, 'entry' otherwise (classification).
+
+    Callers pass the per-algo sub-dict (``ALGO_VOLUME_ZONES[algo]``), so identity
+    against the top-level mapping is insufficient — match membership in its values.
+    """
+    if registry is ak.ALGO_VOLUME_ZONES or registry in ak.ALGO_VOLUME_ZONES.values():
+        return "vol"
+    return "entry"
+
+
+def lever_text(algo: str, fid: str, spec: dict, registry: dict | None = None) -> str:
+    """Translated lever advice for a (registry, algo, feature) zone spec."""
+    kind = _registry_kind(registry)
+    return t(f"algo.lever.{kind}.{algo}.{fid}", spec["lever"])
+
+
+def label_text(fid: str, spec: dict) -> str:
+    """Translated feature display label. Algo-independent: keyed by fid only."""
+    return t(f"algo.label.{fid}", spec["label"])
+
+
+def divergent_note_text(algo: str, fid: str, spec: dict) -> str:
+    """Translated divergent-signal note (entry zones only carry these)."""
+    return t(f"algo.divnote.{algo}.{fid}", spec["divergent_note"])
+
+
+def regressor_note_text(algo: str) -> str | None:
+    """Translated volume-regressor interpretation (hungry-model badge), or None."""
+    note = ak.regressor_note(algo)
+    if note is None:
+        return None
+    return t(f"algo.regressor.{algo}", note)
+
+
+def model_interpretation_text(algo: str, fr_note: str) -> str:
+    """Translated classification-scorecard interpretation for an algo."""
+    return t(f"algo.model.{algo}", fr_note)
+
+
+def suppressed_note_text(algo: str) -> str | None:
+    """Translated 'forecast suppressed' caption for an unreliable regressor, or None."""
+    note = ak.volume_suppressed_note(algo)
+    if note is None:
+        return None
+    return t(f"algo.suppressed.{algo}", note)
+
+
+def calibration_note_text(algo: str, raw) -> str | None:
+    """Translated reliability band text for a raw classifier score, or None.
+
+    Bands are keyed by their lower bound (×100, integer) so the slug stays stable
+    even if a band's text is edited.
+    """
+    bands = ak.ALGO_CALIBRATION_BANDS.get(algo)
+    if not bands or raw is None:
+        return None
+    for low, high, fr_text in bands:
+        if low <= raw < high:
+            return t(f"algo.calib.{algo}.{int(low * 100)}", fr_text)
+    return None
+
+
+def radio_recovery_text(feats: dict) -> str | None:
+    """Translated Radio margin-recovery advice (cruising-velocity Discovery Mode), or None.
+
+    The FR note is interpolated (current/target streams), so the i18n template keeps
+    named {val}/{target} placeholders; we re-derive them here to .format() the EN side.
+    """
+    spec = ak._spec("RADIO", "StreamsLast7Days", registry=ak.ALGO_VOLUME_ZONES)
+    if not spec:
+        return None
+    val = ak.decode_feature_value("RADIO", "StreamsLast7Days", feats,
+                                  registry=ak.ALGO_VOLUME_ZONES)
+    target = spec.get("target")
+    if val is None or target is None or val < target:
+        return None
+    return t(
+        "algo.recovery.radio",
+        "💸 Vitesse de croisière atteinte (~{val:,.0f} streams/7j ≥ {target:,.0f}). "
+        "Si Discovery Mode est activé sur ce titre, désactive-le : il a fait son travail "
+        "d'entrée en Radio mais n'ajoute aucun volume (SHAP plat à zéro). Tu récupères "
+        "~30% de royalties — l'algo continue de pousser via ta vélocité organique."
+    ).format(val=val, target=target)
+
+
 # ── Classification scorecard (used by both views) ─────────────────────────────
 def render_classification_scorecard(algo: str, *, compact: bool = False) -> None:
     m = ak.ALGO_MODEL_METRICS.get(algo)
@@ -73,7 +166,7 @@ def render_classification_scorecard(algo: str, *, compact: bool = False) -> None
                                           "Matrice de confusion (jeu de test)"),
                       margin=dict(t=50))
     st.plotly_chart(fig, width="stretch", key=f"cm_{algo}")
-    st.info(m["interpretation"])
+    st.info(model_interpretation_text(algo, m["interpretation"]))
 
 
 # ── Pre-release Release Radar estimator (what-if, no DB) ──────────────────────
@@ -140,7 +233,7 @@ def render_prerelease_rr_estimator() -> None:
                      "Modèle métadonnées-seules : AUC {auc} [{lo}–{hi}] "
                      "(group-CV par chanson, N=508). Estimation indicative, pas une garantie."
                      ).format(auc=cv.get('auc'), lo=band[0], hi=band[1]))
-    note = ak.calibration_note("RR", probs[best_i])
+    note = calibration_note_text("RR", probs[best_i])
     if note:
         st.caption(t("ml_widgets.calibration", "🎯 Calibration : {note}").format(note=note))
 
@@ -159,7 +252,7 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     from src.utils.ml_inference import local_sensitivity
 
     zones = ak.ALGO_FEATURE_ZONES.get(algo, {})
-    levers = {spec["label"]: (fid, spec) for fid, spec in zones.items()
+    levers = {label_text(fid, spec): (fid, spec) for fid, spec in zones.items()
               if spec.get("json_key") and not spec.get("live_unavailable")
               and not spec.get("divergent") and spec.get("actionable") is not False}
     if not levers or not feats:
@@ -195,8 +288,8 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     fig.update_layout(height=240, margin=dict(t=30, b=30), showlegend=False,
                       title=t("ml_widgets.sens_curve_title",
                               "P({algo}) selon « {label} »"
-                              ).format(algo=algo, label=spec['label']),
-                      xaxis_title=unit or spec["label"], yaxis_title="P %",
+                              ).format(algo=algo, label=label_text(fid, spec)),
+                      xaxis_title=unit or label_text(fid, spec), yaxis_title="P %",
                       yaxis_range=[0, 100])
     st.plotly_chart(fig, width="stretch", key=f"sens_curve_{algo}_{fid}")
     st.caption(t("ml_widgets.sens_current",
@@ -209,7 +302,7 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
 
 # ── Calibration badge ─────────────────────────────────────────────────────────
 def render_calibration_badge(algo: str, raw) -> None:
-    note = ak.calibration_note(algo, raw)
+    note = calibration_note_text(algo, raw)
     if note:
         st.caption(t("ml_widgets.calibration", "🎯 Calibration : {note}").format(note=note))
 
@@ -242,7 +335,7 @@ def _zone_bar_fig(spec: dict, live):
 
 def _render_one_gauge(algo: str, fid: str, spec: dict, live, *,
                       registry: dict | None = None, key_prefix: str = "gauge") -> None:
-    head = f"**{spec['label']}**"
+    head = f"**{label_text(fid, spec)}**"
     if live is not None:
         verdict = ak.zone_for_value(algo, fid, live, registry=registry)
         head += f" — {live:,.0f} {spec['unit']} {_VERDICT_BADGE.get(verdict, '▫️')}"
@@ -256,9 +349,9 @@ def _render_one_gauge(algo: str, fid: str, spec: dict, live, *,
         head += t("ml_widgets.gauge_no_live", " — valeur live indisponible")
     st.markdown(head)
     st.plotly_chart(_zone_bar_fig(spec, live), width="stretch", key=f"{key_prefix}_{algo}_{fid}")
-    st.caption(f"→ {spec['lever']}")
+    st.caption(f"→ {lever_text(algo, fid, spec, registry=registry)}")
     if spec.get("divergent_note"):
-        st.caption(f"⚠️ {spec['divergent_note']}")
+        st.caption(f"⚠️ {divergent_note_text(algo, fid, spec)}")
 
 
 def _live_value(algo: str, fid: str, spec: dict, feats: dict, registry: dict | None = None):
@@ -309,7 +402,8 @@ def render_floor_forecast(label: str, forecast, *, algo: str = "DW") -> None:
         return
     st.caption(t("ml_widgets.floor_forecast",
                  "🛡️ {label} : **≥ ~{val:,} streams 7j** (plancher garanti). {disclaimer}"
-                 ).format(label=label, val=val, disclaimer=ak.FORECAST_FLOOR_DISCLAIMER))
+                 ).format(label=label, val=val,
+                          disclaimer=t("algo.disclaimer.floor", ak.FORECAST_FLOOR_DISCLAIMER)))
 
 
 def floor_forecast_text(forecast) -> str | None:
@@ -324,7 +418,7 @@ def floor_forecast_text(forecast) -> str | None:
 
 def render_regressor_badge(algo: str) -> None:
     """'Hungry / conservative model' badge for the volume regressor."""
-    note = ak.regressor_note(algo)
+    note = regressor_note_text(algo)
     if note:
         st.caption(t("ml_widgets.regressor_badge",
                      "🍽️ Modèle de volume : {note}").format(note=note))
@@ -366,7 +460,7 @@ def render_volume_gauges(algo: str, feats: dict) -> None:
         with st.expander(t("ml_widgets.volume_gauges_pedagogic",
                            "Variables volume sans valeur live ({n}) — pédagogique"
                            ).format(n=len(pedagogic))):
-            _imputed = ", ".join(spec["label"] for _fid, spec, _live in pedagogic)
+            _imputed = ", ".join(label_text(_fid, spec) for _fid, spec, _live in pedagogic)
             st.caption(t("ml_widgets.volume_imputed",
                          "⚠️ {names} : features imputées à 0 en production faute de source "
                          "— affichées comme **cibles**, pas valeurs live, jusqu'à la Phase 2 "
@@ -419,19 +513,21 @@ def render_coach(algo: str, feats: dict) -> None:
                      "✅ Aucune action critique : les leviers mesurables sont en zone "
                      "neutre/bonus."))
     for i, a in enumerate(actions, 1):
+        _lever = lever_text(algo, a["feature"], a)
+        _label = label_text(a["feature"], a)
         if a["kind"] == "smooth":
             st.error(t("ml_widgets.coach_smooth",
                        "**{i}. Lisser la vélocité** — actuelle {current:.2f}. {lever} "
                        "→ réduis le budget pub (~−30%) ; montant concret dans l'onglet "
                        "Budget & ROI."
-                       ).format(i=i, current=a['current'], lever=a['lever']))
+                       ).format(i=i, current=a['current'], lever=_lever))
         else:
             st.warning(t("ml_widgets.coach_raise",
                          "**{i}. {label}** — {current:,.0f} {unit} "
                          "(objectif {target:,.0f}, manque {gap:,.0f}). {lever}"
-                         ).format(i=i, label=a['label'], current=a['current'],
+                         ).format(i=i, label=_label, current=a['current'],
                                   unit=a['unit'], target=a['target'],
-                                  gap=a['gap'], lever=a['lever']))
+                                  gap=a['gap'], lever=_lever))
     if algo == "RADIO":
         st.info(t("ml_widgets.coach_radio_dm",
                   "🎫 Vérifie **Discovery Mode** (Spotify for Artists) : fort levier Radio "

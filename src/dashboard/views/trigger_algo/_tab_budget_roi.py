@@ -2,6 +2,7 @@
 from datetime import date
 from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
 import numpy as np
 import pandas as pd
@@ -61,7 +62,7 @@ def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
                  "🎯 Meilleur pari : **{label}** — chaque euro y a le plus de chances "
                  "de convertir en déclenchement (coût ajusté {cost:,.0f} €).")
                .format(label=best[0], cost=best[4]))
-    note = ak.calibration_note(best[1], best[2])
+    note = ml_widgets.calibration_note_text(best[1], best[2])
     if note:
         st.caption(t("trigger_algo.roi.score_reliability", "🎯 Fiabilité du score : {note}")
                    .format(note=note))
