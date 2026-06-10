@@ -11,7 +11,7 @@ conversion rate, top referrers, and full event log.
 import streamlit as st
 import pandas as pd
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
@@ -27,12 +27,7 @@ def show():
     st.title(t("referral_admin.title", "📊 Programme de parrainage — KPIs"))
     st.markdown("---")
 
-    db = get_db_connection()
-    if db is None:
-        st.error(t("referral_admin.db_unreachable", "❌ Base de données injoignable."))
-        return
-
-    try:
+    with project_db() as db:
         # ── Global KPIs ────────────────────────────────────────────────────
         total_row = db.fetch_query("SELECT COUNT(*) FROM referral_events")
         total_referrals = total_row[0][0] if total_row else 0
@@ -142,6 +137,3 @@ def show():
             )
         else:
             st.info(t("referral_admin.no_events", "Aucun événement de parrainage pour l'instant."))
-
-    finally:
-        db.close()

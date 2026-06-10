@@ -12,7 +12,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
@@ -27,10 +27,7 @@ def show():
         st.error(t("usage_analytics.admin_only", "Réservé aux administrateurs."))
         st.stop()
 
-    db = get_db_connection()
-    if db is None:
-        return
-    try:
+    with project_db() as db:
         days = st.selectbox(t("usage_analytics.window", "Fenêtre"), [7, 30, 90, 365], index=2,
                             format_func=lambda d: t("usage_analytics.window_days",
                                                     "{d} derniers jours").format(d=d))
@@ -96,5 +93,3 @@ def show():
             f"FROM usage_events WHERE ts >= {since} GROUP BY artist_id ORDER BY events DESC")
         if df_artist is not None and not df_artist.empty:
             st.dataframe(df_artist, hide_index=True, width="stretch")
-    finally:
-        db.close()

@@ -11,7 +11,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
@@ -38,12 +38,7 @@ def show():
     st.title(t("etl_logs.title", "🗂️ Historique ETL"))
     st.caption(t("etl_logs.caption", "Logs des runs Airflow persistés en base — table `etl_run_log`"))
 
-    db = get_db_connection()
-    if db is None:
-        st.error(t("etl_logs.db_unreachable", "❌ Base de données inaccessible."))
-        return
-
-    try:
+    with project_db() as db:
         _section_kpis(db)
         st.markdown("---")
         _section_run_history(db)
@@ -51,8 +46,6 @@ def show():
         _section_trend(db)
         st.markdown("---")
         _section_circuit_breakers(db)
-    finally:
-        db.close()
 
 
 # ── KPIs ─────────────────────────────────────────────────────────

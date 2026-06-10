@@ -65,8 +65,8 @@ VIEWS = [
     "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
     "promo_admin", "referral", "referral_admin",
     "revenue_forecast", "saisie_s4a", "soundcloud",
-    "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "useful_links",
-    "youtube",
+    "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "usage_analytics",
+    "useful_links", "youtube",
 ]
 
 # AppTest re-execs a script string in a fresh interpreter path, so the script must

@@ -14,7 +14,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
@@ -55,12 +55,7 @@ def show():
     st.caption(t("promo_admin.caption", "Create codes that give free Basic or Premium access for a fixed period."))
     st.markdown("---")
 
-    db = get_db_connection()
-    if db is None:
-        st.error(t("promo_admin.db_unreachable", "❌ Database unreachable."))
-        return
-
-    try:
+    with project_db() as db:
         tab_list, tab_create = st.tabs([
             t("promo_admin.tab_all", "All codes"),
             t("promo_admin.tab_create", "Create new code"),
@@ -233,6 +228,3 @@ def show():
                               )
                         )
                         st.rerun()
-
-    finally:
-        db.close()

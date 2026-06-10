@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import streamlit as st
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import verify_password, hash_password, _validate_password_strength
 
@@ -270,12 +270,7 @@ def show() -> None:
         st.error(t("account.session_expired", "Session expirée. Veuillez vous reconnecter."))
         return
 
-    db = get_db_connection()
-    if db is None:
-        st.error(t("account.db_unreachable", "Base de données injoignable."))
-        return
-
-    try:
+    with project_db() as db:
         user = _get_user_row(db, username)
         if user is None:
             st.error(t("account.user_not_found", "Utilisateur introuvable."))
@@ -303,6 +298,3 @@ def show() -> None:
 
         with tab_consent:
             _section_consent(db, user)
-
-    finally:
-        db.close()

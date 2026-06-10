@@ -76,9 +76,11 @@ def project_db() -> Iterator[PostgresHandler]:
             df = db.fetch_df("SELECT ...", params)
             # render
     """
+    from src.dashboard.utils.i18n import t
     db = get_db_connection()
     if db is None:
-        st.error("❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`")
+        st.error(t("ui.db_unreachable",
+                   "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`"))
         st.stop()
     try:
         yield db
@@ -102,11 +104,12 @@ def view_session() -> Iterator[tuple[PostgresHandler, int]]:
                 ...  # body; connection closed automatically
     """
     from src.dashboard.auth import get_artist_id, is_admin
+    from src.dashboard.utils.i18n import t
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide.")
+            st.error(t("ui.invalid_session", "Session invalide."))
             st.stop()
         artist_id = 1  # admin fallback — full cross-tenant view (Admin panel)
     try:

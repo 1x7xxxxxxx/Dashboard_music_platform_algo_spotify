@@ -12,11 +12,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin, require_plan
+from src.dashboard.auth import require_plan
 
 
 # Grain is derived from the deepest specific selection in the campaign→adset→ad cascade.
@@ -136,12 +136,6 @@ def show() -> None:
         "(les breakdowns Meta n'ont pas de dimension date)."
     ))
 
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error(t("meta_breakdowns.invalid_session", "Session invalide.")); st.stop()
-        artist_id = 1
-
     d1, d2 = st.columns(2)
     dim_label = d1.selectbox(
         t("meta_breakdowns.dimension", "Dimension"), list(_DIMS.keys()),
@@ -152,11 +146,7 @@ def show() -> None:
     dim_key, _ = _DIMS[dim_label]
     family = _FAMILIES[family_label]
 
-    db = get_db_connection()
-    if db is None:
-        st.error(t("meta_breakdowns.db_unavailable", "Base de données inaccessible."))
-        return
-    try:
+    with view_session() as (db, artist_id):
         # Entities listed most-recent-first (last launched on top), via each table's
         # recency column — start_time for campaigns/adsets, created_time for ads.
         camps = db.fetch_df(
@@ -242,8 +232,6 @@ def show() -> None:
             f"WHERE artist_id = %s{where_entity} GROUP BY {dim_cols}",
             tuple(params),
         )
-    finally:
-        db.close()
 
     if df is None or df.empty:
         st.info(t(

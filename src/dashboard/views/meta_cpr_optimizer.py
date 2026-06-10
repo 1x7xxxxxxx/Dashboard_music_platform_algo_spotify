@@ -9,9 +9,9 @@ Score: max(dw_prob, rr_prob, radio_prob) × (cpr_median / cpr_campaign)
 import streamlit as st
 import pandas as pd
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin, require_plan
+from src.dashboard.auth import require_plan
 from src.utils.track_matching import canonical_song_sql
 
 
@@ -222,21 +222,9 @@ def show() -> None:
         "Basé sur `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
     ))
 
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error(t("meta_cpr_optimizer.invalid_session", "Session invalide.")); st.stop()
-        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
-    db = get_db_connection()
-    if db is None:
-        st.error(t("meta_cpr_optimizer.db_unavailable", "Base de données inaccessible."))
-        return
-
-    try:
+    with view_session() as (db, artist_id):
         df = db.fetch_df(_QUERY_OPTIMIZER, (artist_id, artist_id, artist_id))
         cpr_all = db.fetch_df(_QUERY_ALL_CAMPAIGN_CPR, (artist_id,))
-    finally:
-        db.close()
 
     if df.empty:
         st.info(t(

@@ -10,10 +10,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin, require_plan
+from src.dashboard.auth import require_plan
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
 _QUERY_TS_ALL = """
@@ -475,17 +475,7 @@ def show() -> None:
     st.caption(t("meta_creatives.subtitle",
                  "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
 
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error(t("meta_creatives.invalid_session", "Session invalide.")); st.stop()
-        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
-    db = get_db_connection()
-    if db is None:
-        st.error(t("meta_creatives.db_unavailable", "Base de données inaccessible."))
-        return
-
-    try:
+    with view_session() as (db, artist_id):
         df = db.fetch_df(_QUERY_CREATIVES, (artist_id,))
         uncollected = db.fetch_df(_QUERY_UNCOLLECTED, (artist_id, artist_id))
 
@@ -562,5 +552,3 @@ def show() -> None:
         with t_act:
             ts_all = db.fetch_df(_QUERY_TS_ALL, (artist_id,))
             _render_activity(ts_all)
-    finally:
-        db.close()

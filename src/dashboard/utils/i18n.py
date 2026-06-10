@@ -33,10 +33,14 @@ _TR: dict[str, dict[str, str]] = {
     "fr": {
         "ui.language": "🌐 Langue / Language",
         "nav.title": "🎵 Navigation",
+        "ui.invalid_session": "Session invalide.",
+        "ui.db_unreachable": "❌ Base de données injoignable. Vérifiez que Docker tourne : `docker-compose up -d`",
     },
     "en": {
         "ui.language": "🌐 Langue / Language",
         "nav.title": "🎵 Navigation",
+        "ui.invalid_session": "Invalid session.",
+        "ui.db_unreachable": "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`",
         # Section headers
         "nav.section.data": "📁 Data",
         "nav.section.analytics": "📊 Platform analytics",

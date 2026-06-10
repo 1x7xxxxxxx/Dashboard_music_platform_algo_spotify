@@ -7,7 +7,7 @@ import os
 import streamlit as st
 import pandas as pd
 from pathlib import Path
-from src.dashboard.utils import get_db_connection, ml_widgets
+from src.dashboard.utils import project_db, ml_widgets
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.algo_knowledge import ALGO_MODEL_METRICS, populated_algos
 
@@ -136,9 +136,7 @@ def show():
     st.markdown(t("ml_performance.intro",
                   "Artefacts MLflow des modèles actifs + suivi des scores en base de données."))
 
-    db = get_db_connection()
-
-    try:
+    with project_db() as db:
         tab_labels = (
             [label for _, _, label, _ in _MODELS]
             + [t("ml_performance.tab_scorecard", "📋 Scorecard classification"),
@@ -159,6 +157,3 @@ def show():
 
         with tabs[-1]:
             _show_predictions_tab(db)
-
-    finally:
-        db.close()

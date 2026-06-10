@@ -2,10 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import view_session
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
@@ -28,17 +27,8 @@ def show():
     st.title(t("meta_ads_overview.title", "📱 Méta Ads - Analyse Stratégique"))
 
     # --- 1. CONNEXION & FILTRES ---
-    db = get_db_connection()
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error(t("meta_ads_overview.invalid_session", "Session invalide.")); st.stop()
-        artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
-
-    try:
+    with view_session() as (db, artist_id):
         _show_meta_ads(db, artist_id)
-    finally:
-        db.close()
 
 
 def _show_meta_ads(db, artist_id):
