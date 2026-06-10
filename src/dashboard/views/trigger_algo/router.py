@@ -2,6 +2,7 @@
 from datetime import date
 from datetime import timedelta
 from src.dashboard.utils import view_session
+from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song_sql
 import streamlit as st
 from ._common import (
@@ -21,11 +22,15 @@ def show():
     if not require_plan('premium'):
         return
 
-    st.title("🚀 Road to Algorithms (J+28)")
-    st.markdown("Suivi ML, budget, ROI et explainabilité des scores algorithmiques.")
+    st.title(t("trigger_algo.title", "🚀 Road to Algorithms (J+28)"))
+    st.markdown(t("trigger_algo.subtitle",
+                  "Suivi ML, budget, ROI et explainabilité des scores algorithmiques."))
 
-    with st.expander("📖 Comment lire cette page (guide artiste) — à ouvrir une fois", expanded=False):
-        st.markdown(
+    with st.expander(t("trigger_algo.guide_expander",
+                       "📖 Comment lire cette page (guide artiste) — à ouvrir une fois"),
+                     expanded=False):
+        st.markdown(t(
+            "trigger_algo.guide_body",
             "Cette page répond à **une seule question** : *« Spotify va-t-il pousser mon "
             "titre tout seul dans ses algorithmes ? »* Les **28 premiers jours** après la "
             "sortie (J+28) sont décisifs — c'est la fenêtre où les algorithmes décident.\n\n"
@@ -74,7 +79,7 @@ def show():
             "⚠️ **Limite honnête** : le modèle prédit BIEN *si* un titre va déclencher "
             "(classification, AUC ~0.92), mais MAL *combien* de streams il fera (le volume n'est "
             "pas fiable). **Fie-toi aux %, pas aux prévisions de volume en €.**"
-        )
+        ))
 
     with view_session() as (db, artist_id):
         # Track list — ordered by release_date DESC from tracks table.
@@ -103,14 +108,14 @@ def show():
             tracks = []
 
         if not tracks:
-            st.warning("Aucune donnée de timeline disponible.")
+            st.warning(t("trigger_algo.no_timeline", "Aucune donnée de timeline disponible."))
             return
 
         # Global selectors
         today = date.today()
         sel1, sel2 = st.columns([2, 2])
         with sel1:
-            selected_track = st.selectbox("🎵 Titre", tracks)
+            selected_track = st.selectbox(t("trigger_algo.sel_track", "🎵 Titre"), tracks)
 
         # Fetch release_date of selected track via tracks table (same '?' → '_' normalisation).
         # tracks is tenant-scoped by saas_artist_id (migration 039); admin (None) = no filter.
@@ -135,7 +140,7 @@ def show():
                 "Personnalisé",
             ]
             period_preset = st.selectbox(
-                "📅 Période",
+                t("trigger_algo.sel_period", "📅 Période"),
                 _PRESETS,
                 key=f"period_preset_{selected_track}"
             )
@@ -163,12 +168,12 @@ def show():
         elif period_preset == "Mois / Année":
             cm, cy = st.columns([1, 1])
             sel_month = cm.selectbox(
-                "Mois", _MONTHS,
+                t("trigger_algo.sel_month", "Mois"), _MONTHS,
                 index=today.month - 1,
                 key=f"sel_month_{selected_track}"
             )
             sel_year = cy.selectbox(
-                "Année",
+                t("trigger_algo.sel_year", "Année"),
                 list(range(2022, today.year + 1))[::-1],
                 key=f"sel_year_{selected_track}"
             )
@@ -179,7 +184,7 @@ def show():
 
         else:  # Personnalisé
             _custom = st.date_input(
-                "Plage personnalisée",
+                t("trigger_algo.sel_custom_range", "Plage personnalisée"),
                 value=(today - timedelta(days=28), today),
                 max_value=today,
                 key=f"period_custom_{selected_track}"
@@ -194,12 +199,12 @@ def show():
         benchmark_df = _load_lifecycle_benchmark(db)
 
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "🎯 Vue Globale",
-            "📊 Suivi Algorithmes",
-            "💰 Budget & ROI",
-            "🔍 Explainabilité",
-            "📈 Modèle",
-            "📉 Cycle de vie & Benchmark",
+            t("trigger_algo.tab_global", "🎯 Vue Globale"),
+            t("trigger_algo.tab_algos", "📊 Suivi Algorithmes"),
+            t("trigger_algo.tab_budget", "💰 Budget & ROI"),
+            t("trigger_algo.tab_explain", "🔍 Explainabilité"),
+            t("trigger_algo.tab_model", "📈 Modèle"),
+            t("trigger_algo.tab_lifecycle", "📉 Cycle de vie & Benchmark"),
         ])
         with tab1:
             _show_tab_global(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)

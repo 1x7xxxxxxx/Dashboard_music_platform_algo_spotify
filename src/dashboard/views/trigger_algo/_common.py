@@ -6,6 +6,7 @@ from datetime import date
 from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils import ml_widgets
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import show_empty_state
 import json
 import numpy as np
@@ -79,20 +80,24 @@ _IMPUTED_FEATURES = {
 
 def _display_prob_bar(label: str, prob: float | None, forecast: int | None = None):
     if prob is None:
-        st.write(f"**{label}** — données insuffisantes")
+        st.write(t("trigger_algo.common.prob_insufficient", "**{label}** — données insuffisantes")
+                 .format(label=label))
         return
     pct = min(max(prob, 0.0), 1.0)
     badge = "✅" if pct >= 0.6 else ("⚠️" if pct >= 0.3 else "❌")
-    st.write(f"**{label}** {badge} — {pct * 100:.0f}%")
+    st.write(t("trigger_algo.common.prob_bar", "**{label}** {badge} — {pct:.0f}%")
+             .format(label=label, badge=badge, pct=pct * 100))
     st.progress(pct)
     if forecast is not None and forecast > 0:
-        ml_widgets.render_floor_forecast("Volume estimé", forecast)
+        ml_widgets.render_floor_forecast(
+            t("trigger_algo.common.estimated_volume", "Volume estimé"), forecast)
 
 
 def _show_ml_section(pred: dict):
     pred_date = pred.get("prediction_date", "—")
     model_v = pred.get("model_version", "v1")
-    st.caption(f"Prédiction ML du **{pred_date}** — modèle `{model_v}`")
+    st.caption(t("trigger_algo.common.ml_pred_date", "Prédiction ML du **{date}** — modèle `{ver}`")
+               .format(date=pred_date, ver=model_v))
     # RR volume regressor is unreliable (R²=0.32, notification-CTR noise) — gate the
     # forecast OUT and show the classification-only status caption instead.
     _rr_forecast = (pred.get("rr_streams_forecast_7d")
@@ -118,8 +123,9 @@ def _show_ml_section(pred: dict):
 
 
 def _show_heuristic_section(current_total: float, current_pop: float):
-    st.info("⚠️ **Mode Heuristique** — Aucune prédiction ML disponible. "
-            "Lancez le DAG `ml_scoring_daily` pour obtenir des probabilités ML.")
+    st.info(t("trigger_algo.common.heuristic_mode",
+              "⚠️ **Mode Heuristique** — Aucune prédiction ML disponible. "
+              "Lancez le DAG `ml_scoring_daily` pour obtenir des probabilités ML."))
     GOAL_RR = HEURISTIC_GOALS["RR"]
     GOAL_DW_S = HEURISTIC_GOALS["DW"]
     GOAL_DW_P = 30
@@ -127,31 +133,39 @@ def _show_heuristic_section(current_total: float, current_pop: float):
     pct_rr = min(current_total / GOAL_RR, 1.0)
     pct_dw = (min(current_total / GOAL_DW_S, 1.0) + min(current_pop / GOAL_DW_P, 1.0)) / 2
     pct_radio = min(current_total / GOAL_RADIO, 1.0)
-    st.write(f"**📡 Release Radar** ({int(pct_rr * 100)}%)")
+    st.write(t("trigger_algo.common.heur_rr", "**📡 Release Radar** ({pct}%)").format(pct=int(pct_rr * 100)))
     st.progress(pct_rr)
     if pct_rr >= 1.0:
-        st.caption("✅ Trigger théoriquement activé !")
+        st.caption(t("trigger_algo.common.trigger_activated", "✅ Trigger théoriquement activé !"))
     else:
-        st.caption(f"Manque {GOAL_RR - current_total:,.0f} streams (seuil heuristique arrondi)")
-    st.write(f"**💎 Discover Weekly** ({int(pct_dw * 100)}%)")
+        st.caption(t("trigger_algo.common.rr_missing",
+                     "Manque {n:,.0f} streams (seuil heuristique arrondi)")
+                   .format(n=GOAL_RR - current_total))
+    st.write(t("trigger_algo.common.heur_dw", "**💎 Discover Weekly** ({pct}%)").format(pct=int(pct_dw * 100)))
     st.progress(pct_dw)
     col1, col2 = st.columns(2)
-    col1.info(f"Streams : {min(current_total / GOAL_DW_S, 1.0) * 100:.0f}% (obj. 10k)")
-    col2.info(f"Popularité : {min(current_pop / GOAL_DW_P, 1.0) * 100:.0f}% (obj. 30)")
-    st.write(f"**📻 Radio Spotify** ({int(pct_radio * 100)}%)")
+    col1.info(t("trigger_algo.common.dw_streams_pct", "Streams : {pct:.0f}% (obj. 10k)")
+              .format(pct=min(current_total / GOAL_DW_S, 1.0) * 100))
+    col2.info(t("trigger_algo.common.dw_pop_pct", "Popularité : {pct:.0f}% (obj. 30)")
+              .format(pct=min(current_pop / GOAL_DW_P, 1.0) * 100))
+    st.write(t("trigger_algo.common.heur_radio", "**📻 Radio Spotify** ({pct}%)").format(pct=int(pct_radio * 100)))
     st.progress(pct_radio)
     if pct_radio >= 1.0:
-        st.caption("✅ Streams 28j au niveau d'un trigger Radio détecté.")
+        st.caption(t("trigger_algo.common.radio_detected",
+                     "✅ Streams 28j au niveau d'un trigger Radio détecté."))
     else:
-        st.caption(f"Streams 28j ({current_total:,.0f}) sous le niveau de détection d'un "
-                   f"trigger Radio (~{GOAL_RADIO:,.0f} algo-streams émis par la playlist).")
-    st.caption(
+        st.caption(t("trigger_algo.common.radio_below",
+                     "Streams 28j ({cur:,.0f}) sous le niveau de détection d'un "
+                     "trigger Radio (~{goal:,.0f} algo-streams émis par la playlist).")
+                   .format(cur=current_total, goal=GOAL_RADIO))
+    st.caption(t(
+        "trigger_algo.common.heuristic_thresholds",
         "ℹ️ Les cibles 1k/10k sont des **heuristiques arrondies**. Les seuils elbow "
-        f"(~{ELBOW_THRESHOLDS_28D['DW']} DW · ~{ELBOW_THRESHOLDS_28D['RR']} RR · "
-        f"~{ELBOW_THRESHOLDS_28D['RADIO']} Radio) sont le **minimum d'algo-streams qu'une "
+        "(~{dw} DW · ~{rr} RR · ~{radio} Radio) sont le **minimum d'algo-streams qu'une "
         "playlist génère** au début d'un trigger — un signal de détection, **pas** un "
         "objectif de streams à produire soi-même pour déclencher."
-    )
+    ).format(dw=ELBOW_THRESHOLDS_28D['DW'], rr=ELBOW_THRESHOLDS_28D['RR'],
+             radio=ELBOW_THRESHOLDS_28D['RADIO']))
 
 
 def _show_key_factors(features_json):
@@ -179,23 +193,24 @@ def _show_key_factors(features_json):
                       "is_positive": is_positive, "val": abs(val)})
     positives = sorted([i for i in items if i["is_positive"]], key=lambda x: x["val"], reverse=True)
     negatives = sorted([i for i in items if not i["is_positive"]], key=lambda x: x["val"], reverse=True)
-    st.subheader("🔍 Facteurs clés & leviers marketing")
+    st.subheader(t("trigger_algo.common.key_factors_header", "🔍 Facteurs clés & leviers marketing"))
     col1, col2 = st.columns(2)
     with col1:
-        st.write("**✅ Points forts**")
+        st.write(t("trigger_algo.common.strengths_header", "**✅ Points forts**"))
         for item in positives[:3]:
             st.success(f"**{item['label']}** : {item['display']}")
         if not positives:
-            st.caption("Aucun facteur positif détecté.")
+            st.caption(t("trigger_algo.common.no_positive", "Aucun facteur positif détecté."))
     with col2:
-        st.write("**⚠️ Points à améliorer — actions recommandées**")
+        st.write(t("trigger_algo.common.improve_header",
+                   "**⚠️ Points à améliorer — actions recommandées**"))
         for item in negatives[:3]:
             st.warning(f"**{item['label']}** : {item['display']}")
             action = _MARKETING_ACTIONS.get(item["key"])
             if action:
                 st.caption(f"→ {action}")
         if not negatives:
-            st.caption("Aucun facteur négatif détecté.")
+            st.caption(t("trigger_algo.common.no_negative", "Aucun facteur négatif détecté."))
 
 
 _DM_KEY = "IsThisSongOptedIntoSpotifyDiscoveryMode"
@@ -213,20 +228,25 @@ def _show_imputation_caveat(feats: dict, feature_columns) -> None:
         flagged.discard(_DM_KEY)
     if flagged:
         labels = [_FEATURE_LABELS.get(f, (f, True))[0] for f in sorted(flagged)]
-        st.warning(
-            f"⚠️ **{len(flagged)}/{len(feature_columns)} variables imputées à 0/neutre** "
+        st.warning(t(
+            "trigger_algo.common.imputation_warning",
+            "⚠️ **{n}/{total} variables imputées à 0/neutre** "
             "faute de données S4A : les probabilités sont **indicatives, non calibrées** "
             "(comparaison relative entre titres, pas une probabilité absolue).\n\n"
-            "Variables concernées : " + ", ".join(labels) + "."
-        )
+            "Variables concernées : {labels}."
+        ).format(n=len(flagged), total=len(feature_columns), labels=", ".join(labels)))
     if not dm_known:
-        st.caption("ℹ️ **Discovery Mode non renseigné** pour ce titre → traité comme "
-                   "désactivé (peut fausser DW/Radio). Saisissez-le dans l'onglet "
-                   "« 🎯 Vue Globale » pour fiabiliser le score.")
+        st.caption(t("trigger_algo.common.dm_unknown",
+                     "ℹ️ **Discovery Mode non renseigné** pour ce titre → traité comme "
+                     "désactivé (peut fausser DW/Radio). Saisissez-le dans l'onglet "
+                     "« 🎯 Vue Globale » pour fiabiliser le score."))
     else:
         opted = float(feats.get(_DM_KEY, 0.0)) >= 0.5
-        st.caption(f"✅ Discovery Mode renseigné : **{'activé' if opted else 'désactivé'}** "
-                   "(donnée réelle, non imputée).")
+        _state = (t("trigger_algo.common.dm_on", "activé") if opted
+                  else t("trigger_algo.common.dm_off", "désactivé"))
+        st.caption(t("trigger_algo.common.dm_known",
+                     "✅ Discovery Mode renseigné : **{state}** (donnée réelle, non imputée).")
+                   .format(state=_state))
 
 
 def _show_drift_status(feats: dict) -> None:
@@ -237,13 +257,15 @@ def _show_drift_status(feats: dict) -> None:
         return
     drifted = check_drift(feats or {})
     if drifted:
-        st.warning(
-            f"📉 **Drift détecté** : {len(drifted)} variable(s) hors de l'enveloppe "
-            f"d'entraînement (|z| > 4) — {', '.join(drifted)}. La prédiction extrapole "
+        st.warning(t(
+            "trigger_algo.common.drift_detected",
+            "📉 **Drift détecté** : {n} variable(s) hors de l'enveloppe "
+            "d'entraînement (|z| > 4) — {vars}. La prédiction extrapole "
             "et est moins fiable pour ce titre."
-        )
+        ).format(n=len(drifted), vars=', '.join(drifted)))
     else:
-        st.caption("📉 Drift : toutes les variables sont dans l'enveloppe d'entraînement.")
+        st.caption(t("trigger_algo.common.drift_none",
+                     "📉 Drift : toutes les variables sont dans l'enveloppe d'entraînement."))
 
 
 def _load_ml_pred(db, track: str, artist_id) -> dict | None:
@@ -310,24 +332,29 @@ def _pi_bracket(pi) -> str | None:
 
 def _show_pi_gate_section(ml_pred: dict | None) -> None:
     """B2 — 'you are HERE' on the PI→trigger curves, from the song's PI forecast."""
-    st.subheader("🚪 Portes algorithmiques par Popularity Index")
-    st.caption(
+    st.subheader(t("trigger_algo.common.pi_gate_header", "🚪 Portes algorithmiques par Popularity Index"))
+    st.caption(t(
+        "trigger_algo.common.pi_gate_caption",
         "Le Popularity Index (0-100) est la porte d'entrée de chaque algorithme. "
         "La barre blanche situe votre titre ; n = taille d'échantillon par tranche."
-    )
+    ))
     tables = _load_threshold_tables()
     if not tables:
-        show_empty_state("Tables de seuils PI indisponibles — lancer `python3 machine_learning/train.py`.")
+        show_empty_state(t("trigger_algo.common.pi_tables_unavailable",
+                           "Tables de seuils PI indisponibles — lancer `python3 machine_learning/train.py`."))
         return
 
     pi = ml_pred.get("pi_forecast_7d") if ml_pred else None
     here = _pi_bracket(pi)
     if pi is not None:
-        st.metric("Popularity Index prédit", f"{int(pi)} / 100",
-                  help="Régresseur PI (modèle v3). R²=0.92 [0.88–0.94] validé en "
-                       "group-CV par chanson, MAE ~2 pts — robuste (vérifié 2026-06-05).")
+        st.metric(t("trigger_algo.common.pi_predicted_metric", "Popularity Index prédit"),
+                  f"{int(pi)} / 100",
+                  help=t("trigger_algo.common.pi_predicted_help",
+                         "Régresseur PI (modèle v3). R²=0.92 [0.88–0.94] validé en "
+                         "group-CV par chanson, MAE ~2 pts — robuste (vérifié 2026-06-05)."))
     else:
-        st.info("Pas de PI prédit pour ce titre (scoring ML quotidien non encore exécuté).")
+        st.info(t("trigger_algo.common.pi_no_pred",
+                  "Pas de PI prédit pour ce titre (scoring ML quotidien non encore exécuté)."))
 
     brackets = tables.get("pi_brackets", [])
     algos = [("release_radar", "Release Radar (<35j)", "#4C78A8"),
@@ -360,10 +387,11 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
         rr = tables.get("release_radar", {}).get(here, {}).get("prob")
         dw = tables.get("discover_weekly", {}).get(here, {}).get("prob")
         radio = tables.get("radio", {}).get(here, {}).get("prob")
-        st.markdown(
-            f"À **PI {here}**, vos chances de déclenchement : "
-            f"Release Radar **{_fmt(rr)}** · Discover Weekly **{_fmt(dw)}** · Radio **{_fmt(radio)}**."
-        )
+        st.markdown(t(
+            "trigger_algo.common.pi_chances",
+            "À **PI {here}**, vos chances de déclenchement : "
+            "Release Radar **{rr}** · Discover Weekly **{dw}** · Radio **{radio}**."
+        ).format(here=here, rr=_fmt(rr), dw=_fmt(dw), radio=_fmt(radio)))
         # Reco engine — the highest-leverage DW gate (DW is the hardest door).
         dw_data = tables.get("discover_weekly", {})
         best = max(
@@ -372,11 +400,12 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
             key=lambda t: t[1], default=(None, None),
         )
         if best[0] and best[0] != here:
-            st.info(
-                f"🎯 Levier #1 — le sésame Discover Weekly est à **PI {best[0]}** "
-                f"({best[1]:.0f}% de déclenchement). Concentrez streams organiques + saves "
-                f"pour pousser le PI vers cette tranche avant de scaler le budget."
-            )
+            st.info(t(
+                "trigger_algo.common.pi_lever1",
+                "🎯 Levier #1 — le sésame Discover Weekly est à **PI {bracket}** "
+                "({prob:.0f}% de déclenchement). Concentrez streams organiques + saves "
+                "pour pousser le PI vers cette tranche avant de scaler le budget."
+            ).format(bracket=best[0], prob=best[1]))
     st.caption(tables.get("note", ""))
 
 
@@ -392,9 +421,12 @@ def _show_pi_breakeven(ml_pred: dict | None) -> None:
         return
     brackets = tables.get("pi_brackets", [])
     here = _pi_bracket(pi)
-    st.markdown("**🎯 Rentabilité pilotée par le Popularity Index**")
-    st.caption(f"PI prédit actuel : **{int(pi)} / 100** (tranche {here}). Tu ne rentabilises "
-               "via un algo que si ton PI franchit sa porte de déclenchement.")
+    st.markdown(t("trigger_algo.common.pi_breakeven_header",
+                  "**🎯 Rentabilité pilotée par le Popularity Index**"))
+    st.caption(t("trigger_algo.common.pi_breakeven_caption",
+                 "PI prédit actuel : **{pi} / 100** (tranche {bracket}). Tu ne rentabilises "
+                 "via un algo que si ton PI franchit sa porte de déclenchement.")
+               .format(pi=int(pi), bracket=here))
     for key, label in (("discover_weekly", "Discover Weekly"),
                        ("radio", "Radio"), ("release_radar", "Release Radar")):
         data = tables.get(key, {})
@@ -402,8 +434,10 @@ def _show_pi_breakeven(ml_pred: dict | None) -> None:
         if not gate:
             continue
         reached = here and brackets.index(here) >= brackets.index(gate)
-        status = "✅ porte atteinte" if reached else f"⛔ requiert PI {gate}"
-        st.markdown(f"- **{label}** : porte à PI **{gate}** — {status}")
+        status = (t("trigger_algo.common.gate_reached", "✅ porte atteinte") if reached
+                  else t("trigger_algo.common.gate_requires", "⛔ requiert PI {gate}").format(gate=gate))
+        st.markdown(t("trigger_algo.common.gate_line", "- **{label}** : porte à PI **{gate}** — {status}")
+                    .format(label=label, gate=gate, status=status))
 
 
 def _show_verdict_banner(ml_pred: dict | None) -> None:
@@ -433,33 +467,39 @@ def _show_verdict_banner(ml_pred: dict | None) -> None:
         feats = {}
 
     if best_prob < 0.20:
-        st.error(
-            f"🔴 **STOP** — signaux algorithmiques faibles (meilleure piste : "
-            f"{labels[best_algo]} {best_prob:.0%}). Stoppez vos Meta Ads sur ce titre "
-            f"pour préserver votre budget."
-        )
+        st.error(t(
+            "trigger_algo.common.verdict_stop",
+            "🔴 **STOP** — signaux algorithmiques faibles (meilleure piste : "
+            "{algo} {prob:.0%}). Stoppez vos Meta Ads sur ce titre "
+            "pour préserver votre budget."
+        ).format(algo=labels[best_algo], prob=best_prob))
     elif best_prob < 0.50:
-        st.warning(
-            f"🟠 **OPTIMISER** — potentiel détecté ({labels[best_algo]} {best_prob:.0%}), "
-            f"mais il manque un déclencheur."
-        )
+        st.warning(t(
+            "trigger_algo.common.verdict_optimize",
+            "🟠 **OPTIMISER** — potentiel détecté ({algo} {prob:.0%}), "
+            "mais il manque un déclencheur."
+        ).format(algo=labels[best_algo], prob=best_prob))
         actions = ak.build_coach_actions(best_algo, feats)
         if actions:
             a = actions[0]
-            st.caption(f"🎯 Levier #1 — {a['label']} : {a['lever']}")
+            st.caption(t("trigger_algo.common.verdict_lever1", "🎯 Levier #1 — {label} : {lever}")
+                       .format(label=a['label'], lever=a['lever']))
     else:
-        st.success(
-            f"🟢 **SCALER** — ADN de hit détecté ({labels[best_algo]} {best_prob:.0%}). "
-            f"L'algorithme est prêt à prendre le relais : augmentez votre budget quotidien "
-            f"de ~20 % pour maximiser l'effet boule de neige."
-        )
+        st.success(t(
+            "trigger_algo.common.verdict_scale",
+            "🟢 **SCALER** — ADN de hit détecté ({algo} {prob:.0%}). "
+            "L'algorithme est prêt à prendre le relais : augmentez votre budget quotidien "
+            "de ~20 % pour maximiser l'effet boule de neige."
+        ).format(algo=labels[best_algo], prob=best_prob))
     note = ak.calibration_note(best_algo, best_prob)
     if note:
-        st.caption(f"ℹ️ Fiabilité du score : {note}")
-    st.caption(
+        st.caption(t("trigger_algo.common.verdict_reliability", "ℹ️ Fiabilité du score : {note}")
+                   .format(note=note))
+    st.caption(t(
+        "trigger_algo.common.verdict_platt",
         "Probabilités calibrées (Platt) — les seuils 20 %/50 % correspondent à de vraies "
         "probabilités de déclenchement."
-    )
+    ))
 
 
 def _show_radio_snowball(db, artist_id) -> None:
@@ -474,24 +514,28 @@ def _show_radio_snowball(db, artist_id) -> None:
         return
     n = int((df["radio_probability"].fillna(0) >= 0.5).sum())
     if n >= 3:
-        st.success(
-            f"🏆 **Statut « Valeur Sûre »** — {n} titres en radio algorithmique active. "
-            f"Moment idéal pour sortir un nouveau single : il sera poussé plus facilement."
-        )
+        st.success(t(
+            "trigger_algo.common.snowball_safe",
+            "🏆 **Statut « Valeur Sûre »** — {n} titres en radio algorithmique active. "
+            "Moment idéal pour sortir un nouveau single : il sera poussé plus facilement."
+        ).format(n=n))
     elif n >= 1:
-        st.info(
-            f"🔥 **En chauffe** — {n} titre(s) en radio active. Atteignez 3 titres pour "
-            f"débloquer le « passe-droit » algorithmique sur vos prochaines sorties."
-        )
+        st.info(t(
+            "trigger_algo.common.snowball_warming",
+            "🔥 **En chauffe** — {n} titre(s) en radio active. Atteignez 3 titres pour "
+            "débloquer le « passe-droit » algorithmique sur vos prochaines sorties."
+        ).format(n=n))
     else:
-        st.caption(
+        st.caption(t(
+            "trigger_algo.common.snowball_cold",
             "❄️ Aucun titre en radio algorithmique active (estimation modèle). "
             "Concentrez les efforts pour percer un premier titre."
-        )
-    st.caption(
+        ))
+    st.caption(t(
+        "trigger_algo.common.snowball_caption",
         "Effet boule de neige — estimation modèle (radio_probability ≥ 0,5), pas le "
         "décompte radio réel (donnée non collectée à l'inférence)."
-    )
+    ))
 
 
 def _show_resurrection_radar(db, artist_id) -> None:
@@ -505,19 +549,21 @@ def _show_resurrection_radar(db, artist_id) -> None:
         sparks = detect_saves_resurrection(db, artist_id)
     except Exception:
         return
-    st.subheader("✨ Résurrection longue traîne")
+    st.subheader(t("trigger_algo.common.resurrection_header", "✨ Résurrection longue traîne"))
     if not sparks:
-        st.caption(
+        st.caption(t(
+            "trigger_algo.common.resurrection_none",
             "Aucune étincelle détectée sur vos anciens titres (> 6 mois). Le radar "
             "s'active une fois ~2 semaines d'historique de saves accumulées "
             "(collecte quotidienne automatique)."
-        )
+        ))
         return
     for s in sparks[:5]:
-        st.success(
-            f"✨ **{s['song']}** ({s['age_days']} j) — +{s['recent_gain']} saves récents. "
-            f"Injectez un petit budget Ads aujourd'hui pour réveiller le Discover Weekly."
-        )
+        st.success(t(
+            "trigger_algo.common.resurrection_spark",
+            "✨ **{song}** ({age} j) — +{gain} saves récents. "
+            "Injectez un petit budget Ads aujourd'hui pour réveiller le Discover Weekly."
+        ).format(song=s['song'], age=s['age_days'], gain=s['recent_gain']))
 
 
 # Algo-streams an *established* trigger sustains over 28d (output the playlist emits once
@@ -563,7 +609,8 @@ def _show_phase_strategy(ml_pred: dict | None) -> None:
         return
     for lo, hi, title, advice in _PHASES:
         if lo <= days < hi:
-            st.markdown(f"**{title}** · titre à J+{int(days)}")
+            st.markdown(t("trigger_algo.common.phase_title", "**{title}** · titre à J+{days}")
+                        .format(title=title, days=int(days)))
             st.caption(advice)
             break
 
@@ -589,9 +636,11 @@ def _show_feature_importance() -> None:
     imp = _load_feature_importance()
     if not imp:
         return
-    with st.expander("📊 Hiérarchie des 13 variables par algorithme", expanded=False):
-        st.caption("Poids relatif de chaque variable dans la décision du modèle "
-                   "(gain XGBoost — proxy de l'importance SHAP globale).")
+    with st.expander(t("trigger_algo.common.feat_imp_expander",
+                       "📊 Hiérarchie des 13 variables par algorithme"), expanded=False):
+        st.caption(t("trigger_algo.common.feat_imp_caption",
+                     "Poids relatif de chaque variable dans la décision du modèle "
+                     "(gain XGBoost — proxy de l'importance SHAP globale)."))
         cols = st.columns(3)
         algos = [("dw", "Discover Weekly"), ("rr", "Release Radar"), ("radio", "Radio")]
         for col, (algo, label) in zip(cols, algos):
@@ -605,8 +654,10 @@ def _show_feature_importance() -> None:
 
 def _show_discovery_mode_protocol() -> None:
     """Static Discovery Mode activation/kill-switch protocol (the 'pay-to-play' paradox)."""
-    with st.expander("🎚️ Protocole Discovery Mode (activation & kill-switch)", expanded=False):
-        st.markdown(
+    with st.expander(t("trigger_algo.common.dm_protocol_expander",
+                       "🎚️ Protocole Discovery Mode (activation & kill-switch)"), expanded=False):
+        st.markdown(t(
+            "trigger_algo.common.dm_protocol_body",
             "- **Release Radar (semaine 1)** : impact **nul** — ne sacrifie pas 30 % de "
             "tes royalties, c'est inefficace.\n"
             "- **Radio (mois 3+)** : **levier d'activation** — il force l'entrée en Radio "
@@ -614,11 +665,12 @@ def _show_discovery_mode_protocol() -> None:
             "- **Kill-switch** : dès qu'un titre dépasse **~10 000 streams/jour en Radio**, "
             "**désactive** le Discovery Mode — l'inertie organique suffit, tu récupères "
             "ta marge de 30 %."
-        )
-        st.caption(
+        ))
+        st.caption(t(
+            "trigger_algo.common.dm_protocol_caption",
             "Statut Discovery Mode live non collecté (imputé à 0 à l'inférence) — "
             "protocole affiché à titre indicatif."
-        )
+        ))
 
 
 @st.cache_resource
@@ -697,43 +749,57 @@ def _show_28d_gate(db, track: str, artist_id) -> None:
     if not row or row[0][0] is None:
         return
     listeners, streams = int(row[0][0] or 0), int(row[0][1] or 0)
-    st.markdown("**🚪 Porte 28 jours — streams & listeners vs seuils par algo**")
-    st.caption(f"Ce titre (28j) : **{streams:,} streams** · **{listeners:,} listeners**.")
+    st.markdown(t("trigger_algo.common.gate28_header",
+                  "**🚪 Porte 28 jours — streams & listeners vs seuils par algo**"))
+    st.caption(t("trigger_algo.common.gate28_caption",
+                 "Ce titre (28j) : **{streams:,} streams** · **{listeners:,} listeners**.")
+               .format(streams=streams, listeners=listeners))
     cols = st.columns(len(_GATE_28D))
     for col, (algo, g) in zip(cols, _GATE_28D.items()):
         with col:
             st.markdown(f"**{algo}**")
-            st.caption(f"{'✅' if streams >= g['streams'] else '❌'} streams ≥ {g['streams']:,}")
-            st.caption(f"{'✅' if listeners >= g['listeners'] else '❌'} listeners ≥ {g['listeners']:,}")
-    st.caption("Seuils 28j approximatifs, dérivés de data_anon.csv (knee du taux de succès).")
+            st.caption(t("trigger_algo.common.gate28_streams", "{mark} streams ≥ {thr:,}")
+                       .format(mark='✅' if streams >= g['streams'] else '❌', thr=g['streams']))
+            st.caption(t("trigger_algo.common.gate28_listeners", "{mark} listeners ≥ {thr:,}")
+                       .format(mark='✅' if listeners >= g['listeners'] else '❌', thr=g['listeners']))
+    st.caption(t("trigger_algo.common.gate28_note",
+                 "Seuils 28j approximatifs, dérivés de data_anon.csv (knee du taux de succès)."))
 
 
 def _show_budget_tier_selector(db, artist_id):
     """A&R portfolio tool: select the top-N% tracks by score (lift/precision tradeoff)."""
-    st.subheader("🎯 Sélection A&R par budget (top-N%)")
+    st.subheader(t("trigger_algo.common.ar_selector_header", "🎯 Sélection A&R par budget (top-N%)"))
     df = _load_scored_tracks(db, artist_id)
     if df is None or len(df) < 3:
-        st.info("Outil disponible dès ≥ 3 titres scorés (échelle catalogue). "
-                "Lancez le DAG `ml_scoring_daily`.")
+        st.info(t("trigger_algo.common.ar_selector_min",
+                  "Outil disponible dès ≥ 3 titres scorés (échelle catalogue). "
+                  "Lancez le DAG `ml_scoring_daily`."))
         return
     m = ak.ALGO_MODEL_METRICS.get("DW", {})
     n = len(df)
-    pct = st.slider("Pousser le top N% par score", 10, 100, 20, step=10,
-                    help="Seuil bas → précision haute (peu de gâchis) ; seuil haut → recall élevé.")
+    pct = st.slider(t("trigger_algo.common.ar_slider", "Pousser le top N% par score"),
+                    10, 100, 20, step=10,
+                    help=t("trigger_algo.common.ar_slider_help",
+                           "Seuil bas → précision haute (peu de gâchis) ; seuil haut → recall élevé."))
     k = max(1, (n * pct + 99) // 100)
     sel = df.head(k)
     c1, c2, c3 = st.columns(3)
-    c1.metric("Titres sélectionnés", f"{k}/{n}")
-    c2.metric("Précision modèle", f"{m.get('precision', 0) * 100:.0f}%")
+    c1.metric(t("trigger_algo.common.ar_selected_metric", "Titres sélectionnés"), f"{k}/{n}")
+    c2.metric(t("trigger_algo.common.ar_precision_metric", "Précision modèle"),
+              f"{m.get('precision', 0) * 100:.0f}%")
     if pct <= 10:
-        c3.metric("Lift top-10%", f"×{m.get('lift_top10', 0):.1f}")
+        c3.metric(t("trigger_algo.common.ar_lift_metric", "Lift top-10%"),
+                  f"×{m.get('lift_top10', 0):.1f}")
     else:
-        c3.metric("Recall (rappel)", f"{m.get('recall', 0) * 100:.0f}%")
-    st.caption("Budget serré → vise le top 10% (précision quasi parfaite, peu de gâchis). "
-               "Gros budget → baisse le seuil pour capter plus d'opportunités (recall ↑, précision ↓).")
+        c3.metric(t("trigger_algo.common.ar_recall_metric", "Recall (rappel)"),
+                  f"{m.get('recall', 0) * 100:.0f}%")
+    st.caption(t("trigger_algo.common.ar_caption",
+                 "Budget serré → vise le top 10% (précision quasi parfaite, peu de gâchis). "
+                 "Gros budget → baisse le seuil pour capter plus d'opportunités (recall ↑, précision ↓)."))
     show = sel[["song", "score_20"]].copy()
     show["score_20"] = show["score_20"].fillna(0).round(1)
-    show.columns = ["Titre à pousser", "Score /20"]
+    show.columns = [t("trigger_algo.common.ar_col_track", "Titre à pousser"),
+                    t("trigger_algo.common.ar_col_score", "Score /20")]
     st.dataframe(show, hide_index=True, width="stretch")
 
 
@@ -767,11 +833,12 @@ def _show_velocity_budget_advice(db, track, artist_id, spent):
     dw_thr = ak.velocity_penalty_threshold("DW")
     radio_thr = ak.velocity_penalty_threshold("RADIO")
     reduced = spent * 0.7
-    st.warning(
-        f"⚡ Vélocité élevée ({vel:.2f}) sur « {track} » — la Radio (seuil {radio_thr:g}) "
-        f"et le DW ({dw_thr:g}) pénalisent l'hyper-croissance (« feu de paille »). Suggestion : "
-        f"réduire la dépense de ~30 % ({spent:,.0f} € → {reduced:,.0f} €) pour lisser le trafic."
-    )
+    st.warning(t(
+        "trigger_algo.common.velocity_advice",
+        "⚡ Vélocité élevée ({vel:.2f}) sur « {track} » — la Radio (seuil {radio:g}) "
+        "et le DW ({dw:g}) pénalisent l'hyper-croissance (« feu de paille »). Suggestion : "
+        "réduire la dépense de ~30 % ({spent:,.0f} € → {reduced:,.0f} €) pour lisser le trafic."
+    ).format(vel=vel, track=track, radio=radio_thr, dw=dw_thr, spent=spent, reduced=reduced))
 
 
 def _show_budget_pacing_calculator(db, artist_id) -> None:
@@ -780,7 +847,7 @@ def _show_budget_pacing_calculator(db, artist_id) -> None:
     model): the deliverable is the smoothing recommendation, not a guaranteed
     target velocity. Complements the reactive _show_velocity_budget_advice.
     """
-    st.subheader("📅 Lisseur de budget (Pacing)")
+    st.subheader(t("trigger_algo.common.pacing_header", "📅 Lisseur de budget (Pacing)"))
     default_budget, current_daily = 200.0, 0.0
     try:
         if artist_id:
@@ -797,33 +864,39 @@ def _show_budget_pacing_calculator(db, artist_id) -> None:
         pass
 
     c1, c2 = st.columns(2)
-    budget = c1.number_input("Budget à étaler (€)", min_value=0.0,
-                             value=float(round(default_budget, 2)), step=10.0)
-    window = c2.number_input("Fenêtre de lissage (jours)", min_value=7, max_value=90,
-                             value=28, step=1, help="28 j = fenêtre d'évaluation des algos.")
+    budget = c1.number_input(t("trigger_algo.common.pacing_budget_input", "Budget à étaler (€)"),
+                             min_value=0.0, value=float(round(default_budget, 2)), step=10.0)
+    window = c2.number_input(t("trigger_algo.common.pacing_window_input", "Fenêtre de lissage (jours)"),
+                             min_value=7, max_value=90, value=28, step=1,
+                             help=t("trigger_algo.common.pacing_window_help",
+                                    "28 j = fenêtre d'évaluation des algos."))
     if budget <= 0:
         return
     per_day = budget / window
-    st.metric("Dépense quotidienne recommandée", f"{per_day:,.2f} €/jour")
+    st.metric(t("trigger_algo.common.pacing_daily_metric", "Dépense quotidienne recommandée"),
+              f"{per_day:,.2f} €/jour")
     vthr = ak.velocity_penalty_threshold("DW")
-    vtxt = f"~{vthr:g}" if vthr else "le seuil de pénalité"
-    st.info(
-        f"Étalez **{budget:,.0f} €** sur **{window} jours** (~{per_day:,.0f} €/jour) pour "
-        f"maintenir une croissance organique et éviter le « pic suspect » que le Discover "
-        f"Weekly pénalise (vélocité au-delà de {vtxt})."
-    )
+    vtxt = f"~{vthr:g}" if vthr else t("trigger_algo.common.pacing_penalty_threshold", "le seuil de pénalité")
+    st.info(t(
+        "trigger_algo.common.pacing_info",
+        "Étalez **{budget:,.0f} €** sur **{window} jours** (~{per_day:,.0f} €/jour) pour "
+        "maintenir une croissance organique et éviter le « pic suspect » que le Discover "
+        "Weekly pénalise (vélocité au-delà de {vtxt})."
+    ).format(budget=budget, window=window, per_day=per_day, vtxt=vtxt))
     if current_daily > 0:
         burn_days = budget / current_daily
         if burn_days < 14:
-            st.warning(
-                f"⚠️ Votre budget quotidien actuel (~{current_daily:,.0f} €/jour) épuiserait "
-                f"ce budget en ~{burn_days:.0f} jours → risque de pic de vélocité. "
-                f"Réduisez à ~{per_day:,.0f} €/jour."
-            )
-    st.caption(
+            st.warning(t(
+                "trigger_algo.common.pacing_burn_warning",
+                "⚠️ Votre budget quotidien actuel (~{daily:,.0f} €/jour) épuiserait "
+                "ce budget en ~{burn:.0f} jours → risque de pic de vélocité. "
+                "Réduisez à ~{per_day:,.0f} €/jour."
+            ).format(daily=current_daily, burn=burn_days, per_day=per_day))
+    st.caption(t(
+        "trigger_algo.common.pacing_caption",
         "Le lien €→vélocité est une heuristique de lissage (étalement sur la fenêtre "
         "d'éval), pas une vélocité-cible garantie."
-    )
+    ))
 
 
 _META_LEVER_QUERY = """
@@ -858,23 +931,28 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
     meta_cpr_optimizer join pattern.
     """
     st.markdown("---")
-    st.markdown("**🎯 Leviers marketing — performance Meta Ads réelle de ce titre**")
+    st.markdown(t("trigger_algo.common.meta_lever_header",
+                  "**🎯 Leviers marketing — performance Meta Ads réelle de ce titre**"))
     try:
         df = db.fetch_df(_META_LEVER_QUERY, (artist_id, artist_id, artist_id, track))
     except Exception as e:
-        st.caption(f"Données Meta indisponibles : {e}")
+        st.caption(t("trigger_algo.common.meta_lever_unavailable",
+                     "Données Meta indisponibles : {err}").format(err=e))
         return
     if df is None or df.empty:
-        st.caption("Aucune campagne Meta mappée à ce titre — mappe-les dans la vue "
-                   "« Meta ↔ Spotify » pour scorer tes leviers sur les perfs réelles.")
+        st.caption(t("trigger_algo.common.meta_lever_no_campaign",
+                     "Aucune campagne Meta mappée à ce titre — mappe-les dans la vue "
+                     "« Meta ↔ Spotify » pour scorer tes leviers sur les perfs réelles."))
         return
 
     df = df.copy()
     df["cpr"] = pd.to_numeric(df["cpr"], errors="coerce")
     df["ctr"] = pd.to_numeric(df["ctr"], errors="coerce")
     show = df.rename(columns={
-        "campaign_name": "Campagne", "spend": "Spend €", "results": "Results",
-        "cpr": "CPR €", "ctr": "CTR %", "link_clicks": "Clics", "ctas": "CTA",
+        "campaign_name": t("trigger_algo.common.meta_col_campaign", "Campagne"),
+        "spend": "Spend €", "results": "Results",
+        "cpr": "CPR €", "ctr": "CTR %",
+        "link_clicks": t("trigger_algo.common.meta_col_clicks", "Clics"), "ctas": "CTA",
     })
     st.dataframe(show, hide_index=True, width='stretch')
 
@@ -882,13 +960,18 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
     if not scored.empty:
         best = scored.loc[scored["cpr"].idxmin()]
         worst = scored.loc[scored["cpr"].idxmax()]
-        st.success(f"✅ Meilleur levier : **{best['campaign_name']}** — CPR {best['cpr']:.3f} € "
-                   f"({best['ctas'] or 'CTA n/d'})")
+        st.success(t("trigger_algo.common.meta_best_lever",
+                     "✅ Meilleur levier : **{name}** — CPR {cpr:.3f} € ({cta})")
+                   .format(name=best['campaign_name'], cpr=best['cpr'],
+                           cta=best['ctas'] or t("trigger_algo.common.cta_na", "CTA n/d")))
         if worst["campaign_name"] != best["campaign_name"]:
-            st.warning(f"⚠️ Moins efficace : **{worst['campaign_name']}** — CPR {worst['cpr']:.3f} € "
-                       f"→ réalloue vers le CTA/audience qui performe.")
-    st.caption("CPR = coût par résultat (plus bas = mieux). Croise avec le levier SHAP "
-               "pénalisé : le CTA « Ajouter en playlist » bat « Écouter » sur le DW.")
+            st.warning(t("trigger_algo.common.meta_worst_lever",
+                         "⚠️ Moins efficace : **{name}** — CPR {cpr:.3f} € "
+                         "→ réalloue vers le CTA/audience qui performe.")
+                       .format(name=worst['campaign_name'], cpr=worst['cpr']))
+    st.caption(t("trigger_algo.common.meta_cpr_caption",
+                 "CPR = coût par résultat (plus bas = mieux). Croise avec le levier SHAP "
+                 "pénalisé : le CTA « Ajouter en playlist » bat « Écouter » sur le DW."))
 
 
 def _show_lime_explanation(ml_pred: dict | None) -> None:
@@ -904,7 +987,8 @@ def _show_lime_explanation(ml_pred: dict | None) -> None:
         feats = json.loads(ml_pred.get("features_json") or "{}")
     except (ValueError, TypeError):
         return
-    with st.expander("🍋 Explication locale LIME — Discover Weekly", expanded=False):
+    with st.expander(t("trigger_algo.common.lime_expander",
+                       "🍋 Explication locale LIME — Discover Weekly"), expanded=False):
         try:
             from lime.lime_tabular import LimeTabularExplainer
 
@@ -921,12 +1005,15 @@ def _show_lime_explanation(ml_pred: dict | None) -> None:
                 num_features=8)
             for cond, weight in exp.as_list():
                 st.caption(f"{'🟢' if weight > 0 else '🔴'} {cond} · {weight:+.3f}")
-            st.caption("Contribution locale de chaque condition à la proba DW "
-                       "(complément du SHAP waterfall — vue par perturbation).")
+            st.caption(t("trigger_algo.common.lime_caption",
+                         "Contribution locale de chaque condition à la proba DW "
+                         "(complément du SHAP waterfall — vue par perturbation)."))
         except ImportError:
-            st.caption("Module `lime` non installé — `pip install lime`.")
+            st.caption(t("trigger_algo.common.lime_not_installed",
+                         "Module `lime` non installé — `pip install lime`."))
         except Exception as e:
-            st.caption(f"LIME indisponible : {e}")
+            st.caption(t("trigger_algo.common.lime_unavailable",
+                         "LIME indisponible : {err}").format(err=e))
 
 
 _LIFECYCLE_AGE_BINS = [
@@ -991,17 +1078,23 @@ def _lifecycle_band_fig(curve_df, algo_label, live_order, color):
     fig.add_trace(go.Scatter(x=x, y=curve_df["ratio_q3"], mode="lines",
                              line=dict(width=0), showlegend=False, hoverinfo="skip"))
     fig.add_trace(go.Scatter(x=x, y=curve_df["ratio_q1"], mode="lines", line=dict(width=0),
-                             fill="tonexty", fillcolor=rgba, name="P25–P75 (cohorte)"))
+                             fill="tonexty", fillcolor=rgba,
+                             name=t("trigger_algo.common.band_p25_p75", "P25–P75 (cohorte)")))
     fig.add_trace(go.Scatter(x=x, y=curve_df["ratio_median"], mode="lines+markers",
-                             line=dict(color=color, width=3), name="Médiane cohorte"))
+                             line=dict(color=color, width=3),
+                             name=t("trigger_algo.common.band_median", "Médiane cohorte")))
     fig.add_hline(y=1.0, line_dash="dot", line_color="grey",
-                  annotation_text="Moyenne catégorie (1.0×)")
+                  annotation_text=t("trigger_algo.common.band_category_avg", "Moyenne catégorie (1.0×)"))
     if live_order is not None:
         fig.add_vline(x=live_order, line_dash="dash", line_color="#ffffff",
-                      annotation_text="Ce titre", annotation_position="top")
-    fig.update_layout(title=f"{algo_label} — ratio de standardisation par âge",
-                      height=300, xaxis_title="Âge du titre (semaines)",
-                      yaxis_title="Ratio (titre / moyenne catégorie)",
+                      annotation_text=t("trigger_algo.common.band_this_track", "Ce titre"),
+                      annotation_position="top")
+    fig.update_layout(title=t("trigger_algo.common.band_chart_title",
+                              "{algo} — ratio de standardisation par âge").format(algo=algo_label),
+                      height=300,
+                      xaxis_title=t("trigger_algo.common.band_axis_age", "Âge du titre (semaines)"),
+                      yaxis_title=t("trigger_algo.common.band_axis_ratio",
+                                    "Ratio (titre / moyenne catégorie)"),
                       hovermode="x unified", legend=dict(orientation="h", y=1.18),
                       margin=dict(t=70))
     fig.update_xaxes(tickmode="array", tickvals=x, ticktext=list(curve_df["age_week_bin"]))
@@ -1009,18 +1102,20 @@ def _lifecycle_band_fig(curve_df, algo_label, live_order, color):
 
 
 def _standardization_block(db, track, artist_id, age_weeks, benchmark_df):
-    st.markdown("#### 📍 Position de ce titre vs cohorte")
+    st.markdown(t("trigger_algo.common.std_position_header", "#### 📍 Position de ce titre vs cohorte"))
     if age_weeks is None:
-        st.info("Date de sortie inconnue — impossible de situer le titre.")
+        st.info(t("trigger_algo.common.std_unknown_release",
+                  "Date de sortie inconnue — impossible de situer le titre."))
         return
     order, bin_label = _age_week_order(age_weeks)
     ref = benchmark_df[benchmark_df["age_week_bin_order"] == order]["total_stream_median"].dropna()
     if ref.empty:
-        st.info(
-            f"Âge : **{age_weeks} sem.** (tranche {bin_label}). Référence cohorte "
+        st.info(t(
+            "trigger_algo.common.std_no_cohort_ref",
+            "Âge : **{age} sem.** (tranche {bin}). Référence cohorte "
             "total-streams indisponible (artefact provisoire) — seul l'âge est "
             "superposé sur les courbes ci-dessus."
-        )
+        ).format(age=age_weeks, bin=bin_label))
         return
     try:
         if artist_id:
@@ -1036,22 +1131,27 @@ def _standardization_block(db, track, artist_id, age_weeks, benchmark_df):
                 (track, "%1x7xxxxxxx%"))
         live_28d = float(rows[0][0]) if rows else 0.0
     except Exception:
-        st.info("Streams du titre indisponibles.")
+        st.info(t("trigger_algo.common.std_no_streams", "Streams du titre indisponibles."))
         return
     cohort_med = float(ref.iloc[0])
     ratio = live_28d / cohort_med if cohort_med > 0 else 0.0
-    st.metric(f"Position vs cohorte (tranche {bin_label})", f"{ratio:.2f}×",
-              delta=f"{(ratio - 1) * 100:+.0f}% vs médiane")
-    st.caption(
+    st.metric(t("trigger_algo.common.std_position_metric", "Position vs cohorte (tranche {bin})")
+              .format(bin=bin_label), f"{ratio:.2f}×",
+              delta=t("trigger_algo.common.std_vs_median", "{pct:+.0f}% vs médiane")
+              .format(pct=(ratio - 1) * 100))
+    st.caption(t(
+        "trigger_algo.common.std_ratio_caption",
         "Ratio basé sur le **total** des streams (toutes sources, 28j). La "
         "répartition par algorithme provient de la cohorte globale et n'est PAS "
         "mesurée sur ce titre."
-    )
+    ))
 
 
 def _lifecycle_legend():
-    with st.expander("ℹ️ Comprendre les courbes de vie & la standardisation", expanded=False):
-        st.markdown(
+    with st.expander(t("trigger_algo.common.legend_expander",
+                       "ℹ️ Comprendre les courbes de vie & la standardisation"), expanded=False):
+        st.markdown(t(
+            "trigger_algo.common.legend_body",
             "**Ratio de standardisation** : compare les streams de ce titre à la moyenne "
             "des titres de la même *catégorie de poids* (décile de followers pour DW/RR, "
             "bucket de popularité pour Radio). **1.0× = dans la moyenne**, >1.0× = "
@@ -1064,4 +1164,4 @@ def _lifecycle_legend():
             "- ♾️ **Pas d'expiration** (Discover Weekly) : DW peut ré-exposer un titre durablement.\n\n"
             "Courbes = bande P25-P75 + médiane d'une cohorte **globale** (statique). "
             "Ligne verticale blanche = âge actuel de votre titre."
-        )
+        ))

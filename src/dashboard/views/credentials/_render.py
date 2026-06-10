@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from src.utils.meta_config import META_GRAPH_BASE_URL
+from src.dashboard.utils.i18n import t
 
 from ._core import (
     _PLATFORM_DAG_MAP,
@@ -41,27 +42,28 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
         states = [dag_states.get(d, {}).get('state') for d in dags]
         if 'failed' in states:
             run_icon = '🔴'
-            run_label = 'Dernier run : FAILED'
+            run_label = t("credentials.kpi.run_failed", "Dernier run : FAILED")
         elif 'running' in states:
             run_icon = '🔵'
-            run_label = 'En cours'
+            run_label = t("credentials.kpi.run_running", "En cours")
         elif 'success' in states:
             run_icon = '🟢'
-            run_label = 'Dernier run : OK'
+            run_label = t("credentials.kpi.run_ok", "Dernier run : OK")
         elif not dag_states:
             run_icon = '⚫'
-            run_label = 'Airflow inaccessible'
+            run_label = t("credentials.kpi.run_unreachable", "Airflow inaccessible")
         else:
             run_icon = '⚫'
-            run_label = 'Jamais exécuté'
+            run_label = t("credentials.kpi.run_never", "Jamais exécuté")
 
         creds_icon = '✅' if has_creds else '❌'
         if has_db_creds:
-            creds_label = 'Connecté'
+            creds_label = t("credentials.kpi.connected", "Connecté")
         elif has_app_creds:
-            creds_label = 'Configuré (clé plateforme)'
+            creds_label = t("credentials.kpi.configured_platform_key",
+                            "Configuré (clé plateforme)")
         else:
-            creds_label = 'Non configuré'
+            creds_label = t("credentials.kpi.not_configured", "Non configuré")
 
         col.metric(
             label=platform_info['label'],
@@ -81,7 +83,10 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
         state = info.get('state')
         icon = _STATE_ICON.get(state, '⚫')
         date = info.get('date', '—')
-        st.caption(f"DAG `{dag_id}` — {icon} **{state or 'jamais exécuté'}** — dernier run : {date}")
+        state_label = state or t("credentials.dag_state_never", "jamais exécuté")
+        st.caption(t("credentials.dag_badge",
+                     "DAG `{dag_id}` — {icon} **{state}** — dernier run : {date}").format(
+                         dag_id=dag_id, icon=icon, state=state_label, date=date))
 
 
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
@@ -108,28 +113,38 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 exp = pd.to_datetime(expires_at)
                 days_left = (exp - pd.Timestamp.utcnow().tz_localize(None)).days
                 if days_left <= 0:
-                    st.error(f"Token **expiré** depuis le {exp.strftime('%d/%m/%Y')}. Renouvellement requis.")
+                    st.error(t("credentials.token_expired",
+                               "Token **expiré** depuis le {date}. Renouvellement requis.").format(
+                                   date=exp.strftime('%d/%m/%Y')))
                 elif days_left <= 15:
-                    st.warning(f"Token expire dans **{days_left} jour(s)** ({exp.strftime('%d/%m/%Y')}) — renouvellement recommandé.")
+                    st.warning(t("credentials.token_expiring",
+                                 "Token expire dans **{days} jour(s)** ({date}) — renouvellement recommandé.").format(
+                                     days=days_left, date=exp.strftime('%d/%m/%Y')))
                 else:
-                    st.success(f"Credentials enregistrés — mise à jour : {updated_str} · Token valide jusqu'au {exp.strftime('%d/%m/%Y')} ({days_left}j)")
+                    st.success(t("credentials.creds_saved_valid",
+                                 "Credentials enregistrés — mise à jour : {updated} · Token valide jusqu'au {date} ({days}j)").format(
+                                     updated=updated_str, date=exp.strftime('%d/%m/%Y'), days=days_left))
             except Exception:
-                st.success(f"Credentials enregistrés — mise à jour : {updated_str}")
+                st.success(t("credentials.creds_saved",
+                             "Credentials enregistrés — mise à jour : {updated}").format(updated=updated_str))
         else:
-            st.success(f"Credentials enregistrés — mise à jour : {updated_str}")
+            st.success(t("credentials.creds_saved",
+                         "Credentials enregistrés — mise à jour : {updated}").format(updated=updated_str))
         existing_values = _decode_row(existing_row, fields_def)
     else:
-        st.info("Aucun credential enregistré pour cette plateforme.")
+        st.info(t("credentials.no_creds_platform",
+                  "Aucun credential enregistré pour cette plateforme."))
         existing_values = {}
 
     st.markdown("---")
 
     # ── Formulaire standard (toutes plateformes) ─────────────────────
     with st.form(f"cred_{platform_key}_{artist_id}"):
-        st.subheader("Mettre à jour")
-        st.caption(
+        st.subheader(t("credentials.form.update", "Mettre à jour"))
+        st.caption(t(
+            "credentials.form.caption",
             "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
-        )
+        ))
 
         form_values = {}
         pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]
@@ -139,25 +154,28 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             for col, field in zip(cols, pair):
                 key = field['key']
                 existing_val = existing_values.get(key, '')
+                field_label = t(f"credentials.field.{key}", field['label'])
 
                 if field['secret']:
                     val = col.text_input(
-                        field['label'],
+                        field_label,
                         type='password',
-                        placeholder=_mask(existing_val) if existing_val else 'Non défini',
-                        help="🔒 Chiffré en base — laisser vide pour conserver",
+                        placeholder=_mask(existing_val) if existing_val
+                        else t("credentials.form.undefined", "Non défini"),
+                        help=t("credentials.form.secret_help",
+                               "🔒 Chiffré en base — laisser vide pour conserver"),
                         key=f"{platform_key}_{artist_id}_{key}",
                     )
                 else:
                     val = col.text_input(
-                        field['label'],
+                        field_label,
                         value=existing_val or field.get('default', ''),
                         key=f"{platform_key}_{artist_id}_{key}",
                     )
                 form_values[key] = val
 
         submitted = st.form_submit_button(
-            "💾 Enregistrer",
+            t("credentials.form.save", "💾 Enregistrer"),
             type="primary",
             disabled=not fernet_ok,
         )
@@ -176,28 +194,32 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     if existing_row and platform_key in CONNECTION_TESTS:
         st.markdown("---")
         if st.button(
-            "🔌 Tester la connexion",
+            t("credentials.test_button", "🔌 Tester la connexion"),
             key=f"test_{platform_key}_{artist_id}",
         ):
-            with st.spinner("Test en cours…"):
+            with st.spinner(t("credentials.testing", "Test en cours…")):
                 test_fields = _decode_row(existing_row, fields_def)
                 ok, msg = CONNECTION_TESTS[platform_key](test_fields)
                 if ok:
                     st.success(msg)
                 else:
-                    st.error(f"Connexion échouée : {msg}")
+                    st.error(t("credentials.test_failed",
+                               "Connexion échouée : {msg}").format(msg=msg))
 
     # ── Meta : bouton renouvellement automatique du token ─────────────
     if platform_key == 'meta' and existing_row:
         st.markdown("---")
-        st.markdown("#### Renouvellement automatique du token")
-        st.caption(
+        st.markdown(t("credentials.meta.refresh_header",
+                      "#### Renouvellement automatique du token"))
+        st.caption(t(
+            "credentials.meta.refresh_caption",
             "Échange le token actuel contre un nouveau token de 60 jours via l'API Meta. "
             "Le token doit être encore valide pour pouvoir être échangé. "
             "Le DAG fait ce renouvellement automatiquement quand il reste ≤ 15 jours."
-        )
-        if st.button("🔄 Rafraîchir le token Meta", key=f"meta_refresh_{artist_id}", type="primary"):
-            with st.spinner("Échange du token en cours…"):
+        ))
+        if st.button(t("credentials.meta.refresh_button", "🔄 Rafraîchir le token Meta"),
+                     key=f"meta_refresh_{artist_id}", type="primary"):
+            with st.spinner(t("credentials.meta.refreshing", "Échange du token en cours…")):
                 fields_def_meta = PLATFORMS['meta']['fields']
                 current = _decode_row(existing_row, fields_def_meta)
                 app_id = current.get('app_id', '')
@@ -205,9 +227,11 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 access_token = current.get('access_token', '')
 
                 if not app_id or not app_secret:
-                    st.error("App ID ou App Secret manquant — renseigner d'abord ces champs.")
+                    st.error(t("credentials.meta.missing_app",
+                               "App ID ou App Secret manquant — renseigner d'abord ces champs."))
                 elif not access_token:
-                    st.error("Access Token manquant — impossible d'effectuer l'échange.")
+                    st.error(t("credentials.meta.missing_token",
+                               "Access Token manquant — impossible d'effectuer l'échange."))
                 else:
                     try:
                         r = requests.get(
@@ -239,19 +263,26 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                                     "UPDATE artist_credentials SET expires_at = %s WHERE artist_id = %s AND platform = 'meta'",
                                     (new_expires.to_pydatetime(), artist_id)
                                 )
-                                st.success(f"✅ Token renouvelé — expire le {new_expires.strftime('%d/%m/%Y')} ({expires_in // 86400} jours)")
+                                st.success(t("credentials.meta.refresh_ok",
+                                             "✅ Token renouvelé — expire le {date} ({days} jours)").format(
+                                                 date=new_expires.strftime('%d/%m/%Y'),
+                                                 days=expires_in // 86400))
                             else:
                                 db.execute_query(
                                     "UPDATE artist_credentials SET expires_at = NULL WHERE artist_id = %s AND platform = 'meta'",
                                     (artist_id,)
                                 )
-                                st.success("✅ Token enregistré — n'expire pas (System User).")
+                                st.success(t("credentials.meta.refresh_ok_never",
+                                             "✅ Token enregistré — n'expire pas (System User)."))
                             st.rerun()
                         else:
                             err = data.get('error', {})
-                            st.error(f"Échec : {err.get('message', data)} — si le token est expiré, générer un nouveau token manuellement via Graph API Explorer.")
+                            st.error(t("credentials.meta.refresh_failed",
+                                       "Échec : {msg} — si le token est expiré, générer un nouveau token manuellement via Graph API Explorer.").format(
+                                           msg=err.get('message', data)))
                     except Exception as e:
-                        st.error(f"Erreur réseau : {e}")
+                        st.error(t("credentials.meta.network_error",
+                                   "Erreur réseau : {err}").format(err=e))
 
 
 def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_values):
@@ -292,7 +323,8 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                     "WHERE artist_id = %s AND platform = 'meta'",
                     (artist_id,),
                 )
-                st.info("ℹ️ Token System User détecté — n'expire pas, aucun renouvellement requis.")
+                st.info(t("credentials.meta.system_user_detected",
+                          "ℹ️ Token System User détecté — n'expire pas, aucun renouvellement requis."))
             elif expiry:
                 db.execute_query(
                     "UPDATE artist_credentials SET expires_at = %s "
@@ -300,11 +332,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                     (expiry, artist_id),
                 )
             else:
-                st.warning(
+                st.warning(t(
+                    "credentials.meta.expiry_unavailable",
                     "⚠️ Impossible de récupérer la date d'expiration du token Meta "
                     "(app_id / app_secret manquants ou API inaccessible). "
                     "Le renouvellement automatique ne fonctionnera pas jusqu'au prochain save."
-                )
+                ))
 
         # Auto-trigger first data pull for this artist on this platform.
         # Non-blocking: a DAG-trigger failure must NOT invalidate the credential save.
@@ -320,12 +353,18 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 )
                 result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})
                 if result.get('success'):
-                    st.toast(f"🚀 Collecte {platform_key} lancée — données disponibles dans ~2 min", icon="✅")
+                    st.toast(t("credentials.collect_started",
+                               "🚀 Collecte {platform} lancée — données disponibles dans ~2 min").format(
+                                   platform=platform_key), icon="✅")
             except Exception as trigger_err:
-                st.warning(f"⚠️ Credentials enregistrés mais déclenchement DAG échoué : {trigger_err}")
+                st.warning(t("credentials.dag_trigger_failed",
+                             "⚠️ Credentials enregistrés mais déclenchement DAG échoué : {err}").format(
+                                 err=trigger_err))
 
-        st.success(f"✅ Credentials {platform_key} enregistrés.")
+        st.success(t("credentials.save_ok",
+                     "✅ Credentials {platform} enregistrés.").format(platform=platform_key))
         st.rerun()
 
     except Exception as e:
-        st.error(f"❌ Erreur lors de la sauvegarde : {e}")
+        st.error(t("credentials.save_error",
+                   "❌ Erreur lors de la sauvegarde : {err}").format(err=e))

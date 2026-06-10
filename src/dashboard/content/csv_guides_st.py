@@ -15,6 +15,7 @@ from src.dashboard.content.csv_guides import (
     PlatformGuide,
     screenshot_path,
 )
+from src.dashboard.utils.i18n import t
 
 # Max display width (px). Streamlit's "content"/"stretch" both upscale small crops
 # to the column → blur. Capping to the native width avoids any upscaling.
@@ -23,13 +24,17 @@ _MAX_IMG_WIDTH = 720
 
 def render_csv_guides() -> None:
     """Render one expander per platform with download steps + expected-CSV table."""
-    st.markdown("**Comment télécharger puis importer vos fichiers ?**")
+    st.markdown(t("csv_guides.intro_heading",
+                  "**Comment télécharger puis importer vos fichiers ?**"))
     for guide in CSV_GUIDES:
         _render_guide_expander(guide)
 
 
 def _render_guide_expander(guide: PlatformGuide) -> None:
-    with st.expander(f"{guide.icon} {guide.title} — télécharger & importer", expanded=False):
+    label = t("csv_guides.expander_suffix",
+              "{icon} {title} — télécharger & importer").format(
+        icon=guide.icon, title=guide.title)
+    with st.expander(label, expanded=False):
         st.markdown(guide.intro)
         for i, step in enumerate(guide.steps, 1):
             _render_step(i, step)
@@ -57,9 +62,13 @@ def _display_width(path) -> int:
 
 def _render_expected_table(guide: PlatformGuide) -> None:
     rows = [_expected_row(e) for e in guide.expected]
-    st.caption("Fichiers reconnus automatiquement :")
+    st.caption(t("csv_guides.recognized_caption", "Fichiers reconnus automatiquement :"))
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
 
 def _expected_row(e: ExpectedCsv) -> dict:
-    return {"Fichier": e.label, "Nom attendu": e.filename_hint, "Colonnes": ", ".join(e.columns)}
+    return {
+        t("csv_guides.col_file", "Fichier"): e.label,
+        t("csv_guides.col_expected_name", "Nom attendu"): e.filename_hint,
+        t("csv_guides.col_columns", "Colonnes"): ", ".join(e.columns),
+    }

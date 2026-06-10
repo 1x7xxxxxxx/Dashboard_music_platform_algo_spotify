@@ -15,6 +15,7 @@ Stockage :
 import streamlit as st
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
 from ._core import _get_fernet, _load_credentials, _fetch_dag_last_states
@@ -23,11 +24,12 @@ from ._render import _render_global_kpi, _render_platform_tab
 
 
 def show():
-    st.title("🔑 Credentials API")
-    st.caption(
+    st.title(t("credentials.title", "🔑 Credentials API"))
+    st.caption(t(
+        "credentials.caption",
         "Gérez vos credentials d'accès API par plateforme. "
         "Les secrets sont chiffrés (Fernet) avant stockage en base."
-    )
+    ))
 
     db = get_db_connection()
     try:
@@ -37,33 +39,38 @@ def show():
                 "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
             )
             if df_artists.empty:
-                st.warning("Aucun artiste actif. Créez-en un dans l'onglet Admin.")
+                st.warning(t("credentials.no_active_artist",
+                             "Aucun artiste actif. Créez-en un dans l'onglet Admin."))
                 return
             choices = {f"{r['id']} — {r['name']}": r['id'] for _, r in df_artists.iterrows()}
-            sel_label = st.selectbox("Artiste cible", list(choices.keys()))
+            sel_label = st.selectbox(t("credentials.target_artist", "Artiste cible"),
+                                     list(choices.keys()))
             target_artist_id = choices[sel_label]
         else:
             target_artist_id = get_artist_id()
             if target_artist_id is None:
-                st.error("Impossible de déterminer votre identifiant artiste.")
+                st.error(t("credentials.no_artist_id",
+                           "Impossible de déterminer votre identifiant artiste."))
                 return
 
         # ── Vérification Fernet ───────────────────────────────────────────
         fernet_ok = _get_fernet() is not None
         if not fernet_ok:
-            st.warning(
+            st.warning(t(
+                "credentials.fernet_missing",
                 "⚠️ `fernet_key` absent de `config/config.yaml`. "
                 "La sauvegarde est désactivée. "
                 "Générez une clé : "
                 "`python -c \"from cryptography.fernet import Fernet; "
                 "print(Fernet.generate_key().decode())\"`"
-            )
+            ))
 
         # ── Chargement credentials existants ─────────────────────────────
         existing = _load_credentials(db, target_artist_id)
 
         # ── Statut DAGs (non-bloquant) ────────────────────────────────────
-        with st.spinner("Récupération du statut des DAGs…"):
+        with st.spinner(t("credentials.fetching_dag_status",
+                          "Récupération du statut des DAGs…")):
             dag_states = _fetch_dag_last_states()
 
         # ── KPI global ───────────────────────────────────────────────────
@@ -71,12 +78,13 @@ def show():
 
         # ── First-time setup banner ───────────────────────────────────────
         if not existing:
-            st.info(
+            st.info(t(
+                "credentials.no_creds_banner",
                 "💡 **Aucun credential configuré.** "
                 "Sélectionnez une plateforme ci-dessous et suivez le guide "
                 "pour connecter vos sources de données. "
                 "Commencez par **Spotify** pour démarrer la collecte."
-            )
+            ))
 
         st.markdown("---")
 

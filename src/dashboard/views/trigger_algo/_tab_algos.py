@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import ml_widgets
+from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song_sql
 from ._common import (
     ELBOW_THRESHOLDS_28D,
@@ -20,11 +21,12 @@ from ._common import (
 
 
 def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, release_date=None):
-    st.caption(
+    st.caption(t(
+        "trigger_algo.algos.caption",
         "📊 **Suivi & action** — le verdict (STOP / OPTIMISER / SCALER), les leviers concrets "
         "pour ouvrir chaque porte algorithmique, ta position sur les courbes PI, et la "
         "trajectoire des 28 premiers jours vs les seuils réels de déclenchement."
-    )
+    ))
     _show_verdict_banner(ml_pred)
     _show_phase_strategy(ml_pred)
     _show_radio_snowball(db, artist_id)
@@ -34,10 +36,12 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
     _show_feature_importance()
     _show_discovery_mode_protocol()
     st.divider()
-    with st.expander("🔮 Simulateur Release Radar (pré-sortie) — planifier une sortie"):
+    with st.expander(t("trigger_algo.algos.rr_simulator",
+                       "🔮 Simulateur Release Radar (pré-sortie) — planifier une sortie")):
         ml_widgets.render_prerelease_rr_estimator()
     st.divider()
-    st.subheader("📈 Streams & probabilités algorithmiques")
+    st.subheader(t("trigger_algo.algos.streams_probas_header",
+                   "📈 Streams & probabilités algorithmiques"))
     try:
         if artist_id:
             df_streams = db.fetch_df(
@@ -73,7 +77,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             )
 
         if df_streams.empty:
-            st.info("Aucun stream sur cette période.")
+            st.info(t("trigger_algo.algos.no_streams_period", "Aucun stream sur cette période."))
         else:
             df_streams["date"] = pd.to_datetime(df_streams["date"])
             fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -100,7 +104,8 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                     line=dict(color="#FFE66D", width=2)
                 ), secondary_y=True)
             else:
-                st.caption("Aucun historique de probabilités ML sur cette période.")
+                st.caption(t("trigger_algo.algos.no_ml_history",
+                             "Aucun historique de probabilités ML sur cette période."))
 
             if not df_pi.empty:
                 df_pi["date"] = pd.to_datetime(df_pi["date"])
@@ -111,21 +116,26 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 ), secondary_y=True)
 
             fig.update_layout(
-                title=f"Streams & probabilités — {track}",
+                title=t("trigger_algo.algos.chart_streams_probas_title",
+                        "Streams & probabilités — {track}").format(track=track),
                 hovermode="x unified", height=480,
                 legend=dict(orientation="h", y=1.12)
             )
-            fig.update_yaxes(title_text="Streams", secondary_y=False)
-            fig.update_yaxes(title_text="Proba algo (%) / Popularity Index", secondary_y=True, range=[0, 100])
+            fig.update_yaxes(title_text=t("trigger_algo.algos.axis_streams", "Streams"),
+                             secondary_y=False)
+            fig.update_yaxes(title_text=t("trigger_algo.algos.axis_proba_pi",
+                                          "Proba algo (%) / Popularity Index"),
+                             secondary_y=True, range=[0, 100])
             st.plotly_chart(fig, width='stretch')
     except Exception as e:
-        st.warning(f"Graphique streams/probas indisponible : {e}")
+        st.warning(t("trigger_algo.algos.chart_unavailable",
+                     "Graphique streams/probas indisponible : {err}").format(err=e))
 
     _show_28d_gate(db, track, artist_id)
     st.markdown("---")
 
     # J+28 trajectory (conserved from original)
-    st.subheader("🗓️ Trajectoire J+28 (depuis la sortie)")
+    st.subheader(t("trigger_algo.algos.j28_header", "🗓️ Trajectoire J+28 (depuis la sortie)"))
     try:
         if artist_id:
             df_full = db.fetch_df(
@@ -182,15 +192,19 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             # algo-streams the playlists GENERATE (detection signal), not a target on the
             # song's own cumulative streams. They are described in the caption below instead.
             fig2.update_layout(
-                title=f"Trajectoire de '{track}' (28 premiers jours)",
-                xaxis_title="Jours depuis la sortie (J+)",
+                title=t("trigger_algo.algos.j28_chart_title",
+                        "Trajectoire de '{track}' (28 premiers jours)").format(track=track),
+                xaxis_title=t("trigger_algo.algos.axis_days_since", "Jours depuis la sortie (J+)"),
                 hovermode="x unified", height=550,
                 legend=dict(orientation="h", y=1.12)
             )
-            fig2.update_yaxes(title_text="Volume Streams", secondary_y=False)
-            fig2.update_yaxes(title_text="Popularité (0-100)", secondary_y=True, range=[0, 100])
+            fig2.update_yaxes(title_text=t("trigger_algo.algos.axis_stream_volume", "Volume Streams"),
+                              secondary_y=False)
+            fig2.update_yaxes(title_text=t("trigger_algo.algos.axis_popularity", "Popularité (0-100)"),
+                              secondary_y=True, range=[0, 100])
             st.plotly_chart(fig2, width='stretch')
-            st.caption(
+            st.caption(t(
+                "trigger_algo.algos.j28_caption",
                 "Courbe = streams cumulés du titre sur ses 28 premiers jours. "
                 "ℹ️ **À propos des seuils de trigger :** quand une playlist algorithmique se "
                 "déclenche, elle génère elle-même un volume d'algo-streams (28j) qui démarre "
@@ -199,20 +213,26 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 "par les playlists** (signal de détection) — **pas** un objectif de streams à "
                 "atteindre soi-même pour les déclencher. C'est pourquoi ils ne sont pas tracés "
                 "comme des lignes-cibles sur ta courbe."
-            )
+            ))
 
             # Linear projection fallback
             if not ml_pred and 5 <= days_elapsed < 28:
                 avg_daily = current_total / days_elapsed
                 projected_28 = avg_daily * 28
-                st.info(f"🔮 **Projection :** À ce rythme → ~**{projected_28:,.0f} streams** en 28j.")
+                st.info(t("trigger_algo.algos.projection",
+                          "🔮 **Projection :** À ce rythme → ~**{streams:,.0f} streams** en 28j.")
+                        .format(streams=projected_28))
                 if projected_28 > ELBOW_THRESHOLDS_28D["DW"]:
-                    st.success("🌟 Volume cohérent avec un trigger Discover Weekly amorcé "
-                               "(au niveau d'algo-streams qu'une playlist émet à son début).")
+                    st.success(t("trigger_algo.algos.proj_dw",
+                                 "🌟 Volume cohérent avec un trigger Discover Weekly amorcé "
+                                 "(au niveau d'algo-streams qu'une playlist émet à son début)."))
                 elif projected_28 > ELBOW_THRESHOLDS_28D["RR"]:
-                    st.warning("⚠️ Au niveau d'un début de trigger Release Radar ; "
-                               "Discover Weekly encore juste.")
+                    st.warning(t("trigger_algo.algos.proj_rr",
+                                 "⚠️ Au niveau d'un début de trigger Release Radar ; "
+                                 "Discover Weekly encore juste."))
                 else:
-                    st.error("📉 Sous le niveau d'algo-streams d'un trigger qui démarre.")
+                    st.error(t("trigger_algo.algos.proj_below",
+                               "📉 Sous le niveau d'algo-streams d'un trigger qui démarre."))
     except Exception as e:
-        st.warning(f"Trajectoire J+28 indisponible : {e}")
+        st.warning(t("trigger_algo.algos.j28_unavailable",
+                     "Trajectoire J+28 indisponible : {err}").format(err=e))
