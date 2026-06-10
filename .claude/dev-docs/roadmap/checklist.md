@@ -533,8 +533,29 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   410 tests verts, render-smoke live sur les 37 vues, ruff clean, 0 clé sans EN. Commits
   `a672725` + `cde230c`. FR conservé par design : prose `csv_guides.py` (partagé PDF) +
   constantes de labels au niveau module (résolution langue au runtime).
-- [ ] **C5 — Benchmark VPS** : streaMLytics + n8n + MT5 (Windows-only) + génération vidéo + scraping → topologie + sizing.
-- [ ] **D — Déploiement + pentest** (DERNIER, hors scope actuel) : voir `deployment.md`.
+- [ ] **C5 — Benchmark VPS (sizing + topologie)** — **QUESTIONS À RÉPONDRE le 2026-06-11** :
+  1. **Échelle streaMLytics** : nb d'artistes cible à 3 / 6 / 12 mois ? (10 / 100 / 1000 ?) — pilote la RAM (Streamlit garde chaque session en mémoire).
+  2. **MT5 / vidéo / scraping / n8n sur le MÊME VPS, ou séparés** (juste mutualisés pour le coût) ?
+     ⚠️ **MT5 = Windows-only** → ne tourne PAS sur un VPS Linux/Docker → soit VPS Windows séparé, soit machine dédiée → **casse le « un seul VPS »**.
+  3. **Génération vidéo** : rendu GPU ou CPU ? quelle fréquence/volume ? (change radicalement le sizing).
+  4. **Budget €/mois** visé pour l'infra ?
+  **Reco** : sizer **streaMLytics seul d'abord** (le seul prêt+mergé : postgres + airflow web/scheduler + dashboard Streamlit + API FastAPI + reverse proxy), MT5/vidéo/scraping en couche au-dessus une fois la mutualisation décidée.
+  **Livrable** (→ `dev-docs/deployment.md`) : topologie (1 VPS Linux vs split Linux/Windows), sizing vCPU/RAM/disk par composant, reco hébergeur, estimation €/mois.
+- [ ] **C6 — Benchmark nom de domaine + accès public (NEW 2026-06-10)** — **QUESTIONS À RÉPONDRE le 2026-06-11** :
+  Un domaine est un **PRÉREQUIS**, pas cosmétique : HTTPS exigé par **Stripe** (checkout + webhook) + cookies d'auth + crédibilité SaaS. Sans lui = `http://IP:8501` (inviable).
+  1. **Nom de marque** : `streamlytics.{com,io,app,fr}` ? → vérifier dispos + prix (je peux checker).
+  2. **Registrar** : Cloudflare (DNS + proxy/CDN gratuit, recommandé) / OVH / Namecheap ?
+  3. **Sous-domaines** : `app.X` (dashboard Streamlit) + `api.X` (FastAPI / webhook Stripe) ?
+  4. **TLS** : **Caddy** recommandé (Let's Encrypt auto, zéro config) en reverse proxy.
+  5. **Email pro** (`contact@X`) pour Stripe + support artistes ?
+  **Modèle d'accès (déjà construit)** : 1 URL publique → register/login → isolation par `artist_id` → chaque artiste voit ses données, connecte ses credentials, upload ses CSV ; DAGs paramétrés par artiste. Il manque juste : domaine + TLS + reverse proxy + port 443 ouvert.
+  **Livrable** (→ `dev-docs/deployment.md`) : reco domaine + plan DNS + reverse proxy (Caddy) + schéma d'accès multi-tenant.
+- [ ] **D — Déploiement + pentest** (DERNIER) : voir `deployment.md`. **Inclut l'activation Stripe**
+  (audit 2026-06-10 : code plombé mais **rien d'actif** — `artist_subscriptions`=0, 4 env vars Stripe vides,
+  API webhook non déployée). À faire en D : créer un **Stripe Payment Link** dans le compte + renseigner
+  `STRIPE_CHECKOUT_URL`/`STRIPE_PORTAL_URL`/`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` + **déployer l'API
+  FastAPI** (héberge le webhook) + enregistrer l'URL webhook dans Stripe Dashboard. Aujourd'hui le bouton
+  « Passer à Premium » affiche un placeholder « paiement bientôt » (cf. `billing.py:221`).
 
 ## Deferred — revisit ONLY if migrating to React (ADR-003 reversal)
 

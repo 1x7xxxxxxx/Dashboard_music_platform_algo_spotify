@@ -68,6 +68,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [tz-aware-naive-mix](#tz-aware-naive-mix) | P3 | heuristic | guarded | none |
 | [snapshot-fixture-hook-reflow](#snapshot-fixture-hook-reflow) | P3 | deterministic | guarded | none |
 | [song-name-convention-mismatch](#song-name-convention-mismatch) | P2 | heuristic | guarded | none |
+| [i18n-untranslated-key](#i18n-untranslated-key) | P3 | deterministic | guarded | none |
 
 ---
 
@@ -194,6 +195,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered while adding `instagram_media`/`instagram_media_insights` (plan flagged it as the "highest gotcha"); both registered correctly so 0 live hits. Wired `tests/test_allowed_tables_coverage.py` (blocks via the existing CI pytest job). Canonical signature lives in the test; the inline one-liner above is the catalogue/`make audit` mirror.
+  - 2026-06-10: 2 new tables (`s4a_song_nonalgo_streams`, `s4a_artist_radio_count`, migration 052) registered correctly. A user-facing crash DID occur (`Saisie S4A` save raised the guard) but the root cause was a STALE running streamlit process (pre-fix code in memory), not a missing entry — the allowlist was already updated in the committed code. REX: a redundant guard (`tests/test_db_table_allowlist.py`) was added then **consolidated** back into `test_allowed_tables_coverage.py` (which now also scans `"table": "name"` config dicts, e.g. upload_csv._PLATFORMS) — grep existing coverage / this catalogue BEFORE adding a new guard.
 
 ## view-session-adoption
 - status: open
@@ -312,3 +314,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-08 (ref: DEVLOG#2026-06-08)
 - History:
   - 2026-06-08: discovered live — Vue Globale showed no Listeners/Saves for "Qui a bu le crachoir du saloon ?" because `s4a_songs_global` kept `?` while the timeline-derived selector passed `_`. Same class also silently zeroed the ml_inference Saves/listeners feature for all `?` titles, blanked the PI line (`track_popularity_history`) in Suivi Algorithmes, and excluded `?` tracks from the Meta CPR optimizer join (`campaign_track_mapping`). Fix: write-side normalisation in `parse_songs_global` via `canonical_song()` (+ migration 043 backfilling existing rows incl. `s4a_song_saves_daily`), and query-side `canonical_song_sql()` on the CSV/API side of every cross-convention join (`_tab_algos` PI ×4, `meta_cpr_optimizer`, `router` tracks join ×3). `track_release_reference` was already immune (its `normalize_track_title` strips both `?` and `_`). Heuristic + manual triage — the signature also matches same-convention joins (false positives); the durable guard is to route every cross-convention title join through `canonical_song_sql()`.
+
+## i18n-untranslated-key
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated surface), no error.
+- signature: `python3 -m pytest tests/test_i18n.py::test_every_static_t_key_has_en_entry -q`
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_i18n.py::test_every_static_t_key_has_en_entry }
+- rex_ref: tests/test_i18n.py
+- first_seen: 2026-06-10 (ref: DEVLOG#2026-06-10)
+- History:
+  - 2026-06-10: added during the full i18n sweep (~2300 keys). The pre-existing guard only covered nav (`test_every_nav_item_key_has_en`); the new whole-codebase guard scans every literal namespaced `t(`/`_t(` call across `src/dashboard/` (word-boundary excludes `.get(`/`.getenv(`; dynamic f-string keys skipped) and asserts each resolves in `_TR['en']`. Locks in EN coverage incl. the bilingual PDF (`_t("pdf.…")`).

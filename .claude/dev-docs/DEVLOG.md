@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-06-10 — i18n complète + PDF bilingue, feature ML manuelle, refactors god-modules + harness Meta, CI, PR mergée
+
+Grosse session (PR #14 mergée dans `main`, merge commit `6d213e3`). 437 tests / 2 skipped, ruff clean, CI verte, backup tag `pre-godmodule-refactor`.
+
+**i18n EN/FR — couverture totale (C4 ✅)** : ~47 catalogues `i18n_catalog/`, ~2300 clés. Toutes les vues + packages `trigger_algo`/`credentials` + ml_widgets + guides credentials + coaching ML. **PDF bilingue** (corps + charts matplotlib) piloté par un `lang` explicite (`i18n.translate(key, default, lang)`, découplé de `st.session_state` → testable/headless). FR reste octet-identique (golden test) ; EN = capacité nouvelle. Garde-fou étendu : `test_every_static_t_key_has_en_entry` couvre `t()` ET `_t()`.
+
+**Feature ML — un-imputation des 2 dernières features** : `NonAlgoStreams28Days` + `HowManySongsDoYouHaveInRadioRightNow` (codées en dur à 0) → saisies dans **Saisie S4A** (migration **052** : `s4a_song_nonalgo_streams` + `s4a_artist_radio_count`), lues par `ml_inference`. Contrat 13-features inchangé → pas de retrain. Validé end-to-end (saisie → DB → scoring). **ADR-004** : capture auto S4A rejetée (pas d'export ; scraping = ToS/credential-risky) → saisie manuelle retenue.
+
+**Refactors (tous move-only, comportement préservé)** :
+- `pdf_exporter.py` (1734 l) → package (config/collectors/renderers/report) — golden test prouve l'octet-identique. Bug attrapé par le golden : `_ASSETS = Path(__file__)...parent.parent` cassé au déplacement du module (asset path) → +1 `.parent`.
+- `trigger_algo/_common.py` (1171 l) → package (loaders/pi_gates/lifecycle/budget_roi/explain/verdict).
+- **`meta_ads_api_collector.py` (1178 l) → 201 l + 6 modules** (helpers `_meta_retry`/`_meta_parsers` + mixins ConfigFetch/InsightFetch/Upsert). Rule #6 préservée (15 raises). Gated par un **harness de caractérisation** (`tests/fakes/meta_sdk.py` stub SDK + 17 tests pinning `run()`) → futures modifs API Meta vérifiables sans tokens. **Validé par collecte live réelle** (13 tables écrites, upsert idempotent).
+- 13 vues → context-managers `view_session()`/`project_db()` (helpers rendus i18n-aware).
+
+**CI — 3 causes d'échec récurrent corrigées** : render-smoke skip-gate rendu schema-aware (Postgres CI vide), dummy `AIRFLOW_PASSWORD` pour l'import d'`app.py`, fixture distrokid skip-si-absente. + garde-fou `test_db_table_allowlist` (attrape une table absente de `_ALLOWED_TABLES` au PR — le bug qui a shippé et planté la saisie en prod).
+
+**Audit Stripe** : code plombé (Payment Link + webhook FastAPI + portail + schéma) mais **rien d'actif** (`artist_subscriptions`=0, 4 env vars vides, API non déployée). → activation parquée en phase D (cf. checklist). Bouton « Premium » = placeholder aujourd'hui.
+
+**Roadmap** : C4 ✅, Phase-2 ✅ (closed-as-manual, ADR-004). C5 (sizing VPS) + **C6 (domaine/accès, NEW)** : questions ouvertes notées pour 2026-06-11.
+
+---
+
 ## 2026-06-09 — Pricing 2-tier, B1 cross-platform mapping, robustness (B3/C1/C2), i18n infra
 
 **Tarification → 2 tiers (free 0€ / premium 10€)** — `basic` retiré, fusionné dans premium.

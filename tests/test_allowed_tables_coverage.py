@@ -11,6 +11,9 @@ import re
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 _SRC = _ROOT / "src"
 _CALL_RE = re.compile(r"\b(?:upsert_many|insert_many)\(\s*['\"]([a-z0-9_]+)['\"]")
+# Also catch the dynamic-dispatch pattern: a platform-registry config dict whose
+# 'table' value feeds upsert_many(table=cfg['table'], ...) — e.g. upload_csv._PLATFORMS.
+_CFG_RE = re.compile(r"['\"]table['\"]\s*:\s*['\"]([a-z0-9_]+)['\"]")
 
 
 def _allowed_tables() -> set[str]:
@@ -25,7 +28,7 @@ def test_every_write_table_is_registered():
     offenders: dict[str, list[str]] = {}
     for path in _SRC.rglob("*.py"):
         text = path.read_text(encoding="utf-8", errors="ignore")
-        for m in _CALL_RE.finditer(text):
+        for m in (*_CALL_RE.finditer(text), *_CFG_RE.finditer(text)):
             table = m.group(1)
             if table not in allowed:
                 line = text[: m.start()].count("\n") + 1
