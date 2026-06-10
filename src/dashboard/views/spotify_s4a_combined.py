@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.auth import artist_id_sql_filter, get_artist_id
 
@@ -13,8 +14,9 @@ ARTIST_NAME_FILTER = "1x7xxxxxxx"
 
 def show():
     """Affiche la page Spotify & S4A combinée."""
-    st.title("🎵 Spotify & S4A")
-    st.markdown("### Analyse des performances (Source : Timeline CSV)")
+    st.title(t("spotify_s4a_combined.title", "🎵 Spotify & S4A"))
+    st.markdown(t("spotify_s4a_combined.subtitle",
+                  "### Analyse des performances (Source : Timeline CSV)"))
     st.markdown("---")
 
     db = get_db_connection()
@@ -58,11 +60,11 @@ def show():
     # ============================================================================
     # 2. AFFICHAGE DES MÉTRIQUES (3 COLONNES)
     # ============================================================================
-    st.header("🎯 Métriques Globales")
+    st.header(t("spotify_s4a_combined.metrics_header", "🎯 Métriques Globales"))
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("🎵 Chansons Actives", f"{songs_count}")
-    col2.metric("🎧 Cumul Streams (Titres)", f"{total_streams_individual:,}")
+    col1.metric(t("spotify_s4a_combined.kpi_active_songs", "🎵 Chansons Actives"), f"{songs_count}")
+    col2.metric(t("spotify_s4a_combined.kpi_total_streams", "🎧 Cumul Streams (Titres)"), f"{total_streams_individual:,}")
 
     # C. Affichage intelligent de la date
     if last_update:
@@ -71,31 +73,32 @@ def show():
 
         # Calcul du petit texte "delta" (ex: -2h)
         if hours_ago < 1:
-            delta_str = "À l'instant"
+            delta_str = t("spotify_s4a_combined.just_now", "À l'instant")
             delta_color = "normal"
         elif hours_ago < 24:
-            delta_str = f"Il y a {hours_ago}h"
+            delta_str = t("spotify_s4a_combined.hours_ago", "Il y a {h}h").format(h=hours_ago)
             delta_color = "off"
         else:
             days = int(hours_ago / 24)
-            delta_str = f"Il y a {days}j"
+            delta_str = t("spotify_s4a_combined.days_ago", "Il y a {d}j").format(d=days)
             delta_color = "off"
 
         col3.metric(
-            "🕐 Dernière MàJ",
+            t("spotify_s4a_combined.kpi_last_update", "🕐 Dernière MàJ"),
             last_update.strftime('%d/%m %H:%M'),
             delta=delta_str,
             delta_color=delta_color
         )
     else:
-        col3.metric("🕐 Dernière MàJ", "Aucune donnée")
+        col3.metric(t("spotify_s4a_combined.kpi_last_update", "🕐 Dernière MàJ"),
+                    t("spotify_s4a_combined.no_data_value", "Aucune donnée"))
 
     st.markdown("---")
 
     # ============================================================================
     # 3. TOP CHANSONS (Dédupliqué)
     # ============================================================================
-    st.header("🏆 Top Chansons")
+    st.header(t("spotify_s4a_combined.top_header", "🏆 Top Chansons"))
 
     df_top = db.fetch_df(f"""
         SELECT
@@ -120,7 +123,7 @@ def show():
             y='song',
             orientation='h',
             text='total_streams',
-            labels={'total_streams': 'Streams', 'song': ''},
+            labels={'total_streams': t("common.streams", "Streams"), 'song': ''},
             color='total_streams',
             color_continuous_scale='viridis'
         )
@@ -128,20 +131,21 @@ def show():
         fig_top.update_layout(
             height=500,
             showlegend=False,
-            xaxis_title="Total Streams",
+            xaxis_title=t("spotify_s4a_combined.axis_total_streams", "Total Streams"),
             yaxis={'categoryorder':'total ascending'}
         )
         st.plotly_chart(fig_top, width="stretch")
     else:
-        st.info("Pas de données disponibles.")
+        st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
 
     st.markdown("---")
 
     # ============================================================================
     # 4. ÉVOLUTION DE L'AUDIENCE GLOBALE (Dédupliqué)
     # ============================================================================
-    st.header("📈 Évolution de l'Audience Globale")
-    st.caption("Calculé : Somme des streams dédupliqués jour par jour")
+    st.header(t("spotify_s4a_combined.audience_header", "📈 Évolution de l'Audience Globale"))
+    st.caption(t("spotify_s4a_combined.audience_caption",
+                 "Calculé : Somme des streams dédupliqués jour par jour"))
 
     col1, col2 = st.columns(2)
     today = datetime.now().date()
@@ -152,8 +156,8 @@ def show():
         _latest_release = _rd_rows[0][0] if _rd_rows and _rd_rows[0][0] else (today - timedelta(days=365))
     except Exception:
         _latest_release = today - timedelta(days=365)
-    start_date_aud = col1.date_input("Début", value=_latest_release, key="date_aud_start")
-    end_date_aud = col2.date_input("Fin", value=today, key="date_aud_end")
+    start_date_aud = col1.date_input(t("spotify_s4a_combined.start", "Début"), value=_latest_release, key="date_aud_start")
+    end_date_aud = col2.date_input(t("spotify_s4a_combined.end", "Fin"), value=today, key="date_aud_end")
 
     audience_query = f"""
         SELECT date, SUM(streams) as daily_streams
@@ -177,7 +181,7 @@ def show():
         fig_aud.add_trace(go.Scatter(
             x=df_audience['date'],
             y=df_audience['daily_streams'],
-            name='Streams Totaux',
+            name=t("spotify_s4a_combined.total_streams_trace", "Streams Totaux"),
             mode='lines',
             fill='tozeroy',
             line=dict(color='#1DB954', width=3)
@@ -186,17 +190,17 @@ def show():
         fig_aud.update_layout(
             height=400,
             hovermode='x unified',
-            yaxis_title="Streams / Jour"
+            yaxis_title=t("spotify_s4a_combined.streams_per_day", "Streams / Jour")
         )
         st.plotly_chart(fig_aud, width="stretch")
     else:
-        st.info("Pas de données pour cette période.")
+        st.info(t("spotify_s4a_combined.no_data_period", "Pas de données pour cette période."))
 
     # ============================================================================
     # 4b. ÉVOLUTION CUMULÉE (Spotify S4A)
     # ============================================================================
     st.markdown("---")
-    st.header("📈 Évolution cumulée (Spotify S4A)")
+    st.header(t("spotify_s4a_combined.cumulative_header", "📈 Évolution cumulée (Spotify S4A)"))
     try:
         cum_query = f"""
             SELECT date, SUM(daily_max) AS value
@@ -224,24 +228,24 @@ def show():
             fig_cum = px.area(
                 df_cum, x='date', y='value',
                 color_discrete_sequence=['#1DB954'],
-                labels={'value': 'Streams cumulés', 'date': ''}
+                labels={'value': t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"), 'date': ''}
             )
             fig_cum.update_layout(
-                yaxis_title="Streams cumulés",
+                yaxis_title=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
                 hovermode="x unified",
                 showlegend=False
             )
             st.plotly_chart(fig_cum, width="stretch")
         else:
-            st.info("Pas encore de données Spotify S4A.")
+            st.info(t("spotify_s4a_combined.no_data_yet", "Pas encore de données Spotify S4A."))
     except Exception as e:
-        st.warning(f"Graphique indisponible : {e}")
+        st.warning(t("spotify_s4a_combined.chart_unavailable", "Graphique indisponible : {err}").format(err=e))
 
     # ============================================================================
     # 5. DÉTAIL PAR CHANSON
     # ============================================================================
     st.markdown("---")
-    st.header("🎸 Détail par Chanson")
+    st.header(t("spotify_s4a_combined.detail_header", "🎸 Détail par Chanson"))
 
     songs_list = db.fetch_df(f"""
         SELECT t.song
@@ -258,7 +262,7 @@ def show():
         col1, col2 = st.columns([2, 3])
 
         with col1:
-            selected_song = st.selectbox("Sélectionner une chanson", songs_list['song'])
+            selected_song = st.selectbox(t("spotify_s4a_combined.select_song", "Sélectionner une chanson"), songs_list['song'])
 
         try:
             _sr = db.fetch_query(
@@ -292,13 +296,13 @@ def show():
                 df_song,
                 x='date',
                 y='streams',
-                title=f"Évolution Streams : {selected_song}",
+                title=t("spotify_s4a_combined.song_evolution", "Évolution Streams : {song}").format(song=selected_song),
                 markers=False
             )
             fig_song.update_traces(line_color='#1DB954', line_width=2)
             st.plotly_chart(fig_song, width="stretch")
         else:
-            st.info("Pas de données pour cette période.")
+            st.info(t("spotify_s4a_combined.no_data_period", "Pas de données pour cette période."))
 
     db.close()
 

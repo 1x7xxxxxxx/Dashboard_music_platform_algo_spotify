@@ -15,6 +15,7 @@ import plotly.express as px
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin, require_plan
 
 
@@ -63,9 +64,9 @@ def _render_performance(df, dim_key, entity_label):
         df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0.0)
     total_spend, total_res = df['spend'].sum(), df['results'].sum()
     c1, c2, c3 = st.columns(3)
-    c1.metric("Dépense totale", f"{total_spend:,.2f} €")
-    c2.metric("Résultats", f"{int(total_res):,}")
-    c3.metric("CPR moyen", f"{total_spend / total_res:,.2f} €" if total_res else "—")
+    c1.metric(t("meta_breakdowns.total_spend", "Dépense totale"), f"{total_spend:,.2f} €")
+    c2.metric(t("meta_breakdowns.results", "Résultats"), f"{int(total_res):,}")
+    c3.metric(t("meta_breakdowns.avg_cpr", "CPR moyen"), f"{total_spend / total_res:,.2f} €" if total_res else "—")
 
     df['dim_label'] = _dim_label(df, dim_key)
 
@@ -76,13 +77,16 @@ def _render_performance(df, dim_key, entity_label):
         if not geo.empty:
             fig = px.choropleth(
                 geo, locations='iso3', color='spend', hover_name='dim_label',
-                color_continuous_scale='YlOrRd', labels={'spend': 'Dépense (€)'},
+                color_continuous_scale='YlOrRd',
+                labels={'spend': t("meta_breakdowns.spend_eur", "Dépense (€)")},
             )
             fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0},
                               geo={'showframe': False})
             st.plotly_chart(fig, width="stretch")
 
-    fig = pareto_spend_cpr(df, 'dim_label', f"Dépense & CPR — {entity_label}")
+    fig = pareto_spend_cpr(
+        df, 'dim_label',
+        t("meta_breakdowns.pareto_title", "Dépense & CPR — {entity}").format(entity=entity_label))
     if fig is not None:
         st.plotly_chart(fig, width="stretch")
 
@@ -95,7 +99,7 @@ def _render_engagement(df, dim_key, entity_label):
     df['total'] = df[_ENG_COLS].sum(axis=1)
     df = df.sort_values('total', ascending=False).head(15)
     if df['total'].sum() == 0:
-        st.info("Aucune interaction d'engagement sur cette sélection.")
+        st.info(t("meta_breakdowns.no_engagement", "Aucune interaction d'engagement sur cette sélection."))
         return
 
     if dim_key == "country":
@@ -104,14 +108,18 @@ def _render_engagement(df, dim_key, entity_label):
         geo = geo.dropna(subset=['iso3'])
         if not geo.empty:
             fig = px.choropleth(geo, locations='iso3', color='total', hover_name='dim_label',
-                                color_continuous_scale='Blues', labels={'total': 'Interactions'})
+                                color_continuous_scale='Blues',
+                                labels={'total': t("meta_breakdowns.interactions", "Interactions")})
             fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0}, geo={'showframe': False})
             st.plotly_chart(fig, width="stretch")
 
+    var_col = t("meta_breakdowns.type", "Type")
+    val_col = t("meta_breakdowns.volume", "Volume")
     melted = df.melt(id_vars='dim_label', value_vars=_ENG_COLS,
-                     var_name='Type', value_name='Volume')
-    fig = px.bar(melted, x='dim_label', y='Volume', color='Type',
-                 title=f"Engagement — {entity_label}", labels={'dim_label': ''})
+                     var_name=var_col, value_name=val_col)
+    fig = px.bar(melted, x='dim_label', y=val_col, color=var_col,
+                 title=t("meta_breakdowns.engagement_title", "Engagement — {entity}").format(entity=entity_label),
+                 labels={'dim_label': ''})
     fig.update_layout(barmode='stack', height=420)
     st.plotly_chart(fig, width="stretch")
 
@@ -120,28 +128,33 @@ def show() -> None:
     if not require_plan('premium'):
         return
 
-    st.title("🌍 Breakdowns Meta")
-    st.caption(
+    st.title(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
+    st.caption(t(
+        "meta_breakdowns.subtitle",
         "Pays / placement / âge à tous les grains (campagne · adset · créative). "
         "Données agrégées sur tout l'historique — **pas de filtre par période** "
         "(les breakdowns Meta n'ont pas de dimension date)."
-    )
+    ))
 
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide."); st.stop()
+            st.error(t("meta_breakdowns.invalid_session", "Session invalide.")); st.stop()
         artist_id = 1
 
     d1, d2 = st.columns(2)
-    dim_label = d1.selectbox("Dimension", list(_DIMS.keys()))
-    family_label = d2.selectbox("Métrique", list(_FAMILIES.keys()))
+    dim_label = d1.selectbox(
+        t("meta_breakdowns.dimension", "Dimension"), list(_DIMS.keys()),
+        format_func=lambda lbl: t(f"meta_breakdowns.dim.{_DIMS[lbl][0]}", lbl))
+    family_label = d2.selectbox(
+        t("meta_breakdowns.metric", "Métrique"), list(_FAMILIES.keys()),
+        format_func=lambda lbl: t(f"meta_breakdowns.family.{_FAMILIES[lbl]}", lbl))
     dim_key, _ = _DIMS[dim_label]
     family = _FAMILIES[family_label]
 
     db = get_db_connection()
     if db is None:
-        st.error("Base de données inaccessible.")
+        st.error(t("meta_breakdowns.db_unavailable", "Base de données inaccessible."))
         return
     try:
         # Entities listed most-recent-first (last launched on top), via each table's
@@ -166,13 +179,19 @@ def show() -> None:
         )
 
         # Cascade : Campagne → Adset → Créative. Each level is scoped to the one above.
+        # "Toutes"/"Tous" stay internal sentinel values; only their display is translated.
+        _all_f = lambda c: t("meta_breakdowns.all_f", "Toutes") if c == "Toutes" else c  # noqa: E731
         f1, f2, f3 = st.columns(3)
-        camp_sel = f1.selectbox("Campagne", ["Toutes"] + camps['campaign_name'].tolist(), key="bd_camp")
+        camp_sel = f1.selectbox(t("meta_breakdowns.campaign", "Campagne"),
+                                ["Toutes"] + camps['campaign_name'].tolist(), key="bd_camp",
+                                format_func=_all_f)
         camp_ids = (camps[camps['campaign_name'] == camp_sel]['campaign_id'].tolist()
                     if camp_sel != "Toutes" else None)
 
         adsets_f = adsets if camp_ids is None else adsets[adsets['campaign_id'].isin(camp_ids)]
-        adset_sel = f2.selectbox("Adset", ["Tous"] + adsets_f['adset_name'].tolist(), key="bd_adset")
+        adset_sel = f2.selectbox(t("meta_breakdowns.adset", "Adset"),
+                                 ["Tous"] + adsets_f['adset_name'].tolist(), key="bd_adset",
+                                 format_func=lambda c: t("meta_breakdowns.all_m", "Tous") if c == "Tous" else c)
         adset_id = (adsets_f[adsets_f['adset_name'] == adset_sel]['adset_id'].iloc[0]
                     if adset_sel != "Tous" else None)
 
@@ -182,7 +201,9 @@ def show() -> None:
             ads_f = ads[ads['campaign_id'].isin(camp_ids)]
         else:
             ads_f = ads
-        ad_sel = f3.selectbox("Créative", ["Toutes"] + ads_f['ad_name'].tolist(), key="bd_ad")
+        ad_sel = f3.selectbox(t("meta_breakdowns.creative", "Créative"),
+                              ["Toutes"] + ads_f['ad_name'].tolist(), key="bd_ad",
+                              format_func=_all_f)
         ad_id = (ads_f[ads_f['ad_name'] == ad_sel]['ad_id'].iloc[0]
                  if ad_sel != "Toutes" else None)
 
@@ -194,12 +215,14 @@ def show() -> None:
         elif camp_sel != "Toutes":
             grain_key, entity_col, entity_val, entity_label = "campaign", "campaign_name", camp_sel, camp_sel
         else:
-            grain_key, entity_col, entity_val, entity_label = "campaign", None, None, "Toutes campagnes"
+            grain_key, entity_col, entity_val, entity_label = (
+                "campaign", None, None, t("meta_breakdowns.all_campaigns", "Toutes campagnes"))
 
-        st.caption(
-            f"Grain courant : **{_GRAIN_FR[grain_key]}** · données agrégées sur tout "
+        st.caption(t(
+            "meta_breakdowns.grain_caption",
+            "Grain courant : **{grain}** · données agrégées sur tout "
             "l'historique (pas de filtre par période)."
-        )
+        ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key])))
 
         table = _table_name(family, grain_key, dim_key)
         params = [artist_id]
@@ -223,10 +246,11 @@ def show() -> None:
         db.close()
 
     if df is None or df.empty:
-        st.info(
+        st.info(t(
+            "meta_breakdowns.no_data",
             "Aucune donnée pour cette sélection. Si le grain est Adset/Créative, "
             "vérifiez qu'une collecte complète a bien tourné."
-        )
+        ))
         return
 
     if family == "performance":

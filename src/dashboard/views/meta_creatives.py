@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.ui import smart_date_range
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin, require_plan
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
@@ -31,6 +32,7 @@ ORDER BY mi.date
 # Non-default metrics start as 'legendonly' → the chart opens readable; click the
 # legend to toggle any metric (and its axis) on/off. `derived` metrics (CPR) are NOT
 # fetched/resampled directly — they are recomputed from aggregated columns afterwards.
+# Labels are FR sources, translated at render time via t(f"meta_creatives.metric.{col}").
 _TIMELINE_METRICS = [
     ("Dépense (€)", "spend",       "sum",  "#ff6b35", True,  False),
     ("Impressions", "impressions", "sum",  "#1f77b4", True,  False),
@@ -113,48 +115,51 @@ def _render_uncollected_notice(uncollected: pd.DataFrame) -> None:
     n_total = len(df)
 
     with st.expander(
-        f"⚠️ {n_total} campagne(s) absente(s) du classement par créative",
+        t("meta_creatives.uncollected_title",
+          "⚠️ {n} campagne(s) absente(s) du classement par créative").format(n=n_total),
         expanded=False,
     ):
         if n_delivered:
-            st.markdown(
-                f"**{n_delivered} campagne(s) ont bien dépensé** (collectées au niveau "
+            st.markdown(t(
+                "meta_creatives.uncollected_body",
+                "**{n} campagne(s) ont bien dépensé** (collectées au niveau "
                 "campagne) mais **leur détail par créative (ad-level) n'a pas été "
                 "collecté**. Cas typique : campagne **en pause ou archivée** — ses "
                 "publicités passent en statut `CAMPAIGN_PAUSED`/`ARCHIVED` et ne sont "
                 "rechargées que par une collecte **full-history complète** (qui re-fetche "
                 "la config ads, pas seulement les insights) :\n"
                 "- Airflow → DAG `meta_ads_api_daily` → *Trigger DAG w/ config* "
-                "`{\"full_history\": true}` (run **non** `insights_only`), ou\n"
+                "`{{\"full_history\": true}}` (run **non** `insights_only`), ou\n"
                 "- en local : `python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`\n\n"
                 "_Réserves :_ (1) le détail par créative n'est récupérable que si les "
                 "publicités existent encore côté Meta (non supprimées) ; (2) Meta ne "
                 "conserve les insights que **~37 mois** — au-delà, seul le total campagne "
                 "reste disponible."
-            )
+            ).format(n=n_delivered))
+        col_spend = t("meta_creatives.col_campaign_spend", "Dépense campagne (€)")
         st.dataframe(
             df.rename(columns={
-                'campaign_name': 'Campagne',
-                'ads': 'Publicités',
-                'campaign_spend': 'Dépense campagne (€)',
-            }).style.format({'Dépense campagne (€)': '{:,.2f} €'}, na_rep='—'),
+                'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
+                'ads': t("meta_creatives.col_ads", "Publicités"),
+                'campaign_spend': col_spend,
+            }).style.format({col_spend: '{:,.2f} €'}, na_rep='—'),
             hide_index=True, width="stretch",
         )
 
 
 def _badge(cpr: float, median: float) -> str:
     if pd.isna(cpr):
-        return "⚫ Pas de résultat"
+        return t("meta_creatives.badge_no_result", "⚫ Pas de résultat")
     # cpr arrives as Decimal (Postgres numeric); median as numpy float from
     # .median() — coerce both to float so the division can't raise on mixed types.
     cpr = float(cpr)
     median = float(median) if pd.notna(median) else 0.0
     ratio = cpr / median if median > 0 else 1.0
     if ratio <= 0.75:
-        return "🟢 Top créative"
+        return t("meta_creatives.badge_top", "🟢 Top créative")
     if ratio <= 1.25:
-        return "🟡 Dans la moyenne"
-    return "🔴 Sous-performante"
+        return t("meta_creatives.badge_avg", "🟡 Dans la moyenne")
+    return t("meta_creatives.badge_under", "🔴 Sous-performante")
 
 
 def _render_kpi_row(df: pd.DataFrame) -> None:
@@ -167,10 +172,10 @@ def _render_kpi_row(df: pd.DataFrame) -> None:
     total_spend = df['total_spend'].sum()
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Dépense totale", f"{total_spend:.2f}€")
-    col2.metric("Meilleure CPR", f"{best['cpr']:.2f}€", delta=best['creative_name'][:30], delta_color="off")
-    col3.metric("CPR médian", f"{median_cpr:.2f}€")
-    col4.metric("Pire CPR", f"{worst['cpr']:.2f}€", delta=worst['creative_name'][:30], delta_color="off")
+    col1.metric(t("meta_creatives.total_spend", "Dépense totale"), f"{total_spend:.2f}€")
+    col2.metric(t("meta_creatives.best_cpr", "Meilleure CPR"), f"{best['cpr']:.2f}€", delta=best['creative_name'][:30], delta_color="off")
+    col3.metric(t("meta_creatives.median_cpr", "CPR médian"), f"{median_cpr:.2f}€")
+    col4.metric(t("meta_creatives.worst_cpr", "Pire CPR"), f"{worst['cpr']:.2f}€", delta=worst['creative_name'][:30], delta_color="off")
 
 
 def _render_table(df: pd.DataFrame) -> None:
@@ -186,13 +191,13 @@ def _render_table(df: pd.DataFrame) -> None:
     st.dataframe(
         display[['statut', 'creative_name', 'campaign_name', 'cpr',
                  'total_spend', 'total_results', 'avg_ctr', 'total_reach']].rename(columns={
-            'statut': 'Statut',
-            'creative_name': 'Créative',
-            'campaign_name': 'Campagne',
+            'statut': t("meta_creatives.col_status", "Statut"),
+            'creative_name': t("meta_creatives.col_creative", "Créative"),
+            'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
             'cpr': 'CPR',
-            'total_spend': 'Dépense',
-            'total_results': 'Résultats',
-            'avg_ctr': 'CTR moyen',
+            'total_spend': t("meta_creatives.col_spend", "Dépense"),
+            'total_results': t("meta_creatives.col_results", "Résultats"),
+            'avg_ctr': t("meta_creatives.col_avg_ctr", "CTR moyen"),
             'total_reach': 'Reach',
         }),
         width="stretch",
@@ -219,7 +224,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
     metrics start collapsed and are toggled via the legend.
     """
     st.markdown("---")
-    st.subheader("📈 Évolution d'une créative dans le temps")
+    st.subheader(t("meta_creatives.timeline_title", "📈 Évolution d'une créative dans le temps"))
 
     # Honour the page-level campaign filter for the creative dropdown.
     campaign_clause = "" if selected_campaign == "Toutes" else " AND mc.campaign_name = %s"
@@ -235,10 +240,12 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
         name_params,
     )
     if names.empty:
-        st.info("Aucune créative avec des insights ad-level pour cette sélection.")
+        st.info(t("meta_creatives.no_adlevel_insights",
+                  "Aucune créative avec des insights ad-level pour cette sélection."))
         return
 
-    creative = st.selectbox("Créative", names['ad_name'].tolist(), key="tl_creative")
+    creative = st.selectbox(t("meta_creatives.creative", "Créative"),
+                            names['ad_name'].tolist(), key="tl_creative")
 
     ts = db.fetch_df(
         f"""SELECT mi.date::date AS date,
@@ -257,15 +264,16 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
         else (artist_id, creative, selected_campaign),
     )
     if ts.empty:
-        st.info("Pas de séries temporelles pour cette créative.")
+        st.info(t("meta_creatives.no_timeseries", "Pas de séries temporelles pour cette créative."))
         return
     ts['date'] = pd.to_datetime(ts['date'])
 
-    d_from, d_to = smart_date_range("Période", ts['date'].min(), ts['date'].max(), key="tl")
+    d_from, d_to = smart_date_range(t("common.period", "Période"),
+                                    ts['date'].min(), ts['date'].max(), key="tl")
     mask = (ts['date'] >= pd.Timestamp(d_from)) & (ts['date'] <= pd.Timestamp(d_to))
     tsf = ts.loc[mask].copy()
     if tsf.empty:
-        st.info("Aucune donnée sur la période sélectionnée.")
+        st.info(t("meta_creatives.no_data_period", "Aucune donnée sur la période sélectionnée."))
         return
 
     # Decimal (Postgres NUMERIC) → float, else Plotly mis-types the columns.
@@ -279,9 +287,9 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
     if span_days > 120:
         agg_map = {col: agg for _, col, agg, _, _, derived in _TIMELINE_METRICS if not derived}
         tsf = tsf.set_index('date').resample('W').agg(agg_map).reset_index()
-        granularity = "hebdomadaire"
+        granularity = t("meta_creatives.granularity_weekly", "hebdomadaire")
     else:
-        granularity = "journalière"
+        granularity = t("meta_creatives.granularity_daily", "journalière")
 
     # CPR derived from AGGREGATED spend/results (never an average of daily CPRs).
     # NaN where no result on the period → the line simply gaps there.
@@ -295,14 +303,15 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
                          "xanchor": "right", "x": 1},
               "margin": {"t": 40}}
     for i, (label, col, _, color, visible, _) in enumerate(_TIMELINE_METRICS):
+        label_t = t(f"meta_creatives.metric.{col}", label)
         axis_id = "y" if i == 0 else f"y{i + 1}"
         fig.add_trace(go.Scatter(
-            x=tsf['date'], y=tsf[col], name=label, mode="lines+markers",
+            x=tsf['date'], y=tsf[col], name=label_t, mode="lines+markers",
             line={"color": color}, marker={"color": color},
             yaxis=axis_id, visible=True if visible else "legendonly",
         ))
         axis_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
-        axis_cfg = {"title": {"text": label, "font": {"color": color}},
+        axis_cfg = {"title": {"text": label_t, "font": {"color": color}},
                     "tickfont": {"color": color}}
         if i > 0:
             axis_cfg.update({"overlaying": "y", "side": "right" if i % 2 else "left",
@@ -310,11 +319,12 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
         layout[axis_key] = axis_cfg
     fig.update_layout(**layout)
     st.plotly_chart(fig, width="stretch")
-    st.caption(
-        f"Créative **{creative}** · granularité {granularity} · "
-        f"{d_from:%d/%m/%Y} → {d_to:%d/%m/%Y}. "
+    st.caption(t(
+        "meta_creatives.timeline_caption",
+        "Créative **{creative}** · granularité {granularity} · {d_from} → {d_to}. "
         "Cliquez une métrique dans la légende pour l'afficher/masquer (double-clic = isoler)."
-    )
+    ).format(creative=creative, granularity=granularity,
+             d_from=f"{d_from:%d/%m/%Y}", d_to=f"{d_to:%d/%m/%Y}"))
 
 
 def _render_scatter(df: pd.DataFrame) -> None:
@@ -324,18 +334,20 @@ def _render_scatter(df: pd.DataFrame) -> None:
         d[c] = pd.to_numeric(d[c], errors='coerce')
     d = d.dropna(subset=['total_spend', 'cpr'])
     if d.empty:
-        st.info("Aucune créative avec un CPR (résultats) pour ce scatter.")
+        st.info(t("meta_creatives.no_scatter", "Aucune créative avec un CPR (résultats) pour ce scatter."))
         return
     fig = px.scatter(
         d, x='total_spend', y='cpr', size='total_impressions', color='avg_ctr',
         hover_name='creative_name', color_continuous_scale='Viridis', size_max=40,
-        labels={'total_spend': 'Dépense (€)', 'cpr': 'CPR (€)',
-                'avg_ctr': 'CTR moyen (%)', 'total_impressions': 'Impressions'},
+        labels={'total_spend': t("meta_creatives.spend_eur", "Dépense (€)"), 'cpr': 'CPR (€)',
+                'avg_ctr': t("meta_creatives.avg_ctr_pct", "CTR moyen (%)"),
+                'total_impressions': t("meta_creatives.impressions", "Impressions")},
     )
     fig.update_layout(height=460)
     st.plotly_chart(fig, width="stretch")
-    st.caption("Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
-               "Les créatives sans résultat (CPR absent) ne sont pas tracées.")
+    st.caption(t("meta_creatives.scatter_caption",
+                 "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
+                 "Les créatives sans résultat (CPR absent) ne sont pas tracées."))
 
 
 def _render_efficiency(df: pd.DataFrame) -> None:
@@ -348,7 +360,7 @@ def _render_efficiency(df: pd.DataFrame) -> None:
     d['CPM (€)'] = (d['total_spend'] / d['total_impressions'].where(d['total_impressions'] != 0) * 1000).astype(float)
     d['CPC (€)'] = (d['total_spend'] / d['total_clicks'].where(d['total_clicks'] != 0)).astype(float)
     d = d.sort_values('total_spend', ascending=False).head(15)
-    metric = st.radio("Indicateur", ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
+    metric = st.radio(t("meta_creatives.indicator", "Indicateur"), ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
     fig = px.bar(d, x='creative_name', y=metric, color=metric,
                  color_continuous_scale='Tealrose', labels={'creative_name': ''})
     fig.update_layout(height=420, coloraxis_showscale=False)
@@ -361,15 +373,17 @@ def _render_funnel(df: pd.DataFrame) -> None:
                .sort_values('creative_created', ascending=False, na_position='last')
                ['creative_name'].drop_duplicates().tolist())
     if not names:
-        st.info("Aucune créative.")
+        st.info(t("meta_creatives.no_creative", "Aucune créative."))
         return
-    sel = st.selectbox("Créative", names, key="funnel_creative")
+    sel = st.selectbox(t("meta_creatives.creative", "Créative"), names, key="funnel_creative")
     r = df[df['creative_name'] == sel].iloc[0]
     imp = int(pd.to_numeric(r['total_impressions'], errors='coerce') or 0)
     clk = int(pd.to_numeric(r['total_clicks'], errors='coerce') or 0)
     res = int(pd.to_numeric(r['total_results'], errors='coerce') or 0)
     fig = go.Figure(go.Funnel(
-        y=['Impressions', 'Clics', 'Résultats'], x=[imp, clk, res],
+        y=[t("meta_creatives.impressions", "Impressions"),
+           t("meta_creatives.clicks", "Clics"),
+           t("meta_creatives.results", "Résultats")], x=[imp, clk, res],
         textinfo="value+percent initial", marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35']},
     ))
     fig.update_layout(height=400)
@@ -386,9 +400,9 @@ def _render_fatigue(db, artist_id: int) -> None:
         (artist_id,),
     )
     if names.empty:
-        st.info("Aucune créative.")
+        st.info(t("meta_creatives.no_creative", "Aucune créative."))
         return
-    sel = st.selectbox("Créative", names['ad_name'].tolist(), key="fatigue_creative")
+    sel = st.selectbox(t("meta_creatives.creative", "Créative"), names['ad_name'].tolist(), key="fatigue_creative")
     ts = db.fetch_df(
         """SELECT mi.date::date AS date, AVG(mi.frequency) AS frequency, AVG(mi.ctr) * 100 AS ctr
            FROM meta_insights mi JOIN meta_ads ma ON ma.ad_id = mi.ad_id
@@ -396,31 +410,32 @@ def _render_fatigue(db, artist_id: int) -> None:
         (artist_id, sel),
     )
     if ts.empty:
-        st.info("Pas de séries temporelles pour cette créative.")
+        st.info(t("meta_creatives.no_timeseries", "Pas de séries temporelles pour cette créative."))
         return
     ts['date'] = pd.to_datetime(ts['date'])
     ts['frequency'] = pd.to_numeric(ts['frequency'], errors='coerce').astype(float)
     ts['ctr'] = pd.to_numeric(ts['ctr'], errors='coerce').astype(float)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=ts['date'], y=ts['frequency'], name='Fréquence',
+    fig.add_trace(go.Scatter(x=ts['date'], y=ts['frequency'], name=t("meta_creatives.frequency", "Fréquence"),
                              mode='lines+markers', line={'color': '#d62728'}))
     fig.add_trace(go.Scatter(x=ts['date'], y=ts['ctr'], name='CTR (%)', yaxis='y2',
                              mode='lines+markers', line={'color': '#1f77b4'}))
     fig.update_layout(
         hovermode="x unified",
-        yaxis={'title': {'text': 'Fréquence', 'font': {'color': '#d62728'}}},
+        yaxis={'title': {'text': t("meta_creatives.frequency", "Fréquence"), 'font': {'color': '#d62728'}}},
         yaxis2={'title': {'text': 'CTR (%)', 'font': {'color': '#1f77b4'}},
                 'overlaying': 'y', 'side': 'right'},
         legend={'orientation': 'h', 'y': 1.02, 'x': 1, 'xanchor': 'right'}, height=420,
     )
     st.plotly_chart(fig, width="stretch")
-    st.caption("Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative.")
+    st.caption(t("meta_creatives.fatigue_caption",
+                 "Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative."))
 
 
 def _render_activity(ts_all: pd.DataFrame) -> None:
     """#5 heatmap (creative × week) + #6 cumulative spend area."""
     if ts_all is None or ts_all.empty:
-        st.info("Aucune série de dépense par créative.")
+        st.info(t("meta_creatives.no_spend_series", "Aucune série de dépense par créative."))
         return
     d = ts_all.copy()
     d['date'] = pd.to_datetime(d['date'])
@@ -430,22 +445,24 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
     weekly = d.groupby(['creative_name', 'week'], as_index=False)['spend'].sum()
     top = weekly.groupby('creative_name')['spend'].sum().nlargest(20).index
     hm = weekly[weekly['creative_name'].isin(top)]
-    st.markdown("**🗓️ Dépense par créative et par semaine**")
+    st.markdown(t("meta_creatives.heatmap_title", "**🗓️ Dépense par créative et par semaine**"))
     fig = px.density_heatmap(
         hm, x='week', y='creative_name', z='spend', histfunc='sum',
-        color_continuous_scale='Oranges', labels={'week': '', 'creative_name': '', 'spend': 'Dépense (€)'},
+        color_continuous_scale='Oranges',
+        labels={'week': '', 'creative_name': '', 'spend': t("meta_creatives.spend_eur", "Dépense (€)")},
     )
     fig.update_layout(height=520)
     st.plotly_chart(fig, width="stretch")
 
     st.markdown("---")
-    st.markdown("**💰 Dépense cumulée par créative**")
+    st.markdown(t("meta_creatives.cumulative_title", "**💰 Dépense cumulée par créative**"))
     g = weekly.sort_values('week').copy()
     g['cum'] = g.groupby('creative_name')['spend'].cumsum()
     top12 = g.groupby('creative_name')['cum'].max().nlargest(12).index
     g = g[g['creative_name'].isin(top12)]
     fig2 = px.area(g, x='week', y='cum', color='creative_name',
-                   labels={'week': '', 'cum': 'Dépense cumulée (€)', 'creative_name': 'Créative'})
+                   labels={'week': '', 'cum': t("meta_creatives.cumulative_spend_eur", "Dépense cumulée (€)"),
+                           'creative_name': t("meta_creatives.creative", "Créative")})
     fig2.update_layout(height=480)
     st.plotly_chart(fig2, width="stretch")
 
@@ -454,17 +471,18 @@ def show() -> None:
     if not require_plan('premium'):
         return
 
-    st.title("🎨 Créatives Meta Ads")
-    st.caption("Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights).")
+    st.title(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
+    st.caption(t("meta_creatives.subtitle",
+                 "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
 
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide."); st.stop()
+            st.error(t("meta_creatives.invalid_session", "Session invalide.")); st.stop()
         artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
     db = get_db_connection()
     if db is None:
-        st.error("Base de données inaccessible.")
+        st.error(t("meta_creatives.db_unavailable", "Base de données inaccessible."))
         return
 
     try:
@@ -474,11 +492,12 @@ def show() -> None:
         _render_uncollected_notice(uncollected)
 
         if df.empty:
-            st.info(
+            st.info(t(
+                "meta_creatives.no_data",
                 "Aucune donnée de créative disponible. "
                 "Vérifiez que le DAG **meta_ads_api_daily** a bien collecté des données "
                 "via l'API Meta Ads (tables `meta_ads` + `meta_insights`)."
-            )
+            ))
             return
 
         # Filtres — campagnes les plus récentes en haut (par start_time desc).
@@ -487,34 +506,42 @@ def show() -> None:
               .sort_values('campaign_start', ascending=False, na_position='last')
               ['campaign_name'].drop_duplicates().tolist()
         )
+        # "Toutes" stays the internal sentinel value; only its display is translated.
         campaigns = ["Toutes"] + camp_order
         col_filter, _ = st.columns([2, 4])
-        selected_campaign = col_filter.selectbox("Filtrer par campagne", campaigns)
+        selected_campaign = col_filter.selectbox(
+            t("meta_creatives.filter_by_campaign", "Filtrer par campagne"), campaigns,
+            format_func=lambda c: t("meta_creatives.all_campaigns", "Toutes") if c == "Toutes" else c)
 
         if selected_campaign != "Toutes":
             df = df[df['campaign_name'] == selected_campaign]
 
         if df.empty:
-            st.warning("Aucune créative pour cette campagne.")
+            st.warning(t("meta_creatives.no_creative_campaign", "Aucune créative pour cette campagne."))
             return
 
         _render_kpi_row(df)
         st.markdown("---")
 
         t_rank, t_cmp, t_funnel, t_evo, t_fatigue, t_act = st.tabs([
-            "📋 Classement", "🫧 Comparaison", "🔻 Funnel",
-            "📈 Évolution", "🪫 Fatigue", "🗓️ Activité",
+            t("meta_creatives.tab_ranking", "📋 Classement"),
+            t("meta_creatives.tab_compare", "🫧 Comparaison"),
+            t("meta_creatives.tab_funnel", "🔻 Funnel"),
+            t("meta_creatives.tab_evolution", "📈 Évolution"),
+            t("meta_creatives.tab_fatigue", "🪫 Fatigue"),
+            t("meta_creatives.tab_activity", "🗓️ Activité"),
         ])
 
         with t_rank:
             _render_table(df)
             median_cpr = df[df['cpr'].notna()]['cpr'].median()
             if pd.notna(median_cpr):
-                st.caption(
-                    f"🟢 Top créative = CPR ≤ {median_cpr * 0.75:.2f}€ | "
-                    f"🟡 Moyenne = CPR ≤ {median_cpr * 1.25:.2f}€ | "
-                    f"🔴 Sous-performante = CPR > {median_cpr * 1.25:.2f}€"
-                )
+                st.caption(t(
+                    "meta_creatives.badge_legend",
+                    "🟢 Top créative = CPR ≤ {low}€ | "
+                    "🟡 Moyenne = CPR ≤ {high}€ | "
+                    "🔴 Sous-performante = CPR > {high}€"
+                ).format(low=f"{median_cpr * 0.75:.2f}", high=f"{median_cpr * 1.25:.2f}"))
             st.markdown("---")
             _render_bar_chart(df)
 

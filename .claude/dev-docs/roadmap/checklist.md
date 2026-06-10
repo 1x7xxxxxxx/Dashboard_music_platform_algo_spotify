@@ -491,11 +491,39 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   (+15 tests), vue `views/track_mapping.py` — 3 onglets : suggestions par plateforme
   (S4A/Spotify/Apple/SC/YT, accept/reject + bulk), **Meta campagnes** (title-sim + date-proximity,
   écrit `campaign_track_mapping` en `_`-form), vue unifiée. Validé sur données réelles.
-- [ ] **B2 — DistroKid** : pré-câblage pattern iMusician (8 fichiers), **bloqué** sur export data.
+- [x] **B2 — DistroKid** (phases 1+2 livrées 2026-06-10) :
+  **Phase 1 — saisie manuelle** : table `distrokid_monthly_revenue` (migration 050,
+  `distrokid_schema.py`) ; vue Distributeur partagée (`imusician.py`) — sélecteur
+  iMusician/DistroKid/Tous (chart empilé), formulaire de saisie mensuelle EUR
+  (défaut = mois précédent), suppression distributor-aware ; ROI Breakheaven somme
+  les 2 sources (`kpi_helpers` UNION ALL ×4) ; +5 tests (`test_distrokid_revenue.py`).
+  **Phase 2 — import « bank details »** : parser `src/transformers/distrokid_parser.py`
+  (TSV **ou** CSV sniffé, fallback latin-1, schéma 15 col post-juillet-2025 + legacy
+  `Song/Album`, dédup pré-upsert) ; table `distrokid_sales_detail` USD NUMERIC(14,10)
+  (migration 051, `distrokid_csv_schema.py`) ; rollup USD→EUR `distrokid_rollup.py`
+  (taux `DISTROKID_USD_EUR_RATE` défaut 0.92, modifiable par import, préserve les
+  saisies manuelles) ; intégration Upload CSV (uploader accepte `.tsv`, lecture headers
+  robuste encodage+délimiteur, champ taux, hook rollup) ; DAG `distrokid_csv_watcher`
+  (15 min, max_active_runs=1, watch `data/raw/distrokid/`) + `debug_distrokid_csv.py` ;
+  guide in-app (`csv_guides.py`). Fixture réelle `tests/fixtures/distrokid_bank_sample.csv`
+  (BetterKid) ; +17 tests parser. **Validé end-to-end live** : 22 lignes → 4 mois EUR,
+  idempotent, DAG chargé sans import error. Format : `dev-docs/distrokid-export-format.md`.
+  ⚠️ Reste à confirmer sur TON premier export réel (le sample BetterKid fait foi pour le
+  schéma, pas pour l'extension/zip exacts).
 - [x] **B3 — Refactor ciblé** (2026-06-09) : vues mapping (`track_mapping`, `meta_mapping`) migrées vers `view_session()` (rule #7). Reste : adoption `view_session()` sur les vues legacy au fil des touches (audit #2).
 - [x] **C1 — Alerting erreurs app** (2026-06-09) : `src/dashboard/utils/error_alert.py` (`notify_app_error`, fail-silent, rate-limité, re-raise des signaux st.stop/st.rerun) ; dispatch des vues extrait en `_render_page()` + guard try/except dans `app.py` ; +4 tests.
 - [x] **C2 — Backup DB** (2026-06-09) : `tools/db_backup.sh` (pg_dump→gzip + rétention) + `tools/db_restore_test.sh` (drill restauration) + `make backup` / `make backup-test`. Drill validé (78 tables restaurées). Cron VPS = Phase D.
-- [ ] **C3 — Hardening sécurité (code)** : rate-limit API FastAPI, timeout session, headers.
+- [x] **C3 — Hardening sécurité (code)** (2026-06-10) : (1) rate-limit FastAPI —
+  `src/api/security.py` (NEW), fenêtre glissante en mémoire par IP (120 req/60s global,
+  10/300s sur `POST /auth/token`), 429 + Retry-After, `/health` exempt, IP via 1er hop
+  X-Forwarded-For derrière proxy ; (2) security headers middleware (nosniff, X-Frame-Options
+  DENY, Referrer-Policy, HSTS, Permissions-Policy, CSP `default-src 'none'` sauf /docs+/redoc,
+  Cache-Control no-store) — headers outermost donc présents aussi sur les 429 ; (3) timeout
+  d'inactivité session Streamlit — `auth.py::_session_idle_expired` dans `require_login()`
+  (défaut 60 min, `SESSION_IDLE_TIMEOUT_MINUTES`), session clear + notice à la reconnexion.
+  Env vars documentées dans `.env.example`. +14 tests (`test_api_security.py`, TestClient
+  sans DB). Limiteur in-memory single-process assumé (ADR-002 : pas de Redis/slowapi) —
+  re-évaluer si l'API passe multi-worker en phase D.
 - [~] **C4 — i18n EN/FR** (infra livrée 2026-06-09) : `src/dashboard/utils/i18n.py` (`t()` helper,
   FR source + fallback, EN dict), **toggle sidebar** (`language_selector`), **navigation
   entièrement traduite** (titre + sections + 35 items), +5 tests (garde-fou : tout item nav a sa

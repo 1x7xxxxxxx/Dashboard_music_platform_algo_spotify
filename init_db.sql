@@ -185,6 +185,54 @@ CREATE INDEX IF NOT EXISTS idx_imusician_revenue_artist ON imusician_monthly_rev
 CREATE INDEX IF NOT EXISTS idx_imusician_revenue_period ON imusician_monthly_revenue(year DESC, month DESC);
 
 -- ============================================================
+-- 8b. DistroKid — revenus mensuels (saisie manuelle, B2 phase 1)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS distrokid_monthly_revenue (
+    id SERIAL PRIMARY KEY,
+    artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+    revenue_eur NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    notes TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_distrokid_artist_month UNIQUE(artist_id, year, month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_distrokid_revenue_artist ON distrokid_monthly_revenue(artist_id);
+CREATE INDEX IF NOT EXISTS idx_distrokid_revenue_period ON distrokid_monthly_revenue(year DESC, month DESC);
+
+CREATE TABLE IF NOT EXISTS distrokid_sales_detail (
+    id SERIAL PRIMARY KEY,
+    artist_id INTEGER NOT NULL DEFAULT 1 REFERENCES saas_artists(id),
+    sale_year INTEGER NOT NULL,
+    sale_month INTEGER NOT NULL CHECK (sale_month BETWEEN 1 AND 12),
+    reporting_date DATE NOT NULL,
+    store TEXT NOT NULL DEFAULT '',
+    artist_name TEXT,
+    title TEXT NOT NULL DEFAULT '',
+    isrc TEXT NOT NULL DEFAULT '',
+    upc TEXT,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    team_percentage NUMERIC(6, 2),
+    source_type TEXT NOT NULL DEFAULT '',
+    country TEXT NOT NULL DEFAULT '',
+    songwriter_royalties_usd NUMERIC(14, 10) DEFAULT 0,
+    earnings_usd NUMERIC(14, 10) NOT NULL DEFAULT 0,
+    recoup_usd NUMERIC(14, 10) DEFAULT 0,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_distrokid_sale UNIQUE
+        (artist_id, isrc, title, sale_year, sale_month,
+         reporting_date, store, country, source_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_distrokid_sales_artist ON distrokid_sales_detail(artist_id);
+CREATE INDEX IF NOT EXISTS idx_distrokid_sales_period ON distrokid_sales_detail(artist_id, sale_year DESC, sale_month DESC);
+CREATE INDEX IF NOT EXISTS idx_distrokid_sales_isrc ON distrokid_sales_detail(isrc);
+
+-- ============================================================
 -- 9. ML — Prédictions scoring quotidien
 -- ============================================================
 

@@ -208,7 +208,42 @@ _IMUSICIAN = PlatformGuide(
     ),
 )
 
-CSV_GUIDES: tuple[PlatformGuide, ...] = (_S4A, _APPLE, _IMUSICIAN)
+_DISTROKID = PlatformGuide(
+    key="distrokid",
+    title="DistroKid (distributeur)",
+    icon="🏦",
+    intro=(
+        "Un seul export couvre tout votre historique : le rapport détaillé de la "
+        "**Bank** (une ligne par plateforme × titre × pays × mois, montants en **USD** "
+        "— le taux de conversion USD→EUR se règle au moment de l'import). "
+        "Format `.tsv` ou `.csv`, les deux sont reconnus automatiquement."
+    ),
+    steps=(
+        GuideStep(
+            "Connectez-vous sur distrokid.com → menu **Bank** (vos revenus)."
+        ),
+        GuideStep(
+            "En bas de la page Bank, cliquez sur **« SEE EXCRUCIATING DETAIL »** "
+            "(le détail complet ligne par ligne)."
+        ),
+        GuideStep(
+            "Cliquez sur **Download** pour télécharger le fichier. Au-delà de "
+            "50 000 lignes, DistroKid demande de filtrer (période / plateforme / "
+            "release) avant de générer l'export — répétez si besoin."
+        ),
+        GuideStep(
+            "Importez le fichier ici tel quel (.tsv ou .csv) et ajustez le **taux "
+            "USD→EUR** proposé avant de confirmer."
+        ),
+    ),
+    expected=(
+        ExpectedCsv("Bank details (détail des revenus)", "*.tsv / *.csv",
+                    ("Sale Month", "Store", "Title", "ISRC", "Quantity",
+                     "Earnings (USD)")),
+    ),
+)
+
+CSV_GUIDES: tuple[PlatformGuide, ...] = (_S4A, _APPLE, _IMUSICIAN, _DISTROKID)
 
 # NOTE: API-credential guides are NOT here — they live (with their screenshots) in
 # src/dashboard/content/credential_guides.py (CREDENTIAL_GUIDES), the single source

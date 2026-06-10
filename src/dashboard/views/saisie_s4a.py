@@ -16,6 +16,7 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.i18n import t
 
 _ARTIST_FILTER = "%1x7xxxxxxx%"
 _WINDOWS = [("7j", "7d"), ("28j", "28d"), ("12 mois", "12m")]
@@ -60,9 +61,10 @@ def _latest_discovery(db, artist_id) -> dict:
 
 
 def _render_fixed_grid(db, artist_id, tracks) -> None:
-    st.subheader("📊 Ajouts en playlist par fenêtre + Discovery Mode")
-    st.caption("Saisissez, par titre, les ajouts en playlist tels qu'affichés dans S4A "
-               "(7 jours / 28 jours / 12 mois) et l'état Discovery Mode. Sauvegarde groupée.")
+    st.subheader(t("saisie_s4a.fixed_header", "📊 Ajouts en playlist par fenêtre + Discovery Mode"))
+    st.caption(t("saisie_s4a.fixed_caption",
+                 "Saisissez, par titre, les ajouts en playlist tels qu'affichés dans S4A "
+                 "(7 jours / 28 jours / 12 mois) et l'état Discovery Mode. Sauvegarde groupée."))
     wins = _latest_windowed(db, artist_id)
     disc = _latest_discovery(db, artist_id)
     df = pd.DataFrame([{
@@ -78,14 +80,14 @@ def _render_fixed_grid(db, artist_id, tracks) -> None:
         column_config={
             "Titre": st.column_config.TextColumn(disabled=True),
             "7j": st.column_config.NumberColumn(min_value=0, step=1),
-            "28j": st.column_config.NumberColumn(min_value=0, step=1, help="Alimente le ML"),
+            "28j": st.column_config.NumberColumn(min_value=0, step=1, help=t("saisie_s4a.help_feeds_ml", "Alimente le ML")),
             "12 mois": st.column_config.NumberColumn(min_value=0, step=1),
             "Discovery Mode": st.column_config.CheckboxColumn(),
         },
         key=f"grid_fixed_{artist_id}",
     )
 
-    if st.button("💾 Enregistrer la grille", type="primary"):
+    if st.button(t("saisie_s4a.save_grid", "💾 Enregistrer la grille"), type="primary"):
         _save_fixed(db, artist_id, edited)
 
 
@@ -105,21 +107,23 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame) -> None:
                        ["count", "collected_at"])
         db.upsert_many("s4a_song_discovery_mode", dm_rows,
                        ["artist_id", "song", "recorded_at"], ["opted_in", "collected_at"])
-        st.success(f"Enregistré : {len(pa_rows)} valeurs playlist + {len(dm_rows)} Discovery Mode.")
+        st.success(t("saisie_s4a.saved_fixed", "Enregistré : {pa} valeurs playlist + {dm} Discovery Mode.")
+                   .format(pa=len(pa_rows), dm=len(dm_rows)))
         st.rerun()
     except Exception as exc:
-        st.error(f"Erreur : {exc}")
+        st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
 
 
 def _render_custom_grid(db, artist_id, tracks) -> None:
-    st.subheader("📅 Plage personnalisée (ex. premiers jours post-release)")
+    st.subheader(t("saisie_s4a.custom_header", "📅 Plage personnalisée (ex. premiers jours post-release)"))
     today = date.today()
     c1, c2 = st.columns(2)
-    start = c1.date_input("Début", value=today - timedelta(days=3), format="YYYY-MM-DD",
-                          key=f"custom_start_{artist_id}")
-    end = c2.date_input("Fin", value=today, format="YYYY-MM-DD", key=f"custom_end_{artist_id}")
+    start = c1.date_input(t("saisie_s4a.custom_start", "Début"), value=today - timedelta(days=3),
+                          format="YYYY-MM-DD", key=f"custom_start_{artist_id}")
+    end = c2.date_input(t("saisie_s4a.custom_end", "Fin"), value=today, format="YYYY-MM-DD",
+                        key=f"custom_end_{artist_id}")
     if start > end:
-        st.warning("La date de début doit précéder la date de fin.")
+        st.warning(t("saisie_s4a.start_before_end", "La date de début doit précéder la date de fin."))
         return
 
     df = pd.DataFrame([{"Titre": s, "Ajouts playlist": 0} for s in tracks])
@@ -131,7 +135,7 @@ def _render_custom_grid(db, artist_id, tracks) -> None:
         },
         key=f"grid_custom_{artist_id}",
     )
-    if st.button("💾 Enregistrer la plage personnalisée", type="primary"):
+    if st.button(t("saisie_s4a.save_custom", "💾 Enregistrer la plage personnalisée"), type="primary"):
         rows = [{"artist_id": artist_id, "song": r["Titre"], "time_window": "custom",
                  "recorded_at": end, "count": int(r["Ajouts playlist"] or 0),
                  "period_start": start, "period_end": end} for _, r in edited.iterrows()]
@@ -139,25 +143,25 @@ def _render_custom_grid(db, artist_id, tracks) -> None:
             db.upsert_many("s4a_song_playlist_adds", rows,
                            ["artist_id", "song", "time_window", "recorded_at"],
                            ["count", "period_start", "period_end", "collected_at"])
-            st.success(f"Plage {start} → {end} enregistrée pour {len(rows)} titres.")
+            st.success(t("saisie_s4a.saved_custom", "Plage {start} → {end} enregistrée pour {n} titres.")
+                       .format(start=start, end=end, n=len(rows)))
             st.rerun()
         except Exception as exc:
-            st.error(f"Erreur : {exc}")
+            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
 
 
 def show():
-    st.title("📝 Saisie S4A")
-    st.markdown(
-        "Signaux **Spotify for Artists uniquement** (aucune API) à saisir par titre. "
-        "Alimentent la prédiction ML « 🚀 Road to Algo »."
-    )
+    st.title(t("saisie_s4a.title", "📝 Saisie S4A"))
+    st.markdown(t("saisie_s4a.intro",
+                  "Signaux **Spotify for Artists uniquement** (aucune API) à saisir par titre. "
+                  "Alimentent la prédiction ML « 🚀 Road to Algo »."))
     with view_session() as (db, artist_id):
         if not artist_id:
-            st.error("Session invalide.")
+            st.error(t("saisie_s4a.invalid_session", "Session invalide."))
             return
         tracks = _load_tracks(db, artist_id)
         if not tracks:
-            st.warning("Aucun titre disponible (timeline S4A vide).")
+            st.warning(t("saisie_s4a.no_tracks", "Aucun titre disponible (timeline S4A vide)."))
             return
         _render_fixed_grid(db, artist_id, tracks)
         st.markdown("---")

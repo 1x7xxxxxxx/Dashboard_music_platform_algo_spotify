@@ -10,6 +10,7 @@ artist_id = NULL in saas_users means admin (unrestricted cross-tenant access).
 Registration: GET /?page=register — accessible without login.
 Bootstrap:    if saas_users is empty, first-run admin creation form is shown.
 """
+import os
 import re
 import sys
 import time
@@ -25,6 +26,14 @@ if _project_root not in sys.path:
 
 
 _SESSION_KEYS = ['authenticated', 'username', 'name', 'artist_id', 'role', 'user_id']
+
+
+def _t(key: str, default: str) -> str:
+    """Deferred i18n lookup. utils/__init__ imports this module back
+    (get_artist_id), so importing i18n at module load time would be circular —
+    the import happens at render time only."""
+    from src.dashboard.utils.i18n import t
+    return t(key, default)
 
 # Brick 26: session-based rate limit (no reliable IP in Streamlit without reverse proxy)
 _RATE_MAX_ATTEMPTS = 10   # failures per session window
@@ -44,7 +53,8 @@ def _check_session_rate_limit() -> bool:
 
     if attempts >= _RATE_MAX_ATTEMPTS:
         remaining = int(_RATE_WINDOW_SECS - (now - window_start))
-        st.error(f"Too many failed attempts. Please wait {remaining} seconds before trying again.")
+        st.error(_t("auth.rate_limited",
+                    "Trop de tentatives échouées. Réessayez dans {s} secondes.").format(s=remaining))
         return False
     return True
 
@@ -61,6 +71,17 @@ def _rate_reset():
     st.session_state.pop('_rate_window_start', None)
 
 
+# C3 hardening: idle-session timeout — an authenticated tab left unattended
+# expires server-side instead of staying valid until the process restarts.
+_IDLE_TIMEOUT_SECS = int(os.getenv('SESSION_IDLE_TIMEOUT_MINUTES', '60')) * 60
+
+
+def _session_idle_expired(last_activity: Optional[float], now: float,
+                          timeout_secs: int = _IDLE_TIMEOUT_SECS) -> bool:
+    """True when the gap since the last interaction exceeds the idle timeout."""
+    return last_activity is not None and (now - last_activity) > timeout_secs
+
+
 # ─────────────────────────────────────────────
 # Password helpers
 # ─────────────────────────────────────────────
@@ -74,7 +95,9 @@ def _validate_password_strength(pw: str) -> Optional[str]:
     HIGH-04: minimum 10 characters with at least one letter and one digit.
     """
     if not _PW_RE.fullmatch(pw):
-        return "Password must be at least 10 characters and contain at least one letter and one digit."
+        return _t("auth.pw_policy",
+                  "Le mot de passe doit contenir au moins 10 caractères, dont au moins "
+                  "une lettre et un chiffre.")
     return None
 
 
@@ -147,7 +170,7 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
         (username.strip(),)
     )
     if not rows:
-        return None, "Invalid username or password."
+        return None, _t("auth.invalid_credentials", "Nom d'utilisateur ou mot de passe invalide.")
 
     uid, uname, email, pw_hash, artist_id, role, email_verified, fail_count, locked_until, totp_enabled, totp_secret = rows[0]
 
@@ -157,7 +180,9 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
         locked_until_aware = locked_until if locked_until.tzinfo else locked_until.replace(tzinfo=timezone.utc)
         if now < locked_until_aware:
             remaining = int((locked_until_aware - now).total_seconds() // 60) + 1
-            return None, f"Account locked after too many failed attempts. Try again in {remaining} minute(s)."
+            return None, _t("auth.locked",
+                            "Compte verrouillé après trop de tentatives échouées. "
+                            "Réessayez dans {m} minute(s).").format(m=remaining)
 
     if not verify_password(password, pw_hash):
         # Increment failure counter; lock if threshold reached
@@ -173,7 +198,7 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
                 "UPDATE saas_users SET failed_login_attempts = %s WHERE id = %s",
                 (new_fail, uid)
             )
-        return None, "Invalid username or password."
+        return None, _t("auth.invalid_credentials", "Nom d'utilisateur ou mot de passe invalide.")
 
     # Successful authentication — reset failure counter
     db.execute_query(
@@ -199,9 +224,11 @@ def _resend_verification(username: str, email: str, db) -> None:
         (token, username)
     )
     if send_verification_email(email, username, token):
-        st.success(f"Verification email resent to {email}.")
+        st.success(_t("auth.resend_ok",
+                      "Email de vérification renvoyé à {email}.").format(email=email))
     else:
-        st.error("Failed to send email. Check SMTP config in config/config.yaml.")
+        st.error(_t("auth.resend_fail",
+                    "Échec de l'envoi de l'email. Vérifiez la config SMTP dans config/config.yaml."))
 
 
 def _hydrate_session(user: dict) -> None:
@@ -229,14 +256,17 @@ def _show_totp_challenge(db) -> None:
         return
 
     st.title("🎵 Music Dashboard")
-    st.subheader("🔐 Two-factor authentication")
-    st.info(f"Signed in as **{pending['username']}**. Enter the 6-digit code from your authenticator app.")
+    st.subheader(_t("auth.totp_title", "🔐 Authentification à deux facteurs"))
+    st.info(_t("auth.totp_prompt",
+               "Connecté en tant que **{u}**. Saisissez le code à 6 chiffres de votre "
+               "application d'authentification.").format(u=pending['username']))
 
     with st.form("totp_challenge"):
-        code = st.text_input("Authentication code", max_chars=6, placeholder="000000")
+        code = st.text_input(_t("auth.totp_code", "Code d'authentification"),
+                             max_chars=6, placeholder="000000")
         col1, col2 = st.columns(2)
-        submitted = col1.form_submit_button("Verify", type="primary")
-        cancel    = col2.form_submit_button("Cancel")
+        submitted = col1.form_submit_button(_t("auth.totp_verify", "Vérifier"), type="primary")
+        cancel    = col2.form_submit_button(_t("common.cancel", "Annuler"))
 
     if cancel:
         st.session_state.pop('_totp_pending', None)
@@ -259,9 +289,10 @@ def _show_totp_challenge(db) -> None:
                 st.rerun()
             else:
                 _rate_record_failure()
-                st.error("Invalid authentication code. Please try again.")
+                st.error(_t("auth.totp_invalid", "Code d'authentification invalide. Réessayez."))
         except ImportError:
-            st.error("pyotp not installed. Run: pip install pyotp")
+            st.error(_t("auth.totp_missing_dep",
+                        "pyotp n'est pas installé. Exécutez : pip install pyotp"))
 
 
 # ─────────────────────────────────────────────
@@ -269,25 +300,28 @@ def _show_totp_challenge(db) -> None:
 # ─────────────────────────────────────────────
 
 def _show_bootstrap_form(db) -> None:
-    st.title("🎵 Music Dashboard — First-time setup")
+    st.title(_t("auth.bootstrap_title", "🎵 Music Dashboard — Première configuration"))
     st.warning(
-        "No users found in the database. Create the first **admin** account to get started.",
+        _t("auth.bootstrap_warning",
+           "Aucun utilisateur en base. Créez le premier compte **admin** pour commencer."),
         icon="⚠️",
     )
     with st.form("bootstrap_admin"):
-        st.subheader("Create admin account")
-        username = st.text_input("Username")
-        email    = st.text_input("Email")
-        pw       = st.text_input("Password", type="password")
-        pw2      = st.text_input("Confirm password", type="password")
-        submitted = st.form_submit_button("Create admin", type="primary")
+        st.subheader(_t("auth.bootstrap_subheader", "Créer le compte admin"))
+        username = st.text_input(_t("auth.username", "Nom d'utilisateur"))
+        email    = st.text_input(_t("auth.email", "Email"))
+        pw       = st.text_input(_t("auth.password", "Mot de passe"), type="password")
+        pw2      = st.text_input(_t("auth.confirm_password", "Confirmer le mot de passe"),
+                                 type="password")
+        submitted = st.form_submit_button(_t("auth.bootstrap_submit", "Créer l'admin"),
+                                          type="primary")
 
     if submitted:
         if not username or not email or not pw:
-            st.error("All fields are required.")
+            st.error(_t("auth.all_fields_required", "Tous les champs sont obligatoires."))
             return
         if pw != pw2:
-            st.error("Passwords do not match.")
+            st.error(_t("auth.pw_mismatch", "Les mots de passe ne correspondent pas."))
             return
         pw_error = _validate_password_strength(pw)
         if pw_error:
@@ -302,10 +336,13 @@ def _show_bootstrap_form(db) -> None:
                 """,
                 (username.strip(), email.strip(), hash_password(pw))
             )
-            st.success(f"Admin account '{username}' created. You can now log in.")
+            st.success(_t("auth.bootstrap_ok",
+                          "Compte admin '{u}' créé. Vous pouvez maintenant vous connecter.")
+                       .format(u=username))
             st.rerun()
         except Exception as e:
-            st.error(f"Error creating admin: {e}")
+            st.error(_t("auth.bootstrap_error",
+                        "Erreur lors de la création de l'admin : {e}").format(e=e))
 
 
 # ─────────────────────────────────────────────
@@ -325,12 +362,21 @@ def require_login() -> bool:
     Returns True if authenticated, False otherwise.
     """
     if st.session_state.get('authenticated'):
-        _maybe_bump_heartbeat()
-        return True
+        now = time.time()
+        if _session_idle_expired(st.session_state.get('_last_activity'), now):
+            # C3: idle timeout — drop the whole session, fall through to the login form
+            st.session_state.clear()
+            st.session_state['_session_expired_notice'] = True
+        else:
+            st.session_state['_last_activity'] = now
+            _maybe_bump_heartbeat()
+            return True
 
     db = _get_db()
     if db is None:
-        st.error("❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`")
+        st.error(_t("auth.db_unreachable",
+                    "❌ Base de données injoignable. Vérifiez que Docker est lancé : "
+                    "`docker-compose up -d`"))
         return False
 
     try:
@@ -350,23 +396,32 @@ def require_login() -> bool:
         else:
             st.title("🎵 streaMLytics")
 
+        if st.session_state.pop('_session_expired_notice', None):
+            st.info(_t("auth.session_expired",
+                       "🔒 Session expirée après inactivité. Reconnectez-vous."))
+
         with st.form("login"):
-            st.subheader("Sign in")
+            st.subheader(_t("auth.signin_title", "Connexion"))
             # Stable keys → stable DOM ids → the browser keeps remembering the username
             # even when elements above the form change (e.g. the logo).
-            username  = st.text_input("Username", key="login_username",
+            username  = st.text_input(_t("auth.username", "Nom d'utilisateur"),
+                                      key="login_username",
                                       autocomplete="username")
-            password  = st.text_input("Password", type="password",
+            password  = st.text_input(_t("auth.password", "Mot de passe"), type="password",
                                       key="login_password",
                                       autocomplete="current-password")
-            submitted = st.form_submit_button("Sign in", type="primary")
+            submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary")
 
-        st.markdown("[Don't have an account? **Create one**](?page=register)")
-        st.caption("🔒 Votre mot de passe est chiffré (bcrypt) et n'est jamais stocké en clair — conformément au RGPD.")
+        st.markdown(_t("auth.register_link",
+                       "[Pas encore de compte ? **Créez-en un**](?page=register)"))
+        st.caption(_t("auth.pw_encrypted_notice",
+                      "🔒 Votre mot de passe est chiffré (bcrypt) et n'est jamais stocké "
+                      "en clair — conformément au RGPD."))
 
         if submitted:
             if not username or not password:
-                st.error("Please enter your username and password.")
+                st.error(_t("auth.enter_credentials",
+                            "Veuillez saisir votre nom d'utilisateur et votre mot de passe."))
                 return False
 
             # Brick 26: session-based rate limit check
@@ -393,11 +448,12 @@ def require_login() -> bool:
             _rate_record_failure()
             if error and error == "__unverified__":
                 # HIGH-02: do not disclose the email address
-                st.warning(
-                    "📧 Please verify your email address before signing in. "
-                    "Check the inbox you registered with."
-                )
-                if st.button("Resend verification email"):
+                st.warning(_t(
+                    "auth.verify_email_first",
+                    "📧 Veuillez vérifier votre adresse email avant de vous connecter. "
+                    "Consultez la boîte mail utilisée lors de l'inscription."
+                ))
+                if st.button(_t("auth.resend_btn", "Renvoyer l'email de vérification")):
                     # Look up email separately only after the user explicitly requests it
                     rows = db.fetch_query(
                         "SELECT email FROM saas_users WHERE username = %s AND active = TRUE LIMIT 1",
@@ -406,7 +462,8 @@ def require_login() -> bool:
                     if rows:
                         _resend_verification(username, rows[0][0], db)
             else:
-                st.error(error or "Invalid username or password.")
+                st.error(error or _t("auth.invalid_credentials",
+                                     "Nom d'utilisateur ou mot de passe invalide."))
         return False
 
     finally:
@@ -423,14 +480,15 @@ def show_user_sidebar():
     role      = st.session_state.get('role', 'artist')
     artist_id = st.session_state.get('artist_id')
 
-    role_label = '👑 Admin' if role == 'admin' else '🎤 Artist'
+    role_label = (_t("auth.role_admin", "👑 Admin") if role == 'admin'
+                  else _t("auth.role_artist", "🎤 Artiste"))
     st.sidebar.markdown(f"**{role_label}** — {name}")
     if artist_id is not None:
         st.sidebar.caption(f"artist_id = {artist_id}")
     else:
-        st.sidebar.caption("Global access (all artists)")
+        st.sidebar.caption(_t("auth.global_access", "Accès global (tous les artistes)"))
 
-    if st.sidebar.button('Logout'):
+    if st.sidebar.button(_t("auth.logout", "Se déconnecter")):
         for key in _SESSION_KEYS:
             st.session_state.pop(key, None)
         st.rerun()
@@ -528,11 +586,14 @@ def require_plan(min_plan: str) -> bool:
 
     plan_labels = {p: f"{c['label']} ({c['price_eur']}€/mo)" for p, c in PLAN_CATALOG.items()}
     st.warning(
-        f"🔒 This feature requires the **{plan_labels.get(min_plan, min_plan)}** plan. "
-        f"Your current plan: **{current_plan}**.",
+        _t("auth.paywall",
+           "🔒 Cette fonctionnalité nécessite le plan **{plan}**. "
+           "Votre plan actuel : **{current}**.")
+        .format(plan=plan_labels.get(min_plan, min_plan), current=current_plan),
         icon="⚠️",
     )
-    if st.button("→ Voir les plans et upgrader", key=f"_upgrade_btn_{min_plan}"):
+    if st.button(_t("auth.paywall_btn", "→ Voir les plans et upgrader"),
+                 key=f"_upgrade_btn_{min_plan}"):
         st.query_params["page"] = "upgrade"
         st.rerun()
     # MEDIUM-02: st.stop() ensures the calling view never renders gated content,

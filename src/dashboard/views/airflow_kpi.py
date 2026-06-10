@@ -6,6 +6,7 @@ from src.dashboard.utils import get_db_connection
 from src.utils.freshness_monitor import check_freshness
 from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table, validate_columns
+from src.dashboard.utils.i18n import t
 
 def get_quality_metrics():
     """Récupère les KPIs métiers depuis PostgreSQL."""
@@ -27,14 +28,14 @@ def get_quality_metrics():
         df = db.fetch_df(query)
         return df
     except Exception as e:
-        st.error(f"Erreur DB Metrics: {e}")
+        st.error(t("airflow_kpi.db_metrics_error", "Erreur DB Metrics: {err}").format(err=e))
         return pd.DataFrame()
     finally:
         db.close()
 
 def _section_source_status():
     """Onglet : fraîcheur et statut de chaque source de données."""
-    st.subheader("📡 État des sources de données")
+    st.subheader(t("airflow_kpi.source_status_header", "📡 État des sources de données"))
     db = get_db_connection()
     if db is None:
         return
@@ -47,35 +48,36 @@ def _section_source_status():
     for r in results:
         if r['last_dt'] is None:
             age_str = "—"
-            statut = "⚫ Jamais collectée"
+            statut = t("airflow_kpi.never_collected", "⚫ Jamais collectée")
         elif r['age_h'] is not None:
             age_str = f"{int(r['age_h'])}h" if r['age_h'] < 48 else f"{int(r['age_h'] / 24)}j"
-            statut = "🔴 Stale" if r['stale'] else "🟢 OK"
+            statut = t("airflow_kpi.status_stale", "🔴 Stale") if r['stale'] else t("airflow_kpi.status_ok", "🟢 OK")
         else:
             age_str = "—"
-            statut = "⚫ Erreur"
+            statut = t("airflow_kpi.status_error", "⚫ Erreur")
 
         date_str = r['last_dt'].strftime("%d/%m/%Y %H:%M") if r['last_dt'] else "—"
         rows.append({
-            "Source": r['source'],
-            "Dernière collecte": date_str,
-            "Âge": age_str,
-            "Seuil alerte": f"{r['stale_h']}h",
-            "Statut": statut,
+            t("airflow_kpi.col_source", "Source"): r['source'],
+            t("airflow_kpi.col_last_collect", "Dernière collecte"): date_str,
+            t("airflow_kpi.col_age", "Âge"): age_str,
+            t("airflow_kpi.col_alert_threshold", "Seuil alerte"): f"{r['stale_h']}h",
+            t("airflow_kpi.col_status", "Statut"): statut,
         })
 
     df = pd.DataFrame(rows)
-    st.dataframe(df.set_index("Source"), width="stretch")
+    st.dataframe(df.set_index(t("airflow_kpi.col_source", "Source")), width="stretch")
 
     stale_count = sum(1 for r in results if r['stale'])
     if stale_count:
-        st.warning(f"⚠️ {stale_count} source(s) dépassent le seuil de fraîcheur.")
+        st.warning(t("airflow_kpi.sources_stale_warning", "⚠️ {count} source(s) dépassent le seuil de fraîcheur.").format(count=stale_count))
     else:
-        st.success("✅ Toutes les sources sont dans les seuils.")
+        st.success(t("airflow_kpi.sources_all_ok", "✅ Toutes les sources sont dans les seuils."))
 
     st.caption(
-        "Seuil API (YouTube, SoundCloud, Instagram, Meta) : 48h — "
-        "Seuil CSV (Spotify S4A, Apple Music) : 7 jours"
+        t("airflow_kpi.freshness_caption",
+          "Seuil API (YouTube, SoundCloud, Instagram, Meta) : 48h — "
+          "Seuil CSV (Spotify S4A, Apple Music) : 7 jours")
     )
 
 
@@ -93,72 +95,72 @@ _STATE_ICON = {
 
 def _section_run_logs():
     """Onglet : explorer les runs + logs par tâche."""
-    st.subheader("📋 Logs par run")
+    st.subheader(t("airflow_kpi.run_logs_header", "📋 Logs par run"))
 
     monitor = AirflowMonitor()
 
     # ── Sélecteur DAG ──
-    with st.spinner("Chargement des DAGs..."):
+    with st.spinner(t("airflow_kpi.loading_dags", "Chargement des DAGs...")):
         dag_list = monitor.get_dag_list()
 
     if not dag_list:
-        st.error("❌ API Airflow inaccessible. Vérifiez que Docker est lancé.")
+        st.error(t("airflow_kpi.airflow_unreachable", "❌ API Airflow inaccessible. Vérifiez que Docker est lancé."))
         return
 
-    dag_id = st.selectbox("Sélectionner un DAG", dag_list, key="log_dag_id")
+    dag_id = st.selectbox(t("airflow_kpi.select_dag", "Sélectionner un DAG"), dag_list, key="log_dag_id")
 
     # ── Sélecteur Run ──
-    with st.spinner(f"Chargement des runs de {dag_id}..."):
+    with st.spinner(t("airflow_kpi.loading_runs", "Chargement des runs de {dag}...").format(dag=dag_id)):
         runs = monitor.get_runs_for_dag(dag_id, limit=20)
 
     if not runs:
-        st.info("Aucun run trouvé pour ce DAG.")
+        st.info(t("airflow_kpi.no_run_found", "Aucun run trouvé pour ce DAG."))
         return
 
     run_options = {
         f"{_STATE_ICON.get(r['state'], '⚫')} {r['run_id']}  ({r['state']})  — {r['start_date'][:16] if r['start_date'] else '?'}": r['run_id']
         for r in runs
     }
-    selected_label = st.selectbox("Sélectionner un Run", list(run_options.keys()), key="log_run_id")
+    selected_label = st.selectbox(t("airflow_kpi.select_run", "Sélectionner un Run"), list(run_options.keys()), key="log_run_id")
     run_id = run_options[selected_label]
 
     # ── Task instances ──
-    with st.spinner("Chargement des tâches..."):
+    with st.spinner(t("airflow_kpi.loading_tasks", "Chargement des tâches...")):
         tasks = monitor.get_task_instances(dag_id, run_id)
 
     if not tasks:
-        st.info("Aucune tâche trouvée pour ce run.")
+        st.info(t("airflow_kpi.no_task_found", "Aucune tâche trouvée pour ce run."))
         return
 
-    st.markdown("**Tâches du run**")
+    st.markdown(t("airflow_kpi.run_tasks", "**Tâches du run**"))
     cols_header = st.columns([3, 1, 1, 1])
-    cols_header[0].markdown("**Task ID**")
-    cols_header[1].markdown("**État**")
-    cols_header[2].markdown("**Durée**")
-    cols_header[3].markdown("**Tentative**")
+    cols_header[0].markdown(t("airflow_kpi.col_task_id", "**Task ID**"))
+    cols_header[1].markdown(t("airflow_kpi.col_state", "**État**"))
+    cols_header[2].markdown(t("airflow_kpi.col_duration", "**Durée**"))
+    cols_header[3].markdown(t("airflow_kpi.col_attempt", "**Tentative**"))
 
-    for t in tasks:
-        icon = _STATE_ICON.get(t['state'], '⚫')
-        dur = f"{t['duration']:.1f}s" if t['duration'] else "—"
+    for tr in tasks:
+        icon = _STATE_ICON.get(tr['state'], '⚫')
+        dur = f"{tr['duration']:.1f}s" if tr['duration'] else "—"
         c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
-        c1.markdown(f"`{t['task_id']}`")
-        c2.markdown(f"{icon} {t['state']}")
+        c1.markdown(f"`{tr['task_id']}`")
+        c2.markdown(f"{icon} {tr['state']}")
         c3.markdown(dur)
-        c4.markdown(str(t['try_number']))
+        c4.markdown(str(tr['try_number']))
 
     st.markdown("---")
 
     # ── Sélecteur Task pour les logs ──
-    task_ids = [t['task_id'] for t in tasks]
-    selected_task = st.selectbox("Voir les logs de la tâche", task_ids, key="log_task_id")
+    task_ids = [tr['task_id'] for tr in tasks]
+    selected_task = st.selectbox(t("airflow_kpi.select_task_logs", "Voir les logs de la tâche"), task_ids, key="log_task_id")
 
-    selected_task_info = next((t for t in tasks if t['task_id'] == selected_task), None)
+    selected_task_info = next((tr for tr in tasks if tr['task_id'] == selected_task), None)
     max_attempt = max(selected_task_info['try_number'] if selected_task_info else 1, 1)
-    attempt = st.number_input("Tentative n°", min_value=1, max_value=max_attempt,
+    attempt = st.number_input(t("airflow_kpi.attempt_n", "Tentative n°"), min_value=1, max_value=max_attempt,
                                value=max_attempt, step=1, key="log_attempt")
 
-    if st.button("📄 Charger les logs", type="primary"):
-        with st.spinner("Récupération des logs Airflow..."):
+    if st.button(t("airflow_kpi.load_logs_btn", "📄 Charger les logs"), type="primary"):
+        with st.spinner(t("airflow_kpi.fetching_logs", "Récupération des logs Airflow...")):
             log_text = monitor.get_task_log(dag_id, run_id, selected_task, attempt)
 
         if log_text:
@@ -169,13 +171,14 @@ def _section_run_logs():
             warning_lines = sum(1 for line in lines if 'WARNING' in line or 'WARN' in line)
 
             m1, m2, m3 = st.columns(3)
-            m1.metric("Lignes totales", len(lines))
-            m2.metric("Erreurs", error_lines, delta_color="inverse" if error_lines > 0 else "off")
-            m3.metric("Warnings", warning_lines, delta_color="inverse" if warning_lines > 0 else "off")
+            m1.metric(t("airflow_kpi.metric_total_lines", "Lignes totales"), len(lines))
+            m2.metric(t("airflow_kpi.metric_errors", "Erreurs"), error_lines, delta_color="inverse" if error_lines > 0 else "off")
+            m3.metric(t("airflow_kpi.metric_warnings", "Warnings"), warning_lines, delta_color="inverse" if warning_lines > 0 else "off")
 
             # Logs complets scrollables
             st.text_area(
-                f"Logs — {dag_id} / {selected_task} / tentative {attempt}",
+                t("airflow_kpi.log_textarea", "Logs — {dag} / {task} / tentative {attempt}").format(
+                    dag=dag_id, task=selected_task, attempt=attempt),
                 value=log_text,
                 height=500,
                 key="log_output"
@@ -183,29 +186,29 @@ def _section_run_logs():
 
             # Extraire uniquement les lignes ERROR pour diagnostic rapide
             if error_lines > 0:
-                with st.expander(f"🔴 Lignes ERROR uniquement ({error_lines})", expanded=True):
+                with st.expander(t("airflow_kpi.error_lines_only", "🔴 Lignes ERROR uniquement ({count})").format(count=error_lines), expanded=True):
                     error_text = "\n".join(line for line in lines if 'ERROR' in line or 'CRITICAL' in line)
                     st.code(error_text, language="text")
         else:
-            st.info("Logs vides ou indisponibles.")
+            st.info(t("airflow_kpi.logs_empty", "Logs vides ou indisponibles."))
 
 
 def _section_last_runs():
     """Tab: last run per DAG — status, duration, rows inserted."""
-    st.subheader("🕐 Dernière exécution par DAG")
+    st.subheader(t("airflow_kpi.last_runs_header", "🕐 Dernière exécution par DAG"))
 
     monitor = AirflowMonitor()
-    with st.spinner("Chargement des DAGs..."):
+    with st.spinner(t("airflow_kpi.loading_dags", "Chargement des DAGs...")):
         dag_list = monitor.get_dag_list()
 
     if not dag_list:
-        st.error("❌ API Airflow inaccessible. Vérifiez que Docker est lancé.")
+        st.error(t("airflow_kpi.airflow_unreachable", "❌ API Airflow inaccessible. Vérifiez que Docker est lancé."))
         return
 
     # Fetch the last run of every DAG in a single batch call (was N+1: one API
     # round-trip per DAG).
     rows = []
-    with st.spinner("Récupération des dernières exécutions..."):
+    with st.spinner(t("airflow_kpi.fetching_last_runs", "Récupération des dernières exécutions...")):
         last_states = monitor.get_all_dags_last_state()
         for dag_id in dag_list:
             r = last_states.get(dag_id)
@@ -226,7 +229,7 @@ def _section_last_runs():
             else:
                 rows.append({
                     "DAG": dag_id,
-                    "Statut": "⚫ jamais exécuté",
+                    "Statut": t("airflow_kpi.never_run", "⚫ jamais exécuté"),
                     "Dernier run": "—",
                     "Durée": "—",
                     "_state": None,
@@ -267,20 +270,29 @@ def _section_last_runs():
     n_never = sum(1 for s in states if s is None)
 
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("DAGs totaux", len(rows))
-    k2.metric("🟢 Succès", n_ok)
-    k3.metric("🔴 Échecs", n_fail, delta_color="inverse")
-    k4.metric("⚫ Jamais exécuté", n_never)
+    k1.metric(t("airflow_kpi.metric_total_dags", "DAGs totaux"), len(rows))
+    k2.metric(t("airflow_kpi.metric_success", "🟢 Succès"), n_ok)
+    k3.metric(t("airflow_kpi.metric_failures", "🔴 Échecs"), n_fail, delta_color="inverse")
+    k4.metric(t("airflow_kpi.metric_never_run", "⚫ Jamais exécuté"), n_never)
 
     if n_fail:
         failed_dags = [r["DAG"] for r in rows if r["_state"] == "failed"]
-        st.error(f"DAGs en échec : {', '.join(f'`{d}`' for d in failed_dags)}")
+        st.error(t("airflow_kpi.failed_dags", "DAGs en échec : {dags}").format(
+            dags=', '.join(f'`{d}`' for d in failed_dags)))
 
     st.markdown("---")
+    _last_runs_cols = {
+        "DAG": t("airflow_kpi.col_dag", "DAG"),
+        "Statut": t("airflow_kpi.col_status", "Statut"),
+        "Dernier run": t("airflow_kpi.col_last_run", "Dernier run"),
+        "Durée": t("airflow_kpi.col_duration_plain", "Durée"),
+        "Lignes insérées": t("airflow_kpi.col_rows_inserted", "Lignes insérées"),
+    }
+    df_display = df.rename(columns=_last_runs_cols)
     st.dataframe(
-        df.set_index("DAG"),
+        df_display.set_index(_last_runs_cols["DAG"]),
         column_config={
-            "Lignes insérées": st.column_config.NumberColumn(format="%d"),
+            _last_runs_cols["Lignes insérées"]: st.column_config.NumberColumn(format="%d"),
         },
         width="stretch",
     )
@@ -305,19 +317,26 @@ def _section_insertion_test():
     @st.fragment: the window selectbox only re-runs this section, not the whole
     Monitoring page (which re-fetches all DAG states + KPIs on every rerun).
     """
-    st.subheader("🗄️ Test d'insertion PostgreSQL par DAG")
+    st.subheader(t("airflow_kpi.insertion_header", "🗄️ Test d'insertion PostgreSQL par DAG"))
     st.caption(
-        "Comptage direct dans les tables sources — indépendant d'Airflow. "
-        "Permet de confirmer qu'un run a bien produit des données en base."
+        t("airflow_kpi.insertion_caption",
+          "Comptage direct dans les tables sources — indépendant d'Airflow. "
+          "Permet de confirmer qu'un run a bien produit des données en base.")
     )
 
     db = get_db_connection()
     if db is None:
-        st.error("❌ Base de données inaccessible.")
+        st.error(t("airflow_kpi.db_unreachable", "❌ Base de données inaccessible."))
         return
 
     window = st.selectbox(
-        "Fenêtre de contrôle", ["Aujourd'hui", "7 derniers jours", "30 derniers jours"],
+        t("airflow_kpi.control_window", "Fenêtre de contrôle"),
+        ["Aujourd'hui", "7 derniers jours", "30 derniers jours"],
+        format_func=lambda w: {
+            "Aujourd'hui": t("airflow_kpi.window_today", "Aujourd'hui"),
+            "7 derniers jours": t("airflow_kpi.window_7d", "7 derniers jours"),
+            "30 derniers jours": t("airflow_kpi.window_30d", "30 derniers jours"),
+        }.get(w, w),
         key="insert_window"
     )
     interval_map = {
@@ -350,10 +369,10 @@ def _section_insertion_test():
                 last_str = pd.to_datetime(last_ins).strftime('%d/%m %H:%M') if last_ins else '—'
 
                 if total and total > 0:
-                    status = "✅ OK"
+                    status = t("airflow_kpi.status_ok_check", "✅ OK")
                     color = "green"
                 else:
-                    status = "⚠️ 0 ligne"
+                    status = t("airflow_kpi.status_zero_rows", "⚠️ 0 ligne")
                     color = "red"
 
                 results.append({
@@ -386,9 +405,14 @@ def _section_insertion_test():
     n_ok = sum(1 for r in results if r["_color"] == "green")
     n_ko = len(results) - n_ok
     c1, c2, c3 = st.columns(3)
-    c1.metric("DAGs avec données", n_ok, f"/ {len(results)}")
-    c2.metric("DAGs sans données", n_ko, delta_color="inverse")
-    c3.metric("Fenêtre", window)
+    c1.metric(t("airflow_kpi.metric_dags_with_data", "DAGs avec données"), n_ok, f"/ {len(results)}")
+    c2.metric(t("airflow_kpi.metric_dags_no_data", "DAGs sans données"), n_ko, delta_color="inverse")
+    window_label = {
+        "Aujourd'hui": t("airflow_kpi.window_today", "Aujourd'hui"),
+        "7 derniers jours": t("airflow_kpi.window_7d", "7 derniers jours"),
+        "30 derniers jours": t("airflow_kpi.window_30d", "30 derniers jours"),
+    }.get(window, window)
+    c3.metric(t("airflow_kpi.metric_window", "Fenêtre"), window_label)
 
     st.markdown("---")
 
@@ -398,9 +422,9 @@ def _section_insertion_test():
         with st.container():
             col_label, col_rows, col_days, col_last, col_status = st.columns([3, 1, 1, 2, 1])
             col_label.markdown(f"**{r['Plateforme']}**  \n`{r['Table']}`")
-            col_rows.metric("Lignes", f"{r['Lignes']:,}")
-            col_days.metric("Jours", r["Jours distincts"])
-            col_last.markdown(f"Dernier insert  \n`{r['Dernier insert']}`")
+            col_rows.metric(t("airflow_kpi.metric_rows", "Lignes"), f"{r['Lignes']:,}")
+            col_days.metric(t("airflow_kpi.metric_days", "Jours"), r["Jours distincts"])
+            col_last.markdown(f"{t('airflow_kpi.last_insert_label', 'Dernier insert')}  \n`{r['Dernier insert']}`")
             col_status.markdown(f"{icon} **{r['Statut']}**")
 
         if r["_color"] == "red" and "❌" in r["Statut"]:
@@ -410,15 +434,18 @@ def _section_insertion_test():
 
 def show():
     if not is_admin():
-        st.error("⛔ Accès réservé à l'administrateur.")
+        st.error(t("airflow_kpi.access_denied", "⛔ Accès réservé à l'administrateur."))
         st.stop()
 
-    st.title("🏗️ Monitoring ETL & Qualité (Global)")
+    st.title(t("airflow_kpi.title", "🏗️ Monitoring ETL & Qualité (Global)"))
     st.markdown("---")
 
     tab_etl, tab_sources, tab_last, tab_logs, tab_insert = st.tabs([
-        "📊 Performance DAGs", "📡 État des sources",
-        "🕐 Dernière exécution", "📋 Logs par Run", "🗄️ Test insertion DB"
+        t("airflow_kpi.tab_perf", "📊 Performance DAGs"),
+        t("airflow_kpi.tab_sources", "📡 État des sources"),
+        t("airflow_kpi.tab_last", "🕐 Dernière exécution"),
+        t("airflow_kpi.tab_logs", "📋 Logs par Run"),
+        t("airflow_kpi.tab_insert", "🗄️ Test insertion DB"),
     ])
 
     with tab_sources:
@@ -437,12 +464,12 @@ def show():
         # 1. Récupération des Données (Airflow + DB)
         monitor = AirflowMonitor()
 
-        with st.spinner("Analyse des performances (API + BDD)..."):
+        with st.spinner(t("airflow_kpi.analyzing_perf", "Analyse des performances (API + BDD)...")):
             af_data = monitor.get_kpis()
             df_quality = get_quality_metrics()
 
         if af_data is None:
-            st.error("❌ API Airflow injoignable.")
+            st.error(t("airflow_kpi.airflow_unreachable_short", "❌ API Airflow injoignable."))
             return
 
         df_runs = af_data['raw_data'].copy()
@@ -495,18 +522,18 @@ def show():
 
             # KPIs globaux
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Exécutions (24h)", af_data['total_runs_24h'])
-            c2.metric("Taux Succès Global", f"{af_data['success_rate']:.1f}%")
-            c3.metric("% Invalide Moyen", f"{df_display['% Invalide'].mean():.2f}%", delta_color="inverse")
-            c4.metric("Échecs (7j)", af_data['failed_count'], delta_color="inverse")
+            c1.metric(t("airflow_kpi.metric_runs_24h", "Exécutions (24h)"), af_data['total_runs_24h'])
+            c2.metric(t("airflow_kpi.metric_global_success", "Taux Succès Global"), f"{af_data['success_rate']:.1f}%")
+            c3.metric(t("airflow_kpi.metric_avg_invalid", "% Invalide Moyen"), f"{df_display['% Invalide'].mean():.2f}%", delta_color="inverse")
+            c4.metric(t("airflow_kpi.metric_failures_7d", "Échecs (7j)"), af_data['failed_count'], delta_color="inverse")
 
             st.markdown("---")
-            st.subheader("📊 Performance par Pipeline")
+            st.subheader(t("airflow_kpi.perf_per_pipeline", "📊 Performance par Pipeline"))
             st.dataframe(
                 df_display.set_index('dag_id'),
                 column_config={
-                    "Taux Succès": st.column_config.ProgressColumn("Succès", format="%.1f%%", min_value=0, max_value=100),
-                    "Uptime API": st.column_config.ProgressColumn("Dispo API", format="%.1f%%", min_value=0, max_value=100),
+                    "Taux Succès": st.column_config.ProgressColumn(t("airflow_kpi.col_success", "Succès"), format="%.1f%%", min_value=0, max_value=100),
+                    "Uptime API": st.column_config.ProgressColumn(t("airflow_kpi.col_api_uptime", "Dispo API"), format="%.1f%%", min_value=0, max_value=100),
                     "% Invalide": st.column_config.NumberColumn(format="%.2f %%"),
                     "Temps Exec Moyen (s)": st.column_config.NumberColumn(format="%.1f s"),
                     "Délai Moy. Alerte (s)": st.column_config.NumberColumn(format="%d s"),
@@ -515,7 +542,7 @@ def show():
             )
 
             st.markdown("---")
-            st.subheader("⏱️ Chronologie des dernières exécutions")
+            st.subheader(t("airflow_kpi.timeline_header", "⏱️ Chronologie des dernières exécutions"))
             gantt_df = df_runs.head(20).copy()
             fig = px.timeline(
                 gantt_df,
@@ -528,7 +555,7 @@ def show():
 
             # ── Taux de succès par DAG ──────────────────────────────────
             st.markdown("---")
-            st.subheader("✅ Taux de succès par DAG")
+            st.subheader(t("airflow_kpi.success_rate_header", "✅ Taux de succès par DAG"))
             fig_success = px.bar(
                 df_tech.sort_values("Taux Succès"),
                 x="Taux Succès",
@@ -537,7 +564,7 @@ def show():
                 color="Taux Succès",
                 color_continuous_scale=["#EF553B", "#FFA15A", "#00CC96"],
                 range_color=[0, 100],
-                labels={"dag_id": "DAG", "Taux Succès": "Succès (%)"},
+                labels={"dag_id": t("airflow_kpi.col_dag", "DAG"), "Taux Succès": t("airflow_kpi.chart_success_pct", "Succès (%)")},
                 text="Taux Succès",
             )
             fig_success.update_traces(texttemplate="%{text:.0f}%", textposition="outside")
@@ -546,7 +573,7 @@ def show():
 
             # ── Tendance journalière des runs ───────────────────────────
             st.markdown("---")
-            st.subheader("📈 Tendance journalière des runs (30 derniers jours)")
+            st.subheader(t("airflow_kpi.daily_trend_header", "📈 Tendance journalière des runs (30 derniers jours)"))
             if "start_date" in df_runs.columns:
                 trend_df = df_runs.copy()
                 trend_df["date"] = pd.to_datetime(trend_df["start_date"]).dt.date
@@ -561,14 +588,14 @@ def show():
                     y="count",
                     color="state",
                     color_discrete_map={"success": "#00CC96", "failed": "#EF553B", "running": "#636EFA"},
-                    labels={"date": "Date", "count": "Nombre de runs", "state": "Statut"},
+                    labels={"date": t("airflow_kpi.chart_date", "Date"), "count": t("airflow_kpi.chart_run_count", "Nombre de runs"), "state": t("airflow_kpi.chart_status", "Statut")},
                     barmode="stack",
                 )
                 fig_trend.update_layout(height=320)
                 st.plotly_chart(fig_trend, width='stretch')
 
         else:
-            st.info("Aucune donnée d'exécution trouvée dans Airflow.")
+            st.info(t("airflow_kpi.no_exec_data", "Aucune donnée d'exécution trouvée dans Airflow."))
 
 if __name__ == "__main__":
     show()

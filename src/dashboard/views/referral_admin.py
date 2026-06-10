@@ -12,23 +12,24 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
 
 def _guard():
     if not is_admin():
-        st.error("⛔ Admin access only.")
+        st.error(t("referral_admin.admin_only", "⛔ Accès réservé aux administrateurs."))
         st.stop()
 
 
 def show():
     _guard()
-    st.title("📊 Referral Program — KPIs")
+    st.title(t("referral_admin.title", "📊 Programme de parrainage — KPIs"))
     st.markdown("---")
 
     db = get_db_connection()
     if db is None:
-        st.error("❌ Database unreachable.")
+        st.error(t("referral_admin.db_unreachable", "❌ Base de données injoignable."))
         return
 
     try:
@@ -53,15 +54,15 @@ def show():
         conversion_rate = f"{(converted / total_referrals * 100):.1f}%" if total_referrals else "—"
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total referrals", total_referrals)
-        col2.metric("Converted to paid", converted)
-        col3.metric("Conversion rate", conversion_rate)
-        col4.metric("Free months granted", int(total_free_months))
+        col1.metric(t("referral_admin.metric_total_referrals", "Parrainages totaux"), total_referrals)
+        col2.metric(t("referral_admin.metric_converted", "Convertis en payant"), converted)
+        col3.metric(t("referral_admin.metric_conversion_rate", "Taux de conversion"), conversion_rate)
+        col4.metric(t("referral_admin.metric_free_months", "Mois offerts accordés"), int(total_free_months))
 
         st.markdown("---")
 
         # ── Top referrers ──────────────────────────────────────────────────
-        st.subheader("Top referrers")
+        st.subheader(t("referral_admin.top_referrers", "Meilleurs parrains"))
 
         top_rows = db.fetch_query(
             """
@@ -84,14 +85,25 @@ def show():
                 top_rows,
                 columns=["Artist", "Referrals made", "Free months earned", "Code uses", "Code"],
             )
-            st.dataframe(df_top, hide_index=True, width="stretch")
+            st.dataframe(
+                df_top,
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "Artist": t("referral_admin.col_artist", "Artiste"),
+                    "Referrals made": t("referral_admin.col_referrals_made", "Parrainages réalisés"),
+                    "Free months earned": t("referral_admin.col_free_months_earned", "Mois offerts gagnés"),
+                    "Code uses": t("referral_admin.col_code_uses", "Utilisations du code"),
+                    "Code": t("referral_admin.col_code", "Code"),
+                },
+            )
         else:
-            st.info("No referrals recorded yet.")
+            st.info(t("referral_admin.no_referrals", "Aucun parrainage enregistré pour l'instant."))
 
         st.markdown("---")
 
         # ── Full event log ─────────────────────────────────────────────────
-        st.subheader("All referral events")
+        st.subheader(t("referral_admin.all_events", "Tous les événements de parrainage"))
 
         log_rows = db.fetch_query(
             """
@@ -116,9 +128,20 @@ def show():
                 columns=["Referrer", "Referred", "Code used", "Date", "Referred's plan"],
             )
             df_log["Date"] = df_log["Date"].astype(str)
-            st.dataframe(df_log, hide_index=True, width="stretch")
+            st.dataframe(
+                df_log,
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "Referrer": t("referral_admin.col_referrer", "Parrain"),
+                    "Referred": t("referral_admin.col_referred", "Filleul"),
+                    "Code used": t("referral_admin.col_code_used", "Code utilisé"),
+                    "Date": t("referral_admin.col_date", "Date"),
+                    "Referred's plan": t("referral_admin.col_referred_plan", "Plan du filleul"),
+                },
+            )
         else:
-            st.info("No referral events yet.")
+            st.info(t("referral_admin.no_events", "Aucun événement de parrainage pour l'instant."))
 
     finally:
         db.close()

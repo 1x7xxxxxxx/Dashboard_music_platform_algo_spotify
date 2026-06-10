@@ -15,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song, rebuild_release_reference
 from src.utils.track_mapping_suggest import rank_campaign_candidates, rank_track_candidates
 
@@ -166,12 +167,14 @@ def _save_campaign_links(db, artist_id, sugg, edited):
 def _render_matrix(canonical, links_df):
     confirmed = links_df[links_df.status == 'confirmed'] if not links_df.empty else links_df
     rows = []
-    for t in canonical:
-        row = {'Track': t['title'], 'Sortie': str(t['release_date'] or '—')}
+    col_track = t("track_mapping.col_track", "Track")
+    col_release = t("track_mapping.col_release", "Sortie")
+    for tr in canonical:
+        row = {col_track: tr['title'], col_release: str(tr['release_date'] or '—')}
         for pkey, plabel in _PLATFORMS:
             cell = '—'
             if not confirmed.empty:
-                m = confirmed[(confirmed.match_key == t['match_key'])
+                m = confirmed[(confirmed.match_key == tr['match_key'])
                               & (confirmed.platform == pkey)]
                 if not m.empty:
                     cell = str(m.iloc[0]['platform_title'])
@@ -181,47 +184,61 @@ def _render_matrix(canonical, links_df):
 
 
 def show():
-    st.title("🧩 Mapping multi-plateformes")
-    st.caption("Reliez automatiquement vos titres entre plateformes (Spotify, Apple, "
-               "SoundCloud, YouTube) à partir de la similarité des noms.")
+    st.title(t("track_mapping.title", "🧩 Mapping multi-plateformes"))
+    st.caption(t("track_mapping.caption",
+                 "Reliez automatiquement vos titres entre plateformes (Spotify, Apple, "
+                 "SoundCloud, YouTube) à partir de la similarité des noms."))
 
     with view_session() as (db, artist_id):
         canonical = _load_canonical(db, artist_id)
         if not canonical:
-            st.info("Aucune référence de titres trouvée. Importez vos CSV S4A puis "
-                    "reconstruisez la référence ci-dessous.")
-            if st.button("🔄 Reconstruire la référence des titres"):
+            st.info(t("track_mapping.no_reference",
+                      "Aucune référence de titres trouvée. Importez vos CSV S4A puis "
+                      "reconstruisez la référence ci-dessous."))
+            if st.button(t("track_mapping.rebuild_button",
+                           "🔄 Reconstruire la référence des titres")):
                 n = rebuild_release_reference(db, artist_id)
-                st.success(f"{n} titre(s) de référence reconstruits.")
+                st.success(t("track_mapping.rebuilt",
+                             "{n} titre(s) de référence reconstruits.").format(n=n))
                 st.rerun()
             return
 
         tab_sugg, tab_camp, tab_matrix = st.tabs(
-            ["Suggestions par plateforme", "Meta campagnes", "Vue unifiée"])
+            [t("track_mapping.tab_suggestions", "Suggestions par plateforme"),
+             t("track_mapping.tab_campaigns", "Meta campagnes"),
+             t("track_mapping.tab_matrix", "Vue unifiée")])
 
         with tab_sugg:
             links_df = _load_links(db, artist_id)
             plabels = {k: v for k, v in _PLATFORMS}
-            pkey = st.selectbox("Plateforme", [k for k, _ in _PLATFORMS],
+            pkey = st.selectbox(t("track_mapping.platform_label", "Plateforme"),
+                                [k for k, _ in _PLATFORMS],
                                 format_func=lambda k: plabels[k])
             sugg, disp = _build_suggestions(db, artist_id, pkey, canonical, links_df)
             if disp.empty:
-                st.success("✅ Rien à mapper ici (tout est déjà lié ou rejeté).")
+                st.success(t("track_mapping.nothing_to_map",
+                             "✅ Rien à mapper ici (tout est déjà lié ou rejeté)."))
             else:
-                st.caption("🟢 ≥80 % · 🟡 50–80 % · 🔴 <50 %. Cochez **Accepter** (ou "
-                           "**Rejeter** pour ne plus proposer), puis enregistrez.")
+                st.caption(t("track_mapping.legend",
+                             "🟢 ≥80 % · 🟡 50–80 % · 🔴 <50 %. Cochez **Accepter** (ou "
+                             "**Rejeter** pour ne plus proposer), puis enregistrez."))
                 edited = st.data_editor(
                     disp, hide_index=True, width='stretch', key=f"ed_{pkey}",
                     column_config={
                         'Confiance': st.column_config.ProgressColumn(
-                            'Confiance', min_value=0.0, max_value=1.0, format="%.0f%%"),
-                        'Accepter': st.column_config.CheckboxColumn('Accepter'),
-                        'Rejeter': st.column_config.CheckboxColumn('Rejeter'),
+                            t("track_mapping.col_confidence", "Confiance"),
+                            min_value=0.0, max_value=1.0, format="%.0f%%"),
+                        'Accepter': st.column_config.CheckboxColumn(
+                            t("track_mapping.col_accept", "Accepter")),
+                        'Rejeter': st.column_config.CheckboxColumn(
+                            t("track_mapping.col_reject", "Rejeter")),
                     },
                     disabled=['Titre plateforme', 'Suggestion (track)', 'Confiance'])
-                if st.button("💾 Enregistrer les liens", type="primary"):
+                if st.button(t("track_mapping.save_links_button", "💾 Enregistrer les liens"),
+                             type="primary"):
                     n = _save_links(db, artist_id, pkey, sugg, edited)
-                    st.success(f"{n} lien(s) enregistré(s).")
+                    st.success(t("track_mapping.links_saved",
+                                 "{n} lien(s) enregistré(s).").format(n=n))
                     st.rerun()
 
         with tab_camp:
@@ -230,22 +247,28 @@ def show():
                               if not links_df.empty else set())
             sugg, disp = _build_campaign_suggestions(db, artist_id, canonical, confirmed_keys)
             if disp.empty:
-                st.info("Aucune campagne Meta à associer (toutes déjà mappées, ou aucune "
-                        "campagne collectée).")
+                st.info(t("track_mapping.no_campaigns",
+                          "Aucune campagne Meta à associer (toutes déjà mappées, ou aucune "
+                          "campagne collectée)."))
             else:
-                st.caption("Suggestions basées sur la similarité du nom de campagne **et** la "
-                           "proximité avec la date de sortie du titre.")
+                st.caption(t("track_mapping.campaign_legend",
+                             "Suggestions basées sur la similarité du nom de campagne **et** la "
+                             "proximité avec la date de sortie du titre."))
                 edited = st.data_editor(
                     disp, hide_index=True, width='stretch', key="ed_camp",
                     column_config={
                         'Confiance': st.column_config.ProgressColumn(
-                            'Confiance', min_value=0.0, max_value=1.0, format="%.0f%%"),
-                        'Associer': st.column_config.CheckboxColumn('Associer'),
+                            t("track_mapping.col_confidence", "Confiance"),
+                            min_value=0.0, max_value=1.0, format="%.0f%%"),
+                        'Associer': st.column_config.CheckboxColumn(
+                            t("track_mapping.col_associate", "Associer")),
                     },
                     disabled=['Campagne', 'Suggestion (track)', 'Confiance', 'Méthode'])
-                if st.button("💾 Associer les campagnes", type="primary"):
+                if st.button(t("track_mapping.associate_button", "💾 Associer les campagnes"),
+                             type="primary"):
                     n = _save_campaign_links(db, artist_id, sugg, edited)
-                    st.success(f"{n} campagne(s) associée(s).")
+                    st.success(t("track_mapping.campaigns_associated",
+                                 "{n} campagne(s) associée(s).").format(n=n))
                     st.rerun()
 
         with tab_matrix:

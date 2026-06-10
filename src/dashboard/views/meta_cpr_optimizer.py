@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin, require_plan
 from src.utils.track_matching import canonical_song_sql
 
@@ -21,14 +22,21 @@ _SCORE_THRESHOLDS = [
     (3.0,  "⚪ Maintenir",  "=",     "=",     "#6c757d"),
     (0.0,  "🔴 Réduire",    "-30%",  "-30%",  "#dc3545"),
 ]
+# FR label → stable i18n slug (labels translated at call time in _get_recommendation).
+_REC_SLUGS = {
+    "🟢 Augmenter": "increase_strong",
+    "🟡 Augmenter": "increase_light",
+    "⚪ Maintenir": "hold",
+    "🔴 Réduire": "reduce",
+}
 
 
 def _get_recommendation(score: float) -> tuple[str, str, str]:
     """Return (label, budget_delta, color) for a given score."""
     for threshold, label, delta, _, color in _SCORE_THRESHOLDS:
         if score >= threshold:
-            return label, delta, color
-    return "🔴 Réduire", "-30%", "#dc3545"
+            return t(f"meta_cpr_optimizer.rec.{_REC_SLUGS[label]}", label), delta, color
+    return t("meta_cpr_optimizer.rec.reduce", "🔴 Réduire"), "-30%", "#dc3545"
 
 
 _QUERY_OPTIMIZER = f"""
@@ -112,10 +120,11 @@ def _render_summary_kpi(df: pd.DataFrame) -> None:
     n_reduce = (df['budget_delta'] == '-30%').sum()
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Campagnes analysées", len(mapped))
-    col2.metric("Sans données CPR", len(unmapped), help="Campagnes mappées mais sans spend Meta")
-    col3.metric("Recommandation hausse", int(n_increase))
-    col4.metric("Recommandation réduction", int(n_reduce))
+    col1.metric(t("meta_cpr_optimizer.kpi_analyzed", "Campagnes analysées"), len(mapped))
+    col2.metric(t("meta_cpr_optimizer.kpi_no_cpr", "Sans données CPR"), len(unmapped),
+                help=t("meta_cpr_optimizer.kpi_no_cpr_help", "Campagnes mappées mais sans spend Meta"))
+    col3.metric(t("meta_cpr_optimizer.kpi_increase", "Recommandation hausse"), int(n_increase))
+    col4.metric(t("meta_cpr_optimizer.kpi_reduce", "Recommandation réduction"), int(n_reduce))
 
 
 def _render_table(df: pd.DataFrame) -> None:
@@ -137,10 +146,15 @@ def _render_table(df: pd.DataFrame) -> None:
             'Score', 'CPR actuel', 'budget_delta',
             'Dépense', 'Résultats', 'ML max',
         ]].rename(columns={
-            'rec_label':     'Action',
-            'campaign_name': 'Campagne',
-            'track_name':    'Track liée',
-            'budget_delta':  'Budget suggéré',
+            'rec_label':     t("meta_cpr_optimizer.col_action", "Action"),
+            'campaign_name': t("meta_cpr_optimizer.col_campaign", "Campagne"),
+            'track_name':    t("meta_cpr_optimizer.col_track", "Track liée"),
+            'budget_delta':  t("meta_cpr_optimizer.col_budget", "Budget suggéré"),
+            'Score':         t("meta_cpr_optimizer.col_score", "Score"),
+            'CPR actuel':    t("meta_cpr_optimizer.col_current_cpr", "CPR actuel"),
+            'Dépense':       t("meta_cpr_optimizer.col_spend", "Dépense"),
+            'Résultats':     t("meta_cpr_optimizer.col_results", "Résultats"),
+            'ML max':        t("meta_cpr_optimizer.col_ml_max", "ML max"),
         }),
         width="stretch",
         hide_index=True,
@@ -151,42 +165,50 @@ def _render_detail_cards(df: pd.DataFrame) -> None:
     """Expandable cards per campaign with full explanation."""
     for _, row in df.iterrows():
         ml_max = max(row['dw_prob'], row['rr_prob'], row['radio_prob'])
-        cpr_str = f"{row['cpr']:.2f}€" if pd.notna(row['cpr']) else "inconnu"
+        cpr_str = (f"{row['cpr']:.2f}€" if pd.notna(row['cpr'])
+                   else t("meta_cpr_optimizer.unknown", "inconnu"))
         score = row['score_10']
         label, delta, color = _get_recommendation(score)
 
         with st.expander(f"{label} — **{row['campaign_name']}** → {row['track_name']}"):
             col_a, col_b, col_c = st.columns(3)
-            col_a.metric("Score composite", f"{score:.1f}/10")
-            col_b.metric("CPR actuel", cpr_str)
-            col_c.metric("Budget suggéré", delta)
+            col_a.metric(t("meta_cpr_optimizer.composite_score", "Score composite"), f"{score:.1f}/10")
+            col_b.metric(t("meta_cpr_optimizer.col_current_cpr", "CPR actuel"), cpr_str)
+            col_c.metric(t("meta_cpr_optimizer.col_budget", "Budget suggéré"), delta)
 
-            st.markdown(
-                f"**Probabilité ML max** : {ml_max:.0%} "
-                f"(DW: {row['dw_prob']:.0%} | RR: {row['rr_prob']:.0%} | Radio: {row['radio_prob']:.0%})"
-            )
+            st.markdown(t(
+                "meta_cpr_optimizer.ml_prob",
+                "**Probabilité ML max** : {ml_max} "
+                "(DW: {dw} | RR: {rr} | Radio: {radio})"
+            ).format(ml_max=f"{ml_max:.0%}", dw=f"{row['dw_prob']:.0%}",
+                     rr=f"{row['rr_prob']:.0%}", radio=f"{row['radio_prob']:.0%}"))
 
             if pd.isna(row['cpr']):
-                st.warning(
+                st.warning(t(
+                    "meta_cpr_optimizer.warn_no_cpr",
                     "Pas de données CPR pour cette campagne — "
                     "vérifiez que la campagne Meta Ads a des résultats et que le CSV est importé."
-                )
+                ))
             elif score >= 7:
-                st.success(
-                    f"✅ **Campagne performante** : CPR bas ({cpr_str}) + fort potentiel ML ({ml_max:.0%}). "
+                st.success(t(
+                    "meta_cpr_optimizer.msg_performing",
+                    "✅ **Campagne performante** : CPR bas ({cpr}) + fort potentiel ML ({ml}). "
                     "Augmenter le budget de 30% pour maximiser la fenêtre algo."
-                )
+                ).format(cpr=cpr_str, ml=f"{ml_max:.0%}"))
             elif score >= 5:
-                st.info(
+                st.info(t(
+                    "meta_cpr_optimizer.msg_good",
                     "🟡 **Bon rapport** : augmenter légèrement (+10%) et surveiller l'évolution du CPR sur 7 jours."
-                )
+                ))
             elif score >= 3:
-                st.info("⚪ **Performance moyenne** : maintenir le budget actuel et attendre plus de données.")
+                st.info(t("meta_cpr_optimizer.msg_average",
+                          "⚪ **Performance moyenne** : maintenir le budget actuel et attendre plus de données."))
             else:
-                st.error(
-                    f"🔴 **Sous-performante** : CPR élevé ({cpr_str}) et/ou faible potentiel ML ({ml_max:.0%}). "
+                st.error(t(
+                    "meta_cpr_optimizer.msg_under",
+                    "🔴 **Sous-performante** : CPR élevé ({cpr}) et/ou faible potentiel ML ({ml}). "
                     "Réduire le budget de 30% ou revoir la créative et le ciblage."
-                )
+                ).format(cpr=cpr_str, ml=f"{ml_max:.0%}"))
 
 
 def show() -> None:
@@ -194,19 +216,20 @@ def show() -> None:
         return
 
     st.title("📊 CPR Optimizer")
-    st.caption(
+    st.caption(t(
+        "meta_cpr_optimizer.subtitle",
         "Score composite ML × CPR pour chaque campagne. "
         "Basé sur `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
-    )
+    ))
 
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide."); st.stop()
+            st.error(t("meta_cpr_optimizer.invalid_session", "Session invalide.")); st.stop()
         artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
     db = get_db_connection()
     if db is None:
-        st.error("Base de données inaccessible.")
+        st.error(t("meta_cpr_optimizer.db_unavailable", "Base de données inaccessible."))
         return
 
     try:
@@ -216,11 +239,12 @@ def show() -> None:
         db.close()
 
     if df.empty:
-        st.info(
+        st.info(t(
+            "meta_cpr_optimizer.no_mapping",
             "Aucun mapping campagne → track trouvé. "
             "Créez d'abord des mappings dans **🔗 Meta Mapping**, "
             "puis relancez le DAG Meta Ads."
-        )
+        ))
         return
 
     # CPR médian global (toutes campagnes avec données)
@@ -228,13 +252,17 @@ def show() -> None:
 
     df = _compute_scores(df, cpr_median)
 
-    st.markdown(f"CPR médian du compte : **{cpr_median:.2f}€**")
+    st.markdown(t("meta_cpr_optimizer.account_median",
+                  "CPR médian du compte : **{v}€**").format(v=f"{cpr_median:.2f}"))
     st.markdown("---")
 
     _render_summary_kpi(df)
     st.markdown("---")
 
-    tab_cards, tab_table = st.tabs(["🃏 Recommandations détaillées", "📋 Tableau"])
+    tab_cards, tab_table = st.tabs([
+        t("meta_cpr_optimizer.tab_cards", "🃏 Recommandations détaillées"),
+        t("meta_cpr_optimizer.tab_table", "📋 Tableau"),
+    ])
 
     with tab_cards:
         # Sort: increase first, then neutral, then reduce
@@ -248,8 +276,9 @@ def show() -> None:
         _render_table(df.sort_values('score_10', ascending=False))
 
     st.markdown("---")
-    st.caption(
+    st.caption(t(
+        "meta_cpr_optimizer.disclaimer",
         "⚠️ Ces recommandations sont indicatives. "
         "Le score est calculé sur les données disponibles — "
         "plus il y a de jours de collecte, plus le score est fiable."
-    )
+    ))

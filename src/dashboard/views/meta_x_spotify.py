@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
 
@@ -37,11 +38,12 @@ def _show_body(db, artist_id):
     # =========================================================================
     # ANALYSE CROISÉE (SMART FILTER)
     # =========================================================================
-    st.header("📊 Performance 360°")
-    st.caption(
+    st.header(t("meta_x_spotify.header", "📊 Performance 360°"))
+    st.caption(t(
+        "meta_x_spotify.mapping_hint",
         "ℹ️ Les associations campagne ↔ titre se gèrent dans "
         "**📁 Données → 🔗 Mapping Spotify × Meta Ads (nom de campagne)**."
-    )
+    ))
 
     try:
         q_camp_list = ("SELECT campaign_name FROM meta_insights_performance_day "
@@ -57,14 +59,14 @@ def _show_body(db, artist_id):
 
     with col_filter:
         selected_campaign = st.selectbox(
-            "Choisir la Campagne",
+            t("meta_x_spotify.choose_campaign", "Choisir la Campagne"),
             options=available_campaigns,
             index=_default_campaign_index(db, artist_id, available_campaigns)
             if available_campaigns else None,
         )
 
     if not selected_campaign:
-        st.info("Sélectionnez une campagne.")
+        st.info(t("meta_x_spotify.select_campaign", "Sélectionnez une campagne."))
         return
 
     # Période ancrée au début de la campagne (ici la "release" = lancement campagne)
@@ -86,7 +88,7 @@ def _show_body(db, artist_id):
             artist_id=artist_id, key=f"mxs_{selected_campaign}",
             latest_release=camp_start, default_override="last_release",
         )
-        st.caption("Période par défaut = depuis le début de la campagne.")
+        st.caption(t("meta_x_spotify.default_period", "Période par défaut = depuis le début de la campagne."))
     start_date, end_date = window.start, window.end
 
     # --- RÉCUPÉRATION DU TITRE ASSOCIÉ ---
@@ -95,9 +97,10 @@ def _show_body(db, artist_id):
         res_map = db.fetch_df("SELECT track_name FROM campaign_track_mapping WHERE campaign_name = %s LIMIT 1", (selected_campaign,))
         if not res_map.empty:
             mapped_track = res_map.iloc[0]['track_name']
-            st.caption(f"🎵 Titre lié : **{mapped_track}**")
+            st.caption(t("meta_x_spotify.linked_track", "🎵 Titre lié : **{track}**").format(track=mapped_track))
         else:
-            st.warning("⚠️ Pas de titre associé. Configurez le lien en haut de page.")
+            st.warning(t("meta_x_spotify.no_linked_track",
+                         "⚠️ Pas de titre associé. Configurez le lien en haut de page."))
     except: pass
 
     # =========================================================================
@@ -135,7 +138,7 @@ def _show_body(db, artist_id):
             """
             df_streams = db.fetch_df(q_streams, (artist_id, mapped_track.strip(), start_date, end_date))
         except Exception as e:
-            st.error(f"Erreur Streams SQL: {e}")
+            st.error(t("meta_x_spotify.streams_sql_error", "Erreur Streams SQL: {e}").format(e=e))
             df_streams = pd.DataFrame()
 
         try:
@@ -167,7 +170,7 @@ def _show_body(db, artist_id):
     ]).dropna().unique()
 
     if len(all_dates) == 0:
-        st.warning("Aucune donnée trouvée.")
+        st.warning(t("meta_x_spotify.no_data", "Aucune donnée trouvée."))
         return
 
     # all_dates may mix datetime.date (raw psycopg2 day_date) and pd.Timestamp
@@ -228,20 +231,21 @@ def _show_body(db, artist_id):
     idx, raw = _index100('spend')
     if idx is not None:
         fig.add_trace(go.Scatter(
-            x=df_master['date'], y=idx, name="Budget (€)", mode='lines',
+            x=df_master['date'], y=idx, name=t("meta_x_spotify.budget_eur", "Budget (€)"), mode='lines',
             line=dict(color='#ff6361', width=0), fill='tozeroy',
             fillcolor='rgba(255, 99, 97, 0.12)',
-            customdata=raw, hovertemplate="Budget : %{customdata:,.2f} €<extra></extra>",
+            customdata=raw,
+            hovertemplate=t("meta_x_spotify.budget_hover", "Budget : %{customdata:,.2f} €<extra></extra>"),
         ))
 
-    # (column, legend label, colour, dash, absolute hover format)
+    # (column, legend label [FR source, translated via t below], colour, dash, hover fmt)
     _series = [
-        ('results',         "Résultats",         '#003f5c', None,   ',.0f'),
-        ('streams',         "Streams / jour",    '#1DB954', None,   ',.0f'),
-        ('hypeddit_visits', "Visites Hypeddit",  '#ffa600', None,   ',.0f'),
-        ('hypeddit_clicks', "Clics vers Stores", '#58508d', 'dash', ',.0f'),
-        ('cpr_display',     "CPR (€)",           '#bc5090', 'dot',  ',.2f'),
-        ('popularity',      "Popularité",        '#00D166', None,   ',.0f'),
+        ('results',         t("meta_x_spotify.series_results", "Résultats"),          '#003f5c', None,   ',.0f'),
+        ('streams',         t("meta_x_spotify.series_streams", "Streams / jour"),     '#1DB954', None,   ',.0f'),
+        ('hypeddit_visits', t("meta_x_spotify.series_visits", "Visites Hypeddit"),    '#ffa600', None,   ',.0f'),
+        ('hypeddit_clicks', t("meta_x_spotify.series_clicks", "Clics vers Stores"),   '#58508d', 'dash', ',.0f'),
+        ('cpr_display',     "CPR (€)",                                                '#bc5090', 'dot',  ',.2f'),
+        ('popularity',      t("meta_x_spotify.series_popularity", "Popularité"),      '#00D166', None,   ',.0f'),
     ]
     for col, label, color, dash, fmt in _series:
         idx, raw = _index100(col)
@@ -258,22 +262,23 @@ def _show_body(db, artist_id):
         hovermode="x unified",
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
-        title_text=f"Analyse Détaillée : {selected_campaign}",
+        title_text=t("meta_x_spotify.chart_title", "Analyse Détaillée : {campaign}").format(campaign=selected_campaign),
         separators=", ",
-        xaxis=dict(title="Date", type='date'),
-        yaxis=dict(title="Indice (base 100 = début de période)", rangemode='tozero'),
+        xaxis=dict(title=t("common.date", "Date"), type='date'),
+        yaxis=dict(title=t("meta_x_spotify.index_axis", "Indice (base 100 = début de période)"), rangemode='tozero'),
     )
     fig.add_hline(y=100, line_dash="dot", line_color="rgba(0,0,0,0.25)",
                   annotation_text="base 100", annotation_position="top left")
 
     st.plotly_chart(fig, width="stretch")
-    st.caption(
+    st.caption(t(
+        "meta_x_spotify.index_caption",
         "Séries indexées (base 100 = 1er jour non nul de la période) pour comparer des "
         "échelles différentes sur un seul axe. Valeurs absolues au survol et dans le tableau."
-    )
+    ))
 
     # --- TABLEAU ---
-    with st.expander("🔎 Voir les données brutes"):
+    with st.expander(t("meta_x_spotify.raw_data", "🔎 Voir les données brutes")):
         st.dataframe(
             df_master.sort_values('date', ascending=False).style.format({
                 "spend": "{:.2f}",
@@ -291,14 +296,14 @@ def show():
     if not require_plan('premium'):
         return
 
-    st.title("🔀 META x SPOTIFY - Analyse ROI")
+    st.title(t("meta_x_spotify.title", "🔀 META x SPOTIFY - Analyse ROI"))
     st.markdown("---")
 
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide."); st.stop()
+            st.error(t("meta_x_spotify.invalid_session", "Session invalide.")); st.stop()
         artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
     try:
         _show_body(db, artist_id)

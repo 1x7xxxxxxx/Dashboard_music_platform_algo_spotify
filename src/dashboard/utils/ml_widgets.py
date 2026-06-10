@@ -12,6 +12,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils.i18n import t
 
 _VERDICT_FILL = {
     "malus": "rgba(255,107,107,0.35)",
@@ -25,40 +26,51 @@ _VERDICT_BADGE = {"malus": "🔴", "neutral": "⬜", "bonus": "🟢"}
 def render_classification_scorecard(algo: str, *, compact: bool = False) -> None:
     m = ak.ALGO_MODEL_METRICS.get(algo)
     if not m:
-        st.info("Pas de scorecard de classification pour cet algorithme.")
+        st.info(t("ml_widgets.no_scorecard",
+                  "Pas de scorecard de classification pour cet algorithme."))
         return
     _eval = m.get("eval", "test")
-    st.markdown(f"#### 📋 Qualité du classifieur — {algo} "
-                f"(modèle `{m['model_version']}`, {_eval}, n={m['test_n']})")
+    st.markdown(t("ml_widgets.scorecard_title",
+                  "#### 📋 Qualité du classifieur — {algo} "
+                  "(modèle `{model}`, {eval}, n={n})"
+                  ).format(algo=algo, model=m['model_version'], eval=_eval, n=m['test_n']))
     cols = st.columns(5)
     _ci = m.get("auc_ci")
     cols[0].metric("AUC", f"{m['auc']:.3f}",
-                   help=(f"Intervalle 95% : [{_ci[0]:.3f} – {_ci[1]:.3f}] "
-                         f"(N={m['test_n']} → bande large, à lire avec prudence)"
+                   help=(t("ml_widgets.auc_help",
+                           "Intervalle 95% : [{lo:.3f} – {hi:.3f}] "
+                           "(N={n} → bande large, à lire avec prudence)"
+                           ).format(lo=_ci[0], hi=_ci[1], n=m['test_n'])
                          if _ci else None))
-    cols[1].metric("Précision", f"{m['precision'] * 100:.0f}%")
+    cols[1].metric(t("ml_widgets.precision", "Précision"), f"{m['precision'] * 100:.0f}%")
     cols[2].metric("Recall", f"{m['recall'] * 100:.0f}%")
     cols[3].metric("F1", f"{m['f1']:.2f}")
     cols[4].metric("Lift top-10%", f"×{m['lift_top10']:.1f}")
     if _ci:
-        st.caption(f"AUC validée par chanson (group-CV), intervalle 95% "
-                   f"**[{_ci[0]:.3f} – {_ci[1]:.3f}]** — pas un point unique.")
-    st.caption(
-        f"⚠️ Piège accuracy : {m['accuracy'] * 100:.1f}% vs "
-        f"{m['baseline_accuracy'] * 100:.1f}% pour un modèle qui prédirait toujours « échec »."
-    )
+        st.caption(t("ml_widgets.auc_ci_caption",
+                     "AUC validée par chanson (group-CV), intervalle 95% "
+                     "**[{lo:.3f} – {hi:.3f}]** — pas un point unique."
+                     ).format(lo=_ci[0], hi=_ci[1]))
+    st.caption(t("ml_widgets.accuracy_trap",
+                 "⚠️ Piège accuracy : {acc:.1f}% vs "
+                 "{base:.1f}% pour un modèle qui prédirait toujours « échec »."
+                 ).format(acc=m['accuracy'] * 100, base=m['baseline_accuracy'] * 100))
     if compact:
         return
     cm = m["confusion"]
     fig = go.Figure(data=go.Heatmap(
         z=[[cm["TN"], cm["FP"]], [cm["FN"], cm["TP"]]],
-        x=["Prédit : Échec", "Prédit : Trigger"],
-        y=["Réel : Échec", "Réel : Trigger"],
-        text=[[f"VN {cm['TN']}", f"FP {cm['FP']}"], [f"FN {cm['FN']}", f"VP {cm['TP']}"]],
+        x=[t("ml_widgets.cm_pred_fail", "Prédit : Échec"),
+           t("ml_widgets.cm_pred_trigger", "Prédit : Trigger")],
+        y=[t("ml_widgets.cm_real_fail", "Réel : Échec"),
+           t("ml_widgets.cm_real_trigger", "Réel : Trigger")],
+        text=[[t("ml_widgets.cm_tn", "VN {n}").format(n=cm['TN']), f"FP {cm['FP']}"],
+              [f"FN {cm['FN']}", t("ml_widgets.cm_tp", "VP {n}").format(n=cm['TP'])]],
         texttemplate="%{text}", textfont={"size": 18},
         colorscale="Greens", showscale=False,
     ))
-    fig.update_layout(height=320, title="Matrice de confusion (jeu de test)",
+    fig.update_layout(height=320, title=t("ml_widgets.cm_title",
+                                          "Matrice de confusion (jeu de test)"),
                       margin=dict(t=50))
     st.plotly_chart(fig, width="stretch", key=f"cm_{algo}")
     st.info(m["interpretation"])
@@ -75,24 +87,31 @@ def render_prerelease_rr_estimator() -> None:
     """
     from src.utils.ml_inference import estimate_rr_prerelease
 
-    st.markdown("#### 🔮 Simulateur Release Radar (pré-sortie)")
-    st.caption("Estime les chances Release Radar **avant la moindre écoute**, à partir des "
-               "seules métadonnées de sortie (modèle métadonnées-seules, AUC 0.92 validée "
-               "par chanson). Outil de planification — aucune donnée enregistrée.")
+    st.markdown(t("ml_widgets.pre_rr_title", "#### 🔮 Simulateur Release Radar (pré-sortie)"))
+    st.caption(t("ml_widgets.pre_rr_caption",
+                 "Estime les chances Release Radar **avant la moindre écoute**, à partir des "
+                 "seules métadonnées de sortie (modèle métadonnées-seules, AUC 0.92 validée "
+                 "par chanson). Outil de planification — aucune donnée enregistrée."))
     c1, c2, c3 = st.columns(3)
-    followers = c1.number_input("Followers Spotify", min_value=0, value=3000, step=100,
+    followers = c1.number_input(t("ml_widgets.pre_rr_followers", "Followers Spotify"),
+                                min_value=0, value=3000, step=100,
                                 key="pre_rr_followers")
-    catalog = c2.number_input("Titres déjà sortis", min_value=0, value=12, step=1,
+    catalog = c2.number_input(t("ml_widgets.pre_rr_catalog", "Titres déjà sortis"),
+                              min_value=0, value=12, step=1,
                               key="pre_rr_catalog")
-    cadence = c3.number_input("Cadence de sortie (semaines)", min_value=0.0, value=4.0,
+    cadence = c3.number_input(t("ml_widgets.pre_rr_cadence", "Cadence de sortie (semaines)"),
+                              min_value=0.0, value=4.0,
                               step=0.5, key="pre_rr_cadence")
-    discovery = st.checkbox("Discovery Mode activé", value=False, key="pre_rr_dm",
-                            help="Note : le modèle confirme que Discovery Mode n'influence "
-                                 "PAS Release Radar (effet plat) — utile pour DW/Radio.")
+    discovery = st.checkbox(t("ml_widgets.pre_rr_dm", "Discovery Mode activé"),
+                            value=False, key="pre_rr_dm",
+                            help=t("ml_widgets.pre_rr_dm_help",
+                                   "Note : le modèle confirme que Discovery Mode n'influence "
+                                   "PAS Release Radar (effet plat) — utile pour DW/Radio."))
 
     probe = estimate_rr_prerelease(followers, 14, catalog, cadence, discovery)
     if probe is None:
-        st.info("Modèle pré-sortie indisponible (artefact `rr_premiere_classifier` absent).")
+        st.info(t("ml_widgets.pre_rr_unavailable",
+                  "Modèle pré-sortie indisponible (artefact `rr_premiere_classifier` absent)."))
         return
 
     days = list(range(0, 41))
@@ -104,20 +123,26 @@ def render_prerelease_rr_estimator() -> None:
                              line=dict(color="rgb(255,165,0)", width=3), name="P(RR)"))
     fig.add_vline(x=days[best_i], line_color="#ffffff", line_dash="dash", line_width=2)
     fig.update_layout(height=260, margin=dict(t=30, b=30),
-                      title="Probabilité Release Radar selon l'âge du titre",
-                      xaxis_title="jours après sortie", yaxis_title="P(RR) %",
+                      title=t("ml_widgets.pre_rr_curve_title",
+                              "Probabilité Release Radar selon l'âge du titre"),
+                      xaxis_title=t("ml_widgets.pre_rr_xaxis", "jours après sortie"),
+                      yaxis_title="P(RR) %",
                       yaxis_range=[0, 100], showlegend=False)
     st.plotly_chart(fig, width="stretch", key="pre_rr_curve")
     cv = probe.get("cv", {})
     band = cv.get("auc_ci")
-    st.success(f"🎯 Pic d'éligibilité estimé à **J+{days[best_i]}** "
-               f"(**{probs[best_i] * 100:.0f}%**). Fenêtre Release Radar 0–40 j.")
+    st.success(t("ml_widgets.pre_rr_peak",
+                 "🎯 Pic d'éligibilité estimé à **J+{day}** "
+                 "(**{prob:.0f}%**). Fenêtre Release Radar 0–40 j."
+                 ).format(day=days[best_i], prob=probs[best_i] * 100))
     if band:
-        st.caption(f"Modèle métadonnées-seules : AUC {cv.get('auc')} [{band[0]}–{band[1]}] "
-                   "(group-CV par chanson, N=508). Estimation indicative, pas une garantie.")
+        st.caption(t("ml_widgets.pre_rr_band",
+                     "Modèle métadonnées-seules : AUC {auc} [{lo}–{hi}] "
+                     "(group-CV par chanson, N=508). Estimation indicative, pas une garantie."
+                     ).format(auc=cv.get('auc'), lo=band[0], hi=band[1]))
     note = ak.calibration_note("RR", probs[best_i])
     if note:
-        st.caption(f"🎯 Calibration : {note}")
+        st.caption(t("ml_widgets.calibration", "🎯 Calibration : {note}").format(note=note))
 
 
 # ── Local lever sensitivity (per-song partial dependence) ─────────────────────
@@ -139,12 +164,15 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
               and not spec.get("divergent") and spec.get("actionable") is not False}
     if not levers or not feats:
         return
-    st.markdown("**🎛️ Sensibilité locale — bouger un levier sur CE titre**")
-    choice = st.selectbox("Levier à simuler", list(levers), key=f"sens_sel_{algo}")
+    st.markdown(t("ml_widgets.sens_title",
+                  "**🎛️ Sensibilité locale — bouger un levier sur CE titre**"))
+    choice = st.selectbox(t("ml_widgets.sens_select", "Levier à simuler"),
+                          list(levers), key=f"sens_sel_{algo}")
     fid, spec = levers[choice]
     res = local_sensitivity(algo, spec["json_key"], feats)
     if res is None:
-        st.caption("Sensibilité indisponible (modèle ou features absents).")
+        st.caption(t("ml_widgets.sens_unavailable",
+                     "Sensibilité indisponible (modèle ou features absents)."))
         return
     xs = res["x_human"]
     probs = [p * 100 for p in res["probs"]]
@@ -159,23 +187,31 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     if target:
         tp = float(np.interp(target, xs, probs))
         fig.add_vline(x=target, line_color="orange", line_dash="dot", line_width=2)
-        gain_msg = (f" Passer de **{cur:,.0f}** à la cible **{target:,.0f}** {unit} : "
-                    f"P({algo}) **{cur_p:.0f}% → {tp:.0f}%** ({tp - cur_p:+.0f} pts).")
+        gain_msg = t("ml_widgets.sens_gain",
+                     " Passer de **{cur:,.0f}** à la cible **{target:,.0f}** {unit} : "
+                     "P({algo}) **{cur_p:.0f}% → {tp:.0f}%** ({delta:+.0f} pts)."
+                     ).format(cur=cur, target=target, unit=unit, algo=algo,
+                              cur_p=cur_p, tp=tp, delta=tp - cur_p)
     fig.update_layout(height=240, margin=dict(t=30, b=30), showlegend=False,
-                      title=f"P({algo}) selon « {spec['label']} »",
+                      title=t("ml_widgets.sens_curve_title",
+                              "P({algo}) selon « {label} »"
+                              ).format(algo=algo, label=spec['label']),
                       xaxis_title=unit or spec["label"], yaxis_title="P %",
                       yaxis_range=[0, 100])
     st.plotly_chart(fig, width="stretch", key=f"sens_curve_{algo}_{fid}")
-    st.caption(f"Trait blanc = valeur actuelle (~{cur:,.0f} {unit})." + gain_msg)
-    st.caption("⚠️ Sensibilité *locale* à ce titre — pas une règle générale "
-               "(le modèle est non-linéaire ; l'effet dépend des autres variables).")
+    st.caption(t("ml_widgets.sens_current",
+                 "Trait blanc = valeur actuelle (~{cur:,.0f} {unit})."
+                 ).format(cur=cur, unit=unit) + gain_msg)
+    st.caption(t("ml_widgets.sens_local_caveat",
+                 "⚠️ Sensibilité *locale* à ce titre — pas une règle générale "
+                 "(le modèle est non-linéaire ; l'effet dépend des autres variables)."))
 
 
 # ── Calibration badge ─────────────────────────────────────────────────────────
 def render_calibration_badge(algo: str, raw) -> None:
     note = ak.calibration_note(algo, raw)
     if note:
-        st.caption(f"🎯 Calibration : {note}")
+        st.caption(t("ml_widgets.calibration", "🎯 Calibration : {note}").format(note=note))
 
 
 # ── Feature decision gauges ───────────────────────────────────────────────────
@@ -211,11 +247,13 @@ def _render_one_gauge(algo: str, fid: str, spec: dict, live, *,
         verdict = ak.zone_for_value(algo, fid, live, registry=registry)
         head += f" — {live:,.0f} {spec['unit']} {_VERDICT_BADGE.get(verdict, '▫️')}"
     elif spec.get("divergent"):
-        head += " — ⚠️ signal divergent (proxy, non-actionnable)"
+        head += t("ml_widgets.gauge_divergent",
+                  " — ⚠️ signal divergent (proxy, non-actionnable)")
     elif spec.get("volume_flat"):
-        head += " — ⬜ plat pour le volume (levier d'entrée)"
+        head += t("ml_widgets.gauge_volume_flat",
+                  " — ⬜ plat pour le volume (levier d'entrée)")
     else:
-        head += " — valeur live indisponible"
+        head += t("ml_widgets.gauge_no_live", " — valeur live indisponible")
     st.markdown(head)
     st.plotly_chart(_zone_bar_fig(spec, live), width="stretch", key=f"{key_prefix}_{algo}_{fid}")
     st.caption(f"→ {spec['lever']}")
@@ -234,11 +272,13 @@ def render_feature_gauges(algo: str, feats: dict) -> None:
     feats = feats or {}
     ids = ak.feature_ids(algo)
     if not ids:
-        st.info("Aucune règle de feature disponible pour cet algorithme.")
+        st.info(t("ml_widgets.no_feature_rules",
+                  "Aucune règle de feature disponible pour cet algorithme."))
         return
     zones = ak.ALGO_FEATURE_ZONES[algo]
-    st.markdown("#### 🎚️ Curseurs de décision par variable")
-    st.caption("Zones : 🔴 malus · ⬜ neutre · 🟢 bonus · trait blanc = valeur de ce titre.")
+    st.markdown(t("ml_widgets.gauges_title", "#### 🎚️ Curseurs de décision par variable"))
+    st.caption(t("ml_widgets.gauges_legend",
+                 "Zones : 🔴 malus · ⬜ neutre · 🟢 bonus · trait blanc = valeur de ce titre."))
 
     available, pedagogic = [], []
     for fid in ids:
@@ -250,7 +290,9 @@ def render_feature_gauges(algo: str, feats: dict) -> None:
         _render_one_gauge(algo, fid, spec, live)
 
     if pedagogic:
-        with st.expander(f"Variables sans valeur live ({len(pedagogic)}) — pédagogique"):
+        with st.expander(t("ml_widgets.gauges_pedagogic",
+                           "Variables sans valeur live ({n}) — pédagogique"
+                           ).format(n=len(pedagogic))):
             for fid, spec, live in pedagogic:
                 _render_one_gauge(algo, fid, spec, None)
 
@@ -265,8 +307,9 @@ def render_floor_forecast(label: str, forecast, *, algo: str = "DW") -> None:
         val = int(forecast)
     except (TypeError, ValueError):
         return
-    st.caption(f"🛡️ {label} : **≥ ~{val:,} streams 7j** (plancher garanti). "
-               f"{ak.FORECAST_FLOOR_DISCLAIMER}")
+    st.caption(t("ml_widgets.floor_forecast",
+                 "🛡️ {label} : **≥ ~{val:,} streams 7j** (plancher garanti). {disclaimer}"
+                 ).format(label=label, val=val, disclaimer=ak.FORECAST_FLOOR_DISCLAIMER))
 
 
 def floor_forecast_text(forecast) -> str | None:
@@ -274,7 +317,7 @@ def floor_forecast_text(forecast) -> str | None:
     if forecast is None:
         return None
     try:
-        return f"≥ ~{int(forecast):,} (plancher)"
+        return t("ml_widgets.floor_text", "≥ ~{val:,} (plancher)").format(val=int(forecast))
     except (TypeError, ValueError):
         return None
 
@@ -283,7 +326,8 @@ def render_regressor_badge(algo: str) -> None:
     """'Hungry / conservative model' badge for the volume regressor."""
     note = ak.regressor_note(algo)
     if note:
-        st.caption(f"🍽️ Modèle de volume : {note}")
+        st.caption(t("ml_widgets.regressor_badge",
+                     "🍽️ Modèle de volume : {note}").format(note=note))
 
 
 # ── Volume decision gauges (regressor zones) ──────────────────────────────────
@@ -298,12 +342,15 @@ def render_volume_gauges(algo: str, feats: dict) -> None:
     feats = feats or {}
     ids = ak.volume_feature_ids(algo)
     if not ids:
-        st.info("Pas encore de zones de volume pour cet algorithme.")
+        st.info(t("ml_widgets.no_volume_zones",
+                  "Pas encore de zones de volume pour cet algorithme."))
         return
     zones = ak.ALGO_VOLUME_ZONES[algo]
-    st.markdown("#### 🔊 Curseurs de VOLUME (combien de streams, pas l'entrée)")
-    st.caption("La qualité (saves, rétention) achète le **ticket d'entrée** ; le "
-               "carburant brut (organique, étincelle récente) écrit le **chèque**.")
+    st.markdown(t("ml_widgets.volume_gauges_title",
+                  "#### 🔊 Curseurs de VOLUME (combien de streams, pas l'entrée)"))
+    st.caption(t("ml_widgets.volume_gauges_caption",
+                 "La qualité (saves, rétention) achète le **ticket d'entrée** ; le "
+                 "carburant brut (organique, étincelle récente) écrit le **chèque**."))
     render_regressor_badge(algo)
 
     available, pedagogic = [], []
@@ -316,11 +363,15 @@ def render_volume_gauges(algo: str, feats: dict) -> None:
         _render_one_gauge(algo, fid, spec, live, registry=zones, key_prefix="volgauge")
 
     if pedagogic:
-        with st.expander(f"Variables volume sans valeur live ({len(pedagogic)}) — pédagogique"):
+        with st.expander(t("ml_widgets.volume_gauges_pedagogic",
+                           "Variables volume sans valeur live ({n}) — pédagogique"
+                           ).format(n=len(pedagogic))):
             _imputed = ", ".join(spec["label"] for _fid, spec, _live in pedagogic)
-            st.caption(f"⚠️ {_imputed} : features imputées à 0 en production faute de source "
-                       "— affichées comme **cibles**, pas valeurs live, jusqu'à la Phase 2 "
-                       "(capture live par source/algorithme S4A).")
+            st.caption(t("ml_widgets.volume_imputed",
+                         "⚠️ {names} : features imputées à 0 en production faute de source "
+                         "— affichées comme **cibles**, pas valeurs live, jusqu'à la Phase 2 "
+                         "(capture live par source/algorithme S4A)."
+                         ).format(names=_imputed))
             for fid, spec, live in pedagogic:
                 _render_one_gauge(algo, fid, spec, None, registry=zones, key_prefix="volgauge")
 
@@ -339,14 +390,18 @@ def render_shap_narrative(algo_label: str, baseline: float, prediction: float,
                  key=lambda c: c["value"], reverse=True)[:3]
     neg = sorted([c for c in contributions if c["value"] < 0],
                  key=lambda c: c["value"])[:3]
-    lines = [f"**🧾 Autopsie {algo_label}** — point de départ moyen : "
-             f"~{baseline:,.0f} → prédiction : **~{prediction:,.0f}**."]
+    lines = [t("ml_widgets.shap_headline",
+               "**🧾 Autopsie {algo_label}** — point de départ moyen : "
+               "~{baseline:,.0f} → prédiction : **~{prediction:,.0f}**."
+               ).format(algo_label=algo_label, baseline=baseline, prediction=prediction)]
     if neg:
         worst = ", ".join(f"{c['label']} ({c['value']:,.0f})" for c in neg)
-        lines.append(f"❌ Ce qui tire vers le bas : {worst}.")
+        lines.append(t("ml_widgets.shap_neg",
+                       "❌ Ce qui tire vers le bas : {worst}.").format(worst=worst))
     if pos:
         best = ", ".join(f"{c['label']} (+{c['value']:,.0f})" for c in pos)
-        lines.append(f"✅ Ce qui soutient : {best}.")
+        lines.append(t("ml_widgets.shap_pos",
+                       "✅ Ce qui soutient : {best}.").format(best=best))
     st.markdown("  \n".join(lines))
 
 
@@ -357,23 +412,27 @@ def render_coach(algo: str, feats: dict) -> None:
     feats = feats or {}
     if not ak.feature_ids(algo):
         return
-    st.markdown("##### 🧭 Coach prescriptif")
+    st.markdown(t("ml_widgets.coach_title", "##### 🧭 Coach prescriptif"))
     actions = ak.build_coach_actions(algo, feats)
     if not actions:
-        st.success("✅ Aucune action critique : les leviers mesurables sont en zone neutre/bonus.")
+        st.success(t("ml_widgets.coach_ok",
+                     "✅ Aucune action critique : les leviers mesurables sont en zone "
+                     "neutre/bonus."))
     for i, a in enumerate(actions, 1):
         if a["kind"] == "smooth":
-            st.error(
-                f"**{i}. Lisser la vélocité** — actuelle {a['current']:.2f}. {a['lever']} "
-                "→ réduis le budget pub (~−30%) ; montant concret dans l'onglet Budget & ROI."
-            )
+            st.error(t("ml_widgets.coach_smooth",
+                       "**{i}. Lisser la vélocité** — actuelle {current:.2f}. {lever} "
+                       "→ réduis le budget pub (~−30%) ; montant concret dans l'onglet "
+                       "Budget & ROI."
+                       ).format(i=i, current=a['current'], lever=a['lever']))
         else:
-            st.warning(
-                f"**{i}. {a['label']}** — {a['current']:,.0f} {a['unit']} "
-                f"(objectif {a['target']:,.0f}, manque {a['gap']:,.0f}). {a['lever']}"
-            )
+            st.warning(t("ml_widgets.coach_raise",
+                         "**{i}. {label}** — {current:,.0f} {unit} "
+                         "(objectif {target:,.0f}, manque {gap:,.0f}). {lever}"
+                         ).format(i=i, label=a['label'], current=a['current'],
+                                  unit=a['unit'], target=a['target'],
+                                  gap=a['gap'], lever=a['lever']))
     if algo == "RADIO":
-        st.info(
-            "🎫 Vérifie **Discovery Mode** (Spotify for Artists) : fort levier Radio "
-            "(pay-to-play, −30% royalties) — non mesuré automatiquement."
-        )
+        st.info(t("ml_widgets.coach_radio_dm",
+                  "🎫 Vérifie **Discovery Mode** (Spotify for Artists) : fort levier Radio "
+                  "(pay-to-play, −30% royalties) — non mesuré automatiquement."))

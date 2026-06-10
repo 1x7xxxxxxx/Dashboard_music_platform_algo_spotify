@@ -336,12 +336,16 @@ def get_roi_data(db, artist_id, from_date, to_date):
         'profitable': False,
     }
 
-    # Revenus iMusician (aggregation sur year+month)
+    # Revenus distributeurs (iMusician + DistroKid, aggregation sur year+month)
     try:
         if artist_id is not None:
             row = db.fetch_query(
                 """SELECT COALESCE(SUM(revenue_eur), 0)
-                   FROM imusician_monthly_revenue
+                   FROM (
+                       SELECT artist_id, year, month, revenue_eur FROM imusician_monthly_revenue
+                       UNION ALL
+                       SELECT artist_id, year, month, revenue_eur FROM distrokid_monthly_revenue
+                   ) r
                    WHERE artist_id = %s
                      AND make_date(year, month, 1) BETWEEN %s AND %s""",
                 (artist_id, from_date, to_date)
@@ -349,7 +353,11 @@ def get_roi_data(db, artist_id, from_date, to_date):
         else:
             row = db.fetch_query(
                 """SELECT COALESCE(SUM(revenue_eur), 0)
-                   FROM imusician_monthly_revenue
+                   FROM (
+                       SELECT year, month, revenue_eur FROM imusician_monthly_revenue
+                       UNION ALL
+                       SELECT year, month, revenue_eur FROM distrokid_monthly_revenue
+                   ) r
                    WHERE make_date(year, month, 1) BETWEEN %s AND %s""",
                 (from_date, to_date)
             )
@@ -390,12 +398,16 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
     """
     import pandas as pd
 
-    # Revenue par mois
+    # Revenue par mois (iMusician + DistroKid)
     try:
         if artist_id is not None:
             df_rev = db.fetch_df(
                 """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS revenue_eur
-                   FROM imusician_monthly_revenue
+                   FROM (
+                       SELECT artist_id, year, month, revenue_eur FROM imusician_monthly_revenue
+                       UNION ALL
+                       SELECT artist_id, year, month, revenue_eur FROM distrokid_monthly_revenue
+                   ) r
                    WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s
                    GROUP BY year, month ORDER BY year, month""",
                 (artist_id, from_date, to_date)
@@ -403,7 +415,11 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
         else:
             df_rev = db.fetch_df(
                 """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS revenue_eur
-                   FROM imusician_monthly_revenue
+                   FROM (
+                       SELECT year, month, revenue_eur FROM imusician_monthly_revenue
+                       UNION ALL
+                       SELECT year, month, revenue_eur FROM distrokid_monthly_revenue
+                   ) r
                    WHERE make_date(year, month, 1) BETWEEN %s AND %s
                    GROUP BY year, month ORDER BY year, month""",
                 (from_date, to_date)

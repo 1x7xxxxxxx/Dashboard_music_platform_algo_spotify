@@ -26,6 +26,7 @@ load_dotenv(env_file)
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
 from src.dashboard.auth import require_login, show_user_sidebar, get_artist_plan
+from src.dashboard.utils.i18n import t
 from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 
 st.set_page_config(page_title="streaMLytics", page_icon="🎵", layout="wide")
@@ -55,14 +56,14 @@ airflow_trigger = AirflowTrigger(
 
 def _verify_email(token: str) -> None:
     """Handle the email verification link (?page=verify&token=xxx)."""
-    st.title("🎵 Email verification")
+    st.title(t("app.verify_title", "🎵 Vérification de l'email"))
     if not token:
-        st.error("Invalid verification link.")
+        st.error(t("app.verify_invalid_link", "Lien de vérification invalide."))
         return
     from src.dashboard.utils import get_db_connection
     db = get_db_connection()
     if db is None:
-        st.error("Database unreachable.")
+        st.error(t("app.db_unreachable_short", "Base de données injoignable."))
         return
     try:
         rows = db.fetch_query(
@@ -72,11 +73,13 @@ def _verify_email(token: str) -> None:
             (token,)
         )
         if not rows:
-            st.error("This verification link is invalid or has already been used.")
+            st.error(t("app.verify_used_link",
+                       "Ce lien de vérification est invalide ou a déjà été utilisé."))
             return
         uid, username, email, already_verified, token_created_at = rows[0]
         if already_verified:
-            st.info(f"Account **{username}** is already verified. [Sign in](/)")
+            st.info(t("app.verify_already",
+                      "Le compte **{u}** est déjà vérifié. [Se connecter](/)").format(u=username))
             return
         # INFO-01: reject tokens older than 48 hours
         if token_created_at:
@@ -89,10 +92,12 @@ def _verify_email(token: str) -> None:
                     "verification_token_created_at = NULL WHERE id = %s",
                     (uid,)
                 )
-                st.error(
-                    "This verification link has expired (48 hours). "
-                    "Please register again or use the resend option on the sign-in page."
-                )
+                st.error(t(
+                    "app.verify_expired",
+                    "Ce lien de vérification a expiré (48 heures). "
+                    "Inscrivez-vous à nouveau ou utilisez l'option de renvoi sur la page "
+                    "de connexion."
+                ))
                 return
         db.execute_query(
             "UPDATE saas_users SET email_verified = TRUE, verification_token = NULL, "
@@ -107,10 +112,12 @@ def _verify_email(token: str) -> None:
             send_welcome_email(email, username, WELCOME_TRIAL_DAYS, user_id=uid)
         except Exception:
             pass  # best-effort — never block verification on the welcome email
-        st.success(
-            f"✅ Email verified! Welcome, **{username}**. "
-            "We've emailed you a welcome guide. You can now [sign in](/)."
-        )
+        st.success(t(
+            "app.verify_success",
+            "✅ Email vérifié ! Bienvenue, **{u}**. "
+            "Nous vous avons envoyé un guide de bienvenue par email. "
+            "Vous pouvez maintenant [vous connecter](/)."
+        ).format(u=username))
     finally:
         db.close()
 
@@ -121,20 +128,21 @@ def _unsubscribe(uid: str, token: str) -> None:
     Verifies the HMAC token, then sets marketing_consent=FALSE for that user — no
     login required. Mirrors the toggle in 'Mon compte → Communications'.
     """
-    st.title("📧 Désinscription")
+    st.title(t("app.unsub_title", "📧 Désinscription"))
     from src.utils.verification_email import verify_unsubscribe_token
     try:
         user_id = int(uid)
     except (TypeError, ValueError):
-        st.error("Lien de désinscription invalide.")
+        st.error(t("app.unsub_invalid", "Lien de désinscription invalide."))
         return
     if not verify_unsubscribe_token(user_id, token):
-        st.error("Lien de désinscription invalide ou expiré.")
+        st.error(t("app.unsub_expired", "Lien de désinscription invalide ou expiré."))
         return
     from src.dashboard.utils import get_db_connection
     db = get_db_connection()
     if db is None:
-        st.error("Base de données injoignable. Réessayez plus tard.")
+        st.error(t("app.db_unreachable_retry",
+                   "Base de données injoignable. Réessayez plus tard."))
         return
     try:
         db.execute_query(
@@ -142,10 +150,11 @@ def _unsubscribe(uid: str, token: str) -> None:
             "WHERE id = %s",
             (user_id,),
         )
-        st.success(
+        st.success(t(
+            "app.unsub_success",
             "✅ C'est fait — vous ne recevrez plus de communications marketing. "
             "Vous pouvez réactiver l'option à tout moment dans « Mon compte → Communications »."
-        )
+        ))
     finally:
         db.close()
 
@@ -210,7 +219,6 @@ def _on_nav_select(skey: str, all_skeys: list):
 
 
 def show_navigation_menu(role: str = 'artist'):
-    from src.dashboard.utils.i18n import t
     st.sidebar.title(t("nav.title", "🎵 Navigation"))
 
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
@@ -274,16 +282,19 @@ def show_live_activity_sidebar():
             live, registered = get_live_pulse(db, ttl_minutes=5)
     except Exception:
         return  # Silently skip if DB unavailable — keeps sidebar usable
-    st.sidebar.markdown("### 🟢 Live Activity")
+    st.sidebar.markdown(t("app.live_header", "### 🟢 Live Activity"))
     c1, c2 = st.sidebar.columns(2)
-    c1.metric("🟢 Actifs", f"{live:,}", help="Artists active within the last 5 minutes")
-    c2.metric("👥 Total", f"{registered:,}", help="Total active artist accounts")
+    c1.metric(t("app.live_active", "🟢 Actifs"), f"{live:,}",
+              help=t("app.live_active_help", "Artistes actifs dans les 5 dernières minutes"))
+    c2.metric(t("app.live_total", "👥 Total"), f"{registered:,}",
+              help=t("app.live_total_help", "Nombre total de comptes artistes actifs"))
     st.sidebar.markdown("---")
 
 
 def show_data_collection_panel():
-    if st.sidebar.button("🚀 Lancer TOUTES les collectes", type="primary"):
-        with st.sidebar.status("Synchronisation...", expanded=True):
+    if st.sidebar.button(t("app.run_all_collections", "🚀 Lancer TOUTES les collectes"),
+                         type="primary"):
+        with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=True):
             dags = [("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
                     ("soundcloud_daily", "SoundCloud"), ("instagram_daily", "Instagram"),
                     ("s4a_csv_watcher", "CSV S4A"), ("apple_music_csv_watcher", "CSV Apple"),
@@ -293,7 +304,7 @@ def show_data_collection_panel():
                     if airflow_trigger.trigger_dag(dag_id).get('success'): st.write(f"✅ {label}")
                     else: st.error(f"❌ {label}")
                 except: st.error(f"❌ {label}")
-            st.sidebar.success("Lancé !")
+            st.sidebar.success(t("app.launched", "Lancé !"))
     st.sidebar.markdown("---")
 
 def _check_db_health():
@@ -301,10 +312,11 @@ def _check_db_health():
     from src.dashboard.utils import get_db_connection
     db = get_db_connection()
     if db is None:
-        st.error(
+        st.error(t(
+            "app.db_health_error",
             "❌ **Base de données PostgreSQL inaccessible.** "
             "Vérifiez que Docker est lancé : `docker-compose up -d`"
-        )
+        ))
         return False
     db.close()
     return True
@@ -316,11 +328,12 @@ def _show_cookie_notice():
         return
     with st.container():
         cols = st.columns([8, 1])
-        cols[0].info(
-            "🍪 This platform uses a single session cookie (`music_dashboard`) "
-            "strictly necessary for authentication. No tracking, no third-party cookies. "
-            "[Privacy Policy](?page=privacy)"
-        )
+        cols[0].info(t(
+            "app.cookie_notice",
+            "🍪 Cette plateforme utilise un unique cookie de session (`music_dashboard`) "
+            "strictement nécessaire à l'authentification. Aucun tracking, aucun cookie "
+            "tiers. [Politique de confidentialité](?page=privacy)"
+        ))
         if cols[1].button("OK", key="_dismiss_cookie"):
             st.session_state['_cookie_notice_dismissed'] = True
             st.rerun()
@@ -448,8 +461,9 @@ def main():
         if is_control_flow(_exc):
             raise                                   # st.stop()/st.rerun() must propagate
         notify_app_error(page, _exc)
-        st.error("❌ Une erreur est survenue sur cette page. Réessayez ; "
-                 "l'administrateur a été notifié si le problème persiste.")
+        st.error(t("app.view_error",
+                   "❌ Une erreur est survenue sur cette page. Réessayez ; "
+                   "l'administrateur a été notifié si le problème persiste."))
 
     # Record render time (rolling 100-entry log, stored in session state)
     _render_ms = int((time.perf_counter() - _t0) * 1000)

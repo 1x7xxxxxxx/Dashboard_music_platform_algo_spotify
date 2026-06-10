@@ -7,6 +7,7 @@ Depends on: billing view (Stripe portal CTA)
 import streamlit as st
 
 from src.dashboard.auth import get_artist_plan
+from src.dashboard.utils.i18n import t
 from src.database.stripe_schema import (
     PLAN_CATALOG, PLAN_FEATURES, PLAN_RANK, SERVICE_CONTACT_EMAIL,
 )
@@ -14,7 +15,9 @@ from src.database.stripe_schema import (
 
 def _price_label(plan: str) -> str:
     p = PLAN_CATALOG[plan]['price_eur']
-    return "0€" if p == 0 else f"{p}€/mo"
+    if p == 0:
+        return t("upgrade.price_free", "0€")
+    return t("upgrade.price_monthly", "{p}€/mois").format(p=p)
 
 
 # Human-readable labels for each page key
@@ -42,8 +45,8 @@ _PAGE_LABELS = {
 }
 
 _PLAN_DISPLAY = {
-    'free':    {'label': 'Free',    'price': _price_label('free'),    'color': '#6c757d'},
-    'premium': {'label': 'Premium', 'price': _price_label('premium'), 'color': '#fd7e14'},
+    'free':    {'label': 'Free',    'color': '#6c757d'},
+    'premium': {'label': 'Premium', 'color': '#fd7e14'},
 }
 
 
@@ -51,25 +54,27 @@ def _feature_list(plan: str) -> list[str]:
     """Return readable feature list for a given plan (premium = extras over Free)."""
     if plan == 'premium':
         return [
-            '🚀 Road to Algo — prédictions ML',
-            '📈 Prévisions de revenus (ML)',
-            '🎨 Créatives Meta Ads',
+            t("upgrade.feat_road", "🚀 Road to Algo — prédictions ML"),
+            t("upgrade.feat_forecast", "📈 Prévisions de revenus (ML)"),
+            t("upgrade.feat_creatives", "🎨 Créatives Meta Ads"),
             '📊 CPR Optimizer',
             'META x Spotify',
-            'Support prioritaire',
+            t("upgrade.feat_support", "Support prioritaire"),
         ]
     keys = PLAN_FEATURES.get(plan, set())
-    return [_PAGE_LABELS.get(k, k) for k in sorted(keys)]
+    return [t(f"upgrade.page.{k}", _PAGE_LABELS.get(k, k)) for k in sorted(keys)]
 
 
 def show() -> None:
     current_plan = get_artist_plan()
     current_rank = PLAN_RANK.get(current_plan, 0)
 
-    st.title("🔒 Passez à un plan supérieur")
+    st.title(t("upgrade.title", "🔒 Passez à un plan supérieur"))
     st.caption(
-        f"Votre plan actuel : **{_PLAN_DISPLAY[current_plan]['label']}**. "
-        "Débloquez plus de fonctionnalités en upgradeant."
+        t("upgrade.caption",
+          "Votre plan actuel : **{plan}**. "
+          "Débloquez plus de fonctionnalités en upgradeant.").format(
+              plan=_PLAN_DISPLAY[current_plan]['label'])
     )
     st.markdown("---")
 
@@ -80,14 +85,14 @@ def show() -> None:
         is_current = current_plan == 'free'
         st.markdown(
             f"### {_PLAN_DISPLAY['free']['label']}"
-            + (" ← *votre plan*" if is_current else "")
+            + (t("upgrade.your_plan", " ← *votre plan*") if is_current else "")
         )
-        st.markdown(f"**{_PLAN_DISPLAY['free']['price']}**")
+        st.markdown(f"**{_price_label('free')}**")
         st.markdown("---")
         for feat in _feature_list('free'):
             st.markdown(f"✅ {feat}")
         if is_current:
-            st.success("Plan actuel")
+            st.success(t("upgrade.current_plan", "Plan actuel"))
 
     # ── PREMIUM ───────────────────────────────────────────
     with col_premium:
@@ -95,26 +100,30 @@ def show() -> None:
         can_upgrade = current_rank < PLAN_RANK['premium']
         st.markdown(
             f"### {_PLAN_DISPLAY['premium']['label']}"
-            + (" ← *votre plan*" if is_current else "")
+            + (t("upgrade.your_plan", " ← *votre plan*") if is_current else "")
         )
-        st.markdown(f"**{_PLAN_DISPLAY['premium']['price']}**")
+        st.markdown(f"**{_price_label('premium')}**")
         st.markdown("---")
-        st.markdown("✅ **Tout le contenu Free, plus :**")
+        st.markdown(t("upgrade.everything_free", "✅ **Tout le contenu Free, plus :**"))
         for feat in _feature_list('premium'):
             st.markdown(f"✅ {feat}")
         st.markdown("---")
         if is_current:
-            st.success("Plan actuel")
+            st.success(t("upgrade.current_plan", "Plan actuel"))
         elif can_upgrade:
-            st.link_button("Passer à Premium →", "/?page=billing", type="primary")
+            st.link_button(t("upgrade.go_premium", "Passer à Premium →"),
+                           "/?page=billing", type="primary")
 
     st.markdown("---")
     st.caption(
-        "Les paiements sont gérés via Stripe. "
-        "Annulation possible à tout moment depuis la page Billing."
+        t("upgrade.stripe_note",
+          "Les paiements sont gérés via Stripe. "
+          "Annulation possible à tout moment depuis la page Billing.")
     )
     st.markdown(
-        "🎯 **Besoin qu'on optimise vos campagnes marketing pour vous ?** Service sur-mesure "
-        f"(appel préalable pour valider le fit + le budget) — 📧 [{SERVICE_CONTACT_EMAIL}]"
-        f"(mailto:{SERVICE_CONTACT_EMAIL}?subject=Optimisation%20campagnes%20-%20streaMLytics)"
+        t("upgrade.service_cta",
+          "🎯 **Besoin qu'on optimise vos campagnes marketing pour vous ?** Service sur-mesure "
+          "(appel préalable pour valider le fit + le budget) — 📧 [{email}]"
+          "(mailto:{email}?subject=Optimisation%20campagnes%20-%20streaMLytics)").format(
+              email=SERVICE_CONTACT_EMAIL)
     )

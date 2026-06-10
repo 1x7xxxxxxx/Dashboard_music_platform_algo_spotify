@@ -15,12 +15,13 @@ import pandas as pd
 from datetime import datetime, timezone
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
 
 def _guard():
     if not is_admin():
-        st.error("⛔ Admin access only.")
+        st.error(t("promo_admin.admin_only", "⛔ Admin access only."))
         st.stop()
 
 
@@ -50,17 +51,20 @@ def _toggle_active(db, code_id: int, new_state: bool) -> None:
 
 def show():
     _guard()
-    st.title("🎟️ Promo Codes")
-    st.caption("Create codes that give free Basic or Premium access for a fixed period.")
+    st.title(t("promo_admin.title", "🎟️ Promo Codes"))
+    st.caption(t("promo_admin.caption", "Create codes that give free Basic or Premium access for a fixed period."))
     st.markdown("---")
 
     db = get_db_connection()
     if db is None:
-        st.error("❌ Database unreachable.")
+        st.error(t("promo_admin.db_unreachable", "❌ Database unreachable."))
         return
 
     try:
-        tab_list, tab_create = st.tabs(["All codes", "Create new code"])
+        tab_list, tab_create = st.tabs([
+            t("promo_admin.tab_all", "All codes"),
+            t("promo_admin.tab_create", "Create new code"),
+        ])
 
         # ── Tab: list ─────────────────────────────────────────────────────
         with tab_list:
@@ -75,40 +79,60 @@ def show():
             )
 
             if not rows:
-                st.info("No promo codes yet. Create one in the tab above.")
+                st.info(t("promo_admin.no_codes", "No promo codes yet. Create one in the tab above."))
             else:
                 df = pd.DataFrame(rows, columns=[
-                    "ID", "Code", "Plan", "Duration (days)",
-                    "Uses", "Max uses", "Active",
-                    "Code expires", "Notes", "Created on",
+                    t("promo_admin.col_id", "ID"),
+                    t("promo_admin.col_code", "Code"),
+                    t("promo_admin.col_plan", "Plan"),
+                    t("promo_admin.col_duration", "Duration (days)"),
+                    t("promo_admin.col_uses", "Uses"),
+                    t("promo_admin.col_max_uses", "Max uses"),
+                    t("promo_admin.col_active", "Active"),
+                    t("promo_admin.col_code_expires", "Code expires"),
+                    t("promo_admin.col_notes", "Notes"),
+                    t("promo_admin.col_created_on", "Created on"),
                 ])
-                df["Code expires"] = df["Code expires"].apply(lambda x: str(x) if x else "Never")
-                df["Max uses"] = df["Max uses"].apply(lambda x: "Unlimited" if x == 0 else x)
-                df["Notes"] = df["Notes"].fillna("")
-                st.dataframe(df.drop(columns=["ID"]), hide_index=True, width="stretch")
+                col_expires = t("promo_admin.col_code_expires", "Code expires")
+                col_max = t("promo_admin.col_max_uses", "Max uses")
+                col_notes = t("promo_admin.col_notes", "Notes")
+                df[col_expires] = df[col_expires].apply(
+                    lambda x: str(x) if x else t("promo_admin.never", "Never"))
+                df[col_max] = df[col_max].apply(
+                    lambda x: t("promo_admin.unlimited", "Unlimited") if x == 0 else x)
+                df[col_notes] = df[col_notes].fillna("")
+                st.dataframe(
+                    df.drop(columns=[t("promo_admin.col_id", "ID")]),
+                    hide_index=True, width="stretch")
 
                 st.markdown("---")
-                st.subheader("Disable / re-enable a code")
+                st.subheader(t("promo_admin.toggle_header", "Disable / re-enable a code"))
                 col1, col2, col3 = st.columns([2, 1, 1])
                 selected_code = col1.selectbox(
-                    "Select code",
+                    t("promo_admin.select_code", "Select code"),
                     options=[r[1] for r in rows],
                     label_visibility="collapsed",
                 )
                 selected_row = next((r for r in rows if r[1] == selected_code), None)
                 if selected_row:
                     code_id, _, _, _, _, _, is_active = selected_row[:7]
-                    label = "Disable" if is_active else "Re-enable"
+                    label = (t("promo_admin.btn_disable", "Disable") if is_active
+                             else t("promo_admin.btn_reenable", "Re-enable"))
                     btn_type = "secondary" if is_active else "primary"
                     if col2.button(label, type=btn_type):
                         _toggle_active(db, code_id, not is_active)
-                        st.success(f"Code **{selected_code}** {'disabled' if is_active else 're-enabled'}.")
+                        msg = (t("promo_admin.toggle_disabled",
+                                 "Code **{code}** disabled.")
+                               if is_active else
+                               t("promo_admin.toggle_reenabled",
+                                 "Code **{code}** re-enabled."))
+                        st.success(msg.format(code=selected_code))
                         st.rerun()
 
             st.markdown("---")
 
             # Usage log
-            st.subheader("Redemption log")
+            st.subheader(t("promo_admin.redemption_log", "Redemption log"))
             log_rows = db.fetch_query(
                 """
                 SELECT pc.code, sa.name AS artist, pe.applied_at::date,
@@ -120,13 +144,18 @@ def show():
                 """
             )
             if log_rows:
+                col_access = t("promo_admin.col_access_expires", "Access expires")
                 df_log = pd.DataFrame(log_rows, columns=[
-                    "Code", "Artist", "Redeemed on", "Plan granted", "Access expires"
+                    t("promo_admin.col_code", "Code"),
+                    t("promo_admin.col_artist", "Artist"),
+                    t("promo_admin.col_redeemed_on", "Redeemed on"),
+                    t("promo_admin.col_plan_granted", "Plan granted"),
+                    col_access,
                 ])
-                df_log["Access expires"] = df_log["Access expires"].apply(lambda x: str(x) if x else "—")
+                df_log[col_access] = df_log[col_access].apply(lambda x: str(x) if x else "—")
                 st.dataframe(df_log, hide_index=True, width="stretch")
             else:
-                st.info("No redemptions yet.")
+                st.info(t("promo_admin.no_redemptions", "No redemptions yet."))
 
         # ── Tab: create ───────────────────────────────────────────────────
         with tab_create:
@@ -135,51 +164,52 @@ def show():
 
                 suggested = _generate_code()
                 code_input = col1.text_input(
-                    "Code *",
+                    t("promo_admin.field_code", "Code *"),
                     value=suggested,
-                    help="Uppercase alphanumeric. Auto-suggested — change if you want something memorable.",
+                    help=t("promo_admin.field_code_help", "Uppercase alphanumeric. Auto-suggested — change if you want something memorable."),
                 ).strip().upper()
 
                 plan_input = col2.selectbox(
-                    "Plan granted *",
+                    t("promo_admin.field_plan", "Plan granted *"),
                     options=["premium"],
                     format_func=str.capitalize,
                 )
 
                 col3, col4 = st.columns(2)
                 duration_input = col3.number_input(
-                    "Duration (days) *",
+                    t("promo_admin.field_duration", "Duration (days) *"),
                     min_value=1, max_value=365, value=30,
-                    help="How long the plan stays active after the code is redeemed.",
+                    help=t("promo_admin.field_duration_help", "How long the plan stays active after the code is redeemed."),
                 )
                 max_uses_input = col4.number_input(
-                    "Max uses *",
+                    t("promo_admin.field_max_uses", "Max uses *"),
                     min_value=0, value=1,
-                    help="0 = unlimited. 1 = single use (recommended for personal invites).",
+                    help=t("promo_admin.field_max_uses_help", "0 = unlimited. 1 = single use (recommended for personal invites)."),
                 )
 
                 expires_at_input = st.date_input(
-                    "Code expiry date (optional)",
+                    t("promo_admin.field_expiry", "Code expiry date (optional)"),
                     value=None,
-                    help="Date after which the code can no longer be redeemed. Leave empty for no expiry.",
+                    help=t("promo_admin.field_expiry_help", "Date after which the code can no longer be redeemed. Leave empty for no expiry."),
                 )
 
                 notes_input = st.text_input(
-                    "Notes (optional)",
-                    placeholder="e.g. Sent to Thomas for beta testing",
+                    t("promo_admin.field_notes", "Notes (optional)"),
+                    placeholder=t("promo_admin.field_notes_placeholder", "e.g. Sent to Thomas for beta testing"),
                 )
 
-                submitted = st.form_submit_button("Create code", type="primary")
+                submitted = st.form_submit_button(t("promo_admin.btn_create", "Create code"), type="primary")
 
             if submitted:
                 if not code_input:
-                    st.error("Code is required.")
+                    st.error(t("promo_admin.code_required", "Code is required."))
                 else:
                     existing = db.fetch_query(
                         "SELECT 1 FROM promo_codes WHERE code = %s", (code_input,)
                     )
                     if existing:
-                        st.error(f"Code **{code_input}** already exists. Choose a different one.")
+                        st.error(t("promo_admin.code_exists",
+                                   "Code **{code}** already exists. Choose a different one.").format(code=code_input))
                     else:
                         expires_dt = None
                         if expires_at_input:
@@ -195,8 +225,12 @@ def show():
                             expires_dt, notes_input,
                         )
                         st.success(
-                            f"✅ Code **{code_input}** created — grants **{plan_input.capitalize()}** "
-                            f"for **{int(duration_input)} days**."
+                            t("promo_admin.code_created",
+                              "✅ Code **{code}** created — grants **{plan}** for **{days} days**.").format(
+                                  code=code_input,
+                                  plan=plan_input.capitalize(),
+                                  days=int(duration_input),
+                              )
                         )
                         st.rerun()
 

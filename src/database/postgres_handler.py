@@ -18,6 +18,7 @@ _ALLOWED_TABLES = frozenset({
     'soundcloud_tracks_daily', 'instagram_daily_stats',
     'instagram_media', 'instagram_media_insights',
     'imusician_monthly_revenue', 'imusician_release_summary', 'imusician_sales_detail',
+    'distrokid_monthly_revenue', 'distrokid_sales_detail',
     'ml_song_predictions', 'artist_wrapped',
     'meta_campaigns', 'meta_adsets', 'meta_ads', 'meta_insights',
     'meta_insights_performance', 'meta_insights_performance_day',

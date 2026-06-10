@@ -8,6 +8,15 @@ would be over-sized for two languages). FR is the source of truth AND the fallba
 any key missing in EN renders its FR value (or the `default` passed by the caller),
 so partial coverage degrades gracefully (untranslated surfaces stay French).
 
+EN translations live in per-domain catalog modules under i18n_catalog/ (one file
+per view: `EN = {key: "..."}`), auto-merged into _TR at import time — parallel
+contributors never touch this file. Keys are namespaced `<view>.<slug>`.
+
+Interpolation convention — t() has NO placeholder support; templates use named
+`{placeholders}` + `.format()`, NEVER an f-string default (it would freeze the
+values before translation):
+    st.metric(t("home.total", "Total : {n} titres").format(n=n))
+
 Usage:
     from src.dashboard.utils.i18n import t, language_selector
     st.write(t("nav.item.home", "🏠 Accueil"))   # default = the FR source string
@@ -78,6 +87,30 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.admin": "⚙️ Admin",
     },
 }
+
+
+def _load_catalogs() -> None:
+    """Merge every i18n_catalog/<module>.EN dict into _TR['en'].
+
+    Best-effort per module: one broken catalog must not take the dashboard down
+    (its surface just falls back to French).
+    """
+    import importlib
+    import pkgutil
+    try:
+        from src.dashboard.utils import i18n_catalog
+    except ImportError:
+        return
+    for mod_info in pkgutil.iter_modules(i18n_catalog.__path__):
+        try:
+            mod = importlib.import_module(
+                f"src.dashboard.utils.i18n_catalog.{mod_info.name}")
+            _TR["en"].update(getattr(mod, "EN", {}))
+        except Exception:  # noqa: BLE001 — partial coverage beats a crash
+            continue
+
+
+_load_catalogs()
 
 
 def get_lang() -> str:

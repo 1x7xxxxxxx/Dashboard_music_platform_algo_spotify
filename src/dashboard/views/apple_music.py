@@ -4,33 +4,35 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 from src.dashboard.auth import get_artist_id, is_admin
 
 def show():
     """Affiche la vue Apple Music."""
-    st.title("🍎 Apple Music Analytics")
-    st.markdown("### Analyse des performances et croissance quotidienne")
+    st.title(t("apple_music.title", "🍎 Apple Music Analytics"))
+    st.markdown(t("apple_music.subtitle",
+                  "### Analyse des performances et croissance quotidienne"))
     st.markdown("---")
 
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
-            st.error("Session invalide."); st.stop()
+            st.error(t("apple_music.invalid_session", "Session invalide.")); st.stop()
         artist_id = 1  # admin: defaults to artist 1 — full cross-tenant view in Admin panel
 
     try:
         # ============================================================
         # 1. KPIs GLOBAUX
         # ============================================================
-        st.subheader("📊 Vue d'ensemble")
+        st.subheader(t("apple_music.overview", "📊 Vue d'ensemble"))
 
         col1, col2, col3 = st.columns(3)
 
         # Total des chansons
         songs_count = db.get_table_count('apple_songs_performance')
-        col1.metric("🎵 Chansons Suivies", f"{songs_count:,}")
+        col1.metric(t("apple_music.kpi_songs", "🎵 Chansons Suivies"), f"{songs_count:,}")
 
         # Total Shazams et Plays (Dernier état connu)
         totals_query = """
@@ -43,15 +45,15 @@ def show():
         result = db.fetch_query(totals_query, (artist_id,))
         total_plays, total_shazams = result[0] if result else (0, 0)
 
-        col2.metric("▶️ Total Streams (Cumul)", f"{total_plays:,}")
-        col3.metric("⚡ Total Shazams (Cumul)", f"{total_shazams:,}")
+        col2.metric(t("apple_music.kpi_streams", "▶️ Total Streams (Cumul)"), f"{total_plays:,}")
+        col3.metric(t("apple_music.kpi_shazams", "⚡ Total Shazams (Cumul)"), f"{total_shazams:,}")
 
         st.markdown("---")
 
         # ============================================================
         # 2. TOP CHANSONS (Barres)
         # ============================================================
-        st.subheader("🏆 Top Chansons (Cumulé)")
+        st.subheader(t("apple_music.top_header", "🏆 Top Chansons (Cumulé)"))
 
         top_query = """
             SELECT song_name, plays, shazam_count
@@ -69,21 +71,22 @@ def show():
                 y='song_name',
                 orientation='h',
                 text='plays',
-                title="Top 10 par Streams",
-                labels={'plays': 'Streams', 'song_name': ''},
+                title=t("apple_music.top10_title", "Top 10 par Streams"),
+                labels={'plays': t("common.streams", "Streams"), 'song_name': ''},
                 color='plays',
                 color_continuous_scale='Reds',
                 custom_data=['shazam_count'],
             )
             fig.update_traces(
                 texttemplate='%{text:,.0f}', textposition='outside',
-                hovertemplate='%{y}<br>Streams : %{x:,.0f}<br>⚡ Shazams : %{customdata[0]:,.0f}<extra></extra>',
+                hovertemplate=t("apple_music.top_hover",
+                                '%{y}<br>Streams : %{x:,.0f}<br>⚡ Shazams : %{customdata[0]:,.0f}<extra></extra>'),
             )
             fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
             st.plotly_chart(fig, width="stretch")
-            with st.expander("⚡ Shazams par chanson (Top 10)"):
+            with st.expander(t("apple_music.shazams_expander", "⚡ Shazams par chanson (Top 10)")):
                 _df_sh = df_top[['song_name', 'shazam_count']].rename(
-                    columns={'song_name': 'Chanson', 'shazam_count': 'Shazams'})
+                    columns={'song_name': t("common.song", "Chanson"), 'shazam_count': 'Shazams'})
                 st.dataframe(_df_sh, hide_index=True, width="stretch")
 
         st.markdown("---")
@@ -91,7 +94,7 @@ def show():
         # ============================================================
         # 3. GRAPHIQUE DYNAMIQUE (CALCUL DIFFÉRENTIEL)
         # ============================================================
-        st.subheader("📈 Croissance Quotidienne (Streams & Shazams)")
+        st.subheader(t("apple_music.daily_growth", "📈 Croissance Quotidienne (Streams & Shazams)"))
 
         # Pre-select the latest *real* release using the canonical reference
         # (track_release_reference, fed by S4A release dates). Apple's CSV has no
@@ -114,7 +117,9 @@ def show():
                         best_song, best_date = sn, rd
                 if best_song is not None:
                     st.session_state[_ent_key] = best_song
-                    st.caption(f"Dernière sortie détectée : **{best_song}** ({best_date}).")
+                    st.caption(t("apple_music.latest_release",
+                                 "Dernière sortie détectée : **{song}** ({date}).")
+                               .format(song=best_song, date=best_date))
 
         # Sélecteur chanson + filtre période (factorisés via entity_period_filter).
         selected_song, window = entity_period_filter(
@@ -122,7 +127,7 @@ def show():
             spec=EntitySpec("apple_songs_history", "song_name", "date",
                             multi=False, default_count=1),
             artist_id=artist_id, key_prefix="apple_daily",
-            label="🔍 Chanson (dernière release par défaut)",
+            label=t("apple_music.song_select", "🔍 Chanson (dernière release par défaut)"),
         )
         # Normalise scalar → list so the IN (...) fragment below stays valid.
         selected_songs = [selected_song] if selected_song else []
@@ -171,10 +176,11 @@ def show():
                         name=f"⚡ {song}", opacity=0.4, yaxis='y2',
                     ))
                 fig.update_layout(
-                    title=f"Streams & Shazams par jour · {window.label}",
+                    title=t("apple_music.daily_chart_title",
+                            "Streams & Shazams par jour · {label}").format(label=window.label),
                     hovermode='x unified',
-                    yaxis=dict(title="Streams / jour"),
-                    yaxis2=dict(title="Shazams / jour", overlaying='y',
+                    yaxis=dict(title=t("apple_music.streams_per_day", "Streams / jour")),
+                    yaxis2=dict(title=t("apple_music.shazams_per_day", "Shazams / jour"), overlaying='y',
                                 side='right', showgrid=False),
                     barmode='group',
                     legend=dict(orientation='h'),
@@ -182,12 +188,14 @@ def show():
                 st.plotly_chart(fig, width="stretch")
 
             else:
-                st.info("📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données).")
+                st.info(t("apple_music.not_enough_history",
+                          "📉 Pas assez d'historique pour calculer la croissance (besoin de min. 2 jours de données)."))
         else:
-            st.info("👈 Sélectionnez une chanson — ou importez des CSV Apple Music plusieurs jours de suite.")
+            st.info(t("apple_music.select_prompt",
+                      "👈 Sélectionnez une chanson — ou importez des CSV Apple Music plusieurs jours de suite."))
 
     except Exception as e:
-        st.error(f"❌ Erreur : {e}")
+        st.error(t("apple_music.error", "❌ Erreur : {err}").format(err=e))
 
     finally:
         db.close()

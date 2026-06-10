@@ -1,7 +1,7 @@
 """
 Type: Utility
 Uses: streamlit
-Depends on: nothing (pure UI helper)
+Depends on: i18n (t)
 Persists in: nothing
 
 Generic Streamlit UI helpers shared across views.
@@ -14,6 +14,8 @@ from __future__ import annotations
 from datetime import date as _date
 
 import streamlit as st
+
+from src.dashboard.utils.i18n import t
 
 _LEVELS = frozenset({"info", "warning", "error"})
 
@@ -35,19 +37,20 @@ def smart_date_range(label, min_date, max_date, *, key):
     if min_d > max_d:
         min_d, max_d = max_d, min_d
 
-    presets = {"Tout l'historique": (min_d, max_d)}
+    custom_label = t("ui.custom_range", "Plage personnalisée")
+    presets = {t("ui.full_history", "Tout l'historique"): (min_d, max_d)}
     for y in range(min_d.year, max_d.year + 1):
         start, end = max(_date(y, 1, 1), min_d), min(_date(y, 12, 31), max_d)
         if start <= end:
-            presets[f"Année {y}"] = (start, end)
-    presets["Plage personnalisée"] = None
+            presets[t("ui.year_n", "Année {y}").format(y=y)] = (start, end)
+    presets[custom_label] = None
 
     choice = st.selectbox(label, list(presets.keys()), key=f"{key}_preset")
-    if choice != "Plage personnalisée":
+    if choice != custom_label:
         return presets[choice]
 
     rng = st.date_input(
-        "Plage", value=(min_d, max_d), min_value=min_d, max_value=max_d,
+        t("ui.range", "Plage"), value=(min_d, max_d), min_value=min_d, max_value=max_d,
         key=f"{key}_range",
     )
     if isinstance(rng, (tuple, list)) and len(rng) == 2:

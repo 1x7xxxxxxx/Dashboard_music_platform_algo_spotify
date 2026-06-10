@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from src.dashboard.utils import view_session
+from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 
 def show():
-    st.title("☁️ SoundCloud - Performance")
+    st.title(t("soundcloud.title", "☁️ SoundCloud - Performance"))
     st.markdown("---")
 
     with view_session() as (db, artist_id):
@@ -48,27 +49,28 @@ def show():
 
                 # Affichage sur 2 lignes
                 c1, c2, c3 = st.columns(3)
-                c1.metric("🎧 Total Écoutes", f"{int(total_plays):,}")
-                c2.metric("❤️ Total Likes", f"{int(total_likes):,}")
-                c3.metric("🔄 Total Reposts", f"{int(total_reposts):,}")
+                c1.metric(t("soundcloud.kpi_plays", "🎧 Total Écoutes"), f"{int(total_plays):,}")
+                c2.metric(t("soundcloud.kpi_likes", "❤️ Total Likes"), f"{int(total_likes):,}")
+                c3.metric(t("soundcloud.kpi_reposts", "🔄 Total Reposts"), f"{int(total_reposts):,}")
 
                 c4, c5, c6 = st.columns(3)
-                c4.metric("💬 Total Commentaires", f"{int(total_comments):,}")
-                c5.metric("🎵 Titres en ligne", total_tracks)
-                c6.metric("📅 Dernière mise à jour", last_date_str)
+                c4.metric(t("soundcloud.kpi_comments", "💬 Total Commentaires"), f"{int(total_comments):,}")
+                c5.metric(t("soundcloud.kpi_tracks", "🎵 Titres en ligne"), total_tracks)
+                c6.metric(t("soundcloud.kpi_last_update", "📅 Dernière mise à jour"), last_date_str)
 
-                st.caption(
+                st.caption(t(
+                    "soundcloud.likes_caption",
                     "ℹ️ Likes & historique fiables depuis le 15/05/2026 "
                     "(collecte OAuth user-token). Sources CSV S4A/Apple non "
                     "liées — autre sujet."
-                )
+                ))
 
             else:
-                st.warning("Aucune donnée SoundCloud trouvée. Lancez le collecteur.")
+                st.warning(t("soundcloud.no_data", "Aucune donnée SoundCloud trouvée. Lancez le collecteur."))
                 return
 
         except Exception as e:
-            st.error(f"Erreur SQL (KPIs) : {e}")
+            st.error(t("soundcloud.sql_error_kpi", "Erreur SQL (KPIs) : {err}").format(err=e))
             return
 
         st.markdown("---")
@@ -76,17 +78,17 @@ def show():
         # =========================================================================
         # 2. ANALYSE TEMPORELLE (Filtres Dynamiques)
         # =========================================================================
-        st.subheader("📈 Évolution des écoutes")
+        st.subheader(t("soundcloud.plays_evolution", "📈 Évolution des écoutes"))
 
         # --- FILTRES --- (entity + smart period, factorisés)
-        with st.expander("⚙️ Filtres du graphique", expanded=True):
+        with st.expander(t("soundcloud.chart_filters", "⚙️ Filtres du graphique"), expanded=True):
             selected_tracks, window = entity_period_filter(
                 db,
                 spec=EntitySpec("soundcloud_tracks_daily", "title", "collected_at",
                                 multi=True, default_count=1,
                                 release_column="track_created_at"),
                 artist_id=artist_id, key_prefix="sc",
-                label="Filtrer par titres",
+                label=t("soundcloud.filter_by_tracks", "Filtrer par titres"),
             )
 
         # --- REQUÊTE & AFFICHAGE ---
@@ -120,21 +122,24 @@ def show():
                         x='collected_at',
                         y='playback_count',
                         color='title',
-                        title=f"Croissance ({start_d.strftime('%d/%m')} - {end_d.strftime('%d/%m')})",
+                        title=t("soundcloud.growth_title", "Croissance ({start} - {end})").format(
+                            start=start_d.strftime('%d/%m'), end=end_d.strftime('%d/%m')),
                         markers=True
                     )
                     fig.update_layout(
-                        xaxis_title="Date",
-                        yaxis_title="Écoutes Cumulées",
+                        xaxis_title=t("common.date", "Date"),
+                        yaxis_title=t("soundcloud.cumulative_plays", "Écoutes Cumulées"),
                         hovermode="x unified",
                         legend=dict(orientation="h", y=-0.2)  # Légende en bas pour ne pas cacher
                     )
                     st.plotly_chart(fig, width="stretch")
 
                     # --- Évolution des métriques (base 100, échelles comparables) ---
-                    st.subheader("📈 Évolution des métriques (base 100)")
-                    _m = {'playback_count': 'Écoutes', 'likes_count': 'Likes',
-                          'reposts_count': 'Reposts', 'comment_count': 'Commentaires'}
+                    st.subheader(t("soundcloud.base100_header", "📈 Évolution des métriques (base 100)"))
+                    _m = {'playback_count': t("soundcloud.plays", "Écoutes"),
+                          'likes_count': 'Likes',
+                          'reposts_count': 'Reposts',
+                          'comment_count': t("soundcloud.comments", "Commentaires")}
                     agg = (df_filtered.groupby('collected_at')[list(_m)]
                            .sum().sort_index())
                     norm_rows = []
@@ -154,35 +159,40 @@ def show():
                         df_norm = pd.DataFrame(norm_rows)
                         fig_n = px.line(
                             df_norm, x='date', y='Base 100', color='Métrique',
-                            title=f"Évolution des métriques — base 100 ({window.label})",
+                            title=t("soundcloud.base100_title",
+                                    "Évolution des métriques — base 100 ({label})").format(label=window.label),
                             markers=True,
+                            labels={'Métrique': t("soundcloud.metric_lbl", "Métrique")},
                         )
                         fig_n.update_layout(
                             hovermode="x unified",
-                            yaxis_title="Base 100 (1er pt = 100)",
+                            yaxis_title=t("soundcloud.base100_axis", "Base 100 (1er pt = 100)"),
                         )
                         st.plotly_chart(fig_n, width="stretch")
-                        st.caption(
+                        st.caption(t(
+                            "soundcloud.likes_reliability",
                             "Likes : fiables à partir du 15/05/2026 (collecte "
                             "OAuth user-token) — points antérieurs masqués."
-                        )
+                        ))
                     else:
-                        st.info("Pas assez d'historique pour une évolution "
-                                "(≥2 collectes par métrique).")
+                        st.info(t("soundcloud.not_enough_history",
+                                  "Pas assez d'historique pour une évolution "
+                                  "(≥2 collectes par métrique)."))
                 else:
-                    st.info("Aucune donnée pour cette sélection (Vérifiez les dates ou les titres).")
+                    st.info(t("soundcloud.no_data_selection",
+                              "Aucune donnée pour cette sélection (Vérifiez les dates ou les titres)."))
             else:
-                st.info("Historique vide pour le moment.")
+                st.info(t("soundcloud.empty_history", "Historique vide pour le moment."))
 
         except Exception as e:
-            st.error(f"Erreur historique : {e}")
+            st.error(t("soundcloud.history_error", "Erreur historique : {err}").format(err=e))
 
         st.markdown("---")
 
         # =========================================================================
         # 3. TOP TITRES (Tableau épuré)
         # =========================================================================
-        st.subheader("🏆 Top Titres")
+        st.subheader(t("soundcloud.top_tracks", "🏆 Top Titres"))
         if not df_latest.empty:
             df_top = df_latest.copy()
             # Coerce to numeric first: a NULL in any count makes the column object dtype,
@@ -198,11 +208,13 @@ def show():
                 pd.Timestamp.now() - pd.to_datetime(df_top['track_created_at'])
             ).dt.days
 
+            _plays_lbl = t("soundcloud.plays", "Écoutes")
+            _eng_lbl = t("soundcloud.engagement", "Engagement")
             sort_by = st.segmented_control(
-                "Trier par", ["Écoutes", "Engagement"],
-                default="Écoutes", key="sc_sort",
-            ) or "Écoutes"
-            sort_col = 'playback_count' if sort_by == "Écoutes" else 'eng_total'
+                t("soundcloud.sort_by", "Trier par"), [_plays_lbl, _eng_lbl],
+                default=_plays_lbl, key="sc_sort",
+            ) or _plays_lbl
+            sort_col = 'playback_count' if sort_by == _plays_lbl else 'eng_total'
             df_top = df_top.sort_values(by=sort_col, ascending=False)
 
             cols_to_show = ['title', 'playback_count', 'likes_count',
@@ -211,13 +223,13 @@ def show():
             st.dataframe(
                 df_top[cols_to_show],
                 column_config={
-                    "title": "Titre",
-                    "playback_count": st.column_config.NumberColumn("Écoutes", format="%d"),
+                    "title": t("soundcloud.col_title", "Titre"),
+                    "playback_count": st.column_config.NumberColumn(_plays_lbl, format="%d"),
                     "likes_count": st.column_config.NumberColumn("❤️ Likes", format="%d"),
                     "reposts_count": st.column_config.NumberColumn("🔄 Reposts", format="%d"),
-                    "comment_count": st.column_config.NumberColumn("💬 Coms", format="%d"),
-                    "eng_rate": st.column_config.NumberColumn("💯 Engagement %", format="%.1f"),
-                    "days_since": st.column_config.NumberColumn("📅 Sorti il y a (j)", format="%d"),
+                    "comment_count": st.column_config.NumberColumn(t("soundcloud.col_comments", "💬 Coms"), format="%d"),
+                    "eng_rate": st.column_config.NumberColumn(t("soundcloud.col_eng_rate", "💯 Engagement %"), format="%.1f"),
+                    "days_since": st.column_config.NumberColumn(t("soundcloud.col_days_since", "📅 Sorti il y a (j)"), format="%d"),
                 },
                 hide_index=True,
                 width="stretch",

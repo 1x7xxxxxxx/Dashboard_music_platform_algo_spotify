@@ -7,6 +7,7 @@ Persists in: campaign_track_mapping (PostgreSQL spotify_etl)
 import streamlit as st
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.i18n import t
 
 
 def _load_campaigns(db, artist_id: int) -> list[str]:
@@ -42,17 +43,22 @@ def _load_mappings(db, artist_id: int):
 
 
 def show():
-    st.title("🔗 Meta × Spotify — Campaign Mapping")
-    st.caption("Link your Meta ad campaigns to Spotify track names for attribution analysis.")
+    st.title(t("meta_mapping.title", "🔗 Meta × Spotify — Mapping campagnes"))
+    st.caption(t("meta_mapping.subtitle",
+                 "Associez vos campagnes Meta Ads aux titres Spotify pour l'analyse d'attribution."))
 
     with view_session() as (db, artist_id):
-        tab_list, tab_add = st.tabs(["Existing mappings", "Add / Remove"])
+        tab_list, tab_add = st.tabs([
+            t("meta_mapping.tab_existing", "Mappings existants"),
+            t("meta_mapping.tab_add", "Ajouter / Supprimer"),
+        ])
 
         # ── Tab 1 : existing mappings ─────────────────────────────────────────
         with tab_list:
             df = _load_mappings(db, artist_id)
             if df.empty:
-                st.info("No mappings yet. Use the **Add / Remove** tab to create one.")
+                st.info(t("meta_mapping.no_mappings",
+                          "Aucun mapping pour le moment. Utilisez l'onglet **Ajouter / Supprimer** pour en créer un."))
             else:
                 st.dataframe(
                     df[["campaign_name", "track_name", "created_at"]],
@@ -61,22 +67,23 @@ def show():
                 )
 
                 st.markdown("---")
-                st.subheader("Delete a mapping")
+                st.subheader(t("meta_mapping.delete_title", "Supprimer un mapping"))
 
                 mapping_options = {
                     f"{row['campaign_name']} → {row['track_name']}": row["id"]
                     for _, row in df.iterrows()
                 }
                 selected_label = st.selectbox(
-                    "Select mapping to delete", list(mapping_options.keys())
+                    t("meta_mapping.select_delete", "Sélectionnez le mapping à supprimer"),
+                    list(mapping_options.keys())
                 )
-                if st.button("🗑️ Delete", type="secondary"):
+                if st.button(t("common.delete", "🗑️ Supprimer"), type="secondary"):
                     mapping_id = mapping_options[selected_label]
                     db.execute_query(
                         "DELETE FROM campaign_track_mapping WHERE id = %s AND artist_id = %s",
                         (mapping_id, artist_id)
                     )
-                    st.success(f"Deleted: {selected_label}")
+                    st.success(t("meta_mapping.deleted", "Supprimé : {label}").format(label=selected_label))
                     st.rerun()
 
         # ── Tab 2 : add mapping ───────────────────────────────────────────────
@@ -85,22 +92,24 @@ def show():
             tracks = _load_tracks(db, artist_id)
 
             if not campaigns:
-                st.warning(
-                    "No campaigns found in `meta_campaigns`. "
-                    "Run the Meta Ads DAG first."
-                )
+                st.warning(t(
+                    "meta_mapping.no_campaigns",
+                    "Aucune campagne trouvée dans `meta_campaigns`. "
+                    "Lancez d'abord le DAG Meta Ads."
+                ))
                 return
             if not tracks:
-                st.warning(
-                    "No tracks found in `tracks`. "
-                    "Run the Spotify API DAG first."
-                )
+                st.warning(t(
+                    "meta_mapping.no_tracks",
+                    "Aucun titre trouvé dans `tracks`. "
+                    "Lancez d'abord le DAG Spotify API."
+                ))
                 return
 
             with st.form("add_mapping_form"):
-                campaign = st.selectbox("Meta campaign", campaigns)
-                track = st.selectbox("Spotify track", tracks)
-                submitted = st.form_submit_button("➕ Add mapping", type="primary")
+                campaign = st.selectbox(t("meta_mapping.meta_campaign", "Campagne Meta"), campaigns)
+                track = st.selectbox(t("meta_mapping.spotify_track", "Titre Spotify"), tracks)
+                submitted = st.form_submit_button(t("meta_mapping.add_btn", "➕ Ajouter le mapping"), type="primary")
 
             if submitted:
                 db.execute_query(
@@ -111,5 +120,6 @@ def show():
                     """,
                     (artist_id, campaign, track)
                 )
-                st.success(f"Mapped **{campaign}** → **{track}**")
+                st.success(t("meta_mapping.mapped", "Associé : **{campaign}** → **{track}**")
+                           .format(campaign=campaign, track=track))
                 st.rerun()
