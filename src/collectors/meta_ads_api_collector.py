@@ -254,15 +254,27 @@ def _extract_eng(insight, artist_id: int) -> dict:
 class MetaAdsApiCollector:
     """Full Meta Ads API collector. No CSV dependency."""
 
-    def __init__(self, artist_id: int):
+    def __init__(self, artist_id: int, *, db=None, ad_account=None, creds=None):
+        """Production path: loads creds, inits the Meta SDK, connects Postgres.
+
+        Test seam (keyword-only, defaults preserve prod behaviour): inject a fake
+        `db`, `ad_account` (stub Meta SDK) and/or `creds` to exercise the pipeline
+        without real Meta tokens or a live DB. See tests/fakes/meta_sdk.py.
+        """
         if not artist_id or artist_id < 1:
             raise ValueError(f"MetaAdsApiCollector: invalid artist_id={artist_id!r}")
         self.artist_id = artist_id
-        self._creds = self._load_credentials()
-        self._init_api()
+        self._creds = creds if creds is not None else self._load_credentials()
+        if ad_account is not None:
+            self.ad_account = ad_account
+        else:
+            self._init_api()
+        self.db = db if db is not None else self._default_db()
 
+    @staticmethod
+    def _default_db():
         from src.database.postgres_handler import PostgresHandler
-        self.db = PostgresHandler(
+        return PostgresHandler(
             host=os.getenv('DATABASE_HOST', 'localhost'),
             port=int(os.getenv('DATABASE_PORT', 5432)),
             database=os.getenv('DATABASE_NAME', 'spotify_etl'),
