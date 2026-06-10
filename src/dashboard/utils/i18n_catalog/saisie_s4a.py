@@ -11,11 +11,22 @@ EN = {
     "saisie_s4a.fixed_caption": "Enter, per track, the playlist adds as shown in S4A "
                                "(7 days / 28 days / 12 months) and the Discovery Mode state. Bulk save.",
     "saisie_s4a.help_feeds_ml": "Feeds the ML",
+    "saisie_s4a.howto_header": "ℹ️ Where to find these values in Spotify for Artists?",
+    "saisie_s4a.howto_nonalgo": "**Non-algo streams (28d)** — per song:\n"
+        "Go to **Music → Songs → pick a song → Source of streams**. In the "
+        "**“Source of streams”** segmentation, tick **every active source**: "
+        "*Artist profile and catalog* · *Listener's playlists and library* · "
+        "*Listener's queue*. Enable the **last 28 days** filter, then report the "
+        "value shown under **“This period”** here.",
+    "saisie_s4a.howto_radio": "**Songs currently in Radio** — per artist:\n"
+        "Go to **Music → Playlists**, click **“Custom”** on the **Radio** playlist, "
+        "then count the number of songs.",
     "saisie_s4a.radio_count_label": "📻 Number of songs currently in Spotify Radio",
-    "saisie_s4a.radio_count_help": "Per-artist counter shown in S4A. Feeds the ML "
-                                   "(HowManySongsDoYouHaveInRadioRightNow feature).",
-    "saisie_s4a.nonalgo_help": "Organic streams (search, profile, direct) over 28d — "
-                               "excluding Discover Weekly / Release Radar / Radio / autoplay. Feeds the ML.",
+    "saisie_s4a.radio_count_help": "Music → Playlists → “Custom” on the Radio playlist → "
+                                   "count the songs. Feeds the ML (HowManySongsDoYouHaveInRadioRightNow).",
+    "saisie_s4a.nonalgo_help": "Music → Songs → a song → Source of streams: tick every active "
+                               "source + 28-day filter, report “This period”. Excludes "
+                               "Discover Weekly / Release Radar / Radio / autoplay. Feeds the ML.",
     "saisie_s4a.save_grid": "💾 Save grid",
     "saisie_s4a.saved_fixed": "Saved: {pa} playlist values + {dm} Discovery Mode + "
                               "{na} non-algo streams + Radio = {radio}.",

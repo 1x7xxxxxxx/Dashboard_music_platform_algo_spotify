@@ -23,7 +23,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
 _ARTIST_FILTER = "%1x7xxxxxxx%"
-_WINDOWS = [("7j", "7d"), ("28j", "28d"), ("12 mois", "12m")]
+_WINDOWS = [("Playlist 7j", "7d"), ("Playlist 28j", "28d"), ("Playlist 12 mois", "12m")]
 
 
 def _load_tracks(db, artist_id) -> list[str]:
@@ -87,14 +87,32 @@ def _render_fixed_grid(db, artist_id, tracks) -> None:
     st.caption(t("saisie_s4a.fixed_caption",
                  "Saisissez, par titre, les ajouts en playlist tels qu'affichés dans S4A "
                  "(7 jours / 28 jours / 12 mois) et l'état Discovery Mode. Sauvegarde groupée."))
+
+    # Step-by-step on where to read each value in the Spotify for Artists UI.
+    with st.expander(t("saisie_s4a.howto_header",
+                       "ℹ️ Où trouver ces valeurs dans Spotify for Artists ?")):
+        st.markdown(t(
+            "saisie_s4a.howto_nonalgo",
+            "**Streams non-algo (28j)** — par titre :\n"
+            "Onglet **Musique → Titres → sélectionne un titre → Source de streams**. "
+            "Dans la segmentation **« Source de streams »**, coche **toutes les sources "
+            "actives** : *Profil artiste et catalogue* · *Playlists et bibliothèque de "
+            "l'auditeur* · *File d'attente de l'auditeur*. Active le filtre **28 derniers "
+            "jours**, puis reporte ici la valeur affichée dans **« Cette période »**."))
+        st.markdown(t(
+            "saisie_s4a.howto_radio",
+            "**Titres actuellement en Radio** — par artiste :\n"
+            "Onglet **Musique → Playlists**, clique sur **« Personnalisée »** sur la "
+            "playlist **Radio**, puis compte le nombre de titres."))
+
     # Per-artist signal: number of songs currently pushed in Spotify Radio.
     radio_now = _latest_radio_count(db, artist_id)
     radio_count = st.number_input(
         t("saisie_s4a.radio_count_label", "📻 Nombre de titres actuellement en Radio Spotify"),
         min_value=0, step=1, value=int(radio_now),
         help=t("saisie_s4a.radio_count_help",
-               "Compteur par artiste visible dans S4A. Alimente le ML "
-               "(feature HowManySongsDoYouHaveInRadioRightNow)."),
+               "Musique → Playlists → « Personnalisée » sur la playlist Radio → "
+               "compte les titres. Alimente le ML (HowManySongsDoYouHaveInRadioRightNow)."),
         key=f"radio_count_{artist_id}")
 
     wins = _latest_windowed(db, artist_id)
@@ -102,9 +120,9 @@ def _render_fixed_grid(db, artist_id, tracks) -> None:
     nonalgo = _latest_nonalgo(db, artist_id)
     df = pd.DataFrame([{
         "Titre": s,
-        "7j": wins.get((s, "7d"), 0),
-        "28j": wins.get((s, "28d"), 0),
-        "12 mois": wins.get((s, "12m"), 0),
+        "Playlist 7j": wins.get((s, "7d"), 0),
+        "Playlist 28j": wins.get((s, "28d"), 0),
+        "Playlist 12 mois": wins.get((s, "12m"), 0),
         "Discovery Mode": disc.get(s, False),
         "Streams non-algo (28j)": nonalgo.get(s, 0),
     } for s in tracks])
@@ -113,15 +131,16 @@ def _render_fixed_grid(db, artist_id, tracks) -> None:
         df, hide_index=True, width="stretch", num_rows="fixed",
         column_config={
             "Titre": st.column_config.TextColumn(disabled=True),
-            "7j": st.column_config.NumberColumn(min_value=0, step=1),
-            "28j": st.column_config.NumberColumn(min_value=0, step=1, help=t("saisie_s4a.help_feeds_ml", "Alimente le ML")),
-            "12 mois": st.column_config.NumberColumn(min_value=0, step=1),
+            "Playlist 7j": st.column_config.NumberColumn(min_value=0, step=1),
+            "Playlist 28j": st.column_config.NumberColumn(min_value=0, step=1, help=t("saisie_s4a.help_feeds_ml", "Alimente le ML")),
+            "Playlist 12 mois": st.column_config.NumberColumn(min_value=0, step=1),
             "Discovery Mode": st.column_config.CheckboxColumn(),
             "Streams non-algo (28j)": st.column_config.NumberColumn(
                 min_value=0, step=1,
                 help=t("saisie_s4a.nonalgo_help",
-                       "Streams organiques (recherche, profil, direct) sur 28j — "
-                       "hors Discover Weekly / Release Radar / Radio / autoplay. Alimente le ML.")),
+                       "Musique → Titres → un titre → Source de streams : coche toutes les "
+                       "sources actives + filtre 28 jours, reporte « Cette période ». "
+                       "Hors Discover Weekly / Release Radar / Radio / autoplay. Alimente le ML.")),
         },
         key=f"grid_fixed_{artist_id}",
     )
