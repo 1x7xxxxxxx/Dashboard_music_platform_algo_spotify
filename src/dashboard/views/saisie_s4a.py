@@ -3,12 +3,16 @@
 Type: Feature
 Uses: streamlit, pandas, src.dashboard.utils.view_session
 Depends on: s4a_song_timeline (track list)
-Persists in: s4a_song_playlist_adds (windowed), s4a_song_discovery_mode
+Persists in: s4a_song_playlist_adds (windowed), s4a_song_discovery_mode,
+  s4a_song_nonalgo_streams, s4a_artist_radio_count
 
 Bulk manual-entry grid for S4A signals that have no API. One row per track:
 - playlist adds over 7d / 28d / 12m (windowed snapshots, migration 044),
 - Discovery Mode opt-in,
-plus a separate custom-range section (key in the first days after a release).
+- 28-day non-algo (organic) streams (migration 052),
+plus a per-artist "# songs in Radio now" counter (migration 052) and a separate
+custom-range section (key in the first days after a release). The non-algo streams
+and radio count un-impute the last two ml_inference features (were hard-coded 0).
 """
 from datetime import date, timedelta
 
@@ -60,19 +64,49 @@ def _latest_discovery(db, artist_id) -> dict:
     return {r[0]: bool(r[1]) for r in rows} if rows else {}
 
 
+def _latest_nonalgo(db, artist_id) -> dict:
+    """{song: streams_28d} latest non-algo 28-day stream snapshot per song."""
+    rows = db.fetch_query(
+        """SELECT DISTINCT ON (song) song, streams_28d FROM s4a_song_nonalgo_streams
+           WHERE artist_id = %s ORDER BY song, recorded_at DESC""",
+        (artist_id,)) if artist_id else []
+    return {r[0]: int(r[1] or 0) for r in rows} if rows else {}
+
+
+def _latest_radio_count(db, artist_id) -> int:
+    """Latest per-artist count of songs currently in Spotify Radio (0 if none)."""
+    rows = db.fetch_query(
+        """SELECT song_count FROM s4a_artist_radio_count
+           WHERE artist_id = %s ORDER BY recorded_at DESC LIMIT 1""",
+        (artist_id,)) if artist_id else []
+    return int(rows[0][0]) if rows and rows[0][0] is not None else 0
+
+
 def _render_fixed_grid(db, artist_id, tracks) -> None:
     st.subheader(t("saisie_s4a.fixed_header", "📊 Ajouts en playlist par fenêtre + Discovery Mode"))
     st.caption(t("saisie_s4a.fixed_caption",
                  "Saisissez, par titre, les ajouts en playlist tels qu'affichés dans S4A "
                  "(7 jours / 28 jours / 12 mois) et l'état Discovery Mode. Sauvegarde groupée."))
+    # Per-artist signal: number of songs currently pushed in Spotify Radio.
+    radio_now = _latest_radio_count(db, artist_id)
+    radio_count = st.number_input(
+        t("saisie_s4a.radio_count_label", "📻 Nombre de titres actuellement en Radio Spotify"),
+        min_value=0, step=1, value=int(radio_now),
+        help=t("saisie_s4a.radio_count_help",
+               "Compteur par artiste visible dans S4A. Alimente le ML "
+               "(feature HowManySongsDoYouHaveInRadioRightNow)."),
+        key=f"radio_count_{artist_id}")
+
     wins = _latest_windowed(db, artist_id)
     disc = _latest_discovery(db, artist_id)
+    nonalgo = _latest_nonalgo(db, artist_id)
     df = pd.DataFrame([{
         "Titre": s,
         "7j": wins.get((s, "7d"), 0),
         "28j": wins.get((s, "28d"), 0),
         "12 mois": wins.get((s, "12m"), 0),
         "Discovery Mode": disc.get(s, False),
+        "Streams non-algo (28j)": nonalgo.get(s, 0),
     } for s in tracks])
 
     edited = st.data_editor(
@@ -83,17 +117,22 @@ def _render_fixed_grid(db, artist_id, tracks) -> None:
             "28j": st.column_config.NumberColumn(min_value=0, step=1, help=t("saisie_s4a.help_feeds_ml", "Alimente le ML")),
             "12 mois": st.column_config.NumberColumn(min_value=0, step=1),
             "Discovery Mode": st.column_config.CheckboxColumn(),
+            "Streams non-algo (28j)": st.column_config.NumberColumn(
+                min_value=0, step=1,
+                help=t("saisie_s4a.nonalgo_help",
+                       "Streams organiques (recherche, profil, direct) sur 28j — "
+                       "hors Discover Weekly / Release Radar / Radio / autoplay. Alimente le ML.")),
         },
         key=f"grid_fixed_{artist_id}",
     )
 
     if st.button(t("saisie_s4a.save_grid", "💾 Enregistrer la grille"), type="primary"):
-        _save_fixed(db, artist_id, edited)
+        _save_fixed(db, artist_id, edited, int(radio_count))
 
 
-def _save_fixed(db, artist_id, edited: pd.DataFrame) -> None:
+def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
     today = date.today()
-    pa_rows, dm_rows = [], []
+    pa_rows, dm_rows, na_rows = [], [], []
     for _, row in edited.iterrows():
         song = row["Titre"]
         for label, win in _WINDOWS:
@@ -101,14 +140,24 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame) -> None:
                             "recorded_at": today, "count": int(row[label] or 0)})
         dm_rows.append({"artist_id": artist_id, "song": song,
                         "recorded_at": today, "opted_in": bool(row["Discovery Mode"])})
+        na_rows.append({"artist_id": artist_id, "song": song, "recorded_at": today,
+                        "streams_28d": int(row["Streams non-algo (28j)"] or 0)})
     try:
         db.upsert_many("s4a_song_playlist_adds", pa_rows,
                        ["artist_id", "song", "time_window", "recorded_at"],
                        ["count", "collected_at"])
         db.upsert_many("s4a_song_discovery_mode", dm_rows,
                        ["artist_id", "song", "recorded_at"], ["opted_in", "collected_at"])
-        st.success(t("saisie_s4a.saved_fixed", "Enregistré : {pa} valeurs playlist + {dm} Discovery Mode.")
-                   .format(pa=len(pa_rows), dm=len(dm_rows)))
+        db.upsert_many("s4a_song_nonalgo_streams", na_rows,
+                       ["artist_id", "song", "recorded_at"], ["streams_28d", "collected_at"])
+        db.upsert_many("s4a_artist_radio_count",
+                       [{"artist_id": artist_id, "recorded_at": today,
+                         "song_count": int(radio_count)}],
+                       ["artist_id", "recorded_at"], ["song_count", "collected_at"])
+        st.success(t("saisie_s4a.saved_fixed",
+                     "Enregistré : {pa} valeurs playlist + {dm} Discovery Mode + "
+                     "{na} streams non-algo + Radio = {radio}.")
+                   .format(pa=len(pa_rows), dm=len(dm_rows), na=len(na_rows), radio=int(radio_count)))
         st.rerun()
     except Exception as exc:
         st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))

@@ -53,6 +53,8 @@ _ALLOWED_TABLES = frozenset({
     'track_release_reference',
     's4a_song_saves_daily',
     's4a_song_discovery_mode',
+    's4a_song_nonalgo_streams',
+    's4a_artist_radio_count',
     'track_platform_link',
     'campaign_track_mapping',
 })

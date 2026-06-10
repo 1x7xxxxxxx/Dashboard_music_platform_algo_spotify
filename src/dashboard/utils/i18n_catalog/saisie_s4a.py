@@ -11,8 +11,14 @@ EN = {
     "saisie_s4a.fixed_caption": "Enter, per track, the playlist adds as shown in S4A "
                                "(7 days / 28 days / 12 months) and the Discovery Mode state. Bulk save.",
     "saisie_s4a.help_feeds_ml": "Feeds the ML",
+    "saisie_s4a.radio_count_label": "📻 Number of songs currently in Spotify Radio",
+    "saisie_s4a.radio_count_help": "Per-artist counter shown in S4A. Feeds the ML "
+                                   "(HowManySongsDoYouHaveInRadioRightNow feature).",
+    "saisie_s4a.nonalgo_help": "Organic streams (search, profile, direct) over 28d — "
+                               "excluding Discover Weekly / Release Radar / Radio / autoplay. Feeds the ML.",
     "saisie_s4a.save_grid": "💾 Save grid",
-    "saisie_s4a.saved_fixed": "Saved: {pa} playlist values + {dm} Discovery Mode.",
+    "saisie_s4a.saved_fixed": "Saved: {pa} playlist values + {dm} Discovery Mode + "
+                              "{na} non-algo streams + Radio = {radio}.",
     # Custom grid
     "saisie_s4a.custom_header": "📅 Custom range (e.g. first days post-release)",
     "saisie_s4a.custom_start": "Start",

@@ -25,8 +25,20 @@ from src.utils.ml_inference import (
     FEATURE_COLUMNS,
     MODEL_PATHS,
     MODEL_VERSION,
+    _latest_nonalgo_28d,
+    _latest_radio_count,
     score_song,
 )
+
+
+class _StubDB:
+    """Minimal db whose fetch_query returns a fixed row set (no real Postgres)."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetch_query(self, sql, params=None):
+        return self._rows
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 INPUT_FILE = FIXTURE_DIR / "ml_scoring_input.json"
@@ -97,6 +109,36 @@ class TestStructure:
         # ImportError and returns None for each key, but the keys are present.
         out = score_song(_features(fixtures[0]))
         assert set(out) == EXPECTED_KEYS
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Tier 1b — Manual-entry feature sources (migration 052; no DB, stubbed)
+# ─────────────────────────────────────────────────────────────────────
+
+class TestManualFeatureSources:
+    """NonAlgoStreams28Days + RadioCount were hard-coded 0 until migration 052
+    sourced them from s4a_song_nonalgo_streams / s4a_artist_radio_count. These
+    guard the read helpers (value, empty→0, NULL→0) without a live DB."""
+
+    def test_radio_count_reads_latest_value(self):
+        assert _latest_radio_count(_StubDB([(7,)]), 1) == 7
+
+    def test_radio_count_defaults_zero_when_no_entry(self):
+        assert _latest_radio_count(_StubDB([]), 1) == 0
+        assert _latest_radio_count(_StubDB(None), 1) == 0
+
+    def test_radio_count_defaults_zero_on_null(self):
+        assert _latest_radio_count(_StubDB([(None,)]), 1) == 0
+
+    def test_nonalgo_reads_latest_value(self):
+        assert _latest_nonalgo_28d(_StubDB([(3900,)]), 1, "song") == 3900
+
+    def test_nonalgo_defaults_zero_when_no_entry(self):
+        assert _latest_nonalgo_28d(_StubDB([]), 1, "song") == 0
+        assert _latest_nonalgo_28d(_StubDB(None), 1, "song") == 0
+
+    def test_nonalgo_defaults_zero_on_null(self):
+        assert _latest_nonalgo_28d(_StubDB([(None,)]), 1, "song") == 0
 
 
 # ─────────────────────────────────────────────────────────────────────
