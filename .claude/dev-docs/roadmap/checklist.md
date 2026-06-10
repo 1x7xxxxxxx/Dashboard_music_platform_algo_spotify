@@ -524,10 +524,15 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   Env vars documentées dans `.env.example`. +14 tests (`test_api_security.py`, TestClient
   sans DB). Limiteur in-memory single-process assumé (ADR-002 : pas de Redis/slowapi) —
   re-évaluer si l'API passe multi-worker en phase D.
-- [~] **C4 — i18n EN/FR** (infra livrée 2026-06-09) : `src/dashboard/utils/i18n.py` (`t()` helper,
-  FR source + fallback, EN dict), **toggle sidebar** (`language_selector`), **navigation
-  entièrement traduite** (titre + sections + 35 items), +5 tests (garde-fou : tout item nav a sa
-  trad EN). **Reste** (selon périmètre à décider) : login/inscription, compte, billing, vues.
+- [x] **C4 — i18n EN/FR** (infra 2026-06-09 ; **couverture complète 2026-06-10**) :
+  `src/dashboard/utils/i18n.py` (`t()` helper, FR source + fallback), **toggle sidebar**
+  (`language_selector`), **navigation entièrement traduite**, +5 tests (garde-fou nav).
+  **Couverture totale** : catalogues EN par vue sous `i18n_catalog/` (~47 modules, ~2150 clés,
+  auto-mergés par `_load_catalogs()`) — **toutes les vues** (login/inscription, compte, billing,
+  admin/ops, packages `trigger_algo/` + `credentials/`, `ml_widgets`, guides CSV). Vérifié :
+  410 tests verts, render-smoke live sur les 37 vues, ruff clean, 0 clé sans EN. Commits
+  `a672725` + `cde230c`. FR conservé par design : prose `csv_guides.py` (partagé PDF) +
+  constantes de labels au niveau module (résolution langue au runtime).
 - [ ] **C5 — Benchmark VPS** : streaMLytics + n8n + MT5 (Windows-only) + génération vidéo + scraping → topologie + sizing.
 - [ ] **D — Déploiement + pentest** (DERNIER, hors scope actuel) : voir `deployment.md`.
 
