@@ -52,10 +52,11 @@ def test_every_nav_item_key_has_en():
 # silently render French in EN mode. This locks in the full coverage built during
 # the i18n sweep: any new untranslated literal key fails CI.
 #
-# Static literal calls only — `(?<![A-Za-z0-9_])` avoids matching the trailing `t(`
-# of `.get(` / `.getenv(` / `.to_dict(`; the namespaced shape (≥1 dot) excludes
-# those false positives; dynamic `t(f"ns.{var}", ...)` keys are skipped (no match).
-_T_KEY_RE = re.compile(r'(?<![A-Za-z0-9_])t\(\s*"([a-z][a-z0-9_]*(?:\.[a-zA-Z0-9_]+)+)"')
+# Static literal calls only. `_?t(` matches both the global `t(...)` helper and the
+# PDF exporter's `_t(...)` wrapper; `(?<![A-Za-z0-9])` before the optional `_` avoids
+# matching the trailing `t(` of `.get(` / `.getenv(` / `.to_dict(`; the namespaced
+# shape (≥1 dot) excludes those; dynamic `t(f"ns.{var}", ...)` keys are skipped.
+_T_KEY_RE = re.compile(r'(?<![A-Za-z0-9])_?t\(\s*"([a-z][a-z0-9_]*(?:\.[a-zA-Z0-9_]+)+)"')
 
 
 def test_every_static_t_key_has_en_entry():

@@ -2,6 +2,22 @@
 import re
 from pathlib import Path
 
+from src.dashboard.utils.i18n import translate as _translate
+
+# Render-time language for the PDF, set by render_html(). Deliberately decoupled
+# from st.session_state so the exporter renders headless (golden test, future DAG)
+# in an explicit language. Default 'fr' keeps the FR golden snapshot byte-identical.
+_LANG = {"cur": "fr"}
+
+
+def _set_lang(lang: str | None) -> None:
+    _LANG["cur"] = lang or "fr"
+
+
+def _t(key: str, default: str) -> str:
+    """Translate a PDF string for the current render language (EN→FR→default→key)."""
+    return _translate(key, default, _LANG["cur"])
+
 
 # NB: this module sits one level deeper than the old pdf_exporter.py
 # (utils/pdf_exporter/_config.py vs utils/pdf_exporter.py), so the assets path

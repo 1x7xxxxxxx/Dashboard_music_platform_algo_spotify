@@ -4,6 +4,7 @@ from src.utils.track_matching import track_title_matches, canonical_song_sql
 from src.dashboard.utils.kpi_helpers import (
     ARTIST_NAME_FILTER,
 )
+from ._config import _t
 
 
 
@@ -22,7 +23,7 @@ def _latest_release(db, artist_id):
 
 def _get_artist_name(db, artist_id):
     if artist_id is None:
-        return "Tous les artistes"
+        return _t("pdf.all_artists", "Tous les artistes")
     try:
         row = db.fetch_query("SELECT name FROM saas_artists WHERE id = %s", (artist_id,))
         return row[0][0] if row else f"Artiste #{artist_id}"

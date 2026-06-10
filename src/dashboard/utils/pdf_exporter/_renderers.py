@@ -1,6 +1,8 @@
 """PDF export — renderers layer (move-only split of pdf_exporter)."""
 import src.dashboard.utils.pdf_exporter as _pkg
 
+from ._config import _t
+
 
 
 def _badge(emoji, label):
@@ -35,8 +37,10 @@ def _render_freshness(freshness):
             f"<tr><td>{info['icon']} {label}</td>"
             f"<td>{_badge(emoji, age_label)}</td></tr>"
         )
+    _h_source = _t("pdf.col.source", "Source")
+    _h_last = _t("pdf.col.last_collect", "Dernière collecte")
     return f"""<table class="compact">
-      <thead><tr><th>Source</th><th>Dernière collecte</th></tr></thead>
+      <thead><tr><th>{_h_source}</th><th>{_h_last}</th></tr></thead>
       <tbody>{''.join(rows)}</tbody></table>"""
 
 
@@ -48,7 +52,7 @@ def _render_streams(streams):
         ("🍎 Apple Music",  streams['apple']),
     ]
     total_card = _kpi_card(
-        f'{streams["total"]:,}', "🎧 Total toutes plateformes",
+        f'{streams["total"]:,}', _t("pdf.kpi.total_all_platforms", "🎧 Total toutes plateformes"),
         card_style="border-color:#1DB954; background:#f0faf3;",
         val_style="font-size:22pt;",
     )
@@ -65,22 +69,27 @@ def _render_roi(roi, from_date, to_date):
     roi_true = (net / spend * 100) if spend > 0 else None
     roi_val = f"{roi_true:+.1f} %" if roi_true is not None else "—"
     net_color = "#1DB954" if net >= 0 else "#FF4444"
-    status = "✅ Rentable" if net >= 0 else "⚠️ Déficitaire"
+    status = (_t("pdf.roi.profitable", "✅ Rentable") if net >= 0
+              else _t("pdf.roi.deficit", "⚠️ Déficitaire"))
+    since_start = _t("pdf.roi.since_start", "Depuis le début (tout l'historique)")
+    lbl_rev = _t("pdf.roi.revenue_imusician", "💰 Revenus iMusician")
+    lbl_spend = _t("pdf.roi.spend_meta", "📱 Dépenses Meta Ads")
+    lbl_net = _t("pdf.roi.net", "Net (revenus − dépenses)")
     return f"""
     <div class="roi-card">
-      <p style="font-size:8.5pt;color:#555;margin-bottom:10px;">Depuis le début (tout l'historique)</p>
+      <p style="font-size:8.5pt;color:#555;margin-bottom:10px;">{since_start}</p>
       <div class="roi-row">
         <div class="roi-item">
           <div class="kpi-val" style="font-size:14pt;">{rev:,.2f} €</div>
-          <div class="kpi-lbl">💰 Revenus iMusician</div>
+          <div class="kpi-lbl">{lbl_rev}</div>
         </div>
         <div class="roi-item">
           <div class="kpi-val" style="font-size:14pt;color:#FF4444;">{spend:,.2f} €</div>
-          <div class="kpi-lbl">📱 Dépenses Meta Ads</div>
+          <div class="kpi-lbl">{lbl_spend}</div>
         </div>
         <div class="roi-item">
           <div class="kpi-val" style="font-size:14pt;color:{net_color};">{net:,.2f} €</div>
-          <div class="kpi-lbl">Net (revenus − dépenses)</div>
+          <div class="kpi-lbl">{lbl_net}</div>
         </div>
         <div class="roi-item">
           <div class="kpi-val" style="font-size:14pt;color:{net_color};">{roi_val}</div>
@@ -103,30 +112,41 @@ def _prob_bar(pct):
 
 def _render_songs_focus(songs_data):
     if not songs_data:
-        return '<p class="no-data">Aucune chanson sélectionnée.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.no_song_selected", "Aucune chanson sélectionnée.")}</p>'
+    th_dw = _t("pdf.col.dw_playlist", "DW Playlist")
+    th_rr = _t("pdf.col.release_radar", "Release Radar")
+    th_radio = _t("pdf.col.radio", "Radio")
+    th_fc_dw = _t("pdf.col.forecast_dw_7d", "Forecast DW 7j")
+    th_fc_rr = _t("pdf.col.forecast_rr_7d", "Forecast RR 7j")
+    word_streams = _t("pdf.word.streams", "streams")
+    no_ml = _t("pdf.nodata.no_ml_prediction", "Pas de prédiction ML disponible.")
+    lbl_period = _t("pdf.label.streams_period", "Streams (période)")
+    lbl_last7 = _t("pdf.label.streams_last7d", "Streams 7 derniers jours")
     parts = []
     for s in songs_data:
         ml = s['ml']
         if ml:
+            pred_on = _t("pdf.label.prediction_on", "Prédiction du {date}").format(
+                date=ml['prediction_date'])
             ml_html = f"""
             <table style="width:100%;margin-top:8px;">
               <thead><tr>
-                <th>DW Playlist</th><th>Release Radar</th><th>Radio</th>
-                <th>Forecast DW 7j</th><th>Forecast RR 7j</th>
+                <th>{th_dw}</th><th>{th_rr}</th><th>{th_radio}</th>
+                <th>{th_fc_dw}</th><th>{th_fc_rr}</th>
               </tr></thead>
               <tbody><tr>
                 <td>{_prob_bar(ml['dw_prob'])}</td>
                 <td>{_prob_bar(ml['rr_prob'])}</td>
                 <td>{_prob_bar(ml['radio_prob'])}</td>
-                <td><b>{int(ml['dw_forecast']):,}</b> streams</td>
-                <td><b>{int(ml['rr_forecast']):,}</b> streams</td>
+                <td><b>{int(ml['dw_forecast']):,}</b> {word_streams}</td>
+                <td><b>{int(ml['rr_forecast']):,}</b> {word_streams}</td>
               </tr></tbody>
             </table>
             <p style="font-size:7.5pt;color:#aaa;margin-top:4px;">
-              Prédiction du {ml['prediction_date']}
+              {pred_on}
             </p>"""
         else:
-            ml_html = '<p class="no-data" style="margin-top:6px;">Pas de prédiction ML disponible.</p>'
+            ml_html = f'<p class="no-data" style="margin-top:6px;">{no_ml}</p>'
 
         parts.append(f"""
         <div class="song-block">
@@ -134,10 +154,10 @@ def _render_songs_focus(songs_data):
           <table style="width:auto;margin-bottom:0;">
             <tr>
               <td style="padding:3px 16px 3px 0;border:none;">
-                Streams (période) : <b>{s['total_streams']:,}</b>
+                {lbl_period} : <b>{s['total_streams']:,}</b>
               </td>
               <td style="padding:3px 0;border:none;">
-                Streams 7 derniers jours : <b>{s['last7d_streams']:,}</b>
+                {lbl_last7} : <b>{s['last7d_streams']:,}</b>
               </td>
             </tr>
           </table>
@@ -148,31 +168,34 @@ def _render_songs_focus(songs_data):
 
 def _render_s4a_top_songs(songs):
     if not songs:
-        return '<p class="no-data">Aucune donnée S4A disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.s4a", "Aucune donnée S4A disponible.")}</p>'
     rows = "".join(
         f"<tr><td>{s[0]}</td><td>{s[1]:,}</td><td>{s[2]:,}</td></tr>"
         for s in songs[:5]
     )
     return _html_table(
-        ['Chanson', 'Streams (période)', 'Streams 7 derniers jours'], rows)
+        [_t("pdf.col.song", "Chanson"),
+         _t("pdf.label.streams_period", "Streams (période)"),
+         _t("pdf.label.streams_last7d", "Streams 7 derniers jours")], rows)
 
 
 def _render_youtube(yt):
     if not yt:
-        return '<p class="no-data">Aucune donnée YouTube disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.youtube", "Aucune donnée YouTube disponible.")}</p>'
     # KPI header only — the growth + top-videos charts carry the detail (no table).
     return _kpi_grid(
-        _kpi_card(f'{yt["subscriber_count"]:,}', "Abonnés")
-        + _kpi_card(f'{yt["total_views"]:,}', "Vues totales (chaîne)")
+        _kpi_card(f'{yt["subscriber_count"]:,}', _t("pdf.kpi.subscribers", "Abonnés"))
+        + _kpi_card(f'{yt["total_views"]:,}', _t("pdf.kpi.total_views_channel", "Vues totales (chaîne)"))
     )
 
 
 def _render_instagram(ig):
     if not ig:
-        return '<p class="no-data">Aucune donnée Instagram disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.instagram", "Aucune donnée Instagram disponible.")}</p>'
+    ig_subs = _t("pdf.kpi.ig_subscribers", "@{username} — Abonnés").format(username=ig["username"])
     summary = _kpi_grid(
-        _kpi_card(f'{ig["followers"]:,}', f'@{ig["username"]} — Abonnés')
-        + _kpi_card(f'{ig["media_count"]:,}', "Publications")
+        _kpi_card(f'{ig["followers"]:,}', ig_subs)
+        + _kpi_card(f'{ig["media_count"]:,}', _t("pdf.kpi.publications", "Publications"))
     )
     # History is shown by the followers line chart above — KPIs only here.
     return summary
@@ -180,11 +203,11 @@ def _render_instagram(ig):
 
 def _render_meta(meta):
     if not meta or not meta['campaigns']:
-        return '<p class="no-data">Aucune donnée Meta Ads disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.meta", "Aucune donnée Meta Ads disponible.")}</p>'
     summary = _kpi_grid(
-        _kpi_card(f'{meta["total_spend"]:,.2f} €', "Dépenses totales",
+        _kpi_card(f'{meta["total_spend"]:,.2f} €', _t("pdf.kpi.total_spend", "Dépenses totales"),
                   val_style="color:#FF4444;")
-        + _kpi_card(f'{meta["total_results"]:,}', "Résultats totaux")
+        + _kpi_card(f'{meta["total_results"]:,}', _t("pdf.kpi.total_results", "Résultats totaux"))
     )
     rows = "".join(
         f"<tr><td>{c[0]}</td><td>{c[1]:,.2f} €</td><td>{c[2]:,}</td>"
@@ -192,29 +215,33 @@ def _render_meta(meta):
         for c in meta['campaigns'][:5]
     )
     table = _html_table(
-        ['Campagne', 'Dépenses', 'Résultats', 'Impressions', 'Reach', 'CPR'], rows)
+        [_t("pdf.col.campaign", "Campagne"), _t("pdf.col.spend", "Dépenses"),
+         _t("pdf.col.results", "Résultats"), _t("pdf.col.impressions", "Impressions"),
+         _t("pdf.col.reach", "Reach"), _t("pdf.col.cpr", "CPR")], rows)
     return summary + table
 
 
 def _render_soundcloud_tracks(tracks):
     if not tracks:
-        return '<p class="no-data">Aucune donnée SoundCloud disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.soundcloud", "Aucune donnée SoundCloud disponible.")}</p>'
     rows = "".join(
         f"<tr><td>{t[0]}</td><td>{t[1]:,}</td><td>{t[2]:,}</td>"
         f"<td>{t[3]:,}</td><td>{t[4]:,}</td></tr>"
         for t in tracks[:5]
     )
     return _html_table(
-        ['Titre', 'Plays', 'Likes', 'Reposts', 'Commentaires'], rows)
+        [_t("pdf.col.title", "Titre"), _t("pdf.col.plays", "Plays"),
+         _t("pdf.col.likes", "Likes"), _t("pdf.col.reposts", "Reposts"),
+         _t("pdf.col.comments", "Commentaires")], rows)
 
 
 def _render_apple(apple):
     if not apple:
-        return '<p class="no-data">Aucune donnée Apple Music disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.apple", "Aucune donnée Apple Music disponible.")}</p>'
     # KPI only (plays + shazams) — no per-song table (the chart carries the ranking).
     return _kpi_grid(
-        _kpi_card(f'{apple["total_plays"]:,}', "Plays totaux")
-        + _kpi_card(f'{apple["total_shazams"]:,}', "Shazams")
+        _kpi_card(f'{apple["total_plays"]:,}', _t("pdf.kpi.total_plays", "Plays totaux"))
+        + _kpi_card(f'{apple["total_shazams"]:,}', _t("pdf.kpi.shazams", "Shazams"))
     )
 
 
@@ -236,51 +263,60 @@ def _render_completeness(data):
         ("Apple Music",            bool(data.get('apple_data'))),
         ("Meta Ads",               bool(data.get('meta_data'))),
         ("Hypeddit",               bool(data.get('hypeddit_data'))),
-        ("Revenu iMusician",       bool((data.get('roi') or {}).get('revenue_eur'))),
-        ("Prédictions ML",         bool(data.get('latest_release'))),
-        ("Data Wrapped (saisie)",  bool(data.get('has_wrapped'))),
+        (_t("pdf.check.revenue_imusician", "Revenu iMusician"),
+                                   bool((data.get('roi') or {}).get('revenue_eur'))),
+        (_t("pdf.check.ml_predictions", "Prédictions ML"),
+                                   bool(data.get('latest_release'))),
+        (_t("pdf.check.data_wrapped", "Data Wrapped (saisie)"),
+                                   bool(data.get('has_wrapped'))),
     ]
+    badge_present = _t("pdf.status.present", "présent")
+    badge_empty = _t("pdf.status.empty", "à renseigner / vide")
     rows = "".join(
         f"<tr><td>{name}</td><td>"
-        + ('<span class="badge green">présent</span>' if ok
-           else '<span class="badge gray">à renseigner / vide</span>')
+        + (f'<span class="badge green">{badge_present}</span>' if ok
+           else f'<span class="badge gray">{badge_empty}</span>')
         + "</td></tr>"
         for name, ok in checks
     )
-    return (f'<table class="compact"><thead><tr><th>Source</th><th>Statut</th></tr>'
+    _h_source = _t("pdf.col.source", "Source")
+    _h_status = _t("pdf.col.status", "Statut")
+    return (f'<table class="compact"><thead><tr><th>{_h_source}</th><th>{_h_status}</th></tr>'
             f'</thead><tbody>{rows}</tbody></table>')
 
 
 def _render_hypeddit(hy):
     if not hy:
-        return '<p class="no-data">Aucune donnée Hypeddit disponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.hypeddit", "Aucune donnée Hypeddit disponible.")}</p>'
     return _kpi_grid(
-        _kpi_card(f'{hy["total_visits"]:,}', "Visites (période)")
-        + _kpi_card(f'{hy["total_clicks"]:,}', "Clics (période)")
-        + _kpi_card(f'{hy["total_budget"]:,.0f} €', "Budget (période)")
+        _kpi_card(f'{hy["total_visits"]:,}', _t("pdf.kpi.visits_period", "Visites (période)"))
+        + _kpi_card(f'{hy["total_clicks"]:,}', _t("pdf.kpi.clicks_period", "Clics (période)"))
+        + _kpi_card(f'{hy["total_budget"]:,.0f} €', _t("pdf.kpi.budget_period", "Budget (période)"))
     )
 
 
 def _render_revenue_forecast(rfc):
     if not rfc:
-        return '<p class="no-data">Aucune donnée de revenus pour la projection.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.revenue_forecast", "Aucune donnée de revenus pour la projection.")}</p>'
     return _kpi_grid(
-        _kpi_card(f'{rfc["total"]:,.0f} €', "Revenu cumulé")
-        + _kpi_card(f'{len(rfc["months"])}', "Mois enregistrés")
+        _kpi_card(f'{rfc["total"]:,.0f} €', _t("pdf.kpi.cumulative_revenue", "Revenu cumulé"))
+        + _kpi_card(f'{len(rfc["months"])}', _t("pdf.kpi.months_recorded", "Mois enregistrés"))
     )
 
 
 def _render_score20(rows):
     if not rows:
-        return '<p class="no-data">Score /20 indisponible (lancez `ml_scoring_daily`).</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.score20", "Score /20 indisponible (lancez `ml_scoring_daily`).")}</p>'
     body = "".join(
         f"<tr><td>{_trunc(s, 42)}</td><td><b>{sc:.1f}</b></td><td>{dw * 100:.0f}%</td>"
         f"<td>{rr * 100:.0f}%</td><td>{ra * 100:.0f}%</td></tr>"
         for s, sc, dw, rr, ra in rows
     )
-    note = ("<p class='subtitle'>Score /20 = classement relatif du catalogue "
-            "(meilleur = 20, pire = 0) ; pour la proba absolue, lire DW/RR/Radio %.</p>")
-    return note + _html_table(['Titre', 'Score /20', 'DW %', 'RR %', 'Radio %'], body)
+    note = (f"<p class='subtitle'>{_t('pdf.note.score20', 'Score /20 = classement relatif du catalogue (meilleur = 20, pire = 0) ; pour la proba absolue, lire DW/RR/Radio %.')}</p>")
+    return note + _html_table(
+        [_t("pdf.col.title", "Titre"), _t("pdf.col.score20", "Score /20"),
+         _t("pdf.col.dw_pct", "DW %"), _t("pdf.col.rr_pct", "RR %"),
+         _t("pdf.col.radio_pct", "Radio %")], body)
 
 
 def _render_overview(data):
@@ -288,26 +324,29 @@ def _render_overview(data):
     s = data['streams']
     ig = data.get('instagram') or {}
     return _kpi_grid(
-        _kpi_card(f"{s['total']:,}", "Total streams (toutes plateformes)")
-        + _kpi_card(f"{s['s4a']:,}", "Streams Spotify S4A")
-        + _kpi_card(f"{s['youtube']:,}", "Vues YouTube")
-        + _kpi_card(f"{s['soundcloud']:,}", "Plays SoundCloud")
-        + _kpi_card(f"{s['apple']:,}", "Plays Apple Music")
-        + _kpi_card(f"{ig.get('followers', 0):,}" if ig else "—", "Followers Instagram")
+        _kpi_card(f"{s['total']:,}", _t("pdf.kpi.total_streams_all", "Total streams (toutes plateformes)"))
+        + _kpi_card(f"{s['s4a']:,}", _t("pdf.kpi.streams_s4a", "Streams Spotify S4A"))
+        + _kpi_card(f"{s['youtube']:,}", _t("pdf.kpi.youtube_views", "Vues YouTube"))
+        + _kpi_card(f"{s['soundcloud']:,}", _t("pdf.kpi.soundcloud_plays", "Plays SoundCloud"))
+        + _kpi_card(f"{s['apple']:,}", _t("pdf.kpi.apple_plays", "Plays Apple Music"))
+        + _kpi_card(f"{ig.get('followers', 0):,}" if ig else "—", _t("pdf.kpi.instagram_followers", "Followers Instagram"))
     )
 
 
 def _render_credentials(creds):
     if not creds:
-        return '<p class="no-data">Statut credentials indisponible.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.credentials", "Statut credentials indisponible.")}</p>'
+    badge_ok = _t("pdf.cred.configured", "configuré")
+    badge_no = _t("pdf.cred.not_configured", "non configuré")
     rows = "".join(
         f"<tr><td>{label}</td><td>"
-        + ('<span class="badge green">configuré</span>' if ok
-           else '<span class="badge gray">non configuré</span>')
+        + (f'<span class="badge green">{badge_ok}</span>' if ok
+           else f'<span class="badge gray">{badge_no}</span>')
         + "</td></tr>"
         for label, ok in creds
     )
-    return _html_table(['Plateforme', 'Credentials'], rows)
+    return _html_table([_t("pdf.col.platform", "Plateforme"),
+                        _t("pdf.col.credentials", "Credentials")], rows)
 
 
 def _trunc(s, n):
@@ -317,10 +356,11 @@ def _trunc(s, n):
 
 def _render_mapping(rows):
     if not rows:
-        return '<p class="no-data">Aucun mapping campagne ↔ titre saisi.</p>'
+        return f'<p class="no-data">{_t("pdf.nodata.mapping", "Aucun mapping campagne ↔ titre saisi.")}</p>'
     body = "".join(
         f"<tr><td style='width:58%'>{_trunc(c, 46)}</td>"
         f"<td style='width:42%'>{_trunc(t, 34)}</td></tr>"
         for c, t in rows[:15]
     )
-    return _html_table(['Campagne Meta', 'Titre'], body)
+    return _html_table([_t("pdf.col.campaign_meta", "Campagne Meta"),
+                        _t("pdf.col.title", "Titre")], body)

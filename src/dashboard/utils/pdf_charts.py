@@ -16,6 +16,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+# pdf_exporter imports pdf_charts lazily (inside functions), and _config imports
+# only i18n — so this top-level import introduces no cycle.
+from src.dashboard.utils.pdf_exporter._config import _t  # noqa: E402
+
 _GREEN = "#1DB954"
 _DARK = "#1a1a2e"
 _RED = "#FF4444"
@@ -61,7 +65,8 @@ def streams_timeline(db, artist_id, from_date, to_date, title=None) -> str | Non
     ax.fill_between(xs, ys, color=_GREEN, alpha=0.12)
     _style(ax)
     if title is None:
-        title = (f"Streams S4A — {from_date:%d/%m/%Y} → {to_date:%d/%m/%Y}")
+        rng = f"{from_date:%d/%m/%Y} → {to_date:%d/%m/%Y}"
+        title = _t("pdf.chart.streams_s4a_range", "Streams S4A — {range}").format(range=rng)
     ax.set_title(title, color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
@@ -81,8 +86,8 @@ def s4a_cumulative(rows) -> str | None:
     ax.plot(xs, cum, color=_GREEN, linewidth=2)
     ax.fill_between(xs, cum, color=_GREEN, alpha=0.12)
     _style(ax)
-    ax.set_title("Streams S4A cumulés (carrière)", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.streams_s4a_cumulative", "Streams S4A cumulés (carrière)"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
@@ -94,12 +99,13 @@ def s4a_audience_evolution(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2, label="Listeners")
+    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2,
+            label=_t("pdf.chart.listeners", "Listeners"))
     ax.plot(xs, [int(r[2] or 0) for r in rows], color="#457b9d", linewidth=2,
-            label="Followers")
+            label=_t("pdf.chart.followers", "Followers"))
     _style(ax)
-    ax.set_title("Audience S4A — listeners & followers", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.s4a_audience", "Audience S4A — listeners & followers"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     ax.legend(fontsize=8, frameon=False)
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
@@ -116,8 +122,9 @@ def song_timeline(rows, song) -> str | None:
     ax.plot(xs, ys, color=_GREEN, linewidth=2)
     ax.fill_between(xs, ys, color=_GREEN, alpha=0.12)
     _style(ax)
-    ax.set_title(f"Streams S4A — {_short(song, 40)}", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    _song = _short(song, 40)
+    ax.set_title(_t("pdf.chart.streams_s4a_song", "Streams S4A — {song}").format(song=_song),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
@@ -129,17 +136,19 @@ def youtube_channel_growth(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
+    _subs = _t("pdf.chart.subscribers", "Abonnés")
+    _cum_views = _t("pdf.chart.cumulative_views", "Vues cumulées")
     ax.plot(xs, [int(r[1] or 0) for r in rows], color="#FF0000", linewidth=2,
-            marker="o", markersize=3, label="Abonnés")
+            marker="o", markersize=3, label=_subs)
     _style(ax)
-    ax.set_ylabel("Abonnés", color="#FF0000", fontsize=8)
+    ax.set_ylabel(_subs, color="#FF0000", fontsize=8)
     ax2 = ax.twinx()
     ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#888888", linewidth=1.8,
-             linestyle="--", label="Vues cumulées")
-    ax2.set_ylabel("Vues cumulées", color="#888888", fontsize=8)
+             linestyle="--", label=_cum_views)
+    ax2.set_ylabel(_cum_views, color="#888888", fontsize=8)
     ax2.spines["top"].set_visible(False)
-    ax.set_title("YouTube — croissance de la chaîne", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.youtube_channel_growth", "YouTube — croissance de la chaîne"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
@@ -153,8 +162,8 @@ def platform_breakdown(streams: dict) -> str | None:
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
     bars = ax.bar(labels, vals, color=_PLATFORM_COLORS, width=0.6)
     _style(ax)
-    ax.set_title("Streams par plateforme", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.streams_per_platform", "Streams par plateforme"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,}", ha="center",
                 va="bottom", fontsize=8, color="#444")
@@ -182,10 +191,10 @@ def ml_probabilities(db, artist_id, song) -> str | None:
     # Decision thresholds: <20 STOP, 20-50 OPTIMISER, >=50 SCALER.
     ax.axhline(20, color="#FFA500", linewidth=1, linestyle=":")
     ax.axhline(50, color=_GREEN, linewidth=1, linestyle="--")
-    ax.text(2.55, 20, "STOP", fontsize=7, color="#FFA500", va="center")
-    ax.text(2.55, 50, "SCALER", fontsize=7, color=_GREEN, va="center")
-    ax.set_title("Probabilités algorithmes (J+28)", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.text(2.55, 20, _t("pdf.chart.stop", "STOP"), fontsize=7, color="#FFA500", va="center")
+    ax.text(2.55, 50, _t("pdf.chart.scale", "SCALER"), fontsize=7, color=_GREEN, va="center")
+    ax.set_title(_t("pdf.chart.algo_probabilities", "Probabilités algorithmes (J+28)"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     ax.set_ylabel("%", color="#666", fontsize=8)
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.0f}%", ha="center",
@@ -219,27 +228,32 @@ def _hbar(pairs, title, color=_GREEN, unit="") -> str | None:
     return _fig_to_uri(fig)
 
 
-def top_songs_bar(rows, title="Top chansons (streams)") -> str | None:
+def top_songs_bar(rows, title=None) -> str | None:
     """rows: [(song, value, …)] — bars on value (index 1)."""
+    if title is None:
+        title = _t("pdf.chart.top_songs_streams", "Top chansons (streams)")
     return _hbar([(r[0], r[1]) for r in (rows or [])], title)
 
 
 def youtube_top_videos_bar(videos) -> str | None:
     """videos: [(title, date, views, likes, comments)] — bars on views."""
-    return _hbar([(v[0], v[2]) for v in (videos or [])], "Top vidéos YouTube (vues)",
+    return _hbar([(v[0], v[2]) for v in (videos or [])],
+                 _t("pdf.chart.top_videos_youtube", "Top vidéos YouTube (vues)"),
                  color="#FF0000")
 
 
 def soundcloud_top_bar(tracks) -> str | None:
     """tracks: [(title, plays, likes, reposts, comments)] — bars on plays."""
-    return _hbar([(t[0], t[1]) for t in (tracks or [])], "Top tracks SoundCloud (plays)",
+    return _hbar([(t[0], t[1]) for t in (tracks or [])],
+                 _t("pdf.chart.top_tracks_soundcloud", "Top tracks SoundCloud (plays)"),
                  color="#FF7700")
 
 
 def meta_campaigns_bar(campaigns) -> str | None:
     """campaigns: [(name, spend, results, impressions, reach, cpr)] — bars on spend."""
     return _hbar([(c[0], c[1]) for c in (campaigns or [])],
-                 "Dépense par campagne Meta Ads", color=_RED, unit=" €")
+                 _t("pdf.chart.spend_per_meta_campaign", "Dépense par campagne Meta Ads"),
+                 color=_RED, unit=" €")
 
 
 def instagram_followers_line(history) -> str | None:
@@ -252,8 +266,8 @@ def instagram_followers_line(history) -> str | None:
     fig, ax = plt.subplots(figsize=(8.6, 2.8))
     ax.plot(xs, ys, color="#C13584", linewidth=2, marker="o", markersize=3)
     _style(ax)
-    ax.set_title("Évolution des abonnés Instagram", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.instagram_followers_evolution", "Évolution des abonnés Instagram"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     step = max(1, len(xs) // 8)
     ax.set_xticks(range(0, len(xs), step))
     ax.set_xticklabels([xs[i] for i in range(0, len(xs), step)], rotation=30, ha="right")
@@ -274,12 +288,13 @@ def hypeddit_combo(series) -> str | None:
     visits = [int(s[1] or 0) for s in series]
     clicks = [int(s[2] or 0) for s in series]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.bar(range(len(xs)), visits, color="#7FB3FF", width=0.7, label="Visites")
+    ax.bar(range(len(xs)), visits, color="#7FB3FF", width=0.7,
+           label=_t("pdf.chart.visits", "Visites"))
     ax.plot(range(len(xs)), clicks, color=_GREEN, linewidth=2, marker="o",
-            markersize=3, label="Clics")
+            markersize=3, label=_t("pdf.chart.clicks", "Clics"))
     _style(ax)
-    ax.set_title("Hypeddit — visites & clics", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.hypeddit_visits_clicks", "Hypeddit — visites & clics"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     step = max(1, len(xs) // 8)
     ax.set_xticks(range(0, len(xs), step))
     ax.set_xticklabels([xs[i] for i in range(0, len(xs), step)], rotation=30, ha="right")
@@ -290,12 +305,15 @@ def hypeddit_combo(series) -> str | None:
 def hypeddit_campaigns_bar(rows) -> str | None:
     """rows: [(campaign_name, budget)] — horizontal budget bars per Hypeddit campaign."""
     return _hbar([(r[0], r[1]) for r in (rows or [])],
-                 "Hypeddit — budget par campagne", color="#7FB3FF", unit=" €")
+                 _t("pdf.chart.hypeddit_budget_per_campaign", "Hypeddit — budget par campagne"),
+                 color="#7FB3FF", unit=" €")
 
 
 def playlist_adds_bars(windows) -> str | None:
     """windows: {'7d': n, '28d': n, '12m': n} — playlist adds per window."""
-    order = [("7d", "7 jours"), ("28d", "28 jours"), ("12m", "12 mois")]
+    order = [("7d", _t("pdf.chart.window_7d", "7 jours")),
+             ("28d", _t("pdf.chart.window_28d", "28 jours")),
+             ("12m", _t("pdf.chart.window_12m", "12 mois"))]
     vals = [int((windows or {}).get(k, 0) or 0) for k, _ in order]
     if sum(vals) <= 0:
         return None
@@ -303,8 +321,8 @@ def playlist_adds_bars(windows) -> str | None:
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
     bars = ax.bar(labels, vals, color=["#9aa0a6", "#1DB954", "#11261a"], width=0.55)
     _style(ax)
-    ax.set_title("Ajouts en playlist (S4A)", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.playlist_adds", "Ajouts en playlist (S4A)"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,}", ha="center", va="bottom",
                 fontsize=9, color="#444", fontweight="bold")
@@ -329,12 +347,13 @@ def revenue_forecast_chart(months) -> str | None:
     proj_x = list(range(n + 3))
     proj_y = [max(0, slope * x + intercept) for x in proj_x]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.bar(xs, vals, color=_GREEN, width=0.6, label="Revenu mensuel")
+    ax.bar(xs, vals, color=_GREEN, width=0.6,
+           label=_t("pdf.chart.monthly_revenue", "Revenu mensuel"))
     ax.plot(proj_x, proj_y, color=_RED, linewidth=2, linestyle="--",
-            label="Tendance + projection 3 mois")
+            label=_t("pdf.chart.trend_projection_3m", "Tendance + projection 3 mois"))
     _style(ax)
-    ax.set_title("Revenus iMusician & projection", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.revenue_imusician", "Revenus iMusician & projection"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     step = max(1, len(labels) // 8)
     ax.set_xticks(range(0, len(labels), step))
     ax.set_xticklabels([labels[i] for i in range(0, len(labels), step)],
@@ -347,8 +366,13 @@ def indexed_lines(series, title) -> str | None:
     """series: {label: [(x_idx, value)]} — each rebased to 100 at first point."""
     fig, ax = plt.subplots(figsize=(8.6, 3.2))
     plotted = False
-    palette = {"Budget Meta": _RED, "Streams Spotify": _GREEN, "Résultats": "#003f5c",
-               "CPR": "#bc5090", "Popularité": "#FFA500"}
+    palette = {
+        _t("pdf.chart.series.meta_budget", "Budget Meta"): _RED,
+        _t("pdf.chart.series.spotify_streams", "Streams Spotify"): _GREEN,
+        _t("pdf.chart.series.results", "Résultats"): "#003f5c",
+        _t("pdf.chart.series.cpr", "CPR"): "#bc5090",
+        _t("pdf.chart.series.popularity", "Popularité"): "#FFA500",
+    }
     for label, pts in (series or {}).items():
         pts = [p for p in pts if p[1] is not None]
         if len(pts) < 2 or not pts[0][1]:
@@ -383,10 +407,12 @@ def j28_trajectory(points) -> str | None:
     ax.plot(xs, ys, color=_GREEN, linewidth=2.5, marker="o", markersize=3)
     ax.fill_between(xs, ys, color=_GREEN, alpha=0.12)
     _style(ax)
-    ax.set_title("Trajectoire J+28 — streams cumulés depuis la sortie",
+    ax.set_title(_t("pdf.chart.j28_trajectory",
+                    "Trajectoire J+28 — streams cumulés depuis la sortie"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
-    ax.set_xlabel("Jours depuis la sortie (J+)", color="#666", fontsize=8)
-    ax.set_ylabel("Streams cumulés", color="#666", fontsize=8)
+    ax.set_xlabel(_t("pdf.chart.days_since_release", "Jours depuis la sortie (J+)"),
+                  color="#666", fontsize=8)
+    ax.set_ylabel(_t("pdf.chart.cumulative_streams", "Streams cumulés"), color="#666", fontsize=8)
     ax.margins(y=0.12)
     return _fig_to_uri(fig)
 
@@ -398,16 +424,17 @@ def apple_daily_growth(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2, label="Streams/j")
+    ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2,
+            label=_t("pdf.chart.streams_per_day_short", "Streams/j"))
     _style(ax)
-    ax.set_ylabel("Streams / jour", color=_GREEN, fontsize=8)
+    ax.set_ylabel(_t("pdf.chart.streams_per_day", "Streams / jour"), color=_GREEN, fontsize=8)
     ax2 = ax.twinx()
     ax2.bar(xs, [int(r[2] or 0) for r in rows], color="#FFA500", alpha=0.4, width=1.0,
-            label="Shazams/j")
-    ax2.set_ylabel("Shazams / jour", color="#FFA500", fontsize=8)
+            label=_t("pdf.chart.shazams_per_day_short", "Shazams/j"))
+    ax2.set_ylabel(_t("pdf.chart.shazams_per_day", "Shazams / jour"), color="#FFA500", fontsize=8)
     ax2.spines["top"].set_visible(False)
-    ax.set_title("Apple Music — croissance quotidienne", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.apple_daily_growth", "Apple Music — croissance quotidienne"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
@@ -422,8 +449,8 @@ def sc_playback_evolution(rows) -> str | None:
     ax.plot(xs, [r[1] for r in rows], color="#FF7700", linewidth=2)
     ax.fill_between(xs, [r[1] for r in rows], color="#FF7700", alpha=0.12)
     _style(ax)
-    ax.set_title("SoundCloud — évolution des écoutes", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.soundcloud_plays_evolution", "SoundCloud — évolution des écoutes"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
@@ -435,17 +462,19 @@ def apple_timeline(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
+    _plays_cum = _t("pdf.chart.plays_cumulative", "Plays (cumul)")
+    _shazams_cum = _t("pdf.chart.shazams_cumulative", "Shazams (cumul)")
     ax.plot(xs, [int(r[1] or 0) for r in rows], color=_GREEN, linewidth=2,
-            marker="o", markersize=4, label="Plays (cumul)")
+            marker="o", markersize=4, label=_plays_cum)
     _style(ax)
-    ax.set_ylabel("Plays (cumul)", color=_GREEN, fontsize=8)
+    ax.set_ylabel(_plays_cum, color=_GREEN, fontsize=8)
     ax2 = ax.twinx()
     ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#FFA500", linewidth=2,
-             marker="s", markersize=4, label="Shazams (cumul)")
-    ax2.set_ylabel("Shazams (cumul)", color="#FFA500", fontsize=8)
+             marker="s", markersize=4, label=_shazams_cum)
+    ax2.set_ylabel(_shazams_cum, color="#FFA500", fontsize=8)
     ax2.spines["top"].set_visible(False)
-    ax.set_title("Apple Music — plays & shazams (cumul)", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.apple_plays_shazams", "Apple Music — plays & shazams (cumul)"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
@@ -458,13 +487,16 @@ def sc_multiaxis(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.2))
+    _plays = _t("pdf.chart.plays", "Écoutes")
     ax.plot(xs, [int(r[1] or 0) for r in rows], color="#FF7700", linewidth=2.4,
-            marker="o", markersize=3, label="Écoutes")
+            marker="o", markersize=3, label=_plays)
     _style(ax)
-    ax.set_ylabel("Écoutes", color="#FF7700", fontsize=8)
+    ax.set_ylabel(_plays, color="#FF7700", fontsize=8)
     ax2 = ax.twinx()
-    for idx, (lbl, col) in enumerate([("Likes", "#C13584"), ("Reposts", "#457b9d"),
-                                      ("Commentaires", "#9d4edd")], start=2):
+    for idx, (lbl, col) in enumerate([(_t("pdf.chart.likes", "Likes"), "#C13584"),
+                                      (_t("pdf.chart.reposts", "Reposts"), "#457b9d"),
+                                      (_t("pdf.chart.comments", "Commentaires"), "#9d4edd")],
+                                     start=2):
         # Drop zero points: SoundCloud likes/reposts were collected as 0 before the
         # client_credentials fix → a 0→real jump that reads as a fake bump.
         pts = [(r[0], int(r[idx] or 0)) for r in rows if int(r[idx] or 0) > 0]
@@ -472,10 +504,11 @@ def sc_multiaxis(rows) -> str | None:
             continue
         ax2.plot([p[0] for p in pts], [p[1] for p in pts], color=col, linewidth=1.8,
                  marker=".", markersize=4, label=lbl)
-    ax2.set_ylabel("Engagement (likes · reposts · commentaires)", color="#666", fontsize=8)
+    ax2.set_ylabel(_t("pdf.chart.engagement_breakdown",
+                      "Engagement (likes · reposts · commentaires)"), color="#666", fontsize=8)
     ax2.spines["top"].set_visible(False)
-    ax.set_title("SoundCloud — écoutes & engagement", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.soundcloud_plays_engagement", "SoundCloud — écoutes & engagement"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     ax.legend(h1 + h2, l1 + l2, fontsize=7, frameon=False, loc="upper left", ncol=2)
@@ -520,20 +553,22 @@ def ig_engagement(months) -> str | None:
     rates = [float(m[3] or 0) for m in months]
     x = list(range(len(labels)))
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.bar(x, likes, color="#C13584", width=0.6, label="Likes")
-    ax.bar(x, comments, bottom=likes, color="#F58529", width=0.6, label="Commentaires")
+    ax.bar(x, likes, color="#C13584", width=0.6, label=_t("pdf.chart.likes", "Likes"))
+    ax.bar(x, comments, bottom=likes, color="#F58529", width=0.6,
+           label=_t("pdf.chart.comments", "Commentaires"))
     _style(ax)
-    ax.set_ylabel("Engagement", color="#666", fontsize=8)
+    ax.set_ylabel(_t("pdf.chart.engagement", "Engagement"), color="#666", fontsize=8)
     ax2 = ax.twinx()
     ax2.plot(x, rates, color="#1DB954", linewidth=2, marker="o", markersize=3,
-             label="Taux %")
-    ax2.set_ylabel("Taux d'engagement %", color="#1DB954", fontsize=8)
+             label=_t("pdf.chart.rate_pct", "Taux %"))
+    ax2.set_ylabel(_t("pdf.chart.engagement_rate_pct", "Taux d'engagement %"),
+                   color="#1DB954", fontsize=8)
     ax2.spines["top"].set_visible(False)
     step = max(1, len(labels) // 10)  # thin labels so the axis stays readable
     ax.set_xticks(x[::step])
     ax.set_xticklabels([labels[i] for i in x[::step]], rotation=45, ha="right", fontsize=7)
-    ax.set_title("Instagram — engagement mensuel", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.instagram_monthly_engagement", "Instagram — engagement mensuel"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     ax.legend(fontsize=7, frameon=False, loc="upper left")
     return _fig_to_uri(fig)
 
@@ -555,7 +590,8 @@ def meta_funnel(stages) -> str | None:
     ax.set_yticklabels(labels)
     for yi, v in zip(y, vals):
         ax.text(v, yi, f"  {v:,}", va="center", ha="left", fontsize=8, color="#444")
-    ax.set_title("Funnel Meta Ads", color=_DARK, fontsize=11, fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.meta_funnel", "Funnel Meta Ads"), color=_DARK, fontsize=11,
+                 fontweight="bold", loc="left")
     ax.margins(x=0.15)
     return _fig_to_uri(fig)
 
@@ -568,19 +604,20 @@ def meta_daily(rows) -> str | None:
         return None
     xs = [r[0] for r in rows]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
+    _results = _t("pdf.chart.series.results", "Résultats")
     ax.bar(xs, [float(r[1] or 0) for r in rows], color="#FF6B61", alpha=0.4, width=1.0,
-           label="Budget €")
+           label=_t("pdf.chart.budget_eur", "Budget €"))
     ax.plot(xs, [float(r[3] or 0) for r in rows], color="#bc5090", linewidth=1.5,
-            ls="--", marker="o", markersize=2, label="CPR €")
+            ls="--", marker="o", markersize=2, label=_t("pdf.chart.cpr_eur", "CPR €"))
     _style(ax)
-    ax.set_ylabel("Budget / CPR (€)", color="#666", fontsize=8)
+    ax.set_ylabel(_t("pdf.chart.budget_cpr_eur", "Budget / CPR (€)"), color="#666", fontsize=8)
     ax2 = ax.twinx()
     ax2.plot(xs, [int(r[2] or 0) for r in rows], color="#003f5c", linewidth=1.8,
-             label="Résultats")
-    ax2.set_ylabel("Résultats", color="#003f5c", fontsize=8)
+             label=_results)
+    ax2.set_ylabel(_results, color="#003f5c", fontsize=8)
     ax2.spines["top"].set_visible(False)
-    ax.set_title("Meta Ads — budget · résultats · CPR", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.meta_budget_results_cpr", "Meta Ads — budget · résultats · CPR"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     ax.legend(h1 + h2, l1 + l2, fontsize=7, frameon=False, loc="upper left", ncol=3)
@@ -609,8 +646,8 @@ def pi_gate(tables, here=None) -> str | None:
         ax.set_title(label, fontsize=9, color=_DARK)
         ax.set_xticks(range(len(brackets)))
         ax.set_xticklabels(brackets, rotation=45, fontsize=6, ha="right")
-    fig.suptitle("Portes algorithmiques par Popularity Index (%)", x=0.02, ha="left",
-                 fontsize=11, fontweight="bold", color=_DARK)
+    fig.suptitle(_t("pdf.chart.pi_gates", "Portes algorithmiques par Popularity Index (%)"),
+                 x=0.02, ha="left", fontsize=11, fontweight="bold", color=_DARK)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     return _fig_to_uri(fig)
 
@@ -621,11 +658,11 @@ def roi_breakeven(roi: dict) -> str | None:
     if rev <= 0 and spend <= 0:
         return None
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
-    bars = ax.bar(["Revenus", "Dépenses Meta"], [rev, spend],
-                  color=[_GREEN, _RED], width=0.5)
+    bars = ax.bar([_t("pdf.chart.revenue", "Revenus"), _t("pdf.chart.meta_spend", "Dépenses Meta")],
+                  [rev, spend], color=[_GREEN, _RED], width=0.5)
     _style(ax)
-    ax.set_title("ROI — Revenus vs Dépenses", color=_DARK, fontsize=11,
-                 fontweight="bold", loc="left")
+    ax.set_title(_t("pdf.chart.roi_revenue_vs_spend", "ROI — Revenus vs Dépenses"),
+                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
     for b, v in zip(bars, [rev, spend]):
         ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,.0f} €", ha="center",
                 va="bottom", fontsize=9, color="#444")

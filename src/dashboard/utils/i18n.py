@@ -122,15 +122,25 @@ def set_lang(lang: str) -> None:
         st.session_state["lang"] = lang
 
 
-def t(key: str, default: str | None = None) -> str:
-    """Translate `key` for the current language. Falls back EN→FR→default→key."""
-    val = _TR.get(get_lang(), {}).get(key)
+def translate(key: str, default: str | None = None, lang: str | None = None) -> str:
+    """Translate `key` for an EXPLICIT `lang` (default: current session lang).
+
+    Fallback chain EN→FR→default→key, same as `t()`. Decoupled from
+    st.session_state so headless/DAG callers (e.g. the PDF exporter) can render in
+    a chosen language without a Streamlit script context."""
+    lang = lang or get_lang()
+    val = _TR.get(lang, {}).get(key)
     if val is not None:
         return val
     fr = _TR.get("fr", {}).get(key)
     if fr is not None:
         return fr
     return default if default is not None else key
+
+
+def t(key: str, default: str | None = None) -> str:
+    """Translate `key` for the current language. Falls back EN→FR→default→key."""
+    return translate(key, default, get_lang())
 
 
 def language_selector() -> None:
