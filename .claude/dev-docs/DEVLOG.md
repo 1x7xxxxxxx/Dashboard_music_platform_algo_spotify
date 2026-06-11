@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-11 — Ship-blocker audit : bugs intégrité + couverture des chemins argent/tenant (PR #22)
+
+Dernier audit large avant déploiement, 2 agents : **intégrité données** (verdict **GO, convergent** — *« isolated 1-3 line misses, not systemic »*) + **couverture tests** (verdict **NO-GO** tant que les chemins argent/tenant n'avaient pas de tests). On ferme le NO-GO et on **arrête les audits larges** (le reste = fast-follows connus et bornés, pas d'unknown-unknowns).
+
+**2 bugs réels corrigés** :
+- `trigger_algo/_tab_budget_roi.py:94,106` — deux requêtes `s4a_song_timeline` **sans** le filtre obligatoire `AND song NOT ILIKE '%1x7xxxxxxx%'` → la ligne « Total » du CSV était sommée (~2×), divisant par ~2 le **Coût/stream affiché** et toutes les estimations de budget. (2 oublis sur ~40 requêtes S4A — le reste est correctement filtré.)
+- `meta_x_spotify.py:96,146` — `campaign_track_mapping` + `track_popularity_history` non scopées par `artist_id` → fuite cross-tenant si deux artistes partagent un nom de campagne/titre. Ajout de `AND artist_id = %s` (alignement sur toutes les requêtes sœurs).
+
+**3 fichiers de tests** (volontairement **DB-free** → ils tournent vraiment en CI, contrairement au render-smoke + tests ML qui skippent sans Postgres) : `test_plan_gating.py` (free verrouillé hors premium, premium ouvert, aucune clé premium fuitée dans l'allowlist free, `normalize_plan`), `test_tenant_isolation.py` (`artist_id_sql_filter` scope artiste / admin vide / alias malveillant rejeté), `test_revenue_math.py` (ROI vrai/déficit/dépense-nulle). **542 tests** (était 522).
+
+**Méthodo (récurrent ces sessions)** : ne pas suivre l'audit aveuglément — à chaque migration d'index, 2 suggestions étaient **redondantes** (déjà couvertes par un index unique existant) → omises. Pourquoi un audit trouve toujours quelque chose : c'est son job ; ce qui compte est la **tendance de sévérité** (décroissante) et le caractère **systémique ou non** (non). → ship-ready, on passe à C5/C6 (déploiement).
+
+**Fast-follows tracés** (checklist.md, non bloquants) : Postgres en CI (pour que render-smoke + ML s'exécutent), persistance du taux FX DistroKid, redesign `/ml/predictions`.
+
+---
+
 ## 2026-06-11 — Passe d'optimisation pré-déploiement (perf DB/dashboard/DAG + durcissement sécurité)
 
 Session dédiée (branche `chore/pre-deploy-optimizations` = PR #21), à la suite d'un audit 3-agents (frontend / backend / security specialists). **Round 2** (re-audit après les modifs, 4 commits de plus) :

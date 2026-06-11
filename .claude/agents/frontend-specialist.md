@@ -2,7 +2,12 @@
 name: frontend-specialist
 description: Reviews Streamlit views for UX patterns, DB lifecycle, artist filter, role gates, and chart usage
 type: agent
-rex: []
+rex:
+  - date: 2026-06-11
+    issue: "Overstated export-blob RAM as stacking across exports; the session_state key is overwritten → 1 blob/session, not N"
+    fix: "Check whether a session_state write accumulates or overwrites before sizing RAM impact; the fix (free on nav-away) stayed valid"
+    ref: "DEVLOG#2026-06-11"
+    severity: info
 ---
 
 # Frontend Specialist Agent
