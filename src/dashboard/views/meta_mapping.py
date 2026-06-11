@@ -215,46 +215,8 @@ def _save_auto_high_confidence(db, artist_id, all_sugg, threshold: float = 0.8):
     return len(data)
 
 
-def _render_overview_tab(db, artist_id, canonical):
-    links_df = _load_links(db, artist_id)
-    confirmed = links_df[links_df.status == 'confirmed'] if not links_df.empty else links_df
-    rollup = _load_campaign_rollup(db, artist_id)
-
-    # ── Coverage grid: ✅ where a platform is linked, · otherwise + Meta cols ──
-    st.subheader(t("track_mapping.coverage_header", "🗺️ Couverture par titre"))
-    grid_rows, detail_rows = [], []
-    for tr in canonical:
-        row = {t("track_mapping.col_track", "Track"): tr['title'],
-               t("track_mapping.col_release", "Sortie"): str(tr['release_date'] or '—')}
-        for pkey, _ in _PLATFORMS:
-            linked = (not confirmed.empty and not confirmed[
-                (confirmed.match_key == tr['match_key']) & (confirmed.platform == pkey)].empty)
-            row[_PLATFORM_SHORT[pkey]] = "✅" if linked else "·"
-        info = rollup.get(normalize_track_title(tr['title']))
-        row["Meta"] = str(info['n']) if info else "·"
-        row[t("track_mapping.col_meta_period", "Période Meta")] = info['period'] if info else "—"
-        grid_rows.append(row)
-        if info and info['names']:
-            detail_rows.append({t("track_mapping.col_track", "Track"): tr['title'],
-                                t("track_mapping.col_campaigns", "Campagnes"): info['names'],
-                                "Meta": info['n']})
-
-    grid = pd.DataFrame(grid_rows)
-    plat_cols = [_PLATFORM_SHORT[k] for k, _ in _PLATFORMS]
-
-    def _green(v):
-        return 'background-color: #1e7d3322; color: #1b8a3a; font-weight: 600' if v == "✅" else ''
-
-    st.dataframe(grid.style.map(_green, subset=plat_cols), hide_index=True, width='stretch')
-    st.caption(t("track_mapping.coverage_legend",
-                 "✅ = plateforme liée · « · » = non liée. **Meta** = nb de campagnes "
-                 "associées au titre · **Période Meta** = de la 1ʳᵉ à la dernière campagne."))
-    if detail_rows:
-        with st.expander(t("track_mapping.campaign_detail", "▸ Détail des campagnes par titre")):
-            st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width='stretch')
-
-    # ── Suggestions to validate (all platforms, no selector) ──
-    st.markdown("---")
+def _render_track_suggestions(db, artist_id, canonical, links_df):
+    """Suggestions to validate (all platforms, no selector). Green when nothing left."""
     st.subheader(t("track_mapping.suggest_header", "🔎 Suggestions à valider"))
     all_sugg, disp = _build_all_suggestions(db, artist_id, canonical, links_df)
     if disp.empty:
@@ -291,6 +253,51 @@ def _render_overview_tab(db, artist_id, canonical):
         st.rerun()
 
 
+def _render_coverage_grid(canonical, links_df, rollup):
+    """Full recap: ✅ green where a platform is linked, · otherwise + Meta cols."""
+    confirmed = links_df[links_df.status == 'confirmed'] if not links_df.empty else links_df
+    st.subheader(t("track_mapping.coverage_header", "🗺️ Couverture par titre (récap)"))
+    grid_rows, detail_rows = [], []
+    for tr in canonical:
+        row = {t("track_mapping.col_track", "Track"): tr['title'],
+               t("track_mapping.col_release", "Sortie"): str(tr['release_date'] or '—')}
+        for pkey, _ in _PLATFORMS:
+            linked = (not confirmed.empty and not confirmed[
+                (confirmed.match_key == tr['match_key']) & (confirmed.platform == pkey)].empty)
+            row[_PLATFORM_SHORT[pkey]] = "✅" if linked else "·"
+        info = rollup.get(normalize_track_title(tr['title']))
+        row["Meta"] = str(info['n']) if info else "·"
+        row[t("track_mapping.col_meta_period", "Période Meta")] = info['period'] if info else "—"
+        grid_rows.append(row)
+        if info and info['names']:
+            detail_rows.append({t("track_mapping.col_track", "Track"): tr['title'],
+                                t("track_mapping.col_campaigns", "Campagnes"): info['names'],
+                                "Meta": info['n']})
+
+    grid = pd.DataFrame(grid_rows)
+    plat_cols = [_PLATFORM_SHORT[k] for k, _ in _PLATFORMS]
+
+    def _green(v):
+        return 'background-color: #1e7d3322; color: #1b8a3a; font-weight: 600' if v == "✅" else ''
+
+    st.dataframe(grid.style.map(_green, subset=plat_cols), hide_index=True, width='stretch')
+    st.caption(t("track_mapping.coverage_legend",
+                 "✅ = plateforme liée · « · » = non liée. **Meta** = nb de campagnes "
+                 "associées au titre · **Période Meta** = de la 1ʳᵉ à la dernière campagne."))
+    if detail_rows:
+        with st.expander(t("track_mapping.campaign_detail", "▸ Détail des campagnes par titre")):
+            st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width='stretch')
+
+
+def _render_overview_tab(db, artist_id, canonical):
+    links_df = _load_links(db, artist_id)
+    # Suggestions on top (green when nothing) …
+    _render_track_suggestions(db, artist_id, canonical, links_df)
+    st.markdown("---")
+    # … full recap just below.
+    _render_coverage_grid(canonical, links_df, _load_campaign_rollup(db, artist_id))
+
+
 # ── Meta campaigns ────────────────────────────────────────────────────────────
 def _load_unmapped_campaigns(db, artist_id: int):
     # Pending = neither already mapped (campaign_track_mapping) nor rejected
@@ -308,19 +315,40 @@ def _load_unmapped_campaigns(db, artist_id: int):
     return [{'campaign': r[0], 'start': r[1]} for r in (rows or []) if r[0]]
 
 
+def _load_campaign_context(db, artist_id: int) -> dict:
+    """{campaign_name: {'adsets': str, 'ads': str}} — adset & ad names give the user the
+    context to recognise which release a campaign was for (names often hint the track)."""
+    rows = db.fetch_query(
+        "SELECT c.campaign_name, "
+        "  string_agg(DISTINCT s.adset_name, ' · '), string_agg(DISTINCT a.ad_name, ' · ') "
+        "FROM meta_campaigns c "
+        "LEFT JOIN meta_adsets s ON s.campaign_id = c.campaign_id AND s.artist_id = c.artist_id "
+        "LEFT JOIN meta_ads a ON a.campaign_id = c.campaign_id AND a.artist_id = c.artist_id "
+        "WHERE c.artist_id = %s GROUP BY c.campaign_name",
+        (artist_id,))
+    return {r[0]: {'adsets': r[1] or '', 'ads': r[2] or ''} for r in (rows or [])}
+
+
+def _trunc(s: str, n: int = 60) -> str:
+    return s if len(s) <= n else s[:n - 1] + "…"
+
+
 def _build_campaign_suggestions(db, artist_id: int, canonical):
     """Unmapped campaign → best track via title-sim + release-date proximity. `confidence`
-    kept raw [0,1]; displayed `Confiance` ×100. Weak matches flagged 🔴, never hidden."""
+    kept raw [0,1]; displayed `Confiance` ×100. Adset/ad names add release context."""
+    ctx = _load_campaign_context(db, artist_id)
     sugg, disp = [], []
     for c in _load_unmapped_campaigns(db, artist_id):
         cands = rank_campaign_candidates(c['campaign'], c['start'], canonical, set(), top_n=1)
         if not cands:
             continue
         cand = cands[0]
+        cc = ctx.get(c['campaign'], {})
         # track_name in `_`-form to match s4a_song_timeline.song (the meta_x_spotify join key).
         sugg.append({'campaign': c['campaign'], 'track_name': canonical_song(cand.title),
                      'confidence': cand.score, 'method': cand.method})
         disp.append({'Fiab.': confidence_badge(cand.score), 'Campagne': c['campaign'],
+                     'Adsets': _trunc(cc.get('adsets', '')), 'Ads': _trunc(cc.get('ads', '')),
                      'Suggestion (track)': cand.title, 'Confiance': round(cand.score * 100, 1),
                      'Méthode': cand.method,
                      'Associer': cand.score >= 0.6, 'Rejeter': False})
@@ -394,8 +422,43 @@ def _load_mappings(db, artist_id: int):
 
 
 def _render_campaign_tab(db, artist_id, canonical):
-    # ── Backlog: every campaign with its mapping state ──
-    st.subheader(t("meta_mapping.backlog_header", "📋 Backlog des campagnes"))
+    # ── Suggestions to validate (top; green when nothing left) ──
+    st.subheader(t("meta_mapping.auto_header", "🤖 Suggestions automatiques (campagne → titre)"))
+    sugg, disp = _build_campaign_suggestions(db, artist_id, canonical)
+    if disp.empty:
+        st.success(t("meta_mapping.auto_done",
+                     "✅ Toutes les campagnes Meta sont déjà traitées (associées ou rejetées)."))
+    else:
+        st.caption(t("meta_mapping.auto_legend",
+                     "Score = similarité du nom **et** proximité avec la date de sortie. "
+                     "Les colonnes **Adsets / Ads** donnent le contexte (souvent le nom du "
+                     "titre). Fiabilité : 🟢 ≥ 80 % · 🟡 50–80 % · 🔴 < 50 %. Cochez "
+                     "**Associer** — ou **Rejeter** si la campagne n'était **pas** destinée à "
+                     "une release (elle ne sera plus proposée) — puis enregistrez."))
+        edited = st.data_editor(
+            disp, hide_index=True, width="stretch", key="ed_auto_camp",
+            on_change=_mutex_checkboxes, args=("ed_auto_camp", "Associer", "Rejeter"),
+            column_config={
+                'Confiance': st.column_config.ProgressColumn(
+                    t("meta_mapping.col_confidence", "Confiance"),
+                    min_value=0.0, max_value=100.0, format="%.0f%%"),
+                'Associer': st.column_config.CheckboxColumn(
+                    t("meta_mapping.col_associate", "Associer")),
+                'Rejeter': st.column_config.CheckboxColumn(
+                    t("track_mapping.col_reject", "Rejeter")),
+            },
+            disabled=['Fiab.', 'Campagne', 'Adsets', 'Ads',
+                      'Suggestion (track)', 'Confiance', 'Méthode'])
+        if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
+                     type="primary"):
+            n_a, n_r = _save_campaign_links(db, artist_id, sugg, edited)
+            st.success(t("meta_mapping.campaigns_saved",
+                         "{a} associée(s), {r} rejetée(s).").format(a=n_a, r=n_r))
+            st.rerun()
+
+    st.markdown("---")
+    # ── Backlog (full recap) below ──
+    st.subheader(t("meta_mapping.backlog_header", "📋 Backlog des campagnes (récap)"))
     bl = _load_campaign_backlog(db, artist_id)
     if bl.empty:
         st.info(t("meta_mapping.no_campaigns",
@@ -415,39 +478,6 @@ def _render_campaign_tab(db, artist_id, canonical):
         st.caption(t("meta_mapping.bl_counts",
                      "✅ {a} associée(s) · 🔴 {r} rejetée(s) · ⏳ {p} à traiter").format(
                          a=n_assoc, r=n_rej, p=len(bl) - n_assoc - n_rej))
-
-    st.markdown("---")
-    # ── Suggestions to validate (Associer / Rejeter) ──
-    st.subheader(t("meta_mapping.auto_header", "🤖 Suggestions automatiques (campagne → titre)"))
-    sugg, disp = _build_campaign_suggestions(db, artist_id, canonical)
-    if disp.empty:
-        st.success(t("meta_mapping.auto_done",
-                     "✅ Toutes les campagnes Meta sont déjà traitées (associées ou rejetées)."))
-    else:
-        st.caption(t("meta_mapping.auto_legend",
-                     "Score = similarité du nom **et** proximité avec la date de sortie. "
-                     "Fiabilité : 🟢 ≥ 80 % · 🟡 50–80 % · 🔴 < 50 % (souvent un titre parasite : "
-                     "DJ set, autre artiste). Cochez **Associer** (ou **Rejeter** pour ne plus "
-                     "la proposer) puis enregistrez."))
-        edited = st.data_editor(
-            disp, hide_index=True, width="stretch", key="ed_auto_camp",
-            on_change=_mutex_checkboxes, args=("ed_auto_camp", "Associer", "Rejeter"),
-            column_config={
-                'Confiance': st.column_config.ProgressColumn(
-                    t("meta_mapping.col_confidence", "Confiance"),
-                    min_value=0.0, max_value=100.0, format="%.0f%%"),
-                'Associer': st.column_config.CheckboxColumn(
-                    t("meta_mapping.col_associate", "Associer")),
-                'Rejeter': st.column_config.CheckboxColumn(
-                    t("track_mapping.col_reject", "Rejeter")),
-            },
-            disabled=['Fiab.', 'Campagne', 'Suggestion (track)', 'Confiance', 'Méthode'])
-        if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
-                     type="primary"):
-            n_a, n_r = _save_campaign_links(db, artist_id, sugg, edited)
-            st.success(t("meta_mapping.campaigns_saved",
-                         "{a} associée(s), {r} rejetée(s).").format(a=n_a, r=n_r))
-            st.rerun()
 
     st.markdown("---")
     # ── Existing + manual ──
