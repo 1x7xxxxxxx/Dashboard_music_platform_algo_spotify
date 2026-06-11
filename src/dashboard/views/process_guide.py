@@ -53,15 +53,25 @@ def _get_steps() -> list[tuple[str, list[str]]]:
         (
             t("process_guide.s3_title", "3. Mapper Meta Ads ↔ Spotify"),
             [
+                t("process_guide.s3_why",
+                  "ℹ️ **Pourquoi mapper ?** Un même titre porte souvent un **nom différent** "
+                  "selon la plateforme (S4A, Spotify, YouTube, SoundCloud, Apple) et dans vos "
+                  "campagnes Meta Ads (acronymes, codes, noms d'adsets…). Le mapping **relie "
+                  "ces noms au même titre** pour consolider streams, vues et dépenses pub sur "
+                  "la bonne référence."),
                 t("process_guide.s3_i1",
-                  "Ouvrez la page **🔗 Mapping Spotify × Meta Ads (nom de campagne)**."),
+                  "Ouvrez la page **🔗 Mapping cross-plateforme**. Onglet **📣 Campagnes "
+                  "Meta** : des **suggestions automatiques** (similarité du nom + proximité "
+                  "avec la date de sortie) apparaissent **en haut**, avec un indice de "
+                  "fiabilité 🟢/🟡/🔴 — cochez **Associer** pour valider les bonnes."),
                 t("process_guide.s3_i2",
-                  "Associez chaque **nom de campagne Meta Ads** au **nom de track Spotify** "
-                  "correspondant. C'est ce lien qui permet de rapprocher dépenses publicitaires "
-                  "et streams (ROI, vue META × Spotify)."),
+                  "Sur le même écran, l'onglet **🎵 Titres cross-plateformes** relie vos "
+                  "titres Spotify/Apple/SoundCloud/YouTube. Sinon, associez une campagne à "
+                  "la main (onglet **Ajout manuel**). C'est ce lien qui rapproche dépenses "
+                  "publicitaires et streams (ROI, vue META × Spotify)."),
                 t("process_guide.s3_i3",
-                  "Astuce : nommez vos campagnes Meta Ads avec le titre du morceau pour "
-                  "faciliter le mapping (ex. campagne « KSD - Kimono à semelle de fer »)."),
+                  "Astuce : nommez vos campagnes Meta Ads avec le titre du morceau pour de "
+                  "meilleures suggestions automatiques (ex. campagne « Track 1 »)."),
                 t("process_guide.s3_i4",
                   "Une fois le mapping enregistré, les vues **META × Spotify** et "
                   "**ROI Breakheaven** (Distributeur) se peuplent automatiquement."),

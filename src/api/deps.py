@@ -13,12 +13,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 def get_db() -> Generator[PostgresHandler, None, None]:
-    """Open a DB connection, yield it, then close it — one per request."""
+    """Open a DB connection, yield it, then close it — one per request.
+
+    get_db_connection() returns None when Postgres is unreachable; the teardown must
+    not crash on that (else an auth 401 — which never touches the DB — turns into a
+    500 'NoneType has no attribute close'). Endpoints that actually query guard their
+    own None handling."""
     db = get_db_connection()
     try:
         yield db
     finally:
-        db.close()
+        if db is not None:
+            db.close()
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:

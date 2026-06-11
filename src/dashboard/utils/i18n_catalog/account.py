@@ -3,7 +3,6 @@
 EN = {
     "account.title": "👤 My Account",
     "account.session_expired": "Session expired. Please log in again.",
-    "account.db_unreachable": "Database unreachable.",
     "account.user_not_found": "User not found.",
     "account.tab_profile": "👤 Profile",
     "account.tab_password": "🔒 Password",

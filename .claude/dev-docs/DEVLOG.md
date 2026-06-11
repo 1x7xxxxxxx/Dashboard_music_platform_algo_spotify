@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-06-11 — Mapping cross-plateforme unifié, SACEM, revenu consolidé en VIEW, nettoyage i18n + split meta_mapping
+
+Session pré-déploiement (branche `feat/mapping-merge-suggestions` = PR #19). 521 tests verts, ruff clean.
+
+**Mapping cross-plateforme — consolidation en une seule vue 2 onglets** (`meta_mapping`). Fusion de l'ex-`track_mapping` (titres cross-plateforme) et du mapping campagnes Meta : onglet « 🎵 Titres & couverture » (suggestions toutes-plateformes sans sélecteur + grille de couverture ✅/· verte) + onglet « 📣 Campagnes Meta » (suggestions auto, backlog, ajout manuel/existant). **Bug confiance « toujours 0 % » corrigé** : un `ProgressColumn(format="%.0f%%")` applique le format à la valeur brute [0,1] → `0.14` rendait « 0% ». Fix = colonne d'affichage ×100 (`min/max_value=0..100`), la valeur DB reste en [0,1]. Cases vertes ✅ au lieu de « - ». Campagnes à **0 € dépensé pré-cochées Rejeter** (jamais une vraie promo → tombstone `campaign_mapping_rejected`, mig 054). Suggestions auto liées au vrai mapping Meta×Spotify (écrit `campaign_track_mapping` en `_`-form, clé de join `meta_x_spotify`).
+
+**SACEM — nouvelle source de revenus** (royalties société de gestion). Parser `src/transformers/sacem_parser.py` (xlsx « relevé de compte », `classify_line`/`parse_sacem_xlsx`/`is_sacem_statement`), table `sacem_statement` (mig 055), intégré à l'Import CSV (uploader `.xlsx` + how-to : SACEM › Mes répartitions › Relevé de compte › filtre date › télécharger). Les lignes `repartition` (royalties brutes, 43,06 €/3 ans) entrent dans le ROI Breakeven ; évolution mensuelle SACEM visible en **trace distincte** sur le graphe prévision revenus + KPI par source.
+
+**Revenu mensuel consolidé en VIEW Postgres** (`v_artist_monthly_revenue`, mig 056) — l'UNION iMusician + DistroKid + SACEM (`repartition`) était copiée-collée dans ~6 endroits (`kpi_helpers`, `revenue_forecast`, `imusician`). Une seule source `(artist_id, year, month, source, revenue_eur)` ; tous les consommateurs repointés. VIEW en lecture seule → **hors `_ALLOWED_TABLES`** (jamais d'upsert). Vérifié cohérent : 254,96 € total (211,90 iMusician + 43,06 SACEM).
+
+**Dépense « Hypeddit » fantôme retirée du ROI** — les 2 431,50 € venaient de `SUM(hypeddit_daily_stats.budget)`, mais ce budget EST la dépense Meta Ads (mal interprétée). La seule dépense Hypeddit réelle est l'abonnement 10 €/mois. Ligne retirée de TOUS les points ROI (`kpi_helpers`, `imusician` metrics/chart/caption, `billing.feat_roi`) ; `total_spend = meta_spend` seul. Le mapping Hypeddit et la vue analytics Hypeddit restent intacts.
+
+**Nettoyage / outillage**
+- **Garde-fou i18n orphelins** (`tests/test_i18n_orphans.py`, NEW) — sens inverse de `test_every_static_t_key_has_en_entry` : flag toute clé EN jamais référencée par un `t()` (features supprimées/renommées laissant des traductions mortes). 43 orphelines retirées (legacy `track_mapping`/`common`, clés `*.invalid_session`/`*.db_unreachable` mortes depuis l'adoption des clés partagées `ui.*` via `view_session()`).
+- **`meta_mapping.py` (551 l) → package** (move-only, comportement préservé) : `_common.py` (helpers partagés `_load_canonical`/`_mutex_checkboxes`), `_tracks.py` (onglet titres+couverture), `_campaigns.py` (onglet campagnes Meta), `__init__.py` (`show()` + 2 onglets). Précédent : `trigger_algo/`, `credentials/`, `pdf_exporter/`.
+- **Billing Free enrichi** : SACEM + mapping cross-plateforme + ROI unifié surfacés comme value-adds gratuits ; bullet Premium « Road to Algo » détaillé (leviers ML → playlists algorithmiques Spotify : Discover Weekly, Release Radar, Radio). Toggle langue FR/EN sur la page de login (restitué dans l'app + PDF). VPS infra = admin-only (retiré de la vue artiste). `alerts` ajouté à `_ADMIN_ONLY`.
+- **CI déterministe** : service Postgres non-provisionné retiré du workflow (les tests DB skip déjà) ; corrige le flake de pull `postgres:17`. Effet de bord corrigé : `get_db` tolère une connexion `None` (`if db is not None: db.close()`).
+
+**Prochaine étape** : merger PR #19 dans `main`, puis reprendre C5/C6 (sizing VPS + domaine/accès).
+
+---
+
 ## 2026-06-10 — i18n complète + PDF bilingue, feature ML manuelle, refactors god-modules + harness Meta, CI, PR mergée
 
 Grosse session (PR #14 mergée dans `main`, merge commit `6d213e3`). 437 tests / 2 skipped, ruff clean, CI verte, backup tag `pre-godmodule-refactor`.

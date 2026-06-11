@@ -36,7 +36,7 @@ EN = {
     # ROI tab
     "imusician.roi_header": "💹 ROI Breakheaven",
     "imusician.roi_caption": (
-        "Distributor revenue (iMusician + DistroKid) vs Meta Ads spend "
+        "Revenue (iMusician + DistroKid + SACEM royalties) vs Meta Ads spend "
         "over the selected period"
     ),
     "imusician.roi_no_data": (
@@ -44,12 +44,15 @@ EN = {
         "Import an iMusician export (CSV Import page), enter a revenue in the "
         "Data tab, or launch the Meta collection from the home page."
     ),
-    "imusician.roi_revenue": "💰 Distributor revenue",
+    "imusician.roi_revenue": "💰 Revenue (distrib. + SACEM)",
     "imusician.roi_spend": "📱 Meta spend",
+    "imusician.roi_total_help": "ROI on Meta Ads spend = {total:,.2f} €",
     "imusician.roi_profitable": "✅ Profitable",
     "imusician.roi_unprofitable": "⚠️ Unprofitable",
-    "imusician.roi_no_spend_help": "No Meta spend over the period — widen the filter",
+    "imusician.roi_no_spend_help": "No promo spend over the period — widen the filter",
     "imusician.meta_spend_eur": "Meta spend (€)",
+    "imusician.dist_revenue_eur": "Distributor revenue (€)",
+    "imusician.sacem_revenue_eur": "SACEM royalties (€)",
     "imusician.euros_axis": "Euros (€)",
     "imusician.roi_empty_period": "No revenue or spend data over this period.",
 }

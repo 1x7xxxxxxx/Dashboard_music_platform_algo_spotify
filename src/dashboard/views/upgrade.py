@@ -31,6 +31,7 @@ _PAGE_LABELS = {
     'apple_music': 'Apple Music',
     'hypeddit': 'Hypeddit',
     'imusician': 'Distributeur (iMusician)',
+    'sacem': '🎼 Royalties SACEM',
     'upload_csv': 'Import CSV',
     'credentials': 'Credentials API',
     'export_csv': 'Export CSV',
@@ -39,7 +40,7 @@ _PAGE_LABELS = {
     'export_pdf': 'Export PDF',
     'revenue_forecast': 'Prévisions revenus',
     'meta_x_spotify': 'META x Spotify',
-    'meta_mapping': 'Meta Mapping',
+    'meta_mapping': 'Mapping cross-plateforme',
     'account': 'Mon compte',
     'billing': 'Billing',
 }

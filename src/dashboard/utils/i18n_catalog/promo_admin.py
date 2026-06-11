@@ -4,7 +4,6 @@ EN = {
     "promo_admin.admin_only": "⛔ Admin access only.",
     "promo_admin.title": "🎟️ Promo Codes",
     "promo_admin.caption": "Create codes that give free Basic or Premium access for a fixed period.",
-    "promo_admin.db_unreachable": "❌ Database unreachable.",
     "promo_admin.tab_all": "All codes",
     "promo_admin.tab_create": "Create new code",
     "promo_admin.no_codes": "No promo codes yet. Create one in the tab above.",

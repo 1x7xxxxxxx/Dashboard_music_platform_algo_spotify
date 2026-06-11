@@ -36,6 +36,7 @@ EN = {
     "auth.signin_title": "Sign in",
     "auth.signin": "Sign in",
     "auth.username": "Username",
+    "auth.username_ph": "artist name",
     "auth.email": "Email",
     "auth.password": "Password",  # pragma: allowlist secret
     "auth.confirm_password": "Confirm password",  # pragma: allowlist secret

@@ -168,8 +168,7 @@ _NAV_SECTIONS = [
     ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
-                                             ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
-                                             ("🧩 Mapping multi-plateformes", "track_mapping"),
+                                             ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -185,6 +184,7 @@ _NAV_SECTIONS = [
                                              ("🌍 Breakdowns Meta", "meta_breakdowns"),
                                              ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
     ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
+                                             ("🎼 SACEM", "sacem"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
     ("reports",   "🎁 Data Wrapped",        [("🎁 Data Wrapped", "data_wrapped")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
@@ -204,7 +204,7 @@ _NAV_SECTIONS = [
 # Pages réservées admin (cachées pour le rôle 'artist')
 _ADMIN_ONLY = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links',
                'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor',
-               'usage_analytics'}
+               'usage_analytics', 'alerts'}
 
 
 def _on_nav_select(skey: str, all_skeys: list):
@@ -372,8 +372,8 @@ def _render_page(page):
     elif page == "useful_links": from views.useful_links import show; show()
     elif page == "billing": from views.billing import show; show()
     elif page == "revenue_forecast": from views.revenue_forecast import show; show()
+    elif page == "sacem": from views.sacem import show; show()
     elif page == "meta_mapping": from views.meta_mapping import show; show()
-    elif page == "track_mapping": from views.track_mapping import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
     elif page == "meta_creatives": from views.meta_creatives import show; show()

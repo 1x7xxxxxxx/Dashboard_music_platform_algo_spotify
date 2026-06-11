@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.utils.track_mapping_suggest import (  # noqa: E402
     W_CAMP_DATE,
     W_CAMP_TITLE,
+    confidence_badge,
     date_proximity,
     mapping_boost,
     rank_campaign_candidates,
@@ -98,6 +99,33 @@ def test_rank_track_candidates_top_n_truncates():
     assert len(out) == 1
 
 
+# ── rank_track_candidates with a platform upload date (cross-platform scoring) ──
+_DATED = [
+    {"match_key": "soleil hiver", "title": "Soleil d'hiver", "release_date": date(2024, 1, 1)},
+    {"match_key": "soleil ete", "title": "Soleil d'été", "release_date": date(2024, 7, 1)},
+]
+
+
+def test_rank_track_date_breaks_containment_tie():
+    # "Soleil" is contained in both titles (title-sim 0.9 each); the platform upload
+    # date near the summer release must pick "Soleil d'été".
+    out = rank_track_candidates("Soleil", _DATED, top_n=1, platform_date=date(2024, 7, 5))
+    assert out[0].match_key == "soleil ete"
+    assert out[0].method == "title+date"
+
+
+def test_rank_track_no_date_is_title_only_full_scale():
+    # Without a platform date, an exact title match still scores 1.0 (never capped at 0.7).
+    out = rank_track_candidates("Soleil d'été", _DATED, top_n=1)
+    assert out[0].score == 1.0 and out[0].method == "exact"
+
+
+def test_rank_track_far_date_penalises_exact_title():
+    # Same exact title but the platform upload is ~1 year off → score drops below 1.0.
+    out = rank_track_candidates("Soleil d'été", _DATED, top_n=1, platform_date=date(2025, 7, 1))
+    assert out[0].match_key == "soleil ete" and out[0].score < 1.0
+
+
 def test_rank_campaign_date_term_flips_winner():
     # Campaign title weakly mentions neither track strongly; the date is far closer to
     # the "autre titre" release → the date term must change the winner vs title-only.
@@ -110,3 +138,15 @@ def test_rank_campaign_date_term_flips_winner():
 
 def test_campaign_weights_sum_to_one():
     assert abs((W_CAMP_TITLE + W_CAMP_DATE) - 1.0) < 1e-9
+
+
+# ── confidence_badge ────────────────────────────────────────────────────────
+def test_confidence_badge_bands():
+    assert confidence_badge(1.0) == "🟢"
+    assert confidence_badge(0.8) == "🟢"
+    assert confidence_badge(0.79) == "🟡"
+    assert confidence_badge(0.5) == "🟡"
+    assert confidence_badge(0.49) == "🔴"
+    assert confidence_badge(0.13) == "🔴"   # junk title (DJ set / other artist)
+    assert confidence_badge(0.0) == "🔴"
+    assert confidence_badge(None) == "🔴"

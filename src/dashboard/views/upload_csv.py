@@ -80,6 +80,12 @@ _PLATFORMS = {
             'recoup_usd', 'team_percentage', 'upc', 'artist_name', 'collected_at',
         ],
     },
+    'sacem': {
+        'label': 'SACEM — Relevé de compte (xlsx)',
+        'table': 'sacem_statement',
+        'conflict_columns': ['artist_id', 'line_date', 'libelle', 'mouvement_eur', 'solde_eur'],
+        'update_columns': ['line_type', 'source'],
+    },
 }
 
 
@@ -168,6 +174,15 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
         from src.transformers.distrokid_parser import DistroKidParser
         return DistroKidParser().parse_upload(file, artist_id=artist_id)
 
+    if platform_key == 'sacem':
+        # SACEM statement is an .xlsx ledger — its own parser (not pd.read_csv).
+        from src.transformers.sacem_parser import parse_sacem_xlsx
+        file.seek(0)
+        rows = parse_sacem_xlsx(file)
+        for row in rows:
+            row['artist_id'] = artist_id
+        return rows
+
     df = pd.read_csv(file)
 
     if platform_key == 's4a':
@@ -217,14 +232,6 @@ def show():
     from src.dashboard.content.csv_guides_st import render_csv_guides
     render_csv_guides()
 
-    st.info(t(
-        "upload_csv.mapping_info",
-        "🔗 **Mapping Spotify × Meta Ads** — après avoir **lancé la collecte "
-        "depuis la page d'accueil**, pensez à faire le mapping "
-        "(menu **📣 Publicité Meta Ads → Mapping Spotify × Meta Ads (nom de campagne)**) "
-        "pour relier vos campagnes Meta à vos titres Spotify."
-    ))
-
     db = get_db_connection()
     try:
         # ── Sélection artiste ──────────────────────────────────────────
@@ -248,14 +255,22 @@ def show():
                 return
 
         # ── Upload multi-fichier ───────────────────────────────────────
+        with st.expander(t("upload_csv.sacem_howto_header",
+                           "🎼 Relevé SACEM (.xlsx) — comment l'obtenir")):
+            st.markdown(t("upload_csv.sacem_howto_body",
+                          "1. Connectez-vous sur **sacem.fr** (espace membre).\n"
+                          "2. **Mes répartitions** → **Relevé de compte**.\n"
+                          "3. Réglez le filtre de **date sur « depuis l'inscription »**.\n"
+                          "4. **Téléchargez le `.xlsx`**, puis glissez-le ci-dessous "
+                          "(type SACEM détecté automatiquement)."))
         uploaded_files = st.file_uploader(
-            t("upload_csv.uploader_label", "Fichiers CSV / TSV"),
-            type=["csv", "tsv"],
+            t("upload_csv.uploader_label", "Fichiers CSV / TSV / XLSX"),
+            type=["csv", "tsv", "xlsx", "xls"],
             accept_multiple_files=True,
             help=t("upload_csv.uploader_help",
                    "Glissez tous vos fichiers en même temps. "
                    "Le type (S4A timeline, audience, songs-all, Apple, iMusician, "
-                   "DistroKid…) est détecté automatiquement."),
+                   "DistroKid, SACEM relevé .xlsx…) est détecté automatiquement."),
             key=f"multi_upload_{target_artist_id}",
         )
 
@@ -276,7 +291,13 @@ def show():
                      'rows': [], 'error': None}
             try:
                 f.seek(0)
-                platform_key = _detect_platform(f.name, _read_headers(f))
+                if f.name.lower().endswith(('.xlsx', '.xls')):
+                    # Excel route (SACEM statement) — sheet-based detection, not CSV headers.
+                    from src.transformers.sacem_parser import is_sacem_statement
+                    f.seek(0)
+                    platform_key = 'sacem' if is_sacem_statement(f) else None
+                else:
+                    platform_key = _detect_platform(f.name, _read_headers(f))
 
                 if platform_key is None:
                     entry['error'] = t(

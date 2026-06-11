@@ -7,20 +7,14 @@ EN = {
         "Drop up to about ten CSV files at once. "
         "The type is detected automatically from the filename and the columns."
     ),
-    "upload_csv.mapping_info": (
-        "🔗 **Spotify × Meta Ads mapping** — after **running the collection "
-        "from the home page**, remember to do the mapping "
-        "(menu **📣 Meta Ads → Spotify × Meta Ads mapping (campaign name)**) "
-        "to link your Meta campaigns to your Spotify tracks."
-    ),
     "upload_csv.no_active_artist": "No active artist. Create one in the Admin tab.",
     "upload_csv.target_artist": "Target artist",
     "upload_csv.no_artist_id": "Unable to determine your artist identifier.",
-    "upload_csv.uploader_label": "CSV / TSV files",
+    "upload_csv.uploader_label": "CSV / TSV / XLSX files",
     "upload_csv.uploader_help": (
         "Drag all your files at once. "
         "The type (S4A timeline, audience, songs-all, Apple, iMusician, "
-        "DistroKid…) is detected automatically."
+        "DistroKid, SACEM statement .xlsx…) is detected automatically."
     ),
     # Platform labels
     "upload_csv.platform.s4a": "S4A — Per-title timeline",
@@ -30,6 +24,13 @@ EN = {
     "upload_csv.platform.imusician_summary": "iMusician — Per-release summary",
     "upload_csv.platform.imusician_sales": "iMusician — Sales report",
     "upload_csv.platform.distrokid_sales": "DistroKid — Bank details (TSV/CSV)",
+    "upload_csv.platform.sacem": "SACEM — Account statement (xlsx)",
+    "upload_csv.sacem_howto_header": "🎼 SACEM statement (.xlsx) — how to get it",
+    "upload_csv.sacem_howto_body": "1. Log in to **sacem.fr** (member area).\n"
+                                   "2. **Mes répartitions** → **Relevé de compte**.\n"
+                                   "3. Set the **date filter to “since registration”**.\n"
+                                   "4. **Download the `.xlsx`**, then drop it below "
+                                   "(SACEM type auto-detected).",
     # Detection table
     "upload_csv.detection_header": "🔍 Detection — {n} file(s)",
     "upload_csv.err_unknown_type": "Unrecognized type — check the filename and the file columns.",

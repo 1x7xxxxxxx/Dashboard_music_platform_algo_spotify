@@ -83,7 +83,9 @@ def collect_youtube_data(**context):
 
             artists_with_creds += 1
             collector = YouTubeCollector(api_key)
-            data = collector.collect_all_data(channel_id=channel_id, max_videos=50, collect_comments=False)
+            # 200 (not 50): older releases (e.g. a remix) get pushed past the 50 most-recent
+            # uploads by frequent content (DJ sets) and were never collected → unmappable.
+            data = collector.collect_all_data(channel_id=channel_id, max_videos=200, collect_comments=False)
 
             if data['channel_stats']:
                 successful_fetches += 1

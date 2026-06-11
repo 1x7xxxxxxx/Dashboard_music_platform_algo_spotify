@@ -57,7 +57,9 @@ _ALLOWED_TABLES = frozenset({
     's4a_artist_radio_count',
     'track_platform_link',
     'campaign_track_mapping',
+    'campaign_mapping_rejected',
     'app_operating_costs',
+    'sacem_statement',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')

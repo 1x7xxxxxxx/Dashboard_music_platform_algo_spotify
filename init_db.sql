@@ -868,6 +868,44 @@ CREATE TABLE IF NOT EXISTS app_operating_costs (
 CREATE INDEX IF NOT EXISTS idx_app_operating_costs_active_start
     ON app_operating_costs (active, start_month);
 
+-- Tombstone for rejected Meta-campaign suggestions (see migrations/054). Separate
+-- from campaign_track_mapping so attribution consumers stay unaffected.
+CREATE TABLE IF NOT EXISTS campaign_mapping_rejected (
+    artist_id     INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    campaign_name TEXT    NOT NULL,
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (artist_id, campaign_name)
+);
+
+-- SACEM account-statement ledger (see migrations/055). 'repartition' lines = gross
+-- royalties (feed the ROI Breakeven); the rest = charges/TVA/fees/payouts.
+CREATE TABLE IF NOT EXISTS sacem_statement (
+    id            SERIAL PRIMARY KEY,
+    artist_id     INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    line_date     DATE    NOT NULL,
+    libelle       TEXT    NOT NULL,
+    mouvement_eur NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    solde_eur     NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    line_type     TEXT    NOT NULL DEFAULT 'other',
+    source        TEXT    NOT NULL DEFAULT 'sacem_xlsx',
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (artist_id, line_date, libelle, mouvement_eur, solde_eur)
+);
+CREATE INDEX IF NOT EXISTS idx_sacem_statement_artist_date ON sacem_statement (artist_id, line_date);
+CREATE INDEX IF NOT EXISTS idx_sacem_statement_type ON sacem_statement (artist_id, line_type);
+
+-- Single source of truth for monthly music revenue (see migrations/056). UNIONs every
+-- revenue source so consumers (ROI, revenue forecast) never copy-paste the UNION.
+CREATE OR REPLACE VIEW v_artist_monthly_revenue AS
+    SELECT artist_id, year, month, 'imusician'::text AS source, revenue_eur
+        FROM imusician_monthly_revenue
+    UNION ALL
+    SELECT artist_id, year, month, 'distrokid'::text, revenue_eur FROM distrokid_monthly_revenue
+    UNION ALL
+    SELECT artist_id, EXTRACT(YEAR FROM line_date)::int AS year,
+           EXTRACT(MONTH FROM line_date)::int AS month, 'sacem'::text, mouvement_eur AS revenue_eur
+        FROM sacem_statement WHERE line_type = 'repartition';
+
 -- ============================================================
 -- 18. Données initiales
 -- ============================================================

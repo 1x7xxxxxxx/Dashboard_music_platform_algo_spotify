@@ -11,14 +11,18 @@ EN = {
     "billing.up_to_10": "Up to 10 artists",
     "billing.feat_all_analytics": "All platform analytics (Spotify, Apple Music, "
                                   "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)",
-    "billing.feat_distributor": "Distributor revenue (iMusician)",
-    "billing.feat_csv": "CSV import & export",
-    "billing.feat_pdf": "📄 PDF report export",
-    "billing.feat_wrapped": "Annual Data Wrapped",
-    "billing.feat_credentials": "API credentials & Meta × Spotify mapping",
+    "billing.feat_distributor": "💰 Distributor revenue (iMusician + DistroKid) + 🎼 SACEM royalties",
+    "billing.feat_mapping": "🔗 Cross-platform mapping — automatic suggestions "
+                            "(titles across platforms + Meta Ad campaigns)",
+    "billing.feat_roi": "💹 ROI Breakeven — revenue (distrib. + SACEM) vs Meta Ads spend",
+    "billing.feat_csv": "📂 CSV / XLSX import & export",
+    "billing.feat_pdf": "📄 PDF report export (FR / EN)",
+    "billing.feat_wrapped": "🎁 Annual Data Wrapped",
+    "billing.feat_credentials": "🔑 API credentials",
     "billing.feat_everything_free": "Everything in Free",
-    "billing.feat_road_to_algo": "🚀 Road to Algo — ML predictions "
-                                 "(Discover Weekly / Release Radar / Radio)",
+    "billing.feat_road_to_algo": "🚀 Road to Algo — ML (machine learning) predictions to pinpoint "
+                                 "the levers that trigger Spotify's algorithmic playlists: "
+                                 "Discover Weekly, Release Radar, Radio",
     "billing.feat_revenue_forecast": "📈 Revenue forecasts (ML)",
     "billing.feat_creatives": "🎨 Meta Ads creatives",
     "billing.feat_cpr": "📊 CPR Optimizer",

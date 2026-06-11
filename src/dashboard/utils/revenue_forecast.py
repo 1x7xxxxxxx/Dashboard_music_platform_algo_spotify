@@ -34,15 +34,34 @@ def load_subscriptions(db) -> pd.DataFrame:
 
 
 def load_artist_revenues(db, artist_id: int) -> pd.DataFrame:
+    """Monthly music revenue per artist: iMusician + DistroKid + SACEM gross royalties
+    (REPARTITION), summed per year/month — same revenue base as the ROI Breakeven.
+    `revenue_eur` is the total; `sacem_eur` is the SACEM portion (kept distinct so the
+    projection chart can plot SACEM's evolution as its own line)."""
     return db.fetch_df(
         """
-        SELECT year, month, revenue_eur
-        FROM imusician_monthly_revenue
+        SELECT year, month, SUM(revenue_eur) AS revenue_eur,
+               COALESCE(SUM(revenue_eur) FILTER (WHERE source = 'sacem'), 0) AS sacem_eur
+        FROM v_artist_monthly_revenue
         WHERE artist_id = %s
+        GROUP BY year, month
         ORDER BY year ASC, month ASC
         """,
         (artist_id,),
     )
+
+
+def load_artist_revenue_by_source(db, artist_id: int) -> dict:
+    """Total music revenue per source for an artist: {iMusician, DistroKid, SACEM}."""
+    rows = db.fetch_query(
+        "SELECT source, COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue "
+        "WHERE artist_id = %s GROUP BY source",
+        (artist_id,),
+    )
+    m = {r[0]: float(r[1] or 0) for r in (rows or [])}
+    return {'iMusician': m.get('imusician', 0.0),
+            'DistroKid': m.get('distrokid', 0.0),
+            'SACEM': m.get('sacem', 0.0)}
 
 
 def load_artists(db) -> pd.DataFrame:

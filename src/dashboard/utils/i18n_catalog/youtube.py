@@ -3,7 +3,6 @@
 EN = {
     "youtube.title": "🎬 YouTube Analytics",
     "youtube.subtitle": "### Channel and Video Analysis",
-    "youtube.invalid_session": "Invalid session.",
     "youtube.channel_header": "📈 Channel Evolution",
     "youtube.subscribers": "Subscribers",
     "youtube.total_views": "Total Views",

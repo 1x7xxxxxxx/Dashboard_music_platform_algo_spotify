@@ -7,8 +7,6 @@ EN = {
         "Data aggregated over the full history — **no period filter** "
         "(Meta breakdowns have no date dimension)."
     ),
-    "meta_breakdowns.invalid_session": "Invalid session.",
-    "meta_breakdowns.db_unavailable": "Database unreachable.",
     "meta_breakdowns.dimension": "Dimension",
     "meta_breakdowns.metric": "Metric",
     "meta_breakdowns.dim.country": "Country",

@@ -5,8 +5,6 @@ EN = {
     "meta_creatives.subtitle": (
         "Your creatives ranked by CPR — based on Meta Ads API data (meta_ads × meta_insights)."
     ),
-    "meta_creatives.invalid_session": "Invalid session.",
-    "meta_creatives.db_unavailable": "Database unreachable.",
     "meta_creatives.no_data": (
         "No creative data available. Check that the **meta_ads_api_daily** DAG has "
         "collected data via the Meta Ads API (tables `meta_ads` + `meta_insights`)."
