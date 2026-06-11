@@ -26,6 +26,7 @@ from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.revenue_forecast import (
     load_subscriptions as _load_subscriptions,
     load_artist_revenues as _load_artist_revenues,
+    load_artist_revenue_by_source as _load_artist_revenue_by_source,
     load_artists as _load_artists,
     project_mrr,
     ltv_global,
@@ -297,7 +298,9 @@ def _tab_ltv(db) -> None:
 # Tab 4 — Projection Artistique
 # ─────────────────────────────────────────────
 
-def _tab_artist_forecast(db, artist_id: int | None) -> None:
+def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) -> None:
+    # show_infra=True only for admin: the VPS/server cost is the platform operator's,
+    # not the artist's, so the artist margin = revenue − their own ad spend (no VPS).
     st.subheader(t("revenue_forecast.artist_forecast_header",
                    "Projection des revenus musicaux (iMusician + DistroKid + SACEM)"))
     st.caption(t("revenue_forecast.artist_forecast_caption",
@@ -317,6 +320,15 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
         if target_id is None:
             st.error(t("revenue_forecast.no_artist_id", "Impossible de déterminer votre identifiant artiste."))
             return
+
+    # ── Revenus cumulés par source (rend SACEM visible, pas juste sommé) ──
+    by_src = _load_artist_revenue_by_source(db, target_id)
+    if any(v for v in by_src.values()):
+        st.markdown(t("revenue_forecast.by_source_header", "**Revenus cumulés par source**"))
+        bs1, bs2, bs3 = st.columns(3)
+        bs1.metric("💿 iMusician", f"{by_src.get('iMusician', 0):,.2f} €")
+        bs2.metric("🟢 DistroKid", f"{by_src.get('DistroKid', 0):,.2f} €")
+        bs3.metric("🎼 SACEM", f"{by_src.get('SACEM', 0):,.2f} €")
 
     df = _load_artist_revenues(db, target_id)
 
@@ -551,18 +563,28 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
     st.caption(t("revenue_forecast.margin_caption",
                  "Sur l'horizon de projection sélectionné : **{horizon} mois**").format(horizon=horizon))
 
-    nc1, nc2 = st.columns(2)
-    vps_cost_monthly = nc1.number_input(
-        t("revenue_forecast.vps_cost", "Coût infra VPS (€/mois)"), min_value=0.0, value=20.0, step=1.0,
-        help=t("revenue_forecast.vps_cost_help", "Coût mensuel du serveur (VPS, Railway, Docker host…)"),
-    )
-    meta_spend_monthly_est = nc2.number_input(
-        t("revenue_forecast.meta_spend_est", "Dépense Meta estimée (€/mois)"),
-        min_value=0.0,
-        value=round(avg_spend, 2) if not roi_df.empty and roi_df['meta_spend'].sum() > 0 else 50.0,
-        step=10.0,
-        help=t("revenue_forecast.meta_spend_est_help", "Pré-rempli avec la moyenne historique. Ajustable."),
-    )
+    _meta_default = (round(avg_spend, 2)
+                     if not roi_df.empty and roi_df['meta_spend'].sum() > 0 else 50.0)
+    if show_infra:
+        nc1, nc2 = st.columns(2)
+        vps_cost_monthly = nc1.number_input(
+            t("revenue_forecast.vps_cost", "Coût infra VPS (€/mois)"), min_value=0.0,
+            value=20.0, step=1.0,
+            help=t("revenue_forecast.vps_cost_help",
+                   "Coût mensuel du serveur (VPS, Railway, Docker host…)"))
+        meta_spend_monthly_est = nc2.number_input(
+            t("revenue_forecast.meta_spend_est", "Dépense Meta estimée (€/mois)"),
+            min_value=0.0, value=_meta_default, step=10.0,
+            help=t("revenue_forecast.meta_spend_est_help",
+                   "Pré-rempli avec la moyenne historique. Ajustable."))
+    else:
+        # Artist: only their own ad spend; the VPS/server cost belongs to the operator.
+        vps_cost_monthly = 0.0
+        meta_spend_monthly_est = st.number_input(
+            t("revenue_forecast.meta_spend_est", "Dépense Meta estimée (€/mois)"),
+            min_value=0.0, value=_meta_default, step=10.0,
+            help=t("revenue_forecast.meta_spend_est_help",
+                   "Pré-rempli avec la moyenne historique. Ajustable."))
 
     proj_revenue_total = float(sum(
         max(0.0, slope * (last_idx + 1 + i) + intercept)
@@ -572,27 +594,39 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
     proj_vps_total  = vps_cost_monthly * horizon
     proj_margin     = proj_revenue_total - proj_meta_total - proj_vps_total
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric(t("revenue_forecast.projected_revenue", "Revenus projetés"), f"{proj_revenue_total:,.2f} €")
-    m2.metric(t("revenue_forecast.meta_spend_metric", "Dépense Meta"), f"-{proj_meta_total:,.2f} €")
-    m3.metric(t("revenue_forecast.vps_infra", "Infra VPS"), f"-{proj_vps_total:,.2f} €")
-    m4.metric(t("revenue_forecast.net_margin", "Marge nette"), f"{proj_margin:,.2f} €",
-              delta=t("revenue_forecast.profitable", "rentable") if proj_margin >= 0
-              else t("revenue_forecast.loss_making", "déficitaire"),
-              delta_color="normal" if proj_margin >= 0 else "inverse")
+    margin_delta = dict(
+        delta=t("revenue_forecast.profitable", "rentable") if proj_margin >= 0
+        else t("revenue_forecast.loss_making", "déficitaire"),
+        delta_color="normal" if proj_margin >= 0 else "inverse")
+
+    if show_infra:
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(t("revenue_forecast.projected_revenue", "Revenus projetés"), f"{proj_revenue_total:,.2f} €")
+        m2.metric(t("revenue_forecast.meta_spend_metric", "Dépense Meta"), f"-{proj_meta_total:,.2f} €")
+        m3.metric(t("revenue_forecast.vps_infra", "Infra VPS"), f"-{proj_vps_total:,.2f} €")
+        m4.metric(t("revenue_forecast.net_margin", "Marge nette"), f"{proj_margin:,.2f} €", **margin_delta)
+        wf_x = ['Revenus projetés', 'Dépense Meta', 'Infra VPS', 'Marge nette']
+        wf_measure = ['absolute', 'relative', 'relative', 'total']
+        wf_y = [proj_revenue_total, -proj_meta_total, -proj_vps_total, proj_margin]
+        wf_text = [f"{proj_revenue_total:,.0f} €", f"-{proj_meta_total:,.0f} €",
+                   f"-{proj_vps_total:,.0f} €", f"{proj_margin:,.0f} €"]
+    else:
+        m1, m2, m3 = st.columns(3)
+        m1.metric(t("revenue_forecast.projected_revenue", "Revenus projetés"), f"{proj_revenue_total:,.2f} €")
+        m2.metric(t("revenue_forecast.meta_spend_metric", "Dépense Meta"), f"-{proj_meta_total:,.2f} €")
+        m3.metric(t("revenue_forecast.net_margin", "Marge nette"), f"{proj_margin:,.2f} €", **margin_delta)
+        wf_x = ['Revenus projetés', 'Dépense Meta', 'Marge nette']
+        wf_measure = ['absolute', 'relative', 'total']
+        wf_y = [proj_revenue_total, -proj_meta_total, proj_margin]
+        wf_text = [f"{proj_revenue_total:,.0f} €", f"-{proj_meta_total:,.0f} €", f"{proj_margin:,.0f} €"]
 
     fig_margin = go.Figure(go.Waterfall(
-        orientation='v',
-        measure=['absolute', 'relative', 'relative', 'total'],
-        x=['Revenus projetés', 'Dépense Meta', 'Infra VPS', 'Marge nette'],
-        y=[proj_revenue_total, -proj_meta_total, -proj_vps_total, proj_margin],
+        orientation='v', measure=wf_measure, x=wf_x, y=wf_y,
         connector=dict(line=dict(color='rgb(63, 63, 63)')),
         decreasing=dict(marker=dict(color='#FF6B35')),
         increasing=dict(marker=dict(color='#1DB954')),
         totals=dict(marker=dict(color='#A855F7')),
-        text=[f"{proj_revenue_total:,.0f} €", f"-{proj_meta_total:,.0f} €",
-              f"-{proj_vps_total:,.0f} €", f"{proj_margin:,.0f} €"],
-        textposition='outside',
+        text=wf_text, textposition='outside',
     ))
     fig_margin.update_layout(
         title=f"Waterfall marge nette sur {horizon} mois",
@@ -628,10 +662,10 @@ def show() -> None:
             with tab_ltv:
                 _tab_ltv(db)
             with tab_artist:
-                _tab_artist_forecast(db, artist_id=None)
+                _tab_artist_forecast(db, artist_id=None, show_infra=True)
         else:
             st.caption(t("revenue_forecast.artist_caption",
                          "Projection de vos revenus musicaux (iMusician + DistroKid + SACEM)."))
-            _tab_artist_forecast(db, artist_id=get_artist_id())
+            _tab_artist_forecast(db, artist_id=get_artist_id(), show_infra=False)
     finally:
         db.close()

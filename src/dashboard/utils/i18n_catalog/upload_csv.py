@@ -31,6 +31,12 @@ EN = {
     "upload_csv.platform.imusician_sales": "iMusician — Sales report",
     "upload_csv.platform.distrokid_sales": "DistroKid — Bank details (TSV/CSV)",
     "upload_csv.platform.sacem": "SACEM — Account statement (xlsx)",
+    "upload_csv.sacem_howto_header": "🎼 SACEM statement (.xlsx) — how to get it",
+    "upload_csv.sacem_howto_body": "1. Log in to **sacem.fr** (member area).\n"
+                                   "2. **Mes répartitions** → **Relevé de compte**.\n"
+                                   "3. Set the **date filter to “since registration”**.\n"
+                                   "4. **Download the `.xlsx`**, then drop it below "
+                                   "(SACEM type auto-detected).",
     # Detection table
     "upload_csv.detection_header": "🔍 Detection — {n} file(s)",
     "upload_csv.err_unknown_type": "Unrecognized type — check the filename and the file columns.",

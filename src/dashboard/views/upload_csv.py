@@ -263,6 +263,14 @@ def show():
                 return
 
         # ── Upload multi-fichier ───────────────────────────────────────
+        with st.expander(t("upload_csv.sacem_howto_header",
+                           "🎼 Relevé SACEM (.xlsx) — comment l'obtenir")):
+            st.markdown(t("upload_csv.sacem_howto_body",
+                          "1. Connectez-vous sur **sacem.fr** (espace membre).\n"
+                          "2. **Mes répartitions** → **Relevé de compte**.\n"
+                          "3. Réglez le filtre de **date sur « depuis l'inscription »**.\n"
+                          "4. **Téléchargez le `.xlsx`**, puis glissez-le ci-dessous "
+                          "(type SACEM détecté automatiquement)."))
         uploaded_files = st.file_uploader(
             t("upload_csv.uploader_label", "Fichiers CSV / TSV / XLSX"),
             type=["csv", "tsv", "xlsx", "xls"],

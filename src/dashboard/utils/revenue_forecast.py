@@ -55,6 +55,24 @@ def load_artist_revenues(db, artist_id: int) -> pd.DataFrame:
     )
 
 
+def load_artist_revenue_by_source(db, artist_id: int) -> dict:
+    """Total music revenue per source for an artist: {iMusician, DistroKid, SACEM}."""
+    rows = db.fetch_query(
+        """
+        SELECT 'iMusician' AS src, COALESCE(SUM(revenue_eur), 0)
+            FROM imusician_monthly_revenue WHERE artist_id = %s
+        UNION ALL
+        SELECT 'DistroKid', COALESCE(SUM(revenue_eur), 0)
+            FROM distrokid_monthly_revenue WHERE artist_id = %s
+        UNION ALL
+        SELECT 'SACEM', COALESCE(SUM(mouvement_eur), 0)
+            FROM sacem_statement WHERE artist_id = %s AND line_type = 'repartition'
+        """,
+        (artist_id, artist_id, artist_id),
+    )
+    return {r[0]: float(r[1] or 0) for r in (rows or [])}
+
+
 def load_artists(db) -> pd.DataFrame:
     return db.fetch_df(
         "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
