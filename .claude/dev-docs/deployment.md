@@ -29,6 +29,7 @@ Audit pré-déploiement. Ce qui était **fixable en code est déjà fait** (PR `
 
 **🔧 Actions ops AVANT exposition (non automatisables) :**
 1. **Rotation mot de passe Postgres** — `Wowow1357911!` est dans l'historique git → le changer pour de bon (nouveau mot de passe DB + `ALTER USER postgres PASSWORD …`), puis poser `DATABASE_PASSWORD`/`DB_PASSWORD` dans le `.env` du VPS. Idem mot de passe admin Airflow (`AIRFLOW_ADMIN_PASSWORD` distinct et aléatoire) + username (`AIRFLOW_ADMIN_USERNAME` ≠ `1x7xxxxxxx`).
+   - **Rotation des creds `config/config.yaml`** (gitignored mais *live*, jamais commités mais possiblement partagés via fichiers locaux) : surtout le **token d'accès Meta** et le **mot de passe d'application Gmail/SMTP** — les régénérer côté Meta/Google par hygiène, et reposer les valeurs côté VPS.
 2. **`API_SECRET_KEY`** posée (`openssl rand -hex 32`) dans l'env prod — sinon tokens cassés en multi-worker.
 3. **`CORS_ORIGINS=https://<domaine>`** + **`APP_BASE_URL=https://<domaine>`** (liens email en clair/cassés sinon). **`API_ENABLE_DOCS`** laissé vide. **`STRIPE_WEBHOOK_SECRET`** posé (sinon webhook en 503, voulu).
 4. **Firewall hôte (ufw)** : autoriser uniquement `22, 80, 443` en entrée ; `deny 5433, 8080, 8501, 8502`. Le binding loopback est une défense ; le firewall en est la seconde.

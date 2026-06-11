@@ -2,10 +2,19 @@
 Vue "Liens & Outils" — Référence opérationnelle pour gérer la plateforme.
 Regroupe : URLs externes, commandes Docker/infra, guide credentials, commandes debug.
 """
-import streamlit as st
+import os
 from datetime import datetime
+
+import streamlit as st
+
 from src.dashboard.auth import is_admin
 from src.dashboard.utils.i18n import t
+
+# Service base URLs — env-driven so the admin "Services locaux" links work on a deployed
+# VPS (behind the real domain) and not only on localhost. Fallbacks keep local dev intact.
+_AIRFLOW_URL = os.getenv("AIRFLOW_BASE_URL", "http://localhost:8080").rstrip("/")
+_DASHBOARD_URL = os.getenv("APP_BASE_URL", "http://localhost:8501").rstrip("/")
+_API_URL = os.getenv("API_BASE_URL", "http://localhost:8502").rstrip("/")
 
 
 def _card(title: str, body: str):
@@ -110,28 +119,28 @@ def show():
         st.subheader(t("useful_links.sec_local_services", "Services locaux"))
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Airflow UI", "localhost:8080")
+            st.metric("Airflow UI", _AIRFLOW_URL.split("//")[-1])
             st.link_button(t("useful_links.airflow_open_btn", "Ouvrir Airflow →"),
-                           "http://localhost:8080", width="stretch")
+                           _AIRFLOW_URL, width="stretch")
             st.caption(t("useful_links.airflow_login", "Login : admin / admin (par défaut)"))
 
         with col2:
-            st.metric("Streamlit Dashboard", "localhost:8501")
+            st.metric("Streamlit Dashboard", _DASHBOARD_URL.split("//")[-1])
             st.link_button(t("useful_links.dashboard_open_btn", "Ouvrir Dashboard →"),
-                           "http://localhost:8501", width="stretch")
+                           _DASHBOARD_URL, width="stretch")
             st.caption(t("useful_links.dashboard_caption",
                          "Ce dashboard — `streamlit run src/dashboard/app.py`"))
 
         st.divider()
         col3, col4 = st.columns(2)
         with col3:
-            st.metric("REST API (FastAPI)", "localhost:8502")
-            st.link_button("Swagger UI →", "http://localhost:8502/docs", width="stretch")
+            st.metric("REST API (FastAPI)", _API_URL.split("//")[-1])
+            st.link_button("Swagger UI →", f"{_API_URL}/docs", width="stretch")
             st.caption(t("useful_links.api_caption",
                          "Brick 14 — `uvicorn src.api.main:app --reload --port 8502`"))
         with col4:
-            st.metric("API ReDoc", "localhost:8502/redoc")
-            st.link_button("ReDoc →", "http://localhost:8502/redoc", width="stretch")
+            st.metric("API ReDoc", f'{_API_URL.split("//")[-1]}/redoc')
+            st.link_button("ReDoc →", f"{_API_URL}/redoc", width="stretch")
             st.caption(t("useful_links.redoc_caption", "Documentation alternative (lisible)"))
 
         st.divider()
@@ -162,7 +171,7 @@ def show():
             ("data_quality_check", t("useful_links.dag_data_quality_check", "Qualité des données")),
         ]
         for dag_id, label in dags:
-            url = f"http://localhost:8080/dags/{dag_id}/grid"
+            url = f"{_AIRFLOW_URL}/dags/{dag_id}/grid"
             c1, c2 = st.columns([4, 1])
             c1.markdown(f"`{dag_id}` — {label}")
             c2.link_button(t("useful_links.grid_btn", "Grid →"), url, width="stretch")

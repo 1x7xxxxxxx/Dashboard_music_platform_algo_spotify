@@ -73,12 +73,12 @@ def get_kpis(
     raw_sc = _first_val(
         db,
         f"""
-        SELECT plays FROM soundcloud_tracks
+        SELECT playback_count FROM soundcloud_tracks_daily
         WHERE 1=1 {filt}
         ORDER BY collected_at DESC LIMIT 1
         """,
         p_aid,
-        "plays",
+        "playback_count",
     )
     sc_plays = int(raw_sc) if raw_sc else None
 
@@ -86,7 +86,7 @@ def get_kpis(
     raw_ig = _first_val(
         db,
         f"""
-        SELECT followers_count FROM instagram_account_stats
+        SELECT followers_count FROM instagram_daily_stats
         WHERE 1=1 {filt}
         ORDER BY collected_at DESC LIMIT 1
         """,
