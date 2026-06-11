@@ -37,6 +37,50 @@ def test_ui_key_present_in_both(monkeypatch):
     assert i18n.t("ui.language")
 
 
+class _FakeST:
+    """Minimal streamlit stand-in: session_state + query_params as plain dicts."""
+
+    def __init__(self, session=None, query=None):
+        self.session_state = dict(session or {})
+        self.query_params = dict(query or {})
+
+
+def test_get_lang_falls_back_to_query_param(monkeypatch):
+    # Login's session_state.clear() wipes the choice → URL ?lang= must restore it.
+    fake = _FakeST(session={}, query={"lang": "en"})
+    monkeypatch.setattr(i18n, "st", fake)
+    assert i18n.get_lang() == "en"
+    assert fake.session_state["lang"] == "en"  # re-seeded for the rest of the run
+
+
+def test_get_lang_session_takes_precedence_over_url(monkeypatch):
+    fake = _FakeST(session={"lang": "fr"}, query={"lang": "en"})
+    monkeypatch.setattr(i18n, "st", fake)
+    assert i18n.get_lang() == "fr"
+
+
+def test_get_lang_default_when_neither(monkeypatch):
+    fake = _FakeST(session={}, query={})
+    monkeypatch.setattr(i18n, "st", fake)
+    assert i18n.get_lang() == i18n._DEFAULT
+
+
+def test_set_lang_mirrors_to_url(monkeypatch):
+    fake = _FakeST(session={}, query={})
+    monkeypatch.setattr(i18n, "st", fake)
+    i18n.set_lang("en")
+    assert fake.session_state["lang"] == "en"
+    assert fake.query_params["lang"] == "en"
+
+
+def test_set_lang_ignores_unknown_code(monkeypatch):
+    fake = _FakeST(session={"lang": "fr"}, query={})
+    monkeypatch.setattr(i18n, "st", fake)
+    i18n.set_lang("de")
+    assert fake.session_state["lang"] == "fr"  # unchanged
+    assert "lang" not in fake.query_params
+
+
 def test_every_nav_item_key_has_en():
     # Guard: every page key in app._NAV_SECTIONS must have an EN nav.item.* entry,
     # so EN mode never shows a raw French label for a navigation item.
