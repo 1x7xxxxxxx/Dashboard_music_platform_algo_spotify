@@ -38,7 +38,7 @@ def _plan_cards() -> dict:
                   "🔗 Mapping cross-plateforme — suggestions automatiques "
                   "(titres entre plateformes + campagnes Meta Ads)"),
                 t("billing.feat_roi",
-                  "💹 ROI Breakeven — revenus vs dépenses promo totales (Meta Ads + Hypeddit)"),
+                  "💹 ROI Breakeven — revenus (distrib. + SACEM) vs dépenses Meta Ads"),
                 t("billing.feat_csv", "📂 Import & export CSV / XLSX"),
                 t("billing.feat_pdf", "📄 Export PDF du rapport (FR / EN)"),
                 t("billing.feat_wrapped", "🎁 Data Wrapped annuel"),
@@ -52,7 +52,9 @@ def _plan_cards() -> dict:
             'features': [
                 t("billing.feat_everything_free", "Tout ce que contient Free"),
                 t("billing.feat_road_to_algo",
-                  "🚀 Road to Algo — prédictions ML (Discover Weekly / Release Radar / Radio)"),
+                  "🚀 Road to Algo — prédictions ML (machine learning) pour identifier les "
+                  "leviers qui déclenchent les playlists algorithmiques Spotify : "
+                  "Discover Weekly, Release Radar, Radio"),
                 t("billing.feat_revenue_forecast", "📈 Prévisions de revenus (ML)"),
                 t("billing.feat_creatives", "🎨 Créatives Meta Ads"),
                 t("billing.feat_cpr", "📊 CPR Optimizer"),

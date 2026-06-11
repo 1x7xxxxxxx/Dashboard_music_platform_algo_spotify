@@ -40,12 +40,10 @@ def _roi_data_span(db, artist_id):
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day WHERE artist_id = %s
                    UNION ALL
-                   SELECT date::date FROM hypeddit_daily_stats WHERE artist_id = %s
-                   UNION ALL
                    SELECT line_date::date FROM sacem_statement
                        WHERE artist_id = %s AND line_type = 'repartition'
                ) t""",
-            (artist_id, artist_id, artist_id, artist_id, artist_id),
+            (artist_id, artist_id, artist_id, artist_id),
         )
     else:
         rows = db.fetch_query(
@@ -55,8 +53,6 @@ def _roi_data_span(db, artist_id):
                    SELECT make_date(year, month, 1) AS d FROM distrokid_monthly_revenue
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day
-                   UNION ALL
-                   SELECT date::date FROM hypeddit_daily_stats
                    UNION ALL
                    SELECT line_date::date FROM sacem_statement WHERE line_type = 'repartition'
                ) t"""
@@ -407,8 +403,8 @@ def show():
             st.subheader(t("imusician.roi_header", "💹 ROI Breakheaven"))
             st.caption(t(
                 "imusician.roi_caption",
-                "Revenus (iMusician + DistroKid + royalties SACEM) vs dépenses promo "
-                "totales (Meta Ads + Hypeddit) sur la période sélectionnée"
+                "Revenus (iMusician + DistroKid + royalties SACEM) vs dépenses Meta Ads "
+                "sur la période sélectionnée"
             ))
 
             span_min, span_max = _roi_data_span(db, artist_id)
@@ -425,49 +421,50 @@ def show():
             else:
                 roi = get_roi_data(db, artist_id, from_date, to_date)
 
-                c1, c2, c3, c4 = st.columns(4)
+                c1, c2, c3 = st.columns(3)
                 c1.metric(t("imusician.roi_revenue", "💰 Revenus (distrib. + SACEM)"),
                           f"{roi['revenue_eur']:,.2f} €")
                 c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
                           f"{roi['meta_spend']:,.2f} €")
-                c3.metric(t("imusician.roi_spend_hypeddit", "🎁 Dépenses Hypeddit"),
-                          f"{roi['hypeddit_spend']:,.2f} €")
 
                 if roi['roi_pct'] is not None:
                     roi_label = f"{roi['roi_pct']:.1f} %"
                     roi_delta = (t("imusician.roi_profitable", "✅ Rentable")
                                  if roi['profitable']
                                  else t("imusician.roi_unprofitable", "⚠️ Déficitaire"))
-                    c4.metric(
+                    c3.metric(
                         "📊 ROI", roi_label, roi_delta,
                         delta_color="normal" if roi['profitable'] else "inverse",
                         help=t("imusician.roi_total_help",
-                               "ROI sur la dépense promo totale (Meta + Hypeddit) = "
-                               "{total:,.2f} €").format(total=roi['total_spend'])
+                               "ROI sur la dépense Meta Ads = {total:,.2f} €").format(
+                                   total=roi['total_spend'])
                     )
                 else:
-                    c4.metric("📊 ROI", "—",
+                    c3.metric("📊 ROI", "—",
                               help=t("imusician.roi_no_spend_help",
                                      "Aucune dépense promo sur la période — élargissez le filtre"))
 
                 df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
                 if not df_series.empty:
+                    # Revenue column = distributors (green) + SACEM royalties stacked on
+                    # top (purple), beside the Meta-spend column (red).
                     fig = go.Figure()
                     fig.add_trace(go.Bar(
-                        x=df_series['period_date'], y=df_series['revenue_eur'],
-                        name=t("common.revenue_eur", "Revenus (€)"), marker_color="#1DB954"
+                        x=df_series['period_date'], y=df_series['distributor_revenue'],
+                        name=t("imusician.dist_revenue_eur", "Revenus distributeurs (€)"),
+                        marker_color="#1DB954", offsetgroup='rev'
+                    ))
+                    fig.add_trace(go.Bar(
+                        x=df_series['period_date'], y=df_series['sacem_revenue'],
+                        base=df_series['distributor_revenue'],
+                        name=t("imusician.sacem_revenue_eur", "Royalties SACEM (€)"),
+                        marker_color="#8E44AD", offsetgroup='rev'
                     ))
                     fig.add_trace(go.Bar(
                         x=df_series['period_date'], y=df_series['meta_spend'],
                         name=t("imusician.meta_spend_eur", "Dépenses Meta (€)"),
-                        marker_color="#FF4444"
+                        marker_color="#FF4444", offsetgroup='spend'
                     ))
-                    if 'hypeddit_spend' in df_series.columns:
-                        fig.add_trace(go.Bar(
-                            x=df_series['period_date'], y=df_series['hypeddit_spend'],
-                            name=t("imusician.hypeddit_spend_eur", "Dépenses Hypeddit (€)"),
-                            marker_color="#FF8C00"
-                        ))
                     fig.update_layout(
                         barmode='group',
                         xaxis_tickformat='%b %Y',
