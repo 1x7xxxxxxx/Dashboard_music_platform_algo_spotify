@@ -24,11 +24,7 @@ import streamlit as st
 
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.utils.track_matching import (
-    canonical_song,
-    normalize_track_title,
-    rebuild_release_reference,
-)
+from src.utils.track_matching import canonical_song, rebuild_release_reference
 from src.utils.track_mapping_suggest import (
     confidence_badge,
     rank_campaign_candidates,
@@ -138,28 +134,6 @@ def _mutex_checkboxes(editor_key: str, col_a: str, col_b: str):
             ch[col_a] = False
 
 
-def _load_campaign_rollup(db, artist_id):
-    """Per-track Meta-campaign summary keyed by normalized track title:
-    {norm_title: {'n': int, 'period': str, 'names': [..]}}. Epoch (1970) dates are
-    dropped so the period reflects real campaign activity."""
-    rows = db.fetch_query(
-        "SELECT ctm.track_name, COUNT(DISTINCT ctm.campaign_name), "
-        "       MIN(NULLIF(mc.start_time::date, DATE '1970-01-01')), "
-        "       MAX(NULLIF(COALESCE(mc.end_time, mc.start_time)::date, DATE '1970-01-01')), "
-        "       STRING_AGG(DISTINCT ctm.campaign_name, ' · ') "
-        "FROM campaign_track_mapping ctm "
-        "LEFT JOIN meta_campaigns mc ON mc.artist_id = ctm.artist_id "
-        "  AND mc.campaign_name = ctm.campaign_name "
-        "WHERE ctm.artist_id = %s GROUP BY ctm.track_name",
-        (artist_id,))
-    out = {}
-    for track_name, n, pstart, pend, names in (rows or []):
-        period = f"{pstart} → {pend}" if pstart and pend else (str(pstart) if pstart else "—")
-        out[normalize_track_title(track_name)] = {
-            'n': int(n or 0), 'period': period, 'names': names or ''}
-    return out
-
-
 def _build_all_suggestions(db, artist_id, canonical, links_df):
     """All platforms' top suggestions in ONE list (no per-platform selector). Each
     display row carries a Plateforme column; each sugg dict carries its platform."""
@@ -237,13 +211,17 @@ def _render_track_suggestions(db, artist_id, canonical, links_df):
         disp, hide_index=True, width='stretch', key="ed_all_tracks",
         on_change=_mutex_checkboxes, args=("ed_all_tracks", "Accepter", "Rejeter"),
         column_config={
+            'Plateforme': st.column_config.TextColumn("Plateforme", width="small"),
+            'Fiab.': st.column_config.TextColumn("Fiab.", width="small"),
+            'Titre plateforme': st.column_config.TextColumn("Titre plateforme", width="large"),
+            'Suggestion (track)': st.column_config.TextColumn("Suggestion (track)", width="medium"),
             'Confiance': st.column_config.ProgressColumn(
                 t("track_mapping.col_confidence", "Confiance"),
-                min_value=0.0, max_value=100.0, format="%.0f%%"),
+                min_value=0.0, max_value=100.0, format="%.0f%%", width="small"),
             'Accepter': st.column_config.CheckboxColumn(
-                t("track_mapping.col_accept", "Accepter")),
+                t("track_mapping.col_accept", "Accepter"), width="small"),
             'Rejeter': st.column_config.CheckboxColumn(
-                t("track_mapping.col_reject", "Rejeter")),
+                t("track_mapping.col_reject", "Rejeter"), width="small"),
         },
         disabled=['Plateforme', 'Fiab.', 'Titre plateforme', 'Suggestion (track)', 'Confiance'])
     if st.button(t("track_mapping.save_links_button", "💾 Enregistrer les liens"),
@@ -253,11 +231,12 @@ def _render_track_suggestions(db, artist_id, canonical, links_df):
         st.rerun()
 
 
-def _render_coverage_grid(canonical, links_df, rollup):
-    """Full recap: ✅ green where a platform is linked, · otherwise + Meta cols."""
+def _render_coverage_grid(canonical, links_df):
+    """Recap: ✅ green where a platform is linked, · otherwise. Cross-platform presence
+    only — Meta-campaign info lives in the 📣 Campagnes Meta tab."""
     confirmed = links_df[links_df.status == 'confirmed'] if not links_df.empty else links_df
-    st.subheader(t("track_mapping.coverage_header", "🗺️ Couverture par titre (récap)"))
-    grid_rows, detail_rows = [], []
+    st.subheader(t("track_mapping.coverage_header", "🗺️ Couverture cross-plateforme (récap)"))
+    grid_rows = []
     for tr in canonical:
         row = {t("track_mapping.col_track", "Track"): tr['title'],
                t("track_mapping.col_release", "Sortie"): str(tr['release_date'] or '—')}
@@ -265,14 +244,7 @@ def _render_coverage_grid(canonical, links_df, rollup):
             linked = (not confirmed.empty and not confirmed[
                 (confirmed.match_key == tr['match_key']) & (confirmed.platform == pkey)].empty)
             row[_PLATFORM_SHORT[pkey]] = "✅" if linked else "·"
-        info = rollup.get(normalize_track_title(tr['title']))
-        row["Meta"] = str(info['n']) if info else "·"
-        row[t("track_mapping.col_meta_period", "Période Meta")] = info['period'] if info else "—"
         grid_rows.append(row)
-        if info and info['names']:
-            detail_rows.append({t("track_mapping.col_track", "Track"): tr['title'],
-                                t("track_mapping.col_campaigns", "Campagnes"): info['names'],
-                                "Meta": info['n']})
 
     grid = pd.DataFrame(grid_rows)
     plat_cols = [_PLATFORM_SHORT[k] for k, _ in _PLATFORMS]
@@ -282,11 +254,8 @@ def _render_coverage_grid(canonical, links_df, rollup):
 
     st.dataframe(grid.style.map(_green, subset=plat_cols), hide_index=True, width='stretch')
     st.caption(t("track_mapping.coverage_legend",
-                 "✅ = plateforme liée · « · » = non liée. **Meta** = nb de campagnes "
-                 "associées au titre · **Période Meta** = de la 1ʳᵉ à la dernière campagne."))
-    if detail_rows:
-        with st.expander(t("track_mapping.campaign_detail", "▸ Détail des campagnes par titre")):
-            st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width='stretch')
+                 "✅ = plateforme liée · « · » = non liée. (Les campagnes Meta sont dans "
+                 "l'onglet **📣 Campagnes Meta**.)"))
 
 
 def _render_overview_tab(db, artist_id, canonical):
@@ -294,8 +263,8 @@ def _render_overview_tab(db, artist_id, canonical):
     # Suggestions on top (green when nothing) …
     _render_track_suggestions(db, artist_id, canonical, links_df)
     st.markdown("---")
-    # … full recap just below.
-    _render_coverage_grid(canonical, links_df, _load_campaign_rollup(db, artist_id))
+    # … cross-platform coverage recap just below.
+    _render_coverage_grid(canonical, links_df)
 
 
 # ── Meta campaigns ────────────────────────────────────────────────────────────
@@ -350,7 +319,6 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
         disp.append({'Fiab.': confidence_badge(cand.score), 'Campagne': c['campaign'],
                      'Adsets': _trunc(cc.get('adsets', '')), 'Ads': _trunc(cc.get('ads', '')),
                      'Suggestion (track)': cand.title, 'Confiance': round(cand.score * 100, 1),
-                     'Méthode': cand.method,
                      'Associer': cand.score >= 0.6, 'Rejeter': False})
     return sugg, pd.DataFrame(disp)
 
@@ -439,16 +407,20 @@ def _render_campaign_tab(db, artist_id, canonical):
             disp, hide_index=True, width="stretch", key="ed_auto_camp",
             on_change=_mutex_checkboxes, args=("ed_auto_camp", "Associer", "Rejeter"),
             column_config={
+                'Fiab.': st.column_config.TextColumn("Fiab.", width="small"),
+                'Campagne': st.column_config.TextColumn("Campagne", width="medium"),
+                'Adsets': st.column_config.TextColumn("Adsets", width="medium"),
+                'Ads': st.column_config.TextColumn("Ads", width="medium"),
+                'Suggestion (track)': st.column_config.TextColumn("Suggestion (track)", width="medium"),
                 'Confiance': st.column_config.ProgressColumn(
                     t("meta_mapping.col_confidence", "Confiance"),
-                    min_value=0.0, max_value=100.0, format="%.0f%%"),
+                    min_value=0.0, max_value=100.0, format="%.0f%%", width="small"),
                 'Associer': st.column_config.CheckboxColumn(
-                    t("meta_mapping.col_associate", "Associer")),
+                    t("meta_mapping.col_associate", "Associer"), width="small"),
                 'Rejeter': st.column_config.CheckboxColumn(
-                    t("track_mapping.col_reject", "Rejeter")),
+                    t("track_mapping.col_reject", "Rejeter"), width="small"),
             },
-            disabled=['Fiab.', 'Campagne', 'Adsets', 'Ads',
-                      'Suggestion (track)', 'Confiance', 'Méthode'])
+            disabled=['Fiab.', 'Campagne', 'Adsets', 'Ads', 'Suggestion (track)', 'Confiance'])
         if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
                      type="primary"):
             n_a, n_r = _save_campaign_links(db, artist_id, sugg, edited)
