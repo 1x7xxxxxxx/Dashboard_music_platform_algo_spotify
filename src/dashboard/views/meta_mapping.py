@@ -176,23 +176,6 @@ def _save_all_links(db, artist_id, all_sugg, edited):
     return len(data)
 
 
-def _save_auto_high_confidence(db, artist_id, all_sugg, threshold: float = 0.8):
-    """Bulk-confirm every cross-platform suggestion at/above threshold (🟢). Reversible
-    via Rejeter. Returns count written."""
-    now = datetime.now(timezone.utc)
-    data = [{'artist_id': artist_id, 'match_key': s['match_key'], 'platform': s['platform'],
-             'platform_title': s['platform_title'], 'platform_ref_id': s['ref_id'],
-             'status': 'confirmed', 'confidence': s['confidence'], 'method': s['method'],
-             'updated_at': now}
-            for s in all_sugg if s['confidence'] >= threshold]
-    if data:
-        db.upsert_many(
-            'track_platform_link', data,
-            conflict_columns=['artist_id', 'platform', 'platform_title', 'match_key'],
-            update_columns=['status', 'confidence', 'method', 'updated_at'])
-    return len(data)
-
-
 def _render_track_suggestions(db, artist_id, canonical, links_df):
     """Suggestions to validate (all platforms, no selector). Green when nothing left."""
     st.subheader(t("track_mapping.suggest_header", "🔎 Suggestions à valider"))
@@ -205,12 +188,6 @@ def _render_track_suggestions(db, artist_id, canonical, links_df):
                  "Score = similarité du nom **+** proximité de date (si la plateforme "
                  "l'expose). Fiabilité : 🟢 ≥80 % · 🟡 50–80 % · 🔴 <50 %. Cochez "
                  "**Accepter** (ou **Rejeter** pour ne plus proposer), puis enregistrez."))
-    n_high = sum(1 for s in all_sugg if s['confidence'] >= 0.8)
-    if n_high and st.button(
-            t("track_mapping.auto_accept", "✅ Tout accepter ≥ 80 % ({n})").format(n=n_high)):
-        n = _save_auto_high_confidence(db, artist_id, all_sugg)
-        st.success(t("track_mapping.links_saved", "{n} lien(s) enregistré(s).").format(n=n))
-        st.rerun()
     edited = st.data_editor(
         disp, hide_index=True, width='stretch', key="ed_all_tracks",
         on_change=_mutex_checkboxes, args=("ed_all_tracks", "Accepter", "Rejeter"),
@@ -307,7 +284,15 @@ def _load_campaign_context(db, artist_id: int) -> dict:
     out = {}
     for name, adsets, ads, pstart, pend in (rows or []):
         period = f"{pstart} → {pend}" if pstart and pend else (str(pstart) if pstart else "—")
-        out[name] = {'adsets': adsets or '', 'ads': ads or '', 'period': period}
+        out[name] = {'adsets': adsets or '', 'ads': ads or '', 'period': period, 'spend': 0.0}
+    # Spend per campaign over its active period (meta_insights_performance is a lifetime
+    # aggregate keyed by campaign_name) — shown left of the campaign for context.
+    spend_rows = db.fetch_query(
+        "SELECT campaign_name, COALESCE(SUM(spend), 0) FROM meta_insights_performance "
+        "WHERE artist_id = %s GROUP BY campaign_name", (artist_id,))
+    for cn, sp in (spend_rows or []):
+        if cn in out:
+            out[cn]['spend'] = float(sp or 0)
     return out
 
 
@@ -330,7 +315,8 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
         # track_name in `_`-form to match s4a_song_timeline.song (the meta_x_spotify join key).
         sugg.append({'campaign': c['campaign'], 'track_name': canonical_song(cand.title),
                      'confidence': cand.score, 'method': cand.method})
-        disp.append({'Fiab.': confidence_badge(cand.score), 'Campagne': c['campaign'],
+        disp.append({'Fiab.': confidence_badge(cand.score),
+                     'Dépensé (€)': round(cc.get('spend', 0.0), 2), 'Campagne': c['campaign'],
                      'Adsets': _trunc(cc.get('adsets', '')), 'Ads': _trunc(cc.get('ads', '')),
                      'Période camp.': cc.get('period', '—'),
                      'Suggestion (track)': cand.title,
@@ -425,6 +411,8 @@ def _render_campaign_tab(db, artist_id, canonical):
             on_change=_mutex_checkboxes, args=("ed_auto_camp", "Associer", "Rejeter"),
             column_config={
                 'Fiab.': st.column_config.TextColumn("Fiab.", width="small"),
+                'Dépensé (€)': st.column_config.NumberColumn("Dépensé (€)", format="%.0f €",
+                                                             width="small"),
                 'Campagne': st.column_config.TextColumn("Campagne", width="medium"),
                 'Adsets': st.column_config.TextColumn("Adsets", width="medium"),
                 'Ads': st.column_config.TextColumn("Ads", width="medium"),
@@ -439,7 +427,7 @@ def _render_campaign_tab(db, artist_id, canonical):
                 'Rejeter': st.column_config.CheckboxColumn(
                     t("track_mapping.col_reject", "Rejeter"), width="small"),
             },
-            disabled=['Fiab.', 'Campagne', 'Adsets', 'Ads', 'Période camp.',
+            disabled=['Fiab.', 'Dépensé (€)', 'Campagne', 'Adsets', 'Ads', 'Période camp.',
                       'Suggestion (track)', 'Sortie track', 'Confiance'])
         if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
                      type="primary"):
