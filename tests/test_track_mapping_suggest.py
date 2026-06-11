@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.utils.track_mapping_suggest import (  # noqa: E402
     W_CAMP_DATE,
     W_CAMP_TITLE,
+    confidence_badge,
     date_proximity,
     mapping_boost,
     rank_campaign_candidates,
@@ -110,3 +111,15 @@ def test_rank_campaign_date_term_flips_winner():
 
 def test_campaign_weights_sum_to_one():
     assert abs((W_CAMP_TITLE + W_CAMP_DATE) - 1.0) < 1e-9
+
+
+# ── confidence_badge ────────────────────────────────────────────────────────
+def test_confidence_badge_bands():
+    assert confidence_badge(1.0) == "🟢"
+    assert confidence_badge(0.8) == "🟢"
+    assert confidence_badge(0.79) == "🟡"
+    assert confidence_badge(0.5) == "🟡"
+    assert confidence_badge(0.49) == "🔴"
+    assert confidence_badge(0.13) == "🔴"   # junk title (DJ set / other artist)
+    assert confidence_badge(0.0) == "🔴"
+    assert confidence_badge(None) == "🔴"

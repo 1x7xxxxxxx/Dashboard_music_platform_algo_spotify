@@ -16,8 +16,8 @@ import streamlit as st
 
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.utils.track_matching import canonical_song, rebuild_release_reference
-from src.utils.track_mapping_suggest import rank_campaign_candidates, rank_track_candidates
+from src.utils.track_matching import rebuild_release_reference
+from src.utils.track_mapping_suggest import confidence_badge, rank_track_candidates
 
 # (platform_key, human label). platform_key is a fixed enum (never user input).
 _PLATFORMS = [
@@ -110,58 +110,10 @@ def _build_suggestions(db, artist_id, platform, canonical, links_df):
         c = cands[0]
         sugg.append({'platform_title': item['title'], 'ref_id': item['ref_id'],
                      'match_key': c.match_key, 'confidence': c.score, 'method': c.method})
-        disp.append({'Titre plateforme': item['title'], 'Suggestion (track)': c.title,
-                     'Confiance': c.score, 'Accepter': c.score >= 0.8, 'Rejeter': False})
+        disp.append({'Fiab.': confidence_badge(c.score), 'Titre plateforme': item['title'],
+                     'Suggestion (track)': c.title, 'Confiance': c.score,
+                     'Accepter': c.score >= 0.8, 'Rejeter': False})
     return sugg, pd.DataFrame(disp)
-
-
-def _load_unmapped_campaigns(db, artist_id):
-    """Meta campaigns with no mapping yet → [{campaign, start}]."""
-    rows = db.fetch_query(
-        "SELECT campaign_name, MAX(start_time) FROM meta_campaigns mc "
-        "WHERE mc.artist_id = %s AND NOT EXISTS ("
-        "  SELECT 1 FROM campaign_track_mapping ctm "
-        "  WHERE ctm.artist_id = mc.artist_id AND ctm.campaign_name = mc.campaign_name) "
-        "GROUP BY campaign_name ORDER BY MAX(start_time) DESC NULLS LAST",
-        (artist_id,))
-    return [{'campaign': r[0], 'start': r[1]} for r in (rows or []) if r[0]]
-
-
-def _build_campaign_suggestions(db, artist_id, canonical, confirmed_keys):
-    """Unmapped campaign → best track via title-sim + release-date proximity."""
-    sugg, disp = [], []
-    for c in _load_unmapped_campaigns(db, artist_id):
-        cands = rank_campaign_candidates(c['campaign'], c['start'], canonical,
-                                         confirmed_keys, top_n=1)
-        if not cands:
-            continue
-        cand = cands[0]
-        # track_name stored in `_`-form to match s4a_song_timeline.song (the join key
-        # used by meta_x_spotify) + the manual campaign_track_mapping convention.
-        sugg.append({'campaign': c['campaign'], 'track_name': canonical_song(cand.title),
-                     'confidence': cand.score, 'method': cand.method})
-        disp.append({'Campagne': c['campaign'], 'Suggestion (track)': cand.title,
-                     'Confiance': cand.score, 'Méthode': cand.method,
-                     'Associer': cand.score >= 0.6})
-    return sugg, pd.DataFrame(disp)
-
-
-def _save_campaign_links(db, artist_id, sugg, edited):
-    now_method = 'auto'  # provenance flag carried by auto_suggested
-    data = []
-    for i, row in edited.reset_index(drop=True).iterrows():
-        if not row.get('Associer') or i >= len(sugg):
-            continue
-        s = sugg[i]
-        data.append({'artist_id': artist_id, 'campaign_name': s['campaign'],
-                     'track_name': s['track_name'], 'confidence': s['confidence'],
-                     'method': s['method'] or now_method, 'auto_suggested': True})
-    if data:
-        db.upsert_many(
-            'campaign_track_mapping', data,
-            conflict_columns=['artist_id', 'campaign_name', 'track_name'],
-            update_columns=['confidence', 'method', 'auto_suggested'])
-    return len(data)
 
 
 def _render_matrix(canonical, links_df):
@@ -203,9 +155,11 @@ def show():
                 st.rerun()
             return
 
-        tab_sugg, tab_camp, tab_matrix = st.tabs(
+        st.caption(t("track_mapping.meta_moved",
+                     "ℹ️ Le mapping **campagnes Meta → titres** est désormais sur la page "
+                     "**🔗 Meta × Spotify** (suggestions automatiques en haut)."))
+        tab_sugg, tab_matrix = st.tabs(
             [t("track_mapping.tab_suggestions", "Suggestions par plateforme"),
-             t("track_mapping.tab_campaigns", "Meta campagnes"),
              t("track_mapping.tab_matrix", "Vue unifiée")])
 
         with tab_sugg:
@@ -233,42 +187,12 @@ def show():
                         'Rejeter': st.column_config.CheckboxColumn(
                             t("track_mapping.col_reject", "Rejeter")),
                     },
-                    disabled=['Titre plateforme', 'Suggestion (track)', 'Confiance'])
+                    disabled=['Fiab.', 'Titre plateforme', 'Suggestion (track)', 'Confiance'])
                 if st.button(t("track_mapping.save_links_button", "💾 Enregistrer les liens"),
                              type="primary"):
                     n = _save_links(db, artist_id, pkey, sugg, edited)
                     st.success(t("track_mapping.links_saved",
                                  "{n} lien(s) enregistré(s).").format(n=n))
-                    st.rerun()
-
-        with tab_camp:
-            links_df = _load_links(db, artist_id)
-            confirmed_keys = (set(links_df[links_df.status == 'confirmed'].match_key)
-                              if not links_df.empty else set())
-            sugg, disp = _build_campaign_suggestions(db, artist_id, canonical, confirmed_keys)
-            if disp.empty:
-                st.info(t("track_mapping.no_campaigns",
-                          "Aucune campagne Meta à associer (toutes déjà mappées, ou aucune "
-                          "campagne collectée)."))
-            else:
-                st.caption(t("track_mapping.campaign_legend",
-                             "Suggestions basées sur la similarité du nom de campagne **et** la "
-                             "proximité avec la date de sortie du titre."))
-                edited = st.data_editor(
-                    disp, hide_index=True, width='stretch', key="ed_camp",
-                    column_config={
-                        'Confiance': st.column_config.ProgressColumn(
-                            t("track_mapping.col_confidence", "Confiance"),
-                            min_value=0.0, max_value=1.0, format="%.0f%%"),
-                        'Associer': st.column_config.CheckboxColumn(
-                            t("track_mapping.col_associate", "Associer")),
-                    },
-                    disabled=['Campagne', 'Suggestion (track)', 'Confiance', 'Méthode'])
-                if st.button(t("track_mapping.associate_button", "💾 Associer les campagnes"),
-                             type="primary"):
-                    n = _save_campaign_links(db, artist_id, sugg, edited)
-                    st.success(t("track_mapping.campaigns_associated",
-                                 "{n} campagne(s) associée(s).").format(n=n))
                     st.rerun()
 
         with tab_matrix:

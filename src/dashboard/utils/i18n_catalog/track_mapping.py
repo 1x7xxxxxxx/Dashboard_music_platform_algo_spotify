@@ -4,6 +4,8 @@ EN = {
     "track_mapping.title": "🧩 Cross-platform mapping",
     "track_mapping.caption": "Automatically link your titles across platforms (Spotify, "
                              "Apple, SoundCloud, YouTube) based on name similarity.",
+    "track_mapping.meta_moved": "ℹ️ **Meta campaign → track** mapping now lives on the "
+                                "**🔗 Meta × Spotify** page (automatic suggestions at the top).",
     "track_mapping.no_reference": "No title reference found. Import your S4A CSVs then "
                                   "rebuild the reference below.",
     "track_mapping.rebuild_button": "🔄 Rebuild title reference",

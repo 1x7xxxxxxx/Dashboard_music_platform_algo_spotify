@@ -25,12 +25,15 @@ EN = {
                            "import your files from **📂 CSV Import**.",
     # Step 3
     "process_guide.s3_title": "3. Map Meta Ads ↔ Spotify",
-    "process_guide.s3_i1": "Open the **🔗 Spotify × Meta Ads mapping (campaign name)** page.",
-    "process_guide.s3_i2": "Link each **Meta Ads campaign name** to the matching **Spotify "
-                           "track name**. This link is what reconciles ad spend "
-                           "with streams (ROI, META × Spotify view).",
-    "process_guide.s3_i3": "Tip: name your Meta Ads campaigns after the track title to "
-                           "make mapping easier (e.g. campaign \"KSD - Kimono à semelle de fer\").",
+    "process_guide.s3_i1": "Open the **🔗 Meta × Spotify** page. **Automatic suggestions** "
+                           "(campaign-name similarity + release-date proximity) appear **at the "
+                           "top**, with a 🟢/🟡/🔴 reliability marker — tick **Associate** to "
+                           "confirm the correct ones.",
+    "process_guide.s3_i2": "Otherwise, manually link each **Meta Ads campaign** to the matching "
+                           "**track** (the **Manual add** tab). This link is what reconciles ad "
+                           "spend with streams (ROI, META × Spotify view).",
+    "process_guide.s3_i3": "Tip: name your Meta Ads campaigns after the track title for better "
+                           "automatic suggestions (e.g. campaign \"Track 1\").",
     "process_guide.s3_i4": "Once the mapping is saved, the **META × Spotify** and "
                            "**ROI Breakheaven** (Distributor) views populate automatically.",
     # PDF

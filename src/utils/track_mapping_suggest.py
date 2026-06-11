@@ -73,6 +73,13 @@ def mapping_boost(match_key: str, confirmed_keys) -> float:
     return 1.0 if match_key in (confirmed_keys or ()) else 0.0
 
 
+def confidence_badge(score: float) -> str:
+    """Per-row reliability marker matching the legend: 🟢 ≥80 % · 🟡 50–80 % · 🔴 <50 %.
+    Low scores (junk titles like DJ sets / other artists) are flagged 🔴, not hidden."""
+    s = score or 0.0
+    return "🟢" if s >= 0.8 else "🟡" if s >= 0.5 else "🔴"
+
+
 def rank_track_candidates(platform_title, canonical_tracks, confirmed_keys=None,
                           top_n: int = 3):
     """Rank canonical tracks for one platform-local title. Confidence = title similarity;
