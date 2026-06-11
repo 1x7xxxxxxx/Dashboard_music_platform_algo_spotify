@@ -868,6 +868,15 @@ CREATE TABLE IF NOT EXISTS app_operating_costs (
 CREATE INDEX IF NOT EXISTS idx_app_operating_costs_active_start
     ON app_operating_costs (active, start_month);
 
+-- Tombstone for rejected Meta-campaign suggestions (see migrations/054). Separate
+-- from campaign_track_mapping so attribution consumers stay unaffected.
+CREATE TABLE IF NOT EXISTS campaign_mapping_rejected (
+    artist_id     INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    campaign_name TEXT    NOT NULL,
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (artist_id, campaign_name)
+);
+
 -- ============================================================
 -- 18. Données initiales
 -- ============================================================

@@ -57,6 +57,7 @@ _ALLOWED_TABLES = frozenset({
     's4a_artist_radio_count',
     'track_platform_link',
     'campaign_track_mapping',
+    'campaign_mapping_rejected',
     'app_operating_costs',
 })
 

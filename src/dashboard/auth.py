@@ -412,9 +412,13 @@ def require_login() -> bool:
             st.subheader(_t("auth.signin_title", "Connexion"))
             # Stable keys → stable DOM ids → the browser keeps remembering the username
             # even when elements above the form change (e.g. the logo).
+            # Login is by username (artist name), NOT email — see _authenticate_user
+            # (WHERE username = %s). autocomplete="off" + a hint placeholder stop the
+            # browser from proposing saved email addresses here.
             username  = st.text_input(_t("auth.username", "Nom d'utilisateur"),
                                       key="login_username",
-                                      autocomplete="username")
+                                      placeholder=_t("auth.username_ph", "nom d'artiste"),
+                                      autocomplete="off")
             password  = st.text_input(_t("auth.password", "Mot de passe"), type="password",
                                       key="login_password",
                                       autocomplete="current-password")

@@ -18,8 +18,16 @@ EN = {
                                 "title: DJ set, other artist). Tick **Associate** then save.",
     "meta_mapping.col_confidence": "Confidence",
     "meta_mapping.col_associate": "Associate",
-    "meta_mapping.associate_button": "💾 Associate ticked campaigns",
+    "meta_mapping.associate_button": "💾 Save (associate / reject)",
     "meta_mapping.campaigns_associated": "{n} campaign(s) associated.",
+    "meta_mapping.campaigns_saved": "{a} associated, {r} rejected.",
+    # Campaign backlog
+    "meta_mapping.backlog_header": "📋 Campaign backlog",
+    "meta_mapping.bl_campaign": "Campaign",
+    "meta_mapping.bl_status": "Status",
+    "meta_mapping.bl_track": "Mapped track",
+    "meta_mapping.bl_start": "Start",
+    "meta_mapping.bl_counts": "✅ {a} associated · 🔴 {r} rejected · ⏳ {p} pending",
     "meta_mapping.tab_existing": "Existing mappings",
     "meta_mapping.tab_add": "Manual add",
     "meta_mapping.no_mappings": "No mappings yet. Use the suggestions above or the "

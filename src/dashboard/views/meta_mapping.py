@@ -278,11 +278,16 @@ def _render_overview_tab(db, artist_id, canonical):
 
 # ── Meta campaigns ────────────────────────────────────────────────────────────
 def _load_unmapped_campaigns(db, artist_id: int):
+    # Pending = neither already mapped (campaign_track_mapping) nor rejected
+    # (campaign_mapping_rejected tombstone).
     rows = db.fetch_query(
         "SELECT campaign_name, MAX(start_time) FROM meta_campaigns mc "
         "WHERE mc.artist_id = %s AND NOT EXISTS ("
         "  SELECT 1 FROM campaign_track_mapping ctm "
         "  WHERE ctm.artist_id = mc.artist_id AND ctm.campaign_name = mc.campaign_name) "
+        "AND NOT EXISTS ("
+        "  SELECT 1 FROM campaign_mapping_rejected cmr "
+        "  WHERE cmr.artist_id = mc.artist_id AND cmr.campaign_name = mc.campaign_name) "
         "GROUP BY campaign_name ORDER BY MAX(start_time) DESC NULLS LAST",
         (artist_id,))
     return [{'campaign': r[0], 'start': r[1]} for r in (rows or []) if r[0]]
@@ -302,27 +307,54 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
                      'confidence': cand.score, 'method': cand.method})
         disp.append({'Fiab.': confidence_badge(cand.score), 'Campagne': c['campaign'],
                      'Suggestion (track)': cand.title, 'Confiance': round(cand.score * 100, 1),
-                     'Méthode': cand.method, 'Associer': cand.score >= 0.6})
+                     'Méthode': cand.method,
+                     'Associer': cand.score >= 0.6, 'Rejeter': False})
     return sugg, pd.DataFrame(disp)
 
 
 def _save_campaign_links(db, artist_id: int, sugg, edited):
+    """Associer → campaign_track_mapping (real mapping). Rejeter → tombstone (stop
+    suggesting). Returns (n_associated, n_rejected)."""
     now = datetime.now(timezone.utc)
-    data = []
+    assoc, rejected = [], []
     for i, row in edited.reset_index(drop=True).iterrows():
-        if not row.get('Associer') or i >= len(sugg):
+        if i >= len(sugg):
             continue
         s = sugg[i]
-        data.append({'artist_id': artist_id, 'campaign_name': s['campaign'],
-                     'track_name': s['track_name'], 'confidence': s['confidence'],
-                     'method': s['method'] or 'auto', 'auto_suggested': True,
-                     'created_at': now})
-    if data:
+        if row.get('Associer'):
+            assoc.append({'artist_id': artist_id, 'campaign_name': s['campaign'],
+                          'track_name': s['track_name'], 'confidence': s['confidence'],
+                          'method': s['method'] or 'auto', 'auto_suggested': True,
+                          'created_at': now})
+        elif row.get('Rejeter'):
+            rejected.append({'artist_id': artist_id, 'campaign_name': s['campaign'],
+                             'created_at': now})
+    if assoc:
         db.upsert_many(
-            'campaign_track_mapping', data,
+            'campaign_track_mapping', assoc,
             conflict_columns=['artist_id', 'campaign_name', 'track_name'],
             update_columns=['confidence', 'method', 'auto_suggested'])
-    return len(data)
+    if rejected:
+        db.upsert_many(
+            'campaign_mapping_rejected', rejected,
+            conflict_columns=['artist_id', 'campaign_name'], update_columns=['created_at'])
+    return len(assoc), len(rejected)
+
+
+def _load_campaign_backlog(db, artist_id: int):
+    """All Meta campaigns with their mapping state: ✅ associé / 🔴 rejeté / ⏳ à traiter."""
+    return db.fetch_df(
+        "SELECT mc.campaign_name, MAX(mc.start_time)::date AS debut, "
+        "  string_agg(DISTINCT ctm.track_name, ' · ') AS track, "
+        "  bool_or(cmr.campaign_name IS NOT NULL) AS rejected "
+        "FROM meta_campaigns mc "
+        "LEFT JOIN campaign_track_mapping ctm "
+        "  ON ctm.artist_id = mc.artist_id AND ctm.campaign_name = mc.campaign_name "
+        "LEFT JOIN campaign_mapping_rejected cmr "
+        "  ON cmr.artist_id = mc.artist_id AND cmr.campaign_name = mc.campaign_name "
+        "WHERE mc.artist_id = %s "
+        "GROUP BY mc.campaign_name ORDER BY MAX(mc.start_time) DESC NULLS LAST",
+        (artist_id,))
 
 
 def _load_campaigns(db, artist_id: int) -> list[str]:
@@ -347,17 +379,41 @@ def _load_mappings(db, artist_id: int):
 
 
 def _render_campaign_tab(db, artist_id, canonical):
-    # ── Auto-suggestions (top) ──
+    # ── Backlog: every campaign with its mapping state ──
+    st.subheader(t("meta_mapping.backlog_header", "📋 Backlog des campagnes"))
+    bl = _load_campaign_backlog(db, artist_id)
+    if bl.empty:
+        st.info(t("meta_mapping.no_campaigns",
+                  "Aucune campagne trouvée dans `meta_campaigns`. Lancez d'abord le DAG Meta Ads."))
+    else:
+        def _status(r):
+            return ("🔴 Rejeté" if r['rejected'] else "✅ Associé" if r['track'] else "⏳ À traiter")
+        view = pd.DataFrame({
+            t("meta_mapping.bl_campaign", "Campagne"): bl['campaign_name'],
+            t("meta_mapping.bl_status", "Statut"): bl.apply(_status, axis=1),
+            t("meta_mapping.bl_track", "Titre associé"): bl['track'].fillna("—"),
+            t("meta_mapping.bl_start", "Début"): bl['debut'].astype(str),
+        })
+        st.dataframe(view, hide_index=True, width="stretch")
+        n_assoc = int(bl['track'].notna().sum())
+        n_rej = int(bl['rejected'].sum())
+        st.caption(t("meta_mapping.bl_counts",
+                     "✅ {a} associée(s) · 🔴 {r} rejetée(s) · ⏳ {p} à traiter").format(
+                         a=n_assoc, r=n_rej, p=len(bl) - n_assoc - n_rej))
+
+    st.markdown("---")
+    # ── Suggestions to validate (Associer / Rejeter) ──
     st.subheader(t("meta_mapping.auto_header", "🤖 Suggestions automatiques (campagne → titre)"))
     sugg, disp = _build_campaign_suggestions(db, artist_id, canonical)
     if disp.empty:
         st.success(t("meta_mapping.auto_done",
-                     "✅ Toutes les campagnes Meta sont déjà associées (ou aucune collectée)."))
+                     "✅ Toutes les campagnes Meta sont déjà traitées (associées ou rejetées)."))
     else:
         st.caption(t("meta_mapping.auto_legend",
                      "Score = similarité du nom **et** proximité avec la date de sortie. "
                      "Fiabilité : 🟢 ≥ 80 % · 🟡 50–80 % · 🔴 < 50 % (souvent un titre parasite : "
-                     "DJ set, autre artiste). Cochez **Associer** puis enregistrez."))
+                     "DJ set, autre artiste). Cochez **Associer** (ou **Rejeter** pour ne plus "
+                     "la proposer) puis enregistrez."))
         edited = st.data_editor(
             disp, hide_index=True, width="stretch", key="ed_auto_camp",
             column_config={
@@ -366,13 +422,15 @@ def _render_campaign_tab(db, artist_id, canonical):
                     min_value=0.0, max_value=100.0, format="%.0f%%"),
                 'Associer': st.column_config.CheckboxColumn(
                     t("meta_mapping.col_associate", "Associer")),
+                'Rejeter': st.column_config.CheckboxColumn(
+                    t("track_mapping.col_reject", "Rejeter")),
             },
             disabled=['Fiab.', 'Campagne', 'Suggestion (track)', 'Confiance', 'Méthode'])
-        if st.button(t("meta_mapping.associate_button", "💾 Associer les campagnes cochées"),
+        if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
                      type="primary"):
-            n = _save_campaign_links(db, artist_id, sugg, edited)
-            st.success(t("meta_mapping.campaigns_associated",
-                         "{n} campagne(s) associée(s).").format(n=n))
+            n_a, n_r = _save_campaign_links(db, artist_id, sugg, edited)
+            st.success(t("meta_mapping.campaigns_saved",
+                         "{a} associée(s), {r} rejetée(s).").format(a=n_a, r=n_r))
             st.rerun()
 
     st.markdown("---")
