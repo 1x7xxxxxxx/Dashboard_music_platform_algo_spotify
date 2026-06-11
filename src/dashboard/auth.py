@@ -523,27 +523,17 @@ def is_admin() -> bool:
     return st.session_state.get('role') == 'admin'
 
 
-def get_artist_plan() -> str:
-    """Return the current artist's plan: 'free' | 'premium'.
-
-    Reads artist_subscriptions from DB; falls back to saas_artists.tier. Any retired
-    'basic' value is collapsed onto 'premium'. Returns 'premium' for admin sessions.
-    """
-    from src.database.stripe_schema import normalize_plan
-    if is_admin():
-        return 'premium'
-
-    artist_id = get_artist_id()
-    if artist_id is None:
-        return 'premium'
-
+@st.cache_data(ttl=60, show_spinner=False)
+def _cached_plan_row(artist_id: int):
+    """Cache the raw plan row per artist (60s TTL) to stop the sidebar from opening a
+    fresh DB connection on every rerun. The promo-expiry decision stays OUTSIDE the
+    cache (evaluated fresh in get_artist_plan) so a just-expired promo isn't honored;
+    only the DB read is memoized. A tier/subscription change self-heals within 60s."""
+    from src.dashboard.utils import get_db_connection
+    db = get_db_connection()
+    if db is None:
+        return None
     try:
-        from src.dashboard.utils import get_db_connection
-        from datetime import datetime, timezone
-        db = get_db_connection()
-        if db is None:
-            return 'free'
-
         # Single query: promo state + subscription plan + tier fallback
         row = db.fetch_query(
             """
@@ -562,12 +552,32 @@ def get_artist_plan() -> str:
             """,
             (artist_id,),
         )
+    finally:
         db.close()
+    return row[0] if row else None
 
+
+def get_artist_plan() -> str:
+    """Return the current artist's plan: 'free' | 'premium'.
+
+    Reads artist_subscriptions from DB; falls back to saas_artists.tier. Any retired
+    'basic' value is collapsed onto 'premium'. Returns 'premium' for admin sessions.
+    """
+    from src.database.stripe_schema import normalize_plan
+    if is_admin():
+        return 'premium'
+
+    artist_id = get_artist_id()
+    if artist_id is None:
+        return 'premium'
+
+    try:
+        from datetime import datetime, timezone
+        row = _cached_plan_row(artist_id)
         if not row:
             return 'free'
 
-        promo_plan, promo_expires, subscription_plan, tier = row[0]
+        promo_plan, promo_expires, subscription_plan, tier = row
 
         # Promo takes precedence if still active
         if promo_plan and (promo_expires is None or promo_expires > datetime.now(timezone.utc)):

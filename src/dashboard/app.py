@@ -344,6 +344,15 @@ def _render_page(page):
     (C1) — a view crash is caught, alerted, and shown as a friendly message instead
     of Streamlit's raw red traceback. Streamlit st.stop()/st.rerun() signals pass
     through (re-raised in main)."""
+    # Free the transient export blobs (a generated PDF/XLSX/ZIP can be several MB held
+    # in session_state) as soon as the user leaves the export page — they are only
+    # needed to back the on-page download button. Without this they linger in RAM for
+    # the whole session, multiplied per concurrent VPS session.
+    if page not in ("export_pdf", "export_csv"):
+        for _blob_key in ("_export_pdf_bytes", "_export_pdf_autodl",
+                          "_export_csv_bytes"):
+            st.session_state.pop(_blob_key, None)
+
     if page == "home":
         from views.home import show; show()
 
