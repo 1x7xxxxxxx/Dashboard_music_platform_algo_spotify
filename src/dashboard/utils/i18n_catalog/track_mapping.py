@@ -44,4 +44,5 @@ EN = {
                                      "= from the first to the last campaign.",
     "track_mapping.campaign_detail": "▸ Campaign detail per track",
     "track_mapping.suggest_header": "🔎 Suggestions to review",
+    "track_mapping.auto_accept": "✅ Accept all ≥ 80% ({n})",
 }

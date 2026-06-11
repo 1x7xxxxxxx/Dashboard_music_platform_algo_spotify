@@ -48,9 +48,11 @@ _S4A_FILTER = "%1x7xxxxxxx%"
 
 # ── Canonical + cross-platform tracks ─────────────────────────────────────────
 def _load_canonical(db, artist_id):
+    # Latest release first (project convention: most-recent release at the top of
+    # selectors/grids). title as the stable tie-breaker.
     rows = db.fetch_query(
         "SELECT match_key, title, release_date FROM track_release_reference "
-        "WHERE artist_id = %s ORDER BY title",
+        "WHERE artist_id = %s ORDER BY release_date DESC NULLS LAST, title",
         (artist_id,))
     return [{'match_key': r[0], 'title': r[1], 'release_date': r[2]} for r in (rows or [])]
 
@@ -182,6 +184,23 @@ def _save_all_links(db, artist_id, all_sugg, edited):
     return len(data)
 
 
+def _save_auto_high_confidence(db, artist_id, all_sugg, threshold: float = 0.8):
+    """Bulk-confirm every cross-platform suggestion at/above threshold (🟢). Reversible
+    via Rejeter. Returns count written."""
+    now = datetime.now(timezone.utc)
+    data = [{'artist_id': artist_id, 'match_key': s['match_key'], 'platform': s['platform'],
+             'platform_title': s['platform_title'], 'platform_ref_id': s['ref_id'],
+             'status': 'confirmed', 'confidence': s['confidence'], 'method': s['method'],
+             'updated_at': now}
+            for s in all_sugg if s['confidence'] >= threshold]
+    if data:
+        db.upsert_many(
+            'track_platform_link', data,
+            conflict_columns=['artist_id', 'platform', 'platform_title', 'match_key'],
+            update_columns=['status', 'confidence', 'method', 'updated_at'])
+    return len(data)
+
+
 def _render_overview_tab(db, artist_id, canonical):
     links_df = _load_links(db, artist_id)
     confirmed = links_df[links_df.status == 'confirmed'] if not links_df.empty else links_df
@@ -232,6 +251,12 @@ def _render_overview_tab(db, artist_id, canonical):
                  "Score = similarité du nom **+** proximité de date (si la plateforme "
                  "l'expose). Fiabilité : 🟢 ≥80 % · 🟡 50–80 % · 🔴 <50 %. Cochez "
                  "**Accepter** (ou **Rejeter** pour ne plus proposer), puis enregistrez."))
+    n_high = sum(1 for s in all_sugg if s['confidence'] >= 0.8)
+    if n_high and st.button(
+            t("track_mapping.auto_accept", "✅ Tout accepter ≥ 80 % ({n})").format(n=n_high)):
+        n = _save_auto_high_confidence(db, artist_id, all_sugg)
+        st.success(t("track_mapping.links_saved", "{n} lien(s) enregistré(s).").format(n=n))
+        st.rerun()
     edited = st.data_editor(
         disp, hide_index=True, width='stretch', key="ed_all_tracks",
         column_config={
