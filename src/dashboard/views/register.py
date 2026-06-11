@@ -234,6 +234,11 @@ def _create_artist_and_user(
 
 
 def show():
+    # Pre-login language toggle (right-aligned), persisted via ?lang= into the app.
+    from src.dashboard.utils.i18n import language_selector
+    with st.columns([2, 1])[1]:
+        language_selector(sidebar=False)
+
     st.title(t("register.title", "🎵 Créez votre compte"))
     st.caption(t("register.subtitle",
                  "Rejoignez Music Dashboard. Plan gratuit — passez à un plan supérieur à tout moment."))

@@ -118,12 +118,32 @@ _load_catalogs()
 
 
 def get_lang() -> str:
-    return st.session_state.get("lang", _DEFAULT)
+    lang = st.session_state.get("lang")
+    if lang in _LANGS:
+        return lang
+    # The login flow calls st.session_state.clear() (MEDIUM-01 session-fixation fix),
+    # which would wipe a pre-login choice. Persisting it in the URL lets it survive:
+    # re-seed session_state from the ?lang= query param.
+    try:
+        qp = st.query_params.get("lang")
+    except Exception:
+        qp = None
+    if qp in _LANGS:
+        st.session_state["lang"] = qp
+        return qp
+    return _DEFAULT
 
 
 def set_lang(lang: str) -> None:
     if lang in _LANGS:
         st.session_state["lang"] = lang
+        # Mirror to the URL so the choice survives the login session reset; guard the
+        # write (avoids a rerun loop) and tolerate a missing script context (headless).
+        try:
+            if st.query_params.get("lang") != lang:
+                st.query_params["lang"] = lang
+        except Exception:
+            pass
 
 
 def translate(key: str, default: str | None = None, lang: str | None = None) -> str:
@@ -147,14 +167,19 @@ def t(key: str, default: str | None = None) -> str:
     return translate(key, default, get_lang())
 
 
-def language_selector() -> None:
-    """Sidebar language toggle. Sets st.session_state['lang']; the natural rerun on
-    change re-renders everything (rendered after this) in the chosen language."""
+def language_selector(sidebar: bool = True) -> None:
+    """Language toggle. Sets st.session_state['lang'] (+ ?lang= URL mirror); the natural
+    rerun on change re-renders everything after this in the chosen language.
+
+    sidebar=True renders in the sidebar (in-app shell). sidebar=False renders in the
+    current container (pre-login pages, which have no sidebar)."""
     cur = get_lang()
     labels = list(_LANGS)
-    choice = st.sidebar.radio(
+    container = st.sidebar if sidebar else st
+    choice = container.radio(
         t("ui.language"), labels,
         index=labels.index(cur) if cur in labels else 0,
         format_func=lambda c: _LANGS[c], horizontal=True,
-        key="_lang_sel", label_visibility="visible")
+        key="_lang_sel" if sidebar else "_lang_sel_pre_login",
+        label_visibility="visible")
     set_lang(choice)

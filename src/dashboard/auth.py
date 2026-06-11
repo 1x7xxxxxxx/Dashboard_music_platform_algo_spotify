@@ -389,6 +389,12 @@ def require_login() -> bool:
             _show_totp_challenge(db)
             return False
 
+        # Pre-login language toggle (right-aligned). Persisted via ?lang= so the choice
+        # survives the post-auth session reset and carries into the app + PDF export.
+        from src.dashboard.utils.i18n import language_selector
+        with st.columns([2, 1])[1]:
+            language_selector(sidebar=False)
+
         from src.dashboard.utils import logo_html
         _logo = logo_html(variant="adaptive", max_width=320, center=True)
         if _logo:
