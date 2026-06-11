@@ -850,6 +850,24 @@ CREATE INDEX IF NOT EXISTS idx_artist_subscriptions_artist ON artist_subscriptio
 CREATE INDEX IF NOT EXISTS idx_artist_subscriptions_stripe_customer ON artist_subscriptions(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_artist_subscriptions_status ON artist_subscriptions(status);
 
+-- Operating costs (admin-global platform costs; see migrations/053). Recurring
+-- definitions expanded per-month in src/dashboard/utils/app_costs.py.
+CREATE TABLE IF NOT EXISTS app_operating_costs (
+    id             SERIAL PRIMARY KEY,
+    category       TEXT    NOT NULL,
+    label          TEXT,
+    amount_eur     NUMERIC(12, 2) NOT NULL CHECK (amount_eur >= 0),
+    billing_period TEXT    NOT NULL DEFAULT 'monthly'
+                   CHECK (billing_period IN ('monthly', 'yearly', 'one_off')),
+    start_month    DATE    NOT NULL,
+    end_month      DATE,
+    active         BOOLEAN NOT NULL DEFAULT TRUE,
+    note           TEXT,
+    created_at     TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_app_operating_costs_active_start
+    ON app_operating_costs (active, start_month);
+
 -- ============================================================
 -- 18. Données initiales
 -- ============================================================

@@ -33,6 +33,29 @@ EN = {
     "admin.metric_paying": "Paying subscribers",
     "admin.metric_arpu": "ARPU",
     "admin.no_paid_subs": "No active paid subscription (all on Free / welcome trial).",
+    # Supervision — operating costs & margin
+    "admin.costs_header": "💸 Operating costs & margin",
+    "admin.costs_intro": ("Platform costs (domain, VPS, Claude Code, Stripe fees…) — global, "
+                          "not per-artist. A recurring cost auto-repeats every month "
+                          "(yearly amortised /12) until deactivated."),
+    "admin.costs_add": "➕ Add a cost",
+    "admin.costs_category": "Category",
+    "admin.costs_amount": "Amount (€)",
+    "admin.costs_period": "Billing",
+    "admin.costs_start": "Start month",
+    "admin.costs_ongoing": "Always active",
+    "admin.costs_end": "End month",
+    "admin.costs_label": "Label (e.g. Hetzner CX22)",
+    "admin.costs_save": "💾 Save",
+    "admin.costs_need_amount": "Amount required (> 0).",
+    "admin.costs_added": "Cost added.",
+    "admin.costs_empty": "No cost recorded yet.",
+    "admin.costs_metric_month": "Cost this month",
+    "admin.costs_metric_mrr": "MRR",
+    "admin.costs_metric_margin": "Net margin / month",
+    "admin.costs_chart_title": "Monthly costs by category",
+    "admin.costs_stop_select": "Deactivate a cost (ID)",
+    "admin.costs_stop": "Deactivate",
     # Supervision — technical
     "admin.tech_header": "🩺 Technical — per-platform data freshness",
     "admin.tech_legend": (
