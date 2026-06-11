@@ -253,8 +253,8 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
 
     zones = ak.ALGO_FEATURE_ZONES.get(algo, {})
     levers = {label_text(fid, spec): (fid, spec) for fid, spec in zones.items()
-              if spec.get("json_key") and not spec.get("live_unavailable")
-              and not spec.get("divergent") and spec.get("actionable") is not False}
+              if spec.get("json_key") and ak.feature_live_available(spec, feats)
+              and spec.get("actionable") is not False}
     if not levers or not feats:
         return
     st.markdown(t("ml_widgets.sens_title",
@@ -355,8 +355,9 @@ def _render_one_gauge(algo: str, fid: str, spec: dict, live, *,
 
 
 def _live_value(algo: str, fid: str, spec: dict, feats: dict, registry: dict | None = None):
-    """Live value only when honestly available (not imputed, not divergent)."""
-    if spec.get("live_unavailable") or spec.get("divergent"):
+    """Live value only when honestly available (manual-source features count as live
+    once the tenant has entered them — see ak.feature_live_available)."""
+    if not ak.feature_live_available(spec, feats):
         return None
     return ak.decode_feature_value(algo, fid, feats, registry=registry)
 
@@ -462,9 +463,10 @@ def render_volume_gauges(algo: str, feats: dict) -> None:
                            ).format(n=len(pedagogic))):
             _imputed = ", ".join(label_text(_fid, spec) for _fid, spec, _live in pedagogic)
             st.caption(t("ml_widgets.volume_imputed",
-                         "⚠️ {names} : features imputées à 0 en production faute de source "
-                         "— affichées comme **cibles**, pas valeurs live, jusqu'à la Phase 2 "
-                         "(capture live par source/algorithme S4A)."
+                         "⚠️ {names} : pas de valeur live pour ce titre — affichées comme "
+                         "**cibles**, pas valeurs live. Les variables à source manuelle "
+                         "(non-algo, Radio) s'affichent en live dès qu'elles sont saisies "
+                         "dans « 🎯 Vue Globale »."
                          ).format(names=_imputed))
             for fid, spec, live in pedagogic:
                 _render_one_gauge(algo, fid, spec, None, registry=zones, key_prefix="volgauge")

@@ -1318,3 +1318,24 @@ Suite logique de la re-dérivation : transformer les *découvertes* du `COMPARIS
 - Stack démarrée (`docker-compose up -d`) ; `make migrate` appliqué → **benchmark lifecycle v2 LIVE** (14 lignes `dataset_version='v2'`, toutes avec `total_stream_median` peuplé, vs v1 0/18). Le loader sert maintenant v2.
 - Conteneur Airflow vérifié : `MODEL_VERSION=v3`, 8 modèles montés (dont `rr_premiere_classifier.ubj`). `score_song` + `estimate_rr_prerelease` produisent la bonne sortie v3 in-container (DW volume `None`, RR/Radio via expm1, estimateur OK).
 - `ml_scoring_daily` dépausé + déclenché → **success**, mais **0 ligne écrite** : les streams s'arrêtent au **2026-03-29** (>35 j avant le 2026-06-05) → aucun titre « actif » (fenêtre `CURRENT_DATE-35`). **Pas un bug** : les prédictions v3 se peupleront automatiquement dès qu'une collecte S4A fraîche aura lieu (le dashboard montre encore les 22 lignes v1_noscaler de 2026-04-03 d'ici là). Non trafiqué (forcer l'horloge donnerait des features à zéro).
+
+---
+
+## 2026-06-11 — Contrat 11-feat résolu « servir en live » + re-scoring sur données fraîches
+
+### Why
+Revue P4 : l'utilisateur a saisi manuellement les features ex-imputées et uploadé un CSV S4A récent → « on a tout, non ? ». Distinction clé clarifiée : la saisie ferme le gap des **features d'entrée**, pas celui du **volume/outcomes accumulés dans le temps**. Vérification live puis nettoyage de cohérence pour que l'UI cesse d'afficher « imputé » sur de vraies données.
+
+### What changed
+- **Vérification live (Postgres + Airflow MCP)** — streams frais au **2026-06-06** (CSV 3 j, 11 titres actifs dans la fenêtre `CURRENT_DATE-35`) ; saisies présentes (NonAlgo ×11, Radio=0 *volontaire*, Discovery ×22 opt-out) ; `ml_inference.build_features` **lit déjà** ces saisies (valeurs non-nulles dans `features_json` du run v3 du 2026-06-09). Le pipeline était donc fonctionnel — pas bloqué.
+- **Drapeaux `*_known` (un-impute conditionnel)** — `build_features` estampille désormais `nonalgo_known` / `radio_known` (2 helpers `_has_nonalgo_entry` / `_has_radio_entry`), en miroir de `discovery_mode_known` (WAVE 8 part 2). **Un 0 saisi (tes 0 en Radio) ≠ un 0 d'absence.**
+- **Helper centralisé** — `algo_knowledge.feature_live_available(spec, feats)` + map `_MANUAL_KNOWN_FLAG` (json_key → drapeau) : une feature `live_unavailable` à source manuelle redevient *live* dès qu'elle est saisie. Câblé dans `ml_widgets._live_value`, le filtre des leviers, et `build_coach_actions`.
+- **UI dé-mensongée** — `_show_imputation_caveat` retire NonAlgo/Radio de l'avertissement « X/13 imputées » quand saisis + ligne « ✅ Saisies S4A prises en compte » ; légende du bloc volume réécrite (plus de « jusqu'à la Phase 2 »). Catalogues EN alignés (`manual_entered` ajouté, `volume_imputed` réécrit). Prose `COMPARISON_REPORT.md` item 7 → « partly closed (mig 052) ». Docstring `ml_inference` corrigée.
+- **Roadmap** — item 11-feat coché « RESOLVED by serving live » ; les 4 items ML restants recadrés explicitement **TIME-ACCRUAL-blocked** (pas input-blocked) : per-tenant (nb tenants), retrain (outcomes forward), RR regressor (volume d'entraînement, pas serving), resurrection (historique saves longitudinal).
+
+### Tests
+`PYTHONPATH=. pytest tests/ -q` → **444 passed, 2 skipped** (render-smoke `trigger_algo` exercé en live sur la DB). ruff clean. +9 tests (`test_ml_inference.py` : helpers `*_known` + `TestFeatureLiveAvailable`). Le baseline ML n'est pas touché (il ne stocke que probas/forecasts, pas `features_json` ; les 13 features modèle sont inchangées).
+
+### Exécuté
+- `ml_scoring_daily` re-déclenché 2× via Airflow CLI → **success** ; le 2e run (post-edits, `src/` monté) a **persisté `nonalgo_known=radio_known=dm_known=true` sur les 11 titres** (vérifié en DB). Prédictions v3 fraîches reflétant tes saisies (NonAlgo réels, Radio=0, Discovery opt-out).
+- 7 fichiers : `ml_inference.py`, `algo_knowledge.py`, `ml_widgets.py`, `_explain.py`, `i18n_catalog/{trigger_algo,ml_widgets}.py`, `COMPARISON_REPORT.md`, `test_ml_inference.py` (+ roadmap + DEVLOG).

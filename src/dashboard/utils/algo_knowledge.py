@@ -16,9 +16,12 @@ import math
 # Each entry keyed by clean feature id. `json_key` = key in ml_song_predictions
 # features_json; `decode` = how to recover the raw human value from it.
 # zones = ordered (low_inclusive, high_exclusive, verdict, note); None = open end.
-# `target` = nearest critical threshold to cross; `live_unavailable` flags the
-# 6 features imputed to 0/neutral at inference; `divergent` flags a definition
-# mismatch between the live feature and the SHAP analysis.
+# `target` = nearest critical threshold to cross; `live_unavailable` flags a
+# feature with no automatic live source; `divergent` flags a definition mismatch
+# between the live feature and the SHAP analysis. NOTE: three live_unavailable
+# features (NonAlgo / Radio / Discovery Mode) DO have a manual source since
+# migration 052 — they become live once the tenant fills them in; check this at
+# render time with feature_live_available(spec, feats), not the static flag alone.
 DW_FEATURE_ZONES = {
     "StreamsLast7Days": {
         "json_key": "StreamsLast7Days_log", "decode": "expm1",
@@ -813,6 +816,32 @@ def calibration_note(algo: str, raw):
     return None
 
 
+# A live_unavailable feature whose value is in fact a manual S4A entry (migration
+# 052): once the tenant fills it, it stops being imputed. Keyed by json_key →
+# the *_known flag build_features stamps into features_json.
+_MANUAL_KNOWN_FLAG = {
+    "NonAlgoStreams28Days_log": "nonalgo_known",
+    "HowManySongsDoYouHaveInRadioRightNow": "radio_known",
+    "IsThisSongOptedIntoSpotifyDiscoveryMode": "discovery_mode_known",
+}
+
+
+def feature_live_available(spec: dict, feats: dict) -> bool:
+    """True when a feature carries a real live value for THIS prediction.
+
+    Available unless flagged `divergent` (definition mismatch — never trusted) or
+    `live_unavailable` (no live source) — except the three manual-source features
+    (NonAlgo / Radio / Discovery Mode), which become available once their *_known
+    flag is set, i.e. the tenant entered them in the Saisie S4A view (migration 052).
+    """
+    if spec.get("divergent"):
+        return False
+    if not spec.get("live_unavailable"):
+        return True
+    flag = _MANUAL_KNOWN_FLAG.get(spec.get("json_key"))
+    return bool(flag and (feats or {}).get(flag))
+
+
 def build_coach_actions(algo: str, feats: dict) -> list[dict]:
     """Ranked prescriptive actions for an algo's malus-zone, actionable, measured
     features. Velocity-too-high becomes a high-priority 'smooth' action; the rest
@@ -821,8 +850,7 @@ def build_coach_actions(algo: str, feats: dict) -> list[dict]:
     feats = feats or {}
     actions: list[dict] = []
     for fid, spec in ALGO_FEATURE_ZONES.get(algo, {}).items():
-        if (spec.get("live_unavailable") or spec.get("divergent")
-                or spec.get("actionable") is False):
+        if not feature_live_available(spec, feats) or spec.get("actionable") is False:
             continue
         val = decode_feature_value(algo, fid, feats)
         if val is None or zone_for_value(algo, fid, val) != "malus":
