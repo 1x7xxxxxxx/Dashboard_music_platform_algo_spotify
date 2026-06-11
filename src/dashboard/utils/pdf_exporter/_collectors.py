@@ -385,42 +385,27 @@ def _collect_apple(db, artist_id, selected_songs=None):
 
 
 def _collect_hypeddit(db, artist_id, from_date, to_date):
-    """Séries journalières Hypeddit (visites/clics/budget) sur la période."""
+    """Séries journalières Hypeddit (visites/clics) sur la période. Le budget n'est
+    plus suivi (c'était en fait la dépense Meta Ads — voir le ROI Breakeven)."""
     if artist_id is None:
         return None
     try:
         rows = db.fetch_query(
-            """SELECT date::text, SUM(visits), SUM(clicks), SUM(budget)
+            """SELECT date::text, SUM(visits), SUM(clicks)
                FROM hypeddit_daily_stats
                WHERE artist_id = %s AND date BETWEEN %s AND %s
                GROUP BY date ORDER BY date""",
             (artist_id, from_date, to_date))
         if not rows:
             return None
-        series = [(r[0], int(r[1] or 0), int(r[2] or 0), float(r[3] or 0)) for r in rows]
+        series = [(r[0], int(r[1] or 0), int(r[2] or 0)) for r in rows]
         return {
             'series': series,
             'total_visits': sum(s[1] for s in series),
             'total_clicks': sum(s[2] for s in series),
-            'total_budget': sum(s[3] for s in series),
         }
     except Exception:
         return None
-
-
-def _collect_hypeddit_campaigns(db, artist_id, from_date, to_date):
-    """Budget total par campagne Hypeddit (barres)."""
-    if artist_id is None:
-        return []
-    try:
-        rows = db.fetch_query(
-            """SELECT campaign_name, SUM(budget) FROM hypeddit_daily_stats
-               WHERE artist_id = %s AND date BETWEEN %s AND %s
-               GROUP BY campaign_name ORDER BY SUM(budget) DESC""",
-            (artist_id, from_date, to_date))
-        return [(r[0], float(r[1] or 0)) for r in rows] if rows else []
-    except Exception:
-        return []
 
 
 def _collect_playlist_adds_windows(db, artist_id, song):
@@ -468,19 +453,26 @@ def _collect_meta_breakdowns(db, artist_id):
 
 
 def _collect_revenue_forecast(db, artist_id):
-    """Série mensuelle de revenus iMusician (pour bars + projection)."""
+    """Série mensuelle de revenus consolidés (iMusician + DistroKid + SACEM) pour les
+    bars + projection, avec le split SACEM / distributeurs via la VIEW
+    `v_artist_monthly_revenue`."""
     if artist_id is None:
         return None
     try:
         rows = db.fetch_query(
-            """SELECT make_date(year, month, 1)::text, SUM(revenue_eur)
-               FROM imusician_monthly_revenue WHERE artist_id = %s
+            """SELECT make_date(year, month, 1)::text,
+                      SUM(revenue_eur),
+                      SUM(revenue_eur) FILTER (WHERE source = 'sacem')
+               FROM v_artist_monthly_revenue WHERE artist_id = %s
                GROUP BY year, month ORDER BY year, month""",
             (artist_id,))
         if not rows or len(rows) < 2:
             return None
         months = [(r[0][:7], float(r[1] or 0)) for r in rows]
-        return {'months': months, 'total': sum(m[1] for m in months)}
+        total = sum(m[1] for m in months)
+        sacem = sum(float(r[2] or 0) for r in rows)
+        return {'months': months, 'total': total,
+                'sacem': sacem, 'distributor': total - sacem}
     except Exception:
         return None
 

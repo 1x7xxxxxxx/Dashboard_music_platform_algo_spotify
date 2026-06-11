@@ -35,7 +35,25 @@ def _get_steps() -> list[tuple[str, list[str]]]:
             ],
         ),
         (
-            t("process_guide.s2_title", "2. Lancer la collecte"),
+            t("process_guide.s2csv_title", "2. Importer vos fichiers CSV"),
+            [
+                t("process_guide.s2csv_i1",
+                  "Ouvrez la page **📂 Import CSV** et déposez vos fichiers (jusqu'à une "
+                  "dizaine d'un coup) — le type est détecté automatiquement d'après le nom et "
+                  "les colonnes."),
+                t("process_guide.s2csv_i2",
+                  "Sources reconnues : **Spotify for Artists** (timeline + songs-global — le "
+                  "songs-global reconstruit le **référentiel de sorties** utilisé par le mapping "
+                  "et le scoring ML), **Apple Music**, **iMusician / DistroKid** (revenus), "
+                  "**SACEM** (.xlsx, relevé de compte)."),
+                t("process_guide.s2csv_i3",
+                  "⚠️ Importez vos CSV **avant** de lancer la collecte : le bouton **🚀 Lancer "
+                  "TOUTES les collectes** déclenche aussi les watchers CSV, qui ne ramassent que "
+                  "les fichiers **déjà déposés**."),
+            ],
+        ),
+        (
+            t("process_guide.s2_title", "3. Lancer la collecte"),
             [
                 t("process_guide.s2_i1",
                   "Dans la barre latérale, cliquez sur **🚀 Lancer TOUTES les collectes** "
@@ -45,13 +63,10 @@ def _get_steps() -> list[tuple[str, list[str]]]:
                 t("process_guide.s2_i3",
                   "Suivez l'état des collectes dans **🔑 Credentials API** (badge de dernier "
                   "run par plateforme) ou dans **🏗️ Monitoring ETL** (admin)."),
-                t("process_guide.s2_i4",
-                  "Pour les sources CSV (Spotify for Artists, Apple Music, iMusician), "
-                  "importez vos fichiers depuis **📂 Import CSV**."),
             ],
         ),
         (
-            t("process_guide.s3_title", "3. Mapper Meta Ads ↔ Spotify"),
+            t("process_guide.s3_title", "4. Mapper Meta Ads ↔ Spotify"),
             [
                 t("process_guide.s3_why",
                   "ℹ️ **Pourquoi mapper ?** Un même titre porte souvent un **nom différent** "
@@ -107,8 +122,8 @@ def show():
     st.title(t("process_guide.title", "📋 Guide de démarrage"))
     st.caption(
         t("process_guide.caption",
-          "Les 3 étapes pour configurer vos credentials, lancer la collecte de "
-          "données et relier vos campagnes Meta Ads à vos titres Spotify.")
+          "Les 4 étapes pour configurer vos credentials, importer vos CSV, lancer la "
+          "collecte de données et relier vos campagnes Meta Ads à vos titres Spotify.")
     )
     st.markdown("---")
 

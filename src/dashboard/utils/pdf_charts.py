@@ -280,7 +280,7 @@ def meta_breakdown_bars(rows, title) -> str | None:
 
 
 def hypeddit_combo(series) -> str | None:
-    """series: [(date_str, visits, clicks, budget)] daily totals."""
+    """series: [(date_str, visits, clicks)] daily totals."""
     series = [s for s in (series or []) if s[1] is not None]
     if len(series) < 2:
         return None
@@ -300,13 +300,6 @@ def hypeddit_combo(series) -> str | None:
     ax.set_xticklabels([xs[i] for i in range(0, len(xs), step)], rotation=30, ha="right")
     ax.legend(fontsize=8, frameon=False)
     return _fig_to_uri(fig)
-
-
-def hypeddit_campaigns_bar(rows) -> str | None:
-    """rows: [(campaign_name, budget)] — horizontal budget bars per Hypeddit campaign."""
-    return _hbar([(r[0], r[1]) for r in (rows or [])],
-                 _t("pdf.chart.hypeddit_budget_per_campaign", "Hypeddit — budget par campagne"),
-                 color="#7FB3FF", unit=" €")
 
 
 def playlist_adds_bars(windows) -> str | None:
