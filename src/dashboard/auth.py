@@ -389,18 +389,20 @@ def require_login() -> bool:
             _show_totp_challenge(db)
             return False
 
-        # Pre-login language toggle (right-aligned). Persisted via ?lang= so the choice
-        # survives the post-auth session reset and carries into the app + PDF export.
-        from src.dashboard.utils.i18n import language_selector
-        with st.columns([2, 1])[1]:
-            language_selector(sidebar=False)
-
+        # Logo + pre-login language toggle on one row (toggle right-aligned, centered
+        # vertically). The choice is persisted via ?lang= so it survives the post-auth
+        # session reset and carries into the app + PDF export.
         from src.dashboard.utils import logo_html
-        _logo = logo_html(variant="adaptive", max_width=320, center=True)
-        if _logo:
-            st.markdown(_logo, unsafe_allow_html=True)
-        else:
-            st.title("🎵 streaMLytics")
+        from src.dashboard.utils.i18n import language_selector
+        _logo_col, _lang_col = st.columns([3, 1], vertical_alignment="center")
+        with _logo_col:
+            _logo = logo_html(variant="adaptive", max_width=320, center=True)
+            if _logo:
+                st.markdown(_logo, unsafe_allow_html=True)
+            else:
+                st.title("🎵 streaMLytics")
+        with _lang_col:
+            language_selector(sidebar=False)
 
         if st.session_state.pop('_session_expired_notice', None):
             st.info(_t("auth.session_expired",
