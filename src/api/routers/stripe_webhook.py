@@ -86,10 +86,16 @@ async def stripe_webhook(request: Request):
         except Exception as e:
             logger.warning(f"Stripe signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Invalid signature")
-    else:
+    elif os.getenv("STRIPE_ALLOW_UNSIGNED") == "1":
         import json
-        logger.warning("STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev mode)")
+        logger.warning("STRIPE_WEBHOOK_SECRET not set — accepting UNSIGNED payload "
+                       "(dev only, STRIPE_ALLOW_UNSIGNED=1)")
         event = json.loads(payload)
+    else:
+        # Fail closed: a public endpoint that trusts unsigned Stripe payloads lets
+        # anyone forge subscription events (e.g. self-provision Premium for free).
+        logger.error("STRIPE_WEBHOOK_SECRET not configured — refusing unsigned webhook")
+        raise HTTPException(status_code=503, detail="Webhook signature not configured")
 
     event_type = event.get("type", "")
     data = event.get("data", {}).get("object", {})

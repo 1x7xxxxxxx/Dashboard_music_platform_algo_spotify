@@ -16,6 +16,7 @@ Environment variables:
     API_SECRET_KEY   — JWT signing secret (override in production, min 32 chars)
     DATABASE_URL     — optional postgres:// URL; falls back to config/config.yaml
 """
+import os
 import sys
 from pathlib import Path
 
@@ -30,6 +31,10 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from src.api.routers import auth, artists, streams, youtube, ml, kpis, stripe_webhook  # noqa: E402
 from src.api.security import install as install_security  # noqa: E402
 
+# OpenAPI docs (/docs, /redoc) hand attackers the full API surface map — disabled by
+# default on a public deploy. Set API_ENABLE_DOCS=1 to re-enable (local dev).
+_docs_enabled = os.getenv("API_ENABLE_DOCS") == "1"
+
 app = FastAPI(
     title="Music Platform API",
     description=(
@@ -37,20 +42,23 @@ app = FastAPI(
         "All endpoints (except `/auth/token` and `/health`) require a Bearer JWT obtained via `POST /auth/token`."
     ),
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
 )
 
 # C3 hardening: sliding-window rate limit + security response headers
 install_security(app)
 
-# Allow the local Streamlit dashboard and any future frontend to call the API
+# CORS origins from env (comma-separated) so the real HTTPS origin is allowlisted in
+# production; falls back to localhost for dev. Never use "*" with allow_credentials.
+_cors_origins = [
+    o.strip() for o in os.getenv(
+        "CORS_ORIGINS", "http://localhost:8501,http://localhost:3000"
+    ).split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8501",  # Streamlit dashboard
-        "http://localhost:3000",  # potential React frontend
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],

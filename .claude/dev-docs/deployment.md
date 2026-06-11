@@ -17,6 +17,26 @@
   (`SMTP_HOST/PORT/USER/PASSWORD`), `FERNET_KEY` (identique app+Airflow), `STRIPE_*`
   (produit Premium 10€ + Payment Link `client_reference_id=artist_id` + webhook). Voir `.env.example`.
 
+## D0 — Sécurité pré-exposition (checklist actionnable, 2026-06-11)
+
+Audit pré-déploiement. Ce qui était **fixable en code est déjà fait** (PR `chore/pre-deploy-optimizations`) ; le reste sont des **actions ops** à exécuter sur le VPS avant d'ouvrir le port 443.
+
+**✅ Déjà corrigé en code :**
+- `docker-compose.yml` : plus aucun secret en dur — `${DATABASE_PASSWORD}`, `${AIRFLOW_ADMIN_USERNAME/PASSWORD}` (3 occurrences du mot de passe supprimées). Postgres + Airflow bindés sur `127.0.0.1` (plus joignables depuis Internet ; le dev local reste sur `localhost`).
+- `src/api/auth.py` : plus de secret JWT public en dur — secret aléatoire éphémère si `API_SECRET_KEY` absente.
+- `src/api/main.py` : `/docs` + `/redoc` désactivés par défaut (`API_ENABLE_DOCS=1` pour les réactiver) ; origines CORS pilotées par `CORS_ORIGINS`.
+- `src/api/routers/stripe_webhook.py` : refus (503) des webhooks non signés sauf `STRIPE_ALLOW_UNSIGNED=1` (dev).
+
+**🔧 Actions ops AVANT exposition (non automatisables) :**
+1. **Rotation mot de passe Postgres** — `Wowow1357911!` est dans l'historique git → le changer pour de bon (nouveau mot de passe DB + `ALTER USER postgres PASSWORD …`), puis poser `DATABASE_PASSWORD`/`DB_PASSWORD` dans le `.env` du VPS. Idem mot de passe admin Airflow (`AIRFLOW_ADMIN_PASSWORD` distinct et aléatoire) + username (`AIRFLOW_ADMIN_USERNAME` ≠ `1x7xxxxxxx`).
+2. **`API_SECRET_KEY`** posée (`openssl rand -hex 32`) dans l'env prod — sinon tokens cassés en multi-worker.
+3. **`CORS_ORIGINS=https://<domaine>`** + **`APP_BASE_URL=https://<domaine>`** (liens email en clair/cassés sinon). **`API_ENABLE_DOCS`** laissé vide. **`STRIPE_WEBHOOK_SECRET`** posé (sinon webhook en 503, voulu).
+4. **Firewall hôte (ufw)** : autoriser uniquement `22, 80, 443` en entrée ; `deny 5433, 8080, 8501, 8502`. Le binding loopback est une défense ; le firewall en est la seconde.
+5. **Airflow UI** : jamais en direct → tunnel SSH (`ssh -L 8080:127.0.0.1:8080`) ou reverse-proxy authentifié séparé.
+6. **Cookie session Streamlit** : `Secure`+`HttpOnly`+`SameSite` posés au niveau du reverse proxy (Caddy) ; HSTS au edge ; raccourcir `cookie.expiry_days` (30 → 1-7).
+
+(P3 hygiène, non bloquant : `SPOTIFY_ARTIST_IDS` / `META_AD_ACCOUNT_ID` encore en dur dans `docker-compose.yml` — IDs publics, env-ref optionnel ; liens localhost dans `useful_links.py` à piloter par env.)
+
 ## D1 — Conteneurisation + déploiement
 
 1. **Conteneuriser le dashboard Streamlit** : ajouter un service `dashboard` au
