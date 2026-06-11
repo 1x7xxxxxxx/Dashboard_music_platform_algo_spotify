@@ -124,6 +124,20 @@ _PLATFORM_SHORT = {'s4a': 'S4A', 'spotify': 'Spotify', 'apple': 'Apple',
                    'soundcloud': 'SoundCloud', 'youtube': 'YouTube'}
 
 
+def _mutex_checkboxes(editor_key: str, col_a: str, col_b: str):
+    """data_editor on_change callback: make two boolean columns mutually exclusive —
+    ticking one unticks the other (by injecting the counter-change into the editor's
+    pending edits before the rerun re-renders the grid)."""
+    state = st.session_state.get(editor_key)
+    if not state:
+        return
+    for ch in state.get("edited_rows", {}).values():
+        if ch.get(col_a):
+            ch[col_b] = False
+        elif ch.get(col_b):
+            ch[col_a] = False
+
+
 def _load_campaign_rollup(db, artist_id):
     """Per-track Meta-campaign summary keyed by normalized track title:
     {norm_title: {'n': int, 'period': str, 'names': [..]}}. Epoch (1970) dates are
@@ -259,6 +273,7 @@ def _render_overview_tab(db, artist_id, canonical):
         st.rerun()
     edited = st.data_editor(
         disp, hide_index=True, width='stretch', key="ed_all_tracks",
+        on_change=_mutex_checkboxes, args=("ed_all_tracks", "Accepter", "Rejeter"),
         column_config={
             'Confiance': st.column_config.ProgressColumn(
                 t("track_mapping.col_confidence", "Confiance"),
@@ -416,6 +431,7 @@ def _render_campaign_tab(db, artist_id, canonical):
                      "la proposer) puis enregistrez."))
         edited = st.data_editor(
             disp, hide_index=True, width="stretch", key="ed_auto_camp",
+            on_change=_mutex_checkboxes, args=("ed_auto_camp", "Associer", "Rejeter"),
             column_config={
                 'Confiance': st.column_config.ProgressColumn(
                     t("meta_mapping.col_confidence", "Confiance"),
