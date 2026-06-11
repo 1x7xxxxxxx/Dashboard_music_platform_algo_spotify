@@ -22,7 +22,7 @@
 Audit pré-déploiement. Ce qui était **fixable en code est déjà fait** (PR `chore/pre-deploy-optimizations`) ; le reste sont des **actions ops** à exécuter sur le VPS avant d'ouvrir le port 443.
 
 **✅ Déjà corrigé en code :**
-- `docker-compose.yml` : plus aucun secret en dur — `${DATABASE_PASSWORD}`, `${AIRFLOW_ADMIN_USERNAME/PASSWORD}` (3 occurrences du mot de passe supprimées). Postgres + Airflow bindés sur `127.0.0.1` (plus joignables depuis Internet ; le dev local reste sur `localhost`).
+- `docker-compose.yml` est **gitignored** (local par environnement). Le durcissement vit donc dans le **template versionné `docker-compose.example.yml`** (`cp docker-compose.example.yml docker-compose.yml` sur le VPS) : plus aucun secret en dur — `${DATABASE_PASSWORD}`, `${AIRFLOW_ADMIN_USERNAME/PASSWORD}` ; Postgres + Airflow bindés sur `127.0.0.1` (plus joignables depuis Internet ; dev local sur `localhost`). ⚠️ L'ancien `docker-compose.yml` **tracké** contenait `Wowow1357911!` → présent dans l'historique git (commits `52c2e19`, `7781b22`, `cf10a97`) même si le fichier est désormais untracké → rotation obligatoire (action ops #1).
 - `src/api/auth.py` : plus de secret JWT public en dur — secret aléatoire éphémère si `API_SECRET_KEY` absente.
 - `src/api/main.py` : `/docs` + `/redoc` désactivés par défaut (`API_ENABLE_DOCS=1` pour les réactiver) ; origines CORS pilotées par `CORS_ORIGINS`.
 - `src/api/routers/stripe_webhook.py` : refus (503) des webhooks non signés sauf `STRIPE_ALLOW_UNSIGNED=1` (dev).
