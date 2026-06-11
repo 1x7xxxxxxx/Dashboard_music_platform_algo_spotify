@@ -4,7 +4,15 @@
 
 ## 2026-06-11 — Passe d'optimisation pré-déploiement (perf DB/dashboard/DAG + durcissement sécurité)
 
-Session dédiée (branche `chore/pre-deploy-optimizations` = PR #21, 4 commits), à la suite d'un audit 3-agents (frontend / backend / security specialists).
+Session dédiée (branche `chore/pre-deploy-optimizations` = PR #21), à la suite d'un audit 3-agents (frontend / backend / security specialists). **Round 2** (re-audit après les modifs, 4 commits de plus) :
+
+- **Correctness** : le cache plan (`_cached_plan_row`, round 1) n'était **jamais invalidé** sur mutation in-process → après un promo redeem / essai / édition tier admin, l'artiste voyait l'ancien plan ≤60 s. Ajout de `_cached_plan_row.clear()` aux 3 sites (`register.py` ×2, `admin.py`). Stripe (cross-process) → 60 s documentés.
+- **`docker-compose.yml` est gitignored** (`.gitignore:29`) : les edits sécurité round 1 (binding loopback, env-ref mot de passe) ne vivaient **que dans le fichier local** — jamais dans le repo. Le mot de passe `Wowow1357911!` est dans l'**historique git ancien** (quand le fichier était tracké : `52c2e19`/`7781b22`/`cf10a97`) → rotation obligatoire. Fix : **`docker-compose.example.yml` tracké** (durci, sans secret) que l'opérateur copie sur le VPS (miroir `.env.example`).
+- **Perf** : `@st.cache_data` sur `get_roi_data`/`get_monthly_roi_series`/`_load_scored_tracks` ; throttle du ping `_check_db_health` (1×/30 s) ; **migration 058** (3 index : `etl_run_log(artist_id,status)` page home, `etl_run_log(started_at)`, `instagram_daily_stats`).
+- **Cleanup** : suppression du code mort `s4a_csv_watcher.py` ; liens admin + IDs env-driven ; fix `kpis.py` (table/colonne inexistantes → UndefinedTable) ; `ml.py /predictions` flaggé known-broken (colonnes `score`/`tier` inexistantes → décision de contrat API requise) ; `_meta_config_fetch` lève sur échec **systémique** des créatives (règle #6) en tolérant les inaccessibles isolées.
+- **Vérif sécurité** : les 11 items du checklist must-fix sont **tous couverts** (code ou D0). 522 tests verts.
+
+### Round 1
 
 **Perf DB** (`057_composite_artist_date_indexes.sql`, NEW) — 5 index composites `(artist_id, date)` sur les tables hot-path les plus scannées. Côté code, `get_monthly_roi_series` (`kpi_helpers`) faisait **deux scans** de `v_artist_monthly_revenue` → fusionnés en une seule requête `FILTER`.
 
