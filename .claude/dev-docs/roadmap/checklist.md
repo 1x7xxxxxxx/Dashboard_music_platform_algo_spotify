@@ -570,6 +570,36 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   FastAPI** (héberge le webhook) + enregistrer l'URL webhook dans Stripe Dashboard. Aujourd'hui le bouton
   « Passer à Premium » affiche un placeholder « paiement bientôt » (cf. `billing.py:221`).
 
+### Pré-déploiement — optimisations & ship-blockers (2026-06-11)
+
+Trois audits multi-agents (sécu/perf, intégrité données, couverture tests) avant l'ouverture
+publique. Verdict intégrité = **GO, convergent** (oublis localisés, pas systémique). PR #21
+(perf + sécu) + PR #22 (bugs intégrité + tests) **mergées**.
+
+- [x] **Perf DB** : migrations **057** (5 index composites `(artist_id, date)`) + **058** (3 index :
+  `etl_run_log(artist_id,status)` page home, `etl_run_log(started_at)`, `instagram_daily_stats`) ;
+  fusion du double-scan de `v_artist_monthly_revenue` dans `get_monthly_roi_series`.
+- [x] **Perf/RAM dashboard** : cache `get_artist_plan` (+invalidation sur mutation de plan),
+  `get_roi_data`/`get_monthly_roi_series`/`_load_scored_tracks` ; libération des blobs export ;
+  mémoïsation des modèles ML ; throttle du ping DB ; `meta_token_refresh` 1 connexion réutilisée.
+- [x] **Durcissement sécurité (code)** : `docker-compose.example.yml` tracké (secrets en `${VAR}`,
+  binding loopback Postgres/Airflow) ; JWT secret éphémère (plus de fallback public) ; `/docs`+`/redoc`
+  off par défaut ; CORS env ; webhook Stripe fail-closed. Checklist ops **D0** dans `deployment.md`.
+- [x] **Bugs intégrité** : 2 requêtes S4A sans le filtre `1x7xxxxxxx` (Coût/stream ~2× faux) +
+  2 requêtes `meta_x_spotify` non scopées par `artist_id` (fuite cross-tenant sur collision de nom) → corrigés.
+- [x] **Tests des chemins argent/tenant** (DB-free → tournent en CI) : `test_plan_gating.py`
+  (free verrouillé hors premium), `test_tenant_isolation.py` (`artist_id_sql_filter`), `test_revenue_math.py`.
+- [ ] **Postgres en CI** (P3 infra/test) — `.github/workflows/ci.yml` n'a **pas** de service Postgres
+  → `test_views_render_smoke.py` (39 vues) + les tests ML Tier-2/3 **skippent en CI** (ils ne tournent que
+  localement). Provisionner un service `postgres:17` + appliquer `init_db.sql`/migrations pour que ces
+  harnais s'exécutent vraiment. C'est le seul levier infra qui augmenterait nettement la confiance déploiement.
+- [ ] **DistroKid — persister le taux FX** (P2 data integrity) — `distrokid_rollup.py:40` applique un
+  USD→EUR par défaut `0.92` **irréversiblement** dans `revenue_eur` sans stocker le taux → ~8 % d'erreur
+  possible sur la part DistroKid, non ré-auditable. Persister `fx_rate` sur la ligne + l'afficher.
+- [ ] **API `/ml/predictions` cassé** (P4) — `src/api/routers/ml.py` lit des colonnes inexistantes
+  (`score`/`tier`/`predicted_at`) → 500 systématique. Flaggé KNOWN-BROKEN en code. Redesign du contrat API
+  (renvoyer les probabilités, ou calculer un score) avant d'exposer la surface FastAPI.
+
 ## Deferred — revisit ONLY if migrating to React (ADR-003 reversal)
 
 Items that are currently irrelevant / worked-around **because of Streamlit** and would become

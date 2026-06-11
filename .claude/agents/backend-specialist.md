@@ -2,7 +2,12 @@
 name: backend-specialist
 description: Reviews collectors, DAGs, DB schemas, and utility patterns against project conventions
 type: agent
-rex: []
+rex:
+  - date: 2026-06-11
+    issue: "Suggested 2 redundant indexes already covered by existing UNIQUE/composite indexes (sacem, apple_songs_history)"
+    fix: "Cross-check every suggested index vs pg_indexes + existing UNIQUE prefixes before adding; both omitted from migrations 057/058"
+    ref: "DEVLOG#2026-06-11"
+    severity: info
 ---
 
 # Backend Specialist Agent

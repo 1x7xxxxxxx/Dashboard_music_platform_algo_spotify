@@ -2,7 +2,12 @@
 name: security-specialist
 description: Audits code for OWASP vulnerabilities, secret leakage, auth bypass, and injection risks
 type: agent
-rex: []
+rex:
+  - date: 2026-06-11
+    issue: "Claimed docker-compose.yml was git-tracked/committed; it's gitignored (untracked) — secret only in OLD history"
+    fix: "Verify tracked-vs-gitignored (git ls-files/check-ignore) before asserting a secret is committed; shipped tracked docker-compose.example.yml + rotation note"
+    ref: "DEVLOG#2026-06-11"
+    severity: warn
 ---
 
 # Security Specialist Agent
