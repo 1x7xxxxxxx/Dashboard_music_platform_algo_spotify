@@ -32,11 +32,17 @@ def _plan_cards() -> dict:
                 t("billing.feat_all_analytics",
                   "Toutes les analytics plateformes (Spotify, Apple Music, "
                   "YouTube, SoundCloud, Instagram, Meta Ads, Hypeddit)"),
-                t("billing.feat_distributor", "Revenus distributeur (iMusician)"),
-                t("billing.feat_csv", "Import & export CSV"),
-                t("billing.feat_pdf", "📄 Export PDF du rapport"),
-                t("billing.feat_wrapped", "Data Wrapped annuel"),
-                t("billing.feat_credentials", "Credentials API & mapping Meta × Spotify"),
+                t("billing.feat_distributor",
+                  "💰 Revenus distributeur (iMusician + DistroKid) + 🎼 royalties SACEM"),
+                t("billing.feat_mapping",
+                  "🔗 Mapping cross-plateforme — suggestions automatiques "
+                  "(titres entre plateformes + campagnes Meta Ads)"),
+                t("billing.feat_roi",
+                  "💹 ROI Breakeven — revenus vs dépenses promo totales (Meta Ads + Hypeddit)"),
+                t("billing.feat_csv", "📂 Import & export CSV / XLSX"),
+                t("billing.feat_pdf", "📄 Export PDF du rapport (FR / EN)"),
+                t("billing.feat_wrapped", "🎁 Data Wrapped annuel"),
+                t("billing.feat_credentials", "🔑 Credentials API"),
             ],
         },
         'premium': {

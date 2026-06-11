@@ -31,6 +31,7 @@ _PAGE_LABELS = {
     'apple_music': 'Apple Music',
     'hypeddit': 'Hypeddit',
     'imusician': 'Distributeur (iMusician)',
+    'sacem': '🎼 Royalties SACEM',
     'upload_csv': 'Import CSV',
     'credentials': 'Credentials API',
     'export_csv': 'Export CSV',
