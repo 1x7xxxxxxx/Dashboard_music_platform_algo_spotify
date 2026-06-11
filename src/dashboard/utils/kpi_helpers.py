@@ -341,32 +341,13 @@ def get_roi_data(db, artist_id, from_date, to_date):
     try:
         if artist_id is not None:
             row = db.fetch_query(
-                """SELECT COALESCE(SUM(revenue_eur), 0)
-                   FROM (
-                       SELECT artist_id, year, month, revenue_eur FROM imusician_monthly_revenue
-                       UNION ALL
-                       SELECT artist_id, year, month, revenue_eur FROM distrokid_monthly_revenue
-                       UNION ALL
-                       SELECT artist_id, EXTRACT(YEAR FROM line_date)::int AS year,
-                              EXTRACT(MONTH FROM line_date)::int AS month, mouvement_eur AS revenue_eur
-                       FROM sacem_statement WHERE line_type = 'repartition'
-                   ) r
-                   WHERE artist_id = %s
-                     AND make_date(year, month, 1) BETWEEN %s AND %s""",
+                """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
+                   WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s""",
                 (artist_id, from_date, to_date)
             )
         else:
             row = db.fetch_query(
-                """SELECT COALESCE(SUM(revenue_eur), 0)
-                   FROM (
-                       SELECT year, month, revenue_eur FROM imusician_monthly_revenue
-                       UNION ALL
-                       SELECT year, month, revenue_eur FROM distrokid_monthly_revenue
-                       UNION ALL
-                       SELECT EXTRACT(YEAR FROM line_date)::int AS year,
-                              EXTRACT(MONTH FROM line_date)::int AS month, mouvement_eur AS revenue_eur
-                       FROM sacem_statement WHERE line_type = 'repartition'
-                   ) r
+                """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
                    WHERE make_date(year, month, 1) BETWEEN %s AND %s""",
                 (from_date, to_date)
             )
@@ -418,30 +399,30 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
         except Exception:
             return pd.DataFrame(columns=cols)
 
-    # Distributor revenue per month (iMusician + DistroKid)
+    # Distributor revenue per month (iMusician + DistroKid) via the revenue view
     df_dist = _q(
         """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS distributor_revenue
-           FROM (SELECT artist_id, year, month, revenue_eur FROM imusician_monthly_revenue
-                 UNION ALL SELECT artist_id, year, month, revenue_eur FROM distrokid_monthly_revenue) r
-           WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s
+           FROM v_artist_monthly_revenue
+           WHERE artist_id = %s AND source IN ('imusician', 'distrokid')
+             AND make_date(year, month, 1) BETWEEN %s AND %s
            GROUP BY year, month ORDER BY year, month""",
         """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS distributor_revenue
-           FROM (SELECT year, month, revenue_eur FROM imusician_monthly_revenue
-                 UNION ALL SELECT year, month, revenue_eur FROM distrokid_monthly_revenue) r
-           WHERE make_date(year, month, 1) BETWEEN %s AND %s
+           FROM v_artist_monthly_revenue WHERE source IN ('imusician', 'distrokid')
+             AND make_date(year, month, 1) BETWEEN %s AND %s
            GROUP BY year, month ORDER BY year, month""",
         ['period_date', 'distributor_revenue'])
 
     # SACEM gross royalties per month (distinct → stackable in the chart)
     df_sacem = _q(
-        """SELECT DATE_TRUNC('month', line_date)::date AS period_date, SUM(mouvement_eur) AS sacem_revenue
-           FROM sacem_statement
-           WHERE artist_id = %s AND line_type = 'repartition' AND line_date BETWEEN %s AND %s
-           GROUP BY 1 ORDER BY 1""",
-        """SELECT DATE_TRUNC('month', line_date)::date AS period_date, SUM(mouvement_eur) AS sacem_revenue
-           FROM sacem_statement
-           WHERE line_type = 'repartition' AND line_date BETWEEN %s AND %s
-           GROUP BY 1 ORDER BY 1""",
+        """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS sacem_revenue
+           FROM v_artist_monthly_revenue
+           WHERE artist_id = %s AND source = 'sacem'
+             AND make_date(year, month, 1) BETWEEN %s AND %s
+           GROUP BY year, month ORDER BY year, month""",
+        """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS sacem_revenue
+           FROM v_artist_monthly_revenue WHERE source = 'sacem'
+             AND make_date(year, month, 1) BETWEEN %s AND %s
+           GROUP BY year, month ORDER BY year, month""",
         ['period_date', 'sacem_revenue'])
 
     # Meta spend per month

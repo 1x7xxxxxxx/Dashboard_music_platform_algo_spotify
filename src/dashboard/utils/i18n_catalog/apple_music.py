@@ -3,7 +3,6 @@
 EN = {
     "apple_music.title": "🍎 Apple Music Analytics",
     "apple_music.subtitle": "### Performance analysis and daily growth",
-    "apple_music.invalid_session": "Invalid session.",
     "apple_music.overview": "📊 Overview",
     "apple_music.kpi_songs": "🎵 Tracked Songs",
     "apple_music.kpi_streams": "▶️ Total Streams (Cumulative)",

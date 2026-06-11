@@ -489,11 +489,21 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
 - [x] **A — Validations & gate** : 375 tests verts ; tiers free/premium validés + alignés
   (code+DB+billing/upgrade) ; vue admin **📊 Supervision** (business + fraîcheur données) ;
   leak Export-PDF des sections premium corrigé (`PREMIUM_SECTIONS`).
-- [x] **B1 — Mapping cross-plateforme + suggestions** (LIVRÉ 2026-06-09) :
+- [x] **B1 — Mapping cross-plateforme + suggestions** (LIVRÉ 2026-06-09 ; **consolidé 2026-06-11**) :
   `migrations/049_track_platform_link.sql`, moteur pur `src/utils/track_mapping_suggest.py`
   (+15 tests), vue `views/track_mapping.py` — 3 onglets : suggestions par plateforme
   (S4A/Spotify/Apple/SC/YT, accept/reject + bulk), **Meta campagnes** (title-sim + date-proximity,
   écrit `campaign_track_mapping` en `_`-form), vue unifiée. Validé sur données réelles.
+  **2026-06-11** : fusion `track_mapping` + mapping Meta en **une seule vue `meta_mapping` à 2 onglets**
+  (« 🎵 Titres & couverture » + « 📣 Campagnes Meta »), grille couverture ✅ verte, bug confiance
+  « toujours 0 % » corrigé (ProgressColumn ×100 à l'affichage, DB reste [0,1]), campagnes 0 € pré-cochées
+  Rejeter (tombstone `campaign_mapping_rejected`, mig 054). Vue splitée en package `meta_mapping/`
+  (`_common`/`_tracks`/`_campaigns`/`__init__`, move-only). Garde-fou i18n orphelins (`test_i18n_orphans.py`).
+- [x] **B1bis — SACEM + revenu consolidé** (2026-06-11) : parser `sacem_parser.py` (xlsx relevé de compte),
+  table `sacem_statement` (mig 055), import xlsx + how-to ; royalties brutes (`repartition`) dans le ROI +
+  trace SACEM distincte sur le graphe prévision revenus. **VIEW `v_artist_monthly_revenue`** (mig 056) consolide
+  iMusician+DistroKid+SACEM (fin du copier-coller UNION sur ~6 sites ; VIEW read-only hors `_ALLOWED_TABLES`).
+  Dépense « Hypeddit » fantôme (budget Meta mal interprété) retirée de tous les points ROI → `total_spend = meta_spend`.
 - [x] **B2 — DistroKid** (phases 1+2 livrées 2026-06-10) :
   **Phase 1 — saisie manuelle** : table `distrokid_monthly_revenue` (migration 050,
   `distrokid_schema.py`) ; vue Distributeur partagée (`imusician.py`) — sélecteur

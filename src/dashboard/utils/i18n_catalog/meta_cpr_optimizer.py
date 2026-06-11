@@ -5,8 +5,6 @@ EN = {
         "Composite ML × CPR score for each campaign. "
         "Based on `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
     ),
-    "meta_cpr_optimizer.invalid_session": "Invalid session.",
-    "meta_cpr_optimizer.db_unavailable": "Database unreachable.",
     "meta_cpr_optimizer.no_mapping": (
         "No campaign → track mapping found. "
         "Create mappings first in **🔗 Meta Mapping**, then re-run the Meta Ads DAG."

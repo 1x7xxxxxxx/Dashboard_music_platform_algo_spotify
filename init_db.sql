@@ -894,6 +894,18 @@ CREATE TABLE IF NOT EXISTS sacem_statement (
 CREATE INDEX IF NOT EXISTS idx_sacem_statement_artist_date ON sacem_statement (artist_id, line_date);
 CREATE INDEX IF NOT EXISTS idx_sacem_statement_type ON sacem_statement (artist_id, line_type);
 
+-- Single source of truth for monthly music revenue (see migrations/056). UNIONs every
+-- revenue source so consumers (ROI, revenue forecast) never copy-paste the UNION.
+CREATE OR REPLACE VIEW v_artist_monthly_revenue AS
+    SELECT artist_id, year, month, 'imusician'::text AS source, revenue_eur
+        FROM imusician_monthly_revenue
+    UNION ALL
+    SELECT artist_id, year, month, 'distrokid'::text, revenue_eur FROM distrokid_monthly_revenue
+    UNION ALL
+    SELECT artist_id, EXTRACT(YEAR FROM line_date)::int AS year,
+           EXTRACT(MONTH FROM line_date)::int AS month, 'sacem'::text, mouvement_eur AS revenue_eur
+        FROM sacem_statement WHERE line_type = 'repartition';
+
 -- ============================================================
 -- 18. Données initiales
 -- ============================================================

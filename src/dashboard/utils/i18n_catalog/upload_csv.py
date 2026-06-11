@@ -7,12 +7,6 @@ EN = {
         "Drop up to about ten CSV files at once. "
         "The type is detected automatically from the filename and the columns."
     ),
-    "upload_csv.mapping_info": (
-        "🔗 **Spotify × Meta Ads mapping** — after **running the collection "
-        "from the home page**, remember to do the mapping "
-        "(menu **📣 Meta Ads → Spotify × Meta Ads mapping (campaign name)**) "
-        "to link your Meta campaigns to your Spotify tracks."
-    ),
     "upload_csv.no_active_artist": "No active artist. Create one in the Admin tab.",
     "upload_csv.target_artist": "Target artist",
     "upload_csv.no_artist_id": "Unable to determine your artist identifier.",

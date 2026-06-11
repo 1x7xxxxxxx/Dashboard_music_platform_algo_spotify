@@ -4,7 +4,6 @@ EN = {
     "etl_logs.admin_only": "🔒 Access restricted to administrators.",
     "etl_logs.title": "🗂️ ETL History",
     "etl_logs.caption": "Airflow run logs persisted in database — table `etl_run_log`",
-    "etl_logs.db_unreachable": "❌ Database unreachable.",
     # KPIs
     "etl_logs.kpis_empty": "No runs recorded in the last 7 days. "
                            "Check that `DagRunLogger` is used in your DAGs.",

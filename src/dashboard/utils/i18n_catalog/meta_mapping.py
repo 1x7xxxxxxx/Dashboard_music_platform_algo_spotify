@@ -5,13 +5,10 @@ EN = {
     "meta_mapping.subtitle": "Link your titles across platforms (Spotify, Apple, SoundCloud, "
                              "YouTube) and map your Meta Ad campaigns to tracks. Automatic "
                              "suggestions + manual entry feed META × Spotify and ROI Breakeven.",
-    "meta_mapping.tab_tracks": "🎵 Cross-platform titles",
     "meta_mapping.tab_overview": "🎵 Titles & coverage",
     "meta_mapping.tab_campaigns": "📣 Meta campaigns",
     # Auto-suggestions (top section)
     "meta_mapping.auto_header": "🤖 Automatic suggestions (campaign → track)",
-    "meta_mapping.auto_no_reference": "No track reference yet — import your S4A CSVs, then "
-                                      "rebuild the reference in **🧩 Multi-platform mapping**.",
     "meta_mapping.auto_done": "✅ All Meta campaigns are already mapped (or none collected).",
     "meta_mapping.auto_legend": "Score = name similarity **and** proximity to the release date. "
                                 "Reliability: 🟢 ≥ 80 % · 🟡 50–80 % · 🔴 < 50 % (often a junk "
@@ -19,7 +16,6 @@ EN = {
     "meta_mapping.col_confidence": "Confidence",
     "meta_mapping.col_associate": "Associate",
     "meta_mapping.associate_button": "💾 Save (associate / reject)",
-    "meta_mapping.campaigns_associated": "{n} campaign(s) associated.",
     "meta_mapping.campaigns_saved": "{a} associated, {r} rejected.",
     # Campaign backlog
     "meta_mapping.backlog_header": "📋 Campaign backlog",

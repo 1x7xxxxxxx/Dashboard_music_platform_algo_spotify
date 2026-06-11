@@ -34,27 +34,18 @@ def _roi_data_span(db, artist_id):
     if artist_id is not None:
         rows = db.fetch_query(
             """SELECT MIN(d), MAX(d) FROM (
-                   SELECT make_date(year, month, 1) AS d FROM imusician_monthly_revenue WHERE artist_id = %s
-                   UNION ALL
-                   SELECT make_date(year, month, 1) AS d FROM distrokid_monthly_revenue WHERE artist_id = %s
+                   SELECT make_date(year, month, 1) AS d FROM v_artist_monthly_revenue WHERE artist_id = %s
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day WHERE artist_id = %s
-                   UNION ALL
-                   SELECT line_date::date FROM sacem_statement
-                       WHERE artist_id = %s AND line_type = 'repartition'
                ) t""",
-            (artist_id, artist_id, artist_id, artist_id),
+            (artist_id, artist_id),
         )
     else:
         rows = db.fetch_query(
             """SELECT MIN(d), MAX(d) FROM (
-                   SELECT make_date(year, month, 1) AS d FROM imusician_monthly_revenue
-                   UNION ALL
-                   SELECT make_date(year, month, 1) AS d FROM distrokid_monthly_revenue
+                   SELECT make_date(year, month, 1) AS d FROM v_artist_monthly_revenue
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day
-                   UNION ALL
-                   SELECT line_date::date FROM sacem_statement WHERE line_type = 'repartition'
                ) t"""
         )
     if rows and rows[0][0]:

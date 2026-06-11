@@ -2,7 +2,6 @@
 
 EN = {
     "meta_x_spotify.title": "🔀 META x SPOTIFY - ROI Analysis",
-    "meta_x_spotify.invalid_session": "Invalid session.",
     "meta_x_spotify.header": "📊 360° Performance",
     "meta_x_spotify.mapping_hint": (
         "ℹ️ Campaign ↔ track associations are managed in "

@@ -3,7 +3,6 @@
 EN = {
     "referral_admin.admin_only": "⛔ Admin access only.",
     "referral_admin.title": "📊 Referral Program — KPIs",
-    "referral_admin.db_unreachable": "❌ Database unreachable.",
     "referral_admin.metric_total_referrals": "Total referrals",
     "referral_admin.metric_converted": "Converted to paid",
     "referral_admin.metric_conversion_rate": "Conversion rate",

@@ -41,41 +41,27 @@ def load_artist_revenues(db, artist_id: int) -> pd.DataFrame:
     return db.fetch_df(
         """
         SELECT year, month, SUM(revenue_eur) AS revenue_eur,
-               SUM(CASE WHEN src = 'sacem' THEN revenue_eur ELSE 0 END) AS sacem_eur
-        FROM (
-            SELECT 'dist' AS src, year, month, revenue_eur
-                FROM imusician_monthly_revenue WHERE artist_id = %s
-            UNION ALL
-            SELECT 'dist', year, month, revenue_eur
-                FROM distrokid_monthly_revenue WHERE artist_id = %s
-            UNION ALL
-            SELECT 'sacem', EXTRACT(YEAR FROM line_date)::int AS year,
-                   EXTRACT(MONTH FROM line_date)::int AS month, mouvement_eur AS revenue_eur
-            FROM sacem_statement WHERE artist_id = %s AND line_type = 'repartition'
-        ) r
+               COALESCE(SUM(revenue_eur) FILTER (WHERE source = 'sacem'), 0) AS sacem_eur
+        FROM v_artist_monthly_revenue
+        WHERE artist_id = %s
         GROUP BY year, month
         ORDER BY year ASC, month ASC
         """,
-        (artist_id, artist_id, artist_id),
+        (artist_id,),
     )
 
 
 def load_artist_revenue_by_source(db, artist_id: int) -> dict:
     """Total music revenue per source for an artist: {iMusician, DistroKid, SACEM}."""
     rows = db.fetch_query(
-        """
-        SELECT 'iMusician' AS src, COALESCE(SUM(revenue_eur), 0)
-            FROM imusician_monthly_revenue WHERE artist_id = %s
-        UNION ALL
-        SELECT 'DistroKid', COALESCE(SUM(revenue_eur), 0)
-            FROM distrokid_monthly_revenue WHERE artist_id = %s
-        UNION ALL
-        SELECT 'SACEM', COALESCE(SUM(mouvement_eur), 0)
-            FROM sacem_statement WHERE artist_id = %s AND line_type = 'repartition'
-        """,
-        (artist_id, artist_id, artist_id),
+        "SELECT source, COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue "
+        "WHERE artist_id = %s GROUP BY source",
+        (artist_id,),
     )
-    return {r[0]: float(r[1] or 0) for r in (rows or [])}
+    m = {r[0]: float(r[1] or 0) for r in (rows or [])}
+    return {'iMusician': m.get('imusician', 0.0),
+            'DistroKid': m.get('distrokid', 0.0),
+            'SACEM': m.get('sacem', 0.0)}
 
 
 def load_artists(db) -> pd.DataFrame:

@@ -2,7 +2,6 @@
 
 EN = {
     "meta_ads_overview.title": "📱 Meta Ads - Strategic Analysis",
-    "meta_ads_overview.invalid_session": "Invalid session.",
     "meta_ads_overview.db_error": "DB connection error: {e}",
     "meta_ads_overview.scope": "🎯 Analysis Scope",
     "meta_ads_overview.select_campaigns": "Select the campaigns to analyse:",
