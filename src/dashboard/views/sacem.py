@@ -28,6 +28,16 @@ def show():
                  "Relevé de compte SACEM : royalties brutes (REPARTITION), charges "
                  "sociales et net. Les royalties brutes alimentent le ROI Breakheaven."))
 
+    with st.expander(t("sacem.howto_header", "📥 Comment obtenir votre relevé SACEM")):
+        st.markdown(t("sacem.howto_body",
+                      "1. Connectez-vous sur **sacem.fr** (espace membre).\n"
+                      "2. **Mes répartitions** → **Relevé de compte**.\n"
+                      "3. Réglez le filtre de **date sur « depuis l'inscription »** (pour tout "
+                      "l'historique).\n"
+                      "4. **Téléchargez le fichier `.xlsx`**.\n"
+                      "5. Importez-le depuis **📂 Import CSV** (le type SACEM est détecté "
+                      "automatiquement)."))
+
     with view_session() as (db, artist_id):
         df = _load(db, artist_id)
         if df.empty:
