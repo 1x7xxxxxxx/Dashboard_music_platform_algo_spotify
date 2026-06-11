@@ -553,6 +553,7 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   3. **Génération vidéo** : rendu GPU ou CPU ? quelle fréquence/volume ? (change radicalement le sizing).
   4. **Budget €/mois** visé pour l'infra ?
   **Reco** : sizer **streaMLytics seul d'abord** (le seul prêt+mergé : postgres + airflow web/scheduler + dashboard Streamlit + API FastAPI + reverse proxy), MT5/vidéo/scraping en couche au-dessus une fois la mutualisation décidée.
+  **→ GRILLE EXHAUSTIVE : `.claude/dev-docs/benchmark-deployment.md`** — profil ressources par composant (RAM/CPU/disk/réseau, idle/pic), hypothèses d'échelle, méthodo de load-test (⚠️ Streamlit = WebSockets, pas HTTP), topologie, stockage/I/O, coût, backup/DR/monitoring, critères hébergeur, seuils de scaling, **+ les 2 prompts cross-projets à poser aux IA MT5 / n8n** (§ M) pour récupérer leurs profils ressources et trancher la topologie.
   **Livrable** (→ `dev-docs/deployment.md`) : topologie (1 VPS Linux vs split Linux/Windows), sizing vCPU/RAM/disk par composant, reco hébergeur, estimation €/mois.
 - [ ] **C6 — Benchmark nom de domaine + accès public (NEW 2026-06-10)** — **QUESTIONS À RÉPONDRE le 2026-06-11** :
   Un domaine est un **PRÉREQUIS**, pas cosmétique : HTTPS exigé par **Stripe** (checkout + webhook) + cookies d'auth + crédibilité SaaS. Sans lui = `http://IP:8501` (inviable).
@@ -561,7 +562,9 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   3. **Sous-domaines** : `app.X` (dashboard Streamlit) + `api.X` (FastAPI / webhook Stripe) ?
   4. **TLS** : **Caddy** recommandé (Let's Encrypt auto, zéro config) en reverse proxy.
   5. **Email pro** (`contact@X`) pour Stripe + support artistes ?
+  6. **Délivrabilité email** (SPF/DKIM/DMARC) pour que les emails de vérification ne finissent pas en spam.
   **Modèle d'accès (déjà construit)** : 1 URL publique → register/login → isolation par `artist_id` → chaque artiste voit ses données, connecte ses credentials, upload ses CSV ; DAGs paramétrés par artiste. Il manque juste : domaine + TLS + reverse proxy + port 443 ouvert.
+  **→ Détail complet : `.claude/dev-docs/benchmark-deployment.md` § G** (domaine/registrar/sous-domaines/TLS/email/CDN).
   **Livrable** (→ `dev-docs/deployment.md`) : reco domaine + plan DNS + reverse proxy (Caddy) + schéma d'accès multi-tenant.
 - [ ] **D — Déploiement + pentest** (DERNIER) : voir `deployment.md`. **Inclut l'activation Stripe**
   (audit 2026-06-10 : code plombé mais **rien d'actif** — `artist_subscriptions`=0, 4 env vars Stripe vides,
