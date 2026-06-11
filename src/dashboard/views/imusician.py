@@ -426,7 +426,7 @@ def show():
                 roi = get_roi_data(db, artist_id, from_date, to_date)
 
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric(t("imusician.roi_revenue", "💰 Revenus distributeurs"),
+                c1.metric(t("imusician.roi_revenue", "💰 Revenus (distrib. + SACEM)"),
                           f"{roi['revenue_eur']:,.2f} €")
                 c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
                           f"{roi['meta_spend']:,.2f} €")

@@ -44,7 +44,7 @@ EN = {
         "Import an iMusician export (CSV Import page), enter a revenue in the "
         "Data tab, or launch the Meta collection from the home page."
     ),
-    "imusician.roi_revenue": "💰 Distributor revenue",
+    "imusician.roi_revenue": "💰 Revenue (distrib. + SACEM)",
     "imusician.roi_spend": "📱 Meta spend",
     "imusician.roi_spend_hypeddit": "🎁 Hypeddit spend",
     "imusician.roi_total_help": "ROI on total promo spend (Meta + Hypeddit) = {total:,.2f} €",

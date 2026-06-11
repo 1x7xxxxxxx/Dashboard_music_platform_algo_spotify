@@ -204,7 +204,7 @@ _NAV_SECTIONS = [
 # Pages réservées admin (cachées pour le rôle 'artist')
 _ADMIN_ONLY = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links',
                'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor',
-               'usage_analytics'}
+               'usage_analytics', 'alerts'}
 
 
 def _on_nav_select(skey: str, all_skeys: list):

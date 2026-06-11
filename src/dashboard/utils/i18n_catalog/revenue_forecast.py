@@ -45,17 +45,19 @@ EN = {
     "revenue_forecast.ltv_global": "Global LTV",
     "revenue_forecast.ltv_scenario_header": "#### LTV by retention-duration scenario",
     "revenue_forecast.ltv_artistic_header": "#### Artistic LTV (music revenue × duration)",
-    "revenue_forecast.ltv_artistic_caption": "Proxy: average musical value of an artist on the platform, based on iMusician history.",
+    "revenue_forecast.ltv_artistic_caption": "Proxy: average musical value of an artist, based on distributor + SACEM history.",
     "revenue_forecast.retention_hypothetical": "Hypothetical retention duration (months)",
     "revenue_forecast.avg_music_revenue": "Average music revenue / month / artist",
     "revenue_forecast.ltv_artistic_metric": "Artistic LTV over {months} months",
     # Tab 4 — Artist projection
-    "revenue_forecast.artist_forecast_header": "Music revenue projection",
+    "revenue_forecast.artist_forecast_header": "Music revenue projection (iMusician + DistroKid + SACEM)",
+    "revenue_forecast.artist_forecast_caption": "Consolidated monthly music revenue: "
+                                                "distributors (iMusician + DistroKid) + gross SACEM royalties.",
     "revenue_forecast.no_active_artist": "No active artist.",
     "revenue_forecast.no_artist_id": "Unable to determine your artist identifier.",
     "revenue_forecast.insufficient_data": (
-        "Insufficient data for a projection (minimum 3 months of iMusician history required). "
-        "Import your CSVs from the **Distributor → CSV Import** page."
+        "Insufficient data for a projection (minimum 3 months of distributor/SACEM history "
+        "required). Import your CSVs/XLSX from the **CSV Import** page."
     ),
     "revenue_forecast.horizon": "Projection horizon (months)",
     "revenue_forecast.avg_monthly_revenue": "Average monthly revenue",

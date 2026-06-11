@@ -262,13 +262,21 @@ def _tab_ltv(db) -> None:
     st.markdown("---")
     st.markdown(t("revenue_forecast.ltv_artistic_header", "#### LTV artistique (revenus musicaux × durée)"))
     st.caption(t("revenue_forecast.ltv_artistic_caption",
-                 "Proxy : valeur musicale moyenne d'un artiste sur la plateforme, basée sur l'historique iMusician."))
+                 "Proxy : valeur musicale moyenne d'un artiste, basée sur l'historique distributeurs + SACEM."))
 
     avg_row = db.fetch_query("""
         SELECT AVG(monthly_avg) FROM (
-            SELECT artist_id, AVG(revenue_eur) AS monthly_avg
-            FROM imusician_monthly_revenue
-            GROUP BY artist_id
+            SELECT artist_id, AVG(month_total) AS monthly_avg FROM (
+                SELECT artist_id, year, month, SUM(revenue_eur) AS month_total FROM (
+                    SELECT artist_id, year, month, revenue_eur FROM imusician_monthly_revenue
+                    UNION ALL
+                    SELECT artist_id, year, month, revenue_eur FROM distrokid_monthly_revenue
+                    UNION ALL
+                    SELECT artist_id, EXTRACT(YEAR FROM line_date)::int AS year,
+                           EXTRACT(MONTH FROM line_date)::int AS month, mouvement_eur AS revenue_eur
+                    FROM sacem_statement WHERE line_type = 'repartition'
+                ) u GROUP BY artist_id, year, month
+            ) m GROUP BY artist_id
         ) t
     """)
     avg_music = float(avg_row[0][0]) if avg_row and avg_row[0][0] else 0.0
@@ -290,7 +298,11 @@ def _tab_ltv(db) -> None:
 # ─────────────────────────────────────────────
 
 def _tab_artist_forecast(db, artist_id: int | None) -> None:
-    st.subheader(t("revenue_forecast.artist_forecast_header", "Projection des revenus musicaux"))
+    st.subheader(t("revenue_forecast.artist_forecast_header",
+                   "Projection des revenus musicaux (iMusician + DistroKid + SACEM)"))
+    st.caption(t("revenue_forecast.artist_forecast_caption",
+                 "Revenus musicaux mensuels consolidés : distributeurs (iMusician + "
+                 "DistroKid) + royalties brutes SACEM."))
 
     if is_admin():
         artists_df = _load_artists(db)
@@ -311,8 +323,8 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
     if df.empty or len(df) < 3:
         st.info(
             t("revenue_forecast.insufficient_data",
-              "Données insuffisantes pour une projection (minimum 3 mois d'historique iMusician requis). "
-              "Importez vos CSV depuis la page **Distributeur → Import CSV**.")
+              "Données insuffisantes pour une projection (minimum 3 mois d'historique "
+              "distributeurs/SACEM requis). Importez vos CSV/XLSX depuis **Import CSV**.")
         )
         return
 
@@ -619,7 +631,7 @@ def show() -> None:
                 _tab_artist_forecast(db, artist_id=None)
         else:
             st.caption(t("revenue_forecast.artist_caption",
-                         "Projection de vos revenus musicaux basée sur votre historique iMusician."))
+                         "Projection de vos revenus musicaux (iMusician + DistroKid + SACEM)."))
             _tab_artist_forecast(db, artist_id=get_artist_id())
     finally:
         db.close()
