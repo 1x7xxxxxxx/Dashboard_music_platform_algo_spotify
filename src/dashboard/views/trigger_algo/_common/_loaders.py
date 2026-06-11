@@ -1,6 +1,14 @@
 """trigger_algo loaders — move-only split of _common."""
 import json
+
 import pandas as pd
+import streamlit as st
+
+# Process-global caches for static artifacts (mirror ml_inference._model_cache).
+# The explainability tab calls _load_xgb_model 4x per render and re-reads the JSON
+# tables every render; without memoization each call re-deserialized from disk.
+_xgb_booster_cache: dict = {}
+_json_artifact_cache: dict = {}
 
 
 def _load_ml_pred(db, track: str, artist_id) -> dict | None:
@@ -40,25 +48,29 @@ def _load_ml_pred(db, track: str, artist_id) -> dict | None:
     return None
 
 
-def _load_threshold_tables() -> dict | None:
-    """PI-bracket trigger probabilities exported by machine_learning/train.py."""
+def _load_json_artifact(filename: str) -> dict | None:
+    """Load + memoize a static JSON artifact exported by machine_learning/train.py.
+    Failures are not cached so a transient miss can recover on a later call."""
+    if filename in _json_artifact_cache:
+        return _json_artifact_cache[filename]
     try:
         from src.utils.ml_inference import _resolve_path
-        path = _resolve_path("threshold_tables.json")
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
+        with open(_resolve_path(filename), encoding="utf-8") as f:
+            data = json.load(f)
+        _json_artifact_cache[filename] = data
+        return data
     except Exception:
         return None
+
+
+def _load_threshold_tables() -> dict | None:
+    """PI-bracket trigger probabilities exported by machine_learning/train.py."""
+    return _load_json_artifact("threshold_tables.json")
 
 
 def _load_feature_importance() -> dict | None:
     """Gain-based feature importance per algo, exported by machine_learning/train.py."""
-    try:
-        from src.utils.ml_inference import _resolve_path
-        with open(_resolve_path("feature_importance.json"), encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return None
+    return _load_json_artifact("feature_importance.json")
 
 
 def _clean_feat(name: str) -> str:
@@ -67,13 +79,18 @@ def _clean_feat(name: str) -> str:
 
 
 def _load_xgb_model(model_key: str):
-    """Load and cache an XGBoost Booster from mlruns. Returns None if unavailable."""
+    """Load and cache an XGBoost Booster from mlruns. Returns None if unavailable.
+    Memoized per model_key (process-global); the explainability tab calls this 4x per
+    render. Failures are not cached so a transient miss can recover."""
+    if model_key in _xgb_booster_cache:
+        return _xgb_booster_cache[model_key]
     try:
         import xgboost as xgb
         from src.utils.ml_inference import _resolve_path, MODEL_PATHS
         path = _resolve_path(MODEL_PATHS[model_key])
         model = xgb.Booster()
         model.load_model(path)
+        _xgb_booster_cache[model_key] = model
         return model
     except Exception:
         return None
@@ -96,16 +113,19 @@ def _compute_score_20(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _load_scored_tracks(db, artist_id):
+@st.cache_data(ttl=60)
+def _load_scored_tracks(_db, artist_id):
     """Latest-date scored tracks with score_20, sorted desc. None if empty.
 
-    Shared by the Vue Globale benchmark table and the Budget top-N% selector.
+    Shared by the Vue Globale benchmark table and the Budget top-N% selector — called
+    from 3 tabs that all render per rerun, so cached (ttl=60) to run the scan once.
+    `_db` underscored → not hashed; keyed on artist_id.
     """
     cols = """song, dw_probability, rr_probability, radio_probability, streams_28d,
               CAST(features_json->>'Velocity_Streams' AS FLOAT) AS velocity"""
     try:
         if artist_id:
-            df = db.fetch_df(
+            df = _db.fetch_df(
                 f"""SELECT {cols} FROM ml_song_predictions
                     WHERE artist_id = %s AND prediction_date = (
                         SELECT MAX(prediction_date) FROM ml_song_predictions WHERE artist_id = %s
@@ -113,7 +133,7 @@ def _load_scored_tracks(db, artist_id):
                 (artist_id, artist_id),
             )
         else:
-            df = db.fetch_df(
+            df = _db.fetch_df(
                 f"""SELECT {cols} FROM ml_song_predictions
                     WHERE prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions)"""
             )

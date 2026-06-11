@@ -20,6 +20,13 @@ class MLPrediction(BaseModel):
     predicted_at: Optional[str] = None
 
 
+# ⚠️ KNOWN-BROKEN (flagged 2026-06-11 pre-deploy audit): this query references columns
+# that DO NOT EXIST on ml_song_predictions — there is no `score`, no `tier`, and the date
+# column is `prediction_date` (not `predicted_at`). The table stores `dw_probability`,
+# `rr_probability`, `radio_probability`, ... and the /20 score is computed in the dashboard
+# (see _compute_score_20), not persisted. This endpoint 500s on every call. Fixing it
+# requires an API-contract decision (return the probabilities, or compute a score) — left
+# for a reviewed change before the FastAPI surface is exposed. Tracked in DEVLOG.
 @router.get("/predictions", response_model=list[MLPrediction], summary="ML song predictions")
 def get_predictions(
     limit: int = Query(20, ge=1, le=100),

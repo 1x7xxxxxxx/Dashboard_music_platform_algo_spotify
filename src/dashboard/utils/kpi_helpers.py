@@ -322,7 +322,8 @@ def get_soundcloud_likes(_db, artist_id):
 
 # ─── ROI Breakheaven ─────────────────────────────────────────────────────────
 
-def get_roi_data(db, artist_id, from_date, to_date):
+@st.cache_data(ttl=60)
+def get_roi_data(_db, artist_id, from_date, to_date):
     """
     Calcule le ROI iMusician / Meta Ads pour une période donnée.
     Retourne revenue_eur, meta_spend, roi_pct, profitable.
@@ -340,13 +341,13 @@ def get_roi_data(db, artist_id, from_date, to_date):
     # Revenus distributeurs (iMusician + DistroKid, aggregation sur year+month)
     try:
         if artist_id is not None:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
                    WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s""",
                 (artist_id, from_date, to_date)
             )
         else:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
                    WHERE make_date(year, month, 1) BETWEEN %s AND %s""",
                 (from_date, to_date)
@@ -358,13 +359,13 @@ def get_roi_data(db, artist_id, from_date, to_date):
     # Dépenses Meta Ads
     try:
         if artist_id is not None:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day
                    WHERE artist_id = %s AND day_date BETWEEN %s AND %s""",
                 (artist_id, from_date, to_date)
             )
         else:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day
                    WHERE day_date BETWEEN %s AND %s""",
                 (from_date, to_date)
@@ -384,7 +385,8 @@ def get_roi_data(db, artist_id, from_date, to_date):
     return result
 
 
-def get_monthly_roi_series(db, artist_id, from_date, to_date):
+@st.cache_data(ttl=60)
+def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     """Monthly revenue vs Meta spend for the period.
     Columns: period_date, distributor_revenue, sacem_revenue, revenue_eur (= the two
     summed), meta_spend. SACEM is kept distinct so the chart can stack it. No Hypeddit
@@ -394,36 +396,29 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
     def _q(sql_artist, sql_all, cols):
         try:
             if artist_id is not None:
-                return db.fetch_df(sql_artist, (artist_id, from_date, to_date))
-            return db.fetch_df(sql_all, (from_date, to_date))
+                return _db.fetch_df(sql_artist, (artist_id, from_date, to_date))
+            return _db.fetch_df(sql_all, (from_date, to_date))
         except Exception:
             return pd.DataFrame(columns=cols)
 
-    # Distributor revenue per month (iMusician + DistroKid) via the revenue view
-    df_dist = _q(
-        """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS distributor_revenue
+    # Revenue per month — distributor (iMusician + DistroKid) and SACEM split in ONE
+    # scan of the revenue view via conditional aggregation (was two separate scans).
+    df_rev = _q(
+        """SELECT make_date(year, month, 1) AS period_date,
+                  SUM(revenue_eur) FILTER (WHERE source IN ('imusician', 'distrokid'))
+                      AS distributor_revenue,
+                  SUM(revenue_eur) FILTER (WHERE source = 'sacem') AS sacem_revenue
            FROM v_artist_monthly_revenue
-           WHERE artist_id = %s AND source IN ('imusician', 'distrokid')
-             AND make_date(year, month, 1) BETWEEN %s AND %s
+           WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s
            GROUP BY year, month ORDER BY year, month""",
-        """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS distributor_revenue
-           FROM v_artist_monthly_revenue WHERE source IN ('imusician', 'distrokid')
-             AND make_date(year, month, 1) BETWEEN %s AND %s
-           GROUP BY year, month ORDER BY year, month""",
-        ['period_date', 'distributor_revenue'])
-
-    # SACEM gross royalties per month (distinct → stackable in the chart)
-    df_sacem = _q(
-        """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS sacem_revenue
+        """SELECT make_date(year, month, 1) AS period_date,
+                  SUM(revenue_eur) FILTER (WHERE source IN ('imusician', 'distrokid'))
+                      AS distributor_revenue,
+                  SUM(revenue_eur) FILTER (WHERE source = 'sacem') AS sacem_revenue
            FROM v_artist_monthly_revenue
-           WHERE artist_id = %s AND source = 'sacem'
-             AND make_date(year, month, 1) BETWEEN %s AND %s
+           WHERE make_date(year, month, 1) BETWEEN %s AND %s
            GROUP BY year, month ORDER BY year, month""",
-        """SELECT make_date(year, month, 1) AS period_date, SUM(revenue_eur) AS sacem_revenue
-           FROM v_artist_monthly_revenue WHERE source = 'sacem'
-             AND make_date(year, month, 1) BETWEEN %s AND %s
-           GROUP BY year, month ORDER BY year, month""",
-        ['period_date', 'sacem_revenue'])
+        ['period_date', 'distributor_revenue', 'sacem_revenue'])
 
     # Meta spend per month
     df_spend = _q(
@@ -436,18 +431,15 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
            GROUP BY 1 ORDER BY 1""",
         ['period_date', 'meta_spend'])
 
-    if df_dist.empty and df_sacem.empty and df_spend.empty:
+    if df_rev.empty and df_spend.empty:
         return pd.DataFrame()
 
-    if df_dist.empty:
-        df_dist = pd.DataFrame(columns=['period_date', 'distributor_revenue'])
-    if df_sacem.empty:
-        df_sacem = pd.DataFrame(columns=['period_date', 'sacem_revenue'])
+    if df_rev.empty:
+        df_rev = pd.DataFrame(columns=['period_date', 'distributor_revenue', 'sacem_revenue'])
     if df_spend.empty:
         df_spend = pd.DataFrame(columns=['period_date', 'meta_spend'])
 
-    df = pd.merge(df_dist, df_sacem, on='period_date', how='outer')
-    df = pd.merge(df, df_spend, on='period_date', how='outer').fillna(0)
+    df = pd.merge(df_rev, df_spend, on='period_date', how='outer').fillna(0)
     df['revenue_eur'] = df['distributor_revenue'] + df['sacem_revenue']
     df['period_date'] = pd.to_datetime(df['period_date'])
     return df.sort_values('period_date')

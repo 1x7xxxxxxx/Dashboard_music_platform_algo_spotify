@@ -62,6 +62,19 @@ def refresh_meta_tokens(**context):
     skipped = []
     failed = []
 
+    # One DB connection reused across all artists (was: a psycopg2.connect INSIDE the
+    # loop — one TCP+auth handshake per artist, every run). autocommit=True so each
+    # read is self-contained (no idle-in-transaction, no aborted-tx poisoning).
+    import psycopg2
+    db_conn = psycopg2.connect(
+        host=os.getenv('DATABASE_HOST', 'localhost'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD', ''),
+    )
+    db_conn.autocommit = True
+
     for artist_id, artist_name in artists:
         creds = load_platform_credentials(artist_id, 'meta')
         access_token = creds.get('access_token', '')
@@ -75,25 +88,14 @@ def refresh_meta_tokens(**context):
             skipped.append(f"{artist_name}: app_id or app_secret missing")
             continue
 
-        # Check expires_at from DB
-        import psycopg2
-        host = os.getenv('DATABASE_HOST', 'localhost')
-        port = int(os.getenv('DATABASE_PORT', 5432))
+        # Check expires_at from DB (reusing the shared connection)
         try:
-            conn = psycopg2.connect(
-                host=host, port=port,
-                database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-                user=os.getenv('DATABASE_USER', 'postgres'),
-                password=os.getenv('DATABASE_PASSWORD', ''),
-            )
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT expires_at FROM artist_credentials WHERE artist_id = %s AND platform = 'meta'",
-                (artist_id,)
-            )
-            row = cur.fetchone()
-            cur.close()
-            conn.close()
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    "SELECT expires_at FROM artist_credentials WHERE artist_id = %s AND platform = 'meta'",
+                    (artist_id,)
+                )
+                row = cur.fetchone()
         except Exception as e:
             failed.append(f"{artist_name}: DB read error — {e}")
             continue
@@ -150,6 +152,8 @@ def refresh_meta_tokens(**context):
 
         except Exception as e:
             failed.append(f"{artist_name}: refresh exception — {e}")
+
+    db_conn.close()
 
     # Summary log
     logger.info(f"Meta token refresh summary — {len(artists)} artist(s) processed:")

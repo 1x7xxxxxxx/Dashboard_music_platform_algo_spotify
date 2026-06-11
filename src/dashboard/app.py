@@ -308,18 +308,30 @@ def show_data_collection_panel():
     st.sidebar.markdown("---")
 
 def _check_db_health():
-    """Affiche une bannière rouge si PostgreSQL est inaccessible."""
-    from src.dashboard.utils import get_db_connection
-    db = get_db_connection()
-    if db is None:
+    """Affiche une bannière rouge si PostgreSQL est inaccessible.
+
+    The reachability ping opens its own connection, so it is throttled to once per ~30s
+    (cached in session_state) rather than on every rerun — the page render that follows
+    surfaces a real outage anyway. Removes one connect+close per rerun per session.
+    """
+    import time
+    cached = st.session_state.get('_db_health_check')
+    if cached and time.time() - cached[0] < 30:
+        ok = cached[1]
+    else:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        ok = db is not None
+        if db is not None:
+            db.close()
+        st.session_state['_db_health_check'] = (time.time(), ok)
+    if not ok:
         st.error(t(
             "app.db_health_error",
             "❌ **Base de données PostgreSQL inaccessible.** "
             "Vérifiez que Docker est lancé : `docker-compose up -d`"
         ))
-        return False
-    db.close()
-    return True
+    return ok
 
 
 def _show_cookie_notice():
@@ -344,6 +356,15 @@ def _render_page(page):
     (C1) — a view crash is caught, alerted, and shown as a friendly message instead
     of Streamlit's raw red traceback. Streamlit st.stop()/st.rerun() signals pass
     through (re-raised in main)."""
+    # Free the transient export blobs (a generated PDF/XLSX/ZIP can be several MB held
+    # in session_state) as soon as the user leaves the export page — they are only
+    # needed to back the on-page download button. Without this they linger in RAM for
+    # the whole session, multiplied per concurrent VPS session.
+    if page not in ("export_pdf", "export_csv"):
+        for _blob_key in ("_export_pdf_bytes", "_export_pdf_autodl",
+                          "_export_csv_bytes"):
+            st.session_state.pop(_blob_key, None)
+
     if page == "home":
         from views.home import show; show()
 

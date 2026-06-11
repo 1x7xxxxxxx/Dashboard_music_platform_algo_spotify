@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-06-11 — Passe d'optimisation pré-déploiement (perf DB/dashboard/DAG + durcissement sécurité)
+
+Session dédiée (branche `chore/pre-deploy-optimizations` = PR #21), à la suite d'un audit 3-agents (frontend / backend / security specialists). **Round 2** (re-audit après les modifs, 4 commits de plus) :
+
+- **Correctness** : le cache plan (`_cached_plan_row`, round 1) n'était **jamais invalidé** sur mutation in-process → après un promo redeem / essai / édition tier admin, l'artiste voyait l'ancien plan ≤60 s. Ajout de `_cached_plan_row.clear()` aux 3 sites (`register.py` ×2, `admin.py`). Stripe (cross-process) → 60 s documentés.
+- **`docker-compose.yml` est gitignored** (`.gitignore:29`) : les edits sécurité round 1 (binding loopback, env-ref mot de passe) ne vivaient **que dans le fichier local** — jamais dans le repo. Le mot de passe `Wowow1357911!` est dans l'**historique git ancien** (quand le fichier était tracké : `52c2e19`/`7781b22`/`cf10a97`) → rotation obligatoire. Fix : **`docker-compose.example.yml` tracké** (durci, sans secret) que l'opérateur copie sur le VPS (miroir `.env.example`).
+- **Perf** : `@st.cache_data` sur `get_roi_data`/`get_monthly_roi_series`/`_load_scored_tracks` ; throttle du ping `_check_db_health` (1×/30 s) ; **migration 058** (3 index : `etl_run_log(artist_id,status)` page home, `etl_run_log(started_at)`, `instagram_daily_stats`).
+- **Cleanup** : suppression du code mort `s4a_csv_watcher.py` ; liens admin + IDs env-driven ; fix `kpis.py` (table/colonne inexistantes → UndefinedTable) ; `ml.py /predictions` flaggé known-broken (colonnes `score`/`tier` inexistantes → décision de contrat API requise) ; `_meta_config_fetch` lève sur échec **systémique** des créatives (règle #6) en tolérant les inaccessibles isolées.
+- **Vérif sécurité** : les 11 items du checklist must-fix sont **tous couverts** (code ou D0). 522 tests verts.
+
+### Round 1
+
+**Perf DB** (`057_composite_artist_date_indexes.sql`, NEW) — 5 index composites `(artist_id, date)` sur les tables hot-path les plus scannées. Côté code, `get_monthly_roi_series` (`kpi_helpers`) faisait **deux scans** de `v_artist_monthly_revenue` → fusionnés en une seule requête `FILTER`.
+
+**Perf dashboard** — `get_artist_plan` était une **connexion DB fraîche à chaque rerun** de la sidebar → `@st.cache_data(ttl=60)`. Les blobs d'export PDF/CSV stockés en `session_state` sont **libérés à la navigation** (`_render_page`, `app.py`) au lieu de persister en mémoire. Le Booster XGBoost + artefacts JSON sont **mémoïsés** dans `trigger_algo/_common/_loaders.py` (était rechargé/désérialisé à chaque scoring).
+
+**Perf DAG** — `meta_token_refresh` ouvrait une connexion `psycopg2.connect` **par artiste dans la boucle** → une seule connexion réutilisée.
+
+**Durcissement sécurité** (cap D0 déploiement) — `docker-compose.yml` : mot de passe DB (3 occurrences en dur retirées) + creds admin Airflow désormais via `${VAR}` ; Postgres/Airflow **bindés sur `127.0.0.1`** (plus exposés sur `0.0.0.0`). `src/api/auth.py` : secret JWT aléatoire éphémère (plus de fallback connu du repo). `src/api/main.py` : `/docs`+`/redoc` **off par défaut** (gated `API_ENABLE_DOCS`), CORS lu depuis l'env. `stripe_webhook.py` : **fail-closed** sur payload non signé. Ajouts : `.env.example` + checklist ops D0 dans `deployment.md`. Test `test_api_security` verrouille le défaut docs-off.
+
+**Deux findings d'audit volontairement NON actionnés** (tracés ici pour ne pas les redécouvrir) :
+- `src/collectors/s4a_csv_watcher.py::S4AWatcher` est **du code mort** (rien ne l'importe ; le DAG live a son propre chemin `upsert_many`) → flaggé pour **suppression**, pas patché (ne pas durcir du code à supprimer).
+- Les `db.close()` manquants dans les DAGs sont **mitigés par l'isolation process par-tâche** du LocalExecutor Airflow (chaque tâche = process éphémère, fd libérés à la sortie) → **dépriorisé** P4.
+
+**Prochaine étape** : merger PR #21, puis reprendre C5/C6 (sizing VPS + domaine/accès).
+
+---
+
 ## 2026-06-11 — Mapping cross-plateforme unifié, SACEM, revenu consolidé en VIEW, nettoyage i18n + split meta_mapping
 
 Session pré-déploiement (branche `feat/mapping-merge-suggestions` = PR #19). 521 tests verts, ruff clean.

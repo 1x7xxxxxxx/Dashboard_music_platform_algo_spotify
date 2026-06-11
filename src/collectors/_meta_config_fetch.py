@@ -189,7 +189,17 @@ class _MetaConfigFetchMixin:
                     }
                 except Exception as e:
                     logger.warning(f"  creative {cid} fetch failed: {e}")
-                    # Non-fatal: some creatives may be inaccessible; continue
+                    # Non-fatal per creative: some may be inaccessible (deleted, perms).
+                    # A SYSTEMIC failure (all fail) is caught below — rule #6.
+
+            # Rule #6 (no silent success): if EVERY creative fetch failed, this is a
+            # systemic error (token/permission/throttle), not a per-item gap — fail loud
+            # instead of returning ad rows with all-NULL creative fields.
+            if creative_ids and not creative_map:
+                raise RuntimeError(
+                    f"All {len(creative_ids)} creative fetches failed — systemic "
+                    "error (token/permission/throttle), not per-item inaccessibility."
+                )
 
             # Build ad-level rows (upsert creative fields onto meta_ads)
             rows = []
