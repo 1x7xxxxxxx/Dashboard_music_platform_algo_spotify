@@ -2,8 +2,8 @@
 
 EN = {
     "process_guide.title": "📋 Getting started guide",
-    "process_guide.caption": "The 3 steps to set up your credentials, launch data "
-                             "collection and link your Meta Ads campaigns to your Spotify tracks.",
+    "process_guide.caption": "The 4 steps to set up your credentials, import your CSVs, launch "
+                             "data collection and link your Meta Ads campaigns to your Spotify tracks.",
     # Step 1
     "process_guide.s1_title": "1. Enter your API credentials",
     "process_guide.s1_i1": "Open the **🔑 API Credentials** page.",
@@ -14,17 +14,26 @@ EN = {
                            "\"Configured (platform key)\" and no input is needed.",
     "process_guide.s1_i4": "Click **Test connection** then **Save**. "
                            "Saving automatically triggers the first collection.",
-    # Step 2
-    "process_guide.s2_title": "2. Launch data collection",
+    # Step 2 — CSV import (before launching collection)
+    "process_guide.s2csv_title": "2. Import your CSV files",
+    "process_guide.s2csv_i1": "Open the **📂 CSV Import** page and drop your files (up to about "
+                              "ten at once) — the type is auto-detected from the filename and columns.",
+    "process_guide.s2csv_i2": "Recognized sources: **Spotify for Artists** (timeline + songs-global "
+                              "— songs-global rebuilds the **release reference** used by the mapping "
+                              "and ML scoring), **Apple Music**, **iMusician / DistroKid** (revenue), "
+                              "**SACEM** (.xlsx account statement).",
+    "process_guide.s2csv_i3": "⚠️ Import your CSVs **before** launching collection: the **🚀 Launch "
+                              "ALL collections** button also triggers the CSV watchers, which only "
+                              "pick up files **already dropped**.",
+    # Step 3
+    "process_guide.s2_title": "3. Launch data collection",
     "process_guide.s2_i1": "In the sidebar, click **🚀 Launch ALL collections** "
                            "to trigger every DAG at once.",
     "process_guide.s2_i2": "You can also let the scheduled daily collections run on their own.",
     "process_guide.s2_i3": "Track collection status in **🔑 API Credentials** (last-run "
                            "badge per platform) or in **🏗️ ETL monitoring** (admin).",
-    "process_guide.s2_i4": "For CSV sources (Spotify for Artists, Apple Music, iMusician), "
-                           "import your files from **📂 CSV Import**.",
-    # Step 3
-    "process_guide.s3_title": "3. Map Meta Ads ↔ Spotify",
+    # Step 4
+    "process_guide.s3_title": "4. Map Meta Ads ↔ Spotify",
     "process_guide.s3_why": "ℹ️ **Why map?** The same track often has a **different name** "
                             "across platforms (S4A, Spotify, YouTube, SoundCloud, Apple) and in "
                             "your Meta Ad campaigns (acronyms, codes, adset names…). Mapping "

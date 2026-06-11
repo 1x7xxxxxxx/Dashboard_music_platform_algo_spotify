@@ -36,6 +36,10 @@ def _sample_data():
         "soundcloud_likes": 320,
         "roi": {"roi_pct": 18.4, "profitable": True,
                 "revenue_eur": 210.5, "meta_spend": 80.0},
+        "hypeddit_data": {"total_visits": 4200, "total_clicks": 380,
+                          "series": [("2025-12-01", 100, 9), ("2025-12-02", 120, 11)]},
+        "revenue_fc": {"months": [("2025-12", 167.44), ("2026-01", 87.52)],
+                       "total": 254.96, "sacem": 43.06, "distributor": 211.90},
         "s4a_top_songs": [("Song A", 9000, 700), ("Song B", 3000, 120)],
         "youtube_data": {
             "subscriber_count": 1500, "total_views": 250000,

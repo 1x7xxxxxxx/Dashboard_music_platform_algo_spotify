@@ -13,13 +13,17 @@ def clear_form_data():
     """Réinitialise les valeurs du formulaire dans le session state."""
     st.session_state["h_visits"] = 0
     st.session_state["h_clicks"] = 0
-    st.session_state["h_budget"] = 0.0
     if "h_new_camp_name" in st.session_state:
         st.session_state["h_new_camp_name"] = ""
 
 
-def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budget: float):
-    """Ajoute ou met à jour les statistiques d'une campagne."""
+def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int):
+    """Ajoute ou met à jour les statistiques d'une campagne.
+
+    Le budget n'est plus saisi côté Hypeddit : la dépense publicitaire réelle est
+    celle de Meta Ads (ROI Breakeven). La colonne DB `budget` reste à sa valeur par
+    défaut (0). Seules les visites/clics (vraies métriques smart-link) sont saisies.
+    """
     db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
@@ -48,15 +52,14 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int, budge
             'campaign_name': campaign_name,
             'date': date,
             'visits': visits,
-            'clicks': clicks,
-            'budget': budget
+            'clicks': clicks
         }]
 
         db.upsert_many(
             table='hypeddit_daily_stats',
             data=stats_data,
             conflict_columns=['artist_id', 'campaign_name', 'date'],
-            update_columns=['visits', 'clicks', 'budget', 'updated_at']
+            update_columns=['visits', 'clicks', 'updated_at']
         )
 
         db.close()
@@ -92,7 +95,7 @@ def get_global_stats(start_date, end_date, db=None):
     if artist_id is None:
         artist_id = 1  # admin: defaults to artist 1
     query = """
-        SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click
+        SELECT campaign_name, date, visits, clicks
         FROM hypeddit_daily_stats
         WHERE date >= %s AND date <= %s AND artist_id = %s
         ORDER BY date
@@ -131,26 +134,21 @@ def _render_global_stats():
     # Nettoyage et conversion
     df['visits'] = pd.to_numeric(df['visits'], errors='coerce').fillna(0)
     df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce').fillna(0)
-    df['budget'] = pd.to_numeric(df['budget'], errors='coerce').fillna(0)
-    df['cost_per_click'] = pd.to_numeric(df['cost_per_click'], errors='coerce').fillna(0)
     df['date'] = pd.to_datetime(df['date'])
 
-    # KPIs Moyens
+    # KPIs Moyens — visites/clics seulement (le budget « Hypeddit » était en fait la
+    # dépense Meta Ads, retiré de toute la vue ; voir ROI Breakeven pour la dépense pub).
     st.subheader(t("hypeddit.daily_averages", "Moyennes Journalières (Toutes campagnes)"))
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2 = st.columns(2)
     k1.metric(t("hypeddit.kpi_avg_visits", "👁️ Visites Moy."), f"{int(df['visits'].mean()):,}")
     k2.metric(t("hypeddit.kpi_avg_clicks", "🖱️ Clicks Moy."), f"{int(df['clicks'].mean()):,}")
-    k3.metric(t("hypeddit.kpi_avg_budget", "💰 Budget Moy."), f"{df['budget'].mean():.2f} €")
-    k4.metric(t("hypeddit.kpi_avg_cpc", "📉 CPC Moy."), f"{df['cost_per_click'].mean():.2f} €")
 
     st.markdown("---")
 
-    # Graphique Combiné (4 indicateurs)
+    # Graphique Combiné (visites & clics)
     st.subheader(t("hypeddit.global_performance", "📈 Performance Globale"))
 
-    # Aggrégation par date — CPC = moyenne pondérée (Total Budget / Total Clicks)
-    df_agg = df.groupby('date')[['visits', 'clicks', 'budget']].sum().reset_index()
-    df_agg['cpc'] = df_agg.apply(lambda x: x['budget'] / x['clicks'] if x['clicks'] > 0 else 0, axis=1)
+    df_agg = df.groupby('date')[['visits', 'clicks']].sum().reset_index()
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -161,28 +159,11 @@ def _render_global_stats():
         x=df_agg['date'], y=df_agg['clicks'],
         name='Clicks', mode='lines+markers', line=dict(color='#2ECC71', width=2), yaxis='y'
     ))
-    fig.add_trace(go.Scatter(
-        x=df_agg['date'], y=df_agg['budget'],
-        name='Budget (€)', mode='lines', line=dict(color='#E74C3C', width=2, dash='dot'), yaxis='y2'
-    ))
-    fig.add_trace(go.Scatter(
-        x=df_agg['date'], y=df_agg['cpc'],
-        name='CPC (€)', mode='lines+markers', line=dict(color='#9B59B6', width=2), yaxis='y3'
-    ))
 
     fig.update_layout(
-        title=t("hypeddit.chart_title", "Visites & Clicks vs Budget & CPC"),
+        title=t("hypeddit.chart_title", "Visites & Clicks"),
         xaxis=dict(title=t("common.date", "Date")),
         yaxis=dict(title=t("hypeddit.volume_axis", "Volume"), side='left', showgrid=True),
-        yaxis2=dict(
-            title=dict(text="Budget (€)", font=dict(color="#E74C3C")),
-            tickfont=dict(color="#E74C3C"), anchor="x", overlaying="y", side="right"
-        ),
-        yaxis3=dict(
-            title=dict(text="CPC (€)", font=dict(color="#9B59B6")),
-            tickfont=dict(color="#9B59B6"), anchor="free", overlaying="y",
-            side="right", position=1.0, showgrid=False
-        ),
         margin=dict(r=20),
         hovermode='x unified',
         legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1),
@@ -204,7 +185,7 @@ def _render_history():
             st.error(t("hypeddit.session_invalid", "Session invalide.")); st.stop()
         artist_id = 1  # admin: defaults to artist 1
     df_hist = db.fetch_df("""
-        SELECT campaign_name, date, visits, clicks, budget, ctr, cost_per_click
+        SELECT campaign_name, date, visits, clicks
         FROM hypeddit_daily_stats
         WHERE artist_id = %s
         ORDER BY date DESC LIMIT 50
@@ -241,7 +222,6 @@ def _render_entry_form():
         with col2:
             visits = st.number_input(t("hypeddit.visits_input", "👁️ Visites"), min_value=0, step=1, key="h_visits")
             clicks = st.number_input(t("hypeddit.clicks_input", "🖱️ Clicks"), min_value=0, step=1, key="h_clicks")
-            budget = st.number_input(t("hypeddit.budget_input", "💰 Budget (€)"), min_value=0.0, step=0.01, format="%.2f", key="h_budget")
 
         st.markdown("---")
 
@@ -256,7 +236,7 @@ def _render_entry_form():
         if not campaign_name:
             st.error(t("hypeddit.campaign_name_required", "Nom de campagne requis"))
         else:
-            success, msg = add_campaign_stats(campaign_name, entry_date, visits, clicks, budget)
+            success, msg = add_campaign_stats(campaign_name, entry_date, visits, clicks)
             if success:
                 st.success(msg)
             else:

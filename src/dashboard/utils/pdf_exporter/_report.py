@@ -10,7 +10,7 @@ from src.dashboard.utils.kpi_helpers import (
 )
 from ._config import ALL_SECTIONS, _CSS, _EMOJI_RE, _logo_svg, _set_lang, _t
 from ._collectors import (
-    _collect_apple, _collect_apple_timeline, _collect_credentials_status, _collect_hypeddit, _collect_hypeddit_campaigns, _collect_ig_monthly, _collect_instagram, _collect_j28, _collect_mapping, _collect_meta, _collect_meta_breakdowns, _collect_meta_daily, _collect_meta_funnel, _collect_meta_x_spotify, _collect_ml_explain, _collect_pi_gate, _collect_playlist_adds_windows, _collect_revenue_forecast, _collect_s4a_audience, _collect_s4a_daily, _collect_s4a_top_songs, _collect_sc_series, _collect_score20, _collect_song_timeline, _collect_songs_focus, _collect_soundcloud_tracks, _collect_youtube, _collect_youtube_history, _get_artist_name, _has_wrapped, _latest_release,
+    _collect_apple, _collect_apple_timeline, _collect_credentials_status, _collect_hypeddit, _collect_ig_monthly, _collect_instagram, _collect_j28, _collect_mapping, _collect_meta, _collect_meta_breakdowns, _collect_meta_daily, _collect_meta_funnel, _collect_meta_x_spotify, _collect_ml_explain, _collect_pi_gate, _collect_playlist_adds_windows, _collect_revenue_forecast, _collect_s4a_audience, _collect_s4a_daily, _collect_s4a_top_songs, _collect_sc_series, _collect_score20, _collect_song_timeline, _collect_songs_focus, _collect_soundcloud_tracks, _collect_youtube, _collect_youtube_history, _get_artist_name, _has_wrapped, _latest_release,
 )
 from ._renderers import (
     _chart, _render_apple, _render_completeness, _render_credentials, _render_freshness, _render_hypeddit, _render_instagram, _render_mapping, _render_meta, _render_overview, _render_revenue_forecast, _render_roi, _render_s4a_top_songs, _render_score20, _render_songs_focus, _render_soundcloud_tracks, _render_youtube,
@@ -61,7 +61,6 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs
     sc_tracks        = _collect_soundcloud_tracks(db, artist_id, single_song=_single_song)
     apple_data       = _collect_apple(db, artist_id, selected_songs=_sel)
     hypeddit_data    = _collect_hypeddit(db, artist_id, _ad_from, to_date)
-    hypeddit_camps   = _collect_hypeddit_campaigns(db, artist_id, _ad_from, to_date)
     breakdowns       = _collect_meta_breakdowns(db, artist_id)
     revenue_fc       = _collect_revenue_forecast(db, artist_id)
     meta_x_spotify   = _collect_meta_x_spotify(db, artist_id, _ad_from, to_date)
@@ -126,7 +125,6 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs
              _t("pdf.chart.series.popularity", "Popularité"): meta_x_spotify['popularity']},
             _t("pdf.chart.meta_x_spotify_base100", "Meta × Spotify — {campaign} (base 100)").format(
                 campaign=meta_x_spotify['campaign'])) if meta_x_spotify else None,
-        'hypeddit_camps': pdf_charts.hypeddit_campaigns_bar(hypeddit_camps),
         'playlist_adds': pdf_charts.playlist_adds_bars(pl_windows),
         'meta_funnel': pdf_charts.meta_funnel(meta_funnel_d),
         'meta_daily': pdf_charts.meta_daily(meta_daily_d),
@@ -306,7 +304,7 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         h_hypeddit = _t("pdf.section.hypeddit", "📣 Hypeddit")
         _sec(f"<div class='section'><h2>{h_hypeddit}</h2>\n"
              f"{_render_hypeddit(data.get('hypeddit_data'))}\n"
-             f"{_chart(charts.get('hypeddit'))}{_chart(charts.get('hypeddit_camps'))}</div>")
+             f"{_chart(charts.get('hypeddit'))}</div>")
 
     # ── 🔮 Prédiction algos (focus algo + chansons ML) — déplacé ici ──
     if sections.get('songs'):

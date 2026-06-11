@@ -72,7 +72,7 @@ def _render_roi(roi, from_date, to_date):
     status = (_t("pdf.roi.profitable", "✅ Rentable") if net >= 0
               else _t("pdf.roi.deficit", "⚠️ Déficitaire"))
     since_start = _t("pdf.roi.since_start", "Depuis le début (tout l'historique)")
-    lbl_rev = _t("pdf.roi.revenue_imusician", "💰 Revenus iMusician")
+    lbl_rev = _t("pdf.roi.revenue_total", "💰 Revenus (iMusician + DistroKid + SACEM)")
     lbl_spend = _t("pdf.roi.spend_meta", "📱 Dépenses Meta Ads")
     lbl_net = _t("pdf.roi.net", "Net (revenus − dépenses)")
     return f"""
@@ -291,17 +291,22 @@ def _render_hypeddit(hy):
     return _kpi_grid(
         _kpi_card(f'{hy["total_visits"]:,}', _t("pdf.kpi.visits_period", "Visites (période)"))
         + _kpi_card(f'{hy["total_clicks"]:,}', _t("pdf.kpi.clicks_period", "Clics (période)"))
-        + _kpi_card(f'{hy["total_budget"]:,.0f} €', _t("pdf.kpi.budget_period", "Budget (période)"))
     )
 
 
 def _render_revenue_forecast(rfc):
     if not rfc:
         return f'<p class="no-data">{_t("pdf.nodata.revenue_forecast", "Aucune donnée de revenus pour la projection.")}</p>'
-    return _kpi_grid(
+    cards = (
         _kpi_card(f'{rfc["total"]:,.0f} €', _t("pdf.kpi.cumulative_revenue", "Revenu cumulé"))
         + _kpi_card(f'{len(rfc["months"])}', _t("pdf.kpi.months_recorded", "Mois enregistrés"))
     )
+    # SACEM royalties shown as a distinct card when present (mirrors the dashboard's
+    # per-source SACEM trace on the revenue-forecast view).
+    if rfc.get("sacem"):
+        cards += _kpi_card(f'{rfc["sacem"]:,.0f} €',
+                           _t("pdf.kpi.sacem_royalties", "🎼 Royalties SACEM"))
+    return _kpi_grid(cards)
 
 
 def _render_score20(rows):
