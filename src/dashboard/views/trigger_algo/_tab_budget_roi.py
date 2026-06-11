@@ -91,8 +91,9 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 (artist_id, date_from, date_to)
             )
             streams_row = db.fetch_query(
-                "SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline WHERE artist_id = %s AND date BETWEEN %s AND %s",
-                (artist_id, date_from, date_to)
+                "SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline "
+                "WHERE artist_id = %s AND song NOT ILIKE %s AND date BETWEEN %s AND %s",
+                (artist_id, '%1x7xxxxxxx%', date_from, date_to)
             )
         else:
             budget_row = db.fetch_query(
@@ -103,8 +104,9 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 (date_from, date_to)
             )
             streams_row = db.fetch_query(
-                "SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline WHERE date BETWEEN %s AND %s",
-                (date_from, date_to)
+                "SELECT COALESCE(SUM(streams), 0) FROM s4a_song_timeline "
+                "WHERE song NOT ILIKE %s AND date BETWEEN %s AND %s",
+                ('%1x7xxxxxxx%', date_from, date_to)
             )
 
         lifetime_budget = float(budget_row[0][0] or 0)

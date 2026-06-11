@@ -93,7 +93,10 @@ def _show_body(db, artist_id):
     # --- RÉCUPÉRATION DU TITRE ASSOCIÉ ---
     mapped_track = None
     try:
-        res_map = db.fetch_df("SELECT track_name FROM campaign_track_mapping WHERE campaign_name = %s LIMIT 1", (selected_campaign,))
+        res_map = db.fetch_df(
+            "SELECT track_name FROM campaign_track_mapping "
+            "WHERE artist_id = %s AND campaign_name = %s LIMIT 1",
+            (artist_id, selected_campaign))
         if not res_map.empty:
             mapped_track = res_map.iloc[0]['track_name']
             st.caption(t("meta_x_spotify.linked_track", "🎵 Titre lié : **{track}**").format(track=mapped_track))
@@ -144,9 +147,9 @@ def _show_body(db, artist_id):
             q_pop = """
                 SELECT date::date, popularity
                 FROM track_popularity_history
-                WHERE TRIM(track_name) = %s AND date >= %s AND date <= %s
+                WHERE artist_id = %s AND TRIM(track_name) = %s AND date >= %s AND date <= %s
             """
-            df_pop = db.fetch_df(q_pop, (mapped_track.strip(), start_date, end_date))
+            df_pop = db.fetch_df(q_pop, (artist_id, mapped_track.strip(), start_date, end_date))
         except: df_pop = pd.DataFrame()
 
         if not df_streams.empty:
