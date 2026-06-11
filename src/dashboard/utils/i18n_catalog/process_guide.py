@@ -25,6 +25,11 @@ EN = {
                            "import your files from **📂 CSV Import**.",
     # Step 3
     "process_guide.s3_title": "3. Map Meta Ads ↔ Spotify",
+    "process_guide.s3_why": "ℹ️ **Why map?** The same track often has a **different name** "
+                            "across platforms (S4A, Spotify, YouTube, SoundCloud, Apple) and in "
+                            "your Meta Ad campaigns (acronyms, codes, adset names…). Mapping "
+                            "**links those names to the same track** so streams, views and ad "
+                            "spend consolidate onto the right reference.",
     "process_guide.s3_i1": "Open the **🔗 Cross-platform mapping** page. On the **📣 Meta "
                            "campaigns** tab, **automatic suggestions** (name similarity + "
                            "release-date proximity) appear **at the top**, with a 🟢/🟡/🔴 "

@@ -53,6 +53,12 @@ def _get_steps() -> list[tuple[str, list[str]]]:
         (
             t("process_guide.s3_title", "3. Mapper Meta Ads ↔ Spotify"),
             [
+                t("process_guide.s3_why",
+                  "ℹ️ **Pourquoi mapper ?** Un même titre porte souvent un **nom différent** "
+                  "selon la plateforme (S4A, Spotify, YouTube, SoundCloud, Apple) et dans vos "
+                  "campagnes Meta Ads (acronymes, codes, noms d'adsets…). Le mapping **relie "
+                  "ces noms au même titre** pour consolider streams, vues et dépenses pub sur "
+                  "la bonne référence."),
                 t("process_guide.s3_i1",
                   "Ouvrez la page **🔗 Mapping cross-plateforme**. Onglet **📣 Campagnes "
                   "Meta** : des **suggestions automatiques** (similarité du nom + proximité "

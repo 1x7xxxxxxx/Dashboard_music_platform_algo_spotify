@@ -285,17 +285,26 @@ def _load_unmapped_campaigns(db, artist_id: int):
 
 
 def _load_campaign_context(db, artist_id: int) -> dict:
-    """{campaign_name: {'adsets': str, 'ads': str}} — adset & ad names give the user the
-    context to recognise which release a campaign was for (names often hint the track)."""
+    """{campaign_name: {'adsets', 'ads', 'period'}} — adset & ad names help recognise
+    which release a campaign was for; period = active window across the campaign + its
+    adsets (epoch-1970 placeholder dates dropped) to compare against the track release."""
     rows = db.fetch_query(
         "SELECT c.campaign_name, "
-        "  string_agg(DISTINCT s.adset_name, ' · '), string_agg(DISTINCT a.ad_name, ' · ') "
+        "  string_agg(DISTINCT s.adset_name, ' · '), string_agg(DISTINCT a.ad_name, ' · '), "
+        "  LEAST(MIN(NULLIF(c.start_time::date, DATE '1970-01-01')), "
+        "        MIN(NULLIF(s.start_time::date, DATE '1970-01-01'))), "
+        "  GREATEST(MAX(NULLIF(c.end_time::date, DATE '1970-01-01')), "
+        "           MAX(NULLIF(s.end_time::date, DATE '1970-01-01'))) "
         "FROM meta_campaigns c "
         "LEFT JOIN meta_adsets s ON s.campaign_id = c.campaign_id AND s.artist_id = c.artist_id "
         "LEFT JOIN meta_ads a ON a.campaign_id = c.campaign_id AND a.artist_id = c.artist_id "
         "WHERE c.artist_id = %s GROUP BY c.campaign_name",
         (artist_id,))
-    return {r[0]: {'adsets': r[1] or '', 'ads': r[2] or ''} for r in (rows or [])}
+    out = {}
+    for name, adsets, ads, pstart, pend in (rows or []):
+        period = f"{pstart} → {pend}" if pstart and pend else (str(pstart) if pstart else "—")
+        out[name] = {'adsets': adsets or '', 'ads': ads or '', 'period': period}
+    return out
 
 
 def _trunc(s: str, n: int = 60) -> str:
@@ -306,6 +315,7 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
     """Unmapped campaign → best track via title-sim + release-date proximity. `confidence`
     kept raw [0,1]; displayed `Confiance` ×100. Adset/ad names add release context."""
     ctx = _load_campaign_context(db, artist_id)
+    rel_by_key = {c['match_key']: c['release_date'] for c in canonical}
     sugg, disp = [], []
     for c in _load_unmapped_campaigns(db, artist_id):
         cands = rank_campaign_candidates(c['campaign'], c['start'], canonical, set(), top_n=1)
@@ -318,7 +328,10 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
                      'confidence': cand.score, 'method': cand.method})
         disp.append({'Fiab.': confidence_badge(cand.score), 'Campagne': c['campaign'],
                      'Adsets': _trunc(cc.get('adsets', '')), 'Ads': _trunc(cc.get('ads', '')),
-                     'Suggestion (track)': cand.title, 'Confiance': round(cand.score * 100, 1),
+                     'Période camp.': cc.get('period', '—'),
+                     'Suggestion (track)': cand.title,
+                     'Sortie track': str(rel_by_key.get(cand.match_key) or '—'),
+                     'Confiance': round(cand.score * 100, 1),
                      'Associer': cand.score >= 0.6, 'Rejeter': False})
     return sugg, pd.DataFrame(disp)
 
@@ -411,7 +424,9 @@ def _render_campaign_tab(db, artist_id, canonical):
                 'Campagne': st.column_config.TextColumn("Campagne", width="medium"),
                 'Adsets': st.column_config.TextColumn("Adsets", width="medium"),
                 'Ads': st.column_config.TextColumn("Ads", width="medium"),
+                'Période camp.': st.column_config.TextColumn("Période camp.", width="small"),
                 'Suggestion (track)': st.column_config.TextColumn("Suggestion (track)", width="medium"),
+                'Sortie track': st.column_config.TextColumn("Sortie track", width="small"),
                 'Confiance': st.column_config.ProgressColumn(
                     t("meta_mapping.col_confidence", "Confiance"),
                     min_value=0.0, max_value=100.0, format="%.0f%%", width="small"),
@@ -420,7 +435,8 @@ def _render_campaign_tab(db, artist_id, canonical):
                 'Rejeter': st.column_config.CheckboxColumn(
                     t("track_mapping.col_reject", "Rejeter"), width="small"),
             },
-            disabled=['Fiab.', 'Campagne', 'Adsets', 'Ads', 'Suggestion (track)', 'Confiance'])
+            disabled=['Fiab.', 'Campagne', 'Adsets', 'Ads', 'Période camp.',
+                      'Suggestion (track)', 'Sortie track', 'Confiance'])
         if st.button(t("meta_mapping.associate_button", "💾 Enregistrer (associer / rejeter)"),
                      type="primary"):
             n_a, n_r = _save_campaign_links(db, artist_id, sugg, edited)
