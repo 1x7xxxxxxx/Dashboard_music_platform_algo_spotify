@@ -232,14 +232,6 @@ def show():
     from src.dashboard.content.csv_guides_st import render_csv_guides
     render_csv_guides()
 
-    st.info(t(
-        "upload_csv.mapping_info",
-        "🔗 **Mapping Spotify × Meta Ads** — après avoir **lancé la collecte "
-        "depuis la page d'accueil**, pensez à faire le mapping "
-        "(menu **📣 Publicité Meta Ads → Mapping Spotify × Meta Ads (nom de campagne)**) "
-        "pour relier vos campagnes Meta à vos titres Spotify."
-    ))
-
     db = get_db_connection()
     try:
         # ── Sélection artiste ──────────────────────────────────────────

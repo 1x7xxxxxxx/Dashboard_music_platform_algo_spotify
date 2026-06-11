@@ -54,6 +54,8 @@ EN = {
     "revenue_forecast.artist_forecast_caption": "Consolidated monthly music revenue: "
                                                 "distributors (iMusician + DistroKid) + gross SACEM royalties.",
     "revenue_forecast.by_source_header": "**Cumulative revenue by source**",
+    "revenue_forecast.line_total": "Total (all distributors)",
+    "revenue_forecast.line_sacem": "🎼 SACEM royalties",
     "revenue_forecast.no_active_artist": "No active artist.",
     "revenue_forecast.no_artist_id": "Unable to determine your artist identifier.",
     "revenue_forecast.insufficient_data": (

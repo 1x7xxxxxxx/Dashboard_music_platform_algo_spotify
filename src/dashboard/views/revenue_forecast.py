@@ -345,6 +345,8 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
     )
     df = df.sort_values('date').reset_index(drop=True)
     df['revenue_eur'] = df['revenue_eur'].astype(float)
+    if 'sacem_eur' in df.columns:
+        df['sacem_eur'] = pd.to_numeric(df['sacem_eur'], errors='coerce').fillna(0.0)
 
     # Regression
     X = np.arange(len(df))
@@ -377,13 +379,21 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
     # Chart
     fig = go.Figure()
 
-    # Historical
+    # Historical (total revenue)
     fig.add_trace(go.Scatter(
         x=df['date'], y=df['revenue_eur'],
-        mode='lines+markers', name='Historique',
+        mode='lines+markers', name=t("revenue_forecast.line_total", "Total (tous distributeurs)"),
         line=dict(color='#1DB954', width=2),
         marker=dict(size=6),
     ))
+
+    # SACEM royalties evolution (distinct line)
+    if 'sacem_eur' in df.columns and df['sacem_eur'].sum() > 0:
+        fig.add_trace(go.Scatter(
+            x=df['date'], y=df['sacem_eur'],
+            mode='lines+markers', name=t("revenue_forecast.line_sacem", "🎼 Royalties SACEM"),
+            line=dict(color='#8E44AD', width=1.5), marker=dict(size=5),
+        ))
 
     # Fit line over history
     fig.add_trace(go.Scatter(

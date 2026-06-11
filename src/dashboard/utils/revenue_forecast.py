@@ -35,16 +35,21 @@ def load_subscriptions(db) -> pd.DataFrame:
 
 def load_artist_revenues(db, artist_id: int) -> pd.DataFrame:
     """Monthly music revenue per artist: iMusician + DistroKid + SACEM gross royalties
-    (REPARTITION), summed per year/month — same revenue base as the ROI Breakeven."""
+    (REPARTITION), summed per year/month — same revenue base as the ROI Breakeven.
+    `revenue_eur` is the total; `sacem_eur` is the SACEM portion (kept distinct so the
+    projection chart can plot SACEM's evolution as its own line)."""
     return db.fetch_df(
         """
-        SELECT year, month, SUM(revenue_eur) AS revenue_eur
+        SELECT year, month, SUM(revenue_eur) AS revenue_eur,
+               SUM(CASE WHEN src = 'sacem' THEN revenue_eur ELSE 0 END) AS sacem_eur
         FROM (
-            SELECT year, month, revenue_eur FROM imusician_monthly_revenue WHERE artist_id = %s
+            SELECT 'dist' AS src, year, month, revenue_eur
+                FROM imusician_monthly_revenue WHERE artist_id = %s
             UNION ALL
-            SELECT year, month, revenue_eur FROM distrokid_monthly_revenue WHERE artist_id = %s
+            SELECT 'dist', year, month, revenue_eur
+                FROM distrokid_monthly_revenue WHERE artist_id = %s
             UNION ALL
-            SELECT EXTRACT(YEAR FROM line_date)::int AS year,
+            SELECT 'sacem', EXTRACT(YEAR FROM line_date)::int AS year,
                    EXTRACT(MONTH FROM line_date)::int AS month, mouvement_eur AS revenue_eur
             FROM sacem_statement WHERE artist_id = %s AND line_type = 'repartition'
         ) r
