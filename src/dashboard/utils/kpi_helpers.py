@@ -332,6 +332,8 @@ def get_roi_data(db, artist_id, from_date, to_date):
     result = {
         'revenue_eur': 0.0,
         'meta_spend': 0.0,
+        'hypeddit_spend': 0.0,
+        'total_spend': 0.0,
         'roi_pct': None,
         'profitable': False,
     }
@@ -383,10 +385,30 @@ def get_roi_data(db, artist_id, from_date, to_date):
     except Exception:
         pass
 
-    if result['meta_spend'] > 0:
+    # Dépenses promo Hypeddit (budget saisi par campagne/jour)
+    try:
+        if artist_id is not None:
+            row = db.fetch_query(
+                """SELECT COALESCE(SUM(budget), 0) FROM hypeddit_daily_stats
+                   WHERE artist_id = %s AND date BETWEEN %s AND %s""",
+                (artist_id, from_date, to_date)
+            )
+        else:
+            row = db.fetch_query(
+                """SELECT COALESCE(SUM(budget), 0) FROM hypeddit_daily_stats
+                   WHERE date BETWEEN %s AND %s""",
+                (from_date, to_date)
+            )
+        result['hypeddit_spend'] = float(row[0][0] or 0)
+    except Exception:
+        pass
+
+    # Total promo = Meta Ads + Hypeddit (toute la dépense pub sur la période)
+    result['total_spend'] = result['meta_spend'] + result['hypeddit_spend']
+    if result['total_spend'] > 0:
         result['roi_pct'] = (
-            (result['revenue_eur'] - result['meta_spend']) / result['meta_spend']) * 100
-        result['profitable'] = result['revenue_eur'] >= result['meta_spend']
+            (result['revenue_eur'] - result['total_spend']) / result['total_spend']) * 100
+        result['profitable'] = result['revenue_eur'] >= result['total_spend']
 
     return result
 
@@ -448,14 +470,40 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
     except Exception:
         df_spend = pd.DataFrame(columns=['period_date', 'meta_spend'])
 
-    if df_rev.empty and df_spend.empty:
+    # Dépenses Hypeddit par mois (budget)
+    try:
+        if artist_id is not None:
+            df_hype = db.fetch_df(
+                """SELECT DATE_TRUNC('month', date)::date AS period_date,
+                          SUM(budget) AS hypeddit_spend
+                   FROM hypeddit_daily_stats
+                   WHERE artist_id = %s AND date BETWEEN %s AND %s
+                   GROUP BY DATE_TRUNC('month', date) ORDER BY 1""",
+                (artist_id, from_date, to_date)
+            )
+        else:
+            df_hype = db.fetch_df(
+                """SELECT DATE_TRUNC('month', date)::date AS period_date,
+                          SUM(budget) AS hypeddit_spend
+                   FROM hypeddit_daily_stats
+                   WHERE date BETWEEN %s AND %s
+                   GROUP BY DATE_TRUNC('month', date) ORDER BY 1""",
+                (from_date, to_date)
+            )
+    except Exception:
+        df_hype = pd.DataFrame(columns=['period_date', 'hypeddit_spend'])
+
+    if df_rev.empty and df_spend.empty and df_hype.empty:
         return pd.DataFrame()
 
     if df_rev.empty:
         df_rev = pd.DataFrame(columns=['period_date', 'revenue_eur'])
     if df_spend.empty:
         df_spend = pd.DataFrame(columns=['period_date', 'meta_spend'])
+    if df_hype.empty:
+        df_hype = pd.DataFrame(columns=['period_date', 'hypeddit_spend'])
 
-    df = pd.merge(df_rev, df_spend, on='period_date', how='outer').fillna(0)
+    df = pd.merge(df_rev, df_spend, on='period_date', how='outer')
+    df = pd.merge(df, df_hype, on='period_date', how='outer').fillna(0)
     df['period_date'] = pd.to_datetime(df['period_date'])
     return df.sort_values('period_date')

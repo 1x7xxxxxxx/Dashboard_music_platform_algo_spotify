@@ -39,8 +39,10 @@ def _roi_data_span(db, artist_id):
                    SELECT make_date(year, month, 1) AS d FROM distrokid_monthly_revenue WHERE artist_id = %s
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day WHERE artist_id = %s
+                   UNION ALL
+                   SELECT date::date FROM hypeddit_daily_stats WHERE artist_id = %s
                ) t""",
-            (artist_id, artist_id, artist_id),
+            (artist_id, artist_id, artist_id, artist_id),
         )
     else:
         rows = db.fetch_query(
@@ -50,6 +52,8 @@ def _roi_data_span(db, artist_id):
                    SELECT make_date(year, month, 1) AS d FROM distrokid_monthly_revenue
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day
+                   UNION ALL
+                   SELECT date::date FROM hypeddit_daily_stats
                ) t"""
         )
     if rows and rows[0][0]:
@@ -398,8 +402,8 @@ def show():
             st.subheader(t("imusician.roi_header", "💹 ROI Breakheaven"))
             st.caption(t(
                 "imusician.roi_caption",
-                "Revenus distributeurs (iMusician + DistroKid) vs dépenses Meta Ads "
-                "sur la période sélectionnée"
+                "Revenus distributeurs (iMusician + DistroKid) vs dépenses promo totales "
+                "(Meta Ads + Hypeddit) sur la période sélectionnée"
             ))
 
             span_min, span_max = _roi_data_span(db, artist_id)
@@ -416,25 +420,30 @@ def show():
             else:
                 roi = get_roi_data(db, artist_id, from_date, to_date)
 
-                c1, c2, c3 = st.columns(3)
+                c1, c2, c3, c4 = st.columns(4)
                 c1.metric(t("imusician.roi_revenue", "💰 Revenus distributeurs"),
                           f"{roi['revenue_eur']:,.2f} €")
                 c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
                           f"{roi['meta_spend']:,.2f} €")
+                c3.metric(t("imusician.roi_spend_hypeddit", "🎁 Dépenses Hypeddit"),
+                          f"{roi['hypeddit_spend']:,.2f} €")
 
                 if roi['roi_pct'] is not None:
                     roi_label = f"{roi['roi_pct']:.1f} %"
                     roi_delta = (t("imusician.roi_profitable", "✅ Rentable")
                                  if roi['profitable']
                                  else t("imusician.roi_unprofitable", "⚠️ Déficitaire"))
-                    c3.metric(
+                    c4.metric(
                         "📊 ROI", roi_label, roi_delta,
-                        delta_color="normal" if roi['profitable'] else "inverse"
+                        delta_color="normal" if roi['profitable'] else "inverse",
+                        help=t("imusician.roi_total_help",
+                               "ROI sur la dépense promo totale (Meta + Hypeddit) = "
+                               "{total:,.2f} €").format(total=roi['total_spend'])
                     )
                 else:
-                    c3.metric("📊 ROI", "—",
+                    c4.metric("📊 ROI", "—",
                               help=t("imusician.roi_no_spend_help",
-                                     "Aucune dépense Meta sur la période — élargissez le filtre"))
+                                     "Aucune dépense promo sur la période — élargissez le filtre"))
 
                 df_series = get_monthly_roi_series(db, artist_id, from_date, to_date)
                 if not df_series.empty:
@@ -448,6 +457,12 @@ def show():
                         name=t("imusician.meta_spend_eur", "Dépenses Meta (€)"),
                         marker_color="#FF4444"
                     ))
+                    if 'hypeddit_spend' in df_series.columns:
+                        fig.add_trace(go.Bar(
+                            x=df_series['period_date'], y=df_series['hypeddit_spend'],
+                            name=t("imusician.hypeddit_spend_eur", "Dépenses Hypeddit (€)"),
+                            marker_color="#FF8C00"
+                        ))
                     fig.update_layout(
                         barmode='group',
                         xaxis_tickformat='%b %Y',

@@ -38,6 +38,7 @@ _PLATFORMS = [
     ('apple', 'Apple Music'),
     ('soundcloud', 'SoundCloud'),
     ('youtube', 'YouTube'),
+    ('hypeddit', 'Hypeddit'),
 ]
 _S4A_FILTER = "%1x7xxxxxxx%"
 
@@ -72,6 +73,9 @@ def _load_platform_titles(db, artist_id, platform):
                        (artist_id,)),
         'youtube': ("SELECT title, MAX(video_id), MAX(published_at) FROM youtube_videos "
                     "WHERE artist_id = %s AND title IS NOT NULL GROUP BY title", (artist_id,)),
+        # Hypeddit promo campaigns are named after the track (no per-platform release date).
+        'hypeddit': ("SELECT campaign_name, NULL::text, NULL::date FROM hypeddit_campaigns "
+                     "WHERE artist_id = %s AND campaign_name IS NOT NULL", (artist_id,)),
     }.get(platform)
     if not q:
         return []
@@ -117,7 +121,7 @@ def _build_suggestions(db, artist_id, platform, canonical, links_df):
 
 # Short column headers for the coverage grid (compact, no long platform titles).
 _PLATFORM_SHORT = {'s4a': 'S4A', 'spotify': 'Spotify', 'apple': 'Apple',
-                   'soundcloud': 'SoundCloud', 'youtube': 'YouTube'}
+                   'soundcloud': 'SoundCloud', 'youtube': 'YouTube', 'hypeddit': 'Hypeddit'}
 
 
 def _mutex_checkboxes(editor_key: str, col_a: str, col_b: str):
