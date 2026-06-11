@@ -315,6 +315,130 @@ def _supervision_freshness(db) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["Plateforme", "Dernière donnée", "État"])
 
 
+_COST_CATEGORIES = [
+    ("domain", "🌐 Domaine"),
+    ("vps", "🖥️ VPS / hébergement"),
+    ("claude_code", "🤖 Claude Code"),
+    ("stripe", "💳 Frais Stripe"),
+    ("other", "📦 Autre"),
+]
+_COST_BILLING = [
+    ("monthly", "Mensuel"),
+    ("yearly", "Annuel (amorti /12)"),
+    ("one_off", "Ponctuel"),
+]
+
+
+def _load_costs(db) -> list[dict]:
+    """Operating-cost rows as dicts for the expansion engine (newest/active first)."""
+    rows = db.fetch_query(
+        "SELECT id, category, label, amount_eur, billing_period, start_month, "
+        "end_month, active, note FROM app_operating_costs "
+        "ORDER BY active DESC, start_month DESC, id DESC"
+    )
+    keys = ["id", "category", "label", "amount_eur", "billing_period",
+            "start_month", "end_month", "active", "note"]
+    out = []
+    for r in rows or []:
+        d = dict(zip(keys, r))
+        d["amount_eur"] = float(d["amount_eur"] or 0)
+        out.append(d)
+    return out
+
+
+def _render_costs(db, mrr: float) -> None:
+    """Admin-global operating costs + net margin vs MRR (recurring auto-expanded)."""
+    import datetime as _dt
+
+    from src.dashboard.utils.app_costs import (
+        current_month_cost,
+        expand_monthly_costs,
+    )
+
+    st.markdown("---")
+    st.subheader(t("admin.costs_header", "💸 Coûts d'exploitation & marge"))
+    st.caption(t("admin.costs_intro",
+                 "Coûts plateforme (domaine, VPS, Claude Code, frais Stripe…) — globaux, "
+                 "pas par artiste. Un coût récurrent se reporte automatiquement chaque mois "
+                 "(annuel amorti /12) jusqu'à sa désactivation."))
+
+    rows = _load_costs(db)
+    cat_labels = dict(_COST_CATEGORIES)
+    bill_labels = dict(_COST_BILLING)
+
+    with st.expander(t("admin.costs_add", "➕ Ajouter un coût"), expanded=not rows):
+        with st.form("add_operating_cost", clear_on_submit=True):
+            c1, c2, c3 = st.columns(3)
+            category = c1.selectbox(t("admin.costs_category", "Catégorie"),
+                                    [c for c, _ in _COST_CATEGORIES],
+                                    format_func=lambda c: cat_labels[c])
+            amount = c2.number_input(t("admin.costs_amount", "Montant (€)"),
+                                     min_value=0.0, step=1.0, value=0.0)
+            period = c3.selectbox(t("admin.costs_period", "Facturation"),
+                                  [b for b, _ in _COST_BILLING],
+                                  format_func=lambda b: bill_labels[b])
+            c4, c5 = st.columns(2)
+            start = c4.date_input(t("admin.costs_start", "Mois de début"), value=_dt.date.today())
+            ongoing = c5.checkbox(t("admin.costs_ongoing", "Toujours actif"), value=True)
+            end = None if ongoing else c5.date_input(
+                t("admin.costs_end", "Mois de fin"), value=_dt.date.today())
+            label = st.text_input(t("admin.costs_label", "Libellé (ex. Hetzner CX22)"))
+            if st.form_submit_button(t("admin.costs_save", "💾 Enregistrer"), type="primary"):
+                if amount <= 0:
+                    st.warning(t("admin.costs_need_amount", "Montant requis (> 0)."))
+                else:
+                    db.execute_query(
+                        "INSERT INTO app_operating_costs (category, label, amount_eur, "
+                        "billing_period, start_month, end_month) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (category, label or None, float(amount), period,
+                         start.replace(day=1), end.replace(day=1) if end else None))
+                    st.success(t("admin.costs_added", "Coût ajouté."))
+                    st.rerun()
+
+    if not rows:
+        st.info(t("admin.costs_empty", "Aucun coût enregistré pour l'instant."))
+        return
+
+    cur = current_month_cost(rows)
+    margin = mrr - cur
+    k1, k2, k3 = st.columns(3)
+    k1.metric(t("admin.costs_metric_month", "Coût ce mois"), f"{cur:.2f} €")
+    k2.metric(t("admin.costs_metric_mrr", "MRR"), f"{mrr:.2f} €")
+    k3.metric(t("admin.costs_metric_margin", "Marge nette / mois"), f"{margin:.2f} €",
+              delta=f"{margin:.2f} €")
+
+    df = expand_monthly_costs(rows)
+    if not df.empty:
+        import plotly.express as px
+        df = df.copy()
+        df["mois"] = pd.to_datetime(df["month"])
+        df["Catégorie"] = df["category"].map(lambda c: cat_labels.get(c, c))
+        fig = px.bar(df, x="mois", y="eur", color="Catégorie",
+                     labels={"eur": "€", "mois": ""},
+                     title=t("admin.costs_chart_title", "Coûts mensuels par catégorie"))
+        if mrr > 0:
+            fig.add_hline(y=mrr, line_dash="dash", line_color="green",
+                          annotation_text=f"MRR {mrr:.0f} €")
+        st.plotly_chart(fig, width="stretch")
+
+    active_rows = [r for r in rows if r["active"]]
+    if active_rows:
+        tbl = pd.DataFrame([{
+            "ID": r["id"], "Catégorie": cat_labels.get(r["category"], r["category"]),
+            "Libellé": r["label"] or "—", "Montant (€)": r["amount_eur"],
+            "Facturation": bill_labels.get(r["billing_period"], r["billing_period"]),
+            "Début": str(r["start_month"]), "Fin": str(r["end_month"] or "—"),
+        } for r in active_rows])
+        st.dataframe(tbl, hide_index=True, width="stretch")
+        cc1, cc2 = st.columns([3, 1])
+        to_stop = cc1.selectbox(t("admin.costs_stop_select", "Désactiver un coût (ID)"),
+                                [r["id"] for r in active_rows])
+        if cc2.button(t("admin.costs_stop", "Désactiver")):
+            db.execute_query("UPDATE app_operating_costs SET active = FALSE WHERE id = %s",
+                             (int(to_stop),))
+            st.rerun()
+
+
 def _render_supervision(db):
     # ── Business ──────────────────────────────────────────────────────────
     st.subheader(t("admin.business_header", "📊 Business — inscriptions & abonnements"))
@@ -337,8 +461,8 @@ def _render_supervision(db):
         "FROM artist_subscriptions a JOIN subscription_plans sp ON sp.id = a.plan_id "
         "WHERE a.status = 'active' GROUP BY sp.name, sp.price_monthly ORDER BY sp.price_monthly"
     )
+    mrr = sum(float(r[2] or 0) for r in rev) if rev else 0.0
     if rev:
-        mrr = sum(float(r[2] or 0) for r in rev)
         paying = sum(int(r[1]) for r in rev)
         m1, m2, m3 = st.columns(3)
         m1.metric(t("admin.metric_mrr", "MRR (abonnements actifs)"), f"{mrr:.2f} €")
@@ -349,6 +473,9 @@ def _render_supervision(db):
     else:
         st.caption(t("admin.no_paid_subs",
                      "Aucun abonnement payant actif (tous en Free / essai de bienvenue)."))
+
+    # ── Coûts & marge ─────────────────────────────────────────────────────
+    _render_costs(db, mrr)
 
     # ── Technique ─────────────────────────────────────────────────────────
     st.markdown("---")
