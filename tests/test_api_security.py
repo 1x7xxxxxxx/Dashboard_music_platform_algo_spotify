@@ -93,11 +93,27 @@ class TestSecurityHeaders:
         assert r.headers["Content-Security-Policy"].startswith("default-src 'none'")
         assert r.headers["Cache-Control"] == "no-store"
 
-    def test_docs_exempt_from_csp(self, client):
-        r = client.get("/docs")
-        assert r.status_code == 200
-        assert "Content-Security-Policy" not in r.headers
-        assert r.headers["X-Content-Type-Options"] == "nosniff"
+    def test_docs_disabled_by_default(self, client):
+        # Secure default for public deploy: OpenAPI docs are off unless API_ENABLE_DOCS=1.
+        assert client.get("/docs").status_code == 404
+        assert client.get("/redoc").status_code == 404
+
+    def test_docs_exempt_from_csp(self, monkeypatch):
+        # When docs ARE enabled (API_ENABLE_DOCS=1), Swagger UI must be exempt from the
+        # strict CSP so it can load. Rebuild the app with docs on to verify.
+        import importlib
+
+        from src.api import main as _main
+        monkeypatch.setenv("API_ENABLE_DOCS", "1")
+        try:
+            importlib.reload(_main)
+            r = TestClient(_main.app).get("/docs")
+            assert r.status_code == 200
+            assert "Content-Security-Policy" not in r.headers
+            assert r.headers["X-Content-Type-Options"] == "nosniff"
+        finally:
+            monkeypatch.delenv("API_ENABLE_DOCS", raising=False)
+            importlib.reload(_main)
 
 
 class TestRateLimit:
