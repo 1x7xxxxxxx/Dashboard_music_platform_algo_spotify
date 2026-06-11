@@ -35,4 +35,13 @@ EN = {
     "track_mapping.col_associate": "Associate",
     "track_mapping.col_track": "Track",
     "track_mapping.col_release": "Release",
+    # Unified overview tab (coverage grid + Meta campaigns + suggestions)
+    "track_mapping.coverage_header": "🗺️ Coverage by track",
+    "track_mapping.col_meta_period": "Meta period",
+    "track_mapping.col_campaigns": "Campaigns",
+    "track_mapping.coverage_legend": "✅ = platform linked · “·” = not linked. **Meta** = "
+                                     "number of campaigns mapped to the track · **Meta period** "
+                                     "= from the first to the last campaign.",
+    "track_mapping.campaign_detail": "▸ Campaign detail per track",
+    "track_mapping.suggest_header": "🔎 Suggestions to review",
 }

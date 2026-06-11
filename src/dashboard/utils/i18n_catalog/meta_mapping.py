@@ -6,6 +6,7 @@ EN = {
                              "YouTube) and map your Meta Ad campaigns to tracks. Automatic "
                              "suggestions + manual entry feed META × Spotify and ROI Breakeven.",
     "meta_mapping.tab_tracks": "🎵 Cross-platform titles",
+    "meta_mapping.tab_overview": "🎵 Titles & coverage",
     "meta_mapping.tab_campaigns": "📣 Meta campaigns",
     # Auto-suggestions (top section)
     "meta_mapping.auto_header": "🤖 Automatic suggestions (campaign → track)",
