@@ -1,6 +1,8 @@
 """trigger_algo loaders — move-only split of _common."""
 import json
+
 import pandas as pd
+import streamlit as st
 
 # Process-global caches for static artifacts (mirror ml_inference._model_cache).
 # The explainability tab calls _load_xgb_model 4x per render and re-reads the JSON
@@ -111,16 +113,19 @@ def _compute_score_20(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _load_scored_tracks(db, artist_id):
+@st.cache_data(ttl=60)
+def _load_scored_tracks(_db, artist_id):
     """Latest-date scored tracks with score_20, sorted desc. None if empty.
 
-    Shared by the Vue Globale benchmark table and the Budget top-N% selector.
+    Shared by the Vue Globale benchmark table and the Budget top-N% selector — called
+    from 3 tabs that all render per rerun, so cached (ttl=60) to run the scan once.
+    `_db` underscored → not hashed; keyed on artist_id.
     """
     cols = """song, dw_probability, rr_probability, radio_probability, streams_28d,
               CAST(features_json->>'Velocity_Streams' AS FLOAT) AS velocity"""
     try:
         if artist_id:
-            df = db.fetch_df(
+            df = _db.fetch_df(
                 f"""SELECT {cols} FROM ml_song_predictions
                     WHERE artist_id = %s AND prediction_date = (
                         SELECT MAX(prediction_date) FROM ml_song_predictions WHERE artist_id = %s
@@ -128,7 +133,7 @@ def _load_scored_tracks(db, artist_id):
                 (artist_id, artist_id),
             )
         else:
-            df = db.fetch_df(
+            df = _db.fetch_df(
                 f"""SELECT {cols} FROM ml_song_predictions
                     WHERE prediction_date = (SELECT MAX(prediction_date) FROM ml_song_predictions)"""
             )

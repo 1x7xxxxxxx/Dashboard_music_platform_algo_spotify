@@ -322,7 +322,8 @@ def get_soundcloud_likes(_db, artist_id):
 
 # ─── ROI Breakheaven ─────────────────────────────────────────────────────────
 
-def get_roi_data(db, artist_id, from_date, to_date):
+@st.cache_data(ttl=60)
+def get_roi_data(_db, artist_id, from_date, to_date):
     """
     Calcule le ROI iMusician / Meta Ads pour une période donnée.
     Retourne revenue_eur, meta_spend, roi_pct, profitable.
@@ -340,13 +341,13 @@ def get_roi_data(db, artist_id, from_date, to_date):
     # Revenus distributeurs (iMusician + DistroKid, aggregation sur year+month)
     try:
         if artist_id is not None:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
                    WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s""",
                 (artist_id, from_date, to_date)
             )
         else:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
                    WHERE make_date(year, month, 1) BETWEEN %s AND %s""",
                 (from_date, to_date)
@@ -358,13 +359,13 @@ def get_roi_data(db, artist_id, from_date, to_date):
     # Dépenses Meta Ads
     try:
         if artist_id is not None:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day
                    WHERE artist_id = %s AND day_date BETWEEN %s AND %s""",
                 (artist_id, from_date, to_date)
             )
         else:
-            row = db.fetch_query(
+            row = _db.fetch_query(
                 """SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day
                    WHERE day_date BETWEEN %s AND %s""",
                 (from_date, to_date)
@@ -384,7 +385,8 @@ def get_roi_data(db, artist_id, from_date, to_date):
     return result
 
 
-def get_monthly_roi_series(db, artist_id, from_date, to_date):
+@st.cache_data(ttl=60)
+def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     """Monthly revenue vs Meta spend for the period.
     Columns: period_date, distributor_revenue, sacem_revenue, revenue_eur (= the two
     summed), meta_spend. SACEM is kept distinct so the chart can stack it. No Hypeddit
@@ -394,8 +396,8 @@ def get_monthly_roi_series(db, artist_id, from_date, to_date):
     def _q(sql_artist, sql_all, cols):
         try:
             if artist_id is not None:
-                return db.fetch_df(sql_artist, (artist_id, from_date, to_date))
-            return db.fetch_df(sql_all, (from_date, to_date))
+                return _db.fetch_df(sql_artist, (artist_id, from_date, to_date))
+            return _db.fetch_df(sql_all, (from_date, to_date))
         except Exception:
             return pd.DataFrame(columns=cols)
 

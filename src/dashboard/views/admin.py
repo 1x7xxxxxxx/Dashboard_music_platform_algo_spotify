@@ -43,6 +43,10 @@ def _update_artist(db, artist_id: int, name: str, tier: str):
     # Audit the plan transition for the Alerts plan-evolution chart.
     from src.utils.plan_history import log_plan_change
     log_plan_change(db, artist_id, tier, 'admin_edit')
+    # Bust the process-global plan-row cache so the edited tier takes effect at once
+    # (the cache is cross-session, so this reaches artist X's session too).
+    from src.dashboard.auth import _cached_plan_row
+    _cached_plan_row.clear()
 
 
 def _toggle_active(db, artist_id: int, active: bool):

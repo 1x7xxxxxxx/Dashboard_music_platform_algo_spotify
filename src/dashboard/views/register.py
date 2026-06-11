@@ -156,6 +156,10 @@ def _apply_promo(db, promo: dict, artist_id: int, code: str) -> None:
         (promo['id'], artist_id),
     )
     # Note: uses_count increment is already handled atomically above.
+    # Invalidate the 60s plan-row cache so the artist's own session reflects the new
+    # plan on the next render (otherwise they'd still see the paywall for up to 60s).
+    from src.dashboard.auth import _cached_plan_row
+    _cached_plan_row.clear()
 
 
 def _grant_welcome_trial(db, artist_id: int, trial_days: int = WELCOME_TRIAL_DAYS) -> None:
@@ -172,6 +176,8 @@ def _grant_welcome_trial(db, artist_id: int, trial_days: int = WELCOME_TRIAL_DAY
         "WHERE id = %s",
         ('WELCOME_TRIAL', expires_at, artist_id),
     )
+    from src.dashboard.auth import _cached_plan_row
+    _cached_plan_row.clear()
 
 
 def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: str) -> None:
