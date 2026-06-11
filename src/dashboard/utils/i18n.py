@@ -61,6 +61,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.db_health": "🗄️ Data health",
         "nav.item.spotify_s4a_combined": "🎵 Spotify & S4A",
         "nav.item.meta_x_spotify": "🎵 Meta × Spotify",
+        "nav.item.sacem": "🎼 SACEM royalties",
         "nav.item.apple_music": "🎎 Apple Music",
         "nav.item.youtube": "🎬 YouTube",
         "nav.item.soundcloud": "☁️ SoundCloud",

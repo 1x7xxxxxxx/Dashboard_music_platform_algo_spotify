@@ -877,6 +877,23 @@ CREATE TABLE IF NOT EXISTS campaign_mapping_rejected (
     PRIMARY KEY (artist_id, campaign_name)
 );
 
+-- SACEM account-statement ledger (see migrations/055). 'repartition' lines = gross
+-- royalties (feed the ROI Breakeven); the rest = charges/TVA/fees/payouts.
+CREATE TABLE IF NOT EXISTS sacem_statement (
+    id            SERIAL PRIMARY KEY,
+    artist_id     INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    line_date     DATE    NOT NULL,
+    libelle       TEXT    NOT NULL,
+    mouvement_eur NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    solde_eur     NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    line_type     TEXT    NOT NULL DEFAULT 'other',
+    source        TEXT    NOT NULL DEFAULT 'sacem_xlsx',
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (artist_id, line_date, libelle, mouvement_eur, solde_eur)
+);
+CREATE INDEX IF NOT EXISTS idx_sacem_statement_artist_date ON sacem_statement (artist_id, line_date);
+CREATE INDEX IF NOT EXISTS idx_sacem_statement_type ON sacem_statement (artist_id, line_type);
+
 -- ============================================================
 -- 18. Données initiales
 -- ============================================================

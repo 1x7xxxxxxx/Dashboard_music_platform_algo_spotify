@@ -36,7 +36,7 @@ EN = {
     # ROI tab
     "imusician.roi_header": "💹 ROI Breakheaven",
     "imusician.roi_caption": (
-        "Distributor revenue (iMusician + DistroKid) vs total promo spend "
+        "Revenue (iMusician + DistroKid + SACEM royalties) vs total promo spend "
         "(Meta Ads + Hypeddit) over the selected period"
     ),
     "imusician.roi_no_data": (

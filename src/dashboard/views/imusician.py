@@ -41,8 +41,11 @@ def _roi_data_span(db, artist_id):
                    SELECT day_date::date FROM meta_insights_performance_day WHERE artist_id = %s
                    UNION ALL
                    SELECT date::date FROM hypeddit_daily_stats WHERE artist_id = %s
+                   UNION ALL
+                   SELECT line_date::date FROM sacem_statement
+                       WHERE artist_id = %s AND line_type = 'repartition'
                ) t""",
-            (artist_id, artist_id, artist_id, artist_id),
+            (artist_id, artist_id, artist_id, artist_id, artist_id),
         )
     else:
         rows = db.fetch_query(
@@ -54,6 +57,8 @@ def _roi_data_span(db, artist_id):
                    SELECT day_date::date FROM meta_insights_performance_day
                    UNION ALL
                    SELECT date::date FROM hypeddit_daily_stats
+                   UNION ALL
+                   SELECT line_date::date FROM sacem_statement WHERE line_type = 'repartition'
                ) t"""
         )
     if rows and rows[0][0]:
@@ -402,8 +407,8 @@ def show():
             st.subheader(t("imusician.roi_header", "💹 ROI Breakheaven"))
             st.caption(t(
                 "imusician.roi_caption",
-                "Revenus distributeurs (iMusician + DistroKid) vs dépenses promo totales "
-                "(Meta Ads + Hypeddit) sur la période sélectionnée"
+                "Revenus (iMusician + DistroKid + royalties SACEM) vs dépenses promo "
+                "totales (Meta Ads + Hypeddit) sur la période sélectionnée"
             ))
 
             span_min, span_max = _roi_data_span(db, artist_id)

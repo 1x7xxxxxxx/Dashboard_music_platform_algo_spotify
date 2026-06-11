@@ -184,6 +184,7 @@ _NAV_SECTIONS = [
                                              ("🌍 Breakdowns Meta", "meta_breakdowns"),
                                              ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
     ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
+                                             ("🎼 SACEM", "sacem"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
     ("reports",   "🎁 Data Wrapped",        [("🎁 Data Wrapped", "data_wrapped")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
@@ -371,6 +372,7 @@ def _render_page(page):
     elif page == "useful_links": from views.useful_links import show; show()
     elif page == "billing": from views.billing import show; show()
     elif page == "revenue_forecast": from views.revenue_forecast import show; show()
+    elif page == "sacem": from views.sacem import show; show()
     elif page == "meta_mapping": from views.meta_mapping import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
