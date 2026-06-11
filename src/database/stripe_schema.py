@@ -55,7 +55,7 @@ STRIPE_SCHEMA = {
 _FREE_FEATURES = {
     'home', 'spotify_s4a_combined', 'youtube', 'meta_ads_overview', 'instagram',
     'soundcloud', 'apple_music', 'hypeddit', 'imusician', 'upload_csv', 'credentials',
-    'export_csv', 'export_pdf', 'data_wrapped', 'meta_mapping', 'track_mapping', 'referral',
+    'export_csv', 'export_pdf', 'data_wrapped', 'meta_mapping', 'referral',
 }
 PLAN_FEATURES = {
     'free':  set(_FREE_FEATURES),

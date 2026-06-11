@@ -35,7 +35,7 @@ def _load_const(name):
 _NON_ANALYTICS = {
     "home", "export_pdf", "export_csv",            # entry / exports
     "process_guide", "credentials", "upload_csv",  # data setup
-    "meta_mapping", "track_mapping", "db_health",  # mapping/management tools
+    "meta_mapping", "db_health",                   # mapping/management tools
     "account", "billing", "referral",              # account
     "data_wrapped",                                # is itself a recap/report
 }

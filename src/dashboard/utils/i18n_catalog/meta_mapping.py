@@ -1,10 +1,12 @@
 """EN strings for the Meta × Spotify campaign mapping view."""
 
 EN = {
-    "meta_mapping.title": "🔗 Meta × Spotify — Campaign Mapping",
-    "meta_mapping.subtitle": "Link your Meta ad campaigns to Spotify tracks for attribution "
-                             "analysis. Automatic suggestions and manual entry feed the same "
-                             "mapping (META × Spotify + ROI Breakeven views).",
+    "meta_mapping.title": "🔗 Cross-platform mapping",
+    "meta_mapping.subtitle": "Link your titles across platforms (Spotify, Apple, SoundCloud, "
+                             "YouTube) and map your Meta Ad campaigns to tracks. Automatic "
+                             "suggestions + manual entry feed META × Spotify and ROI Breakeven.",
+    "meta_mapping.tab_tracks": "🎵 Cross-platform titles",
+    "meta_mapping.tab_campaigns": "📣 Meta campaigns",
     # Auto-suggestions (top section)
     "meta_mapping.auto_header": "🤖 Automatic suggestions (campaign → track)",
     "meta_mapping.auto_no_reference": "No track reference yet — import your S4A CSVs, then "

@@ -39,7 +39,7 @@ _PAGE_LABELS = {
     'export_pdf': 'Export PDF',
     'revenue_forecast': 'Prévisions revenus',
     'meta_x_spotify': 'META x Spotify',
-    'meta_mapping': 'Meta Mapping',
+    'meta_mapping': 'Mapping cross-plateforme',
     'account': 'Mon compte',
     'billing': 'Billing',
 }

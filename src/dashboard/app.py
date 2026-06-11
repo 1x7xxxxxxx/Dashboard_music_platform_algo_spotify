@@ -168,8 +168,7 @@ _NAV_SECTIONS = [
     ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
-                                             ("🔗 Mapping Spotify × Meta Ads (nom de campagne)", "meta_mapping"),
-                                             ("🧩 Mapping multi-plateformes", "track_mapping"),
+                                             ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -373,7 +372,6 @@ def _render_page(page):
     elif page == "billing": from views.billing import show; show()
     elif page == "revenue_forecast": from views.revenue_forecast import show; show()
     elif page == "meta_mapping": from views.meta_mapping import show; show()
-    elif page == "track_mapping": from views.track_mapping import show; show()
     elif page == "admin": from views.admin import show; show()
     elif page == "account": from views.account import show; show()
     elif page == "meta_creatives": from views.meta_creatives import show; show()

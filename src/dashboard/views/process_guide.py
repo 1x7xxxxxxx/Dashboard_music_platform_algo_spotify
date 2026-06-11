@@ -54,14 +54,15 @@ def _get_steps() -> list[tuple[str, list[str]]]:
             t("process_guide.s3_title", "3. Mapper Meta Ads ↔ Spotify"),
             [
                 t("process_guide.s3_i1",
-                  "Ouvrez la page **🔗 Meta × Spotify**. Des **suggestions automatiques** "
-                  "(similarité du nom de campagne + proximité avec la date de sortie) "
-                  "apparaissent **en haut**, avec un indice de fiabilité 🟢/🟡/🔴 — cochez "
-                  "**Associer** pour valider celles qui sont correctes."),
+                  "Ouvrez la page **🔗 Mapping cross-plateforme**. Onglet **📣 Campagnes "
+                  "Meta** : des **suggestions automatiques** (similarité du nom + proximité "
+                  "avec la date de sortie) apparaissent **en haut**, avec un indice de "
+                  "fiabilité 🟢/🟡/🔴 — cochez **Associer** pour valider les bonnes."),
                 t("process_guide.s3_i2",
-                  "Sinon, associez à la main chaque **campagne Meta Ads** au **titre** "
-                  "correspondant (onglet **Ajout manuel**). C'est ce lien qui rapproche "
-                  "dépenses publicitaires et streams (ROI, vue META × Spotify)."),
+                  "Sur le même écran, l'onglet **🎵 Titres cross-plateformes** relie vos "
+                  "titres Spotify/Apple/SoundCloud/YouTube. Sinon, associez une campagne à "
+                  "la main (onglet **Ajout manuel**). C'est ce lien qui rapproche dépenses "
+                  "publicitaires et streams (ROI, vue META × Spotify)."),
                 t("process_guide.s3_i3",
                   "Astuce : nommez vos campagnes Meta Ads avec le titre du morceau pour de "
                   "meilleures suggestions automatiques (ex. campagne « Track 1 »)."),

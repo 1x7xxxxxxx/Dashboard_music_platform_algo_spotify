@@ -21,6 +21,9 @@ from src.utils.track_matching import normalize_track_title
 W_CAMP_TITLE = 0.65          # campaign score: title vs date split (sums to 1.0)
 W_CAMP_DATE = 0.35
 DATE_HALFLIFE_DAYS = 14      # campaign-vs-release proximity half-life
+W_TRACK_TITLE = 0.7          # cross-platform track score: title vs date split (sums to 1.0)
+W_TRACK_DATE = 0.3
+TRACK_DATE_HALFLIFE_DAYS = 30  # platform-upload vs release proximity (looser than a campaign)
 CONTAINMENT_SCORE = 0.9      # one base-title token-set ⊆ the other (artist prefix / suffix noise)
 
 
@@ -58,14 +61,15 @@ def title_similarity(a: str, b: str) -> float:
     return round(0.5 * seq + 0.5 * jac, 4)
 
 
-def date_proximity(campaign_start, release_date) -> float:
-    """0..1 exp-decay on |days| between a campaign start and a release (half-life 14d).
+def date_proximity(campaign_start, release_date, half_life: float = DATE_HALFLIFE_DAYS) -> float:
+    """0..1 exp-decay on |days| between two dates (default half-life 14d for campaigns;
+    pass TRACK_DATE_HALFLIFE_DAYS for cross-platform track timing).
     Same day → 1.0; missing either date → 0.0."""
     cs, rd = _as_date(campaign_start), _as_date(release_date)
     if cs is None or rd is None:
         return 0.0
     days = abs((cs - rd).days)
-    return round(0.5 ** (days / DATE_HALFLIFE_DAYS), 4)
+    return round(0.5 ** (days / half_life), 4)
 
 
 def mapping_boost(match_key: str, confirmed_keys) -> float:
@@ -81,18 +85,29 @@ def confidence_badge(score: float) -> str:
 
 
 def rank_track_candidates(platform_title, canonical_tracks, confirmed_keys=None,
-                          top_n: int = 3):
-    """Rank canonical tracks for one platform-local title. Confidence = title similarity;
-    mapping_boost only breaks ties. canonical_tracks: [{match_key, title, ...}]."""
+                          top_n: int = 3, platform_date=None):
+    """Rank canonical tracks for one platform-local title. Score = title similarity,
+    optionally combined with release-date proximity when the platform exposes an upload
+    date (Spotify/SoundCloud/YouTube): score = 0.7·title + 0.3·date. Title-only at FULL
+    scale when no platform_date (Apple / S4A) — never capped at 0.7. The date term breaks
+    remix-vs-original ties (same base title, different release dates) and sinks junk titles
+    (DJ sets) whose upload date is far. mapping_boost only breaks remaining ties.
+    canonical_tracks: [{match_key, title, release_date, ...}]."""
     confirmed_keys = confirmed_keys or set()
     scored = []
     for t in canonical_tracks:
         sim = title_similarity(platform_title, t['title'])
         if sim <= 0:
             continue
-        method = 'exact' if sim >= 1.0 else 'title_sim'
-        scored.append((sim, mapping_boost(t['match_key'], confirmed_keys),
-                       Candidate(t['match_key'], t['title'], round(sim, 4), method)))
+        if platform_date is not None and t.get('release_date'):
+            prox = date_proximity(platform_date, t['release_date'], TRACK_DATE_HALFLIFE_DAYS)
+            score = round(W_TRACK_TITLE * sim + W_TRACK_DATE * prox, 4)
+            method = 'exact' if sim >= 1.0 else 'title+date'
+        else:
+            score = round(sim, 4)
+            method = 'exact' if sim >= 1.0 else 'title_sim'
+        scored.append((score, mapping_boost(t['match_key'], confirmed_keys),
+                       Candidate(t['match_key'], t['title'], score, method)))
     scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
     return [c for _, _, c in scored[:top_n]]
 
