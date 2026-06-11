@@ -71,9 +71,10 @@ EN = {
                                         "raw fuel (organic, recent spark) writes the **cheque**.",
     "ml_widgets.volume_gauges_pedagogic": "Volume variables without a live value ({n}) — "
                                           "educational",
-    "ml_widgets.volume_imputed": "⚠️ {names}: features imputed to 0 in production for lack of a "
-                                 "source — shown as **targets**, not live values, until Phase 2 "
-                                 "(live capture per S4A source/algorithm).",
+    "ml_widgets.volume_imputed": "⚠️ {names}: no live value for this song — shown as "
+                                 "**targets**, not live values. Manual-source variables "
+                                 "(non-algo, Radio) display live as soon as they are entered "
+                                 "in “🎯 Global View”.",
     # SHAP narrative
     "ml_widgets.shap_headline": "**🧾 {algo_label} autopsy** — average starting point: "
                                 "~{baseline:,.0f} → prediction: **~{prediction:,.0f}**.",

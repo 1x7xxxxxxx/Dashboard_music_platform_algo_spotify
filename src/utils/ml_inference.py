@@ -10,9 +10,12 @@ Modèles v3 (machine_learning/analysis/03_train.py) : validés en group-CV par c
 (StratifiedGroupKFold sur NameID), SANS SMOTE, calibration Platt ajustée hors-fold
 (OOF) et non plus sur le test split. Les régresseurs de volume sont entraînés sur une
 cible log1p — l'inférence applique donc expm1 (cf. _volume_forecast).
-Contrat de features inchangé vs v2 (13 features). NOTE: NonAlgoStreams28Days_log et
-HowManySongsDoYouHaveInRadioRightNow restent imputées à 0 faute de source live
-(skew train/serve résiduel, levé en Phase 2 — l'UI affiche un avertissement).
+Contrat de features inchangé vs v2 (13 features). NonAlgoStreams28Days_log et
+HowManySongsDoYouHaveInRadioRightNow ont désormais une source live : la saisie
+manuelle S4A (migration 052, tables s4a_song_nonalgo_streams / s4a_artist_radio_count).
+Elles sont servies telles quelles dès qu'une saisie existe (skew train/serve levé
+pour ces titres) ; à défaut elles retombent sur 0 et build_features pose les drapeaux
+nonalgo_known / radio_known pour que l'UI distingue un vrai 0 saisi d'une absence.
 """
 import os
 import logging
@@ -220,6 +223,25 @@ def _latest_nonalgo_28d(db, artist_id: int, song: str) -> int:
     return int(row[0][0]) if row and row[0][0] is not None else 0
 
 
+def _has_nonalgo_entry(db, artist_id: int, song: str) -> bool:
+    """True if the tenant entered a non-algo value for this song (a real 0 vs absent)."""
+    row = db.fetch_query(
+        """SELECT 1 FROM s4a_song_nonalgo_streams
+           WHERE artist_id = %s AND song = %s LIMIT 1""",
+        (artist_id, song),
+    )
+    return bool(row)
+
+
+def _has_radio_entry(db, artist_id: int) -> bool:
+    """True if the tenant entered a Radio song count (a real 0 vs never filled in)."""
+    row = db.fetch_query(
+        """SELECT 1 FROM s4a_artist_radio_count WHERE artist_id = %s LIMIT 1""",
+        (artist_id,),
+    )
+    return bool(row)
+
+
 def build_features(db, artist_id: int, song: str) -> dict:
     """Construit le vecteur de features pour une chanson depuis la DB.
 
@@ -347,6 +369,8 @@ def build_features(db, artist_id: int, song: str) -> dict:
     # non-algo stream volume; radio count is a raw per-artist integer.
     nonalgo_28d = _latest_nonalgo_28d(db, artist_id, song)
     radio_count = _latest_radio_count(db, artist_id)
+    nonalgo_known = _has_nonalgo_entry(db, artist_id, song)
+    radio_known = _has_radio_entry(db, artist_id)
 
     # --- Release consistency: median weeks between successive releases ---
     # Source = real release dates (track_release_reference, per-tenant). The
@@ -387,9 +411,11 @@ def build_features(db, artist_id: int, song: str) -> dict:
     features["_raw_streams_7d"] = s7
     features["_raw_streams_28d"] = s28
     features["_raw_followers"] = followers
-    # Persisted (no underscore) so the dashboard distinguishes a real Discovery-Mode
-    # opt-out from a missing-data 0. Ignored by the model (not in FEATURE_COLUMNS).
+    # Persisted (no underscore) so the dashboard distinguishes a real entry (incl. a
+    # genuine 0) from a missing-data 0. Ignored by the model (not in FEATURE_COLUMNS).
     features["discovery_mode_known"] = discovery_mode_known
+    features["nonalgo_known"] = nonalgo_known
+    features["radio_known"] = radio_known
 
     # Raw inputs for the PI regressor (order = PI_FEATURE_COLUMNS). 28-day window
     # globals mirror the training columns ListenersLast28Days / StreamsLast28Days /

@@ -383,6 +383,7 @@ EN = {
     "trigger_algo.common.dm_on": "enabled",
     "trigger_algo.common.dm_off": "disabled",
     "trigger_algo.common.dm_known": "✅ Discovery Mode specified: **{state}** (real data, not imputed).",
+    "trigger_algo.common.manual_entered": "✅ S4A entries applied: **{names}** (real data, not imputed).",
     "trigger_algo.common.drift_detected": (
         "📉 **Drift detected**: {n} variable(s) outside the training "
         "envelope (|z| > 4) — {vars}. The prediction extrapolates "

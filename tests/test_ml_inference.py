@@ -25,6 +25,8 @@ from src.utils.ml_inference import (
     FEATURE_COLUMNS,
     MODEL_PATHS,
     MODEL_VERSION,
+    _has_nonalgo_entry,
+    _has_radio_entry,
     _latest_nonalgo_28d,
     _latest_radio_count,
     score_song,
@@ -139,6 +141,54 @@ class TestManualFeatureSources:
 
     def test_nonalgo_defaults_zero_on_null(self):
         assert _latest_nonalgo_28d(_StubDB([(None,)]), 1, "song") == 0
+
+    # *_known flags: distinguish a real entry (incl. a genuine 0) from absence.
+    def test_nonalgo_known_true_when_row_exists(self):
+        assert _has_nonalgo_entry(_StubDB([(1,)]), 1, "song") is True
+
+    def test_nonalgo_known_false_when_absent(self):
+        assert _has_nonalgo_entry(_StubDB([]), 1, "song") is False
+        assert _has_nonalgo_entry(_StubDB(None), 1, "song") is False
+
+    def test_radio_known_true_when_row_exists(self):
+        # A row with song_count=0 still means "entered 0", not "never filled in".
+        assert _has_radio_entry(_StubDB([(1,)]), 1) is True
+
+    def test_radio_known_false_when_absent(self):
+        assert _has_radio_entry(_StubDB([]), 1) is False
+        assert _has_radio_entry(_StubDB(None), 1) is False
+
+
+class TestFeatureLiveAvailable:
+    """feature_live_available un-imputes a manual-source feature once its *_known
+    flag is set — so a genuine 0 entry counts as live data, not imputation."""
+
+    def _spec(self, json_key):
+        return {"json_key": json_key, "live_unavailable": True}
+
+    def test_plain_feature_is_available(self):
+        from src.dashboard.utils.algo_knowledge import feature_live_available
+        assert feature_live_available({"json_key": "StreamsLast7Days_log"}, {}) is True
+
+    def test_divergent_never_available(self):
+        from src.dashboard.utils.algo_knowledge import feature_live_available
+        assert feature_live_available({"divergent": True}, {"nonalgo_known": True}) is False
+
+    def test_manual_feature_unavailable_without_entry(self):
+        from src.dashboard.utils.algo_knowledge import feature_live_available
+        spec = self._spec("NonAlgoStreams28Days_log")
+        assert feature_live_available(spec, {}) is False
+        assert feature_live_available(spec, {"nonalgo_known": False}) is False
+
+    def test_manual_feature_available_once_entered(self):
+        from src.dashboard.utils.algo_knowledge import feature_live_available
+        assert feature_live_available(
+            self._spec("NonAlgoStreams28Days_log"), {"nonalgo_known": True}) is True
+        assert feature_live_available(
+            self._spec("HowManySongsDoYouHaveInRadioRightNow"), {"radio_known": True}) is True
+        assert feature_live_available(
+            self._spec("IsThisSongOptedIntoSpotifyDiscoveryMode"),
+            {"discovery_mode_known": True}) is True
 
 
 # ─────────────────────────────────────────────────────────────────────

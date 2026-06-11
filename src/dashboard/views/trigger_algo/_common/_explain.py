@@ -115,10 +115,17 @@ def _show_imputation_caveat(feats: dict, feature_columns) -> None:
     zeroed = [f for f in feature_columns
               if f in feats and f in _IMPUTED_FEATURES and float(feats.get(f, 0.0)) == 0.0]
     flagged = set(missing) | set(zeroed)
-    # Discovery Mode has a manual source: a KNOWN opt-out is real data, not imputed.
+    # Manual-source features (migration 052): a value the tenant entered — even a
+    # genuine 0 — is real data, not imputation. Drop it from the warning when known.
     dm_known = bool(feats.get("discovery_mode_known"))
+    nonalgo_known = bool(feats.get("nonalgo_known"))
+    radio_known = bool(feats.get("radio_known"))
     if dm_known:
         flagged.discard(_DM_KEY)
+    if nonalgo_known:
+        flagged.discard("NonAlgoStreams28Days_log")
+    if radio_known:
+        flagged.discard("HowManySongsDoYouHaveInRadioRightNow")
     if flagged:
         labels = [t(f"algo.label.{f}", _FEATURE_LABELS.get(f, (f, True))[0])
                   for f in sorted(flagged)]
@@ -141,6 +148,15 @@ def _show_imputation_caveat(feats: dict, feature_columns) -> None:
         st.caption(t("trigger_algo.common.dm_known",
                      "✅ Discovery Mode renseigné : **{state}** (donnée réelle, non imputée).")
                    .format(state=_state))
+    _entered = []
+    if nonalgo_known:
+        _entered.append(t("algo.label.NonAlgoStreams28Days", "Streams non-algo (28j)"))
+    if radio_known:
+        _entered.append(t("algo.label.HowManySongsDoYouHaveInRadioRightNow", "Titres en Radio"))
+    if _entered:
+        st.caption(t("trigger_algo.common.manual_entered",
+                     "✅ Saisies S4A prises en compte : **{names}** (données réelles, non imputées).")
+                   .format(names=", ".join(_entered)))
 
 
 def _show_drift_status(feats: dict) -> None:

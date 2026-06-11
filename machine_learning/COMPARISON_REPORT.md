@@ -150,7 +150,7 @@ This is the most useful *interpretive* difference and it should change the UI co
 | 4 | Suppress DW volume; caveat RR/Radio as floors | **shipped** (DW+RR suppressed, Radio floor) |
 | 5 | Populate RR + Radio calibration bands | **shipped** (`ALGO_CALIBRATION_BANDS`) |
 | 6 | Re-copy the UI per §5 (RR=forecast, DW=levers, Radio=momentum) | **shipped** (scorecard interpretations) |
-| 7 | Phase-2 live data (NonAlgoStreams + RadioCount split) | **still a priority** — kept 13 feats → skew remains; UI shows the imputation caveat |
+| 7 | Phase-2 live data (NonAlgoStreams + RadioCount split) | **partly closed** (migration 052): both now have a manual S4A source and are served live once entered (`*_known` flags) → skew gone for filled tenants; the imputation caveat now fires only when no entry exists. Full auto-capture per S4A source still a Phase-2 item |
 
 ---
 
