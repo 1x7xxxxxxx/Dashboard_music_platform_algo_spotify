@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-06-11 — Passe d'optimisation pré-déploiement (perf DB/dashboard/DAG + durcissement sécurité)
+
+Session dédiée (branche `chore/pre-deploy-optimizations` = PR #21, 4 commits), à la suite d'un audit 3-agents (frontend / backend / security specialists).
+
+**Perf DB** (`057_composite_artist_date_indexes.sql`, NEW) — 5 index composites `(artist_id, date)` sur les tables hot-path les plus scannées. Côté code, `get_monthly_roi_series` (`kpi_helpers`) faisait **deux scans** de `v_artist_monthly_revenue` → fusionnés en une seule requête `FILTER`.
+
+**Perf dashboard** — `get_artist_plan` était une **connexion DB fraîche à chaque rerun** de la sidebar → `@st.cache_data(ttl=60)`. Les blobs d'export PDF/CSV stockés en `session_state` sont **libérés à la navigation** (`_render_page`, `app.py`) au lieu de persister en mémoire. Le Booster XGBoost + artefacts JSON sont **mémoïsés** dans `trigger_algo/_common/_loaders.py` (était rechargé/désérialisé à chaque scoring).
+
+**Perf DAG** — `meta_token_refresh` ouvrait une connexion `psycopg2.connect` **par artiste dans la boucle** → une seule connexion réutilisée.
+
+**Durcissement sécurité** (cap D0 déploiement) — `docker-compose.yml` : mot de passe DB (3 occurrences en dur retirées) + creds admin Airflow désormais via `${VAR}` ; Postgres/Airflow **bindés sur `127.0.0.1`** (plus exposés sur `0.0.0.0`). `src/api/auth.py` : secret JWT aléatoire éphémère (plus de fallback connu du repo). `src/api/main.py` : `/docs`+`/redoc` **off par défaut** (gated `API_ENABLE_DOCS`), CORS lu depuis l'env. `stripe_webhook.py` : **fail-closed** sur payload non signé. Ajouts : `.env.example` + checklist ops D0 dans `deployment.md`. Test `test_api_security` verrouille le défaut docs-off.
+
+**Deux findings d'audit volontairement NON actionnés** (tracés ici pour ne pas les redécouvrir) :
+- `src/collectors/s4a_csv_watcher.py::S4AWatcher` est **du code mort** (rien ne l'importe ; le DAG live a son propre chemin `upsert_many`) → flaggé pour **suppression**, pas patché (ne pas durcir du code à supprimer).
+- Les `db.close()` manquants dans les DAGs sont **mitigés par l'isolation process par-tâche** du LocalExecutor Airflow (chaque tâche = process éphémère, fd libérés à la sortie) → **dépriorisé** P4.
+
+**Prochaine étape** : merger PR #21, puis reprendre C5/C6 (sizing VPS + domaine/accès).
+
+---
+
 ## 2026-06-11 — Mapping cross-plateforme unifié, SACEM, revenu consolidé en VIEW, nettoyage i18n + split meta_mapping
 
 Session pré-déploiement (branche `feat/mapping-merge-suggestions` = PR #19). 521 tests verts, ruff clean.
