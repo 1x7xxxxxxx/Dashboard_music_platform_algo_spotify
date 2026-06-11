@@ -312,17 +312,22 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
             continue
         cand = cands[0]
         cc = ctx.get(c['campaign'], {})
+        # A campaign with 0 € spent never ran a real promo for a release → propose to
+        # reject it by default (and don't pre-tick Associer).
+        spent = round(cc.get('spend', 0.0), 2)
+        no_spend = spent == 0
         # track_name in `_`-form to match s4a_song_timeline.song (the meta_x_spotify join key).
         sugg.append({'campaign': c['campaign'], 'track_name': canonical_song(cand.title),
                      'confidence': cand.score, 'method': cand.method})
         disp.append({'Fiab.': confidence_badge(cand.score),
-                     'Dépensé (€)': round(cc.get('spend', 0.0), 2), 'Campagne': c['campaign'],
+                     'Dépensé (€)': spent, 'Campagne': c['campaign'],
                      'Adsets': _trunc(cc.get('adsets', '')), 'Ads': _trunc(cc.get('ads', '')),
                      'Période camp.': cc.get('period', '—'),
                      'Suggestion (track)': cand.title,
                      'Sortie track': str(rel_by_key.get(cand.match_key) or '—'),
                      'Confiance': round(cand.score * 100, 1),
-                     'Associer': cand.score >= 0.6, 'Rejeter': False})
+                     'Associer': cand.score >= 0.6 and not no_spend,
+                     'Rejeter': no_spend})
     return sugg, pd.DataFrame(disp)
 
 
@@ -402,10 +407,10 @@ def _render_campaign_tab(db, artist_id, canonical):
     else:
         st.caption(t("meta_mapping.auto_legend",
                      "Score = similarité du nom **et** proximité avec la date de sortie. "
-                     "Les colonnes **Adsets / Ads** donnent le contexte (souvent le nom du "
-                     "titre). Fiabilité : 🟢 ≥ 80 % · 🟡 50–80 % · 🔴 < 50 %. Cochez "
-                     "**Associer** — ou **Rejeter** si la campagne n'était **pas** destinée à "
-                     "une release (elle ne sera plus proposée) — puis enregistrez."))
+                     "**Dépensé (€)** + **Adsets / Ads** donnent le contexte. Fiabilité : "
+                     "🟢 ≥ 80 % · 🟡 50–80 % · 🔴 < 50 %. Les campagnes à **0 € dépensé** "
+                     "sont pré-cochées **Rejeter** (jamais une vraie promo de release). "
+                     "Cochez **Associer** ou **Rejeter**, puis enregistrez."))
         edited = st.data_editor(
             disp, hide_index=True, width="stretch", key="ed_auto_camp",
             on_change=_mutex_checkboxes, args=("ed_auto_camp", "Associer", "Rejeter"),
@@ -472,7 +477,7 @@ def _render_campaign_tab(db, artist_id, canonical):
                       "Aucun mapping pour le moment. Utilisez les suggestions ci-dessus ou "
                       "l'onglet **Ajout manuel**."))
         else:
-            st.dataframe(df[["campaign_name", "track_name", "created_at"]],
+            st.dataframe(df[["campaign_name", "track_name"]],
                          width="stretch", hide_index=True)
             st.markdown("---")
             st.subheader(t("meta_mapping.delete_title", "Supprimer un mapping"))

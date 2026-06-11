@@ -10,20 +10,13 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: spotify_etl
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # No `services: postgres` on purpose (removed 2026-06-11). The CI Postgres was
+    # never provisioned (init_db.sql / migrations never ran), so every DB-backed test
+    # already SKIPS against it (see tests/test_views_render_smoke.py: it does a real
+    # query and skips on an unprovisioned DB). The service therefore added ZERO test
+    # value while introducing a Docker Hub image-pull dependency that flaked the whole
+    # job on registry timeouts (e.g. run 27307850722 on 70c0b38). Removing it makes CI
+    # deterministic; DB-backed tests skip cleanly, ruff + unit tests run as before.
 
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +58,8 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/spotify_etl
+          # No DATABASE_URL: there is no CI Postgres (see note above). DB-backed tests
+          # detect the unreachable socket on 5433 and skip; the rest run normally.
           # Dummy Airflow creds: src/dashboard/app.py raises at IMPORT when
           # AIRFLOW_PASSWORD is unset (anti unauthenticated-DAG-trigger guard).
           # No real Airflow is contacted by the suite — this only lets app.py
