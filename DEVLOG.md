@@ -1682,3 +1682,25 @@ Aussi corrigé en route : le **mot de passe d'app Gmail** était invalide (535 B
 Funnel complet validé en prod : register → email **inbox** → vérification (instantanée) → login. **E1 (beta
 privée) débloquée.** Compte de test `127bpm` créé (vérifié, premium-trial) — à nettoyer ou garder pour QA.
 Reste deli-warming : les tous premiers emails Brevo peuvent encore varier le temps que la réputation monte.
+
+---
+
+## 2026-06-13 (suite 10) — Onboarding poli (signup allégé, login email, welcome PDF) via beta réelle
+
+### Why
+Re-test du funnel complet par l'utilisateur → 3 frictions réelles, chacune un fix.
+
+### Fixes
+- **PR #40** — un nouvel inscrit ne savait pas avec quoi se connecter (artiste/slug/username/email). Désormais :
+  inscription = **nom d'artiste + email + mot de passe** seulement (slug+username **auto-dérivés**, cachés,
+  `_derive_identifiers`) ; **login accepte l'email OU le username** (`_authenticate_user`, clause OR, lockout
+  keyé sur l'id résolu → sûr). Rebrand **« Music Dashboard » → « streaMLytics »** partout. 10 clés i18n
+  orphelines (slug/username) supprimées. Testé serveur : dérivation + login email/username + rejet mauvais mdp.
+- **PR #41** — le **PDF de bienvenue** ne partait pas : `docs/` n'est pas copié dans l'image (Dockerfile =
+  src/config/.streamlit) → `/app/docs` absent → welcome envoyé sans PJ. **Mount `./docs:/app/docs:ro`** sur le
+  service dashboard (comme machine_learning/data). PDF présent + welcome ré-envoyé avec PJ → reçu inbox.
+
+### État
+Funnel d'onboarding **complet et propre** : inscription allégée → email inbox → vérif instantanée → login
+par email → welcome + PDF en PJ. Repo ↔ serveur synchro (`8484b31`). Reste i18n du **contenu des emails**
+(encore en anglais) — chantier à part, non bloquant.
