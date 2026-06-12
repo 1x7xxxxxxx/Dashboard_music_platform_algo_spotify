@@ -14,6 +14,7 @@ services:
   postgres:
     image: postgres:17
     container_name: postgres_spotify_airflow
+    restart: unless-stopped          # survive host reboot (other services depend on it)
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}

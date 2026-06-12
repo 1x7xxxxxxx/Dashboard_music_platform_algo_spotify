@@ -11,14 +11,14 @@ HYPEDDIT_SCHEMA = {
             is_active BOOLEAN DEFAULT true,
             UNIQUE(artist_id, campaign_name)
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_hypeddit_campaigns_name
         ON hypeddit_campaigns(campaign_name);
 
         CREATE INDEX IF NOT EXISTS idx_hypeddit_campaigns_active
         ON hypeddit_campaigns(is_active) WHERE is_active = true;
     """,
-    
+
     'hypeddit_daily_stats': """
         CREATE TABLE IF NOT EXISTS hypeddit_daily_stats (
             id SERIAL PRIMARY KEY,
@@ -34,11 +34,11 @@ HYPEDDIT_SCHEMA = {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, campaign_name, date),
             CONSTRAINT fk_hypeddit_campaign
-                FOREIGN KEY (campaign_name)
-                REFERENCES hypeddit_campaigns(campaign_name)
+                FOREIGN KEY (artist_id, campaign_name)
+                REFERENCES hypeddit_campaigns(artist_id, campaign_name)
                 ON DELETE CASCADE
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_hypeddit_stats_campaign
         ON hypeddit_daily_stats(campaign_name);
 
@@ -47,7 +47,7 @@ HYPEDDIT_SCHEMA = {
 
         CREATE INDEX IF NOT EXISTS idx_hypeddit_stats_campaign_date
         ON hypeddit_daily_stats(campaign_name, date);
-        
+
         -- Fonction pour calculer automatiquement CTR et CPC
         CREATE OR REPLACE FUNCTION calculate_hypeddit_metrics()
         RETURNS TRIGGER AS $$
@@ -58,20 +58,20 @@ HYPEDDIT_SCHEMA = {
             ELSE
                 NEW.ctr = 0;
             END IF;
-            
+
             -- Cost per Click
             IF NEW.clicks > 0 THEN
                 NEW.cost_per_click = ROUND(NEW.budget / NEW.clicks, 4);
             ELSE
                 NEW.cost_per_click = NULL;
             END IF;
-            
+
             NEW.updated_at = CURRENT_TIMESTAMP;
-            
+
             RETURN NEW;
         END;
         $$ LANGUAGE plpgsql;
-        
+
         -- Trigger pour calcul automatique
         DROP TRIGGER IF EXISTS trg_calculate_hypeddit_metrics ON hypeddit_daily_stats;
         CREATE TRIGGER trg_calculate_hypeddit_metrics
@@ -87,17 +87,17 @@ def create_hypeddit_tables():
     import sys
     from pathlib import Path
     sys.path.append(str(Path(__file__).parent.parent.parent))
-    
+
     from src.database.postgres_handler import PostgresHandler
     from src.utils.config_loader import config_loader
-    
+
     print("\n" + "="*70)
     print("🔧 CRÉATION TABLES HYPEDDIT")
     print("="*70 + "\n")
-    
+
     config = config_loader.load()
     db_config = config['database']
-    
+
     db = PostgresHandler(
         host=db_config['host'],
         port=db_config['port'],
@@ -105,26 +105,26 @@ def create_hypeddit_tables():
         user=db_config['user'],
         password=db_config['password']
     )
-    
+
     try:
         # Exécuter dans l'ordre : campaigns puis stats
         print("📋 Suppression et création de hypeddit_campaigns...")
         db.execute_query(HYPEDDIT_SCHEMA['hypeddit_campaigns'])
         print("   ✅ Table hypeddit_campaigns créée")
-        
+
         print("📋 Création de hypeddit_daily_stats...")
         db.execute_query(HYPEDDIT_SCHEMA['hypeddit_daily_stats'])
         print("   ✅ Table hypeddit_daily_stats créée")
-        
+
         # Vérifier la structure
         print("\n🔍 Vérification de la structure...")
-        
+
         campaigns_count = db.get_table_count('hypeddit_campaigns')
         stats_count = db.get_table_count('hypeddit_daily_stats')
-        
+
         print(f"   ✅ hypeddit_campaigns: {campaigns_count} enregistrement(s)")
         print(f"   ✅ hypeddit_daily_stats: {stats_count} enregistrement(s)")
-        
+
         # Afficher la structure de la table campaigns
         verify_query = """
             SELECT column_name, data_type, is_nullable
@@ -132,20 +132,20 @@ def create_hypeddit_tables():
             WHERE table_name = 'hypeddit_campaigns'
             ORDER BY ordinal_position;
         """
-        
+
         df_structure = db.fetch_df(verify_query)
-        
+
         print("\n📋 Structure de hypeddit_campaigns :")
         print("-" * 70)
         print(df_structure.to_string(index=False))
-        
+
     except Exception as e:
         print(f"   ❌ Erreur : {e}")
         import traceback
         traceback.print_exc()
-    
+
     db.close()
-    
+
     print("\n" + "="*70)
     print("✅ TABLES HYPEDDIT CRÉÉES")
     print("="*70 + "\n")

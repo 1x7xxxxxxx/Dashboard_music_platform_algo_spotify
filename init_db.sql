@@ -846,7 +846,7 @@ CREATE TABLE IF NOT EXISTS hypeddit_daily_stats (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(artist_id, campaign_name, date),
     CONSTRAINT fk_hypeddit_campaign
-        FOREIGN KEY (campaign_name) REFERENCES hypeddit_campaigns(campaign_name) ON DELETE CASCADE
+        FOREIGN KEY (artist_id, campaign_name) REFERENCES hypeddit_campaigns(artist_id, campaign_name) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_hypeddit_campaigns_name ON hypeddit_campaigns(campaign_name);
