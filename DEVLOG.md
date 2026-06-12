@@ -1339,3 +1339,173 @@ Revue P4 : l'utilisateur a saisi manuellement les features ex-imputées et uploa
 ### Exécuté
 - `ml_scoring_daily` re-déclenché 2× via Airflow CLI → **success** ; le 2e run (post-edits, `src/` monté) a **persisté `nonalgo_known=radio_known=dm_known=true` sur les 11 titres** (vérifié en DB). Prédictions v3 fraîches reflétant tes saisies (NonAlgo réels, Radio=0, Discovery opt-out).
 - 7 fichiers : `ml_inference.py`, `algo_knowledge.py`, `ml_widgets.py`, `_explain.py`, `i18n_catalog/{trigger_algo,ml_widgets}.py`, `COMPARISON_REPORT.md`, `test_ml_inference.py` (+ roadmap + DEVLOG).
+
+---
+
+## 2026-06-11 (suite) — Benchmark déploiement consolidé (C5/C6) + décisions infra figées + build ARM64
+
+### Why
+Les réponses cross-projets (IA MT5 + IA n8n/vidéo) sont arrivées. Objectif : les **consolider avec
+le profil streaMLytics**, **trancher la topologie + le VPS + le domaine**, et **dérisquer le choix
+ARM64** avant d'acheter quoi que ce soit. Process d'achat prévu demain (2026-06-12).
+
+### What changed (docs only — aucune modif de code applicatif)
+- **Synthèse consolidée** — `NEW .claude/dev-docs/benchmark-deployment-synthesis.md` (11 §) : profils
+  ressources idle/pic des 3 charges (streaMLytics + n8n/vidéo + MT5), schéma de topologie, levier #1
+  (rendu vidéo local vs délégué + table VRAM par modèle open + arbre de décision GPU), workflows
+  tolérant un PC non-24/7 (critère = type de *trigger*), budget €/mois, risques (bans/monétisation >
+  infra), plan d'action, table des décisions.
+- **Décisions FIGÉES** (après questions à l'utilisateur) :
+  - **Topologie split** : **Box A** Linux always-on (streaMLytics maintenant ; n8n + ffmpeg plus tard,
+    même box) + **Box B** Windows isolée (MT5 live 24/7) + **GPU vidéo serverless pay-per-call**
+    (aucun GPU acheté/loué) + **proxy résidentiel** pour isoler l'IP de scraping.
+  - **VPS = Hetzner CAX31** (ARM Ampere, 8 vCPU / 16 Go / 160 Go NVMe, ~12,50 €/mo). Cible **10-50
+    artistes**. 16 Go absorbe streaMLytics seul ET le pic combiné futur → resize CAX41 32 Go seulement
+    >50 tenants. **Différence de budget « streaMLytics seul vs +n8n d'emblée » ≈ 0 €** (Hetzner resize
+    vertical ~2 min, même disque). **Fallback x86 CPX31** (même prix) si un wheel manque en aarch64.
+  - **Domaine = `streamlytics.fr`** chez **OVH** (vérif RDAP live : `.com` **pris/parké** depuis 2017
+    GoDaddy ; `.app` **libre** en backup). Registrar OVH (boîte email gratuite incluse).
+  - **Email** : **envoi reste sur SMTP Gmail (inchangé)** ; `contact@` = boîte gratuite OVH /
+    Cloudflare Email Routing. Email de domaine = crédibilité, **pas un prérequis Stripe**.
+  - **TLS Caddy** (`app.`/`api.streamlytics.fr`) ; **backup** `pg_dump` → Cloudflare R2 gratuit.
+  - **Total streaMLytics ≈ 13 €/mois tout compris.**
+- **Roadmap** (`checklist.md`) : C5 + C6 réécrits « DÉCISION FIGÉE » avec les choix concrets + prérequis
+  ARM64 + restants ouverts (mesure Mo/session, réservation domaine).
+- **`deployment.md`** : nouvelle section **D-1 — Provisioning infra (runbook 2026-06-12)** = ordre
+  d'exécution copier-coller (OVH → Hetzner → DNS → D0 hardening → D1 deploy → Caddy → backup → Box B →
+  smoke prod) + table des décisions + bloquant ARM64. Pré-requis C5 mis à jour.
+- **`benchmark-deployment.md`** § M : marqué « réponses collectées ✅ → voir la synthèse ».
+- **Mémoire** : `project_deployment_questions` réécrit « TRANCHÉ » + index.
+
+### Build ARM64 (dérisquage CAX31)
+- `docker buildx --platform linux/arm64` (QEMU emulation, WSL2 x86) sur `Dockerfile` (dashboard — le
+  plus risqué : pandas/numpy/xgboost/scikit-learn/scikit-image/shap/lime/weasyprint/numba/llvmlite/
+  matplotlib/streamlit/apache-airflow). **VERDICT = CAX31 VALIDÉ ✅ — build complet EXIT 0.** Image
+  dashboard `linux/arm64` buildée intégralement : `Successfully installed` ~200 paquets en aarch64
+  (numpy-1.26.4, pandas-2.3.3, xgboost-3.2.0, scikit-learn-1.9.0, scikit-image-0.26.0, shap-0.49.1,
+  lime-0.2.0.1 (compilé depuis les sources), numba-0.65.1, llvmlite-0.47.0, weasyprint-69.0,
+  matplotlib-3.10.9, streamlit-1.57.0, apache-airflow-3.2.2…). **Zéro `No matching distribution`**,
+  zéro erreur — seul un warning cosmétique `JSONArgsRecommended` sur le `CMD` (Dockerfile l.43, lint).
+  Le `pip install` a pris ~107 min **sous émulation QEMU x86→ARM** (artefact local ; natif ARM = rapide)
+  → le fallback x86 CPX31 n'est PAS nécessaire. Builder buildx nettoyé en fin de session. Possibilité
+  future : build multi-arch `docker buildx --push` depuis la CI.
+
+### À faire demain (2026-06-12)
+Exécuter le runbook **D-1** de `deployment.md`. Repoussé (pas demain) : activation Stripe (Phase D),
+n8n + génération vidéo (serverless), proxies scraping.
+
+---
+
+## 2026-06-12 — Premier vrai import DistroKid (compte ami) + persistance du taux FX (P2)
+
+### Why
+Un pote a prêté son compte DistroKid → premier export réel pour exercer le pipeline DistroKid de bout
+en bout (jusqu'ici testé sur fixtures uniquement), puis fermer le ship-blocker P2 « taux FX non
+ré-auditable » tant qu'on y était.
+
+### What changed
+- **Validation live du pipeline sur un vrai export** — `DistroKid_*.tsv` (artiste « Benken », 331 lignes,
+  14 stores, 2025-09 → 2026-04, 9,68 USD). Import test sous `artist_id=1` via le code path du DAG
+  (parse → `upsert_many` → rollup) → 331 lignes + 8 mois EUR, **puis purgé** (data jetable, tenant=moi).
+  L'intégration réelle de Benken attendra le déploiement (tenant dédié). Découvertes réinjectées dans la
+  doc (commit docs séparé) : fins de ligne **CR-seul** gérées par pandas, layout 15 colonnes pouvant
+  garder le nom legacy `Song/Album`, libellés UI **FR** (Banque → « Voir dans le moindre détail »).
+- **P2 — `fx_rate` persisté** (`migrations/059_distrokid_fx_rate.sql`) — `distrokid_monthly_revenue`
+  gagne `fx_rate NUMERIC(8,5)` : NULL pour les saisies manuelles EUR, renseigné pour les imports.
+  `distrokid_rollup.py` l'écrit (INSERT + ON CONFLICT UPDATE ; 3 placeholders de taux : calcul EUR,
+  colonne, prose `notes`). `revenue_eur` redevient **réversible** (`/ fx_rate`) — avant, le 0.92 par
+  défaut était cuit irréversiblement, ~8 % d'erreur non ré-auditable. Schéma canonique
+  (`distrokid_schema.py` + `init_db.sql`) aligné pour les fresh installs.
+
+### Tests
+`pytest tests/ -q` → **545 passed** (ruff clean). +3 tests DB-free (`test_distrokid_revenue.py` :
+SQL contient `fx_rate`, arité des params, défaut). 1 test existant mis à jour (`test_distrokid_parser.py`
+`TestRollup` : arité 2→3 taux). Vérif live : synthetic $10 @ 0.85 → 8,50 € → reverse 10,00 $, puis cleanup.
+Migration 059 appliquée sur la DB live.
+
+### Non fait (volontaire)
+- **Postgres-en-CI** (P3) : le retrait du service Postgres a été décidé HIER (2026-06-11) avec une
+  raison documentée (jamais provisionné → tests skip → flake Docker Hub). Le ré-ajouter *correctement
+  provisionné* (init_db + migrations) est l'item roadmap, mais ça inverse une décision same-day → laissé
+  à un changement dédié et revu, pas auto-rammé.
+- **API `/ml/predictions`** (P4) : redesign de contrat (renvoyer probas vs calculer un score) = décision
+  produit, pas une correction mécanique → laissé à l'utilisateur.
+
+---
+
+## 2026-06-12 (suite) — Boucle d'outcome-labelling ML (item #2a) : prédictions → labels d'entraînement
+
+### Why
+Suite à la question « quels items ML sont les plus pertinents long terme » : le levier #1 est la
+**boucle qui génère la donnée** dont tous les autres dépendent. L'exploration a révélé une contrainte
+pivot : les vrais streams DW/RR/Radio **n'existent pas automatiquement** (S4A n'expose pas le split par
+source — ADR-004 = saisie manuelle ; les labels d'entraînement v3 venaient d'un questionnaire one-shot
+`data_anon.csv`). Donc « la jointure » n'était pas le vrai manque — c'était la **surface de capture** des
+outcomes réalisés + la jointure. Choix utilisateur : construire backend **+** saisie S4A maintenant.
+
+### What changed
+- **2 tables** (`migrations/060_ml_outcome_labeling.sql` + `init_db.sql` + `ml_schema.py` + allowlist) :
+  - `s4a_song_algo_outcomes` — capture manuelle des streams DW/RR/Radio 28j réalisés par titre (snapshot
+    daté, dernier `recorded_at` gagne ; calque `s4a_song_nonalgo_streams`).
+  - `ml_prediction_outcomes` — paires d'entraînement (prédiction ↔ outcome réalisé ↔ label binaire),
+    FK `ml_song_predictions(id)`, UNIQUE sur `prediction_id`.
+- **Moteur pur** `src/utils/ml_outcome_labeling.py` : `bin_label` (seuils d'entraînement 137/130/639,
+  `> strict`, miroir `train.py:45`), `match_outcome` (snapshot le plus précoce ≥28j après la prédiction
+  → fenêtre 28j complète), `label_predictions` (jointure idempotente, LEFT JOIN sur les déjà-labellisés).
+- **DAG hebdo** `ml_outcome_labeling` (lundi 06:00 UTC, `max_active_runs=1`, retries, failure callback)
+  + `debug_ml_outcome_labeling.py` (dry-run / `--write`).
+- **Saisie S4A** : 3ᵉ grille « 🎯 Streams algorithmiques réalisés (28j) » = la surface de capture (how-to
+  « où lire DW/RR/Radio dans S4A », saisir ~4 semaines après pour une fenêtre honnête). +7 clés i18n EN.
+
+### Tests
+`pytest tests/ -q` → **555 passed** (+10 : `test_ml_outcome_labeling.py` — `bin_label` bornes, `match_outcome`
+sélection, `label_predictions` sur fake-db). ruff `src/ tests/` clean. **Vérif live** : prédiction
+synthétique J-40 + outcome J-10 (DW 500 / RR 50 / Radio 700) → label `(1,0,1)`, horizon 30, FK OK,
+**re-run = 0** (idempotent), puis cleanup. Migration 060 appliquée live ; DAG **parse in-container sans
+erreur d'import** (DagBag). Render-smoke de `saisie_s4a` (grille ajoutée) vert.
+
+### État
+La moitié **input** de #2 est fermée : les labels s'accumulent dès que tu saisis des outcomes réalisés.
+Reste **bloqué** (forward time + volume de saisies) : le DAG champion/challenger de **retraining** qui
+consommera `ml_prediction_outcomes` — à construire quand assez de cycles auront accumulé des paires.
+
+### Annexe (bug latent repéré, non touché)
+`saisie_s4a._save_fixed` liste `collected_at` dans `update_columns` sans le passer dans les rows → sur un
+**2ᵉ enregistrement le même jour**, `EXCLUDED.collected_at` réfère une colonne absente de l'INSERT →
+erreur. Latent (1er save = INSERT OK ; non couvert par render-smoke qui ne déclenche pas le bouton).
+P3, signalé puis **CORRIGÉ** (à la demande de l'utilisateur, commit suivant) : `collected_at` retiré des
+`update_columns` des 5 upserts de `saisie_s4a` (`_save_fixed` ×4 + `_render_custom_grid` ×1). Vérifié live
+(2 sauvegardes le même jour → la 2ᵉ écrase sans crash). Mon nouveau code l'omettait déjà.
+
+---
+
+## 2026-06-12 (suite 3) — Postgres-en-CI : validation locale → bug `init_db.sql` corrigé + vrai bloquant documenté
+
+### Why
+« continue » sur la roadmap. Le seul item infra buildable-now restant = **Postgres-en-CI** (P3). Au lieu
+de l'auto-rammer (il inverse le retrait d'hier), j'ai **simulé le provisioning CI en local** (DB fraîche
++ `init_db.sql` + `migrations/*.sql`) pour décider sur preuve. L'expérience a révélé des bugs réels.
+
+### What changed (et ce qui ne change PAS)
+- **BUG corrigé — `init_db.sql` cassait tout fresh-install** : 2 `CREATE TABLE` youtube
+  (`youtube_channel_history` l.695, `youtube_video_stats` l.722) portaient un `UNIQUE(…, (collected_at::date))`
+  **inline** → expression fonctionnelle interdite dans une contrainte UNIQUE inline → `syntax error at "("`
+  qui avortait le script (9 tables sur ~70). Remplacé par `CREATE UNIQUE INDEX` séparés, mêmes noms que
+  migration 003 (`uq_yt_*`, idempotents entre eux). Validé : DDL parse OK sur DB fraîche. **Invisible sur
+  la DB live** (les tables existent → `CREATE TABLE IF NOT EXISTS` skip → corps jamais parsé) — d'où le fait
+  que personne ne l'avait vu : la live a été bâtie incrémentalement, jamais depuis l'`init_db.sql` courant.
+- **Vrai bloquant CI documenté (pas auto-codé)** : `init_db.sql` fait `\c spotify_etl` (l.6) → ignore le
+  `-d` cible et opère sur la DB live ; + seed `INSERT INTO saas_artists (id,…)` (l.956) non idempotent.
+  Donc provisionner un service CI ≠ simple edit `ci.yml` : il faut un `schema.sql` sans préambule
+  `CREATE DATABASE`/`\c` + seed `ON CONFLICT DO NOTHING`, ou un job qui applique le corps DDL sans
+  méta-commandes psql. **Refactor délibéré du bootstrap live → laissé en changement dédié et revu.**
+  Item roadmap réécrit avec ce scope (pré-requis syntaxe maintenant levé).
+- **Sécurité de l'expérience** : mes runs `init_db` ont été redirigés sur la **DB live** par le `\c`, mais
+  tout est `IF NOT EXISTS` (no-op) + le seed a échoué proprement (`ON_ERROR_STOP`, zéro write partiel).
+  **Live vérifiée intacte** : 92 tables, `saas_artists` = 1 ligne (premium/active), index `uq_yt_*`
+  présents, `s4a_song_timeline` = 13 794 lignes. DBs jetables `spotify_etl_ci`/`spotify_etl_fresh` laissées
+  (le guard bloque `DROP DATABASE`) — à dropper manuellement.
+
+### Tests
+`init_db.sql` n'est pas exécuté par pytest (pas de service DB en CI) ; le fix est validé par exécution DDL
+directe sur DB fraîche. Suite inchangée (555 passed) — aucun fichier de test touché.

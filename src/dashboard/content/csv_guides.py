@@ -220,11 +220,12 @@ _DISTROKID = PlatformGuide(
     ),
     steps=(
         GuideStep(
-            "Connectez-vous sur distrokid.com → menu **Bank** (vos revenus)."
+            "Connectez-vous sur distrokid.com → menu **Banque** (« Bank » si "
+            "le compte est en anglais) — c'est la page de vos revenus."
         ),
         GuideStep(
-            "En bas de la page Bank, cliquez sur **« SEE EXCRUCIATING DETAIL »** "
-            "(le détail complet ligne par ligne)."
+            "En bas de la page, cliquez sur **« Voir dans le moindre détail »** "
+            "(« SEE EXCRUCIATING DETAIL » en anglais) — le détail complet ligne par ligne."
         ),
         GuideStep(
             "Cliquez sur **Download** pour télécharger le fichier. Au-delà de "

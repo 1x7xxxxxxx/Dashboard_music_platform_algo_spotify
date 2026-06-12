@@ -55,6 +55,8 @@ _ALLOWED_TABLES = frozenset({
     's4a_song_discovery_mode',
     's4a_song_nonalgo_streams',
     's4a_artist_radio_count',
+    's4a_song_algo_outcomes',
+    'ml_prediction_outcomes',
     'track_platform_link',
     'campaign_track_mapping',
     'campaign_mapping_rejected',

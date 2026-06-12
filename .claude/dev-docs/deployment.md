@@ -8,14 +8,51 @@
 
 ## Pré-requis (à figer avant Phase D)
 
-- **C5 — Benchmark VPS tranché** : topologie choisie pour les 4 charges — streaMLytics
-  (Postgres + Airflow + Streamlit + FastAPI), n8n (stack Docker actuelle + workflows futurs :
-  génération vidéo lourde, intégration YouTube auto, scraping leboncoin), **MT5 (Windows-only)**,
-  + marge. Reco probable : **1 VPS Linux** (streaMLytics + n8n) + **MT5 sur box Windows séparée** ;
-  la génération vidéo peut justifier un sizing supérieur ou du rendu à la demande.
+- **C5 — Benchmark VPS tranché** ✅ (2026-06-11) → topologie consolidée dans
+  `.claude/dev-docs/benchmark-deployment-synthesis.md` : **Box A VPS Linux** (streaMLytics
+  Postgres+Airflow+Streamlit+FastAPI **+ n8n orchestrateur + ffmpeg d'assemblage**, `CPX31 8 Go`
+  validation → `CPX41 16 Go` à l'échelle) **+ Box B VPS Windows isolée** pour **MT5 (Windows-only)**
+  + **génération vidéo déléguée à du GPU serverless pay-per-call** (jamais en local sur Box A)
+  + **proxies résidentiels** pour isoler l'IP de scraping. Budget fixe ~35-55 €/mois.
 - **Secrets prod prêts** : `APP_BASE_URL` (URL réelle, sinon liens email cassés), SMTP
   (`SMTP_HOST/PORT/USER/PASSWORD`), `FERNET_KEY` (identique app+Airflow), `STRIPE_*`
   (produit Premium 10€ + Payment Link `client_reference_id=artist_id` + webhook). Voir `.env.example`.
+
+## D-1 — Provisioning infra (runbook, décisions figées 2026-06-11 → à exécuter 2026-06-12)
+
+> Toutes les décisions sont **tranchées** (cf. `benchmark-deployment-synthesis.md`). Ce runbook
+> est l'ordre d'exécution copier-coller. Coût cible **~13 €/mois tout compris** pour streaMLytics.
+
+**Décisions figées :**
+
+| Poste | Choix | Coût |
+|---|---|---|
+| **Box A (VPS streaMLytics)** | **Hetzner CAX31** — ARM Ampere, 8 vCPU / 16 Go / 160 Go NVMe | **~12,50 €/mo** |
+| Fallback si ARM64 casse | Hetzner CPX31 x86 (4 vCPU / 8 Go) → resize CPX41 16 Go si besoin | ~13,60 / ~25 €/mo |
+| **Domaine** | **`streamlytics.fr`** chez **OVH** (`.com` pris/parké ; `.app` libre en alternative) | ~7 €/an |
+| **TLS / reverse proxy** | **Caddy** sur Box A — `app.` (Streamlit) + `api.` (FastAPI/Stripe) | 0 € |
+| **Email envoi** | **SMTP Gmail actuel** — inchangé | 0 € |
+| **Email réception `contact@`** | Boîte gratuite OVH ou Cloudflare Email Routing (forward → Gmail) | 0 € |
+| **Backup** | `pg_dump` gzippé → Cloudflare R2 (10 Go gratuits) — `tools/db_backup.sh` | 0 € |
+| **Box B (MT5)** | VPS Windows dédié isolé — **VPS broker (souvent gratuit, Windows+RDP prêt)** ou **OVH VPS Windows** (~10-15 €, licence incluse, même provider que le domaine). ⚠️ **PAS Hetzner Cloud** (Linux-only, pas de Windows en un clic). RDP par IP = fonction Windows, marche pareil partout. | ~0-15 €/mo |
+| **Vidéo / n8n / scraping** | **POUR PLUS TARD** sur Box A (n8n+ffmpeg) + serverless GPU + proxy | 0 € maintenant |
+
+**⚠️ Bloquant à lever AVANT d'acheter le CAX31 : validation build ARM64.**
+- [ ] Builder les 3 Dockerfiles en `linux/arm64` (`docker buildx --platform linux/arm64`) : `Dockerfile` (dashboard — le plus risqué : pandas/numpy/xgboost/scikit-learn/shap/lime/weasyprint), `Dockerfile.airflow` (`apache/airflow:2.8.1-python3.11` est multi-arch), `Dockerfile.api`. Lancé 2026-06-11. **Si tous verts → CAX31 confirmé. Si un wheel manque en aarch64 → bascule CPX31 x86 (même prix).** (Résultat consigné dans DEVLOG#2026-06-11.)
+
+**Runbook d'exécution (ordre) :**
+1. [ ] **OVH** : enregistrer `streamlytics.fr` (~7 €/an) + activer la **boîte email gratuite** `contact@streamlytics.fr`.
+2. [ ] **Hetzner Cloud** : créer un projet → serveur **CAX31** (ou CPX31 si fallback ARM), image **Ubuntu 24.04**, datacenter **UE (Nuremberg/Falkenstein/Helsinki)** (RGPD + latence UE), clé SSH ajoutée. Noter l'**IP publique**.
+3. [ ] **DNS (OVH zone)** : `A app.streamlytics.fr → <IP Box A>`, `A api.streamlytics.fr → <IP Box A>` (et `A streamlytics.fr → <IP>` + redirect racine→`app.` au choix). TTL court le 1er jour.
+4. [ ] **Hardening hôte D0** (section ci-dessous) : `ufw` 22/80/443, rotation secrets, `.env` prod, binding loopback Postgres/Airflow.
+5. [ ] **Déploiement D1** : `git clone` + `cp docker-compose.example.yml docker-compose.yml` + `.env` rempli + `make migrate` + `docker compose up -d`.
+6. [ ] **Caddy** : `Caddyfile` avec `app.streamlytics.fr` → `localhost:8501` (WebSocket OK) et `api.streamlytics.fr` → `localhost:8502` ; Let's Encrypt auto ; headers cookie `Secure/HttpOnly/SameSite` + HSTS.
+7. [ ] **Backup** : cron `pg_dump` quotidien → R2 + **drill de restauration** validé (78 tables).
+8. [ ] **Box B (MT5)** : provisionner/downsizer le VPS Windows en parallèle (indépendant de streaMLytics).
+9. [ ] **Smoke prod** : register/login, isolation `artist_id`, déclencher 1 DAG, upload 1 CSV, export PDF — sur l'URL `https://app.streamlytics.fr`.
+10. [ ] **Phase D** (Stripe + pentest) : voir D0/D2.
+
+**Repoussé explicitement (pas demain)** : activation Stripe (Phase D), n8n + génération vidéo (serverless pay-per-call), proxies scraping — tout est documenté dans la synthèse, 0 € tant que non déployé.
 
 ## D0 — Sécurité pré-exposition (checklist actionnable, 2026-06-11)
 
