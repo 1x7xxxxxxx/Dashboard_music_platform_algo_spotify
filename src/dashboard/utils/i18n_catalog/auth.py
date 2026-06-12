@@ -24,7 +24,7 @@ EN = {
     "auth.totp_invalid": "Invalid authentication code. Please try again.",
     "auth.totp_missing_dep": "pyotp not installed. Run: pip install pyotp",
     # Bootstrap (first-run admin creation)
-    "auth.bootstrap_title": "🎵 Music Dashboard — First-time setup",
+    "auth.bootstrap_title": "🎵 streaMLytics — First-time setup",
     "auth.bootstrap_warning": ("No users found in the database. Create the first **admin** "
                                "account to get started."),
     "auth.bootstrap_subheader": "Create admin account",

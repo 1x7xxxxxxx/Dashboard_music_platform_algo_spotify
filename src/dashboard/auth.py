@@ -163,14 +163,19 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
     HIGH-02: Never discloses the email address on unverified-account error.
     """
     from datetime import datetime, timezone
+    # Accept either the username or the email as the login identifier — users remember
+    # their email, not the (often auto-derived) username. Lockout/reset below key on the
+    # resolved id, so this stays safe.
+    ident = username.strip()
     rows = db.fetch_query(
         "SELECT id, username, email, password_hash, artist_id, role, email_verified, "
         "       failed_login_attempts, locked_until, totp_enabled, totp_secret "
-        "FROM saas_users WHERE username = %s AND active = TRUE LIMIT 1",
-        (username.strip(),)
+        "FROM saas_users WHERE (username = %s OR LOWER(email) = LOWER(%s)) "
+        "AND active = TRUE LIMIT 1",
+        (ident, ident)
     )
     if not rows:
-        return None, _t("auth.invalid_credentials", "Nom d'utilisateur ou mot de passe invalide.")
+        return None, _t("auth.invalid_credentials", "Identifiant ou mot de passe invalide.")
 
     uid, uname, email, pw_hash, artist_id, role, email_verified, fail_count, locked_until, totp_enabled, totp_secret = rows[0]
 
@@ -255,7 +260,7 @@ def _show_totp_challenge(db) -> None:
     if not pending:
         return
 
-    st.title("🎵 Music Dashboard")
+    st.title("🎵 streaMLytics")
     st.subheader(_t("auth.totp_title", "🔐 Authentification à deux facteurs"))
     st.info(_t("auth.totp_prompt",
                "Connecté en tant que **{u}**. Saisissez le code à 6 chiffres de votre "
@@ -300,7 +305,7 @@ def _show_totp_challenge(db) -> None:
 # ─────────────────────────────────────────────
 
 def _show_bootstrap_form(db) -> None:
-    st.title(_t("auth.bootstrap_title", "🎵 Music Dashboard — Première configuration"))
+    st.title(_t("auth.bootstrap_title", "🎵 streaMLytics — Première configuration"))
     st.warning(
         _t("auth.bootstrap_warning",
            "Aucun utilisateur en base. Créez le premier compte **admin** pour commencer."),
@@ -410,15 +415,12 @@ def require_login() -> bool:
 
         with st.form("login"):
             st.subheader(_t("auth.signin_title", "Connexion"))
-            # Stable keys → stable DOM ids → the browser keeps remembering the username
-            # even when elements above the form change (e.g. the logo).
-            # Login is by username (artist name), NOT email — see _authenticate_user
-            # (WHERE username = %s). autocomplete="off" + a hint placeholder stop the
-            # browser from proposing saved email addresses here.
-            username  = st.text_input(_t("auth.username", "Nom d'utilisateur"),
+            # Login accepts the email OR the username (see _authenticate_user). Users
+            # remember their email — surface it as the primary identifier.
+            username  = st.text_input(_t("auth.username", "Email ou nom d'utilisateur"),
                                       key="login_username",
-                                      placeholder=_t("auth.username_ph", "nom d'artiste"),
-                                      autocomplete="off")
+                                      placeholder=_t("auth.username_ph", "vous@exemple.com"),
+                                      autocomplete="username")
             password  = st.text_input(_t("auth.password", "Mot de passe"), type="password",
                                       key="login_password",
                                       autocomplete="current-password")
