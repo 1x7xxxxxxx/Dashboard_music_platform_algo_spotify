@@ -581,12 +581,31 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   **Modèle d'accès (déjà construit)** : 1 URL publique → register/login → isolation par `artist_id` → chaque artiste voit ses données, connecte ses credentials, upload ses CSV ; DAGs paramétrés par artiste. Il manque juste : domaine + TLS + reverse proxy + port 443 ouvert.
   **→ Détail complet : `.claude/dev-docs/benchmark-deployment.md` § G** (domaine/registrar/sous-domaines/TLS/email/CDN).
   **Livrable** (→ `dev-docs/deployment.md`) : reco domaine + plan DNS + reverse proxy (Caddy) + schéma d'accès multi-tenant.
-- [ ] **D — Déploiement + pentest** (DERNIER) : voir `deployment.md`. **Inclut l'activation Stripe**
-  (audit 2026-06-10 : code plombé mais **rien d'actif** — `artist_subscriptions`=0, 4 env vars Stripe vides,
-  API webhook non déployée). À faire en D : créer un **Stripe Payment Link** dans le compte + renseigner
-  `STRIPE_CHECKOUT_URL`/`STRIPE_PORTAL_URL`/`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` + **déployer l'API
-  FastAPI** (héberge le webhook) + enregistrer l'URL webhook dans Stripe Dashboard. Aujourd'hui le bouton
-  « Passer à Premium » affiche un placeholder « paiement bientôt » (cf. `billing.py:221`).
+- [ ] **D — Déploiement + pentest** (DERNIER, séquencé 2026-06-12) : runbook copier-coller dans
+  `deployment.md`. Légende : 🤖 code (moi, PR) · 🧑 ops (toi) · 🤝 sur le VPS. On coche au fil de l'eau.
+  - **Phase 0 — Prep code (🤖)** :
+    - [x] **0.1** services `dashboard` (Streamlit:8501) + `api` (FastAPI:8502) ajoutés à
+      `docker-compose.example.yml` (DATABASE_URL, loopback bind, mount `machine_learning`/`data`).
+      Le dashboard tournait sur l'hôte → désormais conteneurisable. ref: DEVLOG#2026-06-12 (suite 6).
+    - [x] **0.2** `deploy/Caddyfile` — `app.`→8501 (WebSocket), `api.`→8502, TLS Let's Encrypt auto,
+      HSTS + headers sécurité, apex/www → `app.`.
+    - [x] **0.3** backup + restore drill validés live (`tools/db_backup.sh` → 516K ; `db_restore_test.sh`
+      → 92 tables / 13794 rows / DB jetable droppée).
+  - [ ] **Phase 1 — Provisioning infra (🧑)** : OVH `streamlytics.fr` + `contact@` · Hetzner CAX31
+    Ubuntu 24.04 UE + clé SSH (IP) · DNS A `app.`/`api.`/apex → IP. **Gate 1** : `dig` résout.
+  - [ ] **Phase 2 — Hardening D0 (🤝)** : rotation secrets (Postgres dans l'historique git, Airflow admin,
+    Meta/Gmail) · `.env` prod (`API_SECRET_KEY`, `APP_BASE_URL`, `CORS_ORIGINS`, `STRIPE_WEBHOOK_SECRET`) ·
+    `ufw` 22/80/443 deny 5433/8080/8501/8502 · Airflow UI tunnel SSH only. **Gate 2** : nmap = 22/80/443.
+  - [ ] **Phase 3 — Déploiement D1 (🤝)** : `git clone` + `cp compose.example` + `.env` + `make migrate`
+    + `docker compose up -d` · Caddy up (TLS) · backup cron R2 · **smoke prod** (register/login/isolation/
+    DAG/CSV/PDF sur `https://app.streamlytics.fr`). **Gate 3** : smoke 6/6 → 🎉 app live.
+  - [ ] **Phase 4 — Activation Stripe (🤝)** : Payment Link Premium 10€ (`client_reference_id=artist_id`)
+    · déployer FastAPI (webhook) · poser `STRIPE_*` + enregistrer l'URL webhook · remplacer le placeholder
+    `billing.py:221` · test checkout→webhook→upgrade DB. (Audit 2026-06-10 : code plombé, rien d'actif —
+    `artist_subscriptions`=0, env vars vides.) **Gate 4** : 1 paiement test → tenant premium.
+  - [ ] **Phase 5 — Pentest D2 (🤝)** : bruteforce/lockout · MITM/HSTS · RCE (SQL+uploads) · DoS/rate-limit
+    · chrome-devtools MCP sur l'URL. **Gate 5** : checklist passée → **D terminé** → débloque E1.
+  - [ ] **Phase 6 — Box B MT5 (🧑, parallèle)** : VPS Windows isolé (broker gratuit ou OVH ~10-15 €).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
 

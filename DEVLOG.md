@@ -1567,3 +1567,29 @@ impossible jusqu'ici car le seul tenant est premium et l'owner est admin → **a
 synthétique auto-nettoyant (song `__e2e_test__`) : upsert outcome 7j+28j → `label_predictions()` réel =
 1 label (`y_dw/y_rr/y_radio` corrects vs seuils 137/130/639, horizon 30j) → relecture trigger OK →
 idempotence (2ᵉ run = 0) → cleanup **0 résidu** (état restauré : outcomes 0 / preds 77 / labels 0).
+
+---
+
+## 2026-06-12 (suite 6) — Programme D séquencé + Phase 0 (prep code déploiement)
+
+### Why
+Démarrage du **dernier programme (D — déploiement + pentest)**. L'utilisateur veut un séquencé
+step-by-step validé au fil de l'eau, roadmap mise à jour en cours de route. Phase 0 = tout le code/config
+faisable **avant** d'engager 1 € (provisioning OVH/Hetzner), reviewable en PR.
+
+### What changed
+- **Roadmap** — item `D` (un seul `- [ ]`) éclaté en **6 phases** (0 prep code 🤖 / 1 infra 🧑 / 2 hardening
+  D0 🤝 / 3 deploy D1 🤝 / 4 Stripe 🤝 / 5 pentest D2 🤝 / 6 Box B MT5 🧑), chacune avec sa *gate* de
+  validation. `deployment.md` aligné (Phase 0 ✅).
+- **0.1 — `docker-compose.example.yml`** : services `dashboard` (Streamlit:8501) + `api` (FastAPI:8502)
+  ajoutés. Le dashboard tournait sur l'hôte (`streamlit run`) → désormais conteneurisable. `DATABASE_URL`
+  prod (priorité #1 de `get_db_connection`), binding loopback `127.0.0.1`, mounts `machine_learning` (modèles
+  `.ubj` non bakés dans l'image) + `data`. Env Airflow-trigger/SMTP/Stripe câblés en `${VAR}`.
+- **0.2 — `deploy/Caddyfile`** : `app.`→8501 (WebSocket transparent), `api.`→8502, TLS Let's Encrypt auto,
+  HSTS + headers sécurité, apex/www → redirect `app.`.
+- **0.3 — backup/restore** : `tools/db_backup.sh` + `tools/db_restore_test.sh` (déjà présents) validés live.
+
+### Tests
+`docker compose -f docker-compose.example.yml config` → structure OK (warnings `${VAR}` non posées attendues).
+**Drill backup→restore live** : dump 516K → restore **92 tables / `s4a_song_timeline`=13794 rows** → DB
+jetable droppée. Caddyfile : syntaxe revue (caddy non installé localement, `caddy validate` sur le VPS).

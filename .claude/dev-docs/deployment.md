@@ -75,12 +75,22 @@ Audit pré-déploiement. Ce qui était **fixable en code est déjà fait** (PR `
 
 (P3 hygiène, non bloquant : `SPOTIFY_ARTIST_IDS` / `META_AD_ACCOUNT_ID` encore en dur dans `docker-compose.yml` — IDs publics, env-ref optionnel ; liens localhost dans `useful_links.py` à piloter par env.)
 
+## Phase 0 — Prep code ✅ (2026-06-12, PR `feat/deploy-phase0-compose-caddy`)
+
+Fait **avant** tout provisioning (0 € engagé, reviewable) :
+- ✅ Services `dashboard` (Streamlit:8501) + `api` (FastAPI:8502) ajoutés à `docker-compose.example.yml`
+  (`DATABASE_URL` prod, binding loopback `127.0.0.1`, mounts `machine_learning`/`data`).
+- ✅ `deploy/Caddyfile` — `app.`→8501 (WebSocket), `api.`→8502, TLS Let's Encrypt auto, HSTS + headers,
+  apex/www → `app.`. (Copier vers `/etc/caddy/Caddyfile` sur la Box A.)
+- ✅ Backup + restore drill validés live : `tools/db_backup.sh` (516K) + `tools/db_restore_test.sh`
+  (92 tables / 13794 rows / DB jetable droppée). Reste à câbler le cron + la cible R2 (Phase 3).
+
 ## D1 — Conteneurisation + déploiement
 
-1. **Conteneuriser le dashboard Streamlit** : ajouter un service `dashboard` au
-   `docker-compose.yml` (un `Dockerfile` racine existe ; FastAPI a `Dockerfile.api`). Aujourd'hui
-   le dashboard tourne sur l'hôte (`streamlit run`) — Airflow + Postgres sont déjà conteneurisés
-   et **les DAGs tournent déjà dans le conteneur `airflow_scheduler`** (rien à changer côté DAGs).
+1. ✅ **Conteneuriser le dashboard Streamlit** — service `dashboard` ajouté au
+   `docker-compose.example.yml` (Phase 0). Le `Dockerfile` racine existe, FastAPI a `Dockerfile.api`.
+   Airflow + Postgres déjà conteneurisés ; **les DAGs tournent déjà dans `airflow_scheduler`** (rien à
+   changer côté DAGs). En prod : `cp docker-compose.example.yml docker-compose.yml` + `.env` rempli.
 2. **Volumes persistés** : `postgres_data` / `airflow_logs` aujourd'hui en volumes nommés non
    sauvegardés → bind-mount ou volume managé + **éviter `docker compose down -v`**.
 3. **HTTPS** : Caddy + Let's Encrypt en reverse proxy (auto-renew).
