@@ -1,0 +1,50 @@
+# Caddyfile — streaMLytics reverse proxy (Box A, Hetzner CAX31)
+# ----------------------------------------------------------------------------
+# Terminates TLS (Let's Encrypt, auto-renew) and proxies to the loopback-bound
+# containers. Deploy:  caddy run --config /etc/caddy/Caddyfile
+# Prereq: DNS A records app.streamlytics.fr + api.streamlytics.fr → Box A IP,
+#         and ufw allowing 80/443 (HTTP-01 challenge needs 80).
+#
+# Replace streamlytics.fr if the domain changes. The email is used by Let's
+# Encrypt for expiry notices.
+# ----------------------------------------------------------------------------
+
+{
+	email contact@streamlytics.fr
+	# Uncomment for dry-runs against the staging CA (avoids rate limits):
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# Security headers applied to every site below.
+(security_headers) {
+	header {
+		# HSTS — force HTTPS for 1 year incl. subdomains (only after TLS is confirmed working).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Caddy sets the response; remove the server banner.
+		-Server
+	}
+}
+
+# ── Streamlit dashboard ──────────────────────────────────────────────────────
+# Streamlit speaks WebSocket (/_stcore/stream); reverse_proxy handles the
+# Upgrade/Connection headers transparently, so no extra config is needed.
+app.streamlytics.fr {
+	import security_headers
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:8501
+}
+
+# ── FastAPI backend (Stripe webhook + REST) ──────────────────────────────────
+api.streamlytics.fr {
+	import security_headers
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:8502
+}
+
+# ── Apex → app (so streamlytics.fr and www redirect to the dashboard) ────────
+streamlytics.fr, www.streamlytics.fr {
+	redir https://app.streamlytics.fr{uri} permanent
+}
