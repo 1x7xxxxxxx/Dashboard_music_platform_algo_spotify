@@ -56,8 +56,14 @@ def _plan_cards() -> dict:
                   "leviers qui déclenchent les playlists algorithmiques Spotify : "
                   "Discover Weekly, Release Radar, Radio"),
                 t("billing.feat_revenue_forecast", "📈 Prévisions de revenus (ML)"),
-                t("billing.feat_creatives", "🎨 Créatives Meta Ads"),
-                t("billing.feat_cpr", "📊 CPR Optimizer"),
+                t("billing.feat_autosync",
+                  "🔄 Téléchargement quotidien et automatique des CSV "
+                  "Spotify for Artists + Apple Music (plus aucun export manuel)"),
+                t("billing.feat_cpr",
+                  "📊 Optimisation CPR — budget & streams des campagnes Meta Ads"),
+                t("billing.feat_creatives",
+                  "🎬 Génération de créatives vidéo (60+ par campagne) "
+                  "+ optimisation du targeting"),
                 t("billing.feat_support", "Support prioritaire"),
             ],
         },

@@ -71,7 +71,7 @@ PLAN_CATALOG = {
 
 # Done-for-you marketing-campaign optimization — manual service (call-first to assess
 # fit + budget). Surfaced as a contact CTA on billing/upgrade.
-SERVICE_CONTACT_EMAIL = "timothe.baudry137@gmail.com"
+SERVICE_CONTACT_EMAIL = "1x7xxxxxxx@gmail.com"
 
 # Pages always accessible regardless of plan (account management + billing + help)
 ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide'}

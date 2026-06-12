@@ -24,8 +24,11 @@ EN = {
                                  "the levers that trigger Spotify's algorithmic playlists: "
                                  "Discover Weekly, Release Radar, Radio",
     "billing.feat_revenue_forecast": "📈 Revenue forecasts (ML)",
-    "billing.feat_creatives": "🎨 Meta Ads creatives",
-    "billing.feat_cpr": "📊 CPR Optimizer",
+    "billing.feat_autosync": ("🔄 Daily automatic download of Spotify for Artists "
+                              "+ Apple Music CSVs (no more manual exports)"),
+    "billing.feat_cpr": "📊 CPR optimization — Meta Ads campaign budget & streams",
+    "billing.feat_creatives": ("🎬 Video creative generation (60+ per campaign) "
+                               "+ targeting optimization"),
     "billing.feat_support": "Priority support",
     # Service CTA
     "billing.service_header": "🎯 Marketing campaign optimization (done-for-you service)",
