@@ -81,8 +81,15 @@ async def stripe_webhook(request: Request):
     if webhook_secret:
         try:
             import stripe
+            import json
             stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
-            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+            # Verify the signature (raises on tampering), then use a plain dict for
+            # the logic below: construct_event returns a stripe.Event (StripeObject)
+            # whose attribute access does NOT expose dict.get() — calling .get() on it
+            # raises AttributeError. json.loads on the already-verified raw payload
+            # gives an ordinary dict so the .get(...) accessors work.
+            stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+            event = json.loads(payload)
         except Exception as e:
             logger.warning(f"Stripe signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Invalid signature")
