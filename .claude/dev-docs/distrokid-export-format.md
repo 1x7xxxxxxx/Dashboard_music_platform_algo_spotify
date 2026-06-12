@@ -9,10 +9,16 @@ shipped — this doc remains the format reference. Test fixture:
 ## The "Bank details" export
 
 - Source: DistroKid → Bank → "SEE EXCRUCIATING DETAIL" → Download
-  (`distrokid.com/bank/details/`).
+  (`distrokid.com/bank/details/`). **FR UI** (account-language-dependent):
+  **Banque → "Voir dans le moindre détail" → Download**.
 - Format: **tab-delimited** `.tsv` (some sources report a `.zip` containing `.csv` —
   detect the delimiter at parse time, like `IMusicianCSVParser`'s encoding fallback).
-- Encoding: **latin-1** (NOT UTF-8 — accented artist/track names break a UTF-8 open).
+- Line endings: a real 2026 export (`DistroKid_*.tsv`, artist "Benken") shipped with
+  **CR-only (`\r`) terminators** (classic-Mac style, 0 `\n`). pandas' C parser handles
+  these transparently — verified end-to-end (331 rows parsed). The `_sniff_sep` split on
+  `\n` degrades to "whole file = first line" but still counts tabs > commas → picks `\t`.
+- Encoding: usually **latin-1**, but the same 2026 export decoded clean as **UTF-8** too —
+  the utf-8 → utf-8-sig → latin-1 → cp1252 fallback covers both.
   Fallback chain utf-8 → utf-8-sig → latin-1 → cp1252 already exists in
   `src/transformers/imusician_csv_parser.py::_read_csv` — reuse it.
 - Granularity: **1 row per store × track × country × sale-month**. No sub-monthly data.
@@ -46,6 +52,11 @@ shipped — this doc remains the format reference. Test fixture:
 - **July 2025 schema change**: pre-2025 files have fewer columns (`Song/Album` instead
   of `Source Type`, no `Date Inserted`/`Team Percentage`/`Recoup`). Support both or
   gate on header detection.
+- **Column *name* and column *count* are independent axes**: a real 2026 export had the
+  **full 15-column layout** (incl. `Date Inserted`, `Team Percentage`, `Recoup (USD)`)
+  yet still labelled the type column **`Song/Album`**, not `Source Type`. So don't infer
+  the schema age from the type-column name. The parser already covers this — it reads
+  `Source Type` then falls back to `Song/Album` (`distrokid_parser.py:137`).
 - `Sale Month` is the natural key for the monthly rollup (≙ iMusician `sales_year/month`);
   `Reporting Date` ≙ iMusician `statement_year/month`.
 - Candidate UNIQUE for a future `distrokid_sales_detail`:
