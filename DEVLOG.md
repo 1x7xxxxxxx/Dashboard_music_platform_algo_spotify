@@ -1653,3 +1653,32 @@ Nettoyer le doublon DNS racine (`213.186.33.5`) ; reboot kernel ; **Phase 4 Stri
 
 ### Tests
 555 tests verts (après fix init_db) ; webhook signé → 200 + `artist_subscriptions` provisionné ; ruff clean.
+
+---
+
+## 2026-06-13 (suite 9) — Funnel d'inscription validé en prod + délivrabilité email (Brevo)
+
+### Why
+Prérequis n°1 de la beta privée (E1) : qu'un **inconnu** puisse s'inscrire et recevoir son email de
+vérification **en boîte de réception**. Test réel avec `127bpmin@gmail.com` → a révélé une cascade de
+bugs/manques que seul un signup réel pouvait exposer.
+
+### Bugs/manques corrigés (4 PR)
+- **PR #35** `_smtp_config()` lisait le SMTP **uniquement depuis config.yaml** (absent en prod) → tout email
+  silencieusement « SMTP non configuré » malgré les `SMTP_*` env présents → **funnel cassé**. Env-first.
+- **PR #36** page `?page=verify` **blanche ~3s** : envoyait l'email de bienvenue (SMTP bloquant) AVANT
+  d'afficher le succès. Ordre inversé (message d'abord, email sous spinner).
+- **PR #37** expéditeur dédié `SMTP_FROM` (≠ login SMTP — requis pour un relais type Brevo où le From doit
+  être l'adresse du domaine authentifié) + rebrand email « Music Dashboard » → « streaMLytics ».
+- **PR #38** `SMTP_FROM` câblé dans le compose dashboard.
+
+### Délivrabilité (le vrai fix anti-spam)
+Gmail perso → spam systématique. Bascule sur **Brevo** (transactionnel, gratuit 300/j) : domaine
+`streamlytics.fr` **authentifié** (DKIM ×2 CNAME + DMARC + code Brevo dans la zone OVH, propagation vérifiée),
+envoi depuis **`noreply@streamlytics.fr`** signé DKIM. **Test final → boîte de réception ✅** (plus le spam).
+Aussi corrigé en route : le **mot de passe d'app Gmail** était invalide (535 BadCredentials).
+
+### État
+Funnel complet validé en prod : register → email **inbox** → vérification (instantanée) → login. **E1 (beta
+privée) débloquée.** Compte de test `127bpm` créé (vérifié, premium-trial) — à nettoyer ou garder pour QA.
+Reste deli-warming : les tous premiers emails Brevo peuvent encore varier le temps que la réputation monte.
