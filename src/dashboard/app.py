@@ -104,20 +104,24 @@ def _verify_email(token: str) -> None:
             "verification_token_created_at = NULL WHERE id = %s",
             (uid,)
         )
-        # Welcome email + onboarding guide PDF — sent now (account confirmed), NOT at
-        # signup, so the guide lands only once the address is proven deliverable.
-        try:
-            from src.dashboard.views.register import WELCOME_TRIAL_DAYS
-            from src.utils.verification_email import send_welcome_email
-            send_welcome_email(email, username, WELCOME_TRIAL_DAYS, user_id=uid)
-        except Exception:
-            pass  # best-effort — never block verification on the welcome email
+        # Show the confirmation FIRST — the verification is already committed above.
+        # The welcome email (a blocking ~3s SMTP round-trip) must NOT delay the message
+        # the user is waiting for; send it after the success is rendered.
         st.success(t(
             "app.verify_success",
             "✅ Email vérifié ! Bienvenue, **{u}**. "
             "Nous vous avons envoyé un guide de bienvenue par email. "
             "Vous pouvez maintenant [vous connecter](/)."
         ).format(u=username))
+        # Welcome email + onboarding guide PDF — sent now (account confirmed), NOT at
+        # signup, so the guide lands only once the address is proven deliverable.
+        try:
+            from src.dashboard.views.register import WELCOME_TRIAL_DAYS
+            from src.utils.verification_email import send_welcome_email
+            with st.spinner(t("app.sending_welcome", "Envoi du guide de bienvenue…")):
+                send_welcome_email(email, username, WELCOME_TRIAL_DAYS, user_id=uid)
+        except Exception:
+            pass  # best-effort — never block verification on the welcome email
     finally:
         db.close()
 

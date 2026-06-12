@@ -11,6 +11,7 @@ EN = {
                            "sign-in page."),
     "app.verify_success": ("✅ Email verified! Welcome, **{u}**. "
                            "We've emailed you a welcome guide. You can now [sign in](/)."),
+    "app.sending_welcome": "Sending your welcome guide…",
     # Unsubscribe route (?page=unsubscribe)
     "app.unsub_title": "📧 Unsubscribe",
     "app.unsub_invalid": "Invalid unsubscribe link.",
