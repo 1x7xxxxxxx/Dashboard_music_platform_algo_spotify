@@ -235,7 +235,12 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
     checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
     label = t("billing.upgrade_to", "Passer à {plan}").format(plan=target_plan.capitalize())
     if checkout_url:
-        st.link_button(label, f"{checkout_url}?plan={target_plan}", type="primary")
+        # Stripe Payment Link: client_reference_id carries the tenant id so the
+        # webhook (checkout.session.completed) provisions the right artist. Without
+        # it the payment can't be linked to a tenant.
+        _aid = get_artist_id()
+        _url = f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url
+        st.link_button(label, _url, type="primary")
     else:
         # No Stripe configured: enabled button that surfaces the manual path.
         if st.button(label, type="primary", key=f"upgrade_{target_plan}"):
