@@ -691,9 +691,13 @@ CREATE TABLE IF NOT EXISTS youtube_channel_history (
     subscriber_count INTEGER DEFAULT 0,
     video_count INTEGER DEFAULT 0,
     view_count BIGINT DEFAULT 0,
-    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(artist_id, channel_id, (collected_at::date))
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Functional UNIQUE (one snapshot per artist/channel/day) — must be a separate index,
+-- a functional expression is illegal inside an inline table UNIQUE(...) constraint.
+-- Same index name as migration 003 so the two are idempotent against each other.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_yt_channel_history_artist_channel_date
+    ON youtube_channel_history (artist_id, channel_id, (collected_at::date));
 
 CREATE TABLE IF NOT EXISTS youtube_videos (
     id SERIAL PRIMARY KEY,
@@ -718,9 +722,11 @@ CREATE TABLE IF NOT EXISTS youtube_video_stats (
     like_count INTEGER DEFAULT 0,
     comment_count INTEGER DEFAULT 0,
     favorite_count INTEGER DEFAULT 0,
-    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(artist_id, video_id, (collected_at::date))
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Functional UNIQUE (one snapshot per artist/video/day) — separate index (see above).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_yt_video_stats_artist_video_date
+    ON youtube_video_stats (artist_id, video_id, (collected_at::date));
 
 CREATE TABLE IF NOT EXISTS youtube_playlists (
     id SERIAL PRIMARY KEY,

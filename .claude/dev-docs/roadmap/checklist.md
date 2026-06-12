@@ -647,8 +647,18 @@ publique. Verdict intégrité = **GO, convergent** (oublis localisés, pas syst�
   (free verrouillé hors premium), `test_tenant_isolation.py` (`artist_id_sql_filter`), `test_revenue_math.py`.
 - [ ] **Postgres en CI** (P3 infra/test) — `.github/workflows/ci.yml` n'a **pas** de service Postgres
   → `test_views_render_smoke.py` (39 vues) + les tests ML Tier-2/3 **skippent en CI** (ils ne tournent que
-  localement). Provisionner un service `postgres:17` + appliquer `init_db.sql`/migrations pour que ces
-  harnais s'exécutent vraiment. C'est le seul levier infra qui augmenterait nettement la confiance déploiement.
+  localement). C'est le seul levier infra qui augmenterait nettement la confiance déploiement.
+  - **BLOQUANT IDENTIFIÉ 2026-06-12 (validation locale = DB fraîche + provisioning) :** `init_db.sql`
+    n'est **pas** provisionnable sur une DB arbitraire — (1) il fait `\c spotify_etl` en tête (ligne 6,
+    convention entrypoint Docker) → ignore le `-d` cible et opère sur la DB live ; (2) seed
+    `INSERT INTO saas_artists (id,…)` ligne 956 **non idempotent** (échoue au 2ᵉ run) ; (3) il avait
+    une **erreur de syntaxe** (UNIQUE inline avec expression fonctionnelle sur les 2 tables youtube) qui
+    cassait tout fresh-install — **CORRIGÉE 2026-06-12** (→ `CREATE UNIQUE INDEX` séparé, cf. mig 003).
+  - **Scope réel** (pas un simple edit `ci.yml`) : extraire un **`schema.sql` sans préambule
+    `CREATE DATABASE`/`\c`** et **seed idempotent** (`ON CONFLICT DO NOTHING`), OU un job CI qui crée la
+    DB puis applique le corps DDL (sans les méta-commandes psql) + `migrations/*.sql`. Refactor délibéré
+    du bootstrap live → à faire en changement dédié et revu, pas auto-rammé. **Pré-requis maintenant levé
+    côté syntaxe ;** reste le découplage `\c`/seed.
 - [x] **DistroKid — persister le taux FX** (P2 data integrity) — DONE 2026-06-12. `migrations/059_distrokid_fx_rate.sql`
   ajoute `fx_rate NUMERIC(8,5)` (NULL pour les saisies manuelles EUR, renseigné pour les imports) sur
   `distrokid_monthly_revenue` ; `distrokid_rollup.py` l'écrit (INSERT + ON CONFLICT UPDATE, 3 placeholders de taux).

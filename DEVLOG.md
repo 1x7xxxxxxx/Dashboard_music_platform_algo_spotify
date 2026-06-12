@@ -1476,3 +1476,36 @@ erreur. Latent (1er save = INSERT OK ; non couvert par render-smoke qui ne décl
 P3, signalé puis **CORRIGÉ** (à la demande de l'utilisateur, commit suivant) : `collected_at` retiré des
 `update_columns` des 5 upserts de `saisie_s4a` (`_save_fixed` ×4 + `_render_custom_grid` ×1). Vérifié live
 (2 sauvegardes le même jour → la 2ᵉ écrase sans crash). Mon nouveau code l'omettait déjà.
+
+---
+
+## 2026-06-12 (suite 3) — Postgres-en-CI : validation locale → bug `init_db.sql` corrigé + vrai bloquant documenté
+
+### Why
+« continue » sur la roadmap. Le seul item infra buildable-now restant = **Postgres-en-CI** (P3). Au lieu
+de l'auto-rammer (il inverse le retrait d'hier), j'ai **simulé le provisioning CI en local** (DB fraîche
++ `init_db.sql` + `migrations/*.sql`) pour décider sur preuve. L'expérience a révélé des bugs réels.
+
+### What changed (et ce qui ne change PAS)
+- **BUG corrigé — `init_db.sql` cassait tout fresh-install** : 2 `CREATE TABLE` youtube
+  (`youtube_channel_history` l.695, `youtube_video_stats` l.722) portaient un `UNIQUE(…, (collected_at::date))`
+  **inline** → expression fonctionnelle interdite dans une contrainte UNIQUE inline → `syntax error at "("`
+  qui avortait le script (9 tables sur ~70). Remplacé par `CREATE UNIQUE INDEX` séparés, mêmes noms que
+  migration 003 (`uq_yt_*`, idempotents entre eux). Validé : DDL parse OK sur DB fraîche. **Invisible sur
+  la DB live** (les tables existent → `CREATE TABLE IF NOT EXISTS` skip → corps jamais parsé) — d'où le fait
+  que personne ne l'avait vu : la live a été bâtie incrémentalement, jamais depuis l'`init_db.sql` courant.
+- **Vrai bloquant CI documenté (pas auto-codé)** : `init_db.sql` fait `\c spotify_etl` (l.6) → ignore le
+  `-d` cible et opère sur la DB live ; + seed `INSERT INTO saas_artists (id,…)` (l.956) non idempotent.
+  Donc provisionner un service CI ≠ simple edit `ci.yml` : il faut un `schema.sql` sans préambule
+  `CREATE DATABASE`/`\c` + seed `ON CONFLICT DO NOTHING`, ou un job qui applique le corps DDL sans
+  méta-commandes psql. **Refactor délibéré du bootstrap live → laissé en changement dédié et revu.**
+  Item roadmap réécrit avec ce scope (pré-requis syntaxe maintenant levé).
+- **Sécurité de l'expérience** : mes runs `init_db` ont été redirigés sur la **DB live** par le `\c`, mais
+  tout est `IF NOT EXISTS` (no-op) + le seed a échoué proprement (`ON_ERROR_STOP`, zéro write partiel).
+  **Live vérifiée intacte** : 92 tables, `saas_artists` = 1 ligne (premium/active), index `uq_yt_*`
+  présents, `s4a_song_timeline` = 13 794 lignes. DBs jetables `spotify_etl_ci`/`spotify_etl_fresh` laissées
+  (le guard bloque `DROP DATABASE`) — à dropper manuellement.
+
+### Tests
+`init_db.sql` n'est pas exécuté par pytest (pas de service DB en CI) ; le fix est validé par exécution DDL
+directe sur DB fraîche. Suite inchangée (555 passed) — aucun fichier de test touché.
