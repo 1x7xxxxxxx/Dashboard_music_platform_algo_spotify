@@ -41,6 +41,11 @@ _TR: dict[str, dict[str, str]] = {
         "nav.title": "🎵 Navigation",
         "ui.invalid_session": "Invalid session.",
         "ui.db_unreachable": "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`",
+        # Admin "View as" QA toggle + artist plan badge
+        "nav.view_as_header": "###### 👁️ View as (admin QA)",
+        "nav.view_as_help": "Free/Premium access preview. Data stays admin-wide.",
+        "nav.plan_badge_premium": "Your plan: **💎 Premium**",
+        "nav.plan_badge_free": "Your plan: **🆓 Free**  ·  🔒 = **Premium** features",
         # Section headers
         "nav.section.data": "📁 Data",
         "nav.section.analytics": "📊 Platform analytics",

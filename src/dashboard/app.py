@@ -218,6 +218,24 @@ def _on_nav_select(skey: str, all_skeys: list):
             st.session_state[other] = None
 
 
+def show_view_as_selector():
+    """Admin-only QA: preview the app as Free / Premium / Admin without altering the
+    real tenant. Drives nav role-gating + plan paywalls for the current session only —
+    this previews ACCESS, not data isolation (data stays admin-wide)."""
+    labels = {'admin': '🛠️ Admin (tout)', 'premium': '💎 Premium', 'free': '🆓 Free'}
+    st.sidebar.markdown(t("nav.view_as_header", "###### 👁️ Voir comme (QA admin)"))
+    st.sidebar.radio(
+        "view_as",
+        ['admin', 'premium', 'free'],
+        key='_view_as',
+        format_func=lambda k: labels[k],
+        label_visibility="collapsed",
+    )
+    st.sidebar.caption(t("nav.view_as_help",
+                         "Aperçu d'accès Free/Premium. Les données restent admin-wide."))
+    st.sidebar.markdown("---")
+
+
 def show_navigation_menu(role: str = 'artist'):
     st.sidebar.title(t("nav.title", "🎵 Navigation"))
 
@@ -225,6 +243,16 @@ def show_navigation_menu(role: str = 'artist'):
     plan = get_artist_plan()
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible  # premium: unrestricted
+
+    # Artist-facing plan vision: show the current plan + flag that 🔒 items are the
+    # Premium upsell (shown indicatively, never hidden). Admins use the toggle instead.
+    if role != 'admin':
+        if plan == 'premium':
+            st.sidebar.caption(t("nav.plan_badge_premium", "Votre plan : **💎 Premium**"))
+        else:
+            st.sidebar.caption(
+                t("nav.plan_badge_free",
+                  "Votre plan : **🆓 Free**  ·  🔒 = fonctions **Premium**"))
 
     def _is_locked(key: str) -> bool:
         return not (is_all or key in ALWAYS_ACCESSIBLE or key in accessible)
@@ -455,7 +483,7 @@ def main():
     _check_db_health()
     _show_cookie_notice()
 
-    role = st.session_state.get('role', 'artist')
+    real_role = st.session_state.get('role', 'artist')
     # Brand logo at the very top of the sidebar (just above Live Activity).
     from src.dashboard.utils import logo_html
     _sb_logo = logo_html(variant="adaptive", max_width=220)
@@ -466,6 +494,13 @@ def main():
     language_selector()
     show_live_activity_sidebar()
     show_data_collection_panel()
+    # Admin "Voir comme" QA toggle — must run before the nav so the impersonated plan
+    # is set in session_state when get_artist_plan() reads it. An admin previewing
+    # free/premium is treated as an 'artist' for role-gating (admin-only pages hidden).
+    if real_role == 'admin':
+        show_view_as_selector()
+    _view_as = st.session_state.get('_view_as')
+    role = 'artist' if (real_role == 'admin' and _view_as in ('free', 'premium')) else real_role
     page = show_navigation_menu(role)
     show_user_sidebar()
 

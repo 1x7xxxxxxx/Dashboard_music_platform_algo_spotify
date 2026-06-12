@@ -565,6 +565,12 @@ def get_artist_plan() -> str:
     """
     from src.database.stripe_schema import normalize_plan
     if is_admin():
+        # Admin QA "Voir comme" selector: impersonate a tenant plan for the current
+        # session so the free/premium nav + paywalls can be previewed. This previews
+        # ACCESS only — data stays admin-wide (get_artist_id() is untouched).
+        view_as = st.session_state.get('_view_as')
+        if view_as in ('free', 'premium'):
+            return view_as
         return 'premium'
 
     artist_id = get_artist_id()

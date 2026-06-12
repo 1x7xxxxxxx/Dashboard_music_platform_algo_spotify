@@ -1538,3 +1538,32 @@ contribution de chaque playlist (DW/RR/Radio).
 **Vérif live** : 3 fenêtres saisies (7d=9/9/9, 28d=500/50/700, custom=1/1/1) → le labelling n'utilise QUE
 le 28d (labels 1,0,1, `dw_streams_28d=500`), ignore les leurres ; requête graphique OK par fenêtre
 (totaux 27 / 1250 / 3). Migration 061 appliquée live. Render-smoke (onglet + grilles) vert.
+
+---
+
+## 2026-06-12 (suite 5) — Toggle admin « Voir comme » + features premium billing + e2e outcome prouvé
+
+### Why
+Avant le déploiement, valider 3 points : (1) la chaîne saisie→labelling→trigger fonctionne **e2e**
+(jamais exercée — `s4a_song_algo_outcomes` vide) ; (2) afficher les **vraies** features premium sur
+billing (effectives côté ops, plus de « bientôt ») ; (3) valider les visions **free/premium/admin** —
+impossible jusqu'ici car le seul tenant est premium et l'owner est admin → **aucun compte free n'existe**
+(ce n'était pas un bug de gating, juste l'absence d'instance free).
+
+### What changed
+- **Toggle admin « Voir comme »** (`app.py::show_view_as_selector`) — radio Admin/Premium/Free réservé
+  admin ; `get_artist_plan()` lit l'override session `_view_as` ; rôle effectif = `'artist'` quand l'admin
+  imite free/premium (masque les pages `_ADMIN_ONLY`). Aperçu d'**ACCÈS** uniquement — données restent
+  admin-wide (`get_artist_id()` intact). Badge plan + marqueur 🔒=Premium pour l'artiste.
+- **Billing premium en ✓ live** (`billing.py` + `i18n_catalog/billing.py`) — 3 features : auto-download
+  quotidien CSV S4A+Apple, optim CPR budget&streams, génération créatives vidéo 60+/campagne + targeting.
+  EN+FR. `SERVICE_CONTACT_EMAIL` → `1x7xxxxxxx@gmail.com`.
+- **Roadmap** — 4 items « Deferred-React » requalifiés en *parked* (bullets simples, hors backlog `[ ]`)
+  pour que `/resume` cesse de les recompter ; section closed 2026-06-12 ajoutée.
+
+### Tests
+`pytest -q` → **555 passed**, ruff clean, render-smoke 39 vues, guard i18n OK (4 clés `nav.*` ajoutées dans
+`i18n.py` — PAS `i18n_catalog/` — + `billing.feat_autosync` au catalogue). **E2E prouvé** par script
+synthétique auto-nettoyant (song `__e2e_test__`) : upsert outcome 7j+28j → `label_predictions()` réel =
+1 label (`y_dw/y_rr/y_radio` corrects vs seuils 137/130/639, horizon 30j) → relecture trigger OK →
+idempotence (2ᵉ run = 0) → cleanup **0 résidu** (état restauré : outcomes 0 / preds 77 / labels 0).
