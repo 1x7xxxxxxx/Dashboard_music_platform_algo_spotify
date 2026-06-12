@@ -1509,3 +1509,32 @@ de l'auto-rammer (il inverse le retrait d'hier), j'ai **simulé le provisioning 
 ### Tests
 `init_db.sql` n'est pas exécuté par pytest (pas de service DB en CI) ; le fix est validé par exécution DDL
 directe sur DB fraîche. Suite inchangée (555 passed) — aucun fichier de test touché.
+
+---
+
+## 2026-06-12 (suite 4) — Outcomes algo : fenêtres 7j/28j/perso + graphique streams par playlist
+
+### Why
+Recadrage utilisateur : l'enjeu n'est **pas** de prédire *quand* les algos se déclenchent, mais de mesurer
+**combien de streams chaque playlist génère une fois déclenchée** (le payoff réel). D'où : capture 7j + 28j
++ période perso (pas seulement 28j), et un graphique dans la vue ML montrant le total cumulé **et** la
+contribution de chaque playlist (DW/RR/Radio).
+
+### What changed
+- **`migrations/061_algo_outcomes_windowed.sql`** — `s4a_song_algo_outcomes` rendu *window-aware* :
+  `time_window` (7d/28d/custom) + `period_start/end`, colonnes renommées window-agnostiques
+  (`dw_streams`/`rr_streams`/`radio_streams`), PK repointée `(artist_id, song, time_window, recorded_at)`.
+  Idempotent (table vide). `init_db.sql` aligné.
+- **Saisie S4A** — la grille outcomes saisit maintenant **DW/RR/Radio × 7j + 28j** ; nouvelle section
+  **période personnalisée** (plage de dates + DW/RR/Radio → `time_window='custom'`).
+- **Vue Road to Algo** — nouvel onglet **« 📈 Streams algos générés »** (`_tab_algo_streams.py`) : sélecteur
+  de fenêtre (7j/28j/perso), **KPI cards** (DW, RR, Radio, Σ Total cumulé) + **stacked bar** (hauteur =
+  total cumulé, segments = streams par playlist) + table détail. i18n EN (10 clés trigger_algo + 3 saisie).
+- **Moteur de labelling — sémantique préservée** : `_outcomes_by_song` filtre désormais explicitement
+  `time_window='28d'` — **seul le 28j alimente les labels** (horizon-cible du modèle) ; 7j/custom = suivi pur.
+
+### Tests
+`pytest -q` → **555 passed**, ruff clean. Tests `test_ml_outcome_labeling` mis à jour (colonnes renommées).
+**Vérif live** : 3 fenêtres saisies (7d=9/9/9, 28d=500/50/700, custom=1/1/1) → le labelling n'utilise QUE
+le 28d (labels 1,0,1, `dw_streams_28d=500`), ignore les leurres ; requête graphique OK par fenêtre
+(totaux 27 / 1250 / 3). Migration 061 appliquée live. Render-smoke (onglet + grilles) vert.

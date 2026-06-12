@@ -9,6 +9,7 @@ from ._common import (
     _load_lifecycle_benchmark,
     _load_ml_pred,
 )
+from ._tab_algo_streams import _show_tab_algo_streams
 from ._tab_algos import _show_tab_algos
 from ._tab_budget_roi import _show_tab_budget_roi
 from ._tab_explainability import _show_tab_explainability
@@ -198,13 +199,14 @@ def show():
         ml_pred = _load_ml_pred(db, selected_track, artist_id)
         benchmark_df = _load_lifecycle_benchmark(db)
 
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
             t("trigger_algo.tab_global", "🎯 Vue Globale"),
             t("trigger_algo.tab_algos", "📊 Suivi Algorithmes"),
             t("trigger_algo.tab_budget", "💰 Budget & ROI"),
             t("trigger_algo.tab_explain", "🔍 Explainabilité"),
             t("trigger_algo.tab_model", "📈 Modèle"),
             t("trigger_algo.tab_lifecycle", "📉 Cycle de vie & Benchmark"),
+            t("trigger_algo.tab_algostreams", "📈 Streams algos générés"),
         ])
         with tab1:
             _show_tab_global(db, selected_track, artist_id, date_from, date_to, ml_pred, release_date=track_release_date)
@@ -219,3 +221,5 @@ def show():
         with tab6:
             _show_tab_lifecycle(db, selected_track, artist_id,
                                 release_date=track_release_date, benchmark_df=benchmark_df)
+        with tab7:
+            _show_tab_algo_streams(db, selected_track, artist_id)

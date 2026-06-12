@@ -42,10 +42,13 @@ EN = {
                                 "**Radio** rows of the “Source of streams” segmentation. Enter these "
                                 "**~4 weeks after** the prediction so the 28-day window is complete — that "
                                 "delay is what makes the label honest.",
-    "saisie_s4a.outcome_help": "Real Discover Weekly / Release Radar / Radio streams over 28 days. "
-                               "Become the model's training labels (thresholds 137 / 130 / 639).",
-    "saisie_s4a.save_outcomes": "💾 Save realized outcomes",
-    "saisie_s4a.saved_outcomes": "Realized outcomes saved for {n} tracks.",
+    "saisie_s4a.outcome_help": "Real Discover Weekly / Release Radar / Radio streams. The 28d feeds the "
+                               "model's training labels (thresholds 137 / 130 / 639); the 7d is for tracking.",
+    "saisie_s4a.save_outcomes": "💾 Save realized outcomes (7d + 28d)",
+    "saisie_s4a.saved_outcomes": "Realized outcomes saved (7d + 28d) for {n} tracks.",
+    "saisie_s4a.outcome_custom_header": "📅 Custom range (DW/RR/Radio streams generated)",
+    "saisie_s4a.outcome_custom_save": "💾 Save range (algos)",
+    "saisie_s4a.outcome_custom_saved": "Range {start} → {end} saved for {n} tracks.",
     # Custom grid
     "saisie_s4a.custom_header": "📅 Custom range (e.g. first days post-release)",
     "saisie_s4a.custom_start": "Start",
