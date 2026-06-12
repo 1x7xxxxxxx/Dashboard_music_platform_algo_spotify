@@ -55,10 +55,15 @@ def match_outcome(prediction_date: date, observations: list, min_horizon_days: i
 
 
 def _outcomes_by_song(db, artist_id: int) -> dict:
-    """{song: [snapshot dicts sorted by recorded_at]} of realized algo streams."""
+    """{song: [snapshot dicts sorted by recorded_at]} of realized 28d algo streams.
+
+    Only the 28-day window feeds labels — that is the model's target horizon. The
+    7d/custom rows captured for tracking are deliberately excluded here.
+    """
     df = db.fetch_df(
-        """SELECT song, recorded_at, dw_streams_28d, rr_streams_28d, radio_streams_28d
-           FROM s4a_song_algo_outcomes WHERE artist_id = %s
+        """SELECT song, recorded_at, dw_streams, rr_streams, radio_streams
+           FROM s4a_song_algo_outcomes
+           WHERE artist_id = %s AND time_window = '28d'
            ORDER BY song, recorded_at""",
         (artist_id,),
     )
@@ -100,7 +105,7 @@ def label_predictions(db, artist_id: int, min_horizon_days: int = _DEFAULT_HORIZ
         obs = match_outcome(p["prediction_date"], by_song.get(p["song"], []), min_horizon_days)
         if obs is None:
             continue
-        dw, rr, radio = obs["dw_streams_28d"], obs["rr_streams_28d"], obs["radio_streams_28d"]
+        dw, rr, radio = obs["dw_streams"], obs["rr_streams"], obs["radio_streams"]
         rows.append({
             "prediction_id": int(p["id"]),
             "artist_id": artist_id,

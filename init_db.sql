@@ -265,14 +265,17 @@ CREATE INDEX IF NOT EXISTS idx_ml_predictions_date ON ml_song_predictions(predic
 -- ML outcome-labelling loop (migration 060). Manual capture of realized DW/RR/Radio
 -- 28d streams per song (no S4A API — ADR-004) + training-ready labelled pairs.
 CREATE TABLE IF NOT EXISTS s4a_song_algo_outcomes (
-    artist_id          INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
-    song               TEXT    NOT NULL,
-    dw_streams_28d     INTEGER NOT NULL DEFAULT 0,
-    rr_streams_28d     INTEGER NOT NULL DEFAULT 0,
-    radio_streams_28d  INTEGER NOT NULL DEFAULT 0,
-    collected_at       TIMESTAMPTZ DEFAULT now(),
-    recorded_at        DATE    NOT NULL DEFAULT CURRENT_DATE,
-    PRIMARY KEY (artist_id, song, recorded_at)
+    artist_id     INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    song          TEXT    NOT NULL,
+    time_window   TEXT    NOT NULL DEFAULT '28d',   -- '7d' / '28d' / 'custom'
+    dw_streams    INTEGER NOT NULL DEFAULT 0,
+    rr_streams    INTEGER NOT NULL DEFAULT 0,
+    radio_streams INTEGER NOT NULL DEFAULT 0,
+    period_start  DATE,                              -- custom window only
+    period_end    DATE,
+    collected_at  TIMESTAMPTZ DEFAULT now(),
+    recorded_at   DATE    NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (artist_id, song, time_window, recorded_at)
 );
 CREATE INDEX IF NOT EXISTS idx_s4a_algo_outcomes_artist_song ON s4a_song_algo_outcomes (artist_id, song);
 

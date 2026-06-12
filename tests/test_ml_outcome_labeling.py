@@ -38,8 +38,8 @@ class TestBinLabel:
 class TestMatchOutcome:
     @staticmethod
     def _obs(d, dw=0, rr=0, radio=0):
-        return {"recorded_at": d, "dw_streams_28d": dw,
-                "rr_streams_28d": rr, "radio_streams_28d": radio}
+        return {"recorded_at": d, "dw_streams": dw,
+                "rr_streams": rr, "radio_streams": radio}
 
     def test_picks_earliest_past_horizon(self):
         pred = date(2026, 1, 1)  # cutoff = 2026-01-29
@@ -48,7 +48,7 @@ class TestMatchOutcome:
                self._obs(date(2026, 1, 29), dw=500)]  # earliest eligible
         chosen = match_outcome(pred, obs, 28)
         assert chosen["recorded_at"] == date(2026, 1, 29)
-        assert chosen["dw_streams_28d"] == 500
+        assert chosen["dw_streams"] == 500
 
     def test_none_when_nothing_late_enough(self):
         assert match_outcome(date(2026, 1, 1), [self._obs(date(2026, 1, 15))], 28) is None
@@ -81,7 +81,7 @@ class TestLabelPredictions:
         ])
         outcomes = pd.DataFrame([  # only A has a realized outcome past the horizon
             {"song": "A", "recorded_at": date(2026, 1, 29),
-             "dw_streams_28d": 500, "rr_streams_28d": 50, "radio_streams_28d": 700},
+             "dw_streams": 500, "rr_streams": 50, "radio_streams": 700},
         ])
         db = _FakeDB(preds, outcomes)
         n = label_predictions(db, artist_id=1)

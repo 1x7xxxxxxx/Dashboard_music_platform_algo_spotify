@@ -82,13 +82,14 @@ def _latest_radio_count(db, artist_id) -> int:
     return int(rows[0][0]) if rows and rows[0][0] is not None else 0
 
 
-def _latest_algo_outcomes(db, artist_id) -> dict:
-    """{song: {dw, rr, radio}} latest realized algo-stream 28d snapshot per song."""
+def _latest_algo_outcomes(db, artist_id, time_window) -> dict:
+    """{song: {dw, rr, radio}} latest realized algo-stream snapshot per song for one window."""
     rows = db.fetch_query(
-        """SELECT DISTINCT ON (song) song, dw_streams_28d, rr_streams_28d, radio_streams_28d
+        """SELECT DISTINCT ON (song) song, dw_streams, rr_streams, radio_streams
            FROM s4a_song_algo_outcomes
-           WHERE artist_id = %s ORDER BY song, recorded_at DESC""",
-        (artist_id,)) if artist_id else []
+           WHERE artist_id = %s AND time_window = %s
+           ORDER BY song, recorded_at DESC""",
+        (artist_id, time_window)) if artist_id else []
     return {r[0]: {"dw": int(r[1] or 0), "rr": int(r[2] or 0), "radio": int(r[3] or 0)}
             for r in rows} if rows else {}
 
@@ -213,42 +214,87 @@ def _render_outcome_grid(db, artist_id, tracks) -> None:
             "segmentation « Source de streams ». Saisis ces valeurs **~4 semaines après** la prédiction "
             "pour que la fenêtre de 28 jours soit complète — c'est ce délai qui rend le label honnête."))
 
-    out = _latest_algo_outcomes(db, artist_id)
+    out7 = _latest_algo_outcomes(db, artist_id, "7d")
+    out28 = _latest_algo_outcomes(db, artist_id, "28d")
     df = pd.DataFrame([{
         "Titre": s,
-        "DW 28j": out.get(s, {}).get("dw", 0),
-        "RR 28j": out.get(s, {}).get("rr", 0),
-        "Radio 28j": out.get(s, {}).get("radio", 0),
+        "DW 7j": out7.get(s, {}).get("dw", 0), "DW 28j": out28.get(s, {}).get("dw", 0),
+        "RR 7j": out7.get(s, {}).get("rr", 0), "RR 28j": out28.get(s, {}).get("rr", 0),
+        "Radio 7j": out7.get(s, {}).get("radio", 0), "Radio 28j": out28.get(s, {}).get("radio", 0),
     } for s in tracks])
 
+    _num = st.column_config.NumberColumn(min_value=0, step=1)
     edited = st.data_editor(
         df, hide_index=True, width="stretch", num_rows="fixed",
         column_config={
             "Titre": st.column_config.TextColumn(disabled=True),
+            "DW 7j": _num,
             "DW 28j": st.column_config.NumberColumn(
                 min_value=0, step=1,
                 help=t("saisie_s4a.outcome_help",
-                       "Streams Discover Weekly / Release Radar / Radio réels sur 28 jours. "
-                       "Deviennent les labels d'entraînement du modèle (seuils 137 / 130 / 639).")),
-            "RR 28j": st.column_config.NumberColumn(min_value=0, step=1),
-            "Radio 28j": st.column_config.NumberColumn(min_value=0, step=1),
+                       "Streams Discover Weekly / Release Radar / Radio réels. Le 28j alimente les "
+                       "labels d'entraînement du modèle (seuils 137 / 130 / 639) ; le 7j sert au suivi.")),
+            "RR 7j": _num, "RR 28j": _num, "Radio 7j": _num, "Radio 28j": _num,
         },
         key=f"grid_outcome_{artist_id}",
     )
 
-    if st.button(t("saisie_s4a.save_outcomes", "💾 Enregistrer les outcomes réalisés"),
+    if st.button(t("saisie_s4a.save_outcomes", "💾 Enregistrer les outcomes (7j + 28j)"),
                  type="primary", key=f"save_outcomes_{artist_id}"):
-        rows = [{"artist_id": artist_id, "song": r["Titre"], "recorded_at": date.today(),
-                 "dw_streams_28d": int(r["DW 28j"] or 0), "rr_streams_28d": int(r["RR 28j"] or 0),
-                 "radio_streams_28d": int(r["Radio 28j"] or 0)} for _, r in edited.iterrows()]
+        today = date.today()
+        rows = []
+        for _, r in edited.iterrows():
+            rows.append({"artist_id": artist_id, "song": r["Titre"], "time_window": "7d",
+                         "recorded_at": today, "dw_streams": int(r["DW 7j"] or 0),
+                         "rr_streams": int(r["RR 7j"] or 0), "radio_streams": int(r["Radio 7j"] or 0)})
+            rows.append({"artist_id": artist_id, "song": r["Titre"], "time_window": "28d",
+                         "recorded_at": today, "dw_streams": int(r["DW 28j"] or 0),
+                         "rr_streams": int(r["RR 28j"] or 0), "radio_streams": int(r["Radio 28j"] or 0)})
         try:
-            # collected_at intentionally NOT in update_columns: it has a table DEFAULT
-            # on insert; refreshing it on conflict would reference a missing EXCLUDED col.
             db.upsert_many("s4a_song_algo_outcomes", rows,
-                           ["artist_id", "song", "recorded_at"],
-                           ["dw_streams_28d", "rr_streams_28d", "radio_streams_28d"])
+                           ["artist_id", "song", "time_window", "recorded_at"],
+                           ["dw_streams", "rr_streams", "radio_streams"])
             st.success(t("saisie_s4a.saved_outcomes",
-                         "Outcomes réalisés enregistrés pour {n} titres.").format(n=len(rows)))
+                         "Outcomes réalisés enregistrés (7j + 28j) pour {n} titres.").format(n=len(tracks)))
+            st.rerun()
+        except Exception as exc:
+            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
+
+
+def _render_outcome_custom_grid(db, artist_id, tracks) -> None:
+    st.markdown("**" + t("saisie_s4a.outcome_custom_header",
+                         "📅 Période personnalisée (streams DW/RR/Radio générés)") + "**")
+    today = date.today()
+    c1, c2 = st.columns(2)
+    start = c1.date_input(t("saisie_s4a.custom_start", "Début"), value=today - timedelta(days=7),
+                          format="YYYY-MM-DD", key=f"algo_custom_start_{artist_id}")
+    end = c2.date_input(t("saisie_s4a.custom_end", "Fin"), value=today, format="YYYY-MM-DD",
+                        key=f"algo_custom_end_{artist_id}")
+    if start > end:
+        st.warning(t("saisie_s4a.start_before_end", "La date de début doit précéder la date de fin."))
+        return
+
+    df = pd.DataFrame([{"Titre": s, "DW": 0, "RR": 0, "Radio": 0} for s in tracks])
+    _num = st.column_config.NumberColumn(min_value=0, step=1)
+    edited = st.data_editor(
+        df, hide_index=True, width="stretch", num_rows="fixed",
+        column_config={"Titre": st.column_config.TextColumn(disabled=True),
+                       "DW": _num, "RR": _num, "Radio": _num},
+        key=f"grid_outcome_custom_{artist_id}",
+    )
+    if st.button(t("saisie_s4a.outcome_custom_save", "💾 Enregistrer la période (algos)"),
+                 type="primary", key=f"save_outcome_custom_{artist_id}"):
+        rows = [{"artist_id": artist_id, "song": r["Titre"], "time_window": "custom",
+                 "recorded_at": end, "dw_streams": int(r["DW"] or 0), "rr_streams": int(r["RR"] or 0),
+                 "radio_streams": int(r["Radio"] or 0), "period_start": start, "period_end": end}
+                for _, r in edited.iterrows()]
+        try:
+            db.upsert_many("s4a_song_algo_outcomes", rows,
+                           ["artist_id", "song", "time_window", "recorded_at"],
+                           ["dw_streams", "rr_streams", "radio_streams", "period_start", "period_end"])
+            st.success(t("saisie_s4a.outcome_custom_saved",
+                         "Période {start} → {end} enregistrée pour {n} titres.")
+                       .format(start=start, end=end, n=len(rows)))
             st.rerun()
         except Exception as exc:
             st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
@@ -306,5 +352,6 @@ def show():
         _render_fixed_grid(db, artist_id, tracks)
         st.markdown("---")
         _render_outcome_grid(db, artist_id, tracks)
+        _render_outcome_custom_grid(db, artist_id, tracks)
         st.markdown("---")
         _render_custom_grid(db, artist_id, tracks)
