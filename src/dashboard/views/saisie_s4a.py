@@ -82,6 +82,17 @@ def _latest_radio_count(db, artist_id) -> int:
     return int(rows[0][0]) if rows and rows[0][0] is not None else 0
 
 
+def _latest_algo_outcomes(db, artist_id) -> dict:
+    """{song: {dw, rr, radio}} latest realized algo-stream 28d snapshot per song."""
+    rows = db.fetch_query(
+        """SELECT DISTINCT ON (song) song, dw_streams_28d, rr_streams_28d, radio_streams_28d
+           FROM s4a_song_algo_outcomes
+           WHERE artist_id = %s ORDER BY song, recorded_at DESC""",
+        (artist_id,)) if artist_id else []
+    return {r[0]: {"dw": int(r[1] or 0), "rr": int(r[2] or 0), "radio": int(r[3] or 0)}
+            for r in rows} if rows else {}
+
+
 def _render_fixed_grid(db, artist_id, tracks) -> None:
     st.subheader(t("saisie_s4a.fixed_header", "📊 Ajouts en playlist par fenêtre + Discovery Mode"))
     st.caption(t("saisie_s4a.fixed_caption",
@@ -182,6 +193,63 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
         st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
 
 
+def _render_outcome_grid(db, artist_id, tracks) -> None:
+    st.subheader(t("saisie_s4a.outcome_header",
+                   "🎯 Streams algorithmiques réalisés (28j) — entraînement du modèle"))
+    st.caption(t("saisie_s4a.outcome_caption",
+                 "Par titre, les streams **réellement obtenus** sur 28 jours via Discover Weekly, "
+                 "Release Radar et Radio. Ces valeurs deviennent les **labels** qui apprennent au "
+                 "modèle s'il avait raison (boucle d'apprentissage live, alimente ml_prediction_outcomes)."))
+
+    with st.expander(t("saisie_s4a.outcome_howto_header",
+                       "ℹ️ Où lire les streams DW / RR / Radio dans Spotify for Artists ?")):
+        st.markdown(t("saisie_s4a.outcome_howto",
+            "**Musique → Titres → un titre → Source de streams**, active le filtre **28 derniers "
+            "jours**, puis reporte les lignes **Discover Weekly**, **Release Radar** et **Radio** de la "
+            "segmentation « Source de streams ». Saisis ces valeurs **~4 semaines après** la prédiction "
+            "pour que la fenêtre de 28 jours soit complète — c'est ce délai qui rend le label honnête."))
+
+    out = _latest_algo_outcomes(db, artist_id)
+    df = pd.DataFrame([{
+        "Titre": s,
+        "DW 28j": out.get(s, {}).get("dw", 0),
+        "RR 28j": out.get(s, {}).get("rr", 0),
+        "Radio 28j": out.get(s, {}).get("radio", 0),
+    } for s in tracks])
+
+    edited = st.data_editor(
+        df, hide_index=True, width="stretch", num_rows="fixed",
+        column_config={
+            "Titre": st.column_config.TextColumn(disabled=True),
+            "DW 28j": st.column_config.NumberColumn(
+                min_value=0, step=1,
+                help=t("saisie_s4a.outcome_help",
+                       "Streams Discover Weekly / Release Radar / Radio réels sur 28 jours. "
+                       "Deviennent les labels d'entraînement du modèle (seuils 137 / 130 / 639).")),
+            "RR 28j": st.column_config.NumberColumn(min_value=0, step=1),
+            "Radio 28j": st.column_config.NumberColumn(min_value=0, step=1),
+        },
+        key=f"grid_outcome_{artist_id}",
+    )
+
+    if st.button(t("saisie_s4a.save_outcomes", "💾 Enregistrer les outcomes réalisés"),
+                 type="primary", key=f"save_outcomes_{artist_id}"):
+        rows = [{"artist_id": artist_id, "song": r["Titre"], "recorded_at": date.today(),
+                 "dw_streams_28d": int(r["DW 28j"] or 0), "rr_streams_28d": int(r["RR 28j"] or 0),
+                 "radio_streams_28d": int(r["Radio 28j"] or 0)} for _, r in edited.iterrows()]
+        try:
+            # collected_at intentionally NOT in update_columns: it has a table DEFAULT
+            # on insert; refreshing it on conflict would reference a missing EXCLUDED col.
+            db.upsert_many("s4a_song_algo_outcomes", rows,
+                           ["artist_id", "song", "recorded_at"],
+                           ["dw_streams_28d", "rr_streams_28d", "radio_streams_28d"])
+            st.success(t("saisie_s4a.saved_outcomes",
+                         "Outcomes réalisés enregistrés pour {n} titres.").format(n=len(rows)))
+            st.rerun()
+        except Exception as exc:
+            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
+
+
 def _render_custom_grid(db, artist_id, tracks) -> None:
     st.subheader(t("saisie_s4a.custom_header", "📅 Plage personnalisée (ex. premiers jours post-release)"))
     today = date.today()
@@ -232,5 +300,7 @@ def show():
             st.warning(t("saisie_s4a.no_tracks", "Aucun titre disponible (timeline S4A vide)."))
             return
         _render_fixed_grid(db, artist_id, tracks)
+        st.markdown("---")
+        _render_outcome_grid(db, artist_id, tracks)
         st.markdown("---")
         _render_custom_grid(db, artist_id, tracks)

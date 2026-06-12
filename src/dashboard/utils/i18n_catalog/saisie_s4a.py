@@ -30,6 +30,22 @@ EN = {
     "saisie_s4a.save_grid": "💾 Save grid",
     "saisie_s4a.saved_fixed": "Saved: {pa} playlist values + {dm} Discovery Mode + "
                               "{na} non-algo streams + Radio = {radio}.",
+    # Realized-outcome grid (training labels)
+    "saisie_s4a.outcome_header": "🎯 Realized algorithmic streams (28d) — model training",
+    "saisie_s4a.outcome_caption": "Per track, the streams **actually earned** over 28 days via Discover "
+                                  "Weekly, Release Radar and Radio. These become the **labels** that teach "
+                                  "the model whether it was right (live learning loop, feeds "
+                                  "ml_prediction_outcomes).",
+    "saisie_s4a.outcome_howto_header": "ℹ️ Where to read DW / RR / Radio streams in Spotify for Artists?",
+    "saisie_s4a.outcome_howto": "**Music → Songs → a song → Source of streams**, enable the **last 28 "
+                                "days** filter, then report the **Discover Weekly**, **Release Radar** and "
+                                "**Radio** rows of the “Source of streams” segmentation. Enter these "
+                                "**~4 weeks after** the prediction so the 28-day window is complete — that "
+                                "delay is what makes the label honest.",
+    "saisie_s4a.outcome_help": "Real Discover Weekly / Release Radar / Radio streams over 28 days. "
+                               "Become the model's training labels (thresholds 137 / 130 / 639).",
+    "saisie_s4a.save_outcomes": "💾 Save realized outcomes",
+    "saisie_s4a.saved_outcomes": "Realized outcomes saved for {n} tracks.",
     # Custom grid
     "saisie_s4a.custom_header": "📅 Custom range (e.g. first days post-release)",
     "saisie_s4a.custom_start": "Start",

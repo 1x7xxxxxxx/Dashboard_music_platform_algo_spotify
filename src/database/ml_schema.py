@@ -31,5 +31,31 @@ ML_SCHEMA = {
 
         CREATE INDEX IF NOT EXISTS idx_ml_predictions_date
         ON ml_song_predictions(prediction_date DESC);
+    """,
+    'ml_prediction_outcomes': """
+        CREATE TABLE IF NOT EXISTS ml_prediction_outcomes (
+            id SERIAL PRIMARY KEY,
+            prediction_id INTEGER NOT NULL REFERENCES ml_song_predictions(id) ON DELETE CASCADE,
+            artist_id INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+            song VARCHAR(255) NOT NULL,
+            prediction_date DATE NOT NULL,
+            observed_at DATE NOT NULL,
+            horizon_days INTEGER NOT NULL,
+            dw_streams_28d INTEGER NOT NULL DEFAULT 0,
+            rr_streams_28d INTEGER NOT NULL DEFAULT 0,
+            radio_streams_28d INTEGER NOT NULL DEFAULT 0,
+            y_dw SMALLINT NOT NULL,
+            y_rr SMALLINT NOT NULL,
+            y_radio SMALLINT NOT NULL,
+            model_version VARCHAR(50) NOT NULL,
+            labeled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT unique_ml_prediction_outcome UNIQUE(prediction_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_ml_outcomes_artist
+        ON ml_prediction_outcomes(artist_id);
+
+        CREATE INDEX IF NOT EXISTS idx_ml_outcomes_model
+        ON ml_prediction_outcomes(model_version);
     """
 }

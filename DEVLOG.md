@@ -1430,3 +1430,48 @@ Migration 059 appliquée sur la DB live.
   à un changement dédié et revu, pas auto-rammé.
 - **API `/ml/predictions`** (P4) : redesign de contrat (renvoyer probas vs calculer un score) = décision
   produit, pas une correction mécanique → laissé à l'utilisateur.
+
+---
+
+## 2026-06-12 (suite) — Boucle d'outcome-labelling ML (item #2a) : prédictions → labels d'entraînement
+
+### Why
+Suite à la question « quels items ML sont les plus pertinents long terme » : le levier #1 est la
+**boucle qui génère la donnée** dont tous les autres dépendent. L'exploration a révélé une contrainte
+pivot : les vrais streams DW/RR/Radio **n'existent pas automatiquement** (S4A n'expose pas le split par
+source — ADR-004 = saisie manuelle ; les labels d'entraînement v3 venaient d'un questionnaire one-shot
+`data_anon.csv`). Donc « la jointure » n'était pas le vrai manque — c'était la **surface de capture** des
+outcomes réalisés + la jointure. Choix utilisateur : construire backend **+** saisie S4A maintenant.
+
+### What changed
+- **2 tables** (`migrations/060_ml_outcome_labeling.sql` + `init_db.sql` + `ml_schema.py` + allowlist) :
+  - `s4a_song_algo_outcomes` — capture manuelle des streams DW/RR/Radio 28j réalisés par titre (snapshot
+    daté, dernier `recorded_at` gagne ; calque `s4a_song_nonalgo_streams`).
+  - `ml_prediction_outcomes` — paires d'entraînement (prédiction ↔ outcome réalisé ↔ label binaire),
+    FK `ml_song_predictions(id)`, UNIQUE sur `prediction_id`.
+- **Moteur pur** `src/utils/ml_outcome_labeling.py` : `bin_label` (seuils d'entraînement 137/130/639,
+  `> strict`, miroir `train.py:45`), `match_outcome` (snapshot le plus précoce ≥28j après la prédiction
+  → fenêtre 28j complète), `label_predictions` (jointure idempotente, LEFT JOIN sur les déjà-labellisés).
+- **DAG hebdo** `ml_outcome_labeling` (lundi 06:00 UTC, `max_active_runs=1`, retries, failure callback)
+  + `debug_ml_outcome_labeling.py` (dry-run / `--write`).
+- **Saisie S4A** : 3ᵉ grille « 🎯 Streams algorithmiques réalisés (28j) » = la surface de capture (how-to
+  « où lire DW/RR/Radio dans S4A », saisir ~4 semaines après pour une fenêtre honnête). +7 clés i18n EN.
+
+### Tests
+`pytest tests/ -q` → **555 passed** (+10 : `test_ml_outcome_labeling.py` — `bin_label` bornes, `match_outcome`
+sélection, `label_predictions` sur fake-db). ruff `src/ tests/` clean. **Vérif live** : prédiction
+synthétique J-40 + outcome J-10 (DW 500 / RR 50 / Radio 700) → label `(1,0,1)`, horizon 30, FK OK,
+**re-run = 0** (idempotent), puis cleanup. Migration 060 appliquée live ; DAG **parse in-container sans
+erreur d'import** (DagBag). Render-smoke de `saisie_s4a` (grille ajoutée) vert.
+
+### État
+La moitié **input** de #2 est fermée : les labels s'accumulent dès que tu saisis des outcomes réalisés.
+Reste **bloqué** (forward time + volume de saisies) : le DAG champion/challenger de **retraining** qui
+consommera `ml_prediction_outcomes` — à construire quand assez de cycles auront accumulé des paires.
+
+### Annexe (bug latent repéré, non touché)
+`saisie_s4a._save_fixed` liste `collected_at` dans `update_columns` sans le passer dans les rows → sur un
+**2ᵉ enregistrement le même jour**, `EXCLUDED.collected_at` réfère une colonne absente de l'INSERT →
+erreur. Latent (1er save = INSERT OK ; non couvert par render-smoke qui ne déclenche pas le bouton).
+P3, signalé — pas corrigé ici (hors scope, « never rewrite unrelated code unasked »). Mon nouveau code
+omet `collected_at` des `update_columns` pour éviter le piège.

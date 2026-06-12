@@ -262,6 +262,41 @@ CREATE INDEX IF NOT EXISTS idx_ml_predictions_artist ON ml_song_predictions(arti
 CREATE INDEX IF NOT EXISTS idx_ml_predictions_song_date ON ml_song_predictions(artist_id, song, prediction_date DESC);
 CREATE INDEX IF NOT EXISTS idx_ml_predictions_date ON ml_song_predictions(prediction_date DESC);
 
+-- ML outcome-labelling loop (migration 060). Manual capture of realized DW/RR/Radio
+-- 28d streams per song (no S4A API — ADR-004) + training-ready labelled pairs.
+CREATE TABLE IF NOT EXISTS s4a_song_algo_outcomes (
+    artist_id          INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    song               TEXT    NOT NULL,
+    dw_streams_28d     INTEGER NOT NULL DEFAULT 0,
+    rr_streams_28d     INTEGER NOT NULL DEFAULT 0,
+    radio_streams_28d  INTEGER NOT NULL DEFAULT 0,
+    collected_at       TIMESTAMPTZ DEFAULT now(),
+    recorded_at        DATE    NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (artist_id, song, recorded_at)
+);
+CREATE INDEX IF NOT EXISTS idx_s4a_algo_outcomes_artist_song ON s4a_song_algo_outcomes (artist_id, song);
+
+CREATE TABLE IF NOT EXISTS ml_prediction_outcomes (
+    id                 SERIAL PRIMARY KEY,
+    prediction_id      INTEGER NOT NULL REFERENCES ml_song_predictions(id) ON DELETE CASCADE,
+    artist_id          INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    song               VARCHAR(255) NOT NULL,
+    prediction_date    DATE NOT NULL,
+    observed_at        DATE NOT NULL,
+    horizon_days       INTEGER NOT NULL,
+    dw_streams_28d     INTEGER NOT NULL DEFAULT 0,
+    rr_streams_28d     INTEGER NOT NULL DEFAULT 0,
+    radio_streams_28d  INTEGER NOT NULL DEFAULT 0,
+    y_dw               SMALLINT NOT NULL,
+    y_rr               SMALLINT NOT NULL,
+    y_radio            SMALLINT NOT NULL,
+    model_version      VARCHAR(50) NOT NULL,
+    labeled_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_ml_prediction_outcome UNIQUE (prediction_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ml_outcomes_artist ON ml_prediction_outcomes (artist_id);
+CREATE INDEX IF NOT EXISTS idx_ml_outcomes_model ON ml_prediction_outcomes (model_version);
+
 -- Global (non-tenant) algorithmic lifecycle benchmark — read-only cohort curves.
 -- Seeded by migrations/035_algo_lifecycle_benchmark.sql; see src/database/benchmark_schema.py.
 CREATE TABLE IF NOT EXISTS algo_lifecycle_benchmark (
