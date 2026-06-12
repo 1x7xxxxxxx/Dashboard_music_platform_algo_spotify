@@ -159,6 +159,74 @@ services:
     networks:
       - airflow_network
 
+  # ============================================================================
+  # STREAMLIT DASHBOARD (containerised for prod — runs on the host in local dev)
+  # ============================================================================
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: streamlytics_dashboard
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Prod DB path = DATABASE_URL (get_db_connection priority #1; config.yaml is the
+      # local-dev fallback). Inter-container host = the `postgres` service name.
+      DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/spotify_etl
+      FERNET_KEY: ${FERNET_KEY}                       # decrypt stored API credentials
+      APP_BASE_URL: ${APP_BASE_URL}                   # absolute links in verification emails
+      # "Lancer TOUTES les collectes" sidebar button triggers DAGs via the Airflow API
+      AIRFLOW_BASE_URL: http://airflow-webserver:8080
+      AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
+      AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      # Email (verification / alerts / digest)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      # Billing page reads these (Stripe checkout/portal links)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_CHECKOUT_URL: ${STRIPE_CHECKOUT_URL}
+      STRIPE_PORTAL_URL: ${STRIPE_PORTAL_URL}
+      TZ: Europe/Paris
+    ports:
+      # Loopback-only: Caddy (app.<domain>) terminates TLS and proxies to this.
+      - '127.0.0.1:8501:8501'
+    volumes:
+      # ML artifacts (.ubj models + mlruns) are NOT baked into the image — mount them.
+      - ./machine_learning:/app/machine_learning:ro
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - airflow_network
+
+  # ============================================================================
+  # FASTAPI BACKEND (hosts the Stripe webhook — api.<domain>)
+  # ============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: streamlytics_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8502                                      # match Caddy api.<domain> upstream
+      DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/spotify_etl
+      API_SECRET_KEY: ${API_SECRET_KEY}               # JWT signing (no ephemeral fallback in prod)
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      API_ENABLE_DOCS: ${API_ENABLE_DOCS:-}           # leave empty in prod (/docs + /redoc off)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET} # webhook returns 503 if unset (intended)
+      TZ: Europe/Paris
+    ports:
+      - '127.0.0.1:8502:8502'
+    restart: unless-stopped
+    networks:
+      - airflow_network
+
 # ============================================================================
 # VOLUMES
 # ============================================================================
