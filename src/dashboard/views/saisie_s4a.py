@@ -173,17 +173,21 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
         na_rows.append({"artist_id": artist_id, "song": song, "recorded_at": today,
                         "streams_28d": int(row["Streams non-algo (28j)"] or 0)})
     try:
+        # collected_at is intentionally NOT in update_columns: it is never passed in the
+        # row dicts (it has a table DEFAULT on insert), so listing it would make the
+        # ON CONFLICT clause reference a missing EXCLUDED.collected_at and crash on the
+        # second same-day save. recorded_at (the snapshot date) is the meaningful key.
         db.upsert_many("s4a_song_playlist_adds", pa_rows,
                        ["artist_id", "song", "time_window", "recorded_at"],
-                       ["count", "collected_at"])
+                       ["count"])
         db.upsert_many("s4a_song_discovery_mode", dm_rows,
-                       ["artist_id", "song", "recorded_at"], ["opted_in", "collected_at"])
+                       ["artist_id", "song", "recorded_at"], ["opted_in"])
         db.upsert_many("s4a_song_nonalgo_streams", na_rows,
-                       ["artist_id", "song", "recorded_at"], ["streams_28d", "collected_at"])
+                       ["artist_id", "song", "recorded_at"], ["streams_28d"])
         db.upsert_many("s4a_artist_radio_count",
                        [{"artist_id": artist_id, "recorded_at": today,
                          "song_count": int(radio_count)}],
-                       ["artist_id", "recorded_at"], ["song_count", "collected_at"])
+                       ["artist_id", "recorded_at"], ["song_count"])
         st.success(t("saisie_s4a.saved_fixed",
                      "Enregistré : {pa} valeurs playlist + {dm} Discovery Mode + "
                      "{na} streams non-algo + Radio = {radio}.")
@@ -278,7 +282,7 @@ def _render_custom_grid(db, artist_id, tracks) -> None:
         try:
             db.upsert_many("s4a_song_playlist_adds", rows,
                            ["artist_id", "song", "time_window", "recorded_at"],
-                           ["count", "period_start", "period_end", "collected_at"])
+                           ["count", "period_start", "period_end"])
             st.success(t("saisie_s4a.saved_custom", "Plage {start} → {end} enregistrée pour {n} titres.")
                        .format(start=start, end=end, n=len(rows)))
             st.rerun()

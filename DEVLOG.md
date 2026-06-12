@@ -1473,5 +1473,6 @@ consommera `ml_prediction_outcomes` — à construire quand assez de cycles auro
 `saisie_s4a._save_fixed` liste `collected_at` dans `update_columns` sans le passer dans les rows → sur un
 **2ᵉ enregistrement le même jour**, `EXCLUDED.collected_at` réfère une colonne absente de l'INSERT →
 erreur. Latent (1er save = INSERT OK ; non couvert par render-smoke qui ne déclenche pas le bouton).
-P3, signalé — pas corrigé ici (hors scope, « never rewrite unrelated code unasked »). Mon nouveau code
-omet `collected_at` des `update_columns` pour éviter le piège.
+P3, signalé puis **CORRIGÉ** (à la demande de l'utilisateur, commit suivant) : `collected_at` retiré des
+`update_columns` des 5 upserts de `saisie_s4a` (`_save_fixed` ×4 + `_render_custom_grid` ×1). Vérifié live
+(2 sauvegardes le même jour → la 2ᵉ écrase sans crash). Mon nouveau code l'omettait déjà.
