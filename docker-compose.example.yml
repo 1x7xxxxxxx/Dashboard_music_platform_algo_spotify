@@ -200,6 +200,8 @@ services:
       # ML artifacts (.ubj models + mlruns) are NOT baked into the image — mount them.
       - ./machine_learning:/app/machine_learning:ro
       - ./data:/app/data
+      # Onboarding guide PDF (welcome-email attachment) — also not baked into the image.
+      - ./docs:/app/docs:ro
     restart: unless-stopped
     networks:
       - airflow_network
