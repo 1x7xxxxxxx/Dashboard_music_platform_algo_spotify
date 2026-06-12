@@ -194,7 +194,9 @@ Format de sortie : tableau RAM/CPU/GPU/disque/réseau (idle/pic) par catégorie 
 reco « mutualisable avec streaMLytics vs machine dédiée/GPU » + budget €/mois.
 ```
 
-### Après avoir collecté les deux réponses
-Revenir avec : profil MT5 + profil n8n + (l'estimation streaMLytics une fois benchmarkée).
-On additionne les pics, on tranche la topologie (1 VPS Linux + 1 box Windows ? + 1 machine
-GPU vidéo ?), on chiffre le €/mois total, et on choisit l'hébergeur via la grille § J.
+### Après avoir collecté les deux réponses — ✅ FAIT (2026-06-11)
+Les deux réponses (MT5 + n8n/vidéo) ont été collectées et **consolidées avec le profil
+streaMLytics** dans **`benchmark-deployment-synthesis.md`** : topologie tranchée (Box A Linux
+streaMLytics+n8n / Box B Windows MT5 isolée / GPU vidéo serverless pay-per-call / proxies pour
+le scraping), pics additionnés, budget €/mois consolidé, risques (bans/monétisation > infra),
+et plan d'action. **→ lire la synthèse, pas seulement cette grille.**

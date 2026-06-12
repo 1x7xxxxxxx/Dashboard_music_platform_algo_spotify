@@ -1339,3 +1339,57 @@ Revue P4 : l'utilisateur a saisi manuellement les features ex-imputées et uploa
 ### Exécuté
 - `ml_scoring_daily` re-déclenché 2× via Airflow CLI → **success** ; le 2e run (post-edits, `src/` monté) a **persisté `nonalgo_known=radio_known=dm_known=true` sur les 11 titres** (vérifié en DB). Prédictions v3 fraîches reflétant tes saisies (NonAlgo réels, Radio=0, Discovery opt-out).
 - 7 fichiers : `ml_inference.py`, `algo_knowledge.py`, `ml_widgets.py`, `_explain.py`, `i18n_catalog/{trigger_algo,ml_widgets}.py`, `COMPARISON_REPORT.md`, `test_ml_inference.py` (+ roadmap + DEVLOG).
+
+---
+
+## 2026-06-11 (suite) — Benchmark déploiement consolidé (C5/C6) + décisions infra figées + build ARM64
+
+### Why
+Les réponses cross-projets (IA MT5 + IA n8n/vidéo) sont arrivées. Objectif : les **consolider avec
+le profil streaMLytics**, **trancher la topologie + le VPS + le domaine**, et **dérisquer le choix
+ARM64** avant d'acheter quoi que ce soit. Process d'achat prévu demain (2026-06-12).
+
+### What changed (docs only — aucune modif de code applicatif)
+- **Synthèse consolidée** — `NEW .claude/dev-docs/benchmark-deployment-synthesis.md` (11 §) : profils
+  ressources idle/pic des 3 charges (streaMLytics + n8n/vidéo + MT5), schéma de topologie, levier #1
+  (rendu vidéo local vs délégué + table VRAM par modèle open + arbre de décision GPU), workflows
+  tolérant un PC non-24/7 (critère = type de *trigger*), budget €/mois, risques (bans/monétisation >
+  infra), plan d'action, table des décisions.
+- **Décisions FIGÉES** (après questions à l'utilisateur) :
+  - **Topologie split** : **Box A** Linux always-on (streaMLytics maintenant ; n8n + ffmpeg plus tard,
+    même box) + **Box B** Windows isolée (MT5 live 24/7) + **GPU vidéo serverless pay-per-call**
+    (aucun GPU acheté/loué) + **proxy résidentiel** pour isoler l'IP de scraping.
+  - **VPS = Hetzner CAX31** (ARM Ampere, 8 vCPU / 16 Go / 160 Go NVMe, ~12,50 €/mo). Cible **10-50
+    artistes**. 16 Go absorbe streaMLytics seul ET le pic combiné futur → resize CAX41 32 Go seulement
+    >50 tenants. **Différence de budget « streaMLytics seul vs +n8n d'emblée » ≈ 0 €** (Hetzner resize
+    vertical ~2 min, même disque). **Fallback x86 CPX31** (même prix) si un wheel manque en aarch64.
+  - **Domaine = `streamlytics.fr`** chez **OVH** (vérif RDAP live : `.com` **pris/parké** depuis 2017
+    GoDaddy ; `.app` **libre** en backup). Registrar OVH (boîte email gratuite incluse).
+  - **Email** : **envoi reste sur SMTP Gmail (inchangé)** ; `contact@` = boîte gratuite OVH /
+    Cloudflare Email Routing. Email de domaine = crédibilité, **pas un prérequis Stripe**.
+  - **TLS Caddy** (`app.`/`api.streamlytics.fr`) ; **backup** `pg_dump` → Cloudflare R2 gratuit.
+  - **Total streaMLytics ≈ 13 €/mois tout compris.**
+- **Roadmap** (`checklist.md`) : C5 + C6 réécrits « DÉCISION FIGÉE » avec les choix concrets + prérequis
+  ARM64 + restants ouverts (mesure Mo/session, réservation domaine).
+- **`deployment.md`** : nouvelle section **D-1 — Provisioning infra (runbook 2026-06-12)** = ordre
+  d'exécution copier-coller (OVH → Hetzner → DNS → D0 hardening → D1 deploy → Caddy → backup → Box B →
+  smoke prod) + table des décisions + bloquant ARM64. Pré-requis C5 mis à jour.
+- **`benchmark-deployment.md`** § M : marqué « réponses collectées ✅ → voir la synthèse ».
+- **Mémoire** : `project_deployment_questions` réécrit « TRANCHÉ » + index.
+
+### Build ARM64 (dérisquage CAX31)
+- `docker buildx --platform linux/arm64` (QEMU emulation, WSL2 x86) sur `Dockerfile` (dashboard — le
+  plus risqué : pandas/numpy/xgboost/scikit-learn/scikit-image/shap/lime/weasyprint/numba/llvmlite/
+  matplotlib/streamlit/apache-airflow). **VERDICT = CAX31 VALIDÉ ✅ — build complet EXIT 0.** Image
+  dashboard `linux/arm64` buildée intégralement : `Successfully installed` ~200 paquets en aarch64
+  (numpy-1.26.4, pandas-2.3.3, xgboost-3.2.0, scikit-learn-1.9.0, scikit-image-0.26.0, shap-0.49.1,
+  lime-0.2.0.1 (compilé depuis les sources), numba-0.65.1, llvmlite-0.47.0, weasyprint-69.0,
+  matplotlib-3.10.9, streamlit-1.57.0, apache-airflow-3.2.2…). **Zéro `No matching distribution`**,
+  zéro erreur — seul un warning cosmétique `JSONArgsRecommended` sur le `CMD` (Dockerfile l.43, lint).
+  Le `pip install` a pris ~107 min **sous émulation QEMU x86→ARM** (artefact local ; natif ARM = rapide)
+  → le fallback x86 CPX31 n'est PAS nécessaire. Builder buildx nettoyé en fin de session. Possibilité
+  future : build multi-arch `docker buildx --push` depuis la CI.
+
+### À faire demain (2026-06-12)
+Exécuter le runbook **D-1** de `deployment.md`. Repoussé (pas demain) : activation Stripe (Phase D),
+n8n + génération vidéo (serverless), proxies scraping.

@@ -546,7 +546,13 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   410 tests verts, render-smoke live sur les 37 vues, ruff clean, 0 clé sans EN. Commits
   `a672725` + `cde230c`. FR conservé par design : prose `csv_guides.py` (partagé PDF) +
   constantes de labels au niveau module (résolution langue au runtime).
-- [ ] **C5 — Benchmark VPS (sizing + topologie)** — **QUESTIONS À RÉPONDRE le 2026-06-11** :
+- [ ] **C5 — Benchmark VPS (sizing + topologie)** — **DÉCISION FIGÉE le 2026-06-11** → `.claude/dev-docs/benchmark-deployment-synthesis.md`. Topologie **split** + **VPS choisi** :
+  - **Box A — Hetzner CAX31 (ARM Ampere, 8 vCPU / 16 Go / 160 Go NVMe, ~12,50 €/mo)** : streaMLytics (Postgres + Airflow + Streamlit + FastAPI + Caddy) **maintenant**, n8n + ffmpeg d'assemblage **plus tard sur la même box** (16 Go absorbe les deux : streaMLytics 10-50 tenants seul ET le pic combiné ~8-10 Go). Resize vertical Hetzner (~2 min reboot, même disque) vers **CAX41 32 Go (~24,50 €/mo)** seulement au-delà de ~50 tenants ou vidéo lourde/concurrente. **Cible retenue : 10-50 artistes à 3-6 mois.**
+    ✅ **PRÉREQUIS ARM64 VALIDÉ (2026-06-11)** : `docker buildx --platform linux/arm64` du `Dockerfile` dashboard → **chaque dépendance résout un wheel aarch64** (numpy/pandas/xgboost/scikit-learn/scikit-image/shap/lime/weasyprint/numba/llvmlite/streamlit/airflow), **zéro `No matching distribution`**, `lime` compilé depuis les sources OK. Le fallback x86 CPX31 **n'est pas nécessaire**. (Fin du build local lente sous émulation QEMU = artefact, pas un problème ; natif ARM = rapide.) Détail : DEVLOG#2026-06-11.
+  - **Box B — VPS Windows dédié ISOLÉ** : MT5 live 24/7 (2 vCPU / 4 Go / 50-60 Go, ~10-20 €/mo, ou **VPS broker gratuit**). Downsize de l'actuel surdimensionné (H1 ≠ HFT). Jamais mutualisé (OS + stabilité live + isolation creds broker).
+  - **Vidéo (POUR PLUS TARD)** : GPU **serverless pay-per-call** (fal.ai/Replicate, modèles open LTX-Video/Wan) + ffmpeg local + nœud cleanup. **Aucun GPU acheté/loué.** 0 € tant que non déployé.
+  - **Scraping** : **proxy résidentiel** (~50-75 €/mo) pour isoler l'IP — pas un 2ᵉ VPS.
+  - **Budget always-on streaMLytics = ~13 €/mo tout compris** (CAX31 ~12,50 + domaine ~0,60 + email/backup gratuits). **Restant ouvert** : mesure réelle Mo/session Streamlit sous charge (seuil de resize 16→32 Go). Questions initiales (archivées) :
   1. **Échelle streaMLytics** : nb d'artistes cible à 3 / 6 / 12 mois ? (10 / 100 / 1000 ?) — pilote la RAM (Streamlit garde chaque session en mémoire).
   2. **MT5 / vidéo / scraping / n8n sur le MÊME VPS, ou séparés** (juste mutualisés pour le coût) ?
      ⚠️ **MT5 = Windows-only** → ne tourne PAS sur un VPS Linux/Docker → soit VPS Windows séparé, soit machine dédiée → **casse le « un seul VPS »**.
@@ -555,7 +561,13 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   **Reco** : sizer **streaMLytics seul d'abord** (le seul prêt+mergé : postgres + airflow web/scheduler + dashboard Streamlit + API FastAPI + reverse proxy), MT5/vidéo/scraping en couche au-dessus une fois la mutualisation décidée.
   **→ GRILLE EXHAUSTIVE : `.claude/dev-docs/benchmark-deployment.md`** — profil ressources par composant (RAM/CPU/disk/réseau, idle/pic), hypothèses d'échelle, méthodo de load-test (⚠️ Streamlit = WebSockets, pas HTTP), topologie, stockage/I/O, coût, backup/DR/monitoring, critères hébergeur, seuils de scaling, **+ les 2 prompts cross-projets à poser aux IA MT5 / n8n** (§ M) pour récupérer leurs profils ressources et trancher la topologie.
   **Livrable** (→ `dev-docs/deployment.md`) : topologie (1 VPS Linux vs split Linux/Windows), sizing vCPU/RAM/disk par composant, reco hébergeur, estimation €/mois.
-- [ ] **C6 — Benchmark nom de domaine + accès public (NEW 2026-06-10)** — **QUESTIONS À RÉPONDRE le 2026-06-11** :
+- [ ] **C6 — Benchmark nom de domaine + accès public (NEW 2026-06-10)** — **DÉCISION FIGÉE le 2026-06-11** → `benchmark-deployment-synthesis.md` § 9. Vérif RDAP live 2026-06-11 :
+  - **Domaine retenu : `streamlytics.fr`** (libre ✅ ; cible FR assumée ; le moins cher ~7 €/an). `streamlytics.com` = **pris** (enregistré 2017 GoDaddy, **parké/site mort**) → écarté ; `streamlytics.app` = libre (alternative HTTPS-forcé si besoin). Option : prendre `.fr` + `.app` (~20 €/an) et rediriger l'un vers l'autre.
+  - **Registrar : OVH** (français, le moins cher pour `.fr`, **boîte email gratuite incluse** pour `contact@`). Cloudflare ne vend PAS le `.fr` (mais sa DNS gratuite reste utilisable plus tard pour CDN/anti-DDoS).
+  - **TLS : Caddy** sur la Box A (Let's Encrypt auto). Sous-domaines `app.streamlytics.fr` (Streamlit) + `api.streamlytics.fr` (FastAPI / webhook Stripe).
+  - **Email** : **2 flux distincts** — (1) **ENVOI** (vérif compte, alertes, digest, Stripe) reste sur le **SMTP Gmail actuel**, rien à changer ; (2) **RÉCEPTION** `contact@streamlytics.fr` = **boîte gratuite OVH** ou **Cloudflare Email Routing** (forward gratuit → Gmail). **Email de domaine = crédibilité, PAS un prérequis Stripe** (Stripe accepte un email quelconque). Bascule expéditeur → `noreply@streamlytics.fr` + SPF/DKIM/DMARC = sujet de **scale**, pas de lancement.
+  - **Backup** : `pg_dump` gzippé → **Cloudflare R2 (10 Go gratuits)** ou Hetzner Storage Box (`tools/db_backup.sh` existe).
+  - **Restant ouvert** : réservation effective `streamlytics.fr` chez OVH + plan DNS (A `app`/`api` → IP Box A). Questions initiales (archivées) :
   Un domaine est un **PRÉREQUIS**, pas cosmétique : HTTPS exigé par **Stripe** (checkout + webhook) + cookies d'auth + crédibilité SaaS. Sans lui = `http://IP:8501` (inviable).
   1. **Nom de marque** : `streamlytics.{com,io,app,fr}` ? → vérifier dispos + prix (je peux checker).
   2. **Registrar** : Cloudflare (DNS + proxy/CDN gratuit, recommandé) / OVH / Namecheap ?
@@ -572,6 +584,45 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   `STRIPE_CHECKOUT_URL`/`STRIPE_PORTAL_URL`/`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` + **déployer l'API
   FastAPI** (héberge le webhook) + enregistrer l'URL webhook dans Stripe Dashboard. Aujourd'hui le bouton
   « Passer à Premium » affiche un placeholder « paiement bientôt » (cf. `billing.py:221`).
+
+### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
+
+> **Ordre imposé par l'utilisateur** : déployer (D) → **tester l'app avec des proches (beta privée)** →
+> **seulement ensuite** landing + marketing payant. On ne lance pas d'acquisition payante sur une app
+> non éprouvée. Détail archi : ADR-005 (déploiement) + `deployment.md`.
+
+- [ ] **E1 — Beta privée avec des proches** (P3, AVANT tout marketing) — `streamlytics.fr` déployé mais
+  diffusion **restreinte** (lien partagé à la main, pas de pub). Objectif = éprouver le funnel réel
+  (register → vérif email → connexion credentials → upload CSV → KPIs → export) sur des comptes tiers
+  réels, détecter les frictions d'onboarding et les bugs multi-tenant que le seul tenant `1x7xxxxxxx`
+  ne révèle pas. **Pré-requis** : D fait (URL HTTPS live) + emails de vérification qui arrivent (SMTP
+  Gmail OK, sinon spam → cf. C6 délivrabilité). Sortie = liste de frictions corrigées avant E2.
+  Leviers déjà en place : compteur « Live Activity » (`register.py`), onboarding tracker (Brick 29).
+
+- [ ] **E2 — Landing page marketing + pixel + CAPI** (P3 growth, APRÈS E1) — promouvoir l'app via
+  campagnes (Meta/Google/TikTok). **Contrainte structurante : Streamlit ne peut pas héberger de pixels
+  client** (strippe `<script>`, sandbox iframes `components.html`, re-run complet — cf. item PostHog
+  différé § « Deferred »). Donc :
+  - [ ] **Landing statique SÉPARÉE de l'app** : `streamlytics.fr` (racine + `www`) → landing **statique**
+    (reco **Astro/HTML+Tailwind servi par Caddy** sur Box A = 0 €, contrôle total des `<script>` ;
+    alternative no-code Framer/Webflow ~10-25 €/mo). `app.streamlytics.fr` = Streamlit (inchangé),
+    `api.streamlytics.fr` = FastAPI. **Ne jamais mettre de pixel dans l'app Streamlit.**
+  - [ ] **Pixel client sur la LANDING uniquement** : Meta Pixel + GA4 `gtag` + (option) TikTok pixel →
+    `PageView`, `ViewContent`, `Lead` (clic CTA « Essai gratuit »). **Bannière de consentement RGPD +
+    Consent Mode v2 AVANT chargement** (UE ; processeur tiers à déclarer dans la privacy policy).
+  - [ ] **CAPI server-side depuis FastAPI** (obligatoire ici, pas optionnel) pour les conversions
+    profondes que le pixel client rate (cross-domain, ad-block, iOS14) : `CompleteRegistration` à
+    l'inscription, `Subscribe`/`Purchase` **branchés sur le webhook Stripe existant**
+    (`checkout.session.completed`). Réutilise le SDK `facebook-business` déjà dans `requirements.txt`
+    (POST `graph.facebook.com/{PIXEL_ID}/events` + `access_token`). Idem GA4 Measurement Protocol.
+  - [ ] **Pont d'attribution (stitching)** — GRATUIT grâce aux sous-domaines : le pixel pose `_fbp`/`_fbc`
+    (contient `fbclid`) sur le **domaine parent `streamlytics.fr`** → **lisibles par FastAPI sur
+    `api.streamlytics.fr`**. Au register : persister `_fbp`/`_fbc` + `UTM`/`fbclid`/`gclid` (passés en
+    query string landing→app) + **email hashé SHA-256** + IP + user-agent sur la ligne user. **Dédup
+    pixel↔CAPI par `event_id` partagé.** Jamais d'email en clair (Meta exige SHA-256).
+  - **Mapping d'événements exact** (quel event à quelle étape) à préciser au moment de l'implémentation.
+  - Note : le `usage_events` server-side (first-party) peut rester comme sink interne ; PostHog
+    client-side reste différé (Streamlit) — cf. § « Deferred ».
 
 ### Pré-déploiement — optimisations & ship-blockers (2026-06-11)
 
