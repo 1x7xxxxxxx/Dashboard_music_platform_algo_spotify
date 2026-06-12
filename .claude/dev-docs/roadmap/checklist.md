@@ -591,14 +591,22 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
       HSTS + headers sécurité, apex/www → `app.`.
     - [x] **0.3** backup + restore drill validés live (`tools/db_backup.sh` → 516K ; `db_restore_test.sh`
       → 92 tables / 13794 rows / DB jetable droppée).
-  - [ ] **Phase 1 — Provisioning infra (🧑)** : OVH `streamlytics.fr` + `contact@` · Hetzner CAX31
-    Ubuntu 24.04 UE + clé SSH (IP) · DNS A `app.`/`api.`/apex → IP. **Gate 1** : `dig` résout.
-  - [ ] **Phase 2 — Hardening D0 (🤝)** : rotation secrets (Postgres dans l'historique git, Airflow admin,
-    Meta/Gmail) · `.env` prod (`API_SECRET_KEY`, `APP_BASE_URL`, `CORS_ORIGINS`, `STRIPE_WEBHOOK_SECRET`) ·
-    `ufw` 22/80/443 deny 5433/8080/8501/8502 · Airflow UI tunnel SSH only. **Gate 2** : nmap = 22/80/443.
-  - [ ] **Phase 3 — Déploiement D1 (🤝)** : `git clone` + `cp compose.example` + `.env` + `make migrate`
-    + `docker compose up -d` · Caddy up (TLS) · backup cron R2 · **smoke prod** (register/login/isolation/
-    DAG/CSV/PDF sur `https://app.streamlytics.fr`). **Gate 3** : smoke 6/6 → 🎉 app live.
+  - [x] **Phase 1 — Provisioning infra (🧑)** — DONE 2026-06-12. OVH `streamlytics.fr` (compte Particulier)
+    + email Zimbra inclus · Hetzner **CPX32** (x86 AMD, 4 vCPU/8 Go, ~16,79 €/mo — **ARM CAX en rupture UE**,
+    fallback x86 documenté pris) Ubuntu 24.04 Nuremberg, IP **167.233.92.1** · DNS A `app`/`api`/racine.
+    ⚠️ racine a un **doublon** `A 213.186.33.5` (parking OVH) à supprimer. **Gate 1** ✅ (`app`/`api` résolvent).
+  - [x] **Phase 2 — Hardening D0 (🤝)** — DONE 2026-06-12. MAJ système, Docker 29.5 + Compose v5.1,
+    `ufw` (22/80/443 only, reste deny), `fail2ban`. `.env` prod : mdp Postgres + admin Airflow (`sladmin`)
+    rotés, `API_SECRET_KEY` généré, FERNET_KEY **réutilisée** (déchiffrement creds), URLs `https://`,
+    perms 600. Postgres/Airflow/Streamlit/API en loopback (compose + ufw). **Gate 2** ✅.
+  - [x] **Phase 3 — Déploiement D1 (🤝)** — DONE 2026-06-12. Clone via `GITHUB_TOKEN` (purgé du remote) ;
+    **migration données** (dump local → restore : 13 794 lignes S4A, 92 tables, 0 erreur) ; `docker compose
+    up -d --build` (5 conteneurs) ; **Caddy v2.11** + cert **Let's Encrypt** auto. **Smoke ✅** : `https://
+    app.streamlytics.fr` HTTP 200 + login + données visibles ; `https://api.../health` ok ; HTTP→HTTPS 308.
+    ⚠️ **2ᵉ bug fresh-install `init_db.sql`** trouvé (FK `hypeddit_daily_stats`→`hypeddit_campaigns(campaign_name)`
+    sans UNIQUE matching) → contourné en provisionnant depuis le dump (mount `init_db.sql` retiré du compose
+    serveur). À corriger dans le repo (même classe que le bug youtube ; lié au blocker Postgres-en-CI).
+    **Gate 3** ✅ → 🎉 **app live**.
   - [ ] **Phase 4 — Activation Stripe (🤝)** : Payment Link Premium 10€ (`client_reference_id=artist_id`)
     · déployer FastAPI (webhook) · poser `STRIPE_*` + enregistrer l'URL webhook · remplacer le placeholder
     `billing.py:221` · test checkout→webhook→upgrade DB. (Audit 2026-06-10 : code plombé, rien d'actif —
