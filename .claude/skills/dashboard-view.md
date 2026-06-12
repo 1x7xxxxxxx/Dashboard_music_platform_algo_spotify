@@ -163,6 +163,11 @@ rex:
     fix: "Added PREMIUM_SECTIONS frozenset (pdf_exporter); export_pdf locks those checkboxes for non-premium AND strips them at generation (defense-in-depth)"
     severity: "warn"
     ref: "DEVLOG#2026-06-09"
+  - date: 2026-06-12
+    issue: "New sidebar/nav t() keys (nav.*) failed the i18n guard: nav.* live in i18n.py's inline EN dict, not in i18n_catalog/"
+    fix: "nav.* keys go in i18n.py's EN dict (not i18n_catalog/); per-view keys in i18n_catalog/<view>.py. Admin 'view-as' = session _view_as read by get_artist_plan() + effective role gating _ADMIN_ONLY"
+    severity: "info"
+    ref: "DEVLOG#2026-06-12"
 ---
 
 # Skill: Dashboard View
