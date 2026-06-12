@@ -40,6 +40,21 @@ rex:
     fix: "Model windowed manual figures as snapshots: add a time_window dim (7d/28d/12m/custom) to the PK (migration 044); read the latest '28d' snapshot, never SUM rows. Each S4A figure maps to its own row"
     severity: "warn"
     ref: "DEVLOG#2026-06-08 (suite)"
+  - date: 2026-06-12
+    issue: "init_db.sql inline UNIQUE(...,(col::date)) on youtube tables = syntax error aborting any fresh install after ~9 tables"
+    fix: "A functional UNIQUE expr must be a separate CREATE UNIQUE INDEX, not inline. Invisible on live: CREATE TABLE IF NOT EXISTS skips the existing table so the body is never parsed"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-12 (suite 3)"
+  - date: 2026-06-12
+    issue: "collected_at in update_columns crashes ON CONFLICT when the row dict never carries collected_at (EXCLUDED.col absent)"
+    fix: "Refines 2026-06-08: keep collected_at in update_columns ONLY if you also pass it per row; else omit. saisie_s4a omits it (no freshness view reads it)"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-12 (suite 4)"
+  - date: 2026-06-12
+    issue: 'init_db.sql cannot provision an arbitrary DB: leading \c spotify_etl redirects to live + non-idempotent seed'
+    fix: 'Postgres-in-CI needs a schema.sql without CREATE DATABASE / \c preamble + seed ON CONFLICT DO NOTHING, or apply the DDL body without psql meta-commands'
+    severity: "info"
+    ref: "DEVLOG#2026-06-12 (suite 3)"
 ---
 
 # Skill: Database Schema
