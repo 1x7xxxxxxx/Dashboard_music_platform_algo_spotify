@@ -21,8 +21,19 @@ _BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
 
 
 def _smtp_config() -> dict:
+    """SMTP settings. Environment variables take precedence (prod/containers have no
+    config.yaml — mirrors the FERNET_KEY/DATABASE_URL env-first pattern); the `smtp`
+    section of config/config.yaml is the local-dev fallback."""
     from src.utils.config_loader import config_loader
-    return config_loader.load().get('smtp', {})
+    cfg = config_loader.load().get('smtp', {})
+    env = os.environ
+    return {
+        'host': env.get('SMTP_HOST') or cfg.get('host', 'smtp.gmail.com'),
+        'port': env.get('SMTP_PORT') or cfg.get('port', 587),
+        'user': env.get('SMTP_USER') or cfg.get('user', ''),
+        'password': env.get('SMTP_PASSWORD') or cfg.get('password', ''),
+        'from_name': env.get('SMTP_FROM_NAME') or cfg.get('from_name', 'streaMLytics'),
+    }
 
 
 def _attach_pdf(msg: MIMEMultipart, path: str) -> bool:
