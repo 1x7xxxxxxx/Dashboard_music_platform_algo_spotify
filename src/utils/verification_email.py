@@ -33,6 +33,10 @@ def _smtp_config() -> dict:
         'user': env.get('SMTP_USER') or cfg.get('user', ''),
         'password': env.get('SMTP_PASSWORD') or cfg.get('password', ''),
         'from_name': env.get('SMTP_FROM_NAME') or cfg.get('from_name', 'streaMLytics'),
+        # Sender address — distinct from the SMTP login (e.g. Brevo: login is the
+        # account/relay user, but the From must be the authenticated domain address
+        # noreply@streamlytics.fr for SPF/DKIM alignment). Falls back to the login.
+        'from_email': env.get('SMTP_FROM') or cfg.get('from_email', ''),
     }
 
 
@@ -62,7 +66,8 @@ def _send_html(to_email: str, subject: str, html: str,
     smtp_port = int(cfg.get('port', 587))
     smtp_user = cfg.get('user', '')
     smtp_pass = cfg.get('password', '')
-    from_name = cfg.get('from_name', 'Music Dashboard')
+    from_name = cfg.get('from_name', 'streaMLytics')
+    from_email = cfg.get('from_email') or smtp_user
 
     if not smtp_user or not smtp_pass:
         logger.warning("SMTP not configured — skipping email '%s'.", subject)
@@ -71,7 +76,7 @@ def _send_html(to_email: str, subject: str, html: str,
     try:
         # 'mixed' so the HTML body and the PDF coexist; HTML nested in 'alternative'.
         msg = MIMEMultipart('mixed')
-        msg['From']    = f"{from_name} <{smtp_user}>"
+        msg['From']    = f"{from_name} <{from_email}>"
         msg['To']      = to_email
         msg['Subject'] = subject
         body = MIMEMultipart('alternative')
@@ -203,7 +208,8 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
     smtp_port = int(cfg.get('port', 587))
     smtp_user = cfg.get('user', '')
     smtp_pass = cfg.get('password', '')
-    from_name = cfg.get('from_name', 'Music Dashboard')
+    from_name = cfg.get('from_name', 'streaMLytics')
+    from_email = cfg.get('from_email') or smtp_user
 
     if not smtp_user or not smtp_pass:
         logger.warning("SMTP not configured — skipping verification email.")
@@ -213,7 +219,7 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
 
     html = f"""
     <html><body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
-        <h2 style="color: #1DB954;">🎵 Confirm your Music Dashboard account</h2>
+        <h2 style="color: #1DB954;">🎵 Confirm your streaMLytics account</h2>
         <p>Hi <strong>{username}</strong>,</p>
         <p>Click the button below to verify your email address and activate your account.</p>
         <p style="text-align: center; margin: 30px 0;">
@@ -233,9 +239,9 @@ def send_verification_email(to_email: str, username: str, token: str) -> bool:
 
     try:
         msg = MIMEMultipart('alternative')
-        msg['From']    = f"{from_name} <{smtp_user}>"
+        msg['From']    = f"{from_name} <{from_email}>"
         msg['To']      = to_email
-        msg['Subject'] = "🎵 Verify your Music Dashboard account"
+        msg['Subject'] = "🎵 Verify your streaMLytics account"
         msg.attach(MIMEText(html, 'html'))
 
         with smtplib.SMTP(smtp_host, smtp_port) as server:
