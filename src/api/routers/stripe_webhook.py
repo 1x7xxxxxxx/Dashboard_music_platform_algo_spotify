@@ -110,7 +110,9 @@ async def stripe_webhook(request: Request):
         if event_type == "checkout.session.completed":
             customer_id = data.get("customer")
             subscription_id = data.get("subscription")
-            artist_id = data.get("metadata", {}).get("artist_id")
+            # Payment Links pass the tenant via client_reference_id (?client_reference_id=…);
+            # API-created sessions may instead set metadata.artist_id. Accept both.
+            artist_id = data.get("client_reference_id") or data.get("metadata", {}).get("artist_id")
             plan_name = data.get("metadata", {}).get("plan_name", "premium")
             if plan_name == "basic":          # retired tier → premium
                 plan_name = "premium"
