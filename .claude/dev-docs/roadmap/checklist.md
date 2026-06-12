@@ -607,10 +607,15 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     sans UNIQUE matching) → contourné en provisionnant depuis le dump (mount `init_db.sql` retiré du compose
     serveur). À corriger dans le repo (même classe que le bug youtube ; lié au blocker Postgres-en-CI).
     **Gate 3** ✅ → 🎉 **app live**.
-  - [ ] **Phase 4 — Activation Stripe (🤝)** : Payment Link Premium 10€ (`client_reference_id=artist_id`)
-    · déployer FastAPI (webhook) · poser `STRIPE_*` + enregistrer l'URL webhook · remplacer le placeholder
-    `billing.py:221` · test checkout→webhook→upgrade DB. (Audit 2026-06-10 : code plombé, rien d'actif —
-    `artist_subscriptions`=0, env vars vides.) **Gate 4** : 1 paiement test → tenant premium.
+  - [x] **Phase 4 — Activation Stripe (🤝)** — DONE 2026-06-12 (**mode TEST**). Produit Premium 10€/mo +
+    Payment Link + webhook (4 events) créés **via l'API Stripe** (clé test). `STRIPE_SECRET_KEY` +
+    `WEBHOOK_SECRET` + `CHECKOUT_URL` posés dans le `.env` prod. **Webhook vérifié end-to-end** (événement
+    `checkout.session.completed` signé → 200 → `artist_subscriptions` provisionné + `tier=premium`, puis
+    nettoyé). **2 bugs corrigés** : billing ne passait pas `client_reference_id` (PR #32) ; le handler 500ait
+    car `stripe.Event` (StripeObject) n'a pas `.get()` → parse en dict après vérif signature (PR #33).
+    **Restant** : `STRIPE_PORTAL_URL` (portail client, optionnel) ; passage **mode LIVE** = activation complète
+    du compte Stripe (KYC + SIRET 939874392 + IBAN) puis recréer produit/link/webhook en live + clés `sk_live`.
+    **Gate 4** ✅ (provisioning prouvé en test).
   - [ ] **Phase 5 — Pentest D2 (🤝)** : bruteforce/lockout · MITM/HSTS · RCE (SQL+uploads) · DoS/rate-limit
     · chrome-devtools MCP sur l'URL. **Gate 5** : checklist passée → **D terminé** → débloque E1.
   - [ ] **Phase 6 — Box B MT5 (🧑, parallèle)** : VPS Windows isolé (broker gratuit ou OVH ~10-15 €).

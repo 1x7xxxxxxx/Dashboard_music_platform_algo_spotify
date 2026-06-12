@@ -1627,3 +1627,29 @@ du tenant existant. Piloté en direct via SSH (clé locale WSL → serveur).
 
 ### Reste (post-live)
 Nettoyer le doublon DNS racine (`213.186.33.5`) ; reboot kernel ; **Phase 4 Stripe** ; **Phase 5 pentest**.
+
+---
+
+## 2026-06-12 (suite 8) — Post-live : backup cron, pentest, fix init_db, reboot-hardening, Stripe activé (test)
+
+### What changed
+- **Sécurité / ops** : cron `pg_dump` quotidien (3h) ; durcissement SSH (`PasswordAuthentication no`) ;
+  audit pentest live (ports internes filtrés, API `/docs` off, HSTS, TLS 1.3, fail2ban). URL canonique
+  basculée sur `streamlytics.fr` (apex+www+app servent l'app, `APP_BASE_URL` mis à jour).
+- **Fix `init_db.sql` + `hypeddit_schema.py`** (PR #31) : FK hypeddit mono-col → **composite**
+  `(artist_id, campaign_name)` (matche la DB qui marche). Validé : Postgres jetable init 55 tables, 0 erreur.
+- **Fix `docker-compose.example.yml`** (PR #31) : postgres sans `restart` policy → **pas remonté au reboot**
+  (révélé par le reboot live, app coupée de la DB). Ajout `restart: unless-stopped`.
+- **Stripe Phase 4 — mode TEST** : produit/price/Payment Link/webhook créés via l'API Stripe ; `.env` prod
+  posé ; **2 bugs** : billing sans `client_reference_id` (PR #32), handler 500 car `StripeObject` n'a pas
+  `.get()` → parse dict après vérif signature (PR #33). **Webhook prouvé end-to-end** (event signé →
+  provisioning → cleanup).
+
+### Pièges
+- **postgres sans restart policy** : seul service sans `restart: unless-stopped` → silencieusement absent
+  après reboot. Toujours tester un reboot réel avant de considérer un déploiement « fini ».
+- **`stripe.Webhook.construct_event` renvoie un StripeObject**, pas un dict : `.get()` lève `AttributeError`.
+  Parser le payload brut (déjà vérifié) en dict. Le code Stripe (Brick 21) n'avait jamais tourné en réel.
+
+### Tests
+555 tests verts (après fix init_db) ; webhook signé → 200 + `artist_subscriptions` provisionné ; ruff clean.
