@@ -1393,3 +1393,40 @@ ARM64** avant d'acheter quoi que ce soit. Process d'achat prévu demain (2026-06
 ### À faire demain (2026-06-12)
 Exécuter le runbook **D-1** de `deployment.md`. Repoussé (pas demain) : activation Stripe (Phase D),
 n8n + génération vidéo (serverless), proxies scraping.
+
+---
+
+## 2026-06-12 — Premier vrai import DistroKid (compte ami) + persistance du taux FX (P2)
+
+### Why
+Un pote a prêté son compte DistroKid → premier export réel pour exercer le pipeline DistroKid de bout
+en bout (jusqu'ici testé sur fixtures uniquement), puis fermer le ship-blocker P2 « taux FX non
+ré-auditable » tant qu'on y était.
+
+### What changed
+- **Validation live du pipeline sur un vrai export** — `DistroKid_*.tsv` (artiste « Benken », 331 lignes,
+  14 stores, 2025-09 → 2026-04, 9,68 USD). Import test sous `artist_id=1` via le code path du DAG
+  (parse → `upsert_many` → rollup) → 331 lignes + 8 mois EUR, **puis purgé** (data jetable, tenant=moi).
+  L'intégration réelle de Benken attendra le déploiement (tenant dédié). Découvertes réinjectées dans la
+  doc (commit docs séparé) : fins de ligne **CR-seul** gérées par pandas, layout 15 colonnes pouvant
+  garder le nom legacy `Song/Album`, libellés UI **FR** (Banque → « Voir dans le moindre détail »).
+- **P2 — `fx_rate` persisté** (`migrations/059_distrokid_fx_rate.sql`) — `distrokid_monthly_revenue`
+  gagne `fx_rate NUMERIC(8,5)` : NULL pour les saisies manuelles EUR, renseigné pour les imports.
+  `distrokid_rollup.py` l'écrit (INSERT + ON CONFLICT UPDATE ; 3 placeholders de taux : calcul EUR,
+  colonne, prose `notes`). `revenue_eur` redevient **réversible** (`/ fx_rate`) — avant, le 0.92 par
+  défaut était cuit irréversiblement, ~8 % d'erreur non ré-auditable. Schéma canonique
+  (`distrokid_schema.py` + `init_db.sql`) aligné pour les fresh installs.
+
+### Tests
+`pytest tests/ -q` → **545 passed** (ruff clean). +3 tests DB-free (`test_distrokid_revenue.py` :
+SQL contient `fx_rate`, arité des params, défaut). 1 test existant mis à jour (`test_distrokid_parser.py`
+`TestRollup` : arité 2→3 taux). Vérif live : synthetic $10 @ 0.85 → 8,50 € → reverse 10,00 $, puis cleanup.
+Migration 059 appliquée sur la DB live.
+
+### Non fait (volontaire)
+- **Postgres-en-CI** (P3) : le retrait du service Postgres a été décidé HIER (2026-06-11) avec une
+  raison documentée (jamais provisionné → tests skip → flake Docker Hub). Le ré-ajouter *correctement
+  provisionné* (init_db + migrations) est l'item roadmap, mais ça inverse une décision same-day → laissé
+  à un changement dédié et revu, pas auto-rammé.
+- **API `/ml/predictions`** (P4) : redesign de contrat (renvoyer probas vs calculer un score) = décision
+  produit, pas une correction mécanique → laissé à l'utilisateur.

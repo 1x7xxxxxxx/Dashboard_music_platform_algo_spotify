@@ -166,4 +166,6 @@ class TestRollup:
         n = rollup_sales_to_monthly(db, artist_id=4, fx_rate=0.9)
         assert n == 3
         args = db.execute_query.call_args[0]
-        assert args[1] == (0.9, 0.9, 4)
+        # 3 rate placeholders since migration 059 (revenue calc, fx_rate col,
+        # notes string) + artist_id.
+        assert args[1] == (0.9, 0.9, 0.9, 4)

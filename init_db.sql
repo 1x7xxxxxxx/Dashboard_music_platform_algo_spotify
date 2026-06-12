@@ -194,6 +194,7 @@ CREATE TABLE IF NOT EXISTS distrokid_monthly_revenue (
     year INTEGER NOT NULL,
     month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
     revenue_eur NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    fx_rate NUMERIC(8, 5),
     notes TEXT,
     source TEXT NOT NULL DEFAULT 'manual',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

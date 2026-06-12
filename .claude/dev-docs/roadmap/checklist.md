@@ -647,9 +647,13 @@ publique. Verdict intégrité = **GO, convergent** (oublis localisés, pas syst�
   → `test_views_render_smoke.py` (39 vues) + les tests ML Tier-2/3 **skippent en CI** (ils ne tournent que
   localement). Provisionner un service `postgres:17` + appliquer `init_db.sql`/migrations pour que ces
   harnais s'exécutent vraiment. C'est le seul levier infra qui augmenterait nettement la confiance déploiement.
-- [ ] **DistroKid — persister le taux FX** (P2 data integrity) — `distrokid_rollup.py:40` applique un
-  USD→EUR par défaut `0.92` **irréversiblement** dans `revenue_eur` sans stocker le taux → ~8 % d'erreur
-  possible sur la part DistroKid, non ré-auditable. Persister `fx_rate` sur la ligne + l'afficher.
+- [x] **DistroKid — persister le taux FX** (P2 data integrity) — DONE 2026-06-12. `migrations/059_distrokid_fx_rate.sql`
+  ajoute `fx_rate NUMERIC(8,5)` (NULL pour les saisies manuelles EUR, renseigné pour les imports) sur
+  `distrokid_monthly_revenue` ; `distrokid_rollup.py` l'écrit (INSERT + ON CONFLICT UPDATE, 3 placeholders de taux).
+  `revenue_eur` redevient réversible (`revenue_eur / fx_rate`). Le taux reste aussi dans `notes` (affichage humain).
+  Schéma canonique (`distrokid_schema.py` + `init_db.sql`) aligné pour les fresh installs. Vérifié live (synthetic
+  $10 @ 0.85 → 8,50 € → reverse 10,00 $) + 3 tests DB-free (`test_distrokid_revenue.py`). Migration appliquée live.
+  ref: DEVLOG#2026-06-12.
 - [ ] **API `/ml/predictions` cassé** (P4) — `src/api/routers/ml.py` lit des colonnes inexistantes
   (`score`/`tier`/`predicted_at`) → 500 systématique. Flaggé KNOWN-BROKEN en code. Redesign du contrat API
   (renvoyer les probabilités, ou calculer un score) avant d'exposer la surface FastAPI.
