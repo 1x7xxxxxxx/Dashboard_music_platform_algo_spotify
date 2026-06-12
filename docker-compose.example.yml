@@ -181,11 +181,13 @@ services:
       AIRFLOW_BASE_URL: http://airflow-webserver:8080
       AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
       AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
-      # Email (verification / alerts / digest)
+      # Email (verification / alerts / digest). With a relay like Brevo, SMTP_USER is
+      # the relay login and SMTP_FROM is the authenticated sender (noreply@<domain>).
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM:-}
       # Billing page reads these (Stripe checkout/portal links)
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_CHECKOUT_URL: ${STRIPE_CHECKOUT_URL}
