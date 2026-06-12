@@ -1593,3 +1593,37 @@ faisable **avant** d'engager 1 € (provisioning OVH/Hetzner), reviewable en PR.
 `docker compose -f docker-compose.example.yml config` → structure OK (warnings `${VAR}` non posées attendues).
 **Drill backup→restore live** : dump 516K → restore **92 tables / `s4a_song_timeline`=13794 rows** → DB
 jetable droppée. Caddyfile : syntaxe revue (caddy non installé localement, `caddy validate` sur le VPS).
+
+---
+
+## 2026-06-12 (suite 7) — 🚀 DÉPLOIEMENT EN PRODUCTION (Phases D1-2-3) : app live HTTPS
+
+### Why
+Exécution du programme D : mettre streaMLytics en ligne sur un VPS, en HTTPS, avec migration des données
+du tenant existant. Piloté en direct via SSH (clé locale WSL → serveur).
+
+### What changed (infra ; côté repo = docs seulement)
+- **Phase 1 (toi)** : OVH `streamlytics.fr` (Particulier) + Hetzner **CPX32** x86 (ARM CAX en rupture UE →
+  fallback x86 documenté), Ubuntu 24.04 Nuremberg, **167.233.92.1**. DNS A `app`/`api` → IP.
+- **Phase 2 (hardening)** : MAJ, Docker 29.5/Compose v5.1, `ufw` 22/80/443, `fail2ban`. `.env` prod généré
+  (mdp Postgres + Airflow admin `sladmin` **rotés**, `API_SECRET_KEY` neuf, **FERNET_KEY réutilisée**,
+  URLs `https://`, perms 600). Tout en loopback derrière ufw.
+- **Phase 3 (deploy)** : clone via `GITHUB_TOKEN` (purgé du remote après) ; **migration données** dump
+  local→restore (13 794 lignes S4A, 92 tables, 0 erreur, creds déchiffrables grâce à la FERNET réutilisée) ;
+  `docker compose up -d --build` (postgres+airflow init/web/scheduler+dashboard+api) ; **Caddy v2.11** +
+  **Let's Encrypt** auto (HSTS, headers, gzip, WebSocket Streamlit).
+
+### Smoke prod (vérifié)
+`https://app.streamlytics.fr` → **HTTP 200**, TLS valide, login + données visibles (confirmé utilisateur) ;
+`https://api.streamlytics.fr/health` → `{"status":"ok"}` ; HTTP→HTTPS **308** ; cert LE 12/06→10/09.
+
+### Pièges rencontrés
+- **`dig` absent du WSL** → faux négatifs DNS pendant ~25 min (commande échouait en silence). Vérifier la
+  propagation via `python3 -c "socket.gethostbyname(...)"` ou `getent hosts`, jamais `dig` sans le tester.
+- **2ᵉ bug fresh-install `init_db.sql`** : FK `hypeddit_daily_stats(campaign_name)` → `hypeddit_campaigns`
+  sans UNIQUE single-col (seule la composite `(artist_id,campaign_name)` existe) → init Postgres aborté.
+  Contourné en provisionnant `spotify_etl` **depuis le dump** (mount `init_db.sql` retiré du compose serveur).
+  À fixer dans le repo (même classe que le bug youtube ; lié au blocker Postgres-en-CI).
+
+### Reste (post-live)
+Nettoyer le doublon DNS racine (`213.186.33.5`) ; reboot kernel ; **Phase 4 Stripe** ; **Phase 5 pentest**.
