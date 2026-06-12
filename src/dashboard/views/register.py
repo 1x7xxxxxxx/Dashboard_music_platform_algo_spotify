@@ -25,16 +25,29 @@ _USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
 WELCOME_TRIAL_DAYS = 30
 
 
-def _validate(artist_name, slug, username, email, pw, pw2, terms: bool) -> list[str]:
+def _derive_identifiers(db, artist_name: str) -> tuple[str, str]:
+    """Auto-derive a unique slug + username from the artist name (both hidden from the
+    user — login is by email). Slug allows [a-z0-9_-]; username (login fallback +
+    display) is [a-zA-Z0-9_]{3,50}. Numeric suffixes resolve collisions."""
+    base = re.sub(r'[^a-z0-9_-]', '-', artist_name.lower().strip())
+    base_slug = re.sub(r'-+', '-', base).strip('-') or 'artist'
+    slug = base_slug
+    i = 2
+    while _slug_taken(db, slug):
+        slug = f"{base_slug}-{i}"; i += 1
+    base_user = (re.sub(r'[^a-z0-9_]', '_', artist_name.lower().strip()) or 'artist')[:48]
+    base_user = base_user.ljust(3, '_')
+    username = base_user
+    j = 2
+    while _username_taken(db, username):
+        username = f"{base_user}_{j}"; j += 1
+    return slug, username
+
+
+def _validate(artist_name, email, pw, pw2, terms: bool) -> list[str]:
     errors = []
     if not artist_name.strip():
         errors.append(t("register.err_artist_name", "Le nom d'artiste est requis."))
-    if not _SLUG_RE.fullmatch(slug):
-        errors.append(t("register.err_slug",
-                        "Slug : lettres minuscules, chiffres, tirets et underscores uniquement."))
-    if not _USERNAME_RE.fullmatch(username):
-        errors.append(t("register.err_username",
-                        "Nom d'utilisateur : 3–50 caractères, lettres/chiffres/underscores uniquement."))
     if not email or not re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
         errors.append(t("register.err_email", "Une adresse email valide est requise."))
     pw_error = _validate_password_strength(pw)
@@ -249,7 +262,7 @@ def show():
     with _lang_col:
         language_selector(sidebar=False)
     st.caption(t("register.subtitle",
-                 "Rejoignez Music Dashboard. Plan gratuit — passez à un plan supérieur à tout moment."))
+                 "Rejoignez streaMLytics. Plan gratuit — passez à un plan supérieur à tout moment."))
 
     # Brick 32 — Live Activity (public trust signal). Count only, no PII.
     # Cached 10 min server-side to absorb anonymous traffic bursts.
@@ -262,32 +275,16 @@ def show():
         st.markdown("---")
 
     with st.form("register"):
-        col1, col2 = st.columns(2)
-
-        artist_name = col1.text_input(
+        artist_name = st.text_input(
             t("register.artist_name", "Nom d'artiste *"),
             placeholder=t("register.artist_name_ph", "ex. 1x7xxxxxxx"),
-            help=t("register.artist_name_help", "Votre nom d'artiste public."),
+            help=t("register.artist_name_help", "Votre nom d'artiste public (aussi votre nom d'affichage)."),
         )
-        slug = col2.text_input(
-            t("register.slug", "Slug *"),
-            placeholder=t("register.slug_ph", "ex. 1x7xxxxxxx"),
-            help=t("register.slug_help",
-                   "Identifiant unique — minuscules, sans espaces. Auto-rempli depuis le nom d'artiste."),
+        email = st.text_input(
+            t("register.email", "Email *"),
+            placeholder=t("register.email_ph", "vous@exemple.com"),
+            help=t("register.email_help", "Sert d'identifiant pour vous connecter."),
         )
-
-        # Auto-fill slug from artist name
-        if artist_name and not slug:
-            slug = re.sub(r'[^a-z0-9_-]', '-', artist_name.lower().strip())
-            slug = re.sub(r'-+', '-', slug).strip('-')
-
-        username = st.text_input(
-            t("register.username", "Nom d'utilisateur *"),
-            placeholder=t("register.username_ph", "ex. john_artist"),
-            help=t("register.username_help", "Utilisé pour vous connecter. 3–50 caractères."),
-        )
-        email = st.text_input(t("register.email", "Email *"),
-                              placeholder=t("register.email_ph", "vous@exemple.com"))
 
         col3, col4 = st.columns(2)
         pw  = col3.text_input(t("register.password", "Mot de passe *"), type="password",
@@ -324,7 +321,7 @@ def show():
     if not submitted:
         return
 
-    errors = _validate(artist_name, slug, username, email, pw, pw2, terms)
+    errors = _validate(artist_name, email, pw, pw2, terms)
     if errors:
         for e in errors:
             st.error(e)
@@ -332,18 +329,12 @@ def show():
 
     with project_db() as db:
         try:
-            if _slug_taken(db, slug):
-                st.error(t("register.slug_taken",
-                           "Le slug '{slug}' est déjà pris. Choisissez-en un autre.").format(slug=slug))
-                return
-            if _username_taken(db, username):
-                st.error(t("register.username_taken",
-                           "Le nom d'utilisateur '{u}' est déjà pris.").format(u=username))
-                return
             if _email_taken(db, email):
                 st.error(t("register.email_taken",
                            "L'email '{e}' est déjà enregistré.").format(e=email))
                 return
+            # slug + username are auto-derived (hidden fields) and made unique here.
+            slug, username = _derive_identifiers(db, artist_name)
 
             # Resolve code type: promo takes priority over referral
             promo = None

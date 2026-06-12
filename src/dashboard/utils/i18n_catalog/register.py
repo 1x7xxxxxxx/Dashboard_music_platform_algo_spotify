@@ -2,12 +2,10 @@
 
 EN = {
     "register.title": "🎵 Create your account",
-    "register.subtitle": "Join the Music Dashboard. Free plan — upgrade anytime.",
+    "register.subtitle": "Join the streaMLytics. Free plan — upgrade anytime.",
     "register.live_activity": "{n} artists use streaMLytics",
     # Validation errors
     "register.err_artist_name": "Artist name is required.",
-    "register.err_slug": "Slug: lowercase letters, digits, hyphens and underscores only.",
-    "register.err_username": "Username: 3–50 characters, letters/digits/underscores only.",
     "register.err_email": "A valid email address is required.",
     "register.err_pw_mismatch": "Passwords do not match.",
     "register.err_terms": "You must accept the Privacy Policy and Terms of Use to register.",
@@ -15,14 +13,9 @@ EN = {
     "register.artist_name": "Artist name *",
     "register.artist_name_ph": "e.g. 1x7xxxxxxx",
     "register.artist_name_help": "Your public artist name.",
-    "register.slug": "Slug *",
-    "register.slug_ph": "e.g. 1x7xxxxxxx",
-    "register.slug_help": "Unique identifier — lowercase, no spaces. Auto-filled from artist name.",
-    "register.username": "Username *",
-    "register.username_ph": "e.g. john_artist",
-    "register.username_help": "Used to log in. 3–50 characters.",
     "register.email": "Email *",
     "register.email_ph": "you@example.com",
+    "register.email_help": "Used as your sign-in identifier.",
     "register.password": "Password *",  # pragma: allowlist secret
     "register.pw_help": "Minimum 8 characters.",
     "register.confirm_password": "Confirm password *",  # pragma: allowlist secret
@@ -38,8 +31,6 @@ EN = {
     "register.submit": "Create account",
     "register.already_have": "[Already have an account? **Sign in**](?page=login)",
     # Uniqueness errors
-    "register.slug_taken": "Slug '{slug}' is already taken. Choose a different one.",
-    "register.username_taken": "Username '{u}' is already taken.",
     "register.email_taken": "Email '{e}' is already registered.",
     "register.code_invalid": "Code '{code}' is not valid or has expired.",
     # Success / outcome

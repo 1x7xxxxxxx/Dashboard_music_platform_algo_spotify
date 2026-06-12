@@ -45,7 +45,7 @@ def _get_configured_platforms(artist_id: int) -> set[str]:
 
 
 def _step_welcome(plan: str) -> None:
-    st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur Music Dashboard !"))
+    st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur streaMLytics !"))
     st.markdown(
         t("onboarding.welcome_body",
           "Votre compte a été créé avec le plan **{plan}**. "

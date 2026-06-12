@@ -2,7 +2,7 @@
 
 EN = {
     # Step 1 — Welcome
-    "onboarding.welcome_title": "🎵 Welcome to Music Dashboard!",
+    "onboarding.welcome_title": "🎵 Welcome to streaMLytics!",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
     "onboarding.feat_revenue": "+ 📈 Revenue forecasts",
