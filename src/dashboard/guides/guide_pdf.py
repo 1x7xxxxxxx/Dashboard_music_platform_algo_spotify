@@ -97,8 +97,42 @@ def _img_tag(filename: str, caption: str | None, resolver=None) -> str:
     return f'<img class="screenshot" src="data:image/png;base64,{b64}"/>{cap}'
 
 
-def _expected_table(guide: PlatformGuide) -> str:
-    head = "<tr><th>Fichier</th><th>Nom attendu</th><th>Colonnes</th></tr>"
+# UI chrome strings per language. The platform CONTENT comes from the FR/EN content
+# modules; these are just the document scaffolding (titles, table headers, buttons).
+_UI = {
+    'fr': {
+        'doc_h1': "Démarrer avec streaMLytics — API &amp; CSV",
+        'doc_intro': ("Ce guide couvre les deux sources de données : "
+                      "<strong>(1) les connecteurs API</strong> (Spotify, YouTube, SoundCloud, "
+                      "Meta/Instagram) à renseigner dans la page « Credentials API », et "
+                      "<strong>(2) l'import des fichiers CSV</strong> (Spotify for Artists, Apple "
+                      "Music, iMusician) via la page « Import CSV »."),
+        'part1': "Partie 1 — Connecteurs API",
+        'part2': "Partie 2 — Import des fichiers CSV",
+        'th_file': "Fichier", 'th_name': "Nom attendu", 'th_cols': "Colonnes",
+        'th_field': "Champ", 'th_example': "Exemple (format)", 'th_note': "Note",
+        'note': "Note", 'open_portal': "Ouvrir le portail {title}",
+        'test_conn': "Tester la connexion dans streaMLytics",
+    },
+    'en': {
+        'doc_h1': "Getting started with streaMLytics — API &amp; CSV",
+        'doc_intro': ("This guide covers both data sources: "
+                      "<strong>(1) the API connectors</strong> (Spotify, YouTube, SoundCloud, "
+                      "Meta/Instagram) to fill in on the « API Credentials » page, and "
+                      "<strong>(2) CSV file import</strong> (Spotify for Artists, Apple Music, "
+                      "iMusician) via the « CSV Import » page."),
+        'part1': "Part 1 — API connectors",
+        'part2': "Part 2 — CSV file import",
+        'th_file': "File", 'th_name': "Expected name", 'th_cols': "Columns",
+        'th_field': "Field", 'th_example': "Example (format)", 'th_note': "Note",
+        'note': "Note", 'open_portal': "Open the {title} portal",
+        'test_conn': "Test the connection in streaMLytics",
+    },
+}
+
+
+def _expected_table(guide: PlatformGuide, ui: dict) -> str:
+    head = f"<tr><th>{ui['th_file']}</th><th>{ui['th_name']}</th><th>{ui['th_cols']}</th></tr>"
     body = "".join(
         f"<tr><td>{html.escape(e.label)}</td><td>{html.escape(e.filename_hint)}</td>"
         f"<td>{html.escape(', '.join(e.columns))}</td></tr>"
@@ -107,8 +141,8 @@ def _expected_table(guide: PlatformGuide) -> str:
     return f"<table>{head}{body}</table>"
 
 
-def _fields_table(cred: PlatformCred) -> str:
-    head = "<tr><th>Champ</th><th>Exemple (format)</th><th>Note</th></tr>"
+def _fields_table(cred: PlatformCred, ui: dict) -> str:
+    head = f"<tr><th>{ui['th_field']}</th><th>{ui['th_example']}</th><th>{ui['th_note']}</th></tr>"
     body = "".join(
         f"<tr><td>{html.escape(f.label)}{' 🔒' if f.secret else ''}</td>"
         f"<td><code>{html.escape(f.example)}</code></td>"
@@ -118,7 +152,7 @@ def _fields_table(cred: PlatformCred) -> str:
     return f"<table>{head}{body}</table>"
 
 
-def _render_guide_html(guide: PlatformGuide) -> str:
+def _render_guide_html(guide: PlatformGuide, ui: dict) -> str:
     """Render a CSV-import platform guide (steps + screenshots + expected files)."""
     parts = [f'<div class="platform"><h2>{html.escape(_strip_emoji(guide.title))}</h2>',
              f'<p class="intro">{_inline_md(guide.intro)}</p>']
@@ -128,12 +162,12 @@ def _render_guide_html(guide: PlatformGuide) -> str:
         if step.screenshot:
             parts.append(_img_tag(step.screenshot, step.caption))
     if guide.expected:
-        parts.append(_expected_table(guide))
+        parts.append(_expected_table(guide, ui))
     parts.append("</div>")
     return "".join(parts)
 
 
-def _render_cred_html(cred: PlatformCred) -> str:
+def _render_cred_html(cred: PlatformCred, ui: dict) -> str:
     """Render an API-credential guide from credential_guides (steps + screenshots + fields)."""
     parts = [f'<div class="platform"><h2>{html.escape(_strip_emoji(cred.title))}</h2>',
              f'<p class="intro">{_inline_md(cred.intro)}</p>']
@@ -143,56 +177,61 @@ def _render_cred_html(cred: PlatformCred) -> str:
         if step.screenshot:
             parts.append(_img_tag(step.screenshot, step.caption, resolver=cred_screenshot_path))
     if cred.fields:
-        parts.append(_fields_table(cred))
+        parts.append(_fields_table(cred, ui))
     if cred.note:
-        parts.append(f'<p class="caption">Note — {_inline_md(cred.note)}</p>')
-    # Highlighted action bar: open the portal + jump straight to "Tester la connexion".
+        parts.append(f'<p class="caption">{ui["note"]} — {_inline_md(cred.note)}</p>')
+    # Highlighted action bar: open the portal + jump straight to the credentials page.
     app_base = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
     portal = html.escape(cred.portal_url)
+    title = html.escape(_strip_emoji(cred.title))
     parts.append(
         f'<div class="linkbar">'
-        f'<a class="linkbtn" href="{portal}">Ouvrir le portail {html.escape(_strip_emoji(cred.title))}</a>'
-        f'<a class="linkbtn app" href="{app_base}?page=credentials">'
-        f'Tester la connexion dans streaMLytics</a>'
+        f'<a class="linkbtn" href="{portal}">{ui["open_portal"].format(title=title)}</a>'
+        f'<a class="linkbtn app" href="{app_base}?page=credentials">{ui["test_conn"]}</a>'
         f'</div>'
     )
     parts.append("</div>")
     return "".join(parts)
 
 
-def build_guide_html() -> str:
-    """Full standalone HTML document: API credentials (credential_guides) + CSV import."""
-    api_sections = "".join(_render_cred_html(c) for c in CREDENTIAL_GUIDES)
-    csv_sections = "".join(_render_guide_html(g) for g in CSV_GUIDES)
+def build_guide_html(lang: str = "fr") -> str:
+    """Full standalone HTML document: API credentials + CSV import, in `lang`."""
+    ui = _UI.get(lang, _UI["fr"])
+    if lang == "en":
+        from src.dashboard.content.credential_guides_en import CREDENTIAL_GUIDES_EN as creds
+        from src.dashboard.content.csv_guides_en import CSV_GUIDES_EN as guides
+    else:
+        creds, guides = CREDENTIAL_GUIDES, CSV_GUIDES
+    api_sections = "".join(_render_cred_html(c, ui) for c in creds)
+    csv_sections = "".join(_render_guide_html(g, ui) for g in guides)
     return (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         f"<style>{_CSS}</style></head><body>"
-        "<h1>Démarrer avec streaMLytics — API &amp; CSV</h1>"
-        "<p class='intro'>Ce guide couvre les deux sources de données : "
-        "<strong>(1) les connecteurs API</strong> (Spotify, YouTube, SoundCloud, "
-        "Meta/Instagram) à renseigner dans la page « Credentials API », et "
-        "<strong>(2) l'import des fichiers CSV</strong> (Spotify for Artists, Apple Music, "
-        "iMusician) via la page « Import CSV ».</p>"
-        "<h1 style='margin-top:30px;'>Partie 1 — Connecteurs API</h1>"
+        f"<h1>{ui['doc_h1']}</h1>"
+        f"<p class='intro'>{ui['doc_intro']}</p>"
+        f"<h1 style='margin-top:30px;'>{ui['part1']}</h1>"
         f"{api_sections}"
-        "<h1 style='margin-top:30px;'>Partie 2 — Import des fichiers CSV</h1>"
+        f"<h1 style='margin-top:30px;'>{ui['part2']}</h1>"
         f"{csv_sections}</body></html>"
     )
 
 
-def output_pdf_path() -> Path:
+def output_pdf_path(lang: str = "fr") -> Path:
+    """FR → onboarding_guide.pdf (default); EN → onboarding_guide_en.pdf."""
     from src.utils.config_loader import config_loader
-    return config_loader.project_root / "docs" / "guides" / "onboarding_guide.pdf"
+    name = "onboarding_guide.pdf" if lang == "fr" else f"onboarding_guide_{lang}.pdf"
+    return config_loader.project_root / "docs" / "guides" / name
 
 
-def build_guide_pdf(out: Path | None = None) -> Path:
+def build_guide_pdf(lang: str = "fr", out: Path | None = None) -> Path:
     """Render the guide HTML to a PDF on disk. Returns the output path."""
     from weasyprint import HTML
-    target = out or output_pdf_path()
+    target = out or output_pdf_path(lang)
     target.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=build_guide_html()).write_pdf(str(target))
+    HTML(string=build_guide_html(lang)).write_pdf(str(target))
     return target
 
 
 if __name__ == "__main__":
-    print(f"Guide PDF written to {build_guide_pdf()}")
+    for _lang in ("fr", "en"):
+        print(f"Guide PDF ({_lang}) written to {build_guide_pdf(_lang)}")
