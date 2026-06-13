@@ -1972,3 +1972,43 @@ puis SSL Full(strict), puis token API → WAF + rate-limit + lock firewall origi
 
 ### Reste
 Reprendre Cloudflare quand DS=NONE (cf. mémoire) → puis phase staging local du red-team → **supprimer `redteam_qa`**.
+
+---
+
+## 2026-06-13 (suite 19) — Audit profond multi-dimension (perf · correctness · supply-chain · tests)
+
+Audit demandé en parallèle de la propagation CF : profond + large, tous axes, vérifié **en live contre le
+schéma + données prod** (lecture seule). Méthode : 3 agents Explore (breadth) + sweep schema-drift automatisé
++ mesures prod (information_schema, EXPLAIN ANALYZE).
+
+### 🐛 Bug trouvé (même classe que /kpis) : `/youtube/videos` API → 500
+Le sweep schema-drift (132 candidats, dont la quasi-totalité = FP : alias, vars f-string, fonctions SQL,
+littéraux, commentaires) a sorti **1 vrai positif** : `src/api/routers/youtube.py:35,46` fait
+`SELECT views, likes, comments, title FROM youtube_video_stats` — colonnes réelles `view_count/like_count/
+comment_count`, **pas de `title`**. **Confirmé live** (HTTP 500) + DB (`column "title" does not exist`).
+Les 8 routers ont été audités : seul youtube reste cassé (kpis déjà fixé s18, ml/streams/artists OK).
+→ catalogué P3 (non corrigé, audit read-only). **Cause racine commune** : routers Brick-14 écrits contre un
+ancien schéma, jamais mis à jour aux migrations.
+
+### Gap de test systémique (la vraie leçon)
+`/kpis` ET `/youtube` ont échappé aux tests car les routers sont testés **DB mockée** → le schema-drift est
+invisible. Reco P3 : smoke-test API **DB-gated** (comme `test_views_render_smoke`) ou check CI exécutant les
+requêtes routers contre un vrai schéma → bloque **toute** la classe d'un coup.
+
+### Mesuré (et plusieurs de mes propres pistes réfutées)
+- **Index** `s4a_song_timeline(artist_id, song, date)` proposé → **prématuré** : EXPLAIN ANALYZE = **0.4ms** sur
+  13794 lignes via l'index `(artist_id,date)` existant. Dataset 1-tenant trop petit. Revisiter à ~10× volume.
+- **`API_SECRET_KEY`** (j'avais soulevé le risque éphémère) → **SET (64 chars) en prod** : JWT stables, non-issue.
+- **Deps** : `pip-audit` sur `uv.lock` = **0 CVE**. **Imports morts** : 0 (ruff F401/F841). **Data-integrity**
+  (filtre 1x7 / scoping tenant / clés upsert) : clean. **Secrets** git history : 0.
+
+### Tech-debt P4 (basse urgence, catalogué)
+Caching (4 vues sans `@st.cache_data` — bénéfice modeste, requêtes <1ms ; vrai levier = cache CF), migration
+`view_session()` (16 vues legacy, pas un leak), **171 fonctions >40 lignes** (surtout `show()` Streamlit).
+
+**Bilan** : 1 vrai bug prod (`/youtube`) + 1 gap de test systémique ; le reste = tech-debt basse urgence ou FP.
+**Aucun nouveau risque sécurité/critique** — confirme la solidité post-red-team. Findings intégrés à la roadmap
+(checklist § « Audit 2026-06-13 »).
+
+### Reste
+Corriger `/youtube/videos` (quick-win identique à /kpis, sur validation) ; reprendre Cloudflare quand DS=NONE.
