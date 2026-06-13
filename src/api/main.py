@@ -44,6 +44,10 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs" if _docs_enabled else None,
     redoc_url="/redoc" if _docs_enabled else None,
+    # Gate the raw schema too: with docs/redoc off but openapi_url at its default,
+    # /openapi.json still served the full API map (endpoints + schemas) to anyone —
+    # pentest 2026-06-13 finding. None → /openapi.json returns 404 in prod.
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 # C3 hardening: sliding-window rate limit + security response headers
