@@ -1,5 +1,5 @@
 """FastAPI dependencies: DB session and current-user extraction."""
-from typing import Generator
+from typing import Generator, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -48,3 +48,25 @@ def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user
+
+
+def require_artist_scope(user: dict = Depends(get_current_user)) -> Optional[int]:
+    """Resolve the tenant scope for a data request — the single source of truth for
+    'whose data may this token read'.
+
+    - role=admin            → returns None  → caller reads ALL tenants (by design).
+    - non-admin with artist_id → returns that int → caller MUST filter `WHERE artist_id = %s`.
+    - non-admin WITHOUT artist_id → 403.
+
+    Rationale: data routers previously used `if artist_id:` (truthiness) as an
+    implicit 'is admin' test, so a non-admin token whose artist_id claim was missing
+    / None / 0 silently fell through to the unfiltered (all-tenants) branch — a
+    cross-tenant leak. Scope must be decided by ROLE, never by a falsy id.
+    """
+    if user.get("role") == "admin":
+        return None
+    artist_id = user.get("artist_id")
+    if artist_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Token carries no artist scope")
+    return artist_id

@@ -34,9 +34,10 @@ def show():
     # 1. RÉCUPÉRATION DES DONNÉES GLOBALES (DÉDUPLIQUÉES)
     # ============================================================================
 
-    # A. Date de mise à jour
-    update_query = f"SELECT MAX(collected_at) FROM s4a_song_timeline WHERE 1=1 {artist_frag}"
-    last_update_res = db.fetch_query(update_query, artist_params)
+    # A. Date de mise à jour — exclude the S4A "Total" row (CLAUDE.md ARTIST_NAME_FILTER)
+    # like every other s4a_song_timeline query in this file, else MAX is skewed by it.
+    update_query = f"SELECT MAX(collected_at) FROM s4a_song_timeline WHERE song NOT ILIKE %s {artist_frag}"
+    last_update_res = db.fetch_query(update_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
     last_update = last_update_res[0][0] if last_update_res and last_update_res[0][0] else None
 
     # B. KPIs (Dédupliqués)

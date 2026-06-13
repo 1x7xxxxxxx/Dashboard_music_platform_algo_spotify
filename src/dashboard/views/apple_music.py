@@ -23,8 +23,13 @@ def show():
 
             col1, col2, col3 = st.columns(3)
 
-            # Total des chansons
-            songs_count = db.get_table_count('apple_songs_performance')
+            # Total des chansons (scoped to the tenant — get_table_count() is global
+            # and would leak the cross-tenant song count on this per-artist metric).
+            _songs_row = db.fetch_query(
+                "SELECT COUNT(*) FROM apple_songs_performance WHERE artist_id = %s",
+                (artist_id,),
+            )
+            songs_count = _songs_row[0][0] if _songs_row else 0
             col1.metric(t("apple_music.kpi_songs", "🎵 Chansons Suivies"), f"{songs_count:,}")
 
             # Total Shazams et Plays (Dernier état connu)

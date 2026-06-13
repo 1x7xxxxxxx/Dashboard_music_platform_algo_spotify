@@ -19,8 +19,14 @@ from src.database.postgres_handler import validate_table, validate_columns
 
 # ── Dataset registry ──────────────────────────────────────────────────────────
 # Each entry: table scoped by artist_id, with collected_at for import tracking.
+# s4a_song_timeline carries a per-song "Total" summary row named after the artist;
+# CLAUDE.md mandates excluding it via `song NOT ILIKE %ARTIST_NAME_FILTER%` on every
+# query, else counts/dates are inflated by that synthetic row.
+_ARTIST_NAME_FILTER = "1x7xxxxxxx"
+
 _DATASETS = [
-    {'key': 's4a_timeline',       'table': 's4a_song_timeline',            'label': 'S4A Timeline'},
+    {'key': 's4a_timeline',       'table': 's4a_song_timeline',            'label': 'S4A Timeline',
+     'song_filter': True},
     {'key': 's4a_global',         'table': 's4a_songs_global',             'label': 'S4A Songs Global'},
     {'key': 's4a_audience',       'table': 's4a_audience',                 'label': 'S4A Audience'},
     {'key': 'meta_insights',      'table': 'meta_insights_performance_day','label': 'Meta Ads Insights'},
@@ -58,16 +64,19 @@ def _load_health(db, artist_id) -> pd.DataFrame:
         # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
         validate_table(table)
         validate_columns([ts])
+        conds, params = [], []
+        if artist_id:
+            conds.append("artist_id = %s")
+            params.append(artist_id)
+        if ds.get('song_filter'):
+            conds.append("song NOT ILIKE %s")
+            params.append(f"%{_ARTIST_NAME_FILTER}%")
+        where = (" WHERE " + " AND ".join(conds)) if conds else ""
         try:
-            if artist_id:
-                r = db.fetch_query(
-                    f"SELECT COUNT(*), MIN({ts}), MAX({ts}) FROM {table} WHERE artist_id = %s",
-                    (artist_id,)
-                )
-            else:
-                r = db.fetch_query(
-                    f"SELECT COUNT(*), MIN({ts}), MAX({ts}) FROM {table}"
-                )
+            r = db.fetch_query(
+                f"SELECT COUNT(*), MIN({ts}), MAX({ts}) FROM {table}{where}",
+                tuple(params),
+            )
             total, first_ts, last_ts = r[0] if r else (0, None, None)
             last_date = pd.to_datetime(last_ts).date() if last_ts else None
             first_date = pd.to_datetime(first_ts).date() if first_ts else None
@@ -96,24 +105,22 @@ def _load_weekly_activity(db, artist_id) -> pd.DataFrame:
         # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
         validate_table(table)
         validate_columns([ts])
+        conds, params = [f"{ts} IS NOT NULL"], []
+        if artist_id:
+            conds.append("artist_id = %s")
+            params.append(artist_id)
+        if ds.get('song_filter'):
+            conds.append("song NOT ILIKE %s")
+            params.append(f"%{_ARTIST_NAME_FILTER}%")
+        where = " WHERE " + " AND ".join(conds)
         try:
-            if artist_id:
-                df = db.fetch_df(
-                    f"""SELECT DATE_TRUNC('week', {ts})::date AS week,
-                               COUNT(*) AS new_rows
-                        FROM {table}
-                        WHERE artist_id = %s AND {ts} IS NOT NULL
-                        GROUP BY 1 ORDER BY 1""",
-                    (artist_id,)
-                )
-            else:
-                df = db.fetch_df(
-                    f"""SELECT DATE_TRUNC('week', {ts})::date AS week,
-                               COUNT(*) AS new_rows
-                        FROM {table}
-                        WHERE {ts} IS NOT NULL
-                        GROUP BY 1 ORDER BY 1"""
-                )
+            df = db.fetch_df(
+                f"""SELECT DATE_TRUNC('week', {ts})::date AS week,
+                           COUNT(*) AS new_rows
+                    FROM {table}{where}
+                    GROUP BY 1 ORDER BY 1""",
+                tuple(params),
+            )
             if not df.empty:
                 df['dataset'] = ds['label']
                 frames.append(df)
