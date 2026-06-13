@@ -243,6 +243,11 @@ def _section_plan_evolution(db) -> None:
                             'Artistes': int(counts.get(plan, 0))})
 
     chart_df = pd.DataFrame(records)
+    if chart_df.empty:
+        # No plan-history rows yet (fresh tenant / fresh install) → px.area would raise
+        # "'x' is not a column" on a column-less empty frame. Show an empty state instead.
+        st.info(t("alerts.no_plan_history", "Pas encore d'historique de plans à afficher."))
+        return
     fig = px.area(
         chart_df, x='Date', y='Artistes', color='Plan',
         category_orders={'Plan': ['Free', 'Basic', 'Premium']},

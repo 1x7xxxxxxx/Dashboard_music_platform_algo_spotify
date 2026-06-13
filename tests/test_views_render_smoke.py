@@ -16,6 +16,7 @@ The whole module is SKIPPED when Postgres is unreachable (CI has no live DB on 5
 so it adds value locally without breaking CI. Views render against real data as admin
 (role='admin' → premium plan, no tenant filter), exercising the real query paths.
 """
+import os
 import socket
 
 import pytest
@@ -31,15 +32,22 @@ _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
 
 def _db_ready() -> bool:
-    try:
-        with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
-            pass
-    except OSError:
-        return False
-    # Socket is up — confirm the app schema is actually loaded (a core table exists).
+    # In CI a Postgres service is reachable via DATABASE_URL (any host/port), so skip
+    # the hardcoded 5433 socket pre-check there. Locally (no DATABASE_URL) keep the
+    # fast pre-check to avoid a slow connection timeout when Docker is down.
+    if not os.environ.get("DATABASE_URL"):
+        try:
+            with socket.create_connection((_DB_HOST, _DB_PORT), timeout=1.5):
+                pass
+        except OSError:
+            return False
+    # Authoritative probe — get_db_connection() honors DATABASE_URL first, then
+    # config.yaml. Confirm the app schema is actually loaded (a core table exists).
     try:
         from src.dashboard.utils import get_db_connection
         db = get_db_connection()
+        if db is None:
+            return False
         try:
             db.fetch_query("SELECT 1 FROM saas_artists LIMIT 1")
             return True

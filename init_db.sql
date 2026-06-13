@@ -61,6 +61,22 @@ CREATE TABLE IF NOT EXISTS tracks (
 );
 CREATE INDEX IF NOT EXISTS idx_tracks_saas_artist ON tracks (saas_artist_id);
 
+-- Campaign ↔ track attribution mapping (Meta Ads). Was a bootstrap gap: existed in
+-- the live DB but absent from init_db.sql AND migrations → a fresh install (and CI)
+-- failed migrations 011/049 and crashed meta_cpr_optimizer. Added here idempotently.
+CREATE TABLE IF NOT EXISTS campaign_track_mapping (
+    id             SERIAL PRIMARY KEY,
+    campaign_name  TEXT NOT NULL,
+    track_name     TEXT NOT NULL,
+    artist_id      INTEGER NOT NULL REFERENCES saas_artists(id) ON DELETE CASCADE,
+    confidence     REAL,
+    method         VARCHAR(32),
+    auto_suggested BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (artist_id, campaign_name, track_name)
+);
+CREATE INDEX IF NOT EXISTS idx_ctm_artist_id ON campaign_track_mapping (artist_id);
+
 CREATE TABLE IF NOT EXISTS track_popularity_history (
     id SERIAL PRIMARY KEY,
     artist_id INTEGER DEFAULT 1 REFERENCES saas_artists(id),

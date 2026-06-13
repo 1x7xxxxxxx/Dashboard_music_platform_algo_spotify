@@ -10,13 +10,24 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
 
-    # No `services: postgres` on purpose (removed 2026-06-11). The CI Postgres was
-    # never provisioned (init_db.sql / migrations never ran), so every DB-backed test
-    # already SKIPS against it (see tests/test_views_render_smoke.py: it does a real
-    # query and skips on an unprovisioned DB). The service therefore added ZERO test
-    # value while introducing a Docker Hub image-pull dependency that flaked the whole
-    # job on registry timeouts (e.g. run 27307850722 on 70c0b38). Removing it makes CI
-    # deterministic; DB-backed tests skip cleanly, ruff + unit tests run as before.
+    # Postgres service re-added 2026-06-13 — this time ACTUALLY PROVISIONED (init_db.sql
+    # + migrations/*.sql, see "Provision Postgres" step), so the 39-view render-smoke and
+    # the ML DB tests run in CI instead of skipping. The 2026-06-11 removal note was right
+    # that an *unprovisioned* service added zero value; provisioning is the fix. The
+    # provision step fails loudly if the core schema is absent (no silent test SKIP).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
+          POSTGRES_DB: spotify_etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spotify_etl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     steps:
       - uses: actions/checkout@v4
@@ -56,14 +67,36 @@ jobs:
         # after explicit ADR.
         run: uv run ruff check src/ tests/
 
+      - name: Provision Postgres (schema + migrations)
+        env:
+          PGPASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          # The postgres image runs a temp init server then restarts, so poll a real
+          # query (twice) before applying DDL rather than trusting the first hit.
+          for i in $(seq 1 30); do
+            if psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1; then
+              sleep 2
+              psql -h localhost -U postgres -d spotify_etl -tAc "SELECT 1" >/dev/null 2>&1 && break
+            fi
+            sleep 2
+          done
+          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f init_db.sql
+          for f in $(ls migrations/*.sql | sort); do
+            psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -f "$f"
+          done
+          # Fail loudly if provisioning did not produce the core schema — otherwise the
+          # DB-backed tests would silently SKIP and we'd lose the coverage we just added.
+          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
+            -c "SELECT 1 FROM saas_artists LIMIT 1"
+
       - name: Run tests
         env:
-          # No DATABASE_URL: there is no CI Postgres (see note above). DB-backed tests
-          # detect the unreachable socket on 5433 and skip; the rest run normally.
+          # DATABASE_URL points the DB layer at the provisioned CI Postgres so the
+          # 39-view render-smoke + ML DB tests run (they skip when it is absent).
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/spotify_etl  # pragma: allowlist secret
           # Dummy Airflow creds: src/dashboard/app.py raises at IMPORT when
           # AIRFLOW_PASSWORD is unset (anti unauthenticated-DAG-trigger guard).
-          # No real Airflow is contacted by the suite — this only lets app.py
-          # import (e.g. test_i18n reads app._NAV_SECTIONS).
           AIRFLOW_USERNAME: ci
           AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
         # --cov-report=xml: for codecov-style downstream tooling.
