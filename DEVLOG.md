@@ -2047,3 +2047,15 @@ Dernière phase red-team. Approche : attaquer les **sinks réels** (parsing/vali
 - **Mineur P4** : `enableXsrfProtection` = défaut Streamlit (non explicite) ; cookies session = gérés par le framework.
 
 **Bilan red-team COMPLET** (réseau+app+dashboard) : 3 bugs réels trouvés & corrigés (`/kpis`, `/youtube`, CSV-injection) ; tout le reste clean ou mitigé. Reste : **supprimer `redteam_qa`** (clôture), ouvrir E1.
+
+---
+
+## 2026-06-13 (suite 21) — Perf via Cloudflare + graphify + backlog d'optimisation
+
+Clôture sécurité → passe optimisation. **Constat clé** : le pire score perf (LCP 5.7s) vient du **bundle JS Streamlit 532 KiB**, pas du Python. Or Cloudflare le **cache déjà à l'edge** (`cf-cache-status: HIT` confirmé sur `/static/js/index.*.js`, Streamlit envoie `cache-control: immutable` 1 an). → le vrai levier livraison est en place, gratuit.
+- **Réglages perf CF activés** (via token, plan Free) : **HTTP/3 (QUIC)**, **Early Hints (103)** (précharge du bundle), **0-RTT TLS 1.3**. + Brotli/min-TLS-1.2 (suites précédentes).
+- **Graphify** régénéré : 3594 nœuds / 6931 edges / 522 communautés (+ `graph.html` 3.2 Mo). God-nodes = `PostgresHandler` (262), `collect_report_data()` (69, god-function PDF), `get_db_connection` (57, confirme la dette `view_session`).
+- **Décision (franche)** : les optims code restantes (caching `@st.cache_data`, migration `view_session` ×16, split god-functions, lazy imports, index s4a) sont **faible ROI + risque régression** sur une prod mono-tenant saine (requêtes <1ms). → **cataloguées en « base d'optimisation différée »** dans la checklist, **déclencheur = ~50 artistes actifs / trafic multi-tenant réel** (ou ~10× volume pour l'index). Pas de refactor pour micro-gains.
+
+### Reste global
+**Ouvrir E1** (beta privée). App en prod, durcie (red-team + Cloudflare complet), optimisée côté livraison, propre.
