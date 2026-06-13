@@ -2029,3 +2029,21 @@ Bascule NS OVH → Cloudflare effectuée ; zone **active & proxifiée** (`app.st
 
 ### Reste global
 Red-team phase staging local (XSS/upload/session/DoS) en pause ; **supprimer `redteam_qa`** (prod) à la clôture ; ouvrir E1.
+
+---
+
+## 2026-06-13 (suite 20) — Red-team phase dashboard (sinks) → CSV injection fixée
+
+Dernière phase red-team. Approche : attaquer les **sinks réels** (parsing/validation/export) plutôt que piloter Streamlit en HTTP (websocket, peu exploitable au brut).
+
+### 🐛 Trouvé+fixé+déployé : CSV/Excel formula injection (CWE-1236)
+`csv_exporter.export_all` (csv), `export_excel` (xlsx) et l'export opt-in admin (`admin.py:729`) écrivaient des valeurs **attacker-controlled** (noms de titres/campagnes, usernames) brutes. PoC : `=cmd|'/c calc.exe'!A1` ressort tel quel → s'exécute à l'ouverture Excel/Sheets. Pire cas = l'export multi-tenant admin. **Fix** : `defang_formulas()` préfixe d'un `'` toute cellule string commençant par `= + - @ \t \r` (mitigation OWASP), appliqué aux 3 chemins + test de garde. Mergé PR #66, déployé dashboard.
+
+### Clean / mitigé (audité)
+- **XSS** : sinks `unsafe_allow_html` sans interpolation non-échappée (le hardening `html.escape` tient).
+- **Replay webhook Stripe** : signature `construct_event` + handlers **idempotents** (`ON CONFLICT DO UPDATE`/`UPDATE`) + tolérance timestamp 5 min → rejeu inoffensif.
+- **Upload CSV** : le filename ne sert qu'à la détection de plateforme (pas de path → 0 traversal) ; cap upload 50 Mo.
+- **app-DoS** : cap upload + bornes requêtes (`le=1000`) + Cloudflare (anti-DDoS + rate-limit) en façade.
+- **Mineur P4** : `enableXsrfProtection` = défaut Streamlit (non explicite) ; cookies session = gérés par le framework.
+
+**Bilan red-team COMPLET** (réseau+app+dashboard) : 3 bugs réels trouvés & corrigés (`/kpis`, `/youtube`, CSV-injection) ; tout le reste clean ou mitigé. Reste : **supprimer `redteam_qa`** (clôture), ouvrir E1.
