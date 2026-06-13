@@ -20,7 +20,7 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 **▶️ Prochaines actions, dans l'ordre :**
 1. **Ouvrir E1** — inviter 2-3 proches sur `streamlytics.fr` (tout le funnel + paiement live sont validés).
 2. **Finir le pentest (Phase 5)** : test live lockout brute-force (faisable via l'API maintenant), scan client-side Chrome (MCP reconnecté).
-3. *(optionnel)* i18n du **contenu des emails** ; nettoyage cohérence env-first des 9 `*_schema.py` (P3) ; Stripe live opérationnel (rembourser/archiver prix doublon).
+3. *(optionnel)* Stripe live opérationnel (rembourser/archiver prix doublon). *(i18n contenu emails ✅ suite 16 ; env-first des 11 `*_schema.py` ✅ suite 15.)*
 
 *Session 2026-06-13 (suites 12→14) : Stripe live prouvé ; 4 bugs corrigés (nav login-bounce #46, date période #47, fuite fraîcheur Spotify #48, « Aucun DAG trouvé »/AirflowMonitor env-first #53) ; audit isolation tenant (#49 : `require_artist_scope` + P3) ; `/ml/predictions` réparé & P4 fermée (#50) ; cadence freshness #51 ; **Postgres-en-CI #52 (P3 fermée, render-smoke 39 vues en CI)** ; pentest A-D (#54 `/openapi.json` fermé) ; DAGs activés ; **API REST fonctionnelle en prod #56** ; analyse d'impact config/prod = classe « config.yaml absent » entièrement contenue sur le chemin runtime.*
 
@@ -636,7 +636,7 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     **Restant** : `STRIPE_PORTAL_URL` (portail client, optionnel) ; passage **mode LIVE** = activation complète
     du compte Stripe (KYC + SIRET 939874392 + IBAN) puis recréer produit/link/webhook en live + clés `sk_live`.
     **Gate 4** ✅ (provisioning prouvé en test).
-  - [ ] **Phase 5 — Pentest D2 (🤝)** — **QUASI-COMPLET 2026-06-13** (pentest live mené par sondes externes).
+  - [x] **Phase 5 — Pentest D2 (🤝)** — **COMPLET 2026-06-13** (pentest live mené par sondes externes ; Gate 5 entièrement levé, A→G ✅).
     ✅ **A. Recon** : seuls 22/80/443 ouverts ; 5433/5432/8080/8501/8502 **filtrés** depuis l'extérieur.
     ✅ **B. Transport** : HTTP→HTTPS 308 · HSTS (1 an + includeSubDomains) · X-Frame DENY · nosniff ·
     Referrer-Policy · **TLS 1.0 refusé / TLS 1.3 OK**. ✅ **C. Surface** : `/docs`+`/redoc` 404 ; `/.env`,

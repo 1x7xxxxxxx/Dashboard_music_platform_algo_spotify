@@ -1861,3 +1861,33 @@ Scan console de `app.streamlytics.fr` (login) : 2 messages, **bénins** (`[issue
 ### Reste
 i18n contenu emails. **Ouvrir E1.** (Note : il faut **redémarrer Claude Code** pour que les outils MCP
 `chrome-devtools` de la session prennent les nouveaux args — le serveur en cours tourne encore avec l'ancienne config.)
+
+---
+
+## 2026-06-13 (suite 16) — i18n du contenu des emails transactionnels (FR/EN)
+
+### What changed
+Les 2 emails transactionnels étaient **mono-langue figée et incohérente** : vérification en **anglais en
+dur**, bienvenue en **français en dur** — quelle que soit la langue choisie par l'utilisateur au signup.
+Désormais **localisés FR/EN** via l'infra i18n existante.
+
+- **Nouveau catalogue** `src/dashboard/utils/i18n_catalog/emails.py` (`EN = {...}`, ~25 clés `email.*`) —
+  auto-mergé par `i18n._load_catalogs()` comme les ~47 autres catalogues de vues.
+- **`src/utils/verification_email.py`** : helper `_tr(key, fr, lang, **fmt)` (réutilise `i18n.translate()`,
+  headless-safe avec un `lang` explicite — ne touche jamais `st.session_state`). `send_verification_email`,
+  `send_welcome_email` et `_unsubscribe_footer` prennent un paramètre `lang` ; tous les fragments HTML
+  passent par `_tr` (FR = défaut inline + fallback, EN = catalogue).
+- **Propagation du lang** : le lien de vérification embarque `&lang=<lang>` → au clic, `app.py` (`get_lang()`
+  lit `?lang=` depuis l'URL) renvoie le welcome dans la **même langue**, sans colonne `language` en DB.
+  Sites mis à jour : `register.py`, `auth.py` (`_resend_verification`), `admin.py` (resend admin),
+  `app.py` (welcome post-vérif) — tous threadent `get_lang()`.
+- **Tests** : `test_i18n_orphans` matchait `translate(`/`t(` mais pas le wrapper `_tr()` ni le
+  `email.welcome.step{i}` (boucle) → préfixe `email.` ajouté à `_DYNAMIC_PREFIXES` (mécanisme prévu pour
+  les clés que le matcher littéral ne voit pas). Le guard forward (`test_every_static_t_key_has_en_entry`)
+  ne scanne que `src/dashboard` → `verification_email.py` (dans `src/utils`) hors scope, non impacté.
+
+Vérifié : ruff vert, `py_compile`, rendu FR (défaut inline) vs EN (catalogue) prouvé, build HTML des 2
+emails sans exception (clés `.format` résolues), suite **519 passed / 39 skipped**.
+
+### Reste
+**Ouvrir E1.** (Restart CC pour les outils MCP `chrome-devtools` — cf. suite 15.)

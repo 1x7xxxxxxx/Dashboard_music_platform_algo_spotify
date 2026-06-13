@@ -26,7 +26,7 @@ load_dotenv(env_file)
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
 from src.dashboard.auth import require_login, show_user_sidebar, get_artist_plan
-from src.dashboard.utils.i18n import t
+from src.dashboard.utils.i18n import t, get_lang
 from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 
 st.set_page_config(page_title="streaMLytics", page_icon="🎵", layout="wide")
@@ -119,7 +119,8 @@ def _verify_email(token: str) -> None:
             from src.dashboard.views.register import WELCOME_TRIAL_DAYS
             from src.utils.verification_email import send_welcome_email
             with st.spinner(t("app.sending_welcome", "Envoi du guide de bienvenue…")):
-                send_welcome_email(email, username, WELCOME_TRIAL_DAYS, user_id=uid)
+                send_welcome_email(email, username, WELCOME_TRIAL_DAYS, user_id=uid,
+                                   lang=get_lang())
         except Exception:
             pass  # best-effort — never block verification on the welcome email
     finally:

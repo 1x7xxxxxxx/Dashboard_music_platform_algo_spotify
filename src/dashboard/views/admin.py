@@ -191,12 +191,13 @@ def _erase_artist_gdpr(db, artist_id: int, admin_user_id: int, reason: str) -> d
 def _resend_verification(db, user_id: int, email: str, username: str) -> bool:
     import secrets
     from src.utils.verification_email import send_verification_email
+    from src.dashboard.utils.i18n import get_lang
     token = secrets.token_urlsafe(32)
     db.execute_query(
         "UPDATE saas_users SET verification_token = %s WHERE id = %s",
         (token, user_id)
     )
-    return send_verification_email(email, username, token)
+    return send_verification_email(email, username, token, lang=get_lang())
 
 
 # ─────────────────────────────────────────────

@@ -223,12 +223,13 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
 def _resend_verification(username: str, email: str, db) -> None:
     import secrets
     from src.utils.verification_email import send_verification_email
+    from src.dashboard.utils.i18n import get_lang
     token = secrets.token_urlsafe(32)
     db.execute_query(
         "UPDATE saas_users SET verification_token = %s WHERE username = %s",
         (token, username)
     )
-    if send_verification_email(email, username, token):
+    if send_verification_email(email, username, token, lang=get_lang()):
         st.success(_t("auth.resend_ok",
                       "Email de vérification renvoyé à {email}.").format(email=email))
     else:
