@@ -136,56 +136,85 @@ def test_protected_endpoints_require_token(url, client_no_auth):
 # /auth/token — login
 # ---------------------------------------------------------------------------
 
-def test_login_no_auth_config():
-    """When config.yaml has no 'auth' section → 503."""
-    with patch("src.api.routers.auth.config_loader") as mock_cfg:
-        mock_cfg.load.return_value = {}
-        client = TestClient(app)
-        r = client.post("/auth/token", data={"username": "x", "password": "y"})
-    assert r.status_code == 503
+# Login now authenticates against saas_users (DB), not config.yaml. Build a mock DB
+# whose fetch_query returns one saas_users row (column order must match
+# authenticate_api_user): (id, username, email, password_hash, artist_id, role,
+# email_verified, failed_login_attempts, locked_until, totp_enabled).
+def _login_db(row=None):
+    db = MagicMock()
+    db.fetch_query.return_value = [row] if row is not None else []
+    db.execute_query.return_value = None
+    db.close = MagicMock()
+    return db
+
+
+def _user_row(pw="correct", *, verified=True, totp=False, locked_until=None,
+              artist_id=1, role="artist"):
+    from passlib.context import CryptContext
+    ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    return (1, "alice", "alice@x.com", ctx.hash(pw), artist_id, role, verified,
+            0, locked_until, totp)
+
+
+def test_login_db_unavailable():
+    """DB unreachable → 503 (replaces the old 'no auth config' case)."""
+    app.dependency_overrides[get_db] = lambda: None
+    try:
+        r = TestClient(app).post("/auth/token", data={"username": "x", "password": "y"})
+        assert r.status_code == 503
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_login_unknown_user():
+    app.dependency_overrides[get_db] = lambda: _login_db(None)
+    try:
+        r = TestClient(app).post("/auth/token", data={"username": "ghost", "password": "y"})
+        assert r.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_login_wrong_password():
-    from passlib.context import CryptContext
-    ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    fake_config = {
-        "auth": {
-            "credentials": {
-                "usernames": {
-                    "alice": {"password": ctx.hash("correct"), "role": "artist", "artist_id": 1}
-                }
-            }
-        }
-    }
-    with patch("src.api.routers.auth.config_loader") as mock_cfg:
-        mock_cfg.load.return_value = fake_config
-        client = TestClient(app)
-        r = client.post("/auth/token", data={"username": "alice", "password": "wrong"})
-    assert r.status_code == 401
+    app.dependency_overrides[get_db] = lambda: _login_db(_user_row("correct"))
+    try:
+        r = TestClient(app).post("/auth/token", data={"username": "alice", "password": "wrong"})
+        assert r.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_login_unverified_403():
+    app.dependency_overrides[get_db] = lambda: _login_db(_user_row("correct", verified=False))
+    try:
+        r = TestClient(app).post("/auth/token", data={"username": "alice", "password": "correct"})
+        assert r.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_login_totp_blocked_403():
+    """2FA-enabled accounts must not get a password-only token (would bypass 2FA)."""
+    app.dependency_overrides[get_db] = lambda: _login_db(_user_row("correct", totp=True))
+    try:
+        r = TestClient(app).post("/auth/token", data={"username": "alice", "password": "correct"})
+        assert r.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_login_success():
-    from passlib.context import CryptContext
-    ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    fake_config = {
-        "auth": {
-            "credentials": {
-                "usernames": {
-                    "alice": {"password": ctx.hash("correct"), "role": "artist", "artist_id": 1}
-                }
-            }
-        }
-    }
-    with patch("src.api.routers.auth.config_loader") as mock_cfg:
-        mock_cfg.load.return_value = fake_config
-        client = TestClient(app)
-        r = client.post("/auth/token", data={"username": "alice", "password": "correct"})
-    assert r.status_code == 200
-    body = r.json()
-    assert "access_token" in body
-    assert body["token_type"] == "bearer"
-    assert body["role"] == "artist"
-    assert body["artist_id"] == 1
+    app.dependency_overrides[get_db] = lambda: _login_db(_user_row("correct"))
+    try:
+        r = TestClient(app).post("/auth/token", data={"username": "alice", "password": "correct"})
+        assert r.status_code == 200
+        body = r.json()
+        assert "access_token" in body
+        assert body["token_type"] == "bearer"
+        assert body["role"] == "artist"
+        assert body["artist_id"] == 1
+    finally:
+        app.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------
