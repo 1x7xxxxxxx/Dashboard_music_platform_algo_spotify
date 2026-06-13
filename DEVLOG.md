@@ -2059,3 +2059,18 @@ Clôture sécurité → passe optimisation. **Constat clé** : le pire score per
 
 ### Reste global
 **Ouvrir E1** (beta privée). App en prod, durcie (red-team + Cloudflare complet), optimisée côté livraison, propre.
+
+---
+
+## 2026-06-13 (suite 22) — Optimisation config Claude Code à partir du REX accumulé
+
+Branche `chore/claude-config-rex-guards`. Analyse du corpus REX (81 entrées, 2 agents Explore) : le projet **ré-apprend les mêmes ~5 classes** (silent-success 9×, schema-drift 8×, data-coercion 6×, multi-tenant 5× P1, config-not-env 4×) ; or `validate_rex.py` ne tournait nulle part, `make audit` hardcodait ~6 signatures (dérive vs 21 catalogués), et les guards déterministes (dont le P1 `artist-id-or-1`) restaient nightly non-bloquants.
+
+- **Track A — machinerie auto-exécutable** : `audit_runner.py` parse `error-classes.md` et exécute chaque `signature` (`--deterministic` bloquant CI / `--all` nightly). `ci.yml` : nouvelle étape bloquante `validate_rex --strict` + `audit_runner --deterministic` → **`artist-id-or-1` (P1) ne peut plus merger** (prouvé : violation plantée → exit 1). `make audit` + nightly délèguent au runner (fin de la dérive ; classe ajoutée = balayée gratis).
+- **Track C — auto-discovery skills** : `inject_context.py` construit `DOMAINS` en scannant le champ frontmatter `keywords:` de chaque skill (4 skills annotés) ; un nouveau skill s'auto-injecte sans toucher au hook. Dict hardcodé = simple fallback.
+- **Track B — guards des classes récurrentes** : `audit_collectors_ast.py` (détecteur AST précis du silent-success que le REX appelait depuis mai) → `collector-silent-success` promu **heuristic→déterministe bloquant** (0 hit, #1 classe). `config-not-env` catalogué (scopé `*_schema.py`, 0 hit après le fix env-first suite 15, heuristic/nightly). **B2** (`per-tenant-select`) volontairement **différé** : noisy (vues admin non-filtrées par design) pour un gain marginal, le P1 multi-tenant étant déjà couvert par `artist-id-or-1` bloquant.
+
+Vérifié : `audit_runner --deterministic` = 6 classes, exit 0 ; `--all` = 22 classes ; `validate_rex --strict` = 50 tools OK (a même attrapé une de mes propres entrées REX > 120 chars) ; ruff/compile verts ; inject_context auto-discovery prouvée. **Bilan : le catalogue d'error-classes est désormais la source unique exécutable, les 2 classes les plus récurrentes (silent-success, config-not-env) sont gardées, et le P1 multi-tenant bloque le CI.**
+
+### Reste global
+**Ouvrir E1** (beta privée). Config Claude Code durcie et auto-exécutable.
