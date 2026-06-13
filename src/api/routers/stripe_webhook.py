@@ -46,6 +46,24 @@ def _get_db():
         return None
 
 
+def _subscription_period(sub: dict) -> tuple:
+    """Return (current_period_start, current_period_end) as unix timestamps.
+
+    Stripe API version 2025-…/2026-…dahlia moved these fields off the Subscription
+    object onto each subscription item, so the legacy top-level keys are absent on
+    customer.subscription.* events. Fall back to the first item's period when missing.
+    """
+    start = sub.get("current_period_start")
+    end = sub.get("current_period_end")
+    if start is None or end is None:
+        items = (sub.get("items") or {}).get("data") or []
+        if items:
+            it = items[0]
+            start = start if start is not None else it.get("current_period_start")
+            end = end if end is not None else it.get("current_period_end")
+    return start, end
+
+
 def _upsert_subscription(conn, stripe_customer_id: str, stripe_subscription_id: str,
                           status: str, period_start, period_end, cancel_at_period_end: bool):
     """Update artist_subscriptions row matched by stripe_customer_id."""
@@ -165,13 +183,14 @@ async def stripe_webhook(request: Request):
 
         # ── customer.subscription.updated ───────────────────────────────
         elif event_type == "customer.subscription.updated":
+            _p_start, _p_end = _subscription_period(data)
             _upsert_subscription(
                 conn,
                 stripe_customer_id=data.get("customer"),
                 stripe_subscription_id=data.get("id"),
                 status=data.get("status", "active"),
-                period_start=data.get("current_period_start"),
-                period_end=data.get("current_period_end"),
+                period_start=_p_start,
+                period_end=_p_end,
                 cancel_at_period_end=data.get("cancel_at_period_end", False),
             )
 
