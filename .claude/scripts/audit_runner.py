@@ -35,6 +35,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Best-effort usage telemetry (curator self-improvement loop). Defensive: a broken
+# sidecar must never fail the audit / CI sweep.
+try:
+    from usage_telemetry import record as _telemetry_record
+except Exception:  # noqa: BLE001 — telemetry is optional
+    def _telemetry_record(*_a, **_k):
+        return None
+
 _REPO = Path(__file__).resolve().parents[2]            # .claude/scripts/ -> repo root
 _CATALOGUE = _REPO / ".claude/dev-docs/error-classes.md"
 
@@ -116,6 +124,7 @@ def main() -> None:
     hits = []
     for c in selected:
         hit, output = run_signature(c["signature"])
+        _telemetry_record("error_classes", c["id"], hit=hit)  # curator usage signal
         mark = "⚠ HIT" if hit else "✅"
         print(f"  {mark}  {c['id']}  [{c['kind']}/{c['status']}]")
         if hit:

@@ -113,10 +113,19 @@ def main() -> None:
 
     if hit:
         signal, phrase = hit
+        # If the bugfix session never touched the error-class catalogue, the class
+        # likely wasn't generalised — point at the impact-analysis playbook
+        # (whole-repo sweep + durable guard), not just /sweep.
+        changed = _git(repo_root, "diff", "HEAD", "--name-only").replace("\\", "/")
+        guard_hint = (
+            "" if _CATALOGUE in changed
+            else " No error-class added this session — apply "
+                 ".claude/skills/impact-analysis.md (whole-repo sweep + a durable guard)."
+        )
         print(
             f'\n🔍 Bugfix-shaped session (signal: {signal}). '
             f'Run /sweep "{phrase}" to check the whole project for this '
-            f'error class and add a durable guard.',
+            f'error class and add a durable guard.{guard_hint}',
             file=sys.stderr,
         )
     sys.exit(0)

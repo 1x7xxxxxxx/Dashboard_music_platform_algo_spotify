@@ -1,0 +1,8 @@
+# Curator pin allowlist — one name per line (skill stem or error-class id).
+# A pinned tool is NEVER flagged stale / proposed for archive by /curator, even
+# if it never triggers. Pin things that are correctly rare (incident playbooks,
+# safety guards you want kept regardless of hit-count).
+#
+# Examples (uncomment / edit as needed):
+# impact-analysis      # rare-by-design: only fires on a real bug session
+# prod-canonical-schema-drift   # manual guard, swept by cron not audit_runner

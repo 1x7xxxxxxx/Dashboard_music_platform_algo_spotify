@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lint dashboard view files for known anti-patterns. Non-blocking PostToolUse.
+r"""Lint dashboard view files for known anti-patterns. Non-blocking PostToolUse.
 
 Scans src/dashboard/views/*.py after Write/Edit for two patterns that have
 caused runtime bugs:

@@ -63,6 +63,10 @@
           {
             "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/observe.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify)\"/.claude/hooks/check_prod_sync.py"
           }
         ]
       }
