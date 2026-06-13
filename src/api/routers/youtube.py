@@ -28,25 +28,29 @@ def get_videos(
     db: PostgresHandler = Depends(get_db),
     artist_id: Optional[int] = Depends(require_artist_scope),
 ):
-    # youtube_videos is the per-video catalog (one row/video) carrying title + the
-    # latest view/like/comment counts. youtube_video_stats is the per-day snapshot
-    # series with NO title column and view_count/like_count/comment_count names — it
-    # was the source of the old 500 (SELECT views/likes/comments/title all wrong).
+    # The per-day stats (view_count/like_count/comment_count + artist_id) live in
+    # youtube_video_stats; the title lives in youtube_videos. We read stats from the
+    # stats table (those columns exist in BOTH the canonical schema and prod) and
+    # LEFT JOIN youtube_videos only for the title. NB: prod's youtube_videos drifted
+    # to also carry the counts, but init_db.sql/youtube_schema.py do not — querying
+    # youtube_videos.view_count therefore 500s in CI/fresh installs. Source the counts
+    # from youtube_video_stats to stay schema-portable.
     # artist_id is None only for admin (all-tenants); non-admins are always scoped.
     _select = """
-        SELECT video_id, title,
-               view_count AS views, like_count AS likes, comment_count AS comments,
-               collected_at::text AS collected_at
-        FROM youtube_videos
+        SELECT s.video_id, v.title,
+               s.view_count AS views, s.like_count AS likes, s.comment_count AS comments,
+               s.collected_at::text AS collected_at
+        FROM youtube_video_stats s
+        LEFT JOIN youtube_videos v ON v.video_id = s.video_id
     """
     if artist_id is not None:
         df = db.fetch_df(
-            _select + " WHERE artist_id = %s ORDER BY collected_at DESC, view_count DESC LIMIT %s",
+            _select + " WHERE s.artist_id = %s ORDER BY s.collected_at DESC LIMIT %s",
             (artist_id, limit),
         )
     else:
         df = db.fetch_df(
-            _select + " ORDER BY collected_at DESC, view_count DESC LIMIT %s",
+            _select + " ORDER BY s.collected_at DESC LIMIT %s",
             (limit,),
         )
 
