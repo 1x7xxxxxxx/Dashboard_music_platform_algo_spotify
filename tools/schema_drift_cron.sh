@@ -21,9 +21,13 @@ DB="${DB_NAME:-spotify_etl}"
 USER="${DB_USER:-postgres}"
 CANON_IMAGE="${CANON_IMAGE:-postgres:17}"
 CANON="schema_canon_$$"   # must start alphanumeric (docker name rule)
+LOG="${LOG:-/var/log/streamlytics-schema-drift.log}"
 DUMP_SQL="SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1"
 
-echo "── schema-drift check $(date -u +%Y-%m-%dT%H:%M:%SZ) ──"
+# Full output → log (always); stdout stays empty on success so a MAILTO crontab only
+# mails on drift. log() appends to $LOG (falls back to stderr if the path isn't writable).
+log() { echo "$@" >> "$LOG" 2>/dev/null || echo "$@" >&2; }
+log "── schema-drift check $(date -u +%Y-%m-%dT%H:%M:%SZ) ──"
 
 if [ -z "$PG_CONT" ]; then
     echo "❌ prod Postgres container not found (docker ps | grep postgres_spotify)." >&2
@@ -46,12 +50,14 @@ docker exec "$CANON" psql -U "$USER" -d "$DB" -tAc "$DUMP_SQL" > "/tmp/${CANON}_
 # 2. Live prod schema (local container).
 docker exec "$PG_CONT" psql -U "$USER" -d "$DB" -tAc "$DUMP_SQL" > "/tmp/${CANON}_prod.tsv" 2>/dev/null
 
-# 3. Diff (reuse the dev tool). Non-zero exit = drift.
-if python3 "$ROOT/tools/dev/schema_drift_check.py" "/tmp/${CANON}_prod.tsv" "/tmp/${CANON}_canon.tsv"; then
+# 3. Diff (reuse the dev tool). Non-zero exit = drift. Full result → log; on drift,
+#    a short alert → stdout so a MAILTO crontab mails (clean runs stay silent).
+OUT="$(python3 "$ROOT/tools/dev/schema_drift_check.py" "/tmp/${CANON}_prod.tsv" "/tmp/${CANON}_canon.tsv" 2>&1)"; RC=$?
+log "$OUT"
+if [ "$RC" -eq 0 ]; then
     exit 0
-else
-    echo "⚠ SCHEMA DRIFT DETECTED — prod has diverged from init_db.sql + migrations."
-    echo "  Reconcile via a migration (never a manual ALTER on prod). See"
-    echo "  .claude/dev-docs/schema-drift-2026-06-13.md and run \`make schema-check\` locally."
-    exit 1
 fi
+echo "⚠ SCHEMA DRIFT DETECTED on $(hostname) — prod has diverged from init_db.sql + migrations."
+echo "$OUT" | grep -E '^##|absent|^  ' | head -25
+echo "Reconcile via a MIGRATION (never a manual ALTER on prod). Full log: $LOG"
+exit 1

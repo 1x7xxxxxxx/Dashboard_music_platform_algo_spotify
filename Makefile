@@ -61,23 +61,29 @@ audit:       ## Sweep ALL error-class signatures (heuristic, non-blocking) — d
 
 # Prod connection for schema-check (override on the CLI; not committed to keep the
 # host out of version control): make schema-check PROD_SSH=root@HOST PROD_PG=container
-PROD_SSH ?=
-PROD_PG  ?= postgres_spotify_airflow
+PROD_SSH  ?=
+PROD_PG   ?= postgres_spotify_airflow
+PROD_REPO ?= /opt/streamlytics
 
 schema-check: ## Diff PROD schema vs canonical (init_db.sql + migrations) — needs Docker + SSH to prod
 	@command -v docker >/dev/null 2>&1 || { echo "❌ docker required for the throwaway canonical DB."; exit 1; }
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host (e.g. make schema-check PROD_SSH=root@1.2.3.4)"; exit 1; }
 	@echo "▶ provisioning throwaway canonical Postgres from init_db.sql + migrations…"
-	@docker rm -f _canon_pg >/dev/null 2>&1 || true
-	@docker run -d --name _canon_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl postgres:17 >/dev/null
-	@for i in $$(seq 1 30); do docker exec _canon_pg pg_isready -U postgres -d spotify_etl >/dev/null 2>&1 && break; sleep 1; done; sleep 2
-	@docker exec -i _canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < init_db.sql >/dev/null 2>&1
-	@for f in $$(ls migrations/*.sql | sort); do docker exec -i _canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done
-	@docker exec _canon_pg psql -U postgres -d spotify_etl -tAc "SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1" > /tmp/_canon.tsv 2>/dev/null
-	@docker rm -f _canon_pg >/dev/null 2>&1
+	@docker rm -f canon_pg >/dev/null 2>&1 || true
+	@docker run -d --name canon_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl postgres:17 >/dev/null
+	@for i in $$(seq 1 30); do docker exec canon_pg pg_isready -U postgres -d spotify_etl >/dev/null 2>&1 && break; sleep 1; done; sleep 2
+	@docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < init_db.sql >/dev/null 2>&1
+	@for f in $$(ls migrations/*.sql | sort); do docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done
+	@docker exec canon_pg psql -U postgres -d spotify_etl -tAc "SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1" > /tmp/_canon.tsv 2>/dev/null
+	@docker rm -f canon_pg >/dev/null 2>&1
 	@echo "▶ dumping prod schema via ssh…"
 	@echo "SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1;" | ssh -o ConnectTimeout=10 $(PROD_SSH) 'docker exec -i $(PROD_PG) psql -U postgres -d spotify_etl -tA' > /tmp/_prod.tsv 2>/dev/null
 	@python3 tools/dev/schema_drift_check.py /tmp/_prod.tsv /tmp/_canon.tsv
+
+sync-check: schema-check ## Full repo↔prod sync: schema-drift (above) + deploy-drift (server HEAD vs origin/main)
+	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
+	@echo "▶ deploy-drift: $(PROD_REPO) HEAD vs origin/main…"
+	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && git fetch -q origin main && if [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ]; then echo "  ✅ deployed code == origin/main"; else echo "  ⚠ DEPLOY DRIFT: server HEAD != origin/main — run on prod: git pull --ff-only origin main && docker compose up -d --build api dashboard"; git -C $(PROD_REPO) log --oneline HEAD..origin/main | head -5; exit 1; fi'
 
 dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
 	streamlit run src/dashboard/app.py
