@@ -1761,3 +1761,31 @@ or 1`** ; le risque "table à id Spotify string" ne se répète nulle part (seul
 ### Tests / ménage
 ruff + AST clean sur tous les fichiers touchés. Comptes de test `127bpm` (id=7 puis id=8) supprimés FK-safe
 après usage. Webhook répond 400 (signé) ; API `/kpis` non-auth → 401.
+
+---
+
+## 2026-06-13 (suite 13) — DAGs activés, freshness cadence, Postgres-en-CI, fix Airflow monitor, pentest
+
+### What changed
+- **DAGs activés en prod** : découverte que **tous les DAGs étaient en pause** (planning quotidien + itération
+  `get_active_artists` dans le code, mais `paused=True` → rien ne tournait). `airflow dags unpause` ×15 (tous
+  `catchup=False` → pas de backfill). Tournent désormais quotidiennement par artiste (Meta 5h/Spotify 7h/YouTube
+  8h/SoundCloud 9h/Instagram 10h/ML 11h UTC ; CSV watchers 15 min).
+- **PR #51 — cadence dans « Fraîcheur des données »** : légende (FR+EN) API-quotidien vs fichier-import, accès
+  libre (home). Corrige aussi une clé EN manquante latente (`data_wrapped.session_invalid`).
+- **PR #52 — Postgres en CI (P3 fermée)** : service `postgres:17` provisionné (init_db + migrations, fail-loud) +
+  `DATABASE_URL` → render-smoke 39 vues + tests ML DB tournent en CI (vert : 549 passed). 2 bugs fresh-install
+  corrigés : `campaign_track_mapping` ajoutée à `init_db.sql` (bootstrap gap) ; guard `alerts` sur df vide.
+  `_db_ready()` conscient de `DATABASE_URL`. Box B MT5 retiré de la roadmap (hors scope).
+- **PR #53 — fix « Aucun DAG trouvé »** : `AirflowMonitor` lisait l'URL Airflow depuis config.yaml uniquement
+  (défaut localhost:8080) et ignorait `AIRFLOW_BASE_URL` → en prod le dashboard ne joignait pas le conteneur
+  Airflow. Env-first → remonte 15 DAGs. (Même piège que SMTP/DB.)
+- **PR #54 — pentest finding** : `/openapi.json` servi malgré /docs+/redoc en 404 → gé sur `API_ENABLE_DOCS`
+  (404 en prod).
+
+### Pentest (Phase 5, sondes externes)
+A. Recon : seuls 22/80/443 ouverts (services internes filtrés). B. Transport : HTTP→HTTPS 308, HSTS, X-Frame
+DENY, nosniff, TLS 1.0 refusé/1.3 OK. C. Surface : /.env & co = **faux positif** (catch-all SPA, aucun secret) ;
+**/openapi.json corrigé**. D. Auth : tous endpoints API → 401, token forgé → 401, webhook → 400. **Reste** :
+test live lockout bruteforce + scan client-side (MCP chrome-devtools KO dans la session WSL → à refaire au
+navigateur). Détail checklist Phase 5.

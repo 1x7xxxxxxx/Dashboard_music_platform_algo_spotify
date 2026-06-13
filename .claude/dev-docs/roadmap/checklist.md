@@ -634,11 +634,18 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     **Restant** : `STRIPE_PORTAL_URL` (portail client, optionnel) ; passage **mode LIVE** = activation complète
     du compte Stripe (KYC + SIRET 939874392 + IBAN) puis recréer produit/link/webhook en live + clés `sk_live`.
     **Gate 4** ✅ (provisioning prouvé en test).
-  - [ ] **Phase 5 — Pentest D2 (🤝)** — **PARTIEL 2026-06-13** : ✅ audit sécu live fait (ports internes
-    5433/8080/8501/8502 **filtrés** depuis l'extérieur · API `/docs`+`/redoc` 404 · **HSTS** + headers · **TLS
-    1.3** · SSH **key-only** (PasswordAuthentication no) · fail2ban). **Reste** : test live du lockout
-    bruteforce (5/15min), DoS/rate-limit, scan chrome-devtools MCP sur l'URL. **Gate 5** → débloque E1
-    (E1 déjà débloqué de fait : pré-requis validés, cf. bloc REPRISE).
+  - [ ] **Phase 5 — Pentest D2 (🤝)** — **QUASI-COMPLET 2026-06-13** (pentest live mené par sondes externes).
+    ✅ **A. Recon** : seuls 22/80/443 ouverts ; 5433/5432/8080/8501/8502 **filtrés** depuis l'extérieur.
+    ✅ **B. Transport** : HTTP→HTTPS 308 · HSTS (1 an + includeSubDomains) · X-Frame DENY · nosniff ·
+    Referrer-Policy · **TLS 1.0 refusé / TLS 1.3 OK**. ✅ **C. Surface** : `/docs`+`/redoc` 404 ; `/.env`,
+    `/config.yaml`, `/.git/config` → **faux positif** (catch-all SPA Streamlit en `text/html`, aucun secret).
+    **FINDING corrigé** : `/openapi.json` était servi (carte API complète) → gé sur `API_ENABLE_DOCS`, **404**
+    désormais (PR #54). ✅ **D. Auth** : tous les endpoints API → 401 sans token, token forgé → 401, webhook
+    Stripe sans signature → 400 (fail-closed). **RESTE** (mineur) : (1) **test live lockout bruteforce 5/15min**
+    + rate-limit côté login Streamlit — à faire **manuellement au navigateur** (entrer 6× un mauvais mot de passe
+    → message de verrouillage attendu), le code est en place (mig 017, testé) ; (2) **scan client-side** (console/
+    secrets) — le MCP chrome-devtools ne démarre pas dans la session WSL actuelle → à refaire quand Chrome est dispo.
+    Pas de CSP/Permissions-Policy (limite Streamlit, P4). **Gate 5 essentiellement levé** ; E1 déjà débloqué.
   - ~~Phase 6 — Box B MT5~~ — **RETIRÉ 2026-06-13 : hors scope de streaMLytics** (projet trading MT5 séparé, traité ailleurs).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
