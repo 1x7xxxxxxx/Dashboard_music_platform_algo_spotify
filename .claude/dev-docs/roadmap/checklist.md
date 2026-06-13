@@ -17,11 +17,8 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
 
-**▶️ Prochaines actions, dans l'ordre (MAJ suite 18 — red-team + Cloudflare en cours) :**
-1. **🟡 Cloudflare — REPRENDRE quand zone active** (état figé, détail `[[project_security_cloudflare]]`).
-   *Fait* : compte CF créé, zone `streamlytics.fr` ajoutée, DNS records corrigés (A web=Proxied ; `*_domainkey`+`ftp`=DNS only), **DNSSEC désactivation lancée chez OVH**. *Bloqué ~24h* : le DS DNSSEC est **encore présent** au registre `.fr` → **NE PAS changer les NS tant que DS≠NONE** (sinon SERVFAIL total).
-   **Quand DS=NONE** : NS OVH (`ns109`/`dns109.ovh.net` → `huxley`/`sky.ns.cloudflare.com`) → CF « I updated my nameservers » → **SSL/TLS = Full (strict)** → l'user fournit un **token API scopé** → je fais WAF + rate-limit + **lock firewall origine** (`ufw` → IP CF only) + **cert Origin CF** (renouvellement LE bloqué une fois proxifié).
-   Vérif DS : `curl -s "https://1.1.1.1/dns-query?name=streamlytics.fr&type=DS" -H "accept: application/dns-json"`.
+**▶️ Prochaines actions, dans l'ordre (MAJ suite 19c — Cloudflare ACTIF + durci) :**
+1. **✅ Cloudflare — ACTIF, PROXIFIE & DURCI** (détail `[[project_security_cloudflare]]`). Fait : zone active, NS Cloudflare, **SSL Full(strict)**, zone settings (min TLS 1.2 / Always HTTPS / Brotli / TLS 1.3), **rate-limit `/auth/token`** (10/10s), **firewall origine verrouillé** (ufw → IP CF only, vérifié : direct IP=bloqué). **RESTE (non bloquant)** : 🔑 **révoquer le token** `streamlytics-hardening` ; activer **Bot Fight Mode** (manuel) ; poser **cert Origin CF** (sécu renouvellement, ~2 mois de marge) ; ré-activer DNSSEC via CF.
 2. **🟡 Red-team — phase staging local restante** (en pause). Couvert & clean : MITM/TLS (CVE suite), brute-force, SQLi, deps (0 CVE), **isolation tenant/IDOR (prouvé live)**, priv-esc, JWT, CORS, secrets. Reste (staging Docker local) : **XSS stored, abus upload CSV, cookies session, XSRF Streamlit, replay webhook Stripe, app-DoS**. Compte prod de test `redteam_qa` / `127bpmin@gmail.com` / `RedTeamQA2026!` (artist_id=9) **encore actif** → **supprimer à la clôture**.
 3. **Ouvrir E1** — inviter 2-3 proches sur `streamlytics.fr` (tout le funnel + paiement live sont validés).
 4. *(optionnel)* Stripe : prix doublon **confirmé supprimé via API** (1 prix actif). *(i18n emails ✅ s16 ; env-first 11 `*_schema.py` ✅ s15 ; **`/kpis` 500 fixé+déployé ✅ s18**.)*

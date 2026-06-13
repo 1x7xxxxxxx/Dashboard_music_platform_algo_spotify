@@ -2011,4 +2011,21 @@ Caching (4 vues sans `@st.cache_data` — bénéfice modeste, requêtes <1ms ; v
 (checklist § « Audit 2026-06-13 »).
 
 ### Reste
-~~Corriger /youtube/videos~~ **FAIT (suite 19b)** : requête sur `youtube_videos`, mergé PR #62, déployé, **200** confirmé live + `tests/test_api_db_smoke.py` (DB-gated) ajouté contre la classe entière. **Cloudflare : NS basculés → zone ACTIVE & proxifiée** (188.114.96.x, HTTP/2 200, pas de boucle). Reste durcissement CF : SSL Full(strict), token→WAF, lock firewall origine (ufw→IP CF), cert Origin. Compte `redteam_qa` toujours en prod (cleanup à la clôture).
+~~Corriger /youtube/videos~~ **FAIT (suite 19b)** : requête sur `youtube_videos`, mergé PR #62, déployé, **200** confirmé live + `tests/test_api_db_smoke.py` (DB-gated) ajouté contre la classe entière.
+
+---
+
+## 2026-06-13 (suite 19c) — Cloudflare : activation + durcissement complet
+
+Bascule NS OVH → Cloudflare effectuée ; zone **active & proxifiée** (`app.streamlytics.fr` → IP CF 188.114.96.x, HTTP/2 200, 0 redirect). Durcissement via token API scopé (Zone Read/Settings/WAF) :
+- **SSL/TLS = Full (strict)** (valide le cert origine LE).
+- **Zone settings** (API) : min TLS 1.2, Always Use HTTPS, Brotli, TLS 1.3.
+- **Rate-limit `/auth/token`** : 10 req/10s → block 10s. Plan Free impose fenêtre+timeout = 10s, et `characteristics` doit inclure `cf.colo.id` (comptage par colo). Ruleset phase `http_ratelimit`.
+- **Firewall origine verrouillé** (`ufw` sur 167.233.92.1) : 80/443 autorisés **uniquement** depuis les 15 v4 + 7 v6 plages Cloudflare, port 22 gardé, broad-allow supprimés. **Vérifié** : site via CF=200, **direct IP 167.233.92.1 = 000 (bloqué)** → plus de bypass possible. (CF atteint l'origine en IPv4 via l'A record.)
+
+**Détails plan Free** : WAF managed rules = payant (skip) ; Bot Fight Mode = perm `bot_management` absente du token → à activer à la main. **Token wipé de la machine ; à révoquer côté CF** (setup one-shot).
+
+**Reste CF (non bloquant)** : révoquer le token, Bot Fight Mode (manuel), **cert Origin CF** (sécu renouvellement LE de Caddy une fois proxifié — ~2 mois de marge ; le cert browser-facing est l'edge CF auto-renouvelé), DNSSEC ré-activable via CF.
+
+### Reste global
+Red-team phase staging local (XSS/upload/session/DoS) en pause ; **supprimer `redteam_qa`** (prod) à la clôture ; ouvrir E1.
