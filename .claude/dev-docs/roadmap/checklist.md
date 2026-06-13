@@ -662,6 +662,20 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     `.mcp.json` (gitignored). Scan console de la page login : 2 messages, **tous bénins** (`[issue]` form field
     sans id/name ×2 ; `[verbose] [DOM]` password field hors `<form>`) — **aucun secret, aucune erreur sensible**.
     Pas de CSP/Permissions-Policy (limite Streamlit, P4). **Gate 5 entièrement levé.**
+    ✅ **H. Batterie offensive active (2026-06-13, suite 17) — MITM/TLS + injection.** Lancée en direct
+    (openssl + testssl.sh) contre la prod : **(ports)** seuls 22/80/443 ouverts (5432/5433/8080/8501/8502/3000
+    filtrés) ; **(downgrade MITM)** TLS 1.0/1.1 **refusés**, TLS_FALLBACK_SCSV « no fallback possible »,
+    seuls TLS 1.2/1.3 + ciphers **AEAD/forward-secrecy** (ECDHE-ECDSA-AES-GCM) ; RC4/3DES/NULL/CBC-SHA1 tous
+    **rejetés** ; **(CVE TLS)** Heartbleed/CCS/Ticketbleed/ROBOT/POODLE/CRIME/SWEET32/FREAK/DROWN/LOGJAM/BEAST/
+    LUCKY13/Winshock = **not vulnerable** ; reneg sécurisée OK ; cert LE ECDSA valide (SAN match). **Seul flag :
+    BREACH** « potentially » (compression gzip HTTP) — exploitabilité faible (Streamlit websocket, pas de secret
+    reflété en réponse) + désactiver gzip dégraderait le LCP déjà lent → **accepté P4** comme le no-CSP.
+    **(SQLi)** 3 payloads (`' OR '1'='1`, `'--`, `UNION SELECT`) sur `/auth/token` → **401 propre, 0 erreur SQL**
+    (requêtes paramétrées tiennent) ; **(surface)** `/.env /.git/config /openapi.json /docs /redoc /actuator` =
+    404 ; endpoints protégés = 401, JWT forgé rejeté, webhook sans signature = 400 fail-closed.
+    **Non testé (refusé volontairement)** : DoS volumétrique sur la prod (risque service + ToS Hetzner) →
+    recommandation = **Cloudflare gratuit** (WAF + anti-DDoS + cache, comble aussi l'absence de WAF). RCE : surface
+    nulle (0 `eval/exec/pickle/subprocess/shell` dans `src/`), non fuzzé. Phishing = hors-scope app (social).
   - ~~Phase 6 — Box B MT5~~ — **RETIRÉ 2026-06-13 : hors scope de streaMLytics** (projet trading MT5 séparé, traité ailleurs).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)

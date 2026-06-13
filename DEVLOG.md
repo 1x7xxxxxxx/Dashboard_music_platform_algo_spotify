@@ -1891,3 +1891,38 @@ emails sans exception (clés `.format` résolues), suite **519 passed / 39 skipp
 
 ### Reste
 **Ouvrir E1.** (Restart CC pour les outils MCP `chrome-devtools` — cf. suite 15.)
+
+---
+
+## 2026-06-13 (suite 17) — Batterie offensive active (MITM/TLS + injection) + confirmation Stripe API
+
+### Stripe — prix doublon confirmé supprimé (via API live)
+Confirmation demandée par l'utilisateur (doublon déjà supprimé côté dashboard, pas de refund). Requête
+`GET /v1/prices?product=prod_Uh0VOltsYlEbMM` exécutée **sur le serveur** (clé `sk_live` lue depuis
+`/opt/streamlytics/.env`, jamais imprimée) : **1 seul prix actif** (`price_1TheyH…`, 1000 eur/month) +
+**0 archivé/inactif**. Payment Link live (`buy.stripe.com/eVq5kCf…`) intact. Propre.
+
+### Cyber — « fais tout ce que tu peux » : MITM/TLS attaqué en direct
+Demande explicite de tester le côté cyber (MITM, brute-force, SQLi, RCE, DoS, phishing). Batterie active
+non-destructive lancée contre la prod (openssl + testssl.sh, via shim resolver `host` car pas de dig/nslookup
+en local) :
+
+- **Downgrade MITM** : TLS 1.0/1.1 **refusés**, `TLS_FALLBACK_SCSV` no-fallback, TLS 1.2/1.3 only,
+  ciphers AEAD/FS (ECDHE-ECDSA-AES-GCM) ; RC4/3DES/NULL/CBC-SHA1 tous rejetés.
+- **CVE TLS** (testssl `-U`) : Heartbleed, CCS, Ticketbleed, ROBOT, POODLE, CRIME, SWEET32, FREAK, DROWN,
+  LOGJAM, BEAST, LUCKY13, Winshock = **not vulnerable** ; secure renegotiation OK ; cert LE ECDSA valide.
+- **Seul finding : BREACH** « potentially » (gzip HTTP). Faible exploitabilité (Streamlit websocket, pas de
+  secret reflété) + couper gzip dégraderait le LCP (déjà 5.7 s) → **accepté P4** (même classe que no-CSP).
+- **SQLi** : 3 payloads (`' OR '1'='1`, `'--`, `UNION SELECT`) sur `/auth/token` (usernames jetables, sous
+  le seuil de lockout) → **401 propre, 0 erreur SQL** → requêtes paramétrées (Brick 25) confirmées en live.
+- **Surface** : `/.env`, `/.git/config`, `/openapi.json`, `/docs`, `/redoc`, `/actuator` = 404 ; endpoints
+  protégés = 401 ; JWT forgé rejeté ; webhook sans signature = 400 fail-closed. **Ports** : 22/80/443 only.
+- **Non testé volontairement** : **DoS** volumétrique sur prod (risque service + ToS Hetzner) → reco
+  **Cloudflare gratuit** (WAF + anti-DDoS + cache). **RCE** : surface nulle (0 `eval/exec/pickle/subprocess/
+  shell` dans `src/`), non fuzzé. **Phishing** : hors-scope app (social engineering, pas une vuln applicative).
+
+**Bilan** : brute-force prouvé (suite précédente) + MITM/TLS prouvé résistant (CVE suite clean) + SQLi/surface
+clean. Reste 2 vrais gaps non couverts par design : DoS (→ Cloudflare) et RCE (surface nulle mais non fuzzé).
+
+### Reste
+**Ouvrir E1.** Optionnel : Cloudflare devant la prod (DoS + WAF + cache LCP), CSP via Caddy (P4).
