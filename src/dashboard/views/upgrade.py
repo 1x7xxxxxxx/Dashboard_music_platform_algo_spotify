@@ -35,6 +35,7 @@ _PAGE_LABELS = {
     'imusician': 'Distributeur (iMusician)',
     'sacem': '🎼 Royalties SACEM',
     'upload_csv': 'Import CSV',
+    'db_health': '🩺 Santé des données',
     'credentials': 'Credentials API',
     'export_csv': 'Export CSV',
     'data_wrapped': 'Data Wrapped',

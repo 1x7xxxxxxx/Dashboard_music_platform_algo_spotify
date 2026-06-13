@@ -56,6 +56,7 @@ _FREE_FEATURES = {
     'home', 'spotify_s4a_combined', 'youtube', 'meta_ads_overview', 'instagram',
     'soundcloud', 'apple_music', 'hypeddit', 'imusician', 'upload_csv', 'credentials',
     'export_csv', 'export_pdf', 'data_wrapped', 'meta_mapping', 'referral', 'sacem',
+    'db_health',
 }
 PLAN_FEATURES = {
     'free':  set(_FREE_FEATURES),
