@@ -26,6 +26,22 @@ _PLATFORM_META = {
 _STEP_KEY = '_onboarding_step'
 
 
+def _goto(page_key: str) -> None:
+    """Navigate in-app to a page WITHOUT a full browser reload.
+
+    Onboarding is pinned by the ?page=onboarding deep-link (main() st.stop()s on it
+    before the nav runs), so we clear that param AND set _nav_page — otherwise the
+    rerun lands back on onboarding. A relative link_button("/?page=...") would force
+    a full reload, dropping the in-memory session → bounce to login.
+    """
+    st.session_state['_nav_page'] = page_key
+    try:
+        del st.query_params['page']
+    except Exception:
+        pass
+    st.rerun()
+
+
 def _get_configured_platforms(artist_id: int) -> set[str]:
     """Return set of platforms that have at least token_encrypted or extra_config set."""
     db = get_db_connection()
@@ -90,8 +106,9 @@ def _step_welcome(plan: str) -> None:
                 st.markdown(f"{icon} {feat}")
 
             if is_locked:
-                st.link_button(t("onboarding.upgrade_to", "Passer à {tier} →").format(tier=tier_label),
-                               "/?page=billing")
+                if st.button(t("onboarding.upgrade_to", "Passer à {tier} →").format(tier=tier_label),
+                             key=f"_onb_upgrade_{tier_key}"):
+                    _goto('billing')
 
     st.markdown("---")
     if st.button(t("onboarding.next_data", "Suivant : Configurer mes données →"), type="primary"):
@@ -127,7 +144,9 @@ def _step_credentials(plan: str, artist_id: int) -> None:
             cols = st.columns([3, 1, 1])
             cols[0].markdown(f"{meta['icon']} **{meta['label']}** — {status}")
             if not connected:
-                cols[1].link_button(t("onboarding.configure_btn", "Configurer →"), "/?page=credentials")
+                if cols[1].button(t("onboarding.configure_btn", "Configurer →"),
+                                  key=f"_onb_cfg_{platform_key}"):
+                    _goto('credentials')
         else:
             st.markdown(
                 t("onboarding.locked_platform",
@@ -156,11 +175,13 @@ def _step_ready() -> None:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.link_button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
-                       "/?page=home", type="primary")
+        if st.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
+                     type="primary", key="_onb_done_home"):
+            _goto('home')
     with col2:
-        st.link_button(t("onboarding.configure_creds", "🔑 Configurer les credentials"),
-                       "/?page=credentials")
+        if st.button(t("onboarding.configure_creds", "🔑 Configurer les credentials"),
+                     key="_onb_done_creds"):
+            _goto('credentials')
 
     st.markdown("---")
     st.caption(

@@ -4,9 +4,11 @@ Type: Feature
 Uses: get_artist_plan, PLAN_FEATURES, PLAN_RANK
 Depends on: billing view (Stripe portal CTA)
 """
+import os
+
 import streamlit as st
 
-from src.dashboard.auth import get_artist_plan
+from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.dashboard.utils.i18n import t
 from src.database.stripe_schema import (
     PLAN_CATALOG, PLAN_FEATURES, PLAN_RANK, SERVICE_CONTACT_EMAIL,
@@ -112,8 +114,22 @@ def show() -> None:
         if is_current:
             st.success(t("upgrade.current_plan", "Plan actuel"))
         elif can_upgrade:
-            st.link_button(t("upgrade.go_premium", "Passer à Premium →"),
-                           "/?page=billing", type="primary")
+            # Link straight to the Stripe Payment Link (external navigation is correct
+            # here). client_reference_id carries the tenant so the webhook provisions
+            # the right artist — mirrors billing.py. A relative "/?page=..." would force
+            # a full page reload, dropping the in-memory session → bounce to login.
+            checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
+            if checkout_url:
+                _aid = get_artist_id()
+                _url = f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url
+                st.link_button(t("upgrade.go_premium", "Passer à Premium →"),
+                               _url, type="primary")
+            else:
+                # Stripe not configured: in-app nav to Billing (no full reload).
+                if st.button(t("upgrade.go_premium", "Passer à Premium →"),
+                             type="primary", key="_upgrade_to_billing"):
+                    st.session_state['_nav_page'] = 'billing'
+                    st.rerun()
 
     st.markdown("---")
     st.caption(
