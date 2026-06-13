@@ -12,7 +12,14 @@ class AirflowMonitor:
         config = config_loader.load()
         airflow_conf = config.get('airflow', {})
 
-        raw_url = airflow_conf.get('base_url', 'http://localhost:8080').rstrip('/')
+        # Env-first (prod containers have no config.yaml): the dashboard reaches Airflow
+        # via the compose service name (AIRFLOW_BASE_URL=http://airflow-webserver:8080),
+        # NOT localhost — localhost in the dashboard container is not the Airflow box, so
+        # the config.yaml-only default silently failed in prod ("Aucun DAG trouvé").
+        raw_url = (
+            os.getenv('AIRFLOW_BASE_URL')
+            or airflow_conf.get('base_url', 'http://localhost:8080')
+        ).rstrip('/')
         if '/api/v1' not in raw_url:
             self.base_url = f"{raw_url}/api/v1"
         else:
