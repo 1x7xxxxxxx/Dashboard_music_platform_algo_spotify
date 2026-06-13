@@ -194,6 +194,7 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 | `/logs-airflow` | Read + analyze recent Airflow container logs |
 | `/dev-docs <name>` | Generate plan/context/checklist trio for a large feature |
 | `/run-tests` | Execute pytest suite and analyze failures |
+| `/roadmap-done <id>` | Tick a roadmap task + retire its row from the top `## 📋 Tâches ouvertes` index into `## Completed` (run on every task completion) |
 
 ### Hooks
 - **UserPromptSubmit** → `inject_context.py` — keyword-triggered skill injection (domain patterns)
@@ -246,6 +247,11 @@ All MCPs are declared at project level in `.mcp.json` — **gitignored, local-on
 
 Single master checklist: `.claude/dev-docs/roadmap/checklist.md`
 Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and continue with the next unchecked item."*
+
+**Roadmap flow**: the top `## 📋 Tâches ouvertes` table is the concise index of only
+*still-open* tasks. When a task is completed, run `/roadmap-done <id>` — it ticks the
+detailed block in place AND retires the row from the top index into `## Completed`. Never
+hand-delete a detail block (move = retire-from-index + tick, not erase).
 
 | Bricks | Topic | Status | Priority |
 |---|---|---|---|

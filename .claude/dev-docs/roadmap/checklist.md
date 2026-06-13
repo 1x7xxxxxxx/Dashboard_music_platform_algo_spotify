@@ -27,6 +27,33 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ---
 
+## 📋 Tâches ouvertes (index — détail plus bas)
+
+Tableau concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion d'une
+tâche : `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau
+vers `## Completed` (CLAUDE.md — flux roadmap). Une seule source : ce fichier.
+
+| id | tâche | prio | statut / déclencheur |
+|----|-------|------|----------------------|
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) |
+| R2 | E2 — landing marketing + pixel Meta + CAPI server-side | P3 | après R1 |
+| R3 | 2 collectors `return None` (instagram `:294`, youtube `:45`) — escalader en `raise` ou documenter skip légitime | P2/P3 | skip par-item, PAS le pattern dangereux ; à trancher |
+| R4 | More training data + évaluation per-tenant (ML) | P3 | BLOQUÉ : 1 seul tenant live, volume de labels |
+| R5 | Retraining automatique sur outcomes live (ML) | P3 | BLOQUÉ : outcomes forward s'accumulent dans le temps |
+| R6 | RR volume regressor (R²=0.23) | P3 | BLOQUÉ : volume d'entraînement, pas features |
+| R7 | Resurrection tuning (`detect_saves_resurrection`) | P3 | BLOQUÉ : besoin d'une série temporelle de saves |
+| R8 | Caching `@st.cache_data(ttl=300)` sur 4 vues lourdes | P4 | DIFFÉRÉ — déclencheur : trafic concurrent / re-renders |
+| R9 | Migration `view_session()` (16 vues legacy `get_db_connection()`) | P4 | DIFFÉRÉ — déclencheur : ≥50 artistes / leak connexion |
+| R10 | Splitter god-functions (+171 fonctions >40 l.) | P4 | DIFFÉRÉ — **au fil de l'eau**, jamais en sweep dédié |
+| R11 | Lazy imports (plotly/sklearn/shap → dans les fonctions) | P4 | DIFFÉRÉ — déclencheur : latence par-vue ressentie |
+| R12 | Index composite `s4a_song_timeline(artist_id, song, date)` | P4 | DIFFÉRÉ — déclencheur : ~10× le volume (≈140k l.) |
+
+*Décidé/clos mais checkbox encore cochable dans le détail (pas des tâches actives) :
+C5 (benchmark VPS) + C6 (domaine) **DÉCISIONS FIGÉES** → `benchmark-deployment-synthesis.md` ;
+D (déploiement + pentest) **FAIT** (prod live + red-team complet). Cocher via `/roadmap-done` au prochain passage.*
+
+---
+
 ## Open Bugs
 
 ### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)

@@ -13,6 +13,11 @@ rex:
     fix: "Repointed to roadmap/checklist.md + DEVLOG.md, _INCLUDE='src' with hook/script/test excludes"
     severity: warn
     ref: DEVLOG#2026-05-14
+  - date: 2026-06-13
+    issue: "Still a silent no-op: repo_root = dirname(hook_dir) gave .claude (not repo root), tracker mtime never read"
+    fix: "repo_root = dirname(dirname(hook_dir)) — .claude/hooks → .claude → repo root, so checklist.md/DEVLOG.md resolve"
+    severity: warn
+    ref: DEVLOG#2026-06-13
 ---
 """
 import json
@@ -58,9 +63,10 @@ def main():
     if any(excl in file_path for excl in _EXCLUDE):
         sys.exit(0)
 
-    # Resolve tracker paths relative to repo root
-    hook_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.dirname(hook_dir)  # .claude/ → repo root
+    # Resolve tracker paths relative to repo root.
+    # hook_dir is .claude/hooks → repo root is TWO levels up, not one.
+    hook_dir = os.path.dirname(os.path.abspath(__file__))   # .claude/hooks/
+    repo_root = os.path.dirname(os.path.dirname(hook_dir))  # .claude/hooks → .claude → repo root
 
     now = time.time()
     youngest_age: float | None = None
