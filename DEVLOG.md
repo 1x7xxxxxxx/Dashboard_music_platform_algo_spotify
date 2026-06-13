@@ -2011,4 +2011,4 @@ Caching (4 vues sans `@st.cache_data` — bénéfice modeste, requêtes <1ms ; v
 (checklist § « Audit 2026-06-13 »).
 
 ### Reste
-Corriger `/youtube/videos` (quick-win identique à /kpis, sur validation) ; reprendre Cloudflare quand DS=NONE.
+~~Corriger /youtube/videos~~ **FAIT (suite 19b)** : requête sur `youtube_videos`, mergé PR #62, déployé, **200** confirmé live + `tests/test_api_db_smoke.py` (DB-gated) ajouté contre la classe entière. **Cloudflare : NS basculés → zone ACTIVE & proxifiée** (188.114.96.x, HTTP/2 200, pas de boucle). Reste durcissement CF : SSL Full(strict), token→WAF, lock firewall origine (ufw→IP CF), cert Origin. Compte `redteam_qa` toujours en prod (cleanup à la clôture).
