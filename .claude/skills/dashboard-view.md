@@ -168,6 +168,14 @@ rex:
     fix: "nav.* keys go in i18n.py's EN dict (not i18n_catalog/); per-view keys in i18n_catalog/<view>.py. Admin 'view-as' = session _view_as read by get_artist_plan() + effective role gating _ADMIN_ONLY"
     severity: "info"
     ref: "DEVLOG#2026-06-12"
+  - date: 2026-06-13
+    issue: "Prod emails silently skipped: _smtp_config read config.yaml only (absent in containers)\
+  \ despite SMTP_* env vars set"
+    fix: "Config present in prod containers must read env FIRST (SMTP_*/DATABASE_URL/FERNET_KEY),\
+  \ config.yaml = local fallback. Non-baked assets (docs/, machine_learning/) need\
+  \ a mount, never assume COPY"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-13"
 ---
 
 # Skill: Dashboard View
