@@ -26,8 +26,13 @@ SOURCES_CONFIG = [
         "icon": "🎸",
         "table": "artists",
         "col": "collected_at",
-        "artist_col": None,         # Spotify artist_id is a string ID, not saas artist_id
-        "skip_artist_filter": True,
+        "artist_col": None,
+        # `artists` PK is the Spotify string id, not the saas artist_id. Scope per
+        # tenant through the saas_artists.spotify_artist_id bridge so a fresh account
+        # doesn't inherit another tenant's freshness (an unbridged tenant matches
+        # nothing → "no data"). Trusted constant (no user input) — validated against
+        # _ALLOWED_ARTIST_FILTERS before interpolation (CLAUDE.md rule #8).
+        "artist_filter": "artist_id IN (SELECT spotify_artist_id FROM saas_artists WHERE id = %s)",
     },
     {
         "label": "Spotify S4A",
@@ -84,6 +89,7 @@ SOURCES_CONFIG = [
 _ALLOWED_TABLES     = frozenset(s["table"]      for s in SOURCES_CONFIG)
 _ALLOWED_COLS       = frozenset(s["col"]        for s in SOURCES_CONFIG)
 _ALLOWED_ARTIST_COLS = frozenset(s["artist_col"] for s in SOURCES_CONFIG if s.get("artist_col"))
+_ALLOWED_ARTIST_FILTERS = frozenset(s["artist_filter"] for s in SOURCES_CONFIG if s.get("artist_filter"))
 
 
 @st.cache_data(ttl=60)
@@ -100,13 +106,23 @@ def get_source_freshness(_db, artist_id):
             raise ValueError(f"Table not in allowlist: {src['table']}")
         if src["col"] not in _ALLOWED_COLS:
             raise ValueError(f"Column not in allowlist: {src['col']}")
-        if not src.get("skip_artist_filter") and src["artist_col"] not in _ALLOWED_ARTIST_COLS:
+        if (not src.get("skip_artist_filter") and not src.get("artist_filter")
+                and src["artist_col"] not in _ALLOWED_ARTIST_COLS):
             raise ValueError(f"Artist column not in allowlist: {src['artist_col']}")
+        if src.get("artist_filter") and src["artist_filter"] not in _ALLOWED_ARTIST_FILTERS:
+            raise ValueError(f"Artist filter not in allowlist: {src['artist_filter']}")
 
     branches = []
     params = []
     for src in SOURCES_CONFIG:
-        if artist_id is not None and not src.get("skip_artist_filter"):
+        custom_filter = src.get("artist_filter")
+        if artist_id is not None and custom_filter:
+            branches.append(
+                f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
+                f" FROM {src['table']} WHERE {custom_filter}"
+            )
+            params.append(artist_id)
+        elif artist_id is not None and not src.get("skip_artist_filter"):
             branches.append(
                 f"SELECT '{src['label']}' AS label, MAX({src['col']}) AS last_dt"
                 f" FROM {src['table']} WHERE {src['artist_col']} = %s"
