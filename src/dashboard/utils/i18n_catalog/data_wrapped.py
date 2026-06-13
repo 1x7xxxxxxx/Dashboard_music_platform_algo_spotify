@@ -38,6 +38,7 @@ EN = {
                                 "from your collected data. “—” = source not connected or empty.",
     # Main view
     "data_wrapped.title": "🎁 Data Wrapped — Recap",
+    "data_wrapped.session_invalid": "Invalid session.",
     "data_wrapped.intro": "**Auto recap** across all platforms (career) + manual entry of annual "
                           "Spotify for Artists metrics and year-by-year evolution.",
     "data_wrapped.tab_recap": "🎁 Auto recap",

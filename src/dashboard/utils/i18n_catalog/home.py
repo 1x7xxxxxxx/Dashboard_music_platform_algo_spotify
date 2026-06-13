@@ -3,6 +3,11 @@
 EN = {
     "home.title": "🎵 streaMLytics — Music platform dashboard",
     "home.freshness_header": "📡 Data freshness",
+    "home.freshness_caption": (
+        "🔄 **API** sources (Spotify, YouTube, SoundCloud, Instagram, Meta Ads): collected "
+        "**automatically every day** for each artist. **File** sources (Spotify for Artists, "
+        "Apple Music, distributors): updated **on each CSV import** (folder watched every 15 min)."
+    ),
     "home.streams_header": "🎧 Total streams",
     "home.total_all_platforms": "🎧 Total streams across all platforms",
     "home.ig_followers": "📸 Instagram Followers",
