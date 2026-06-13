@@ -35,6 +35,13 @@ def _freshness_badge(label, icon, last_dt):
 
 def _section_freshness(db, artist_id):
     st.subheader(t("home.freshness_header", "📡 Fraîcheur des données"))
+    st.caption(t(
+        "home.freshness_caption",
+        "🔄 Sources **API** (Spotify, YouTube, SoundCloud, Instagram, Meta Ads) : collecte "
+        "**automatique chaque jour** pour chaque artiste. Sources **fichier** (Spotify for "
+        "Artists, Apple Music, distributeurs) : mises à jour **à chaque import CSV** "
+        "(dossier surveillé toutes les 15 min)."
+    ))
     freshness = get_source_freshness(db, artist_id)
     cols = st.columns(len(freshness))
     for col, (label, info) in zip(cols, freshness.items()):

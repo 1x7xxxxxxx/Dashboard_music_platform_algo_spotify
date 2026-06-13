@@ -639,7 +639,7 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     1.3** · SSH **key-only** (PasswordAuthentication no) · fail2ban). **Reste** : test live du lockout
     bruteforce (5/15min), DoS/rate-limit, scan chrome-devtools MCP sur l'URL. **Gate 5** → débloque E1
     (E1 déjà débloqué de fait : pré-requis validés, cf. bloc REPRISE).
-  - [ ] **Phase 6 — Box B MT5 (🧑, parallèle)** : VPS Windows isolé (broker gratuit ou OVH ~10-15 €).
+  - ~~Phase 6 — Box B MT5~~ — **RETIRÉ 2026-06-13 : hors scope de streaMLytics** (projet trading MT5 séparé, traité ailleurs).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
 
