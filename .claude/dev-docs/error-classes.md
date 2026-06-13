@@ -69,6 +69,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [snapshot-fixture-hook-reflow](#snapshot-fixture-hook-reflow) | P3 | deterministic | guarded | none |
 | [song-name-convention-mismatch](#song-name-convention-mismatch) | P2 | heuristic | guarded | none |
 | [i18n-untranslated-key](#i18n-untranslated-key) | P3 | deterministic | guarded | none |
+| [api-router-schema-drift](#api-router-schema-drift) | P3 | heuristic | guarded | none |
+| [csv-formula-injection](#csv-formula-injection) | P3 | heuristic | guarded | none |
 
 ---
 
@@ -327,3 +329,29 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-10 (ref: DEVLOG#2026-06-10)
 - History:
   - 2026-06-10: added during the full i18n sweep (~2300 keys). The pre-existing guard only covered nav (`test_every_nav_item_key_has_en`); the new whole-codebase guard scans every literal namespaced `t(`/`_t(` call across `src/dashboard/` (word-boundary excludes `.get(`/`.getenv(`; dynamic f-string keys skipped) and asserts each resolves in `_TR['en']`. Locks in EN coverage incl. the bilingual PDF (`_t("pdf.…")`).
+
+## api-router-schema-drift
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: a FastAPI data router (Brick-14) SELECTs a column renamed/dropped by a later migration → the endpoint 500s for every tenant (no client stack-trace leak, but fully broken). The mocked `test_api.py` cannot see it because the DB is a MagicMock.
+- signature: `python3 -m pytest tests/test_api_db_smoke.py -q` (DB-gated: runs every data endpoint against the real schema with a forged admin+tenant token, asserts no 500; skips cleanly with no provisioned Postgres)
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_api_db_smoke.py }
+- rex_ref: .claude/commands/review-db-schema.md
+- first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite18)
+- History:
+  - 2026-06-13: `/kpis` (`youtube_video_stats.views`→`view_count`, `ml_song_predictions.score` dropped→`dw_probability`) found+fixed (suite 18). `/youtube/videos` (`views/likes/comments/title` on `youtube_video_stats`, real cols `view_count/like_count/comment_count` + no `title` → query `youtube_videos`) found+fixed (suite 19b). Both escaped the mocked suite → DB-gated `test_api_db_smoke.py` added as the guard for the whole class. Durable lesson: a column migration must grep ALL consumers incl. `src/api/routers/`, not just dashboard views (rex in review-db-schema).
+
+## csv-formula-injection
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: user-controlled values (song/campaign names, usernames) exported via `to_csv`/`to_excel` without defang → a cell like `=cmd|'/c calc'!A1` executes when the victim opens the file in Excel/Sheets (CWE-1236); worst case the admin multi-tenant export.
+- signature: `! grep -rnE 'to_(csv|excel)\(' src/dashboard --include=*.py | grep -viE 'defang_formulas|#'`
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: src/dashboard/utils/csv_exporter.py (defang_formulas) }
+- rex_ref: —
+- first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite20)
+- History:
+  - 2026-06-13: found via dashboard red-team — `export_all` (csv), `export_excel` (xlsx) and the admin opt-in export (`admin.py`) wrote raw values. Fix: `defang_formulas()` prefixes any string cell starting with `=,+,-,@,\t,\r` with `'` (OWASP), applied to all 3 export paths + guard test `test_defang_formulas_neutralizes_injection`. Durable rule: every new `to_csv`/`to_excel` export of DB/user data must route through `defang_formulas()`.
