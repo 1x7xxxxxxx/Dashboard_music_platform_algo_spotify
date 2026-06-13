@@ -89,22 +89,12 @@ def create_hypeddit_tables():
     sys.path.append(str(Path(__file__).parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
 
     print("\n" + "="*70)
     print("🔧 CRÉATION TABLES HYPEDDIT")
     print("="*70 + "\n")
 
-    config = config_loader.load()
-    db_config = config['database']
-
-    db = PostgresHandler(
-        host=db_config['host'],
-        port=db_config['port'],
-        database=db_config['database'],
-        user=db_config['user'],
-        password=db_config['password']
-    )
+    db = PostgresHandler.from_env_or_config()
 
     try:
         # Exécuter dans l'ordre : campaigns puis stats

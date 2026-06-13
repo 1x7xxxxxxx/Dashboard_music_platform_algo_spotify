@@ -1817,3 +1817,33 @@ Le pentest Phase E (scan client-side) ne démarrait pas : flag **`--chrome-arg` 
 ### Reste
 Pentest : test live lockout bruteforce (désormais faisable via l'API), scan client-side (Chrome reconnecté).
 Nettoyage cohérence des 9 `*_schema.py` (P3). i18n contenu emails. Ouvrir E1.
+
+---
+
+## 2026-06-13 (suite 15) — Cohérence env-first des 11 `*_schema.py` + scan client-side pentest (HTTP)
+
+### Env-first des schémas (P3 tech debt fermée)
+Les 11 `*_schema.py` (`apple_music_csv/app_costs/distrokid_csv/distrokid/hypeddit/imusician_csv/imusician/
+instagram/stripe/wrapped/youtube`) instanciaient `PostgresHandler(**config['database'])` en **subscript direct**
+→ `KeyError` si lancés en prod (pas de `config.yaml`, `config_loader.load()` renvoie `{}` sans lever). Tout le
+reste du runtime est déjà env-first ; ces `create_tables()` étaient les derniers footguns (hors chemin runtime —
+les tables prod viennent du dump/migrations, d'où P3 et pas P1).
+
+**Fix** : nouvelle factory **`PostgresHandler.from_env_or_config()`** dans `postgres_handler.py` — `DATABASE_URL`
+d'abord (via `from_url`), sinon section `database` de `config.yaml`, sinon **`RuntimeError` explicite** (plus de
+`KeyError` opaque). Choix : factory sur `PostgresHandler` plutôt que réutiliser `get_db_connection()` (couplée à
+Streamlit, `st.error` au lieu de raise — inadaptée à un CLI de bootstrap). Les 11 `__main__` appellent la factory ;
+imports `config_loader` morts + lignes `Uses:` obsolètes nettoyés. Vérifié : path DATABASE_URL (parse host/port/db),
+path config-absent → RuntimeError, 11 modules `py_compile`, **ruff vert**, suite **519 passed / 39 skipped**.
+
+### Pentest Phase 5 — scan client-side secrets (par HTTP)
+Le MCP Chrome crashe encore « Target closed » en WSL (son fix `.mcp.json` exige un vrai restart de Claude Code,
+non faisable in-session). Demi-scan réalisable — secrets dans le JS — fait par `curl` : (1) HTML bootstrap = seul
+`window.prerenderReady = false`, aucun secret ; (2) chunks JS = bundle Streamlit générique, **0 hit** sur
+`sk_live/sk_test/AKIA/fernet/postgres://…/-----BEGIN/*secret*` (le Python n'atteint jamais le client) ;
+(3) **source maps non exposés** — `*.js.map` → 200 mais c'est le **catch-all SPA** (HTML 5381 o, identique pour un
+`.map` inexistant) = **faux positif, même classe que `/.env`**. Reste (mineur) : messages console live (navigateur
+requis → restart CC). Headers sécu reconfirmés (HSTS/nosniff/X-Frame DENY/Referrer) ; pas de CSP (limite Streamlit, P4).
+
+### Reste
+Messages console live (restart CC pour MCP Chrome). i18n contenu emails. **Ouvrir E1.**

@@ -94,10 +94,7 @@ def create_stripe_tables():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
-
-    config = config_loader.load()
-    db = PostgresHandler(**config['database'])
+    db = PostgresHandler.from_env_or_config()
     try:
         for table_name, sql in STRIPE_SCHEMA.items():
             db.execute_query(sql)

@@ -1,4 +1,5 @@
 """Handler pour les interactions avec PostgreSQL - VERSION OPTIMISÉE."""
+import os
 import re
 import psycopg2
 from psycopg2 import sql as pgsql
@@ -125,6 +126,34 @@ class PostgresHandler:
             database=parsed.path.lstrip("/"),
             user=parsed.username or "postgres",
             password=parsed.password or "",
+        )
+
+    @classmethod
+    def from_env_or_config(cls) -> "PostgresHandler":
+        """Instantiate env-first: ``DATABASE_URL`` if set, else config.yaml's ``database`` section.
+
+        Mirrors the dashboard's ``get_db_connection()`` priority (DATABASE_URL > config.yaml)
+        without the Streamlit dependency, so schema-bootstrap CLIs run in prod (no config.yaml,
+        DATABASE_URL only) as well as in local Docker. Raises if neither source is configured
+        instead of letting ``config['database']`` KeyError on an empty config.
+        """
+        database_url = os.environ.get("DATABASE_URL")
+        if database_url:
+            return cls.from_url(database_url)
+
+        from src.utils.config_loader import config_loader
+        db_config = config_loader.load().get("database")
+        if not db_config:
+            raise RuntimeError(
+                "No database configuration: set DATABASE_URL or provide "
+                "config/config.yaml with a 'database' section."
+            )
+        return cls(
+            host=db_config["host"],
+            port=db_config["port"],
+            database=db_config["database"],
+            user=db_config["user"],
+            password=db_config["password"],
         )
 
     def _connect(self) -> None:

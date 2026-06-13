@@ -91,14 +91,12 @@ def create_imusician_csv_tables() -> None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
 
     print('\n' + '=' * 70)
     print('iMusician CSV — TABLE CREATION')
     print('=' * 70 + '\n')
 
-    config = config_loader.load()
-    db = PostgresHandler(**config['database'])
+    db = PostgresHandler.from_env_or_config()
 
     try:
         for table_name, sql in IMUSICIAN_CSV_SCHEMA.items():
