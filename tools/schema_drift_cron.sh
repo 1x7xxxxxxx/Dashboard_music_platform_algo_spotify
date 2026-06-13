@@ -4,11 +4,11 @@
 # Provisions a throwaway Postgres from the version-controlled schema (init_db.sql +
 # migrations/*.sql), dumps its information_schema, dumps the live prod DB (local
 # `docker exec`), and diffs them with tools/dev/schema_drift_check.py. Exits non-zero
-# (+ prints "SCHEMA DRIFT DETECTED") when prod has drifted — so a `MAILTO=` crontab
-# mails you automatically. Catches a manual ALTER on prod that bypassed migrations.
+# (+ prints "SCHEMA DRIFT DETECTED") when prod has drifted. On drift it emails an alert
+# via the Brevo SMTP creds in .env (tools/notify_schema_drift.py) — no system MTA needed,
+# since the box has none. Catches a manual ALTER on prod that bypassed migrations.
 #
-# Cron (after the 3h backup):
-#   MAILTO="you@example.com"
+# Cron (after the 3h backup); self-notifies, so just redirect to the log:
 #   0 4 * * * /opt/streamlytics/tools/schema_drift_cron.sh >> /var/log/streamlytics-schema-drift.log 2>&1
 #
 # Env: PG_CONT (auto prod container), DB_NAME (spotify_etl), DB_USER (postgres),
@@ -57,7 +57,15 @@ log "$OUT"
 if [ "$RC" -eq 0 ]; then
     exit 0
 fi
-echo "⚠ SCHEMA DRIFT DETECTED on $(hostname) — prod has diverged from init_db.sql + migrations."
+ALERT="⚠ SCHEMA DRIFT DETECTED on $(hostname) — prod has diverged from init_db.sql + migrations."
+echo "$ALERT"
 echo "$OUT" | grep -E '^##|absent|^  ' | head -25
 echo "Reconcile via a MIGRATION (never a manual ALTER on prod). Full log: $LOG"
+
+# Email the alert via Brevo SMTP (.env creds) — the box has no MTA, so this is how
+# drift actually reaches the inbox. Best-effort: failure is logged, never fatal.
+NOTIFY="$({ printf '%s\n\n' "$ALERT"; echo "$OUT"; } | python3 "$ROOT/tools/notify_schema_drift.py" \
+    --subject "⚠ streaMLytics schema drift on $(hostname)" 2>&1)" || true
+log "notify: $NOTIFY"
+echo "notify: $NOTIFY"
 exit 1
