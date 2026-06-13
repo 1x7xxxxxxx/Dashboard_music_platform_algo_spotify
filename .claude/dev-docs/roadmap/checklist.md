@@ -48,10 +48,6 @@ vers `## Completed` (CLAUDE.md — flux roadmap). Une seule source : ce fichier.
 | R11 | Lazy imports (plotly/sklearn/shap → dans les fonctions) | P4 | DIFFÉRÉ — déclencheur : latence par-vue ressentie |
 | R12 | Index composite `s4a_song_timeline(artist_id, song, date)` | P4 | DIFFÉRÉ — déclencheur : ~10× le volume (≈140k l.) |
 
-*Décidé/clos mais checkbox encore cochable dans le détail (pas des tâches actives) :
-C5 (benchmark VPS) + C6 (domaine) **DÉCISIONS FIGÉES** → `benchmark-deployment-synthesis.md` ;
-D (déploiement + pentest) **FAIT** (prod live + red-team complet). Cocher via `/roadmap-done` au prochain passage.*
-
 ---
 
 ## Open Bugs
@@ -487,6 +483,10 @@ These are not roadmap bricks; they are operational standing instructions kept he
 
 All bricks (1–19) fully implemented. Session implementation notes were archived in `saas-db-migration/checklist.md` (deleted 2026-03-23 — no longer needed).
 
+- [x] C5 — Benchmark VPS (sizing + topologie) ✅ 2026-06-13 (décision figée + prod live sur Hetzner CPX32)
+- [x] C6 — Benchmark nom de domaine + accès public ✅ 2026-06-13 (streamlytics.fr live + Cloudflare durci)
+- [x] D — Déploiement + pentest ✅ 2026-06-13 (prod live, red-team complet, classes `api-router-schema-drift` + `csv-formula-injection` cataloguées)
+
 ---
 
 ## ML decision layer (2026-05-31, WAVE 8)
@@ -631,7 +631,7 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   410 tests verts, render-smoke live sur les 37 vues, ruff clean, 0 clé sans EN. Commits
   `a672725` + `cde230c`. FR conservé par design : prose `csv_guides.py` (partagé PDF) +
   constantes de labels au niveau module (résolution langue au runtime).
-- [ ] **C5 — Benchmark VPS (sizing + topologie)** — **DÉCISION FIGÉE le 2026-06-11** → `.claude/dev-docs/benchmark-deployment-synthesis.md`. Topologie **split** + **VPS choisi** :
+- [x] **C5 — Benchmark VPS (sizing + topologie)** ✅ (2026-06-13 — décision figée + prod live) — **DÉCISION FIGÉE le 2026-06-11** → `.claude/dev-docs/benchmark-deployment-synthesis.md`. Topologie **split** + **VPS choisi** :
   - **Box A — Hetzner CAX31 (ARM Ampere, 8 vCPU / 16 Go / 160 Go NVMe, ~12,50 €/mo)** : streaMLytics (Postgres + Airflow + Streamlit + FastAPI + Caddy) **maintenant**, n8n + ffmpeg d'assemblage **plus tard sur la même box** (16 Go absorbe les deux : streaMLytics 10-50 tenants seul ET le pic combiné ~8-10 Go). Resize vertical Hetzner (~2 min reboot, même disque) vers **CAX41 32 Go (~24,50 €/mo)** seulement au-delà de ~50 tenants ou vidéo lourde/concurrente. **Cible retenue : 10-50 artistes à 3-6 mois.**
     ✅ **PRÉREQUIS ARM64 VALIDÉ (2026-06-11)** : `docker buildx --platform linux/arm64` du `Dockerfile` dashboard → **chaque dépendance résout un wheel aarch64** (numpy/pandas/xgboost/scikit-learn/scikit-image/shap/lime/weasyprint/numba/llvmlite/streamlit/airflow), **zéro `No matching distribution`**, `lime` compilé depuis les sources OK. Le fallback x86 CPX31 **n'est pas nécessaire**. (Fin du build local lente sous émulation QEMU = artefact, pas un problème ; natif ARM = rapide.) Détail : DEVLOG#2026-06-11.
   - **Box B — VPS Windows dédié ISOLÉ** : MT5 live 24/7 (2 vCPU / 4 Go / 50-60 Go, ~10-20 €/mo, ou **VPS broker gratuit**). Downsize de l'actuel surdimensionné (H1 ≠ HFT). Jamais mutualisé (OS + stabilité live + isolation creds broker).
@@ -646,7 +646,7 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   **Reco** : sizer **streaMLytics seul d'abord** (le seul prêt+mergé : postgres + airflow web/scheduler + dashboard Streamlit + API FastAPI + reverse proxy), MT5/vidéo/scraping en couche au-dessus une fois la mutualisation décidée.
   **→ GRILLE EXHAUSTIVE : `.claude/dev-docs/benchmark-deployment.md`** — profil ressources par composant (RAM/CPU/disk/réseau, idle/pic), hypothèses d'échelle, méthodo de load-test (⚠️ Streamlit = WebSockets, pas HTTP), topologie, stockage/I/O, coût, backup/DR/monitoring, critères hébergeur, seuils de scaling, **+ les 2 prompts cross-projets à poser aux IA MT5 / n8n** (§ M) pour récupérer leurs profils ressources et trancher la topologie.
   **Livrable** (→ `dev-docs/deployment.md`) : topologie (1 VPS Linux vs split Linux/Windows), sizing vCPU/RAM/disk par composant, reco hébergeur, estimation €/mois.
-- [ ] **C6 — Benchmark nom de domaine + accès public (NEW 2026-06-10)** — **DÉCISION FIGÉE le 2026-06-11** → `benchmark-deployment-synthesis.md` § 9. Vérif RDAP live 2026-06-11 :
+- [x] **C6 — Benchmark nom de domaine + accès public (NEW 2026-06-10)** ✅ (2026-06-13 — streamlytics.fr live + Cloudflare) — **DÉCISION FIGÉE le 2026-06-11** → `benchmark-deployment-synthesis.md` § 9. Vérif RDAP live 2026-06-11 :
   - **Domaine retenu : `streamlytics.fr`** (libre ✅ ; cible FR assumée ; le moins cher ~7 €/an). `streamlytics.com` = **pris** (enregistré 2017 GoDaddy, **parké/site mort**) → écarté ; `streamlytics.app` = libre (alternative HTTPS-forcé si besoin). Option : prendre `.fr` + `.app` (~20 €/an) et rediriger l'un vers l'autre.
   - **Registrar : OVH** (français, le moins cher pour `.fr`, **boîte email gratuite incluse** pour `contact@`). Cloudflare ne vend PAS le `.fr` (mais sa DNS gratuite reste utilisable plus tard pour CDN/anti-DDoS).
   - **TLS : Caddy** sur la Box A (Let's Encrypt auto). Sous-domaines `app.streamlytics.fr` (Streamlit) + `api.streamlytics.fr` (FastAPI / webhook Stripe).
@@ -663,7 +663,7 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   **Modèle d'accès (déjà construit)** : 1 URL publique → register/login → isolation par `artist_id` → chaque artiste voit ses données, connecte ses credentials, upload ses CSV ; DAGs paramétrés par artiste. Il manque juste : domaine + TLS + reverse proxy + port 443 ouvert.
   **→ Détail complet : `.claude/dev-docs/benchmark-deployment.md` § G** (domaine/registrar/sous-domaines/TLS/email/CDN).
   **Livrable** (→ `dev-docs/deployment.md`) : reco domaine + plan DNS + reverse proxy (Caddy) + schéma d'accès multi-tenant.
-- [ ] **D — Déploiement + pentest** (DERNIER, séquencé 2026-06-12) : runbook copier-coller dans
+- [x] **D — Déploiement + pentest** ✅ (2026-06-13 — prod live + red-team complet, classes cataloguées) (DERNIER, séquencé 2026-06-12) : runbook copier-coller dans
   `deployment.md`. Légende : 🤖 code (moi, PR) · 🧑 ops (toi) · 🤝 sur le VPS. On coche au fil de l'eau.
   - **Phase 0 — Prep code (🤖)** :
     - [x] **0.1** services `dashboard` (Streamlit:8501) + `api` (FastAPI:8502) ajoutés à
