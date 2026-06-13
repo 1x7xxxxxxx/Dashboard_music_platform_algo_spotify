@@ -1704,3 +1704,25 @@ Re-test du funnel complet par l'utilisateur → 3 frictions réelles, chacune un
 Funnel d'onboarding **complet et propre** : inscription allégée → email inbox → vérif instantanée → login
 par email → welcome + PDF en PJ. Repo ↔ serveur synchro (`8484b31`). Reste i18n du **contenu des emails**
 (encore en anglais) — chantier à part, non bloquant.
+
+---
+
+## 2026-06-13 (suite 11) — Guide d'onboarding bilingue (FR + EN) en 2 PJ du welcome
+
+### What changed (PR #43)
+- **`guide_pdf` rendu bilingue** : param `lang` → contenu FR (`csv_guides`/`credential_guides`) ou EN
+  (nouveaux modules `csv_guides_en`/`credential_guides_en` — prose traduite des **8 plateformes**, screenshots
+  partagés) + dict `_UI` pour le chrome (titres, en-têtes de tables, boutons). `output_pdf_path('en')` =
+  `onboarding_guide_en.pdf`.
+- **Welcome email = 2 PJ** : `_send_html` prend une **liste** d'attachments ; `_guide_pdf_paths()` renvoie
+  les PDF FR+EN existants. Testé serveur : welcome avec `onboarding_guide.pdf` + `onboarding_guide_en.pdf`.
+
+### Caveat assumé
+Le guide EN **réutilise les captures FR** (UI française) — les captures EN n'existent pas. Texte traduit
+= utilisable, visuel imparfait. Captures EN = chantier à part (testeurs anglophones, E2).
+
+### Tests
+ruff clean, `test_guide_pdf` 6/6, REX `dashboard-view.md` (config env-first prod) promu, validator 48 OK.
+
+### Demain
+Stripe **live** (l'utilisateur a commencé le KYC → à revérifier) ; i18n contenu emails ; ouvrir **E1**.

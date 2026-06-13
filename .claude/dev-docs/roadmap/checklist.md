@@ -630,9 +630,15 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
   diffusion **restreinte** (lien partagé à la main, pas de pub). Objectif = éprouver le funnel réel
   (register → vérif email → connexion credentials → upload CSV → KPIs → export) sur des comptes tiers
   réels, détecter les frictions d'onboarding et les bugs multi-tenant que le seul tenant `1x7xxxxxxx`
-  ne révèle pas. **Pré-requis** : D fait (URL HTTPS live) + emails de vérification qui arrivent (SMTP
-  Gmail OK, sinon spam → cf. C6 délivrabilité). Sortie = liste de frictions corrigées avant E2.
+  ne révèle pas. Sortie = liste de frictions corrigées avant E2.
   Leviers déjà en place : compteur « Live Activity » (`register.py`), onboarding tracker (Brick 29).
+  ✅ **PRÉ-REQUIS VALIDÉS 2026-06-13** (test beta réel `127bpmin@gmail.com`, plusieurs passes) : D fait (HTTPS
+  live) ; **délivrabilité email résolue** → Brevo + domaine authentifié (DKIM/DMARC), `noreply@streamlytics.fr`
+  → **boîte de réception** (le Gmail perso tombait en spam) ; funnel **complet et poli** : inscription allégée
+  (nom+email+mdp, slug/username auto-cachés), **login email OU username**, vérif instantanée, welcome + **2 PDF
+  FR+EN** en PJ. Bugs corrigés : SMTP env-first (#35), page vérif bloquante (#36), expéditeur dédié (#37),
+  app-password Gmail, rebrand (#40), guide bilingue (#43). **Reste** : décider le moment d'inviter + i18n du
+  *contenu* des emails (anglais, non bloquant).
 
 - [ ] **E2 — Landing page marketing + pixel + CAPI** (P3 growth, APRÈS E1) — promouvoir l'app via
   campagnes (Meta/Google/TikTok). **Contrainte structurante : Streamlit ne peut pas héberger de pixels
