@@ -28,26 +28,25 @@ def get_videos(
     db: PostgresHandler = Depends(get_db),
     artist_id: Optional[int] = Depends(require_artist_scope),
 ):
+    # youtube_videos is the per-video catalog (one row/video) carrying title + the
+    # latest view/like/comment counts. youtube_video_stats is the per-day snapshot
+    # series with NO title column and view_count/like_count/comment_count names — it
+    # was the source of the old 500 (SELECT views/likes/comments/title all wrong).
     # artist_id is None only for admin (all-tenants); non-admins are always scoped.
+    _select = """
+        SELECT video_id, title,
+               view_count AS views, like_count AS likes, comment_count AS comments,
+               collected_at::text AS collected_at
+        FROM youtube_videos
+    """
     if artist_id is not None:
         df = db.fetch_df(
-            """
-            SELECT video_id, title, views, likes, comments, collected_at::text AS collected_at
-            FROM youtube_video_stats
-            WHERE artist_id = %s
-            ORDER BY collected_at DESC
-            LIMIT %s
-            """,
+            _select + " WHERE artist_id = %s ORDER BY collected_at DESC, view_count DESC LIMIT %s",
             (artist_id, limit),
         )
     else:
         df = db.fetch_df(
-            """
-            SELECT video_id, title, views, likes, comments, collected_at::text AS collected_at
-            FROM youtube_video_stats
-            ORDER BY collected_at DESC
-            LIMIT %s
-            """,
+            _select + " ORDER BY collected_at DESC, view_count DESC LIMIT %s",
             (limit,),
         )
 

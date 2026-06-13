@@ -324,7 +324,7 @@ def test_youtube_videos_data():
         "video_id": "abc123", "title": "My Video", "views": 5000,
         "likes": 200, "comments": 30, "collected_at": "2025-06-01",
     }])
-    app.dependency_overrides[get_db] = lambda: _mock_db({"youtube_video_stats": df})
+    app.dependency_overrides[get_db] = lambda: _mock_db({"youtube_videos": df})
     try:
         client = TestClient(app)
         r = client.get("/youtube/videos", headers={"Authorization": f"Bearer {_artist_token()}"})
