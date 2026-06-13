@@ -76,6 +76,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [i18n-untranslated-key](#i18n-untranslated-key) | P3 | deterministic | guarded | none |
 | [api-router-schema-drift](#api-router-schema-drift) | P3 | heuristic | guarded | none |
 | [csv-formula-injection](#csv-formula-injection) | P3 | heuristic | guarded | none |
+| [config-not-env](#config-not-env) | P2 | heuristic | guarded | none |
 
 ---
 
@@ -108,11 +109,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 ## collector-silent-success
 - status: guarded
 - severity: P2
-- kind: heuristic
+- kind: deterministic
 - symptom: a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale.
-- signature: `! grep -n "return None\|return \[\]\|return {}\|return tracks\|return stats\|return data" src/collectors/*.py`
+- signature: `python3 .claude/scripts/audit_collectors_ast.py`
 - autofix: none
-- guard: { type: posttooluse-hook, ref: .claude/skills/audit-collectors.md }
+- guard: { type: ci-step, ref: .claude/scripts/audit_collectors_ast.py via audit_runner.py --deterministic (ci.yml) }
 - rex_ref: .claude/skills/audit-collectors.md
 - first_seen: 2026-03-25 (ref: DEVLOG#2026-03-25)
 - History:
@@ -120,6 +121,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-05-15: catalogued. Fix guidance stays in audit-collectors.md (rules 1–4); this entry is the machine-detectable index only.
   - 2026-05-15: regression — `youtube_collector.get_video_comments` (l.242) + `get_playlists` (l.296) caught `except Exception`, logged, then `return comments`/`return playlists` (partial collection). Missed by the 2026-03-25 sweep (only get_channel_stats/videos/video_stats were fixed; the audit-collectors.md status table over-claimed YouTube fully done). Both → `raise`. Note: `get_channel_stats:43-45` / `get_channel_videos:93-95` `return None`/`return videos` on a *successful* empty-`items` response are a distinct case (not an `except` block) — left for a dedicated pass.
   - 2026-05-15: re-sweep post-fix. AST scan ("any non-raising `return` inside an `except` in `src/collectors/*.py`") = the precise detector — confirms youtube l.242/296 now raise project-wide; **0 real instances remain**. The catalogued grep signature is confirmed `heuristic`: noisy (11 hits, ~all legit success-path `return data`/`return tracks`) AND was blind to the partial-return variant (`return comments`/`return playlists`) — the AST scan supersedes it as the re-verification tool (signature line kept append-only; not rewritten — guard is the PostToolUse hook + audit-collectors skill, not this grep). Accepted false-positive: `instagram_api_collector.py:105` `return False` in `except` of `_refresh_access_token()` — a bool-STATUS helper (contract IS bool; `_check_proactive_refresh` calls it best-effort, no upsert depends on it), NOT the data class. Documented FP shape: bool/None-status helpers vs data-returning fetch methods. Class stays `guarded`.
+  - 2026-06-13: the AST scan the 2026-05-15 entry called "the precise detector" now EXISTS as `.claude/scripts/audit_collectors_ast.py` (flags any non-raising return inside an except in `src/collectors/*.py`; `return True/False` excluded as the documented bool-status FP). It replaces the noisy grep as the catalogue `signature` and runs **blocking** in CI via `audit_runner.py --deterministic` (0 hits today). kind heuristic→deterministic — the #1 recurring class (9 REX entries) can no longer merge.
 
 ## artist-id-or-1
 - status: guarded
@@ -361,3 +363,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite20)
 - History:
   - 2026-06-13: found via dashboard red-team — `export_all` (csv), `export_excel` (xlsx) and the admin opt-in export (`admin.py`) wrote raw values. Fix: `defang_formulas()` prefixes any string cell starting with `=,+,-,@,\t,\r` with `'` (OWASP), applied to all 3 export paths + guard test `test_defang_formulas_neutralizes_injection`. Durable rule: every new `to_csv`/`to_excel` export of DB/user data must route through `defang_formulas()`.
+
+## config-not-env
+- status: guarded
+- severity: P2
+- kind: heuristic
+- symptom: a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `config.yaml` (SMTP, DATABASE_URL, FERNET_KEY, Airflow URL, DB schema bootstraps). 4 REX recurrences; this session fixed 11 `*_schema.py` bootstraps.
+- signature: `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (pitfall: config env-fallback) }
+- rex_ref: .claude/skills/dashboard-view.md
+- first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
+- History:
+  - 2026-06-13: the 11 `src/database/*_schema.py` `__main__` bootstraps did `PostgresHandler(**config['database'])` → `KeyError` when launched in prod (no config.yaml; `config_loader.load()` returns `{}`). Fixed via `PostgresHandler.from_env_or_config()` (env DATABASE_URL → config.yaml → explicit RuntimeError). Catalogued **scoped to `*_schema.py`** (0 hits today) to flag regressions; kept `heuristic`/nightly — a project-wide `config[` sweep false-positives on the dashboard, which reads config.yaml *by design* (CLAUDE.md). The narrow scope IS the precision.
