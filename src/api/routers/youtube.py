@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from src.api.deps import get_db, get_current_user
+from src.api.deps import get_db, require_artist_scope
 from src.database.postgres_handler import PostgresHandler
 
 router = APIRouter(prefix="/youtube", tags=["youtube"])
@@ -26,10 +26,10 @@ class VideoStats(BaseModel):
 def get_videos(
     limit: int = Query(50, ge=1, le=200),
     db: PostgresHandler = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    artist_id: Optional[int] = Depends(require_artist_scope),
 ):
-    artist_id = user.get("artist_id")
-    if artist_id:
+    # artist_id is None only for admin (all-tenants); non-admins are always scoped.
+    if artist_id is not None:
         df = db.fetch_df(
             """
             SELECT video_id, title, views, likes, comments, collected_at::text AS collected_at

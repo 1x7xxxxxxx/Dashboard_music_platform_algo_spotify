@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from src.api.deps import get_db, get_current_user
+from src.api.deps import get_db, require_artist_scope
 from src.database.postgres_handler import PostgresHandler
 
 router = APIRouter(prefix="/streams", tags=["streams"])
@@ -29,8 +29,8 @@ class StreamSummary(BaseModel):
     latest_date: Optional[str] = None
 
 
-def _artist_clause(user: dict) -> tuple[str, tuple]:
-    artist_id = user.get("artist_id")
+def _artist_clause(artist_id: Optional[int]) -> tuple[str, tuple]:
+    # artist_id is None only for admin (all-tenants); non-admins are always scoped.
     if artist_id is None:
         return "", ()
     return "AND artist_id = %s", (artist_id,)
@@ -41,9 +41,9 @@ def get_timeline(
     song: Optional[str] = Query(None, description="Partial song name filter (ILIKE)"),
     limit: int = Query(100, ge=1, le=1000),
     db: PostgresHandler = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    aid: Optional[int] = Depends(require_artist_scope),
 ):
-    artist_frag, params = _artist_clause(user)
+    artist_frag, params = _artist_clause(aid)
     song_frag = ""
     if song:
         song_frag = "AND song ILIKE %s"
@@ -69,9 +69,9 @@ def get_timeline(
 @router.get("/summary", response_model=StreamSummary, summary="Aggregate stream totals")
 def get_summary(
     db: PostgresHandler = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    aid: Optional[int] = Depends(require_artist_scope),
 ):
-    artist_frag, params = _artist_clause(user)
+    artist_frag, params = _artist_clause(aid)
     df = db.fetch_df(
         f"""
         SELECT

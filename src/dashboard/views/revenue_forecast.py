@@ -508,6 +508,7 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
                 streams_28d
             FROM ml_song_predictions
             WHERE artist_id = %s
+              AND song NOT ILIKE '%%1x7xxxxxxx%%'
             ORDER BY song, prediction_date DESC
             """,
             (target_id,),

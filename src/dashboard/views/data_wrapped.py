@@ -401,6 +401,12 @@ def show():
             artist_options = {row['name']: row['id'] for _, row in artists_df.iterrows()}
         else:
             aid = get_artist_id()
+            # Guard (CLAUDE.md rule #7): a non-admin with no artist_id must never fall
+            # through to target_artist_id=None, which _load_wrapped treats as the admin
+            # all-tenants query → cross-tenant leak. Stop the session instead.
+            if aid is None:
+                st.error(t("data_wrapped.session_invalid", "Session invalide."))
+                st.stop()
             name_row = db.fetch_query("SELECT name FROM saas_artists WHERE id = %s", (aid,))
             name = name_row[0][0] if name_row else f"Artiste {aid}"
             artist_options = {name: aid}

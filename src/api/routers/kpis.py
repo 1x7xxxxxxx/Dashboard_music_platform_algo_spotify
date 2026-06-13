@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from src.api.deps import get_db, get_current_user
+from src.api.deps import get_db, require_artist_scope
 from src.database.postgres_handler import PostgresHandler
 
 router = APIRouter(prefix="/kpis", tags=["kpis"])
@@ -36,11 +36,11 @@ def _first_val(db: PostgresHandler, query: str, params: tuple, col: str):
 @router.get("", response_model=KPISummary, summary="Home KPI snapshot")
 def get_kpis(
     db: PostgresHandler = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    aid: Optional[int] = Depends(require_artist_scope),
 ):
-    aid = user.get("artist_id")
-    p_aid = (aid,) if aid else ()
-    filt = "AND artist_id = %s" if aid else ""
+    # aid is None only for admin tokens (all-tenants); non-admins are always scoped.
+    p_aid = (aid,) if aid is not None else ()
+    filt = "AND artist_id = %s" if aid is not None else ""
 
     # Spotify — streams last 7 days
     raw_spotify = _first_val(

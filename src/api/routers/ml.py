@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from src.api.deps import get_db, get_current_user
+from src.api.deps import get_db, require_artist_scope
 from src.database.postgres_handler import PostgresHandler
 
 router = APIRouter(prefix="/ml", tags=["ml"])
@@ -31,10 +31,10 @@ class MLPrediction(BaseModel):
 def get_predictions(
     limit: int = Query(20, ge=1, le=100),
     db: PostgresHandler = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    artist_id: Optional[int] = Depends(require_artist_scope),
 ):
-    artist_id = user.get("artist_id")
-    if artist_id:
+    # artist_id is None only for admin (all-tenants); non-admins are always scoped.
+    if artist_id is not None:
         df = db.fetch_df(
             """
             SELECT song, score, tier, predicted_at::text AS predicted_at
