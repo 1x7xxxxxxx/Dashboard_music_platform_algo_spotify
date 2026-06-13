@@ -16,11 +16,11 @@ META_ADS_SCHEMA = {
             updated_time TIMESTAMP,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_meta_campaigns_name ON meta_campaigns(campaign_name);
         CREATE INDEX IF NOT EXISTS idx_meta_campaigns_status ON meta_campaigns(status);
     """,
-    
+
     'meta_adsets': """
         CREATE TABLE IF NOT EXISTS meta_adsets (
             adset_id VARCHAR(50) PRIMARY KEY,
@@ -40,6 +40,7 @@ META_ADS_SCHEMA = {
             gender TEXT,
             age_min TEXT,
             age_max TEXT,
+            age_range TEXT,
             flexible_inclusions TEXT,
             advantage_audience TEXT,
             publisher_platforms TEXT,
@@ -71,7 +72,7 @@ META_ADS_SCHEMA = {
         CREATE INDEX IF NOT EXISTS idx_meta_ads_adset ON meta_ads(adset_id);
         CREATE INDEX IF NOT EXISTS idx_meta_ads_campaign ON meta_ads(campaign_id);
     """,
-    
+
     'meta_insights': """
         CREATE TABLE IF NOT EXISTS meta_insights (
             id SERIAL PRIMARY KEY,
@@ -91,7 +92,7 @@ META_ADS_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, ad_id, date)
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_meta_insights_ad ON meta_insights(ad_id);
         CREATE INDEX IF NOT EXISTS idx_meta_insights_date ON meta_insights(date DESC);
         CREATE INDEX IF NOT EXISTS idx_meta_insights_ad_date ON meta_insights(ad_id, date);

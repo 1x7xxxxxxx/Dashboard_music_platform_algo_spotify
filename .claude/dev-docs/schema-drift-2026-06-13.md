@@ -12,8 +12,10 @@ fresh deploy reproduces prod.
 
 prod: 927 cols / 92 tables · canonical: 903 cols / 90 tables.
 
-## A. USED but undeclared → **reconcile INTO canonical** (real gaps)
-Code references these; a fresh install lacks them.
+## A. USED but undeclared → **✅ RECONCILED** (migration `062_reconcile_schema_drift.sql`, 2026-06-13)
+Code references these; a fresh install lacked them. Now declared in `migrations/062`
+(+ `init_db.sql` & `*_schema.py` for apple/meta). Verified: re-provisioned canonical
+no longer drifts on these. `etl_daily_metrics` mirrors prod (PK id + UNIQUE(dag_id,run_date)).
 
 | Drift | Used by | Action |
 |---|---|---|
@@ -30,6 +32,7 @@ Code references these; a fresh install lacks them.
 | `meta_ads.video_file_name` | 0 refs |
 | `meta_adsets.targeting_optimization` | 0 refs |
 | `youtube_videos.{view,like,comment}_count` | **orphans** — current code reads counts from `youtube_video_stats` (fixed PR #71). Safe to drop on prod |
+| `youtube_channels.title` | **orphan** — the DAG writes `channel_name`, not `title` (old column). Safe to drop on prod |
 
 ## C. prod-MISSING (canonical declares, prod lacks) → low priority
 | Drift | Note |

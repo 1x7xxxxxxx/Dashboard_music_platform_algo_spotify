@@ -466,6 +466,7 @@ CREATE TABLE IF NOT EXISTS meta_adsets (
     start_time TIMESTAMP,
     end_time TIMESTAMP,
     targeting JSONB,
+    age_range TEXT,
     collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -794,6 +795,9 @@ CREATE TABLE IF NOT EXISTS apple_songs_performance (
     album_name VARCHAR(255),
     plays INTEGER DEFAULT 0,
     listeners INTEGER DEFAULT 0,
+    shazam_count INTEGER DEFAULT 0,
+    radio_spins INTEGER DEFAULT 0,
+    purchases INTEGER DEFAULT 0,
     collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(artist_id, song_name)
 );
