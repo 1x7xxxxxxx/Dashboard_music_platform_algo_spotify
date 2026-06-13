@@ -16,8 +16,10 @@ Always exits 0 — never blocks.
 rex: []
 ---
 """
+import glob
 import json
 import os
+import re
 import sys
 
 
@@ -28,9 +30,11 @@ import sys
 # appear in the prompt, the matching file is injected (capped at _MAX_DOMAINS
 # files per prompt to stay within context budget).
 #
-# Empty by default — populate this for your project. Examples at the bottom.
+# AUTO-DISCOVERED from each skill's `keywords:` frontmatter field (see
+# _discover_domains below). This hardcoded dict is only the FALLBACK used when no
+# skill declares keywords (generic payload / fresh bootstrap).
 
-DOMAINS: dict[str, tuple[list[str], str, str]] = {
+_FALLBACK_DOMAINS: dict[str, tuple[list[str], str, str]] = {
     "dashboard": (
         ["vue", "view", "dashboard", "streamlit", "page", "sidebar",
          "onglet", "navigation", "widget", "plotly", "chart", "kpi",
@@ -68,6 +72,30 @@ DOMAINS: dict[str, tuple[list[str], str, str]] = {
 
 _HOOK_DIR    = os.path.dirname(os.path.abspath(__file__))   # .claude/hooks/
 _CLAUDE_DIR  = os.path.dirname(_HOOK_DIR)                    # .claude/
+
+
+def _discover_domains() -> dict[str, tuple[list[str], str, str]]:
+    """Build DOMAINS by scanning .claude/skills/*.md for a frontmatter `keywords:`
+    line (`keywords: kw1, kw2, …`). A new skill that declares keywords is auto-injected
+    with no edit to this hook. Returns {} if no skill declares keywords → fallback."""
+    found: dict[str, tuple[list[str], str, str]] = {}
+    for path in sorted(glob.glob(os.path.join(_CLAUDE_DIR, "skills", "*.md"))):
+        try:
+            with open(path, encoding="utf-8") as f:
+                head = f.read(2048)   # keywords live in the top frontmatter block
+        except OSError:
+            continue
+        m = re.search(r"^keywords:\s*(.+)$", head, re.M)
+        if not m:
+            continue
+        kws = [k.strip().lower() for k in m.group(1).split(",") if k.strip()]
+        if kws:
+            fn = os.path.basename(path)
+            found[os.path.splitext(fn)[0]] = (kws, "skills", fn)
+    return found
+
+
+DOMAINS: dict[str, tuple[list[str], str, str]] = _discover_domains() or _FALLBACK_DOMAINS
 
 _MAX_DOMAINS = 3     # Max files injected per prompt (context budget)
 _MAX_LINES   = 120   # Max lines per file (truncate heavy files)
