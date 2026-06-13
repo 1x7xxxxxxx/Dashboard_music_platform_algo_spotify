@@ -6,7 +6,27 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from src.dashboard.utils.csv_exporter import export_all, table_names, _TABLES
+from src.dashboard.utils.csv_exporter import (
+    export_all, table_names, _TABLES, defang_formulas,
+)
+
+
+def test_defang_formulas_neutralizes_injection():
+    """CWE-1236: cells starting with =,+,-,@ must be prefixed with ' so spreadsheet
+    apps render them as text instead of executing them."""
+    df = pd.DataFrame([
+        {"song": "=cmd|'/c calc'!A1", "n": 1},
+        {"song": "@SUM(1)", "n": 2},
+        {"song": "-2+3", "n": 3},
+        {"song": "+1", "n": 4},
+        {"song": "normal title", "n": 5},
+    ])
+    out = defang_formulas(df)
+    assert out["song"].tolist() == [
+        "'=cmd|'/c calc'!A1", "'@SUM(1)", "'-2+3", "'+1", "normal title",
+    ]
+    assert df["song"].iloc[0] == "=cmd|'/c calc'!A1"  # original untouched (copy)
+    assert out["n"].tolist() == [1, 2, 3, 4, 5]  # numeric column unchanged
 
 
 # ---------------------------------------------------------------------------

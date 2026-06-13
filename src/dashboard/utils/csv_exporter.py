@@ -8,6 +8,26 @@ import io
 import zipfile
 from datetime import datetime
 
+# CSV/Excel formula-injection (CWE-1236) defang: a spreadsheet cell beginning with one
+# of these chars is executed as a formula by Excel/Sheets on open. Attacker-controlled
+# values (song/campaign names, usernames) reach exports, so prefix such cells with a
+# single quote → rendered as inert text.
+_FORMULA_LEAD = ("=", "+", "-", "@", "\t", "\r")
+
+
+def defang_formulas(df):
+    """Return a copy of `df` with every string cell that starts with a formula trigger
+    char prefixed by a single quote. Non-string cells untouched. No-op if no object cols."""
+    obj_cols = list(df.select_dtypes(include=["object"]).columns)
+    if not obj_cols:
+        return df
+    df = df.copy()
+    for c in obj_cols:
+        df[c] = df[c].map(
+            lambda v: "'" + v if isinstance(v, str) and v[:1] in _FORMULA_LEAD else v
+        )
+    return df
+
 
 # (table, sql, params_builder)
 # params_builder reçoit artist_id et renvoie un tuple de paramètres pour la query
@@ -162,7 +182,7 @@ def export_excel(db, artist_id: int, tables: list[str] | None = None) -> io.Byte
                 continue
             try:
                 df = db.fetch_df(sql, params_builder(artist_id))
-                df.to_excel(writer, sheet_name=table_name[:31], index=False)
+                defang_formulas(df).to_excel(writer, sheet_name=table_name[:31], index=False)
             except Exception:
                 continue
 
@@ -204,7 +224,7 @@ def export_all(db, artist_id: int, tables: list[str] | None = None) -> io.BytesI
                 continue
 
             csv_buf = io.StringIO()
-            df.to_csv(csv_buf, index=False)
+            defang_formulas(df).to_csv(csv_buf, index=False)
             zf.writestr(f"{table_name}.csv", csv_buf.getvalue())
 
             if df.empty:
