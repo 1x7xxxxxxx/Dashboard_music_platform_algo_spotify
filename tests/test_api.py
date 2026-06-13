@@ -311,8 +311,11 @@ def test_youtube_videos_data():
 # ---------------------------------------------------------------------------
 
 def test_ml_predictions_data():
+    # Contract = the real ml_song_predictions schema: the three algo probabilities +
+    # prediction_date (no score/tier — that was the KNOWN-BROKEN contract).
     df = pd.DataFrame([{
-        "song": "Track X", "score": 0.87, "tier": "A", "predicted_at": "2025-06-01",
+        "song": "Track X", "prediction_date": "2025-06-01",
+        "dw_probability": 0.87, "rr_probability": 0.42, "radio_probability": 0.12,
     }])
     app.dependency_overrides[get_db] = lambda: _mock_db({"ml_song_predictions": df})
     try:
@@ -320,7 +323,8 @@ def test_ml_predictions_data():
         r = client.get("/ml/predictions", headers={"Authorization": f"Bearer {_artist_token()}"})
         assert r.status_code == 200
         assert r.json()[0]["song"] == "Track X"
-        assert r.json()[0]["tier"] == "A"
+        assert r.json()[0]["dw_probability"] == 0.87
+        assert r.json()[0]["radio_probability"] == 0.12
     finally:
         app.dependency_overrides.clear()
 
