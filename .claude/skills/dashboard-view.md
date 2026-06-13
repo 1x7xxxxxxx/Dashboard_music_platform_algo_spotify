@@ -191,6 +191,11 @@ rex:
     fix: "Decide scope by ROLE not a falsy id: require_artist_scope() dep (admin→all, non-admin→its id, else 403). Views: artist_id None must be admin-only (view_session enforces)"
     severity: "crit"
     ref: "DEVLOG#2026-06-13"
+  - date: 2026-06-13
+    issue: "config.yaml absent in prod → load()={}; runtime config reads break silently (4th: SMTP/Airflow-URL/API-auth)"
+    fix: "Every runtime config read = env-first: os.getenv(X) or config.get(...). Never load()['key'] (KeyError in prod). 'works locally, empty/503/Aucun-DAG in prod' = this smell"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-13"
 ---
 
 # Skill: Dashboard View
