@@ -28,6 +28,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   hits. `autofix: none` → report-only (semantic; never rewrite unasked).
 - Entries are append-only. Status changes / corrections = a new line in the
   class's **History**, never an in-place rewrite.
+- **Executor**: `.claude/scripts/audit_runner.py` parses this file and runs every
+  `signature`. `--deterministic` runs only `kind: deterministic` classes and is a
+  **blocking** step in `ci.yml`; `--all` runs everything **non-blocking** nightly
+  (`security-nightly.yml`) and via `make audit`. Adding a class here wires it in
+  automatically — no hand-edited grep recipe to keep in sync.
 
 ## Per-class schema
 
@@ -117,19 +122,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-05-15: re-sweep post-fix. AST scan ("any non-raising `return` inside an `except` in `src/collectors/*.py`") = the precise detector — confirms youtube l.242/296 now raise project-wide; **0 real instances remain**. The catalogued grep signature is confirmed `heuristic`: noisy (11 hits, ~all legit success-path `return data`/`return tracks`) AND was blind to the partial-return variant (`return comments`/`return playlists`) — the AST scan supersedes it as the re-verification tool (signature line kept append-only; not rewritten — guard is the PostToolUse hook + audit-collectors skill, not this grep). Accepted false-positive: `instagram_api_collector.py:105` `return False` in `except` of `_refresh_access_token()` — a bool-STATUS helper (contract IS bool; `_check_proactive_refresh` calls it best-effort, no upsert depends on it), NOT the data class. Documented FP shape: bool/None-status helpers vs data-returning fetch methods. Class stays `guarded`.
 
 ## artist-id-or-1
-- status: open
+- status: guarded
 - severity: P1
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
 - signature: `! grep -rnE "=[[:space:]]*get_artist_id\(\)[[:space:]]+or[[:space:]]+1" src/`
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: CLAUDE.md#7 }
+- guard: { type: ci-step, ref: .claude/scripts/audit_runner.py --deterministic (ci.yml) }
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
   - 2026-03-27: 9 views fixed with explicit guard. Pattern still ungrepped in CI until now.
   - 2026-05-15: catalogued, added to `make audit`.
   - 2026-05-15: no-arg /sweep caught a FALSE POSITIVE — the prior signature `get_artist_id() *or *1` matched the `view_session()` docstring + CLAUDE.md rule text that *quote* the anti-pattern, breaking the `deterministic` (CI-safe) contract. Hardened to require assignment context `= get_artist_id() or 1` (verified 0 real hits, docstring excluded). `make audit` recipe synced to the same regex (no catalogue↔audit drift).
+  - 2026-06-13: **now CI-BLOCKING** — `audit_runner.py --deterministic` runs every `kind: deterministic` signature as a blocking ci.yml step (0 real hits today). status open→guarded; this P1 leak pattern can no longer merge.
 
 ## sql-fstring-identifier
 - status: open

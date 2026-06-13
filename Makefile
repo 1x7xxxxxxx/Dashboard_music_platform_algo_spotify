@@ -52,20 +52,12 @@ check-env:   ## Verify critical imports + pip dep coherence (canary check)
 check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock
 	@python3 tools/dev/check_manifest_consistency.py && echo "✅ manifests consistent"
 
-audit:       ## Sweep automatable error-class signatures (heuristic, non-blocking)
-	@# source of truth: .claude/dev-docs/error-classes.md (keep in sync)
-	@rc=0; \
-	echo "▶ collector-silent-success"; \
-	grep -n "return None\|return \[\]\|return {}\|return tracks\|return stats\|return data" src/collectors/*.py && rc=1 || true; \
-	echo "▶ artist-id-or-1"; \
-	grep -rnE "=[[:space:]]*get_artist_id\(\)[[:space:]]+or[[:space:]]+1" src/ && rc=1 || true; \
-	echo "▶ sql-fstring-identifier"; \
-	grep -rnE "f\"\"\"?[^\"]*(FROM|JOIN|INTO|UPDATE|TABLE) +\{" src/ --include=*.py && rc=1 || true; \
-	echo "▶ db-connection-per-show"; \
-	for f in $$(grep -rl get_db_connection src/dashboard/views/ 2>/dev/null); do n=$$(grep -c "get_db_connection(" "$$f"); [ "$$n" -gt 1 ] && echo "$$f: $$n" && rc=1; done; true; \
-	echo "▶ naive-datetime-now"; \
-	grep -rnE "[^.a-z]datetime\.now\(\)" src/ --include=*.py 2>/dev/null | grep -viE "strftime|filename|pdf|email" && rc=1 || true; \
-	if [ $$rc -eq 0 ]; then echo "✅ audit clean"; else echo "⚠ audit found matches — heuristic, triage manually (nightly non-blocking)"; exit 1; fi
+audit:       ## Sweep ALL error-class signatures (heuristic, non-blocking) — delegates to the catalogue
+	@# Single source of truth: .claude/dev-docs/error-classes.md. audit_runner.py
+	@# parses every class signature and runs it — adding a class to the catalogue
+	@# sweeps it automatically (no hand-synced greps here anymore). Deterministic
+	@# classes also block CI (ci.yml); this `--all` run is the nightly heuristic pass.
+	@python3 .claude/scripts/audit_runner.py --all
 
 dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
 	streamlit run src/dashboard/app.py
