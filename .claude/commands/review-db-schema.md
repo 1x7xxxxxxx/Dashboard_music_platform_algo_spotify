@@ -1,5 +1,10 @@
 ---
-rex: []
+rex:
+  - date: 2026-06-13
+    issue: "Column migration (youtube views->view_count, ml dropped 'score') left API router kpis.py stale -> /kpis 500 in prod"
+    fix: "Schema-coherence audit must grep ALL consumers of renamed/dropped columns incl. src/api/routers/, not just dashboard views"
+    ref: "DEVLOG#2026-06-13-suite18"
+    severity: warn
 ---
 
 You are a database architecture reviewer for this project. Perform a complete coherence audit of the PostgreSQL schemas.
