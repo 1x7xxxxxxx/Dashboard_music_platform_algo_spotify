@@ -1789,3 +1789,31 @@ DENY, nosniff, TLS 1.0 refusé/1.3 OK. C. Surface : /.env & co = **faux positif*
 **/openapi.json corrigé**. D. Auth : tous endpoints API → 401, token forgé → 401, webhook → 400. **Reste** :
 test live lockout bruteforce + scan client-side (MCP chrome-devtools KO dans la session WSL → à refaire au
 navigateur). Détail checklist Phase 5.
+
+---
+
+## 2026-06-13 (suite 14) — Analyse d'impact config/prod + API REST fonctionnelle + fix MCP Chrome
+
+### Analyse d'impact — classe « config.yaml absent en prod »
+Audit des **21 appels `config_loader.load()`**. Chemin runtime prod = **tout env-first** (DB, SMTP, FERNET,
+Airflow URL+password — corrigés au fil des sessions). Seul trou restant : l'API REST (auth config.yaml). **Hors
+chemin runtime** : les 9 `*_schema.py` (`create_tables`) font `config['database']` en subscript direct → KeyError
+si lancés en prod, mais les tables viennent du dump/migrations → **impact faible (P3 cohérence)**. Fichiers prod
+vs repo : mounts `machine_learning`/`data`/`docs` OK ; `init_db.sql` monté dans le template repo mais retiré sur
+le live (dump). **Pas de bombe à retardement.**
+
+### PR #56 — API REST rendue fonctionnelle en prod
+`/auth/token` lisait `config.yaml` (absent) → 503 → toute l'API authentifiée était inerte en prod. Désormais auth
+contre **`saas_users`** (username OU email + bcrypt), via `authenticate_api_user()` autonome (ni config.yaml ni
+Streamlit → safe conteneur API). **Sécu** : lockout brute-force **partagé** avec le dashboard (mêmes colonnes →
+même verrou 5/15min), email vérifié exigé, **comptes 2FA refusés** (pas de bypass). Couplé à `require_artist_scope`
+(PR #49). Vérifié prod : `/auth/token` mauvais creds → **401** (plus 503). 27 tests API verts.
+
+### Fix MCP Chrome (`.mcp.json`, local/gitignored)
+Le pentest Phase E (scan client-side) ne démarrait pas : flag **`--chrome-arg` invalide** (le vrai nom est
+`--chromeArg`) → `--no-sandbox` ignoré → Chrome crashait en WSL (« Target closed »). Corrigé + ajout
+`--disable-dev-shm-usage` (WSL). Reconnecté via `/mcp` (pas de restart nécessaire).
+
+### Reste
+Pentest : test live lockout bruteforce (désormais faisable via l'API), scan client-side (Chrome reconnecté).
+Nettoyage cohérence des 9 `*_schema.py` (P3). i18n contenu emails. Ouvrir E1.
