@@ -104,7 +104,12 @@ def main() -> None:
               f"({sum(c['kind'] == 'deterministic' for c in classes)} deterministic)")
         sys.exit(0)
 
-    selected = [c for c in classes if c["kind"] == "deterministic"] if args.deterministic else classes
+    # kind: manual = documented-only (signature needs external access, e.g. prod SSH);
+    # never run by the sweep — listed for reference, triaged by a human via its make target.
+    if args.deterministic:
+        selected = [c for c in classes if c["kind"] == "deterministic"]
+    else:
+        selected = [c for c in classes if c["kind"] != "manual"]
     mode = "deterministic" if args.deterministic else "all"
     print(f"▶ audit_runner ({mode}): {len(selected)} signatures\n")
 
