@@ -290,6 +290,8 @@ class InstagramCollector:
         if resp.status_code != 200:
             err = resp.json().get('error', {}) if resp.content else {}
             if resp.status_code == 400 and err.get('code') == 100:
+                # Legitimate per-item skip (rule #6): only THIS media lacks insights;
+                # the caller filters None and keeps the others. Not a silent collection failure.
                 logger.warning(f"Insights unsupported for media {mid} (code 100) — skipped.")
                 return None
             raise ValueError(
