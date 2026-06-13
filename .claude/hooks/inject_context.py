@@ -22,6 +22,15 @@ import os
 import re
 import sys
 
+# Best-effort usage telemetry (curator self-improvement loop). Defensive import:
+# a missing/broken telemetry module must never break context injection.
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+    from usage_telemetry import record as _telemetry_record
+except Exception:  # noqa: BLE001 — telemetry is optional
+    def _telemetry_record(*_a, **_k):
+        return None
+
 
 # ── Domain → (keywords, source folder, file) ─────────────────────────────────
 #
@@ -158,6 +167,7 @@ def main() -> None:
         content = load_file(folder, filename)
         if content:
             blocks.append(content)
+            _telemetry_record("skills", domain)  # curator usage signal
 
     if blocks:
         print("\n".join(blocks))
