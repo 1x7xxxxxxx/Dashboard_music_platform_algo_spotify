@@ -2025,7 +2025,7 @@ Bascule NS OVH → Cloudflare effectuée ; zone **active & proxifiée** (`app.st
 
 **Détails plan Free** : WAF managed rules = payant (skip) ; Bot Fight Mode = perm `bot_management` absente du token → à activer à la main. **Token wipé de la machine ; à révoquer côté CF** (setup one-shot).
 
-**Reste CF (non bloquant)** : révoquer le token, Bot Fight Mode (manuel), **cert Origin CF** (sécu renouvellement LE de Caddy une fois proxifié — ~2 mois de marge ; le cert browser-facing est l'edge CF auto-renouvelé), DNSSEC ré-activable via CF.
+**MAJ — durcissement COMPLET** : ✅ Bot Fight Mode ON ✅ **cert Origin CF 15 ans** posé sur Caddy (`tls` dans `/etc/caddy/Caddyfile`, systemd ; upstreams 8501/8502) → plus de dépendance renouvellement LE pour l'origine. **Incident de vérif (résolu, leçon)** : un cache DNS local sur la machine de dev pointait encore `app.streamlytics.fr` → IP origine `167.233.92.1` (désormais firewallée) → faux « app down » (000) → rollback Caddy fait à tort, puis re-déployé après diag. La prod était saine tout du long. **Toujours vérifier via `curl --resolve host:443:<edge-CF-IP>`**, jamais via la résolution locale. Reste CF : révoquer le token, (optionnel) ré-activer DNSSEC.
 
 ### Reste global
 Red-team phase staging local (XSS/upload/session/DoS) en pause ; **supprimer `redteam_qa`** (prod) à la clôture ; ouvrir E1.
