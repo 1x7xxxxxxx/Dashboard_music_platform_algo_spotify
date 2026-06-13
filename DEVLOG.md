@@ -1845,5 +1845,19 @@ non faisable in-session). Demi-scan réalisable — secrets dans le JS — fait 
 `.map` inexistant) = **faux positif, même classe que `/.env`**. Reste (mineur) : messages console live (navigateur
 requis → restart CC). Headers sécu reconfirmés (HSTS/nosniff/X-Frame DENY/Referrer) ; pas de CSP (limite Streamlit, P4).
 
+### MCP Chrome — réparé pour de bon (cause racine = version, pas args)
+Le crash « Target closed » persistait malgré les `--chromeArg` et un restart de CC. Diagnostic décisif via un
+harness de reproduction (handshake JSON-RPC scripté + `DEBUG=*`/`--logFile`) : Chrome 131 et `chrome-headless-shell`
+se lancent **parfaitement en manuel** en WSL → l'env est capable. Le wrapper `chrome-devtools-mcp` 1.2.0, lui, par
+défaut (`channel: stable`, `executable_path_present: false`) **résout un Chrome différent** (récent, cf. `--autoConnect`
+« Chrome 144+ ») qui meurt au 1er appel CDP. **Fix définitif** : `--executablePath=…/puppeteer/chrome/
+linux-131.0.6778.204/chrome-linux64/chrome` dans `.mcp.json` (local/gitignored). Test final avec les args exacts du
+fichier → navigation live + console OK. Les `--chromeArg` sandbox/pipe étaient un traitement de la mauvaise cause.
+
+### Pentest Phase 5 — console live (G) → CLÔTURE
+Scan console de `app.streamlytics.fr` (login) : 2 messages, **bénins** (`[issue]` form field sans id/name ;
+`[verbose] [DOM]` password hors `<form>`) — aucun secret, aucune erreur sensible. **Gate 5 entièrement levé.**
+
 ### Reste
-Messages console live (restart CC pour MCP Chrome). i18n contenu emails. **Ouvrir E1.**
+i18n contenu emails. **Ouvrir E1.** (Note : il faut **redémarrer Claude Code** pour que les outils MCP
+`chrome-devtools` de la session prennent les nouveaux args — le serveur en cours tourne encore avec l'ancienne config.)

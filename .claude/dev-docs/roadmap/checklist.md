@@ -655,9 +655,13 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     `sk_live/sk_test/AKIA/fernet/postgres://…/-----BEGIN/*secret*` (le code Python n'atteint jamais le client) ;
     (3) **source maps NON exposés** : `*.js.map` renvoie 200 mais c'est le **catch-all SPA** (HTML `text/html`
     5381 o, identique pour un `.map` inexistant) → **faux positif, même classe que `/.env`/`/config.yaml`**.
-    **RESTE (mineur, non bloquant)** : lecture des **messages console live** (nécessite le navigateur → vrai
-    restart de Claude Code pour le MCP). Pas de CSP/Permissions-Policy (limite Streamlit, P4).
-    **Gate 5 levé sur la surface secrets** ; E1 déjà débloqué.
+    ✅ **G. Messages console live (2026-06-13, suite 15) — MCP Chrome RÉPARÉ.** Cause racine trouvée : pas les
+    args sandbox/pipe mais la **résolution de version Chrome** — par défaut (`channel: stable`, pas
+    d'`executablePath`) le MCP tente un Chrome récent qui meurt en WSL (« Target closed »). Fix définitif :
+    `--executablePath=…/puppeteer/chrome/linux-131.0.6778.204/…/chrome` (Chrome 131 du cache, prouvé OK) dans
+    `.mcp.json` (gitignored). Scan console de la page login : 2 messages, **tous bénins** (`[issue]` form field
+    sans id/name ×2 ; `[verbose] [DOM]` password field hors `<form>`) — **aucun secret, aucune erreur sensible**.
+    Pas de CSP/Permissions-Policy (limite Streamlit, P4). **Gate 5 entièrement levé.**
   - ~~Phase 6 — Box B MT5~~ — **RETIRÉ 2026-06-13 : hors scope de streaMLytics** (projet trading MT5 séparé, traité ailleurs).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
