@@ -264,7 +264,7 @@ def send_verification_email(to_email: str, username: str, token: str,
         <p style="color: #888; font-size: 12px;">
             {_tr('email.verify.copy', "Ou copiez ce lien : {url}", lang, url=verify_url)}<br>
             {_tr('email.verify.expiry',
-                "Ce lien expire dans 24 heures. "
+                "Ce lien expire dans 48 heures. "
                 "Si vous n'avez pas créé de compte, ignorez cet email.", lang)}
         </p>
     </body></html>

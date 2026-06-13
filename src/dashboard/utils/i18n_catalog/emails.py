@@ -14,7 +14,7 @@ EN = {
                          "activate your account.",
     "email.verify.button": "Verify my email",
     "email.verify.copy": "Or copy this link: {url}",
-    "email.verify.expiry": "This link expires in 24 hours. "
+    "email.verify.expiry": "This link expires in 48 hours. "
                            "If you did not create an account, ignore this email.",
 
     # --- Welcome email ---
