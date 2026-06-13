@@ -116,6 +116,14 @@ class TestYouTubeCollectorErrors:
             result = c.get_channel_stats("UC_fake")
             assert result is not None, "Silent success: returned None instead of raising"
 
+    def test_get_channel_stats_raises_on_channel_not_found(self):
+        """Regression (R3): empty items (channel not found) must raise, not return None —
+        else the DAG writes 0 rows and reports SUCCESS (rule #6 silent-success)."""
+        c = self._collector()
+        c.youtube.channels.return_value.list.return_value.execute.return_value = {"items": []}
+        with pytest.raises(ValueError, match="not found"):
+            c.get_channel_stats("UC_missing")
+
     def test_get_channel_videos_raises_on_api_error(self):
         c = self._collector()
         c.youtube.channels.return_value.list.return_value.execute.side_effect = Exception("503")

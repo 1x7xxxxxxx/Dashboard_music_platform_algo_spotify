@@ -41,8 +41,12 @@ class YouTubeCollector:
             response = request.execute()
 
             if not response.get('items'):
-                logger.error(f"❌ Chaîne {channel_id} introuvable")
-                return None
+                # Rule #6: a not-found channel is a real failure, not a per-item skip.
+                # Returning None here would let the DAG write 0 rows and report SUCCESS.
+                raise ValueError(
+                    f"YouTube channel {channel_id} not found (empty items) — "
+                    "verify the channel_id credential (Dashboard → Credentials → YouTube)."
+                )
 
             channel = response['items'][0]
             stats = channel['statistics']

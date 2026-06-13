@@ -6,6 +6,28 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ---
 
+## 📋 Tâches ouvertes (index — détail plus bas)
+
+Index concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion d'une tâche :
+`/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau vers
+`## Completed` (CLAUDE.md — flux roadmap). Une seule source : ce fichier. État courant : `## 🔖 REPRISE` ci-dessous.
+
+| id | tâche | prio | statut / déclencheur |
+|----|-------|------|----------------------|
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) |
+| R2 | E2 — landing marketing + pixel Meta + CAPI server-side | P3 | après R1 |
+| R4 | More training data + évaluation per-tenant (ML) | P3 | BLOQUÉ : 1 seul tenant live, volume de labels |
+| R5 | Retraining automatique sur outcomes live (ML) | P3 | BLOQUÉ : outcomes forward s'accumulent dans le temps |
+| R6 | RR volume regressor (R²=0.23) | P3 | BLOQUÉ : volume d'entraînement, pas features |
+| R7 | Resurrection tuning (`detect_saves_resurrection`) | P3 | BLOQUÉ : besoin d'une série temporelle de saves |
+| R8 | Caching `@st.cache_data(ttl=300)` sur 4 vues lourdes | P4 | DIFFÉRÉ — déclencheur : trafic concurrent / re-renders |
+| R9 | Migration `view_session()` (16 vues legacy `get_db_connection()`) | P4 | DIFFÉRÉ — déclencheur : ≥50 artistes / leak connexion |
+| R10 | Splitter god-functions (+171 fonctions >40 l.) | P4 | DIFFÉRÉ — **au fil de l'eau**, jamais en sweep dédié |
+| R11 | Lazy imports (plotly/sklearn/shap → dans les fonctions) | P4 | DIFFÉRÉ — déclencheur : latence par-vue ressentie |
+| R12 | Index composite `s4a_song_timeline(artist_id, song, date)` | P4 | DIFFÉRÉ — déclencheur : ~10× le volume (≈140k l.) |
+
+---
+
 ## 🔖 REPRISE — état au 2026-06-13 (à lire EN PREMIER au `/resume`)
 
 **streaMLytics est EN PRODUCTION et lançable.** (détail : `[[project_production_deploy]]`, DEVLOG suites 7→14)
@@ -27,29 +49,6 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ---
 
-## 📋 Tâches ouvertes (index — détail plus bas)
-
-Tableau concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion d'une
-tâche : `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau
-vers `## Completed` (CLAUDE.md — flux roadmap). Une seule source : ce fichier.
-
-| id | tâche | prio | statut / déclencheur |
-|----|-------|------|----------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) |
-| R2 | E2 — landing marketing + pixel Meta + CAPI server-side | P3 | après R1 |
-| R3 | 2 collectors `return None` (instagram `:294`, youtube `:45`) — escalader en `raise` ou documenter skip légitime | P2/P3 | skip par-item, PAS le pattern dangereux ; à trancher |
-| R4 | More training data + évaluation per-tenant (ML) | P3 | BLOQUÉ : 1 seul tenant live, volume de labels |
-| R5 | Retraining automatique sur outcomes live (ML) | P3 | BLOQUÉ : outcomes forward s'accumulent dans le temps |
-| R6 | RR volume regressor (R²=0.23) | P3 | BLOQUÉ : volume d'entraînement, pas features |
-| R7 | Resurrection tuning (`detect_saves_resurrection`) | P3 | BLOQUÉ : besoin d'une série temporelle de saves |
-| R8 | Caching `@st.cache_data(ttl=300)` sur 4 vues lourdes | P4 | DIFFÉRÉ — déclencheur : trafic concurrent / re-renders |
-| R9 | Migration `view_session()` (16 vues legacy `get_db_connection()`) | P4 | DIFFÉRÉ — déclencheur : ≥50 artistes / leak connexion |
-| R10 | Splitter god-functions (+171 fonctions >40 l.) | P4 | DIFFÉRÉ — **au fil de l'eau**, jamais en sweep dédié |
-| R11 | Lazy imports (plotly/sklearn/shap → dans les fonctions) | P4 | DIFFÉRÉ — déclencheur : latence par-vue ressentie |
-| R12 | Index composite `s4a_song_timeline(artist_id, song, date)` | P4 | DIFFÉRÉ — déclencheur : ~10× le volume (≈140k l.) |
-
----
-
 ## Open Bugs
 
 ### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
@@ -61,7 +60,7 @@ Audit profond post-red-team (perf · correctness · supply-chain · tests · tec
 - [x] **Gap de test systémique = cause racine `/kpis` + `/youtube`** — les 2 bugs avaient échappé aux tests (routers testés **DB mockée**). **FIXÉ** : `tests/test_api_db_smoke.py` — smoke-test **DB-gated** (comme `test_views_render_smoke`) qui exécute chaque endpoint data contre le vrai schéma (token admin+tenant forgé) et assert no-500 → attrape toute la classe en CI. Aurait fait échouer /kpis ET /youtube.
 
 **P3/P4 — correctness borderline :**
-- [ ] **2 collectors `return None`** — `instagram_api_collector.py:294` (insights code-100 non-supporté, skip 1 média) et `youtube_collector.py:45` (chaîne introuvable). Skips **par-item**, PAS le pattern dangereux « swallow → 0 rows → DAG SUCCESS ». Décider : escalader en `raise` (rule #6 stricte) ou documenter comme skip légitime. Effort S · confiance MED.
+- [x] **2 collectors `return None`** ✅ (2026-06-14) — `youtube_collector.py:45` (chaîne introuvable) **escaladé en `raise ValueError`** (vrai échec → plus de 0-rows-DAG-SUCCESS) + test de non-régression `test_get_channel_stats_raises_on_channel_not_found`. `instagram_api_collector.py:294` (insights code-100, 1 média) **confirmé skip par-item légitime** (l'appelant filtre `None` L322) + commenté explicitement. `_meta_config_fetch.py:168 return []` = 0-créative valide, hors-scope.
 
 **P4 — tech-debt / opportunités (basse urgence) :**
 - [ ] **Caching** — 4 vues requêtent la DB sans `@st.cache_data` (`spotify_s4a_combined`, `meta_ads_overview`, `export_pdf/csv`, `usage_analytics`). Bénéfice **modeste** à l'échelle actuelle (requêtes <1ms mesurées) ; vrai levier LCP = cache Cloudflare (en cours). Effort M.
@@ -486,6 +485,7 @@ All bricks (1–19) fully implemented. Session implementation notes were archive
 - [x] C5 — Benchmark VPS (sizing + topologie) ✅ 2026-06-13 (décision figée + prod live sur Hetzner CPX32)
 - [x] C6 — Benchmark nom de domaine + accès public ✅ 2026-06-13 (streamlytics.fr live + Cloudflare durci)
 - [x] D — Déploiement + pentest ✅ 2026-06-13 (prod live, red-team complet, classes `api-router-schema-drift` + `csv-formula-injection` cataloguées)
+- [x] R3 — 2 collectors `return None` ✅ 2026-06-14 (youtube:45 chaîne-introuvable → `raise ValueError` + test de non-régression ; instagram:294 = skip par-item légitime confirmé)
 
 ---
 
