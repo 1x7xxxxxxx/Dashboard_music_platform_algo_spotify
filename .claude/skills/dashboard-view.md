@@ -176,6 +176,21 @@ rex:
   \ a mount, never assume COPY"
     severity: "warn"
     ref: "DEVLOG#2026-06-13"
+  - date: 2026-06-13
+    issue: "st.link_button(.,'/?page=X') in upgrade/onboarding → full page reload → fresh session → auth lost → login bounce"
+    fix: "In-app nav: st.button + set _nav_page + st.rerun() (clear ?page pin if deep-linked). Absolute-URL link_button only for LEAVING the app (Stripe)"
+    severity: "warn"
+    ref: "DEVLOG#2026-06-13"
+  - date: 2026-06-13
+    issue: "Tenant leak: a freshness/COUNT query on a tenant table had no artist_id filter → new account saw another tenant's data"
+    fix: "Every per-tenant query MUST filter artist_id; never get_table_count() for a per-artist metric. Spotify-string-id tables (artists) scope via the saas_artists.spotify_artist_id bridge"
+    severity: "crit"
+    ref: "DEVLOG#2026-06-13"
+  - date: 2026-06-13
+    issue: "API routers used `if artist_id:` truthiness as implicit is-admin → non-admin token w/o artist_id got all-tenants data"
+    fix: "Decide scope by ROLE not a falsy id: require_artist_scope() dep (admin→all, non-admin→its id, else 403). Views: artist_id None must be admin-only (view_session enforces)"
+    severity: "crit"
+    ref: "DEVLOG#2026-06-13"
 ---
 
 # Skill: Dashboard View

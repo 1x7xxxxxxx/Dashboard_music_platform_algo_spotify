@@ -1726,3 +1726,38 @@ ruff clean, `test_guide_pdf` 6/6, REX `dashboard-view.md` (config env-first prod
 
 ### Demain
 Stripe **live** (l'utilisateur a commencé le KYC → à revérifier) ; i18n contenu emails ; ouvrir **E1**.
+
+---
+
+## 2026-06-13 (suite 12) — Stripe LIVE prouvé + 3 bugs + audit isolation tenant + /ml fix
+
+### What changed
+- **Stripe passé en LIVE et prouvé end-to-end.** KYC validé ; produit/Payment Link/webhook/portail recréés en
+  live ; 4 env vars live (`sk_live`/`whsec`/checkout/portal) posées dans `/opt/streamlytics/.env` (+ backup) ;
+  **vrai paiement carte** (compte `1x7` repassé `free` pour le test) → `checkout.session.completed` →
+  `artist_subscriptions` (`status=active`, vrais `cus_`/`sub_`) + `saas_artists.tier=premium` ; annulation
+  (`cancel_at_period_end`) OK. Détail : `memory/project_stripe_state`.
+- **PR #46 — login-bounce** : `upgrade.py` + 4 boutons `onboarding.py` faisaient `st.link_button("/?page=X")`
+  (URL absolue) → reload complet → session perdue → page de login. Fix : lien direct Stripe + `client_reference_id`
+  (upgrade), helper `_goto()` nav in-app (onboarding). `db_health` passé en tier **free**.
+- **PR #47 — date de période** : API `2026-05-27.dahlia` déplace `current_period_*` hors de l'objet subscription
+  → `current_period_end` NULL. Helper `_subscription_period()` lit `items.data[0]` en fallback.
+- **PR #48 — fuite fraîcheur Spotify** : source "Spotify API" en `skip_artist_filter` → `MAX(collected_at) FROM
+  artists` global → un compte neuf voyait la fraîcheur d'un AUTRE tenant. Scopé via le pont
+  `saas_artists.spotify_artist_id` (un tenant non-ponté → "aucune donnée").
+- **PR #49 — audit isolation tenant** : (P1) les 4 routers API (`kpis/streams/youtube/ml`) scopaient par
+  *truthiness* d'`artist_id` au lieu du **rôle** → un token non-admin sans scope = données tous-tenants. Nouvelle
+  dépendance `deps.require_artist_scope` (admin→None=tous, non-admin→son id, non-admin sans id→**403**). (P3)
+  `apple_music` COUNT global scopé ; filtre nom S4A ajouté (`db_health` via flag `song_filter`,
+  `spotify_s4a_combined`, `revenue_forecast`) ; guard `data_wrapped`.
+- **PR #50 — `/ml/predictions` réparé (P4 FERMÉE)** : lisait `score/tier/predicted_at` inexistants → 500.
+  Renvoie maintenant `dw/rr/radio_probability` + `prediction_date` (`DISTINCT ON (song)`), scopé tenant.
+
+### Audit
+Audit isolation multi-tenant complet (2 agents : vues + helpers/exporters/API). Sain par ailleurs : tous les
+getters `kpi_helpers`, exporters PDF/CSV et **tous les DELETE** correctement scopés ; **aucun `get_artist_id()
+or 1`** ; le risque "table à id Spotify string" ne se répète nulle part (seule `artists`).
+
+### Tests / ménage
+ruff + AST clean sur tous les fichiers touchés. Comptes de test `127bpm` (id=7 puis id=8) supprimés FK-safe
+après usage. Webhook répond 400 (signé) ; API `/kpis` non-auth → 401.
