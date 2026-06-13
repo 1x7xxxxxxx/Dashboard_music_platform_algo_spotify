@@ -77,6 +77,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [api-router-schema-drift](#api-router-schema-drift) | P3 | heuristic | guarded | none |
 | [csv-formula-injection](#csv-formula-injection) | P3 | heuristic | guarded | none |
 | [config-not-env](#config-not-env) | P2 | heuristic | guarded | none |
+| [prod-canonical-schema-drift](#prod-canonical-schema-drift) | P2 | manual | reported | none |
 
 ---
 
@@ -376,3 +377,16 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
 - History:
   - 2026-06-13: the 11 `src/database/*_schema.py` `__main__` bootstraps did `PostgresHandler(**config['database'])` → `KeyError` when launched in prod (no config.yaml; `config_loader.load()` returns `{}`). Fixed via `PostgresHandler.from_env_or_config()` (env DATABASE_URL → config.yaml → explicit RuntimeError). Catalogued **scoped to `*_schema.py`** (0 hits today) to flag regressions; kept `heuristic`/nightly — a project-wide `config[` sweep false-positives on the dashboard, which reads config.yaml *by design* (CLAUDE.md). The narrow scope IS the precision.
+
+## prod-canonical-schema-drift
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: the live prod DB has a table/column the version-controlled schema (`init_db.sql` + `migrations/*.sql`) lacks, or vice-versa. Code reading/writing the drifted column works in prod but 500s on a fresh install / in CI (e.g. `youtube_videos.view_count`). Cause: a manual `ALTER` on prod, an old schema version never migrated, or a migration never applied to prod.
+- signature: `make schema-check PROD_SSH=user@host`
+- autofix: none
+- guard: { type: make-precondition, ref: tools/dev/schema_drift_check.py via `make schema-check` }
+- rex_ref: tools/dev/schema_drift_check.py
+- first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite23)
+- History:
+  - 2026-06-13: surfaced by the `/youtube/videos` 500 — prod `youtube_videos` carried orphan `view/like/comment_count` (manual ALTER) absent from canonical. `make schema-check` (provisions a throwaway canonical from init_db.sql+migrations, diffs vs prod `information_schema`) found **7 drifted tables**: USED-but-undeclared (`etl_daily_metrics`, `apple_songs_performance.{purchases,radio_spins,shazam_count}`, `meta_adsets.age_range` → reconcile into canonical) + orphan prod-extra (`meta_spotify_mapping`, `meta_ads.video_file_name`, `meta_adsets.targeting_optimization`, `youtube_videos.{view,like,comment}_count` → drop/document) + prod-missing PKs (`youtube_channels.id`, `youtube_videos.id`). `kind: manual` — needs prod SSH, not run by audit_runner/CI; the durable rule is **schema changes via migrations only, never a manual ALTER on prod** (prod = init_db.sql + migrations by construction). Full triage: `.claude/dev-docs/schema-drift-2026-06-13.md`.
