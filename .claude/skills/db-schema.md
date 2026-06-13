@@ -1,4 +1,5 @@
 ---
+keywords: schema, table, postgres, postgresql, migration, create table, alter table, init_db, colonne, column, constraint, unique, index, upsert, upsert_many, insert_many, base de données, postgres_handler
 rex:
   - date: 2026-05-15
     issue: "New table written via upsert_many but not added to _ALLOWED_TABLES \u2192 cryptic\

@@ -1,4 +1,5 @@
 ---
+keywords: vue, view, dashboard, streamlit, page, sidebar, onglet, navigation, widget, plotly, chart, kpi, metric, st., button, bouton, filter, filtre, afficher, affiche, render
 rex:
   - date: 2026-05-14
     issue: "Skill had no pitfall section, so Claude rewrote known view bugs (na_rep, tight subplot\

@@ -1,4 +1,5 @@
 ---
+keywords: collector, src/collectors, spotify, youtube, meta ads, instagram, soundcloud, apple music, facebook, oauth, access_token, api_key, rate limit, endpoint, credential, s4a, spotify for artists, hypeddit
 rex:
   - date: 2026-05-15
     issue: "Skill listed only empty returns (None/[]/{}); missed the return-partial-in-except variant YouTube collector used"

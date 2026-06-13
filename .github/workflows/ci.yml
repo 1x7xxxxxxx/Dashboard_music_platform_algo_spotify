@@ -67,6 +67,17 @@ jobs:
         # after explicit ADR.
         run: uv run ruff check src/ tests/
 
+      - name: REX integrity + deterministic error-class guards (blocking)
+        # Deterministic, no-DB, sub-second. validate_rex.py enforces the rex: schema
+        # across every .claude/ tool; audit_runner.py runs each kind:deterministic
+        # error-class signature catalogued in .claude/dev-docs/error-classes.md
+        # (single source of truth — no hand-synced Makefile drift). Heuristic
+        # classes run in security-nightly.yml (non-blocking, manual triage).
+        # `uv run` puts the venv on PATH so the signatures' python3/pytest resolve.
+        run: |
+          uv run python .claude/scripts/validate_rex.py --strict
+          uv run python .claude/scripts/audit_runner.py --deterministic
+
       - name: Provision Postgres (schema + migrations)
         env:
           PGPASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB

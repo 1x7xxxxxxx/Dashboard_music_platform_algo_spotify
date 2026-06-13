@@ -1,4 +1,5 @@
 ---
+keywords: dag, airflow, pythonoperator, sensor, collecte, pipeline, orchestr, watcher, scheduler, schedule, cron, catchup, backfill, daily, tâche, task, trigger, retry, retries
 rex:
   - date: 2026-05-31
     issue: "Collector DAGs lacked max_active_runs → concurrent runs (per-save auto-trigger) hit Meta throttle 80004"
