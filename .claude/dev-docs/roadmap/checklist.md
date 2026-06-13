@@ -32,6 +32,28 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ## Open Bugs
 
+### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
+
+Audit profond post-red-team (perf · correctness · supply-chain · tests · tech-debt), **vérifié en live contre le schéma + données prod**. **Bilan : 1 vrai bug prod + 1 gap de test systémique ; le reste = tech-debt P4 basse urgence. Aucun nouveau risque sécurité/critique.**
+
+**P3 — à corriger :**
+- [ ] **`/youtube/videos` API cassé (HTTP 500) — schema drift, MÊME CLASSE que `/kpis`** — `src/api/routers/youtube.py:35,46` fait `SELECT views, likes, comments, title FROM youtube_video_stats` alors que les vraies colonnes sont `view_count / like_count / comment_count` (et **pas de `title`**). Confirmé **live (500)** + DB (`column "title" does not exist`). Fix = idem /kpis (renommer ; `title` → drop ou join source). Effort **S** · confiance **HAUTE**. *(8 routers audités, seul youtube reste cassé.)*
+- [ ] **Gap de test systémique = cause racine `/kpis` + `/youtube`** — les 2 bugs ont échappé aux tests car les routers API sont testés **DB mockée** → le schema-drift n'est jamais vu. Reco : smoke-test API **DB-gated** (comme `test_views_render_smoke`) OU check CI qui exécute les requêtes routers contre un vrai schéma. Empêche **toute** la classe. Effort **M** · confiance **HAUTE**.
+
+**P3/P4 — correctness borderline :**
+- [ ] **2 collectors `return None`** — `instagram_api_collector.py:294` (insights code-100 non-supporté, skip 1 média) et `youtube_collector.py:45` (chaîne introuvable). Skips **par-item**, PAS le pattern dangereux « swallow → 0 rows → DAG SUCCESS ». Décider : escalader en `raise` (rule #6 stricte) ou documenter comme skip légitime. Effort S · confiance MED.
+
+**P4 — tech-debt / opportunités (basse urgence) :**
+- [ ] **Caching** — 4 vues requêtent la DB sans `@st.cache_data` (`spotify_s4a_combined`, `meta_ads_overview`, `export_pdf/csv`, `usage_analytics`). Bénéfice **modeste** à l'échelle actuelle (requêtes <1ms mesurées) ; vrai levier LCP = cache Cloudflare (en cours). Effort M.
+- [ ] **`view_session()` migration** — 16 vues encore en `get_db_connection()` legacy (valide mais non-conforme rule #9). Tech-debt, **pas un leak**. Effort M.
+- [ ] **171 fonctions >40 lignes** (règle projet) — surtout des `show()` Streamlit (jusqu'à 502 l. `meta_ads_overview`). Lisibilité. Effort L. (cf. `refactor-audit-dashboard.md`)
+
+**Mesuré & ÉCARTÉ (FP / non pertinent — ne pas re-auditer) :**
+- Index `s4a_song_timeline(artist_id, song, date)` → **prématuré** : EXPLAIN ANALYZE = **0.4ms** sur 13794 lignes via l'index `(artist_id,date)` existant. Revisiter à ~10× volume.
+- `API_SECRET_KEY` → **SET (64 chars) en prod** : JWT stables au restart, non-issue.
+- Sweep schema-drift : 132 candidats bruts → **tous FP sauf le router youtube** (alias `col AS x`, vars f-string `{filt}/{frag}`, fonctions SQL, littéraux, commentaires FR, ON CONFLICT/EXCLUDED).
+- Deps `uv.lock` **0 CVE** ; imports morts **0** (ruff F401) ; data-integrity (filtre 1x7 / scoping tenant / clés upsert) **clean** ; secrets git history **0**.
+
 ### P1 — Blocking (data missing or crash)
 
 - [x] **SoundCloud + Instagram DAGs** — fixed 2026-03-30.
