@@ -55,11 +55,11 @@ def _attach_pdf(msg: MIMEMultipart, path: str) -> bool:
 
 
 def _send_html(to_email: str, subject: str, html: str,
-               attachment_path: str | None = None) -> bool:
+               attachments: list[str] | None = None) -> bool:
     """Send one HTML email via the configured SMTP relay. Non-raising.
 
-    Returns False (and logs) when SMTP is not configured or sending fails. An
-    optional PDF attachment is added when the path exists (missing = sent anyway).
+    Returns False (and logs) when SMTP is not configured or sending fails. Zero or
+    more PDF attachments are added (each missing path is skipped, email sent anyway).
     """
     cfg = _smtp_config()
     smtp_host = cfg.get('host', 'smtp.gmail.com')
@@ -82,8 +82,8 @@ def _send_html(to_email: str, subject: str, html: str,
         body = MIMEMultipart('alternative')
         body.attach(MIMEText(html, 'html'))
         msg.attach(body)
-        if attachment_path:
-            _attach_pdf(msg, attachment_path)
+        for _att in (attachments or []):
+            _attach_pdf(msg, _att)
 
         with smtplib.SMTP(smtp_host, smtp_port) as server:
             server.starttls()
@@ -139,10 +139,9 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
         {unsub_footer}
     </body></html>
     """
-    pdf = _guide_pdf_path()
     return _send_html(
         to_email, "🎵 Bienvenue — vos premières actions sur streaMLytics", html,
-        attachment_path=str(pdf) if pdf and pdf.exists() else None,
+        attachments=_guide_pdf_paths(),
     )
 
 
@@ -188,14 +187,16 @@ def _unsubscribe_footer(user_id: int | None) -> str:
             f"(décoche automatiquement l'option email de votre compte).</p>")
 
 
-def _guide_pdf_path():
-    """Path to the prebuilt onboarding guide PDF, or None if the module is unavailable."""
+def _guide_pdf_paths() -> list[str]:
+    """Prebuilt onboarding guide PDFs to attach (FR + EN), existing files only."""
     try:
+        import os
         from src.dashboard.guides.guide_pdf import output_pdf_path
-        return output_pdf_path()
+        candidates = [str(output_pdf_path('fr')), str(output_pdf_path('en'))]
+        return [p for p in candidates if os.path.exists(p)]
     except Exception as e:  # noqa: BLE001 — attachment is best-effort, never blocks signup
-        logger.warning("Guide PDF path unavailable: %s", e)
-        return None
+        logger.warning("Guide PDF paths unavailable: %s", e)
+        return []
 
 
 def send_verification_email(to_email: str, username: str, token: str) -> bool:
