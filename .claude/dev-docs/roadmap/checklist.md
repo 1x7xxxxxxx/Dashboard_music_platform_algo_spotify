@@ -6,6 +6,22 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ---
 
+## 🔖 REPRISE — état au 2026-06-13 (à lire EN PREMIER au `/resume`)
+
+**streaMLytics est EN PRODUCTION et lançable.** (détail : `[[project_production_deploy]]`, DEVLOG suites 7→11)
+
+- 🌐 **Live** : https://streamlytics.fr (HTTPS Let's Encrypt · Hetzner **CPX32** Nuremberg `167.233.92.1` · `ssh root@167.233.92.1` via clé WSL `~/.ssh/id_ed25519` · code à `/opt/streamlytics`). Durci (ufw 22/80/443, fail2ban, SSH key-only), backup cron `pg_dump` 3h, postgres `restart: unless-stopped`.
+- 💳 **Stripe** : **mode TEST activé**, webhook prouvé end-to-end. **LIVE en attente du KYC** (l'utilisateur l'a commencé le 2026-06-13 → **à revérifier**) → ensuite basculer `sk_live` + recréer produit/link/webhook live.
+- 👤 **Funnel d'inscription** : **COMPLET et validé en prod** (Brevo → inbox, login par **email** OU username, vérif instantanée, welcome + **2 PDF guide FR/EN** en PJ). Pré-requis **E1 validés**.
+- ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard`. Compte test QA : `127bpm` / `127bpmin@gmail.com`.
+
+**▶️ Prochaines actions (demain), dans l'ordre :**
+1. **Stripe LIVE** — revérifier le KYC (validé ?) → `sk_live` + recréer les objets en live → **vrai paiement test** (carte réelle).
+2. *(optionnel)* i18n du **contenu des emails** (corps vérif/welcome encore en anglais).
+3. **Ouvrir E1** — inviter 2-3 proches sur `streamlytics.fr`.
+
+---
+
 ## Open Bugs
 
 ### P1 — Blocking (data missing or crash)
@@ -616,8 +632,11 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     **Restant** : `STRIPE_PORTAL_URL` (portail client, optionnel) ; passage **mode LIVE** = activation complète
     du compte Stripe (KYC + SIRET 939874392 + IBAN) puis recréer produit/link/webhook en live + clés `sk_live`.
     **Gate 4** ✅ (provisioning prouvé en test).
-  - [ ] **Phase 5 — Pentest D2 (🤝)** : bruteforce/lockout · MITM/HSTS · RCE (SQL+uploads) · DoS/rate-limit
-    · chrome-devtools MCP sur l'URL. **Gate 5** : checklist passée → **D terminé** → débloque E1.
+  - [ ] **Phase 5 — Pentest D2 (🤝)** — **PARTIEL 2026-06-13** : ✅ audit sécu live fait (ports internes
+    5433/8080/8501/8502 **filtrés** depuis l'extérieur · API `/docs`+`/redoc` 404 · **HSTS** + headers · **TLS
+    1.3** · SSH **key-only** (PasswordAuthentication no) · fail2ban). **Reste** : test live du lockout
+    bruteforce (5/15min), DoS/rate-limit, scan chrome-devtools MCP sur l'URL. **Gate 5** → débloque E1
+    (E1 déjà débloqué de fait : pré-requis validés, cf. bloc REPRISE).
   - [ ] **Phase 6 — Box B MT5 (🧑, parallèle)** : VPS Windows isolé (broker gratuit ou OVH ~10-15 €).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
