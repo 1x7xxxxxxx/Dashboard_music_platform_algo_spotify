@@ -12,7 +12,7 @@ import secrets
 import streamlit as st
 
 from src.dashboard.utils import project_db
-from src.dashboard.utils.i18n import t
+from src.dashboard.utils.i18n import t, get_lang
 from src.dashboard.auth import hash_password, _validate_password_strength
 from src.utils.verification_email import send_verification_email
 from src.utils.plan_history import log_plan_change
@@ -382,7 +382,7 @@ def show():
                 if discount_pct:
                     discount_msg += t("register.referral_discount",
                                       " Un **rabais de 20%** sera appliqué à votre premier mois payant.")
-            email_sent = send_verification_email(email, username, token)
+            email_sent = send_verification_email(email, username, token, lang=get_lang())
             # The welcome email + onboarding guide PDF is sent AFTER the user confirms
             # their address (see app._verify_email), not here — so the guide only reaches
             # a proven-deliverable inbox.

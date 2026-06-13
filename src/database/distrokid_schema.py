@@ -1,7 +1,7 @@
 """Schéma PostgreSQL pour DistroKid — revenus mensuels (saisie manuelle, phase 1).
 
 Type: Sub
-Uses: PostgresHandler, config_loader
+Uses: PostgresHandler
 Persists in: distrokid_monthly_revenue
 Mirrors imusician_schema.py; the TSV import tables (sales detail) are phase 2 —
 see .claude/dev-docs/distrokid-export-format.md.
@@ -39,10 +39,7 @@ def create_distrokid_tables():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
-
-    config = config_loader.load()
-    db = PostgresHandler(**config['database'])
+    db = PostgresHandler.from_env_or_config()
     try:
         for table_name, sql in DISTROKID_SCHEMA.items():
             db.execute_query(sql)

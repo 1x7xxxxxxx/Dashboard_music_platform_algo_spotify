@@ -38,10 +38,7 @@ def create_wrapped_tables():
     sys.path.append(str(Path(__file__).parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
-
-    config = config_loader.load()
-    db = PostgresHandler(**config['database'])
+    db = PostgresHandler.from_env_or_config()
 
     try:
         for table_name, sql in WRAPPED_SCHEMA.items():

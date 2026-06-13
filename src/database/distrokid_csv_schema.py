@@ -1,7 +1,7 @@
 """Schéma PostgreSQL pour l'import DistroKid — lignes de vente brutes (USD).
 
 Type: Sub
-Uses: PostgresHandler, config_loader
+Uses: PostgresHandler
 Persists in: distrokid_sales_detail
 Mirrors imusician_csv_schema.py; rollup mensuel EUR → distrokid_monthly_revenue
 (src/utils/distrokid_rollup.py). Format: .claude/dev-docs/distrokid-export-format.md.
@@ -52,10 +52,7 @@ def create_distrokid_csv_tables():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
-
-    config = config_loader.load()
-    db = PostgresHandler(**config['database'])
+    db = PostgresHandler.from_env_or_config()
     try:
         for table_name, sql in DISTROKID_CSV_SCHEMA.items():
             db.execute_query(sql)

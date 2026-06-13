@@ -13,7 +13,10 @@ _SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
 # Keys built dynamically as t(f"<prefix>.{var}") — they can't be matched to a string
 # literal, so their EN entries are legitimate even without a literal reference. Keep in
 # sync with: grep -rhoE 't\(\s*f"[a-z0-9_.]+\.\{' src/dashboard
+# `email.*` keys are consumed in src/utils/verification_email.py via the `_tr()` wrapper
+# (and `email.welcome.step{i}` is built in a loop) — neither shape the literal matcher sees.
 _DYNAMIC_PREFIXES = (
+    "email.",
     "algo.calib.", "algo.divnote.", "algo.label.", "algo.lever.", "algo.model.",
     "algo.regressor.", "algo.suppressed.", "common.month.", "credentials.field.",
     "credentials.guide.", "export_csv.source.", "export_pdf.period.", "export_pdf.section.",

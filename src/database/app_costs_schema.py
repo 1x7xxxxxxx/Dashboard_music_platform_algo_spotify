@@ -1,7 +1,7 @@
 """Schéma PostgreSQL pour les coûts d'exploitation de la plateforme (admin-global).
 
 Type: Sub
-Uses: PostgresHandler, config_loader
+Uses: PostgresHandler
 Persists in: app_operating_costs
 Platform costs (domain, VPS, Claude Code, Stripe fees…) — NOT per-tenant. Paired
 with the Supervision MRR view for net margin. Recurring model: one row = one charge
@@ -39,10 +39,7 @@ def create_app_costs_tables():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from src.database.postgres_handler import PostgresHandler
-    from src.utils.config_loader import config_loader
-
-    config = config_loader.load()
-    db = PostgresHandler(**config['database'])
+    db = PostgresHandler.from_env_or_config()
     try:
         for table_name, sql in APP_COSTS_SCHEMA.items():
             db.execute_query(sql)

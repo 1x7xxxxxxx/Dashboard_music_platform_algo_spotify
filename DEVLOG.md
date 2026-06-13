@@ -1817,3 +1817,112 @@ Le pentest Phase E (scan client-side) ne démarrait pas : flag **`--chrome-arg` 
 ### Reste
 Pentest : test live lockout bruteforce (désormais faisable via l'API), scan client-side (Chrome reconnecté).
 Nettoyage cohérence des 9 `*_schema.py` (P3). i18n contenu emails. Ouvrir E1.
+
+---
+
+## 2026-06-13 (suite 15) — Cohérence env-first des 11 `*_schema.py` + scan client-side pentest (HTTP)
+
+### Env-first des schémas (P3 tech debt fermée)
+Les 11 `*_schema.py` (`apple_music_csv/app_costs/distrokid_csv/distrokid/hypeddit/imusician_csv/imusician/
+instagram/stripe/wrapped/youtube`) instanciaient `PostgresHandler(**config['database'])` en **subscript direct**
+→ `KeyError` si lancés en prod (pas de `config.yaml`, `config_loader.load()` renvoie `{}` sans lever). Tout le
+reste du runtime est déjà env-first ; ces `create_tables()` étaient les derniers footguns (hors chemin runtime —
+les tables prod viennent du dump/migrations, d'où P3 et pas P1).
+
+**Fix** : nouvelle factory **`PostgresHandler.from_env_or_config()`** dans `postgres_handler.py` — `DATABASE_URL`
+d'abord (via `from_url`), sinon section `database` de `config.yaml`, sinon **`RuntimeError` explicite** (plus de
+`KeyError` opaque). Choix : factory sur `PostgresHandler` plutôt que réutiliser `get_db_connection()` (couplée à
+Streamlit, `st.error` au lieu de raise — inadaptée à un CLI de bootstrap). Les 11 `__main__` appellent la factory ;
+imports `config_loader` morts + lignes `Uses:` obsolètes nettoyés. Vérifié : path DATABASE_URL (parse host/port/db),
+path config-absent → RuntimeError, 11 modules `py_compile`, **ruff vert**, suite **519 passed / 39 skipped**.
+
+### Pentest Phase 5 — scan client-side secrets (par HTTP)
+Le MCP Chrome crashe encore « Target closed » en WSL (son fix `.mcp.json` exige un vrai restart de Claude Code,
+non faisable in-session). Demi-scan réalisable — secrets dans le JS — fait par `curl` : (1) HTML bootstrap = seul
+`window.prerenderReady = false`, aucun secret ; (2) chunks JS = bundle Streamlit générique, **0 hit** sur
+`sk_live/sk_test/AKIA/fernet/postgres://…/-----BEGIN/*secret*` (le Python n'atteint jamais le client) ;
+(3) **source maps non exposés** — `*.js.map` → 200 mais c'est le **catch-all SPA** (HTML 5381 o, identique pour un
+`.map` inexistant) = **faux positif, même classe que `/.env`**. Reste (mineur) : messages console live (navigateur
+requis → restart CC). Headers sécu reconfirmés (HSTS/nosniff/X-Frame DENY/Referrer) ; pas de CSP (limite Streamlit, P4).
+
+### MCP Chrome — réparé pour de bon (cause racine = version, pas args)
+Le crash « Target closed » persistait malgré les `--chromeArg` et un restart de CC. Diagnostic décisif via un
+harness de reproduction (handshake JSON-RPC scripté + `DEBUG=*`/`--logFile`) : Chrome 131 et `chrome-headless-shell`
+se lancent **parfaitement en manuel** en WSL → l'env est capable. Le wrapper `chrome-devtools-mcp` 1.2.0, lui, par
+défaut (`channel: stable`, `executable_path_present: false`) **résout un Chrome différent** (récent, cf. `--autoConnect`
+« Chrome 144+ ») qui meurt au 1er appel CDP. **Fix définitif** : `--executablePath=…/puppeteer/chrome/
+linux-131.0.6778.204/chrome-linux64/chrome` dans `.mcp.json` (local/gitignored). Test final avec les args exacts du
+fichier → navigation live + console OK. Les `--chromeArg` sandbox/pipe étaient un traitement de la mauvaise cause.
+
+### Pentest Phase 5 — console live (G) → CLÔTURE
+Scan console de `app.streamlytics.fr` (login) : 2 messages, **bénins** (`[issue]` form field sans id/name ;
+`[verbose] [DOM]` password hors `<form>`) — aucun secret, aucune erreur sensible. **Gate 5 entièrement levé.**
+
+### Reste
+i18n contenu emails. **Ouvrir E1.** (Note : il faut **redémarrer Claude Code** pour que les outils MCP
+`chrome-devtools` de la session prennent les nouveaux args — le serveur en cours tourne encore avec l'ancienne config.)
+
+---
+
+## 2026-06-13 (suite 16) — i18n du contenu des emails transactionnels (FR/EN)
+
+### What changed
+Les 2 emails transactionnels étaient **mono-langue figée et incohérente** : vérification en **anglais en
+dur**, bienvenue en **français en dur** — quelle que soit la langue choisie par l'utilisateur au signup.
+Désormais **localisés FR/EN** via l'infra i18n existante.
+
+- **Nouveau catalogue** `src/dashboard/utils/i18n_catalog/emails.py` (`EN = {...}`, ~25 clés `email.*`) —
+  auto-mergé par `i18n._load_catalogs()` comme les ~47 autres catalogues de vues.
+- **`src/utils/verification_email.py`** : helper `_tr(key, fr, lang, **fmt)` (réutilise `i18n.translate()`,
+  headless-safe avec un `lang` explicite — ne touche jamais `st.session_state`). `send_verification_email`,
+  `send_welcome_email` et `_unsubscribe_footer` prennent un paramètre `lang` ; tous les fragments HTML
+  passent par `_tr` (FR = défaut inline + fallback, EN = catalogue).
+- **Propagation du lang** : le lien de vérification embarque `&lang=<lang>` → au clic, `app.py` (`get_lang()`
+  lit `?lang=` depuis l'URL) renvoie le welcome dans la **même langue**, sans colonne `language` en DB.
+  Sites mis à jour : `register.py`, `auth.py` (`_resend_verification`), `admin.py` (resend admin),
+  `app.py` (welcome post-vérif) — tous threadent `get_lang()`.
+- **Tests** : `test_i18n_orphans` matchait `translate(`/`t(` mais pas le wrapper `_tr()` ni le
+  `email.welcome.step{i}` (boucle) → préfixe `email.` ajouté à `_DYNAMIC_PREFIXES` (mécanisme prévu pour
+  les clés que le matcher littéral ne voit pas). Le guard forward (`test_every_static_t_key_has_en_entry`)
+  ne scanne que `src/dashboard` → `verification_email.py` (dans `src/utils`) hors scope, non impacté.
+
+Vérifié : ruff vert, `py_compile`, rendu FR (défaut inline) vs EN (catalogue) prouvé, build HTML des 2
+emails sans exception (clés `.format` résolues), suite **519 passed / 39 skipped**.
+
+### Reste
+**Ouvrir E1.** (Restart CC pour les outils MCP `chrome-devtools` — cf. suite 15.)
+
+---
+
+## 2026-06-13 (suite 17) — Batterie offensive active (MITM/TLS + injection) + confirmation Stripe API
+
+### Stripe — prix doublon confirmé supprimé (via API live)
+Confirmation demandée par l'utilisateur (doublon déjà supprimé côté dashboard, pas de refund). Requête
+`GET /v1/prices?product=prod_Uh0VOltsYlEbMM` exécutée **sur le serveur** (clé `sk_live` lue depuis
+`/opt/streamlytics/.env`, jamais imprimée) : **1 seul prix actif** (`price_1TheyH…`, 1000 eur/month) +
+**0 archivé/inactif**. Payment Link live (`buy.stripe.com/eVq5kCf…`) intact. Propre.
+
+### Cyber — « fais tout ce que tu peux » : MITM/TLS attaqué en direct
+Demande explicite de tester le côté cyber (MITM, brute-force, SQLi, RCE, DoS, phishing). Batterie active
+non-destructive lancée contre la prod (openssl + testssl.sh, via shim resolver `host` car pas de dig/nslookup
+en local) :
+
+- **Downgrade MITM** : TLS 1.0/1.1 **refusés**, `TLS_FALLBACK_SCSV` no-fallback, TLS 1.2/1.3 only,
+  ciphers AEAD/FS (ECDHE-ECDSA-AES-GCM) ; RC4/3DES/NULL/CBC-SHA1 tous rejetés.
+- **CVE TLS** (testssl `-U`) : Heartbleed, CCS, Ticketbleed, ROBOT, POODLE, CRIME, SWEET32, FREAK, DROWN,
+  LOGJAM, BEAST, LUCKY13, Winshock = **not vulnerable** ; secure renegotiation OK ; cert LE ECDSA valide.
+- **Seul finding : BREACH** « potentially » (gzip HTTP). Faible exploitabilité (Streamlit websocket, pas de
+  secret reflété) + couper gzip dégraderait le LCP (déjà 5.7 s) → **accepté P4** (même classe que no-CSP).
+- **SQLi** : 3 payloads (`' OR '1'='1`, `'--`, `UNION SELECT`) sur `/auth/token` (usernames jetables, sous
+  le seuil de lockout) → **401 propre, 0 erreur SQL** → requêtes paramétrées (Brick 25) confirmées en live.
+- **Surface** : `/.env`, `/.git/config`, `/openapi.json`, `/docs`, `/redoc`, `/actuator` = 404 ; endpoints
+  protégés = 401 ; JWT forgé rejeté ; webhook sans signature = 400 fail-closed. **Ports** : 22/80/443 only.
+- **Non testé volontairement** : **DoS** volumétrique sur prod (risque service + ToS Hetzner) → reco
+  **Cloudflare gratuit** (WAF + anti-DDoS + cache). **RCE** : surface nulle (0 `eval/exec/pickle/subprocess/
+  shell` dans `src/`), non fuzzé. **Phishing** : hors-scope app (social engineering, pas une vuln applicative).
+
+**Bilan** : brute-force prouvé (suite précédente) + MITM/TLS prouvé résistant (CVE suite clean) + SQLi/surface
+clean. Reste 2 vrais gaps non couverts par design : DoS (→ Cloudflare) et RCE (surface nulle mais non fuzzé).
+
+### Reste
+**Ouvrir E1.** Optionnel : Cloudflare devant la prod (DoS + WAF + cache LCP), CSP via Caddy (P4).
