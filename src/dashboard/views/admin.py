@@ -726,7 +726,10 @@ def show():
                 hide_index=True,
                 width="stretch",
             )
-            csv_bytes = df_optin[['username', 'email', 'artist_name']].to_csv(index=False).encode()
+            from src.dashboard.utils.csv_exporter import defang_formulas
+            csv_bytes = defang_formulas(
+                df_optin[['username', 'email', 'artist_name']]
+            ).to_csv(index=False).encode()
             # RGPD Art. 5(1)(f) — record every access to personal data in audit log
             clicked = st.download_button(
                 t("admin.btn_export_csv", "⬇️ Exporter CSV"),
