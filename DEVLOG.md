@@ -2074,3 +2074,20 @@ Vérifié : `audit_runner --deterministic` = 6 classes, exit 0 ; `--all` = 22 cl
 
 ### Reste global
 **Ouvrir E1** (beta privée). Config Claude Code durcie et auto-exécutable.
+
+---
+
+## 2026-06-13 (suite 23) — CI déboguée + garde-fou anti-divergence repo↔prod (prod == canonique)
+
+~20 mails « CI failed » : la CI était rouge sur `main` depuis le fix `/youtube/videos` (suite 19b). Cause = **drift schéma prod↔canonique** que le `test_api_db_smoke` (ajouté suite 19b) a **correctement attrapé** : `/youtube/videos` interrogeait `youtube_videos.view_count`, présent en prod (ALTER manuel orphelin) mais absent d'`init_db.sql`.
+
+- **Fix CI (PR #71)** : `/youtube/videos` lit les compteurs depuis `youtube_video_stats` (canonique) + `LEFT JOIN youtube_videos` pour le titre.
+- **Garde-fou (PR #72)** : `tools/dev/schema_drift_check.py` + `make schema-check PROD_SSH=…` — provisionne un Postgres jetable depuis `init_db.sql + migrations`, dump prod, diff colonne par colonne. Error-class `prod-canonical-schema-drift` (kind: manual). A trouvé **7 tables drift**.
+- **Réconciliation (PR #73, migration 062)** : items *utilisés mais non-déclarés* ajoutés au canonique — `etl_daily_metrics` (table), `apple_songs_performance.{shazam_count,radio_spins,purchases}`, `meta_adsets.age_range`.
+- **Cleanup (PR #74, migration 063)** : orphelins prod (0 data) droppés + `id SERIAL` ajouté aux vieilles tables youtube — **via migration, jamais d'ALTER manuel** (= la règle). Appliqué à prod.
+- **Résultat vérifié** : `make schema-check` = **exit 0, prod == canonique (916 cols / 91 tables des deux côtés)**.
+
+**3 niveaux de défense** : code↔canonique (CI `test_api_db_smoke`/render-smoke) · canonique↔prod (`make schema-check`, nightly recommandé) · **règle : schéma via migrations only**. Pour analyser toute CI future : `gh run view <id> --log-failed` / `gh run watch <id>`.
+
+### Reste global
+**Ouvrir E1**. Repo ↔ prod alignés et outillés contre la divergence.
