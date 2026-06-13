@@ -20,7 +20,7 @@ PG_CONT="${PG_CONT:-$(docker ps --format '{{.Names}}' | grep '^postgres_spotify'
 DB="${DB_NAME:-spotify_etl}"
 USER="${DB_USER:-postgres}"
 CANON_IMAGE="${CANON_IMAGE:-postgres:17}"
-CANON="_schema_canon_$$"
+CANON="schema_canon_$$"   # must start alphanumeric (docker name rule)
 DUMP_SQL="SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1"
 
 echo "── schema-drift check $(date -u +%Y-%m-%dT%H:%M:%SZ) ──"
