@@ -25,7 +25,9 @@ no longer drifts on these. `etl_daily_metrics` mirrors prod (PK id + UNIQUE(dag_
 | `apple_songs_performance.shazam_count` | 5 src files | idem |
 | `meta_adsets.age_range` | meta breakdown views | idem in `meta_ads_schema.py` + init_db.sql + migration |
 
-## B. ORPHAN prod-extra → **drop on prod OR document** (unused by current code)
+## B. ORPHAN prod-extra → **✅ DROPPED** (migration `063_drop_orphan_schema_drift.sql`, 2026-06-13)
+All held 0 non-null data (`meta_spotify_mapping` had 0 rows). Removed via migration
+(applied to prod; no-op on canonical). Current code unaffected.
 | Drift | Note |
 |---|---|
 | **table `meta_spotify_mapping`** | 0 code refs — superseded by `campaign_track_mapping`; drop on prod or leave as dead |
@@ -34,10 +36,16 @@ no longer drifts on these. `etl_daily_metrics` mirrors prod (PK id + UNIQUE(dag_
 | `youtube_videos.{view,like,comment}_count` | **orphans** — current code reads counts from `youtube_video_stats` (fixed PR #71). Safe to drop on prod |
 | `youtube_channels.title` | **orphan** — the DAG writes `channel_name`, not `title` (old column). Safe to drop on prod |
 
-## C. prod-MISSING (canonical declares, prod lacks) → low priority
+## C. prod-MISSING (canonical declares, prod lacks) → **✅ RESOLVED** (migration 063)
 | Drift | Note |
 |---|---|
-| `youtube_channels.id`, `youtube_videos.id` | prod tables predate the `SERIAL PRIMARY KEY`; they use `video_id`/`channel_id` UNIQUE. Functional, cosmetic only. Reconcile when convenient (add `id` on prod) or align canonical to drop the PK. |
+| `youtube_channels.id`, `youtube_videos.id` | added as `SERIAL` on prod (col-level parity). prod keeps `video_id`/`channel_id` as its PK — a benign constraint-only difference the column-level check doesn't flag. |
+
+## ✅ Final state (2026-06-13)
+`make schema-check` = **exit 0, prod schema == canonical** (916 cols / 91 tables both
+sides). Sections A (reconciled into canonical) + B/C (orphans dropped / id added on
+prod) all closed via migrations 062 + 063. Going forward: schema changes via
+migrations only; run `make schema-check` after any prod schema touch.
 
 ## Durable rule
 **Every schema change ships as `migrations/0NN.sql` (+ the matching `*_schema.py` /
