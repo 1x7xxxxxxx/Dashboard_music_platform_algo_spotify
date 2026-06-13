@@ -1926,3 +1926,49 @@ clean. Reste 2 vrais gaps non couverts par design : DoS (→ Cloudflare) et RCE 
 
 ### Reste
 **Ouvrir E1.** Optionnel : Cloudflare devant la prod (DoS + WAF + cache LCP), CSP via Caddy (P4).
+
+---
+
+## 2026-06-13 (suite 18) — Red-team authentifié (IDOR live, bug /kpis trouvé+fixé+déployé) + Cloudflare en cours
+
+Engagement red-team « dans la peau d'un attaquant » : identification de tous les vecteurs → exploitation →
+correctifs. Cadrage user : CF par token API scopé · tests intrusifs sur staging Docker local · IDOR via compte
+prod jetable · DoS = pas de flood, contrôle long-terme = Cloudflare.
+
+### Recon + statique (repo, sans app)
+- **pip-audit** sur `requirements.txt` → **0 CVE connue**. **bandit** → 0 HIGH ; 73 MEDIUM tous **B608** (f-string
+  SQL) = **faux positifs** (fragments constants + `%s` pour toutes les valeurs ; vérifié sur les routers API les
+  plus récents kpis/streams). **git history secret scan** → aucun secret live ; `config.yaml`/`.env`/`.mcp.json`
+  gitignored. **0 sink RCE** (`eval/exec/pickle/subprocess/shell`).
+- **Audit isolation/JWT/CORS** : data routers = `require_artist_scope` ; `/artists/me` self-derived ; `/artists`
+  `require_admin` ; JWT HS256 figé + `algorithms=[…]` (pas d'alg-confusion) + `exp` ; CORS origins allowlistées
+  (pas de `*`+credentials).
+
+### Live authentifié (compte de test créé en prod)
+Compte `redteam_qa` / `127bpmin@gmail.com` / `RedTeamQA2026!` (artist_id=9) **créé directement en DB prod** (vrai
+flux impossible sans accès à la boîte Gmail → INSERT via `pgcrypto crypt(... gen_salt('bf'))`, compatible
+`bcrypt.checkpw`). Tests login B :
+- **Isolation tenant** ✅ : B ne voit que ses données (vides), jamais celles de A (artist_id=1).
+- **IDOR** ✅ : `?artist_id=1`/`?aid=1` **ignorés** (scope dérivé du token, pas des params).
+- **Priv-esc** ✅ : `/artists` (admin) → **403**.
+
+### 🐛 Bug trouvé → fixé → déployé → vérifié : `/kpis` 500
+Le tenant vide a exposé un **HTTP 500 sur `/kpis` pour tous** (pas de stacktrace côté client, mais endpoint cassé).
+Root cause = **schema drift non répercuté sur le router Brick-14** : `youtube_video_stats."views"` (→ `view_count`)
+et `ml_song_predictions."score"` (colonne supprimée → `dw_probability`, comme `/ml/predictions`). Fix `kpis.py`,
+**5 requêtes KPI re-vérifiées live contre le schéma prod** (yt=158, sc=2223, ig=1557…). Mergé **PR #59** → `main`
+(`a07ed23`) → prod `git pull` + `docker compose up -d --build api dashboard` → **`/kpis` = 200** confirmé live.
+Déployé en même temps : emails i18n FR/EN + 48h fix + env-first schemas.
+
+### Transport (re-confirmé, cf. suite 17)
+MITM/TLS : TLS1.0/1.1 refusés, no-fallback, AEAD/FS, suite CVE complète **not vulnerable** ; seul flag BREACH (P4).
+
+### Cloudflare — activation EN COURS (bloquée ~24h sur DNSSEC)
+Compte CF + zone créés ; DNS records corrigés (A `api/app/apex/www`=**Proxied** ; `brevo1/2._domainkey`+`ftp`=
+**DNS only** — sinon DKIM cassé). **DNSSEC ON détecté** (DS `46609 RSASHA256…` au registre `.fr`) → désactivation
+lancée chez OVH (~24h). **Étape figée** : attendre DS=NONE avant de changer les NS (`huxley`/`sky.ns.cloudflare.com`),
+puis SSL Full(strict), puis token API → WAF + rate-limit + lock firewall origine + cert Origin CF. Détail complet
++ commandes de reprise : mémoire `project_security_cloudflare`.
+
+### Reste
+Reprendre Cloudflare quand DS=NONE (cf. mémoire) → puis phase staging local du red-team → **supprimer `redteam_qa`**.
