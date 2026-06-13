@@ -645,12 +645,13 @@ parked in `.claude/dev-docs/deployment.md` (out of current scope per user). Pric
     désormais (PR #54). ✅ **D. Auth** : tous les endpoints API → 401 sans token, token forgé → 401, webhook
     Stripe sans signature → 400 (fail-closed). **Note auth API** : `/auth/token` était inerte en prod (503) →
     rendu **fonctionnel** (auth DB `saas_users`, lockout partagé, 2FA refusé — PR #56) ; l'API est donc désormais
-    une vraie surface authentifiée (le tenant-scoping `require_artist_scope` PR #49 la protège). **RESTE** (mineur) :
-    (1) **test live lockout bruteforce 5/15min** — maintenant **faisable via l'API** (`POST /auth/token` 5× mauvais
-    mdp → attendu **429**, puis reset) au lieu du navigateur ; code en place (mig 017, testé) ; (2) **scan
-    client-side** (console/secrets) — MCP chrome-devtools **reconnecté** (fix `.mcp.json` : `--chromeArg` +
-    `--disable-dev-shm-usage`) → à lancer. Pas de CSP/Permissions-Policy (limite Streamlit, P4). **Gate 5
-    essentiellement levé** ; E1 déjà débloqué.
+    une vraie surface authentifiée (le tenant-scoping `require_artist_scope` PR #49 la protège).
+    ✅ **E. Lockout brute-force PROUVÉ en direct (2026-06-13)** via l'API : `POST /auth/token` ×6 mauvais mdp →
+    401 ×5 puis **429 (verrouillé)** au 6ᵉ (le 5ᵉ pose le verrou) → compteur reset. Verrou **partagé** dashboard↔API.
+    **RESTE (1 seul, mineur)** : **scan client-side** (console/secrets dans le JS) — le fix MCP `.mcp.json`
+    (`--chromeArg` + `--disable-dev-shm-usage`) exige un **vrai redémarrage de Claude Code** (le `/mcp` reconnect ne
+    relance pas le serveur avec les nouveaux args → Chrome crashe encore « Target closed »). Pas de
+    CSP/Permissions-Policy (limite Streamlit, P4). **Gate 5 quasi entièrement levé** ; E1 déjà débloqué.
   - ~~Phase 6 — Box B MT5~~ — **RETIRÉ 2026-06-13 : hors scope de streaMLytics** (projet trading MT5 séparé, traité ailleurs).
 
 ### E — Post-déploiement : beta privée → growth (séquencé, 2026-06-11)
