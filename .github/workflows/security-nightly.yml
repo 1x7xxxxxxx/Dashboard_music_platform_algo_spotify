@@ -29,9 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true   # observational — never fail the workflow
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run error-class audit (report to summary)
         run: |
@@ -72,12 +72,12 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true   # historical leaks triaged pre-prod, not here
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # gitleaks needs full history to scan all commits
 
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # gitleaks-action writes its own Job Summary + SARIF artifact.
