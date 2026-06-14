@@ -1,0 +1,40 @@
+name: Prod — Daily health check
+
+# External synthetic monitoring of the LIVE production app, THROUGH Cloudflare.
+# Catches edge/CF/cert/DNS/routing regressions that internal (on-box) checks miss
+# — e.g. the 2026-06-14 Bot Fight Mode 403 on the Stripe webhook — plus prod-only
+# schema drift on data endpoints (the /kpis & /youtube/videos 500 class) that CI,
+# running on the canonical schema, structurally cannot see.
+#
+# Unlike security-nightly.yml (observational, non-blocking), this is a real gate:
+# a failing probe makes the run RED, and GitHub emails the repo owner automatically.
+#
+# Layer A (liveness) needs no secrets. Layer B (authenticated data-endpoint probe)
+# logs in as a dedicated read-only service account; it self-skips if the two repo
+# secrets are absent, so forks / unconfigured runs stay green.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  prod-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install probe deps
+        run: pip install pytest requests
+
+      - name: Probe production endpoints (through Cloudflare)
+        env:
+          RUN_PROD_HEALTH: "1"
+          HEALTHCHECK_USER: ${{ secrets.HEALTHCHECK_USER }}
+          HEALTHCHECK_PASSWORD: ${{ secrets.HEALTHCHECK_PASSWORD }}
+        run: pytest tests/test_prod_health.py -v

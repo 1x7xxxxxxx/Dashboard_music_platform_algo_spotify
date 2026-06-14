@@ -6,7 +6,9 @@ Tasks:
   1. check_credentials_all  — detect missing credentials per artist/platform
   2. check_dag_failures      — query Airflow DB for recent failures + root cause
   3. check_data_freshness    — run freshness check on all sources
-  4. send_consolidated_alert — build and send one email with all findings
+  4. check_billing_sync      — Stripe subscriptions stuck / lapsed without sync
+  5. check_row_anomalies     — daily-insert spike vs trailing baseline (data poison)
+  6. send_consolidated_alert — build and send one email with all findings
 
 Implements bricks:
   A — consolidated alert_monitor DAG
@@ -285,6 +287,101 @@ def check_drift_anomalies(**context):
     return systemic
 
 
+# Daily-insert anomaly watch: (table, date_column). Hardcoded allowlist — never user
+# input, so the f-string interpolation below is safe (CLAUDE.md rule #8).
+ANOMALY_TABLES = [
+    ('youtube_video_stats', 'collected_at'),
+    ('soundcloud_tracks_daily', 'collected_at'),
+    ('meta_insights_performance_day', 'day_date'),
+    ('ml_song_predictions', 'prediction_date'),
+    ('s4a_song_timeline', 'date'),
+]
+
+
+def check_billing_sync(**context):
+    """Flag Stripe subscriptions stuck in a bad state or whose period lapsed without a
+    sync. Complements the external webhook-reachability probe: that one catches the edge
+    being blocked, this catches subscription drift that already slipped through.
+    """
+    from src.database.postgres_handler import PostgresHandler
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    issues = []
+    try:
+        rows = db.fetch_query(
+            """SELECT s.artist_id, COALESCE(a.name, '?') AS name, s.status,
+                      s.current_period_end
+               FROM artist_subscriptions s
+               LEFT JOIN saas_artists a ON a.id = s.artist_id
+               WHERE s.status IN ('past_due', 'incomplete', 'unpaid')
+                  OR (s.status = 'active' AND s.current_period_end IS NOT NULL
+                      AND s.current_period_end < NOW() - INTERVAL '3 days')
+               ORDER BY s.artist_id"""
+        )
+        for artist_id, name, status, period_end in (rows or []):
+            reason = (
+                f"statut '{status}'" if status != 'active'
+                else f"période expirée le {str(period_end)[:10]} sans sync (webhook manqué ?)"
+            )
+            issues.append({'artist_id': artist_id, 'artist_name': name,
+                           'status': status, 'reason': reason})
+            logger.warning(f"Billing sync issue: artist={name} (id={artist_id}) — {reason}")
+    finally:
+        db.close()
+
+    logger.info(f"Billing sync check: {len(issues)} issue(s)")
+    context['task_instance'].xcom_push(key='billing_issues', value=issues)
+    return issues
+
+
+def check_row_anomalies(**context):
+    """Flag a daily-insert SPIKE: the most recent day's row count > 10x the trailing
+    7-day average (with a meaningful absolute floor). A sudden 10x jump is usually a
+    double-run or data poison; freshness already covers the opposite (no recent data),
+    so this watches only the spike direction.
+    """
+    from src.database.postgres_handler import PostgresHandler
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    anomalies = []
+    try:
+        for table, col in ANOMALY_TABLES:
+            rows = db.fetch_query(
+                f"""WITH d AS (
+                        SELECT {col}::date AS day, count(*)::float AS c
+                        FROM {table} GROUP BY 1
+                    )
+                    SELECT (SELECT c FROM d ORDER BY day DESC LIMIT 1),
+                           (SELECT avg(c) FROM (SELECT c FROM d ORDER BY day DESC OFFSET 1 LIMIT 7) x),
+                           (SELECT max(day)::text FROM d)"""
+            )
+            if not rows or rows[0][0] is None:
+                continue
+            recent, baseline, day = rows[0]
+            if baseline and recent >= 100 and recent > 10 * baseline:
+                anomalies.append({'table': table, 'recent': int(recent),
+                                  'baseline': round(baseline, 1), 'day': day})
+                logger.warning(f"Row spike: {table} {int(recent)} on {day} vs ~{baseline:.0f}/day")
+    finally:
+        db.close()
+
+    logger.info(f"Row-anomaly check: {len(anomalies)} spike(s)")
+    context['task_instance'].xcom_push(key='row_anomalies', value=anomalies)
+    return anomalies
+
+
 # ─────────────────────────────────────────────────────────────────
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
@@ -299,9 +396,12 @@ def send_consolidated_alert(**context):
     missing_creds = ti.xcom_pull(task_ids='check_credentials_all', key='missing_credentials') or []
     sparks = ti.xcom_pull(task_ids='check_resurrection_sparks', key='resurrection_sparks') or []
     drift = ti.xcom_pull(task_ids='check_drift_anomalies', key='drift_anomalies') or []
+    billing_issues = ti.xcom_pull(task_ids='check_billing_sync', key='billing_issues') or []
+    row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
 
     stale_sources = [r for r in freshness if r['stale']]
-    has_issues = failing_dags or stale_sources or missing_creds or sparks or drift
+    has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
+                  or billing_issues or row_anomalies)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -453,6 +553,51 @@ def send_consolidated_alert(**context):
           sur la majorité des prédictions — vérifier le pipeline de features S4A.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
+    # Section: billing sync issues (revenue-critical)
+    if billing_issues:
+        rows = ''
+        for b in billing_issues:
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">
+                {b['artist_name']} <span style="color:#888">(id={b['artist_id']})</span>
+              </td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b">{b['reason']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#2980b9">
+                Stripe → Subscriptions + vérifier les webhooks récents
+              </td>
+            </tr>"""
+
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          💳 Abonnements à vérifier ({len(billing_issues)})
+        </h2>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead>
+            <tr style="background:#fdf3f3">
+              <th style="padding:8px 12px;text-align:left">Artiste</th>
+              <th style="padding:8px 12px;text-align:left">Problème</th>
+              <th style="padding:8px 12px;text-align:left">Action</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section: daily-insert spikes (data-poison / double-run)
+    if row_anomalies:
+        items = ''.join(
+            f"<li><b>{a['table']}</b> — {a['recent']} lignes le {a['day']} "
+            f"vs ~{a['baseline']:.0f}/j (×{a['recent'] / max(a['baseline'], 1):.0f})</li>"
+            for a in row_anomalies
+        )
+        sections.append(f"""
+        <h2 style="color:#e67e22;border-left:4px solid #e67e22;padding-left:10px">
+          📈 Pic d'insertion ({len(row_anomalies)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Volume journalier anormalement haut —
+          double run d'un DAG ou données corrompues ? Vérifier la collecte du jour.</p>
+        <ul style="font-size:0.9em">{items}</ul>""")
+
     # OK sources footer
     ok_sources = [r['source'] for r in freshness if not r['stale']]
     ok_line = ''
@@ -484,6 +629,10 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"✨ {len(sparks)} résurrection(s)")
     if drift:
         subject_parts.append(f"📉 {len(drift)} drift(s)")
+    if billing_issues:
+        subject_parts.append(f"💳 {len(billing_issues)} abonnement(s)")
+    if row_anomalies:
+        subject_parts.append(f"📈 {len(row_anomalies)} pic(s)")
 
     subject = ' | '.join(subject_parts)
     EmailAlert().send_alert(subject, body)
@@ -530,10 +679,21 @@ with DAG(
         python_callable=check_drift_anomalies,
     )
 
+    t_billing = PythonOperator(
+        task_id='check_billing_sync',
+        python_callable=check_billing_sync,
+    )
+
+    t_anomalies = PythonOperator(
+        task_id='check_row_anomalies',
+        python_callable=check_row_anomalies,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
         trigger_rule='all_done',
     )
 
-    [t_creds, t_failures, t_freshness, t_resurrection, t_drift] >> t_alert
+    [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
+     t_billing, t_anomalies] >> t_alert
