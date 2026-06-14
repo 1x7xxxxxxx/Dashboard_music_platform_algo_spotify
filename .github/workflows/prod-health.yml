@@ -30,7 +30,8 @@ jobs:
           cache: pip
 
       - name: Install probe deps
-        run: pip install pytest requests
+        # pandas is imported by tests/conftest.py (auto-loaded for any pytest run).
+        run: pip install pytest requests pandas
 
       - name: Probe production endpoints (through Cloudflare)
         env:
