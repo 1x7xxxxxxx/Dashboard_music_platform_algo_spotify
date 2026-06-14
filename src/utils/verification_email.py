@@ -147,8 +147,9 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
         <ol>{steps}</ol>
         <p style="text-align: center; margin: 30px 0;">
             <a href="{onboarding_url}"
-               style="background-color: #1DB954; color: white; padding: 14px 28px;
-                      text-decoration: none; border-radius: 6px; font-size: 16px;">
+               style="display: inline-block; background-color: #1DB954; color: white;
+                      padding: 14px 28px; text-decoration: none; border-radius: 6px;
+                      font-size: 16px; line-height: 1.4;">
                 {_tr('email.welcome.cta', "Configurer mon dashboard (2 min)", lang)}
             </a>
         </p>
@@ -256,8 +257,9 @@ def send_verification_email(to_email: str, username: str, token: str,
             "Cliquez sur le bouton ci-dessous pour vérifier votre adresse email et activer votre compte.", lang)}</p>
         <p style="text-align: center; margin: 30px 0;">
             <a href="{verify_url}"
-               style="background-color: #1DB954; color: white; padding: 14px 28px;
-                      text-decoration: none; border-radius: 6px; font-size: 16px;">
+               style="display: inline-block; background-color: #1DB954; color: white;
+                      padding: 14px 28px; text-decoration: none; border-radius: 6px;
+                      font-size: 16px; line-height: 1.4;">
                 {_tr('email.verify.button', "Vérifier mon email", lang)}
             </a>
         </p>
