@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit
+.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit deploy
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -64,6 +64,7 @@ audit:       ## Sweep ALL error-class signatures (heuristic, non-blocking) — d
 PROD_SSH  ?=
 PROD_PG   ?= postgres_spotify_airflow
 PROD_REPO ?= /opt/streamlytics
+SERVICE   ?= api dashboard
 
 schema-check: ## Diff PROD schema vs canonical (init_db.sql + migrations) — needs Docker + SSH to prod
 	@command -v docker >/dev/null 2>&1 || { echo "❌ docker required for the throwaway canonical DB."; exit 1; }
@@ -84,6 +85,10 @@ sync-check: schema-check ## Full repo↔prod sync: schema-drift (above) + deploy
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
 	@echo "▶ deploy-drift: $(PROD_REPO) HEAD vs origin/main…"
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && git fetch -q origin main && if [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ]; then echo "  ✅ deployed code == origin/main"; else echo "  ⚠ DEPLOY DRIFT: server HEAD != origin/main — run on prod: git pull --ff-only origin main && docker compose up -d --build api dashboard"; git -C $(PROD_REPO) log --oneline HEAD..origin/main | head -5; exit 1; fi'
+
+deploy:      ## Deploy origin/main to prod (pull --ff-only + --build + health). SERVICE="api dashboard"
+	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host (e.g. make deploy PROD_SSH=root@1.2.3.4 SERVICE=api)"; exit 1; }
+	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && bash tools/deploy.sh $(SERVICE)'
 
 dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
 	streamlit run src/dashboard/app.py
