@@ -77,7 +77,7 @@ jobs:
           fetch-depth: 0   # gitleaks needs full history to scan all commits
 
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # gitleaks-action writes its own Job Summary + SARIF artifact.
