@@ -101,38 +101,45 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
     name = filename.lower()
     cols = {c.lower().strip() for c in columns}
 
+    def has_any(*opts):
+        return any(o in cols for o in opts)
+
+    _STREAMS = ('streams', 'ecoutes', 'écoutes', 'stream count', 'streams count')
+
     # DistroKid — bank details ('sale month' + USD earnings is highly specific;
     # disambiguated from iMusician sales by 'store' vs 'shop')
     if 'sale month' in cols and 'earnings (usd)' in cols:
         return 'distrokid_sales'
 
     # iMusician — sales (ISRC + shop is highly specific)
-    if 'isrc' in cols and 'shop' in cols:
+    if 'isrc' in cols and has_any('shop', 'shop name'):
         return 'imusician_sales'
 
-    # iMusician — summary
-    if 'release title' in cols and 'track streams' in cols:
+    # iMusician — summary (release title + a revenue/streams column; aligned with the
+    # parser's required cols so a real export isn't rejected on a column rename)
+    if has_any('release title', 'release') and has_any('track streams', 'total revenue', 'revenue'):
         return 'imusician_summary'
 
-    # Apple Music
+    # Apple Music (unchanged — already flexible, and Benken's Apple import worked)
     if any(c in cols for c in ['morceau', 'song title']) and \
        any(c in cols for c in ['écoutes', 'plays', 'play count', 'lectures']):
         return 'apple'
 
-    # S4A audience (filename signal takes priority over column overlap with timeline)
-    if 'audience' in name and 'date' in cols and 'listeners' in cols:
+    # S4A audience (artist-level daily): listeners + date, no per-song column. The
+    # filename 'audience' token is now a tie-breaker, NOT a hard requirement.
+    if (('audience' in name) or has_any('listeners', 'auditeurs')) and \
+       'date' in cols and 'song' not in cols:
         return 's4a_audience'
 
-    # S4A songs-all (has release_date + saves at column level, or filename signal)
-    if ('songs-all' in name or 'songs_all' in name) and 'song' in cols:
-        return 's4a_songs_global'
-    if 'song' in cols and 'release_date' in cols and 'saves' in cols:
+    # S4A songs-all (per-song catalogue): 'song' + release_date (or filename signal).
+    if 'song' in cols and ('release_date' in cols or 'saves' in cols
+                           or 'songs-all' in name or 'songs_all' in name):
         return 's4a_songs_global'
 
-    # S4A per-song timeline (filename has -timeline, columns are just date + streams)
-    if ('timeline' in name or 'timeline' in name) and 'date' in cols and \
-       any(c in cols for c in ['streams', 'ecoutes', 'écoutes']) and \
-       'audience' not in name and 'song' not in cols:
+    # S4A per-song timeline: date + a streams column, no per-song column, not audience.
+    # Drops the former hard '-timeline' filename requirement (Benken's export had no such
+    # token → "type non reconnu"); the name is only used to exclude audience exports.
+    if 'date' in cols and has_any(*_STREAMS) and 'song' not in cols and 'audience' not in name:
         return 's4a'
 
     return None
@@ -291,18 +298,27 @@ def show():
                      'rows': [], 'error': None}
             try:
                 f.seek(0)
+                seen_cols = []
                 if f.name.lower().endswith(('.xlsx', '.xls')):
                     # Excel route (SACEM statement) — sheet-based detection, not CSV headers.
                     from src.transformers.sacem_parser import is_sacem_statement
                     f.seek(0)
                     platform_key = 'sacem' if is_sacem_statement(f) else None
                 else:
-                    platform_key = _detect_platform(f.name, _read_headers(f))
+                    f.seek(0)
+                    seen_cols = _read_headers(f)
+                    platform_key = _detect_platform(f.name, seen_cols)
 
                 if platform_key is None:
+                    # Echo the parsed header columns so a near-miss is diagnosable
+                    # ("colonnes vues: …") instead of a dead "type non reconnu".
                     entry['error'] = t(
                         "upload_csv.err_unknown_type",
                         "Type non reconnu — vérifiez le nom et les colonnes du fichier.")
+                    if seen_cols:
+                        entry['error'] += t(
+                            "upload_csv.err_unknown_cols",
+                            " Colonnes vues : {cols}").format(cols=", ".join(seen_cols[:12]))
                 else:
                     entry['platform_key'] = platform_key
                     entry['label'] = t(

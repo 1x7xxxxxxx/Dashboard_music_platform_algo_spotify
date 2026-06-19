@@ -6,6 +6,7 @@ Skips artists with no Meta credentials (WARNING log, no failure).
 Raises if the collector fails for an artist that has credentials.
 """
 import sys
+import os
 import logging
 
 sys.path.insert(0, '/opt/airflow')
@@ -46,15 +47,23 @@ def run_meta_api_collector(**context):
         logger.info("No active artists — skipping.")
         return
 
+    configured = 0
+    succeeded = 0
     errors = []
     for artist_id, artist_name in artists:
         creds = load_platform_credentials(artist_id, 'meta')
-        if not creds.get('access_token') or not creds.get('account_id'):
+        # Central model: the access_token is admin-owned (META_ACCESS_TOKEN env, shared
+        # System User app). The artist supplies only their account_id. Mirror the
+        # collector's env fallback here so an account-id-only artist is NOT skipped.
+        token = creds.get('access_token') or os.getenv('META_ACCESS_TOKEN')
+        if not token or not creds.get('account_id'):
             logger.warning(
-                f"Meta credentials missing for artist_id={artist_id} ({artist_name}) — skipping."
+                f"Meta not connected for artist_id={artist_id} ({artist_name}) "
+                "(no account_id, or shared token missing) — skipping."
             )
             continue
 
+        configured += 1
         logger.info(f"▶ Meta API collect — artist_id={artist_id} ({artist_name})")
         try:
             from src.utils.dag_run_logger import DagRunLogger
@@ -65,14 +74,24 @@ def run_meta_api_collector(**context):
                 collector = MetaAdsApiCollector(artist_id=artist_id)
                 total_rows = collector.run(full_history=full_history)
                 run_log.rows_inserted = total_rows or 0
+            succeeded += 1
             logger.info(f"  ✅ Done for {artist_name} ({total_rows} insight rows)")
         except Exception as e:
+            # Per-artist isolation: a not-shared ad account (Object does not exist /
+            # #200 permissions) must NOT poison the other tenants. Surface it loudly
+            # per-artist; the task fails below only if EVERY configured artist failed.
             logger.error(f"  ❌ Error for {artist_name}: {e}")
             errors.append(f"{artist_name} (id={artist_id}): {e}")
 
     if errors:
+        logger.warning(f"Meta: {len(errors)} artist(s) failed (isolated, continued): "
+                       + " | ".join(errors))
+
+    # Fail only if EVERY configured artist failed (admin-level signal), never on one tenant.
+    if configured > 0 and succeeded == 0:
         raise RuntimeError(
-            f"Meta API collect failed for {len(errors)} artist(s):\n" + "\n".join(errors)
+            f"Meta API collect failed for all {configured} configured artist(s):\n"
+            + "\n".join(errors)
         )
 
 

@@ -101,6 +101,7 @@ class YouTubeCollector:
             uploads_playlist_id = response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
 
             # Récupérer les vidéos de la playlist
+            from googleapiclient.errors import HttpError
             next_page_token = None
 
             while len(videos) < max_results:
@@ -110,7 +111,18 @@ class YouTubeCollector:
                     maxResults=min(50, max_results - len(videos)),
                     pageToken=next_page_token
                 )
-                response = request.execute()
+                try:
+                    response = request.execute()
+                except HttpError as he:
+                    # An empty channel (no public uploads) has a non-existent uploads
+                    # playlist → 404 playlistNotFound. That is a VALID state, not an
+                    # error: return 0 videos instead of raising (which previously failed
+                    # the whole multi-tenant DAG for a brand-new artist with no uploads).
+                    if getattr(he, 'resp', None) is not None and he.resp.status == 404 \
+                       and 'playlistNotFound' in str(he):
+                        logger.info(f"ℹ️ Chaîne {channel_id} sans vidéo publique (uploads vide) — 0 vidéo.")
+                        return videos
+                    raise
 
                 for item in response.get('items', []):
                     snippet = item['snippet']
