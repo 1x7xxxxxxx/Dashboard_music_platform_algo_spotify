@@ -31,6 +31,30 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from src.api.routers import auth, artists, streams, youtube, ml, kpis, stripe_webhook  # noqa: E402
 from src.api.security import install as install_security  # noqa: E402
 
+def _preflight() -> None:
+    """Fail loud in prod on weak/absent security-critical config — instead of silently
+    degrading (API_SECRET_KEY falls back to an EPHEMERAL key in auth.py, so JWTs die on
+    every restart / differ per worker). Warns by default so dev/test keep working; raises
+    only under API_STRICT_BOOT=1 (set in the prod compose). Mirrors the dashboard's
+    boot-time FERNET/AIRFLOW checks."""
+    import logging
+    problems = []
+    if len(os.getenv("API_SECRET_KEY", "")) < 32:
+        problems.append("API_SECRET_KEY missing or <32 chars — JWTs won't survive a "
+                        "restart / multi-worker (set `openssl rand -hex 32`)")
+    if not os.getenv("DATABASE_URL"):
+        problems.append("DATABASE_URL not set")
+    if not problems:
+        return
+    msg = "API startup preflight: " + "; ".join(problems)
+    if os.getenv("API_STRICT_BOOT"):
+        raise RuntimeError(msg + " — refusing to start (API_STRICT_BOOT=1).")
+    logging.getLogger("api.preflight").warning(
+        "⚠️ %s — set API_STRICT_BOOT=1 in prod to make this fatal.", msg)
+
+
+_preflight()
+
 # OpenAPI docs (/docs, /redoc) hand attackers the full API surface map — disabled by
 # default on a public deploy. Set API_ENABLE_DOCS=1 to re-enable (local dev).
 _docs_enabled = os.getenv("API_ENABLE_DOCS") == "1"
