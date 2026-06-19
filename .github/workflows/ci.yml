@@ -110,6 +110,9 @@ jobs:
           # AIRFLOW_PASSWORD is unset (anti unauthenticated-DAG-trigger guard).
           AIRFLOW_USERNAME: ci
           AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
+          # FERNET_KEY: src/dashboard/app.py raises at import if it's absent (credential-
+          # decryption boot guard); a valid throwaway key keeps the import-time tests green.
+          FERNET_KEY: Ggeni73PznXqdl3PyN7XlIyaM5K8fkVQFzddmVaLX58=  # pragma: allowlist secret
         # --cov-report=xml: for codecov-style downstream tooling.
         # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
         # No --cov-fail-under: measure first, gate later.
