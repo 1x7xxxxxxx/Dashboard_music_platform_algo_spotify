@@ -4,6 +4,8 @@ Type: Sub
 Uses: requests, streamlit
 Pure relocation from the former credentials.py — no logic change.
 """
+import os
+
 import requests
 import streamlit as st
 
@@ -11,11 +13,21 @@ from src.dashboard.utils.i18n import t
 
 
 def _test_spotify(fields: dict) -> tuple:
+    # Spotify uses the client_credentials flow on public catalog data, so a single
+    # admin-owned app serves every artist. The artist normally enters nothing: fall
+    # back to the app-level env (SPOTIFY_CLIENT_ID/SECRET), mirroring the collector's
+    # DB-then-env precedence. A stored per-artist override (if any) still wins.
+    client_id     = fields.get('client_id', '').strip() or os.getenv('SPOTIFY_CLIENT_ID', '')
+    client_secret = fields.get('client_secret', '').strip() or os.getenv('SPOTIFY_CLIENT_SECRET', '')
+    if not client_id or not client_secret:
+        return False, t("credentials.spotify.app_not_configured",
+                        "App Spotify non configurée côté plateforme "
+                        "(SPOTIFY_CLIENT_ID/SECRET) — contactez l'administrateur.")
     try:
         r = requests.post(
             'https://accounts.spotify.com/api/token',
             data={'grant_type': 'client_credentials'},
-            auth=(fields.get('client_id', ''), fields.get('client_secret', '')),
+            auth=(client_id, client_secret),
             timeout=10,
             allow_redirects=False,  # INFO-04: prevent open-redirect SSRF
         )

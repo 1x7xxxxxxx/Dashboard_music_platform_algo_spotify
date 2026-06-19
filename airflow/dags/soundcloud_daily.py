@@ -34,28 +34,43 @@ default_args = {
 
 
 def precheck_soundcloud_credentials(**context):
-    """Fail fast if client_id, client_secret or user_id is missing for any active artist."""
+    """Informational pre-check — never fails the fleet.
+
+    Central-app model: client_id/client_secret are admin-owned (shared env app); the
+    artist supplies only their user_id. An artist without a user_id simply hasn't
+    connected SoundCloud and must be SKIPPED, not block every other tenant. The actual
+    fail-if-all-failed decision lives in the collector (per-artist isolation).
+    """
     from src.utils.credential_loader import get_active_artists, load_platform_credentials
+
+    app_client_id = os.getenv('SOUNDCLOUD_CLIENT_ID')
+    app_client_secret = os.getenv('SOUNDCLOUD_CLIENT_SECRET')
 
     artists = get_active_artists()
     if not artists:
         logger.info("No active artists — skipping credential pre-check.")
         return
 
-    missing = []
+    configured, blocked = [], []
     for aid, name in artists:
         creds = load_platform_credentials(aid, 'soundcloud')
-        absent = [k for k in ('client_id', 'client_secret', 'user_id') if not creds.get(k)]
-        if absent:
-            missing.append(f"{name} (id={aid}) — champs manquants : {', '.join(absent)}")
+        user_id = creds.get('user_id')
+        client_id = creds.get('client_id') or app_client_id
+        client_secret = creds.get('client_secret') or app_client_secret
+        if not user_id:
+            continue  # not connected — skip silently
+        if client_id and client_secret:
+            configured.append(name)
+        else:
+            blocked.append(f"{name} (id={aid})")
 
-    if missing:
-        raise ValueError(
-            f"Credentials SoundCloud incomplets pour : {'; '.join(missing)}. "
-            "Action : Dashboard → Credentials → SoundCloud → saisir client_id, "
-            "client_secret et user_id (app créée sur soundcloud.com/you/apps)."
+    if blocked:
+        logger.warning(
+            "SoundCloud shared app not configured (SOUNDCLOUD_CLIENT_ID/SECRET) for "
+            f"artists with a user_id: {', '.join(blocked)} — admin action required."
         )
-    logger.info(f"✅ Credentials SoundCloud OK pour {len(artists)} artiste(s)")
+    logger.info(f"✅ SoundCloud config OK for {len(configured)}/{len(artists)} artist(s) "
+                f"(skipped {len(artists) - len(configured) - len(blocked)} not-connected).")
 
 
 def run_soundcloud_collector(**context):
@@ -76,17 +91,29 @@ def run_soundcloud_collector(**context):
         logger.info("Aucun artiste en DB — fallback env vars (artist_id=1)")
         artists = [(1, 'default')]
 
-    for artist_id, artist_name in artists:
-        logger.info(f"▶ SoundCloud collect — artist_id={artist_id} ({artist_name})")
+    configured = 0
+    succeeded = 0
+    per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort the fleet
 
-        # ── Credentials depuis DB, fallback env vars ───────────────────
+    for artist_id, artist_name in artists:
+        # ── Credentials depuis DB, fallback env vars (app partagée) ────
         creds = load_platform_credentials(artist_id, 'soundcloud')
         client_id     = creds.get('client_id')     or os.getenv('SOUNDCLOUD_CLIENT_ID')
         client_secret = creds.get('client_secret') or os.getenv('SOUNDCLOUD_CLIENT_SECRET')
         user_id       = creds.get('user_id')       or os.getenv('SOUNDCLOUD_USER_ID')
         refresh_token = creds.get('refresh_token') or os.getenv('SOUNDCLOUD_REFRESH_TOKEN')
-        logger.info("  credentials chargés (DB + env vars fallback)")
 
+        if not user_id:
+            logger.info(f"  {artist_name} (id={artist_id}) sans user_id SoundCloud — skip")
+            continue
+        if not client_id or not client_secret:
+            logger.warning(f"  {artist_name} (id={artist_id}) — app SoundCloud partagée non "
+                           "configurée (SOUNDCLOUD_CLIENT_ID/SECRET) — contacter admin ; skip")
+            per_artist_errors.append((artist_id, artist_name, "app credentials missing (admin)"))
+            continue
+
+        configured += 1
+        logger.info(f"▶ SoundCloud collect — artist_id={artist_id} ({artist_name})")
         try:
             collector = SoundCloudCollector(
                 artist_id=artist_id,
@@ -96,10 +123,26 @@ def run_soundcloud_collector(**context):
                 refresh_token=refresh_token,
             )
             collector.run()
+            succeeded += 1
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")
         except Exception as e:
+            # Per-artist isolation: the collector still raises (rule #6); the loop
+            # absorbs it per-tenant so a single failure can't blank the others.
             logger.error(f"  ❌ Erreur pour {artist_name} : {e}")
-            raise
+            per_artist_errors.append((artist_id, artist_name, str(e)[:200]))
+            continue
+
+    if per_artist_errors:
+        summary = '; '.join(f'{aid}/{name}: {err}' for aid, name, err in per_artist_errors)
+        logger.warning(f"SoundCloud: {len(per_artist_errors)} artiste(s) en échec (isolés) : {summary}")
+
+    # Fail the task only if EVERY configured artist failed (admin-level signal),
+    # never on a single bad tenant.
+    if configured > 0 and succeeded == 0:
+        raise ValueError(
+            "SoundCloud collection failed for every configured artist: "
+            + '; '.join(f'{aid}/{name}: {err}' for aid, name, err in per_artist_errors)
+        )
 
 
 with DAG(

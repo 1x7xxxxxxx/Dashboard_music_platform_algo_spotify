@@ -20,22 +20,26 @@ from ._platform_meta import _test_meta, _guide_meta
 PLATFORMS = {
     'spotify': {
         'label': '🎵 Spotify',
-        # Collector uses client_credentials only (spotify_api.py) — no
-        # redirect_uri / refresh_token needed (those were dormant + misleading).
+        # Central model: the client_credentials app is admin-owned (SPOTIFY_CLIENT_ID/
+        # SECRET env, one app serves all artists on public catalog data). The artist
+        # supplies ONLY their Spotify artist identity; client_id/secret remain as an
+        # optional per-artist override. spotify_artist_id is synced to
+        # saas_artists.spotify_artist_id on save (the per-tenant collection key).
         'fields': [
-            {'key': 'client_id',     'label': 'Client ID',     'secret': False},
-            {'key': 'client_secret', 'label': 'Client Secret', 'secret': True},
+            {'key': 'spotify_artist_id', 'label': 'Spotify Artist ID ou URL profil', 'secret': False},
+            {'key': 'client_id',     'label': 'Client ID (optionnel — admin)',     'secret': False},
+            {'key': 'client_secret', 'label': 'Client Secret (optionnel — admin)', 'secret': True},
         ],
     },
     'youtube': {
         'label': '🎬 YouTube',
-        # Collector uses a static Data-API key (youtube_collector.py
-        # developerKey) + channel_id — NOT OAuth. The old client_id/
-        # client_secret/refresh_token fields were dormant and made per-tenant
-        # config impossible (no api_key field at all).
+        # Central model: the Data-API key is admin-owned (YOUTUBE_API_KEY env, one Google
+        # Cloud key serves all artists). The artist supplies ONLY their Channel ID; api_key
+        # remains an optional per-artist override. The connection test validates the
+        # channel resolves (a bad UC… 404s the collector, not the key test).
         'fields': [
-            {'key': 'api_key',    'label': 'API Key (YouTube Data API v3)', 'secret': True},
-            {'key': 'channel_id', 'label': 'Channel ID (UC…)',             'secret': False},
+            {'key': 'channel_id', 'label': 'Channel ID (UC…)',                    'secret': False},
+            {'key': 'api_key',    'label': 'API Key (optionnel — admin)',         'secret': True},
         ],
     },
     'soundcloud': {

@@ -117,6 +117,10 @@ EN = {
     "credentials.save_error": "❌ Error while saving: {err}",
     # ── _platform_spotify.py ───────────────────────────────────────────
     "credentials.spotify.test_ok": "client_credentials token obtained ✅",
+    "credentials.spotify.app_not_configured": (
+        "Spotify app not configured on the platform side "
+        "(SPOTIFY_CLIENT_ID/SECRET) — contact the administrator."
+    ),
     "credentials.spotify.guide_title": "🎵 How to obtain Spotify credentials?",
     "credentials.spotify.guide_steps": (
         "1. Go to **[developers.spotify.com](https://developer.spotify.com/dashboard)** → Log in → **Create App**\n"
@@ -129,8 +133,15 @@ EN = {
         "renews itself on every run."
     ),
     # ── _platform_youtube.py ───────────────────────────────────────────
-    "credentials.youtube.test_key_required": "API Key required to test YouTube.",
+    "credentials.youtube.app_not_configured": (
+        "YouTube app not configured on the platform side "
+        "(YOUTUBE_API_KEY) — contact the administrator."
+    ),
     "credentials.youtube.test_ok": "API key valid ✅",
+    "credentials.youtube.channel_not_found": (
+        "Channel ID not found: “{cid}”. Make sure it starts with UC… "
+        "(channel Advanced settings)."
+    ),
     "credentials.youtube.guide_title": "🎬 How to obtain YouTube credentials?",
     "credentials.youtube.guide_steps": (
         "1. **[console.cloud.google.com](https://console.cloud.google.com)** → create/select a project\n"

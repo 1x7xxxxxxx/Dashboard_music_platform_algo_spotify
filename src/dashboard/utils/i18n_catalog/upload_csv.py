@@ -34,6 +34,7 @@ EN = {
     # Detection table
     "upload_csv.detection_header": "🔍 Detection — {n} file(s)",
     "upload_csv.err_unknown_type": "Unrecognized type — check the filename and the file columns.",
+    "upload_csv.err_unknown_cols": " Columns seen: {cols}",
     "upload_csv.err_no_valid_rows": "No valid rows detected after parsing.",
     "upload_csv.status_ready": "✅ Ready",
     "upload_csv.col_file": "File",
