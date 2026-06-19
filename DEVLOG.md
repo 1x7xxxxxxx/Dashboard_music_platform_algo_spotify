@@ -5,6 +5,46 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-06-19→20 — Benken onboarding incident → central-app model + hardening + readiness loop
+
+**Contexte** : 1er beta externe **Benken** (artist_id=12) — tous les tests credentials KO,
+tous les CSV sauf Apple KO. Diagnostiqué (SSH prod, lecture seule), corrigé, déployé. **9 PR
+mergées+déployées**, prod `fd6024e`, **587 tests + audit verts**.
+
+### Ce qui a changé
+- **Causes racines (prouvées en prod, pas devinées)** : (1) le conteneur **dashboard** n'avait
+  AUCUNE var env central-app → tous les tests de connexion échouaient ; (2) SoundCloud câblé dans
+  aucun service compose ; (3) **fleet-poisoning** — un tenant cassé (mauvais channel_id, creds
+  manquants) faisait échouer le DAG pour TOUS ; (4) Spotify collectait depuis une liste env
+  globale, pas par-tenant ; (5) détection CSV trop stricte.
+- **Modèle central-app complété** (#87/88/89) : admin = 1 app/plateforme (env), artiste = 1
+  identifiant ; câblage env dashboard corrigé + SoundCloud dans l'anchor ; isolation per-tenant
+  sur 10 sites DAG ; `load_dotenv` gardé (soundcloud+instagram) ; YouTube chaîne vide = 0 vidéo
+  (plus d'échec) ; Spotify par-tenant (`saas_artists.spotify_artist_id`).
+- **UX credentials** (#90) : ordre facile→difficile (SoundCloud 1er), statuts honnêtes (🟢 App
+  prête vs ✅ Connecté vs ⚪ À connecter), guides Spotify/YouTube réécrits (plus de localhost:8888).
+- **Durcissement** (#91/92/93) : `test_env_contract` (code-lit ⊆ service-déclare), préflights
+  boot dashboard(FERNET)/api(API_SECRET_KEY), `test_compose_parity` (a trouvé FERNET_KEY non
+  documenté), alerting **per-tenant freshness** + **escalation N jours consécutifs** dans
+  alert_monitor, ADR-006, `tools/{prod_introspect.sh,check_central_apps.py}`, 6 classes d'erreur.
+- **Boucle fermée readiness per-artiste** (#94/95) : `artist_readiness()` (identité + données qui
+  arrivent → 🟢🟡🔴⚪ + action exacte) + vue **🚦 Santé onboarding** (admin=tous / artiste=soi) +
+  flag `check_onboarding_readiness` dans alert_monitor + validation au connect Spotify (résout
+  l'artiste dans le form). Vérifié live : Benken meta=🔴 (compte non partagé) remonté auto.
+
+### À FAIRE (capturé pour la reprise)
+- **R13 — régénérer le token Meta System User** : cassé en prod (`EE…`, code-190 sur tout REST ;
+  le SDK survit sur fenêtres vides) → Meta/IG ne collecte plus. Vérifier `META_APP_ID/SECRET`.
+  Détecté par `tools/check_central_apps.py`.
+- **Prep pré-session Benken** : partage compte pub Meta `65390907` + bon channel YouTube (le
+  stocké `@benken50cl` a 0 vidéo) + saisir Spotify artist ID.
+- **R14** onboarding UX restant (plan Track 1), **R15** canary synthétique, **R16** filtre parké.
+- Plan complet : `.claude/plans/j-ai-fait-une-session-kind-turing.md` (Tracks 1/2/3).
+- Dependabot : #10 streamlit 1.58 mergé ; **#13 (airflow 3.x) et #4 (python 3.14) = majeurs,
+  laissés exprès** (revalidation supervisée requise).
+
+---
+
 ## 2026-03-27 — iMusician CSV import + DAG fixes + debug scripts
 
 ### Features
