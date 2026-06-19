@@ -184,6 +184,7 @@ _NAV_SECTIONS = [
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
+                                             ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -425,6 +426,7 @@ def _render_page(page):
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
     elif page == "process_guide": from views.process_guide import show; show()
+    elif page == "onboarding_health": from views.onboarding_health import show; show()
     elif page == "upload_csv": from views.upload_csv import show; show()
     elif page == "saisie_s4a": from views.saisie_s4a import show; show()
     elif page == "export_pdf": from views.export_pdf import show; show()

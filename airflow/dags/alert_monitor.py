@@ -413,6 +413,42 @@ def check_row_anomalies(**context):
     return anomalies
 
 
+def check_onboarding_readiness(**context):
+    """Flag any active artist CONNECTED to a platform but receiving NO data (the silent gap).
+
+    The per-artist closed loop: an artist who provided an identifier (channel_id, account_id…)
+    but whose platform produces 0 rows — Benken's empty YouTube channel, a not-shared Meta
+    account — becomes a RED flag with the exact next action, instead of staying invisible.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.credential_loader import get_active_artists
+    from src.utils.artist_readiness import readiness_red_flags
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    flags = []
+    try:
+        for aid, name in get_active_artists():
+            try:
+                for m in readiness_red_flags(db, aid):
+                    flags.append({'artist_id': aid, 'artist_name': name,
+                                  'platform': m['label'], 'next_action': m['next_action']})
+            except Exception as e:  # per-artist isolation
+                logger.error(f"Readiness check failed for {name} (id={aid}): {e}")
+                continue
+    finally:
+        db.close()
+
+    logger.info(f"Onboarding readiness: {len(flags)} connected-but-no-data flag(s)")
+    context['task_instance'].xcom_push(key='onboarding_red_flags', value=flags)
+    return flags
+
+
 # ─────────────────────────────────────────────────────────────────
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
@@ -430,10 +466,11 @@ def send_consolidated_alert(**context):
     billing_issues = ti.xcom_pull(task_ids='check_billing_sync', key='billing_issues') or []
     row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
     tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
+    readiness_flags = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_red_flags') or []
 
     stale_sources = [r for r in freshness if r['stale']]
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
-                  or billing_issues or row_anomalies or tenant_gaps)
+                  or billing_issues or row_anomalies or tenant_gaps or readiness_flags)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -534,6 +571,30 @@ def send_consolidated_alert(**context):
           <thead><tr style="background:#fdf3f2">
             <th style="padding:8px 12px;text-align:left">Artiste</th>
             <th style="padding:8px 12px;text-align:left">Sources stale</th>
+          </tr></thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section: onboarding readiness — connected to a platform but receiving NO data
+    if readiness_flags:
+        rows = ''
+        for f in readiness_flags:
+            rows += (
+                f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"<b>{f['artist_name']}</b> (id={f['artist_id']})</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#2980b9'>"
+                f"{f['next_action']}</td></tr>"
+            )
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          🔴 Connecté mais sans données ({len(readiness_flags)})
+        </h2>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead><tr style="background:#fdf3f2">
+            <th style="padding:8px 12px;text-align:left">Artiste</th>
+            <th style="padding:8px 12px;text-align:left">Plateforme</th>
+            <th style="padding:8px 12px;text-align:left">Action</th>
           </tr></thead>
           <tbody>{rows}</tbody>
         </table>""")
@@ -749,6 +810,11 @@ with DAG(
         python_callable=check_row_anomalies,
     )
 
+    t_readiness = PythonOperator(
+        task_id='check_onboarding_readiness',
+        python_callable=check_onboarding_readiness,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -756,4 +822,4 @@ with DAG(
     )
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
-     t_billing, t_anomalies] >> t_alert
+     t_billing, t_anomalies, t_readiness] >> t_alert
