@@ -83,7 +83,7 @@ def show():
                 "💡 **Aucun credential configuré.** "
                 "Sélectionnez une plateforme ci-dessous et suivez le guide "
                 "pour connecter vos sources de données. "
-                "Commencez par **Spotify** pour démarrer la collecte."
+                "Commencez par **SoundCloud** (le plus rapide : un seul identifiant)."
             ))
 
         st.markdown("---")

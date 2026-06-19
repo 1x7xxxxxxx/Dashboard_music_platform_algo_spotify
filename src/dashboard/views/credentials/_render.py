@@ -36,7 +36,6 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
         # App-level keys (env / config.yaml) count as configured too — the
         # collectors fall back to them, so a missing DB row is not "unconfigured".
         has_app_creds = app_level_configured(platform_key)
-        has_creds = has_db_creds or has_app_creds
         dags = PLATFORM_TO_DAGS.get(platform_key, [])
 
         # Last run state across all DAGs for this platform (worst state wins)
@@ -57,14 +56,19 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
             run_icon = '⚫'
             run_label = t("credentials.kpi.run_never", "Jamais exécuté")
 
-        creds_icon = '✅' if has_creds else '❌'
+        # Three honest states: only a per-artist row means "you connected your account".
+        # The shared platform app being present (env) is NOT "done" — it just means the
+        # artist can connect with a single identifier. Conflating the two made the page
+        # read "configured" when the artist had done nothing.
         if has_db_creds:
-            creds_label = t("credentials.kpi.connected", "Connecté")
+            creds_icon = '✅'
+            creds_label = t("credentials.kpi.connected", "Connecté — ton compte")
         elif has_app_creds:
-            creds_label = t("credentials.kpi.configured_platform_key",
-                            "Configuré (clé plateforme)")
+            creds_icon = '🟢'
+            creds_label = t("credentials.kpi.app_ready", "App prête — à connecter")
         else:
-            creds_label = t("credentials.kpi.not_configured", "Non configuré")
+            creds_icon = '⚪'
+            creds_label = t("credentials.kpi.not_configured", "À connecter")
 
         col.metric(
             label=platform_info['label'],

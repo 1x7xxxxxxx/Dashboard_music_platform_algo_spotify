@@ -22,7 +22,7 @@ EN = {
         "💡 **No credentials configured.** "
         "Select a platform below and follow the guide "
         "to connect your data sources. "
-        "Start with **Spotify** to begin collection."
+        "Start with **SoundCloud** (the quickest: a single identifier)."
     ),
     # ── _registry.py — field labels ────────────────────────────────────
     "credentials.field.client_id": "Client ID",
@@ -37,9 +37,9 @@ EN = {
     "credentials.kpi.run_ok": "Last run: OK",
     "credentials.kpi.run_unreachable": "Airflow unreachable",
     "credentials.kpi.run_never": "Never run",
-    "credentials.kpi.connected": "Connected",
-    "credentials.kpi.configured_platform_key": "Configured (platform key)",
-    "credentials.kpi.not_configured": "Not configured",
+    "credentials.kpi.connected": "Connected — your account",
+    "credentials.kpi.app_ready": "Shared app — to connect",
+    "credentials.kpi.not_configured": "To connect",
     # ── _render.py — DAG status badge ──────────────────────────────────
     "credentials.dag_badge": (
         "DAG `{dag_id}` — {icon} **{state}** — last run: {date}"
@@ -279,49 +279,41 @@ EN = {
     # ── credential_guides.py — Spotify guide ───────────────────────────
     "credentials.guide.spotify.expander": "{icon} {title} — obtain the credentials",
     "credentials.guide.spotify.intro": (
-        "You only have **2 values** to retrieve: the **Client ID** and the "
-        "**Client Secret**."
+        "**You don't have to create anything.** The Spotify app is managed by the "
+        "administrator (shared across all artists). You paste **one value**: the "
+        "**link to your Spotify Artist page**."
     ),
     "credentials.guide.spotify.step_1": (
-        "Go to developer.spotify.com/dashboard and log in with "
-        "your **usual Spotify account** (no paid account required)."
+        "Open **your artist page** on Spotify (app or open.spotify.com). Menu "
+        "**⋯ → Share → Copy link to artist**. You get a URL like "
+        "`https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4`."
     ),
-    "credentials.guide.spotify.step_2": "Click **Create app**.",
-    "credentials.guide.spotify.step_3": (
-        "Fill in: **App name** (e.g. `ETL Dashboard`), a **description**, "
-        "and **Redirect URI** = `http://127.0.0.1:8888/callback` (dummy value, "
-        "see the note below). Check **Web API**, then **Save**."
+    "credentials.guide.spotify.step_2": (
+        "Paste that link into **🔑 API Credentials → Spotify** (field *Spotify "
+        "Artist ID or URL*), then **Test connection**. We extract the ID "
+        "automatically — no need to split it."
     ),
-    "credentials.guide.spotify.step_4": (
-        "On the app page → **Settings / Basic Information**: copy the "
-        "**Client ID** and the **Client secret** (copy button ⧉)."
+    "credentials.guide.spotify.note_1": (
+        "paste the full URL of your artist page — we extract the ID"
     ),
-    "credentials.guide.spotify.step_4_caption": (
-        "Basic Information → Client ID + Client secret"
-    ),
-    "credentials.guide.spotify.step_5": (
-        "Paste the 2 values into **🔑 API Credentials → Spotify**, then "
-        "**Test connection**."
-    ),
-    "credentials.guide.spotify.note_1": "32 hexadecimal characters",
-    "credentials.guide.spotify.note_2": "32 characters — keep it private",
     "credentials.guide.spotify.note": (
-        "**Redirect URI**: return URL after an OAuth login. Our "
-        "`client_credentials` flow has no login → this URL is **never used**, "
-        "but Spotify requires you to enter at least one. Set "
-        "`http://127.0.0.1:8888/callback` and forget about it. The app stays in "
-        "**Development mode**, which is sufficient."
+        "**Admin (one-time)**: create an app on developer.spotify.com "
+        "(`client_credentials` flow, no Redirect URI used) and set "
+        "`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` as environment variables. "
+        "Artists then only paste their profile link."
     ),
     # ── credential_guides.py — YouTube guide ───────────────────────────
     "credentials.guide.youtube.expander": "{icon} {title} — obtain the credentials",
     "credentials.guide.youtube.intro": (
-        "**2 values** to retrieve: the **API key** (YouTube Data API v3) and your "
-        "**channel ID**."
+        "**Artist side: a single value — your Channel ID** (starts with `UC…`). "
+        "The API key is **shared (managed by the admin)**, you don't create one. "
+        "Jump straight to the **Channel ID** step below.\n\n"
+        "*(Steps 1→5 are admin-only, one-time, if they set up their own key.)*"
     ),
     "credentials.guide.youtube.step_1": (
-        "On [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
-        "create (or select) a project, then click **+ Enable APIs "
-        "and services**."
+        "**(Admin, once)** On [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
+        "**create a project first** (the *Enable APIs* button stays **greyed out "
+        "until a project exists**), then click **+ Enable APIs and services**."
     ),
     "credentials.guide.youtube.step_1_caption": "APIs and services → Enable APIs",
     "credentials.guide.youtube.step_2": (

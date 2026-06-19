@@ -68,36 +68,29 @@ _SPOTIFY = PlatformCred(
     title="Spotify",
     icon="🎵",
     intro=(
-        "Vous avez seulement **2 valeurs** à récupérer : le **Client ID** et le "
-        "**Client Secret**."
+        "**Tu n'as rien à créer.** L'app Spotify est gérée par l'administrateur "
+        "(partagée par tous les artistes). Tu colles **une seule valeur** : le **lien "
+        "de ta page Spotify Artist**."
     ),
-    portal_url="https://developer.spotify.com/dashboard",
+    portal_url="https://open.spotify.com",
     steps=(
-        CredStep("Allez sur developer.spotify.com/dashboard et connectez-vous avec "
-                 "votre **compte Spotify habituel** (pas besoin de compte payant)."),
-        CredStep("Cliquez sur **Create app**."),
-        CredStep("Renseignez : **App name** (ex. `ETL Dashboard`), une **description**, "
-                 "et **Redirect URI** = `http://127.0.0.1:8888/callback` (valeur bidon, "
-                 "voir la note plus bas). Cochez **Web API**, puis **Save**."),
-        CredStep("Sur la page de l'app → **Settings / Basic Information** : copiez le "
-                 "**Client ID** et le **Client secret** (bouton copier ⧉).",
-                 "spotify_4_developper_credential_process.png",
-                 "Basic Information → Client ID + Client secret"),
-        CredStep("Collez les 2 valeurs dans **🔑 Credentials API → Spotify**, puis "
-                 "**Tester la connexion**."),
+        CredStep("Ouvre **ta page artiste** sur Spotify (appli ou open.spotify.com). "
+                 "Menu **⋯ → Partager → Copier le lien vers l'artiste**. Tu obtiens "
+                 "une URL du type `https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4`."),
+        CredStep("Colle ce lien dans **🔑 Credentials API → Spotify** (champ *Spotify "
+                 "Artist ID ou URL*), puis **Tester la connexion**. On extrait l'ID "
+                 "automatiquement — pas besoin de le découper."),
     ),
     fields=(
-        CredField("Client ID", "3a9f1c7e8b2d4f60a1c5e9d3b7f02a6c",  # pragma: allowlist secret
-                  note="32 caractères hexadécimaux"),
-        CredField("Client Secret", "b7e2d9f04a1c6358e0a2b4c6d8e0f1a2", secret=True,  # pragma: allowlist secret
-                  note="32 caractères — gardez-le privé"),
+        CredField("Spotify Artist ID ou URL",
+                  "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
+                  note="colle l'URL complète de ta page artiste — on extrait l'ID"),
     ),
     note=(
-        "**Redirect URI** : URL de retour après un login OAuth. Notre flux "
-        "`client_credentials` n'a pas de login → cette URL **n'est jamais utilisée**, "
-        "mais Spotify exige d'en saisir au moins une. Mettez "
-        "`http://127.0.0.1:8888/callback` et n'y pensez plus. L'app reste en "
-        "**Development mode**, c'est suffisant."
+        "**Admin (une seule fois)** : créer une app sur developer.spotify.com (flux "
+        "`client_credentials`, aucune Redirect URI utilisée) et renseigner "
+        "`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` en variables d'environnement. "
+        "Les artistes n'ont alors qu'à coller le lien de leur profil."
     ),
 )
 
@@ -106,14 +99,18 @@ _YOUTUBE = PlatformCred(
     title="YouTube",
     icon="🎬",
     intro=(
-        "**2 valeurs** à récupérer : la **clé API** (YouTube Data API v3) et l'**ID "
-        "de votre chaîne**."
+        "**Côté artiste : une seule valeur — ton Channel ID** (commence par `UC…`). "
+        "La clé API est **partagée (gérée par l'admin)**, tu n'as pas à en créer. "
+        "Saute directement à l'étape **Channel ID** ci-dessous.\n\n"
+        "*(Les étapes 1→5 ne concernent que l'admin, une seule fois, s'il met en place "
+        "sa propre clé.)*"
     ),
     portal_url="https://console.cloud.google.com/apis/credentials",
     steps=(
-        CredStep("Sur [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
-                 "créez (ou sélectionnez) un projet, puis cliquez **+ Activer les API "
-                 "et les services**.",
+        CredStep("**(Admin, une fois)** Sur [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
+                 "**créez d'abord un projet** (le bouton *Activer les API* reste **grisé "
+                 "tant qu'aucun projet n'existe**), puis cliquez **+ Activer les API et "
+                 "les services**.",
                  "GCP_Api_services.png", "API et services → Activer les API"),
         CredStep("Dans la [Bibliothèque d'API](https://console.cloud.google.com/apis/library), "
                  "recherchez **YouTube Data API v3**.",
@@ -204,4 +201,4 @@ _META = PlatformCred(
     ),
 )
 
-CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (_SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META)
+CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (_SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META)
