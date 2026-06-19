@@ -116,7 +116,12 @@ EN = {
     "credentials.save_ok": "✅ {platform} credentials saved.",
     "credentials.save_error": "❌ Error while saving: {err}",
     # ── _platform_spotify.py ───────────────────────────────────────────
-    "credentials.spotify.test_ok": "client_credentials token obtained ✅",
+    "credentials.spotify.test_ok": "App OK ✅ — paste your Spotify Artist page URL to collect.",
+    "credentials.spotify.test_ok_artist": "Connected — artist “{name}” ✅",
+    "credentials.spotify.artist_not_found": (
+        "Spotify artist not found: “{aid}”. Paste your Spotify Artist page URL "
+        "(open.spotify.com/artist/…)."
+    ),
     "credentials.spotify.app_not_configured": (
         "Spotify app not configured on the platform side "
         "(SPOTIFY_CLIENT_ID/SECRET) — contact the administrator."
