@@ -230,11 +230,17 @@ def check_resurrection_sparks(**context):
             "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
         )
         for artist_id, name in (artists or []):
-            for s in detect_saves_resurrection(db, artist_id):
-                sparks.append({
-                    'artist_id': artist_id, 'artist_name': name, 'song': s['song'],
-                    'age_days': s['age_days'], 'recent_gain': s['recent_gain'],
-                })
+            # Per-artist isolation: one tenant's bad saves history must not abort the
+            # resurrection scan for the others (it would lose all alerting data).
+            try:
+                for s in detect_saves_resurrection(db, artist_id):
+                    sparks.append({
+                        'artist_id': artist_id, 'artist_name': name, 'song': s['song'],
+                        'age_days': s['age_days'], 'recent_gain': s['recent_gain'],
+                    })
+            except Exception as e:
+                logger.error(f"Resurrection scan failed for {name} (id={artist_id}): {e}")
+                continue
     finally:
         db.close()
 

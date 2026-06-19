@@ -16,7 +16,14 @@ from src.database.postgres_handler import PostgresHandler
 from src.utils.retry import retry
 from src.utils.meta_config import META_GRAPH_BASE_URL
 
-load_dotenv()
+# Local-dev convenience only: in containers the env is injected by docker-compose, and the
+# mounted /opt/airflow/.env is root-owned 600 (unreadable by the airflow uid) → load_dotenv()
+# would raise PermissionError at import and crash the collector. Same class as the SoundCloud
+# collector fix — a failed/absent .env must be a no-op, never fatal.
+try:
+    load_dotenv()
+except OSError as e:
+    logger.debug(f"load_dotenv skipped ({e}); relying on injected environment.")
 
 class InstagramCollector:
     def __init__(self, artist_id: int = 1):

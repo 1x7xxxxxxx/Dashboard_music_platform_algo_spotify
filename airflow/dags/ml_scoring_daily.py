@@ -59,31 +59,41 @@ def run_ml_scoring(**context):
             logger.warning("Aucun artiste actif trouvé — scoring ignoré")
             return
 
+        per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort scoring
         for artist_id, name in artists:
             logger.info(f"Scoring ML pour {name!r} (artist_id={artist_id})")
+            try:
+                rows = score_all_songs(db, artist_id)
+                if not rows:
+                    logger.info(f"  → Pas de données pour {name!r}")
+                    continue
 
-            rows = score_all_songs(db, artist_id)
-            if not rows:
-                logger.info(f"  → Pas de données pour {name!r}")
+                conflict_cols = ["artist_id", "song", "prediction_date", "model_version"]
+                update_cols = [
+                    "days_since_release", "streams_7d", "streams_28d",
+                    "dw_probability", "rr_probability", "radio_probability",
+                    "dw_streams_forecast_7d", "rr_streams_forecast_7d",
+                    "radio_streams_forecast_7d", "pi_forecast_7d",
+                    "features_json",
+                ]
+
+                db.upsert_many("ml_song_predictions", rows, conflict_cols, update_cols)
+                logger.info(f"  → {len(rows)} prédictions upsertées pour {name!r}")
+                total_inserted += len(rows)
+
+                # Historise the daily saves snapshot (feeds the resurrection radar).
+                saved = snapshot_saves(db, artist_id)
+                logger.info(f"  → {saved} snapshots saves historisés pour {name!r}")
+            except Exception as e:
+                logger.error(f"  → Scoring failed for {name!r} (artist_id={artist_id}): {e}")
+                per_artist_errors.append((artist_id, name, str(e)[:200]))
                 continue
 
-            conflict_cols = ["artist_id", "song", "prediction_date", "model_version"]
-            update_cols = [
-                "days_since_release", "streams_7d", "streams_28d",
-                "dw_probability", "rr_probability", "radio_probability",
-                "dw_streams_forecast_7d", "rr_streams_forecast_7d",
-                "radio_streams_forecast_7d", "pi_forecast_7d",
-                "features_json",
-            ]
-
-            db.upsert_many("ml_song_predictions", rows, conflict_cols, update_cols)
-            logger.info(f"  → {len(rows)} prédictions upsertées pour {name!r}")
-            total_inserted += len(rows)
-
-            # Historise the daily saves snapshot (feeds the resurrection radar).
-            saved = snapshot_saves(db, artist_id)
-            logger.info(f"  → {saved} snapshots saves historisés pour {name!r}")
-
+        if per_artist_errors and total_inserted == 0:
+            raise RuntimeError(
+                "ML scoring failed for every artist: "
+                + "; ".join(f"{aid}/{n}: {err}" for aid, n, err in per_artist_errors)
+            )
     finally:
         db.close()
 
