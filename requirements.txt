@@ -11,10 +11,10 @@ lime>=0.2.0
 # --- API Clients ---
 facebook-business==18.0.5
 spotipy==2.26.0
-google-api-python-client==2.196.0
+google-api-python-client==2.197.0
 
 # --- Dashboard (Local only - Docker les installera mais ne s'en servira pas) ---
-streamlit==1.57.0
+streamlit==1.58.0
 plotly==5.24.1
 watchdog==3.0.0
 weasyprint>=62.0
