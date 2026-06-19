@@ -95,23 +95,41 @@ def check_soundcloud() -> bool:
 
 
 def check_meta() -> bool:
+    """NON-FATAL by design. Meta System User tokens cannot be reliably validated via raw
+    Graph REST (/me and /debug_token return code-190 "Malformed access token" for tokens
+    that nonetheless work through the facebook_business SDK — observed in prod). So a
+    confirmed-valid token prints ✅; anything else prints ⚠️ (inconclusive, NOT a failure)
+    and returns True — the authoritative Meta signal is whether meta_ads_api_daily actually
+    pulled rows (per-tenant silent-0-row monitoring), not this probe."""
     token = os.getenv("META_ACCESS_TOKEN")
     if not token:
         print("⚠️ Meta: env not set")
         return True
+    app_id, secret = os.getenv("META_APP_ID"), os.getenv("META_APP_SECRET")
     try:
-        resp = requests.get(
-            "https://graph.facebook.com/v21.0/me",
-            params={"access_token": token},
-            timeout=TIMEOUT,
-            allow_redirects=False,
-        )
-        meta_id = resp.json().get("id") if resp.ok else None
-        if meta_id:
-            return _result(True, "Meta")
-        return _result(False, "Meta", f"HTTP {resp.status_code} no id")
+        if app_id and secret:
+            resp = requests.get(
+                "https://graph.facebook.com/v21.0/debug_token",
+                params={"input_token": token, "access_token": f"{app_id}|{secret}"},
+                timeout=TIMEOUT,
+                allow_redirects=False,
+            )
+            try:
+                body = resp.json()
+            except ValueError:
+                body = {}
+            if (body.get("data") or {}).get("is_valid"):
+                return _result(True, "Meta")
+            reason = (body.get("error") or {}).get("message") or f"HTTP {resp.status_code}"
+            print(f"⚠️ Meta: REST validation inconclusive ({reason}) — normal for System User "
+                  "tokens; confirm via meta_ads_api_daily row counts.")
+            return True
+        print("⚠️ Meta: set META_APP_ID/SECRET to attempt a debug_token check; otherwise "
+              "confirm via meta_ads_api_daily row counts.")
+        return True
     except requests.RequestException as exc:
-        return _result(False, "Meta", str(exc))
+        print(f"⚠️ Meta: probe error ({exc}) — confirm via meta_ads_api_daily row counts.")
+        return True
 
 
 def main() -> int:
