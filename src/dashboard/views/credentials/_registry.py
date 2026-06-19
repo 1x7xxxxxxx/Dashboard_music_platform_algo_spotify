@@ -17,7 +17,21 @@ from ._platform_meta import _test_meta, _guide_meta
 # 'secret': True  → stocké dans token_encrypted (Fernet-chiffré)
 # 'secret': False → stocké dans extra_config (JSONB, lisible)
 
+# Ordered easiest → hardest so a new artist starts where it's quickest (one identifier,
+# no third-party app). SoundCloud (user_id) → Spotify (profile URL) → YouTube (channel id)
+# → Meta (ad account + asset-sharing). This dict order drives the tabs (router.py) and the
+# global KPI (_render.py).
 PLATFORMS = {
+    'soundcloud': {
+        'label': '☁️ SoundCloud',
+        # Artist provides only their numeric user_id; the app credentials
+        # (client_id/client_secret) come from the shared env app, not per-artist.
+        # The optional OAuth real-likes path is an admin runbook (mint script),
+        # not exposed in the artist form.
+        'fields': [
+            {'key': 'user_id', 'label': 'User ID numérique (ex: 377065610)', 'secret': False},
+        ],
+    },
     'spotify': {
         'label': '🎵 Spotify',
         # Central model: the client_credentials app is admin-owned (SPOTIFY_CLIENT_ID/
@@ -40,16 +54,6 @@ PLATFORMS = {
         'fields': [
             {'key': 'channel_id', 'label': 'Channel ID (UC…)',                    'secret': False},
             {'key': 'api_key',    'label': 'API Key (optionnel — admin)',         'secret': True},
-        ],
-    },
-    'soundcloud': {
-        'label': '☁️ SoundCloud',
-        # Artist provides only their numeric user_id; the app credentials
-        # (client_id/client_secret) come from the shared env app, not per-artist.
-        # The optional OAuth real-likes path is an admin runbook (mint script),
-        # not exposed in the artist form.
-        'fields': [
-            {'key': 'user_id', 'label': 'User ID numérique (ex: 377065610)', 'secret': False},
         ],
     },
     'meta': {
