@@ -63,10 +63,22 @@ def run_outcome_labeling(**context):
         if not artists:
             logger.warning("Aucun artiste actif — outcome labelling ignoré")
             return
+        per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort labelling
         for artist_id, name in artists:
-            n = label_predictions(db, artist_id)
-            logger.info(f"  → {n} prédiction(s) labellisée(s) pour {name!r} (artist_id={artist_id})")
-            total += n
+            try:
+                n = label_predictions(db, artist_id)
+                logger.info(f"  → {n} prédiction(s) labellisée(s) pour {name!r} (artist_id={artist_id})")
+                total += n
+            except Exception as e:
+                logger.error(f"  → Labelling failed for {name!r} (artist_id={artist_id}): {e}")
+                per_artist_errors.append((artist_id, name, str(e)[:200]))
+                continue
+
+        if per_artist_errors and total == 0:
+            raise RuntimeError(
+                "Outcome labelling failed for every artist: "
+                + "; ".join(f"{aid}/{n}: {err}" for aid, n, err in per_artist_errors)
+            )
     finally:
         db.close()
     logger.info(f"Outcome labelling terminé — {total} nouveau(x) label(s) au total")

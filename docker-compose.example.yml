@@ -243,6 +243,12 @@ services:
       API_SECRET_KEY: ${API_SECRET_KEY}               # JWT signing (no ephemeral fallback in prod)
       CORS_ORIGINS: ${CORS_ORIGINS}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-}           # leave empty in prod (/docs + /redoc off)
+      # Brute-force / rate-limit posture (src/api/security.py). Without these the code
+      # falls back to in-file defaults — wire them so prod limits are explicit + tunable.
+      API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-120}
+      API_RATE_LIMIT_WINDOW_SECS: ${API_RATE_LIMIT_WINDOW_SECS:-60}
+      API_AUTH_RATE_LIMIT_MAX: ${API_AUTH_RATE_LIMIT_MAX:-10}
+      API_AUTH_RATE_LIMIT_WINDOW_SECS: ${API_AUTH_RATE_LIMIT_WINDOW_SECS:-300}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET} # webhook returns 503 if unset (intended)
       TZ: Europe/Paris
