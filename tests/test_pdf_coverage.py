@@ -57,6 +57,7 @@ _PDF_MAP = {
     # Deliberate exclusions (covered elsewhere or not report-shaped):
     "sacem":                None,   # small account-ledger; royalties already in the ROI section
     "saisie_s4a":           None,   # data-entry form, not a report
+    "onboarding_health":    None,   # ops/status matrix, not a report
     "meta_creatives":       None,   # creative-level detail, summarised by 'meta'
     "meta_cpr_optimizer":   None,   # interactive optimiser tool
 }
