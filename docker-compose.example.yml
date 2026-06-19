@@ -241,6 +241,7 @@ services:
       PORT: 8502                                      # match Caddy api.<domain> upstream
       DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/spotify_etl
       API_SECRET_KEY: ${API_SECRET_KEY}               # JWT signing (no ephemeral fallback in prod)
+      API_STRICT_BOOT: '1'                            # fail loud at boot on weak/absent API_SECRET_KEY / DATABASE_URL
       CORS_ORIGINS: ${CORS_ORIGINS}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-}           # leave empty in prod (/docs + /redoc off)
       # Brute-force / rate-limit posture (src/api/security.py). Without these the code
