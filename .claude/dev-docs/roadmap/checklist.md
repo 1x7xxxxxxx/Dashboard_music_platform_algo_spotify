@@ -25,10 +25,14 @@ Index concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion 
 | R10 | Splitter god-functions (+171 fonctions >40 l.) | P4 | DIFFÉRÉ — **au fil de l'eau**, jamais en sweep dédié |
 | R11 | Lazy imports (plotly/sklearn/shap → dans les fonctions) | P4 | DIFFÉRÉ — déclencheur : latence par-vue ressentie |
 | R12 | Index composite `s4a_song_timeline(artist_id, song, date)` | P4 | DIFFÉRÉ — déclencheur : ~10× le volume (≈140k l.) |
+| R13 | **Régénérer le token Meta System User (cassé en prod)** | P2 | **OPÉRATIONNEL** — Meta/IG ne collecte plus (token malformé `EE…`, code-190 sur tout REST ; SDK survit sur fenêtres vides). `tools/check_central_apps.py` le détecte. Vérifier aussi `META_APP_ID/SECRET`. |
+| R14 | Onboarding UX restant (Track 1) | P3 | détail plan `j-ai-fait-une-session-kind-turing.md` : guides A6/A7, polling collecte B2, **Meta multi-comptes C1** (brick), YouTube Topic finder D1, nav/first-run E, défs CSV F, graph PDF 30j G. PR #90 mergé+déployé (ordre A5, statuts B1, guides Spotify/YT A2/A3). |
+| R15 | Canary onboarding synthétique | P3 | Track 3 : tenant test → connect → trigger → vérif. Readiness loop + multi-tenant smoke couvrent déjà le gros des régressions ; besoin d'une décision « tenant seedé ». |
+| R16 | Filtre inutile à enlever (front) | P4 | PARKÉ — à ré-identifier lors d'une session UI live (date/release vs période 28j/12m). |
 
 ---
 
-## 🔖 REPRISE — état au 2026-06-13 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-06-20 (à lire EN PREMIER au `/resume`)
 
 **streaMLytics est EN PRODUCTION et lançable.** (détail : `[[project_production_deploy]]`, DEVLOG suites 7→14)
 
@@ -42,8 +46,10 @@ Index concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion 
 **▶️ Prochaines actions, dans l'ordre (MAJ suite 19c — Cloudflare ACTIF + durci) :**
 1. **✅ Cloudflare — ACTIF, PROXIFIE & DURCI (complet)** (détail `[[project_security_cloudflare]]`). Fait : zone active, NS Cloudflare, **SSL Full(strict)**, zone settings (min TLS 1.2 / Always HTTPS / Brotli / TLS 1.3), **rate-limit `/auth/token`** (10/10s), **firewall origine verrouillé** (ufw → IP CF only, vérifié), **Bot Fight Mode** ON, **cert Origin CF 15 ans** posé sur Caddy (plus de risque renouvellement, vérifié 2 edges). **RESTE (non bloquant)** : 🔑 **révoquer le token** `streamlytics-hardening` ; (optionnel) ré-activer DNSSEC via CF. ⚠️ vérifs prod **toujours via `curl --resolve host:443:<edge-CF-IP>`** (cache DNS local peut pointer l'IP origine firewallée → faux « down »).
 2. **✅ Red-team — COMPLET** (réseau + app + dashboard). Couvert & clean : MITM/TLS (CVE suite), brute-force, SQLi, deps (0 CVE), **isolation tenant/IDOR (prouvé live)**, priv-esc, JWT, CORS, secrets, XSS (escaping tient), **replay webhook Stripe** (signature + handlers idempotents + tolérance 5 min), upload path-traversal (filename = détection seulement), app-DoS (cap 50 Mo + bornes `le=1000` + Cloudflare). **Trouvé+fixé+déployé** : `/kpis` & `/youtube/videos` schema-drift 500 (suite 18/19b) ; **CSV/Excel formula injection sur export (CWE-1236, suite 20)** → `defang_formulas()` sur les 3 chemins d'export + test. Mineur restant : XSRF/cookies Streamlit = défaut framework (P4). Compte test `redteam_qa` **supprimé (clôturé suite 20)**. Classes cataloguées : `api-router-schema-drift`, `csv-formula-injection` (`error-classes.md`).
-3. **Ouvrir E1** — inviter 2-3 proches sur `streamlytics.fr` (tout le funnel + paiement live sont validés).
-4. *(optionnel)* Stripe : prix doublon **confirmé supprimé via API** (1 prix actif). *(i18n emails ✅ s16 ; env-first 11 `*_schema.py` ✅ s15 ; **`/kpis` 500 fixé+déployé ✅ s18**.)*
+3. **✅ E1 OUVERT** — 1er beta externe **Benken** (artist_id=12) onboardé 2026-06-15. A révélé une cascade per-tenant (tous les tests credentials KO, tous les CSV sauf Apple KO) → **diagnostiquée + corrigée + déployée** (voir session ci-dessous). 2e tenant **Cuzebo** (id=11) créé aussi.
+4. **▶️ ACTIONS RESTANTES** : **R13 régénérer le token Meta** (cassé en prod, Meta/IG ne collecte plus) ; **prep pré-session Benken** (partage compte pub Meta 65390907 + bon channel YouTube + Spotify artist ID) ; **R14 onboarding UX restant** (plan Track 1) ; refaire une session live avec Benken (tout doit marcher du 1er coup pour SoundCloud ✅/Apple ✅/YouTube/Spotify).
+
+*Session 2026-06-19→20 (Benken onboarding + durcissement) : **8 PR mergées+déployées** (prod `96554a2`, 587 tests verts). (1) **Modèle central-app complété** : admin = 1 app/plateforme, artiste = 1 identifiant ; câblage env dashboard manquant corrigé (cause #1 de l'échec Benken) ; SoundCloud env ajouté. (2) **Isolation per-tenant** sur 10 sites DAG (un tenant cassé ne casse plus toute la flotte) + garde-fou `test_dag_fleet_isolation`. (3) **load_dotenv** gardé (soundcloud+instagram). (4) **Détection CSV** élargie. (5) **UX credentials** : ordre facile→difficile, statuts honnêtes (App prête vs Connecté), guides Spotify/YT réécrits. (6) **Durcissement** : `test_env_contract` (code-lit ⊆ service-déclare), préflights boot dashboard/api, `test_compose_parity`, alerting per-tenant (freshness + escalation consécutive), ADR-006, `tools/{prod_introspect,check_central_apps}`, 6 classes d'erreur. (7) **Boucle fermée readiness per-artiste** : `artist_readiness()` + vue 🚦 Santé onboarding + flag alert_monitor — Benken meta=🔴 (compte non partagé) remonté auto. (8) **Validation au connect** Spotify (résout l'artiste dans le form). Plan complet : `.claude/plans/j-ai-fait-une-session-kind-turing.md` (Tracks 1/2/3).*
 
 *Session 2026-06-13 (suites 12→14) : Stripe live prouvé ; 4 bugs corrigés (nav login-bounce #46, date période #47, fuite fraîcheur Spotify #48, « Aucun DAG trouvé »/AirflowMonitor env-first #53) ; audit isolation tenant (#49 : `require_artist_scope` + P3) ; `/ml/predictions` réparé & P4 fermée (#50) ; cadence freshness #51 ; **Postgres-en-CI #52 (P3 fermée, render-smoke 39 vues en CI)** ; pentest A-D (#54 `/openapi.json` fermé) ; DAGs activés ; **API REST fonctionnelle en prod #56** ; analyse d'impact config/prod = classe « config.yaml absent » entièrement contenue sur le chemin runtime.*
 
@@ -292,6 +298,9 @@ Audit profond post-red-team (perf · correctness · supply-chain · tests · tec
 | 29 | Onboarding tracker — "Getting started" progress on home page (credentials, S4A CSV, Apple Music CSV, first data collection); shows green "configuration terminée" recap when complete (no longer auto-hidden — revised 2026-05-28) | ✅ | P3 |
 | 30 | Alerting dashboard — circuit breakers, freshness warnings, DAG failures, locked accounts, billing alerts | ✅ | P2 |
 | 31 | S4A dashboard view audit — per-track KPIs (listeners, saves) from s4a_songs_global; dual-window (28d/12m) support; DB health view; playlist placement manual entry; s4a_audience saves/playlist_adds columns | ✅ | P3 |
+| 32 | Benken onboarding incident — central-app credential model completed (admin app/platform, artist=identifier; dashboard env wiring fixed; SoundCloud wired); per-tenant DAG isolation (10 sites + `test_dag_fleet_isolation`); load_dotenv guard; CSV detection broadened; credentials UX (order, honest status, Spotify/YT guides). PRs #87-90 | ✅ | P1/P2 |
+| 33 | Post-incident hardening — `test_env_contract` + boot preflights + `test_compose_parity`; per-tenant freshness + consecutive-failure escalation in alert_monitor; ADR-006 central credential model; `tools/{prod_introspect,check_central_apps}`; 6 error classes. PRs #91-93 | ✅ | P2 |
+| 34 | Per-artist onboarding readiness closed loop — `artist_readiness()` (identity + data-landing per platform → status + next action); 🚦 Santé onboarding view (admin/artist); alert_monitor flag; connect-time Spotify identity validation. PRs #94-95 | ✅ | P2 |
 
 ---
 

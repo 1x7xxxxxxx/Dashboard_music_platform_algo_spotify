@@ -74,6 +74,22 @@ def _decrypt_secrets(token_encrypted: str) -> dict:
         return {}
 
 
+def extract_spotify_artist_id(value: str) -> str:
+    """Normalise a Spotify artist reference to its bare base-62 ID.
+
+    Accepts the raw ID, a profile URL (open.spotify.com/artist/<id>?...) or a URI
+    (spotify:artist:<id>). Returns '' if nothing usable is found.
+    """
+    import re
+    v = (value or '').strip()
+    if not v:
+        return ''
+    m = re.search(r'(?:artist[:/])([0-9A-Za-z]{22})', v)
+    if m:
+        return m.group(1)
+    return v if re.fullmatch(r'[0-9A-Za-z]{22}', v) else v
+
+
 def _mask(value: str, visible: int = 6) -> str:
     if not value or len(value) <= visible:
         return '***'
@@ -134,8 +150,10 @@ def _fetch_dag_last_states() -> dict:
 # the dashboard must NOT show '❌ Non configuré' when only the app-level path is
 # wired. Each entry: (env_var_names, config.yaml section key).
 _APP_LEVEL_CREDS = {
-    'spotify': (('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), 'spotify'),
-    'youtube': (('YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID'), 'youtube'),
+    'spotify':    (('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), 'spotify'),
+    'youtube':    (('YOUTUBE_API_KEY',), 'youtube'),
+    'soundcloud': (('SOUNDCLOUD_CLIENT_ID', 'SOUNDCLOUD_CLIENT_SECRET'), 'soundcloud'),
+    'meta':       (('META_ACCESS_TOKEN',), 'meta'),
 }
 
 # Placeholder values shipped in config.example.yaml — never count as configured.

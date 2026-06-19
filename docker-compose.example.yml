@@ -86,6 +86,12 @@ services:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
       YOUTUBE_CHANNEL_ID: ${YOUTUBE_CHANNEL_ID}
 
+      # SoundCloud — shared admin app (one app serves all artists; artist supplies
+      # only their user_id). Without these the soundcloud_daily collector + precheck
+      # report "app non configurée" and never collect.
+      SOUNDCLOUD_CLIENT_ID: ${SOUNDCLOUD_CLIENT_ID}
+      SOUNDCLOUD_CLIENT_SECRET: ${SOUNDCLOUD_CLIENT_SECRET}
+
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
@@ -181,6 +187,20 @@ services:
       AIRFLOW_BASE_URL: http://airflow-webserver:8080
       AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
       AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      # Central-app credentials — REQUIRED by the Credentials page: the connection
+      # tests + app_level_configured() run IN this container and fall back to these
+      # env vars when an artist leaves a field blank (the admin owns one app per
+      # platform). Without them, EVERY connection test fails ("contacter admin" /
+      # "clé non valide") even though the collectors (airflow containers) have them.
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      YOUTUBE_CHANNEL_ID: ${YOUTUBE_CHANNEL_ID}
+      SOUNDCLOUD_CLIENT_ID: ${SOUNDCLOUD_CLIENT_ID}
+      SOUNDCLOUD_CLIENT_SECRET: ${SOUNDCLOUD_CLIENT_SECRET}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
+      META_APP_ID: ${META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET}
       # Email (verification / alerts / digest). With a relay like Brevo, SMTP_USER is
       # the relay login and SMTP_FROM is the authenticated sender (noreply@<domain>).
       SMTP_HOST: ${SMTP_HOST}
@@ -221,8 +241,15 @@ services:
       PORT: 8502                                      # match Caddy api.<domain> upstream
       DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/spotify_etl
       API_SECRET_KEY: ${API_SECRET_KEY}               # JWT signing (no ephemeral fallback in prod)
+      API_STRICT_BOOT: '1'                            # fail loud at boot on weak/absent API_SECRET_KEY / DATABASE_URL
       CORS_ORIGINS: ${CORS_ORIGINS}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-}           # leave empty in prod (/docs + /redoc off)
+      # Brute-force / rate-limit posture (src/api/security.py). Without these the code
+      # falls back to in-file defaults — wire them so prod limits are explicit + tunable.
+      API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-120}
+      API_RATE_LIMIT_WINDOW_SECS: ${API_RATE_LIMIT_WINDOW_SECS:-60}
+      API_AUTH_RATE_LIMIT_MAX: ${API_AUTH_RATE_LIMIT_MAX:-10}
+      API_AUTH_RATE_LIMIT_WINDOW_SECS: ${API_AUTH_RATE_LIMIT_WINDOW_SECS:-300}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET} # webhook returns 503 if unset (intended)
       TZ: Europe/Paris

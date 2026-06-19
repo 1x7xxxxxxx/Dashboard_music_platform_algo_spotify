@@ -69,6 +69,7 @@ def collect_youtube_data(**context):
         results = []
         artists_with_creds = 0
         successful_fetches = 0
+        per_artist_errors = []  # multi-tenant isolation: one bad tenant must not abort the fleet
 
         for saas_artist_id, artist_name in artists:
             logger.info(f'YouTube collect — artist_id={saas_artist_id} ({artist_name})')
@@ -82,99 +83,115 @@ def collect_youtube_data(**context):
                 continue
 
             artists_with_creds += 1
-            collector = YouTubeCollector(api_key)
-            # 200 (not 50): older releases (e.g. a remix) get pushed past the 50 most-recent
-            # uploads by frequent content (DJ sets) and were never collected → unmappable.
-            data = collector.collect_all_data(channel_id=channel_id, max_videos=200, collect_comments=False)
+            try:
+                collector = YouTubeCollector(api_key)
+                # 200 (not 50): older releases (e.g. a remix) get pushed past the 50 most-recent
+                # uploads by frequent content (DJ sets) and were never collected → unmappable.
+                data = collector.collect_all_data(channel_id=channel_id, max_videos=200, collect_comments=False)
 
-            if data['channel_stats']:
-                successful_fetches += 1
-                channel_row = {**data['channel_stats'], 'artist_id': saas_artist_id}
-                db.upsert_many(
-                    table='youtube_channels',
-                    data=[channel_row],
-                    conflict_columns=['channel_id'],
-                    update_columns=[
-                        'artist_id', 'channel_name', 'description', 'subscriber_count',
-                        'video_count', 'view_count', 'thumbnail_url', 'country', 'collected_at'
-                    ]
-                )
-
-                db.execute_query(
-                    """
-                    INSERT INTO youtube_channel_history
-                    (artist_id, channel_id, subscriber_count, video_count, view_count, collected_at)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (artist_id, channel_id, (collected_at::date))
-                    DO UPDATE SET
-                        subscriber_count = EXCLUDED.subscriber_count,
-                        video_count = EXCLUDED.video_count,
-                        view_count = EXCLUDED.view_count,
-                        collected_at = EXCLUDED.collected_at
-                    """,
-                    (
-                        saas_artist_id,
-                        data['channel_stats']['channel_id'],
-                        data['channel_stats']['subscriber_count'],
-                        data['channel_stats']['video_count'],
-                        data['channel_stats']['view_count'],
-                        data['channel_stats']['collected_at'],
+                if data['channel_stats']:
+                    successful_fetches += 1
+                    channel_row = {**data['channel_stats'], 'artist_id': saas_artist_id}
+                    db.upsert_many(
+                        table='youtube_channels',
+                        data=[channel_row],
+                        conflict_columns=['channel_id'],
+                        update_columns=[
+                            'artist_id', 'channel_name', 'description', 'subscriber_count',
+                            'video_count', 'view_count', 'thumbnail_url', 'country', 'collected_at'
+                        ]
                     )
-                )
-                logger.info('  Channel + history stored')
 
-            if data['videos']:
-                videos_with_artist = [{**v, 'artist_id': saas_artist_id} for v in data['videos']]
-                db.upsert_many(
-                    table='youtube_videos',
-                    data=videos_with_artist,
-                    conflict_columns=['video_id'],
-                    update_columns=['artist_id', 'title', 'description', 'thumbnail_url', 'collected_at']
-                )
-                logger.info(f'  {len(data["videos"])} videos stored')
-
-            if data['video_stats']:
-                stats_rows = [
-                    {
-                        'artist_id': saas_artist_id,
-                        'video_id': stat['video_id'],
-                        'view_count': stat['view_count'],
-                        'like_count': stat['like_count'],
-                        'comment_count': stat['comment_count'],
-                        'favorite_count': stat['favorite_count'],
-                        'collected_at': stat['collected_at'],
-                    }
-                    for stat in data['video_stats']
-                ]
-                db.upsert_many(
-                    table='youtube_video_stats',
-                    data=stats_rows,
-                    conflict_columns=['artist_id', 'video_id', '(collected_at::date)'],
-                    update_columns=['view_count', 'like_count', 'comment_count', 'favorite_count', 'collected_at']
-                )
-                for stat in data['video_stats']:
                     db.execute_query(
-                        "UPDATE youtube_videos SET duration = %s, definition = %s WHERE video_id = %s",
-                        (stat.get('duration'), stat.get('definition'), stat['video_id'])
+                        """
+                        INSERT INTO youtube_channel_history
+                        (artist_id, channel_id, subscriber_count, video_count, view_count, collected_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (artist_id, channel_id, (collected_at::date))
+                        DO UPDATE SET
+                            subscriber_count = EXCLUDED.subscriber_count,
+                            video_count = EXCLUDED.video_count,
+                            view_count = EXCLUDED.view_count,
+                            collected_at = EXCLUDED.collected_at
+                        """,
+                        (
+                            saas_artist_id,
+                            data['channel_stats']['channel_id'],
+                            data['channel_stats']['subscriber_count'],
+                            data['channel_stats']['video_count'],
+                            data['channel_stats']['view_count'],
+                            data['channel_stats']['collected_at'],
+                        )
                     )
-                logger.info(f'  {len(data["video_stats"])} video stats stored')
+                    logger.info('  Channel + history stored')
 
-            if data['comments']:
-                db.upsert_many(
-                    table='youtube_comments',
-                    data=data['comments'],
-                    conflict_columns=['comment_id'],
-                    update_columns=['like_count', 'collected_at']
-                )
+                if data['videos']:
+                    videos_with_artist = [{**v, 'artist_id': saas_artist_id} for v in data['videos']]
+                    db.upsert_many(
+                        table='youtube_videos',
+                        data=videos_with_artist,
+                        conflict_columns=['video_id'],
+                        update_columns=['artist_id', 'title', 'description', 'thumbnail_url', 'collected_at']
+                    )
+                    logger.info(f'  {len(data["videos"])} videos stored')
 
-            results.append({'artist': artist_name, 'videos': len(data['videos'])})
+                if data['video_stats']:
+                    stats_rows = [
+                        {
+                            'artist_id': saas_artist_id,
+                            'video_id': stat['video_id'],
+                            'view_count': stat['view_count'],
+                            'like_count': stat['like_count'],
+                            'comment_count': stat['comment_count'],
+                            'favorite_count': stat['favorite_count'],
+                            'collected_at': stat['collected_at'],
+                        }
+                        for stat in data['video_stats']
+                    ]
+                    db.upsert_many(
+                        table='youtube_video_stats',
+                        data=stats_rows,
+                        conflict_columns=['artist_id', 'video_id', '(collected_at::date)'],
+                        update_columns=['view_count', 'like_count', 'comment_count', 'favorite_count', 'collected_at']
+                    )
+                    for stat in data['video_stats']:
+                        db.execute_query(
+                            "UPDATE youtube_videos SET duration = %s, definition = %s WHERE video_id = %s",
+                            (stat.get('duration'), stat.get('definition'), stat['video_id'])
+                        )
+                    logger.info(f'  {len(data["video_stats"])} video stats stored')
+
+                if data['comments']:
+                    db.upsert_many(
+                        table='youtube_comments',
+                        data=data['comments'],
+                        conflict_columns=['comment_id'],
+                        update_columns=['like_count', 'collected_at']
+                    )
+
+                results.append({'artist': artist_name, 'videos': len(data['videos'])})
+            except Exception as e:
+                # Per-artist isolation: a bad channel_id (404 playlistNotFound) or a
+                # per-tenant API error must NOT abort collection for the other artists.
+                # The collector still raises (project rule #6); the DAG loop absorbs it
+                # per-tenant and the task fails below only if EVERY artist failed.
+                logger.error(f'  YouTube collect failed for artist_id={saas_artist_id} ({artist_name}): {e}')
+                per_artist_errors.append((saas_artist_id, artist_name, str(e)[:200]))
+                continue
 
         db.close()
 
+        if per_artist_errors:
+            summary = '; '.join(f'{aid}/{name}: {err}' for aid, name, err in per_artist_errors)
+            logger.warning(f'YouTube: {len(per_artist_errors)} artist(s) failed (isolated, continued): {summary}')
+
+        # Fail the task only if EVERY configured artist failed — a single healthy tenant
+        # keeps the run green so one broken channel can't blank the whole fleet's data.
         if artists_with_creds > 0 and successful_fetches == 0:
             raise ValueError(
                 f"YouTube API returned no channel data for any of the {artists_with_creds} "
-                "configured artist(s). Check API key validity and channel IDs."
+                f"configured artist(s). Per-artist errors: "
+                + '; '.join(f'{aid}/{name}: {err}' for aid, name, err in per_artist_errors)
             )
 
         logger.info('YouTube collect done')

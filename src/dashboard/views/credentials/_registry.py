@@ -17,27 +17,11 @@ from ._platform_meta import _test_meta, _guide_meta
 # 'secret': True  → stocké dans token_encrypted (Fernet-chiffré)
 # 'secret': False → stocké dans extra_config (JSONB, lisible)
 
+# Ordered easiest → hardest so a new artist starts where it's quickest (one identifier,
+# no third-party app). SoundCloud (user_id) → Spotify (profile URL) → YouTube (channel id)
+# → Meta (ad account + asset-sharing). This dict order drives the tabs (router.py) and the
+# global KPI (_render.py).
 PLATFORMS = {
-    'spotify': {
-        'label': '🎵 Spotify',
-        # Collector uses client_credentials only (spotify_api.py) — no
-        # redirect_uri / refresh_token needed (those were dormant + misleading).
-        'fields': [
-            {'key': 'client_id',     'label': 'Client ID',     'secret': False},
-            {'key': 'client_secret', 'label': 'Client Secret', 'secret': True},
-        ],
-    },
-    'youtube': {
-        'label': '🎬 YouTube',
-        # Collector uses a static Data-API key (youtube_collector.py
-        # developerKey) + channel_id — NOT OAuth. The old client_id/
-        # client_secret/refresh_token fields were dormant and made per-tenant
-        # config impossible (no api_key field at all).
-        'fields': [
-            {'key': 'api_key',    'label': 'API Key (YouTube Data API v3)', 'secret': True},
-            {'key': 'channel_id', 'label': 'Channel ID (UC…)',             'secret': False},
-        ],
-    },
     'soundcloud': {
         'label': '☁️ SoundCloud',
         # Artist provides only their numeric user_id; the app credentials
@@ -46,6 +30,30 @@ PLATFORMS = {
         # not exposed in the artist form.
         'fields': [
             {'key': 'user_id', 'label': 'User ID numérique (ex: 377065610)', 'secret': False},
+        ],
+    },
+    'spotify': {
+        'label': '🎵 Spotify',
+        # Central model: the client_credentials app is admin-owned (SPOTIFY_CLIENT_ID/
+        # SECRET env, one app serves all artists on public catalog data). The artist
+        # supplies ONLY their Spotify artist identity; client_id/secret remain as an
+        # optional per-artist override. spotify_artist_id is synced to
+        # saas_artists.spotify_artist_id on save (the per-tenant collection key).
+        'fields': [
+            {'key': 'spotify_artist_id', 'label': 'Spotify Artist ID ou URL profil', 'secret': False},
+            {'key': 'client_id',     'label': 'Client ID (optionnel — admin)',     'secret': False},
+            {'key': 'client_secret', 'label': 'Client Secret (optionnel — admin)', 'secret': True},
+        ],
+    },
+    'youtube': {
+        'label': '🎬 YouTube',
+        # Central model: the Data-API key is admin-owned (YOUTUBE_API_KEY env, one Google
+        # Cloud key serves all artists). The artist supplies ONLY their Channel ID; api_key
+        # remains an optional per-artist override. The connection test validates the
+        # channel resolves (a bad UC… 404s the collector, not the key test).
+        'fields': [
+            {'key': 'channel_id', 'label': 'Channel ID (UC…)',                    'secret': False},
+            {'key': 'api_key',    'label': 'API Key (optionnel — admin)',         'secret': True},
         ],
     },
     'meta': {

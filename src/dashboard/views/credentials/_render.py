@@ -22,6 +22,7 @@ from ._core import (
     _mask,
     _save_credentials,
     app_level_configured,
+    extract_spotify_artist_id,
 )
 from ._registry import PLATFORMS, CONNECTION_TESTS
 from src.dashboard.content.credential_guides_st import render_credential_guide_for
@@ -35,7 +36,6 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
         # App-level keys (env / config.yaml) count as configured too — the
         # collectors fall back to them, so a missing DB row is not "unconfigured".
         has_app_creds = app_level_configured(platform_key)
-        has_creds = has_db_creds or has_app_creds
         dags = PLATFORM_TO_DAGS.get(platform_key, [])
 
         # Last run state across all DAGs for this platform (worst state wins)
@@ -56,14 +56,19 @@ def _render_global_kpi(existing: dict, dag_states: dict) -> None:
             run_icon = '⚫'
             run_label = t("credentials.kpi.run_never", "Jamais exécuté")
 
-        creds_icon = '✅' if has_creds else '❌'
+        # Three honest states: only a per-artist row means "you connected your account".
+        # The shared platform app being present (env) is NOT "done" — it just means the
+        # artist can connect with a single identifier. Conflating the two made the page
+        # read "configured" when the artist had done nothing.
         if has_db_creds:
-            creds_label = t("credentials.kpi.connected", "Connecté")
+            creds_icon = '✅'
+            creds_label = t("credentials.kpi.connected", "Connecté — ton compte")
         elif has_app_creds:
-            creds_label = t("credentials.kpi.configured_platform_key",
-                            "Configuré (clé plateforme)")
+            creds_icon = '🟢'
+            creds_label = t("credentials.kpi.app_ready", "App prête — à connecter")
         else:
-            creds_label = t("credentials.kpi.not_configured", "Non configuré")
+            creds_icon = '⚪'
+            creds_label = t("credentials.kpi.not_configured", "À connecter")
 
         col.metric(
             label=platform_info['label'],
@@ -304,8 +309,22 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             else:
                 extra[key] = new_val
 
+        # Spotify: the artist supplies their profile URL/ID — normalise it and sync to
+        # saas_artists.spotify_artist_id, the per-tenant key both spotify_api_daily
+        # (collection list) and the track→tenant bridge read. Store the bare ID back in
+        # extra_config too so the form round-trips the normalised value.
+        if platform_key == 'spotify':
+            sp_id = extract_spotify_artist_id(extra.get('spotify_artist_id', ''))
+            extra['spotify_artist_id'] = sp_id
+
         encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
         _save_credentials(db, artist_id, platform_key, encrypted_blob, extra)
+
+        if platform_key == 'spotify':
+            db.execute_query(
+                "UPDATE saas_artists SET spotify_artist_id = %s WHERE id = %s",
+                (extra.get('spotify_artist_id') or None, artist_id),
+            )
 
         # Auto-populate expires_at for Meta tokens so the weekly refresh DAG
         # and proactive refresh in the collector can function without manual input.
@@ -346,10 +365,17 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             try:
                 import os
                 from src.utils.airflow_trigger import AirflowTrigger
+                # Accept either env naming: the dashboard container exposes the Airflow
+                # admin creds as AIRFLOW_USERNAME/AIRFLOW_PASSWORD (docker-compose), while
+                # AIRFLOW_ADMIN_* is the .env name. A hard os.environ[...] on the wrong
+                # name silently broke every post-save auto-trigger ("credentials OK but
+                # no data"). Read both; never KeyError.
                 trigger = AirflowTrigger(
                     base_url=os.getenv('AIRFLOW_BASE_URL', 'http://localhost:8080'),
-                    username=os.getenv('AIRFLOW_ADMIN_USERNAME', 'admin'),
-                    password=os.environ['AIRFLOW_ADMIN_PASSWORD'],
+                    username=(os.getenv('AIRFLOW_ADMIN_USERNAME')
+                              or os.getenv('AIRFLOW_USERNAME', 'admin')),
+                    password=(os.getenv('AIRFLOW_ADMIN_PASSWORD')
+                              or os.getenv('AIRFLOW_PASSWORD', '')),
                 )
                 result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})
                 if result.get('success'):

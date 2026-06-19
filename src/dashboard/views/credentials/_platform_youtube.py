@@ -4,6 +4,8 @@ Type: Sub
 Uses: requests, streamlit
 Pure relocation from the former credentials.py — no logic change.
 """
+import os
+
 import requests
 import streamlit as st
 
@@ -13,11 +15,14 @@ from src.dashboard.utils.i18n import t
 def _test_youtube(fields: dict) -> tuple:
     # Validate the Data-API key the collector actually uses (developerKey),
     # via a key-only endpoint (no channel needed). i18nLanguages is the
-    # cheapest read that exercises the key.
-    api_key = fields.get('api_key', '')
+    # cheapest read that exercises the key. The key is admin-owned (one Google
+    # Cloud key serves all artists): fall back to the app-level env when the
+    # artist leaves it blank, mirroring the collector's DB-then-env precedence.
+    api_key = fields.get('api_key', '').strip() or os.getenv('YOUTUBE_API_KEY', '')
     if not api_key:
-        return False, t("credentials.youtube.test_key_required",
-                        "API Key requise pour tester YouTube.")
+        return False, t("credentials.youtube.app_not_configured",
+                        "App YouTube non configurée côté plateforme "
+                        "(YOUTUBE_API_KEY) — contactez l'administrateur.")
     try:
         r = requests.get(
             'https://www.googleapis.com/youtube/v3/i18nLanguages',
@@ -26,10 +31,27 @@ def _test_youtube(fields: dict) -> tuple:
             allow_redirects=False,  # INFO-04
         )
         data = r.json()
-        if r.status_code == 200 and data.get('items'):
-            return True, t("credentials.youtube.test_ok", "Clé API valide ✅")
-        err = data.get('error', {})
-        return False, err.get('message', r.text[:150]) if isinstance(err, dict) else str(err)
+        if not (r.status_code == 200 and data.get('items')):
+            err = data.get('error', {})
+            return False, err.get('message', r.text[:150]) if isinstance(err, dict) else str(err)
+
+        # Key is valid — now validate the Channel ID actually resolves. A wrong/empty
+        # channel passes the key test but 404s the collector (uploads playlist UC→UU
+        # "playlistNotFound") — exactly Benken's failure. Catch it here, in the form.
+        channel_id = fields.get('channel_id', '').strip()
+        if channel_id:
+            rc = requests.get(
+                'https://www.googleapis.com/youtube/v3/channels',
+                params={'part': 'contentDetails', 'id': channel_id, 'key': api_key},
+                timeout=10,
+                allow_redirects=False,
+            )
+            cd = rc.json()
+            if not (rc.status_code == 200 and cd.get('items')):
+                return False, t("credentials.youtube.channel_not_found",
+                                "Channel ID introuvable : « {cid} ». Vérifier qu'il commence "
+                                "par UC… (Paramètres avancés de la chaîne).").format(cid=channel_id)
+        return True, t("credentials.youtube.test_ok", "Clé API valide ✅")
     except Exception as e:
         return False, str(e)
 

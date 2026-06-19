@@ -63,6 +63,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.credentials": "🔑 API Credentials",
         "nav.item.upload_csv": "📂 CSV Import",
         "nav.item.meta_mapping": "🔗 Cross-platform mapping",
+        "nav.item.onboarding_health": "🚦 Onboarding health",
         "nav.item.db_health": "🗄️ Data health",
         "nav.item.spotify_s4a_combined": "🎵 Spotify & S4A",
         "nav.item.meta_x_spotify": "🎵 Meta × Spotify",

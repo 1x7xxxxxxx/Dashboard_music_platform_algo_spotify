@@ -78,6 +78,12 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [csv-formula-injection](#csv-formula-injection) | P3 | heuristic | guarded | none |
 | [config-not-env](#config-not-env) | P2 | heuristic | guarded | none |
 | [prod-canonical-schema-drift](#prod-canonical-schema-drift) | P2 | manual | reported | none |
+| [multitenant-dag-fleet-poisoning](#multitenant-dag-fleet-poisoning) | P2 | deterministic | guarded | none |
+| [collector-import-dotenv-crash](#collector-import-dotenv-crash) | P2 | deterministic | guarded | none |
+| [env-not-wired-to-service](#env-not-wired-to-service) | P1 | deterministic | guarded | none |
+| [prod-compose-drift](#prod-compose-drift) | P2 | heuristic | reported | none |
+| [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
+| [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 
 ---
 
@@ -390,3 +396,81 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite23)
 - History:
   - 2026-06-13: surfaced by the `/youtube/videos` 500 — prod `youtube_videos` carried orphan `view/like/comment_count` (manual ALTER) absent from canonical. `make schema-check` (provisions a throwaway canonical from init_db.sql+migrations, diffs vs prod `information_schema`) found **7 drifted tables**: USED-but-undeclared (`etl_daily_metrics`, `apple_songs_performance.{purchases,radio_spins,shazam_count}`, `meta_adsets.age_range` → reconcile into canonical) + orphan prod-extra (`meta_spotify_mapping`, `meta_ads.video_file_name`, `meta_adsets.targeting_optimization`, `youtube_videos.{view,like,comment}_count` → drop/document) + prod-missing PKs (`youtube_channels.id`, `youtube_videos.id`). `kind: manual` — needs prod SSH, not run by audit_runner/CI; the durable rule is **schema changes via migrations only, never a manual ALTER on prod** (prod = init_db.sql + migrations by construction). Full triage: `.claude/dev-docs/schema-drift-2026-06-13.md`.
+
+## multitenant-dag-fleet-poisoning
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a collector/processing DAG iterates `get_active_artists()` and a per-tenant `raise` (or a precheck that raises on ANY incomplete artist) is NOT caught per-iteration → ONE bad tenant fails the whole DAG for ALL tenants. Benken's empty YouTube channel (404) failed `youtube_daily` for everyone; soundcloud/instagram prechecks raised on his missing creds.
+- signature: `python3 -m pytest tests/test_dag_fleet_isolation.py -q`
+- autofix: none
+- guard: { type: test, ref: tests/test_dag_fleet_isolation.py (every artist loop touching `db` must be try-wrapped) }
+- rex_ref: .claude/skills/airflow-dag.md
+- first_seen: 2026-06-19 (ref: Benken onboarding incident)
+- History:
+  - 2026-06-19: found via the Benken onboarding cascade. Fixed 5 collector DAGs (youtube/soundcloud/instagram/spotify/meta) + 5 more sites found by the impact sweep (spotify collect_top_tracks, ml_scoring_daily, ml_outcome_labeling, weekly_digest, alert_monitor) — per-tenant try/except-continue, fail only if EVERY tenant failed; prechecks softened. Durable rule: a per-tenant loop that touches `db` MUST be wrapped (PR #87/#89).
+
+## collector-import-dotenv-crash
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a module-level `load_dotenv()` in a collector (not wrapped in try/except) raises `PermissionError` at import when the mounted `/opt/airflow/.env` is root-owned 600 (unreadable by the airflow uid 50000) → the collector crashes the moment a DAG imports it. The env is already injected by compose, so reading `.env` is redundant but fatal.
+- signature: `python3 -m pytest tests/test_collectors_dotenv_guarded.py -q`
+- autofix: none
+- guard: { type: test, ref: tests/test_collectors_dotenv_guarded.py (no unguarded module-level load_dotenv in src/collectors) }
+- rex_ref: .claude/skills/audit-collectors.md
+- first_seen: 2026-06-19 (ref: Benken onboarding incident)
+- History:
+  - 2026-06-19: unmasked when the soundcloud precheck fix let the collect task reach import. `soundcloud_api_collector.py` + `instagram_api_collector.py` both crashed at import. Fix: wrap `load_dotenv()` in `try/except OSError` (no-op on unreadable .env). PR #88/#89.
+
+## env-not-wired-to-service
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a service's CODE reads a central-app env var (`os.getenv('SOUNDCLOUD_CLIENT_ID')` …) that the service's `docker-compose` block does NOT declare → empty in that container. A silent `''` default hides it. The dashboard ran the credential connection tests but was deployed WITHOUT the central-app env, so EVERY test failed (the Benken incident); SoundCloud was wired to no service at all.
+- signature: `python3 -m pytest tests/test_env_contract.py -q`
+- autofix: none
+- guard: { type: test, ref: tests/test_env_contract.py (code-reads ⊆ service-declares, per service group) }
+- rex_ref: docs/adr/ADR-006-central-credential-model.md
+- first_seen: 2026-06-19 (ref: Benken onboarding incident)
+- History:
+  - 2026-06-19: the prod (untracked) compose dashboard service omitted SPOTIFY/YOUTUBE/SOUNDCLOUD/META env; SoundCloud was in no service. Fix: wired the central-app block into the dashboard service of `docker-compose.example.yml` + the SoundCloud vars into the airflow anchor; guard test cross-checks code reads vs the service env block. PR #87/#91.
+
+## prod-compose-drift
+- status: reported
+- severity: P2
+- kind: heuristic
+- symptom: the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` — a service or env var present in the template is missing on prod (or vice-versa). No test sees it; surfaces only when a user hits the gap. Root structural cause of `env-not-wired-to-service`.
+- signature: `python3 -m pytest tests/test_compose_parity.py -q`
+- autofix: none
+- guard: { type: test, ref: tests/test_compose_parity.py (every ${VAR} in the example is documented in .env.example; all services present) + prod-side parity check in tools/prod_introspect.sh }
+- rex_ref: docs/adr/ADR-006-central-credential-model.md
+- first_seen: 2026-06-19 (ref: Benken onboarding incident)
+- History:
+  - 2026-06-19: the prod compose drifted from the example (dashboard env, SoundCloud). The example is the only tracked artifact; CI can't diff the untracked prod file. Mitigation: a parity test on the example + `tools/prod_introspect.sh` env-presence probe to catch prod drift manually. Durable rule: never hand-edit prod compose without mirroring the example.
+
+## central-app-missing
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: a shared central-app credential (SPOTIFY_CLIENT_ID/SECRET, YOUTUBE_API_KEY, SOUNDCLOUD_CLIENT_ID/SECRET, META_ACCESS_TOKEN) is absent or expired in prod → every tenant's connection test + collection for that platform fails at once, but nothing detects it until a user hits it.
+- signature: `python3 tools/check_central_apps.py`
+- autofix: none
+- guard: { type: ops-probe, ref: tools/check_central_apps.py (authenticates each shared app; exit 1 if a configured app fails) }
+- rex_ref: docs/adr/ADR-006-central-credential-model.md
+- first_seen: 2026-06-19 (ref: Benken onboarding incident)
+- History:
+  - 2026-06-19: SoundCloud central app was unprovisioned in prod ("app non configurée → contacter admin"). The model needs the admin to provision + rotate one app per platform. `tools/check_central_apps.py` probes each before a tenant hits it; run pre-onboarding-session.
+
+## multitenant-mono-test-blindspot
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: every smoke/integration test runs with `artist_id=1` only → a bug that appears only for tenant #2 (per-tenant SQL scoping, NULL handling, missing identity, fleet-poisoning) ships green. The whole Benken incident class was invisible because nothing exercised a second/new tenant.
+- signature: manual — `grep -rn "artist_id.*= *1" tests/` (review smoke tests for mono-tenant assumptions)
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: extend tests/test_api_db_smoke.py + tests/test_views_render_smoke.py to ≥2 tenants }
+- rex_ref: docs/adr/ADR-006-central-credential-model.md
+- first_seen: 2026-06-19 (ref: Benken onboarding incident)
+- History:
+  - 2026-06-19: confirmed by audit — render-smoke + api-db-smoke both use artist_id=1. Durable rule: new tenant-scoped views/endpoints must be smoke-tested for a sparse 2nd tenant, not just artist 1.

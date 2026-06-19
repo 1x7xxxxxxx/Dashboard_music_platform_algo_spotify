@@ -160,6 +160,21 @@ def check_dag_failures(**context):
                     f"DAG {dag_id}: {failure_count} failures in 7d — {cause}"
                 )
 
+            # Consecutive-failure escalation — a 7-day TOTAL count can't tell 2 isolated
+            # failures from "failing every single day" (youtube/soundcloud/instagram in the
+            # Benken week failed daily, unnoticed). Pull every recent run by date + state.
+            from src.utils.monitoring_checks import consecutive_failure_days
+            all_runs = [
+                (r.dag_id, r.execution_date, r.state)
+                for r in session.query(DagRun)
+                .filter(DagRun.dag_id.in_(MONITORED_DAGS),
+                        DagRun.execution_date >= cutoff).all()
+            ]
+            for dag_id, streak in consecutive_failure_days(all_runs, min_days=3).items():
+                if dag_id in failing_dags:
+                    failing_dags[dag_id]['consecutive_days'] = streak
+                    logger.warning(f"🚨 DAG {dag_id} FAILING {streak} consecutive days")
+
     except Exception as e:
         logger.error(f"check_dag_failures: Airflow DB query failed — {e}")
         failing_dags = {}
@@ -187,11 +202,20 @@ def check_data_freshness(**context):
 
     try:
         results = check_freshness(db)
+        # Per-tenant freshness — the GLOBAL check above masks a configured tenant with no
+        # data on platform Y whenever ANOTHER tenant has recent data (the Benken gap: his
+        # SoundCloud/YouTube were dead while artist 1's were fresh). Loop active artists.
+        from src.utils.credential_loader import get_active_artists
+        from src.utils.monitoring_checks import tenant_freshness_gaps
+        per_tenant = [(aid, name, check_freshness(db, aid))
+                      for aid, name in get_active_artists()]
+        tenant_gaps = tenant_freshness_gaps(per_tenant)
     finally:
         db.close()
 
     stale = [r for r in results if r['stale']]
-    logger.info(f"Freshness check: {len(stale)} stale / {len(results)} sources")
+    logger.info(f"Freshness check: {len(stale)} stale / {len(results)} sources; "
+                f"{len(tenant_gaps)} tenant(s) with a per-tenant gap")
 
     serializable = []
     for r in results:
@@ -204,6 +228,7 @@ def check_data_freshness(**context):
         })
 
     context['task_instance'].xcom_push(key='freshness_results', value=serializable)
+    context['task_instance'].xcom_push(key='tenant_freshness_gaps', value=tenant_gaps)
     return serializable
 
 
@@ -230,11 +255,17 @@ def check_resurrection_sparks(**context):
             "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
         )
         for artist_id, name in (artists or []):
-            for s in detect_saves_resurrection(db, artist_id):
-                sparks.append({
-                    'artist_id': artist_id, 'artist_name': name, 'song': s['song'],
-                    'age_days': s['age_days'], 'recent_gain': s['recent_gain'],
-                })
+            # Per-artist isolation: one tenant's bad saves history must not abort the
+            # resurrection scan for the others (it would lose all alerting data).
+            try:
+                for s in detect_saves_resurrection(db, artist_id):
+                    sparks.append({
+                        'artist_id': artist_id, 'artist_name': name, 'song': s['song'],
+                        'age_days': s['age_days'], 'recent_gain': s['recent_gain'],
+                    })
+            except Exception as e:
+                logger.error(f"Resurrection scan failed for {name} (id={artist_id}): {e}")
+                continue
     finally:
         db.close()
 
@@ -382,6 +413,42 @@ def check_row_anomalies(**context):
     return anomalies
 
 
+def check_onboarding_readiness(**context):
+    """Flag any active artist CONNECTED to a platform but receiving NO data (the silent gap).
+
+    The per-artist closed loop: an artist who provided an identifier (channel_id, account_id…)
+    but whose platform produces 0 rows — Benken's empty YouTube channel, a not-shared Meta
+    account — becomes a RED flag with the exact next action, instead of staying invisible.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.credential_loader import get_active_artists
+    from src.utils.artist_readiness import readiness_red_flags
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    flags = []
+    try:
+        for aid, name in get_active_artists():
+            try:
+                for m in readiness_red_flags(db, aid):
+                    flags.append({'artist_id': aid, 'artist_name': name,
+                                  'platform': m['label'], 'next_action': m['next_action']})
+            except Exception as e:  # per-artist isolation
+                logger.error(f"Readiness check failed for {name} (id={aid}): {e}")
+                continue
+    finally:
+        db.close()
+
+    logger.info(f"Onboarding readiness: {len(flags)} connected-but-no-data flag(s)")
+    context['task_instance'].xcom_push(key='onboarding_red_flags', value=flags)
+    return flags
+
+
 # ─────────────────────────────────────────────────────────────────
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
@@ -398,10 +465,12 @@ def send_consolidated_alert(**context):
     drift = ti.xcom_pull(task_ids='check_drift_anomalies', key='drift_anomalies') or []
     billing_issues = ti.xcom_pull(task_ids='check_billing_sync', key='billing_issues') or []
     row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
+    tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
+    readiness_flags = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_red_flags') or []
 
     stale_sources = [r for r in freshness if r['stale']]
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
-                  or billing_issues or row_anomalies)
+                  or billing_issues or row_anomalies or tenant_gaps or readiness_flags)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -422,10 +491,15 @@ def send_consolidated_alert(**context):
                 if info['first_failure'] != info['last_failure']
                 else info['last_failure']
             )
+            # Escalate a DAG that has failed every scheduled day for ≥3 days.
+            escalation = (
+                f" <b style='color:#c0392b'>🚨 {info['consecutive_days']}j consécutifs</b>"
+                if info.get('consecutive_days') else ""
+            )
             rows += f"""
             <tr>
               <td style="padding:6px 12px;border-bottom:1px solid #eee">
-                <b>{dag_id}</b><br>
+                <b>{dag_id}</b>{escalation}<br>
                 <span style="color:#888;font-size:0.85em">{info['failure_count']} échec(s) {duration_label}</span>
               </td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b">{info['cause']}</td>
@@ -475,6 +549,53 @@ def send_consolidated_alert(**context):
               <th style="padding:8px 12px;text-align:left">Action</th>
             </tr>
           </thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section: per-tenant freshness gaps (a configured artist with no/stale data on a
+    # platform — masked by the global freshness check above)
+    if tenant_gaps:
+        rows = ''
+        for g in tenant_gaps:
+            rows += (
+                f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"<b>{g['artist_name']}</b> (id={g['artist_id']})</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b'>"
+                f"{', '.join(g['stale_sources'])}</td></tr>"
+            )
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          👤 Sources stale par artiste ({len(tenant_gaps)})
+        </h2>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead><tr style="background:#fdf3f2">
+            <th style="padding:8px 12px;text-align:left">Artiste</th>
+            <th style="padding:8px 12px;text-align:left">Sources stale</th>
+          </tr></thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section: onboarding readiness — connected to a platform but receiving NO data
+    if readiness_flags:
+        rows = ''
+        for f in readiness_flags:
+            rows += (
+                f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"<b>{f['artist_name']}</b> (id={f['artist_id']})</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#2980b9'>"
+                f"{f['next_action']}</td></tr>"
+            )
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          🔴 Connecté mais sans données ({len(readiness_flags)})
+        </h2>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead><tr style="background:#fdf3f2">
+            <th style="padding:8px 12px;text-align:left">Artiste</th>
+            <th style="padding:8px 12px;text-align:left">Plateforme</th>
+            <th style="padding:8px 12px;text-align:left">Action</th>
+          </tr></thead>
           <tbody>{rows}</tbody>
         </table>""")
 
@@ -689,6 +810,11 @@ with DAG(
         python_callable=check_row_anomalies,
     )
 
+    t_readiness = PythonOperator(
+        task_id='check_onboarding_readiness',
+        python_callable=check_onboarding_readiness,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -696,4 +822,4 @@ with DAG(
     )
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
-     t_billing, t_anomalies] >> t_alert
+     t_billing, t_anomalies, t_readiness] >> t_alert

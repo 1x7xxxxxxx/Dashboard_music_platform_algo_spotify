@@ -59,12 +59,29 @@ from src.api.main import app  # noqa: E402
 # require_artist_scope/get_current_user trust the signed claims (no DB user lookup),
 # so a forged token exercises the routers without seeding a user row.
 # - admin (artist_id None) → routers run their broadest UNSCOPED query path.
-# - tenant (artist_id=1)   → routers run the scoped `WHERE artist_id=%s` path.
-# Both paths must execute against the real schema, so either catches a drifted column.
-_ROLES = {
-    "admin": {"sub": "smoke-admin", "role": "admin", "artist_id": None},
-    "tenant": {"sub": "smoke-tenant", "role": "artist", "artist_id": 1},
-}
+# - tenant (artist_id=N)   → routers run the scoped `WHERE artist_id=%s` path.
+# MULTI-TENANT: parametrise over EVERY active artist (not just artist 1) — the Benken class
+# of bug appeared only for tenant #2 (a query OK for artist 1 but 500ing for artist 12 on
+# NULL/empty handling). A sparse tenant (no data) is the most likely to expose it.
+def _active_artist_ids(limit: int = 3) -> list:
+    try:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        try:
+            rows = db.fetch_query(
+                "SELECT id FROM saas_artists WHERE active = TRUE ORDER BY id LIMIT %s",
+                (limit,),
+            )
+        finally:
+            db.close()
+        return [r[0] for r in rows] or [1]
+    except Exception:
+        return [1]
+
+
+_ROLES = {"admin": {"sub": "smoke-admin", "role": "admin", "artist_id": None}}
+for _aid in _active_artist_ids():
+    _ROLES[f"tenant{_aid}"] = {"sub": f"smoke-tenant-{_aid}", "role": "artist", "artist_id": _aid}
 
 # Every data-router endpoint that issues SQL (auth/webhook excluded — no DB read).
 _DATA_ENDPOINTS = [

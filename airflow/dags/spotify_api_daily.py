@@ -76,13 +76,6 @@ def collect_spotify_artists(**context):
             value={'client_id': client_id, 'client_secret': client_secret}
         )
 
-        # Liste des artistes à suivre
-        artist_ids = os.getenv('SPOTIFY_ARTIST_IDS', '').split(',')
-
-        if not artist_ids or artist_ids == ['']:
-            logger.warning('⚠️ Aucun artiste configuré dans SPOTIFY_ARTIST_IDS')
-            return 0
-
         # ✅ Connexion à la base spotify_etl
         db = PostgresHandler(
             host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -93,40 +86,70 @@ def collect_spotify_artists(**context):
             password=os.getenv('DATABASE_PASSWORD')
         )
 
+        # ── Liste des artistes Spotify à suivre (par tenant) ───────────────
+        # Central model: each tenant supplies their Spotify artist identity, stored in
+        # saas_artists.spotify_artist_id and collected under one admin app. The legacy
+        # global env SPOTIFY_ARTIST_IDS is merged (backward-compat / admin-pinned IDs).
+        if artist_id_conf:
+            rows = db.fetch_query(
+                "SELECT spotify_artist_id FROM saas_artists "
+                "WHERE id = %s AND spotify_artist_id IS NOT NULL AND spotify_artist_id <> ''",
+                (artist_id_conf,),
+            )
+            artist_ids = [r[0] for r in rows]  # tenant-scoped: do NOT fold in the global env
+        else:
+            rows = db.fetch_query(
+                "SELECT spotify_artist_id FROM saas_artists "
+                "WHERE active = TRUE AND spotify_artist_id IS NOT NULL AND spotify_artist_id <> ''"
+            )
+            env_ids = [a.strip() for a in os.getenv('SPOTIFY_ARTIST_IDS', '').split(',') if a.strip()]
+            artist_ids = list(dict.fromkeys([r[0] for r in rows] + env_ids))  # dedupe, keep order
+
+        if not artist_ids:
+            logger.warning('⚠️ Aucun Spotify Artist ID configuré '
+                           '(saas_artists.spotify_artist_id / SPOTIFY_ARTIST_IDS)')
+            db.close()
+            return 0
+
         artists_collected = 0
 
         for artist_id in artist_ids:
-            artist_id = artist_id.strip()
+            artist_id = (artist_id or '').strip()
             if not artist_id:
                 continue
 
             logger.info(f'📊 Collecte artiste: {artist_id}')
 
-            # Récupérer infos artiste
-            artist_info = collector.get_artist_info(artist_id)
+            try:
+                # Récupérer infos artiste
+                artist_info = collector.get_artist_info(artist_id)
 
-            if artist_info:
-                # Stocker dans table artists
-                db.upsert_many(
-                    table='artists',
-                    data=[artist_info],
-                    conflict_columns=['artist_id'],
-                    update_columns=['name', 'followers', 'popularity', 'collected_at']
-                )
+                if artist_info:
+                    # Stocker dans table artists
+                    db.upsert_many(
+                        table='artists',
+                        data=[artist_info],
+                        conflict_columns=['artist_id'],
+                        update_columns=['name', 'followers', 'popularity', 'collected_at']
+                    )
 
-                # Stocker historique
-                db.execute_query("""
-                    INSERT INTO artist_history (artist_id, followers, popularity, collected_at)
-                    VALUES (%s, %s, %s, %s)
-                """, (
-                    artist_info['artist_id'],
-                    artist_info['followers'],
-                    artist_info['popularity'],
-                    artist_info['collected_at']
-                ))
+                    # Stocker historique
+                    db.execute_query("""
+                        INSERT INTO artist_history (artist_id, followers, popularity, collected_at)
+                        VALUES (%s, %s, %s, %s)
+                    """, (
+                        artist_info['artist_id'],
+                        artist_info['followers'],
+                        artist_info['popularity'],
+                        artist_info['collected_at']
+                    ))
 
-                artists_collected += 1
-                logger.info(f'✅ Artiste {artist_id} collecté')
+                    artists_collected += 1
+                    logger.info(f'✅ Artiste {artist_id} collecté')
+            except Exception as e:
+                # Per-artist isolation: a single bad Spotify ID must not abort the fleet.
+                logger.error(f'  Spotify collect failed for {artist_id}: {e}')
+                continue
 
         db.close()
 
@@ -193,48 +216,54 @@ def collect_spotify_top_tracks(**context):
         for (artist_id,) in artists:
             logger.info(f'🎵 Top tracks pour artiste: {artist_id}')
 
-            # Récupérer top tracks
-            tracks = collector.get_artist_top_tracks(artist_id)
+            try:
+                # Récupérer top tracks
+                tracks = collector.get_artist_top_tracks(artist_id)
 
-            if tracks:
-                # Resolve the SaaS tenant for this Spotify artist (migration 039).
-                # Stamp every track so dashboard readers can filter by tenant.
-                _sa = db.fetch_query(
-                    "SELECT id FROM saas_artists WHERE spotify_artist_id = %s",
-                    (artist_id,)
-                )
-                saas_artist_id = _sa[0][0] if _sa else None
-                if saas_artist_id is None:
-                    logger.warning(
-                        f'⚠️ No SaaS artist bridged to Spotify id {artist_id} '
-                        '(saas_artists.spotify_artist_id) — tracks.saas_artist_id will be NULL.'
+                if tracks:
+                    # Resolve the SaaS tenant for this Spotify artist (migration 039).
+                    # Stamp every track so dashboard readers can filter by tenant.
+                    _sa = db.fetch_query(
+                        "SELECT id FROM saas_artists WHERE spotify_artist_id = %s",
+                        (artist_id,)
                     )
-                for track in tracks:
-                    track['saas_artist_id'] = saas_artist_id
+                    saas_artist_id = _sa[0][0] if _sa else None
+                    if saas_artist_id is None:
+                        logger.warning(
+                            f'⚠️ No SaaS artist bridged to Spotify id {artist_id} '
+                            '(saas_artists.spotify_artist_id) — tracks.saas_artist_id will be NULL.'
+                        )
+                    for track in tracks:
+                        track['saas_artist_id'] = saas_artist_id
 
-                # Stocker dans DB
-                count = db.upsert_many(
-                    table='tracks',
-                    data=tracks,
-                    conflict_columns=['track_id'],
-                    update_columns=[
-                        'track_name', 'saas_artist_id', 'popularity', 'duration_ms',
-                        'album_name', 'release_date', 'collected_at'
-                    ]
-                )
+                    # Stocker dans DB
+                    count = db.upsert_many(
+                        table='tracks',
+                        data=tracks,
+                        conflict_columns=['track_id'],
+                        update_columns=[
+                            'track_name', 'saas_artist_id', 'popularity', 'duration_ms',
+                            'album_name', 'release_date', 'collected_at'
+                        ]
+                    )
 
-                total_tracks += count
-                logger.info(f'✅ {count} tracks collectées')
+                    total_tracks += count
+                    logger.info(f'✅ {count} tracks collectées')
 
-                # Préparer l'historique de popularité
-                for track in tracks:
-                    popularity_records.append({
-                        'track_id': track['track_id'],
-                        'track_name': track['track_name'],
-                        'popularity': track['popularity'],
-                        'collected_at': current_datetime,
-                        'date': current_date
-                    })
+                    # Préparer l'historique de popularité
+                    for track in tracks:
+                        popularity_records.append({
+                            'track_id': track['track_id'],
+                            'track_name': track['track_name'],
+                            'popularity': track['popularity'],
+                            'collected_at': current_datetime,
+                            'date': current_date
+                        })
+            except Exception as e:
+                # Per-artist isolation: a single bad Spotify ID / API error must not abort
+                # top-tracks collection for the other tenants.
+                logger.error(f'  Spotify top-tracks failed for {artist_id}: {e}')
+                continue
 
         # Stocker l'historique de popularité
         if popularity_records:
