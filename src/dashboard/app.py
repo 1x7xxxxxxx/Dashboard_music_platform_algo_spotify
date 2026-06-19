@@ -48,6 +48,16 @@ if not _airflow_pass:
         "AIRFLOW_PASSWORD not configured. Set it in .env or config/config.yaml. "
         "Never use a hardcoded default — it allows unauthenticated DAG triggering."
     )
+# Fail loud at boot, not at the first credential save. Without FERNET_KEY every stored API
+# credential is undecryptable and every connection test silently fails (the kind of silent
+# gap the Benken session hit). Resolution mirrors _core._get_fernet (env → config.yaml).
+if not (os.getenv('FERNET_KEY') or config.get('fernet_key')):
+    raise RuntimeError(
+        "FERNET_KEY not configured (env var or config/config.yaml `fernet_key`). Stored API "
+        "credentials cannot be decrypted — credential saves and connection tests would "
+        "silently fail. Generate one: python -c \"from cryptography.fernet import Fernet; "
+        "print(Fernet.generate_key().decode())\""
+    )
 airflow_trigger = AirflowTrigger(
     base_url=os.getenv('AIRFLOW_BASE_URL', airflow_config.get('base_url', 'http://localhost:8080')),
     username=os.getenv('AIRFLOW_USERNAME', airflow_config.get('username', 'admin')),
