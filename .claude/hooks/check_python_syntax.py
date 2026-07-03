@@ -45,9 +45,11 @@ def run_ruff(file_path: str) -> int:
         return 0  # Tout est propre, silence
 
     # Détecter les erreurs de syntaxe (bloquantes) vs warnings (informatifs)
-    has_syntax_error = any(
-        f" E9{d}" in output for d in range(10)
-    ) or "SyntaxError" in output
+    has_syntax_error = (
+        any(f" E9{d}" in output for d in range(10))
+        or "SyntaxError" in output
+        or "invalid-syntax" in output  # ruff renamed E999 -> invalid-syntax
+    )
 
     if output:
         prefix = "🚨 Syntax error" if has_syntax_error else "⚠️  Ruff warning"
