@@ -51,31 +51,43 @@ _SKIP_IDS = {"class-id"}
 _KEBAB = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
-def parse_classes(text: str) -> list[dict]:
-    """Return one dict per real class: {id, kind, status, signature}."""
+def parse_all_headers(text: str) -> list[dict]:
+    """Return one dict per class header (kebab id), signature-bearing OR NOT.
+
+    {id, kind, status, signature|None}. Unlike the old parser this does NOT drop
+    signature-less (prose) classes — the `--coverage` meta-guard needs to SEE them
+    (a catalogued-but-un-swept class is the exact blind spot that let the 2026-07-07
+    Alembic prose REX re-fire). The id is the FIRST token of the header, so a
+    date/ADR suffix (`## foo (2026-07-11, ADR-047)`) no longer breaks kebab matching.
+    """
     out = []
-    # Split on level-2 headers at line start; first chunk is the preamble (no class).
     for sec in re.split(r"^## ", text, flags=re.M)[1:]:
         lines = sec.splitlines()
-        cid = lines[0].strip()
+        cid = (lines[0].strip().split() or [""])[0]      # first token → tolerate "(date, ADR)" suffix
         if cid.lower() in _SKIP_IDS or not _KEBAB.match(cid):
             continue
         body = "\n".join(lines[1:])
         # First backtick-delimited span after "- signature:"; tolerate trailing prose
-        # after the closing backtick (e.g. "`pytest …` (DB-gated: …)"). Signatures
-        # never contain an internal backtick, so [^`]+ is exact.
+        # after the closing backtick. Signatures never contain an internal backtick.
+        # A `—` placeholder (no real command) counts as NO signature.
         sig = re.search(r"^- signature:\s*`([^`]+)`", body, flags=re.M)
-        if not sig:
-            continue  # narrative sections (Index, Contract, Per-class schema) have no signature
-        kind = re.search(r"^- kind:\s*(\w+)", body, flags=re.M)
+        sig_val = sig.group(1).strip() if sig else None
+        if sig_val in ("—", "-", ""):
+            sig_val = None
+        kind = re.search(r"^- kind:\s*([\w-]+)", body, flags=re.M)
         status = re.search(r"^- status:\s*([\w-]+)", body, flags=re.M)
         out.append({
             "id": cid,
-            "kind": (kind.group(1) if kind else "heuristic").lower(),
+            "kind": (kind.group(1) if kind else ("heuristic" if sig_val else "")).lower(),
             "status": (status.group(1) if status else "open").lower(),
-            "signature": sig.group(1).strip(),
+            "signature": sig_val,
         })
     return out
+
+
+def parse_classes(text: str) -> list[dict]:
+    """Runnable classes only (those carrying a real `- signature:` command)."""
+    return [c for c in parse_all_headers(text) if c["signature"]]
 
 
 def run_signature(sig: str) -> tuple[bool, str]:
@@ -88,10 +100,40 @@ def run_signature(sig: str) -> tuple[bool, str]:
     return hit, (proc.stdout + proc.stderr).strip()
 
 
+_OPTOUT_KINDS = {"manual", "runtime-manual"}  # acknowledged as intentionally NOT auto-swept
+
+
+def _coverage(headers: list[dict]) -> int:
+    """Meta-guard: every catalogued class must be GUARDED (has a runnable `- signature:`) OR
+    carry an explicit opt-out `- kind:` ∈ {manual (needs host access), runtime-manual (no static
+    footprint)}. A class with NEITHER (prose with no kind, or a kind that implies auto-sweep like
+    `deterministic` but no signature) is UNGUARDED — the catalogue silently accreting un-swept
+    prose is the structural blind spot. Exit 1 on any unguarded class."""
+    unguarded = [h for h in headers if h["signature"] is None and h["kind"] not in _OPTOUT_KINDS]
+    guarded = [h for h in headers if h["signature"]]
+    optout = [h for h in headers if h["signature"] is None and h["kind"] in _OPTOUT_KINDS]
+    total = len(headers)
+    pct = (100 * len(guarded) // total) if total else 0
+    print(f"▶ coverage: {total} classes — {len(guarded)} guarded ({pct}%) · "
+          f"{len(optout)} manual/runtime opt-out · {len(unguarded)} UNGUARDED")
+    if unguarded:
+        print("\n❌ UNGUARDED classes (add a `- signature:` OR `- kind: runtime-manual`):")
+        for h in unguarded:
+            print(f"      {h['id']}  [kind={h['kind'] or '∅'}/{h['status']}]")
+        return 1
+    print("\n✅ coverage complete — every class is guarded or explicitly runtime-manual")
+    return 0
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run error-class signatures from the catalogue")
     ap.add_argument("--deterministic", action="store_true",
                     help="Run only kind: deterministic classes; exit 1 on any hit (CI-safe)")
+    ap.add_argument("--static", action="store_true",
+                    help="Run deterministic classes whose signature is grep-only (no pytest) — "
+                         "for the IPC daily sweep (no PG / test env)")
+    ap.add_argument("--coverage", action="store_true",
+                    help="Meta-guard: fail if any class lacks a signature AND isn't runtime-manual")
     ap.add_argument("--all", action="store_true", help="Run every class (default)")
     ap.add_argument("--list", action="store_true", help="List classes and exit")
     args = ap.parse_args()
@@ -100,25 +142,39 @@ def main() -> None:
         print(f"❌ catalogue not found: {_CATALOGUE}", file=sys.stderr)
         sys.exit(2)
 
-    classes = parse_classes(_CATALOGUE.read_text(encoding="utf-8"))
-    if not classes:
+    text = _CATALOGUE.read_text(encoding="utf-8")
+    headers = parse_all_headers(text)
+    classes = [c for c in headers if c["signature"]]
+    if not headers:
         print("❌ no classes parsed — check error-classes.md format", file=sys.stderr)
         sys.exit(2)
 
+    if args.coverage:
+        sys.exit(_coverage(headers))
+
     if args.list:
+        skipped = [h for h in headers if not h["signature"]]
         for c in classes:
-            print(f"  {c['id']:<32} {c['kind']:<13} {c['status']}")
-        print(f"\n{len(classes)} classes "
-              f"({sum(c['kind'] == 'deterministic' for c in classes)} deterministic)")
+            print(f"  {c['id']:<44} {c['kind']:<15} {c['status']}")
+        print(f"\n{len(classes)} runnable classes "
+              f"({sum(c['kind'] == 'deterministic' for c in classes)} deterministic) · "
+              f"{len(skipped)} without a signature")
+        if skipped:
+            print("  no-signature (coverage-tracked): "
+                  + ", ".join(f"{h['id']}[{h['kind'] or '∅'}]" for h in skipped))
         sys.exit(0)
 
-    # kind: manual = documented-only (signature needs external access, e.g. prod SSH);
-    # never run by the sweep — listed for reference, triaged by a human via its make target.
-    if args.deterministic:
+    # kind: manual / runtime-manual = never auto-run (need host access, or no static footprint).
+    if args.static:
+        selected = [c for c in classes
+                    if c["kind"] == "deterministic" and "pytest" not in c["signature"]]
+        mode = "static"
+    elif args.deterministic:
         selected = [c for c in classes if c["kind"] == "deterministic"]
+        mode = "deterministic"
     else:
-        selected = [c for c in classes if c["kind"] != "manual"]
-    mode = "deterministic" if args.deterministic else "all"
+        selected = [c for c in classes if c["kind"] not in ("manual", "runtime-manual")]
+        mode = "all"
     print(f"▶ audit_runner ({mode}): {len(selected)} signatures\n")
 
     hits = []
@@ -134,7 +190,7 @@ def main() -> None:
 
     if hits:
         print(f"\n⚠ {len(hits)} class(es) with hits: {', '.join(hits)}")
-        if args.deterministic:
+        if args.deterministic or args.static:
             print("  (deterministic → CI-blocking: these are real, fix or re-triage the signature)")
         else:
             print("  (heuristic sweep → manual triage; nightly non-blocking)")
