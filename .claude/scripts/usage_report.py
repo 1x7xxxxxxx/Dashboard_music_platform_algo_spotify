@@ -116,19 +116,27 @@ def main() -> int:
         print(json.dumps(data, indent=2))
         return 0
 
-    if not data["found"]:
-        # EXIT 1, not 0. An absent sensor is a broken sensor, and the first version of this function
-        # printed a shrug and returned success — which is how a reader becomes decorative.
-        print(f"🔴 SENSOR NOT FOUND at {data['transcripts_dir']}\n"
-              f"   Claude Code flattens both '/' and '_' to '-' in this path. If the repo moved or "
-              f"was renamed, fix the derivation — do not delete the check.")
-        return 1
+    if not data["found"] or data["sessions"] == 0:
+        # NO DATA IS NOT AN ERROR — and getting this wrong is how a guard gets disabled.
+        # v2 exited 1 here. That was right for the repo this was born in (20 sessions) and WRONG
+        # everywhere else: measured on the siblings, `immobilier` has no transcript dir at all and
+        # `plugin_vst` has an empty one — Claude Code has simply never run there. Exiting 1 makes the
+        # check permanently red on a healthy repo, which is the cry-wolf pattern this config keeps
+        # getting bitten by (see test_claude_config.py's own comment on the book_frozen 🚨).
+        # THE TOOL REPORTS; THE TEST JUDGES. A repo that must have data asserts it in its own suite
+        # (`test_the_sensor_resolves`); a repo that has none is not broken, it is new.
+        print(f"no agent data yet — {data['transcripts_dir']}\n"
+              f"  Either Claude Code has never run in this repo, or the path derivation is wrong "
+              f"(it flattens both '/' and '_' to '-'). Both look identical from here; check the dir.")
+        return 0
 
     print(f"sensor: {data['sessions']} sessions — {data['transcripts_dir']}\n")
 
     declared = set(declared_agents())
     used = data["agents"]
-    total = sum(used.values()) or 1
+    # `or 1` here would print "0/1 (0%) of traffic" on a repo with no agent calls — a denominator
+    # nobody counted, reading as data. Measured on plugin_vst. Guard the division, not the truth.
+    total = sum(used.values())
     print("AGENTS (all-time)")
     for name, n in sorted(used.items(), key=lambda kv: -kv[1]):
         tag = "declared" if name in declared else "BUILT-IN (absent from CLAUDE.md)"
@@ -137,8 +145,10 @@ def main() -> int:
     for name in dead:
         print(f"  {name:30s} {0:4d}   🔴 DECLARED, NEVER INVOKED")
     builtin = sum(n for k, n in used.items() if k not in declared)
+    share = f"{builtin}/{total} ({100 * builtin // total}%)" if total else "no agent calls recorded"
     print(f"\n  {len(dead)}/{len(declared)} declared agents never invoked · "
-          f"{builtin}/{total} ({100*builtin//total}%) of traffic goes to built-ins")
+          f"{share} of traffic goes to built-ins" if total else
+          f"\n  {len(dead)}/{len(declared)} declared agents never invoked · no agent calls recorded")
 
     print("\nTOKENS (all-time)")
     for k, v in sorted(data["tokens"].items(), key=lambda kv: -kv[1]):
