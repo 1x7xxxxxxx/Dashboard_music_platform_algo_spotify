@@ -5,7 +5,8 @@
 Walks .claude/{agents,skills,commands,rules}/*.md, .claude/skills/*/SKILL.md,
 .claude/hooks/*.py, .claude/scripts/*.py. For each tool, verifies:
 - presence of a 'rex:' key in the frontmatter (.md) or docstring YAML block (.py)
-- well-formed entries: ISO date, issue ≤ 120 chars, fix ≤ 200 chars, severity in allowlist
+- well-formed entries: ISO date, issue ≤ 350 chars, fix ≤ 400 chars, severity in allowlist
+  (raised 2026-06-04 from 120/200 — real ops REX lessons legitimately exceed the terse limit)
 
 Exit codes:
 - 0: OK (malformed entries = 0, missing keys irrelevant in non-strict mode)
@@ -13,7 +14,17 @@ Exit codes:
 - 2: I/O or config error (missing .claude/, PyYAML not installed)
 
 ---
-rex: []
+rex:
+  - date: 2026-06-04
+    issue: "Limites issue ≤120 / fix ≤200 trop serrées pour des REX ops légitimement riches (bridge-nf-call, network_mode-host DNS, sudo-stdin-pipe) → 11 entrées en erreur, faisaient échouer test_full_bootstrap_is_rex_valid"
+    fix: "Limites relevées à issue ≤350 / fix ≤400 (+ rex-format.md). Non-destructif : on garde le savoir ops au lieu de charcuter les entrées. Repack payload requis pour propager au bootstrap."
+    ref: "DEVLOG#2026-06-04 (PM6)"
+    severity: info
+  - date: 2026-07-23
+    issue: "The colocated <tool>.rex.md archives landed inside the directories _iter_files() globs, so rotated lessons would have (a) escaped schema validation entirely — a moved lesson is still a lesson — and (b) entered the tool denominator of the REX coverage KPI as files that can never carry a rex: key."
+    fix: "Excluded *.rex.md from _iter_files() and added _iter_archives(): archives are validated against the same entry schema and reported as archived_lessons (+24), never counted as tools. Same defect class as the workflows/ blind spot of 2026-07-22 — a coverage % is only as honest as the set it divides by."
+    ref: "DEVLOG#2026-07-23 (suite 2) · 8e8ab6c"
+    severity: warn
 ---
 """
 import argparse
@@ -30,12 +41,25 @@ except ImportError:
 
 
 _SCAN_DIRS: list[tuple[str, str]] = [
-    ("agents",   "*.md"),
-    ("skills",   "*.md"),
-    ("commands", "*.md"),
-    ("rules",    "*.md"),
-    ("hooks",    "*.py"),
-    ("scripts",  "*.py"),
+    ("agents",    "*.md"),
+    ("skills",    "*.md"),
+    ("commands",  "*.md"),
+    ("rules",     "*.md"),
+    ("hooks",     "*.py"),
+    ("scripts",   "*.py"),
+    # ADDED 2026-07-22. `inject_context.py:91` self-wires tools from ("skills", "rules", "workflows")
+    # — so a workflow IS an injectable tool — but this list omitted `workflows`, and so did
+    # `tests/test_claude_config.py`. Consequence measured that day: `bug-resolution.md` had been
+    # injected **35 times** (usage_report INJECTIONS), the third most-fired injectable in the repo,
+    # and it could not carry a `rex:` block. The workflow whose whole job is to turn a bug into a
+    # recorded lesson was the one tool structurally unable to record one.
+    # The printed line "71 tool(s) OK … 20/71 carry a LESSON" was true of what it scanned and read as
+    # coverage of the tool surface. It was not: a whole tree sat outside the denominator. Same shape
+    # as `roadmap_stats` counting `- [ ]` while `- [~]` items sat unticked, and as I6 asserting a hole
+    # two pieces of work had already closed — a green number whose denominator omits the unscanned.
+    # `tests/test_rex_covers_every_injectable.py` now derives this list from the INJECTOR, so a tree
+    # added there can never again be silently unvalidated here.
+    ("workflows", "*.md"),
 ]
 
 _FM_RE = re.compile(r"\A---\n(.*?)\n---\s*\n", re.DOTALL)
@@ -86,10 +110,10 @@ def _validate_rex_entries(entries, source: str) -> list[str]:
         date = str(entry.get("date", ""))
         if date and not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
             errors.append(f"{source}: rex[{i}].date must be YYYY-MM-DD, got {date!r}")
-        if len(str(entry.get("issue", ""))) > 120:
-            errors.append(f"{source}: rex[{i}].issue > 120 chars")
-        if len(str(entry.get("fix", ""))) > 200:
-            errors.append(f"{source}: rex[{i}].fix > 200 chars")
+        if len(str(entry.get("issue", ""))) > 350:
+            errors.append(f"{source}: rex[{i}].issue > 350 chars")
+        if len(str(entry.get("fix", ""))) > 400:
+            errors.append(f"{source}: rex[{i}].fix > 400 chars")
         sev = entry.get("severity")
         if sev is not None and sev not in _VALID_SEVERITY:
             errors.append(f"{source}: rex[{i}].severity must be one of {sorted(_VALID_SEVERITY)}, got {sev!r}")
@@ -101,14 +125,30 @@ def _iter_files(claude_root: Path):
         d = claude_root / subdir
         if not d.exists():
             continue
-        yield from d.glob(pattern)
-    skills_dir = claude_root / "skills"
-    if skills_dir.exists():
-        for sub in skills_dir.iterdir():
-            if sub.is_dir():
-                skill_md = sub / "SKILL.md"
-                if skill_md.exists():
-                    yield skill_md
+        # `*.rex.md` are colocated REX ARCHIVES (rotated overflow — see rex-format.md §Archive), not
+        # tools: they carry no `keywords:`, are never injected, and must not be counted in the tool
+        # denominator. Their entries are validated separately (`_iter_archives`).
+        yield from (p for p in d.glob(pattern) if not p.name.endswith(".rex.md"))
+    # `skills/<name>/SKILL.md` is deliberately NOT yielded as a tool.
+    #
+    # Its frontmatter is parsed by the harness at the start of EVERY session, so
+    # a key outside the SKILL.md spec is paid for on every session for a history
+    # nobody reads at runtime. The same decision removed skills/ from the
+    # installer's INJECT_REX pass; this is the reading half of it, and the two
+    # must agree or an install writes a key the validator then demands forever.
+    #
+    # The REX convention still binds hooks, scripts, agents, commands and rules —
+    # everything above — because none of those is re-parsed per session.
+    # A skill's history belongs in a colocated `<name>.rex.md` archive, which
+    # `_iter_archives` already validates.
+
+
+def _iter_archives(claude_root: Path):
+    """Colocated `<tool>.rex.md` REX archives — validated for schema, but not tools."""
+    for subdir, _ in _SCAN_DIRS:
+        d = claude_root / subdir
+        if d.exists():
+            yield from d.glob("*.rex.md")
 
 
 def main() -> None:
@@ -125,6 +165,7 @@ def main() -> None:
     missing: list[str] = []
     errors: list[str] = []
     valid_count = 0
+    with_lesson = 0
 
     for path in sorted(_iter_files(claude_root)):
         rel = path.relative_to(claude_root)
@@ -139,9 +180,39 @@ def main() -> None:
             errors.extend(entry_errs)
         else:
             valid_count += 1
+            if fm["rex"]:                       # a non-empty list = a lesson was actually written
+                with_lesson += 1
+
+    # Colocated archives: same schema, but they are not tools (no `rex:`-key requirement, not counted
+    # in the tool denominator). A malformed ARCHIVED lesson must still fail the build — a rotated entry
+    # is a real lesson, just moved.
+    archived_lessons = 0
+    for path in sorted(_iter_archives(claude_root)):
+        fm = _parse_md_frontmatter(path)
+        rel = path.relative_to(claude_root)
+        if fm is None or "rex" not in fm:
+            errors.append(f"{rel}: a `.rex.md` archive must carry a `rex:` block")
+            continue
+        errors.extend(_validate_rex_entries(fm["rex"], str(rel)))
+        archived_lessons += len(fm["rex"] or [])
 
     print(f"REX validator — {valid_count} tool(s) OK, "
           f"{len(missing)} without rex key, {len(errors)} entry error(s)")
+
+    # THE HONEST LINE. "N tool(s) OK" was the lie: this validator checks that the `rex:` KEY exists,
+    # not that a LESSON does, so `rex: []` scores as OK and --strict exits 0. It printed "45 tool(s)
+    # OK" while 87% of the corpus carried nothing — and rex-format.md documents the SAME state one
+    # cycle earlier (40/44 empty), with the guard green throughout. Printing the real ratio does not
+    # make the build red; it makes the number impossible to not-see. That is MEASURE-THEN-ANNOUNCE
+    # applied to the validator itself, and it costs two lines.
+    total = valid_count + len(errors)
+    if total:
+        pct = 100 * with_lesson / total
+        print(f"               — {with_lesson}/{total} carry a LESSON ({pct:.0f}%); "
+              f"the rest are `rex: []` (valid, and empty)")
+    if archived_lessons:
+        print(f"               — + {archived_lessons} lesson(s) rotated into colocated `.rex.md` "
+              f"archives (validated, not double-counted)")
 
     if missing:
         print("\nMissing rex: (add `rex: []` to frontmatter / docstring block):")

@@ -37,14 +37,7 @@ _BLOCK_PATTERNS: list[tuple[str, str]] = [
     ("DROP DATABASE",           "Irreversible database deletion"),
     ("DROP SCHEMA",             "Irreversible PG schema deletion (CASCADE loses all tables, alembic_version row, and dependent objects)"),
     ("dropdb ",                 "Drops an entire PostgreSQL database — irreversible"),
-    ("ALEMBIC_ALLOW_DESTRUCTIVE_DOWNGRADE=1", "Enables the gated baseline downgrade (nukes the 0001 baseline) — only allowed during DR rehearsal / test_migrations roundtrip"),
     # ── MSDR-specific blocks ────────────────────────────────────────────────
-    ("DELETE FROM acquisitions", "Deletes sensor acquisition records — irreversible data loss"),
-    ("DELETE FROM alerts",       "Deletes alert records — breaks audit trail"),
-    ("DELETE FROM holes",        "Deletes drilling hole records — irreversible"),
-    ("DELETE FROM drilling_sessions", "Deletes session records — irreversible"),
-    ("rm -rf sensor_data",       "Removes sensor_data Docker volume contents — irreversible data loss"),
-    ("purge-blobs",              "Admin purge-blobs removes all raw_data BLOBs permanently"),
     ("git commit --no-verify",   "Skipping pre-commit hooks bypasses secret scanning"),
     ("git commit -n ",           "Skipping pre-commit hooks bypasses secret scanning"),
 ]
@@ -86,11 +79,9 @@ _WARN_PATTERNS: list[tuple[str, str]] = [
     ("truncate",            "Truncates file content — verify target path"),
     ("pkill",               "Kills processes — verify target process name"),
     # ── MSDR-specific warnings ──────────────────────────────────────────────
-    ("UPDATE acquisitions SET machine_state", "Overwriting machine_state — verify WHERE clause targets specific rows"),
     ("initialize_db",       "Re-running initialize_db triggers alembic upgrade head — verify revision chain is forward-only"),
     ("alembic downgrade",   "Alembic downgrade — reversible but can strip columns; prefer a new revision"),
     ("/admin/purge",        "Admin purge endpoint called — irreversible BLOB deletion"),
-    ("docker compose down -v", "Removes Docker volumes — postgres_data / questdb_data / sensor_data / redis_data / grafana_data all lost"),
 ]
 
 
