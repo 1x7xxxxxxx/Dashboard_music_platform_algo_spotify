@@ -1,4 +1,28 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/id_rsa*)",
+      "Read(**/*credentials*.json)",
+      "Read(**/*service*account*.json)",
+      "Write(./.env)",
+      "Edit(./.env)",
+      "Bash(sudo rm:*)",
+      "Bash(mkfs:*)",
+      "Bash(mkfs.*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(docker system prune:*)",
+      "Bash(terraform apply:*)",
+      "Bash(kubectl apply:*)",
+      "Bash(alembic downgrade:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

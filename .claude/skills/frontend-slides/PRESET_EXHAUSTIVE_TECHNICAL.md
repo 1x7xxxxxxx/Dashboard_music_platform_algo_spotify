@@ -1,7 +1,3 @@
----
-rex: []
----
-
 # Preset — "Exhaustive Technical" deck
 
 Frozen reference for generating long technical reference decks (80–200 slides)
@@ -305,7 +301,7 @@ Skip Phases 1 and 2 of the standard skill. Execute directly:
 3. **Generate** the HTML skeleton with the frozen palette + typography + viewport CSS + Mermaid setup + SlidePresentation JS.
 4. **Insert slides in batches via Edit** — use unique `<!-- ===== SLIDE NN — name ===== -->` comments as anchors. Do not write the entire file in one call (too large for a single Write).
 5. **Add SVG illustrations** at every pedagogically critical concept (use the table above).
-6. **Verify** with: HTML parser, slide count, no project-specific references (`grep -ciE "(|<your CNC>|<your organization>|...)"` should return 0 — substitute with neutral terms like "the edge device", "the time-series store", "the PLC reader").
+6. **Verify** with: HTML parser, slide count, no project-specific references (`grep -ciE "(MSDR|Fanuc|Airbus|...)"` should return 0 — substitute with neutral terms like "the edge device", "the time-series store", "the PLC reader").
 
 ---
 
@@ -325,6 +321,6 @@ Skip Phases 1 and 2 of the standard skill. Execute directly:
 
 ## Reference deliverable
 
-The project's `slides/03_model_training.html` (170 slides, 273 KB,
+The MSDR project's `slides/03_model_training.html` (170 slides, 273 KB,
 4 600 lines) is the canonical reference for this preset. Inspect it as the
 source of truth when in doubt about layout or styling decisions.

@@ -8,15 +8,16 @@ Intercepts Bash tool calls before execution.
 
 Always exits 0 for non-Bash tools and safe commands.
 
-Generic patterns only — projects extend this list with their own destructive
-commands (admin endpoints, named volumes that hold critical state, mass-update
-SQL on a key table, etc.) by appending to _BLOCK_PATTERNS / _WARN_PATTERNS.
-
 ---
-rex: []
+rex:
+  - date: 2026-04-24
+    issue: "Guards SQLite-specific post-migration PG + aucun équivalent DROP SCHEMA / dropdb / alembic destructive downgrade"
+    fix: "Retiré rm sensor_data.db + PRAGMA journal_mode; ajouté block DROP SCHEMA + dropdb + ALEMBIC_ALLOW_DESTRUCTIVE_DOWNGRADE=1; warn alembic downgrade"
+    severity: warn
 ---
 """
 import json
+import re
 import sys
 
 
@@ -30,30 +31,66 @@ _BLOCK_PATTERNS: list[tuple[str, str]] = [
     ("git checkout -- .",       "Discards all uncommitted changes in working directory"),
     ("git restore .",           "Discards all uncommitted changes in working directory"),
     ("git clean -f",            "Permanently deletes untracked files"),
-    ("git commit --no-verify",  "Skipping pre-commit hooks bypasses secret scanning"),
-    ("git commit -n ",          "Skipping pre-commit hooks bypasses secret scanning"),
     ("docker system prune",     "Removes ALL unused Docker data including named volumes"),
     ("rm -rf /",                "Recursive delete from root — catastrophic"),
-    ("DROP TABLE",              "Irreversible SQL table deletion"),
+    ("DROP TABLE",              "Irreversible PG/SQL table deletion"),
     ("DROP DATABASE",           "Irreversible database deletion"),
-    ("DROP SCHEMA",             "Irreversible SQL schema deletion (CASCADE loses every dependent object)"),
-    ("dropdb ",                 "Drops an entire database — irreversible"),
-    ("mongo --eval 'db.dropDatabase()'", "Drops an entire MongoDB database — irreversible"),
-    ("redis-cli FLUSHALL",      "Wipes every Redis key across every database"),
-    ("redis-cli FLUSHDB",       "Wipes every key in the current Redis database"),
+    ("DROP SCHEMA",             "Irreversible PG schema deletion (CASCADE loses all tables, alembic_version row, and dependent objects)"),
+    ("dropdb ",                 "Drops an entire PostgreSQL database — irreversible"),
+    ("ALEMBIC_ALLOW_DESTRUCTIVE_DOWNGRADE=1", "Enables the gated baseline downgrade (nukes the 0001 baseline) — only allowed during DR rehearsal / test_migrations roundtrip"),
+    # ── MSDR-specific blocks ────────────────────────────────────────────────
+    ("DELETE FROM acquisitions", "Deletes sensor acquisition records — irreversible data loss"),
+    ("DELETE FROM alerts",       "Deletes alert records — breaks audit trail"),
+    ("DELETE FROM holes",        "Deletes drilling hole records — irreversible"),
+    ("DELETE FROM drilling_sessions", "Deletes session records — irreversible"),
+    ("rm -rf sensor_data",       "Removes sensor_data Docker volume contents — irreversible data loss"),
+    ("purge-blobs",              "Admin purge-blobs removes all raw_data BLOBs permanently"),
+    ("git commit --no-verify",   "Skipping pre-commit hooks bypasses secret scanning"),
+    ("git commit -n ",           "Skipping pre-commit hooks bypasses secret scanning"),
+]
+
+# Regex tier — the seven gates ARCH Ch.17 prescribes. These genuinely need
+# regex: the literal-substring tier below cannot express them. A recursive
+# delete as root does not contain the literal used by the substring list, a
+# double space or a swapped flag order evades a literal match entirely, and a
+# download piped into a shell has arbitrary text between the two halves.
+#
+# Threat model (ARCH p.164): these guard against ACCIDENTS caused by the model
+# or by the developer through it. They are not a boundary against an adversary
+# who controls the prompt.
+_BLOCK_REGEX: list[tuple[str, str]] = [
+    (r"curl\s+[^|]*\|\s*(sudo\s+)?(ba|z|k)?sh",
+     "Piping a download into a shell executes unreviewed remote code"),
+    (r"wget\s+[^|]*\|\s*(sudo\s+)?(ba|z|k)?sh",
+     "Piping a download into a shell executes unreviewed remote code"),
+    (r"\bsudo\s+rm\b",
+     "Recursive delete as root — verify the path outside Claude Code"),
+    (r"\brm\s+-[a-z]*[rf][a-z]*\s+(/|~|\$HOME)(\s|/|$)",
+     "Recursive delete of a root or home path — catastrophic"),
+    (r"\bmkfs\.",
+     "Filesystem creation destroys every byte on the target device"),
+    (r"\bdd\b[^\n]*\bof=/dev/",
+     "Block-device write destroys the existing filesystem"),
+    (r"\bchmod\s+(-[a-zA-Z]+\s+)*777\b",
+     "World-writable permissions — never correct on a real path"),
+    (r":\s*\(\s*\)\s*\{[^}]*\|[^}]*&[^}]*\}\s*;?\s*:",
+     "Fork bomb — exhausts the process table"),
 ]
 
 # Advisory: exit 0 — prints warning but allows through
 _WARN_PATTERNS: list[tuple[str, str]] = [
-    ("rm -rf",                  "Recursive delete — verify path before proceeding"),
-    ("DELETE FROM",             "SQL delete — ensure WHERE clause is present and targeted"),
-    ("UPDATE ",                 "SQL update — verify WHERE clause is present (mass update otherwise)"),
-    ("git stash drop",          "Permanently discards stashed changes"),
-    ("docker volume rm",        "Removes a Docker volume — data may be lost"),
-    ("docker compose down -v",  "Removes named volumes — every persistent state in this stack is lost"),
-    ("truncate",                "Truncates file content — verify target path"),
-    ("pkill",                   "Kills processes — verify target process name"),
-    ("docker compose pull",     "Pulling a `:latest`-tagged image silently — verify version pin"),
+    ("rm -rf",              "Recursive delete — verify path before proceeding"),
+    ("DELETE FROM",         "SQL delete — ensure WHERE clause is present"),
+    ("git stash drop",      "Permanently discards stashed changes"),
+    ("docker volume rm",    "Removes a Docker volume — data may be lost"),
+    ("truncate",            "Truncates file content — verify target path"),
+    ("pkill",               "Kills processes — verify target process name"),
+    # ── MSDR-specific warnings ──────────────────────────────────────────────
+    ("UPDATE acquisitions SET machine_state", "Overwriting machine_state — verify WHERE clause targets specific rows"),
+    ("initialize_db",       "Re-running initialize_db triggers alembic upgrade head — verify revision chain is forward-only"),
+    ("alembic downgrade",   "Alembic downgrade — reversible but can strip columns; prefer a new revision"),
+    ("/admin/purge",        "Admin purge endpoint called — irreversible BLOB deletion"),
+    ("docker compose down -v", "Removes Docker volumes — postgres_data / questdb_data / sensor_data / redis_data / grafana_data all lost"),
 ]
 
 
@@ -65,6 +102,10 @@ def check_command(cmd: str) -> tuple[str, str] | None:
     level is 'block' or 'warn'. Returns None if safe.
     """
     cmd_lower = cmd.lower()
+    # Regex tier first: it expresses the dangerous shapes the literal tier cannot.
+    for pattern, message in _BLOCK_REGEX:
+        if re.search(pattern, cmd, re.IGNORECASE):
+            return ("block", message)
     for pattern, message in _BLOCK_PATTERNS:
         if pattern.lower() in cmd_lower:
             return ("block", message)
