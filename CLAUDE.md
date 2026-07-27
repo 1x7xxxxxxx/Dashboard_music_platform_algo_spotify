@@ -325,3 +325,23 @@ contre 0 sur 23 agents.
 python3 /mnt/c/Users/timot/Desktop/claude_code_deployment_baseline/tools/dev/audit_fleet.py --project . --markdown
 python3 /mnt/c/Users/timot/Desktop/claude_code_deployment_baseline/tools/dev/verify_loop_wiring.py
 ```
+
+### Règle contraignante — la boucle d'ingénierie
+
+**≥2 trouvailles dans une même session → `RUN Workflow({name: "engineering-loop", args: [une chaîne par trouvaille]})`**, pas quatre lancements séparés.
+
+`.claude/workflows/engineering-loop.js` enchaîne quatre phases : **Impact** (un agent par
+trouvaille — cause racine lue dans le code, puis balayage des frères sur tout le dépôt)
+→ **Critic** (`code-critic` sur le DESIGN du fix, *avant* qu'une ligne soit écrite :
+`BUILD` / `BUILD-MODIFIED` / `DO-NOT-BUILD`) → **Fix** (les approuvés seulement, en
+worktree isolé, avec garde et mutation ciblée) → **Improve** (critique de complétude).
+
+Il retourne un **manifeste de déploiement** : il n'écrit jamais la ROADMAP et ne commite
+jamais. Le déploiement se fait depuis le contexte principal, ROADMAP d'abord.
+
+Une trouvaille isolée ne le justifie pas — le workflow ne se rentabilise que sur un lot.
+
+⚠️ Cette ligne est une **règle**, pas une note de playbook, pour une raison mesurée :
+un agent nommé dans une règle impérative est invoqué ; nommé dans une étape d'un playbook
+injecté 98 fois, il ne l'a **jamais** été — 0 spawn sur les 5 concernés. Un fichier
+présent que rien ne nomme ne tourne pas.
