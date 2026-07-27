@@ -135,6 +135,26 @@ def test_the_probes_have_a_reader():
         "usage_report.py is gone — the probes become storage")
 
 
+def test_the_baseline_pointer_survives():
+    """CLAUDE.md must keep pointing at the design docs — and name NEXT.md.
+
+    This is F1 applied to the documentation itself: a file nothing names is not
+    read. The pointer went one full day naming only ARCHITECTURE.md and
+    ROADMAP.md while the actionable backlog lived in NEXT.md, reachable only in
+    two hops. Nobody noticed, because nothing tested it.
+
+    Deliberately self-contained: it does NOT read the baseline. A test that goes
+    red because a directory moved on one machine gets deleted, and then the
+    floor is gone.
+    """
+    t = (REPO / "CLAUDE.md").read_text(encoding="utf-8", errors="ignore")
+    assert "<!-- baseline-pointer" in t, (
+        "the baseline pointer block is gone from CLAUDE.md — reinstall it with "
+        "tools/dev/install_conformance_ratchet.py --write")
+    for name in ("NEXT.md", "ARCHITECTURE.md", "ROADMAP.md"):
+        assert name in t, f"the pointer no longer names {name} — it predates NEXT.md"
+
+
 def test_the_error_class_catalogue_is_swept():
     """A catalogue nothing runs is a document."""
     runner = CLAUDE / "scripts" / "audit_runner.py"
