@@ -31,6 +31,7 @@ rex:
 """
 import argparse
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -100,6 +101,110 @@ def run_signature(sig: str) -> tuple[bool, str]:
     return hit, (proc.stdout + proc.stderr).strip()
 
 
+def _venv_python() -> str:
+    """Path to the project interpreter, resolved from the MAIN worktree.
+
+    Every signature names `python/.venv/bin/python`, but `python/.venv` is
+    gitignored — so a linked worktree (the engineering loop runs its Fix phase in
+    one) has no interpreter at that path. The signature then either errors out or
+    silently falls back to the system python, which cannot import ~21 of the test
+    modules; either way the guard reports something unrelated to the code.
+
+    `--git-common-dir` points at the shared .git of the main worktree, whose
+    parent is the main checkout, which is where the venv actually lives.
+    """
+    local = _REPO / "python" / ".venv" / "bin" / "python"
+    if local.exists():
+        return str(local)
+    try:
+        common = subprocess.run(["git", "rev-parse", "--git-common-dir"],
+                                cwd=_REPO, capture_output=True, text=True,
+                                timeout=30, check=True).stdout.strip()
+        main_root = (_REPO / common).resolve().parent
+        candidate = main_root / "python" / ".venv" / "bin" / "python"
+        if candidate.exists():
+            return str(candidate)
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return sys.executable          # last resort; loud because the run will fail visibly
+
+
+_SHELL_OPS = re.compile(r"[|;&><]|\$\(")
+
+
+def pytest_targets(sig: str) -> list[str] | None:
+    """Node-ids a *simple* pytest signature targets, or None if it is not batchable.
+
+    Conservative on purpose: anything carrying a shell operator keeps its own
+    subprocess. Measured on this catalogue: 40/40 pytest signatures are simple,
+    resolving to 42 unique node-ids across 32 files.
+    """
+    if "pytest" not in sig or _SHELL_OPS.search(sig):
+        return None
+    try:
+        toks = shlex.split(sig)
+    except ValueError:
+        return None
+    if "pytest" not in toks:
+        return None
+    after = toks[toks.index("pytest") + 1:]
+    targets = [t for t in after if not t.startswith("-") and ".py" in t]
+    return targets or None
+
+
+def _failed_nodes(output: str) -> set[str]:
+    """Node-ids pytest reported as FAILED or ERROR in its short summary."""
+    return set(re.findall(r"^(?:FAILED|ERROR)\s+(\S+?)(?:\s+-.*)?$", output, re.M))
+
+
+def run_batched(classes: list[dict]) -> tuple[dict[str, tuple[bool, str]], list[dict]]:
+    """Run every batchable pytest class in ONE pytest invocation.
+
+    40 separate invocations pay pytest startup and collection 40 times; on a 9p
+    mount that was ~7 s each before a single assertion ran. One invocation over
+    the union of node-ids pays it once (measured: 45.7 s of collection for the
+    whole set).
+
+    Returns ({class_id: (hit, output)}, [classes to run individually]).
+    Falls back wholesale when pytest reports anything other than pass/fail —
+    a collection error cannot be attributed to one class, and guessing would be
+    worse than being slow.
+    """
+    targets: dict[str, list[str]] = {}
+    rest: list[dict] = []
+    for c in classes:
+        t = pytest_targets(c["signature"])
+        if t:
+            targets[c["id"]] = t
+        else:
+            rest.append(c)
+
+    if len(targets) < 2:
+        return {}, classes
+
+    union = sorted({t for ts in targets.values() for t in ts})
+    print(f"▶ batching {len(targets)} pytest signature(s) → 1 invocation "
+          f"({len(union)} node-ids)\n")
+    proc = subprocess.run(
+        [_venv_python(), "-m", "pytest", *union, "-q", "--tb=no", "-rfE"],
+        cwd=_REPO, capture_output=True, text=True, timeout=1800,
+    )
+    out = proc.stdout + proc.stderr
+    if proc.returncode not in (0, 1):
+        print(f"  batch inconclusive (pytest exit {proc.returncode}) — "
+              f"falling back to one run per signature")
+        return {}, classes
+
+    failed = _failed_nodes(out)
+    results: dict[str, tuple[bool, str]] = {}
+    for cid, ts in targets.items():
+        hit_nodes = [f for f in failed
+                     if any(f == t or f.startswith(t + "::") for t in ts)]
+        detail = "\n".join(hit_nodes) if hit_nodes else ""
+        results[cid] = (bool(hit_nodes), detail)
+    return results, rest
+
+
 _OPTOUT_KINDS = {"manual", "runtime-manual"}  # acknowledged as intentionally NOT auto-swept
 
 
@@ -136,6 +241,8 @@ def main() -> None:
                     help="Meta-guard: fail if any class lacks a signature AND isn't runtime-manual")
     ap.add_argument("--all", action="store_true", help="Run every class (default)")
     ap.add_argument("--list", action="store_true", help="List classes and exit")
+    ap.add_argument("--no-batch", action="store_true",
+                    help="Run each pytest signature in its own invocation (the pre-batching\n                         behaviour). Slower by ~10x; use it to attribute a suspicious batch result.")
     args = ap.parse_args()
 
     if not _CATALOGUE.exists():
@@ -177,9 +284,17 @@ def main() -> None:
         mode = "all"
     print(f"▶ audit_runner ({mode}): {len(selected)} signatures\n")
 
+    batched: dict[str, tuple[bool, str]] = {}
+    individual = selected
+    if not args.no_batch:
+        batched, individual = run_batched(selected)
+
     hits = []
     for c in selected:
-        hit, output = run_signature(c["signature"])
+        if c["id"] in batched:
+            hit, output = batched[c["id"]]
+        else:
+            hit, output = run_signature(c["signature"])
         _telemetry_record("error_classes", c["id"], hit=hit)  # curator usage signal
         mark = "⚠ HIT" if hit else "✅"
         print(f"  {mark}  {c['id']}  [{c['kind']}/{c['status']}]")
