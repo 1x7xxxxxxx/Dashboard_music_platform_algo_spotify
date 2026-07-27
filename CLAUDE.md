@@ -308,7 +308,7 @@ search box, community filter, physics layout, edge-confidence styling
 wraps `python3 tools/dev/graphify_render_html.py` — that script calls
 `graphify.export.to_html` directly (the CLI doesn't expose this).
 
-<!-- baseline-pointer v3 — source unique : tools/dev/claude-md-pointer.md du baseline.
+<!-- baseline-pointer v4 — source unique : tools/dev/claude-md-pointer.md du baseline.
      Ne pas éditer ici : éditer la source et relancer install_conformance_ratchet.py --write.
      Tout ce qui est entre ce marqueur et son marqueur de fin est REMPLACÉ à chaque
      déploiement. Le reste de ce CLAUDE.md n'est jamais touché. -->
@@ -321,7 +321,7 @@ Quatre fichiers, quatre rôles, dans **`/mnt/c/Users/timot/Desktop/claude_code_d
 |---|---|---|
 | **`NEXT.md`** | *que faire ensuite ?* | **avant d'ouvrir une séance de travail sur la config** — c'est le backlog, chaque item avec son coût, son risque et sa commande de vérification |
 | `ARCHITECTURE.md` | *pourquoi ?* | avant d'ajouter une skill, un agent ou un hook — §2 (budget) et §3 (ce qui fait qu'un composant se déclenche) |
-| `REX.md` | *qu'a-t-on appris en se trompant ?* | avant d'écrire un installeur, un garde ou une métrique — les 13 entrées sont transverses aux 8 projets |
+| `REX.md` | *qu'a-t-on appris en se trompant ?* | avant d'écrire un installeur, un garde ou une métrique — les 14 entrées sont transverses aux 8 projets |
 | `ROADMAP.md` | *qu'a-t-on fait ?* | pour l'état du parc et le journal |
 
 Le fait le plus contre-intuitif, et le seul mesuré : **un agent nommé dans une règle
