@@ -178,6 +178,17 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 > tableau ou un registre. Les tableaux d'agents ci-dessous sont de la documentation, pas un
 > déclencheur.
 
+<!-- measured-rules:begin v1 — tools/dev/install_measured_rules.py -->
+14. **Une classe de défaut identifiée → `Spawn sibling-sweeper` AVANT d'écrire le
+    fix.** Il renvoie la liste exhaustive des sites frères en `fichier:ligne`, en
+    balayant le code, les tests **et** la couche de configuration. Un correctif
+    qui ne balaie pas laisse la classe vivante ailleurs.
+
+15. **Un défaut corrigé → `Spawn error-class-writer`.** Il renvoie l'entrée pour
+    `.claude/dev-docs/error-classes.md` au schéma du fichier, dont une
+    `signature` shell **qu'il a vue sortir ≠ 0 sur le défaut** et 0 après le fix.
+    Une signature jamais vue rouge ne garde rien.
+<!-- measured-rules:end v1 -->
 ### Skills (`.claude/skills/<nom>/SKILL.md`) — load on demand via Skill tool only
 
 Spec layout: each skill is a **directory**. The flat `<nom>.md` form was migrated away and
