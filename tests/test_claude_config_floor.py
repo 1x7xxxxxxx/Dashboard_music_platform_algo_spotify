@@ -37,7 +37,7 @@ def _repo_root() -> Path:
 REPO = _repo_root()
 CLAUDE = REPO / ".claude"
 
-_LOADABLE_SKILLS_FLOOR = 18
+_LOADABLE_SKILLS_FLOOR = 19
 _DENY_RULES_FLOOR = 13
 _PROBE_EVENTS = ['PostToolUse', 'PostToolUseFailure', 'SubagentStop', 'UserPromptSubmit']
 

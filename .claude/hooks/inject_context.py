@@ -6,14 +6,30 @@ Detects keywords in the user prompt and injects the matching skill / rule file
 from .claude/skills/ or .claude/rules/ as a system-reminder block before
 Claude reads the prompt.
 
-Generic payload ships with an EMPTY DOMAINS dict — projects populate it after
-bootstrap to point at their own skills/rules. Two starter examples are kept
-commented at the bottom of the file.
+THIS HOOK WAS A NO-OP FROM THE DAY IT WAS INSTALLED UNTIL 2026-07-17, and it is worth knowing why.
+
+The generic payload ships `DOMAINS = {}` and delegates filling it to the installer's LAST LINE —
+`setup-claude-code.sh:553`: "Next: fill in CLAUDE.md placeholders and configure inject_context.py
+domains." Measured across the sibling repos, that echo has a **33% success rate** (4 of 6 deployments
+left it empty). It is not inattention: it is a manual step at the end of a script nobody reads.
+
+The cost here: this hook is the ONLY injector of `.claude/rules/` and `.claude/skills/`, so an empty
+DOMAINS silently orphaned BOTH trees — including any rule your CLAUDE.md calls
+mandatory — such a rule reaches the model NEVER.
+
+The fix is `_discover_domains()` (ported from the Dashboard sibling, itself from msdr where it was
+born of a REX: "a new skill needs a hook edit"). A file that declares `keywords:` in its frontmatter
+SELF-WIRES. That makes `DOMAINS = {}` non-fatal and turns :553 from a dependency into advice.
 
 Always exits 0 — never blocks.
 
 ---
-rex: []
+rex:
+  - date: 2026-07-17
+    issue: "DOMAINS={} shipped by the payload made this hook a no-op on every prompt since install; it is the only injector of rules/ and skills/, so both trees were orphaned. 4 of 6 deployments of this payload had the same empty dict."
+    fix: "Ported _discover_domains() (Dashboard/msdr): a skill or rule declaring `keywords:` self-wires, so a forgotten post-install step can no longer silence the hook. Scans rules/ too, which no sibling does."
+    ref: "CLAUDE.md · setup-claude-code.sh:553"
+    severity: crit
 ---
 """
 import glob
@@ -22,89 +38,62 @@ import os
 import re
 import sys
 
-# Best-effort usage telemetry (curator self-improvement loop). Defensive import:
-# a missing/broken telemetry module must never break context injection.
-try:
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
-    from usage_telemetry import record as _telemetry_record
-except Exception:  # noqa: BLE001 — telemetry is optional
-    def _telemetry_record(*_a, **_k):
-        return None
-
-
-# ── Domain → (keywords, source folder, file) ─────────────────────────────────
-#
-# Each entry maps a list of trigger keywords (lowercased substring match) to a
-# file under .claude/skills/ or .claude/rules/. When ≥2 keywords from a domain
-# appear in the prompt, the matching file is injected (capped at _MAX_DOMAINS
-# files per prompt to stay within context budget).
-#
-# AUTO-DISCOVERED from each skill's `keywords:` frontmatter field (see
-# _discover_domains below). This hardcoded dict is only the FALLBACK used when no
-# skill declares keywords (generic payload / fresh bootstrap).
-
-_FALLBACK_DOMAINS: dict[str, tuple[list[str], str, str]] = {
-    "dashboard": (
-        ["vue", "view", "dashboard", "streamlit", "page", "sidebar",
-         "onglet", "navigation", "widget", "plotly", "chart", "kpi",
-         "metric", "st.", "button", "bouton", "filter", "filtre",
-         "afficher", "affiche", "render"],
-        "skills", "dashboard-view.md",
-    ),
-    "dag": (
-        ["dag", "airflow", "pythonoperator", "sensor",
-         "collecte", "pipeline", "orchestr", "watcher",
-         "scheduler", "schedule", "cron", "catchup", "backfill", "daily",
-         "tâche", "task", "trigger", "retry", "retries"],
-        "skills", "airflow-dag.md",
-    ),
-    "schema": (
-        ["schema", "table", "postgres", "postgresql", "migration",
-         "create table", "alter table", "init_db",
-         "colonne", "column", "constraint", "unique", "index",
-         "upsert", "upsert_many", "insert_many",
-         "base de données", "postgres_handler"],
-        "skills", "db-schema.md",
-    ),
-    "collector": (
-        ["collector", "src/collectors",
-         "spotify", "youtube", "meta ads", "instagram", "soundcloud",
-         "apple music", "facebook",
-         "oauth", "access_token", "api_key", "rate limit",
-         "endpoint", "credential",
-         "s4a", "spotify for artists", "hypeddit"],
-        "skills", "audit-collectors.md",
-    ),
-}
-
 # ── Path resolution ───────────────────────────────────────────────────────────
 
 _HOOK_DIR    = os.path.dirname(os.path.abspath(__file__))   # .claude/hooks/
 _CLAUDE_DIR  = os.path.dirname(_HOOK_DIR)                    # .claude/
 
 
+# ── Domain → (keywords, source folder, file) ─────────────────────────────────
+#
+# Each entry maps trigger keywords (lowercased substring match) to a file under
+# .claude/skills/ or .claude/rules/. ≥_MIN_HITS keywords in the prompt → inject.
+
+
 def _discover_domains() -> dict[str, tuple[list[str], str, str]]:
-    """Build DOMAINS by scanning .claude/skills/*.md for a frontmatter `keywords:`
-    line (`keywords: kw1, kw2, …`). A new skill that declares keywords is auto-injected
-    with no edit to this hook. Returns {} if no skill declares keywords → fallback."""
+    """Self-wiring: any skill OR rule declaring `keywords: a, b, c` registers itself.
+
+    Two deliberate differences from the siblings this is ported from:
+      · it scans `rules/` as well as `skills/`. Dashboard hardcodes "skills" and msdr's variant is
+        skills-only 2-tuples — so NEITHER can inject a rule, and a safety rule is a rule.
+        The 3-tuple design of this payload was the more capable of the three; this keeps it.
+      · the caller MERGES this with the hardcoded set rather than `discovered or _FALLBACK`
+        (Dashboard:107). With `or`, the first file to declare a keyword silently discards the whole
+        fallback dict — a trap shaped exactly like the bug this hook is being repaired for.
+    """
     found: dict[str, tuple[list[str], str, str]] = {}
-    for path in sorted(glob.glob(os.path.join(_CLAUDE_DIR, "skills", "*.md"))):
-        try:
-            with open(path, encoding="utf-8") as f:
-                head = f.read(2048)   # keywords live in the top frontmatter block
-        except OSError:
-            continue
-        m = re.search(r"^keywords:\s*(.+)$", head, re.M)
-        if not m:
-            continue
-        kws = [k.strip().lower() for k in m.group(1).split(",") if k.strip()]
-        if kws:
-            fn = os.path.basename(path)
-            found[os.path.splitext(fn)[0]] = (kws, "skills", fn)
+    for folder in ("workflows", "skills", "rules"):
+        base = os.path.join(_CLAUDE_DIR, folder)
+        # Flat `<folder>/x.md` AND spec layout `<folder>/x/SKILL.md`. Scanning only
+        # the flat form was silent data loss: after the spec-layout migration the
+        # skills live one directory down, so a top-level glob finds an empty tree
+        # and reports no error. Measured 2026-07-28 — 6 of 8 repos injected
+        # NOTHING on a bug-shaped prompt while every board showed them green.
+        paths = sorted(glob.glob(os.path.join(base, "*.md"))
+                       + glob.glob(os.path.join(base, "*", "*.md")))
+        for path in paths:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    head = f.read(2048)          # keywords live in the top frontmatter block
+            except OSError:
+                continue
+            m = re.search(r"^keywords:\s*(.+)$", head, re.M)
+            if not m:
+                continue
+            kws = [k.strip().lower() for k in m.group(1).split(",") if k.strip()]
+            if not kws:
+                continue
+            # `fn` is relative to `folder` so load_file() can join it either way.
+            fn = os.path.relpath(path, base)
+            stem = os.path.dirname(fn) or os.path.splitext(os.path.basename(fn))[0]
+            found[stem] = (kws, folder, fn)
     return found
 
 
-DOMAINS: dict[str, tuple[list[str], str, str]] = _discover_domains() or _FALLBACK_DOMAINS
+# Curated entries win on a key collision — a hand-tuned keyword set beats a discovered one.
+_HARDCODED: dict[str, tuple[list[str], str, str]] = {}
+
+DOMAINS: dict[str, tuple[list[str], str, str]] = {**_discover_domains(), **_HARDCODED}
 
 _MAX_DOMAINS = 3     # Max files injected per prompt (context budget)
 _MAX_LINES   = 120   # Max lines per file (truncate heavy files)
@@ -167,7 +156,6 @@ def main() -> None:
         content = load_file(folder, filename)
         if content:
             blocks.append(content)
-            _telemetry_record("skills", domain)  # curator usage signal
 
     if blocks:
         print("\n".join(blocks))

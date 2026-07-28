@@ -1,4 +1,7 @@
 ---
+name: response-protocol
+description: Detailed audit and response rules for this repository. MANUAL ONLY — invoke explicitly (the /review-* commands do). It has no honest trigger language because its own body says it applies to ALL responses, ALL files, ALL code: a skill with no boundary cannot describe when it should fire.
+disable-model-invocation: true
 rex:
   - date: 2026-05-14
     issue: "Deliverable #2 listed retro.md as append target, contradicting rex-format.md which marks it deprecated"

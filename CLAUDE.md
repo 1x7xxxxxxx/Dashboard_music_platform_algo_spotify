@@ -165,17 +165,46 @@ Full specification: `.claude/skills/response-protocol.md` (load only for `/revie
 8. **SQL identifier allowlists**: Any f-string that interpolates a table name or column name must validate against a `frozenset` allowlist before execution. Values (user data) always use `%s` parameterization — never f-strings.
 9. **DB connections per request**: `get_artist_plan()` uses 1 single LEFT JOIN query. Views open exactly 1 connection via `view_session()` (auto-closed on exit) — never open `db2` as a fallback inside the same function. `view_session()` enforces this structurally.
 10. **Makefile fail-fast**: any target invoking a runtime dependency (Docker, the venv interpreter, the live Postgres, `uv`, `streamlit`) must declare a prerequisite that fails fast with an actionable message — the `dashboard: check-env` precedent. File-only targets (`clean`, `help`, `graph-html`) are exempt. A runtime target with no precondition is a P3 bug: it must name the fix command, never crash mid-execution. Error class: `make-fail-late` (`.claude/dev-docs/error-classes.md`); full spec `.claude/rules/makefile-fail-fast.md`.
-11. **Bug → whole-repo impact analysis**: the moment a bug, divergence, regression, drift, or 500/crash is identified, load `.claude/skills/impact-analysis.md` and follow it **before** writing the fix. A defect is an instance of a *class* — sweep the whole repo for sibling occurrences (the proven `/kpis` → `/youtube` drift lesson), root-cause by reading the code (not guessing), and ship fix **+ a durable guard** (error-class signature / test / hook) so the class can't recur. The skill is auto-injected by `inject_context.py` on ≥2 bug-keywords; this rule makes it mandatory regardless. If prod-affecting, finish with `make sync-check`.
+11. **Bug → whole-repo impact analysis**: the moment a bug, divergence, regression, drift, or 500/crash is identified, load `.claude/skills/impact-analysis/SKILL.md` and follow it **before** writing the fix. A defect is an instance of a *class* — sweep the whole repo for sibling occurrences (the proven `/kpis` → `/youtube` drift lesson), root-cause by reading the code (not guessing), and ship fix **+ a durable guard** (error-class signature / test / hook) so the class can't recur. The skill is auto-injected by `inject_context.py` on ≥2 bug-keywords; this rule makes it mandatory regardless. If prod-affecting, finish with `make sync-check`. The sequenced version of this rule is `.claude/workflows/bug-resolution.md`, injected on the same keywords — **run it, do not wait to be asked.**
 
-### Skills (`.claude/skills/`) — load on demand via Skill tool only
-| File | Use when |
+12. **≥5 tests rouges dans une même exécution → `Spawn build-error-resolver`.** Il renvoie la cause racine unique et le fix minimal, sans toucher au code non lié.
+
+13. **Un endpoint HTTP, une route d'authentification ou une lecture de secret ajoutée ou modifiée → `Spawn security-specialist`.** Il renvoie des constats CRITICAL/HIGH/MEDIUM avec fichier et ligne.
+
+> Règles 12-13 ajoutées le 2026-07-28. Forme imposée par `ARCHITECTURE.md` §3.2 du baseline :
+> une flèche, un déclencheur **vérifiable mécaniquement**, le verbe littéral `Spawn`, un
+> contrat de sortie. C'est le seul mécanisme mesuré qui produise des invocations — 33 spawns
+> pour les agents nommés dans une règle impérative, **0 sur 23** pour ceux nommés dans un
+> tableau ou un registre. Les tableaux d'agents ci-dessous sont de la documentation, pas un
+> déclencheur.
+
+### Skills (`.claude/skills/<nom>/SKILL.md`) — load on demand via Skill tool only
+
+Spec layout: each skill is a **directory**. The flat `<nom>.md` form was migrated away and
+every path below was pointing beside the file until 2026-07-28 — a reference that misses
+without complaining is the `.claude/skills/impact-analysis.md` case of rule #11, which named
+a file that had not existed for weeks.
+
+| Skill | Use when |
 |---|---|
-| `dashboard-view.md` | Implementing a new Streamlit view from scratch |
-| `airflow-dag.md` | Creating a new DAG or debug_dag |
-| `db-schema.md` | Designing a new table or migration |
-| `response-protocol.md` | Detailed audit rules — load only for `/review-*` commands |
-| `audit-collectors.md` | Silent success anti-pattern rules — load when touching collectors |
-| `impact-analysis.md` | A bug/divergence/drift/500 was identified — whole-repo impact sweep + root-cause + durable guard (rule #11; auto-injected on bug-keywords) |
+| `dashboard-view/` | Implementing a new Streamlit view from scratch |
+| `airflow-dag/` | Creating a new DAG or debug_dag |
+| `db-schema/` | Designing a new table or migration |
+| `response-protocol/` | Detailed audit rules — `disable-model-invocation: true`, so **manual only** (`/review-*`) |
+| `audit-collectors/` | Silent success anti-pattern rules — load when touching collectors |
+| `impact-analysis/` | A bug/divergence/drift/500 was identified — whole-repo impact sweep + root-cause + durable guard (rule #11) |
+
+### Workflows (`.claude/workflows/`) — playbooks the model EXECUTES
+
+Auto-injected by `inject_context.py` via their `keywords:` frontmatter. When one lands in
+context, **run it; do not wait to be asked.**
+
+| Playbook | Auto-loads on |
+|---|---|
+| `bug-resolution.md` | bug / régression / traceback / corruption / silent failure / test rouge |
+| `architecture-change.md` | ADR / migration / schéma / contrat / breaking change |
+| `feature-development.md` | nouvelle fonctionnalité / brique / endpoint |
+| `continuous-improvement.md` | améliorer la config / curator / agent roster / dette technique |
 
 ### Agents (`.claude/agents/`)
 | Agent | Role |
