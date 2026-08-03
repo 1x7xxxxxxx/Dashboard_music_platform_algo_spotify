@@ -1,13 +1,26 @@
 ---
-rex: []
+description: "Rotate a finished roadmap task out of the active file into the archive."
+rex:
+  - date: 2026-08-03
+    issue: "Step 5 wrote the completion line into a `## Completed` section of checklist.md. The 2026-08-03 two-file split moved that section to archive.md, so the step named a heading that no longer exists in the file it opens."
+    fix: "Rewrote for the two files: tick, move the detail block into archive.md, retire the index row, then run the conservation test."
+    ref: "roadmap-two-files-2026-08-03"
+    severity: warn
 ---
 
-Mark a roadmap task complete: tick it in its detailed block AND remove its row from
-the top `## 📋 Tâches ouvertes` index, recording it under `## Completed`.
+Mark a roadmap task complete and **rotate** it: ticked, moved out of the active file, into
+the archive, index row retired.
 
-The single source of truth is `.claude/dev-docs/roadmap/checklist.md` (no `ROADMAP.md`,
-no `work-in-progress/`). Per CLAUDE.md, run this the moment a roadmap item is finished so
-the top index always reflects only *still-open* work.
+The roadmap is two files:
+
+| Rôle | Fichier |
+|---|---|
+| actif — ce qui est ouvert | `.claude/dev-docs/roadmap/checklist.md` |
+| archive — ce qui est livré ou clos | `.claude/dev-docs/roadmap/archive.md` |
+
+Run this the moment an item is finished, so the active file always reflects only still-open
+work. For a whole brick (rather than a single row) prefer `Spawn roadmap-keeper` — same
+contract, and it recounts aggregates when the file carries any.
 
 ## Input
 
@@ -27,22 +40,34 @@ or, if the task has no top-table row, an unambiguous substring of the task text.
    note if given>)` using today's date (read it from the environment's current date —
    never a bare `datetime.now()` assumption; convert relative to absolute).
 
-4. **Remove the index row:** delete the task's line from the `## 📋 Tâches ouvertes` table.
-   The top index must list ONLY open tasks.
+4. **Move the ticked line** — cut it from `checklist.md`, paste it into `archive.md` under
+   the section it belongs to (create the `## <section>` heading there if absent). Cut and
+   paste, in that order, in one edit each: an item duplicated across both files is counted
+   twice and reads as two deliveries.
 
-5. **Record under `## Completed`:** add one line
-   `- [x] <id> — <short task label> ✅ YYYY-MM-DD<, note>` to the `## Completed` section so
-   the archive is the durable record (the detail block stays where it is, now ticked).
+5. **Remove the index row:** delete the task's line from the `## 📋 Tâches ouvertes` table.
+   The active index must list ONLY open tasks.
 
 6. **Renumber? No.** Leave remaining `R*` ids as-is (ids are stable handles, not positions).
 
-7. Report: the task ticked, the row removed, and how many open tasks remain in the index.
+7. **Verify the rotation conserved everything:**
+   ```bash
+   python3 -m pytest tests/test_roadmap_two_files.py -q
+   ```
+   It fails if the two files together hold fewer items than before, or if an unchecked box
+   landed in the archive. If it goes red, restore and say where the item was lost — do not
+   lower the floor in the test to make it pass.
+
+8. Report: the task ticked, where it landed, the row removed, how many open tasks remain,
+   and the test result.
 
 ## Rules
 
-- Never delete the detailed block — tick it in place (move = retire-from-index + tick, not
-  erase). Mirrors the checklist-restructure principle: déplacement, pas suppression.
+- **Déplacement, pas suppression.** Removing a task from the active file without adding it
+  to the archive raises the completion percentage without delivering anything — the measure
+  improves because reality shrank. That is the failure this whole two-file split exists to
+  make visible.
 - One task per invocation. If the user passes several ids, process each in turn.
-- If `<id>` maps to a task the checklist marks BLOCKED / awaiting a live data source, warn
+- If `<id>` maps to a task the checklist marks BLOQUÉ / awaiting a live data source, warn
   before ticking (it may not actually be done) and ask for confirmation.
-- Touch only `checklist.md`. Do not commit — leave that to the user.
+- Touch only the two roadmap files. Do not commit — leave that to the user.

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Hook PostToolUse — Reminder to update ROADMAP.md after Python code changes.
+Hook PostToolUse — Reminder to update the active roadmap after Python code changes.
 
 Triggered after every Write or Edit on a .py file.
-Checks if ROADMAP.md was modified in the last 5 minutes.
+Checks if the ACTIVE roadmap file was modified in the last 5 minutes.
 If not, prints a soft reminder. Always exits 0 (non-blocking).
 
 ---
@@ -11,6 +11,11 @@ rex:
   - date: 2026-06-14
     issue: "Silent no-op: repo_root = dirname(hook_dir) gave .claude not repo root, tracker mtime never read"
     fix: "repo_root = dirname(dirname(hook_dir)) — was .claude, now repo root, so trackers resolve"
+    severity: warn
+  - date: 2026-08-03
+    issue: "Tracked `.claude/dev-docs/ROADMAP.md`, an unrendered bootstrap template nothing ever wrote, while real status lived in roadmap/checklist.md. The mtime was always stale, so the reminder fired on every .py edit — always-true, hence uninformative. The message also named BRICKS.md and DEPLOYMENT.md, neither of which exists in this repo."
+    fix: "Tracks roadmap/checklist.md (actif); message names the two real files; a missing tracker now says so instead of exiting silently."
+    ref: "roadmap-two-files-2026-08-03"
     severity: warn
 ---
 """
@@ -20,11 +25,16 @@ import sys
 import time
 
 
-# ROADMAP.md is the SINGLE SOURCE OF TRUTH for status (decision 2026-06-16):
-# the reminder centers on it. BRICKS = details + GANTT feed, DEPLOYMENT = procedures
-# (no status), so they no longer count as a status-freshness signal.
+# The ACTIVE roadmap file is the status signal (two-file split, 2026-08-03).
+# `archive.md` is deliberately absent: it only ever receives what already shipped,
+# so its mtime says nothing about whether current work was recorded.
+#
+# Until 2026-08-03 this tuple held `.claude/dev-docs/ROADMAP.md`, an unrendered
+# bootstrap template nothing ever wrote. The freshness check was therefore true on
+# every single run, and a reminder that always fires carries no information —
+# it trains the reader to skip it, which is worse than not reminding at all.
 _TRACKER_PATHS = (
-    ".claude/dev-docs/ROADMAP.md",
+    ".claude/dev-docs/roadmap/checklist.md",
 )
 _FRESHNESS_WINDOW_S = 300  # 5 minutes
 
@@ -74,12 +84,16 @@ def main():
             youngest_age = age
 
     if youngest_age is None:
+        # Every tracker is missing. Exiting silently here is how this hook spent
+        # weeks measuring nothing — say it instead, so the miss is visible.
+        print(f"📋 roadmap tracker not found: {', '.join(_TRACKER_PATHS)} — this hook is blind")
         sys.exit(0)
 
     if youngest_age > _FRESHNESS_WINDOW_S:
         fname = os.path.basename(file_path)
         print(
-            f"📋 {fname} modified — remember to update ROADMAP.md / BRICKS.md / DEPLOYMENT.md"
+            f"📋 {fname} modified — update `.claude/dev-docs/roadmap/checklist.md` "
+            f"(actif). Delivered? `Spawn roadmap-keeper` rotates it into archive.md."
         )
 
     sys.exit(0)

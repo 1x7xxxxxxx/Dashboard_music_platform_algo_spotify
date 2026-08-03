@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit deploy
+.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -58,6 +58,16 @@ audit:       ## Sweep ALL error-class signatures (heuristic, non-blocking) — d
 	@# sweeps it automatically (no hand-synced greps here anymore). Deterministic
 	@# classes also block CI (ci.yml); this `--all` run is the nightly heuristic pass.
 	@python3 .claude/scripts/audit_runner.py --all
+
+config-check: ## Check the .claude/ config itself: dangling paths, class schema, prose-only signatures
+	@# python3 + stdlib only — no runtime dependency, so no fail-fast prerequisite
+	@# is required (CLAUDE.md rule 10 exempts file-only targets).
+	@python3 .claude/scripts/check_config_refs.py
+	@python3 .claude/scripts/audit_runner.py --prose
+	@python3 .claude/scripts/audit_runner.py --coverage
+	@# --fields is advisory: RED on 29/29 legacy classes. `|| true` keeps this target
+	@# usable while still printing what is missing. Drop the `|| true` when it reaches 0.
+	@python3 .claude/scripts/audit_runner.py --fields || true
 
 # Prod connection for schema-check (override on the CLI; not committed to keep the
 # host out of version control): make schema-check PROD_SSH=root@HOST PROD_PG=container

@@ -131,7 +131,8 @@ When you need depth beyond `CLAUDE.md`, load these on demand :
 | File | Content |
 |---|---|
 | `.claude/dev-docs/architecture.md` | System Mermaid diagram + data flow + table inventory |
-| `.claude/dev-docs/roadmap/checklist.md` | Live brick tracker (open / completed) |
+| `.claude/dev-docs/roadmap/checklist.md` | Live brick tracker — **open work only** |
+| `.claude/dev-docs/roadmap/archive.md` | Delivered bricks + closed bugs (passive) |
 | `docs/adr/ADR-001-*.md` | Roadmap-multi-files-conserved decision |
 | `docs/adr/ADR-002-*.md` | Rejected msdr patterns (Alembic, repo pattern, observability) |
 | `docs/checklists_ml/RELEVANT_FOR_STREAMLYTICS.md` | ML checklist sections applicable here |
@@ -167,7 +168,11 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
 10. **Makefile fail-fast**: any target invoking a runtime dependency (Docker, the venv interpreter, the live Postgres, `uv`, `streamlit`) must declare a prerequisite that fails fast with an actionable message — the `dashboard: check-env` precedent. File-only targets (`clean`, `help`, `graph-html`) are exempt. A runtime target with no precondition is a P3 bug: it must name the fix command, never crash mid-execution. Error class: `make-fail-late` (`.claude/dev-docs/error-classes.md`); full spec `.claude/rules/makefile-fail-fast.md`.
 11. **Bug → whole-repo impact analysis**: the moment a bug, divergence, regression, drift, or 500/crash is identified, load `.claude/skills/impact-analysis/SKILL.md` and follow it **before** writing the fix. A defect is an instance of a *class* — sweep the whole repo for sibling occurrences (the proven `/kpis` → `/youtube` drift lesson), root-cause by reading the code (not guessing), and ship fix **+ a durable guard** (error-class signature / test / hook) so the class can't recur. The skill is auto-injected by `inject_context.py` on ≥2 bug-keywords; this rule makes it mandatory regardless. If prod-affecting, finish with `make sync-check`. The sequenced version of this rule is `.claude/workflows/bug-resolution.md`, injected on the same keywords — **run it, do not wait to be asked.**
 
-12. **≥5 tests rouges dans une même exécution → `Spawn build-error-resolver`.** Il renvoie la cause racine unique et le fix minimal, sans toucher au code non lié.
+12. **≥5 tests rouges dans une même exécution → `Spawn build-error-resolver`.** Il renvoie
+    la chaîne causale jusqu'à une cause **qu'on peut retirer**, les sites qu'elle touche, et
+    le fix minimal — sans toucher au code non lié. Le seuil est celui que `session_summary.py`
+    signale réellement (`failures >= 5`) : le changer suppose d'éditer les trois surfaces
+    ensemble — cette règle, la description de l'agent, et le hook.
 
 13. **Un endpoint HTTP, une route d'authentification ou une lecture de secret ajoutée ou modifiée → `Spawn security-specialist`.** Il renvoie des constats CRITICAL/HIGH/MEDIUM avec fichier et ligne.
 
@@ -196,10 +201,15 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     depuis ce qui a changé — ou la suite entière quand il ne peut pas conclure.
     Lancer cette liste, pas la suite entière.
 
-17. **Une brique livrée ou abandonnée → `Spawn roadmap-keeper`.** Il renvoie la
-    `.claude/dev-docs/ROADMAP.md` mise à jour : la brique retirée de l'actif
-    **et** ajoutée à l'archive, jamais l'un sans l'autre. Cette ROADMAP ne porte
-    aucune statistique agrégée : il n'en invente pas.
+17. **Une brique livrée ou abandonnée → `Spawn roadmap-keeper`.** La ROADMAP est en
+    **deux fichiers** : `.claude/dev-docs/roadmap/checklist.md` (actif — ce qui est
+    ouvert) et `.claude/dev-docs/roadmap/archive.md` (livré ou clos). Il renvoie les
+    deux mis à jour : la brique retirée de l'actif **et** ajoutée à l'archive, jamais
+    l'un sans l'autre, plus la ligne d'index `## 📋 Tâches ouvertes` retirée. Ces
+    fichiers ne portent aucune statistique agrégée : il n'en invente pas.
+    Contrôle : `python3 -m pytest tests/test_roadmap_two_files.py -q` échoue si la
+    somme des deux fichiers rétrécit — une rotation qui perd un item améliore le
+    pourcentage sans rien livrer.
 
 <!-- measured-rules:end v2 -->
 ### Skills (`.claude/skills/<nom>/SKILL.md`) — load on demand via Skill tool only
@@ -298,13 +308,21 @@ All MCPs are declared at project level in `.mcp.json` — **gitignored, local-on
 
 ## Roadmap
 
-Single master checklist: `.claude/dev-docs/roadmap/checklist.md`
+**Deux fichiers, un seul actif** :
+
+| Fichier | Contient | Lu par |
+|---|---|---|
+| `.claude/dev-docs/roadmap/checklist.md` | tâches et bugs **ouverts**, état de reprise | `/resume`, `/sprint`, hooks de fraîcheur |
+| `.claude/dev-docs/roadmap/archive.md` | briques livrées, bugs clos — **passif** | personne en routine |
+
 Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and continue with the next unchecked item."*
 
 **Roadmap flow**: the top `## 📋 Tâches ouvertes` table is the concise index of only
 *still-open* tasks. When a task is completed, run `/roadmap-done <id>` — it ticks the
-detailed block in place AND retires the row from the top index into `## Completed`. Never
-hand-delete a detail block (move = retire-from-index + tick, not erase).
+detail line, **moves it into `archive.md`**, and retires the row from the index. For a
+whole brick, `Spawn roadmap-keeper` (règle 17). Never hand-delete an item: déplacement,
+pas suppression — `tests/test_roadmap_two_files.py` échoue si le total des deux fichiers
+rétrécit.
 
 | Bricks | Topic | Status | Priority |
 |---|---|---|---|

@@ -25,6 +25,11 @@ rex:
     fix: "Excluded *.rex.md from _iter_files() and added _iter_archives(): archives are validated against the same entry schema and reported as archived_lessons (+24), never counted as tools. Same defect class as the workflows/ blind spot of 2026-07-22 — a coverage % is only as honest as the set it divides by."
     ref: "DEVLOG#2026-07-23 (suite 2) · 8e8ab6c"
     severity: warn
+  - date: 2026-08-03
+    issue: "_DOCSTRING_FM_RE matched an unanchored `---\\n`, so an RST section underline inside a module docstring opened a false frontmatter block. yaml.safe_load then raised on the prose and the tool was reported as having NO rex key. select_tests.py carried a correct `rex: []` the whole time; --strict exited 1 and named the wrong fix."
+    fix: "Anchored the delimiter to a line that is exactly `---` (^...$ with MULTILINE). Guarded by test_the_rex_parser_survives_rst_underlines, seen red on the old regex."
+    ref: "roadmap-two-files-2026-08-03"
+    severity: crit
 ---
 """
 import argparse
@@ -63,7 +68,17 @@ _SCAN_DIRS: list[tuple[str, str]] = [
 ]
 
 _FM_RE = re.compile(r"\A---\n(.*?)\n---\s*\n", re.DOTALL)
-_DOCSTRING_FM_RE = re.compile(r"---\n(.*?)\n---", re.DOTALL)
+
+# `^...$` with MULTILINE: the delimiter must be a line that is EXACTLY `---`.
+# Without the anchors this read `---\n` anywhere, and an RST section underline
+# (`Pourquoi cet outil existe` over `-------------------------`) ends in three
+# dashes and a newline — so the regex opened its "frontmatter" mid-underline,
+# handed the prose that followed to yaml.safe_load, got a ScannerError, and
+# reported the tool as having NO rex block at all. Measured 2026-08-03 on
+# `scripts/select_tests.py`, whose `rex: []` was present and correct the whole
+# time. A parser that reports absence when it means "I could not parse" sends
+# the reader to add something that is already there.
+_DOCSTRING_FM_RE = re.compile(r"^---\n(.*?)\n---[ \t]*$", re.DOTALL | re.MULTILINE)
 _VALID_SEVERITY = {"info", "warn", "crit"}
 
 

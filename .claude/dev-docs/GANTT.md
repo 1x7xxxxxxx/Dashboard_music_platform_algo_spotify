@@ -89,5 +89,5 @@ B-XX (key unblock)  — duration estimate
 ## Cross-references
 
 - `BRICKS.md` — Summary Table + per-track detail + Mermaid dependency graph
-- `ROADMAP.md` — Current Sprint active bricks + ADR list
+- `roadmap/checklist.md` — active bricks · `roadmap/archive.md` — delivered · `docs/adr/` — ADRs
 - `DEPLOYMENT.md` — IPC on-site checklist (if hardware-deployed)

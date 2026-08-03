@@ -10,7 +10,13 @@ You are the strategic plan architect. Your job is to keep project documentation 
 
 On every run, update ALL of the following — never skip one:
 
-1. **ROADMAP.md** — **THE single source of truth for status** (decision 2026-06-16): write every brick status / Current Sprint / what's-left change here. Check off completed bricks, move done items to the Completed table. **Never duplicate status into `BRICKS.md` or `DEPLOYMENT.md`** — BRICKS = technical details + brick index (no status); DEPLOYMENT = on-site procedures only. If you spot a status duplicated there, delete it and keep only ROADMAP's.
+1. **`.claude/dev-docs/roadmap/checklist.md`** — the **active** roadmap, and the single
+   source of truth for status. Write every status / open-task / what's-left change here.
+   It holds open work only: when a brick ships, do **not** tick it and leave it in place —
+   `Spawn roadmap-keeper`, which moves it into `.claude/dev-docs/roadmap/archive.md`
+   (retiré de l'actif **et** ajouté à l'archive, jamais l'un sans l'autre).
+   Never write status into `archive.md` yourself, and never duplicate it anywhere else.
+   `tests/test_roadmap_two_files.py` fails if the two files stop conserving items.
 2. **DEVLOG.md** — append a new entry: Why / What changed / Tests (actual pytest count).
 3. **REX (tool-colocated)** — do NOT write to `archives/retro.md` (frozen as `_archived_retro.md`). For each tool under `.claude/` that was modified this session and extracted a durable lesson, add an entry to its own frontmatter `rex:` block per `.claude/rules/rex-format.md`. If `.claude/sessions/pending-rex.md` already exists (drafted by `draft_rex.py`), review it and promote validated entries via `/retro`.
 4. **Mermaid** — update `architecture/macro_architecture.md` if system topology changed. Solid lines = implemented, dashed = planned.

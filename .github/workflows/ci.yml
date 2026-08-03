@@ -77,6 +77,21 @@ jobs:
         run: |
           uv run python .claude/scripts/validate_rex.py --strict
           uv run python .claude/scripts/audit_runner.py --deterministic
+          uv run python .claude/scripts/audit_runner.py --prose
+          uv run python .claude/scripts/check_config_refs.py
+
+      - name: Error-class schema completeness (advisory)
+        # `audit_runner.py --fields` fails when a class carries no root_cause or no
+        # long_term_fix — a class nobody decided how to end. It is RED on 29/29
+        # classes today (the catalogue predates the fields), so it reports and does
+        # not block: turning it blocking now would close CI on legacy content and
+        # the only way back open would be to lower the guard.
+        #
+        # Make it blocking once the count reaches 0 — and record the date here.
+        # `/capitalise` writes both fields, so new classes arrive complete; this
+        # step exists to keep the remaining backlog visible instead of silent.
+        continue-on-error: true
+        run: uv run python .claude/scripts/audit_runner.py --fields
 
       - name: Provision Postgres (schema + migrations)
         env:

@@ -13,7 +13,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -38,8 +37,12 @@ _SESSION_TURNS_WARN = 20
 # Deliverable files to check for freshness (relative to repo root).
 # REX is no longer a freshness target — captured per-tool via frontmatter (see rex-format.md).
 _DELIVERABLES = {
-    "ROADMAP.md":        ".claude/dev-docs/ROADMAP.md",
-    "DEVLOG.md":         "DEVLOG.md",
+    # The ACTIVE roadmap only (two-file split, 2026-08-03). `archive.md` receives
+    # what already shipped, so its freshness says nothing about the session.
+    # This pointed at `.claude/dev-docs/ROADMAP.md` until 2026-08-03 — an unrendered
+    # bootstrap template nothing wrote, so the freshness check was permanently stale.
+    "roadmap/checklist.md": ".claude/dev-docs/roadmap/checklist.md",
+    "DEVLOG.md":            "DEVLOG.md",
 }
 
 
@@ -53,16 +56,16 @@ def get_git_changes() -> list[str]:
     if result.returncode != 0:
         return []
     return [
-        l for l in result.stdout.strip().splitlines()
-        if not any(pat in l for pat in _SKIP_PATTERNS)
+        line for line in result.stdout.strip().splitlines()
+        if not any(pat in line for pat in _SKIP_PATTERNS)
     ]
 
 
 def format_git_summary(lines: list[str]) -> str:
-    modified = [l for l in lines if l.startswith((" M", "M "))]
-    deleted  = [l for l in lines if l.startswith((" D", "D "))]
-    new      = [l for l in lines if l.startswith("?")]
-    staged   = [l for l in lines if not l.startswith((" ", "?"))]
+    modified = [ln for ln in lines if ln.startswith((" M", "M "))]
+    deleted  = [ln for ln in lines if ln.startswith((" D", "D "))]
+    new      = [ln for ln in lines if ln.startswith("?")]
+    staged   = [ln for ln in lines if not ln.startswith((" ", "?"))]
 
     counts = []
     if modified: counts.append(f"✏️  {len(modified)} modifié(s)")
@@ -181,7 +184,7 @@ def run_pytest_summary(repo_root: str) -> str | None:
             return f"\n✅ Tests: {last_line}"
         else:
             msg = f"\n❌ Tests failing:\n  {last_line}"
-            failures = sum(1 for l in output.splitlines() if " FAILED" in l)
+            failures = sum(1 for ln in output.splitlines() if " FAILED" in ln)
             if failures >= 5:
                 msg += f"\n  → {failures} failures — consider spawning build-error-resolver agent"
             return msg
@@ -320,7 +323,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     branch = _git_branch(repo_root)
-    git_str = "\n".join(f"  {l}" for l in git_changes[:10]) or "  (clean)"
+    git_str = "\n".join(f"  {ln}" for ln in git_changes[:10]) or "  (clean)"
     devlog = _latest_devlog_title(repo_root)
     wip = _wip_snapshot(repo_root)
 
@@ -415,7 +418,7 @@ def main():
     # from the layout actually found: printing a `cd` into a directory this repo
     # does not have is worse than printing nothing, because it reads as a checked
     # instruction and cannot be run.
-    py_changes = [l for l in changes if l.endswith(".py")]
+    py_changes = [ln for ln in changes if ln.endswith(".py")]
     if py_changes:
         found = find_tests_dir(repo_root)
         if found:

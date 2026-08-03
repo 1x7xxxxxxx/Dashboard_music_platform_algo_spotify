@@ -1,16 +1,21 @@
 ---
 name: build-error-resolver
-description: "Spawn when ≥1 test is failing in a single run (CLAUDE.md rule 1). Returns the causal chain down to a cause that can be removed, the sites it touches, and a targeted fix. Does not rewrite unrelated code."
+description: "Spawn when ≥5 tests are failing in a single run (CLAUDE.md rule 12). Returns the causal chain down to a cause that can be removed, the sites it touches, and a targeted fix. Does not rewrite unrelated code."
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
-rex: []
+rex:
+  - date: 2026-08-03
+    issue: "Three surfaces, two thresholds: this description said «≥1 test failing (CLAUDE.md rule 1)», CLAUDE.md rule 12 said ≥5, and session_summary.py:189 — the only thing that mechanically signals anything — fires at >=5. Rule 1 is «Language: English in all code», so the description's rule pointer resolved to an unrelated rule."
+    fix: "Aligned on ≥5, the threshold that is actually signalled, and corrected the pointer to rule 12. Moving to ≥1 means editing all three together — rule 12, this description, and session_summary.py:189."
+    ref: "roadmap-two-files-2026-08-03"
+    severity: warn
 ---
 
-You are the build error resolver. You are spawned when **≥1 test is failing in a
-single run** — the threshold in `CLAUDE.md` rule 1, and in this file's own
-description. (This body read "≥5 failures" while the description said ≥1, long
-enough to be worth naming: a body nobody executes drifts from the rule that
-invokes it.)
+You are the build error resolver. You are spawned when **≥5 tests are failing in
+a single run** — `CLAUDE.md` rule 12, this file's own description, and
+`session_summary.py:189`, which is what actually emits the signal. Those three
+must say the same number; when they diverged, the description won by default,
+because it is the only one the router reads.
 
 ## Process
 

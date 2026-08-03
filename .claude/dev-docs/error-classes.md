@@ -86,6 +86,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [prod-compose-drift](#prod-compose-drift) | P2 | heuristic | reported | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
+| [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
+| [config-status-file-unrendered](#config-status-file-unrendered) | P2 | deterministic | guarded | none |
+| [trigger-threshold-split](#trigger-threshold-split) | P3 | deterministic | guarded | none |
+| [rex-delimiter-unanchored](#rex-delimiter-unanchored) | P3 | deterministic | guarded | none |
 
 ---
 
@@ -476,3 +480,64 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
   - 2026-06-19: confirmed by audit — render-smoke + api-db-smoke both use artist_id=1. Durable rule: new tenant-scoped views/endpoints must be smoke-tested for a sparse 2nd tenant, not just artist 1.
+
+## config-path-dangling
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a rule, skill or command names a `.claude/` file that is not there. Nothing errors — the instruction is simply unfollowable, and the reader cannot tell an absent file from an unimportant one.
+- signature: `python3 .claude/scripts/check_config_refs.py`
+- root_cause: a path in configuration is prose to every tool that reads it; only the model resolves it, at read time, and it has no way to report the miss. `.claude/scripts/check_config_refs.py`
+- long_term_fix: resolve every `.claude/` path against the disk in CI — `tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves`. A path that stops resolving now fails a build instead of degrading a session silently.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves + ci.yml }
+- rex_ref: .claude/commands/resume.md
+- first_seen: 2026-07-28 (ref: five dead references found in the deployment channel itself)
+- History:
+  - 2026-07-28: guard written; found 5 dead references, incl. a mandatory CLAUDE.md instruction naming a file absent on three repos.
+  - 2026-08-03: signature seen RED on an injected dangling path in `commands/sprint.md` and GREEN after removal. Promoted from hand-run to a pytest case + a blocking ci.yml step — it had been green only because someone remembered to type it. REX-block lines are exempt: naming the path that broke IS the lesson (same exemption `--prose` grants).
+
+## config-status-file-unrendered
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a file the tooling treats as the status source is an un-expanded bootstrap template — literal `$(date +%Y-%m-%d)`, `TODO: fill in` — so every reader of it reports a clean state that was never measured.
+- root_cause: the path resolves, so a path-existence guard passes. Existence was checked; content was not. `.claude/dev-docs/ROADMAP.md` (deleted 2026-08-03)
+- long_term_fix: the status files carry a measured item floor — `tests/test_roadmap_two_files.py`. A template state has zero items and fails it, so "resolves" can no longer be mistaken for "carries anything".
+- signature: `python3 -m pytest tests/test_roadmap_two_files.py -q`
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_roadmap_two_files.py }
+- rex_ref: .claude/agents/roadmap-keeper.md
+- first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
+- History:
+  - 2026-08-03: found while verifying rule 17. Eleven config surfaces (`/adr`, `/resume`, `/sprint`, `/dev-docs`, `strategic-plan-architect`, `check_roadmap_update.py`, `session_summary.py`, `bug-resolution.md`, `verification/`, `engineering-loop.js`, rule 17) named a template nothing had ever written, while the real 891-line roadmap sat elsewhere. Two hooks watched its mtime, so their freshness reminder was permanently true and therefore carried no information. Template deleted, surfaces repointed to the two-file roadmap. Signature seen RED with the template restored in place of the active file, GREEN after.
+
+## trigger-threshold-split
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a rule, the agent it spawns, and the hook that signals it state different thresholds. The agent's `description` wins, because it is the only one the router reads — so the effective trigger is the one no other surface agrees with.
+- root_cause: the threshold was written three times in three files with nothing comparing them; the agent description also cited "CLAUDE.md rule 1", which resolves to an unrelated rule. `.claude/agents/build-error-resolver.md`
+- long_term_fix: a test parses the number out of all three surfaces and fails unless they are equal — `tests/test_claude_config_floor.py::test_the_build_error_threshold_agrees_across_its_three_surfaces`. Changing the threshold stays easy; changing it in one place stops being possible.
+- signature: `python3 -m pytest tests/test_claude_config_floor.py::test_the_build_error_threshold_agrees_across_its_three_surfaces -q`
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_claude_config_floor.py }
+- rex_ref: .claude/agents/build-error-resolver.md
+- first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
+- History:
+  - 2026-08-03: CLAUDE.md rule 12 said ≥5, the agent description said ≥1, `session_summary.py:189` fired at 5. Aligned on 5 — the only value anything actually emits. Signature seen RED with the description desynced to ≥1, GREEN after.
+
+## rex-delimiter-unanchored
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a validator reports a tool as carrying no `rex:` block when the block is present and correct — it could not parse, and said "absent". The reader is sent to add something that is already there.
+- root_cause: `_DOCSTRING_FM_RE` matched an unanchored `---\n`, so an RST section underline (a line of dashes) opened a false frontmatter block and the prose after it went to `yaml.safe_load`. `.claude/scripts/validate_rex.py:66`
+- long_term_fix: the delimiter is anchored to a line that is exactly `---` (`^...$`, MULTILINE), and a unit test feeds the parser a docstring with RST underlines — `tests/test_claude_config_floor.py::test_the_rex_parser_survives_rst_underlines`. The wider lesson is in the message: a parser must not report absence when it means "I could not read".
+- signature: `python3 -m pytest tests/test_claude_config_floor.py::test_the_rex_parser_survives_rst_underlines -q`
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_claude_config_floor.py + validate_rex.py --strict in ci.yml }
+- rex_ref: .claude/scripts/validate_rex.py
+- first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
+- History:
+  - 2026-08-03: `--strict` exited 1 on `scripts/select_tests.py`, whose `rex: []` was valid — it would have failed CI on this branch. Repo-wide sweep of every `.claude/**/*.py`: 1 file affected today, but the class is live for any future docstring using RST underlines. Signature seen RED on the old regex, GREEN on the anchored one.

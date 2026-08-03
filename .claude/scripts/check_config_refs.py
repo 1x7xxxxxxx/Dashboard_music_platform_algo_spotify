@@ -79,6 +79,39 @@ def _candidates() -> list[pathlib.Path]:
     return files
 
 
+def _rex_lines(path: pathlib.Path, text: str) -> set[int]:
+    """Line numbers of the `rex:` block in a Markdown file's leading frontmatter.
+
+    A REX entry records what broke. When the thing that broke was a path that no
+    longer resolves, naming it is the entire content of the lesson — and the only
+    way to keep this guard green would be to stop writing down which file went
+    missing. That is the same trap `audit_runner.py --prose` exists to catch,
+    and the same exemption `_prose_cutoff` already grants to Python docstrings
+    and `#` comments: text that DESCRIBES a defect is not the defect.
+
+    Scoped deliberately to the `rex:` key inside frontmatter. A dangling path in
+    the body of a skill or command is still a live instruction, and still a hit.
+    """
+    if path.suffix != ".md":
+        return set()
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return set()
+    try:
+        end = next(i for i, ln in enumerate(lines[1:], 1) if ln.strip() == "---")
+    except StopIteration:
+        return set()
+    out: set[int] = set()
+    in_rex = False
+    for i in range(1, end):
+        line = lines[i]
+        if re.match(r"^\S", line):                    # a new top-level frontmatter key
+            in_rex = line.startswith("rex:")
+        if in_rex:
+            out.add(i + 1)                            # _REF loop counts from 1
+    return out
+
+
 def _prose_cutoff(path: pathlib.Path, text: str) -> int:
     """Last line of a Python module docstring — everything up to it DESCRIBES, it does not act.
 
@@ -110,9 +143,12 @@ def main() -> int:
             continue
         lines = text.splitlines()
         cutoff = _prose_cutoff(path, text)
+        rex_lines = _rex_lines(path, text)
         for num, line in enumerate(lines, 1):
             if num <= cutoff:
                 continue          # module docstring — prose about the code, not the code
+            if num in rex_lines:
+                continue          # a REX entry naming a path that broke IS the lesson
             if path.suffix == ".py" and line.lstrip().startswith("#"):
                 continue          # a comment describing a defect is not the defect
             if "{{" in line:

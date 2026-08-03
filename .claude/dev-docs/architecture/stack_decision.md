@@ -1,6 +1,6 @@
 # Stack Decision — Dashboard_music_platform_algo_spotify
 
-> Final technology choices per layer. Changes require a new ADR (append to ROADMAP.md).
+> Final technology choices per layer. Changes require a new ADR (`/adr` → `docs/adr/`).
 
 ## Layer choices
 

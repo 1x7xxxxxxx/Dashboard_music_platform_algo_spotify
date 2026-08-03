@@ -1,12 +1,19 @@
 ---
-rex: []
+rex:
+  - date: 2026-08-03
+    issue: "Steps 1 and 5 read `.claude/dev-docs/ROADMAP.md`, an unrendered bootstrap template whose Current Sprint and ADR sections held only TODO placeholders. Real open work lived in roadmap/checklist.md, real ADRs in docs/adr/ — so /resume rebuilt session context from nothing."
+    fix: "Repointed to the two-file roadmap (checklist.md actif) and to docs/adr/ for the ADR scan."
+    ref: "roadmap-two-files-2026-08-03"
+    severity: crit
 ---
 
 Resume the current session context after a /clear or session restart.
 
 ## What to do
 
-1. Read `.claude/dev-docs/ROADMAP.md` — extract only the `## Current Sprint` section.
+1. Read `.claude/dev-docs/roadmap/checklist.md` — the **active** roadmap. Extract the
+   `## 🔖 REPRISE` block (current state, read first) and the `## 📋 Tâches ouvertes` index.
+   Do not read `archive.md`: it holds only what already shipped.
 
 2. List files in `.claude/dev-docs/work-in-progress/` (excluding README.md). For each subfolder found:
    - Read the first 10 lines of `context.md` — **skip the folder entirely** if it contains `COMPLETED` or `BRICK COMPLETE` (it should have been archived; ignore it silently)
@@ -17,7 +24,7 @@ Resume the current session context after a /clear or session restart.
 
 4. Read `.claude/dev-docs/archives/_archived_retro.md` — scan the **last 3 entries** for lines containing `Next session:`, `Deferred`, `⬜`, or `prochaine session`. Surface them as **Deferred actions** (max 4 items, skip if none found). Also read `.claude/sessions/pending-rex.md` if it exists and list any un-promoted REX drafts (session cleanup reminder).
 
-5. Read `.claude/dev-docs/ROADMAP.md` — scan the `## Architecture Decision Records` section. Show the 2 ADRs most relevant to the active WIP bricks (match by brick name, technology keyword, or domain). Show: ADR number + title + one-line rationale. Skip if no WIP is active.
+5. `ls docs/adr/` — show the 2 ADRs most relevant to the active WIP bricks (match by brick name, technology keyword, or domain). Read only those two; show ADR number + title + the one-line `## Decision`. Skip if no WIP is active.
 
 6. Output a compact session brief in this format:
 
@@ -45,7 +52,8 @@ Resume the current session context after a /clear or session restart.
 - ...
 
 **Suggested next action:**
-<first unchecked P1 item from ROADMAP.md Active Development>
+<highest-priority unchecked item from checklist.md — the `## 📋 Tâches ouvertes` index is
+ordered; prefer an item marked actionable over one marked BLOQUÉ or DIFFÉRÉ>
 ---
 
 7. If no work-in-progress folder exists and no P1 is open: tell the user the project is in a clean state and suggest running `/sprint` for a full status.

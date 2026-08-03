@@ -70,9 +70,9 @@ Le validator parse la docstring, extrait le bloc entre `---` et le charge en YAM
 
 ## Ce qui n'est pas un REX par outil
 
-- Decisions architecturales transverses (ex: « QuestDB + PG dual-store », « Redis Streams pour sync event bus ») → restent dans `ROADMAP.md` comme ADR.
+- Decisions architecturales transverses (ex: « Streamlit conservé plutôt que React », « modèle central-app pour les credentials ») → un ADR autonome dans `docs/adr/`, via `/adr`.
 - Problèmes purement business code (ex: « acquisition.py log flooding ») qui n'extraient pas une règle pour un outil Claude Code → restent dans `_archived_REX.md`.
-- Bugs ouverts / TODOs → `BRICKS.md` ou issue tracker, pas REX. REX capture un apprentissage après fix.
+- Bugs ouverts / TODOs → `.claude/dev-docs/roadmap/checklist.md` (l'actif) ou l'issue tracker, pas REX. REX capture un apprentissage après fix.
 
 ## Contre-exemple
 

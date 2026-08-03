@@ -36,7 +36,7 @@ Run after every feature completion, before declaring a brick done, before any Do
 ### When to Use
 
 - After modifying `api.py`, `database.py`, `acquisition.py`, `background_ml.py`, `features.py`
-- Before moving a brick from Active to Completed in ROADMAP.md
+- Before rotating a brick from `roadmap/checklist.md` (actif) into `roadmap/archive.md`
 - After any Alembic revision (new migration in `<module path>`)
 - Before `docker compose build`
 

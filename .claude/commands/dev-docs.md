@@ -74,7 +74,7 @@ One sentence on what this brick/feature delivers.
 **Test command:** `cd src/Application && python3 -m pytest tests/ -v --tb=short`
 
 **Dev-docs deliverables index:**
-- `ROADMAP.md` — master project tracker (update when done)
+- `.claude/dev-docs/roadmap/checklist.md` — active tracker (update when done; `Spawn roadmap-keeper` to rotate into `archive.md`)
 - `REX.md` — append lessons learned
 - `DEVLOG.md` — append session entry when done
 - `architecture/macro_architecture.md` — system Mermaid
@@ -99,7 +99,7 @@ Tell the user:
 
 Before moving the folder to `archives/brick-snapshots/`:
 - [ ] All `- [ ]` steps in `plan.md` are checked off
-- [ ] `ROADMAP.md` updated: brick marked ✅ with completion date
+- [ ] Roadmap rotated: `Spawn roadmap-keeper` — brick out of `roadmap/checklist.md` **and** into `roadmap/archive.md` with its completion date, index row retired
 - [ ] `DEVLOG.md` entry appended (Why / What changed / test count)
 - [ ] `context.md` — `## Open questions` section: all items either resolved (moved to `## Resolved questions`) or explicitly deferred with a note
 - [ ] Test count stable — run `python3 -m pytest tests/ -q` and record count

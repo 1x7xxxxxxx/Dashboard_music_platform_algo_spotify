@@ -178,3 +178,73 @@ def test_the_error_class_catalogue_is_swept():
     r = subprocess.run([sys.executable, str(runner), "--coverage"], cwd=REPO,
                        capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, f"coverage meta-guard fails:\n{r.stdout}\n{r.stderr}"
+
+
+def test_every_claude_path_named_in_configuration_resolves():
+    """A rule that names a file which is not there is a rule nobody can follow.
+
+    Added 2026-08-03 after the guard, run by hand, found rule 17 pointing at
+    `.claude/dev-docs/ROADMAP.md` — an unrendered bootstrap template that eleven
+    other config surfaces also named. Running it only when someone remembers is
+    how it stayed true for weeks.
+    """
+    guard = CLAUDE / "scripts" / "check_config_refs.py"
+    assert guard.exists(), "check_config_refs.py is gone — nothing resolves config paths"
+    r = subprocess.run([sys.executable, str(guard)], cwd=REPO,
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, f"dangling .claude/ reference(s):\n{r.stdout}\n{r.stderr}"
+
+
+def test_the_rex_parser_survives_rst_underlines():
+    """A `---` that is a section underline is not a frontmatter delimiter.
+
+    The unanchored regex opened a block mid-underline, fed prose to the YAML
+    loader, and reported the tool as carrying no `rex:` key at all — sending the
+    reader to add something already present. Seen red on the old pattern.
+    """
+    sys.path.insert(0, str(CLAUDE / "scripts"))
+    try:
+        import validate_rex
+    finally:
+        sys.path.pop(0)
+
+    doc = ("Title line.\n\n"
+           "Pourquoi cet outil existe\n"
+           "-------------------------\n"
+           "Prose: with a colon, and a [bracket that YAML would choke on.\n\n"
+           "---\n"
+           "rex: []\n"
+           "---\n")
+    m = validate_rex._DOCSTRING_FM_RE.search(doc)
+    assert m, "the rex block in a docstring with RST underlines is invisible to the parser"
+    assert m.group(1).strip() == "rex: []", (
+        f"parser latched onto the wrong delimiter — captured {m.group(1)[:60]!r}")
+
+
+def test_the_build_error_threshold_agrees_across_its_three_surfaces():
+    """The rule, the agent that the rule spawns, and the hook that signals it.
+
+    These held two different numbers (≥5 in CLAUDE.md, ≥1 in the agent) while the
+    hook fired at 5. The description is what the router reads, so the effective
+    threshold was the one no other surface agreed with. Changing the threshold is
+    fine — changing it in one place is not.
+    """
+    claude_md = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
+    agent = (CLAUDE / "agents" / "build-error-resolver.md").read_text(encoding="utf-8")
+    hook = (CLAUDE / "hooks" / "session_summary.py").read_text(encoding="utf-8")
+
+    rule = re.search(r"≥(\d+) tests rouges dans une même exécution", claude_md)
+    assert rule, "CLAUDE.md no longer states a red-test threshold for build-error-resolver"
+
+    desc = re.search(r"description:.*?≥(\d+) tests? (?:are |is )?failing", agent, re.S)
+    assert desc, "build-error-resolver's description no longer states its threshold"
+
+    signal = re.search(r"failures\s*>=\s*(\d+)", hook)
+    assert signal, "session_summary.py no longer signals a failure count"
+
+    found = {"CLAUDE.md rule 12": rule.group(1),
+             "build-error-resolver description": desc.group(1),
+             "session_summary.py": signal.group(1)}
+    assert len(set(found.values())) == 1, (
+        f"the red-test threshold disagrees across surfaces: {found}. "
+        "A trigger nobody can verify mechanically does not fire.")

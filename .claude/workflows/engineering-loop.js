@@ -260,7 +260,7 @@ Do all four, in order:
     main repo cannot see your files, and this diff is the ONLY way your work survives. A patch you
     applied but did not return is a phase that reports success and delivers nothing.
 
-DO NOT: git add, git commit, git push, or edit .claude/dev-docs/ROADMAP.md. The main context records
+DO NOT: git add, git commit, git push, or edit .claude/dev-docs/roadmap/*.md. The main context records
 the ROADMAP with the measuring command's output (binding rule 4) and owns the deploy order.`,
       { label: `fix:${String(i + 1).padStart(2, '0')}`, phase: 'Fix', schema: PATCH, isolation: 'worktree' }
     )

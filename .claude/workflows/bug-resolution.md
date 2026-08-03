@@ -26,7 +26,7 @@ A step that looks automatic but cannot be is marked as such — never disguised.
 | 10 | Security — if an endpoint, credential, or external surface | `security-reviewer` + the `pre_commit_scan.py` hook | playbook + hook |
 | 11 | Deploy sync — if schema or deploy | a forward migration, never a manual edit on the target; then checksum repo↔target | playbook |
 | 12 | REX drafted → promoted | `draft_rex.py` (Stop hook) writes `pending-rex.md`; `/retro` promotes (**a human writes the lesson**) | hook + human |
-| 13 | ROADMAP updated | `.claude/dev-docs/ROADMAP.md`, the single source of truth — a finding enters **only with the command that measured it** | playbook |
+| 13 | ROADMAP updated | `.claude/dev-docs/roadmap/checklist.md` (actif) — a finding enters **only with the command that measured it**. Fixed and shipped? `Spawn roadmap-keeper` rotates it into `archive.md` | playbook |
 
 **The carriers that are NOT the model:** step 4 (`audit_runner`, a signature), step 8 (`pytest`),
 step 12's draft (a Stop hook). Everything else is model discipline — which is exactly why it is
