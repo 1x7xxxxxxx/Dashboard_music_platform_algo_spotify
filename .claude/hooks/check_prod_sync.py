@@ -2,12 +2,13 @@
 """
 Hook PostToolUse — prod-sync reminder after editing a prod-affecting file.
 
-Fires after Write/Edit on a schema / migration / fresh-install DDL / deploy-ops
-file. Prints a soft reminder (stderr) to run the sync analysis so repo↔prod
-divergence (the /youtube drift class — a column present in prod but not in the
-version-controlled schema) is caught EARLY, not post-deployment. Always exits 0
-(non-blocking). The durable rule it nudges: schema changes via migrations only,
-and `init_db.sql` + `*_schema.py` must mirror every migration (fresh-install parity).
+Fires after Write/Edit on an Alembic revision / DB layer / deploy-ops file. Prints a
+soft reminder (stderr) to confirm repo↔IPC stay in sync, so a schema change that never
+reaches the deployed Industrial PC (a drift class) is caught EARLY, not post-deployment.
+Always exits 0 (non-blocking).
+
+The durable rule it nudges: apply schema changes via an ALEMBIC REVISION, never a manual
+ALTER on the IPC Postgres, and keep the deployed DB at the Alembic head.
 
 ---
 rex: []
@@ -32,22 +33,28 @@ def main():
 
     norm = fp.replace("\\", "/")
     base = os.path.basename(norm)
-    is_migration = "/migrations/" in norm and norm.endswith(".sql")
+    is_revision = "/database/migrations/versions/" in norm and norm.endswith(".py")
     hit = any([
-        is_migration,
-        base == "init_db.sql",
-        "/src/database/" in norm and norm.endswith(".py"),   # *_schema.py, postgres_handler
-        "/tools/" in norm and norm.endswith(".sh"),           # deploy/ops scripts
+        is_revision,
+        base == "alembic.ini",
+        norm.endswith("/database/migrations/env.py"),
+        "/database/" in norm and norm.endswith(".py"),                  # DB layer / repos
+        # ^ was "/src/Application/database/" — a path from the repo this payload was
+        #   cut from, so this condition could never be true anywhere else. The six
+        #   other conditions are already layout-agnostic; this one was the odd one out.
         base.startswith("docker-compose"),
+        "/infra/docker/" in norm,                                      # Dockerfiles
+        "/tools/ops/" in norm and ("deploy" in base or norm.endswith(".sh")),
     ])
     if not hit:
         sys.exit(0)
 
-    msg = (f"⚠ prod-affecting file edited ({base}) — run `make sync-check PROD_SSH=user@host` "
-           "to confirm repo↔prod stay in sync (schema-drift + deploy-drift).")
-    if is_migration:
-        msg += (" New migration → also update init_db.sql + src/database/*_schema.py "
-                "so fresh installs/CI match prod (never a manual ALTER on prod).")
+    msg = (f"⚠ prod-affecting file edited ({base}) — confirm repo↔IPC stay in sync "
+           "(schema + deploy). Apply schema changes via an ALEMBIC REVISION "
+           "(database/migrations/versions/), never a manual ALTER on the IPC Postgres.")
+    if is_revision:
+        msg += (" New revision → keep the deployed IPC DB at the Alembic head and update "
+                "architecture/database_schema.md + the CLAUDE.md head ref.")
     print(msg, file=sys.stderr)
     sys.exit(0)
 

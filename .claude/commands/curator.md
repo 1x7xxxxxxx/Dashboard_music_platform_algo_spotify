@@ -43,4 +43,5 @@ real usage (what actually fires), and dead weight (stale skills, cold guards). I
   `inject_context.py` (skill injections) and `audit_runner.py` (signature runs/hits).
   Early on it may be sparse — that is expected; telemetry accrues over sessions.
 - This command never mutates the config on its own. The curator script is pure analysis.
-- Scheduled weekly (see `.claude/curator/SCHEDULE.md`); can also be run ad-hoc.
+- Run ad-hoc. Nothing schedules it: this config ships no scheduler, and a command
+  that claims a cadence it does not have is a promise the repo cannot keep.

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 _SESSION_MARKER_FILE = ".claude/sessions/.session-start-ts"
+_OBSERVATIONS_FILE = ".claude/homunculus/msdr/observations.jsonl"
 _PENDING_FILE = ".claude/sessions/pending-rex.md"
 _TOOL_DIRS = (
     ".claude/agents/", ".claude/skills/", ".claude/commands/",
@@ -50,14 +51,8 @@ def _is_tool_path(rel: str) -> bool:
     return any(rel.startswith(d) for d in _TOOL_DIRS) and (rel.endswith(".md") or rel.endswith(".py"))
 
 
-def _observations_file(repo_root: Path) -> Path:
-    """Mirror of observe.py — homunculus path is keyed by repo root dir name."""
-    project_name = repo_root.name or "default"
-    return repo_root / ".claude" / "homunculus" / project_name / "observations.jsonl"
-
-
 def _load_session_edits(repo_root: Path) -> dict[str, list[str]]:
-    obs = _observations_file(repo_root)
+    obs = repo_root / _OBSERVATIONS_FILE
     if not obs.exists():
         return {}
     start_ts = _session_start_ts(repo_root)

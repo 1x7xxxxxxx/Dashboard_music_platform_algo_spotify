@@ -2,8 +2,7 @@
 """
 PostToolUse hook — Continuous learning observation logger.
 
-Captures file edits into .claude/homunculus/<project>/observations.jsonl,
-where <project> is auto-derived from the repo root directory name.
+Captures file edits into .claude/homunculus/msdr/observations.jsonl.
 This feeds the continuous-learning skill: patterns are extracted manually
 via the 'continuous-learning' skill at session end.
 
@@ -22,12 +21,17 @@ import time
 from pathlib import Path
 
 
-# Observe code-y / config-y files; skip generated / vendored trees.
-_OBSERVE_SUFFIXES = (".py", ".md", ".yml", ".yaml", ".json", ".sh", ".ts", ".js", ".tsx", ".jsx")
-_SKIP_PATHS = (".venv", "__pycache__", ".git", "node_modules", "dist", "build", ".next", "target")
+# Suffixes observed anywhere in the repo; _SKIP_PATHS below does the excluding.
+# The previous comment named a directory from the repo this payload was cut
+# from, describing behaviour this code never had.
+# It cost nothing to run and everything to trust: `foreign-repo-path-in-config`
+# flagged it as a hit while the code was fine, which is how a deterministic
+# signature loses its "0 false positives" contract.
+_OBSERVE_SUFFIXES = (".py", ".md", ".yml", ".yaml")
+_SKIP_PATHS = (".venv", "__pycache__", "mlruns", ".git", "node_modules")
 
 _MAX_OBS_FILE_KB = 500   # Rotate observations log if > 500 KB
-_MAX_OBS_ENTRIES = 2000  # Hard cap to prevent unbounded growth
+_MAX_OBS_ENTRIES = 800  # Hard cap to prevent unbounded growth (lowered from 2000 — the cap re-reads+rewrites the whole file on every edit past it, so keep it lean)
 
 
 def find_repo_root() -> Path:
@@ -64,8 +68,7 @@ def main() -> None:
         sys.exit(0)
 
     repo_root = find_repo_root()
-    project_name = repo_root.name or "default"
-    obs_dir = repo_root / ".claude" / "homunculus" / project_name
+    obs_dir = repo_root / ".claude" / "homunculus" / "msdr"
     obs_dir.mkdir(parents=True, exist_ok=True)
     obs_file = obs_dir / "observations.jsonl"
 

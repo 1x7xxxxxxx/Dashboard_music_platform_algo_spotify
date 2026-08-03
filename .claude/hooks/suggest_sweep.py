@@ -5,9 +5,12 @@ Stop hook — suggests running /sweep when the session looks like a bug fix.
 Detects a "bugfix-shaped" session via four signals (fires if ANY is true) and
 prints ONE actionable line to stderr pointing at /sweep. It never runs the
 sweep, never blocks, exits 0 on any error. Mirrors the contract of draft_rex.py
-(session-window + observations helpers replicated, not imported — hooks run
-standalone). Position in the Stop chain: AFTER draft_rex.py (signal 4 needs
-pending-rex.md populated first), BEFORE draft_devlog.py.
+(session-window helper replicated, not imported — hooks run standalone).
+Position in the Stop chain: AFTER draft_rex.py (signal 4 needs pending-rex.md
+populated first), BEFORE draft_devlog.py.
+
+Signal 3 (risk-dir .py changed) derives its source dirs from the repo itself —
+see `_risk_dirs`. Nothing to tune, and nothing that only works in one repo.
 
 ---
 rex: []
@@ -26,7 +29,25 @@ _PENDING_REX = ".claude/sessions/pending-rex.md"
 _CATALOGUE = ".claude/dev-docs/error-classes.md"
 _FALLBACK_WINDOW_SEC = 2 * 60 * 60  # 2h
 _FIX_RE = re.compile(r"\b(fix|bug|hotfix|regression|broke|broken|crash)\b", re.I)
-_RISK_DIRS = ("src/collectors/", "src/dashboard/", "src/database/", "airflow/dags/")
+# Source dirs whose .py changes most often map to a catalogued class.
+#
+# This used to be a hardcoded list of directories from the repo this payload was
+# cut from. The docstring called it "project-tunable", which is true and was
+# never done: on every other deployment signal 3 could not fire, silently, while
+# the comment said it was tunable rather than that it was wrong. A default that
+# only works in one repo is not a default.
+#
+# Derived instead: the top-level source dirs this repo actually has. Empty is a
+# valid answer — the other three signals still fire.
+def _risk_dirs(root: Path) -> tuple[str, ...]:
+    out = []
+    for base in ("src", "app", "lib", "python"):
+        d = root / base
+        if not d.is_dir():
+            continue
+        subs = [s for s in sorted(d.iterdir()) if s.is_dir() and not s.name.startswith((".", "_"))]
+        out += [f"{base}/{s.name}/" for s in subs] or [f"{base}/"]
+    return tuple(out)
 
 
 def find_repo_root() -> Path:
@@ -66,10 +87,13 @@ def _fix_commits(repo_root: Path, start_ts: float) -> list[str]:
 
 
 def _risk_py_changed(repo_root: Path) -> bool:
+    risk = _risk_dirs(repo_root)
+    if not risk:
+        return False          # ce dépôt n'expose aucun répertoire source connu
     names = _git(repo_root, "diff", "HEAD", "--name-only").splitlines()
     return any(
         n.endswith(".py") and not n.startswith("tests/")
-        and any(n.startswith(d) for d in _RISK_DIRS)
+        and any(n.startswith(d) for d in risk)
         for n in names
     )
 
@@ -120,7 +144,7 @@ def main() -> None:
         guard_hint = (
             "" if _CATALOGUE in changed
             else " No error-class added this session — apply "
-                 ".claude/skills/impact-analysis.md (whole-repo sweep + a durable guard)."
+                 ".claude/skills/impact-analysis/SKILL.md (whole-repo sweep + a durable guard)."
         )
         print(
             f'\n🔍 Bugfix-shaped session (signal: {signal}). '

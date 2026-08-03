@@ -1,8 +1,9 @@
 ---
 name: roadmap-keeper
-description: "Fait descendre une brique de l'actif vers l'archive de la ROADMAP et, quand le fichier porte des statistiques agrégées, les recompte sur les deux sections. Utiliser quand une brique est livrée ou abandonnée — sur « brique livrée », « mets la roadmap à jour », « B-xx est finie », « archive cette tâche ». N'est PAS le rédacteur des classes d'erreur (c'est error-class-writer) ni un planificateur : il ne crée aucune brique nouvelle. Suppose une ROADMAP à deux sections et un identifiant de brique existant."
+description: "Fait descendre une brique de l'actif vers l'archive de la ROADMAP et, quand le fichier porte des statistiques agrégées, les recompte sur les deux sections. Utiliser quand une brique est livrée ou abandonnée — sur « brique livrée », « mets la roadmap à jour », « B-xx est finie », « archive cette tâche ». N'est PAS le rédacteur des classes d'erreur (c'est la commande /capitalise) ni un planificateur : il ne crée aucune brique nouvelle. Suppose une ROADMAP à deux sections et un identifiant de brique existant."
 tools: ["Read", "Grep", "Edit", "Bash"]
 model: sonnet
+rex: []
 ---
 
 # roadmap-keeper

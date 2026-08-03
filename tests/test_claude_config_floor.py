@@ -37,7 +37,6 @@ def _repo_root() -> Path:
 REPO = _repo_root()
 CLAUDE = REPO / ".claude"
 
-_LOADABLE_SKILLS_FLOOR = 19
 _DENY_RULES_FLOOR = 13
 _PROBE_EVENTS = ['PostToolUse', 'PostToolUseFailure', 'SubagentStop', 'UserPromptSubmit']
 
@@ -51,9 +50,26 @@ def test_every_skill_stays_loadable():
     """
     loadable = list((CLAUDE / "skills").glob("*/SKILL.md"))
     flat = list((CLAUDE / "skills").glob("*.md"))
-    assert len(loadable) >= _LOADABLE_SKILLS_FLOOR, (
-        f"{len(loadable)} loadable skills, floor is {_LOADABLE_SKILLS_FLOOR}. "
-        f"Flat files present: {[f.name for f in flat]}")
+    incompletes = [d.name for d in (CLAUDE / "skills").iterdir()
+                   if d.is_dir() and not d.name.startswith(".")
+                   and not (d / "SKILL.md").exists()]
+
+    # Le defaut, teste directement. Jusqu'au 2026-08-03 ce test assertionnait un
+    # PLANCHER sur len(loadable) et calculait `flat` sans jamais s'en servir
+    # ailleurs que dans le message d'erreur. Verifie par mutation : on depose un
+    # `skills/faux-skill-plat.md` — exactement le fichier que la docstring dit
+    # « never read by the harness » — et les 10 tests passent. Le garde ratait ce
+    # qu'il decrivait, et rougissait sur un retrait deliberе qu'il n'a jamais
+    # pretendu garder. Un plancher de comptage ne distingue pas « un skill est
+    # devenu illisible » de « un skill a ete retire expres ».
+    assert not flat, (
+        f"skill(s) a plat, jamais charges par le harness : {[f.name for f in flat]}. "
+        f"Un fichier plat est indiscernable d'un skill qui marche dans tout listing "
+        f"sauf celui du harness.")
+    assert not incompletes, (
+        f"dossier(s) de skill sans SKILL.md : {incompletes}. Installe a moitie, "
+        f"donc jamais charge.")
+    assert loadable, "aucun skill chargeable — .claude/skills/ est vide ou casse"
 
 
 def test_every_loadable_skill_can_actually_trigger():

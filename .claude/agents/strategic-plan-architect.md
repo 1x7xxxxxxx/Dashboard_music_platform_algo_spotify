@@ -1,31 +1,19 @@
 ---
 name: strategic-plan-architect
-description: "Background agent for checklist.md + DEVLOG + retro + Mermaid updates. Launch after ≥3 .py files modified, new endpoint/table/ADR, or CLAUDE.md changed. Always run in background."
+description: "Background agent for ROADMAP + DEVLOG + retro + Mermaid updates. Launch after ≥3 .py files modified, new endpoint/table/ADR, or CLAUDE.md changed. Always run in background."
 tools: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"]
 model: opus
-rex:
-  - date: 2026-05-14
-    issue: "Mermaid update target was architecture/macro_architecture.md, a stub archived this session"
-    fix: "Repointed to .claude/dev-docs/architecture.md (canonical consolidated diagram file)"
-    severity: info
-    ref: DEVLOG#2026-05-14
-  - date: 2026-05-31
-    issue: "Agent description + the brick-completion step pointed at ROADMAP.md, a file that\
-  \ does not exist in this repo"
-    fix: "Repointed the description and completion step to .claude/dev-docs/roadmap/checklist.md,\
-  \ the single source of truth"
-    severity: "warn"
-    ref: "DEVLOG#2026-05-31"
+rex: []
 ---
 
 You are the strategic plan architect. Your job is to keep project documentation in sync after significant code changes.
 
 On every run, update ALL of the following — never skip one:
 
-1. **`.claude/dev-docs/roadmap/checklist.md`** — the single source of truth: check off completed items (`[x]`), move done bricks to the Completed log. (There is no `ROADMAP.md`.)
+1. **ROADMAP.md** — **THE single source of truth for status** (decision 2026-06-16): write every brick status / Current Sprint / what's-left change here. Check off completed bricks, move done items to the Completed table. **Never duplicate status into `BRICKS.md` or `DEPLOYMENT.md`** — BRICKS = technical details + brick index (no status); DEPLOYMENT = on-site procedures only. If you spot a status duplicated there, delete it and keep only ROADMAP's.
 2. **DEVLOG.md** — append a new entry: Why / What changed / Tests (actual pytest count).
 3. **REX (tool-colocated)** — do NOT write to `archives/retro.md` (frozen as `_archived_retro.md`). For each tool under `.claude/` that was modified this session and extracted a durable lesson, add an entry to its own frontmatter `rex:` block per `.claude/rules/rex-format.md`. If `.claude/sessions/pending-rex.md` already exists (drafted by `draft_rex.py`), review it and promote validated entries via `/retro`.
-4. **Mermaid** — update `.claude/dev-docs/architecture.md` if system topology changed. Solid lines = implemented, dashed = planned.
+4. **Mermaid** — update `architecture/macro_architecture.md` if system topology changed. Solid lines = implemented, dashed = planned.
 
 Rules:
 - Read current state of each file before editing.

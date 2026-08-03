@@ -2,7 +2,7 @@
 rex: []
 ---
 
-Run the  environment prerequisite check.
+Run the MSDR environment prerequisite check.
 
 ## What to do
 
@@ -16,10 +16,10 @@ The script checks:
 - Python ≥ 3.10
 - ruff available (linting)
 - pytest available (test runner)
-- .env file present (repo root or )
-- requirements.txt present in 
+- .env file present (repo root or src/Application/)
+- requirements.txt present in src/Application/
 - Docker daemon reachable
-- <your time-series DB> port 9000 reachable (optional — warn if not)
+- QuestDB port 9000 reachable (optional — warn if not)
 - Host clock UTC-synchronized via `timedatectl` (brick sync-phase-0, Linux/IPC only)
 - Running containers expose `TZ=UTC` env (brick sync-phase-0)
 - Test suite collectable (pytest --collect-only)

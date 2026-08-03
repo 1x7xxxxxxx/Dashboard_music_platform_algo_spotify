@@ -20,9 +20,9 @@ All hooks configured in `.claude/settings.json`. Scripts in `.claude/hooks/`.
 
 | Keyword detected | Skill injected |
 |---|---|
-| "dashboard", "view", "streamlit" | `.claude/skills/dashboard-view.md` patterns |
-| "dag", "airflow", "collector" | `.claude/skills/airflow-dag.md` patterns |
-| "schema", "upsert", "postgres" | `.claude/skills/db-schema.md` patterns |
+| "dashboard", "view", "streamlit" | `.claude/skills/dashboard-view/SKILL.md` patterns |
+| "dag", "airflow", "collector" | `.claude/skills/airflow-dag/SKILL.md` patterns |
+| "schema", "upsert", "postgres" | `.claude/skills/db-schema/SKILL.md` patterns |
 
 ---
 

@@ -1,5 +1,6 @@
 ---
 description: "Transforme un défaut corrigé en classe d'erreur durable, avec une signature shell qui la détecte."
+rex: []
 ---
 
 # /capitalise

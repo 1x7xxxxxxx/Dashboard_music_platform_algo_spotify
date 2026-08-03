@@ -13,7 +13,7 @@ IT RECORDS. IT DOES NOT REASON, AND IT CANNOT ORCHESTRATE. Both halves matter:
     block nor react — it is informational. So "OnError → launch a root-cause agent" is NOT
     implementable, here or anywhere. Written down because the architecture it belongs to was
     designed around the assumption that it was, and someone will assume it again.
-    The bug→sweep→guard workflow is a PLAYBOOK the model follows (`skills/impact-analysis.md`,
+    The bug→sweep→guard workflow is a PLAYBOOK the model follows (`skills/impact-analysis/SKILL.md`,
     mandatory via CLAUDE.md), triggered by a rule + keyword injection. That is the only shape that
     exists.
 

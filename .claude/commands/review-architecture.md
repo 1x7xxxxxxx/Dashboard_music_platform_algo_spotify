@@ -2,45 +2,42 @@
 rex: []
 ---
 
-# Review Architecture
+Audit Mermaid architecture diagrams against the actual codebase state.
 
-Audit the Mermaid diagrams in `.claude/dev-docs/architecture.md` against the current codebase state.
+## What to do
 
-## Steps
+### Step 1 — Modules drift
+Read `.claude/dev-docs/architecture/macro_architecture.md`.
+List Python files in `src/Application/` (top-level only, exclude tests/, __pycache__, .venv).
+For each major module (acquisition.py, api.py, database.py, background_ml.py, dashboard.py, features.py, processing.py, fanuc_reader.py, sensor_diagnostics.py, train_xgboost.py, train_autoencoder.py):
+- ✅ if it appears in a diagram node
+- ❌ if it exists on disk but is absent from all diagrams
+- ⚠️  if it appears in a diagram but no longer exists on disk
 
-1. Read `.claude/dev-docs/architecture.md` (current diagrams)
-2. Run `git status --short` to identify recently modified files
-3. For each modified file, verify its node and edges are still accurate in the diagrams
-4. Check that all new views are registered in `app.py` routing
-5. Check that all new DAGs have a corresponding `debug_dag/debug_<name>.py`
-6. Check that all new tables appear in the classification map
+### Step 2 — PostgreSQL tables drift (Alembic-managed)
+Read `.claude/dev-docs/architecture/database_schema.md` — extract PG table names from the ERD.
+List Alembic revisions under `src/Application/migrations/versions/` — each `op.create_table()` / `op.add_column()` defines the real schema.
+Compare: report tables/columns in Alembic revisions but missing from ERD, and tables in ERD but not in Alembic chain (head `0012_add_rl_recommendations` as of 2026-04-24).
 
-## Output
+### Step 3 — QuestDB measurements drift
+Read `.claude/dev-docs/architecture/database_schema.md` — extract QuestDB measurement names.
+Grep `src/Application/` for ILP writes (`QUESTDB_ILP_PORT`, `questdb` TCP 9009 socket writes, `_write_rows_questdb`, `redis_consumer.py` bridge).
+Report any measurement written in code but not documented, or documented but not found in code.
 
-Report inconsistencies using this format:
-```
-[STALE]   node/edge — what changed and what the diagram should show instead
-[MISSING] component — exists in code but not in any diagram
-[OK]      component — verified accurate
-```
+### Step 4 — Docker services drift
+Read `.claude/dev-docs/architecture/macro_architecture.md` — extract service names.
+Read `docker-compose.yml` at repo root — extract service names.
+Report drift.
 
-Then provide updated Mermaid blocks for any stale sections.
+## Output format
 
-## Verification Queries
+Report as a checklist — one line per check, ✅ / ❌ / ⚠️.
+End with: "X issues found. Run `/dev-docs fix-architecture-drift` to plan fixes." if any ❌ or ⚠️.
+End with: "Architecture diagrams are in sync with codebase." if all ✅.
 
-```bash
-# List all view files
-ls src/dashboard/views/
+## When to use
 
-# Check app.py routing coverage
-grep "elif page ==" src/dashboard/app.py
-
-# List all production DAGs
-ls airflow/dags/
-
-# List all debug DAGs
-ls airflow/debug_dag/
-
-# List all schema files
-ls src/database/*_schema.py
-```
+- At session start after a long absence from the project
+- Before a major refactor
+- Before on-site IPC deployment (validate docs are current)
+- After a new Alembic revision (to verify `database_schema.md` ERD matches head) or after adding a new QuestDB measurement (ILP write)

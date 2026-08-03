@@ -5,11 +5,7 @@ Hook Stop — Session summary: git + Docker + session length + pytest + delivera
 Runs at end of session. Silent if nothing to report. Always exits 0.
 
 ---
-rex:
-  - date: 2026-05-31
-    issue: "_DELIVERABLES + the latest.md resume pointer referenced ROADMAP.md, which does not exist in this repo"
-    fix: "Repointed both to .claude/dev-docs/roadmap/checklist.md (the single source of truth)"
-    severity: warn
+rex: []
 ---
 """
 import json
@@ -17,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -28,13 +25,11 @@ _SKIP_PATTERNS = (
     "mlruns/",
 )
 
-# Docker containers expected when the project's stack is up.
-# Empty by default — projects override in their own .claude/hooks/session_summary.py
-# after bootstrap (e.g. ("api", "postgres", "redis") for a typical web app).
-_EXPECTED_CONTAINERS: tuple[str, ...] = (
-    "postgres_spotify_airflow",
-    "airflow_scheduler",
-    "airflow_webserver",
+# MSDR Docker containers expected in dev
+_MSDR_CONTAINERS = (
+    "msdr_api",
+    "msdr_dashboard",
+    "msdr_receiver",
 )
 
 # Warn threshold for long sessions
@@ -43,7 +38,7 @@ _SESSION_TURNS_WARN = 20
 # Deliverable files to check for freshness (relative to repo root).
 # REX is no longer a freshness target — captured per-tool via frontmatter (see rex-format.md).
 _DELIVERABLES = {
-    "checklist.md":      ".claude/dev-docs/roadmap/checklist.md",
+    "ROADMAP.md":        ".claude/dev-docs/ROADMAP.md",
     "DEVLOG.md":         "DEVLOG.md",
 }
 
@@ -58,16 +53,16 @@ def get_git_changes() -> list[str]:
     if result.returncode != 0:
         return []
     return [
-        line for line in result.stdout.strip().splitlines()
-        if not any(pat in line for pat in _SKIP_PATTERNS)
+        l for l in result.stdout.strip().splitlines()
+        if not any(pat in l for pat in _SKIP_PATTERNS)
     ]
 
 
 def format_git_summary(lines: list[str]) -> str:
-    modified = [line for line in lines if line.startswith((" M", "M "))]
-    deleted  = [line for line in lines if line.startswith((" D", "D "))]
-    new      = [line for line in lines if line.startswith("?")]
-    staged   = [line for line in lines if not line.startswith((" ", "?"))]
+    modified = [l for l in lines if l.startswith((" M", "M "))]
+    deleted  = [l for l in lines if l.startswith((" D", "D "))]
+    new      = [l for l in lines if l.startswith("?")]
+    staged   = [l for l in lines if not l.startswith((" ", "?"))]
 
     counts = []
     if modified: counts.append(f"✏️  {len(modified)} modifié(s)")
@@ -79,7 +74,7 @@ def format_git_summary(lines: list[str]) -> str:
     detail = "\n  ".join([""] + lines[:5])
     if len(lines) > 5:
         detail += f"\n  … et {len(lines) - 5} autre(s)"
-    reminder = '\n💡 Before /clear : update DEVLOG.md, check off checklist.md items, run /retro to promote pending REX drafts'
+    reminder = '\n💡 Before /clear : update DEVLOG.md, check off ROADMAP.md items, run /retro to promote pending REX drafts'
     return header + detail + reminder
 
 
@@ -95,14 +90,7 @@ def _find_docker() -> str | None:
 
 
 def check_docker_health() -> list[str]:
-    """Returns warnings for expected containers that are not running.
-
-    Silent if _EXPECTED_CONTAINERS is empty (default — generic payload), if Docker
-    is unreachable, or if none of the expected containers are running yet (stack
-    not up — not actionable).
-    """
-    if not _EXPECTED_CONTAINERS:
-        return []
+    """Returns warnings for MSDR containers that are not running."""
     docker = _find_docker()
     if not docker:
         return []
@@ -116,11 +104,9 @@ def check_docker_health() -> list[str]:
             return []
 
         running = result.stdout
-        if not any(c in running for c in _EXPECTED_CONTAINERS):
-            return []  # stack not up — not actionable
         warnings = [
             f"  🔴 {c} not running"
-            for c in _EXPECTED_CONTAINERS
+            for c in _MSDR_CONTAINERS
             if c not in running
         ]
         return warnings
@@ -148,12 +134,39 @@ def get_session_turns(transcript_path: str) -> int:
 
 # ── Pytest ───────────────────────────────────────────────────────────────────
 
+# Layouts tried, in order. The origin repo's own layout stays LAST, as one
+# candidate among others, never as the assumption.
+_TEST_LAYOUTS = [
+    ("tests", "."),
+    ("test", "."),
+    (os.path.join("src", "tests"), "."),
+    (os.path.join("src", "Application", "tests"), os.path.join("src", "Application")),
+]
+
+
+def find_tests_dir(repo_root: str) -> tuple[str, str] | None:
+    """(tests_dir, cwd) for this repo, or None when it has no suite.
+
+    Why this is not a constant. It used to be a single hardcoded path from the
+    repo this payload was cut from. Every other deployment took
+    the `return None` branch, so the whole pytest section of this Stop hook was
+    inert across the fleet: it never printed a passing suite, never printed a
+    failing one, and never once said it was doing nothing. The `foreign-repo-path-
+    in-config` class, in the file that reports on the config. Found 2026-08-03.
+    """
+    for rel_tests, rel_cwd in _TEST_LAYOUTS:
+        candidate = os.path.join(repo_root, rel_tests)
+        if os.path.isdir(candidate):
+            return candidate, os.path.join(repo_root, rel_cwd)
+    return None
+
+
 def run_pytest_summary(repo_root: str) -> str | None:
     """Run pytest and return a short summary line. None if tests dir not found."""
-    tests_dir = os.path.join(repo_root, "src", "Application", "tests")
-    app_dir   = os.path.join(repo_root, "src", "Application")
-    if not os.path.isdir(tests_dir):
+    found = find_tests_dir(repo_root)
+    if not found:
         return None
+    tests_dir, app_dir = found
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pytest", tests_dir, "--tb=no", "-q", "--no-header"],
@@ -168,7 +181,7 @@ def run_pytest_summary(repo_root: str) -> str | None:
             return f"\n✅ Tests: {last_line}"
         else:
             msg = f"\n❌ Tests failing:\n  {last_line}"
-            failures = sum(1 for line in output.splitlines() if " FAILED" in line)
+            failures = sum(1 for l in output.splitlines() if " FAILED" in l)
             if failures >= 5:
                 msg += f"\n  → {failures} failures — consider spawning build-error-resolver agent"
             return msg
@@ -307,7 +320,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     branch = _git_branch(repo_root)
-    git_str = "\n".join(f"  {line}" for line in git_changes[:10]) or "  (clean)"
+    git_str = "\n".join(f"  {l}" for l in git_changes[:10]) or "  (clean)"
     devlog = _latest_devlog_title(repo_root)
     wip = _wip_snapshot(repo_root)
 
@@ -320,7 +333,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
         f"## Active WIP\n{wip}\n\n"
         f"## Resume instructions\n"
         f"After /clear or session restart:\n"
-        f"1. Run `/resume` (reads `.claude/dev-docs/roadmap/checklist.md` — the single source of truth)\n"
+        f"1. Run `/resume` to reload sprint + WIP state\n"
         f"2. Re-run `python3 -m pytest tests/ -q` to confirm test state\n"
     )
     try:
@@ -332,8 +345,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
 # ── Observations visibility ───────────────────────────────────────────────────
 
 def _check_observations(repo_root: str) -> str | None:
-    project_name = Path(repo_root).name or "default"
-    obs = Path(repo_root) / ".claude" / "homunculus" / project_name / "observations.jsonl"
+    obs = Path(repo_root) / ".claude" / "homunculus" / "msdr" / "observations.jsonl"
     if not obs.exists():
         return None
     try:
@@ -388,7 +400,7 @@ def main():
     # 2. Docker health
     docker_warnings = check_docker_health()
     if docker_warnings:
-        sections.append("\n⚠️  Expected containers down:\n" + "\n".join(docker_warnings)
+        sections.append("\n⚠️  MSDR containers down:\n" + "\n".join(docker_warnings)
                         + "\n  → docker compose up -d")
 
     # 3. Session length
@@ -399,13 +411,24 @@ def main():
             "check token usage with /cost and consider /clear after this task."
         )
 
-    # 4. Pytest hint — not auto-run (too expensive per Stop).
-    # Run manually: python3 -m pytest src/Application/tests/ -q --tb=short
-    py_changes = [line for line in changes if line.endswith(".py")]
+    # 4. Pytest hint — not auto-run (too expensive per Stop). The command is built
+    # from the layout actually found: printing a `cd` into a directory this repo
+    # does not have is worse than printing nothing, because it reads as a checked
+    # instruction and cannot be run.
+    py_changes = [l for l in changes if l.endswith(".py")]
     if py_changes:
+        found = find_tests_dir(repo_root)
+        if found:
+            tests_dir, app_dir = found
+            rel_tests = os.path.relpath(tests_dir, app_dir)
+            rel_cwd = os.path.relpath(app_dir, repo_root)
+            prefix = "" if rel_cwd == "." else f"cd {rel_cwd} && "
+            hint = f"  {prefix}python3 -m pytest {rel_tests}/ -q --tb=short"
+        else:
+            hint = "  (no tests directory found in this repo)"
         sections.append(
             f"\n🧪 {len(py_changes)} .py file(s) changed — run tests before /clear:\n"
-            "  cd src/Application && python3 -m pytest tests/ -q --tb=short"
+            + hint
         )
 
     # 5. Config/DEVLOG sync check
@@ -423,7 +446,7 @@ def main():
         sections.append(
             "\n📋 Post-session deliverables not updated:\n"
             + "\n".join(deliverable_warnings)
-            + "\n  → Update checklist.md, DEVLOG.md before /clear; run /retro to promote pending REX drafts"
+            + "\n  → Update ROADMAP.md, DEVLOG.md before /clear; run /retro to promote pending REX drafts"
         )
 
     # 7. Observations visibility

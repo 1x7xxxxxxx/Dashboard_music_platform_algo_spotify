@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
 """
-Hook PostToolUse — Reminder to update the live tracker after Python code changes.
+Hook PostToolUse — Reminder to update ROADMAP.md after Python code changes.
 
-Triggered after every Write or Edit on a .py file under src/.
-Checks if the live tracker (roadmap/checklist.md) or DEVLOG.md was modified
-in the last 5 minutes. If not, prints a soft reminder. Always exits 0 (non-blocking).
+Triggered after every Write or Edit on a .py file.
+Checks if ROADMAP.md was modified in the last 5 minutes.
+If not, prints a soft reminder. Always exits 0 (non-blocking).
 
 ---
 rex:
-  - date: 2026-05-14
-    issue: "Hook was a no-op: _INCLUDE='src/Application' mismatched repo, tracker paths pointed to archived/non-existent files"
-    fix: "Repointed to roadmap/checklist.md + DEVLOG.md, _INCLUDE='src' with hook/script/test excludes"
+  - date: 2026-06-14
+    issue: "Silent no-op: repo_root = dirname(hook_dir) gave .claude not repo root, tracker mtime never read"
+    fix: "repo_root = dirname(dirname(hook_dir)) — was .claude, now repo root, so trackers resolve"
     severity: warn
-    ref: DEVLOG#2026-05-14
-  - date: 2026-06-13
-    issue: "Still a silent no-op: repo_root = dirname(hook_dir) gave .claude (not repo root), tracker mtime never read"
-    fix: "repo_root = dirname(dirname(hook_dir)) — .claude/hooks → .claude → repo root, so checklist.md/DEVLOG.md resolve"
-    severity: warn
-    ref: DEVLOG#2026-06-13
 ---
 """
 import json
@@ -26,9 +20,11 @@ import sys
 import time
 
 
+# ROADMAP.md is the SINGLE SOURCE OF TRUTH for status (decision 2026-06-16):
+# the reminder centers on it. BRICKS = details + GANTT feed, DEPLOYMENT = procedures
+# (no status), so they no longer count as a status-freshness signal.
 _TRACKER_PATHS = (
-    ".claude/dev-docs/roadmap/checklist.md",
-    "DEVLOG.md",
+    ".claude/dev-docs/ROADMAP.md",
 )
 _FRESHNESS_WINDOW_S = 300  # 5 minutes
 
@@ -48,12 +44,11 @@ def main():
         sys.exit(0)
 
     # Only fire for application source files — not tests, hooks, scripts, configs
-    _INCLUDE = "src" + os.sep
+    _INCLUDE = os.path.join("src", "Application")
     _EXCLUDE = (
-        os.sep + "tests" + os.sep,
+        os.path.join("src", "Application", "tests"),
         os.path.join(".claude", "hooks"),
         os.path.join(".claude", "scripts"),
-        os.path.join("airflow", "debug_dag"),
         "conftest.py",
         "setup.py",
         "setup.cfg",
@@ -84,8 +79,7 @@ def main():
     if youngest_age > _FRESHNESS_WINDOW_S:
         fname = os.path.basename(file_path)
         print(
-            f"{fname} modified — remember to update roadmap/checklist.md or DEVLOG.md",
-            file=sys.stderr,
+            f"📋 {fname} modified — remember to update ROADMAP.md / BRICKS.md / DEPLOYMENT.md"
         )
 
     sys.exit(0)

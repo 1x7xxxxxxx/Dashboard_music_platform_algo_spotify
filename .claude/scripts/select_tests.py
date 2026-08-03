@@ -65,6 +65,10 @@ négatif coûte la garantie tout entière.
     python3 select_tests.py --base origin/main # contre une autre référence
     python3 select_tests.py --dry              # explique, ne rend pas la liste
     python3 select_tests.py --self-test        # R3 — vu rouge avant d'être cru
+
+---
+rex: []
+---
 """
 from __future__ import annotations
 
