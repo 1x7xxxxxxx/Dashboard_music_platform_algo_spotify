@@ -36,6 +36,15 @@ permet de trancher. Si je ne peux pas produire les deux exécutions, je livre la
 classe en `kind: manual` **sans** signature plutôt qu'avec une signature non
 vérifiée — une fausse garantie coûte plus cher qu'une absence de garantie.
 
+**Et elle lit du code, pas du texte.** Une signature `deterministic` restreint sa
+recherche aux fichiers de code (`--include`) et ne doit pas pouvoir matcher un
+commentaire — sinon **écrire sur le défaut le fait rougir**, y compris le
+commentaire qui explique le correctif. Vu le 2026-08-03 : une classe passait au
+rouge sur les commentaires de son propre fix, donc la seule façon de garder la CI
+verte était d'arrêter de documenter. Une deterministic bloque la CI par contrat ;
+une qui bloque sur un commentaire apprend que le rouge peut être du bruit, et la
+leçon est appliquée aux autres. Contrôle : `audit_runner.py --prose`.
+
 ## Ce que je ne fais pas
 
 - Je ne recopie pas un narratif dans un champ structuré : la prose contient des

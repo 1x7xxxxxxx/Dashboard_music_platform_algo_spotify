@@ -43,6 +43,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind:      deterministic | heuristic
 - symptom:   one line — the observed failure
 - signature: `<exact shell command, exit!=0 on hit>`
+- root_cause: <une ligne, fichier:ligne quand c'est lisible>
+- long_term_fix: <le changement qui rend la classe impossible, ou "— (le garde EST le fix)">
 - autofix:   safe | none
 - guard:     { type: <ci-step|pre-commit|posttooluse-hook|ruff-rule|make-precondition|cross-cutting-rule>, ref: <path> }
 - rex_ref:   <path to the tool whose rex: block records the durable lesson>
