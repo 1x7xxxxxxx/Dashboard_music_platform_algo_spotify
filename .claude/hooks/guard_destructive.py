@@ -32,7 +32,15 @@ _BLOCK_PATTERNS: list[tuple[str, str]] = [
     ("git restore .",           "Discards all uncommitted changes in working directory"),
     ("git clean -f",            "Permanently deletes untracked files"),
     ("docker system prune",     "Removes ALL unused Docker data including named volumes"),
-    ("rm -rf /",                "Recursive delete from root — catastrophic"),
+    # `rm -rf /` etait compare en SOUS-CHAINE : il bloquait donc `rm -rf
+    # /tmp/scratch`, l'idiome le plus courant et le plus inoffensif. Mesure le
+    # 2026-07-30 sur le banc : 8 cellules sur 12 de la variante `arch` sur Opus
+    # ont ete bloquees par ce garde, parce qu'Opus construit ses reproductions
+    # dans des dossiers jetables (9 cellules sur 12, contre 1 sur 12 pour
+    # Sonnet). Le garde cense proteger la racine interdisait le travail.
+    #
+    # Il devient une expression reguliere : la racine elle-meme, ou un chemin
+    # systeme. `/tmp`, `/var/tmp` et tout chemin relatif passent.
     ("DROP TABLE",              "Irreversible PG/SQL table deletion"),
     ("DROP DATABASE",           "Irreversible database deletion"),
     ("DROP SCHEMA",             "Irreversible PG schema deletion (CASCADE loses all tables, alembic_version row, and dependent objects)"),
@@ -60,6 +68,21 @@ _BLOCK_REGEX: list[tuple[str, str]] = [
      "Recursive delete as root — verify the path outside Claude Code"),
     (r"\brm\s+-[a-z]*[rf][a-z]*\s+(/|~|\$HOME)(\s|/|$)",
      "Recursive delete of a root or home path — catastrophic"),
+    # Les chemins SYSTEME, nommes un par un. Ils etaient couverts jusqu'au
+    # 2026-07-30 par la sous-chaine `"rm -rf /"` de `_BLOCK_PATTERNS` — qui
+    # bloquait du meme coup `rm -rf /tmp/scratch`, l'idiome le plus courant et le
+    # plus inoffensif. Mesure sur le banc : 8 cellules sur 12 de la variante
+    # `arch` sur Opus bloquees par ce garde, parce qu'Opus construit ses
+    # reproductions dans des dossiers jetables (9 sur 12, contre 1 sur 12 pour
+    # Sonnet). Le garde cense proteger la racine interdisait le travail.
+    #
+    # `/tmp`, `/var/tmp` et tout chemin relatif passent maintenant — avec un
+    # avertissement, qui reste dans `_WARN_PATTERNS`.
+    (r"\brm\s+(-\S+\s+)*/(etc|usr|bin|sbin|lib|lib64|boot|dev|proc|sys|root"
+     r"|home|srv|opt)(/|\s|$)",
+     "Recursive delete of a system path — catastrophic"),
+    (r"\brm\s+(-\S+\s+)*/var/(?!tmp)",
+     "Recursive delete under /var — catastrophic"),
     (r"\bmkfs\.",
      "Filesystem creation destroys every byte on the target device"),
     (r"\bdd\b[^\n]*\bof=/dev/",

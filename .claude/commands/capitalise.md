@@ -1,12 +1,8 @@
 ---
-name: error-class-writer
-description: "Transforme un défaut corrigé en classe d'erreur durable, avec une signature shell qui la détecte. Utiliser après tout fix — sur « enregistre la classe », « écris le REX », « catalogue cette erreur », « error class ». N'est PAS le rédacteur du journal de bord ni de la ROADMAP : il n'écrit que dans dev-docs/error-classes.md ; pour une brique livrée, c'est roadmap-keeper. Suppose que le défaut est déjà corrigé et que l'état d'avant est reproductible."
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write"]
-model: sonnet
-rex: []
+description: "Transforme un défaut corrigé en classe d'erreur durable, avec une signature shell qui la détecte."
 ---
 
-# error-class-writer
+# /capitalise
 
 Un défaut corrigé une fois revient. Une classe écrite avec une signature qui la
 détecte ne revient pas sans qu'on le sache.
