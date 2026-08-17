@@ -52,6 +52,20 @@ tests sont lents n'est pas un hit — c'est un sujet, pas un défaut.
     python3 check_ci_waste.py              # depuis la racine du dépôt
     python3 check_ci_waste.py --root DIR
     python3 check_ci_waste.py --self-test  # R3 — vu rouge avant d'être cru
+
+---
+rex:
+  - date: 2026-08-17
+    issue: "La plainte était « la CI relance toute la suite pour trois lignes ». Mesuré sur 40 commits réels : 85 % des commits msdr et 67 % de streamlytics rendent SUITE ENTIÈRE de toute façon, parce qu'ils touchent un fichier non-Python. La sélection par diff ne s'appliquait donc qu'à 15-33 % des cas, en portant le risque du vert qui ne veut rien dire."
+    fix: "Ne pas câbler select_tests.py en CI. Les vrais coûts étaient ailleurs et sans risque de correction : un run dupliqué par commit, une attente derrière un job qui ne peut pas échouer, et une isolation xdist écrite dans un conftest.py que le workflow n'appelait jamais. Les trois s'appliquent à 100 % des commits."
+    ref: "CI-time-2026-08-17"
+    severity: warn
+  - date: 2026-08-17
+    issue: "Première version du garde : trois faux positifs sur la flotte. `pip install pytest-xdist` compté comme une invocation de pytest ; une sous-suite dédiée lancée en série traitée comme un gaspillage ; un workflow de release sommé d'ajouter cancel-in-progress."
+    fix: "Invocation ancrée en début de commande ; règle 4 restreinte à la cible égale au dossier du conftest ; règle 2 restreinte aux workflows d'itération. Chaque correctif a sa cellule VERTE au --self-test — un garde qui accuse à tort se fait désarmer et emporte les règles qui comptaient."
+    ref: "CI-time-2026-08-17"
+    severity: info
+---
 """
 from __future__ import annotations
 
