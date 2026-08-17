@@ -30,6 +30,7 @@ rex:
 ---
 """
 import argparse
+import os
 import re
 import shlex
 import subprocess
@@ -108,10 +109,83 @@ def parse_classes(text: str) -> list[dict]:
     return [c for c in parse_all_headers(text) if c["signature"]]
 
 
+_PLACEHOLDER = "__SET_IN_ENV_LOCAL__"
+
+
+def _load_env_files() -> dict:
+    """`.env` → `.env.local` → `.claude/audit_runner.env`, sans écraser l'environnement réel.
+
+    Pourquoi c'est ici et pas dans le shell de l'appelant, 2026-08-04. Le
+    balayage `--deterministic` a rendu **10 classes en rouge** dont 8 portées par
+    des signatures pytest. Aucune n'était un défaut : le shell n'exportait pas les
+    identifiants PG, `conftest` échouait au setup, et le runner comptait chaque
+    erreur de connexion comme une occurrence de la classe. Le même test repasse
+    vert avec `.env.local` chargé.
+
+    C'est la pire panne possible pour ce fichier, parce qu'elle est SILENCIEUSE et
+    qu'elle va dans le sens de l'alarme : le catalogue promet « deterministic =
+    zéro faux positif, sûr pour bloquer la CI », et un rouge qu'on finit par
+    ignorer ne garde plus rien. Un runner qui dépend d'un environnement doit le
+    charger lui-même, ou refuser de conclure.
+
+    `.claude/audit_runner.env` est la couche locale non versionnée : c'est là que
+    vit une réécriture propre à la machine (`PG_HOST=127.0.0.1` quand `.env` vise
+    le nom de service Docker `postgres`, injoignable depuis l'hôte).
+    """
+    env = dict(os.environ)
+    # Les fichiers se superposent entre eux dans l'ordre, PUIS cèdent le pas à
+    # l'environnement réel — ce que la docstring ci-dessus promet depuis le
+    # 2026-08-04 et que le code ne faisait pas : `env[cle] = val` écrasait
+    # `os.environ` sans condition.
+    #
+    # Conséquence mesurée le 2026-08-17 sur la CI de msdr : le job `guards`
+    # exporte `PG_PASSWORD: msdr`, `.env` porte `__SET_IN_ENV_LOCAL__`, le
+    # fichier gagnait, et le runner sortait en 2 — « environnement non résolu »
+    # — en NOMMANT une variable que l'appelant avait pourtant renseignée. Le
+    # garde des classes d'erreur était donc structurellement rouge en CI, et
+    # `main` rouge depuis le 12 juillet. Un runner qui ignore l'environnement
+    # qu'on lui donne ne peut pas être satisfait : il n'y a aucun geste qui le
+    # rende vert, et un garde qu'on ne peut pas satisfaire finit ignoré.
+    depuis_fichiers: dict[str, str] = {}
+    for name in (".env", ".env.local", ".claude/audit_runner.env"):
+        f = _REPO / name
+        if not f.exists():
+            continue
+        for ligne in f.read_text(encoding="utf-8", errors="ignore").splitlines():
+            ligne = ligne.strip()
+            if not ligne or ligne.startswith("#") or "=" not in ligne:
+                continue
+            cle, val = ligne.split("=", 1)
+            cle, val = cle.strip(), val.strip().strip('"').strip("'")
+            if cle and not cle.startswith("export "):
+                depuis_fichiers[cle] = val
+    for cle, val in depuis_fichiers.items():
+        if cle not in os.environ:
+            env[cle] = val
+    return env
+
+
+_ENV = None
+
+
+def signature_env() -> dict:
+    global _ENV
+    if _ENV is None:
+        _ENV = _load_env_files()
+        restants = sorted(k for k, v in _ENV.items() if _PLACEHOLDER in v)
+        if restants:
+            print(f"❌ environnement non résolu — {', '.join(restants)} porte encore "
+                  f"{_PLACEHOLDER}. Les signatures pytest rendraient des rouges qui ne "
+                  f"sont pas des défauts. Renseigner `.env.local` (ou "
+                  f"`.claude/audit_runner.env`) avant de conclure.", file=sys.stderr)
+            sys.exit(2)
+    return _ENV
+
+
 def run_signature(sig: str) -> tuple[bool, str]:
     """Run one signature from the repo root. Returns (hit, output)."""
     proc = subprocess.run(
-        sig, shell=True, cwd=_REPO,
+        sig, shell=True, cwd=_REPO, env=signature_env(),
         capture_output=True, text=True, timeout=300,
     )
     hit = proc.returncode != 0
@@ -204,7 +278,7 @@ def run_batched(classes: list[dict]) -> tuple[dict[str, tuple[bool, str]], list[
           f"({len(union)} node-ids)\n")
     proc = subprocess.run(
         [_venv_python(), "-m", "pytest", *union, "-q", "--tb=no", "-rfE"],
-        cwd=_REPO, capture_output=True, text=True, timeout=1800,
+        cwd=_REPO, env=signature_env(), capture_output=True, text=True, timeout=1800,
     )
     out = proc.stdout + proc.stderr
     if proc.returncode not in (0, 1):
@@ -247,7 +321,7 @@ def _coverage(headers: list[dict]) -> int:
     return 0
 
 
-def _fields(headers: list[dict]) -> int:
+def _fields(headers: list[dict], strict: bool = False) -> int:
     """Schema completeness: does every class say WHY it happened and WHAT ends it?
 
     Why this is a separate gate from `--coverage`, and not folded into it.
@@ -267,6 +341,15 @@ def _fields(headers: list[dict]) -> int:
     `long_term_fix` is the one that carries the weight: a signature says the class
     is *detectable*, only the fix says it can *stop happening*. `— (the guard IS
     the fix)` is a legitimate answer; a blank is not an answer.
+
+    CLIQUET, 2026-08-04. Cette porte sortait 1 sur 72 classes sur 72 depuis le jour
+    où elle a été écrite, et tout le monde avait acté de l'ignorer : un garde
+    rouge en permanence ne rapporte plus rien — c'est la règle « mesurer l'EFFET »
+    retournée contre le garde lui-même. Elle devient donc un cliquet : elle échoue
+    quand la dette GRANDIT (une classe neuve sans les deux champs), elle se
+    resserre toute seule quand elle diminue, et `--strict` restitue l'exigence
+    absolue pour le jour où le solde est fait. La dette héritée reste affichée à
+    chaque passage — visible, comptée, mais elle ne masque plus une régression.
     """
     missing = [(h, [f for f in ("root_cause", "long_term_fix") if not h[f]])
                for h in headers]
@@ -276,17 +359,65 @@ def _fields(headers: list[dict]) -> int:
     pct = (100 * complete // total) if total else 0
     print(f"▶ fields: {total} classes — {complete} complete ({pct}%) · "
           f"{len(missing)} incomplete")
-    if missing:
-        print("\n❌ classes missing a schema field "
-              "(`/capitalise` writes both; backfill by hand or re-run it):")
-        for h, fields in missing:
-            print(f"      {h['id']}  [manque: {', '.join(fields)}]")
-        print("\n   A class with no `long_term_fix` is a class nobody decided how "
-              "to end.\n   It will recur, and its signature will faithfully "
-              "report it recurring.")
+    if not missing:
+        _write_ratchet(0)
+        print("\n✅ fields complete — every class states its root cause and its long-term fix")
+        return 0
+
+    for h, fields in missing:
+        print(f"      {h['id']}  [manque: {', '.join(fields)}]")
+
+    if strict:
+        print("\n❌ --strict : toute classe doit porter les deux champs "
+              "(`/capitalise` les écrit).")
         return 1
-    print("\n✅ fields complete — every class states its root cause and its long-term fix")
+
+    dette = _read_ratchet()
+    if dette is None:                       # premier passage : on gèle l'état du jour
+        _write_ratchet(len(missing))
+        print(f"\n⚙️  cliquet POSÉ à {len(missing)} — la dette ne pourra plus grandir.")
+        return 0
+    if len(missing) > dette:
+        neuves = len(missing) - dette
+        print(f"\n❌ la dette GRANDIT : {len(missing)} incomplètes contre un cliquet "
+              f"à {dette} — {neuves} classe(s) écrite(s) sans `root_cause` ni "
+              f"`long_term_fix`.\n   Une classe sans correctif long terme est une "
+              f"classe dont personne n'a décidé la fin ; elle reviendra, et sa "
+              f"signature le rapportera fidèlement.")
+        return 1
+    if len(missing) < dette:
+        _write_ratchet(len(missing))
+        print(f"\n✅ dette RÉSORBÉE : {dette} → {len(missing)}. Cliquet resserré — "
+              f"il ne se desserrera pas.")
+        return 0
+    print(f"\n✅ dette stable à {dette} (héritée, antérieure au schéma) — aucune "
+          f"classe neuve incomplète. `--fields --strict` pour exiger le solde.")
     return 0
+
+
+# Le cliquet vit DANS le catalogue, pas dans ce script : c'est le catalogue qui
+# porte la dette, et un dépôt qui retélécharge le runner ne doit pas récupérer la
+# dette d'un autre. Écrit par le runner lui-même — un nombre que l'humain doit
+# penser à baisser après un backfill est un nombre qui reste faux.
+_RATCHET = re.compile(r"^<!-- fields-ratchet: (\d+) -->$", re.M)
+
+
+def _read_ratchet() -> int | None:
+    m = _RATCHET.search(_CATALOGUE.read_text(encoding="utf-8"))
+    return int(m.group(1)) if m else None
+
+
+def _write_ratchet(n: int) -> None:
+    texte = _CATALOGUE.read_text(encoding="utf-8")
+    ligne = f"<!-- fields-ratchet: {n} -->"
+    if _RATCHET.search(texte):
+        texte = _RATCHET.sub(ligne, texte, count=1)
+    else:                                   # après le titre H1, avant tout le reste
+        lignes = texte.split("\n")
+        i = next((k + 1 for k, ligne_k in enumerate(lignes) if ligne_k.startswith("# ")), 0)
+        lignes.insert(i, "\n" + ligne)
+        texte = "\n".join(lignes)
+    _CATALOGUE.write_text(texte, encoding="utf-8")
 
 
 # File kinds that can only ever DESCRIBE a defect, and the comment markers that
@@ -470,7 +601,10 @@ def main() -> None:
     ap.add_argument("--coverage", action="store_true",
                     help="Meta-guard: fail if any class lacks a signature AND isn't runtime-manual")
     ap.add_argument("--fields", action="store_true",
-                    help="Schema completeness: fail if any class lacks root_cause or long_term_fix")
+                    help="Schema completeness (ratchet): fail when the count of classes "
+                         "lacking root_cause/long_term_fix GROWS; self-tightens when it shrinks")
+    ap.add_argument("--strict", action="store_true",
+                    help="With --fields: drop the ratchet and fail on any incomplete class")
     ap.add_argument("--prose", action="store_true",
                     help="Meta-guard: fail if a deterministic signature fires only on comments/docs "
                          "— i.e. on the text that describes the defect instead of the defect")
@@ -510,7 +644,7 @@ def main() -> None:
         sys.exit(_coverage(headers))
 
     if args.fields:
-        sys.exit(_fields(headers))
+        sys.exit(_fields(headers, args.strict))
 
     if args.prose:
         sys.exit(_prose(classes))
