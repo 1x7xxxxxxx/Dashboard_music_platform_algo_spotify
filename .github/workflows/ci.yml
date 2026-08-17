@@ -1,10 +1,29 @@
 name: CI
 
+# `push: ["**"]` alongside `pull_request` ran the ENTIRE workflow twice for the
+# same commit: once for the push, once for the pull_request event. Measured
+# 2026-08-17 over the last 20 runs — 15 distinct SHAs, 20 runs, 5 commits with
+# both a `push` and a `pull_request` run. On a branch with an open PR that is
+# every single commit, at ~2 min 40 each. Restricting `push` to the integration
+# branches keeps the merge gate intact and lets the `pull_request` event be the
+# only trigger while work is in review.
+#
+# Cost of this choice, stated: a branch with NO open PR no longer runs CI on
+# push. Open the PR (draft is enough) and the gate is back — or run it by hand
+# with `gh workflow run ci.yml --ref <branch>` via workflow_dispatch below.
 on:
   push:
-    branches: ["**"]
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  workflow_dispatch: {}
+
+# Three pushes in a minute used to queue three full runs and let all three
+# finish; only the last one can still be true. msdr's ci.yml has had this since
+# the start — this repo did not.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-test:
@@ -79,6 +98,7 @@ jobs:
           uv run python .claude/scripts/audit_runner.py --deterministic
           uv run python .claude/scripts/audit_runner.py --prose
           uv run python .claude/scripts/check_config_refs.py
+          uv run python .claude/scripts/check_ci_waste.py
 
       - name: Error-class schema completeness (advisory)
         # `audit_runner.py --fields` fails when a class carries no root_cause or no
@@ -131,7 +151,19 @@ jobs:
         # --cov-report=xml: for codecov-style downstream tooling.
         # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
         # No --cov-fail-under: measure first, gate later.
-        run: uv run pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-report=term-missing
+        #
+        # La couverture a failli sauter d'ici, sur l'idée qu'elle coûtait ~30 %.
+        # Mesuré avant de trancher : 160,6 s sans, 174,0 s avec — **+8 %**, soit
+        # 13 s. Pour 13 s on garde le seul rapport de couverture du dépôt. La
+        # supposition était fausse et c'est la mesure qui a décidé.
+        #
+        # -n auto --dist loadfile : une seule chose change réellement le temps
+        # ici. Mesuré contre un Postgres provisionné comme celui-ci —
+        # 147,2 s → 101,1 s, 655 passés / 14 sautés à l'identique.
+        # `loadfile` (et non le défaut `load`) parce que tests/test_live_pulse.py
+        # écrit `active_sessions` : garder les tests d'un fichier sur un worker
+        # empêche ce fichier d'entrer en collision avec lui-même.
+        run: uv run pytest tests/ -v --tb=short -n auto --dist loadfile --cov=src --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage artifact
         if: always()

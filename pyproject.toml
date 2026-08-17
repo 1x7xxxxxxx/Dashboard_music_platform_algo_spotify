@@ -76,6 +76,17 @@ dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.12.0",
     "pytest-cov>=5.0.0",
+    # Exécution parallèle de la suite. Mesuré le 2026-08-17 sur cette machine,
+    # contre un Postgres provisionné comme celui de la CI (init_db.sql + les
+    # migrations, 91 tables) pour que les tests base tournent VRAIMENT :
+    # 147,2 s en série → 101,1 s à `-n 4 --dist loadfile`, avec 655 passés et
+    # 14 sautés des deux côtés. Une première mesure sans DATABASE_URL ne
+    # prouvait rien — 67 tests sautaient, dont tous ceux qui écrivent en base,
+    # c'est-à-dire exactement ceux qui pourraient entrer en collision.
+    # `--dist loadfile` garde les tests d'un même fichier sur un même worker :
+    # `tests/test_live_pulse.py` est le seul à écrire une table réelle
+    # (`active_sessions`), il ne peut donc pas se courir après lui-même.
+    "pytest-xdist>=3.5.0",
     "httpx>=0.27.0",
     "ruff==0.15.17",
     # Pre-commit framework + secret scanner (.pre-commit-config.yaml)

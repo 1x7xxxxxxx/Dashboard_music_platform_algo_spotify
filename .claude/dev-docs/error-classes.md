@@ -541,3 +541,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
 - History:
   - 2026-08-03: `--strict` exited 1 on `scripts/select_tests.py`, whose `rex: []` was valid — it would have failed CI on this branch. Repo-wide sweep of every `.claude/**/*.py`: 1 file affected today, but the class is live for any future docstring using RST underlines. Signature seen RED on the old regex, GREEN on the anchored one.
+
+## ci-runs-twice-for-one-commit
+- status:    guarded
+- kind:      deterministic
+- signature: `bash -c '! python3 .claude/scripts/check_ci_waste.py 2>/dev/null | grep -q "ci-runs-twice-for-one-commit"'`
+- root_cause: `.github/workflows/ci.yml` déclarait `push: branches: ["**"]` ET `pull_request:`. Les deux événements se déclenchent sur le même commit dès qu'une PR est ouverte, et le workflow tourne intégralement deux fois — même arbre, même SHA, même résultat. Le second run ne peut, par construction, rien apprendre que le premier n'ait déjà dit. Mesuré le 2026-08-17 sur les 20 derniers runs de `ci.yml` : **15 SHA distincts pour 20 runs**, dont 5 commits portant à la fois un run `push` et un run `pull_request`, à ~2 min 40 pièce. Le défaut était invisible parce que les deux runs étaient VERTS : un test qui échoue se voit, un run qui coûte le double ne se voit pas.
+- long_term_fix: `push` restreint à `[main, dev]`, `pull_request` conservé, `workflow_dispatch` ajouté pour relancer une branche sans PR à la main. Conséquence assumée : une branche SANS PR ouverte ne déclenche plus la CI sur push — ouvrir la PR (même en brouillon) rétablit la porte.
+- guard:     `.claude/scripts/check_ci_waste.py` (règle 1), appelé en CI à l'étape des gardes déterministes.
+- history:   2026-08-17 — signature vue **rouge** sur `HEAD` (worktree détaché) et **verte** après restriction du déclencheur.
+
+## ci-has-no-concurrency-group
+- status:    guarded
+- kind:      deterministic
+- signature: `bash -c '! python3 .claude/scripts/check_ci_waste.py 2>/dev/null | grep -q "ci-has-no-concurrency-group"'`
+- root_cause: aucun bloc `concurrency:` sur un workflow d'itération. Trois poussées rapprochées mettaient trois runs complets en file et les laissaient tous aller au bout, alors qu'un seul peut encore être vrai — les deux premiers valident un arbre que l'auteur a déjà remplacé. `msdr` portait ce groupe depuis son premier jour ; ce dépôt non. La flotte partage une configuration Claude, elle ne partage pas ses workflows : ce qui est appris d'un côté ne traverse pas tout seul.
+- long_term_fix: `concurrency: {group: ci-${{ github.ref }}, cancel-in-progress: true}`. Le garde ne l'exige que des workflows d'ITÉRATION — ceux qui portent un `pull_request` ou un `push` à joker. Un workflow de release déclenché par `push: [main]` n'est pas concerné : l'annuler à mi-chemin est une perte, pas une économie, et un garde qui prescrit une régression n'est pas un garde.
+- guard:     `.claude/scripts/check_ci_waste.py` (règle 2).
+- history:   2026-08-17 — vue rouge sur `HEAD`, verte après ajout du groupe. Le premier jet du garde signalait aussi `cd-release.yml` ; la règle a été resserrée et la cellule qui l'aurait attrapé est au `--self-test`.
