@@ -27,6 +27,7 @@ BACKUP_MAX_AGE_H="${BACKUP_MAX_AGE_H:-25}"
 DISK_MAX_PCT="${DISK_MAX_PCT:-85}"
 CONTAINERS="${CONTAINERS:-postgres_spotify_airflow airflow_scheduler streamlytics_dashboard streamlytics_api}"
 LOG="${LOG:-/var/log/streamlytics-infra-health.log}"
+PG_CONTAINER="${PG_CONTAINER:-postgres_spotify_airflow}"
 
 log() { echo "$@" >> "$LOG" 2>/dev/null || echo "$@" >&2; }
 log "── infra health $(date -u +%Y-%m-%dT%H:%M:%SZ) ──"
@@ -66,6 +67,39 @@ for c in $CONTAINERS; do
         log "container OK: $c running"
     fi
 done
+
+# 4. The watchdog needs a watchdog.
+#
+# `alert_monitor` is what tells you about everything else — failing DAGs, stale
+# sources, broken central apps, a mute canary. It is absent from its own
+# MONITORED_DAGS, and it cannot be otherwise: a DAG that does not run cannot report
+# that it did not run. Paused, erroring at import, or scheduler down ⇒ total
+# silence, which is exactly what a healthy night looks like.
+#
+# This script is the right place by its own docstring: the host layer, outside
+# Airflow. It reads Airflow's metadata DB directly for a recent run in a terminal
+# state, so "the scheduler never picked it up" and "it ran and failed" are both
+# caught — and they are different problems.
+ALERT_DAG="${ALERT_DAG:-alert_monitor}"
+ALERT_MAX_AGE_H="${ALERT_MAX_AGE_H:-26}"
+row="$(docker exec "$PG_CONTAINER" psql -U postgres -d "${AIRFLOW_DB:-airflow_db}" -tAc \
+    "SELECT state, EXTRACT(EPOCH FROM (now() - COALESCE(end_date, start_date)))/3600
+       FROM dag_run WHERE dag_id = '$ALERT_DAG'
+      ORDER BY COALESCE(end_date, start_date) DESC NULLS LAST LIMIT 1;" 2>/dev/null)"
+if [ -z "$row" ]; then
+    PROBLEMS+=("WATCHDOG: no run of '$ALERT_DAG' found at all — nothing is watching the pipeline")
+else
+    state="${row%%|*}"; age="${row##*|}"
+    age_h="${age%%.*}"
+    if [ -z "$age_h" ]; then age_h=9999; fi
+    if [ "$age_h" -ge "$ALERT_MAX_AGE_H" ]; then
+        PROBLEMS+=("WATCHDOG: last '$ALERT_DAG' run was ${age_h}h ago (>=${ALERT_MAX_AGE_H}h) — it is not running, so its silence means nothing")
+    elif [ "$state" != "success" ]; then
+        PROBLEMS+=("WATCHDOG: last '$ALERT_DAG' run ended '$state' ${age_h}h ago — the alert path itself is broken")
+    else
+        log "watchdog OK: $ALERT_DAG succeeded ${age_h}h ago"
+    fi
+fi
 
 # Verdict — clean run stays silent on stdout.
 if [ "${#PROBLEMS[@]}" -eq 0 ]; then
