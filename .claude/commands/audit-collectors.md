@@ -1,7 +1,7 @@
 ---
 rex:
   - date: 2026-08-21
-    issue: "Cross-cutting rule #6 mandates `/audit-collectors` after touching any collector, and this command audited another project's collectors: acquisition.py (USB CDC STM32 frames), fanuc_reader.py (OPC UA CNC), sensor_diagnostics.py, background_ml.py — none of which exist here. It also prescribed four rules (machine_state on error, insert_alert, psycopg_pool context managers) that describe no surface in this repo, and pointed at `src/Application/`, an absent directory."
+    issue: "Cross-cutting rule #6 mandates `/audit-collectors` after touching any collector, and this command audited another project's: acquisition.py (USB CDC STM32 frames), fanuc_reader.py (OPC UA CNC), background_ml.py. None exist here. It also pointed at `src/Application/`, an absent directory."
     fix: "Rewrote against the ten real modules in src/collectors/, around the one rule this repo actually enforces — a collector raises, it never returns None/[]/{} or breaks silently. The rule definitions and fix patterns now delegate to skills/audit-collectors/SKILL.md instead of being restated (and drifting) here."
     ref: "R36"
     severity: crit

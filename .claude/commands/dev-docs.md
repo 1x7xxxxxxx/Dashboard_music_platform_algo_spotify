@@ -1,7 +1,7 @@
 ---
 rex:
   - date: 2026-08-21
-    issue: "Every template field named another project's stack: QuestDB measurements, Alembic revisions `NNNN_<desc>.py` (rejected here by ADR-002), Redis Streams, `src/Application/X.py`, `with database.connection() as conn:`, and a 'Stack' line describing STM32 STWIN → QuestDB → Fanuc 30i+ over OPC UA. The deliverables index listed eight files that do not exist here and omitted the ones that do. A /dev-docs run would have produced a context.md that misdirects the next session after a /clear — the exact failure the command exists to prevent."
+    issue: "Every template field named another project's stack: QuestDB measurements, Alembic revisions (rejected here by ADR-002), Redis Streams, `src/Application/X.py`. A /dev-docs run would produce a context.md that misdirects the next session after a /clear — the failure it exists to prevent."
     fix: "Rewrote both templates and the project-context block against this repo: Postgres via PostgresHandler, plain-SQL migrations under migrations/, the tenant question made mandatory in the plan, and the deliverables index cut to files that exist."
     ref: "R36"
     severity: warn

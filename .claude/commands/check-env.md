@@ -1,7 +1,7 @@
 ---
 rex:
   - date: 2026-08-21
-    issue: "Described another repo: `.env` looked for in `src/Application/`, `requirements.txt` expected there too, a QuestDB :9000 probe listed unconditionally, and 'before on-site IPC deployment' as a use case. The script itself had already been made project-adaptive; this doc had not, so it described checks that no longer ran and omitted the one that does (Postgres on the port compose declares — 5433 here, not 5432)."
+    issue: "Described another repo: `.env` and `requirements.txt` looked for under `src/Application/`, a QuestDB :9000 probe listed unconditionally, and on-site IPC deployment as a use case. It omitted the check that does run — Postgres on the port compose declares, 5433 here."
     fix: "Rewrote the check list from the script's actual output, including the DB-gate consequence: with Postgres down, 128 tests skip silently, so a green suite means less than it looks."
     ref: "R36"
     severity: warn
