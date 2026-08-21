@@ -128,6 +128,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [same-platform-judged-on-different-tables](#same-platform-judged-on-different-tables) | P2 | deterministic | guarded | none |
 | [map-key-unreachable-by-construction](#map-key-unreachable-by-construction) | P2 | deterministic | guarded | none |
 | [guard-derived-from-the-thing-it-guards](#guard-derived-from-the-thing-it-guards) | P2 | deterministic | guarded | none |
+| [broken-probe-rendered-as-user-fault](#broken-probe-rendered-as-user-fault) | P2 | deterministic | guarded | none |
+| [row-existence-read-as-connection](#row-existence-read-as-connection) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1005,6 +1007,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
+  - 2026-08-22: widened shape — the existing guard covers *pulled but not decided*, and a state that is never COMPUTED cannot be pulled. `readiness_red_flags` only returned `NO_DATA`, so a tenant who signed up and declared nothing produced no row at all and no alert could exist for the single most likely outcome of a beta invitation. `readiness_stalled_flags` (TODO for more than 7 days, measured from `saas_artists.created_at`) now computes it, and the existing guard caught the new xcom key for free when it was deliberately left out of `has_issues` — verified by mutation.
   - 2026-08-21: found while adding `check_canary_health` — reading the send path to wire a new finding is what exposed that an existing one was never wired. Adding a neighbour is a cheap way to audit the neighbourhood.
   - 2026-08-21: the accompanying wiring guard was ITSELF hollow at first — a `re.search` with `DOTALL` spanning from `t_creds` to `>> t_alert` swept up the operator DEFINITIONS in between, so `t_canary` was "found" even after being removed from the dependency line. Third hollow guard of the same session, third one caught only by mutation. Assert on the narrowest text that carries the meaning, never on "does this name appear somewhere in the file".
 
@@ -1171,3 +1174,45 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - Sibling of `catalogue-index-omits-its-own-entries`: an omission that
     contradicts nothing. There the index never claimed completeness; here the suite
     never claimed a case count. Both are silent in the one direction that matters.
+
+## broken-probe-rendered-as-user-fault
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a check that FAILED (missing table, bad identifier, dead connection) renders identically to "connected, no data", so the user is told to fix something that is not theirs. They change a working setting and the screen still says red.
+- signature: `python3 -m pytest tests/test_broken_probe_is_not_the_artists_fault.py -q`
+- root_cause: `src/utils/freshness_monitor.py` sets an `error` field on every failed probe, and its own comment says why: "`stale=True` alone made a BROKEN check look exactly like 'connected but no data'". `src/utils/artist_readiness.py` never read it — it passed `last_dt=None, stale=True` and the status collapsed to `NO_DATA` 🔴 "Connecté — aucune donnée", with a `next_action` telling the artist to check an id that was never the problem. `tools/artist_preflight.py` step 4 inherited the same blindness, so the gate run before an artist session also blamed the tenant.
+- long_term_fix: a sixth status `BROKEN` (⚠️), ranked between `TODO` and `NO_DATA` so a failed probe never outranks a source that actually answered and never outranks the tenant's own missing identity. `next_action(BROKEN)` deliberately asks the artist for **nothing**. `readiness_red_flags` returns `NO_DATA` **and** `BROKEN` — both need someone to look, and the action text is what says whose move it is.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_broken_probe_is_not_the_artists_fault.py }
+- rex_ref: src/utils/artist_readiness.py
+- first_seen: 2026-06-19 (Benken) — named 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by mutation: neutralising the `if error:` branch fails two cases, including the one asserting a failed probe outranks an expected silence — a measured "nothing to send" is a claim, and a check that broke cannot support it.
+- Notes:
+  - The field existed, documented, for the exact purpose it was not used for. Worth
+    more than the fix: **writing the distinction is not the same as reading it.**
+    Same shape as `finding-rendered-but-not-alerted` (a finding reached the body but
+    not the send decision) and `suppressed-alert-renders-as-health` (a decision
+    reached the flag but not the reader).
+
+## row-existence-read-as-connection
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a surface decides "connected" from the presence of a credentials row rather than from the identity value, so a tab opened and saved blank reads as ✅ — beside a readiness matrix showing ⚪ for the same tenant on the same data.
+- signature: `python3 -m pytest tests/test_connected_means_declared.py -q`
+- root_cause: four surfaces, four variants of the same shortcut. `credentials/_render.py::_render_global_kpi` used `platform_key in existing`; `views/onboarding.py::_get_configured_platforms` used `{r[0] for r in rows}`; `utils/setup_focus.py::connected_platforms` used `set(rows or {})`; `views/home.py::_section_onboarding` ticked the WHOLE credentials step on `COUNT(*) FROM artist_credentials` — one row, any platform. The Meta row makes it sharper: it carries two identities, so a row holding only `ig_user_id` counted as Meta-connected. And Spotify could manufacture exactly such a row — `_render.py` re-wrote `extra['spotify_artist_id']` after the empty-value pop, making it the one platform able to persist `{"spotify_artist_id": ""}`.
+- long_term_fix: `tenant_identity.declared_identities()` — pure, no DB, no Streamlit — is the single answer to "what has this tenant declared", and all four surfaces call it. `home.py` keeps its single round-trip but counts rows carrying a non-empty identity, with the field names bound as a parameter array derived from the registry (never interpolated).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_connected_means_declared.py }
+- rex_ref: src/utils/tenant_identity.py
+- first_seen: 2026-08-12 (Grinch) — named 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by mutation on two surfaces: `set(rows or {})` restored in `setup_focus.py`, and the bare `COUNT(*)` restored in `home.py`. A pre-existing test had to be corrected rather than kept: `test_connected_platforms_survives_jsonb_as_text_and_nulls` asserted that a meta row with `extra_config = None`, or unparseable text, counted as Meta-connected. It pinned the defect.
+- Notes:
+  - The Python half of the guard is AST. The docstrings of the corrected functions
+    describe the forbidden expression, because that is how you explain why it is
+    gone — a textual sweep would go red on its own explanation.
+  - A test can encode a defect and stay green forever. This one had a name, a
+    docstring and an edge-case list, and every case asserted the wrong answer.

@@ -13,15 +13,19 @@ the admin onboarding-health view, the home tracker, and alert_monitor. The pure 
 """
 # status values, worst → best. QUIET sits next to OK on purpose: it is not a
 # degraded state, it is the correct state of a source that has nothing to send.
-TODO, NO_DATA, STALE, QUIET, OK = "todo", "no_data", "stale", "quiet", "ok"
+TODO, BROKEN, NO_DATA, STALE, QUIET, OK = (
+    "todo", "broken", "no_data", "stale", "quiet", "ok")
 
 # Worst → best. Used to pick the best answer when several sources can prove the
 # same platform; the order is the one the module docstring already documents.
-_RANK = {TODO: 0, NO_DATA: 1, STALE: 2, QUIET: 3, OK: 4}
+# BROKEN sits just above TODO: a probe that FAILED must not outrank a source that
+# actually answered, and it must not be mistaken for the tenant's own move.
+_RANK = {TODO: 0, BROKEN: 1, NO_DATA: 2, STALE: 3, QUIET: 4, OK: 5}
 
-_ICON = {TODO: "⚪", NO_DATA: "🔴", STALE: "🟡", QUIET: "⏸️", OK: "🟢"}
+_ICON = {TODO: "⚪", BROKEN: "⚠️", NO_DATA: "🔴", STALE: "🟡", QUIET: "⏸️", OK: "🟢"}
 _LABEL = {
     TODO: "À connecter",
+    BROKEN: "Vérification impossible — on regarde",
     NO_DATA: "Connecté — aucune donnée",
     STALE: "Données anciennes",
     QUIET: "Silence normal — rien à collecter",
@@ -52,7 +56,8 @@ _PLATFORMS = (
 
 
 def platform_status(identity_present: bool, last_dt, stale: bool,
-                    expected_silence: str | None = None) -> str:
+                    expected_silence: str | None = None,
+                    error: str | None = None) -> str:
     """Pure: identity + data-recency → one of TODO/NO_DATA/STALE/QUIET/OK.
 
     `expected_silence` is a MEASURED reason why this source has nothing to send
@@ -64,6 +69,12 @@ def platform_status(identity_present: bool, last_dt, stale: bool,
     """
     if not identity_present:
         return TODO
+    if error:
+        # The check FAILED — missing table, bad identifier, dead connection. Saying
+        # "connected, no data" here blames the artist for our outage and hands them
+        # a next action that cannot work. `check_freshness` sets this field for
+        # exactly this reason and, until 2026-08-22, nothing read it.
+        return BROKEN
     if expected_silence:
         return QUIET
     if last_dt is None:
@@ -80,6 +91,9 @@ def next_action(platform: dict, status: str, expected_silence: str | None = None
         # is read as a bug the next time someone looks at it — which is how a
         # suppressed alert becomes worse than the noisy one it replaced.
         return f"Rien à faire — {expected_silence}" if expected_silence else "Rien à faire."
+    if status == BROKEN:
+        # Deliberately asks the artist for NOTHING: this is our failure, not theirs.
+        return "Rien à faire de ton côté — la vérification a échoué, on regarde."
     if status == TODO:
         return f"Renseigne {platform['id_hint']}."
     if status == NO_DATA:
@@ -156,6 +170,7 @@ def artist_readiness(db, artist_id: int) -> list:
             silence = f.get("expected_silence")
             cand = platform_status(
                 identity, f.get("last_dt"), f.get("stale", True), silence,
+                f.get("error"),
             )
             if best is None or _RANK[cand] > _RANK[best[0]]:
                 best = (cand, silence, f.get("last_dt"))
@@ -171,5 +186,34 @@ def artist_readiness(db, artist_id: int) -> list:
 
 
 def readiness_red_flags(db, artist_id: int) -> list:
-    """Platforms that are CONNECTED but producing NO data (the silent-0-row gap) for one artist."""
-    return [m for m in artist_readiness(db, artist_id) if m["status"] == NO_DATA]
+    """Platforms that need someone to look, for one artist.
+
+    NO_DATA (connected, silent-0-row) **and** BROKEN (the check itself failed).
+    Both mean somebody must act; only the first is the artist's move, and
+    `next_action` is what says which.
+    """
+    return [m for m in artist_readiness(db, artist_id)
+            if m["status"] in (NO_DATA, BROKEN)]
+
+
+def readiness_stalled_flags(db, artist_id: int, min_age_days: int = 7) -> list:
+    """Platforms still at TODO for a tenant who signed up a while ago.
+
+    TODO on day one is the correct state — they have not got to it yet. TODO after a
+    week is the invisible failure mode nothing reported: someone created an account,
+    never declared a single identity, and no surface ever said so. `readiness_red_flags`
+    cannot see them, because a tenant who declared nothing produces no NO_DATA row.
+    """
+    row = db.fetch_query(
+        "SELECT created_at FROM saas_artists WHERE id = %s", (artist_id,))
+    if not row or row[0][0] is None:
+        return []
+    created = row[0][0]
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    if (now - created).days < min_age_days:
+        return []
+    return [m for m in artist_readiness(db, artist_id) if m["status"] == TODO]

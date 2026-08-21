@@ -19,24 +19,28 @@ FOCUS_KEY = "_setup_focus"
 def connected_platforms(rows: dict) -> set[str]:
     """Connected platform keys from {platform: row} of artist_credentials.
 
-    Instagram has no row of its own: it rides the `meta` row through
-    `ig_user_id` (the convention artist_readiness._identity already uses).
-    Counting rows alone leaves Instagram permanently unconnected — which, next
-    to a ⭐ recommending it, reads as the product being broken.
+    "Connected" means an IDENTITY was declared, not that a row exists. `set(rows)`
+    counted a tab the artist opened and saved blank, and it counted the meta row as
+    Meta-connected when it held only `ig_user_id`. Both read as ✅ on the KPI strip
+    while the readiness matrix said ⚪ — two surfaces, same data, opposite answers.
+
+    Instagram has no row of its own: it rides the `meta` row through `ig_user_id`.
+    The registry knows that, so this no longer restates it.
     """
     import json
 
-    connected = set(rows or {})
-    meta = (rows or {}).get("meta") or {}
-    extra = meta.get("extra_config") or {}
-    if isinstance(extra, str):
-        try:
-            extra = json.loads(extra)
-        except ValueError:
-            extra = {}
-    if isinstance(extra, dict) and extra.get("ig_user_id"):
-        connected.add("instagram")
-    return connected
+    from src.utils.tenant_identity import declared_identities
+
+    extra_by_platform = {}
+    for platform, row in (rows or {}).items():
+        extra = (row or {}).get("extra_config") or {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except ValueError:
+                extra = {}
+        extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
+    return declared_identities(extra_by_platform)
 
 
 def remaining(focus: list[str] | None, connected: set[str]) -> list[str]:

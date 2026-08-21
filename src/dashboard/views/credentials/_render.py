@@ -26,11 +26,32 @@ from src.dashboard.content.credential_guides_st import render_credential_guide_f
 from src.utils.tenant_identity import mirrored_columns, write_platform_identity
 
 
+def _declared_from_rows(existing: dict) -> set:
+    """{platform: row} → the logical platforms carrying a non-empty identity."""
+    import json
+
+    from src.utils.tenant_identity import declared_identities
+
+    extra_by_platform = {}
+    for platform, row in (existing or {}).items():
+        extra = (row or {}).get("extra_config") or {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except ValueError:
+                extra = {}
+        extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
+    return declared_identities(extra_by_platform)
+
+
 def _render_global_kpi(existing: dict, dag_states: dict) -> None:
     """Summary row: one metric per platform showing credentials + last DAG run."""
     cols = st.columns(len(PLATFORMS))
     for col, (platform_key, platform_info) in zip(cols, PLATFORMS.items()):
-        has_db_creds = platform_key in existing
+        # DECLARED, not "a row exists". `platform_key in existing` showed ✅
+        # "Connecté — ton compte" for a tab the artist opened and saved blank, while
+        # the readiness matrix showed ⚪ for the same tenant on the same data.
+        has_db_creds = platform_key in _declared_from_rows(existing)
         # App-level keys (env / config.yaml) count as configured too — the
         # collectors fall back to them, so a missing DB row is not "unconfigured".
         has_app_creds = app_level_configured(platform_key)

@@ -16,6 +16,7 @@ from src.dashboard.utils.kpi_helpers import (
     get_total_plays_soundcloud, get_total_plays_apple,
     get_instagram_followers,
 )
+from src.utils.tenant_identity import PLATFORM_IDENTITIES
 
 
 def _freshness_badge(label, icon, last_dt):
@@ -120,16 +121,26 @@ _STATE_COLOR = {
 
 def _section_onboarding(db, artist_id: int) -> None:
     """Brick 29 — Onboarding progress tracker for new artists."""
-    # Run all four checks in one round-trip using UNION ALL
+    # Run all four checks in one round-trip.
+    #
+    # `has_creds` counts rows carrying a NON-EMPTY identity, not rows. `COUNT(*)`
+    # ticked the whole credentials step as done on a single row for any platform —
+    # including a tab the artist opened and saved blank. The field names come from
+    # the identity registry and are bound as a parameter array, never interpolated.
+    identity_fields = sorted({spec.field for spec in PLATFORM_IDENTITIES.values()})
     rows = db.fetch_query(
         """
         SELECT
-            (SELECT COUNT(*) FROM artist_credentials  WHERE artist_id = %s) AS has_creds,
+            (SELECT COUNT(*) FROM artist_credentials  WHERE artist_id = %s
+               AND EXISTS (
+                 SELECT 1 FROM jsonb_each_text(COALESCE(extra_config, '{}'::jsonb)) AS kv(k, v)
+                 WHERE kv.k = ANY(%s) AND btrim(kv.v) <> ''
+               )) AS has_creds,
             (SELECT COUNT(*) FROM etl_run_log         WHERE artist_id = %s AND status = 'success') AS has_runs,
             (SELECT COUNT(*) FROM s4a_song_timeline   WHERE artist_id = %s LIMIT 1) AS has_csv,
             (SELECT COUNT(*) FROM apple_songs_performance WHERE artist_id = %s LIMIT 1) AS has_apple
         """,
-        (artist_id, artist_id, artist_id, artist_id),
+        (artist_id, identity_fields, artist_id, artist_id, artist_id),
     )
     if not rows:
         return

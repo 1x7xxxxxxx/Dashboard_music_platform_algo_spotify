@@ -10,6 +10,7 @@ import json
 import streamlit as st
 
 from src.dashboard.utils import get_db_connection
+from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
@@ -51,9 +52,10 @@ def _goto(page_key: str) -> None:
 def _get_configured_platforms(artist_id: int) -> set[str]:
     """Platforms the artist has actually connected.
 
-    Instagram has no row of its own — it rides the `meta` row via `ig_user_id`
-    (same convention as artist_readiness._identity). Reading rows alone would
-    show Instagram as unconnected forever, right next to a ⭐ recommending it.
+    "Connected" means an IDENTITY was declared, not that a row exists: a tab opened
+    and saved blank left a row behind and counted as connected here while the
+    readiness matrix said ⚪. Instagram has no row of its own — it rides the `meta`
+    row via `ig_user_id` — and the registry knows that, so this no longer restates it.
     """
     db = get_db_connection()
     if db is None or artist_id is None:
@@ -64,18 +66,15 @@ def _get_configured_platforms(artist_id: int) -> set[str]:
             "WHERE artist_id = %s AND (token_encrypted IS NOT NULL OR extra_config IS NOT NULL)",
             (artist_id,),
         )
-        configured = {r[0] for r in rows}
+        extra_by_platform = {}
         for platform, extra in rows:
-            if platform != 'meta':
-                continue
             if isinstance(extra, str):
                 try:
                     extra = json.loads(extra)
                 except ValueError:
                     extra = {}
-            if (extra or {}).get('ig_user_id'):
-                configured.add('instagram')
-        return configured
+            extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
+        return declared_identities(extra_by_platform)
     except Exception as e:
         # NOT a silent `return set()`: a DB error and "this artist has connected
         # nothing" are different facts, and rendering the first as the second

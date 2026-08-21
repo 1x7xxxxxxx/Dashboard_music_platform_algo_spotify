@@ -577,7 +577,7 @@ def check_onboarding_readiness(**context):
     """
     from src.database.postgres_handler import PostgresHandler
     from src.utils.credential_loader import get_active_artists
-    from src.utils.artist_readiness import readiness_red_flags
+    from src.utils.artist_readiness import readiness_red_flags, readiness_stalled_flags
 
     db = PostgresHandler(
         host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -587,23 +587,35 @@ def check_onboarding_readiness(**context):
         password=os.getenv('DATABASE_PASSWORD'),
     )
     flags = []
+    stalled = []
     try:
-        # Same reason as check_credentials_all: the canary's Spotify readiness
-        # measures the S4A CSV it will never have, so it would be a permanent
-        # red flag for a healthy tenant.
+        # The canary is excluded because it has its OWN reader (check_canary_health);
+        # two readers for one fact is `watchdog-becomes-the-noise`.
         for aid, name in get_active_artists(exclude_canaries=True):
             try:
                 for m in readiness_red_flags(db, aid):
                     flags.append({'artist_id': aid, 'artist_name': name,
-                                  'platform': m['label'], 'next_action': m['next_action']})
+                                  'platform': m['label'], 'status': m['status'],
+                                  'next_action': m['next_action']})
+                # Signed up, never declared anything. `readiness_red_flags` cannot
+                # see them: a tenant who declared no identity produces no NO_DATA row,
+                # so the "created an account and stopped" state was invisible to every
+                # alert. TODO on day one is correct; TODO after a week is a person
+                # nobody followed up with.
+                for m in readiness_stalled_flags(db, aid):
+                    stalled.append({'artist_id': aid, 'artist_name': name,
+                                    'platform': m['label'],
+                                    'next_action': m['next_action']})
             except Exception as e:  # per-artist isolation
                 logger.error(f"Readiness check failed for {name} (id={aid}): {e}")
                 continue
     finally:
         db.close()
 
-    logger.info(f"Onboarding readiness: {len(flags)} connected-but-no-data flag(s)")
+    logger.info(f"Onboarding readiness: {len(flags)} needs-a-look flag(s), "
+                f"{len(stalled)} stalled tenant(s)")
     context['task_instance'].xcom_push(key='onboarding_red_flags', value=flags)
+    context['task_instance'].xcom_push(key='onboarding_stalled', value=stalled)
     return flags
 
 
@@ -627,6 +639,7 @@ def send_consolidated_alert(**context):
     central_broken = ti.xcom_pull(task_ids='check_central_apps',
                                   key='central_apps_broken') or []
     readiness_flags = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_red_flags') or []
+    stalled_tenants = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_stalled') or []
 
     canary = ti.xcom_pull(task_ids='check_canary_health', key='canary_problems') or []
 
@@ -639,7 +652,7 @@ def send_consolidated_alert(**context):
     # itself silent (found 2026-08-21).
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
                   or billing_issues or row_anomalies or tenant_gaps or readiness_flags
-                  or central_broken or canary)
+                  or central_broken or canary or stalled_tenants)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -744,6 +757,35 @@ def send_consolidated_alert(**context):
           <tbody>{rows}</tbody>
         </table>""")
 
+    # Section: tenants who signed up and never declared anything.
+    #
+    # Invisible to every alert until 2026-08-22: `readiness_red_flags` only returns
+    # NO_DATA, and a tenant who declared no identity produces no NO_DATA row at all.
+    # So "created an account, opened nothing, gave up" — the most likely outcome of a
+    # beta invitation — was the one state nobody was told about.
+    if stalled_tenants:
+        rows = ''
+        for f in stalled_tenants:
+            rows += (
+                f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"<b>{f['artist_name']}</b> (id={f['artist_id']})</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#8e44ad'>"
+                f"{f['next_action']}</td></tr>"
+            )
+        sections.append(f"""
+        <h2 style="color:#8e44ad;border-left:4px solid #8e44ad;padding-left:10px">
+          ⚪ Inscrits sans rien connecter depuis 7 jours ({len(stalled_tenants)})
+        </h2>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead><tr style="background:#f6f0fa">
+            <th style="padding:8px 12px;text-align:left">Artiste</th>
+            <th style="padding:8px 12px;text-align:left">Plateforme</th>
+            <th style="padding:8px 12px;text-align:left">Action</th>
+          </tr></thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
     # Section: onboarding readiness — connected to a platform but receiving NO data
     if readiness_flags:
         rows = ''
@@ -752,17 +794,20 @@ def send_consolidated_alert(**context):
                 f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
                 f"<b>{f['artist_name']}</b> (id={f['artist_id']})</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"{'⚠️ sonde en échec' if f.get('status') == 'broken' else '🔴 aucune donnée'}</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#2980b9'>"
                 f"{f['next_action']}</td></tr>"
             )
         sections.append(f"""
         <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
-          🔴 Connecté mais sans données ({len(readiness_flags)})
+          🔴 À regarder ({len(readiness_flags)})
         </h2>
         <table style="border-collapse:collapse;width:100%;font-size:0.9em">
           <thead><tr style="background:#fdf3f2">
             <th style="padding:8px 12px;text-align:left">Artiste</th>
             <th style="padding:8px 12px;text-align:left">Plateforme</th>
+            <th style="padding:8px 12px;text-align:left">État</th>
             <th style="padding:8px 12px;text-align:left">Action</th>
           </tr></thead>
           <tbody>{rows}</tbody>

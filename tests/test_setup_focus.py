@@ -105,11 +105,22 @@ def test_meta_without_instagram_stays_meta_only():
 
 
 def test_connected_platforms_survives_jsonb_as_text_and_nulls():
+    """A row is not a connection.
+
+    These three cases used to expect `{"meta"}` — the row exists, so Meta counted as
+    connected — even when it carried NO ad account, or an `extra_config` that could
+    not be parsed at all. That is `row-existence-read-as-connection`: the KPI strip
+    said ✅ while the readiness matrix said ⚪, on the same data.
+
+    A meta row holding only `ig_user_id` connects INSTAGRAM, not Meta. They are two
+    identities that happen to share a row.
+    """
     from src.dashboard.utils.setup_focus import connected_platforms
 
     assert connected_platforms({"meta": {"extra_config": '{"ig_user_id": "1"}'}}) == \
-        {"meta", "instagram"}
-    assert connected_platforms({"meta": {"extra_config": None}}) == {"meta"}
-    assert connected_platforms({"meta": {"extra_config": "not json"}}) == {"meta"}
+        {"instagram"}
+    assert connected_platforms({"meta": {"extra_config": None}}) == set()
+    assert connected_platforms({"meta": {"extra_config": "not json"}}) == set()
+    assert connected_platforms({"meta": {"extra_config": {"account_id": "   "}}}) == set()
     assert connected_platforms({}) == set()
     assert connected_platforms(None) == set()
