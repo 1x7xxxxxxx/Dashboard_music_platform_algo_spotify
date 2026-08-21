@@ -23,6 +23,13 @@ exécution** avant de la livrer :
 | `guard` | le test ou le hook qui bloque, ou `—` |
 | `history` | daté, ce qui s'est passé |
 
+**Et j'ajoute la ligne dans la table `## Index` en tête du catalogue** — l'entrée
+seule ne suffit pas. C'est ce tableau qu'on lit en premier ; une classe absente de
+l'index est une classe qu'on écrira une deuxième fois sous un autre nom. Mesuré le
+2026-08-21 : 63 entrées, 51 lignes d'index, et les douze manquantes étaient les
+douze plus récentes. Contrôle : `python3 -m pytest tests/test_error_class_index_is_complete.py -q`
+(classe `catalogue-index-omits-its-own-entries`).
+
 ## La seule étape non négociable
 
 **Je lance la signature deux fois avant de l'écrire :**

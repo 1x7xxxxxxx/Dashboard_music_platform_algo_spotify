@@ -34,6 +34,12 @@ MONITOR_TARGETS = [
     {"source": "Instagram",    "table": "instagram_daily_stats",    "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "Apple Music",  "table": "apple_songs_performance",  "col": "collected_at", "stale_h": _CSV_STALE_H},
     {"source": "Meta Ads",     "table": "meta_insights_performance_day", "col": "collected_at", "stale_h": _DEFAULT_STALE_H,
+     # Ads insights only exist while ads run. Measured 2026-08-21: the admin
+     # account holds 19 ARCHIVED + 15 PAUSED campaigns, zero ACTIVE, and the
+     # API confirms amount_spent=0 with no insight row in 90 days. Reporting
+     # that as "stale" is true and useless — it would fire every night forever
+     # for a correct pipeline, which is how a reader learns to skip the alert.
+     "silence_expected": "meta_no_active_campaign",
      "metric_col": "day_date"},
 ]
 
@@ -51,11 +57,44 @@ _ALLOWED_COLS = frozenset(
 )
 
 
+def _silence_reason(db, rule: str, artist_id=None) -> str | None:
+    """Return why a source is legitimately silent, or None if its silence is a fault.
+
+    Deliberately conservative: any doubt — an unknown rule, a failed query, no
+    campaign row at all — returns None, i.e. keeps the alert. Suppressing an alert
+    on a guess is strictly worse than one noisy line, because it removes the only
+    signal that a real outage would produce.
+    """
+    if rule != "meta_no_active_campaign":
+        return None
+    try:
+        sql = ("SELECT count(*) FILTER (WHERE status = 'ACTIVE'), count(*) "
+               "FROM meta_campaigns")
+        params = ()
+        if artist_id is not None:
+            sql += " WHERE artist_id = %s"
+            params = (artist_id,)
+        active, total = db.fetch_query(sql, params)[0]
+    except Exception as e:  # noqa: BLE001 — a failed probe must not silence anything
+        logger.warning("silence probe failed (%s); keeping the alert: %s", rule, e)
+        return None
+    if not total:
+        return None          # nothing known about campaigns → do not suppress
+    if active:
+        return None          # ads ARE running, so silence is a real problem
+    return (f"no ACTIVE campaign ({total} known, none running) — Meta Ads insights "
+            "only exist while ads run, so this silence is expected")
+
+
 def check_freshness(db, artist_id=None):
     """
     Vérifie la fraîcheur de chaque source.
     Retourne une liste de dicts :
-        {source, last_dt, age_h, stale, stale_h}
+        {source, measured_on, expected_silence, last_dt, age_h, stale, stale_h, error}
+
+    `stale` alone answers "should this fire?"; it does NOT answer "is this healthy?".
+    A reader that renders `not stale` as OK will call an expected silence green —
+    see `expected_silence`, which every display surface is expected to honour.
     """
     results = []
     now = datetime.now()
@@ -65,6 +104,7 @@ def check_freshness(db, artist_id=None):
         age_h = None
         stale = True
         error = None
+        expected_silence = None
 
         try:
             table, col = t["table"], t["col"]
@@ -103,6 +143,15 @@ def check_freshness(db, artist_id=None):
                 age_h = (now - val).total_seconds() / 3600
                 stale = age_h > t['stale_h']
 
+            # "Nothing arrived" and "nothing was supposed to arrive" are different
+            # statements, and only the first is a problem. Keeping them apart is
+            # what stops a correct pipeline from alerting nightly forever.
+            if stale and t.get("silence_expected"):
+                reason = _silence_reason(db, t["silence_expected"], artist_id)
+                if reason:
+                    stale = False
+                    expected_silence = reason
+
         except Exception as e:
             # `stale=True` alone made a BROKEN check look exactly like "connected
             # but no data" — a missing table, a bad identifier or a dead connection
@@ -117,6 +166,10 @@ def check_freshness(db, artist_id=None):
             # "written recently" or "describes a recent day". They are not the same
             # claim, and conflating them is what hid Meta Ads for weeks.
             "measured_on": "metric" if t.get("metric_col") or t.get("tenant_metric_col") else "write",
+            # Set when the source is old AND that is the correct state. A reader must
+            # be able to tell "no data because broken" from "no data because there is
+            # none to collect" — the second is not an incident.
+            "expected_silence": expected_silence,
             "last_dt": val,
             "age_h": age_h,
             "stale": stale,

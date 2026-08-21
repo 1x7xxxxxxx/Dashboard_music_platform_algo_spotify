@@ -8,6 +8,7 @@ EN = {
     "airflow_kpi.never_collected": "⚫ Never collected",
     "airflow_kpi.status_stale": "🔴 Stale",
     "airflow_kpi.status_ok": "🟢 OK",
+"airflow_kpi.status_quiet": "⏸️ Expected silence",
     "airflow_kpi.status_error": "⚫ Error",
     "airflow_kpi.col_source": "Source",
     "airflow_kpi.col_last_collect": "Last collection",
@@ -16,6 +17,7 @@ EN = {
     "airflow_kpi.col_status": "Status",
     "airflow_kpi.sources_stale_warning": "⚠️ {count} source(s) exceed the freshness threshold.",
     "airflow_kpi.sources_all_ok": "✅ All sources are within thresholds.",
+"airflow_kpi.sources_quiet_note": "⏸️ {count} source(s) raise no alert because there is nothing to collect — their age is still shown as-is.",
     "airflow_kpi.freshness_caption": "API threshold (YouTube, SoundCloud, Instagram, Meta): 48h — CSV threshold (Spotify S4A, Apple Music): 7 days",
     # Run logs tab
     "airflow_kpi.run_logs_header": "📋 Logs by run",

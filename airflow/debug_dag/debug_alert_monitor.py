@@ -60,7 +60,11 @@ print(f"\n  → {len(missing_creds)} credential(s) manquant(s)")
 print("\n🕐 Freshness check")
 results = check_freshness(db)
 for r in results:
-    if r['age_h'] is None:
+    # Before the age: an expected silence is old by definition, so reading the age
+    # first prints "✅ OK (16577h)" — the same green lie as the dashboard used to.
+    if r.get('expected_silence'):
+        status = f"⏸️ QUIET — {r['expected_silence']}"
+    elif r['age_h'] is None:
         status = '⚫ NEVER'
     elif r['stale']:
         status = f"🔴 STALE ({r['age_h']:.0f}h > {r['stale_h']}h)"

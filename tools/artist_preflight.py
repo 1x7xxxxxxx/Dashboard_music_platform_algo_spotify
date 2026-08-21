@@ -179,12 +179,16 @@ def step_data_landed(db, artist_id: int, scope: set[str] | None = None) -> bool:
     one did not, which made a --platforms run stop on a platform it had been told to
     ignore (2026-08-21).
     """
-    from src.utils.artist_readiness import OK, artist_readiness
+    from src.utils.artist_readiness import OK, QUIET, artist_readiness
 
     print("\n▶ 4. Data actually landed for this tenant")
     ok = True
     for row in artist_readiness(db, artist_id):
-        good = row["status"] == OK
+        # QUIET counts as good: the source has a MEASURED reason to have nothing
+        # (no ACTIVE ad campaign). Failing on it would make the preflight red for a
+        # tenant who did everything right, and a gate that cries wolf gets skipped.
+        # The label is printed either way, so a reader can challenge the reason.
+        good = row["status"] in (OK, QUIET)
         counts = scope is None or row["key"] in scope
         print(f"  {row['icon']} {row['label']} — {row['status_label']}"
               + (f" · {row['next_action']}" if row["next_action"] else "")

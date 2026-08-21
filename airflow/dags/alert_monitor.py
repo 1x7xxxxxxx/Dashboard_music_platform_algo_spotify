@@ -229,6 +229,10 @@ def check_data_freshness(**context):
             'age_h': round(r['age_h'], 1) if r['age_h'] is not None else None,
             'stale': r['stale'],
             'stale_h': r['stale_h'],
+            # Carried because the footer READS it. Without a reader, a suppressed
+            # source lands in the "✅ Sources OK" list of the nightly email with a
+            # two-year-old date behind it.
+            'expected_silence': r.get('expected_silence'),
         })
 
     context['task_instance'].xcom_push(key='freshness_results', value=serializable)
@@ -872,12 +876,25 @@ def send_consolidated_alert(**context):
           double run d'un DAG ou données corrompues ? Vérifier la collecte du jour.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
-    # OK sources footer
-    ok_sources = [r['source'] for r in freshness if not r['stale']]
+    # OK sources footer. A source whose silence is expected is NOT "OK" — it is
+    # quiet, and it has a measured reason. Merging the two would state that Meta Ads
+    # collected fine last night while its last insight row is two years old.
+    quiet_sources = [r for r in freshness if r.get('expected_silence')]
+    ok_sources = [r['source'] for r in freshness
+                  if not r['stale'] and not r.get('expected_silence')]
     ok_line = ''
     if ok_sources:
         ok_line = (
             f"<p style='color:#27ae60'>✅ Sources OK : {', '.join(ok_sources)}</p>"
+        )
+    if quiet_sources:
+        items = ''.join(
+            f"<li><b>{r['source']}</b> — {r['expected_silence']}</li>"
+            for r in quiet_sources
+        )
+        ok_line += (
+            "<p style='color:#888'>⏸️ Sans alerte, car il n'y a rien à collecter :</p>"
+            f"<ul style='color:#888;font-size:0.9em'>{items}</ul>"
         )
 
     # First block in the body, for the same reason it is first in the subject:

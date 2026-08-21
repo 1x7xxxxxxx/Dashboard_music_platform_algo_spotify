@@ -31,7 +31,8 @@ def show():
     st.title("🚦 Santé onboarding")
     st.caption(
         "Pour chaque artiste × plateforme : l'identité est-elle fournie, et les données "
-        "arrivent-elles ? 🟢 OK · 🟡 anciennes · 🔴 connecté mais aucune donnée · ⚪ à connecter."
+        "arrivent-elles ? 🟢 OK · ⏸️ silence normal · 🟡 anciennes · 🔴 connecté mais "
+        "aucune donnée · ⚪ à connecter."
     )
 
     db = get_db_connection()

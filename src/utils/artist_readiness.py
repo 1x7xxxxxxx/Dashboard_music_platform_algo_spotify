@@ -11,14 +11,16 @@ account-not-shared, empty channel) into a visible status + the exact next action
 the admin onboarding-health view, the home tracker, and alert_monitor. The pure status logic
 (`platform_status`, `next_action`) is unit-tested; `artist_readiness` wires it to the DB.
 """
-# status values, worst → best
-TODO, NO_DATA, STALE, OK = "todo", "no_data", "stale", "ok"
+# status values, worst → best. QUIET sits next to OK on purpose: it is not a
+# degraded state, it is the correct state of a source that has nothing to send.
+TODO, NO_DATA, STALE, QUIET, OK = "todo", "no_data", "stale", "quiet", "ok"
 
-_ICON = {TODO: "⚪", NO_DATA: "🔴", STALE: "🟡", OK: "🟢"}
+_ICON = {TODO: "⚪", NO_DATA: "🔴", STALE: "🟡", QUIET: "⏸️", OK: "🟢"}
 _LABEL = {
     TODO: "À connecter",
     NO_DATA: "Connecté — aucune donnée",
     STALE: "Données anciennes",
+    QUIET: "Silence normal — rien à collecter",
     OK: "OK",
 }
 
@@ -43,19 +45,35 @@ _PLATFORMS = (
 )
 
 
-def platform_status(identity_present: bool, last_dt, stale: bool) -> str:
-    """Pure: identity + data-recency → one of TODO/NO_DATA/STALE/OK."""
+def platform_status(identity_present: bool, last_dt, stale: bool,
+                    expected_silence: str | None = None) -> str:
+    """Pure: identity + data-recency → one of TODO/NO_DATA/STALE/QUIET/OK.
+
+    `expected_silence` is a MEASURED reason why this source has nothing to send
+    (freshness_monitor sets it, e.g. an ad account with no ACTIVE campaign). It
+    outranks the row count: a tenant whose campaigns are all paused is not
+    "connected with no data", and telling them to share their ad account again is
+    a wrong instruction. It never outranks a missing identity — that is still the
+    tenant's move, and the probe that produces a reason cannot even run without it.
+    """
     if not identity_present:
         return TODO
+    if expected_silence:
+        return QUIET
     if last_dt is None:
         return NO_DATA
     return STALE if stale else OK
 
 
-def next_action(platform: dict, status: str) -> str:
+def next_action(platform: dict, status: str, expected_silence: str | None = None) -> str:
     """Pure: the exact next step for an (platform, status)."""
     if status == OK:
         return ""
+    if status == QUIET:
+        # The reason travels with the status. A quiet light with nothing behind it
+        # is read as a bug the next time someone looks at it — which is how a
+        # suppressed alert becomes worse than the noisy one it replaced.
+        return f"Rien à faire — {expected_silence}" if expected_silence else "Rien à faire."
     if status == TODO:
         return f"Renseigne {platform['id_hint']}."
     if status == NO_DATA:
@@ -99,7 +117,8 @@ def _load_extra(db, artist_id: int) -> dict:
 def artist_readiness(db, artist_id: int) -> list:
     """Per-platform readiness matrix for one artist.
 
-    Returns [{key, label, icon, status, status_label, last_dt, next_action}, …].
+    Returns [{key, label, icon, status, status_label, expected_silence, last_dt,
+    next_action}, …].
     """
     from src.utils.freshness_monitor import check_freshness
 
@@ -113,14 +132,16 @@ def artist_readiness(db, artist_id: int) -> list:
     matrix = []
     for p in _PLATFORMS:
         f = fresh.get(p["source"], {})
+        silence = f.get("expected_silence")
         status = platform_status(
             _identity(p["key"], creds, spotify_artist_id),
-            f.get("last_dt"), f.get("stale", True),
+            f.get("last_dt"), f.get("stale", True), silence,
         )
         matrix.append({
             "key": p["key"], "label": p["label"], "icon": _ICON[status],
             "status": status, "status_label": _LABEL[status],
-            "last_dt": f.get("last_dt"), "next_action": next_action(p, status),
+            "expected_silence": silence,
+            "last_dt": f.get("last_dt"), "next_action": next_action(p, status, silence),
         })
     return matrix
 

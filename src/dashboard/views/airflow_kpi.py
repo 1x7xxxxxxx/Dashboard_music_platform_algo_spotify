@@ -41,14 +41,20 @@ def _section_source_status(db):
 
     rows = []
     for r in results:
-        if r['last_dt'] is None:
-            age_str = "—"
+        age_str = "—"
+        if r['age_h'] is not None:
+            age_str = f"{int(r['age_h'])}h" if r['age_h'] < 48 else f"{int(r['age_h'] / 24)}j"
+
+        # Checked BEFORE the age: an expected silence is old BY DEFINITION, so any
+        # branch that reads the age first renders it as 🟢 OK next to a two-year-old
+        # date — a greener lie than the nightly false 🔴 it was meant to replace.
+        if r.get('expected_silence'):
+            statut = t("airflow_kpi.status_quiet", "⏸️ Silence attendu")
+        elif r['last_dt'] is None:
             statut = t("airflow_kpi.never_collected", "⚫ Jamais collectée")
         elif r['age_h'] is not None:
-            age_str = f"{int(r['age_h'])}h" if r['age_h'] < 48 else f"{int(r['age_h'] / 24)}j"
             statut = t("airflow_kpi.status_stale", "🔴 Stale") if r['stale'] else t("airflow_kpi.status_ok", "🟢 OK")
         else:
-            age_str = "—"
             statut = t("airflow_kpi.status_error", "⚫ Erreur")
 
         date_str = r['last_dt'].strftime("%d/%m/%Y %H:%M") if r['last_dt'] else "—"
@@ -68,6 +74,17 @@ def _section_source_status(db):
         st.warning(t("airflow_kpi.sources_stale_warning", "⚠️ {count} source(s) dépassent le seuil de fraîcheur.").format(count=stale_count))
     else:
         st.success(t("airflow_kpi.sources_all_ok", "✅ Toutes les sources sont dans les seuils."))
+
+    # Say WHY each quiet source is quiet. A suppressed alert that leaves no trace is
+    # indistinguishable from a monitor that stopped working, and the reader has no
+    # way to challenge a rule they cannot see.
+    quiet = [r for r in results if r.get('expected_silence')]
+    if quiet:
+        st.info(t("airflow_kpi.sources_quiet_note",
+                  "⏸️ {count} source(s) sans alerte car il n'y a rien à collecter — "
+                  "leur âge reste affiché tel quel.").format(count=len(quiet)))
+        for r in quiet:
+            st.caption(f"⏸️ **{r['source']}** — {r['expected_silence']}")
 
     st.caption(
         t("airflow_kpi.freshness_caption",

@@ -111,6 +111,24 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [dag-conf-honoured-by-one-task-only](#dag-conf-honoured-by-one-task-only) | P3 | deterministic | guarded | none |
 | [local-db-drifts-from-canonical](#local-db-drifts-from-canonical) | P3 | manual | reported | none |
 
+| [ci-runs-twice-for-one-commit](#ci-runs-twice-for-one-commit) | — | deterministic | guarded | — |
+| [ci-has-no-concurrency-group](#ci-has-no-concurrency-group) | — | deterministic | guarded | — |
+| [env-resolved-against-cwd](#env-resolved-against-cwd) | P2 | deterministic | fixed | none |
+| [identity-mirrored-but-written-once](#identity-mirrored-but-written-once) | P1 | deterministic | fixed | none |
+| [api-partial-date-into-date-column](#api-partial-date-into-date-column) | P2 | deterministic | fixed | none |
+| [unguarded-drop-replayed-alone](#unguarded-drop-replayed-alone) | P1 | deterministic | fixed | none |
+| [suite-runs-against-one-tenant](#suite-runs-against-one-tenant) | P1 | deterministic | fixed | none |
+| [script-unreachable-from-its-dependencies](#script-unreachable-from-its-dependencies) | P2 | deterministic | fixed | none |
+| [finding-rendered-but-not-alerted](#finding-rendered-but-not-alerted) | P1 | deterministic | fixed | none |
+| [canary-tenant-unwatched](#canary-tenant-unwatched) | P2 | deterministic | fixed | none |
+| [watchdog-becomes-the-noise](#watchdog-becomes-the-noise) | P3 | deterministic | fixed | none |
+| [app-id-confused-with-ad-account-id](#app-id-confused-with-ad-account-id) | P2 | heuristic | fixed | none |
+| [suppressed-alert-renders-as-health](#suppressed-alert-renders-as-health) | P2 | deterministic | guarded | none |
+| [catalogue-index-omits-its-own-entries](#catalogue-index-omits-its-own-entries) | P3 | deterministic | guarded | none |
+
+> A `—` cell means the entry itself declares no such field. The two CI-waste classes
+> arrived from another repo in a looser format; no severity has been invented for them.
+
 ---
 
 ## streamlit-pin-drift
@@ -1026,3 +1044,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: three defects stacked on one integration, each sufficient to break it alone. Finding one and stopping is the trap — a fix that restores nothing means the other layers are still there. Test every layer independently before declaring a cause: app id, then secret, then token shape, then token validity, then token TYPE.
   - 2026-08-21: the guide already stated "System User tokens — not personal user tokens" while production ran a `type=USER` token. A rule written in prose and verified by nothing is a rule the system does not have.
+
+## suppressed-alert-renders-as-health
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: an alert correctly suppressed for a source that has nothing to send is then rendered as 🟢 / ✅ by every surface that reads the same flag. "Quiet because there is nothing to collect" and "quiet because everything is fine" become the same green — beside a two-year-old date.
+- root_cause: `check_freshness` answers one question with one flag. `stale=False` means "do not fire", and four readers rendered it as health: `airflow_kpi._section_source_status` (🟢 OK), `artist_readiness.platform_status` (which also feeds `readiness_red_flags`, the onboarding view and `tools/artist_preflight.py`), the `✅ Sources OK` footer of `alert_monitor.send_consolidated_alert`, and `airflow/debug_dag/debug_alert_monitor.py` (`✅ OK (16577h)`). The suppression written on 2026-08-21 for Meta Ads — no ACTIVE campaign, so no insight row can exist — therefore converted a nightly false RED into a permanent false GREEN. The second failure is worse: a red that fires every night is eventually read as noise, a green is never questioned at all.
+- signature: `python3 -m pytest tests/test_expected_silence.py -q`
+- long_term_fix: the suppression carries its measured reason (`expected_silence`) next to the flag, and every surface that renders freshness gained a distinct third state — ⏸️ — that prints that reason. `platform_status` gained a `QUIET` status that outranks the row count but never the missing identity. The guard follows the reason at each hop: the pure status function, the wired readiness matrix, the view's actually-rendered table, the xcom payload, the email footer and the debug script. `stale` alone can no longer be read as "healthy" anywhere.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_expected_silence.py }
+- rex_ref: src/utils/freshness_monitor.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: found by asking who READS the field the suppression writes — the answer was nobody. Sibling of `finding-rendered-but-not-alerted`, mirrored: there a finding reached the body but not the send decision; here a decision reached the flag but not the reader. Both come from a single boolean carrying two different questions. Six guards, each verified RED by mutation (remove the QUIET branch, the view branch, the reason caption, the footer filter, the xcom key, the debug branch) and green after. The fourth surface — the debug script — was found only by sweeping the class rather than looking at the bug, and it is the worst of the four: it is what someone runs when they already suspect something.
+
+## catalogue-index-omits-its-own-entries
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: the Index table at the top of a catalogue stops listing the entries below it. Every reader who scans the index concludes a class does not exist — and catalogues the same defect a second time under a new name.
+- root_cause: `.claude/dev-docs/error-classes.md` keeps a hand-maintained Index table while `/capitalise` appends entries at the end of the file. Nothing tied the two together, and nothing failed when they diverged. Measured 2026-08-21: **63** entries, **51** index rows. The twelve missing were the twelve most recent, four of them written the same day.
+- signature: `python3 -m pytest tests/test_error_class_index_is_complete.py -q`
+- long_term_fix: the guard checks BOTH directions — an entry with no row, and a row whose anchor no longer resolves to an entry (a rename leaves a dead link that reads as catalogued). The twelve missing rows were regenerated from the entries themselves rather than retyped, and `/capitalise` now states the index row as part of what it writes.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_error_class_index_is_complete.py }
+- rex_ref: .claude/commands/capitalise.md
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: found while adding a class, not while looking for it. An omission is silent in the one direction that matters: the index never claims to be complete, so its incompleteness cannot contradict anything. Two entries surfaced as a side effect — the two CI-waste classes declare neither `severity` nor `autofix`; their cells are left `—` rather than filled with an invented severity.
