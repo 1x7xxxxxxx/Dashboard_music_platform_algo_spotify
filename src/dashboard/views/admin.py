@@ -511,318 +511,310 @@ def show():
     # ══════════════════════════════════════════
     # ONGLET 0 : SUPERVISION (business + technique)
     # ══════════════════════════════════════════
-    with tab_supervision:
-        db = get_db_connection()
-        try:
+    # One connection for the whole render, closed once (rule #9). Each of the
+    # five tabs below opened and closed its own until 2026-08-21 — and Streamlit
+    # executes every tab's body on every rerun, so all five fired each time. The
+    # ten `db.close()` for five opens were the error paths doing it a second time.
+    db = get_db_connection()
+    if db is None:
+        st.error(t("admin.db_unreachable", "❌ Base de données inaccessible."))
+        return
+
+    try:
+        with tab_supervision:
             _render_supervision(db)
-        finally:
-            db.close()
 
-    # ══════════════════════════════════════════
-    # ONGLET 5 : GESTION DES TOKENS (référence admin)
-    # ══════════════════════════════════════════
-    with tab_tokens:
-        _render_token_management()
+        # ══════════════════════════════════════════
+        # ONGLET 5 : GESTION DES TOKENS (référence admin)
+        # ══════════════════════════════════════════
+        with tab_tokens:
+            _render_token_management()
 
-    # ══════════════════════════════════════════
-    # ONGLET 1 : GESTION DES ARTISTES
-    # ══════════════════════════════════════════
-    with tab_artists:
-        db = get_db_connection()
-        try:
-            df_artists = _load_artists(db)
-        except Exception as e:
-            st.error(t("admin.load_artists_error", "Erreur chargement artistes : {err}").format(err=e))
-            db.close()
-            return
-
-        st.subheader(t("admin.artists_header", "📋 Artistes enregistrés"))
-
-        if df_artists.empty:
-            st.info(t("admin.no_artists", "Aucun artiste en base."))
-        else:
-            # Tableau avec statut coloré
-            def _status(active):
-                return "✅ Actif" if active else "🔴 Inactif"
-
-            df_display = df_artists.copy()
-            df_display['Statut'] = df_display['active'].apply(_status)
-            df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
-            st.dataframe(
-                df_display[['id', 'name', 'slug', 'tier', 'Statut', 'created_at']].rename(columns={
-                    'id': 'ID', 'name': 'Nom', 'slug': 'Slug',
-                    'tier': 'Tier', 'created_at': 'Créé le'
-                }),
-                hide_index=True,
-                width="stretch",
-            )
-
-        st.markdown("---")
-
-        # ── Créer un artiste ──────────────────
-        with st.expander(t("admin.create_artist_expander", "➕ Créer un nouvel artiste"), expanded=False):
-            with st.form("create_artist"):
-                c1, c2, c3 = st.columns(3)
-                new_name = c1.text_input(t("admin.field_name_required", "Nom *"))
-                new_slug = c2.text_input(t("admin.field_slug_required", "Slug * (unique, minuscules)"))
-                new_tier = c3.selectbox(t("admin.field_tier", "Tier"), ["free", "premium"])
-                if st.form_submit_button(t("admin.btn_create", "Créer"), type="primary"):
-                    if not new_name or not new_slug:
-                        st.error(t("admin.name_slug_required", "Nom et slug obligatoires."))
-                    else:
-                        try:
-                            _create_artist(db, new_name, new_slug, new_tier)
-                            st.success(t("admin.artist_created", "✅ Artiste « {name} » créé.").format(name=new_name))
-                            st.rerun()
-                        except Exception as e:
-                            st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
-
-        # ── Modifier / activer-désactiver ─────
-        if not df_artists.empty:
-            with st.expander(t("admin.edit_artist_expander", "✏️ Modifier un artiste"), expanded=False):
-                artist_options = {
-                    f"{row['id']} — {row['name']}": row
-                    for _, row in df_artists.iterrows()
-                }
-                sel_label = st.selectbox(t("admin.field_artist", "Artiste"), list(artist_options.keys()))
-                sel = artist_options[sel_label]
-
-                with st.form("edit_artist"):
-                    c1, c2 = st.columns(2)
-                    edit_name = c1.text_input(t("admin.field_name", "Nom"), value=sel['name'])
-                    edit_tier = c2.selectbox(
-                        t("admin.field_tier", "Tier"),
-                        ["free", "premium"],
-                        index=0 if sel['tier'] == 'free' else 1
-                    )
-                    edit_active = st.checkbox(t("admin.field_active", "Actif"), value=bool(sel['active']))
-
-                    if st.form_submit_button(t("admin.btn_save", "Enregistrer"), type="primary"):
-                        try:
-                            _update_artist(db, sel['id'], edit_name, edit_tier)
-                            _toggle_active(db, sel['id'], edit_active)
-                            st.success(t("admin.artist_updated", "✅ Artiste mis à jour."))
-                            st.rerun()
-                        except Exception as e:
-                            st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
-
-        db.close()
-
-    # ══════════════════════════════════════════
-    # ONGLET 2 : GESTION DES UTILISATEURS
-    # ══════════════════════════════════════════
-    with tab_users:
-        db = get_db_connection()
-        try:
-            df_users = _load_users(db)
-        except Exception as e:
-            st.error(t("admin.load_users_error", "Erreur chargement utilisateurs : {err}").format(err=e))
-            db.close()
-            return
-
-        st.subheader(t("admin.users_header", "👤 Comptes utilisateurs"))
-
-        if df_users.empty:
-            st.info(t("admin.no_users", "Aucun utilisateur en base."))
-        else:
-            def _fmt_bool(v, yes="✅", no="🔴"):
-                return yes if v else no
-
-            df_display = df_users.copy()
-            df_display['Accès'] = df_display['active'].apply(lambda v: _fmt_bool(v, "✅ Actif", "🔴 Révoqué"))
-            df_display['Email vérifié'] = df_display['email_verified'].apply(lambda v: _fmt_bool(v, "✅ Oui", "⏳ Non"))
-            df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
-            st.dataframe(
-                df_display[['id', 'username', 'email', 'role', 'artist_name', 'Accès', 'Email vérifié', 'created_at']].rename(columns={
-                    'id': 'ID', 'username': 'Utilisateur', 'email': 'Email',
-                    'role': 'Rôle', 'artist_name': 'Artiste', 'created_at': 'Créé le'
-                }),
-                hide_index=True,
-                width="stretch",
-            )
-
-        st.markdown("---")
-
-        if not df_users.empty:
-            user_options = {
-                f"{row['id']} — {row['username']} ({row['email']})": row
-                for _, row in df_users.iterrows()
-            }
-            sel_label = st.selectbox(t("admin.field_select_user", "Sélectionner un utilisateur"), list(user_options.keys()), key="user_sel")
-            sel_user = user_options[sel_label]
-
-            col1, col2, col3 = st.columns(3)
-
-            # Revoke / restore access
-            with col1:
-                if sel_user['active']:
-                    if st.button(t("admin.btn_revoke", "🔴 Révoquer l'accès"), key="revoke_user"):
-                        _toggle_user_active(db, sel_user['id'], False)
-                        st.success(t("admin.access_revoked", "Accès révoqué pour {user}.").format(user=sel_user['username']))
-                        st.rerun()
-                else:
-                    if st.button(t("admin.btn_restore", "✅ Restaurer l'accès"), key="restore_user"):
-                        _toggle_user_active(db, sel_user['id'], True)
-                        st.success(t("admin.access_restored", "Accès restauré pour {user}.").format(user=sel_user['username']))
-                        st.rerun()
-
-            # Resend verification email
-            with col2:
-                resend_disabled = bool(sel_user['email_verified'])
-                if st.button(t("admin.btn_resend_verif", "📧 Renvoyer vérification"), disabled=resend_disabled, key="resend_verif"):
-                    ok = _resend_verification(db, sel_user['id'], sel_user['email'], sel_user['username'])
-                    if ok:
-                        st.success(t("admin.verif_sent", "Email de vérification renvoyé à {email}.").format(email=sel_user['email']))
-                    else:
-                        st.warning(t("admin.verif_not_sent", "Email non envoyé — vérifiez la config SMTP dans config/config.yaml."))
-
-            # Delete user account
-            with col3:
-                if st.button(t("admin.btn_delete_account", "🗑️ Supprimer le compte"), type="secondary", key="delete_user"):
-                    st.session_state['_confirm_delete_user'] = sel_user['id']
-
-            if st.session_state.get('_confirm_delete_user') == sel_user['id']:
-                st.warning(t(
-                    "admin.confirm_delete_user",
-                    "⚠️ Supprimer **{user}** ? "
-                    "Cette action est irréversible. L'artiste lié est conservé."
-                ).format(user=sel_user['username']))
-                cc1, cc2 = st.columns(2)
-                if cc1.button(t("admin.btn_confirm_delete", "Confirmer la suppression"), type="primary", key="confirm_del_user"):
-                    _delete_user(db, sel_user['id'])
-                    st.session_state.pop('_confirm_delete_user', None)
-                    st.success(t("admin.account_deleted", "Compte supprimé."))
-                    st.rerun()
-                if cc2.button(t("admin.btn_cancel", "Annuler"), key="cancel_del_user"):
-                    st.session_state.pop('_confirm_delete_user', None)
-                    st.rerun()
-
-        # ── Export liste marketing ────────────────────────────────────
-        st.markdown("---")
-        st.subheader(t("admin.marketing_header", "📧 Liste email marketing (opt-in)"))
-
-        try:
-            df_optin = db.fetch_df(
-                """
-                SELECT u.username, u.email, a.name AS artist_name,
-                       u.marketing_consent_at, u.created_at
-                FROM saas_users u
-                LEFT JOIN saas_artists a ON u.artist_id = a.id
-                WHERE u.marketing_consent = TRUE AND u.active = TRUE
-                ORDER BY u.created_at DESC
-                """
-            )
-        except Exception:
-            df_optin = None
-
-        if df_optin is not None and not df_optin.empty:
-            st.metric(t("admin.metric_optin", "Contacts opt-in"), len(df_optin))
-            st.dataframe(
-                df_optin.rename(columns={
-                    'username': 'Utilisateur', 'email': 'Email',
-                    'artist_name': 'Artiste', 'marketing_consent_at': 'Opt-in le',
-                    'created_at': 'Inscrit le',
-                }),
-                hide_index=True,
-                width="stretch",
-            )
-            from src.dashboard.utils.csv_exporter import defang_formulas
-            csv_bytes = defang_formulas(
-                df_optin[['username', 'email', 'artist_name']]
-            ).to_csv(index=False).encode()
-            # RGPD Art. 5(1)(f) — record every access to personal data in audit log
-            clicked = st.download_button(
-                t("admin.btn_export_csv", "⬇️ Exporter CSV"),
-                data=csv_bytes,
-                file_name="optin_emails.csv",
-                mime="text/csv",
-            )
-            if clicked:
-                try:
-                    _admin_id = st.session_state.get('user_id')
-                    db.execute_query(
-                        """
-                        INSERT INTO admin_audit_log (admin_user_id, action, detail)
-                        VALUES (%s, 'marketing_export', %s)
-                        """,
-                        (_admin_id, f"Exported {len(df_optin)} opt-in contacts"),
-                    )
-                except Exception:
-                    pass  # audit log failure must not block the download
-        else:
-            st.info(t("admin.no_optin", "Aucun utilisateur n'a consenti aux communications marketing pour l'instant."))
-
-        db.close()
-
-    # ══════════════════════════════════════════
-    # ONGLET 3 : UPLOAD CSV
-    # ══════════════════════════════════════════
-    with tab_upload:
-        st.subheader(t("admin.upload_header", "📂 Importer un CSV pour un artiste"))
-        st.caption(t("admin.upload_caption", "Formats supportés : Spotify for Artists (timeline), Apple Music (performance)"))
-
-        db = get_db_connection()
-        try:
-            df_active = db.fetch_df(
-                "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
-            )
-        except Exception as e:
-            st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
-            db.close()
-            return
-
-        if df_active.empty:
-            st.warning(t("admin.no_active_artist", "Aucun artiste actif. Créez-en un dans l'onglet Artistes."))
-            db.close()
-            return
-
-        c1, c2 = st.columns(2)
-        with c1:
-            artist_choices = {f"{r['id']} — {r['name']}": r['id'] for _, r in df_active.iterrows()}
-            sel_artist_label = st.selectbox(t("admin.field_target_artist", "Artiste cible"), list(artist_choices.keys()))
-            target_artist_id = artist_choices[sel_artist_label]
-
-        with c2:
-            platform = st.selectbox(t("admin.field_platform", "Plateforme"), ["Spotify for Artists (S4A)", "Apple Music"])
-
-        uploaded = st.file_uploader(
-            t("admin.field_csv_file", "Fichier CSV"),
-            type=["csv"],
-            help=t("admin.field_csv_help", "Glissez le CSV exporté depuis la plateforme.")
-        )
-
-        if uploaded and st.button(t("admin.btn_import", "⬆️ Importer"), type="primary"):
+        # ══════════════════════════════════════════
+        # ONGLET 1 : GESTION DES ARTISTES
+        # ══════════════════════════════════════════
+        with tab_artists:
             try:
-                if platform.startswith("Spotify"):
-                    n = _upload_s4a(db, target_artist_id, uploaded)
-                else:
-                    n = _upload_apple(db, target_artist_id, uploaded)
-                st.success(t("admin.import_success", "✅ {n} ligne(s) importée(s) pour l'artiste #{artist_id}.").format(n=n, artist_id=target_artist_id))
+                df_artists = _load_artists(db)
             except Exception as e:
-                st.error(t("admin.import_error", "❌ Erreur import : {err}").format(err=e))
-                st.exception(e)
+                st.error(t("admin.load_artists_error", "Erreur chargement artistes : {err}").format(err=e))
+                return
 
-        db.close()
+            st.subheader(t("admin.artists_header", "📋 Artistes enregistrés"))
 
-    # ══════════════════════════════════════════
-    # ONGLET 4 : EFFACEMENT RGPD ART. 17
-    # ══════════════════════════════════════════
-    with tab_gdpr:
-        st.subheader(t("admin.gdpr_header", "🗑️ Effacement RGPD — Art. 17 (droit à l'oubli)"))
-        st.warning(
-            t(
-                "admin.gdpr_warning",
-                "⚠️ Cette action **supprime définitivement** toutes les données d'un artiste : "
-                "compte utilisateur, credentials, historiques analytiques, abonnement. "
-                "Aucune restauration n'est possible. Un log d'audit est conservé.",
-            ),
-            icon="⚠️",
-        )
+            if df_artists.empty:
+                st.info(t("admin.no_artists", "Aucun artiste en base."))
+            else:
+                # Tableau avec statut coloré
+                def _status(active):
+                    return "✅ Actif" if active else "🔴 Inactif"
 
-        db = get_db_connection()
-        if db is None:
-            st.error(t("admin.db_unreachable", "❌ Base de données inaccessible."))
-        else:
+                df_display = df_artists.copy()
+                df_display['Statut'] = df_display['active'].apply(_status)
+                df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+                st.dataframe(
+                    df_display[['id', 'name', 'slug', 'tier', 'Statut', 'created_at']].rename(columns={
+                        'id': 'ID', 'name': 'Nom', 'slug': 'Slug',
+                        'tier': 'Tier', 'created_at': 'Créé le'
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+
+            st.markdown("---")
+
+            # ── Créer un artiste ──────────────────
+            with st.expander(t("admin.create_artist_expander", "➕ Créer un nouvel artiste"), expanded=False):
+                with st.form("create_artist"):
+                    c1, c2, c3 = st.columns(3)
+                    new_name = c1.text_input(t("admin.field_name_required", "Nom *"))
+                    new_slug = c2.text_input(t("admin.field_slug_required", "Slug * (unique, minuscules)"))
+                    new_tier = c3.selectbox(t("admin.field_tier", "Tier"), ["free", "premium"])
+                    if st.form_submit_button(t("admin.btn_create", "Créer"), type="primary"):
+                        if not new_name or not new_slug:
+                            st.error(t("admin.name_slug_required", "Nom et slug obligatoires."))
+                        else:
+                            try:
+                                _create_artist(db, new_name, new_slug, new_tier)
+                                st.success(t("admin.artist_created", "✅ Artiste « {name} » créé.").format(name=new_name))
+                                st.rerun()
+                            except Exception as e:
+                                st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
+
+            # ── Modifier / activer-désactiver ─────
+            if not df_artists.empty:
+                with st.expander(t("admin.edit_artist_expander", "✏️ Modifier un artiste"), expanded=False):
+                    artist_options = {
+                        f"{row['id']} — {row['name']}": row
+                        for _, row in df_artists.iterrows()
+                    }
+                    sel_label = st.selectbox(t("admin.field_artist", "Artiste"), list(artist_options.keys()))
+                    sel = artist_options[sel_label]
+
+                    with st.form("edit_artist"):
+                        c1, c2 = st.columns(2)
+                        edit_name = c1.text_input(t("admin.field_name", "Nom"), value=sel['name'])
+                        edit_tier = c2.selectbox(
+                            t("admin.field_tier", "Tier"),
+                            ["free", "premium"],
+                            index=0 if sel['tier'] == 'free' else 1
+                        )
+                        edit_active = st.checkbox(t("admin.field_active", "Actif"), value=bool(sel['active']))
+
+                        if st.form_submit_button(t("admin.btn_save", "Enregistrer"), type="primary"):
+                            try:
+                                _update_artist(db, sel['id'], edit_name, edit_tier)
+                                _toggle_active(db, sel['id'], edit_active)
+                                st.success(t("admin.artist_updated", "✅ Artiste mis à jour."))
+                                st.rerun()
+                            except Exception as e:
+                                st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
+
+
+        # ══════════════════════════════════════════
+        # ONGLET 2 : GESTION DES UTILISATEURS
+        # ══════════════════════════════════════════
+        with tab_users:
+            try:
+                df_users = _load_users(db)
+            except Exception as e:
+                st.error(t("admin.load_users_error", "Erreur chargement utilisateurs : {err}").format(err=e))
+                return
+
+            st.subheader(t("admin.users_header", "👤 Comptes utilisateurs"))
+
+            if df_users.empty:
+                st.info(t("admin.no_users", "Aucun utilisateur en base."))
+            else:
+                def _fmt_bool(v, yes="✅", no="🔴"):
+                    return yes if v else no
+
+                df_display = df_users.copy()
+                df_display['Accès'] = df_display['active'].apply(lambda v: _fmt_bool(v, "✅ Actif", "🔴 Révoqué"))
+                df_display['Email vérifié'] = df_display['email_verified'].apply(lambda v: _fmt_bool(v, "✅ Oui", "⏳ Non"))
+                df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+                st.dataframe(
+                    df_display[['id', 'username', 'email', 'role', 'artist_name', 'Accès', 'Email vérifié', 'created_at']].rename(columns={
+                        'id': 'ID', 'username': 'Utilisateur', 'email': 'Email',
+                        'role': 'Rôle', 'artist_name': 'Artiste', 'created_at': 'Créé le'
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+
+            st.markdown("---")
+
+            if not df_users.empty:
+                user_options = {
+                    f"{row['id']} — {row['username']} ({row['email']})": row
+                    for _, row in df_users.iterrows()
+                }
+                sel_label = st.selectbox(t("admin.field_select_user", "Sélectionner un utilisateur"), list(user_options.keys()), key="user_sel")
+                sel_user = user_options[sel_label]
+
+                col1, col2, col3 = st.columns(3)
+
+                # Revoke / restore access
+                with col1:
+                    if sel_user['active']:
+                        if st.button(t("admin.btn_revoke", "🔴 Révoquer l'accès"), key="revoke_user"):
+                            _toggle_user_active(db, sel_user['id'], False)
+                            st.success(t("admin.access_revoked", "Accès révoqué pour {user}.").format(user=sel_user['username']))
+                            st.rerun()
+                    else:
+                        if st.button(t("admin.btn_restore", "✅ Restaurer l'accès"), key="restore_user"):
+                            _toggle_user_active(db, sel_user['id'], True)
+                            st.success(t("admin.access_restored", "Accès restauré pour {user}.").format(user=sel_user['username']))
+                            st.rerun()
+
+                # Resend verification email
+                with col2:
+                    resend_disabled = bool(sel_user['email_verified'])
+                    if st.button(t("admin.btn_resend_verif", "📧 Renvoyer vérification"), disabled=resend_disabled, key="resend_verif"):
+                        ok = _resend_verification(db, sel_user['id'], sel_user['email'], sel_user['username'])
+                        if ok:
+                            st.success(t("admin.verif_sent", "Email de vérification renvoyé à {email}.").format(email=sel_user['email']))
+                        else:
+                            st.warning(t("admin.verif_not_sent", "Email non envoyé — vérifiez la config SMTP dans config/config.yaml."))
+
+                # Delete user account
+                with col3:
+                    if st.button(t("admin.btn_delete_account", "🗑️ Supprimer le compte"), type="secondary", key="delete_user"):
+                        st.session_state['_confirm_delete_user'] = sel_user['id']
+
+                if st.session_state.get('_confirm_delete_user') == sel_user['id']:
+                    st.warning(t(
+                        "admin.confirm_delete_user",
+                        "⚠️ Supprimer **{user}** ? "
+                        "Cette action est irréversible. L'artiste lié est conservé."
+                    ).format(user=sel_user['username']))
+                    cc1, cc2 = st.columns(2)
+                    if cc1.button(t("admin.btn_confirm_delete", "Confirmer la suppression"), type="primary", key="confirm_del_user"):
+                        _delete_user(db, sel_user['id'])
+                        st.session_state.pop('_confirm_delete_user', None)
+                        st.success(t("admin.account_deleted", "Compte supprimé."))
+                        st.rerun()
+                    if cc2.button(t("admin.btn_cancel", "Annuler"), key="cancel_del_user"):
+                        st.session_state.pop('_confirm_delete_user', None)
+                        st.rerun()
+
+            # ── Export liste marketing ────────────────────────────────────
+            st.markdown("---")
+            st.subheader(t("admin.marketing_header", "📧 Liste email marketing (opt-in)"))
+
+            try:
+                df_optin = db.fetch_df(
+                    """
+                    SELECT u.username, u.email, a.name AS artist_name,
+                           u.marketing_consent_at, u.created_at
+                    FROM saas_users u
+                    LEFT JOIN saas_artists a ON u.artist_id = a.id
+                    WHERE u.marketing_consent = TRUE AND u.active = TRUE
+                    ORDER BY u.created_at DESC
+                    """
+                )
+            except Exception:
+                df_optin = None
+
+            if df_optin is not None and not df_optin.empty:
+                st.metric(t("admin.metric_optin", "Contacts opt-in"), len(df_optin))
+                st.dataframe(
+                    df_optin.rename(columns={
+                        'username': 'Utilisateur', 'email': 'Email',
+                        'artist_name': 'Artiste', 'marketing_consent_at': 'Opt-in le',
+                        'created_at': 'Inscrit le',
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+                from src.dashboard.utils.csv_exporter import defang_formulas
+                csv_bytes = defang_formulas(
+                    df_optin[['username', 'email', 'artist_name']]
+                ).to_csv(index=False).encode()
+                # RGPD Art. 5(1)(f) — record every access to personal data in audit log
+                clicked = st.download_button(
+                    t("admin.btn_export_csv", "⬇️ Exporter CSV"),
+                    data=csv_bytes,
+                    file_name="optin_emails.csv",
+                    mime="text/csv",
+                )
+                if clicked:
+                    try:
+                        _admin_id = st.session_state.get('user_id')
+                        db.execute_query(
+                            """
+                            INSERT INTO admin_audit_log (admin_user_id, action, detail)
+                            VALUES (%s, 'marketing_export', %s)
+                            """,
+                            (_admin_id, f"Exported {len(df_optin)} opt-in contacts"),
+                        )
+                    except Exception:
+                        pass  # audit log failure must not block the download
+            else:
+                st.info(t("admin.no_optin", "Aucun utilisateur n'a consenti aux communications marketing pour l'instant."))
+
+
+        # ══════════════════════════════════════════
+        # ONGLET 3 : UPLOAD CSV
+        # ══════════════════════════════════════════
+        with tab_upload:
+            st.subheader(t("admin.upload_header", "📂 Importer un CSV pour un artiste"))
+            st.caption(t("admin.upload_caption", "Formats supportés : Spotify for Artists (timeline), Apple Music (performance)"))
+
+            try:
+                df_active = db.fetch_df(
+                    "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
+                )
+            except Exception as e:
+                st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
+                return
+
+            if df_active.empty:
+                st.warning(t("admin.no_active_artist", "Aucun artiste actif. Créez-en un dans l'onglet Artistes."))
+                return
+
+            c1, c2 = st.columns(2)
+            with c1:
+                artist_choices = {f"{r['id']} — {r['name']}": r['id'] for _, r in df_active.iterrows()}
+                sel_artist_label = st.selectbox(t("admin.field_target_artist", "Artiste cible"), list(artist_choices.keys()))
+                target_artist_id = artist_choices[sel_artist_label]
+
+            with c2:
+                platform = st.selectbox(t("admin.field_platform", "Plateforme"), ["Spotify for Artists (S4A)", "Apple Music"])
+
+            uploaded = st.file_uploader(
+                t("admin.field_csv_file", "Fichier CSV"),
+                type=["csv"],
+                help=t("admin.field_csv_help", "Glissez le CSV exporté depuis la plateforme.")
+            )
+
+            if uploaded and st.button(t("admin.btn_import", "⬆️ Importer"), type="primary"):
+                try:
+                    if platform.startswith("Spotify"):
+                        n = _upload_s4a(db, target_artist_id, uploaded)
+                    else:
+                        n = _upload_apple(db, target_artist_id, uploaded)
+                    st.success(t("admin.import_success", "✅ {n} ligne(s) importée(s) pour l'artiste #{artist_id}.").format(n=n, artist_id=target_artist_id))
+                except Exception as e:
+                    st.error(t("admin.import_error", "❌ Erreur import : {err}").format(err=e))
+                    st.exception(e)
+
+
+        # ══════════════════════════════════════════
+        # ONGLET 4 : EFFACEMENT RGPD ART. 17
+        # ══════════════════════════════════════════
+        with tab_gdpr:
+            st.subheader(t("admin.gdpr_header", "🗑️ Effacement RGPD — Art. 17 (droit à l'oubli)"))
+            st.warning(
+                t(
+                    "admin.gdpr_warning",
+                    "⚠️ Cette action **supprime définitivement** toutes les données d'un artiste : "
+                    "compte utilisateur, credentials, historiques analytiques, abonnement. "
+                    "Aucune restauration n'est possible. Un log d'audit est conservé.",
+                ),
+                icon="⚠️",
+            )
+
             try:
                 df_all = db.fetch_df(
                     "SELECT a.id, a.name, a.slug, u.email "
@@ -832,7 +824,6 @@ def show():
                 )
             except Exception as e:
                 st.error(t("admin.generic_error", "Erreur : {err}").format(err=e))
-                db.close()
                 df_all = None
 
             if df_all is not None and not df_all.empty:
@@ -898,4 +889,5 @@ def show():
                         st.dataframe(df_log, hide_index=True, width="stretch")
                 except Exception:
                     pass
-                db.close()
+    finally:
+        db.close()

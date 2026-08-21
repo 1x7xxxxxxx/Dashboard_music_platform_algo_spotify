@@ -17,14 +17,13 @@ def clear_form_data():
         st.session_state["h_new_camp_name"] = ""
 
 
-def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int):
+def add_campaign_stats(db, campaign_name: str, date, visits: int, clicks: int):
     """Ajoute ou met à jour les statistiques d'une campagne.
 
     Le budget n'est plus saisi côté Hypeddit : la dépense publicitaire réelle est
     celle de Meta Ads (ROI Breakeven). La colonne DB `budget` reste à sa valeur par
     défaut (0). Seules les visites/clics (vraies métriques smart-link) sont saisies.
     """
-    db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
@@ -62,12 +61,9 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int):
             update_columns=['visits', 'clicks', 'updated_at']
         )
 
-        db.close()
         return True, t("hypeddit.save_success", "✅ Données enregistrées avec succès")
 
     except Exception as e:
-        if db:
-            db.close()
         return False, t("hypeddit.save_error", "❌ Erreur: {err}").format(err=e)
 
 
@@ -88,24 +84,19 @@ def _resolve_artist_id() -> int:
     return 1  # admin fallback — documented, admins only
 
 
-def get_campaigns_list():
-    db = get_db_connection()
+def get_campaigns_list(db):
     artist_id = _resolve_artist_id()
     query = "SELECT campaign_name FROM hypeddit_campaigns WHERE is_active = true AND artist_id = %s ORDER BY created_at DESC"
     df = db.fetch_df(query, (artist_id,))
-    db.close()
     return df['campaign_name'].tolist() if not df.empty else []
 
 
-def get_global_stats(start_date, end_date, db=None):
+def get_global_stats(start_date, end_date, db):
     """Récupère les statistiques de TOUTES les campagnes sur la période.
 
     `db` may be passed in to reuse the caller's connection (rule #9 — one
     connection per view); when None, opens and closes its own.
     """
-    own_db = db is None
-    if own_db:
-        db = get_db_connection()
     artist_id = _resolve_artist_id()
     query = """
         SELECT campaign_name, date, visits, clicks
@@ -113,19 +104,16 @@ def get_global_stats(start_date, end_date, db=None):
         WHERE date >= %s AND date <= %s AND artist_id = %s
         ORDER BY date
     """
-    df = db.fetch_df(query, (start_date, end_date, artist_id))
-    if own_db:
-        db.close()
-    return df
+    return db.fetch_df(query, (start_date, end_date, artist_id))
 
 
-def _render_global_stats():
+def _render_global_stats(db):
     """Section Statistiques Globales (graphique multi-axes + KPIs)."""
     st.header(t("hypeddit.global_stats", "📊 Statistiques globales"))
 
     # Smart period filter (presets + auto-default on data span) instead of two
-    # manual date inputs. Reuses one connection for span query + data query.
-    db = get_db_connection()
+    # manual date inputs. The connection is show()'s — this used to open a second
+    # one here and close it below, while show()'s stayed open.
     artist_id = _resolve_artist_id()
     window = smart_period_filter(
         db,
@@ -136,7 +124,6 @@ def _render_global_stats():
     )
 
     df = get_global_stats(window.start, window.end, db=db)
-    db.close()
 
     if df.empty:
         st.info(t("hypeddit.no_data_period", "📭 Aucune donnée trouvée pour la période sélectionnée."))
@@ -186,10 +173,9 @@ def _render_global_stats():
         st.dataframe(df, width="stretch")
 
 
-def _render_history():
+def _render_history(db):
     """Section Historique (50 dernières lignes)."""
     st.header(t("hypeddit.history_header", "📋 Historique"))
-    db = get_db_connection()
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
@@ -210,7 +196,7 @@ def _render_history():
         st.info(t("hypeddit.empty_history", "Historique vide."))
 
 
-def _render_entry_form():
+def _render_entry_form(db):
     """Section Saisie manuelle — placée en bas de page."""
     st.header(t("hypeddit.entry_header", "📝 Saisir les données"))
 
@@ -218,7 +204,7 @@ def _render_entry_form():
         col1, col2 = st.columns(2)
 
         with col1:
-            existing_campaigns = get_campaigns_list()
+            existing_campaigns = get_campaigns_list(db)
             _existing_lbl = t("hypeddit.type_existing", "Existante")
             _new_lbl = t("hypeddit.type_new", "Nouvelle")
             campaign_type = st.radio(t("hypeddit.type_label", "Type"), [_existing_lbl, _new_lbl], horizontal=True)
@@ -247,7 +233,7 @@ def _render_entry_form():
         if not campaign_name:
             st.error(t("hypeddit.campaign_name_required", "Nom de campagne requis"))
         else:
-            success, msg = add_campaign_stats(campaign_name, entry_date, visits, clicks)
+            success, msg = add_campaign_stats(db, campaign_name, entry_date, visits, clicks)
             if success:
                 st.success(msg)
             else:
@@ -258,12 +244,23 @@ def show():
     st.title(t("hypeddit.title", "📱 Hypeddit - Gestion & Analyse"))
     st.markdown("---")
 
-    # Single scrolling page: stats first, history next, manual entry last.
-    _render_global_stats()
-    st.markdown("---")
-    _render_history()
-    st.markdown("---")
-    _render_entry_form()
+    # One connection for the whole page, closed once (rule #9). The five helpers
+    # below opened and closed their own until 2026-08-21 — including the write
+    # path, which ran on every form submit.
+    db = get_db_connection()
+    if db is None:
+        st.error(t("hypeddit.db_unreachable", "❌ Base de données injoignable."))
+        return
+
+    try:
+        # Single scrolling page: stats first, history next, manual entry last.
+        _render_global_stats(db)
+        st.markdown("---")
+        _render_history(db)
+        st.markdown("---")
+        _render_entry_form(db)
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     show()

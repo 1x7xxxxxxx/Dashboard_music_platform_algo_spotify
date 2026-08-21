@@ -1,6 +1,7 @@
 """EN strings for the Hypeddit view."""
 
 EN = {
+    "hypeddit.db_unreachable": "❌ Database unreachable.",
     "hypeddit.title": "📱 Hypeddit - Management & Analysis",
     "hypeddit.invalid_session": "❌ Invalid session.",
     "hypeddit.save_success": "✅ Data saved successfully",

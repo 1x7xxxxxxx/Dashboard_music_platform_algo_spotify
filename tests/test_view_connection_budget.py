@@ -6,8 +6,8 @@ R9 read: "16 views still on legacy `get_db_connection()` — valid but non-confo
 to rule #9. Tech-debt, **not a leak**." Measuring the 18 files that actually match
 showed something the sentence hides:
 
-    admin.py            5 connections per render
-    hypeddit.py         5
+    admin.py            5 connections per render  ← fixed 2026-08-21, now 1
+    hypeddit.py         5   ← fixed 2026-08-21, now 1
     airflow_kpi.py      4   ← fixed 2026-08-21, now 1
     export_csv.py       2   ← fixed 2026-08-21, now 1
     export_pdf.py       2   ← fixed 2026-08-21, now 1
@@ -23,7 +23,9 @@ Three of them, though, cannot use `view_session()` as it stands, and that is wor
 knowing before anyone attempts the sweep R9 implied:
 
   * `admin.py`, `airflow_kpi.py`, `perf_monitor.py` never call `get_artist_id()` —
-    they are cross-tenant admin surfaces, and `view_session()` insists on a tenant;
+    they are cross-tenant admin surfaces, and `view_session()` insists on a tenant.
+    Both `admin` and `airflow_kpi` are down to ONE connection anyway (2026-08-21):
+    the rule-#9 breach was the count, and it is fixed without `view_session()`;
   * `referral.py` REFUSES admins outright (`artist_id is None` → info + return),
     the exact opposite of `view_session()`'s admin → `artist_id = 1` fallback.
     Migrating it mechanically would hand admins a referral programme the view
@@ -52,10 +54,9 @@ VIEWS = REPO / "src" / "dashboard" / "views"
 
 # Measured 2026-08-21. Lower a number when a view is migrated; never raise one.
 # A view absent from this map must open at most one connection.
-_KNOWN_MULTI = {
-    "admin.py": 5,
-    "hypeddit.py": 5,
-}
+_KNOWN_MULTI: dict[str, int] = {}
+# Emptied 2026-08-21. Every view under src/dashboard/views/ now opens exactly one
+# connection per render. A name reappearing here is a regression, not a baseline.
 # Lowered 2026-08-21: export_csv.py and export_pdf.py each opened a `db2` while
 # `db` was still open — the fallback rule #9 forbids by name. export_pdf's was the
 # starker case: `_show_form(db)` received the right connection as a parameter and

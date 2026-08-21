@@ -1065,3 +1065,44 @@ réouverture est une requête qu'on peut lancer.
   dessin voulu. La relecture du code du 2026-08-21 avait déjà conclu qu'aucun filtre
   redondant n'était démontrable ; savoir *pourquoi* manquait, et c'est que le nettoyage
   avait déjà eu lieu.
+
+### P3 — Une connexion par rendu, sur les 18 vues (clos, 2026-08-21)
+
+- [x] **R9 — `view_session()` / connexions par vue** (P3) — la fiche disait « 16 vues
+  legacy, valide mais non conforme, tech-debt, **pas un leak** ». La mesure disait autre
+  chose : `admin.py` **5** connexions par rendu, `hypeddit.py` **5**, `airflow_kpi.py`
+  **4**, `export_csv.py` et `export_pdf.py` **2**. La règle #9 ne dit pas « préférer une
+  connexion » : elle dit qu'une vue en ouvre exactement une et jamais une seconde en
+  repli. Les 18 vues sont désormais à **1**, et le plafond de
+  `tests/test_view_connection_budget.py` est **vide** — un nom qui y réapparaît est une
+  régression, plus une base.
+
+  Ce que le détail rendait coûteux : Streamlit exécute le corps de **chaque onglet** à
+  chaque rerun, donc les cinq connexions d'`admin` partaient à tous les coups, pas
+  seulement celle de l'onglet regardé. Et les 10 `db.close()` pour 5 ouvertures étaient
+  les chemins d'erreur refermant une seconde fois.
+
+  **Le préalable, tenu avant le refactor.** `test_views_render_smoke` rend `show()` sans
+  appuyer sur rien : il serait resté vert sur un bouton cassé. Refactorer un effacement
+  RGPD avec seulement ça derrière n'était pas livrable, donc la couverture est venue
+  d'abord — `tests/test_admin_hypeddit_buttons.py` clique les boutons d'`admin` et
+  affirme au passage la garde en deux temps de l'effacement (motif obligatoire, puis
+  confirmation séparée) : cliquer sans motif **n'efface rien** et le dit.
+
+  Pour `hypeddit`, la route du clic était fermée : `AppTest` ne peut pas rejouer une page
+  portant un `st.segmented_control` mono-sélection — `streamlit/testing/v1/element_tree.py`
+  itère la valeur scalaire du widget comme une séquence d'options. C'est le harnais, pas
+  la vue, et le test le dit en nommant le fichier plutôt qu'en avalant l'erreur. La
+  couverture est donc venue par l'autre bout : `tests/test_hypeddit_write_path.py`
+  appelle directement `add_campaign_stats`, ce qui est un meilleur test qu'un clic — il
+  affirme que les lignes atterrissent **sous le locataire qui a soumis**, qu'un second
+  envoi le même jour **corrige au lieu de dupliquer**, et qu'une session sans locataire
+  n'écrit rien du tout.
+
+  Deux vues gardent une sémantique que `view_session()` ne sait pas exprimer, et c'est
+  documenté plutôt que forcé : `admin`, `airflow_kpi` et `perf_monitor` ne résolvent
+  aucun locataire (surfaces transverses), `referral` **refuse** les admins là où
+  `view_session()` leur donnerait `artist_id = 1`. Le manquement à la règle #9 était le
+  **nombre**, et il est corrigé sans passer par l'helper.
+
+  900 tests verts.
