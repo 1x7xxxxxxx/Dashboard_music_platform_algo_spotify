@@ -1106,3 +1106,23 @@ réouverture est une requête qu'on peut lancer.
   **nombre**, et il est corrigé sans passer par l'helper.
 
   900 tests verts.
+
+### P3 — Growth : la landing attend quatre entrées, pas un développeur (clos par ADR-008, 2026-08-21)
+
+- [x] **R2 — E2 landing marketing + pixel Meta + CAPI server-side** (P3) — rejoint ADR-008.
+  Quatre entrées manquent, et aucune n'est une question d'ingénierie : **le positionnement
+  et la copie** (la voix du produit, que personne d'autre que son auteur ne peut inventer —
+  et la landing siège à la racine du domaine), **un Meta Pixel ID** qui n'existe pas, **un
+  token Meta valide** (R13 est rouge), et **une campagne** à attribuer.
+
+  Construire la CAPI maintenant serait exactement le piège écrit pour R5 un domaine plus
+  loin : sans pixel ID, sans token et sans campagne, aucun événement ne peut être vérifié
+  comme arrivé. Ce qui partirait en production est une intégration de conversions qui n'a
+  jamais rien converti — et qui a l'air finie.
+
+  Le détail à ne pas perdre : **l'attribution est la seule partie qui a une échéance.**
+  `_fbp`/`_fbc` et les UTM ne se récupèrent pas rétroactivement, donc la capture au
+  `register` doit être en place **au moment** où la campagne est décidée, pas après. C'est
+  pourquoi le déclencheur est « la première campagne est planifiée » et non « la landing
+  est en ligne ». Le reste de la spécification (sous-domaines, dédup `event_id`, e-mail
+  haché SHA-256, Consent Mode v2) est conservé tel quel dans le bloc détaillé.

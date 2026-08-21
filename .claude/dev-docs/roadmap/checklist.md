@@ -19,22 +19,37 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 ## 📋 Tâches ouvertes (index — détail plus bas)
 
-Index concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion d'une tâche :
+Index concis des tâches **qu'on peut commencer maintenant**. À la complétion d'une tâche :
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
 
+> **Vide au 2026-08-21, et c'est un état, pas un oubli.** Tout ce qui pouvait être fait
+> côté ingénierie l'a été ; ce qui est mesuré inutile est parti sous **ADR-007**, ce qui
+> attend une donnée sous **ADR-008**, et ce qui attend un geste humain est dans
+> `## 🙋 En attente de toi` juste en dessous. Une tâche revient ici le jour où son
+> déclencheur se produit.
+
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) |
-| R2 | E2 — landing marketing + pixel Meta + CAPI server-side | P3 | après R1 |
+| — | *(aucune)* | — | — |
+
+## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
+
+Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
+l'index ci-dessus parce qu'aucune ne peut commencer sans toi. Chacune dit exactement quel
+geste elle attend.
+
+| id | tâche | prio | le geste qu'elle attend |
+|----|-------|------|--------------------------|
 | R13 | **Régénérer le token Meta System User (cassé en prod)** | P2 | **OPÉRATIONNEL** — Meta/IG ne collecte plus (token malformé `EE…`, code-190 sur tout REST ; SDK survit sur fenêtres vides). `tools/check_central_apps.py` le détecte. Vérifier aussi `META_APP_ID/SECRET`. |
-| R17 | Ingérer un corpus ergonomie / front-end dans knowledge-rag | P3 | **action utilisateur** : déposer les PDF/EPUB dans `/mnt/c/Users/timot/knowledge/books/ux-frontend/` puis `cd /home/timothe/knowledge-rag && uv run python ingest.py`. Le domaine est créé et vide ; sans lui, les arbitrages d'ergonomie (dont le budget de graphiques) restent non sourcés. |
-| R18 | `.env` ligne 67 malformée — `docker compose` refuse de démarrer en local | P4 | **action utilisateur** : le fichier est deny-listé dans les permissions, je ne peux ni le lire ni le corriger. Erreur : « key cannot contain a space » ; `python-dotenv` se contente d'avertir, seul `docker compose` refuse. Pour voir la clé fautive **sans exposer sa valeur** : `awk 'NR==67{n=index($0,"=");print (n?substr($0,1,n-1):$0)}' .env`. **Passé de P2 à P4 le 2026-08-21** : il ne bloque plus la vérification. Un Postgres jetable suffit et fait tourner l'intégralité de la suite — `docker run -d --name e2e_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl -p 5434:5432 postgres:17`, puis `init_db.sql`, puis `PG_CONT=e2e_pg bash tools/migrate.sh`, puis `DATABASE_URL=postgresql://postgres:x@127.0.0.1:5434/spotify_etl python3 -m pytest tests/ -q` → **858 verts / 14 sautés** au lieu de 716/128. Il ne reste que le confort de `make up`. |
 | R20 | Créer le locataire **canari** en prod + le marquer `is_canary` | P2 | **prérequis du préflight** : un vrai compte non-admin avec TES identifiants publics, différents de ceux de l'admin. Sans lui, `make artist-preflight` s'arrête d'emblée (message explicite). |
+| R18 | `.env` ligne 67 malformée — `docker compose` refuse de démarrer en local | P4 | **action utilisateur** : le fichier est deny-listé dans les permissions, je ne peux ni le lire ni le corriger. Erreur : « key cannot contain a space » ; `python-dotenv` se contente d'avertir, seul `docker compose` refuse. Pour voir la clé fautive **sans exposer sa valeur** : `awk 'NR==67{n=index($0,"=");print (n?substr($0,1,n-1):$0)}' .env`. **Passé de P2 à P4 le 2026-08-21** : il ne bloque plus la vérification. Un Postgres jetable suffit et fait tourner l'intégralité de la suite — `docker run -d --name e2e_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl -p 5434:5432 postgres:17`, puis `init_db.sql`, puis `PG_CONT=e2e_pg bash tools/migrate.sh`, puis `DATABASE_URL=postgresql://postgres:x@127.0.0.1:5434/spotify_etl python3 -m pytest tests/ -q` → **858 verts / 14 sautés** au lieu de 716/128. Il ne reste que le confort de `make up`. |
+| R17 | Ingérer un corpus ergonomie / front-end dans knowledge-rag | P3 | **action utilisateur** : déposer les PDF/EPUB dans `/mnt/c/Users/timot/knowledge/books/ux-frontend/` puis `cd /home/timothe/knowledge-rag && uv run python ingest.py`. Le domaine est créé et vide ; sans lui, les arbitrages d'ergonomie (dont le budget de graphiques) restent non sourcés. |
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) |
 
 ---
 
-## 🔖 REPRISE — état au 2026-06-20 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-08-21 (à lire EN PREMIER au `/resume`)
 
 **streaMLytics est EN PRODUCTION et lançable.** (détail : `[[project_production_deploy]]`, DEVLOG suites 7→14)
 
@@ -45,11 +60,37 @@ Index concis de TOUTES les tâches encore ouvertes (`- [ ]`). À la complétion 
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
 
-**▶️ Prochaines actions, dans l'ordre (MAJ suite 19c — Cloudflare ACTIF + durci) :**
+**▶️ Où on en est (MAJ 2026-08-21) — la file d'ingénierie est vide.**
+
+Prod à jour (`prod == canonique`, 917 colonnes / 91 tables, code déployé == `origin/main`),
+**900 tests verts**, `ruff check .` propre sur tout le dépôt, les cinq gardes bloquants de CI
+passent. L'index `## 📋 Tâches ouvertes` ci-dessus **ne contient rien**, et c'est un état :
+ce qui était mesuré inutile est sorti sous **ADR-007**, ce qui attend une donnée sous
+**ADR-008**, et les cinq items restants sont dans `## 🙋 En attente de toi` parce qu'aucun
+ne peut commencer sans un geste humain.
+
+**Ce qui t'attend, dans l'ordre où ça débloque le plus :**
+1. **R13 — régénérer le token Meta System User.** Meta et Instagram ne collectent plus.
+   `make artist-preflight ARTIST=12` le remonte de lui-même. Débloque aussi la partie
+   CAPI de R2 le jour où elle revient.
+2. **R20 — créer le locataire canari en prod** avec **tes** identifiants publics, différents
+   de ceux de l'admin, puis `UPDATE saas_artists SET is_canary = TRUE WHERE id = <id>;`.
+   Sans lui `make artist-preflight` s'arrête d'emblée — c'est le filet avant toute session
+   avec un artiste réel.
+3. **R18 — `.env` ligne 67.** `awk 'NR==67{n=index($0,"=");print (n?substr($0,1,n-1):$0)}' .env`
+   n'affiche que le **nom** de la clé, jamais sa valeur. Confort seulement : un Postgres
+   jetable fait déjà tourner toute la suite (voir la fiche R18).
+4. **R17 — déposer les PDF/EPUB d'ergonomie** dans `knowledge/books/ux-frontend/` puis
+   `cd /home/timothe/knowledge-rag && uv run python ingest.py`.
+5. **R1 — ouvrir la bêta privée** à des proches sur `streamlytics.fr`. Le funnel et le
+   paiement sont prouvés en live ; R2 (landing + pixel + CAPI) démarre avec la première
+   campagne, pas avant — voir ADR-008.
+
+**Historique des grandes étapes (toutes ✅) :**
 1. **✅ Cloudflare — ACTIF, PROXIFIE & DURCI (complet)** (détail `[[project_security_cloudflare]]`). Fait : zone active, NS Cloudflare, **SSL Full(strict)**, zone settings (min TLS 1.2 / Always HTTPS / Brotli / TLS 1.3), **rate-limit `/auth/token`** (10/10s), **firewall origine verrouillé** (ufw → IP CF only, vérifié), **Bot Fight Mode** ON, **cert Origin CF 15 ans** posé sur Caddy (plus de risque renouvellement, vérifié 2 edges). **RESTE (non bloquant)** : 🔑 **révoquer le token** `streamlytics-hardening` ; (optionnel) ré-activer DNSSEC via CF. ⚠️ vérifs prod **toujours via `curl --resolve host:443:<edge-CF-IP>`** (cache DNS local peut pointer l'IP origine firewallée → faux « down »).
 2. **✅ Red-team — COMPLET** (réseau + app + dashboard). Couvert & clean : MITM/TLS (CVE suite), brute-force, SQLi, deps (0 CVE), **isolation tenant/IDOR (prouvé live)**, priv-esc, JWT, CORS, secrets, XSS (escaping tient), **replay webhook Stripe** (signature + handlers idempotents + tolérance 5 min), upload path-traversal (filename = détection seulement), app-DoS (cap 50 Mo + bornes `le=1000` + Cloudflare). **Trouvé+fixé+déployé** : `/kpis` & `/youtube/videos` schema-drift 500 (suite 18/19b) ; **CSV/Excel formula injection sur export (CWE-1236, suite 20)** → `defang_formulas()` sur les 3 chemins d'export + test. Mineur restant : XSRF/cookies Streamlit = défaut framework (P4). Compte test `redteam_qa` **supprimé (clôturé suite 20)**. Classes cataloguées : `api-router-schema-drift`, `csv-formula-injection` (`error-classes.md`).
 3. **✅ E1 OUVERT** — 1er beta externe **Benken** (artist_id=12) onboardé 2026-06-15. A révélé une cascade per-tenant (tous les tests credentials KO, tous les CSV sauf Apple KO) → **diagnostiquée + corrigée + déployée** (voir session ci-dessous). 2e tenant **Cuzebo** (id=11) créé aussi.
-4. **▶️ ACTIONS RESTANTES** : **R13 régénérer le token Meta** (cassé en prod, Meta/IG ne collecte plus) ; **prep pré-session Benken** (partage compte pub Meta 65390907 + bon channel YouTube + Spotify artist ID) ; **R14 onboarding UX restant** (plan Track 1) ; refaire une session live avec Benken (tout doit marcher du 1er coup pour SoundCloud ✅/Apple ✅/YouTube/Spotify).
+4. **Actions restantes de l'époque, désormais reprises ci-dessus** : **R13 régénérer le token Meta** (cassé en prod, Meta/IG ne collecte plus) ; **prep pré-session Benken** (partage compte pub Meta 65390907 + bon channel YouTube + Spotify artist ID) ; **R14 onboarding UX restant** (plan Track 1) ; refaire une session live avec Benken (tout doit marcher du 1er coup pour SoundCloud ✅/Apple ✅/YouTube/Spotify).
 
 *Session 2026-08-21 (conformité baseline + capitalisation) : **la config baseline n'est PAS entièrement déployée — 76,2/100** (`audit_fleet.py`), et une partie de ce qui l'est était écrite **pour un autre projet**. Trouvé et corrigé : `rules/python.md` — une règle **contraignante, chargée à chaque session** — imposait un factory Redis, un « ingestion hot path » nommant 5 modules inexistants, et surtout des placeholders SQL `?` (SQLite/QuestDB) là où tout le dépôt utilise `%s` psycopg2 ; `/review-architecture` lisait deux gabarits **non remplis** et cherchait QuestDB + des révisions Alembic (que l'ADR-002 rejette) ; `code-critic` — pourtant nommé dans une règle impérative, donc réellement invoqué — se présentait comme critique du projet « MSDR Predictive Maintenance » ; `security-reviewer` auditait OPC UA et `INFLUX_TOKEN` dans un SaaS musical, doublon de `security-specialist` qui, lui, est correct → retiré, ses 5 appelants repointés. **Capitalisation** : dette de schéma des classes d'erreur 29 → **25**, les 4 classes soldées étant celles du sujet du jour (`central-app-missing`, `multitenant-mono-test-blindspot`, `prod-compose-drift`, `env-not-wired-to-service`) ; aucune classe neuve incomplète (cliquet). 812 tests verts.*
 
