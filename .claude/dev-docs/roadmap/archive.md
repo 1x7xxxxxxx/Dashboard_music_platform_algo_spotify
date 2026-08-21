@@ -716,3 +716,84 @@ publique. Verdict intégrité = **GO, convergent** (oublis localisés, pas syst�
   `label_predictions()` = 1 label (`y_dw/y_rr/y_radio` vs thresholds 137/130/639, horizon 30d) → trigger
   read OK → idempotent (2nd run=0) → 0 residual. Plumbing was already correct; the chain had simply never
   been exercised (`s4a_song_algo_outcomes` was empty). ref: DEVLOG#2026-06-12 (suite 5).
+
+### P1 — Fuite locataire et pannes muettes (clos, 2026-08-20)
+
+Rotation depuis `checklist.md` le 2026-08-21 (règle 17). Les neuf entrées ci-dessous
+portaient déjà leur `✅` dans l'index actif ; elles y sont retirées, pas effacées.
+Le code correspondant a été commité le 2026-08-21 (`83d3c63`) — il ne vivait que dans
+l'arbre de travail jusque-là.
+
+- [x] **R21 — Nettoyer les lignes contaminées en PROD** (P1) — sauvegarde prise, **5304 lignes**
+  supprimées : GRiNCH 67 vidéos + 603 stats + 1 chaîne ; Cuzebo 4556 stats + 68 historiques —
+  toutes rattachées à la chaîne de l'admin. `track_popularity_history` gardait 1051 lignes sous
+  `artist_id=1` mais **légitimes** (seul l'admin a des tracks Spotify) : mécanisme armé, dégâts
+  nuls. Vérifié après coup : collecte réelle relancée, admin = ses 67 vidéos, locataires 11 et 13
+  = rien.
+- [x] **R22 — Appliquer la migration `064` en prod** (P1) — additive : index composites +
+  colonne `is_canary`. Appliquée 2026-08-20.
+- [x] **R23 — Retirer les `DEFAULT 1` sur `artist_id`** (P2) — `migrations/068`. `DEFAULT` retiré
+  (55 colonnes) **et** `NOT NULL` posé (81) : l'oubli du locataire devient fatal au lieu de
+  silencieux. 805 tests verts contre une base la portant. Deux enseignements retenus :
+  `tracks.saas_artist_id` reste volontairement nullable, et `artist_id` **n'est pas toujours le
+  locataire** (VARCHAR Spotify sur `artists`, `artist_history`, `tracks`) → classe
+  `column-name-is-not-its-meaning`, on raisonne sur le type. ⚠️ l'application en prod reste
+  séquencée derrière le déploiement du code (cf. R25/R26, toujours ouverts).
+- [x] **R27 — Alerting muet dans le scheduler** (P1) — `SMTP_*` et `ALERT_EMAIL` n'étaient
+  déclarés que pour le service `dashboard` : **672 échecs de watchers CSV en 7 jours, aucun
+  mail**. Câblés dans `airflow-common-env` (prod + exemple), scheduler redémarré, vérifié. Garde :
+  `test_env_contract` élargi aux lectures **transitives** (`src/utils`), qui était son angle mort.
+- [x] **R28 — Watchers CSV en échec permanent** (P1) — `PermissionError` sur
+  `/opt/airflow/data/raw` (volume `root:root`, airflow en uid 50000). 672 runs échoués depuis le
+  13/08. Droits corrigés, run manuel **et** run planifié verts.
+- [x] **R29 — `make schema-check` aveugle aux contraintes** (P2) — comparaison étendue aux
+  PK/UNIQUE/FK et index uniques, **par définition** et non par nom. Premier passage : 3 dérives
+  prod inconnues → `migrations/066` (deux `UNIQUE (campaign_name, platform, placement)` aveugles
+  au locataire : deux artistes homonymes ne pouvaient pas coexister) et `067` (3 FK Meta
+  manquantes, 0 orphelin vérifié). Les deux appliquées en prod.
+- [x] **R30 — Deux locataires, même identifiant plateforme** (P2) — `find_identity_conflict()`
+  refuse le doublon à l'enregistrement sur les 4 plateformes, plus un test qui garantit qu'aucune
+  plateforme ne peut être ajoutée sans règle d'unicité.
+- [x] **R31 — « Lancé ! » sans résultat** (P3, = item B2 de R14) — `collection_progress.py` garde
+  le `run_id`, lit l'état à chaque rerun et traduit l'échec en geste. Un échec non reconnu ne
+  reçoit **pas** d'explication inventée.
+- [x] **R32 — Parcours d'inscription non testé** (P2) — `tests/test_signup_funnel_db.py` : paire
+  user/tenant atomique, non vérifié + jeton, mot de passe haché, slug unique, locataire frais
+  cohérent (aucune ligne, readiness « à connecter »).
+
+### P3 — Configuration recentrée sur ce dépôt (clos, 2026-08-21)
+
+Rotation depuis `checklist.md` (règle 17). La classe commune aux deux : un fichier de
+configuration copié d'un autre dépôt décrit ce dépôt-là, et rien ne le signale — un
+pointeur qui rate ne se plaint pas.
+
+- [x] **R34 — Trancher le sort de `.claude/dev-docs/architecture/`** (P3) — **retiré**,
+  pas peuplé, vers `.claude/.retired/dev-docs/architecture/` avec son argumentaire.
+  Quatre mesures, pas une préférence : **584 marqueurs `[TODO]` sur 1301 lignes**
+  (`database_schema.md` en portait 539 à lui seul) ; **aucun consommateur vivant** — la
+  seule référence était `agents/code-architecture-reviewer.md`, un agent que CLAUDE.md
+  signale lui-même comme jamais invoqué ; **le mécanisme censé le remplir n'existe pas
+  ici** (les fichiers renvoient à `/dev-docs-init` et à un agent `dev-docs-architect`,
+  ni l'un ni l'autre présents, et `generate-dev-docs.py` vise `src/Application` par
+  défaut, n'est câblé à aucune cible du Makefile ni à aucun hook) ; enfin **une copie
+  markdown du schéma tenue à la main est un générateur de dérive** — les sources
+  autoritaires sont `migrations/*.sql`, `src/database/*_schema.py` et `make schema-check`,
+  qui compare à la base vivante par définition (cf. classe `api-router-schema-drift`).
+  `code-architecture-reviewer` est repointé sur `.claude/dev-docs/architecture.md`, la
+  surface peuplée, avec la vérité-terrain de chaque diagramme nommée explicitement.
+
+- [x] **R36 — Fuite de domaine restante dans la config** (P3) — sweep terminé. Corrigés :
+  `commands/audit-collectors.md` (la **règle transverse #6** impose `/audit-collectors`
+  après tout collector, et la commande auditait `fanuc_reader.py` en OPC UA — le plus
+  grave du lot, une règle à déclencheur réel pointant une procédure fausse) ;
+  `skills/verification/SKILL.md` (quatre phases inexécutables, dont un `cd` vers un autre
+  dépôt) ; `commands/dev-docs.md` (gabarits en QuestDB / révisions Alembic / Redis Streams) ;
+  `commands/check-env.md` ; `skills/continuous-learning/SKILL.md` (vocabulaire de domaines) ;
+  `rules/rex-format.md` (titre) ; `hooks/guard_destructive.py` (trois avertissements qui ne
+  pouvaient pas se déclencher — Alembic est rejeté par l'ADR-002 — remplacés par les trois
+  vrais dangers d'ici, dont `make migrate` qui porte désormais un garde mécanique pour la
+  classe `migration-ahead-of-its-code`). **Deux défauts conséquents trouvés au passage**,
+  catalogués et gardés par `tests/test_probes_scoped_to_repo.py` (vérifié 4 rouges avant /
+  6 verts après) : `probe-scoped-to-the-machine-not-the-repo` et
+  `state-path-namespaced-by-another-project`. Ce qui reste nommer l'autre projet est de la
+  **prose REX** — la provenance d'une leçon mesurée ailleurs, qui est sa raison d'être.

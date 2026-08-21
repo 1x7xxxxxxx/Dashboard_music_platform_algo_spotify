@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MSDR environment prerequisite check.
+Environment prerequisite check.
 
 Verifies: Python version, ruff, pytest, .env, Docker, PostgreSQL port, host UTC sync, container TZ=UTC, test suite.
 Run manually: python3 .claude/scripts/check_env.py
@@ -130,6 +130,31 @@ def _declares(*needles: str) -> bool:
     return False
 
 
+def _declared_container_names() -> set[str]:
+    """Container names THIS repo's compose file declares.
+
+    Same reasoning as `_declares` above, one class further: probing *every*
+    running container inspects the neighbouring projects on the same machine.
+    Measured 2026-08-21 — this check told the user to add `TZ=UTC` to the
+    environment block of `n8n-ollama` and `n8n-postgres`, containers belonging
+    to a project that is not this one. Empty set → fall back to all containers,
+    which is the old behaviour and the only safe default when nothing is declared.
+    """
+    import re as _re
+    names: set[str] = set()
+    for name in ("docker-compose.yml", "docker-compose.yaml", "compose.yml",
+                 "docker-compose.example.yml"):
+        f = Path(name)
+        if not f.is_file():
+            continue
+        try:
+            blob = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        names.update(_re.findall(r"^\s*container_name:\s*([A-Za-z0-9_.-]+)", blob, _re.M))
+    return names
+
+
 def check_questdb_port() -> bool:
     import socket
     if not _declares("questdb"):
@@ -199,7 +224,7 @@ def check_timezone() -> bool:
             msg.append("NTP not synced")
         if not utc_zone:
             msg.append("host TZ not UTC")
-        warn(f"timedatectl: {', '.join(msg)} — on IPC run: sudo timedatectl set-timezone UTC + install chrony")
+        warn(f"timedatectl: {', '.join(msg)} — run: sudo timedatectl set-timezone UTC + install chrony")
         return False
     except subprocess.TimeoutExpired:
         warn("timedatectl timed out (>4s)")
@@ -221,10 +246,15 @@ def check_docker_tz_utc() -> bool:
         if r.returncode != 0 or not r.stdout.strip():
             warn("no running containers — TZ=UTC check skipped (run: docker compose up)")
             return True
+        declared = _declared_container_names()
+        running = [n for n in r.stdout.strip().splitlines() if n]
+        if declared:
+            running = [n for n in running if n in declared]
+        if not running:
+            warn("none of this repo's containers are running — TZ=UTC check skipped (run: make up)")
+            return True
         bad = []
-        for name in r.stdout.strip().splitlines():
-            if not name:
-                continue
+        for name in running:
             env = subprocess.run([docker, "exec", name, "env"], capture_output=True, text=True, timeout=3)
             if env.returncode != 0:
                 continue
@@ -267,7 +297,7 @@ def check_tests() -> bool:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    print("\n🔍 MSDR Environment Check")
+    print("\n🔍 Environment Check")
     print("─" * 40)
 
     results = {

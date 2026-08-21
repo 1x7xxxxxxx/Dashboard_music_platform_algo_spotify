@@ -10,6 +10,7 @@ rex: []
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -24,12 +25,12 @@ _SKIP_PATTERNS = (
     "mlruns/",
 )
 
-# MSDR Docker containers expected in dev
-_MSDR_CONTAINERS = (
-    "msdr_api",
-    "msdr_dashboard",
-    "msdr_receiver",
-)
+# Containers expected in dev. NOT a hardcoded list: the payload this hook comes
+# from is copied across repos, and a hardcoded list from the source repo reports
+# on a project that is not this one. Worse, it can look green — the neighbouring
+# project's containers were running on the same machine, so the msdr_* list this
+# file shipped with passed for weeks without ever observing this repo.
+_COMPOSE_FILES = ("docker-compose.yml", "docker-compose.example.yml")
 
 # Warn threshold for long sessions
 _SESSION_TURNS_WARN = 20
@@ -92,8 +93,27 @@ def _find_docker() -> str | None:
     return win_path if os.path.exists(win_path) else None
 
 
-def check_docker_health() -> list[str]:
-    """Returns warnings for MSDR containers that are not running."""
+def _expected_containers(repo_root: str) -> tuple[str, ...]:
+    """Container names this repo's own compose file declares. Empty if none."""
+    for name in _COMPOSE_FILES:
+        f = Path(repo_root) / name
+        if not f.exists():
+            continue
+        try:
+            text = f.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        found = re.findall(r"^\s*container_name:\s*([A-Za-z0-9_.-]+)", text, re.M)
+        if found:
+            return tuple(dict.fromkeys(found))
+    return ()
+
+
+def check_docker_health(repo_root: str) -> list[str]:
+    """Returns warnings for this repo's declared containers that are not running."""
+    expected = _expected_containers(repo_root)
+    if not expected:
+        return []
     docker = _find_docker()
     if not docker:
         return []
@@ -109,7 +129,7 @@ def check_docker_health() -> list[str]:
         running = result.stdout
         warnings = [
             f"  🔴 {c} not running"
-            for c in _MSDR_CONTAINERS
+            for c in expected
             if c not in running
         ]
         return warnings
@@ -348,7 +368,8 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
 # ── Observations visibility ───────────────────────────────────────────────────
 
 def _check_observations(repo_root: str) -> str | None:
-    obs = Path(repo_root) / ".claude" / "homunculus" / "msdr" / "observations.jsonl"
+    root = Path(repo_root)
+    obs = root / ".claude" / "homunculus" / (root.name or "default") / "observations.jsonl"
     if not obs.exists():
         return None
     try:
@@ -401,9 +422,9 @@ def main():
         sections.append(format_git_summary(changes))
 
     # 2. Docker health
-    docker_warnings = check_docker_health()
+    docker_warnings = check_docker_health(repo_root)
     if docker_warnings:
-        sections.append("\n⚠️  MSDR containers down:\n" + "\n".join(docker_warnings)
+        sections.append("\n⚠️  Containers down:\n" + "\n".join(docker_warnings)
                         + "\n  → docker compose up -d")
 
     # 3. Session length

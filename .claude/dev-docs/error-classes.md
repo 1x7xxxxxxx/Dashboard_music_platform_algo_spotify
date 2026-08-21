@@ -104,6 +104,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [migration-ahead-of-its-code](#migration-ahead-of-its-code) | P1 | manual | reported | none |
 | [column-name-is-not-its-meaning](#column-name-is-not-its-meaning) | P2 | deterministic | guarded | none |
 | [identity-claimed-by-two-tenants](#identity-claimed-by-two-tenants) | P2 | deterministic | guarded | none |
+| [probe-scoped-to-the-machine-not-the-repo](#probe-scoped-to-the-machine-not-the-repo) | P3 | deterministic | guarded | none |
+| [state-path-namespaced-by-another-project](#state-path-namespaced-by-another-project) | P3 | deterministic | guarded | none |
 
 ---
 
@@ -771,3 +773,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-20
 - History:
   - 2026-08-20: surfaced by a guard, not by a report — a canary tenant created during the session reused the admin's `spotify_artist_id`, and the E2E test attributed the catalogue to the wrong account. `_sa[0][0]` had been silently picking the lower id.
+
+## probe-scoped-to-the-machine-not-the-repo
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a health probe enumerates every container or process on the HOST instead of the ones this repo declares. It reports on neighbouring projects — and can read **green** because a neighbour is running while this repo is down.
+- root_cause: `.claude/hooks/session_summary.py` carried `_MSDR_CONTAINERS = ("msdr_api", "msdr_dashboard", "msdr_receiver")`, a literal list from the repo the baseline payload was cut from; `.claude/scripts/check_env.py::check_docker_tz_utc` iterated `docker ps` with no filter at all.
+- signature: `python3 -m pytest tests/test_probes_scoped_to_repo.py -q`
+- long_term_fix: both probes derive their expected set from the `container_name:` entries **this repo's own compose file** declares (`_expected_containers` / `_declared_container_names`). A payload copied to another repo then adapts instead of lying, and an empty set degrades to silence rather than to a false positive.
+- autofix: none
+- guard: { type: test, ref: tests/test_probes_scoped_to_repo.py }
+- rex_ref: .claude/commands/check-env.md
+- first_seen: 2026-08-21 (ref: roadmap R36)
+- History:
+  - 2026-08-21: found by the R36 domain-leak sweep, not by a report — which is the point. The Stop hook had reported Docker health for weeks; `msdr_api`, `msdr_dashboard` and `msdr_receiver` were all running on this machine, so it printed nothing while this repo's `postgres_spotify_airflow` was down. The TZ probe was louder and therefore easier to catch: it told the user to edit the environment block of `n8n-ollama` and `n8n-postgres`. Guard verified red (4 failures) against the pre-fix modules, green after.
+
+## state-path-namespaced-by-another-project
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a writer and its readers disagree on where shared state lives, because one of them hardcodes a project name in the path. Nothing errors — the reader simply reads a file that stopped growing, and the feature built on it goes quietly inert.
+- root_cause: `.claude/hooks/observe.py` wrote to `.claude/homunculus/msdr/observations.jsonl` while `.claude/hooks/draft_devlog.py` read `.claude/homunculus/<repo name>/observations.jsonl`. Both are correct in isolation; only together are they a bug.
+- signature: `python3 -m pytest tests/test_probes_scoped_to_repo.py -q`
+- long_term_fix: every homunculus path is derived from `repo_root.name`, never written as a literal (`observe.py`, `draft_rex.py`, `session_summary.py` aligned on the form `sensor.py` and `draft_devlog.py` already used). A test rejects a literal directory segment under `.claude/homunculus/`, so writer and readers cannot diverge again.
+- autofix: none
+- guard: { type: test, ref: tests/test_probes_scoped_to_repo.py }
+- rex_ref: .claude/skills/verification/SKILL.md
+- first_seen: 2026-08-21 (ref: roadmap R36)
+- History:
+  - 2026-08-21: dated by the data itself. `homunculus/<project>/observations.jsonl` holds 536 entries and stops on 2026-07-28 — the day the payload was re-pushed with an `observe.py` that hardcoded `msdr`; `homunculus/msdr/observations.jsonl` holds the 74 entries written since. `draft_devlog.py` had been drafting from the frozen file for three weeks, which is why `.claude/sessions/pending-devlog.md` sat at 2026-05-15 with every field still `?`. The 74 orphaned entries were merged back (606 unique, chronological) and the stray directory retired. A third namespace, `homunculus/streamlytics/`, was found empty and referenced by no code — removed.

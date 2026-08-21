@@ -26,7 +26,7 @@ When a non-obvious pattern is confirmed (user doesn't push back, fix works):
 ---
 trigger: "<when this situation occurs>"
 confidence: 0.7
-domain: "<postgres|questdb|redis|fastapi|acquisition|ml|docker|testing|alembic>"
+domain: "<postgres|migrations|collectors|airflow|dashboard|api|ml|docker|testing|tenant>"
 discovered: "YYYY-MM-DD"
 ---
 

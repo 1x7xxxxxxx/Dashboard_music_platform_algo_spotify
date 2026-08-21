@@ -2,7 +2,7 @@
 """
 PostToolUse hook — Continuous learning observation logger.
 
-Captures file edits into .claude/homunculus/msdr/observations.jsonl.
+Captures file edits into .claude/homunculus/<project>/observations.jsonl.
 This feeds the continuous-learning skill: patterns are extracted manually
 via the 'continuous-learning' skill at session end.
 
@@ -68,7 +68,7 @@ def main() -> None:
         sys.exit(0)
 
     repo_root = find_repo_root()
-    obs_dir = repo_root / ".claude" / "homunculus" / "msdr"
+    obs_dir = repo_root / ".claude" / "homunculus" / (repo_root.name or "default")
     obs_dir.mkdir(parents=True, exist_ok=True)
     obs_file = obs_dir / "observations.jsonl"
 

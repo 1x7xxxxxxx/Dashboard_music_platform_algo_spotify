@@ -3,7 +3,7 @@ globs: [".claude/**/*.md", ".claude/hooks/*.py", ".claude/scripts/*.py"]
 rex: []
 ---
 
-# REX format — MSDR Claude Code config
+# REX format — Claude Code config
 
 Chaque outil Claude Code (hook, agent, skill, slash command, rule) porte son propre historique REX **dans son fichier**. Le REX voyage avec l'outil : quand `tools/setup-claude-code.sh` déploie la config vers un autre projet, l'historique est copié par construction. Plus de fichier REX global — `dev-docs/REX.md` et `archives/retro.md` sont désormais des archives en lecture seule.
 

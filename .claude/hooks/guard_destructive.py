@@ -45,7 +45,7 @@ _BLOCK_PATTERNS: list[tuple[str, str]] = [
     ("DROP DATABASE",           "Irreversible database deletion"),
     ("DROP SCHEMA",             "Irreversible PG schema deletion (CASCADE loses all tables, alembic_version row, and dependent objects)"),
     ("dropdb ",                 "Drops an entire PostgreSQL database — irreversible"),
-    # ── MSDR-specific blocks ────────────────────────────────────────────────
+    # ── Repo policy: the pre-commit chain is the secret scanner ──────────
     ("git commit --no-verify",   "Skipping pre-commit hooks bypasses secret scanning"),
     ("git commit -n ",           "Skipping pre-commit hooks bypasses secret scanning"),
 ]
@@ -101,10 +101,15 @@ _WARN_PATTERNS: list[tuple[str, str]] = [
     ("docker volume rm",    "Removes a Docker volume — data may be lost"),
     ("truncate",            "Truncates file content — verify target path"),
     ("pkill",               "Kills processes — verify target process name"),
-    # ── MSDR-specific warnings ──────────────────────────────────────────────
-    ("initialize_db",       "Re-running initialize_db triggers alembic upgrade head — verify revision chain is forward-only"),
-    ("alembic downgrade",   "Alembic downgrade — reversible but can strip columns; prefer a new revision"),
-    ("/admin/purge",        "Admin purge endpoint called — irreversible BLOB deletion"),
+    # ── Repo-specific warnings ──────────
+    # Alembic and /admin/purge warnings lived here until 2026-08-21. Neither
+    # could fire in this repo: ADR-002 rejects Alembic (migrations are plain
+    # .sql files) and there is no purge endpoint. A guard that cannot fire is
+    # not neutral — it is read as coverage that does not exist.
+    ("make migrate",     "Applies EVERY migrations/*.sql against the live database. A migration ahead of its deployed code has already broken collection here "
+                          "(class `migration-ahead-of-its-code`, 2026-08-20) — deploy the code first"),
+    ("init_db.sql",       "init_db.sql is the fresh-install schema — piping it at a populated database is not idempotent"),
+    ("--build",           "Rebuilds the image. Dockerfiles COPY src/ at build time, so a pull without it leaves stale code running (prod incident 2026-06-14)"),
 ]
 
 
