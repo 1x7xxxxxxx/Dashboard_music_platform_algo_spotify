@@ -27,6 +27,7 @@ from ._core import (
 )
 from ._registry import PLATFORMS, CONNECTION_TESTS
 from src.dashboard.content.credential_guides_st import render_credential_guide_for
+from src.utils.tenant_identity import mirrored_columns, write_platform_identity
 
 
 def _render_global_kpi(existing: dict, dag_states: dict) -> None:
@@ -344,11 +345,13 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
         _save_credentials(db, artist_id, platform_key, encrypted_blob, extra)
 
-        if platform_key == 'spotify':
-            db.execute_query(
-                "UPDATE saas_artists SET spotify_artist_id = %s WHERE id = %s",
-                (extra.get('spotify_artist_id') or None, artist_id),
-            )
+        # Spotify's identity is mirrored on saas_artists.spotify_artist_id, which is
+        # what spotify_api_daily reads. The mirror list lives in one module so a second
+        # writer cannot miss it — tools/create_canary.py did, and produced a tenant that
+        # looked connected everywhere and collected nothing (2026-08-21).
+        _mirror = mirrored_columns().get(platform_key)
+        if _mirror:
+            write_platform_identity(db, artist_id, platform_key, extra)
 
         # Auto-populate expires_at for Meta tokens so the weekly refresh DAG
         # and proactive refresh in the collector can function without manual input.

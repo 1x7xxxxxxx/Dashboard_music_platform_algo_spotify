@@ -27,6 +27,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import requests
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+
+from src.utils.env_files import load_project_env  # noqa: E402
+
+load_project_env()
+
 # Same token endpoint the collector refreshes against — keeps the minted
 # refresh_token consistent with src/collectors/soundcloud_api_collector.py.
 _TOKEN_ENDPOINT = "https://api.soundcloud.com/oauth2/token"

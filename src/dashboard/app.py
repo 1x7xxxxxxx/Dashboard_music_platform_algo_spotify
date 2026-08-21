@@ -10,7 +10,6 @@ from pathlib import Path
 import sys
 import time
 from datetime import datetime
-from dotenv import load_dotenv
 import os
 
 # ✅ IMPORTANT : Ajouter le chemin AVANT les imports src.*
@@ -19,9 +18,12 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-# ✅ Charger .env.local si disponible
-env_file = '.env.local' if os.path.exists('.env.local') else '.env'
-load_dotenv(env_file)
+# Resolve .env from the repository root, NOT from the cwd: the documented launch is
+# `cd src/dashboard && streamlit run app.py`, where the cwd-relative test below found
+# neither file and load_dotenv() returned False without a word (measured 2026-08-21).
+from src.utils.env_files import load_project_env  # noqa: E402
+
+load_project_env()
 
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger

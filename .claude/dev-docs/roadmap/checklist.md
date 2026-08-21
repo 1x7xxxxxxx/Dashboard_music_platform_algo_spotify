@@ -46,7 +46,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R13 | **Régénérer le token Meta** — oui, c'est nécessaire : mesuré | P2 | **la question « faut-il régénérer s'il est fonctionnel ? » est tranchée : il ne l'est pas.** Testé le 2026-08-21 contre l'API Graph depuis la production. Le token stocké commence par **`EEAA…`** au lieu de `EAA` — **un `E` parasite**, une faute de collage — d'où le `Malformed access token` sur tous les appels. Mais **retire ce caractère et Meta reconnaît un vrai token** et dit pourquoi il ne marche plus : *« The session has been invalidated because the user changed their password or Facebook has changed the session »*. Ce n'est donc pas une expiration, et aucune correction de `.env` ne le ressuscitera. ⚠️ **L'application échoue aussi** (`META_APP_ID`+`META_APP_SECRET` → *Cannot get application info*) : vérifier les deux dans la même visite, sinon on régénère un token dans une app cassée. Procédure et vérification : `runbook-actions-utilisateur.md` §1. **Le silence, lui, est corrigé** : `check_central_apps` tourne chaque nuit, et la fraîcheur ne lit plus la date d'écriture (classe `freshness-measured-on-write-time`) — Meta Ads sort à **16 577 h** de retard. |
-| R20 | Créer le locataire **canari** en prod + le marquer `is_canary` | P2 | **une seule commande, il ne manque que tes identifiants** : `make canary NAME="Canary <toi>" SPOTIFY=<artist id> YOUTUBE=<UC…>` (ajoute `DRY_RUN=1` pour voir sans écrire). `tools/create_canary.py` crée la ligne, pose le flag, écrit les credentials, et **refuse** deux choses : une identité identique à celle de l'admin — un canari qui emprunte la chaîne de l'admin passe au vert pendant que l'isolation qu'il teste est cassée — et une identité qu'un autre locataire réclame déjà (même règle que le formulaire, R30). Idempotent. Ce qui reste à toi : **choisir une identité**, différente de celle de l'admin — elle **n'a pas besoin de t'appartenir** (vérifié 2026-08-21 : Spotify/YouTube/SoundCloud lisent du public avec les credentials de l'app admin, aucune propriété requise ; Meta seul fait exception). Les deviner serait la règle « une identité ne se devine jamais » violée par l'outil censé la prouver. Sans ce locataire, `make artist-preflight` s'arrête d'emblée — et il nomme désormais la commande. |
+| R20 | Créer le locataire **canari** — ✅ **fait en local**, reste la prod | P2 | **Local : fait le 2026-08-21** — `artist_id=471`, `slug='canary-isolation'`, identités Spotify `4tZwfgrHOc3mvqYlEYSvVi` + YouTube `UC_x5XG1OV2P6uZZ5FSM9Ttw` (artistes publics : vérifié, aucune propriété requise). `make artist-preflight --platforms youtube` **passe vert de bout en bout**, contamination comprise. **Il a immédiatement payé** : sa toute première collecte a révélé trois défauts invisibles à un dépôt mono-locataire — `identity-mirrored-but-written-once` (P1), `api-partial-date-into-date-column` (P2) et `env-resolved-against-cwd` (P2), tous corrigés et gardés. **Reste : rejouer la même commande sur la prod** après déploiement du correctif d'identité, sinon le canari de prod naîtra avec le même miroir manquant. |
 | R17 | Ingérer un corpus ergonomie / front-end dans knowledge-rag | P3 | **action utilisateur** : déposer les PDF/EPUB dans `/mnt/c/Users/timot/knowledge/books/ux-frontend/` puis `cd /home/timothe/knowledge-rag && uv run python ingest.py`. Le domaine est créé et vide ; sans lui, les arbitrages d'ergonomie (dont le budget de graphiques) restent non sourcés. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) |
 
@@ -62,6 +62,26 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 - ⚙️ **DAGs** : tous **activés** (étaient en pause par défaut !) → collecte quotidienne par artiste (Meta 5h/Spotify 7h/YT 8h/SC 9h/IG 10h/ML 11h UTC ; CSV watchers 15 min). Si Airflow recréé → ré-`unpause`.
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
+
+**▶️ Séance du 2026-08-21 (soir) — le canari a trouvé trois défauts en une heure.**
+
+Créé en local, il a fait exactement ce pour quoi il existe : révéler ce qu'un dépôt
+mono-locataire ne peut pas voir. Dans l'ordre où ils sont tombés :
+
+| classe | gravité | ce qui se passait |
+|---|---|---|
+| `env-resolved-against-cwd` | P2 | `make artist-preflight` annonçait « credential NOT configured » pour des credentials présents, simplement pas chargés dans ce shell. Et `app.py`, lancé de la façon documentée (`cd src/dashboard`), ne chargeait **rien** — `load_dotenv` renvoyait `False` sans un mot. |
+| `identity-mirrored-but-written-once` | P1 | l'identité Spotify vit dans **deux** tables ; le formulaire écrivait les deux, `create_canary.py` une seule. Le canari affichait « Connecté — Daft Punk ✅ » partout et collectait zéro ligne. Le locataire dont le seul rôle est d'attraper un faux vert **était** le faux vert. |
+| `api-partial-date-into-date-column` | P2 | Spotify renvoie `release_date` à précision variable (`2013`, `2013-05`, `2013-05-21`) ; la colonne est `DATE`. Un seul album à date approximative faisait perdre à l'artiste **tous** ses top tracks du run. Latent depuis des années : le catalogue de l'admin n'a que des dates complètes. |
+
+Les trois ont un correctif, une signature vue rouge sur le défaut puis verte, et un test
+vérifié par mutation. Deux gardes ont dû être réécrits : le premier testait une
+**sous-chaîne** que la ligne d'`import` satisfaisait à elle seule — vert alors que l'appel
+avait disparu. Réécrit sur l'AST, il tombe.
+
+Un piège d'outillage consigné au passage : vérifier une signature **à la main** dans ce
+shell est trompeur — `grep` y est une fonction (le wrapper RTK) qui renvoie 0 dès que la
+sortie est redirigée. Passer par `audit_runner.py` ou `command grep`.
 
 **▶️ Où on en est (MAJ 2026-08-21) — la file d'ingénierie est vide.**
 

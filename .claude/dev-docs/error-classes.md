@@ -869,3 +869,50 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: surfaced the first time the suite ran against the local database instead of a throwaway one. The local column was converted (349 rows preserved). Worth knowing before writing the guard: most of the "drift" is cosmetic, so a naive column-type comparison would report 26 findings of which 24 are noise — the same cry-wolf failure the migrate reporter hit the same day.
+
+## env-resolved-against-cwd
+- status: fixed
+- severity: P2
+- kind: deterministic
+- symptom: a tool reports "credential NOT configured" for a credential that is configured, or a process silently runs with no configuration at all. The red names the wrong cause, so the fix is attempted on the wrong thing.
+- root_cause: the `.env` file is resolved against the **caller's current working directory** rather than the repository root. `load_dotenv('.env')` returns `False` when the file is not there and raises nothing — the absence is indistinguishable from success. Measured 2026-08-21 on two sites: `make artist-preflight` printed "❌ Spotify central app NOT configured" from a shell where the credentials were merely unloaded, and `src/dashboard/app.py` tested `os.path.exists('.env.local')` from a cwd of `src/dashboard/` — which is exactly the launch documented in CLAUDE.md — loading nothing.
+- signature: `! grep -rlE "(exists|load_dotenv)\(['\"]\.env" src/ tools/ --include=*.py | grep -v env_files.py`
+- long_term_fix: `src/utils/env_files.py` resolves `.env.local` then `.env` against `Path(__file__).parent.parent.parent`, so the result does not depend on the caller's cwd. Every shell entrypoint calls `load_project_env()`. An already-injected variable always wins, so a stale file inside a container cannot override the real environment.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_env_is_root_anchored.py }
+- rex_ref: tools/artist_preflight.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: mutation-verified — reinstating the cwd-relative form in `src/dashboard/app.py` turns 2 of the 12 assertions red, and restoring the loader turns them green.
+
+## identity-mirrored-but-written-once
+- status: fixed
+- severity: P1
+- kind: deterministic
+- symptom: a tenant shows as connected on every screen, passes its connection test, and collects nothing. The DAG succeeds in under a second.
+- root_cause: one tenant identity is stored in TWO places — `artist_credentials.extra_config` (read by every screen and every readiness check) and `saas_artists.spotify_artist_id` (read by `spotify_api_daily` to decide whose catalogue to collect). The credentials form wrote both; `tools/create_canary.py` wrote only the first. Measured 2026-08-21: canary tenant 471 reported "Connecté — artiste « Daft Punk » ✅" everywhere while its DAG logged "aucun spotify_artist_id déclaré" and wrote 0 rows. The tenant whose entire purpose is to catch a false green WAS the false green.
+- signature: `! grep -rn "UPDATE saas_artists SET spotify_artist_id" src/ tools/ --include=*.py | grep -v tenant_identity.py`
+- long_term_fix: `src/utils/tenant_identity.py` holds `IDENTITY_MIRRORS` and `write_platform_identity()` — the single path that writes the credentials row AND every mirror the platform declares. Both writers call it; no third writer can get it half right.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_tenant_identity_mirrors.py }
+- rex_ref: tools/create_canary.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: verifying a signature BY HAND in an interactive shell is unreliable here — `grep` is a shell function (the RTK wrapper), and it returns 0 whenever stdout is redirected, whatever it matched. Both signatures above looked constant-and-hollow under `! grep … > /dev/null` and were in fact correct. Verify a signature through `audit_runner.py`, which runs the real binary, or prefix `command grep`. The instrument was the defect, not the signature.
+  - 2026-08-21: the guard's FIRST version was vacuous — it asserted `"write_platform_identity" in text`, which the import line satisfied on its own, so deleting the call left it green. Rewritten on the AST to require an actual `ast.Call`. Only then did the mutation turn it red. A guard that tests for a substring tests the import, not the behaviour.
+
+## api-partial-date-into-date-column
+- status: fixed
+- severity: P2
+- kind: deterministic
+- symptom: a collector fails with `invalid input syntax for type date: "2013"` and the artist loses EVERY row of that run, not just the offending one. Latent for years, then fires the first time a second tenant is collected.
+- root_cause: Spotify returns `album.release_date` at a precision it declares separately in `album.release_date_precision` — `"2013"`, `"2013-05"` or `"2013-05-21"`. `tracks.release_date` is `DATE`, and the value was passed through raw. Because `upsert_many` writes one batch per artist, a single year-precision album aborts the artist's whole batch, after which the DAG raises "collected 0 tracks". A comment sat directly above the line reading *"Gestion sécurisée de la date de sortie (parfois YYYY seulement)"* — describing a handling that did not exist. Measured 2026-08-21.
+- signature: `! grep -n "release_date = track\['album'\]\['release_date'\]" src/collectors/spotify_api.py`
+- long_term_fix: `src/utils/api_dates.py::coerce_api_date()` accepts all three precisions and pads to the FIRST day of the declared period (never to today, which would read as "released this month" in recency features). An unusable value returns `None` — one column lost instead of the artist's batch. The CSV path already behaved this way implicitly via `pandas.to_datetime`; the two paths now agree.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_api_partial_dates.py }
+- rex_ref: src/collectors/spotify_api.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: found by the canary tenant on its FIRST real collection, minutes after it was created. It had never fired in production because the admin's own catalogue carries full dates only — the defect was invisible to a one-tenant test by construction. This is the concrete payoff of the "run the suite against at least two tenants" lesson, and the single best argument for keeping the canary.
+  - 2026-08-21: the comment above the defect claimed the case was handled. A comment is not a guard, and a comment that describes an intention the code does not implement is worse than none — it stops the next reader from looking.

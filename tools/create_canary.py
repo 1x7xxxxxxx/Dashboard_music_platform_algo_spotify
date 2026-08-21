@@ -32,6 +32,16 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# A shell has no .env; Docker does. Resolve it from the repo root so this tool is
+# correct from any cwd, and so a red verdict below means "missing", not "unloaded".
+from src.utils.env_files import load_project_env  # noqa: E402
+from src.utils.tenant_identity import (  # noqa: E402
+    mirrored_columns,
+    write_platform_identity,
+)
+
+load_project_env()
+
 _OK, _KO, _WARN = "✅", "❌", "⚠️"
 
 # platform → the key the collectors read out of extra_config. Kept in step with
@@ -138,14 +148,14 @@ def main() -> int:
 
         for platform, value in given.items():
             field = _IDENTITY_FIELD[platform]
-            db.execute_query(
-                "INSERT INTO artist_credentials (artist_id, platform, extra_config) "
-                "VALUES (%s, %s, %s) "
-                "ON CONFLICT (artist_id, platform) DO UPDATE SET "
-                "extra_config = COALESCE(artist_credentials.extra_config, '{}'::jsonb) "
-                "|| EXCLUDED.extra_config",
-                (artist_id, platform, json.dumps({field: value})))
-            print(f"   {_OK} {platform}: {field} = {value}")
+            # Through the shared writer: Spotify's identity is ALSO mirrored on
+            # saas_artists.spotify_artist_id, which is what spotify_api_daily reads.
+            # Writing only the credentials row produced a canary that passed every
+            # screen and collected nothing (2026-08-21).
+            write_platform_identity(db, artist_id, platform, {field: value})
+            mirror = mirrored_columns().get(platform)
+            print(f"   {_OK} {platform}: {field} = {value}"
+                  + (f"  (+ saas_artists.{mirror})" if mirror else ""))
 
         print()
         print("Next: make artist-preflight       # proves this tenant end to end")

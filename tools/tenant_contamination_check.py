@@ -33,6 +33,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# A shell has no .env; Docker does. Resolve it from the repo root so this tool is
+# correct from any cwd, and so a red verdict below means "missing", not "unloaded".
+from src.utils.env_files import load_project_env  # noqa: E402
+
+load_project_env()
+
 
 def _connect():
     """The one resolution (R33): DATABASE_URL → DATABASE_* → config.yaml.

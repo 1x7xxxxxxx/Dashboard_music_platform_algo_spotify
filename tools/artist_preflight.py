@@ -30,6 +30,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# A shell has no .env; Docker does. Resolve it from the repo root so this tool is
+# correct from any cwd, and so a red verdict below means "missing", not "unloaded".
+from src.utils.env_files import load_project_env  # noqa: E402
+
+load_project_env()
+
 _OK, _KO = "✅", "❌"
 
 
@@ -94,7 +100,15 @@ def _credentials(db, artist_id: int) -> dict:
     return out
 
 
-def step_identity(db, artist_id: int) -> bool:
+def step_identity(db, artist_id: int, scope: set[str] | None = None) -> bool:
+    """Red unless every IN-SCOPE platform declares the tenant's own id.
+
+    `scope` exists for one honest case: the canary tenant cannot declare Meta or
+    Instagram — both demand real ownership of an ad account. Without a scope the
+    bar stays "every platform", so a green here keeps meaning "fully proven".
+    Out-of-scope platforms are printed as skipped, never as passed: a reader must
+    not be able to mistake a partial run for a complete one.
+    """
     from src.utils.artist_readiness import _PLATFORMS, _identity
 
     print("\n▶ 2. Tenant identity (the artist's own ids, never the admin's)")
@@ -103,6 +117,9 @@ def step_identity(db, artist_id: int) -> bool:
         "SELECT spotify_artist_id FROM saas_artists WHERE id = %s", (artist_id,))[0][0]
     ok = True
     for platform in _PLATFORMS:
+        if scope is not None and platform["key"] not in scope:
+            print(f"  ⏭ {platform['label']} — out of scope (--platforms)")
+            continue
         present = _identity(platform["key"], creds, spotify_id)
         print(f"  {_OK if present else _KO} {platform['label']}"
               + ("" if present else f" — {platform['id_hint']}"))
@@ -110,7 +127,7 @@ def step_identity(db, artist_id: int) -> bool:
     return ok
 
 
-def step_connection_tests(db, artist_id: int) -> bool:
+def step_connection_tests(db, artist_id: int, scope: set[str] | None = None) -> bool:
     """Reuse the exact probes the credentials form runs — no second implementation."""
     from src.dashboard.views.credentials._registry import CONNECTION_TESTS
 
@@ -118,6 +135,9 @@ def step_connection_tests(db, artist_id: int) -> bool:
     creds = _credentials(db, artist_id)
     ok = True
     for platform, test in CONNECTION_TESTS.items():
+        if scope is not None and platform not in scope:
+            print(f"  ⏭ {platform} — out of scope (--platforms)")
+            continue
         fields = dict(creds.get(platform, {}))
         if platform == "spotify" and not fields.get("spotify_artist_id"):
             row = db.fetch_query(
@@ -132,16 +152,25 @@ def step_connection_tests(db, artist_id: int) -> bool:
     return ok
 
 
-def step_data_landed(db, artist_id: int) -> bool:
+def step_data_landed(db, artist_id: int, scope: set[str] | None = None) -> bool:
+    """Every platform is PRINTED; only the in-scope ones decide the verdict.
+
+    Printing all of them is deliberate: a reader must see what was left out, or a
+    scoped green reads as full coverage. Steps 2 and 3 honoured the scope while this
+    one did not, which made a --platforms run stop on a platform it had been told to
+    ignore (2026-08-21).
+    """
     from src.utils.artist_readiness import OK, artist_readiness
 
     print("\n▶ 4. Data actually landed for this tenant")
     ok = True
     for row in artist_readiness(db, artist_id):
         good = row["status"] == OK
+        counts = scope is None or row["key"] in scope
         print(f"  {row['icon']} {row['label']} — {row['status_label']}"
-              + (f" · {row['next_action']}" if row["next_action"] else ""))
-        ok = ok and good
+              + (f" · {row['next_action']}" if row["next_action"] else "")
+              + ("" if counts else "   [out of scope]"))
+        ok = ok and (good or not counts)
     return ok
 
 
@@ -161,10 +190,31 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artist", type=int, default=None,
                         help="tenant to prove (default: the canary tenant)")
+    parser.add_argument("--platforms", default=None,
+                        help="comma-separated platforms to prove (default: all). Use it "
+                             "for the canary, which cannot own a Meta ad account. A "
+                             "restricted run is labelled as such in the verdict.")
     parser.add_argument("--skip-data", action="store_true",
                         help="skip steps 4-5 (identity/connection only — useful right "
                              "after connecting, before the first collection ran)")
     args = parser.parse_args()
+
+    scope = None
+    if args.platforms:
+        from src.utils.artist_readiness import _PLATFORMS
+
+        known = {p["key"] for p in _PLATFORMS}
+        scope = {s.strip() for s in args.platforms.split(",") if s.strip()}
+        # A typo must not silently empty the scope and turn the run green. This is
+        # the whole risk of adding a scope flag to a gate: it can only ever narrow.
+        unknown = scope - known
+        if unknown:
+            print(f"{_KO} unknown platform(s): {', '.join(sorted(unknown))}. "
+                  f"Known: {', '.join(sorted(known))}", file=sys.stderr)
+            return 2
+        if not scope:
+            print(f"{_KO} --platforms was empty", file=sys.stderr)
+            return 2
 
     try:
         db = _connect()
@@ -178,12 +228,12 @@ def main() -> int:
 
         steps = [
             ("central apps", step_central_apps),
-            ("tenant identity", lambda: step_identity(db, artist_id)),
-            ("connection tests", lambda: step_connection_tests(db, artist_id)),
+            ("tenant identity", lambda: step_identity(db, artist_id, scope)),
+            ("connection tests", lambda: step_connection_tests(db, artist_id, scope)),
         ]
         if not args.skip_data:
             steps += [
-                ("data landed", lambda: step_data_landed(db, artist_id)),
+                ("data landed", lambda: step_data_landed(db, artist_id, scope)),
                 ("contamination", lambda: step_contamination(db, artist_id)),
             ]
 
@@ -195,8 +245,13 @@ def main() -> int:
     finally:
         db.close()
 
-    print(f"\n{_OK} Pre-flight green — a non-admin tenant connects, collects and reads "
-          "its own data. You can invite an artist.")
+    if scope:
+        print(f"\n{_OK} Pre-flight green FOR {', '.join(sorted(scope))} ONLY — the other "
+              "platforms were not proven. Do not read this as ready-to-invite unless the "
+              "artist connects exactly these.")
+    else:
+        print(f"\n{_OK} Pre-flight green — a non-admin tenant connects, collects and reads "
+              "its own data. You can invite an artist.")
     return 0
 
 

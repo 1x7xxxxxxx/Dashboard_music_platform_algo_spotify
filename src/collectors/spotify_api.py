@@ -6,17 +6,19 @@ import logging
 from datetime import datetime, timezone
 from src.utils.retry import retry
 
+from src.utils.api_dates import coerce_api_date
+
 # Configuration du logging
 # Note: On laisse Airflow gérer le formatage global, on récupère juste le logger
 logger = logging.getLogger(__name__)
 
 class SpotifyCollector:
     """Collecte les données depuis l'API Spotify."""
-    
+
     def __init__(self, client_id: str, client_secret: str):
         """
         Initialise le collector Spotify.
-        
+
         Args:
             client_id: Client ID Spotify
             client_secret: Client Secret Spotify
@@ -25,7 +27,7 @@ class SpotifyCollector:
         self.client_secret = client_secret
         self.sp = None
         self._authenticate()
-    
+
     def _authenticate(self) -> None:
         """Authentification auprès de l'API Spotify."""
         try:
@@ -38,21 +40,21 @@ class SpotifyCollector:
         except Exception as e:
             logger.error(f"❌ Erreur d'authentification Spotify: {e}")
             raise
-    
+
     @retry(max_attempts=3, backoff="exponential")
     def get_artist_info(self, artist_id: str) -> Optional[Dict[str, Any]]:
         """
         Récupère les informations d'un artiste.
-        
+
         Args:
             artist_id: ID Spotify de l'artiste
-            
+
         Returns:
             Dictionnaire avec les infos de l'artiste ou None si erreur
         """
         try:
             artist = self.sp.artist(artist_id)
-            
+
             data = {
                 'artist_id': artist['id'],
                 'name': artist['name'],
@@ -61,34 +63,37 @@ class SpotifyCollector:
                 'genres': artist['genres'],
                 'collected_at': datetime.now(timezone.utc)  # ✅ datetime object pour Postgres
             }
-            
+
             logger.info(f"✅ Données récupérées pour l'artiste: {artist['name']}")
             return data
-            
+
         except Exception as e:
             logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {e}")
             raise
-    
+
     @retry(max_attempts=3, backoff="exponential")
     def get_artist_top_tracks(self, artist_id: str, market: str = 'FR') -> List[Dict[str, Any]]:
         """
         Récupère les top tracks d'un artiste.
-        
+
         Args:
             artist_id: ID Spotify de l'artiste
             market: Code du marché (pays)
-            
+
         Returns:
             Liste des top tracks
         """
         try:
             results = self.sp.artist_top_tracks(artist_id, country=market)
-            
+
             tracks = []
             for track in results['tracks']:
-                # Gestion sécurisée de la date de sortie (parfois YYYY seulement)
-                release_date = track['album']['release_date']
-                
+                # Spotify declares its own precision in `release_date_precision`:
+                # "2013", "2013-05" or "2013-05-21". The column is DATE, so the first
+                # two forms abort the whole artist's batch. The comment that used to
+                # sit here claimed this was handled; nothing handled it (2026-08-21).
+                release_date = coerce_api_date(track['album'].get('release_date'))
+
                 track_data = {
                     'track_id': track['id'],
                     'track_name': track['name'],
@@ -101,14 +106,14 @@ class SpotifyCollector:
                     'collected_at': datetime.now(timezone.utc)
                 }
                 tracks.append(track_data)
-            
+
             logger.info(f"✅ {len(tracks)} top tracks récupérés pour artiste {artist_id}")
             return tracks
-            
+
         except Exception as e:
             logger.error(f"❌ Erreur lors de la récupération des top tracks: {e}")
             raise
-    
+
     @retry(max_attempts=3, backoff="exponential")
     def search_artist(self, artist_name: str) -> str:
         """Search an artist by name and return their Spotify ID.
