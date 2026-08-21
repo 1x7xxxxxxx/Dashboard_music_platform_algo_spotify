@@ -71,18 +71,31 @@ def sources_for(platform: str) -> tuple:
 
 
 def tables_for_platform(platform: str) -> frozenset:
-    """The tables any surface may legitimately read to judge `platform`.
+    """Tables a PER-TENANT reader may query with `WHERE artist_id = <int>`.
 
-    Consumers derive their own table lists from this instead of restating them;
-    a restated list is how the four surfaces drifted apart.
+    Returns the `tenant_table` when a target declares one, otherwise the table
+    itself. It never returns both, and it never returns a table that is not
+    tenant-scopable.
+
+    That distinction is not cosmetic. `MONITOR_TARGETS` lists `artists` for
+    "Spotify API" with `skip_artist_filter: True` and a separate
+    `tenant_table: track_popularity_history` — because on `artists` the column
+    called `artist_id` is the SPOTIFY id (VARCHAR), not the tenant (the tenant
+    there is `saas_artist_id`). Handing `artists` to a per-tenant reader produces
+    `operator does not exist: character varying = integer`.
+
+    Measured 2026-08-22, in production: an earlier version of this function
+    returned both tables, the canary watchdog queried `artists` with an integer,
+    and the check reported "could not run" — correctly conservative, and still a
+    false CANARI MUET in the subject line. This is the catalogued class
+    `column-name-is-not-its-meaning`: reason on the TYPE, never on the name.
     """
     wanted = set(sources_for(platform))
     out = set()
     for t in MONITOR_TARGETS:
-        if t["source"] in wanted:
-            out.add(t["table"])
-            if t.get("tenant_table"):
-                out.add(t["tenant_table"])
+        if t["source"] not in wanted:
+            continue
+        out.add(t.get("tenant_table") or t["table"])
     return frozenset(out)
 
 

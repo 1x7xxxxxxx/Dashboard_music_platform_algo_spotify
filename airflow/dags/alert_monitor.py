@@ -541,9 +541,6 @@ def check_canary_health(**context):
         # green while the other was red, both truthfully.
         from src.utils.freshness_monitor import SOURCES_FOR_PLATFORM, tables_for_platform
 
-        TARGETS = [(platform, table, 'collected_at')
-                   for platform in sorted(SOURCES_FOR_PLATFORM)
-                   for table in sorted(tables_for_platform(platform))]
         # Identifier allowlist (cross-cutting rule #8) — built from the same registry,
         # so a table can never be queried unless the registry declared it.
         allowed = {t for platform in SOURCES_FOR_PLATFORM
@@ -554,21 +551,35 @@ def check_canary_health(**context):
         # logical platform is not always the row it is stored under.
         from src.utils.tenant_identity import storage_platform
 
-        for platform, table, col in TARGETS:
+        col = 'collected_at'
+        for platform in sorted(SOURCES_FOR_PLATFORM):
             if storage_platform(platform) not in declared:
                 continue
-            if table not in allowed:
+            # A platform is healthy if AT LEAST ONE of the tables that prove it is
+            # fresh — the same best-of-sources rule the artist's own matrix uses.
+            # Spotify can be proven by the API table OR by the S4A CSV; demanding
+            # BOTH reports a canary that collects perfectly as mute, which is how a
+            # watchdog becomes the noise it exists to prevent.
+            ages = []
+            for table in sorted(tables_for_platform(platform)):
+                if table not in allowed:
+                    continue
+                ages.append((table, db.fetch_query(
+                    f"SELECT EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "  # noqa: S608
+                    f"FROM {table} WHERE artist_id = %s", (artist_id,))[0][0]))
+            fresh = [(t, a) for t, a in ages if a is not None and a <= STALE_HOURS]
+            if fresh or not ages:
                 continue
-            age = db.fetch_query(
-                f"SELECT EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "  # noqa: S608
-                f"FROM {table} WHERE artist_id = %s", (artist_id,))[0][0]
-            if age is None:
+            seen = [(t, a) for t, a in ages if a is not None]
+            if not seen:
                 problems.append({'platform': platform, 'reason':
-                                 f'canary "{name}" has NEVER collected into {table}'})
-            elif age > STALE_HOURS:
+                                 f'canary "{name}" has NEVER collected into '
+                                 f'{" or ".join(t for t, _ in ages)}'})
+            else:
+                t_best, a_best = min(seen, key=lambda x: x[1])
                 problems.append({'platform': platform, 'reason':
-                                 f'canary "{name}" last collected into {table} '
-                                 f'{int(age)}h ago (> {STALE_HOURS}h)'})
+                                 f'canary "{name}" last collected into {t_best} '
+                                 f'{int(a_best)}h ago (> {STALE_HOURS}h)'})
 
         logger.info(f"Canary {artist_id} ({name}): {len(problems)} problem(s).")
     except Exception as e:  # noqa: BLE001 — an unrunnable check must say so

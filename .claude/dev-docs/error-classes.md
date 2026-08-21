@@ -789,6 +789,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: migrations/068_drop_artist_id_defaults.sql
 - first_seen: 2026-08-20
 - History:
+  - 2026-08-22: **caught in production, by walking into it.** Deriving the canary watchdog's targets from the freshness registry, I returned both a target's global table and its `tenant_table`. For Spotify that included `artists`, where the column named `artist_id` is the SPOTIFY id (VARCHAR) — the tenant there is `saas_artist_id`. The nightly check answered `operator does not exist: character varying = integer`. It reported "could not run" rather than health (the conservative contract held) but still put a false 🐤 CANARI MUET in the alert subject. `tables_for_platform` now returns the `tenant_table` when a target declares one and never both, guarded by `tests/test_platform_sources_agree.py::test_no_platform_resolves_to_a_table_that_is_not_tenant_scopable`. The class was already catalogued and already in `rules/python.md`; knowing it did not prevent it — a guard did, one commit later than it should have.
   - 2026-08-20: a first version of migration 068 set `NOT NULL` on every column named `artist_id`, including `tracks.artist_id` — the Spotify id, which the collector legitimately writes and which the test fixture did not provide. The full suite went red against a database carrying the migration, which is exactly what running it against a provisioned schema is for. Filtering on the type fixed it, and `tracks.saas_artist_id` is excluded from NOT NULL on purpose: a track no tenant claims belongs in the catalogue with a NULL owner rather than an invented one.
 
 ## identity-claimed-by-two-tenants
@@ -1042,6 +1043,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
+  - 2026-08-22: nearly reintroduced. Widening the canary watchdog from two hardcoded tables to every table of every declared platform made it demand rows in ALL of them — and Spotify is provable by the API table OR the S4A CSV. The production canary holds 10 rows in `track_popularity_history` and 0 in `s4a_song_timeline`, so a tenant collecting exactly as designed was reported mute. Fixed to a per-platform "at least one table is fresh" verdict, the same best-of-sources rule the artist's own matrix uses. Found by running the DAG in production rather than by reading it.
   - 2026-08-21: self-inflicted, and caught the same evening only by asking "what does the thing I just added do to the checks that already exist?". This repo has now paid the cry-wolf tax three times — the migrate reporter naming four re-run artefacts next to one real error, the schema drift where 24 of 26 differences were `text` vs `varchar`, and this. A detector's value is set by the ratio of its findings that deserve an action, not by the number it produces.
 
 ## app-id-confused-with-ad-account-id

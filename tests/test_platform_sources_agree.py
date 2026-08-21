@@ -102,3 +102,47 @@ def test_the_kpi_panel_agrees_on_every_shared_source() -> None:
         "the KPI panel and the freshness monitor disagree on which table proves a "
         f"source: {mismatched}"
     )
+
+
+# ── The regression this file's own change caused, pinned ──────────────────────
+
+def test_no_platform_resolves_to_a_table_that_is_not_tenant_scopable() -> None:
+    """`artist_id` is not always the tenant. Reason on the TYPE, never on the name.
+
+    Error class `column-name-is-not-its-meaning`. On `artists`, `artist_history` and
+    `tracks` the column called `artist_id` is the SPOTIFY id (VARCHAR); the tenant
+    there is `saas_artist_id` (INTEGER). `MONITOR_TARGETS` encodes this with
+    `skip_artist_filter` plus a separate `tenant_table`.
+
+    Measured in PRODUCTION on 2026-08-22: an earlier version of `tables_for_platform`
+    returned both the global table and the tenant table, the canary watchdog queried
+    `artists` with an integer, and Postgres answered `operator does not exist:
+    character varying = integer`. The check reported "could not run" — correctly
+    conservative — and still put a false 🐤 CANARI MUET in the alert subject.
+    """
+    globals_only = {t["table"] for t in MONITOR_TARGETS if t.get("skip_artist_filter")}
+    for platform in SOURCES_FOR_PLATFORM:
+        leaked = tables_for_platform(platform) & globals_only
+        assert not leaked, (
+            f"{platform} resolves to {sorted(leaked)}, which is not scoped by an "
+            f"integer artist_id — a per-tenant reader would fail on the type"
+        )
+
+
+def test_a_platform_with_two_tables_needs_only_one_of_them() -> None:
+    """Demanding ALL of them reports a healthy tenant as mute.
+
+    Spotify is provable by the API table OR the S4A CSV. The production canary has
+    10 rows in `track_popularity_history` and 0 in `s4a_song_timeline`; requiring
+    both made the watchdog cry wolf about a tenant collecting exactly as designed.
+    """
+    import ast
+
+    tree = ast.parse((REPO / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "check_canary_health")
+    src = ast.unparse(fn)
+    assert "fresh" in src, (
+        "check_canary_health no longer computes a per-platform 'at least one table "
+        "is fresh' verdict — it is back to flagging every empty table"
+    )
