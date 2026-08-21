@@ -248,3 +248,44 @@ def test_the_build_error_threshold_agrees_across_its_three_surfaces():
     assert len(set(found.values())) == 1, (
         f"the red-test threshold disagrees across surfaces: {found}. "
         "A trigger nobody can verify mechanically does not fire.")
+
+
+# ---------------------------------------------------------------------------
+# Où vivent les règles de permission — mesuré le 2026-08-21
+# ---------------------------------------------------------------------------
+
+def test_routine_permissions_live_in_project_settings_not_local():
+    """`settings.local.json` is rewritten by the harness; rules put there vanish.
+
+    Measured 2026-08-21: 40 allow rules were added to `.claude/settings.local.json`
+    during a session. Approving one permission later in the same session made
+    Claude Code rewrite that file from its own in-memory copy — a copy taken
+    before the edit — and all 40 disappeared without a word. The file went from
+    103 rules back to 60.
+
+    `.claude/settings.json` is not rewritten by the harness, and it is versioned,
+    so a rule placed there survives both the session and the next clone. This
+    pins the placement, not the list: adding rules is fine, moving them back into
+    the file the harness owns is not.
+    """
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    project = json.loads((root / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    allow = set((project.get("permissions") or {}).get("allow") or [])
+
+    # A representative slice of what a normal session needs. If these are absent,
+    # either they were moved back into settings.local.json or someone trimmed the
+    # list — both end in a session full of prompts.
+    essential = {
+        "Bash(git push*)", "Bash(make*)", "Bash(ssh*)",
+        "Bash(docker*)", "Bash(gh*)", "Bash(timeout*)",
+    }
+    missing = sorted(essential - allow)
+    assert not missing, (
+        f"absent de .claude/settings.json → permissions.allow : {missing}.\n"
+        "Ces règles ne doivent PAS vivre dans settings.local.json : le harnais y "
+        "réécrit le fichier dès qu'une permission est approuvée en séance, et "
+        "l'écrasement est silencieux."
+    )
