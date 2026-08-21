@@ -110,26 +110,28 @@ def _guide_meta():
         st.markdown(t("credentials.meta.steps_header", "### Étapes — Meta Ads"))
         st.markdown(t(
             "credentials.meta.steps_body",
-            "1. **Business Manager → Paramètres → Utilisateurs → Utilisateurs système** → "
-            "Créer un utilisateur système (rôle Admin).\n"
-            "2. Cliquer sur l'utilisateur → **Générer un nouveau token** → sélectionner "
-            "**ETL_DASHBOARD_SPOTIFY** → cocher les scopes `ads_read` + `ads_management` → "
-            "**Générer le token**. *(C'est le champ **Access Token**.)*\n"
-            "3. **Paramètres → Comptes publicitaires** → relever l'ID numérique "
-            "(ex : `123456789`). **Ne pas ajouter le préfixe `act_`** — le dashboard l'ajoute "
-            "automatiquement. *(C'est le champ **Ad Account ID**.)*\n"
-            "4. **Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → "
+            "Un seul identifiant est à toi : l'Ad Account ID. Tout le reste — le jeton "
+            "d'accès et les identifiants d'application — appartient à la plateforme et "
+            "n'apparaît nulle part dans ce formulaire.\n\n"
+            "1. **Business Manager → Paramètres → Comptes publicitaires** → relever l'ID "
+            "numérique (ex : `123456789`). **Ne pas ajouter le préfixe `act_`** — le "
+            "dashboard l'ajoute automatiquement. *(C'est le champ **Ad Account ID** "
+            "ci-dessus.)*\n"
+            "2. **Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → "
             "Ajouter des assets → Compte publicitaire** → sélectionner ton compte → "
-            "permission Annonceur. *(Obligatoire — sans ça l'API renvoie \"Object does not exist\".)*\n"
-            "5. **App ID** et **App Secret** : contacte l'administrateur de la plateforme "
-            "— ils sont pré-remplis par défaut."
+            "permission Annonceur. *(Obligatoire — sans ça l'API renvoie \"Object does not "
+            "exist\", et le test de connexion te le dira.)*\n"
+            "3. Cliquer sur **Tester la connexion**. S'il est vert, il n'y a rien d'autre "
+            "à faire."
         ))
 
         st.markdown(t("credentials.meta.ig_header", "### Étapes supplémentaires — Instagram"))
         st.markdown(t(
             "credentials.meta.ig_body",
-            "Si tu veux les stats Instagram, utilise le **même token** mais génère-le avec "
-            "les scopes additionnels : `instagram_basic` + `instagram_manage_insights` + `pages_show_list`.\n\n"
+            "Si tu veux les stats Instagram, renseigne ton Instagram Business Account ID "
+            "ci-dessous. Le token partagé de la plateforme porte déjà les scopes requis "
+            "(`instagram_basic`, `instagram_manage_insights`, `pages_show_list`) — demande "
+            "à l'administrateur si le test de connexion dit le contraire.\n\n"
             "Le DAG `meta_token_refresh` (hebdo) ne tente **pas** de renouveler les System User tokens "
             "(ils n'expirent pas) — aucune action périodique requise."
         ))
@@ -146,13 +148,13 @@ def _guide_meta():
 
         st.markdown(t(
             "credentials.meta.table",
-            "| Champ | Source | Secret |\n"
-            "|---|---|---|\n"
-            "| **Access Token** | Business Manager → Utilisateurs système → Générer token | Oui |\n"
-            "| **App Secret** | developers.facebook.com → ETL_DASHBOARD_SPOTIFY → Paramètres → Général | Oui |\n"
-            "| **App ID** | Même page que App Secret | Non |\n"
-            "| **Ad Account ID** | Business Manager → Comptes publicitaires (numérique uniquement, sans `act_`) | Non |\n"
-            "| **Instagram Business Account ID** | Appel Graph API ci-dessus | Non |\n"
+            "| À saisir ici | Où le trouver |\n"
+            "|---|---|\n"
+            "| **Ad Account ID** | Business Manager → Comptes publicitaires "
+            "(numérique uniquement, sans `act_`) |\n"
+            "| **Instagram Business Account ID** *(optionnel)* | Appel Graph API ci-dessus |\n"
+            "\nCe tableau listait autrefois cinq lignes, dont trois que ce formulaire "
+            "n'a jamais acceptées. Elles appartiennent à la plateforme.\n"
         ))
 
         st.warning(t(

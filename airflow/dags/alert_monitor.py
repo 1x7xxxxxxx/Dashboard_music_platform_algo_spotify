@@ -519,19 +519,31 @@ def check_canary_health(**context):
 
         artist_id, name = rows[0]
 
-        # (platform, table, timestamp column) — only what the canary can actually own.
-        TARGETS = [
-            ('youtube', 'youtube_video_stats', 'collected_at'),
-            ('spotify', 'track_popularity_history', 'collected_at'),
-        ]
+        # (platform, table, timestamp column). DERIVED from the freshness registry,
+        # not restated: this list used to name two tables by hand, and its Spotify
+        # table (`track_popularity_history`) was not the one the artist-facing
+        # readiness matrix read (`s4a_song_timeline`). The watchdog and the artist's
+        # screen disagreed about what "Spotify is collecting" means, so one could be
+        # green while the other was red, both truthfully.
+        from src.utils.freshness_monitor import SOURCES_FOR_PLATFORM, tables_for_platform
+
+        TARGETS = [(platform, table, 'collected_at')
+                   for platform in sorted(SOURCES_FOR_PLATFORM)
+                   for table in sorted(tables_for_platform(platform))]
+        # Identifier allowlist (cross-cutting rule #8) — built from the same registry,
+        # so a table can never be queried unless the registry declared it.
+        allowed = {t for platform in SOURCES_FOR_PLATFORM
+                   for t in tables_for_platform(platform)}
         declared = {p for (p,) in db.fetch_query(
             "SELECT platform FROM artist_credentials WHERE artist_id = %s", (artist_id,))}
+        # The canary's Instagram identity rides the `meta` credentials row, so the
+        # logical platform is not always the row it is stored under.
+        from src.utils.tenant_identity import storage_platform
 
         for platform, table, col in TARGETS:
-            if platform not in declared:
+            if storage_platform(platform) not in declared:
                 continue
-            allowed = {'youtube_video_stats', 'track_popularity_history'}
-            if table not in allowed:      # identifier allowlist (cross-cutting rule #8)
+            if table not in allowed:
                 continue
             age = db.fetch_query(
                 f"SELECT EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "  # noqa: S608

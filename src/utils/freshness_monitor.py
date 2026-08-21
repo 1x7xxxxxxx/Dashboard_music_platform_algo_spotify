@@ -43,6 +43,49 @@ MONITOR_TARGETS = [
      "metric_col": "day_date"},
 ]
 
+# Logical platform -> the freshness sources that can PROVE it is collecting.
+#
+# Spotify carries two, and that is the whole point. `artist_readiness` used to bind
+# it to "Spotify S4A" alone -- the CSV upload table. An artist who entered their
+# Spotify artist id, passed the connection test (which names the artist back to
+# them) and whose `spotify_api_daily` was filling `track_popularity_history` still
+# read 🔴 "Connecte -- aucune donnee" until they uploaded a CSV. Spotify is the
+# platform onboarding recommends first, so that was most artists' first impression.
+#
+# Declared HERE, next to MONITOR_TARGETS, because four surfaces judged Spotify on
+# four different tables: readiness on `s4a_song_timeline`, the canary watchdog on
+# `track_popularity_history`, the KPI panel on `artists`, and this module on both.
+# One tenant could be green on one screen and red on another, truthfully.
+SOURCES_FOR_PLATFORM = {
+    "soundcloud": ("SoundCloud",),
+    "spotify": ("Spotify API", "Spotify S4A"),
+    "youtube": ("YouTube",),
+    "meta": ("Meta Ads",),
+    "instagram": ("Instagram",),
+}
+
+
+def sources_for(platform: str) -> tuple:
+    """The freshness source labels that can prove `platform` is collecting."""
+    return SOURCES_FOR_PLATFORM.get(platform, ())
+
+
+def tables_for_platform(platform: str) -> frozenset:
+    """The tables any surface may legitimately read to judge `platform`.
+
+    Consumers derive their own table lists from this instead of restating them;
+    a restated list is how the four surfaces drifted apart.
+    """
+    wanted = set(sources_for(platform))
+    out = set()
+    for t in MONITOR_TARGETS:
+        if t["source"] in wanted:
+            out.add(t["table"])
+            if t.get("tenant_table"):
+                out.add(t["tenant_table"])
+    return frozenset(out)
+
+
 # Allowlists derived from MONITOR_TARGETS — guards against identifier injection
 # if a bad entry is ever introduced into the config list.
 _ALLOWED_TABLES = frozenset(

@@ -8,23 +8,49 @@ Persists in: artist_credentials (token_encrypted Fernet blob + extra_config JSON
 Pure relocation from the former credentials.py — no logic change.
 """
 import json
-import requests
-from datetime import datetime
 
 from src.utils.config_loader import config_loader
-from src.utils.meta_config import META_GRAPH_BASE_URL
 
 
-# platform_key → DAG to auto-trigger when credentials are saved.
+# LOGICAL platform → DAG to auto-trigger when its identity is saved.
 # CSV-driven sources (apple_music, imusician, s4a) are intentionally absent —
 # they pull from filesystem watchers, not on-demand from saved tokens.
-_PLATFORM_DAG_MAP = {
+#
+# Keyed on the logical platform, NOT on the form tab. Keyed on the tab, the
+# `instagram` entry was unreachable by construction: `_handle_save` is only ever
+# called with a key from `_registry.PLATFORMS`, which has four tabs, and
+# `ig_user_id` is a FIELD of the meta tab. So saving an Instagram id triggered
+# `meta_ads_api_daily` and never `instagram_daily` — the artist connected
+# Instagram, waited, and no first pull ever ran.
+_IDENTITY_DAG_MAP = {
     'spotify': 'spotify_api_daily',
     'youtube': 'youtube_daily',
     'soundcloud': 'soundcloud_daily',
     'instagram': 'instagram_daily',
     'meta': 'meta_ads_api_daily',
 }
+
+
+def dags_for_save(tab_key: str, extra: dict) -> list:
+    """DAGs to trigger after saving `tab_key`, given the identities actually written.
+
+    Pure. One tab can carry several logical identities (the Meta tab holds both the
+    ad account and the Instagram business account), and each has its own DAG. An
+    identity left blank triggers nothing: `_handle_save` pops empty values, so an
+    untouched tab must not kick off a collection that has no id to collect for.
+    """
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+
+    out = []
+    for logical, spec in PLATFORM_IDENTITIES.items():
+        if spec.storage != tab_key:
+            continue
+        if not str((extra or {}).get(spec.field) or "").strip():
+            continue
+        dag = _IDENTITY_DAG_MAP.get(logical)
+        if dag and dag not in out:
+            out.append(dag)
+    return out
 
 
 # ─────────────────────────────────────────────
@@ -100,13 +126,21 @@ def _mask(value: str, visible: int = 6) -> str:
 # Platform → DAG status mapping
 # ─────────────────────────────────────────────
 
-# DAGs associated to each platform (used for last-run status KPI)
-PLATFORM_TO_DAGS = {
-    'spotify':    ['spotify_api_daily'],
-    'youtube':    ['youtube_daily'],
-    'soundcloud': ['soundcloud_daily'],
-    'meta':       ['meta_ads_api_daily', 'instagram_daily'],
-}
+# Form tab → the DAGs that feed it (used for the last-run status KPI). DERIVED from
+# `_IDENTITY_DAG_MAP` so a third copy of the platform→DAG mapping cannot appear; the
+# meta tab gets both its own DAG and Instagram's because it carries both identities.
+def _platform_to_dags() -> dict:
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+
+    out: dict = {}
+    for logical, spec in PLATFORM_IDENTITIES.items():
+        dag = _IDENTITY_DAG_MAP.get(logical)
+        if dag:
+            out.setdefault(spec.storage, []).append(dag)
+    return out
+
+
+PLATFORM_TO_DAGS = _platform_to_dags()
 
 _STATE_ICON = {
     'success': '🟢',
@@ -220,44 +254,15 @@ def _save_credentials(db, artist_id: int, platform: str,
     )
 
 
-# Sentinel returned by _fetch_meta_token_expiry for never-expiring tokens.
-META_TOKEN_NEVER_EXPIRES = "never"
-
-
-def _fetch_meta_token_expiry(token: str, app_id: str, app_secret: str):
-    """Appelle /debug_token pour récupérer la date d'expiration du token Meta.
-
-    Non bloquant. Returns one of three states:
-      - datetime                    → real expiry (personal long-lived token)
-      - META_TOKEN_NEVER_EXPIRES    → never expires (System User token, expires_at==0)
-      - None                        → could not determine (network / missing secrets)
-
-    The caller must map META_TOKEN_NEVER_EXPIRES → set expires_at NULL (so the weekly
-    refresh DAG skips it), NOT to a warning. Conflating "never expires" with "unknown"
-    is what left a stale/false 60-day expiry on System User tokens.
-    """
-    if not token or not app_id or not app_secret:
-        return None
-    try:
-        r = requests.get(
-            f"{META_GRAPH_BASE_URL}/debug_token",
-            params={
-                'input_token': token,
-                'access_token': f"{app_id}|{app_secret}",
-            },
-            timeout=10,
-            allow_redirects=False,
-        )
-        data = r.json().get('data', {})
-        expires_at = data.get('expires_at')  # Unix timestamp, 0 = never-expiring System token
-        # System User tokens never expire: debug_token reports expires_at==0 and/or type.
-        if data.get('type') == 'SYSTEM_USER' or expires_at == 0:
-            return META_TOKEN_NEVER_EXPIRES
-        if expires_at and expires_at > 0:
-            return datetime.utcfromtimestamp(expires_at)
-    except Exception:
-        pass
-    return None
+# _fetch_meta_token_expiry and META_TOKEN_NEVER_EXPIRES were removed 2026-08-22.
+#
+# Their only caller passed them the tenant's saved access_token / app_id /
+# app_secret — three fields the meta tab does not declare — so the function
+# returned None on its first guard every single time, and the caller rendered a
+# permanent warning from it. Under ADR-006 the Meta token is a central APP
+# credential and a System User token that never expires; its expiry belongs to
+# src/utils/central_apps.py::check_meta, which already calls /debug_token with the
+# app credentials and is read nightly by alert_monitor.
 
 
 # ─────────────────────────────────────────────

@@ -4,22 +4,18 @@ Type: Sub
 Uses: streamlit, pandas, requests, _core, _registry, AirflowTrigger
 Pure relocation from the former credentials.py — no logic change.
 """
-import requests
 import pandas as pd
 import streamlit as st
 
-from src.utils.meta_config import META_GRAPH_BASE_URL
 from src.dashboard.utils.i18n import t
 
 from ._core import (
     find_identity_conflict,
-    _PLATFORM_DAG_MAP,
+    dags_for_save,
     _STATE_ICON,
-    META_TOKEN_NEVER_EXPIRES,
     PLATFORM_TO_DAGS,
     _decode_row,
     _encrypt_secrets,
-    _fetch_meta_token_expiry,
     _mask,
     _save_credentials,
     app_level_configured,
@@ -213,84 +209,20 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                     st.error(t("credentials.test_failed",
                                "Connexion échouée : {msg}").format(msg=msg))
 
-    # ── Meta : bouton renouvellement automatique du token ─────────────
-    if platform_key == 'meta' and existing_row:
-        st.markdown("---")
-        st.markdown(t("credentials.meta.refresh_header",
-                      "#### Renouvellement automatique du token"))
-        st.caption(t(
-            "credentials.meta.refresh_caption",
-            "Échange le token actuel contre un nouveau token de 60 jours via l'API Meta. "
-            "Le token doit être encore valide pour pouvoir être échangé. "
-            "Le DAG fait ce renouvellement automatiquement quand il reste ≤ 15 jours."
-        ))
-        if st.button(t("credentials.meta.refresh_button", "🔄 Rafraîchir le token Meta"),
-                     key=f"meta_refresh_{artist_id}", type="primary"):
-            with st.spinner(t("credentials.meta.refreshing", "Échange du token en cours…")):
-                fields_def_meta = PLATFORMS['meta']['fields']
-                current = _decode_row(existing_row, fields_def_meta)
-                app_id = current.get('app_id', '')
-                app_secret = current.get('app_secret', '')
-                access_token = current.get('access_token', '')
-
-                if not app_id or not app_secret:
-                    st.error(t("credentials.meta.missing_app",
-                               "App ID ou App Secret manquant — renseigner d'abord ces champs."))
-                elif not access_token:
-                    st.error(t("credentials.meta.missing_token",
-                               "Access Token manquant — impossible d'effectuer l'échange."))
-                else:
-                    try:
-                        r = requests.get(
-                            f'{META_GRAPH_BASE_URL}/oauth/access_token',
-                            params={
-                                'grant_type': 'fb_exchange_token',
-                                'client_id': app_id,
-                                'client_secret': app_secret,
-                                'fb_exchange_token': access_token,
-                            },
-                            timeout=10,
-                            allow_redirects=False,
-                        )
-                        data = r.json()
-                        if r.status_code == 200 and data.get('access_token'):
-                            new_token = data['access_token']
-                            # System User tokens come back with expires_in == 0 (never expire).
-                            # Default to 0 (not 60 days) so we don't stamp a false expiry.
-                            expires_in = data.get('expires_in', 0)
-                            # Save new token (expires_at handled below)
-                            secrets = {f['key']: current.get(f['key'], '') for f in fields_def_meta if f['secret']}
-                            secrets['access_token'] = new_token
-                            encrypted_blob = _encrypt_secrets(secrets)
-                            _save_credentials(db, artist_id, 'meta', encrypted_blob,
-                                              {f['key']: current.get(f['key'], '') for f in fields_def_meta if not f['secret']})
-                            if expires_in and expires_in > 0:
-                                new_expires = pd.Timestamp.utcnow() + pd.Timedelta(seconds=expires_in)
-                                db.execute_query(
-                                    "UPDATE artist_credentials SET expires_at = %s WHERE artist_id = %s AND platform = 'meta'",
-                                    (new_expires.to_pydatetime(), artist_id)
-                                )
-                                st.success(t("credentials.meta.refresh_ok",
-                                             "✅ Token renouvelé — expire le {date} ({days} jours)").format(
-                                                 date=new_expires.strftime('%d/%m/%Y'),
-                                                 days=expires_in // 86400))
-                            else:
-                                db.execute_query(
-                                    "UPDATE artist_credentials SET expires_at = NULL WHERE artist_id = %s AND platform = 'meta'",
-                                    (artist_id,)
-                                )
-                                st.success(t("credentials.meta.refresh_ok_never",
-                                             "✅ Token enregistré — n'expire pas (System User)."))
-                            st.rerun()
-                        else:
-                            err = data.get('error', {})
-                            st.error(t("credentials.meta.refresh_failed",
-                                       "Échec : {msg} — si le token est expiré, générer un nouveau token manuellement via Graph API Explorer.").format(
-                                           msg=err.get('message', data)))
-                    except Exception as e:
-                        st.error(t("credentials.meta.network_error",
-                                   "Erreur réseau : {err}").format(err=e))
-
+    # The Meta token refresh UI lived here until 2026-08-22. It is gone, not fixed.
+    #
+    # It read `app_id` / `app_secret` / `access_token` out of the tenant's saved
+    # fields — and the meta tab declares only `account_id` and `ig_user_id`. So the
+    # three were always empty strings, the button always answered "App ID ou App
+    # Secret manquant — renseigner d'abord ces champs", and it named fields the form
+    # does not have. Every artist who pressed it was sent looking for something that
+    # does not exist.
+    #
+    # The right home for that statement is central, not per-artist: under ADR-006 the
+    # Meta token is an APP credential read from META_ACCESS_TOKEN, it is a System User
+    # token that does not expire, and `src/utils/central_apps.py::check_meta` already
+    # calls /debug_token with the app credentials. Putting a CENTRAL failure on a
+    # PER-ARTIST page is what made two beta testers read "my credentials are broken".
 
 def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_values):
     """Prépare et sauvegarde les credentials chiffrés."""
@@ -324,7 +256,15 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # extra_config too so the form round-trips the normalised value.
         if platform_key == 'spotify':
             sp_id = extract_spotify_artist_id(extra.get('spotify_artist_id', ''))
-            extra['spotify_artist_id'] = sp_id
+            # Only write it back when there IS one. This assignment used to be
+            # unconditional and ran AFTER the empty-pop above, so Spotify was the
+            # single platform that could persist `{"spotify_artist_id": ""}` — the
+            # exact shape the pop exists to prevent, and a row that reads as
+            # "connected" to every surface that counts rows instead of identities.
+            if sp_id:
+                extra['spotify_artist_id'] = sp_id
+            else:
+                extra.pop('spotify_artist_id', None)
 
         # Refuse an identity another tenant already claims. Nothing in the schema
         # prevents it, and the consequence is not cosmetic: both accounts would
@@ -353,42 +293,28 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         if _mirror:
             write_platform_identity(db, artist_id, platform_key, extra)
 
-        # Auto-populate expires_at for Meta tokens so the weekly refresh DAG
-        # and proactive refresh in the collector can function without manual input.
-        if platform_key == 'meta':
-            expiry = _fetch_meta_token_expiry(
-                secrets.get('access_token', ''),
-                extra.get('app_id', ''),
-                secrets.get('app_secret', ''),
-            )
-            if expiry == META_TOKEN_NEVER_EXPIRES:
-                # System User token — never expires. NULL so meta_token_refresh skips it
-                # (Brick 24) instead of attempting a pointless fb_exchange_token.
-                db.execute_query(
-                    "UPDATE artist_credentials SET expires_at = NULL "
-                    "WHERE artist_id = %s AND platform = 'meta'",
-                    (artist_id,),
-                )
-                st.info(t("credentials.meta.system_user_detected",
-                          "ℹ️ Token System User détecté — n'expire pas, aucun renouvellement requis."))
-            elif expiry:
-                db.execute_query(
-                    "UPDATE artist_credentials SET expires_at = %s "
-                    "WHERE artist_id = %s AND platform = 'meta'",
-                    (expiry, artist_id),
-                )
-            else:
-                st.warning(t(
-                    "credentials.meta.expiry_unavailable",
-                    "⚠️ Impossible de récupérer la date d'expiration du token Meta "
-                    "(app_id / app_secret manquants ou API inaccessible). "
-                    "Le renouvellement automatique ne fonctionnera pas jusqu'au prochain save."
-                ))
+        # No Meta token expiry probe here — deliberately.
+        #
+        # It called _fetch_meta_token_expiry(access_token, app_id, app_secret) with
+        # three values the meta tab never collects (it declares account_id and
+        # ig_user_id only), so the probe returned None every time and the else-branch
+        # fired on EVERY save, for EVERY artist: "⚠️ Impossible de récupérer la date
+        # d'expiration du token Meta … Le renouvellement automatique ne fonctionnera
+        # pas". A permanent warning about a central credential, shown on a per-artist
+        # page, is indistinguishable from "your credentials are broken" — which is
+        # what two beta testers reported.
+        #
+        # The token is a System User APP credential (ADR-006) that does not expire;
+        # its health is reported by src/utils/central_apps.py::check_meta, which the
+        # nightly alert_monitor reads.
 
-        # Auto-trigger first data pull for this artist on this platform.
+        # Auto-trigger the first data pull for every identity this save declared.
+        # One tab can carry several: saving the Meta tab with both an ad account and
+        # an Instagram business account must start BOTH collections. Keyed on the tab
+        # it only ever started meta_ads_api_daily, so an artist who connected
+        # Instagram got no first pull at all.
         # Non-blocking: a DAG-trigger failure must NOT invalidate the credential save.
-        dag_id = _PLATFORM_DAG_MAP.get(platform_key)
-        if dag_id:
+        for dag_id in dags_for_save(platform_key, extra):
             try:
                 import os
                 from src.utils.airflow_trigger import AirflowTrigger

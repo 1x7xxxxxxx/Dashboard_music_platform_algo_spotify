@@ -86,41 +86,7 @@ EN = {
     "credentials.test_button": "🔌 Test connection",
     "credentials.testing": "Testing…",
     "credentials.test_failed": "Connection failed: {msg}",
-    # ── _render.py — Meta token refresh ────────────────────────────────
-    "credentials.meta.refresh_header": "#### Automatic token renewal",
-    "credentials.meta.refresh_caption": (
-        "Exchanges the current token for a new 60-day token via the Meta API. "
-        "The token must still be valid to be exchanged. "
-        "The DAG performs this renewal automatically when ≤ 15 days remain."
-    ),
-    "credentials.meta.refresh_button": "🔄 Refresh Meta token",
-    "credentials.meta.refreshing": "Exchanging token…",
-    "credentials.meta.missing_app": (
-        "App ID or App Secret missing — fill in these fields first."
-    ),
-    "credentials.meta.missing_token": (
-        "Access Token missing — cannot perform the exchange."
-    ),
-    "credentials.meta.refresh_ok": (
-        "✅ Token renewed — expires on {date} ({days} days)"
-    ),
-    "credentials.meta.refresh_ok_never": (
-        "✅ Token saved — never expires (System User)."
-    ),
-    "credentials.meta.refresh_failed": (
-        "Failed: {msg} — if the token is expired, generate a new one manually "
-        "via Graph API Explorer."
-    ),
-    "credentials.meta.network_error": "Network error: {err}",
     # ── _render.py — save handler ──────────────────────────────────────
-    "credentials.meta.system_user_detected": (
-        "ℹ️ System User token detected — never expires, no renewal required."
-    ),
-    "credentials.meta.expiry_unavailable": (
-        "⚠️ Unable to fetch the Meta token expiry date "
-        "(app_id / app_secret missing or API unreachable). "
-        "Automatic renewal will not work until the next save."
-    ),
     "credentials.collect_started": (
         "🚀 {platform} collection started — data available in ~2 min"
     ),
@@ -254,8 +220,9 @@ EN = {
     ),
     "credentials.soundcloud.admin_copy_title": "Copy the credentials",
     "credentials.soundcloud.admin_copy_desc": (
-        "On the app page, copy the **Client ID** and **Client Secret** "
-        "and enter them in the form below."
+        "On the app page, copy the credentials into the server environment variables "
+        "(`SOUNDCLOUD_CLIENT_ID` / `SOUNDCLOUD_CLIENT_SECRET`). This form does not "
+        "accept them: the app is shared by every artist (ADR-006)."
     ),
     "credentials.soundcloud.artist_header": "### Artist — Find your User ID",
     "credentials.soundcloud.two_methods": "Two methods:",
@@ -312,36 +279,35 @@ EN = {
     ),
     "credentials.meta.steps_header": "### Steps — Meta Ads",
     "credentials.meta.steps_body": (
-        "1. **Business Manager → Settings → Users → System users** → "
-        "Create a system user (Admin role).\n"
-        "2. Click the user → **Generate a new token** → select "
-        "**ETL_DASHBOARD_SPOTIFY** → check the scopes `ads_read` + `ads_management` → "
-        "**Generate token**. *(This is the **Access Token** field.)*\n"
-        "3. **Settings → Ad accounts** → note the numeric ID "
+        "Only one identifier is yours: the Ad Account ID. Everything else — the access "
+        "token and the application credentials — belongs to the platform and appears "
+        "nowhere in this form.\n\n"
+        "1. **Business Manager → Settings → Ad accounts** → note the numeric ID "
         "(e.g. `123456789`). **Do not add the `act_` prefix** — the dashboard adds it "
-        "automatically. *(This is the **Ad Account ID** field.)*\n"
-        "4. **Settings → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → "
+        "automatically. *(This is the **Ad Account ID** field above.)*\n"
+        "2. **Settings → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → "
         "Add assets → Ad account** → select your account → "
-        "Advertiser permission. *(Required — without it the API returns \"Object does not exist\".)*\n"
-        "5. **App ID** and **App Secret**: contact the platform administrator "
-        "— they are pre-filled by default."
+        "Advertiser permission. *(Required — without it the API returns \"Object does not "
+        "exist\", and the connection test will say so.)*\n"
+        "3. Click **Test connection**. If it is green, there is nothing else to do."
     ),
     "credentials.meta.ig_header": "### Additional steps — Instagram",
     "credentials.meta.ig_body": (
-        "If you want Instagram stats, use the **same token** but generate it with "
-        "the additional scopes: `instagram_basic` + `instagram_manage_insights` + `pages_show_list`.\n\n"
+        "If you want Instagram stats, enter your Instagram Business Account ID below. The "
+        "shared platform token already carries the required scopes (`instagram_basic`, "
+        "`instagram_manage_insights`, `pages_show_list`) — ask the administrator if the "
+        "connection test says otherwise.\n\n"
         "The `meta_token_refresh` DAG (weekly) does **not** attempt to renew System User tokens "
         "(they do not expire) — no periodic action required."
     ),
     "credentials.meta.ig_id_header": "### Instagram Business Account ID (optional)",
     "credentials.meta.table": (
-        "| Field | Source | Secret |\n"
-        "|---|---|---|\n"
-        "| **Access Token** | Business Manager → System users → Generate token | Yes |\n"
-        "| **App Secret** | developers.facebook.com → ETL_DASHBOARD_SPOTIFY → Settings → Basic | Yes |\n"
-        "| **App ID** | Same page as App Secret | No |\n"
-        "| **Ad Account ID** | Business Manager → Ad accounts (numeric only, no `act_`) | No |\n"
-        "| **Instagram Business Account ID** | Graph API call above | No |\n"
+        "| To enter here | Where to find it |\n"
+        "|---|---|\n"
+        "| **Ad Account ID** | Business Manager → Ad accounts (numeric only, no `act_`) |\n"
+        "| **Instagram Business Account ID** *(optional)* | Graph API call above |\n"
+        "\nThis table used to list five rows, three of which this form never accepted. "
+        "They belong to the platform.\n"
     ),
     "credentials.meta.warning": (
         "⚠️ **Common errors**: "

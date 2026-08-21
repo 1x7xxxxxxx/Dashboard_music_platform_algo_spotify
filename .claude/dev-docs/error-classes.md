@@ -125,6 +125,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [app-id-confused-with-ad-account-id](#app-id-confused-with-ad-account-id) | P2 | heuristic | fixed | none |
 | [suppressed-alert-renders-as-health](#suppressed-alert-renders-as-health) | P2 | deterministic | guarded | none |
 | [catalogue-index-omits-its-own-entries](#catalogue-index-omits-its-own-entries) | P3 | deterministic | guarded | none |
+| [same-platform-judged-on-different-tables](#same-platform-judged-on-different-tables) | P2 | deterministic | guarded | none |
+| [map-key-unreachable-by-construction](#map-key-unreachable-by-construction) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1093,3 +1095,50 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-22: `kind: manual` deliberately. The signature needs the operator's real env files; in CI there are none, the probe skips every platform and exits 0 — vacuously green. What CI *can* guard is that the probe reads the app's environment at all, and that is the pytest above. A signature that cannot fail in CI must not be labelled deterministic just because it is a clean command.
   - 2026-08-22: sibling of `identity-mirrored-but-written-once` one layer down — there an identity in two tables written once, here a secret in two files corrected once. The shape repeats because nothing in either layer says which copy decides.
+
+## same-platform-judged-on-different-tables
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: several surfaces each decide whether a platform is "collecting" by reading a different table, so the same tenant is 🟢 on one screen and 🔴 on another — both truthfully. Measured 2026-08-22: Spotify was judged on FOUR tables. An artist who entered their Spotify artist id, passed a connection test that named the artist back to them, and whose `spotify_api_daily` was filling rows normally, still read 🔴 "Connecté — aucune donnée" until they uploaded a CSV. Spotify is the platform onboarding recommends first, so this was most artists' first impression of the product.
+- signature: `python3 -m pytest tests/test_platform_sources_agree.py -q`
+- root_cause: `src/utils/artist_readiness.py:33` bound the `spotify` key to the single freshness source `"Spotify S4A"` → `s4a_song_timeline`, the CSV **upload** table. `src/utils/freshness_monitor.py` already declared `"Spotify API"` with `tenant_table: track_popularity_history` — the table the DAG actually fills — and no reader consumed it. Meanwhile `alert_monitor.check_canary_health` restated its own pair of tables in a literal list, and `src/dashboard/utils/kpi_helpers.py` restated a third. Four hand-written table lists, one platform.
+- long_term_fix: `freshness_monitor.SOURCES_FOR_PLATFORM` is the single registry of which sources can prove a platform, with `tables_for_platform()` derived from it. `artist_readiness` scores every source for a platform and keeps the BEST (an artist who only uploads CSVs and one who only connects the API must both reach 🟢, and neither should be told to do the other's work). The canary watchdog derives its targets and its identifier allowlist from the same registry instead of restating them.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_platform_sources_agree.py }
+- rex_ref: src/utils/freshness_monitor.py
+- first_seen: 2026-06-19 (Benken) — surfaced 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by mutation, twice: binding `spotify` back to `("Spotify S4A",)` fails `test_spotify_is_provable_by_the_api_table_and_by_the_csv`; restoring the hardcoded pair in `check_canary_health` fails `test_the_canary_watchdog_hardcodes_no_table`. Green after restoring both. **Not** validated against the pre-fix tree: the registry the guard reads IS the fix, so there it errors on import (exit 2) rather than failing on the defect — the mutation is the honest red, and the distinction is recorded rather than papered over.
+- Notes:
+  - The watchdog half of the guard is AST, not grep. `check_canary_health`'s own
+    comments name `track_popularity_history` and `s4a_song_timeline` in prose,
+    explaining this very defect — a textual signature would go red on the
+    explanation of its own fix, and the only way to keep CI green would be to stop
+    documenting.
+  - `kpi_helpers.SOURCES_CONFIG` was deliberately NOT rewritten to derive from
+    `MONITOR_TARGETS`: it carries sources readiness has no opinion on (iMusician,
+    Apple Music) and feeds a UNION-ALL query with its own allowlists, so a full
+    derivation would change runtime behaviour for no gain. On the labels the two
+    share they already agreed; the guard pins that agreement instead.
+
+## map-key-unreachable-by-construction
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a config dict carries an entry no caller can ever select. The behaviour it declares never runs, and the file reads as though the feature exists. Measured 2026-08-22: saving an Instagram Business Account ID triggered `meta_ads_api_daily` and never `instagram_daily`, so the artist connected Instagram, saw the toast promising data "in ~2 min", and no first collection ever ran.
+- signature: `python3 -m pytest tests/test_credentials_save_triggers_the_right_dag.py -q`
+- root_cause: `src/dashboard/views/credentials/_core.py` keyed `_PLATFORM_DAG_MAP` on the form TAB and included an `'instagram'` entry. `_handle_save` is only ever called with a key from `_registry.PLATFORMS`, which has four tabs — `ig_user_id` is a FIELD of the meta tab, not a tab of its own. The lookup `_PLATFORM_DAG_MAP.get(platform_key)` could therefore never return `instagram_daily`.
+- long_term_fix: the map is keyed on the LOGICAL platform, and a pure `dags_for_save(tab_key, extra)` returns every DAG whose identity was actually written by this save — so one tab can start several collections, and a blank field starts none. `PLATFORM_TO_DAGS` (the KPI badge map, a third copy) is derived from the same dict.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_credentials_save_triggers_the_right_dag.py }
+- rex_ref: src/dashboard/views/credentials/_core.py
+- first_seen: 2026-08-12 (Grinch) — surfaced 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by mutation: restoring the tab-keyed lookup fails 4 of 7 tests, including `test_no_dag_map_key_is_unreachable` — the assertion that would have caught the original entry. Green after restoring. Like its sibling above, the pre-fix tree cannot run this guard (it imports the new map), so the mutation is the validated red.
+- Notes:
+  - The general shape is worth more than the instance: **an entry keyed in a
+    namespace its caller never uses is not "dead code", it is a promise the file
+    keeps making.** Nothing errors, nothing logs, and the reader — human or model —
+    concludes the feature is wired. The guard asserts reachability, not equality:
+    every declared value must be producible from some real caller input.

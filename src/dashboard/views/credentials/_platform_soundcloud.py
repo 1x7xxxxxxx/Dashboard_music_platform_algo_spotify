@@ -107,8 +107,10 @@ def _guide_soundcloud():
                "Redirect URI : `http://localhost` (non utilisée).")),
             (t("credentials.soundcloud.admin_copy_title", "Copier les credentials"),
              t("credentials.soundcloud.admin_copy_desc",
-               "Sur la page de l'app, copier le **Client ID** et le **Client Secret** "
-               "et les saisir dans le formulaire ci-dessous.")),
+               "Sur la page de l'app, copier les identifiants et les poser dans les "
+               "variables d'environnement du serveur (`SOUNDCLOUD_CLIENT_ID` / "
+               "`SOUNDCLOUD_CLIENT_SECRET`). Ce formulaire ne les accepte pas : "
+               "l'app est partagée par tous les artistes (ADR-006).")),
         ]
         for i, (title, desc) in enumerate(admin_steps, 1):
             st.markdown(f"**{i}. {title}** — {desc}")
