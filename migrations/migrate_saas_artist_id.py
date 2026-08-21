@@ -49,14 +49,14 @@ def constraint_exists(db: PostgresHandler, table_name: str, constraint_name: str
 def add_artist_id(db: PostgresHandler, table: str) -> None:
     """Add artist_id column (default 1) and backfill NULLs."""
     if not column_exists(db, table, 'artist_id'):
-        print(f"    → Adding artist_id column...")
+        print("    → Adding artist_id column...")
         db.execute_query(
             f"ALTER TABLE {table} ADD COLUMN artist_id INTEGER DEFAULT 1"
         )
     db.execute_query(
         f"UPDATE {table} SET artist_id = 1 WHERE artist_id IS NULL"
     )
-    print(f"    ✓ artist_id present and backfilled")
+    print("    ✓ artist_id present and backfilled")
 
 
 def drop_constraint_if_exists(db: PostgresHandler, table: str, name: str, cascade: bool = False) -> None:
@@ -77,7 +77,7 @@ def add_unique_if_missing(db: PostgresHandler, table: str, name: str, cols: str)
 def add_fk_if_missing(db: PostgresHandler, table: str) -> None:
     fk_name = f"fk_{table}_artist"
     if not constraint_exists(db, table, fk_name):
-        print(f"    → Adding FK to saas_artists...")
+        print("    → Adding FK to saas_artists...")
         db.execute_query(
             f"ALTER TABLE {table} "
             f"ADD CONSTRAINT {fk_name} "

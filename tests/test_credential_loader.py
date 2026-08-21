@@ -168,3 +168,69 @@ class TestGetActiveArtists:
         mock_conn = self._mock_conn([])
         with patch("psycopg2.connect", return_value=mock_conn):
             assert get_active_artists() == []
+
+
+# ---------------------------------------------------------------------------
+# R33 — one connection factory, not four copies
+# ---------------------------------------------------------------------------
+
+class TestSingleConnectionFactory:
+    """Four functions each built their own DSN from the same five variables.
+
+    Nothing was broken by it — this is duplication, not a defect. But four copies
+    of a DSN is four places to forget a parameter, and the one most easily
+    forgotten here is the port: a container reaches Postgres on 5432 internally
+    while this repo publishes 5433 on the host. Extracted 2026-08-21 into
+    `_connect()`; this pins it so the copies cannot grow back.
+    """
+
+    @staticmethod
+    def _source() -> str:
+        from pathlib import Path
+
+        import src.utils.credential_loader as mod
+        return Path(mod.__file__).read_text(encoding="utf-8")
+
+    @staticmethod
+    def _code_lines(src: str) -> str:
+        """Source with docstrings and comments stripped — prose is not a call."""
+        import ast
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)):
+                doc = ast.get_docstring(node, clean=False)
+                if doc and node.body and isinstance(node.body[0], ast.Expr):
+                    node.body.pop(0)
+                    if not node.body:
+                        node.body.append(ast.Pass())
+        return ast.unparse(ast.fix_missing_locations(tree))
+
+    def test_exactly_one_place_opens_a_connection(self):
+        code = self._code_lines(self._source())
+        n = code.count("psycopg2.connect(")
+        assert n == 1, (
+            f"{n} call(s) to psycopg2.connect in credential_loader — route them "
+            "through `_connect()` instead of rebuilding the DSN."
+        )
+
+    def test_exactly_one_place_reads_the_connection_variables(self):
+        code = self._code_lines(self._source())
+        for var in ("DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME",
+                    "DATABASE_USER", "DATABASE_PASSWORD"):
+            n = code.count(var)
+            assert n == 1, (
+                f"{var} is read {n} times — it belongs in `_connect()` only."
+            )
+
+    def test_the_factory_still_honours_autocommit(self):
+        """Two of the four call sites write; they must not silently lose it."""
+        from unittest.mock import MagicMock, patch
+
+        from src.utils.credential_loader import _connect
+        fake = MagicMock()
+        with patch("psycopg2.connect", return_value=fake):
+            _connect()
+            assert fake.autocommit is False
+            _connect(autocommit=True)
+            assert fake.autocommit is True

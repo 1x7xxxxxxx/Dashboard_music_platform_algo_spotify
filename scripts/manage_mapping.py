@@ -1,9 +1,7 @@
 """Script CLI pour gérer le mapping Campagnes Meta <-> Chansons Spotify."""
 import sys
-import os
 from pathlib import Path
 from tabulate import tabulate
-import pandas as pd
 
 # Setup chemin
 project_root = Path(__file__).resolve().parent.parent
@@ -51,7 +49,7 @@ def list_mappings():
     db = get_db()
     try:
         query = """
-            SELECT id, campaign_name, track_name, created_at 
+            SELECT id, campaign_name, track_name, created_at
             FROM campaign_track_mapping
             ORDER BY created_at DESC
         """
@@ -70,7 +68,7 @@ def add_mapping():
 
     # Affichage indexé pour choix facile
     print(tabulate(df_camp.reset_index(), headers='keys', tablefmt='simple'))
-    
+
     try:
         idx = int(input("\n👉 Entrez le numéro de la campagne (index) : "))
         selected_camp = df_camp.iloc[idx]['campaign_name']
@@ -86,7 +84,7 @@ def add_mapping():
         return
 
     print(tabulate(df_tracks.reset_index(), headers='keys', tablefmt='simple'))
-    
+
     try:
         idx = int(input("\n👉 Entrez le numéro de la chanson : "))
         selected_track = df_tracks.iloc[idx]['track_name']
@@ -145,11 +143,11 @@ def main_menu():
         print("5️⃣  Supprimer un mapping")
         print("0️⃣  Quitter")
         print("="*50)
-        
+
         choice = input("\n👉 Votre choix : ")
-        
+
         if choice == '1': add_mapping()
-        elif choice == '2': 
+        elif choice == '2':
             df = list_mappings()
             print("\n" + tabulate(df, headers='keys', tablefmt='grid'))
         elif choice == '3':

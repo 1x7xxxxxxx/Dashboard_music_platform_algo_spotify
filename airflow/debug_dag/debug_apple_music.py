@@ -51,7 +51,7 @@ def print_header(title):
 
 def step_1_check_environment():
     print_header("Étape 1 : Vérification de l'environnement")
-    
+
     # 1. Vérification Dossiers
     if not RAW_DIR.exists():
         logger.warning(f"⚠️ Dossier RAW introuvable : {RAW_DIR}")
@@ -70,23 +70,23 @@ def step_1_check_environment():
     if missing:
         logger.error(f"❌ Variables d'environnement manquantes : {', '.join(missing)}")
         return False
-    
+
     logger.info("✅ Variables d'environnement détectées.")
     return True
 
 def step_2_scan_files():
     print_header("Étape 2 : Scan des fichiers CSV")
     csv_files = list(RAW_DIR.glob('*.csv'))
-    
+
     if not csv_files:
         logger.warning("⚠️ Aucun fichier CSV trouvé dans le dossier raw.")
         logger.info("💡 Conseil : Déposez un fichier Apple Music dans ce dossier pour tester.")
         return []
-    
+
     logger.info(f"✅ {len(csv_files)} fichier(s) trouvé(s) :")
     for f in csv_files:
         print(f"   - {f.name} ({f.stat().st_size / 1024:.2f} KB)")
-    
+
     return csv_files
 
 def step_3_test_parsing(files):
@@ -96,7 +96,7 @@ def step_3_test_parsing(files):
 
     for file_path in files:
         print(f"\n📄 Analyse de : {file_path.name}")
-        
+
         # 1. Test Encodage & Lecture brute
         df = None
         encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1']
@@ -107,14 +107,14 @@ def step_3_test_parsing(files):
                 break
             except UnicodeDecodeError:
                 continue
-        
+
         if df is None:
             logger.error("   ❌ Échec lecture : Aucun encodage ne fonctionne.")
             continue
 
         # 2. Inspection Colonnes
         print(f"   📋 Colonnes brutes : {list(df.columns)}")
-        
+
         # 3. Exécution Parser
         result = parser.parse_csv_file(file_path)
         csv_type = result.get('type')
@@ -126,9 +126,9 @@ def step_3_test_parsing(files):
         else:
             logger.info(f"   ✅ Type détecté : {csv_type}")
             logger.info(f"   📊 Lignes extraites : {len(data)}")
-            
+
             if data:
-                print(f"   🔎 Exemple de donnée (Ligne 1) :")
+                print("   🔎 Exemple de donnée (Ligne 1) :")
                 print(f"      {data[0]}")
                 valid_data.append((csv_type, data))
             else:
@@ -138,7 +138,7 @@ def step_3_test_parsing(files):
 
 def step_4_database_dry_run(parsed_results):
     print_header("Étape 4 : Test BDD (Dry Run / Simulation)")
-    
+
     if not parsed_results:
         logger.info("⏩ Pas de données à insérer. Fin du test.")
         return
@@ -161,21 +161,21 @@ def step_4_database_dry_run(parsed_results):
     for csv_type, data in parsed_results:
         if csv_type == 'songs_performance':
             print(f"\n🔹 Simulation pour 'songs_performance' ({len(data)} lignes)")
-            
+
             # A. Simulation Upsert Performance
             print("   [1] Table 'apple_songs_performance' (Upsert)")
-            print(f"       Clé unique : song_name")
-            print(f"       Colonnes à mettre à jour : album_name, plays, listeners...")
-            
+            print("       Clé unique : song_name")
+            print("       Colonnes à mettre à jour : album_name, plays, listeners...")
+
             # Vérification des doublons dans le CSV
             songs = [d['song_name'] for d in data]
             if len(songs) != len(set(songs)):
                 logger.warning("       ⚠️ Attention : Doublons détectés dans le fichier source !")
-            
+
             # B. Simulation Insert History
             print("   [2] Table 'apple_songs_history' (Snapshot)")
             print(f"       Date du snapshot : {datetime.now().date()}")
-            
+
             # Vérification existence table
             try:
                 res = db.fetch_df("SELECT count(*) FROM apple_songs_performance")
@@ -191,5 +191,5 @@ if __name__ == "__main__":
         if files:
             results = step_3_test_parsing(files)
             step_4_database_dry_run(results)
-    
+
     print("\n✅ Debugging terminé.")

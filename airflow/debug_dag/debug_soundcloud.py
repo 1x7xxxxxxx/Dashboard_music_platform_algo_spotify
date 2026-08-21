@@ -171,4 +171,4 @@ except Exception as e:
 
 
 # ── Fin ────────────────────────────────────────────────────────────────────
-print(f"\n✅ Fin du diagnostic.")
+print("\n✅ Fin du diagnostic.")

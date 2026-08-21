@@ -84,7 +84,15 @@ jobs:
         # Promoted from advisory to blocking on 2026-05-14 after baseline cleanup
         # (44 → 0 errors). Any regression now fails CI; revert to --exit-zero only
         # after explicit ADR.
-        run: uv run ruff check src/ tests/
+        #
+        # Widened from `src/ tests/` to the whole tree on 2026-08-21: the step was
+        # named "full project" and was not one. `airflow/` — DAG code live-mounted
+        # into production containers — was outside it, and carried 25 of the 40
+        # findings that cleanup removed. `ruff.toml` carries the per-directory
+        # exemptions (E402 for the mandatory sys.path insert in DAGs and debug
+        # scripts, F401 in tests), so widening enforces the same rules everywhere
+        # rather than inventing stricter ones.
+        run: uv run ruff check .
 
       - name: REX integrity + deterministic error-class guards (blocking)
         # Deterministic, no-DB, sub-second. validate_rex.py enforces the rex: schema

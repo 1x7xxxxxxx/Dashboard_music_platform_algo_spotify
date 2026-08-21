@@ -30,7 +30,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from src.database.postgres_handler import PostgresHandler
+    from src.database.postgres_handler import PostgresHandler  # noqa: F401 — imported to probe availability, DB_AVAILABLE is the payload
     DB_AVAILABLE = True
 except ImportError:
     logger.warning("PostgresHandler not available.")

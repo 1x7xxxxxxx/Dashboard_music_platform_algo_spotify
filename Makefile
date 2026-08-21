@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy artist-preflight tenant-check
+.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy artist-preflight tenant-check
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -27,33 +27,16 @@ lint:        ## Ruff lint on src/ and tests/
 	ruff check src/ tests/
 
 migrate:     ## Apply every migrations/*.sql against the live PG, and NAME what errored
-	@# Idempotent as a COMPLETE run, not file by file — and that distinction has teeth.
-	@# 024 drops the s4a_song_playlist_adds PK and fails to recreate it (the key became
-	@# window-aware later); 044 restores it. Run 001..N and the schema is right. Stop in
-	@# between and the table sits in production WITHOUT a primary key.
-	@#
-	@# psql without ON_ERROR_STOP exits 0 even when statements failed, so this target
-	@# used to print success while errors scrolled past — measured 2026-08-21 on the
-	@# real production run. Continuing is correct (that is what lets 044 heal 024);
-	@# staying silent about it is not. Errors are collected and named at the end.
-	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
-	@failed=""; \
-	for f in migrations/*.sql; do \
-		echo ">> $$f"; \
-		out=$$(docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl < $$f 2>&1); \
-		echo "$$out"; \
-		if echo "$$out" | grep -qiE '^(ERROR|FATAL)'; then failed="$$failed $$f"; fi; \
-	done; \
-	if [ -n "$$failed" ]; then \
-		echo ""; \
-		echo "⚠️  psql reported errors in:$$failed"; \
-		echo "   A complete run is expected to heal these (a later migration supersedes"; \
-		echo "   an earlier one). Confirm it did — do not assume:"; \
-		echo "     make schema-check PROD_SSH=<user@host>"; \
-	else \
-		echo ""; \
-		echo "✅ every migration applied with no psql error"; \
-	fi
+	@# The logic lives in tools/migrate.sh, not here, for the reason deploy.sh
+	@# exists: `make` is not installed on the production server, so a recipe that
+	@# only works through `make` cannot be run where it matters. See R37.
+	@bash tools/migrate.sh
+
+migrate-prod: ## Apply migrations on PROD over ssh (no `make` needed there). PROD_SSH=user@host
+	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host (e.g. make migrate-prod PROD_SSH=root@1.2.3.4)"; exit 1; }
+	@echo "⚠️  Migrations run AFTER the code that expects them (class migration-ahead-of-its-code)."
+	@echo "   Deploy first if you have not: make deploy PROD_SSH=$(PROD_SSH)"
+	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && bash tools/migrate.sh'
 
 backup:      ## Dump spotify_etl → backups/*.sql.gz (+ retention)
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi

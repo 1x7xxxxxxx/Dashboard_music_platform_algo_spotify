@@ -135,3 +135,54 @@ def test_observation_stream_is_not_namespaced_by_another_project():
         "repo (`repo_root.name`) so writer and readers cannot diverge:\n  "
         + "\n  ".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# The sibling class: a probe asserting a value this project never chose
+# ---------------------------------------------------------------------------
+
+def test_no_probe_demands_utc_containers():
+    """All five services declare `TZ: Europe/Paris`, on purpose and with a comment.
+
+    Airflow runs `core.default_timezone = utc`, so schedules are UTC-interpreted
+    whatever the OS clock says, and this repo writes UTC-aware timestamps in code
+    (`.claude/rules/python.md`). A probe demanding `TZ=UTC` on the containers —
+    inherited from an industrial-PC deployment — reported "2 containers without
+    TZ=UTC" on 2026-08-21 and nearly caused that deliberate configuration to be
+    changed. What can actually go wrong is DISAGREEMENT between containers, and
+    that is what the probe measures now.
+    """
+    src = (SCRIPTS / "check_env.py").read_text(encoding="utf-8")
+    body = "\n".join(
+        line for line in src.splitlines()
+        if not line.lstrip().startswith("#")
+    )
+    assert "check_docker_tz_utc" not in body, (
+        "check_env.py still carries the TZ=UTC probe. This repo's containers run "
+        "Europe/Paris by design — the check must assert agreement, not a value."
+    )
+    assert "check_docker_tz_consistent" in body, (
+        "the container TZ probe is gone entirely. Disagreement between containers "
+        "is a real defect (two log streams that cannot be lined up) — keep a check."
+    )
+
+
+def test_the_host_clock_check_measures_drift_not_zone():
+    """Drift is load-bearing; the host's zone is a display preference.
+
+    Stripe rejects a webhook signature outside a five-minute window and JWT expiry
+    has no tolerance at all — so an unsynchronised clock breaks the money path with
+    an error that names none of this. Whether the developer's laptop reads UTC or
+    CEST changes nothing.
+    """
+    src = (SCRIPTS / "check_env.py").read_text(encoding="utf-8")
+    body = "\n".join(
+        line for line in src.splitlines()
+        if not line.lstrip().startswith("#")
+    )
+    assert "check_clock_sync" in body, "the clock-sync check is gone"
+    assert "set-timezone UTC" not in body, (
+        "check_env still tells the developer to set their host timezone to UTC. "
+        "That requirement came from another deployment; this one only needs the "
+        "clock synchronised."
+    )

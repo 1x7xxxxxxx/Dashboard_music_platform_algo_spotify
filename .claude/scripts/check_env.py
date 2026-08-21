@@ -88,12 +88,17 @@ def check_requirements() -> bool:
     return False
 
 
-def check_docker() -> bool:
+def _find_docker() -> str | None:
+    """The docker binary, WSL-side or via Docker Desktop on Windows."""
     docker = shutil.which("docker")
-    if not docker:
-        win_path = "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe"
-        if os.path.exists(win_path):
-            docker = win_path
+    if docker:
+        return docker
+    win_path = "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe"
+    return win_path if os.path.exists(win_path) else None
+
+
+def check_docker() -> bool:
+    docker = _find_docker()
     if not docker:
         warn("docker not found — Docker Desktop may not be running")
         return False
@@ -202,73 +207,102 @@ def check_postgres_port() -> bool:
         return False
 
 
-def check_timezone() -> bool:
-    """Verify system clock is UTC-synchronized (brick sync-phase-0-clock-hygiene)."""
+def check_clock_sync() -> bool:
+    """Is the clock SYNCHRONISED? Not: does it read UTC.
+
+    This asked for both until 2026-08-21, and failed on the second half for every
+    developer whose machine is on local time — which is all of them. Requiring a
+    UTC host clock came from an industrial-PC deployment, not from here: this repo
+    writes UTC-aware timestamps in code
+    (`datetime.now(timezone.utc).isoformat(...)`, see `.claude/rules/python.md`),
+    and its containers deliberately run `TZ=Europe/Paris`. The host's zone is a
+    display preference.
+
+    Drift, on the other hand, is load-bearing and silent: Stripe rejects a webhook
+    signature outside a five-minute window, JWTs expire against wall-clock, and
+    OAuth refresh windows are absolute. A clock an hour out breaks the money path
+    with an error that names none of this.
+    """
     timedatectl = shutil.which("timedatectl")
     if not timedatectl:
-        warn("timedatectl not found — UTC sync check skipped (macOS/Windows host)")
+        warn("timedatectl not found — clock-sync check skipped (macOS/Windows host)")
         return True
     try:
         r = subprocess.run([timedatectl, "status"], capture_output=True, text=True, timeout=4)
         if r.returncode != 0:
             warn("timedatectl status failed — cannot verify NTP sync")
             return False
-        out = r.stdout
-        synced = "System clock synchronized: yes" in out
-        utc_zone = "Time zone: UTC" in out or "(UTC, +0000)" in out
-        if synced and utc_zone:
-            ok("System clock UTC-synchronized (timedatectl)")
+        if "System clock synchronized: yes" in r.stdout:
+            zone = next((ln.split(":", 1)[1].strip()
+                         for ln in r.stdout.splitlines() if "Time zone:" in ln), "?")
+            ok(f"clock NTP-synchronised (zone {zone} — display only, code writes UTC)")
             return True
-        msg = []
-        if not synced:
-            msg.append("NTP not synced")
-        if not utc_zone:
-            msg.append("host TZ not UTC")
-        warn(f"timedatectl: {', '.join(msg)} — run: sudo timedatectl set-timezone UTC + install chrony")
+        warn("clock NOT NTP-synchronised — Stripe webhooks tolerate 5 min of drift, "
+             "JWT expiry none. Fix: sudo timedatectl set-ntp true (or install chrony)")
         return False
     except subprocess.TimeoutExpired:
         warn("timedatectl timed out (>4s)")
         return False
 
+def check_docker_tz_consistent() -> bool:
+    """Every container this repo declares must carry the SAME explicit TZ.
 
-def check_docker_tz_utc() -> bool:
-    """Verify running compose services expose TZ=UTC (brick sync-phase-0-clock-hygiene)."""
-    docker = shutil.which("docker")
+    This probe used to assert `TZ=UTC` (brick sync-phase-0-clock-hygiene, from the
+    repo the payload was cut from). That is not this project's choice: all five
+    services declare `TZ: Europe/Paris` in compose, deliberately and with a comment
+    saying so, while Airflow runs `core.default_timezone = utc` — so schedules are
+    UTC-interpreted no matter what the OS clock says. On 2026-08-21 the old check
+    reported "2 containers without TZ=UTC" and nearly caused a deliberate,
+    documented configuration to be changed.
+
+    A check that demands a value the project did not choose does not find defects,
+    it manufactures them — and the reader learns to ignore the line.
+
+    What actually goes wrong here is DISAGREEMENT: one container silently on UTC
+    while its siblings are on Europe/Paris makes two log streams and two `date`
+    outputs that cannot be lined up. So that is what this measures.
+    """
+    docker = _find_docker()
     if not docker:
-        win_path = "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe"
-        if os.path.exists(win_path):
-            docker = win_path
-    if not docker:
-        warn("docker not found — TZ=UTC container check skipped")
+        warn("docker not found — container TZ check skipped")
         return True
     try:
-        r = subprocess.run([docker, "ps", "--format", "{{.Names}}"], capture_output=True, text=True, timeout=4)
+        r = subprocess.run([docker, "ps", "--format", "{{.Names}}"],
+                           capture_output=True, text=True, timeout=4)
         if r.returncode != 0 or not r.stdout.strip():
-            warn("no running containers — TZ=UTC check skipped (run: docker compose up)")
+            warn("no running containers — TZ check skipped (run: make up)")
             return True
+
         declared = _declared_container_names()
         running = [n for n in r.stdout.strip().splitlines() if n]
         if declared:
             running = [n for n in running if n in declared]
         if not running:
-            warn("none of this repo's containers are running — TZ=UTC check skipped (run: make up)")
+            warn("none of this repo's containers are running — TZ check skipped (run: make up)")
             return True
-        bad = []
+
+        seen: dict[str, list[str]] = {}
         for name in running:
-            env = subprocess.run([docker, "exec", name, "env"], capture_output=True, text=True, timeout=3)
-            if env.returncode != 0:
-                continue
-            if "TZ=UTC" not in env.stdout:
-                bad.append(name)
-        if bad:
-            warn(f"{len(bad)} container(s) without TZ=UTC: {', '.join(bad)} — add `- TZ=UTC` to their environment block")
+            env = subprocess.run([docker, "exec", name, "printenv", "TZ"],
+                                 capture_output=True, text=True, timeout=3)
+            tz = env.stdout.strip() if env.returncode == 0 else ""
+            seen.setdefault(tz or "(unset)", []).append(name)
+
+        if "(unset)" in seen:
+            warn(f"TZ not set on: {', '.join(seen['(unset)'])} — "
+                 "add `TZ: <zone>` to their environment block so the clock is a choice")
             return False
-        ok("All running containers expose TZ=UTC")
+        if len(seen) > 1:
+            detail = " · ".join(f"{tz}: {', '.join(cs)}" for tz, cs in sorted(seen.items()))
+            warn(f"containers disagree on TZ — {detail}. Two log streams that cannot be lined up.")
+            return False
+
+        tz = next(iter(seen))
+        ok(f"all {len(running)} container(s) agree on TZ={tz}")
         return True
     except subprocess.TimeoutExpired:
-        warn("docker exec timed out — TZ=UTC check partial")
+        warn("docker exec timed out — TZ check partial")
         return False
-
 
 def check_tests() -> bool:
     tests_dir = os.path.join(APP_DIR, "tests")
@@ -309,8 +343,8 @@ def main() -> None:
         "Docker":            check_docker(),
         f"PostgreSQL :{_declared_pg_port()}": check_postgres_port(),
         **({"QuestDB :9000": check_questdb_port()} if _declares("questdb") else {}),
-        "Host UTC sync":     check_timezone(),
-        "Container TZ=UTC":  check_docker_tz_utc(),
+        "Clock NTP sync":    check_clock_sync(),
+        "Container TZ agree": check_docker_tz_consistent(),
         "Test suite":        check_tests(),
     }
 

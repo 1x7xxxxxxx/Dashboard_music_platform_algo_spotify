@@ -138,13 +138,10 @@ def _inject_py(path: Path, entry: dict) -> tuple[bool, str]:
         docstring[:m.start()] + m.group(1) + new_yaml + m.group(3)
         + docstring[m.end():]
     )
-    # Replace the original docstring literal in src. Use the AST col_offset
-    # to find the exact source span. ast.Constant nodes include end_col_offset
-    # in py3.8+, but a simpler robust approach is to find and replace the
-    # original string content, since the docstring is unique enough.
-    old_literal = src[doc.col_offset:]
-    # Find the closing triple-quote of the docstring relative to its start.
-    # ast.get_source_segment is the right tool here.
+    # Replace the original docstring literal in src. `ast.get_source_segment`
+    # returns the exact span including its quotes, which is what we need — an
+    # earlier attempt sliced from `doc.col_offset` by hand and left `old_literal`
+    # behind, assigned and never read.
     src_segment = ast.get_source_segment(src, doc)
     if src_segment is None:
         return False, "could not extract docstring source segment"

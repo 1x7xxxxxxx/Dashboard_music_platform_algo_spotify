@@ -27,15 +27,23 @@ The script checks:
 - Docker daemon reachable
 - **PostgreSQL on the port this repo's compose declares** — 5433 here, read from
   `docker-compose.yml`, not assumed
-- Host clock UTC-synchronized via `timedatectl`
-- **This repo's** running containers expose `TZ=UTC` — scoped to the
-  `container_name:` entries compose declares, so a neighbouring project's
-  containers are not reported
+- Host clock **NTP-synchronised** via `timedatectl` — drift, not zone. Stripe
+  rejects a webhook signature outside a five-minute window and JWT expiry has no
+  tolerance; whether your laptop reads CEST or UTC changes nothing
+- **This repo's** containers **agree on a TZ** — scoped to the `container_name:`
+  entries compose declares, so a neighbouring project's containers are not
+  reported. All five services declare `TZ: Europe/Paris` on purpose, and Airflow
+  runs `core.default_timezone = utc`, so a probe demanding `TZ=UTC` would be
+  asking to break a deliberate choice. Disagreement between containers is the
+  real defect — two log streams that cannot be lined up
 - Test suite collectable (`pytest --collect-only`)
 
 Probes for services this repo does not declare (QuestDB, for one) stay silent —
 `_declares()` gates them. A warning about an imaginary dependency teaches the
-reader to ignore warnings.
+reader to ignore warnings, and so does a check that demands a value the project
+never chose: the two TZ checks above each did exactly that until 2026-08-21, and
+between them accounted for both false positives in a 7/10 score. It reads 9/10
+now, and the one remaining warning is a real blocker (R18).
 
 ## After running
 

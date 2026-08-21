@@ -11,7 +11,7 @@ Ce script teste isolément chaque étape du processus Spotify :
 import os
 import sys
 import logging
-from datetime import datetime, date
+from datetime import date
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -47,17 +47,17 @@ def print_header(title):
 
 def step_1_check_env():
     print_header("Étape 1 : Vérification .env")
-    
+
     required = [
-        "SPOTIFY_CLIENT_ID", 
-        "SPOTIFY_CLIENT_SECRET", 
+        "SPOTIFY_CLIENT_ID",
+        "SPOTIFY_CLIENT_SECRET",
         "SPOTIFY_ARTIST_IDS",
-        "DATABASE_HOST", 
-        "DATABASE_NAME", 
-        "DATABASE_USER", 
+        "DATABASE_HOST",
+        "DATABASE_NAME",
+        "DATABASE_USER",
         "DATABASE_PASSWORD"
     ]
-    
+
     missing = []
     for var in required:
         val = os.getenv(var)
@@ -78,10 +78,10 @@ def step_1_check_env():
 
 def step_2_test_api_auth():
     print_header("Étape 2 : Test Authentification API")
-    
+
     client_id = os.getenv('SPOTIFY_CLIENT_ID')
     client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
-    
+
     try:
         collector = SpotifyCollector(client_id, client_secret)
         # Test simple : chercher "Daft Punk" pour valider le token
@@ -98,21 +98,21 @@ def step_2_test_api_auth():
 
 def step_3_collect_data(collector):
     print_header("Étape 3 : Test Collecte Données")
-    
+
     artist_ids = os.getenv('SPOTIFY_ARTIST_IDS', '').split(',')
     # On teste seulement sur le premier artiste pour aller vite
     test_id = artist_ids[0].strip()
-    
+
     if not test_id:
         logger.warning("⚠️ Aucun ID artiste valide trouvé.")
         return None
 
     logger.info(f"🧪 Test sur l'artiste ID : {test_id}")
-    
+
     # 1. Info Artiste
     logger.info("   [A] Récupération Infos Artiste...")
     artist_info = collector.get_artist_info(test_id)
-    
+
     if artist_info:
         logger.info(f"       ✅ Nom : {artist_info['name']}")
         logger.info(f"       ✅ Followers : {artist_info['followers']}")
@@ -124,7 +124,7 @@ def step_3_collect_data(collector):
     # 2. Top Tracks
     logger.info("   [B] Récupération Top Tracks...")
     tracks = collector.get_artist_top_tracks(test_id)
-    
+
     if tracks:
         logger.info(f"       ✅ {len(tracks)} tracks trouvées.")
         logger.info(f"       🎵 Top 1 : {tracks[0]['track_name']} (Pop: {tracks[0]['popularity']})")
@@ -135,7 +135,7 @@ def step_3_collect_data(collector):
 
 def step_4_check_database():
     print_header("Étape 4 : Connexion BDD")
-    
+
     try:
         db = PostgresHandler(
             host=os.getenv('DATABASE_HOST'),
@@ -145,7 +145,7 @@ def step_4_check_database():
             password=os.getenv('DATABASE_PASSWORD')
         )
         logger.info("✅ Connexion réussie.")
-        
+
         # Vérif Tables
         tables = ['artists', 'tracks', 'artist_history', 'track_popularity_history']
         for t in tables:
@@ -154,7 +154,7 @@ def step_4_check_database():
                 logger.info(f"   ✅ Table '{t}' détectée.")
             except Exception:
                 logger.warning(f"   ⚠️ Table '{t}' manquante ou erreur d'accès.")
-        
+
         db.close()
         return True
     except Exception as e:
@@ -163,7 +163,7 @@ def step_4_check_database():
 
 def step_5_dry_run_insert(data):
     print_header("Étape 5 : Simulation Insertion (Dry Run)")
-    
+
     if not data:
         logger.info("⏩ Pas de données à insérer.")
         return
@@ -179,7 +179,7 @@ def step_5_dry_run_insert(data):
 
     # Simulation Artist History
     print("\n🔹 [Table: artist_history] (Insert Snapshot)")
-    print(f"   SQL : INSERT INTO artist_history (artist_id, followers, popularity, collected_at)")
+    print("   SQL : INSERT INTO artist_history (artist_id, followers, popularity, collected_at)")
     print(f"         VALUES ('{artist['artist_id']}', {artist['followers']}, {artist['popularity']}, NOW())")
 
     # Simulation Tracks
@@ -192,8 +192,8 @@ def step_5_dry_run_insert(data):
         # Simulation Track Popularity History
         print("\n🔹 [Table: track_popularity_history] (Insert Snapshot)")
         print(f"   Clé Unique : Track ID + Date du jour ({date.today()})")
-        print(f"   SQL : INSERT INTO track_popularity_history (track_id, popularity, date) ...")
-        print(f"         ON CONFLICT (track_id, date) DO UPDATE ...")
+        print("   SQL : INSERT INTO track_popularity_history (track_id, popularity, date) ...")
+        print("         ON CONFLICT (track_id, date) DO UPDATE ...")
 
     logger.info("✅ Logique d'insertion valide.")
 
@@ -207,5 +207,5 @@ if __name__ == "__main__":
             data = step_3_collect_data(collector)
             if step_4_check_database() and data:
                 step_5_dry_run_insert(data)
-    
+
     print("\n✅ Debugging terminé.")

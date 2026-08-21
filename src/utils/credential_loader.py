@@ -27,6 +27,33 @@ class UnknownArtistError(RuntimeError):
     """A specific artist_id was requested but is absent or inactive."""
 
 
+def _connect(autocommit: bool = False):
+    """The one place this module opens a database connection.
+
+    Four functions below each read the same five variables and called
+    `psycopg2.connect` with the same keywords. Four copies of a DSN is four
+    places to forget a parameter — and the parameter most easily forgotten here
+    is the port: containers reach Postgres on 5432 internally, while this repo
+    publishes 5433 on the host. One factory means one place to be wrong, and one
+    place to fix.
+
+    `psycopg2` stays a function-level import: this module is loaded by Airflow
+    DAG parsing, where a missing driver at import time takes down the whole DAG
+    file rather than the one task that needs it.
+    """
+    import psycopg2
+
+    conn = psycopg2.connect(
+        host=os.getenv('DATABASE_HOST', 'localhost'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD', ''),
+    )
+    conn.autocommit = autocommit
+    return conn
+
+
 def load_platform_credentials(artist_id: int, platform: str) -> dict:
     """Retourne les credentials déchiffrés pour (artist_id, platform).
 
@@ -44,20 +71,10 @@ def load_platform_credentials(artist_id: int, platform: str) -> dict:
         if not user_id:
             continue  # pas connecté — on saute, on n'emprunte pas une identité
     """
-    import psycopg2
-
-    host = os.getenv('DATABASE_HOST', 'localhost')
-    port = int(os.getenv('DATABASE_PORT', 5432))
-    database = os.getenv('DATABASE_NAME', 'spotify_etl')
-    user = os.getenv('DATABASE_USER', 'postgres')
-    password = os.getenv('DATABASE_PASSWORD', '')
     fernet_key = os.getenv('FERNET_KEY', '')
 
     try:
-        conn = psycopg2.connect(
-            host=host, port=port, database=database,
-            user=user, password=password
-        )
+        conn = _connect()
         cur = conn.cursor()
         cur.execute(
             "SELECT token_encrypted, extra_config "
@@ -117,28 +134,17 @@ def update_platform_secret(artist_id: int, platform: str,
                                expires_at=datetime(2026, 5, 25))
     """
     import json
-    import psycopg2
 
     fernet_key = os.getenv('FERNET_KEY', '')
     if not fernet_key:
         logger.warning("update_platform_secret: FERNET_KEY not set — skipping.")
         return
 
-    host = os.getenv('DATABASE_HOST', 'localhost')
-    port = int(os.getenv('DATABASE_PORT', 5432))
-    database = os.getenv('DATABASE_NAME', 'spotify_etl')
-    user = os.getenv('DATABASE_USER', 'postgres')
-    password = os.getenv('DATABASE_PASSWORD', '')
-
     try:
         from cryptography.fernet import Fernet
         f = Fernet(fernet_key.encode())
 
-        conn = psycopg2.connect(
-            host=host, port=port, database=database,
-            user=user, password=password
-        )
-        conn.autocommit = True
+        conn = _connect(autocommit=True)
         cur = conn.cursor()
 
         # Read current blob
@@ -198,20 +204,9 @@ def save_platform_credentials(artist_id: int, platform: str, extra_updates: dict
         save_platform_credentials(1, 'soundcloud', {'client_id': 'newvalue'})
     """
     import json
-    import psycopg2
-
-    host = os.getenv('DATABASE_HOST', 'localhost')
-    port = int(os.getenv('DATABASE_PORT', 5432))
-    database = os.getenv('DATABASE_NAME', 'spotify_etl')
-    user = os.getenv('DATABASE_USER', 'postgres')
-    password = os.getenv('DATABASE_PASSWORD', '')
 
     try:
-        conn = psycopg2.connect(
-            host=host, port=port, database=database,
-            user=user, password=password
-        )
-        conn.autocommit = True
+        conn = _connect(autocommit=True)
         cur = conn.cursor()
         cur.execute(
             """
@@ -246,19 +241,8 @@ def get_active_artists(include_artist_id: int = None) -> list:
 
     Retourne [(id, name), ...].
     """
-    import psycopg2
-
-    host = os.getenv('DATABASE_HOST', 'localhost')
-    port = int(os.getenv('DATABASE_PORT', 5432))
-    database = os.getenv('DATABASE_NAME', 'spotify_etl')
-    user = os.getenv('DATABASE_USER', 'postgres')
-    password = os.getenv('DATABASE_PASSWORD', '')
-
     try:
-        conn = psycopg2.connect(
-            host=host, port=port, database=database,
-            user=user, password=password
-        )
+        conn = _connect()
         cur = conn.cursor()
 
         if include_artist_id:

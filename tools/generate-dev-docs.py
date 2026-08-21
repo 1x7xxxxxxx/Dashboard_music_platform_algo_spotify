@@ -12,12 +12,10 @@ Only stdlib dependencies. No PyYAML, no requests, nothing to install.
 
 import argparse
 import ast
-import os
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 # ---------------------------------------------------------------------------
@@ -629,8 +627,8 @@ def update_roadmap_stats(
     lines = [
         f"*Auto-generated {datetime.now().strftime('%Y-%m-%d %H:%M')}*",
         "",
-        f"| Metric | Count |",
-        f"|--------|-------|",
+        "| Metric | Count |",
+        "|--------|-------|",
         f"| Python modules | {len(modules)} |",
         f"| API endpoints  | {len(routes)} |",
         f"| DB tables      | {len(tables)} |",
@@ -638,7 +636,7 @@ def update_roadmap_stats(
     content = "\n".join(lines)
     updated = update_marker(roadmap_file, "STATS", content, dry_run=dry_run, verbose=verbose)
     if verbose and updated:
-        print(f"  ✓ ROADMAP.md — stats updated")
+        print("  ✓ ROADMAP.md — stats updated")
     return updated
 
 
@@ -696,7 +694,7 @@ def write_gantt_chart(
         m = brick_line.match(stripped)
         if not m:
             continue
-        num, desc = m.group(1), m.group(2)[:60]
+        num = m.group(1)
 
         if in_completed:
             completed.append(f"Brick {num}")
@@ -717,8 +715,8 @@ def write_gantt_chart(
     lines = [
         f"*Auto-generated {datetime.now().strftime('%Y-%m-%d')} from ROADMAP.md*",
         "",
-        f"| Status | Count | Bricks |",
-        f"|--------|-------|--------|",
+        "| Status | Count | Bricks |",
+        "|--------|-------|--------|",
         f"| Active P1 | {len(active)} | {', '.join(active) or '—'} |",
         f"| Planned | {len(planned)} | {', '.join(planned) or '—'} |",
         f"| Blocked | {len(blocked)} | {', '.join(blocked) or '—'} |",

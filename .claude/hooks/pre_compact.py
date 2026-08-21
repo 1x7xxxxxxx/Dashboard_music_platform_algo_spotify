@@ -40,7 +40,8 @@ def _get_git_files(repo_root: Path) -> list[str]:
             ["git", "status", "--short"],
             capture_output=True, text=True, cwd=repo_root, timeout=5,
         )
-        return [l for l in r.stdout.strip().splitlines() if not any(p in l for p in _SKIP)]
+        return [ln for ln in r.stdout.strip().splitlines()
+                if not any(p in ln for p in _SKIP)]
     except (OSError, subprocess.TimeoutExpired):
         return []
 
@@ -113,6 +114,24 @@ def _build_content(timestamp: str, branch: str, git_str: str, devlog: str, wip: 
     )
 
 
+def _strip_timestamps(text: str) -> str:
+    """The snapshot minus the two lines that carry its own timestamp."""
+    return "\n".join(
+        ln for ln in text.splitlines()
+        if not ln.startswith("# Session State — ")
+        and ".claude/sessions/session-" not in ln
+    )
+
+
+def _same_state(previous: Path, content: str) -> bool:
+    """Does the newest snapshot already say exactly this?"""
+    try:
+        return _strip_timestamps(previous.read_text(encoding="utf-8")) == \
+            _strip_timestamps(content)
+    except OSError:
+        return False
+
+
 def main() -> None:
     try:
         json.load(sys.stdin)
@@ -126,18 +145,31 @@ def main() -> None:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     branch = _get_git_branch(repo_root)
     git_files = _get_git_files(repo_root)
-    git_str = "\n".join(f"  {l}" for l in git_files[:10]) or "  (clean)"
+    git_str = "\n".join(f"  {ln}" for ln in git_files[:10]) or "  (clean)"
     devlog = _get_last_devlog(repo_root)
     wip_dir = repo_root / ".claude" / "dev-docs" / "work-in-progress"
     wip = _get_wip_summary(wip_dir)
 
     content = _build_content(timestamp, branch, git_str, devlog, wip)
+
+    # Retention keeps the last 10 snapshots, so an identical rewrite is not free:
+    # it evicts a genuinely different one. Measured 2026-07-27 — this hook fired
+    # five times within five seconds and wrote five byte-identical files, spending
+    # half the window on one compaction event. Compare on everything but the
+    # timestamp, which is the only line that always differs.
+    all_sessions = sorted(sessions_dir.glob("session-*.md"), key=lambda f: f.stat().st_mtime)
+    if all_sessions and _same_state(all_sessions[-1], content):
+        (sessions_dir / "latest.md").write_text(content, encoding="utf-8")
+        print(f"[PreCompact] State unchanged since {all_sessions[-1].name} — "
+              "refreshed latest.md only")
+        sys.exit(0)
+
     session_file = sessions_dir / f"session-{timestamp}.md"
     session_file.write_text(content, encoding="utf-8")
 
-    all_sessions = sorted(sessions_dir.glob("session-*.md"), key=lambda p: p.stat().st_mtime)
-    for old in all_sessions[:-10]:
-        old.unlink()
+    all_sessions = sorted(sessions_dir.glob("session-*.md"), key=lambda f: f.stat().st_mtime)
+    for stale in all_sessions[:-10]:
+        stale.unlink()
 
     (sessions_dir / "latest.md").write_text(content, encoding="utf-8")
     print(f"[PreCompact] Session state saved to .claude/sessions/session-{timestamp}.md")

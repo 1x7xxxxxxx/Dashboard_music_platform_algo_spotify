@@ -22,7 +22,17 @@ Only literal, locally-resolvable payloads are judged — an unresolvable one is
 reported as UNKNOWN (visible, not silently passed). Exit 1 on any MISSING.
 
 ---
-rex: []
+rex:
+  - date: 2026-08-20
+    issue: "A tenant-scoped write with no artist_id key does not fail. upsert_many derives the INSERT column list from the payload keys, and the column carried DEFAULT 1, so Postgres filled in the admin. track_popularity_history stored every tenant's Spotify history under artist_id=1 for months with no error and no alert."
+    fix: "Scan is AST-based on the payload, not textual: a dict literal missing the key is MISSING, an unresolvable payload is UNKNOWN and stays visible rather than passing. Wired into audit_runner via the write-without-explicit-artist-id signature, so it runs in CI instead of on request."
+    ref: "DEVLOG#2026-08-20"
+    severity: crit
+  - date: 2026-08-21
+    issue: "Written 2026-08-20 but never committed — it lived in the working tree alone, alongside five migrations and fourteen test files. A `git checkout .` would have deleted the whole P1 fix, guard included."
+    fix: "Committed (83d3c63). The durable lesson is not about this file: check `git status` before believing a piece of work exists. Three sessions of P1 work were never on any branch."
+    ref: "R26"
+    severity: warn
 ---
 """
 from __future__ import annotations

@@ -819,3 +819,18 @@ pointeur qui rate ne se plaint pas.
   deux locataires détenteurs d'une chaîne YouTube détiennent chacun la leur.
   `artist_preflight --artist 12` tourne de bout en bout et s'arrête, à raison, sur les
   identités manquantes de Benken (Spotify, Instagram) et sur le token Meta de R13.
+
+### P3 — Outillage rendu exécutable là où il compte (clos, 2026-08-21)
+
+- [x] **R37 — `make` absent du serveur de production** (P3) — ouvert et clos le même
+  jour. `make migrate` sortait en **127** sur la prod pendant que `make deploy`
+  marchait, parce que `deploy` met sa logique dans `tools/deploy.sh` et fait
+  `ssh … bash`. La logique de migration est passée dans **`tools/migrate.sh`** sur le
+  même modèle, le Makefile y délègue, et **`make migrate-prod PROD_SSH=…`** ajoute le
+  wrapper ssh qui manquait — avec un rappel de l'ordre (le code d'abord, cf.
+  `migration-ahead-of-its-code`). Le script garde les deux propriétés apprises du run
+  réel : il continue après une erreur (c'est ce qui permet à 044 de réparer 024) et il
+  **nomme** les fichiers en erreur au lieu de se taire. Garde
+  `tests/test_migrate_reports_errors.py` repointé sur le script, plus une assertion
+  dédiée : « les migrations doivent être lançables sans `make` ». Toute procédure
+  écrite « lance `make X` sur la prod » est de nouveau vraie.

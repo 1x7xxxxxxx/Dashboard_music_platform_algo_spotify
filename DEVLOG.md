@@ -5,6 +5,59 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-21 — La fuite locataire déployée en production, et la config recentrée sur ce dépôt
+
+**Contexte** : le correctif P1 de fuite locataire, travaillé sur trois sessions du 20/08,
+n'était **ni commité ni sur `main`** — il ne vivait que dans l'arbre de travail. Prod à
+`96554a2` (2026-06-20), soit deux mois de retard. Sortie : prod à `fda33dc`, `prod ==
+canonique`, 715 tests verts, ruff propre sur **tout** le dépôt.
+
+### Ce qui a changé
+
+- **Le correctif P1 existe enfin quelque part** (`83d3c63`) — 5 migrations, ~14 fichiers de
+  test, 6835 insertions. Un `git checkout .` l'effaçait. Leçon transverse : vérifier
+  `git status` avant de croire qu'un travail existe.
+- **Déployé et vérifié en fonction, pas seulement en structure** : `youtube_videos` et
+  `youtube_channels` en `PRIMARY KEY (id)` avec index uniques scopés ; **0 colonne
+  `artist_id` avec `DEFAULT`** (55 avant), 76/81 en `NOT NULL`. DAG `youtube_daily`
+  déclenché → `success`, **67 vidéos + 67 stats réécrites** — l'`ON CONFLICT` résout contre
+  le nouveau schéma, ce qui est précisément ce qui avait cassé le 20/08. `make sync-check` :
+  917 colonnes / 91 tables identiques, code déployé == `origin/main`.
+- **Le run réel a trouvé un défaut du chemin de déploiement** : `psql` sans `ON_ERROR_STOP`
+  sort en 0, et `migrate` jetait sa sortie. Le jeu est idempotent **en cycle complet**, pas
+  fichier par fichier — `024` supprime une clé primaire que seule `044` rétablit. La cible
+  nomme désormais les fichiers en erreur. Classe `migrate-heals-only-if-run-to-completion`.
+- **`make` est absent du serveur** (R37) : `make migrate` y sortait en 127. La logique est
+  passée dans `tools/migrate.sh`, sur le modèle de `deploy.sh`, plus `make migrate-prod`.
+- **La config décrivait un autre projet** (R36) — 11 surfaces corrigées. La plus grave : la
+  **règle transverse #6** impose `/audit-collectors`, et la commande auditait des lecteurs
+  OPC UA Fanuc. Deux défauts conséquents trouvés au passage : la sonde Docker du hook Stop
+  surveillait les conteneurs `msdr_*` et **passait au vert parce qu'ils tournent sur cette
+  machine** ; et le flux d'observations avait changé de répertoire le 28/07 sans que
+  `draft_devlog.py` suive, d'où un `pending-devlog.md` figé depuis mai.
+- **Deux surfaces d'architecture, une vide** (R34) : `dev-docs/architecture/` retirée — 584
+  `[TODO]`, aucun lecteur vivant, et son mécanisme de remplissage (`/dev-docs-init`, agent
+  `dev-docs-architect`) n'existe pas ici.
+- **`check_env` mesurait la mauvaise chose deux fois** : il exigeait `TZ=UTC` sur des
+  conteneurs qui déclarent `Europe/Paris` **à dessein** (Airflow tourne déjà en
+  `default_timezone = utc`), et une horloge hôte en UTC qu'aucun poste de dev n'a. C'étaient
+  les deux faux positifs d'un score de 7/10. Il mesure maintenant l'**accord** entre
+  conteneurs et la **synchronisation NTP** — la dérive casse la tolérance de 5 min des
+  webhooks Stripe, le fuseau ne casse rien. 9/10, la seule alerte restante étant réelle.
+- **`ruff check .` : 40 → 0** sur tout le dépôt, et l'étape CI nommée « full project » en est
+  enfin une (elle ne couvrait que `src/ tests/`, laissant `airflow/` — du code monté en
+  production — dehors avec 25 des 40 constats).
+- **Une connexion, une fabrique** (R33) : `credential_loader` portait 4 copies du même DSN.
+
+### Tests
+715 passed, 128 skipped (DB-gated, Postgres local bloqué par R18). Les 5 gardes bloquants de
+CI verts. `ruff check .` propre. CI verte sur les trois pushes.
+
+### Reste à faire
+R18 (`.env` l.67 malformée, fichier deny-listé), R13 (token Meta cassé — remonté par le
+préflight lui-même), R20 (locataire canari, sans lequel `artist-preflight` s'arrête d'emblée),
+R33 sur les 4 modules restants dont `stripe_webhook.py` — chemin de l'argent, à relire seul.
+
 ## 2026-06-19→20 — Benken onboarding incident → central-app model + hardening + readiness loop
 
 **Contexte** : 1er beta externe **Benken** (artist_id=12) — tous les tests credentials KO,

@@ -789,6 +789,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21 (ref: roadmap R36)
 - History:
   - 2026-08-21: found by the R36 domain-leak sweep, not by a report — which is the point. The Stop hook had reported Docker health for weeks; `msdr_api`, `msdr_dashboard` and `msdr_receiver` were all running on this machine, so it printed nothing while this repo's `postgres_spotify_airflow` was down. The TZ probe was louder and therefore easier to catch: it told the user to edit the environment block of `n8n-ollama` and `n8n-postgres`. Guard verified red (4 failures) against the pre-fix modules, green after.
+  - 2026-08-21 (same day, second shape): the class is not only about SCOPE but about ASSERTED VALUE. Two more probes in `check_env.py` demanded what another deployment needed — `TZ=UTC` on containers that declare `Europe/Paris` on purpose (Airflow already runs `core.default_timezone = utc`), and a UTC host clock, which no developer machine has. Both were the false positives in a 7/10 score. Rewritten to measure what can actually go wrong: containers must AGREE on a zone, and the host clock must be NTP-synchronised — drift breaks Stripe's five-minute webhook tolerance and JWT expiry, while the zone is a display preference. Score now 9/10 with one true warning. Guard extended, verified red on the old probes.
 
 ## state-path-namespaced-by-another-project
 - status: guarded
