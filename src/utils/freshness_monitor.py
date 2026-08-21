@@ -13,15 +13,28 @@ _CSV_STALE_H = 7 * 24  # CSV S4A / Apple Music : watcher peu fréquent
 # artist. `artists` is keyed by the SPOTIFY artist id, not the tenant, so a
 # per-tenant call used to silently return the whole fleet's freshness — a green
 # light for a tenant that had never collected anything.
+# `metric_col` — the day the data DESCRIBES, when the table records it separately
+# from the day it was written. Measured in production on 2026-08-21:
+# `meta_insights_performance_day` had `MAX(collected_at)` = that morning and
+# `MAX(day_date)` = **2024-09-30**, with zero rows in the last seven days. The DAG
+# was running, re-upserting the same two-year-old rows, and every freshness probe
+# read the write timestamp and called it fresh. Meta Ads had been dead since
+# early August behind a green light.
+#
+# Where a table has no separate metric date (a snapshot: followers today, tracks
+# today), `collected_at` IS the measurement time and there is nothing to add.
 MONITOR_TARGETS = [
     {"source": "Spotify API",  "table": "artists",                  "col": "collected_at", "stale_h": _DEFAULT_STALE_H, "skip_artist_filter": True,
-     "tenant_table": "track_popularity_history", "tenant_col": "collected_at"},
-    {"source": "Spotify S4A",  "table": "s4a_song_timeline",       "col": "collected_at", "stale_h": _CSV_STALE_H},
+     "tenant_table": "track_popularity_history", "tenant_col": "collected_at",
+     "tenant_metric_col": "date"},
+    {"source": "Spotify S4A",  "table": "s4a_song_timeline",       "col": "collected_at", "stale_h": _CSV_STALE_H,
+     "metric_col": "date"},
     {"source": "YouTube",      "table": "youtube_channel_history",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "SoundCloud",   "table": "soundcloud_tracks_daily",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "Instagram",    "table": "instagram_daily_stats",    "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "Apple Music",  "table": "apple_songs_performance",  "col": "collected_at", "stale_h": _CSV_STALE_H},
-    {"source": "Meta Ads",     "table": "meta_insights_performance_day", "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
+    {"source": "Meta Ads",     "table": "meta_insights_performance_day", "col": "collected_at", "stale_h": _DEFAULT_STALE_H,
+     "metric_col": "day_date"},
 ]
 
 # Allowlists derived from MONITOR_TARGETS — guards against identifier injection
@@ -33,6 +46,8 @@ _ALLOWED_TABLES = frozenset(
 _ALLOWED_COLS = frozenset(
     [t["col"] for t in MONITOR_TARGETS]
     + [t["tenant_col"] for t in MONITOR_TARGETS if t.get("tenant_col")]
+    + [t["metric_col"] for t in MONITOR_TARGETS if t.get("metric_col")]
+    + [t["tenant_metric_col"] for t in MONITOR_TARGETS if t.get("tenant_metric_col")]
 )
 
 
@@ -55,8 +70,14 @@ def check_freshness(db, artist_id=None):
             table, col = t["table"], t["col"]
             # A per-tenant question asked of a table that has no tenant column is
             # answered from the tenant-scoped equivalent, not from the whole fleet.
+            metric_col = t.get("metric_col")
             if artist_id is not None and t.get("tenant_table"):
                 table, col = t["tenant_table"], t.get("tenant_col", col)
+                metric_col = t.get("tenant_metric_col")
+            # The day the data describes beats the day it was written: a collector
+            # that re-upserts old rows keeps the write time moving forever.
+            if metric_col:
+                col = metric_col
             scoped = artist_id is not None and not (
                 t.get("skip_artist_filter") and not t.get("tenant_table"))
 
@@ -92,6 +113,10 @@ def check_freshness(db, artist_id=None):
 
         results.append({
             "source": t["source"],
+            # Which column answered — a reader needs to know whether "fresh" means
+            # "written recently" or "describes a recent day". They are not the same
+            # claim, and conflating them is what hid Meta Ads for weeks.
+            "measured_on": "metric" if t.get("metric_col") or t.get("tenant_metric_col") else "write",
             "last_dt": val,
             "age_h": age_h,
             "stale": stale,
