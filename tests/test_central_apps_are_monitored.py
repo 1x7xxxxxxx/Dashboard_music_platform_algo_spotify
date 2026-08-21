@@ -150,3 +150,63 @@ def test_check_meta_rejects_a_malformed_token_before_any_network_call() -> None:
     with mock.patch.dict(os.environ, {"META_ACCESS_TOKEN": "EEAA" + "x" * 120}), \
          mock.patch.object(central_apps.requests, "get", _explode):
         assert central_apps.check_meta() is False
+
+
+# ── App credentials: the two failures Graph distinguishes and humans do not ──
+
+def _meta_app_probe(app_error: str):
+    """Run check_meta with a well-formed token and a stubbed Graph app response."""
+    import os
+    from unittest import mock
+
+    from src.utils import central_apps
+
+    class _Resp:
+        content = b"{}"
+        status_code = 200
+
+        def json(self):
+            return {"error": {"message": app_error}} if app_error else {
+                "id": "2200684950508458", "name": "ETL_DASHBOARD_SPOTIFY"}
+
+    captured = []
+
+    def _fake_get(url, **kwargs):  # noqa: ANN001, ANN003
+        captured.append(url)
+        return _Resp()
+
+    env = {"META_ACCESS_TOKEN": "EAA" + "x" * 150,
+           "META_APP_ID": "2200684950508458",
+           "META_APP_SECRET": "s" * 32}
+    with mock.patch.dict(os.environ, env), \
+         mock.patch.object(central_apps.requests, "get", _fake_get):
+        return central_apps.check_meta(), captured
+
+
+def test_a_wrong_app_id_is_fatal_and_says_it_is_not_an_ad_account_id(capsys) -> None:
+    """The defect that cost weeks: META_APP_ID held the AD ACCOUNT id.
+
+    Both are plain numbers of similar length and live in different sections of
+    Business Manager, so the failure read as "the token expired" and three separate
+    investigations went to the token instead.
+    """
+    ok, _ = _meta_app_probe("Error validating application. Cannot get application info")
+    out = capsys.readouterr().out
+    assert ok is False, "an app that cannot authenticate must be conclusive, not a warning"
+    assert "AD ACCOUNT" in out and "Apps" in out, out
+
+
+def test_a_wrong_secret_is_named_as_a_secret_problem(capsys) -> None:
+    """Graph distinguishes 'no such app' from 'app found, signature wrong'."""
+    ok, _ = _meta_app_probe("Invalid OAuth access token signature.")
+    out = capsys.readouterr().out
+    assert ok is False
+    assert "META_APP_SECRET does not match" in out, out
+
+
+def test_working_app_credentials_do_not_stop_the_check() -> None:
+    """A healthy app must fall through to the token probe, not short-circuit green."""
+    ok, urls = _meta_app_probe("")
+    assert ok is True
+    assert any("debug_token" in u for u in urls), (
+        "the token probe was skipped — the app check must not replace it")

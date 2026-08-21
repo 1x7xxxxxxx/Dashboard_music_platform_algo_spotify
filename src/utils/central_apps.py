@@ -127,6 +127,41 @@ def check_meta() -> bool:
               "before checking the value itself.")
         return False
     app_id, secret = os.getenv("META_APP_ID"), os.getenv("META_APP_SECRET")
+
+    # The APP credentials are conclusive on their own, and they were the real
+    # blocker for weeks (2026-08-21): META_APP_ID held the AD ACCOUNT id
+    # (567214713853881) instead of the APP id (2200684950508458). Both are plain
+    # numbers of similar length, they live in different sections of Business
+    # Manager, and nothing in the payload distinguishes them — so the failure read
+    # as "the token expired" and three separate investigations went to the token.
+    #
+    # Graph tells the two apart precisely, and the two messages mean different
+    # things. Naming them here is what turns a week into a minute:
+    #   "Cannot get application info"        -> no app under that id (wrong id)
+    #   "Invalid OAuth access token signature" -> app found, secret does not match
+    if app_id and secret:
+        try:
+            resp = requests.get(
+                f"https://graph.facebook.com/v21.0/{app_id}",
+                params={"fields": "id,name", "access_token": f"{app_id}|{secret}"},
+                timeout=TIMEOUT, allow_redirects=False)
+            body = resp.json() if resp.content else {}
+        except (requests.RequestException, ValueError) as e:
+            body = {"error": {"message": f"unreachable: {e}"}}
+        app_err = (body.get("error") or {}).get("message", "")
+        if app_err:
+            hint = ""
+            if "Cannot get application info" in app_err:
+                hint = (" — no app exists under this id. An APP id is NOT an AD "
+                        "ACCOUNT id: check Business Settings > Accounts > Apps, not "
+                        "> Ad accounts. This exact confusion cost weeks of silent "
+                        "non-collection.")
+            elif "signature" in app_err.lower():
+                hint = (" — the app is recognised but META_APP_SECRET does not match "
+                        "it. Reset it in developers.facebook.com > Settings > Basic.")
+            print(f"❌ Meta: app credentials rejected — {app_err[:120]}{hint}")
+            return False
+
     try:
         if app_id and secret:
             resp = requests.get(

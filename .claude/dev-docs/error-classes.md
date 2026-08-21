@@ -1010,3 +1010,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: self-inflicted, and caught the same evening only by asking "what does the thing I just added do to the checks that already exist?". This repo has now paid the cry-wolf tax three times — the migrate reporter naming four re-run artefacts next to one real error, the schema drift where 24 of 26 differences were `text` vs `varchar`, and this. A detector's value is set by the ratio of its findings that deserve an action, not by the number it produces.
+
+## app-id-confused-with-ad-account-id
+- status: fixed
+- severity: P2
+- kind: heuristic
+- symptom: `Error validating application. Cannot get application info due to a system error.` on every Meta call, which reads as "the token expired" — so the investigation goes to the token and never to the app.
+- root_cause: `META_APP_ID` held the admin tenant's **ad account** id (`567214713853881`) instead of the **application** id (`2200684950508458`). Both are plain numbers of similar length, they live in adjacent menus of the same Business Settings page (Accounts → Ad accounts vs Accounts → Apps), and no API payload distinguishes them. Measured 2026-08-21, after three separate investigations had blamed the token. The stored token was ALSO wrong in two independent ways — a stray leading `E` from a paste, and `type=USER` where a `SYSTEM_USER` token was required — so each investigation found a real defect and stopped there, without the app credentials ever being tested against the right app.
+- signature: `python3 -m pytest tests/test_central_apps_are_monitored.py -q`
+- long_term_fix: `check_meta()` probes `GET /{app_id}` with `{app_id}|{secret}` BEFORE anything else and is fatal on failure, printing which of the two failures Graph reported: "no app under that id — an APP id is NOT an AD ACCOUNT id, check Accounts → Apps" versus "app recognised, secret does not match". `.claude/dev-docs/meta-ads-credential-guide.md` documents the three admin variables, where each is read, and its shape.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_central_apps_are_monitored.py }
+- rex_ref: src/utils/central_apps.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: three defects stacked on one integration, each sufficient to break it alone. Finding one and stopping is the trap — a fix that restores nothing means the other layers are still there. Test every layer independently before declaring a cause: app id, then secret, then token shape, then token validity, then token TYPE.
+  - 2026-08-21: the guide already stated "System User tokens — not personal user tokens" while production ran a `type=USER` token. A rule written in prose and verified by nothing is a rule the system does not have.

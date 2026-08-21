@@ -103,7 +103,7 @@ sortie est redirigée. Passer par `audit_runner.py` ou `command grep`.
 **▶️ Où on en est (MAJ 2026-08-21, nuit) — la file d'ingénierie est vide.**
 
 Prod à jour (`prod == canonique`, 920 colonnes / 92 tables, code déployé == `origin/main`,
-registre de migrations **71/71**), **1068 tests verts**, `ruff check .` propre, audit
+registre de migrations **71/71**), **1071 tests verts**, `ruff check .` propre, audit
 déterministe propre, canari de production surveillé. L'index `## 📋 Tâches ouvertes` est
 à **0**, et les trois items de `## 🙋 En attente de toi` demandent chacun un geste que
 seul un humain peut poser — détail juste en dessous.

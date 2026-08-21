@@ -13,6 +13,41 @@ password or loses access.
 
 All artists share the same Meta app: **ETL_DASHBOARD_SPOTIFY**. Artists do NOT create their own app.
 
+### The three ADMIN variables, and the trap that cost weeks
+
+These live in the server's `.env` (gitignored — never in the repo, `detect-secrets`
+blocks it at commit time anyway). Values are **not** documented here; their MEANING is.
+
+| variable | what it is | where to read it | shape |
+|---|---|---|---|
+| `META_APP_ID` | the **application** id | Business Settings → **Accounts → Apps** | 15–16 digits |
+| `META_APP_SECRET` | that application's secret | developers.facebook.com → the app → Settings → Basic | 32 hex chars |
+| `META_ACCESS_TOKEN` | a **System User** token | Business Settings → Users → **System Users** → Generate token | starts with `EAA` |
+
+⚠️ **An App ID is NOT an Ad Account ID.** Measured 2026-08-21: `META_APP_ID` held
+`567214713853881`, which is the *ad account* id of the admin tenant, while the app is
+`2200684950508458`. Both are plain numbers of similar length, they sit in adjacent menus
+of the same settings page, and nothing in an API payload tells them apart. The symptom
+was `Error validating application. Cannot get application info`, which reads as "the
+token expired" — so three separate investigations went to the token and none to the app.
+
+Graph distinguishes the two failures precisely, and `check_meta()` now prints which:
+
+| Graph says | means |
+|---|---|
+| `Cannot get application info` | no app under that id → **wrong `META_APP_ID`** |
+| `Invalid OAuth access token signature` | app found, **secret does not match** |
+| `Malformed access token` | the token's shape is wrong (a stray pasted character) |
+| `The session has been invalidated…` | a real token, but revoked — regenerate |
+
+⚠️ **Check the token TYPE, not only its validity.** The token found in production on
+2026-08-21 was `type=USER` with 52 scopes — a personal token, not a System User one.
+That is why a Facebook password change killed it, and why regenerating the same kind
+would only postpone the outage. `debug_token` reports the type; it must read
+`SYSTEM_USER`. A System User token does not expire and does not depend on anyone's
+password — which is exactly what the paragraph above this table already promised, and
+what nothing verified.
+
 ---
 
 ## What is automated vs manual
