@@ -86,8 +86,9 @@ def step_central_apps(scope: set[str] | None = None) -> bool:
     step 1, before anything about the tenant was even looked at. A gate must fail
     on what it was asked to prove, not on its neighbours.
     """
-    from tools.check_central_apps import (check_all_configured, check_meta,
-                                          check_soundcloud, check_spotify, check_youtube)
+    from src.utils.central_apps import missing_central_env
+    from tools.check_central_apps import (check_meta, check_soundcloud,
+                                          check_spotify, check_youtube)
     print("\n▶ 1. Central apps (shared, admin-owned)")
     checks = {"spotify": check_spotify, "youtube": check_youtube,
               "soundcloud": check_soundcloud, "meta": check_meta}
@@ -99,9 +100,15 @@ def step_central_apps(scope: set[str] | None = None) -> bool:
                 print(f"   ↑ {key} is red but out of scope (--platforms) — not gating.")
             continue
         gating = gating and ok
-    # check_all_configured() reports absences across every platform, so it only
-    # gates an unrestricted run.
-    return (check_all_configured() if scope is None else True) and gating
+    # Absence is NARROWED to the scope, not skipped. It used to gate only an
+    # unrestricted run — and the standing production verification is documented as
+    # `--platforms youtube`, so the absence check never ran where it mattered most.
+    # A scoped run must still prove that what it claims to prove is configured.
+    missing = missing_central_env(scope)
+    for platform, variables in missing.items():
+        print(f"  {_KO} {platform}: central app NOT configured — "
+              f"missing {', '.join(variables)}")
+    return not missing and gating
 
 
 def _credentials(db, artist_id: int) -> dict:

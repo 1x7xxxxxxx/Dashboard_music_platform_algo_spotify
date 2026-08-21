@@ -130,6 +130,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [guard-derived-from-the-thing-it-guards](#guard-derived-from-the-thing-it-guards) | P2 | deterministic | guarded | none |
 | [broken-probe-rendered-as-user-fault](#broken-probe-rendered-as-user-fault) | P2 | deterministic | guarded | none |
 | [row-existence-read-as-connection](#row-existence-read-as-connection) | P2 | deterministic | guarded | none |
+| [gate-with-no-test-of-its-own](#gate-with-no-test-of-its-own) | P3 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -517,6 +518,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
+  - 2026-08-22: **`reported` → `guarded`, `manual` → `deterministic`.** `--require` existed since 2026-08-20 and was reachable only by a human typing it. The NIGHTLY path called the bare probes, which return True on absent env by design — correct for a partial deployment, blind in production. Absence is now red inside `alert_monitor.check_central_apps` before any probe runs, and the preflight narrows the absence check to its scope instead of skipping it. New signature: `python3 -m pytest tests/test_central_apps_are_monitored.py -q`, which no longer needs the operator's real env file.
   - 2026-06-19: SoundCloud central app was unprovisioned in prod ("app non configurée → contacter admin"). The model needs the admin to provision + rotate one app per platform. `tools/check_central_apps.py` probes each before a tenant hits it; run pre-onboarding-session.
   - 2026-08-20: the probe existed but was never run before a session, and its skip-on-absent behaviour meant it would have exited 0 anyway. Wired into `make artist-preflight` as step 1, with `--require`. Adjacent instance found the same day: `SMTP_*`/`ALERT_EMAIL` were declared only for the `dashboard` service, so the Airflow scheduler could send no alert at all — 672 CSV-watcher failures over a week went unreported. Same class, different variable; `test_env_contract` was extended to TRANSITIVE reads (`src/utils`), which was its blind spot.
 
@@ -1024,6 +1026,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: airflow/dags/alert_monitor.py
 - first_seen: 2026-08-21
 - History:
+  - 2026-08-22: the reader existed and watched 2 platforms of 5, on a table that differed from the one the artist's own screen reads. Both fixed: `check_canary_health` derives its targets from `freshness_monitor.SOURCES_FOR_PLATFORM`, and a second reader, `check_canary_preflight`, runs the artist-session gate itself every night — scoped to the platforms the canary declares rather than the hardcoded `youtube` the runbook documents.
   - 2026-08-21: the detector is exercised directly against a stubbed database — stale, never-collected, absent, healthy, and never-declared — not only checked for being wired. Wiring a detector that never fires is the same decoration in a different place.
 
 ## watchdog-becomes-the-noise
@@ -1216,3 +1219,22 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
     gone — a textual sweep would go red on its own explanation.
   - A test can encode a defect and stay green forever. This one had a name, a
     docstring and an edge-case list, and every case asserted the wrong answer.
+
+## gate-with-no-test-of-its-own
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a tool whose entire job is to answer go/no-go has no test and no schedule. Its greenness is trusted by a runbook, its logic is verified by nobody, and it only runs when a human remembers — so it reports on the days you did not need it.
+- signature: `python3 -m pytest tests/test_artist_preflight.py -q`
+- root_cause: `tools/artist_preflight.py` is what stands between a broken tenant and a real artist ("on n'invite personne tant que `make artist-preflight` n'est pas vert"). `grep artist_preflight` found only `Makefile:71`, two test allowlists and prose: no CI job, no cron, no test. Its scope logic was unverified — including the branch that made `--platforms` **skip** the central-app absence check entirely, while the documented production invocation is `--platforms youtube`. The standing production verification therefore proved one platform out of five and never ran the check aimed at the beta failure.
+- long_term_fix: `tests/test_artist_preflight.py` pins the behaviours the docstrings claim (typo → exit 2, empty scope → exit 2, QUIET counts as good, BROKEN reds the gate, out-of-scope never gates but is always printed, a raising probe is a red verdict not a traceback). Absence is **narrowed** to the scope instead of skipped. And `alert_monitor.check_canary_preflight` runs steps 2-4 against the canary every night, scoped to the platforms the canary actually declares — computed, not hardcoded.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_artist_preflight.py }
+- rex_ref: tools/artist_preflight.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by mutation: restoring the skip-absence-when-scoped branch fails `test_a_scoped_run_still_requires_its_own_platform`; making `QUIET` no longer count as good fails `test_quiet_counts_as_good`. The scheduled half is guarded for free — `tests/test_alert_monitor_sends_what_it_finds.py` requires every pulled xcom key to take part in `has_issues`.
+- Notes:
+  - The scheduled version imports the tool's step functions rather than
+    reimplementing them. Duplicating the gate's logic to schedule it would recreate
+    the class the whole session was about.

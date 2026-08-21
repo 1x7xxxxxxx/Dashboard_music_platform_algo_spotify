@@ -449,7 +449,8 @@ def check_central_apps(**context):
         # Meta token it exists to find. The ImportError branch below did its job
         # (it said so rather than reporting success), which is how we know.
         from src.utils.central_apps import (check_meta, check_soundcloud,
-                                            check_spotify, check_youtube)
+                                            check_spotify, missing_central_env,
+                                            check_youtube)
         probes = {
             'Spotify': check_spotify,
             'YouTube': check_youtube,
@@ -465,6 +466,19 @@ def check_central_apps(**context):
             key='central_apps_broken',
             value=[{'platform': 'ALL', 'reason': f'check could not run: {e}'}])
         return
+
+    # ABSENT is red here, before any probe runs. The probes deliberately return True
+    # when a platform's env vars are missing — "not configured" is not "broken", which
+    # is right for a partial deployment. But this task runs nightly against
+    # production, and the shared app simply not being wired into the container is the
+    # literal cause of "all credentials failed" for the first beta artist. Until
+    # 2026-08-22 only a HUMAN running `tools/check_central_apps.py --require` could
+    # see it; the automatic path was blind to the one thing it most needed to catch.
+    for platform, variables in missing_central_env().items():
+        broken.append({'platform': platform,
+                       'reason': f"central app NOT configured — missing "
+                                 f"{', '.join(variables)} in this container"})
+        logger.error(f"Central app NOT CONFIGURED: {platform} — missing {variables}")
 
     for label, probe in probes.items():
         try:
@@ -619,6 +633,105 @@ def check_onboarding_readiness(**context):
     return flags
 
 
+def check_canary_preflight(**context):
+    """Run the artist-session gate against the canary, on a schedule.
+
+    `tools/artist_preflight.py` is what the runbook trusts — "on n'invite personne
+    tant que `make artist-preflight` n'est pas vert" — and until 2026-08-22 nothing
+    ran it but a human who remembered to. No CI job, no cron, no record that it was
+    ever green. A gate whose execution depends on somebody's memory is a gate that
+    reports on the days you did not need it.
+
+    Steps 2-4 only: step 1 is already covered by `check_central_apps` above, and
+    step 5 overlaps `check_canary_health` plus the contamination scan. Scoped to the
+    platforms the canary actually DECLARES, computed rather than hardcoded — the
+    documented production invocation is `--platforms youtube`, which proves one
+    platform out of five.
+    """
+    problems = []
+    try:
+        import io
+        import json
+        from contextlib import redirect_stdout
+
+        from src.database.postgres_handler import PostgresHandler
+        from src.utils.tenant_identity import declared_identities
+        from tools.artist_preflight import (step_connection_tests, step_data_landed,
+                                            step_identity)
+    except ImportError as e:
+        # Same contract as check_central_apps: an unrunnable check says so rather
+        # than looking like a passing one.
+        logger.error(f"canary preflight unavailable: {e}")
+        context['task_instance'].xcom_push(
+            key='canary_preflight',
+            value=[{'step': 'ALL', 'reason': f'check could not run: {e}'}])
+        return
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    try:
+        rows = db.fetch_query(
+            "SELECT id, name FROM saas_artists WHERE is_canary = TRUE AND active = TRUE "
+            "ORDER BY id LIMIT 1")
+        if not rows:
+            # Handled by check_canary_health, which already reports the absence.
+            logger.info("no canary tenant — preflight skipped (canary health reports it)")
+            context['task_instance'].xcom_push(key='canary_preflight', value=[])
+            return
+        artist_id, name = rows[0]
+
+        extra = {}
+        for platform, cfg in db.fetch_query(
+                "SELECT platform, extra_config FROM artist_credentials "
+                "WHERE artist_id = %s", (artist_id,)):
+            if isinstance(cfg, str):
+                try:
+                    cfg = json.loads(cfg)
+                except ValueError:
+                    cfg = {}
+            extra[platform] = cfg or {}
+        scope = declared_identities(extra)
+        if not scope:
+            context['task_instance'].xcom_push(
+                key='canary_preflight',
+                value=[{'step': 'identity',
+                        'reason': f'canary "{name}" declares no platform identity — '
+                                  f'it can prove nothing'}])
+            return
+
+        buf = io.StringIO()
+        for label, fn_step in (("identity", step_identity),
+                               ("connection tests", step_connection_tests),
+                               ("data landed", step_data_landed)):
+            try:
+                with redirect_stdout(buf):
+                    ok = fn_step(db, artist_id, scope)
+            except Exception as e:  # per-step isolation
+                ok, e_msg = False, str(e)[:200]
+                problems.append({'step': label,
+                                 'reason': f'step raised: {e_msg}'})
+                continue
+            if not ok:
+                problems.append({
+                    'step': label,
+                    'reason': f'canary "{name}" fails preflight step "{label}" '
+                              f'for {", ".join(sorted(scope))}'})
+        logger.info(buf.getvalue())
+    except Exception as e:
+        problems.append({'step': 'ALL', 'reason': f'check could not run: {e}'})
+        logger.error(f"canary preflight raised: {e}")
+    finally:
+        db.close()
+
+    logger.info(f"Canary preflight: {len(problems)} problem(s)")
+    context['task_instance'].xcom_push(key='canary_preflight', value=problems)
+
+
 # ─────────────────────────────────────────────────────────────────
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
@@ -640,6 +753,7 @@ def send_consolidated_alert(**context):
                                   key='central_apps_broken') or []
     readiness_flags = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_red_flags') or []
     stalled_tenants = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_stalled') or []
+    canary_preflight = ti.xcom_pull(task_ids='check_canary_preflight', key='canary_preflight') or []
 
     canary = ti.xcom_pull(task_ids='check_canary_health', key='canary_problems') or []
 
@@ -652,7 +766,8 @@ def send_consolidated_alert(**context):
     # itself silent (found 2026-08-21).
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
                   or billing_issues or row_anomalies or tenant_gaps or readiness_flags
-                  or central_broken or canary or stalled_tenants)
+                  or central_broken or canary or stalled_tenants
+                  or canary_preflight)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -753,6 +868,32 @@ def send_consolidated_alert(**context):
           <thead><tr style="background:#fdf3f2">
             <th style="padding:8px 12px;text-align:left">Artiste</th>
             <th style="padding:8px 12px;text-align:left">Sources stale</th>
+          </tr></thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section: the artist-session gate, run on a schedule instead of from memory.
+    if canary_preflight:
+        rows = ''
+        for f in canary_preflight:
+            rows += (
+                f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"<b>{f['step']}</b></td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"{f['reason']}</td></tr>"
+            )
+        sections.append(f"""
+        <h2 style="color:#d35400;border-left:4px solid #d35400;padding-left:10px">
+          🐤 Le canari ne passe plus le préflight ({len(canary_preflight)})
+        </h2>
+        <p style="font-size:0.9em;color:#555">
+          C'est le contrôle que le runbook exige avant d'inviter un artiste. Rouge ici
+          veut dire qu'une session artiste échouerait aujourd'hui.
+        </p>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead><tr style="background:#fdf1e8">
+            <th style="padding:8px 12px;text-align:left">Étape</th>
+            <th style="padding:8px 12px;text-align:left">Constat</th>
           </tr></thead>
           <tbody>{rows}</tbody>
         </table>""")
@@ -1091,6 +1232,11 @@ with DAG(
         python_callable=check_canary_health,
     )
 
+    t_preflight = PythonOperator(
+        task_id='check_canary_preflight',
+        python_callable=check_canary_preflight,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -1098,4 +1244,5 @@ with DAG(
     )
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
-     t_billing, t_anomalies, t_readiness, t_central, t_canary] >> t_alert
+     t_billing, t_anomalies, t_readiness, t_central, t_canary,
+     t_preflight] >> t_alert

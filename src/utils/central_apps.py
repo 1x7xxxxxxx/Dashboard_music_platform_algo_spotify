@@ -220,11 +220,32 @@ def check_all_configured() -> bool:
     failed" reach a beta artist: the container was missing the shared app entirely
     and nothing said so. Before inviting anyone, absent is red.
     """
-    missing = {
-        platform: [var for var in variables if not os.getenv(var)]
-        for platform, variables in _REQUIRED_ENV.items()
-    }
-    missing = {p: v for p, v in missing.items() if v}
+    missing = missing_central_env()
     for platform, variables in missing.items():
         print(f"❌ {platform} central app NOT configured — missing {', '.join(variables)}")
     return not missing
+
+
+def missing_central_env(scope: set | None = None) -> dict:
+    """{platform: [absent env vars]} — the DATA behind check_all_configured().
+
+    Split out because the nightly monitor needs to SAY what is missing, not merely
+    learn that something is. Until 2026-08-22 `alert_monitor.check_central_apps`
+    called the bare probes, which return True on absent env by design ("not
+    configured is not the same as broken" — correct for a partial deployment, wrong
+    for a production check). The one condition that actually reached a beta artist —
+    the shared app simply not wired into the container — was the one the nightly
+    alert could not see.
+
+    `scope` narrows to specific platforms: a scoped preflight must still prove that
+    what it claims to prove is configured, rather than skipping the question.
+    """
+    wanted = {p.lower() for p in scope} if scope else None
+    out = {}
+    for platform, variables in _REQUIRED_ENV.items():
+        if wanted is not None and platform.lower() not in wanted:
+            continue
+        absent = [var for var in variables if not os.getenv(var)]
+        if absent:
+            out[platform] = absent
+    return out
