@@ -8,9 +8,12 @@ from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table, validate_columns
 from src.dashboard.utils.i18n import t
 
-def get_quality_metrics():
-    """Récupère les KPIs métiers depuis PostgreSQL."""
-    db = get_db_connection()
+def get_quality_metrics(db):
+    """Récupère les KPIs métiers depuis PostgreSQL.
+
+    Takes the connection show() opened. This function used to open its own — one
+    of four in a single render of this view, which rule #9 forbids.
+    """
     try:
         # On récupère la moyenne des 7 derniers jours par DAG
         query = """
@@ -30,19 +33,11 @@ def get_quality_metrics():
     except Exception as e:
         st.error(t("airflow_kpi.db_metrics_error", "Erreur DB Metrics: {err}").format(err=e))
         return pd.DataFrame()
-    finally:
-        db.close()
 
-def _section_source_status():
+def _section_source_status(db):
     """Onglet : fraîcheur et statut de chaque source de données."""
     st.subheader(t("airflow_kpi.source_status_header", "📡 État des sources de données"))
-    db = get_db_connection()
-    if db is None:
-        return
-    try:
-        results = check_freshness(db)
-    finally:
-        db.close()
+    results = check_freshness(db)
 
     rows = []
     for r in results:
@@ -193,7 +188,7 @@ def _section_run_logs():
             st.info(t("airflow_kpi.logs_empty", "Logs vides ou indisponibles."))
 
 
-def _section_last_runs():
+def _section_last_runs(db):
     """Tab: last run per DAG — status, duration, rows inserted."""
     st.subheader(t("airflow_kpi.last_runs_header", "🕐 Dernière exécution par DAG"))
 
@@ -236,7 +231,6 @@ def _section_last_runs():
                 })
 
     # Rows inserted from etl_daily_metrics (last day per DAG)
-    db = get_db_connection()
     rows_inserted: dict = {}
     if db:
         try:
@@ -255,8 +249,6 @@ def _section_last_runs():
                 rows_inserted = dict(zip(df_metrics['dag_id'], df_metrics['rows_inserted']))
         except Exception:
             pass
-        finally:
-            db.close()
 
     for row in rows:
         row["Lignes insérées"] = int(rows_inserted.get(row["DAG"], 0) or 0)
@@ -311,7 +303,7 @@ _INSERTION_TARGETS = [
 
 
 @st.fragment
-def _section_insertion_test():
+def _section_insertion_test(db):
     """Vérifie directement en DB combien de lignes ont été insérées par chaque DAG.
 
     @st.fragment: the window selectbox only re-runs this section, not the whole
@@ -323,11 +315,6 @@ def _section_insertion_test():
           "Comptage direct dans les tables sources — indépendant d'Airflow. "
           "Permet de confirmer qu'un run a bien produit des données en base.")
     )
-
-    db = get_db_connection()
-    if db is None:
-        st.error(t("airflow_kpi.db_unreachable", "❌ Base de données inaccessible."))
-        return
 
     window = st.selectbox(
         t("airflow_kpi.control_window", "Fenêtre de contrôle"),
@@ -347,59 +334,58 @@ def _section_insertion_test():
     interval = interval_map[window]
 
     results = []
-    try:
-        for label, dag_id, table, col_date, description in _INSERTION_TARGETS:
-            # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
-            # interval comes from a static interval_map dict (no user input).
-            validate_table(table)
-            validate_columns([col_date])
-            try:
-                rows = db.fetch_query(
-                    f"""
-                    SELECT
-                        COUNT(*)                                      AS total_rows,
-                        COUNT(DISTINCT DATE({col_date}))              AS distinct_days,
-                        MAX({col_date})                               AS last_insert,
-                        MIN({col_date})                               AS first_insert
-                    FROM {table}
-                    WHERE {col_date} >= NOW() - INTERVAL '{interval}'
-                    """
-                )
-                total, days, last_ins, first_ins = rows[0] if rows else (0, 0, None, None)
-                last_str = pd.to_datetime(last_ins).strftime('%d/%m %H:%M') if last_ins else '—'
+    # No outer try/finally here any more: it existed only to close a connection
+    # this function no longer owns. Each target keeps its own try/except below.
+    for label, dag_id, table, col_date, description in _INSERTION_TARGETS:
+        # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
+        # interval comes from a static interval_map dict (no user input).
+        validate_table(table)
+        validate_columns([col_date])
+        try:
+            rows = db.fetch_query(
+                f"""
+                SELECT
+                    COUNT(*)                                      AS total_rows,
+                    COUNT(DISTINCT DATE({col_date}))              AS distinct_days,
+                    MAX({col_date})                               AS last_insert,
+                    MIN({col_date})                               AS first_insert
+                FROM {table}
+                WHERE {col_date} >= NOW() - INTERVAL '{interval}'
+                """
+            )
+            total, days, last_ins, first_ins = rows[0] if rows else (0, 0, None, None)
+            last_str = pd.to_datetime(last_ins).strftime('%d/%m %H:%M') if last_ins else '—'
 
-                if total and total > 0:
-                    status = t("airflow_kpi.status_ok_check", "✅ OK")
-                    color = "green"
-                else:
-                    status = t("airflow_kpi.status_zero_rows", "⚠️ 0 ligne")
-                    color = "red"
+            if total and total > 0:
+                status = t("airflow_kpi.status_ok_check", "✅ OK")
+                color = "green"
+            else:
+                status = t("airflow_kpi.status_zero_rows", "⚠️ 0 ligne")
+                color = "red"
 
-                results.append({
-                    "Plateforme": label,
-                    "DAG": dag_id,
-                    "Table": table,
-                    "Lignes": int(total or 0),
-                    "Jours distincts": int(days or 0),
-                    "Dernier insert": last_str,
-                    "Statut": status,
-                    "_color": color,
-                    "Description": description,
-                })
-            except Exception as e:
-                results.append({
-                    "Plateforme": label,
-                    "DAG": dag_id,
-                    "Table": table,
-                    "Lignes": 0,
-                    "Jours distincts": 0,
-                    "Dernier insert": "—",
-                    "Statut": f"❌ {str(e)[:60]}",
-                    "_color": "red",
-                    "Description": description,
-                })
-    finally:
-        db.close()
+            results.append({
+                "Plateforme": label,
+                "DAG": dag_id,
+                "Table": table,
+                "Lignes": int(total or 0),
+                "Jours distincts": int(days or 0),
+                "Dernier insert": last_str,
+                "Statut": status,
+                "_color": color,
+                "Description": description,
+            })
+        except Exception as e:
+            results.append({
+                "Plateforme": label,
+                "DAG": dag_id,
+                "Table": table,
+                "Lignes": 0,
+                "Jours distincts": 0,
+                "Dernier insert": "—",
+                "Statut": f"❌ {str(e)[:60]}",
+                "_color": "red",
+                "Description": description,
+            })
 
     # KPI summary
     n_ok = sum(1 for r in results if r["_color"] == "green")
@@ -448,154 +434,165 @@ def show():
         t("airflow_kpi.tab_insert", "🗄️ Test insertion DB"),
     ])
 
-    with tab_sources:
-        _section_source_status()
+    # One connection for the whole render, closed once (rule #9). The four
+    # sections below each opened their own until 2026-08-21 — and Streamlit runs
+    # every tab's body on every rerun, so all four fired every time.
+    db = get_db_connection()
+    if db is None:
+        st.error(t("airflow_kpi.db_unreachable", "❌ Base de données inaccessible."))
+        return
 
-    with tab_last:
-        _section_last_runs()
+    try:
+        with tab_sources:
+            _section_source_status(db)
 
-    with tab_logs:
-        _section_run_logs()
+        with tab_last:
+            _section_last_runs(db)
 
-    with tab_insert:
-        _section_insertion_test()
+        with tab_logs:
+            _section_run_logs()
 
-    with tab_etl:
-        # 1. Récupération des Données (Airflow + DB)
-        monitor = AirflowMonitor()
+        with tab_insert:
+            _section_insertion_test(db)
 
-        with st.spinner(t("airflow_kpi.analyzing_perf", "Analyse des performances (API + BDD)...")):
-            af_data = monitor.get_kpis()
-            df_quality = get_quality_metrics()
+        with tab_etl:
+            # 1. Récupération des Données (Airflow + DB)
+            monitor = AirflowMonitor()
 
-        if af_data is None:
-            st.error(t("airflow_kpi.airflow_unreachable_short", "❌ API Airflow injoignable."))
-            return
+            with st.spinner(t("airflow_kpi.analyzing_perf", "Analyse des performances (API + BDD)...")):
+                af_data = monitor.get_kpis()
+                df_quality = get_quality_metrics(db)
 
-        df_runs = af_data['raw_data'].copy()
+            if af_data is None:
+                st.error(t("airflow_kpi.airflow_unreachable_short", "❌ API Airflow injoignable."))
+                return
 
-        # Run timestamps arrive as ISO strings; some carry a tz offset (+00:00) and some
-        # are naive (older rows), so pd.to_datetime / px.timeline raise "Cannot mix
-        # tz-aware with tz-naive values". Coerce both columns to naive-UTC once so every
-        # downstream consumer (timeline + daily trend) is safe.
-        for _col in ('start_date', 'end_date'):
-            if _col in df_runs.columns:
-                df_runs[_col] = pd.to_datetime(
-                    df_runs[_col], utc=True, errors='coerce'
-                ).dt.tz_localize(None)
+            df_runs = af_data['raw_data'].copy()
 
-        if not df_runs.empty:
-            stats_tech = []
-            for dag_id in df_runs['dag_id'].unique():
-                subset = df_runs[df_runs['dag_id'] == dag_id]
-                total = len(subset)
-                success = len(subset[subset['state'] == 'success'])
-                duration = subset['duration_sec'].mean()
-                uptime = (success / total * 100) if total > 0 else 0
-                stats_tech.append({
-                    'dag_id': dag_id,
-                    'Taux Succès': uptime,
-                    'Temps Exec Moyen (s)': duration,
-                    'Uptime API': uptime,
-                })
+            # Run timestamps arrive as ISO strings; some carry a tz offset (+00:00) and some
+            # are naive (older rows), so pd.to_datetime / px.timeline raise "Cannot mix
+            # tz-aware with tz-naive values". Coerce both columns to naive-UTC once so every
+            # downstream consumer (timeline + daily trend) is safe.
+            for _col in ('start_date', 'end_date'):
+                if _col in df_runs.columns:
+                    df_runs[_col] = pd.to_datetime(
+                        df_runs[_col], utc=True, errors='coerce'
+                    ).dt.tz_localize(None)
 
-            df_tech = pd.DataFrame(stats_tech)
+            if not df_runs.empty:
+                stats_tech = []
+                for dag_id in df_runs['dag_id'].unique():
+                    subset = df_runs[df_runs['dag_id'] == dag_id]
+                    total = len(subset)
+                    success = len(subset[subset['state'] == 'success'])
+                    duration = subset['duration_sec'].mean()
+                    uptime = (success / total * 100) if total > 0 else 0
+                    stats_tech.append({
+                        'dag_id': dag_id,
+                        'Taux Succès': uptime,
+                        'Temps Exec Moyen (s)': duration,
+                        'Uptime API': uptime,
+                    })
 
-            if not df_quality.empty:
-                df_final = pd.merge(df_tech, df_quality, on='dag_id', how='left').fillna(0)
-                df_final['% Invalide'] = df_final.apply(
-                    lambda x: (x['total_invalid'] / x['total_rows'] * 100) if x['total_rows'] > 0 else 0, axis=1
+                df_tech = pd.DataFrame(stats_tech)
+
+                if not df_quality.empty:
+                    df_final = pd.merge(df_tech, df_quality, on='dag_id', how='left').fillna(0)
+                    df_final['% Invalide'] = df_final.apply(
+                        lambda x: (x['total_invalid'] / x['total_rows'] * 100) if x['total_rows'] > 0 else 0, axis=1
+                    )
+                    df_final['Taux Anomalie'] = df_final.apply(
+                        lambda x: (x['total_anomalies'] / x['total_rows'] * 100) if x['total_rows'] > 0 else 0, axis=1
+                    )
+                else:
+                    df_final = df_tech
+                    df_final['% Invalide'] = 0.0
+                    df_final['Taux Anomalie'] = 0.0
+                    df_final['avg_alert_delay'] = 0.0
+
+                df_display = df_final[[
+                    'dag_id', 'Taux Succès', 'Temps Exec Moyen (s)',
+                    '% Invalide', 'Taux Anomalie', 'Uptime API', 'avg_alert_delay'
+                ]].rename(columns={'avg_alert_delay': 'Délai Moy. Alerte (s)'})
+
+                # KPIs globaux
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric(t("airflow_kpi.metric_runs_24h", "Exécutions (24h)"), af_data['total_runs_24h'])
+                c2.metric(t("airflow_kpi.metric_global_success", "Taux Succès Global"), f"{af_data['success_rate']:.1f}%")
+                c3.metric(t("airflow_kpi.metric_avg_invalid", "% Invalide Moyen"), f"{df_display['% Invalide'].mean():.2f}%", delta_color="inverse")
+                c4.metric(t("airflow_kpi.metric_failures_7d", "Échecs (7j)"), af_data['failed_count'], delta_color="inverse")
+
+                st.markdown("---")
+                st.subheader(t("airflow_kpi.perf_per_pipeline", "📊 Performance par Pipeline"))
+                st.dataframe(
+                    df_display.set_index('dag_id'),
+                    column_config={
+                        "Taux Succès": st.column_config.ProgressColumn(t("airflow_kpi.col_success", "Succès"), format="%.1f%%", min_value=0, max_value=100),
+                        "Uptime API": st.column_config.ProgressColumn(t("airflow_kpi.col_api_uptime", "Dispo API"), format="%.1f%%", min_value=0, max_value=100),
+                        "% Invalide": st.column_config.NumberColumn(format="%.2f %%"),
+                        "Temps Exec Moyen (s)": st.column_config.NumberColumn(format="%.1f s"),
+                        "Délai Moy. Alerte (s)": st.column_config.NumberColumn(format="%d s"),
+                    },
+                    width="stretch",
                 )
-                df_final['Taux Anomalie'] = df_final.apply(
-                    lambda x: (x['total_anomalies'] / x['total_rows'] * 100) if x['total_rows'] > 0 else 0, axis=1
-                )
-            else:
-                df_final = df_tech
-                df_final['% Invalide'] = 0.0
-                df_final['Taux Anomalie'] = 0.0
-                df_final['avg_alert_delay'] = 0.0
 
-            df_display = df_final[[
-                'dag_id', 'Taux Succès', 'Temps Exec Moyen (s)',
-                '% Invalide', 'Taux Anomalie', 'Uptime API', 'avg_alert_delay'
-            ]].rename(columns={'avg_alert_delay': 'Délai Moy. Alerte (s)'})
-
-            # KPIs globaux
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric(t("airflow_kpi.metric_runs_24h", "Exécutions (24h)"), af_data['total_runs_24h'])
-            c2.metric(t("airflow_kpi.metric_global_success", "Taux Succès Global"), f"{af_data['success_rate']:.1f}%")
-            c3.metric(t("airflow_kpi.metric_avg_invalid", "% Invalide Moyen"), f"{df_display['% Invalide'].mean():.2f}%", delta_color="inverse")
-            c4.metric(t("airflow_kpi.metric_failures_7d", "Échecs (7j)"), af_data['failed_count'], delta_color="inverse")
-
-            st.markdown("---")
-            st.subheader(t("airflow_kpi.perf_per_pipeline", "📊 Performance par Pipeline"))
-            st.dataframe(
-                df_display.set_index('dag_id'),
-                column_config={
-                    "Taux Succès": st.column_config.ProgressColumn(t("airflow_kpi.col_success", "Succès"), format="%.1f%%", min_value=0, max_value=100),
-                    "Uptime API": st.column_config.ProgressColumn(t("airflow_kpi.col_api_uptime", "Dispo API"), format="%.1f%%", min_value=0, max_value=100),
-                    "% Invalide": st.column_config.NumberColumn(format="%.2f %%"),
-                    "Temps Exec Moyen (s)": st.column_config.NumberColumn(format="%.1f s"),
-                    "Délai Moy. Alerte (s)": st.column_config.NumberColumn(format="%d s"),
-                },
-                width="stretch",
-            )
-
-            st.markdown("---")
-            st.subheader(t("airflow_kpi.timeline_header", "⏱️ Chronologie des dernières exécutions"))
-            gantt_df = df_runs.head(20).copy()
-            fig = px.timeline(
-                gantt_df,
-                x_start="start_date", x_end="end_date", y="dag_id", color="state",
-                color_discrete_map={"success": "#00CC96", "failed": "#EF553B", "running": "#636EFA"},
-                hover_data=["duration_sec"]
-            )
-            fig.update_yaxes(autorange="reversed")
-            st.plotly_chart(fig, width='stretch')
-
-            # ── Taux de succès par DAG ──────────────────────────────────
-            st.markdown("---")
-            st.subheader(t("airflow_kpi.success_rate_header", "✅ Taux de succès par DAG"))
-            fig_success = px.bar(
-                df_tech.sort_values("Taux Succès"),
-                x="Taux Succès",
-                y="dag_id",
-                orientation="h",
-                color="Taux Succès",
-                color_continuous_scale=["#EF553B", "#FFA15A", "#00CC96"],
-                range_color=[0, 100],
-                labels={"dag_id": t("airflow_kpi.col_dag", "DAG"), "Taux Succès": t("airflow_kpi.chart_success_pct", "Succès (%)")},
-                text="Taux Succès",
-            )
-            fig_success.update_traces(texttemplate="%{text:.0f}%", textposition="outside")
-            fig_success.update_layout(coloraxis_showscale=False, height=max(300, len(df_tech) * 40))
-            st.plotly_chart(fig_success, width='stretch')
-
-            # ── Tendance journalière des runs ───────────────────────────
-            st.markdown("---")
-            st.subheader(t("airflow_kpi.daily_trend_header", "📈 Tendance journalière des runs (30 derniers jours)"))
-            if "start_date" in df_runs.columns:
-                trend_df = df_runs.copy()
-                trend_df["date"] = pd.to_datetime(trend_df["start_date"]).dt.date
-                trend_df = (
-                    trend_df.groupby(["date", "state"])
-                    .size()
-                    .reset_index(name="count")
-                )
-                fig_trend = px.bar(
-                    trend_df,
-                    x="date",
-                    y="count",
-                    color="state",
+                st.markdown("---")
+                st.subheader(t("airflow_kpi.timeline_header", "⏱️ Chronologie des dernières exécutions"))
+                gantt_df = df_runs.head(20).copy()
+                fig = px.timeline(
+                    gantt_df,
+                    x_start="start_date", x_end="end_date", y="dag_id", color="state",
                     color_discrete_map={"success": "#00CC96", "failed": "#EF553B", "running": "#636EFA"},
-                    labels={"date": t("airflow_kpi.chart_date", "Date"), "count": t("airflow_kpi.chart_run_count", "Nombre de runs"), "state": t("airflow_kpi.chart_status", "Statut")},
-                    barmode="stack",
+                    hover_data=["duration_sec"]
                 )
-                fig_trend.update_layout(height=320)
-                st.plotly_chart(fig_trend, width='stretch')
+                fig.update_yaxes(autorange="reversed")
+                st.plotly_chart(fig, width='stretch')
 
-        else:
-            st.info(t("airflow_kpi.no_exec_data", "Aucune donnée d'exécution trouvée dans Airflow."))
+                # ── Taux de succès par DAG ──────────────────────────────────
+                st.markdown("---")
+                st.subheader(t("airflow_kpi.success_rate_header", "✅ Taux de succès par DAG"))
+                fig_success = px.bar(
+                    df_tech.sort_values("Taux Succès"),
+                    x="Taux Succès",
+                    y="dag_id",
+                    orientation="h",
+                    color="Taux Succès",
+                    color_continuous_scale=["#EF553B", "#FFA15A", "#00CC96"],
+                    range_color=[0, 100],
+                    labels={"dag_id": t("airflow_kpi.col_dag", "DAG"), "Taux Succès": t("airflow_kpi.chart_success_pct", "Succès (%)")},
+                    text="Taux Succès",
+                )
+                fig_success.update_traces(texttemplate="%{text:.0f}%", textposition="outside")
+                fig_success.update_layout(coloraxis_showscale=False, height=max(300, len(df_tech) * 40))
+                st.plotly_chart(fig_success, width='stretch')
+
+                # ── Tendance journalière des runs ───────────────────────────
+                st.markdown("---")
+                st.subheader(t("airflow_kpi.daily_trend_header", "📈 Tendance journalière des runs (30 derniers jours)"))
+                if "start_date" in df_runs.columns:
+                    trend_df = df_runs.copy()
+                    trend_df["date"] = pd.to_datetime(trend_df["start_date"]).dt.date
+                    trend_df = (
+                        trend_df.groupby(["date", "state"])
+                        .size()
+                        .reset_index(name="count")
+                    )
+                    fig_trend = px.bar(
+                        trend_df,
+                        x="date",
+                        y="count",
+                        color="state",
+                        color_discrete_map={"success": "#00CC96", "failed": "#EF553B", "running": "#636EFA"},
+                        labels={"date": t("airflow_kpi.chart_date", "Date"), "count": t("airflow_kpi.chart_run_count", "Nombre de runs"), "state": t("airflow_kpi.chart_status", "Statut")},
+                        barmode="stack",
+                    )
+                    fig_trend.update_layout(height=320)
+                    st.plotly_chart(fig_trend, width='stretch')
+
+            else:
+                st.info(t("airflow_kpi.no_exec_data", "Aucune donnée d'exécution trouvée dans Airflow."))
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     show()

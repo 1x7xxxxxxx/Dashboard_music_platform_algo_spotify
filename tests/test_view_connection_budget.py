@@ -8,7 +8,7 @@ showed something the sentence hides:
 
     admin.py            5 connections per render
     hypeddit.py         5
-    airflow_kpi.py      4
+    airflow_kpi.py      4   ← fixed 2026-08-21, now 1
     export_csv.py       2   ← fixed 2026-08-21, now 1
     export_pdf.py       2   ← fixed 2026-08-21, now 1
 
@@ -55,7 +55,6 @@ VIEWS = REPO / "src" / "dashboard" / "views"
 _KNOWN_MULTI = {
     "admin.py": 5,
     "hypeddit.py": 5,
-    "airflow_kpi.py": 4,
 }
 # Lowered 2026-08-21: export_csv.py and export_pdf.py each opened a `db2` while
 # `db` was still open — the fallback rule #9 forbids by name. export_pdf's was the

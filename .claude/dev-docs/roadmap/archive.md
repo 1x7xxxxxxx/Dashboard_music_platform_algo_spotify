@@ -983,3 +983,28 @@ mesuré à zéro. Le déclencheur qui les rouvre est nommé dans l'ADR, et il es
   - **Axe G 6,6/10** : fichiers modifiés localement par rapport au payload — normal et
     voulu (c'est tout le travail de recentrage sur ce dépôt), à ne surtout pas
     « corriger » par un re-push.
+
+### P3 — Meta : le risque résiduel était devenu inatteignable (clos, 2026-08-21)
+
+- [x] **R24 — Clé de conflit scopée pour `meta_campaigns/adsets/ads`** (P3) — clos sans
+  changement de schéma, sur preuve. La fiche disait : reporté sciemment, parce que les
+  PK plateforme de ces tables sont référencées par **15 clés étrangères** ; la
+  réattribution de ligne était déjà retirée côté code, et il restait le cas « deux
+  locataires, même compte pub », qui n'aurait qu'une ligne au lieu de deux.
+
+  Ce cas ne peut plus être créé. **R30** a posé `find_identity_conflict()` au moment de
+  l'enregistrement, et sa table d'identités couvre Meta : `'meta': 'account_id'`. Deux
+  locataires ne peuvent plus déclarer le même compte publicitaire — le produit refuse à
+  la porte, avec le champ et la valeur nommés. Un test garantit par ailleurs qu'aucune
+  plateforme ne peut être ajoutée au registre sans règle d'unicité, donc la couverture
+  ne peut pas se perdre en silence.
+
+  Vérifié en production le 2026-08-21 : **0** compte publicitaire partagé entre
+  locataires (`GROUP BY extra_config->>'account_id' HAVING count(DISTINCT artist_id) > 1`),
+  sur 34 campagnes. Il n'y a donc ni état à réparer, ni migration à écrire contre 15
+  clés étrangères pour un état que le produit n'autorise plus.
+
+  Ce qui reste, et qui n'est pas ce que R24 décrivait : une écriture directe en base,
+  hors produit, pourrait encore créer le doublon. C'est vrai de toute contrainte posée
+  au niveau applicatif, et la réponse serait la migration que R24 chiffrait — à rouvrir
+  si un jour un tel doublon apparaît vraiment.
