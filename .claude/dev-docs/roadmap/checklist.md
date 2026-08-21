@@ -62,6 +62,28 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
 
+**▶️ Séance du 2026-08-22 (reprise après crash machine) — la suppression d'alerte
+écrite la veille était devenue un feu vert.**
+
+Le travail interrompu par le redémarrage était complet côté décision et **muet côté
+lecteur** : `check_freshness` répond à une question avec un seul booléen, et poser
+`stale=False` pour une source légitimement silencieuse la fait rendre comme saine
+partout. Un rouge qui part chaque nuit finit par être lu comme du bruit ; un vert
+n'est jamais questionné — la deuxième panne est la pire des deux.
+
+| # | livré | mesuré |
+|---|---|---|
+| 1 | **Le silence attendu de Meta Ads ne déclenche plus d'alerte** | Aucune campagne ACTIVE (19 archivées + 15 en pause, `amount_spent=0`, zéro insight en 90 j) ⇒ aucune ligne d'insight ne PEUT exister. Sans ça, `16 577 h stale` partait chaque nuit pour un pipeline correct. La sonde est volontairement conservatrice : sonde en échec, zéro campagne connue ou règle inconnue ⇒ **on garde l'alerte**. Supprimer sur une supposition retire le seul signal qu'une vraie panne produirait. |
+| 2 | **Quatre surfaces lisaient `not stale` comme « tout va bien »** | Le tableau des sources (🟢 OK à côté d'une ligne du 2024-09-30) ; `platform_status`, donc la matrice d'onboarding, `readiness_red_flags` **et** `artist_preflight` ; le pied « ✅ Sources OK » de l'e-mail nocturne ; et `debug_alert_monitor` (`✅ OK (16577h)`) — la quatrième trouvée en **balayant la classe**, pas en regardant le bug, et la pire des quatre : c'est ce qu'on lance quand on soupçonne déjà quelque chose. La raison mesurée voyage désormais avec le drapeau et chaque surface a un troisième état ⏸️ qui l'imprime. |
+| 3 | **Six gardes, chacun vu ROUGE par mutation** | Retirer la branche `QUIET`, la branche de la vue, la légende de la raison, le filtre du pied d'e-mail, la clé du saut XCom, la branche du script de debug — chacune fait tomber le test correspondant, puis vert après restauration. La vue est testée par **exécution réelle** (le tableau rendu est inspecté), pas par sous-chaîne. |
+| 4 | **L'index du catalogue d'erreurs avait cessé de lister** | Trouvé en ajoutant une classe, pas en le cherchant : **63 entrées, 51 lignes d'index**, et les douze manquantes étaient les douze plus récentes — quatre écrites le jour même. Une omission qui ne contredit rien : l'index ne prétend jamais être complet, donc son incomplétude est silencieuse dans la seule direction qui compte (on réécrit la classe sous un autre nom). Lignes **régénérées depuis les entrées**, garde dans les deux sens, et `/capitalise` nomme désormais l'index dans ce qu'il écrit. |
+
+Classes : `suppressed-alert-renders-as-health` (P2), `catalogue-index-omits-its-own-entries` (P3).
+Constat annexe non traité (hors périmètre, à décider) : `freshness_monitor.run_freshness_alerts`
+n'a **aucun appelant** dans tout le dépôt — l'alerte de fraîcheur réellement envoyée est
+celle d'`alert_monitor`. Code mort ou câblage oublié : les deux se corrigent différemment,
+et aucune des deux corrections n'appartenait à cette séance.
+
 **▶️ Séance du 2026-08-21 (nuit) — R20 livré en prod, et trois lacunes de plus.**
 
 | # | livré | mesuré |
@@ -103,7 +125,7 @@ sortie est redirigée. Passer par `audit_runner.py` ou `command grep`.
 **▶️ Où on en est (MAJ 2026-08-21, nuit) — la file d'ingénierie est vide.**
 
 Prod à jour (`prod == canonique`, 920 colonnes / 92 tables, code déployé == `origin/main`,
-registre de migrations **71/71**), **1071 tests verts**, `ruff check .` propre, audit
+registre de migrations **71/71**), **940 tests verts hors base** (159 gated DB), `ruff` propre, audit
 déterministe propre, canari de production surveillé. L'index `## 📋 Tâches ouvertes` est
 à **0**, et les trois items de `## 🙋 En attente de toi` demandent chacun un geste que
 seul un humain peut poser — détail juste en dessous.
