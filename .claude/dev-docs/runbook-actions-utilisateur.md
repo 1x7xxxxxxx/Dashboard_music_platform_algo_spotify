@@ -1,4 +1,4 @@
-# Runbook — les 5 actions qui n'appartiennent qu'à toi
+# Runbook — les 4 actions qui n'appartiennent qu'à toi
 
 Écrit le 2026-08-21. Ce sont les seuls items encore ouverts de la ROADMAP : aucun ne
 peut être fait depuis une session Claude Code, chacun demande un accès, un fichier ou
@@ -87,10 +87,24 @@ session avec un artiste réel. Une seule commande ; il ne manque que **tes** ide
 
 ### Étapes
 
-1. Choisis des profils publics **à toi** mais **différents de ceux de l'admin** — c'est
-   tout l'intérêt : un canari qui emprunte la chaîne de l'admin passe au vert pendant que
-   l'isolation qu'il teste est cassée. L'outil refuse ce cas, et refuse aussi une
-   identité qu'un autre locataire réclame déjà.
+1. Choisis une identité **différente de celle de l'admin**. C'est tout l'intérêt : un
+   canari qui emprunte la chaîne de l'admin passe au vert pendant que l'isolation qu'il
+   teste est cassée. L'outil refuse ce cas, et refuse aussi une identité qu'un autre
+   locataire réclame déjà.
+
+   > **Elle n'a pas besoin de t'appartenir.** Vérifié le 2026-08-21 : Spotify, YouTube et
+   > SoundCloud sont lus avec les credentials **de l'app admin** sur des endpoints
+   > **publics** — `client_credentials` pour Spotify et SoundCloud, `developerKey` seule
+   > pour YouTube. Aucun ne demande la propriété du profil. Prouvé en production : les top
+   > tracks de deux artistes publics quelconques remontent, 10 titres chacun.
+   >
+   > C'est ce qui débloque le cas « tous mes identifiants admin sont mes propres profils
+   > d'artiste » : prends **n'importe quel artiste public** — le test d'isolation est
+   > exactement aussi valide, puisqu'il vérifie que les lignes atterrissent sous le bon
+   > locataire, pas qui possède le compte.
+   >
+   > Seule exception : **Meta**, qui exige un accès réel au compte publicitaire. Le canari
+   > ne couvre donc pas Meta — sans conséquence, Meta est de toute façon à l'arrêt (R13).
 2. À blanc d'abord :
    ```bash
    make canary NAME="Canary 1x7" SPOTIFY=<artist id> YOUTUBE=<UC…> DRY_RUN=1
@@ -108,39 +122,19 @@ s'arrêter sur « no canary tenant ».
 
 ---
 
-## 3. R18 — `.env` ligne 67 malformée (local) · P4
+## 3. ~~R18 — `.env` ligne 67~~ · ✅ FAIT le 2026-08-21
 
-`docker compose` refuse de démarrer en local : *« key cannot contain a space »*.
-`python-dotenv` se contente d'avertir, ce qui explique que les tests tournent quand même.
+La ligne était `nom entreprise=BAUDRY Timothé` — une étiquette écrite sans `#`, que
+Docker lisait comme une clé. Commentée. `check_env.py` affiche désormais **10/10** et
+`make up` démarre.
 
-**Je ne peux pas le faire** : `.env` est refusé par tes permissions, pour Bash **et**
-pour l'outil de lecture (vérifié deux fois). C'est une protection délibérée des secrets,
-je ne la contourne pas.
+Ce que sa correction a révélé vaut plus que la correction : lancer la suite contre la
+**vraie** base locale, au lieu d'un Postgres jetable, a fait tomber 8 tests — dont un
+défaut de DAG réel (`collect_spotify_top_tracks` ignorait `dag_run.conf`, donc un clic
+per-tenant dépensait le quota Spotify de toute la flotte). Détail dans `archive.md`.
 
-### Étapes
-
-1. Voir la clé fautive **sans exposer sa valeur** :
-   ```bash
-   awk 'NR==67{n=index($0,"=");print (n?substr($0,1,n-1):$0)}' .env
-   ```
-2. Corriger : une clé d'environnement ne peut contenir ni espace ni tiret — remplacer par
-   `_`, ou commenter la ligne si elle est morte.
-3. `make up` doit alors démarrer.
-
-> **Si tu préfères que je le fasse** : retire ces deux lignes de
-> `.claude/settings.json` → `permissions.deny` :
-> `"Read(./.env)"` et `"Read(./.env.*)"`. Je corrige, et tu les remets ensuite.
-> C'est ton arbitrage, pas le mien — d'où le fait que je ne l'aie pas pris.
-
-**Priorité basse assumée** : ça ne bloque plus la vérification. Un Postgres jetable fait
-tourner **toute** la suite :
-```bash
-docker run -d --name e2e_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl -p 5434:5432 postgres:17
-docker exec -i e2e_pg psql -q -U postgres -d spotify_etl < init_db.sql
-PG_CONT=e2e_pg bash tools/migrate.sh
-DATABASE_URL=postgresql://postgres:x@127.0.0.1:5434/spotify_etl python3 -m pytest tests/ -q
-```
-→ **928 verts / 15 sautés**, au lieu de 716 / 128 sans base.
+**Leçon à garder** : une base de test vide cache les défauts multi-locataires. La suite
+doit tourner contre une base à **au moins deux locataires**.
 
 ---
 

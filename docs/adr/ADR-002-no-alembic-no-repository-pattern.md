@@ -1,6 +1,7 @@
 # ADR-002 — No Alembic, no repository pattern, no observability stack
 
-- **Status:** Accepted
+- **Status:** Accepted — **§Migrations ré-examiné le 2026-08-21, conclusion maintenue,
+  prémisse corrigée** (voir « Ré-évaluation » en fin de document)
 - **Date:** 2026-05-14
 - **Deciders:** @1x7xxxxxxx
 
@@ -61,3 +62,79 @@ Three msdr patterns are **adopted** in the same review (see Brick 32 Phase B DEV
 | Adopt Alembic only, keep the rest | Alembic shines when migrations are large and need rollback; here they are <50 lines each and the project has never needed a rollback in 32 bricks. |
 | Adopt observability only | A Prometheus+Grafana stack here would be ~5 services in `docker-compose.yml` for two dashboards nobody watches. Defer until there is an actual operator role to consume them. |
 | Adopt the repository pattern only | The win is mockability for tests — already achieved with `MagicMock(db.fetch_query)` (cf. `test_live_pulse.py`). Net zero benefit at this scale. |
+
+---
+
+## Ré-évaluation du §1 (Migrations) — 2026-08-21
+
+L'ADR disait : *« keep flat `migrations/NNN_<topic>.sql` files (26 in place, **all
+idempotent** `CREATE … IF NOT EXISTS` / `ALTER TABLE IF EXISTS`). No Alembic. »*
+
+**Cette prémisse est fausse aujourd'hui, et l'était déjà en partie.** Mesuré :
+
+- elles sont **70**, pas 26 ;
+- elles ne sont **pas** toutes idempotentes. `024_s4a_song_playlist_adds_redesign.sql`
+  fait `DROP CONSTRAINT` **sans garde** puis échoue à recréer la clé (sa version à trois
+  colonnes est devenue impossible depuis que `044` l'a rendue window-aware). Cinq
+  fichiers émettent une erreur à chaque passage ;
+- **rien n'enregistre quelles migrations ont été appliquées** : aucune table
+  `schema_migrations`, aucun `alembic_version`. La stratégie est donc de **tout
+  réappliquer à chaque fois**, ce qui est précisément pourquoi `024` échoue à chaque
+  exécution ;
+- deux incidents de production en découlent, tous deux catalogués :
+  `migration-ahead-of-its-code` (065 appliquée avant son code → collecte YouTube cassée
+  en minutes) et `migrate-heals-only-if-run-to-completion` (le cycle complet répare
+  024 via 044 — un cycle interrompu laisse la table sans clé primaire) ;
+- et une dérive silencieuse côté développeur : `local-db-drifts-from-canonical`.
+
+### La conclusion tient quand même : toujours pas Alembic
+
+Trois raisons, dont une est décisive :
+
+1. **L'`autogenerate` d'Alembic — sa fonction phare — exige des modèles SQLAlchemy. Ce
+   dépôt n'en a aucun** (`grep -rl sqlalchemy src/` → vide) : l'accès aux données passe
+   par `PostgresHandler` en SQL brut. Adopter Alembic sans ORM revient à écrire le même
+   SQL dans `op.execute("…")`, avec une couche de cérémonie en plus et aucun des
+   bénéfices annoncés.
+2. **Le `downgrade` serait une fiction.** Écrire un `downgrade()` juste pour 70
+   révisions rétroactives coûte des jours, et personne ne le testerait — un rollback
+   jamais exécuté est un rollback qui ne marche pas le jour où on en a besoin.
+3. Le risque que l'ADR nommait — *« an Alembic env desync silently dropping a column »* —
+   reste réel et non compensé.
+
+### Mais le vrai défaut n'est pas « pas de framework », c'est « pas de registre »
+
+Aucun des cinq problèmes ci-dessus ne vient de l'absence d'Alembic. Ils viennent tous du
+fait que **rien ne sait quelles migrations ont déjà tourné**. C'est une table et une
+boucle, pas un framework :
+
+```sql
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    filename    TEXT PRIMARY KEY,
+    applied_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    checksum    TEXT NOT NULL
+);
+```
+
+`tools/migrate.sh` n'applique alors que les fichiers absents de la table, dans l'ordre,
+chacun dans **sa** transaction, et enregistre le passage. Conséquences directes :
+
+- `024` cesse d'échouer — elle a tourné il y a des mois, on ne la rejoue plus ;
+- `migration-ahead-of-its-code` reste possible mais devient visible : on voit ce qui
+  n'est pas encore appliqué ;
+- un fichier modifié après coup est détecté par le `checksum`, ce qu'Alembic ne fait pas
+  non plus ;
+- la dérive locale se lit d'un coup d'œil : `SELECT filename FROM schema_migrations`
+  comparé à `ls migrations/`.
+
+Coût estimé : la table, ~30 lignes dans `tools/migrate.sh`, un amorçage qui insère les 70
+fichiers existants comme déjà appliqués, et un test. À faire **avant** la prochaine
+migration, pas pendant.
+
+### Les autres déclencheurs de cet ADR, relevés au passage
+
+| §  | Déclencheur que l'ADR s'est donné | État au 2026-08-21 |
+|----|-----------------------------------|--------------------|
+| 2 (repository) | « revisiter si `_ALLOWED_TABLES` dépasse 100 » (≈50 à l'écriture) | **75** — pas atteint |
+| 4 (observabilité) | « si des plaintes utilisateurs arrivent pour la latence » | aucune plainte ; requêtes mesurées à 0,4 ms |
+| 7 (DR) | rejeté : « backup/restore is operator-driven » | **dépassé par les faits** : cron `pg_dump` actif en production, 17 sauvegardes sur disque, plus `make backup-test` (restauration à blanc). L'ADR n'avait pas été mis à jour. |
