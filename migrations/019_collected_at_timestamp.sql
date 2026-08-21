@@ -15,7 +15,7 @@ ALTER TABLE soundcloud_tracks_daily
     USING collected_at::timestamp without time zone;
 
 ALTER TABLE soundcloud_tracks_daily
-    DROP CONSTRAINT soundcloud_tracks_daily_artist_id_track_id_collected_at_key;
+    DROP CONSTRAINT IF EXISTS soundcloud_tracks_daily_artist_id_track_id_collected_at_key;
 
 DROP INDEX IF EXISTS idx_sc_tracks_date;
 
@@ -32,7 +32,7 @@ ALTER TABLE instagram_daily_stats
     USING collected_at::timestamp without time zone;
 
 ALTER TABLE instagram_daily_stats
-    DROP CONSTRAINT instagram_daily_stats_artist_id_ig_user_id_collected_at_key;
+    DROP CONSTRAINT IF EXISTS instagram_daily_stats_artist_id_ig_user_id_collected_at_key;
 
 DROP INDEX IF EXISTS idx_insta_date;
 

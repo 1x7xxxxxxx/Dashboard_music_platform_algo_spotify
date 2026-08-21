@@ -916,3 +916,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: found by the canary tenant on its FIRST real collection, minutes after it was created. It had never fired in production because the admin's own catalogue carries full dates only — the defect was invisible to a one-tenant test by construction. This is the concrete payoff of the "run the suite against at least two tenants" lesson, and the single best argument for keeping the canary.
   - 2026-08-21: the comment above the defect claimed the case was handled. A comment is not a guard, and a comment that describes an intention the code does not implement is worse than none — it stops the next reader from looking.
+
+## unguarded-drop-replayed-alone
+- status: fixed
+- severity: P1
+- kind: deterministic
+- symptom: a table silently loses its primary key. Nothing errors visibly at the application level; duplicate rows become possible and `ON CONFLICT` upserts start failing or silently inserting.
+- root_cause: a migration whose first statement is an unguarded `DROP CONSTRAINT`, replayed on its own. Measured 2026-08-21 while introducing the `schema_migrations` ledger: `024` drops `s4a_song_playlist_adds_pkey` then fails to create its three-column replacement (impossible since `044` made the key window-aware, so the same song legitimately holds several rows per `recorded_at`). That failure was survivable ONLY while the whole set was replayed in order, because `044` ran afterwards and restored the right key. The ledger changed the premise: a file that never succeeds is never recorded, so it is retried ALONE on every run — and each retry destroyed `044`'s key. **The ledger's own introduction is what left the table keyless.** A safety mechanism whose first act is to break the thing it protects.
+- signature: `python3 -m pytest tests/test_migrations_are_replay_safe.py -q`
+- signature_note: a line-oriented grep CANNOT judge this class — whether a `DROP` is safe depends on an enclosing `DO $$ … END $$` that sits on other lines. The first version accused `061`, which has the correct shape, and `024`'s own explanatory comment. The parser in the test is the only honest detector, so the signature delegates to it instead of approximating it.
+- long_term_fix: `024` now opens with a `DO $$` block that returns immediately when `044`'s marker column (`time_window`) is present — it can no longer touch a schema it does not own. `019`'s two unguarded drops were hardened in the same sweep. `tests/test_migrations_are_replay_safe.py` parses every migration and rejects a `DROP` that carries neither `IF EXISTS` nor an enclosing guarded `DO` block, so the class cannot re-enter through a new file.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_migrations_are_replay_safe.py }
+- rex_ref: tools/migrate.sh
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: the lesson is about the CHANGE, not the file. Adding a ledger looked purely additive — it only skips work. What it actually did was alter the replay CONTEXT that an unguarded statement had silently depended on for months. Before changing how a set of scripts is executed, ask what each one assumed about its neighbours. `061` had the correct shape all along (test for the constraint, drop, re-add unconditionally, all inside one `DO`) and was unaffected.
+  - 2026-08-21: it was found only because the primary key was checked directly in `pg_constraint` after the run, rather than trusting `migrate.sh`'s "✅ no unexpected psql error". The runner was telling the truth about psql and still missing the damage — the effect was one level below what it measured.

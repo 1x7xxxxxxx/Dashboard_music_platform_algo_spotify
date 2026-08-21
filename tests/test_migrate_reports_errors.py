@@ -120,25 +120,38 @@ def test_migrate_names_the_files_that_errored():
     )
 
 
-def test_the_024_044_pair_that_makes_this_load_bearing_still_exists():
-    """If this pair ever disappears, re-read the guard before trusting it.
+def test_the_024_044_healing_rationale_is_retired_not_forgotten():
+    """The pair this file was built around no longer needs healing — and must not.
 
-    Not a style check: the whole reason `migrate` must keep going after an error
-    is that a later migration supersedes an earlier one. Should that stop being
-    true, `ON_ERROR_STOP=1` becomes the better design and this test should be the
-    thing that says so.
+    Until 2026-08-21 `migrate` deliberately kept going after an error because 024
+    dropped a primary key it could not recreate and 044 put the right one back.
+    The ledger broke that arrangement: a file that never succeeds is never
+    recorded, so 024 was retried ALONE and destroyed 044's key on every run.
+
+    024 is now guarded — it returns immediately when 044's marker column exists.
+    So the ORIGINAL justification for keeping going is gone. Keeping going is
+    still correct, for a different and better reason: one failing file must not
+    stop the independent files behind it. This test pins the new state so nobody
+    re-derives the old rationale from a stale comment.
     """
     mig = REPO / "migrations"
     f024 = next(mig.glob("024_*.sql"), None)
-    f044 = next(mig.glob("044_*.sql"), None)
-    if not (f024 and f044):
-        pytest.skip("the 024/044 pair is gone — revisit whether migrate should stop on error")
+    if f024 is None:
+        pytest.skip("024 is gone")
 
-    drops = "DROP CONSTRAINT s4a_song_playlist_adds_pkey" in f024.read_text(encoding="utf-8")
-    restores = "s4a_song_playlist_adds_pkey" in f044.read_text(encoding="utf-8")
-    assert drops and restores, (
-        "024 no longer drops the key, or 044 no longer restores it. The 'keep going "
-        "past an error' design exists for exactly this pair — reconsider it."
+    text = f024.read_text(encoding="utf-8")
+    code = "\n".join(line.split("--", 1)[0] for line in text.splitlines())
+    assert "DROP CONSTRAINT s4a_song_playlist_adds_pkey;" not in code, (
+        "024 drops the primary key unguarded again. Replayed alone by the ledger it "
+        "destroys 044's key and cannot create its own — the table ends up with none."
+    )
+    assert "time_window" in text, "024 lost the guard that detects 044 has already run"
+
+    runner = (REPO / "tools/migrate.sh").read_text(encoding="utf-8")
+    assert "ON_ERROR_STOP" not in runner or "NOT set" in runner, (
+        "migrate.sh now stops on the first error. That is defensible, but it is a "
+        "change of contract: independent migrations behind a failing one stop being "
+        "applied. Decide it deliberately, not by accident."
     )
 
 

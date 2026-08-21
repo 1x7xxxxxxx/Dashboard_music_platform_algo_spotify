@@ -138,3 +138,39 @@ migration, pas pendant.
 | 2 (repository) | « revisiter si `_ALLOWED_TABLES` dépasse 100 » (≈50 à l'écriture) | **75** — pas atteint |
 | 4 (observabilité) | « si des plaintes utilisateurs arrivent pour la latence » | aucune plainte ; requêtes mesurées à 0,4 ms |
 | 7 (DR) | rejeté : « backup/restore is operator-driven » | **dépassé par les faits** : cron `pg_dump` actif en production, 17 sauvegardes sur disque, plus `make backup-test` (restauration à blanc). L'ADR n'avait pas été mis à jour. |
+
+### Le registre a été construit le 2026-08-21 — et ce qu'il a révélé
+
+Fait le jour même de cette ré-évaluation. `schema_migrations(filename, applied_at,
+checksum)` + une boucle dans `tools/migrate.sh` qui n'applique que l'absent. Mesuré,
+avant / après :
+
+| | avant | après |
+|---|---|---|
+| fichiers appliqués à chaque exécution | **70** | **0** (`✅ nothing to apply`) |
+| fichiers en erreur à chaque exécution | 1 réel + 4 de bruit | 0 |
+| fichier modifié après coup | invisible | détecté au `checksum`, **non rejoué** |
+
+L'adoption n'est **pas** silencieuse : sur une base déjà peuplée dont le registre est
+neuf, on ne suppose pas que les fichiers ont tourné — on fait un dernier passage complet
+et on enregistre ce qui passe. Adopter sur la foi figerait pour toujours une base
+partiellement migrée, ce qui n'est pas théorique : la base locale de cette machine avait
+justement dérivé du canonique (`local-db-drifts-from-canonical`).
+
+**Ce que le registre a cassé en s'installant, et qu'il faut retenir.** Le changement
+paraissait purement additif — il ne fait que *sauter* du travail. En réalité il a modifié
+le **contexte de rejeu** dont une instruction non gardée dépendait en silence depuis des
+mois : `024` fait un `DROP CONSTRAINT` nu puis échoue à recréer sa clé, ce qui n'était
+survivable que parce que `044` repassait derrière. Rejouée **seule** — ce que fait un
+registre pour tout fichier qui n'aboutit jamais — elle a détruit la clé de `044` à chaque
+exécution, et `s4a_song_playlist_adds` s'est retrouvée **sans clé primaire**. Le mécanisme
+de sûreté a commencé par casser ce qu'il protégeait.
+
+Trouvé uniquement parce que la clé a été vérifiée **directement dans `pg_constraint`**
+après le passage, au lieu de faire confiance au `✅ no unexpected psql error` du runner.
+Le runner disait vrai sur psql et manquait le dégât : l'effet était un cran en dessous de
+ce qu'il mesurait. Classe `unguarded-drop-replayed-alone`, gardée par
+`tests/test_migrations_are_replay_safe.py`, qui parse chaque migration.
+
+Avant de changer la façon dont un jeu de scripts est **exécuté**, demander ce que chacun
+supposait de ses voisins.

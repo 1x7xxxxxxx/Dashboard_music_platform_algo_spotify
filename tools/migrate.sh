@@ -45,7 +45,67 @@ if [ ${#FILES[@]} -eq 0 ]; then
     exit 1
 fi
 
-echo "▶ ${#FILES[@]} migration(s) → $PG_CONT/$DB"
+psql_q() { docker exec -i "$PG_CONT" psql -U "$USER_" -d "$DB" -tAq -c "$1" 2>/dev/null; }
+
+# ── The ledger ────────────────────────────────────────────────────────────────
+# ADR-002 kept flat SQL files and rejected Alembic. Re-reading it on 2026-08-21
+# showed its premise was false ("26 files, all idempotent" — they are 70 and they
+# are not), but its conclusion held for a reason the ADR did not give: Alembic's
+# autogenerate needs SQLAlchemy models and this repo has none.
+#
+# The real defect was never the missing framework, it was that NOTHING recorded
+# which migrations had run — so the strategy was to reapply all 70 every time,
+# which is exactly why 024 errors on every execution.
+#
+# Deliberately NOT adopting silently: when the ledger is new on an already
+# populated database we do NOT assume the files ran. We run them once more (the
+# behaviour that is proven to work today) and record what succeeded. Adopting on
+# faith would freeze a partially-migrated database forever — and a local database
+# that had drifted from canonical was measured on this very machine the same day.
+psql_q "CREATE TABLE IF NOT EXISTS schema_migrations (
+            filename   TEXT PRIMARY KEY,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            checksum   TEXT NOT NULL);" >/dev/null
+
+applied_list="$(psql_q "SELECT filename || ' ' || checksum FROM schema_migrations;")"
+declare -A APPLIED
+while read -r name sum; do
+    [ -n "$name" ] && APPLIED["$name"]="$sum"
+done <<< "$applied_list"
+
+pending=()
+changed=()
+for f in "${FILES[@]}"; do
+    base="$(basename "$f")"
+    sum="$(sha256sum "$f" | cut -d" " -f1)"
+    if [ -z "${APPLIED[$base]:-}" ]; then
+        pending+=("$f")
+    elif [ "${APPLIED[$base]}" != "$sum" ]; then
+        changed+=("$base")
+    fi
+done
+
+if [ ${#changed[@]} -gt 0 ]; then
+    echo "⚠️  ${#changed[@]} already-applied migration(s) were EDITED after the fact:"
+    printf '     %s\n' "${changed[@]}"
+    echo "   They are NOT re-run — the database may not match the file you are reading."
+    echo "   Write a new migration instead, or reconcile with: make schema-check"
+    echo ""
+fi
+
+if [ ${#pending[@]} -eq 0 ]; then
+    echo "✅ nothing to apply — ${#FILES[@]} migration(s), all recorded in schema_migrations"
+    exit 0
+fi
+
+if [ "${DRY_RUN:-}" = "1" ]; then
+    echo "▶ dry-run: ${#pending[@]} migration(s) would be applied to $PG_CONT/$DB:"
+    printf '     %s\n' "${pending[@]}"
+    exit 0
+fi
+
+FILES=("${pending[@]}")
+echo "▶ ${#FILES[@]} migration(s) → $PG_CONT/$DB   (${#APPLIED[@]} already recorded)"
 
 # Re-running a migration whose object is already there is the NORMAL case: this
 # script is meant to be idempotent as a whole, and most files predate
@@ -63,16 +123,23 @@ for f in "${FILES[@]}"; do
     out="$(docker exec -i "$PG_CONT" psql -U "$USER_" -d "$DB" < "$f" 2>&1)"
     printf '%s\n' "$out"
 
+    record() {
+        psql_q "INSERT INTO schema_migrations (filename, checksum) VALUES ('$(basename "$f")', '$(sha256sum "$f" | cut -d" " -f1)')
+                ON CONFLICT (filename) DO UPDATE SET checksum = EXCLUDED.checksum, applied_at = now();" >/dev/null
+    }
+
     errs="$(printf '%s' "$out" | grep -iE '^(ERROR|FATAL)')"
-    [ -z "$errs" ] && continue
+    if [ -z "$errs" ]; then record; continue; fi
 
     unexpected="$(printf '%s' "$errs" | grep -viE "$IDEMPOTENT_RE")"
     if [ -n "$unexpected" ]; then
         real+=("$f")
         real_msg["$f"]="$(printf '%s' "$unexpected" | head -2)"
-    else
-        noisy+=("$f")
+        # NOT recorded on purpose: it retries next run and stays visible.
+        continue
     fi
+    record
+    noisy+=("$f")
 done
 
 echo ""
