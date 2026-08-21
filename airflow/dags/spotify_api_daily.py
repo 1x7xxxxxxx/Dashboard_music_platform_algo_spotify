@@ -210,8 +210,37 @@ def collect_spotify_top_tracks(**context):
             password=os.getenv('DATABASE_PASSWORD')
         )
 
-        # Récupérer les artistes depuis la DB
-        artists = db.fetch_query("SELECT artist_id FROM artists")
+        # Honour the requested scope. `collect_spotify_artists` reads
+        # `dag_run.conf['artist_id']`; this task did not, so a dashboard trigger
+        # meaning "collect for artist 12" scoped the first task and ran the SECOND
+        # over the entire catalogue — every tenant's top tracks fetched from the
+        # Spotify API on every per-tenant click. The rows were attributed
+        # correctly (each carries its tenant), so nothing leaked; what was wrong
+        # is that the conf was carried and half-ignored, against the contract in
+        # CLAUDE.md ("un déclenchement de DAG depuis le dashboard porte
+        # conf={'artist_id': …}").
+        conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+        artist_id_conf = conf.get('artist_id')
+
+        if artist_id_conf:
+            artists = db.fetch_query(
+                "SELECT spotify_artist_id FROM saas_artists "
+                "WHERE id = %s AND active = TRUE "
+                "AND spotify_artist_id IS NOT NULL AND spotify_artist_id <> ''",
+                (artist_id_conf,)
+            )
+            if not artists:
+                # Not an error worth failing the task: an active tenant that has
+                # not declared a Spotify id simply has nothing to collect. Saying
+                # WHICH tenant is what turns this into an actionable line.
+                logger.warning(
+                    f'⚠️ artist_id={artist_id_conf} : aucun spotify_artist_id déclaré '
+                    '(ou artiste inactif) — rien à collecter pour ce locataire.'
+                )
+                db.close()
+                return 0
+        else:
+            artists = db.fetch_query("SELECT artist_id FROM artists")
 
         if not artists:
             logger.warning('⚠️ Aucun artiste trouvé en base. Lancez d\'abord collect_artists.')

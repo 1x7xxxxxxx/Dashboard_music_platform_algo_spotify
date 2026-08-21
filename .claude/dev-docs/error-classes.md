@@ -108,6 +108,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [state-path-namespaced-by-another-project](#state-path-namespaced-by-another-project) | P3 | deterministic | guarded | none |
 | [migrate-heals-only-if-run-to-completion](#migrate-heals-only-if-run-to-completion) | P2 | deterministic | guarded | none |
 | [freshness-measured-on-write-time](#freshness-measured-on-write-time) | P2 | deterministic | guarded | none |
+| [dag-conf-honoured-by-one-task-only](#dag-conf-honoured-by-one-task-only) | P3 | deterministic | guarded | none |
+| [local-db-drifts-from-canonical](#local-db-drifts-from-canonical) | P3 | manual | reported | none |
 
 ---
 
@@ -837,3 +839,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21 (ref: roadmap R13)
 - History:
   - 2026-08-21: found while checking whether the newly-scheduled central-app task would actually detect R13. It would not — and neither would freshness. Measured on production: `meta_insights_performance_day` had `MAX(collected_at)` = that morning 07:01, `MAX(day_date)` = **2024-09-30**, and **zero** rows with a `day_date` inside the last seven days. Meta Ads had collected nothing since early August behind a green light. After the fix the same probe reports **16 577 hours** stale (~23 months), and surfaces two more genuinely stale CSV sources (Spotify S4A 1 817 h, Apple Music 1 605 h). Guard verified 3 red before / 6 green after. Sibling of `connection-test-proves-app-not-tenant` and of the `psql` exit-0 case: each time the measurement and the question were about different things.
+
+## dag-conf-honoured-by-one-task-only
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a per-tenant trigger from the dashboard (`conf={'artist_id': …}`) scopes the first task of a DAG and runs the next one over the whole fleet. Nothing fails, nothing is misfiled — the work is simply done for everyone, on every click.
+- root_cause: `spotify_api_daily.collect_spotify_artists` reads `dag_run.conf['artist_id']`; `collect_spotify_top_tracks`, in the same DAG, never looked at the context and selected its work with `SELECT artist_id FROM artists` — the entire Spotify catalogue.
+- signature: `python3 -m pytest tests/test_e2e_two_tenants.py::test_spotify_popularity_history_carries_its_tenant -q`
+- long_term_fix: the task reads the conf and, when present, resolves the tenant's own `spotify_artist_id`; an active tenant with no Spotify id logs which tenant and returns 0 instead of falling through to the fleet query. The guard drives the DAG the way the dashboard does — scoped — so a task that ignores the scope produces a payload for more than one tenant and fails.
+- autofix: none
+- guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- rex_ref: airflow/dags/spotify_api_daily.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: found by running the suite against the real local database for the first time (R18 unblocked `make up`). The test had always passed because a throwaway database holds exactly one tenant — with a second, the scoped call built a payload for `{1, 223}`. The first reading was "the DAG leaks"; it does not, every row carries its own tenant. What it does is fetch every tenant's top tracks from the Spotify API on a per-tenant click — wasted quota against a rate-limited API this repo already has a whole failure strategy for. The test itself was the second defect: `assert artist_ids == {tenant}` only held on an empty fleet, so it would have cried wolf the day CI got data.
+
+## local-db-drifts-from-canonical
+- status: reported
+- severity: P3
+- kind: manual
+- symptom: tests pass in CI and against a throwaway database, and fail on the developer's own machine — with type errors, not logic errors.
+- root_cause: `make schema-check` compares PRODUCTION against canonical (`init_db.sql` + `migrations/*.sql`). Nothing compares the LOCAL development database, which predates several migrations and drifted silently. Measured 2026-08-21: `soundcloud_tracks_daily.track_id` was `bigint` locally against `VARCHAR(50)` canonical, breaking 7 tests with `invalid input syntax for type bigint`.
+- signature: `make schema-check PROD_SSH=<user@host>` — compares prod only; the local comparison is the gap this class names
+- long_term_fix: — (reported, not guarded). The full diff was: 0 missing columns, 0 extra columns, 26 type differences of which 24 are `text` vs `character varying` (equivalent in Postgres — a `VARCHAR` with no length IS `text`) and 2 are widenings that do not bite. Only `track_id` had behaviour. A `make schema-check LOCAL=1` would close it; the measurement above is what would justify writing it.
+- autofix: none
+- guard: { type: cross-cutting-rule, ref: .claude/dev-docs/runbook-actions-utilisateur.md }
+- rex_ref: .claude/scripts/check_env.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: surfaced the first time the suite ran against the local database instead of a throwaway one. The local column was converted (349 rows preserved). Worth knowing before writing the guard: most of the "drift" is cosmetic, so a naive column-type comparison would report 26 findings of which 24 are noise — the same cry-wolf failure the migrate reporter hit the same day.

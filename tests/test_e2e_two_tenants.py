@@ -464,14 +464,43 @@ def test_spotify_popularity_history_carries_its_tenant(db, tenant, env_points_at
             sp.return_value.get_artist_top_tracks.return_value = fake_tracks
             with patch.object(PostgresHandler, "upsert_many", recording):
                 dag = _load_dag_module("spotify_api_daily")
-                dag.collect_spotify_top_tracks(**_dag_context())
+                # SCOPED to this tenant, like the dashboard triggers it
+                # (`conf={'artist_id': …}`). Called without it the DAG runs in
+                # FLEET mode over every active tenant, and the stubbed collector
+                # returns the same track for each — so the injected row landed
+                # under the admin too and the assertion below failed on a correct
+                # behaviour. The bug it guards against is per-tenant; the call
+                # has to be per-tenant to see it.
+                dag.collect_spotify_top_tracks(**_dag_context(tenant))
 
         assert captured, "the popularity upsert never ran — fixture did not reach it"
         assert "artist_id" in captured["keys"], (
             "track_popularity_history payload has no artist_id key → DEFAULT 1 → "
             "every tenant's history is stored under the admin"
         )
-        assert captured["artist_ids"] == {tenant}
+        # NOT `== {tenant}`: the DAG is called without an artist_id, so it runs in
+        # FLEET mode and legitimately builds one payload covering every active
+        # tenant. That assertion only held on an empty database — it failed on the
+        # real dev DB (`{1, 203}`) for a correct behaviour, which is a guard that
+        # cries wolf the moment the fleet has a second member.
+        #
+        # What the leak actually looks like: the row lands under artist 1 because
+        # the payload had no `artist_id` key and the column defaulted. So assert on
+        # the ROW we injected — independent of how many tenants exist.
+        assert captured["artist_ids"] == {tenant}, (
+            f"a scoped run built a payload for {captured['artist_ids']} instead of "
+            f"{{{tenant}}} — the conf artist_id is not scoping the collection"
+        )
+        landed = db.fetch_query(
+            "SELECT artist_id FROM track_popularity_history WHERE track_id = %s",
+            ("trk-e2e-1",),
+        )
+        assert landed, "the injected track never reached track_popularity_history"
+        owners = {r[0] for r in landed}
+        assert owners == {tenant}, (
+            f"the track collected FOR tenant {tenant} is filed under {owners}. "
+            "This is the leak: every tenant's popularity history under the admin."
+        )
     finally:
         db.execute_query("DELETE FROM track_popularity_history WHERE track_id = %s",
                          ("trk-e2e-1",))

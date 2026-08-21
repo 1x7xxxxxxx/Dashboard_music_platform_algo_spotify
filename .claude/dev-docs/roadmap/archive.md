@@ -1126,3 +1126,35 @@ réouverture est une requête qu'on peut lancer.
   pourquoi le déclencheur est « la première campagne est planifiée » et non « la landing
   est en ligne ». Le reste de la spécification (sous-domaines, dédup `event_id`, e-mail
   haché SHA-256, Consent Mode v2) est conservé tel quel dans le bloc détaillé.
+
+### P4 — `.env` ligne 67, et ce que sa correction a révélé (clos, 2026-08-21)
+
+- [x] **R18 — `.env` ligne 67 malformée** (P4) — la ligne était
+  `nom entreprise=BAUDRY Timothé` : une étiquette écrite sans `#`. Docker la lisait comme
+  une clé, et une clé ne peut pas contenir d'espace. Commentée. `docker compose config`
+  passe, `make up` démarre, et **`check_env.py` affiche 10/10 pour la première fois**.
+
+  **Ce que la correction a débloqué compte plus que la correction.** Lancer la suite
+  contre la vraie base locale — au lieu du Postgres jetable — a fait tomber **8 tests**,
+  et chacun disait quelque chose de vrai :
+
+  1. **Un garde a protesté à raison.** `test_the_permission_deny_list_does_not_shrink` a
+     rougi parce que les trois protections `.env` avaient été retirées pour l'opération.
+     Elles sont remises : le travail était fini, l'accès n'avait plus de raison d'être.
+  2. **La base locale avait dérivé du canonique** (classe `local-db-drifts-from-canonical`) :
+     `soundcloud_tracks_daily.track_id` en `bigint` là où `init_db.sql` dit `VARCHAR(50)`.
+     `make schema-check` compare la **prod** au canonique — rien ne compare le local.
+     Converti, 349 lignes conservées. Diff complet : 0 colonne manquante ou en trop, 26
+     écarts de type dont **24 cosmétiques** (`text` et `varchar` sans longueur sont le même
+     type en Postgres).
+  3. **Un vrai défaut de DAG** (classe `dag-conf-honoured-by-one-task-only`) :
+     `collect_spotify_top_tracks` ne lisait **jamais** `dag_run.conf`, alors que
+     `collect_spotify_artists`, dans le même DAG, le fait. Un déclenchement « collecte
+     pour l'artiste 12 » depuis le dashboard scopait la première tâche et faisait tourner
+     la seconde sur **tout le catalogue** — le quota Spotify de toute la flotte dépensé à
+     chaque clic per-tenant. Rien ne fuyait (chaque ligne porte son locataire), mais le
+     contrat de CLAUDE.md était à moitié honoré. Corrigé, et le test qui l'attrape lance
+     désormais le DAG **comme le dashboard le lance** : scopé.
+  4. **Le test de fuite lui-même était faux** : `assert artist_ids == {tenant}` n'était
+     vrai que sur une flotte à un membre. Il aurait crié au loup le jour où la CI aurait
+     eu des données.

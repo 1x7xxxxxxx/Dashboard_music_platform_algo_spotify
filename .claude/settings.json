@@ -2,13 +2,13 @@
   "permissions": {
     "deny": [
       "Read(./.env)",
+      "Write(./.env)",
+      "Edit(./.env)",
       "Read(./.env.*)",
       "Read(**/*.pem)",
       "Read(**/id_rsa*)",
       "Read(**/*credentials*.json)",
       "Read(**/*service*account*.json)",
-      "Write(./.env)",
-      "Edit(./.env)",
       "Bash(sudo rm:*)",
       "Bash(mkfs:*)",
       "Bash(mkfs.*)",
