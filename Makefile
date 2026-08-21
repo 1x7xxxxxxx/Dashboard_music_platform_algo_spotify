@@ -138,8 +138,10 @@ canon-pg: ## (internal) build the throwaway canonical database and fingerprint i
 	@docker exec -i canon_pg psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_canon.tsv 2>/dev/null
 	@docker rm -f canon_pg >/dev/null 2>&1
 
-sync-check: schema-check ## Full repo↔prod sync: schema-drift (above) + deploy-drift (server HEAD vs origin/main)
+sync-check: schema-check ## Full repo↔prod sync: schema-drift + migration-ledger + deploy-drift
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
+	@echo "▶ migration-ledger + tool reachability on the target…"
+	@bash tools/dev/check_prod_ledger.sh $(PROD_SSH) $(PROD_PG)
 	@echo "▶ deploy-drift: $(PROD_REPO) HEAD vs origin/main…"
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && git fetch -q origin main && if [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ]; then echo "  ✅ deployed code == origin/main"; else echo "  ⚠ DEPLOY DRIFT: server HEAD != origin/main — run on prod: git pull --ff-only origin main && docker compose up -d --build api dashboard"; git -C $(PROD_REPO) log --oneline HEAD..origin/main | head -5; exit 1; fi'
 
