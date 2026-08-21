@@ -61,6 +61,49 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
 
+**▶️ Séance du 2026-08-22 (nuit) — pourquoi « les credentials ne marchaient pas » : rien n'était en panne.**
+
+Deux sessions artiste avaient échoué là-dessus. En cherchant ce qui restait après tous
+les correctifs par symptôme, la réponse est plus simple et pire : **les deux
+plateformes que l'onboarding recommande en premier échouaient sous les yeux de
+l'artiste**, sans qu'aucune infrastructure ne soit en panne.
+
+| # | ce qui se passait | mesuré |
+|---|---|---|
+| 1 | **La matrice Spotify lisait la table CSV.** Test de connexion vert nommant l'artiste, DAG qui collecte, écran 🔴 « Connecté — aucune donnée » jusqu'à un import CSV. | Spotify était jugée sur **quatre tables** selon l'écran. Vérifié en prod après correctif : le canari a **0 ligne CSV, 10 lignes API**, et readiness dit `ok`. |
+| 2 | **Enregistrer un identifiant Instagram déclenchait `meta_ads_api_daily`**, jamais `instagram_daily` — aucune première collecte. L'entrée `'instagram'` de la carte était inatteignable par construction. | Le fichier se lisait comme si la fonctionnalité existait. |
+| 3 | **L'onglet Meta mentait à chaque sauvegarde** : « ⚠️ Le renouvellement automatique ne fonctionnera pas », pour tout artiste, parce qu'il lisait trois champs que le formulaire ne déclare pas. Bouton de rafraîchissement idem. | Retiré, pas réparé : sous ADR-006 le token est central et n'expire pas. |
+| 4 | **Instagram était exemptée de tout** : pas d'unicité d'identité (deux locataires pouvaient revendiquer le même compte en silence), pas de test de connexion, absente du canari et de l'alerte. | La même carte existait en **six exemplaires**, dont deux amputés. |
+| 5 | **Un garde vert tenait le trou en place** : un test affirmait l'égalité entre les deux copies fausses, et les tests d'unicité se paramétraient sur la copie amputée — une entrée manquante y **retire des cas** au lieu d'en faire tomber un. | Vérifié par contraste : Instagram retiré, les paramétrés restent verts (8), seul le cliquet littéral tombe. |
+| 6 | **Une sonde en panne s'affichait « Connecté — aucune donnée »** — `freshness_monitor` posait un champ `error` pour ça, personne ne le lisait. | Statut `BROKEN` ⚠️ qui ne demande **rien** à l'artiste. |
+| 7 | **L'inscrit qui abandonne n'existait pour personne.** `readiness_red_flags` ne remontait que `NO_DATA` ; un locataire sans identité n'en produit aucune. | Première exécution en prod : **11 locataires bloqués** détectés. |
+| 8 | **Le moniteur nocturne ne pouvait pas voir la cause littérale de Benken** : les sondes renvoient `True` sur env absent, et seul un humain tapant `--require` le voyait. | `central-app-missing` passe reported/manual → **guarded/deterministic**. |
+| 9 | **Le portail go/no-go n'avait aucun test ni horaire.** Le runbook s'ouvre sur « on n'invite personne tant que `make artist-preflight` n'est pas vert ». | 9 tests + `check_canary_preflight` chaque nuit, scopé aux plateformes que le canari déclare. Exécuté en prod : **0 problème**. |
+
+**Deux régressions à moi, trouvées en production et non en relecture.** Faire dériver
+les cibles du watchdog m'a fait rendre la table `artists`, où `artist_id` est
+l'identifiant Spotify VARCHAR — `operator does not exist: character varying = integer`,
+soit la classe `column-name-is-not-its-meaning` que ce dépôt documente déjà. Et exiger
+des lignes dans **toutes** les tables d'une plateforme rapportait le canari muet alors
+qu'il collecte : `watchdog-becomes-the-noise` failli recréé. Les deux corrigées et
+gardées. Ce qui a tenu : le contrat conservateur — la sonde a dit « could not run »
+plutôt que « tout va bien ».
+
+**Ce que ça dit des trois bêta-testeurs** : Benken et GRiNCH n'ont **jamais déclaré de
+Spotify**, Cuzebo n'a rien du tout. Ils ont abandonné devant les écrans ci-dessus. Le
+correctif ne les récupère pas tout seul — il empêche le prochain de vivre la même chose.
+
+**Déployé et vérifié en production** (`prod == canonique`, 920 col / 92 tables,
+71 migrations, code déployé == `origin/main`). 1220 tests verts contre une vraie base.
+
+Classes : `same-platform-judged-on-different-tables`, `map-key-unreachable-by-construction`,
+`guard-derived-from-the-thing-it-guards`, `broken-probe-rendered-as-user-fault`,
+`row-existence-read-as-connection`, `gate-with-no-test-of-its-own`.
+
+⚠️ **Un angle mort assumé** : les tests gardés par la base skippent en silence sans
+Postgres sur 5433. J'ai développé les quatre vagues dedans, et la base a trouvé un vrai
+défaut au premier lancement. Lancer la suite avec base avant de conclure.
+
 **▶️ Séance du 2026-08-22 (suite) — R13 est clos, et il n'a jamais fallu régénérer.**
 
 Trois séances avaient conclu qu'un token Meta était mort et qu'il fallait Business
