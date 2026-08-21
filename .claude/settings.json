@@ -16,11 +16,8 @@
       "Bash(reboot:*)"
     ],
     "ask": [
-      "Bash(git push:*)",
       "Bash(docker system prune:*)",
-      "Bash(terraform apply:*)",
-      "Bash(kubectl apply:*)",
-      "Bash(alembic downgrade:*)"
+      "Bash(docker volume rm:*)"
     ]
   },
   "hooks": {
