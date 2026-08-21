@@ -44,7 +44,6 @@ default_args = {
 
 def refresh_meta_tokens(**context):
     """Exchange Meta tokens for all active artists whose token expires soon."""
-    import os
     import requests
 
     from src.utils.credential_loader import (
@@ -65,15 +64,12 @@ def refresh_meta_tokens(**context):
     # One DB connection reused across all artists (was: a psycopg2.connect INSIDE the
     # loop — one TCP+auth handshake per artist, every run). autocommit=True so each
     # read is self-contained (no idle-in-transaction, no aborted-tx poisoning).
-    import psycopg2
-    db_conn = psycopg2.connect(
-        host=os.getenv('DATABASE_HOST', 'localhost'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD', ''),
-    )
-    db_conn.autocommit = True
+    # The DSN is resolved in one place (R33). This site defaulted the host to
+    # 'localhost' while the other eighteen in airflow/dags/ say 'postgres' —
+    # latent, since Airflow always sets DATABASE_HOST, but this is the DAG that
+    # refreshes the Meta token, i.e. the mechanism meant to prevent R13.
+    from src.utils.pg_connect import connect
+    db_conn = connect(autocommit=True)
 
     for artist_id, artist_name in artists:
         creds = load_platform_credentials(artist_id, 'meta')

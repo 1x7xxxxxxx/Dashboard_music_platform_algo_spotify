@@ -413,6 +413,60 @@ def check_row_anomalies(**context):
     return anomalies
 
 
+def check_central_apps(**context):
+    """Do the SHARED, admin-owned apps still authenticate?
+
+    Every other check here is per-tenant: has this artist declared credentials,
+    is their data fresh, is their light green. None of them asks the question one
+    level up — whether the app the whole fleet borrows still works.
+
+    That question had no scheduled asker, and the cost is measured: the Meta
+    System User token has been malformed since 2026-08 (code-190 on every REST
+    call), Meta and Instagram have collected nothing since, and no alert fired.
+    `tools/check_central_apps.py` detects it exactly and was wired into nothing.
+    Same shape as the 672 silent CSV-watcher failures of 2026-08-20: a detector
+    exists, a schedule does not.
+
+    A broken shared app is worse than a broken tenant credential — it takes the
+    whole fleet down at once — so it reports per platform, with the reason.
+    """
+    import sys
+    sys.path.insert(0, '/opt/airflow')
+
+    broken = []
+    try:
+        from tools.check_central_apps import (check_meta, check_soundcloud,
+                                              check_spotify, check_youtube)
+        probes = {
+            'Spotify': check_spotify,
+            'YouTube': check_youtube,
+            'SoundCloud': check_soundcloud,
+            'Meta': check_meta,
+        }
+    except ImportError as e:
+        # The tools/ package is not on the image path in every deployment. Say so
+        # rather than reporting "all apps fine" — an unrunnable check must never
+        # look like a passing one.
+        logger.error(f"central-app check unavailable: {e}")
+        context['task_instance'].xcom_push(
+            key='central_apps_broken',
+            value=[{'platform': 'ALL', 'reason': f'check could not run: {e}'}])
+        return
+
+    for label, probe in probes.items():
+        try:
+            if not probe():
+                broken.append({'platform': label,
+                               'reason': 'authentication failed — see task log'})
+                logger.error(f"Central app DOWN: {label}")
+        except Exception as e:  # per-platform isolation, like every check here
+            broken.append({'platform': label, 'reason': str(e)[:200]})
+            logger.error(f"Central app check raised for {label}: {e}")
+
+    logger.info(f"Central apps: {len(broken)} broken out of {len(probes)}.")
+    context['task_instance'].xcom_push(key='central_apps_broken', value=broken)
+
+
 def check_onboarding_readiness(**context):
     """Flag any active artist CONNECTED to a platform but receiving NO data (the silent gap).
 
@@ -466,6 +520,8 @@ def send_consolidated_alert(**context):
     billing_issues = ti.xcom_pull(task_ids='check_billing_sync', key='billing_issues') or []
     row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
     tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
+    central_broken = ti.xcom_pull(task_ids='check_central_apps',
+                                  key='central_apps_broken') or []
     readiness_flags = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_red_flags') or []
 
     stale_sources = [r for r in freshness if r['stale']]
@@ -727,9 +783,29 @@ def send_consolidated_alert(**context):
             f"<p style='color:#27ae60'>✅ Sources OK : {', '.join(ok_sources)}</p>"
         )
 
+    # First block in the body, for the same reason it is first in the subject:
+    # everything below it may be a consequence of it.
+    central_html = ""
+    if central_broken:
+        rows = ''.join(
+            f"<li><b>{c['platform']}</b> — {c['reason']}</li>" for c in central_broken)
+        central_html = (
+            '<div style="background:#fdecea;border-left:4px solid #c0392b;'
+            'padding:12px 16px;margin:16px 0">'
+            '<h2 style="color:#c0392b;margin:0 0 8px">🚨 App partagée hors service</h2>'
+            "<p style=\"margin:0 0 8px\">Une app admin n'authentifie plus : "
+            "<b>aucun locataire</b> ne collecte sur cette plateforme, quels que soient "
+            "leurs identifiants. Les alertes par locataire ci-dessous en sont "
+            "probablement la conséquence.</p>"
+            f"<ul style=\"margin:0\">{rows}</ul>"
+            '<p style="margin:8px 0 0;font-size:0.9em">Vérifier : '
+            "<code>python3 tools/check_central_apps.py --require</code></p></div>"
+        )
+
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
       <h1 style="color:#2c3e50">📊 Monitoring Music Platform — {now_str}</h1>
+      {central_html}
       {''.join(sections)}
       {ok_line}
       <hr style="border:none;border-top:1px solid #eee;margin-top:24px">
@@ -740,6 +816,12 @@ def send_consolidated_alert(**context):
     """
 
     subject_parts = []
+    if central_broken:
+        # First in the subject on purpose: a shared app that stops authenticating
+        # takes every tenant down at once, so it outranks any per-tenant symptom
+        # listed after it — several of which it will itself have caused.
+        subject_parts.append(
+            "🚨 APP PARTAGÉE HS : " + ', '.join(c['platform'] for c in central_broken))
     if failing_dags:
         subject_parts.append(f"{len(failing_dags)} DAG(s) en échec")
     if stale_sources:
@@ -815,6 +897,11 @@ with DAG(
         python_callable=check_onboarding_readiness,
     )
 
+    t_central = PythonOperator(
+        task_id='check_central_apps',
+        python_callable=check_central_apps,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -822,4 +909,4 @@ with DAG(
     )
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
-     t_billing, t_anomalies, t_readiness] >> t_alert
+     t_billing, t_anomalies, t_readiness, t_central] >> t_alert
