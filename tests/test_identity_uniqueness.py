@@ -51,11 +51,21 @@ def two_tenants(db):
 
 
 def _declare(db, artist_id, platform, extra):
+    """Write an identity the way the product writes it: under its STORAGE row.
+
+    This helper used to insert under the LOGICAL platform name. For four platforms
+    the two are the same, so it went unnoticed; for `instagram` — whose id lives in
+    the `meta` row — it simulated a write the product never performs, and the test
+    then failed against correct code. A fixture that restates a storage rule is one
+    more copy of it.
+    """
+    from src.utils.tenant_identity import storage_platform
+
     db.execute_query(
         "INSERT INTO artist_credentials (artist_id, platform, extra_config) "
         "VALUES (%s, %s, %s::jsonb) ON CONFLICT (artist_id, platform) "
-        "DO UPDATE SET extra_config = EXCLUDED.extra_config",
-        (artist_id, platform, json.dumps(extra)),
+        "DO UPDATE SET extra_config = artist_credentials.extra_config || EXCLUDED.extra_config",
+        (artist_id, storage_platform(platform), json.dumps(extra)),
     )
 
 
