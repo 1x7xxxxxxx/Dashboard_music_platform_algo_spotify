@@ -933,3 +933,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: the lesson is about the CHANGE, not the file. Adding a ledger looked purely additive — it only skips work. What it actually did was alter the replay CONTEXT that an unguarded statement had silently depended on for months. Before changing how a set of scripts is executed, ask what each one assumed about its neighbours. `061` had the correct shape all along (test for the constraint, drop, re-add unconditionally, all inside one `DO`) and was unaffected.
   - 2026-08-21: it was found only because the primary key was checked directly in `pg_constraint` after the run, rather than trusting `migrate.sh`'s "✅ no unexpected psql error". The runner was telling the truth about psql and still missing the damage — the effect was one level below what it measured.
+
+## suite-runs-against-one-tenant
+- status: fixed
+- severity: P1
+- kind: deterministic
+- symptom: the whole suite is green, CI is green, and multi-tenant defects ship anyway. They surface later, in front of a real artist, as "connected but no data".
+- root_cause: a fresh canonical database (`init_db.sql` + every migration) contains exactly ONE tenant — `Artist Default` — and that is what CI has always tested against. With one tenant, "collect for this tenant" and "collect for the whole fleet" return the same rows, so every isolation defect reads as correct behaviour. Measured 2026-08-21: three real defects were found within an hour of a second tenant existing (`identity-mirrored-but-written-once`, `api-partial-date-into-date-column`, `dag-conf-honoured-by-one-task-only`), and NONE of them was reachable before that.
+- signature: `python3 -m pytest tests/test_suite_runs_against_two_tenants.py -q`
+- long_term_fix: CI seeds a second tenant (`ci-canary`) right after provisioning, with real PUBLIC platform identities deliberately different from tenant 1's — a tenant borrowing another's identity passes every isolation check while proving nothing. Locally the same role is filled by `make canary`. The guard fails when fewer than two active tenants exist and names both fixes.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_suite_runs_against_two_tenants.py }
+- rex_ref: tools/create_canary.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: mutation-verified against a throwaway canonical database — red with the single seeded tenant, green once a second was inserted.
+  - 2026-08-21: the cost of NOT having this was two beta sessions burned an hour each on defects every one of these checks would have caught in advance. The fixture is two rows.

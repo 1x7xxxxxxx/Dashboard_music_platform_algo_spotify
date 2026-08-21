@@ -63,6 +63,14 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
 
+**▶️ Les trois optimisations proposées ont été livrées le 2026-08-21 (soir).**
+
+| # | livré | mesuré |
+|---|---|---|
+| 1 | **Registre de migrations** (`schema_migrations` + `tools/migrate.sh`, migration 071) | 70 fichiers rejoués à chaque exécution → **0**. Un fichier édité après coup passe de invisible à détecté au `checksum`. ⚠️ Son installation a **cassé** `s4a_song_playlist_adds` (clé primaire + 2 colonnes) en rendant 024 rejouable seule ; réparé, gardé, et consigné comme classe `unguarded-drop-replayed-alone`. |
+| 2 | **`make schema-check-local`** | La dérive que ni la CI ni une base jetable ne peuvent voir. Empreinte extraite dans `tools/dev/schema_fingerprint.sql` — elle était **dupliquée** dans le Makefile. Résultat après réparation : **local == canonique, 920 col / 92 tables**. |
+| 3 | **Suite contre ≥2 locataires** | Mesuré : une base canonique fraîche contient **exactement 1** locataire, et c'est contre ça que la CI a toujours tourné. La CI sème désormais `ci-canary` ; le garde tombe en dessous de deux. |
+
 **▶️ Séance du 2026-08-21 (soir) — le canari a trouvé trois défauts en une heure.**
 
 Créé en local, il a fait exactement ce pour quoi il existe : révéler ce qu'un dépôt

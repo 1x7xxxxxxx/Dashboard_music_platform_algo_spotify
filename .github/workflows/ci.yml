@@ -143,6 +143,25 @@ jobs:
           # DB-backed tests would silently SKIP and we'd lose the coverage we just added.
           psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
             -c "SELECT 1 FROM saas_artists LIMIT 1"
+          # A SECOND tenant. A fresh canonical database holds exactly one
+          # ("Artist Default"), and one tenant cannot expose a multi-tenant defect:
+          # "collect for this tenant" and "collect for the whole fleet" return the
+          # same rows, so every isolation bug reads as correct behaviour. Three were
+          # found on 2026-08-21, none of them visible before a second tenant existed.
+          # Identities are real PUBLIC ids (no ownership needed on these endpoints)
+          # and deliberately different from tenant 1's, because a tenant borrowing
+          # another's identity proves nothing. Guard: tests/test_suite_runs_against_two_tenants.py
+          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 -c "
+            INSERT INTO saas_artists (name, slug, tier, active, is_canary, spotify_artist_id)
+            VALUES ('CI Canary', 'ci-canary', 'free', TRUE, TRUE, '4tZwfgrHOc3mvqYlEYSvVi')
+            ON CONFLICT (slug) DO UPDATE SET spotify_artist_id = EXCLUDED.spotify_artist_id;
+            INSERT INTO artist_credentials (artist_id, platform, extra_config)
+            SELECT id, 'youtube', '{\"channel_id\": \"UC_x5XG1OV2P6uZZ5FSM9Ttw\"}'::jsonb
+              FROM saas_artists WHERE slug = 'ci-canary'
+            ON CONFLICT (artist_id, platform) DO NOTHING;"
+          psql -h localhost -U postgres -d spotify_etl -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) >= 2 OR (SELECT false) FROM saas_artists WHERE active" \
+            -tA | grep -qx t || { echo "::error::CI database has fewer than 2 tenants"; exit 1; }
 
       - name: Run tests
         env:

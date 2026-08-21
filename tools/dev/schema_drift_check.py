@@ -79,9 +79,14 @@ def _used_in_src(column: str) -> bool:
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        print("usage: schema_drift_check.py <prod_dump.tsv> <canonical_dump.tsv>", file=sys.stderr)
+    if len(sys.argv) not in (3, 4):
+        print("usage: schema_drift_check.py <live_dump.tsv> <canonical_dump.tsv> [label]",
+              file=sys.stderr)
         sys.exit(2)
+    # The label names WHICH live database was compared. It defaulted to "prod" and
+    # was printed verbatim when `schema-check-local` compared the LOCAL database —
+    # a report that misnames what it measured is how a green gets misread.
+    side = sys.argv[3] if len(sys.argv) == 4 else "prod"
     prod_all, canon_all = _load(sys.argv[1]), _load(sys.argv[2])
     prod, canon = prod_all["col"], canon_all["col"]
     prod_tables = {x.split(".", 1)[0] for x in prod}
@@ -91,7 +96,7 @@ def main() -> None:
     canon_extra = sorted(canon - prod)
     tables_prod_only = sorted(prod_tables - canon_tables)
 
-    print(f"prod: {len(prod)} cols / {len(prod_tables)} tables · "
+    print(f"{side}: {len(prod)} cols / {len(prod_tables)} tables · "
           f"canonical: {len(canon)} cols / {len(canon_tables)} tables\n")
 
     if tables_prod_only:
@@ -102,7 +107,7 @@ def main() -> None:
         print()
 
     if prod_extra:
-        print("## COLUMNS in prod, absent from canonical:")
+        print(f"## COLUMNS in {side}, absent from canonical:")
         for col in prod_extra:
             tbl, name = col.split(".", 1)
             if tbl in tables_prod_only:
@@ -112,7 +117,7 @@ def main() -> None:
         print()
 
     if canon_extra:
-        print("## COLUMNS in canonical, absent from prod (migration not applied on prod?):")
+        print(f"## COLUMNS in canonical, absent from {side} (migration not applied there?):")
         for col in canon_extra:
             print(f"  {col}")
         print()
@@ -128,7 +133,7 @@ def main() -> None:
         key_drift = True
         print(f"## {label} — divergent (compared by definition, not by name):")
         for item in only_prod:
-            print(f"  [prod only]      {item}")
+            print(f"  [{side} only]{' ' * max(1, 12 - len(side))}{item}")
         for item in only_canon:
             print(f"  [canonical only] {item}")
         print("  → a difference here changes which rows can coexist and which "
@@ -139,7 +144,7 @@ def main() -> None:
         print("⚠ schema drift found — triage above (report-only; never auto-ALTER prod). "
               "USED items belong in the version-controlled schema; orphans can be dropped/documented.")
         sys.exit(1)
-    print("✅ prod schema == canonical (init_db.sql + migrations)")
+    print(f"✅ {side} schema == canonical (init_db.sql + migrations)")
     sys.exit(0)
 
 

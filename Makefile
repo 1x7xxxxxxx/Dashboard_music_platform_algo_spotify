@@ -105,24 +105,35 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 PROD_SSH  ?=
 PROD_PG   ?= postgres_spotify_airflow
 PROD_REPO ?= /opt/streamlytics
+LOCAL_PG  ?= postgres_spotify_airflow
 SERVICE   ?= api dashboard
 
-schema-check: ## Diff PROD schema vs canonical (init_db.sql + migrations) — needs Docker + SSH to prod
-	@command -v docker >/dev/null 2>&1 || { echo "❌ docker required for the throwaway canonical DB."; exit 1; }
+schema-check: canon-pg ## Diff PROD schema vs canonical (init_db.sql + migrations) — needs Docker + SSH to prod
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host (e.g. make schema-check PROD_SSH=root@1.2.3.4)"; exit 1; }
+	@echo "▶ dumping prod schema via ssh…"
+	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'docker exec -i $(PROD_PG) psql -U postgres -d spotify_etl -tA' < tools/dev/schema_fingerprint.sql > /tmp/_prod.tsv 2>/dev/null
+	@python3 tools/dev/schema_drift_check.py /tmp/_prod.tsv /tmp/_canon.tsv
+
+schema-check-local: canon-pg ## Diff the LOCAL dev database vs canonical — the drift no CI run can see
+	@# CI and a throwaway database both start from canonical, so neither can ever
+	@# report this. The developer's own database predates migrations and drifts in
+	@# silence: measured 2026-08-21, soundcloud_tracks_daily.track_id was bigint
+	@# locally against VARCHAR(50) canonical, and 7 tests failed with a type error
+	@# on this machine only. Same fingerprint as `schema-check`, local side.
+	@docker exec -i $(LOCAL_PG) psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_local.tsv 2>/dev/null \
+		|| { echo "❌ local Postgres unreachable ($(LOCAL_PG)). Run: make up"; exit 1; }
+	@python3 tools/dev/schema_drift_check.py /tmp/_local.tsv /tmp/_canon.tsv local
+
+canon-pg: ## (internal) build the throwaway canonical database and fingerprint it
+	@command -v docker >/dev/null 2>&1 || { echo "❌ docker required for the throwaway canonical DB."; exit 1; }
 	@echo "▶ provisioning throwaway canonical Postgres from init_db.sql + migrations…"
 	@docker rm -f canon_pg >/dev/null 2>&1 || true
 	@docker run -d --name canon_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl postgres:17 >/dev/null
 	@for i in $$(seq 1 30); do docker exec canon_pg pg_isready -U postgres -d spotify_etl >/dev/null 2>&1 && break; sleep 1; done; sleep 2
 	@docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < init_db.sql >/dev/null 2>&1
 	@for f in $$(ls migrations/*.sql | sort); do docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done
-	@# Columns AND constraints/unique indexes: a column-only diff called prod
-	@# "identical" while its youtube_videos PRIMARY KEY was on a different column.
-	@docker exec canon_pg psql -U postgres -d spotify_etl -tAc "SELECT 'col:'||table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' UNION ALL SELECT 'key:'||conrelid::regclass||':'||pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace='public'::regnamespace AND contype IN ('p','u','f') UNION ALL SELECT 'uix:'||tablename||':'||substring(indexdef from 'USING .*') FROM pg_indexes WHERE schemaname='public' AND indexdef LIKE 'CREATE UNIQUE%' ORDER BY 1" > /tmp/_canon.tsv 2>/dev/null
+	@docker exec -i canon_pg psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_canon.tsv 2>/dev/null
 	@docker rm -f canon_pg >/dev/null 2>&1
-	@echo "▶ dumping prod schema via ssh…"
-	@echo "SELECT 'col:'||table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' UNION ALL SELECT 'key:'||conrelid::regclass||':'||pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace='public'::regnamespace AND contype IN ('p','u','f') UNION ALL SELECT 'uix:'||tablename||':'||substring(indexdef from 'USING .*') FROM pg_indexes WHERE schemaname='public' AND indexdef LIKE 'CREATE UNIQUE%' ORDER BY 1;" | ssh -o ConnectTimeout=10 $(PROD_SSH) 'docker exec -i $(PROD_PG) psql -U postgres -d spotify_etl -tA' > /tmp/_prod.tsv 2>/dev/null
-	@python3 tools/dev/schema_drift_check.py /tmp/_prod.tsv /tmp/_canon.tsv
 
 sync-check: schema-check ## Full repo↔prod sync: schema-drift (above) + deploy-drift (server HEAD vs origin/main)
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
