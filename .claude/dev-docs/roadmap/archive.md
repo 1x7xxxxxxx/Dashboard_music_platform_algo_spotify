@@ -883,3 +883,33 @@ pointeur qui rate ne se plaint pas.
   avale sa propre panne transforme une base indisponible en « aucune ligne », ce que
   `.claude/rules/python.md` interdit. `tests/test_pg_connect.py` : 21 tests, dont un grep
   d'une ligne qui aurait attrapé la divergence d'origine.
+
+### P3 — Le canari synthétique, et le couplage qu'il a révélé (clos, 2026-08-21)
+
+- [x] **R15 — Canary onboarding synthétique** (P3) — la fiche demandait la chaîne
+  « tenant test → connect → trigger → vérif » et disait attendre une décision « tenant
+  seedé ». La décision était déjà prise par les fixtures que le dépôt a fait pousser
+  depuis : le locataire est **éphémère** — créé, parcouru, supprimé — donc la marche
+  tourne en CI sur un Postgres jetable et ne laisse rien qui pourrirait. Un locataire
+  seedé en permanence serait une deuxième chose à maintenir vraie.
+
+  Chaque maillon était déjà testé séparément (inscription, tests de connexion, collecte
+  scopée, readiness). Ce qui manquait, c'est qu'ils **composent** :
+  `tests/test_canary_onboarding_walk.py` marche les quatre étapes sur un seul locataire,
+  dans l'ordre, et en un seul test — divisé en quatre, chacun passerait contre un
+  locataire que l'étape précédente n'a jamais touché, ce qui est précisément le défaut
+  visé. Il affirme au passage la distinction que les deux sessions bêta n'avaient pas :
+  **déclarer une identité ne suffit pas à allumer le voyant**, il faut des lignes derrière.
+
+  **Trouvé en écrivant la marche** : `artist_readiness` dérive tous ses voyants de
+  `freshness_monitor.MONITOR_TARGETS`, et pour YouTube c'est `youtube_channel_history`
+  **seule** — ni le catalogue, ni les stats par vidéo. Écrire des vidéos sans ligne
+  d'historique laisse le voyant gris avec les données présentes. Le DAG écrit bien les
+  quatre tables aujourd'hui, donc ce n'est pas un défaut : c'est une dépendance que
+  personne n'avait déclarée. Une optimisation du DAG qui cesserait d'écrire l'historique
+  ferait passer **tous** les locataires au gris d'un coup, collecte normale. Une
+  assertion le dit désormais au moment du changement, pas à la bêta suivante.
+
+  Le canari **réel** en production (R20) reste nécessaire et différent : il utilise de
+  vrais identifiants contre de vraies API. Celui-ci prouve la plomberie ; l'autre prouve
+  le monde.
