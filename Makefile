@@ -26,12 +26,34 @@ test:        ## Pytest suite — test_api.py auto-skips if dev extras absent
 lint:        ## Ruff lint on src/ and tests/
 	ruff check src/ tests/
 
-migrate:     ## Apply every migrations/*.sql idempotently against the live PG
+migrate:     ## Apply every migrations/*.sql against the live PG, and NAME what errored
+	@# Idempotent as a COMPLETE run, not file by file — and that distinction has teeth.
+	@# 024 drops the s4a_song_playlist_adds PK and fails to recreate it (the key became
+	@# window-aware later); 044 restores it. Run 001..N and the schema is right. Stop in
+	@# between and the table sits in production WITHOUT a primary key.
+	@#
+	@# psql without ON_ERROR_STOP exits 0 even when statements failed, so this target
+	@# used to print success while errors scrolled past — measured 2026-08-21 on the
+	@# real production run. Continuing is correct (that is what lets 044 heal 024);
+	@# staying silent about it is not. Errors are collected and named at the end.
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
-	@for f in migrations/*.sql; do \
+	@failed=""; \
+	for f in migrations/*.sql; do \
 		echo ">> $$f"; \
-		docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl < $$f; \
-	done
+		out=$$(docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl < $$f 2>&1); \
+		echo "$$out"; \
+		if echo "$$out" | grep -qiE '^(ERROR|FATAL)'; then failed="$$failed $$f"; fi; \
+	done; \
+	if [ -n "$$failed" ]; then \
+		echo ""; \
+		echo "⚠️  psql reported errors in:$$failed"; \
+		echo "   A complete run is expected to heal these (a later migration supersedes"; \
+		echo "   an earlier one). Confirm it did — do not assume:"; \
+		echo "     make schema-check PROD_SSH=<user@host>"; \
+	else \
+		echo ""; \
+		echo "✅ every migration applied with no psql error"; \
+	fi
 
 backup:      ## Dump spotify_etl → backups/*.sql.gz (+ retention)
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi

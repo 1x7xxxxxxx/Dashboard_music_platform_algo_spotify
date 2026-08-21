@@ -797,3 +797,25 @@ pointeur qui rate ne se plaint pas.
   6 verts après) : `probe-scoped-to-the-machine-not-the-repo` et
   `state-path-namespaced-by-another-project`. Ce qui reste nommer l'autre projet est de la
   **prose REX** — la provenance d'une leçon mesurée ailleurs, qui est sa raison d'être.
+
+### P1 — Déploiement en production du correctif de fuite locataire (clos, 2026-08-21)
+
+- [x] **R26 — Déployer le code corrigé en prod** (P1) — fait. `96554a2 → 49e94a4`, deux
+  mois d'écart. Sauvegarde prise avant (`spotify_etl_20260821_103908.sql.gz`, 600 K),
+  `tools/deploy.sh` a pull + rebuild + gate de santé : api et dashboard `200`. Airflow
+  monte `./src` et `./airflow/dags` depuis l'hôte, donc les collecteurs suivaient déjà ;
+  scheduler et webserver redémarrés pour qu'aucun processus ne tourne sur l'ancien code.
+- [x] **R25 — Appliquer `065` et `068` avec le déploiement** (P1) — fait, dans le bon
+  ordre cette fois, et **vérifié en structure et en fonction**. Structure : `youtube_videos`
+  et `youtube_channels` portent `PRIMARY KEY (id)` au lieu de l'identifiant plateforme, les
+  index uniques `(artist_id, video_id)` et `(artist_id, channel_id)` sont là ; **0 colonne
+  `artist_id` ne porte plus de `DEFAULT`** (elles étaient 55) et 76 sur 81 sont `NOT NULL`
+  — les 5 restantes sont exactement celles qu'on voulait garder (deux `VARCHAR` qui sont
+  l'identifiant Spotify et non le locataire, une vue, et deux tables où l'absence de lien
+  est un état légitime). Fonction : DAG `youtube_daily` déclenché sur le locataire 1 →
+  `success`, **67 vidéos et 67 lignes de stats réécrites à l'instant** — l'upsert résout
+  bien son `ON CONFLICT` contre le nouveau schéma, ce qui est précisément ce qui avait
+  cassé le 2026-08-20. `tenant_contamination_check` : aucune contamination croisée. Les
+  deux locataires détenteurs d'une chaîne YouTube détiennent chacun la leur.
+  `artist_preflight --artist 12` tourne de bout en bout et s'arrête, à raison, sur les
+  identités manquantes de Benken (Spotify, Instagram) et sur le token Meta de R13.

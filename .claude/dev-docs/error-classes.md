@@ -106,6 +106,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [identity-claimed-by-two-tenants](#identity-claimed-by-two-tenants) | P2 | deterministic | guarded | none |
 | [probe-scoped-to-the-machine-not-the-repo](#probe-scoped-to-the-machine-not-the-repo) | P3 | deterministic | guarded | none |
 | [state-path-namespaced-by-another-project](#state-path-namespaced-by-another-project) | P3 | deterministic | guarded | none |
+| [migrate-heals-only-if-run-to-completion](#migrate-heals-only-if-run-to-completion) | P2 | deterministic | guarded | none |
 
 ---
 
@@ -803,3 +804,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21 (ref: roadmap R36)
 - History:
   - 2026-08-21: dated by the data itself. `homunculus/<project>/observations.jsonl` holds 536 entries and stops on 2026-07-28 — the day the payload was re-pushed with an `observe.py` that hardcoded `msdr`; `homunculus/msdr/observations.jsonl` holds the 74 entries written since. `draft_devlog.py` had been drafting from the frozen file for three weeks, which is why `.claude/sessions/pending-devlog.md` sat at 2026-05-15 with every field still `?`. The 74 orphaned entries were merged back (606 unique, chronological) and the stray directory retired. A third namespace, `homunculus/streamlytics/`, was found empty and referenced by no code — removed.
+
+## migrate-heals-only-if-run-to-completion
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: `make migrate` prints success while `psql` errors scroll past. The full run is self-consistent, so nothing looks wrong — but a run interrupted at the wrong file leaves production without a constraint, and nobody is told.
+- root_cause: `psql` without `ON_ERROR_STOP` exits 0 even when statements failed, and the `migrate` recipe discarded that output. The individual files are not idempotent: `migrations/024` drops `s4a_song_playlist_adds_pkey` unconditionally and fails to recreate it (the key became window-aware in `044`, which restores it). 001..N is correct; 001..024 is a table with no primary key.
+- signature: `python3 -m pytest tests/test_migrate_reports_errors.py -q`
+- long_term_fix: the `migrate` target collects per-file `psql` output, still continues (that is what lets 044 heal 024), and **names every file that errored** at the end plus the command that proves the schema landed (`make schema-check`). Silence is no longer a possible outcome. A test pins that the recipe both captures output and greps it for `ERROR|FATAL`.
+- autofix: none
+- guard: { type: test, ref: tests/test_migrate_reports_errors.py }
+- rex_ref: .claude/rules/makefile-fail-fast.md
+- first_seen: 2026-08-21 (ref: roadmap R25/R26 production deploy)
+- History:
+  - 2026-08-21: found during the real production migration run, not in a test. Applying every `migrations/*.sql` on the live database surfaced one error — `could not create unique index "s4a_song_playlist_adds_pkey"` — which the target would have swallowed. Verified afterwards that the constraint was intact in its later 4-column form, because `044` runs after `024` in the same pass. Sibling of `migration-ahead-of-its-code`: both are about migration ORDER being load-bearing while nothing enforces it.
