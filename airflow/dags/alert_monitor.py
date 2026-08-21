@@ -472,6 +472,82 @@ def check_central_apps(**context):
     context['task_instance'].xcom_push(key='central_apps_broken', value=broken)
 
 
+def check_canary_health(**context):
+    """Is the canary tenant still collecting? Nothing else asks this.
+
+    Every other freshness check looks at a SOURCE across the fleet. A source stays
+    fresh as long as ONE tenant collects — and the admin's own tenant almost always
+    does. So a break in the per-tenant path (a lost identity mirror, a DAG that
+    stops honouring dag_run.conf, an isolation regression) leaves every global
+    signal green while every real artist collects nothing.
+
+    That is precisely the failure the canary exists to make visible, and a canary
+    nobody reads is decoration. This is the reader.
+
+    It reports per platform the tenant declared. A platform it never declared is
+    not a problem; a platform it declared and stopped filling is.
+    """
+    import sys
+    sys.path.insert(0, '/opt/airflow')
+
+    STALE_HOURS = 36  # one nightly cycle plus margin — a single missed run is noise
+
+    problems = []
+    db = None
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+
+        rows = db.fetch_query(
+            "SELECT id, name FROM saas_artists "
+            "WHERE is_canary = TRUE AND active = TRUE ORDER BY id")
+        if not rows:
+            # Absence is a finding: without a canary this whole detector is off.
+            problems.append({'platform': 'canary', 'reason':
+                             'no canary tenant exists — the per-tenant pipeline has '
+                             'no watchdog (roadmap R20)'})
+            context['task_instance'].xcom_push(key='canary_problems', value=problems)
+            return
+
+        artist_id, name = rows[0]
+
+        # (platform, table, timestamp column) — only what the canary can actually own.
+        TARGETS = [
+            ('youtube', 'youtube_video_stats', 'collected_at'),
+            ('spotify', 'track_popularity_history', 'collected_at'),
+        ]
+        declared = {p for (p,) in db.fetch_query(
+            "SELECT platform FROM artist_credentials WHERE artist_id = %s", (artist_id,))}
+
+        for platform, table, col in TARGETS:
+            if platform not in declared:
+                continue
+            allowed = {'youtube_video_stats', 'track_popularity_history'}
+            if table not in allowed:      # identifier allowlist (cross-cutting rule #8)
+                continue
+            age = db.fetch_query(
+                f"SELECT EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "  # noqa: S608
+                f"FROM {table} WHERE artist_id = %s", (artist_id,))[0][0]
+            if age is None:
+                problems.append({'platform': platform, 'reason':
+                                 f'canary "{name}" has NEVER collected into {table}'})
+            elif age > STALE_HOURS:
+                problems.append({'platform': platform, 'reason':
+                                 f'canary "{name}" last collected into {table} '
+                                 f'{int(age)}h ago (> {STALE_HOURS}h)'})
+
+        logger.info(f"Canary {artist_id} ({name}): {len(problems)} problem(s).")
+    except Exception as e:  # noqa: BLE001 — an unrunnable check must say so
+        logger.error(f"canary health check unavailable: {e}")
+        problems.append({'platform': 'canary',
+                         'reason': f'check could not run: {str(e)[:180]}'})
+    finally:
+        if db is not None:
+            db.close()
+
+    context['task_instance'].xcom_push(key='canary_problems', value=problems)
+
+
 def check_onboarding_readiness(**context):
     """Flag any active artist CONNECTED to a platform but receiving NO data (the silent gap).
 
@@ -529,9 +605,18 @@ def send_consolidated_alert(**context):
                                   key='central_apps_broken') or []
     readiness_flags = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_red_flags') or []
 
+    canary = ti.xcom_pull(task_ids='check_canary_health', key='canary_problems') or []
+
     stale_sources = [r for r in freshness if r['stale']]
+    # `central_broken` and `canary` belong in this decision, not only in the body.
+    # They were rendered at the bottom of this function and in the subject line, but
+    # were NOT part of has_issues — so a broken shared app, ALONE, produced no email
+    # at all: the function returned early just below. Masked today only because Meta
+    # is simultaneously broken and stale. The check added to break a silence was
+    # itself silent (found 2026-08-21).
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
-                  or billing_issues or row_anomalies or tenant_gaps or readiness_flags)
+                  or billing_issues or row_anomalies or tenant_gaps or readiness_flags
+                  or central_broken or canary)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -807,6 +892,17 @@ def send_consolidated_alert(**context):
             "<code>python3 tools/check_central_apps.py --require</code></p></div>"
         )
 
+    if canary:
+        # The canary is the only tenant whose silence is a signal about EVERY tenant.
+        # Its section sits next to the shared apps because both are fleet-wide.
+        sections.append(
+            "<h3>🐤 Canari — le locataire témoin ne collecte plus</h3><ul>"
+            + "".join(f"<li><b>{c['platform']}</b> — {c['reason']}</li>" for c in canary)
+            + "</ul><p>Un signal global peut rester vert pendant que la chaîne "
+              "<i>par locataire</i> est cassée : une source reste fraîche tant qu'UN "
+              "locataire collecte, et c'est presque toujours l'admin. C'est exactement "
+              "ce que ce locataire existe pour rendre visible.</p>")
+
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
       <h1 style="color:#2c3e50">📊 Monitoring Music Platform — {now_str}</h1>
@@ -827,6 +923,8 @@ def send_consolidated_alert(**context):
         # listed after it — several of which it will itself have caused.
         subject_parts.append(
             "🚨 APP PARTAGÉE HS : " + ', '.join(c['platform'] for c in central_broken))
+    if canary:
+        subject_parts.append("🐤 CANARI MUET")
     if failing_dags:
         subject_parts.append(f"{len(failing_dags)} DAG(s) en échec")
     if stale_sources:
@@ -907,6 +1005,11 @@ with DAG(
         python_callable=check_central_apps,
     )
 
+    t_canary = PythonOperator(
+        task_id='check_canary_health',
+        python_callable=check_canary_health,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -914,4 +1017,4 @@ with DAG(
     )
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
-     t_billing, t_anomalies, t_readiness, t_central] >> t_alert
+     t_billing, t_anomalies, t_readiness, t_central, t_canary] >> t_alert

@@ -964,3 +964,34 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: ⚠️ the production `docker-compose.yml` is **gitignored**, so this fix does NOT propagate by `git pull`. The mount has to be added on the server by hand, once. A guard that only reads the versioned example cannot see that — it is checking the template, not the deployment. Named here rather than left implicit.
+
+## finding-rendered-but-not-alerted
+- status: fixed
+- severity: P1
+- kind: deterministic
+- symptom: a monitoring check runs, finds a real problem, writes it to xcom — and no alert is ever sent. The dashboard of checks looks complete; the inbox stays empty.
+- root_cause: the finding takes part in the email BODY and even the SUBJECT line, but not in the boolean that decides whether to send an email at all. Measured 2026-08-21 in `airflow/dags/alert_monitor.py`: `central_apps_broken` was rendered at line ~794 and placed FIRST in the subject at ~829, while `has_issues` at ~533 listed eight other sources and not it. A shared app that stopped authenticating, as the only problem, produced nothing — the function returned early. It was masked purely by coincidence: Meta happened to be broken *and* stale at once, and staleness was in the decision. The check written specifically to end a months-long silence was itself silent under exactly the condition it targeted.
+- signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
+- long_term_fix: the guard parses the DAG, collects every local name assigned from an `xcom_pull` inside `send_consolidated_alert`, and requires each to appear in the `has_issues` expression. It sweeps the class rather than the instance, so a check added later gets the same treatment for free.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: found while adding `check_canary_health` — reading the send path to wire a new finding is what exposed that an existing one was never wired. Adding a neighbour is a cheap way to audit the neighbourhood.
+  - 2026-08-21: the accompanying wiring guard was ITSELF hollow at first — a `re.search` with `DOTALL` spanning from `t_creds` to `>> t_alert` swept up the operator DEFINITIONS in between, so `t_canary` was "found" even after being removed from the dependency line. Third hollow guard of the same session, third one caught only by mutation. Assert on the narrowest text that carries the meaning, never on "does this name appear somewhere in the file".
+
+## canary-tenant-unwatched
+- status: fixed
+- severity: P2
+- kind: deterministic
+- symptom: every global freshness light is green while every real artist collects nothing.
+- root_cause: freshness is measured per SOURCE across the fleet, and a source stays fresh as long as ONE tenant collects — which is almost always the admin, whose data path differs from a tenant's. A break in the per-tenant path (a lost identity mirror, a DAG that stops honouring `dag_run.conf`, an isolation regression) is therefore invisible to every existing check. The canary tenant exists precisely to be that second data point, and until 2026-08-21 nothing read it: a watchdog with no reader.
+- signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
+- long_term_fix: `check_canary_health` in `alert_monitor` reports, per platform the canary actually declared, whether rows are still landing under it (36 h threshold — one nightly cycle plus margin, so a single missed run is not noise). Absence of a canary is itself reported: with none, the detector is simply off, and that must not read as health. The finding reaches the body AND the subject (`🐤 CANARI MUET`) AND `has_issues`.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: the detector is exercised directly against a stubbed database — stale, never-collected, absent, healthy, and never-declared — not only checked for being wired. Wiring a detector that never fires is the same decoration in a different place.
