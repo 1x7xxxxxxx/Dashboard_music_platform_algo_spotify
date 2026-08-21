@@ -1,3 +1,19 @@
+<!-- RETIRÉ le 2026-08-20 — doublon écrit pour un AUTRE projet.
+
+Ce fichier auditait « MSDR Predictive Maintenance » : OPC UA, QuestDB, Redis
+Streams, endpoint `/predict`, tableaux numpy, `INFLUX_TOKEN`. Rien de tout cela
+n'existe dans streaMLytics. Il aurait cherché des credentials OPC UA dans un SaaS
+d'analytics musicale.
+
+`security-specialist` fait le même travail et, lui, est écrit contre ce dépôt
+(psycopg2 `%s`, `src/dashboard/auth.py`, `credential_loader.py`, clés Fernet) et
+nommé par la règle impérative #13 de CLAUDE.md. Les 4 workflows et
+`usage_report.py` qui nommaient `security-reviewer` pointent désormais sur lui.
+
+Conservé ici plutôt que supprimé : c'est la trace d'une fuite de domaine du
+payload baseline, pas du code mort ordinaire.
+-->
+
 ---
 name: security-reviewer
 description: "Spawned after any API endpoint, authentication, or external-facing code is modified. Audits for OWASP Top 10, secret handling, and input validation. Returns CRITICAL/HIGH/MEDIUM findings."
@@ -16,7 +32,7 @@ An API endpoint, authentication mechanism, or externally-facing module was modif
 
 ### CRITICAL (reject — must fix before merge)
 - SQL injection: any f-string, `.format()`, or `%`-string interpolation in SQL queries — must use parameterized queries (`%s` placeholders in psycopg3)
-- Hardcoded secrets: `password=`, `token=`, `PG_PASSWORD=`, `POSTGRES_PASSWORD=`, `INFLUX_TOKEN=` (defensive), OPC UA credentials not from `os.getenv()`
+- Hardcoded secrets: `password=`, `token=`, `PG_PASSWORD=`, `POSTGRES_PASSWORD=`, `INFLUX_TOKEN=` (defensive), OPC UA credentials not from `os.getenv()` <!-- pragma: allowlist secret -->
 - Arbitrary file read/write via user input (path traversal)
 - `eval()` / `exec()` / `os.system()` with any user-controlled value
 - Missing input validation on `/predict` endpoint — malformed float arrays can crash numpy

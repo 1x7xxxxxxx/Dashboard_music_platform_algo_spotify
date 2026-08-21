@@ -23,7 +23,7 @@ A step that looks automatic but cannot be is marked as such — never disguised.
 | 7 | Fix **+ a durable guard** | guard = a signature in `error-classes.md` (exit ≠ 0 = hit), and/or a test, and/or a hook | playbook |
 | 8 | **Mutation-verify the guard** | re-introduce the defect and watch the guard go RED. **A test never seen fail is not a guard.** | pytest |
 | 9 | Silent-failure sweep — if a background job or stream consumer | `silent-failure-hunter` where it exists | playbook |
-| 10 | Security — if an endpoint, credential, or external surface | `security-reviewer` + the `pre_commit_scan.py` hook | playbook + hook |
+| 10 | Security — if an endpoint, credential, or external surface | `security-specialist` + the `pre_commit_scan.py` hook | playbook + hook |
 | 11 | Deploy sync — if schema or deploy | a forward migration, never a manual edit on the target; then checksum repo↔target | playbook |
 | 12 | REX drafted → promoted | `draft_rex.py` (Stop hook) writes `pending-rex.md`; `/retro` promotes (**a human writes the lesson**) | hook + human |
 | 13 | ROADMAP updated | `.claude/dev-docs/roadmap/checklist.md` (actif) — a finding enters **only with the command that measured it**. Fixed and shipped? `Spawn roadmap-keeper` rotates it into `archive.md` | playbook |

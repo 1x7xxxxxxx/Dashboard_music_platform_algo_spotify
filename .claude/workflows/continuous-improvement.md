@@ -21,7 +21,7 @@ How the config improves itself, honest about what is automatic and what is not.
 Measured rather than assumed, in the one repo of this fleet with real telemetry: of 30 declared
 agents, **26 were never invoked** — its own CLAUDE.md calls them "measured theater". What earned its
 place was a small live set (`code-critic`, `Explore`, `strategic-plan-architect`,
-`security-reviewer`, `build-error-resolver`, `web-research-specialist`) plus **deterministic
+`security-specialist`, `build-error-resolver`, `web-research-specialist`) plus **deterministic
 detectors**.
 
 Before adding an agent, ask what it does that a grep, a test, or a signature cannot. If the answer

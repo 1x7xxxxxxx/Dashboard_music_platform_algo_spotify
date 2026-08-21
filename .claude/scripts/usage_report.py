@@ -21,7 +21,7 @@ WHAT IT SAYS TODAY (measured 2026-07-17, all 20 transcripts):
 
     Explore 53 · general-purpose 17 · web-research-specialist 8 · Plan 7
     strategic-plan-architect 6 · code-critic 0 · code-architecture-reviewer 0
-    build-error-resolver 0 · security-reviewer 0
+    build-error-resolver 0 · security-specialist 0
 
 **4 of the 6 agents CLAUDE.md declares have NEVER been invoked, and 85% of real agent traffic
 (77/91) goes to built-ins CLAUDE.md does not mention.** That is the measured answer to "should I

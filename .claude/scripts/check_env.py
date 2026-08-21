@@ -18,13 +18,28 @@ import os
 import shutil
 import subprocess
 import sys
+# `Path` was used at l.106 without being imported: /check-env crashed with a
+# NameError the moment it reached the project-files check. Ruff (F821) had it,
+# but this directory is outside CI's lint scope (`ruff check src/ tests/`).
+from pathlib import Path
 
 
 # ── Repo root ─────────────────────────────────────────────────────────────────
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))               # .claude/scripts/
 CLAUDE_DIR  = os.path.dirname(SCRIPT_DIR)                              # .claude/
 REPO_ROOT   = os.path.dirname(CLAUDE_DIR)                              # project root
-APP_DIR     = os.path.join(REPO_ROOT, "src", "Application")
+# The application root differs per repo: this payload was cut from one where the
+# code lives in `src/Application`. Detect it instead of asserting it — a check that
+# reports "tests/ not found at src/Application/tests" in a repo whose tests are at
+# `tests/` is not a check, it is noise that trains the reader to skip the report.
+def _detect_app_dir() -> str:
+    for candidate in (os.path.join(REPO_ROOT, "src", "Application"), REPO_ROOT):
+        if os.path.isdir(os.path.join(candidate, "tests")):
+            return candidate
+    return REPO_ROOT
+
+
+APP_DIR     = _detect_app_dir()
 
 
 def ok(msg: str)   -> None: print(f"  ✅  {msg}")
@@ -128,14 +143,37 @@ def check_questdb_port() -> bool:
         return False
 
 
+def _declared_pg_port() -> int:
+    """The port THIS repo publishes Postgres on, read from compose (default 5432).
+
+    Hardcoding 5432 warned about an unreachable database on every repo that maps
+    another port — this one publishes 5433. Same reasoning as the QuestDB probe
+    above: check what the project declares, not what the template assumed.
+    """
+    import re
+    for name in ("docker-compose.yml", "docker-compose.yaml", "compose.yml"):
+        f = Path(name)
+        if not f.is_file():
+            continue
+        try:
+            blob = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        m = re.search(r'"?(\d{4,5}):5432"?', blob)
+        if m:
+            return int(m.group(1))
+    return 5432
+
+
 def check_postgres_port() -> bool:
     import socket
+    port = _declared_pg_port()
     try:
-        with socket.create_connection(("localhost", 5432), timeout=2):
-            ok("PostgreSQL port 5432 reachable")
+        with socket.create_connection(("localhost", port), timeout=2):
+            ok(f"PostgreSQL port {port} reachable")
             return True
     except OSError:
-        warn("PostgreSQL port 5432 not reachable — run: docker compose up -d postgres")
+        warn(f"PostgreSQL port {port} not reachable — run: docker compose up -d postgres")
         return False
 
 
@@ -239,7 +277,7 @@ def main() -> None:
         ".env file":         check_env_file(),
         "requirements.txt":  check_requirements(),
         "Docker":            check_docker(),
-        "PostgreSQL :5432":  check_postgres_port(),
+        f"PostgreSQL :{_declared_pg_port()}": check_postgres_port(),
         **({"QuestDB :9000": check_questdb_port()} if _declares("questdb") else {}),
         "Host UTC sync":     check_timezone(),
         "Container TZ=UTC":  check_docker_tz_utc(),

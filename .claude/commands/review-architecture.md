@@ -1,43 +1,68 @@
 ---
-rex: []
+rex:
+  - date: 2026-08-20
+    issue: "Copied verbatim from the MSDR repo: it read two UNRENDERED bootstrap templates, listed modules absent here (acquisition.py, fanuc_reader.py), diffed Alembic revisions (ADR-002 rejects Alembic) and audited QuestDB measurements. No QuestDB here — it could not produce a true statement."
+    fix: "Rewritten against this repo: the populated `.claude/dev-docs/architecture.md`, the real schema sources (init_db.sql + migrations/), and `make schema-check` which already compares prod to canonical — including constraints since 2026-08-20."
+    ref: "error-classes.md config-status-file-unrendered; prod-canonical-schema-drift"
+    severity: warn
 ---
 
-Audit Mermaid architecture diagrams against the actual codebase state.
+Audit the architecture documentation against the actual state of this codebase.
 
 ## What to do
 
 ### Step 1 — Modules drift
-Read `.claude/dev-docs/architecture/macro_architecture.md`.
-List Python files in `src/Application/` (top-level only, exclude tests/, __pycache__, .venv).
-For each major module (acquisition.py, api.py, database.py, background_ml.py, dashboard.py, features.py, processing.py, fanuc_reader.py, sensor_diagnostics.py, train_xgboost.py, train_autoencoder.py):
-- ✅ if it appears in a diagram node
-- ❌ if it exists on disk but is absent from all diagrams
-- ⚠️  if it appears in a diagram but no longer exists on disk
 
-### Step 2 — PostgreSQL tables drift (Alembic-managed)
-Read `.claude/dev-docs/architecture/database_schema.md` — extract PG table names from the ERD.
-List Alembic revisions under `src/Application/migrations/versions/` — each `op.create_table()` / `op.add_column()` defines the real schema.
-Compare: report tables/columns in Alembic revisions but missing from ERD, and tables in ERD but not in Alembic chain (head `0012_add_rl_recommendations` as of 2026-04-24).
+For a repo-wide sweep, `Spawn code-architecture-reviewer` — that is precisely its
+job (cold audit of the diagrams against the codebase), and it keeps the file
+listing out of this context. Otherwise, inline:
 
-### Step 3 — QuestDB measurements drift
-Read `.claude/dev-docs/architecture/database_schema.md` — extract QuestDB measurement names.
-Grep `src/Application/` for ILP writes (`QUESTDB_ILP_PORT`, `questdb` TCP 9009 socket writes, `_write_rows_questdb`, `redis_consumer.py` bridge).
-Report any measurement written in code but not documented, or documented but not found in code.
+Read `.claude/dev-docs/architecture.md` (the populated one — **not**
+`architecture/macro_architecture.md`, which is an unrendered bootstrap template).
+
+List what exists on disk: `src/collectors/`, `src/transformers/`, `src/database/`,
+`src/utils/`, `src/dashboard/views/`, `src/api/routers/`, `airflow/dags/`.
+
+For each module: ✅ present in a diagram · ❌ on disk but in no diagram ·
+⚠️ in a diagram but gone from disk.
+
+### Step 2 — Tables drift (canonical schema, no Alembic)
+
+The schema is `init_db.sql` + `migrations/*.sql` — there is no ORM and no Alembic
+(ADR-002 rejects both, deliberately). Extract the tables the architecture doc
+claims and compare with `CREATE TABLE` across those SQL files.
+
+### Step 3 — Prod ↔ canonical drift
+
+Do not re-implement it: `make schema-check PROD_SSH=…` provisions a throwaway
+canonical Postgres from `init_db.sql` + migrations, dumps prod, and diffs
+**columns, constraints (PK/UNIQUE/FK) and unique indexes**. Report its output.
+
+A constraint difference is not cosmetic: it changes which rows can coexist and
+which `ON CONFLICT` targets resolve. Anything under `key:` or `uix:` is a
+deployment-order question — see `migrations/065`'s banner.
 
 ### Step 4 — Docker services drift
-Read `.claude/dev-docs/architecture/macro_architecture.md` — extract service names.
-Read `docker-compose.yml` at repo root — extract service names.
-Report drift.
+
+Compare the services named in the architecture doc with `docker-compose.yml`
+(gitignored, local) and `docker-compose.example.yml` (tracked). `test_compose_parity`
+already guards the two against each other; this step is about the diagram.
+
+### Step 5 — Multi-tenant claims
+
+The architecture doc describes a multi-tenant model. Verify the two invariants
+that actually broke in production:
+- `python3 .claude/scripts/audit_tenant_writes.py` → every write names its tenant
+- `python3 -m pytest tests/test_e2e_two_tenants.py -q` → no tenant receives another's data
 
 ## Output format
 
-Report as a checklist — one line per check, ✅ / ❌ / ⚠️.
-End with: "X issues found. Run `/dev-docs fix-architecture-drift` to plan fixes." if any ❌ or ⚠️.
-End with: "Architecture diagrams are in sync with codebase." if all ✅.
+A checklist, one line per check, ✅ / ❌ / ⚠️.
+End with `X issues found` and the next command to run, or
+`Architecture docs are in sync with the codebase.`
 
 ## When to use
 
-- At session start after a long absence from the project
-- Before a major refactor
-- Before on-site IPC deployment (validate docs are current)
-- After a new Alembic revision (to verify `database_schema.md` ERD matches head) or after adding a new QuestDB measurement (ILP write)
+- After a refactor touching more than five files, or a new DAG / view / router
+- Before inviting an artist to test (together with `make artist-preflight`)
+- After a migration that changes a key — see step 3

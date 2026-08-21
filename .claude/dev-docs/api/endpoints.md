@@ -5,7 +5,44 @@
 ## Route Inventory
 
 <!-- AUTO:ROUTES_BEGIN -->
-TODO: run generate-dev-docs.py to populate
+*Auto-generated 2026-08-21 — 8 routes*
+
+| Method | Path | Function | Description |
+|--------|------|----------|-------------|
+| `GET` | `/health` | `health` | Returns ``{"status": "ok"}`` — no auth required. |
+| `GET` | `/me` | `get_me` | get_me |
+| `GET` | `/predictions` | `get_predictions` | get_predictions |
+| `POST` | `/stripe` | `stripe_webhook` | Verify Stripe signature and process billing events. |
+| `GET` | `/summary` | `get_summary` | get_summary |
+| `GET` | `/timeline` | `get_timeline` | get_timeline |
+| `POST` | `/token` | `login` | OAuth2 password flow against saas_users (username OR email + bcrypt). |
+| `GET` | `/videos` | `get_videos` | get_videos |
+
+### Grouped by resource
+
+#### /health
+- `GET /health`  — health
+
+#### /me
+- `GET /me`  — get_me
+
+#### /predictions
+- `GET /predictions`  — get_predictions
+
+#### /stripe
+- `POST /stripe`  — stripe_webhook
+
+#### /summary
+- `GET /summary`  — get_summary
+
+#### /timeline
+- `GET /timeline`  — get_timeline
+
+#### /token
+- `POST /token`  — login
+
+#### /videos
+- `GET /videos`  — get_videos
 <!-- AUTO:ROUTES_END -->
 
 ## Endpoint Details

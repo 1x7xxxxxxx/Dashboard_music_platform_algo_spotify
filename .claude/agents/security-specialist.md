@@ -2,6 +2,9 @@
 name: security-specialist
 description: Audits code for OWASP vulnerabilities, secret leakage, auth bypass, and injection risks
 type: agent
+# Explicit tool list: an agent granted "*" by omission can write and deploy,
+# which a reviewer never needs. Read-only + Bash for git/grep verification.
+tools: ["Read", "Grep", "Glob", "Bash"]
 rex:
   - date: 2026-06-11
     issue: "Claimed docker-compose.yml was git-tracked/committed; it's gitignored (untracked) — secret only in OLD history"

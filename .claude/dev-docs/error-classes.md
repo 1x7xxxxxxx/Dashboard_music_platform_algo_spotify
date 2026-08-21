@@ -11,6 +11,8 @@ rex: []
 
 # Error-class catalogue — single source of truth
 
+<!-- fields-ratchet: 25 -->
+
 Every recurring bug is abstracted here into a **class** with a **machine-detectable
 signature**. `/sweep`, `make audit`, and `.claude/hooks/suggest_sweep.py` all
 consume `signature.cmd` literally — signature logic lives nowhere else.
@@ -90,6 +92,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [config-status-file-unrendered](#config-status-file-unrendered) | P2 | deterministic | guarded | none |
 | [trigger-threshold-split](#trigger-threshold-split) | P3 | deterministic | guarded | none |
 | [rex-delimiter-unanchored](#rex-delimiter-unanchored) | P3 | deterministic | guarded | none |
+| [connection-test-proves-app-not-tenant](#connection-test-proves-app-not-tenant) | P2 | deterministic | guarded | none |
+| [identity-read-but-never-collectable](#identity-read-but-never-collectable) | P2 | deterministic | guarded | none |
+| [guide-single-os-shortcut](#guide-single-os-shortcut) | P3 | deterministic | guarded | none |
+| [first-paint-chart-overload](#first-paint-chart-overload) | P3 | deterministic | guarded | none |
+| [tenant-identity-falls-back-to-admin](#tenant-identity-falls-back-to-admin) | P1 | deterministic | guarded | none |
+| [write-without-explicit-artist-id](#write-without-explicit-artist-id) | P1 | deterministic | guarded | none |
+| [upsert-transfers-row-ownership](#upsert-transfers-row-ownership) | P1 | deterministic | guarded | none |
+| [dag-trigger-without-tenant-scope](#dag-trigger-without-tenant-scope) | P1 | deterministic | guarded | none |
+| [ast-guard-blind-to-bom](#ast-guard-blind-to-bom) | P2 | deterministic | guarded | safe |
+| [migration-ahead-of-its-code](#migration-ahead-of-its-code) | P1 | manual | reported | none |
+| [column-name-is-not-its-meaning](#column-name-is-not-its-meaning) | P2 | deterministic | guarded | none |
+| [identity-claimed-by-two-tenants](#identity-claimed-by-two-tenants) | P2 | deterministic | guarded | none |
 
 ---
 
@@ -414,6 +428,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: .claude/skills/airflow-dag.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
+  - 2026-08-20: two live instances found on the same day, both invisible to the parity test because they live in prod's untracked copy. (1) `SPOTIFY_ARTIST_IDS` and `META_AD_ACCOUNT_ID` were declared with the ADMIN's identity HARDCODED as the compose default (`${VAR:-7sbfafb…}`), so commenting them out of prod's `.env` changed nothing — the default kept feeding the fallback. (2) The `SMTP_*` block existed only under the `dashboard` service, so the scheduler could send no alert at all. Both fixed in prod and in the example. The lesson: a `${VAR:-default}` in compose is a value, not a placeholder — an identity must never be one.
   - 2026-06-19: found via the Benken onboarding cascade. Fixed 5 collector DAGs (youtube/soundcloud/instagram/spotify/meta) + 5 more sites found by the impact sweep (spotify collect_top_tracks, ml_scoring_daily, ml_outcome_labeling, weekly_digest, alert_monitor) — per-tenant try/except-continue, fail only if EVERY tenant failed; prechecks softened. Durable rule: a per-tenant loop that touches `db` MUST be wrapped (PR #87/#89).
 
 ## collector-import-dotenv-crash
@@ -434,9 +449,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P1
 - kind: deterministic
 - symptom: a service's CODE reads a central-app env var (`os.getenv('SOUNDCLOUD_CLIENT_ID')` …) that the service's `docker-compose` block does NOT declare → empty in that container. A silent `''` default hides it. The dashboard ran the credential connection tests but was deployed WITHOUT the central-app env, so EVERY test failed (the Benken incident); SoundCloud was wired to no service at all.
+- root_cause: `os.getenv('X')` returns `None`/`''` when the variable is absent, so a container missing an env var behaves like one holding an empty value — no exception, no log, no difference at the call site. The declaration lives in a different file (`docker-compose`) from the read (`src/…`), and nothing joined the two.
+- long_term_fix: `tests/test_env_contract.py` joins them — for each service group, every CRITICAL env var read in that group's code must appear in that service's `environment:` block. Two extensions after it missed real cases: the CRITICAL set now includes the ALERTING vars (`SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL`), and the scan follows TRANSITIVE reads — `src/utils` is scanned for both groups, because a DAG that imports `email_alerts` reads env there and the guard was only looking at `airflow/dags` + `src/collectors`.
 - signature: `python3 -m pytest tests/test_env_contract.py -q`
 - autofix: none
-- guard: { type: test, ref: tests/test_env_contract.py (code-reads ⊆ service-declares, per service group) }
+- guard: { type: test, ref: tests/test_env_contract.py (code-reads ⊆ service-declares, per service group, transitive) }
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -447,9 +464,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P2
 - kind: heuristic
 - symptom: the live prod `docker-compose.yml` is UNTRACKED (gitignored) and hand-derived, so it silently diverges from the canonical `docker-compose.example.yml` — a service or env var present in the template is missing on prod (or vice-versa). No test sees it; surfaces only when a user hits the gap. Root structural cause of `env-not-wired-to-service`.
-- signature: `python3 -m pytest tests/test_compose_parity.py -q`
+- root_cause: the file that actually runs production is gitignored — it holds secrets, so it cannot be tracked — and the tracked `docker-compose.example.yml` is only a template someone copies once. Nothing compares the two afterwards, and the divergence is invisible from either side: CI reads the example, prod reads its own copy, and no test can reach both at the same time.
+- long_term_fix: parity is asserted on the two things a test CAN see — `tests/test_compose_parity.py` (every `${VAR}` of the example is documented in `.env.example`, all services present) and `tests/test_env_contract.py` (code reading an env var ⊆ the service block that declares it, transitive reads included since 2026-08-20). What no local test can see — prod's own copy — is read by `tools/prod_introspect.sh` (SET/MISSING per container) and must be run when a variable is added.
+- signature: `python3 -m pytest tests/test_compose_parity.py tests/test_env_contract.py -q`
 - autofix: none
-- guard: { type: test, ref: tests/test_compose_parity.py (every ${VAR} in the example is documented in .env.example; all services present) + prod-side parity check in tools/prod_introspect.sh }
+- guard: { type: test, ref: tests/test_compose_parity.py + tests/test_env_contract.py + prod-side parity check in tools/prod_introspect.sh }
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
@@ -460,26 +479,31 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P2
 - kind: manual
 - symptom: a shared central-app credential (SPOTIFY_CLIENT_ID/SECRET, YOUTUBE_API_KEY, SOUNDCLOUD_CLIENT_ID/SECRET, META_ACCESS_TOKEN) is absent or expired in prod → every tenant's connection test + collection for that platform fails at once, but nothing detects it until a user hits it.
-- signature: `python3 tools/check_central_apps.py`
+- root_cause: the central-app model (ADR-006) concentrates one credential per platform for the whole fleet, so a single absent variable is a fleet-wide outage — and it is read with `os.getenv(name, '')`, whose empty default makes absence indistinguishable from a wrong value at the call site. Nothing probed the apps themselves; the first detector was a human failing to connect.
+- long_term_fix: probe every central app BEFORE a tenant does — `tools/check_central_apps.py`, now step 1 of `make artist-preflight`. Its `--require` flag (2026-08-20) makes an ABSENT app red: the default mode skipped an unconfigured platform and still exited 0, which is exactly how "all the credentials failed" reached a beta artist. The env→service wiring itself is guarded by `tests/test_env_contract.py`.
+- signature: `python3 tools/check_central_apps.py --require`
 - autofix: none
 - guard: { type: ops-probe, ref: tools/check_central_apps.py (authenticates each shared app; exit 1 if a configured app fails) }
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
   - 2026-06-19: SoundCloud central app was unprovisioned in prod ("app non configurée → contacter admin"). The model needs the admin to provision + rotate one app per platform. `tools/check_central_apps.py` probes each before a tenant hits it; run pre-onboarding-session.
+  - 2026-08-20: the probe existed but was never run before a session, and its skip-on-absent behaviour meant it would have exited 0 anyway. Wired into `make artist-preflight` as step 1, with `--require`. Adjacent instance found the same day: `SMTP_*`/`ALERT_EMAIL` were declared only for the `dashboard` service, so the Airflow scheduler could send no alert at all — 672 CSV-watcher failures over a week went unreported. Same class, different variable; `test_env_contract` was extended to TRANSITIVE reads (`src/utils`), which was its blind spot.
 
 ## multitenant-mono-test-blindspot
 - status: reported
 - severity: P2
 - kind: manual
 - symptom: every smoke/integration test runs with `artist_id=1` only → a bug that appears only for tenant #2 (per-tenant SQL scoping, NULL handling, missing identity, fleet-poisoning) ships green. The whole Benken incident class was invisible because nothing exercised a second/new tenant.
-- signature: manual — `grep -rn "artist_id.*= *1" tests/` (review smoke tests for mono-tenant assumptions)
+- root_cause: artist 1 is the admin — the tenant with years of data, every identity declared, and (as admin) no SQL scoping applied at all. It is the single configuration in which a tenant bug CANNOT appear, and it was the only one under test. Worse, the suite only ever exercised the READ path: `test_tenant_isolation.py` tests the SQL filter, nothing tested which tenant a row is written under.
+- long_term_fix: two tenants, and the write path. `tests/test_e2e_two_tenants.py` runs the real DAG collection functions with the platform HTTP layer stubbed so the response DEPENDS on the identity requested — a row of A under B's `artist_id` is then directly observable. `test_views_render_smoke.py` gained a non-admin pass over an empty tenant (the day-one state), and `test_signup_funnel_db.py` covers account creation. Proven: 7 red on the pre-fix tree, 9 green after.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: extend tests/test_api_db_smoke.py + tests/test_views_render_smoke.py to ≥2 tenants }
 - rex_ref: docs/adr/ADR-006-central-credential-model.md
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
   - 2026-06-19: confirmed by audit — render-smoke + api-db-smoke both use artist_id=1. Durable rule: new tenant-scoped views/endpoints must be smoke-tested for a sparse 2nd tenant, not just artist 1.
+  - 2026-08-20: the rule was written and never implemented; a second beta session failed the same way. Closed with the two-tenant E2E above. The blind spot cost two artist sessions — the interval between naming a guard and building it is where the class lives.
 
 ## config-path-dangling
 - status: guarded
@@ -509,7 +533,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - guard: { type: ci-step, ref: tests/test_roadmap_two_files.py }
 - rex_ref: .claude/agents/roadmap-keeper.md
 - first_seen: 2026-08-03 (ref: roadmap-two-files-2026-08-03)
+- secondary_signature (heuristic, nightly): `! grep -rlE "TODO: (Run|run|fill)" .claude/dev-docs/ .claude/commands/ .claude/agents/`
 - History:
+  - 2026-08-21: the class was guarded only where it was first found (the roadmap). `/review-architecture` was still reading `.claude/dev-docs/architecture/macro_architecture.md` and `architecture/database_schema.md` — both still carrying "TODO: Run generate-dev-docs.py" — while the populated architecture doc lives at `.claude/dev-docs/architecture.md`. The command therefore compared the codebase against two empty files and could not produce a true statement; rewritten. Running `tools/generate-dev-docs.py` populated `api/endpoints.md` (8 routes) and `architecture/database_schema.md` (47 tables, 536 column TODOs left for an agent) but not `macro_architecture.md` (its module/service extractors find 0 here). The remaining question — populate the `architecture/` tree or retire it in favour of `architecture.md` — is a decision, not a defect, and is tracked as R34. The heuristic signature above makes any future unrendered template visible in `make audit` instead of waiting to be read by a command.
   - 2026-08-03: found while verifying rule 17. Eleven config surfaces (`/adr`, `/resume`, `/sprint`, `/dev-docs`, `strategic-plan-architect`, `check_roadmap_update.py`, `session_summary.py`, `bug-resolution.md`, `verification/`, `engineering-loop.js`, rule 17) named a template nothing had ever written, while the real 891-line roadmap sat elsewhere. Two hooks watched its mtime, so their freshness reminder was permanently true and therefore carried no information. Template deleted, surfaces repointed to the two-file roadmap. Signature seen RED with the template restored in place of the active file, GREEN after.
 
 ## trigger-threshold-split
@@ -559,3 +585,189 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: `concurrency: {group: ci-${{ github.ref }}, cancel-in-progress: true}`. Le garde ne l'exige que des workflows d'ITÉRATION — ceux qui portent un `pull_request` ou un `push` à joker. Un workflow de release déclenché par `push: [main]` n'est pas concerné : l'annuler à mi-chemin est une perte, pas une économie, et un garde qui prescrit une régression n'est pas un garde.
 - guard:     `.claude/scripts/check_ci_waste.py` (règle 2).
 - history:   2026-08-17 — vue rouge sur `HEAD`, verte après ajout du groupe. Le premier jet du garde signalait aussi `cd-release.yml` ; la règle a été resserrée et la cellule qui l'aurait attrapé est au `--self-test`.
+
+## connection-test-proves-app-not-tenant
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a "Test the connection" button validates the **platform's shared admin app** (Spotify client_credentials, YouTube API key, Meta `/me`, SoundCloud OAuth token) and returns ✅ without ever exercising the tenant's own identifier — or returns ✅ on an empty result set. The artist reads "Connecté", the DAG upserts 0 rows and exits SUCCESS, the view stays empty for a day. It is `collector-silent-success` moved one layer up, into the form, where it is worse: the artist has been told it works.
+- root_cause: the shared-app (central credential) model made the app credentials env-owned, so the tests were written against the only thing that was always present — the app — and the per-artist identifier stayed optional in the test path even though the collector cannot run without it.
+- signature: `python3 -m pytest tests/test_connection_test_proves_tenant.py -q`
+- long_term_fix: every `CONNECTION_TESTS[platform]` must probe the artist's own asset (`/act_<id>`, `channels?id=`, `/users/<id>/tracks`, `/artists/<id>`) and treat an empty result as a failure with the next action named. A missing tenant identifier is `False`, never `True`.
+- autofix: none
+- guard: { type: test, ref: tests/test_connection_test_proves_tenant.py }
+- rex_ref: src/dashboard/views/credentials/_registry.py
+- first_seen: 2026-06-15 (Benken — Meta ad account never shared, YouTube channel empty)
+- History:
+  - 2026-06-15: first instance (Benken). Treated as a per-artist data gap; closed downstream with `artist_readiness` (a 🔴 status *after* collection), not upstream in the form.
+  - 2026-08-12: recurrence, beta session Grinch — SoundCloud "correctement configuré", zero data. `_test_soundcloud` returned ✅ with `count=0`. Sibling sweep found the class on all four platforms: soundcloud (green on 0 tracks), meta (`/me` is identical for every tenant, never touched `account_id`), youtube (key-only green), spotify (green with no artist ID).
+  - 2026-08-20: all four fixed + guard added (proven red on the pre-fix tree, green after). Meta now probes `act_<id>` and names asset-sharing as the likely cause; YouTube rejects an empty channel and points at the "… - Topic" channel; SoundCloud rejects a profile with no public track.
+
+## identity-read-but-never-collectable
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a consumer (DAG tenant filter, readiness matrix, collector) reads an identity key from `artist_credentials.extra_config` that **no credential form field ever writes**. The platform is permanently ⚪ "À connecter" with no path to connect it, and the error message may even point at the non-existent field.
+- root_cause: consumer and form evolved separately — `instagram_daily` was written to select tenants on `creds['meta']['ig_user_id']` while the Meta form only ever exposed `account_id`. Nothing tied the two ends together, so the gap was invisible to every test.
+- signature: `python3 -m pytest tests/test_identity_fields_collectable.py -q`
+- long_term_fix: pin consumers and form together — every platform in `artist_readiness._PLATFORMS` maps to a `(tab, field)` present in `_registry.PLATFORMS`. A new platform must be added to the map, so the omission fails loudly rather than shipping unconnectable.
+- autofix: none
+- guard: { type: test, ref: tests/test_identity_fields_collectable.py }
+- rex_ref: src/dashboard/views/credentials/_registry.py
+- first_seen: 2026-08-20 (Instagram unconnectable since the central-app migration)
+- History:
+  - 2026-08-20: discovered while wiring the onboarding recommendation "Spotify + Instagram" — Instagram could not be connected at all. `instagram_api_collector` told the artist to "verify ig_user_id in Dashboard → Credentials → Meta"; that field did not exist. Field added + connection test extended to probe the IG account; guard pins the mapping.
+
+## guide-single-os-shortcut
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: setup-guide prose spells a keyboard shortcut for one OS family (`Ctrl+U`, `Ctrl+F`, `F12`). A macOS artist following the guide literally is blocked at that step — those keys do nothing there — and the guide gives no alternative.
+- root_cause: guides were written on the machine the author had. Nothing in the content model could express "this differs per platform", so the first spelling written became the only one.
+- signature: `! grep -rnE --include=*.py "Ctrl\+[A-Z]|F12" src/dashboard/content/ src/dashboard/views/credentials/ src/dashboard/utils/i18n_catalog/credentials.py`
+- long_term_fix: guide prose carries `{{TOKEN}}` placeholders (`src/dashboard/utils/os_hints.py`) resolved at render time — per-session OS for the dashboard (auto-detected from User-Agent, switchable), both spellings for the emailed PDF, which cannot know the reader's machine.
+- autofix: none
+- guard: { type: test, ref: tests/test_os_hints.py }
+- rex_ref: src/dashboard/utils/os_hints.py
+- first_seen: 2026-08-12 (beta session Grinch — tester on macOS)
+- History:
+  - 2026-08-20: signature corrected the same day — without `--include=*.py` it matched stale `__pycache__/*.pyc` compiled from the pre-fix source and reported a permanent false hit in `audit_runner --deterministic` (CI-blocking). A signature that greps a source tree must exclude build artefacts.
+  - 2026-08-20: 7 sites tokenised across FR content, EN content, the SoundCloud in-tab guide and the EN catalog. Signature proven non-zero on the pre-fix tree, zero after. Note the class is not limited to keyboard shortcuts — `FILE_MANAGER` / `DOWNLOADS_DIR` tokens exist for the Explorer-vs-Finder variant of the same defect.
+
+## first-paint-chart-overload
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a view opens on several charts that all bear on the same decision. Nothing is wrong with any single chart; together they leave the artist unable to say what to do next, and the view reads as a report rather than a tool.
+- root_cause: charts accumulate additively — each is defensible when added, and no surface ever states a budget, so nobody is the one who removes.
+- signature: `python3 -m pytest tests/test_chart_budget.py -q`
+- long_term_fix: a chart is PRIMARY only if, alone, it can change what the artist does next; everything that refines goes inside `secondary_analyses()` (`src/dashboard/utils/ui.py`), collapsed — relocation, never deletion. `tests/test_chart_budget.py` holds a per-view first-paint budget that ratchets down: lowering is free, raising requires a deliberate edit.
+- autofix: none
+- guard: { type: test, ref: tests/test_chart_budget.py }
+- rex_ref: src/dashboard/utils/ui.py
+- first_seen: 2026-08-12 (beta session Grinch — "réduire le nombre de graphs qui permettent de prendre décision")
+- History:
+  - 2026-08-20: first pass on the artist-facing views — instagram 4→2 on open, soundcloud 2→1, spotify_s4a_combined 4→3. Guard proven red on the pre-pass tree. The decision rule itself is an engineering judgement, not yet sourced: the `ux-frontend` corpus domain was created to confront it with the literature (`/mnt/c/Users/timot/knowledge/books/ux-frontend/`, empty until books are supplied).
+
+## tenant-identity-falls-back-to-admin
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a per-tenant IDENTITY (`user_id`, `channel_id`, `account_id`, `ig_user_id`, `spotify_artist_id`) resolves to an environment variable, a hardcoded default or another tenant's value when the tenant's own is missing. The env vars hold the ADMIN's identity, so the tenant receives the admin's data — written under the tenant's own `artist_id`, where their dashboard renders it as theirs.
+- root_cause: the central-app model (ADR-006) legitimately falls back to env for the shared APP credentials (`client_id`, `api_key`, `access_token`). The same `x or os.getenv(...)` shape was then applied to the tenant identity, where it means something entirely different. Amplified by three reads that returned an empty value on failure — `load_platform_credentials` returned `{}` on any DB error, `get_active_artists` returned `[]` on a DB error *and* on an unknown/inactive `artist_id`, and an empty-string identity is falsy — so an outage, a typo, or an artist saving a blank form all landed on the same fallback.
+- signature: `python3 -m pytest tests/test_e2e_two_tenants.py -q`
+- long_term_fix: identity has no default. Absent (including `""`) ⇒ skip the tenant with a message naming the next action. Store failure ⇒ `CredentialLoadError`; unknown artist ⇒ `UnknownArtistError`; "no active tenant" is the only `[]`. The legacy single-tenant path is opt-in behind `LEGACY_SINGLE_TENANT=1`. The credentials form no longer persists an empty identity. `docker-compose*.yml` no longer carries the admin's ids as defaults.
+- autofix: none
+- guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- rex_ref: src/utils/credential_loader.py
+- first_seen: 2026-06-15 (Benken), recurred 2026-08-12 (Grinch)
+- History:
+  - 2026-08-20: two beta sessions, same double symptom ("all credentials failed" + "the data was the admin's"). Sites fixed: `soundcloud_daily.py:103`, `youtube_daily.py:79`, `meta_ads_api_collector.py:81`, `soundcloud_api_collector.py:46`, plus `spotify_api_daily.py` (tenant #1's app credentials served the whole fleet; `SPOTIFY_ARTIST_IDS` folded the admin into every run). Guard proven: **7 failed / 2 passed** on the unpatched tree, 9 passed after. Two pre-existing tests asserted the defective contract (`test_db_error_returns_empty`) and were inverted.
+  - 2026-08-20: adjacent finding surfaced by the guard itself — nothing constrains `saas_artists.spotify_artist_id` to one tenant, and the DAG took `_sa[0][0]`, attributing a whole catalogue to whichever tenant had the lower id. Ambiguous ownership now skips with both ids logged.
+
+## write-without-explicit-artist-id
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: an upsert payload omits the `artist_id` key on a tenant-scoped table. `upsert_many` derives the INSERT column list from the payload keys (`postgres_handler.py:332`), so the column is absent from the statement and Postgres applies `DEFAULT 1` — every tenant's rows silently accumulate under the admin. No error, no warning, no alert.
+- root_cause: ~80 tables declare `artist_id INTEGER DEFAULT 1`, a single-tenant leftover. The default turns "the developer forgot the tenant" into "the admin owns it" instead of into a constraint violation.
+- signature: `python3 .claude/scripts/audit_tenant_writes.py`
+- long_term_fix: every write names its tenant. The guard walks the payload of each `upsert_many` call made during a real collection run and fails when a tenant-scoped table receives a payload without an `artist_id` key. Removing the `DEFAULT 1` from the schema is the durable follow-up (a dedicated migration, after the write paths are correct).
+- autofix: none
+- guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- rex_ref: airflow/dags/spotify_api_daily.py
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: signature promoted from the DB-gated E2E to a repo-wide AST+SQL scan (`audit_tenant_writes.py`): it learns the tenant-scoped tables from `init_db.sql`+migrations (80 of them), resolves each `upsert_many` payload and every raw `INSERT INTO`, and reports what it cannot resolve rather than passing it. Proven **1 MISSING before the fix, 0 after**.
+  - 2026-08-20: found while auditing the two failed beta sessions. `track_popularity_history` had been storing EVERY tenant's Spotify popularity history under `artist_id = 1` since the multi-tenant migration — daily, in production, undetected, because nothing ever compared the payload to the schema. A row whose tenant cannot be resolved is now skipped with a warning rather than attributed to the admin. Latent sibling fixed at the same time: `youtube_comments` (dormant, `collect_comments=False`).
+
+## upsert-transfers-row-ownership
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: an upsert whose `conflict_columns` is a global PLATFORM id carries `artist_id` in its `update_columns`. Two tenants touching the same object do not get a row each — the second collection re-assigns the existing row, and the first tenant's data vanishes from their (artist-scoped) views. `youtube_videos` even declared `UNIQUE(video_id)`, making single ownership structural.
+- root_cause: the tables were designed single-tenant, where the platform id *is* the natural key. `artist_id` was later added to `update_columns` so it could be backfilled — which turned every conflict into a transfer of ownership.
+- signature: `python3 -m pytest tests/test_e2e_two_tenants.py -q -k ownership`
+- long_term_fix: migration 064 makes uniqueness `(artist_id, video_id)` / `(artist_id, channel_id)`; `artist_id` is removed from every `update_columns`, so a row keeps its first owner. `meta_campaigns/adsets/ads` keep their platform-id primary keys (15 FKs reference them) but lose the reassignment — a shared ad account can no longer steal a row.
+- autofix: none
+- guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- rex_ref: migrations/064_tenant_scoped_uniqueness.sql
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: reproduced live on a provisioned Postgres — two tenants collecting the same channel, the first tenant's `youtube_videos` row disappeared. The theft is what made the identity fallback *persist*: even after fixing the identity, rows already written stayed re-attributed. `tools/tenant_contamination_check.py` measures the remaining damage.
+
+## dag-trigger-without-tenant-scope
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a dashboard action triggers a DAG without `conf={'artist_id': …}`. The API collectors then run fleet-wide, and the CSV watchers — which defaulted to `artist_id = 1` — parse the SHARED drop directory into the admin's tenant. Reachable by any logged-in artist.
+- root_cause: the sidebar "🚀 Lancer TOUTES les collectes" button predates multi-tenancy and was never revisited; it was also rendered before any role gate. The verification e-mail sent at sign-up tells every new artist to press it.
+- signature: `! grep -rn --include=*.py "trigger_dag(" src/dashboard/ | grep -v "conf="`
+- long_term_fix: every trigger carries the tenant; a non-admin without a resolved `artist_id` triggers nothing; the CSV watchers have no default tenant — a manual trigger without `artist_id` raises, and a *scheduled* run (which legitimately has no conf) reports the unattributable files and writes nothing.
+- autofix: none
+- guard: { type: error-class-signature, ref: audit_runner --deterministic }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: 1 hit (`app.py:348`), 0 after the fix. Found while tracing how an artist could write into tenant 1 without admin rights.
+
+## ast-guard-blind-to-bom
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printable character U+FEFF`, so every AST-based guard **silently scans nothing** in that file. The file looks covered; it is not.
+- root_cause: files edited on Windows acquire a BOM; Python tolerates it at runtime (the interpreter strips it) but `ast.parse` on an already-decoded string does not. A guard that catches `SyntaxError` and moves on turns the blind spot into a pass.
+- signature: `python3 -c "import sys;from pathlib import Path;bad=[str(p) for d in ('src','airflow','tests','.claude/scripts') for p in Path(d).rglob('*.py') if p.read_bytes()[:3]==b'\xef\xbb\xbf'];print(chr(10).join(bad));sys.exit(1 if bad else 0)"`
+- long_term_fix: no BOM in the repo (3 removed), AST tools read with `encoding="utf-8-sig"`, and an unparsable file is REPORTED as a failure rather than skipped — a file the scanner could not read is not a file that passed.
+- autofix: safe
+- guard: { type: error-class-signature, ref: audit_runner --deterministic }
+- rex_ref: .claude/scripts/audit_tenant_writes.py
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: signature polarity corrected the same day — the `! cmd` idiom fits grep (exit 0 on a hit); this probe already exits 1 when a BOM exists, so the `!` inverted it and reported a permanent false hit. An idiom copied without checking its polarity is a guard that reads backwards.
+  - 2026-08-20: discovered while checking that a NEW guard actually went red on the defect it targets — it did not, because `spotify_api_daily.py` carried a BOM and was being skipped. The same BOM explains the "3 fichiers non parsables — graphe incomplet" that `select_tests.py` (CLAUDE.md rule 16) had been printing on every run: the impact graph was silently missing three DAGs. `tests/test_dag_fleet_isolation.py` was unaffected (it already read `utf-8-sig`).
+
+## migration-ahead-of-its-code
+- status: reported
+- severity: P1
+- kind: manual
+- symptom: a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is not yet deployed. Every `ON CONFLICT` upsert against the old target then fails with `there is no unique or exclusion constraint matching the ON CONFLICT specification`, and collection stops.
+- root_cause: migrations are treated as independently deployable because most of them are — adding a column, an index, a table is forward-compatible in both directions. A key change is not: it is a contract between the schema and the writer, and applying half a contract breaks the half that is live.
+- signature: manual — a migration touching PRIMARY KEY / UNIQUE / a conflict target must carry an explicit deployment-order note and be applied AFTER the deploy.
+- long_term_fix: two classes of migration, stated at the top of the file. **Additive** (column, index, table, default) → may precede the code. **Key-changing** (PK, UNIQUE, conflict target) → the file must open with an ORDER OF DEPLOYMENT banner and be applied only after `make deploy`. `migrations/065_youtube_surrogate_pk.sql` carries the first such banner.
+- autofix: none
+- guard: { type: doc-convention, ref: migrations/065_youtube_surrogate_pk.sql }
+- rex_ref: migrations/065_youtube_surrogate_pk.sql
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: caused by me, in production, while fixing the tenant-isolation bugs. Migration 064 (additive indexes) was safe; 065 moved the primary key of `youtube_channels`/`youtube_videos` off the platform id, and the deployed collector still upserted on `ON CONFLICT (channel_id)`. Detected within minutes because the collection run that was meant to PROVE the fix reported `failed` for every tenant with a channel; reverted on the spot and collection was restored (the admin's 67 videos came back under the admin). The lesson is not "test more" — the migration was tested against a clone of the production schema and passed. It is that a key change is only correct in the presence of its writer.
+
+## column-name-is-not-its-meaning
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a sweep, a migration or a guard treats every column sharing a NAME as sharing a MEANING. In this schema `artist_id` is the tenant (INTEGER) on ~55 tables and the **Spotify artist id** (VARCHAR) on three legacy ones — `artists`, `artist_history`, `tracks`, where the tenant is `saas_artist_id`.
+- root_cause: the multi-tenant migration reused the `artist_id` name for the new tenant column while the old single-tenant tables kept it for the platform id. Two meanings, one name, and nothing in the schema says which is which except the type.
+- signature: `python3 .claude/scripts/audit_tenant_writes.py`
+- long_term_fix: reason on the TYPE, never on the name — a tenant column is `INTEGER`. The write auditor and migration 068 both filter on `data_type = 'integer'`, and 068 carries the note so the next migration does not relearn it.
+- autofix: none
+- guard: { type: test, ref: tests/test_e2e_two_tenants.py }
+- rex_ref: migrations/068_drop_artist_id_defaults.sql
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: a first version of migration 068 set `NOT NULL` on every column named `artist_id`, including `tracks.artist_id` — the Spotify id, which the collector legitimately writes and which the test fixture did not provide. The full suite went red against a database carrying the migration, which is exactly what running it against a provisioned schema is for. Filtering on the type fixed it, and `tracks.saas_artist_id` is excluded from NOT NULL on purpose: a track no tenant claims belongs in the catalogue with a NULL owner rather than an invented one.
+
+## identity-claimed-by-two-tenants
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: two artists declare the same platform identity (SoundCloud user_id, YouTube channel, Meta ad account, Spotify artist). Nothing refuses it. Both accounts then collect the same upstream data, and any consumer that resolves a tenant FROM the identity has to guess.
+- root_cause: the identity is stored per-artist in `artist_credentials.extra_config` (JSONB) with no cross-tenant constraint, and the form validated the value's shape but never its exclusivity.
+- signature: `python3 -m pytest tests/test_identity_uniqueness.py -q`
+- long_term_fix: `find_identity_conflict()` (`credentials/_core.py`) is called at SAVE time — the only moment a human is present to fix it — and refuses with the field and value named. `spotify_api_daily` additionally refuses to collect an ambiguous id instead of taking the lowest artist_id. A test pins that every platform in the credentials registry has a uniqueness rule, so a new platform cannot be added without one.
+- autofix: none
+- guard: { type: test, ref: tests/test_identity_uniqueness.py }
+- rex_ref: src/dashboard/views/credentials/_core.py
+- first_seen: 2026-08-20
+- History:
+  - 2026-08-20: surfaced by a guard, not by a report — a canary tenant created during the session reused the admin's `spotify_artist_id`, and the E2E test attributed the catalogue to the wrong account. `_sa[0][0]` had been silently picking the lower id.

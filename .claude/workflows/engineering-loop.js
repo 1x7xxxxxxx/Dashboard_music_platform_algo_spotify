@@ -26,7 +26,7 @@ export const meta = {
 //     named only in a STEP of engineering-loop.md  5 agents ->  0 spawns
 //     named nowhere .............................. 22 agents -> 10 spawns
 //
-// `security-reviewer`, `performance-auditor`, `rollback-guardian`, `migration-planner` and
+// `security-specialist`, `performance-auditor`, `rollback-guardian`, `migration-planner` and
 // `code-architecture-reviewer` sit in the numbered steps of a playbook that has been injected 98
 // times, and have been spawned exactly ZERO times. Being written in a playbook step is worth
 // nothing. `code-critic`'s 26 spawns across 9 sessions and 11 consecutive days come from binding
