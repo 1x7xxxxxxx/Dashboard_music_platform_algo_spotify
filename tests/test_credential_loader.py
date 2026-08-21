@@ -87,12 +87,26 @@ class TestLoadPlatformCredentials:
         assert result.get("region") == "fr"
         assert "client_id" not in result
 
-    def test_db_error_returns_empty(self):
-        """Une erreur de connexion DB retourne {} sans lever d'exception."""
+    def test_db_error_raises_instead_of_looking_unconnected(self):
+        """Une erreur DB LÈVE — elle ne se déguise pas en « pas connecté ».
+
+        Contrat inversé le 2026-08-20. L'ancien test affirmait `result == {}`, et
+        c'est exactement ce qui rendait la panne dangereuse : les appelants
+        écrivaient `creds.get('user_id') or os.getenv('SOUNDCLOUD_USER_ID')`, donc
+        une coupure DB faisait collecter l'identité de l'ADMIN pour tous les
+        locataires. Une absence de ligne reste `{}` (test suivant) ; une panne non.
+        """
         import psycopg2
+        from src.utils.credential_loader import CredentialLoadError
         with patch("psycopg2.connect", side_effect=psycopg2.OperationalError("conn refused")):
-            result = load_platform_credentials(1, "youtube")
-        assert result == {}
+            with pytest.raises(CredentialLoadError):
+                load_platform_credentials(1, "youtube")
+
+    def test_missing_row_still_returns_empty(self):
+        """Pas de ligne = pas connecté : ça, ça reste un dict vide."""
+        mock_conn = self._mock_conn(None)
+        with patch("psycopg2.connect", return_value=mock_conn):
+            assert load_platform_credentials(1, "youtube") == {}
 
     def test_extra_config_as_json_string(self):
         """extra_config peut être une chaîne JSON — doit être parsée."""
@@ -132,8 +146,25 @@ class TestGetActiveArtists:
             result = get_active_artists(include_artist_id=1)
         assert result == [(1, "Artist A")]
 
-    def test_db_error_returns_empty_list(self):
+    def test_db_error_raises(self):
+        """Même inversion : les DAGs traduisaient `[]` par « prends l'artiste 1 »."""
         import psycopg2
+        from src.utils.credential_loader import CredentialLoadError
         with patch("psycopg2.connect", side_effect=psycopg2.OperationalError("down")):
-            result = get_active_artists()
-        assert result == []
+            with pytest.raises(CredentialLoadError):
+                get_active_artists()
+
+    def test_unknown_or_inactive_artist_raises(self):
+        """`conf={'artist_id': 12}` sur un artiste inactif ne doit pas devenir
+        « collecte la chaîne de l'admin sous artist_id=1 »."""
+        from src.utils.credential_loader import UnknownArtistError
+        mock_conn = self._mock_conn([])
+        with patch("psycopg2.connect", return_value=mock_conn):
+            with pytest.raises(UnknownArtistError):
+                get_active_artists(include_artist_id=12)
+
+    def test_no_active_artist_is_still_an_empty_list(self):
+        """Zéro artiste actif reste `[]` — c'est un déploiement vide, pas une panne."""
+        mock_conn = self._mock_conn([])
+        with patch("psycopg2.connect", return_value=mock_conn):
+            assert get_active_artists() == []

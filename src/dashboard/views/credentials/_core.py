@@ -280,3 +280,44 @@ def _decode_row(row: dict, fields: list) -> dict:
         key = f['key']
         result[key] = secrets.get(key, '') if f['secret'] else extra.get(key, '')
     return result
+
+# Identity fields whose value must belong to exactly ONE tenant. Two artists
+# claiming the same platform account is not a configuration nuance: the collectors
+# would write the same upstream data under two artist_ids, and `spotify_api_daily`
+# cannot even decide whose catalogue it is (it refuses and logs both ids).
+UNIQUE_IDENTITY_FIELDS = {
+    'soundcloud': 'user_id',
+    'youtube': 'channel_id',
+    'meta': 'account_id',
+    'spotify': 'spotify_artist_id',
+}
+
+
+def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
+    """Another active tenant already claiming this identity, or None.
+
+    Returns (field, value, other_artist_id). Checked at SAVE time because that is
+    the only moment a human is present to fix it; discovering it at collection
+    time means someone's dashboard is already wrong.
+    """
+    field = UNIQUE_IDENTITY_FIELDS.get(platform)
+    if not field:
+        return None
+    value = (extra.get(field) or '').strip()
+    if not value:
+        return None
+
+    rows = db.fetch_query(
+        "SELECT artist_id FROM artist_credentials "
+        "WHERE platform = %s AND artist_id <> %s AND extra_config->>%s = %s",
+        (platform, artist_id, field, value),
+    )
+    if not rows and platform == 'spotify':
+        # Spotify's identity is mirrored onto saas_artists — check there too.
+        rows = db.fetch_query(
+            "SELECT id FROM saas_artists WHERE id <> %s AND spotify_artist_id = %s",
+            (artist_id, value),
+        )
+    if rows:
+        return field, value, rows[0][0]
+    return None

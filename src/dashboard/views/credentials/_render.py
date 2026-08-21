@@ -12,6 +12,7 @@ from src.utils.meta_config import META_GRAPH_BASE_URL
 from src.dashboard.utils.i18n import t
 
 from ._core import (
+    find_identity_conflict,
     _PLATFORM_DAG_MAP,
     _STATE_ICON,
     META_TOKEN_NEVER_EXPIRES,
@@ -306,8 +307,15 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
 
             if field['secret']:
                 secrets[key] = new_val
-            else:
+            elif new_val:
                 extra[key] = new_val
+            else:
+                # Do NOT persist an empty identity. `{"user_id": ""}` is falsy, so
+                # every consumer that wrote `creds.get('user_id') or os.getenv(...)`
+                # silently switched to the ADMIN's env identity. An artist who opens
+                # a tab and saves without filling it in must stay "not connected",
+                # not inherit someone else's account.
+                extra.pop(key, None)
 
         # Spotify: the artist supplies their profile URL/ID — normalise it and sync to
         # saas_artists.spotify_artist_id, the per-tenant key both spotify_api_daily
@@ -316,6 +324,22 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         if platform_key == 'spotify':
             sp_id = extract_spotify_artist_id(extra.get('spotify_artist_id', ''))
             extra['spotify_artist_id'] = sp_id
+
+        # Refuse an identity another tenant already claims. Nothing in the schema
+        # prevents it, and the consequence is not cosmetic: both accounts would
+        # collect the same upstream data, and the Spotify DAG refuses to guess
+        # whose catalogue it is. Better a clear "no" now than two wrong dashboards.
+        conflict = find_identity_conflict(db, artist_id, platform_key, extra)
+        if conflict:
+            field, value, _other = conflict
+            st.error(t(
+                "credentials.identity_taken",
+                "❌ **{field} = {value}** est déjà rattaché à un autre compte. "
+                "Un identifiant de plateforme ne peut appartenir qu'à un seul "
+                "artiste — vérifie que c'est bien le tien. Si tu penses qu'il "
+                "s'agit d'une erreur, contacte l'administrateur."
+            ).format(field=field, value=value))
+            return
 
         encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
         _save_credentials(db, artist_id, platform_key, encrypted_blob, extra)

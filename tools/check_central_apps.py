@@ -11,6 +11,7 @@ each configured central app directly so the failure is caught here, loudly,
 instead of surfacing as "0 rows" per tenant. A platform whose env vars are
 absent is skipped (not a failure); a CONFIGURED app that fails auth exits 1.
 """
+import argparse
 import os
 import sys
 
@@ -132,10 +133,49 @@ def check_meta() -> bool:
         return True
 
 
+# Env vars each central app needs to exist at all. Used by --require.
+_REQUIRED_ENV = {
+    "Spotify": ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET"),
+    "YouTube": ("YOUTUBE_API_KEY",),
+    "SoundCloud": ("SOUNDCLOUD_CLIENT_ID", "SOUNDCLOUD_CLIENT_SECRET"),
+    "Meta": ("META_ACCESS_TOKEN", "META_APP_ID", "META_APP_SECRET"),
+}
+
+
+def check_all_configured() -> bool:
+    """Every central app must be PRESENT, not merely not-failing.
+
+    The default mode skips a platform whose env vars are absent and still exits 0.
+    That is right for a partial deployment — and exactly what let "all credentials
+    failed" reach a beta artist: the container was missing the shared app entirely
+    and nothing said so. Before inviting anyone, absent is red.
+    """
+    missing = {
+        platform: [var for var in variables if not os.getenv(var)]
+        for platform, variables in _REQUIRED_ENV.items()
+    }
+    missing = {p: v for p, v in missing.items() if v}
+    for platform, variables in missing.items():
+        print(f"❌ {platform} central app NOT configured — missing {', '.join(variables)}")
+    return not missing
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--require", action="store_true",
+        help="treat an absent central app as a failure (pre-flight before inviting "
+             "an artist), instead of skipping it",
+    )
+    args = parser.parse_args()
+
     checks = (check_spotify, check_youtube, check_soundcloud, check_meta)
     # A skipped (env-absent) platform returns True; only a configured failure → False.
-    ok = all(check() for check in checks)
+    # Evaluated eagerly: every platform is reported, not just the first failure.
+    results = [check() for check in checks]
+    ok = all(results)
+    if args.require:
+        ok = check_all_configured() and ok
     return 0 if ok else 1
 
 

@@ -8,9 +8,23 @@ added to prod outside migrations (manual ALTER, an old code path) or a migration
 is never applied. A code path that then reads/writes the drifted column works in
 prod but 500s on a fresh install / in CI — exactly the youtube_videos bug.
 
-This compares two `table.column` dumps (one per line, sorted) and reports:
+This compares two schema dumps (one object per line, sorted) and reports:
   - PROD-EXTRA      : in prod, not canonical (manual ALTER / orphan / old schema)
   - CANONICAL-EXTRA : in canonical, not prod (migration not applied on prod)
+
+Three kinds of object, distinguished by a line prefix (a bare line = a column, so
+older dumps still work):
+  `table.column`                    a column
+  `key:table:PRIMARY KEY (id)`      a PK / UNIQUE / FK constraint
+  `uix:table:(artist_id, video_id)` a UNIQUE index
+
+Constraints and unique indexes are compared by DEFINITION, never by name: two
+databases legitimately name the same constraint differently, and the name is not
+what `ON CONFLICT` resolves against. This category was added on 2026-08-20 after a
+column-only comparison reported "prod == canonical" while prod's
+`youtube_videos` PRIMARY KEY was on `video_id` and the canonical one on `id` —
+a divergence that makes a video belong to a single tenant, and that later broke a
+production upsert. A drift the checker cannot see is a drift nobody triages.
 For prod-extra columns it greps src/ to flag USED (→ must be reconciled into the
 canonical schema) vs ORPHAN (safe to drop on prod or document).
 
@@ -33,8 +47,22 @@ _REPO = Path(__file__).resolve().parents[2]
 _SRC = _REPO / "src"
 
 
-def _load(path: str) -> set[str]:
-    return {ln.strip() for ln in Path(path).read_text().splitlines() if "." in ln}
+def _load(path: str) -> dict[str, set[str]]:
+    """Split a dump into {columns, keys, unique indexes}."""
+    buckets: dict[str, set[str]] = {"col": set(), "key": set(), "uix": set()}
+    for raw in Path(path).read_text().splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("key:"):
+            buckets["key"].add(line[4:])
+        elif line.startswith("uix:"):
+            buckets["uix"].add(line[4:])
+        elif line.startswith("col:"):
+            buckets["col"].add(line[4:])
+        elif "." in line:
+            buckets["col"].add(line)   # bare line = a column (pre-2026-08 dumps)
+    return buckets
 
 
 def _used_in_src(column: str) -> bool:
@@ -54,7 +82,8 @@ def main() -> None:
     if len(sys.argv) != 3:
         print("usage: schema_drift_check.py <prod_dump.tsv> <canonical_dump.tsv>", file=sys.stderr)
         sys.exit(2)
-    prod, canon = _load(sys.argv[1]), _load(sys.argv[2])
+    prod_all, canon_all = _load(sys.argv[1]), _load(sys.argv[2])
+    prod, canon = prod_all["col"], canon_all["col"]
     prod_tables = {x.split(".", 1)[0] for x in prod}
     canon_tables = {x.split(".", 1)[0] for x in canon}
 
@@ -88,7 +117,25 @@ def main() -> None:
             print(f"  {col}")
         print()
 
-    if prod_extra or canon_extra:
+    # ── Constraints and unique indexes — what ON CONFLICT actually resolves ──
+    key_drift = False
+    for kind, label in (("key", "CONSTRAINTS (PK / UNIQUE / FK)"),
+                        ("uix", "UNIQUE INDEXES")):
+        only_prod = sorted(prod_all[kind] - canon_all[kind])
+        only_canon = sorted(canon_all[kind] - prod_all[kind])
+        if not (only_prod or only_canon):
+            continue
+        key_drift = True
+        print(f"## {label} — divergent (compared by definition, not by name):")
+        for item in only_prod:
+            print(f"  [prod only]      {item}")
+        for item in only_canon:
+            print(f"  [canonical only] {item}")
+        print("  → a difference here changes which rows can coexist and which "
+              "`ON CONFLICT` targets resolve. Reconcile before deploying code that "
+              "upserts on them.\n")
+
+    if prod_extra or canon_extra or key_drift:
         print("⚠ schema drift found — triage above (report-only; never auto-ALTER prod). "
               "USED items belong in the version-controlled schema; orphans can be dropped/documented.")
         sys.exit(1)

@@ -94,7 +94,7 @@ _SOUNDCLOUD = PlatformCred(
     steps=(
         CredStep("Signed into SoundCloud, open "
                  "[soundcloud.com/discover](https://soundcloud.com/discover)."),
-        CredStep("View the page **source** (**Ctrl+U**), then search (**Ctrl+F**) "
+        CredStep("View the page **source** (**{{VIEW_SOURCE}}**), then search (**{{FIND}}**) "
                  "for `soundcloud:users:` — the **number** right after is your "
                  "**User ID** (e.g. `377065610`).",
                  "soundcloud_user_id.png", "Source → soundcloud:users:<your ID>"),
@@ -127,21 +127,31 @@ _META = PlatformCred(
                  "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
                  "Your **Ad Account ID** is the **number right after `act=`** and "
                  "**before the next `&`**. Tip: double-click that number to select "
-                 "it, then **Ctrl+C**.",
+                 "it, then **{{COPY}}**.",
                  "meta_url_id.png", "The number after act= in the address bar"),
         CredStep("⚠️ Don't confuse it with `business_id=…` (your Business Manager) "
                  "or an **ad set ID**: only the number after **`act=`** is correct."),
         CredStep("Paste this number into **🔑 API Credentials → Meta / Instagram**, "
                  "then **Test the connection**. (The `act_` prefix is added automatically.)"),
+        CredStep("**Instagram (optional but recommended).** To track followers and "
+                 "posts we need the **Instagram Business Account ID** — not your "
+                 "@handle. Open **Meta Business Suite → Settings → Accounts → "
+                 "Instagram accounts**, select your account: the **numeric ID** is "
+                 "shown under the name. Paste it into *Instagram Business Account ID*."),
+        CredStep("⚠️ Instagram prerequisite: the account must be a **Business** or "
+                 "**Creator** account (not personal) linked to a **Facebook Page**. "
+                 "A personal account returns no statistics through the API."),
     ),
     fields=(
         CredField("Ad Account ID", "act_1234567890",
-                  note="the only field — number or 'act_'-prefixed"),
+                  note="number or 'act_'-prefixed — for Meta Ads"),
+        CredField("Instagram Business Account ID", "17841400000000000",
+                  note="optional — ~17 digits, for Instagram stats"),
     ),
     note=(
         "**Admin prerequisite**: your ad account must be linked to the shared app "
-        "(System User) in Business Manager for collection to work. Instagram is "
-        "attached on the admin side."
+        "(System User) in Business Manager for collection to work. The same applies "
+        "to the Facebook Page your Instagram account is attached to."
     ),
 )
 

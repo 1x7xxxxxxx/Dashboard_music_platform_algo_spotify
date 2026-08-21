@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy
+.PHONY: help up down logs test lint migrate backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy artist-preflight tenant-check
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -49,6 +49,22 @@ check-env:   ## Verify critical imports + pip dep coherence (canary check)
 		|| { echo "❌ PostgreSQL unreachable on localhost:5433. Run: make up"; exit 1; }
 	@echo "✅ env check passed"
 
+artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist. ARTIST=<id> optional
+	@# Five steps, stops at the first red: central apps present+authenticating,
+	@# tenant identity declared, connection tests, data landed, no contaminated rows.
+	@# Two beta sessions failed on things every one of these would have caught.
+	@python3 tools/artist_preflight.py $(if $(ARTIST),--artist $(ARTIST),)
+
+tenant-check: check-db ## Report rows sitting under a tenant they cannot belong to (read-only)
+	@python3 tools/tenant_contamination_check.py
+
+check-db:    ## Fail fast if the app database is unreachable (prerequisite, rule #10)
+	@python3 -c "import os,sys,socket;\
+u=os.environ.get('DATABASE_URL');\
+host,port=('127.0.0.1',5433) if not u else (u.split('@')[1].split(':')[0], int(u.split('@')[1].split(':')[1].split('/')[0]));\
+s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/null \
+		|| { echo "❌ Database unreachable. Run: make up  (or set DATABASE_URL)"; exit 1; }
+
 check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock
 	@python3 tools/dev/check_manifest_consistency.py && echo "✅ manifests consistent"
 
@@ -85,10 +101,12 @@ schema-check: ## Diff PROD schema vs canonical (init_db.sql + migrations) — ne
 	@for i in $$(seq 1 30); do docker exec canon_pg pg_isready -U postgres -d spotify_etl >/dev/null 2>&1 && break; sleep 1; done; sleep 2
 	@docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < init_db.sql >/dev/null 2>&1
 	@for f in $$(ls migrations/*.sql | sort); do docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done
-	@docker exec canon_pg psql -U postgres -d spotify_etl -tAc "SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1" > /tmp/_canon.tsv 2>/dev/null
+	@# Columns AND constraints/unique indexes: a column-only diff called prod
+	@# "identical" while its youtube_videos PRIMARY KEY was on a different column.
+	@docker exec canon_pg psql -U postgres -d spotify_etl -tAc "SELECT 'col:'||table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' UNION ALL SELECT 'key:'||conrelid::regclass||':'||pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace='public'::regnamespace AND contype IN ('p','u','f') UNION ALL SELECT 'uix:'||tablename||':'||substring(indexdef from 'USING .*') FROM pg_indexes WHERE schemaname='public' AND indexdef LIKE 'CREATE UNIQUE%' ORDER BY 1" > /tmp/_canon.tsv 2>/dev/null
 	@docker rm -f canon_pg >/dev/null 2>&1
 	@echo "▶ dumping prod schema via ssh…"
-	@echo "SELECT table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY 1;" | ssh -o ConnectTimeout=10 $(PROD_SSH) 'docker exec -i $(PROD_PG) psql -U postgres -d spotify_etl -tA' > /tmp/_prod.tsv 2>/dev/null
+	@echo "SELECT 'col:'||table_name||'.'||column_name FROM information_schema.columns WHERE table_schema='public' UNION ALL SELECT 'key:'||conrelid::regclass||':'||pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace='public'::regnamespace AND contype IN ('p','u','f') UNION ALL SELECT 'uix:'||tablename||':'||substring(indexdef from 'USING .*') FROM pg_indexes WHERE schemaname='public' AND indexdef LIKE 'CREATE UNIQUE%' ORDER BY 1;" | ssh -o ConnectTimeout=10 $(PROD_SSH) 'docker exec -i $(PROD_PG) psql -U postgres -d spotify_etl -tA' > /tmp/_prod.tsv 2>/dev/null
 	@python3 tools/dev/schema_drift_check.py /tmp/_prod.tsv /tmp/_canon.tsv
 
 sync-check: schema-check ## Full repo↔prod sync: schema-drift (above) + deploy-drift (server HEAD vs origin/main)

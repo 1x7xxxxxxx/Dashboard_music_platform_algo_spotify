@@ -33,6 +33,12 @@ EN = {
     # Sidebar — data collection panel
     "app.run_all_collections": "🚀 Run ALL collections",
     "app.syncing": "Synchronizing...",
+    # Collection progress (collection_progress.py) — what happened after "Lancé !"
+    "app.collection_progress": "**Collection in progress**",
+    "app.collection_refresh": "🔄 Refresh status",
+    "app.collection_failed_unknown": (
+        "Unrecognised failure — see 📊 Airflow KPI for the detail."
+    ),
     "app.launched": "Launched!",
     # Cookie notice (RGPD Art. 13)
     "app.cookie_notice": ("🍪 This platform uses a single session cookie (`music_dashboard`) "

@@ -10,6 +10,7 @@ import requests
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.os_hints import md as _os_md
 
 
 def _test_soundcloud(fields: dict) -> tuple:
@@ -58,6 +59,19 @@ def _test_soundcloud(fields: dict) -> tuple:
         )
         if r2.status_code == 200:
             count = len(r2.json().get('collection', []))
+            # A resolvable user_id with ZERO tracks is NOT a success: the collector will
+            # upsert 0 rows, the DAG will exit SUCCESS and the view will stay empty —
+            # the silent-success class (rule #6), reported from the Grinch session
+            # ("SoundCloud correctement configuré mais aucune donnée"). Fail HERE, in
+            # the form, where the artist can still act on it.
+            if count == 0:
+                return False, t(
+                    "credentials.soundcloud.no_public_tracks",
+                    "User ID {user_id} joignable, mais **aucun titre public** n'y est "
+                    "rattaché — il n'y aura donc rien à collecter. Vérifie que c'est bien "
+                    "l'ID de TON profil (pas celui d'un label ou d'un compte secondaire) "
+                    "et que tes titres sont en **public**, pas en privé/non répertorié."
+                ).format(user_id=user_id)
             return True, t("credentials.soundcloud.test_ok",
                            "API SoundCloud OAuth OK — {count} track(s) récupéré(s) pour user {user_id} ✅").format(
                                count=count, user_id=user_id)
@@ -116,14 +130,14 @@ def _guide_soundcloud():
         devtools_steps = [
             t("credentials.soundcloud.devtools_1",
               "Aller sur **soundcloud.com** connecté à son compte."),
-            t("credentials.soundcloud.devtools_2", "Appuyer sur **F12** → onglet **Network**."),
+            t("credentials.soundcloud.devtools_2", "Appuyer sur **{{DEVTOOLS}}** → onglet **Network**."),
             t("credentials.soundcloud.devtools_3", "Jouer n'importe quelle piste."),
             t("credentials.soundcloud.devtools_4",
               "Filtrer les requêtes par `/users/` — l'URL contient `/users/123456789`."),
             t("credentials.soundcloud.devtools_5", "Copier le nombre — c'est le User ID."),
         ]
         for step in devtools_steps:
-            st.markdown(f"- {step}")
+            st.markdown(f"- {_os_md(step)}")
 
         st.markdown(t("credentials.soundcloud.note_header", "### Note"))
         st.markdown(t(

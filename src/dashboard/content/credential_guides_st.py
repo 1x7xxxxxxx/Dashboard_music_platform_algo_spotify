@@ -16,6 +16,7 @@ from src.dashboard.content.credential_guides import (
 )
 from src.dashboard.content.csv_guides_st import _display_width
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.os_hints import md as _os_md, os_selector
 
 
 _BY_KEY = {g.key: g for g in CREDENTIAL_GUIDES}
@@ -25,6 +26,8 @@ def render_credential_guides() -> None:
     """One expander per platform: steps + screenshots + the values to paste."""
     st.markdown(t("credentials.guide.list_header",
                   "**Comment obtenir les identifiants de chaque plateforme ?**"))
+    # Keyboard steps differ on macOS; pick once here for every guide below.
+    os_selector(key="cred_guides_os")
     for guide in CREDENTIAL_GUIDES:
         _render_guide_expander(guide)
 
@@ -44,18 +47,18 @@ def _render_guide_expander(guide: PlatformCred) -> None:
               "{icon} {title} — obtenir les identifiants").format(
                   icon=guide.icon, title=guide.title)
     with st.expander(title, expanded=False):
-        st.markdown(t(f"credentials.guide.{guide.key}.intro", guide.intro))
+        st.markdown(_os_md(t(f"credentials.guide.{guide.key}.intro", guide.intro)))
         st.markdown(t("credentials.guide.portal", "🔗 Portail : [{url}]({url})").format(
             url=guide.portal_url))
         for i, step in enumerate(guide.steps, 1):
             _render_step(guide.key, i, step)
         _render_fields_table(guide)
         if guide.note:
-            st.info(t(f"credentials.guide.{guide.key}.note", guide.note))
+            st.info(_os_md(t(f"credentials.guide.{guide.key}.note", guide.note)))
 
 
 def _render_step(platform_key: str, num: int, step: CredStep) -> None:
-    text = t(f"credentials.guide.{platform_key}.step_{num}", step.text)
+    text = _os_md(t(f"credentials.guide.{platform_key}.step_{num}", step.text))
     st.markdown(f"**{num}.** {text}")
     if step.screenshot:
         path = screenshot_path(step.screenshot)

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import artist_id_sql_filter, get_artist_id
 
 # ⚠️ IMPORTANT : Le nom exact tel qu'il apparaît dans tes CSV pour la ligne "Total"
@@ -201,46 +202,48 @@ def show():
     # 4b. ÉVOLUTION CUMULÉE (Spotify S4A)
     # ============================================================================
     st.markdown("---")
-    st.header(t("spotify_s4a_combined.cumulative_header", "📈 Évolution cumulée (Spotify S4A)"))
-    try:
-        cum_query = f"""
-            SELECT date, SUM(daily_max) AS value
-            FROM (
-                SELECT date, song, MAX(streams) AS daily_max
-                FROM s4a_song_timeline
-                WHERE song NOT ILIKE %s
-                {artist_frag}
-                GROUP BY date, song
-            ) sub
-            GROUP BY date ORDER BY date ASC
-        """
-        df_cum = db.fetch_df(cum_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
-        if not df_cum.empty:
-            df_cum['date'] = pd.to_datetime(df_cum['date'])
-            df_cum['value'] = df_cum['value'].cumsum()
-            # Downsample very long series before plotting (cumulative is monotonic,
-            # so every-Nth-point preserves the shape). Always keep the last point
-            # so the final cumulative total is never understated.
-            if len(df_cum) > 500:
-                step = len(df_cum) // 500
-                df_cum = pd.concat(
-                    [df_cum.iloc[::step], df_cum.iloc[[-1]]]
-                ).drop_duplicates(subset='date')
-            fig_cum = px.area(
-                df_cum, x='date', y='value',
-                color_discrete_sequence=['#1DB954'],
-                labels={'value': t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"), 'date': ''}
-            )
-            fig_cum.update_layout(
-                yaxis_title=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
-                hovermode="x unified",
-                showlegend=False
-            )
-            st.plotly_chart(fig_cum, width="stretch")
-        else:
-            st.info(t("spotify_s4a_combined.no_data_yet", "Pas encore de données Spotify S4A."))
-    except Exception as e:
-        st.warning(t("spotify_s4a_combined.chart_unavailable", "Graphique indisponible : {err}").format(err=e))
+    # Secondaire : re-trace la même série en cumulé — impressionne, ne décide pas.
+    with secondary_analyses(t("spotify_s4a_combined.cumulative_header",
+                              "📈 Évolution cumulée (Spotify S4A)")):
+        try:
+            cum_query = f"""
+                SELECT date, SUM(daily_max) AS value
+                FROM (
+                    SELECT date, song, MAX(streams) AS daily_max
+                    FROM s4a_song_timeline
+                    WHERE song NOT ILIKE %s
+                    {artist_frag}
+                    GROUP BY date, song
+                ) sub
+                GROUP BY date ORDER BY date ASC
+            """
+            df_cum = db.fetch_df(cum_query, (f"%{ARTIST_NAME_FILTER}%", *artist_params))
+            if not df_cum.empty:
+                df_cum['date'] = pd.to_datetime(df_cum['date'])
+                df_cum['value'] = df_cum['value'].cumsum()
+                # Downsample very long series before plotting (cumulative is monotonic,
+                # so every-Nth-point preserves the shape). Always keep the last point
+                # so the final cumulative total is never understated.
+                if len(df_cum) > 500:
+                    step = len(df_cum) // 500
+                    df_cum = pd.concat(
+                        [df_cum.iloc[::step], df_cum.iloc[[-1]]]
+                    ).drop_duplicates(subset='date')
+                fig_cum = px.area(
+                    df_cum, x='date', y='value',
+                    color_discrete_sequence=['#1DB954'],
+                    labels={'value': t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"), 'date': ''}
+                )
+                fig_cum.update_layout(
+                    yaxis_title=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
+                    hovermode="x unified",
+                    showlegend=False
+                )
+                st.plotly_chart(fig_cum, width="stretch")
+            else:
+                st.info(t("spotify_s4a_combined.no_data_yet", "Pas encore de données Spotify S4A."))
+        except Exception as e:
+            st.warning(t("spotify_s4a_combined.chart_unavailable", "Graphique indisponible : {err}").format(err=e))
 
     # ============================================================================
     # 5. DÉTAIL PAR CHANSON

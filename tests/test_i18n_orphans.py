@@ -22,7 +22,8 @@ _DYNAMIC_PREFIXES = (
     "credentials.guide.", "export_csv.source.", "export_pdf.period.", "export_pdf.section.",
     "home.dag.", "meta_ads_overview.dim.", "meta_ads_overview.gender.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
-    "meta_creatives.metric.", "nav.item.", "nav.section.", "upgrade.page.",
+    "meta_creatives.metric.", "nav.item.", "nav.section.",
+    "onboarding.caveat.", "onboarding.value.", "upgrade.page.",
     "upload_csv.platform.",
 )
 

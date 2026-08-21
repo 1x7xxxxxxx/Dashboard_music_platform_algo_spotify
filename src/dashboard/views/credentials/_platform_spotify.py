@@ -40,8 +40,12 @@ def _test_spotify(fields: dict) -> tuple:
         from ._core import extract_spotify_artist_id
         artist_id = extract_spotify_artist_id(fields.get('spotify_artist_id', ''))
         if not artist_id:
-            return True, t("credentials.spotify.test_ok",
-                           "App OK ✅ — colle l'URL de ta page Spotify Artist pour collecter.")
+            # The shared app answering is not "connected": without the artist's own ID
+            # the collector has no key to collect on. Same class as Meta /me.
+            return False, t("credentials.spotify.artist_missing",
+                            "App Spotify OK, mais ton **Spotify Artist ID** n'est pas "
+                            "renseigné — sans lui aucune donnée ne peut être collectée. "
+                            "Colle l'URL de ta page artiste (open.spotify.com/artist/…).")
         ra = requests.get(
             f'https://api.spotify.com/v1/artists/{artist_id}',
             headers={'Authorization': f"Bearer {data['access_token']}"},

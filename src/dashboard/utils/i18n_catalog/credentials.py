@@ -18,6 +18,20 @@ EN = {
         "print(Fernet.generate_key().decode())\"`"
     ),
     "credentials.fetching_dag_status": "Fetching DAG status…",
+    "credentials.identity_taken": (
+        "❌ **{field} = {value}** already belongs to another account. A platform "
+        "identifier can belong to one artist only — check that this one is yours. "
+        "If you believe this is a mistake, contact the administrator."
+    ),
+    "credentials.focus_banner": (
+        "🎯 **Your selection: {done}/{total} connected.** "
+        "Next: **{icon} {label}** — you will need: {need}."
+    ),
+    "credentials.focus_done": (
+        "🎯 **Selection complete ({total}/{total}).** Data lands within ~2 min; the "
+        "**🚦 Onboarding health** page will say whether each source really brings "
+        "something back."
+    ),
     "credentials.no_creds_banner": (
         "💡 **No credentials configured.** "
         "Select a platform below and follow the guide "
@@ -116,7 +130,11 @@ EN = {
     "credentials.save_ok": "✅ {platform} credentials saved.",
     "credentials.save_error": "❌ Error while saving: {err}",
     # ── _platform_spotify.py ───────────────────────────────────────────
-    "credentials.spotify.test_ok": "App OK ✅ — paste your Spotify Artist page URL to collect.",
+    "credentials.spotify.artist_missing": (
+        "Spotify app OK, but your **Spotify Artist ID** is not set — without it "
+        "no data can be collected. Paste your artist page URL "
+        "(open.spotify.com/artist/…)."
+    ),
     "credentials.spotify.test_ok_artist": "Connected — artist “{name}” ✅",
     "credentials.spotify.artist_not_found": (
         "Spotify artist not found: “{aid}”. Paste your Spotify Artist page URL "
@@ -142,7 +160,19 @@ EN = {
         "YouTube app not configured on the platform side "
         "(YOUTUBE_API_KEY) — contact the administrator."
     ),
-    "credentials.youtube.test_ok": "API key valid ✅",
+    "credentials.youtube.test_ok_channel": (
+        "API key valid — channel found, {n} video(s) ✅"
+    ),
+    "credentials.youtube.channel_missing": (
+        "API key valid, but your **Channel ID** is not set — without it no video "
+        "can be collected. Find it in YouTube Studio → Settings → Channel → "
+        "Advanced settings (starts with `UC…`)."
+    ),
+    "credentials.youtube.channel_empty": (
+        "Channel “{cid}” found, but it holds **no video** — there will be nothing "
+        "to collect. If your music is distributed, the channel to use is usually "
+        "the auto-generated **“… - Topic”** one, not your personal channel."
+    ),
     "credentials.youtube.channel_not_found": (
         "Channel ID not found: “{cid}”. Make sure it starts with UC… "
         "(channel Advanced settings)."
@@ -172,6 +202,12 @@ EN = {
     "credentials.soundcloud.token_missing": "Token missing in the OAuth response.",
     "credentials.soundcloud.test_ok": (
         "SoundCloud OAuth API OK — {count} track(s) fetched for user {user_id} ✅"
+    ),
+    "credentials.soundcloud.no_public_tracks": (
+        "User ID {user_id} is reachable, but **no public track** is attached to "
+        "it — there will be nothing to collect. Check that it is YOUR profile ID "
+        "(not a label or secondary account) and that your tracks are **public**, "
+        "not private/unlisted."
     ),
     "credentials.soundcloud.not_found": (
         "404 — User ID '{user_id}' not found. Check that it is the numeric ID."
@@ -207,7 +243,7 @@ EN = {
     ),
     "credentials.soundcloud.method2_title": "**Method 2 — DevTools**",
     "credentials.soundcloud.devtools_1": "Go to **soundcloud.com** logged into your account.",
-    "credentials.soundcloud.devtools_2": "Press **F12** → **Network** tab.",
+    "credentials.soundcloud.devtools_2": "Press **{{DEVTOOLS}}** → **Network** tab.",
     "credentials.soundcloud.devtools_3": "Play any track.",
     "credentials.soundcloud.devtools_4": (
         "Filter requests by `/users/` — the URL contains `/users/123456789`."
@@ -225,7 +261,25 @@ EN = {
         "Meta app not configured on the platform side (META_ACCESS_TOKEN) — "
         "contact the administrator."
     ),
-    "credentials.meta.test_ok": "Connected: {name} ✅",
+    "credentials.meta.test_ok_account": (
+        "Connected: {name} — ad account “{acc}” reachable ✅"
+    ),
+    "credentials.meta.ig_unreachable": (
+        "Ad account OK, but the **Instagram account {ig}** is unreachable: "
+        "{detail}\n\n→ Check that it is a **Business/Creator** account linked to a "
+        "Page, and that the Page was shared with the platform's Business Manager."
+    ),
+    "credentials.meta.ig_ok_suffix": " · Instagram @{user} ✅",
+    "credentials.meta.account_missing": (
+        "Meta app OK, but your **Ad Account ID** is not set — without it no data "
+        "can be collected. Read it from the Ads Manager URL, after `act=`."
+    ),
+    "credentials.meta.account_unreachable": (
+        "Ad account **{act}** is not reachable with the shared app: {detail}\n\n"
+        "→ Most common cause: the account was never **shared** with the app "
+        "(Business Manager → Settings → Apps → ETL_DASHBOARD_SPOTIFY → Business "
+        "Assets → Add assets → Ad account, Advertiser permission)."
+    ),
     "credentials.meta.guide_title": "📱 Where to find each Meta / Instagram field?",
     "credentials.meta.guide_info": (
         "This dashboard uses a **System User token** — never a personal token. "
@@ -366,8 +420,8 @@ EN = {
         "[soundcloud.com/discover](https://soundcloud.com/discover)."
     ),
     "credentials.guide.soundcloud.step_2": (
-        "Show the page **source code** (**Ctrl+U**), then search "
-        "(**Ctrl+F**) for `soundcloud:users:` — the **number** right after is your "
+        "Show the page **source code** (**{{VIEW_SOURCE}}**), then search "
+        "(**{{FIND}}**) for `soundcloud:users:` — the **number** right after is your "
         "**User ID** (e.g. `377065610`)."
     ),
     "credentials.guide.soundcloud.step_2_caption": (
@@ -399,7 +453,7 @@ EN = {
         "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
         "Your **Ad Account ID** is the **number right after `act=`** and "
         "**before the next `&`**. Tip: double-click that number to "
-        "select it, then **Ctrl+C**."
+        "select it, then **{{COPY}}**."
     ),
     "credentials.guide.meta.step_2_caption": (
         "The number after act= in the address bar"

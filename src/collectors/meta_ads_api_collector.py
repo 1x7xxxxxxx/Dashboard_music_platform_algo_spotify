@@ -78,7 +78,10 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
         creds['access_token'] = creds.get('access_token') or os.getenv('META_ACCESS_TOKEN')
         creds['app_id'] = creds.get('app_id') or os.getenv('META_APP_ID')
         creds['app_secret'] = creds.get('app_secret') or os.getenv('META_APP_SECRET')
-        creds['account_id'] = creds.get('account_id') or os.getenv('META_AD_ACCOUNT_ID')
+        # TENANT IDENTITY — no env fallback. META_AD_ACCOUNT_ID is the ADMIN's ad
+        # account (docker-compose even hardcoded it as a default), so falling back
+        # on it billed the admin's campaign data to this artist's artist_id.
+        creds['account_id'] = (creds.get('account_id') or '').strip()
         missing = [k for k in ('access_token', 'app_id', 'app_secret', 'account_id')
                    if not creds.get(k)]
         if missing:

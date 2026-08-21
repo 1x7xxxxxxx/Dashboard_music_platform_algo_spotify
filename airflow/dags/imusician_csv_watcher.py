@@ -80,7 +80,30 @@ def process_csv_files(**context):
         return 0
 
     conf = (context.get('dag_run').conf or {})
-    artist_id = int(conf.get('artist_id', 1))
+    # No default tenant. The CSV drop directory is SHARED, so an unscoped run
+    # used to parse whatever files were sitting there into the admin's tenant
+    # (artist_id=1) — reachable by any artist pressing the sidebar collection
+    # button, which sent no conf at all.
+    #
+    # Two callers, two honest answers: a triggered run with no artist_id is a
+    # caller error and raises; a SCHEDULED run legitimately carries no conf, so it
+    # reports the unattributable files and writes nothing. Neither guesses.
+    _artist_id = conf.get('artist_id')
+    if not _artist_id:
+        _run_type = getattr(context.get('dag_run'), 'run_type', None)
+        if _run_type == 'scheduled':
+            logger.warning(
+                'Scheduled run with no artist_id: the CSV file(s) in the shared drop '
+                'directory cannot be attributed to a tenant and were NOT imported. '
+                'Import them from Dashboard > Import CSV, or trigger this DAG with '
+                'conf artist_id set.'
+            )
+            return
+        raise ValueError(
+            'This DAG writes tenant-scoped rows and was triggered without '
+            'artist_id in dag_run.conf.'
+        )
+    artist_id = int(_artist_id)
 
     db = PostgresHandler(
         host=os.getenv('DATABASE_HOST', 'postgres'),

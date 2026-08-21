@@ -29,13 +29,69 @@ def _test_meta(fields: dict) -> tuple:
             allow_redirects=False,  # INFO-04
         )
         data = r.json()
-        if r.status_code == 200 and data.get('id'):
-            return True, t("credentials.meta.test_ok", "Connecté : {name} ✅").format(
-                name=data.get('name', data['id']))
-        msg = data.get('error', {})
-        if isinstance(msg, dict):
-            msg = msg.get('message', r.text[:150])
-        return False, str(msg)
+        if not (r.status_code == 200 and data.get('id')):
+            msg = data.get('error', {})
+            if isinstance(msg, dict):
+                msg = msg.get('message', r.text[:150])
+            return False, str(msg)
+
+        # /me only proves the PLATFORM's System User token works — it is identical for
+        # every tenant and says nothing about this artist. Green here while the ad
+        # account was never shared is exactly the Benken meta=🔴 case (asset sharing
+        # missing) discovered only a day later, at collection time. Validate the
+        # artist's own account_id now.
+        raw_id = fields.get('account_id', '').strip()
+        if not raw_id:
+            return False, t("credentials.meta.account_missing",
+                            "App Meta OK, mais ton **Ad Account ID** n'est pas renseigné — "
+                            "sans lui aucune donnée ne peut être collectée. Il se lit dans "
+                            "l'URL du Gestionnaire de publicités, après `act=`.")
+        act_id = raw_id if raw_id.startswith('act_') else f"act_{raw_id}"
+        ra = requests.get(
+            f'{META_GRAPH_BASE_URL}/{act_id}',
+            params={'access_token': token, 'fields': 'name,account_status'},
+            timeout=10,
+            allow_redirects=False,
+        )
+        acc = ra.json()
+        if ra.status_code != 200 or not acc.get('id', acc.get('name')):
+            err = acc.get('error', {})
+            detail = err.get('message', ra.text[:150]) if isinstance(err, dict) else str(err)
+            return False, t(
+                "credentials.meta.account_unreachable",
+                "Compte publicitaire **{act}** inaccessible avec l'app partagée : {detail}\n\n"
+                "→ Cause la plus fréquente : le compte n'a pas été **partagé** avec l'app "
+                "(Business Manager → Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business "
+                "Assets → Ajouter des assets → Compte publicitaire, permission Annonceur)."
+            ).format(act=act_id, detail=detail)
+        # Instagram rides the same System User token but a different asset. It is
+        # optional: an artist may run ads without connecting IG.
+        ig_user_id = fields.get('ig_user_id', '').strip()
+        ig_suffix = ""
+        if ig_user_id:
+            ri = requests.get(
+                f'{META_GRAPH_BASE_URL}/{ig_user_id}',
+                params={'access_token': token, 'fields': 'username,followers_count'},
+                timeout=10,
+                allow_redirects=False,
+            )
+            ig = ri.json()
+            if ri.status_code != 200 or not ig.get('username'):
+                err = ig.get('error', {})
+                detail = err.get('message', ri.text[:150]) if isinstance(err, dict) else str(err)
+                return False, t(
+                    "credentials.meta.ig_unreachable",
+                    "Compte publicitaire OK, mais le compte **Instagram {ig}** est "
+                    "inaccessible : {detail}\n\n→ Vérifie que c'est bien un compte "
+                    "**Business/Créateur** relié à une Page, et que la Page a été "
+                    "partagée avec le Business Manager de la plateforme."
+                ).format(ig=ig_user_id, detail=detail)
+            ig_suffix = t("credentials.meta.ig_ok_suffix",
+                          " · Instagram @{user} ✅").format(user=ig['username'])
+        return True, t("credentials.meta.test_ok_account",
+                       "Connecté : {name} — compte publicitaire « {acc} » accessible ✅{ig}").format(
+                           name=data.get('name', data['id']),
+                           acc=acc.get('name', act_id), ig=ig_suffix)
     except Exception as e:
         return False, str(e)
 

@@ -149,8 +149,8 @@ _SOUNDCLOUD = PlatformCred(
     steps=(
         CredStep("Connecté à SoundCloud, ouvrez "
                  "[soundcloud.com/discover](https://soundcloud.com/discover)."),
-        CredStep("Affichez le **code source** de la page (**Ctrl+U**), puis cherchez "
-                 "(**Ctrl+F**) `soundcloud:users:` — le **nombre** juste après est votre "
+        CredStep("Affichez le **code source** de la page (**{{VIEW_SOURCE}}**), puis "
+                 "cherchez (**{{FIND}}**) `soundcloud:users:` — le **nombre** juste après est votre "
                  "**User ID** (ex. `377065610`).",
                  "soundcloud_user_id.png", "Code source → soundcloud:users:<votre ID>"),
         CredStep("Collez ce **User ID** dans **🔑 Credentials API → SoundCloud**, puis "
@@ -182,17 +182,27 @@ _META = PlatformCred(
                  "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
                  "Votre **Ad Account ID** est le **nombre situé juste après `act=`** et "
                  "**avant le `&`** suivant. Astuce : double-cliquez sur ce nombre pour le "
-                 "sélectionner, puis **Ctrl+C**.",
+                 "sélectionner, puis **{{COPY}}**.",
                  "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
         CredStep("⚠️ Ne confondez pas avec `business_id=…` (votre Business Manager) ni "
                  "avec un **ID d'ensemble de publicités** (ad set) : seul le nombre "
                  "après **`act=`** est le bon."),
         CredStep("Collez ce nombre dans **🔑 Credentials API → Meta / Instagram**, puis "
                  "**Tester la connexion**. (Le préfixe `act_` est ajouté automatiquement.)"),
+        CredStep("**Instagram (optionnel mais recommandé).** Pour suivre vos followers "
+                 "et vos posts, il faut l'**ID du compte Instagram Business** — pas votre "
+                 "@pseudo. Ouvrez **Meta Business Suite → Paramètres → Comptes → Comptes "
+                 "Instagram**, sélectionnez votre compte : l'**ID numérique** est affiché "
+                 "sous le nom. Collez-le dans le champ *Instagram Business Account ID*."),
+        CredStep("⚠️ Prérequis Instagram : le compte doit être en **Business** ou "
+                 "**Créateur** (pas personnel) et être relié à une **Page Facebook**. "
+                 "Un compte personnel ne renvoie aucune statistique via l'API."),
     ),
     fields=(
         CredField("Ad Account ID", "act_1234567890",
-                  note="le seul champ — nombre ou préfixé 'act_'"),
+                  note="nombre ou préfixé 'act_' — pour Meta Ads"),
+        CredField("Instagram Business Account ID", "17841400000000000",
+                  note="optionnel — ~17 chiffres, pour les stats Instagram"),
     ),
     note=(
         "**Prérequis admin** : votre compte publicitaire doit être lié à l'app "

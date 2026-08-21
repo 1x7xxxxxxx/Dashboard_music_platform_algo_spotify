@@ -65,8 +65,12 @@ def run_insta_collector(**context):
 
     artists = get_active_artists(include_artist_id=artist_id_conf)
     if not artists:
-        logger.info("No active artists in DB — fallback env vars (artist_id=1)")
-        artists = [(1, 'default')]
+        if os.getenv('LEGACY_SINGLE_TENANT') == '1':
+            logger.info("No active artist — LEGACY_SINGLE_TENANT=1, using env identity as tenant 1")
+            artists = [(1, 'default')]
+        else:
+            logger.info("No active artist in DB — nothing to collect.")
+            return
 
     configured = 0
     succeeded = 0
@@ -86,18 +90,20 @@ def run_insta_collector(**context):
             per_artist_errors.append((artist_id, artist_name, "shared token missing (admin)"))
             continue
 
-        # Per-artist env the collector reads — overwrite each iteration to avoid leakage.
-        os.environ['INSTAGRAM_ACCESS_TOKEN'] = token
-        os.environ['INSTAGRAM_USER_ID'] = ig_user_id
-        if creds.get('app_id'):
-            os.environ['META_APP_ID'] = creds['app_id']
-        if creds.get('app_secret'):
-            os.environ['META_APP_SECRET'] = creds['app_secret']
+        # Passed as arguments, not through os.environ: the conditional writes below
+        # used to leak artist A's app credentials to artist B (only set when the
+        # current artist had one), and left them in the worker process afterwards.
 
         configured += 1
         logger.info(f"Instagram collect — artist_id={artist_id} ({artist_name})")
         try:
-            InstagramCollector(artist_id=artist_id).run()
+            InstagramCollector(
+                artist_id=artist_id,
+                access_token=token,
+                ig_user_id=ig_user_id,
+                app_id=creds.get('app_id'),
+                app_secret=creds.get('app_secret'),
+            ).run()
             succeeded += 1
             logger.info(f"  Collect done for {artist_name}")
         except Exception as e:

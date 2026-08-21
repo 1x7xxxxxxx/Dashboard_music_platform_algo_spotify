@@ -335,20 +335,61 @@ def show_live_activity_sidebar():
     st.sidebar.markdown("---")
 
 
+# The DAGs the collection button fires, in the order an artist reads them.
+COLLECTION_DAGS = [
+    ("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
+    ("soundcloud_daily", "SoundCloud"), ("instagram_daily", "Instagram"),
+    ("s4a_csv_watcher", "CSV S4A"), ("apple_music_csv_watcher", "CSV Apple"),
+    ("meta_ads_api_daily", "Meta Ads"),
+]
+
+
 def show_data_collection_panel():
+    """Sidebar button: collect MY data now.
+
+    Every trigger carries `conf={'artist_id': …}`. Without it the API collectors
+    ran fleet-wide and the CSV watchers, which default to `artist_id = 1`, parsed
+    the shared drop directory straight into the ADMIN's tenant — while the
+    verification e-mail tells every new artist to press this very button.
+    """
+    from src.dashboard.auth import get_artist_id, is_admin
+
+    artist_id = get_artist_id()
+    if artist_id is None and not is_admin():
+        # Rule #7: a non-admin without a resolved tenant triggers nothing.
+        return
+    from src.dashboard.utils.collection_progress import remember_runs, render_progress
+
     if st.sidebar.button(t("app.run_all_collections", "🚀 Lancer TOUTES les collectes"),
                          type="primary"):
+        launched = {}
         with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=True):
-            dags = [("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
-                    ("soundcloud_daily", "SoundCloud"), ("instagram_daily", "Instagram"),
-                    ("s4a_csv_watcher", "CSV S4A"), ("apple_music_csv_watcher", "CSV Apple"),
-                    ("meta_ads_api_daily", "Meta Ads")]
-            for dag_id, label in dags:
+            for dag_id, label in COLLECTION_DAGS:
                 try:
-                    if airflow_trigger.trigger_dag(dag_id).get('success'): st.write(f"✅ {label}")
-                    else: st.error(f"❌ {label}")
-                except: st.error(f"❌ {label}")
+                    conf = {'artist_id': artist_id} if artist_id is not None else {}
+                    result = airflow_trigger.trigger_dag(dag_id, conf=conf)
+                    if result.get('success'):
+                        st.write(f"✅ {label}")
+                        # Keep the run id: "Lancé !" was the last thing the artist
+                        # ever heard about this collection.
+                        if result.get('dag_run_id'):
+                            launched[dag_id] = result['dag_run_id']
+                    else:
+                        # Say WHY: a bare ❌ is what made "toutes les credentials
+                        # ont échoué" impossible to act on during a live session.
+                        st.error(f"❌ {label} — {result.get('error', result.get('message', '?'))}")
+                except Exception as e:
+                    st.error(f"❌ {label} — {e}")
             st.sidebar.success(t("app.launched", "Lancé !"))
+        remember_runs(launched)
+
+    # Reported on every rerun, not only right after the click.
+    try:
+        from src.dashboard.utils.airflow_monitor import AirflowMonitor
+        render_progress(AirflowMonitor(), dict(COLLECTION_DAGS))
+    except Exception:
+        pass  # progress is informational — never block the sidebar on it
+
     st.sidebar.markdown("---")
 
 def _check_db_health():

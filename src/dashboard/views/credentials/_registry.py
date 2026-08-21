@@ -59,11 +59,17 @@ PLATFORMS = {
     'meta': {
         'label': '📱 Meta / Instagram',
         # Shared System User app (access_token/app_id/app_secret) comes from the
-        # platform env; the artist provides only their own Ad Account ID. Instagram
-        # is admin-configured (env). Stored per-artist app creds still take
-        # precedence in the collector if present.
+        # platform env; the artist provides their own Ad Account ID and — for
+        # Instagram — their Instagram Business Account ID. Stored per-artist app
+        # creds still take precedence in the collector if present.
+        # ig_user_id is what instagram_daily selects tenants on and what
+        # artist_readiness reads as the Instagram identity; it had no form field,
+        # so Instagram was unconnectable by the artist (the collector's own error
+        # message pointed at a field that did not exist).
         'fields': [
             {'key': 'account_id', 'label': 'Ad Account ID (act_… ou numérique)', 'secret': False},
+            {'key': 'ig_user_id', 'label': 'Instagram Business Account ID (optionnel)',
+             'secret': False},
         ],
     },
 }

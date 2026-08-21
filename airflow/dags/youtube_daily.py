@@ -55,8 +55,16 @@ def collect_youtube_data(**context):
 
         artists = get_active_artists(include_artist_id=artist_id_conf)
         if not artists:
-            logger.info("No active artists in DB — fallback env vars (artist_id=1)")
-            artists = [(1, 'default')]
+            # An empty list now means EXACTLY one thing (credential_loader raises on a
+            # read failure and on an unknown artist_id): the deployment has no active
+            # tenant. The legacy single-tenant fallback borrowed the admin's env
+            # identity, so it is opt-in and explicit — never a silent default.
+            if os.getenv('LEGACY_SINGLE_TENANT') == '1':
+                logger.info("No active artist — LEGACY_SINGLE_TENANT=1, using env identity as tenant 1")
+                artists = [(1, 'default')]
+            else:
+                logger.info("No active artist in DB — nothing to collect.")
+                return
 
         db = PostgresHandler(
             host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -75,11 +83,21 @@ def collect_youtube_data(**context):
             logger.info(f'YouTube collect — artist_id={saas_artist_id} ({artist_name})')
 
             creds = load_platform_credentials(saas_artist_id, 'youtube')
+            # App credential (admin-owned, shared): env fallback is the central-app
+            # model (ADR-006) and stays.
             api_key = creds.get('api_key') or os.getenv('YOUTUBE_API_KEY')
-            channel_id = creds.get('channel_id') or os.getenv('YOUTUBE_CHANNEL_ID')
+            # TENANT IDENTITY: no fallback, ever. YOUTUBE_CHANNEL_ID holds the ADMIN's
+            # channel, so falling back on it collected the admin's videos and wrote
+            # them under this artist's artist_id. An empty string counts as absent.
+            channel_id = (creds.get('channel_id') or '').strip()
 
-            if not api_key or not channel_id:
-                logger.warning(f'  Missing YouTube credentials for {artist_name} — skipping')
+            if not api_key:
+                logger.warning(f'  YouTube app credential missing (YOUTUBE_API_KEY) — '
+                               f'skipping {artist_name}; admin action required')
+                continue
+            if not channel_id:
+                logger.info(f'  {artist_name} (id={saas_artist_id}) has no YouTube '
+                            'channel_id — not connected, skipping')
                 continue
 
             artists_with_creds += 1
@@ -92,12 +110,14 @@ def collect_youtube_data(**context):
                 if data['channel_stats']:
                     successful_fetches += 1
                     channel_row = {**data['channel_stats'], 'artist_id': saas_artist_id}
+                    # Conflict key is (artist_id, channel_id) since migration 064, and
+                    # artist_id is NOT in update_columns: a row never changes owner.
                     db.upsert_many(
                         table='youtube_channels',
                         data=[channel_row],
-                        conflict_columns=['channel_id'],
+                        conflict_columns=['artist_id', 'channel_id'],
                         update_columns=[
-                            'artist_id', 'channel_name', 'description', 'subscriber_count',
+                            'channel_name', 'description', 'subscriber_count',
                             'video_count', 'view_count', 'thumbnail_url', 'country', 'collected_at'
                         ]
                     )
@@ -130,8 +150,8 @@ def collect_youtube_data(**context):
                     db.upsert_many(
                         table='youtube_videos',
                         data=videos_with_artist,
-                        conflict_columns=['video_id'],
-                        update_columns=['artist_id', 'title', 'description', 'thumbnail_url', 'collected_at']
+                        conflict_columns=['artist_id', 'video_id'],
+                        update_columns=['title', 'description', 'thumbnail_url', 'collected_at']
                     )
                     logger.info(f'  {len(data["videos"])} videos stored')
 
@@ -155,16 +175,28 @@ def collect_youtube_data(**context):
                         update_columns=['view_count', 'like_count', 'comment_count', 'favorite_count', 'collected_at']
                     )
                     for stat in data['video_stats']:
+                        # Scoped by artist_id: without it this wrote across tenant
+                        # boundaries from inside a per-artist loop.
                         db.execute_query(
-                            "UPDATE youtube_videos SET duration = %s, definition = %s WHERE video_id = %s",
-                            (stat.get('duration'), stat.get('definition'), stat['video_id'])
+                            "UPDATE youtube_videos SET duration = %s, definition = %s "
+                            "WHERE video_id = %s AND artist_id = %s",
+                            (stat.get('duration'), stat.get('definition'),
+                             stat['video_id'], saas_artist_id)
                         )
                     logger.info(f'  {len(data["video_stats"])} video stats stored')
 
                 if data['comments']:
+                    # artist_id EXPLICITE : youtube_comments.artist_id porte
+                    # `NOT NULL DEFAULT 1`. Le collecteur ne le pose pas, donc sans
+                    # cette ligne les commentaires de tout locataire atterriraient
+                    # chez l'admin (même classe que track_popularity_history).
+                    # Dormant aujourd'hui (collect_comments=False), corrigé quand même.
+                    comments_with_artist = [
+                        {**c, 'artist_id': saas_artist_id} for c in data['comments']
+                    ]
                     db.upsert_many(
                         table='youtube_comments',
-                        data=data['comments'],
+                        data=comments_with_artist,
                         conflict_columns=['comment_id'],
                         update_columns=['like_count', 'collected_at']
                     )

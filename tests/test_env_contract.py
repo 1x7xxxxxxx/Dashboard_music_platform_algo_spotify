@@ -26,12 +26,24 @@ CRITICAL = {
     "YOUTUBE_API_KEY",
     "SOUNDCLOUD_CLIENT_ID", "SOUNDCLOUD_CLIENT_SECRET",
     "META_ACCESS_TOKEN", "META_APP_ID", "META_APP_SECRET",
+    # Alerting (2026-08-20). The scheduler had NONE of these while `.env` carried
+    # them and only the `dashboard` service declared SMTP_USER — so every DAG
+    # failure callback silently gave up. Production had been failing the four CSV
+    # watchers every 15 minutes for a week (672 runs) with nobody told. The var
+    # whose absence breaks the path that REPORTS broken paths belongs here first.
+    "SMTP_USER", "SMTP_PASSWORD", "ALERT_EMAIL",
 }
 
 # code-path group → the docker-compose service that runs it (anchor merged by safe_load).
+# `src/utils` is in the airflow group because the DAGs import it — email_alerts,
+# freshness_monitor and credential_loader all read env there. Scanning only
+# `airflow/dags` + `src/collectors` missed every TRANSITIVE read, which is how the
+# scheduler ended up with no SMTP config at all while `.env` had it and only the
+# `dashboard` service declared it. A guard that follows one hop less than the code
+# does reports a contract that nobody has.
 GROUPS = {
-    "dashboard": (["src/dashboard"], "dashboard"),
-    "airflow": (["src/collectors", "airflow/dags"], "airflow-scheduler"),
+    "dashboard": (["src/dashboard", "src/utils"], "dashboard"),
+    "airflow": (["src/collectors", "airflow/dags", "src/utils"], "airflow-scheduler"),
 }
 
 

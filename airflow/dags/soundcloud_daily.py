@@ -87,9 +87,16 @@ def run_soundcloud_collector(**context):
     artists = get_active_artists(include_artist_id=artist_id_conf)
 
     if not artists:
-        # Fallback : env vars, artist_id=1
-        logger.info("Aucun artiste en DB — fallback env vars (artist_id=1)")
-        artists = [(1, 'default')]
+        # An empty list now means EXACTLY one thing (credential_loader raises on a
+        # read failure and on an unknown artist_id): the deployment has no active
+        # tenant. The legacy single-tenant fallback borrowed the admin's env
+        # identity, so it is opt-in and explicit — never a silent default.
+        if os.getenv('LEGACY_SINGLE_TENANT') == '1':
+            logger.info("No active artist — LEGACY_SINGLE_TENANT=1, using env identity as tenant 1")
+            artists = [(1, 'default')]
+        else:
+            logger.info("No active artist in DB — nothing to collect.")
+            return
 
     configured = 0
     succeeded = 0
@@ -98,10 +105,17 @@ def run_soundcloud_collector(**context):
     for artist_id, artist_name in artists:
         # ── Credentials depuis DB, fallback env vars (app partagée) ────
         creds = load_platform_credentials(artist_id, 'soundcloud')
+        # App credentials (admin-owned, shared by every tenant): env fallback is the
+        # central-app model (ADR-006) and stays.
         client_id     = creds.get('client_id')     or os.getenv('SOUNDCLOUD_CLIENT_ID')
         client_secret = creds.get('client_secret') or os.getenv('SOUNDCLOUD_CLIENT_SECRET')
-        user_id       = creds.get('user_id')       or os.getenv('SOUNDCLOUD_USER_ID')
         refresh_token = creds.get('refresh_token') or os.getenv('SOUNDCLOUD_REFRESH_TOKEN')
+        # TENANT IDENTITY: no fallback, ever. SOUNDCLOUD_USER_ID holds the ADMIN's
+        # profile, so falling back on it collected the admin's tracks and wrote them
+        # under this artist's artist_id — what the two beta testers actually saw.
+        # An empty string is an absence: the credentials form can persist "" when an
+        # artist saves the tab without filling it in.
+        user_id       = (creds.get('user_id') or '').strip()
 
         if not user_id:
             logger.info(f"  {artist_name} (id={artist_id}) sans user_id SoundCloud — skip")

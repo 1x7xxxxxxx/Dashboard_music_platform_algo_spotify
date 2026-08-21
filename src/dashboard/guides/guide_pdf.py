@@ -19,6 +19,7 @@ from pathlib import Path
 from src.dashboard.content.csv_guides import (
     CSV_GUIDES, PlatformGuide, screenshot_path,
 )
+from src.dashboard.utils.os_hints import BOTH as _OS_BOTH, resolve_os_tokens
 from src.dashboard.content.credential_guides import (
     CREDENTIAL_GUIDES, PlatformCred,
 )
@@ -170,10 +171,10 @@ def _render_guide_html(guide: PlatformGuide, ui: dict) -> str:
 def _render_cred_html(cred: PlatformCred, ui: dict) -> str:
     """Render an API-credential guide from credential_guides (steps + screenshots + fields)."""
     parts = [f'<div class="platform"><h2>{html.escape(_strip_emoji(cred.title))}</h2>',
-             f'<p class="intro">{_inline_md(cred.intro)}</p>']
+             f'<p class="intro">{_inline_md(resolve_os_tokens(cred.intro, _OS_BOTH))}</p>']
     for i, step in enumerate(cred.steps, 1):
         parts.append(f'<div class="step"><span class="step-num">{i}.</span> '
-                     f'{_inline_md(step.text)}</div>')
+                     f'{_inline_md(resolve_os_tokens(step.text, _OS_BOTH))}</div>')
         if step.screenshot:
             parts.append(_img_tag(step.screenshot, step.caption, resolver=cred_screenshot_path))
     if cred.fields:

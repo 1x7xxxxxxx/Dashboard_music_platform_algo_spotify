@@ -70,16 +70,31 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       FERNET_KEY: ${FERNET_KEY}
 
+      # Alerting — the DAGs' failure callbacks, freshness alerts and the daily
+      # consolidated mail all go through src/utils/email_alerts.py. Absent here
+      # until 2026-08-20: the scheduler could not send ANY alert, so 672 CSV-watcher
+      # failures over a week went unreported. `.env` had the values; this block did
+      # not pass them on. Error class `env-not-wired-to-service`.
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ALERT_EMAIL: ${ALERT_EMAIL}
+
       # Spotify API
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
-      SPOTIFY_ARTIST_IDS: ${SPOTIFY_ARTIST_IDS:-7sbfafbLjNZGZJZjZ3xoPB}
+      # No default: this is the ADMIN's own artist id, not a fallback identity
+      # for tenants (see LEGACY_SINGLE_TENANT).
+      SPOTIFY_ARTIST_IDS: ${SPOTIFY_ARTIST_IDS:-}
 
       # Meta Ads
       META_APP_ID: ${META_APP_ID}
       META_APP_SECRET: ${META_APP_SECRET}
       META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
-      META_AD_ACCOUNT_ID: ${META_AD_ACCOUNT_ID:-act_567214713853881}
+      # No default — same reason as SPOTIFY_ARTIST_IDS above.
+      META_AD_ACCOUNT_ID: ${META_AD_ACCOUNT_ID:-}
       META_API_VERSION: v21.0
 
       # YouTube API
@@ -208,6 +223,8 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Destination of admin alerts — email_alerts.py reads it here too.
+      ALERT_EMAIL: ${ALERT_EMAIL}
       # Billing page reads these (Stripe checkout/portal links)
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_CHECKOUT_URL: ${STRIPE_CHECKOUT_URL}

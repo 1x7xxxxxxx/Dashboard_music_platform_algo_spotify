@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from src.dashboard.utils import view_session
+from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 
@@ -134,50 +135,51 @@ def show():
                     )
                     st.plotly_chart(fig, width="stretch")
 
-                    # --- Évolution des métriques (base 100, échelles comparables) ---
-                    st.subheader(t("soundcloud.base100_header", "📈 Évolution des métriques (base 100)"))
-                    _m = {'playback_count': t("soundcloud.plays", "Écoutes"),
-                          'likes_count': 'Likes',
-                          'reposts_count': 'Reposts',
-                          'comment_count': t("soundcloud.comments", "Commentaires")}
-                    agg = (df_filtered.groupby('collected_at')[list(_m)]
-                           .sum().sort_index())
-                    norm_rows = []
-                    for col, lbl in _m.items():
-                        s = agg[col].astype('float')
-                        if col == 'likes_count':
-                            # pre-fix client_credentials 0s = not collected
-                            s = s[s > 0]
-                        s = s.dropna()
-                        if len(s) < 2 or not s.iloc[0]:
-                            continue
-                        base = s.iloc[0]
-                        for d, v in s.items():
-                            norm_rows.append({'date': d, 'Métrique': lbl,
-                                              'Base 100': round(v / base * 100, 2)})
-                    if norm_rows:
-                        df_norm = pd.DataFrame(norm_rows)
-                        fig_n = px.line(
-                            df_norm, x='date', y='Base 100', color='Métrique',
-                            title=t("soundcloud.base100_title",
-                                    "Évolution des métriques — base 100 ({label})").format(label=window.label),
-                            markers=True,
-                            labels={'Métrique': t("soundcloud.metric_lbl", "Métrique")},
-                        )
-                        fig_n.update_layout(
-                            hovermode="x unified",
-                            yaxis_title=t("soundcloud.base100_axis", "Base 100 (1er pt = 100)"),
-                        )
-                        st.plotly_chart(fig_n, width="stretch")
-                        st.caption(t(
-                            "soundcloud.likes_reliability",
-                            "Likes : fiables à partir du 15/05/2026 (collecte "
-                            "OAuth user-token) — points antérieurs masqués."
-                        ))
-                    else:
-                        st.info(t("soundcloud.not_enough_history",
-                                  "Pas assez d'historique pour une évolution "
-                                  "(≥2 collectes par métrique)."))
+                    # Secondaire : compare des métriques entre elles — n'ouvre pas d'action.
+                    with secondary_analyses(t("soundcloud.base100_header",
+                                              "📈 Évolution des métriques (base 100)")):
+                        _m = {'playback_count': t("soundcloud.plays", "Écoutes"),
+                              'likes_count': 'Likes',
+                              'reposts_count': 'Reposts',
+                              'comment_count': t("soundcloud.comments", "Commentaires")}
+                        agg = (df_filtered.groupby('collected_at')[list(_m)]
+                               .sum().sort_index())
+                        norm_rows = []
+                        for col, lbl in _m.items():
+                            s = agg[col].astype('float')
+                            if col == 'likes_count':
+                                # pre-fix client_credentials 0s = not collected
+                                s = s[s > 0]
+                            s = s.dropna()
+                            if len(s) < 2 or not s.iloc[0]:
+                                continue
+                            base = s.iloc[0]
+                            for d, v in s.items():
+                                norm_rows.append({'date': d, 'Métrique': lbl,
+                                                  'Base 100': round(v / base * 100, 2)})
+                        if norm_rows:
+                            df_norm = pd.DataFrame(norm_rows)
+                            fig_n = px.line(
+                                df_norm, x='date', y='Base 100', color='Métrique',
+                                title=t("soundcloud.base100_title",
+                                        "Évolution des métriques — base 100 ({label})").format(label=window.label),
+                                markers=True,
+                                labels={'Métrique': t("soundcloud.metric_lbl", "Métrique")},
+                            )
+                            fig_n.update_layout(
+                                hovermode="x unified",
+                                yaxis_title=t("soundcloud.base100_axis", "Base 100 (1er pt = 100)"),
+                            )
+                            st.plotly_chart(fig_n, width="stretch")
+                            st.caption(t(
+                                "soundcloud.likes_reliability",
+                                "Likes : fiables à partir du 15/05/2026 (collecte "
+                                "OAuth user-token) — points antérieurs masqués."
+                            ))
+                        else:
+                            st.info(t("soundcloud.not_enough_history",
+                                      "Pas assez d'historique pour une évolution "
+                                      "(≥2 collectes par métrique)."))
                 else:
                     st.info(t("soundcloud.no_data_selection",
                               "Aucune donnée pour cette sélection (Vérifiez les dates ou les titres)."))

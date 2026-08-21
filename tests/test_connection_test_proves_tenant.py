@@ -1,0 +1,184 @@
+"""Guard — a green "Tester la connexion" must prove THIS tenant's data path.
+
+Error class `connection-test-proves-app-not-tenant`: every platform credential
+test used to validate the admin-owned shared app (Spotify client_credentials,
+YouTube API key, Meta /me, SoundCloud OAuth token) and return ✅ without ever
+touching the artist's own identifier. The artist then saw "Connecté", the DAG
+exited SUCCESS with 0 rows, and the view stayed empty for a day — the
+silent-success class (CLAUDE.md rule #6) moved one layer up, into the form.
+
+Observed twice in beta: Benken (Meta ad account never shared, YouTube channel
+empty) and Grinch 2026-08-12 (SoundCloud "correctement configuré", zero data).
+
+Each test below asserts the failing half: shared app OK + tenant identity
+missing/empty ⇒ ok is False and the message names the next action.
+"""
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.dashboard.views.credentials._platform_meta import _test_meta
+from src.dashboard.views.credentials._platform_soundcloud import _test_soundcloud
+from src.dashboard.views.credentials._platform_spotify import _test_spotify
+from src.dashboard.views.credentials._platform_youtube import _test_youtube
+
+
+def _resp(status=200, payload=None):
+    r = MagicMock()
+    r.status_code = status
+    r.json.return_value = payload if payload is not None else {}
+    r.text = str(payload)
+    return r
+
+
+# ── SoundCloud — the Grinch symptom ──────────────────────────────────────────
+
+@patch("src.dashboard.views.credentials._platform_soundcloud.requests")
+def test_soundcloud_zero_public_tracks_is_a_failure(mock_requests):
+    """user_id resolves (HTTP 200) but exposes no track → nothing to collect."""
+    mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+    mock_requests.get.return_value = _resp(200, {"collection": []})
+
+    ok, msg = _test_soundcloud({"user_id": "377065610", "client_id": "cid",
+                                "client_secret": "sec"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "aucun titre public" in msg.lower()
+
+
+@patch("src.dashboard.views.credentials._platform_soundcloud.requests")
+def test_soundcloud_with_tracks_still_passes(mock_requests):
+    mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+    mock_requests.get.return_value = _resp(200, {"collection": [{"id": 1}]})
+
+    ok, _ = _test_soundcloud({"user_id": "377065610", "client_id": "cid",
+                              "client_secret": "sec"})  # pragma: allowlist secret
+
+    assert ok is True
+
+
+# ── Meta — the Benken asset-sharing gap ──────────────────────────────────────
+
+@patch("src.dashboard.views.credentials._platform_meta.requests")
+def test_meta_shared_token_alone_is_not_connected(mock_requests):
+    """/me green + no account_id must NOT read as connected."""
+    mock_requests.get.return_value = _resp(200, {"id": "1", "name": "System User"})
+
+    ok, msg = _test_meta({"access_token": "tok"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "Ad Account ID" in msg
+
+
+@patch("src.dashboard.views.credentials._platform_meta.requests")
+def test_meta_unshared_ad_account_is_a_failure(mock_requests):
+    """The account exists but was never shared with the app → Graph errors."""
+    mock_requests.get.side_effect = [
+        _resp(200, {"id": "1", "name": "System User"}),
+        _resp(400, {"error": {"message": "Object does not exist"}}),
+    ]
+
+    ok, msg = _test_meta({"access_token": "tok", "account_id": "65390907"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "act_65390907" in msg
+    assert "partagé" in msg  # names the asset-sharing fix
+
+
+@patch("src.dashboard.views.credentials._platform_meta.requests")
+def test_meta_shared_ad_account_passes(mock_requests):
+    mock_requests.get.side_effect = [
+        _resp(200, {"id": "1", "name": "System User"}),
+        _resp(200, {"id": "act_65390907", "name": "Benken Ads", "account_status": 1}),
+    ]
+
+    ok, msg = _test_meta({"access_token": "tok", "account_id": "act_65390907"})  # pragma: allowlist secret
+
+    assert ok is True
+    assert "Benken Ads" in msg
+
+
+# ── YouTube — key-only green, and the empty-channel case ─────────────────────
+
+@patch("src.dashboard.views.credentials._platform_youtube.requests")
+def test_youtube_valid_key_without_channel_is_a_failure(mock_requests):
+    mock_requests.get.return_value = _resp(200, {"items": [{"id": "fr"}]})
+
+    ok, msg = _test_youtube({"api_key": "AIzaKey"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "Channel ID" in msg
+
+
+@patch("src.dashboard.views.credentials._platform_youtube.requests")
+def test_youtube_empty_channel_is_a_failure(mock_requests):
+    mock_requests.get.side_effect = [
+        _resp(200, {"items": [{"id": "fr"}]}),                       # key probe
+        _resp(200, {"items": [{"statistics": {"videoCount": "0"}}]}),  # channel probe
+    ]
+
+    ok, msg = _test_youtube({"api_key": "AIzaKey", "channel_id": "UC_x5XG1OV2P6uZZ5FSM9Ttw"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "Topic" in msg  # points at the auto-generated distribution channel
+
+
+@patch("src.dashboard.views.credentials._platform_youtube.requests")
+def test_youtube_channel_with_videos_passes(mock_requests):
+    mock_requests.get.side_effect = [
+        _resp(200, {"items": [{"id": "fr"}]}),
+        _resp(200, {"items": [{"statistics": {"videoCount": "42"}}]}),
+    ]
+
+    ok, msg = _test_youtube({"api_key": "AIzaKey", "channel_id": "UC_x5XG1OV2P6uZZ5FSM9Ttw"})  # pragma: allowlist secret
+
+    assert ok is True
+    assert "42" in msg
+
+
+# ── Spotify — shared client_credentials app is not an identity ───────────────
+
+@patch("src.dashboard.views.credentials._platform_spotify.requests")
+def test_spotify_app_without_artist_id_is_a_failure(mock_requests):
+    mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+
+    ok, msg = _test_spotify({"client_id": "cid", "client_secret": "sec"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "Artist ID" in msg
+
+
+@patch("src.dashboard.views.credentials._platform_spotify.requests")
+def test_spotify_resolved_artist_passes(mock_requests):
+    mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+    mock_requests.get.return_value = _resp(200, {"id": "3TVXtAsR1Inumwj472S9r4",
+                                                 "name": "Drake"})
+
+    ok, msg = _test_spotify({
+        "client_id": "cid", "client_secret": "sec",  # pragma: allowlist secret
+        "spotify_artist_id": "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
+    })
+
+    assert ok is True
+    assert "Drake" in msg
+
+
+# ── The class itself: no platform may pass on shared-app credentials alone ───
+
+@pytest.mark.parametrize("case", [
+    ("soundcloud", _test_soundcloud, {"client_id": "cid", "client_secret": "sec"}),  # pragma: allowlist secret
+    ("spotify", _test_spotify, {"client_id": "cid", "client_secret": "sec"}),  # pragma: allowlist secret
+    ("youtube", _test_youtube, {"api_key": "AIzaKey"}),  # pragma: allowlist secret
+    ("meta", _test_meta, {"access_token": "tok"}),  # pragma: allowlist secret
+])
+def test_no_platform_passes_without_tenant_identity(case):
+    """Whatever the platform, an artist who provided nothing is not connected."""
+    name, fn, app_only_fields = case
+    module = f"src.dashboard.views.credentials._platform_{name}"
+    with patch(f"{module}.requests") as mock_requests:
+        mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+        mock_requests.get.return_value = _resp(200, {"id": "1", "name": "app",
+                                                     "items": [{"id": "fr"}],
+                                                     "collection": []})
+        ok, _ = fn(app_only_fields)
+    assert ok is False, f"{name}: shared app alone must not read as connected"

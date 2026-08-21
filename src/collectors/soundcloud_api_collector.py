@@ -35,7 +35,7 @@ _API_BASE = "https://api.soundcloud.com"
 
 
 class SoundCloudCollector:
-    def __init__(self, artist_id: int = 1,
+    def __init__(self, artist_id: int,
                  client_id: str = None,
                  client_secret: str = None,
                  user_id: str = None,
@@ -43,7 +43,15 @@ class SoundCloudCollector:
         self.artist_id = artist_id
         self.client_id = client_id or os.getenv("SOUNDCLOUD_CLIENT_ID")
         self.client_secret = client_secret or os.getenv("SOUNDCLOUD_CLIENT_SECRET")
-        self.user_id = user_id or os.getenv("SOUNDCLOUD_USER_ID")
+        # TENANT IDENTITY — no env fallback: SOUNDCLOUD_USER_ID is the ADMIN's
+        # profile. A collector that cannot be told whose data to fetch must not
+        # guess; the caller (DAG) resolves it from artist_credentials.
+        self.user_id = (user_id or '').strip()
+        if not self.user_id:
+            raise ValueError(
+                f"SoundCloudCollector: no user_id for artist_id={artist_id}. "
+                "Set it in Dashboard → Credentials → SoundCloud."
+            )
         # Optional OAuth user-token (B2 P2). Absent ⇒ client_credentials mode
         # (unchanged behaviour). Present ⇒ user-context token → real per-track
         # likes. Never raise on absence; it is opt-in per artist.
@@ -244,5 +252,11 @@ class SoundCloudCollector:
 
 
 if __name__ == "__main__":
-    collector = SoundCloudCollector()
+    # artist_id is required on the CLI too: the old no-arg form bound the env
+    # identity (the admin's) to tenant 1 — the very defect this module now refuses.
+    import sys
+
+    if len(sys.argv) < 3:
+        sys.exit("usage: soundcloud_api_collector.py <artist_id> <user_id>")
+    collector = SoundCloudCollector(artist_id=int(sys.argv[1]), user_id=sys.argv[2])
     collector.run()

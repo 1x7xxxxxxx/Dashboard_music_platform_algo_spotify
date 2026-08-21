@@ -39,19 +39,39 @@ def _test_youtube(fields: dict) -> tuple:
         # channel passes the key test but 404s the collector (uploads playlist UC→UU
         # "playlistNotFound") — exactly Benken's failure. Catch it here, in the form.
         channel_id = fields.get('channel_id', '').strip()
-        if channel_id:
-            rc = requests.get(
-                'https://www.googleapis.com/youtube/v3/channels',
-                params={'part': 'contentDetails', 'id': channel_id, 'key': api_key},
-                timeout=10,
-                allow_redirects=False,
-            )
-            cd = rc.json()
-            if not (rc.status_code == 200 and cd.get('items')):
-                return False, t("credentials.youtube.channel_not_found",
-                                "Channel ID introuvable : « {cid} ». Vérifier qu'il commence "
-                                "par UC… (Paramètres avancés de la chaîne).").format(cid=channel_id)
-        return True, t("credentials.youtube.test_ok", "Clé API valide ✅")
+        if not channel_id:
+            # Key-only green is the same lie as Meta's /me: the admin key is shared by
+            # every tenant. Without the artist's own channel there is nothing to collect.
+            return False, t("credentials.youtube.channel_missing",
+                            "Clé API valide, mais ton **Channel ID** n'est pas renseigné — "
+                            "sans lui aucune vidéo ne peut être collectée. Il se lit dans "
+                            "YouTube Studio → Paramètres → Chaîne → Paramètres avancés "
+                            "(commence par `UC…`).")
+        rc = requests.get(
+            'https://www.googleapis.com/youtube/v3/channels',
+            params={'part': 'contentDetails,statistics', 'id': channel_id, 'key': api_key},
+            timeout=10,
+            allow_redirects=False,
+        )
+        cd = rc.json()
+        items = cd.get('items') or []
+        if not (rc.status_code == 200 and items):
+            return False, t("credentials.youtube.channel_not_found",
+                            "Channel ID introuvable : « {cid} ». Vérifier qu'il commence "
+                            "par UC… (Paramètres avancés de la chaîne).").format(cid=channel_id)
+        # An empty channel resolves fine and then collects 0 videos forever — the Benken
+        # case. Say so at connect time instead of leaving an eternally empty view.
+        video_count = int((items[0].get('statistics') or {}).get('videoCount') or 0)
+        if video_count == 0:
+            return False, t(
+                "credentials.youtube.channel_empty",
+                "Chaîne « {cid} » trouvée, mais elle ne contient **aucune vidéo** — il n'y "
+                "aura rien à collecter. Si ta musique est distribuée, c'est souvent la "
+                "chaîne **« … - Topic »** générée automatiquement qu'il faut renseigner, "
+                "pas ta chaîne personnelle."
+            ).format(cid=channel_id)
+        return True, t("credentials.youtube.test_ok_channel",
+                       "Clé API valide — chaîne trouvée, {n} vidéo(s) ✅").format(n=video_count)
     except Exception as e:
         return False, str(e)
 

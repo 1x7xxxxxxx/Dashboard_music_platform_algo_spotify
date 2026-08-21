@@ -1,4 +1,4 @@
-﻿"""DAG Spotify API - Collecte quotidienne artistes et tracks.
+"""DAG Spotify API - Collecte quotidienne artistes et tracks.
 
 Brick 6 : supporte artist_id dans dag_run.conf.
   - conf.artist_id fourni → credentials depuis DB pour cet artiste.
@@ -53,16 +53,22 @@ def collect_spotify_artists(**context):
         artist_id_conf = conf.get('artist_id')
 
         active_artists = get_active_artists(include_artist_id=artist_id_conf)
-        if not active_artists:
+        if not active_artists and os.getenv('LEGACY_SINGLE_TENANT') == '1':
             active_artists = [(1, 'default')]
 
-        # Use first active artist's Spotify credentials (Spotify API is per-account)
-        saas_artist_id = active_artists[0][0]
-        creds = load_platform_credentials(saas_artist_id, 'spotify')
-        client_id = creds.get('client_id') or os.getenv('SPOTIFY_CLIENT_ID')
-        client_secret = creds.get('client_secret') or os.getenv('SPOTIFY_CLIENT_SECRET')
-        if creds.get('client_id'):
-            logger.info(f'  Spotify credentials loaded from DB (artist_id={saas_artist_id})')
+        # App credentials: the CENTRAL admin-owned app (ADR-006). The previous code
+        # read them from `active_artists[0]` — i.e. ONE tenant's stored override was
+        # silently used to collect for the whole fleet, putting everyone's calls on
+        # that tenant's quota. A per-artist override is honoured only on a run that
+        # is scoped to that very artist.
+        client_id = os.getenv('SPOTIFY_CLIENT_ID')
+        client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+        if artist_id_conf:
+            creds = load_platform_credentials(artist_id_conf, 'spotify')
+            if creds.get('client_id') and creds.get('client_secret'):
+                client_id = creds['client_id']
+                client_secret = creds['client_secret']
+                logger.info(f'  Spotify app override from DB (artist_id={artist_id_conf})')
 
         # Initialiser collector
         collector = SpotifyCollector(
@@ -102,7 +108,13 @@ def collect_spotify_artists(**context):
                 "SELECT spotify_artist_id FROM saas_artists "
                 "WHERE active = TRUE AND spotify_artist_id IS NOT NULL AND spotify_artist_id <> ''"
             )
-            env_ids = [a.strip() for a in os.getenv('SPOTIFY_ARTIST_IDS', '').split(',') if a.strip()]
+            # SPOTIFY_ARTIST_IDS is the ADMIN's own artist list. Folding it into every
+            # fleet run collected the admin alongside the tenants and, downstream,
+            # produced rows no tenant owns. Opt-in only, for a genuinely legacy
+            # single-tenant deployment.
+            env_ids = []
+            if os.getenv('LEGACY_SINGLE_TENANT') == '1':
+                env_ids = [a.strip() for a in os.getenv('SPOTIFY_ARTIST_IDS', '').split(',') if a.strip()]
             artist_ids = list(dict.fromkeys([r[0] for r in rows] + env_ids))  # dedupe, keep order
 
         if not artist_ids:
@@ -224,9 +236,21 @@ def collect_spotify_top_tracks(**context):
                     # Resolve the SaaS tenant for this Spotify artist (migration 039).
                     # Stamp every track so dashboard readers can filter by tenant.
                     _sa = db.fetch_query(
-                        "SELECT id FROM saas_artists WHERE spotify_artist_id = %s",
+                        "SELECT id FROM saas_artists WHERE spotify_artist_id = %s "
+                        "ORDER BY id",
                         (artist_id,)
                     )
+                    if len(_sa) > 1:
+                        # Nothing constrains spotify_artist_id to one tenant, and
+                        # taking the first silently attributed a whole catalogue to
+                        # the wrong account. Ambiguous ownership is not a guess to
+                        # make: skip and say who is colliding.
+                        logger.error(
+                            f'⚠️ Spotify id {artist_id} is claimed by {len(_sa)} tenants '
+                            f'({[r[0] for r in _sa]}) — skipping, ownership is ambiguous. '
+                            'Fix saas_artists.spotify_artist_id for the wrong one.'
+                        )
+                        continue
                     saas_artist_id = _sa[0][0] if _sa else None
                     if saas_artist_id is None:
                         logger.warning(
@@ -241,8 +265,11 @@ def collect_spotify_top_tracks(**context):
                         table='tracks',
                         data=tracks,
                         conflict_columns=['track_id'],
+                        # saas_artist_id excluded: a track collected by two tenants
+                        # (a collab, or the same Spotify id entered twice) was being
+                        # re-assigned to whichever ran last, emptying the other's view.
                         update_columns=[
-                            'track_name', 'saas_artist_id', 'popularity', 'duration_ms',
+                            'track_name', 'popularity', 'duration_ms',
                             'album_name', 'release_date', 'collected_at'
                         ]
                     )
@@ -250,15 +277,30 @@ def collect_spotify_top_tracks(**context):
                     total_tracks += count
                     logger.info(f'✅ {count} tracks collectées')
 
-                    # Préparer l'historique de popularité
-                    for track in tracks:
-                        popularity_records.append({
-                            'track_id': track['track_id'],
-                            'track_name': track['track_name'],
-                            'popularity': track['popularity'],
-                            'collected_at': current_datetime,
-                            'date': current_date
-                        })
+                    # Préparer l'historique de popularité.
+                    # artist_id est EXPLICITE : `track_popularity_history.artist_id`
+                    # porte `DEFAULT 1`, et upsert_many dérive les colonnes de
+                    # l'INSERT des clés du payload (postgres_handler.py). Omettre la
+                    # clé faisait donc écrire l'historique de CHAQUE locataire sous
+                    # l'artiste 1 (l'admin), tous les jours, sans erreur ni alerte.
+                    if saas_artist_id is None:
+                        # Aucun locataire n'est rattaché à cet artiste Spotify : la
+                        # ligne n'a pas de propriétaire. On ne l'invente pas — c'est
+                        # exactement ce que faisait le DEFAULT 1.
+                        logger.warning(
+                            f'⚠️ Historique popularité ignoré pour Spotify id {artist_id} '
+                            '— aucun locataire rattaché (saas_artists.spotify_artist_id).'
+                        )
+                    else:
+                        for track in tracks:
+                            popularity_records.append({
+                                'artist_id': saas_artist_id,
+                                'track_id': track['track_id'],
+                                'track_name': track['track_name'],
+                                'popularity': track['popularity'],
+                                'collected_at': current_datetime,
+                                'date': current_date
+                            })
             except Exception as e:
                 # Per-artist isolation: a single bad Spotify ID / API error must not abort
                 # top-tracks collection for the other tenants.

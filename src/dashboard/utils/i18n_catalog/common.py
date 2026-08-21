@@ -32,4 +32,8 @@ EN = {
     "common.revenue_eur": "Revenue (€)",
     "common.filter_by_year": "Filter by year",
     "common.filter_by_month": "Filter by month",
+    # Guides — OS switch (os_hints.py)
+    "guides.os_selector": "💻 Show instructions for my computer:",
+    # Views — collapsed container for refine-only charts (ui.secondary_analyses)
+    "ui.secondary_analyses": "📊 Detailed analyses (optional)",
 }

@@ -13,15 +13,36 @@ import os
 logger = logging.getLogger(__name__)
 
 
+class CredentialLoadError(RuntimeError):
+    """The credential store could not be READ (DB down, bad DSN, decrypt failure).
+
+    Distinct from "this artist has not connected this platform", which is an
+    empty dict. Conflating the two is what let a transient DB outage silently
+    turn every tenant's collection into "collect the admin's data": callers
+    fell back to env identities they should never have reached.
+    """
+
+
+class UnknownArtistError(RuntimeError):
+    """A specific artist_id was requested but is absent or inactive."""
+
+
 def load_platform_credentials(artist_id: int, platform: str) -> dict:
     """Retourne les credentials déchiffrés pour (artist_id, platform).
 
     Fusionne extra_config (config publique) + secrets déchiffrés depuis
-    token_encrypted. Retourne {} si aucune ligne trouvée ou erreur.
+    token_encrypted. Retourne {} **uniquement** si l'artiste n'a pas connecté
+    cette plateforme ; lève CredentialLoadError si le magasin est illisible.
 
-    Usage dans un DAG :
+    Usage dans un DAG — noter la distinction, elle est le cœur du sujet :
+
         creds = load_platform_credentials(artist_id, 'soundcloud')
+        # credential d'APP (partagée, admin) → repli env légitime (ADR-006)
         client_id = creds.get('client_id') or os.getenv('SOUNDCLOUD_CLIENT_ID')
+        # IDENTITÉ du locataire → JAMAIS de repli : l'env porte celle de l'admin
+        user_id = (creds.get('user_id') or '').strip()
+        if not user_id:
+            continue  # pas connecté — on saute, on n'emprunte pas une identité
     """
     import psycopg2
 
@@ -75,8 +96,11 @@ def load_platform_credentials(artist_id: int, platform: str) -> dict:
         return {**extra, **secrets}
 
     except Exception as e:
-        logger.warning(f"credential_loader: erreur DB — {e}")
-        return {}
+        # NOT `return {}`: an unreadable store is not an unconnected artist.
+        logger.error(f"credential_loader: erreur DB — {e}")
+        raise CredentialLoadError(
+            f"cannot read credentials for artist_id={artist_id} platform={platform}: {e}"
+        ) from e
 
 
 def update_platform_secret(artist_id: int, platform: str,
@@ -211,8 +235,14 @@ def save_platform_credentials(artist_id: int, platform: str, extra_updates: dict
 def get_active_artists(include_artist_id: int = None) -> list:
     """Retourne la liste des artist_id actifs depuis saas_artists.
 
-    Si include_artist_id est fourni (depuis dag_run.conf), retourne
-    uniquement cet artiste s'il est actif. Sinon retourne tous les actifs.
+    Trois issues, volontairement distinctes :
+      - aucun artiste actif en base              → [] (déploiement mono-tenant vide)
+      - include_artist_id absent ou inactif      → UnknownArtistError
+      - magasin illisible (DB down, DSN faux)    → CredentialLoadError
+
+    Les confondre est ce qui faisait qu'un `conf={'artist_id': 12}` sur un artiste
+    inactif — ou une simple coupure DB — se traduisait par « collecte la chaîne de
+    l'admin sous artist_id=1 » au lieu de « artiste inconnu ».
 
     Retourne [(id, name), ...].
     """
@@ -244,8 +274,16 @@ def get_active_artists(include_artist_id: int = None) -> list:
         rows = cur.fetchall()
         cur.close()
         conn.close()
+
+        if include_artist_id and not rows:
+            raise UnknownArtistError(
+                f"artist_id={include_artist_id} does not exist or is not active — "
+                "refusing to fall back to another tenant's identity"
+            )
         return rows
 
+    except (UnknownArtistError, CredentialLoadError):
+        raise
     except Exception as e:
-        logger.warning(f"get_active_artists: erreur DB — {e}")
-        return []
+        logger.error(f"get_active_artists: erreur DB — {e}")
+        raise CredentialLoadError(f"cannot list active artists: {e}") from e

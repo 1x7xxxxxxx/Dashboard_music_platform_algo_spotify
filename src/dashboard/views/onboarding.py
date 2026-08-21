@@ -5,12 +5,18 @@ Uses: get_db_connection, get_artist_id, get_artist_plan, PLAN_FEATURES
 Depends on: artist_credentials table, saas_artists table
 Accessible via /?page=onboarding (authenticated route).
 """
+import json
+
 import streamlit as st
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
+from src.dashboard.content.platform_value import (
+    BY_KEY, RECOMMENDED, ordered_for_setup, total_effort,
+)
+from src.dashboard.utils.setup_focus import FOCUS_KEY
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -43,18 +49,43 @@ def _goto(page_key: str) -> None:
 
 
 def _get_configured_platforms(artist_id: int) -> set[str]:
-    """Return set of platforms that have at least token_encrypted or extra_config set."""
+    """Platforms the artist has actually connected.
+
+    Instagram has no row of its own — it rides the `meta` row via `ig_user_id`
+    (same convention as artist_readiness._identity). Reading rows alone would
+    show Instagram as unconnected forever, right next to a ⭐ recommending it.
+    """
     db = get_db_connection()
     if db is None or artist_id is None:
         return set()
     try:
         rows = db.fetch_query(
-            "SELECT platform FROM artist_credentials "
+            "SELECT platform, extra_config FROM artist_credentials "
             "WHERE artist_id = %s AND (token_encrypted IS NOT NULL OR extra_config IS NOT NULL)",
             (artist_id,),
         )
-        return {r[0] for r in rows}
-    except Exception:
+        configured = {r[0] for r in rows}
+        for platform, extra in rows:
+            if platform != 'meta':
+                continue
+            if isinstance(extra, str):
+                try:
+                    extra = json.loads(extra)
+                except ValueError:
+                    extra = {}
+            if (extra or {}).get('ig_user_id'):
+                configured.add('instagram')
+        return configured
+    except Exception as e:
+        # NOT a silent `return set()`: a DB error and "this artist has connected
+        # nothing" are different facts, and rendering the first as the second
+        # tells an artist who configured everything that they configured nothing.
+        st.warning(t(
+            "onboarding.status_unavailable",
+            "⚠️ Impossible de lire l'état de tes connexions ({err}). La liste "
+            "ci-dessous peut afficher « non connecté » à tort — réessaie dans un "
+            "instant avant de tout reconfigurer."
+        ).format(err=type(e).__name__))
         return set()
     finally:
         db.close()
@@ -117,71 +148,125 @@ def _step_welcome(plan: str) -> None:
 
 
 def _step_credentials(plan: str, artist_id: int) -> None:
-    st.title(t("onboarding.creds_title", "🔑 Configurer vos sources de données"))
+    st.title(t("onboarding.creds_title", "🔑 Par quoi veux-tu commencer ?"))
     st.markdown(
         t("onboarding.creds_body",
-          "Connectez vos plateformes pour commencer à collecter des données. "
-          "Vous pouvez compléter cette étape plus tard depuis **Credentials API**.")
+          "**Tu n'as pas besoin de tout connecter.** Coche ce que tu veux configurer "
+          "maintenant — le reste attendra dans **Credentials API**.")
     )
-    st.markdown("---")
 
     configured = _get_configured_platforms(artist_id)
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
-
     plan_ranks = {'free': 0, 'premium': 1}
     current_rank = plan_ranks.get(plan, 0)
 
-    for platform_key, meta in _PLATFORM_META.items():
-        required_rank = plan_ranks.get(meta['plan'], 0)
-        is_accessible = is_all or required_rank <= current_rank
+    reco = [BY_KEY[k] for k in RECOMMENDED if k not in configured]
+    if reco:
+        st.info(t(
+            "onboarding.reco_banner",
+            "⭐ **Recommandé pour démarrer : {names}** — en {mins} min tu vois d'où "
+            "viennent tes écoutes *et* si ton audience suit. C'est le couple qui "
+            "permet de décider quelque chose ; le reste affine."
+        ).format(names=" + ".join(f"{p.icon} {p.label}" for p in reco),
+                 mins=total_effort(p.key for p in reco)))
 
-        connected = platform_key in configured
-        status = t("onboarding.connected", "✅ Connecté") if connected \
-            else t("onboarding.not_configured", "❌ Non configuré")
+    st.markdown("---")
 
-        if is_accessible:
-            cols = st.columns([3, 1, 1])
-            cols[0].markdown(f"{meta['icon']} **{meta['label']}** — {status}")
-            if not connected:
-                if cols[1].button(t("onboarding.configure_btn", "Configurer →"),
-                                  key=f"_onb_cfg_{platform_key}"):
-                    _goto('credentials')
-        else:
+    selection: list[str] = []
+    for pv in ordered_for_setup(configured):
+        meta = _PLATFORM_META.get(pv.key, {})
+        required_rank = plan_ranks.get(meta.get('plan', 'free'), 0)
+        if not (is_all or required_rank <= current_rank):
             st.markdown(
                 t("onboarding.locked_platform",
                   "🔒 {icon} **{label}** — *Disponible en plan {plan}*").format(
-                      icon=meta['icon'], label=meta['label'], plan=meta['plan'].capitalize())
+                      icon=pv.icon, label=pv.label,
+                      plan=meta.get('plan', 'free').capitalize())
             )
+            continue
+
+        connected = pv.key in configured
+        head = f"{pv.icon} **{pv.label}**"
+        if connected:
+            head += t("onboarding.already_connected", " — ✅ déjà connecté")
+        elif pv.recommended:
+            head += t("onboarding.reco_tag", " — ⭐ recommandé")
+        head += t("onboarding.effort", " · ≈{mins} min").format(mins=pv.effort_min)
+
+        checked = st.checkbox(head, value=(pv.recommended and not connected),
+                              disabled=connected, key=f"_onb_pick_{pv.key}")
+        if checked and not connected:
+            selection.append(pv.key)
+        # The value line is what makes the checkbox answerable: an artist cannot
+        # prioritise a platform name, only what it tells them.
+        st.caption(t(f"onboarding.value.{pv.key}", pv.value))
+        st.caption(t("onboarding.need", "À fournir : {need}").format(need=pv.need))
+        if pv.caveat and not connected:
+            st.caption(t(f"onboarding.caveat.{pv.key}", "⚠️ {c}").format(c=pv.caveat))
+        st.markdown("")
 
     st.markdown("---")
     col_back, col_next = st.columns([1, 3])
     if col_back.button(t("onboarding.back", "← Retour")):
         st.session_state[_STEP_KEY] = 1
         st.rerun()
-    if col_next.button(t("onboarding.next_finish", "Suivant : Terminer →"), type="primary"):
+
+    if selection:
+        label = t("onboarding.configure_selection",
+                  "Configurer ma sélection ({n}) → ≈{mins} min").format(
+                      n=len(selection), mins=total_effort(selection))
+    else:
+        label = t("onboarding.next_finish", "Continuer sans rien connecter →")
+    if col_next.button(label, type="primary"):
+        # Carried to the credentials page, which walks the selection in order and
+        # tracks what is left — so "I picked two things" survives the navigation.
+        st.session_state[FOCUS_KEY] = selection
         st.session_state[_STEP_KEY] = 3
         st.rerun()
 
 
 def _step_ready() -> None:
+    focus = st.session_state.get(FOCUS_KEY) or []
     st.title(t("onboarding.ready_title", "🎉 C'est parti !"))
-    st.success(
-        t("onboarding.ready_body",
-          "Votre tableau de bord est prêt. Vous pouvez configurer vos credentials "
-          "à tout moment depuis **Credentials API** dans la navigation.")
-    )
+
+    if focus:
+        names = " + ".join(f"{BY_KEY[k].icon} {BY_KEY[k].label}" for k in focus if k in BY_KEY)
+        st.success(
+            t("onboarding.ready_focus",
+              "Ta sélection : **{names}** (≈{mins} min). La page Credentials t'attend "
+              "avec le guide de chacune — et te dira si la connexion ramène "
+              "vraiment des données.").format(names=names, mins=total_effort(focus))
+        )
+    else:
+        st.success(
+            t("onboarding.ready_body",
+              "Votre tableau de bord est prêt. Vous pouvez configurer vos credentials "
+              "à tout moment depuis **Credentials API** dans la navigation.")
+        )
     st.markdown("---")
 
     col1, col2 = st.columns(2)
-    with col1:
-        if st.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
-                     type="primary", key="_onb_done_home"):
-            _goto('home')
-    with col2:
-        if st.button(t("onboarding.configure_creds", "🔑 Configurer les credentials"),
-                     key="_onb_done_creds"):
-            _goto('credentials')
+    # The primary button follows the choice: someone who picked platforms wants the
+    # form, not the (still empty) dashboard.
+    if focus:
+        with col1:
+            if st.button(t("onboarding.go_configure", "🔑 Connecter ma sélection →"),
+                         type="primary", key="_onb_done_creds"):
+                _goto('credentials')
+        with col2:
+            if st.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
+                         key="_onb_done_home"):
+                _goto('home')
+    else:
+        with col1:
+            if st.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
+                         type="primary", key="_onb_done_home"):
+                _goto('home')
+        with col2:
+            if st.button(t("onboarding.configure_creds", "🔑 Configurer les credentials"),
+                         key="_onb_done_creds"):
+                _goto('credentials')
 
     st.markdown("---")
     st.caption(

@@ -4,7 +4,7 @@ import plotly.express as px
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
-from src.dashboard.utils.ui import show_empty_state
+from src.dashboard.utils.ui import secondary_analyses, show_empty_state
 
 def show():
     st.title(t("instagram.title", "📸 Instagram - Performance"))
@@ -83,41 +83,42 @@ def show():
                 )
                 st.plotly_chart(fig, width="stretch")
 
-                # Évolution relative base 100 : échelles comparables sur 1 axe.
-                st.subheader(t("instagram.base100_header", "📈 Évolution relative (base 100)"))
-                if len(df_hist) < 2:
-                    st.info(t("instagram.not_enough_history", "Pas assez d'historique pour une évolution (≥2 collectes)."))
-                else:
-                    _metrics = {
-                        'followers_count': t("instagram.followers", "Abonnés"),
-                        'follows_count': t("instagram.follows", "Abonnements"),
-                        'media_count': t("instagram.publications", "Publications"),
-                    }
-                    rows = []
-                    for col, lbl in _metrics.items():
-                        s = df_hist[col].astype('float')
-                        nonnull = s.dropna()
-                        base = nonnull.iloc[0] if not nonnull.empty else 0
-                        if not base:
-                            continue
-                        for d, v in zip(df_hist['collected_at'], s):
-                            if pd.notna(v):
-                                rows.append({'date': d, 'Métrique': lbl,
-                                             'Base 100': round(v / base * 100, 2)})
-                    if rows:
-                        df_norm = pd.DataFrame(rows)
-                        fig_n = px.line(
-                            df_norm, x='date', y='Base 100', color='Métrique',
-                            title=t("instagram.base100_title",
-                                    "Évolution relative — base 100 ({label})").format(label=window.label),
-                            markers=True,
-                            labels={'Métrique': t("instagram.metric_lbl", "Métrique")},
-                        )
-                        fig_n.update_layout(
-                            hovermode="x unified",
-                            yaxis_title=t("instagram.base100_axis", "Base 100 (1er point = 100)"),
-                        )
-                        st.plotly_chart(fig_n, width="stretch")
+                # Secondaire : compare des courbes entre elles — ne décide rien seule.
+                with secondary_analyses(t("instagram.base100_header",
+                                          "📈 Évolution relative (base 100)")):
+                    if len(df_hist) < 2:
+                        st.info(t("instagram.not_enough_history", "Pas assez d'historique pour une évolution (≥2 collectes)."))
+                    else:
+                        _metrics = {
+                            'followers_count': t("instagram.followers", "Abonnés"),
+                            'follows_count': t("instagram.follows", "Abonnements"),
+                            'media_count': t("instagram.publications", "Publications"),
+                        }
+                        rows = []
+                        for col, lbl in _metrics.items():
+                            s = df_hist[col].astype('float')
+                            nonnull = s.dropna()
+                            base = nonnull.iloc[0] if not nonnull.empty else 0
+                            if not base:
+                                continue
+                            for d, v in zip(df_hist['collected_at'], s):
+                                if pd.notna(v):
+                                    rows.append({'date': d, 'Métrique': lbl,
+                                                 'Base 100': round(v / base * 100, 2)})
+                        if rows:
+                            df_norm = pd.DataFrame(rows)
+                            fig_n = px.line(
+                                df_norm, x='date', y='Base 100', color='Métrique',
+                                title=t("instagram.base100_title",
+                                        "Évolution relative — base 100 ({label})").format(label=window.label),
+                                markers=True,
+                                labels={'Métrique': t("instagram.metric_lbl", "Métrique")},
+                            )
+                            fig_n.update_layout(
+                                hovermode="x unified",
+                                yaxis_title=t("instagram.base100_axis", "Base 100 (1er point = 100)"),
+                            )
+                            st.plotly_chart(fig_n, width="stretch")
 
         except Exception as e:
             st.error(t("instagram.history_error", "Erreur historique : {err}").format(err=e))
@@ -163,29 +164,32 @@ def show():
                 )
                 st.plotly_chart(fig_e, width="stretch")
 
-                # Taux d'engagement (indicatif — abonnés = snapshot actuel)
-                if followers:
-                    dfr = df_eng.copy()
-                    dfr['taux'] = (
-                        (dfr['likes'] + dfr['comments']) / dfr['posts']
-                        / float(followers) * 100
-                    ).round(2)
-                    fig_r = px.line(
-                        dfr, x='mois', y='taux', markers=True,
-                        title=t("instagram.engagement_rate_title",
-                                "Taux d'engagement ≈ (eng. moyen/post) ÷ abonnés — indicatif"),
-                        color_discrete_sequence=['#E1306C'],
-                        labels={'mois': t("common.month", "Mois")},
-                    )
-                    fig_r.update_layout(
-                        hovermode="x unified", yaxis_title=t("instagram.rate_axis", "Taux (%)"),
-                    )
-                    st.plotly_chart(fig_r, width="stretch")
-                    st.caption(t(
-                        "instagram.rate_caption",
-                        "Indicatif : abonnés = dernier snapshot (historique "
-                        "d'abonnés peu dense vs étendue des posts)."
-                    ))
+                # Secondaire : dérivé des mêmes chiffres, sur une base indicative.
+                with secondary_analyses(t("instagram.rate_expander",
+                                          "📈 Taux d'engagement (indicatif)")):
+                    # Taux d'engagement (indicatif — abonnés = snapshot actuel)
+                    if followers:
+                        dfr = df_eng.copy()
+                        dfr['taux'] = (
+                            (dfr['likes'] + dfr['comments']) / dfr['posts']
+                            / float(followers) * 100
+                        ).round(2)
+                        fig_r = px.line(
+                            dfr, x='mois', y='taux', markers=True,
+                            title=t("instagram.engagement_rate_title",
+                                    "Taux d'engagement ≈ (eng. moyen/post) ÷ abonnés — indicatif"),
+                            color_discrete_sequence=['#E1306C'],
+                            labels={'mois': t("common.month", "Mois")},
+                        )
+                        fig_r.update_layout(
+                            hovermode="x unified", yaxis_title=t("instagram.rate_axis", "Taux (%)"),
+                        )
+                        st.plotly_chart(fig_r, width="stretch")
+                        st.caption(t(
+                            "instagram.rate_caption",
+                            "Indicatif : abonnés = dernier snapshot (historique "
+                            "d'abonnés peu dense vs étendue des posts)."
+                        ))
 
             # Publications récentes — insights indispo ⇒ note + colonnes masquées
             st.markdown(t("instagram.recent_posts", "#### Publications récentes"))

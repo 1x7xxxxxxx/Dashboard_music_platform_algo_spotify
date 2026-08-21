@@ -71,11 +71,26 @@ def add_campaign_stats(campaign_name: str, date, visits: int, clicks: int):
         return False, t("hypeddit.save_error", "❌ Erreur: {err}").format(err=e)
 
 
+def _resolve_artist_id() -> int:
+    """Tenant for this call — rule #7: `get_artist_id() or 1` is forbidden.
+
+    Three call sites resolved `None` straight to 1 with no `is_admin()` check.
+    Two of them are module-level public functions, so the guard belongs here, not
+    in a caller: a non-admin whose session lost its artist_id must never silently
+    read tenant 1 (the admin's) rows.
+    """
+    artist_id = get_artist_id()
+    if artist_id is not None:
+        return artist_id
+    if not is_admin():
+        st.error(t("hypeddit.session_invalid", "Session invalide."))
+        st.stop()
+    return 1  # admin fallback — documented, admins only
+
+
 def get_campaigns_list():
     db = get_db_connection()
-    artist_id = get_artist_id()
-    if artist_id is None:
-        artist_id = 1  # admin: defaults to artist 1
+    artist_id = _resolve_artist_id()
     query = "SELECT campaign_name FROM hypeddit_campaigns WHERE is_active = true AND artist_id = %s ORDER BY created_at DESC"
     df = db.fetch_df(query, (artist_id,))
     db.close()
@@ -91,9 +106,7 @@ def get_global_stats(start_date, end_date, db=None):
     own_db = db is None
     if own_db:
         db = get_db_connection()
-    artist_id = get_artist_id()
-    if artist_id is None:
-        artist_id = 1  # admin: defaults to artist 1
+    artist_id = _resolve_artist_id()
     query = """
         SELECT campaign_name, date, visits, clicks
         FROM hypeddit_daily_stats
@@ -113,9 +126,7 @@ def _render_global_stats():
     # Smart period filter (presets + auto-default on data span) instead of two
     # manual date inputs. Reuses one connection for span query + data query.
     db = get_db_connection()
-    artist_id = get_artist_id()
-    if artist_id is None:
-        artist_id = 1  # admin: defaults to artist 1
+    artist_id = _resolve_artist_id()
     window = smart_period_filter(
         db,
         table="hypeddit_daily_stats",

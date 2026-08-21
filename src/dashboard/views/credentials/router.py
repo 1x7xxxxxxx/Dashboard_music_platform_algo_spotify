@@ -18,6 +18,11 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
+from src.dashboard.content.platform_value import BY_KEY
+from src.dashboard.utils.setup_focus import (
+    connected_platforms, get_focus, progress, remaining,
+)
+
 from ._core import _get_fernet, _load_credentials, _fetch_dag_last_states
 from ._registry import PLATFORMS
 from ._render import _render_global_kpi, _render_platform_tab
@@ -76,8 +81,31 @@ def show():
         # ── KPI global ───────────────────────────────────────────────────
         _render_global_kpi(existing, dag_states)
 
-        # ── First-time setup banner ───────────────────────────────────────
-        if not existing:
+        # ── Reprise de la sélection faite à l'onboarding ──────────────────
+        # Without this the artist arrives on six equal tabs and has to remember
+        # what they had decided one page earlier.
+        focus = get_focus()
+        connected = connected_platforms(existing)
+        if focus:
+            done, total = progress(focus, connected)
+            left = remaining(focus, connected)
+            if left:
+                nxt = BY_KEY.get(left[0])
+                st.info(t(
+                    "credentials.focus_banner",
+                    "🎯 **Ta sélection : {done}/{total} connectée(s).** "
+                    "Suivante : **{icon} {label}** — à fournir : {need}."
+                ).format(done=done, total=total,
+                         icon=nxt.icon if nxt else "", label=nxt.label if nxt else left[0],
+                         need=nxt.need if nxt else ""))
+            else:
+                st.success(t(
+                    "credentials.focus_done",
+                    "🎯 **Sélection terminée ({total}/{total}).** Les données "
+                    "arrivent sous ~2 min ; la page **🚦 Santé onboarding** dira "
+                    "si chaque source ramène vraiment quelque chose."
+                ).format(total=total))
+        elif not existing:
             st.info(t(
                 "credentials.no_creds_banner",
                 "💡 **Aucun credential configuré.** "

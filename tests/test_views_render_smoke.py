@@ -75,6 +75,9 @@ VIEWS = [
     "revenue_forecast", "sacem", "saisie_s4a", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "usage_analytics",
     "useful_links", "youtube",
+    # The three views a brand-new artist meets FIRST were absent from this list
+    # until 2026-08-20 — the onboarding path was rendered by nobody.
+    "onboarding", "onboarding_health", "register",
 ]
 
 # AppTest re-execs a script string in a fresh interpreter path, so the script must
@@ -105,3 +108,69 @@ def test_view_renders_without_exception(view):
         ex = at.exception[0]
         detail = getattr(ex, "value", ex)
         pytest.fail(f"{view}.show() raised {type(detail).__name__}: {detail}")
+
+# ── The new-artist case: non-admin, own tenant, no data yet ─────────────────
+# Everything above renders as ADMIN on artist 1 — a tenant with years of data and
+# no tenant filter. That configuration cannot fail the way a fresh account does:
+# empty dataframes, no credentials row, no collection yet. Both beta testers were
+# in exactly this state, and no test ever rendered it.
+
+_TENANT_SCRIPT = """
+import sys
+sys.path.insert(0, {root!r})
+import streamlit as st
+st.session_state["role"] = "artist"
+st.session_state["artist_id"] = {artist_id}
+st.session_state["email"] = "artist@test"
+st.session_state["authenticated"] = True
+from src.dashboard.views.{view} import show
+show()
+"""
+
+# Views an artist can actually reach (admin-only pages excluded), kept small
+# enough to stay fast while covering every data-shape an empty tenant produces.
+_TENANT_VIEWS = [
+    "home", "onboarding", "onboarding_health", "credentials", "account",
+    "soundcloud", "youtube", "instagram", "spotify_s4a_combined", "apple_music",
+    "upload_csv", "export_csv", "export_pdf", "useful_links", "process_guide",
+]
+
+
+@pytest.fixture(scope="module")
+def empty_tenant():
+    """A tenant with no credentials and no rows — the state on day one."""
+    import uuid
+
+    from src.dashboard.utils import get_db_connection
+
+    db = get_db_connection()
+    slug = f"smoke-{uuid.uuid4().hex[:10]}"
+    artist_id = db.fetch_query(
+        "INSERT INTO saas_artists (name, slug, tier, active) "
+        "VALUES (%s, %s, 'free', TRUE) RETURNING id", (f"Smoke {slug}", slug),
+    )[0][0]
+    db.close()
+    yield artist_id
+    db = get_db_connection()
+    db.execute_query("DELETE FROM artist_credentials WHERE artist_id = %s", (artist_id,))
+    db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
+    db.close()
+
+
+@pytest.mark.parametrize("view", _TENANT_VIEWS)
+def test_view_renders_for_a_brand_new_artist(view, empty_tenant):
+    import os
+
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(
+        _TENANT_SCRIPT.format(root=os.getcwd(), view=view, artist_id=empty_tenant))
+    at.run(timeout=90)
+
+    if at.exception:
+        ex = at.exception[0]
+        detail = getattr(ex, "value", ex)
+        pytest.fail(
+            f"{view}.show() raised {type(detail).__name__} for a new artist "
+            f"(empty tenant, non-admin): {detail}"
+        )

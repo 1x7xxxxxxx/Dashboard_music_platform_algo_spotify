@@ -8,6 +8,12 @@ Generic Streamlit UI helpers shared across views.
 
 `show_empty_state` factors the early-exit pattern repeated ~20+ times across
 views:  `if df.empty: st.info(...); return`  →  `if show_empty_state(df, msg): return`
+
+`secondary_analyses` implements the one-decision-per-screen rule: a view opens on
+the single chart that answers "should I do something?", and everything that only
+refines that answer lives one click away. Beta feedback (Grinch, 2026-08-12):
+"réduire le nombre de graphs qui permettent de prendre décision" — the charts were
+not wrong, there were simply too many competing for the same decision.
 """
 from __future__ import annotations
 
@@ -72,3 +78,21 @@ def show_empty_state(df, message: str, *, level: str = "info") -> bool:
         getattr(st, level)(message)
         return True
     return False
+
+
+def secondary_analyses(label: str | None = None):
+    """Collapsed container for charts that refine a decision but never make one.
+
+    Used as a context manager, exactly like st.expander:
+
+        with secondary_analyses():
+            st.plotly_chart(fig_detail, width="stretch")
+
+    Deliberately NOT `expanded=True`: the point is the first screen. Charts moved
+    in here are still one click away — nothing is deleted, so a view can be
+    re-balanced later without recovering lost code.
+    """
+    return st.expander(
+        label or t("ui.secondary_analyses", "📊 Analyses détaillées (facultatif)"),
+        expanded=False,
+    )

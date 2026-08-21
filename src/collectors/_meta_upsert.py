@@ -26,8 +26,12 @@ class _MetaUpsertMixin:
                 self.db.upsert_many(
                     'meta_campaigns', campaigns,
                     conflict_columns=['campaign_id'],
+                    # artist_id is NOT updatable: a row keeps its first owner.
+                    # The conflict key stays campaign_id (its PK is referenced by
+                    # 15 FKs — see migration 064's note), so a shared ad account no
+                    # longer STEALS a row; it simply does not create a second one.
                     update_columns=[
-                        'campaign_name', 'artist_id', 'status', 'objective',
+                        'campaign_name', 'status', 'objective',
                         'daily_budget', 'lifetime_budget', 'start_time',
                         'end_time', 'created_time', 'updated_time',
                     ],
@@ -37,8 +41,8 @@ class _MetaUpsertMixin:
                 self.db.upsert_many(
                     'meta_adsets', adsets,
                     conflict_columns=['adset_id'],
-                    update_columns=[
-                        'adset_name', 'artist_id', 'campaign_id', 'status',
+                    update_columns=[  # artist_id excluded — see meta_campaigns above
+                        'adset_name', 'campaign_id', 'status',
                         'optimization_goal', 'billing_event', 'daily_budget',
                         'lifetime_budget', 'start_time', 'end_time', 'targeting',
                         'countries', 'cities', 'gender', 'age_min', 'age_max',
@@ -51,8 +55,8 @@ class _MetaUpsertMixin:
                 self.db.upsert_many(
                     'meta_ads', ads,
                     conflict_columns=['ad_id'],
-                    update_columns=[
-                        'ad_name', 'artist_id', 'adset_id', 'campaign_id',
+                    update_columns=[  # artist_id excluded — see meta_campaigns above
+                        'ad_name', 'adset_id', 'campaign_id',
                         'status', 'creative_id', 'created_time', 'updated_time',
                     ],
                 )

@@ -26,11 +26,21 @@ except OSError as e:
     logger.debug(f"load_dotenv skipped ({e}); relying on injected environment.")
 
 class InstagramCollector:
-    def __init__(self, artist_id: int = 1):
+    def __init__(self, artist_id: int, access_token: str = None,
+                 ig_user_id: str = None, app_id: str = None, app_secret: str = None):
+        """Credentials are PARAMETERS; the env is only a single-tenant fallback.
+
+        The DAG used to pass them by mutating `os.environ` inside its per-artist
+        loop. `INSTAGRAM_USER_ID` was rewritten every iteration (fine), but
+        `META_APP_ID`/`META_APP_SECRET` only when the current artist had one — so
+        artist B silently inherited artist A's app credentials, and whatever the
+        last iteration left behind outlived the task in the worker process.
+        Process-global state is not a way to pass per-tenant values.
+        """
         self.artist_id = artist_id
-        self.access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+        self.access_token = access_token or os.getenv("INSTAGRAM_ACCESS_TOKEN")
         # L'ID du compte Instagram Business (pas le nom d'utilisateur)
-        self.ig_user_id = os.getenv("INSTAGRAM_USER_ID")
+        self.ig_user_id = (ig_user_id or os.getenv("INSTAGRAM_USER_ID") or "").strip() or None
 
         # Récupération dynamique des infos BDD
         # Par défaut 5432 (interne docker), mais surchargeable via .env
@@ -43,8 +53,8 @@ class InstagramCollector:
         if not self.access_token or not self.ig_user_id:
             raise ValueError("❌ Manque INSTAGRAM_ACCESS_TOKEN ou INSTAGRAM_USER_ID dans .env")
 
-        self.app_id = os.getenv("META_APP_ID")
-        self.app_secret = os.getenv("META_APP_SECRET")
+        self.app_id = app_id or os.getenv("META_APP_ID")
+        self.app_secret = app_secret or os.getenv("META_APP_SECRET")
         self.base_url = META_GRAPH_BASE_URL
         self.session = requests.Session()
 
@@ -368,4 +378,10 @@ class InstagramCollector:
             self.db.close()
 
 if __name__ == "__main__":
-    InstagramCollector().run()
+    # Same reason as SoundCloud: no implicit tenant 1.
+    import sys
+
+    if len(sys.argv) < 2:
+        sys.exit("usage: instagram_api_collector.py <artist_id>  "
+                 "(INSTAGRAM_USER_ID must be set for that artist)")
+    InstagramCollector(artist_id=int(sys.argv[1])).run()

@@ -27,6 +27,7 @@ EN = {
     "instagram.likes_comments_axis": "Likes + comments",
     "instagram.engagement_rate_title": "Engagement rate ≈ (avg. eng./post) ÷ followers — indicative",
     "instagram.rate_axis": "Rate (%)",
+    "instagram.rate_expander": "📈 Engagement rate (indicative)",
     "instagram.rate_caption": (
         "Indicative: followers = latest snapshot (follower history "
         "is sparse vs the posts' time span)."
