@@ -5,7 +5,7 @@
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 
-.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy artist-preflight tenant-check
+.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy artist-preflight canary tenant-check
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -53,6 +53,16 @@ check-env:   ## Verify critical imports + pip dep coherence (canary check)
 	@python3 -c "import socket,sys; s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex(('127.0.0.1',5433)))" 2>/dev/null \
 		|| { echo "❌ PostgreSQL unreachable on localhost:5433. Run: make up"; exit 1; }
 	@echo "✅ env check passed"
+
+canary:      ## Create/refresh the canary tenant preflight needs. NAME="…" SPOTIFY=… YOUTUBE=… SOUNDCLOUD=… META=…
+	@[ -n "$(NAME)" ] || { echo '❌ set NAME="…", e.g. make canary NAME="Canary 1x7" SPOTIFY=<artist id>'; exit 1; }
+	@python3 tools/create_canary.py --name "$(NAME)" \
+		$(if $(SLUG),--slug "$(SLUG)",) \
+		$(if $(SPOTIFY),--spotify "$(SPOTIFY)",) \
+		$(if $(YOUTUBE),--youtube "$(YOUTUBE)",) \
+		$(if $(SOUNDCLOUD),--soundcloud "$(SOUNDCLOUD)",) \
+		$(if $(META),--meta "$(META)",) \
+		$(if $(DRY_RUN),--dry-run,)
 
 artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist. ARTIST=<id> optional
 	@# Five steps, stops at the first red: central apps present+authenticating,

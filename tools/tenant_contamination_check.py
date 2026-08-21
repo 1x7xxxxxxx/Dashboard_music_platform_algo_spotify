@@ -35,15 +35,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 def _connect():
+    """The one resolution (R33): DATABASE_URL → DATABASE_* → config.yaml.
+
+    This used to read DATABASE_URL then config.yaml only, skipping the env vars —
+    which is exactly how Airflow is configured. So the tool worked from a dev
+    machine and not from the container where the collectors run.
+    """
     from src.database.postgres_handler import PostgresHandler
 
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        return PostgresHandler.from_url(url)
-    from src.utils.config_loader import config_loader
-    cfg = config_loader.load()["database"]
-    return PostgresHandler(host=cfg["host"], port=cfg["port"], database=cfg["database"],
-                           user=cfg["user"], password=cfg["password"])
+    return PostgresHandler.from_env_or_config()
 
 
 # platform → (identity key in artist_credentials.extra_config,

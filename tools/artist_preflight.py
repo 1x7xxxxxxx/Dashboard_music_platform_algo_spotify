@@ -34,15 +34,15 @@ _OK, _KO = "✅", "❌"
 
 
 def _connect():
+    """The one resolution (R33): DATABASE_URL → DATABASE_* → config.yaml.
+
+    This used to read DATABASE_URL then config.yaml only, skipping the env vars —
+    which is exactly how Airflow is configured. So the tool worked from a dev
+    machine and not from the container where the collectors run.
+    """
     from src.database.postgres_handler import PostgresHandler
 
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        return PostgresHandler.from_url(url)
-    from src.utils.config_loader import config_loader
-    cfg = config_loader.load()["database"]
-    return PostgresHandler(host=cfg["host"], port=cfg["port"], database=cfg["database"],
-                           user=cfg["user"], password=cfg["password"])
+    return PostgresHandler.from_env_or_config()
 
 
 def _resolve_artist(db, artist_id: int | None) -> tuple[int, str]:
@@ -59,10 +59,14 @@ def _resolve_artist(db, artist_id: int | None) -> tuple[int, str]:
         "ORDER BY id LIMIT 1")
     if not rows:
         raise SystemExit(
-            f"{_KO} no canary tenant. Create one (a real, non-admin account whose "
-            "platform identities are yours but DIFFERENT from the admin's), then:\n"
-            "    UPDATE saas_artists SET is_canary = TRUE WHERE id = <id>;\n"
-            "Or pass --artist <id> to prove a specific tenant."
+            f"{_KO} no canary tenant — one command away:\n\n"
+            '    make canary NAME="Canary <toi>" SPOTIFY=<artist id> YOUTUBE=<UC…>\n\n'
+            "Use YOUR OWN public profiles, and ones the admin does not already\n"
+            "declare — a canary that borrows the admin's identity passes while the\n"
+            "isolation it exists to test is broken. The tool refuses that, and\n"
+            "refuses an identity another tenant already claims.\n"
+            "Add --dry-run (DRY_RUN=1) to see what it would do first.\n\n"
+            "Or pass --artist <id> to prove a specific existing tenant."
         )
     return rows[0][0], rows[0][1]
 

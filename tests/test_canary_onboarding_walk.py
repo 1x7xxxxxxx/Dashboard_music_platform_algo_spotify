@@ -51,7 +51,7 @@ def canary(db):
     suffix = uuid.uuid4().hex[:10]
     rows = db.fetch_query(
         "INSERT INTO saas_artists (name, slug, tier) VALUES (%s, %s, %s) RETURNING id",
-        (f"Canary {suffix}", f"canary-{suffix}", "free"),
+        (f"Canary {suffix}", f"walk-canary-{suffix}", "free"),
     )
     artist_id = rows[0][0]
     yield {"artist_id": artist_id, "suffix": suffix}
@@ -172,10 +172,14 @@ def test_the_walk_leaves_nothing_behind(db):
     working, the next run inherits rows and every assertion above becomes a
     statement about the previous run.
     """
+    # Scoped to THIS test's own prefix. It used to assert on `canary-%`, which is
+    # also the namespace `tools/create_canary.py` and its tests use — so a passing
+    # run of one suite failed the other, and the failure said nothing true about
+    # either. A cleanliness assertion has to own the names it asserts on.
     before = db.fetch_query("SELECT count(*) FROM saas_artists WHERE slug LIKE %s",
-                            ("canary-%",))[0][0]
+                            ("walk-canary-%",))[0][0]
     assert before == 0, (
-        f"{before} canary tenant(s) still in saas_artists — a previous walk did not "
+        f"{before} walk tenant(s) still in saas_artists — a previous walk did not "
         "clean up, so the next one starts from someone else's state."
     )
 
