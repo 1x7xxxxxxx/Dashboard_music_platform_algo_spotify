@@ -214,7 +214,8 @@ def save_platform_credentials(artist_id: int, platform: str, extra_updates: dict
         logger.warning(f"save_platform_credentials: DB write failed — {e}")
 
 
-def get_active_artists(include_artist_id: int = None) -> list:
+def get_active_artists(include_artist_id: int = None,
+                       exclude_canaries: bool = False) -> list:
     """Retourne la liste des artist_id actifs depuis saas_artists.
 
     Trois issues, volontairement distinctes :
@@ -225,6 +226,17 @@ def get_active_artists(include_artist_id: int = None) -> list:
     Les confondre est ce qui faisait qu'un `conf={'artist_id': 12}` sur un artiste
     inactif — ou une simple coupure DB — se traduisait par « collecte la chaîne de
     l'admin sous artist_id=1 » au lieu de « artiste inconnu ».
+
+    `exclude_canaries` sert aux contrôles orientés ONBOARDING. Le locataire canari
+    est un artiste actif comme un autre, mais ce n'est pas un client à accompagner :
+    il ne déclarera jamais SoundCloud, Meta ni Instagram (ce dernier exige une
+    propriété réelle du compte), et son indicateur Spotify mesure le CSV S4A qu'il
+    n'aura jamais. Le compter produirait chaque nuit « 3 credentials manquants » et
+    « connecté sans données » pour un locataire dont c'est l'état NORMAL — soit une
+    alerte quotidienne qui n'appelle aucune action, donc la manière la plus sûre
+    d'apprendre à ignorer les alertes. Sa santé a son propre contrôle dédié
+    (`check_canary_health`), qui pose la seule question pertinente le concernant :
+    collecte-t-il encore ce qu'il a déclaré ?
 
     Retourne [(id, name), ...].
     """
@@ -239,7 +251,9 @@ def get_active_artists(include_artist_id: int = None) -> list:
             )
         else:
             cur.execute(
-                "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
+                "SELECT id, name FROM saas_artists WHERE active = TRUE"
+                + (" AND COALESCE(is_canary, FALSE) = FALSE" if exclude_canaries else "")
+                + " ORDER BY id"
             )
 
         rows = cur.fetchall()

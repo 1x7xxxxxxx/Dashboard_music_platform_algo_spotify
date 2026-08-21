@@ -191,3 +191,41 @@ def test_a_platform_the_canary_never_declared_is_not_a_problem(monkeypatch) -> N
     """Only what it declared. Meta needs real ownership, so it never will."""
     assert _run(monkeypatch,
                 _FakeDB([(471, "Canary")], [], age_hours=None)) == []
+
+
+# ── The canary must not become the noise it exists to prevent ────────────────
+
+def test_onboarding_checks_exclude_the_canary() -> None:
+    """A daily alert that calls for no action teaches people to ignore alerts.
+
+    The canary is an active tenant like any other, but it is not a customer to
+    onboard: it will never declare SoundCloud, Meta or Instagram, and its Spotify
+    readiness measures an S4A CSV it will never have. Counted, it would emit
+    "3 missing credentials" and a permanent "connected but no data" EVERY night —
+    and `missing_creds` is part of the send decision, so it would force an email
+    forever. Adding a watchdog that manufactures noise defeats the watchdog.
+    """
+    src = _source()
+    for fn in ("check_credentials_all", "check_onboarding_readiness"):
+        start = src.index(f"def {fn}(")
+        end = src.index("\ndef ", start + 1)
+        body = src[start:end]
+        assert "get_active_artists(" in body, f"{fn} no longer enumerates tenants"
+        assert "exclude_canaries=True" in body, (
+            f"{fn} counts the canary as a tenant to onboard. Its permanently "
+            "unconnected platforms would fire a nightly alert that calls for no "
+            "action — check_canary_health already asks the only relevant question."
+        )
+
+
+def test_the_exclusion_is_opt_in_so_collectors_keep_seeing_every_tenant() -> None:
+    """Excluding by default would silently stop collecting FOR the canary."""
+    import inspect
+
+    from src.utils.credential_loader import get_active_artists
+
+    default = inspect.signature(get_active_artists).parameters["exclude_canaries"].default
+    assert default is False, (
+        "exclude_canaries defaults to True — every collector calling this would "
+        "stop seeing the canary, and a canary nobody collects for is dead weight."
+    )

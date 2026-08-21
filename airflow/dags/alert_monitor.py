@@ -66,7 +66,11 @@ def check_credentials_all(**context):
     """Check which artist×platform combinations have no credentials in DB."""
     from src.utils.credential_loader import get_active_artists, load_platform_credentials
 
-    artists = get_active_artists()
+    # Onboarding-oriented: the canary is excluded on purpose. Its permanent
+    # 'no SoundCloud/Meta/Instagram' state is normal, and reporting it nightly
+    # would be a daily alert that calls for no action. check_canary_health asks
+    # the only question that matters about it.
+    artists = get_active_artists(exclude_canaries=True)
     if not artists:
         logger.info("No active artists — skipping credential check.")
         context['task_instance'].xcom_push(key='missing_credentials', value=[])
@@ -568,7 +572,10 @@ def check_onboarding_readiness(**context):
     )
     flags = []
     try:
-        for aid, name in get_active_artists():
+        # Same reason as check_credentials_all: the canary's Spotify readiness
+        # measures the S4A CSV it will never have, so it would be a permanent
+        # red flag for a healthy tenant.
+        for aid, name in get_active_artists(exclude_canaries=True):
             try:
                 for m in readiness_red_flags(db, aid):
                     flags.append({'artist_id': aid, 'artist_name': name,

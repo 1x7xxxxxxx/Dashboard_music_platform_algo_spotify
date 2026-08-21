@@ -995,3 +995,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: the detector is exercised directly against a stubbed database — stale, never-collected, absent, healthy, and never-declared — not only checked for being wired. Wiring a detector that never fires is the same decoration in a different place.
+
+## watchdog-becomes-the-noise
+- status: fixed
+- severity: P3
+- kind: deterministic
+- symptom: a daily alert email that always contains the same findings, calls for no action, and is therefore skimmed and then ignored — taking the real findings down with it.
+- root_cause: a tenant added FOR monitoring is then counted by the tenant-oriented checks as if it were a customer. Measured 2026-08-21, hours after creating the production canary: `check_credentials_all` and `check_onboarding_readiness` both enumerate `get_active_artists()`, so the canary would have emitted "3 missing credentials" (SoundCloud, Meta, Instagram — which it can never declare; Meta demands real ad-account ownership) plus a permanent "connected but no data" for Spotify, whose readiness signal measures an S4A CSV a canary will never have. `missing_creds` is part of the send decision, so this would have forced an email EVERY night, forever, for a tenant in its correct state.
+- signature: `python3 -m pytest tests/test_alert_monitor_sends_what_it_finds.py -q`
+- long_term_fix: `get_active_artists(exclude_canaries=True)` in the two onboarding-oriented checks only. The flag defaults to **False** deliberately: excluding by default would silently stop the collectors from running for the canary, and a canary nobody collects for is dead weight. The canary's health has its own dedicated check, which asks the single relevant question — is it still collecting what it declared?
+- autofix: none
+- guard: { type: pytest, ref: tests/test_alert_monitor_sends_what_it_finds.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: self-inflicted, and caught the same evening only by asking "what does the thing I just added do to the checks that already exist?". This repo has now paid the cry-wolf tax three times — the migrate reporter naming four re-run artefacts next to one real error, the schema drift where 24 of 26 differences were `text` vs `varchar`, and this. A detector's value is set by the ratio of its findings that deserve an action, not by the number it produces.
