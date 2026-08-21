@@ -36,9 +36,21 @@ import sys
 
 _REPO = pathlib.Path(__file__).resolve().parents[2]
 
-# Where configuration lives. `dev-docs/` is excluded: it is the catalogue and the ROADMAP, which
-# talk ABOUT the work — the same split `audit_runner.py --prose` draws.
+# Where configuration lives. `dev-docs/` stays excluded as a directory: the error-class
+# catalogue quotes paths as DATA (signatures, illustrative sites), and resolving those
+# reports defects in prose — the same split `audit_runner.py --prose` draws.
 _ROOTS = ("agents", "commands", "rules", "hooks", "scripts", "skills")
+
+# One file inside `dev-docs/` is an exception, and it took two months to notice.
+# `roadmap/checklist.md` is not prose ABOUT the work: it IS the work list, read by
+# `/resume` and `/sprint` at the start of every session. Roadmap item R14 pointed its
+# whole scope at `.claude/plans/j-ai-fait-une-session-kind-turing.md`, a file that does
+# not exist — so the task could not be executed as written, and nothing said so.
+# `migration-hetzner.md` carried a second dead plan pointer.
+#
+# The ARCHIVE is deliberately not here: it records what was true when an item shipped,
+# and a file legitimately deleted afterwards must not turn a closed item red.
+_EXTRA_FILES = ("dev-docs/roadmap/checklist.md",)
 
 # `(?<![~/\w])` : un chemin de la config UTILISATEUR (`~/.claude/RTK.md`) n'est pas
 # un chemin du dépôt, et le résoudre contre la racine du dépôt le déclare toujours
@@ -73,6 +85,10 @@ def _candidates() -> list[pathlib.Path]:
     files = [p for root in _ROOTS for p in sorted((base / root).rglob("*"))
              if p.is_file() and p.suffix in {".py", ".md", ".json"}
              and not _is_archived(p.relative_to(base))]
+    for rel in _EXTRA_FILES:
+        extra = base / rel
+        if extra.is_file():
+            files.append(extra)
     root_md = _REPO / "CLAUDE.md"
     if root_md.exists():
         files.append(root_md)

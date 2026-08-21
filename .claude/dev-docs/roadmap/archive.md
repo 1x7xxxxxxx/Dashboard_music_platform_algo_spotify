@@ -834,3 +834,18 @@ pointeur qui rate ne se plaint pas.
   `tests/test_migrate_reports_errors.py` repointé sur le script, plus une assertion
   dédiée : « les migrations doivent être lançables sans `make` ». Toute procédure
   écrite « lance `make X` sur la prod » est de nouveau vraie.
+
+### P3 — Rendu réel vérifié, sans attendre R18 (clos, 2026-08-21)
+
+- [x] **R19 — Vérifier en rendu réel les 4 vues restructurées + le sélecteur d'OS** (P3) —
+  fait, et la dépendance à R18 levée au passage : un **Postgres jetable** sur 5434
+  (`init_db.sql` + `tools/migrate.sh`) fait tourner toute la suite sans `make up`.
+  **858 tests verts / 14 sautés** contre 716/128 — dont les **57 tests de rendu** des vues,
+  tous verts, et les 10 sondes de production lancées en live (les 4 dernières attendent des
+  identifiants qui vivent dans les secrets CI, par conception).
+  La moitié « passage visuel Mac/Windows » ne repose plus sur une capture d'écran :
+  `tests/test_guides_render_per_os.py` rend la page Credentials via `AppTest` **une fois par
+  OS** et lit ce qui sort — aucun `{{TOKEN}}` sur la page, le rendu Windows sort
+  `Ctrl+C/F/U` sans une seule graphie ⌘, le rendu macOS l'inverse, et les deux diffèrent
+  (sans quoi tout le reste serait vrai deux fois sur la même page). Une capture prouve une
+  fois ; ceci prouve à chaque exécution.

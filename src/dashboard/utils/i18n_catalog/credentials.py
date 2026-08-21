@@ -168,6 +168,29 @@ EN = {
         "can be collected. Find it in YouTube Studio → Settings → Channel → "
         "Advanced settings (starts with `UC…`)."
     ),
+    "credentials.youtube.channel_malformed": (
+        "“{cid}” starts with `UC` but is the wrong length — a channel id is exactly "
+        "24 characters. This is almost always a truncated copy/paste: copy it in full "
+        "from YouTube Studio → Settings → Channel → Advanced settings."
+    ),
+    "credentials.youtube.channel_vanity_url": (
+        "“{cid}” is a custom address (`/c/…`), and YouTube offers no way to look up "
+        "the id from one. Read it directly in YouTube Studio → Settings → Channel → "
+        "Advanced settings (it starts with `UC…`)."
+    ),
+    "credentials.youtube.handle_not_found": (
+        "No channel matches “{cid}”. Check the spelling, or read the id in YouTube "
+        "Studio → Settings → Channel → Advanced settings (it starts with `UC…`)."
+    ),
+    "credentials.youtube.handle_resolved": (
+        "“{given}” is the channel **`{cid}`**. Paste that value into the Channel ID "
+        "field, then run the test again."
+    ),
+    "credentials.youtube.channel_unrecognised": (
+        "“{cid}” is neither a `UC…` id, nor an `@…` handle, nor a YouTube channel "
+        "address. Paste the id from YouTube Studio → Settings → Channel → Advanced "
+        "settings, or your `@…` handle — we will convert it for you."
+    ),
     "credentials.youtube.channel_empty": (
         "Channel “{cid}” found, but it holds **no video** — there will be nothing "
         "to collect. If your music is distributed, the channel to use is usually "

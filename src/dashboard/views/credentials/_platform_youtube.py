@@ -10,6 +10,9 @@ import requests
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.youtube_channel import (
+    lookup_params, parse_channel_input,
+)
 
 
 def _test_youtube(fields: dict) -> tuple:
@@ -47,6 +50,63 @@ def _test_youtube(fields: dict) -> tuple:
                             "sans lui aucune vidéo ne peut être collectée. Il se lit dans "
                             "YouTube Studio → Paramètres → Chaîne → Paramètres avancés "
                             "(commence par `UC…`).")
+        # Nobody knows their UC… id. What an artist has to hand is the address bar
+        # or the handle under their name, and pasting either used to dead-end on
+        # "Channel ID introuvable" at the very last step of the setup. Classify
+        # first, and when the input is resolvable, resolve it and REPORT the id —
+        # never substitute it silently: a tenant's identity is not inferred here.
+        parsed = parse_channel_input(channel_id)
+
+        if parsed.kind == "malformed":
+            return False, t(
+                "credentials.youtube.channel_malformed",
+                "« {cid} » commence bien par `UC` mais n'a pas la bonne longueur — "
+                "un identifiant de chaîne fait exactement 24 caractères. C'est "
+                "presque toujours un copier-coller tronqué : recopie-le en entier "
+                "depuis YouTube Studio → Paramètres → Chaîne → Paramètres avancés."
+            ).format(cid=channel_id)
+
+        if parsed.kind == "name":
+            return False, t(
+                "credentials.youtube.channel_vanity_url",
+                "« {cid} » est une adresse personnalisée (`/c/…`) : YouTube ne "
+                "permet pas de retrouver l'identifiant à partir d'elle. Lis-le "
+                "directement dans YouTube Studio → Paramètres → Chaîne → "
+                "Paramètres avancés (il commence par `UC…`)."
+            ).format(cid=parsed.value)
+
+        params = lookup_params(parsed)
+        if params is not None:
+            lr = requests.get(
+                'https://www.googleapis.com/youtube/v3/channels',
+                params={'part': 'id', 'key': api_key, **params},
+                timeout=10,
+                allow_redirects=False,
+            )
+            found = (lr.json().get('items') or []) if lr.status_code == 200 else []
+            if not found:
+                return False, t(
+                    "credentials.youtube.handle_not_found",
+                    "Aucune chaîne ne correspond à « {cid} ». Vérifie l'orthographe, "
+                    "ou lis l'identifiant dans YouTube Studio → Paramètres → Chaîne "
+                    "→ Paramètres avancés (il commence par `UC…`)."
+                ).format(cid=parsed.value)
+            resolved = found[0].get('id', '')
+            return False, t(
+                "credentials.youtube.handle_resolved",
+                "« {given} » correspond à la chaîne **`{cid}`**. Colle cette valeur "
+                "dans le champ Channel ID, puis relance le test."
+            ).format(given=parsed.value, cid=resolved)
+
+        if not parsed.is_usable:
+            return False, t(
+                "credentials.youtube.channel_unrecognised",
+                "« {cid} » n'est ni un identifiant `UC…`, ni un pseudo `@…`, ni une "
+                "adresse de chaîne YouTube. Colle l'identifiant lu dans YouTube "
+                "Studio → Paramètres → Chaîne → Paramètres avancés, ou ton pseudo "
+                "`@…` — on le convertira pour toi."
+            ).format(cid=channel_id)
+
         rc = requests.get(
             'https://www.googleapis.com/youtube/v3/channels',
             params={'part': 'contentDetails,statistics', 'id': channel_id, 'key': api_key},
