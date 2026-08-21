@@ -22,17 +22,30 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 
+# Same order, and for the same reason, as `src.utils.env_files.ENV_FILES`: the local
+# file wins. This script deliberately does not import the app package (a broken import
+# path must never be able to silence the alert), so the order is restated rather than
+# shared — and restated order drifts, which is why the test names both.
+_ENV_FILES = (".env.local", ".env")
+
+
 def _load_env(root: Path) -> None:
-    """Populate os.environ from <root>/.env (does not override existing vars)."""
-    f = root / ".env"
-    if not f.exists():
-        return
-    for line in f.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    """Populate os.environ from the root env files — first seen wins, like the app.
+
+    Read `.env` only, this loader answered from a file the dashboard and the DAGs do
+    not use last: on 2026-08-22 the two disagreed about the Meta app for weeks and
+    `.env.local` was the one that counted.
+    """
+    for name in _ENV_FILES:
+        f = root / name
+        if not f.exists():
             continue
-        key, val = line.split("=", 1)
-        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, val = line.split("=", 1)
+            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
 
 def main() -> int:

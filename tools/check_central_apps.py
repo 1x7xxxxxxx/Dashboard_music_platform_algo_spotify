@@ -25,6 +25,9 @@ from src.utils.central_apps import (  # noqa: E402 — after the sys.path insert
     check_all_configured, check_meta, check_soundcloud,
     check_spotify, check_youtube,
 )
+from src.utils.env_files import (  # noqa: E402 — after the sys.path insert
+    describe_env_source, load_project_env,
+)
 
 
 def main() -> int:
@@ -35,6 +38,18 @@ def main() -> int:
              "an artist), instead of skipping it",
     )
     args = parser.parse_args()
+
+    # Resolve the environment the APP resolves — root-anchored, `.env.local` first.
+    # Run from a shell that exported nothing, this probe used to print "env not set"
+    # for all four platforms and exit 0: the check written to prove the shared apps
+    # work reported success while seeing nothing at all. Worse, it read a DIFFERENT
+    # environment from the one the dashboard and the DAGs read, so it could not have
+    # caught the defect it was pointed at — `.env.local` held an ad-account id in
+    # META_APP_ID and a malformed token, and won locally over an already-correct
+    # `.env` (measured 2026-08-22). Error class: env-resolved-against-cwd.
+    loaded = load_project_env()
+    print(f"env: {describe_env_source()}"
+          + (f" — loaded {', '.join(loaded)}" if loaded else ""))
 
     checks = (check_spotify, check_youtube, check_soundcloud, check_meta)
     # A skipped (env-absent) platform returns True; only a configured failure → False.

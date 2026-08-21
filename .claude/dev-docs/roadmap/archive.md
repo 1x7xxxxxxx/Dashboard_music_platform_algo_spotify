@@ -1184,3 +1184,42 @@ gitignoré, donc il n'arrive pas par `git pull` — sauvegarde `docker-compose.y
 
 ⚠️ **Effet permanent assumé** : le canari est collecté chaque nuit par les DAG de flotte.
 C'est ce qui le rend détecteur, et ça consomme un peu de quota d'API.
+
+---
+
+## R13 — token Meta System User (clos 2026-08-22 : il n'a jamais fallu le régénérer)
+
+| R13 | **Régénérer le token Meta** — oui, c'est nécessaire : mesuré | P2 | **Le collage fautif est maintenant impossible à rater** : `check_meta()` valide la FORME avant tout appel réseau et refuse un token qui ne commence pas par `EAA`, en nommant la cause (« 1 caractère en trop »). Vérifié contre le vrai token : il le détecte. Colle le nouveau, relance `python3 tools/artist_preflight.py` — s'il est mal collé tu le sais en une seconde au lieu du lendemain matin. **la question « faut-il régénérer s'il est fonctionnel ? » est tranchée : il ne l'est pas.** Testé le 2026-08-21 contre l'API Graph depuis la production. Le token stocké commence par **`EEAA…`** au lieu de `EAA` — **un `E` parasite**, une faute de collage — d'où le `Malformed access token` sur tous les appels. Mais **retire ce caractère et Meta reconnaît un vrai token** et dit pourquoi il ne marche plus : *« The session has been invalidated because the user changed their password or Facebook has changed the session »*. Ce n'est donc pas une expiration, et aucune correction de `.env` ne le ressuscitera. ⚠️ **L'application échoue aussi** (`META_APP_ID`+`META_APP_SECRET` → *Cannot get application info*) : vérifier les deux dans la même visite, sinon on régénère un token dans une app cassée. Procédure et vérification : `runbook-actions-utilisateur.md` §1. **Le silence, lui, est corrigé** : `check_central_apps` tourne chaque nuit, et la fraîcheur ne lit plus la date d'écriture (classe `freshness-measured-on-write-time`) — Meta Ads sort à **16 577 h** de retard. |
+
+**Ce que la mesure a dit, contre ce que trois séances avaient conclu.** Interrogé le
+2026-08-22 avec les credentials d'application corrects, `debug_token` répond que le
+token stocké dans `.env` est **valide** : `type=SYSTEM_USER`, `expires_at=0` (n'expire
+jamais), 43 scopes, `app_id=2200684950508458`. Le token de **production** l'est aussi,
+et celui de `artist_credentials` pour l'artiste 1 également. Aucune régénération n'était
+nécessaire — la roadmap réclamait un geste Business Manager pour un token qui marchait.
+
+**Ce qui était réellement cassé** : `.env.local`, qui **gagne** sur `.env` par
+construction (`ENV_FILES = (".env.local", ".env")`, premier chargé gagné), portait
+encore l'ID de **compte publicitaire** dans `META_APP_ID` et un token avec un `E`
+parasite. La correction du 2026-08-21 était allée dans le fichier qui perd. Classe
+`config-corrected-in-the-file-that-loses`. Les trois clés dupliquées ont été retirées
+de `.env.local` — un seul fichier les possède désormais.
+
+**Et la sonde ne pouvait pas le voir** : `tools/check_central_apps.py`, la commande que
+le runbook fait lancer, n'appelait jamais `load_project_env()`. Depuis un shell nu elle
+affichait `⚠️ env not set` sur les quatre plateformes et sortait **0**. Câblée, elle
+nomme la cause en une seconde (`1 extra character ('E') before the 'EAA' prefix`), puis
+sort 0 une fois le doublon retiré. Frère manqué de `env-resolved-against-cwd` : sa
+signature cherche la *mauvaise forme*, or ici c'était l'*absence* d'appel.
+
+**Pourquoi Meta ne renvoie toujours aucune donnée, et pourquoi ce n'est pas une panne** :
+le compte publicitaire porte **34 campagnes, 0 ACTIVE** (19 archivées, 15 en pause),
+`amount_spent=0`, zéro insight sur 90 jours — vérifié en direct sur l'API et en base de
+production. Les insights Meta n'existent que pendant qu'une publicité tourne. Cette
+absence est désormais rendue ⏸️ « silence attendu » partout au lieu d'une fausse alerte
+ou d'un faux vert (classe `suppressed-alert-renders-as-health`).
+
+**Reste, et ça ne dépend pas de toi** : le compte publicitaire de Benken
+(`act_65390907`, artiste 12) n'est **toujours pas partagé** — l'API répond
+`(#200) Ad account owner has NOT granted ads_management or ads_read permission`.
+C'est un geste de Benken dans son Business Manager, pas une correction de code.

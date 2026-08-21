@@ -45,7 +45,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R13 | **Régénérer le token Meta** — oui, c'est nécessaire : mesuré | P2 | **Le collage fautif est maintenant impossible à rater** : `check_meta()` valide la FORME avant tout appel réseau et refuse un token qui ne commence pas par `EAA`, en nommant la cause (« 1 caractère en trop »). Vérifié contre le vrai token : il le détecte. Colle le nouveau, relance `python3 tools/artist_preflight.py` — s'il est mal collé tu le sais en une seconde au lieu du lendemain matin. **la question « faut-il régénérer s'il est fonctionnel ? » est tranchée : il ne l'est pas.** Testé le 2026-08-21 contre l'API Graph depuis la production. Le token stocké commence par **`EEAA…`** au lieu de `EAA` — **un `E` parasite**, une faute de collage — d'où le `Malformed access token` sur tous les appels. Mais **retire ce caractère et Meta reconnaît un vrai token** et dit pourquoi il ne marche plus : *« The session has been invalidated because the user changed their password or Facebook has changed the session »*. Ce n'est donc pas une expiration, et aucune correction de `.env` ne le ressuscitera. ⚠️ **L'application échoue aussi** (`META_APP_ID`+`META_APP_SECRET` → *Cannot get application info*) : vérifier les deux dans la même visite, sinon on régénère un token dans une app cassée. Procédure et vérification : `runbook-actions-utilisateur.md` §1. **Le silence, lui, est corrigé** : `check_central_apps` tourne chaque nuit, et la fraîcheur ne lit plus la date d'écriture (classe `freshness-measured-on-write-time`) — Meta Ads sort à **16 577 h** de retard. |
 | R17 | Ingérer un corpus ergonomie / front-end dans knowledge-rag | P3 | **action utilisateur** : déposer les PDF/EPUB dans `/mnt/c/Users/timot/knowledge/books/ux-frontend/` puis `cd /home/timothe/knowledge-rag && uv run python ingest.py`. Le domaine est créé et vide ; sans lui, les arbitrages d'ergonomie (dont le budget de graphiques) restent non sourcés. **La décision qu'il bloque est désormais mesurée, pas devinée** : `make chart-budget` rend la distribution réelle — 22 vues, 83 graphiques, médiane 3, et quatre vues au-delà du double (`trigger_algo` à 15, cinq fois la médiane). Le corpus reste nécessaire pour **trancher un seuil** : interrogé le 2026-08-21 sur l'ergonomie de tableau de bord, il renvoie du bruit (meilleur score 0,016). Rapport seulement — inventer un seuil et l'habiller en règle serait pire que pas de règle. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. |
 
@@ -61,6 +60,27 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 - ⚙️ **DAGs** : tous **activés** (étaient en pause par défaut !) → collecte quotidienne par artiste (Meta 5h/Spotify 7h/YT 8h/SC 9h/IG 10h/ML 11h UTC ; CSV watchers 15 min). Si Airflow recréé → ré-`unpause`.
 - 🔌 **API REST** : **fonctionnelle en prod** (auth DB `saas_users`, lockout partagé, 2FA refusé, tenant-scoped). `POST /auth/token` → JWT.
 - ⚙️ Déploiement = sur le serveur `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard` (ou `api`). Compte test QA supprimé.
+
+**▶️ Séance du 2026-08-22 (suite) — R13 est clos, et il n'a jamais fallu régénérer.**
+
+Trois séances avaient conclu qu'un token Meta était mort et qu'il fallait Business
+Manager. Interrogé avec les credentials d'application corrects, il répond **valide** :
+`SYSTEM_USER`, `expires_at=0`, 43 scopes — en local, en production, et dans
+`artist_credentials`. La roadmap réclamait un geste humain pour un token qui marchait.
+
+| # | livré | mesuré |
+|---|---|---|
+| 1 | **La correction du 2026-08-21 était allée dans le fichier qui perd** | `.env` était corrigé ; `.env.local`, qui **gagne** par construction, portait encore l'ID de compte publicitaire dans `META_APP_ID` et le token avec le `E` parasite. Tout Meta était cassé en local *sur une configuration réputée corrigée*. Les trois clés dupliquées retirées de `.env.local` — un seul fichier les possède. Classe `config-corrected-in-the-file-that-loses`. |
+| 2 | **La sonde ne pouvait pas voir ce défaut** | `tools/check_central_apps.py` n'appelait jamais `load_project_env()` : depuis un shell nu, `⚠️ env not set` sur les quatre plateformes et **exit 0**. Frère manqué d'`env-resolved-against-cwd` — sa signature cherche la *mauvaise forme*, ici c'était l'*absence*. Câblée : **exit 1** nommant `1 extra character ('E')`, puis **exit 0** après nettoyage. Garde dérivé des outils que la doc fait lancer, donc un outil neuf est couvert le jour où il est documenté. |
+| 3 | **L'ordre des fichiers d'env était recopié ailleurs** | `tools/notify_schema_drift.py` n'importe volontairement pas le paquet applicatif (un import cassé ne doit pas pouvoir museler l'alerte de dérive) — il relisait donc `.env` seul. Aligné sur `ENV_FILES` et **épinglé** dessus par test : un ordre recopié dérive. |
+| 4 | **Pourquoi Meta ne renvoie rien, et pourquoi ce n'est pas une panne** | Vérifié sur l'API **et** en base de prod : **34 campagnes, 0 ACTIVE** (19 archivées, 15 en pause), `amount_spent=0`, 0 insight sur 90 j. Les insights n'existent que pendant qu'une publicité tourne. C'est exactement la condition que la séance précédente a rendue ⏸️ au lieu d'une fausse alerte — la suppression se déclenchera donc en prod (34 > 0 connues, 0 active), et un locataire dont aucune campagne n'est connue reste alerté. |
+
+**Ce qui reste sur Meta ne dépend ni de moi ni de toi** : le compte publicitaire de
+Benken (`act_65390907`) n'est toujours pas partagé — `(#200) Ad account owner has NOT
+granted ads_management or ads_read permission`. Geste de Benken, pas correction de code.
+
+⚠️ **Non déployé.** Le code de ces deux séances est sur `origin/main` mais pas en prod.
+Déploiement : `cd /opt/streamlytics && git pull --ff-only origin main && docker compose up -d --build dashboard`.
 
 **▶️ Séance du 2026-08-22 (reprise après crash machine) — la suppression d'alerte
 écrite la veille était devenue un feu vert.**
@@ -130,27 +150,25 @@ déterministe propre, canari de production surveillé. L'index `## 📋 Tâches 
 à **0**, et les trois items de `## 🙋 En attente de toi` demandent chacun un geste que
 seul un humain peut poser — détail juste en dessous.
 
-**Ce qui t'attend — trois choses, et aucune n'est du code.**
+**Ce qui t'attend — deux choses, et aucune n'est du code.**
 
-L'index actif est à **0**, et ce n'est pas une reformulation optimiste : tout ce qui
-pouvait être fait sans toi l'a été. Les trois items ci-dessous ne se débloquent que par
-un geste que tu es seul à pouvoir faire — un accès, un fichier, une invitation. Chacun a
-été **réduit** au plus petit geste possible.
+L'index actif est à **0**. Les deux items ci-dessous ne se débloquent que par un geste
+que tu es seul à pouvoir faire — un fichier, une invitation. Chacun a été **réduit** au
+plus petit geste possible.
 
-1. **R13 — régénérer le token Meta System User.** Il te faut Business Manager ; je ne
-   l'ai pas. Ce qui a changé : `check_meta()` valide désormais la **forme** avant tout
-   appel réseau et nomme la cause exacte (« 1 caractère en trop »). Vérifié contre le
-   token réellement stocké en production : il le détecte. Colle le nouveau, relance
-   `python3 tools/artist_preflight.py` — un mauvais collage se voit en une seconde au
-   lieu du lendemain matin. ⚠️ Vérifie `META_APP_ID`/`META_APP_SECRET` dans la même
-   visite : l'application échoue aussi.
-2. **R17 — déposer les PDF/EPUB d'ergonomie** dans `knowledge/books/ux-frontend/` puis
+> **R13 est clos le 2026-08-22, et il ne demandait plus rien.** Le token Meta stocké
+> était déjà **valide** — `debug_token` le confirme `SYSTEM_USER`, `expires_at=0`,
+> 43 scopes, sur la bonne application. Ce qui restait cassé était `.env.local`, qui
+> **gagne** sur `.env` et portait encore l'ID de compte publicitaire et le token mal
+> collé. Détail et classe : `config-corrected-in-the-file-that-loses`.
+
+1. **R17 — déposer les PDF/EPUB d'ergonomie** dans `knowledge/books/ux-frontend/` puis
    `cd /home/timothe/knowledge-rag && uv run python ingest.py`. Le corpus interrogé sur
    ce sujet renvoie du bruit (meilleur score 0,016) — il n'a rien. Ce qui a changé : la
    décision que R17 bloquait est **mesurée** (`make chart-budget` : 22 vues, 83
    graphiques, médiane 3, `trigger_algo` à 15). Le corpus reste nécessaire pour trancher
    un **seuil**, pas pour voir l'état.
-3. **R1 — ouvrir la bêta privée** sur `streamlytics.fr`. Son prérequis dur est tombé :
+2. **R1 — ouvrir la bêta privée** sur `streamlytics.fr`. Son prérequis dur est tombé :
    le canari de production existe et `artist_preflight` y est vert de bout en bout,
    contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est
    en place. R2 (landing + pixel + CAPI) démarre avec la première campagne, pas avant —
@@ -160,7 +178,7 @@ un geste que tu es seul à pouvoir faire — un accès, un fichier, une invitati
 1. **✅ Cloudflare — ACTIF, PROXIFIE & DURCI (complet)** (détail `[[project_security_cloudflare]]`). Fait : zone active, NS Cloudflare, **SSL Full(strict)**, zone settings (min TLS 1.2 / Always HTTPS / Brotli / TLS 1.3), **rate-limit `/auth/token`** (10/10s), **firewall origine verrouillé** (ufw → IP CF only, vérifié), **Bot Fight Mode** ON, **cert Origin CF 15 ans** posé sur Caddy (plus de risque renouvellement, vérifié 2 edges). **RESTE (non bloquant)** : 🔑 **révoquer le token** `streamlytics-hardening` ; (optionnel) ré-activer DNSSEC via CF. ⚠️ vérifs prod **toujours via `curl --resolve host:443:<edge-CF-IP>`** (cache DNS local peut pointer l'IP origine firewallée → faux « down »).
 2. **✅ Red-team — COMPLET** (réseau + app + dashboard). Couvert & clean : MITM/TLS (CVE suite), brute-force, SQLi, deps (0 CVE), **isolation tenant/IDOR (prouvé live)**, priv-esc, JWT, CORS, secrets, XSS (escaping tient), **replay webhook Stripe** (signature + handlers idempotents + tolérance 5 min), upload path-traversal (filename = détection seulement), app-DoS (cap 50 Mo + bornes `le=1000` + Cloudflare). **Trouvé+fixé+déployé** : `/kpis` & `/youtube/videos` schema-drift 500 (suite 18/19b) ; **CSV/Excel formula injection sur export (CWE-1236, suite 20)** → `defang_formulas()` sur les 3 chemins d'export + test. Mineur restant : XSRF/cookies Streamlit = défaut framework (P4). Compte test `redteam_qa` **supprimé (clôturé suite 20)**. Classes cataloguées : `api-router-schema-drift`, `csv-formula-injection` (`error-classes.md`).
 3. **✅ E1 OUVERT** — 1er beta externe **Benken** (artist_id=12) onboardé 2026-06-15. A révélé une cascade per-tenant (tous les tests credentials KO, tous les CSV sauf Apple KO) → **diagnostiquée + corrigée + déployée** (voir session ci-dessous). 2e tenant **Cuzebo** (id=11) créé aussi.
-4. **Actions restantes de l'époque, désormais reprises ci-dessus** : **R13 régénérer le token Meta** (cassé en prod, Meta/IG ne collecte plus) ; **prep pré-session Benken** (partage compte pub Meta 65390907 + bon channel YouTube + Spotify artist ID) ; **R14 onboarding UX restant** (plan Track 1) ; refaire une session live avec Benken (tout doit marcher du 1er coup pour SoundCloud ✅/Apple ✅/YouTube/Spotify).
+4. **Actions restantes de l'époque, désormais reprises ci-dessus** : ~~**R13 régénérer le token Meta**~~ (clos 2026-08-22 : le token était valide ; c'est `.env.local` qui masquait la correction) ; **prep pré-session Benken** (partage compte pub Meta 65390907 + bon channel YouTube + Spotify artist ID) ; **R14 onboarding UX restant** (plan Track 1) ; refaire une session live avec Benken (tout doit marcher du 1er coup pour SoundCloud ✅/Apple ✅/YouTube/Spotify).
 
 *Session 2026-08-21 (conformité baseline + capitalisation) : **la config baseline n'est PAS entièrement déployée — 76,2/100** (`audit_fleet.py`), et une partie de ce qui l'est était écrite **pour un autre projet**. Trouvé et corrigé : `rules/python.md` — une règle **contraignante, chargée à chaque session** — imposait un factory Redis, un « ingestion hot path » nommant 5 modules inexistants, et surtout des placeholders SQL `?` (SQLite/QuestDB) là où tout le dépôt utilise `%s` psycopg2 ; `/review-architecture` lisait deux gabarits **non remplis** et cherchait QuestDB + des révisions Alembic (que l'ADR-002 rejette) ; `code-critic` — pourtant nommé dans une règle impérative, donc réellement invoqué — se présentait comme critique du projet « MSDR Predictive Maintenance » ; `security-reviewer` auditait OPC UA et `INFLUX_TOKEN` dans un SaaS musical, doublon de `security-specialist` qui, lui, est correct → retiré, ses 5 appelants repointés. **Capitalisation** : dette de schéma des classes d'erreur 29 → **25**, les 4 classes soldées étant celles du sujet du jour (`central-app-missing`, `multitenant-mono-test-blindspot`, `prod-compose-drift`, `env-not-wired-to-service`) ; aucune classe neuve incomplète (cliquet). 812 tests verts.*
 

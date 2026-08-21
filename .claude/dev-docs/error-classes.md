@@ -125,6 +125,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [app-id-confused-with-ad-account-id](#app-id-confused-with-ad-account-id) | P2 | heuristic | fixed | none |
 | [suppressed-alert-renders-as-health](#suppressed-alert-renders-as-health) | P2 | deterministic | guarded | none |
 | [catalogue-index-omits-its-own-entries](#catalogue-index-omits-its-own-entries) | P3 | deterministic | guarded | none |
+| [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -898,10 +899,12 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: `src/utils/env_files.py` resolves `.env.local` then `.env` against `Path(__file__).parent.parent.parent`, so the result does not depend on the caller's cwd. Every shell entrypoint calls `load_project_env()`. An already-injected variable always wins, so a stale file inside a container cannot override the real environment.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_env_is_root_anchored.py }
+- secondary_signature: `python3 -m pytest tests/test_operator_tools_read_the_apps_env.py -q`
 - rex_ref: tools/artist_preflight.py
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: mutation-verified — reinstating the cwd-relative form in `src/dashboard/app.py` turns 2 of the 12 assertions red, and restoring the loader turns them green.
+  - 2026-08-22: **a sibling the signature could not see.** `tools/check_central_apps.py` — the command the runbook and the roadmap tell an operator to run to prove the shared apps authenticate — never called `load_project_env()` at all. From a bare shell it printed `⚠️ env not set` for all four platforms and exited **0**. The signature greps for the *wrong form* (`load_dotenv('.env')`); this defect was the *missing form*, and an absence matches no pattern. Added `tests/test_operator_tools_read_the_apps_env.py`, which derives its subjects from the tools the documentation tells an operator to run, so a newly-documented tool is covered the day it is documented. Same day, same class: `tools/notify_schema_drift.py` restated the file order as `.env` only — it cannot import the app package by design, so its order is copied, and a copied order drifts. The test now pins it against `env_files.ENV_FILES`.
 
 ## identity-mirrored-but-written-once
 - status: fixed
@@ -1074,3 +1077,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-21
 - History:
   - 2026-08-21: found while adding a class, not while looking for it. An omission is silent in the one direction that matters: the index never claims to be complete, so its incompleteness cannot contradict anything. Two entries surfaced as a side effect — the two CI-waste classes declare neither `severity` nor `autofix`; their cells are left `—` rather than filled with an invented severity.
+
+## config-corrected-in-the-file-that-loses
+- status: guarded
+- severity: P2
+- kind: manual
+- symptom: a credential is investigated, found wrong, and corrected — and nothing changes. Every later look at the corrected file confirms the fix, so the investigation closes and the integration stays broken.
+- root_cause: the value lives in two env files and the fix went into the one that does NOT win. `src/utils/env_files.ENV_FILES` loads `.env.local` first with `override=False`, so **the local file wins**; the correction of 2026-08-21 went into `.env`. Measured 2026-08-22: `.env` held the correct app (`2200684950508458`, ETL_DASHBOARD_SPOTIFY) and a valid System User token — 43 scopes, `expires_at=0` — while `.env.local` still held the **ad account** id in `META_APP_ID` and a token carrying one stray pasted `E`. Locally every Meta call had been failing on the fixed configuration for a day, and the roadmap still described R13 as blocked on a human regenerating a token that was already valid.
+- signature: `python3 tools/check_central_apps.py`
+- long_term_fix: the probe resolves the environment through `load_project_env()` — the same root-anchored, `.env.local`-first order the dashboard and the DAGs use — so it reports on the configuration that actually runs. Run against the live defect it exits 1 and names the cause (`1 extra character ('E') before the 'EAA' prefix`); after removing the stale mirror it exits 0. The duplicate Meta keys were deleted from `.env.local` rather than corrected, so one file owns them.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_operator_tools_read_the_apps_env.py }
+- rex_ref: tools/check_central_apps.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `kind: manual` deliberately. The signature needs the operator's real env files; in CI there are none, the probe skips every platform and exits 0 — vacuously green. What CI *can* guard is that the probe reads the app's environment at all, and that is the pytest above. A signature that cannot fail in CI must not be labelled deterministic just because it is a clean command.
+  - 2026-08-22: sibling of `identity-mirrored-but-written-once` one layer down — there an identity in two tables written once, here a secret in two files corrected once. The shape repeats because nothing in either layer says which copy decides.
