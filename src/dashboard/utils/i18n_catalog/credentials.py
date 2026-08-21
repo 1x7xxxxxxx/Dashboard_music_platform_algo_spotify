@@ -299,6 +299,22 @@ EN = {
     "credentials.meta.network_error_probe": (
         "Network error during the Instagram test: {err}"
     ),
+    "credentials.probe_network_error": (
+        "Network error ({err}) — try again in a moment. If it persists, contact "
+        "the administrator."
+    ),
+    "credentials.identity_malformed": (
+        "❌ **{field}** does not have the expected format. Expected: `{shape}`. "
+        "Copy the identifier alone, with no URL or surrounding characters."
+    ),
+    "credentials.meta.ig_id_malformed": (
+        "Invalid Instagram Business Account ID: it must be digits only "
+        "(e.g. 17841400000000000)."
+    ),
+    "credentials.meta.account_malformed": (
+        "Invalid Ad Account ID: digits only, optionally prefixed with `act_` "
+        "(e.g. 567214713853881)."
+    ),
     "credentials.meta.ig_header": "### Additional steps — Instagram",
     "credentials.meta.ig_body": (
         "If you want Instagram stats, enter your Instagram Business Account ID below. The "

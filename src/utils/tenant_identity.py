@@ -28,6 +28,7 @@ right.
 from __future__ import annotations
 
 import json
+import re
 from typing import NamedTuple
 
 class PlatformIdentity(NamedTuple):
@@ -45,6 +46,14 @@ class PlatformIdentity(NamedTuple):
     storage: str
     field: str
     mirror: str | None
+    # Regex the value MUST fully match before it is used anywhere. Not cosmetic
+    # validation: these ids are interpolated into REST paths, and `requests` does
+    # not percent-encode `/` or `?` in a path you build yourself. A tenant who set
+    # ig_user_id to `me/accounts` turned the platform's own probe into a call to
+    # /me/accounts with the shared System User token — whose response carries Page
+    # access tokens. Verified 2026-08-22. The identity is attacker-controlled free
+    # text; its SHAPE is the only thing standing between it and the URL.
+    pattern: str
 
 
 # THE registry. Five entries, and every other surface derives from it.
@@ -62,14 +71,41 @@ class PlatformIdentity(NamedTuple):
 # entry removed tests instead of failing one. A registry that its own guards derive
 # from cannot report its own omission -- hence the literal ratchet in that file.
 PLATFORM_IDENTITIES = {
-    "soundcloud": PlatformIdentity("soundcloud", "soundcloud", "user_id", None),
+    "soundcloud": PlatformIdentity("soundcloud", "soundcloud", "user_id", None,
+                                   r"[0-9]{1,25}"),
     "spotify": PlatformIdentity("spotify", "spotify", "spotify_artist_id",
-                                "spotify_artist_id"),
-    "youtube": PlatformIdentity("youtube", "youtube", "channel_id", None),
-    "meta": PlatformIdentity("meta", "meta", "account_id", None),
+                                "spotify_artist_id", r"[0-9A-Za-z]{22}"),
+    "youtube": PlatformIdentity("youtube", "youtube", "channel_id", None,
+                                r"UC[0-9A-Za-z_-]{22}"),
+    # `act_` is stripped by the collector; accept both forms, digits only after it.
+    "meta": PlatformIdentity("meta", "meta", "account_id", None,
+                             r"(?:act_)?[0-9]{1,25}"),
     # Rides the meta row. See PlatformIdentity's docstring.
-    "instagram": PlatformIdentity("instagram", "meta", "ig_user_id", None),
+    "instagram": PlatformIdentity("instagram", "meta", "ig_user_id", None,
+                                  r"[0-9]{1,25}"),
 }
+
+
+def identity_is_well_formed(logical: str, value: str) -> bool:
+    """Does `value` have the shape this platform's identity must have?
+
+    Fullmatch, never search: `re.match` would accept `123/me/accounts`, which is
+    the whole point of the check.
+    """
+    spec = PLATFORM_IDENTITIES.get(logical)
+    if spec is None:
+        return False
+    return re.fullmatch(spec.pattern, (value or "").strip()) is not None
+
+
+def malformed_identities(extra_by_platform: dict) -> dict:
+    """{logical: value} for every DECLARED identity whose shape is wrong."""
+    out = {}
+    for logical, spec in PLATFORM_IDENTITIES.items():
+        value = str((extra_by_platform.get(spec.storage) or {}).get(spec.field) or "").strip()
+        if value and not identity_is_well_formed(logical, value):
+            out[logical] = value
+    return out
 
 
 def storage_platform(logical: str) -> str:

@@ -9,6 +9,10 @@ import streamlit as st
 
 from src.dashboard.utils.i18n import t
 
+from src.utils.tenant_identity import (
+    PLATFORM_IDENTITIES,
+    malformed_identities,
+)
 from ._core import (
     find_identity_conflict,
     dags_for_save,
@@ -287,12 +291,39 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             else:
                 extra.pop('spotify_artist_id', None)
 
+        # Refuse a malformed identity BEFORE anything else touches it. These values
+        # are interpolated into REST paths and `requests` does not percent-encode
+        # `/` in a path you build, so a free-text id is a URL the tenant chooses.
+        # Verified 2026-08-22: ig_user_id = "me/accounts" turned the platform probe
+        # into a call to /me/accounts carrying the shared System User token.
+        bad = malformed_identities({platform_key: extra})
+        if bad:
+            logical, value = next(iter(bad.items()))
+            spec = PLATFORM_IDENTITIES[logical]
+            st.error(t(
+                "credentials.identity_malformed",
+                "❌ **{field}** n'a pas le format attendu. Attendu : `{shape}`. "
+                "Copie l'identifiant seul, sans URL ni caractère autour."
+            ).format(field=spec.field, shape=spec.pattern))
+            return
+
         # Refuse an identity another tenant already claims. Nothing in the schema
         # prevents it, and the consequence is not cosmetic: both accounts would
         # collect the same upstream data, and the Spotify DAG refuses to guess
         # whose catalogue it is. Better a clear "no" now than two wrong dashboards.
-        conflict = find_identity_conflict(db, artist_id, platform_key, extra)
-        if conflict:
+        #
+        # Checked for EVERY logical identity this tab carries, not for the tab.
+        # Called with the tab key, the meta tab resolved to `account_id` only and
+        # `ig_user_id` was never compared against anyone — the uniqueness rule was
+        # present, derived, tested, and unreachable from the one call site that
+        # matters. The test passed because it called with the logical name, which
+        # the save path never does.
+        for logical, spec in PLATFORM_IDENTITIES.items():
+            if spec.storage != platform_key or not extra.get(spec.field):
+                continue
+            conflict = find_identity_conflict(db, artist_id, logical, extra)
+            if not conflict:
+                continue
             field, value, _other = conflict
             st.error(t(
                 "credentials.identity_taken",

@@ -11,6 +11,7 @@ import streamlit as st
 
 from src.utils.meta_config import META_GRAPH_BASE_URL
 from src.dashboard.utils.i18n import t
+from src.utils.tenant_identity import identity_is_well_formed
 
 
 def _test_meta(fields: dict) -> tuple:
@@ -32,7 +33,8 @@ def _test_meta(fields: dict) -> tuple:
         if not (r.status_code == 200 and data.get('id')):
             msg = data.get('error', {})
             if isinstance(msg, dict):
-                msg = msg.get('message', r.text[:150])
+                msg = msg.get('message', 'réponse inattendue de Meta')
+        # Never the raw body: it is whatever the requested path returned.
             return False, str(msg)
 
         # /me only proves the PLATFORM's System User token works — it is identical for
@@ -46,6 +48,15 @@ def _test_meta(fields: dict) -> tuple:
                             "App Meta OK, mais ton **Ad Account ID** n'est pas renseigné — "
                             "sans lui aucune donnée ne peut être collectée. Il se lit dans "
                             "l'URL du Gestionnaire de publicités, après `act=`.")
+        # Shape before the network, same reason as ig_user_id below: this lands in
+        # the PATH. The forced `act_` prefix blocks the trivial payload but not a
+        # traversal, and "probably safe because of a prefix" is not a control.
+        if not identity_is_well_formed("meta", raw_id):
+            return False, t(
+                "credentials.meta.account_malformed",
+                "Ad Account ID invalide : chiffres uniquement, éventuellement "
+                "préfixés par `act_` (ex : 567214713853881)."
+            )
         act_id = raw_id if raw_id.startswith('act_') else f"act_{raw_id}"
         ra = requests.get(
             f'{META_GRAPH_BASE_URL}/{act_id}',
@@ -56,7 +67,7 @@ def _test_meta(fields: dict) -> tuple:
         acc = ra.json()
         if ra.status_code != 200 or not acc.get('id', acc.get('name')):
             err = acc.get('error', {})
-            detail = err.get('message', ra.text[:150]) if isinstance(err, dict) else str(err)
+            detail = str(err.get('message', 'réponse inattendue de Meta'))[:200] if isinstance(err, dict) else ''
             return False, t(
                 "credentials.meta.account_unreachable",
                 "Compte publicitaire **{act}** inaccessible avec l'app partagée : {detail}\n\n"
@@ -80,7 +91,15 @@ def _test_meta(fields: dict) -> tuple:
                            name=data.get('name', data['id']),
                            acc=acc.get('name', act_id), ig=ig_suffix)
     except Exception as e:
-        return False, str(e)
+        # NEVER str(e). This probe passes the shared credential as a QUERY
+        # PARAMETER, so a ConnectionError's message embeds the full prepared URL —
+        # credential included — and _render.py renders it to the tenant with
+        # st.error. A DNS blip was enough to show a non-admin the platform-wide
+        # token (Meta, never expires) or the billable API key (YouTube).
+        return False, t("credentials.probe_network_error",
+                        "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
+                        "persiste, contacte l'administrateur.").format(
+                            err=type(e).__name__)
 
 
 def _guide_meta():
@@ -162,6 +181,15 @@ def _probe_instagram(ig_user_id: str, token: str):
     `tools/artist_preflight.py` step 3 silently skipped it and no artist ever got a
     verdict on it.
     """
+    # Shape first, network second. This id lands in the PATH, and `requests` does
+    # not percent-encode `/` there: `me/accounts` would make this call /me/accounts
+    # with the platform System User token, whose response carries Page tokens.
+    if not identity_is_well_formed("instagram", ig_user_id):
+        return False, t(
+            "credentials.meta.ig_id_malformed",
+            "Instagram Business Account ID invalide : il doit être une suite de "
+            "chiffres uniquement (ex : 17841400000000000)."
+        )
     ri = requests.get(
         f'{META_GRAPH_BASE_URL}/{ig_user_id}',
         params={'access_token': token, 'fields': 'username,followers_count'},
@@ -171,7 +199,11 @@ def _probe_instagram(ig_user_id: str, token: str):
     ig = ri.json()
     if ri.status_code != 200 or not ig.get('username'):
         err = ig.get('error', {})
-        detail = err.get('message', ri.text[:150]) if isinstance(err, dict) else str(err)
+        # NEVER `ri.text`. On a 200 with no `username` the error dict is empty, so
+        # the fallback used to echo the raw Graph body straight to the tenant —
+        # which is how a chosen path returned other people's access tokens.
+        detail = err.get('message', 'réponse inattendue de Meta') if isinstance(err, dict) else ''
+        detail = str(detail)[:200]
         return False, t(
             "credentials.meta.ig_unreachable",
             "Compte publicitaire OK, mais le compte **Instagram {ig}** est "

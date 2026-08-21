@@ -20,6 +20,7 @@ sys.path.insert(0, '/opt/airflow')
 
 import os
 import logging
+from html import escape
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -541,10 +542,17 @@ def check_canary_health(**context):
         # green while the other was red, both truthfully.
         from src.utils.freshness_monitor import SOURCES_FOR_PLATFORM, tables_for_platform
 
-        # Identifier allowlist (cross-cutting rule #8) — built from the same registry,
-        # so a table can never be queried unless the registry declared it.
-        allowed = {t for platform in SOURCES_FOR_PLATFORM
-                   for t in tables_for_platform(platform)}
+        # Identifier allowlist (cross-cutting rule #8), gated against the
+        # INDEPENDENTLY derived frozenset in freshness_monitor — not against this
+        # loop's own output.
+        #
+        # The first version built `allowed` by calling the same function, over the
+        # same keys, that produces the value being tested. The membership check was
+        # true by construction: a comment wearing the shape of a control. It gates
+        # nothing today (the registry is a module literal) and would gate nothing
+        # the day an entry came from config or the database, which is the only day
+        # it would matter.
+        from src.utils.freshness_monitor import _ALLOWED_TABLES as allowed
         declared = {p for (p,) in db.fetch_query(
             "SELECT platform FROM artist_credentials WHERE artist_id = %s", (artist_id,))}
         # The canary's Instagram identity rides the `meta` credentials row, so the
@@ -920,7 +928,7 @@ def send_consolidated_alert(**context):
         for f in stalled_tenants:
             rows += (
                 f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
-                f"<b>{f['artist_name']}</b> (id={f['artist_id']})</td>"
+                f"<b>{escape(f['artist_name'])}</b> (id={f['artist_id']})</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#8e44ad'>"
                 f"{f['next_action']}</td></tr>"
@@ -944,7 +952,7 @@ def send_consolidated_alert(**context):
         for f in readiness_flags:
             rows += (
                 f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
-                f"<b>{f['artist_name']}</b> (id={f['artist_id']})</td>"
+                f"<b>{escape(f['artist_name'])}</b> (id={f['artist_id']})</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>"
                 f"{'⚠️ sonde en échec' if f.get('status') == 'broken' else '🔴 aucune donnée'}</td>"

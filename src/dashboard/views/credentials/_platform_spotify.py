@@ -59,7 +59,15 @@ def _test_spotify(fields: dict) -> tuple:
         return True, t("credentials.spotify.test_ok_artist",
                        "Connecté — artiste « {name} » ✅").format(name=ra.json().get('name', artist_id))
     except Exception as e:
-        return False, str(e)
+        # NEVER str(e). This probe passes the shared credential as a QUERY
+        # PARAMETER, so a ConnectionError's message embeds the full prepared URL —
+        # credential included — and _render.py renders it to the tenant with
+        # st.error. A DNS blip was enough to show a non-admin the platform-wide
+        # token (Meta, never expires) or the billable API key (YouTube).
+        return False, t("credentials.probe_network_error",
+                        "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
+                        "persiste, contacte l'administrateur.").format(
+                            err=type(e).__name__)
 
 
 def _guide_spotify():

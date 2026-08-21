@@ -131,6 +131,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [broken-probe-rendered-as-user-fault](#broken-probe-rendered-as-user-fault) | P2 | deterministic | guarded | none |
 | [row-existence-read-as-connection](#row-existence-read-as-connection) | P2 | deterministic | guarded | none |
 | [gate-with-no-test-of-its-own](#gate-with-no-test-of-its-own) | P3 | deterministic | guarded | none |
+| [tenant-identity-reaches-a-url-unvalidated](#tenant-identity-reaches-a-url-unvalidated) | P1 | deterministic | guarded | none |
+| [secret-in-an-exception-message](#secret-in-an-exception-message) | P1 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1240,3 +1242,44 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - The scheduled version imports the tool's step functions rather than
     reimplementing them. Duplicating the gate's logic to schedule it would recreate
     the class the whole session was about.
+
+## tenant-identity-reaches-a-url-unvalidated
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a free-text field a tenant controls is interpolated into a REST path, and the raw response is echoed back to them. `requests` does not percent-encode `/` in a path you build yourself, so the tenant chooses the endpoint — while the call carries the PLATFORM's shared credential.
+- signature: `python3 -m pytest tests/test_credentials_security.py -q`
+- root_cause: `ig_user_id` is a plain `st.text_input` (`_registry.py`) saved with no format check, and `_probe_instagram` built `f'{META_GRAPH_BASE_URL}/{ig_user_id}'` with `params={'access_token': <SYSTEM USER TOKEN>}`. Setting it to `me/accounts` produced `https://graph.facebook.com/v24.0/me/accounts?access_token=…`; the 200-with-no-`username` branch then returned `ri.text[:150]` — and `/me/accounts` answers with Page access tokens minted from that System User token, rendered to a non-admin by `st.error`. Verified 2026-08-22 that `requests` leaves the `/` unencoded.
+- long_term_fix: the identity registry gained a `pattern` per platform and `identity_is_well_formed()` / `malformed_identities()`; the save path refuses a malformed value before writing, and every probe refuses before the network. `re.fullmatch`, never `match` — `match` accepts `123/me/accounts`, which is the whole attack. No probe echoes a raw response body any more.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_credentials_security.py }
+- rex_ref: src/utils/tenant_identity.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: found by a security audit of the same session's changes, ordered because the session touched secret reads (cross-cutting rule 13). Verified RED by mutation (remove the shape check → the probe accepts `me/accounts` again). The extraction of `_probe_instagram` this session did not create the interpolation — it inherited it — but it DID wire it into `CONNECTION_TESTS`, so the nightly scheduler and the preflight now call it too.
+- Notes:
+  - The shape rule lives in the identity registry, not in the probe. Five
+    platforms, five patterns, one place — otherwise the next probe re-derives
+    "what does an id look like" and gets it wrong for the sixth.
+  - `account_id` had the same interpolation, constrained by a forced `act_`
+    prefix. "Probably safe because of a prefix" is not a control; it is validated
+    too.
+
+## secret-in-an-exception-message
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a credential is passed as a QUERY PARAMETER, so a `requests` exception message embeds the full prepared URL. Surfacing the exception — to a user, or into a log — surfaces the credential. No attacker action required: a DNS blip is enough.
+- signature: `python3 -m pytest tests/test_credentials_security.py -q -k exception`
+- root_cause: two shapes. (a) `src/utils/central_apps.py::check_meta` printed `f"probe error ({exc})"` for a call carrying `META_ACCESS_TOKEN` and `META_APP_ID|META_APP_SECRET` in the query string — executed **nightly** by `alert_monitor.check_central_apps`, whose stdout is persisted in the Airflow task log. (b) the Meta, YouTube, Spotify and SoundCloud connection tests each ended in `except Exception as e: return False, str(e)`, rendered untruncated to the tenant by `st.error`. Meta and YouTube put their credential in the URL, so a non-admin could be shown the platform-wide System User token or the billable API key.
+- long_term_fix: no probe surfaces a caught exception; they return `type(e).__name__` plus a static message. Applied uniformly to all four platforms even though Spotify (header auth) and SoundCloud (POST body) are clean today — so nobody has to re-derive which one is safe. The guard walks the AST of every except-handler in those modules and fails on `str(e)` or `f"{e}"`.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_credentials_security.py }
+- rex_ref: src/utils/central_apps.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: the guard, written for the four sites the audit named, immediately found **five more** — three in `central_apps` (Spotify/YouTube/SoundCloud) and two raw-body echoes in `_platform_meta`. Verified RED by mutation (restore `str(e)` in the YouTube probe).
+- Notes:
+  - The nightly one is the worse of the two. A tenant-facing leak needs a person
+    clicking during an outage; the log one writes both secrets to disk on its own
+    schedule, and the file outlives the incident.

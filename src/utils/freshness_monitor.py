@@ -236,36 +236,17 @@ def check_freshness(db, artist_id=None):
     return results
 
 
-def run_freshness_alerts(db, artist_id=None):
-    """
-    Vérifie toutes les sources et envoie une alerte email groupée pour les sources stale.
-    Retourne la liste complète des résultats (stale ou non).
-    """
-    from src.utils.email_alerts import EmailAlert
-
-    results = check_freshness(db, artist_id)
-    stale = [r for r in results if r['stale']]
-
-    if stale:
-        lines = ""
-        for r in stale:
-            age_str = f"{r['age_h']:.0f}h" if r['age_h'] is not None else "jamais collectée"
-            lines += (
-                f"<li><b>{r['source']}</b> — dernière collecte il y a {age_str} "
-                f"(seuil : {r['stale_h']}h)</li>\n"
-            )
-        subject = f"{len(stale)} source(s) stale — Dashboard Music"
-        body = f"""
-        <h3>⚠️ Sources de données inactives</h3>
-        <ul>{lines}</ul>
-        <p>Vérifiez les DAGs Airflow et relancez si nécessaire.</p>
-        <p style="color:#888;font-size:0.85em;">Généré automatiquement par freshness_monitor.</p>
-        """
-        EmailAlert().send_alert(subject, body)
-        logger.warning(
-            f"⚠️ {len(stale)} source(s) stale : {[r['source'] for r in stale]}"
-        )
-    else:
-        logger.info("✅ Toutes les sources sont fraîches.")
-
-    return results
+# `run_freshness_alerts()` lived here until 2026-08-22. Removed, not wired.
+#
+# It had ZERO callers anywhere in the repo, and it sent its OWN email with its own
+# subject. The freshness alerting that actually reaches you is the one in
+# `alert_monitor.check_data_freshness`, folded into the single consolidated digest.
+# Connecting this one would have produced a second email for the same fact — the
+# catalogued `watchdog-becomes-the-noise`, where the fix makes the alert less read,
+# not more.
+#
+# It also carried a defect the rest of the module no longer has: it filtered on
+# `r['stale']` alone and never looked at `error`, so a probe that FAILED would have
+# been reported as a stale source — `broken-probe-rendered-as-user-fault`. Dead code
+# does not just sit there; it preserves the bugs the live path has already fixed,
+# and it reads as a feature to whoever finds it next.

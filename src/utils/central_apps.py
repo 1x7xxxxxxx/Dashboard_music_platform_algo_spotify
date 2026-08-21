@@ -34,6 +34,10 @@ def _result(ok: bool, platform: str, reason: str = "") -> bool:
     return ok
 
 
+# None of these probes surfaces the exception itself. YouTube passes its key
+# in the query string, so a requests exception message embeds it; Spotify and
+# SoundCloud use a header and a POST body and are clean today — but the rule
+# is uniform on purpose, so nobody has to re-derive which one is safe.
 def check_spotify() -> bool:
     cid = os.getenv("SPOTIFY_CLIENT_ID")
     secret = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -53,7 +57,7 @@ def check_spotify() -> bool:
             return _result(True, "Spotify")
         return _result(False, "Spotify", f"HTTP {resp.status_code} no access_token")
     except requests.RequestException as exc:
-        return _result(False, "Spotify", str(exc))
+        return _result(False, "Spotify", type(exc).__name__)
 
 
 def check_youtube() -> bool:
@@ -73,7 +77,7 @@ def check_youtube() -> bool:
             return _result(True, "YouTube")
         return _result(False, "YouTube", f"HTTP {resp.status_code} no items")
     except requests.RequestException as exc:
-        return _result(False, "YouTube", str(exc))
+        return _result(False, "YouTube", type(exc).__name__)
 
 
 def check_soundcloud() -> bool:
@@ -98,7 +102,7 @@ def check_soundcloud() -> bool:
             return _result(True, "SoundCloud")
         return _result(False, "SoundCloud", f"HTTP {resp.status_code} no access_token")
     except requests.RequestException as exc:
-        return _result(False, "SoundCloud", str(exc))
+        return _result(False, "SoundCloud", type(exc).__name__)
 
 
 def check_meta() -> bool:
@@ -162,7 +166,10 @@ def check_meta() -> bool:
                 timeout=TIMEOUT, allow_redirects=False)
             body = resp.json() if resp.content else {}
         except (requests.RequestException, ValueError) as e:
-            body = {"error": {"message": f"unreachable: {e}"}}
+            # Same reason as above: the message would carry the app secret from the
+            # query string. The [:120] truncation below happens to cut before it
+            # today, which is luck, not a control.
+            body = {"error": {"message": f"unreachable: {type(e).__name__}"}}
         app_err = (body.get("error") or {}).get("message", "")
         if app_err:
             hint = ""
@@ -199,7 +206,14 @@ def check_meta() -> bool:
               "confirm via meta_ads_api_daily row counts.")
         return True
     except requests.RequestException as exc:
-        print(f"⚠️ Meta: probe error ({exc}) — confirm via meta_ads_api_daily row counts.")
+        # `type(exc).__name__`, never the exception itself. This request carries
+        # META_ACCESS_TOKEN and `META_APP_ID|META_APP_SECRET` as QUERY PARAMETERS,
+        # and a requests exception message embeds the full prepared URL — so
+        # printing it wrote both secrets, in clear, into the Airflow task log that
+        # `alert_monitor.check_central_apps` runs every night. No attacker needed:
+        # one DNS blip or Graph outage was enough. Measured 2026-08-22.
+        print(f"⚠️ Meta: probe error ({type(exc).__name__}) — "
+              f"confirm via meta_ads_api_daily row counts.")
         return True
 
 
