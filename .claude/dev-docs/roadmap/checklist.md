@@ -23,7 +23,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
 
-> **Vide au 2026-08-21, et c'est un état, pas un oubli.** Tout ce qui pouvait être fait
+> **Non vide depuis le 2026-08-22 : une entrée, R21.** Tout ce qui pouvait être fait
 > côté ingénierie l'a été ; ce qui est mesuré inutile est parti sous **ADR-007**, ce qui
 > attend une donnée sous **ADR-008**, et ce qui attend un geste humain est dans
 > `## 🙋 En attente de toi` juste en dessous. Une tâche revient ici le jour où son
@@ -31,7 +31,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| — | *(aucune)* | — | — |
+| R21 | Pentest complet de streaMLytics + correction des vulnérabilités | P1 | **en cours** — voir le bloc détaillé plus bas |
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
@@ -45,8 +45,48 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R17 | Ingérer un corpus ergonomie / front-end dans knowledge-rag | P3 | **le geste utilisateur est FAIT — l'ingestion tourne.** Les 10 ouvrages sont déposés dans `/mnt/c/Users/timot/knowledge/books/ux-frontend/` (About Face, Don't Make Me Think, Information Dashboard Design et Show Me the Numbers de Few, Storytelling with Data, Data Visualisation de Kirk, Designing with the Mind in Mind, Microcopy, Strategic Writing for UX, Web Form Design). `ingest.py` est lancé ; **1/10 indexé** (About Face, 5026 chunks) et la recherche répond déjà avec livre + page. Les 9 restants suivent (~25 min/livre en CPU, dont un PDF de 384 Mo). Suivi : `python3 /home/timothe/knowledge-rag/tools/check_index_coverage.py` (chemin absolu : cet outil vit dans le dépôt knowledge-rag, pas ici) — il sort ≠ 0 tant qu'il reste un fichier non indexé. ⚠️ **Le blocage n'a jamais été le dépôt** : 9 des 10 livres étaient sur le disque depuis le 2026-08-21 21h51, non indexés, et aucune surface ne pouvait le dire — `verify.py` énumère ce qui EST indexé, donc ne peut pas rapporter une absence. Classe `corpus-deposited-but-never-indexed` (P2, guarded) dans le catalogue de `knowledge-rag`. ⚠️ **Et la phrase « il renvoie du bruit, meilleur score 0,016 » était un contresens** : 0,016 vaut exactement `1/61`, le score RRF d'un rang 1. Le reranker n'encode que le RANG — une réponse parfaite porte le même nombre. Vérifié : une requête absurde rend le même top. Le score n'est plus affiché par `search_books` (classe `rank-score-read-as-relevance`, P2). **La décision qu'il bloque est désormais mesurée, pas devinée** : `make chart-budget` rend la distribution réelle — 22 vues, 83 graphiques, médiane 3, et quatre vues au-delà du double (`trigger_algo` à 15, cinq fois la médiane). Le corpus reste nécessaire pour **trancher un seuil** : interrogé le 2026-08-21 sur l'ergonomie de tableau de bord, il renvoie du bruit (meilleur score 0,016). Rapport seulement — inventer un seuil et l'habiller en règle serait pire que pas de règle. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. |
+
+---
+
+## 🛡️ R21 — Pentest complet de streaMLytics (P1, ouvert le 2026-08-22)
+
+**Pourquoi maintenant.** Le red-team de 2026-06-13 est marqué COMPLET, mais depuis :
+Stripe est passé en live, l'API REST a été ouverte, l'inscription est self-service,
+et la couche credentials vient d'être réécrite. Un audit fermé sur un produit qui a
+changé n'est plus un audit.
+
+**Ce que le premier passage a déjà rendu (2026-08-22, sur le diff de la séance)** —
+et il n'était pas théorique :
+
+| sév | trouvé | état |
+|---|---|---|
+| CRITIQUE | `ig_user_id` est un champ libre interpolé dans un chemin Graph API. `requests` n'encode pas le `/` : poser `me/accounts` faisait appeler `/me/accounts` **avec le System User token de la plateforme**, et la réponse — contenant des Page access tokens — était renvoyée au locataire. | ✅ corrigé + déployé, exploit rejeté en prod |
+| HAUT | L'unicité d'identité Instagram était **inatteignable** : `_handle_save` appelait le contrôle avec la clé d'onglet. Deux locataires pouvaient revendiquer le même compte. | ✅ corrigé |
+| HAUT | `META_ACCESS_TOKEN` et `META_APP_ID\|META_APP_SECRET` écrits **chaque nuit** dans les logs Airflow au moindre incident réseau (message d'exception = URL préparée complète). Idem vers le locataire sur les 4 sondes. | ✅ corrigé (9 sites) |
+| MOYEN | Nom d'artiste (saisi librement) injecté brut dans l'e-mail d'alerte HTML. | ✅ `html.escape` |
+| MOYEN | L'allowlist d'identifiants SQL du watchdog se testait contre sa propre sortie — un commentaire ayant la forme d'un contrôle. | ✅ gate indépendant |
+
+Classes : `tenant-identity-reaches-a-url-unvalidated` (P1),
+`secret-in-an-exception-message` (P1).
+
+**Ce qui reste pour clore R21** — le passage large est lancé le 2026-08-22 et couvre :
+authentification et session (escalade admin, bypass par vue), la surface FastAPI
+(IDOR inter-locataires sur chaque route), l'isolation SQL (`WHERE artist_id` manquant,
+`artist_id` venant de l'entrée utilisateur), injections (SQL, commande dans
+`tools/*.sh`, traversée de chemin à l'import CSV, `unsafe_allow_html`), secrets
+journalisés ailleurs, Stripe (signature du webhook, idempotence, chemin applicatif
+vers `premium`), et l'upload CSV (taille, type, `defang_formulas` sur TOUS les
+chemins d'export).
+
+**Critère de clôture** : chaque constat CRITIQUE/HAUT corrigé, déployé, et porteur
+d'une classe d'erreur avec une signature vue rouge sur le défaut. Un constat MOYEN/BAS
+peut être documenté et différé, mais **nommément**, pas par omission.
+
+⚠️ **Ce qu'un audit lu par un agent ne remplace pas** : un test d'intrusion réseau
+depuis l'extérieur (Cloudflare, Caddy, ports, TLS), un fuzzing des endpoints, et une
+revue des dépendances à jour. Ces trois-là demandent un outil ou un humain — les
+inscrire ici quand R21 sera clos côté code.
 
 ---
 

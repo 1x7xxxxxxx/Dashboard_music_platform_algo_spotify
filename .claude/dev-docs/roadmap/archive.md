@@ -10,6 +10,35 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 ---
 
 <!-- section actif : Open Bugs -->
+
+### R17 — Corpus ergonomie / front-end ingéré dans knowledge-rag (clos 2026-08-22)
+
+- [x] **R17 — 10 ouvrages d'ergonomie indexés**, domaine `ux-frontend`.
+  About Face · Don't Make Me Think · Information Dashboard Design (Few) ·
+  Show Me the Numbers (Few) · Storytelling with Data · Data Visualisation (Kirk) ·
+  Designing with the Mind in Mind · Microcopy · Strategic Writing for UX ·
+  Web Form Design. **180 fichiers sur 25 domaines, couverture complète**
+  (`tools/check_index_coverage.py` sort 0).
+
+  Ce que R17 bloquait est désormais sourçable : Few p.27 donne le critère du budget
+  de graphiques — *« A dashboard fits on a single computer screen … within the
+  viewer's eye span »*. Le critère n'est donc PAS un nombre de graphiques mais le
+  coup d'œil, ce qui reclasse `trigger_algo` (15 graphiques, 5× la médiane) comme
+  candidat n°1 sans avoir besoin d'inventer un seuil.
+
+  Deux défauts trouvés en le fermant, tous deux dans `knowledge-rag` :
+  neuf des dix livres étaient sur le disque depuis la veille **sans être indexés**,
+  et rien ne pouvait le dire (`corpus-deposited-but-never-indexed`) ; et
+  `organize.py` ignorait le domaine, classant les dix en `divers`
+  (`domain-exists-but-classifier-ignores-it`) — au passage, `admin-assurances` et
+  `admin-fiscalite` n'avaient eux non plus aucune règle, ce qui est une fuite de
+  confidentialité et pas un défaut de rangement.
+
+  L'ingestion est désormais **automatique** : `tools/run_book_drop.sh` en cron
+  horaire + rattrapage au redémarrage, avec verrou (un gros PDF prend ~25 min, une
+  passe horaire chevaucherait la précédente).
+
+
 ### P1 — Blocking (data missing or crash)
 
 - [x] **SoundCloud + Instagram DAGs** — fixed 2026-03-30.
