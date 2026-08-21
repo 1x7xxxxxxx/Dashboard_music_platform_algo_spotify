@@ -8,7 +8,7 @@ and the per-platform guide dispatcher. Pure relocation — no logic change.
 from ._platform_spotify import _test_spotify, _guide_spotify
 from ._platform_youtube import _test_youtube, _guide_youtube
 from ._platform_soundcloud import _test_soundcloud, _guide_soundcloud
-from ._platform_meta import _test_meta, _guide_meta
+from ._platform_meta import _test_meta, _guide_meta, _test_instagram
 
 
 # ─────────────────────────────────────────────
@@ -75,11 +75,18 @@ PLATFORMS = {
 }
 
 
+# Keyed on the LOGICAL platform, so it has five entries for four tabs. Instagram is
+# not a tab — its id is a field of the Meta tab — but it is a platform everywhere
+# else (readiness, the alert monitor, the canary), and it had no probe of its own:
+# it was tested only as an optional suffix inside `_test_meta`, skipped when the id
+# was blank. `tools/artist_preflight.py` step 3 iterates this dict, so Instagram was
+# silently absent from the gate that runs before an artist test session.
 CONNECTION_TESTS = {
     'spotify':    _test_spotify,
     'youtube':    _test_youtube,
     'soundcloud': _test_soundcloud,
     'meta':       _test_meta,
+    'instagram':  _test_instagram,
 }
 
 

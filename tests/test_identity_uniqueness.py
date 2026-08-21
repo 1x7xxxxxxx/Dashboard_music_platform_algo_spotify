@@ -117,10 +117,28 @@ def test_spotify_conflict_is_seen_through_saas_artists(db, two_tenants):
     assert conflict[2] == first
 
 
-def test_every_platform_with_a_form_identity_is_covered():
-    """A new platform must be added to UNIQUE_IDENTITY_FIELDS, not silently skipped."""
-    from src.dashboard.views.credentials._registry import PLATFORMS
+def test_every_identity_is_typable_in_a_real_tab():
+    """Each identity's field must exist in the tab that stores it.
 
-    assert set(UNIQUE_IDENTITY_FIELDS) == set(PLATFORMS), (
-        "every credential tab collects an identity; each needs a uniqueness rule"
-    )
+    This used to assert `set(UNIQUE_IDENTITY_FIELDS) == set(PLATFORMS)` — identities
+    and TABS being the same set. They are not: there are five identities and four
+    tabs, because Instagram's id is a field of the Meta tab. Insisting on equality is
+    exactly what kept `instagram` out of the uniqueness map, and with it out of
+    `find_identity_conflict`: two tenants could claim the same Instagram account and
+    nothing refused.
+    """
+    from src.dashboard.views.credentials._registry import PLATFORMS
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+
+    for logical, spec in PLATFORM_IDENTITIES.items():
+        assert spec.storage in PLATFORMS, (
+            f"{logical} is stored under '{spec.storage}', which is not a tab"
+        )
+        keys = {f["key"] for f in PLATFORMS[spec.storage]["fields"]}
+        assert spec.field in keys, (
+            f"{logical}'s identity '{spec.field}' has no input in the "
+            f"'{spec.storage}' tab — no artist could ever declare it"
+        )
+        assert logical in UNIQUE_IDENTITY_FIELDS, (
+            f"{logical} has no uniqueness rule — two tenants could claim the same one"
+        )

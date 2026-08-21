@@ -160,22 +160,3 @@ def test_it_refuses_the_admins_own_identity(db, cleanup):
     r = _run("--name", "Copycat", "--slug", slug, f"--{platform}", ident)
     assert r.returncode == 1, "the tool accepted the admin's own identity"
     assert "admin" in r.stdout.lower(), r.stdout
-
-
-def test_the_identity_map_matches_the_credentials_registry():
-    """A platform the form knows and the tool does not yields a weaker canary."""
-    sys.path.insert(0, str(REPO))
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("create_canary", TOOL)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-
-    from src.dashboard.views.credentials._core import UNIQUE_IDENTITY_FIELDS
-
-    assert dict(mod._IDENTITY_FIELD) == dict(UNIQUE_IDENTITY_FIELDS), (
-        "tools/create_canary.py and the credentials registry disagree on which "
-        "field carries a tenant's identity:\n"
-        f"  tool     {sorted(mod._IDENTITY_FIELD.items())}\n"
-        f"  registry {sorted(UNIQUE_IDENTITY_FIELDS.items())}"
-    )

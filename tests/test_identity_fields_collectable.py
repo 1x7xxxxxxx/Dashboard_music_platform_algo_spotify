@@ -17,16 +17,19 @@ import pytest
 
 from src.dashboard.views.credentials._registry import PLATFORMS
 from src.utils import artist_readiness as ar
+from src.utils.tenant_identity import PLATFORM_IDENTITIES
 
 _ROOT = Path(__file__).resolve().parents[1]
 
-# readiness platform key → (credential form tab, field key the artist must type)
+# readiness platform key → (credential form tab, field key the artist must type).
+# DERIVED — this was the SIXTH hand-maintained copy of the same mapping, and the
+# copies disagreed: this one had five entries while `_core.UNIQUE_IDENTITY_FIELDS`
+# and `tools/create_canary.py` had four. A guard that keeps its own copy of the
+# registry can be right while the code is wrong, which is the least useful place
+# for a correct map to live.
 _IDENTITY_FIELD = {
-    "soundcloud": ("soundcloud", "user_id"),
-    "spotify": ("spotify", "spotify_artist_id"),
-    "youtube": ("youtube", "channel_id"),
-    "meta": ("meta", "account_id"),
-    "instagram": ("meta", "ig_user_id"),
+    logical: (spec.storage, spec.field)
+    for logical, spec in PLATFORM_IDENTITIES.items()
 }
 
 

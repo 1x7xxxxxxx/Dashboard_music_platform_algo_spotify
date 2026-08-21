@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.dashboard.views.credentials._platform_meta import _test_meta
+from src.dashboard.views.credentials._platform_meta import _test_instagram, _test_meta
 from src.dashboard.views.credentials._platform_soundcloud import _test_soundcloud
 from src.dashboard.views.credentials._platform_spotify import _test_spotify
 from src.dashboard.views.credentials._platform_youtube import _test_youtube
@@ -170,6 +170,7 @@ def test_spotify_resolved_artist_passes(mock_requests):
     ("spotify", _test_spotify, {"client_id": "cid", "client_secret": "sec"}),  # pragma: allowlist secret
     ("youtube", _test_youtube, {"api_key": "AIzaKey"}),  # pragma: allowlist secret
     ("meta", _test_meta, {"access_token": "tok"}),  # pragma: allowlist secret
+    ("meta", _test_instagram, {"access_token": "tok"}),  # pragma: allowlist secret
 ])
 def test_no_platform_passes_without_tenant_identity(case):
     """Whatever the platform, an artist who provided nothing is not connected."""
@@ -182,3 +183,32 @@ def test_no_platform_passes_without_tenant_identity(case):
                                                      "collection": []})
         ok, _ = fn(app_only_fields)
     assert ok is False, f"{name}: shared app alone must not read as connected"
+
+
+# ── Coverage: a platform with no probe at all is the same class, one step earlier ──
+
+def test_every_logical_platform_has_a_connection_test():
+    """Instagram had none, and that is why nobody ever got a verdict on it.
+
+    Coverage used to be judged against the four form TABS, which Instagram is not —
+    its id is a field of the Meta tab. So the platform that readiness tracks, the
+    alert monitor watches and the canary should exercise was tested only as an
+    optional suffix inside `_test_meta`, silently skipped when the id was blank.
+    `tools/artist_preflight.py` step 3 iterates CONNECTION_TESTS, so the gate that
+    runs before every artist session never probed it.
+    """
+    from src.dashboard.views.credentials._registry import CONNECTION_TESTS
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+
+    missing = set(PLATFORM_IDENTITIES) - set(CONNECTION_TESTS)
+    assert not missing, (
+        f"{sorted(missing)} can be declared by an artist but has no connection test — "
+        f"there is no way for them to learn it is wrong before the data does not arrive"
+    )
+
+
+def test_instagram_refuses_a_blank_identity():
+    """Never True on a missing id: that is the whole contract of this file."""
+    ok, msg = _test_instagram({"access_token": "tok"})  # pragma: allowlist secret
+    assert ok is False
+    assert "Instagram Business Account ID" in msg, msg

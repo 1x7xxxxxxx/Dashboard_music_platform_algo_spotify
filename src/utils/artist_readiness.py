@@ -88,17 +88,24 @@ def next_action(platform: dict, status: str, expected_silence: str | None = None
 
 
 def _identity(platform_key: str, creds: dict, spotify_artist_id) -> bool:
-    if platform_key == "soundcloud":
-        return bool(creds.get("soundcloud", {}).get("user_id"))
+    """Has this tenant declared the identity this platform needs?
+
+    Reads the registry rather than restating it as an if-chain: the chain was a
+    sixth copy of "which field is this platform's identity, and which row holds it",
+    and the copies disagreed about Instagram.
+    """
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+
+    spec = PLATFORM_IDENTITIES.get(platform_key)
+    if spec is None:
+        return False
+    declared = bool(str((creds.get(spec.storage) or {}).get(spec.field) or "").strip())
     if platform_key == "spotify":
-        return bool(spotify_artist_id or creds.get("spotify", {}).get("spotify_artist_id"))
-    if platform_key == "youtube":
-        return bool(creds.get("youtube", {}).get("channel_id"))
-    if platform_key == "meta":
-        return bool(creds.get("meta", {}).get("account_id"))
-    if platform_key == "instagram":
-        return bool(creds.get("meta", {}).get("ig_user_id"))
-    return False
+        # The one mirrored identity: either copy counts as declared. This cannot
+        # detect the two drifting apart — that is `identity-mirrored-but-written-once`,
+        # closed by routing every writer through `write_platform_identity`.
+        return bool(spotify_artist_id) or declared
+    return declared
 
 
 def _load_extra(db, artist_id: int) -> dict:

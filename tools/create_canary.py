@@ -36,7 +36,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # correct from any cwd, and so a red verdict below means "missing", not "unloaded".
 from src.utils.env_files import load_project_env  # noqa: E402
 from src.utils.tenant_identity import (  # noqa: E402
+    IDENTITY_KEYS,
+    PLATFORM_IDENTITIES,
     mirrored_columns,
+    storage_platform,
     write_platform_identity,
 )
 
@@ -44,15 +47,15 @@ load_project_env()
 
 _OK, _KO, _WARN = "✅", "❌", "⚠️"
 
-# platform → the key the collectors read out of extra_config. Kept in step with
-# `src/dashboard/views/credentials/_core.py::UNIQUE_IDENTITY_FIELDS`; the test below
-# fails if a platform gains an identity field this tool cannot set.
-_IDENTITY_FIELD = {
-    "soundcloud": "user_id",
-    "youtube": "channel_id",
-    "meta": "account_id",
-    "spotify": "spotify_artist_id",
-}
+# DERIVED from the registry, not restated. The literal that used to live here had
+# four entries and no `instagram`, so the canary -- the tenant whose entire job is to
+# catch a tenant-credential failure before a real artist does -- could not exercise
+# the platform that broke in the most recent artist test.
+#
+# It was "kept in step with" `_core.UNIQUE_IDENTITY_FIELDS`, which was itself the
+# amputated copy, and a green test asserted the two were EQUAL. Agreement between two
+# wrong copies is not a guard.
+_IDENTITY_FIELD = dict(IDENTITY_KEYS)
 
 
 def _connect():
@@ -70,12 +73,20 @@ def _admin_identities(db) -> dict[str, str]:
     """What the admin (artist 1) declares, so we can refuse to reuse it."""
     rows = db.fetch_query(
         "SELECT platform, extra_config FROM artist_credentials WHERE artist_id = 1")
-    out: dict[str, str] = {}
+    by_storage: dict[str, dict] = {}
     for platform, extra in rows or []:
         cfg = extra if isinstance(extra, dict) else json.loads(extra or "{}")
-        field = _IDENTITY_FIELD.get(platform)
-        if field and (cfg or {}).get(field):
-            out[platform] = str(cfg[field]).strip()
+        by_storage[platform] = cfg or {}
+
+    # Iterate LOGICAL identities, reading each from its storage row. Keyed on the
+    # row's platform this could not express two identities in one row, so the
+    # admin's Instagram id was invisible here — and "is this the same as the
+    # admin's?" is the one question this function exists to answer.
+    out: dict[str, str] = {}
+    for logical, spec in PLATFORM_IDENTITIES.items():
+        value = by_storage.get(spec.storage, {}).get(spec.field)
+        if str(value or "").strip():
+            out[logical] = str(value).strip()
     return out
 
 
@@ -121,7 +132,7 @@ def main() -> int:
                 "SELECT artist_id FROM artist_credentials "
                 "WHERE platform = %s AND extra_config->>%s = %s "
                 "AND artist_id IS DISTINCT FROM %s",
-                (platform, field, value, self_id))
+                (storage_platform(platform), field, value, self_id))
             taken += [f"{platform}={value} (artist {r[0]})" for r in (rows or [])]
         if taken:
             print(f"{_KO} identity already claimed by another tenant: {'; '.join(taken)}.")

@@ -127,6 +127,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [catalogue-index-omits-its-own-entries](#catalogue-index-omits-its-own-entries) | P3 | deterministic | guarded | none |
 | [same-platform-judged-on-different-tables](#same-platform-judged-on-different-tables) | P2 | deterministic | guarded | none |
 | [map-key-unreachable-by-construction](#map-key-unreachable-by-construction) | P2 | deterministic | guarded | none |
+| [guard-derived-from-the-thing-it-guards](#guard-derived-from-the-thing-it-guards) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -626,6 +627,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: src/dashboard/views/credentials/_registry.py
 - first_seen: 2026-06-15 (Benken — Meta ad account never shared, YouTube channel empty)
 - History:
+  - 2026-08-22: third shape — not a test that proves the wrong thing, a platform with **no test at all**. Instagram was probed only as an optional suffix inside `_test_meta`, skipped when the id was blank, so `tools/artist_preflight.py` step 3 (which iterates `CONNECTION_TESTS`) never covered it and no artist ever got a verdict on it. `_test_instagram` is now a first-class entry and returns False — never True — on a blank identity. Coverage is asserted against the LOGICAL platforms, not the four form tabs: judging it by tabs is what hid the gap, since Instagram is a field of the Meta tab.
   - 2026-06-15: first instance (Benken). Treated as a per-artist data gap; closed downstream with `artist_readiness` (a 🔴 status *after* collection), not upstream in the form.
   - 2026-08-12: recurrence, beta session Grinch — SoundCloud "correctement configuré", zero data. `_test_soundcloud` returned ✅ with `count=0`. Sibling sweep found the class on all four platforms: soundcloud (green on 0 tracks), meta (`/me` is identical for every tenant, never touched `account_id`), youtube (key-only green), spotify (green with no artist ID).
   - 2026-08-20: all four fixed + guard added (proven red on the pre-fix tree, green after). Meta now probes `act_<id>` and names asset-sharing as the likely cause; YouTube rejects an empty channel and points at the "… - Topic" channel; SoundCloud rejects a profile with no public track.
@@ -689,6 +691,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: src/utils/credential_loader.py
 - first_seen: 2026-06-15 (Benken), recurred 2026-08-12 (Grinch)
 - History:
+  - 2026-08-22: last surviving site closed — `src/collectors/instagram_api_collector.py:43` still read `ig_user_id or os.getenv("INSTAGRAM_USER_ID")`. Unreachable through the DAG (which skips blanks) and reachable by any direct instantiation. The existing pytest signature could not have caught it because the DAG path was already correct; the new guard is an **AST sweep** over collectors and DAGs for `<x> or os.getenv(<identity var>)`. AST is mandatory here: the removed variable names appear in the explanatory comments of the very files checked, so a grep would be permanently red on the documentation of its own fix.
   - 2026-08-20: two beta sessions, same double symptom ("all credentials failed" + "the data was the admin's"). Sites fixed: `soundcloud_daily.py:103`, `youtube_daily.py:79`, `meta_ads_api_collector.py:81`, `soundcloud_api_collector.py:46`, plus `spotify_api_daily.py` (tenant #1's app credentials served the whole fleet; `SPOTIFY_ARTIST_IDS` folded the admin into every run). Guard proven: **7 failed / 2 passed** on the unpatched tree, 9 passed after. Two pre-existing tests asserted the defective contract (`test_db_error_returns_empty`) and were inverted.
   - 2026-08-20: adjacent finding surfaced by the guard itself — nothing constrains `saas_artists.spotify_artist_id` to one tenant, and the DAG took `_sa[0][0]`, attributing a whole catalogue to whichever tenant had the lower id. Ambiguous ownership now skips with both ids logged.
 
@@ -797,6 +800,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: src/dashboard/views/credentials/_core.py
 - first_seen: 2026-08-20
 - History:
+  - 2026-08-22: the rule existed and Instagram was **exempt from it** — `UNIQUE_IDENTITY_FIELDS` had four entries against a five-entry registry, so `find_identity_conflict` returned None and two tenants could claim the same Instagram Business Account in silence. The map now derives from `tenant_identity.PLATFORM_IDENTITIES`, and the lookup queries the STORAGE platform (`meta`) because a `platform='instagram'` row does not exist. See `guard-derived-from-the-thing-it-guards` for why no test failed.
   - 2026-08-20: surfaced by a guard, not by a report — a canary tenant created during the session reused the admin's `spotify_artist_id`, and the E2E test attributed the catalogue to the wrong account. `_sa[0][0]` had been silently picking the lower id.
 
 ## probe-scoped-to-the-machine-not-the-repo
@@ -1142,3 +1146,28 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
     keeps making.** Nothing errors, nothing logs, and the reader — human or model —
     concludes the feature is wired. The guard asserts reachability, not equality:
     every declared value must be producible from some real caller input.
+
+## guard-derived-from-the-thing-it-guards
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a test is GREEN while the thing it guards is wrong, because it derives its own scope or its own expectation from that thing. Two shapes, both measured 2026-08-22: (a) an assertion that two copies are EQUAL, passing while both are wrong; (b) a parametrised suite whose cases come from the registry under test, so a missing entry removes test cases instead of failing one — the run goes from "N passed" to "N-3 passed", both green.
+- signature: `python3 -m pytest tests/test_identity_registry_ratchet.py tests/test_canary_identity_map_is_derived.py -q`
+- root_cause: `tests/test_create_canary.py` asserted `create_canary._IDENTITY_FIELD == _core.UNIQUE_IDENTITY_FIELDS`. Both had four entries, both omitted `instagram`, and the assertion therefore **held the gap in place**: adding Instagram to either side alone would have failed the suite. Meanwhile `tests/test_identity_uniqueness.py` parametrised over `UNIQUE_IDENTITY_FIELDS`, so Instagram was never a case. The concrete cost: `find_identity_conflict` returned None for `instagram`, two tenants could claim the same Instagram Business Account with no refusal, and the canary could not exercise the platform that broke in the most recent artist test.
+- long_term_fix: `src/utils/tenant_identity.PLATFORM_IDENTITIES` is the single registry; six former copies now derive from it (`_core.UNIQUE_IDENTITY_FIELDS`, `create_canary._IDENTITY_FIELD`, `artist_readiness._identity`, `_core.PLATFORM_TO_DAGS`, `tests/test_identity_fields_collectable`, and the `IDENTITY_KEYS`/`IDENTITY_MIRRORS` views). Against the derivation itself, two things a derived guard cannot do: a **literal ratchet** naming the five platforms in a file of its own, and an **AST assertion that a consumer holds no map literal at all** — which fails on a pasted copy even when the copy happens to be correct.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_identity_registry_ratchet.py }
+- rex_ref: src/utils/tenant_identity.py
+- first_seen: 2026-08-12 (Grinch) — named 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by mutation and, more usefully, by the CONTRAST: removing `instagram` from the registry leaves the parametrised uniqueness suite green with fewer cases (8 passed) while the literal ratchet fails. Pasting the old four-entry literal back into `create_canary.py` fails all three derived-map assertions, including the AST one that an equality check could never make.
+- Notes:
+  - The three pure assertions were moved OUT of `tests/test_create_canary.py`
+    into their own file because that module is DB-gated as a whole. They needed no
+    database and were invisible on any developer machine without Postgres on 5433 —
+    which is precisely the kind of machine where the omission was introduced. A
+    guard that only runs in CI is a guard that does not run while the code is
+    being written.
+  - Sibling of `catalogue-index-omits-its-own-entries`: an omission that
+    contradicts nothing. There the index never claimed completeness; here the suite
+    never claimed a case count. Both are silent in the one direction that matters.

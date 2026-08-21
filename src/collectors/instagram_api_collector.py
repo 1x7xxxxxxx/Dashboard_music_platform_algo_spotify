@@ -39,11 +39,26 @@ class InstagramCollector:
         """
         self.artist_id = artist_id
         self.access_token = access_token or os.getenv("INSTAGRAM_ACCESS_TOKEN")
-        # L'ID du compte Instagram Business (pas le nom d'utilisateur)
-        self.ig_user_id = (ig_user_id or os.getenv("INSTAGRAM_USER_ID") or "").strip() or None
+        # The Instagram Business account id (not the username). NO env fallback: the
+        # environment carries the ADMIN's identity, so `ig_user_id or os.getenv(...)`
+        # makes a tenant with a blank field silently collect the admin's account and
+        # file the rows under itself. That is `tenant-identity-falls-back-to-admin`,
+        # and this was its last surviving site — unreachable through the DAG (which
+        # skips blanks) but reachable by any direct instantiation. App credentials
+        # may still fall back to the env; an IDENTITY may not (ADR-006).
+        self.ig_user_id = (ig_user_id or "").strip() or None
 
-        if not self.access_token or not self.ig_user_id:
-            raise ValueError("❌ Manque INSTAGRAM_ACCESS_TOKEN ou INSTAGRAM_USER_ID dans .env")
+        if not self.access_token:
+            raise ValueError(
+                "❌ Aucun token Meta : l'app partagée n'est pas configurée "
+                "(META_ACCESS_TOKEN / INSTAGRAM_ACCESS_TOKEN) — action administrateur."
+            )
+        if not self.ig_user_id:
+            raise ValueError(
+                f"❌ Artiste {artist_id} : aucun Instagram Business Account ID déclaré. "
+                "À saisir dans Dashboard → Credentials → Meta → « Instagram Business "
+                "Account ID »."
+            )
 
         self.app_id = app_id or os.getenv("META_APP_ID")
         self.app_secret = app_secret or os.getenv("META_APP_SECRET")
@@ -372,5 +387,6 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 2:
         sys.exit("usage: instagram_api_collector.py <artist_id>  "
-                 "(INSTAGRAM_USER_ID must be set for that artist)")
+                 "(that artist must have declared an Instagram Business Account ID "
+                 "in Credentials → Meta)")
     InstagramCollector(artist_id=int(sys.argv[1])).run()

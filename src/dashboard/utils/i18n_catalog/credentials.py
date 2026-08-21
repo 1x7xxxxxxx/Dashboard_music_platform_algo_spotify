@@ -291,6 +291,14 @@ EN = {
         "exist\", and the connection test will say so.)*\n"
         "3. Click **Test connection**. If it is green, there is nothing else to do."
     ),
+    "credentials.meta.ig_id_missing": (
+        "Instagram Business Account ID missing — enter it in the Meta tab "
+        "(\"Instagram Business Account ID\" field). Without it, no Instagram "
+        "statistics can be collected."
+    ),
+    "credentials.meta.network_error_probe": (
+        "Network error during the Instagram test: {err}"
+    ),
     "credentials.meta.ig_header": "### Additional steps — Instagram",
     "credentials.meta.ig_body": (
         "If you want Instagram stats, enter your Instagram Business Account ID below. The "

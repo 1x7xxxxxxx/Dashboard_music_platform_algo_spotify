@@ -172,3 +172,58 @@ def test_the_shared_writer_really_writes_BOTH_places() -> None:
         except Exception:  # noqa: BLE001 - cleanup must not mask the assertion above
             pass
         db.close()
+
+
+def test_writing_instagram_never_creates_an_instagram_row() -> None:
+    """The namespace split, proven at the only place it can go wrong.
+
+    Instagram is a logical platform everywhere — readiness, the alert monitor, the
+    connection tests, the canary — but its identity lives INSIDE the `meta`
+    credentials row, because the artist types it in the Meta tab and
+    `instagram_daily` selects tenants on `creds['meta']['ig_user_id']`.
+
+    A `platform='instagram'` row would be an orphan: written, never read, and the
+    tenant would look connected while collecting nothing. That is exactly the shape
+    of `identity-mirrored-but-written-once`, which cost the canary its credibility.
+
+    No DB needed — the writer is handed a recorder and asked what it would run.
+    """
+    from src.utils.tenant_identity import write_platform_identity
+
+    class _Recorder:
+        def __init__(self):
+            self.calls = []
+
+        def execute_query(self, sql, params=None):
+            self.calls.append((" ".join(sql.split()), params))
+
+    db = _Recorder()
+    write_platform_identity(db, 42, "instagram", {"ig_user_id": "17841400000000000"})
+
+    inserts = [(sql, prm) for sql, prm in db.calls if "INSERT INTO artist_credentials" in sql]
+    assert inserts, "nothing was written at all"
+    platforms = {prm[1] for _, prm in inserts}
+    assert platforms == {"meta"}, (
+        f"the Instagram identity was written under platform(s) {platforms} — "
+        f"a 'instagram' row is an orphan no collector reads"
+    )
+    assert not any("saas_artists" in sql for sql, _ in db.calls), (
+        "Instagram declares no mirror; nothing should touch saas_artists"
+    )
+
+
+def test_writing_instagram_does_not_clobber_the_ad_account() -> None:
+    """The meta row carries two identities; the jsonb merge must compose, not replace."""
+    from src.utils.tenant_identity import write_platform_identity
+
+    seen = []
+
+    class _Recorder:
+        def execute_query(self, sql, params=None):
+            seen.append(" ".join(sql.split()))
+
+    write_platform_identity(_Recorder(), 42, "instagram", {"ig_user_id": "1784140"})
+    merge = [s for s in seen if "INSERT INTO artist_credentials" in s]
+    assert merge and "|| EXCLUDED.extra_config" in merge[0], (
+        "the upsert no longer merges — saving Instagram would erase account_id"
+    )

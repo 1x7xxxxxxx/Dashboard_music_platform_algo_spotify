@@ -65,29 +65,16 @@ def _test_meta(fields: dict) -> tuple:
                 "Assets → Ajouter des assets → Compte publicitaire, permission Annonceur)."
             ).format(act=act_id, detail=detail)
         # Instagram rides the same System User token but a different asset. It is
-        # optional: an artist may run ads without connecting IG.
+        # optional HERE — an artist may run ads without connecting IG — so a blank id
+        # only skips the suffix. `_test_instagram` below is the standalone probe, and
+        # there a blank id is a FAILURE, never a pass.
         ig_user_id = fields.get('ig_user_id', '').strip()
         ig_suffix = ""
         if ig_user_id:
-            ri = requests.get(
-                f'{META_GRAPH_BASE_URL}/{ig_user_id}',
-                params={'access_token': token, 'fields': 'username,followers_count'},
-                timeout=10,
-                allow_redirects=False,
-            )
-            ig = ri.json()
-            if ri.status_code != 200 or not ig.get('username'):
-                err = ig.get('error', {})
-                detail = err.get('message', ri.text[:150]) if isinstance(err, dict) else str(err)
-                return False, t(
-                    "credentials.meta.ig_unreachable",
-                    "Compte publicitaire OK, mais le compte **Instagram {ig}** est "
-                    "inaccessible : {detail}\n\n→ Vérifie que c'est bien un compte "
-                    "**Business/Créateur** relié à une Page, et que la Page a été "
-                    "partagée avec le Business Manager de la plateforme."
-                ).format(ig=ig_user_id, detail=detail)
-            ig_suffix = t("credentials.meta.ig_ok_suffix",
-                          " · Instagram @{user} ✅").format(user=ig['username'])
+            ok, msg = _probe_instagram(ig_user_id, token)
+            if not ok:
+                return False, msg
+            ig_suffix = msg
         return True, t("credentials.meta.test_ok_account",
                        "Connecté : {name} — compte publicitaire « {acc} » accessible ✅{ig}").format(
                            name=data.get('name', data['id']),
@@ -164,3 +151,63 @@ def _guide_meta():
             "(2) Préfixe `act_` dans Ad Account ID → supprimer, le dashboard l'ajoute. "
             "(3) Scope `read_insights` uniquement → relancer avec `ads_read` + `ads_management`."
         ))
+
+
+def _probe_instagram(ig_user_id: str, token: str):
+    """(ok, message) for one Instagram Business Account against the shared token.
+
+    Extracted so the platform has a probe of its own. Inlined inside `_test_meta` it
+    could only ever run as an optional suffix of another platform's test — Instagram
+    was the one logical platform with no entry in `CONNECTION_TESTS`, so
+    `tools/artist_preflight.py` step 3 silently skipped it and no artist ever got a
+    verdict on it.
+    """
+    ri = requests.get(
+        f'{META_GRAPH_BASE_URL}/{ig_user_id}',
+        params={'access_token': token, 'fields': 'username,followers_count'},
+        timeout=10,
+        allow_redirects=False,
+    )
+    ig = ri.json()
+    if ri.status_code != 200 or not ig.get('username'):
+        err = ig.get('error', {})
+        detail = err.get('message', ri.text[:150]) if isinstance(err, dict) else str(err)
+        return False, t(
+            "credentials.meta.ig_unreachable",
+            "Compte publicitaire OK, mais le compte **Instagram {ig}** est "
+            "inaccessible : {detail}\n\n→ Vérifie que c'est bien un compte "
+            "**Business/Créateur** relié à une Page, et que la Page a été "
+            "partagée avec le Business Manager de la plateforme."
+        ).format(ig=ig_user_id, detail=detail)
+    return True, t("credentials.meta.ig_ok_suffix",
+                   " · Instagram @{user} ✅").format(user=ig['username'])
+
+
+def _test_instagram(fields: dict):
+    """Standalone Instagram connection test — proves the TENANT, not the shared app.
+
+    A blank `ig_user_id` returns False. Never True: a test that passes on a missing
+    identity is the `connection-test-proves-app-not-tenant` class, and the artist
+    reads it as "connected" while nothing can ever collect.
+    """
+    import os
+
+    ig_user_id = (fields.get('ig_user_id') or '').strip()
+    if not ig_user_id:
+        return False, t(
+            "credentials.meta.ig_id_missing",
+            "Instagram Business Account ID manquant — renseigne-le dans l'onglet Meta "
+            "(champ « Instagram Business Account ID »). Sans lui, aucune statistique "
+            "Instagram ne peut être collectée."
+        )
+    token = (fields.get('access_token') or os.getenv('META_ACCESS_TOKEN') or '').strip()
+    if not token:
+        return False, t(
+            "credentials.meta.test_not_configured",
+            "App Meta partagée non configurée — contacte l'administrateur."
+        )
+    try:
+        return _probe_instagram(ig_user_id, token)
+    except Exception as e:  # noqa: BLE001 — a probe failure is a red verdict, not a crash
+        return False, t("credentials.meta.network_error_probe",
+                        "Erreur réseau pendant le test Instagram : {err}").format(err=e)

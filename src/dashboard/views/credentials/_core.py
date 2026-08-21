@@ -10,6 +10,7 @@ Pure relocation from the former credentials.py — no logic change.
 import json
 
 from src.utils.config_loader import config_loader
+from src.utils.tenant_identity import PLATFORM_IDENTITIES, storage_platform
 
 
 # LOGICAL platform → DAG to auto-trigger when its identity is saved.
@@ -290,12 +291,20 @@ def _decode_row(row: dict, fields: list) -> dict:
 # claiming the same platform account is not a configuration nuance: the collectors
 # would write the same upstream data under two artist_ids, and `spotify_api_daily`
 # cannot even decide whose catalogue it is (it refuses and logs both ids).
-UNIQUE_IDENTITY_FIELDS = {
-    'soundcloud': 'user_id',
-    'youtube': 'channel_id',
-    'meta': 'account_id',
-    'spotify': 'spotify_artist_id',
-}
+# DERIVED from `src/utils/tenant_identity.PLATFORM_IDENTITIES`, never restated.
+#
+# Restated, this map had FOUR entries while the registry had five: `instagram` was
+# missing, so `find_identity_conflict` below returned None for it and two tenants
+# could claim the same Instagram Business Account in silence — the exact collision
+# this function exists to refuse. `tools/create_canary.py` carried the same amputated
+# copy, so the canary could not exercise Instagram either.
+#
+# What kept it invisible is worth more than the omission: `tests/test_create_canary`
+# asserted the tool EQUALLED this map, so a green guard held the gap in place; and
+# `tests/test_identity_uniqueness` parametrised over this map, so the missing entry
+# removed test cases instead of failing one. A registry its own guards derive from
+# cannot report its own omission.
+UNIQUE_IDENTITY_FIELDS = {k: v.field for k, v in PLATFORM_IDENTITIES.items()}
 
 
 def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
@@ -315,7 +324,10 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
     rows = db.fetch_query(
         "SELECT artist_id FROM artist_credentials "
         "WHERE platform = %s AND artist_id <> %s AND extra_config->>%s = %s",
-        (platform, artist_id, field, value),
+        # STORAGE platform: Instagram's identity lives in the `meta` row, so
+        # searching platform='instagram' would scan rows that never exist and
+        # therefore always report "no conflict".
+        (storage_platform(platform), artist_id, field, value),
     )
     if not rows and platform == 'spotify':
         # Spotify's identity is mirrored onto saas_artists — check there too.

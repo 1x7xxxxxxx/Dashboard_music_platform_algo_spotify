@@ -149,6 +149,7 @@ def step_identity(db, artist_id: int, scope: set[str] | None = None) -> bool:
 def step_connection_tests(db, artist_id: int, scope: set[str] | None = None) -> bool:
     """Reuse the exact probes the credentials form runs — no second implementation."""
     from src.dashboard.views.credentials._registry import CONNECTION_TESTS
+    from src.utils.tenant_identity import storage_platform
 
     print("\n▶ 3. Connection tests (per platform, as the artist sees them)")
     creds = _credentials(db, artist_id)
@@ -157,7 +158,10 @@ def step_connection_tests(db, artist_id: int, scope: set[str] | None = None) -> 
         if scope is not None and platform not in scope:
             print(f"  ⏭ {platform} — out of scope (--platforms)")
             continue
-        fields = dict(creds.get(platform, {}))
+        # STORAGE row, not the logical name: Instagram's id lives in the `meta` row,
+        # so `creds.get('instagram')` would be empty for every tenant and the probe
+        # would report a missing identity for one that is correctly declared.
+        fields = dict(creds.get(storage_platform(platform), {}))
         if platform == "spotify" and not fields.get("spotify_artist_id"):
             row = db.fetch_query(
                 "SELECT spotify_artist_id FROM saas_artists WHERE id = %s", (artist_id,))
