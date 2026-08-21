@@ -1008,3 +1008,60 @@ mesuré à zéro. Le déclencheur qui les rouvre est nommé dans l'ADR, et il es
   hors produit, pourrait encore créer le doublon. C'est vrai de toute contrainte posée
   au niveau applicatif, et la réponse serait la migration que R24 chiffrait — à rouvrir
   si un jour un tel doublon apparaît vraiment.
+
+### P3 — Cinq items qui attendent une entrée, pas une décision (clos par ADR-008, 2026-08-21)
+
+Clos par **ADR-008 — « Work that waits on an input we do not have »**. Ils ne sont ni
+différés par préférence (c'est ADR-007) ni bloqués par un arbitrage : l'ingénierie est
+comprise et la donnée sur laquelle elle opère n'existe pas encore. Chaque condition de
+réouverture est une requête qu'on peut lancer.
+
+- [x] **R5 — Retraining automatique champion/challenger** (P3) — mesuré en production le
+  2026-08-21 : `SELECT count(*) FROM ml_prediction_outcomes` → **0**. Le DAG
+  `ml_outcome_labeling` qui *produit* ces paires tourne déjà (migration 060) ; elles
+  s'accumuleront seules. Le piège est écrit dans l'ADR : construire la comparaison
+  maintenant livrerait un pipeline **intestable** qui a l'air fini, ce qui est pire que
+  rien puisque plus personne ne voit le manque. *Rouvre quand : assez de paires étiquetées
+  pour tenir un jeu de test — quelques centaines, pas une poignée.*
+- [x] **R4 — More training data + évaluation per-tenant** (P3) — un seul locataire porte
+  de la donnée ; une évaluation « par locataire » sur un locataire n'évalue rien.
+  *Rouvre quand : un deuxième locataire accumule son propre historique étiqueté.*
+- [x] **R6 — RR volume regressor** (P3) — supprimé sur un R²=0,23 honnête en group-CV,
+  et la fiche disait déjà « blocker = volume, pas features ». *Rouvre avec R4.*
+- [x] **R7 — Resurrection tuning** (P3) — les seuils de `detect_saves_resurrection`
+  (min_age 180 j, 2× baseline, min_spark 50) sont heuristiques et n'ont jamais été
+  calibrés contre une vraie série. *Rouvre quand : `s4a_song_saves_daily` porte assez de
+  lignes datées pour voir une résurrection réelle.* C'est la condition la plus silencieuse
+  des cinq.
+- [x] **R14 — Onboarding UX / Meta multi-comptes (C1)** (P3) — dernier reste de R14 après
+  la livraison de D1 (chaîne YouTube) et le constat que les guides étaient complets.
+  Mesuré : **2 locataires, 1 compte publicitaire chacun**, et `meta_campaigns` **n'a pas
+  de colonne `account_id`** — le schéma est mono-compte par construction, donc la donnée
+  ne sait même pas de quel compte vient une campagne. C'est une brique (colonne + boucle
+  côté collecteur + décision d'affichage : fusionner ou séparer), et la concevoir contre
+  zéro demande revient à deviner la question produit — le devinage partant en schéma.
+  *Rouvre quand : un locataire déclare un second compte. Le formulaire n'accepte
+  aujourd'hui qu'un `account_id`, donc le déclencheur est une demande explicite, pas une
+  condition silencieuse.*
+
+### P4 — Le filtre inutile avait déjà été retiré (clos, 2026-08-21)
+
+- [x] **R16 — Filtre inutile à enlever (front)** (P4) — périmé, et c'est la mesure qui le
+  dit plutôt qu'un avis. La fiche décrivait une redondance « date/release **vs période
+  28j/12m** ». **Ce contrôle 28j/12m n'existe plus dans le produit** : le commit
+  `a975445` (« unified smart period filter + 4 view retrofits ») l'a remplacé par les
+  quatre presets de `smart_period_filter` — `📅 En cours` / `🚀 Depuis dernière release`
+  / `♾️ Tout l'historique` / `🎯 Plage personnalisée`, plus une granularité
+  Semaine/Mois/Année sur « En cours ».
+
+  Les seules occurrences de « 28j » et « 12 mois » qui subsistent sont ailleurs et
+  légitimes : les guides CSV disent à l'artiste quel filtre régler **dans l'interface de
+  Spotify for Artists** (pas la nôtre), et `algo_knowledge.py` porte une unité métier
+  (« streams/28j »).
+
+  Vérifié aussi par énumération plutôt qu'à l'œil : les sept vues à filtre de période
+  ont été rendues via `AppTest` et leurs contrôles listés. Aucune n'en porte deux qui se
+  recouvrent — au plus un sélecteur d'entité et le filtre de période, ce qui est le
+  dessin voulu. La relecture du code du 2026-08-21 avait déjà conclu qu'aucun filtre
+  redondant n'était démontrable ; savoir *pourquoi* manquait, et c'est que le nettoyage
+  avait déjà eu lieu.
