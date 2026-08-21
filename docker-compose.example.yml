@@ -110,6 +110,13 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
+      # tools/ too: the operational scripts (create_canary, artist_preflight,
+      # tenant_contamination_check) need psycopg2, which lives in the containers
+      # and NOT on the host. Without this mount the documented production
+      # procedure cannot run at all — measured 2026-08-21 on the live server:
+      # "can't open file '/app/tools/create_canary.py'". Read-only: these
+      # scripts are read, never written, from inside a container.
+      - ./tools:/opt/airflow/tools:ro
       - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
       - ./machine_learning:/opt/airflow/machine_learning:ro
@@ -141,6 +148,13 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - airflow_logs:/opt/airflow/logs
       - ./src:/opt/airflow/src
+      # tools/ too: the operational scripts (create_canary, artist_preflight,
+      # tenant_contamination_check) need psycopg2, which lives in the containers
+      # and NOT on the host. Without this mount the documented production
+      # procedure cannot run at all — measured 2026-08-21 on the live server:
+      # "can't open file '/app/tools/create_canary.py'". Read-only: these
+      # scripts are read, never written, from inside a container.
+      - ./tools:/opt/airflow/tools:ro
       - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
       - ./machine_learning:/opt/airflow/machine_learning:ro
@@ -173,6 +187,13 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - airflow_logs:/opt/airflow/logs
       - ./src:/opt/airflow/src
+      # tools/ too: the operational scripts (create_canary, artist_preflight,
+      # tenant_contamination_check) need psycopg2, which lives in the containers
+      # and NOT on the host. Without this mount the documented production
+      # procedure cannot run at all — measured 2026-08-21 on the live server:
+      # "can't open file '/app/tools/create_canary.py'". Read-only: these
+      # scripts are read, never written, from inside a container.
+      - ./tools:/opt/airflow/tools:ro
       - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
       - ./machine_learning:/opt/airflow/machine_learning:ro

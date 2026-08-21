@@ -949,3 +949,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: mutation-verified against a throwaway canonical database — red with the single seeded tenant, green once a second was inserted.
   - 2026-08-21: the cost of NOT having this was two beta sessions burned an hour each on defects every one of these checks would have caught in advance. The fixture is two rows.
+
+## script-unreachable-from-its-dependencies
+- status: fixed
+- severity: P2
+- kind: deterministic
+- symptom: a runbook step that reads perfectly cannot be executed anywhere. `can't open file '/app/tools/<script>.py'` from a container, `ModuleNotFoundError: psycopg2` from the host.
+- root_cause: the script and its runtime dependency live in different places. `tools/` is on the HOST and is not mounted into any container; `psycopg2` is installed IN the containers and not on the host. Measured 2026-08-21 on the live server while running the documented production procedure for the canary tenant. This is the same split that had already been diagnosed once — `src/utils/central_apps.py` was moved out of `tools/` precisely because `tools/` is not importable inside Airflow — but the lesson was applied to one script and not to its neighbours, which is how a class survives its own fix.
+- signature: `python3 -m pytest tests/test_operational_scripts_are_reachable_in_containers.py -q`
+- long_term_fix: every service that mounts `./src` also mounts `./tools:/opt/airflow/tools:ro`. The guard reads `docker-compose.example.yml` and requires the pairing wherever `./src` is mounted, so a new service cannot be added half-equipped. Read-only on purpose: a container that can rewrite the repo's operational scripts is a surprise nobody wants.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_operational_scripts_are_reachable_in_containers.py }
+- rex_ref: tools/create_canary.py
+- first_seen: 2026-08-21
+- History:
+  - 2026-08-21: ⚠️ the production `docker-compose.yml` is **gitignored**, so this fix does NOT propagate by `git pull`. The mount has to be added on the server by hand, once. A guard that only reads the versioned example cannot see that — it is checking the template, not the deployment. Named here rather than left implicit.

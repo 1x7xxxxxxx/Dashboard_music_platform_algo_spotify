@@ -101,16 +101,31 @@ réels, tous structurellement invisibles à une base mono-locataire :
 ⚠️ **Dans cet ordre.** Le correctif du miroir d'identité doit être déployé **avant**, sinon
 le canari de prod naîtra avec le même défaut que celui qu'il vient de révéler.
 
+**Déjà fait pour toi le 2026-08-21** : code déployé (`15f3a19`), registre de migrations
+posé en prod (**71/71**, second passage « nothing to apply »), clé primaire de
+`s4a_song_playlist_adds` vérifiée intacte.
+
+**Il reste une étape manuelle, une seule fois.** Le compose de production est
+**gitignoré**, donc le montage que je viens d'ajouter à `docker-compose.example.yml`
+**n'arrive pas par `git pull`**. Sans lui la commande suivante échoue sur
+`can't open file '/app/tools/create_canary.py'` : `tools/` est sur l'hôte, où
+psycopg2 n'est pas installé, et psycopg2 est dans les conteneurs, où `tools/` n'était
+pas monté.
+
 ```bash
 ssh root@167.233.92.1
 cd /opt/streamlytics
-git pull --ff-only origin main
-docker compose up -d --build dashboard api
-bash tools/migrate.sh                       # pose le registre schema_migrations
-make canary NAME="Canary prod" SPOTIFY=4tZwfgrHOc3mvqYlEYSvVi YOUTUBE=UC_x5XG1OV2P6uZZ5FSM9Ttw
+nano docker-compose.yml     # sous CHAQUE service airflow, à côté de « - ./src:/opt/airflow/src » :
+                            #       - ./tools:/opt/airflow/tools:ro
+docker compose up -d airflow-scheduler airflow-webserver
+
+# puis le canari lui-même :
+docker exec airflow_scheduler python3 /opt/airflow/tools/create_canary.py \
+    --name "Canary prod" --slug canary-prod \
+    --spotify 4tZwfgrHOc3mvqYlEYSvVi --youtube UC_x5XG1OV2P6uZZ5FSM9Ttw --dry-run
 ```
-> `make` n'existe pas sur le serveur : utiliser
-> `python3 tools/create_canary.py --name "Canary prod" --spotify … --youtube …`.
+Retire `--dry-run` quand la sortie te convient. `make` n'existe pas sur le serveur —
+d'où l'appel direct au script.
 
 **L'identité n'a pas besoin de t'appartenir** — vérifié le 2026-08-21 : Spotify, YouTube et
 SoundCloud lisent des endpoints **publics** avec les credentials de l'app admin. C'est ce
@@ -121,7 +136,7 @@ est à l'arrêt (§1).
 ### Vérification
 
 ```bash
-python3 tools/artist_preflight.py --platforms youtube
+docker exec airflow_scheduler python3 /opt/airflow/tools/artist_preflight.py --platforms youtube
 ```
 Doit finir sur `✅ Pre-flight green FOR youtube ONLY`.
 
