@@ -122,3 +122,53 @@ def test_the_module_parses_and_exposes_its_contract() -> None:
     names = {n.name for n in ast.walk(ast.parse(src))
              if isinstance(n, ast.FunctionDef)}
     assert {"write_platform_identity", "mirrored_columns"} <= names
+
+
+def test_the_shared_writer_really_writes_BOTH_places() -> None:
+    """The effect, not the artefact. Every other test here checks that a call exists.
+
+    A call that exists and writes one table is exactly the defect this file is about,
+    so at least one test has to look at the database.
+    """
+    from tests.db_gate import db_ready
+
+    if not db_ready():
+        pytest.skip("needs the live schema")
+
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.env_files import load_project_env
+    from src.utils.tenant_identity import write_platform_identity
+
+    load_project_env()
+    db = PostgresHandler.from_env_or_config()
+    probe = "test-identity-probe-3f9a"
+    try:
+        rows = db.fetch_query(
+            "SELECT id, spotify_artist_id FROM saas_artists WHERE is_canary = TRUE "
+            "AND active = TRUE ORDER BY id LIMIT 1")
+        if not rows:
+            pytest.skip("no canary tenant here — run: make canary NAME=… SPOTIFY=…")
+        artist_id, original = rows[0]
+
+        write_platform_identity(db, artist_id, "spotify", {"spotify_artist_id": probe})
+
+        mirror = db.fetch_query(
+            "SELECT spotify_artist_id FROM saas_artists WHERE id = %s", (artist_id,))[0][0]
+        creds = db.fetch_query(
+            "SELECT extra_config->>'spotify_artist_id' FROM artist_credentials "
+            "WHERE artist_id = %s AND platform = 'spotify'", (artist_id,))[0][0]
+
+        assert creds == probe, "the credentials row was not written"
+        assert mirror == probe, (
+            "saas_artists.spotify_artist_id was NOT updated — the mirror the Spotify "
+            "DAG reads. This is the exact shape that made a tenant look connected "
+            "everywhere and collect nothing."
+        )
+    finally:
+        # Put the tenant back exactly as it was, mirror included.
+        try:
+            write_platform_identity(
+                db, artist_id, "spotify", {"spotify_artist_id": original or ""})
+        except Exception:  # noqa: BLE001 - cleanup must not mask the assertion above
+            pass
+        db.close()
