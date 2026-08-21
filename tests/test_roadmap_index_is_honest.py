@@ -134,3 +134,32 @@ def test_the_actionable_index_says_what_it_is_for():
         "the index no longer states that it holds work startable today — which is "
         "the only property `/resume` and `/sprint` actually need from it."
     )
+
+
+def test_the_roadmap_never_states_two_different_test_counts() -> None:
+    """Two summary paragraphs, two numbers, and the reader believes the first one.
+
+    Measured 2026-08-21: rewriting the resume header left the previous paragraph
+    in place underneath. The file then claimed, four lines apart, "920 colonnes /
+    92 tables · 1067 tests verts" and "917 colonnes / 91 tables · 900 tests verts",
+    plus "trois items" against "cinq items".
+
+    This is the file `/resume` reads FIRST, so a stale number here is not cosmetic:
+    it is the state a session starts from. Contradiction is checkable without
+    knowing which number is right — and a document that disagrees with itself is
+    wrong whichever half you trust.
+    """
+    text = ACTIVE.read_text(encoding="utf-8")
+
+    counts = set(re.findall(r"\*\*([\d\s]{3,7}) tests verts\*\*", text))
+    normalised = {c.replace(" ", "").replace(" ", "") for c in counts}
+    assert len(normalised) <= 1, (
+        f"the roadmap states {len(normalised)} different test counts: "
+        f"{sorted(normalised)}. Whichever is right, the file contradicts itself — "
+        "and this is the first thing /resume reads."
+    )
+
+    tables = set(re.findall(r"(\d{2,4}) colonnes / (\d{1,3}) tables", text))
+    assert len(tables) <= 1, (
+        f"the roadmap states {len(tables)} different schema sizes: {sorted(tables)}."
+    )

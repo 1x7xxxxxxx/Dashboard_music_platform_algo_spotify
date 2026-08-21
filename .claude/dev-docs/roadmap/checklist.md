@@ -103,17 +103,10 @@ sortie est redirigée. Passer par `audit_runner.py` ou `command grep`.
 **▶️ Où on en est (MAJ 2026-08-21, nuit) — la file d'ingénierie est vide.**
 
 Prod à jour (`prod == canonique`, 920 colonnes / 92 tables, code déployé == `origin/main`,
-registre de migrations **71/71**), **1065 tests verts**, `ruff check .` propre, audit
+registre de migrations **71/71**), **1068 tests verts**, `ruff check .` propre, audit
 déterministe propre, canari de production surveillé. L'index `## 📋 Tâches ouvertes` est
 à **0**, et les trois items de `## 🙋 En attente de toi` demandent chacun un geste que
 seul un humain peut poser — détail juste en dessous.
-
-Prod à jour (`prod == canonique`, 917 colonnes / 91 tables, code déployé == `origin/main`),
-**900 tests verts**, `ruff check .` propre sur tout le dépôt, les cinq gardes bloquants de CI
-passent. L'index `## 📋 Tâches ouvertes` ci-dessus **ne contient rien**, et c'est un état :
-ce qui était mesuré inutile est sorti sous **ADR-007**, ce qui attend une donnée sous
-**ADR-008**, et les cinq items restants sont dans `## 🙋 En attente de toi` parce qu'aucun
-ne peut commencer sans un geste humain.
 
 **Ce qui t'attend — trois choses, et aucune n'est du code.**
 
