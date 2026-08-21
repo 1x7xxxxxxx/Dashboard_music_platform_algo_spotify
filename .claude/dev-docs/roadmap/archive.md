@@ -913,3 +913,28 @@ pointeur qui rate ne se plaint pas.
   Le canari **réel** en production (R20) reste nécessaire et différent : il utilise de
   vrais identifiants contre de vraies API. Celui-ci prouve la plomberie ; l'autre prouve
   le monde.
+
+### P4 — Performance : quatre items deviennent des conditions (clos par décision, 2026-08-21)
+
+Clos par **ADR-007 — « Performance work is trigger-gated, not backlogged »**. Aucun des
+quatre n'était une tâche : chacun portait déjà, écrite à côté de lui, la raison de ne pas
+le faire. Un item mesuré comme inutile coûte une lecture à chaque `/resume` et invite
+périodiquement à « le faire quand même », ce qui dépenserait du risque contre un bénéfice
+mesuré à zéro. Le déclencheur qui les rouvre est nommé dans l'ADR, et il est observable.
+
+- [x] **R8 — Caching `@st.cache_data(ttl=300)` sur 4 vues** (P4) — les requêtes tournent
+  en **moins d'1 ms** ; le vrai levier sur le temps de chargement est le cache Cloudflare,
+  déjà en place. Mettre en cache une requête sub-milliseconde échange de la fraîcheur de
+  données contre rien. *Déclencheur : trafic concurrent avec un p95 réellement ressenti.*
+- [x] **R10 — Splitter les god-functions (171 fonctions > 40 l.)** (P4) — la fiche disait
+  elle-même « **au fil de l'eau, jamais en sweep dédié** ». Un balayage de 171 fonctions
+  est un gros diff sans test comportemental pour rattraper ce qu'il casse, dans un dépôt
+  dont les vues ne sont couvertes que par un render-smoke. *Déclencheur : au moment où la
+  fonction est ouverte pour une autre raison.* Détail par fonction conservé dans
+  `refactor-audit-dashboard.md`.
+- [x] **R11 — Lazy imports (plotly/sklearn/shap)** (P4) — aucune latence par vue n'a jamais
+  été rapportée ni mesurée. *Déclencheur : un cold-start par vue au-dessus d'~1 s.*
+- [x] **R12 — Index composite `s4a_song_timeline(artist_id, song, date)`** (P4) —
+  `EXPLAIN ANALYZE` = **0,4 ms** sur 13 794 lignes via l'index `(artist_id, date)`
+  existant. Ajouter un index que le planificateur n'utilise pas coûte à l'écriture pour
+  rien. *Déclencheur : ~10× le volume (≈140 k lignes), ou un EXPLAIN au-dessus de ~50 ms.*
