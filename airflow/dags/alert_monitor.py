@@ -435,8 +435,13 @@ def check_central_apps(**context):
 
     broken = []
     try:
-        from tools.check_central_apps import (check_meta, check_soundcloud,
-                                              check_spotify, check_youtube)
+        # `src.utils`, not `tools`: tools/ is NOT on the import path inside the
+        # Airflow containers. Measured in production on 2026-08-21 — this task's
+        # first real run reported "No module named 'tools'" instead of the broken
+        # Meta token it exists to find. The ImportError branch below did its job
+        # (it said so rather than reporting success), which is how we know.
+        from src.utils.central_apps import (check_meta, check_soundcloud,
+                                            check_spotify, check_youtube)
         probes = {
             'Spotify': check_spotify,
             'YouTube': check_youtube,

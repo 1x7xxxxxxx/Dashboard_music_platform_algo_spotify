@@ -33,18 +33,35 @@ def _repo_root() -> Path:
 REPO = _repo_root()
 DAG = REPO / "airflow" / "dags" / "alert_monitor.py"
 TOOL = REPO / "tools" / "check_central_apps.py"
+PROBES = REPO / "src" / "utils" / "central_apps.py"
 
 
 def _source() -> str:
     return DAG.read_text(encoding="utf-8")
 
 
-def test_the_detector_still_exists():
-    """Everything below is about wiring; this is the thing being wired."""
-    assert TOOL.is_file(), f"{TOOL} is gone — the central-app probes were the point"
-    src = TOOL.read_text(encoding="utf-8")
+def test_the_probes_live_where_airflow_can_import_them():
+    """`tools/` is not on the container's path — measured, not assumed.
+
+    This task's first production run reported "No module named 'tools'". The
+    probes moved to `src/utils/`, which compose mounts into Airflow; the CLI is a
+    thin shell over them. A check the scheduler cannot import is a check that
+    never runs.
+    """
+    assert PROBES.is_file(), f"{PROBES} is gone — the probes were the point"
+    src = PROBES.read_text(encoding="utf-8")
     for probe in ("check_spotify", "check_youtube", "check_soundcloud", "check_meta"):
-        assert f"def {probe}" in src, f"{probe} disappeared from the detector"
+        assert f"def {probe}" in src, f"{probe} disappeared from the probes"
+
+    assert TOOL.is_file(), "the CLI disappeared — it is how a human runs this by hand"
+    assert "src.utils.central_apps" in TOOL.read_text(encoding="utf-8"), (
+        "the CLI no longer delegates: two copies of the probes will drift, and the "
+        "one Airflow imports is the one that matters."
+    )
+    assert "from src.utils.central_apps import" in _source(), (
+        "alert_monitor imports the probes from somewhere other than src/utils — "
+        "if that somewhere is tools/, the task cannot import it in production."
+    )
 
 
 def test_the_daily_monitor_runs_it():
