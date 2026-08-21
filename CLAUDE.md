@@ -211,6 +211,27 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     somme des deux fichiers rétrécit — une rotation qui perd un item améliore le
     pourcentage sans rien livrer.
 
+18. **≥5 modules ajoutés, supprimés ou renommés sous `src/` dans une session, ou un
+    diagramme de `.claude/dev-docs/architecture.md` touché → `Spawn
+    code-architecture-reviewer`.** Il renvoie un tableau `| Diagramme | Constat |
+    Sévérité | Action |` de dérive **factuelle** entre le diagramme et le code, jamais
+    de suggestion de style. Déclencheur vérifiable : `git diff --name-status
+    <base>..HEAD -- src/ | grep -cE '^(A|D|R)'`. La Views Map a déjà divergé deux fois
+    sans que rien ne le signale.
+
+19. **Un comportement d'API externe qu'aucun fichier de `.claude/dev-docs/` ne
+    documente — code d'erreur inconnu, champ disparu, intégration qui cesse de
+    fonctionner sans changement de notre côté → `Spawn web-research-specialist`.** Il
+    renvoie ≤500 mots : ce que fait l'API / ses contraintes / ce qui s'applique ici /
+    les liens, et signale explicitement deux sources qui se contredisent. Déclencheur
+    vérifiable : `grep -rl "<le code d'erreur>" .claude/dev-docs/` ne renvoie rien.
+    Le cas vivant est R13 — Meta répond `code-190` sur tout REST depuis des semaines.
+
+> Règles 18-19 ajoutées le 2026-08-21 pour la raison mesurée ci-dessus, et pas pour
+> gonfler un score : ces deux agents n'étaient nommés que dans un tableau, donc jamais
+> déclenchés. Si un déclencheur ne se produit jamais en pratique, retirer l'agent est
+> la bonne réponse — pas lui inventer une règle.
+
 <!-- measured-rules:end v2 -->
 ### Skills (`.claude/skills/<nom>/SKILL.md`) — load on demand via Skill tool only
 
