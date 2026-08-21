@@ -77,12 +77,31 @@ def _resolve_artist(db, artist_id: int | None) -> tuple[int, str]:
     return rows[0][0], rows[0][1]
 
 
-def step_central_apps() -> bool:
+def step_central_apps(scope: set[str] | None = None) -> bool:
+    """Every shared app is CHECKED and printed; only the in-scope ones gate.
+
+    `check_meta` became fatal on a malformed token (2026-08-21) — correctly, it is
+    the one Meta check that can be conclusive. But without a scope that made an
+    unrelated platform's broken token block the canary's verification entirely, at
+    step 1, before anything about the tenant was even looked at. A gate must fail
+    on what it was asked to prove, not on its neighbours.
+    """
     from tools.check_central_apps import (check_all_configured, check_meta,
                                           check_soundcloud, check_spotify, check_youtube)
     print("\n▶ 1. Central apps (shared, admin-owned)")
-    results = [c() for c in (check_spotify, check_youtube, check_soundcloud, check_meta)]
-    return check_all_configured() and all(results)
+    checks = {"spotify": check_spotify, "youtube": check_youtube,
+              "soundcloud": check_soundcloud, "meta": check_meta}
+    gating = True
+    for key, check in checks.items():
+        ok = check()
+        if scope is not None and key not in scope:
+            if not ok:
+                print(f"   ↑ {key} is red but out of scope (--platforms) — not gating.")
+            continue
+        gating = gating and ok
+    # check_all_configured() reports absences across every platform, so it only
+    # gates an unrestricted run.
+    return (check_all_configured() if scope is None else True) and gating
 
 
 def _credentials(db, artist_id: int) -> dict:
@@ -227,7 +246,7 @@ def main() -> int:
         print(f"Pre-flight for tenant {artist_id} — {name}")
 
         steps = [
-            ("central apps", step_central_apps),
+            ("central apps", lambda: step_central_apps(scope)),
             ("tenant identity", lambda: step_identity(db, artist_id, scope)),
             ("connection tests", lambda: step_connection_tests(db, artist_id, scope)),
         ]

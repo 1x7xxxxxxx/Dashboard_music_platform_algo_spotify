@@ -44,6 +44,13 @@ vérifie `META_APP_ID` et `META_APP_SECRET` **pendant la même visite**.
    `business_management`, `instagram_basic`, `pages_read_engagement`.
 3. **Copier le token en entier.** Il commence par `EAA`. S'il commence par autre chose,
    la copie a débordé d'un caractère — recommence.
+
+   > **Tu ne peux plus te tromper sans le savoir.** Depuis le 2026-08-21,
+   > `check_meta()` valide la **forme** avant tout appel réseau et refuse un token qui
+   > ne commence pas par `EAA`, en nommant la cause exacte (« 1 caractère en trop »).
+   > Vérifié contre le token actuellement stocké : il le détecte. Après avoir collé le
+   > nouveau, lance `python3 tools/artist_preflight.py` — un mauvais collage se voit en
+   > une seconde, au lieu d'attendre l'e-mail du lendemain matin.
 4. Au même endroit, *Paramètres d'entreprise* → **Applications** : relève l'**ID** et le
    **secret** de l'app, et compare-les à `META_APP_ID` / `META_APP_SECRET`.
 5. Sur le serveur :
@@ -80,68 +87,26 @@ la fraîcheur plus bas).
 
 ---
 
-## 2. R20 — Créer le canari en PRODUCTION · P2  *(le local est fait)*
+## 2. ~~R20 — Créer le canari~~ · ✅ FAIT le 2026-08-21, **local ET production**
 
-**Local : fait le 2026-08-21.** `artist_id=471`, `slug='canary-isolation'`, Spotify
-`4tZwfgrHOc3mvqYlEYSvVi` + YouTube `UC_x5XG1OV2P6uZZ5FSM9Ttw`.
-`python3 tools/artist_preflight.py --platforms youtube` passe **vert de bout en bout**,
-contamination comprise.
+**Prod** : `artist_id=14`, slug `canary-prod`. `artist_preflight --platforms youtube`
+**vert de bout en bout**, contamination comprise. Collecte prouvée sur la vraie prod :
+**10 titres** et **200 vidéos** sous le locataire 14, les deux DAG en `success`.
 
-**Ce qu'il a rapporté en une heure** — c'est l'argument, pas l'anecdote. Trois défauts
-réels, tous structurellement invisibles à une base mono-locataire :
+Le blocage réel a été levé au passage : `tools/` n'était monté dans aucun conteneur
+alors que psycopg2 n'existe QUE dans les conteneurs. Montage
+`- ./tools:/opt/airflow/tools:ro` ajouté aux trois services airflow, **et à la main sur
+le serveur** — le compose de prod est gitignoré, il n'arrive donc pas par `git pull`
+(sauvegarde : `/opt/streamlytics/docker-compose.yml.pre-tools-mount`).
 
-| classe | ce qui se passait |
-|---|---|
-| `identity-mirrored-but-written-once` (P1) | l'identité Spotify vit dans **deux** tables ; l'outil n'en écrivait qu'une. Affichage « Connecté — Daft Punk ✅ » partout, **zéro ligne collectée**. |
-| `api-partial-date-into-date-column` (P2) | Spotify renvoie `release_date` à précision variable ; « 2013 » faisait perdre à l'artiste **tous** ses top tracks du run. Latent depuis des années — ton catalogue n'a que des dates complètes. |
-| `env-resolved-against-cwd` (P2) | le `.env` était résolu contre le répertoire courant : rouges qui mentaient sur leur cause, et un dashboard qui ne chargeait rien lancé de la façon documentée. |
-
-### Ce qui reste : la même commande, sur le serveur
-
-⚠️ **Dans cet ordre.** Le correctif du miroir d'identité doit être déployé **avant**, sinon
-le canari de prod naîtra avec le même défaut que celui qu'il vient de révéler.
-
-**Déjà fait pour toi le 2026-08-21** : code déployé (`15f3a19`), registre de migrations
-posé en prod (**71/71**, second passage « nothing to apply »), clé primaire de
-`s4a_song_playlist_adds` vérifiée intacte.
-
-**Il reste une étape manuelle, une seule fois.** Le compose de production est
-**gitignoré**, donc le montage que je viens d'ajouter à `docker-compose.example.yml`
-**n'arrive pas par `git pull`**. Sans lui la commande suivante échoue sur
-`can't open file '/app/tools/create_canary.py'` : `tools/` est sur l'hôte, où
-psycopg2 n'est pas installé, et psycopg2 est dans les conteneurs, où `tools/` n'était
-pas monté.
-
+Pour le relancer plus tard :
 ```bash
 ssh root@167.233.92.1
-cd /opt/streamlytics
-nano docker-compose.yml     # sous CHAQUE service airflow, à côté de « - ./src:/opt/airflow/src » :
-                            #       - ./tools:/opt/airflow/tools:ro
-docker compose up -d airflow-scheduler airflow-webserver
-
-# puis le canari lui-même :
-docker exec airflow_scheduler python3 /opt/airflow/tools/create_canary.py \
-    --name "Canary prod" --slug canary-prod \
-    --spotify 4tZwfgrHOc3mvqYlEYSvVi --youtube UC_x5XG1OV2P6uZZ5FSM9Ttw --dry-run
-```
-Retire `--dry-run` quand la sortie te convient. `make` n'existe pas sur le serveur —
-d'où l'appel direct au script.
-
-**L'identité n'a pas besoin de t'appartenir** — vérifié le 2026-08-21 : Spotify, YouTube et
-SoundCloud lisent des endpoints **publics** avec les credentials de l'app admin. C'est ce
-qui débloque ton cas « tous mes identifiants admin sont mes propres profils ». Seul **Meta**
-exige une propriété réelle ; le canari ne le couvre donc pas, sans conséquence puisque Meta
-est à l'arrêt (§1).
-
-### Vérification
-
-```bash
 docker exec airflow_scheduler python3 /opt/airflow/tools/artist_preflight.py --platforms youtube
 ```
-Doit finir sur `✅ Pre-flight green FOR youtube ONLY`.
 
-⚠️ **Effet de bord à connaître** : le canari sera collecté chaque nuit par les DAG de flotte.
-C'est voulu — c'est ce qui le rend détecteur — mais il consomme un peu de quota d'API.
+⚠️ Le canari est collecté chaque nuit par les DAG de flotte. C'est ce qui le rend
+détecteur, et ça consomme un peu de quota d'API.
 
 ---
 

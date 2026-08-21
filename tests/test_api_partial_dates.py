@@ -84,3 +84,36 @@ def test_the_collected_payload_survives_a_year_only_album() -> None:
         f"the collector still hands a partial date to psycopg2: "
         f"{rows[0]['release_date']!r}"
     )
+
+
+# ── Meta token shape ─────────────────────────────────────────────────────────
+# Different API, same family of defect: a value that LOOKS present and is subtly
+# wrong, whose error message points at the wrong cause.
+
+def test_the_exact_production_defect_is_caught() -> None:
+    """`EEAA…` — one stray leading character, weeks of silent non-collection."""
+    from src.utils.meta_token_format import token_format_problem
+
+    problem = token_format_problem("E" + "EAA" + "x" * 100)
+    assert problem and "extra character" in problem, problem
+
+
+def test_a_well_formed_token_is_not_rejected() -> None:
+    from src.utils.meta_token_format import token_format_problem
+
+    assert token_format_problem("EAA" + "x" * 150) is None
+
+
+def test_absence_is_not_reported_as_a_format_problem() -> None:
+    """Missing is a different failure, reported by a different check."""
+    from src.utils.meta_token_format import token_format_problem
+
+    assert token_format_problem(None) is None
+    assert token_format_problem("") is None
+
+
+def test_quotes_and_whitespace_are_named_precisely() -> None:
+    from src.utils.meta_token_format import token_format_problem
+
+    assert "quotes" in (token_format_problem('"EAA' + "x" * 150 + '"') or "")
+    assert "whitespace" in (token_format_problem(" EAA" + "x" * 150) or "")

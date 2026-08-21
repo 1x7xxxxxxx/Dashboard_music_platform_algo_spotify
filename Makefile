@@ -80,6 +80,9 @@ host,port=('127.0.0.1',5433) if not u else (u.split('@')[1].split(':')[0], int(u
 s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/null \
 		|| { echo "❌ Database unreachable. Run: make up  (or set DATABASE_URL)"; exit 1; }
 
+chart-budget: ## Report charts per dashboard view (report-only — no sourced threshold)
+	@python3 tools/dev/chart_budget.py
+
 check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock
 	@python3 tools/dev/check_manifest_consistency.py && echo "✅ manifests consistent"
 

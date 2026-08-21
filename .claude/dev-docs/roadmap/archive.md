@@ -1158,3 +1158,29 @@ réouverture est une requête qu'on peut lancer.
   4. **Le test de fuite lui-même était faux** : `assert artist_ids == {tenant}` n'était
      vrai que sur une flotte à un membre. Il aurait crié au loup le jour où la CI aurait
      eu des données.
+
+### R20 — Locataire canari · ✅ LIVRÉ le 2026-08-21 (local ET production)
+
+**Prod** : `artist_id=14`, slug `canary-prod`, Spotify `4tZwfgrHOc3mvqYlEYSvVi` +
+YouTube `UC_x5XG1OV2P6uZZ5FSM9Ttw`. `artist_preflight --platforms youtube` **vert de
+bout en bout**, étape de contamination comprise. Collecte prouvée sur la vraie prod :
+**10 titres** (`track_popularity_history`) et **200 vidéos** (`youtube_videos`) sous le
+locataire 14, les deux DAG en `success`, déclenchés avec `conf={"artist_id": 14}`.
+
+**Local** : `artist_id=471`, slug `canary-isolation`, même vérification.
+
+**Ce qu'il a coûté et rapporté.** Trois défauts réels trouvés dans l'heure suivant sa
+création, tous structurellement invisibles à une base mono-locataire :
+`identity-mirrored-but-written-once` (P1), `api-partial-date-into-date-column` (P2),
+`env-resolved-against-cwd` (P2). Plus, en installant le registre de migrations,
+`unguarded-drop-replayed-alone` (P1) et, en tentant la procédure de prod,
+`script-unreachable-from-its-dependencies` (P2). Cinq classes, cinq gardes.
+
+**Le blocage qui a failli le tuer** : `tools/` n'était monté dans aucun conteneur alors
+que psycopg2 n'existe QUE dans les conteneurs — la procédure du runbook ne s'exécutait
+nulle part. Montage `- ./tools:/opt/airflow/tools:ro` ajouté aux trois services airflow,
+dans `docker-compose.example.yml` **et à la main sur le serveur** (le compose de prod est
+gitignoré, donc il n'arrive pas par `git pull` — sauvegarde `docker-compose.yml.pre-tools-mount`).
+
+⚠️ **Effet permanent assumé** : le canari est collecté chaque nuit par les DAG de flotte.
+C'est ce qui le rend détecteur, et ça consomme un peu de quota d'API.

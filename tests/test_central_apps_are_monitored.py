@@ -130,3 +130,23 @@ def test_an_unrunnable_check_does_not_report_success():
         "the ImportError path must push a NON-empty result saying the check could "
         "not run. Pushing nothing is indistinguishable from 'all apps fine'."
     )
+
+
+def test_check_meta_rejects_a_malformed_token_before_any_network_call() -> None:
+    """The one Meta check that CAN be conclusive, so it is the one that is fatal.
+
+    The REST probe is deliberately non-fatal (System User tokens cannot be
+    validated through raw Graph). Shape can. The production token carried a stray
+    leading character for weeks and every symptom pointed at expiry instead.
+    """
+    import os
+    from unittest import mock
+
+    from src.utils import central_apps
+
+    def _explode(*a, **k):  # noqa: ANN002, ANN003
+        raise AssertionError("a network call was made despite a malformed token")
+
+    with mock.patch.dict(os.environ, {"META_ACCESS_TOKEN": "EEAA" + "x" * 120}), \
+         mock.patch.object(central_apps.requests, "get", _explode):
+        assert central_apps.check_meta() is False

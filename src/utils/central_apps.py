@@ -22,6 +22,8 @@ import os
 
 import requests
 
+from src.utils.meta_token_format import token_format_problem
+
 TIMEOUT = 10
 
 def _result(ok: bool, platform: str, reason: str = "") -> bool:
@@ -110,6 +112,20 @@ def check_meta() -> bool:
     if not token:
         print("⚠️ Meta: env not set")
         return True
+
+    # Shape before network. A malformed token answers `Malformed access token`
+    # (code 190), which reads as "expired" and sends you regenerating instead of
+    # looking at the string. The production value carried ONE stray leading
+    # character for weeks (2026-08-21). This is the only Meta check that can be
+    # conclusive, so unlike the REST probe below it is FATAL.
+    problem = token_format_problem(token)
+    if problem:
+        print(f"❌ Meta: META_ACCESS_TOKEN is malformed — {problem}. "
+              # 4 chars: enough to show the shape, short enough to carry no secret.
+              f"Stored prefix: {token[:4]!r} (a Meta token starts with 'EAA'). "
+              "No Graph call can succeed until this is fixed; do not regenerate "
+              "before checking the value itself.")
+        return False
     app_id, secret = os.getenv("META_APP_ID"), os.getenv("META_APP_SECRET")
     try:
         if app_id and secret:
