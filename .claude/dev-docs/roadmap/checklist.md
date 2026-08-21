@@ -70,6 +70,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait.
 | 5 | **`central_apps_broken` n'envoyait aucun e-mail** | Il alimentait le corps ET le sujet, mais **pas `has_issues`** — donc une app partagée tombée, seule, ne produisait rien. Masqué par coïncidence (Meta cassé *et* périmé). Le garde balaie la classe : tout `xcom_pull` de `send_consolidated_alert` doit figurer dans la décision d'envoi. |
 | 6 | **`make sync-check` voit les migrations non appliquées** | Impossible à demander avant le registre. Ferme `migration-ahead-of-its-code` par le côté qui manquait : du code déployé avant sa migration. Vérifie aussi que `tools/` reste monté — le compose de prod étant gitignoré, ce montage **ne voyage pas** avec `git pull`. Vu rouge sur une migration factice, vert après. |
 | 7 | **Un token Meta mal collé se voit tout de suite** | `check_meta()` valide la forme avant le réseau. Vérifié contre le vrai token de prod : il nomme le caractère en trop. |
+| 8 | **Le canari n'inondera pas la boîte mail** | Vérifié quelques heures après l'avoir créé : les deux contrôles d'onboarding l'auraient signalé chaque nuit (« 3 credentials manquants », « connecté sans données ») pour un état **normal**. `exclude_canaries=True` là seulement — le défaut reste `False`, sinon les collecteurs cesseraient de collecter POUR lui. Troisième fois que ce dépôt paie la taxe du loup. |
 
 **▶️ Les trois optimisations proposées ont été livrées le 2026-08-21 (soir).**
 
