@@ -277,13 +277,14 @@ def _show_form(db):
                                      type="primary", width="stretch")
 
     if generate_clicked:
-        db2 = get_db_connection()
-        if db2 is None:
-            return
+        # `_show_form(db)` is handed the connection show() already opened and will
+        # close. Opening a second one here was the `db2` fallback rule #9 forbids
+        # by name — the starker case of the two, since the right connection was
+        # already a parameter.
         try:
             with st.spinner(t("export_pdf.spinner", "Génération du PDF en cours…")):
                 pdf_bytes = generate_pdf(
-                    db2,
+                    db,
                     artist_id=report_artist_id,
                     artist_name=report_artist_name,
                     from_date=from_date,
@@ -308,8 +309,6 @@ def _show_form(db):
         except Exception as e:
             st.error(t("export_pdf.gen_error",
                        "Erreur lors de la génération : {err}").format(err=e))
-        finally:
-            db2.close()
 
     # ── Téléchargement (auto au moment de la génération + bouton de secours) ──
     if st.session_state.get('_export_pdf_bytes'):

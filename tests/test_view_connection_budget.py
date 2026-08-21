@@ -9,8 +9,8 @@ showed something the sentence hides:
     admin.py            5 connections per render
     hypeddit.py         5
     airflow_kpi.py      4
-    export_csv.py       2
-    export_pdf.py       2
+    export_csv.py       2   ← fixed 2026-08-21, now 1
+    export_pdf.py       2   ← fixed 2026-08-21, now 1
 
 Rule #9 does not say "prefer one connection", it says a view opens exactly one and
 never opens a second as a fallback. Five is not a style deviation.
@@ -56,9 +56,11 @@ _KNOWN_MULTI = {
     "admin.py": 5,
     "hypeddit.py": 5,
     "airflow_kpi.py": 4,
-    "export_csv.py": 2,
-    "export_pdf.py": 2,
 }
+# Lowered 2026-08-21: export_csv.py and export_pdf.py each opened a `db2` while
+# `db` was still open — the fallback rule #9 forbids by name. export_pdf's was the
+# starker case: `_show_form(db)` received the right connection as a parameter and
+# opened another anyway. Both now open exactly one, so they left this map.
 
 # Views whose session semantics `view_session()` cannot express today.
 _CANNOT_MIGRATE_AS_IS = {

@@ -119,19 +119,20 @@ def show():
             )
 
         if generate_clicked:
-            db2 = get_db_connection()
-            if db2 is None:
-                return
+            # Rule #9 names this case: never open a `db2` fallback inside the same
+            # function. `db` is opened at the top of show() and closed in its
+            # finally — it is still open right here, so the second connection
+            # bought nothing but another socket per click.
             try:
                 if fmt == "Excel (.xlsx)":
                     with st.spinner(t("export_csv.spinner_xlsx",
                                       "Génération du fichier Excel en cours…")):
-                        buf = export_excel(db2, export_artist_id, tables=selected_tables or None)
+                        buf = export_excel(db, export_artist_id, tables=selected_tables or None)
                     st.session_state["_export_csv_bytes"] = buf.getvalue()
                     st.session_state["_export_csv_fmt"] = "xlsx"
                 else:
                     with st.spinner(t("export_csv.spinner_zip", "Génération du ZIP en cours…")):
-                        buf = export_all(db2, export_artist_id, tables=selected_tables or None)
+                        buf = export_all(db, export_artist_id, tables=selected_tables or None)
                     st.session_state["_export_csv_bytes"] = buf.getvalue()
                     st.session_state["_export_csv_fmt"] = "zip"
                 st.session_state["_export_csv_artist"] = export_artist_name
@@ -147,8 +148,6 @@ def show():
             except Exception as e:
                 st.error(t("export_csv.gen_error",
                            "Erreur lors de la génération : {err}").format(err=e))
-            finally:
-                db2.close()
 
         # ── Bouton télécharger (persiste entre reruns) ───────────────────
         if st.session_state.get("_export_csv_bytes"):
