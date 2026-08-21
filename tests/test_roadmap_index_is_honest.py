@@ -46,16 +46,41 @@ _ROW = re.compile(r"^\| (R\d+) \|(.*)$")
 
 
 def _section(name: str) -> list[str]:
-    """Lines between this heading and the next `## ` one."""
+    """Lines between this heading and the next `## ` one.
+
+    Anchored at line start on purpose. A plain `text.index(name)` finds the first
+    OCCURRENCE, and both headings are also mentioned in the intro prose two
+    paragraphs above ("… est dans `## 🙋 En attente de toi` juste en dessous").
+    That match lands before the real heading, so the extracted section is the
+    intro and contains no rows — and every assertion below passes on an empty
+    list. This test shipped that way for about ten minutes on 2026-08-21;
+    `test_the_sections_are_not_empty` is what caught it, and is why it exists.
+    """
     text = ACTIVE.read_text(encoding="utf-8")
-    start = text.index(name)
-    rest = text[start + len(name):]
+    m0 = re.search(rf"^{re.escape(name)}", text, re.M)
+    assert m0, f"heading {name!r} not found at the start of a line"
+    rest = text[m0.end():]
     m = re.search(r"^## ", rest, re.M)
     return (rest[: m.start()] if m else rest).splitlines()
 
 
 def _ids(name: str) -> list[str]:
     return [m.group(1) for line in _section(name) if (m := _ROW.match(line))]
+
+
+def test_the_sections_are_not_empty():
+    """Non-vacuity. Without this, every assertion below is true of nothing.
+
+    The extraction reads a markdown file by heading; a heading that also appears
+    in prose, a rename, or a reordering all produce an empty list rather than an
+    error. An empty list satisfies `assert not offenders` perfectly.
+    """
+    total = len(_ids(_ACTIONABLE_H)) + len(_ids(_WAITING_H))
+    assert total > 0, (
+        "neither roadmap section yielded a single row. Either every item is "
+        "genuinely gone — in which case delete this test — or the extraction is "
+        "matching the wrong place and every check here is passing on nothing."
+    )
 
 
 def test_both_sections_exist():
