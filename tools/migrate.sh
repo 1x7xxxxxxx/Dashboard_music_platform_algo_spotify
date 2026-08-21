@@ -47,28 +47,52 @@ fi
 
 echo "▶ ${#FILES[@]} migration(s) → $PG_CONT/$DB"
 
-failed=()
+# Re-running a migration whose object is already there is the NORMAL case: this
+# script is meant to be idempotent as a whole, and most files predate
+# `IF NOT EXISTS`. Those errors carry no information. Reporting them next to a
+# real one taught the reader to skip the whole block — measured on the first
+# production run of this script, which named five files of which four were noise.
+# So: classify, do not filter. Noise is counted, the rest is named.
+IDEMPOTENT_RE='already exists|does not exist'
+
+noisy=()
+real=()
+declare -A real_msg
 for f in "${FILES[@]}"; do
     echo ">> $f"
     out="$(docker exec -i "$PG_CONT" psql -U "$USER_" -d "$DB" < "$f" 2>&1)"
     printf '%s\n' "$out"
-    if printf '%s' "$out" | grep -qiE '^(ERROR|FATAL)'; then
-        failed+=("$f")
+
+    errs="$(printf '%s' "$out" | grep -iE '^(ERROR|FATAL)')"
+    [ -z "$errs" ] && continue
+
+    unexpected="$(printf '%s' "$errs" | grep -viE "$IDEMPOTENT_RE")"
+    if [ -n "$unexpected" ]; then
+        real+=("$f")
+        real_msg["$f"]="$(printf '%s' "$unexpected" | head -2)"
+    else
+        noisy+=("$f")
     fi
 done
 
 echo ""
-if [ ${#failed[@]} -eq 0 ]; then
-    echo "✅ every migration applied with no psql error"
+[ ${#noisy[@]} -gt 0 ] && echo "ℹ️  ${#noisy[@]} file(s) re-applied over existing objects (expected on any re-run)."
+
+if [ ${#real[@]} -eq 0 ]; then
+    echo "✅ no unexpected psql error"
     exit 0
 fi
 
-echo "⚠️  psql reported errors in ${#failed[@]} file(s):"
-for f in "${failed[@]}"; do echo "     $f"; done
+echo "⚠️  ${#real[@]} file(s) reported an error that is NOT a re-run artefact:"
+for f in "${real[@]}"; do
+    echo "     $f"
+    printf '%s\n' "${real_msg[$f]}" | sed 's/^/         /'
+done
 cat <<'MSG'
 
    A complete run is expected to heal some of these — a later migration can
-   supersede an earlier one (024 → 044 is the known pair). Confirm that it did.
+   supersede an earlier one (024 → 044 is the known pair, and 024's three-column
+   key has been impossible since 044 made it window-aware). Confirm that it did.
    Do not assume it:
 
      make schema-check PROD_SSH=<user@host>

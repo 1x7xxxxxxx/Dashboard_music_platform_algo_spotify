@@ -140,3 +140,30 @@ def test_the_024_044_pair_that_makes_this_load_bearing_still_exists():
         "024 no longer drops the key, or 044 no longer restores it. The 'keep going "
         "past an error' design exists for exactly this pair — reconsider it."
     )
+
+
+def test_re_run_noise_is_classified_not_mixed_in():
+    """Naming five files of which four are noise teaches the reader to skip all five.
+
+    Measured on this script's first production run (2026-08-21): it reported
+    002, 011, 019, 023 and 024. The first four were `already exists` /
+    `does not exist` — the normal outcome of re-applying a migration written
+    before `IF NOT EXISTS` — and carried no information. Only 024 meant something.
+
+    A guard that cries wolf is worse than no guard, and this one nearly became
+    the thing it was written to prevent. Re-run artefacts are now COUNTED; only
+    unexpected errors are NAMED, with their message.
+    """
+    logic = _migrate_logic()
+    assert "already exists" in logic and "does not exist" in logic, (
+        "the migrate logic no longer recognises re-run artefacts — every "
+        "idempotent re-application will be reported as an error again."
+    )
+    assert "grep -viE" in logic or "grep -vi" in logic, (
+        "re-run artefacts are matched but never subtracted: the report will "
+        "mix them with real errors."
+    )
+    assert "NOT a re-run artefact" in logic, (
+        "the report no longer distinguishes the two kinds. Counting noise and "
+        "naming the rest is the whole point."
+    )
