@@ -28,30 +28,17 @@ class UnknownArtistError(RuntimeError):
 
 
 def _connect(autocommit: bool = False):
-    """The one place this module opens a database connection.
+    """This module's door to the database — `src.utils.pg_connect` owns the DSN.
 
     Four functions below each read the same five variables and called
-    `psycopg2.connect` with the same keywords. Four copies of a DSN is four
-    places to forget a parameter — and the parameter most easily forgotten here
-    is the port: containers reach Postgres on 5432 internally, while this repo
-    publishes 5433 on the host. One factory means one place to be wrong, and one
-    place to fix.
-
-    `psycopg2` stays a function-level import: this module is loaded by Airflow
-    DAG parsing, where a missing driver at import time takes down the whole DAG
-    file rather than the one task that needs it.
+    `psycopg2.connect` with the same keywords. They were folded into one on
+    2026-08-21; that one now delegates, because three OTHER modules had their own
+    copy too and two of them defaulted the host differently. See `pg_connect` for
+    what that split cost.
     """
-    import psycopg2
+    from src.utils.pg_connect import connect
 
-    conn = psycopg2.connect(
-        host=os.getenv('DATABASE_HOST', 'localhost'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD', ''),
-    )
-    conn.autocommit = autocommit
-    return conn
+    return connect(autocommit=autocommit)
 
 
 def load_platform_credentials(artist_id: int, platform: str) -> dict:

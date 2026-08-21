@@ -42,14 +42,6 @@ class InstagramCollector:
         # L'ID du compte Instagram Business (pas le nom d'utilisateur)
         self.ig_user_id = (ig_user_id or os.getenv("INSTAGRAM_USER_ID") or "").strip() or None
 
-        # Récupération dynamique des infos BDD
-        # Par défaut 5432 (interne docker), mais surchargeable via .env
-        self.db_host = os.getenv('DATABASE_HOST', 'localhost')
-        self.db_port = os.getenv('DATABASE_PORT', '5432')
-        self.db_name = os.getenv('DATABASE_NAME')
-        self.db_user = os.getenv('DATABASE_USER')
-        self.db_pass = os.getenv('DATABASE_PASSWORD')
-
         if not self.access_token or not self.ig_user_id:
             raise ValueError("❌ Manque INSTAGRAM_ACCESS_TOKEN ou INSTAGRAM_USER_ID dans .env")
 
@@ -59,13 +51,10 @@ class InstagramCollector:
         self.session = requests.Session()
 
         # Connexion BDD
-        self.db = PostgresHandler(
-            host=self.db_host,
-            port=self.db_port,
-            database=self.db_name,
-            user=self.db_user,
-            password=self.db_pass
-        )
+        # One resolution for the DSN (R33): DATABASE_URL → DATABASE_* → config.yaml.
+        # The five os.getenv calls that used to live here defaulted the host to
+        # 'localhost', which is wrong inside Airflow — where this collector runs.
+        self.db = PostgresHandler.from_env_or_config()
 
     def _refresh_access_token(self) -> bool:
         """Exchange current long-lived token for a new one via Meta's token endpoint.

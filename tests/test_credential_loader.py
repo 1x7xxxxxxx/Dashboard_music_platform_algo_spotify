@@ -177,11 +177,12 @@ class TestGetActiveArtists:
 class TestSingleConnectionFactory:
     """Four functions each built their own DSN from the same five variables.
 
-    Nothing was broken by it — this is duplication, not a defect. But four copies
-    of a DSN is four places to forget a parameter, and the one most easily
-    forgotten here is the port: a container reaches Postgres on 5432 internally
-    while this repo publishes 5433 on the host. Extracted 2026-08-21 into
-    `_connect()`; this pins it so the copies cannot grow back.
+    Extracted into `_connect()` on 2026-08-21, then extracted again the same day:
+    three OTHER modules had their own copy, and two of them defaulted the host to
+    `postgres` where this one said `localhost` — each correct only in the container
+    it happened to run in. The resolution now lives in `src.utils.pg_connect`, so
+    this module builds NO DSN at all; `tests/test_pg_connect.py` pins the same
+    property across all seven modules.
     """
 
     @staticmethod
@@ -206,21 +207,22 @@ class TestSingleConnectionFactory:
                         node.body.append(ast.Pass())
         return ast.unparse(ast.fix_missing_locations(tree))
 
-    def test_exactly_one_place_opens_a_connection(self):
+    def test_this_module_opens_no_connection_of_its_own(self):
         code = self._code_lines(self._source())
         n = code.count("psycopg2.connect(")
-        assert n == 1, (
-            f"{n} call(s) to psycopg2.connect in credential_loader — route them "
-            "through `_connect()` instead of rebuilding the DSN."
+        assert n == 0, (
+            f"{n} call(s) to psycopg2.connect in credential_loader — the DSN lives "
+            "in src/utils/pg_connect.py, and a copy here is how the host default "
+            "came to differ between modules."
         )
+        assert "pg_connect" in code, "credential_loader no longer delegates the DSN"
 
-    def test_exactly_one_place_reads_the_connection_variables(self):
+    def test_this_module_reads_no_connection_variable(self):
         code = self._code_lines(self._source())
         for var in ("DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME",
                     "DATABASE_USER", "DATABASE_PASSWORD"):
-            n = code.count(var)
-            assert n == 1, (
-                f"{var} is read {n} times — it belongs in `_connect()` only."
+            assert var not in code, (
+                f"{var} is read here — it belongs to src/utils/pg_connect.py alone."
             )
 
     def test_the_factory_still_honours_autocommit(self):

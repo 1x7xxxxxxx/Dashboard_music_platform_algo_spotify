@@ -849,3 +849,37 @@ pointeur qui rate ne se plaint pas.
   `Ctrl+C/F/U` sans une seule graphie ⌘, le rendu macOS l'inverse, et les deux diffèrent
   (sans quoi tout le reste serait vrai deux fois sur la même page). Une capture prouve une
   fois ; ceci prouve à chaque exécution.
+
+### P3 — Une seule résolution du DSN (clos, 2026-08-21)
+
+- [x] **R33 — Fabrique de connexion unique** (P3) — la fiche annonçait « 5 modules » et
+  « duplication, pas défaut de correction ». Les deux étaient faux, et le garde l'a montré :
+  ils étaient **sept**, et la duplication cachait une vraie divergence.
+
+  Les quatre connus construisaient leur DSN à la main, avec **deux valeurs par défaut
+  différentes pour l'hôte** — `credential_loader` disait `localhost` (×4 copies dans le
+  même fichier), `circuit_breaker` et `dag_run_logger` disaient `postgres`, et
+  `stripe_webhook` ne lisait que `DATABASE_URL` puis `config.yaml`. Ce n'est pas
+  arbitraire : la production est **réellement scindée** — Airflow reçoit
+  `DATABASE_HOST=postgres` et **aucun** `DATABASE_URL`, l'api et le dashboard reçoivent
+  `DATABASE_URL` et **aucun** `DATABASE_HOST`. Chaque fabrique marchait donc là où elle
+  tournait, et aucune ne marchait ailleurs. `credential_loader` n'est importé que par les
+  DAGs et les collecteurs : c'est la seule raison pour laquelle son `localhost` n'a jamais
+  mordu — le premier import depuis une vue du dashboard l'aurait trouvé.
+
+  Les trois autres, **trouvés par le garde et non par la fiche**, remplissaient le
+  constructeur de `PostgresHandler` avec les mêmes cinq variables, un étage plus haut :
+  `instagram_api_collector`, `meta_ads_api_collector`, `soundcloud_api_collector` — tous
+  trois par défaut sur `localhost`, dans Airflow, c'est-à-dire au mauvais endroit.
+
+  Livré : `src/utils/pg_connect.py` résout `DATABASE_URL` → variables `DATABASE_*` →
+  `config.yaml`, dans cet ordre, une fois. `PostgresHandler.from_env_or_config()` — qui
+  ignorait les variables et servait déjà 11 bootstraps de schéma — partage désormais cette
+  résolution au lieu d'en tenir une seconde. Deux portes, une résolution.
+
+  Deux comportements délibérés ont été préservés et sont testés nommément : le webhook
+  Stripe rend toujours `None` au lieu de lever (il doit répondre à Stripe, pas remonter
+  dans la pile ASGI), et la fabrique, elle, lève toujours — un assistant de connexion qui
+  avale sa propre panne transforme une base indisponible en « aucune ligne », ce que
+  `.claude/rules/python.md` interdit. `tests/test_pg_connect.py` : 21 tests, dont un grep
+  d'une ligne qui aurait attrapé la divergence d'origine.

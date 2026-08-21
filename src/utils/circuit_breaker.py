@@ -26,7 +26,6 @@ Usage in a DAG task:
         raise
 """
 import logging
-import os
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -40,14 +39,12 @@ _RESET_AFTER_HOURS  = 6    # hours before half_open attempt
 
 
 def _conn():
-    import psycopg2
-    return psycopg2.connect(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD', ''),
-    )
+    # The DSN lives in src.utils.pg_connect. This module used to default the host
+    # to 'postgres' while credential_loader defaulted it to 'localhost' — each
+    # correct only in the container it happened to run in.
+    from src.utils.pg_connect import connect
+
+    return connect()
 
 
 class CircuitBreaker:

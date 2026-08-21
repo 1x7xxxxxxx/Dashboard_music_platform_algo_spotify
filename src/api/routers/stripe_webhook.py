@@ -24,23 +24,18 @@ router = APIRouter(prefix="/webhooks", tags=["stripe"])
 
 
 def _get_db():
-    """Open a direct psycopg2 connection (no PostgresHandler dependency)."""
-    import psycopg2
-    from src.utils.config_loader import config_loader
+    """Open a direct psycopg2 connection (no PostgresHandler dependency).
+
+    Returns None on failure, and that stays deliberate here: a webhook must
+    answer Stripe rather than raise into the ASGI stack, and the caller already
+    treats None as "retry me". The DSN itself is not this module's business —
+    `src.utils.pg_connect` resolves DATABASE_URL, then the env vars, then
+    config.yaml, which is a superset of what this function used to do.
+    """
+    from src.utils.pg_connect import connect
 
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if database_url:
-            return psycopg2.connect(database_url)
-        config = config_loader.load()
-        db_cfg = config["database"]
-        return psycopg2.connect(
-            host=db_cfg["host"],
-            port=db_cfg["port"],
-            database=db_cfg["database"],
-            user=db_cfg["user"],
-            password=db_cfg["password"],
-        )
+        return connect()
     except Exception as e:
         logger.error(f"DB connection failed: {e}")
         return None

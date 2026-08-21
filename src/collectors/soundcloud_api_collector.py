@@ -57,12 +57,6 @@ class SoundCloudCollector:
         # likes. Never raise on absence; it is opt-in per artist.
         self.refresh_token = refresh_token or os.getenv("SOUNDCLOUD_REFRESH_TOKEN")
 
-        self.db_host = os.getenv('DATABASE_HOST', 'localhost')
-        self.db_port = os.getenv('DATABASE_PORT', '5432')
-        self.db_name = os.getenv('DATABASE_NAME')
-        self.db_user = os.getenv('DATABASE_USER')
-        self.db_pass = os.getenv('DATABASE_PASSWORD')
-
         if not self.client_id:
             raise ValueError("SOUNDCLOUD_CLIENT_ID manquant — saisir dans Dashboard → Credentials → SoundCloud.")
         if not self.client_secret:
@@ -74,13 +68,10 @@ class SoundCloudCollector:
         self._token_expires_at: float = 0.0
         self.session = requests.Session()
 
-        self.db = PostgresHandler(
-            host=self.db_host,
-            port=self.db_port,
-            database=self.db_name,
-            user=self.db_user,
-            password=self.db_pass
-        )
+        # One resolution for the DSN (R33): DATABASE_URL → DATABASE_* → config.yaml.
+        # The five os.getenv calls that used to live here defaulted the host to
+        # 'localhost', which is wrong inside Airflow — where this collector runs.
+        self.db = PostgresHandler.from_env_or_config()
 
     def _get_access_token(self) -> None:
         """Fetch a new OAuth access token via Client Credentials grant."""

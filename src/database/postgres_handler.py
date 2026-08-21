@@ -130,31 +130,27 @@ class PostgresHandler:
 
     @classmethod
     def from_env_or_config(cls) -> "PostgresHandler":
-        """Instantiate env-first: ``DATABASE_URL`` if set, else config.yaml's ``database`` section.
+        """Instantiate from whichever of the three sources is configured.
 
-        Mirrors the dashboard's ``get_db_connection()`` priority (DATABASE_URL > config.yaml)
-        without the Streamlit dependency, so schema-bootstrap CLIs run in prod (no config.yaml,
-        DATABASE_URL only) as well as in local Docker. Raises if neither source is configured
-        instead of letting ``config['database']`` KeyError on an empty config.
+        ``DATABASE_URL`` → the ``DATABASE_*`` variables → ``config.yaml``. The middle
+        step was added 2026-08-21 (R33) and it is not cosmetic: production runs the
+        two halves differently — the api and dashboard containers get DATABASE_URL
+        and no DATABASE_HOST, Airflow gets DATABASE_HOST and no DATABASE_URL. Without
+        the middle step this method simply did not work inside Airflow, which is why
+        three collectors each hand-rolled the same five ``os.getenv`` calls to fill
+        the constructor themselves — all three defaulting the host to ``localhost``,
+        wrong in the very place they run.
+
+        The precedence itself lives in ``src.utils.pg_connect``; this is a second
+        door onto it, not a second copy. Raises when nothing is configured, rather
+        than letting ``config['database']`` KeyError on an empty config.
         """
         database_url = os.environ.get("DATABASE_URL")
         if database_url:
             return cls.from_url(database_url)
 
-        from src.utils.config_loader import config_loader
-        db_config = config_loader.load().get("database")
-        if not db_config:
-            raise RuntimeError(
-                "No database configuration: set DATABASE_URL or provide "
-                "config/config.yaml with a 'database' section."
-            )
-        return cls(
-            host=db_config["host"],
-            port=db_config["port"],
-            database=db_config["database"],
-            user=db_config["user"],
-            password=db_config["password"],
-        )
+        from src.utils.pg_connect import resolve_kwargs
+        return cls(**resolve_kwargs())
 
     def _connect(self) -> None:
         """Établit la connexion à PostgreSQL."""

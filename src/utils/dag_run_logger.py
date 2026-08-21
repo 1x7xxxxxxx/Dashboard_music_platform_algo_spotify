@@ -10,7 +10,6 @@ The context manager writes a 'running' row on enter, then updates it
 to 'success' or 'failed' on exit. Exceptions are re-raised after logging.
 """
 import logging
-import os
 import json
 from datetime import datetime
 
@@ -24,14 +23,11 @@ _STATUS_PARTIAL  = 'partial'
 
 
 def _get_db():
-    import psycopg2
-    return psycopg2.connect(
-        host=os.getenv('DATABASE_HOST', 'postgres'),
-        port=int(os.getenv('DATABASE_PORT', 5432)),
-        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-        user=os.getenv('DATABASE_USER', 'postgres'),
-        password=os.getenv('DATABASE_PASSWORD', ''),
-    )
+    # See src.utils.pg_connect: this was one of four hand-rolled DSNs that did
+    # not agree on the host default.
+    from src.utils.pg_connect import connect
+
+    return connect()
 
 
 class DagRunLogger:

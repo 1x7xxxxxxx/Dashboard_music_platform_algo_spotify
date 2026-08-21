@@ -58,14 +58,10 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
 
     @staticmethod
     def _default_db():
+        # The DSN is resolved in one place (R33). This used to default the host to
+        # 'localhost', which is wrong inside Airflow — where this collector runs.
         from src.database.postgres_handler import PostgresHandler
-        return PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'localhost'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD', ''),
-        )
+        return PostgresHandler.from_env_or_config()
 
     # ── Credentials ───────────────────────────────────────────────────────────
 
