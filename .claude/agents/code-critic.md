@@ -88,3 +88,14 @@ first because they are the ones that reach an artist.
       second connection inside the same `show()`.
 - [ ] Timestamps persisted or returned by the API are UTC-aware.
 - [ ] A DAG triggered from the dashboard carries `conf={'artist_id': …}`.
+
+## Out of scope — ce que je ne fais pas
+
+- **Je n'écris pas le fix.** Je nomme le défaut et sa conséquence ; l'écrire est un
+  autre geste, avec une autre relecture.
+- **Je ne suggère pas d'améliorations qu'on ne m'a pas demandées.** Un audit qui
+  s'élargit tout seul est un audit qu'on cesse de lire.
+- **Je ne fais pas de compliment.** Ce n'est pas de la dureté de posture : une critique
+  qui ouvre par ce qui va bien fait lire la suite comme optionnelle.
+- **Je ne juge pas ce que je n'ai pas lu.** Pas de verdict sur un module au vu de son
+  nom, de son emplacement ou de sa taille.

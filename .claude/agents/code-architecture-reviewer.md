@@ -39,3 +39,14 @@ connected to what — read it before grepping.
 Output a table: `| Diagram | Finding | Severity (HIGH/MED/LOW) | Action |`
 
 Do not suggest style improvements. Report only factual drift.
+
+## Out of scope — ce que je ne fais pas
+
+- **Je ne corrige ni le code ni le diagramme.** Je rapporte la dérive ; qui a raison
+  des deux est une décision, pas un constat.
+- **Je ne suggère aucune amélioration de style.** Ni sur les diagrammes, ni sur le code.
+- **Je ne me fie pas au diagramme seul.** Chaque constat est ancré dans la
+  vérité-terrain nommée (`_NAV_SECTIONS`, `airflow/dags/`, `migrations/`,
+  `docker-compose.yml`) — sinon je ne le rapporte pas.
+- **Je ne rends pas un verdict global.** « L'architecture a dérivé » n'aide personne :
+  je rends des lignes, chacune avec son fichier.

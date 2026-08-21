@@ -938,3 +938,48 @@ mesuré à zéro. Le déclencheur qui les rouvre est nommé dans l'ADR, et il es
   `EXPLAIN ANALYZE` = **0,4 ms** sur 13 794 lignes via l'index `(artist_id, date)`
   existant. Ajouter un index que le planificateur n'utilise pas coûte à l'écriture pour
   rien. *Déclencheur : ~10× le volume (≈140 k lignes), ou un EXPLAIN au-dessus de ~50 ms.*
+
+### P3 — Conformité baseline : 76,2 → 84,4 (clos, 2026-08-21)
+
+- [x] **R35 — Combler les 3 axes faibles** (P3) — fait, et un quatrième avec.
+
+  **Axe F contexte 4 → 6/10** : CLAUDE.md est passé de 427 à 392 lignes, sous le seuil
+  de 400. Les tableaux d'agents, de skills et de commandes sont partis dans
+  `dev-docs/tooling-reference.md` : le dépôt a mesuré qu'un agent cité dans un tableau
+  n'est **jamais** invoqué (0 sur 23), donc ils coûtaient du contexte à chaque session
+  pour rien. Les règles impératives sont toutes restées.
+
+  **Axe E atteignabilité 6,7 → 8,8/10** : `code-architecture-reviewer` et
+  `web-research-specialist` n'étaient nommés que dans un tableau. Les règles 18 et 19
+  leur donnent un déclencheur **vérifiable à la commande** — `git diff --name-status`
+  compté sur `^(A|D|R)` pour l'un, `grep -rl "<code d'erreur>" .claude/dev-docs/` vide
+  pour l'autre. La note dit explicitement que si un déclencheur ne se produit jamais, la
+  bonne réponse est de retirer l'agent, pas de lui inventer une règle.
+
+  **Axe D agents 12 → 15/15** : aucun des 8 agents ne portait de section de bornes. Ce
+  n'est pas cosmétique — un agent sans non-buts explicites est un agent qui déborde, et
+  c'est précisément ce que `build-error-resolver` promet de ne pas faire dans sa
+  description sans que rien ne le tienne. Chacun porte désormais ses limites, écrites
+  sur ce qu'il ne doit pas faire ici.
+
+  **Ce qui reste, et pourquoi ce n'est pas de la configuration :**
+
+  - **Axe A 18/20 — défaut de l'auditeur.** `parse_frontmatter` d'`audit_fleet.py`
+    fabrique une clé `_rex_extra` pour toute ligne indentée du frontmatter (l.115), puis
+    l'axe A la compte comme « hors spec » (l.204) alors que la même ligne exclut
+    explicitement `rex`. Toute skill portant un bloc REX **rempli** — ce que
+    `rules/rex-format.md` impose — perd un point. Le correctif appartient au baseline.
+  - **Axe C 10/15 — environnemental.** 15 fichiers de hooks (>14 ⇒ 0 point sur ce
+    sous-critère) et la latence non mesurée (+2 « neutre »). ⚠️ **Ne pas lancer
+    `--measure-latency` pour « améliorer » le score : ça le baisse à 8.** L'événement
+    Stop coûte ~10 s, et ce n'est pas les hooks : mesuré ici, `git status --porcelain`
+    coûte **2 690 ms** sur `/mnt/c` (9p) contre 4 ms en natif, et `draft_rex` coûte
+    2 879 ms **sans un seul appel git** — c'est la marche de répertoires et les lectures
+    de fichiers qui paient. Une tentative de cache git partagé a été écrite puis
+    **retirée le jour même** : le comptage déterministe montre que la chaîne Stop fait
+    **4 appels git, tous différents** — il n'y a aucun doublon à mettre en cache. Le
+    seul vrai levier serait de déplacer le dépôt sur le système de fichiers natif de
+    WSL, ce qui est une décision d'environnement, pas de configuration.
+  - **Axe G 6,6/10** : fichiers modifiés localement par rapport au payload — normal et
+    voulu (c'est tout le travail de recentrage sur ce dépôt), à ne surtout pas
+    « corriger » par un re-push.

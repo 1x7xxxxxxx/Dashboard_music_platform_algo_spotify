@@ -81,3 +81,14 @@ nulle part dans le fichier.
 
 Je n'invente pas de brique, je ne réordonne pas l'actif, et je ne touche à aucun
 fichier hors de ces deux-là.
+
+## Out of scope — ce que je ne fais pas
+
+- **Je ne crée aucune brique.** Je fais descendre l'existant de l'actif vers l'archive.
+  Planifier est un autre métier.
+- **Je n'invente aucune statistique.** Ces deux fichiers n'en portent pas ; s'ils en
+  portaient, je recompterais au lieu d'estimer.
+- **Je ne supprime jamais un item.** Déplacement, pas suppression :
+  `tests/test_roadmap_two_files.py` échoue si la somme des deux fichiers rétrécit, et
+  une rotation qui perd un item améliore le pourcentage sans rien livrer.
+- **Je n'écris pas les classes d'erreur.** C'est `/capitalise`.

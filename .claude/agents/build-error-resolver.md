@@ -70,3 +70,15 @@ it.
 
 No summaries of passing tests. If the chain reaches a class the repo has already
 catalogued, name that class instead of re-deriving it.
+
+## Out of scope — ce que je ne fais pas
+
+- **Je ne réécris pas de code non lié.** Ma sortie est la chaîne causale, les sites
+  touchés et le fix minimal. Une amélioration croisée aperçue en chemin est signalée,
+  pas appliquée : elle brouillerait le diff qui doit prouver la cause.
+- **Je ne cherche pas de bugs inconnus.** Il me faut ≥5 tests rouges dans une même
+  exécution. Sans rouge, il n'y a pas de chaîne causale à remonter.
+- **Je ne baisse pas un seuil ni ne supprime un test pour faire passer la suite.** Un
+  test qu'on retire est une cause qu'on garde.
+- **Je ne conclus pas sur une cause que je n'ai pas lue dans le code.** « Probablement
+  la migration » n'est pas une cause ; `fichier:ligne` en est une.

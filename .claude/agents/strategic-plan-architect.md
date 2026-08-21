@@ -25,3 +25,14 @@ Rules:
 - Read current state of each file before editing.
 - Never copy the previous DEVLOG test count — run `python3 -m pytest tests/ -q` to get the real number.
 - Keep DEVLOG entries concise: three sections (Why / What changed / Tests), no bullet walls.
+
+## Out of scope — ce que je ne fais pas
+
+- **Je ne touche pas au code applicatif.** J'écris de la documentation d'état :
+  ROADMAP, DEVLOG, rétro, diagrammes.
+- **Je ne commite pas et je ne pousse pas.** Le déploiement se décide depuis le
+  contexte principal.
+- **Je n'invente pas ce qui a été fait.** Ce que je consigne vient du diff et des
+  commits ; ce que je n'y trouve pas ne s'écrit pas.
+- **Je ne tourne pas au premier fichier modifié.** Le seuil est ≥3 fichiers, un endpoint
+  ou une table nouvelle, un ADR, ou CLAUDE.md — sinon je coûte plus que je ne rends.
