@@ -99,7 +99,13 @@ Un piège d'outillage consigné au passage : vérifier une signature **à la mai
 shell est trompeur — `grep` y est une fonction (le wrapper RTK) qui renvoie 0 dès que la
 sortie est redirigée. Passer par `audit_runner.py` ou `command grep`.
 
-**▶️ Où on en est (MAJ 2026-08-21) — la file d'ingénierie est vide.**
+**▶️ Où on en est (MAJ 2026-08-21, nuit) — la file d'ingénierie est vide.**
+
+Prod à jour (`prod == canonique`, 920 colonnes / 92 tables, code déployé == `origin/main`,
+registre de migrations **71/71**), **1065 tests verts**, `ruff check .` propre, audit
+déterministe propre, canari de production surveillé. L'index `## 📋 Tâches ouvertes` est
+à **0**, et les trois items de `## 🙋 En attente de toi` demandent chacun un geste que
+seul un humain peut poser — détail juste en dessous.
 
 Prod à jour (`prod == canonique`, 917 colonnes / 91 tables, code déployé == `origin/main`),
 **900 tests verts**, `ruff check .` propre sur tout le dépôt, les cinq gardes bloquants de CI
@@ -108,22 +114,31 @@ ce qui était mesuré inutile est sorti sous **ADR-007**, ce qui attend une donn
 **ADR-008**, et les cinq items restants sont dans `## 🙋 En attente de toi` parce qu'aucun
 ne peut commencer sans un geste humain.
 
-**Ce qui t'attend, dans l'ordre où ça débloque le plus :**
-1. **R13 — régénérer le token Meta System User.** Meta et Instagram ne collectent plus.
-   `make artist-preflight ARTIST=12` le remonte de lui-même. Débloque aussi la partie
-   CAPI de R2 le jour où elle revient.
-2. **R20 — créer le locataire canari en prod** avec **tes** identifiants publics, différents
-   de ceux de l'admin, puis `UPDATE saas_artists SET is_canary = TRUE WHERE id = <id>;`.
-   Sans lui `make artist-preflight` s'arrête d'emblée — c'est le filet avant toute session
-   avec un artiste réel.
-3. **R18 — `.env` ligne 67.** `awk 'NR==67{n=index($0,"=");print (n?substr($0,1,n-1):$0)}' .env`
-   n'affiche que le **nom** de la clé, jamais sa valeur. Confort seulement : un Postgres
-   jetable fait déjà tourner toute la suite (voir la fiche R18).
-4. **R17 — déposer les PDF/EPUB d'ergonomie** dans `knowledge/books/ux-frontend/` puis
-   `cd /home/timothe/knowledge-rag && uv run python ingest.py`.
-5. **R1 — ouvrir la bêta privée** à des proches sur `streamlytics.fr`. Le funnel et le
-   paiement sont prouvés en live ; R2 (landing + pixel + CAPI) démarre avec la première
-   campagne, pas avant — voir ADR-008.
+**Ce qui t'attend — trois choses, et aucune n'est du code.**
+
+L'index actif est à **0**, et ce n'est pas une reformulation optimiste : tout ce qui
+pouvait être fait sans toi l'a été. Les trois items ci-dessous ne se débloquent que par
+un geste que tu es seul à pouvoir faire — un accès, un fichier, une invitation. Chacun a
+été **réduit** au plus petit geste possible.
+
+1. **R13 — régénérer le token Meta System User.** Il te faut Business Manager ; je ne
+   l'ai pas. Ce qui a changé : `check_meta()` valide désormais la **forme** avant tout
+   appel réseau et nomme la cause exacte (« 1 caractère en trop »). Vérifié contre le
+   token réellement stocké en production : il le détecte. Colle le nouveau, relance
+   `python3 tools/artist_preflight.py` — un mauvais collage se voit en une seconde au
+   lieu du lendemain matin. ⚠️ Vérifie `META_APP_ID`/`META_APP_SECRET` dans la même
+   visite : l'application échoue aussi.
+2. **R17 — déposer les PDF/EPUB d'ergonomie** dans `knowledge/books/ux-frontend/` puis
+   `cd /home/timothe/knowledge-rag && uv run python ingest.py`. Le corpus interrogé sur
+   ce sujet renvoie du bruit (meilleur score 0,016) — il n'a rien. Ce qui a changé : la
+   décision que R17 bloquait est **mesurée** (`make chart-budget` : 22 vues, 83
+   graphiques, médiane 3, `trigger_algo` à 15). Le corpus reste nécessaire pour trancher
+   un **seuil**, pas pour voir l'état.
+3. **R1 — ouvrir la bêta privée** sur `streamlytics.fr`. Son prérequis dur est tombé :
+   le canari de production existe et `artist_preflight` y est vert de bout en bout,
+   contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est
+   en place. R2 (landing + pixel + CAPI) démarre avec la première campagne, pas avant —
+   ADR-008.
 
 **Historique des grandes étapes (toutes ✅) :**
 1. **✅ Cloudflare — ACTIF, PROXIFIE & DURCI (complet)** (détail `[[project_security_cloudflare]]`). Fait : zone active, NS Cloudflare, **SSL Full(strict)**, zone settings (min TLS 1.2 / Always HTTPS / Brotli / TLS 1.3), **rate-limit `/auth/token`** (10/10s), **firewall origine verrouillé** (ufw → IP CF only, vérifié), **Bot Fight Mode** ON, **cert Origin CF 15 ans** posé sur Caddy (plus de risque renouvellement, vérifié 2 edges). **RESTE (non bloquant)** : 🔑 **révoquer le token** `streamlytics-hardening` ; (optionnel) ré-activer DNSSEC via CF. ⚠️ vérifs prod **toujours via `curl --resolve host:443:<edge-CF-IP>`** (cache DNS local peut pointer l'IP origine firewallée → faux « down »).
