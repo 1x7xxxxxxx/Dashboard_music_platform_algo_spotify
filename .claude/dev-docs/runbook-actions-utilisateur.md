@@ -80,45 +80,53 @@ la fraîcheur plus bas).
 
 ---
 
-## 2. R20 — Créer le locataire canari en production · P2
+## 2. R20 — Créer le canari en PRODUCTION · P2  *(le local est fait)*
 
-C'est le prérequis dur de `make artist-preflight`, donc du filet de sécurité avant toute
-session avec un artiste réel. Une seule commande ; il ne manque que **tes** identifiants.
+**Local : fait le 2026-08-21.** `artist_id=471`, `slug='canary-isolation'`, Spotify
+`4tZwfgrHOc3mvqYlEYSvVi` + YouTube `UC_x5XG1OV2P6uZZ5FSM9Ttw`.
+`python3 tools/artist_preflight.py --platforms youtube` passe **vert de bout en bout**,
+contamination comprise.
 
-### Étapes
+**Ce qu'il a rapporté en une heure** — c'est l'argument, pas l'anecdote. Trois défauts
+réels, tous structurellement invisibles à une base mono-locataire :
 
-1. Choisis une identité **différente de celle de l'admin**. C'est tout l'intérêt : un
-   canari qui emprunte la chaîne de l'admin passe au vert pendant que l'isolation qu'il
-   teste est cassée. L'outil refuse ce cas, et refuse aussi une identité qu'un autre
-   locataire réclame déjà.
+| classe | ce qui se passait |
+|---|---|
+| `identity-mirrored-but-written-once` (P1) | l'identité Spotify vit dans **deux** tables ; l'outil n'en écrivait qu'une. Affichage « Connecté — Daft Punk ✅ » partout, **zéro ligne collectée**. |
+| `api-partial-date-into-date-column` (P2) | Spotify renvoie `release_date` à précision variable ; « 2013 » faisait perdre à l'artiste **tous** ses top tracks du run. Latent depuis des années — ton catalogue n'a que des dates complètes. |
+| `env-resolved-against-cwd` (P2) | le `.env` était résolu contre le répertoire courant : rouges qui mentaient sur leur cause, et un dashboard qui ne chargeait rien lancé de la façon documentée. |
 
-   > **Elle n'a pas besoin de t'appartenir.** Vérifié le 2026-08-21 : Spotify, YouTube et
-   > SoundCloud sont lus avec les credentials **de l'app admin** sur des endpoints
-   > **publics** — `client_credentials` pour Spotify et SoundCloud, `developerKey` seule
-   > pour YouTube. Aucun ne demande la propriété du profil. Prouvé en production : les top
-   > tracks de deux artistes publics quelconques remontent, 10 titres chacun.
-   >
-   > C'est ce qui débloque le cas « tous mes identifiants admin sont mes propres profils
-   > d'artiste » : prends **n'importe quel artiste public** — le test d'isolation est
-   > exactement aussi valide, puisqu'il vérifie que les lignes atterrissent sous le bon
-   > locataire, pas qui possède le compte.
-   >
-   > Seule exception : **Meta**, qui exige un accès réel au compte publicitaire. Le canari
-   > ne couvre donc pas Meta — sans conséquence, Meta est de toute façon à l'arrêt (R13).
-2. À blanc d'abord :
-   ```bash
-   make canary NAME="Canary 1x7" SPOTIFY=<artist id> YOUTUBE=<UC…> DRY_RUN=1
-   ```
-3. Puis pour de vrai, en retirant `DRY_RUN=1`. Ajoute `SOUNDCLOUD=<user id>` et
-   `META=<account id>` si tu veux les couvrir aussi.
+### Ce qui reste : la même commande, sur le serveur
+
+⚠️ **Dans cet ordre.** Le correctif du miroir d'identité doit être déployé **avant**, sinon
+le canari de prod naîtra avec le même défaut que celui qu'il vient de révéler.
+
+```bash
+ssh root@167.233.92.1
+cd /opt/streamlytics
+git pull --ff-only origin main
+docker compose up -d --build dashboard api
+bash tools/migrate.sh                       # pose le registre schema_migrations
+make canary NAME="Canary prod" SPOTIFY=4tZwfgrHOc3mvqYlEYSvVi YOUTUBE=UC_x5XG1OV2P6uZZ5FSM9Ttw
+```
+> `make` n'existe pas sur le serveur : utiliser
+> `python3 tools/create_canary.py --name "Canary prod" --spotify … --youtube …`.
+
+**L'identité n'a pas besoin de t'appartenir** — vérifié le 2026-08-21 : Spotify, YouTube et
+SoundCloud lisent des endpoints **publics** avec les credentials de l'app admin. C'est ce
+qui débloque ton cas « tous mes identifiants admin sont mes propres profils ». Seul **Meta**
+exige une propriété réelle ; le canari ne le couvre donc pas, sans conséquence puisque Meta
+est à l'arrêt (§1).
 
 ### Vérification
 
 ```bash
-make artist-preflight
+python3 tools/artist_preflight.py --platforms youtube
 ```
-Il doit dépasser l'étape 1 et nommer précisément ce qui manque encore, au lieu de
-s'arrêter sur « no canary tenant ».
+Doit finir sur `✅ Pre-flight green FOR youtube ONLY`.
+
+⚠️ **Effet de bord à connaître** : le canari sera collecté chaque nuit par les DAG de flotte.
+C'est voulu — c'est ce qui le rend détecteur — mais il consomme un peu de quota d'API.
 
 ---
 
@@ -133,8 +141,12 @@ Ce que sa correction a révélé vaut plus que la correction : lancer la suite c
 défaut de DAG réel (`collect_spotify_top_tracks` ignorait `dag_run.conf`, donc un clic
 per-tenant dépensait le quota Spotify de toute la flotte). Détail dans `archive.md`.
 
-**Leçon à garder** : une base de test vide cache les défauts multi-locataires. La suite
-doit tourner contre une base à **au moins deux locataires**.
+**Leçon à garder — et désormais gardée mécaniquement.** Mesuré le 2026-08-21 : une base
+canonique fraîche contient **exactement un** locataire, et c'est contre ça que la CI a
+toujours tourné. Avec un seul, « collecter pour ce locataire » et « collecter pour toute
+la flotte » renvoient les mêmes lignes — tout défaut d'isolation se lit comme correct.
+La CI sème maintenant un second locataire, et
+`tests/test_suite_runs_against_two_tenants.py` échoue en dessous de deux.
 
 ---
 
