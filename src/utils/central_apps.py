@@ -102,12 +102,27 @@ def check_soundcloud() -> bool:
 
 
 def check_meta() -> bool:
-    """NON-FATAL by design. Meta System User tokens cannot be reliably validated via raw
-    Graph REST (/me and /debug_token return code-190 "Malformed access token" for tokens
-    that nonetheless work through the facebook_business SDK — observed in prod). So a
-    confirmed-valid token prints ✅; anything else prints ⚠️ (inconclusive, NOT a failure)
-    and returns True — the authoritative Meta signal is whether meta_ads_api_daily actually
-    pulled rows (per-tenant silent-0-row monitoring), not this probe."""
+    """Mostly conclusive — and the part that is not is narrower than it used to be.
+
+    This docstring used to state that "Meta System User tokens cannot be reliably
+    validated via raw Graph REST", and that belief is what kept the probe advisory
+    for months. It was wrong, and it was wrong for an instructive reason: the
+    observation behind it (`/debug_token` returning code-190) came from a period
+    when META_APP_ID held an AD ACCOUNT id, so `debug_token` was being called with
+    app credentials that did not identify any app. The failure was read as a
+    limitation of Graph rather than as a broken configuration, and a one-off
+    observation was promoted into a general rule that then protected the defect.
+
+    Measured 2026-08-21 with correct app credentials: `debug_token` validates a
+    System User token perfectly — is_valid, type=SYSTEM_USER, expires_at=0, 43
+    scopes. The probe is therefore authoritative when the app credentials work.
+
+    What remains FATAL (conclusive):
+      * a malformed token shape;
+      * app credentials that Graph rejects.
+    What remains ADVISORY: an unexpected debug_token payload, where the
+    authoritative signal stays whether meta_ads_api_daily actually pulled rows.
+    """
     token = os.getenv("META_ACCESS_TOKEN")
     if not token:
         print("⚠️ Meta: env not set")
