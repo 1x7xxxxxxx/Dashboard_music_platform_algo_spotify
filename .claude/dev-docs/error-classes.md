@@ -107,6 +107,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [probe-scoped-to-the-machine-not-the-repo](#probe-scoped-to-the-machine-not-the-repo) | P3 | deterministic | guarded | none |
 | [state-path-namespaced-by-another-project](#state-path-namespaced-by-another-project) | P3 | deterministic | guarded | none |
 | [migrate-heals-only-if-run-to-completion](#migrate-heals-only-if-run-to-completion) | P2 | deterministic | guarded | none |
+| [freshness-measured-on-write-time](#freshness-measured-on-write-time) | P2 | deterministic | guarded | none |
 
 ---
 
@@ -821,3 +822,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: found during the real production migration run, not in a test. Applying every `migrations/*.sql` on the live database surfaced one error — `could not create unique index "s4a_song_playlist_adds_pkey"` — which the target would have swallowed. Verified afterwards that the constraint was intact in its later 4-column form, because `044` runs after `024` in the same pass. Sibling of `migration-ahead-of-its-code`: both are about migration ORDER being load-bearing while nothing enforces it.
   - 2026-08-21 (same day): the guard nearly became the defect it names. Its first real production run reported FIVE files — 002, 011, 019, 023, 024 — of which four were `already exists` / `does not exist`, the normal outcome of re-applying a migration written before `IF NOT EXISTS`. A report whose four fifths are noise teaches the reader to skip all of it, and the one line that matters disappears with the rest. Fixed by CLASSIFYING rather than filtering: re-run artefacts are counted on one line, unexpected errors are named with their message. Filtering would have been the obvious move and the wrong one — a genuine `relation … does not exist` must stay visible, it may just no longer hide in the noise. Verified on production: `ℹ️ 4 re-applied over existing objects / ⚠️ 1 not a re-run artefact`, and the schema still canonical at 917 cols / 91 tables.
+
+## freshness-measured-on-write-time
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a source is reported FRESH while its data is months or years old. The collector still runs and still writes, so the write timestamp advances nightly — it simply writes the same old rows.
+- root_cause: `freshness_monitor.MONITOR_TARGETS` measured `MAX(collected_at)` for all seven sources, including the three tables that record the day their data is ABOUT separately from the day it landed (`meta_insights_performance_day.day_date`, `s4a_song_timeline.date`, `track_popularity_history.date`). "Written recently" was being read as "describes a recent day"; they are different claims.
+- signature: `python3 -m pytest tests/test_freshness_measures_the_right_column.py -q`
+- long_term_fix: a target may declare `metric_col` (and `tenant_metric_col`), and freshness prefers it over the write column. Each result carries `measured_on` — `metric` or `write` — so a reader knows which of the two claims is being made. The guard checks BOTH directions against the live schema: a monitored table that has a metric-date column must declare it, and a snapshot table must not declare one it lacks (that would render as a permanent red light on a healthy source — the other way to make a monitor unreadable).
+- autofix: none
+- guard: { type: test, ref: tests/test_freshness_measures_the_right_column.py }
+- rex_ref: src/utils/freshness_monitor.py
+- first_seen: 2026-08-21 (ref: roadmap R13)
+- History:
+  - 2026-08-21: found while checking whether the newly-scheduled central-app task would actually detect R13. It would not — and neither would freshness. Measured on production: `meta_insights_performance_day` had `MAX(collected_at)` = that morning 07:01, `MAX(day_date)` = **2024-09-30**, and **zero** rows with a `day_date` inside the last seven days. Meta Ads had collected nothing since early August behind a green light. After the fix the same probe reports **16 577 hours** stale (~23 months), and surfaces two more genuinely stale CSV sources (Spotify S4A 1 817 h, Apple Music 1 605 h). Guard verified 3 red before / 6 green after. Sibling of `connection-test-proves-app-not-tenant` and of the `psql` exit-0 case: each time the measurement and the question were about different things.
