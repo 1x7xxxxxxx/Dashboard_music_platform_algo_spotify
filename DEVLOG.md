@@ -5,6 +5,81 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-22 (soir) — Les détecteurs voyaient juste ; personne ne recevait leur constat
+
+**Contexte** : deux sessions bêta ont échoué sur le même thème — les identifiants d'un
+artiste ne produisaient rien sur le VPS (Benken 06/2026, GRiNCH 08/2026). Demande :
+« comment s'assurer que tout est fonctionnel de ce côté-là ». La mesure a renversé la
+question.
+
+### Ce que la prod disait, avant de toucher à quoi que ce soit
+
+Trois pannes de collecte **vivantes** : Benken déclare Meta et n'a jamais eu une ligne ;
+GRiNCH déclare SoundCloud et n'a jamais eu une ligne ; le Meta de l'admin est figé
+depuis 85 jours. Et `check_onboarding_readiness`, lancé sur la prod, les nommait
+exactement — DAG actif, nocturne, sans échec depuis des semaines.
+
+**Les détecteurs existaient, tournaient et voyaient juste.** Le problème était ailleurs.
+
+### Cinq défauts, tous mesurés
+
+- **P1 — un ré-enregistrement d'onglet détruisait un secret.** `soundcloud` et `meta`
+  ne déclarent aucun champ secret, donc `_handle_save` sauvegarde toujours un blob
+  vide, et `_save_credentials` écrasait. Or ces lignes portent en prod le
+  `refresh_token` OAuth (228 o) et le **token System User dont dépend la collecte Meta
+  et Instagram de toute la flotte** (804 o). Ouvrir l'onglet Meta, ne rien changer,
+  cliquer « Enregistrer » le supprimait. Sans message, DAG vert le lendemain.
+- **La livraison n'était pas prouvée, et elle avait lâché trois nuits.** Les 16, 17 et
+  18 août, la tâche a écrit « Consolidated alert sent » juste après « Email alerts non
+  configurées ». `send_alert()` renvoie `False`, la valeur était jetée. Le garde
+  existant vérifiait que chaque constat pèse dans la **décision** d'envoi, jamais que
+  l'envoi avait **réussi**.
+- **Le sujet pouvait être vide.** Les quatre signaux par locataire ne contribuaient à
+  aucun titre : Benken et GRiNCH n'y figuraient jamais.
+- **`silent_zero_findings`**, la fonction écrite pour exactement cette classe, n'était
+  appelée que par son propre test.
+- **Le diagnostic vivant n'était jamais automatique.** `artist_readiness` lit la base et
+  devine ; `CONNECTION_TESTS` appelle l'API et sait. Divergence mesurée sur GRiNCH la
+  même nuit : la sonde disait « aucun titre public », l'alerte disait « vérifie ton User
+  ID ; l'app partagée doit être configurée (admin) ». La fausse était l'automatique.
+
+### Ce qui a été livré, et vérifié EN PROD
+
+- `deliver_or_raise` → `Marking task as FAILED` avec « SMTP not configured in this
+  container: ALERT_EMAIL absent ». Table `monitoring_run` (mig. 073) écrite avant la
+  tentative, mise à jour après ; le cron hôte la lit **par Brevo**, donc il survit à la
+  panne qu'il surveille — vu crier avec un seuil abaissé.
+- La sonde vivante tourne **là où la base est déjà rouge** — la fraîcheur EST la preuve,
+  la sonde n'est que l'explication, donc 2 appels d'API par nuit et pas 35. Résultat en
+  prod : Benken/Meta rend l'erreur Facebook littérale `(#200) Ad account owner has NOT
+  granted ads_management` sur `act_65390907` ; GRiNCH/SoundCloud rend « aucun titre
+  public ». La sonde ne change **jamais** un statut, seulement le texte.
+- Sujet : `🔴 NE COLLECTE PAS : Benken (📱 Meta Ads), GRiNCH (☁️ SoundCloud) | …`
+- Le garde d'isolation de flotte ne voyait pas une **compréhension de liste** —
+  `check_data_freshness:215` n'avait aucun try possible, un locataire en erreur faisait
+  échouer la tâche, et `trigger_rule='all_done'` envoyait quand même le mail amputé. Le
+  garde matche maintenant l'itérateur, pas le nom de variable ; il est passé rouge
+  immédiatement.
+- **GRiNCH** : `GET /tracks/{id}` rend les statistiques quel que soit le profil hôte
+  (1027 écoutes sur un titre d'un tiers). `track_platform_link.platform_ref_id`
+  existait déjà ; mig. **074** rend une revendication exclusive, le collecteur ajoute
+  les titres déclarés, et l'onglet SoundCloud a le champ pour les coller.
+
+### Écarté volontairement
+
+« Le compose ne câble pas `SOUNDCLOUD_*` » — vérifié faux : `docker-compose.yml` est
+gitignoré, l'exemple suivi les câble, la prod aussi. Et un endpoint API exposant la
+santé de collecte : une surface authentifiée publique de plus pour un bénéfice que le
+ledger donne déjà.
+
+### Ce qui reste
+
+Les deux pannes sont réelles et **appartiennent à leurs propriétaires** : Benken doit
+partager son compte publicitaire, GRiNCH doit coller les URLs de ses titres. Le produit
+le dit maintenant correctement, chaque nuit, en tête du sujet.
+
+---
+
 ## 2026-08-22 (jour) — Les neuf de la nuit, closes : deux fuites d'auth, et trois gardes dont la portée était une liste tapée à la main
 
 **Contexte** : la nuit du 21→22 avait ouvert neuf entrées (R23→R31) et n'en avait fermé

@@ -56,6 +56,22 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 ## 🔖 REPRISE — état au 2026-08-22 (à lire EN PREMIER au `/resume`)
 
+**▶️ Séance du 2026-08-22 (soir) — la chaîne credentials → collecte est prouvable en
+continu.** Détail dans `archive.md`. Ce qu'il faut retenir : les détecteurs existaient
+et voyaient juste ; ce qui manquait était **la preuve que leur constat sortait de la
+boîte** (trois nuits d'alertes évaporées, tâche verte) et **le diagnostic vivant**
+(la base sait *qu'*il ne se passe rien, seule l'API sait *pourquoi* — et seule la base
+tournait). Plus un P1 : ré-enregistrer l'onglet Meta détruisait le token System User de
+toute la flotte.
+
+Deux pannes de collecte restent VIVANTES en prod, désormais nommées correctement chaque
+nuit et **en tête du sujet** de l'alerte :
+- **Benken / Meta** — `(#200) Ad account owner has NOT granted ads_management` sur
+  `act_65390907`. Geste de Benken, pas correctif de code.
+- **GRiNCH / SoundCloud** — profil sans titre public ; ses sorties paraissent sous
+  d'autres comptes. Le champ « Mes titres hébergés ailleurs » de l'onglet SoundCloud
+  est la réponse, il reste à lui faire coller ses URLs.
+
 **▶️ L'index actionnable est vide, et R22 est close.** R23→R31 livrées, gardées et
 archivées dans la même séance ; le pentest n'a plus aucun volet ouvert. Il ne reste
 qu'**une** entrée sur toute la roadmap : R1, ouvrir la bêta — et c'est la seule qu'aucune

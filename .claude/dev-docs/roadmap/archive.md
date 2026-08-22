@@ -1486,3 +1486,56 @@ Leçon : le volet avait été classé « en attente d'un humain » sur un raison
 est une. Le premier essai a d'ailleurs produit neuf faux « Server error » avant qu'on
 remarque qu'ils étaient tous des 503 dus à un mauvais mot de passe local : un fuzz doit
 commencer par prouver que sa baseline répond 200.
+
+---
+
+## 🔌 Chaîne credentials → collecte : prouvable en continu (2026-08-22, hors numérotation)
+
+Demandé après deux échecs de session bêta sur le même thème — les identifiants d'un
+artiste ne produisaient rien sur le VPS (Benken 06/2026, GRiNCH 08/2026). Point de
+départ contre-intuitif, mesuré : **les détecteurs existaient, tournaient et voyaient
+juste.** Le problème était au-dessus et en dessous d'eux.
+
+- [x] **P1 — un ré-enregistrement d'onglet détruisait un secret.** Les onglets
+      `soundcloud` et `meta` n'ont aucun champ secret, donc sauvegardaient toujours un
+      blob vide, et l'`ON CONFLICT` écrasait. En prod ces lignes portent le
+      `refresh_token` OAuth (228 o) et le **token System User dont dépend la collecte
+      Meta et Instagram de toute la flotte** (804 o). Un clic les supprimait, sans
+      message. Prouvé corrigé en prod sur le vrai token : 804 o avant, 804 après.
+- [x] **La livraison de l'alerte n'était pas prouvée, et elle avait lâché** trois
+      nuits (16-18/08) — `send_alert()` renvoie `False` sans SMTP, la valeur était
+      jetée, « Consolidated alert sent » journalisé quand même. `deliver_or_raise`
+      fait échouer la tâche ; `monitoring_run` (mig. 073) en garde la trace ; un
+      balayage AST interdit tout envoi dont le résultat est jeté (il a trouvé deux
+      autres sites). Vérifié en prod : `Marking task as FAILED`.
+- [x] **Le diagnostic vivant est devenu automatique.** `artist_readiness` lit la base
+      et devinait ; `CONNECTION_TESTS` appelle l'API et sait. Les deux ne se parlaient
+      pas. Désormais la sonde tourne **là où la base est déjà rouge** — 2 appels par
+      nuit, pas 35 — et sa réponse remplace la devinette. Mesuré en prod :
+      Benken/Meta rend l'erreur Facebook littérale `(#200) … has NOT granted
+      ads_management`, GRiNCH/SoundCloud rend « aucun titre public ».
+- [x] **Le titre de l'alerte nomme enfin les locataires** :
+      `🔴 NE COLLECTE PAS : Benken (Meta Ads), GRiNCH (SoundCloud)`. Il pouvait être
+      **vide** : les quatre signaux par locataire ne contribuaient à aucun sujet.
+- [x] **`silent_zero_findings` supprimé** — écrit pour cette classe exacte, appelé par
+      son seul test. Son prédicat est déjà celui de `readiness_red_flags`, qui tourne.
+- [x] **Le garde d'isolation de flotte voyait une compréhension de liste comme rien.**
+      `check_data_freshness:215` n'avait aucun try possible ; un locataire en erreur
+      faisait échouer la tâche et le mail partait amputé. Le garde matche désormais
+      l'itérateur, pas le nom de variable.
+- [x] **Titres hébergés sur d'autres comptes** (cas GRiNCH, `track_count=0` sur son
+      profil) : `GET /tracks/{id}` rend les stats quel que soit l'hôte (vérifié).
+      `track_platform_link.platform_ref_id` existait déjà ; mig. **074** rend une
+      revendication exclusive, le collecteur les ajoute, le test de connexion cesse
+      d'être rouge, et l'onglet SoundCloud a le champ pour les coller.
+- [x] **Le cron hôte lit le ledger de livraison** — par Brevo, donc il survit à la
+      panne SMTP qu'il surveille. Vu crier en prod avec un seuil abaissé.
+
+**Écarté volontairement** : « le compose ne câble pas `SOUNDCLOUD_*` » — vérifié faux,
+`docker-compose.yml` est gitignoré, l'exemple suivi les câble et la prod aussi. Et un
+endpoint API exposant la santé de collecte : nouvelle surface authentifiée publique
+pour un bénéfice que le ledger donne déjà.
+
+Quatre classes capitalisées : `resave-erases-a-secret-the-form-cannot-show`,
+`delivery-failure-logged-as-success`, `static-hint-contradicts-the-live-probe`,
+`detector-written-and-never-called`. 87 classes, 1371 tests verts.
