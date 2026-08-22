@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from ._meta_constants import _AD_STATUSES, _ADSET_STATUSES, _CAMPAIGN_STATUSES
 from ._meta_retry import _meta_list, _meta_retry
+from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +189,7 @@ class _MetaConfigFetchMixin:
                         'call_to_action': cr.get('call_to_action_type'),
                     }
                 except Exception as e:
-                    logger.warning(f"  creative {cid} fetch failed: {e}")
+                    logger.warning(f"  creative {cid} fetch failed: {safe_error(e)}")
                     # Non-fatal per creative: some may be inaccessible (deleted, perms).
                     # A SYSTEMIC failure (all fail) is caught below — rule #6.
 

@@ -124,13 +124,27 @@ def _returns_bare_exception(path: Path) -> list[int]:
     return sorted(set(out))
 
 
-@pytest.mark.parametrize("rel", [
-    "src/dashboard/views/credentials/_platform_meta.py",
-    "src/dashboard/views/credentials/_platform_youtube.py",
-    "src/dashboard/views/credentials/_platform_spotify.py",
-    "src/dashboard/views/credentials/_platform_soundcloud.py",
-    "src/utils/central_apps.py",
-])
+# DERIVED, not hand-listed. The first version of this guard named five files by
+# hand — the four connection probes and central_apps — and a full-application audit
+# then found the same defect in every COLLECTOR, which was in none of them. A guard
+# whose scope is a literal list protects exactly the sites someone remembered.
+#
+# The scope is now "every module that both calls an HTTP client and handles an
+# exception", computed from the tree.
+def _modules_that_call_http() -> list[str]:
+    out = []
+    for sub in ("src/collectors", "src/utils", "src/dashboard/views/credentials"):
+        for path in sorted((ROOT / sub).rglob("*.py")):
+            if "__pycache__" in str(path):
+                continue
+            text = path.read_text(encoding="utf-8")
+            if ("requests." in text or "googleapiclient" in text or "urlopen" in text) \
+                    and "except" in text:
+                out.append(path.relative_to(ROOT).as_posix())
+    return out
+
+
+@pytest.mark.parametrize("rel", _modules_that_call_http())
 def test_no_probe_surfaces_a_whole_exception(rel: str) -> None:
     """These modules pass credentials as query parameters.
 

@@ -15,6 +15,7 @@ sys.path.append(str(project_root))
 from src.database.postgres_handler import PostgresHandler
 from src.utils.retry import retry
 from src.utils.meta_config import META_GRAPH_BASE_URL
+from src.utils.safe_error import safe_error
 
 # Local-dev convenience only: in containers the env is injected by docker-compose, and the
 # mounted /opt/airflow/.env is root-owned 600 (unreadable by the airflow uid) → load_dotenv()
@@ -23,7 +24,7 @@ from src.utils.meta_config import META_GRAPH_BASE_URL
 try:
     load_dotenv()
 except OSError as e:
-    logger.debug(f"load_dotenv skipped ({e}); relying on injected environment.")
+    logger.debug(f"load_dotenv skipped ({safe_error(e)}); relying on injected environment.")
 
 class InstagramCollector:
     def __init__(self, artist_id: int, access_token: str = None,
@@ -116,13 +117,13 @@ class InstagramCollector:
                 )
                 logger.info(f"Meta access_token refreshed and persisted. New expires_at: {new_expires_at.date()}")
             except Exception as e:
-                logger.error(f"Token persist to DB failed: {e}")
+                logger.error(f"Token persist to DB failed: {safe_error(e)}")
                 raise
 
             return True
 
         except Exception as e:
-            logger.warning(f"Meta token refresh exception: {e}")
+            logger.warning(f"Meta token refresh exception: {safe_error(e)}")
             return False
 
     def _check_proactive_refresh(self) -> None:
@@ -149,7 +150,7 @@ class InstagramCollector:
                 logger.info(f"Meta token expires in {days_left} day(s) — triggering proactive refresh.")
                 self._refresh_access_token()
         except Exception as e:
-            logger.debug(f"Proactive refresh check skipped: {e}")
+            logger.debug(f"Proactive refresh check skipped: {safe_error(e)}")
 
     @retry(max_attempts=3, backoff="exponential")
     def fetch_stats(self):
@@ -213,7 +214,7 @@ class InstagramCollector:
         except ValueError:
             raise
         except Exception as e:
-            raise RuntimeError(f"Instagram API request failed: {e}") from e
+            raise RuntimeError(f"Instagram API request failed: {safe_error(e)}") from e
 
     def save_to_db(self, stats):
         if not stats:
@@ -240,8 +241,8 @@ class InstagramCollector:
             logger.info("Instagram stats inserted")
 
         except Exception as e:
-            logger.error(f"SQL error in save_to_db: {e}")
-            if "relation" in str(e) and "does not exist" in str(e):
+            logger.error(f"SQL error in save_to_db: {safe_error(e)}")
+            if "relation" in safe_error(e) and "does not exist" in safe_error(e):
                 logger.error("Missing table — run the schema migration first")
             raise
 
@@ -295,7 +296,7 @@ class InstagramCollector:
         except ValueError:
             raise
         except Exception as e:
-            raise RuntimeError(f"Instagram media fetch failed: {e}") from e
+            raise RuntimeError(f"Instagram media fetch failed: {safe_error(e)}") from e
 
     def _media_insight_row(self, mid: str, metrics: str, day) -> dict | None:
         """One media's insights, or None if unsupported (400 code 100 → skip)."""
@@ -347,7 +348,7 @@ class InstagramCollector:
         except ValueError:
             raise
         except Exception as e:
-            raise RuntimeError(f"Instagram insights fetch failed: {e}") from e
+            raise RuntimeError(f"Instagram insights fetch failed: {safe_error(e)}") from e
         logger.info(f"Fetched insights for {len(out)} media item(s)")
         return out
 

@@ -15,6 +15,7 @@ import time
 import re
 from urllib.parse import urlparse
 import requests
+from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +72,12 @@ class MonitoredSession(requests.Session):
         except requests.exceptions.ConnectionError as e:
             self._failure_counts[host] = self._failure_counts.get(host, 0) + 1
             logger.error(
-                f"[{self.platform}] CONNECTION ERROR {method} {safe_url} — {e} "
+                f"[{self.platform}] CONNECTION ERROR {method} {safe_url} — {safe_error(e)} "
                 f"(consecutive failures: {self._failure_counts[host]})"
             )
             raise
         except requests.exceptions.Timeout as e:
-            logger.warning(f"[{self.platform}] TIMEOUT {method} {safe_url} — {e}")
+            logger.warning(f"[{self.platform}] TIMEOUT {method} {safe_url} — {safe_error(e)}")
             raise
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)

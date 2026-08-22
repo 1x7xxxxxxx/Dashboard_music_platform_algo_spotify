@@ -5,6 +5,7 @@ import functools
 from typing import Tuple, Type
 
 import psycopg2
+from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def retry(max_attempts: int = 3, backoff: str = "exponential", base_delay: float
                         delay = attempt * base_delay
                     logger.warning(
                         f"⚠️ {func.__qualname__} — tentative {attempt}/{max_attempts} échouée "
-                        f"({type(exc).__name__}: {exc}). Retry dans {delay:.1f}s."
+                        f"({type(exc).__name__}: {safe_error(exc)}). Retry dans {delay:.1f}s."
                     )
                     time.sleep(delay)
                 except Exception as exc:
@@ -71,7 +72,7 @@ def retry(max_attempts: int = 3, backoff: str = "exponential", base_delay: float
                         delay = attempt * base_delay
                     logger.warning(
                         f"⚠️ {func.__qualname__} — tentative {attempt}/{max_attempts} échouée "
-                        f"({type(exc).__name__}: {exc}). Retry dans {delay:.1f}s."
+                        f"({type(exc).__name__}: {safe_error(exc)}). Retry dans {delay:.1f}s."
                     )
                     time.sleep(delay)
 

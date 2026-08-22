@@ -20,6 +20,7 @@ sys.path.append(str(project_root))
 
 from src.database.postgres_handler import PostgresHandler
 from src.utils.retry import retry
+from src.utils.safe_error import safe_error
 
 # Local-dev convenience only: in containers the env is injected by docker-compose, and
 # the mounted /opt/airflow/.env is root-owned 600 (unreadable by the airflow uid) →
@@ -28,7 +29,7 @@ from src.utils.retry import retry
 try:
     load_dotenv()
 except OSError as e:
-    logger.debug(f"load_dotenv skipped ({e}); relying on injected environment.")
+    logger.debug(f"load_dotenv skipped ({safe_error(e)}); relying on injected environment.")
 
 _TOKEN_ENDPOINT = "https://api.soundcloud.com/oauth2/token"
 _API_BASE = "https://api.soundcloud.com"

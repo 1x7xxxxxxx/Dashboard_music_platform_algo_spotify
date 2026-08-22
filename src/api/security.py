@@ -60,11 +60,39 @@ _GLOBAL_LIMITER = SlidingWindowLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SECS)
 _AUTH_LIMITER = SlidingWindowLimiter(AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_SECS)
 
 
+# Number of proxies in front of this app whose X-Forwarded-For entries we trust.
+# Production is Cloudflare → Caddy → app, so the last TWO hops are ours.
+TRUSTED_PROXY_HOPS = int(os.getenv("TRUSTED_PROXY_HOPS", "2"))
+
+
 def client_ip(request: Request) -> str:
-    """Client IP — first X-Forwarded-For hop behind a proxy, else the socket peer."""
+    """Client IP, taken from the RIGHT of X-Forwarded-For — never the left.
+
+    The first hop is whatever the CLIENT sent. Cloudflare and Caddy both APPEND the
+    peer they saw, so an attacker-supplied entry survives to the app at position 0.
+    Reading it made the rate limiter a no-op: sending `X-Forwarded-For: 10.0.0.<n>`
+    with an incrementing n created a fresh bucket per request, so neither the strict
+    /auth/token budget nor the global one ever fired. Measured 2026-08-22.
+
+    Chained with the registration oracle, that turned account lockout into an
+    indefinite denial of service against every tenant, and made password spraying
+    unthrottled.
+
+    Cloudflare's `CF-Connecting-IP` is preferred when present: Cloudflare sets it
+    itself and overwrites any client-supplied value.
+    """
+    cf = request.headers.get("cf-connecting-ip")
+    if cf:
+        return cf.strip()
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        hops = [h.strip() for h in forwarded.split(",") if h.strip()]
+        # FEWER hops than we expect means the header did not come through our
+        # proxies — so it is not ours to read. Falling back to the socket peer is
+        # the only safe answer; taking hops[0] there would restore the bypass in
+        # every environment that has one proxy instead of two.
+        if len(hops) >= TRUSTED_PROXY_HOPS > 0:
+            return hops[len(hops) - TRUSTED_PROXY_HOPS]
     return request.client.host if request.client else "unknown"
 
 

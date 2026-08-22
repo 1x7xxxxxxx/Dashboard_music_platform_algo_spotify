@@ -5,6 +5,31 @@ from ._config import _t
 
 
 
+def _esc(value) -> str:
+    """HTML-escape a TENANT-CONTROLLED value on its way into the report.
+
+    Applied surgically, not everywhere: this file also interpolates markup it built
+    itself (badges, bars, row blocks), and escaping those breaks the render. The
+    values below are the ones a tenant can actually set.
+
+    Where they come from — measured 2026-08-22:
+      * a song name is the STEM OF AN UPLOADED CSV FILENAME. `parse_timeline` does
+        not run it through `canonical_song()`, unlike `parse_songs_global`, so `<`
+        and `>` survive into `s4a_song_timeline.song`.
+      * a campaign name is whatever the tenant called their own Meta campaign;
+        `meta_ads_api_daily` writes it to `meta_campaigns.campaign_name`.
+
+    Both reached the HTML WeasyPrint renders SERVER-SIDE, which then fetched any
+    `<img src>` they contained — `http://` inside the container (blind SSRF),
+    `file://` embedding a server file into the PDF the tenant downloads. The
+    `url_fetcher` in `_report.py` now blocks the fetch; this blocks the injection.
+    Two independent controls, because either alone is one mistake from failing.
+    """
+    from html import escape
+
+    return escape(str(value), quote=True)
+
+
 def _badge(emoji, label):
     css = {'🟢': 'green', '🟠': 'orange', '🔴': 'red'}.get(emoji, 'gray')
     return f'<span class="badge {css}">{emoji} {label}</span>'
@@ -150,7 +175,7 @@ def _render_songs_focus(songs_data):
 
         parts.append(f"""
         <div class="song-block">
-          <div class="song-title">🎵 {s['song']}</div>
+          <div class="song-title">🎵 {_esc(s['song'])}</div>
           <table style="width:auto;margin-bottom:0;">
             <tr>
               <td style="padding:3px 16px 3px 0;border:none;">
@@ -170,7 +195,7 @@ def _render_s4a_top_songs(songs):
     if not songs:
         return f'<p class="no-data">{_t("pdf.nodata.s4a", "Aucune donnée S4A disponible.")}</p>'
     rows = "".join(
-        f"<tr><td>{s[0]}</td><td>{s[1]:,}</td><td>{s[2]:,}</td></tr>"
+        f"<tr><td>{_esc(s[0])}</td><td>{s[1]:,}</td><td>{s[2]:,}</td></tr>"
         for s in songs[:5]
     )
     return _html_table(
@@ -363,7 +388,7 @@ def _render_mapping(rows):
     if not rows:
         return f'<p class="no-data">{_t("pdf.nodata.mapping", "Aucun mapping campagne ↔ titre saisi.")}</p>'
     body = "".join(
-        f"<tr><td style='width:58%'>{_trunc(c, 46)}</td>"
+        f"<tr><td style='width:58%'>{_esc(_trunc(c, 46))}</td>"
         f"<td style='width:42%'>{_trunc(t, 34)}</td></tr>"
         for c, t in rows[:15]
     )

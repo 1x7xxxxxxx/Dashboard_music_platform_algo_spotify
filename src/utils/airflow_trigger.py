@@ -2,6 +2,7 @@
 import requests
 from typing import Dict, List, Optional
 import logging
+from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ class AirflowTrigger:
             }
 
         except Exception as e:
-            error_msg = str(e)
+            error_msg = safe_error(e)
             logger.error(f"❌ Erreur inattendue pour {dag_id}: {error_msg}")
 
             return {
@@ -182,7 +183,7 @@ class AirflowTrigger:
             return {
                 'success': False,
                 'dag': dag_id,
-                'error': str(e)
+                'error': safe_error(e)
             }
 
     def get_last_dag_run(self, dag_id: str) -> Optional[Dict]:
@@ -222,7 +223,7 @@ class AirflowTrigger:
             return None
 
         except Exception as e:
-            logger.error(f"❌ Erreur get_last_dag_run pour {dag_id}: {e}")
+            logger.error(f"❌ Erreur get_last_dag_run pour {dag_id}: {safe_error(e)}")
             return None
 
     def check_connection(self) -> bool:
@@ -245,7 +246,7 @@ class AirflowTrigger:
                 return False
 
         except Exception as e:
-            logger.error(f"❌ Connexion à Airflow impossible: {e}")
+            logger.error(f"❌ Connexion à Airflow impossible: {safe_error(e)}")
             return False
 
 

@@ -18,6 +18,21 @@ from ._renderers import (
 
 
 
+
+
+def _no_remote_resources(url: str, timeout: int = 10, ssl_context=None):
+    """url_fetcher that serves nothing but inline `data:` URIs.
+
+    Charts are embedded as base64 `data:` by the renderers, so this costs the report
+    nothing. Anything else raises, and WeasyPrint drops the element.
+    """
+    if url.startswith("data:"):
+        from weasyprint.urls import default_url_fetcher
+
+        return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
+    raise ValueError(f"blocked non-data resource in PDF render: {url[:60]}")
+
+
 def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs_filter=None):
     """
     Retourne un dict avec toutes les métriques nécessaires au rapport.
@@ -461,4 +476,18 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
     data = collect_report_data(db, artist_id, from_date, to_date, songs=songs,
                                s4a_songs_filter=s4a_songs_filter)
     html_str = _EMOJI_RE.sub("", render_html(data, artist_name, sections=sections, lang=lang))
-    return HTML(string=html_str).write_pdf()
+    # No network, no filesystem. WeasyPrint's default url_fetcher registers
+    # http/https/ftp/file handlers with `allowed_protocols=None`, so ANY `<img src>`
+    # surviving into the HTML is fetched by the server that renders the PDF.
+    #
+    # Measured 2026-08-22: a free-plan tenant could plant `<img src="...">` in a
+    # value that reaches this HTML — a CSV filename (whose stem becomes the song
+    # name, unsanitised) or their own Meta campaign name. The render then issued the
+    # request from inside the container: `http://` reached 127.0.0.1 and the compose
+    # network (blind SSRF, redirects followed), and `file://` embedded an arbitrary
+    # server-side image into the PDF they downloaded. An admin generating any
+    # tenant's report fired the payload in the admin's session.
+    #
+    # Escaping the values (below) closes the injection; this closes the class, so a
+    # future unescaped interpolation cannot reach the network or the disk.
+    return HTML(string=html_str, url_fetcher=_no_remote_resources).write_pdf()

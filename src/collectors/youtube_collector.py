@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Optional
 import logging
 from src.utils.retry import retry
+from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ class YouTubeCollector:
             return data
 
         except Exception as e:
-            logger.error(f"❌ Erreur get_channel_stats: {e}")
+            logger.error(f"❌ Erreur get_channel_stats: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -119,7 +120,7 @@ class YouTubeCollector:
                     # error: return 0 videos instead of raising (which previously failed
                     # the whole multi-tenant DAG for a brand-new artist with no uploads).
                     if getattr(he, 'resp', None) is not None and he.resp.status == 404 \
-                       and 'playlistNotFound' in str(he):
+                       and 'playlistNotFound' in safe_error(he):
                         logger.info(f"ℹ️ Chaîne {channel_id} sans vidéo publique (uploads vide) — 0 vidéo.")
                         return videos
                     raise
@@ -149,7 +150,7 @@ class YouTubeCollector:
             return videos
 
         except Exception as e:
-            logger.error(f"❌ Erreur get_channel_videos: {e}")
+            logger.error(f"❌ Erreur get_channel_videos: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -200,7 +201,7 @@ class YouTubeCollector:
             return stats_list
 
         except Exception as e:
-            logger.error(f"❌ Erreur get_video_stats: {e}")
+            logger.error(f"❌ Erreur get_video_stats: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -254,7 +255,7 @@ class YouTubeCollector:
             return comments
 
         except Exception as e:
-            logger.error(f"❌ Erreur get_video_comments: {e}")
+            logger.error(f"❌ Erreur get_video_comments: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -308,7 +309,7 @@ class YouTubeCollector:
             return playlists
 
         except Exception as e:
-            logger.error(f"❌ Erreur get_playlists: {e}")
+            logger.error(f"❌ Erreur get_playlists: {safe_error(e)}")
             raise
 
     def collect_all_data(self, channel_id: str, max_videos: int = 50,

@@ -133,6 +133,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [gate-with-no-test-of-its-own](#gate-with-no-test-of-its-own) | P3 | deterministic | guarded | none |
 | [tenant-identity-reaches-a-url-unvalidated](#tenant-identity-reaches-a-url-unvalidated) | P1 | deterministic | guarded | none |
 | [secret-in-an-exception-message](#secret-in-an-exception-message) | P1 | deterministic | guarded | none |
+| [server-side-render-fetches-tenant-chosen-urls](#server-side-render-fetches-tenant-chosen-urls) | P1 | deterministic | guarded | none |
+| [trusted-value-read-from-an-untrusted-header](#trusted-value-read-from-an-untrusted-header) | P1 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1278,8 +1280,49 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: src/utils/central_apps.py
 - first_seen: 2026-08-22
 - History:
+  - 2026-08-22: **the guard's own scope was the defect.** Written the same day, it was parametrised over five files named by hand — the four connection probes and `central_apps` — and a full-application audit then found the identical leak in every COLLECTOR, which was in none of them (`instagram_api_collector` sends `client_secret` and `fb_exchange_token` as query params; `youtube_collector` logs `HttpError`, whose repr embeds the URI). The scope is now DERIVED from the tree: every module that both calls an HTTP client and handles an exception. That widening immediately caught four more modules. Sites are fixed with `src/utils/safe_error.py::redact`, which keeps the message shape and blanks the values — blanking the whole message costs the operator the one line that says what broke.
   - 2026-08-22: the guard, written for the four sites the audit named, immediately found **five more** — three in `central_apps` (Spotify/YouTube/SoundCloud) and two raw-body echoes in `_platform_meta`. Verified RED by mutation (restore `str(e)` in the YouTube probe).
 - Notes:
   - The nightly one is the worse of the two. A tenant-facing leak needs a person
     clicking during an outage; the log one writes both secrets to disk on its own
     schedule, and the file outlives the incident.
+
+## server-side-render-fetches-tenant-chosen-urls
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a renderer that runs on the SERVER builds a document from tenant data and then resolves the resources it references. Any markup surviving into that document becomes a request made by the server, from inside the network, with the server's own reachability.
+- signature: `python3 -m pytest tests/test_pdf_export_cannot_fetch.py -q`
+- root_cause: `src/dashboard/utils/pdf_exporter/_report.py` called `HTML(string=html_str).write_pdf()` with no `url_fetcher`. WeasyPrint's default fetcher registers http/https/ftp/**file** with `allowed_protocols=None` and follows redirects. `_renderers.py` escaped nothing (zero occurrences of `escape`), and two tenant-controlled values reach it: a song name — taken from the STEM OF AN UPLOADED CSV FILENAME, and `parse_timeline` does not run it through `canonical_song()` unlike `parse_songs_global` — and a Meta campaign name. Both are free-plan reachable (`export_pdf` and `upload_csv` are in `_FREE_FEATURES`).
+- long_term_fix: two independent controls, because either alone is one mistake from failing. `_no_remote_resources` serves `data:` URIs only, so the class is closed whatever future value slips through unescaped; and `_esc()` escapes the three tenant-controlled interpolations the audit named. Deliberately NOT a blanket escape of the file — it also interpolates markup it builds itself (badges, probability bars, row blocks), and escaping those breaks the render. That was tried; the golden-snapshot test caught it.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_pdf_export_cannot_fetch.py }
+- rex_ref: src/dashboard/utils/pdf_exporter/_report.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: found by a full-application audit. Escalation worth noting: `export_pdf.py` lets an ADMIN generate any tenant's report, so a planted payload fires in the admin's session. Verified RED by mutation (remove the `url_fetcher`; un-escape the song title).
+- Notes:
+  - The golden-snapshot test earned its keep here. A blanket escape looked correct,
+    passed a reading, and silently turned every badge into visible `&lt;span&gt;`.
+    Byte-identical output is the only assertion that catches a change that is
+    invisible in review.
+
+## trusted-value-read-from-an-untrusted-header
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a security control keys on a value taken from a request header the caller controls, so the caller varies the key and the control never fires. It looks present in code review and in the logs.
+- signature: `python3 -m pytest tests/test_rate_limit_client_ip.py -q`
+- root_cause: `src/api/security.py::client_ip` returned `X-Forwarded-For.split(",")[0]` — the FIRST hop, i.e. whatever the client sent. Cloudflare and Caddy both APPEND the peer they saw, so an attacker-supplied entry survives at position 0. Every rate-limit bucket was therefore caller-chosen.
+- long_term_fix: read from the RIGHT (`hops[len(hops) - TRUSTED_PROXY_HOPS]`), prefer Cloudflare's own `CF-Connecting-IP`, and — the part that is easy to get wrong — fall back to the socket peer when there are FEWER hops than expected, because that means the header did not come through our proxies at all. Taking `hops[0]` in that branch restores the bypass in any environment with one proxy instead of two.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_rate_limit_client_ip.py }
+- rex_ref: src/api/security.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. The load-bearing test is `test_the_key_cannot_be_varied_by_the_caller` — 50 crafted requests must collapse to ONE bucket. Asserting "the right IP is returned" would have passed on the first fix attempt, which still trusted a lone spoofed hop. Verified RED by mutation.
+- Notes:
+  - The damage is not the limiter alone. Chained with the registration oracle
+    (`register.py` answers "L'email 'x' est déjà enregistré") and the 5-attempt
+    lockout — whose column is shared between the API and the dashboard — an
+    anonymous caller could keep every tenant locked out of both, indefinitely.

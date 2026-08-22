@@ -6,6 +6,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class EmailAlert:
             logger.info(f"✅ Alerte envoyée : {subject}")
             return True
         except Exception as e:
-            logger.error(f"❌ Échec envoi email : {e}")
+            logger.error(f"❌ Échec envoi email : {safe_error(e)}")
             return False
 
     def send_email(self, to_email: str, subject: str, html: str,
@@ -112,4 +113,4 @@ def dag_failure_callback(context):
     try:
         EmailAlert().send_alert(subject, body)
     except Exception as e:
-        logger.error(f"dag_failure_callback : envoi email échoué ({e})")
+        logger.error(f"dag_failure_callback : envoi email échoué ({safe_error(e)})")
