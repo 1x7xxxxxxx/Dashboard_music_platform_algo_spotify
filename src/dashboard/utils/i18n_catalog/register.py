@@ -31,8 +31,13 @@ EN = {
     "register.submit": "Create account",
     "register.already_have": "[Already have an account? **Sign in**](?page=login)",
     # Uniqueness errors
-    "register.email_taken": "Email '{e}' is already registered.",
-    "register.code_invalid": "Code '{code}' is not valid or has expired.",
+    # register.email_taken / register.code_invalid were retired on 2026-08-22: both
+    # answered an anonymous visitor a question only an account holder should be able
+    # to ask (R23). Their replacements below say the same thing to the right person.
+    "register.code_ignored": "Code '{code}' could not be applied. Your account is "
+                             "created; contact us if the code was meant to work.",
+    "register.throttled": "Too many sign-up attempts from this connection. "
+                          "Try again in {s} second(s).",
     # Success / outcome
     "register.promo_active": " Your **{plan} plan** is active for **{days} days**.",
     "register.welcome_trial": " You get **{days} days of free Premium access**.",
@@ -44,5 +49,5 @@ EN = {
                              "could not be sent (SMTP not configured). "
                              "Ask an admin to manually verify your account.",
     "register.onboarding_btn": "→ Set up your dashboard (2 min)",
-    "register.failed": "Registration failed: {err}",
+    "register.failed": "Sign-up did not go through. Try again; if the problem persists, contact us quoting reference **{ref}**.",
 }

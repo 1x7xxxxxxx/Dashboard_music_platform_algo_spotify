@@ -25,6 +25,11 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 
+# The keys a hydrated session carries. Documentary since 2026-08-22: logout calls
+# st.session_state.clear() instead of popping this list, because the list was six
+# names and the session holds more — `_totp_pending` (which carries `totp_secret`)
+# survived a logout. Kept because it names the contract `_hydrate_session` fills;
+# do NOT reintroduce a pop-loop over it.
 _SESSION_KEYS = ['authenticated', 'username', 'name', 'artist_id', 'role', 'user_id']
 
 
@@ -61,7 +66,12 @@ def _check_session_rate_limit() -> bool:
 
 def _rate_record_failure():
     now = time.time()
-    if 'rate_window_start' not in st.session_state:
+    # The key is `_rate_window_start`, with the underscore. Testing for the name
+    # WITHOUT it (the shape until 2026-08-22) meant the condition was always true,
+    # so every failure restarted the window and the counter never reached its cap.
+    # It failed closed — the budget was simply never spent — but the code did not do
+    # what reading it says it does, and the R26 fix relies on this one being honest.
+    if '_rate_window_start' not in st.session_state:
         st.session_state['_rate_window_start'] = now
     st.session_state['_rate_attempts'] = st.session_state.get('_rate_attempts', 0) + 1
 
@@ -80,6 +90,57 @@ def _session_idle_expired(last_activity: Optional[float], now: float,
                           timeout_secs: int = _IDLE_TIMEOUT_SECS) -> bool:
     """True when the gap since the last interaction exceeds the idle timeout."""
     return last_activity is not None and (now - last_activity) > timeout_secs
+
+
+# How long an authenticated session may go without re-reading its own row.
+# Not zero: Streamlit reruns the whole script on every widget interaction, and a
+# connection per click for a page that already opens one is a real cost. Not long
+# either: this interval IS the revocation delay an admin gets after clicking
+# "désactiver", so it has to be a number you would say out loud in an incident.
+_REAUTH_INTERVAL_SECS = int(os.getenv('SESSION_REAUTH_INTERVAL_SECS', '30'))
+
+
+def _session_still_authorised(now: float) -> bool:
+    """Re-read this session's own row and answer whether it may continue.
+
+    R24, 2026-08-22. `require_login()` used to trust `st.session_state` alone, so the
+    three columns that decide authorisation — `active`, `role`, `artist_id` — were
+    read exactly once, at login. Deactivating an account did not end its session;
+    neither did changing its password after a compromise. The holder kept the
+    dashboard for as long as they kept clicking.
+
+    Also refreshes `role` and `artist_id` from the row: an admin demoted mid-session
+    kept the admin menu until they logged out on their own.
+
+    Fails OPEN on a database outage, and this is the one deliberate asymmetry with
+    the API's `get_current_user` (which 503s): a Postgres blip must not log out every
+    artist mid-session, and the dashboard already shows a red banner in that state.
+    The API has no such banner and its tokens travel further, so it fails closed.
+    """
+    last = st.session_state.get('_last_reauth_at', 0.0)
+    if now - last < _REAUTH_INTERVAL_SECS:
+        return True
+    user_id = st.session_state.get('user_id')
+    if user_id is None:
+        return True  # bootstrap/legacy session with no id — nothing to look up
+    db = _get_db()
+    if db is None:
+        return True  # outage: see docstring
+    try:
+        rows = db.fetch_query(
+            "SELECT active, role, artist_id FROM saas_users WHERE id = %s", (user_id,)
+        )
+    finally:
+        db.close()
+    if not rows:
+        return False  # the account was deleted under this session
+    active, role, artist_id = rows[0]
+    if not active:
+        return False
+    st.session_state['role'] = role
+    st.session_state['artist_id'] = artist_id
+    st.session_state['_last_reauth_at'] = now
+    return True
 
 
 # ─────────────────────────────────────────────
@@ -205,11 +266,17 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
             )
         return None, _t("auth.invalid_credentials", "Nom d'utilisateur ou mot de passe invalide.")
 
-    # Successful authentication — reset failure counter
-    db.execute_query(
-        "UPDATE saas_users SET failed_login_attempts = 0, locked_until = NULL WHERE id = %s",
-        (uid,)
-    )
+    # Reset the failure counter only when the password was the LAST factor owed.
+    # Resetting it here unconditionally is what made the TOTP challenge
+    # brute-forceable (R26): the attacker knows the password, so every wrong code
+    # could be followed by a fresh login that zeroed the counter again. With 2FA on,
+    # the reset moves to _show_totp_challenge, after the code verifies.
+    if not totp_enabled:
+        db.execute_query(
+            "UPDATE saas_users SET failed_login_attempts = 0, locked_until = NULL "
+            "WHERE id = %s",
+            (uid,)
+        )
 
     if not email_verified:
         # HIGH-02: do NOT expose the email address in the error string
@@ -239,6 +306,9 @@ def _resend_verification(username: str, email: str, db) -> None:
 
 def _hydrate_session(user: dict) -> None:
     st.session_state['authenticated'] = True
+    # The row was just read by _authenticate_user; start the R24 re-read clock here
+    # rather than firing a second identical query on the very next rerun.
+    st.session_state['_last_reauth_at'] = time.time()
     st.session_state['username']      = user['username']
     st.session_state['name']          = user['email']
     st.session_state['artist_id']     = user['artist_id']  # None = admin
@@ -254,6 +324,25 @@ def _hydrate_session(user: dict) -> None:
 # ─────────────────────────────────────────────
 # TOTP 2FA challenge (Brick 28)
 # ─────────────────────────────────────────────
+
+def _record_second_factor_failure(db, username: str) -> None:
+    """Count a wrong TOTP code against the account's lockout, like a wrong password.
+
+    The lockout in `_authenticate_user` is the only counter that survives a new
+    browser session. Leaving the second factor out of it meant an attacker holding
+    the password had unlimited attempts at the code (R26) — the account never locked,
+    because from the database's point of view nothing had failed.
+    """
+    if not username:
+        return
+    db.execute_query(
+        "UPDATE saas_users SET failed_login_attempts = failed_login_attempts + 1, "
+        "locked_until = CASE WHEN failed_login_attempts + 1 >= %s "
+        "                    THEN NOW() + make_interval(mins => %s) ELSE locked_until END "
+        "WHERE username = %s",
+        (_MAX_LOGIN_ATTEMPTS, _LOCKOUT_MINUTES, username),
+    )
+
 
 def _show_totp_challenge(db) -> None:
     """Render the TOTP verification step after password auth succeeds."""
@@ -279,6 +368,20 @@ def _show_totp_challenge(db) -> None:
         st.rerun()
 
     if submitted:
+        # R26 — the budget for wrong codes lives OUTSIDE this session, keyed by client
+        # IP. `_check_session_rate_limit()` counts in st.session_state, which a new
+        # browser tab resets; and since the attacker knows the password, reforging a
+        # `_totp_pending` in a fresh tab costs one request. That made a 6-digit code
+        # with valid_window=1 reachable, not merely theoretically weak.
+        from src.dashboard.utils.throttle import (
+            throttle_check, throttle_record, throttle_reset,
+        )
+        retry_after = throttle_check("totp")
+        if retry_after is not None:
+            st.error(_t("auth.rate_limited",
+                        "Trop de tentatives échouées. Réessayez dans {s} secondes."
+                        ).format(s=retry_after))
+            return
         try:
             import pyotp
             totp = pyotp.TOTP(pending['totp_secret'])
@@ -286,15 +389,24 @@ def _show_totp_challenge(db) -> None:
                 user = dict(pending)
                 st.session_state.pop('_totp_pending', None)
                 _rate_reset()
+                throttle_reset("totp")
                 st.session_state.clear()
                 _hydrate_session(user)
+                # Both factors are now in: this is where the account-level lockout
+                # counter is cleared, not after the password (see _authenticate_user).
                 db.execute_query(
-                    "UPDATE saas_users SET updated_at = NOW() WHERE username = %s",
+                    "UPDATE saas_users SET updated_at = NOW(), "
+                    "failed_login_attempts = 0, locked_until = NULL WHERE username = %s",
                     (user['username'],)
                 )
                 st.rerun()
             else:
+                throttle_record("totp")
                 _rate_record_failure()
+                # A wrong code is a failed login for the ACCOUNT too, so it walks
+                # toward the same 5-attempt lockout a wrong password does. Without
+                # this the only counter that moved was the one in this session.
+                _record_second_factor_failure(db, pending.get('username', ''))
                 st.error(_t("auth.totp_invalid", "Code d'authentification invalide. Réessayez."))
         except ImportError:
             st.error(_t("auth.totp_missing_dep",
@@ -373,6 +485,11 @@ def require_login() -> bool:
             # C3: idle timeout — drop the whole session, fall through to the login form
             st.session_state.clear()
             st.session_state['_session_expired_notice'] = True
+        elif not _session_still_authorised(now):
+            # R24: the account was deactivated, deleted, or had its password changed
+            # while this session was open. Fall through to the login form.
+            st.session_state.clear()
+            st.session_state['_session_revoked_notice'] = True
         else:
             st.session_state['_last_activity'] = now
             _maybe_bump_heartbeat()
@@ -413,6 +530,11 @@ def require_login() -> bool:
         if st.session_state.pop('_session_expired_notice', None):
             st.info(_t("auth.session_expired",
                        "🔒 Session expirée après inactivité. Reconnectez-vous."))
+        if st.session_state.pop('_session_revoked_notice', None):
+            st.info(_t("auth.session_revoked",
+                       "🔒 Votre session a pris fin : le compte a été désactivé ou "
+                       "ses accès ont changé. Contactez un administrateur si c'est "
+                       "inattendu."))
 
         with st.form("login"):
             st.subheader(_t("auth.signin_title", "Connexion"))
@@ -439,13 +561,27 @@ def require_login() -> bool:
                             "Veuillez saisir votre nom d'utilisateur et votre mot de passe."))
                 return False
 
-            # Brick 26: session-based rate limit check
+            # Brick 26: session-based rate limit check (a UX guard — a new tab
+            # resets it, so it is not the security control).
             if not _check_session_rate_limit():
+                return False
+            # The security control: a per-IP budget that a new tab does not reset,
+            # sitting IN FRONT of the per-account lockout. Password spraying — one
+            # password across many accounts — never trips a per-account counter.
+            from src.dashboard.utils.throttle import (
+                throttle_check as _tc, throttle_record as _tr, throttle_reset as _trs,
+            )
+            _wait = _tc("login")
+            if _wait is not None:
+                st.error(_t("auth.rate_limited",
+                            "Trop de tentatives échouées. Réessayez dans {s} secondes."
+                            ).format(s=_wait))
                 return False
 
             user, error = _authenticate_user(username, password, db)
             if user:
                 _rate_reset()
+                _trs("login")
                 if user.get('totp_enabled'):
                     # Brick 28: password OK but TOTP required — defer full hydration
                     st.session_state['_totp_pending'] = user
@@ -461,6 +597,7 @@ def require_login() -> bool:
                 st.rerun()
                 return True
             _rate_record_failure()
+            _tr("login")
             if error and error == "__unverified__":
                 # HIGH-02: do not disclose the email address
                 st.warning(_t(
@@ -504,8 +641,12 @@ def show_user_sidebar():
         st.sidebar.caption(_t("auth.global_access", "Accès global (tous les artistes)"))
 
     if st.sidebar.button(_t("auth.logout", "Se déconnecter")):
-        for key in _SESSION_KEYS:
-            st.session_state.pop(key, None)
+        # clear(), not a pop-list. `_SESSION_KEYS` named six keys and the session
+        # holds more than six — `_totp_pending` carries the account's `totp_secret`
+        # and survived a logout, as did the cached plan and the re-auth clock. A
+        # hand-maintained list of things to forget grows a hole every time a key is
+        # added; forgetting everything cannot.
+        st.session_state.clear()
         st.rerun()
 
 
@@ -524,6 +665,36 @@ def get_artist_id() -> Optional[int]:
 
 def is_admin() -> bool:
     return st.session_state.get('role') == 'admin'
+
+
+def tenant_scope() -> Optional[int]:
+    """Whose data may this session read? None = every tenant. int = that one.
+
+    THE point of this function is that it can never return None for a non-admin.
+
+    `get_artist_id()` returns None for two entirely different situations — "this is
+    an admin" and "this session has no tenant" — and its docstring has said since it
+    was written that callers must tell them apart with `is_admin()`. Five call sites
+    did not (R25, 2026-08-22): `home.py`, `spotify_s4a_combined.py`, `export_pdf.py`,
+    `imusician.py`, and `artist_id_sql_filter()` right below, which is the one that
+    matters because ~30 views reach the database through it. In all five, a missing
+    id read as "no filter".
+
+    That state — `role='artist'` with `artist_id IS NULL` — is not reachable through
+    any wired path today; the schema allows it (`ON DELETE SET NULL`, migration
+    007:9) and a function in `admin.py` would produce it. The honest summary is: not
+    exploitable, one deletion away from being so, and free to close.
+
+    Asking every caller to remember the two-line guard is what produced five that
+    did not. This is the guard, once, with a name that says what it answers.
+    """
+    artist_id = get_artist_id()
+    if artist_id is not None:
+        return artist_id
+    if is_admin():
+        return None
+    st.error(_t("ui.invalid_session", "Session invalide."))
+    st.stop()
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -645,7 +816,9 @@ def artist_id_sql_filter(table_alias: str = '') -> tuple:
     if table_alias and not _ALIAS_RE.match(table_alias):
         raise ValueError(f"artist_id_sql_filter: invalid table_alias '{table_alias}'")
 
-    artist_id = get_artist_id()
+    # tenant_scope(), not get_artist_id(): the empty fragment below means "read
+    # every tenant", and only an admin may be handed it (R25).
+    artist_id = tenant_scope()
     if artist_id is None:
         return "", ()
     prefix = f"{table_alias}." if table_alias else ""

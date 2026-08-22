@@ -177,22 +177,38 @@ def _unsub_secret() -> bytes:
             key = config_loader.load().get('fernet_key')
         except Exception:
             key = None
-    return str(key or 'streamlytics-unsub-fallback').encode()
+    if not key:
+        # No literal fallback. A constant committed here signs valid unsubscribe
+        # tokens for every deployment that ever ran without FERNET_KEY, and anyone
+        # reading the repo can mint one for any user id. Returning None makes the
+        # link unavailable instead of forgeable, and `verify_unsubscribe_token`
+        # refuses everything — which is the safe direction for an opt-out.
+        logger.error("FERNET_KEY absent — unsubscribe links disabled for this "
+                     "process (they cannot be signed).")
+        return None
+    return str(key).encode()
 
 
 def unsubscribe_token(user_id: int) -> str:
-    """Stable HMAC token tying an unsubscribe link to one user id (no DB column needed)."""
+    """Stable HMAC token tying an unsubscribe link to one user id (no DB column needed).
+
+    Empty string when no signing secret is configured — see `_unsub_secret`.
+    """
     import hashlib
     import hmac
-    return hmac.new(_unsub_secret(), str(user_id).encode(), hashlib.sha256).hexdigest()[:32]
+    secret = _unsub_secret()
+    if not secret:
+        return ""
+    return hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def verify_unsubscribe_token(user_id: int, token: str) -> bool:
     """Constant-time check that `token` matches the expected token for `user_id`."""
     import hmac
-    if not token:
+    expected = unsubscribe_token(user_id)
+    if not token or not expected:
         return False
-    return hmac.compare_digest(unsubscribe_token(user_id), token)
+    return hmac.compare_digest(expected, token)
 
 
 def _unsubscribe_footer(user_id: int | None, lang: str = "fr") -> str:
@@ -291,3 +307,47 @@ def send_verification_email(to_email: str, username: str, token: str,
     except Exception as e:
         logger.error(f"Failed to send verification email to {to_email}: {e}")
         return False
+
+
+def send_account_exists_email(to_email: str, username: str, lang: str = "fr") -> bool:
+    """Tell an address that already has an account that someone tried to re-register it.
+
+    This is the other half of closing the registration oracle (R23). The page now
+    answers identically whether the address is free or taken; without this email the
+    honest case — a user who forgot they had signed up — would be told to check an
+    inbox that never receives anything.
+
+    It carries no token and creates nothing: worst case an attacker who already knows
+    the address makes its owner receive one notice, which is itself the useful signal.
+    The per-IP registration budget bounds how often that can happen.
+    """
+    login_url = f"{_BASE_URL}?page=login"
+    html = f"""
+    <html><body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+        <h2 style="color: #1DB954;">{_tr('email.exists.title',
+            "Vous avez déjà un compte streaMLytics", lang)}</h2>
+        <p>{_tr('email.exists.greeting', "Bonjour <strong>{username}</strong>,", lang,
+                username=username)}</p>
+        <p>{_tr('email.exists.body',
+            "Une inscription vient d'être tentée avec cette adresse email. "
+            "Un compte existe déjà — connectez-vous plutôt que d'en créer un second.", lang)}</p>
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="{login_url}"
+               style="display: inline-block; background-color: #1DB954; color: white;
+                      padding: 14px 28px; text-decoration: none; border-radius: 6px;
+                      font-size: 16px; line-height: 1.4;">
+                {_tr('email.exists.button', "Me connecter", lang)}
+            </a>
+        </p>
+        <p style="color: #888; font-size: 12px;">
+            {_tr('email.exists.ignore',
+                "Si ce n'était pas vous, ignorez cet email : aucun compte n'a été créé "
+                "et rien n'a changé sur le vôtre.", lang)}
+        </p>
+    </body></html>
+    """
+    return _send_html(
+        to_email,
+        _tr('email.exists.subject', "Votre compte streaMLytics existe déjà", lang),
+        html,
+    )

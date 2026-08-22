@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import smart_date_range
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.kpi_helpers import get_roi_data, get_monthly_roi_series
 from src.database.postgres_handler import validate_table
 
@@ -77,7 +77,9 @@ def _get_artist_filter():
     """Retourne (artist_id, label) selon le rôle courant."""
     if is_admin():
         return None, "Tous les artistes"
-    aid = get_artist_id()
+    # Not get_artist_id(): a None here would flow into _load_revenues' `artist_id is
+    # None` branch, which joins across saas_artists with no filter at all (R25).
+    aid = tenant_scope()
     return aid, f"Artiste {aid}"
 
 

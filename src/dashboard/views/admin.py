@@ -73,10 +73,22 @@ def _load_users(db) -> pd.DataFrame:
 
 
 def _toggle_user_active(db, user_id: int, active: bool):
-    db.execute_query(
-        "UPDATE saas_users SET active = %s WHERE id = %s",
-        (active, user_id)
-    )
+    """Flip `active`, and on deactivation invalidate every token already issued.
+
+    Setting `active = FALSE` alone stopped the next LOGIN and nothing else (R24): the
+    account's live dashboard session and its API tokens — up to 24 h of them — kept
+    working. Bumping `token_version` is what makes "désactiver" mean "out now".
+    Reactivation does not bump: there is nothing to revoke, and doing so would evict
+    an admin who fat-fingered the toggle.
+    """
+    if active:
+        db.execute_query("UPDATE saas_users SET active = TRUE WHERE id = %s", (user_id,))
+    else:
+        db.execute_query(
+            "UPDATE saas_users SET active = FALSE, token_version = token_version + 1 "
+            "WHERE id = %s",
+            (user_id,),
+        )
 
 
 def _delete_user(db, user_id: int):

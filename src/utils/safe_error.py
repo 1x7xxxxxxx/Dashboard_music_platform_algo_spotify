@@ -23,7 +23,9 @@ that says what broke. `redact()` keeps the shape and removes the values.
 """
 from __future__ import annotations
 
+import logging  # noqa: F401 — used in the public_error_ref annotation
 import re
+import secrets
 
 # Query-parameter names whose VALUE must never appear in a message. Matched
 # case-insensitively, on the `name=value` pair, wherever it appears in the text.
@@ -54,3 +56,21 @@ def safe_error(exc: BaseException, limit: int = 300) -> str:
     says only "an error occurred" costs a debugging session.
     """
     return f"{type(exc).__name__}: {redact(exc)}"[:limit]
+
+
+def public_error_ref(exc: BaseException, logger: "logging.Logger", context: str) -> str:
+    """Log `exc` in full under a short random reference, and return that reference.
+
+    For surfaces reachable WITHOUT authentication. `safe_error()` is not enough there:
+    it removes credentials but keeps the message, and a psycopg2 message names the
+    constraint and the columns that were violated. On the registration page that
+    handed an anonymous visitor a partial schema (R23, `register.py:408`).
+
+    The reference is what makes this different from swallowing the error: the visitor
+    sees eight characters they can quote, and the operator greps the same eight
+    characters to find the full traceback. Neither loses anything.
+    """
+    ref = secrets.token_hex(4)
+    logger.error("[%s] %s failed: %s", ref, context, safe_error(exc, limit=1000),
+                 exc_info=True)
+    return ref

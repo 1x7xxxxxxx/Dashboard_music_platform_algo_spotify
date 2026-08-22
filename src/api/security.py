@@ -6,17 +6,27 @@ Triggers: every API request (sliding-window rate limit + response headers)
 
 In-memory sliding-window rate limiter — deliberate minimalism (no Redis /
 slowapi dependency, ADR-002 spirit): adequate for the single-process uvicorn
-deployment. Counters reset on process restart. Behind a reverse proxy
-(Railway), the client IP is read from the first X-Forwarded-For hop — only
-trustworthy when a proxy actually sets it.
+deployment. Counters reset on process restart.
+
+The limiter and the X-Forwarded-For parser both live in
+`src/utils/request_throttle.py` since 2026-08-22, because the dashboard needs the
+same two things (R23 registration, R26 TOTP) and a second copy of a header parser
+is how the hop-0 bypass would have survived its own fix. This file keeps the API's
+budgets, its paths, and the middleware.
 """
 import os
-import time
-from collections import deque
-from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+# One X-Forwarded-For parser and one limiter for the whole product — the dashboard
+# imports the same two names (src/dashboard/utils/throttle.py). Re-exported here so
+# `security.SlidingWindowLimiter` / `security.TRUSTED_PROXY_HOPS` keep working.
+from src.utils.request_throttle import (  # noqa: F401 — re-exported
+    TRUSTED_PROXY_HOPS,
+    SlidingWindowLimiter,
+    client_ip_from_headers,
+)
 
 # Global budget per client IP (all endpoints).
 RATE_LIMIT_MAX = int(os.getenv("API_RATE_LIMIT_MAX", "120"))
@@ -30,70 +40,48 @@ _EXEMPT_PATHS = frozenset({"/health"})  # infra probes must never 429
 # Swagger UI / ReDoc load JS from a CDN — a strict CSP would blank the docs.
 _DOCS_PATHS = frozenset({"/docs", "/redoc", "/openapi.json"})
 
-_MAX_TRACKED_CLIENTS = 10_000  # memory bound — full reset beyond this
-
-
-class SlidingWindowLimiter:
-    """Per-key sliding-window counter. Returns a Retry-After when over budget."""
-
-    def __init__(self, max_requests: int, window_secs: int):
-        self.max_requests = max_requests
-        self.window_secs = window_secs
-        self._hits: dict[str, deque] = {}
-
-    def hit(self, key: str, now: Optional[float] = None) -> Optional[int]:
-        """Record a request for `key`. None = allowed; int = seconds to wait."""
-        now = time.time() if now is None else now
-        if len(self._hits) > _MAX_TRACKED_CLIENTS:
-            self._hits.clear()
-        window = self._hits.setdefault(key, deque())
-        cutoff = now - self.window_secs
-        while window and window[0] <= cutoff:
-            window.popleft()
-        if len(window) >= self.max_requests:
-            return max(1, int(window[0] + self.window_secs - now) + 1)
-        window.append(now)
-        return None
-
-
 _GLOBAL_LIMITER = SlidingWindowLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SECS)
 _AUTH_LIMITER = SlidingWindowLimiter(AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_SECS)
 
 
-# Number of proxies in front of this app whose X-Forwarded-For entries we trust.
-# Production is Cloudflare → Caddy → app, so the last TWO hops are ours.
-TRUSTED_PROXY_HOPS = int(os.getenv("TRUSTED_PROXY_HOPS", "2"))
-
-
 def client_ip(request: Request) -> str:
-    """Client IP, taken from the RIGHT of X-Forwarded-For — never the left.
+    """Client IP for rate-limiting — delegates to the shared parser.
 
-    The first hop is whatever the CLIENT sent. Cloudflare and Caddy both APPEND the
-    peer they saw, so an attacker-supplied entry survives to the app at position 0.
-    Reading it made the rate limiter a no-op: sending `X-Forwarded-For: 10.0.0.<n>`
-    with an incrementing n created a fresh bucket per request, so neither the strict
-    /auth/token budget nor the global one ever fired. Measured 2026-08-22.
-
-    Chained with the registration oracle, that turned account lockout into an
-    indefinite denial of service against every tenant, and made password spraying
-    unthrottled.
-
-    Cloudflare's `CF-Connecting-IP` is preferred when present: Cloudflare sets it
-    itself and overwrites any client-supplied value.
+    Kept as a named function because the middleware and
+    `tests/test_rate_limit_client_ip.py` both address it, and because starlette's
+    `request.client` is the only place the socket peer is reachable.
     """
-    cf = request.headers.get("cf-connecting-ip")
-    if cf:
-        return cf.strip()
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        hops = [h.strip() for h in forwarded.split(",") if h.strip()]
-        # FEWER hops than we expect means the header did not come through our
-        # proxies — so it is not ours to read. Falling back to the socket peer is
-        # the only safe answer; taking hops[0] there would restore the bypass in
-        # every environment that has one proxy instead of two.
-        if len(hops) >= TRUSTED_PROXY_HOPS > 0:
-            return hops[len(hops) - TRUSTED_PROXY_HOPS]
-    return request.client.host if request.client else "unknown"
+    return client_ip_from_headers(
+        request.headers.get,
+        request.client.host if request.client else None,
+    )
+
+
+# A NUL byte cannot be stored in a Postgres text column and cannot appear in any
+# legitimate URL, so "%00 in the query string" is never a request we want to serve.
+_NUL_IN_QUERY = "%00"
+
+
+async def reject_nul_bytes_middleware(request: Request, call_next):
+    """400 on a NUL byte in the query string, instead of a 500 from deep in psycopg2.
+
+    Found 2026-08-22 by fuzzing (R22): `GET /streams/timeline?song=a%00b` reached
+    `fetch_df` and raised `ValueError: A string literal cannot contain NUL (0x00)
+    characters` with no handler above it. Any authenticated caller could crash the
+    endpoint at will.
+
+    Checked on the RAW query string, not on the parsed parameters: that covers every
+    string parameter this API has today and every one it grows later, without each
+    endpoint having to remember. The BODY is deliberately not read here — consuming
+    it would break `/webhooks/stripe`, which needs the exact bytes to verify Stripe's
+    signature — and the form path is already safe (`/auth/token` answers 401).
+    """
+    if _NUL_IN_QUERY in request.url.query.lower():
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Query string contains a NUL byte."},
+        )
+    return await call_next(request)
 
 
 async def rate_limit_middleware(request: Request, call_next):
@@ -127,7 +115,12 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 def install(app: FastAPI) -> None:
-    """Register both middlewares. Headers registered LAST → outermost,
-    so 429 responses from the rate limiter also carry the security headers."""
+    """Register the middlewares. Registration order is INNERMOST first.
+
+    Headers last → outermost, so a 429 from the limiter and a 400 from the NUL check
+    both carry the security headers. The NUL check sits innermost of the three: a
+    malformed request should still be counted by the rate limiter, or refusing it
+    would be a free way to make requests that cost nothing."""
+    app.middleware("http")(reject_nul_bytes_middleware)
     app.middleware("http")(rate_limit_middleware)
     app.middleware("http")(security_headers_middleware)

@@ -74,7 +74,7 @@ def authenticate_api_user(db, username: str, password: str):
     ident = (username or "").strip()
     rows = db.fetch_query(
         "SELECT id, username, email, password_hash, artist_id, role, email_verified, "
-        "       failed_login_attempts, locked_until, totp_enabled "
+        "       failed_login_attempts, locked_until, totp_enabled, token_version "
         "FROM saas_users WHERE (username = %s OR LOWER(email) = LOWER(%s)) "
         "AND active = TRUE LIMIT 1",
         (ident, ident),
@@ -82,7 +82,7 @@ def authenticate_api_user(db, username: str, password: str):
     if not rows:
         return None, "invalid_credentials"
     (uid, uname, email, pw_hash, artist_id, role, verified,
-     fail_count, locked_until, totp_enabled) = rows[0]
+     fail_count, locked_until, totp_enabled, token_version) = rows[0]
 
     # Check lockout before bcrypt (no timing oracle on locked accounts).
     if locked_until:
@@ -115,4 +115,5 @@ def authenticate_api_user(db, username: str, password: str):
     if totp_enabled:
         return None, "totp_required"
     return {"id": uid, "username": uname, "email": email,
-            "artist_id": artist_id, "role": role}, None
+            "artist_id": artist_id, "role": role,
+            "token_version": token_version or 0}, None

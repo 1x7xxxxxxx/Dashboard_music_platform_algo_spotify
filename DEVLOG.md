@@ -5,6 +5,125 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-22 (jour) — Les neuf de la nuit, closes : deux fuites d'auth, et trois gardes dont la portée était une liste tapée à la main
+
+**Contexte** : la nuit du 21→22 avait ouvert neuf entrées (R23→R31) et n'en avait fermé
+aucune. Sortie : les neuf closes, **1312 tests verts** contre une vraie base (contre
+1263 et un rouge au départ), ruff propre, `audit_runner --deterministic` clean,
+`make config-check` clean. **Rien n'est déployé** — tout est dans l'arbre local.
+
+### Ce qui a changé
+
+- **R23 — la page d'inscription n'est plus un oracle anonyme.** Quatre fuites sur un
+  fichier : énumération de comptes, sondage gratuit d'un espace de 24 bits de codes
+  promo, envoi de mail sans budget, message psycopg2 rendu à un visiteur. Une seule
+  fonction rend l'écran de succès pour les deux issues (deux branches ne peuvent plus
+  diverger en n'éditant qu'une), les codes sont validés **après** création, un budget
+  par IP borne l'ensemble, et `public_error_ref()` journalise sous une référence de
+  8 hex au lieu d'afficher. Le test compare les **rendus** de deux soumissions octet à
+  octet ; sa première version passait sur un mot de passe refusé — deux erreurs de
+  validation identiques sont aussi identiques — d'où l'assertion de non-vacuité.
+- **R24 — une révocation révoque.** `active` n'apparaissait que dans la requête de
+  login : désactiver un compte arrêtait la *prochaine* connexion et rien d'autre.
+  Relecture de la ligne à chaque requête (30 s côté dashboard), plus
+  `saas_users.token_version` (**migration 072**) porté par le JWT et incrémenté par la
+  désactivation et le changement de mot de passe. Les deux surfaces échouent en sens
+  **inverse** sur une panne de base — dashboard ouvert, API fermée — et le code dit
+  pourquoi. Un jeton émis avant la 072 reste valide : le déploiement ne déconnecte
+  personne, et c'est testé.
+- **R25 — la règle #7 rétablie sur 9 vues, pas 4.** Le balayage a trouvé le site qui
+  comptait : `artist_id_sql_filter()`, par où ~30 vues atteignent la base, rendait un
+  fragment de filtre **vide** dès que `get_artist_id()` valait None — sans jamais
+  demander `is_admin()`. `tenant_scope()` porte la désambiguïsation une fois. Le garde
+  **espionne les requêtes** (`tests/query_spy.py`) : sa première version exigeait la
+  chaîne « Session invalide » et faisait échouer `upload_csv`, qui refuse correctement
+  dans ses propres mots.
+- **R26 — le second facteur coûte quelque chose.** Deux causes qu'il fallait corriger
+  ensemble : le mot de passe correct remettait `failed_login_attempts` à 0 *avant* que
+  le code soit demandé, et le seul compteur touché par le challenge vivait dans
+  `st.session_state`, qu'un nouvel onglet réinitialise.
+- **R27 — le détecteur de contamination dérive du schéma.** Il connaissait 8 tables sur
+  ~70, cinq sans identifiant, **aucune entrée Spotify** — alors que `tracks` est la
+  table où la comparaison est la plus forte du schéma. Il a trouvé
+  `youtube_channel_history` dès le premier passage.
+- **R28 — dette soldée, et le CI tenu à sa parole.** 100 % des classes portent
+  `root_cause` et `long_term_fix`. Le commentaire du CI disait « rends-la bloquante
+  quand le compte atteint 0, et note la date ici » : c'est fait, et la date y est.
+- **R29 — le budget de graphiques mesure ce que la source mesure.** Few (*IDD* p.27,
+  p.39, p.81) ne donne pas de nombre, il donne l'**unité** : ce qui tient dans le coup
+  d'œil. Comptage AST distinguant `glance` / `worst` / `click` / `tab` / `mods`.
+  `data_wrapped` passe de 9 à **1** — il était signalé à tort depuis la veille.
+- **R30 — les 9 constats BAS traités**, dont une clé Fernet valide retirée du CI
+  (générée par run : « CI seulement » est une propriété de l'usage, pas de la clé) et
+  `src/utils/http_logger.py` **supprimé** — zéro importateur, exactement ce que le
+  constat disait.
+- **R31 → ADR-009.** Clos par décision : deux registres s'accordent par test plutôt que
+  de dériver, parce que dériver changerait une requête `UNION ALL` qui marche pour un
+  gain nul. Le garde d'accord ne comparait que les libellés communs — un renommage le
+  faisait donc passer sur rien ; il a maintenant un plancher.
+- **R22 — un tiers fait.** `pip-audit` tourne enfin : une vulnérabilité, `ecdsa`
+  PYSEC-2026-1325, **non applicable** (Minerva sur la *signature* ECDSA ; nos JWT sont
+  HS256 à l'encodage comme au décodage) et sans correctif amont. `make audit-deps` la
+  rejoue et l'ignore nommément. Restent l'intrusion réseau et le fuzzing, qui demandent
+  une machine hors du VPS — runbook §6.
+
+### Ce que ça a appris
+
+**Trois fois sur neuf, la portée du garde était une liste écrite à la main** : les 8
+tables du détecteur de contamination, les 10 verbes français du garde de roadmap (qui
+faisait échouer R22 *parce qu'elle nommait trois gestes avec d'autres mots*), et les 6
+clés de session du logout (`_totp_pending`, qui porte `totp_secret`, n'y était pas).
+C'est la classe `guard-scope-is-a-hand-written-list`, et le REPRISE de la veille la
+nommait déjà. Une liste ne signale jamais ce qu'elle ne couvre pas.
+
+**Deux constats du pentest étaient inexacts, et le vérifier valait le détour.** « Le
+refus d'unicité affiche l'`artist_id` de l'autre locataire » : il est *retourné*, jamais
+rendu, et un test existant exigeait explicitement qu'il le soit. Supprimer la valeur
+aurait cassé une capacité voulue ; la frontière est maintenant testée là où elle est
+réelle.
+
+**Un `/resume` pouvait lire « aucune tâche ouverte ».** `checklist.md` portait un bloc
+mort de ~70 lignes sous un titre cassé (`## 🔖 REPRISE\` ci-dessous.`), avec un index
+périmé disant « aucune ». Trouvé en lisant le fichier au démarrage, retiré.
+
+### R22 close aussi — et ses deux tiers manquants n'attendaient personne
+
+Classé « en attente d'un humain » sur un raisonnement faux : le test d'intrusion demande
+une machine **hors du VPS**, et la machine de développement en est une.
+
+- **Scan de l'origine** `167.233.92.1`, 33 ports usuels : **seul 22 répond**. Ni
+  Postgres 5433, ni Airflow 8080, ni Streamlit 8501 ; 80 et 443 ne sont pas joignables
+  en direct non plus. Les noms d'hôte résolvent sur Cloudflare et n'ont donc **pas** été
+  scannés — infrastructure d'un tiers.
+- **TLS** des trois noms : aucun protocole obsolète, ni Heartbleed ni CCS injection ni
+  ROBOT, certificats valides sur 5/5 magasins.
+- **Un écart réel** : le dashboard renvoyait 4 en-têtes de sécurité, l'API 6. Les deux de
+  plus viennent du middleware FastAPI et pas de Caddy, donc l'écart était **invisible
+  depuis le dépôt** — il fallait une réponse vue de l'extérieur. `deploy/Caddyfile`
+  corrigé, avec une CSP volontairement étroite (rien sur `script-src`/`style-src`, qui
+  blanchirait Streamlit). Non validée par un binaire Caddy ici.
+- **Fuzzing** contre une instance locale (la prod a `/openapi.json` désactivé, et fuzzer
+  une base de production y écrit) : **un vrai 500**. `GET /streams/timeline?song=a%00b`
+  — un octet NUL atteint psycopg2, `ValueError` non rattrapée. Fermé à la frontière
+  (400, middleware, donc tout futur paramètre chaîne en hérite), gardé, re-fuzzé sur
+  4 graines / 1730 cas / **zéro 5xx**.
+
+Deux leçons de méthode. Le premier fuzz a produit neuf « Server error » qui étaient tous
+des 503 dus à un mauvais mot de passe local : **un fuzz commence par prouver que sa
+baseline répond 200**, sinon il mesure son propre environnement. Et sur les 14 tests du
+nouveau garde, **un seul** vire au rouge quand on retire le middleware — la base mockée
+accepte un NUL sans broncher, donc les cas « ne 500 jamais » ne voient pas le défaut ;
+c'est écrit dans le fichier, à côté d'un test sur base réelle qui prouve que le driver
+lève bien.
+
+### Ce qui reste
+
+**Une seule entrée sur toute la roadmap** : R1, ouvrir la bêta — la seule qu'aucune
+machine ne peut faire, parce qu'elle consiste à inviter des gens. Avant : `make
+migrate-prod` (la **072** est nouvelle), `make deploy`, `make sync-check`.
+
+---
+
 ## 2026-08-21 — La fuite locataire déployée en production, et la config recentrée sur ce dépôt
 
 **Contexte** : le correctif P1 de fuite locataire, travaillé sur trois sessions du 20/08,

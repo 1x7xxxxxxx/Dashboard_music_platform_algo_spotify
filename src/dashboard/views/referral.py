@@ -13,7 +13,7 @@ import streamlit as st
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id
+from src.dashboard.auth import tenant_scope
 
 
 def _get_or_create_code(db, artist_id: int) -> str:
@@ -38,7 +38,9 @@ def show():
                  "Partagez votre code — gagnez 1 mois gratuit pour chaque artiste "
                  "qui s'abonne avec."))
 
-    artist_id = get_artist_id()
+    # None here now means admin and only admin — a tenant-less artist session is
+    # stopped by tenant_scope() instead of being told it is an admin account.
+    artist_id = tenant_scope()
     if artist_id is None:
         st.info(t("referral.admin_na",
                   "Le programme de parrainage n'est pas disponible pour les comptes admin."))

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.pdf_exporter import (
     get_available_songs, get_artists_list, generate_pdf, ALL_SECTIONS,
     _latest_release, _get_artist_name, _release_date,
@@ -118,7 +118,9 @@ def _show_form(db):
             report_artist_id   = artist_options[selected_name]
             report_artist_name = selected_name
         else:
-            report_artist_id   = get_artist_id()
+            # `admin` is already False here, so tenant_scope() cannot return
+            # None — it stops the session instead of exporting every tenant.
+            report_artist_id   = tenant_scope()
             # Real artist name from saas_artists — NOT session['name'] (that's the email).
             report_artist_name = _get_artist_name(db, report_artist_id)
             st.info(f"👤 {report_artist_name}")

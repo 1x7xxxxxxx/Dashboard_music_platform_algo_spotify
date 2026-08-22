@@ -4,8 +4,10 @@
 
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
+AUDIT_VENV := .audit-venv
+PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit config-check deploy artist-preflight canary tenant-check
+.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight canary tenant-check
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -80,8 +82,22 @@ host,port=('127.0.0.1',5433) if not u else (u.split('@')[1].split(':')[0], int(u
 s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/null \
 		|| { echo "❌ Database unreachable. Run: make up  (or set DATABASE_URL)"; exit 1; }
 
-chart-budget: ## Report charts per dashboard view (report-only — no sourced threshold)
+chart-budget: ## Charts in the viewer's eye span per view (report-only; Few, IDD p.27)
 	@python3 tools/dev/chart_budget.py
+
+check-pipaudit: ## (internal) fail fast with the install command, rule #10
+	@command -v pip-audit >/dev/null 2>&1 || test -x $(AUDIT_VENV)/bin/pip-audit || { \
+	  echo "❌ pip-audit absent. Run: python3 -m venv $(AUDIT_VENV) && $(AUDIT_VENV)/bin/pip install pip-audit"; \
+	  exit 1; }
+
+audit-deps: check-pipaudit ## Known CVEs in requirements.txt (R22). Fails on anything not named below.
+	@# PYSEC-2026-1325 (ecdsa 0.19.2) is ignored NAMED, not by lowering the bar:
+	@# it is a Minerva timing attack on ECDSA *signing*, python-ecdsa has declared
+	@# side channels out of scope so no fix version exists, and ecdsa arrives here
+	@# only transitively via python-jose while our JWTs pin HS256 at both encode
+	@# and decode (src/api/auth.py). Re-check that pin before extending this list.
+	@$(PIP_AUDIT) -r requirements.txt --ignore-vuln PYSEC-2026-1325 \
+	  && echo "✅ no actionable dependency vulnerability"
 
 check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock
 	@python3 tools/dev/check_manifest_consistency.py && echo "✅ manifests consistent"

@@ -8,7 +8,7 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses
-from src.dashboard.auth import artist_id_sql_filter, get_artist_id
+from src.dashboard.auth import artist_id_sql_filter, tenant_scope
 
 # ⚠️ IMPORTANT : Le nom exact tel qu'il apparaît dans tes CSV pour la ligne "Total"
 ARTIST_NAME_FILTER = "1x7xxxxxxx"
@@ -26,7 +26,7 @@ def show():
     # `tracks` is keyed by the SaaS integer `saas_artist_id` (migration 039), a
     # different column than the generic `artist_id` filter above. Admin (None) =
     # no filter (sees all tenants).
-    _aid = get_artist_id()
+    _aid = tenant_scope()
     _track_frag = "AND saas_artist_id = %s" if _aid is not None else ""
     _track_join_frag = "AND tk.saas_artist_id = %s" if _aid is not None else ""
     _track_params = (_aid,) if _aid is not None else ()
@@ -280,7 +280,7 @@ def show():
         with col2:
             window = smart_period_filter(
                 db, table="s4a_song_timeline", date_column="date",
-                artist_id=get_artist_id(), key=f"s4a_song_{selected_song}",
+                artist_id=tenant_scope(), key=f"s4a_song_{selected_song}",
                 latest_release=song_release_date, default_override="last_release",
             )
         frag, frag_params = window.sql_between("date")

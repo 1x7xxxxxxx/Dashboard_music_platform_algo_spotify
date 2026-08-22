@@ -57,8 +57,12 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # `tv` is what makes this token revocable: `get_current_user` compares it to
+    # saas_users.token_version on every request, and a deactivation or a password
+    # change bumps that column (migration 072).
     token = create_access_token(
-        {"sub": user["username"], "role": user["role"], "artist_id": user["artist_id"]}
+        {"sub": user["username"], "role": user["role"],
+         "artist_id": user["artist_id"], "tv": user.get("token_version", 0)}
     )
     return Token(access_token=token, token_type="bearer",
                  role=user["role"], artist_id=user["artist_id"])

@@ -3,7 +3,7 @@
 GET /artists/me  — current user's artist profile
 GET /artists     — all artists (admin only)
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from src.api.deps import get_db, get_current_user, require_admin
@@ -20,9 +20,17 @@ class ArtistOut(BaseModel):
 
 @router.get("/me", summary="Current user — artist profile or admin info")
 def get_me(db: PostgresHandler = Depends(get_db), user: dict = Depends(get_current_user)):
-    artist_id = user.get("artist_id")
-    if not artist_id:
+    # Decide on the ROLE, never on a falsy id. `if not artist_id` is exactly the
+    # test `require_artist_scope` was written to delete (see api/deps.py): a
+    # non-admin token whose artist_id is missing, None or 0 answered "role: admin".
+    # Harmless on this endpoint — it returns no data — and the same shape that leaked
+    # every tenant on the data routers, which is reason enough not to leave a copy.
+    if user.get("role") == "admin":
         return {"role": "admin", "artist_id": None}
+    artist_id = user.get("artist_id")
+    if artist_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Token carries no artist scope")
     df = db.fetch_df(
         "SELECT id, name, active FROM saas_artists WHERE id = %s",
         (artist_id,),

@@ -17,6 +17,20 @@ EN = {
     "email.verify.expiry": "This link expires in 48 hours. "
                            "If you did not create an account, ignore this email.",
 
+    # --- "You already have an account" notice (R23) ---
+    # Sent instead of a verification email when the address is already registered.
+    # The page renders the same screen either way; this is what stops that identical
+    # screen from dead-ending a user who simply forgot they had signed up.
+    "email.exists.subject": "Your streaMLytics account already exists",
+    "email.exists.title": "You already have a streaMLytics account",
+    "email.exists.greeting": "Hi <strong>{username}</strong>,",
+    "email.exists.body": "Someone just tried to sign up with this email address. "
+                         "An account already exists — log in instead of creating a "
+                         "second one.",
+    "email.exists.button": "Log in",
+    "email.exists.ignore": "If this wasn't you, ignore this email: no account was "
+                           "created and nothing changed on yours.",
+
     # --- Welcome email ---
     "email.welcome.subject": "🎵 Welcome — your first steps on streaMLytics",
     "email.welcome.title": "🎵 Welcome to streaMLytics, {username}!",

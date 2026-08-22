@@ -103,6 +103,23 @@ def test_the_kpi_panel_agrees_on_every_shared_source() -> None:
         f"source: {mismatched}"
     )
 
+    # Non-vacuity (R31, 2026-08-22). The comparison above only looks at labels
+    # present on BOTH sides, so renaming one in either registry removes it from the
+    # overlap and the assertion passes — on nothing. That is precisely the drift the
+    # file exists to catch, and it would be silent.
+    #
+    # The two registries are deliberately NOT derived from one another (ADR-009):
+    # the panel carries sources readiness has no opinion on, and it feeds a UNION ALL
+    # with its own allowlists. Agreement is the contract, so the SIZE of the
+    # agreement is part of it.
+    shared = {s["label"] for s in SOURCES_CONFIG} & set(by_source)
+    assert len(shared) >= 4, (
+        f"only {len(shared)} label(s) are shared by the KPI panel and the freshness "
+        f"monitor ({sorted(shared)}). Below this, the check above compares almost "
+        "nothing. A rename on either side is the likely cause — align it rather "
+        "than lowering this number."
+    )
+
 
 # ── The regression this file's own change caused, pinned ──────────────────────
 

@@ -108,18 +108,17 @@ jobs:
           uv run python .claude/scripts/check_config_refs.py
           uv run python .claude/scripts/check_ci_waste.py
 
-      - name: Error-class schema completeness (advisory)
-        # `audit_runner.py --fields` fails when a class carries no root_cause or no
-        # long_term_fix — a class nobody decided how to end. It is RED on 29/29
-        # classes today (the catalogue predates the fields), so it reports and does
-        # not block: turning it blocking now would close CI on legacy content and
-        # the only way back open would be to lower the guard.
+      - name: Error-class schema completeness
+        # `audit_runner.py --fields --strict` fails when a class carries no
+        # root_cause or no long_term_fix — a class nobody decided how to end.
         #
-        # Make it blocking once the count reaches 0 — and record the date here.
-        # `/capitalise` writes both fields, so new classes arrive complete; this
-        # step exists to keep the remaining backlog visible instead of silent.
-        continue-on-error: true
-        run: uv run python .claude/scripts/audit_runner.py --fields
+        # BLOCKING since 2026-08-22 (R28), which is the date this comment was asked
+        # to record. The step shipped advisory because 29/29 classes predated the
+        # two fields and closing CI on legacy content would only have taught people
+        # to lower the guard. The backlog was 25 this morning and is 0 now, so the
+        # ratchet in `error-classes.md` reads `fields-ratchet: 0` and `--strict`
+        # states the same requirement without depending on that number staying put.
+        run: uv run python .claude/scripts/audit_runner.py --fields --strict
 
       - name: Provision Postgres (schema + migrations)
         env:
@@ -163,6 +162,13 @@ jobs:
             -c "SELECT count(*) >= 2 OR (SELECT false) FROM saas_artists WHERE active" \
             -tA | grep -qx t || { echo "::error::CI database has fewer than 2 tenants"; exit 1; }
 
+      - name: Mint a throwaway Fernet key for this run
+        id: ci_fernet
+        # Base64-urlsafe of 32 random bytes is exactly what Fernet.generate_key()
+        # produces, without needing the package installed at this point in the job.
+        run: |
+          echo "key=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" >> "$GITHUB_OUTPUT"
+
       - name: Run tests
         env:
           # DATABASE_URL points the DB layer at the provisioned CI Postgres so the
@@ -172,9 +178,15 @@ jobs:
           # AIRFLOW_PASSWORD is unset (anti unauthenticated-DAG-trigger guard).
           AIRFLOW_USERNAME: ci
           AIRFLOW_PASSWORD: ci-not-a-real-secret  # pragma: allowlist secret
-          # FERNET_KEY: src/dashboard/app.py raises at import if it's absent (credential-
-          # decryption boot guard); a valid throwaway key keeps the import-time tests green.
-          FERNET_KEY: Ggeni73PznXqdl3PyN7XlIyaM5K8fkVQFzddmVaLX58=  # pragma: allowlist secret
+          # FERNET_KEY: src/dashboard/app.py raises at import if it's absent
+          # (credential-decryption boot guard), so the import-time tests need one.
+          #
+          # GENERATED per run, not committed (R30, 2026-08-22). The literal that used
+          # to sit here was a VALID Fernet key in a public file: nothing decrypts with
+          # it today, but "CI only" is a property of how it is used, not of the key,
+          # and the next person needing a key locally copies the one they can see.
+          # A fresh key per run is the same one line and cannot be reused anywhere.
+          FERNET_KEY: ${{ steps.ci_fernet.outputs.key }}
         # --cov-report=xml: for codecov-style downstream tooling.
         # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
         # No --cov-fail-under: measure first, gate later.
