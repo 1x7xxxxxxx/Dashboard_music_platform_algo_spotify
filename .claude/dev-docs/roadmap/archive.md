@@ -1539,3 +1539,27 @@ pour un bénéfice que le ledger donne déjà.
 Quatre classes capitalisées : `resave-erases-a-secret-the-form-cannot-show`,
 `delivery-failure-logged-as-success`, `static-hint-contradicts-the-live-probe`,
 `detector-written-and-never-called`. 87 classes, 1371 tests verts.
+
+---
+
+## 🔍 Six correctifs d'audit + matrice de setup (2026-08-22 nuit, hors numérotation)
+
+- [x] **Déclenchement de collecte refusé, invisible** — `trigger_dag` renvoie
+      `{'success': False}` sans lever ; l'artiste lisait « enregistré » et rien ne
+      partait. Balayage AST étendu à `trigger_dag`.
+- [x] **Deux horloges dans le moniteur de fraîcheur** — âge de **−1 h** mesuré ;
+      l'âge est désormais calculé par Postgres.
+- [x] **Audit nocturne** — portée dérivée du registre (Instagram n'était jamais
+      audité) et présence jugée sur l'identité, pas sur la vacuité du dictionnaire.
+- [x] **Upsert Meta** — `collected_at` rafraîchi ; 17 545 UPDATE avec un horodatage
+      de mai.
+- [x] **Deux portes sur une base** — `get_db_connection` route vers
+      `from_env_or_config()` ; cliquet sur les 14 lecteurs directs restants.
+- [x] **Clé Fernet malformée ≠ absente** ; bandeau KPI remplacé par la matrice.
+- [x] **Matrice de setup** — Configuré / Répond / Données sur les 5 plateformes, un
+      seul renderer (`utils/status_matrix.py`), quatre surfaces, **zéro appel API au
+      rendu**, verdicts mémorisés par la nuit (mig. 075).
+
+Écarté après vérification : « Meta figé depuis 85 jours » — faux, le code avait raison.
+
+Cinq classes capitalisées. 92 au total, 1399 tests verts.

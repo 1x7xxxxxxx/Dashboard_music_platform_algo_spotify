@@ -5,6 +5,79 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-22 (nuit) — Six défauts que l'audit a fait sortir, et une matrice qui répond en une image
+
+**Contexte** : après avoir rendu la chaîne credentials → collecte prouvable, j'ai
+demandé s'il restait des optimisations. Six défauts sont sortis de l'audit, tous
+**mesurés en production**. Un septième candidat a été écarté après vérification.
+
+### Ce qui a été écarté, et pourquoi c'est important
+
+« Le Meta de l'admin est figé depuis 85 jours » : **faux**. Le DAG collecte 879 lignes
+par nuit ; `day_date` s'arrête en septembre 2024 parce qu'aucune publicité ne tourne
+depuis, la fraîcheur est mesurée sur la bonne colonne, et la règle
+`meta_no_active_campaign` supprime l'alerte à juste titre. Le code avait raison — je
+n'ai pas fabriqué de correctif.
+
+### Les six
+
+- **Un déclenchement de collecte refusé était invisible.** `trigger_dag` *renvoie*
+  `{'success': False}` et ne lève jamais ; l'`except` du formulaire ne pouvait donc
+  voir ni Airflow injoignable ni un 403. L'artiste lisait « ✅ Credentials
+  enregistrés » et rien ne partait — le symptôme exact de tes bêta-testeurs. Même
+  classe que l'alerte de la veille, une couche plus haut.
+- **Le moniteur de fraîcheur comparait deux horloges.** `datetime.now()` est naïf —
+  l'heure du **conteneur** — quand psycopg2 écrit l'horodatage dans le fuseau de la
+  **session Postgres**. Mesuré depuis un conteneur sans `TZ` : SoundCloud rendait un
+  âge de **−1 h**. L'erreur est optimiste : une source périmée passait pour fraîche
+  une à deux heures de plus.
+- **L'audit nocturne se trompait deux fois** : liste de plateformes tapée à la main
+  (quatre contre cinq au registre, **Instagram jamais audité**) et test de vacuité du
+  dictionnaire au lieu de la présence d'une identité.
+- **L'upsert Meta gelait son propre horodatage** : 17 545 `UPDATE`, 0 `INSERT`, et
+  `collected_at` resté en mai. Une seule table l'avait — et c'est justement celle que
+  le moniteur surveille, ce qui explique que l'écart n'ait jamais alerté.
+- **Deux portes mutuellement exclusives sur une base** : le dashboard n'a que
+  `DATABASE_URL`, le scheduler que `DATABASE_HOST`, aucun n'a de `config.yaml`.
+- **Une clé Fernet malformée disait « absente »** — deux gestes opposés, et générer
+  une nouvelle clé aurait rendu les credentials existantes indéchiffrables.
+
+### La matrice de setup
+
+Trois cases par plateforme — **Configuré / Répond / Données** — soit les étapes 2, 3
+et 4 de `make artist-preflight` rendues visibles à l'artiste, sur quatre surfaces.
+
+Trois décisions de conception, chacune gardée par un test :
+
+1. **Un seul renderer.** L'inventaire a été formel : aucune primitive verte/rouge
+   partagée n'existait, chaque page avait la sienne. Poser la matrice à quatre
+   endroits sans renderer commun aurait aggravé le problème, pas résolu.
+2. **Dessiner ne coûte aucun appel API**, par le raisonnement de la veille : des
+   données qui arrivent PROUVENT que la credential fonctionne. Streamlit relance la
+   page à chaque clic — sonder au rendu, c'eût été cinq appels par clic et par
+   locataire.
+3. **« Non mesuré » ne se rend jamais comme « mesuré et bon »** : `?` gris, jamais un
+   ✅, et tout verdict mémorisé porte son âge.
+
+La passe nocturne mémorise désormais ce qu'elle mesure (table 075), donc l'artiste lit
+**exactement la phrase de l'alerte**. Vérifié en prod : Benken/Meta porte
+`(#200) Ad account owner has NOT granted ads_management` sur `act_65390907`,
+GRiNCH/SoundCloud porte « aucun titre public ».
+
+### La leçon de méthode, répétée quatre fois dans la journée
+
+Un garde qui cherche une **chaîne de caractères** dans du code trébuche sur le
+commentaire qui explique le défaut. C'est arrivé quatre fois : sur `if not creds`, sur
+`get_db_connection()`, sur `probe=`, sur `send_alert`. Quatre assertions sont passées
+en AST pour cette raison. Le motif général : **un garde doit lire la structure, pas le
+texte** — sinon sa propre documentation le déclenche, et on l'affaiblit pour le faire
+taire.
+
+92 classes d'erreur, toutes gardées et complètes. 1399 tests verts. Déployé,
+`prod == canonique`, 75 migrations.
+
+---
+
 ## 2026-08-22 (soir) — Les détecteurs voyaient juste ; personne ne recevait leur constat
 
 **Contexte** : deux sessions bêta ont échoué sur le même thème — les identifiants d'un
