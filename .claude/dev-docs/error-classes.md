@@ -142,6 +142,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
 | [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
 | [repo-copy-of-a-config-is-not-what-runs](#repo-copy-of-a-config-is-not-what-runs) | P2 | deterministic | guarded | none |
+| [resave-erases-a-secret-the-form-cannot-show](#resave-erases-a-secret-the-form-cannot-show) | P1 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1489,3 +1490,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-22: `guarded`. Found by trying to patch it: an R22 header fix was written into the repo copy in the belief it was live, and only a `curl` against the real host showed the headers had not changed. Verified RED by appending one comment line to the repo copy.
   - 2026-08-22: a second defect on the way out, worth recording because it is the opposite mistake. The first live fix put the new CSP in the SHARED `(security_headers)` snippet — and Caddy's `header` REPLACES rather than appends, so it overwrote the API's `default-src 'none'` (set by `security_headers_middleware`) with a strictly weaker policy. Caught by re-reading both hosts' headers after the reload. The CSP now sits on the dashboard site block alone.
+
+## resave-erases-a-secret-the-form-cannot-show
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: pressing "save" on a form destroys a stored secret the form has no field for. The UI reports success, nothing logs a warning, and the loss only surfaces one collection cycle later as a credential that "stopped working".
+- signature: `python3 -m pytest tests/test_saving_a_tab_never_destroys_a_secret.py -q`
+- root_cause: `credentials/_core.py::_save_credentials` upserted `token_encrypted = EXCLUDED.token_encrypted` — an overwrite — while `_render.py::_handle_save` computes `encrypted_blob = ''` whenever no SECRET field on the tab holds a value. Two of the four tabs declare no secret field at all (`soundcloud`: only `user_id`; `meta`: only `account_id` + `ig_user_id`), so they could ONLY ever save an empty blob. Both rows nevertheless hold one in production, written by something else: the rotated OAuth refresh_token (`soundcloud_api_collector.py:132`, 228 B) and the System User token (`tools/dev/inject_meta_token.py`, 804 B) that every tenant's Meta AND Instagram collection depends on.
+- long_term_fix: `COALESCE(NULLIF(EXCLUDED.token_encrypted, ''), artist_credentials.token_encrypted)` — an empty blob now means "leave it alone". Erasing a secret must be a gesture someone asks for, never a side effect of saving something else. The general shape: a surface that cannot DISPLAY a value must not be able to DELETE it.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_saving_a_tab_never_destroys_a_secret.py }
+- rex_ref: src/dashboard/views/credentials/_core.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Found while auditing why tenant credentials "stopped working" twice. Verified RED on both secret-less tabs by restoring the overwrite. The file also pins WHICH tabs are secret-less, so adding a secret field to one of them forces a re-read of the reasoning instead of silently changing what the tests mean. A mocked test could not have caught this: the defect is in the SQL.

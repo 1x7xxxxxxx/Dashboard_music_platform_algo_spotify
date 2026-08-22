@@ -335,6 +335,10 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             ).format(field=field, value=value))
             return
 
+        # `''` means "do not touch the stored secret", NOT "erase it" — see the
+        # contract in `_save_credentials`. The soundcloud and meta tabs declare no
+        # secret field at all, so they ALWAYS land here with an empty blob while
+        # their rows hold a rotated refresh_token / the System User token.
         encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
         _save_credentials(db, artist_id, platform_key, encrypted_blob, extra)
 

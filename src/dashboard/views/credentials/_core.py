@@ -245,6 +245,30 @@ def _load_credentials(db, artist_id: int) -> dict:
 
 def _save_credentials(db, artist_id: int, platform: str,
                       encrypted_blob: str, extra: dict) -> None:
+    """Upsert one platform row. An EMPTY blob means "leave the secret alone".
+
+    P1 fixed 2026-08-22. `token_encrypted = EXCLUDED.token_encrypted` was an
+    overwrite, and `_render._handle_save` computes `encrypted_blob = ''` whenever no
+    SECRET field on the tab holds a value. Two tabs declare no secret field at all —
+    `soundcloud` (only `user_id`) and `meta` (only `account_id` + `ig_user_id`) — yet
+    both rows carry a blob in production:
+
+      * `soundcloud` holds the rotated OAuth `refresh_token` written by
+        `soundcloud_api_collector.py:132` (228 bytes on artist 1). Without it the
+        collector silently falls back to client_credentials and every like reads 0.
+      * `meta` holds the System User token injected by `tools/dev/inject_meta_token.py`
+        (804 bytes on artist 1) — the credential EVERY tenant's Meta and Instagram
+        collection depends on.
+
+    So pressing "Enregistrer" on the Meta tab, changing nothing, destroyed the
+    platform's shared token. No error, no warning, and the DAG stayed green the next
+    night because a missing token skips tenants rather than failing.
+
+    `NULLIF(…, '')` + `COALESCE` makes the empty string mean "keep what is there".
+    Erasing a secret is then something a caller has to ask for deliberately, which is
+    the right shape: a form that cannot DISPLAY a secret must not be able to DELETE
+    it as a side effect of saving something else.
+    """
     db.execute_query(
         """
         INSERT INTO artist_credentials
@@ -252,7 +276,10 @@ def _save_credentials(db, artist_id: int, platform: str,
         VALUES (%s, %s, %s, %s::jsonb, NOW())
         ON CONFLICT (artist_id, platform)
         DO UPDATE SET
-            token_encrypted = EXCLUDED.token_encrypted,
+            token_encrypted = COALESCE(
+                NULLIF(EXCLUDED.token_encrypted, ''),
+                artist_credentials.token_encrypted
+            ),
             extra_config    = EXCLUDED.extra_config,
             updated_at      = NOW()
         """,
