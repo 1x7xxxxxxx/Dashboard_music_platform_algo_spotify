@@ -116,11 +116,50 @@ accepte un NUL sans broncher, donc les cas « ne 500 jamais » ne voient pas le 
 c'est écrit dans le fichier, à côté d'un test sur base réelle qui prouve que le driver
 lève bien.
 
+### Déployé le jour même, et le reverse proxy n'était pas celui du dépôt
+
+`origin/main` à `9d7b6d8`, migration 072 appliquée, sauvegarde prise avant.
+`make sync-check` : **921/921 colonnes, 92/92 tables, 72 migrations enregistrées, code
+déployé == origin/main, `deploy/Caddyfile` == ce que Caddy sert.** Vérifié en fonction :
+`?song=a%00b` rend **400** sur `api.streamlytics.fr` là où il rendait 500,
+`/?page=register` répond 200, un appel sans jeton rend 401, zéro erreur dans les
+journaux des deux conteneurs depuis le redémarrage.
+
+**Ordre inversé volontairement.** `make migrate-prod` conseille de déployer d'abord
+(classe `migration-ahead-of-its-code`), mais la 072 est **purement additive** et c'est le
+code neuf qui exige la colonne. Migrer d'abord supprime la fenêtre où l'API interroge une
+colonne absente ; l'inverse aurait mis l'API à terre entre les deux étapes.
+
+**`deploy/Caddyfile` n'était pas ce qui tourne.** Le dépôt décrivait le déploiement de
+juin — Let's Encrypt, ni journalisation ni `lb_try_duration` — alors que la prod sert sur
+des **certificats d'origine Cloudflare** avec un bloc de log qui supprime
+`Cookie`/`Authorization`/`Set-Cookie`. Appliquer le fichier du dépôt aurait cassé TLS et
+perdu la rédaction des journaux. Découvert en y écrivant un correctif et en constatant
+par `curl` que rien n'avait bougé. Le fichier du dépôt est maintenant une copie fidèle du
+live — **le live est la vérité, c'est le fichier qui était périmé** — et `make sync-check`
+compare désormais les deux. Il vérifiait le schéma et le HEAD git ; un reverse proxy
+n'est ni l'un ni l'autre.
+
+**Un second défaut, l'inverse du premier**, attrapé en relisant les en-têtes après
+rechargement : la CSP posée dans le snippet **partagé** écrasait le `default-src 'none'`
+que le middleware FastAPI met sur l'API — Caddy **remplace** l'en-tête, il ne l'ajoute
+pas. Strictement plus faible. Elle ne vit plus que sur le bloc du dashboard.
+
+Classe : `repo-copy-of-a-config-is-not-what-runs`. 83 classes, toutes gardées, toutes
+complètes.
+
 ### Ce qui reste
 
-**Une seule entrée sur toute la roadmap** : R1, ouvrir la bêta — la seule qu'aucune
-machine ne peut faire, parce qu'elle consiste à inviter des gens. Avant : `make
-migrate-prod` (la **072** est nouvelle), `make deploy`, `make sync-check`.
+**R1, en deux gestes qui demandent tes comptes.**
+
+1. **Compléter le filet.** La préflight du canari prod est verte pour **Spotify et
+   YouTube seulement** — mesuré ce jour, contre la ligne « de bout en bout » que la
+   roadmap portait. SoundCloud, Meta et Instagram n'ont aucune identité sur le canari,
+   donc rien ne les prouve, et ce sont exactement les deux plateformes qui ont cassé chez
+   Benken (Meta) et GRiNCH (Instagram). Il faut un user id SoundCloud numérique, un Ad
+   Account Meta et un IG Business Account réels — une identité de locataire n'a par
+   construction aucune valeur par défaut.
+2. **Inviter les gens.**
 
 ---
 
