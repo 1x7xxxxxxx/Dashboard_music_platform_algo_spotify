@@ -1,68 +1,83 @@
-# Caddyfile — streaMLytics reverse proxy (Box A, Hetzner CAX31)
+# Caddyfile — streaMLytics reverse proxy (prod, Hetzner 167.233.92.1)
 # ----------------------------------------------------------------------------
-# Terminates TLS (Let's Encrypt, auto-renew) and proxies to the loopback-bound
-# containers. Deploy:  caddy run --config /etc/caddy/Caddyfile
-# Prereq: DNS A records app.streamlytics.fr + api.streamlytics.fr → Box A IP,
-#         and ufw allowing 80/443 (HTTP-01 challenge needs 80).
+# COPIE FIDÈLE de /etc/caddy/Caddyfile en production, relevée le 2026-08-22.
 #
-# Replace streamlytics.fr if the domain changes. The email is used by Let's
-# Encrypt for expiry notices.
+# Ce fichier était périmé et personne ne le savait. Il décrivait le déploiement
+# de juin — Let's Encrypt, pas de journalisation, pas de lb_try_duration — alors
+# que la prod tourne depuis sur des CERTIFICATS D'ORIGINE CLOUDFLARE, avec un
+# bloc de log qui supprime Cookie/Authorization/Set-Cookie, et l'apex servi dans
+# le même bloc que `app`. Appliquer l'ancien fichier aurait cassé TLS et perdu la
+# rédaction des journaux ajoutée le 2026-06-14.
+#
+# Découvert en voulant y appliquer un correctif : j'ai édité le fichier du dépôt
+# en croyant éditer ce qui tourne. Rien ne compare les deux — `make sync-check`
+# vérifie le schéma et le HEAD git, pas la config du reverse proxy.
+#
+# Déploiement : ce fichier n'est PAS appliqué automatiquement. Pour le pousser :
+#   scp deploy/Caddyfile root@HOST:/etc/caddy/Caddyfile.new
+#   ssh root@HOST 'caddy validate --config /etc/caddy/Caddyfile.new \
+#     && cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-$(date +%Y%m%d) \
+#     && mv /etc/caddy/Caddyfile.new /etc/caddy/Caddyfile && systemctl reload caddy'
+#
+# `email` est celui du compte ACME réel ; ne pas le changer sans raison.
 # ----------------------------------------------------------------------------
 
 {
-	email contact@streamlytics.fr
-	# Uncomment for dry-runs against the staging CA (avoids rate limits):
-	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+	email 1x7xxxxxxx@gmail.com
 }
-
-# Security headers applied to every site below.
 (security_headers) {
 	header {
-		# HSTS — force HTTPS for 1 year incl. subdomains (only after TLS is confirmed working).
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		# Added 2026-08-22 (R22, external scan). The dashboard answered with four
-		# headers while the API answered with six — the API's extra two come from
-		# `security_headers_middleware` in FastAPI, not from here, so the gap was
-		# invisible from the repo and only showed up in a response from outside.
+		# Ajoutes 2026-08-22 (R22) : le dashboard renvoyait 4 en-tetes, l API 6.
+		# Les deux de plus viennent du middleware FastAPI, pas d ici.
 		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
 		X-Permitted-Cross-Domain-Policies "none"
-		# A DELIBERATELY narrow CSP. Streamlit ships inline scripts and styles and
-		# uses eval, so `script-src`/`style-src` would blank the dashboard — and a
-		# CSP that has to be relaxed to `unsafe-inline 'unsafe-eval'` buys nothing
-		# while looking like protection. These four directives constrain what a
-		# successful injection can DO, and none of them touch how Streamlit loads
-		# its own assets:
-		#   object-src      — no Flash/embed sink
-		#   base-uri        — a stray <base> cannot re-point every relative URL
-		#   form-action     — an injected form cannot post credentials off-site
-		#   frame-ancestors — clickjacking, in the header modern browsers read
-		#                     (X-Frame-Options above is the legacy spelling)
-		Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-		# Caddy sets the response; remove the server banner.
 		-Server
 	}
 }
-
-# ── Streamlit dashboard ──────────────────────────────────────────────────────
-# Streamlit speaks WebSocket (/_stcore/stream); reverse_proxy handles the
-# Upgrade/Connection headers transparently, so no extra config is needed.
-app.streamlytics.fr {
-	import security_headers
-	encode gzip zstd
-	reverse_proxy 127.0.0.1:8501
+(logging) {
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 5
+			roll_keep_for 168h
+		}
+		format filter {
+			wrap json
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			resp_headers>Set-Cookie delete
+		}
+	}
 }
-
-# ── FastAPI backend (Stripe webhook + REST) ──────────────────────────────────
+(proxy_opts) {
+	lb_try_duration 5s
+	lb_try_interval 250ms
+}
+streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
+	tls /etc/caddy/origin.pem /etc/caddy/origin.key
+	import security_headers
+	# CSP du DASHBOARD seulement. Pas dans (security_headers) : Caddy REMPLACE
+	# l en-tete, et le middleware FastAPI pose deja `default-src none` sur l API,
+	# strictement plus strict que ceci. Rien sur script-src/style-src ici, qui
+	# blanchirait Streamlit (inline + eval) ; ces quatre directives limitent ce
+	# qu une injection reussie peut faire sans toucher au chargement des assets.
+	header Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	import logging
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:8501 {
+		import proxy_opts
+	}
+}
 api.streamlytics.fr {
+	tls /etc/caddy/origin.pem /etc/caddy/origin.key
 	import security_headers
+	import logging
 	encode gzip zstd
-	reverse_proxy 127.0.0.1:8502
-}
-
-# ── Apex → app (so streamlytics.fr and www redirect to the dashboard) ────────
-streamlytics.fr, www.streamlytics.fr {
-	redir https://app.streamlytics.fr{uri} permanent
+	reverse_proxy 127.0.0.1:8502 {
+		import proxy_opts
+	}
 }

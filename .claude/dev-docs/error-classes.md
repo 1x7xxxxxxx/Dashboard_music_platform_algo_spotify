@@ -141,6 +141,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
 | [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
+| [repo-copy-of-a-config-is-not-what-runs](#repo-copy-of-a-config-is-not-what-runs) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1472,3 +1473,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Only ONE of the 14 tests goes red when the middleware is removed — the mocked database accepts a NUL happily, so the parametrised "never 500s" cases cannot see the defect. That is recorded in the file itself, next to a DB-gated test proving the real driver does raise; the two ends together are what make the middleware more than decoration. Re-fuzzed across four seeds, 1730 cases, zero 5xx.
+
+## repo-copy-of-a-config-is-not-what-runs
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a config file lives in the repo, looks authoritative, and is not the one the service loads. Editing it changes nothing, reading it describes a deployment that no longer exists, and applying it would undo months of production changes nobody wrote down.
+- signature: `grep -q 'caddy-drift' Makefile`
+- root_cause: `deploy/Caddyfile` was written in June and never re-read. Production moved to Cloudflare ORIGIN CERTIFICATES, gained an access-log block that deletes `Cookie`/`Authorization`/`Set-Cookie` (2026-06-14), gained `lb_try_duration`, and merged the apex into the dashboard site block — none of it reflected back. `make sync-check` compared the SCHEMA and the git HEAD, and a reverse proxy is neither, so the divergence was invisible to the one command whose job is "is the repo what runs".
+- long_term_fix: `make sync-check` now diffs `deploy/Caddyfile` against `/etc/caddy/Caddyfile` on the target and fails on any difference, comparing from the first `{` so the repo copy may carry a comment header explaining how to deploy it. The repo copy was re-synced from the live file rather than the other way round — the running config is the truth, the file was the stale one.
+- autofix: none
+- guard: { type: make-precondition, ref: Makefile (sync-check, caddy-drift step) }
+- rex_ref: deploy/Caddyfile
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Found by trying to patch it: an R22 header fix was written into the repo copy in the belief it was live, and only a `curl` against the real host showed the headers had not changed. Verified RED by appending one comment line to the repo copy.
+  - 2026-08-22: a second defect on the way out, worth recording because it is the opposite mistake. The first live fix put the new CSP in the SHARED `(security_headers)` snippet — and Caddy's `header` REPLACES rather than appends, so it overwrote the API's `default-src 'none'` (set by `security_headers_middleware`) with a strictly weaker policy. Caught by re-reading both hosts' headers after the reload. The CSP now sits on the dashboard site block alone.

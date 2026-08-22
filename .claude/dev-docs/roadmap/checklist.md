@@ -78,10 +78,17 @@ VPS*, et celle-ci en est une. Ce que ça a donné —
   psycopg2 et lève une `ValueError` que personne ne rattrape. Fermé à la frontière,
   gardé, re-fuzzé sur **4 graines / 1730 cas / zéro 5xx**.
 
-**⚠️ Ce qui n'est PAS fait : rien de tout ça n'est déployé.** Le travail est dans
-l'arbre local, non commité. `prod == canonique` décrit l'état d'AVANT cette séance.
-Avant de déployer : `make migrate-prod` (la **072** est nouvelle), puis `make deploy`,
-puis `make sync-check`.
+**✅ DÉPLOYÉ ET VÉRIFIÉ EN PROD** le 2026-08-22. `prod == canonique` : 921/921 colonnes,
+92/92 tables, 72 migrations enregistrées, code déployé == `origin/main` (`4803f48`),
+`deploy/Caddyfile` == ce que Caddy sert. Vérifié en fonction, pas seulement en
+structure : `?song=a%00b` rend **400** sur `api.streamlytics.fr` (500 avant), la page
+d'inscription répond 200, un appel sans jeton rend 401.
+
+Ordre suivi, et il compte : la **072 est purement additive**, donc migration AVANT le
+déploiement du code — l'inverse de ce que conseille `make migrate-prod`, dont
+l'avertissement vise le cas général où une migration retire quelque chose. Ici c'est le
+code neuf qui exige la colonne, donc migrer d'abord supprime toute fenêtre où l'API
+interroge une colonne absente. Sauvegarde prise avant (664 K).
 
 **Avant de conclure quoi que ce soit :**
 ```
