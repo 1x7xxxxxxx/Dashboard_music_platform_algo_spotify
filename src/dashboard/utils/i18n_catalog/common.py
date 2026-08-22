@@ -2,6 +2,7 @@
 
 EN = {
     # Months (selectboxes, period labels) — t("common.month.5", "Mai")
+    "common.remove": "Remove",
     "common.month.1": "January",
     "common.month.2": "February",
     "common.month.3": "March",

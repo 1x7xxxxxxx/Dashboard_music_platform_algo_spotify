@@ -169,6 +169,7 @@ def step_connection_tests(db, artist_id: int, scope: set[str] | None = None) -> 
         # so `creds.get('instagram')` would be empty for every tenant and the probe
         # would report a missing identity for one that is correctly declared.
         fields = dict(creds.get(storage_platform(platform), {}))
+        fields["_artist_id"] = artist_id
         if platform == "spotify" and not fields.get("spotify_artist_id"):
             row = db.fetch_query(
                 "SELECT spotify_artist_id FROM saas_artists WHERE id = %s", (artist_id,))

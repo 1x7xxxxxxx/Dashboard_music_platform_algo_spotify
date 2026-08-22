@@ -221,8 +221,72 @@ class SoundCloudCollector:
         if page >= max_pages:
             logger.warning("fetch_tracks: reached max_pages=%d safety cap.", max_pages)
 
-        logger.info("Fetched %d tracks.", len(tracks_data))
+        logger.info("Fetched %d tracks from the profile.", len(tracks_data))
+        tracks_data.extend(self.fetch_claimed_tracks(
+            already={t['track_id'] for t in tracks_data}))
+        logger.info("Fetched %d tracks in total.", len(tracks_data))
         return tracks_data
+
+    def fetch_claimed_tracks(self, already: set | None = None) -> list:
+        """Tracks this tenant declared that live on somebody else's profile.
+
+        The GRiNCH case: an artist released by a label has `track_count=0` on their
+        own profile, so `/users/{id}/tracks` is correctly empty and there is nothing
+        to collect. `GET /tracks/{id}` returns the same statistics whatever profile
+        hosts the upload, so a declared track is collectable regardless of ownership.
+
+        A claim pointing at a deleted or private track is skipped with a WARNING
+        naming the id — one dead row must not lose the others. But an unreadable
+        claims table RAISES (rule #6): for an artist released under a label these
+        tracks are the only thing to collect, so swallowing that would mean zero rows,
+        a SUCCESS exit and an empty dashboard.
+        """
+        already = already or set()
+        # NOT wrapped in a try that returns []. Rule #6, and it earns itself here: for
+        # an artist released under a label the claimed tracks are the ONLY thing to
+        # collect, so an unreadable claims table would produce zero rows, a SUCCESS
+        # exit and an empty dashboard — the exact silent-success shape this whole
+        # session is about. Let it raise; the DAG's per-tenant try isolates it.
+        from src.utils.claimed_tracks import claimed_track_ids
+        ids = [i for i in claimed_track_ids(self.db, self.artist_id, 'soundcloud')
+               if i not in already]
+        if not ids:
+            return []
+
+        self._ensure_token()
+        logger.info("Fetching %d claimed track(s) hosted elsewhere…", len(ids))
+        out = []
+        for track_id in ids:
+            try:
+                r = self.session.get(
+                    f"{_API_BASE}/tracks/{track_id}",
+                    headers={'Authorization': f'OAuth {self._access_token}'},
+                    timeout=15, allow_redirects=False)
+                if r.status_code != 200:
+                    # A claim that stopped resolving is worth saying out loud: the
+                    # track was deleted or made private, and the artist's numbers
+                    # will quietly stop moving otherwise.
+                    logger.warning("claimed track %s unreachable: HTTP %s",
+                                   track_id, r.status_code)
+                    continue
+                t = r.json()
+                out.append({
+                    'artist_id': self.artist_id,
+                    'track_id': str(t.get('id')),
+                    'title': t.get('title'),
+                    'permalink_url': t.get('permalink_url'),
+                    'playback_count': int(t.get('playback_count') or 0),
+                    'likes_count': int(t.get('likes_count')
+                                       or t.get('favoritings_count') or 0),
+                    'reposts_count': int(t.get('reposts_count') or 0),
+                    'comment_count': int(t.get('comment_count') or 0),
+                    'track_created_at': t.get('created_at'),
+                    'collected_at': datetime.now(timezone.utc),
+                })
+            except Exception as e:  # noqa: BLE001 — see docstring
+                logger.warning("claimed track %s failed: %s", track_id, type(e).__name__)
+        logger.info("Fetched %d claimed track(s).", len(out))
+        return out
 
     def save_to_db(self, tracks: list) -> None:
         if not tracks:

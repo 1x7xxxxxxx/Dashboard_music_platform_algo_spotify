@@ -143,6 +143,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
 | [repo-copy-of-a-config-is-not-what-runs](#repo-copy-of-a-config-is-not-what-runs) | P2 | deterministic | guarded | none |
 | [resave-erases-a-secret-the-form-cannot-show](#resave-erases-a-secret-the-form-cannot-show) | P1 | deterministic | guarded | none |
+| [delivery-failure-logged-as-success](#delivery-failure-logged-as-success) | P1 | deterministic | guarded | none |
+| [static-hint-contradicts-the-live-probe](#static-hint-contradicts-the-live-probe) | P2 | deterministic | guarded | none |
+| [detector-written-and-never-called](#detector-written-and-never-called) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1505,3 +1508,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Found while auditing why tenant credentials "stopped working" twice. Verified RED on both secret-less tabs by restoring the overwrite. The file also pins WHICH tabs are secret-less, so adding a secret field to one of them forces a re-read of the reasoning instead of silently changing what the tests mean. A mocked test could not have caught this: the defect is in the SQL.
+
+## delivery-failure-logged-as-success
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: the code path that sends a notification returns a "did not send" value, the very next line logs that it was sent, and the task ends green. The findings inside the message were computed correctly and rendered correctly; nobody received them.
+- signature: `python3 -m pytest tests/test_alert_delivery_is_proven.py -q`
+- root_cause: `airflow/dags/alert_monitor.py` ended with `EmailAlert().send_alert(subject, body)` followed by an unconditional `logger.info("Consolidated alert sent")`. `send_alert` returns False — never raises — when `SMTP_USER`/`SMTP_PASSWORD`/`ALERT_EMAIL` are absent from the container. Production logs show three consecutive nights (16, 17, 18 August 2026) writing that success line immediately after the module warned "Email alerts non configurées". The existing guard `test_alert_monitor_sends_what_it_finds.py` covers the hop before this one — that every finding takes part in the send DECISION — and structurally cannot see whether the send SUCCEEDED.
+- long_term_fix: `email_alerts.deliver_or_raise()` for the one path whose silence is the incident — it raises, naming which of the two failures occurred (env absent vs send refused), so the task goes red and `on_failure_callback` fires. `send_alert` keeps its non-raising contract for its six other callers. Persistent proof in `monitoring_run` (migration 073) written BEFORE the attempt and updated after, so an external reader on another mail path sees the failure. And an AST sweep that fails on any `send_alert`/`send_email` call whose result is a bare expression — the generalisation, which caught two more sites the day it was written.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_alert_delivery_is_proven.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Sibling of `finding-rendered-but-not-alerted`: there a finding reached the body but not the decision; here the decision fired and the delivery was never checked. Same root — one boolean carrying two questions. Verified RED by restoring the discarded call.
+
+## static-hint-contradicts-the-live-probe
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: two layers answer the same question about a tenant. One reads the database and guesses at the cause from a fixed string; the other calls the platform API and knows. The guess is the one that runs automatically, so the operator and the artist are told something that is not true.
+- signature: `python3 -m pytest tests/test_readiness_carries_the_live_diagnosis.py -q`
+- root_cause: `artist_readiness` derives status from (declared identity × row recency) and attaches a static `nodata_hint` per platform. `CONNECTION_TESTS` calls the real API and returns the actual reason, but only ran on a human's click or `make artist-preflight`. Measured on GRiNCH (tenant 13) the same night: the probe said "User ID 72854583 joignable, mais aucun titre public n'y est rattaché"; the nightly alert said "vérifie le User ID ; l'app SoundCloud partagée doit être configurée (admin)" — wrong, and blaming the artist and the admin for an account that simply has no public tracks.
+- long_term_fix: `src/utils/platform_probes.py` is the headless seam onto the same probes, and `artist_readiness(db, artist_id, probe=…)` takes an optional prober whose answer REPLACES the static hint. Three rules keep the cure from becoming the disease: the probe defaults to None so no existing caller changes behaviour; it runs ONLY where the database already says red (freshness is the proof, the probe is the explainer — 2 API calls a night, not 35); and it never changes a status, only the wording, so a network blip cannot turn a collecting tenant red. `probe_ran` distinguishes "not measured" from "measured and fine".
+- autofix: none
+- guard: { type: pytest, ref: tests/test_readiness_carries_the_live_diagnosis.py }
+- rex_ref: src/utils/platform_probes.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. The load-bearing test is the GRiNCH regression expressed as data — the flag must contain "aucun titre public" and must NOT contain "l'app SoundCloud partagée". Verified RED twice: once by ignoring the probe, once by probing every platform instead of only the reds.
+
+## detector-written-and-never-called
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a function exists whose docstring names an error class, it has unit tests, and nothing in production calls it. The catalogue and the module both read as though the class is covered.
+- signature: `python3 -m pytest tests/test_no_detector_is_written_and_never_called.py -q`
+- root_cause: `src/utils/monitoring_checks.silent_zero_findings` — "configured tenant × platform with ZERO recent rows, the silent-success class" — was imported only by `tests/test_monitoring_checks.py`. No caller in `src/`, `airflow/` or `tools/`. Worse than a missing guard: a reader auditing coverage found it and moved on.
+- long_term_fix: the function was DELETED, not wired, because its predicate is exactly what `artist_readiness.platform_status` already computes as NO_DATA and `readiness_red_flags` already reports nightly — waking it would have produced two voices for one finding (`watchdog-becomes-the-noise`). A note in the module says so, so the decision does not become a cycle. The guard asserts every public function in `monitoring_checks.py` has a caller outside its own module, and separately that this one stays deleted WITH its explanation.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_detector_is_written_and_never_called.py }
+- rex_ref: src/utils/monitoring_checks.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Found by asking, of every monitoring helper, "who calls this?" — the same question that found the roadmap guard matching a hand-written verb list. The answer is worth asking of any module whose entire purpose is to be called by something else.

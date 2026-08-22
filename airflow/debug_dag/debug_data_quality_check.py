@@ -244,10 +244,13 @@ def step_5_summary():
         return True
     try:
         from src.utils.email_alerts import EmailAlert
-        EmailAlert().send_alert(
+        sent = EmailAlert().send_alert(
             f'[DEBUG] Daily summary — {datetime.now().strftime("%Y-%m-%d")}',
             '<p>Debug test from debug_data_quality_check.py</p>',
         )
+        if not sent:
+            logger.error('❌ Test email NOT sent — SMTP absent or refused.')
+            return False
         logger.info('✅ Test email sent')
         return True
     except Exception as e:

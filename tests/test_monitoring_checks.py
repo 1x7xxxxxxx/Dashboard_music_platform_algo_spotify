@@ -8,7 +8,6 @@ from datetime import date, datetime
 
 from src.utils.monitoring_checks import (
     consecutive_failure_days,
-    silent_zero_findings,
     tenant_freshness_gaps,
 )
 
@@ -47,25 +46,6 @@ def test_accepts_datetime_exec_dates():
             ("d", datetime(2026, 6, 17, 10, 0), "failed"),
             ("d", datetime(2026, 6, 16, 10, 0), "failed")]
     assert consecutive_failure_days(runs) == {"d": 3}
-
-
-# ── silent_zero_findings ──────────────────────────────────────────────────────
-
-def test_flags_configured_zero_row_tenant():
-    rows = [
-        (12, "Benken", "soundcloud", True, 0),    # configured, no data → flag
-        (12, "Benken", "youtube", True, 7),       # has data → ok
-        (12, "Benken", "meta", False, 0),         # not configured → ignore
-        (1, "Admin", "spotify", True, 120),       # ok
-    ]
-    out = silent_zero_findings(rows)
-    assert out == [{"artist_id": 12, "artist_name": "Benken", "platform": "soundcloud"}]
-
-
-def test_none_row_count_treated_as_zero():
-    assert silent_zero_findings([(5, "X", "youtube", True, None)]) == [
-        {"artist_id": 5, "artist_name": "X", "platform": "youtube"}
-    ]
 
 
 # ── tenant_freshness_gaps ─────────────────────────────────────────────────────

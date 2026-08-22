@@ -51,21 +51,17 @@ def consecutive_failure_days(runs, min_days: int = 3) -> dict:
     return out
 
 
-def silent_zero_findings(rows) -> list:
-    """Configured tenant×platform with ZERO recent rows — the silent-success class.
-
-    `rows`: iterable of (artist_id, artist_name, platform, configured: bool, rows_recent: int).
-    A collector that catches an error and writes nothing exits the DAG SUCCESS; the row-spike
-    check never fires on zero. Flag any platform the artist IS configured for that produced no
-    data in the lookback window.
-    """
-    findings = []
-    for artist_id, artist_name, platform, configured, rows_recent in rows:
-        if configured and (rows_recent or 0) == 0:
-            findings.append({
-                'artist_id': artist_id, 'artist_name': artist_name, 'platform': platform,
-            })
-    return findings
+# `silent_zero_findings` lived here from its introduction until 2026-08-22 and was
+# never called by anything but its own unit test. It computed "configured tenant ×
+# platform with zero recent rows" — which is precisely the predicate
+# `artist_readiness.platform_status` already computes as NO_DATA, and
+# `readiness_red_flags` already feeds to the nightly alert.
+#
+# So it was not a missing guard, it was a SECOND one for a fact that already had a
+# reader. Waking it would have produced two voices for one finding, which this repo
+# names `watchdog-becomes-the-noise`; leaving it made the catalogue look like the
+# class was covered twice. Deleted, and the class it was written for is guarded by
+# `tests/test_no_detector_is_written_and_never_called.py`.
 
 
 def tenant_freshness_gaps(per_tenant) -> list:

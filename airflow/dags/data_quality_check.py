@@ -516,10 +516,17 @@ def send_summary_notification(**context):
         """
         try:
             from src.utils.email_alerts import EmailAlert
-            EmailAlert().send_alert(
+            # Bind the result. This is the daily DIGEST, not the incident alert, so a
+            # failure here is logged rather than raised — but it must not be silent.
+            # `send_alert` returns False on an unconfigured container without raising,
+            # so the `except` below never fired and this line reported success for
+            # three nights in the consolidated alert's twin (2026-08-16→18).
+            _sent = EmailAlert().send_alert(
                 f"Résumé quotidien Music Platform — {subject_prefix}",
                 html_body,
             )
+            if not _sent:
+                logger.error('Résumé quotidien NON envoyé — SMTP absent ou refusé.')
         except Exception as email_err:
             logger.warning(f'Email résumé non envoyé : {email_err}')
 

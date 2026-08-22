@@ -82,8 +82,16 @@ def platform_status(identity_present: bool, last_dt, stale: bool,
     return STALE if stale else OK
 
 
-def next_action(platform: dict, status: str, expected_silence: str | None = None) -> str:
-    """Pure: the exact next step for an (platform, status)."""
+def next_action(platform: dict, status: str, expected_silence: str | None = None,
+                live_reason: str | None = None) -> str:
+    """Pure: the exact next step for an (platform, status).
+
+    `live_reason` is what the platform's API actually answered, when someone asked.
+    It REPLACES the static `nodata_hint` guess, because a measurement beats a guess
+    every time — GRiNCH's SoundCloud was answered with "vérifie le User ID ; l'app
+    partagée doit être configurée (admin)" for weeks when the true answer, available
+    from one API call, was "ce profil n'a aucun titre public".
+    """
     if status == OK:
         return ""
     if status == QUIET:
@@ -97,7 +105,7 @@ def next_action(platform: dict, status: str, expected_silence: str | None = None
     if status == TODO:
         return f"Renseigne {platform['id_hint']}."
     if status == NO_DATA:
-        return platform["nodata_hint"]
+        return live_reason or platform["nodata_hint"]
     return f"Données anciennes — vérifie le DAG {platform['key']}."
 
 
@@ -141,11 +149,24 @@ def _load_extra(db, artist_id: int) -> dict:
     return out
 
 
-def artist_readiness(db, artist_id: int) -> list:
+def artist_readiness(db, artist_id: int, probe=None) -> list:
     """Per-platform readiness matrix for one artist.
 
     Returns [{key, label, icon, status, status_label, expected_silence, last_dt,
-    next_action}, …].
+    next_action, live_reason, probe_ran}, …].
+
+    `probe` is an optional `callable(logical_platform) -> (ok, message) | None`
+    (see `src.utils.platform_probes`). Three rules, all load-bearing:
+
+      1. It defaults to None, so every existing caller — the dashboard, the home
+         tracker, preflight step 4 — behaves exactly as before. Nobody is forced to
+         change, and no page starts making API calls on render.
+      2. It is called ONLY when the computed status is NO_DATA or BROKEN. Fresh rows
+         already prove the credential produced data; probing green costs an API call
+         to learn nothing and adds a transient-blip path to a false red.
+      3. It NEVER changes the status, only the wording of `next_action`. A network
+         hiccup must not be able to turn a collecting tenant red — that would make
+         this the noise generator it exists to remove.
     """
     from src.utils.freshness_monitor import check_freshness, sources_for
 
@@ -176,23 +197,36 @@ def artist_readiness(db, artist_id: int) -> list:
                 best = (cand, silence, f.get("last_dt"))
         status, silence, last_dt = best or (
             platform_status(identity, None, True, None), None, None)
+
+        # Rule 2: ask the API only where the database already says something is wrong.
+        live_reason, probe_ran = None, False
+        if probe is not None and status in (NO_DATA, BROKEN):
+            result = probe(p["key"])
+            if result is not None:          # None = not measured, NOT "measured fine"
+                probe_ran = True
+                ok, message = result
+                if not ok:
+                    live_reason = message
+
         matrix.append({
             "key": p["key"], "label": p["label"], "icon": _ICON[status],
             "status": status, "status_label": _LABEL[status],
             "expected_silence": silence,
-            "last_dt": last_dt, "next_action": next_action(p, status, silence),
+            "last_dt": last_dt,
+            "next_action": next_action(p, status, silence, live_reason),
+            "live_reason": live_reason, "probe_ran": probe_ran,
         })
     return matrix
 
 
-def readiness_red_flags(db, artist_id: int) -> list:
+def readiness_red_flags(db, artist_id: int, probe=None) -> list:
     """Platforms that need someone to look, for one artist.
 
     NO_DATA (connected, silent-0-row) **and** BROKEN (the check itself failed).
     Both mean somebody must act; only the first is the artist's move, and
     `next_action` is what says which.
     """
-    return [m for m in artist_readiness(db, artist_id)
+    return [m for m in artist_readiness(db, artist_id, probe=probe)
             if m["status"] in (NO_DATA, BROKEN)]
 
 

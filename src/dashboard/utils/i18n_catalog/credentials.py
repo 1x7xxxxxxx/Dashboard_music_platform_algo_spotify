@@ -192,6 +192,31 @@ EN = {
     "credentials.soundcloud.test_ok": (
         "SoundCloud OAuth API OK — {count} track(s) fetched for user {user_id} ✅"
     ),
+    # --- Tracks hosted on someone else's account (the GRiNCH case) ---
+    # An artist signed to a label has an empty profile and always will; the
+    # collectable unit for them is the track, not the profile.
+    "credentials.soundcloud.claimed_header":
+        "🎵 My tracks hosted on other accounts (label, collective…)",
+    "credentials.soundcloud.claimed_help":
+        "If your releases come out under a label's or a collective's account, your own "
+        "profile is empty and will stay that way. Paste the URL of EACH track that is "
+        "yours — one per line. We will collect their plays even though they live "
+        "elsewhere. A track can only be claimed by one account.",
+    "credentials.soundcloud.claimed_current": "**{n} track(s) declared**:",
+    "credentials.soundcloud.claimed_input": "SoundCloud URLs (one per line)",
+    "credentials.soundcloud.claimed_add": "➕ Declare these tracks",
+    "credentials.soundcloud.claimed_empty": "Paste at least one track URL.",
+    "credentials.soundcloud.claimed_not_a_track":
+        "this is not a TRACK URL (it must be …/account/track-name)",
+    "credentials.soundcloud.claimed_unresolved": "not found, or private",
+    "credentials.soundcloud.claimed_taken":
+        "this track is already claimed by another account. A track belongs to one "
+        "artist only — contact us if this is wrong.",
+    "credentials.soundcloud.claimed_ok":
+        "✅ {n} track(s) declared. They will be collected on the next run.",
+    "credentials.soundcloud.claimed_only":
+        "Profile has no public track, but **{n} declared track(s)** hosted on other "
+        "accounts — those are what will be collected ✅",
     "credentials.soundcloud.no_public_tracks": (
         "User ID {user_id} is reachable, but **no public track** is attached to "
         "it — there will be nothing to collect. Check that it is YOUR profile ID "

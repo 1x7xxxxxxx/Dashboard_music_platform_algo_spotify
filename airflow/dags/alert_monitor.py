@@ -212,8 +212,19 @@ def check_data_freshness(**context):
         # SoundCloud/YouTube were dead while artist 1's were fresh). Loop active artists.
         from src.utils.credential_loader import get_active_artists
         from src.utils.monitoring_checks import tenant_freshness_gaps
-        per_tenant = [(aid, name, check_freshness(db, aid))
-                      for aid, name in get_active_artists()]
+        # A statement loop with per-tenant isolation, not a comprehension. It WAS a
+        # comprehension until 2026-08-22, and a comprehension cannot contain a try:
+        # one tenant raising failed the whole task, and `send_consolidated_alert` has
+        # `trigger_rule='all_done'`, so the mail still went out with the entire
+        # per-tenant section silently missing. That is the failure mode this check
+        # exists to detect, in the check itself.
+        per_tenant = []
+        for aid, name in get_active_artists():
+            try:
+                per_tenant.append((aid, name, check_freshness(db, aid)))
+            except Exception as e:  # noqa: BLE001 — one bad tenant must not blind the rest
+                logger.error("freshness unavailable for tenant %s (%s): %s",
+                             aid, name, e)
         tenant_gaps = tenant_freshness_gaps(per_tenant)
     finally:
         db.close()
@@ -633,10 +644,25 @@ def check_onboarding_readiness(**context):
     The per-artist closed loop: an artist who provided an identifier (channel_id, account_id…)
     but whose platform produces 0 rows — Benken's empty YouTube channel, a not-shared Meta
     account — becomes a RED flag with the exact next action, instead of staying invisible.
+
+    Since 2026-08-22 the "exact next action" is MEASURED, not guessed. Where the
+    database says a platform is red, the same probe the credentials form runs is
+    called against the platform's API, and its answer replaces the static hint. That
+    is the difference between telling GRiNCH "vérifie ton User ID ; l'app partagée
+    doit être configurée (admin)" — a guess, and wrong, and blaming two innocent
+    parties — and telling him "ce profil n'a aucun titre public", which is the fact.
+
+    Only reds are probed: fresh rows already prove the credential produced data.
+    Today that is 2 API calls a night across the fleet.
     """
     from src.database.postgres_handler import PostgresHandler
     from src.utils.credential_loader import get_active_artists
     from src.utils.artist_readiness import readiness_red_flags, readiness_stalled_flags
+    from src.utils.platform_probes import make_budgeted_probe
+
+    # A FLEET budget, not a per-tenant one: shared across every tenant in this run so
+    # the cap means what it says at 100 tenants. Exhaustion is logged, never silent.
+    budget = [int(os.getenv('READINESS_PROBE_BUDGET', '25'))]
 
     db = PostgresHandler(
         host=os.getenv('DATABASE_HOST', 'postgres'),
@@ -652,10 +678,16 @@ def check_onboarding_readiness(**context):
         # two readers for one fact is `watchdog-becomes-the-noise`.
         for aid, name in get_active_artists(exclude_canaries=True):
             try:
-                for m in readiness_red_flags(db, aid):
+                probe = make_budgeted_probe(db, aid, budget)
+                for m in readiness_red_flags(db, aid, probe=probe):
                     flags.append({'artist_id': aid, 'artist_name': name,
                                   'platform': m['label'], 'status': m['status'],
-                                  'next_action': m['next_action']})
+                                  'next_action': m['next_action'],
+                                  # `probe_ran` distinguishes "the API said this" from
+                                  # "we did not ask". Rendering an unmeasured red as a
+                                  # measured one is how a truncated night reads as
+                                  # full coverage.
+                                  'probe_ran': m.get('probe_ran', False)})
                 # Signed up, never declared anything. `readiness_red_flags` cannot
                 # see them: a tenant who declared no identity produces no NO_DATA row,
                 # so the "created an account and stopped" state was invisible to every
@@ -671,7 +703,9 @@ def check_onboarding_readiness(**context):
     finally:
         db.close()
 
-    logger.info(f"Onboarding readiness: {len(flags)} needs-a-look flag(s), "
+    probed = sum(1 for f in flags if f.get('probe_ran'))
+    logger.info(f"Onboarding readiness: {len(flags)} needs-a-look flag(s) "
+                f"({probed} measured live, {len(flags) - probed} not probed), "
                 f"{len(stalled)} stalled tenant(s)")
     context['task_instance'].xcom_push(key='onboarding_red_flags', value=flags)
     context['task_instance'].xcom_push(key='onboarding_stalled', value=stalled)
@@ -781,9 +815,64 @@ def check_canary_preflight(**context):
 # Task 4 — Build and send consolidated alert email
 # ─────────────────────────────────────────────────────────────────
 
+def _record_quiet_run():
+    """A run that found nothing. `delivery_expected = FALSE` — no mail is owed."""
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+        try:
+            return db.fetch_query(
+                "INSERT INTO monitoring_run (subject, issues_count, delivery_expected) "
+                "VALUES (%s, 0, FALSE) RETURNING id", ("(rien à signaler)",))[0][0]
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001
+        logger.error("could not record the quiet run: %s", e)
+        return None
+
+
+def _record_alert_attempt(subject: str, issues_count: int):
+    """Open a `monitoring_run` row before attempting delivery. Never raises.
+
+    Bookkeeping must not be able to block the alert: if this fails we log and return
+    None, and the send still happens. A blind external reader is a finding, a
+    suppressed alert is an incident.
+    """
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+        try:
+            rows = db.fetch_query(
+                "INSERT INTO monitoring_run (subject, issues_count, delivery_expected) "
+                "VALUES (%s, %s, TRUE) RETURNING id", (subject, issues_count))
+            return rows[0][0]
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001 — see docstring
+        logger.error("could not open the alert-delivery ledger row: %s", e)
+        return None
+
+
+def _close_alert_attempt(run_id, delivered: bool, error) -> None:
+    """Record the outcome. Never raises, for the same reason."""
+    if run_id is None:
+        return
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+        try:
+            db.execute_query(
+                "UPDATE monitoring_run SET delivered = %s, delivery_error = %s "
+                "WHERE id = %s", (delivered, error, run_id))
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001
+        logger.error("could not close the alert-delivery ledger row: %s", e)
+
+
 def send_consolidated_alert(**context):
     """Assemble one email with all findings: failures, freshness, missing creds."""
-    from src.utils.email_alerts import EmailAlert
+    from src.utils.email_alerts import AlertDeliveryError, deliver_or_raise
 
     ti = context['task_instance']
     failing_dags = ti.xcom_pull(task_ids='check_dag_failures', key='failing_dags') or {}
@@ -817,6 +906,10 @@ def send_consolidated_alert(**context):
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
     if not has_issues:
+        # Record the quiet night as well. Without a row, "nothing to report" and
+        # "the scheduler never ran" look identical to any external reader — and the
+        # second is the one that hides everything else.
+        _close_alert_attempt(_record_quiet_run(), delivered=True, error=None)
         logger.info(f"✅ All systems OK at {now_str} — no alert sent.")
         return
 
@@ -1192,13 +1285,35 @@ def send_consolidated_alert(**context):
             "🚨 APP PARTAGÉE HS : " + ', '.join(c['platform'] for c in central_broken))
     if canary:
         subject_parts.append("🐤 CANARI MUET")
+    # Third, and the line the two beta failures needed. `readiness_flags` and
+    # `tenant_gaps` rendered body sections since they were written and appeared in
+    # NO subject: a night whose only findings were "Benken ne collecte pas Meta" and
+    # "GRiNCH ne collecte pas SoundCloud" produced an email titled
+    # "🚨 Dashboard Alert:" followed by nothing. Named tenants, capped at three so the
+    # subject stays a subject.
+    if readiness_flags or canary_preflight:
+        _names = []
+        for f in readiness_flags:
+            label = f"{f['artist_name']} ({f['platform']})"
+            if label not in _names:
+                _names.append(label)
+        shown, extra = _names[:3], len(_names) - 3
+        if shown:
+            subject_parts.append("🔴 NE COLLECTE PAS : " + ", ".join(shown)
+                                 + (f" +{extra}" if extra > 0 else ""))
+        if canary_preflight:
+            subject_parts.append("🐤 PRÉFLIGHT ROUGE")
     if failing_dags:
         subject_parts.append(f"{len(failing_dags)} DAG(s) en échec")
     if stale_sources:
         subject_parts.append(f"{len(stale_sources)} source(s) stale")
     if missing_creds:
         subject_parts.append(f"{len(missing_creds)} credential(s) manquant(s)")
-    if sparks:
+    # Opportunities and diagnostics, not failures. They go in the subject only when
+    # there is nothing broken to report — otherwise "✨ 2 résurrection(s)" sits beside
+    # a tenant collecting nothing, which is alert fatigue in its purest form.
+    _nothing_broken = not subject_parts
+    if sparks and _nothing_broken:
         subject_parts.append(f"✨ {len(sparks)} résurrection(s)")
     if drift:
         subject_parts.append(f"📉 {len(drift)} drift(s)")
@@ -1207,9 +1322,29 @@ def send_consolidated_alert(**context):
     if row_anomalies:
         subject_parts.append(f"📈 {len(row_anomalies)} pic(s)")
 
-    subject = ' | '.join(subject_parts)
-    EmailAlert().send_alert(subject, body)
-    logger.info(f"Consolidated alert sent: {subject}")
+    # An empty subject was reachable: the four tenant-level signals contributed no
+    # subject text, so a night carrying only those sent "🚨 Dashboard Alert:" and
+    # nothing else. Never send an untitled alert — it is unreadable in a mailbox and
+    # indistinguishable from a bug in the mailer.
+    subject = ' | '.join(subject_parts) or f"{len(sections)} constat(s) — voir le détail"
+
+    # Record the attempt BEFORE making it, then update. The order is load-bearing:
+    # if delivery raises, the row already exists saying `delivered = FALSE`, and the
+    # external reader (infra_health_cron.sh, which mails via Brevo and therefore
+    # survives exactly the SMTP outage that silenced us) sees the failure. A row
+    # written only after a successful send would leave no trace of the one case that
+    # matters.
+    run_id = _record_alert_attempt(subject, len(sections))
+    try:
+        deliver_or_raise(subject, body)
+    except AlertDeliveryError as exc:
+        _close_alert_attempt(run_id, delivered=False, error=str(exc))
+        # Fail the task. `send_alert` returned False and the next line used to log
+        # "Consolidated alert sent" regardless — three nights of findings evaporated
+        # that way (16, 17, 18 Aug 2026) while the task stayed green.
+        raise
+    _close_alert_attempt(run_id, delivered=True, error=None)
+    logger.info(f"Consolidated alert delivered: {subject}")
 
 
 # ─────────────────────────────────────────────────────────────────

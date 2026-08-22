@@ -60,7 +60,13 @@ def test_the_removed_orphan_has_not_come_back() -> None:
 def test_alert_monitor_is_still_the_one_that_alerts() -> None:
     """If this stops being true, the guard above is protecting nothing."""
     src = (ROOT / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8")
-    assert "check_data_freshness" in src and "EmailAlert" in src, (
+    # `deliver_or_raise` since 2026-08-22: the consolidated alert stopped calling
+    # `EmailAlert().send_alert(...)` directly, because that call returns False on an
+    # unconfigured container and the result was being discarded — three nights of
+    # findings vanished with a green task. Both spellings mean "this module is the
+    # one that sends"; asserting only the old one would fail on the fix.
+    sends = "EmailAlert" in src or "deliver_or_raise" in src
+    assert "check_data_freshness" in src and sends, (
         "alert_monitor no longer carries the freshness path — the single-sender "
         "assumption this file guards is no longer true"
     )

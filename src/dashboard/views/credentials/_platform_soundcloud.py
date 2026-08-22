@@ -13,6 +13,31 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.os_hints import md as _os_md
 
 
+def _claimed_count(fields: dict) -> int:
+    """How many tracks this tenant declared as hosted elsewhere. Never raises.
+
+    Read through the probe's `fields` dict so the connection test stays a pure
+    function of what it was handed — it is called from the form, from
+    `tools/artist_preflight.py` and from the nightly monitor, and only the first has
+    a Streamlit session to borrow a DB connection from.
+    """
+    try:
+        artist_id = fields.get('_artist_id')
+        if not artist_id:
+            return 0
+        from src.dashboard.utils import get_db_connection
+        from src.utils.claimed_tracks import claimed_track_ids
+        db = get_db_connection()
+        if db is None:
+            return 0
+        try:
+            return len(claimed_track_ids(db, int(artist_id), 'soundcloud'))
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — an unreadable claim list is not a red profile
+        return 0
+
+
 def _test_soundcloud(fields: dict) -> tuple:
     """Test SoundCloud via OAuth 2.0 Client Credentials flow (official API)."""
     # The artist only provides user_id; app credentials come from the shared env
@@ -65,12 +90,27 @@ def _test_soundcloud(fields: dict) -> tuple:
             # ("SoundCloud correctement configuré mais aucune donnée"). Fail HERE, in
             # the form, where the artist can still act on it.
             if count == 0:
+                # …unless the artist declared tracks hosted on someone else's profile.
+                # That is the GRiNCH case: released by a label, so his own profile is
+                # empty and always will be, and the collectable unit is the TRACK.
+                # Telling him to fix his User ID would be telling him to fix the one
+                # thing that is already right.
+                claimed = _claimed_count(fields)
+                if claimed:
+                    return True, t(
+                        "credentials.soundcloud.claimed_only",
+                        "Profil sans titre public, mais **{n} titre(s) déclaré(s)** "
+                        "hébergé(s) sur d'autres comptes — c'est eux qui seront "
+                        "collectés ✅"
+                    ).format(n=claimed)
                 return False, t(
                     "credentials.soundcloud.no_public_tracks",
                     "User ID {user_id} joignable, mais **aucun titre public** n'y est "
-                    "rattaché — il n'y aura donc rien à collecter. Vérifie que c'est bien "
-                    "l'ID de TON profil (pas celui d'un label ou d'un compte secondaire) "
-                    "et que tes titres sont en **public**, pas en privé/non répertorié."
+                    "rattaché — il n'y aura donc rien à collecter. Si tes sorties "
+                    "paraissent sous un label ou un autre compte, déclare-les une par "
+                    "une dans « Mes titres hébergés ailleurs » ci-dessous. Sinon "
+                    "vérifie que c'est bien l'ID de TON profil et que tes titres sont "
+                    "en **public**."
                 ).format(user_id=user_id)
             return True, t("credentials.soundcloud.test_ok",
                            "API SoundCloud OAuth OK — {count} track(s) récupéré(s) pour user {user_id} ✅").format(

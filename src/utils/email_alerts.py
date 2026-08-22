@@ -11,8 +11,18 @@ from src.utils.safe_error import safe_error
 logger = logging.getLogger(__name__)
 
 
+class AlertDeliveryError(RuntimeError):
+    """The one alert whose silence IS the incident could not be delivered."""
+
+
 class EmailAlert:
     def __init__(self):
+        # Why the last failure happened, not just that it did. `send_alert` returns a
+        # bare False for two situations with entirely different fixes — "this
+        # container has no SMTP env" (the 2026-08-16→18 outage, class
+        # `env-not-wired-to-service`) and "SMTP is configured and the send failed".
+        # An operator woken by a red task needs to know which.
+        self.last_error: str | None = None
         self.smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', 587))
         self.smtp_user = os.getenv('SMTP_USER')
@@ -21,10 +31,15 @@ class EmailAlert:
 
     def send_alert(self, subject: str, body: str) -> bool:
         """Envoie une alerte par email. Retourne True si succès."""
+        self.last_error = None
         if not self.smtp_user or not self.smtp_password or not self.alert_email:
-            logger.warning(
-                "⚠️ Email alerts non configurées (SMTP_USER/SMTP_PASSWORD/ALERT_EMAIL manquants)"
-            )
+            missing = [n for n, v in (("SMTP_USER", self.smtp_user),
+                                      ("SMTP_PASSWORD", self.smtp_password),
+                                      ("ALERT_EMAIL", self.alert_email)) if not v]
+            self.last_error = (
+                f"SMTP not configured in this container: {', '.join(missing)} absent")
+            logger.warning("⚠️ Email alerts non configurées (%s manquant(s))",
+                           ", ".join(missing))
             return False
         try:
             msg = MIMEMultipart()
@@ -41,6 +56,7 @@ class EmailAlert:
             logger.info(f"✅ Alerte envoyée : {subject}")
             return True
         except Exception as e:
+            self.last_error = f"SMTP configured, send failed: {safe_error(e)}"
             logger.error(f"❌ Échec envoi email : {safe_error(e)}")
             return False
 
@@ -82,6 +98,33 @@ class EmailAlert:
         except Exception as e:
             logger.error("❌ Échec envoi email '%s' à %s : %s", subject, to_email, e)
             return False
+
+
+def deliver_or_raise(subject: str, body: str) -> None:
+    """Send, or raise naming WHY. For the one path whose silence is the incident.
+
+    `send_alert` stays non-raising on purpose — six callers depend on that, including
+    `dag_failure_callback` below, which runs inside a failure callback where a raise
+    is swallowed anyway. This wrapper exists for the consolidated nightly alert, and
+    only for it.
+
+    Measured, 2026-08-22. `alert_monitor.py` called `send_alert(...)` and threw the
+    result away, then logged "Consolidated alert sent" on the next line
+    unconditionally. Production logs show three consecutive nights — 16, 17 and 18
+    August — writing that sentence immediately after this module warned "Email alerts
+    non configurées". Three nights of findings evaporated while the task reported
+    success. The findings themselves were correct and complete; nobody read them,
+    because nobody received them.
+
+    A monitor that cannot prove its own output left the building is not a monitor.
+    """
+    alert = EmailAlert()
+    if alert.send_alert(subject, body):
+        return
+    raise AlertDeliveryError(
+        f"the nightly alert was NOT delivered — {alert.last_error or 'unknown reason'}. "
+        f"Subject was: {subject!r}"
+    )
 
 
 def dag_failure_callback(context):
