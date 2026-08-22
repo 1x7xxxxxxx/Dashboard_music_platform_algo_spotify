@@ -508,7 +508,13 @@ def check_canary_health(**context):
     nobody reads is decoration. This is the reader.
 
     It reports per platform the tenant declared. A platform it never declared is
-    not a problem; a platform it declared and stopped filling is.
+    not a FRESHNESS problem — but it is a hole in the net, and until 2026-08-22 this
+    function was silent about it. That silence is how the roadmap came to describe a
+    canary covering three platforms out of five as "vert de bout en bout": every
+    signal about it was green, and the two it did not cover produced no signal at
+    all. `coverage` below is the missing sentence, pushed as information rather than
+    as a daily alert — a platform nobody can canary must not become the noise this
+    watchdog exists to prevent (`watchdog-becomes-the-noise`).
     """
     import sys
     sys.path.insert(0, '/opt/airflow')
@@ -588,6 +594,26 @@ def check_canary_health(**context):
                 problems.append({'platform': platform, 'reason':
                                  f'canary "{name}" last collected into {t_best} '
                                  f'{int(a_best)}h ago (> {STALE_HOURS}h)'})
+
+        # Coverage, stated once and explicitly: which platforms this canary can
+        # prove, and which it cannot. NOT appended to `problems` — Meta and
+        # Instagram cannot be canaried at all without a second real business asset
+        # (there is no public ad account, and no public IG Business Account), so
+        # alerting on them daily would report a fact that no action changes.
+        uncovered = sorted(p for p in SOURCES_FOR_PLATFORM
+                           if storage_platform(p) not in declared)
+        covered = sorted(p for p in SOURCES_FOR_PLATFORM
+                         if storage_platform(p) in declared)
+        context['task_instance'].xcom_push(
+            key='canary_coverage',
+            value={'artist_id': artist_id, 'name': name,
+                   'covered': covered, 'uncovered': uncovered})
+        if uncovered:
+            logger.warning(
+                "Canary %s (%s) proves %s and CANNOT prove %s — read any green "
+                "verdict about it as covering only the first list.",
+                artist_id, name, ", ".join(covered) or "nothing",
+                ", ".join(uncovered))
 
         logger.info(f"Canary {artist_id} ({name}): {len(problems)} problem(s).")
     except Exception as e:  # noqa: BLE001 — an unrunnable check must say so

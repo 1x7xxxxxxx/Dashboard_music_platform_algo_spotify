@@ -156,167 +156,65 @@ vue, aujourd'hui fixé à l'intuition — deviennent sourçables.
 Les prérequis sont prouvés en production : funnel d'inscription complet, e-mails Brevo
 livrés, paiement Stripe validé de bout en bout, isolation locataire testée.
 
-### Ce que le filet couvre RÉELLEMENT — mesuré le 2026-08-22 sur la prod
+### Ce que le filet couvre RÉELLEMENT — mesuré et étendu le 2026-08-22
 
-La ligne « préflight vert de bout en bout » était trop généreuse. Exécutée sur le canari
-de production (`artist_id=14`), la préflight complète est **ROUGE** à l'étape 2 :
+Le canari de prod (`artist_id=14`) prouve **trois plateformes sur cinq**, et l'outil le
+dit lui-même dans sa dernière ligne :
 
 ```
-❌ ☁️ SoundCloud — ton User ID SoundCloud numérique
-✅ 🎵 Spotify
-✅ 🎬 YouTube
-❌ 📱 Meta Ads — ton Ad Account ID
-❌ 📸 Instagram — ton Instagram Business Account ID
+✅ Pre-flight green FOR soundcloud, spotify, youtube ONLY
 ```
 
-Restreinte aux deux plateformes que le canari possède, elle est verte de bout en bout —
-identité, test de connexion, données arrivées, **contamination propre** — et l'outil
-imprime lui-même le bon avertissement :
+| plateforme | identité du canari | état |
+|---|---|---|
+| Spotify | `4tZwfgrHOc3mvqYlEYSvVi` (Daft Punk) | 🟢 identité, connexion, données, contamination propre |
+| YouTube | `UC_x5XG1OV2P6uZZ5FSM9Ttw` (Google Developers) | 🟢 idem |
+| SoundCloud | `112904040` (NASA) — **ajouté le 2026-08-22**, 1498 lignes | 🟢 idem |
+| Meta Ads | — | ⚫ **incanarisable**, voir ci-dessous |
+| Instagram | — | ⚫ **incanarisable** |
 
-> `✅ Pre-flight green FOR spotify, youtube ONLY — the other platforms were not proven.`
+**Pourquoi Meta et Instagram ne peuvent pas l'être** : lire un compte publicitaire exige
+qu'il soit *partagé avec l'app* dans Business Manager ; lire un compte Instagram Business
+exige une Page liée avec permissions accordées. Il n'existe aucun équivalent public,
+contrairement à un profil SoundCloud ou une chaîne YouTube. Et prendre ceux de l'admin —
+ils sont dans `.env` — ferait passer le canari au vert **à cause** de la fuite qu'il
+existe pour détecter : `create_canary.py` refuse cette identité en dur, et **ADR-010**
+explique pourquoi il ne faut pas contourner ce refus.
 
-Autrement dit **le filet ne couvre pas les deux plateformes qui ont cassé** : Meta chez
-Benken, Instagram chez GRiNCH. Inviter aujourd'hui, c'est réintroduire exactement le
-risque que R20 devait supprimer, pour trois plateformes sur cinq.
+**Comment ils sont couverts à la place** : par artiste invité, après sa connexion.
 
-Le compléter demande **tes** identifiants, parce qu'une identité de locataire n'a par
-construction aucune valeur par défaut (`.claude/rules/python.md`) : un user id SoundCloud
-numérique, un Ad Account Meta, un IG Business Account — sur des comptes réels que le
-canari puisse utiliser sans polluer les tiens.
+```bash
+make artist-preflight ARTIST=<son id>
+```
+
+Ce n'est pas un doublon de confort pour ces deux plateformes — c'est **la seule preuve**.
+Le sauter, c'est sauter le contrôle. Et c'est un signal plus fort qu'un canari : il
+éprouve le compte réel qui a cassé chez Benken (Meta) et GRiNCH (Instagram), pas un
+substitut.
 
 ### Étapes
 
-0. **Déployer la séance du 2026-08-22.** `make sync-check PROD_SSH=root@167.233.92.1`
-   nomme aujourd'hui une seule dérive, `saas_users.token_version` — la migration 072.
-   Ordre : `make deploy` puis `make migrate-prod`, jamais l'inverse (classe
-   `migration-ahead-of-its-code`).
-1. Donner au canari les trois identités manquantes, puis :
+0. ~~Déployer la séance du 2026-08-22.~~ ✅ **FAIT** — `prod == canonique`, 921/921
+   colonnes, 72 migrations, code == `origin/main`, `deploy/Caddyfile` == ce que Caddy
+   sert.
+1. ~~Compléter le filet du canari.~~ ✅ **FAIT dans la limite du possible** — SoundCloud
+   ajouté, Meta/Instagram traités par ADR-010. Rejouer à tout moment :
    ```bash
    docker run --rm --network container:streamlytics_api \
      -v /opt/streamlytics/tools:/app/tools -w /app --env-file .env \
-     streamlytics-dashboard python3 tools/artist_preflight.py --artist 14
+     streamlytics-dashboard python3 tools/artist_preflight.py \
+     --artist 14 --platforms spotify,youtube,soundcloud
    ```
-   Sans `--platforms`, et **vert**. C'est ça, le filet complet. (`tools/` n'est monté
-   dans aucun conteneur par défaut — d'où le `-v` ; et l'image `python:3.12-slim` ne
-   suffit pas, il faut celle du dashboard.)
-2. Idéalement R13 aussi, sinon Meta et Instagram resteront vides pour tes invités.
-3. Inviter les proches sur `https://streamlytics.fr`.
-4. Après leur inscription :
+   (`tools/` n'est monté dans aucun conteneur par défaut — d'où le `-v` ; et
+   `python:3.12-slim` ne suffit pas, il manque streamlit/requests/pandas.)
+2. **Inviter les proches sur `https://streamlytics.fr`.** C'est le seul geste restant.
+3. Après chaque inscription, **sans exception** :
    ```bash
-   make artist-preflight ARTIST=<leur id>
+   make artist-preflight ARTIST=<son id>
    make tenant-check
    ```
+   Pour Meta et Instagram, c'est le seul contrôle qui existe (ADR-010).
 
 **R2** (landing + pixel + CAPI) démarre avec la **première campagne**, pas avant — voir
 `docs/adr/ADR-008`. Retiens seulement ceci : l'attribution est la seule partie qui a une
 échéance, parce que `_fbp`/`_fbc` et les UTM ne se récupèrent pas rétroactivement.
-
----
-
-## 6. R22 — Le volet non-code du pentest · P2
-
-Le volet code est clos (R21, 2026-08-22 : six constats CRITIQUE/HAUT corrigés et
-déployés). Il restait trois choses qui **ne se lisent pas dans le dépôt**. L'une
-d'elles est faite ; les deux autres demandent un accès ou un outil qui n'est pas ici.
-
-### 6a. `pip-audit` — ✅ FAIT le 2026-08-22
-
-```bash
-python3 -m venv /tmp/auditvenv && /tmp/auditvenv/bin/pip install -q pip-audit
-/tmp/auditvenv/bin/pip-audit -r requirements.txt
-```
-
-Résultat : **une** vulnérabilité, `ecdsa 0.19.2` / PYSEC-2026-1325 — attaque
-temporelle Minerva sur la courbe P-256, qui touche la **signature**, la génération de
-clé et l'ECDH, **pas** la vérification. Le projet python-ecdsa considère les canaux
-auxiliaires hors périmètre : **aucun correctif n'est prévu**, il n'y a donc pas de
-version vers laquelle monter.
-
-Non applicable ici, et c'est vérifiable en une commande plutôt qu'en confiance :
-`ecdsa` n'arrive que transitivement par `python-jose`, et nos JWT sont HS256 de bout
-en bout (`src/api/auth.py` — `ALGORITHM = "HS256"`, `encode` et `decode` l'épinglent
-tous les deux). Le chemin de signature ECDSA n'est jamais atteint.
-
-`make audit-deps` rejoue le contrôle et échoue sur toute **autre** vulnérabilité ;
-celle-ci est ignorée nommément, avec cette raison, dans la cible.
-
-### 6b. Test d'intrusion réseau externe — ✅ FAIT le 2026-08-22
-
-Fait depuis WSL, qui **est** une machine hors du VPS — c'est ce que ce point demandait,
-et je l'avais classé « en attente de toi » à tort.
-
-Les trois noms d'hôte résolvent sur Cloudflare (`2a06:98c1:…`), donc **on ne scanne pas
-le nom** : ce serait l'infrastructure d'un tiers. On scanne l'origine, la boîte Hetzner.
-
-```bash
-# scan TCP connect de l'origine (33 ports usuels) — lecture seule
-python3 - <<'EOF'
-import socket, concurrent.futures as cf
-HOST="167.233.92.1"
-PORTS=[21,22,23,25,53,80,110,143,443,445,873,1433,2375,2376,3000,3306,5000,5432,5433,
-       5672,6379,8000,8080,8081,8443,8501,8888,9000,9090,9200,11211,15672,27017]
-def probe(p):
-    s=socket.socket(); s.settimeout(3)
-    try:
-        return p if s.connect_ex((HOST,p))==0 else None
-    finally: s.close()
-with cf.ThreadPoolExecutor(max_workers=8) as ex:
-    print(sorted(x for x in ex.map(probe,PORTS) if x))
-EOF
-```
-
-**Résultat** : `[22]`. Seul SSH répond (OpenSSH 9.6p1 Ubuntu). Postgres 5433, Airflow
-8080, Streamlit 8501 : fermés. **80 et 443 ne sont pas joignables en direct non plus** —
-Cloudflare atteint la boîte autrement, donc il n'y a pas d'origine à contourner.
-
-TLS des trois noms (`sslyze`, via l'edge Cloudflare, requête client ordinaire) :
-SSLv2/SSLv3/TLS 1.0/TLS 1.1 tous à **0 suite acceptée** ; TLS 1.2 (7) et 1.3 (3) ;
-Heartbleed, CCS injection, ROBOT : non vulnérable ; certificats valides sur 5/5 magasins
-de confiance, expiration 2026-11-09.
-
-**Un constat, corrigé** : le dashboard répondait avec 4 en-têtes de sécurité et l'API
-avec 6 — les deux de plus viennent du middleware FastAPI, pas de Caddy, donc l'écart
-était invisible depuis le dépôt. `deploy/Caddyfile` porte désormais
-`Permissions-Policy`, `X-Permitted-Cross-Domain-Policies` et une CSP volontairement
-étroite (`object-src`/`base-uri`/`form-action`/`frame-ancestors` — aucune directive
-`script-src`/`style-src`, qui blanchirait Streamlit).
-⚠️ **Non validée par un binaire Caddy** (pas d'image disponible ici) : à vérifier avec
-`caddy validate --config /etc/caddy/Caddyfile` sur la boîte avant de recharger.
-
-### 6c. Fuzzing des endpoints — ✅ FAIT le 2026-08-22
-
-**Pas contre la prod** : `/openapi.json` et `/docs` y sont désactivés (`API_ENABLE_DOCS`
-n'est pas à 1 — bonne posture, mais ça rendait fausse la commande que ce runbook portait
-d'abord), et fuzzer une base de production écrit des lignes. On lance le **même code** en
-local contre la base locale.
-
-```bash
-python3 -m venv .audit-venv && .audit-venv/bin/pip install -q schemathesis
-# 1. l'API, docs activées, limiteur relevé pour ne pas se 429 soi-même.
-#    La clé de signature est jetable et générée ici : ne jamais écrire une valeur
-#    littérale dans ce fichier, le scan de secrets pré-commit la refuse (à raison).
-export API_SECRET_KEY=$(openssl rand -hex 32)
-export DATABASE_URL="postgresql://postgres:<mot-de-passe>@localhost:5433/spotify_etl"
-export API_ENABLE_DOCS=1 API_RATE_LIMIT_MAX=1000000 API_AUTH_RATE_LIMIT_MAX=1000000
-python3 -m uvicorn src.api.main:app --port 8599 &
-# 2. un jeton pour un compte qui EXISTE (depuis R24, un `sub` inconnu répond 401)
-TOKEN=$(python3 -c "from src.api.auth import create_access_token; \
-  print(create_access_token({'sub':'<username admin>','role':'admin','artist_id':None,'tv':<son token_version>}))")
-# 3. le fuzz
-.audit-venv/bin/schemathesis run http://127.0.0.1:8599/openapi.json \
-  -H "Authorization: Bearer $TOKEN" --max-examples 300 --workers 2
-```
-
-**Vérification** : aucune ligne `Server error` dans la sortie. Avant de fuzzer, vérifier
-que les 7 endpoints de données répondent **200** — sinon on mesure son propre
-environnement, ce qui est arrivé au premier essai (mauvais mot de passe DB → neuf faux
-« Server error » à 503).
-
-**Résultat** : un vrai défaut, `GET /streams/timeline?song=a%00b` → 500
-(`ValueError: A string literal cannot contain NUL`, non rattrapée). Corrigé à la
-frontière (`security.reject_nul_bytes_middleware` → 400), gardé par
-`tests/test_api_survives_hostile_input.py`, classe
-`input-nobody-would-type-reaches-the-driver`. Re-fuzzé sur **4 graines, 1730 cas,
-zéro 5xx**.
-
-**Ce que ça débloque** : R22 est close. Le pentest n'a plus de volet ouvert.

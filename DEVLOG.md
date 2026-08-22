@@ -148,18 +148,47 @@ pas. Strictement plus faible. Elle ne vit plus que sur le bloc du dashboard.
 Classe : `repo-copy-of-a-config-is-not-what-runs`. 83 classes, toutes gardées, toutes
 complètes.
 
+### Le filet du canari, porté de 2 à 3 plateformes — et la décision sur les deux autres
+
+La préflight prod était verte pour **Spotify et YouTube seulement**, contre la ligne
+« de bout en bout » que la roadmap portait depuis la veille. SoundCloud a été ajouté :
+identité publique `112904040` (NASA), DAG déclenché, **1498 lignes** sous le locataire 14,
+contamination propre. 3/5.
+
+**Meta et Instagram ne peuvent pas être canaris, et ce n'est pas un manque de volonté.**
+Lire un compte publicitaire exige qu'il soit partagé avec l'app dans Business Manager ;
+lire un compte IG Business exige une Page liée avec permissions. Aucun équivalent public,
+contrairement à un profil SoundCloud ou une chaîne YouTube.
+
+Les identifiants de `.env` (`META_AD_ACCOUNT_ID`, `INSTAGRAM_USER_ID`, `SOUNDCLOUD_USER_ID`)
+sont **ceux de l'admin** — exactement les trois lignes de l'artiste 1 en base. Les donner
+au canari le rendrait indiscernable de l'admin : il passerait au vert *à cause* de la
+fuite qu'il existe pour détecter. C'est la classe `tenant-identity-falls-back-to-admin`,
+celle qui a filé `track_popularity_history` sous l'artiste 1 pendant des mois ;
+`create_canary.py` refuse cette identité en dur. Le profil d'un vrai artiste ne marche pas
+non plus : `benken50cl` résout en `194410214`, déjà revendiqué par le locataire 12, et la
+garde d'unicité le refuse — correctement, sinon les deux seraient indiscernables dans tout
+rapport de contamination.
+
+**Décision, ADR-010** : ces deux plateformes sont prouvées **par artiste invité**,
+`make artist-preflight ARTIST=<son id>` juste après sa connexion. Ce n'est plus un
+doublon de confort pour elles, c'est la seule preuve — et c'est un signal plus fort qu'un
+canari, puisqu'il éprouve le compte réel qui a cassé. Bloquer R1 sur une entrée
+indisponible depuis deux mois, sans propriétaire ni date, c'était décider de ne jamais
+livrer sans le dire.
+
+**Le veilleur était muet sur ce trou.** `check_canary_health` ne signalait que la
+fraîcheur des plateformes *déclarées* — une plateforme jamais déclarée ne produisait aucun
+signal, et c'est précisément par là qu'on a pu écrire « de bout en bout ». Il pousse
+désormais un `canary_coverage` nommant ce que le canari prouve et ce qu'il ne prouve pas.
+Délibérément pas une alerte quotidienne : aucune action ne changerait le fait, et un
+veilleur qui répète un fait insoluble devient le bruit qu'il doit prévenir.
+
 ### Ce qui reste
 
-**R1, en deux gestes qui demandent tes comptes.**
-
-1. **Compléter le filet.** La préflight du canari prod est verte pour **Spotify et
-   YouTube seulement** — mesuré ce jour, contre la ligne « de bout en bout » que la
-   roadmap portait. SoundCloud, Meta et Instagram n'ont aucune identité sur le canari,
-   donc rien ne les prouve, et ce sont exactement les deux plateformes qui ont cassé chez
-   Benken (Meta) et GRiNCH (Instagram). Il faut un user id SoundCloud numérique, un Ad
-   Account Meta et un IG Business Account réels — une identité de locataire n'a par
-   construction aucune valeur par défaut.
-2. **Inviter les gens.**
+**Un seul geste : inviter des proches sur `https://streamlytics.fr`.** Puis, après chaque
+inscription et sans exception, `make artist-preflight ARTIST=<son id>` — pour Meta et
+Instagram c'est le seul contrôle qui existe.
 
 ---
 

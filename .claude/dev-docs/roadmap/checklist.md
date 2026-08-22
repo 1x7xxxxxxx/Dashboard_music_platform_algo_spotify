@@ -27,10 +27,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 > 21→22 — R23 à R31 — sont closes et archivées, **et R22 aussi** : le test d'intrusion
 > réseau se fait depuis n'importe quelle machine hors du VPS, celle-ci comprise, et le
 > fuzzing contre une instance locale du même code. Il ne reste qu'une entrée, dans
-> `## 🙋 En attente de toi` juste en dessous, et elle se décompose en trois gestes dont
-> aucun n'est du code : déployer (je peux, sur ton feu vert), donner au canari les trois
-> identités qui lui manquent (SoundCloud/Meta/Instagram — ce sont TES comptes), inviter
-> des gens. Ce qui a été **décidé** plutôt que fait
+> `## 🙋 En attente de toi` juste en dessous, et il n'y reste **qu'un geste** : inviter
+> des gens. Le déploiement est fait, le filet du canari est passé de 2 à 3 plateformes,
+> et les deux qu'aucun canari ne peut couvrir sont traitées par artiste invité
+> (**ADR-010**) au lieu de bloquer indéfiniment. Ce qui a été **décidé** plutôt que fait
 > porte son ADR : **ADR-007** (mesuré inutile), **ADR-008** (attend une donnée),
 > **ADR-009** (deux registres s'accordent au lieu de dériver, ex-R31).
 > Une tâche revient ici le jour où son déclencheur se produit.
@@ -52,7 +52,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **trois gestes, tous à toi.** (a) déployer la séance du 2026-08-22 : `make deploy` puis `make migrate-prod` (la **072** est nouvelle ; `make sync-check` la nomme aujourd'hui comme seule dérive) — je peux le faire sur ton feu vert. (b) **compléter le filet** : la préflight du canari prod (`artist_id=14`) est verte pour **Spotify et YouTube seulement** — mesuré le 2026-08-22, pas « de bout en bout » comme cette ligne l'a affirmé jusqu'ici. SoundCloud, Meta et Instagram n'ont **aucune identité** sur le canari, donc rien ne les prouve — et ce sont exactement les deux plateformes qui ont cassé chez Benken (Meta) et GRiNCH (Instagram). Il faut TES identifiants : user id SoundCloud, ad account Meta, IG Business Account. (c) inviter les gens. Runbook §5. |
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait le 2026-08-22. Déployé et vérifié en prod (`prod == canonique`, 921/921 colonnes, Caddy inclus). Filet du canari porté de 2 à **3 plateformes sur 5** — SoundCloud ajouté (id public 112904040, 1498 lignes collectées, contamination propre). Meta et Instagram **ne peuvent pas être canaris** : il n'existe aucun compte publicitaire ni compte IG Business public, et prendre ceux de l'admin ferait passer le canari au vert *à cause* de la fuite qu'il doit détecter. Ils sont donc prouvés **par artiste invité**, `make artist-preflight ARTIST=<son id>` juste après sa connexion — décision argumentée dans **ADR-010**. Runbook §5. |
 
 ## 🔖 REPRISE — état au 2026-08-22 (à lire EN PREMIER au `/resume`)
 
