@@ -101,6 +101,39 @@ else
     fi
 fi
 
+# 5. The watchdog ran — but did anyone RECEIVE it?
+#
+# Check 4 above proves `alert_monitor` executed and succeeded. It cannot prove the
+# email left the building, and for three consecutive nights (16, 17, 18 August 2026)
+# it did not: `send_alert` returned False on a container with no SMTP env, the return
+# value was discarded, and the task logged "Consolidated alert sent" and went green.
+# Every layer reported health while nothing was delivered.
+#
+# `monitoring_run` (migration 073) is written by the task itself, before the attempt
+# and updated after. This script is the right reader for it: it mails through Brevo
+# (tools/notify_schema_drift.py), a DIFFERENT path from the app's SMTP — so it
+# survives precisely the outage that silences the alert it is watching.
+ALERT_DELIVERY_MAX_AGE_H="${ALERT_DELIVERY_MAX_AGE_H:-48}"
+delivery="$(docker exec "$PG_CONTAINER" psql -U postgres -d "${APP_DB:-spotify_etl}" -tAc \
+    "SELECT delivered, delivery_expected,
+            EXTRACT(EPOCH FROM (now() - run_at))/3600, COALESCE(delivery_error, '')
+       FROM monitoring_run ORDER BY run_at DESC LIMIT 1;" 2>/dev/null)"
+if [ -z "$delivery" ]; then
+    # Before migration 073 this table does not exist; do not invent a problem on an
+    # older deployment. Say it is unreadable rather than claiming health.
+    log "delivery ledger unreadable (monitoring_run absent?) — not asserting on it"
+else
+    IFS='|' read -r d_ok d_expected d_age d_err <<< "$delivery"
+    d_age_h="${d_age%%.*}"; [ -z "$d_age_h" ] && d_age_h=9999
+    if [ "$d_age_h" -ge "$ALERT_DELIVERY_MAX_AGE_H" ]; then
+        PROBLEMS+=("DELIVERY: last alert-delivery record is ${d_age_h}h old (>=${ALERT_DELIVERY_MAX_AGE_H}h) — the monitor has not tried to reach you")
+    elif [ "$d_expected" = "t" ] && [ "$d_ok" != "t" ]; then
+        PROBLEMS+=("DELIVERY: findings existed and the alert was NOT delivered — ${d_err}")
+    else
+        log "delivery OK: last alert-delivery record ${d_age_h}h ago (delivered=$d_ok, expected=$d_expected)"
+    fi
+fi
+
 # Verdict — clean run stays silent on stdout.
 if [ "${#PROBLEMS[@]}" -eq 0 ]; then
     log "ALL OK"
