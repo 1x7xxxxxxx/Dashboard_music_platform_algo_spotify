@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.csv_exporter import export_all, export_excel, table_names as _all_table_names
 
 
@@ -48,7 +48,9 @@ def show():
             export_artist_id = artist_options[selected_name]
             export_artist_name = selected_name
         else:
-            export_artist_id = get_artist_id()
+            # Same shape as export_pdf: `admin` is False here, so a None would
+            # build an export with no tenant filter (R25).
+            export_artist_id = tenant_scope()
             export_artist_name = st.session_state.get(
                 "name",
                 t("export_csv.artist_fallback", "Artiste #{id}").format(id=export_artist_id))

@@ -7,7 +7,7 @@ import os
 import streamlit as st
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin, get_artist_plan
+from src.dashboard.auth import get_artist_plan, is_admin, tenant_scope
 from src.database.stripe_schema import PLAN_CATALOG, PLAN_RANK, SERVICE_CONTACT_EMAIL
 
 
@@ -78,7 +78,9 @@ def show():
     st.markdown("---")
 
     db = get_db_connection()
-    artist_id = get_artist_id()
+    # `if not admin and artist_id:` below reads a None as falsy and renders an
+    # empty page rather than saying anything. tenant_scope() names the state.
+    artist_id = tenant_scope()
     admin = is_admin()
 
     try:
@@ -238,7 +240,7 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
         # Stripe Payment Link: client_reference_id carries the tenant id so the
         # webhook (checkout.session.completed) provisions the right artist. Without
         # it the payment can't be linked to a tenant.
-        _aid = get_artist_id()
+        _aid = tenant_scope()
         _url = f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url
         st.link_button(label, _url, type="primary")
     else:

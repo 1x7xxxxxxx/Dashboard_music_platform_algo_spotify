@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id
+from src.dashboard.auth import tenant_scope
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
@@ -223,7 +223,7 @@ def show():
     st.title(t("home.title", "🎵 streaMLytics — Dashboard plateformes musicales"))
     st.markdown("---")
 
-    artist_id = get_artist_id()  # None si admin
+    artist_id = tenant_scope()  # None = admin only, never a stray artist
 
     with project_db() as db:
         try:

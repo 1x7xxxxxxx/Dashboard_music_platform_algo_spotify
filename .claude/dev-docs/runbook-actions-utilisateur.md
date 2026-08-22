@@ -172,3 +172,69 @@ livrés, paiement Stripe validé de bout en bout, isolation locataire testée.
 **R2** (landing + pixel + CAPI) démarre avec la **première campagne**, pas avant — voir
 `docs/adr/ADR-008`. Retiens seulement ceci : l'attribution est la seule partie qui a une
 échéance, parce que `_fbp`/`_fbc` et les UTM ne se récupèrent pas rétroactivement.
+
+---
+
+## 6. R22 — Le volet non-code du pentest · P2
+
+Le volet code est clos (R21, 2026-08-22 : six constats CRITIQUE/HAUT corrigés et
+déployés). Il restait trois choses qui **ne se lisent pas dans le dépôt**. L'une
+d'elles est faite ; les deux autres demandent un accès ou un outil qui n'est pas ici.
+
+### 6a. `pip-audit` — ✅ FAIT le 2026-08-22
+
+```bash
+python3 -m venv /tmp/auditvenv && /tmp/auditvenv/bin/pip install -q pip-audit
+/tmp/auditvenv/bin/pip-audit -r requirements.txt
+```
+
+Résultat : **une** vulnérabilité, `ecdsa 0.19.2` / PYSEC-2026-1325 — attaque
+temporelle Minerva sur la courbe P-256, qui touche la **signature**, la génération de
+clé et l'ECDH, **pas** la vérification. Le projet python-ecdsa considère les canaux
+auxiliaires hors périmètre : **aucun correctif n'est prévu**, il n'y a donc pas de
+version vers laquelle monter.
+
+Non applicable ici, et c'est vérifiable en une commande plutôt qu'en confiance :
+`ecdsa` n'arrive que transitivement par `python-jose`, et nos JWT sont HS256 de bout
+en bout (`src/api/auth.py` — `ALGORITHM = "HS256"`, `encode` et `decode` l'épinglent
+tous les deux). Le chemin de signature ECDSA n'est jamais atteint.
+
+`make audit-deps` rejoue le contrôle et échoue sur toute **autre** vulnérabilité ;
+celle-ci est ignorée nommément, avec cette raison, dans la cible.
+
+### 6b. Test d'intrusion réseau externe — ⬜ demande un accès depuis l'extérieur
+
+Ce qu'un audit du dépôt ne peut pas voir : ce que la boîte expose réellement.
+
+```bash
+# depuis une machine HORS du VPS (pas depuis WSL, pas depuis le serveur)
+nmap -Pn -sV --top-ports 1000 167.233.92.1
+curl -sI https://app.streamlytics.fr | head -20     # en-têtes Caddy + HSTS
+testssl.sh --quiet --color 0 https://app.streamlytics.fr
+```
+
+Ce qu'on cherche : un port ouvert qui n'est ni 22, ni 80, ni 443 (le **5433** de
+Postgres en particulier — il est publié en local par `docker-compose`, et le compose
+de production est gitignoré, donc le dépôt ne peut pas répondre à sa place) ; une
+suite TLS obsolète ; un en-tête de sécurité que Cloudflare réécrit.
+
+**Vérification** : `nmap` ne renvoie que 22/80/443, et `testssl.sh` ne renvoie aucun
+`NOT ok` en rouge.
+
+### 6c. Fuzzing des endpoints — ⬜ demande un outil qui n'est pas installé
+
+```bash
+pip install schemathesis
+schemathesis run https://api.streamlytics.fr/openapi.json \
+    --checks all --hypothesis-max-examples 200 \
+    -H "Authorization: Bearer $TOKEN"
+```
+
+L'API expose son schéma OpenAPI, donc le fuzzing est dirigé plutôt qu'aveugle.
+Ce qu'on cherche : un 500 (une entrée qu'un validateur Pydantic laisse passer et
+qu'une requête SQL ne supporte pas), et une réponse qui contient un nom de table.
+
+**Vérification** : `schemathesis` sort en 0, et aucun cas ne renvoie 500.
+
+**Ce que ça débloque** : la dernière ligne ouverte de R21/R22. Le reste du pentest
+est clos et gardé par des tests.

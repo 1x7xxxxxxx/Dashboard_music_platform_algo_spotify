@@ -12,7 +12,7 @@ import streamlit as st
 from src.dashboard.utils import get_db_connection
 from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, get_artist_plan
+from src.dashboard.auth import tenant_scope, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.content.platform_value import (
     BY_KEY, RECOMMENDED, ordered_for_setup, total_effort,
@@ -281,7 +281,7 @@ def show() -> None:
 
     step = st.session_state[_STEP_KEY]
     plan = get_artist_plan()
-    artist_id = get_artist_id()
+    artist_id = tenant_scope()
 
     # Step progress indicator
     steps = [

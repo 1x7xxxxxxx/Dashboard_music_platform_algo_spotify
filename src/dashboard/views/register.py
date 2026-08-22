@@ -6,17 +6,38 @@ Depends on: saas_artists table, saas_users table
 Persists in: PostgreSQL spotify_etl (saas_artists + saas_users, atomic CTE insert)
 
 Accessible without login via /?page=register.
+
+Anonymous-surface rules (R23, 2026-08-22). Everything on this page runs for a visitor
+who has proven nothing, so three properties are load-bearing and each has a test:
+
+  * the outcome must not depend on whether the email already exists — otherwise the
+    page is an account-enumeration oracle for anyone;
+  * a promo/referral code must not be *checkable* without paying the cost of a full
+    registration — otherwise `secrets.token_hex(3)` (24 bits) is brute-forced for free,
+    and a hit grants `promo_plan='premium'`;
+  * an exception must never reach the page — psycopg2 names the constraint and the
+    columns it violated.
+
+The per-IP budget in `src.dashboard.utils.throttle` bounds the fourth: each submit
+sends an email to an address the visitor chose, from our domain.
 """
+import logging
 import re
 import secrets
 import streamlit as st
 
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t, get_lang
+from src.dashboard.utils.throttle import throttle_check, throttle_record
 from src.dashboard.auth import hash_password, _validate_password_strength
-from src.utils.verification_email import send_verification_email
+from src.utils.safe_error import public_error_ref
+from src.utils.verification_email import (
+    send_account_exists_email,
+    send_verification_email,
+)
 from src.utils.plan_history import log_plan_change
 
+logger = logging.getLogger(__name__)
 
 _SLUG_RE    = re.compile(r'^[a-z0-9_-]+$')
 _USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
@@ -193,8 +214,20 @@ def _grant_welcome_trial(db, artist_id: int, trial_days: int = WELCOME_TRIAL_DAY
     _cached_plan_row.clear()
 
 
-def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: str) -> None:
-    """Credit referrer +1 free month and record the event."""
+def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: str,
+                    discount_pct: int = 20) -> None:
+    """Credit referrer +1 free month, stamp the referred artist, record the event.
+
+    The two columns on the referred artist used to be filled by
+    `_create_artist_and_user`. They moved here when code validation moved AFTER account
+    creation (R23): the insert no longer knows whether the code is real, and a code the
+    insert cannot vouch for must not reach the row.
+    """
+    db.fetch_query(
+        "UPDATE saas_artists SET referred_by_code = %s, first_month_discount_pct = %s "
+        "WHERE id = %s",
+        (code, discount_pct, referred_artist_id),
+    )
     db.fetch_query(
         "INSERT INTO referral_events (referrer_artist_id, referred_artist_id, code_used) VALUES (%s, %s, %s)",
         (referrer_artist_id, referred_artist_id, code),
@@ -250,6 +283,65 @@ def _create_artist_and_user(
     )
     user_id, artist_id = rows[0]
     return user_id, artist_id
+
+
+def _welcome_trial_msg() -> str:
+    """The default trial sentence — the one a brand-new account gets with no code.
+
+    Shared with the already-taken branch on purpose: that branch must render the
+    string a fresh signup would have rendered, and reaching for it here is what keeps
+    the two identical when the wording changes.
+    """
+    return t("register.welcome_trial",
+             " Vous bénéficiez de **{days} jours d'accès Premium offerts**.").format(
+                 days=WELCOME_TRIAL_DAYS)
+
+
+def _render_success(artist_name: str, email: str, discount_msg: str,
+                    email_sent: bool = True) -> None:
+    """The post-submit screen. The ONLY success renderer on this page.
+
+    Both branches — account created, and address already taken — go through here, so
+    a future edit cannot make one of them observably different by touching only the
+    other. That divergence is the enumeration oracle coming back.
+    """
+    if email_sent:
+        st.success(
+            t("register.success",
+              "✅ Compte créé pour **{name}** !{msg} "
+              "Un email de vérification a été envoyé à **{email}**. "
+              "Cliquez sur le lien dans l'email pour activer votre compte.").format(
+                  name=artist_name, msg=discount_msg, email=email)
+        )
+    else:
+        st.warning(
+            t("register.email_failed",
+              "✅ Compte créé pour **{name}**,{msg} mais l'email de vérification "
+              "n'a pas pu être envoyé (SMTP non configuré). "
+              "Demandez à un admin de vérifier votre compte manuellement.").format(
+                  name=artist_name, msg=discount_msg)
+        )
+    st.link_button(t("register.onboarding_btn", "→ Configurer votre dashboard (2 min)"),
+                   "/?page=onboarding")
+
+
+def _notify_existing_account(db, email: str) -> bool:
+    """Mail the real owner that a signup was attempted. Returns whether it was sent.
+
+    Never raises and never says anything on the page: the caller renders the same
+    screen either way. A failure here degrades to "the honest user gets no email",
+    which is the pre-2026-08-22 behaviour for them, not a new leak.
+    """
+    try:
+        rows = db.fetch_query(
+            "SELECT username FROM saas_users WHERE email = %s LIMIT 1", (email,)
+        )
+        username = rows[0][0] if rows else email
+        return send_account_exists_email(email, username, lang=get_lang())
+    except Exception as e:  # noqa: BLE001 — best-effort courtesy mail
+        logger.warning("account-exists notice failed for a taken address: %s",
+                       type(e).__name__)
+        return False
 
 
 def show():
@@ -327,37 +419,46 @@ def show():
             st.error(e)
         return
 
+    # Per-IP budget, checked before any DB work and before any email leaves the box.
+    # Anything past this point either writes a row or sends a mail to an address the
+    # visitor typed, so this is the only place the cost of a submit is bounded.
+    retry_after = throttle_check("register")
+    if retry_after is not None:
+        st.error(t("register.throttled",
+                   "Trop de tentatives d'inscription depuis cette connexion. "
+                   "Réessayez dans {s} seconde(s).").format(s=retry_after))
+        return
+    throttle_record("register")
+
     with project_db() as db:
         try:
+            # The address is already taken: answer EXACTLY as a successful signup does,
+            # create nothing, and tell the real owner by email. Any observable
+            # difference here — a distinct message, a missing button, a faster
+            # response — is an account-enumeration oracle for an anonymous visitor.
             if _email_taken(db, email):
-                st.error(t("register.email_taken",
-                           "L'email '{e}' est déjà enregistré.").format(e=email))
+                sent = _notify_existing_account(db, email)
+                _render_success(artist_name, email, _welcome_trial_msg(),
+                                email_sent=sent)
                 return
             # slug + username are auto-derived (hidden fields) and made unique here.
             slug, username = _derive_identifiers(db, artist_name)
-
-            # Resolve code type: promo takes priority over referral
-            promo = None
-            referrer_artist_id = None
-            discount_pct = 0
-            if referral_code:
-                promo = _validate_promo_code(db, referral_code)
-                if promo is None:
-                    referrer_artist_id = _validate_referral_code(db, referral_code)
-                    if referrer_artist_id is None:
-                        st.error(t("register.code_invalid",
-                                   "Le code '{code}' n'est pas valide ou a expiré.").format(
-                                       code=referral_code))
-                        return
-                    discount_pct = 20
 
             token = secrets.token_urlsafe(32)
             _user_id, new_artist_id = _create_artist_and_user(
                 db, artist_name, slug, username, email, pw, token,
                 marketing_consent=marketing,
-                referred_by_code=referral_code if referrer_artist_id else '',
-                first_month_discount_pct=discount_pct,
             )
+
+            # Codes are resolved only NOW, against an account that exists. Validating
+            # first with an early return let anyone test a code for free; a probe now
+            # costs a full registration, which the per-IP budget above rations.
+            promo = None
+            referrer_artist_id = None
+            if referral_code:
+                promo = _validate_promo_code(db, referral_code)
+                if promo is None:
+                    referrer_artist_id = _validate_referral_code(db, referral_code)
 
             if promo is not None:
                 # Explicit promo code overrides the default welcome trial.
@@ -369,6 +470,16 @@ def show():
                     _apply_referral(db, referrer_artist_id, new_artist_id, referral_code)
                 _grant_welcome_trial(db, new_artist_id, WELCOME_TRIAL_DAYS)
                 log_plan_change(db, new_artist_id, 'premium', 'welcome_trial')
+
+            discount_pct = 20 if referrer_artist_id is not None else 0
+            if referral_code and promo is None and referrer_artist_id is None:
+                # Said after creation, never instead of it — the account is real either
+                # way, so this line tells the honest typo-maker without answering
+                # "does this code exist?" any cheaper than a full signup.
+                st.warning(t("register.code_ignored",
+                             "Le code '{code}' n'a pas pu être appliqué. Votre compte "
+                             "est créé ; contactez-nous si le code devait "
+                             "fonctionner.").format(code=referral_code))
 
             if promo:
                 discount_msg = t("register.promo_active",
@@ -382,28 +493,15 @@ def show():
                 if discount_pct:
                     discount_msg += t("register.referral_discount",
                                       " Un **rabais de 20%** sera appliqué à votre premier mois payant.")
-            email_sent = send_verification_email(email, username, token, lang=get_lang())
             # The welcome email + onboarding guide PDF is sent AFTER the user confirms
             # their address (see app._verify_email), not here — so the guide only reaches
             # a proven-deliverable inbox.
-            if email_sent:
-                st.success(
-                    t("register.success",
-                      "✅ Compte créé pour **{name}** !{msg} "
-                      "Un email de vérification a été envoyé à **{email}**. "
-                      "Cliquez sur le lien dans l'email pour activer votre compte.").format(
-                          name=artist_name, msg=discount_msg, email=email)
-                )
-            else:
-                st.warning(
-                    t("register.email_failed",
-                      "✅ Compte créé pour **{name}**,{msg} mais l'email de vérification "
-                      "n'a pas pu être envoyé (SMTP non configuré). "
-                      "Demandez à un admin de vérifier votre compte manuellement.").format(
-                          name=artist_name, msg=discount_msg)
-                )
-            st.link_button(t("register.onboarding_btn", "→ Configurer votre dashboard (2 min)"),
-                           "/?page=onboarding")
+            email_sent = send_verification_email(email, username, token, lang=get_lang())
+            _render_success(artist_name, email, discount_msg, email_sent=email_sent)
 
-        except Exception as e:
-            st.error(t("register.failed", "Échec de l'inscription : {err}").format(err=e))
+        except Exception as e:  # noqa: BLE001 — anonymous surface, see module docstring
+            ref = public_error_ref(e, logger, "registration")
+            st.error(t("register.failed",
+                       "L'inscription n'a pas abouti. Réessayez ; si le problème "
+                       "persiste, contactez-nous en citant la référence **{ref}**."
+                       ).format(ref=ref))

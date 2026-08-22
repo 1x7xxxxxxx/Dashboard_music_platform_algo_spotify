@@ -61,9 +61,14 @@ def dags_for_save(tab_key: str, extra: dict) -> list:
 def _get_fernet():
     """Retourne un objet Fernet ou None si FERNET_KEY non configuré.
 
-    Security: reads exclusively from os.environ — never from config.yaml on disk.
-    config.yaml is a filesystem artifact; env vars are injected at runtime by
-    Docker / the deployment platform and are not committed to the repo.
+    Security: env FIRST, then config.yaml as a LOCAL-DEV fallback.
+
+    This docstring used to claim "never from config.yaml on disk" while the code
+    four lines down read it. Prod has no config.yaml, so the fallback is dead there
+    and the claim was true of the deployment and false of the function — which is
+    the worst kind of comment, because it is checked by nobody and believed by
+    everybody. The fallback stays (local dev needs it); the sentence is now the one
+    the code implements.
     """
     import os
     from cryptography.fernet import Fernet
@@ -336,5 +341,16 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
             (artist_id, value),
         )
     if rows:
+        # The third element is the tenant that already holds this identifier. It is
+        # returned on purpose — an admin resolving a duplicate claim needs to know
+        # who to ask — and `tests/test_identity_uniqueness.py` pins that.
+        #
+        # It must NEVER reach the page. The 2026-08-22 pentest listed this line as
+        # "displays the other tenant's artist_id"; re-read on the same day, the one
+        # caller (`_render.py`) discards it and shows only the field and the value.
+        # So the finding named a value that is available rather than one that leaks,
+        # and the fix is to keep the boundary where it is and TEST it, not to delete
+        # a return value someone deliberately asked for.
+        # Guard: tests/test_identity_conflict_names_no_other_tenant.py
         return field, value, rows[0][0]
     return None

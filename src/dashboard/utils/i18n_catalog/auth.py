@@ -2,6 +2,7 @@
 
 EN = {
     # Rate limit / lockout
+    "auth.session_revoked": "Your session ended: the account was deactivated or its access changed. Contact an administrator if this is unexpected.",
     "auth.rate_limited": "Too many failed attempts. Please wait {s} seconds before trying again.",
     "auth.locked": "Account locked after too many failed attempts. Try again in {m} minute(s).",
     "auth.invalid_credentials": "Invalid username or password.",

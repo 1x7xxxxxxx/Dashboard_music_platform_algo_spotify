@@ -43,8 +43,16 @@ def _admin_token() -> str:
     return create_access_token({"sub": "admin", "role": "admin", "artist_id": None})
 
 
-def _mock_db(data: dict[str, pd.DataFrame] | None = None) -> MagicMock:
-    """Return a mock DB that responds to fetch_df calls with pre-set DataFrames."""
+def _mock_db(data: dict[str, pd.DataFrame] | None = None,
+             auth_row: tuple | None = None) -> MagicMock:
+    """Mock DB answering fetch_df with pre-set DataFrames, and the auth probe.
+
+    Since R24 every request re-reads `saas_users` to confirm the token has not been
+    revoked, so a fake that only knows about fetch_df now 401s (or worse, unpacks a
+    MagicMock) before the endpoint is ever reached. `auth_row` is
+    (active, token_version, role, artist_id); the default resolves it from the
+    username in the token, which is what the real column lookup does.
+    """
     db = MagicMock()
     data = data or {}
 
@@ -54,7 +62,17 @@ def _mock_db(data: dict[str, pd.DataFrame] | None = None) -> MagicMock:
                 return df
         return pd.DataFrame()
 
+    def _fetch_query(query: str, params=None):
+        if "token_version" in query and "saas_users" in query:
+            if auth_row is not None:
+                return [auth_row]
+            username = (params or ("",))[0]
+            return [(True, 0, "admin", None)] if username == "admin" \
+                else [(True, 0, "artist", 1)]
+        return []
+
     db.fetch_df.side_effect = _fetch_df
+    db.fetch_query.side_effect = _fetch_query
     db.close = MagicMock()
     return db
 
@@ -139,7 +157,7 @@ def test_protected_endpoints_require_token(url, client_no_auth):
 # Login now authenticates against saas_users (DB), not config.yaml. Build a mock DB
 # whose fetch_query returns one saas_users row (column order must match
 # authenticate_api_user): (id, username, email, password_hash, artist_id, role,
-# email_verified, failed_login_attempts, locked_until, totp_enabled).
+# email_verified, failed_login_attempts, locked_until, totp_enabled, token_version).
 def _login_db(row=None):
     db = MagicMock()
     db.fetch_query.return_value = [row] if row is not None else []
@@ -149,11 +167,11 @@ def _login_db(row=None):
 
 
 def _user_row(pw="correct", *, verified=True, totp=False, locked_until=None,
-              artist_id=1, role="artist"):
+              artist_id=1, role="artist", token_version=0):
     from passlib.context import CryptContext
     ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
     return (1, "alice", "alice@x.com", ctx.hash(pw), artist_id, role, verified,
-            0, locked_until, totp)
+            0, locked_until, totp, token_version)
 
 
 def test_login_db_unavailable():

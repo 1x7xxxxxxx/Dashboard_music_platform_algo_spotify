@@ -11,6 +11,7 @@ One email per active artist. Covers:
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
+from html import escape
 import sys
 import os
 import logging
@@ -104,7 +105,11 @@ def send_weekly_digest(**context):
                 """,
                 (artist_id,)
             )
-            top_song = top_song_rows[0][0] if top_song_rows else "—"
+            # escape(): a song title comes from a CSV the tenant uploaded, and it
+            # is interpolated into an HTML email body below. `<img onerror=…>` in a
+            # track name is a stored payload that renders in the recipient's mail
+            # client — and the recipient is the artist, not the author.
+            top_song = escape(str(top_song_rows[0][0])) if top_song_rows else "—"
             top_song_streams = int(top_song_rows[0][1]) if top_song_rows else 0
 
             # ── Meta Ads spend + CTR ──────────────────────────────────────────
@@ -169,7 +174,7 @@ def send_weekly_digest(**context):
                 """,
                 (artist_id, artist_id)
             )
-            ml_song = ml_rows[0][0] if ml_rows else None
+            ml_song = escape(str(ml_rows[0][0])) if ml_rows else None
             ml_dw = round(float(ml_rows[0][1]) * 100, 1) if (ml_rows and ml_rows[0][1]) else None
 
             # ── Build HTML email ──────────────────────────────────────────────

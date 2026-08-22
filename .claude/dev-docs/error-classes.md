@@ -11,7 +11,7 @@ rex: []
 
 # Error-class catalogue — single source of truth
 
-<!-- fields-ratchet: 25 -->
+<!-- fields-ratchet: 0 -->
 
 Every recurring bug is abstracted here into a **class** with a **machine-detectable
 signature**. `/sweep`, `make audit`, and `.claude/hooks/suggest_sweep.py` all
@@ -135,6 +135,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [secret-in-an-exception-message](#secret-in-an-exception-message) | P1 | deterministic | guarded | none |
 | [server-side-render-fetches-tenant-chosen-urls](#server-side-render-fetches-tenant-chosen-urls) | P1 | deterministic | guarded | none |
 | [trusted-value-read-from-an-untrusted-header](#trusted-value-read-from-an-untrusted-header) | P1 | deterministic | guarded | none |
+| [anonymous-surface-answers-a-private-question](#anonymous-surface-answers-a-private-question) | P1 | deterministic | guarded | none |
+| [revocation-written-but-never-read](#revocation-written-but-never-read) | P1 | deterministic | guarded | none |
+| [sentinel-means-privileged-and-missing](#sentinel-means-privileged-and-missing) | P2 | deterministic | guarded | none |
+| [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
+| [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -148,6 +153,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a package pinned `==X` in one manifest while another manifest / the lockfile / the installed env pins `==Y` → prod≠dev, "works locally breaks in Docker".
 - signature: `python3 tools/dev/check_manifest_consistency.py`
+- root_cause: three manifests (`pyproject.toml`, `requirements.txt`, `uv.lock`) each state the same pin, and nothing compared them — the Dockerfile installs from one, the dev venv from another.
+- long_term_fix: one manifest is canonical (`pyproject.toml`) and the others are DERIVED from it; until they are, `check_manifest_consistency.py` blocking in CI is the fix.
 - autofix: safe
 - guard: { type: ci-step, ref: .github/workflows/ci.yml }
 - rex_ref: tools/dev/check_manifest_consistency.py
@@ -161,6 +168,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a Makefile target invokes a runtime dependency (Docker / venv / Postgres / `uv` / `streamlit`) and crashes mid-execution instead of failing fast with an actionable message.
 - signature: `! grep -nE "^\t.*(docker|streamlit|psql|uv )" Makefile | grep -vE "check-env|check-manifest"`
+- root_cause: a Make recipe is a list of commands with no declared preconditions, so the first line that needs Docker discovers it is absent halfway through the target.
+- long_term_fix: every runtime target declares a prerequisite target that probes its dependency and exits 1 naming the fix command — the `dashboard: check-env` shape (rule #10).
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/rules/makefile-fail-fast.md }
 - rex_ref: .claude/rules/makefile-fail-fast.md
@@ -174,6 +183,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a collector `except` block logs then returns empty (`None`/`[]`/`{}`) → DAG upserts 0 rows, exits SUCCESS, no alert, dashboard silently stale.
 - signature: `python3 .claude/scripts/audit_collectors_ast.py`
+- root_cause: `except Exception: return []` reads as defensive programming and is indistinguishable, from the DAG's point of view, from a real empty result — an upstream 401 and a genuinely empty account produce the same SUCCESS.
+- long_term_fix: collectors raise (CLAUDE.md rule #6) and the AST audit blocks in CI, so 'no rows' can only mean the API said so.
 - autofix: none
 - guard: { type: ci-step, ref: .claude/scripts/audit_collectors_ast.py via audit_runner.py --deterministic (ci.yml) }
 - rex_ref: .claude/skills/audit-collectors.md
@@ -191,6 +202,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
 - signature: `! grep -rnE "=[[:space:]]*get_artist_id\(\)[[:space:]]+or[[:space:]]+1" src/`
+- root_cause: `get_artist_id()` returns None for two unrelated states (admin, and no tenant), and `or 1` was the shortest way to make a view render during development.
+- long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
 - autofix: none
 - guard: { type: ci-step, ref: .claude/scripts/audit_runner.py --deterministic (ci.yml) }
 - rex_ref: CLAUDE.md
@@ -207,6 +220,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection.
 - signature: `! grep -rnE "f\"\"\"?[^\"]*(FROM|JOIN|INTO|UPDATE|TABLE) +\{" src/ --include=*.py`
+- root_cause: psycopg2 parameterises VALUES but not identifiers, so a dynamic table or column name has no `%s` form and the f-string is the only thing that works.
+- long_term_fix: every dynamic identifier resolves through a `frozenset` allowlist before interpolation (rule #8); the allowlist is the fix, the grep only finds the ones that skipped it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#8 }
 - rex_ref: CLAUDE.md
@@ -220,6 +235,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a Streamlit view opens >1 DB connection per `show()` instead of one opened-then-closed-in-finally (CLAUDE.md rule #9).
 - signature: `! for f in $(grep -rl get_db_connection src/dashboard/views/); do n=$(grep -c "get_db_connection(" "$f"); [ "$n" -gt 1 ] && echo "$f: $n"; done | grep .`
+- root_cause: a helper called from a view opens its own connection because it cannot see the caller's — the cost is invisible in dev where the pool is idle.
+- long_term_fix: `view_session()` yields the one connection, and helpers take `db` as a parameter instead of resolving it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
 - rex_ref: CLAUDE.md
@@ -234,6 +251,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: bare `datetime.now()` persisted to DB / returned from API → host-TZ-naïve, mis-orders vs aware `+00:00` siblings (`.claude/rules/python.md`).
 - signature: `! grep -rnE "[^.a-z]datetime\.now\(\)" src/ --include=*.py | grep -viE "strftime|filename|pdf|email"`
+- root_cause: `datetime.now()` is the obvious spelling and is correct for cosmetic use, so the same call is right in an email body and wrong two lines later in an upsert payload.
+- long_term_fix: `.claude/rules/python.md` splits the two by destination: anything persisted or returned by the API uses `datetime.now(timezone.utc)`. A repo-wide ban would break the legitimate cosmetic uses.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/rules/python.md }
 - rex_ref: .claude/rules/python.md
@@ -247,6 +266,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window).
 - signature: `! grep -rnE "\.style\.format\(" src/dashboard/views/ | grep -v "na_rep"`
+- root_cause: `Styler.format` raises on None rather than rendering an empty cell, and the NULL only appears when a LEFT JOIN misses — which dev data usually does not.
+- long_term_fix: the PostToolUse hook rejects a `.style.format(` with no `na_rep=` at edit time, before the view is ever rendered.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: .claude/hooks/lint_dashboard_view.py }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -261,6 +282,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a cryptic `ValueError` at write time, the DAG fails or silently leaves a data gap.
 - signature: `python3 -c "import re,pathlib,sys; ph=pathlib.Path('src/database/postgres_handler.py').read_text(); a=set(re.findall(r\"'([a-z0-9_]+)'\", re.search(r'_ALLOWED_TABLES = frozenset\(\{(.*?)\}\)', ph, re.S).group(1))); bad={m.group(1) for p in pathlib.Path('src').rglob('*.py') for m in re.finditer(r'(?:upsert_many|insert_many)\(\s*[\\'\\\"]([a-z0-9_]+)', p.read_text(errors='ignore'))}-a; sys.exit(1 if bad else 0)"`
+- root_cause: the write allowlist in `postgres_handler.py` and the tables a collector writes are two lists maintained by different people at different times.
+- long_term_fix: `tests/test_allowed_tables_coverage.py` derives one from the other and fails on divergence, so adding a table to a collector fails CI until it is registered.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_allowed_tables_coverage.py }
 - rex_ref: .claude/skills/db-schema.md
@@ -275,6 +298,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a view uses raw `get_db_connection()` + the manual `get_artist_id()` guard instead of the `view_session()` context manager. The manual form is correct but not structurally enforced — every copy is a fresh chance to reintroduce `db-connection-per-show` / `artist-id-or-1`. Adoption backlog tracker.
 - signature: `! for f in src/dashboard/views/*.py; do grep -q "import get_db_connection" "$f" && ! grep -q view_session "$f" && echo "$f"; done | grep .`
+- root_cause: the manual four-line guard predates `view_session()` and is still correct, so nothing forces a rewrite — and every copy of it is a fresh chance to drop the `is_admin()` line. R25 found nine views that had.
+- long_term_fix: migrate the remaining views to `view_session()`; the class closes when no view holds its own copy of the guard.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -288,6 +313,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a collection mixes psycopg2 `datetime.date` (raw DATE column) and `pd.Timestamp` (a `pd.to_datetime`'d Series); `sorted()` / `pd.merge` on `date` / any `<`/`==` then raises `TypeError: Cannot compare Timestamp with datetime.date`. Data-dependent — only fires when ≥2 sources contribute and only one was converted.
 - signature: `! grep -rnE "sorted\(" src/dashboard/views/ | grep -iE "date|_dates" | grep -v "pd\.to_datetime"`
+- root_cause: psycopg2 returns `datetime.date` for a DATE column while `pd.to_datetime` produces `pd.Timestamp`, and the two compare fine until a sort or a merge puts them side by side.
+- long_term_fix: normalise at the boundary — every date leaving a query goes through `pd.to_datetime` before it reaches view code.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (Pitfall #5) }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -301,6 +328,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a new collector method + table ship (migration applied, code volume-mounted) but the owning DAG hasn't re-run since, so the table stays empty and the view shows "no data" — looks like a bug, is actually a stale-schedule. (Instagram `instagram_media`: collector committed 13:52 UTC, DAG last ran 10:00 UTC → 0 rows.)
 - signature: `docker exec <pg> psql -U postgres -d spotify_etl -tc "SELECT 'instagram_media' WHERE (SELECT COUNT(*) FROM instagram_media)=0 AND to_regclass('instagram_media') IS NOT NULL;"` (per-table; generalise: table exists + 0 rows while a sibling stats table has recent `MAX(collected_at)`)
+- root_cause: shipping code and running it are separate events here: `src/` is volume-mounted so the code is live instantly, while the table only fills on the DAG's next schedule.
+- long_term_fix: the freshness monitor reports a table that exists with zero rows as a collection gap rather than as no data — an empty table with a live DAG is a state the dashboard must name, not render as a blank chart.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: dev-docs/error-classes.md (operational runbook) }
 - rex_ref: .claude/skills/airflow-dag.md
@@ -314,6 +343,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: an `entity_period_filter`/`EntitySpec` orders "latest release" by `MIN(date_column)` where `date_column` is the ingest timestamp (`collected_at`) → default entity = first one WE collected, not the most recently released; "Depuis dernière release" anchors wrong. SoundCloud default track was visibly the wrong one.
 - signature: `! grep -rn -A2 "EntitySpec(" src/dashboard/views/ | grep -B2 "collected_at" | grep -L "release_column"` (narrow: EntitySpec with date_column=collected_at lacking release_column — ~0 false positives; broad `collected_at DESC` greps are NOT this class — that's legit "latest snapshot")
+- root_cause: `collected_at` is present on every table and a release date is not, so it is the column at hand when a default entity has to be picked.
+- long_term_fix: `EntitySpec` carries an explicit `release_column`; ordering by ingest time is then a choice someone had to write, not the default.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (Pitfall #6) }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -327,6 +358,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: operator-facing text (failure-alert root-cause map, Credentials help UI, setup guides) instructs running a script that does not exist, or describes an auth model the collector does not use (e.g. "renew the Spotify refresh_token" / "YouTube OAuth refresh" when Spotify = client_credentials and YouTube = static API key) → at incident time the operator follows a dead end, the real fix (re-paste a rotated secret / regenerate an API key) is never surfaced, MTTR balloons.
 - signature: `! grep -rnE "spotify_auth\.py|youtube_auth\.py|test_youtube_auth|check_api_keys_meta|create_missing_tables|Refresh Token (Spotify|YouTube)|YouTube — OAuth" src/utils/alert_root_cause.py src/dashboard/views/useful_links.py src/dashboard/views/credentials.py .claude/dev-docs/*guide*.md`
+- root_cause: operator-facing prose is not executed by anything, so a script rename or an auth-model change leaves it behind with no test going red.
+- long_term_fix: every command named in operator text is either a real path this signature checks, or the text names the surface instead of the script.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
 - rex_ref: .claude/dev-docs/token-management-bilan.md
@@ -340,6 +373,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a numeric DB column that contains a NULL loads as pandas `object` dtype; subsequent arithmetic + `Series.round(n)` then raises `TypeError: Expected numeric dtype, got object instead.` at render → the view crashes. Data-dependent — only fires once a row is NULL (LEFT JOIN, empty window, a model that failed to score).
 - signature: `! grep -rnE "\)\.round\(" src/dashboard/views/ | grep -v "to_numeric"`
+- root_cause: a numeric column with one NULL loads as pandas `object`, and `.round()` on object dtype raises rather than coercing — so the crash needs both a NULL and that specific call.
+- long_term_fix: `pd.to_numeric(..., errors='coerce')` at the query boundary; the render-smoke suite against the live DB is what makes the NULL show up before a user does.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py (AppTest renders every view against the live DB → catches it when a NULL is present) }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -354,6 +389,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a column of ISO timestamp strings where some carry a tz offset (`+00:00`) and some are naive → `pd.to_datetime(series)` or a Plotly datetime coercion (`px.timeline`, scatter x-axis) raises `ValueError: Cannot mix tz-aware with tz-naive values, at position N`. Data-dependent (only fires when old naive rows and new tz-aware rows coexist). Sibling of `mixed-date-timestamp` (that one mixes `datetime.date` vs `pd.Timestamp`; this one mixes tz-aware vs naive inside one `to_datetime`).
 - signature: `! grep -rnE "pd\.to_datetime\(" src/dashboard/views/ | grep -vE "utc=True|errors="`
+- root_cause: the same column holds rows written before and after the UTC-aware convention landed, so the mix is in the DATA and no amount of new code removes it.
+- long_term_fix: `pd.to_datetime(..., utc=True)` everywhere, plus the aware-timestamp rule in `.claude/rules/python.md` so the data stops growing new naive rows.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -367,6 +404,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a byte-exact golden/snapshot fixture under `tests/fixtures/` is silently reflowed by the `trailing-whitespace` / `end-of-file-fixer` pre-commit hooks → the committed golden no longer matches the producer's real output, so the snapshot test that compares against it fails (or, worse, the golden gets regenerated to match the mangled bytes and the test then passes against wrong data).
 - signature: `! { test -d tests/fixtures && ! grep -q "tests/fixtures" .pre-commit-config.yaml; }`
+- root_cause: the hygiene hooks are correct for source files and wrong for byte-exact fixtures, and they run on everything staged.
+- long_term_fix: `^tests/fixtures/` is excluded from the reflowing hooks in `.pre-commit-config.yaml`.
 - autofix: none
 - guard: { type: pre-commit, ref: .pre-commit-config.yaml (exclude `^tests/fixtures/` on trailing-whitespace + end-of-file-fixer) }
 - rex_ref: .pre-commit-config.yaml
@@ -380,6 +419,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: an exact-match join on a song/track title between a FILENAME-derived table (`s4a_song_timeline`, `ml_song_predictions`, manual-entry tables — they carry `_` because S4A replaces `< > : " / \ | ? *` with `_` in export filenames) and a CSV/API-derived table (`s4a_songs_global`, `tracks`, `track_popularity_history`, `campaign_track_mapping` — they keep the real chars) silently returns 0 rows / empty for every title containing one of those chars. The dashboard shows "—" or imputes a 0 ML feature; no error is raised.
 - signature: `! { grep -rnE "track_name *=|track_name\)" src/dashboard --include=*.py | grep -iE "%s|LOWER\(" | grep -viE "translate|canonical_song_sql|REPLACE"; }`
+- root_cause: S4A replaces `< > : " / \ | ? *` with `_` in export FILENAMES, so the same song arrives spelled two ways depending on whether it came from a file or an API.
+- long_term_fix: `canonical_song()` / `canonical_song_sql()` in `src/utils/track_matching.py` — one normalisation both sides call, rather than each join inventing its own.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/utils/track_matching.py — canonical_song()/canonical_song_sql() single-source helper; regression test tests/test_song_canonical.py }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -393,6 +434,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated surface), no error.
 - signature: `python3 -m pytest tests/test_i18n.py::test_every_static_t_key_has_en_entry -q`
+- root_cause: `t(key, french_default)` renders the French default when EN is missing, so an untranslated key is a working page — nothing fails.
+- long_term_fix: the CI test enumerates every `t()`/`_t()` call site and requires an EN entry, turning a silent fallback into a red build.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_i18n.py::test_every_static_t_key_has_en_entry }
 - rex_ref: tests/test_i18n.py
@@ -406,6 +449,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a FastAPI data router (Brick-14) SELECTs a column renamed/dropped by a later migration → the endpoint 500s for every tenant (no client stack-trace leak, but fully broken). The mocked `test_api.py` cannot see it because the DB is a MagicMock.
 - signature: `python3 -m pytest tests/test_api_db_smoke.py -q` (DB-gated: runs every data endpoint against the real schema with a forged admin+tenant token, asserts no 500; skips cleanly with no provisioned Postgres)
+- root_cause: `test_api.py` mocks the database, so a router can SELECT a column that no longer exists and still pass every test it has.
+- long_term_fix: `tests/test_api_db_smoke.py` hits every data endpoint against the real schema; a mocked suite alone cannot see this class.
 - autofix: none
 - guard: { type: ci-step, ref: tests/test_api_db_smoke.py }
 - rex_ref: .claude/commands/review-db-schema.md
@@ -419,6 +464,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: user-controlled values (song/campaign names, usernames) exported via `to_csv`/`to_excel` without defang → a cell like `=cmd|'/c calc'!A1` executes when the victim opens the file in Excel/Sheets (CWE-1236); worst case the admin multi-tenant export.
 - signature: `! grep -rnE 'to_(csv|excel)\(' src/dashboard --include=*.py | grep -viE 'defang_formulas|#'`
+- root_cause: a spreadsheet treats a leading `=`, `+`, `-` or `@` as a formula, and our exports pass through names the tenant typed.
+- long_term_fix: every export goes through `defang_formulas()` in `csv_exporter.py`; the export helper is the only writer, so a new export inherits it.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/dashboard/utils/csv_exporter.py (defang_formulas) }
 - rex_ref: —
@@ -432,6 +479,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: heuristic
 - symptom: a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `config.yaml` (SMTP, DATABASE_URL, FERNET_KEY, Airflow URL, DB schema bootstraps). 4 REX recurrences; this session fixed 11 `*_schema.py` bootstraps.
 - signature: `! grep -rnE "config(_loader\.load\(\))?\[" src/database/*_schema.py`
+- root_cause: `config.yaml` exists in dev and not in prod, so `config['x']` is correct on the machine where the code is written and a `KeyError` on the machine where it runs.
+- long_term_fix: env-first resolution with config.yaml as the local fallback (the `_smtp_config()` shape), so the dev path is the exceptional one.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (pitfall: config env-fallback) }
 - rex_ref: .claude/skills/dashboard-view.md
@@ -445,6 +494,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: manual
 - symptom: the live prod DB has a table/column the version-controlled schema (`init_db.sql` + `migrations/*.sql`) lacks, or vice-versa. Code reading/writing the drifted column works in prod but 500s on a fresh install / in CI (e.g. `youtube_videos.view_count`). Cause: a manual `ALTER` on prod, an old schema version never migrated, or a migration never applied to prod.
 - signature: `make schema-check PROD_SSH=user@host`
+- root_cause: a hotfix applied straight to the production database has no file to review, and nothing compared the two schemas until someone tried a fresh install.
+- long_term_fix: `make sync-check` in the deploy path plus the `schema_migrations` ledger (migration 071), so prod can only reach a state the repo can rebuild.
 - autofix: none
 - guard: { type: make-precondition, ref: tools/dev/schema_drift_check.py via `make schema-check` }
 - rex_ref: tools/dev/schema_drift_check.py
@@ -458,6 +509,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a collector/processing DAG iterates `get_active_artists()` and a per-tenant `raise` (or a precheck that raises on ANY incomplete artist) is NOT caught per-iteration → ONE bad tenant fails the whole DAG for ALL tenants. Benken's empty YouTube channel (404) failed `youtube_daily` for everyone; soundcloud/instagram prechecks raised on his missing creds.
 - signature: `python3 -m pytest tests/test_dag_fleet_isolation.py -q`
+- root_cause: a DAG written when there was one tenant reads correctly as a loop; the missing per-iteration try only becomes a fleet outage once a second tenant exists.
+- long_term_fix: `tests/test_dag_fleet_isolation.py` requires every artist loop touching `db` to be try-wrapped, and the CI seeds two tenants so single-tenant reasoning cannot pass.
 - autofix: none
 - guard: { type: test, ref: tests/test_dag_fleet_isolation.py (every artist loop touching `db` must be try-wrapped) }
 - rex_ref: .claude/skills/airflow-dag.md
@@ -472,6 +525,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a module-level `load_dotenv()` in a collector (not wrapped in try/except) raises `PermissionError` at import when the mounted `/opt/airflow/.env` is root-owned 600 (unreadable by the airflow uid 50000) → the collector crashes the moment a DAG imports it. The env is already injected by compose, so reading `.env` is redundant but fatal.
 - signature: `python3 -m pytest tests/test_collectors_dotenv_guarded.py -q`
+- root_cause: `load_dotenv()` at module scope runs at IMPORT, so a file-permission problem becomes an unimportable module rather than a handled error.
+- long_term_fix: the guarded-import test forbids an unwrapped module-level `load_dotenv` in `src/collectors/`; the env is loaded from a helper that tolerates an unreadable file.
 - autofix: none
 - guard: { type: test, ref: tests/test_collectors_dotenv_guarded.py (no unguarded module-level load_dotenv in src/collectors) }
 - rex_ref: .claude/skills/audit-collectors.md
@@ -1326,3 +1381,78 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
     (`register.py` answers "L'email 'x' est déjà enregistré") and the 5-attempt
     lockout — whose column is shared between the API and the dashboard — an
     anonymous caller could keep every tenant locked out of both, indefinitely.
+
+## anonymous-surface-answers-a-private-question
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a page reachable without authentication behaves differently depending on private state, so a visitor reads that state one request at a time. The page looks correct: every individual message is true and helpful.
+- signature: `python3 -m pytest tests/test_registration_is_not_an_oracle.py -q`
+- root_cause: `src/dashboard/views/register.py` was written for the honest user and every branch was helpful to them — "L'email 'x' est déjà enregistré" (`:332`), "Le code n'est pas valide" returned BEFORE the account was created (`:344-351`), and `st.error(...{e})` on the psycopg2 message (`:408`). Each is the right thing to tell someone who owns the address. None of them asks whether the person reading owns it.
+- long_term_fix: one `_render_success()` for both outcomes, so the two branches cannot drift apart by editing only one; code validation moved AFTER account creation, so a probe costs a full registration instead of a request; a per-IP budget (`src/dashboard/utils/throttle.py`) in front of everything that writes a row or sends a mail; and `public_error_ref()`, which logs the exception under a random 8-hex reference and shows only the reference.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_registration_is_not_an_oracle.py }
+- rex_ref: src/dashboard/views/register.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. The test compares the RENDERED output of two submits byte for byte, normalising only the address the visitor typed, an incident reference and a Retry-After count. Verified RED on each of the four restored behaviours. Its own first version passed on a rejected password — two identical validation errors also compare equal — so it now asserts the fresh submit reached the success path before comparing.
+
+## revocation-written-but-never-read
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the holder keeps working until their session expires on its own.
+- signature: `python3 -m pytest tests/test_revocation_actually_revokes.py -q`
+- root_cause: `active` appeared in exactly one query — the login one. `require_login()` (`src/dashboard/auth.py`) returned True from `st.session_state` alone, and the API's `get_current_user` asked only whether the JWT verified. So `admin.py:_toggle_user_active` stopped the NEXT login and nothing else, and changing a password after a compromise left the intruder's 24 h token valid.
+- long_term_fix: authorisation is re-read from the row on every request — `active`, `role` and `artist_id`, throttled to 30 s on the dashboard and per-request on the API — plus `saas_users.token_version` (migration 072) carried as a `tv` claim and bumped by deactivation and by a password change. A missing claim reads as 0, so deploying it signs nobody out. The two surfaces fail in OPPOSITE directions on a database outage, deliberately: the dashboard open (a blip must not evict every artist, and it shows a banner), the API closed (its tokens travel further and it has no banner).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_revocation_actually_revokes.py }
+- rex_ref: src/api/deps.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by neutralising the two reads. The suite pins the legacy-token case too — without it, the obvious implementation (reject any token with no `tv`) would have logged out every live user on deploy.
+
+## sentinel-means-privileged-and-missing
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: one sentinel value carries two unrelated meanings — "this caller may see everything" and "this caller has no scope" — so the branch written for the first is taken by the second. Every call site is asked to remember the disambiguation, and the ones that forget read as ordinary code.
+- signature: `python3 -m pytest tests/test_stray_session_reads_nothing.py -q`
+- root_cause: `get_artist_id()` returns None for an admin and None for a session with no tenant, and has said in its own docstring since it was written that callers must separate the two with `is_admin()`. Nine views and `artist_id_sql_filter()` did not — and that last one is how ~30 views reach the database, so its empty filter fragment meant "read every tenant".
+- long_term_fix: `tenant_scope()` in `src/dashboard/auth.py` is the disambiguation, once: it returns the tenant, returns None only for a proven admin, and stops the session otherwise. Call sites ask it instead of remembering a two-line guard. The distinct-but-adjacent `artist-id-or-1` class covers the `or 1` spelling; this one covers `is None` read as "admin".
+- autofix: none
+- guard: { type: pytest, ref: tests/test_stray_session_reads_nothing.py }
+- rex_ref: src/dashboard/auth.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. The guard SPIES ON THE QUERIES (`tests/query_spy.py`) rather than on the message: its first version required the string "Session invalide" and failed `upload_csv`, which refuses the session correctly in its own words. Verified RED on eleven views by restoring the pre-fix guards. Every view currently refuses before its first query, so each case also asserts the view rendered something — otherwise "zero unscoped reads" is indistinguishable from "the view never ran".
+
+## second-factor-budget-refunded-by-the-first
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a multi-factor flow rate-limits each step, and the earlier step's success resets the later step's budget. The attacker holds the earlier factor by assumption, so the later one has no budget at all.
+- signature: `python3 -m pytest tests/test_second_factor_is_not_brute_forceable.py -q`
+- root_cause: two independent causes had to be fixed together. `_authenticate_user` cleared `failed_login_attempts` as soon as the password verified — correct for a password-only login, and the whole exploit when a code was still owed. And the only counter the TOTP challenge touched, `_rate_record_failure()`, lives in `st.session_state`, which a new browser tab resets; since the attacker knows the password, reforging `_totp_pending` in a fresh tab cost one request.
+- long_term_fix: the account-level reset moves to AFTER the last factor; a wrong code increments `failed_login_attempts` like a wrong password; and the challenge's budget is keyed by client IP in module state (`src/dashboard/utils/throttle.py`), which a new session does not reset. The per-IP budget also covers the login form, where a per-account lockout never fires at all — password spraying tries one password across many accounts.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_second_factor_is_not_brute_forceable.py }
+- rex_ref: src/dashboard/utils/throttle.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED on each cause separately, including by re-keying the limiter on the session to prove the survives-a-new-session test is not vacuous.
+
+## guard-scope-is-a-hand-written-list
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a check is correct on everything it looks at, and what it looks at is a list somebody typed. It never reports the things it does not cover, so its silence reads as coverage and its scope shrinks every time the codebase grows.
+- signature: `python3 -m pytest tests/test_contamination_scope_is_derived.py tests/test_roadmap_index_is_honest.py -q`
+- root_cause: two instances, hours apart, both on 2026-08-22. `tools/tenant_contamination_check.py` — step 5 of `make artist-preflight`, whose claim is "no row under this tenant belongs to someone else" — named eight tables out of the seventy the schema carries, with no Spotify entry at all while the schema held some thirty `meta_*` tables. And `test_every_waiting_row_names_the_gesture_it_waits_on` matched roadmap rows against ten hand-written French verbs, so it FAILED R22, a row naming three gestures including a literal shell command, for using none of those ten words.
+- long_term_fix: derive the scope and assert the derivation covers everything. The contamination tool groups tables by platform PREFIX read from `information_schema`, and a companion test fails when a tenant-scoped table is neither claimed by a prefix nor listed in `_OUT_OF_SCOPE` with a reason. The roadmap guard asks a structural question instead of a lexical one — every waiting row must have a section in the runbook — which cannot be satisfied by rewording the row.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_contamination_scope_is_derived.py }
+- rex_ref: tools/tenant_contamination_check.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Expanding the scope immediately surfaced `youtube_channel_history` (34 rows), a table the eight-name list had never looked at. Verified RED by removing the Spotify platform, by adding an excuse with no reason, and by naming a table that no longer exists.

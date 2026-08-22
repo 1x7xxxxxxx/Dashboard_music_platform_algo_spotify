@@ -102,28 +102,54 @@ def test_no_item_is_in_both_sections():
     )
 
 
+RUNBOOK = REPO / ".claude" / "dev-docs" / "runbook-actions-utilisateur.md"
+
+# A waiting row's id must appear in a runbook heading. `~~R20~~` (struck through,
+# done) counts: the procedure is still written, and a row that comes back finds it.
+_RUNBOOK_HEADING = re.compile(r"^#{2,3} .*\b(R\d+)\b", re.M)
+
+
+def _documented_ids() -> set[str]:
+    if not RUNBOOK.exists():
+        return set()
+    return set(_RUNBOOK_HEADING.findall(RUNBOOK.read_text(encoding="utf-8")))
+
+
 def test_every_waiting_row_names_the_gesture_it_waits_on():
     """'BLOQUÉ' is a status. 'Regenerate the token in Business Manager' is a gesture.
 
-    The whole reason these rows are out of the actionable index is that a person
-    has to act. A row that does not say which act is back to being a status that
-    never changes.
+    The whole reason these rows are out of the actionable index is that a person has
+    to act. A row that does not say which act is back to being a status that never
+    changes.
+
+    HOW this is checked changed on 2026-08-22, and the change matters more than the
+    rule. The first version matched the row against ten hand-written French verbs
+    (`Régénérer|Créer|déposer|…`). R22 — "external network intrusion test, endpoint
+    fuzzing, `pip install pip-audit && pip-audit -r requirements.txt`" — names three
+    gestures, one of them a literal shell command, and used none of those ten words.
+    The guard failed a row that was doing exactly what it asked for.
+
+    A hand-written scope is a scope that goes stale silently: it can only recognise
+    the phrasings that existed the day it was written, and it says nothing when a new
+    one appears. That is the second time in one night this class shipped (see
+    `## 🔖 REPRISE`), so the predicate is now structural instead:
+
+        a waiting row must have a section in the runbook, keyed by its id.
+
+    The runbook is where the steps AND their verification live, so this asks for the
+    thing that is actually useful rather than for a word. It also cannot be satisfied
+    by rewording the row.
     """
-    vague = []
-    for line in _section(_WAITING_H):
-        m = _ROW.match(line)
-        if not m:
-            continue
-        body = m.group(2)
-        # An imperative or an explicit hand-off marker — not merely a state word.
-        if not re.search(
-            r"action utilisateur|prérequis|Régénérer|Créer|déposer|ouvrir|"
-            r"actionnable|corriger|inviter|ingest|UPDATE ", body, re.I
-        ):
-            vague.append(m.group(1))
-    assert not vague, (
-        f"{vague} sit in « En attente de toi » without naming what they wait for. "
-        "State the gesture, or the row is a status that will never change."
+    documented = _documented_ids()
+    undocumented = [
+        m.group(1) for line in _section(_WAITING_H)
+        if (m := _ROW.match(line)) and m.group(1) not in documented
+    ]
+    assert not undocumented, (
+        f"{undocumented} sit in « En attente de toi » with no section in "
+        f"{RUNBOOK.name}. The index says a person has to act; the runbook is where "
+        "the steps and the command that proves it worked are written. Without one, "
+        "the row is a status that will never change."
     )
 
 

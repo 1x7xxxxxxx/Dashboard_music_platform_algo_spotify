@@ -324,6 +324,7 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             conflict = find_identity_conflict(db, artist_id, logical, extra)
             if not conflict:
                 continue
+            # `_other` is the tenant holding it — never rendered, see _core.py.
             field, value, _other = conflict
             st.error(t(
                 "credentials.identity_taken",

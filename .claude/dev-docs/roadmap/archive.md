@@ -1252,3 +1252,203 @@ ou d'un faux vert (classe `suppressed-alert-renders-as-health`).
 (`act_65390907`, artiste 12) n'est **toujours pas partagé** — l'API répond
 `(#200) Ad account owner has NOT granted ads_management or ads_read permission`.
 C'est un geste de Benken dans son Business Manager, pas une correction de code.
+
+---
+
+## 🌙 R23–R31 — les neuf de la nuit du 21→22, closes le 2026-08-22
+
+Ouvertes entre 22 h et 2 h par le pentest et ses suites, livrées dans la séance du
+lendemain. Chacune porte un garde vu **rouge sur le défaut** et vert après ; les cinq
+classes qu'elles ont produites sont dans `.claude/dev-docs/error-classes.md`.
+
+- [x] **R23** — le parcours d'inscription n'est plus un oracle anonyme. Réponse
+      identique que l'adresse existe ou non, e-mail « ce compte existe déjà » au vrai
+      propriétaire, codes validés APRÈS création, budget par IP, message d'erreur
+      générique avec référence d'incident. Garde :
+      `tests/test_registration_is_not_an_oracle.py` (5 tests, 4 régressions rejouées).
+      Classe : `anonymous-surface-answers-a-private-question`.
+- [x] **R24** — une révocation révoque. Relecture de `active`/`role`/`artist_id` à
+      chaque requête (30 s côté dashboard), `saas_users.token_version` en migration
+      **072** porté par le JWT, bumpé par la désactivation et le changement de mot de
+      passe. Garde : `tests/test_revocation_actually_revokes.py` (8 tests).
+      Classe : `revocation-written-but-never-read`.
+- [x] **R25** — règle #7 rétablie sur **9 vues**, pas 4 : le balayage a trouvé
+      `artist_id_sql_filter()`, par où ~30 vues atteignent la base. `tenant_scope()`
+      porte la désambiguïsation une fois. Garde :
+      `tests/test_stray_session_reads_nothing.py` (24 tests, espion de requêtes ;
+      11 vues vues rouges). Classe : `sentinel-means-privileged-and-missing`.
+- [x] **R26** — le second facteur n'est plus brute-forçable : le compteur de compte
+      n'est plus remis à 0 par le mot de passe quand un code est dû, un code faux
+      compte vers le verrouillage, et le budget est par IP. Garde :
+      `tests/test_second_factor_is_not_brute_forceable.py` (5 tests).
+      Classe : `second-factor-budget-refunded-by-the-first`.
+- [x] **R27** — `tenant_contamination_check` dérive sa portée du schéma (préfixe par
+      plateforme) au lieu de 8 noms tapés à la main, entrée **spotify** comprise. A
+      immédiatement trouvé `youtube_channel_history`. Garde :
+      `tests/test_contamination_scope_is_derived.py` (5 tests).
+      Classe : `guard-scope-is-a-hand-written-list`.
+- [x] **R28** — dette de schéma des classes d'erreur soldée : **100 %** portent
+      `root_cause` et `long_term_fix`. Le contrôle CI passe d'*advisory* à **bloquant**
+      (`--fields --strict`), comme son propre commentaire le demandait depuis mai.
+- [x] **R29** — `make chart-budget` compte ce que Few compte : ce qui est dans le coup
+      d'œil (Few, *IDD* p.27/p.39/p.81, corpus `ux-frontend` ingéré en R17). AST au lieu
+      de regex, colonnes `glance`/`worst`/`click`/`tab`/`mods`. `data_wrapped` passe de
+      9 à **1** — il était signalé à tort. Toujours sans seuil : la source donne l'unité
+      de mesure, pas un nombre.
+- [x] **R30** — les 9 constats BAS traités : clé de fenêtre du limiteur (`auth.py:64`),
+      test de véracité dans `artists.py`, `_totp_pending` laissé au logout, secret de
+      désinscription en dur retiré (les liens se désactivent au lieu d'être forgeables),
+      docstring `_get_fernet` alignée sur son code, titres échappés dans l'e-mail
+      hebdo, clé Fernet du CI **générée par run**, `src/utils/http_logger.py`
+      **supprimé** (zéro importateur). Le constat « affiche l'`artist_id` de l'autre
+      locataire » était inexact — la valeur est retournée, jamais rendue ; la frontière
+      est désormais testée
+      (`tests/test_identity_conflict_names_no_other_tenant.py`).
+- [x] **R31** — clos par **décision**, pas par code : `docs/adr/ADR-009`. Les deux
+      registres s'accordent par test plutôt que de dériver, et le garde d'accord a reçu
+      son plancher de non-vacuité (il ne comparait que les libellés communs, donc un
+      renommage le faisait passer sur rien).
+
+### Le détail tel qu'il était ouvert
+
+## 📌 R23–R31 — ce que la nuit du 21→22 a laissé ouvert
+
+Toutes découvertes entre 22h et 2h. Aucune n'était connue en début de séance. Chacune
+porte le fichier et la ligne — pas « quelque part dans l'auth ».
+
+### R23 — Le parcours d'inscription est un oracle anonyme (P1)
+
+Quatre fuites sur la même page, aucune authentifiée, `src/dashboard/views/register.py` :
+
+| ligne | ce qui fuit |
+|---|---|
+| `:332-334` | « L'email 'x' est déjà enregistré. » ⇒ **énumération de comptes** par n'importe qui |
+| `:344-351` | promo / referral validés **avant** création du compte, avec retour anticipé ⇒ chaque soumission sonde gratuitement un espace de 24 bits (`secrets.token_hex(3)`), et un promo valide donne `promo_plan='premium'` |
+| `:385` | un e-mail de vérification part vers une adresse **choisie par l'attaquant**, depuis ton domaine, sans CAPTCHA ni limite par IP |
+| `:408-409` | `except Exception as e: st.error(…)` rend le message psycopg2 brut (noms de contraintes et de colonnes) à un visiteur anonyme |
+
+Ce qui a changé cette nuit : le limiteur de débit de l'API fonctionne enfin (R21), donc
+la moitié « verrouiller tous les comptes » de la chaîne est fermée. L'énumération et le
+sondage de codes, eux, passent par le **dashboard**, pas par l'API — ils sont intacts.
+
+**Fix** : réponse identique que l'email existe ou non ; valider promo/referral APRÈS la
+création ou avec un budget par IP ; message d'erreur générique.
+
+### R24 — Une révocation ne révoque rien (P1)
+
+`src/dashboard/views/admin.py:75-79` (désactivation), `src/dashboard/views/account.py:104-107`
+(changement de mot de passe), `src/api/auth.py:38-46` (JWT 24 h, sans `jti`, sans
+denylist). `require_login()` (`src/dashboard/auth.py:370-379`) relit `st.session_state`
+seul ; `active`, `role` et `artist_id` ne sont lus en base qu'**au login**.
+
+Un locataire désactivé garde le dashboard tant qu'il clique (inactivité : 60 min) et
+l'API jusqu'à 24 h. Changer le mot de passe après une compromission n'expulse pas
+l'attaquant.
+
+**Fix** : relire `active` en base à chaque `require_login()` (une requête déjà faite
+ailleurs), et une denylist de `jti` ou un `token_version` par utilisateur pour l'API.
+
+### R25 — La règle #7 a été perdue sur 4 vues (P2)
+
+`views/home.py:226`, `views/spotify_s4a_combined.py:24,29-31`, `views/export_pdf.py:121`,
+`views/imusician.py:76-81` : `artist_id is None` y prend la branche **admin** sans
+vérifier `is_admin()`. Les puits suivent (`kpi_helpers.py:259,278,300,366,384`,
+`pdf_exporter/_collectors.py:46,89,110,132,206`).
+
+**Honnêtement : pas exploitable aujourd'hui.** L'état `role='artist'` +
+`artist_id IS NULL` naît d'un `DELETE FROM saas_artists` nu (`admin.py:87-89`,
+`ON DELETE SET NULL` en `migrations/007:9`) — et cette fonction est du code mort, le
+seul chemin câblé étant la cascade RGPD qui supprime `saas_users` d'abord. Ce qui est
+réel : le schéma peut représenter l'état, une fonction existante suffirait à le
+produire, et 4 vues n'ont rien contre.
+
+### R26 — Le second facteur est brute-forçable (P2)
+
+`src/dashboard/auth.py:281-298`. Un code faux n'appelle que `_rate_record_failure()`,
+local à la session ; `failed_login_attempts` n'est pas touché — il vient d'être remis à
+0 par le mot de passe correct (`:209-212`). Ouvrir une session Streamlit neuve et
+resoumettre le mot de passe (connu) reforge un `_totp_pending`. `valid_window=1` ⇒ trois
+codes vivants par fenêtre de 30 s, soit 10⁶/3 sans plafond serveur.
+
+Demande le mot de passe d'abord — d'où P2 et non P1.
+
+### R27 — Le détecteur de contamination a des trous connus (P2)
+
+`tools/tenant_contamination_check.py:59-67` liste 8 tables. Cinq portent
+`id_column=None` (`youtube_video_stats`, `instagram_media`, `soundcloud_tracks_daily`,
+`meta_campaigns`, `meta_ads`), donc seul le cas ORPHELIN s'y applique : une ligne
+étrangère chez un locataire qui A déclaré la plateforme est invisible. Et il n'y a
+**aucune entrée Spotify** — seulement la jointure `track_popularity_history`↔`tracks`.
+
+C'est l'étape 5 de `artist_preflight`, celle qui dit « les données ne sont pas celles
+d'un autre ». Elle en dit moins que son nom.
+
+### R28 — 25 classes d'erreur sans `root_cause` ni `long_term_fix` (P3)
+
+`python3 .claude/scripts/audit_runner.py --fields` les nomme. Dette héritée, antérieure
+au schéma ; le cliquet tient (aucune classe neuve incomplète depuis). Les solder rend le
+catalogue utilisable pour la question qui compte : « ce défaut, on l'a déjà eu ? ».
+
+### R29 — Budget de graphiques, maintenant sourcé (P3)
+
+`make chart-budget` : 22 vues, 83 graphiques, médiane 3, `trigger_algo` à **15**.
+Le corpus tranche enfin (R17) — Few, *Information Dashboard Design* p.27 : *« A dashboard
+fits on a single computer screen … entirely within the viewer's eye span »*, et p.97 : la
+zone haut-gauche porte les mesures décisives, pas la navigation. Le critère n'est donc
+pas un nombre mais le coup d'œil. Motif déjà appliqué : `secondary_analyses()`
+(instagram 4→2, soundcloud 2→1, spotify 4→3).
+
+### R30 — Constats BAS du pentest, groupés (P3)
+
+Aucun exploitable seul ; tous réels :
+- `auth.py:64` lit `rate_window_start`, la vraie clé est `_rate_window_start` (`:65`) — la fenêtre se réinitialise à chaque échec. Échoue *fermé*, mais le limiteur ne fait pas ce qu'il se lit faire.
+- `api/routers/artists.py:24` — `if not artist_id: return {"role": "admin"}` : le test de véracité que `require_artist_scope` existe pour supprimer (`api/deps.py:56-70` le dit).
+- `credentials/_core.py:338-340` — le refus d'unicité affiche l'`artist_id` **de l'autre locataire**.
+- `auth.py:506-509` — le logout laisse `_totp_pending` (qui contient `totp_secret`) dans la session.
+- `verification_email.py:180` — secret de désinscription qui retombe sur un littéral en dur.
+- `credentials/_core.py:61-80` — la docstring promet « jamais `config.yaml` », le code le lit.
+- `airflow/dags/weekly_digest.py:206,245` — noms de titres non échappés dans l'e-mail.
+- `.github/workflows/ci.yml:177` — une clé Fernet valide est commitée (CI seulement aujourd'hui).
+- `src/utils/http_logger.py:74,79` — **code mort** qui masque l'URL puis réajoute l'exception non masquée : le défaut à l'intérieur du composant écrit pour l'empêcher. À supprimer, pas à réparer.
+
+### R31 — `kpi_helpers.SOURCES_CONFIG` (P4, différé volontairement)
+
+Cinquième registre plateforme→table. L'accord sur les libellés partagés est **gardé**
+(`test_platform_sources_agree`), mais il n'est pas dérivé : il porte des sources que
+readiness ignore (iMusician, Apple) et alimente une requête UNION ALL avec ses propres
+allowlists. Le faire dériver changerait le comportement d'un code qui marche, pour un
+gain nul. Inscrit pour que le choix soit visible, pas pour être fait.
+
+
+## 🛡️ R21 — Pentest complet (clos côté code le 2026-08-22)
+
+Deux passages : un sur le diff de la séance, un sur toute l'application (auth, API,
+isolation SQL, injections, secrets, Stripe, upload). **Six constats CRITIQUE/HAUT,
+tous corrigés, gardés, déployés et vérifiés en production.**
+
+| sév | constat | vérifié en prod |
+|---|---|---|
+| CRITIQUE | `ig_user_id` interpolé dans un chemin Graph API : `me/accounts` faisait appeler `/me/accounts` **avec le System User token de la plateforme**, réponse (Page tokens) renvoyée au locataire | exploit rejeté |
+| HAUT | Export PDF : `HTML(string=…)` sans `url_fetcher` ⇒ SSRF aveugle depuis le conteneur + lecture d'un fichier serveur dans le PDF téléchargé. Charge plantée via un **nom de fichier CSV** ou un nom de campagne. Un admin générant le rapport d'un locataire la déclenchait dans SA session | `http://` et `file://` bloqués |
+| HAUT | `META_ACCESS_TOKEN` + `META_APP_SECRET` écrits **chaque nuit** dans les logs Airflow et l'e-mail d'échec, par tous les collecteurs | rédigés |
+| HAUT | Limiteur de débit contournable : `X-Forwarded-For[0]` est choisi par l'appelant ⇒ verrouillage de tous les comptes indéfiniment possible par un anonyme | 50 requêtes forgées → 1 compartiment |
+| HAUT | Unicité d'identité Instagram **inatteignable** (appelée avec la clé d'onglet) | corrigé |
+| MOYEN | Nom d'artiste injecté brut dans l'e-mail HTML ; allowlist SQL se testant contre sa propre sortie | corrigé |
+
+**Zones auditées et propres** (à ne pas ré-auditer sans raison) : isolation locataire
+dans les 71 lectures de tables scopées ; **zéro** injection SQL de valeur sur 118 sites
+de SQL dynamique ; IDOR — `st.query_params` ne touche jamais `artist_id`, et aucune
+route FastAPI n'est pilotable par paramètre ; Stripe — le webhook échoue **fermé** sans
+secret, et aucun chemin applicatif n'écrit `tier` hors webhook signé ; injection de
+commande et traversée de chemin — un seul `subprocess`, sans entrée utilisateur ;
+`defang_formulas` couvre **tous** les chemins d'export ; XSS Streamlit — les 11 sites
+`unsafe_allow_html` sont échappés ou numériques ; Fernet — aucune clé commitée.
+
+**Ce qui reste et n'est PAS du code** — dans `## 🙋 En attente de toi` :
+un test d'intrusion réseau externe (Cloudflare, Caddy, ports, TLS), un fuzzing des
+endpoints, et `pip-audit -r requirements.txt` (non lancé : l'outil n'est pas installé ;
+`python-jose` est en 3.5.0 et `decode_token` épingle `HS256`, donc la confusion
+d'algorithme ne s'applique pas ; `passlib==1.7.4` n'est plus maintenu depuis 2020).
+
+Constats MOYEN/BAS documentés et différés **nommément** dans
+`.claude/dev-docs/error-classes.md` et le rapport d'audit — pas par omission.

@@ -101,11 +101,18 @@ def _section_change_password(db, user: dict) -> None:
         st.warning(t("account.pw_same", "Le nouveau mot de passe est identique à l'actuel."))
         return
 
+    # Bumping token_version is the half that makes this gesture mean something after
+    # a compromise (R24): changing the hash alone left every API token issued to the
+    # intruder valid for up to 24 h. The user's own dashboard session survives — they
+    # are the one who just typed the current password.
     db.execute_query(
-        "UPDATE saas_users SET password_hash = %s WHERE id = %s",
+        "UPDATE saas_users SET password_hash = %s, token_version = token_version + 1 "
+        "WHERE id = %s",
         (hash_password(new_pw), user["id"]),
     )
-    st.success(t("account.pw_updated", "✅ Mot de passe mis à jour avec succès."))
+    st.success(t("account.pw_updated",
+                 "✅ Mot de passe mis à jour. Les jetons d'API émis avant ce "
+                 "changement ne sont plus valides."))
 
 
 def _section_consent(db, user: dict) -> None:

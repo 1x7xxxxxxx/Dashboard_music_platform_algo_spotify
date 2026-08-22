@@ -23,198 +23,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
 
-> **Neuf entrées au 2026-08-22, toutes découvertes dans la nuit du 21 au 22.** R21
-> (pentest, volet code) est clos ; ce qu'il a laissé en MOYEN/BAS est ci-dessous,
-> nommé plutôt que tu. Ce qui demande un outil ou un humain vit dans
-> `## 🙋 En attente de toi`. Tout ce qui pouvait être fait
-> côté ingénierie l'a été ; ce qui est mesuré inutile est parti sous **ADR-007**, ce qui
-> attend une donnée sous **ADR-008**, et ce qui attend un geste humain est dans
-> `## 🙋 En attente de toi` juste en dessous. Une tâche revient ici le jour où son
-> déclencheur se produit.
-
-| id | tâche | prio | statut / déclencheur |
-|----|-------|------|----------------------|
-| R23 | Le parcours d'inscription est un oracle anonyme | **P1** | actionnable — 4 fuites sur la même page, aucune authentifiée. Détail ci-dessous. |
-| R24 | Une révocation ne révoque rien tant que la session vit | **P1** | actionnable — désactiver un compte ou changer son mot de passe n'évince personne. |
-| R25 | Rétablir la règle #7 sur les 4 vues qui l'ont perdue | P2 | actionnable — `artist_id is None` ⇒ doit être admin. Pas exploitable aujourd'hui, représentable par le schéma. |
-| R26 | Le second facteur TOTP est brute-forçable | P2 | actionnable — le compteur d'échecs est remis à 0 par le mot de passe correct, et le limiteur est local à la session. |
-| R27 | `tenant_contamination_check` ne couvre que 8 tables | P2 | actionnable — 5 sans colonne d'identité (seul le cas « orphelin » s'applique), **aucune entrée Spotify**. |
-| R28 | Solder la dette de schéma des 25 classes d'erreur héritées | P3 | actionnable — `audit_runner --fields` les nomme ; il leur manque `root_cause` / `long_term_fix`. |
-| R29 | Budget de graphiques : `trigger_algo` à 15 | P3 | actionnable **et enfin sourcé** — Few p.27, le critère est le coup d'œil. |
-| R30 | Constats BAS du pentest, groupés | P3 | actionnable — 9 items nommés ci-dessous, aucun exploitable seul. |
-| R31 | Faire dériver `kpi_helpers.SOURCES_CONFIG` | P4 | différé volontairement — l'accord est gardé par test, la dérivation changerait le comportement d'une requête UNION ALL qui marche. |
-
-## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
-
-Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
-l'index ci-dessus parce qu'aucune ne peut commencer sans toi. Chacune dit exactement quel
-geste elle attend.
-
-📋 **Procédures pas à pas, avec leur vérification :
-`.claude/dev-docs/runbook-actions-utilisateur.md`** — classées par ce qu'elles
-débloquent, chacune avec la commande qui prouve que c'est fait.
-
-| id | tâche | prio | le geste qu'elle attend |
-|----|-------|------|--------------------------|
-| R22 | Volet non-code du pentest | P2 | **outil ou humain** : test d'intrusion réseau externe (Cloudflare/Caddy/ports/TLS), fuzzing des endpoints, et `pip install pip-audit && pip-audit -r requirements.txt`. Le volet code est clos (R21) ; ces trois-là ne se lisent pas dans le dépôt. |
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. |
-
----
-
-## 📌 R23–R31 — ce que la nuit du 21→22 a laissé ouvert
-
-Toutes découvertes entre 22h et 2h. Aucune n'était connue en début de séance. Chacune
-porte le fichier et la ligne — pas « quelque part dans l'auth ».
-
-### R23 — Le parcours d'inscription est un oracle anonyme (P1)
-
-Quatre fuites sur la même page, aucune authentifiée, `src/dashboard/views/register.py` :
-
-| ligne | ce qui fuit |
-|---|---|
-| `:332-334` | « L'email 'x' est déjà enregistré. » ⇒ **énumération de comptes** par n'importe qui |
-| `:344-351` | promo / referral validés **avant** création du compte, avec retour anticipé ⇒ chaque soumission sonde gratuitement un espace de 24 bits (`secrets.token_hex(3)`), et un promo valide donne `promo_plan='premium'` |
-| `:385` | un e-mail de vérification part vers une adresse **choisie par l'attaquant**, depuis ton domaine, sans CAPTCHA ni limite par IP |
-| `:408-409` | `except Exception as e: st.error(…)` rend le message psycopg2 brut (noms de contraintes et de colonnes) à un visiteur anonyme |
-
-Ce qui a changé cette nuit : le limiteur de débit de l'API fonctionne enfin (R21), donc
-la moitié « verrouiller tous les comptes » de la chaîne est fermée. L'énumération et le
-sondage de codes, eux, passent par le **dashboard**, pas par l'API — ils sont intacts.
-
-**Fix** : réponse identique que l'email existe ou non ; valider promo/referral APRÈS la
-création ou avec un budget par IP ; message d'erreur générique.
-
-### R24 — Une révocation ne révoque rien (P1)
-
-`src/dashboard/views/admin.py:75-79` (désactivation), `src/dashboard/views/account.py:104-107`
-(changement de mot de passe), `src/api/auth.py:38-46` (JWT 24 h, sans `jti`, sans
-denylist). `require_login()` (`src/dashboard/auth.py:370-379`) relit `st.session_state`
-seul ; `active`, `role` et `artist_id` ne sont lus en base qu'**au login**.
-
-Un locataire désactivé garde le dashboard tant qu'il clique (inactivité : 60 min) et
-l'API jusqu'à 24 h. Changer le mot de passe après une compromission n'expulse pas
-l'attaquant.
-
-**Fix** : relire `active` en base à chaque `require_login()` (une requête déjà faite
-ailleurs), et une denylist de `jti` ou un `token_version` par utilisateur pour l'API.
-
-### R25 — La règle #7 a été perdue sur 4 vues (P2)
-
-`views/home.py:226`, `views/spotify_s4a_combined.py:24,29-31`, `views/export_pdf.py:121`,
-`views/imusician.py:76-81` : `artist_id is None` y prend la branche **admin** sans
-vérifier `is_admin()`. Les puits suivent (`kpi_helpers.py:259,278,300,366,384`,
-`pdf_exporter/_collectors.py:46,89,110,132,206`).
-
-**Honnêtement : pas exploitable aujourd'hui.** L'état `role='artist'` +
-`artist_id IS NULL` naît d'un `DELETE FROM saas_artists` nu (`admin.py:87-89`,
-`ON DELETE SET NULL` en `migrations/007:9`) — et cette fonction est du code mort, le
-seul chemin câblé étant la cascade RGPD qui supprime `saas_users` d'abord. Ce qui est
-réel : le schéma peut représenter l'état, une fonction existante suffirait à le
-produire, et 4 vues n'ont rien contre.
-
-### R26 — Le second facteur est brute-forçable (P2)
-
-`src/dashboard/auth.py:281-298`. Un code faux n'appelle que `_rate_record_failure()`,
-local à la session ; `failed_login_attempts` n'est pas touché — il vient d'être remis à
-0 par le mot de passe correct (`:209-212`). Ouvrir une session Streamlit neuve et
-resoumettre le mot de passe (connu) reforge un `_totp_pending`. `valid_window=1` ⇒ trois
-codes vivants par fenêtre de 30 s, soit 10⁶/3 sans plafond serveur.
-
-Demande le mot de passe d'abord — d'où P2 et non P1.
-
-### R27 — Le détecteur de contamination a des trous connus (P2)
-
-`tools/tenant_contamination_check.py:59-67` liste 8 tables. Cinq portent
-`id_column=None` (`youtube_video_stats`, `instagram_media`, `soundcloud_tracks_daily`,
-`meta_campaigns`, `meta_ads`), donc seul le cas ORPHELIN s'y applique : une ligne
-étrangère chez un locataire qui A déclaré la plateforme est invisible. Et il n'y a
-**aucune entrée Spotify** — seulement la jointure `track_popularity_history`↔`tracks`.
-
-C'est l'étape 5 de `artist_preflight`, celle qui dit « les données ne sont pas celles
-d'un autre ». Elle en dit moins que son nom.
-
-### R28 — 25 classes d'erreur sans `root_cause` ni `long_term_fix` (P3)
-
-`python3 .claude/scripts/audit_runner.py --fields` les nomme. Dette héritée, antérieure
-au schéma ; le cliquet tient (aucune classe neuve incomplète depuis). Les solder rend le
-catalogue utilisable pour la question qui compte : « ce défaut, on l'a déjà eu ? ».
-
-### R29 — Budget de graphiques, maintenant sourcé (P3)
-
-`make chart-budget` : 22 vues, 83 graphiques, médiane 3, `trigger_algo` à **15**.
-Le corpus tranche enfin (R17) — Few, *Information Dashboard Design* p.27 : *« A dashboard
-fits on a single computer screen … entirely within the viewer's eye span »*, et p.97 : la
-zone haut-gauche porte les mesures décisives, pas la navigation. Le critère n'est donc
-pas un nombre mais le coup d'œil. Motif déjà appliqué : `secondary_analyses()`
-(instagram 4→2, soundcloud 2→1, spotify 4→3).
-
-### R30 — Constats BAS du pentest, groupés (P3)
-
-Aucun exploitable seul ; tous réels :
-- `auth.py:64` lit `rate_window_start`, la vraie clé est `_rate_window_start` (`:65`) — la fenêtre se réinitialise à chaque échec. Échoue *fermé*, mais le limiteur ne fait pas ce qu'il se lit faire.
-- `api/routers/artists.py:24` — `if not artist_id: return {"role": "admin"}` : le test de véracité que `require_artist_scope` existe pour supprimer (`api/deps.py:56-70` le dit).
-- `credentials/_core.py:338-340` — le refus d'unicité affiche l'`artist_id` **de l'autre locataire**.
-- `auth.py:506-509` — le logout laisse `_totp_pending` (qui contient `totp_secret`) dans la session.
-- `verification_email.py:180` — secret de désinscription qui retombe sur un littéral en dur.
-- `credentials/_core.py:61-80` — la docstring promet « jamais `config.yaml` », le code le lit.
-- `airflow/dags/weekly_digest.py:206,245` — noms de titres non échappés dans l'e-mail.
-- `.github/workflows/ci.yml:177` — une clé Fernet valide est commitée (CI seulement aujourd'hui).
-- `src/utils/http_logger.py:74,79` — **code mort** qui masque l'URL puis réajoute l'exception non masquée : le défaut à l'intérieur du composant écrit pour l'empêcher. À supprimer, pas à réparer.
-
-### R31 — `kpi_helpers.SOURCES_CONFIG` (P4, différé volontairement)
-
-Cinquième registre plateforme→table. L'accord sur les libellés partagés est **gardé**
-(`test_platform_sources_agree`), mais il n'est pas dérivé : il porte des sources que
-readiness ignore (iMusician, Apple) et alimente une requête UNION ALL avec ses propres
-allowlists. Le faire dériver changerait le comportement d'un code qui marche, pour un
-gain nul. Inscrit pour que le choix soit visible, pas pour être fait.
-
----
-
-## 🛡️ R21 — Pentest complet (clos côté code le 2026-08-22)
-
-Deux passages : un sur le diff de la séance, un sur toute l'application (auth, API,
-isolation SQL, injections, secrets, Stripe, upload). **Six constats CRITIQUE/HAUT,
-tous corrigés, gardés, déployés et vérifiés en production.**
-
-| sév | constat | vérifié en prod |
-|---|---|---|
-| CRITIQUE | `ig_user_id` interpolé dans un chemin Graph API : `me/accounts` faisait appeler `/me/accounts` **avec le System User token de la plateforme**, réponse (Page tokens) renvoyée au locataire | exploit rejeté |
-| HAUT | Export PDF : `HTML(string=…)` sans `url_fetcher` ⇒ SSRF aveugle depuis le conteneur + lecture d'un fichier serveur dans le PDF téléchargé. Charge plantée via un **nom de fichier CSV** ou un nom de campagne. Un admin générant le rapport d'un locataire la déclenchait dans SA session | `http://` et `file://` bloqués |
-| HAUT | `META_ACCESS_TOKEN` + `META_APP_SECRET` écrits **chaque nuit** dans les logs Airflow et l'e-mail d'échec, par tous les collecteurs | rédigés |
-| HAUT | Limiteur de débit contournable : `X-Forwarded-For[0]` est choisi par l'appelant ⇒ verrouillage de tous les comptes indéfiniment possible par un anonyme | 50 requêtes forgées → 1 compartiment |
-| HAUT | Unicité d'identité Instagram **inatteignable** (appelée avec la clé d'onglet) | corrigé |
-| MOYEN | Nom d'artiste injecté brut dans l'e-mail HTML ; allowlist SQL se testant contre sa propre sortie | corrigé |
-
-**Zones auditées et propres** (à ne pas ré-auditer sans raison) : isolation locataire
-dans les 71 lectures de tables scopées ; **zéro** injection SQL de valeur sur 118 sites
-de SQL dynamique ; IDOR — `st.query_params` ne touche jamais `artist_id`, et aucune
-route FastAPI n'est pilotable par paramètre ; Stripe — le webhook échoue **fermé** sans
-secret, et aucun chemin applicatif n'écrit `tier` hors webhook signé ; injection de
-commande et traversée de chemin — un seul `subprocess`, sans entrée utilisateur ;
-`defang_formulas` couvre **tous** les chemins d'export ; XSS Streamlit — les 11 sites
-`unsafe_allow_html` sont échappés ou numériques ; Fernet — aucune clé commitée.
-
-**Ce qui reste et n'est PAS du code** — dans `## 🙋 En attente de toi` :
-un test d'intrusion réseau externe (Cloudflare, Caddy, ports, TLS), un fuzzing des
-endpoints, et `pip-audit -r requirements.txt` (non lancé : l'outil n'est pas installé ;
-`python-jose` est en 3.5.0 et `decode_token` épingle `HS256`, donc la confusion
-d'algorithme ne s'applique pas ; `passlib==1.7.4` n'est plus maintenu depuis 2020).
-
-Constats MOYEN/BAS documentés et différés **nommément** dans
-`.claude/dev-docs/error-classes.md` et le rapport d'audit — pas par omission.
-
----
-
-## 🔖 REPRISE` ci-dessous.
-
-> **Vide au 2026-08-22 : R21 est clos côté code.** Ce qui reste du pentest demande
-> un outil ou un humain (intrusion réseau, fuzzing, `pip-audit`) et vit dans
-> `## 🙋 En attente de toi`. Tout ce qui pouvait être fait
-> côté ingénierie l'a été ; ce qui est mesuré inutile est parti sous **ADR-007**, ce qui
-> attend une donnée sous **ADR-008**, et ce qui attend un geste humain est dans
-> `## 🙋 En attente de toi` juste en dessous. Une tâche revient ici le jour où son
-> déclencheur se produit.
+> **Vide au 2026-08-22 (séance du jour).** Les neuf entrées ouvertes par la nuit du
+> 21→22 — R23 à R31 — sont closes et archivées. Ce qui reste demande un accès réseau
+> externe ou une décision qui n'appartient pas au dépôt, et vit dans
+> `## 🙋 En attente de toi` juste en dessous. Ce qui a été **décidé** plutôt que fait
+> porte son ADR : **ADR-007** (mesuré inutile), **ADR-008** (attend une donnée),
+> **ADR-009** (deux registres s'accordent au lieu de dériver, ex-R31).
+> Une tâche revient ici le jour où son déclencheur se produit.
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
@@ -228,102 +43,75 @@ geste elle attend.
 
 📋 **Procédures pas à pas, avec leur vérification :
 `.claude/dev-docs/runbook-actions-utilisateur.md`** — classées par ce qu'elles
-débloquent, chacune avec la commande qui prouve que c'est fait.
+débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roadmap_index_is_honest.py`
+échoue si une ligne d'ici n'a pas sa section là-bas.
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. |
-
----
-
-## 🛡️ R21 — Pentest complet de streaMLytics (P1, ouvert le 2026-08-22)
-
-**Pourquoi maintenant.** Le red-team de 2026-06-13 est marqué COMPLET, mais depuis :
-Stripe est passé en live, l'API REST a été ouverte, l'inscription est self-service,
-et la couche credentials vient d'être réécrite. Un audit fermé sur un produit qui a
-changé n'est plus un audit.
-
-**Ce que le premier passage a déjà rendu (2026-08-22, sur le diff de la séance)** —
-et il n'était pas théorique :
-
-| sév | trouvé | état |
-|---|---|---|
-| CRITIQUE | `ig_user_id` est un champ libre interpolé dans un chemin Graph API. `requests` n'encode pas le `/` : poser `me/accounts` faisait appeler `/me/accounts` **avec le System User token de la plateforme**, et la réponse — contenant des Page access tokens — était renvoyée au locataire. | ✅ corrigé + déployé, exploit rejeté en prod |
-| HAUT | L'unicité d'identité Instagram était **inatteignable** : `_handle_save` appelait le contrôle avec la clé d'onglet. Deux locataires pouvaient revendiquer le même compte. | ✅ corrigé |
-| HAUT | `META_ACCESS_TOKEN` et `META_APP_ID\|META_APP_SECRET` écrits **chaque nuit** dans les logs Airflow au moindre incident réseau (message d'exception = URL préparée complète). Idem vers le locataire sur les 4 sondes. | ✅ corrigé (9 sites) |
-| MOYEN | Nom d'artiste (saisi librement) injecté brut dans l'e-mail d'alerte HTML. | ✅ `html.escape` |
-| MOYEN | L'allowlist d'identifiants SQL du watchdog se testait contre sa propre sortie — un commentaire ayant la forme d'un contrôle. | ✅ gate indépendant |
-
-Classes : `tenant-identity-reaches-a-url-unvalidated` (P1),
-`secret-in-an-exception-message` (P1).
-
-**Ce qui reste pour clore R21** — le passage large est lancé le 2026-08-22 et couvre :
-authentification et session (escalade admin, bypass par vue), la surface FastAPI
-(IDOR inter-locataires sur chaque route), l'isolation SQL (`WHERE artist_id` manquant,
-`artist_id` venant de l'entrée utilisateur), injections (SQL, commande dans
-`tools/*.sh`, traversée de chemin à l'import CSV, `unsafe_allow_html`), secrets
-journalisés ailleurs, Stripe (signature du webhook, idempotence, chemin applicatif
-vers `premium`), et l'upload CSV (taille, type, `defang_formulas` sur TOUS les
-chemins d'export).
-
-**Critère de clôture** : chaque constat CRITIQUE/HAUT corrigé, déployé, et porteur
-d'une classe d'erreur avec une signature vue rouge sur le défaut. Un constat MOYEN/BAS
-peut être documenté et différé, mais **nommément**, pas par omission.
-
-⚠️ **Ce qu'un audit lu par un agent ne remplace pas** : un test d'intrusion réseau
-depuis l'extérieur (Cloudflare, Caddy, ports, TLS), un fuzzing des endpoints, et une
-revue des dépendances à jour. Ces trois-là demandent un outil ou un humain — les
-inscrire ici quand R21 sera clos côté code.
-
----
+| R22 | Volet non-code du pentest — **⅓ fait** | P2 | **outil ou machine extérieure** : il reste le test d'intrusion réseau (`nmap`/`testssl.sh` depuis HORS du VPS) et le fuzzing des endpoints (`schemathesis`). `pip-audit` est fait — 1 vulnérabilité, `ecdsa` PYSEC-2026-1325, **non applicable** (Minerva sur la signature ECDSA ; nos JWT sont HS256 des deux côtés) et sans correctif amont. Rejouable par `make audit-deps`. Runbook §6. |
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. Runbook §5. |
 
 ## 🔖 REPRISE — état au 2026-08-22 (à lire EN PREMIER au `/resume`)
 
-**▶️ Où reprendre demain, dans l'ordre.**
+**▶️ L'index actionnable est vide.** R23→R31 sont livrées, gardées et archivées dans la
+même séance. Il n'y a rien à reprendre côté code : la prochaine action utile est un des
+deux gestes de `## 🙋 En attente de toi`, ou une nouvelle trouvaille.
 
-1. **R23 + R24 (P1)** — les deux fuites d'authentification. R23 est un oracle anonyme
-   sur la page d'inscription (4 fuites, `register.py`) ; R24 fait qu'une révocation ne
-   révoque rien tant que la session vit. Les deux sont petites et bien localisées.
-2. **R25 + R26 (P2)** — la règle #7 perdue sur 4 vues, et le TOTP brute-forçable.
-3. **R27 (P2)** — le détecteur de contamination en dit moins que son nom : c'est
-   l'étape 5 du préflight, celle qui prétend prouver qu'aucune donnée n'appartient à un
-   autre locataire.
+**⚠️ Ce qui n'est PAS fait : rien de tout ça n'est déployé.** Le travail est dans
+l'arbre local, non commité. `prod == canonique` décrit l'état d'AVANT cette séance.
+Avant de déployer : `make migrate-prod` (la **072** est nouvelle), puis `make deploy`,
+puis `make sync-check`.
 
 **Avant de conclure quoi que ce soit :**
 ```
 docker start postgres_spotify_airflow && python3 -m pytest tests/ -q
 ```
-~160 tests exigent une base et **skippaient en silence**. C'est dans cet angle mort que
-quatre vagues de correctifs ont été écrites cette nuit ; la base a trouvé un vrai
-défaut au premier lancement, dans une protection déjà commitée comme fermée.
-`conftest.py` crie maintenant, mais la commande reste à taper.
+~160 tests exigent une base et **skippent en silence** sans elle. Toute la séance a
+tourné avec la base : **1312 verts, 0 rouge**, ruff propre, `audit_runner
+--deterministic` clean, `make config-check` clean.
 
-**Ce que la séance du 2026-08-22 a livré et déployé** (détail dans les blocs ci-dessous
-et dans `archive.md`) :
+**Ce que la séance du 2026-08-22 (jour) a livré :**
 
-- **Pourquoi « les credentials ne marchaient pas »** : rien n'était en panne. Les deux
-  plateformes recommandées à l'onboarding échouaient sous les yeux de l'artiste —
-  Spotify jugée sur la table CSV, Instagram déclenchant le mauvais DAG, l'onglet Meta
-  affichant un avertissement faux à **chaque** sauvegarde. Quatre vagues, six classes.
-- **Pentest (R21)** : six constats CRITIQUE/HAUT, tous corrigés, gardés, déployés,
-  vérifiés en prod — dont un SSRF par l'export PDF et un limiteur de débit entièrement
-  contournable.
-- **Trois angles morts de surveillance fermés** : le canari a un lecteur cohérent,
-  l'artiste inscrit-qui-abandonne est signalé (11 détectés au premier passage), et le
-  **veilleur a un veilleur** (`alert_monitor` en pause ⇒ silence indiscernable d'une
-  nuit saine).
-- **Corpus ergonomie ingéré** (R17, archivé) et son ingestion **automatisée** (cron).
+- **R23 — la page d'inscription n'est plus un oracle.** Réponse identique que l'adresse
+  existe ou non (avec un e-mail « ce compte existe déjà » au vrai propriétaire, sinon on
+  ment à l'honnête) ; codes promo validés APRÈS création ; budget par IP ; message
+  d'erreur générique portant une référence d'incident.
+- **R24 — une révocation révoque.** `active`/`role`/`artist_id` relus en base (30 s côté
+  dashboard, chaque requête côté API) et `saas_users.token_version` (migration **072**)
+  porté par le JWT. Les deux surfaces échouent en sens INVERSE sur une panne de base :
+  dashboard ouvert, API fermée — délibéré, argumenté dans le code.
+- **R25 — la règle #7 rétablie, sur 9 vues et pas 4.** Le balayage a trouvé
+  `artist_id_sql_filter()`, par où ~30 vues atteignent la base. `tenant_scope()` porte la
+  désambiguïsation une fois.
+- **R26 — le second facteur coûte quelque chose.** Le compteur de compte n'est plus remis
+  à 0 par le mot de passe quand un code est encore dû, un code faux compte, et le budget
+  est par IP (un nouvel onglet ne le rembourse plus).
+- **R27 — le détecteur de contamination dérive du schéma.** Il connaissait 8 tables sur
+  ~70 et aucune entrée Spotify. Il a immédiatement trouvé `youtube_channel_history`.
+- **R28 — dette de schéma soldée** : 76 → 81 classes, **100 %** portent `root_cause` et
+  `long_term_fix`. Le contrôle CI passe de *advisory* à **bloquant**, comme son propre
+  commentaire le demandait.
+- **R29 — le budget de graphiques compte enfin ce que Few compte** : ce qui est dans le
+  coup d'œil, pas ce qui est dans le fichier. `data_wrapped` passe de 9 à **1** — il était
+  signalé à tort.
+- **R30 — les 9 constats BAS traités**, dont une clé Fernet valide retirée du CI (générée
+  par run), `src/utils/http_logger.py` **supprimé** (zéro importateur), et le logout qui
+  laissait `totp_secret` en session.
+- **R31 → ADR-009** : décision enregistrée plutôt que dette. Le garde d'accord a reçu son
+  plancher de non-vacuité.
+- **Cinq classes d'erreur capitalisées**, chacune avec une signature vue rouge sur le
+  défaut et verte après.
 
-**Deux fois cette nuit je suis retombé dans une classe que je venais de capitaliser** :
-un garde qui teste un point d'entrée que le produit n'emprunte pas, et un garde dont la
-portée était une liste écrite à la main. Les deux fois, c'est un audit indépendant qui
-l'a vu — pas une relecture.
+**Ce que la séance a appris, et qui vaut plus que les correctifs** : trois fois sur
+neuf, la portée du garde était une **liste écrite à la main** — les 8 tables du détecteur
+de contamination, les 10 verbes français du garde de roadmap, les 6 clés de session du
+logout. C'est la classe `guard-scope-is-a-hand-written-list`, et elle était déjà nommée
+dans le REPRISE d'hier. Une liste ne signale jamais ce qu'elle ne couvre pas.
 
-**État vérifié au moment d'écrire** : `prod == canonique` (920 col / 92 tables),
-71 migrations enregistrées, code déployé == `origin/main`, **1263 tests verts** contre
-une vraie base, ruff propre, audit déterministe clean.
-
----
+**Un défaut trouvé en lisant ce fichier** : `checklist.md` portait un bloc mort de
+~70 lignes (un index périmé disant « aucune », une table « en attente » sans R22, un
+doublon de R21) sous un titre cassé, `## 🔖 REPRISE\` ci-dessous.`. Un `/resume` qui
+tombait dessus lisait « aucune tâche ouverte ». Retiré.
 
 ## 🔖 Historique — état au 2026-08-21
 
