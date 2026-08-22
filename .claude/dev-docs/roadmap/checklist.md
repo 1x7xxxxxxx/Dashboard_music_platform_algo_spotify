@@ -23,7 +23,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
 
-> **Non vide depuis le 2026-08-22 : une entrée, R21.** Tout ce qui pouvait être fait
+> **Vide au 2026-08-22 : R21 est clos côté code.** Ce qui reste du pentest demande
+> un outil ou un humain (intrusion réseau, fuzzing, `pip-audit`) et vit dans
+> `## 🙋 En attente de toi`. Tout ce qui pouvait être fait
 > côté ingénierie l'a été ; ce qui est mesuré inutile est parti sous **ADR-007**, ce qui
 > attend une donnée sous **ADR-008**, et ce qui attend un geste humain est dans
 > `## 🙋 En attente de toi` juste en dessous. Une tâche revient ici le jour où son
@@ -31,7 +33,73 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| R21 | Pentest complet de streaMLytics + correction des vulnérabilités | P1 | **en cours** — voir le bloc détaillé plus bas |
+| — | *(aucune)* | — | — |
+
+## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
+
+Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
+l'index ci-dessus parce qu'aucune ne peut commencer sans toi. Chacune dit exactement quel
+geste elle attend.
+
+📋 **Procédures pas à pas, avec leur vérification :
+`.claude/dev-docs/runbook-actions-utilisateur.md`** — classées par ce qu'elles
+débloquent, chacune avec la commande qui prouve que c'est fait.
+
+| id | tâche | prio | le geste qu'elle attend |
+|----|-------|------|--------------------------|
+| R22 | Volet non-code du pentest | P2 | **outil ou humain** : test d'intrusion réseau externe (Cloudflare/Caddy/ports/TLS), fuzzing des endpoints, et `pip install pip-audit && pip-audit -r requirements.txt`. Le volet code est clos (R21) ; ces trois-là ne se lisent pas dans le dépôt. |
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. |
+
+---
+
+## 🛡️ R21 — Pentest complet (clos côté code le 2026-08-22)
+
+Deux passages : un sur le diff de la séance, un sur toute l'application (auth, API,
+isolation SQL, injections, secrets, Stripe, upload). **Six constats CRITIQUE/HAUT,
+tous corrigés, gardés, déployés et vérifiés en production.**
+
+| sév | constat | vérifié en prod |
+|---|---|---|
+| CRITIQUE | `ig_user_id` interpolé dans un chemin Graph API : `me/accounts` faisait appeler `/me/accounts` **avec le System User token de la plateforme**, réponse (Page tokens) renvoyée au locataire | exploit rejeté |
+| HAUT | Export PDF : `HTML(string=…)` sans `url_fetcher` ⇒ SSRF aveugle depuis le conteneur + lecture d'un fichier serveur dans le PDF téléchargé. Charge plantée via un **nom de fichier CSV** ou un nom de campagne. Un admin générant le rapport d'un locataire la déclenchait dans SA session | `http://` et `file://` bloqués |
+| HAUT | `META_ACCESS_TOKEN` + `META_APP_SECRET` écrits **chaque nuit** dans les logs Airflow et l'e-mail d'échec, par tous les collecteurs | rédigés |
+| HAUT | Limiteur de débit contournable : `X-Forwarded-For[0]` est choisi par l'appelant ⇒ verrouillage de tous les comptes indéfiniment possible par un anonyme | 50 requêtes forgées → 1 compartiment |
+| HAUT | Unicité d'identité Instagram **inatteignable** (appelée avec la clé d'onglet) | corrigé |
+| MOYEN | Nom d'artiste injecté brut dans l'e-mail HTML ; allowlist SQL se testant contre sa propre sortie | corrigé |
+
+**Zones auditées et propres** (à ne pas ré-auditer sans raison) : isolation locataire
+dans les 71 lectures de tables scopées ; **zéro** injection SQL de valeur sur 118 sites
+de SQL dynamique ; IDOR — `st.query_params` ne touche jamais `artist_id`, et aucune
+route FastAPI n'est pilotable par paramètre ; Stripe — le webhook échoue **fermé** sans
+secret, et aucun chemin applicatif n'écrit `tier` hors webhook signé ; injection de
+commande et traversée de chemin — un seul `subprocess`, sans entrée utilisateur ;
+`defang_formulas` couvre **tous** les chemins d'export ; XSS Streamlit — les 11 sites
+`unsafe_allow_html` sont échappés ou numériques ; Fernet — aucune clé commitée.
+
+**Ce qui reste et n'est PAS du code** — dans `## 🙋 En attente de toi` :
+un test d'intrusion réseau externe (Cloudflare, Caddy, ports, TLS), un fuzzing des
+endpoints, et `pip-audit -r requirements.txt` (non lancé : l'outil n'est pas installé ;
+`python-jose` est en 3.5.0 et `decode_token` épingle `HS256`, donc la confusion
+d'algorithme ne s'applique pas ; `passlib==1.7.4` n'est plus maintenu depuis 2020).
+
+Constats MOYEN/BAS documentés et différés **nommément** dans
+`.claude/dev-docs/error-classes.md` et le rapport d'audit — pas par omission.
+
+---
+
+## 🔖 REPRISE` ci-dessous.
+
+> **Vide au 2026-08-22 : R21 est clos côté code.** Ce qui reste du pentest demande
+> un outil ou un humain (intrusion réseau, fuzzing, `pip-audit`) et vit dans
+> `## 🙋 En attente de toi`. Tout ce qui pouvait être fait
+> côté ingénierie l'a été ; ce qui est mesuré inutile est parti sous **ADR-007**, ce qui
+> attend une donnée sous **ADR-008**, et ce qui attend un geste humain est dans
+> `## 🙋 En attente de toi` juste en dessous. Une tâche revient ici le jour où son
+> déclencheur se produit.
+
+| id | tâche | prio | statut / déclencheur |
+|----|-------|------|----------------------|
+| — | *(aucune)* | — | — |
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
