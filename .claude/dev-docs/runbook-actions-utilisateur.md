@@ -156,11 +156,49 @@ vue, aujourd'hui fixé à l'intuition — deviennent sourçables.
 Les prérequis sont prouvés en production : funnel d'inscription complet, e-mails Brevo
 livrés, paiement Stripe validé de bout en bout, isolation locataire testée.
 
+### Ce que le filet couvre RÉELLEMENT — mesuré le 2026-08-22 sur la prod
+
+La ligne « préflight vert de bout en bout » était trop généreuse. Exécutée sur le canari
+de production (`artist_id=14`), la préflight complète est **ROUGE** à l'étape 2 :
+
+```
+❌ ☁️ SoundCloud — ton User ID SoundCloud numérique
+✅ 🎵 Spotify
+✅ 🎬 YouTube
+❌ 📱 Meta Ads — ton Ad Account ID
+❌ 📸 Instagram — ton Instagram Business Account ID
+```
+
+Restreinte aux deux plateformes que le canari possède, elle est verte de bout en bout —
+identité, test de connexion, données arrivées, **contamination propre** — et l'outil
+imprime lui-même le bon avertissement :
+
+> `✅ Pre-flight green FOR spotify, youtube ONLY — the other platforms were not proven.`
+
+Autrement dit **le filet ne couvre pas les deux plateformes qui ont cassé** : Meta chez
+Benken, Instagram chez GRiNCH. Inviter aujourd'hui, c'est réintroduire exactement le
+risque que R20 devait supprimer, pour trois plateformes sur cinq.
+
+Le compléter demande **tes** identifiants, parce qu'une identité de locataire n'a par
+construction aucune valeur par défaut (`.claude/rules/python.md`) : un user id SoundCloud
+numérique, un Ad Account Meta, un IG Business Account — sur des comptes réels que le
+canari puisse utiliser sans polluer les tiens.
+
 ### Étapes
 
-1. Faire **R20** d'abord, puis `make artist-preflight` — il doit être vert. C'est le
-   filet : deux sessions bêta ont brûlé une heure chacune sur des choses que ce contrôle
-   voit d'avance.
+0. **Déployer la séance du 2026-08-22.** `make sync-check PROD_SSH=root@167.233.92.1`
+   nomme aujourd'hui une seule dérive, `saas_users.token_version` — la migration 072.
+   Ordre : `make deploy` puis `make migrate-prod`, jamais l'inverse (classe
+   `migration-ahead-of-its-code`).
+1. Donner au canari les trois identités manquantes, puis :
+   ```bash
+   docker run --rm --network container:streamlytics_api \
+     -v /opt/streamlytics/tools:/app/tools -w /app --env-file .env \
+     streamlytics-dashboard python3 tools/artist_preflight.py --artist 14
+   ```
+   Sans `--platforms`, et **vert**. C'est ça, le filet complet. (`tools/` n'est monté
+   dans aucun conteneur par défaut — d'où le `-v` ; et l'image `python:3.12-slim` ne
+   suffit pas, il faut celle du dashboard.)
 2. Idéalement R13 aussi, sinon Meta et Instagram resteront vides pour tes invités.
 3. Inviter les proches sur `https://streamlytics.fr`.
 4. Après leur inscription :
