@@ -27,7 +27,24 @@ from airflow.operators.python import PythonOperator
 
 logger = logging.getLogger(__name__)
 
-MONITORED_PLATFORMS = ['spotify', 'youtube', 'soundcloud', 'meta']
+def _monitored_platforms() -> list:
+    """The platforms the credential audit asks about — DERIVED, never retyped.
+
+    This was `['spotify', 'youtube', 'soundcloud', 'meta']`, four names typed by
+    hand, and **Instagram was missing**. So the nightly audit never once asked
+    whether a tenant had declared an `ig_user_id`, while `instagram_daily` collected
+    for them or skipped them in silence.
+
+    `PLATFORM_IDENTITIES` is the single registry (5 entries) that
+    `tenant_identity.py` exists to be. Deriving from it means adding a platform is
+    one edit, not five — the `guard-scope-is-a-hand-written-list` lesson.
+
+    Called lazily rather than evaluated at import: this module is parsed by the
+    Airflow DagBag in containers where `src/` may not be importable, and a failure
+    here would take the whole DAG file down rather than one task.
+    """
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+    return sorted(PLATFORM_IDENTITIES)
 
 MONITORED_DAGS = [
     'spotify_api_daily',
@@ -77,23 +94,43 @@ def check_credentials_all(**context):
         context['task_instance'].xcom_push(key='missing_credentials', value=[])
         return
 
+    from src.utils.tenant_identity import declared_identities, storage_platform
+
+    platforms = _monitored_platforms()
     missing = []
     for artist_id, artist_name in artists:
-        for platform in MONITORED_PLATFORMS:
-            creds = load_platform_credentials(artist_id, platform)
-            if not creds:
-                missing.append({
-                    'artist_id': artist_id,
-                    'artist_name': artist_name,
-                    'platform': platform,
-                })
-                logger.warning(
-                    f"Missing credentials: artist={artist_name} (id={artist_id}), platform={platform}"
-                )
+        # Read each STORAGE row once, then ask the registry which LOGICAL identities
+        # it actually carries. The previous test was `if not creds` — dict emptiness,
+        # not identity presence — so Benken's `meta` row, which holds an `account_id`
+        # and nothing else, counted as "credentials present" for a platform that has
+        # never produced a single row. And because the row is shared, it counted for
+        # Instagram too, had Instagram been asked about at all.
+        extra_by_platform = {}
+        for platform in {storage_platform(p) for p in platforms}:
+            try:
+                extra_by_platform[platform] = load_platform_credentials(
+                    artist_id, platform) or {}
+            except Exception as e:  # noqa: BLE001 — one unreadable row, not the fleet
+                logger.error("credential read failed for %s / %s: %s",
+                             artist_name, platform, type(e).__name__)
+        declared = declared_identities(extra_by_platform)
+
+        for platform in platforms:
+            if platform in declared:
+                continue
+            missing.append({
+                'artist_id': artist_id,
+                'artist_name': artist_name,
+                'platform': platform,
+            })
+            logger.warning(
+                f"No declared identity: artist={artist_name} (id={artist_id}), "
+                f"platform={platform}"
+            )
 
     logger.info(
         f"Credential audit done: {len(missing)} missing out of "
-        f"{len(artists) * len(MONITORED_PLATFORMS)} combinations."
+        f"{len(artists) * len(platforms)} combinations."
     )
     context['task_instance'].xcom_push(key='missing_credentials', value=missing)
 
@@ -678,8 +715,22 @@ def check_onboarding_readiness(**context):
         # two readers for one fact is `watchdog-becomes-the-noise`.
         for aid, name in get_active_artists(exclude_canaries=True):
             try:
-                probe = make_budgeted_probe(db, aid, budget)
-                for m in readiness_red_flags(db, aid, probe=probe):
+                # Remember every verdict this probe produces. The nightly run is
+                # the only thing that measures a red platform without anyone asking,
+                # and it used to throw the answer away after the email — so the
+                # artist's own screen could not show the sentence the alert carried.
+                def _remembering(platform, _aid=aid, _p=make_budgeted_probe(db, aid, budget)):
+                    result = _p(platform)
+                    if result is not None:
+                        try:
+                            from src.dashboard.utils.status_matrix import save_probe
+                            save_probe(db, _aid, platform, result[0], result[1])
+                        except Exception as e:  # noqa: BLE001 — memory is a bonus
+                            logger.warning("could not remember probe %s/%s: %s",
+                                           _aid, platform, type(e).__name__)
+                    return result
+
+                for m in readiness_red_flags(db, aid, probe=_remembering):
                     flags.append({'artist_id': aid, 'artist_name': name,
                                   'platform': m['label'], 'status': m['status'],
                                   'next_action': m['next_action'],

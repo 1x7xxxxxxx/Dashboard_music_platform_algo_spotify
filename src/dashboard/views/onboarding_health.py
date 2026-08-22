@@ -13,6 +13,8 @@ exact next action. Admin sees every active artist; an artist sees their own row.
 import pandas as pd
 import streamlit as st
 
+from src.dashboard.utils.status_matrix import render_status_matrix
+
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
 from src.utils.artist_readiness import artist_readiness, NO_DATA
@@ -61,7 +63,10 @@ def show():
             total_red += len(reds)
             header = f"{name} (id={aid}) — " + " ".join(m["icon"] for m in matrix)
             with st.expander(header, expanded=bool(reds) or not is_admin()):
-                st.dataframe(_matrix_df(matrix), hide_index=True, width="stretch")
+                # The same renderer as the artist's own pages: an admin looking at a
+                # blocked tenant must see exactly what that tenant sees, or the two
+                # of them are talking about different screens.
+                render_status_matrix(db, aid, key_suffix=f"health{aid}")
 
         if is_admin():
             if total_red:

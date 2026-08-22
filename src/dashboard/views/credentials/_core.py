@@ -85,6 +85,32 @@ def _get_fernet():
         return None
 
 
+def fernet_state() -> str:
+    """Why encryption is unavailable, when it is: 'ok' | 'absent' | 'malformed'.
+
+    `_get_fernet()` returns None for two situations that need different gestures —
+    no key at all, and a key that is present but not a valid Fernet key (truncated
+    on a copy-paste, wrong encoding, a placeholder left in config.yaml). The banner
+    said "clé absente" for both, sending someone to generate a second key when the
+    real fix was to repair the one already there.
+    """
+    import os
+    from cryptography.fernet import Fernet
+    key = os.environ.get('FERNET_KEY', '')
+    if not key:
+        try:
+            key = (config_loader.load() or {}).get('fernet_key', '')
+        except Exception:  # noqa: BLE001 — no config file is "absent", not an error
+            key = ''
+    if not key:
+        return 'absent'
+    try:
+        Fernet(key.encode() if isinstance(key, str) else key)
+    except Exception:  # noqa: BLE001
+        return 'malformed'
+    return 'ok'
+
+
 def _encrypt_secrets(secrets: dict) -> str:
     """Chiffre un dict de secrets en JSON avec Fernet."""
     f = _get_fernet()

@@ -86,7 +86,10 @@ class _FakeDB:
             return [("soundcloud", {"user_id": self.identity})] if self.identity else []
         if "spotify_artist_id" in low:
             return [(None,)]
-        return [(None,)]
+        # Since 2026-08-22 `check_freshness` asks Postgres for the age in the same
+        # statement as the value — one clock instead of two. Two columns:
+        # (MAX(col), age_hours). Nothing here has ever collected, so both are NULL.
+        return [(None, None)]
 
     def close(self):
         pass

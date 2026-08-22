@@ -5,6 +5,8 @@ Uses: streamlit, pandas, requests, _core, _registry, AirflowTrigger
 Pure relocation from the former credentials.py — no logic change.
 """
 import pandas as pd
+import logging
+
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
@@ -22,10 +24,11 @@ from ._core import (
     _encrypt_secrets,
     _mask,
     _save_credentials,
-    app_level_configured,
     extract_spotify_artist_id,
 )
-from ._registry import PLATFORMS, CONNECTION_TESTS
+from ._registry import CONNECTION_TESTS
+
+logger = logging.getLogger(__name__)
 from src.dashboard.content.credential_guides_st import render_credential_guide_for
 from src.utils.tenant_identity import mirrored_columns, write_platform_identity
 
@@ -48,57 +51,20 @@ def _declared_from_rows(existing: dict) -> set:
     return declared_identities(extra_by_platform)
 
 
-def _render_global_kpi(existing: dict, dag_states: dict) -> None:
-    """Summary row: one metric per platform showing credentials + last DAG run."""
-    cols = st.columns(len(PLATFORMS))
-    for col, (platform_key, platform_info) in zip(cols, PLATFORMS.items()):
-        # DECLARED, not "a row exists". `platform_key in existing` showed ✅
-        # "Connecté — ton compte" for a tab the artist opened and saved blank, while
-        # the readiness matrix showed ⚪ for the same tenant on the same data.
-        has_db_creds = platform_key in _declared_from_rows(existing)
-        # App-level keys (env / config.yaml) count as configured too — the
-        # collectors fall back to them, so a missing DB row is not "unconfigured".
-        has_app_creds = app_level_configured(platform_key)
-        dags = PLATFORM_TO_DAGS.get(platform_key, [])
-
-        # Last run state across all DAGs for this platform (worst state wins)
-        states = [dag_states.get(d, {}).get('state') for d in dags]
-        if 'failed' in states:
-            run_icon = '🔴'
-            run_label = t("credentials.kpi.run_failed", "Dernier run : FAILED")
-        elif 'running' in states:
-            run_icon = '🔵'
-            run_label = t("credentials.kpi.run_running", "En cours")
-        elif 'success' in states:
-            run_icon = '🟢'
-            run_label = t("credentials.kpi.run_ok", "Dernier run : OK")
-        elif not dag_states:
-            run_icon = '⚫'
-            run_label = t("credentials.kpi.run_unreachable", "Airflow inaccessible")
-        else:
-            run_icon = '⚫'
-            run_label = t("credentials.kpi.run_never", "Jamais exécuté")
-
-        # Three honest states: only a per-artist row means "you connected your account".
-        # The shared platform app being present (env) is NOT "done" — it just means the
-        # artist can connect with a single identifier. Conflating the two made the page
-        # read "configured" when the artist had done nothing.
-        if has_db_creds:
-            creds_icon = '✅'
-            creds_label = t("credentials.kpi.connected", "Connecté — ton compte")
-        elif has_app_creds:
-            creds_icon = '🟢'
-            creds_label = t("credentials.kpi.app_ready", "App prête — à connecter")
-        else:
-            creds_icon = '⚪'
-            creds_label = t("credentials.kpi.not_configured", "À connecter")
-
-        col.metric(
-            label=platform_info['label'],
-            value=f"{creds_icon} {creds_label}",
-            delta=f"{run_icon} {run_label}",
-            delta_color="off",
-        )
+# `_render_global_kpi` lived here until 2026-08-22 and was replaced by
+# `src/dashboard/utils/status_matrix.render_status_matrix`. Two reasons, both
+# measured, and both worth keeping written down so it does not come back:
+#
+#   * its second axis was `_fetch_dag_last_states()` — the last run of each DAG
+#     ACROSS THE FLEET. It could read 🟢 while this particular artist had zero rows,
+#     which is precisely the state two beta sessions were spent on.
+#   * it iterated `PLATFORMS`, the four form TABS, while five logical platforms
+#     exist. Instagram — whose identity is a field of the Meta tab — had no column,
+#     so a tenant whose only identity was `ig_user_id` read "à connecter" while
+#     `instagram_daily` collected for them.
+#
+# The per-tab DAG badge below stays: there, the fleet state is what the caption
+# claims to show.
 
 
 def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
@@ -400,10 +366,30 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                     st.toast(t("credentials.collect_started",
                                "🚀 Collecte {platform} lancée — données disponibles dans ~2 min").format(
                                    platform=platform_key), icon="✅")
+                else:
+                    # `trigger_dag` RETURNS {'success': False} on an HTTP error — it
+                    # never raises, so the `except` below could not see the most
+                    # likely failures (Airflow unreachable, wrong credentials, 403).
+                    # The artist read "✅ Credentials enregistrés", no first pull ever
+                    # ran, and nothing said so: literally "I connected it and nothing
+                    # happened". Same class as `delivery-failure-logged-as-success`,
+                    # one layer up.
+                    logger.error("post-save trigger of %s failed for artist %s: %s",
+                                 dag_id, artist_id, result.get('error'))
+                    st.warning(t(
+                        "credentials.dag_trigger_refused",
+                        "⚠️ Identifiants enregistrés, mais la première collecte "
+                        "**{dag}** n'a pas pu démarrer. Tes données arriveront à la "
+                        "prochaine collecte automatique (cette nuit). Si rien n'est "
+                        "arrivé demain, préviens-nous."
+                    ).format(dag=dag_id))
             except Exception as trigger_err:
+                logger.error("post-save trigger of %s raised for artist %s: %s",
+                             dag_id, artist_id, type(trigger_err).__name__)
                 st.warning(t("credentials.dag_trigger_failed",
-                             "⚠️ Credentials enregistrés mais déclenchement DAG échoué : {err}").format(
-                                 err=trigger_err))
+                             "⚠️ Identifiants enregistrés, mais la première collecte "
+                             "n'a pas pu démarrer ({err}). Elle repartira cette nuit."
+                             ).format(err=type(trigger_err).__name__))
 
         st.success(t("credentials.save_ok",
                      "✅ Credentials {platform} enregistrés.").format(platform=platform_key))

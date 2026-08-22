@@ -153,7 +153,6 @@ def check_freshness(db, artist_id=None):
     see `expected_silence`, which every display surface is expected to honour.
     """
     results = []
-    now = datetime.now()
 
     for t in MONITOR_TARGETS:
         val = None
@@ -179,24 +178,42 @@ def check_freshness(db, artist_id=None):
 
             if table not in _ALLOWED_TABLES or col not in _ALLOWED_COLS:
                 raise ValueError(f"Identifier not in allowlist: {table}.{col}")
+            # The age is computed BY POSTGRES, in the same statement that reads the
+            # value. It used to be `datetime.now() - val` in Python, and that is two
+            # clocks: `datetime.now()` is NAIVE, so it is the container's local time,
+            # while psycopg2 converts an aware timestamp to the SESSION timezone when
+            # writing into a `timestamp without time zone` column — Europe/Paris here.
+            #
+            # Measured 2026-08-22 from a container with no TZ set: SoundCloud reported
+            # an age of -1h, a row in the future. It only agreed at all because the
+            # scheduler happens to run in Paris. The error is OPTIMISTIC — a genuinely
+            # stale source keeps reading fresh for one or two hours — which is the
+            # worst direction for a staleness check.
+            #
+            # One clock, and it is the clock of the database that holds the rows.
             if scoped:
                 row = db.fetch_query(
-                    f"SELECT MAX({col}) FROM {table} WHERE artist_id = %s",
+                    f"SELECT MAX({col}), "
+                    f"EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "
+                    f"FROM {table} WHERE artist_id = %s",
                     (artist_id,)
                 )
             else:
                 row = db.fetch_query(
-                    f"SELECT MAX({col}) FROM {table}"
+                    f"SELECT MAX({col}), "
+                    f"EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "
+                    f"FROM {table}"
                 )
 
             val = row[0][0] if row and row[0][0] is not None else None
+            raw_age = row[0][1] if row and row[0][1] is not None else None
 
             # Normaliser en datetime (DATE → datetime)
             if val is not None and not isinstance(val, datetime):
                 val = datetime(val.year, val.month, val.day, 0, 0, 0)
 
-            if val is not None:
-                age_h = (now - val).total_seconds() / 3600
+            if val is not None and raw_age is not None:
+                age_h = float(raw_age)
                 stale = age_h > t['stale_h']
 
             # "Nothing arrived" and "nothing was supposed to arrive" are different

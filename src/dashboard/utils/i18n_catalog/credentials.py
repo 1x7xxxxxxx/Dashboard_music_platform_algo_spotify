@@ -46,14 +46,25 @@ EN = {
     "credentials.field.user_id": "Numeric User ID (e.g. 377065610)",
     "credentials.field.account_id": "Ad Account ID (act_… or numeric)",
     # ── _render.py — global KPI ────────────────────────────────────────
-    "credentials.kpi.run_failed": "Last run: FAILED",
-    "credentials.kpi.run_running": "Running",
-    "credentials.kpi.run_ok": "Last run: OK",
-    "credentials.kpi.run_unreachable": "Airflow unreachable",
-    "credentials.kpi.run_never": "Never run",
-    "credentials.kpi.connected": "Connected — your account",
-    "credentials.kpi.app_ready": "Shared app — to connect",
-    "credentials.kpi.not_configured": "To connect",
+    # The eight `credentials.kpi.*` keys were removed on 2026-08-22 with the strip
+    # they belonged to. Left behind they would have been orphans — EN text nothing
+    # renders — which `tests/test_i18n_orphans.py` catches, and did.
+    # --- Setup matrix header (replaced the fleet-level KPI strip, 2026-08-22) ---
+    "credentials.matrix_header": "#### 📋 Your platforms at a glance",
+    "credentials.matrix_legend":
+        "**Set up**: you entered the identifier. **Responds**: the platform answered "
+        "us correctly. **Data**: figures actually arrived. No check is run until you "
+        "click.",
+    # --- Encryption key: absent and malformed need opposite gestures ---
+    "credentials.fernet_malformed":
+        "⚠️ The encryption key (`FERNET_KEY`) is **present but invalid** — most "
+        "likely truncated when copied. Do NOT generate a new one: already-saved "
+        "credentials would stop decrypting. Repair this one.",
+    # --- A first collection that could not be started ---
+    "credentials.dag_trigger_refused":
+        "⚠️ Credentials saved, but the first **{dag}** collection could not start. "
+        "Your data will arrive with tonight's automatic run. If nothing has arrived "
+        "tomorrow, let us know.",
     # ── _render.py — DAG status badge ──────────────────────────────────
     "credentials.dag_badge": (
         "DAG `{dag_id}` — {icon} **{state}** — last run: {date}"

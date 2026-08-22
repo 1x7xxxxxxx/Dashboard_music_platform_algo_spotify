@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import tenant_scope
+from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
@@ -167,6 +168,15 @@ def _section_onboarding(db, artist_id: int) -> None:
     for done, label, _page in steps:
         icon = "✅" if done else "⬜"
         st.markdown(f"{icon} {label}")
+
+    # One compact line of per-platform boxes, only while something is still amber or
+    # red. The steps above are STAGES ("import a CSV"); this is per PLATFORM, which
+    # is the axis an artist actually asks about — "is my SoundCloud working?".
+    if not all_done:
+        st.caption(t("home.matrix_caption",
+                     "Par plateforme — survole une case pour le détail :"))
+        render_status_matrix(db, artist_id, compact=True, allow_probe=False,
+                             key_suffix="home")
 
     st.markdown("---")
 

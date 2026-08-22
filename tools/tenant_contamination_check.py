@@ -129,6 +129,8 @@ _OUT_OF_SCOPE = {
     "etl_run_log": "pipeline telemetry",
     "etl_circuit_breaker": "pipeline telemetry",
     "artist_wrapped": "derived from the tenant's own data",
+    "tenant_platform_probe": "our own record of what a platform answered us — not "
+                             "data fetched under the tenant's identity",
     # CSV/manual sources: the tenant is stamped at upload time from the session, not
     # resolved from a platform identity, so there is no identity to compare against.
     "apple_daily_plays": "Apple Music CSV upload",

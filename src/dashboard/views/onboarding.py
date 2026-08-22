@@ -18,6 +18,7 @@ from src.dashboard.content.platform_value import (
     BY_KEY, RECOMMENDED, ordered_for_setup, total_effort,
 )
 from src.dashboard.utils.setup_focus import FOCUS_KEY
+from src.dashboard.utils.status_matrix import render_status_matrix
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -49,15 +50,18 @@ def _goto(page_key: str) -> None:
     st.rerun()
 
 
-def _get_configured_platforms(artist_id: int) -> set[str]:
+def _get_configured_platforms(artist_id: int, db) -> set[str]:
     """Platforms the artist has actually connected.
 
     "Connected" means an IDENTITY was declared, not that a row exists: a tab opened
     and saved blank left a row behind and counted as connected here while the
     readiness matrix said ⚪. Instagram has no row of its own — it rides the `meta`
     row via `ig_user_id` — and the registry knows that, so this no longer restates it.
+
+    The caller owns the connection and hands it in. This view is capped at ONE
+    opened connection by `tests/test_view_connection_budget.py` — a textual count —
+    and `_step_credentials` needs the same one for the status matrix.
     """
-    db = get_db_connection()
     if db is None or artist_id is None:
         return set()
     try:
@@ -86,8 +90,6 @@ def _get_configured_platforms(artist_id: int) -> set[str]:
             "instant avant de tout reconfigurer."
         ).format(err=type(e).__name__))
         return set()
-    finally:
-        db.close()
 
 
 def _step_welcome(plan: str) -> None:
@@ -154,7 +156,23 @@ def _step_credentials(plan: str, artist_id: int) -> None:
           "maintenant — le reste attendra dans **Credentials API**.")
     )
 
-    configured = _get_configured_platforms(artist_id)
+    # One connection for the whole step: the matrix and the checkbox list ask the
+    # same database about the same tenant.
+    db = get_db_connection()
+    configured = _get_configured_platforms(artist_id, db)
+
+    if db is not None and artist_id is not None:
+        st.markdown(t("onboarding.matrix_header",
+                      "#### 📋 Où tu en es, plateforme par plateforme"))
+        render_status_matrix(db, artist_id, key_suffix="onboarding")
+        st.caption(t(
+            "onboarding.matrix_legend",
+            "**Configuré** : l'identifiant est saisi. **Répond** : la plateforme "
+            "nous a bien répondu. **Données** : des chiffres sont arrivés."))
+        st.markdown("---")
+    if db is not None:
+        db.close()
+
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
     plan_ranks = {'free': 0, 'premium': 1}

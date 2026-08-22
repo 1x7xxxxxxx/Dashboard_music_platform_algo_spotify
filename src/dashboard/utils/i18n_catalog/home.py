@@ -12,6 +12,7 @@ EN = {
     "home.total_all_platforms": "🎧 Total streams across all platforms",
     "home.ig_followers": "📸 Instagram Followers",
     # Onboarding tracker
+    "home.matrix_caption": "Per platform — hover a box for the detail:",
     "home.onboarding_creds": "🔑 Configure API credentials",
     "home.onboarding_s4a": "📂 Upload a Spotify for Artists CSV",
     "home.onboarding_apple": "🍎 Upload an Apple Music CSV",

@@ -63,6 +63,9 @@ _ALLOWED_TABLES = frozenset({
     'campaign_mapping_rejected',
     'app_operating_costs',
     'sacem_statement',
+    # Monitoring ledgers — written by alert_monitor and by the setup matrix.
+    'monitoring_run',
+    'tenant_platform_probe',
 })
 
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')

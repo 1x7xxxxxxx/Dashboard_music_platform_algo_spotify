@@ -146,6 +146,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [delivery-failure-logged-as-success](#delivery-failure-logged-as-success) | P1 | deterministic | guarded | none |
 | [static-hint-contradicts-the-live-probe](#static-hint-contradicts-the-live-probe) | P2 | deterministic | guarded | none |
 | [detector-written-and-never-called](#detector-written-and-never-called) | P2 | deterministic | guarded | none |
+| [age-computed-against-another-clock](#age-computed-against-another-clock) | P2 | deterministic | guarded | none |
+| [audit-scope-restated-not-derived](#audit-scope-restated-not-derived) | P2 | deterministic | guarded | none |
+| [upsert-freezes-its-own-timestamp](#upsert-freezes-its-own-timestamp) | P2 | deterministic | guarded | none |
+| [two-doors-onto-one-database](#two-doors-onto-one-database) | P2 | deterministic | guarded | none |
+| [unmeasured-rendered-as-measured](#unmeasured-rendered-as-measured) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1553,3 +1558,78 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Found by asking, of every monitoring helper, "who calls this?" — the same question that found the roadmap guard matching a hand-written verb list. The answer is worth asking of any module whose entire purpose is to be called by something else.
+
+## age-computed-against-another-clock
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a staleness check compares a stored timestamp against a clock that is not the one that wrote it. The verdict is wrong by the offset between the two, in the OPTIMISTIC direction — a genuinely stale source keeps reading fresh — and in the extreme it reports a row in the future.
+- signature: `python3 -m pytest tests/test_freshness_uses_one_clock.py -q`
+- root_cause: `src/utils/freshness_monitor.py` computed `datetime.now() - val`. `datetime.now()` is NAIVE, so it is the CONTAINER's local time, while psycopg2 converts an aware timestamp to the SESSION timezone when writing into a `timestamp without time zone` column — Europe/Paris in production. Measured 2026-08-22 from a container with no `TZ`: SoundCloud reported an age of **-1h**. It agreed at all only because the Airflow scheduler happens to run in Paris.
+- long_term_fix: the age is computed by Postgres in the same statement that reads the value (`EXTRACT(EPOCH FROM (now() - MAX(col)))/3600`). One clock, and it is the clock of the database that holds the rows. The guard asserts both the shape (no argless `now()`/`utcnow()` anywhere in the module) and the behaviour (the reported age does not move when the process timezone changes).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_freshness_uses_one_clock.py }
+- rex_ref: src/utils/freshness_monitor.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Verified RED by restoring the Python subtraction and running under `TZ=Pacific/Kiritimati`. The behavioural half matters more than the structural one: a future `datetime.now(tz)` would pass the AST check and still be a second clock.
+
+## audit-scope-restated-not-derived
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a check iterates a hand-typed list of the things it audits while a registry of those things already exists. The list is a subset, and the difference is invisible — the audit reports cleanly on what it never looked at.
+- signature: `python3 -m pytest tests/test_audit_scope_is_derived.py -q`
+- root_cause: `alert_monitor.MONITORED_PLATFORMS = ['spotify','youtube','soundcloud','meta']` — four names, while `tenant_identity.PLATFORM_IDENTITIES` has five. **Instagram was never audited.** Compounded by `if not creds`, which tested the credentials dict for EMPTINESS rather than for a declared identity: Benken's `meta` row holds an `account_id` and nothing else, so it counted as "credentials present" for a platform that has never produced a row — and would have counted as proof for Instagram too, since the two share one storage row.
+- long_term_fix: the scope is `sorted(PLATFORM_IDENTITIES)`, and presence is judged by `declared_identities()` — the helper written for exactly this question. The guard fails if a literal list returns, if the audited set differs from the registry, or if a `not creds` truthiness test reappears (checked on the AST, because a text search matched the comment explaining why it is wrong).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_audit_scope_is_derived.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Same family as `guard-scope-is-a-hand-written-list`, one level up: there the scope of a GUARD was typed by hand, here the scope of an AUDIT.
+
+## upsert-freezes-its-own-timestamp
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: an upsert refreshes a row's data and leaves its `collected_at` at the value of the first insert. The rows are current; every reader of `MAX(collected_at)` reports the date of the first collection, forever.
+- signature: `python3 -m pytest tests/test_upsert_refreshes_its_timestamp.py -q`
+- root_cause: `src/collectors/_meta_upsert.py` omitted `collected_at` from `update_columns` on the three config tables and on all but one insight table. Measured 2026-08-22: `pg_stat_user_tables` showed **17 545 UPDATE and 0 INSERT on `meta_insights`** that morning while `MAX(collected_at)` said 29 May. The payloads carried the key all along — it was discarded on conflict.
+- long_term_fix: `collected_at` is appended to every insight table's update list by a loop rather than typed 25 times, and added explicitly to the three config literals. The guard checks the SHAPE across every table plus a live round-trip (upsert twice, the clock must move) and its inverse (omit the column, the clock must freeze) so the assertion is not true of any upsert at all.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_upsert_refreshes_its_timestamp.py }
+- rex_ref: src/collectors/_meta_upsert.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Exactly one table already had it — `meta_insights_performance_day`, which is also the only Meta table `freshness_monitor` watches. The monitor was pointed at the one clock that moved, which is why the discrepancy never surfaced as an alert and had to be found by reading `pg_stat_user_tables`.
+
+## two-doors-onto-one-database
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: two halves of one application resolve the same database by two different precedences, and neither works in the other's configuration. Moving a variable that looks standard breaks one half in silence.
+- signature: `python3 -m pytest tests/test_one_door_onto_the_database.py -q`
+- root_cause: `dashboard/utils/get_db_connection` read `DATABASE_URL` → `config.yaml` and never `DATABASE_HOST`; `pg_connect.resolve_kwargs` reads `DATABASE_HOST` → `config.yaml` and never `DATABASE_URL`. Measured in production 2026-08-22: the dashboard and api containers carry ONLY `DATABASE_URL`, the Airflow scheduler carries ONLY `DATABASE_HOST/NAME/USER`, and no container has a `config.yaml`. So each half depended on the one mechanism the other ignored.
+- long_term_fix: `get_db_connection` delegates to `PostgresHandler.from_env_or_config()`, which already knew all three sources — it was written on 2026-08-21 for this reason and its docstring already described the asymmetry. The guard is a RATCHET over the 14 pre-existing direct readers: the list may shrink, never grow, and a companion test fails when an entry goes stale.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_one_door_onto_the_database.py }
+- rex_ref: src/dashboard/utils/__init__.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Rewriting fourteen DAGs was not the ask and would have been risk without benefit; the ratchet stops a fifteenth precedence appearing, which is the actual failure mode.
+
+## unmeasured-rendered-as-measured
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a status display shows a green indicator for something nobody has checked. The viewer cannot tell "verified and fine" from "never asked", and acts on the first reading.
+- signature: `python3 -m pytest tests/test_status_matrix.py -q`
+- root_cause: the setup matrix must not call a platform API while rendering — Streamlit reruns the page on every widget interaction, so probing on render is five API calls per click per tenant. That constraint makes "we have not measured this" a common state, and the tempting shortcut is to render it like a pass.
+- long_term_fix: three rules in `src/dashboard/utils/status_matrix.py`, each with a test: arriving data counts as proof without any probe (freshness IS the proof); a platform with no remembered verdict renders `?` in grey, never a tick; and a remembered verdict always carries its age, so a nine-day-old measurement cannot read as today's. The verdicts are persisted by the nightly run (`tenant_platform_probe`, migration 075) so the artist reads the same sentence the alert email carries.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_status_matrix.py }
+- rex_ref: src/dashboard/utils/status_matrix.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Same rule as `probe_ran` in the nightly readiness path, applied to a screen instead of an email. Verified RED by making an absent verdict render green, and by probing on render.

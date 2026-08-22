@@ -102,11 +102,18 @@ def test_the_log_cannot_claim_a_delivery_that_did_not_happen(monkeypatch, caplog
 
 # ── the class sweep: no result may be discarded ──────────────────────────────
 
-_SEND_METHODS = {"send_alert", "send_email", "deliver_or_raise"}
+# Every call whose boolean result answers "did anyone / anything actually get told?".
+# `trigger_dag` joined the list on 2026-08-22: it RETURNS {'success': False} on an
+# HTTP error and never raises, so the credentials form's `except Exception` could not
+# see Airflow being unreachable, the credentials being wrong, or a 403. The artist
+# read "✅ Credentials enregistrés" and no first collection ever ran — the same defect
+# as the alert below, one layer up, found the day this sweep was written.
+_SEND_METHODS = {"send_alert", "send_email", "deliver_or_raise", "trigger_dag"}
 _SCANNED = [
     REPO / "airflow" / "dags",
     REPO / "airflow" / "debug_dag",
     REPO / "src" / "utils",
+    REPO / "src" / "dashboard" / "views",
 ]
 # `dag_failure_callback` runs INSIDE an Airflow failure callback, where a raise is
 # swallowed by the scheduler anyway. Binding the result there would be theatre.
@@ -129,7 +136,7 @@ def _discarded_send_calls() -> list[str]:
                         continue
                     f = node.value.func
                     name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
-                    if name in _SEND_METHODS and name != "deliver_or_raise":
+                    if name in _SEND_METHODS and name != "deliver_or_raise":  # noqa: SIM102
                         out.append(f"{path.relative_to(REPO)}:{node.lineno} "
                                    f"in {fn.name}() — {name}(...) result discarded")
     return out

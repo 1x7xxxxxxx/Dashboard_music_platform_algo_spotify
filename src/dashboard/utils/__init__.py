@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import sys
 from contextlib import contextmanager
@@ -9,7 +8,9 @@ from typing import Iterator, Optional
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.database.postgres_handler import PostgresHandler
-from src.utils.config_loader import config_loader
+# `config_loader` is no longer imported here: the config.yaml fallback moved
+# into `PostgresHandler.from_env_or_config()`, which is the single place that
+# knows the DATABASE_URL → DATABASE_* → config.yaml precedence.
 
 _ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 
@@ -38,27 +39,28 @@ def logo_html(variant: str = "dark", max_width: int = 220, center: bool = False)
 
 
 def get_db_connection() -> Optional[PostgresHandler]:
-    """
-    Create a PostgreSQL connection.
+    """Create a PostgreSQL connection for a dashboard page. None on failure.
 
-    Priority:
-    1. DATABASE_URL env var (Railway / production deployment).
-    2. config/config.yaml database section (local Docker dev).
+    Delegates to `PostgresHandler.from_env_or_config()` — the one place that knows
+    the precedence `DATABASE_URL` → the `DATABASE_*` variables → `config.yaml`.
+
+    This function used to restate that precedence and skip the middle step, and the
+    omission was not theoretical. Measured in production on 2026-08-22:
+
+        streamlytics_dashboard / streamlytics_api : DATABASE_URL only
+        airflow_scheduler                          : DATABASE_HOST/NAME/USER only
+        every container                            : no config.yaml at all
+
+    So the two halves of the product reached one database through two mechanisms,
+    neither of which worked in the other's place. Setting `DATABASE_HOST` on the
+    dashboard, or `DATABASE_URL` on the scheduler, silently broke that half — the
+    dashboard falling through to a `config.yaml` that does not exist.
+
+    The Streamlit-specific part stays here, and only that: turning a failure into a
+    red banner and a None, because a view must degrade rather than crash.
     """
     try:
-        database_url = os.environ.get("DATABASE_URL")
-        if database_url:
-            return PostgresHandler.from_url(database_url)
-
-        config = config_loader.load()
-        db_config = config['database']
-        return PostgresHandler(
-            host=db_config['host'],
-            port=db_config['port'],
-            database=db_config['database'],
-            user=db_config['user'],
-            password=db_config['password']
-        )
+        return PostgresHandler.from_env_or_config()
     except Exception as e:
         st.error(f"❌ Erreur de connexion BDD : {e}")
         return None

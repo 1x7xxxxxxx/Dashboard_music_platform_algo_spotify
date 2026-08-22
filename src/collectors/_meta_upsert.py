@@ -34,6 +34,9 @@ class _MetaUpsertMixin:
                         'campaign_name', 'status', 'objective',
                         'daily_budget', 'lifetime_budget', 'start_time',
                         'end_time', 'created_time', 'updated_time',
+                        # See _insight_upsert_maps: an upsert that refreshes the row
+                        # and not its timestamp freezes every "last updated" reading.
+                        'collected_at',
                     ],
                 )
 
@@ -48,6 +51,7 @@ class _MetaUpsertMixin:
                         'countries', 'cities', 'gender', 'age_min', 'age_max',
                         'flexible_inclusions', 'advantage_audience',
                         'publisher_platforms', 'instagram_positions', 'device_platforms',
+                        'collected_at',
                     ],
                 )
 
@@ -58,6 +62,7 @@ class _MetaUpsertMixin:
                     update_columns=[  # artist_id excluded — see meta_campaigns above
                         'ad_name', 'adset_id', 'campaign_id',
                         'status', 'creative_id', 'created_time', 'updated_time',
+                        'collected_at',
                     ],
                 )
 
@@ -185,6 +190,24 @@ class _MetaUpsertMixin:
                 _insight_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _eng_bd_cols
                 _conflict_cols[f'meta_insights_performance_{_lvl}_{_dim}'] = _key
                 _conflict_cols[f'meta_insights_engagement_{_lvl}_{_dim}'] = _key
+
+        # `collected_at` on EVERY table, derived rather than typed 25 times.
+        #
+        # Measured 2026-08-22: `pg_stat_user_tables` showed 17 545 UPDATEs and 0
+        # INSERTs on `meta_insights` that morning — the rows were refreshed and
+        # `collected_at` still said May, because the column was not in the update
+        # list. Any surface reading MAX(collected_at) on those tables was three
+        # months wrong.
+        #
+        # Exactly one table already had it: `meta_insights_performance_day`. That is
+        # also the only Meta table `freshness_monitor` watches — the monitor was
+        # pointed at the one table whose clock moved, which is why the discrepancy
+        # never surfaced as an alert. The payloads all carry the key already
+        # (`_meta_insight_fetch.py:157`, `_meta_config_fetch.py:51,113,148`), so this
+        # only stops the value being discarded on conflict.
+        for _tbl, _cols in _insight_cols.items():
+            if 'collected_at' not in _cols:
+                _cols.append('collected_at')
 
         return _insight_cols, _conflict_cols
 

@@ -11,6 +11,10 @@ EN = {
     "onboarding.upgrade_to": "Upgrade to {tier} →",
     "onboarding.next_data": "Next: Set up my data →",
     # Step 2 — Credentials
+    "onboarding.matrix_header": "#### 📋 Where you stand, platform by platform",
+    "onboarding.matrix_legend":
+        "**Set up**: the identifier is entered. **Responds**: the platform "
+        "answered us. **Data**: figures have arrived.",
     "onboarding.creds_title": "🔑 Where do you want to start?",
     "onboarding.creds_body": (
         "**You do not have to connect everything.** Tick what you want to set up "

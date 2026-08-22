@@ -23,9 +23,10 @@ from src.dashboard.utils.setup_focus import (
     connected_platforms, get_focus, progress, remaining,
 )
 
-from ._core import _get_fernet, _load_credentials, _fetch_dag_last_states
+from ._core import _load_credentials, _fetch_dag_last_states, fernet_state
 from ._registry import PLATFORMS
-from ._render import _render_global_kpi, _render_platform_tab
+from ._render import _render_platform_tab
+from src.dashboard.utils.status_matrix import render_status_matrix
 
 
 def show():
@@ -59,8 +60,20 @@ def show():
                 return
 
         # ── Vérification Fernet ───────────────────────────────────────────
-        fernet_ok = _get_fernet() is not None
-        if not fernet_ok:
+        # Say WHICH failure. "absent" and "malformed" call for opposite gestures —
+        # generate a new key, versus repair the one that is already there — and the
+        # banner used to say "absent" for both.
+        _fernet_state = fernet_state()
+        fernet_ok = _fernet_state == 'ok'
+        if _fernet_state == 'malformed':
+            st.error(t(
+                "credentials.fernet_malformed",
+                "⚠️ La clé de chiffrement (`FERNET_KEY`) est **présente mais "
+                "invalide** — elle a probablement été tronquée à la copie. "
+                "N'en génère pas une nouvelle : les credentials déjà enregistrées "
+                "ne se déchiffreraient plus. Répare celle-ci."
+            ))
+        elif _fernet_state == 'absent':
             st.warning(t(
                 "credentials.fernet_missing",
                 "⚠️ `fernet_key` absent de `config/config.yaml`. "
@@ -78,8 +91,20 @@ def show():
                           "Récupération du statut des DAGs…")):
             dag_states = _fetch_dag_last_states()
 
-        # ── KPI global ───────────────────────────────────────────────────
-        _render_global_kpi(existing, dag_states)
+        # ── Matrice de setup ─────────────────────────────────────────────
+        # Remplace l'ancien bandeau KPI, dont le second axe était l'état Airflow de
+        # la FLOTTE : il pouvait afficher 🟢 pendant que ce locataire-ci n'avait pas
+        # une seule ligne. Et il itérait les 4 onglets, donc Instagram — qui est une
+        # plateforme partout ailleurs — n'y figurait pas.
+        st.markdown(t("credentials.matrix_header",
+                      "#### 📋 État de tes plateformes"))
+        render_status_matrix(db, target_artist_id, key_suffix="creds")
+        st.caption(t(
+            "credentials.matrix_legend",
+            "**Configuré** : tu as saisi l'identifiant. **Répond** : la plateforme "
+            "nous a répondu correctement. **Données** : des chiffres sont bien "
+            "arrivés. Aucune vérification n'est lancée tant que tu ne cliques pas."))
+        st.markdown("---")
 
         # ── Reprise de la sélection faite à l'onboarding ──────────────────
         # Without this the artist arrives on six equal tabs and has to remember
