@@ -52,112 +52,86 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait le 2026-08-22. Déployé et vérifié en prod (`prod == canonique`, 921/921 colonnes, Caddy inclus). Filet du canari porté de 2 à **3 plateformes sur 5** — SoundCloud ajouté (id public 112904040, 1498 lignes collectées, contamination propre). Meta et Instagram **ne peuvent pas être canaris** : il n'existe aucun compte publicitaire ni compte IG Business public, et prendre ceux de l'admin ferait passer le canari au vert *à cause* de la fuite qu'il doit détecter. Ils sont donc prouvés **par artiste invité**, `make artist-preflight ARTIST=<son id>` juste après sa connexion — décision argumentée dans **ADR-010**. Runbook §5. |
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
 
-## 🔖 REPRISE — état au 2026-08-22 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-08-22, séance close (à lire EN PREMIER au `/resume`)
 
-**▶️ Séance du 2026-08-22 (soir) — la chaîne credentials → collecte est prouvable en
-continu.** Détail dans `archive.md`. Ce qu'il faut retenir : les détecteurs existaient
-et voyaient juste ; ce qui manquait était **la preuve que leur constat sortait de la
-boîte** (trois nuits d'alertes évaporées, tâche verte) et **le diagnostic vivant**
-(la base sait *qu'*il ne se passe rien, seule l'API sait *pourquoi* — et seule la base
-tournait). Plus un P1 : ré-enregistrer l'onglet Meta détruisait le token System User de
-toute la flotte.
+**▶️ L'index actionnable est vide. Il reste UNE entrée sur toute la roadmap : R1,
+inviter des proches** — et c'est la seule qu'aucune machine ne peut faire à ta place.
 
-Deux pannes de collecte restent VIVANTES en prod, désormais nommées correctement chaque
-nuit et **en tête du sujet** de l'alerte :
-- **Benken / Meta** — `(#200) Ad account owner has NOT granted ads_management` sur
-  `act_65390907`. Geste de Benken, pas correctif de code.
-- **GRiNCH / SoundCloud** — profil sans titre public ; ses sorties paraissent sous
-  d'autres comptes. Le champ « Mes titres hébergés ailleurs » de l'onglet SoundCloud
-  est la réponse, il reste à lui faire coller ses URLs.
+Tout est déployé et vérifié : `prod == canonique`, **75 migrations**, code déployé ==
+`origin/main`, `deploy/Caddyfile` == ce que Caddy sert, **1399 tests verts** contre une
+vraie base, ruff propre, `audit_runner --deterministic` clean, `make config-check` clean,
+**92 classes d'erreur** toutes gardées et complètes.
 
-**▶️ L'index actionnable est vide, et R22 est close.** R23→R31 livrées, gardées et
-archivées dans la même séance ; le pentest n'a plus aucun volet ouvert. Il ne reste
-qu'**une** entrée sur toute la roadmap : R1, ouvrir la bêta — et c'est la seule qu'aucune
-machine ne peut faire à ta place, parce qu'elle consiste à inviter des gens.
+### Avant de conclure quoi que ce soit, demain
 
-**R22 close, et son ⅔ manquant n'attendait personne.** Je l'avais classé « en attente de
-toi » sur un raisonnement faux : le test d'intrusion réseau demande une machine *hors du
-VPS*, et celle-ci en est une. Ce que ça a donné —
-
-- **Scan de l'origine (167.233.92.1), 33 ports** : seul **22** répond. Postgres 5433,
-  Airflow 8080, Streamlit 8501 fermés, et même 80/443 injoignables en direct. Les noms
-  d'hôte résolvent sur Cloudflare, donc ils n'ont **pas** été scannés — c'est
-  l'infrastructure d'un tiers.
-- **TLS des trois noms** : aucun protocole obsolète accepté, ni Heartbleed, ni CCS
-  injection, ni ROBOT, certificats valides 5/5 magasins (expirent le 2026-11-09).
-- **Un écart réel** : le dashboard renvoyait 4 en-têtes de sécurité, l'API 6 — les deux
-  de plus viennent du middleware FastAPI, pas de Caddy, donc l'écart était invisible
-  depuis le dépôt. `deploy/Caddyfile` corrigé. ⚠️ **non validé par un binaire Caddy** ici.
-- **Fuzzing** : un vrai 500. `GET /streams/timeline?song=a%00b` — un octet NUL atteint
-  psycopg2 et lève une `ValueError` que personne ne rattrape. Fermé à la frontière,
-  gardé, re-fuzzé sur **4 graines / 1730 cas / zéro 5xx**.
-
-**✅ DÉPLOYÉ ET VÉRIFIÉ EN PROD** le 2026-08-22. `prod == canonique` : 921/921 colonnes,
-92/92 tables, 72 migrations enregistrées, code déployé == `origin/main` (`4803f48`),
-`deploy/Caddyfile` == ce que Caddy sert. Vérifié en fonction, pas seulement en
-structure : `?song=a%00b` rend **400** sur `api.streamlytics.fr` (500 avant), la page
-d'inscription répond 200, un appel sans jeton rend 401.
-
-Ordre suivi, et il compte : la **072 est purement additive**, donc migration AVANT le
-déploiement du code — l'inverse de ce que conseille `make migrate-prod`, dont
-l'avertissement vise le cas général où une migration retire quelque chose. Ici c'est le
-code neuf qui exige la colonne, donc migrer d'abord supprime toute fenêtre où l'API
-interroge une colonne absente. Sauvegarde prise avant (664 K).
-
-**Avant de conclure quoi que ce soit :**
 ```
 docker start postgres_spotify_airflow && python3 -m pytest tests/ -q
 ```
 ~160 tests exigent une base et **skippent en silence** sans elle. Toute la séance a
-tourné avec la base : **1312 verts, 0 rouge**, ruff propre, `audit_runner
---deterministic` clean, `make config-check` clean.
+tourné avec.
 
-**Ce que la séance du 2026-08-22 (jour) a livré :**
+### Les deux pannes de collecte encore vivantes en prod
 
-- **R23 — la page d'inscription n'est plus un oracle.** Réponse identique que l'adresse
-  existe ou non (avec un e-mail « ce compte existe déjà » au vrai propriétaire, sinon on
-  ment à l'honnête) ; codes promo validés APRÈS création ; budget par IP ; message
-  d'erreur générique portant une référence d'incident.
-- **R24 — une révocation révoque.** `active`/`role`/`artist_id` relus en base (30 s côté
-  dashboard, chaque requête côté API) et `saas_users.token_version` (migration **072**)
-  porté par le JWT. Les deux surfaces échouent en sens INVERSE sur une panne de base :
-  dashboard ouvert, API fermée — délibéré, argumenté dans le code.
-- **R25 — la règle #7 rétablie, sur 9 vues et pas 4.** Le balayage a trouvé
-  `artist_id_sql_filter()`, par où ~30 vues atteignent la base. `tenant_scope()` porte la
-  désambiguïsation une fois.
-- **R26 — le second facteur coûte quelque chose.** Le compteur de compte n'est plus remis
-  à 0 par le mot de passe quand un code est encore dû, un code faux compte, et le budget
-  est par IP (un nouvel onglet ne le rembourse plus).
-- **R27 — le détecteur de contamination dérive du schéma.** Il connaissait 8 tables sur
-  ~70 et aucune entrée Spotify. Il a immédiatement trouvé `youtube_channel_history`.
-- **R28 — dette de schéma soldée** : 76 → 81 classes, **100 %** portent `root_cause` et
-  `long_term_fix`. Le contrôle CI passe de *advisory* à **bloquant**, comme son propre
-  commentaire le demandait.
-- **R29 — le budget de graphiques compte enfin ce que Few compte** : ce qui est dans le
-  coup d'œil, pas ce qui est dans le fichier. `data_wrapped` passe de 9 à **1** — il était
-  signalé à tort.
-- **R30 — les 9 constats BAS traités**, dont une clé Fernet valide retirée du CI (générée
-  par run), `src/utils/http_logger.py` **supprimé** (zéro importateur), et le logout qui
-  laissait `totp_secret` en session.
-- **R31 → ADR-009** : décision enregistrée plutôt que dette. Le garde d'accord a reçu son
-  plancher de non-vacuité.
-- **Cinq classes d'erreur capitalisées**, chacune avec une signature vue rouge sur le
-  défaut et verte après.
+Elles sont **réelles**, elles appartiennent à leurs propriétaires, et le produit les
+nomme désormais correctement chaque nuit **en tête du sujet** de l'alerte :
 
-**Ce que la séance a appris, et qui vaut plus que les correctifs** : trois fois sur
-neuf, la portée du garde était une **liste écrite à la main** — les 8 tables du détecteur
-de contamination, les 10 verbes français du garde de roadmap, les 6 clés de session du
-logout. C'est la classe `guard-scope-is-a-hand-written-list`, et elle était déjà nommée
-dans le REPRISE d'hier. Une liste ne signale jamais ce qu'elle ne couvre pas.
+- **Benken / Meta** — `(#200) Ad account owner has NOT granted ads_management` sur
+  `act_65390907`. Geste de Benken, pas correctif de code.
+- **GRiNCH / SoundCloud** — profil sans **aucun titre public** ; ses sorties paraissent
+  sous d'autres comptes. La réponse est construite : l'onglet SoundCloud a le champ
+  « Mes titres hébergés ailleurs ». Il reste à lui faire coller ses URLs.
 
-**Un défaut trouvé en lisant ce fichier** : `checklist.md` portait un bloc mort de
-~70 lignes (un index périmé disant « aucune », une table « en attente » sans R22, un
-doublon de R21) sous un titre cassé, `## 🔖 REPRISE\` ci-dessous.`. Un `/resume` qui
-tombait dessus lisait « aucune tâche ouverte ». Retiré.
+### Ce que les trois séances du 2026-08-22 ont livré
+
+**Matin — R23→R31 + R22.** Deux fuites d'authentification (oracle d'inscription,
+révocation qui ne révoquait rien), la règle #7 rétablie sur 9 vues et non 4, le pentest
+clos y compris son volet réseau — qui n'attendait personne, cette machine étant hors du
+VPS. Un vrai 500 trouvé par fuzzing (octet NUL → psycopg2).
+
+**Soir — la chaîne credentials → collecte rendue prouvable.** Fait contre-intuitif : les
+détecteurs existaient, tournaient et voyaient juste. Ce qui manquait était **la preuve
+que leur constat sortait de la boîte** — trois nuits d'alertes évaporées avec une tâche
+verte — et **le diagnostic vivant**. Plus un P1 : ré-enregistrer l'onglet Meta détruisait
+le token System User de toute la flotte.
+
+**Nuit — six correctifs d'audit et la matrice de setup.** Un déclenchement de collecte
+refusé était invisible ; le moniteur de fraîcheur comparait deux horloges (âge de −1 h
+mesuré) ; l'audit nocturne n'auditait pas Instagram ; l'upsert Meta gelait son
+horodatage ; deux portes mutuellement exclusives sur une base ; une clé Fernet malformée
+annoncée « absente ». Et la matrice **Configuré / Répond / Données** sur les 5
+plateformes, quatre surfaces, un seul renderer, **zéro appel API au rendu**.
+
+### Les deux leçons transverses de la journée, à relire avant d'écrire un garde
+
+1. **Un garde lit la structure, pas le texte.** Quatre gardes écrits ce jour ont échoué
+   sur *leur propre commentaire* (`if not creds`, `get_db_connection()`, `probe=`,
+   `send_alert`). Le piège n'est pas la gêne : c'est qu'on reformule la documentation
+   pour faire taire le test. Inspecter du code ⇒ AST.
+2. **Vérifier qu'une tâche est bloquée avant de la parquer.** « Hors du VPS » ne voulait
+   pas dire « hors de portée » : les ⅔ de R22 se sont faits en vingt minutes après avoir
+   été classés « en attente de toi ».
+
+Et une règle qui a payé trois fois : **la fraîcheur EST la preuve, la sonde n'est que
+l'explication.** Elle a dissous la question du budget d'API à chaque fois qu'elle s'est
+posée — 2 appels par nuit au lieu de 35, et zéro au rendu d'une page.
+
+### Deux points d'attention pour demain
+
+- `deploy/Caddyfile` a été modifié et rechargé, mais **la config n'a pas été validée par
+  un binaire Caddy depuis ce dépôt** (image indisponible ici) — elle l'a été sur la
+  boîte, et `make sync-check` compare désormais les deux.
+- Le hook RTK réécrit `git` en `rtk git` **à l'intérieur** d'une commande `ssh` : utiliser
+  `/usr/bin/git` quand on pilote la prod.
 
 ## 🔖 Historique — état au 2026-08-21
+
+> Bloc conservé pour le contexte. Les chiffres datés (taille du schéma, nombre de tests)
+> en ont été retirés le 2026-08-22 : ce fichier est le premier que `/resume` lit, et deux
+> états chiffrés s'y lisent comme deux prétentions au présent — c'est ce que
+> `test_the_roadmap_never_states_two_different_test_counts` empêche. L'état d'hier est
+> dans `archive.md` et le DEVLOG, datés.
 
 **streaMLytics est EN PRODUCTION et lançable.** (détail : `[[project_production_deploy]]`, DEVLOG suites 7→14)
 
@@ -294,8 +268,8 @@ sortie est redirigée. Passer par `audit_runner.py` ou `command grep`.
 
 **▶️ Où on en est (MAJ 2026-08-21, nuit) — la file d'ingénierie est vide.**
 
-Prod à jour (`prod == canonique`, 920 colonnes / 92 tables, code déployé == `origin/main`,
-registre de migrations **71/71**), **940 tests verts hors base** (159 gated DB), `ruff` propre, audit
+Prod à jour (`prod == canonique`, code déployé == `origin/main`, registre de migrations
+**71/71**), 940 tests verts hors base (159 gated DB), `ruff` propre, audit
 déterministe propre, canari de production surveillé. L'index `## 📋 Tâches ouvertes` est
 à **0**, et les trois items de `## 🙋 En attente de toi` demandent chacun un geste que
 seul un humain peut poser — détail juste en dessous.
