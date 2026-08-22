@@ -23,6 +23,24 @@
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		# Added 2026-08-22 (R22, external scan). The dashboard answered with four
+		# headers while the API answered with six — the API's extra two come from
+		# `security_headers_middleware` in FastAPI, not from here, so the gap was
+		# invisible from the repo and only showed up in a response from outside.
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+		X-Permitted-Cross-Domain-Policies "none"
+		# A DELIBERATELY narrow CSP. Streamlit ships inline scripts and styles and
+		# uses eval, so `script-src`/`style-src` would blank the dashboard — and a
+		# CSP that has to be relaxed to `unsafe-inline 'unsafe-eval'` buys nothing
+		# while looking like protection. These four directives constrain what a
+		# successful injection can DO, and none of them touch how Streamlit loads
+		# its own assets:
+		#   object-src      — no Flash/embed sink
+		#   base-uri        — a stray <base> cannot re-point every relative URL
+		#   form-action     — an injected form cannot post credentials off-site
+		#   frame-ancestors — clickjacking, in the header modern browsers read
+		#                     (X-Frame-Options above is the legacy spelling)
+		Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		# Caddy sets the response; remove the server banner.
 		-Server
 	}

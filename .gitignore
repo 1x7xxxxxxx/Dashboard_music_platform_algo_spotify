@@ -99,3 +99,6 @@ backups/
 
 # pip-audit sandbox (make audit-deps) — never committed
 .audit-venv/
+
+# schemathesis run cache (make/runbook §6c fuzzing) — never committed
+.schemathesis/

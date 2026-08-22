@@ -140,6 +140,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [sentinel-means-privileged-and-missing](#sentinel-means-privileged-and-missing) | P2 | deterministic | guarded | none |
 | [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
+| [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -1456,3 +1457,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Expanding the scope immediately surfaced `youtube_channel_history` (34 rows), a table the eight-name list had never looked at. Verified RED by removing the Spotify platform, by adding an excuse with no reason, and by naming a table that no longer exists.
+
+## input-nobody-would-type-reaches-the-driver
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: a caller-supplied string reaches the database driver in a shape the driver refuses, and the refusal is an unhandled exception rather than a rejected request. The endpoint answers 500 to anyone who asks that way, and no test in the repo produces it — every existing test passes a plausible value.
+- signature: `python3 -m pytest tests/test_api_survives_hostile_input.py -q`
+- root_cause: `src/api/routers/streams.py::get_timeline` passes `song` into `fetch_df` as a parameter, which is correct — the value IS parameterised, so this is not injection. A NUL byte cannot exist in a Postgres text value at all, so psycopg2 raises `ValueError: A string literal cannot contain NUL (0x00) characters` (`postgres_handler.py:242`) before any SQL is sent, and nothing above it catches a ValueError. Found by fuzzing (`schemathesis`, R22): 596 generated cases, exactly one crashed.
+- long_term_fix: the check is at the EDGE, on the raw query string, in `security.reject_nul_bytes_middleware` — so every string parameter the API grows later inherits it without its author remembering, which is what a per-endpoint validator cannot promise. Deliberately not on the body: reading it would break `/webhooks/stripe`, whose signature covers the exact bytes.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_api_survives_hostile_input.py }
+- rex_ref: src/api/security.py
+- first_seen: 2026-08-22
+- History:
+  - 2026-08-22: `guarded`. Only ONE of the 14 tests goes red when the middleware is removed — the mocked database accepts a NUL happily, so the parametrised "never 500s" cases cannot see the defect. That is recorded in the file itself, next to a DB-gated test proving the real driver does raise; the two ends together are what make the middleware more than decoration. Re-fuzzed across four seeds, 1730 cases, zero 5xx.

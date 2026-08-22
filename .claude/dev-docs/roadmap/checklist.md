@@ -24,9 +24,11 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
 
 > **Vide au 2026-08-22 (séance du jour).** Les neuf entrées ouvertes par la nuit du
-> 21→22 — R23 à R31 — sont closes et archivées. Ce qui reste demande un accès réseau
-> externe ou une décision qui n'appartient pas au dépôt, et vit dans
-> `## 🙋 En attente de toi` juste en dessous. Ce qui a été **décidé** plutôt que fait
+> 21→22 — R23 à R31 — sont closes et archivées, **et R22 aussi** : le test d'intrusion
+> réseau se fait depuis n'importe quelle machine hors du VPS, celle-ci comprise, et le
+> fuzzing contre une instance locale du même code. Il ne reste qu'une entrée, dans
+> `## 🙋 En attente de toi` juste en dessous, et c'est la seule qu'aucune machine ne
+> peut faire : inviter des gens. Ce qui a été **décidé** plutôt que fait
 > porte son ADR : **ADR-007** (mesuré inutile), **ADR-008** (attend une donnée),
 > **ADR-009** (deux registres s'accordent au lieu de dériver, ex-R31).
 > Une tâche revient ici le jour où son déclencheur se produit.
@@ -48,14 +50,31 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R22 | Volet non-code du pentest — **⅓ fait** | P2 | **outil ou machine extérieure** : il reste le test d'intrusion réseau (`nmap`/`testssl.sh` depuis HORS du VPS) et le fuzzing des endpoints (`schemathesis`). `pip-audit` est fait — 1 vulnérabilité, `ecdsa` PYSEC-2026-1325, **non applicable** (Minerva sur la signature ECDSA ; nos JWT sont HS256 des deux côtés) et sans correctif amont. Rejouable par `make audit-deps`. Runbook §6. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **actionnable maintenant** (funnel + paiement live validés) — **et son prérequis dur est tombé le 2026-08-21** : le canari de production existe (`artist_id=14`) et `artist_preflight` y est vert de bout en bout, contamination comprise. Le filet qui manquait aux deux sessions bêta précédentes est en place. Runbook §5. |
 
 ## 🔖 REPRISE — état au 2026-08-22 (à lire EN PREMIER au `/resume`)
 
-**▶️ L'index actionnable est vide.** R23→R31 sont livrées, gardées et archivées dans la
-même séance. Il n'y a rien à reprendre côté code : la prochaine action utile est un des
-deux gestes de `## 🙋 En attente de toi`, ou une nouvelle trouvaille.
+**▶️ L'index actionnable est vide, et R22 est close.** R23→R31 livrées, gardées et
+archivées dans la même séance ; le pentest n'a plus aucun volet ouvert. Il ne reste
+qu'**une** entrée sur toute la roadmap : R1, ouvrir la bêta — et c'est la seule qu'aucune
+machine ne peut faire à ta place, parce qu'elle consiste à inviter des gens.
+
+**R22 close, et son ⅔ manquant n'attendait personne.** Je l'avais classé « en attente de
+toi » sur un raisonnement faux : le test d'intrusion réseau demande une machine *hors du
+VPS*, et celle-ci en est une. Ce que ça a donné —
+
+- **Scan de l'origine (167.233.92.1), 33 ports** : seul **22** répond. Postgres 5433,
+  Airflow 8080, Streamlit 8501 fermés, et même 80/443 injoignables en direct. Les noms
+  d'hôte résolvent sur Cloudflare, donc ils n'ont **pas** été scannés — c'est
+  l'infrastructure d'un tiers.
+- **TLS des trois noms** : aucun protocole obsolète accepté, ni Heartbleed, ni CCS
+  injection, ni ROBOT, certificats valides 5/5 magasins (expirent le 2026-11-09).
+- **Un écart réel** : le dashboard renvoyait 4 en-têtes de sécurité, l'API 6 — les deux
+  de plus viennent du middleware FastAPI, pas de Caddy, donc l'écart était invisible
+  depuis le dépôt. `deploy/Caddyfile` corrigé. ⚠️ **non validé par un binaire Caddy** ici.
+- **Fuzzing** : un vrai 500. `GET /streams/timeline?song=a%00b` — un octet NUL atteint
+  psycopg2 et lève une `ValueError` que personne ne rattrape. Fermé à la frontière,
+  gardé, re-fuzzé sur **4 graines / 1730 cas / zéro 5xx**.
 
 **⚠️ Ce qui n'est PAS fait : rien de tout ça n'est déployé.** Le travail est dans
 l'arbre local, non commité. `prod == canonique` décrit l'état d'AVANT cette séance.

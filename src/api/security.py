@@ -57,6 +57,33 @@ def client_ip(request: Request) -> str:
     )
 
 
+# A NUL byte cannot be stored in a Postgres text column and cannot appear in any
+# legitimate URL, so "%00 in the query string" is never a request we want to serve.
+_NUL_IN_QUERY = "%00"
+
+
+async def reject_nul_bytes_middleware(request: Request, call_next):
+    """400 on a NUL byte in the query string, instead of a 500 from deep in psycopg2.
+
+    Found 2026-08-22 by fuzzing (R22): `GET /streams/timeline?song=a%00b` reached
+    `fetch_df` and raised `ValueError: A string literal cannot contain NUL (0x00)
+    characters` with no handler above it. Any authenticated caller could crash the
+    endpoint at will.
+
+    Checked on the RAW query string, not on the parsed parameters: that covers every
+    string parameter this API has today and every one it grows later, without each
+    endpoint having to remember. The BODY is deliberately not read here — consuming
+    it would break `/webhooks/stripe`, which needs the exact bytes to verify Stripe's
+    signature — and the form path is already safe (`/auth/token` answers 401).
+    """
+    if _NUL_IN_QUERY in request.url.query.lower():
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Query string contains a NUL byte."},
+        )
+    return await call_next(request)
+
+
 async def rate_limit_middleware(request: Request, call_next):
     path = request.url.path
     if path not in _EXEMPT_PATHS:
@@ -88,7 +115,12 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 def install(app: FastAPI) -> None:
-    """Register both middlewares. Headers registered LAST → outermost,
-    so 429 responses from the rate limiter also carry the security headers."""
+    """Register the middlewares. Registration order is INNERMOST first.
+
+    Headers last → outermost, so a 429 from the limiter and a 400 from the NUL check
+    both carry the security headers. The NUL check sits innermost of the three: a
+    malformed request should still be counted by the rate limiter, or refusing it
+    would be a free way to make requests that cost nothing."""
+    app.middleware("http")(reject_nul_bytes_middleware)
     app.middleware("http")(rate_limit_middleware)
     app.middleware("http")(security_headers_middleware)

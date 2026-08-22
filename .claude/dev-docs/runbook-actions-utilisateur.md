@@ -202,39 +202,83 @@ tous les deux). Le chemin de signature ECDSA n'est jamais atteint.
 `make audit-deps` rejoue le contrôle et échoue sur toute **autre** vulnérabilité ;
 celle-ci est ignorée nommément, avec cette raison, dans la cible.
 
-### 6b. Test d'intrusion réseau externe — ⬜ demande un accès depuis l'extérieur
+### 6b. Test d'intrusion réseau externe — ✅ FAIT le 2026-08-22
 
-Ce qu'un audit du dépôt ne peut pas voir : ce que la boîte expose réellement.
+Fait depuis WSL, qui **est** une machine hors du VPS — c'est ce que ce point demandait,
+et je l'avais classé « en attente de toi » à tort.
 
-```bash
-# depuis une machine HORS du VPS (pas depuis WSL, pas depuis le serveur)
-nmap -Pn -sV --top-ports 1000 167.233.92.1
-curl -sI https://app.streamlytics.fr | head -20     # en-têtes Caddy + HSTS
-testssl.sh --quiet --color 0 https://app.streamlytics.fr
-```
-
-Ce qu'on cherche : un port ouvert qui n'est ni 22, ni 80, ni 443 (le **5433** de
-Postgres en particulier — il est publié en local par `docker-compose`, et le compose
-de production est gitignoré, donc le dépôt ne peut pas répondre à sa place) ; une
-suite TLS obsolète ; un en-tête de sécurité que Cloudflare réécrit.
-
-**Vérification** : `nmap` ne renvoie que 22/80/443, et `testssl.sh` ne renvoie aucun
-`NOT ok` en rouge.
-
-### 6c. Fuzzing des endpoints — ⬜ demande un outil qui n'est pas installé
+Les trois noms d'hôte résolvent sur Cloudflare (`2a06:98c1:…`), donc **on ne scanne pas
+le nom** : ce serait l'infrastructure d'un tiers. On scanne l'origine, la boîte Hetzner.
 
 ```bash
-pip install schemathesis
-schemathesis run https://api.streamlytics.fr/openapi.json \
-    --checks all --hypothesis-max-examples 200 \
-    -H "Authorization: Bearer $TOKEN"
+# scan TCP connect de l'origine (33 ports usuels) — lecture seule
+python3 - <<'EOF'
+import socket, concurrent.futures as cf
+HOST="167.233.92.1"
+PORTS=[21,22,23,25,53,80,110,143,443,445,873,1433,2375,2376,3000,3306,5000,5432,5433,
+       5672,6379,8000,8080,8081,8443,8501,8888,9000,9090,9200,11211,15672,27017]
+def probe(p):
+    s=socket.socket(); s.settimeout(3)
+    try:
+        return p if s.connect_ex((HOST,p))==0 else None
+    finally: s.close()
+with cf.ThreadPoolExecutor(max_workers=8) as ex:
+    print(sorted(x for x in ex.map(probe,PORTS) if x))
+EOF
 ```
 
-L'API expose son schéma OpenAPI, donc le fuzzing est dirigé plutôt qu'aveugle.
-Ce qu'on cherche : un 500 (une entrée qu'un validateur Pydantic laisse passer et
-qu'une requête SQL ne supporte pas), et une réponse qui contient un nom de table.
+**Résultat** : `[22]`. Seul SSH répond (OpenSSH 9.6p1 Ubuntu). Postgres 5433, Airflow
+8080, Streamlit 8501 : fermés. **80 et 443 ne sont pas joignables en direct non plus** —
+Cloudflare atteint la boîte autrement, donc il n'y a pas d'origine à contourner.
 
-**Vérification** : `schemathesis` sort en 0, et aucun cas ne renvoie 500.
+TLS des trois noms (`sslyze`, via l'edge Cloudflare, requête client ordinaire) :
+SSLv2/SSLv3/TLS 1.0/TLS 1.1 tous à **0 suite acceptée** ; TLS 1.2 (7) et 1.3 (3) ;
+Heartbleed, CCS injection, ROBOT : non vulnérable ; certificats valides sur 5/5 magasins
+de confiance, expiration 2026-11-09.
 
-**Ce que ça débloque** : la dernière ligne ouverte de R21/R22. Le reste du pentest
-est clos et gardé par des tests.
+**Un constat, corrigé** : le dashboard répondait avec 4 en-têtes de sécurité et l'API
+avec 6 — les deux de plus viennent du middleware FastAPI, pas de Caddy, donc l'écart
+était invisible depuis le dépôt. `deploy/Caddyfile` porte désormais
+`Permissions-Policy`, `X-Permitted-Cross-Domain-Policies` et une CSP volontairement
+étroite (`object-src`/`base-uri`/`form-action`/`frame-ancestors` — aucune directive
+`script-src`/`style-src`, qui blanchirait Streamlit).
+⚠️ **Non validée par un binaire Caddy** (pas d'image disponible ici) : à vérifier avec
+`caddy validate --config /etc/caddy/Caddyfile` sur la boîte avant de recharger.
+
+### 6c. Fuzzing des endpoints — ✅ FAIT le 2026-08-22
+
+**Pas contre la prod** : `/openapi.json` et `/docs` y sont désactivés (`API_ENABLE_DOCS`
+n'est pas à 1 — bonne posture, mais ça rendait fausse la commande que ce runbook portait
+d'abord), et fuzzer une base de production écrit des lignes. On lance le **même code** en
+local contre la base locale.
+
+```bash
+python3 -m venv .audit-venv && .audit-venv/bin/pip install -q schemathesis
+# 1. l'API, docs activées, limiteur relevé pour ne pas se 429 soi-même.
+#    La clé de signature est jetable et générée ici : ne jamais écrire une valeur
+#    littérale dans ce fichier, le scan de secrets pré-commit la refuse (à raison).
+export API_SECRET_KEY=$(openssl rand -hex 32)
+export DATABASE_URL="postgresql://postgres:<mot-de-passe>@localhost:5433/spotify_etl"
+export API_ENABLE_DOCS=1 API_RATE_LIMIT_MAX=1000000 API_AUTH_RATE_LIMIT_MAX=1000000
+python3 -m uvicorn src.api.main:app --port 8599 &
+# 2. un jeton pour un compte qui EXISTE (depuis R24, un `sub` inconnu répond 401)
+TOKEN=$(python3 -c "from src.api.auth import create_access_token; \
+  print(create_access_token({'sub':'<username admin>','role':'admin','artist_id':None,'tv':<son token_version>}))")
+# 3. le fuzz
+.audit-venv/bin/schemathesis run http://127.0.0.1:8599/openapi.json \
+  -H "Authorization: Bearer $TOKEN" --max-examples 300 --workers 2
+```
+
+**Vérification** : aucune ligne `Server error` dans la sortie. Avant de fuzzer, vérifier
+que les 7 endpoints de données répondent **200** — sinon on mesure son propre
+environnement, ce qui est arrivé au premier essai (mauvais mot de passe DB → neuf faux
+« Server error » à 503).
+
+**Résultat** : un vrai défaut, `GET /streams/timeline?song=a%00b` → 500
+(`ValueError: A string literal cannot contain NUL`, non rattrapée). Corrigé à la
+frontière (`security.reject_nul_bytes_middleware` → 400), gardé par
+`tests/test_api_survives_hostile_input.py`, classe
+`input-nobody-would-type-reaches-the-driver`. Re-fuzzé sur **4 graines, 1730 cas,
+zéro 5xx**.
+
+**Ce que ça débloque** : R22 est close. Le pentest n'a plus de volet ouvert.

@@ -86,10 +86,41 @@ réelle.
 mort de ~70 lignes sous un titre cassé (`## 🔖 REPRISE\` ci-dessous.`), avec un index
 périmé disant « aucune ». Trouvé en lisant le fichier au démarrage, retiré.
 
+### R22 close aussi — et ses deux tiers manquants n'attendaient personne
+
+Classé « en attente d'un humain » sur un raisonnement faux : le test d'intrusion demande
+une machine **hors du VPS**, et la machine de développement en est une.
+
+- **Scan de l'origine** `167.233.92.1`, 33 ports usuels : **seul 22 répond**. Ni
+  Postgres 5433, ni Airflow 8080, ni Streamlit 8501 ; 80 et 443 ne sont pas joignables
+  en direct non plus. Les noms d'hôte résolvent sur Cloudflare et n'ont donc **pas** été
+  scannés — infrastructure d'un tiers.
+- **TLS** des trois noms : aucun protocole obsolète, ni Heartbleed ni CCS injection ni
+  ROBOT, certificats valides sur 5/5 magasins.
+- **Un écart réel** : le dashboard renvoyait 4 en-têtes de sécurité, l'API 6. Les deux de
+  plus viennent du middleware FastAPI et pas de Caddy, donc l'écart était **invisible
+  depuis le dépôt** — il fallait une réponse vue de l'extérieur. `deploy/Caddyfile`
+  corrigé, avec une CSP volontairement étroite (rien sur `script-src`/`style-src`, qui
+  blanchirait Streamlit). Non validée par un binaire Caddy ici.
+- **Fuzzing** contre une instance locale (la prod a `/openapi.json` désactivé, et fuzzer
+  une base de production y écrit) : **un vrai 500**. `GET /streams/timeline?song=a%00b`
+  — un octet NUL atteint psycopg2, `ValueError` non rattrapée. Fermé à la frontière
+  (400, middleware, donc tout futur paramètre chaîne en hérite), gardé, re-fuzzé sur
+  4 graines / 1730 cas / **zéro 5xx**.
+
+Deux leçons de méthode. Le premier fuzz a produit neuf « Server error » qui étaient tous
+des 503 dus à un mauvais mot de passe local : **un fuzz commence par prouver que sa
+baseline répond 200**, sinon il mesure son propre environnement. Et sur les 14 tests du
+nouveau garde, **un seul** vire au rouge quand on retire le middleware — la base mockée
+accepte un NUL sans broncher, donc les cas « ne 500 jamais » ne voient pas le défaut ;
+c'est écrit dans le fichier, à côté d'un test sur base réelle qui prouve que le driver
+lève bien.
+
 ### Ce qui reste
 
-Rien côté code. Le déploiement : `make migrate-prod` (la **072** est nouvelle),
-`make deploy`, `make sync-check`. Puis les deux gestes de `## 🙋 En attente de toi`.
+**Une seule entrée sur toute la roadmap** : R1, ouvrir la bêta — la seule qu'aucune
+machine ne peut faire, parce qu'elle consiste à inviter des gens. Avant : `make
+migrate-prod` (la **072** est nouvelle), `make deploy`, `make sync-check`.
 
 ---
 

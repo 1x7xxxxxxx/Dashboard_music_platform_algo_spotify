@@ -1452,3 +1452,37 @@ d'algorithme ne s'applique pas ; `passlib==1.7.4` n'est plus maintenu depuis 202
 
 Constats MOYEN/BAS documentés et différés **nommément** dans
 `.claude/dev-docs/error-classes.md` et le rapport d'audit — pas par omission.
+
+---
+
+## 🛡️ R22 — Volet non-code du pentest, clos le 2026-08-22
+
+- [x] **`pip-audit`** — une vulnérabilité, `ecdsa 0.19.2` / PYSEC-2026-1325 : attaque
+      temporelle Minerva sur la **signature** P-256, sans correctif prévu en amont
+      (python-ecdsa considère les canaux auxiliaires hors périmètre). Non applicable :
+      `ecdsa` n'arrive que transitivement par `python-jose` et nos JWT sont HS256 à
+      l'encodage comme au décodage. `make audit-deps` rejoue le contrôle et l'ignore
+      **nommément** ; toute autre vulnérabilité fait échouer la cible.
+- [x] **Test d'intrusion réseau externe** — scan TCP de l'origine `167.233.92.1` sur 33
+      ports usuels : **seul 22 répond**. Ni Postgres (5433), ni Airflow (8080), ni
+      Streamlit (8501) ; 80 et 443 ne sont pas joignables en direct non plus. Les noms
+      d'hôte résolvent sur Cloudflare et n'ont donc pas été scannés — infrastructure
+      d'un tiers. TLS des trois noms : zéro protocole obsolète, ni Heartbleed ni CCS
+      injection ni ROBOT, certificats valides sur 5/5 magasins. **Un écart trouvé** :
+      le dashboard n'avait ni CSP ni `Permissions-Policy` là où l'API en a — parce que
+      celles de l'API viennent du middleware FastAPI et pas de Caddy, ce qu'aucune
+      lecture du dépôt ne montrait. `deploy/Caddyfile` corrigé (CSP volontairement
+      étroite : rien sur `script-src`/`style-src`, qui blanchirait Streamlit).
+- [x] **Fuzzing des endpoints** — contre une instance **locale** du même code, parce que
+      `/openapi.json` est désactivé en prod et que fuzzer une base de production y écrit.
+      **Un vrai défaut** : `GET /streams/timeline?song=a%00b` renvoyait 500, un octet NUL
+      atteignant psycopg2 via une `ValueError` non rattrapée. Corrigé à la frontière
+      (400), gardé par `tests/test_api_survives_hostile_input.py`, classe
+      `input-nobody-would-type-reaches-the-driver`. Re-fuzzé : 4 graines, 1730 cas,
+      zéro 5xx.
+
+Leçon : le volet avait été classé « en attente d'un humain » sur un raisonnement faux —
+« hors du VPS » ne veut pas dire « hors de portée », et la machine de développement en
+est une. Le premier essai a d'ailleurs produit neuf faux « Server error » avant qu'on
+remarque qu'ils étaient tous des 503 dus à un mauvais mot de passe local : un fuzz doit
+commencer par prouver que sa baseline répond 200.
