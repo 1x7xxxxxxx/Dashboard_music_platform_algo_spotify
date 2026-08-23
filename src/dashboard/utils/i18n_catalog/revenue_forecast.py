@@ -115,4 +115,5 @@ EN = {
     "revenue_forecast.meta_spend_metric": "Meta spend",
     "revenue_forecast.vps_infra": "VPS infra",
     "revenue_forecast.net_margin": "Net margin",
+    "revenue_forecast.waterfall_expander": "💧 Margin breakdown — detail",
 }

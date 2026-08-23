@@ -179,9 +179,11 @@ def _unsubscribe(uid: str, token: str) -> None:
 # Sidebar layout: ordered sections, each (stable_id, header_label, [(item_label, page_key), ...]).
 # Order = user journey. Empty header = no visual separator (top entry).
 _NAV_SECTIONS = [
-    ("start",     "",                       [("🏠 Accueil", "home"),
-                                             ("📄 Export PDF", "export_pdf"),
-                                             ("⬇️ Export CSV", "export_csv")]),
+    # Les exports étaient les entrées n°2 et n°3, AVANT le guide et les credentials —
+    # on proposait d'exporter avant qu'il y ait quoi que ce soit à exporter, alors que
+    # le commentaire ci-dessus annonce « Order = user journey ». Descendus après les
+    # analytics, là où l'artiste a enfin quelque chose à emporter.
+    ("start",     "",                       [("🏠 Accueil", "home")]),
     ("data",      "📁 Données",             [("🚀 Mise en route (assistant)", "onboarding"),
                                              ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
@@ -205,7 +207,9 @@ _NAV_SECTIONS = [
     ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
                                              ("🎼 SACEM", "sacem"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
-    ("reports",   "🎁 Data Wrapped",        [("🎁 Data Wrapped", "data_wrapped")]),
+    ("reports",   "🎁 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
+                                             ("📄 Export PDF", "export_pdf"),
+                                             ("⬇️ Export CSV", "export_csv")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
                                              ("💳 Billing", "billing"),
                                              ("🎁 Parrainage", "referral")]),

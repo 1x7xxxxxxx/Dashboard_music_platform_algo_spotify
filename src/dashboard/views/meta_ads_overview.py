@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from src.dashboard.utils import view_session
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.ui import secondary_analyses
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
@@ -443,13 +444,20 @@ def _show_meta_ads(db, artist_id):
     )
     df_age = db.fetch_df(query_age, params)
 
-    c1, c2 = st.columns(2)
-    with c1:
-        if fig_country := create_pareto_chart(df_country, 'country', t("meta_ads_overview.pareto_country", "Pays (Top Dépenses)")): st.plotly_chart(fig_country, width="stretch")
-    with c2:
-        if fig_place := create_pareto_chart(df_place, 'placement', t("meta_ads_overview.pareto_placement", "Placements")): st.plotly_chart(fig_place, width="stretch")
+    # Trois Pareto de RÉPARTITION : ils expliquent d'où vient le CPR déjà vu plus haut,
+    # ils ne le remplacent pas. Repliés, la première vue de la page perd trois figures
+    # sur huit sans rien perdre du raisonnement. `secondary_analyses()` a été écrit le
+    # 2026-08-12 pour la remarque « réduire le nombre de graphs qui permettent de
+    # prendre décision », et n'était appliqué sur aucune des cinq vues les plus denses.
+    with secondary_analyses(t("meta_ads_overview.pareto_expander",
+                              "🎯 Répartitions (pays, placement, âge) — détail")):
+        c1, c2 = st.columns(2)
+        with c1:
+            if fig_country := create_pareto_chart(df_country, 'country', t("meta_ads_overview.pareto_country", "Pays (Top Dépenses)")): st.plotly_chart(fig_country, width="stretch")
+        with c2:
+            if fig_place := create_pareto_chart(df_place, 'placement', t("meta_ads_overview.pareto_placement", "Placements")): st.plotly_chart(fig_place, width="stretch")
 
-    if fig_age := create_pareto_chart(df_age, 'age_range', t("meta_ads_overview.pareto_age", "Performance par Âge")): st.plotly_chart(fig_age, width="stretch")
+        if fig_age := create_pareto_chart(df_age, 'age_range', t("meta_ads_overview.pareto_age", "Performance par Âge")): st.plotly_chart(fig_age, width="stretch")
 
     st.markdown("---")
 

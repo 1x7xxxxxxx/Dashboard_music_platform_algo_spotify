@@ -52,7 +52,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.section.advanced": "🔮 Spotify algo prediction",
         "nav.section.ads": "📣 Meta Ads advertising",
         "nav.section.revenue": "💶 Revenue",
-        "nav.section.reports": "🎁 Data Wrapped",
+        "nav.section.reports": "🎁 Reports & exports",
         "nav.section.account": "👤 Account",
         "nav.section.admin": "🛠️ Admin / Ops",
         # Items (keyed by page key)

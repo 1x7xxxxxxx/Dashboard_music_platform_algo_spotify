@@ -110,4 +110,5 @@ EN = {
     "data_wrapped.col_playlist_adds": "Playlist adds",
     "data_wrapped.col_playlist_gain": "△ PL adds %",
     "data_wrapped.col_superfans": "Super-fans",
+    "data_wrapped.gains_expander": "📊 Annual gains (%) — detail",
 }

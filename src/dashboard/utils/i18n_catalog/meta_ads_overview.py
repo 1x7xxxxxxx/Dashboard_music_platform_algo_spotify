@@ -68,4 +68,5 @@ EN = {
     "meta_ads_overview.gender.men": "Men",
     "meta_ads_overview.gender.women": "Women",
     "meta_ads_overview.gender.all": "All",
+    "meta_ads_overview.pareto_expander": "🎯 Breakdowns (country, placement, age) — detail",
 }

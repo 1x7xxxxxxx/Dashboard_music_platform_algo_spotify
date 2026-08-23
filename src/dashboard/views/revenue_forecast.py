@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.revenue_forecast import (
     load_subscriptions as _load_subscriptions,
@@ -636,7 +637,12 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
         title=f"Waterfall marge nette sur {horizon} mois",
         yaxis_title='€', showlegend=False,
     )
-    st.plotly_chart(fig_margin, width='stretch')
+    # Le waterfall DÉCOMPOSE la marge déjà chiffrée plus haut : il explique, il ne fait
+    # pas décider. Replié, la page passe sous le plafond du premier écran sans rien
+    # perdre — tout reste à un clic.
+    with secondary_analyses(t("revenue_forecast.waterfall_expander",
+                              "💧 Décomposition de la marge — détail")):
+        st.plotly_chart(fig_margin, width='stretch')
 
 
 # ─────────────────────────────────────────────

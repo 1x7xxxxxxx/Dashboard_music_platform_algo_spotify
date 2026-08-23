@@ -173,6 +173,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [the-page-that-tells-you-what-to-do-is-unreachable](#the-page-that-tells-you-what-to-do-is-unreachable) | P2 | deterministic | guarded | none |
 | [dead-content-that-still-ships](#dead-content-that-still-ships) | P2 | deterministic | guarded | none |
 | [the-feature-is-wired-to-the-function-nobody-calls](#the-feature-is-wired-to-the-function-nobody-calls) | P3 | deterministic | guarded | none |
+| [the-feature-exists-and-the-path-never-reaches-it](#the-feature-exists-and-the-path-never-reaches-it) | P2 | deterministic | guarded | none |
+| [detect-then-reject-with-the-wrong-advice](#detect-then-reject-with-the-wrong-advice) | P3 | deterministic | guarded | none |
+| [too-many-charts-competing-for-one-decision](#too-many-charts-competing-for-one-decision) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1978,3 +1981,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: trois défauts de la même journée ont cette forme — guides morts, sélecteur d'OS, page d'onboarding injoignable. Le dépôt sait détecter du code qui casse ; il ne savait pas détecter du code CORRECT que rien n'atteint. C'est la même famille que `detector-written-and-never-called`, côté interface.
+
+## the-feature-exists-and-the-path-never-reaches-it
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un utilisateur ne peut pas faire une chose que le produit sait faire. La fonctionnalité est écrite, testée, documentée — et le chemin qui y mène s'arrête avant. Rien n'échoue : le journal dit « sauté », avec une raison exacte.
+- root_cause: `soundcloud_daily.py` sautait le locataire dès que `user_id` était vide, **avant** d'avoir lu ses titres déclarés, et le constructeur du collecteur levait sur le même critère. Or pour un artiste signé sur un label, le profil personnel n'existe pas et n'existera jamais : l'unité collectable est le TITRE, et `GET /tracks/{id}` rend ses écoutes quel que soit le compte hôte. La fonctionnalité « Mes titres hébergés sur d'autres comptes » existait pourtant en entier — widget, résolution d'URL, `track_platform_link`, `migrations/074`, `fetch_claimed_tracks`. Mesuré sur le cas GRiNCH, 2026-08-23.
+- signature: `python3 -m pytest tests/test_a_label_signed_artist_is_collectable.py -q`
+- long_term_fix: `has_claimed_tracks()` dans `claimed_tracks.py`, appelée par les DEUX verrous — le DAG avant de sauter, le collecteur avant de lever. Une seule lecture pour deux appelants ; l'écrire deux fois l'aurait laissée diverger. La raison journalisée nomme désormais les deux conditions manquantes, pas une seule.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_label_signed_artist_is_collectable.py }
+- rex_ref: src/utils/claimed_tracks.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: le premier jet du correctif recopiait la résolution DSN pour ouvrir sa connexion, et `test_one_door_onto_the_database` l'a refusé sur-le-champ — une quatrième porte sur la base. Un garde posé pour un autre défaut a rattrapé celui-ci le jour même.
+
+## detect-then-reject-with-the-wrong-advice
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un fichier est accepté par la détection puis refusé plus bas, avec un conseil qui ne corrige rien. L'utilisateur applique le conseil, réessaie, échoue à l'identique.
+- root_cause: l'export « Depuis le début » de S4A (`…-songs-all.csv`) était détecté par son propre nom de fichier, puis rejeté trois couches plus bas par `_detect_window` avec un message conseillant de **renommer le fichier**. Renommer ne corrige rien : Spotify renvoie auditeurs et sauvegardes à ZÉRO sur cet export — c'est la donnée qui est inutilisable, pas son nom. Deuxième cause du même symptôme : le séparateur `;`, celui que produit Excel en configuration française, n'était pas testé — la ligne d'en-tête se lisait comme une colonne géante et le message disait « type non reconnu » sans nommer le séparateur.
+- signature: `python3 -m pytest tests/test_a_refused_csv_says_the_real_reason.py -q`
+- long_term_fix: refuser au bon endroit, à la détection, avec la vraie raison ET le vrai remède — plus un test qui vérifie que le remède proposé est effectivement accepté, sinon le message enverrait dans un mur. La détection teste tabulation, point-virgule et virgule, et la RELECTURE hérite du même choix : sans ça un fichier correctement détecté explosait ensuite dans un `pd.read_csv` nu.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_refused_csv_says_the_real_reason.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: la contradiction était visible dans le code depuis des mois — la règle de détection cite `songs-all`, le parseur le rejette explicitement, et les deux commentaires disent la même chose correctement. Chacun avait raison séparément ; personne n'avait lu les deux ensemble.
+
+## too-many-charts-competing-for-one-decision
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une vue s'ouvre sur un mur de graphiques. Aucun n'est faux, aucun n'est de trop pris isolément, et l'utilisateur ne sait pas où regarder.
+- root_cause: le motif de correction — `ui.secondary_analyses()`, un dépliant appliquant « une décision par écran » — a été écrit le 2026-08-12, le jour même où un artiste en test a dit « réduire le nombre de graphs qui permettent de prendre décision », avec la remarque citée dans son propre commentaire de module. Onze jours plus tard il était appliqué sur quatre sites et sur **aucune** des cinq vues les plus denses : Road to Algo (~35 figures), Data Wrapped (9), Créatives (8), Meta Ads (8), Prévisions (6). Le correctif existait, le diagnostic était juste, et la distance entre les deux n'était mesurée nulle part.
+- signature: `python3 -m pytest tests/test_a_view_opens_on_one_decision.py -q`
+- long_term_fix: un garde compte les graphiques rendus au PREMIER ÉCRAN — hors `secondary_analyses` et hors `st.expander` — et plafonne à 5 par fichier (Few : un tableau de bord tient dans un coup d'œil). Rien n'interdit d'en avoir beaucoup ; il faut seulement qu'ils ne soient pas tous dépliés d'emblée. Le repli vit DANS la fonction qui dessine, pas chez son appelant : un second appelant la rendrait sinon dépliée — et c'est ce que la première version faisait, jusqu'à ce que le garde refuse.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_view_opens_on_one_decision.py }
+- rex_ref: src/dashboard/utils/ui.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: c'est la deuxième fois de la journée qu'un correctif écrit exprès pour une remarque d'utilisateur n'était branché nulle part — l'autre étant le sélecteur Mac/Windows. Écrire le remède et le brancher sont deux gestes, et seul le premier laisse une trace dans le dépôt.

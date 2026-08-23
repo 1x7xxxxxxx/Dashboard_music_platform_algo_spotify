@@ -98,4 +98,7 @@ EN = {
     "meta_creatives.heatmap_title": "**🗓️ Spend per creative and per week**",
     "meta_creatives.cumulative_title": "**💰 Cumulative spend per creative**",
     "meta_creatives.cumulative_spend_eur": "Cumulative spend (€)",
+    "meta_creatives.activity_expander": "🗓️ Creative activity (weekly spend, cumulative) — detail",
+    "meta_creatives.scatter_expander": "🔬 CPR × spend scatter — detail",
+    "meta_creatives.efficiency_expander": "🔬 Efficiency by creative — detail",
 }

@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import (
     get_instagram_followers,
@@ -642,35 +643,42 @@ def show():
                     if fig:
                         st.plotly_chart(fig, width="stretch")
 
-                # Annual gains (%)
-                st.markdown(t("data_wrapped.annual_gains_header", "#### Gains annuels (%)"))
-                col_lg, col_stg = st.columns(2)
-                with col_lg:
-                    fig = _bar_gain_chart(df, 'listener_gain_pct',
-                                          t("data_wrapped.chart_listener_gain",
-                                            "Gain listeners / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                with col_stg:
-                    fig = _bar_gain_chart(df, 'stream_gain_pct',
-                                          t("data_wrapped.chart_stream_gain",
-                                            "Gain streams / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
+                # Quatre graphiques de GAIN : ils raffinent la lecture des volumes
+                # ci-dessus, aucun ne fait décider seul. Repliés — rien n'est
+                # supprimé, tout reste à un clic. `secondary_analyses()` a été
+                # écrit le 2026-08-12 pour la remarque « réduire le nombre de
+                # graphs » et n'était appliqué sur aucune des cinq vues denses.
+                with secondary_analyses(t("data_wrapped.gains_expander",
+                                          "📊 Gains annuels (%) — détail")):
+                    # Annual gains (%)
+                    st.markdown(t("data_wrapped.annual_gains_header", "#### Gains annuels (%)"))
+                    col_lg, col_stg = st.columns(2)
+                    with col_lg:
+                        fig = _bar_gain_chart(df, 'listener_gain_pct',
+                                              t("data_wrapped.chart_listener_gain",
+                                                "Gain listeners / an (%)"), fmt_fn=_fmt_pct)
+                        if fig:
+                            st.plotly_chart(fig, width="stretch")
+                    with col_stg:
+                        fig = _bar_gain_chart(df, 'stream_gain_pct',
+                                              t("data_wrapped.chart_stream_gain",
+                                                "Gain streams / an (%)"), fmt_fn=_fmt_pct)
+                        if fig:
+                            st.plotly_chart(fig, width="stretch")
 
-                col_sg, col_pg = st.columns(2)
-                with col_sg:
-                    fig = _bar_gain_chart(df, 'save_gain_pct',
-                                          t("data_wrapped.chart_save_gain",
-                                            "Gain saves / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                with col_pg:
-                    fig = _bar_gain_chart(df, 'playlist_add_gain_pct',
-                                          t("data_wrapped.chart_playlist_gain",
-                                            "Gain playlist adds / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
+                    col_sg, col_pg = st.columns(2)
+                    with col_sg:
+                        fig = _bar_gain_chart(df, 'save_gain_pct',
+                                              t("data_wrapped.chart_save_gain",
+                                                "Gain saves / an (%)"), fmt_fn=_fmt_pct)
+                        if fig:
+                            st.plotly_chart(fig, width="stretch")
+                    with col_pg:
+                        fig = _bar_gain_chart(df, 'playlist_add_gain_pct',
+                                              t("data_wrapped.chart_playlist_gain",
+                                                "Gain playlist adds / an (%)"), fmt_fn=_fmt_pct)
+                        if fig:
+                            st.plotly_chart(fig, width="stretch")
 
                 # Super-fans — fans who ranked the artist in their top N
                 top_rows = df[df['top_fans_count'].notna()][

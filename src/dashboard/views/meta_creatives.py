@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 from src.dashboard.utils import view_session
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import require_plan
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
@@ -329,42 +330,46 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
 
 def _render_scatter(df: pd.DataFrame) -> None:
     """#1 — bubble comparison: spend × CPR, size=impressions, color=CTR."""
-    d = df.copy()
-    for c in ('total_spend', 'cpr', 'total_impressions', 'avg_ctr'):
-        d[c] = pd.to_numeric(d[c], errors='coerce')
-    d = d.dropna(subset=['total_spend', 'cpr'])
-    if d.empty:
-        st.info(t("meta_creatives.no_scatter", "Aucune créative avec un CPR (résultats) pour ce scatter."))
-        return
-    fig = px.scatter(
-        d, x='total_spend', y='cpr', size='total_impressions', color='avg_ctr',
-        hover_name='creative_name', color_continuous_scale='Viridis', size_max=40,
-        labels={'total_spend': t("meta_creatives.spend_eur", "Dépense (€)"), 'cpr': 'CPR (€)',
-                'avg_ctr': t("meta_creatives.avg_ctr_pct", "CTR moyen (%)"),
-                'total_impressions': t("meta_creatives.impressions", "Impressions")},
-    )
-    fig.update_layout(height=460)
-    st.plotly_chart(fig, width="stretch")
-    st.caption(t("meta_creatives.scatter_caption",
-                 "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
-                 "Les créatives sans résultat (CPR absent) ne sont pas tracées."))
+    with secondary_analyses(t("meta_creatives.scatter_expander",
+                              "🔬 Nuage CPR × dépense — détail")):
+        d = df.copy()
+        for c in ('total_spend', 'cpr', 'total_impressions', 'avg_ctr'):
+            d[c] = pd.to_numeric(d[c], errors='coerce')
+        d = d.dropna(subset=['total_spend', 'cpr'])
+        if d.empty:
+            st.info(t("meta_creatives.no_scatter", "Aucune créative avec un CPR (résultats) pour ce scatter."))
+            return
+        fig = px.scatter(
+            d, x='total_spend', y='cpr', size='total_impressions', color='avg_ctr',
+            hover_name='creative_name', color_continuous_scale='Viridis', size_max=40,
+            labels={'total_spend': t("meta_creatives.spend_eur", "Dépense (€)"), 'cpr': 'CPR (€)',
+                    'avg_ctr': t("meta_creatives.avg_ctr_pct", "CTR moyen (%)"),
+                    'total_impressions': t("meta_creatives.impressions", "Impressions")},
+        )
+        fig.update_layout(height=460)
+        st.plotly_chart(fig, width="stretch")
+        st.caption(t("meta_creatives.scatter_caption",
+                     "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
+                     "Les créatives sans résultat (CPR absent) ne sont pas tracées."))
 
 
 def _render_efficiency(df: pd.DataFrame) -> None:
     """#4 — CTR / CPM / CPC per creative (top 15 by spend)."""
-    d = df.copy()
-    d['total_spend'] = pd.to_numeric(d['total_spend'], errors='coerce').fillna(0.0)
-    d['total_impressions'] = pd.to_numeric(d['total_impressions'], errors='coerce').fillna(0)
-    d['total_clicks'] = pd.to_numeric(d['total_clicks'], errors='coerce').fillna(0)
-    d['CTR (%)'] = pd.to_numeric(d['avg_ctr'], errors='coerce')
-    d['CPM (€)'] = (d['total_spend'] / d['total_impressions'].where(d['total_impressions'] != 0) * 1000).astype(float)
-    d['CPC (€)'] = (d['total_spend'] / d['total_clicks'].where(d['total_clicks'] != 0)).astype(float)
-    d = d.sort_values('total_spend', ascending=False).head(15)
-    metric = st.radio(t("meta_creatives.indicator", "Indicateur"), ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
-    fig = px.bar(d, x='creative_name', y=metric, color=metric,
-                 color_continuous_scale='Tealrose', labels={'creative_name': ''})
-    fig.update_layout(height=420, coloraxis_showscale=False)
-    st.plotly_chart(fig, width="stretch")
+    with secondary_analyses(t("meta_creatives.efficiency_expander",
+                              "🔬 Efficacité par créative — détail")):
+        d = df.copy()
+        d['total_spend'] = pd.to_numeric(d['total_spend'], errors='coerce').fillna(0.0)
+        d['total_impressions'] = pd.to_numeric(d['total_impressions'], errors='coerce').fillna(0)
+        d['total_clicks'] = pd.to_numeric(d['total_clicks'], errors='coerce').fillna(0)
+        d['CTR (%)'] = pd.to_numeric(d['avg_ctr'], errors='coerce')
+        d['CPM (€)'] = (d['total_spend'] / d['total_impressions'].where(d['total_impressions'] != 0) * 1000).astype(float)
+        d['CPC (€)'] = (d['total_spend'] / d['total_clicks'].where(d['total_clicks'] != 0)).astype(float)
+        d = d.sort_values('total_spend', ascending=False).head(15)
+        metric = st.radio(t("meta_creatives.indicator", "Indicateur"), ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
+        fig = px.bar(d, x='creative_name', y=metric, color=metric,
+                     color_continuous_scale='Tealrose', labels={'creative_name': ''})
+        fig.update_layout(height=420, coloraxis_showscale=False)
+        st.plotly_chart(fig, width="stretch")
 
 
 def _render_funnel(df: pd.DataFrame) -> None:
@@ -445,26 +450,31 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
     weekly = d.groupby(['creative_name', 'week'], as_index=False)['spend'].sum()
     top = weekly.groupby('creative_name')['spend'].sum().nlargest(20).index
     hm = weekly[weekly['creative_name'].isin(top)]
-    st.markdown(t("meta_creatives.heatmap_title", "**🗓️ Dépense par créative et par semaine**"))
-    fig = px.density_heatmap(
-        hm, x='week', y='creative_name', z='spend', histfunc='sum',
-        color_continuous_scale='Oranges',
-        labels={'week': '', 'creative_name': '', 'spend': t("meta_creatives.spend_eur", "Dépense (€)")},
-    )
-    fig.update_layout(height=520)
-    st.plotly_chart(fig, width="stretch")
+    # Heatmap et cumul décrivent OÙ EST PASSÉ l'argent. C'est utile pour comprendre,
+    # jamais pour décider quoi faire de la prochaine créative — les graphiques de
+    # fatigue et de performance, plus haut, s'en chargent. Repliés ensemble.
+    with secondary_analyses(t("meta_creatives.activity_expander",
+                              "🗓️ Activité des créatives (dépense par semaine, cumul) — détail")):
+        st.markdown(t("meta_creatives.heatmap_title", "**🗓️ Dépense par créative et par semaine**"))
+        fig = px.density_heatmap(
+            hm, x='week', y='creative_name', z='spend', histfunc='sum',
+            color_continuous_scale='Oranges',
+            labels={'week': '', 'creative_name': '', 'spend': t("meta_creatives.spend_eur", "Dépense (€)")},
+        )
+        fig.update_layout(height=520)
+        st.plotly_chart(fig, width="stretch")
 
-    st.markdown("---")
-    st.markdown(t("meta_creatives.cumulative_title", "**💰 Dépense cumulée par créative**"))
-    g = weekly.sort_values('week').copy()
-    g['cum'] = g.groupby('creative_name')['spend'].cumsum()
-    top12 = g.groupby('creative_name')['cum'].max().nlargest(12).index
-    g = g[g['creative_name'].isin(top12)]
-    fig2 = px.area(g, x='week', y='cum', color='creative_name',
-                   labels={'week': '', 'cum': t("meta_creatives.cumulative_spend_eur", "Dépense cumulée (€)"),
-                           'creative_name': t("meta_creatives.creative", "Créative")})
-    fig2.update_layout(height=480)
-    st.plotly_chart(fig2, width="stretch")
+        st.markdown("---")
+        st.markdown(t("meta_creatives.cumulative_title", "**💰 Dépense cumulée par créative**"))
+        g = weekly.sort_values('week').copy()
+        g['cum'] = g.groupby('creative_name')['spend'].cumsum()
+        top12 = g.groupby('creative_name')['cum'].max().nlargest(12).index
+        g = g[g['creative_name'].isin(top12)]
+        fig2 = px.area(g, x='week', y='cum', color='creative_name',
+                       labels={'week': '', 'cum': t("meta_creatives.cumulative_spend_eur", "Dépense cumulée (€)"),
+                               'creative_name': t("meta_creatives.creative", "Créative")})
+        fig2.update_layout(height=480)
+        st.plotly_chart(fig2, width="stretch")
 
 
 def show() -> None:
@@ -536,6 +546,10 @@ def show() -> None:
             _render_bar_chart(df)
 
         with t_cmp:
+            # Nuage et efficacité regardent la MÊME donnée que le classement de
+            # l'onglet précédent, sous deux angles de comparaison. Chacune se replie
+            # elle-même : la présentation appartient à la fonction qui dessine, pas à
+            # son appelant — sinon un second appelant la rendrait dépliée.
             _render_scatter(df)
             st.markdown("---")
             _render_efficiency(df)
