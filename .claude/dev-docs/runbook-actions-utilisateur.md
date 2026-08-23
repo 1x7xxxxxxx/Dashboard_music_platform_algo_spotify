@@ -173,6 +173,57 @@ en premier.
 
 ---
 
+## 7. R46 — Décider du sort de `data_quality_check` · P3
+
+Le DAG est **en pause depuis toujours** (`is_paused = t`, `last_start` vide : il n'a
+jamais tourné une seule fois). R42 a rendu son code sûr — mais rallumer un DAG est une
+décision de production, pas une conséquence d'un correctif.
+
+### Ce qui a changé le 2026-08-23 (R42)
+
+- `check_meta_ads_freshness` **retirée**, pas réparée : elle mesurait la fraîcheur sur la
+  date d'ÉCRITURE et serait passée au vert sur la source la plus morte de la prod
+  (`collected_at` : il y a 8 h ; `day_date` : 2024-09-30). `freshness_monitor` fait le
+  même travail correctement et est déjà branché sur l'e-mail nocturne.
+- `check_spotify_data_consistency` passe derrière un **circuit breaker de fraîcheur** :
+  aucun verdict sur la forme des données tant que la source n'est pas prouvée fraîche.
+- Elle a reçu le **5ᵉ filtre S4A** qui lui manquait (un artiste dont les seules lignes
+  sont la ligne « Total » du CSV passait pour alimenté).
+- Elle ne **lève plus** : une tâche qui part en `FAILED` sur un constat métier devient sa
+  propre alerte quotidienne via `check_dag_failures`.
+
+### Étapes
+
+1. Le lancer **une fois à la main**, sans le dépauser, et lire ce qu'il dit :
+   ```bash
+   ssh root@167.233.92.1 'docker exec airflow_scheduler \
+     airflow dags test data_quality_check 2026-08-23'
+   ```
+2. Lire la sortie de `check_spotify_consistency`. Trois cas :
+   - **abstention** (« circuit ouvert ») → la source S4A est périmée ; c'est un constat
+     sur la collecte, pas sur ce DAG. Ne pas dépauser, traiter la collecte.
+   - **0 constat** → le dépauser est sans risque.
+   - **des constats** → les lire un par un avant de dépauser. ADR-011 s'applique :
+     chacun doit nommer un symptôme visible par l'artiste ET une action possible, sinon
+     il se journalise et ne se maile pas.
+3. Dépauser seulement après le cas 2 ou 3 tranché :
+   ```bash
+   ssh root@167.233.92.1 'docker exec airflow_scheduler \
+     airflow dags unpause data_quality_check'
+   ```
+
+### Vérification
+
+```bash
+ssh root@167.233.92.1 'docker exec airflow_scheduler \
+  airflow dags list-runs -d data_quality_check --state failed'
+```
+Doit rester **vide** après la première nuit. Une seule nuit en `failed` et
+`check_dag_failures` en fera une alerte quotidienne — exactement le bruit qu'ADR-011
+interdit.
+
+---
+
 ## 5. R1 — Ouvrir la bêta privée · P3
 
 Les prérequis sont prouvés en production : funnel d'inscription complet, e-mails Brevo
