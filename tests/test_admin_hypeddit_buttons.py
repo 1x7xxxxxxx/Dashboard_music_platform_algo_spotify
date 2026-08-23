@@ -46,6 +46,25 @@ show()
 """
 
 
+@pytest.fixture(autouse=True)
+def _stub_verification_send(monkeypatch):
+    """`📧 Renvoyer vérification` (admin.py:685) really sends.
+
+    This test presses EVERY button, and that one calls `send_verification_email` with
+    an address read from the database the run points at — locally, the migrated copy of
+    production. Until 2026-08-23 it delivered real mail to real people on every suite
+    run, carrying a `http://localhost:8501` link because no local process sets
+    APP_BASE_URL. Pressing a button must exercise the handler, not the relay.
+
+    Patched on the module the handler imports from, because `_resend_verification`
+    imports the symbol INSIDE the function — there is no module-level name on
+    `views.admin` to patch.
+    """
+    import src.utils.verification_email as ve
+
+    monkeypatch.setattr(ve, "send_verification_email", lambda *a, **k: True)
+
+
 def _app(view: str):
     from streamlit.testing.v1 import AppTest
 

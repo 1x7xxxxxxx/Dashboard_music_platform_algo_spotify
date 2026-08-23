@@ -161,6 +161,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [unmeasured-rendered-as-measured](#unmeasured-rendered-as-measured) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 | [tool-imports-the-app-without-a-path](#tool-imports-the-app-without-a-path) | P1 | deterministic | guarded | none |
+| [test-sends-real-mail-to-real-people](#test-sends-real-mail-to-real-people) | P1 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1784,3 +1785,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: found by running `audit_runner --deterministic` and disbelieving its verdict. It named `streamlit-pin-drift`, a P1 about manifest pins; the actual state was a checker that could not start. A signature that shells out inherits the exit code of a crash and reports it as its own class — so a hit on a class whose symptom does not match the repo is a reason to run the signature by hand, not to fix the class it names.
+
+## test-sends-real-mail-to-real-people
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: real email arrives in a real inbox after a test run, from the project's own SMTP account, carrying a `http://localhost:8501` link that no recipient can use. The suite reports all-green: nothing failed, because nothing was asserting about the send.
+- root_cause: `tests/conftest.py` had no network boundary of any kind, so a test that presses a UI button reaches the real relay with the credentials in `.env` and a recipient read from whatever database the run points at — locally, the migrated copy of production. Measured 2026-08-23: `test_admin_hypeddit_buttons.py::test_every_button_survives_a_click[admin]` presses every button on the admin view, one of which is `📧 Renvoyer vérification` (`admin.py:685` → `send_verification_email(sel_user['email'], …)`). Three suite runs that day delivered three verification emails to `timothe.baudry137@gmail.com`; had the selected row been a beta tester, it would have been theirs. The `localhost` link is the same default that `env-not-wired-to-service` covers — no local process sets `APP_BASE_URL` — but here the defect is that the mail left at all.
+- signature: `python3 -m pytest tests/test_the_suite_cannot_send_mail.py -q`
+- long_term_fix: an autouse fixture in `conftest.py` replaces `smtplib.SMTP`/`SMTP_SSL` for every test; a test that means to exercise the send path patches them itself and is never seen by the boundary. It RECORDS the attempt and asserts at teardown rather than only raising, because `send_verification_email` wraps its send in `except Exception` — an exception alone is swallowed and the offending test stays green. The signature trips the boundary on purpose and needs no database, so it is deterministic in CI.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_suite_cannot_send_mail.py + tests/conftest.py::_no_real_smtp }
+- rex_ref: tests/test_admin_hypeddit_buttons.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: found from the operator's INBOX, not from any check the repo runs — three emails timestamped within the session's own test runs. No detector could have seen it: every guard in the repo asks whether the code is right, and none asks what the suite does to the outside world. The generalisation worth keeping is that a test suite has a blast radius, and it was never bounded here — SMTP is now, real HTTP is not yet.

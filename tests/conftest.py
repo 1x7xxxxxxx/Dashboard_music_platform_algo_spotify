@@ -71,3 +71,61 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         f"    docker start postgres_spotify_airflow   # puis relancer  "
         f"(attendu sur {DB_HOST}:{DB_PORT})"
     )
+
+
+# ---------------------------------------------------------------------------
+# The suite sent real email to real people
+# ---------------------------------------------------------------------------
+#
+# Measured 2026-08-23. `test_admin_hypeddit_buttons.py::test_every_button_survives_a_click[admin]`
+# presses every button on the admin view. One of them is `📧 Renvoyer vérification`
+# (`admin.py:685`), which calls `send_verification_email(sel_user['email'], …)` — an
+# address read from whatever database the run points at. Locally that is the migrated
+# copy of production, so the recipient is a real beta tester, and `.env` holds real
+# Gmail SMTP credentials. Three suite runs on 2026-08-23 delivered three verification
+# emails, each carrying `http://localhost:8501?page=verify&token=…` because no local
+# process sets APP_BASE_URL.
+#
+# Nothing prevented it: there was no network or SMTP boundary in this file at all.
+#
+# Why RECORD-then-fail rather than just raise: `send_verification_email` wraps its send
+# in `except Exception`, so an exception alone is swallowed, the button reports a
+# failure, and the test stays green — the send would be blocked but no one would ever
+# learn the test attempts it. The attempt is recorded and asserted at teardown, where
+# the application's error handling cannot reach it.
+#
+# A test that legitimately exercises the send path patches `smtplib.SMTP` itself; its
+# patch lands after this one, so it is never recorded and never fails here.
+
+@pytest.fixture(autouse=True)
+def _no_real_smtp(monkeypatch, request):
+    """No test may open a real SMTP connection. Records attempts, fails at teardown."""
+    import smtplib
+
+    attempts: list[str] = []
+
+    def _blocked(*args, **kwargs):
+        host = kwargs.get("host", args[0] if args else "")
+        port = kwargs.get("port", args[1] if len(args) > 1 else "")
+        attempts.append(f"{host}:{port}")
+        raise ConnectionRefusedError(
+            "blocked by tests/conftest.py::_no_real_smtp — a test must not send email"
+        )
+
+    monkeypatch.setattr(smtplib, "SMTP", _blocked)
+    monkeypatch.setattr(smtplib, "SMTP_SSL", _blocked)
+    # Exposed so the meta-test that deliberately trips this boundary can consume its
+    # own attempt. Nothing else should touch it.
+    request.node._smtp_attempts = attempts
+
+    yield
+
+    assert not attempts, (
+        f"{request.node.nodeid} opened a REAL SMTP connection to {', '.join(attempts)}.\n"
+        f"The credentials come from .env and the recipient from the database the run "
+        f"points at — locally, a copy of production, so this delivers mail to real "
+        f"people with a link to http://localhost:8501.\n"
+        f"Patch the send in the test — `monkeypatch.setattr(<module>, "
+        f"'send_verification_email', lambda *a, **k: True)` — or mock `smtplib.SMTP` "
+        f"yourself if the send path is what you mean to exercise."
+    )
