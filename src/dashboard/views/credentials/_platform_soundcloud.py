@@ -104,11 +104,13 @@ def _test_soundcloud(fields: dict) -> tuple:
                 return False, t(
                     "credentials.soundcloud.no_public_tracks",
                     "User ID {user_id} joignable, mais **aucun titre public** n'y est "
-                    "rattaché — il n'y aura donc rien à collecter. Si tes sorties "
-                    "paraissent sous un label ou un autre compte, déclare-les une par "
-                    "une dans « Mes titres hébergés ailleurs » ci-dessous. Sinon "
-                    "vérifie que c'est bien l'ID de TON profil et que tes titres sont "
-                    "en **public**."
+                    "rattaché — il n'y aura donc rien à collecter. Deux cas :\n\n"
+                    "• **Tes sorties paraissent sous un label ou un autre compte** → "
+                    "déclare-les dans la section **« Mes titres hébergés sur d'autres "
+                    "comptes »**, plus haut dans cet onglet. Colle l'URL de chaque "
+                    "titre, une par ligne.\n"
+                    "• **Sinon** → vérifie que c'est bien l'ID de TON profil et que tes "
+                    "titres sont en **public** (et non privés ou en écoute restreinte)."
                 ).format(user_id=user_id)
             return True, t("credentials.soundcloud.test_ok",
                            "API SoundCloud OAuth OK — {count} track(s) récupéré(s) pour user {user_id} ✅").format(

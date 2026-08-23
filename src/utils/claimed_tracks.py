@@ -114,3 +114,39 @@ def _match_key(title: str) -> str:
         return (canonical_song(title) or title or "")[:200]
     except Exception:  # noqa: BLE001 — a claim must not fail on a helper import
         return (title or "")[:200]
+
+def has_claimed_tracks(artist_id: int, platform: str = "soundcloud",
+                       db=None) -> bool:
+    """Ce locataire a-t-il déclaré au moins un titre hébergé sur un autre compte ?
+
+    Deux appelants ont besoin de la réponse et n'ont pas de connexion sous la main de la
+    même façon : le DAG (`soundcloud_daily`), qui décide de sauter ou non le locataire,
+    et le collecteur, qui décide de lever ou non faute de `user_id`. Écrire la lecture
+    deux fois l'aurait laissée diverger — c'est la classe que ce dépôt paie le plus
+    souvent. `db` est optionnel : fourni, on l'utilise ; absent, on ouvre et on referme.
+
+    Lecture TOLÉRANTE : une table illisible rend `False`. C'est volontaire ici et
+    seulement ici — la question posée est « peut-on collecter malgré l'absence de
+    profil ? », et répondre « oui » sur une lecture ratée ferait collecter à vide.
+    L'appelant garde alors son message d'origine, qui est le bon.
+    """
+    own = db is None
+    try:
+        if own:
+            # `from_env_or_config()` et RIEN d'autre : recopier la résolution
+            # (`DATABASE_HOST` avec un défaut) aurait ouvert une quatrième porte sur la
+            # base, et le garde `test_one_door_onto_the_database` l'a refusé sur-le-champ.
+            # Les deux moitiés du produit n'atteignent pas la base de la même façon —
+            # dashboard et api par `DATABASE_URL`, le scheduler par `DATABASE_HOST` — et
+            # une copie qui n'en connaît qu'une casse l'autre en silence.
+            from src.database.postgres_handler import PostgresHandler
+            db = PostgresHandler.from_env_or_config()
+        return bool(claimed_track_ids(db, int(artist_id), platform))
+    except Exception:      # noqa: BLE001 — voir docstring
+        return False
+    finally:
+        if own and db is not None:
+            try:
+                db.close()
+            except Exception:      # noqa: BLE001
+                pass

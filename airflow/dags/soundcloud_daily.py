@@ -132,10 +132,22 @@ def run_soundcloud_collector(**context):
         # question no other surface can answer, and the reason a tenant can stop
         # collecting for nights without anything saying so.
         if not user_id:
-            logger.info(f"  {artist_name} (id={artist_id}) sans user_id SoundCloud — skip")
-            record_tenant_skip('soundcloud_daily', artist_id, 'soundcloud',
-                               'no SoundCloud user_id declared', run_id)
-            continue
+            # Un artiste signé sur un label n'a pas de profil personnel, et n'en aura
+            # jamais : ses sorties paraissent sous le compte du label. L'unité
+            # collectable est alors le TITRE — `GET /tracks/{id}` rend ses écoutes quel
+            # que soit le compte qui l'héberge. Sauter ici revenait à exiger la seule
+            # chose qu'il ne peut pas fournir, et le trou était invisible : la fonction
+            # de déclaration existait, fonctionnait, et n'était jamais atteinte pour lui.
+            # Mesuré sur le cas GRiNCH le 2026-08-23.
+            from src.utils.claimed_tracks import has_claimed_tracks
+            if not has_claimed_tracks(artist_id, 'soundcloud'):
+                logger.info(f"  {artist_name} (id={artist_id}) sans user_id SoundCloud "
+                            f"ni titre déclaré — skip")
+                record_tenant_skip('soundcloud_daily', artist_id, 'soundcloud',
+                                   'no SoundCloud user_id and no claimed track', run_id)
+                continue
+            logger.info("  %s (id=%s) sans profil SoundCloud, mais des titres déclarés "
+                        "— collecte des seules déclarations", artist_name, artist_id)
         if not client_id or not client_secret:
             logger.warning(f"  {artist_name} (id={artist_id}) — app SoundCloud partagée non "
                            "configurée (SOUNDCLOUD_CLIENT_ID/SECRET) — contacter admin ; skip")

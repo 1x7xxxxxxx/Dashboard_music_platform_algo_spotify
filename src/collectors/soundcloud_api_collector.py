@@ -48,10 +48,18 @@ class SoundCloudCollector:
         # profile. A collector that cannot be told whose data to fetch must not
         # guess; the caller (DAG) resolves it from artist_credentials.
         self.user_id = (user_id or '').strip()
-        if not self.user_id:
+        if not self.user_id and not self._has_claimed_tracks():
+            # L'absence de user_id reste une erreur — SAUF si le locataire a déclaré des
+            # titres hébergés ailleurs. Pour un artiste signé sur un label, le profil
+            # personnel n'existe pas et n'existera jamais : l'unité collectable est le
+            # TITRE, et `GET /tracks/{id}` rend ses écoutes quel que soit le compte qui
+            # l'héberge. Refuser de collecter faute de profil revenait à exiger la seule
+            # chose qu'il ne peut pas fournir. Mesuré sur le cas GRiNCH, 2026-08-23.
             raise ValueError(
-                f"SoundCloudCollector: no user_id for artist_id={artist_id}. "
-                "Set it in Dashboard → Credentials → SoundCloud."
+                f"SoundCloudCollector: no user_id for artist_id={artist_id}, and no "
+                "claimed track either. Set the User ID in Dashboard → Credentials → "
+                "SoundCloud, or declare your tracks under « Mes titres hébergés sur "
+                "d'autres comptes »."
             )
         # Optional OAuth user-token (B2 P2). Absent ⇒ client_credentials mode
         # (unchanged behaviour). Present ⇒ user-context token → real per-track
@@ -164,7 +172,9 @@ class SoundCloudCollector:
         logger.info("Fetching SoundCloud tracks for user %s...", self.user_id)
 
         tracks_data = []
-        url = f"{_API_BASE}/users/{self.user_id}/tracks"
+        # Sans user_id, il n'y a pas de profil à parcourir : on va directement aux
+        # titres déclarés. Le constructeur a déjà garanti qu'il y en a.
+        url = f"{_API_BASE}/users/{self.user_id}/tracks" if self.user_id else None
         params: dict = {'limit': 50, 'linked_partitioning': 1}
         max_pages = 200
         page = 0
@@ -226,6 +236,14 @@ class SoundCloudCollector:
             already={t['track_id'] for t in tracks_data}))
         logger.info("Fetched %d tracks in total.", len(tracks_data))
         return tracks_data
+
+
+    def _has_claimed_tracks(self) -> bool:
+        """Délègue à `claimed_tracks.has_claimed_tracks` — une seule lecture, un seul
+        comportement en cas de table illisible."""
+        from src.utils.claimed_tracks import has_claimed_tracks
+        return has_claimed_tracks(self.artist_id, "soundcloud",
+                                  db=getattr(self, "db", None))
 
     def fetch_claimed_tracks(self, already: set | None = None) -> list:
         """Tracks this tenant declared that live on somebody else's profile.

@@ -131,9 +131,20 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
        'date' in cols and 'song' not in cols:
         return 's4a_audience'
 
+    # L'export « Depuis le début » de S4A (`…-songs-all.csv`) est REFUSÉ ICI, à la
+    # détection, et non trois couches plus bas.
+    #
+    # Il était détecté par son propre nom de fichier (ci-dessous), puis rejeté par
+    # `_detect_window` (`s4a_csv_parser.py`) avec un message conseillant de RENOMMER le
+    # fichier. Or renommer ne corrige rien : Spotify renvoie auditeurs et sauvegardes à
+    # ZÉRO sur cet export, c'est la donnée qui est inutilisable. L'artiste était donc
+    # envoyé faire un geste sans effet, deux fois de suite. Le refuser au bon endroit
+    # permet de dire la vraie raison ET le vrai remède.
+    if 'songs-all' in name or 'songs_all' in name:
+        return 's4a_songs_all_rejected'
+
     # S4A songs-all (per-song catalogue): 'song' + release_date (or filename signal).
-    if 'song' in cols and ('release_date' in cols or 'saves' in cols
-                           or 'songs-all' in name or 'songs_all' in name):
+    if 'song' in cols and ('release_date' in cols or 'saves' in cols):
         return 's4a_songs_global'
 
     # S4A per-song timeline: date + a streams column, no per-song column, not audience.
@@ -168,8 +179,36 @@ def _read_headers(file) -> list[str]:
     if not text:
         return []
     first_line = text.split('\n', 1)[0]
-    sep = '\t' if first_line.count('\t') > first_line.count(',') else ','
+    # Le point-virgule manquait, et c'est le séparateur que produit **Excel en
+    # configuration française** : un artiste qui ouvre puis réenregistre son export
+    # obtient un fichier que la détection lisait comme UNE colonne géante, donc
+    # « type non reconnu », sans que rien ne nomme la vraie cause. On choisit le
+    # séparateur le plus fréquent de la ligne d'en-tête plutôt qu'un ordre de
+    # préférence arbitraire.
+    counts = {sep: first_line.count(sep) for sep in ('\t', ';', ',')}
+    sep = max(counts, key=counts.get) if max(counts.values()) else ','
     return next(_csv.reader([first_line], delimiter=sep), [])
+
+
+def _sniff_sep(file) -> str:
+    """Le séparateur de la ligne d'en-tête — la même règle que `_read_headers`.
+
+    `_parse_file` relisait le fichier avec `pd.read_csv(file)` nu, donc virgule et
+    utf-8. Un fichier tabulé ou point-virgulé pouvait donc être DÉTECTÉ correctement
+    puis exploser à la lecture, et le message rendu était l'exception brute de pandas.
+    """
+    raw = file.read()
+    file.seek(0)
+    for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
+        try:
+            first_line = raw.decode(enc).split('\n', 1)[0]
+            break
+        except (UnicodeDecodeError, ValueError):
+            continue
+    else:
+        return ','
+    counts = {sep: first_line.count(sep) for sep in ('\t', ';', ',')}
+    return max(counts, key=counts.get) if max(counts.values()) else ','
 
 
 def _parse_file(platform_key: str, file, artist_id: int) -> list:
@@ -190,7 +229,10 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
             row['artist_id'] = artist_id
         return rows
 
-    df = pd.read_csv(file)
+    # Même séparateur et même repli d'encodage que la DÉTECTION : sans ça un fichier
+    # correctement détecté (tabulé, point-virgulé, latin-1) explosait ici, et l'artiste
+    # recevait l'exception brute de pandas au lieu d'une cause.
+    df = pd.read_csv(file, sep=_sniff_sep(file), encoding_errors='replace')
 
     if platform_key == 's4a':
         from src.transformers.s4a_csv_parser import S4ACSVParser
@@ -309,7 +351,17 @@ def show():
                     seen_cols = _read_headers(f)
                     platform_key = _detect_platform(f.name, seen_cols)
 
-                if platform_key is None:
+                if platform_key == 's4a_songs_all_rejected':
+                    entry['error'] = t(
+                        "upload_csv.err_songs_all",
+                        "Export « Depuis le début » non exploitable : Spotify y renvoie "
+                        "les auditeurs et les sauvegardes à **zéro**. Ce n'est pas le "
+                        "nom du fichier qui pose problème — le renommer ne changera "
+                        "rien. Reprends l'export en réglant la période sur **12 mois** "
+                        "(fichier `…-songs-1year.csv`).")
+                    platform_key = None
+
+                if platform_key is None and not entry.get('error'):
                     # Echo the parsed header columns so a near-miss is diagnosable
                     # ("colonnes vues: …") instead of a dead "type non reconnu".
                     entry['error'] = t(

@@ -74,4 +74,5 @@ EN = {
     "upload_csv.col_table": "Table",
     "upload_csv.col_processed_rows": "Processed rows",
     "upload_csv.status_ok": "✅ OK",
+    "upload_csv.err_songs_all": "The « Since start » export cannot be used: Spotify returns listeners and saves as **zero** there. It is not the filename — renaming it changes nothing. Re-export with the period set to **12 months** (`…-songs-1year.csv`).",
 }
