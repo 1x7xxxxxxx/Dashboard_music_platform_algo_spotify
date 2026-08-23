@@ -23,22 +23,23 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
 
-> **Vide au 2026-08-22 (séance du jour).** Les neuf entrées ouvertes par la nuit du
-> 21→22 — R23 à R31 — sont closes et archivées, **et R22 aussi** : le test d'intrusion
-> réseau se fait depuis n'importe quelle machine hors du VPS, celle-ci comprise, et le
-> fuzzing contre une instance locale du même code. Il ne reste qu'une entrée, dans
-> `## 🙋 En attente de toi` juste en dessous, et il n'y reste **qu'un geste** : inviter
-> des gens. Le déploiement est fait, le filet du canari est passé de 2 à 3 plateformes,
-> et les deux qu'aucun canari ne peut couvrir sont traitées par artiste invité
-> (**ADR-010**) au lieu de bloquer indéfiniment. Ce qui a été **décidé** plutôt que fait
-> porte son ADR : **ADR-007** (mesuré inutile), **ADR-008** (attend une donnée),
-> **ADR-009** (deux registres s'accordent au lieu de dériver, ex-R31).
-> Une tâche revient ici le jour où son déclencheur se produit.
+> **Rouvert le 2026-08-23 par la revue du corpus.** L'index était vide depuis le
+> 2026-08-22 (R22→R31 closes et archivées). Les six entrées ci-dessous ne viennent pas
+> d'un bug observé mais de la confrontation du dépôt aux **dix livres ingérés le
+> 2026-08-23** — détail, citations et vérifications dans `## 📚 Le corpus relu contre ce
+> dépôt` plus bas. Chacune nomme un écart **mesuré**, pas une bonne pratique générale.
+> Ce qui a été **décidé** plutôt que fait porte son ADR : **ADR-007** (mesuré inutile),
+> **ADR-008** (attend une donnée), **ADR-009** (deux registres s'accordent), **ADR-010**
+> (Meta/IG par artiste invité).
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| — | *(aucune)* | — | — |
-
+| R40 | Le filtrage par locataire dans la requête n'est pas l'isolation (Golding ch.8 vs ch.9) | P1 | actionnable — inventorier les vues encore sur le garde manuel |
+| R39 | Le pilier **Volume** n'est surveillé que dans un sens (spike), pas le sous-volume | P2 | actionnable — trou mesuré entre `check_row_anomalies` et la fraîcheur |
+| R41 | Le **HTTP réel** n'est borné nulle part dans la suite de tests | P2 | actionnable — SMTP borné le 2026-08-23, les APIs plateformes non |
+| R42 | `data_quality_check` : le corpus donne la forme du déblocage (circuit breaker) | P3 | actionnable — conditionner la distribution à la fraîcheur |
+| R44 | Pilier **Lineage** absent — décider explicitement au lieu de le laisser implicite | P4 | actionnable — un ADR, pas du code |
+| R45 | Un livre du corpus rend **0 passage** (EPUB en images, pas de chemin OCR) | P4 | actionnable côté `knowledge-rag` |
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
 Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
@@ -54,6 +55,179 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R38 | Le nom d'expéditeur des e-mails dit « Music Cross Platform Dashboard & Trigger Spotify » | P3 | **dans Brevo** → *Expéditeurs, domaines & IPs* → `noreply@streamlytics.fr` → nom affiché = `streaMLytics`. Mesuré le 2026-08-23 : le code met déjà `streaMLytics` par défaut et `SMTP_FROM_NAME` est **absent des deux conteneurs** de prod — le nom vient donc du compte Brevo, qui écrase le nôtre. Aucune ligne de Python ne peut le corriger. Vérif : s'inscrire avec une adresse jetable **sur streamlytics.fr**, l'expéditeur doit dire `streaMLytics <noreply@streamlytics.fr>`. Runbook §6. ⚠️ **Les mails portant ce nom qui traînent dans la boîte du 2026-08-23 ne prouvent RIEN sur R38** : ils sont partis d'un run LOCAL via `smtp.gmail.com` (`.env`), et Gmail réécrit l'expéditeur avec le nom du compte Gmail. La prod, elle, passe par `smtp-relay.brevo.com` / `noreply@streamlytics.fr` (vérifié dans les deux conteneurs le 2026-08-23). Le constat « `SMTP_FROM_NAME` absent des deux conteneurs » reste vrai et reste le motif de la tâche — mais il se vérifie par un envoi de prod, pas par ces trois mails. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
+
+## 📚 Le corpus relu contre ce dépôt (2026-08-23)
+
+Dix livres ingérés ce jour. Cette section ne résume pas les livres : elle ne garde que
+les endroits où **le livre et le dépôt se contredisent**, avec la citation, l'écart
+mesuré et le geste qui le ferme. Ce qui coïncide déjà n'y figure pas.
+
+### L'état du corpus lui-même, après réparation
+
+L'ingestion est complète (**197 fichiers, 27 domaines**), mais la revue a trouvé quatre
+défauts que la sortie « ✅ Couverture complète » cachait :
+
+1. **`saas-architecture` n'existait pas dans l'index.** `list_books("saas-architecture")`
+   répondait « aucun livre indexé » pendant que *Building Multi-Tenant SaaS Architectures*
+   y était bien, sous `divers`, avec 3 605 passages. Cause : `ingest.py` prend le domaine
+   du **nom du dossier** (`common.book_domain`), pas des règles de `organize.py` — un
+   livre rangé à la main APRÈS son ingestion garde son ancien domaine. Or la description
+   de `search_books` chiffre l'enjeu : avec `domain`, recall@5 = 90 % ; sans, 60 %. Le
+   livre le plus pertinent pour ce dépôt était donc inatteignable par le seul filtre qui
+   marche.
+2. **`ingest_state.json` est clé par NOM DE FICHIER**, sans le domaine. Un même fichier
+   présent dans deux dossiers est ingéré une fois, avec le domaine du dossier vu en
+   premier — d'où un lot à moitié classé, ce qui ne se lit pas comme un défaut.
+3. **5 963 passages dupliqués** (Alice and Bob en **trois** exemplaires, Storytelling et
+   IndOS en deux) se disputaient les places du top-k.
+4. **Un livre rend 0 passage** — *Next-Gen Chatbots RAG … LangChain*, EPUB de 86 Mo :
+   512 « pages » pour 512 mots, c'est un livre en images, et `ocrmypdf` ne traite pas
+   l'EPUB. Il est listé par `list_books()` et introuvable par `search_books()`.
+
+Réparé le jour même : deux règles de classement ajoutées (`qualite-logicielle`,
+`saas-architecture`) plus `data observability` / `data quality` sur `data-eng` ; les
+doublons retirés de l'index **et** du disque ; les mal-étiquetés réétiquetés en place
+(mêmes vecteurs, pas de ré-embedding) ; index FTS + IVF_FLAT reconstruits ; un livre
+jamais classé depuis le 2026-07-28 (*Agents IA pour les nuls*) enfin ingéré.
+`check_index_coverage.py` ne peut plus imprimer « Couverture complète » tant qu'un livre
+pèse 0 passage. Le test `test_organize_covers_domains.py` **disait déjà tout ça** — il
+était rouge et n'avait jamais été lancé.
+
+### R39 — Le pilier Volume n'est surveillé que dans un sens · P2
+
+> « The five pillars of data observability : **Freshness · Distribution · Volume ·
+> Schema · Lineage**. Volume — *Has all the data arrived?* »
+> — Moses, Gavish, Vorwerck, *Data Quality Fundamentals*, p.144
+
+Confrontation, pilier par pilier, avec ce que `alert_monitor.py` fait réellement :
+
+| Pilier | Dans le dépôt | Verdict |
+|---|---|---|
+| Freshness | `check_data_freshness` + `etl_run_log` + `stale` | ✅ complet |
+| Volume | `check_row_anomalies` | ⚠️ **un seul sens** |
+| Distribution | `check_drift_anomalies` | ⚠️ features **ML** seulement, pas la donnée collectée |
+| Schema | `notify_schema_drift.py` (cron 04h) | ✅ |
+| Lineage | — | ❌ absent (→ R44) |
+
+L'écart mesuré est dans le docstring de `check_row_anomalies` lui-même : il ne détecte
+que le **spike** (> 10× la moyenne 7 j) et délègue l'autre sens à la fraîcheur —
+« freshness already covers the opposite (no recent data) ». C'est vrai de *zéro* ligne,
+faux de *trop peu* : une collecte récente et partielle (3 titres sur 40) ne déclenche ni
+l'un ni l'autre. Ce dépôt a déjà vécu exactement ce cas — SoundCloud « ✅ sur 0 titre »
+au test GRiNCH, chaîne YouTube vide chez Benken — et l'a chaque fois découvert par un
+humain.
+
+- [ ] **R39** — sous-volume par locataire × plateforme dans `check_row_anomalies` : ratio
+      au 7 j glissant **et** plancher absolu, symétrique du spike. Vérif : tronquer la
+      dernière collecte d'un locataire en base et voir l'alerte rougir (mutation), puis
+      revenir au vert.
+
+### R40 — Le filtrage par locataire dans la requête n'est pas l'isolation · P1
+
+> « It's easy to assume that, if we're filtering these queries by tenant, then you've put
+> all the measures in place to ensure that one tenant can't access the data of another
+> tenant. And, in theory, it's not an unreasonable expectation. **However**… »
+> — Golding, *Building Multi-Tenant SaaS Architectures*, p.204
+
+Golding sépare deux choses que ce dépôt traite comme une seule : le **partitionnement**
+(ch. 8 — où la donnée vit) et l'**isolation** (ch. 9 — ce qui empêche l'accès croisé),
+et prescrit de « **Hiding Away and Centralizing Multi-Tenant Details** » derrière une
+couche d'interception plutôt que de compter sur la discipline de chaque requête.
+
+C'est le diagnostic exact de la fuite `track_popularity_history` (tous les locataires
+écrits sous l'admin pendant des mois), et le dépôt a déjà la bonne réponse — mais à
+moitié : `view_session()` EST cette couche d'interception, et la règle transverse #7
+reconnaît que des vues sont encore sur le garde manuel. Tant qu'un second chemin existe,
+la centralisation n'en est pas une.
+
+- [ ] **R40** — inventorier les vues encore sur le garde manuel `get_artist_id()`, les
+      migrer sur `view_session()`, puis rendre le contournement **impossible** : un test
+      AST qui refuse tout appel à `get_artist_id()` hors du gestionnaire de contexte.
+      Vérif : `python3 .claude/scripts/audit_tenant_writes.py` + le test AST vu rouge sur
+      une vue volontairement rétrogradée.
+
+### R41 — Le HTTP réel n'est borné nulle part dans la suite · P2
+
+> « Communications with **unmanaged** dependencies are part of your system's observable
+> behavior. Such dependencies should be mocked out. » — et symétriquement, ne pas mocker
+> les dépendances **managed** (la base).
+> — Khorikov, *Unit Testing Principles, Practices, and Patterns*, p.213 et p.221
+
+C'est la formulation exacte de la ligne que ce dépôt suit à moitié, et le livre nomme
+les deux moitiés :
+
+| Dépendance | Nature (Khorikov) | Ce que fait le dépôt |
+|---|---|---|
+| Postgres | *managed* — ne pas mocker | ✅ base réelle, ~160 tests l'exigent |
+| SMTP | *unmanaged* — mocker | ✅ **depuis le 2026-08-23** (`_no_real_smtp`) |
+| APIs plateformes (HTTP) | *unmanaged* — mocker | ❌ **rien** |
+
+Le défaut SMTP corrigé ce jour n'était donc pas un accident isolé : c'était la première
+manifestation visible d'une frontière qui n'existe pas. Elle est visible parce qu'un mail
+arrive dans une boîte ; un appel HTTP réel vers l'API d'une plateforme ne laisse aucune
+trace côté opérateur — il consomme du quota, peut écrire, et échoue en CI sans réseau.
+
+- [ ] **R41** — frontière `requests` / `httpx` dans `tests/conftest.py`, sur le modèle
+      exact de `_no_real_smtp` : **enregistrer puis échouer au teardown**, parce que les
+      collecteurs enveloppent leurs appels dans `except` et avaleraient une exception
+      seule. Prévoir l'opt-in pour les tests qui exercent vraiment le client. Vérif :
+      signature dédiée qui déclenche la frontière exprès, vue rouge par mutation.
+
+### R42 — `data_quality_check` : le corpus donne la forme du déblocage · P3
+
+> « Using circuit breakers requires three core solutions : **data lineage**, **data
+> profiling across the pipeline**, **ability to automatically trigger the circuit** via
+> issues unearthed through profiling. » — Moses et al., p.86
+
+Le verdict local (`.claude/dev-docs/data-quality-check-verdict.md`) garde ce DAG en pause
+parce que sa sonde Meta passerait au vert sur la source la plus périmée de la prod.
+Moses explique **pourquoi** c'est structurel et pas un bug de sonde : Freshness et
+Distribution sont deux piliers **distincts**, et un contrôle de distribution qui ne
+s'appuie pas sur un contrôle de fraîcheur mesure la forme de données mortes.
+
+- [ ] **R42** — conditionner tout contrôle de distribution à un contrôle de fraîcheur qui
+      passe (circuit breaker) avant de sortir `data_quality_check` de pause. Vérif : la
+      sonde Meta doit rester **rouge ou muette** sur une source périmée, jamais verte —
+      c'est précisément ce que le verdict lui reprochait.
+
+### R43 — La politique d'alerte du dépôt est adossée à deux sources · P4 (fait, à consigner)
+
+> « Alerting has shifted to a model in which fewer alerts are triggered, by focusing only
+> on **symptoms that directly impact user experience**. »
+> — Majors, Fong-Jones et al., *Observability Engineering*, p.61
+> « All paging alerts should also be **actionable**. Low-priority alerts … disrupt
+> productivity, and the fatigue such alerts induce … »
+> — Beyer et al., *Site Reliability Engineering*, p.156
+
+Les trois suppressions d'alerte décidées le 2026-08-23 (« rendre les nuits calmes ») ont
+été prises sur mesure, sans référence. Elles sont exactement ce que les deux sources
+prescrivent. Rien à changer dans le code — mais une décision non sourcée se re-litige.
+
+- [ ] **R43** — consigner dans un ADR que la règle d'alerte est « symptôme visible par
+      l'artiste **et** action possible », en citant les deux passages ci-dessus.
+
+### R44 — Le pilier Lineage est absent · P4
+
+Aucun équivalent dans le dépôt : rien ne dit quelle table dérive de quelle collecte, donc
+une anomalie ne remonte pas à sa source. Moses en fait la première des trois conditions
+du circuit breaker (p.86), ce qui lie R44 à R42.
+
+- [ ] **R44** — trancher par ADR : soit le lineage est hors sujet à cette échelle (et on
+      le dit, comme ADR-007 l'a fait pour la performance), soit R42 en dépend et il entre
+      au plan. Ne pas le laisser implicite.
+
+### R45 — Un livre du corpus rend 0 passage · P4 (`knowledge-rag`)
+
+*Next-Gen Chatbots RAG — Autonomous Agents with LangChain*, EPUB de 86 Mo, échoue à
+**chaque** ingestion depuis son dépôt : 512 « pages » pour 512 mots. C'est un livre en
+images et le pipeline n'a pas de chemin OCR pour l'EPUB (`ocrmypdf` ne traite que le PDF).
+
+- [ ] **R45** — soit extraire les images de l'EPUB et les passer à l'OCR existant, soit
+      convertir l'EPUB en PDF pour réutiliser le chemin `NEEDS_OCR` déjà en place, soit
+      retirer le livre en le disant. Vérif : `tools/check_index_coverage.py` ne doit plus
+      lister aucun livre à 0 passage.
+
+---
 
 ## 🔖 REPRISE — état au 2026-08-23, séance close (à lire EN PREMIER au `/resume`)
 
