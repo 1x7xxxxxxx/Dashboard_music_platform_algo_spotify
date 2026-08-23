@@ -165,6 +165,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [unattributable-payment-link](#unattributable-payment-link) | P2 | deterministic | guarded | none |
 | [partial-collection-invisible](#partial-collection-invisible) | P2 | deterministic | guarded | none |
 | [test-calls-a-real-api](#test-calls-a-real-api) | P2 | deterministic | guarded | none |
+| [sender-identity-composed-twice](#sender-identity-composed-twice) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1850,3 +1851,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: trouvé en cherchant, pas en subissant — le défaut SMTP de la veille avait été trouvé par la boîte mail, et la question « qu'est-ce que la suite fait D'AUTRE au monde extérieur ? » a été posée volontairement. La réponse tenait en un mouchard de vingt lignes sur `socket.connect`. Un rayon de souffle se mesure, il ne se déduit pas.
+
+## sender-identity-composed-twice
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: les e-mails du produit arrivent sous un nom d'expéditeur qui n'est pas le sien — ici « Music Cross Platform Dashboard & Trigger Spotify » au lieu de « streaMLytics ». Rien n'échoue : les mails partent, sont délivrés, et personne dans le code ne peut dire d'où vient ce nom.
+- root_cause: deux chemins d'envoi composaient leur propre en-tête `From`. `verification_email.py` faisait `f"{from_name} <{from_email}>"` — correct ; `email_alerts.py` posait **`self.smtp_user`**, l'identifiant de connexion au relais, sans nom d'affichage et sur le mauvais domaine (`ae8df8001@smtp-brevo.com` en prod, quand `SMTP_FROM` vaut `noreply@streamlytics.fr`). Brevo, qui exige un expéditeur validé, y substitue l'expéditeur par défaut du compte. Et la valeur affichée par l'autre chemin venait de la clé `smtp.from_name` de `config/config.yaml` — le repli que le code lit AVANT son défaut.
+- signature: `python3 -m pytest tests/test_every_mail_says_who_it_is_from.py -q`
+- long_term_fix: une seule fonction compose l'en-tête (`src/utils/email_identity.from_header()`), et un garde AST interdit tout `msg['From'] = …` qui ne soit pas son appel. L'adresse d'expédition est explicitement distincte du login SMTP : chez un relais, le login est un compte technique, et retomber dessus est un pis-aller, pas le cas nominal.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_mail_says_who_it_is_from.py }
+- rex_ref: src/utils/email_identity.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: le coût réel n'est pas le défaut, c'est le diagnostic. La roadmap portait depuis des semaines « le code met déjà `streaMLytics` par défaut et `SMTP_FROM_NAME` est absent des deux conteneurs — le nom vient donc du compte Brevo, **aucune ligne de Python ne peut le corriger** ». Les deux moitiés étaient fausses, et pour la même raison : on avait lu le chemin d'envoi qui marchait, et jamais ouvert `config.yaml`, dont la clé `from_name` portait littéralement le nom observé. Une tâche classée « hors de portée du code » mérite qu'on vérifie la portée avant de la parquer — deuxième fois en trois jours.

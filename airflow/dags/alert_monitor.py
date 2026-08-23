@@ -1161,7 +1161,7 @@ def _record_quiet_run():
         finally:
             db.close()
     except Exception as e:  # noqa: BLE001
-        logger.error("could not record the quiet run: %s", e)
+        logger.error("could not record the quiet run: %s", safe_error(e))
         return None
 
 
@@ -1183,7 +1183,7 @@ def _record_alert_attempt(subject: str, issues_count: int):
         finally:
             db.close()
     except Exception as e:  # noqa: BLE001 — see docstring
-        logger.error("could not open the alert-delivery ledger row: %s", e)
+        logger.error("could not open the alert-delivery ledger row: %s", safe_error(e))
         return None
 
 
@@ -1201,7 +1201,7 @@ def _close_alert_attempt(run_id, delivered: bool, error) -> None:
         finally:
             db.close()
     except Exception as e:  # noqa: BLE001
-        logger.error("could not close the alert-delivery ledger row: %s", e)
+        logger.error("could not close the alert-delivery ledger row: %s", safe_error(e))
 
 
 def send_consolidated_alert(**context):

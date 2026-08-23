@@ -151,6 +151,20 @@ def _returns_bare_exception(path: Path) -> list[int]:
         if isinstance(node, ast.FormattedValue):
             if getattr(node.value, "id", None) in tainted:
                 out.append(node.lineno)
+        # logger.error("… %s", e) / print("…", e) — the FOURTH shape, and the one this
+        # predicate did not know. Mesuré le 2026-08-23 : `email_alerts.py` rédigeait
+        # l'exception dans `send_alert` et la passait BRUTE douze lignes plus bas dans
+        # `send_email`, dans le même fichier, sous ce visage-là. Le rendu final est
+        # identique — `%s` appelle `str()` — mais l'exception n'est ni dans un `str()`
+        # ni dans une f-string, donc les deux premières branches passaient à côté.
+        # `safe_error(e)` reste un Call et n'est donc toujours pas signalé.
+        if isinstance(node, ast.Call):
+            fname = getattr(node.func, "attr", "") or getattr(node.func, "id", "")
+            if fname in {"debug", "info", "warning", "error", "exception",
+                         "critical", "print"}:
+                for arg in node.args:
+                    if getattr(arg, "id", None) in tainted:
+                        out.append(node.lineno)
     return sorted(set(out))
 
 

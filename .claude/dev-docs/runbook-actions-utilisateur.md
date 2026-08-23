@@ -151,7 +151,27 @@ vue, aujourd'hui fixé à l'intuition — deviennent sourçables.
 
 ---
 
-## 6. R38 — Le nom d'expéditeur des e-mails dit « Music Cross Platform » · P3
+## 6. ~~R38 — Le nom d'expéditeur des e-mails~~ · ✅ CORRIGÉ EN CODE le 2026-08-23
+
+> **Rien à faire dans Brevo. Ce n'en venait pas.** La procédure ci-dessous partait d'un
+> diagnostic faux — « aucune ligne de Python ne peut le corriger ». Deux mesures l'ont
+> démenti :
+>
+> 1. **`config/config.yaml` portait littéralement le nom observé**
+>    (`smtp.from_name: 'Music Cross Platform Dashboard & Trigger Spotify'`). C'est le
+>    repli que le code lit **avant** son défaut `streaMLytics` — un repli intermédiaire
+>    renseigné n'atteint jamais le défaut.
+> 2. **`email_alerts.py` n'utilisait aucun nom** : il posait `msg['From'] = smtp_user`,
+>    l'identifiant de connexion au relais, et Brevo y substituait son expéditeur par
+>    défaut.
+>
+> Corrigé : `email_identity.from_header()` est la seule composition de l'en-tête, les
+> quatre sites d'envoi y passent, et un garde AST interdit d'en composer un ailleurs.
+> En production, `SMTP_FROM=noreply@streamlytics.fr` et l'absence de `SMTP_FROM_NAME`
+> donnent désormais `streaMLytics <noreply@streamlytics.fr>` sans aucun réglage.
+
+<details><summary>Ancienne procédure Brevo, conservée pour mémoire — elle n'était pas la bonne piste</summary>
+
 
 **Le geste** : dans Brevo → *Expéditeurs, domaines & IPs* → l'expéditeur
 `noreply@streamlytics.fr`, remplacer le **nom affiché** par `streaMLytics`.
@@ -235,6 +255,10 @@ interdit.
 
 ⚠️ `airflow dags test` **exécute réellement** `send_summary_notification` : le lancer
 envoie un vrai e-mail de résumé. Mesuré le 2026-08-23.
+
+</details>
+
+---
 
 </details>
 

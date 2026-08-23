@@ -7,6 +7,8 @@ Depends on: smtp section in config/config.yaml
 import os
 import smtplib
 import logging
+
+from src.utils.email_identity import from_header
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
@@ -85,8 +87,9 @@ def _send_html(to_email: str, subject: str, html: str,
     smtp_port = int(cfg.get('port', 587))
     smtp_user = cfg.get('user', '')
     smtp_pass = cfg.get('password', '')
-    from_name = cfg.get('from_name', 'streaMLytics')
-    from_email = cfg.get('from_email') or smtp_user
+    # Le `From` est composé par `email_identity.from_header()` — une seule source,
+    # parce que les deux chemins d'envoi de ce dépôt en avaient composé deux
+    # différentes, et que celui qu'on ne regardait pas était le mauvais.
 
     if not smtp_user or not smtp_pass:
         logger.warning("SMTP not configured — skipping email '%s'.", subject)
@@ -95,7 +98,7 @@ def _send_html(to_email: str, subject: str, html: str,
     try:
         # 'mixed' so the HTML body and the PDF coexist; HTML nested in 'alternative'.
         msg = MIMEMultipart('mixed')
-        msg['From']    = f"{from_name} <{from_email}>"
+        msg['From']    = from_header()
         msg['To']      = to_email
         msg['Subject'] = subject
         body = MIMEMultipart('alternative')
@@ -263,8 +266,9 @@ def send_verification_email(to_email: str, username: str, token: str,
     smtp_port = int(cfg.get('port', 587))
     smtp_user = cfg.get('user', '')
     smtp_pass = cfg.get('password', '')
-    from_name = cfg.get('from_name', 'streaMLytics')
-    from_email = cfg.get('from_email') or smtp_user
+    # Le `From` est composé par `email_identity.from_header()` — une seule source,
+    # parce que les deux chemins d'envoi de ce dépôt en avaient composé deux
+    # différentes, et que celui qu'on ne regardait pas était le mauvais.
 
     if not smtp_user or not smtp_pass:
         logger.warning("SMTP not configured — skipping verification email.")
@@ -298,7 +302,7 @@ def send_verification_email(to_email: str, username: str, token: str,
 
     try:
         msg = MIMEMultipart('alternative')
-        msg['From']    = f"{from_name} <{from_email}>"
+        msg['From']    = from_header()
         msg['To']      = to_email
         msg['Subject'] = _tr('email.verify.subject',
                              "🎵 Vérifiez votre compte streaMLytics", lang)

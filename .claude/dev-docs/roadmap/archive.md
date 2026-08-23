@@ -11,6 +11,39 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 <!-- section actif : Open Bugs -->
 
+### R38 — Le nom d'expéditeur venait du code, pas de Brevo (clos 2026-08-23)
+
+- [x] **R38 — corrigé en code, alors qu'il était parqué comme « aucune ligne de Python
+  ne peut le corriger ».** La roadmap tenait pour acquis que le nom venait du compte
+  Brevo. Deux mesures l'ont démenti :
+
+  1. **`config/config.yaml` porte littéralement le nom observé** — `smtp.from_name:
+     'Music Cross Platform Dashboard & Trigger Spotify'`. C'est le repli que le code lit
+     **avant** son défaut `streaMLytics` : un repli intermédiaire renseigné n'atteint
+     jamais le défaut. Personne n'avait ouvert ce fichier.
+  2. **`email_alerts.py` n'utilisait aucun nom** : `msg['From'] = self.smtp_user`, soit
+     l'identifiant de connexion au relais (`ae8df8001@smtp-brevo.com` en prod) au lieu de
+     `noreply@streamlytics.fr`. Toutes les alertes de DAG, le résumé quotidien et le
+     rapport d'onboarding partaient ainsi ; Brevo, qui exige un expéditeur validé, y
+     substituait l'expéditeur par défaut du compte.
+
+  On avait regardé `verification_email.py` — le chemin qui marchait.
+
+  Fix : `src/utils/email_identity.from_header()` est la seule composition de l'en-tête,
+  les 4 sites y passent, `config.yaml` corrigé, `config.example.yaml` documenté avec la
+  raison. Garde AST `tests/test_every_mail_says_who_it_is_from.py`, vu rouge sur les
+  4 sites d'avant le fix. Classe `sender-identity-composed-twice`.
+
+  **Six fuites de credentials trouvées au passage.** En élargissant le prédicat du garde
+  `secret-in-an-exception-message` à la 4ᵉ forme — l'exception passée en ARGUMENT de
+  logger, `logger.error("… %s", e)`, que ni `str(e)` ni `f"{e}"` n'attrapaient — il a
+  sorti `alert_monitor.py` (3 sites), `onboarding_report.py` (2) et
+  `soundcloud_api_collector.py` (1, dans le rafraîchissement OAuth, où l'exception peut
+  porter le jeton). Quatrième élargissement de ce garde, quatrième fois qu'il trouve.
+
+---
+
+
 ### R46 — `data_quality_check` : tranché par l'exécution, reste en pause (clos 2026-08-23)
 
 - [x] **R46 — lancé une fois à la main en production, et la décision est mesurée.**

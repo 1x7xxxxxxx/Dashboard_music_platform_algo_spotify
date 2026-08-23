@@ -145,7 +145,8 @@ def send_onboarding_reports(**context):
                 logger.warning("Email not sent for %s — will retry next run (not stamped).",
                                artist_name)
         except Exception as e:
-            logger.error("Onboarding report failed for %s (id=%s): %s", artist_name, uid, e)
+            logger.error("Onboarding report failed for %s (id=%s): %s",
+                         artist_name, uid, safe_error(e))
             continue
 
     db.close()
@@ -158,7 +159,8 @@ def _build_report(db, artist_id: int, artist_name: str) -> bytes | None:
     try:
         from src.dashboard.utils.pdf_exporter import generate_pdf, ALL_SECTIONS
     except Exception as e:
-        logger.error("pdf_exporter import failed (missing dep in Airflow image?): %s", e)
+        logger.error("pdf_exporter import failed (missing dep in Airflow image?): %s",
+                     safe_error(e))
         return None
     return generate_pdf(
         db,

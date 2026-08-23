@@ -136,7 +136,7 @@ class SoundCloudCollector:
             except Exception as e:
                 logger.warning(
                     "SoundCloud refresh_token rotated but NOT persisted (%s) — "
-                    "next run will fail until re-connected.", e
+                    "next run will fail until re-connected.", safe_error(e)
                 )
         logger.info("SoundCloud user token obtained (expires in %ds).", expires_in)
 

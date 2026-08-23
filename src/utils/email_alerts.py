@@ -6,6 +6,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from src.utils.email_identity import from_header
 from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,12 @@ class EmailAlert:
             return False
         try:
             msg = MIMEMultipart()
-            msg['From'] = self.smtp_user
+            # PAS `self.smtp_user` : chez un relais, le login est un compte technique
+            # (`ae8df8001@smtp-brevo.com` en prod) et non l'adresse d'expédition. Le
+            # relais y substitue alors l'expéditeur par défaut du compte — c'est de là
+            # que venait le nom « Music Cross Platform Dashboard & Trigger Spotify »
+            # sur toutes les alertes (R38, mesuré 2026-08-23).
+            msg['From'] = from_header()
             msg['To'] = self.alert_email
             msg['Subject'] = f"🚨 Dashboard Alert: {subject}"
             msg.attach(MIMEText(body, 'html'))
@@ -75,7 +81,7 @@ class EmailAlert:
             return False
         try:
             msg = MIMEMultipart('mixed')
-            msg['From'] = self.smtp_user
+            msg['From'] = from_header()
             msg['To'] = to_email
             msg['Subject'] = subject
             body = MIMEMultipart('alternative')
@@ -96,7 +102,12 @@ class EmailAlert:
             logger.info("✅ Email '%s' envoyé à %s", subject, to_email)
             return True
         except Exception as e:
-            logger.error("❌ Échec envoi email '%s' à %s : %s", subject, to_email, e)
+            # `safe_error`, comme `send_alert` douze lignes plus haut : la même
+            # classe rédigée dans une méthode et brute dans sa voisine, dans le même
+            # fichier. Une exception passée en ARGUMENT de logger échappait au garde,
+            # qui ne connaissait que `str(e)` et `f"{e}"` (R38, 2026-08-23).
+            logger.error("❌ Échec envoi email '%s' à %s : %s",
+                         subject, to_email, safe_error(e))
             return False
 
 

@@ -42,3 +42,19 @@ auth:
         password: $2b$12$HASH_DU_MOT_DE_PASSE_ARTIST1  # bcrypt hash
         role: artist
         artist_id: 1
+
+smtp:
+  # Le nom d'affichage de l'expéditeur. MESURÉ le 2026-08-23 : cette valeur-ci était
+  # `Music Cross Platform Dashboard & Trigger Spotify`, et c'est elle — pas un réglage
+  # du compte Brevo, comme la roadmap le supposait — qui s'affichait dans la boîte des
+  # utilisateurs. Le code lit `SMTP_FROM_NAME`, PUIS cette clé, PUIS son défaut
+  # `streaMLytics` : un repli intermédiaire renseigné n'atteint jamais le défaut.
+  from_name: "streaMLytics"
+  # L'adresse d'expédition, DISTINCTE du login SMTP. Chez un relais (Brevo, Mailgun…)
+  # le login est un compte technique et le `From` doit porter l'adresse du domaine
+  # authentifié, sinon le relais y substitue son propre expéditeur par défaut.
+  from_email: "noreply@example.com"
+  host: "smtp.example.com"
+  port: 587
+  user: ""
+  password: ""
