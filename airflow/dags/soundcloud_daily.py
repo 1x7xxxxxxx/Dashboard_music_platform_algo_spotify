@@ -12,6 +12,11 @@ import os
 
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -21,7 +26,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -98,6 +103,11 @@ def run_soundcloud_collector(**context):
             logger.info("No active artist in DB — nothing to collect.")
             return
 
+    from src.utils.dag_run_logger import (
+        record_tenant_failure, record_tenant_skip, record_tenant_success,
+    )
+    run_id = context.get('run_id', '') if context else ''
+
     configured = 0
     succeeded = 0
     per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort the fleet
@@ -117,13 +127,21 @@ def run_soundcloud_collector(**context):
         # artist saves the tab without filling it in.
         user_id       = (creds.get('user_id') or '').strip()
 
+        # Every branch below leaves a row in etl_run_log. Absence of a row is what made
+        # that ledger unable to answer "did collection run for this tenant?" — a
+        # question no other surface can answer, and the reason a tenant can stop
+        # collecting for nights without anything saying so.
         if not user_id:
             logger.info(f"  {artist_name} (id={artist_id}) sans user_id SoundCloud — skip")
+            record_tenant_skip('soundcloud_daily', artist_id, 'soundcloud',
+                               'no SoundCloud user_id declared', run_id)
             continue
         if not client_id or not client_secret:
             logger.warning(f"  {artist_name} (id={artist_id}) — app SoundCloud partagée non "
                            "configurée (SOUNDCLOUD_CLIENT_ID/SECRET) — contacter admin ; skip")
             per_artist_errors.append((artist_id, artist_name, "app credentials missing (admin)"))
+            record_tenant_skip('soundcloud_daily', artist_id, 'soundcloud',
+                               'shared SoundCloud app not configured (admin action)', run_id)
             continue
 
         configured += 1
@@ -136,14 +154,16 @@ def run_soundcloud_collector(**context):
                 user_id=user_id,
                 refresh_token=refresh_token,
             )
-            collector.run()
+            rows = collector.run() or 0
+            record_tenant_success('soundcloud_daily', artist_id, 'soundcloud', rows, run_id)
             succeeded += 1
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")
         except Exception as e:
             # Per-artist isolation: the collector still raises (rule #6); the loop
             # absorbs it per-tenant so a single failure can't blank the others.
-            logger.error(f"  ❌ Erreur pour {artist_name} : {e}")
-            per_artist_errors.append((artist_id, artist_name, str(e)[:200]))
+            logger.error(f"  ❌ Erreur pour {artist_name} : {safe_error(e)}")
+            per_artist_errors.append((artist_id, artist_name, safe_error(e)[:200]))
+            record_tenant_failure('soundcloud_daily', artist_id, 'soundcloud', e, run_id)
             continue
 
     if per_artist_errors:

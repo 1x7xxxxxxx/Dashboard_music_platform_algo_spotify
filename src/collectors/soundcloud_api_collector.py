@@ -288,21 +288,29 @@ class SoundCloudCollector:
         logger.info("Fetched %d claimed track(s).", len(out))
         return out
 
-    def save_to_db(self, tracks: list) -> None:
+    def save_to_db(self, tracks: list) -> int:
+        """Returns the number of rows written — 0 is a legitimate answer, not a failure.
+
+        The count is what the caller records in `etl_run_log.rows_inserted`. Returning
+        None would make "collected nothing" and "did not run" the same value, which is
+        precisely the ambiguity the ledger exists to remove.
+        """
         if not tracks:
             logger.warning("No tracks to save — skipping.")
-            return
+            return 0
         self.db.execute_query(
             "DELETE FROM soundcloud_tracks_daily WHERE collected_at::date = CURRENT_DATE AND artist_id = %s",
             (self.artist_id,)
         )
         self.db.insert_many("soundcloud_tracks_daily", tracks)
         logger.info("Saved %d rows to soundcloud_tracks_daily.", len(tracks))
+        return len(tracks)
 
-    def run(self) -> None:
+    def run(self) -> int:
+        """Returns the number of rows written, for the run ledger."""
         try:
             tracks = self.fetch_tracks()
-            self.save_to_db(tracks)
+            return self.save_to_db(tracks)
         finally:
             self.db.close()
 

@@ -14,6 +14,11 @@ import logging
 # Ajouter le projet au path
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +28,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -48,9 +53,13 @@ def collect_spotify_artists(**context):
         logger.info('🎸 Collecte Spotify - Artistes...')
 
         from src.utils.credential_loader import get_active_artists
+        from src.utils.dag_run_logger import (
+            record_tenant_failure, record_tenant_skip, record_tenant_success,
+        )
 
         conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
         artist_id_conf = conf.get('artist_id')
+        run_id = context.get('run_id', '') if context else ''
 
         active_artists = get_active_artists(include_artist_id=artist_id_conf)
         if not active_artists and os.getenv('LEGACY_SINGLE_TENANT') == '1':
@@ -96,16 +105,19 @@ def collect_spotify_artists(**context):
         # Central model: each tenant supplies their Spotify artist identity, stored in
         # saas_artists.spotify_artist_id and collected under one admin app. The legacy
         # global env SPOTIFY_ARTIST_IDS is merged (backward-compat / admin-pinned IDs).
+        # The tenant travels WITH its Spotify id. The loop below used to carry only the
+        # VARCHAR Spotify identifier, so no per-tenant outcome could be recorded — the
+        # ledger cannot say "collection ran for this tenant" from an id it cannot map.
         if artist_id_conf:
             rows = db.fetch_query(
-                "SELECT spotify_artist_id FROM saas_artists "
+                "SELECT id, spotify_artist_id FROM saas_artists "
                 "WHERE id = %s AND spotify_artist_id IS NOT NULL AND spotify_artist_id <> ''",
                 (artist_id_conf,),
             )
-            artist_ids = [r[0] for r in rows]  # tenant-scoped: do NOT fold in the global env
+            artist_ids = [(r[0], r[1]) for r in rows]  # tenant-scoped: do NOT fold in the global env
         else:
             rows = db.fetch_query(
-                "SELECT spotify_artist_id FROM saas_artists "
+                "SELECT id, spotify_artist_id FROM saas_artists "
                 "WHERE active = TRUE AND spotify_artist_id IS NOT NULL AND spotify_artist_id <> ''"
             )
             # SPOTIFY_ARTIST_IDS is the ADMIN's own artist list. Folding it into every
@@ -114,8 +126,27 @@ def collect_spotify_artists(**context):
             # single-tenant deployment.
             env_ids = []
             if os.getenv('LEGACY_SINGLE_TENANT') == '1':
-                env_ids = [a.strip() for a in os.getenv('SPOTIFY_ARTIST_IDS', '').split(',') if a.strip()]
-            artist_ids = list(dict.fromkeys([r[0] for r in rows] + env_ids))  # dedupe, keep order
+                # No tenant owns an env-pinned id — recorded as (None, <spotify id>) so
+                # the ledger never attributes it to somebody.
+                env_ids = [(None, a.strip())
+                           for a in os.getenv('SPOTIFY_ARTIST_IDS', '').split(',') if a.strip()]
+            seen, artist_ids = set(), []
+            for tenant, sp_id in [(r[0], r[1]) for r in rows] + env_ids:
+                if sp_id not in seen:
+                    seen.add(sp_id)
+                    artist_ids.append((tenant, sp_id))
+
+        # A tenant with no Spotify identity never appears in the query above, so for
+        # Spotify — and only Spotify — "declared nothing" was invisible to the ledger
+        # while every other platform recorded it as `skipped`. Record it here, so the
+        # question "did collection run for this tenant?" has an answer for all five.
+        declared = {tid for tid, _ in artist_ids if tid is not None}
+        for (tid,) in db.fetch_query(
+                "SELECT id FROM saas_artists WHERE active = TRUE "
+                "AND COALESCE(spotify_artist_id, '') = ''"):
+            if tid not in declared:
+                record_tenant_skip('spotify_api_daily', tid, 'spotify',
+                                   'no Spotify artist id declared', run_id)
 
         if not artist_ids:
             logger.warning('⚠️ Aucun Spotify Artist ID configuré '
@@ -125,9 +156,16 @@ def collect_spotify_artists(**context):
 
         artists_collected = 0
 
-        for artist_id in artist_ids:
+        for saas_artist_id, artist_id in artist_ids:
             artist_id = (artist_id or '').strip()
             if not artist_id:
+                # Defensive: the query filters empty ids, so this can only fire for a
+                # blank env-pinned entry (legacy, no tenant). Recorded anyway when a
+                # tenant IS attached — a loop exit that writes nothing is exactly what
+                # made a stopped tenant indistinguishable from one never looked at.
+                if saas_artist_id is not None:
+                    record_tenant_skip('spotify_api_daily', saas_artist_id, 'spotify',
+                                       'Spotify artist id is blank', run_id)
                 continue
 
             logger.info(f'📊 Collecte artiste: {artist_id}')
@@ -158,9 +196,15 @@ def collect_spotify_artists(**context):
 
                     artists_collected += 1
                     logger.info(f'✅ Artiste {artist_id} collecté')
+                    if saas_artist_id is not None:
+                        record_tenant_success('spotify_api_daily', saas_artist_id,
+                                              'spotify', 1, run_id)
             except Exception as e:
                 # Per-artist isolation: a single bad Spotify ID must not abort the fleet.
-                logger.error(f'  Spotify collect failed for {artist_id}: {e}')
+                logger.error(f'  Spotify collect failed for {artist_id}: {safe_error(e)}')
+                if saas_artist_id is not None:
+                    record_tenant_failure('spotify_api_daily', saas_artist_id,
+                                          'spotify', e, run_id)
                 continue
 
         db.close()
@@ -175,7 +219,7 @@ def collect_spotify_artists(**context):
         return artists_collected
 
     except Exception as e:
-        logger.error(f'❌ Erreur collecte artistes: {e}')
+        logger.error(f'❌ Erreur collecte artistes: {safe_error(e)}')
         import traceback
         traceback.print_exc()
         raise
@@ -333,7 +377,7 @@ def collect_spotify_top_tracks(**context):
             except Exception as e:
                 # Per-artist isolation: a single bad Spotify ID / API error must not abort
                 # top-tracks collection for the other tenants.
-                logger.error(f'  Spotify top-tracks failed for {artist_id}: {e}')
+                logger.error(f'  Spotify top-tracks failed for {artist_id}: {safe_error(e)}')
                 continue
 
         # Stocker l'historique de popularité
@@ -352,7 +396,7 @@ def collect_spotify_top_tracks(**context):
                 logger.info(f'📅 Date enregistrée: {current_date}')
 
             except Exception as e:
-                logger.error(f'❌ Erreur stockage historique popularité: {e}')
+                logger.error(f'❌ Erreur stockage historique popularité: {safe_error(e)}')
                 import traceback
                 logger.error(traceback.format_exc())
                 raise
@@ -372,7 +416,7 @@ def collect_spotify_top_tracks(**context):
         return total_tracks
 
     except Exception as e:
-        logger.error(f'❌ Erreur collecte tracks: {e}')
+        logger.error(f'❌ Erreur collecte tracks: {safe_error(e)}')
         import traceback
         traceback.print_exc()
         raise

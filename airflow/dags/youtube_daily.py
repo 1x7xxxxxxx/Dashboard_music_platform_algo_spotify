@@ -25,7 +25,8 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        from src.utils.safe_error import safe_error
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -45,6 +46,10 @@ def collect_youtube_data(**context):
         from src.collectors.youtube_collector import YouTubeCollector
         from src.database.postgres_handler import PostgresHandler
         from src.utils.credential_loader import load_platform_credentials, get_active_artists
+        from src.utils.safe_error import safe_error
+        from src.utils.dag_run_logger import (
+            record_tenant_failure, record_tenant_skip, record_tenant_success,
+        )
 
         logger.info('=' * 70)
         logger.info('YouTube Data API — collect')
@@ -52,6 +57,7 @@ def collect_youtube_data(**context):
 
         conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
         artist_id_conf = conf.get('artist_id')
+        run_id = context.get('run_id', '') if context else ''
 
         artists = get_active_artists(include_artist_id=artist_id_conf)
         if not artists:
@@ -91,13 +97,20 @@ def collect_youtube_data(**context):
             # them under this artist's artist_id. An empty string counts as absent.
             channel_id = (creds.get('channel_id') or '').strip()
 
+            # Every branch below leaves a row in etl_run_log. Absence of a row is what
+            # made that ledger unable to answer "did collection run for this tenant?" —
+            # Benken's YouTube failed two nights running with no surface saying so.
             if not api_key:
                 logger.warning(f'  YouTube app credential missing (YOUTUBE_API_KEY) — '
                                f'skipping {artist_name}; admin action required')
+                record_tenant_skip('youtube_daily', saas_artist_id, 'youtube',
+                                   'shared YouTube app not configured (admin action)', run_id)
                 continue
             if not channel_id:
                 logger.info(f'  {artist_name} (id={saas_artist_id}) has no YouTube '
                             'channel_id — not connected, skipping')
+                record_tenant_skip('youtube_daily', saas_artist_id, 'youtube',
+                                   'no YouTube channel_id declared', run_id)
                 continue
 
             artists_with_creds += 1
@@ -201,14 +214,24 @@ def collect_youtube_data(**context):
                         update_columns=['like_count', 'collected_at']
                     )
 
+                record_tenant_success('youtube_daily', saas_artist_id, 'youtube',
+                                      len(data['videos']), run_id)
                 results.append({'artist': artist_name, 'videos': len(data['videos'])})
             except Exception as e:
                 # Per-artist isolation: a bad channel_id (404 playlistNotFound) or a
                 # per-tenant API error must NOT abort collection for the other artists.
                 # The collector still raises (project rule #6); the DAG loop absorbs it
                 # per-tenant and the task fails below only if EVERY artist failed.
-                logger.error(f'  YouTube collect failed for artist_id={saas_artist_id} ({artist_name}): {e}')
-                per_artist_errors.append((saas_artist_id, artist_name, str(e)[:200]))
+                # safe_error, NOT {e} / str(e) — an HttpError repr embeds the request URI,
+                # so both of these lines wrote the YouTube API key into the task log in
+                # clear (measured in production 2026-08-23), and per_artist_errors is
+                # forwarded into the WARNING summary below.
+                logger.error(
+                    f'  YouTube collect failed for artist_id={saas_artist_id} '
+                    f'({artist_name}): {safe_error(e)}'
+                )
+                per_artist_errors.append((saas_artist_id, artist_name, safe_error(e, limit=200)))
+                record_tenant_failure('youtube_daily', saas_artist_id, 'youtube', e, run_id)
                 continue
 
         db.close()
@@ -230,7 +253,7 @@ def collect_youtube_data(**context):
         return results
 
     except Exception as e:
-        logger.error(f'YouTube collect error: {e}')
+        logger.error(f'YouTube collect error: {safe_error(e)}')
         import traceback
         traceback.print_exc()
         raise

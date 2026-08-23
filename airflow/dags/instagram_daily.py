@@ -5,6 +5,11 @@ import sys
 
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -14,7 +19,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -72,6 +77,11 @@ def run_insta_collector(**context):
             logger.info("No active artist in DB — nothing to collect.")
             return
 
+    from src.utils.dag_run_logger import (
+        record_tenant_failure, record_tenant_skip, record_tenant_success,
+    )
+    run_id = context.get('run_id', '') if context else ''
+
     configured = 0
     succeeded = 0
     per_artist_errors = []  # multi-tenant isolation — one bad tenant must not abort the fleet
@@ -81,13 +91,18 @@ def run_insta_collector(**context):
         ig_user_id = creds.get('ig_user_id')
         token = creds.get('access_token') or os.getenv('META_ACCESS_TOKEN')
 
+        # Every branch below leaves a row in etl_run_log — see dag_run_logger.
         if not ig_user_id:
             logger.info(f"  {artist_name} (id={artist_id}) sans ig_user_id — skip")
+            record_tenant_skip('instagram_daily', artist_id, 'instagram',
+                               'no Instagram Business Account ID declared', run_id)
             continue
         if not token:
             logger.warning(f"  {artist_name} (id={artist_id}) — token Meta partagé absent "
                            "(META_ACCESS_TOKEN) — contacter admin ; skip")
             per_artist_errors.append((artist_id, artist_name, "shared token missing (admin)"))
+            record_tenant_skip('instagram_daily', artist_id, 'instagram',
+                               'shared Meta token missing (admin action)', run_id)
             continue
 
         # Passed as arguments, not through os.environ: the conditional writes below
@@ -97,20 +112,22 @@ def run_insta_collector(**context):
         configured += 1
         logger.info(f"Instagram collect — artist_id={artist_id} ({artist_name})")
         try:
-            InstagramCollector(
+            rows = InstagramCollector(
                 artist_id=artist_id,
                 access_token=token,
                 ig_user_id=ig_user_id,
                 app_id=creds.get('app_id'),
                 app_secret=creds.get('app_secret'),
-            ).run()
+            ).run() or 0
+            record_tenant_success('instagram_daily', artist_id, 'instagram', rows, run_id)
             succeeded += 1
             logger.info(f"  Collect done for {artist_name}")
         except Exception as e:
             # Per-artist isolation: the collector still raises (rule #6); the loop
             # absorbs it per-tenant so a single failure can't blank the others.
-            logger.error(f"  Error for {artist_name}: {e}")
-            per_artist_errors.append((artist_id, artist_name, str(e)[:200]))
+            logger.error(f"  Error for {artist_name}: {safe_error(e)}")
+            per_artist_errors.append((artist_id, artist_name, safe_error(e)[:200]))
+            record_tenant_failure('instagram_daily', artist_id, 'instagram', e, run_id)
             continue
 
     if per_artist_errors:

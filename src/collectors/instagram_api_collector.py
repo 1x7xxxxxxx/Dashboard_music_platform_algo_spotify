@@ -39,7 +39,14 @@ class InstagramCollector:
         Process-global state is not a way to pass per-tenant values.
         """
         self.artist_id = artist_id
-        self.access_token = access_token or os.getenv("INSTAGRAM_ACCESS_TOKEN")
+        # META_ACCESS_TOKEN, not INSTAGRAM_ACCESS_TOKEN. Measured in production
+        # 2026-08-23: `INSTAGRAM_ACCESS_TOKEN` is declared in NO compose service — not
+        # in the example, not on the box — so this fallback could never fire, while
+        # Instagram collected perfectly through the shared Meta System User token and
+        # the `ig_user_id` on the tenant's `meta` credentials row. A line naming a
+        # variable that reaches no container documents a configuration that does not
+        # exist, and that is what sends the next investigation to the wrong file.
+        self.access_token = access_token or os.getenv("META_ACCESS_TOKEN")
         # The Instagram Business account id (not the username). NO env fallback: the
         # environment carries the ADMIN's identity, so `ig_user_id or os.getenv(...)`
         # makes a tenant with a blank field silently collect the admin's account and
@@ -52,7 +59,7 @@ class InstagramCollector:
         if not self.access_token:
             raise ValueError(
                 "❌ Aucun token Meta : l'app partagée n'est pas configurée "
-                "(META_ACCESS_TOKEN / INSTAGRAM_ACCESS_TOKEN) — action administrateur."
+                "(META_ACCESS_TOKEN) — action administrateur."
             )
         if not self.ig_user_id:
             raise ValueError(
@@ -372,7 +379,13 @@ class InstagramCollector:
             )
         logger.info(f"Saved {len(media)} media + {len(insights)} insight row(s)")
 
-    def run(self):
+    def run(self) -> int:
+        """Returns the number of media rows written, for the run ledger.
+
+        0 is a legitimate answer (an account with no posts), not a failure — but it
+        must be a NUMBER, so that "collected nothing" and "did not run" cannot be the
+        same value in etl_run_log.
+        """
         self._check_proactive_refresh()
         stats = self.fetch_stats()
         self.save_to_db(stats)
@@ -381,6 +394,7 @@ class InstagramCollector:
         self.save_media_to_db(media, insights)
         if self.db:
             self.db.close()
+        return len(media)
 
 if __name__ == "__main__":
     # Same reason as SoundCloud: no implicit tenant 1.
