@@ -20,6 +20,11 @@ from pathlib import Path
 # Ajouter le chemin pour trouver les modules src
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +33,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -196,7 +201,7 @@ def process_csv_files(**context):
                 processed_count += 1
 
             except Exception as e:
-                logger.error(f"❌ Erreur sur le fichier {csv_file.name}: {e}")
+                logger.error(f"❌ Erreur sur le fichier {csv_file.name}: {safe_error(e)}")
                 # On continue vers le fichier suivant même si celui-ci plante
                 continue
 
@@ -205,7 +210,7 @@ def process_csv_files(**context):
         return processed_count
 
     except Exception as e:
-        logger.error(f"❌ Erreur fatale DAG : {e}")
+        logger.error(f"❌ Erreur fatale DAG : {safe_error(e)}")
         raise
 
 

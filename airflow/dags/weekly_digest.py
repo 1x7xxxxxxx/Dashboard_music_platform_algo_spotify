@@ -18,6 +18,11 @@ import logging
 
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +31,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -270,7 +275,7 @@ def send_weekly_digest(**context):
         except Exception as e:
             # Per-artist isolation: one tenant's bad data must not block every other
             # artist's digest. Log + continue; the loop sends what it can.
-            logger.error(f"Weekly digest failed for {artist_name} (id={artist_id}): {e}")
+            logger.error(f"Weekly digest failed for {artist_name} (id={artist_id}): {safe_error(e)}")
             continue
     db.close()
     logger.info(f"Weekly digest done — {sent}/{len(artists)} emails sent")

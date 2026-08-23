@@ -11,6 +11,11 @@ import logging
 
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
@@ -23,7 +28,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -80,8 +85,8 @@ def run_meta_api_collector(**context):
             # Per-artist isolation: a not-shared ad account (Object does not exist /
             # #200 permissions) must NOT poison the other tenants. Surface it loudly
             # per-artist; the task fails below only if EVERY configured artist failed.
-            logger.error(f"  ❌ Error for {artist_name}: {e}")
-            errors.append(f"{artist_name} (id={artist_id}): {e}")
+            logger.error(f"  ❌ Error for {artist_name}: {safe_error(e)}")
+            errors.append(f"{artist_name} (id={artist_id}): {safe_error(e)}")
 
     if errors:
         logger.warning(f"Meta: {len(errors)} artist(s) failed (isolated, continued): "

@@ -5,6 +5,7 @@ from typing import List, Dict, Optional
 import logging
 from src.utils.retry import retry
 from src.utils.safe_error import safe_error
+from src.utils.api_errors import is_empty_uploads_playlist
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +120,7 @@ class YouTubeCollector:
                     # playlist → 404 playlistNotFound. That is a VALID state, not an
                     # error: return 0 videos instead of raising (which previously failed
                     # the whole multi-tenant DAG for a brand-new artist with no uploads).
-                    if getattr(he, 'resp', None) is not None and he.resp.status == 404 \
-                       and 'playlistNotFound' in safe_error(he):
+                    if is_empty_uploads_playlist(he):
                         logger.info(f"ℹ️ Chaîne {channel_id} sans vidéo publique (uploads vide) — 0 vidéo.")
                         return videos
                     raise

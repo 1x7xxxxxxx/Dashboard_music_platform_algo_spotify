@@ -22,6 +22,11 @@ from airflow.operators.python import PythonOperator
 
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +35,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -70,8 +75,8 @@ def run_outcome_labeling(**context):
                 logger.info(f"  → {n} prédiction(s) labellisée(s) pour {name!r} (artist_id={artist_id})")
                 total += n
             except Exception as e:
-                logger.error(f"  → Labelling failed for {name!r} (artist_id={artist_id}): {e}")
-                per_artist_errors.append((artist_id, name, str(e)[:200]))
+                logger.error(f"  → Labelling failed for {name!r} (artist_id={artist_id}): {safe_error(e)}")
+                per_artist_errors.append((artist_id, name, safe_error(e)[:200]))
                 continue
 
         if per_artist_errors and total == 0:

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from src.utils.retry import retry
 
 from src.utils.api_dates import coerce_api_date
+from src.utils.safe_error import safe_error
 
 # Configuration du logging
 # Note: On laisse Airflow gérer le formatage global, on récupère juste le logger
@@ -38,7 +39,7 @@ class SpotifyCollector:
             self.sp = spotipy.Spotify(auth_manager=auth_manager)
             logger.info("✅ Authentification Spotify réussie")
         except Exception as e:
-            logger.error(f"❌ Erreur d'authentification Spotify: {e}")
+            logger.error(f"❌ Erreur d'authentification Spotify: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -68,7 +69,7 @@ class SpotifyCollector:
             return data
 
         except Exception as e:
-            logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {e}")
+            logger.error(f"❌ Erreur API Spotify pour artiste {artist_id}: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -111,7 +112,7 @@ class SpotifyCollector:
             return tracks
 
         except Exception as e:
-            logger.error(f"❌ Erreur lors de la récupération des top tracks: {e}")
+            logger.error(f"❌ Erreur lors de la récupération des top tracks: {safe_error(e)}")
             raise
 
     @retry(max_attempts=3, backoff="exponential")
@@ -139,5 +140,5 @@ class SpotifyCollector:
             raise ValueError(f"No artist found for: {artist_name}")
 
         except Exception as e:
-            logger.error(f"search_artist failed: {e}")
+            logger.error(f"search_artist failed: {safe_error(e)}")
             raise

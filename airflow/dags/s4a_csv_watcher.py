@@ -16,6 +16,11 @@ from pathlib import Path
 # Ajouter le projet au path Python
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 #Déjà lecture via docker-compose.yml
 #from dotenv import load_dotenv
 #load_dotenv('/opt/airflow/.env')
@@ -28,7 +33,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 # Configuration par défaut du DAG
@@ -185,7 +190,7 @@ def process_csv_files(**context):
                         from src.utils.track_matching import rebuild_release_reference
                         rebuild_release_reference(db, artist_id)
                     except Exception as ref_exc:  # noqa: BLE001 — reference is best-effort
-                        logger.warning(f'   ⚠️ release reference not rebuilt: {ref_exc}')
+                        logger.warning(f'   ⚠️ release reference not rebuilt: {safe_error(ref_exc)}')
 
                 elif csv_type == 'song_timeline':
                     count = db.upsert_many(
@@ -227,7 +232,7 @@ def process_csv_files(**context):
                 processed_count += 1
 
             except Exception as e:
-                logger.error(f'   ❌ Erreur stockage: {e}')
+                logger.error(f'   ❌ Erreur stockage: {safe_error(e)}')
                 import traceback
                 logger.error(traceback.format_exc())
                 continue
@@ -246,7 +251,7 @@ def process_csv_files(**context):
         return processed_count
 
     except Exception as e:
-        logger.error(f'❌ Erreur globale traitement CSV: {e}')
+        logger.error(f'❌ Erreur globale traitement CSV: {safe_error(e)}')
         import traceback
         logger.error(traceback.format_exc())
         raise

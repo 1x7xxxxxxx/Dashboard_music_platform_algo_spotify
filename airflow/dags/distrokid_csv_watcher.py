@@ -25,6 +25,11 @@ from airflow.operators.python import BranchPythonOperator, PythonOperator
 
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +38,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -159,7 +164,7 @@ def process_csv_files(**context):
             processed += 1
 
         except Exception as e:
-            logger.error(f"Error on {csv_file.name}: {e}")
+            logger.error(f"Error on {csv_file.name}: {safe_error(e)}")
             continue
 
     # Roll USD detail up into monthly EUR revenue (Distributeur + ROI read it).
@@ -170,7 +175,7 @@ def process_csv_files(**context):
             n_months = rollup_sales_to_monthly(db, artist_id)
             logger.info(f"  monthly_revenue rolled up: {n_months} month(s) for artist {artist_id}")
         except Exception as e:
-            logger.error(f"monthly_revenue roll-up failed (non-blocking): {e}")
+            logger.error(f"monthly_revenue roll-up failed (non-blocking): {safe_error(e)}")
 
     db.close()
     logger.info(f"Done. {processed}/{len(csv_files)} file(s) processed.")

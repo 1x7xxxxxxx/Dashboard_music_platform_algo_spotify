@@ -30,7 +30,8 @@ def _failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        from src.utils.safe_error import safe_error
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -69,6 +70,7 @@ def refresh_meta_tokens(**context):
     # latent, since Airflow always sets DATABASE_HOST, but this is the DAG that
     # refreshes the Meta token, i.e. the mechanism meant to prevent R13.
     from src.utils.pg_connect import connect
+    from src.utils.safe_error import safe_error
     db_conn = connect(autocommit=True)
 
     for artist_id, artist_name in artists:
@@ -93,7 +95,7 @@ def refresh_meta_tokens(**context):
                 )
                 row = cur.fetchone()
         except Exception as e:
-            failed.append(f"{artist_name}: DB read error — {e}")
+            failed.append(f"{artist_name}: DB read error — {safe_error(e)}")
             continue
 
         expires_at = row[0] if row else None
@@ -147,7 +149,7 @@ def refresh_meta_tokens(**context):
             )
 
         except Exception as e:
-            failed.append(f"{artist_name}: refresh exception — {e}")
+            failed.append(f"{artist_name}: refresh exception — {safe_error(e)}")
 
     db_conn.close()
 

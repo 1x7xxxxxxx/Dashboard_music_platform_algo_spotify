@@ -106,42 +106,114 @@ def test_the_save_path_checks_every_identity_the_tab_carries() -> None:
 # ── 3. no credential may reach a message ─────────────────────────────────────
 
 def _returns_bare_exception(path: Path) -> list[int]:
-    """Lines returning or printing a whole caught exception."""
+    """Lines returning or printing a whole caught exception, or an ALIAS of one.
+
+    Following the alias is not a refinement — it is the half that was missing.
+    Measured in production 2026-08-23: `src/utils/retry.py` was inside this guard's
+    scope and green, because it does
+
+        except Exception as exc:
+            last_exc = exc          # <- the exception escapes the handler by name
+        ...
+        logger.error(f"... Dernière erreur : {last_exc}")   # <- rendered OUTSIDE it
+
+    The old walk only looked *inside* `ast.ExceptHandler`, so the YouTube API key was
+    written in clear into the Airflow task log every night while this test passed.
+    """
     tree = ast.parse(path.read_text(encoding="utf-8"))
+
+    # Seed with every `except ... as NAME`, then follow plain `alias = NAME`
+    # rebindings to a fixpoint — an exception does not stop being one when it is
+    # copied to another variable.
+    tainted = {h.name for h in ast.walk(tree)
+               if isinstance(h, ast.ExceptHandler) and h.name}
+    changed = True
+    while changed:
+        changed = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Name):
+                continue
+            if node.value.id not in tainted:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id not in tainted:
+                    tainted.add(target.id)
+                    changed = True
+
     out = []
-    for handler in ast.walk(tree):
-        if not isinstance(handler, ast.ExceptHandler) or not handler.name:
-            continue
-        name = handler.name
-        for node in ast.walk(handler):
-            # str(e) / f"{e}" anywhere in the handler body
-            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "str":
-                if node.args and getattr(node.args[0], "id", None) == name:
-                    out.append(node.lineno)
-            if isinstance(node, ast.FormattedValue):
-                if getattr(node.value, "id", None) == name:
-                    out.append(node.lineno)
+    for node in ast.walk(tree):
+        # str(e) — the whole message, credentials included
+        if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "str":
+            if node.args and getattr(node.args[0], "id", None) in tainted:
+                out.append(node.lineno)
+        # f"{e}" — same thing. `f"{safe_error(e)}"` wraps a Call, not a Name, so a
+        # redacted render is correctly NOT flagged.
+        if isinstance(node, ast.FormattedValue):
+            if getattr(node.value, "id", None) in tainted:
+                out.append(node.lineno)
     return sorted(set(out))
 
 
-# DERIVED, not hand-listed. The first version of this guard named five files by
-# hand — the four connection probes and central_apps — and a full-application audit
-# then found the same defect in every COLLECTOR, which was in none of them. A guard
-# whose scope is a literal list protects exactly the sites someone remembered.
+# DERIVED, not hand-listed, and TRANSITIVE.
 #
-# The scope is now "every module that both calls an HTTP client and handles an
-# exception", computed from the tree.
+# Two widenings, each paid for by a defect that survived the previous scope:
+#
+# 1. The first version named five files by hand — the four connection probes and
+#    central_apps. A full-application audit then found the same defect in every
+#    COLLECTOR, which was in none of them. A guard whose scope is a literal list
+#    protects exactly the sites someone remembered.
+# 2. The second version asked "does this module call an HTTP client?". That is the
+#    wrong question, and `airflow/dags/youtube_daily.py` proved it in production on
+#    2026-08-23: a DAG calls no HTTP client at all — it CATCHES AND LOGS the exception
+#    the collector raised, and that exception carries the prepared URL. Same shape as
+#    `src/utils/retry.py`, which only qualified by the accident of importing requests
+#    for its retriable-exception tuple.
+#
+# The question that actually matches the risk is "can an exception born at an HTTP
+# call reach this module?", so the scope is the transitive closure of the import
+# graph: a module is in scope if it calls an HTTP client, or imports one that is.
+_HTTP_MARKERS = ("requests.", "googleapiclient", "urlopen")
+_SCOPE_DIRS = ("src/collectors", "src/utils", "src/dashboard/views/credentials",
+               "airflow/dags")
+
+
+def _module_name(path: Path) -> str:
+    return path.relative_to(ROOT).with_suffix("").as_posix().replace("/", ".")
+
+
 def _modules_that_call_http() -> list[str]:
-    out = []
-    for sub in ("src/collectors", "src/utils", "src/dashboard/views/credentials"):
+    sources: dict[str, tuple[str, Path]] = {}
+    for sub in _SCOPE_DIRS:
         for path in sorted((ROOT / sub).rglob("*.py")):
             if "__pycache__" in str(path):
                 continue
-            text = path.read_text(encoding="utf-8")
-            if ("requests." in text or "googleapiclient" in text or "urlopen" in text) \
-                    and "except" in text:
-                out.append(path.relative_to(ROOT).as_posix())
-    return out
+            sources[_module_name(path)] = (path.read_text(encoding="utf-8"), path)
+
+    # Seed: modules that touch an HTTP client themselves.
+    tainted = {mod for mod, (text, _) in sources.items()
+               if any(m in text for m in _HTTP_MARKERS)}
+
+    # Closure: a module that imports a tainted module handles its exceptions.
+    changed = True
+    while changed:
+        changed = False
+        for mod, (text, path) in sources.items():
+            if mod in tainted:
+                continue
+            tree = ast.parse(text)
+            imported = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    imported.add(node.module)
+                elif isinstance(node, ast.Import):
+                    imported.update(a.name for a in node.names)
+            if any(i in tainted for i in imported):
+                tainted.add(mod)
+                changed = True
+
+    return [sources[m][1].relative_to(ROOT).as_posix()
+            for m in sorted(tainted)
+            if "except" in sources[m][0]]
 
 
 @pytest.mark.parametrize("rel", _modules_that_call_http())

@@ -76,9 +76,13 @@ def retry(max_attempts: int = 3, backoff: str = "exponential", base_delay: float
                     )
                     time.sleep(delay)
 
+            # safe_error, NOT f"{last_exc}" — measured in production 2026-08-23: this line
+            # printed a googleapiclient HttpError whose repr embeds the request URI, so the
+            # YouTube API key landed in the Airflow task log in clear, every night. The
+            # per-attempt lines above were already redacted; only the exhausted one was not.
             logger.error(
                 f"❌ {func.__qualname__} — toutes les tentatives ({max_attempts}) épuisées. "
-                f"Dernière erreur : {last_exc}"
+                f"Dernière erreur : {safe_error(last_exc, limit=1000)}"
             )
             raise last_exc
 
