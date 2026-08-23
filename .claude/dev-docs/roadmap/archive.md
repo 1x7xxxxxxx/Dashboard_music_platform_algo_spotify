@@ -11,6 +11,38 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 <!-- section actif : Open Bugs -->
 
+### R45 — Le livre scanné du corpus rend enfin ses pages (clos 2026-08-23)
+
+Fermé le soir même. Le pipeline avait raison de refuser d'indexer des miettes — 512
+« pages » pour 10 mots — et tort de croire qu'aucun traitement n'existait : le
+commentaire disait vrai d'`ocrmypdf`, qui ne lit que le PDF, et faux de l'OCR.
+**tesseract**, qu'`ocrmypdf` appelle lui-même, lit un JPG sans difficulté ; le livre est
+fait de 511 JPG pleine page. `ocr_epub()` écrit le chemin manquant, avec cache par
+fichier (13 minutes de reconnaissance qu'une ré-ingestion ne repaie pas).
+
+**2 865 passages là où il y en avait 0.** Plus aucun livre à zéro passage dans le
+corpus ; 174 984 passages au total.
+
+Deux choses trouvées en le fermant, toutes deux dans `knowledge-rag` :
+`FAILED` est un statut **terminal**, donc l'échec transitoire d'un incident antérieur
+empêchait toute nouvelle tentative — il a fallu purger l'entrée d'état à la main ; et
+`--allow-ocr` est opt-in avec une aide qui ne parlait que des PDF.
+
+
+*Next-Gen Chatbots RAG — Autonomous Agents with LangChain*, EPUB de 86 Mo, échoue à
+**chaque** ingestion depuis son dépôt : 512 « pages » pour 512 mots. C'est un livre en
+images et le pipeline n'a pas de chemin OCR pour l'EPUB (`ocrmypdf` ne traite que le PDF).
+
+- [x] **R45** — soit extraire les images de l'EPUB et les passer à l'OCR existant, soit
+      convertir l'EPUB en PDF pour réutiliser le chemin `NEEDS_OCR` déjà en place, soit
+      retirer le livre en le disant. Vérif : `tools/check_index_coverage.py` ne doit plus
+      lister aucun livre à 0 passage.
+
+---
+
+
+---
+
 ### R39–R44 — Le corpus relu contre le dépôt, six écarts fermés (clos 2026-08-23)
 
 Ouverts le matin par la confrontation des dix livres ingérés au code réel, fermés

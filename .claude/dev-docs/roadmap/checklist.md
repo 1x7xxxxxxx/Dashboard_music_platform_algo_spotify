@@ -26,7 +26,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 > **Six des sept entrées ouvertes ce jour sont livrées et archivées.**
 > R39 (pilier Volume), R40 (isolation locataire), R41 (frontière HTTP),
 > R42 (circuit breaker), R43 et R44 (ADR-011 et ADR-012) sont dans `archive.md`.
-> Reste R45, côté `knowledge-rag`.
+> R45 (corpus) est fermé le soir même — le livre scanné rend 2 865 passages.
+> **L'index actionnable est de nouveau vide.** Ne restent que les gestes humains
+> ci-dessous, dont aucune machine ne peut s'acquitter.
 >
 > **Contexte d'origine —** ouvert le 2026-08-23 par la revue du corpus. L'index était vide depuis le
 > 2026-08-22 (R22→R31 closes et archivées). Les six entrées ci-dessous ne viennent pas
@@ -39,7 +41,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| R45 | Un livre du corpus rend **0 passage** (EPUB en images, pas de chemin OCR) | P4 | actionnable côté `knowledge-rag` |
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
 Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
@@ -56,25 +57,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | R38 | Le nom d'expéditeur des e-mails dit « Music Cross Platform Dashboard & Trigger Spotify » | P3 | **dans Brevo** → *Expéditeurs, domaines & IPs* → `noreply@streamlytics.fr` → nom affiché = `streaMLytics`. Mesuré le 2026-08-23 : le code met déjà `streaMLytics` par défaut et `SMTP_FROM_NAME` est **absent des deux conteneurs** de prod — le nom vient donc du compte Brevo, qui écrase le nôtre. Aucune ligne de Python ne peut le corriger. Vérif : s'inscrire avec une adresse jetable **sur streamlytics.fr**, l'expéditeur doit dire `streaMLytics <noreply@streamlytics.fr>`. Runbook §6. ⚠️ **Les mails portant ce nom qui traînent dans la boîte du 2026-08-23 ne prouvent RIEN sur R38** : ils sont partis d'un run LOCAL via `smtp.gmail.com` (`.env`), et Gmail réécrit l'expéditeur avec le nom du compte Gmail. La prod, elle, passe par `smtp-relay.brevo.com` / `noreply@streamlytics.fr` (vérifié dans les deux conteneurs le 2026-08-23). Le constat « `SMTP_FROM_NAME` absent des deux conteneurs » reste vrai et reste le motif de la tâche — mais il se vérifie par un envoi de prod, pas par ces trois mails. |
 | R46 | Décider du sort de `data_quality_check` (en pause, n'a JAMAIS tourné) | P3 | **le lancer une fois à la main et lire ce qu'il dit**, avant tout dépause. R42 a rendu son code sûr — circuit breaker de fraîcheur, tâche Meta périmée retirée, 5ᵉ filtre S4A, plus de `raise` — mais rallumer un DAG est une décision de prod, pas la conséquence d'un correctif. Trois issues possibles, chacune avec sa conduite. Runbook §7. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
-
-## 📚 Le corpus relu contre ce dépôt (2026-08-23) — reste R45
-
-R39, R40, R41, R42, R43 et R44 sont **livrés et archivés** le 2026-08-23 : le
-raisonnement complet, avec ses citations et ses mesures, est dans `archive.md`
-sous « R39–R44 ». Ce qui reste ouvert ici tient en une entrée.
-
-### R45 — Un livre du corpus rend 0 passage · P4 (`knowledge-rag`)
-
-*Next-Gen Chatbots RAG — Autonomous Agents with LangChain*, EPUB de 86 Mo, échoue à
-**chaque** ingestion depuis son dépôt : 512 « pages » pour 512 mots. C'est un livre en
-images et le pipeline n'a pas de chemin OCR pour l'EPUB (`ocrmypdf` ne traite que le PDF).
-
-- [ ] **R45** — soit extraire les images de l'EPUB et les passer à l'OCR existant, soit
-      convertir l'EPUB en PDF pour réutiliser le chemin `NEEDS_OCR` déjà en place, soit
-      retirer le livre en le disant. Vérif : `tools/check_index_coverage.py` ne doit plus
-      lister aucun livre à 0 passage.
-
----
 
 ## 🔖 REPRISE — état au 2026-08-23, séance close (à lire EN PREMIER au `/resume`)
 
