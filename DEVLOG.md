@@ -5,6 +5,55 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-23 (nuit) — Les notes des tests artistes : du code correct que rien n'atteignait
+
+**Contexte** : ~30 notes de terrain (Benken 19/06, GRiNCH 12/08), avec une consigne —
+« tu peux me poser des questions pour faire le meilleur plan possible ».
+
+**What changed**
+
+- **Le fil commun n'était pas prévu.** La plupart des notes ne décrivaient pas du code
+  faux, mais **du code correct que rien n'atteignait** : la page d'onboarding hors de
+  toute navigation (joignable seulement depuis l'e-mail de vérification), les quatre
+  étapes de l'accueil dont la clé de page était **jetée**, le sélecteur Mac/Windows
+  branché sur une fonction sans appelant, `secondary_analyses()` écrit **le jour** de la
+  remarque et appliqué sur aucune vue dense, les titres SoundCloud déclarés que le DAG
+  n'atteignait jamais, le PDF des identifiants livré seulement par e-mail.
+- **Le faux vert n'était pas où on le cherchait.** La matrice à l'écran est correcte ;
+  c'est le **PDF**, le document que l'artiste garde, qui affichait « configuré » à partir
+  du `.env` de l'admin.
+- **« Lancé ! » s'affichait après sept échecs** — la conclusion vivait hors de toute
+  condition de résultat.
+- **Les guides lus pendant les tests étaient du code mort** (180 lignes + 36 traductions)
+  et contredisaient les vivants. Le guide **anglais**, lui, était vivant et périmé,
+  expédié dans le PDF avec `http://127.0.0.1:8888/callback` — un `8888` hérité du défaut
+  de `spotipy`, en trois orthographes, dont la forme que Spotify refuse désormais.
+- **Un artiste signé sur un label n'était jamais collecté** : le DAG le sautait avant de
+  lire ses titres déclarés, alors que la fonctionnalité existait en entier.
+- **Un nettoyage plus large que son écriture.** `_prune_renamed_campaigns` supprimait par
+  LOCATAIRE ce qu'il venait d'écrire par COMPTE. Corrigé, avec `migrations/076`, **avant**
+  que le multi-comptes existe — sinon il n'aurait été visible qu'en constatant des données
+  manquantes.
+
+**Les trois leçons**
+
+1. **Un test de rendu ne dit jamais si une page est atteignable.** `test_views_render_smoke`
+   appelle `show()` directement : la page injoignable passait au vert.
+2. **Écrire un remède et le brancher sont deux gestes**, et seul le premier laisse une
+   trace. Deux fois ce jour-là, un correctif écrit *exprès* pour une remarque d'utilisateur
+   n'était appelé nulle part.
+3. **Huit fois le prédicat d'un garde a visé le symptôme au lieu de la question** — dont
+   deux gardes **verts sur leur propre défaut**, démasqués par la seule mutation.
+
+**Trois notes n'avaient plus lieu d'être**, et il valait mieux le mesurer que le coder :
+le nom d'expéditeur (corrigé le soir même), les livres d'ergonomie (déjà ingérés — ils
+sourcent le plan), et l'étape « créer un projet YouTube », présente dans le guide vivant.
+
+**Vérifié** : 1955 passed / 22 skipped, ruff propre, 117 classes 0 non gardée, prod ==
+`origin/main`, 76 migrations. Reste R53 (2/3 et 3/3) et quatre questions produit.
+
+---
+
 ## 2026-08-23 (soir) — Le rayon de souffle de la suite, et le corpus relu contre le dépôt
 
 **Contexte** : une séance coupée entre le fix et le commit, une CI rouge, et trois mails

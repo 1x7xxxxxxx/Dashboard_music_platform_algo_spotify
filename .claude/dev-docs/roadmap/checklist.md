@@ -154,6 +154,167 @@ surface exposée.
 
 ---
 
+## 🎨 Notes des tests artistes — ce qui reste (2026-08-23)
+
+~30 notes de terrain (Benken 19/06, GRiNCH 12/08). Plan approuvé :
+`~/.claude/plans/unified-mapping-teapot.md`. **Quatre tracks sur cinq sont livrés,
+déployés et archivés** sous « R50 · R51 · R52 » et « R53 (1/3) ». Ne restent ici que la
+suite de R53 et les questions auxquelles je ne peux pas répondre seul.
+
+### Le fil commun, à relire avant de reprendre
+
+La plupart des notes ne décrivaient **pas du code faux, mais du code correct que rien
+n'atteignait** — six occurrences en une séance : la page d'onboarding hors navigation, les
+étapes de l'accueil dont la clé de page était jetée, le sélecteur Mac/Windows branché sur
+une fonction sans appelant, `secondary_analyses()` écrit le jour de la remarque et
+appliqué sur aucune vue dense, les titres SoundCloud déclarés que le DAG n'atteignait
+jamais, le PDF des identifiants livré seulement par e-mail.
+
+**Un test de rendu ne dit jamais si une page est atteignable**, et un DAG qui saute un
+locataire le journalise proprement. C'est pourquoi rien ne le signalait.
+
+### R53 — Meta multi-comptes, suite · P2
+
+**Fait (1/3, déployé)** : `migrations/076` ajoute `ad_account_id` aux 10 tables à la maille
+campagne et aux 3 de provenance (13 colonnes, appliquée en prod), et le `DELETE` de
+`_prune_renamed_campaigns` porte désormais le même discriminant que ce qu'il vient
+d'écrire. Sans ça, la boucle sur deux comptes aurait fait **effacer par le second tout ce
+que le premier venait d'écrire** — corrigé avant que le cas existe, sinon il n'aurait été
+visible qu'en constatant des données manquantes.
+
+- [ ] **R53 (2/3)** — boucle collecteur sur N comptes. `self.ad_account` est un attribut
+      unique (`meta_ads_api_collector.py:101`) ; `_current_ad_account_id` doit être
+      alimenté à chaque tour, sinon le scope du prune est écrit mais vide. Mécanique, mais
+      à faire avant l'étape suivante.
+- [ ] **R53 (3/3)** — remplacer les contraintes d'unicité des 10 tables (aujourd'hui sur
+      `campaign_name` seul : deux comptes ayant une campagne du même nom écrivent la même
+      ligne), puis le stockage (`UNIQUE(artist_id, platform)` et un `account_id` scalaire ;
+      `identity_is_well_formed` rejette une liste, et `find_identity_conflict` **interdit
+      déjà que deux artistes partagent le compte d'une agence**), puis l'interface.
+      **Dans cet ordre.**
+
+### Les questions ouvertes — à trancher avec toi, elles bloquent du travail réel
+
+1. **La « valeur de démo »** (« valeur bidon : confusion => à retirer »). Le grep n'a rien
+   trouvé de concluant dans `home.py`, `onboarding.py`, `kpi_helpers.py`. **Une capture ou
+   le nom de la page suffira** — je ne retire pas un chiffre au jugé.
+2. **Le « taux de trigger »** du graphique PDF « 30 premiers jours vs actuel » : quelle
+   métrique fait foi ? Sans ça je devinerais ce que le graphique raconte.
+3. **Meta multi-comptes : fusionnés ou séparés ?** Un artiste avec 3 comptes doit-il voir
+   un seul total, ou un onglet par compte ? **Ça décide de la forme des clés d'unicité**,
+   donc ça bloque R53 (3/3).
+4. **Le GIF animé dans les messageries** : signature personnelle (hors produit) ou e-mails
+   transactionnels envoyés par l'application ?
+
+### Ce qui attend un fichier, pas une décision
+
+- **Le CSV de Benj.** Les deux causes probables sont fermées — séparateur `;` (celui
+  d'Excel FR) désormais supporté de bout en bout, et l'export « Depuis le début » refusé à
+  la détection avec la vraie raison. **Sa cause à lui n'est pas confirmée** : quand le
+  fichier arrive, le passer dans `_detect_platform` et corriger la règle qui l'a manqué.
+
+### Une vérification que je n'ai pas pu faire
+
+Le parcours **post-connexion** n'a pas été joué dans un navigateur, faute de compte de test
+local : l'atterrissage première connexion sur l'assistant, les étapes cliquables et le
+sélecteur d'OS sont couverts par des gardes AST, pas par un clic réel. À faire à la
+prochaine session artiste.
+
+---
+
+## 🔍 Ce que le graphe de code a sorti (2026-08-23)
+
+Graphe régénéré après 71 jours de péremption (**5468 nœuds / 10691 arêtes / 689
+communautés**, contre « 1500+ / 94 » annoncés). Trois constats l'ont justifié ; le
+premier concerne l'outil lui-même.
+
+**Le graphe référence 15 fichiers qui n'existent plus** (135 nœuds, 2 %) — `graphify
+update` ajoute et ne retire pas. Parmi eux d'anciens modules devenus des paquets
+(`views/trigger_algo.py`, `utils/pdf_exporter.py`) et un dossier `archive/` supprimé.
+Comme `CLAUDE.md` désigne `GRAPH_REPORT.md` comme la première lecture « avant de
+grepper », la mise en garde y est désormais écrite : le graphe **oriente**, il ne prouve
+pas. Mon propre inventaire d'orphelins en a été contaminé avant vérification.
+
+**`.claude/dev-docs/architecture.md` annonçait une dépendance inexistante** —
+`error_handler.py | Utility | email_alerts`. `error_handler.py` n'est importé par rien
+en production. Corrigé sur place.
+
+### R47 — Les validateurs Meta Ads existent et ne sont jamais appelés · P2
+
+`src/models/meta_ads_validators.py` définit `MetaCampaign`, `MetaAdset`, `MetaAd` et
+`MetaInsight` — exactement la forme des payloads que `_meta_upsert.py` écrit. **Aucun
+code de production ne les importe** ; seul `tests/test_validators.py` le fait. Et
+`_meta_upsert.py` ne valide que le **nom de table** (`validate_table`, l'allowlist SQL de
+la règle #8), jamais le contenu.
+
+Ce que ça vaut : `CLAUDE.md` présente `models/` comme une couche de l'architecture
+(« Pydantic validators »), et Meta Ads est la plateforme qui a coûté le plus d'incidents
+de données à ce dépôt. `audit_tenant_writes.py` signale d'ailleurs les payloads de
+`_meta_upsert.py` comme « not statically resolvable » — c'est précisément la question
+qu'un validateur trancherait.
+
+- [ ] **R47** — trancher, puis faire : soit brancher les quatre modèles dans
+      `_meta_upsert.py` (et le dire dans l'architecture), soit les retirer et cesser
+      d'annoncer une couche de validation qui n'existe pas. Ne pas laisser l'ambiguïté :
+      une couche écrite et débranchée donne la confiance sans la propriété.
+      Vérif : un payload Meta malformé doit être refusé (mutation), et
+      `audit_tenant_writes.py` ne doit plus dire « not statically resolvable » sur ces
+      trois sites.
+
+### R48 — Deux modules ne vivent que par leur propre test · P4
+
+| Module | Importé par |
+|---|---|
+| `src/utils/error_handler.py` (`log_errors`, `log_and_raise`, `safe_call`) | `tests/test_error_handler.py` **uniquement** |
+| `src/models/meta_ads_validators.py` | `tests/test_validators.py` **uniquement** (→ R47) |
+
+Le motif est trompeur par construction : le test passe, la couverture a l'air bonne,
+l'architecture décrit le module comme porteur, et **rien ne l'exécute**. Le test protège
+du code mort et empêche de le retirer sans discussion.
+
+- [ ] **R48** — trancher chacun : câbler (et le prouver par un appelant réel) ou retirer
+      (module ET test ET la ligne d'architecture). `error_handler.py` est de surcroît
+      cité comme exemple canonique de « Utility » dans
+      `.claude/skills/response-protocol/SKILL.md` — une référence à retirer aussi si le
+      module part.
+
+---
+
+### R49 — Le lockfile épingle des versions vulnérables que la prod n'exécute pas · P3
+
+`pip-audit` sur le venv local : **18 paquets vulnérables, 127 avis**. Le réflexe serait
+d'alerter — la mesure dit l'inverse. Ce que la **production** exécute :
+
+| Paquet | venv local (`uv.lock`) | prod api/dashboard |
+|---|---|---|
+| `pyjwt` | 2.12.1 ⚠️ | **2.13.0** ✅ |
+| `cryptography` | 48.0.0 ⚠️ | **50.0.0** ✅ |
+| `starlette` | 1.0.0 ⚠️ | **1.6.0** ✅ |
+| `python-multipart` | 0.0.28 ⚠️ | **0.0.32** ✅ |
+| `pillow` | 10.4.0 ⚠️ | **12.3.0** ✅ |
+
+La cause : `requirements.txt` déclare des **planchers** (`cryptography>=42.0.0`), donc
+l'image Docker installe la dernière version satisfaisante, pendant que `uv.lock` fige des
+versions exactes et anciennes. **La CI, qui fait `uv sync --frozen`, teste donc du code
+que la production n'exécute pas** — c'est la famille `streamlit-pin-drift`, dans le sens
+qu'on n'attendait pas.
+
+Le conteneur **Airflow** est l'exception inverse : il tourne `apache-airflow 2.8.1`,
+`sqlparse 0.4.4`, `aiohttp 3.9.1`, `pyjwt 2.8.0` — en retard, lui, pour de bon. Gravité
+mesurée et non supposée : il n'écoute que sur `127.0.0.1:8080`, UFW n'ouvre 80/443 qu'aux
+plages Cloudflare, et rien ne le publie. C'est de la défense en profondeur, pas une
+surface exposée.
+
+- [ ] **R49** — décider et faire : soit `uv.lock` est régénéré pour suivre les planchers
+      (`uv lock --upgrade`) et la CI teste enfin ce que la prod exécute, soit les deux
+      manifestes sont alignés dans l'autre sens. Ne pas laisser deux vérités.
+      Vérif : `pip-audit` sur le venv issu du lock, et comparaison avec
+      `docker exec streamlytics_api pip list` — les versions critiques doivent coïncider.
+- [ ] **R49b** — mettre à jour l'image Airflow (2.8.1 → ≥ 2.11.1). Non urgent au sens
+      réseau, mais c'est la seule version réellement en retard en production.
+
+---
+
 ## 🎨 Simplification UI/UX — notes des tests artistes (2026-08-23)
 
 ~30 notes de terrain issues des tests Benken (19/06) et GRiNCH (12/08). Plan complet et
@@ -291,13 +452,69 @@ Trois blocages, par coût croissant. Le troisième est le vrai :
 
 ## 🔖 REPRISE — état au 2026-08-23, séance close (à lire EN PREMIER au `/resume`)
 
+**▶️ Quatre entrées ouvertes, dont trois qui attendent une réponse de toi et une seule
+qui est du code : R53 (2/3 et 3/3).**
+
+**1955 tests verts**, ruff propre, **117 classes d'erreur, 0 non gardée**, prod ==
+`origin/main`, 76 migrations appliquées, 4 services sains. Tout ce qui suit est **déployé
+et vérifié en production**.
+
+### Ce que la journée a livré, en une phrase chacun
+
+| | |
+|---|---|
+| Matin | Le rouge CI était déjà résolu mais pas prouvé (éviction `sys.modules`) ; un garde anti-fuite élargi à `tools/` **tuait le cron de dérive de 04h** — non commité, donc la prod ne l'a jamais porté |
+| Midi | **La suite de tests envoyait de vrais mails à de vraies personnes**, puis appelait les APIs réelles. Deux frontières posées dans `conftest.py` |
+| Après-midi | Le corpus relu contre le dépôt (R39→R46) ; `saas-architecture` était absent de l'index alors que son livre y était |
+| Soir | Audit sécurité 18 points : **17 tenus**. Le trou — `showErrorDetails` non réglé, donc la **traceback partait au navigateur**, prouvé dans les deux sens via Chrome |
+| Nuit | Les ~30 notes des tests artistes : **4 tracks sur 5 livrés** |
+
+### Le fil commun des notes artistes, à relire avant de reprendre
+
+La plupart ne décrivaient **pas du code faux, mais du code correct que rien n'atteignait**
+— six occurrences le même jour. Un test de rendu ne dit jamais si une page est
+**atteignable**, et un DAG qui saute un locataire le journalise proprement. C'est pourquoi
+rien ne le signalait.
+
+### Deux défauts qui touchaient de l'argent ou des données
+
+- **Un lien de paiement non attribuable**, sur les deux surfaces : le client payait, le
+  webhook faisait `if artist_id and customer_id:` et **ne provisionnait rien**.
+- **Un nettoyage plus large que son écriture** : `_prune_renamed_campaigns` supprimait par
+  LOCATAIRE ce qu'il venait d'écrire par COMPTE. Corrigé **avant** que le multi-comptes
+  existe — sinon il n'aurait été visible qu'en constatant des données manquantes.
+
+### Ce qu'il faut savoir avant de toucher au code demain
+
+- **Lancer la suite avec la base** : `docker start postgres_spotify_airflow` puis
+  `uv run pytest tests/ -q -n auto --dist loadfile`. Sans base, ~160 tests skippent en
+  silence. Et l'invocation avec `-n auto --dist loadfile` est celle de la CI — un bug
+  ordre-dépendant ne se voit qu'ainsi.
+- **Aucun DAG n'est importable hors conteneur** (l'Airflow installé refuse
+  `schedule_interval`) : un test qui passe par l'import **skippe en silence**. Les seuils
+  vivent dans `src/utils/` (`volume_monitor.py`, `quality_gate.py`, `email_identity.py`).
+- **Huit fois cette journée, le prédicat d'un garde visait le symptôme au lieu de la
+  question** — dont deux gardes **verts sur leur propre défaut**, démasqués par la seule
+  mutation. Ne jamais livrer un garde sans l'avoir vu rouge.
+- **`graphify update` ajoute et ne retire pas** : le graphe référence 15 fichiers qui
+  n'existent plus. Il oriente, il ne prouve pas.
+
+### Le seul geste qu'aucune machine ne fera
+
+**R1 — inviter des proches.** Tout le reste du filet est en place et prouvé.
+
+---
+
+## 🔖 Historique — état au 2026-08-23 (soir) (à lire EN PREMIER au `/resume`)
+
 **▶️ L'index actionnable est vide. Il reste UNE entrée sur toute la roadmap : R1,
 inviter des proches.**
 
 **Séance du 2026-08-23 — la chaîne credentials → collecte est prouvable par locataire.**
-**1520 tests verts** (1403 au départ), ruff propre, audit déterministe clean,
-`make config-check` clean, **98 classes d'erreur, 0 non gardée**. Détail complet dans le
-DEVLOG ; ce qui compte pour reprendre :
+Suite verte à la clôture de CETTE séance-là (1403 au départ ; le compte courant est dans
+le bloc REPRISE en tête de fichier — un seul chiffre fait foi, et c'est le plus récent),
+ruff propre, audit déterministe clean, `make config-check` clean, **98 classes d'erreur,
+0 non gardée**. Détail complet dans le DEVLOG ; ce qui compte pour reprendre :
 
 - **Un P1 de sécurité fermé** — la clé API YouTube partait en clair dans les logs Airflow
   chaque nuit. 16 modules, 64 sites. La portée du garde était le défaut, pour la 3ᵉ fois :
