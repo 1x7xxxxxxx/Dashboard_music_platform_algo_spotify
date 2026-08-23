@@ -81,6 +81,12 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM:-}
       ALERT_EMAIL: ${ALERT_EMAIL}
+      # Absolute links in the mails the SCHEDULER sends — onboarding_report imports
+      # verification_email._unsubscribe_footer. Absent here until 2026-08-23, so the
+      # one-click unsubscribe link in every onboarding report pointed at
+      # http://localhost:8501, the module-level default. Same class as the SMTP block
+      # above: `.env` had the value, this block did not pass it on.
+      APP_BASE_URL: ${APP_BASE_URL}
 
       # Spotify API
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}

@@ -183,13 +183,25 @@ def test_platform_probes_absorbs_the_exception_itself():
 
     import sys
     import types
-    mod = types.ModuleType("src.dashboard.views.credentials._registry")
+    key = "src.dashboard.views.credentials._registry"
+    mod = types.ModuleType(key)
     mod.CONNECTION_TESTS = {"soundcloud": _raising}
-    sys.modules["src.dashboard.views.credentials._registry"] = mod
+    # RESTORE the original, never `del`. Deleting the key evicts the real module from
+    # sys.modules for the REST OF THE SESSION: the next import re-executes it from disk
+    # and hands out a SECOND module object, while everything that already did
+    # `from … import CONNECTION_TESTS` still holds the first. A later test that patches
+    # one of the two then watches the other run — which is exactly the shape of the
+    # order-dependent CI failures of 2026-08-23 (green file by file, red in a full run).
+    # A test may borrow global state; it may not leave a hole where it found something.
+    previous = sys.modules.get(key)
+    sys.modules[key] = mod
     try:
         out = pp.probe(_FakeDB(), 13, "soundcloud")
     finally:
-        del sys.modules["src.dashboard.views.credentials._registry"]
+        if previous is not None:
+            sys.modules[key] = previous
+        else:
+            sys.modules.pop(key, None)
 
     assert out is not None and out[0] is False
     assert "ConnectionError" in out[1], (

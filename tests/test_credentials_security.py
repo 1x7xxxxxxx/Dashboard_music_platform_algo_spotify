@@ -173,8 +173,13 @@ def _returns_bare_exception(path: Path) -> list[int]:
 # call reach this module?", so the scope is the transitive closure of the import
 # graph: a module is in scope if it calls an HTTP client, or imports one that is.
 _HTTP_MARKERS = ("requests.", "googleapiclient", "urlopen")
+# `tools/` added 2026-08-23, and its absence had a cost: `tools/artist_preflight.py`
+# renders a probe's exception to the OPERATOR'S TERMINAL, from probes that carry the
+# credential in the query string — and it is the command the runbook makes you run.
+# Four more sites came with it, including the SoundCloud OAuth helper. Third widening,
+# third time the scope was the defect rather than the logic.
 _SCOPE_DIRS = ("src/collectors", "src/utils", "src/dashboard/views/credentials",
-               "airflow/dags")
+               "airflow/dags", "tools")
 
 
 def _module_name(path: Path) -> str:

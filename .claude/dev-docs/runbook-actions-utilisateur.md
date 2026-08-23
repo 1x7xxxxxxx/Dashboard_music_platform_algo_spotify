@@ -151,6 +151,28 @@ vue, aujourd'hui fixé à l'intuition — deviennent sourçables.
 
 ---
 
+## 6. R38 — Le nom d'expéditeur des e-mails dit « Music Cross Platform » · P3
+
+**Le geste** : dans Brevo → *Expéditeurs, domaines & IPs* → l'expéditeur
+`noreply@streamlytics.fr`, remplacer le **nom affiché** par `streaMLytics`.
+
+**Pourquoi c'est là et pas dans le code.** Le code met déjà `streaMLytics` par défaut
+(`src/utils/verification_email.py`, `from_name`), et `SMTP_FROM_NAME` est **absent des
+deux conteneurs** de production — vérifié le 2026-08-23. Le nom que reçoit le
+destinataire est donc celui **du compte Brevo**, qui écrase le nôtre. Aucune ligne de
+Python ne peut le corriger.
+
+**La vérification** : s'inscrire avec une adresse jetable et regarder l'expéditeur du
+mail de confirmation. Il doit dire `streaMLytics <noreply@streamlytics.fr>`.
+
+**Variante si tu préfères le forcer depuis chez nous** : poser `SMTP_FROM_NAME=streaMLytics`
+dans `/opt/streamlytics/.env` puis
+`docker compose up -d --force-recreate dashboard airflow-scheduler`. Selon la
+configuration Brevo, le nom du compte peut malgré tout gagner — d'où le geste ci-dessus
+en premier.
+
+---
+
 ## 5. R1 — Ouvrir la bêta privée · P3
 
 Les prérequis sont prouvés en production : funnel d'inscription complet, e-mails Brevo

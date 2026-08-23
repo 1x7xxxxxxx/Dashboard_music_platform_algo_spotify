@@ -52,6 +52,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R38 | Le nom d'expéditeur des e-mails dit « Music Cross Platform Dashboard & Trigger Spotify » | P3 | **dans Brevo** → *Expéditeurs, domaines & IPs* → `noreply@streamlytics.fr` → nom affiché = `streaMLytics`. Mesuré le 2026-08-23 : le code met déjà `streaMLytics` par défaut et `SMTP_FROM_NAME` est **absent des deux conteneurs** de prod — le nom vient donc du compte Brevo, qui écrase le nôtre. Aucune ligne de Python ne peut le corriger. Vérif : s'inscrire avec une adresse jetable, l'expéditeur doit dire `streaMLytics <noreply@streamlytics.fr>`. Runbook §6. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
 
 ## 🔖 REPRISE — état au 2026-08-23, séance close (à lire EN PREMIER au `/resume`)
@@ -87,12 +88,73 @@ DEVLOG ; ce qui compte pour reprendre :
   sonde Meta passerait au vert sur la source la plus périmée de la prod. Verdict :
   `.claude/dev-docs/data-quality-check-verdict.md`.
 
+### Ce que la reprise du soir a trouvé (2026-08-23, après déploiement)
+
+Cinq sujets remontés depuis la boîte mail, tous tranchés :
+
+- **P1 corrigé en prod — un lien de désinscription vers `localhost`.** `APP_BASE_URL`
+  était réglé sur le dashboard et **absent du scheduler**, où `onboarding_report`
+  construit le pied de page de désinscription. Chaque rapport d'onboarding portait donc
+  `http://localhost:8501`. Câblé dans le compose (exemple **et** prod, gitignoré donc à
+  la main), et `_BASE_URL` est passé d'une constante figée à l'import à une lecture **à
+  l'appel** — figée, elle portait ce que l'environnement contenait au premier import.
+  `check_env_parity.py` couvre désormais `APP_BASE_URL`, `ALERT_EMAIL` et le bloc SMTP :
+  ma propre parité ne les listait pas, et une parité ne vaut que la largeur de sa liste.
+- **Les mails de vérification en `localhost` venaient d'un run LOCAL**, pas de la prod
+  (`APP_BASE_URL=https://streamlytics.fr` y est correct). Le nombre de mails s'explique
+  par autant de tentatives d'inscription.
+- **Le nom d'expéditeur « Music Cross Platform Dashboard & Trigger Spotify »** ne vient
+  pas du code : celui-ci met `streaMLytics` par défaut et `SMTP_FROM_NAME` est absent des
+  deux conteneurs. C'est le **nom d'expéditeur du compte Brevo**, qui écrase. → geste
+  dans Brevo, § « En attente de toi ».
+- **CI rouge : deux causes, une de moi.** `tools/check_index_coverage.py` cité dans ces
+  fichiers **existe dans `knowledge-rag`, pas ici** — le garde des outils opérateur a eu
+  raison de le signaler (`config-path-dangling`). Chemin qualifié en absolu. La seconde
+  (`test_a_raising_probe_becomes_a_red_not_a_traceback`) est **antérieure** et dépend de
+  l'ordre/état de la suite : reproduction en cours.
+- **n8n `market-scores` désactivé.** Il tournait **16 fois par jour** (`15 7-22 * * *`),
+  consommait de l'inférence Ollama et échouait au dernier nœud, alors que le projet est
+  abandonné. Désactivé et n8n redémarré — geste **réversible**, rien n'est supprimé.
+- **Cinq sites de fuite de plus dans `tools/`**, dont `artist_preflight.py` qui rend
+  l'exception d'une sonde **au terminal de l'opérateur**. Portée du garde élargie à
+  `tools/` — **troisième fois** que la portée est le défaut et non la logique.
+
+### Ce que la reprise après coupure a trouvé (2026-08-23, soir)
+
+La séance précédente s'est arrêtée **entre le fix et le commit** : 15 fichiers étaient
+dans l'arbre de travail, non versionnés. Deux constats en sont sortis.
+
+**Le rouge CI était déjà résolu, pas encore prouvé.** `test_a_raising_probe_becomes_a_red_not_a_traceback`
+échouait parce qu'un *autre* fichier de test faisait `del sys.modules[…]` au lieu de
+restaurer — l'éviction rend un second objet module, et un monkeypatch ultérieur patche
+l'un pendant que le code lit l'autre. Fix et garde étaient écrits ; il manquait la
+preuve. **1663 passed, 23 skipped** contre la vraie base, et le garde vu rouge sur le
+défaut réel (ligne 192) puis vert après.
+
+**Un défaut introduit par le fix précédent, lui, était vivant.** Élargir le garde
+anti-fuite à `tools/` a ajouté `from src.utils.safe_error import safe_error` à six
+scripts ; deux n'avaient pas le repo root sur `sys.path` et **mouraient au démarrage** —
+`tools/dev/check_manifest_consistency.py` (porte CI, dont `audit_runner` lisait le crash
+comme une dérive `streamlit-pin-drift` inexistante) et `tools/notify_schema_drift.py`,
+**le cron de dérive de 04h en prod** : l'import censé le durcir le faisait taire, ce que
+son propre commentaire annonçait deux lignes plus bas. Non commité, donc la prod n'a
+jamais porté le défaut. Classe `tool-imports-the-app-without-a-path`, gardée par AST.
+
+**Quatrième fois en trois jours que la portée d'un garde est le défaut** — ici,
+l'élargissement a cassé les fichiers nouvellement couverts, dont le contrat d'exécution
+diffère de ceux contre lesquels le garde avait été écrit. Et une leçon neuve : *un hit
+d'audit sur une classe dont le symptôme ne correspond pas au dépôt se vérifie à la main
+avant d'être cru* — une signature qui shelle hérite du code de sortie d'un crash et le
+présente comme son propre verdict.
+
+---
+
 ### Le corpus
 Les 10 livres demandés sont arrivés et rangés (`divers` ne contient plus que des mails).
 Trois doublons exacts, créés par un re-dépôt, ont été retirés. Deux domaines créés :
 `qualite-logicielle` (tests + sécurité applicative) et `saas-architecture`. **L'ingestion
 était encore en cours à la clôture** — vérifier avec
-`cd /home/timothe/knowledge-rag && python3 tools/check_index_coverage.py` : la sortie
+`python3 /home/timothe/knowledge-rag/tools/check_index_coverage.py` : la sortie
 doit être vide. Sinon : `uv run python ingest.py`.
 
 ### Les deux leçons à relire avant d'écrire un garde

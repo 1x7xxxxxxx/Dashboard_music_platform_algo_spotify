@@ -47,10 +47,19 @@ _SERVICE_PLATFORMS = {
 }
 
 # Read by more than the central apps, and just as fatal when missing.
+#
+# APP_BASE_URL added 2026-08-23, and its absence is exactly what this check exists to
+# catch: it was set on the dashboard and ABSENT on the scheduler, so every onboarding
+# report sent by Airflow carried a one-click unsubscribe link pointing at
+# http://localhost:8501. The first version of this file did not list it — a parity check
+# is only as wide as its list, which is the same failure mode as a guard's scope.
+# ALERT_EMAIL likewise: the scheduler is where the nightly mail is decided.
 _SERVICE_EXTRA = {
-    "airflow_scheduler": ("FERNET_KEY",),
-    "airflow_webserver": ("FERNET_KEY",),
-    "streamlytics_dashboard": ("FERNET_KEY",),
+    "airflow_scheduler": ("FERNET_KEY", "APP_BASE_URL", "ALERT_EMAIL",
+                          "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"),
+    "airflow_webserver": ("FERNET_KEY", "APP_BASE_URL"),
+    "streamlytics_dashboard": ("FERNET_KEY", "APP_BASE_URL",
+                               "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"),
 }
 
 # These carry the ADMIN's own identity. Present-and-non-empty in a multi-tenant

@@ -29,6 +29,8 @@ import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from src.utils.safe_error import safe_error
+
 from src.utils.env_files import load_project_env  # noqa: E402
 
 load_project_env()
@@ -85,7 +87,7 @@ def _capture_code(redirect_uri: str, authorize_url: str,
         server = HTTPServer((parts.hostname, parts.port or 80),
                             _make_handler(state, parts.path or "/"))
     except OSError as e:
-        sys.exit(f"❌ cannot bind {parts.hostname}:{parts.port} ({e}). "
+        sys.exit(f"❌ cannot bind {parts.hostname}:{parts.port} ({safe_error(e)}). "
                  "Close whatever uses that port or pass a free --redirect-uri "
                  "(must also be registered on the SoundCloud app).")
     server.timeout = 1  # handle_request returns each second so we can poll

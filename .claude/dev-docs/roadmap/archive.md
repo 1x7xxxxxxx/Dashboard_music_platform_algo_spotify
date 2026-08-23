@@ -18,7 +18,7 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
   Show Me the Numbers (Few) · Storytelling with Data · Data Visualisation (Kirk) ·
   Designing with the Mind in Mind · Microcopy · Strategic Writing for UX ·
   Web Form Design. **180 fichiers sur 25 domaines, couverture complète**
-  (`tools/check_index_coverage.py` sort 0).
+  (`/home/timothe/knowledge-rag/tools/check_index_coverage.py` sort 0).
 
   Ce que R17 bloquait est désormais sourçable : Few p.27 donne le critère du budget
   de graphiques — *« A dashboard fits on a single computer screen … within the

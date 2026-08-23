@@ -21,6 +21,14 @@ import sys
 import tomllib
 from pathlib import Path
 
+# The repo root must be on the path BEFORE the app import below: Python seeds sys.path
+# with this SCRIPT's directory (tools/dev/), never the caller's cwd, so `import src`
+# fails however the script is invoked. Adding the import without this line made the
+# CI gate crash at startup — and `audit_runner` read that exit code as a manifest drift.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.utils.safe_error import safe_error  # noqa: E402 — needs the path line above
+
 _REPO = Path(__file__).resolve().parents[2]
 _PIN_RE = re.compile(r"^([A-Za-z0-9._-]+)(?:\[[^\]]+\])?\s*==\s*([A-Za-z0-9._!+-]+)")
 
@@ -86,7 +94,7 @@ def main() -> int:
             "uv.lock": _parse_uvlock(_REPO / "uv.lock"),
         }
     except (FileNotFoundError, OSError, tomllib.TOMLDecodeError) as e:
-        print(f"manifest-consistency: cannot read manifests: {e}", file=sys.stderr)
+        print(f"manifest-consistency: cannot read manifests: {safe_error(e)}", file=sys.stderr)
         return 2
     offenders = _drift(sources)
     if offenders:

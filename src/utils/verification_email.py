@@ -17,7 +17,15 @@ logger = logging.getLogger(__name__)
 
 # Public base URL used in verification + welcome links. Override in prod via the
 # APP_BASE_URL env var (e.g. https://app.streamlytics.io); defaults to local dev.
-_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
+#
+# Read at CALL time, not at import time. Frozen at import, this constant carried whatever
+# the environment held the first time any module touched this file — and a link built
+# from it is the one thing in an email that must not be wrong. Measured 2026-08-23: the
+# Airflow scheduler had no APP_BASE_URL at all, so every onboarding report carried an
+# unsubscribe link to http://localhost:8501. Same family as `env-resolved-against-cwd`:
+# the default is indistinguishable from a real value at the point of use.
+def _base_url() -> str:
+    return os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
 
 
 def _tr(key: str, fr: str, lang: str, **fmt) -> str:
@@ -118,7 +126,7 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
     Localised (FR/EN) via `lang` — the caller threads the verified user's UI language
     (recovered from the `&lang=` carried on the verification link).
     """
-    onboarding_url = f"{_BASE_URL}?page=onboarding&lang={lang}"
+    onboarding_url = f"{_base_url()}?page=onboarding&lang={lang}"
     unsub_footer = _unsubscribe_footer(user_id, lang)
     steps = "".join(
         f"<li>{_tr(f'email.welcome.step{i}', fr, lang)}</li>"
@@ -220,7 +228,7 @@ def _unsubscribe_footer(user_id: int | None, lang: str = "fr") -> str:
                      "Pour ne plus recevoir ces emails, décochez l'option dans "
                      "<em>Mon compte → Communications</em>.", lang)
         return f"<p style='{style}'>{static}</p>"
-    url = f"{_BASE_URL}?page=unsubscribe&uid={user_id}&t={unsubscribe_token(user_id)}"
+    url = f"{_base_url()}?page=unsubscribe&uid={user_id}&t={unsubscribe_token(user_id)}"
     notice = _tr('email.unsub.notice',
                  "Vous recevez cet email car vous avez un compte streaMLytics. ", lang)
     link = _tr('email.unsub.link', "Se désinscrire des communications", lang)
@@ -262,7 +270,7 @@ def send_verification_email(to_email: str, username: str, token: str,
         logger.warning("SMTP not configured — skipping verification email.")
         return False
 
-    verify_url = f"{_BASE_URL}?page=verify&token={token}&lang={lang}"
+    verify_url = f"{_base_url()}?page=verify&token={token}&lang={lang}"
 
     html = f"""
     <html><body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
@@ -321,7 +329,7 @@ def send_account_exists_email(to_email: str, username: str, lang: str = "fr") ->
     the address makes its owner receive one notice, which is itself the useful signal.
     The per-IP registration budget bounds how often that can happen.
     """
-    login_url = f"{_BASE_URL}?page=login"
+    login_url = f"{_base_url()}?page=login"
     html = f"""
     <html><body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
         <h2 style="color: #1DB954;">{_tr('email.exists.title',

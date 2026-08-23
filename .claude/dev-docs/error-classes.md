@@ -145,6 +145,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [mandatory-filter-with-no-guard](#mandatory-filter-with-no-guard) | P2 | deterministic | guarded | none |
 | [detector-with-no-scheduler](#detector-with-no-scheduler) | P2 | deterministic | guarded | none |
 | [script-replaced-while-it-runs](#script-replaced-while-it-runs) | P2 | manual | reported | none |
+| [test-leaves-a-hole-in-sys-modules](#test-leaves-a-hole-in-sys-modules) | P2 | deterministic | guarded | none |
 | [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
 | [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
@@ -159,6 +160,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [two-doors-onto-one-database](#two-doors-onto-one-database) | P2 | deterministic | guarded | none |
 | [unmeasured-rendered-as-measured](#unmeasured-rendered-as-measured) | P2 | deterministic | guarded | none |
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
+| [tool-imports-the-app-without-a-path](#tool-imports-the-app-without-a-path) | P1 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1752,3 +1754,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: found by reading the deploy output instead of trusting its "✅ deployed" line — the gate's absence was visible only to someone who knew it should have printed. Sister of `collector-shipped-dag-not-rerun` and of the api/dashboard images that COPY `src/` at BUILD time: in all three, the artifact was updated and the thing actually running was not.
+
+## test-leaves-a-hole-in-sys-modules
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: tests are green file by file and red in a full run, on assertions unrelated to whatever changed. The failing test's own monkeypatch appears not to take effect — the real implementation runs instead of the fake one — and the failure moves between runs as the order changes.
+- root_cause: a test replaced `sys.modules["…"]` with a stub and, in its `finally`, called `del` instead of restoring the previous value. Deleting the key EVICTS the real module for the rest of the session: the next import re-executes it from disk and hands out a SECOND module object, while every module that already did `from … import NAME` still holds the first. A later `monkeypatch.setattr("pkg.mod.NAME", …)` then patches one object while the code under test reads the other. Measured 2026-08-23 in `tests/test_readiness_carries_the_live_diagnosis.py:192` on `src.dashboard.views.credentials._registry`; CI failed on `test_a_raising_probe_becomes_a_red_not_a_traceback`, whose output showed the five REAL probes running despite a monkeypatch to a single fake one.
+- signature: `python3 -m pytest tests/test_no_test_deletes_a_module.py -q`
+- long_term_fix: borrow, never evict — `previous = sys.modules.get(key)` before, and restore it (or `pop` only when there was nothing) after. The guard walks the AST of every test for `del sys.modules[…]` and for `sys.modules.pop` without a saved previous value, because the trap is invisible in a single-file run: the test that causes it always passes.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_test_deletes_a_module.py }
+- rex_ref: tests/test_readiness_carries_the_live_diagnosis.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: three reproductions failed before this was found, and each failure was informative — the test passes alone, passes with its neighbour, and passes with the environment stripped. What it does NOT survive is a full run, which is the only condition CI uses. The lesson is about method: an order-dependent failure cannot be reproduced by narrowing, only by running the whole thing.
+
+## tool-imports-the-app-without-a-path
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: a standalone script under `tools/` dies at startup with `ModuleNotFoundError: No module named 'src'`, however it is invoked — including from the repo root. Downstream, the crash is read as the script's own verdict: `audit_runner` saw `check_manifest_consistency.py` exit 1 and reported a `streamlit-pin-drift` hit that did not exist, and the 04h production drift cron `notify_schema_drift.py` was silenced by the very import meant to harden it.
+- root_cause: Python seeds `sys.path` with the SCRIPT's own directory, never the caller's cwd, so a file under `tools/` (or `tools/dev/`) cannot import the app package unless it puts the repo root on the path itself. Measured 2026-08-23: widening the credential-redaction guard to `tools/` added `from src.utils.safe_error import safe_error` to six scripts; five already had the path line and two did not. The defect was the SCOPE of the widening — the newly covered files had a different runtime contract than the files the guard was written against — for the fourth time in three days.
+- signature: `python3 -m pytest tests/test_a_tool_script_can_actually_start.py -q`
+- long_term_fix: the guard walks the AST of every file under `tools/` and requires a `sys.path` mutation strictly BEFORE the first `import src…`; a script with no app import is skipped, so the rule costs nothing to the tools that stay standalone. For a script that is itself the last link of an alert, the app import is additionally wrapped in `try/except ImportError` with a fallback that cannot leak (type name only, no message) — a broken import path must never be able to silence the alert it was added to protect.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_tool_script_can_actually_start.py }
+- rex_ref: tools/notify_schema_drift.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: found by running `audit_runner --deterministic` and disbelieving its verdict. It named `streamlit-pin-drift`, a P1 about manifest pins; the actual state was a checker that could not start. A signature that shells out inherits the exit code of a crash and reports it as its own class — so a hit on a class whose symptom does not match the repo is a reason to run the signature by hand, not to fix the class it names.

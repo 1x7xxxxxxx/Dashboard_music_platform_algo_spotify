@@ -33,6 +33,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from src.utils.safe_error import safe_error
+
 # A shell has no .env; Docker does. Resolve it from the repo root so this tool is
 # correct from any cwd, and so a red verdict below means "missing", not "unloaded".
 from src.utils.env_files import load_project_env  # noqa: E402
@@ -336,7 +338,7 @@ def main() -> int:
     try:
         db = _connect()
     except Exception as exc:  # noqa: BLE001 — a CLI reports, it does not crash
-        print(f"❌ cannot connect: {exc}", file=sys.stderr)
+        print(f"❌ cannot connect: {safe_error(exc)}", file=sys.stderr)
         return 2
 
     try:

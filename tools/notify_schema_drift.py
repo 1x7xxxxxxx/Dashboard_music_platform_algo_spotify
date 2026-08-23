@@ -21,6 +21,22 @@ import sys
 from email.mime.text import MIMEText
 from pathlib import Path
 
+# This script is the LAST link of the drift alert, and it states below that it must not
+# depend on the app package — "a broken import path must never be able to silence the
+# alert". That invariant proved itself on 2026-08-23: adding the redaction import
+# unconditionally made the nightly cron die at startup, alert and all.
+# So: put the repo root on the path (Python seeds sys.path with this script's directory,
+# never the caller's cwd), and keep the import survivable. The fallback drops the
+# message rather than reproducing the redaction rules here — a copy of them would drift,
+# and a type name alone cannot leak a credential.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    from src.utils.safe_error import safe_error  # noqa: E402 — needs the path line above
+except ImportError:  # pragma: no cover — exercised by test_alert_survives_a_broken_repo
+    def safe_error(exc: BaseException, limit: int = 300) -> str:
+        return type(exc).__name__
+
 
 # Same order, and for the same reason, as `src.utils.env_files.ENV_FILES`: the local
 # file wins. This script deliberately does not import the app package (a broken import
@@ -81,7 +97,7 @@ def main() -> int:
             server.login(user, password)
             server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
-        print(f"email send failed: {exc}", file=sys.stderr)
+        print(f"email send failed: {safe_error(exc)}", file=sys.stderr)
         return 1
     print(f"drift alert emailed to {recipient}")
     return 0
