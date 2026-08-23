@@ -5,6 +5,60 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-23 (soir) — Le rayon de souffle de la suite, et le corpus relu contre le dépôt
+
+**Contexte** : une séance coupée entre le fix et le commit, une CI rouge, et trois mails
+de vérification en `localhost` dans la boîte. Trois signaux qui n'avaient rien à voir —
+et deux d'entre eux cachaient un défaut que rien ne surveillait.
+
+**What changed**
+
+- **La suite de tests envoyait de vrais mails à de vraies personnes.**
+  `test_admin_hypeddit_buttons.py` presse tous les boutons de la vue admin ; l'un est
+  `📧 Renvoyer vérification`, qui écrit à une adresse lue **dans la base que pointe
+  l'exécution** — en local, la copie migrée de la prod. Trois lancements = trois mails.
+  Frontière SMTP dans `conftest.py`, qui **enregistre puis échoue au teardown** parce que
+  l'application avale l'exception et laisserait le test vert.
+- **Et elle appelait les APIs des plateformes.** Question posée volontairement après la
+  précédente : « qu'est-ce que la suite fait d'AUTRE au monde extérieur ? ». Un mouchard
+  de vingt lignes sur `socket.connect` a répondu : quatre connexions réelles vers Meta,
+  Google et SoundCloud depuis un seul test. Frontière posée sur la socket (les collecteurs
+  sortent par trois bibliothèques), ports 80/443 seulement — Postgres est *managed*.
+- **Un lien de paiement non attribuable, sur les deux surfaces.** Trouvé en fermant R40 :
+  `f"{url}?client_reference_id={_aid}" if _aid else checkout_url` rendait un bouton
+  **payable** sans identifiant de locataire, pendant que le webhook fait
+  `if artist_id and customer_id:` et sort en 200 sans rien faire. Carte débitée, aucun
+  plan provisionné.
+- **Le garde anti-fuite tuait le cron qu'il devait durcir.** L'élargir à `tools/` avait
+  ajouté un import applicatif à six scripts ; deux n'avaient pas le repo root sur
+  `sys.path` et mouraient au démarrage — dont le cron de dérive de 04h, silencié par
+  l'import censé le protéger, ce que son propre commentaire annonçait deux lignes plus bas.
+- **Le pilier Volume n'avait qu'un sens.** `check_row_dips` : collecte partielle par
+  locataire, sur le dernier jour complet. Premier plancher écrit : 30 lignes/jour ; les
+  volumes réels en prod sont 1498, 19 et **7** — il aurait rendu le détecteur aveugle à
+  Benken, le seul locataire en panne.
+- **Le corpus relu contre le dépôt.** Dix livres ingérés, quatre défauts trouvés dans le
+  corpus lui-même (dont `saas-architecture` absent de l'index alors que son livre y était,
+  sous `divers`), et six écarts livre↔code fermés : R39 à R45, plus ADR-011 et ADR-012.
+- **Un EPUB scanné n'était pas illisible, il n'avait pas de chemin.** 511 JPG, 10 mots
+  extraits. `ocrmypdf` ne lit pas l'EPUB — mais tesseract, qu'il appelle lui-même, lit un
+  JPG. **2 865 passages là où il y en avait 0.**
+
+**Les trois leçons**
+
+1. **Une suite de tests a un rayon de souffle, et il se mesure.** Aucune des ~100 classes
+   d'erreur du dépôt ne demandait ce que la suite fait au monde extérieur : toutes
+   demandent si le code est juste. La trouvaille est venue de la boîte mail.
+2. **Un seuil rond n'est pas une calibration.** Lire la distribution réelle prend trente
+   secondes et change le seuil d'un facteur six.
+3. **Cinquième fois que la portée d'un garde est le défaut** — et une fois, le garde que
+   je venais d'écrire était VERT sur son propre défaut. Seule la mutation l'a dit.
+
+**Vérifié** : 1834 passed / 22 skipped en invocation CI, ruff `.` propre, audit
+déterministe clean, 105 classes 0 non gardée, CI verte. Déployé en production.
+
+---
+
 ## 2026-08-23 (suite) — La chaîne credentials → collecte, rendue prouvable par locataire
 
 **Contexte** : « deux fois le même problème sur les identifiants qui n'ont pas fonctionné
