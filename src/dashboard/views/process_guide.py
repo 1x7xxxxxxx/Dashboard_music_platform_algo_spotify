@@ -118,6 +118,96 @@ def _strip_md(text: str) -> str:
     return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
 
 
+
+
+def _render_credentials_pdf() -> None:
+    """Le guide d'identifiants COMPLET, avec ses captures — téléchargeable ici.
+
+    Ce PDF (`guides/guide_pdf.py`) porte les copies d'écran de chaque plateforme et les
+    valeurs exactes à coller. Jusqu'au 2026-08-23 il n'était livré QUE par l'e-mail de
+    vérification : e-mail perdu, PDF perdu, et aucun bouton nulle part dans
+    l'application. Note d'origine : « mettre lien de dl du pdf dans guide de démarrage ».
+
+    Construit à la demande — le fichier de `docs/guides/` peut ne pas exister dans un
+    conteneur fraîchement bâti, et le régénérer coûte moins qu'un lien mort.
+    """
+    st.subheader(t("process_guide.cred_pdf_title",
+                   "📘 Guide des identifiants (PDF, avec captures d'écran)"))
+    lang = st.session_state.get("lang", "fr")
+    try:
+        from src.dashboard.guides.guide_pdf import build_guide_html
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=build_guide_html(lang)).write_pdf()
+        st.download_button(
+            t("process_guide.cred_pdf_dl", "⬇️ Télécharger le guide des identifiants"),
+            data=pdf_bytes,
+            file_name=f"streamlytics_guide_identifiants_{lang}.pdf",
+            mime="application/pdf",
+            key="dl_cred_guide_pdf",
+        )
+        st.caption(t("process_guide.cred_pdf_note",
+                     "C'est le même document que celui joint à ton e-mail de "
+                     "vérification — plateforme par plateforme, avec les captures."))
+    except Exception:      # noqa: BLE001 — WeasyPrint absent : on le dit, on ne casse pas
+        st.info(t("process_guide.cred_pdf_unavailable",
+                  "Le PDF n'a pas pu être généré ici. Il reste disponible en pièce "
+                  "jointe de ton e-mail de vérification, et les mêmes étapes sont "
+                  "dépliables sur la page **🔑 Credentials API**."))
+
+
+def _render_csv_definitions() -> None:
+    """Ce que chaque CSV contient, et le fichier attendu — hors du dépliant replié.
+
+    Les définitions existaient déjà (`content/csv_guides.py` : intitulé, colonnes
+    attendues, nom de fichier) mais n'étaient rendues QUE sur la page Import CSV, dans un
+    dépliant fermé par défaut. Un artiste qui se demande « c'est quoi ce CSV ? » est au
+    guide, pas sur la page d'import. Note d'origine : « csv a détailler definition ».
+    """
+    st.subheader(t("process_guide.csv_defs_title", "📄 Les CSV attendus, et ce qu'ils contiennent"))
+    try:
+        from src.dashboard.content.csv_guides import CSV_GUIDES
+    except Exception:      # noqa: BLE001 — le guide reste lisible sans cette section
+        return
+    for guide in CSV_GUIDES:
+        with st.expander(f"{guide.icon} {guide.title}", expanded=False):
+            st.markdown(guide.intro)
+            for exp in guide.expected:
+                st.markdown(
+                    t("process_guide.csv_expected",
+                      "**{label}** — fichier `{hint}`").format(
+                          label=exp.label, hint=exp.filename_hint))
+                if exp.columns:
+                    st.caption(
+                        t("process_guide.csv_columns", "Colonnes attendues : {cols}")
+                        .format(cols=", ".join(exp.columns)))
+
+
+def _render_platform_links() -> None:
+    """Les portails où l'artiste va réellement chercher ses données.
+
+    `views/useful_links.py` les portait déjà — mais cette page est **réservée admin**,
+    donc aucun artiste n'a jamais vu le lien vers Apple Music for Artists. Note
+    d'origine : « intégrer lien apple music ».
+    """
+    st.subheader(t("process_guide.links_title", "🔗 Où récupérer tes données"))
+    links = [
+        ("🎎 Apple Music for Artists", "https://artists.apple.com",
+         t("process_guide.link_apple", "Export CSV « Songs Performance » — "
+                                       "règle la période sur **Depuis le début**.")),
+        ("🎵 Spotify for Artists", "https://artists.spotify.com",
+         t("process_guide.link_s4a", "Exports timeline et audience. **N'utilise pas** "
+                                     "« Depuis le début » ici : Spotify y renvoie des zéros.")),
+        ("☁️ SoundCloud", "https://soundcloud.com",
+         t("process_guide.link_sc", "Ton profil — l'identifiant numérique se lit dans "
+                                    "le code source de la page.")),
+        ("🎬 YouTube Studio", "https://studio.youtube.com",
+         t("process_guide.link_yt", "L'identifiant de chaîne (UC…) est dans "
+                                    "Paramètres → Chaîne → Paramètres avancés.")),
+    ]
+    for label, url, note in links:
+        st.markdown(f"- [{label}]({url}) — {note}")
+
+
 def show():
     st.title(t("process_guide.title", "📋 Guide de démarrage"))
     st.caption(
@@ -127,11 +217,23 @@ def show():
     )
     st.markdown("---")
 
-    for title, items in _get_steps():
-        st.subheader(title)
-        for item in items:
-            st.markdown(f"- {item}")
-        st.markdown("")
+    # Quatre listes à puces PLATES, toutes déroulées en même temps : un artiste en test
+    # a demandé « guide : onglet clickable développer ». Cooper (*About Face*, p.271)
+    # appelle ça la **divulgation progressive** — ce qui est rare ou avancé se replie
+    # derrière un dépliant, et le dépliant reste ouvert une fois ouvert.
+    #
+    # La PREMIÈRE étape non faite est dépliée d'office : c'est la seule que l'artiste ait
+    # à lire maintenant. Sans état de progression sous la main ici, on ouvre la première.
+    for idx, (title, items) in enumerate(_get_steps()):
+        with st.expander(title, expanded=(idx == 0)):
+            for item in items:
+                st.markdown(f"- {item}")
+
+    st.markdown("---")
+
+    _render_credentials_pdf()
+    _render_csv_definitions()
+    _render_platform_links()
 
     st.markdown("---")
 

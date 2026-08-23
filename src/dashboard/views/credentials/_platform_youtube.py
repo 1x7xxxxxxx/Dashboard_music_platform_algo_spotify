@@ -34,8 +34,36 @@ def _test_youtube(fields: dict) -> tuple:
         )
         data = r.json()
         if not (r.status_code == 200 and data.get('items')):
-            err = data.get('error', {})
-            return False, err.get('message', r.text[:150]) if isinstance(err, dict) else str(err)
+            err = data.get('error', {}) if isinstance(data.get('error'), dict) else {}
+            reason = ""
+            for d in (err.get('errors') or []):
+                reason = d.get('reason', "") or reason
+            # Google rend « API key not valid. Please pass a valid API key. » — exact,
+            # et inutile pour l'artiste : la clé YouTube est celle de l'ADMIN (ADR-006),
+            # partagée par toute la flotte. Lui afficher le message tel quel l'envoie
+            # chercher une clé qu'il n'a pas et ne doit pas avoir. Un message d'erreur
+            # qui ne fait que constater n'aide pas (Cooper, *About Face*, p.675) : on
+            # nomme QUI doit agir.
+            if reason in ("badRequest", "keyInvalid") or "API key not valid" in str(
+                    err.get('message', "")):
+                return False, t(
+                    "credentials.youtube.admin_key_invalid",
+                    "La clé API YouTube **de la plateforme** est refusée par Google. "
+                    "Ce n'est pas ta clé et tu n'as rien à corriger : préviens "
+                    "l'administrateur. Ton Channel ID, lui, peut rester saisi.")
+            if reason in ("quotaExceeded", "dailyLimitExceeded"):
+                return False, t(
+                    "credentials.youtube.quota_exceeded",
+                    "Le quota YouTube de la plateforme est épuisé pour aujourd'hui. "
+                    "Rien à corriger de ton côté — réessaie demain, la collecte "
+                    "nocturne reprendra d'elle-même.")
+            # Reste : un message de Google qu'on n'a pas su traduire. On le rend, mais
+            # borné, et jamais le corps brut de la réponse.
+            msg = str(err.get('message', "")).strip()
+            return False, t(
+                "credentials.youtube.unexpected",
+                "YouTube a refusé la requête ({code}). {msg} Si ça persiste, préviens "
+                "l'administrateur.").format(code=r.status_code, msg=msg[:120])
 
         # Key is valid — now validate the Channel ID actually resolves. A wrong/empty
         # channel passes the key test but 404s the collector (uploads playlist UC→UU

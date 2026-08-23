@@ -89,9 +89,12 @@ _SOUNDCLOUD = PlatformCred(
     steps=(
         CredStep("Signed into SoundCloud, open "
                  "[soundcloud.com/discover](https://soundcloud.com/discover)."),
-        CredStep("View the page **source** (**{{VIEW_SOURCE}}**), then search (**{{FIND}}**) "
-                 "for `soundcloud:users:` — the **number** right after is your "
-                 "**User ID** (e.g. `377065610`).",
+        CredStep("View the page **source** (**{{VIEW_SOURCE}}**), then search "
+                 "(**{{FIND}}**) for exactly this:\n\n"
+                 "```\nsoundcloud:users:\n```\n"
+                 "The **number stuck right after the colon** is your **User ID** — in "
+                 "`soundcloud:users:377065610` that is `377065610`. Copy neither the "
+                 "prefix nor the colon.",
                  "soundcloud_user_id.png", "Source → soundcloud:users:<your ID>"),
         CredStep("Paste this **User ID** into **🔑 API Credentials → SoundCloud**, "
                  "then **Test the connection**."),

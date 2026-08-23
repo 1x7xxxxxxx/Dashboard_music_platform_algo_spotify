@@ -59,4 +59,16 @@ EN = {
     "process_guide.download_html": "⬇️ Download the guide (HTML)",
     "process_guide.pdf_unavailable": "PDF generation unavailable (WeasyPrint missing) — "
                                      "HTML export offered instead.",
+    "process_guide.csv_defs_title": "📄 The CSVs we expect, and what they contain",
+    "process_guide.csv_expected": "**{label}** — file `{hint}`",
+    "process_guide.csv_columns": "Expected columns: {cols}",
+    "process_guide.links_title": "🔗 Where to fetch your data",
+    "process_guide.link_apple": "« Songs Performance » CSV export — set the period to **Since start**.",
+    "process_guide.link_s4a": "Timeline and audience exports. Do **not** use « Since start » here: Spotify returns zeros.",
+    "process_guide.link_sc": "Your profile — the numeric id is in the page source.",
+    "process_guide.link_yt": "The channel id (UC…) is under Settings → Channel → Advanced settings.",
+    "process_guide.cred_pdf_title": "📘 Credentials guide (PDF, with screenshots)",
+    "process_guide.cred_pdf_dl": "⬇️ Download the credentials guide",
+    "process_guide.cred_pdf_note": "Same document as the one attached to your verification email — platform by platform, with screenshots.",
+    "process_guide.cred_pdf_unavailable": "The PDF could not be generated here. It is still attached to your verification email, and the same steps are expandable on the **🔑 API Credentials** page.",
 }
