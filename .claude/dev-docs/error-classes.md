@@ -167,6 +167,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [test-calls-a-real-api](#test-calls-a-real-api) | P2 | deterministic | guarded | none |
 | [sender-identity-composed-twice](#sender-identity-composed-twice) | P3 | deterministic | guarded | none |
 | [traceback-rendered-to-the-visitor](#traceback-rendered-to-the-visitor) | P2 | deterministic | guarded | none |
+| [boundary-narrower-than-the-surface](#boundary-narrower-than-the-surface) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1882,3 +1883,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: trouvé en répondant à une liste de contrôle sécurité, à la question « erreurs détaillées coupées ? ». Dix-sept des dix-huit points étaient tenus ; celui-là ne l'était pas, et il ne se voyait nulle part — ni dans le code, ni dans un log, ni dans un test. `register.py` avait pourtant déjà reçu `public_error_ref()` pour cette raison exacte (R23) : la décision avait été prise pour UNE page au lieu de l'application.
+
+## boundary-narrower-than-the-surface
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une frontière d'exception EXISTE, elle est documentée, elle fonctionne — et le défaut passe quand même, parce qu'elle n'entoure qu'une partie du code. Le symptôme est indiscernable d'une absence de frontière, sauf sur les chemins couverts.
+- root_cause: `app.py` portait un « central view guard » autour de `_render_page` seulement, soit **10 des 90 lignes** de `main()`. Les 80 restantes portaient huit appels de vue, dont les surfaces **non authentifiées** : page vie privée, onboarding, barres latérales. Mesuré end-to-end dans un navigateur le 2026-08-23 avec `showErrorDetails=full` (la valeur EFFECTIVE en production ce jour-là, faute d'avoir été réglée) : une exception sur ces chemins rendait dans la page la clé API YouTube en clair — elle voyage dans la query string, donc dans le message de l'exception — plus les chemins de fichiers et le code.
+- signature: `python3 -m pytest tests/test_the_error_boundary_covers_everything.py -q`
+- long_term_fix: `main()` n'est plus QUE la frontière : docstring, imports, un `try` autour de `_main_body()`. Le garde lit l'AST et refuse toute instruction de `main()` hors du `try`, ainsi que tout appel `show*` hors frontière ; un troisième test exige le `raise` nu qui laisse passer `st.stop()` / `st.rerun()`, sans quoi la navigation casserait. Le réglage `showErrorDetails=none` devient la SECONDE ligne : un réglage unique dont l'absence est le défaut ne peut pas être la seule.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_error_boundary_covers_everything.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: trouvé en testant le rendu d'erreur DANS UN NAVIGATEUR, pas en lisant le code — et la lecture du code aurait rassuré, puisque le docstring du dispatch annonce « Wrapped by main()'s error handler ». L'annonce était vraie et la portée fausse. C'est la sixième fois dans ce dépôt que la portée d'un garde est le défaut plutôt que sa logique, et la première où le garde en question n'était pas un test mais du code de production.

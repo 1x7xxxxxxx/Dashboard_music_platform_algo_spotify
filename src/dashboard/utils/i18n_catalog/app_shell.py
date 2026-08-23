@@ -52,4 +52,5 @@ EN = {
     "ui.year_n": "Year {y}",
     "ui.custom_range": "Custom range",
     "ui.range": "Range",
+    "app.fatal_error": "❌ An error occurred. The administrator has been notified; please try again shortly.",
 }

@@ -498,6 +498,37 @@ def _render_page(page):
 
 
 def main():
+    """Frontière d'exception TOTALE. Aucune ligne de l'application ne s'exécute dehors.
+
+    Il existait déjà une frontière — autour de `_render_page` seulement, soit **10 des
+    90 lignes** de la fonction ci-dessous. Les 80 autres portaient huit appels de vue,
+    dont les surfaces **non authentifiées** : la page vie privée, l'onboarding et les
+    barres latérales. Mesuré end-to-end dans un navigateur le 2026-08-23 : avec
+    `showErrorDetails=full` — la valeur effective en production ce jour-là — une
+    exception rendait dans la page la clé API YouTube en clair (elle voyage dans la
+    query string, donc dans le message), plus les chemins de fichiers et le code.
+
+    Le réglage `showErrorDetails=none` ferme la fuite, et il était la SEULE ligne de
+    défense pour ces 80 lignes. Un réglage unique dont l'absence est le défaut ne suffit
+    pas : la frontière couvre désormais tout, et le réglage devient la seconde ligne.
+
+    Les signaux de contrôle de Streamlit (`st.stop()`, `st.rerun()`) doivent traverser
+    intacts, sans quoi toute navigation casse — c'est le seul cas où l'on re-lève.
+    """
+    from src.dashboard.utils.error_alert import is_control_flow, notify_app_error
+
+    try:
+        _main_body()
+    except Exception as _exc:                    # noqa: BLE001 — frontière applicative
+        if is_control_flow(_exc):
+            raise
+        notify_app_error(st.session_state.get("_current_page", "?"), _exc)
+        st.error(t("app.fatal_error",
+                   "❌ Une erreur est survenue. L'administrateur a été notifié ; "
+                   "réessayez dans un instant."))
+
+
+def _main_body():
     # Public routes — accessible without authentication
     _page_param = st.query_params.get("page")
 
