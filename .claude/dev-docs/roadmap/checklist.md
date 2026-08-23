@@ -41,10 +41,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| R50 | **Parcours de setup** — guides morts, URI fausses, sélecteur d'OS invisible, guide injoignable | P2 | actionnable — Track 2 du plan, le plus gros levier sur l'abandon |
-| R51 | **Page de valeur** — densité des graphs, page récap, exports mal placés | P2 | actionnable — Track 3 ; `secondary_analyses()` existe et n'est utilisé nulle part où il faut |
-| R52 | **Débloquer GRiNCH et Benj** — titres SoundCloud déclarés, détection CSV | P2 | actionnable — Track 4 ; la fonctionnalité SoundCloud existe déjà, 4 défauts autour |
-| R53 | **Meta multi-comptes** — migration de schéma (agence de Tom) | P2 | actionnable — Track 5 ; **risque de perte de données** si livré en UI seule |
+| R53 | **Meta multi-comptes** — reste la boucle collecteur, les contraintes d'unicité, l'interface | P2 | actionnable — schéma et prune posés (migration 076) ; **décision produit à prendre** : fusionné ou séparé |
 | R47 | Les validateurs Meta Ads existent et ne sont **jamais appelés** | P2 | actionnable — 4 modèles Pydantic écrits, 0 appelant en production |
 | R48 | Deux modules ne sont maintenus en vie que par leur propre test | P4 | actionnable — trancher : câbler ou retirer |
 | R49 | `uv.lock` épingle des versions vulnérables que la prod n'exécute pas | P3 | actionnable — 18 paquets / 127 avis en local, prod déjà corrigée : c'est la CI qui teste le mauvais code |

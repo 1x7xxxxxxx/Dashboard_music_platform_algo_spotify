@@ -11,6 +11,47 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 <!-- section actif : Open Bugs -->
 
+### R50 · R51 · R52 — Les notes des tests artistes, livrées (clos 2026-08-23)
+
+Trois tracks du plan de simplification UI/UX. Le fil commun n'était pas prévu et mérite
+d'être gardé : **la plupart des défauts n'étaient pas du code faux, mais du code correct
+que rien n'atteignait.**
+
+- [x] **R50 — le produit savait où l'artiste devait aller, le disait, et ne l'y emmenait
+  pas.** La page d'onboarding n'était dans aucune navigation (joignable seulement depuis
+  l'e-mail de vérification — mail fermé, page disparue) ; les quatre étapes de l'accueil
+  nommaient leur destination sans y mener ; les guides d'API lus pendant les tests étaient
+  **du code mort** (180 lignes + 36 traductions) qui **contredisait** les guides vivants ;
+  le guide anglais, lui, était vivant et périmé, expédié dans le PDF avec
+  `http://127.0.0.1:8888/callback` — un `8888` hérité du défaut de `spotipy`, décliné en
+  trois orthographes, dont la forme `localhost` que Spotify refuse désormais ; et le
+  sélecteur Mac/Windows était branché sur une fonction sans appelant.
+  Plus : guide replié par étapes, définitions CSV remontées, liens plateformes rendus
+  visibles à l'artiste (ils vivaient sur une page **réservée admin**), PDF des identifiants
+  téléchargeable (il n'existait qu'en pièce jointe), `soundcloud:users` mis en évidence, et
+  « clé API pas valide » qui dit enfin **qui** doit agir — la clé est celle de l'admin,
+  l'artiste n'a rien à corriger.
+
+- [x] **R51 — le correctif contre le mur de graphiques existait depuis onze jours,
+  branché nulle part.** `secondary_analyses()` a été écrit le 2026-08-12, le jour même de
+  la remarque, avec elle citée dans son commentaire de module — et n'était appliqué sur
+  **aucune** des cinq vues les plus denses. Douze figures repliées ; un garde compte
+  désormais les graphiques du PREMIER ÉCRAN et plafonne à 5 par fichier. Les exports, qui
+  étaient les entrées n°2 et n°3 du menu, sont descendus après les analytics.
+
+- [x] **R52 — GRiNCH et Benj débloqués.** Un artiste signé sur un label n'était jamais
+  collecté : le DAG le sautait dès que `user_id` était vide, **avant** de lire ses titres
+  déclarés, et le collecteur levait sur le même critère — alors que la fonctionnalité
+  existait en entier. Côté CSV, le séparateur `;` (celui d'Excel en configuration
+  française) n'était pas testé, et l'export « Depuis le début » était détecté puis rejeté
+  trois couches plus bas avec un conseil — renommer le fichier — qui ne corrige rien.
+
+Sept classes d'erreur cataloguées, chaque garde vu rouge sur son défaut réel. Deux d'entre
+eux avaient un prédicat trop lâche, démasqué par la mutation seule.
+
+---
+
+
 ### Track 1 des notes artistes — les trois faux verts (clos 2026-08-23)
 
 Premier lot du plan de simplification UI/UX. Trois messages qui annonçaient un état qu'ils
