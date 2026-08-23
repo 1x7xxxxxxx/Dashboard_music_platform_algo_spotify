@@ -11,6 +11,37 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 <!-- section actif : Open Bugs -->
 
+### R46 — `data_quality_check` : tranché par l'exécution, reste en pause (clos 2026-08-23)
+
+- [x] **R46 — lancé une fois à la main en production, et la décision est mesurée.**
+  Le circuit breaker de R42 fonctionne : `⏸️ Circuit ouvert — donnée S4A périmée de 77 j
+  (dernier jour porté : 2026-06-07)`. Restait la vraie question — dépauser ou non — et
+  trois mesures y répondent :
+
+  | Question | Mesure du 2026-08-23 |
+  |---|---|
+  | Depuis quand la source est muette ? | dernière écriture **2026-06-08**, dernier jour porté **2026-06-07** — les deux s'accordent |
+  | Qui a déjà déposé un CSV S4A ? | **le seul locataire 1 (admin)**, 13 794 lignes. Ni Benken, ni GRiNCH, ni le canari |
+  | La flotte est-elle aveugle à cette péremption ? | **non** — `freshness_monitor` la signale déjà : `stale: True`, `age_h: 1867`, `measured_on: 'metric'` |
+
+  **Décision : rester en pause**, et ce n'est plus une précaution. Dépausé, il
+  s'abstiendrait chaque nuit — la seule chose qu'il puisse faire sur une source muette —
+  et enverrait un second e-mail quotidien à côté de l'alerte consolidée, sans un constat
+  neuf. **ADR-011** l'interdit : une alerte nomme un symptôme visible par l'artiste ET
+  une action possible ; celui-ci n'en nomme aucun.
+
+  **Déclencheur de réouverture, formulé pour pouvoir se produire** : le jour où
+  `freshness_monitor` cesse de marquer « Spotify S4A » comme `stale`, relancer le DAG à
+  la main. Ses cinq contrôles restent la seule implémentation d'Accuracy et de
+  Completeness du dépôt — ils n'ont simplement jamais eu de données fraîches à juger.
+  Détail complet : `.claude/dev-docs/data-quality-check-verdict.md`.
+
+  Appris en le lançant : `airflow dags test` **exécute réellement** la tâche de
+  notification — le test manuel a envoyé un vrai e-mail de résumé.
+
+---
+
+
 ### R45 — Le livre scanné du corpus rend enfin ses pages (clos 2026-08-23)
 
 Fermé le soir même. Le pipeline avait raison de refuser d'indexer des miettes — 512

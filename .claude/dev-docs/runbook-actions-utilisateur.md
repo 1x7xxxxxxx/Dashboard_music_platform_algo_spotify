@@ -173,7 +173,18 @@ en premier.
 
 ---
 
-## 7. R46 — Décider du sort de `data_quality_check` · P3
+## 7. ~~R46 — Décider du sort de `data_quality_check`~~ · ✅ TRANCHÉ le 2026-08-23
+
+> **Fait, et la décision est mesurée : il RESTE EN PAUSE.** Lancé une fois à la main en
+> production, le circuit breaker s'ouvre (S4A périmée de 77 j). Trois mesures ont tranché :
+> personne n'a déposé de CSV S4A depuis le 2026-06-08, seul l'admin en a jamais déposé, et
+> `freshness_monitor` signale déjà la péremption. Dépausé, le DAG s'abstiendrait chaque nuit
+> en envoyant un second e-mail sans constat — ce qu'ADR-011 interdit.
+> **Rien à faire de ton côté.** Le déclencheur qui rouvrirait la question : le jour où un
+> artiste dépose un CSV S4A. Détail : `.claude/dev-docs/data-quality-check-verdict.md`.
+
+<details><summary>Procédure conservée, pour le jour où le déclencheur se produit</summary>
+
 
 Le DAG est **en pause depuis toujours** (`is_paused = t`, `last_start` vide : il n'a
 jamais tourné une seule fois). R42 a rendu son code sûr — mais rallumer un DAG est une
@@ -221,6 +232,11 @@ ssh root@167.233.92.1 'docker exec airflow_scheduler \
 Doit rester **vide** après la première nuit. Une seule nuit en `failed` et
 `check_dag_failures` en fera une alerte quotidienne — exactement le bruit qu'ADR-011
 interdit.
+
+⚠️ `airflow dags test` **exécute réellement** `send_summary_notification` : le lancer
+envoie un vrai e-mail de résumé. Mesuré le 2026-08-23.
+
+</details>
 
 ---
 

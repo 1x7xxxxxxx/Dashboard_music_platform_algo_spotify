@@ -80,3 +80,59 @@ Une règle écrite en prose et vérifiée par rien est une règle que le systèm
    détecteur neuf commence par se faire mesurer. Le registre `etl_run_log` du chantier 1
    donne déjà la Completeness par locataire (chute de `rows_inserted`) sans nouvelle
    requête.
+
+---
+
+## Le verdict, tranché par l'exécution — 2026-08-23 (soir), R46
+
+Le DAG a été **lancé une fois à la main en production** (`airflow dags test`), sans être
+dépausé, après les correctifs de R42. Il passe (`state=success`). Ce qu'il dit :
+
+```
+⏸️  Circuit ouvert — donnée S4A périmée de 77 j (dernier jour porté : 2026-06-07) :
+    contrôles de qualité non exécutés.
+```
+
+Le circuit breaker fonctionne. Reste la question qu'il pose : **faut-il dépauser ?**
+
+### Les trois mesures qui répondent
+
+| Question | Mesure du 2026-08-23 |
+|---|---|
+| Depuis quand la source est-elle muette ? | Dernière écriture **2026-06-08**, dernier jour porté **2026-06-07**. Les deux s'accordent : personne n'a déposé de CSV S4A depuis 77 jours. |
+| Qui a déjà déposé ? | **Le seul locataire 1 (admin)**, 13 794 lignes. Ni Benken, ni GRiNCH, ni le canari n'ont jamais déposé de CSV. |
+| La flotte est-elle aveugle à cette péremption ? | **Non.** `freshness_monitor` la signale déjà, correctement : `stale: True`, `age_h: 1867`, `measured_on: 'metric'` — il lit `date`, pas `collected_at`. |
+
+### Décision : rester en pause, et ce n'est plus une précaution
+
+Dépausé, ce DAG **s'abstiendrait chaque nuit** — c'est la seule chose qu'il puisse faire
+tant que la source est muette — et sa tâche `send_summary_notification` enverrait un
+second e-mail quotidien à côté de l'alerte consolidée d'`alert_monitor`, sans porter un
+seul constat neuf. **ADR-011** l'interdit explicitement : une alerte nomme un symptôme
+visible par l'artiste ET une action possible. Celui-ci n'en nomme aucun des deux, et la
+péremption qu'il constaterait est déjà dite ailleurs, mieux.
+
+Ce n'est donc plus « on ne sait pas, alors on ne touche pas ». C'est **mesuré** : la
+valeur du DAG est nulle tant que S4A ne reçoit rien, et son coût est un e-mail par nuit.
+
+### Le déclencheur qui rouvre la question, pour qu'il puisse effectivement se produire
+
+**Le jour où un artiste dépose un CSV S4A** — c'est-à-dire dès que
+`freshness_monitor` cesse de marquer « Spotify S4A » comme `stale` — relancer
+`airflow dags test data_quality_check <date>` à la main et lire ce que
+`check_spotify_consistency` trouve pour de bon. Ses cinq contrôles restent la seule
+implémentation d'Accuracy et de Completeness du dépôt ; ils n'ont simplement jamais eu
+de données fraîches à juger.
+
+Vérification du déclencheur, en une commande :
+```bash
+ssh root@167.233.92.1 'docker exec postgres_spotify_airflow psql -U postgres -d spotify_etl \
+  -tAc "SELECT MAX(date) FROM s4a_song_timeline WHERE song NOT ILIKE '"'"'%1x7xxxxxxx%'"'"'"'
+```
+Tant que la réponse est `2026-06-07`, il n'y a rien à décider.
+
+### Une chose apprise en le lançant
+
+`airflow dags test` **exécute réellement** `send_summary_notification` : le test manuel a
+envoyé un vrai e-mail de résumé. Ce n'est pas un défaut du DAG — c'est le comportement
+d'Airflow — mais ça se sait avant de lancer, pas après.
