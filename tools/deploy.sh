@@ -21,6 +21,17 @@ git pull --ff-only origin main          # fails loudly on a dirty tree — surfa
 after="$(git rev-parse --short HEAD)"
 echo "  $before → $after"
 
+# Re-exec if THIS script changed in the pull. Measured on 2026-08-23: the env-parity
+# gate was added, pushed, and the very deploy that pulled it did NOT run it — bash reads
+# a script incrementally, so the running process kept executing the bytes it had already
+# read while the file underneath had been replaced. The deploy reported success and the
+# new gate never fired. `exec` restarts from the top with the new content; the guard
+# variable stops it from looping.
+if [ -z "${DEPLOY_REEXECED:-}" ] && [ "$before" != "$after" ]; then
+    echo "▶ deploy.sh may have changed in this pull — re-exec with the new version"
+    DEPLOY_REEXECED=1 exec bash "$0" "$@"
+fi
+
 echo "▶ rebuild + restart: $SERVICES"
 docker compose up -d --build $SERVICES
 

@@ -144,6 +144,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [stopped-collecting-is-not-a-status-anyone-reads](#stopped-collecting-is-not-a-status-anyone-reads) | P2 | deterministic | guarded | none |
 | [mandatory-filter-with-no-guard](#mandatory-filter-with-no-guard) | P2 | deterministic | guarded | none |
 | [detector-with-no-scheduler](#detector-with-no-scheduler) | P2 | deterministic | guarded | none |
+| [script-replaced-while-it-runs](#script-replaced-while-it-runs) | P2 | manual | reported | none |
 | [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
 | [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
@@ -1730,3 +1731,24 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: found by asking, of each detector in the repo, "who runs this?" — the same question that found `run_freshness_alerts` had zero callers. A detector's existence is not its execution.
+
+## script-replaced-while-it-runs
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: a deploy script is updated, pushed, and the very deploy that pulls the update does not run it. The run reports success, so the change looks deployed — and it is, on disk, for NEXT time. Nothing says the new step was skipped.
+- root_cause: `tools/deploy.sh` begins with `git pull --ff-only origin main` and therefore rewrites ITSELF mid-execution. bash reads a script incrementally rather than into memory, so the running process keeps executing the bytes it already read while the file underneath has been replaced. Measured 2026-08-23: the env-parity gate was added in the same commit that was being deployed, `deploy.sh` on the box contained it afterwards (`grep -c` = 1), and the gate produced no output during that run. The deployment succeeded and the new guard silently did not fire.
+- signature: `grep -qE 'DEPLOY_REEXECED' tools/deploy.sh`
+  <!-- NO leading `!`: here the pattern searched for is the FIX, not the defect.
+       The catalogue contract is "exit non-zero when the ANTI-PATTERN is present",
+       and the anti-pattern is the re-exec being ABSENT — so a bare grep is right.
+       The first version carried the `!` by habit and exited 1 on the CORRECTED
+       code, i.e. it would have reported the fix as the defect. Verified both ways
+       by mutation: 0 on the fixed script, 1 once the re-exec is removed. -->
+- long_term_fix: re-exec after the pull when HEAD moved — `DEPLOY_REEXECED=1 exec bash "$0" "$@"`, guarded by the variable so it cannot loop. The general shape: a script that updates its own source must restart from the new source, or it is running one version while claiming to have deployed another. `kind: manual` because the only conclusive proof is a real deploy that changes the script — a signature can check the re-exec is present, not that it works.
+- autofix: none
+- guard: { type: signature, ref: tools/deploy.sh }
+- rex_ref: tools/deploy.sh
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: found by reading the deploy output instead of trusting its "✅ deployed" line — the gate's absence was visible only to someone who knew it should have printed. Sister of `collector-shipped-dag-not-rerun` and of the api/dashboard images that COPY `src/` at BUILD time: in all three, the artifact was updated and the thing actually running was not.
