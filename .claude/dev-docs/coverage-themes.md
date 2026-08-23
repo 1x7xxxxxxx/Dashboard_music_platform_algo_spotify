@@ -140,6 +140,67 @@ ou « décrit hier ».
 
 ---
 
+## 7bis. Ce que les nouveaux livres ont changé au tableau (2026-08-23, après ingestion)
+
+Deux corrections à ce document, faites **par le corpus** et non par relecture.
+
+### La bonne grille n'est pas trois dimensions mais **cinq piliers**
+
+*Data Quality Fundamentals* (Moses, Gavish, Vorwerck) p.144 et p.135 — les cinq piliers
+de l'observabilité des données, plus précis que le triptyque de Reis & Housley :
+
+| Pilier | Question de Moses p.144 | État de l'app |
+|---|---|---|
+| **Freshness** | la donnée est-elle récente ? | ✅ `freshness_monitor`, 7 sources, `measured_on` metric/write |
+| **Volume** | **« Has all the data arrived? »** | ✅ **depuis aujourd'hui** — `etl_run_log.rows_inserted` par (locataire, plateforme, nuit) répond exactement à ça |
+| **Schema** | quel schéma, et qu'a-t-il changé ? | ✅ `schema_drift_cron.sh`, nocturne |
+| **Distribution** | valeurs dans les plages attendues ? bien formatées ? | ❌ **rien** |
+| **Lineage** | d'où vient cette donnée, qui l'a touchée ? | ❌ rien |
+
+**Le tableau du §7 disait « une dimension sur trois ». C'est faux dans les deux sens :**
+sur la bonne grille l'app en couvre **trois sur cinq**, et le registre livré ce jour a
+fermé Volume sans que ce soit le but visé. Reste **Distribution** — la seule dimension
+réellement absente et réellement atteignable (les valeurs aberrantes, ce que
+`data_quality_check` tentait de faire) — et **Lineage**, qui est un autre métier.
+
+### Le corpus valide les suppressions d'alerte, et donne le critère
+
+*Site Reliability Engineering* (Google) p.90 pose les questions à se poser avant de
+garder une alerte, et la deuxième est **exactement** celle que les trois suppressions du
+chantier 5 répondent :
+
+> « **Are there detectable cases in which users aren't being negatively impacted** —
+> such as drained traffic or test deployments — **that should be filtered out?** »
+> et « Will I ever be able to ignore this alert, knowing it's benign? »
+
+Un locataire qui n'a pas déclaré une plateforme, ou dont Spotify est frais côté API et
+absent côté CSV, est précisément un « detectable case in which users aren't being
+negatively impacted ». Le mot qui compte est **detectable** : la suppression doit être
+mesurée, jamais supposée — ce que `expected_silence` impose déjà et ce que le garde
+`test_a_quiet_night_sends_nothing.py` épingle (un doute garde l'alerte).
+
+*Observability Engineering* (Majors, Fong-Jones) p.152 nomme le coût de ne pas le faire,
+et c'était l'état de l'e-mail nocturne ce matin :
+
+> « monitoring-based alerting often leads to **alert fatigue** — and to gradually paying
+> less attention to **all** alerts, because so many of them are false alarms, not
+> actionable, or simply not useful. »
+
+Et p.154 donne le critère de réveil : « The entire point of alerts is to bring attention
+to an emergency situation that **simply cannot wait**. »
+
+### Le prochain pas, sourcé plutôt que deviné
+
+Moses p.231 liste ce que produit un programme de certification de donnée, et l'app en a
+maintenant quatre éléments sur cinq : contrôles automatiques de fraîcheur/volume/schéma,
+alertes routées (e-mail), un processus de communication d'incident (le runbook), des
+propriétaires responsables. **Ce qui manque est la ligne « Delivery SLAs with defined
+uptime »** — c'est-à-dire un seuil déclaré, pas un seuil implicite (48 h / 168 h sont
+aujourd'hui des constantes dans le code, pas un engagement écrit). C'est le pont vers le
+budget d'erreur du SRE, et c'est un sujet de décision, pas de code.
+
+---
+
 ## 7. Data — les dimensions de la qualité
 
 **Corpus** — *Fundamentals of Data Engineering* (Reis & Housley) p.90-91, trois
