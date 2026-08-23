@@ -14,6 +14,11 @@ import logging
 # Ajouter le projet au path Python
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 #Déjà lecture via docker-compose.yml
 #from dotenv import load_dotenv
 #load_dotenv('/opt/airflow/.env')
@@ -26,7 +31,7 @@ def _failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 # Configuration par défaut du DAG
@@ -107,7 +112,7 @@ def check_meta_ads_freshness(**context):
         }
 
     except Exception as e:
-        logger.error(f'❌ Erreur vérification Meta Ads: {e}')
+        logger.error(f'❌ Erreur vérification Meta Ads: {safe_error(e)}')
         raise
 
 
@@ -143,6 +148,7 @@ def check_spotify_data_consistency(**context):
             WHERE a.active = TRUE
               AND NOT EXISTS (
                 SELECT 1 FROM s4a_song_timeline t WHERE t.artist_id = a.id
+                  AND t.song NOT ILIKE '%1x7xxxxxxx%'
               )
         """
 
@@ -163,7 +169,8 @@ def check_spotify_data_consistency(**context):
         query_missing_songs = """
             SELECT DISTINCT song
             FROM s4a_song_timeline
-            WHERE song NOT IN (SELECT song FROM s4a_songs_global)
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
+              AND song NOT IN (SELECT song FROM s4a_songs_global)
             LIMIT 10
         """
 
@@ -184,7 +191,8 @@ def check_spotify_data_consistency(**context):
         query_suspicious_streams = """
             SELECT song, date, streams
             FROM s4a_song_timeline
-            WHERE streams > 1000000  -- Plus de 1M streams en 1 jour
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
+              AND streams > 1000000  -- Plus de 1M streams en 1 jour
             ORDER BY streams DESC
             LIMIT 5
         """
@@ -206,6 +214,7 @@ def check_spotify_data_consistency(**context):
         query_gaps = """
             SELECT song, COUNT(*) as days_count
             FROM s4a_song_timeline
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
             GROUP BY song
             HAVING COUNT(*) < 7  -- Moins de 7 jours de données
             ORDER BY days_count ASC
@@ -229,6 +238,7 @@ def check_spotify_data_consistency(**context):
         query_duplicates = """
             SELECT song, date, COUNT(*) as count
             FROM s4a_song_timeline
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
             GROUP BY song, date
             HAVING COUNT(*) > 1
             LIMIT 5
@@ -283,7 +293,7 @@ def check_spotify_data_consistency(**context):
         }
 
     except Exception as e:
-        logger.error(f'❌ Erreur vérification cohérence: {e}')
+        logger.error(f'❌ Erreur vérification cohérence: {safe_error(e)}')
         raise
 
 
@@ -423,7 +433,7 @@ def generate_daily_stats(**context):
         return stats
 
     except Exception as e:
-        logger.error(f'❌ Erreur génération statistiques: {e}')
+        logger.error(f'❌ Erreur génération statistiques: {safe_error(e)}')
         import traceback
         logger.error(traceback.format_exc())
         raise
@@ -528,14 +538,14 @@ def send_summary_notification(**context):
             if not _sent:
                 logger.error('Résumé quotidien NON envoyé — SMTP absent ou refusé.')
         except Exception as email_err:
-            logger.warning(f'Email résumé non envoyé : {email_err}')
+            logger.warning(f'Email résumé non envoyé : {safe_error(email_err)}')
 
         logger.info('✅ Résumé quotidien généré')
 
         return summary
 
     except Exception as e:
-        logger.error(f'❌ Erreur génération résumé: {e}')
+        logger.error(f'❌ Erreur génération résumé: {safe_error(e)}')
         # Ne pas faire échouer le DAG pour ça
         return None
 

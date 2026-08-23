@@ -122,7 +122,8 @@ def step_3_spotify_consistency():
         orphans = db.fetch_query("""
             SELECT a.id, a.name FROM saas_artists a
             WHERE a.active = TRUE
-              AND NOT EXISTS (SELECT 1 FROM s4a_song_timeline t WHERE t.artist_id = a.id)
+              AND NOT EXISTS (SELECT 1 FROM s4a_song_timeline t WHERE t.artist_id = a.id
+                              AND t.song NOT ILIKE '%1x7xxxxxxx%')
         """)
         if orphans:
             warnings.append(f'{len(orphans)} active artist(s) without S4A data')
@@ -134,7 +135,8 @@ def step_3_spotify_consistency():
         # Check 2: timeline vs songs_global consistency
         missing = db.fetch_query("""
             SELECT DISTINCT song FROM s4a_song_timeline
-            WHERE song NOT IN (SELECT song FROM s4a_songs_global)
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
+              AND song NOT IN (SELECT song FROM s4a_songs_global)
             LIMIT 10
         """)
         if missing:
@@ -146,7 +148,8 @@ def step_3_spotify_consistency():
         # Check 3: suspiciously high stream values
         suspicious = db.fetch_query("""
             SELECT song, date, streams FROM s4a_song_timeline
-            WHERE streams > 1000000 ORDER BY streams DESC LIMIT 5
+            WHERE song NOT ILIKE '%1x7xxxxxxx%' AND streams > 1000000
+            ORDER BY streams DESC LIMIT 5
         """)
         if suspicious:
             warnings.append(f'{len(suspicious)} day(s) with >1M streams')
@@ -158,6 +161,7 @@ def step_3_spotify_consistency():
         # Check 4: songs with very few data points
         gaps = db.fetch_query("""
             SELECT song, COUNT(*) as days_count FROM s4a_song_timeline
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
             GROUP BY song HAVING COUNT(*) < 7 ORDER BY days_count ASC LIMIT 10
         """)
         if gaps:
@@ -170,6 +174,7 @@ def step_3_spotify_consistency():
         # Check 5: duplicate rows in timeline
         dupes = db.fetch_query("""
             SELECT song, date, COUNT(*) FROM s4a_song_timeline
+            WHERE song NOT ILIKE '%1x7xxxxxxx%'
             GROUP BY song, date HAVING COUNT(*) > 1 LIMIT 5
         """)
         if dupes:

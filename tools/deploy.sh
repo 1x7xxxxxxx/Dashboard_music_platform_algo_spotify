@@ -24,6 +24,24 @@ echo "  $before → $after"
 echo "▶ rebuild + restart: $SERVICES"
 docker compose up -d --build $SERVICES
 
+# Env parity, AFTER the containers are up and BEFORE we declare success. This is the
+# 2026-06-19 Benken failure taken at the door: the dashboard container had no
+# central-app variable at all, every connection test failed, and nothing said why —
+# an absent variable and an empty one are the same thing at the call site.
+# `git pull` cannot carry this: the production docker-compose.yml is gitignored.
+echo "▶ env parity (presence only — no value is ever printed)"
+python3 tools/check_env_parity.py
+
+# The Airflow services run the COLLECTORS, and this script rebuilds api+dashboard only.
+# An .env corrected on the box therefore does not reach them. Say so rather than let it
+# be discovered a night later.
+case " $SERVICES " in
+    *" airflow"*) ;;
+    *) echo "⚠️  airflow-scheduler / -webserver were NOT recreated by this deploy."
+       echo "    If you changed .env or a DAG's credentials, run on the box:"
+       echo "    docker compose up -d --force-recreate airflow-scheduler airflow-webserver" ;;
+esac
+
 # Health gates: api on 8502/health, dashboard on 8501 Streamlit /_stcore/health.
 for s in $SERVICES; do
     case "$s" in

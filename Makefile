@@ -7,7 +7,7 @@ PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | 
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight canary tenant-check
+.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight canary tenant-check caddy-validate env-parity
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -153,6 +153,41 @@ canon-pg: ## (internal) build the throwaway canonical database and fingerprint i
 	@for f in $$(ls migrations/*.sql | sort); do docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done
 	@docker exec -i canon_pg psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_canon.tsv 2>/dev/null
 	@docker rm -f canon_pg >/dev/null 2>&1
+
+env-parity:  ## Are the central-app credentials present in the containers that read them?
+	@# Presence only — never a value. Runs against whatever containers are up locally;
+	@# on the box it is a gate inside tools/deploy.sh. `make sync-check` compares the
+	@# schema, the ledger, the tools mount and the Caddyfile — but no env var, and it
+	@# cannot: the production docker-compose.yml is gitignored.
+	@command -v docker >/dev/null 2>&1 || { echo "❌ docker not found — Run: install Docker"; exit 1; }
+	@python3 tools/check_env_parity.py
+
+caddy-validate: ## Validate deploy/Caddyfile with a real Caddy binary (docker, no prod access)
+	@# Added 2026-08-23. `sync-check` proves the repo copy MATCHES what prod serves; nothing
+	@# proved it is VALID. The 2026-08-22 edit was reloaded on the box and never checked by a
+	@# Caddy binary from this repo — "image unavailable here" was assumed, not measured. It is
+	@# available: this target pulls it. Certs are stood in with a throwaway self-signed pair so
+	@# `tls <file> <file>` resolves; we validate SYNTAX, not the production certificates.
+	@command -v docker >/dev/null 2>&1 || { echo "❌ docker not found — Run: install Docker, or validate on the box with 'caddy validate'"; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "❌ Docker daemon unreachable — Run: docker-compose up -d"; exit 1; }
+	@[ -f deploy/Caddyfile ] || { echo "❌ deploy/Caddyfile missing"; exit 1; }
+	@tmp=$$(mktemp -d); \
+	  openssl req -x509 -newkey rsa:2048 -nodes -keyout $$tmp/origin.key -out $$tmp/origin.pem \
+	    -days 1 -subj "/CN=caddy-validate.invalid" >/dev/null 2>&1; \
+	  out=$$(docker run --rm \
+	    -v "$$(pwd)/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+	    -v "$$tmp/origin.pem:/etc/caddy/origin.pem:ro" \
+	    -v "$$tmp/origin.key:/etc/caddy/origin.key:ro" \
+	    caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile 2>&1); \
+	  rm -rf $$tmp; \
+	  if echo "$$out" | grep -q "Valid configuration"; then \
+	    echo "  ✅ deploy/Caddyfile is a valid Caddy config"; \
+	    echo "$$out" | grep -q "is not formatted" && \
+	      echo "  ⚠ not gofmt-clean per 'caddy fmt' — do NOT reformat: sync-check compares this file BYTE-FOR-BYTE with what prod serves. Reformat on the box first, or accept the warning."; \
+	    exit 0; \
+	  else \
+	    echo "  ❌ INVALID Caddy config:"; echo "$$out" | tail -20; exit 1; \
+	  fi
 
 sync-check: schema-check ## Full repo↔prod sync: schema-drift + migration-ledger + deploy-drift
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
