@@ -166,6 +166,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [partial-collection-invisible](#partial-collection-invisible) | P2 | deterministic | guarded | none |
 | [test-calls-a-real-api](#test-calls-a-real-api) | P2 | deterministic | guarded | none |
 | [sender-identity-composed-twice](#sender-identity-composed-twice) | P3 | deterministic | guarded | none |
+| [traceback-rendered-to-the-visitor](#traceback-rendered-to-the-visitor) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1866,3 +1867,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: le coût réel n'est pas le défaut, c'est le diagnostic. La roadmap portait depuis des semaines « le code met déjà `streaMLytics` par défaut et `SMTP_FROM_NAME` est absent des deux conteneurs — le nom vient donc du compte Brevo, **aucune ligne de Python ne peut le corriger** ». Les deux moitiés étaient fausses, et pour la même raison : on avait lu le chemin d'envoi qui marchait, et jamais ouvert `config.yaml`, dont la clé `from_name` portait littéralement le nom observé. Une tâche classée « hors de portée du code » mérite qu'on vérifie la portée avant de la parquer — deuxième fois en trois jours.
+
+## traceback-rendered-to-the-visitor
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une exception non rattrapée affiche sa **traceback complète dans le navigateur** du visiteur — chemins de fichiers, lignes de code, et le message de l'exception. Aucun log ne le signale : de la machine, tout va bien.
+- root_cause: `client.showErrorDetails` n'était pas configuré dans `.streamlit/config.toml`, et le défaut de Streamlit est `full`. Ne pas régler l'option n'est pas neutre. Mesuré en production le 2026-08-23 (`streamlit 1.58.0`, valeur effective `full`). Ce dépôt sait ce que ce message peut contenir : Meta et YouTube passent leur credential en QUERY STRING, ce qui est toute la raison d'être de `secret-in-an-exception-message` et de `safe_error()`. Le travail fait pour empêcher un credential d'atteindre un LOG était donc contourné par la surface la plus exposée de toutes.
+- signature: `python3 -m pytest tests/test_a_traceback_never_reaches_the_visitor.py -q`
+- long_term_fix: `showErrorDetails = "none"` dans la config embarquée ; le visiteur voit un message générique, la traceback reste côté serveur où `public_error_ref()` lui donne déjà une référence à citer. Le débogage local se fait par `STREAMLIT_CLIENT_SHOW_ERROR_DETAILS=full`. Le garde refuse aussi l'ABSENCE de réglage, pas seulement `full` — c'est l'absence qui était le défaut.
+- autofix: safe
+- guard: { type: pytest, ref: tests/test_a_traceback_never_reaches_the_visitor.py }
+- rex_ref: .streamlit/config.toml
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: trouvé en répondant à une liste de contrôle sécurité, à la question « erreurs détaillées coupées ? ». Dix-sept des dix-huit points étaient tenus ; celui-là ne l'était pas, et il ne se voyait nulle part — ni dans le code, ni dans un log, ni dans un test. `register.py` avait pourtant déjà reçu `public_error_ref()` pour cette raison exacte (R23) : la décision avait été prise pour UNE page au lieu de l'application.

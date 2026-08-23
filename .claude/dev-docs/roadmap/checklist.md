@@ -43,6 +43,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 |----|-------|------|----------------------|
 | R47 | Les validateurs Meta Ads existent et ne sont **jamais appelés** | P2 | actionnable — 4 modèles Pydantic écrits, 0 appelant en production |
 | R48 | Deux modules ne sont maintenus en vie que par leur propre test | P4 | actionnable — trancher : câbler ou retirer |
+| R49 | `uv.lock` épingle des versions vulnérables que la prod n'exécute pas | P3 | actionnable — 18 paquets / 127 avis en local, prod déjà corrigée : c'est la CI qui teste le mauvais code |
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
@@ -114,6 +115,41 @@ du code mort et empêche de le retirer sans discussion.
       cité comme exemple canonique de « Utility » dans
       `.claude/skills/response-protocol/SKILL.md` — une référence à retirer aussi si le
       module part.
+
+---
+
+### R49 — Le lockfile épingle des versions vulnérables que la prod n'exécute pas · P3
+
+`pip-audit` sur le venv local : **18 paquets vulnérables, 127 avis**. Le réflexe serait
+d'alerter — la mesure dit l'inverse. Ce que la **production** exécute :
+
+| Paquet | venv local (`uv.lock`) | prod api/dashboard |
+|---|---|---|
+| `pyjwt` | 2.12.1 ⚠️ | **2.13.0** ✅ |
+| `cryptography` | 48.0.0 ⚠️ | **50.0.0** ✅ |
+| `starlette` | 1.0.0 ⚠️ | **1.6.0** ✅ |
+| `python-multipart` | 0.0.28 ⚠️ | **0.0.32** ✅ |
+| `pillow` | 10.4.0 ⚠️ | **12.3.0** ✅ |
+
+La cause : `requirements.txt` déclare des **planchers** (`cryptography>=42.0.0`), donc
+l'image Docker installe la dernière version satisfaisante, pendant que `uv.lock` fige des
+versions exactes et anciennes. **La CI, qui fait `uv sync --frozen`, teste donc du code
+que la production n'exécute pas** — c'est la famille `streamlit-pin-drift`, dans le sens
+qu'on n'attendait pas.
+
+Le conteneur **Airflow** est l'exception inverse : il tourne `apache-airflow 2.8.1`,
+`sqlparse 0.4.4`, `aiohttp 3.9.1`, `pyjwt 2.8.0` — en retard, lui, pour de bon. Gravité
+mesurée et non supposée : il n'écoute que sur `127.0.0.1:8080`, UFW n'ouvre 80/443 qu'aux
+plages Cloudflare, et rien ne le publie. C'est de la défense en profondeur, pas une
+surface exposée.
+
+- [ ] **R49** — décider et faire : soit `uv.lock` est régénéré pour suivre les planchers
+      (`uv lock --upgrade`) et la CI teste enfin ce que la prod exécute, soit les deux
+      manifestes sont alignés dans l'autre sens. Ne pas laisser deux vérités.
+      Vérif : `pip-audit` sur le venv issu du lock, et comparaison avec
+      `docker exec streamlytics_api pip list` — les versions critiques doivent coïncider.
+- [ ] **R49b** — mettre à jour l'image Airflow (2.8.1 → ≥ 2.11.1). Non urgent au sens
+      réseau, mais c'est la seule version réellement en retard en production.
 
 ---
 

@@ -5,6 +5,18 @@ maxUploadSize = 50
 # headless servers have no browser at all). Open the URL manually in your browser.
 headless = true
 
+[client]
+# MESURÉ en production le 2026-08-23 : la valeur effective était `full`, le défaut de
+# Streamlit — toute exception non rattrapée rendait sa TRACEBACK COMPLÈTE dans le
+# navigateur du visiteur. Chemins de fichiers, lignes de code, et le message de
+# l'exception, dont ce dépôt sait qu'il peut porter un credential (les APIs Meta et
+# YouTube passent le leur en query string ; cf. classe `secret-in-an-exception-message`).
+#
+# `none` : le visiteur voit un message générique, la traceback reste dans les logs du
+# serveur, où `public_error_ref()` lui donne déjà une référence à citer.
+# Pour déboguer en local : STREAMLIT_CLIENT_SHOW_ERROR_DETAILS=full streamlit run app.py
+showErrorDetails = "none"
+
 [browser]
 # Privacy + perf: skip Streamlit's built-in telemetry (data.streamlit.io/metrics.json
 # + webhooks.fivetran.com calls at cold start). Confirmed via Lighthouse audit 2026-05-14.
