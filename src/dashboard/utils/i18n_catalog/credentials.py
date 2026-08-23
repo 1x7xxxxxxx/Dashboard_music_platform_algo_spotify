@@ -121,17 +121,6 @@ EN = {
         "Spotify app not configured on the platform side "
         "(SPOTIFY_CLIENT_ID/SECRET) — contact the administrator."
     ),
-    "credentials.spotify.guide_title": "🎵 How to obtain Spotify credentials?",
-    "credentials.spotify.guide_steps": (
-        "1. Go to **[developers.spotify.com](https://developer.spotify.com/dashboard)** → Log in → **Create App**\n"
-        "2. Enter a name (the Redirect URI does not matter here)\n"
-        "3. Copy the **Client ID** and **Client Secret** → paste them below\n"
-    ),
-    "credentials.spotify.guide_info": (
-        "The collector uses the **client_credentials** flow: no "
-        "Redirect URI or Refresh Token to manage, the token "
-        "renews itself on every run."
-    ),
     # ── _platform_youtube.py ───────────────────────────────────────────
     "credentials.youtube.app_not_configured": (
         "YouTube app not configured on the platform side "
@@ -176,20 +165,6 @@ EN = {
     "credentials.youtube.channel_not_found": (
         "Channel ID not found: “{cid}”. Make sure it starts with UC… "
         "(channel Advanced settings)."
-    ),
-    "credentials.youtube.guide_title": "🎬 How to obtain YouTube credentials?",
-    "credentials.youtube.guide_steps": (
-        "1. **[console.cloud.google.com](https://console.cloud.google.com)** → create/select a project\n"
-        "2. **APIs & Services → Library** → enable **YouTube Data API v3**\n"
-        "3. **APIs & Services → Credentials → Create credentials → API key**\n"
-        "4. (recommended) Restrict the key to **YouTube Data API v3**\n"
-        "5. Paste the key into **API Key** below\n"
-        "6. **Channel ID**: on the YouTube channel → *Advanced settings* "
-        "→ channel ID (starts with `UC…`)\n"
-    ),
-    "credentials.youtube.guide_info": (
-        "The collector uses a **static API key** (no OAuth): "
-        "the key does not expire, no refresh to manage."
     ),
     # ── _platform_soundcloud.py ────────────────────────────────────────
     "credentials.soundcloud.user_id_empty": (
@@ -237,51 +212,6 @@ EN = {
     "credentials.soundcloud.not_found": (
         "404 — User ID '{user_id}' not found. Check that it is the numeric ID."
     ),
-    "credentials.soundcloud.guide_title": "☁️ How to obtain SoundCloud credentials?",
-    "credentials.soundcloud.guide_info": (
-        "**Admin (you)**: create an app once at soundcloud.com/you/apps — "
-        "the `Client ID` and `Client Secret` are shared by all artists.\n\n"
-        "**Each artist**: provides only their numeric `User ID`."
-    ),
-    "credentials.soundcloud.admin_header": "### Admin — Create the app (once)",
-    "credentials.soundcloud.admin_prereq_title": "Prerequisite",
-    "credentials.soundcloud.admin_prereq_desc": (
-        "Have an active **Artist Pro** subscription on SoundCloud."
-    ),
-    "credentials.soundcloud.admin_create_title": "Create the app",
-    "credentials.soundcloud.admin_create_desc": (
-        "Go to **soundcloud.com/you/apps** → **Register a new application**. "
-        "Name: do not use the word “SoundCloud” (e.g. `ETL Airflow Dashboard`). "
-        "Redirect URI: `http://localhost` (unused)."
-    ),
-    "credentials.soundcloud.admin_copy_title": "Copy the credentials",
-    "credentials.soundcloud.admin_copy_desc": (
-        "On the app page, copy the credentials into the server environment variables "
-        "(`SOUNDCLOUD_CLIENT_ID` / `SOUNDCLOUD_CLIENT_SECRET`). This form does not "
-        "accept them: the app is shared by every artist (ADR-006)."
-    ),
-    "credentials.soundcloud.artist_header": "### Artist — Find your User ID",
-    "credentials.soundcloud.two_methods": "Two methods:",
-    "credentials.soundcloud.method1_title": "**Method 1 — Direct URL (simplest)**",
-    "credentials.soundcloud.method1_desc": (
-        "Open this URL in the browser (replace `monpseudo` with the profile slug). "
-        "The JSON response contains `\"id\": 123456789` — that is the User ID to copy."
-    ),
-    "credentials.soundcloud.method2_title": "**Method 2 — DevTools**",
-    "credentials.soundcloud.devtools_1": "Go to **soundcloud.com** logged into your account.",
-    "credentials.soundcloud.devtools_2": "Press **{{DEVTOOLS}}** → **Network** tab.",
-    "credentials.soundcloud.devtools_3": "Play any track.",
-    "credentials.soundcloud.devtools_4": (
-        "Filter requests by `/users/` — the URL contains `/users/123456789`."
-    ),
-    "credentials.soundcloud.devtools_5": "Copy the number — that is the User ID.",
-    "credentials.soundcloud.note_header": "### Note",
-    "credentials.soundcloud.note_body": (
-        "- `Client ID` and `Client Secret` are **permanent** — no automatic rotation.\n"
-        "- OAuth access tokens are renewed **automatically** by the DAG on every run (TTL 3600s).\n"
-        "- App creation reserved for **Artist Pro** accounts. "
-        "If sign-ups are closed, contact `soundcloud-api@soundcloud.com`."
-    ),
     # ── _platform_meta.py ──────────────────────────────────────────────
     "credentials.meta.test_not_configured": (
         "Meta app not configured on the platform side (META_ACCESS_TOKEN) — "
@@ -306,27 +236,6 @@ EN = {
         "(Business Manager → Settings → Apps → ETL_DASHBOARD_SPOTIFY → Business "
         "Assets → Add assets → Ad account, Advertiser permission)."
     ),
-    "credentials.meta.guide_title": "📱 Where to find each Meta / Instagram field?",
-    "credentials.meta.guide_info": (
-        "This dashboard uses a **System User token** — never a personal token. "
-        "System User tokens do not expire (unless manually revoked). "
-        "All artists use the same Meta app: **ETL_DASHBOARD_SPOTIFY** — "
-        "do not create your own app."
-    ),
-    "credentials.meta.steps_header": "### Steps — Meta Ads",
-    "credentials.meta.steps_body": (
-        "Only one identifier is yours: the Ad Account ID. Everything else — the access "
-        "token and the application credentials — belongs to the platform and appears "
-        "nowhere in this form.\n\n"
-        "1. **Business Manager → Settings → Ad accounts** → note the numeric ID "
-        "(e.g. `123456789`). **Do not add the `act_` prefix** — the dashboard adds it "
-        "automatically. *(This is the **Ad Account ID** field above.)*\n"
-        "2. **Settings → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → "
-        "Add assets → Ad account** → select your account → "
-        "Advertiser permission. *(Required — without it the API returns \"Object does not "
-        "exist\", and the connection test will say so.)*\n"
-        "3. Click **Test connection**. If it is green, there is nothing else to do."
-    ),
     "credentials.meta.ig_id_missing": (
         "Instagram Business Account ID missing — enter it in the Meta tab "
         "(\"Instagram Business Account ID\" field). Without it, no Instagram "
@@ -350,30 +259,6 @@ EN = {
     "credentials.meta.account_malformed": (
         "Invalid Ad Account ID: digits only, optionally prefixed with `act_` "
         "(e.g. 567214713853881)."
-    ),
-    "credentials.meta.ig_header": "### Additional steps — Instagram",
-    "credentials.meta.ig_body": (
-        "If you want Instagram stats, enter your Instagram Business Account ID below. The "
-        "shared platform token already carries the required scopes (`instagram_basic`, "
-        "`instagram_manage_insights`, `pages_show_list`) — ask the administrator if the "
-        "connection test says otherwise.\n\n"
-        "The `meta_token_refresh` DAG (weekly) does **not** attempt to renew System User tokens "
-        "(they do not expire) — no periodic action required."
-    ),
-    "credentials.meta.ig_id_header": "### Instagram Business Account ID (optional)",
-    "credentials.meta.table": (
-        "| To enter here | Where to find it |\n"
-        "|---|---|\n"
-        "| **Ad Account ID** | Business Manager → Ad accounts (numeric only, no `act_`) |\n"
-        "| **Instagram Business Account ID** *(optional)* | Graph API call above |\n"
-        "\nThis table used to list five rows, three of which this form never accepted. "
-        "They belong to the platform.\n"
-    ),
-    "credentials.meta.warning": (
-        "⚠️ **Common errors**: "
-        "(1) Personal token from Graph API Explorer → expires in 60 days, use System User. "
-        "(2) `act_` prefix in Ad Account ID → remove it, the dashboard adds it. "
-        "(3) Scope `read_insights` only → re-run with `ads_read` + `ads_management`."
     ),
     # ── credential_guides_st.py — renderer chrome ──────────────────────
     "credentials.guide.list_header": (

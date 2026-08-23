@@ -7,10 +7,8 @@ Pure relocation from the former credentials.py — no logic change.
 import os
 
 import requests
-import streamlit as st
 
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.os_hints import md as _os_md
 
 
 def _claimed_count(fields: dict) -> int:
@@ -130,70 +128,3 @@ def _test_soundcloud(fields: dict) -> tuple:
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
                             err=type(e).__name__)
-
-
-def _guide_soundcloud():
-    with st.expander(t("credentials.soundcloud.guide_title",
-                       "☁️ Comment obtenir les credentials SoundCloud ?"), expanded=False):
-        st.info(t(
-            "credentials.soundcloud.guide_info",
-            "**Admin (toi)** : crée une app une seule fois sur soundcloud.com/you/apps — "
-            "le `Client ID` et le `Client Secret` sont partagés par tous les artistes.\n\n"
-            "**Chaque artiste** : fournit uniquement son `User ID` numérique."
-        ))
-
-        st.markdown(t("credentials.soundcloud.admin_header",
-                      "### Admin — Créer l'app (une seule fois)"))
-        admin_steps = [
-            (t("credentials.soundcloud.admin_prereq_title", "Prérequis"),
-             t("credentials.soundcloud.admin_prereq_desc",
-               "Avoir un abonnement **Artist Pro** actif sur SoundCloud.")),
-            (t("credentials.soundcloud.admin_create_title", "Créer l'app"),
-             t("credentials.soundcloud.admin_create_desc",
-               "Aller sur **soundcloud.com/you/apps** → **Register a new application**. "
-               "Nom : ne pas utiliser le mot « SoundCloud » (ex : `ETL Airflow Dashboard`). "
-               "Redirect URI : `http://localhost` (non utilisée).")),
-            (t("credentials.soundcloud.admin_copy_title", "Copier les credentials"),
-             t("credentials.soundcloud.admin_copy_desc",
-               "Sur la page de l'app, copier les identifiants et les poser dans les "
-               "variables d'environnement du serveur (`SOUNDCLOUD_CLIENT_ID` / "
-               "`SOUNDCLOUD_CLIENT_SECRET`). Ce formulaire ne les accepte pas : "
-               "l'app est partagée par tous les artistes (ADR-006).")),
-        ]
-        for i, (title, desc) in enumerate(admin_steps, 1):
-            st.markdown(f"**{i}. {title}** — {desc}")
-
-        st.markdown(t("credentials.soundcloud.artist_header",
-                      "### Artiste — Trouver son User ID"))
-        st.markdown(t("credentials.soundcloud.two_methods", "Deux méthodes :"))
-
-        st.markdown(t("credentials.soundcloud.method1_title",
-                      "**Méthode 1 — URL directe (la plus simple)**"))
-        st.code("https://soundcloud.com/api/users/monpseudo", language="text")
-        st.markdown(t(
-            "credentials.soundcloud.method1_desc",
-            "Ouvrir cette URL dans le navigateur (remplacer `monpseudo` par le slug du profil). "
-            "La réponse JSON contient `\"id\": 123456789` — c'est le User ID à copier."
-        ))
-
-        st.markdown(t("credentials.soundcloud.method2_title", "**Méthode 2 — DevTools**"))
-        devtools_steps = [
-            t("credentials.soundcloud.devtools_1",
-              "Aller sur **soundcloud.com** connecté à son compte."),
-            t("credentials.soundcloud.devtools_2", "Appuyer sur **{{DEVTOOLS}}** → onglet **Network**."),
-            t("credentials.soundcloud.devtools_3", "Jouer n'importe quelle piste."),
-            t("credentials.soundcloud.devtools_4",
-              "Filtrer les requêtes par `/users/` — l'URL contient `/users/123456789`."),
-            t("credentials.soundcloud.devtools_5", "Copier le nombre — c'est le User ID."),
-        ]
-        for step in devtools_steps:
-            st.markdown(f"- {_os_md(step)}")
-
-        st.markdown(t("credentials.soundcloud.note_header", "### Note"))
-        st.markdown(t(
-            "credentials.soundcloud.note_body",
-            "- `Client ID` et `Client Secret` sont **permanents** — pas de rotation automatique.\n"
-            "- Les access tokens OAuth sont renouvelés **automatiquement** par le DAG à chaque run (TTL 3600s).\n"
-            "- Création d'app réservée aux comptes **Artist Pro**. "
-            "Si les inscriptions sont fermées, contacter `soundcloud-api@soundcloud.com`."
-        ))

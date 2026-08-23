@@ -58,6 +58,10 @@ _PDF_MAP = {
     "sacem":                None,   # small account-ledger; royalties already in the ROI section
     "saisie_s4a":           None,   # data-entry form, not a report
     "onboarding_health":    None,   # ops/status matrix, not a report
+    "onboarding":           None,   # assistant de mise en route : un parcours,
+                                    # pas un rapport. Entré dans la navigation le
+                                    # 2026-08-23 — il n'était joignable que depuis
+                                    # l'e-mail de vérification.
     "meta_creatives":       None,   # creative-level detail, summarised by 'meta'
     "meta_cpr_optimizer":   None,   # interactive optimiser tool
 }

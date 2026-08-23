@@ -7,7 +7,6 @@ Pure relocation from the former credentials.py — no logic change.
 import os
 
 import requests
-import streamlit as st
 
 from src.dashboard.utils.i18n import t
 
@@ -68,18 +67,3 @@ def _test_spotify(fields: dict) -> tuple:
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
                             err=type(e).__name__)
-
-
-def _guide_spotify():
-    with st.expander(t("credentials.spotify.guide_title",
-                       "🎵 Comment obtenir les credentials Spotify ?"), expanded=False):
-        st.markdown(t(
-            "credentials.spotify.guide_steps",
-            "1. Aller sur **[developers.spotify.com](https://developer.spotify.com/dashboard)** → Log in → **Create App**\n"
-            "2. Renseigner un nom (la Redirect URI n'a pas d'importance ici)\n"
-            "3. Copier le **Client ID** et le **Client Secret** → les coller ci-dessous\n"
-        ))
-        st.info(t("credentials.spotify.guide_info",
-                  "Le collecteur utilise le flux **client_credentials** : pas de "
-                  "Redirect URI ni de Refresh Token à gérer, le token se "
-                  "renouvelle seul à chaque run."))

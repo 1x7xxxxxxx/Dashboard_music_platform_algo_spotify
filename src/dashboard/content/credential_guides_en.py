@@ -13,34 +13,29 @@ _SPOTIFY = PlatformCred(
     title="Spotify",
     icon="🎵",
     intro=(
-        "You only need **2 values**: the **Client ID** and the **Client Secret**."
+        "**There is nothing for you to create.** The Spotify app is managed by the "
+        "administrator and shared by every artist. You paste **one single value**: the "
+        "**link to your Spotify Artist page**."
     ),
-    portal_url="https://developer.spotify.com/dashboard",
+    portal_url="https://open.spotify.com",
     steps=(
-        CredStep("Go to developer.spotify.com/dashboard and sign in with your "
-                 "**usual Spotify account** (no paid plan required)."),
-        CredStep("Click **Create app**."),
-        CredStep("Fill in: **App name** (e.g. `ETL Dashboard`), a **description**, "
-                 "and **Redirect URI** = `http://127.0.0.1:8888/callback` (dummy "
-                 "value, see the note below). Tick **Web API**, then **Save**."),
-        CredStep("On the app page → **Settings / Basic Information**: copy the "
-                 "**Client ID** and the **Client secret** (copy button ⧉).",
-                 "spotify_4_developper_credential_process.png",
-                 "Basic Information → Client ID + Client secret"),
-        CredStep("Paste the 2 values into **🔑 API Credentials → Spotify**, then "
-                 "**Test the connection**."),
+        CredStep("Open **your artist page** on Spotify (app or open.spotify.com). "
+                 "Menu **⋯ → Share → Copy link to artist**. You get a URL like "
+                 "`https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4`."),
+        CredStep("Paste that link into **🔑 API Credentials → Spotify** (*Spotify "
+                 "Artist ID or URL* field), then **Test the connection**. We extract "
+                 "the id for you — no need to cut the URL up."),
     ),
     fields=(
-        CredField("Client ID", "3a9f1c7e8b2d4f60a1c5e9d3b7f02a6c",  # pragma: allowlist secret
-                  note="32 hexadecimal characters"),
-        CredField("Client Secret", "b7e2d9f04a1c6358e0a2b4c6d8e0f1a2", secret=True,  # pragma: allowlist secret
-                  note="32 characters — keep it private"),
+        CredField("Spotify Artist ID or URL",
+                  "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
+                  note="paste the full URL of your artist page — we extract the id"),
     ),
     note=(
-        "**Redirect URI**: the return URL after an OAuth login. Our "
-        "`client_credentials` flow has no login → this URL is **never used**, but "
-        "Spotify requires at least one. Set `http://127.0.0.1:8888/callback` and "
-        "forget it. The app stays in **Development mode**, which is enough."
+        "**Admin, once** : create an app on developer.spotify.com (`client_credentials` "
+        "flow, no Redirect URI is ever used) and set `SPOTIFY_CLIENT_ID` / "
+        "`SPOTIFY_CLIENT_SECRET` as environment variables. Artists then only paste "
+        "their profile link."
     ),
 )
 

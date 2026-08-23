@@ -33,9 +33,22 @@ def render_credential_guides() -> None:
 
 
 def render_credential_guide_for(platform_key: str) -> None:
-    """Render the single-platform guide (used inside that platform's tab)."""
+    """Render the single-platform guide (used inside that platform's tab).
+
+    Le sélecteur d'OS est rendu ICI depuis le 2026-08-23. Il existait déjà
+    (`utils.os_hints.os_selector`) mais n'était appelé que par
+    `render_credential_guides()`, **qui n'a aucun appelant** — donc il ne s'affichait sur
+    aucune page. Le chemin vivant, celui-ci, se contentait de résoudre les jetons
+    (`{{VIEW_SOURCE}}`, `{{FIND}}`, `{{COPY}}`…) par **reniflage du User-Agent, avec
+    WINDOWS par défaut**, sans laisser à un artiste Mac le moindre moyen de corriger une
+    détection fausse. Remonté par GRiNCH, qui est sur Mac.
+
+    Une clé par plateforme : les onglets coexistent dans la même session, et une clé
+    partagée ferait basculer les quatre en même temps depuis un seul onglet.
+    """
     guide = _BY_KEY.get(platform_key)
     if guide is not None:
+        os_selector(key=f"cred_guide_os_{platform_key}")
         _render_guide_expander(guide)
 
 

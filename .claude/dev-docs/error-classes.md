@@ -170,6 +170,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [boundary-narrower-than-the-surface](#boundary-narrower-than-the-surface) | P2 | deterministic | guarded | none |
 | [two-surfaces-two-truths](#two-surfaces-two-truths) | P2 | deterministic | guarded | none |
 | [success-message-outside-its-condition](#success-message-outside-its-condition) | P2 | deterministic | guarded | none |
+| [the-page-that-tells-you-what-to-do-is-unreachable](#the-page-that-tells-you-what-to-do-is-unreachable) | P2 | deterministic | guarded | none |
+| [dead-content-that-still-ships](#dead-content-that-still-ships) | P2 | deterministic | guarded | none |
+| [the-feature-is-wired-to-the-function-nobody-calls](#the-feature-is-wired-to-the-function-nobody-calls) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1930,3 +1933,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: la première version du prédicat demandait « cette ligne est-elle dans le corps d'un `if` ? » et était **VERTE sur le défaut** — le message fautif vivait déjà sous le `if` du bouton. Être sous une condition ne suffit pas : il faut être sous **la condition qui teste ce qu'on annonce**. Seule la mutation l'a dit ; c'est la septième fois dans ce dépôt que le prédicat d'un garde vise le symptôme au lieu de la question.
+
+## the-page-that-tells-you-what-to-do-is-unreachable
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'utilisateur ne sait pas quoi faire, et la page qui le lui dirait existe — mais aucun chemin de l'application n'y mène. Rien ne casse, rien ne lève : une page injoignable est silencieuse.
+- root_cause: `views/onboarding.py`, seule surface portant la sélection par plateforme et la matrice, n'était dans **aucune section de `_NAV_SECTIONS`** et n'était pas une clé de page valide. Il n'était joignable que par le lien profond `?page=onboarding`, produit à deux endroits : l'écran post-inscription et l'e-mail de vérification. **Mail fermé, onglet fermé : la page n'existait plus.** Et sur l'accueil, les quatre étapes de mise en route nommaient leur destination sans y mener — `for done, label, _page in steps:`, la clé liée puis jetée, rendue en `st.markdown`. Enfin l'atterrissage était inconditionnel sur `home`, qui pour un artiste neuf est un tableau d'état vide.
+- signature: `python3 -m pytest tests/test_the_setup_guide_is_reachable.py -q`
+- long_term_fix: entrée de navigation permanente, routage, `ALWAYS_ACCESSIBLE` (faire payer le droit de brancher ses comptes n'a pas de sens), aiguillage de première connexion qui rend `onboarding` tant que rien n'est déclaré et `home` ensuite, et étapes d'accueil devenues des boutons. La règle de navigation vit dans `utils/navigation.py` — `onboarding.py` portait déjà sa copie, et une deuxième aurait divergé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_setup_guide_is_reachable.py }
+- rex_ref: src/dashboard/utils/navigation.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: aucune alerte n'était possible — le produit fonctionnait, la page rendait bien quand on l'atteignait, et les tests de rendu passaient puisqu'ils appellent `show()` directement. C'est l'accessibilité, pas le rendu, qui manquait. Un test de rendu ne dit jamais si une page est atteignable.
+
+## dead-content-that-still-ships
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un utilisateur suit une consigne que le produit ne demande plus, et échoue. La consigne vient d'un contenu maintenu, traduit, et que plus rien n'affiche — sauf sur une surface qu'on avait oubliée.
+- root_cause: deux corpus de guides d'identifiants coexistaient. Les quatre `_guide_*` des modules plateforme et leur dispatcher `_render_platform_guide` n'avaient **aucun appelant** depuis le passage au modèle central (ADR-006) — 180 lignes et 36 traductions. Ils **contredisaient** le corpus vivant : sur Spotify le vivant dit « tu n'as rien à créer, colle le lien de ta page artiste », le mort disait « crée une app, coche Web API, saisis une Redirect URI ». Et le guide **anglais**, lui, n'était pas mort : miroir périmé du même modèle, il est **expédié dans le PDF d'onboarding** pour `lang == "en"`, avec `http://127.0.0.1:8888/callback` — un `8888` hérité du défaut de `spotipy`, décliné en trois orthographes dans le dépôt, dont la forme `localhost` que le tableau de bord Spotify **refuse désormais**.
+- signature: `python3 -m pytest tests/test_a_guide_never_asks_for_a_dead_uri.py -q`
+- long_term_fix: le corpus mort est supprimé (code, dispatcher, traductions — `test_i18n_orphans.py` a listé les 36 clés), le guide anglais est aligné sur le modèle central, et un garde interdit qu'un guide artiste demande une Redirect URI ou la case Web API : sous le modèle central l'artiste ne crée aucune app, ces étapes n'existent pas pour lui.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_guide_never_asks_for_a_dead_uri.py }
+- rex_ref: src/dashboard/content/credential_guides_en.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: le coût n'est pas le code mort, c'est qu'il RESSORT. Ici par deux chemins : le PDF anglais qui l'expédiait vraiment, et la tête de quiconque ouvre le fichier pour comprendre le flux. Du texte qu'on maintient et qu'on traduit se lit comme du texte qui compte.
+
+## the-feature-is-wired-to-the-function-nobody-calls
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, elle n'a simplement pas d'appelant.
+- root_cause: `utils/os_hints.os_selector()` (bascule Mac/Windows des notices) n'était appelé que depuis `render_credential_guides()`, **sans appelant**. Le chemin réellement emprunté par les onglets, `render_credential_guide_for()`, se contentait de résoudre les jetons par **reniflage du User-Agent avec WINDOWS par défaut**, sans laisser corriger. Un artiste Mac lisait des raccourcis Windows (GRiNCH, 12/08).
+- signature: `python3 -m pytest tests/test_the_os_switch_is_visible.py -q`
+- long_term_fix: appeler `os_selector()` depuis le rendu vivant, une clé par plateforme (les onglets coexistent dans la même session). Le garde ne teste pas que la fonction existe — il teste qu'elle est appelée **depuis la fonction que les onglets utilisent**, et une assertion séparée épingle quelle fonction c'est, pour tomber plutôt que mentir si le chemin change.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_os_switch_is_visible.py }
+- rex_ref: src/dashboard/content/credential_guides_st.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: trois défauts de la même journée ont cette forme — guides morts, sélecteur d'OS, page d'onboarding injoignable. Le dépôt sait détecter du code qui casse ; il ne savait pas détecter du code CORRECT que rien n'atteint. C'est la même famille que `detector-written-and-never-called`, côté interface.

@@ -182,7 +182,8 @@ _NAV_SECTIONS = [
     ("start",     "",                       [("🏠 Accueil", "home"),
                                              ("📄 Export PDF", "export_pdf"),
                                              ("⬇️ Export CSV", "export_csv")]),
-    ("data",      "📁 Données",             [("📋 Guide de démarrage", "process_guide"),
+    ("data",      "📁 Données",             [("🚀 Mise en route (assistant)", "onboarding"),
+                                             ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
                                              ("📂 Import CSV", "upload_csv"),
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
@@ -254,6 +255,47 @@ def show_view_as_selector():
     st.sidebar.markdown("---")
 
 
+def _first_run_landing(role: str) -> str:
+    """`onboarding` tant que l'artiste n'a RIEN branché, `home` ensuite.
+
+    Tout le monde atterrissait sur `home` sans condition. Pour un artiste qui vient de
+    s'inscrire, `home` est un tableau d'état vide : quatre tuiles à zéro et des cartes de
+    fraîcheur qui n'ont rien à rafraîchir. Il ne dit pas quoi faire, et l'assistant qui le
+    dirait n'était joignable que depuis l'e-mail de vérification.
+
+    Ne se déclenche qu'à la PREMIÈRE évaluation de la session (`_nav_page` absent), donc
+    un artiste qui navigue ensuite vers l'accueil y reste. Et seulement tant que rien
+    n'est configuré : dès la première identité déclarée, l'atterrissage redevient `home`,
+    ce que demandait la note (« tomber direct sur guide de démarrage … et ensuite sur
+    accueil »).
+
+    Toute erreur retombe sur `home` : un aiguillage d'accueil ne doit jamais empêcher
+    d'entrer dans l'application.
+    """
+    if role == 'admin':
+        return 'home'
+    try:
+        from src.dashboard.auth import get_artist_id
+        artist_id = get_artist_id()
+        if artist_id is None:
+            return 'home'
+        from src.dashboard.utils import get_db_connection
+        from src.utils.artist_readiness import artist_readiness
+        db = get_db_connection()
+        if db is None:
+            return 'home'
+        try:
+            rows = artist_readiness(db, artist_id)
+        finally:
+            db.close()
+        # `todo` == aucune identité déclarée pour cette plateforme. Tout en `todo`
+        # signifie que l'artiste n'a strictement rien branché.
+        nothing_yet = bool(rows) and all(r.get("status") == "todo" for r in rows)
+        return 'onboarding' if nothing_yet else 'home'
+    except Exception:      # noqa: BLE001 — jamais bloquer l'entrée dans l'app
+        return 'home'
+
+
 def show_navigation_menu(role: str = 'artist'):
     st.sidebar.title(t("nav.title", "🎵 Navigation"))
 
@@ -290,10 +332,11 @@ def show_navigation_menu(role: str = 'artist'):
     # Triggers on first load OR when the active page is no longer visible
     # (role/plan change) — falls back to home.
     if st.session_state.get('_nav_page') not in visible_keys:
-        st.session_state['_nav_page'] = 'home'
+        landing = _first_run_landing(role) if '_nav_page' not in st.session_state else 'home'
+        st.session_state['_nav_page'] = landing
         for skey in all_skeys:
             st.session_state[skey] = None
-        st.session_state['_nav_start'] = 'home'  # home lives in the first section
+        st.session_state['_nav_start'] = landing if landing in visible_keys else 'home'
 
     label_by_key = {key: t(f"nav.item.{key}", lbl)
                     for _, _, items in rendered for lbl, key in items}
@@ -472,6 +515,13 @@ def _render_page(page):
 
     if page == "home":
         from views.home import show; show()
+
+    elif page == "onboarding":
+        # L'assistant n'était joignable QUE par `?page=onboarding`, produit uniquement
+        # par l'écran post-inscription et l'e-mail de vérification. Mail fermé, onglet
+        # fermé : il n'existait plus pour l'artiste, alors que c'est lui — et non
+        # `process_guide` — qui porte la sélection par plateforme et la matrice.
+        from views.onboarding import show; show()
 
     # Routing
     elif page == "trigger_algo": from views.trigger_algo import show; show()

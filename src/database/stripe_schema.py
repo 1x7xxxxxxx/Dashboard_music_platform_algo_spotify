@@ -75,7 +75,10 @@ PLAN_CATALOG = {
 SERVICE_CONTACT_EMAIL = "1x7xxxxxxx@gmail.com"
 
 # Pages always accessible regardless of plan (account management + billing + help)
-ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide'}
+# Pages qu'aucun plan ne verrouille. `onboarding` en fait partie depuis le
+# 2026-08-23 : mettre l'assistant de mise en route derrière un paywall reviendrait à
+# faire payer le droit de brancher ses propres comptes.
+ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide', 'onboarding'}
 
 # 'basic' kept as an alias (rank of premium) so any legacy 'basic' value still
 # resolves to full access until migration 048 rewrites the rows.

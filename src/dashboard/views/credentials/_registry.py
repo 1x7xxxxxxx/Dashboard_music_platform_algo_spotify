@@ -5,10 +5,10 @@ Uses: the four _platform_* modules
 The single wiring point: PLATFORMS field definitions, CONNECTION_TESTS map,
 and the per-platform guide dispatcher. Pure relocation — no logic change.
 """
-from ._platform_spotify import _test_spotify, _guide_spotify
-from ._platform_youtube import _test_youtube, _guide_youtube
-from ._platform_soundcloud import _test_soundcloud, _guide_soundcloud
-from ._platform_meta import _test_meta, _guide_meta, _test_instagram
+from ._platform_spotify import _test_spotify
+from ._platform_youtube import _test_youtube
+from ._platform_soundcloud import _test_soundcloud
+from ._platform_meta import _test_meta, _test_instagram
 
 
 # ─────────────────────────────────────────────
@@ -90,15 +90,15 @@ CONNECTION_TESTS = {
 }
 
 
-def _render_platform_guide(platform_key: str) -> None:
-    """Render a detailed, platform-specific credential guide."""
-    guides = {
-        'soundcloud': _guide_soundcloud,
-        'meta':       _guide_meta,
-        'spotify':    _guide_spotify,
-        'youtube':    _guide_youtube,
-    }
-    fn = guides.get(platform_key)
-    if not fn:
-        return
-    fn()
+# `_render_platform_guide` et les quatre `_guide_*` des modules plateforme ont été
+# SUPPRIMÉS le 2026-08-23. Ils n'avaient aucun appelant depuis le passage au modèle
+# central (ADR-006) : ce qui s'affiche vient de `content/credential_guides.py`, via
+# `credential_guides_st.render_credential_guide_for`.
+#
+# Ce n'était pas du code mort inoffensif. Il CONTREDISAIT le guide vivant : sur Spotify,
+# le vivant dit « tu n'as rien à créer, colle le lien de ta page artiste » et le mort
+# disait « va sur developers.spotify.com, crée une app, copie le Client ID et le
+# Secret ». Un artiste en test a suivi le mauvais, et ses notes le disent
+# (« web api pas cochée », « uri non bonne »). Du texte maintenu et traduit que rien
+# n'affiche finit par ressortir ailleurs — ici dans la tête de celui qui le lit en
+# ouvrant le fichier.

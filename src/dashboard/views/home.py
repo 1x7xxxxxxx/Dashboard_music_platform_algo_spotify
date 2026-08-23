@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import tenant_scope
+from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.airflow_monitor import AirflowMonitor
 from src.dashboard.utils.kpi_helpers import (
@@ -165,9 +166,18 @@ def _section_onboarding(db, artist_id: int) -> None:
                           done=completed, total=len(steps)))
         st.progress(completed / len(steps))
 
-    for done, label, _page in steps:
-        icon = "✅" if done else "⬜"
-        st.markdown(f"{icon} {label}")
+    # Les quatre étapes NOMMAIENT leur destination sans y mener : la clé de page était
+    # liée à `_page` puis jetée, et les lignes étaient du `st.markdown`. Un artiste en
+    # test l'a dit ainsi — « lien cliquable mise en route dans la page d'accueil ».
+    # Few (*Information Dashboard Design*) : un tableau de bord sert de rampe de
+    # lancement, on clique la donnée elle-même. Une étape faite reste du texte : il n'y
+    # a rien à y faire, et un bouton inutile est du bruit.
+    for idx, (done, label, page_key) in enumerate(steps):
+        if done:
+            st.markdown(f"✅ {label}")
+        elif st.button(f"⬜ {label}", key=f"home_step_{idx}",
+                       use_container_width=True):
+            goto(page_key)
 
     # One compact line of per-platform boxes, only while something is still amber or
     # red. The steps above are STAGES ("import a CSV"); this is per PLATFORM, which

@@ -59,6 +59,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.home": "🏠 Home",
         "nav.item.export_pdf": "📄 PDF Export",
         "nav.item.export_csv": "⬇️ CSV Export",
+        "nav.item.onboarding": "🚀 Set-up wizard",
         "nav.item.process_guide": "📋 Getting started",
         "nav.item.credentials": "🔑 API Credentials",
         "nav.item.upload_csv": "📂 CSV Import",

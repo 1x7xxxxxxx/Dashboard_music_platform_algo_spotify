@@ -19,6 +19,7 @@ from src.dashboard.content.platform_value import (
 )
 from src.dashboard.utils.setup_focus import FOCUS_KEY
 from src.dashboard.utils.status_matrix import render_status_matrix
+from src.dashboard.utils.navigation import goto
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -35,19 +36,14 @@ _STEP_KEY = '_onboarding_step'
 
 
 def _goto(page_key: str) -> None:
-    """Navigate in-app to a page WITHOUT a full browser reload.
+    """Délègue à `utils.navigation.goto` — une seule règle de navigation dans l'app.
 
-    Onboarding is pinned by the ?page=onboarding deep-link (main() st.stop()s on it
-    before the nav runs), so we clear that param AND set _nav_page — otherwise the
-    rerun lands back on onboarding. A relative link_button("/?page=...") would force
-    a full reload, dropping the in-memory session → bounce to login.
+    Cette fonction portait sa propre copie ; l'accueil en a eu besoin le 2026-08-23 et
+    recopier la règle une deuxième fois l'aurait laissée diverger. La version partagée
+    fait en plus ce que celle-ci oubliait : désélectionner les radios de section, sans
+    quoi le menu reste sur l'entrée précédente pendant que la page a changé.
     """
-    st.session_state['_nav_page'] = page_key
-    try:
-        del st.query_params['page']
-    except Exception:
-        pass
-    st.rerun()
+    goto(page_key)
 
 
 def _get_configured_platforms(artist_id: int, db) -> set[str]:

@@ -38,7 +38,11 @@ load_project_env()
 # Same token endpoint the collector refreshes against — keeps the minted
 # refresh_token consistent with src/collectors/soundcloud_api_collector.py.
 _TOKEN_ENDPOINT = "https://api.soundcloud.com/oauth2/token"
-_DEFAULT_REDIRECT = "http://localhost:8888/callback"
+# `127.0.0.1` et non `localhost` : les tableaux de bord développeur (Spotify le
+# premier) REFUSENT désormais la forme `localhost`. Les deux orthographes
+# coexistaient dans ce dépôt, héritées du défaut de `spotipy`, et un artiste en
+# test s'est retrouvé avec une URI que la plateforme n'acceptait pas.
+_DEFAULT_REDIRECT = "http://127.0.0.1:8888/callback"
 _DEFAULT_AUTHORIZE = "https://secure.soundcloud.com/authorize"
 
 _result: dict = {}

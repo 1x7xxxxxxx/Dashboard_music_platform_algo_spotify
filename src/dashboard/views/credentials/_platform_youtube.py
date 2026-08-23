@@ -7,7 +7,6 @@ Pure relocation from the former credentials.py — no logic change.
 import os
 
 import requests
-import streamlit as st
 
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.youtube_channel import (
@@ -142,21 +141,3 @@ def _test_youtube(fields: dict) -> tuple:
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
                             err=type(e).__name__)
-
-
-def _guide_youtube():
-    with st.expander(t("credentials.youtube.guide_title",
-                       "🎬 Comment obtenir les credentials YouTube ?"), expanded=False):
-        st.markdown(t(
-            "credentials.youtube.guide_steps",
-            "1. **[console.cloud.google.com](https://console.cloud.google.com)** → créer/choisir un projet\n"
-            "2. **APIs & Services → Bibliothèque** → activer **YouTube Data API v3**\n"
-            "3. **APIs & Services → Identifiants → Créer des identifiants → Clé API**\n"
-            "4. (recommandé) Restreindre la clé à **YouTube Data API v3**\n"
-            "5. Coller la clé dans **API Key** ci-dessous\n"
-            "6. **Channel ID** : sur la chaîne YouTube → *Paramètres avancés* "
-            "→ ID de chaîne (commence par `UC…`)\n"
-        ))
-        st.info(t("credentials.youtube.guide_info",
-                  "Le collecteur utilise une **clé API statique** (pas d'OAuth) : "
-                  "la clé n'expire pas, aucun refresh à gérer."))
