@@ -41,6 +41,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
+| R47 | Les validateurs Meta Ads existent et ne sont **jamais appelés** | P2 | actionnable — 4 modèles Pydantic écrits, 0 appelant en production |
+| R48 | Deux modules ne sont maintenus en vie que par leur propre test | P4 | actionnable — trancher : câbler ou retirer |
+
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
 Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans
@@ -55,6 +58,64 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
+
+## 🔍 Ce que le graphe de code a sorti (2026-08-23)
+
+Graphe régénéré après 71 jours de péremption (**5468 nœuds / 10691 arêtes / 689
+communautés**, contre « 1500+ / 94 » annoncés). Trois constats l'ont justifié ; le
+premier concerne l'outil lui-même.
+
+**Le graphe référence 15 fichiers qui n'existent plus** (135 nœuds, 2 %) — `graphify
+update` ajoute et ne retire pas. Parmi eux d'anciens modules devenus des paquets
+(`views/trigger_algo.py`, `utils/pdf_exporter.py`) et un dossier `archive/` supprimé.
+Comme `CLAUDE.md` désigne `GRAPH_REPORT.md` comme la première lecture « avant de
+grepper », la mise en garde y est désormais écrite : le graphe **oriente**, il ne prouve
+pas. Mon propre inventaire d'orphelins en a été contaminé avant vérification.
+
+**`.claude/dev-docs/architecture.md` annonçait une dépendance inexistante** —
+`error_handler.py | Utility | email_alerts`. `error_handler.py` n'est importé par rien
+en production. Corrigé sur place.
+
+### R47 — Les validateurs Meta Ads existent et ne sont jamais appelés · P2
+
+`src/models/meta_ads_validators.py` définit `MetaCampaign`, `MetaAdset`, `MetaAd` et
+`MetaInsight` — exactement la forme des payloads que `_meta_upsert.py` écrit. **Aucun
+code de production ne les importe** ; seul `tests/test_validators.py` le fait. Et
+`_meta_upsert.py` ne valide que le **nom de table** (`validate_table`, l'allowlist SQL de
+la règle #8), jamais le contenu.
+
+Ce que ça vaut : `CLAUDE.md` présente `models/` comme une couche de l'architecture
+(« Pydantic validators »), et Meta Ads est la plateforme qui a coûté le plus d'incidents
+de données à ce dépôt. `audit_tenant_writes.py` signale d'ailleurs les payloads de
+`_meta_upsert.py` comme « not statically resolvable » — c'est précisément la question
+qu'un validateur trancherait.
+
+- [ ] **R47** — trancher, puis faire : soit brancher les quatre modèles dans
+      `_meta_upsert.py` (et le dire dans l'architecture), soit les retirer et cesser
+      d'annoncer une couche de validation qui n'existe pas. Ne pas laisser l'ambiguïté :
+      une couche écrite et débranchée donne la confiance sans la propriété.
+      Vérif : un payload Meta malformé doit être refusé (mutation), et
+      `audit_tenant_writes.py` ne doit plus dire « not statically resolvable » sur ces
+      trois sites.
+
+### R48 — Deux modules ne vivent que par leur propre test · P4
+
+| Module | Importé par |
+|---|---|
+| `src/utils/error_handler.py` (`log_errors`, `log_and_raise`, `safe_call`) | `tests/test_error_handler.py` **uniquement** |
+| `src/models/meta_ads_validators.py` | `tests/test_validators.py` **uniquement** (→ R47) |
+
+Le motif est trompeur par construction : le test passe, la couverture a l'air bonne,
+l'architecture décrit le module comme porteur, et **rien ne l'exécute**. Le test protège
+du code mort et empêche de le retirer sans discussion.
+
+- [ ] **R48** — trancher chacun : câbler (et le prouver par un appelant réel) ou retirer
+      (module ET test ET la ligne d'architecture). `error_handler.py` est de surcroît
+      cité comme exemple canonique de « Utility » dans
+      `.claude/skills/response-protocol/SKILL.md` — une référence à retirer aussi si le
+      module part.
+
+---
 
 ## 🔖 REPRISE — état au 2026-08-23, séance close (à lire EN PREMIER au `/resume`)
 

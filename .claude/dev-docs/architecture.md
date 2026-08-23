@@ -76,7 +76,7 @@ graph LR
 | `src/database/*_schema.py` | Sub | PostgresHandler |
 | `src/transformers/*.py` | Sub | CSV input, feeds collectors |
 | `retry.py` | Utility | — |
-| `error_handler.py` | Utility | email_alerts |
+| `error_handler.py` | Utility | **— aucun appelant** (vérifié 2026-08-23 : seul `tests/test_error_handler.py` l'importe ; la dépendance `email_handler → email_alerts` annoncée ici n'existe pas dans le code) |
 | `config_loader.py` | Utility | config/config.yaml |
 | `credential_loader.py` | Utility | PostgresHandler, Fernet |
 | `freshness_monitor.py` | Utility | PostgresHandler |

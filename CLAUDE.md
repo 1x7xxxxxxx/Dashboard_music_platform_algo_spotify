@@ -332,7 +332,16 @@ make graph-update           # refresh graph.json + GRAPH_REPORT.md (AST, no LLM)
 make graph-html             # re-render graph.html from current graph.json
 ```
 
-The graph currently indexes 1500+ nodes across 94 detected communities. If you
+The graph currently indexes **5468 nodes / 10691 edges across 689 communities**
+(regenerated 2026-08-23; the previous figure of "1500+ nodes / 94 communities" dated from
+June and was off by 3.6×).
+
+⚠️ **`graphify update` ajoute, il ne retire pas.** Mesuré le 2026-08-23 sur un graphe
+fraîchement régénéré : **15 fichiers** y sont référencés alors qu'ils n'existent plus sur
+le disque (135 nœuds, 2 %), dont d'anciens modules devenus des paquets
+(`views/trigger_algo.py`, `utils/pdf_exporter.py`) et un dossier `archive/` supprimé.
+Le rapport envoie donc vers des modules fantômes. Avant d'agir sur un chemin lu dans
+`GRAPH_REPORT.md`, vérifier qu'il existe — le graphe oriente, il ne prouve pas. If you
 add or rename modules, regenerate so future `Glob`/`Grep` calls see the new
 structure.
 
