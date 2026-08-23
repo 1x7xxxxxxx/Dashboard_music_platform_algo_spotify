@@ -90,17 +90,38 @@ class _MetaUpsertMixin:
         Campaign-grain tables key by campaign_name, so a campaign RENAME orphans stale
         rows under the old name (ad/adset grains key by id and are immune). Guarded: an
         empty campaign list (failed/partial fetch) is a no-op — never a mass delete.
+
+        **Portée par COMPTE PUBLICITAIRE (R53, 2026-08-23).** Ce `DELETE` était scopé au
+        seul `artist_id`. Le jour où la boucle collecteur passera sur deux comptes du
+        même artiste — le cas d'une agence — la passe du SECOND aurait effacé tout ce que
+        le premier venait d'écrire : sa liste de campagnes ne contient évidemment pas
+        celles de l'autre compte. Ce n'est pas une collision, c'est une suppression de
+        masse, silencieuse, sur des données de production.
+
+        Le correctif est posé AVANT que le multi-comptes existe, et c'est délibéré : une
+        fois la boucle livrée, le défaut aurait été impossible à voir autrement qu'en
+        constatant des données manquantes.
+
+        Tant que `ad_account_id` est NULL (toute la flotte aujourd'hui), le prédicat
+        `ad_account_id IS NOT DISTINCT FROM %s` avec NULL se comporte exactement comme
+        avant — d'où la rétro-compatibilité.
         """
         from src.database.postgres_handler import validate_table
         names = sorted({c['campaign_name'] for c in campaigns if c.get('campaign_name')})
         if not names:
             return
+        # Le compte dont ces campagnes viennent. `None` tant que la flotte est
+        # mono-compte : `IS NOT DISTINCT FROM NULL` ne touche alors que les lignes
+        # elles-mêmes NULL, c'est-à-dire toutes.
+        account = getattr(self, "_current_ad_account_id", None)
         try:
             for tbl in _CAMPAIGN_GRAIN_TABLES:
                 validate_table(tbl)
                 self.db.execute_query(
-                    f"DELETE FROM {tbl} WHERE artist_id = %s AND campaign_name <> ALL(%s)",
-                    (self.artist_id, names),
+                    f"DELETE FROM {tbl} WHERE artist_id = %s "
+                    f"AND ad_account_id IS NOT DISTINCT FROM %s "
+                    f"AND campaign_name <> ALL(%s)",
+                    (self.artist_id, account, names),
                 )
             logger.info(
                 f"  campaign-name prune ran across {len(_CAMPAIGN_GRAIN_TABLES)} "

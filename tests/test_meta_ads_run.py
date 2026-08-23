@@ -299,7 +299,9 @@ class TestRunFullHistory:
         from src.collectors.meta_ads_api_collector import _CAMPAIGN_GRAIN_TABLES
         assert len(prunes) == len(_CAMPAIGN_GRAIN_TABLES)
         for _q, params in prunes:
-            assert params == (1, ['Camp One', 'Camp Two'])  # sorted current names
+            # (artist_id, ad_account_id, noms triés). Le compte est None tant que
+            # la flotte est mono-compte — voir R53 et migration 076.
+            assert params == (1, None, ['Camp One', 'Camp Two'])
 
     def test_insight_tables_populated(self, _patch_creatives):
         db, _acct, _ = self._run(_patch_creatives)

@@ -176,6 +176,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [the-feature-exists-and-the-path-never-reaches-it](#the-feature-exists-and-the-path-never-reaches-it) | P2 | deterministic | guarded | none |
 | [detect-then-reject-with-the-wrong-advice](#detect-then-reject-with-the-wrong-advice) | P3 | deterministic | guarded | none |
 | [too-many-charts-competing-for-one-decision](#too-many-charts-competing-for-one-decision) | P3 | deterministic | guarded | none |
+| [prune-scoped-wider-than-what-it-refreshed](#prune-scoped-wider-than-what-it-refreshed) | P1 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2026,3 +2027,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: c'est la deuxième fois de la journée qu'un correctif écrit exprès pour une remarque d'utilisateur n'était branché nulle part — l'autre étant le sélecteur Mac/Windows. Écrire le remède et le brancher sont deux gestes, et seul le premier laisse une trace dans le dépôt.
+
+## prune-scoped-wider-than-what-it-refreshed
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: des données de production disparaissent, sans erreur, sans trace. Le nettoyage qui suit une collecte supprime plus large que ce que cette collecte vient d'écrire, donc il emporte le travail d'une autre.
+- root_cause: `_prune_renamed_campaigns` (`src/collectors/_meta_upsert.py`) exécute `DELETE FROM <table> WHERE artist_id = %s AND campaign_name <> ALL(%s)` — le `DELETE` est scopé au LOCATAIRE, la liste de campagnes ne couvre qu'un COMPTE PUBLICITAIRE. Tant qu'un artiste n'a qu'un compte, les deux portées coïncident et le défaut est invisible. Le jour où la boucle passe sur deux comptes — le cas d'une agence, demandé par un vrai utilisateur — la passe du second efface tout ce que le premier vient d'écrire. Ce n'est pas une collision d'upsert, c'est une suppression de masse.
+- signature: `python3 -m pytest tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns -q`
+- long_term_fix: le `DELETE` porte le même discriminant que ce qu'il vient de rafraîchir — `AND ad_account_id IS NOT DISTINCT FROM %s`. La colonne est ajoutée par `migrations/076` sur les 10 tables à la maille campagne plus les 3 tables de provenance ; elle est nullable, et `IS NOT DISTINCT FROM NULL` reproduit exactement l'ancien comportement tant que la flotte est mono-compte. **Le correctif est posé AVANT que le multi-comptes existe** : une fois la boucle livrée, le défaut n'aurait été visible qu'en constatant des données manquantes.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_meta_ads_collector.py::TestPruneRenamedCampaigns::test_the_delete_is_scoped_to_one_ad_account }
+- rex_ref: migrations/076_meta_ad_account_id.sql
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: la règle générale vaut au-delà de Meta — **un nettoyage doit porter exactement la même portée que l'écriture qu'il suit**. Ici l'écriture était par compte et la suppression par locataire ; les deux portées ont coïncidé aussi longtemps qu'il n'y avait qu'un compte, ce qui est la pire façon pour un défaut d'attendre. Trouvé en explorant une demande produit (« Tom gère plusieurs comptes »), pas en lisant le code de nettoyage.

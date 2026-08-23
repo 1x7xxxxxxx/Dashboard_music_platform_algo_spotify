@@ -309,4 +309,37 @@ class TestPruneRenamedCampaigns:
         assert len(db.deletes) == len(_CAMPAIGN_GRAIN_TABLES)
         for query, params in db.deletes:
             assert 'DELETE FROM' in query and 'campaign_name <> ALL' in query
-            assert params == (1, ['C1', 'C2'])           # sorted, NULL dropped, scoped by artist_id
+            # (artist_id, ad_account_id, noms triés sans NULL). Le compte est None tant
+            # que la flotte est mono-compte : `IS NOT DISTINCT FROM NULL` se comporte
+            # alors exactement comme l'ancien prédicat.
+            assert params == (1, None, ['C1', 'C2'])
+
+    def test_the_delete_is_scoped_to_one_ad_account(self):
+        """R53 — sans ce scope, deux comptes du même artiste s'effacent l'un l'autre.
+
+        Le `DELETE` ne portait que sur `artist_id`. Le jour où la boucle collecteur
+        passera sur deux comptes — le cas d'une agence — la passe du SECOND effacerait
+        tout ce que le premier vient d'écrire : sa liste de campagnes ne contient
+        évidemment pas celles de l'autre compte. Suppression de masse, silencieuse, en
+        production.
+
+        Le garde est posé AVANT que le multi-comptes existe : une fois la boucle livrée,
+        le défaut n'aurait été visible qu'en constatant des données manquantes.
+        """
+        from src.collectors.meta_ads_api_collector import _CAMPAIGN_GRAIN_TABLES
+        db = _FakeDB()
+        c = _bare_collector(db)
+        c._current_ad_account_id = 'act_123'
+        c._prune_renamed_campaigns([{'campaign_name': 'C1'}])
+
+        assert len(db.deletes) == len(_CAMPAIGN_GRAIN_TABLES)
+        for query, params in db.deletes:
+            assert 'ad_account_id' in query, (
+                "le DELETE ne mentionne pas `ad_account_id` : il effacerait les lignes "
+                "de TOUS les comptes publicitaires de cet artiste, pas seulement celles "
+                "du compte en cours de collecte."
+            )
+            assert params[1] == 'act_123', (
+                f"le compte passé au DELETE est {params[1]!r} et non celui en cours de "
+                f"collecte — le scope est écrit mais pas alimenté."
+            )
