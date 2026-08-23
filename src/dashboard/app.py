@@ -364,7 +364,10 @@ def show_data_collection_panel():
 
     if st.sidebar.button(t("app.run_all_collections", "🚀 Lancer TOUTES les collectes"),
                          type="primary"):
+        from src.utils.safe_error import safe_error
+
         launched = {}
+        failed = 0
         with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=True):
             for dag_id, label in COLLECTION_DAGS:
                 try:
@@ -379,10 +382,25 @@ def show_data_collection_panel():
                     else:
                         # Say WHY: a bare ❌ is what made "toutes les credentials
                         # ont échoué" impossible to act on during a live session.
+                        failed += 1
                         st.error(f"❌ {label} — {result.get('error', result.get('message', '?'))}")
                 except Exception as e:
-                    st.error(f"❌ {label} — {e}")
-            st.sidebar.success(t("app.launched", "Lancé !"))
+                    failed += 1
+                    # `safe_error`, jamais `{e}` : `trigger_dag` parle à l'API REST
+                    # d'Airflow avec des identifiants, et ce message est rendu À
+                    # L'ARTISTE. `app.py` n'est pas dans la portée du garde
+                    # `secret-in-an-exception-message`, donc rien ne l'aurait dit.
+                    st.error(f"❌ {label} — {safe_error(e)}")
+            # « Lancé ! » s'affichait ICI, hors de toute condition : il apparaissait
+            # même quand les sept déclenchements avaient échoué. Remonté par un artiste
+            # en test — c'est la même famille que « croix verte sans données », un
+            # message de succès qui ne teste pas le succès.
+            if launched:
+                st.sidebar.success(t("app.launched", "Lancé !"))
+            elif failed:
+                st.sidebar.error(t("app.launch_all_failed",
+                                   "❌ Aucune collecte n'a démarré ({n} échec(s)) — "
+                                   "vérifie tes credentials, puis réessaie.").format(n=failed))
         remember_runs(launched)
 
     # Reported on every rerun, not only right after the click.

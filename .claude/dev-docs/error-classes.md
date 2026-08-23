@@ -168,6 +168,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [sender-identity-composed-twice](#sender-identity-composed-twice) | P3 | deterministic | guarded | none |
 | [traceback-rendered-to-the-visitor](#traceback-rendered-to-the-visitor) | P2 | deterministic | guarded | none |
 | [boundary-narrower-than-the-surface](#boundary-narrower-than-the-surface) | P2 | deterministic | guarded | none |
+| [two-surfaces-two-truths](#two-surfaces-two-truths) | P2 | deterministic | guarded | none |
+| [success-message-outside-its-condition](#success-message-outside-its-condition) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -1898,3 +1900,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: trouvé en testant le rendu d'erreur DANS UN NAVIGATEUR, pas en lisant le code — et la lecture du code aurait rassuré, puisque le docstring du dispatch annonce « Wrapped by main()'s error handler ». L'annonce était vraie et la portée fausse. C'est la sixième fois dans ce dépôt que la portée d'un garde est le défaut plutôt que sa logique, et la première où le garde en question n'était pas un test mais du code de production.
+
+## two-surfaces-two-truths
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: deux surfaces du produit répondent différemment à la MÊME question, et l'utilisateur croit celle qui a tort. Ici : le PDF exporté annonçait « Spotify ✅ configuré » pendant que la matrice à l'écran disait « ⚪ À connecter », pour le même artiste au même instant.
+- root_cause: `_collect_credentials_status` (`src/dashboard/utils/pdf_exporter/_collectors.py`) recalculait son propre verdict au lieu de lire celui de l'écran — `(key in have) or app_level_configured(key)`. Deux faux verts indépendants : `key in have` teste l'existence d'une LIGNE dans `artist_credentials` (un onglet ouvert puis enregistré vide la crée, ce que `declared_identities` existe pour empêcher), et `app_level_configured` rend la plateforme verte **à partir du `.env` de l'administrateur**, pour un locataire qui n'a rien déclaré. Son docstring promettait pourtant de refléter « the green status shown in the app ». Remonté par un artiste en test le 2026-08-23 (« Configuré api alors qu'on avait fait que youtube »).
+- signature: `python3 -m pytest tests/test_the_pdf_says_what_the_screen_says.py -q`
+- long_term_fix: le PDF LIT `artist_readiness`, la source de l'écran, au lieu de recalculer. Le garde est structurel — il interdit à la fonction d'appeler `app_level_configured` et de requêter `artist_credentials` — parce qu'un test de valeur exigerait une base et skipperait en CI. Une quatrième assertion épingle le prédicat de l'écran (`status != "todo"`) pour que le garde tombe plutôt que de mentir si l'écran change.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_pdf_says_what_the_screen_says.py }
+- rex_ref: src/dashboard/utils/pdf_exporter/_collectors.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: le contraste est ce qui rend la classe intéressante — la matrice à L'ÉCRAN était CORRECTE, et l'enquête est partie de l'hypothèse inverse. C'est la surface **imprimée**, celle qui survit à la session et que l'artiste garde, qui mentait. Chercher un faux vert là où on le voit peut envoyer sur la mauvaise surface.
+
+## success-message-outside-its-condition
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'utilisateur voit défiler des erreurs, puis un message de succès. Il retient le dernier. Ici : sept déclenchements de collecte en échec affichaient sept ❌ **puis** « Lancé ! », et l'artiste repartait attendre des données qui ne viendraient jamais.
+- root_cause: dans `show_data_collection_panel` (`src/dashboard/app.py`), chaque déclenchement était correctement testé (`if result.get('success')`), mais le `st.sidebar.success("Lancé !")` final vivait **après la boucle, hors de toute condition de résultat**. Le soin mis sur chaque itération masquait l'absence de conclusion. Même famille que la croix verte de collecte qui atteste un état SUCCESS d'Airflow plutôt que l'arrivée de lignes.
+- signature: `python3 -m pytest tests/test_a_success_message_tests_success.py -q`
+- long_term_fix: « Lancé ! » n'apparaît que si `launched` est non vide, et une branche d'échec explicite le dit sinon — conditionner le succès sans ajouter l'échec remplacerait un faux vert par un silence, ce qu'une assertion dédiée interdit. Le garde exige que l'appel soit sous un `if` **dont le test porte sur le résultat**, et non sous n'importe quel `if`.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_success_message_tests_success.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: la première version du prédicat demandait « cette ligne est-elle dans le corps d'un `if` ? » et était **VERTE sur le défaut** — le message fautif vivait déjà sous le `if` du bouton. Être sous une condition ne suffit pas : il faut être sous **la condition qui teste ce qu'on annonce**. Seule la mutation l'a dit ; c'est la septième fois dans ce dépôt que le prédicat d'un garde vise le symptôme au lieu de la question.

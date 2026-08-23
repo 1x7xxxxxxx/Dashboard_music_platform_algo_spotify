@@ -45,8 +45,13 @@ logger = logging.getLogger(__name__)
 # One place, and one only, that says what a box looks like.
 _GREEN, _RED, _GREY, _AMBER = "#28a745", "#dc3545", "#adb5bd", "#e67e22"
 
-# Statuses whose data is arriving, so the credential is proven by that alone.
-_DATA_PROVES_IT = {"ok", "stale", "quiet"}
+# Statuts qui prouvent la connexion par la donnée elle-même, sans sonde.
+#
+# Le set existe encore pour nommer l'idée, mais `_responds_cell` les traite désormais
+# SÉPARÉMENT : les trois prouvent la connexion, un seul (`ok`) prouve qu'elle est vivante
+# AUJOURD'HUI. Les fondre dans un unique « ✅ Des données arrivent » a fait lire « tout va
+# bien » à un artiste dont la source était morte depuis des mois.
+_DATA_PROVES_IT = frozenset({"ok", "stale", "quiet"})
 
 
 def _box(state: str, glyph: str, tip: str) -> str:
@@ -126,11 +131,26 @@ def _responds_cell(row: dict, probes: dict) -> tuple:
     if status == "todo":
         return "grey", "—", t("matrix.tip_not_set",
                               "Rien à vérifier tant que l'identifiant n'est pas saisi.")
-    if status in _DATA_PROVES_IT:
+    # « Des données arrivent » n'est vrai qu'au PRÉSENT. `stale` et `quiet` prouvent
+    # aussi que la connexion a fonctionné, mais les annoncer en vert avec la même phrase
+    # a fait lire « tout va bien » à un artiste dont la source était morte depuis des
+    # mois (remonté en test, 2026-08-23). Le constat ne change pas — la connexion EST
+    # prouvée — seule la couleur et le temps du verbe le disent honnêtement.
+    if status == "ok":
         return "green", "✅", t(
             "matrix.tip_data_proves",
             "Des données arrivent — la connexion fonctionne, aucune vérification "
             "nécessaire.")
+    if status == "stale":
+        return "amber", "✅", t(
+            "matrix.tip_data_proved_then_stopped",
+            "La connexion a fonctionné — des données sont arrivées, mais plus "
+            "récemment. Rien à reconfigurer : voir la colonne « Données ».")
+    if status == "quiet":
+        return "amber", "⏸️", t(
+            "matrix.tip_connected_nothing_to_send",
+            "La connexion fonctionne ; cette source n'a simplement rien à envoyer en "
+            "ce moment. Ce n'est pas une panne.")
     remembered = probes.get(platform)
     if remembered is None:
         return "grey", "?", t(
@@ -193,7 +213,11 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
 
         cols[2].markdown(_box(*_responds_cell(r, probes)), unsafe_allow_html=True)
 
-        data_state = {"ok": "green", "stale": "amber", "quiet": "green",
+        # `quiet` était vert : un compte Meta sans campagne active s'affichait « ✅ »
+        # avec ZÉRO ligne de données. C'est le bon état (rien à collecter n'est pas une
+        # panne), mais ce n'est pas la même chose que « des données sont là ». L'icône
+        # portait déjà la nuance (⏸️, `artist_readiness._ICON`) ; la couleur la niait.
+        data_state = {"ok": "green", "stale": "amber", "quiet": "amber",
                       "no_data": "red", "broken": "amber", "todo": "grey"}[r["status"]]
         cols[3].markdown(
             _box(data_state, r["icon"], r["status_label"]), unsafe_allow_html=True)

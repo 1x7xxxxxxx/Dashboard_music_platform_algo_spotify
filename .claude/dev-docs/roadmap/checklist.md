@@ -41,6 +41,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
+| R50 | **Parcours de setup** — guides morts, URI fausses, sélecteur d'OS invisible, guide injoignable | P2 | actionnable — Track 2 du plan, le plus gros levier sur l'abandon |
+| R51 | **Page de valeur** — densité des graphs, page récap, exports mal placés | P2 | actionnable — Track 3 ; `secondary_analyses()` existe et n'est utilisé nulle part où il faut |
+| R52 | **Débloquer GRiNCH et Benj** — titres SoundCloud déclarés, détection CSV | P2 | actionnable — Track 4 ; la fonctionnalité SoundCloud existe déjà, 4 défauts autour |
+| R53 | **Meta multi-comptes** — migration de schéma (agence de Tom) | P2 | actionnable — Track 5 ; **risque de perte de données** si livré en UI seule |
 | R47 | Les validateurs Meta Ads existent et ne sont **jamais appelés** | P2 | actionnable — 4 modèles Pydantic écrits, 0 appelant en production |
 | R48 | Deux modules ne sont maintenus en vie que par leur propre test | P4 | actionnable — trancher : câbler ou retirer |
 | R49 | `uv.lock` épingle des versions vulnérables que la prod n'exécute pas | P3 | actionnable — 18 paquets / 127 avis en local, prod déjà corrigée : c'est la CI qui teste le mauvais code |
@@ -150,6 +154,141 @@ surface exposée.
       `docker exec streamlytics_api pip list` — les versions critiques doivent coïncider.
 - [ ] **R49b** — mettre à jour l'image Airflow (2.8.1 → ≥ 2.11.1). Non urgent au sens
       réseau, mais c'est la seule version réellement en retard en production.
+
+---
+
+## 🎨 Simplification UI/UX — notes des tests artistes (2026-08-23)
+
+~30 notes de terrain issues des tests Benken (19/06) et GRiNCH (12/08). Plan complet et
+approuvé : `~/.claude/plans/unified-mapping-teapot.md`. Cette section porte ce qui reste ;
+ce qui est livré est descendu dans `archive.md` sous « R49b–Track 1 ».
+
+### Ce que la mesure a corrigé dans les notes
+
+Trois demandes étaient **déjà satisfaites ou périmées**, et il valait mieux le savoir avant
+de coder : le nom d'expéditeur des mails (corrigé et déployé le jour même), les livres
+d'ergonomie (11 ouvrages déjà ingérés, R17 close — ils sourcent le plan), le filtre de
+période (retiré par l'auteur des notes). Et « case verte ou rouge par plateforme » **existe
+déjà** (`status_matrix.py`, 3 colonnes, 4 surfaces) — c'était sa sémantique qu'il fallait
+corriger, pas son absence.
+
+### R50 — Le parcours de setup · P2
+
+Quatre défauts structurels mesurés, tous invisibles à la lecture du code :
+
+1. **Les guides d'API lus pendant les tests sont du code mort.**
+   `_registry._render_platform_guide` et les quatre `_guide_*` des modules plateforme
+   **n'ont aucun appelant** — ~450 lignes maintenues et traduites, qui **contredisent** les
+   guides réellement affichés (`content/credential_guides.py`). Sur Spotify : le vivant dit
+   « tu n'as rien à créer », le mort dit « crée une app, copie le Client ID et le Secret ».
+2. **Le guide ANGLAIS est un miroir périmé du corpus mort**, et il est **expédié dans le
+   PDF d'onboarding** quand `lang == "en"` : `Redirect URI = http://127.0.0.1:8888/callback`
+   … `Tick Web API`. C'est la source exacte des notes « uri non bonne », « rajout de s sur
+   uri », « web api pas cochée ». Le dépôt porte **trois orthographes** du même URI jetable
+   (`127.0.0.1:8888`, `localhost:8888`, `http://localhost`), toutes en `http://`, aucune en
+   `https://` — héritées du défaut de `spotipy`, que le tableau de bord Spotify **refuse
+   désormais** sous la forme `localhost`.
+3. **Le sélecteur Mac/Windows ne s'affiche jamais.** `os_hints.os_selector()` n'est appelé
+   que par `render_credential_guides()`, **sans appelant**. Le chemin vivant devine l'OS par
+   User-Agent, **Windows par défaut**, sans moyen de corriger. C'est la note GRiNCH.
+4. **Le guide de démarrage a deux surfaces, dont une injoignable.** L'entrée de navigation
+   pointe `process_guide.py` (quatre listes à puces plates, ni onglets ni dépliants) ;
+   l'assistant qui porte la sélection cochable est `onboarding.py`, **absent de toute
+   navigation**, joignable seulement par `?page=onboarding` depuis l'e-mail. Mail fermé,
+   onglet fermé : il n'existe plus.
+
+Et deux petits, à fort effet : les quatre étapes de l'accueil **nomment leur destination
+sans y mener** (`home.py:168`, la clé de page est liée à `_` puis jetée), et le PDF
+d'onboarding n'est **livré qu'en pièce jointe d'e-mail** — aucun bouton dans l'application.
+
+- [ ] **R50** — supprimer le corpus mort et ses traductions ; une seule chaîne d'URI définie
+      une fois, en `https://` là où la plateforme l'exige ; afficher le sélecteur d'OS ;
+      entrée de navigation permanente vers l'assistant + atterrissage automatique dessus à
+      la première connexion tant que rien n'est configuré ; étapes d'accueil cliquables ;
+      bouton de téléchargement du PDF ; lien `artists.apple.com` visible par un artiste
+      (aujourd'hui seulement sur `useful_links`, **réservée admin**) ; définitions CSV
+      remontées hors du dépliant replié ; captures YouTube ; étape « créer le projet Google
+      Cloud » ; surbrillance de `soundcloud:users`. Unifier les **trois ordres de
+      plateformes** (onglets / sélecteur d'onboarding / guides) et cesser de proposer
+      Instagram et Apple Music dans l'onboarding alors qu'ils n'ont pas d'onglet.
+      Vérif : parcours e2e dans un navigateur — première connexion, étapes cliquables,
+      guide joignable depuis la navigation, sélecteur d'OS visible.
+
+### R51 — La page qui donne la valeur · P2
+
+`src/dashboard/utils/ui.py:83` — `secondary_analyses()` a été écrit **explicitement pour la
+remarque de GRiNCH du 2026-08-12** (le commentaire du fichier la cite mot pour mot) et
+applique « une décision par écran ». Il est utilisé sur 4 sites et sur **aucune** des cinq
+vues les plus denses : `trigger_algo` (15 graphiques + jusqu'à 17 jauges ≈ **35 figures**),
+`data_wrapped` (9), `meta_creatives` (8), `meta_ads_overview` (8), `revenue_forecast` (6).
+C'est donc **appliquer un motif existant**, pas en inventer un.
+
+L'accueil, lui, est un tableau d'état : **0 graphique**, 4 tuiles, 9 cartes de statut DAG.
+Il dit si la machine tourne, pas ce que l'artiste doit faire. Few : un tableau de bord tient
+dans un coup d'œil et sert de **rampe de lancement**. Knaflic : désencombrer ne suffit pas,
+il faut ensuite **montrer où regarder**.
+
+- [ ] **R51** — appliquer `secondary_analyses()` aux cinq vues denses ; concevoir une page
+      récap de 3 à 5 visuels répondant chacun à « dois-je faire quelque chose ? » ; déplacer
+      Export PDF et Export CSV, aujourd'hui entrées **n°2 et n°3** de la navigation, avant
+      le guide et les credentials — alors que `app.py:180` annonce « Order = user journey ».
+      Ajouter la section PDF « 30 premiers jours vs actuel » sur le taux de trigger
+      (**métrique à préciser**).
+
+### R52 — Débloquer les deux artistes en test · P2
+
+**GRiNCH / SoundCloud.** La fonctionnalité « Mes titres hébergés sur d'autres comptes »
+**existe et fonctionne de bout en bout** (widget, `track_platform_link`, `migrations/074`,
+consommation par le collecteur). Quatre défauts autour : le message d'erreur dit « ci-dessous »
+alors que le widget est rendu **au-dessus** ; pas d'exemple d'URL ; `_claimed_count` a besoin
+de `fields['_artist_id']`, injecté seulement dans l'interface — donc `artist_preflight` et la
+sonde nocturne obtiennent **0** et rendent un rouge **à tort** ; et un **trou réel** : un
+artiste **sans compte SoundCloud du tout** n'est jamais collecté, `soundcloud_daily.py:134`
+le saute avant de lire ses déclarations.
+
+**Benj / CSV.** Causes probables, par fréquence : séparateur `;` (**non supporté** — seuls
+`,` et la tabulation sont testés), ligne de préambule au-dessus des en-têtes, `.xlsx`
+non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `songs-all` est
+*détecté* par son nom de fichier (règle 6) puis **rejeté** par `_detect_window`
+(`s4a_csv_parser.py:99`).
+
+- [ ] **R52** — corriger les quatre défauts SoundCloud ; passer le fichier de Benj dans
+      `_detect_platform` **quand il arrive** et corriger la règle qui l'a manqué, pas
+      deviner ; nommer la raison du refus (le séparateur n'est jamais mentionné).
+
+### R53 — Meta multi-comptes · P2 — **brique de schéma, pas d'UI**
+
+Besoin **confirmé** (agence de Tom). R14 avait été clos avec « rouvre quand un locataire
+déclare un second compte » : le déclencheur s'est produit.
+
+Trois blocages, par coût croissant. Le troisième est le vrai :
+
+1. **Stockage** — `UNIQUE(artist_id, platform)`, un seul `account_id` scalaire ;
+   `identity_is_well_formed` rejette une liste, et `find_identity_conflict` **interdit déjà
+   que deux artistes partagent le compte d'une agence**.
+2. **Collecteur** — `self.ad_account` est un attribut unique. Mécanique.
+3. **Schéma — perte de données silencieuse.** Les 10 tables d'insights à la maille campagne
+   sont uniques sur **`campaign_name`**, sans discriminant de compte : deux comptes ayant une
+   campagne du même nom **écrasent la même ligne**. Pire,
+   `_prune_renamed_campaigns` (`_meta_upsert.py:87`) exécute
+   `DELETE … WHERE artist_id = %s AND campaign_name <> ALL(%s)` — en boucle sur deux comptes,
+   **le second efface tout ce que le premier vient d'écrire**.
+
+- [ ] **R53** — migration ajoutant `ad_account_id`, réécriture des contraintes d'unicité,
+      mise à jour de `_insight_upsert_maps()`, re-clé du prune, puis boucle collecteur, puis
+      UI. **Dans cet ordre** : livrer l'UI d'abord produirait des données silencieusement
+      fausses. **Décision d'affichage à prendre** : comptes fusionnés (un total) ou séparés
+      (un onglet par compte) — ça décide de la forme du schéma.
+
+### Questions ouvertes, à trancher avec l'auteur des notes
+
+1. **La « valeur de démo »** — quelle page, quel chiffre ? Le grep n'a rien trouvé de
+   concluant dans `home.py`, `onboarding.py`, `kpi_helpers.py`. Une capture suffira ; je ne
+   retire pas un chiffre au jugé.
+2. **Le « taux de trigger »** du graphique PDF — quelle métrique fait foi ?
+3. **Meta multi-comptes** — fusionnés ou séparés (voir R53).
+4. **GIF animé dans les messageries** — signature personnelle (hors produit) ou e-mails
+   transactionnels de l'application ?
 
 ---
 

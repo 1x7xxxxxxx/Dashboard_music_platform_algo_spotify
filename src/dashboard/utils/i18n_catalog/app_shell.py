@@ -53,4 +53,5 @@ EN = {
     "ui.custom_range": "Custom range",
     "ui.range": "Range",
     "app.fatal_error": "❌ An error occurred. The administrator has been notified; please try again shortly.",
+    "app.launch_all_failed": "❌ No collection started ({n} failure(s)) — check your credentials, then try again.",
 }

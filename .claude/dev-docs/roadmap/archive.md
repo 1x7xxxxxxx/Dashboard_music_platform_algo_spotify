@@ -11,6 +11,49 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 <!-- section actif : Open Bugs -->
 
+### Track 1 des notes artistes — les trois faux verts (clos 2026-08-23)
+
+Premier lot du plan de simplification UI/UX. Trois messages qui annonçaient un état qu'ils
+ne mesuraient pas — ce qui fait perdre confiance en l'outil bien plus vite qu'une page
+laide.
+
+- [x] **Le PDF disait « configuré » à partir du `.env` de l'admin.** Enquête partie d'une
+  hypothèse **fausse** : je pensais que la matrice à l'écran confondait admin et artiste.
+  Elle est correcte — elle passe par `artist_readiness` → `tenant_identity`, où un `.env`
+  admin ne peut rien rendre vert. C'est la surface **imprimée**, celle que l'artiste garde,
+  qui mentait : `_collect_credentials_status` recalculait `(key in have) or
+  app_level_configured(key)`, soit deux faux verts indépendants — une ligne en base créée
+  par un onglet enregistré vide, et l'environnement de l'administrateur. Le PDF lit
+  désormais la même source que l'écran. Classe `two-surfaces-two-truths`.
+
+- [x] **« Lancé ! » s'affichait même quand les sept déclenchements avaient échoué.** Chaque
+  itération était soigneusement testée ; la conclusion, elle, vivait hors de toute condition
+  de résultat. Sept ❌ puis « Lancé ! » — et c'est le dernier message que l'artiste retient.
+  Conditionné, avec une branche d'échec explicite : conditionner le succès sans dire l'échec
+  aurait remplacé un faux vert par un silence. Classe
+  `success-message-outside-its-condition`. **Le premier prédicat du garde était vert sur le
+  défaut** — le message fautif vivait déjà sous le `if` du bouton. Être sous une condition ne
+  suffit pas : il faut être sous **la condition qui teste ce qu'on annonce**. Septième fois
+  que le prédicat d'un garde vise le symptôme au lieu de la question, et seule la mutation
+  l'a dit.
+
+- [x] **Deux verts de la matrice ne voulaient pas dire ce qu'on croyait.** « Répond »
+  affichait ✅ vert et « Des données arrivent » pour une source `stale` — morte depuis des
+  mois — et « Données » affichait vert pour `quiet`, c'est-à-dire **zéro ligne**. Les deux
+  états sont légitimes ; c'est le verbe au présent et la couleur qui mentaient. L'icône
+  portait déjà la nuance (`⏸️`, `🟡`) et la couleur la niait. Comportement inchangé,
+  honnêteté rétablie.
+
+  Au passage : `st.error(f"❌ {label} — {e}")` rendait l'**exception brute à l'artiste** dans
+  le panneau de collecte, et `src/dashboard/app.py` n'est dans la portée d'aucun garde
+  anti-fuite. Rédigé par `safe_error`.
+
+Vérifié : 1859 passed / 22 skipped, ruff propre, 110 classes 0 non gardée. Chaque garde vu
+rouge sur le défaut réel avant correctif.
+
+---
+
+
 ### R38 — Le nom d'expéditeur venait du code, pas de Brevo (clos 2026-08-23)
 
 - [x] **R38 — corrigé en code, alors qu'il était parqué comme « aucune ligne de Python

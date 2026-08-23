@@ -36,4 +36,6 @@ EN = {
     "matrix.age_now": "just now",
     "matrix.age_hours": "{n} h ago",
     "matrix.age_days": "{n} d ago",
+    "matrix.tip_data_proved_then_stopped": "The connection worked — data did arrive, but not recently. Nothing to reconfigure: see the « Data » column.",
+    "matrix.tip_connected_nothing_to_send": "The connection works; this source simply has nothing to send right now. This is not a failure.",
 }

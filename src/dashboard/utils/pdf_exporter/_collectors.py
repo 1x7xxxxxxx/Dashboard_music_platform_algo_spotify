@@ -542,23 +542,39 @@ _CRED_PLATFORMS = [("spotify", "🎵 Spotify"), ("youtube", "🎬 YouTube"),
 
 
 def _collect_credentials_status(db, artist_id):
-    """Per-platform 'configured?' — per-tenant artist_credentials OR app-level
-    (config.yaml/.env), mirroring the green status shown in the app."""
+    """Per-platform 'configured?' — LA MÊME SOURCE QUE L'ÉCRAN, et rien d'autre.
+
+    Ce que cette fonction faisait avant le 2026-08-23, et qui produisait deux faux verts
+    indépendants dans un document que l'artiste garde :
+
+        return [(label, (key in have) or app_level_configured(key)) ...]
+
+    1. `key in have` testait **l'existence d'une ligne** dans `artist_credentials` — or un
+       onglet ouvert puis enregistré vide crée cette ligne. C'est exactement ce que
+       `declared_identities` avait été écrit pour tuer.
+    2. `or app_level_configured(key)` rendait Spotify / YouTube / SoundCloud / Meta verts
+       **à partir du `.env` de l'administrateur**, pour un locataire n'ayant rien déclaré.
+
+    Son docstring promettait pourtant de refléter « the green status shown in the app ».
+    Il ne le faisait sur aucun des deux axes : la matrice à l'écran passe par
+    `artist_readiness` → `tenant_identity`, où un `.env` admin ne peut RIEN rendre vert.
+    Le PDF pouvait donc annoncer « Spotify ✅ configuré » quand l'écran disait « À
+    connecter » — remonté par un artiste en test.
+
+    On lit désormais `artist_readiness`, comme `status_matrix.render_status_matrix`.
+    Aucune API n'est appelée (`probe=None`), c'est une lecture de base.
+    """
     if artist_id is None:
         return None
     try:
-        rows = db.fetch_query(
-            "SELECT platform FROM artist_credentials WHERE artist_id = %s", (artist_id,))
-        have = {r[0] for r in (rows or [])}
+        from src.utils.artist_readiness import artist_readiness
+        rows = artist_readiness(db, artist_id)
     except Exception:
         return None
-    try:
-        from src.dashboard.views.credentials._core import app_level_configured
-    except Exception:
-        def app_level_configured(_):  # noqa: E731 — graceful fallback
-            return False
-    return [(label, (key in have) or app_level_configured(key))
-            for key, label in _CRED_PLATFORMS]
+    # `status != "todo"` est LE prédicat de la colonne « Configuré » de la matrice
+    # (`status_matrix.py:186`). Le répéter ici serait le laisser dériver ; on le lit.
+    by_key = {r["key"]: (r.get("status") != "todo") for r in (rows or [])}
+    return [(label, by_key.get(key, False)) for key, label in _CRED_PLATFORMS]
 
 
 def _collect_mapping(db, artist_id):
