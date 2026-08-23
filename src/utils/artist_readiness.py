@@ -106,7 +106,15 @@ def next_action(platform: dict, status: str, expected_silence: str | None = None
         return f"Renseigne {platform['id_hint']}."
     if status == NO_DATA:
         return live_reason or platform["nodata_hint"]
-    return f"Données anciennes — vérifie le DAG {platform['key']}."
+    # STALE — this sentence is READ BY THE ARTIST. "vérifie le DAG youtube" told them
+    # to fix something they cannot reach: nobody outside the team has an Airflow login.
+    # Cooper, About Face p.311, names exactly this failure — a message that "demands
+    # that he fix a situation that the application can and should usually fix just as
+    # well". Same contract as BROKEN: collection stopping is our problem, not theirs.
+    # The operator gets the DAG name and the literal cause through the run ledger
+    # (etl_run_log) and the nightly email, which is where an operator actually looks.
+    return live_reason or ("Rien à faire de ton côté — la collecte s'est arrêtée, "
+                           "on regarde.")
 
 
 def _identity(platform_key: str, creds: dict, spotify_artist_id) -> bool:
@@ -222,12 +230,19 @@ def artist_readiness(db, artist_id: int, probe=None) -> list:
 def readiness_red_flags(db, artist_id: int, probe=None) -> list:
     """Platforms that need someone to look, for one artist.
 
-    NO_DATA (connected, silent-0-row) **and** BROKEN (the check itself failed).
-    Both mean somebody must act; only the first is the artist's move, and
-    `next_action` is what says which.
+    NO_DATA (connected, silent-0-row), BROKEN (the check itself failed), and STALE
+    (it collected, then stopped). Somebody must act on all three; only NO_DATA is
+    ever the artist's move, and `next_action` is what says which.
+
+    STALE was excluded until 2026-08-23, and that exclusion is what let Benken's
+    YouTube fail two nights running with no signal anywhere: the DAG reported SUCCESS
+    (the failure was isolated per tenant), freshness turned the tenant 🟡, and this
+    function dropped 🟡 on the floor. "Collected, then stopped" IS the shape of
+    "collection is broken" — it is in fact the only shape a working credential can
+    take when it breaks.
     """
     return [m for m in artist_readiness(db, artist_id, probe=probe)
-            if m["status"] in (NO_DATA, BROKEN)]
+            if m["status"] in (NO_DATA, BROKEN, STALE)]
 
 
 def readiness_stalled_flags(db, artist_id: int, min_age_days: int = 7) -> list:

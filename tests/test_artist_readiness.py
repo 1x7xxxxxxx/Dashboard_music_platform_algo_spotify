@@ -31,7 +31,15 @@ def test_next_action_is_actionable_per_status():
     assert "Renseigne" in ar.next_action(meta, ar.TODO)
     # the headline guidance: connected-but-no-data Meta → asset-sharing
     assert "asset sharing" in ar.next_action(meta, ar.NO_DATA)
-    assert "DAG meta" in ar.next_action(meta, ar.STALE)
+    # STALE used to assert `"DAG meta" in …`. That premise died on 2026-08-23: this
+    # sentence is read BY THE ARTIST, and no artist has an Airflow login, so it told
+    # them to fix something they cannot reach (About Face p.311). Same contract as
+    # BROKEN now — collection stopping is our problem. The operator gets the DAG name
+    # and the literal cause through etl_run_log and the nightly email.
+    # Pinned in full by tests/test_a_tenant_that_stopped_collecting_is_reported.py.
+    stale_msg = ar.next_action(meta, ar.STALE)
+    assert stale_msg.strip()
+    assert "dag" not in stale_msg.lower()
 
 
 def test_youtube_no_data_hint_mentions_topic_channel():

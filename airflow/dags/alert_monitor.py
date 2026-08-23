@@ -18,6 +18,11 @@ Implements bricks:
 import sys
 sys.path.insert(0, '/opt/airflow')
 
+# Redact credentials out of any exception this module logs: an HTTP
+# exception message embeds the prepared URL, and several upstream APIs take
+# their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.safe_error import safe_error
+
 import os
 import logging
 from html import escape
@@ -64,7 +69,7 @@ def _on_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         dag_failure_callback(context)
     except Exception as e:
-        logger.error(f"Failure callback error: {e}")
+        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -218,7 +223,7 @@ def check_dag_failures(**context):
                     logger.warning(f"🚨 DAG {dag_id} FAILING {streak} consecutive days")
 
     except Exception as e:
-        logger.error(f"check_dag_failures: Airflow DB query failed — {e}")
+        logger.error(f"check_dag_failures: Airflow DB query failed — {safe_error(e)}")
         failing_dags = {}
 
     context['task_instance'].xcom_push(key='failing_dags', value=failing_dags)
@@ -255,14 +260,37 @@ def check_data_freshness(**context):
         # `trigger_rule='all_done'`, so the mail still went out with the entire
         # per-tenant section silently missing. That is the failure mode this check
         # exists to detect, in the check itself.
+        from src.utils.credential_loader import load_platform_credentials
+        from src.utils.tenant_identity import (PLATFORM_IDENTITIES,
+                                               declared_identities,
+                                               storage_platform)
+
         per_tenant = []
-        for aid, name in get_active_artists():
+        declared_by_artist = {}
+        # exclude_canaries=True, like every other onboarding-shaped check. The canary
+        # will never declare SoundCloud/Meta/Instagram and its Spotify indicator reads a
+        # CSV it will never have, so it was a guaranteed finding every single night —
+        # for a tenant in its NORMAL state. This was the only such check that did not
+        # pass the flag.
+        for aid, name in get_active_artists(exclude_canaries=True):
             try:
                 per_tenant.append((aid, name, check_freshness(db, aid)))
             except Exception as e:  # noqa: BLE001 — one bad tenant must not blind the rest
                 logger.error("freshness unavailable for tenant %s (%s): %s",
-                             aid, name, e)
-        tenant_gaps = tenant_freshness_gaps(per_tenant)
+                             aid, name, safe_error(e))
+            # What this tenant has actually DECLARED — the measured input that lets
+            # tenant_freshness_gaps stop reporting platforms they do not use. Read per
+            # tenant and isolated: an unreadable row must leave the map WITHOUT an
+            # entry for that tenant, so nothing is suppressed on a doubt.
+            try:
+                extra = {}
+                for storage in {storage_platform(p) for p in PLATFORM_IDENTITIES}:
+                    extra[storage] = load_platform_credentials(aid, storage) or {}
+                declared_by_artist[aid] = declared_identities(extra)
+            except Exception as e:  # noqa: BLE001
+                logger.error("declared identities unreadable for tenant %s: %s",
+                             aid, safe_error(e))
+        tenant_gaps = tenant_freshness_gaps(per_tenant, declared_by_artist)
     finally:
         db.close()
 
@@ -282,6 +310,17 @@ def check_data_freshness(**context):
             # source lands in the "✅ Sources OK" list of the nightly email with a
             # two-year-old date behind it.
             'expected_silence': r.get('expected_silence'),
+            # `error` and `measured_on` were dropped at this hop, and the drop had a
+            # cost. check_freshness sets `error` precisely so "the probe itself failed"
+            # can be told apart from "there is no data" — artist_readiness reads it and
+            # renders BROKEN, which asks the artist for nothing. The email lost the
+            # distinction here and rendered a dead probe as "🟡 stale · relancer le
+            # DAG": broken-probe-rendered-as-user-fault, one layer up. `measured_on`
+            # matters for the same reason — "written this morning" and "describes a
+            # recent day" are different claims, and confusing them hid Meta Ads for
+            # months.
+            'error': r.get('error'),
+            'measured_on': r.get('measured_on'),
         })
 
     context['task_instance'].xcom_push(key='freshness_results', value=serializable)
@@ -321,7 +360,7 @@ def check_resurrection_sparks(**context):
                         'age_days': s['age_days'], 'recent_gain': s['recent_gain'],
                     })
             except Exception as e:
-                logger.error(f"Resurrection scan failed for {name} (id={artist_id}): {e}")
+                logger.error(f"Resurrection scan failed for {name} (id={artist_id}): {safe_error(e)}")
                 continue
     finally:
         db.close()
@@ -510,10 +549,10 @@ def check_central_apps(**context):
         # The tools/ package is not on the image path in every deployment. Say so
         # rather than reporting "all apps fine" — an unrunnable check must never
         # look like a passing one.
-        logger.error(f"central-app check unavailable: {e}")
+        logger.error(f"central-app check unavailable: {safe_error(e)}")
         context['task_instance'].xcom_push(
             key='central_apps_broken',
-            value=[{'platform': 'ALL', 'reason': f'check could not run: {e}'}])
+            value=[{'platform': 'ALL', 'reason': f'check could not run: {safe_error(e)}'}])
         return
 
     # ABSENT is red here, before any probe runs. The probes deliberately return True
@@ -536,8 +575,8 @@ def check_central_apps(**context):
                                'reason': 'authentication failed — see task log'})
                 logger.error(f"Central app DOWN: {label}")
         except Exception as e:  # per-platform isolation, like every check here
-            broken.append({'platform': label, 'reason': str(e)[:200]})
-            logger.error(f"Central app check raised for {label}: {e}")
+            broken.append({'platform': label, 'reason': safe_error(e)[:200]})
+            logger.error(f"Central app check raised for {label}: {safe_error(e)}")
 
     logger.info(f"Central apps: {len(broken)} broken out of {len(probes)}.")
     context['task_instance'].xcom_push(key='central_apps_broken', value=broken)
@@ -665,9 +704,9 @@ def check_canary_health(**context):
 
         logger.info(f"Canary {artist_id} ({name}): {len(problems)} problem(s).")
     except Exception as e:  # noqa: BLE001 — an unrunnable check must say so
-        logger.error(f"canary health check unavailable: {e}")
+        logger.error(f"canary health check unavailable: {safe_error(e)}")
         problems.append({'platform': 'canary',
-                         'reason': f'check could not run: {str(e)[:180]}'})
+                         'reason': f'check could not run: {safe_error(e)[:180]}'})
     finally:
         if db is not None:
             db.close()
@@ -749,7 +788,7 @@ def check_onboarding_readiness(**context):
                                     'platform': m['label'],
                                     'next_action': m['next_action']})
             except Exception as e:  # per-artist isolation
-                logger.error(f"Readiness check failed for {name} (id={aid}): {e}")
+                logger.error(f"Readiness check failed for {name} (id={aid}): {safe_error(e)}")
                 continue
     finally:
         db.close()
@@ -761,6 +800,140 @@ def check_onboarding_readiness(**context):
     context['task_instance'].xcom_push(key='onboarding_red_flags', value=flags)
     context['task_instance'].xcom_push(key='onboarding_stalled', value=stalled)
     return flags
+
+
+
+def check_collection_outcomes(**context):
+    """Per-tenant collection failures, read from the run ledger.
+
+    This is the check that answers the question no other surface can: **did collection
+    run for THIS tenant, and what did the platform actually say?**
+
+    Why it is not redundant with freshness. Freshness reads `MAX(date)` on a table, so
+    it can only notice a stopped tenant once the data has aged past a 48h threshold —
+    and only for the 7 sources it monitors. The ledger sees the failure the same night,
+    carries the LITERAL cause the API returned, and covers a tenant who has never had a
+    single row (freshness has nothing to measure there).
+
+    Measured 2026-08-23, and this is the shape it exists for: `youtube_daily` reported
+    SUCCESS while Benken failed inside its per-tenant try/except. The only witness was a
+    WARNING line, and the task's return value listed the tenants that WORKED — so the
+    failing one was absent rather than named.
+
+    `skipped` is deliberately NOT a finding: a tenant who declared no identity is in a
+    correct state. It is recorded so the ledger is complete, not so somebody is woken.
+    """
+    import sys
+    sys.path.insert(0, '/opt/airflow')
+
+    WINDOW_H = 36  # one nightly cycle plus margin — a single missed run is not news
+
+    problems = []
+    db = None
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+
+        # The LAST outcome per (tenant, platform) inside the window. A tenant that
+        # failed at 03:00 and succeeded on a manual re-run at 09:00 is not a problem;
+        # taking the latest row is what makes that true.
+        rows = db.fetch_query(
+            """
+            SELECT DISTINCT ON (e.artist_id, e.platform)
+                   e.artist_id, a.name, e.platform, e.dag_id,
+                   e.status, e.error_message, e.started_at
+            FROM etl_run_log e
+            JOIN saas_artists a ON a.id = e.artist_id
+            WHERE e.started_at > now() - make_interval(hours => %s)
+              AND e.artist_id IS NOT NULL
+            ORDER BY e.artist_id, e.platform, e.started_at DESC
+            """,
+            (WINDOW_H,),
+        )
+
+        for artist_id, name, platform, dag_id, status, error_message, started_at in rows:
+            if status not in ('failed', 'partial'):
+                continue
+            problems.append({
+                'artist_id': artist_id,
+                'artist_name': name,
+                'platform': platform,
+                'dag_id': dag_id,
+                'status': status,
+                # The literal cause, already redacted at write time by safe_error.
+                'reason': (error_message or 'no cause recorded')[:300],
+                'when': str(started_at),
+            })
+    except Exception as e:  # noqa: BLE001
+        # Same contract as check_central_apps: a check that could not run says so
+        # rather than looking like a passing one.
+        logger.error(f"collection outcomes unavailable: {safe_error(e)}")
+        problems = [{'artist_id': None, 'artist_name': '—', 'platform': 'ALL',
+                     'dag_id': '—', 'status': 'unknown',
+                     'reason': f'check could not run: {safe_error(e)}', 'when': ''}]
+    finally:
+        if db:
+            db.close()
+
+    logger.info(f"collection outcomes: {len(problems)} tenant/platform failure(s)")
+    context['task_instance'].xcom_push(key='collection_failures', value=problems)
+
+
+
+def check_tenant_contamination(**context):
+    """Rows sitting under a tenant they cannot belong to, across the whole fleet.
+
+    This is the only class this repository has actually been bitten by — every tenant's
+    Spotify popularity history filed under `artist_id = 1` for months, in production,
+    undetected — and until now it was the only one with **no watchdog**. The scan was
+    reachable from `make tenant-check` and from step 5 of `artist_preflight`, i.e. only
+    when a human typed a command; `check_canary_preflight` runs steps 2-4 only.
+
+    Why the other checks cannot see it: rows ARE arriving, so freshness is green,
+    readiness is green, and the canary is green. They just belong to somebody else.
+
+    `scan(db)` never writes. Three finding kinds: ORPHAN (rows for a platform this
+    tenant never declared — they were fetched under someone else's identity), MISMATCH
+    (the row carries a platform id that is not the tenant's) and MISATTRIBUTED (a
+    join disagrees about the owner).
+    """
+    import sys
+    sys.path.insert(0, '/opt/airflow')
+
+    problems = []
+    db = None
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        # `tools/` is a PEP 420 namespace package under /opt/airflow, mounted read-only
+        # by every Airflow service. The mount does NOT travel with `git pull` (the
+        # production compose is gitignored) — check_prod_ledger.sh verifies it, so this
+        # task only has to fail LOUDLY when the import does not resolve.
+        from tools.tenant_contamination_check import scan
+    except ImportError as e:
+        # Same contract as check_central_apps and check_canary_preflight: a check that
+        # could not run says so, instead of looking like a passing one.
+        logger.error(f"contamination scan unavailable: {safe_error(e)}")
+        context['task_instance'].xcom_push(
+            key='contamination',
+            value=[{'artist_id': None, 'artist': '—', 'platform': 'ALL', 'table': '—',
+                    'kind': 'UNAVAILABLE', 'rows': 0,
+                    'detail': f'check could not run: {safe_error(e)}'}])
+        return
+
+    try:
+        db = PostgresHandler.from_env_or_config()
+        problems = scan(db) or []
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"contamination scan failed: {safe_error(e)}")
+        problems = [{'artist_id': None, 'artist': '—', 'platform': 'ALL', 'table': '—',
+                     'kind': 'UNAVAILABLE', 'rows': 0,
+                     'detail': f'check could not run: {safe_error(e)}'}]
+    finally:
+        if db:
+            db.close()
+
+    logger.info(f"contamination scan: {len(problems)} finding(s)")
+    context['task_instance'].xcom_push(key='contamination', value=problems)
 
 
 def check_canary_preflight(**context):
@@ -791,10 +964,10 @@ def check_canary_preflight(**context):
     except ImportError as e:
         # Same contract as check_central_apps: an unrunnable check says so rather
         # than looking like a passing one.
-        logger.error(f"canary preflight unavailable: {e}")
+        logger.error(f"canary preflight unavailable: {safe_error(e)}")
         context['task_instance'].xcom_push(
             key='canary_preflight',
-            value=[{'step': 'ALL', 'reason': f'check could not run: {e}'}])
+            value=[{'step': 'ALL', 'reason': f'check could not run: {safe_error(e)}'}])
         return
 
     db = PostgresHandler(
@@ -842,7 +1015,7 @@ def check_canary_preflight(**context):
                 with redirect_stdout(buf):
                     ok = fn_step(db, artist_id, scope)
             except Exception as e:  # per-step isolation
-                ok, e_msg = False, str(e)[:200]
+                ok, e_msg = False, safe_error(e)[:200]
                 problems.append({'step': label,
                                  'reason': f'step raised: {e_msg}'})
                 continue
@@ -853,8 +1026,8 @@ def check_canary_preflight(**context):
                               f'for {", ".join(sorted(scope))}'})
         logger.info(buf.getvalue())
     except Exception as e:
-        problems.append({'step': 'ALL', 'reason': f'check could not run: {e}'})
-        logger.error(f"canary preflight raised: {e}")
+        problems.append({'step': 'ALL', 'reason': f'check could not run: {safe_error(e)}'})
+        logger.error(f"canary preflight raised: {safe_error(e)}")
     finally:
         db.close()
 
@@ -942,6 +1115,12 @@ def send_consolidated_alert(**context):
 
     canary = ti.xcom_pull(task_ids='check_canary_health', key='canary_problems') or []
 
+    collection_failures = ti.xcom_pull(
+        task_ids='check_collection_outcomes', key='collection_failures') or []
+
+    contamination = ti.xcom_pull(
+        task_ids='check_tenant_contamination', key='contamination') or []
+
     stale_sources = [r for r in freshness if r['stale']]
     # `central_broken` and `canary` belong in this decision, not only in the body.
     # They were rendered at the bottom of this function and in the subject line, but
@@ -952,7 +1131,7 @@ def send_consolidated_alert(**context):
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
                   or billing_issues or row_anomalies or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
-                  or canary_preflight)
+                  or canary_preflight or collection_failures or contamination)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -1011,14 +1190,28 @@ def send_consolidated_alert(**context):
     if stale_sources:
         rows = ''
         for r in stale_sources:
-            age_label = f"{r['age_h']:.0f}h" if r['age_h'] is not None else 'jamais collectée'
+            # A source whose CHECK failed is not a stale source, and telling the
+            # reader to relaunch a DAG for it sends them to fix the wrong thing.
+            # `error` is carried in the xcom for exactly this line.
+            probe_error = r.get('error')
+            if probe_error:
+                age_label = 'non mesurée'
+                colour = '#c0392b'
+                action = f"⚠️ la sonde elle-même a échoué : {probe_error}"
+            else:
+                age_label = (f"{r['age_h']:.0f}h" if r['age_h'] is not None
+                             else 'jamais collectée')
+                colour = '#e67e22'
+                measured = ('date de la métrique' if r.get('measured_on') == 'metric'
+                            else "date d'écriture")
+                action = f"Airflow UI → relancer le DAG correspondant ({measured})"
             rows += f"""
             <tr>
               <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>{r['source']}</b></td>
-              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#e67e22">{age_label}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:{colour}">{age_label}</td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee">{r['stale_h']}h</td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#888">
-                Airflow UI → relancer le DAG correspondant
+                {action}
               </td>
             </tr>"""
 
@@ -1263,6 +1456,85 @@ def send_consolidated_alert(**context):
           double run d'un DAG ou données corrompues ? Vérifier la collecte du jour.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
+    # Section: tenant contamination. Deliberately assembled before the others: a row
+    # sitting under a tenant it cannot belong to is the only finding here that is a
+    # data-integrity fault rather than a collection gap, and it is the class this
+    # repository has actually been bitten by.
+    if contamination:
+        rows = ''
+        for c in contamination:
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>{c['kind']}</b></td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{c['artist']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{c['table']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{c['rows']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#555">
+                {c['detail']}
+              </td>
+            </tr>"""
+
+        sections.append(f"""
+        <h2 style="color:#8e44ad;border-left:4px solid #8e44ad;padding-left:10px">
+          🧬 Contamination locataire ({len(contamination)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Des lignes portent un locataire auquel elles
+          ne peuvent pas appartenir. Rien d'autre ne le voit : les lignes ARRIVENT, donc
+          la fraîcheur, la readiness et le canari sont tous verts.</p>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead>
+            <tr style="background:#f6f0fa">
+              <th style="padding:8px 12px;text-align:left">Type</th>
+              <th style="padding:8px 12px;text-align:left">Locataire</th>
+              <th style="padding:8px 12px;text-align:left">Table</th>
+              <th style="padding:8px 12px;text-align:left">Lignes</th>
+              <th style="padding:8px 12px;text-align:left">Détail</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section: per-tenant collection failures, read from the run ledger. This is the
+    # only section that names the LITERAL cause the platform returned for one tenant,
+    # the same night it happened — freshness needs 48h and 7 monitored tables to say
+    # anything at all.
+    if collection_failures:
+        rows = ''
+        for f in collection_failures:
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">
+                <b>{f['artist_name']}</b> <span style="color:#888">(id={f['artist_id']})</span>
+              </td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{f['platform']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b">
+                {f['status']}
+              </td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#555">
+                {f['reason']}
+              </td>
+            </tr>"""
+
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          🔴 Collecte en échec par locataire ({len(collection_failures)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Le DAG peut être vert : un échec est isolé
+          par locataire pour ne pas emporter la flotte. Ceci est le registre
+          <code>etl_run_log</code>, et la cause est celle que la plateforme a
+          répondue.</p>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead>
+            <tr style="background:#fdf2f0">
+              <th style="padding:8px 12px;text-align:left">Locataire</th>
+              <th style="padding:8px 12px;text-align:left">Plateforme</th>
+              <th style="padding:8px 12px;text-align:left">Issue</th>
+              <th style="padding:8px 12px;text-align:left">Cause</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
     # OK sources footer. A source whose silence is expected is NOT "OK" — it is
     # quiet, and it has a measured reason. Merging the two would state that Meta Ads
     # collected fine last night while its last insight row is two years old.
@@ -1354,6 +1626,19 @@ def send_consolidated_alert(**context):
                                  + (f" +{extra}" if extra > 0 else ""))
         if canary_preflight:
             subject_parts.append("🐤 PRÉFLIGHT ROUGE")
+    if contamination:
+        _kinds = sorted({c['kind'] for c in contamination})
+        subject_parts.append(f"🧬 CONTAMINATION : {len(contamination)} "
+                             f"({', '.join(_kinds)})")
+    if collection_failures:
+        _cf = []
+        for f in collection_failures:
+            label = f"{f['artist_name']} ({f['platform']})"
+            if label not in _cf:
+                _cf.append(label)
+        shown, extra = _cf[:3], len(_cf) - 3
+        subject_parts.append("🔴 COLLECTE KO : " + ", ".join(shown)
+                             + (f" +{extra}" if extra > 0 else ""))
     if failing_dags:
         subject_parts.append(f"{len(failing_dags)} DAG(s) en échec")
     if stale_sources:
@@ -1389,7 +1674,7 @@ def send_consolidated_alert(**context):
     try:
         deliver_or_raise(subject, body)
     except AlertDeliveryError as exc:
-        _close_alert_attempt(run_id, delivered=False, error=str(exc))
+        _close_alert_attempt(run_id, delivered=False, error=safe_error(exc))
         # Fail the task. `send_alert` returned False and the next line used to log
         # "Consolidated alert sent" regardless — three nights of findings evaporated
         # that way (16, 17, 18 Aug 2026) while the task stayed green.
@@ -1468,6 +1753,16 @@ with DAG(
         python_callable=check_canary_preflight,
     )
 
+    t_outcomes = PythonOperator(
+        task_id='check_collection_outcomes',
+        python_callable=check_collection_outcomes,
+    )
+
+    t_contamination = PythonOperator(
+        task_id='check_tenant_contamination',
+        python_callable=check_tenant_contamination,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -1476,4 +1771,4 @@ with DAG(
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
-     t_preflight] >> t_alert
+     t_preflight, t_outcomes, t_contamination] >> t_alert

@@ -64,17 +64,63 @@ def consecutive_failure_days(runs, min_days: int = 3) -> dict:
 # `tests/test_no_detector_is_written_and_never_called.py`.
 
 
-def tenant_freshness_gaps(per_tenant) -> list:
-    """Per-tenant stale sources — `check_data_freshness` ran GLOBALLY, so a tenant with no
-    data on platform Y was masked whenever another tenant had recent data.
+def tenant_freshness_gaps(per_tenant, declared_by_artist=None) -> list:
+    """Per-tenant stale PLATFORMS — `check_data_freshness` ran GLOBALLY, so a tenant with
+    no data on platform Y was masked whenever another tenant had recent data.
 
-    `per_tenant`: iterable of (artist_id, artist_name, results) where results is the list of
-    freshness dicts (each with 'source' and 'stale') returned by check_freshness(db, artist_id).
-    Returns one entry per tenant that has >=1 stale source.
+    `per_tenant`: iterable of `(artist_id, artist_name, results)` where results is the
+    list of freshness dicts returned by `check_freshness(db, artist_id)`.
+    `declared_by_artist`: optional `{artist_id: {logical platform, …}}`. When given, a
+    platform the tenant never declared is not reported — see below.
+
+    Three measured suppressions, no exclusion list anywhere. Each answers a question
+    about THIS tenant, so a doubt keeps the alert.
+
+    1. **Best-of-sources, per platform.** A platform can be proven by more than one
+       source (Spotify: the API table *or* the S4A CSV). `artist_readiness` has always
+       kept the BEST of them (`_RANK`); this function reported EACH of them. So an
+       artist who uses the API and never uploads a CSV was reported stale on
+       "Spotify S4A" every single night while their Spotify was perfectly fresh. That
+       one line is most of the permanent noise: it fires for every API-only tenant.
+    2. **A platform the tenant never declared is not a gap.** It is a platform they do
+       not use. The input is `declared_identities()` — a fact read from the credentials
+       store, not a name someone typed. Absent the map, nothing is suppressed.
+    3. **A source no platform claims is not attributable to a tenant.** "Apple Music"
+       is in `MONITOR_TARGETS` but in no `SOURCES_FOR_PLATFORM` entry, so
+       `artist_readiness` never scores it — while this function reported it stale for
+       every tenant who has never uploaded an Apple CSV. It stays monitored globally,
+       where it belongs.
+
+    `expected_silence` is honoured for free: `check_freshness` already sets
+    `stale=False` when it has MEASURED a reason for the silence.
     """
+    from src.utils.freshness_monitor import SOURCES_FOR_PLATFORM
+
+    # Derived from the registry, never restated: {source label -> logical platform}
+    platform_of_source = {src: platform
+                          for platform, sources in SOURCES_FOR_PLATFORM.items()
+                          for src in sources}
+
     gaps = []
     for artist_id, artist_name, results in per_tenant:
-        stale = [r['source'] for r in (results or []) if r.get('stale')]
+        declared = (declared_by_artist or {}).get(artist_id)
+
+        by_platform: dict[str, list[dict]] = {}
+        for r in (results or []):
+            platform = platform_of_source.get(r.get('source'))
+            if platform is None:
+                continue                      # (3) claimed by no platform
+            if declared is not None and platform not in declared:
+                continue                      # (2) not declared by this tenant
+            by_platform.setdefault(platform, []).append(r)
+
+        stale = sorted(
+            r['source']
+            for platform, rows in by_platform.items()
+            # (1) a platform is a gap only when EVERY source that could prove it is stale
+            if all(x.get('stale') for x in rows)
+            for r in rows
+        )
         if stale:
             gaps.append({
                 'artist_id': artist_id, 'artist_name': artist_name, 'stale_sources': stale,
