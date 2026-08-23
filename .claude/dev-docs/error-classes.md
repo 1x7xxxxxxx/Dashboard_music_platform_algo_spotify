@@ -138,6 +138,12 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [anonymous-surface-answers-a-private-question](#anonymous-surface-answers-a-private-question) | P1 | deterministic | guarded | none |
 | [revocation-written-but-never-read](#revocation-written-but-never-read) | P1 | deterministic | guarded | none |
 | [sentinel-means-privileged-and-missing](#sentinel-means-privileged-and-missing) | P2 | deterministic | guarded | none |
+| [pipeline-writes-to-the-copy-nobody-reads](#pipeline-writes-to-the-copy-nobody-reads) | P2 | deterministic | guarded | none |
+| [decision-made-on-a-string-truncated-for-display](#decision-made-on-a-string-truncated-for-display) | P2 | deterministic | guarded | none |
+| [per-tenant-outcome-not-recorded](#per-tenant-outcome-not-recorded) | P2 | deterministic | guarded | none |
+| [stopped-collecting-is-not-a-status-anyone-reads](#stopped-collecting-is-not-a-status-anyone-reads) | P2 | deterministic | guarded | none |
+| [mandatory-filter-with-no-guard](#mandatory-filter-with-no-guard) | P2 | deterministic | guarded | none |
+| [detector-with-no-scheduler](#detector-with-no-scheduler) | P2 | deterministic | guarded | none |
 | [second-factor-budget-refunded-by-the-first](#second-factor-budget-refunded-by-the-first) | P2 | deterministic | guarded | none |
 | [guard-scope-is-a-hand-written-list](#guard-scope-is-a-hand-written-list) | P2 | deterministic | guarded | none |
 | [input-nobody-would-type-reaches-the-driver](#input-nobody-would-type-reaches-the-driver) | P3 | deterministic | guarded | none |
@@ -1346,6 +1352,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - rex_ref: src/utils/central_apps.py
 - first_seen: 2026-08-22
 - History:
+  - 2026-08-23: **the guard's scope was the defect a THIRD time, and the rule changed because of it.** Found in production: `youtube_daily` wrote the YouTube API key in clear into the Airflow task log every night. Two independent misses. (a) `src/utils/retry.py` was *inside* the scope and green, because the walk only looked inside `ast.ExceptHandler` — retry does `last_exc = exc` and renders `{last_exc}` **outside** the handler, after the loop. The detector now seeds on every `except … as NAME` and follows plain `alias = NAME` rebindings to a fixpoint. (b) `airflow/dags/` was not in the scope at all, and the question the scope asked — *does this module call an HTTP client?* — is the wrong one: a DAG calls none, it CATCHES AND LOGS the exception the collector raised. The scope is now the **transitive closure of the import graph**: a module is in scope if it calls an HTTP client, or imports one that does. That widening turned up **16 modules and 64 sites**, all fixed by routing through `safe_error`. The resulting invariant is simpler than the old one and needs no judgment call: *never interpolate a raw exception, anywhere* — `safe_error` keeps the message shape and blanks only credential values, so there is no diagnostic cost to applying it everywhere. `airflow/dags/meta_token_refresh.py` was the worst of the 64: its `failed` list is joined into a **raised** exception, which becomes the DAG-failure alert **email**, and a Meta token exchange carries `client_secret` and `fb_exchange_token` in the query string.
   - 2026-08-22: **the guard's own scope was the defect.** Written the same day, it was parametrised over five files named by hand — the four connection probes and `central_apps` — and a full-application audit then found the identical leak in every COLLECTOR, which was in none of them (`instagram_api_collector` sends `client_secret` and `fb_exchange_token` as query params; `youtube_collector` logs `HttpError`, whose repr embeds the URI). The scope is now DERIVED from the tree: every module that both calls an HTTP client and handles an exception. That widening immediately caught four more modules. Sites are fixed with `src/utils/safe_error.py::redact`, which keeps the message shape and blanks the values — blanking the whole message costs the operator the one line that says what broke.
   - 2026-08-22: the guard, written for the four sites the audit named, immediately found **five more** — three in `central_apps` (Spotify/YouTube/SoundCloud) and two raw-body echoes in `_platform_meta`. Verified RED by mutation (restore `str(e)` in the YouTube probe).
 - Notes:
@@ -1633,3 +1640,93 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-22
 - History:
   - 2026-08-22: `guarded`. Same rule as `probe_ran` in the nightly readiness path, applied to a screen instead of an email. Verified RED by making an absent verdict render green, and by probing on render.
+
+## pipeline-writes-to-the-copy-nobody-reads
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: an automated capture → validate → publish loop runs, reports success, and produces nothing anyone sees. Each stage is individually correct; the output lands in a duplicate of the target file that stopped being read months earlier. The loop cannot report the problem, because from where it stands it wrote the file it was told to write.
+- root_cause: two files carry the same name and the same role. `DEVLOG.md` at the repo root is the living journal — `/resume` step 3 reads it, `pre_compact.py` and `session_summary.py` (4 sites) point at it. `.claude/dev-docs/DEVLOG.md` is a copy frozen at 2026-06-11. `draft_devlog.py:27` (`_DEVLOG_PATH`) tested the frozen copy for "does today already have an entry?", and `/devlog-promote` inserted promoted entries into it. Measured 2026-08-23: two entire sessions (2026-08-21 afternoon→night, 45 commits; and the night of 2026-08-21→22) had no DEVLOG page anywhere, and the 2026-08-21 draft sat in `pending-devlog.md` with its `issue`/`fix` slots unfilled for two days with nothing signalling it.
+- signature: `python3 -m pytest tests/test_devlog_is_written_where_it_is_read.py -q`
+- long_term_fix: both writers repointed at the live file; the frozen copy now announces itself as an ARCHIVE in its first line. The guard reads the **AST** of every `.claude/hooks/*.py` and `.claude/scripts/*.py` for DEVLOG *path* literals (a text search passes on the explanatory comment that names the wrong path — the lesson of the four hollow guards of 2026-08-22), and excludes prose strings that merely mention `DEVLOG.md`. The slash command has no AST, so it is guarded by its **consequence** instead of its wording: `test_the_archive_stays_behind` fails the moment the archive's newest entry reaches or passes the live file's, which is exactly what a promotion into the wrong file does.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_devlog_is_written_where_it_is_read.py }
+- rex_ref: .claude/commands/devlog-promote.md
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: found while soldering a stale `pending-devlog.md`, not while looking for it — the draft pointed at a hook, the hook pointed at a file, and the file's newest entry was ten weeks old. Sibling sweep over every `.claude/` reference to a DEVLOG path: **exactly two** writers targeted the dead copy (`draft_devlog.py`, `/devlog-promote`); all six readers were already correct, which is why the divergence produced silence rather than a contradiction. Sister of `config-corrected-in-the-file-that-loses` — there the *fix* went into the file that loses, here the *output* does. The four assertions were each seen red by mutation (path reverted; ARCHIVE banner removed; `/resume` phrase changed; a fake entry promoted into the archive) and green after.
+
+## decision-made-on-a-string-truncated-for-display
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a branch written to handle a known, valid edge case never executes. The code reads correctly, the condition names the right thing, and reviewers confirm the case is handled — but in production the exception is raised anyway, every time.
+- root_cause: control flow was decided by searching a string that had been shortened for DISPLAY. `src/collectors/youtube_collector.py` tested `'playlistNotFound' in safe_error(he)`; `src/utils/safe_error.py::safe_error` truncates at 300 characters for LOG HYGIENE, and in a real googleapiclient repr the URL alone is ~170 characters, putting the token at index **455 of 531**. Measured 2026-08-23: `youtube_daily` retried 3x and raised nightly for tenant 12, whose channel simply has no videos, and the channel snapshot already fetched was lost with the exception. The DAG stayed SUCCESS, the tenant went `stale`, and `readiness_red_flags` excludes `stale` — so nobody was told for two nights.
+- signature: `python3 -m pytest tests/test_empty_youtube_channel_is_not_an_error.py -q`
+- long_term_fix: decide on the STRUCTURE the API already provides — `HttpError.error_details` is a list of dicts carrying a machine-readable `reason`. The helper moved to `src/utils/api_errors.py`, which imports no vendor SDK, because keeping it beside `from googleapiclient.discovery import build` made its own test uncollectable on any machine without the Google SDK (a guard that silently does not run is the defect this repo keeps rediscovering). The first assertion pins the PROPERTY that killed the old test — `'playlistNotFound' not in safe_error(err)` — so a substring test cannot be reintroduced and start passing by luck if the truncation limit ever changes.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_empty_youtube_channel_is_not_an_error.py }
+- rex_ref: .claude/rules/python.md
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: sister of `a guard reads structure, not text` (2026-08-22, four guards that failed on their own comment). Same root, opposite direction: there a guard READ text it should have parsed; here a branch DECIDED on text that had been cut. Both are the consequence of treating a human-facing rendering as a machine-readable value. The mutation that proves it restores the original test verbatim and turns two assertions red.
+
+## per-tenant-outcome-not-recorded
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a multi-tenant job reports SUCCESS while one tenant collected nothing. The per-tenant `try/except/continue` that keeps one bad tenant from aborting the fleet is correct — but its only witness is a WARNING line in a task log, and the task's return value lists the tenants that WORKED, so the failing one is absent rather than named. No surface can then answer "did collection run for this tenant?".
+- root_cause: the run ledger existed and was wired to one DAG. Measured 2026-08-23: over its entire history `etl_run_log` held rows for exactly two dag_ids — `meta_ads_api_daily` (195) and `meta_insights_watcher` (13, stopped in May). Spotify, YouTube, SoundCloud and Instagram had **never written a row**, and `src/utils/dag_run_logger.py::DagRunLogger` had exactly one caller. Three dashboard surfaces that read the ledger (`views/etl_logs.py`, `views/alerts.py`, the `has_runs` KPI in `views/home.py`) were blind on four platforms out of five. Concretely: `youtube_daily` was SUCCESS every night while tenant 12 failed inside the loop; freshness eventually turned that tenant `stale`, and `readiness_red_flags` excludes `stale`, so nobody was ever told.
+- signature: `python3 -m pytest tests/test_every_collection_dag_records_its_tenants.py -q`
+- long_term_fix: a one-call API (`record_tenant_success` / `_failure` / `_skip`) that fits the per-tenant isolation shape without re-indenting the loop or swallowing the exception the loop deliberately catches. `skipped` is not optional: a tenant who declared no identity is in a CORRECT state but must still leave a row — absence of a row is indistinguishable from "the DAG never looked". The guard derives its scope from the AST (a DAG that imports from `src.collectors`) and asserts **branch coverage**: every `continue` inside a per-tenant loop must be preceded by a recorder call.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_collection_dag_records_its_tenants.py }
+- rex_ref: src/utils/dag_run_logger.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: the guard was too weak on its first mutation and the mutation is what said so. Checking "is a recorder called in this file" left `instagram_daily` green after deleting one of its two `record_tenant_skip` calls — a ledger with a hole reads exactly like a complete one. Strengthened to per-branch coverage; the same mutation then went red. Two collectors had to start returning a row count (`SoundCloudCollector.run`, `InstagramCollector.run` both returned `None`), because `rows_inserted = 0` would have made "collected nothing" and "did not run" the same value — the very ambiguity the ledger exists to remove. Also fixed on the way: `DagRunLogger.__exit__` wrote `str(exc_val)` into `error_message`, a PERSISTED and dashboard-rendered field — and because the exception arrives as an `__exit__` **parameter** rather than an `except … as e`, it is the one shape the `secret-in-an-exception-message` AST detector is blind to by construction.
+
+## stopped-collecting-is-not-a-status-anyone-reads
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a tenant whose collection worked and then stopped produces no signal anywhere. The credential is valid, rows exist from before, the DAG reports SUCCESS, and every screen is green except the artist's own, which quietly stops moving.
+- root_cause: three independent doors, all shut. (a) The per-tenant `try/except/continue` that stops one bad tenant aborting the fleet leaves the task SUCCESS, so `check_dag_failures` sees no FAILED run. (b) `artist_readiness` computes STALE correctly, and `readiness_red_flags` returned only `NO_DATA + BROKEN` — dropping 🟡 on the floor, although "collected, then stopped" is the ONLY shape a working credential can take when it breaks. (c) `alert_monitor.check_data_freshness` did not serialise `error` into its xcom, so a probe that FAILED rendered in the nightly email as "🟡 stale · Airflow UI → relancer le DAG". Measured on Benken (tenant 12) 2026-08-23: two nights, zero signal.
+- signature: `python3 -m pytest tests/test_a_tenant_that_stopped_collecting_is_reported.py -q`
+- long_term_fix: STALE joins the flags that alert; the freshness xcom carries `error` and `measured_on`, and the email renders a failed probe as "la sonde elle-même a échoué" instead of an action. The STALE `next_action` was rewritten at the same time and that half matters as much: it said "vérifie le DAG youtube" to an ARTIST, who has no Airflow login — the message Cooper condemns in *About Face* p.311 ("demands that he fix a situation that the application can and should usually fix just as well"). Same contract as BROKEN now; the operator gets the DAG name and the literal cause through `etl_run_log` and the nightly mail.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_tenant_that_stopped_collecting_is_reported.py }
+- rex_ref: src/utils/artist_readiness.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: the pre-existing `tests/test_artist_readiness.py` asserted `"DAG meta" in next_action(meta, STALE)` — it PINNED the defect. Its premise died rather than the test being deleted, and the reason is written where the assertion was.
+
+## mandatory-filter-with-no-guard
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a rule stated in bold in `CLAUDE.md` is enforced by memory alone. It holds for months, then one query forgets it and the number shown to a user is silently wrong by a factor of ~2.
+- root_cause: Spotify for Artists CSVs carry a summary row whose `song` is the artist's own name, so every read of `s4a_song_timeline` must add `AND song NOT ILIKE '%1x7xxxxxxx%'`. The 2026-06-11 audit found two unfiltered queries in `trigger_algo/_tab_budget_roi.py` and the displayed cost per stream had been halved. **The two sites were fixed and no guard was written.** Measured 2026-08-23: the table is named 109 times across `src/` and `airflow/`, the filter appears 30 times, and `data_quality_check.py` queries it five times with the filter zero times.
+- signature: `python3 -m pytest tests/test_the_total_row_is_always_filtered_out.py -q`
+- long_term_fix: an AST walk over every SQL literal, flagging only reads that can DOUBLE A TOTAL. Four exemptions, each measured rather than assumed: the parameterised form `song NOT ILIKE %s` (the repo's preferred style), a read pinned to one song (`song =` / `TRIM(song) =`), an existence probe (`COUNT(*) … LIMIT 1`), and a shell command rendered on a help page. The detector is pinned against synthetic modules so it cannot rot into a no-op.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_total_row_is_always_filtered_out.py }
+- rex_ref: .claude/rules/python.md
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: **the guard's first version reported 23 files, nearly all correct** — it looked for the literal `1x7xxxxxxx` and the repository mostly passes the filter as a PARAMETER. That is `watchdog-becomes-the-noise`, caught before shipping by reading the flagged sites instead of trusting the count. Each refinement moved the predicate closer to the QUESTION ("can this read double a total?") and away from the table name: 23 → 10 → 5 → **2**, and the final 2 were both real.
+
+## detector-with-no-scheduler
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a detector is written, tested, documented — and nothing ever runs it. It reports on the day a human happens to type its command, which is never the day the defect appears.
+- root_cause: `tools/tenant_contamination_check.py::scan()` was reachable only from `make tenant-check` and from step 5 of `artist_preflight`, and `alert_monitor.check_canary_preflight` runs steps 2-4 only. So the ONE class this repository has actually been bitten by — every tenant's Spotify popularity history filed under `artist_id = 1` for months in production — was the one class with no watchdog. The other checks cannot see it by construction: rows ARE arriving, so freshness, readiness and the canary are all green; they just belong to somebody else.
+- signature: `python3 -m pytest tests/test_every_nightly_check_is_scheduled_and_heard.py -q`
+- long_term_fix: the scan runs nightly inside `alert_monitor`, importing `tools.` as a namespace package after `sys.path.insert(0, '/opt/airflow')` — with the ImportError branch that pushes "check could not run" as a FINDING, never a pass. The guard asserts the three separate links of the chain, because breaking any one of them produces the same silence: a `check_*` function has an operator, the operator is upstream of the sender, and the finding is named in `has_issues` (that third link is the 2026-08-21 defect, where `central_apps_broken` was in the body and the subject but not in the send decision).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_nightly_check_is_scheduled_and_heard.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: found by asking, of each detector in the repo, "who runs this?" — the same question that found `run_freshness_alerts` had zero callers. A detector's existence is not its execution.

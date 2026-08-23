@@ -54,15 +54,90 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
 
-## 🔖 REPRISE — état au 2026-08-22, séance close (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-08-23, séance close (à lire EN PREMIER au `/resume`)
+
+**▶️ L'index actionnable est vide. Il reste UNE entrée sur toute la roadmap : R1,
+inviter des proches.**
+
+**Séance du 2026-08-23 — la chaîne credentials → collecte est prouvable par locataire.**
+**1520 tests verts** (1403 au départ), ruff propre, audit déterministe clean,
+`make config-check` clean, **98 classes d'erreur, 0 non gardée**. Détail complet dans le
+DEVLOG ; ce qui compte pour reprendre :
+
+- **Un P1 de sécurité fermé** — la clé API YouTube partait en clair dans les logs Airflow
+  chaque nuit. 16 modules, 64 sites. La portée du garde était le défaut, pour la 3ᵉ fois :
+  elle est désormais la **fermeture transitive du graphe d'imports**, et l'invariant est
+  *ne jamais interpoler une exception brute, nulle part*.
+- **Une panne vivante corrigée** — Benken/YouTube échouait chaque nuit avec un DAG vert.
+  La branche « chaîne sans vidéo » existait et était **inatteignable** : elle décidait sur
+  une chaîne tronquée à 300 caractères alors que le mot cherché est à l'index 455.
+- **`etl_run_log` enregistre les 5 plateformes** (il n'en avait jamais eu que Meta). Trois
+  surfaces du dashboard s'allument avec — `etl_logs`, `alerts`, le KPI `has_runs`.
+- **Le silence a trois maillons, chacun gardé** : `stale` alerte, `error` survit à
+  l'e-mail, et deux tâches nocturnes s'ajoutent (`check_collection_outcomes`,
+  `check_tenant_contamination` — cette dernière donne enfin un ordonnanceur à la seule
+  classe dont ce dépôt a réellement souffert).
+- **Les nuits calmes le redeviennent** — la cause n'était pas le canari mais le fait que
+  la fraîcheur par locataire signalait **chaque source** là où readiness prend la
+  meilleure. Trois suppressions, toutes mesurées, et un doute garde l'alerte.
+- **`tools/check_env_parity.py`** — la parité env dépôt↔VPS n'existait nulle part.
+  Vérifié contre la vraie prod : 27 variables sur 3 conteneurs, toutes présentes. Porte
+  bloquante dans `deploy.sh`.
+- **`data_quality_check` reste EN PAUSE, à dessein.** Il n'a **jamais** tourné, et sa
+  sonde Meta passerait au vert sur la source la plus périmée de la prod. Verdict :
+  `.claude/dev-docs/data-quality-check-verdict.md`.
+
+### Le corpus
+Les 10 livres demandés sont arrivés et rangés (`divers` ne contient plus que des mails).
+Trois doublons exacts, créés par un re-dépôt, ont été retirés. Deux domaines créés :
+`qualite-logicielle` (tests + sécurité applicative) et `saas-architecture`. **L'ingestion
+était encore en cours à la clôture** — vérifier avec
+`cd /home/timothe/knowledge-rag && python3 tools/check_index_coverage.py` : la sortie
+doit être vide. Sinon : `uv run python ingest.py`.
+
+### Les deux leçons à relire avant d'écrire un garde
+1. **La portée d'un garde est plus souvent le défaut que sa logique** — trois fois dans
+   cette seule séance.
+2. **Un prédicat doit épouser la question, pas le symptôme.** « Ce fichier contient-il ce
+   mot » a donné 40 % de précision ; « cette lecture peut-elle doubler un total » en a
+   donné 100 %.
+
+---
+
+## 🔖 Historique — état au 2026-08-23 (matin)
 
 **▶️ L'index actionnable est vide. Il reste UNE entrée sur toute la roadmap : R1,
 inviter des proches** — et c'est la seule qu'aucune machine ne peut faire à ta place.
 
-Tout est déployé et vérifié : `prod == canonique`, **75 migrations**, code déployé ==
-`origin/main`, `deploy/Caddyfile` == ce que Caddy sert, **1399 tests verts** contre une
+**Séance du 2026-08-23 — le journal écrivait dans une copie que personne ne lit, et un
+item « bloqué » ne l'était pas.**
+Suite prouvée d'abord : **1399 passed, 17 skipped** contre la vraie base, ce que la
+ligne ci-dessous annonçait — **1403 après le garde ajouté ce jour**. Puis, en soldant un brouillon DEVLOG resté non rempli
+depuis deux jours : `/devlog-promote` et `draft_devlog.py` pointaient tous deux sur
+`.claude/dev-docs/DEVLOG.md`, **gelé au 2026-06-11**, alors que le journal vivant —
+celui que `/resume` lit — est `DEVLOG.md` à la racine. Conséquence mesurée : **deux
+séances entières sans aucune page nulle part**, le 2026-08-21 (après-midi → nuit,
+45 commits) et la nuit du 21→22. Les deux entrées manquantes sont écrites à partir des
+commits, les deux écrivains sont repointés, la copie morte porte un bandeau ARCHIVE, et
+la classe `pipeline-writes-to-the-copy-nobody-reads` est gardée par
+`tests/test_devlog_is_written_where_it_is_read.py` — 4 assertions, chacune vue rouge par
+mutation. Les six **lecteurs** étaient déjà corrects : c'est pourquoi la divergence
+produisait du silence et non une contradiction.
+
+Et pour la seconde fois en deux jours, **un item parqué comme bloqué ne l'était pas** :
+« la config Caddy ne peut pas être validée ici, image indisponible » — elle l'est.
+`make caddy-validate` rend **Valid configuration**, garde fail-fast sur Docker (règle #10),
+vu rouge par mutation sur une directive cassée. La leçon du 2026-08-22 (« prouver qu'une
+tâche est bloquée avant de la parquer ») s'applique aussi aux notes de bas de page.
+
+---
+
+## 🔖 Historique — état au 2026-08-22, séance close
+
+Tout était déployé et vérifié : `prod == canonique`, **75 migrations**, code déployé ==
+`origin/main`, `deploy/Caddyfile` == ce que Caddy sert, 1399 tests verts (état d'alors) contre une
 vraie base, ruff propre, `audit_runner --deterministic` clean, `make config-check` clean,
-**92 classes d'erreur** toutes gardées et complètes.
+93 classes d'erreur toutes gardées et complètes.
 
 ### Avant de conclure quoi que ce soit, demain
 
@@ -119,9 +194,12 @@ posée — 2 appels par nuit au lieu de 35, et zéro au rendu d'une page.
 
 ### Deux points d'attention pour demain
 
-- `deploy/Caddyfile` a été modifié et rechargé, mais **la config n'a pas été validée par
-  un binaire Caddy depuis ce dépôt** (image indisponible ici) — elle l'a été sur la
-  boîte, et `make sync-check` compare désormais les deux.
+- ~~`deploy/Caddyfile` n'a jamais été validé par un binaire Caddy depuis ce dépôt (image
+  indisponible ici)~~ — **levé le 2026-08-23** : l'image l'était. `make caddy-validate`
+  la valide en local (certs bidon montés pour que `tls <fichier> <fichier>` résolve) →
+  **Valid configuration**. Vu rouge par mutation sur une directive cassée. Reste un
+  avertissement `caddy fmt` : **ne pas reformater** — `sync-check` compare ce fichier
+  octet par octet avec ce que sert la prod.
 - Le hook RTK réécrit `git` en `rtk git` **à l'intérieur** d'une commande `ssh` : utiliser
   `/usr/bin/git` quand on pilote la prod.
 

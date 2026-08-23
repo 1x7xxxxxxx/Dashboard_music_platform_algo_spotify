@@ -2,7 +2,7 @@
 rex: []
 ---
 
-Promote a validated DEVLOG draft from `.claude/sessions/pending-devlog.md` into `.claude/dev-docs/DEVLOG.md`.
+Promote a validated DEVLOG draft from `.claude/sessions/pending-devlog.md` into `DEVLOG.md` (repo root).
 
 ## Input
 
@@ -51,14 +51,18 @@ session_window: <ts1> → <ts2>
 
 4. Extract the **promotable block**: everything between the closing `---` of the front-matter and the next horizontal rule `---` that introduces the auto-context comment. The promoted block starts with `## YYYY-MM-DD — <title>` and ends just before the auto-context HTML comment.
 
-5. Open `.claude/dev-docs/DEVLOG.md`. Insert the promotable block:
-   - **Anchor**: just after the file's `# DEVLOG\n\n---\n\n` header (most recent entry on top — DEVLOG is reverse-chronological by convention).
+5. Open `DEVLOG.md` **at the repo root** — the file `/resume` reads. Do NOT write to
+   `.claude/dev-docs/DEVLOG.md`: it is a frozen archive (last entry 2026-06-11), and
+   promoting into it puts the entry where nobody looks. Insert the promotable block:
+   - **Anchor**: immediately before the first `## <date>` heading in the file (most recent
+     entry on top — DEVLOG is reverse-chronological by convention). Do not match on the
+     header text: the root file's title is `# DEVLOG — Music Platform Dashboard`.
    - Add a trailing `\n\n---\n\n` separator after the new entry.
    - Preserve the rest of the file byte-for-byte.
 
 6. Delete `.claude/sessions/pending-devlog.md`.
 
-7. Report: `Promoted DEVLOG entry for YYYY-MM-DD into .claude/dev-docs/DEVLOG.md.`
+7. Report: `Promoted DEVLOG entry for YYYY-MM-DD into DEVLOG.md.`
 
 ## Rules
 

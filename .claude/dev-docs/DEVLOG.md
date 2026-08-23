@@ -1,4 +1,15 @@
-# DEVLOG
+# DEVLOG — ARCHIVE (gelé au 2026-06-11)
+
+> ⚠️ **Ce fichier n'est plus le journal vivant.** Le DEVLOG lu par `/resume`, par
+> `pre_compact.py` et par `session_summary.py` est **`DEVLOG.md` à la racine du dépôt**.
+>
+> Ce qu'il a coûté : `draft_devlog.py` et `/devlog-promote` pointaient ici, donc la
+> boucle brouillon → validation → promotion déposait ses entrées dans une copie que
+> personne ne lit — depuis le 2026-06-11. Deux séances entières (2026-08-21 et la nuit
+> du 21→22) n'avaient aucune page nulle part, et le brouillon du 21 est resté non rempli
+> sans que rien ne le signale. Classe `pipeline-writes-to-the-copy-nobody-reads`.
+>
+> **N'y écris rien.** Les entrées antérieures au 2026-06-11 restent ici pour l'histoire.
 
 ---
 

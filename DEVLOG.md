@@ -5,6 +5,289 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-23 (suite) — La chaîne credentials → collecte, rendue prouvable par locataire
+
+**Contexte** : « deux fois le même problème sur les identifiants qui n'ont pas fonctionné
+sur la collecte du VPS ». La question posée n'était pas « corrige », c'était **« quels
+outils mettre en place pour s'assurer que tout est fonctionnel ? »**. Le dépôt a déjà
+beaucoup de détecteurs, donc la réponse n'était pas d'en ajouter mais de **mesurer ce que
+le filet couvre réellement en production**, puis de ne combler que les trous démontrés.
+
+Sortie : **1520 tests verts** (1403 au départ), ruff propre, audit déterministe clean,
+`make config-check` clean, **98 classes d'erreur** dont 0 non gardée.
+
+### Ce que la mesure a trouvé, et l'ordre compte
+
+**L'infrastructure était saine.** 5/5 conteneurs, 15 DAGs non pausés tous verts, les 3
+crons hôte verts, le veilleur-du-veilleur confirmant `alert_monitor succeeded 5h ago` et
+`delivery record (delivered=t)`. Les couches externes du filet fonctionnent réellement.
+Ce n'est jamais là qu'était le problème.
+
+**Et pourtant une panne était en cours.** Le log de `youtube_daily` de ce matin :
+
+```
+YouTube collect — artist_id=12 (Benken)
+✅ Stats chaîne Benken: 15 abonnés          ← le credential MARCHE
+❌ get_channel_videos: HttpError 404 … "playlistNotFound"
+⚠️ tentative 1/3 … 2/3 … ❌ toutes épuisées
+WARNING - YouTube: 1 artist(s) failed (isolated, continued): 12/Benken
+Done. Returned value was: [{'artist':'1x7…','videos':67},{'artist':'Canary prod','videos':200}]
+```
+
+Six maillons de silence : le credential fonctionne ; une chaîne **sans aucune vidéo n'a
+pas de playlist d'uploads** donc 404 ; l'exception emporte le snapshot de chaîne déjà
+obtenu ; le DAG isole par locataire — **le bon comportement** — mais la valeur de retour
+**ne mentionne pas Benken** ; l'état reste `SUCCESS` donc `check_dag_failures` ne voit
+rien ; le statut devient 🟡 `stale`, et `readiness_red_flags` **exclut `stale` par
+construction**. Deux nuits, zéro signal.
+
+### Le P1 sur le même chemin
+
+`retry.py` rédige chaque tentative avec `safe_error(exc)` puis imprime `{last_exc}`
+**brut** à l'épuisement : la **clé API YouTube en clair** dans le log Airflow, chaque
+nuit. Le balayage transitif a rendu **16 modules, 64 sites**. Le pire,
+`meta_token_refresh.py`, joint sa liste `failed` dans une exception **levée** qui devient
+l'**e-mail d'alerte** — et un échange de token Meta porte `client_secret` et
+`fb_exchange_token` en query string.
+
+**Le garde ratait pour deux raisons structurelles.** `retry.py` était *dans* sa portée et
+vert : il fait `last_exc = exc` et rend l'alias **hors** du handler. Et `airflow/dags/`
+n'y était pas, parce que la question posée — « ce module appelle-t-il un client HTTP ? »
+— est la mauvaise : un DAG n'en appelle aucun, **il journalise l'exception que le
+collecteur a levée**. Portée = **fermeture transitive du graphe d'imports**, et
+l'invariant devient plus simple qu'avant : *ne jamais interpoler une exception brute,
+nulle part* — `safe_error` garde la forme du message et ne blanchit que les valeurs, donc
+l'appliquer partout ne coûte aucun diagnostic.
+
+### La branche morte que personne ne pouvait voir
+
+Le traitement « chaîne sans vidéo = 0 vidéo » **existait** dans le collecteur. Il testait
+`'playlistNotFound' in safe_error(he)` — et `safe_error` **tronque à 300 caractères pour
+l'hygiène des logs**, alors que le mot est à l'**index 455 sur 531**. Une décision de
+contrôle prise sur une chaîne raccourcie **pour l'affichage**. Corrigé en lisant
+`HttpError.error_details`, la **structure**, extraite dans `src/utils/api_errors.py` — un
+module sans SDK vendeur, parce que la garder à côté de `from googleapiclient.discovery
+import build` rendait son propre test **non collectable** sur une machine sans le SDK
+Google. Classe `decision-made-on-a-string-truncated-for-display`.
+
+### Le registre par locataire : bâti à 90 %, câblé à 20 %
+
+`etl_run_log` n'avait, **sur toute son histoire**, que deux `dag_id` : `meta_ads_api_daily`
+(195 lignes) et `meta_insights_watcher` (13, arrêté en mai). `DagRunLogger` existait,
+complet, avec **un seul appelant**. Quatre plateformes sur cinq n'écrivaient rien, et avec
+elles trois surfaces du dashboard (`etl_logs`, `alerts`, le KPI `has_runs` de l'accueil)
+étaient aveugles depuis toujours.
+
+Câblé sur les cinq, avec une API à un appel plutôt que le context manager — celui-ci
+aurait forcé à ré-indenter ~100 lignes ou à avaler l'exception que la boucle attrape
+volontairement. Trois choses ont dû être réparées en chemin :
+
+- **Deux collecteurs ne savaient pas compter.** `SoundCloudCollector.run()` et
+  `InstagramCollector.run()` rendaient `None`, donc « n'a rien collecté » et « n'a pas
+  tourné » auraient été la même valeur — l'ambiguïté exacte que le registre lève.
+- **Spotify avait un trou propre à lui** : sa boucle itère sur des identifiants Spotify,
+  pas sur des locataires, et un locataire sans identité **n'apparaît pas dans la
+  requête**. La requête porte maintenant le locataire.
+- **`DagRunLogger.__exit__` écrivait `str(exc_val)`** dans `error_message`, champ persisté
+  et rendu par le dashboard. L'exception y arrive comme **paramètre de `__exit__`** — la
+  seule forme à laquelle le détecteur AST est aveugle par construction.
+
+### Le silence a trois maillons, et chacun a maintenant son garde
+
+`stale` alerte désormais ; `error` et `measured_on` survivent au saut d'xcom, et l'e-mail
+distingue « la sonde elle-même a échoué » de « la source est périmée » au lieu de dire
+« relance le DAG » aux deux. Deux tâches nocturnes s'ajoutent : `check_collection_outcomes`
+lit le registre et nomme la **cause littérale** par locataire ; `check_tenant_contamination`
+donne enfin un ordonnanceur au scan qui n'en avait aucun — **la seule classe dont ce dépôt
+a réellement souffert** (l'historique Spotify de tous les locataires sous `artist_id = 1`
+pendant des mois) était la seule sans veilleur.
+
+Le garde correspondant vérifie les **trois** maillons séparément, parce que rompre
+n'importe lequel produit le même silence : la fonction a un opérateur, l'opérateur est en
+amont de l'envoi, et le constat est nommé dans `has_issues` — ce troisième maillon étant
+le défaut du 2026-08-21, où `central_apps_broken` était dans le corps et dans le sujet
+mais pas dans la décision d'envoi.
+
+### Et un message que le corpus a condamné
+
+Le `next_action` d'un `STALE` disait « **Données anciennes — vérifie le DAG youtube** ».
+Cette phrase est lue **par l'artiste**, qui n'a pas d'accès Airflow. Cooper, *About Face*
+p.311 : un mauvais message « demands that he fix a situation that the application can and
+should usually fix just as well ». Réécrit sur le contrat de `BROKEN`. Le test qui
+épinglait l'ancien texte n'a pas été supprimé : sa prémisse est morte, et la raison est
+écrite là où était l'assertion.
+
+### Les nuits calmes, et pourquoi elles ne l'étaient pas
+
+Mesuré sur les xcom du dernier passage : `check_data_freshness` 1083 o.,
+`check_credentials_all` 810, `check_onboarding_readiness` 918 — **non vides à chaque
+nuit**, donc `has_issues` toujours vrai, donc la branche « nuit calme » inatteignable.
+
+La cause n'était pas le canari. `artist_readiness` prend le **meilleur** des sources d'une
+plateforme (Spotify se prouve par l'API **ou** le CSV S4A) ; `tenant_freshness_gaps`
+signalait **chaque** source. Tout locataire qui utilise l'API sans jamais déposer de CSV
+était donc rapporté périmé sur « Spotify S4A » toutes les nuits, Spotify parfaitement
+frais. Trois suppressions, **toutes mesurées** — meilleur-des-sources par plateforme ;
+une plateforme non déclarée n'est pas une panne mais un service non utilisé ; une source
+qu'aucune plateforme ne revendique n'est pas attribuable à un locataire. Et le garde
+épingle la moitié qui rend une suppression sûre : **un doute garde l'alerte**.
+
+### Le DAG en pause, enquêté plutôt que rallumé
+
+`data_quality_check` : `is_paused = t` et **`last_start` vide — il n'a jamais tourné**.
+Ce n'est donc pas « il a cassé et on l'a coupé », c'est « il n'a jamais été mis en
+service », et son code n'a jamais été éprouvé contre une vraie base.
+
+Mesuré : sa tâche de fraîcheur Meta lit `MAX(collected_at)` = **il y a 8 h** ✅ pendant
+que la donnée dit `MAX(day_date)` = **2024-09-30**, soit 16 623 h. Elle passerait au vert
+**sur la source la plus périmée de la production** — `freshness-measured-on-write-time`,
+la classe corrigée le 2026-08-21 dans `freshness_monitor` et dont ce DAG porte la version
+d'avant. Le rallumer ajouterait une seconde voix qui contredit la bonne. Verdict complet :
+`.claude/dev-docs/data-quality-check-verdict.md`. **Rien n'a été rallumé.**
+
+### Ce que l'enquête a révélé, et qui compte plus
+
+**La règle obligatoire du filtre S4A n'avait aucun garde.** `s4a_song_timeline` est
+nommée 109 fois dans `src/` et `airflow/`, le filtre `AND song NOT ILIKE '%1x7xxxxxxx%'`
+apparaît 30 fois, et le DAG en pause l'interroge 5 fois sans le porter une seule. La ligne
+« Total » du CSV double les sommes — c'est ainsi que le coût par stream affiché avait été
+divisé par deux en juin. **Les deux sites d'alors avaient été corrigés sans qu'un garde
+soit écrit.**
+
+Et ce garde a failli devenir le bruit qu'il combat : **sa première version a rapporté 23
+fichiers, presque tous corrects**, parce qu'elle cherchait le littéral alors que le dépôt
+passe le filtre **en paramètre**. Chaque affinement a rapproché le prédicat de la
+question — « cette lecture peut-elle doubler un total ? » — et éloigné du nom de table :
+**23 → 10 → 5 → 2**, et les 2 derniers étaient réels.
+
+### La parité env, qui n'existait nulle part
+
+`make sync-check` compare le schéma, le registre de migrations, le montage `tools/`, le
+Caddyfile et le HEAD git — **zéro variable d'environnement**, et il ne peut pas : le
+`docker-compose.yml` de production est gitignoré, donc aucun test ne peut lire les deux
+côtés. `tools/prod_introspect.sh` faisait la mesure et était branché sur rien.
+
+`tools/check_env_parity.py` dérive la matrice attendue de `_REQUIRED_ENV` (jamais une
+liste retapée), lit la **présence seule, jamais une valeur**, et devient une porte dans
+`tools/deploy.sh`. Vérifié contre la vraie production : **27 variables sur 3 conteneurs,
+toutes présentes**, et exit 1 prouvé sur un conteneur à qui il en manque. Il vérifie aussi
+que les trois variables portant l'identité de l'**admin** restent **vides** — elles le
+sont, et c'est ce qui désarme la fuite du 2026-08-20 par la configuration autant que par
+le code. `deploy.sh` dit désormais explicitement qu'il **ne recrée pas** les services
+Airflow, ce qui était le piège suivant.
+
+### Tests
+**1520 passed, 19 skipped** contre la vraie base (1403 au départ, +117), `ruff check .`
+propre, `audit_runner --deterministic` clean, `make config-check` clean — **98 classes,
+96 gardées, 0 non gardée, 98 complètes**.
+
+### Les trois leçons
+1. **La portée d'un garde est plus souvent le défaut que sa logique.** Trois fois de suite
+   ici : la fuite de secret (2 fois), le filtre S4A, l'enregistrement par locataire.
+2. **Un prédicat doit épouser la question, pas le symptôme.** « Ce module appelle-t-il un
+   client HTTP » et « ce fichier contient-il ce mot » sont des symptômes. « Une exception
+   née d'un appel HTTP peut-elle atteindre ce module » et « cette lecture peut-elle
+   doubler un total » sont la question — et donnent 100 % de précision là où l'autre
+   donnait 40 %.
+3. **La mutation n'est pas une formalité.** Elle a invalidé trois gardes de cette séance
+   avant livraison : un qui laissait passer un registre troué, un qui s'appuyait sur son
+   voisin, un qui ne voyait pas le fichier qu'il visait.
+
+---
+
+## 2026-08-23 — Le journal écrivait dans une copie que personne ne lit, et un blocage supposé n'en était pas un
+
+**Contexte** : séance ouverte sur un `/resume` d'un dépôt propre — index de roadmap vide,
+une seule entrée restante (R1, inviter). La suite lancée d'abord, comme le bloc REPRISE
+l'exige : **1399 passed, 17 skipped** contre la vraie base, exactement le chiffre annoncé.
+Le seul item concret était un brouillon DEVLOG resté non promu depuis le 2026-08-21. En le
+soldant, il a livré la cause de sa propre stagnation.
+
+### Ce qui a changé
+
+**`/devlog-promote` et `draft_devlog.py` écrivaient dans un fichier gelé.** Deux fichiers
+portent le nom DEVLOG : `DEVLOG.md` à la racine — le journal vivant, celui que `/resume`
+lit à l'étape 3, celui que `pre_compact.py` et `session_summary.py` visent en quatre
+endroits — et `.claude/dev-docs/DEVLOG.md`, une copie dont la dernière entrée date du
+**2026-06-11**. `draft_devlog.py:27` interrogeait la copie gelée pour « une entrée
+existe-t-elle déjà pour aujourd'hui ? », et `/devlog-promote` y insérait l'entrée promue.
+Toute la boucle brouillon → validation → promotion déposait donc sa sortie là où personne
+ne regarde, depuis dix semaines. Son ancre d'insertion ne pouvait d'ailleurs pas matcher le
+fichier racine, dont le titre est `# DEVLOG — Music Platform Dashboard`.
+
+**Ce que ça avait coûté, mesuré :** **deux séances entières sans aucune page nulle part**
+— le 2026-08-21 (après-midi → nuit, **45 commits**) et la nuit du 21→22. Leur contenu ne
+vivait que dans `archive.md` et dans les messages de commit. Les deux entrées sont écrites
+à partir de ces commits et insérées à leur place chronologique.
+
+**Balayage de la classe avant le correctif** (règle #14, fait à la main) : sur les
+42 références à un chemin DEVLOG sous `.claude/`, `tools/`, `src/`, `tests/` et `docs/`,
+**exactement deux** écrivains visaient la copie morte, et **les six lecteurs étaient déjà
+corrects**. C'est précisément pourquoi la divergence produisait du **silence** et non une
+contradiction : rien ne se contredisait, il manquait simplement des pages que personne
+n'avait de raison de venir chercher.
+
+**Correctif et garde.** Les deux écrivains repointés sur `DEVLOG.md` ; la copie morte
+porte désormais un bandeau `# DEVLOG — ARCHIVE (gelé au 2026-06-11)` en première ligne.
+`tests/test_devlog_is_written_where_it_is_read.py` garde la classe en quatre assertions,
+et le choix de méthode compte :
+
+- Le côté Python est lu sur l'**AST** — chaque littéral de *chemin* DEVLOG dans
+  `.claude/hooks/*.py` et `.claude/scripts/*.py`, `ast.Assign` et valeurs de `ast.Dict`
+  comprises. Une recherche textuelle aurait passé sur le commentaire d'explication que je
+  venais d'écrire, lequel nomme le mauvais chemin : c'est la leçon des quatre gardes creux
+  du 2026-08-22, qui ont échoué sur leur propre commentaire.
+- Le filtre exclut les chaînes de prose (`^[\w./-]+\.md$`) — première version rouge sur le
+  message de rappel `"💡 Before /clear : update DEVLOG.md…"` de `session_summary.py`, qui
+  n'est pas un chemin. Un garde qui crie sur une phrase est un garde qu'on désarme.
+- La commande slash n'a pas d'AST. Elle est donc gardée par sa **conséquence** et non par
+  sa formulation : `test_the_archive_stays_behind` tombe dès que l'entrée la plus récente
+  de l'archive atteint ou dépasse celle du fichier vivant — c'est exactement ce que produit
+  une promotion dans le mauvais fichier, quelle que soit la rédaction de la commande.
+
+Les quatre assertions ont été **vues rouges par mutation** puis vertes : chemin remis sur
+l'archive ; bandeau ARCHIVE retiré ; formulation de `/resume` changée ; fausse entrée
+promue dans l'archive.
+
+**Classe `pipeline-writes-to-the-copy-nobody-reads`** (P2, deterministic, guarded) —
+sœur de `config-corrected-in-the-file-that-loses` : là, c'est le *correctif* qui va dans le
+fichier qui perd ; ici, c'est la *sortie*. Catalogue à **93 classes**, 91 gardées, 0
+non gardée, 93 complètes.
+
+**Et un item parqué comme bloqué ne l'était pas.** Le bloc REPRISE portait depuis la
+veille : « `deploy/Caddyfile` a été modifié et rechargé, mais la config n'a pas été validée
+par un binaire Caddy depuis ce dépôt — **image indisponible ici** ». Mesuré plutôt que cru :
+`docker pull caddy:2-alpine` réussit. `make caddy-validate` monte le fichier du dépôt avec
+une paire de certificats jetables (pour que `tls <fichier> <fichier>` résolve — on valide la
+**syntaxe**, pas les certificats de production) et rend **`Valid configuration`**. Garde
+fail-fast sur Docker, conformément à la règle #10 ; vu **rouge par mutation** sur une
+directive cassée, vert après, et `deploy/Caddyfile` restauré octet pour octet. L'unique
+avertissement restant est `caddy fmt` : **ne pas reformater** — `make sync-check` compare ce
+fichier octet par octet avec ce que Caddy sert en production, donc un reformatage local
+créerait une fausse dérive. Le message du target le dit.
+
+C'est la deuxième fois en deux jours qu'un blocage supposé cède à la première vérification
+— après R22 (« le pentest réseau se fait hors du VPS ») fait en vingt minutes depuis cette
+machine. La leçon vaut aussi pour les notes de bas de page, pas seulement pour les tâches.
+
+### Tests
+**1403 passed, 17 skipped** contre la vraie base (1399 au départ, +4 assertions du
+nouveau garde), `ruff check .` propre,
+`audit_runner --deterministic` clean (la nouvelle signature comprise),
+`make config-check` clean.
+
+### La leçon
+**Un pipeline ne peut pas signaler qu'il publie dans le vide.** Chaque étape était
+individuellement correcte : le hook rédigeait, la commande promouvait, le fichier était
+bien écrit. Il n'existait aucune surface où l'absence puisse contredire une présence — et
+c'est la même forme que `suppressed-alert-renders-as-health`,
+`finding-rendered-but-not-alerted` et le veilleur absent de son propre `MONITORED_DAGS` :
+**le silence était lisible comme la santé.** Ce qui l'a rendu visible n'est pas un
+détecteur mais une question de provenance — *pourquoi ce brouillon est-il encore là ?* —
+suivie jusqu'au fichier plutôt qu'arrêtée au symptôme.
+
+---
+
 ## 2026-08-22 (nuit) — Six défauts que l'audit a fait sortir, et une matrice qui répond en une image
 
 **Contexte** : après avoir rendu la chaîne credentials → collecte prouvable, j'ai
@@ -337,6 +620,348 @@ veilleur qui répète un fait insoluble devient le bruit qu'il doit prévenir.
 **Un seul geste : inviter des proches sur `https://streamlytics.fr`.** Puis, après chaque
 inscription et sans exception, `make artist-preflight ARTIST=<son id>` — pour Meta et
 Instagram c'est le seul contrôle qui existe.
+
+---
+
+## 2026-08-21→22 (nuit) — Les credentials ne marchaient pas, et rien n'était en panne
+
+**Écrite après coup le 2026-08-23** : cette séance — commits `439f8c5..daff058` — n'avait
+pas de page ici. Son contenu vivait dans le bloc historique de `checklist.md` et dans
+`archive.md`. Elle précède l'entrée « 2026-08-22 (jour) » ci-dessus, qui referme les neuf
+tâches qu'elle a ouvertes.
+
+**Contexte** : deux sessions artiste avaient échoué sur les credentials. En cherchant ce
+qui restait après tous les correctifs par symptôme, la réponse s'est révélée plus simple
+et pire : **les deux plateformes que l'onboarding recommande en premier échouaient sous
+les yeux de l'artiste**, sans qu'aucune infrastructure ne soit en panne.
+
+### Les huit défauts du parcours credentials
+
+| # | ce qui se passait | mesuré |
+|---|---|---|
+| 1 | **La matrice Spotify lisait la table CSV.** Test de connexion vert nommant l'artiste, DAG qui collecte, écran 🔴 « Connecté — aucune donnée » jusqu'à un import CSV. | Spotify était jugée sur **quatre tables** selon l'écran. Après correctif, vérifié en prod : le canari a **0 ligne CSV, 10 lignes API**, readiness `ok`. |
+| 2 | **Enregistrer un identifiant Instagram déclenchait `meta_ads_api_daily`**, jamais `instagram_daily` — aucune première collecte. L'entrée `'instagram'` de la carte était **inatteignable par construction**. | Le fichier se lisait comme si la fonctionnalité existait. |
+| 3 | **L'onglet Meta mentait à chaque sauvegarde** : « ⚠️ Le renouvellement automatique ne fonctionnera pas », pour tout artiste, parce qu'il lisait trois champs que le formulaire ne déclare pas. | Retiré, pas réparé : sous ADR-006 le token est central et n'expire pas. |
+| 4 | **Instagram était exemptée de tout** : pas d'unicité d'identité (deux locataires pouvaient revendiquer le même compte en silence), pas de test de connexion, absente du canari et de l'alerte. | La même carte existait en **six exemplaires**, dont deux amputés. |
+| 5 | **Un garde vert tenait le trou en place** : un test affirmait l'égalité entre les deux copies fausses, et les tests d'unicité se paramétraient sur la copie **amputée** — une entrée manquante y *retire des cas* au lieu d'en faire tomber un. | Vérifié par contraste : Instagram retiré, les paramétrés restent verts (8), seul le cliquet littéral tombe. |
+| 6 | **Une sonde en panne s'affichait « Connecté — aucune donnée »** — `freshness_monitor` posait un champ `error` pour ça, personne ne le lisait. | Statut `BROKEN` ⚠️, qui ne demande **rien** à l'artiste. |
+| 7 | **L'inscrit qui abandonne n'existait pour personne.** `readiness_red_flags` ne remontait que `NO_DATA` ; un locataire sans identité n'en produit aucune. | Première exécution en prod : **11 locataires bloqués** détectés. |
+| 8 | **Le moniteur nocturne ne pouvait pas voir la cause littérale de Benken** : les sondes renvoient `True` sur env absent, et seul un humain tapant `--require` le voyait. | `central-app-missing` passe reported/manual → **guarded/deterministic**. |
+
+Et le portail go/no-go n'avait **ni test ni horaire**, alors que le runbook s'ouvre sur
+« on n'invite personne tant que `make artist-preflight` n'est pas vert » : 9 tests +
+`check_canary_preflight` chaque nuit, scopé aux plateformes que le canari déclare.
+Exécuté en prod : **0 problème**.
+
+**Deux régressions à moi, trouvées en production et non en relecture.** Faire dériver les
+cibles du watchdog m'a fait rendre la table `artists`, où `artist_id` est l'identifiant
+Spotify VARCHAR — `operator does not exist: character varying = integer`, soit la classe
+`column-name-is-not-its-meaning` que ce dépôt documente déjà. Et exiger des lignes dans
+**toutes** les tables d'une plateforme rapportait le canari muet alors qu'il collecte :
+`watchdog-becomes-the-noise` failli recréé. Ce qui a tenu : le contrat conservateur — la
+sonde a dit « could not run » plutôt que « tout va bien ».
+
+**Ce que ça dit des trois bêta-testeurs** : Benken et GRiNCH n'ont **jamais déclaré de
+Spotify**, Cuzebo n'a rien du tout. Ils ont abandonné devant les écrans ci-dessus. Le
+correctif ne les récupère pas tout seul — il empêche le prochain de vivre la même chose.
+
+### Le pentest (R21), déclenché par la règle 13
+
+**[CRITIQUE] Un locataire choisissait l'URL appelée avec le token de la plateforme.**
+`ig_user_id` est un champ libre interpolé dans un chemin Graph API — et `requests`
+**n'encode pas** le `/` d'un chemin qu'on construit soi-même. Poser
+`ig_user_id = me/accounts` produisait
+`https://graph.facebook.com/v24.0/me/accounts?access_token=<SYSTEM_USER_TOKEN>`, et la
+branche « 200 sans username » renvoyait `ri.text[:150]` — or `/me/accounts` répond avec
+des Page access tokens issus de ce System User, rendus à un non-admin par `st.error`.
+L'extraction de `_probe_instagram` de la séance n'a pas créé l'interpolation, elle l'a
+héritée — mais elle l'a **câblée dans `CONNECTION_TESTS`**, donc le planificateur nocturne
+et le préflight l'appelaient aussi. Corrigé au bon endroit : le registre d'identités porte
+désormais une **forme** par plateforme, validée avant écriture et avant réseau, avec
+`re.fullmatch` — jamais `match`, qui accepterait `123/me/accounts`, soit toute l'attaque.
+
+**[HAUT] Mon correctif d'unicité Instagram était inatteignable en production.**
+`_handle_save` appelait `find_identity_conflict` avec la clé d'**onglet**, donc l'onglet
+meta ne comparait que `account_id` ; `ig_user_id` n'était jamais comparé à personne. Et le
+test passait parce qu'il appelait avec le nom **logique** — un appel que le chemin de
+sauvegarde ne fait jamais. C'est `guard-derived-from-the-thing-it-guards`, capitalisée
+deux heures plus tôt dans la même séance, réécrite sous une autre forme.
+
+**[HAUT] L'export PDF permettait un SSRF aveugle et la lecture d'un fichier serveur.**
+`HTML(string=…)` sans `url_fetcher` : WeasyPrint enregistre http/https/ftp/**file** avec
+`allowed_protocols=None` et suit les redirections ; `_renderers.py` n'échappait rien, et
+deux valeurs contrôlées par le locataire y arrivent (un nom de titre pris sur le **stem du
+nom de fichier CSV uploadé**, que `parse_timeline` ne passe pas par `canonical_song()`, et
+un nom de campagne Meta). Un locataire en plan **gratuit** plantait `<img src="http://…">`
+puis générait son PDF : la requête partait du conteneur, donc atteignait `127.0.0.1` et le
+réseau compose ; avec `file:///…`, une image serveur arbitraire arrivait dans le PDF. Et
+`export_pdf.py` permet à un **admin** de générer le rapport de n'importe quel locataire —
+la charge se déclenchait alors dans la session admin. Deux contrôles indépendants :
+`_no_remote_resources` ne sert que des `data:` (la classe est fermée quelle que soit la
+prochaine valeur non échappée) et `_esc()` sur les trois interpolations nommées. **Pas**
+d'échappement en masse : essayé, le test de snapshot doré a attrapé la régression — tous
+les badges devenaient du `&lt;span&gt;` visible.
+
+**[HAUT] Le limiteur de débit était entièrement contournable.** `client_ip()` lisait le
+**premier** hop de `X-Forwarded-For`, c'est-à-dire ce que le client a envoyé ; Cloudflare
+et Caddy **ajoutent** le pair qu'ils voient, donc l'entrée de l'attaquant survit en
+position 0. Un `X-Forwarded-For: 10.0.0.<n>` incrémenté crée un compartiment neuf par
+requête. Chaîné avec l'oracle d'inscription et le verrouillage à 5 tentatives — dont la
+colonne est **partagée** entre l'API et le dashboard — un anonyme pouvait garder tous les
+locataires dehors, indéfiniment. Lecture par la droite, `CF-Connecting-IP` prioritaire, et
+le point facile à rater : **repli sur le pair socket quand il y a moins de hops que
+prévu**, sans quoi le contournement revient dans tout environnement à un seul proxy.
+
+**[HAUT] Des secrets écrits chaque nuit dans les logs Airflow.** `central_apps.check_meta`
+imprimait `f"probe error ({exc})"` pour un appel portant `META_ACCESS_TOKEN` et
+`META_APP_ID|META_APP_SECRET` en query string — le message d'une exception `requests`
+embarque l'URL préparée complète. Aucune action d'attaquant n'était requise : un incident
+DNS suffisait, et le fichier survit à l'incident. Le garde écrit pour les quatre sites
+nommés par l'audit en a trouvé **cinq de plus** ; puis l'audit large a montré que sa portée
+était elle-même le défaut — **paramétré sur cinq fichiers nommés à la main**, il ratait
+**tous les collecteurs** (`instagram_api_collector` envoie `client_secret` et
+`fb_exchange_token` en query params ; `youtube_collector` journalise des `HttpError` dont
+le repr contient l'URI). La portée est désormais **dérivée de l'arbre** : tout module qui
+appelle un client HTTP et attrape une exception. Les sites passent par
+`src/utils/safe_error.py::redact`, qui garde la forme du message et blanchit les valeurs —
+tout aveugler coûterait à l'opérateur la seule ligne qui dit ce qui a cassé.
+
+**[MOYEN]** Le nom d'artiste, saisi librement à l'inscription, était injecté brut dans
+l'e-mail d'alerte HTML (`html.escape` aux deux sites). Et l'allowlist d'identifiants ne
+pouvait **rien refuser** : elle était construite en appelant la fonction même qui produit
+la valeur testée — elle interroge maintenant le `frozenset` dérivé indépendamment.
+
+Zones auditées et **propres**, consignées pour qu'on ne les ré-audite pas sans raison :
+isolation locataire sur 71 lectures scopées, zéro injection SQL de valeur sur 118 sites de
+SQL dynamique, aucune route FastAPI pilotable par paramètre, webhook Stripe qui échoue
+fermé, `defang_formulas` sur tous les chemins d'export. Ce qui ne se lit pas dans le dépôt
+est parti en `## 🙋 En attente de toi` sous R22 (intrusion réseau, fuzzing, `pip-audit`)
+— **et s'est fait le lendemain depuis cette machine**, voir l'entrée « 2026-08-22 (jour) ».
+
+### Ce que la nuit a ouvert
+Neuf entrées (R23→R31), **toutes découvertes entre 22 h et 2 h**, aucune connue en début
+de soirée, chacune nommant son fichier et sa ligne. Les deux P1 : l'oracle d'inscription
+(R23) et la révocation qui ne révoquait rien (R24). Elles sont closes dans l'entrée
+suivante.
+
+### Tests
+**1263 verts** avec base, 17 skipped, ruff propre, audit déterministe clean.
+
+### La leçon
+`suppressed-alert-renders-as-health`, `finding-rendered-but-not-alerted`,
+`corpus-deposited-but-never-indexed`, et le veilleur absent de son propre `MONITORED_DAGS` :
+à chaque fois **le silence était lisible comme la santé**, et il fallait une surface
+**extérieure** pour faire la différence. C'est aussi pourquoi ~160 tests skippant en
+silence sans Postgres est un angle mort et pas une commodité — quatre vagues de code ont
+été écrites dans cet angle cette nuit-là, et la base a trouvé un vrai défaut au premier
+lancement, dans une protection déjà commitée comme fermée.
+
+---
+
+## 2026-08-21 (après-midi → nuit) — Le canari, le registre de migrations, et trois voyants verts qui mentaient
+
+**Écrite après coup le 2026-08-23** : ces 45 commits n'avaient pas de page dans ce
+fichier. L'archive de la roadmap et les messages de commit les portaient, le DEVLOG non
+— et c'est lui qu'on relit pour comprendre une journée. Rien n'est nouveau ici, tout est
+tiré des commits `ef1bbc7..439f8c5`.
+
+**Contexte** : l'entrée précédente s'arrête au déploiement de la fuite locataire. Ce qui
+a suivi tient en une question — *est-ce que ce qu'on croit vert l'est ?* — posée à six
+endroits, et la réponse a été non six fois. Sortie : index de la roadmap à 0, canari de
+production vivant, R13 clos, **de 900 à ~1071 tests verts**.
+
+### Ce qui a changé
+
+**Les vues à une connexion par rendu (R9), et la couverture avant le refactor.** R9
+disait « tech-debt, pas un leak » ; la mesure disait cinq connexions par rendu sur
+`admin` et `hypeddit`, quatre sur `airflow_kpi`. La règle #9 ne dit pas « préférer une
+connexion », elle dit *exactement une*. Le détail coûteux : Streamlit exécute le corps
+de **chaque onglet** à chaque rerun, donc les cinq connexions d'`admin` partaient à tous
+les coups. Refus assumé de toucher ces vues avant d'avoir la couverture — `admin` porte
+l'effacement RGPD, `hypeddit` écrit depuis un formulaire, et le render-smoke ne clique
+sur rien. D'où `test_admin_hypeddit_buttons.py` (la garde en deux temps de l'effacement :
+cliquer sans motif n'efface rien) et `test_hypeddit_write_path.py` (les lignes
+atterrissent sous le locataire qui a soumis ; un second envoi le même jour corrige au
+lieu de dupliquer ; une session sans locataire n'écrit rien). Le plafond de
+`test_view_connection_budget.py` est désormais **vide**. La route du clic `hypeddit`
+reste fermée par le harnais, pas par la vue : `AppTest` ne rejoue pas une page portant un
+`st.segmented_control` mono-sélection — le test le dit en **nommant le fichier Streamlit**
+au lieu d'avaler l'erreur.
+
+**L'index de la roadmap séparé en deux (ADR-009 en germe).** Cinq des six lignes de
+`## 📋 Tâches ouvertes` répondaient « rien — quelqu'un d'autre doit agir d'abord ».
+Nouvelle section `## 🙋 En attente de toi`, et `test_roadmap_index_is_honest.py` épingle
+les trois façons dont le partage cesserait d'être vrai — dont **chaque ligne en attente
+nomme le geste qu'elle attend** : « BLOQUÉ » est un statut, « régénérer le token dans
+Business Manager » est un geste.
+
+**ADR-008 — le travail qui attend une donnée qu'on n'a pas.** Distinct d'ADR-007
+(mesuré inutile) : ces items sont nécessaires et ne peuvent pas commencer. Mesuré en
+production : `ml_prediction_outcomes` = **0 ligne**, donc R5 n'est pas différé par choix.
+R14/C1 (Meta multi-comptes) tombe sur la même mesure — 2 locataires, 1 compte
+publicitaire chacun, et `meta_campaigns` **n'a pas de colonne `account_id`**. R2 (CAPI)
+rejoint l'ADR pour la même raison, avec le détail qui a une échéance : `_fbp`/`_fbc` et
+les UTM **ne se récupèrent pas rétroactivement**, donc la capture au `register` doit être
+en place au moment de la décision de campagne, pas quand la landing est en ligne.
+
+**Le canari a trouvé trois défauts que rien de mono-locataire ne pouvait voir.** Créé en
+local (`artist_id=471`), il a payé en une heure :
+`env-resolved-against-cwd` (P2 — `.env` résolu contre le cwd de l'appelant ;
+`src/dashboard/app.py` lancé comme CLAUDE.md le documente ne chargeait **rien**, et
+`load_dotenv` renvoie `False` sans lever) ; `identity-mirrored-but-written-once` (P1 —
+l'identité Spotify vit dans `artist_credentials.extra_config` **et** dans
+`saas_artists.spotify_artist_id` ; `create_canary.py` n'écrivait que le premier, d'où
+« Connecté — artiste ✅ » sur tous les écrans, DAG en succès en une demi-seconde, zéro
+ligne) ; `api-partial-date-into-date-column` (P2 — Spotify renvoie `release_date` à
+précision variable, `tracks.release_date` est `DATE`, et « 2013 » faisait échouer
+l'upsert **groupé par artiste**, coûtant tous ses top tracks du run ; un commentaire
+juste au-dessus affirmait que le cas était géré).
+
+**La CI testait contre un seul locataire — mesuré, pas supposé.** Une base canonique
+fraîche (`init_db` + les migrations) contient **exactement un** locataire, « Artist
+Default ». Avec un seul, « collecter pour ce locataire » et « collecter pour la flotte »
+rendent les mêmes lignes : tout défaut d'isolation se lit comme un comportement correct.
+La CI sème désormais `ci-canary` avec des identités **publiques réelles**, différentes de
+celles du locataire 1. Garde vérifié par mutation : rouge à un locataire, vert à deux.
+
+**Le registre de migrations, qui a commencé par casser ce qu'il protégeait.**
+`schema_migrations(filename, applied_at, checksum)` + une boucle dans `tools/migrate.sh`
+qui n'applique que l'absent : 70 fichiers rejoués à chaque exécution → 0. Mais le
+changement, en apparence purement additif, a modifié le **contexte de rejeu** dont une
+instruction non gardée dépendait depuis des mois : `024` fait un `DROP CONSTRAINT` nu
+puis échoue à recréer sa clé — impossible depuis que `044` l'a rendue window-aware.
+Survivable tant que tout le jeu repassait dans l'ordre ; **rejouée seule**, elle
+détruisait la clé primaire de `s4a_song_playlist_adds` à chaque exécution. Trouvé en
+interrogeant `pg_constraint`, pas en croyant le « ✅ no unexpected psql error » du runner
+— l'effet était un cran sous ce qu'il mesurait. `tests/test_migrations_are_replay_safe.py`
+parse les 70 fichiers et refuse un `DROP` sans `IF EXISTS` hors d'un `DO` gardé.
+
+**ADR-002 rejetait Alembic sur une prémisse fausse — la conclusion tient quand même.**
+Il disait « 26 migrations, toutes idempotentes » ; elles sont **70** et ne le sont pas.
+Prémisse corrigée, conclusion maintenue pour une raison que l'ADR ne donnait pas :
+l'`autogenerate` d'Alembic **exige des modèles SQLAlchemy et ce dépôt n'en a aucun**.
+Le vrai défaut n'était pas « pas de framework », c'était « pas de registre ».
+
+**Trois voyants verts qui mentaient.**
+1. `freshness-measured-on-write-time` — les sept sondes lisaient `collected_at`. En
+   production, `meta_insights_performance_day` : `MAX(collected_at)` = ce matin 07h01,
+   `MAX(day_date)` = **2024-09-30**, 0 ligne sur 7 jours. Le DAG tournait et réécrivait
+   les mêmes lignes vieilles de deux ans. Après correctif : **16 577 h** de retard, plus
+   deux sources CSV réellement périmées apparues au passage (S4A 1 817 h, Apple Music
+   1 605 h). Chaque résultat porte désormais `measured_on` : `metric` ou `write`.
+2. `suppressed-alert-renders-as-health` — la suppression écrite pour Meta Ads mettait
+   `stale=False`, et **quatre** surfaces lisaient `not stale` comme « tout va bien » :
+   le tableau des sources, `platform_status` (donc la matrice d'onboarding,
+   `readiness_red_flags` et le préflight), le pied « ✅ Sources OK » de l'e-mail nocturne,
+   et `debug_alert_monitor`. Un troisième état ⏸️ (`expected_silence`, `QUIET`) porte
+   désormais la raison mesurée.
+3. Le canari allait devenir le bruit qu'il existe pour éviter : `check_credentials_all`
+   et `check_onboarding_readiness` énumèrent tous les artistes actifs, donc il aurait émis
+   chaque nuit « 3 credentials manquants » + un « connecté sans données » permanent — un
+   e-mail quotidien pour un locataire dans son état **normal**.
+   `get_active_artists(exclude_canaries=True)` dans ces deux contrôles **et seulement là**
+   (l'exclure par défaut ferait cesser la collecte *pour* le canari).
+
+**Le token Meta n'était pas expiré — trois défauts empilés (R13, clos).** Trois enquêtes
+avaient chacune trouvé un vrai défaut et s'étaient arrêtées là, sans jamais tester les
+credentials d'app contre la bonne app. (a) `META_APP_ID` contenait l'ID du **compte
+publicitaire** (567214713853881) et non celui de l'application (2200684950508458) — deux
+nombres de longueur voisine dans deux menus adjacents de Business Settings, qu'aucun
+payload d'API ne distingue ; symptôme « Cannot get application info », qui se lit comme
+« le token a expiré ». (b) `META_APP_SECRET` ne correspondait pas. (c) Le token portait
+un `E` parasite (`EEAA…`) **et** était de type USER, pas SYSTEM_USER. Le guide promettait
+pourtant « System User tokens — not personal user tokens » : *une règle écrite en prose et
+vérifiée par rien est une règle que le système n'a pas.* Et la clôture finale : la
+correction du jour était allée dans `.env` alors que **`.env.local` gagne par
+construction** — classe `config-corrected-in-the-file-that-loses`. Interrogé avec les bons
+credentials, `debug_token` répond `is_valid=True`, `SYSTEM_USER`, `expires_at=0`,
+43 scopes. Au passage : la docstring de `check_meta` affirmait que les tokens System User
+« ne peuvent pas être validés via Graph REST » — observation tirée d'une **config cassée**
+et promue en règle générale, qui a ensuite protégé le défaut qui l'avait produite.
+
+**R20 livré en production.** Canari `artist_id=14` : préflight vert de bout en bout,
+contamination comprise, 10 titres et 200 vidéos collectés sous ce locataire, les deux DAG
+en `success` avec `conf={"artist_id": 14}`. Le blocage était réel et bête : `tools/`
+n'était monté dans **aucun** conteneur alors que `psycopg2` n'existe **que** dans les
+conteneurs — une étape de runbook qui se lit parfaitement et ne tourne nulle part. Montage
+`./tools:/opt/airflow/tools:ro` partout où `./src` est monté, et le garde exige ce
+couplage. ⚠️ Consigné : **le compose de production est gitignoré**, donc ce correctif
+n'arrive pas par `git pull`.
+
+**`make sync-check` voit enfin une migration non appliquée**, et ferme
+`migration-ahead-of-its-code` par le côté qui manquait — du code déployé *avant* sa
+migration. Le même script vérifie que `tools/` reste monté. **`make schema-check-local`**
+comble l'autre angle mort : ni la CI ni une base jetable ne peuvent voir la dérive du
+**local**, toutes deux partant du canonique. La cible a immédiatement trouvé deux écarts,
+tous deux internes (le registre absent du canonique → migration 071 ; les colonnes
+`period_start`/`period_end` de `s4a_song_playlist_adds`, seconde victime des relances de
+024). L'empreinte de comparaison était **dupliquée** dans le Makefile — deux copies d'une
+clé de comparaison sont deux choses qui dérivent — extraite dans
+`tools/dev/schema_fingerprint.sql`.
+
+**`.env` ligne 67 : une étiquette sans dièse (R18).** `nom entreprise=BAUDRY Timothé`,
+lue par Docker comme une clé — et une clé ne peut pas contenir d'espace. La correction
+vaut trois lignes ; ce qu'elle a débloqué vaut la séance : lancer la suite contre la
+**vraie base locale** a fait tomber huit tests, et chacun disait quelque chose de vrai.
+Dont : `soundcloud_tracks_daily.track_id` en `bigint` là où `init_db.sql` dit
+`VARCHAR(50)` (349 lignes conservées), et surtout **`collect_spotify_top_tracks` ne lit
+jamais `dag_run.conf`** alors que `collect_spotify_artists`, dans le même fichier, le
+fait — un clic « collecte pour l'artiste 12 » dépensait le quota Spotify de toute la
+flotte. Le test de fuite lui-même était faux : `assert artist_ids == {tenant}` n'est vrai
+que sur une flotte à un membre.
+
+**Le veilleur n'avait pas de veilleur.** `alert_monitor` est absent de son propre
+`MONITORED_DAGS`, et il ne peut pas y être : **un DAG qui ne tourne pas ne peut pas
+signaler qu'il n'a pas tourné.** Le contrôle va dans `tools/infra_health_cron.sh`, qui lit
+la base de métadonnées Airflow et distingue « l'ordonnanceur ne l'a jamais pris » de « il a
+tourné et échoué ». Trouvé dans le même balayage : `central_apps_broken` alimentait le
+**corps** et le **sujet** de l'e-mail mais **pas `has_issues`** — la condition qui décide
+d'envoyer quoi que ce soit. Une app partagée tombée seule ne produisait donc **aucun**
+e-mail. Le contrôle écrit pour rompre un silence de plusieurs mois était lui-même muet
+dans le cas exact qu'il visait. Le garde balaie la classe : il parse le DAG, relève chaque
+nom issu d'un `xcom_pull` dans `send_consolidated_alert`, et exige qu'il figure dans
+l'expression `has_issues`.
+
+**Trois gardes creux, tous les trois attrapés par la seule mutation.** Deux testaient une
+sous-chaîne que la ligne d'`import` satisfaisait à elle seule — verts alors que l'appel
+avait disparu. Le troisième, un `re.search` en `DOTALL` de `t_creds` à `>> t_alert`,
+enjambait les définitions d'opérateurs entre les deux, donc `t_canary` était « trouvé »
+même décâblé. Et six assertions sur le miroir d'identité vérifiaient qu'un **appel
+existe** : un appel qui existe et n'écrit qu'une table **est** le défaut. Sur l'AST, ils
+tombent.
+
+**Mes 40 règles de permission effacées en silence par le harnais.** Ajoutées dans
+`.claude/settings.local.json` en début de séance ; une approbation de permission plus tard
+a fait réécrire ce fichier par Claude Code depuis sa copie en mémoire, prise **avant**
+l'édition. 103 entrées → 60, sans un mot. Un fichier que le harnais réécrit n'est pas un
+endroit où poser des règles durables : elles vivent désormais dans `.claude/settings.json`,
+versionné, et `test_routine_permissions_live_in_project_settings_not_local` épingle
+l'**emplacement**, pas la liste.
+
+**R17 : le geste réclamé avait déjà été fait, personne ne pouvait le voir.** La roadmap
+demandait de déposer les PDF/EPUB d'ergonomie ; neuf des dix étaient sur le disque depuis
+21h51, **huit minutes après que la ligne a été écrite**, et n'avaient jamais été indexés.
+La lecture d'alors — « le corpus renvoie du bruit, meilleur score 0,016 » — était juste sur
+le symptôme et fausse deux fois sur la cause : un domaine déposé-mais-non-ingéré et un
+domaine vide rendent exactement la même chose (`verify.py` énumère les livres **présents**,
+donc ne peut structurellement pas rapporter une absence) ; et **0,016 vaut exactement
+1/61, le score RRF d'un rang 1** — le reranker fusionne des rangs, son score n'encode que
+la **position**, jamais la qualité. Vérifié en posant une recette de choucroute au domaine
+ergonomie : même top, 0,01639. Deux classes chez `knowledge-rag`
+(`corpus-deposited-but-never-indexed`, `rank-score-read-as-relevance`).
+
+### Tests
+De **900** à **~1071** verts au fil de la séance, `ruff check .` propre, audit
+déterministe propre, les cinq gardes bloquants verts, CI verte.
+
+### Les deux leçons
+- **La valeur d'un détecteur tient au rapport de ses constats qui méritent une action, pas
+  à leur nombre.** Le dépôt a payé la taxe du loup trois fois dans la journée : le
+  rapporteur de migrations nommant quatre artefacts de rejeu à côté d'une vraie erreur, la
+  dérive de schéma dont 24 écarts sur 26 étaient `text` vs `varchar`, et le canari.
+- **La mesure et la question doivent porter sur la même chose.** « Écrit récemment » n'est
+  pas « décrit un jour récent » ; « l'appel existe » n'est pas « la ligne est écrite » ;
+  « le token est malformé » n'est pas « le token est expiré ».
 
 ---
 

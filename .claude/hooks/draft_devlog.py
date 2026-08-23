@@ -24,7 +24,11 @@ from pathlib import Path
 
 _SESSION_MARKER_FILE = ".claude/sessions/.session-start-ts"
 _PENDING_FILE = ".claude/sessions/pending-devlog.md"
-_DEVLOG_PATH = ".claude/dev-docs/DEVLOG.md"
+# The living DEVLOG is the repo-root file — it is what /resume reads and what
+# pre_compact.py / session_summary.py already point at. `.claude/dev-docs/DEVLOG.md`
+# is a frozen archive (last entry 2026-06-11): checking it for "today's entry" made
+# this hook blind to entries that exist. Class: pipeline-writes-to-the-copy-nobody-reads.
+_DEVLOG_PATH = "DEVLOG.md"
 _MIN_FILES = 3
 _FALLBACK_WINDOW_SEC = 2 * 60 * 60  # 2h
 
