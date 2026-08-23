@@ -129,3 +129,67 @@ def _no_real_smtp(monkeypatch, request):
         f"'send_verification_email', lambda *a, **k: True)` — or mock `smtplib.SMTP` "
         f"yourself if the send path is what you mean to exercise."
     )
+
+
+# ---------------------------------------------------------------------------
+# The suite called the platforms' real APIs
+# ---------------------------------------------------------------------------
+#
+# R41. Khorikov (*Unit Testing Principles*, p.213 et p.221) sépare les dépendances
+# MANAGED — la base, qu'on ne mocke pas, et ce dépôt a raison de tourner sur un vrai
+# Postgres — des dépendances UNMANAGED, hors process et observables de l'extérieur, qui
+# « are part of your system's observable behavior. Such dependencies should be mocked
+# out. » SMTP en fait partie, et a été borné plus haut le 2026-08-23. Les APIs des
+# plateformes aussi, et rien ne les bornait.
+#
+# Mesuré le même jour avec un mouchard sur `socket.connect` pendant une exécution
+# complète : `test_artist_preflight.py::test_a_scoped_run_still_requires_its_own_platform`
+# ouvrait QUATRE connexions sortantes réelles — vers Meta (157.240.196.17), Google
+# (35.186.224.24) et SoundCloud (3.164.85.105) — parce que `step_central_apps` sonde les
+# quatre plateformes, y compris celles hors périmètre, avec les credentials de `.env`.
+#
+# Pourquoi ce défaut a vécu plus longtemps que son jumeau SMTP : un mail arrive dans une
+# boîte et se voit. Un appel HTTP réel ne laisse aucune trace côté opérateur — il
+# consomme du quota, peut écrire, et fait échouer la CI dès qu'il n'y a pas de réseau.
+#
+# La frontière est posée sur la SOCKET, pas sur `requests` : les collecteurs passent par
+# `requests`, `googleapiclient` et `urllib` selon la plateforme, et patcher une seule des
+# trois aurait laissé les autres sortir. Seuls les ports 80/443 sont refusés — Postgres
+# (5433) doit continuer de passer, c'est une dépendance *managed*.
+
+@pytest.fixture(autouse=True)
+def _no_real_http(monkeypatch, request):
+    """No test may reach an external HTTP(S) endpoint. Records, fails at teardown."""
+    import socket
+
+    attempts: list[str] = []
+    original = socket.socket.connect
+
+    def _blocked(self, address, *args, **kwargs):
+        try:
+            host, port = address[0], address[1]
+        except (TypeError, IndexError):      # AF_UNIX & co : rien à voir avec HTTP
+            return original(self, address, *args, **kwargs)
+        if port in (80, 443):
+            attempts.append(f"{host}:{port}")
+            raise ConnectionRefusedError(
+                "blocked by tests/conftest.py::_no_real_http — a test must not call an "
+                "external API"
+            )
+        return original(self, address, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", _blocked)
+    # Exposé pour le méta-test qui déclenche volontairement la frontière.
+    request.node._http_attempts = attempts
+
+    yield
+
+    assert not attempts, (
+        f"{request.node.nodeid} opened {len(attempts)} REAL outbound HTTP(S) "
+        f"connection(s) to {', '.join(sorted(set(attempts)))}.\n"
+        f"The credentials come from .env, so this spends real API quota, can write to a "
+        f"real account, and fails in CI the moment there is no network.\n"
+        f"Stub the client in the test. If the HTTP call IS what you mean to exercise, "
+        f"patch the transport yourself — your patch lands after this one and is never "
+        f"seen here."
+    )

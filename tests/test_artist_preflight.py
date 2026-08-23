@@ -108,6 +108,20 @@ def test_an_out_of_scope_platform_is_still_printed(pf, monkeypatch) -> None:
 
 # ── step 1: absence is narrowed to the scope, never skipped ───────────────────
 
+@pytest.fixture(autouse=True)
+def _no_live_central_probes(monkeypatch):
+    """`step_central_apps` sonde les QUATRE plateformes pour de vrai, hors périmètre
+    compris — quatre connexions sortantes vers Meta, Google et SoundCloud avec les
+    credentials de `.env`, mesurées le 2026-08-23. C'est le bon comportement pour l'outil
+    d'opérateur, et le mauvais pour un test : ceux d'ici portent sur l'absence de
+    VARIABLE D'ENVIRONNEMENT (`missing_central_env`), que le réseau n'éclaire pas.
+    """
+    import tools.check_central_apps as cca
+
+    for name in ("check_spotify", "check_youtube", "check_soundcloud", "check_meta"):
+        monkeypatch.setattr(cca, name, lambda *a, **k: True)
+
+
 def test_a_scoped_run_still_requires_its_own_platform(pf, monkeypatch) -> None:
     """The standing production run is `--platforms youtube`; if absence is skipped
     there, the one check aimed at the beta failure never runs in production."""

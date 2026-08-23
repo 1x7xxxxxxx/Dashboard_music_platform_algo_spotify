@@ -29,4 +29,5 @@ EN = {
     "upgrade.page.export_pdf": "PDF Export",
     "upgrade.page.revenue_forecast": "Revenue forecasts",
     "upgrade.page.account": "My account",
+    "upgrade.no_tenant": "Incomplete session: the payment could not be linked to your account. Please sign in again and retry.",
 }

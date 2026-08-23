@@ -8,6 +8,7 @@ Tasks:
   3. check_data_freshness    — run freshness check on all sources
   4. check_billing_sync      — Stripe subscriptions stuck / lapsed without sync
   5. check_row_anomalies     — daily-insert spike vs trailing baseline (data poison)
+  5b. check_row_dips         — per-tenant daily-insert DIP (partial collection, R39)
   6. send_consolidated_alert — build and send one email with all findings
 
 Implements bricks:
@@ -714,6 +715,115 @@ def check_canary_health(**context):
     context['task_instance'].xcom_push(key='canary_problems', value=problems)
 
 
+# Colonne de locataire des tables surveillées. Allowlist explicite (règle transverse #8) :
+# ces noms sont interpolés dans une f-string SQL, donc ils ne peuvent pas venir d'ailleurs
+# que d'ici. Vérifié en base le 2026-08-23 : les cinq portent `artist_id` INTEGER.
+DIP_TENANT_COLUMN = {
+    'youtube_video_stats': 'artist_id',
+    'soundcloud_tracks_daily': 'artist_id',
+    'meta_insights_performance_day': 'artist_id',
+    'ml_song_predictions': 'artist_id',
+    's4a_song_timeline': 'artist_id',
+}
+_DIP_TABLES = frozenset(DIP_TENANT_COLUMN)
+_DIP_DATE_COLUMNS = frozenset(col for _t, col in ANOMALY_TABLES)
+
+
+def check_row_dips(**context):
+    """Flag a per-tenant daily-insert DIP: far fewer rows than usual, but not zero.
+
+    R39. `check_row_anomalies` watches only the spike direction, and says so: "freshness
+    already covers the opposite (no recent data)". That is true of ZERO rows and false of
+    TOO FEW. A recent, partial collection — 3 tracks where 40 usually land — triggers
+    neither: freshness sees data from today, the spike check sees no spike. This repo has
+    lived that hole twice (SoundCloud "✅ on 0 titles" at the GRiNCH test, Benken's empty
+    YouTube channel) and found it by hand both times.
+
+    Moses/Gavish/Vorwerck, *Data Quality Fundamentals* p.144, name it: **Volume — "Has
+    all the data arrived?"** is a pillar of its own, distinct from Freshness.
+
+    Two deliberate differences from the spike check:
+
+    * **Per tenant.** A fleet-wide count hides exactly the case that matters: one artist's
+      collection collapsing while the others carry the total. This is the whole point.
+    * **On the last COMPLETE day** (`day < CURRENT_DATE`). The spike check reads the most
+      recent day, which is legitimate for a spike — a double run shows up immediately.
+      For a dip it would compare a day still in progress against full days and fire every
+      single morning. A detector that cries every day is one nobody reads; the neighbour
+      check keeps its own semantics, this one takes the day that is over.
+
+    Le seuil vit dans `src.utils.volume_monitor` — testable sans Airflow, qu'aucun
+    DAG de ce dépôt ne permet d'importer hors conteneur.
+
+    Le plancher est MESURÉ sur la prod du 2026-08-23, pas choisi : les volumes réels par
+    locataire y sont 1498/j (canari 14), 19/j (admin 1) et **7/j (Benken 12)**. Un
+    plancher à 30 — la première valeur écrite ici — aurait rendu le détecteur aveugle à
+    deux locataires sur trois, dont précisément celui qui a une panne de collecte vivante.
+    À 5, il couvre les trois et ne déclenche sur aucun : la prod est stable. Le seul creux
+    trouvé à l'écriture est sur la base LOCALE — SoundCloud y est passé de 19 titres/jour
+    à 1 depuis le 2026-08-21 — et c'est exactement la forme que R39 vise.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.volume_monitor import dip_finding, is_partial_collection
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    dips = []
+    try:
+        for table, date_col in ANOMALY_TABLES:
+            tenant_col = DIP_TENANT_COLUMN.get(table)
+            if tenant_col is None:
+                continue
+            # Règle #8 : allowlist AVANT l'interpolation, jamais après.
+            if table not in _DIP_TABLES or date_col not in _DIP_DATE_COLUMNS:
+                logger.warning(f"Row-dip: identifiant hors allowlist, table ignorée: {table}")
+                continue
+            # Filtre S4A obligatoire (CLAUDE.md) : la ligne « Total » du CSV écraserait
+            # la référence de chaque locataire et rendrait tout creux invisible.
+            extra = ("AND song NOT ILIKE '%1x7xxxxxxx%'"
+                     if table == 's4a_song_timeline' else "")
+            rows = db.fetch_query(
+                f"""WITH d AS (
+                        SELECT {tenant_col} AS tenant, {date_col}::date AS day,
+                               count(*)::float AS c
+                        FROM {table}
+                        WHERE {tenant_col} IS NOT NULL
+                          AND {date_col}::date < CURRENT_DATE
+                          {extra}
+                        GROUP BY 1, 2
+                    ),
+                    last_day AS (
+                        SELECT tenant, max(day) AS day FROM d GROUP BY 1
+                    )
+                    SELECT l.tenant,
+                           (SELECT c FROM d WHERE d.tenant = l.tenant AND d.day = l.day),
+                           (SELECT avg(c) FROM (
+                                SELECT c FROM d
+                                WHERE d.tenant = l.tenant AND d.day < l.day
+                                ORDER BY d.day DESC LIMIT 7) x),
+                           l.day::text
+                    FROM last_day l"""
+            )
+            for tenant, recent, baseline, day in rows or []:
+                if is_partial_collection(recent, baseline):
+                    dips.append(dip_finding(table, tenant, recent, baseline, day))
+                    logger.warning(
+                        f"Row dip: {table} tenant={tenant} {int(recent)} on {day} "
+                        f"vs ~{baseline:.0f}/day"
+                    )
+    finally:
+        db.close()
+
+    logger.info(f"Row-dip check: {len(dips)} partial collection(s)")
+    context['task_instance'].xcom_push(key='row_dips', value=dips)
+    return dips
+
+
 def check_onboarding_readiness(**context):
     """Flag any active artist CONNECTED to a platform but receiving NO data (the silent gap).
 
@@ -1106,6 +1216,7 @@ def send_consolidated_alert(**context):
     drift = ti.xcom_pull(task_ids='check_drift_anomalies', key='drift_anomalies') or []
     billing_issues = ti.xcom_pull(task_ids='check_billing_sync', key='billing_issues') or []
     row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
+    row_dips = ti.xcom_pull(task_ids='check_row_dips', key='row_dips') or []
     tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
     central_broken = ti.xcom_pull(task_ids='check_central_apps',
                                   key='central_apps_broken') or []
@@ -1129,7 +1240,7 @@ def send_consolidated_alert(**context):
     # is simultaneously broken and stale. The check added to break a silence was
     # itself silent (found 2026-08-21).
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
-                  or billing_issues or row_anomalies or tenant_gaps or readiness_flags
+                  or billing_issues or row_anomalies or row_dips or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination)
 
@@ -1456,6 +1567,24 @@ def send_consolidated_alert(**context):
           double run d'un DAG ou données corrompues ? Vérifier la collecte du jour.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
+    # Section: per-tenant collection dips (R39 — pilier Volume, l'autre sens).
+    if row_dips:
+        items = ''.join(
+            f"<li>artiste <b>{d['tenant']}</b> — <b>{d['table']}</b> : {d['recent']} "
+            f"ligne(s) le {d['day']} vs ~{d['baseline']:.0f}/j "
+            f"(−{100 - 100 * d['recent'] / max(d['baseline'], 1):.0f}%)</li>"
+            for d in row_dips
+        )
+        sections.append(f"""
+        <h2 style="color:#e67e22;border-left:4px solid #e67e22;padding-left:10px">
+          📉 Collecte partielle ({len(row_dips)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Des données sont bien arrivées, mais
+          beaucoup moins que d'habitude pour CE locataire — la fraîcheur ne voit rien
+          (il y a des lignes) et le détecteur de pic non plus. Vérifier les credentials
+          et le périmètre collecté de cet artiste.</p>
+        <ul style="font-size:0.9em">{items}</ul>""")
+
     # Section: tenant contamination. Deliberately assembled before the others: a row
     # sitting under a tenant it cannot belong to is the only finding here that is a
     # data-integrity fault rather than a collection gap, and it is the class this
@@ -1657,6 +1786,8 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"💳 {len(billing_issues)} abonnement(s)")
     if row_anomalies:
         subject_parts.append(f"📈 {len(row_anomalies)} pic(s)")
+    if row_dips:
+        subject_parts.append(f"📉 {len(row_dips)} collecte(s) partielle(s)")
 
     # An empty subject was reachable: the four tenant-level signals contributed no
     # subject text, so a night carrying only those sent "🚨 Dashboard Alert:" and
@@ -1733,6 +1864,11 @@ with DAG(
         python_callable=check_row_anomalies,
     )
 
+    t_dips = PythonOperator(
+        task_id='check_row_dips',
+        python_callable=check_row_dips,
+    )
+
     t_readiness = PythonOperator(
         task_id='check_onboarding_readiness',
         python_callable=check_onboarding_readiness,
@@ -1771,4 +1907,4 @@ with DAG(
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
-     t_preflight, t_outcomes, t_contamination] >> t_alert
+     t_preflight, t_outcomes, t_contamination, t_dips] >> t_alert

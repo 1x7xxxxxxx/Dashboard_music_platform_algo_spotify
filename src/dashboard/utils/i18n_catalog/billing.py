@@ -76,4 +76,5 @@ EN = {
     "billing.mrr_header": "MRR breakdown",
     "billing.total_mrr": "Total MRR",
     "billing.paying_artists": "Paying artists",
+    "billing.no_tenant": "Incomplete session: the payment could not be linked to your account. Please sign in again and retry.",
 }

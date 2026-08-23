@@ -240,9 +240,22 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
         # Stripe Payment Link: client_reference_id carries the tenant id so the
         # webhook (checkout.session.completed) provisions the right artist. Without
         # it the payment can't be linked to a tenant.
+        # Sans `client_reference_id`, le webhook `checkout.session.completed`
+        # exécute `if artist_id and customer_id:` et ne fait RIEN : le client paie
+        # et n'est jamais provisionné. Un lien de paiement non attribuable est donc
+        # pire qu'aucun lien — on ne le rend pas. Mesuré le 2026-08-23 (R40) : les
+        # deux surfaces de paiement dégradaient silencieusement vers `checkout_url`
+        # nu quand l'identifiant du locataire manquait.
         _aid = tenant_scope()
-        _url = f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url
-        st.link_button(label, _url, type="primary")
+        if _aid:
+            st.link_button(label, f"{checkout_url}?client_reference_id={_aid}",
+                           type="primary")
+        else:
+            st.button(label, type="primary", disabled=True,
+                      key=f"upgrade_no_tenant_{target_plan}")
+            st.error(t("billing.no_tenant",
+                       "Session incomplète : le paiement ne pourrait pas être rattaché "
+                       "à ton compte. Reconnecte-toi puis réessaie."))
     else:
         # No Stripe configured: enabled button that surfaces the manual path.
         if st.button(label, type="primary", key=f"upgrade_{target_plan}"):

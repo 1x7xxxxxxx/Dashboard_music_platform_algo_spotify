@@ -46,74 +46,19 @@ default_args = {
 }
 
 
-def check_meta_ads_freshness(**context):
-    """
-    Vérifie que les données Meta Ads ont été collectées récemment (< 48h).
-    Lève une exception si données trop anciennes.
-    """
-    try:
-        from src.database.postgres_handler import PostgresHandler
+# `check_meta_ads_freshness` a été RETIRÉE le 2026-08-23 (R42), pas réparée.
+#
+# Elle lisait `MAX(collected_at) FROM meta_campaigns` — la date d'ÉCRITURE — et alertait
+# au-delà de 48 h. Mesuré sur la prod : cette date disait « il y a 8 h » pendant que la
+# donnée elle-même (`MAX(day_date)`) s'arrêtait au 2024-09-30, soit 16 623 h. Le DAG Meta
+# tourne et réécrit les mêmes vieilles lignes ; la date d'écriture avance, la donnée non.
+# C'est la classe `freshness-measured-on-write-time`.
+#
+# `src/utils/freshness_monitor.py` fait le même travail correctement — il lit `day_date`
+# — et est déjà branché sur l'e-mail nocturne via `alert_monitor.check_data_freshness`.
+# Rallumer celle-ci aurait ajouté une seconde voix, contredisant la bonne, sur la seule
+# source réellement morte en production. Superseded, donc retirée.
 
-        logger.info('='*70)
-        logger.info('🔍 VÉRIFICATION FRAÎCHEUR DONNÉES META ADS')
-        logger.info('='*70)
-
-        db = PostgresHandler(
-            host=os.getenv('DATABASE_HOST', 'postgres'),
-            port=int(os.getenv('DATABASE_PORT', 5432)),
-            database=os.getenv('DATABASE_NAME', 'spotify_etl'),
-            user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASSWORD')
-        )
-
-        # Vérifier dernière collecte des campagnes
-        query = """
-            SELECT
-                MAX(collected_at) as last_collection,
-                EXTRACT(EPOCH FROM (NOW() - MAX(collected_at))) / 3600 as hours_ago
-            FROM meta_campaigns
-        """
-
-        result = db.fetch_query(query)
-
-        if not result or not result[0][0]:
-            logger.error('❌ Aucune donnée Meta Ads trouvée en base')
-            db.close()
-            raise ValueError('❌ CRITIQUE: Aucune collecte Meta Ads effectuée')
-
-        last_collection, hours_ago = result[0]
-
-        logger.info(f'📅 Dernière collecte: {last_collection}')
-        logger.info(f'⏱️  Il y a: {hours_ago:.1f} heures')
-
-        # Seuil d'alerte : 48h (2 jours)
-        max_hours = 48
-
-        if hours_ago > max_hours:
-            logger.error(f'❌ ALERTE: Données trop anciennes ({hours_ago:.1f}h > {max_hours}h)')
-            db.close()
-            raise ValueError(f'❌ Données Meta Ads obsolètes: {hours_ago:.1f}h')
-
-        # Compter les enregistrements récents
-        count_query = "SELECT COUNT(*) FROM meta_campaigns WHERE status = 'ACTIVE'"
-        active_count = db.fetch_query(count_query)[0][0]
-
-        logger.info(f'✅ {active_count} campagne(s) active(s)')
-
-        db.close()
-
-        logger.info('✅ Données Meta Ads à jour')
-        logger.info('='*70 + '\n')
-
-        return {
-            'last_collection': str(last_collection),
-            'hours_ago': round(hours_ago, 2),
-            'active_campaigns': active_count
-        }
-
-    except Exception as e:
-        logger.error(f'❌ Erreur vérification Meta Ads: {safe_error(e)}')
-        raise
 
 
 def check_spotify_data_consistency(**context):
@@ -139,6 +84,30 @@ def check_spotify_data_consistency(**context):
         issues = []
         warnings = []
 
+        # ── Circuit breaker (R42) ────────────────────────────────────────────
+        # Freshness et Distribution sont deux piliers DISTINCTS (Moses/Gavish/Vorwerck,
+        # *Data Quality Fundamentals*, p.144), et les contrôles ci-dessous jugent la
+        # FORME de la donnée. Les lancer sur une source périmée produit des constats
+        # vrais sur le passé et faux sur le présent — et une seconde voix qui contredit
+        # `freshness_monitor`. On s'abstient, et l'abstention est un RÉSULTAT : elle est
+        # rapportée, jamais levée.
+        from datetime import date as _date
+
+        from src.utils.quality_gate import abstention_note, source_is_fresh_enough
+
+        last_day_rows = db.fetch_query(
+            "SELECT MAX(date) FROM s4a_song_timeline "
+            "WHERE song NOT ILIKE '%1x7xxxxxxx%'"
+        )
+        last_data_day = last_day_rows[0][0] if last_day_rows else None
+        if not source_is_fresh_enough(last_data_day, _date.today()):
+            note = abstention_note(last_data_day, _date.today())
+            logger.warning(f'⏸️  Circuit ouvert — {note}')
+            db.close()
+            context['task_instance'].xcom_push(key='quality_abstained', value=note)
+            context['task_instance'].xcom_push(key='quality_issues', value=[])
+            return {'abstained': True, 'reason': note, 'issues': []}
+
         # ====== CHECK 1: Artistes sans données S4A ======
         logger.info('\n📊 Check 1: Artistes sans données S4A...')
 
@@ -148,6 +117,10 @@ def check_spotify_data_consistency(**context):
             WHERE a.active = TRUE
               AND NOT EXISTS (
                 SELECT 1 FROM s4a_song_timeline t WHERE t.artist_id = a.id
+                  AND t.song NOT ILIKE '%1x7xxxxxxx%'   -- filtre obligatoire (CLAUDE.md) :
+                  -- sans lui, un artiste dont les SEULES lignes sont la ligne « Total »
+                  -- du CSV passe pour alimenté. C'était la 5e des cinq requêtes, et la
+                  -- seule encore sans filtre au 2026-08-23.
                   AND t.song NOT ILIKE '%1x7xxxxxxx%'
               )
         """
@@ -285,7 +258,12 @@ def check_spotify_data_consistency(**context):
 
         # Lever une exception si problèmes critiques
         if issues:
-            raise ValueError(f'❌ {len(issues)} problème(s) critique(s) détecté(s)')
+            # Ne LÈVE PAS. Une tâche qui échoue sur un constat métier part en FAILED,
+            # et `alert_monitor.check_dag_failures` en fait une alerte quotidienne
+            # non actionnable — le détecteur devient sa propre panne. Le constat
+            # remonte par XCom, comme tous les autres de ce dépôt.
+            context['task_instance'].xcom_push(key='quality_issues', value=issues)
+            logger.error(f'❌ {len(issues)} problème(s) critique(s) détecté(s)')
 
         return {
             'issues_count': len(issues),
@@ -562,11 +540,10 @@ with DAG(
     max_active_runs=1,  # Une seule exécution à la fois
 ) as dag:
 
-    # Tâche 1: Vérifier fraîcheur Meta Ads (données < 48h)
-    check_meta_task = PythonOperator(
-        task_id='check_meta_ads_freshness',
-        python_callable=check_meta_ads_freshness,
-    )
+    # Tâche 1 retirée le 2026-08-23 (R42) : `check_meta_ads_freshness` mesurait la
+    # fraîcheur sur la date d'ÉCRITURE et serait passée au vert sur la source la plus
+    # morte de la prod. `freshness_monitor` fait le même travail correctement et est
+    # déjà branché sur l'e-mail nocturne. Voir le commentaire en tête de fichier.
 
     # Tâche 2: Vérifier cohérence données Spotify
     check_spotify_task = PythonOperator(
@@ -588,8 +565,7 @@ with DAG(
     )
 
     # Définir le flux d'exécution
-    # Les checks s'exécutent en parallèle, puis stats, puis résumé
-    [check_meta_task, check_spotify_task] >> generate_stats_task >> send_summary_task
+    check_spotify_task >> generate_stats_task >> send_summary_task
 
 
     # Dans data_quality_check.py

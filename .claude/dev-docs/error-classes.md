@@ -62,7 +62,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [streamlit-pin-drift](#streamlit-pin-drift) | P1 | deterministic | guarded | safe |
 | [make-fail-late](#make-fail-late) | P3 | heuristic | reported | none |
 | [collector-silent-success](#collector-silent-success) | P2 | heuristic | guarded | none |
-| [artist-id-or-1](#artist-id-or-1) | P1 | deterministic | open | none |
+| [artist-id-or-1](#artist-id-or-1) | P1 | deterministic | guarded | none |
 | [sql-fstring-identifier](#sql-fstring-identifier) | P1 | heuristic | open | none |
 | [db-connection-per-show](#db-connection-per-show) | P3 | heuristic | open | none |
 | [naive-datetime-now](#naive-datetime-now) | P2 | heuristic | open | none |
@@ -162,6 +162,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [config-corrected-in-the-file-that-loses](#config-corrected-in-the-file-that-loses) | P2 | manual | guarded | none |
 | [tool-imports-the-app-without-a-path](#tool-imports-the-app-without-a-path) | P1 | deterministic | guarded | none |
 | [test-sends-real-mail-to-real-people](#test-sends-real-mail-to-real-people) | P1 | deterministic | guarded | none |
+| [unattributable-payment-link](#unattributable-payment-link) | P2 | deterministic | guarded | none |
+| [partial-collection-invisible](#partial-collection-invisible) | P2 | deterministic | guarded | none |
+| [test-calls-a-real-api](#test-calls-a-real-api) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -226,7 +229,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: `get_artist_id()` returns None for two unrelated states (admin, and no tenant), and `or 1` was the shortest way to make a view render during development.
 - long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
 - autofix: none
-- guard: { type: ci-step, ref: .claude/scripts/audit_runner.py --deterministic (ci.yml) }
+- guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one }
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-27 (ref: DEVLOG#2026-03-27)
 - History:
@@ -234,6 +237,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-05-15: catalogued, added to `make audit`.
   - 2026-05-15: no-arg /sweep caught a FALSE POSITIVE — the prior signature `get_artist_id() *or *1` matched the `view_session()` docstring + CLAUDE.md rule text that *quote* the anti-pattern, breaking the `deterministic` (CI-safe) contract. Hardened to require assignment context `= get_artist_id() or 1` (verified 0 real hits, docstring excluded). `make audit` recipe synced to the same regex (no catalogue↔audit drift).
   - 2026-06-13: **now CI-BLOCKING** — `audit_runner.py --deterministic` runs every `kind: deterministic` signature as a blocking ci.yml step (0 real hits today). status open→guarded; this P1 leak pattern can no longer merge.
+  - 2026-08-23: gardée pour la première fois, dans le cadre de R40. La classe était cataloguée P1 depuis des mois avec `status: open` et `guard: none` — le catalogue la connaissait, rien ne la surveillait. Le garde lit l'AST : un `BoolOp(Or)` dont la première valeur est `get_artist_id()` / `tenant_scope()` et une autre une constante. Vu rouge par mutation sur `get_artist_id() or 1` et `tenant_scope() or 'admin'`, vert sur le dépôt réel.
+
 
 ## sql-fstring-identifier
 - status: open
@@ -1800,3 +1805,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: found from the operator's INBOX, not from any check the repo runs — three emails timestamped within the session's own test runs. No detector could have seen it: every guard in the repo asks whether the code is right, and none asks what the suite does to the outside world. The generalisation worth keeping is that a test suite has a blast radius, and it was never bounded here — SMTP is now, real HTTP is not yet.
+
+## unattributable-payment-link
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un client paie et n'est jamais provisionné. Le paiement réussit côté Stripe, le webhook renvoie 200, et le compte reste sur son ancien plan. Rien n'échoue nulle part : ni la vue, ni le webhook, ni un test.
+- root_cause: les deux surfaces de paiement construisaient l'URL du Payment Link en `f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url`, donc une session ayant perdu son identifiant de locataire rendait quand même un bouton **payable**, sans le paramètre qui nomme le bénéficiaire. En face, `stripe_webhook.py:140` exécute `if artist_id and customer_id:` — sans `client_reference_id`, il ne fait RIEN et sort en 200. Mesuré 2026-08-23 (R40) sur `views/upgrade.py:125` et `views/billing.py:244`, trouvés ensemble par balayage de la classe.
+- signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py -q`
+- long_term_fix: un lien de paiement non attribuable est pire qu'aucun lien — on ne le rend pas. Bouton désactivé plus un message qui nomme le geste (« reconnecte-toi »). Le garde lit l'AST de chaque `st.link_button` et exige que **toutes** les branches de l'URL portent `client_reference_id`, en résolvant les `Name` à travers les affectations locales.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_tenant_scoped_action_names_its_tenant.py::test_no_payment_link_can_render_without_its_tenant }
+- rex_ref: src/api/routers/stripe_webhook.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: le garde a d'abord été écrit VERT sur son propre défaut, et seule la mutation l'a montré. Le code fautif passait la **variable** `_url` à `st.link_button`, assignée une ligne plus haut ; en ne regardant que le site d'appel, le garde voyait un `Name` nu, concluait « ce n'est pas un lien de paiement » et passait. Cinquième fois que la portée du prédicat est le défaut, et la seule chose qui l'ait dit est d'avoir retiré le fix pour regarder la couleur.
+
+## partial-collection-invisible
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la collecte d'un locataire s'effondre sans que rien ne le dise. Des données arrivent — donc la fraîcheur est verte — mais bien moins que d'habitude : 3 titres là où 40 atterrissent. Le DAG est vert, l'e-mail nocturne est muet, et c'est un humain qui finit par le remarquer.
+- root_cause: le pilier **Volume** (Moses/Gavish/Vorwerck, *Data Quality Fundamentals* p.144 — « Has all the data arrived? ») n'était surveillé que dans un sens. `check_row_anomalies` ne détecte que le PIC et son docstring délègue explicitement l'autre sens à la fraîcheur : « freshness already covers the opposite (no recent data) ». Vrai de ZÉRO ligne, faux de TROP PEU. Entre les deux il y a un trou, et streaMLytics y est tombé deux fois — SoundCloud « ✅ sur 0 titre » au test GRiNCH, chaîne YouTube vide chez Benken.
+- signature: `python3 -m pytest tests/test_a_partial_collection_is_seen.py -q`
+- long_term_fix: `check_row_dips` compare, **par locataire**, le dernier jour COMPLET à la moyenne des 7 précédents. Par locataire, parce qu'un total de flotte cache exactement le cas qui compte ; sur le dernier jour complet, parce que comparer une journée en cours à des journées entières ferait rougir chaque matin — un détecteur qui crie tous les jours n'est plus lu. Le seuil vit dans `src/utils/volume_monitor.py`, pas dans le DAG : aucun DAG de ce dépôt n'est importable hors conteneur (l'Airflow installé refuse `schedule_interval`), donc un test qui passe par l'import **skippe en silence** et ne prouve rien.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_partial_collection_is_seen.py }
+- rex_ref: src/utils/volume_monitor.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: le premier plancher écrit valait 30 lignes/jour. Mesuré ensuite sur la vraie prod, les volumes par locataire sont 1498/j (canari), 19/j (admin) et **7/j (Benken)** — ce plancher aurait rendu le détecteur aveugle à deux locataires sur trois, dont précisément celui qui a une panne de collecte vivante. Un seuil rond n'est pas une calibration, et c'est le fait d'avoir lu les volumes réels AVANT de figer qui l'a montré. Un test pinne désormais la calibration à ces chiffres, pas à un nombre rond.
+
+## test-calls-a-real-api
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la suite consomme du quota d'API réel et échoue en CI dès qu'il n'y a pas de réseau, sans qu'aucun test ne le dise. Contrairement à son jumeau `test-sends-real-mail-to-real-people`, ce défaut ne laisse **aucune trace** côté opérateur : pas de mail dans une boîte, juste des appels sortants silencieux avec les credentials de `.env`, susceptibles d'écrire sur un vrai compte.
+- root_cause: `tests/conftest.py` ne portait aucune frontière réseau. Mesuré 2026-08-23 avec un mouchard sur `socket.connect` pendant une exécution complète : `test_artist_preflight.py::test_a_scoped_run_still_requires_its_own_platform` ouvrait quatre connexions réelles (Meta 157.240.196.17, Google 35.186.224.24, SoundCloud 3.164.85.105) parce que `step_central_apps` sonde les QUATRE plateformes, hors périmètre comprises. Khorikov (*Unit Testing Principles* p.213/221) nomme la ligne : les dépendances *unmanaged* font partie du comportement observable et se mockent ; les *managed* (la base) non.
+- signature: `python3 -m pytest tests/test_the_suite_cannot_call_an_api.py -q`
+- long_term_fix: fixture autouse posée sur la SOCKET, pas sur `requests` — les collecteurs sortent par `requests`, `googleapiclient` ou `urllib` selon la plateforme, et n'en patcher qu'un aurait laissé les deux autres passer. Seuls les ports 80/443 sont refusés : Postgres (5433) est une dépendance *managed* et doit continuer de passer, sinon ~160 tests d'isolation locataire redeviennent des skips silencieux. Comme pour SMTP, la tentative est ENREGISTRÉE et asservie au teardown, hors de portée du `except` des collecteurs.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_suite_cannot_call_an_api.py + tests/conftest.py::_no_real_http }
+- rex_ref: tests/test_artist_preflight.py
+- first_seen: 2026-08-23
+- History:
+  - 2026-08-23: trouvé en cherchant, pas en subissant — le défaut SMTP de la veille avait été trouvé par la boîte mail, et la question « qu'est-ce que la suite fait D'AUTRE au monde extérieur ? » a été posée volontairement. La réponse tenait en un mouchard de vingt lignes sur `socket.connect`. Un rayon de souffle se mesure, il ne se déduit pas.

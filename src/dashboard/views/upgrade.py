@@ -121,10 +121,23 @@ def show() -> None:
             # a full page reload, dropping the in-memory session → bounce to login.
             checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
             if checkout_url:
+            # Sans `client_reference_id`, le webhook `checkout.session.completed`
+            # exécute `if artist_id and customer_id:` et ne fait RIEN : le client paie
+            # et n'est jamais provisionné. Un lien de paiement non attribuable est donc
+            # pire qu'aucun lien — on ne le rend pas. Mesuré le 2026-08-23 (R40) : les
+            # deux surfaces de paiement dégradaient silencieusement vers `checkout_url`
+            # nu quand l'identifiant du locataire manquait.
                 _aid = get_artist_id()
-                _url = f"{checkout_url}?client_reference_id={_aid}" if _aid else checkout_url
-                st.link_button(t("upgrade.go_premium", "Passer à Premium →"),
-                               _url, type="primary")
+                if _aid:
+                    st.link_button(t("upgrade.go_premium", "Passer à Premium →"),
+                                   f"{checkout_url}?client_reference_id={_aid}",
+                                   type="primary")
+                else:
+                    st.button(t("upgrade.go_premium", "Passer à Premium →"),
+                              type="primary", disabled=True, key="upgrade_no_tenant")
+                    st.error(t("upgrade.no_tenant",
+                               "Session incomplète : le paiement ne pourrait pas être "
+                               "rattaché à ton compte. Reconnecte-toi puis réessaie."))
             else:
                 # Stripe not configured: in-app nav to Billing (no full reload).
                 if st.button(t("upgrade.go_premium", "Passer à Premium →"),
