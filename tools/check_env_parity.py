@@ -55,10 +55,16 @@ _SERVICE_PLATFORMS = {
 # is only as wide as its list, which is the same failure mode as a guard's scope.
 # ALERT_EMAIL likewise: the scheduler is where the nightly mail is decided.
 _SERVICE_EXTRA = {
+    # STREAMLYTICS_ENV ajouté le 2026-08-24, et son absence est PIRE que celle des
+    # autres : sans elle, `instance_identity.instance_label()` rend `[LOCAL] ` et la
+    # PRODUCTION préfixerait ses propres alertes comme si elles venaient d'un poste
+    # de dev. Une variable dont l'absence retourne le sens du message doit être une
+    # porte, pas une convention.
     "airflow_scheduler": ("FERNET_KEY", "APP_BASE_URL", "ALERT_EMAIL",
+                          "STREAMLYTICS_ENV",
                           "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"),
     "airflow_webserver": ("FERNET_KEY", "APP_BASE_URL"),
-    "streamlytics_dashboard": ("FERNET_KEY", "APP_BASE_URL",
+    "streamlytics_dashboard": ("FERNET_KEY", "APP_BASE_URL", "STREAMLYTICS_ENV",
                                "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"),
 }
 

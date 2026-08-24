@@ -87,6 +87,8 @@ services:
       # http://localhost:8501, the module-level default. Same class as the SMTP block
       # above: `.env` had the value, this block did not pass it on.
       APP_BASE_URL: ${APP_BASE_URL}
+      STREAMLYTICS_ENV: ${STREAMLYTICS_ENV:-local}
+      AIRFLOW_UI_URL: ${AIRFLOW_UI_URL:-http://localhost:8080}
 
       # Spotify API
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
@@ -225,6 +227,8 @@ services:
       DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/spotify_etl
       FERNET_KEY: ${FERNET_KEY}                       # decrypt stored API credentials
       APP_BASE_URL: ${APP_BASE_URL}                   # absolute links in verification emails
+      STREAMLYTICS_ENV: ${STREAMLYTICS_ENV:-local}    # `production` ⇒ pas de préfixe [LOCAL] sur les mails
+      AIRFLOW_UI_URL: ${AIRFLOW_UI_URL:-http://localhost:8080}   # lien CLIQUABLE ≠ AIRFLOW_BASE_URL (DNS interne)
       # "Lancer TOUTES les collectes" sidebar button triggers DAGs via the Airflow API
       AIRFLOW_BASE_URL: http://airflow-webserver:8080
       AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME}

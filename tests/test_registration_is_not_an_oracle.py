@@ -226,7 +226,15 @@ def test_a_taken_address_creates_no_second_account(taken_email):
     # The identical screen tells the visitor to check an inbox. For the honest case —
     # a user who forgot they had signed up — something must actually arrive there,
     # or closing the oracle has simply made the page lie to them.
-    assert (taken_email, "Votre compte streaMLytics existe déjà") in _FakeSMTP.sent, (
+    # Le sujet est comparé par SON SENS, pas au caractère près : depuis le
+    # 2026-08-24, une instance qui n'est pas la production préfixe ses sujets
+    # (`[LOCAL] `, voir `src/utils/instance_identity.py`) — précisément pour qu'une
+    # alerte de poste de dev ne puisse plus passer pour une panne de production.
+    # Épingler la chaîne exacte ferait échouer ce test sur le préfixe et non sur ce
+    # qu'il vérifie : que le vrai propriétaire reçoit bien quelque chose.
+    delivered = [(to, subj) for to, subj in _FakeSMTP.sent
+                 if to == taken_email and "existe déjà" in subj]
+    assert delivered, (
         f"nothing was sent to the real owner: {_FakeSMTP.sent!r}"
     )
 

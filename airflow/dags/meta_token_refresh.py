@@ -16,6 +16,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import sys
+from src.utils.safe_error import redact
 
 sys.path.insert(0, '/opt/airflow')
 
@@ -131,7 +132,11 @@ def refresh_meta_tokens(**context):
             data = r.json()
 
             if r.status_code != 200 or 'access_token' not in data:
-                err = data.get('error', data)
+                # `data.get('error', data)` rend le CORPS ENTIER quand Meta ne
+                # renvoie pas de clé `error`, et ce message part dans une alerte
+                # e-mail. L'échange de token envoie `client_secret` et
+                # `fb_exchange_token` ; une réponse d'erreur peut les réémettre.
+                err = redact(data.get('error', data))
                 failed.append(f"{artist_name}: Meta API error — {err}")
                 continue
 

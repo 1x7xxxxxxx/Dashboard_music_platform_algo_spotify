@@ -13,6 +13,7 @@ Usage:
 import os
 import sys
 import logging
+from src.utils.safe_error import redact, safe_error
 import requests
 import argparse
 from datetime import datetime, timedelta
@@ -142,10 +143,12 @@ def step_3_dry_run_exchange(token_info):
                     f"expire le {new_expires.strftime('%Y-%m-%d')} (+{expires_in // 86400}j)"
                 )
             else:
-                err = data.get('error', data)
-                logger.error(f"  ❌ Échec : {err}")
+                # Même rédaction que le DAG : ce script est celui que l'opérateur
+                # lance à la main, et sa sortie finit copiée-collée quelque part.
+                err = redact(data.get('error', data))
+                logger.error("  ❌ Échec : %s", err)
         except Exception as e:
-            logger.error(f"  ❌ Exception : {e}")
+            logger.error("  ❌ Exception : %s", safe_error(e))
 
 
 def step_4_full_refresh(token_info):

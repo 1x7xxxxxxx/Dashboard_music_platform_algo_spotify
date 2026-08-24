@@ -8,6 +8,7 @@ import os
 import smtplib
 import logging
 
+from src.utils.instance_identity import instance_label
 from src.utils.email_identity import from_header
 from email import encoders
 from email.mime.base import MIMEBase
@@ -100,7 +101,10 @@ def _send_html(to_email: str, subject: str, html: str,
         msg = MIMEMultipart('mixed')
         msg['From']    = from_header()
         msg['To']      = to_email
-        msg['Subject'] = subject
+        # Instance nommée hors production — voir `instance_identity`. Quatre chemins
+        # d'envoi existent dans ce dépôt ; n'en marquer qu'un laisserait vivants les
+        # trois autres, et celui-ci atteint un CLIENT.
+        msg['Subject'] = f"{instance_label()}{subject}"
         body = MIMEMultipart('alternative')
         body.attach(MIMEText(html, 'html'))
         msg.attach(body)
@@ -304,8 +308,10 @@ def send_verification_email(to_email: str, username: str, token: str,
         msg = MIMEMultipart('alternative')
         msg['From']    = from_header()
         msg['To']      = to_email
-        msg['Subject'] = _tr('email.verify.subject',
-                             "🎵 Vérifiez votre compte streaMLytics", lang)
+        # C'est CE chemin qui a envoyé trois vrais mails de vérification depuis
+        # un poste de dev le 2026-08-23, avec un lien `localhost`.
+        msg['Subject'] = instance_label() + _tr(
+            'email.verify.subject', "🎵 Vérifiez votre compte streaMLytics", lang)
         msg.attach(MIMEText(html, 'html'))
 
         with smtplib.SMTP(smtp_host, smtp_port) as server:

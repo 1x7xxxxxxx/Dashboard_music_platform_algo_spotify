@@ -234,6 +234,11 @@ def main() -> int:
     parser.add_argument("--skip-data", action="store_true",
                         help="skip steps 4-5 (identity/connection only — useful right "
                              "after connecting, before the first collection ran)")
+    parser.add_argument(
+        "--diagnose", action="store_true",
+        help="jouer TOUTES les étapes sans s'arrêter au premier rouge — pour un "
+             "artiste déjà inscrit dont on cherche pourquoi une plateforme précise "
+             "ne collecte pas. Le verdict global reste rouge si une étape l'est.")
     args = parser.parse_args()
 
     scope = None
@@ -274,11 +279,41 @@ def main() -> int:
                 ("contamination", lambda: step_contamination(db, artist_id)),
             ]
 
+        # Deux modes, et le défaut reste la PORTE.
+        #
+        # L'arrêt au premier rouge est délibéré et mesuré : deux sessions de test
+        # artiste ont brûlé une heure chacune à découvrir en direct que les apps
+        # partagées étaient mal configurées. Tout ce qui suit un rouge est non
+        # prouvé, et le dire est le travail de cet outil.
+        #
+        # Mais ce même arrêt rend l'outil **inutilisable pour diagnostiquer un
+        # artiste déjà inscrit et à moitié configuré** — constaté le 2026-08-24 sur
+        # GRiNCH : quatre identités absentes, donc arrêt à l'étape 2, donc le test
+        # de connexion SoundCloud — la SEULE plateforme qu'il a déclarée, et
+        # justement celle qui ne collecte pas — n'a jamais été lancé. Le runbook
+        # fait pourtant lancer cette commande exactement pour ça.
+        #
+        # `--diagnose` parcourt donc toutes les étapes et rend le même verdict
+        # global, sans rien cacher : on ne relâche pas la porte, on ajoute la
+        # lampe.
+        failed_steps = []
         for label, step in steps:
-            if not step():
+            ok = step()
+            if ok:
+                continue
+            failed_steps.append(label)
+            if not args.diagnose:
                 print(f"\n{_KO} STOP — «{label}» is red. Fix it before inviting an "
-                      "artist; everything after it is untested.")
+                      "artist; everything after it is untested.\n"
+                      "    Pour un artiste DÉJÀ inscrit, relance avec `--diagnose` : "
+                      "toutes les étapes sont jouées, y compris les plateformes "
+                      "qu'il a réellement configurées.")
                 return 1
+        if failed_steps:
+            print(f"\n{_KO} Diagnostic terminé — étape(s) rouge(s) : "
+                  f"{', '.join(failed_steps)}. Rien n'est prouvé au-delà de la "
+                  "première, mais tout a été mesuré.")
+            return 1
     finally:
         db.close()
 

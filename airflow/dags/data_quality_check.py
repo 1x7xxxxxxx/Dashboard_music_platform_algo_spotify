@@ -491,6 +491,9 @@ def send_summary_notification(**context):
         has_critical = quality_check and len(quality_check.get('issues', [])) > 0
         has_warnings = quality_check and len(quality_check.get('warnings', [])) > 0
         subject_prefix = '❌ CRITIQUE' if has_critical else ('⚠️ Avertissements' if has_warnings else '✅ OK')
+        from src.utils.instance_identity import airflow_base_url
+
+        _airflow_url = airflow_base_url()
         html_body = f"""
         <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">
           <h1 style="color:#2c3e50">📊 Résumé quotidien — {datetime.now().strftime('%Y-%m-%d %H:%M')}</h1>
@@ -498,7 +501,7 @@ def send_summary_notification(**context):
                       white-space:pre-wrap;color:#2c3e50">{summary}</pre>
           <p style="color:#aaa;font-size:0.8em">
             Généré par data_quality_check DAG —
-            <a href="http://localhost:8080">Airflow UI</a>
+            <a href="{_airflow_url}">Airflow UI</a>
           </p>
         </div>
         """

@@ -189,6 +189,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [boundary-with-no-named-exit-kills-what-must-pass](#boundary-with-no-named-exit-kills-what-must-pass) | P2 | deterministic | guarded | none |
 | [dead-argument-from-a-major-version-ago](#dead-argument-from-a-major-version-ago) | P2 | deterministic | guarded | none |
 | [session-wide-stub-of-an-installed-package](#session-wide-stub-of-an-installed-package) | P2 | deterministic | guarded | none |
+| [a-dev-instance-sends-production-shaped-mail](#a-dev-instance-sends-production-shaped-mail) | P2 | deterministic | guarded | none |
+| [a-fail-fast-gate-cannot-diagnose](#a-fail-fast-gate-cannot-diagnose) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2243,3 +2245,34 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-24: la justification du stub était datée, pas fausse à l'origine — et c'est ce qui rend la classe pénible : **rien ne relit un commentaire quand l'environnement change**. Ici le changement d'environnement était l'installation d'Airflow dans le venv, et le stub a survécu des mois à sa raison d'être, en cassant les imports des autres.
   - 2026-08-24: retirer le stub d'`airflow` a rendu `test_e2e_two_tenants` plus fidèle, pas moins : les opérateurs sont désormais construits pour de vrai, donc une erreur de structure du DAG est vue dans la suite plutôt qu'au réveil du scheduler.
+
+
+## a-dev-instance-sends-production-shaped-mail
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une alerte arrive dans une vraie boîte mail, annonce une panne, et **la production va très bien**. Elle vient d'une instance de développement. Rien dans le message ne le dit ; seuls l'adresse d'expéditeur et un lien `localhost` la distinguent — et personne ne les regarde à 1 h du matin.
+- root_cause: aucun mécanisme ne nommait l'instance émettrice, et **quatre** chemins d'envoi existent (`email_alerts.send_alert`, `email_alerts.send_email`, deux dans `verification_email`). Mesuré le 2026-08-24 : un scheduler Airflow local a rejoué un run planifié, échoué sur le credential SoundCloud partagé — que la production venait de faire tourner 28 minutes plus tôt, SoundCloud faisant tourner ses `refresh_token` — et envoyé deux alertes. Trois sites écrivaient de surcroît `http://localhost:8080` **littéralement** dans un corps d'e-mail, sans lire aucune variable. Nuance mesurée, contre un premier diagnostic trop rapide : ces trois mails vont à l'ADMINISTRATEUR et l'UI Airflow est liée à `127.0.0.1` seulement, donc `localhost` y est l'adresse juste — ce n'était PAS le défaut de `APP_BASE_URL`, où le lien partait à un artiste. Ce qui restait faux, c'est qu'elle n'était pas configurable.
+- signature: `python3 -m pytest tests/test_an_instance_names_itself_in_what_it_sends.py -q`
+- long_term_fix: `src/utils/instance_identity.py` — `instance_label()`, lu **à l'appel**, préfixe le sujet des QUATRE chemins d'envoi ; vide en production À DESSEIN, parce que c'est l'absence de préfixe qui doit vouloir dire « ceci est réel ». `airflow_base_url()` remplace les URL codées en dur. Le garde énumère les sites par AST : ce dépôt a déjà payé une fois d'avoir corrigé le chemin qui marchait en laissant l'autre (R38, le nom d'expéditeur).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_instance_names_itself_in_what_it_sends.py }
+- rex_ref: src/utils/instance_identity.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: suite directe de `a-test-suite-has-a-blast-radius` (2026-08-23), où la SUITE DE TESTS envoyait de vrais mails. La frontière posée alors borne les tests ; **un Airflow qui tourne en local a exactement le même rayon de souffle**, et rien ne le bornait. Le rayon de souffle d'un environnement de dev ne se limite pas au code qu'il exécute : il inclut tout ce qu'il ENVOIE, et les credentials partagés qu'il consomme.
+
+## a-fail-fast-gate-cannot-diagnose
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'outil que le runbook fait lancer pour comprendre pourquoi une plateforme ne collecte pas s'arrête AVANT de la tester, et rend un verdict qui ne parle pas du problème.
+- root_cause: `tools/artist_preflight.py` s'arrête à la première étape rouge — délibérément, deux sessions de test artiste ayant brûlé une heure chacune à découvrir en direct des apps mal configurées. Mais pour un artiste **déjà inscrit et à moitié configuré**, l'arrêt tombe sur « identités manquantes » et le test de connexion n'est jamais joué. Mesuré le 2026-08-24 sur GRiNCH (artist_id=13), dont l'alerte nocturne dit « NE COLLECTE PAS : SoundCloud » : quatre identités absentes → arrêt à l'étape 2 → SoundCloud, la seule plateforme déclarée et justement celle en panne, non testée.
+- signature: `python3 -m pytest tests/test_the_preflight_can_diagnose_not_only_gate.py -q`
+- long_term_fix: `--diagnose` joue toutes les étapes et récapitule les rouges, sans relâcher la porte (l'arrêt reste le DÉFAUT). Et le message d'arrêt **nomme le drapeau** : une option que personne ne découvre au moment utile n'existe pas. Règle générale : une porte fail-fast et une lampe de diagnostic sont deux besoins ; leur donner la même commande sans mode les fait se manger l'un l'autre.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_preflight_can_diagnose_not_only_gate.py }
+- rex_ref: tools/artist_preflight.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: la porte n'était pas trop stricte, elle était **mono-usage**. Relâcher l'arrêt aurait détruit la raison mesurée qui l'a fait naître ; c'est le mode qui manquait, pas la sévérité.

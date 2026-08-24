@@ -46,6 +46,31 @@ def _exception_params(fn) -> set:
     return out
 
 
+def _exception_locals_from_a_mapping(fn) -> set:
+    """Variables locales lues sous une clé qui nomme une exception.
+
+    Trou trouvé le 2026-08-24 sur un défaut VIVANT : `dag_failure_callback`
+    (`src/utils/email_alerts.py`) faisait `exception = context.get('exception')` puis
+    l'interpolait dans un corps d'e-mail parti par Brevo. Le prédicat d'origine ne
+    regardait que les PARAMÈTRES ; ici l'exception arrive par une clé de
+    dictionnaire, et Airflow n'en passe jamais autrement.
+    """
+    out = set()
+    for node in ast.walk(fn):
+        if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
+            continue
+        call = node.value
+        if not (isinstance(call.func, ast.Attribute) and call.func.attr == "get"):
+            continue
+        for arg in call.args[:1]:
+            if (isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                    and arg.value.lower() in _EXC_PARAM_NAMES):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name):
+                        out.add(tgt.id)
+    return out
+
+
 def _traceback_locals(fn) -> set:
     """Variables locales issues d'un `traceback.format_*` — le pire des deux."""
     out = set()
@@ -74,7 +99,8 @@ def _offending_lines(path: pathlib.Path) -> list:
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        risky = _exception_params(fn) | _traceback_locals(fn)
+        risky = (_exception_params(fn) | _traceback_locals(fn)
+                 | _exception_locals_from_a_mapping(fn))
         if not risky:
             continue
         for node in ast.walk(fn):

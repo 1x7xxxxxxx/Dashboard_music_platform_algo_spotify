@@ -7,7 +7,8 @@ from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from src.utils.email_identity import from_header
-from src.utils.safe_error import safe_error
+from src.utils.instance_identity import instance_label
+from src.utils.safe_error import redact, safe_error
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,14 @@ class EmailAlert:
             # sur toutes les alertes (R38, mesuré 2026-08-23).
             msg['From'] = from_header()
             msg['To'] = self.alert_email
-            msg['Subject'] = f"🚨 Dashboard Alert: {subject}"
+            # L'instance se nomme quand ce n'est PAS la production. Le 2026-08-24,
+            # un scheduler Airflow local a rejoué un run planifié, échoué sur le
+            # credential SoundCloud partagé (que la prod venait de faire tourner
+            # 28 min plus tôt) et envoyé deux alertes à une vraie boîte —
+            # indiscernables d'une panne de production. Le préfixe est vide en
+            # production À DESSEIN : c'est son ABSENCE qui doit vouloir dire
+            # « ceci est réel », pas un « [PRODUCTION] » auquel l'œil s'habitue.
+            msg['Subject'] = f"{instance_label()}🚨 Dashboard Alert: {subject}"
             msg.attach(MIMEText(body, 'html'))
 
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
@@ -83,7 +91,13 @@ class EmailAlert:
             msg = MIMEMultipart('mixed')
             msg['From'] = from_header()
             msg['To'] = to_email
-            msg['Subject'] = subject
+            # Le SECOND chemin d'envoi, et celui qui atteint un CLIENT — pas
+            # l'admin. C'est lui qui a expédié trois vrais mails de vérification
+            # depuis un poste de dev le 2026-08-23, avec un lien `localhost`. Ne
+            # nommer que `send_alert` aurait laissé vivant exactement le chemin le
+            # plus coûteux : ce dépôt a déjà payé une fois d'avoir lu celui qui
+            # marchait (R38, le nom d'expéditeur).
+            msg['Subject'] = f"{instance_label()}{subject}"
             body = MIMEMultipart('alternative')
             body.attach(MIMEText(html, 'html'))
             msg.attach(body)
@@ -150,7 +164,17 @@ def dag_failure_callback(context):
     task_instance = context.get('task_instance')
     task_id = task_instance.task_id if task_instance else 'N/A'
     run_id = context.get('run_id', 'N/A')
-    exception = context.get('exception', 'N/A')
+    # `safe_error`, jamais l'exception brute. Ce corps part par SMTP (Brevo, un
+    # tiers) et se dépose dans une boîte : un message d'exception `requests`
+    # embarque l'URL préparée, donc `key=` (YouTube) ou `access_token=` (Meta),
+    # qui voyagent en QUERY STRING. Constaté le 2026-08-24 sur un vrai mail reçu.
+    #
+    # Le garde `test_an_exception_passed_as_an_argument_is_redacted.py` ne pouvait
+    # pas le voir : il cherche une exception reçue en PARAMÈTRE, et celle-ci arrive
+    # par une clé de dictionnaire.
+    raw_exception = context.get('exception')
+    exception = safe_error(raw_exception) if isinstance(raw_exception, BaseException) \
+        else redact(raw_exception if raw_exception is not None else 'N/A')
     log_url = task_instance.log_url if task_instance else 'N/A'
 
     subject = f"DAG {dag_id} — task {task_id} FAILED"

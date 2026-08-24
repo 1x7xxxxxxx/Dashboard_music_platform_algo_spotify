@@ -22,7 +22,7 @@ sys.path.insert(0, '/opt/airflow')
 # Redact credentials out of any exception this module logs: an HTTP
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
-from src.utils.safe_error import safe_error
+from src.utils.safe_error import redact, safe_error
 
 import os
 import logging
@@ -1308,7 +1308,10 @@ def send_consolidated_alert(**context):
             if probe_error:
                 age_label = 'non mesurée'
                 colour = '#c0392b'
-                action = f"⚠️ la sonde elle-même a échoué : {probe_error}"
+                # Rédigé : ce texte part dans l'e-mail d'alerte, et l'erreur
+                # d'une sonde est un message d'exception HTTP — donc `key=`
+                # (YouTube) ou `access_token=` (Meta), en query string.
+                action = f"⚠️ la sonde elle-même a échoué : {redact(probe_error)}"
             else:
                 age_label = (f"{r['age_h']:.0f}h" if r['age_h'] is not None
                              else 'jamais collectée')
@@ -1715,6 +1718,11 @@ def send_consolidated_alert(**context):
               "locataire collecte, et c'est presque toujours l'admin. C'est exactement "
               "ce que ce locataire existe pour rendre visible.</p>")
 
+    # Lue à l'appel : ce lien part dans un e-mail, et `localhost` y est mort pour
+    # tout destinataire (même classe que `APP_BASE_URL`, fermée le 2026-08-23).
+    from src.utils.instance_identity import airflow_base_url
+
+    _airflow_url = airflow_base_url()
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
       <h1 style="color:#2c3e50">📊 Monitoring Music Platform — {now_str}</h1>
@@ -1723,7 +1731,7 @@ def send_consolidated_alert(**context):
       {ok_line}
       <hr style="border:none;border-top:1px solid #eee;margin-top:24px">
       <p style="color:#aaa;font-size:0.8em">
-        Généré par alert_monitor DAG — Airflow : <a href="http://localhost:8080">http://localhost:8080</a>
+        Généré par alert_monitor DAG — Airflow : <a href="{_airflow_url}">{_airflow_url}</a>
       </p>
     </div>
     """

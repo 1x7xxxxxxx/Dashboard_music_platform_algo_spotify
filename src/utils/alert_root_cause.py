@@ -72,7 +72,12 @@ def detect_root_cause(exception_str: str, dag_id: str = '') -> tuple[str, str]:
         if pattern in exc_lower:
             return cause, action
 
-    return 'Erreur inconnue', f'Consulter les logs Airflow → http://localhost:8080/dags/{dag_id}/grid'
+    # L'URL est lue à l'appel : ce texte finit dans un e-mail, et `localhost` y
+    # est un lien mort pour tout destinataire (classe `APP_BASE_URL`, 2026-08-23).
+    from src.utils.instance_identity import airflow_base_url
+
+    return ('Erreur inconnue',
+            f'Consulter les logs Airflow → {airflow_base_url()}/dags/{dag_id}/grid')
 
 
 def _dag_to_platform(dag_id: str) -> str:
