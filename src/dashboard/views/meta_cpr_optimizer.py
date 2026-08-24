@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import require_plan
 from src.utils.track_matching import canonical_song_sql
@@ -59,7 +60,11 @@ LEFT JOIN (
              THEN ROUND(SUM(spend)::numeric / SUM(results), 4)
              ELSE NULL END                                                 AS cpr
     FROM meta_insights_performance
-    WHERE artist_id = %s
+    -- Le marqueur de compte est doublé : cette constante est une f-string
+    -- (elle interpole canonical_song_sql), donc un marqueur simple serait
+    -- consommé à la définition et le .format() de l'appelant ne trouverait
+    -- plus rien à remplacer.
+    WHERE artist_id = %s{{acct}}
     GROUP BY campaign_name
 ) mip ON LOWER(mip.campaign_name) = LOWER(ctm.campaign_name)
 LEFT JOIN (
@@ -83,7 +88,7 @@ SELECT
          THEN SUM(spend)::numeric / SUM(results)
          ELSE NULL END AS cpr
 FROM meta_insights_performance
-WHERE artist_id = %s AND results > 0
+WHERE artist_id = %s{acct} AND results > 0
 GROUP BY campaign_name
 """
 
@@ -223,8 +228,17 @@ def show() -> None:
     ))
 
     with view_session() as (db, artist_id):
-        df = db.fetch_df(_QUERY_OPTIMIZER, (artist_id, artist_id, artist_id))
-        cpr_all = db.fetch_df(_QUERY_ALL_CAMPAIGN_CPR, (artist_id,))
+        # Un nom de campagne peut exister dans DEUX comptes publicitaires : sans ce
+        # filtre, la sous-requête `mip` additionnerait leurs dépenses et le CPR
+        # affiché ne serait celui d'aucun des deux (R53 / ADR-013).
+        _acct, _acct_params = account_clause(
+            account_scope(db, artist_id, key="meta_cpr_acct"))
+        df = db.fetch_df(
+            _QUERY_OPTIMIZER.format(acct=_acct),
+            (artist_id, *_acct_params, artist_id, artist_id),
+        )
+        cpr_all = db.fetch_df(
+            _QUERY_ALL_CAMPAIGN_CPR.format(acct=_acct), (artist_id, *_acct_params))
 
     if df.empty:
         st.info(t(

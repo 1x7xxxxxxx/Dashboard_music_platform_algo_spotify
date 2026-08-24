@@ -10,7 +10,7 @@ import requests
 
 from src.utils.meta_config import META_GRAPH_BASE_URL
 from src.dashboard.utils.i18n import t
-from src.utils.tenant_identity import identity_is_well_formed
+from src.utils.tenant_identity import identity_is_well_formed, meta_ad_account_ids
 
 
 def _test_meta(fields: dict) -> tuple:
@@ -41,39 +41,26 @@ def _test_meta(fields: dict) -> tuple:
         # account was never shared is exactly the Benken meta=🔴 case (asset sharing
         # missing) discovered only a day later, at collection time. Validate the
         # artist's own account_id now.
-        raw_id = fields.get('account_id', '').strip()
-        if not raw_id:
+        # TOUS les comptes déclarés, pas seulement le premier (R53 / ADR-013).
+        # Ne sonder que `account_id` rendrait le test vert alors que le deuxième
+        # compte d'une agence n'est pas partagé avec l'app — et ce partage manquant
+        # est précisément la panne Meta la plus fréquente (cas Benken, 2026-06-19).
+        # Un test vert qui ne prouve qu'un compte sur trois est un vert qui ne veut
+        # rien dire, et c'est le seul écran où l'artiste peut encore corriger.
+        accounts = meta_ad_account_ids(fields)
+        if not accounts:
             return False, t("credentials.meta.account_missing",
                             "App Meta OK, mais ton **Ad Account ID** n'est pas renseigné — "
                             "sans lui aucune donnée ne peut être collectée. Il se lit dans "
                             "l'URL du Gestionnaire de publicités, après `act=`.")
-        # Shape before the network, same reason as ig_user_id below: this lands in
-        # the PATH. The forced `act_` prefix blocks the trivial payload but not a
-        # traversal, and "probably safe because of a prefix" is not a control.
-        if not identity_is_well_formed("meta", raw_id):
-            return False, t(
-                "credentials.meta.account_malformed",
-                "Ad Account ID invalide : chiffres uniquement, éventuellement "
-                "préfixés par `act_` (ex : 567214713853881)."
-            )
-        act_id = raw_id if raw_id.startswith('act_') else f"act_{raw_id}"
-        ra = requests.get(
-            f'{META_GRAPH_BASE_URL}/{act_id}',
-            params={'access_token': token, 'fields': 'name,account_status'},
-            timeout=10,
-            allow_redirects=False,
-        )
-        acc = ra.json()
-        if ra.status_code != 200 or not acc.get('id', acc.get('name')):
-            err = acc.get('error', {})
-            detail = str(err.get('message', 'réponse inattendue de Meta'))[:200] if isinstance(err, dict) else ''
-            return False, t(
-                "credentials.meta.account_unreachable",
-                "Compte publicitaire **{act}** inaccessible avec l'app partagée : {detail}\n\n"
-                "→ Cause la plus fréquente : le compte n'a pas été **partagé** avec l'app "
-                "(Business Manager → Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business "
-                "Assets → Ajouter des assets → Compte publicitaire, permission Annonceur)."
-            ).format(act=act_id, detail=detail)
+        names = []
+        for act_id in accounts:
+            ok, detail = _probe_ad_account(act_id, token)
+            if not ok:
+                return False, detail
+            names.append(detail)
+        acc = {'name': " · ".join(names)}
+        act_id = accounts[0]
         # Instagram rides the same System User token but a different asset. It is
         # optional HERE — an artist may run ads without connecting IG — so a blank id
         # only skips the suffix. `_test_instagram` below is the standalone probe, and
@@ -100,6 +87,37 @@ def _test_meta(fields: dict) -> tuple:
                         "persiste, contacte l'administrateur.").format(
                             err=type(e).__name__)
 
+
+
+def _probe_ad_account(act_id: str, token: str) -> tuple:
+    """(True, display_name) or (False, actionable message) for ONE ad account."""
+    # Shape before the network, same reason as ig_user_id below: this lands in the
+    # PATH. The forced `act_` prefix blocks the trivial payload but not a traversal,
+    # and "probably safe because of a prefix" is not a control.
+    if not identity_is_well_formed("meta", act_id):
+        return False, t(
+            "credentials.meta.account_malformed",
+            "Ad Account ID invalide : chiffres uniquement, éventuellement "
+            "préfixés par `act_` (ex : 567214713853881)."
+        )
+    ra = requests.get(
+        f'{META_GRAPH_BASE_URL}/{act_id}',
+        params={'access_token': token, 'fields': 'name,account_status'},
+        timeout=10,
+        allow_redirects=False,
+    )
+    acc = ra.json()
+    if ra.status_code != 200 or not acc.get('id', acc.get('name')):
+        err = acc.get('error', {})
+        detail = str(err.get('message', 'réponse inattendue de Meta'))[:200] if isinstance(err, dict) else ''
+        return False, t(
+            "credentials.meta.account_unreachable",
+            "Compte publicitaire **{act}** inaccessible avec l'app partagée : {detail}\n\n"
+            "→ Cause la plus fréquente : le compte n'a pas été **partagé** avec l'app "
+            "(Business Manager → Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business "
+            "Assets → Ajouter des assets → Compte publicitaire, permission Annonceur)."
+        ).format(act=act_id, detail=detail)
+    return True, str(acc.get('name', act_id))
 
 
 def _probe_instagram(ig_user_id: str, token: str):

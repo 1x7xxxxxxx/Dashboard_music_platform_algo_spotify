@@ -291,26 +291,38 @@ def _collect_instagram(db, artist_id, from_date, to_date):
         return None
 
 
-def _collect_meta(db, artist_id, from_date, to_date):
+def _meta_account_clause(ad_account, alias: str = "") -> tuple:
+    """`(fragment_sql, params)` pour restreindre le PDF à UN compte publicitaire.
+
+    R53 / ADR-013. `None` = pas de filtre : c'est le cas de toute la flotte
+    mono-compte, et la requête produite est alors exactement celle d'avant.
+    """
+    if not ad_account:
+        return "", ()
+    return f" AND {alias}ad_account_id = %s", (ad_account,)
+
+
+def _collect_meta(db, artist_id, from_date, to_date, ad_account=None):
     """Résumé Meta Ads sur la période — source meta_insights_performance_day
     (autoritative, dédupliquée, = get_roi_data). L'ancienne table agrégée
     meta_insights_performance double-comptait les fenêtres (≈2× le spend réel)."""
     if artist_id is None:
         return None
+    _acct, _acct_p = _meta_account_clause(ad_account)
     try:
         rows = db.fetch_query(
-            """SELECT campaign_name,
+            f"""SELECT campaign_name,
                       SUM(spend)       AS spend,
                       SUM(results)     AS results,
                       SUM(impressions) AS impressions,
                       SUM(reach)       AS reach,
                       SUM(spend) / NULLIF(SUM(results), 0) AS cpr
                FROM meta_insights_performance_day
-               WHERE artist_id = %s AND day_date BETWEEN %s AND %s
+               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
                GROUP BY campaign_name
                ORDER BY spend DESC
                LIMIT 10""",
-            (artist_id, from_date, to_date),
+            (artist_id, *_acct_p, from_date, to_date),
         )
         if not rows:
             return None
@@ -321,10 +333,10 @@ def _collect_meta(db, artist_id, from_date, to_date):
         ]
         # Totals from the SAME period-filtered day table (all campaigns, not just top 10).
         tot = db.fetch_query(
-            """SELECT COALESCE(SUM(spend), 0), COALESCE(SUM(results), 0)
+            f"""SELECT COALESCE(SUM(spend), 0), COALESCE(SUM(results), 0)
                FROM meta_insights_performance_day
-               WHERE artist_id = %s AND day_date BETWEEN %s AND %s""",
-            (artist_id, from_date, to_date),
+               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s""",
+            (artist_id, *_acct_p, from_date, to_date),
         )
         return {
             'campaigns':     campaigns,
@@ -431,21 +443,22 @@ _BREAKDOWN_DIMS = {
 }
 
 
-def _collect_meta_breakdowns(db, artist_id):
+def _collect_meta_breakdowns(db, artist_id, ad_account=None):
     """Dépense Meta par pays/placement/âge — déduplique les snapshots avant SUM."""
     if artist_id is None:
         return None
+    _acct, _acct_p = _meta_account_clause(ad_account)
     out = {}
     for key, (table, col) in _BREAKDOWN_DIMS.items():
         try:
             rows = db.fetch_query(
                 f"""SELECT {col}, SUM(spend) AS spend FROM (
                         SELECT DISTINCT ON (campaign_name, {col}) {col}, spend
-                        FROM {table} WHERE artist_id = %s
+                        FROM {table} WHERE artist_id = %s{_acct}
                         ORDER BY campaign_name, {col}, collected_at DESC
                     ) t WHERE {col} IS NOT NULL
                     GROUP BY {col} ORDER BY spend DESC LIMIT 8""",
-                (artist_id,))
+                (artist_id, *_acct_p))
             out[key] = [(r[0], float(r[1] or 0)) for r in rows] if rows else []
         except Exception:
             out[key] = []
@@ -477,27 +490,29 @@ def _collect_revenue_forecast(db, artist_id):
         return None
 
 
-def _collect_meta_x_spotify(db, artist_id, from_date, to_date):
+def _collect_meta_x_spotify(db, artist_id, from_date, to_date, ad_account=None):
     """Dépense Meta vs streams Spotify (base 100) sur la fenêtre de la dernière campagne."""
     if artist_id is None:
         return None
+    _acct, _acct_p = _meta_account_clause(ad_account)
     try:
         camp = db.fetch_query(
-            """SELECT campaign_name, MIN(day_date), MAX(day_date)
+            f"""SELECT campaign_name, MIN(day_date), MAX(day_date)
                FROM meta_insights_performance_day
-               WHERE artist_id = %s AND day_date BETWEEN %s AND %s
+               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
                GROUP BY campaign_name ORDER BY MAX(day_date) DESC LIMIT 1""",
-            (artist_id, from_date, to_date))
+            (artist_id, *_acct_p, from_date, to_date))
         if not camp:
             return None
         name, c_from, c_to = camp[0]
         meta = db.fetch_query(
-            """SELECT day_date::text, SUM(spend), SUM(results),
+            f"""SELECT day_date::text, SUM(spend), SUM(results),
                       SUM(spend) / NULLIF(SUM(results), 0)
                FROM meta_insights_performance_day
-               WHERE artist_id = %s AND campaign_name = %s AND day_date BETWEEN %s AND %s
+               WHERE artist_id = %s{_acct} AND campaign_name = %s
+                 AND day_date BETWEEN %s AND %s
                GROUP BY day_date ORDER BY day_date""",
-            (artist_id, name, c_from, c_to))
+            (artist_id, *_acct_p, name, c_from, c_to))
         streams = db.fetch_query(
             """SELECT date::text, SUM(streams) FROM s4a_song_timeline
                WHERE artist_id = %s AND song NOT ILIKE %s AND date BETWEEN %s AND %s
@@ -784,17 +799,18 @@ def _collect_ig_monthly(db, artist_id, from_date, to_date):
     return out
 
 
-def _collect_meta_funnel(db, artist_id, from_date, to_date):
+def _collect_meta_funnel(db, artist_id, from_date, to_date, ad_account=None):
     """Funnel counts (Impressions→Reach→Résultats→Conversions) from perf_day."""
     if artist_id is None:
         return []
+    _acct, _acct_p = _meta_account_clause(ad_account)
     try:
         r = db.fetch_query(
-            """SELECT COALESCE(SUM(impressions),0), COALESCE(SUM(reach),0),
+            f"""SELECT COALESCE(SUM(impressions),0), COALESCE(SUM(reach),0),
                       COALESCE(SUM(results),0), COALESCE(SUM(custom_conversions),0)
                FROM meta_insights_performance_day
-               WHERE artist_id = %s AND day_date BETWEEN %s AND %s""",
-            (artist_id, from_date, to_date))
+               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s""",
+            (artist_id, *_acct_p, from_date, to_date))
     except Exception:
         return []
     if not r:
@@ -804,17 +820,18 @@ def _collect_meta_funnel(db, artist_id, from_date, to_date):
             ("Conversions Spotify", conv)]
 
 
-def _collect_meta_daily(db, artist_id, from_date, to_date):
+def _collect_meta_daily(db, artist_id, from_date, to_date, ad_account=None):
     """Daily budget + results + CPR (=spend/results) from perf_day."""
     if artist_id is None:
         return []
+    _acct, _acct_p = _meta_account_clause(ad_account)
     try:
         rows = db.fetch_query(
-            """SELECT day_date, SUM(spend), SUM(results)
+            f"""SELECT day_date, SUM(spend), SUM(results)
                FROM meta_insights_performance_day
-               WHERE artist_id = %s AND day_date BETWEEN %s AND %s
+               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
                GROUP BY day_date ORDER BY day_date""",
-            (artist_id, from_date, to_date))
+            (artist_id, *_acct_p, from_date, to_date))
     except Exception:
         return []
     out = []

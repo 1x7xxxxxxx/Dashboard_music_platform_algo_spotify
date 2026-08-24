@@ -177,6 +177,12 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [detect-then-reject-with-the-wrong-advice](#detect-then-reject-with-the-wrong-advice) | P3 | deterministic | guarded | none |
 | [too-many-charts-competing-for-one-decision](#too-many-charts-competing-for-one-decision) | P3 | deterministic | guarded | none |
 | [prune-scoped-wider-than-what-it-refreshed](#prune-scoped-wider-than-what-it-refreshed) | P1 | deterministic | guarded | none |
+| [layer-written-but-never-wired](#layer-written-but-never-wired) | P2 | deterministic | guarded | none |
+| [absence-rendered-as-a-measurement](#absence-rendered-as-a-measurement) | P2 | deterministic | guarded | none |
+| [counter-includes-our-own-robots](#counter-includes-our-own-robots) | P3 | deterministic | guarded | none |
+| [leak-via-an-exception-received-as-an-argument](#leak-via-an-exception-received-as-an-argument) | P2 | deterministic | guarded | none |
+| [format-marker-in-a-plain-string](#format-marker-in-a-plain-string) | P2 | deterministic | guarded | none |
+| [audit-reads-the-constraints-not-the-installed-set](#audit-reads-the-constraints-not-the-installed-set) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2042,3 +2048,94 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: la règle générale vaut au-delà de Meta — **un nettoyage doit porter exactement la même portée que l'écriture qu'il suit**. Ici l'écriture était par compte et la suppression par locataire ; les deux portées ont coïncidé aussi longtemps qu'il n'y avait qu'un compte, ce qui est la pire façon pour un défaut d'attendre. Trouvé en explorant une demande produit (« Tom gère plusieurs comptes »), pas en lisant le code de nettoyage.
+
+
+## layer-written-but-never-wired
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une couche que l'architecture décrit comme porteuse — validation, gestion d'erreur — existe, a des tests verts, et **aucun code de production ne l'appelle**. Le jour où on la branche, elle casse la production : ce qu'elle supposait du reste du code n'est plus vrai depuis des mois, et rien ne pouvait le signaler tant que personne ne l'appelait.
+- root_cause: `src/models/meta_ads_validators.py` définissait quatre modèles Pydantic décrits par `CLAUDE.md` comme la couche de validation du projet ; seul `tests/test_validators.py` les importait. Quatre divergences avec les payloads réels s'étaient accumulées : aucun modèle ne déclarait `artist_id` (le champ du locataire, le seul dont ce dépôt ait souffert), `status` était obligatoire alors que le collecteur écrit `.get('status')`, `targeting` était typé `dict` alors que `_fetch_adsets` écrit `json.dumps(...)`, et `MetaInsight` exigeait dix métriques que Meta ne rend pas sur un objectif d'engagement. Le test passait **parce que** rien n'exécutait les modèles : il les confrontait à des payloads inventés par le test.
+- signature: `python3 -m pytest tests/test_validators.py::test_the_collector_actually_calls_the_validators -q`
+- long_term_fix: le garde vérifie par AST que le collecteur **importe** les quatre modèles ET appelle `_validate`. Un import mentionné dans un commentaire ne suffit pas ; débrancher la couche redevient un rouge. Corollaire de méthode : les fixtures d'un test de validation se construisent à partir de la sortie du vrai producteur, jamais à la main — sinon le test garde une forme que personne n'écrit.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_validators.py::test_the_collector_actually_calls_the_validators }
+- rex_ref: src/models/meta_ads_validators.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: deuxième module de la même forme trouvé le même jour — `src/utils/error_handler.py`, importé par son seul test. Verdict opposé et pour une raison mécanique : ses trois fonctions interpolent l'exception brute, donc le câbler rouvrait la classe de fuite. Retiré. **Une couche débranchée n'est pas neutre, elle pourrit** : plus elle attend, plus la brancher devient dangereux, et « on la câblera plus tard » est ce qui a coûté les quatre divergences ci-dessus.
+
+## absence-rendered-as-a-measurement
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un graphique ou un tableau affiche `0` là où la donnée dit « aucune observation ». Le lecteur y lit une mesure — « 0 % de chance » — c'est-à-dire l'inverse de « on ne sait pas ». Aucune erreur, aucune trace : le rendu est parfaitement réussi.
+- root_cause: `pdf_charts.pi_gate` (`src/dashboard/utils/pdf_charts.py`) calculait `float((data.get(b) or {}).get("prob") or 0)`. L'idiome `or 0` confond `None` (jamais mesuré) et `0` (mesuré à zéro). Cas réel dans `machine_learning/models/v3/threshold_tables.json` : Release Radar, panier « 50+ », `prob: null`, `n: 0` — dessiné comme une barre à 0 % dans un PDF envoyé à des tiers. Volet jumeau : le graphique n'affichait pas l'effectif, si bien que 66,7 % mesuré sur **3** titres s'affichait aussi haut et aussi net que 99,4 % sur 172.
+- signature: `python3 -m pytest tests/test_an_empty_bracket_is_not_a_zero.py -q`
+- long_term_fix: un panier sans observation n'est pas dessiné (alpha 0), un panier peu peuplé est atténué, et l'effectif `n` est écrit sous chaque barre. Le garde lit **les barres réellement produites** (hauteur et alpha), pas le code qui les produit : c'est le seul niveau où « la barre est-elle dessinée ? » a une réponse. Un `0` mesuré sur un effectif réel reste affiché en pleine intensité — l'effacer perdrait une information.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_empty_bracket_is_not_a_zero.py }
+- rex_ref: src/dashboard/utils/pdf_charts.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: trouvé en cherchant la réponse à une question de l'auteur des notes de test (« le taux de trigger, quelle métrique fait foi ? »), pas en auditant le graphique. La question portait sur la définition ; c'est le rendu qui était faux.
+
+## counter-includes-our-own-robots
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un compteur affiché à des visiteurs — « N artistes utilisent le produit » — inclut les comptes de service que nous créons nous-mêmes. Le nombre est faux, et le lecteur n'a aucun moyen de le recouper.
+- root_cause: `live_pulse.get_registered_count_public` et `get_live_pulse` (`src/dashboard/utils/live_pulse.py`) et le KPI admin (`src/dashboard/views/admin.py`) comptaient `SELECT COUNT(*) FROM saas_artists WHERE active = TRUE`. Le canari de surveillance porte `is_canary = TRUE` depuis la migration 064 et `credential_loader.load_all_artists(exclude_canaries=True)` faisait déjà la distinction — les compteurs, non. Le plus exposé des trois est sur la **page d'inscription publique**.
+- signature: `python3 -m pytest tests/test_public_counters_count_humans.py -q`
+- long_term_fix: le prédicat « ce qui compte comme un locataire humain » est une constante unique (`live_pulse._HUMAN_TENANTS`), et le garde inspecte par AST le SQL réellement exécuté — en **résolvant les constantes de module interpolées**, sans quoi il déclarerait absent un prédicat qui est là.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_public_counters_count_humans.py }
+- rex_ref: src/dashboard/utils/live_pulse.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: le même fichier montrait le nom d'artiste du **propriétaire de la plateforme** comme valeur d'exemple du champ « Nom d'artiste », à chaque inscription. Même famille : une valeur interne qui fuit vers une surface publique parce que personne ne relit cette surface **en tant que visiteur**.
+
+## leak-via-an-exception-received-as-an-argument
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un credential part dans un journal, un mail ou une base, depuis un module que le garde anti-fuite ne surveille pas — et il a raison de ne pas le surveiller selon sa propre question.
+- root_cause: `test_credentials_security.py::test_no_probe_surfaces_a_whole_exception` demande « une exception née d'un appel HTTP peut-elle atteindre ce module ? » et répond en suivant le **graphe d'imports**. C'est juste pour une exception capturée sur place, et aveugle à celle qu'on reçoit en ARGUMENT : `error_alert._maybe_email(page, exc)` (`src/dashboard/utils/error_alert.py`) n'importe aucun client HTTP et n'en est importé par aucun, et envoyait la traceback complète **par Brevo**, un tiers, dans une boîte mail. Le message d'une exception `requests` embarque l'URL préparée — donc `access_token=`, `key=`.
+- signature: `python3 -m pytest tests/test_an_exception_passed_as_an_argument_is_redacted.py -q`
+- long_term_fix: un second garde, avec un prédicat qui épouse la vraie question — *cette fonction met-elle dans une chaîne une exception qu'elle n'a pas attrapée ?* Il repère les paramètres portant une exception (nom conventionnel ou annotation) et les variables issues d'un `traceback.format_*`, et exige un emballage (`redact` / `safe_error`). Sur `src/`, `airflow/` et `tools/`, il ne trouvait que deux sites — la précision du prédicat est ce qui rend le garde utilisable.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_exception_passed_as_an_argument_is_redacted.py }
+- rex_ref: src/dashboard/utils/error_alert.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: **septième fois que la portée d'un garde est le défaut**, et la première où l'élargir au graphe d'imports n'aurait rien donné — l'appel passe par un argument, qui ne laisse aucune trace dans ce graphe. Un élargissement bidirectionnel a été essayé et mesuré : 39 → 57 modules et 6 modules « en faute » dont la plupart ne manipulent que des exceptions de base de données. Le prédicat large aurait produit 25 corrections sans valeur ; le prédicat juste en a produit 1.
+
+## format-marker-in-a-plain-string
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un marqueur `{...}` destiné à une f-string se retrouve dans une chaîne ordinaire et part **tel quel** dans le SQL. Postgres reçoit huit caractères littéraux au lieu d'un prédicat — soit une erreur de syntaxe, soit, quand le marqueur est optionnel, un filtre qui ne filtre rien.
+- root_cause: en ajoutant le filtre de compte publicitaire aux vues Meta, une requête de `src/dashboard/views/meta_creatives.py` a reçu `{acct}` sans que le `f` soit ajouté au littéral. `ruff` ne le voit pas (une chaîne avec des accolades est valide), un test de rendu non plus (la vue ne s'affiche qu'avec deux comptes déclarés, et la flotte est mono-compte).
+- signature: `python3 -m pytest tests/test_meta_multi_account.py::test_no_account_marker_survives_in_a_plain_string -q`
+- long_term_fix: garde AST restreint aux arguments passés **directement** à `fetch_df` / `fetch_query` / `execute_query` — une constante de module marquée puis `.format()`-ée plus loin est légitime, et un garde qui la signalerait serait désactivé dans la semaine.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_meta_multi_account.py::test_no_account_marker_survives_in_a_plain_string }
+- rex_ref: src/dashboard/utils/meta_accounts.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: défaut commis pendant l'écriture de la brique, pas hérité. Le garde a été écrit dans la foulée et vu rouge sur le défaut réel avant d'être vert.
+
+## audit-reads-the-constraints-not-the-installed-set
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
+- root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
+- signature: `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`
+- long_term_fix: l'audit résout le lock avant de le lire — `uv export --frozen --no-dev --no-hashes` — donc il regarde exactement ce que `uv sync --frozen` installe. Règle générale : **on n'audite jamais un fichier de contraintes, on audite l'ensemble résolu**.
+- autofix: none
+- guard: { type: ci-step, ref: .github/workflows/security-nightly.yml }
+- rex_ref: .github/workflows/security-nightly.yml
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: après régénération du lock, 127 avis sur 18 paquets → 12 sur 2. Les deux restants sont assumés : `apache-airflow` (pin délibéré sur la version de l'image Docker, suivi en R49b) et `ecdsa` (sans correctif amont).

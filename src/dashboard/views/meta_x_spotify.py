@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session
+from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.utils.i18n import t
 
@@ -44,11 +45,16 @@ def _show_body(db, artist_id):
         "**📁 Données → 🔗 Mapping Spotify × Meta Ads (nom de campagne)**."
     ))
 
+    # Compte publicitaire d'abord : le même nom de campagne peut exister dans deux
+    # comptes, et cette page raconte l'histoire d'UNE campagne (R53 / ADR-013).
+    _acct, _acct_params = account_clause(
+        account_scope(db, artist_id, key="meta_x_spotify_acct"))
+
     try:
         q_camp_list = ("SELECT campaign_name FROM meta_insights_performance_day "
-                       "WHERE artist_id = %s GROUP BY campaign_name "
+                       f"WHERE artist_id = %s{_acct} GROUP BY campaign_name "
                        "ORDER BY MAX(day_date) DESC NULLS LAST")  # campagne la plus récente en haut
-        camp_list_df = db.fetch_df(q_camp_list, (artist_id,))
+        camp_list_df = db.fetch_df(q_camp_list, (artist_id, *_acct_params))
         available_campaigns = camp_list_df['campaign_name'].tolist()
     except:
         available_campaigns = []
@@ -73,8 +79,8 @@ def _show_body(db, artist_id):
     try:
         df_start = db.fetch_df(
             "SELECT MIN(day_date) AS s FROM meta_insights_performance_day "
-            "WHERE artist_id = %s AND campaign_name = %s",
-            (artist_id, selected_campaign),
+            f"WHERE artist_id = %s{_acct} AND campaign_name = %s",
+            (artist_id, *_acct_params, selected_campaign),
         )
         if not df_start.empty and df_start.iloc[0]['s']:
             camp_start = pd.to_datetime(df_start.iloc[0]['s']).date()
@@ -110,12 +116,14 @@ def _show_body(db, artist_id):
     # =========================================================================
 
     # A. META ADS
-    q_meta = """
+    q_meta = f"""
         SELECT day_date as date, spend, results, cpr
         FROM meta_insights_performance_day
-        WHERE artist_id = %s AND campaign_name = %s AND day_date >= %s AND day_date <= %s
+        WHERE artist_id = %s{_acct} AND campaign_name = %s
+          AND day_date >= %s AND day_date <= %s
     """
-    df_meta = db.fetch_df(q_meta, (artist_id, selected_campaign, start_date, end_date))
+    df_meta = db.fetch_df(
+        q_meta, (artist_id, *_acct_params, selected_campaign, start_date, end_date))
 
     # B. HYPEDDIT
     q_hypeddit = """

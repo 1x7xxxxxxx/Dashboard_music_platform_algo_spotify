@@ -68,6 +68,8 @@ graph LR
 | `views/*.py` | Feature | get_db_connection, st.session_state |
 | `dashboard/utils/geo.py` | Utility | pycountry (ISO-2→ISO-3 for choropleth) |
 | `dashboard/utils/charts.py` | Utility | plotly (shared `pareto_spend_cpr`) |
+| `dashboard/utils/meta_accounts.py` | Utility | streamlit + `collectors/_meta_constants` — sélecteur de compte publicitaire Meta partagé par les 5 vues Meta et le formulaire d'export PDF (R53 / ADR-013). `account_scope()` rend le widget **seulement à partir de 2 comptes** ; `account_clause()` rend `(fragment_sql, params)` à coller après `WHERE artist_id = %s`. Dérive la liste des tables porteuses de `ad_account_id` du collecteur, jamais retapée |
+| `models/meta_ads_validators.py` | Sub | pydantic — **branché depuis 2026-08-24** (R47) : `_MetaUpsertMixin._upsert_config` valide campagnes/adsets/ads, `_persist_insights` valide `meta_insights`. Lève, ne filtre jamais |
 | `dashboard/utils/algo_knowledge.py` | Utility | PURE (no st/DB) — classification: algo-keyed `ALGO_FEATURE_ZONES` (DW + Radio + RR populated)/`RADIO_FEATURE_ZONES`/`RR_FEATURE_ZONES`/`ALGO_CALIBRATION_BANDS` (DW only)/`ALGO_MODEL_METRICS`/`ALGO_LABELS`; volume/regressor: `ALGO_VOLUME_ZONES` (DW only)/`ALGO_REGRESSOR_METRICS`/`FORECAST_FLOOR_DISCLAIMER`/`volume_scaling_threshold`; helpers `populated_algos`/`build_coach_actions`/`velocity_penalty_threshold` + registry-aware `_spec`/`zone_for_value`/`decode_feature_value` (serve both zone registries) |
 | `dashboard/utils/ml_widgets.py` | Utility | streamlit + plotly — classification scorecard + feature gauges + `render_coach` ranked to-do list; volume layer: `render_floor_forecast`/`floor_forecast_text`/`render_regressor_badge`/`render_volume_gauges`/`render_shap_narrative` (registry-threaded `_render_one_gauge`/`_live_value`). Consumes algo_knowledge |
 | `airflow/dags/*.py` | Feature | collectors, credential_loader |
@@ -76,7 +78,6 @@ graph LR
 | `src/database/*_schema.py` | Sub | PostgresHandler |
 | `src/transformers/*.py` | Sub | CSV input, feeds collectors |
 | `retry.py` | Utility | — |
-| `error_handler.py` | Utility | **— aucun appelant** (vérifié 2026-08-23 : seul `tests/test_error_handler.py` l'importe ; la dépendance `email_handler → email_alerts` annoncée ici n'existe pas dans le code) |
 | `config_loader.py` | Utility | config/config.yaml |
 | `credential_loader.py` | Utility | PostgresHandler, Fernet |
 | `freshness_monitor.py` | Utility | PostgresHandler |

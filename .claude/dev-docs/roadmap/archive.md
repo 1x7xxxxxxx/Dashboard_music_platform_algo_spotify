@@ -1912,3 +1912,225 @@ Quatre classes capitalisées : `resave-erases-a-secret-the-form-cannot-show`,
 Écarté après vérification : « Meta figé depuis 85 jours » — faux, le code avait raison.
 
 Cinq classes capitalisées. 92 au total, 1399 tests verts.
+
+
+### R47 · R48 · R49 · R53 — L'index actionnable, vidé (clos 2026-08-24)
+
+Quatre entrées, une séance. Le fil commun n'était pas prévu : **trois des quatre
+décrivaient une couche présente que rien n'exécutait**, et dans les trois cas la
+brancher telle quelle aurait cassé la production — parce que ce que la couche
+supposait du reste du code n'était plus vrai depuis longtemps, et que rien ne
+pouvait le signaler tant que personne ne l'appelait.
+
+- [x] **R53 — Meta multi-comptes, livré (2/3 et 3/3).** Décision produit :
+  **comptes séparés** (ADR-013). `account_ids` canonique sous une seule ligne de
+  credentials ; boucle collecteur sur N comptes ; migration 077 met
+  `ad_account_id` dans la clé d'unicité des dix tables à la maille campagne, avec
+  `NULLS NOT DISTINCT` — sans quoi la contrainte aurait cessé de dédupliquer
+  l'historique et AJOUTÉ un doublon chaque nuit. Sélecteur de compte sur les cinq
+  vues Meta et sur le formulaire d'export PDF, rendu seulement à partir de deux
+  comptes. Le test de connexion sonde désormais **tous** les comptes ; une panne
+  sur l'un n'empêche plus les autres de collecter, et la tâche reste rouge.
+
+- [x] **R47 — validateurs Meta Ads : branchés, après correction.** La ROADMAP les
+  disait « exactement la forme des payloads ». Ils ne l'étaient pas, et les
+  brancher tels quels aurait **arrêté la collecte** : quatre divergences, trouvées
+  une par une en les branchant — aucun ne déclarait `artist_id` (le seul champ dont
+  ce dépôt ait réellement souffert), `status` était obligatoire alors que le
+  collecteur écrit `.get('status')`, `targeting` était typé `dict` alors qu'on
+  écrit une chaîne JSON, et `MetaInsight` exigeait dix métriques non nulles que
+  Meta ne rend pas sur un objectif d'engagement. Le test passait *parce que* rien
+  n'exécutait les modèles : il les confrontait à des payloads inventés par le test.
+
+- [x] **R48 — `error_handler.py` retiré, pas câblé.** Ses trois fonctions
+  interpolent l'exception brute — l'invariant du dépôt est *ne jamais interpoler
+  une exception brute, nulle part* — et `safe_call` / `log_errors(reraise=False)`
+  sont un helper béni pour avaler une exception et rendre `None`, exactement ce que
+  la règle transverse #6 interdit. Module, tests, ligne d'architecture et référence
+  dans `response-protocol/SKILL.md` retirés ensemble.
+
+- [x] **R49 — le lock régénéré, et l'audit repointé.** 127 avis sur 18 paquets →
+  **12 sur 2**, dont `pyjwt` (notre authentification), `starlette`,
+  `python-multipart`. La cause de fond était ailleurs : l'audit nocturne lisait
+  `requirements.txt`, un fichier de **planchers** que rien n'installe tel quel,
+  pendant que la CI installait `uv.lock`. Il lit désormais le lock **résolu**
+  (`uv export --frozen`). Restent `apache-airflow` (pin délibéré sur la version de
+  l'image → R49b, resté ouvert) et `ecdsa` (sans correctif amont).
+
+Détail d'origine des quatre entrées, conservé tel quel :
+
+### R47 — Les validateurs Meta Ads existent et ne sont jamais appelés · P2
+
+`src/models/meta_ads_validators.py` définit `MetaCampaign`, `MetaAdset`, `MetaAd` et
+`MetaInsight` — exactement la forme des payloads que `_meta_upsert.py` écrit. **Aucun
+code de production ne les importe** ; seul `tests/test_validators.py` le fait. Et
+`_meta_upsert.py` ne valide que le **nom de table** (`validate_table`, l'allowlist SQL de
+la règle #8), jamais le contenu.
+
+Ce que ça vaut : `CLAUDE.md` présente `models/` comme une couche de l'architecture
+(« Pydantic validators »), et Meta Ads est la plateforme qui a coûté le plus d'incidents
+de données à ce dépôt. `audit_tenant_writes.py` signale d'ailleurs les payloads de
+`_meta_upsert.py` comme « not statically resolvable » — c'est précisément la question
+qu'un validateur trancherait.
+
+- [x] **R47** — trancher, puis faire : soit brancher les quatre modèles dans
+      `_meta_upsert.py` (et le dire dans l'architecture), soit les retirer et cesser
+      d'annoncer une couche de validation qui n'existe pas. Ne pas laisser l'ambiguïté :
+      une couche écrite et débranchée donne la confiance sans la propriété.
+      Vérif : un payload Meta malformé doit être refusé (mutation), et
+      `audit_tenant_writes.py` ne doit plus dire « not statically resolvable » sur ces
+      trois sites.
+
+### R48 — Deux modules ne vivent que par leur propre test · P4
+
+| Module | Importé par |
+|---|---|
+| `src/utils/error_handler.py` (`log_errors`, `log_and_raise`, `safe_call`) | `tests/test_error_handler.py` **uniquement** |
+| `src/models/meta_ads_validators.py` | `tests/test_validators.py` **uniquement** (→ R47) |
+
+Le motif est trompeur par construction : le test passe, la couverture a l'air bonne,
+l'architecture décrit le module comme porteur, et **rien ne l'exécute**. Le test protège
+du code mort et empêche de le retirer sans discussion.
+
+- [x] **R48** — trancher chacun : câbler (et le prouver par un appelant réel) ou retirer
+      (module ET test ET la ligne d'architecture). `error_handler.py` est de surcroît
+      cité comme exemple canonique de « Utility » dans
+      `.claude/skills/response-protocol/SKILL.md` — une référence à retirer aussi si le
+      module part.
+
+---
+
+### R49 — Le lockfile épingle des versions vulnérables que la prod n'exécute pas · P3
+`pip-audit` sur le venv local : **18 paquets vulnérables, 127 avis**. Le réflexe serait
+d'alerter — la mesure dit l'inverse. Ce que la **production** exécute :
+| Paquet | venv local (`uv.lock`) | prod api/dashboard |
+|---|---|---|
+| `pyjwt` | 2.12.1 ⚠️ | **2.13.0** ✅ |
+| `cryptography` | 48.0.0 ⚠️ | **50.0.0** ✅ |
+| `starlette` | 1.0.0 ⚠️ | **1.6.0** ✅ |
+| `python-multipart` | 0.0.28 ⚠️ | **0.0.32** ✅ |
+| `pillow` | 10.4.0 ⚠️ | **12.3.0** ✅ |
+La cause : `requirements.txt` déclare des **planchers** (`cryptography>=42.0.0`), donc
+l'image Docker installe la dernière version satisfaisante, pendant que `uv.lock` fige des
+versions exactes et anciennes. **La CI, qui fait `uv sync --frozen`, teste donc du code
+que la production n'exécute pas** — c'est la famille `streamlit-pin-drift`, dans le sens
+qu'on n'attendait pas.
+Le conteneur **Airflow** est l'exception inverse : il tourne `apache-airflow 2.8.1`,
+`sqlparse 0.4.4`, `aiohttp 3.9.1`, `pyjwt 2.8.0` — en retard, lui, pour de bon. Gravité
+mesurée et non supposée : il n'écoute que sur `127.0.0.1:8080`, UFW n'ouvre 80/443 qu'aux
+plages Cloudflare, et rien ne le publie. C'est de la défense en profondeur, pas une
+surface exposée.
+- [x] **R49** — décider et faire : soit `uv.lock` est régénéré pour suivre les planchers
+      (`uv lock --upgrade`) et la CI teste enfin ce que la prod exécute, soit les deux
+      manifestes sont alignés dans l'autre sens. Ne pas laisser deux vérités.
+      Vérif : `pip-audit` sur le venv issu du lock, et comparaison avec
+      `docker exec streamlytics_api pip list` — les versions critiques doivent coïncider.
+### R53 — Meta multi-comptes, suite · P2
+
+**Fait (1/3, déployé)** : `migrations/076` ajoute `ad_account_id` aux 10 tables à la maille
+campagne et aux 3 de provenance (13 colonnes, appliquée en prod), et le `DELETE` de
+`_prune_renamed_campaigns` porte désormais le même discriminant que ce qu'il vient
+d'écrire. Sans ça, la boucle sur deux comptes aurait fait **effacer par le second tout ce
+que le premier venait d'écrire** — corrigé avant que le cas existe, sinon il n'aurait été
+visible qu'en constatant des données manquantes.
+
+- [x] **R53 (2/3)** — boucle collecteur sur N comptes. `self.ad_account` est un attribut
+      unique (`meta_ads_api_collector.py:101`) ; `_current_ad_account_id` doit être
+      alimenté à chaque tour, sinon le scope du prune est écrit mais vide. Mécanique, mais
+      à faire avant l'étape suivante.
+- [x] **R53 (3/3)** — remplacer les contraintes d'unicité des 10 tables (aujourd'hui sur
+      `campaign_name` seul : deux comptes ayant une campagne du même nom écrivent la même
+      ligne), puis le stockage (`UNIQUE(artist_id, platform)` et un `account_id` scalaire ;
+      `identity_is_well_formed` rejette une liste, et `find_identity_conflict` **interdit
+      déjà que deux artistes partagent le compte d'une agence**), puis l'interface.
+      **Dans cet ordre.**
+
+### R47 — Les validateurs Meta Ads existent et ne sont jamais appelés · P2
+
+`src/models/meta_ads_validators.py` définit `MetaCampaign`, `MetaAdset`, `MetaAd` et
+`MetaInsight` — exactement la forme des payloads que `_meta_upsert.py` écrit. **Aucun
+code de production ne les importe** ; seul `tests/test_validators.py` le fait. Et
+`_meta_upsert.py` ne valide que le **nom de table** (`validate_table`, l'allowlist SQL de
+la règle #8), jamais le contenu.
+
+Ce que ça vaut : `CLAUDE.md` présente `models/` comme une couche de l'architecture
+(« Pydantic validators »), et Meta Ads est la plateforme qui a coûté le plus d'incidents
+de données à ce dépôt. `audit_tenant_writes.py` signale d'ailleurs les payloads de
+`_meta_upsert.py` comme « not statically resolvable » — c'est précisément la question
+qu'un validateur trancherait.
+
+- [x] **R47** — trancher, puis faire : soit brancher les quatre modèles dans
+      `_meta_upsert.py` (et le dire dans l'architecture), soit les retirer et cesser
+      d'annoncer une couche de validation qui n'existe pas. Ne pas laisser l'ambiguïté :
+      une couche écrite et débranchée donne la confiance sans la propriété.
+      Vérif : un payload Meta malformé doit être refusé (mutation), et
+      `audit_tenant_writes.py` ne doit plus dire « not statically resolvable » sur ces
+      trois sites.
+
+### R48 — Deux modules ne vivent que par leur propre test · P4
+
+| Module | Importé par |
+|---|---|
+| `src/utils/error_handler.py` (`log_errors`, `log_and_raise`, `safe_call`) | `tests/test_error_handler.py` **uniquement** |
+| `src/models/meta_ads_validators.py` | `tests/test_validators.py` **uniquement** (→ R47) |
+
+Le motif est trompeur par construction : le test passe, la couverture a l'air bonne,
+l'architecture décrit le module comme porteur, et **rien ne l'exécute**. Le test protège
+du code mort et empêche de le retirer sans discussion.
+
+- [x] **R48** — trancher chacun : câbler (et le prouver par un appelant réel) ou retirer
+      (module ET test ET la ligne d'architecture). `error_handler.py` est de surcroît
+      cité comme exemple canonique de « Utility » dans
+      `.claude/skills/response-protocol/SKILL.md` — une référence à retirer aussi si le
+      module part.
+
+---
+
+### R49 — Le lockfile épingle des versions vulnérables que la prod n'exécute pas · P3
+`pip-audit` sur le venv local : **18 paquets vulnérables, 127 avis**. Le réflexe serait
+d'alerter — la mesure dit l'inverse. Ce que la **production** exécute :
+| Paquet | venv local (`uv.lock`) | prod api/dashboard |
+|---|---|---|
+| `pyjwt` | 2.12.1 ⚠️ | **2.13.0** ✅ |
+| `cryptography` | 48.0.0 ⚠️ | **50.0.0** ✅ |
+| `starlette` | 1.0.0 ⚠️ | **1.6.0** ✅ |
+| `python-multipart` | 0.0.28 ⚠️ | **0.0.32** ✅ |
+| `pillow` | 10.4.0 ⚠️ | **12.3.0** ✅ |
+La cause : `requirements.txt` déclare des **planchers** (`cryptography>=42.0.0`), donc
+l'image Docker installe la dernière version satisfaisante, pendant que `uv.lock` fige des
+versions exactes et anciennes. **La CI, qui fait `uv sync --frozen`, teste donc du code
+que la production n'exécute pas** — c'est la famille `streamlit-pin-drift`, dans le sens
+qu'on n'attendait pas.
+Le conteneur **Airflow** est l'exception inverse : il tourne `apache-airflow 2.8.1`,
+`sqlparse 0.4.4`, `aiohttp 3.9.1`, `pyjwt 2.8.0` — en retard, lui, pour de bon. Gravité
+mesurée et non supposée : il n'écoute que sur `127.0.0.1:8080`, UFW n'ouvre 80/443 qu'aux
+plages Cloudflare, et rien ne le publie. C'est de la défense en profondeur, pas une
+surface exposée.
+- [x] **R49** — décider et faire : soit `uv.lock` est régénéré pour suivre les planchers
+      (`uv lock --upgrade`) et la CI teste enfin ce que la prod exécute, soit les deux
+      manifestes sont alignés dans l'autre sens. Ne pas laisser deux vérités.
+      Vérif : `pip-audit` sur le venv issu du lock, et comparaison avec
+      `docker exec streamlytics_api pip list` — les versions critiques doivent coïncider.
+### R53 — Meta multi-comptes · P2 — **brique de schéma, pas d'UI**
+
+Besoin **confirmé** (agence de Tom). R14 avait été clos avec « rouvre quand un locataire
+déclare un second compte » : le déclencheur s'est produit.
+
+Trois blocages, par coût croissant. Le troisième est le vrai :
+
+1. **Stockage** — `UNIQUE(artist_id, platform)`, un seul `account_id` scalaire ;
+   `identity_is_well_formed` rejette une liste, et `find_identity_conflict` **interdit déjà
+   que deux artistes partagent le compte d'une agence**.
+2. **Collecteur** — `self.ad_account` est un attribut unique. Mécanique.
+3. **Schéma — perte de données silencieuse.** Les 10 tables d'insights à la maille campagne
+   sont uniques sur **`campaign_name`**, sans discriminant de compte : deux comptes ayant une
+   campagne du même nom **écrasent la même ligne**. Pire,
+   `_prune_renamed_campaigns` (`_meta_upsert.py:87`) exécute
+   `DELETE … WHERE artist_id = %s AND campaign_name <> ALL(%s)` — en boucle sur deux comptes,
+   **le second efface tout ce que le premier vient d'écrire**.
+
+- [x] **R53** — migration ajoutant `ad_account_id`, réécriture des contraintes d'unicité,
+      mise à jour de `_insight_upsert_maps()`, re-clé du prune, puis boucle collecteur, puis
+      UI. **Dans cet ordre** : livrer l'UI d'abord produirait des données silencieusement
+      fausses. **Décision d'affichage à prendre** : comptes fusionnés (un total) ou séparés
+      (un onglet par compte) — ça décide de la forme du schéma.

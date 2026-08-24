@@ -70,6 +70,14 @@ PLATFORMS = {
             {'key': 'account_id', 'label': 'Ad Account ID (act_… ou numérique)', 'secret': False},
             {'key': 'ig_user_id', 'label': 'Instagram Business Account ID (optionnel)',
              'secret': False},
+            # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
+            # plutôt qu'une liste dans `account_id` : les 100 % de locataires
+            # mono-compte d'aujourd'hui ne voient aucun changement, et le champ
+            # principal garde le motif de forme qui l'empêche d'entrer tel quel dans
+            # un chemin REST. Une liste dans le champ principal aurait cassé les deux.
+            {'key': 'extra_account_ids',
+             'label': 'Comptes publicitaires supplémentaires (un par ligne — agences)',
+             'secret': False, 'multiline': True},
         ],
     },
 }

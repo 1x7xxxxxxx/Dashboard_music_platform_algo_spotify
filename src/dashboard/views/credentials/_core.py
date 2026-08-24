@@ -343,6 +343,14 @@ def _decode_row(row: dict, fields: list) -> dict:
     for f in fields:
         key = f['key']
         result[key] = secrets.get(key, '') if f['secret'] else extra.get(key, '')
+
+    # `extra_account_ids` est DÉRIVÉ, jamais stocké : la liste canonique est
+    # `account_ids`, dont le premier élément est le champ principal. Stocker le
+    # champ de saisie en plus de la liste ferait deux états à garder d'accord, et
+    # celui qu'on ne relit pas est toujours celui qui se désynchronise.
+    if 'extra_account_ids' in {f['key'] for f in fields}:
+        from src.utils.tenant_identity import meta_ad_account_ids
+        result['extra_account_ids'] = "\n".join(meta_ad_account_ids(extra)[1:])
     return result
 
 # Identity fields whose value must belong to exactly ONE tenant. Two artists
@@ -375,6 +383,16 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
     field = UNIQUE_IDENTITY_FIELDS.get(platform)
     if not field:
         return None
+
+    if platform == 'meta':
+        # Meta est la seule identité PLURIELLE (R53 / ADR-013 : un artiste passant
+        # par une agence a N comptes publicitaires). Comparer le seul scalaire
+        # `account_id` rouvrirait exactement le trou que cette fonction ferme : le
+        # DEUXIÈME compte d'un artiste n'apparaît dans le scalaire de personne, donc
+        # un autre locataire pourrait le revendiquer comme son premier — deux
+        # tableaux de bord sur les mêmes dépenses, en silence.
+        return _find_meta_account_conflict(db, artist_id, extra)
+
     value = (extra.get(field) or '').strip()
     if not value:
         return None
@@ -407,3 +425,46 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
         # Guard: tests/test_identity_conflict_names_no_other_tenant.py
         return field, value, rows[0][0]
     return None
+
+
+def _find_meta_account_conflict(db, artist_id: int, extra: dict):
+    """(field, value, other_artist_id) si un autre locataire tient l'un des comptes.
+
+    Compare CHAQUE compte déclaré contre le scalaire `account_id` ET la liste
+    `account_ids` de tous les autres locataires. Les deux formes de saisie sont
+    testées (`act_123` et `123`) : la normalisation est faite à l'écriture depuis
+    2026-08-24, mais les lignes écrites avant portent ce que l'artiste avait tapé,
+    et une comparaison qui rate à cause d'un préfixe est un conflit non détecté.
+    """
+    from src.utils.tenant_identity import meta_ad_account_ids
+
+    accounts = meta_ad_account_ids(extra)
+    if not accounts:
+        return None
+    variants = []
+    for acct in accounts:
+        variants.append(acct)
+        variants.append(acct[len('act_'):])
+
+    rows = db.fetch_query(
+        "SELECT artist_id, COALESCE("
+        "  (SELECT e.value FROM jsonb_array_elements_text("
+        "     CASE WHEN jsonb_typeof(extra_config->'account_ids') = 'array' "
+        "          THEN extra_config->'account_ids' ELSE '[]'::jsonb END) e "
+        "   WHERE e.value = ANY(%s) LIMIT 1), "
+        "  extra_config->>'account_id') AS taken "
+        "FROM artist_credentials "
+        "WHERE platform = 'meta' AND artist_id <> %s AND ("
+        "  extra_config->>'account_id' = ANY(%s) "
+        "  OR EXISTS (SELECT 1 FROM jsonb_array_elements_text("
+        "       CASE WHEN jsonb_typeof(extra_config->'account_ids') = 'array' "
+        "            THEN extra_config->'account_ids' ELSE '[]'::jsonb END) e2 "
+        "     WHERE e2.value = ANY(%s)))",
+        (variants, artist_id, variants, variants),
+    )
+    if not rows:
+        return None
+    row = rows[0]
+    other, taken = (row[0], row[1]) if isinstance(row, (tuple, list)) else (
+        row['artist_id'], row['taken'])
+    return ('account_id', taken, other)

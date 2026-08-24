@@ -33,10 +33,14 @@ def _no_remote_resources(url: str, timeout: int = 10, ssl_context=None):
     raise ValueError(f"blocked non-data resource in PDF render: {url[:60]}")
 
 
-def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs_filter=None):
+def collect_report_data(db, artist_id, from_date, to_date, songs=None,
+                        s4a_songs_filter=None, ad_account=None):
     """
     Retourne un dict avec toutes les métriques nécessaires au rapport.
     songs : liste de noms de chansons pour la section focus (None = pas de section songs).
+    ad_account : restreint les sections publicitaires à UN compte Meta (R53 /
+        ADR-013). `None` = pas de filtre, ce qui est le cas de tout locataire
+        mono-compte : le rapport produit est alors identique à celui d'avant.
     """
     now = datetime.now()
     months = max(1, round((to_date - from_date).days / 30))
@@ -72,15 +76,15 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None, s4a_songs
     s4a_top_songs    = _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=s4a_songs_filter)
     youtube_data     = _collect_youtube(db, artist_id, single_song=_single_song)
     instagram_data   = _collect_instagram(db, artist_id, from_date, to_date)
-    meta_data        = _collect_meta(db, artist_id, _ad_from, to_date)
+    meta_data        = _collect_meta(db, artist_id, _ad_from, to_date, ad_account=ad_account)
     sc_tracks        = _collect_soundcloud_tracks(db, artist_id, single_song=_single_song)
     apple_data       = _collect_apple(db, artist_id, selected_songs=_sel)
     hypeddit_data    = _collect_hypeddit(db, artist_id, _ad_from, to_date)
-    breakdowns       = _collect_meta_breakdowns(db, artist_id)
+    breakdowns       = _collect_meta_breakdowns(db, artist_id, ad_account=ad_account)
     revenue_fc       = _collect_revenue_forecast(db, artist_id)
-    meta_x_spotify   = _collect_meta_x_spotify(db, artist_id, _ad_from, to_date)
-    meta_funnel_d    = _collect_meta_funnel(db, artist_id, _ad_from, to_date)
-    meta_daily_d     = _collect_meta_daily(db, artist_id, _ad_from, to_date)
+    meta_x_spotify   = _collect_meta_x_spotify(db, artist_id, _ad_from, to_date, ad_account=ad_account)
+    meta_funnel_d    = _collect_meta_funnel(db, artist_id, _ad_from, to_date, ad_account=ad_account)
+    meta_daily_d     = _collect_meta_daily(db, artist_id, _ad_from, to_date, ad_account=ad_account)
     creds_status     = _collect_credentials_status(db, artist_id)
     mapping_rows     = _collect_mapping(db, artist_id)
     yt_history       = _collect_youtube_history(db, artist_id)
@@ -439,7 +443,8 @@ def render_html(data, artist_name, sections=None, lang="fr"):
 
 def generate_pdf(db, artist_id, artist_name=None, months=12,
                  from_date=None, to_date=None,
-                 sections=None, songs=None, s4a_songs_filter=None, lang=None):
+                 sections=None, songs=None, s4a_songs_filter=None, lang=None,
+                 ad_account=None):
     """
     Collecte les données et retourne les bytes du PDF.
 
@@ -449,6 +454,7 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
         sections  — dict {key: bool} des sections à inclure (None = toutes)
         songs     — liste de noms de chansons pour la section focus
         lang      — langue du rapport ('fr'/'en') ; None → langue de session UI
+        ad_account — compte publicitaire Meta unique (R53) ; None = tous
     """
     from weasyprint import HTML
 
@@ -474,6 +480,7 @@ def generate_pdf(db, artist_id, artist_name=None, months=12,
         artist_name = _get_artist_name(db, artist_id)
 
     data = collect_report_data(db, artist_id, from_date, to_date, songs=songs,
+                               ad_account=ad_account,
                                s4a_songs_filter=s4a_songs_filter)
     html_str = _EMOJI_RE.sub("", render_html(data, artist_name, sections=sections, lang=lang))
     # No network, no filesystem. WeasyPrint's default url_fetcher registers

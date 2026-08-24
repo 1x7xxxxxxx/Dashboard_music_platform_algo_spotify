@@ -11,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
@@ -22,7 +23,7 @@ SELECT ma.ad_name AS creative_name, mi.date::date AS date,
        SUM(mi.spend) AS spend
 FROM meta_insights mi
 JOIN meta_ads ma ON ma.ad_id = mi.ad_id
-WHERE ma.artist_id = %s
+WHERE ma.artist_id = %s{acct}
 GROUP BY ma.ad_name, mi.date
 ORDER BY mi.date
 """
@@ -70,7 +71,7 @@ FROM meta_ads ma
 JOIN meta_insights mi ON mi.ad_id = ma.ad_id
 JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
 LEFT JOIN meta_adsets ads ON ads.adset_id = ma.adset_id
-WHERE ma.artist_id = %s
+WHERE ma.artist_id = %s{{acct}}
 GROUP BY ma.ad_name, mc.campaign_name
 HAVING SUM(mi.spend) > 0
 ORDER BY cpr ASC NULLS LAST, total_results DESC
@@ -92,10 +93,10 @@ LEFT JOIN meta_insights mi ON mi.ad_id = ma.ad_id
 LEFT JOIN (
     SELECT campaign_name, SUM(spend) AS campaign_spend
     FROM meta_insights_performance_day
-    WHERE artist_id = %s
+    WHERE artist_id = %s{acct}
     GROUP BY campaign_name
 ) cl ON cl.campaign_name = mc.campaign_name
-WHERE mc.artist_id = %s
+WHERE mc.artist_id = %s{acct_mc}
 GROUP BY mc.campaign_name, cl.campaign_spend
 HAVING COALESCE(SUM(mi.spend), 0) = 0
 ORDER BY cl.campaign_spend DESC NULLS LAST, mc.campaign_name
@@ -217,7 +218,8 @@ def _render_bar_chart(df: pd.DataFrame) -> None:
     st.bar_chart(chart_df, color="#ff6b35")
 
 
-def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> None:
+def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
+                              acct: str = "", acct_params: tuple = ()) -> None:
     """Per-creative multi-metric timeline (one Y-axis per metric, legend toggle).
 
     The creative list honours the page's campaign filter. The period filter is
@@ -229,13 +231,14 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
 
     # Honour the page-level campaign filter for the creative dropdown.
     campaign_clause = "" if selected_campaign == "Toutes" else " AND mc.campaign_name = %s"
-    name_params = (artist_id,) if selected_campaign == "Toutes" else (artist_id, selected_campaign)
+    name_params = ((artist_id, *acct_params) if selected_campaign == "Toutes"
+                   else (artist_id, *acct_params, selected_campaign))
     names = db.fetch_df(
         f"""SELECT ma.ad_name, MAX(ma.created_time) AS last_created
             FROM meta_ads ma
             JOIN meta_insights mi ON mi.ad_id = ma.ad_id
             JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
-            WHERE ma.artist_id = %s AND ma.ad_name IS NOT NULL{campaign_clause}
+            WHERE ma.artist_id = %s{acct} AND ma.ad_name IS NOT NULL{campaign_clause}
             GROUP BY ma.ad_name
             ORDER BY last_created DESC NULLS LAST, ma.ad_name""",
         name_params,
@@ -259,10 +262,10 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str) -> Non
             FROM meta_insights mi
             JOIN meta_ads ma ON ma.ad_id = mi.ad_id
             JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
-            WHERE ma.artist_id = %s AND ma.ad_name = %s{campaign_clause}
+            WHERE ma.artist_id = %s{acct} AND ma.ad_name = %s{campaign_clause}
             GROUP BY mi.date ORDER BY mi.date""",
-        (artist_id, creative) if selected_campaign == "Toutes"
-        else (artist_id, creative, selected_campaign),
+        (artist_id, *acct_params, creative) if selected_campaign == "Toutes"
+        else (artist_id, *acct_params, creative, selected_campaign),
     )
     if ts.empty:
         st.info(t("meta_creatives.no_timeseries", "Pas de séries temporelles pour cette créative."))
@@ -395,24 +398,26 @@ def _render_funnel(df: pd.DataFrame) -> None:
     st.plotly_chart(fig, width="stretch")
 
 
-def _render_fatigue(db, artist_id: int) -> None:
+def _render_fatigue(db, artist_id: int, acct: str = "",
+                    acct_params: tuple = ()) -> None:
     """#2 — frequency (↗) vs CTR (↘) over time: ad-fatigue detector."""
     names = db.fetch_df(
-        """SELECT ma.ad_name, MAX(ma.created_time) AS last_created
+        f"""SELECT ma.ad_name, MAX(ma.created_time) AS last_created
            FROM meta_ads ma JOIN meta_insights mi ON mi.ad_id = ma.ad_id
-           WHERE ma.artist_id = %s AND ma.ad_name IS NOT NULL
+           WHERE ma.artist_id = %s{acct} AND ma.ad_name IS NOT NULL
            GROUP BY ma.ad_name ORDER BY last_created DESC NULLS LAST, ma.ad_name""",
-        (artist_id,),
+        (artist_id, *acct_params),
     )
     if names.empty:
         st.info(t("meta_creatives.no_creative", "Aucune créative."))
         return
     sel = st.selectbox(t("meta_creatives.creative", "Créative"), names['ad_name'].tolist(), key="fatigue_creative")
     ts = db.fetch_df(
-        """SELECT mi.date::date AS date, AVG(mi.frequency) AS frequency, AVG(mi.ctr) * 100 AS ctr
+        f"""SELECT mi.date::date AS date, AVG(mi.frequency) AS frequency, AVG(mi.ctr) * 100 AS ctr
            FROM meta_insights mi JOIN meta_ads ma ON ma.ad_id = mi.ad_id
-           WHERE ma.artist_id = %s AND ma.ad_name = %s GROUP BY mi.date ORDER BY mi.date""",
-        (artist_id, sel),
+           WHERE ma.artist_id = %s{acct} AND ma.ad_name = %s
+           GROUP BY mi.date ORDER BY mi.date""",
+        (artist_id, *acct_params, sel),
     )
     if ts.empty:
         st.info(t("meta_creatives.no_timeseries", "Pas de séries temporelles pour cette créative."))
@@ -486,8 +491,18 @@ def show() -> None:
                  "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
 
     with view_session() as (db, artist_id):
-        df = db.fetch_df(_QUERY_CREATIVES, (artist_id,))
-        uncollected = db.fetch_df(_QUERY_UNCOLLECTED, (artist_id, artist_id))
+        # Toutes les requêtes de cette page s'ancrent sur `meta_ads` ou
+        # `meta_campaigns`, qui portent `ad_account_id` — `meta_insights` est à la
+        # maille ad_id, globalement unique, donc filtrer l'ancre suffit.
+        _account = account_scope(db, artist_id, key="meta_creatives_acct")
+        _acct_ma, _acct_params = account_clause(_account, "ma.")
+        _acct_mc, _ = account_clause(_account, "mc.")
+        _acct_bare, _ = account_clause(_account)
+        df = db.fetch_df(_QUERY_CREATIVES.format(acct=_acct_ma),
+                         (artist_id, *_acct_params))
+        uncollected = db.fetch_df(
+            _QUERY_UNCOLLECTED.format(acct=_acct_bare, acct_mc=_acct_mc),
+            (artist_id, *_acct_params, artist_id, *_acct_params))
 
         _render_uncollected_notice(uncollected)
 
@@ -558,11 +573,13 @@ def show() -> None:
             _render_funnel(df)
 
         with t_evo:
-            _render_creative_timeline(db, artist_id, selected_campaign)
+            _render_creative_timeline(db, artist_id, selected_campaign,
+                                      _acct_ma, _acct_params)
 
         with t_fatigue:
-            _render_fatigue(db, artist_id)
+            _render_fatigue(db, artist_id, _acct_ma, _acct_params)
 
         with t_act:
-            ts_all = db.fetch_df(_QUERY_TS_ALL, (artist_id,))
+            ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
+                                 (artist_id, *_acct_params))
             _render_activity(ts_all)

@@ -11,7 +11,7 @@ EN = {
     "register.err_terms": "You must accept the Privacy Policy and Terms of Use to register.",
     # Form fields
     "register.artist_name": "Artist name *",
-    "register.artist_name_ph": "e.g. 1x7xxxxxxx",
+    "register.artist_name_ph": "Your artist name",
     "register.artist_name_help": "Your public artist name.",
     "register.email": "Email *",
     "register.email_ph": "you@example.com",

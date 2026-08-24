@@ -8,7 +8,7 @@ Mixed into MetaAdsApiCollector; methods cut verbatim from the original god-modul
 """
 import logging
 
-from ._meta_constants import _CAMPAIGN_GRAIN_TABLES
+from ._meta_constants import _ACCOUNT_STAMPED_TABLES, _CAMPAIGN_GRAIN_TABLES
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +16,70 @@ logger = logging.getLogger(__name__)
 class _MetaUpsertMixin:
     """Persistence methods for MetaAdsApiCollector."""
 
+    @staticmethod
+    def _validate(model, rows: list, table: str) -> list:
+        """Refuse un payload que le modèle Pydantic de la table rejette.
+
+        R47 — branché le 2026-08-24. Ces modèles existaient depuis des mois sans
+        appelant : `CLAUDE.md` annonçait une couche de validation, `models/` la
+        contenait, et rien ne l'exécutait. Une couche écrite et débranchée donne la
+        confiance sans la propriété.
+
+        **Lève, jamais ne filtre.** Écarter la ligne fautive et continuer donnerait
+        une tâche verte avec des données manquantes — la panne la plus chère de ce
+        dépôt (règle transverse #6). Le message nomme l'identifiant fautif, pas la
+        ligne entière : un payload d'insight embarque des valeurs de compte.
+        """
+        from pydantic import ValidationError
+        for row in rows:
+            try:
+                model(**row)
+            except ValidationError as exc:
+                # Du plus fin au plus grossier : un payload d'ad set nommé par son
+                # `campaign_id` envoie chercher au mauvais endroit.
+                ident = (row.get('ad_id') or row.get('adset_id')
+                         or row.get('campaign_id') or '?')
+                errors = "; ".join(
+                    f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}"
+                    for e in exc.errors()[:5])
+                raise ValueError(
+                    f"{table}: payload refusé pour {ident} "
+                    f"(artist_id={row.get('artist_id')}) — {errors}"
+                ) from None
+        return rows
+
+    def _tag_account(self, table: str, rows: list) -> list:
+        """Stamp `ad_account_id` on rows of a table that carries the column.
+
+        **Un seul endroit stampe.** L'alternative — que chaque constructeur de
+        payload ajoute la clé dans `_meta_config_fetch` / `_meta_insight_fetch` —
+        met la correction à la merci du prochain constructeur écrit : un payload
+        non stampé part avec `ad_account_id = NULL`, entre en conflit avec les
+        lignes historiques de l'autre compte (`NULLS NOT DISTINCT`, migration 077)
+        et se fait écraser. Ici, la question « cette table porte-t-elle la
+        colonne ? » a une seule réponse, dérivée de la migration.
+        """
+        if table not in _ACCOUNT_STAMPED_TABLES:
+            return rows
+        # `getattr`, comme `_prune_renamed_campaigns` : ce mixin est instancié nu
+        # par les tests (jamais via `MetaAdsApiCollector.__init__`), et un attribut
+        # supposé présent y lève au lieu de collecter.
+        account = getattr(self, "_current_ad_account_id", None)
+        return [{**r, 'ad_account_id': account} for r in rows]
+
     def _upsert_config(self, campaigns: list, adsets: list, ads: list, creatives: list):
         """Upsert the 4 config tables (campaigns/adsets/ads + creative enrichment).
 
         Called before the insight fetch so a later throttle cannot discard config work.
         """
+        from src.models.meta_ads_validators import MetaAd, MetaAdset, MetaCampaign
         try:
             if campaigns:
                 self.db.upsert_many(
-                    'meta_campaigns', campaigns,
+                    'meta_campaigns', self._validate(
+                        MetaCampaign,
+                        self._tag_account('meta_campaigns', campaigns),
+                        'meta_campaigns'),
                     conflict_columns=['campaign_id'],
                     # artist_id is NOT updatable: a row keeps its first owner.
                     # The conflict key stays campaign_id (its PK is referenced by
@@ -34,6 +89,10 @@ class _MetaUpsertMixin:
                         'campaign_name', 'status', 'objective',
                         'daily_budget', 'lifetime_budget', 'start_time',
                         'end_time', 'created_time', 'updated_time',
+                        # Provenance: a campaign MOVED between ad accounts (Meta
+                        # allows it) must follow, or the UI filters it under the
+                        # account it no longer belongs to.
+                        'ad_account_id',
                         # See _insight_upsert_maps: an upsert that refreshes the row
                         # and not its timestamp freezes every "last updated" reading.
                         'collected_at',
@@ -42,7 +101,9 @@ class _MetaUpsertMixin:
 
             if adsets:
                 self.db.upsert_many(
-                    'meta_adsets', adsets,
+                    'meta_adsets', self._validate(
+                        MetaAdset, self._tag_account('meta_adsets', adsets),
+                        'meta_adsets'),
                     conflict_columns=['adset_id'],
                     update_columns=[  # artist_id excluded — see meta_campaigns above
                         'adset_name', 'campaign_id', 'status',
@@ -51,18 +112,19 @@ class _MetaUpsertMixin:
                         'countries', 'cities', 'gender', 'age_min', 'age_max',
                         'flexible_inclusions', 'advantage_audience',
                         'publisher_platforms', 'instagram_positions', 'device_platforms',
-                        'collected_at',
+                        'ad_account_id', 'collected_at',
                     ],
                 )
 
             if ads:
                 self.db.upsert_many(
-                    'meta_ads', ads,
+                    'meta_ads', self._validate(
+                        MetaAd, self._tag_account('meta_ads', ads), 'meta_ads'),
                     conflict_columns=['ad_id'],
                     update_columns=[  # artist_id excluded — see meta_campaigns above
                         'ad_name', 'adset_id', 'campaign_id',
                         'status', 'creative_id', 'created_time', 'updated_time',
-                        'collected_at',
+                        'ad_account_id', 'collected_at',
                     ],
                 )
 
@@ -230,6 +292,17 @@ class _MetaUpsertMixin:
             if 'collected_at' not in _cols:
                 _cols.append('collected_at')
 
+        # `ad_account_id` entre dans la CLÉ des 10 tables à la maille campagne
+        # (R53 / ADR-013, migration 077). Dérivé du même `frozenset` que la
+        # migration et que `_tag_account`, pas retapé : trois listes de dix tables
+        # écrites à la main, ce sont trois listes qui divergent — et la divergence
+        # se lit ici comme « ON CONFLICT ne correspond à aucun index unique »,
+        # c'est-à-dire un crash, ou pire, comme un écrasement silencieux si c'est
+        # l'index qui est en retard.
+        for _tbl in _CAMPAIGN_GRAIN_TABLES:
+            if 'ad_account_id' not in _conflict_cols[_tbl]:
+                _conflict_cols[_tbl] = [*_conflict_cols[_tbl], 'ad_account_id']
+
         return _insight_cols, _conflict_cols
 
     def _persist_insights(self, insights: dict):
@@ -238,13 +311,21 @@ class _MetaUpsertMixin:
         Called after each fetched chunk/breakdown so a later throttle never discards
         already-fetched insights — replaces the old all-or-nothing end-of-run upsert.
         """
+        from src.models.meta_ads_validators import MetaInsight
         try:
             insight_cols, conflict_cols = self._insight_upsert_maps()
             for tbl, rows in insights.items():
                 if not rows:
                     continue
                 allowed = set(conflict_cols[tbl]) | set(insight_cols[tbl])
-                trimmed = [{k: v for k, v in r.items() if k in allowed} for r in rows]
+                stamped = self._tag_account(tbl, rows)
+                # `meta_insights` est la seule table qu'un modèle décrit. Les 25
+                # autres n'en ont pas : leur inventer un ici serait une couche de
+                # plus à garder d'accord avec `_insight_upsert_maps`, et c'est
+                # cette carte qui fait déjà foi sur les colonnes.
+                if tbl == 'meta_insights':
+                    self._validate(MetaInsight, stamped, tbl)
+                trimmed = [{k: v for k, v in r.items() if k in allowed} for r in stamped]
                 self.db.upsert_many(
                     tbl, trimmed,
                     conflict_columns=conflict_cols[tbl],

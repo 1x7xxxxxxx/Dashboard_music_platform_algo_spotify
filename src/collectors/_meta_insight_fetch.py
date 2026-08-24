@@ -424,6 +424,15 @@ class _MetaInsightFetchMixin:
                     'conversions':         conversions,
                     'cost_per_conversion': (round(spend / conversions, 4)
                                             if (is_conversion and conversions > 0) else 0),
+                    # Explicite, comme les trois autres payloads. C'était la seule
+                    # table dont l'horloge dépendait du DEFAULT de la colonne
+                    # (`CURRENT_TIMESTAMP`) : vérifié le 2026-08-24, elle n'est PAS
+                    # en retard — `EXCLUDED.collected_at` reprend le défaut appliqué
+                    # à la ligne proposée, donc le correctif du 2026-08-22 a bien
+                    # tenu ici. Mais il tenait par un défaut de schéma que rien ne
+                    # nomme, et par un horodatage serveur naïf là où la convention
+                    # du dépôt est UTC-aware.
+                    'collected_at':        datetime.now(timezone.utc),
                 })
             return rows
         except Exception:

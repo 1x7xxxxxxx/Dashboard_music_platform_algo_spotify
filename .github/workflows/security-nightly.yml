@@ -13,6 +13,13 @@ name: Security — Nightly audit
 # Pre-prod hardening backlog (re-enable blocking selectively before going live):
 #   - pip-audit:  pin apache-airflow-core to the Docker image version, then
 #                 restore `--strict` so real CVEs block.
+#
+# 2026-08-24 (R49) — l'audit lisait `requirements.txt`, que RIEN n'installe tel
+# quel : ce fichier porte des PLANCHERS (`weasyprint>=62.0`, `cryptography>=42`),
+# donc pip-audit résolvait des versions récentes et rendait un rapport propre,
+# pendant que la CI installait `uv.lock` — qui épinglait pyjwt 2.12.1, starlette
+# 1.0.0, python-multipart 0.0.28 : 127 avis sur 18 paquets. L'audit vérifiait un
+# fichier de contraintes, pas un parc. Il lit désormais le lock RÉSOLU.
 #   - gitleaks:   triage the ~27 historical findings (true secrets vs FPs like
 #                 the 1x7xxxxxxx filter / config.example.yaml), add a
 #                 .gitleaks.toml allowlist or rotate + baseline, then block.
@@ -36,12 +43,19 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install pip-audit
-        run: pip install pip-audit
+      - name: Install uv + pip-audit
+        run: |
+          pip install pip-audit uv
+
+      - name: Resolve the lock file into what actually gets installed
+        # `uv export` rend le lock EXACT (`==`), pas les planchers de
+        # `requirements.txt`. C'est ce que `uv sync --frozen` installe en CI, donc
+        # c'est ce qui doit être audité.
+        run: uv export --frozen --no-dev --no-hashes -o audited-requirements.txt
 
       - name: Audit dependencies (report to summary)
         run: |
-          pip-audit -r requirements.txt --desc on --format markdown \
+          pip-audit -r audited-requirements.txt --desc on --format markdown \
             -o pip-audit.md || true
           {
             echo "## pip-audit (non-blocking)"

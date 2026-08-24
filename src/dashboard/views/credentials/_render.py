@@ -160,6 +160,13 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                                "🔒 Chiffré en base — laisser vide pour conserver"),
                         key=f"{platform_key}_{artist_id}_{key}",
                     )
+                elif field.get('multiline'):
+                    val = col.text_area(
+                        field_label,
+                        value=existing_val or field.get('default', ''),
+                        key=f"{platform_key}_{artist_id}_{key}",
+                        height=90,
+                    )
                 else:
                     val = col.text_input(
                         field_label,
@@ -264,6 +271,31 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 extra['spotify_artist_id'] = sp_id
             else:
                 extra.pop('spotify_artist_id', None)
+
+        # Meta: N comptes publicitaires → une liste canonique (R53 / ADR-013).
+        # Fait AVANT le contrôle de forme, pour que celui-ci voie la valeur qui sera
+        # réellement écrite : normaliser après aurait validé la saisie et stocké
+        # autre chose.
+        if platform_key == 'meta':
+            import re as _re
+
+            from src.utils.tenant_identity import (
+                malformed_meta_accounts,
+                with_meta_accounts,
+            )
+            typed_extra = extra.pop('extra_account_ids', '')
+            accounts = [extra.get('account_id', ''),
+                        *[p for p in _re.split(r"[,\n;]+", typed_extra)]]
+            extra = with_meta_accounts(extra, accounts)
+            bad_accounts = malformed_meta_accounts(extra)
+            if bad_accounts:
+                st.error(t(
+                    "credentials.meta.accounts_malformed",
+                    "❌ Compte(s) publicitaire(s) au mauvais format : {bad}. "
+                    "Chiffres uniquement, éventuellement préfixés par `act_`, "
+                    "**un par ligne**."
+                ).format(bad=", ".join(bad_accounts)))
+                return
 
         # Refuse a malformed identity BEFORE anything else touches it. These values
         # are interpolated into REST paths and `requests` does not percent-encode

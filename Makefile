@@ -212,8 +212,13 @@ deploy:      ## Deploy origin/main to prod (pull --ff-only + --build + health). 
 dashboard: check-env   ## Launch Streamlit dashboard (foreground, port 8501)
 	streamlit run src/dashboard/app.py
 
-sync:        ## uv sync --frozen + install pre-commit hooks (one-shot dev setup)
-	uv sync --frozen
+sync:        ## uv sync --frozen --extra dev + pre-commit hooks (one-shot dev setup)
+	# `--extra dev` comme la CI (.github/workflows/ci.yml). Sans lui, la cible
+	# annoncée « one-shot dev setup » produisait un environnement SANS pytest,
+	# ruff ni pre-commit — et enchaînait ensuite sur `hooks-install`, qui a besoin
+	# de pre-commit. Constaté le 2026-08-24 en réinstallant le lock : la suite ne
+	# démarrait plus (`unrecognized arguments: -n auto`).
+	uv sync --frozen --extra dev
 	@$(MAKE) --no-print-directory hooks-install
 
 clean:       ## Remove Python and ruff caches

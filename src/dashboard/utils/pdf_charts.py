@@ -629,18 +629,51 @@ def pi_gate(tables, here=None) -> str | None:
              ("release_radar", "Release Radar", "#4C78A8"),
              ("radio", "Radio", "#54A24B")]
     fig, axes = plt.subplots(1, 3, figsize=(8.6, 2.8))
+    # Un panier SANS observation ne se dessine pas.
+    #
+    # `(data.get(b) or {}).get("prob") or 0` rendait une barre de hauteur zéro pour
+    # un panier dont `prob` vaut `null` et `n` vaut 0 — c'est-à-dire un panier où
+    # AUCUN titre n'a été observé. Le lecteur y lisait « 0 % de chance », soit
+    # l'inverse de « on ne sait pas ». Cas réel dans `threshold_tables.json` :
+    # Release Radar, panier « 50+ », n = 0.
+    #
+    # Et une barre reste une barre, quel que soit ce qui la porte : 66,7 % sur
+    # n = 3 s'affichait aussi haut et aussi net que 99,4 % sur n = 172. L'effectif
+    # est donc écrit sous chaque barre, et les paniers trop peu peuplés sont
+    # atténués. C'est la réponse à « quelle métrique fait foi ? » : la part
+    # OBSERVÉE des titres de la cohorte d'entraînement qui ont déclenché cet
+    # algorithme-là — trois taux, un par algorithme, chacun avec son effectif.
+    _MIN_N = 10
     for ax, (key, label, color) in zip(axes, algos):
         data = tables.get(key, {})
-        probs = [float((data.get(b) or {}).get("prob") or 0) for b in brackets]
+        cells = [(data.get(b) or {}) for b in brackets]
+        probs, alphas, counts = [], [], []
+        for cell in cells:
+            n = int(cell.get("n") or 0)
+            prob = cell.get("prob")
+            counts.append(n)
+            probs.append(float(prob) if (prob is not None and n > 0) else 0.0)
+            alphas.append(1.0 if n >= _MIN_N else (0.35 if n > 0 else 0.0))
         edges = ["#111111" if b == here else "none" for b in brackets]
-        ax.bar(range(len(brackets)), probs, color=color, edgecolor=edges, linewidth=1.4)
+        bars = ax.bar(range(len(brackets)), probs, color=color, edgecolor=edges,
+                      linewidth=1.4)
+        for bar, alpha in zip(bars, alphas):
+            bar.set_alpha(alpha)
         _style(ax)
         ax.set_ylim(0, 100)
         ax.set_title(label, fontsize=9, color=_DARK)
         ax.set_xticks(range(len(brackets)))
-        ax.set_xticklabels(brackets, rotation=45, fontsize=6, ha="right")
+        ax.set_xticklabels(
+            [f"{b}\nn={n}" if n else f"{b}\n{_t('pdf.chart.no_data', 'n/a')}"
+             for b, n in zip(brackets, counts)],
+            rotation=45, fontsize=5.5, ha="right")
     fig.suptitle(_t("pdf.chart.pi_gates", "Portes algorithmiques par Popularity Index (%)"),
                  x=0.02, ha="left", fontsize=11, fontweight="bold", color=_DARK)
+    fig.text(0.02, 0.90, _t(
+        "pdf.chart.pi_gates_caption",
+        "Part observée des titres de la cohorte ayant déclenché l'algorithme. "
+        "n = nombre de titres ; barre atténuée sous {min_n} titres, « n/a » si aucun."
+    ).format(min_n=_MIN_N), ha="left", fontsize=6.5, color="#666")
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     return _fig_to_uri(fig)
 

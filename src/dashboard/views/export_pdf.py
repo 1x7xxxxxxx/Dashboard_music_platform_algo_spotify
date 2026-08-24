@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.meta_accounts import account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.pdf_exporter import (
@@ -124,6 +125,12 @@ def _show_form(db):
             # Real artist name from saas_artists — NOT session['name'] (that's the email).
             report_artist_name = _get_artist_name(db, report_artist_id)
             st.info(f"👤 {report_artist_name}")
+
+    # Compte publicitaire Meta — rendu SEULEMENT si l'artiste en a plusieurs
+    # (R53 / ADR-013). Un rapport qui additionne les budgets de deux annonceurs
+    # distincts donne un CPR qui n'est celui d'aucun des deux ; et c'est un document
+    # qu'on envoie à un tiers, donc l'ambiguïté y coûte plus cher qu'à l'écran.
+    report_ad_account = account_scope(db, report_artist_id, key="export_pdf_acct")
 
     with col_period:
         st.markdown(t("export_pdf.period_header", "**📅 Période**"))
@@ -294,6 +301,7 @@ def _show_form(db):
                     sections=sections,
                     songs=selected_songs if sections.get('songs') else None,
                     s4a_songs_filter=s4a_songs_filter,
+                    ad_account=report_ad_account,
                 )
             # Track token for the filename: the single selected song, else ALL_TRACK.
             _picked = (s4a_songs_filter or []) + (selected_songs or [])

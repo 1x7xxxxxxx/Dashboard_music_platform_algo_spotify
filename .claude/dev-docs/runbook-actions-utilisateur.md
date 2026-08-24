@@ -193,6 +193,42 @@ en premier.
 
 ---
 
+## 8. R54 — Le GIF animé au bas des e-mails · P4
+
+**Le constat, mesuré le 2026-08-24 : il ne vient pas de l'application.** Le dépôt a été
+inspecté sur les trois expéditeurs — `src/utils/email_alerts.py`,
+`src/utils/verification_email.py`, `airflow/dags/onboarding_report.py` :
+
+- **zéro** balise `<img>` dans le moindre corps de mail ;
+- **zéro** `MIMEImage`, aucune pièce jointe image (les seules pièces jointes sont les
+  guides PDF d'onboarding) ;
+- **zéro** URL d'image (`.png`/`.jpg`/`.gif`/`.svg`) dans tout `src/`, `airflow/` et
+  `tools/` ;
+- le pied de page de désinscription (`_unsubscribe_footer`) est du texte et un lien.
+
+Il reste donc deux sources possibles, toutes deux **hors du produit** — c'est
+exactement le cas de R38, où le nom d'expéditeur venait du compte Brevo et écrasait
+celui du code :
+
+1. **Brevo** — signature ou pied de page ajouté au niveau du compte / de l'expéditeur ;
+2. **l'avatar du compte expéditeur**, que la messagerie du destinataire (Gmail,
+   notamment) affiche à côté du message.
+
+**Le geste** : Brevo → *Expéditeurs, domaines & IPs* → l'expéditeur
+`noreply@streamlytics.fr` → vérifier qu'aucune signature ni pied de page n'y est
+attaché ; puis, dans les réglages du compte Google associé à l'adresse, vérifier la
+photo de profil.
+
+**La vérification** : s'inscrire avec une adresse jetable, ouvrir le mail de
+confirmation et regarder **la source** du message (Gmail : « Afficher l'original »). Si
+le GIF n'apparaît pas dans le HTML source, il est ajouté à l'affichage par la messagerie
+(avatar) et non par l'envoi.
+
+**Pourquoi c'est P4** : purement cosmétique, aucun effet sur la délivrabilité ni sur les
+données. À traiter quand tu passeras sur les réglages Brevo pour autre chose.
+
+---
+
 ## 7. ~~R46 — Décider du sort de `data_quality_check`~~ · ✅ TRANCHÉ le 2026-08-23
 
 > **Fait, et la décision est mesurée : il RESTE EN PAUSE.** Lancé une fois à la main en

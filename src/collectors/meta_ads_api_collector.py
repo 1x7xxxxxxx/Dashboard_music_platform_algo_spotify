@@ -50,9 +50,19 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
             raise ValueError(f"MetaAdsApiCollector: invalid artist_id={artist_id!r}")
         self.artist_id = artist_id
         self._creds = creds if creds is not None else self._load_credentials()
+        # The account currently being collected. Read by `_prune_renamed_campaigns`
+        # and stamped on every row (`_tag_account`); `None` only before `run()`.
+        self._current_ad_account_id = None
         if ad_account is not None:
+            # Injected SDK stub: the caller owns the account, so the multi-account
+            # loop degenerates to that single one. Never rebuild it from creds —
+            # that would reach for the real SDK in a test.
             self.ad_account = ad_account
+            self._injected_ad_account = True
+            self._current_ad_account_id = (self._creds.get('ad_account_ids') or
+                                           [self._creds.get('ad_account_id')])[0]
         else:
+            self._injected_ad_account = False
             self._init_api()
         self.db = db if db is not None else self._default_db()
 
@@ -85,8 +95,21 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
                 f"Meta credentials missing for artist_id={self.artist_id}: {missing}. "
                 "Configure via Dashboard → Credentials → Meta."
             )
-        raw_id = creds['account_id']
-        creds['ad_account_id'] = raw_id if raw_id.startswith('act_') else f"act_{raw_id}"
+        # N comptes publicitaires (R53 / ADR-013). `ad_account_ids` est la liste
+        # canonique ; `ad_account_id` reste le premier, pour tout ce qui lit un
+        # scalaire. La normalisation `act_` vit dans `tenant_identity`, pas ici :
+        # deux normalisations divergentes, c'est deux comptes différents pour la
+        # même saisie, et un `ad_account_id` stampé qui ne correspond à aucun
+        # discriminant de prune.
+        from src.utils.tenant_identity import meta_ad_account_ids
+        accounts = meta_ad_account_ids(creds)
+        if not accounts:
+            raise ValueError(
+                f"Meta credentials missing for artist_id={self.artist_id}: "
+                "['account_id']. Configure via Dashboard → Credentials → Meta."
+            )
+        creds['ad_account_ids'] = accounts
+        creds['ad_account_id'] = accounts[0]
         return creds
 
     def _init_api(self):
@@ -98,17 +121,77 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
             access_token=self._creds['access_token'],
             api_version=META_API_VERSION,
         )
-        self.ad_account = AdAccount(self._creds['ad_account_id'])
+        self._ad_account_factory = AdAccount
+        self._select_account(self._creds['ad_account_id'])
         logger.info(
             f"Meta API initialised — artist_id={self.artist_id} "
-            f"account={self._creds['ad_account_id']}"
+            f"accounts={self._creds.get('ad_account_ids', [])}"
         )
+
+    def _select_account(self, ad_account_id: str) -> None:
+        """Point the SDK — and the account stamp — at one ad account.
+
+        The two move together on purpose. `self.ad_account` decides what the API
+        RETURNS and `_current_ad_account_id` decides what the rows are WRITTEN and
+        PRUNED under; setting one without the other writes account A's data under
+        account B's discriminant, which the prune then deletes on the next pass.
+        """
+        self._current_ad_account_id = ad_account_id
+        if not self._injected_ad_account:
+            self.ad_account = self._ad_account_factory(ad_account_id)
 
     # ── Public entry point ────────────────────────────────────────────────────
 
     def run(self, full_history: bool = False, insights_only: bool = False,
             fetch_creatives: bool = True) -> int:
-        """Full collection pipeline. Returns total insight rows inserted.
+        """Collect EVERY ad account this tenant declared. Returns total insight rows.
+
+        One artist, N ad accounts (R53 / ADR-013) — the agency case. Each account is
+        a full pass of `_run_one_account`, under its own `ad_account_id` stamp.
+
+        **Une panne sur un compte ne fait pas perdre les autres.** Trois comptes dont
+        un a perdu son partage d'asset : lever au premier échec ferait qu'aucun des
+        deux comptes sains ne collecterait jamais, et le partage manquant est
+        justement la panne la plus fréquente sur Meta. Les comptes sont donc tous
+        parcourus, puis l'exception est levée à la fin avec la liste — la tâche
+        Airflow reste ROUGE (règle transverse #6 : un collecteur lève), et les
+        données déjà écrites le restent, la persistance étant faite par tronçon.
+        """
+        accounts = list(self._creds.get('ad_account_ids') or [])
+        if not accounts:
+            # `_load_credentials` refuse déjà de rendre une liste vide ; ce chemin
+            # n'est atteignable que par des creds injectés en test.
+            accounts = [self._current_ad_account_id]
+        total = 0
+        failures: list[tuple] = []
+        for index, account in enumerate(accounts, start=1):
+            self._select_account(account)
+            logger.info(
+                f"Meta collect — artist_id={self.artist_id} account {index}/"
+                f"{len(accounts)} ({account})"
+            )
+            try:
+                total += self._run_one_account(
+                    full_history=full_history, insights_only=insights_only,
+                    fetch_creatives=fetch_creatives,
+                )
+            except Exception as exc:
+                # Jamais `str(exc)` dans le journal : le message d'une erreur réseau
+                # de la SDK Meta embarque l'URL préparée, donc le token partagé.
+                logger.exception(f"Meta collect FAILED on account {account}")
+                failures.append((account, type(exc).__name__))
+        if failures:
+            detail = ", ".join(f"{a} ({e})" for a, e in failures)
+            raise RuntimeError(
+                f"Meta collect: {len(failures)}/{len(accounts)} ad account(s) failed "
+                f"for artist_id={self.artist_id} — {detail}. "
+                f"{total} insight rows were still written by the accounts that worked."
+            )
+        return total
+
+    def _run_one_account(self, full_history: bool = False, insights_only: bool = False,
+                         fetch_creatives: bool = True) -> int:
+        """Full collection pipeline for the CURRENTLY selected ad account.
 
         full_history=False  : smart incremental — starts from MAX(day_date)-3d in DB,
                               falls back to earliest campaign start on first run.
@@ -125,9 +208,12 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
         if insights_only:
             # Load campaign list from DB (needed for full_history start-date calculation)
             campaigns_db = self.db.fetch_query(
+                # Scopé au compte courant : sans ça, la passe du compte B
+                # recalculerait ses dates de départ sur les campagnes de A, et le
+                # prune de B verrait la liste de A comme « campagnes disparues ».
                 "SELECT campaign_id, campaign_name, start_time, objective FROM meta_campaigns "
-                "WHERE artist_id = %s",
-                (self.artist_id,),
+                "WHERE artist_id = %s AND ad_account_id IS NOT DISTINCT FROM %s",
+                (self.artist_id, self._current_ad_account_id),
             )
             campaigns = [
                 {'campaign_id': r[0], 'campaign_name': r[1],
@@ -169,7 +255,8 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
 
         total_insight_rows = sum(len(v) for v in insights.values())
         logger.info(
-            f"Meta API collect done — artist_id={self.artist_id}: "
+            f"Meta API collect done — artist_id={self.artist_id} "
+            f"account={self._current_ad_account_id}: "
             f"{len(campaigns)} campaigns, {len(adsets)} adsets, {len(ads)} ads, "
             f"{len(creatives)} creatives, {total_insight_rows} insight rows across "
             f"{len(insights)} tables"

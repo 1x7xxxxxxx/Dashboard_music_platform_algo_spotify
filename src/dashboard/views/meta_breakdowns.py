@@ -13,6 +13,11 @@ import pandas as pd
 import plotly.express as px
 
 from src.dashboard.utils import view_session
+from src.dashboard.utils.meta_accounts import (
+    account_clause,
+    account_scope,
+    table_carries_account,
+)
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
@@ -147,25 +152,28 @@ def show() -> None:
     family = _FAMILIES[family_label]
 
     with view_session() as (db, artist_id):
+        _acct, _acct_params = account_clause(
+            account_scope(db, artist_id, key="meta_breakdowns_acct"))
+
         # Entities listed most-recent-first (last launched on top), via each table's
         # recency column — start_time for campaigns/adsets, created_time for ads.
         camps = db.fetch_df(
             "SELECT campaign_id, campaign_name FROM meta_campaigns "
-            "WHERE artist_id = %s AND campaign_name IS NOT NULL "
+            f"WHERE artist_id = %s{_acct} AND campaign_name IS NOT NULL "
             "ORDER BY start_time DESC NULLS LAST, campaign_name",
-            (artist_id,),
+            (artist_id, *_acct_params),
         )
         adsets = db.fetch_df(
             "SELECT adset_id, adset_name, campaign_id FROM meta_adsets "
-            "WHERE artist_id = %s AND adset_name IS NOT NULL "
+            f"WHERE artist_id = %s{_acct} AND adset_name IS NOT NULL "
             "ORDER BY start_time DESC NULLS LAST, adset_name",
-            (artist_id,),
+            (artist_id, *_acct_params),
         )
         ads = db.fetch_df(
             "SELECT ad_id, ad_name, adset_id, campaign_id FROM meta_ads "
-            "WHERE artist_id = %s AND ad_name IS NOT NULL "
+            f"WHERE artist_id = %s{_acct} AND ad_name IS NOT NULL "
             "ORDER BY created_time DESC NULLS LAST, ad_name",
-            (artist_id,),
+            (artist_id, *_acct_params),
         )
 
         # Cascade : Campagne → Adset → Créative. Each level is scoped to the one above.
@@ -215,7 +223,12 @@ def show() -> None:
         ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key])))
 
         table = _table_name(family, grain_key, dim_key)
-        params = [artist_id]
+        # Les tables à la maille AD/ADSET n'ont pas `ad_account_id` (migration 076)
+        # et n'en ont pas besoin : leur clé est un id Meta, globalement unique, donc
+        # deux comptes ne peuvent pas y entrer en collision. Ajouter le prédicat
+        # quand même ferait échouer la requête sur « colonne inconnue ».
+        _acct_tbl = _acct if table_carries_account(table) else ""
+        params = [artist_id, *(_acct_params if _acct_tbl else ())]
         where_entity = ""
         if entity_val is not None:
             where_entity = f" AND {entity_col} = %s"
@@ -229,7 +242,7 @@ def show() -> None:
             metrics = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
         df = db.fetch_df(
             f"SELECT {dim_cols}, {metrics} FROM {table} "
-            f"WHERE artist_id = %s{where_entity} GROUP BY {dim_cols}",
+            f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}",
             tuple(params),
         )
 

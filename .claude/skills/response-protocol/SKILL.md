@@ -56,7 +56,7 @@ Every new file or module must be labeled in its docstring using this taxonomy.
 | **Feature** | A user-visible capability with its own lifecycle | A view file, a production DAG, a collector |
 | **Sub** | Helper to exactly one Feature — no direct user contact | A CSV parser, a debug DAG, a schema file |
 | **Hook** | Triggered by system events, not called directly | `.claude/hooks/*.py`, Airflow failure callbacks |
-| **Utility** | Shared, stateless helper — no business logic | `config_loader.py`, `retry.py`, `error_handler.py` |
+| **Utility** | Shared, stateless helper — no business logic | `config_loader.py`, `retry.py`, `safe_error.py` |
 
 ### Dependency Vocabulary (use in docstrings)
 

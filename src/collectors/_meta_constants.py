@@ -39,3 +39,18 @@ _CAMPAIGN_GRAIN_TABLES = frozenset({
     'meta_insights_engagement_age', 'meta_insights_engagement_country',
     'meta_insights_engagement_placement',
 })
+
+
+# Tables portant la colonne `ad_account_id` (migration 076). Deux familles, deux
+# raisons :
+#   * les 10 tables à la maille CAMPAGNE en ont besoin dans leur CLÉ — elles sont
+#     uniques sur `campaign_name`, et « Release FR » existe dans les deux comptes
+#     d'une agence ;
+#   * les 3 tables de provenance (campaigns/adsets/ads) l'ont comme simple colonne :
+#     leur clé est un id Meta, globalement unique, donc pas de collision — mais
+#     l'interface a besoin de savoir de quel compte vient une campagne.
+# Les tables à la maille AD/ADSET n'ont pas la colonne et n'en ont pas besoin : leur
+# clé est déjà un id Meta.
+_ACCOUNT_STAMPED_TABLES = frozenset(_CAMPAIGN_GRAIN_TABLES | {
+    'meta_campaigns', 'meta_adsets', 'meta_ads',
+})

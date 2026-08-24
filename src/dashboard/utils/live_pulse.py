@@ -35,17 +35,26 @@ def bump_heartbeat(db, artist_id: int) -> None:
         logger.warning("bump_heartbeat failed for artist_id=%s: %s", artist_id, e)
 
 
+# Les locataires qui ne sont pas des gens. Le canari (`is_canary`) est un compte
+# que NOUS créons pour surveiller la collecte : le compter parmi « les artistes qui
+# utilisent streaMLytics » gonfle un signal de confiance public avec nos propres
+# robots. `credential_loader.load_all_artists(exclude_canaries=True)` fait déjà
+# cette distinction depuis la migration 064 ; les compteurs, non — ils comptaient
+# tout ce qui est actif.
+_HUMAN_TENANTS = "active = TRUE AND COALESCE(is_canary, FALSE) = FALSE"
+
+
 def get_live_pulse(db, ttl_minutes: int = 5) -> tuple[int, int]:
     """Return (live_count, registered_count).
 
     live_count: distinct artists with a heartbeat newer than ttl_minutes.
-    registered_count: saas_artists.active = TRUE.
+    registered_count: real tenants — canaries excluded, see _HUMAN_TENANTS.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes)
     rows = db.fetch_query(
         "SELECT "
         "  (SELECT COUNT(*) FROM active_sessions WHERE last_heartbeat > %s) AS live, "
-        "  (SELECT COUNT(*) FROM saas_artists WHERE active = TRUE) AS registered",
+        f"  (SELECT COUNT(*) FROM saas_artists WHERE {_HUMAN_TENANTS}) AS registered",
         (cutoff,),
     )
     if not rows:
@@ -60,6 +69,11 @@ def get_registered_count_public() -> int:
 
     Cached 10 min to absorb anonymous traffic bursts (SEO/social links).
     No PII — count only.
+
+    **Compte des gens, pas des machines.** Ce nombre s'affiche sur la page
+    d'inscription, sous « {n} artistes utilisent streaMLytics » : un canari de
+    surveillance compté là est un chiffre faux montré à un visiteur qui n'a aucun
+    moyen de le savoir.
     """
     from src.dashboard.utils import get_db_connection
     db = get_db_connection()
@@ -67,7 +81,7 @@ def get_registered_count_public() -> int:
         return 0
     try:
         rows = db.fetch_query(
-            "SELECT COUNT(*) FROM saas_artists WHERE active = TRUE"
+            f"SELECT COUNT(*) FROM saas_artists WHERE {_HUMAN_TENANTS}"
         )
         return int(rows[0][0]) if rows else 0
     finally:

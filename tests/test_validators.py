@@ -1,4 +1,15 @@
-"""Tests unitaires — Pydantic validators Meta Ads."""
+"""Tests unitaires — Pydantic validators Meta Ads.
+
+R47 (2026-08-24) : ces fixtures ont été refaites, et le fait qu'il ait fallu les
+refaire EST le constat. Elles construisaient des payloads sans `artist_id` — donc
+des payloads que le collecteur n'écrit jamais — et passaient au vert depuis des
+mois contre des modèles qu'aucun code de production n'appelait. Un test vert sur
+une forme inventée ne dit rien de la forme réelle.
+
+L'anti-dérive est `test_validators_against_real_payloads.py` : il valide les
+modèles contre la sortie des vraies méthodes de fetch du collecteur, avec la SDK
+stub. Ce fichier-ci garde les règles ; celui-là garde la CORRESPONDANCE.
+"""
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -20,6 +31,7 @@ class TestMetaCampaign:
 
     def _valid(self, **overrides):
         base = dict(
+            artist_id=1,
             campaign_id="123",
             campaign_name="Test Campaign",
             status="ACTIVE",
@@ -64,6 +76,7 @@ class TestMetaAdset:
 
     def _valid(self, **overrides):
         base = dict(
+            artist_id=1,
             adset_id="456",
             adset_name="Test Adset",
             campaign_id="123",
@@ -81,9 +94,13 @@ class TestMetaAdset:
         with pytest.raises(ValidationError):
             self._valid(status="LIVE")
 
-    def test_targeting_optional(self):
-        a = self._valid(targeting={"countries": ["FR"]})
-        assert a.targeting == {"countries": ["FR"]}
+    def test_targeting_is_a_json_string_not_a_dict(self):
+        """`_fetch_adsets` écrit `json.dumps(...)` : la colonne est du texte."""
+        a = self._valid(targeting='{"geo_locations": {"countries": ["FR"]}}')
+        assert isinstance(a.targeting, str)
+
+    def test_targeting_may_be_absent(self):
+        assert self._valid(targeting=None).targeting is None
 
 
 # =============================================================================
@@ -94,6 +111,7 @@ class TestMetaAd:
 
     def _valid(self, **overrides):
         base = dict(
+            artist_id=1,
             ad_id="789",
             ad_name="Test Ad",
             adset_id="456",
@@ -121,6 +139,7 @@ class TestMetaInsight:
 
     def _valid(self, **overrides):
         base = dict(
+            artist_id=1,
             ad_id="789",
             date=TODAY,
             impressions=1000,
@@ -167,3 +186,78 @@ class TestMetaInsight:
         """Cas réel : 0 impressions, 0 clicks."""
         i = self._valid(impressions=0, clicks=0, reach=0)
         assert i.impressions == 0
+
+
+# =============================================================================
+# Le locataire — la raison d'être du branchement (R47)
+# =============================================================================
+
+class TestTenantIsMandatory:
+    """Un payload sans locataire laisse la base choisir le propriétaire.
+
+    C'est le seul défaut dont ce dépôt ait réellement souffert
+    (`track_popularity_history`, des mois écrits sous l'admin). Les quatre modèles
+    l'ignoraient : ils validaient tout SAUF le champ qui compte.
+    """
+
+    @pytest.mark.parametrize("model,payload", [
+        (MetaCampaign, dict(campaign_id="1", campaign_name="C", collected_at=NOW)),
+        (MetaAdset, dict(adset_id="1", adset_name="A", campaign_id="1", collected_at=NOW)),
+        (MetaAd, dict(ad_id="1", ad_name="A", adset_id="1", campaign_id="1",
+                      collected_at=NOW)),
+        (MetaInsight, dict(ad_id="1", date=TODAY, collected_at=NOW)),
+    ], ids=["campaign", "adset", "ad", "insight"])
+    def test_a_payload_without_a_tenant_is_refused(self, model, payload):
+        with pytest.raises(ValidationError):
+            model(**payload)
+
+    @pytest.mark.parametrize("model,payload", [
+        (MetaCampaign, dict(artist_id=1, campaign_id="1", campaign_name="C",
+                            collected_at=NOW)),
+        (MetaInsight, dict(artist_id=1, ad_id="1", date=TODAY, collected_at=NOW)),
+    ], ids=["campaign", "insight"])
+    def test_metrics_and_status_may_be_absent(self, model, payload):
+        """Meta ne rend pas `cpc` sur un objectif d'engagement, ni `status` sur
+        certaines campagnes archivées. Exiger ces champs aurait arrêté la
+        collecte chaque nuit — c'est ce que faisaient les modèles d'origine."""
+        assert model(**payload) is not None
+
+
+# =============================================================================
+# L'anti-dérive — R47 : le branchement lui-même
+# =============================================================================
+
+def test_the_collector_actually_calls_the_validators():
+    """Garde de la classe `layer-written-but-never-wired`.
+
+    Le défaut d'origine n'était pas dans les modèles : c'est qu'aucun code de
+    production ne les importait, pendant que `CLAUDE.md` annonçait `models/` comme
+    une couche de l'architecture et que ce fichier passait au vert. Un test qui ne
+    vérifie que les règles laisserait débrancher la couche sans un rouge.
+
+    AST, pas une recherche de texte : un import mentionné dans un commentaire ou
+    une docstring satisferait un `grep` sans rien exécuter.
+    """
+    import ast
+    import pathlib
+
+    tree = ast.parse(pathlib.Path("src/collectors/_meta_upsert.py")
+                     .read_text(encoding="utf-8"))
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module == "src.models.meta_ads_validators"
+        for alias in node.names
+    }
+    assert {"MetaCampaign", "MetaAdset", "MetaAd", "MetaInsight"} <= imported, (
+        "les validateurs ne sont plus importés par le collecteur : la couche est "
+        f"redevenue décorative (importés : {sorted(imported)})"
+    )
+
+    called = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert "_validate" in called, "les modèles sont importés mais jamais appliqués"

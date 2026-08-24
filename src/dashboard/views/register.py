@@ -369,7 +369,9 @@ def show():
     with st.form("register"):
         artist_name = st.text_input(
             t("register.artist_name", "Nom d'artiste *"),
-            placeholder=t("register.artist_name_ph", "ex. 1x7xxxxxxx"),
+            # Pas un nom d'artiste réel en exemple — c'était celui du propriétaire
+            # de la plateforme, montré à chaque inscription.
+            placeholder=t("register.artist_name_ph", "Votre nom d'artiste"),
             help=t("register.artist_name_help", "Votre nom d'artiste public (aussi votre nom d'affichage)."),
         )
         email = st.text_input(

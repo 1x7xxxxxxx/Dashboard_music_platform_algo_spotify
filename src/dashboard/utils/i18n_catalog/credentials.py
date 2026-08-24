@@ -45,6 +45,13 @@ EN = {
     "credentials.field.channel_id": "Channel ID (UC…)",
     "credentials.field.user_id": "Numeric User ID (e.g. 377065610)",
     "credentials.field.account_id": "Ad Account ID (act_… or numeric)",
+    "credentials.field.extra_account_ids": (
+        "Additional ad accounts (one per line — agencies)"
+    ),
+    "credentials.meta.accounts_malformed": (
+        "❌ Ad account(s) in the wrong format: {bad}. Digits only, optionally "
+        "prefixed with `act_`, **one per line**."
+    ),
     # ── _render.py — global KPI ────────────────────────────────────────
     # The eight `credentials.kpi.*` keys were removed on 2026-08-22 with the strip
     # they belonged to. Left behind they would have been orphans — EN text nothing

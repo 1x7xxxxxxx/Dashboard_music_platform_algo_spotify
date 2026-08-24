@@ -5,6 +5,119 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-24 — Trois couches présentes que rien n'exécutait, et qu'on ne pouvait plus brancher telles quelles
+
+**Contexte** : finir l'index de la roadmap. Quatre entrées ouvertes (R53, R47, R48,
+R49) et quatre questions produit sans réponse. Réponse de l'auteur des notes sur la
+seule bloquante : **Meta multi-comptes = séparés**, plus une question neuve — *faut-il
+faire pareil pour Spotify, et choisir le profil avant l'export PDF ?*
+
+**What changed** :
+- **R53 — Meta multi-comptes, livré (2/3 et 3/3)** : `account_ids` canonique sous une
+  seule ligne de credentials, boucle collecteur sur N comptes, migration 077 mettant
+  `ad_account_id` dans la clé d'unicité des dix tables à la maille campagne, sélecteur
+  de compte sur les cinq vues Meta et sur le formulaire d'export PDF. ADR-013.
+- **R47 — validateurs Meta branchés, après correction** ; **R48 — `error_handler.py`
+  retiré** ; **R49 — lock régénéré (127 avis → 12) et audit nocturne repointé**.
+- Trois défauts trouvés en chemin, aucun cherché : un graphique PDF qui dessinait une
+  absence comme un 0 %, un compteur public qui comptait nos propres canaris, un mail de
+  rapport de crash qui partait par Brevo avec la traceback en clair.
+- **6 nouvelles classes d'erreur**, chacune avec un garde vu rouge par mutation.
+  123 classes, 0 non gardée. **2296 tests verts**, 22 skippés.
+
+### La décision produit, et pourquoi elle ne se généralise pas
+
+Les deux questions se ressemblaient assez pour qu'on les traite pareil. C'est le piège.
+Chez Meta, ce qui est pluriel c'est l'identité du **payeur** sous **une** credential
+partagée : le cumul veut dire quelque chose (« ce qu'a coûté cette sortie »), et le
+changement touche 13 tables et une colonne. Chez Spotify, ce serait l'identité
+**artistique** : additionner les streams de deux alias ne décrit personne, et le
+changement toucherait la dimension de scoping de 93 tables. Un deuxième projet est déjà
+un deuxième locataire ; ce qui manquerait le jour où le besoin se présente, c'est qu'une
+même connexion en possède plusieurs — brique de comptes, aucune table métier touchée.
+
+Le sélecteur avant l'export PDF est donc livré avec la portée qui a un sens : le
+**compte publicitaire**, dès qu'il y en a deux. Un PDF part à un tiers ; un CPR qui
+mélange deux annonceurs n'est le CPR d'aucun des deux.
+
+### Le fil de la journée : le code débranché n'est pas neutre, il pourrit
+
+Trois des quatre entrées décrivaient une couche présente que rien n'exécutait. Dans les
+trois cas, **la brancher telle quelle aurait cassé la production** — non pas parce
+qu'elle était mal écrite, mais parce que ce qu'elle supposait du reste du code n'était
+plus vrai depuis des mois, et que rien ne pouvait le signaler tant que personne ne
+l'appelait.
+
+Les validateurs Meta étaient décrits par la ROADMAP comme « exactement la forme des
+payloads ». Ils avaient **quatre** divergences, trouvées une par une en les branchant :
+aucun ne déclarait `artist_id` — le champ du locataire, le seul dont ce dépôt ait
+réellement souffert ; `status` était obligatoire alors que le collecteur écrit
+`.get('status')` ; `targeting` était typé `dict` alors qu'on écrit une chaîne JSON ; et
+`MetaInsight` exigeait dix métriques que Meta ne rend pas sur un objectif d'engagement.
+Le test passait **parce que** rien n'exécutait les modèles : il les confrontait à des
+payloads inventés par le test.
+
+`error_handler.py` a eu le verdict inverse, pour une raison mécanique : ses trois
+fonctions interpolent l'exception brute, donc le câbler rouvrait la classe de fuite
+fermée le 2026-08-22. Retiré — module, tests, ligne d'architecture et référence dans
+`response-protocol/SKILL.md`.
+
+### Le garde anti-fuite avait un angle mort que l'élargir n'aurait pas comblé
+
+En vérifiant ce verdict, la question « et si on branchait quand même ? » a mené ailleurs :
+le garde anti-fuite suit le **graphe d'imports**, et `error_alert._maybe_email(page, exc)`
+reçoit son exception en **argument** — il n'importe aucun client HTTP et n'en est importé
+par aucun. Il envoyait la traceback complète par Brevo, un tiers, dans une boîte mail. Le
+message d'une exception `requests` embarque l'URL préparée, donc `access_token=`.
+
+**Septième fois que la portée d'un garde est le défaut, et la première où l'élargir au
+graphe d'imports n'aurait rien donné.** L'élargissement bidirectionnel a été essayé et
+mesuré : 39 → 57 modules, 6 « en faute » dont la plupart ne manipulent que des exceptions
+de base de données — 25 corrections sans valeur. Le prédicat juste (*cette fonction
+met-elle dans une chaîne une exception qu'elle n'a pas attrapée ?*) en a produit **une**.
+
+### Les questions sans réponse, traitées en enquêtant plutôt qu'en les renvoyant
+
+Deux des quatre questions étaient « je ne sais plus ». Les renvoyer aurait été inutile.
+
+- **« Taux de trigger »** : il y en a **trois**, un par algorithme — la part observée
+  des titres de la cohorte, dans ce panier de Popularity Index, qui ont déclenché
+  Discover Weekly / Release Radar / Radio. Aucun ne fait foi sur les autres. **Et le
+  graphique mentait** : `(cell.get("prob") or 0)` dessinait une barre à **0 %** pour un
+  panier dont `prob` vaut `null` et `n` vaut 0 — que le lecteur d'un PDF envoyé à un
+  tiers lit « aucune chance de déclencher ». Cas réel : Release Radar, panier « 50+ ».
+  De même, 66,7 % mesuré sur **3** titres s'affichait aussi net que 99,4 % sur 172.
+- **« Valeur de démo »** : aucun KPI codé en dur n'existe — vérifié. Mais deux valeurs
+  fausses étaient bien affichées : le compteur « N artistes utilisent streaMLytics » de
+  la page d'inscription comptait **les canaris que nous créons nous-mêmes**, et le nom
+  d'artiste du **propriétaire** servait d'exemple à chaque inscription. Corrigés parce
+  qu'ils sont faux, pas parce qu'on est sûr que la note visait ça.
+- **« GIF animé dans les e-mails »** : il ne vient pas de l'application. Zéro `<img>`,
+  zéro `MIMEImage`, zéro URL d'image dans les trois expéditeurs, pied de désinscription
+  compris. C'est Brevo ou l'avatar du compte expéditeur — exactement le cas du nom
+  d'expéditeur tranché la veille. Runbook §8.
+
+### Deux fichiers d'infrastructure qui ne disaient pas la vérité
+
+- **L'audit nocturne lisait `requirements.txt`**, un fichier de **planchers** (`>=`) que
+  rien n'installe tel quel, pendant que la CI installait `uv.lock`. Rapport propre,
+  parc à 127 avis sur 18 paquets — dont `pyjwt`, notre authentification. Il lit
+  désormais le lock **résolu** (`uv export --frozen`). On n'audite jamais un fichier de
+  contraintes.
+- **`make sync` n'installait pas les outils de dev** : `uv sync --frozen` sans
+  `--extra dev` là où la CI le met. La cible annoncée « one-shot dev setup » produisait
+  un environnement sans pytest, ruff ni pre-commit — et enchaînait sur `hooks-install`,
+  qui a besoin de pre-commit. Constaté en réinstallant le lock : la suite ne démarrait
+  plus.
+
+### Ce qui reste
+
+**R49b** (image Airflow 3.2.2 → 3.3.1 — un `Dockerfile`, pas une dépendance Python),
+**R1** (inviter des proches) et **R54** (un réglage Brevo, cosmétique).
+⚠️ **Rien n'est déployé** : cette séance s'arrête au dépôt.
+
+---
+
 ## 2026-08-23 (nuit) — Les notes des tests artistes : du code correct que rien n'atteignait
 
 **Contexte** : ~30 notes de terrain (Benken 19/06, GRiNCH 12/08), avec une consigne —

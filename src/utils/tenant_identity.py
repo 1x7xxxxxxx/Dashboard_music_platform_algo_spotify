@@ -190,3 +190,92 @@ def write_platform_identity(db, artist_id: int, platform: str, extra: dict) -> N
 def mirrored_columns() -> dict[str, str]:
     """Exposed so a test can assert every writer covers the same mirrors."""
     return dict(IDENTITY_MIRRORS)
+
+
+# ── Meta : N comptes publicitaires sous UNE ligne de credentials ─────────────
+#
+# Décidé le 2026-08-24 (ADR-013), forme **séparée** : un artiste passant par une
+# agence a plusieurs comptes publicitaires, et ils ne se cumulent pas — chacun a son
+# budget, son CPR, ses campagnes. Le stockage suit cette forme sans multiplier les
+# lignes de `artist_credentials` :
+#
+#   * la **credential** est unique — un seul token System User partagé (ADR-006), une
+#     seule app ; ce qui est pluriel, c'est l'**identité du compte payeur**. Passer à
+#     `UNIQUE(artist_id, platform, account)` aurait dupliqué le secret autant de fois
+#     que de comptes, pour une valeur identique, et cassé les 6 lecteurs qui
+#     supposent une ligne par plateforme ;
+#   * `account_ids` (liste JSON) est **canonique** ; `account_id` reste le **premier
+#     élément**, si bien qu'aucun lecteur existant ne change de comportement.
+#
+# Le miroir est délibéré et gardé (`tests/test_meta_multi_account.py`) : ce module
+# documente ailleurs qu'un miroir dont un seul écrivain a connaissance est la façon
+# dont le canari est passé au vert sur rien. Ici l'écrivain est unique — cette
+# fonction et `normalise_meta_accounts` — et le lecteur aussi.
+
+META_ACCOUNTS_FIELD = "account_ids"
+
+
+def normalise_meta_account(value: str) -> str:
+    """`act_` en préfixe, une fois et une seule. Chaîne vide si rien d'exploitable."""
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    return raw if raw.startswith("act_") else f"act_{raw}"
+
+
+def meta_ad_account_ids(extra: dict) -> list[str]:
+    """Les comptes publicitaires déclarés, normalisés `act_…`, sans doublon.
+
+    Lit `account_ids` quand il existe, retombe sur le scalaire `account_id` pour
+    toute ligne écrite avant le multi-comptes. Pure — ni base, ni Streamlit.
+    """
+    extra = extra or {}
+    raw = extra.get(META_ACCOUNTS_FIELD)
+    if isinstance(raw, str):
+        # Une ligne écrite à la main (ou par un import) peut porter du texte : on
+        # accepte la séparation par virgule ou par saut de ligne, jamais un split
+        # implicite sur l'espace (un id n'en contient pas, mais une erreur de saisie
+        # en contiendrait et produirait des comptes fantômes).
+        raw = [p for p in re.split(r"[,\n;]+", raw)]
+    if not isinstance(raw, list):
+        raw = []
+    candidates = [*raw, extra.get(PLATFORM_IDENTITIES["meta"].field)]
+    out: list[str] = []
+    for value in candidates:
+        acct = normalise_meta_account(str(value or ""))
+        if acct and acct not in out:
+            out.append(acct)
+    return out
+
+
+def malformed_meta_accounts(extra: dict) -> list[str]:
+    """Les comptes déclarés dont la FORME est fausse — la même que le scalaire.
+
+    `malformed_identities` ne regarde que `account_id`. Sans cette fonction, le
+    deuxième compte d'une agence entrait dans un chemin REST sans jamais avoir été
+    confronté au motif — exactement le trou que le motif existe pour fermer.
+    """
+    return [a for a in meta_ad_account_ids(extra)
+            if not identity_is_well_formed("meta", a)]
+
+
+def with_meta_accounts(extra: dict, accounts: list[str]) -> dict:
+    """`extra` portant la liste canonique ET son miroir scalaire, ou ni l'un ni l'autre.
+
+    Le miroir n'est jamais laissé en arrière : une liste vide efface les deux clés,
+    sans quoi un artiste qui retire tous ses comptes resterait « connecté » aux yeux
+    de `declared_identities`, qui lit le scalaire.
+    """
+    out = dict(extra or {})
+    cleaned: list[str] = []
+    for a in accounts or []:
+        acct = normalise_meta_account(a)
+        if acct and acct not in cleaned:
+            cleaned.append(acct)
+    if not cleaned:
+        out.pop(META_ACCOUNTS_FIELD, None)
+        out.pop(PLATFORM_IDENTITIES["meta"].field, None)
+        return out
+    out[META_ACCOUNTS_FIELD] = cleaned
+    out[PLATFORM_IDENTITIES["meta"].field] = cleaned[0]
+    return out

@@ -41,8 +41,9 @@ def notify_app_error(page: str, exc: BaseException) -> None:
         pass
     try:
         from src.dashboard.utils.usage_tracker import track
+        from src.utils.safe_error import redact
         track('error', page=page,
-              meta={'type': type(exc).__name__, 'msg': str(exc)[:200]})
+              meta={'type': type(exc).__name__, 'msg': redact(exc)[:200]})
     except Exception:
         pass
     try:
@@ -61,9 +62,20 @@ def _maybe_email(page: str, exc: BaseException) -> None:
     to = (_smtp_config() or {}).get('user')
     if not to:
         return
-    tb = ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-2500:]
+    # Rédaction AVANT l'envoi. Ce mail part par Brevo — un tiers — et se dépose
+    # dans une boîte. Un message d'exception `requests` embarque l'URL préparée,
+    # donc `access_token=` / `key=` en clair, et la traceback en contient
+    # plusieurs. Le rapport reste complet ; seules les VALEURS de credentials
+    # partent. Trouvé le 2026-08-24 en cherchant les fonctions qui interpolent une
+    # exception REÇUE en paramètre — la question que le garde anti-fuite ne posait
+    # pas : sa portée suit le graphe d'imports, et une exception passée en
+    # ARGUMENT ne laisse aucune trace dans ce graphe.
+    from src.utils.safe_error import redact
+
+    tb = redact(''.join(
+        traceback.format_exception(type(exc), exc, exc.__traceback__))[-2500:])
     html = (f"<h3>⚠️ Erreur app — page <code>{page}</code></h3>"
-            f"<p><b>{type(exc).__name__}</b>: {exc}</p>"
+            f"<p><b>{type(exc).__name__}</b>: {redact(exc)}</p>"
             f"<pre style='font-size:11px'>{tb}</pre>")
     if _send_html(to, f"⚠️ streaMLytics — erreur sur '{page}'", html):
         _last_sent[key] = now

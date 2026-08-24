@@ -118,8 +118,8 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 | Dependency manifest | `pyproject.toml` | Canonical project deps + dev extras (pytest, ruff, pre-commit, detect-secrets). |
 | Lock file | `uv.lock` | Reproducible installs via `uv sync --frozen` (or `make sync`). |
 | Legacy install path | `requirements.txt` | Kept parallel for the existing Dockerfile + CI workflow. Dérivé de `pyproject.toml`. |
-| Lint config | `ruff.toml` | Authoritative ruff config. CI blocks on `ruff check src/ tests/` since 2026-05-14. |
-| Ruff binary | `pip install ruff==0.15.5` (dev extra) | Available system-wide as `/home/timothe/.local/bin/ruff`. |
+| Lint config | `ruff.toml` | Authoritative ruff config. CI blocks on `ruff check src/ tests/` since 2026-05-14. Version remontée avec le lock le 2026-08-24 (R49). |
+| Ruff binary | `pip install ruff==0.15.17` (dev extra) | Available system-wide as `/home/timothe/.local/bin/ruff`. |
 | Pre-commit hooks | `.pre-commit-config.yaml` + `make hooks-install` | Ruff + secret scan + hygiene on staged files. Chained from `make sync`. Bypass : `git commit --no-verify`. |
 | Secret baseline | `.secrets.baseline` | Versioned acknowledged-matches list. New secrets fail commit; update baseline via `detect-secrets scan --baseline .secrets.baseline`. |
 | Docker context | `.dockerignore` | Strict exclusions (venv/, .claude/, tests/, docs/...) — keeps build context < 50 MB on WSL2. |

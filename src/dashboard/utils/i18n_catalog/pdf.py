@@ -185,6 +185,11 @@ EN = {
     "pdf.chart.meta_funnel": "Meta Ads funnel",
     "pdf.chart.meta_budget_results_cpr": "Meta Ads — budget · results · CPR",
     "pdf.chart.pi_gates": "Algorithmic gates by Popularity Index (%)",
+    "pdf.chart.pi_gates_caption": (
+        "Observed share of the cohort's tracks that triggered the algorithm. "
+        "n = number of tracks; bar dimmed below {min_n} tracks, \"n/a\" if none."
+    ),
+    "pdf.chart.no_data": "n/a",
     "pdf.chart.roi_revenue_vs_spend": "ROI — Revenue vs Spend",
 
     # ── Chart axis / legend / series labels ──

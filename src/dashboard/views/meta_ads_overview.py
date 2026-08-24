@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session
+from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
@@ -33,6 +34,12 @@ def show():
 
 
 def _show_meta_ads(db, artist_id):
+    # Le compte AVANT les campagnes : deux comptes peuvent porter la même campagne
+    # « Release FR », donc la liste offerte dépend du compte choisi, jamais l'inverse.
+    _account = account_scope(db, artist_id, key="meta_overview_acct")
+    _acct, _acct_params = account_clause(_account)
+    _acct_p, _ = account_clause(_account, "p.")
+    _acct_s, _ = account_clause(_account, "s.")
     try:
         # Sort campaigns by launch date (MIN(day_date)) descending — most recent release first.
         # LEFT JOIN keeps campaigns without day-level data, sorted to the end via NULLS LAST.
@@ -42,11 +49,13 @@ def _show_meta_ads(db, artist_id):
             FROM meta_insights_performance p
             LEFT JOIN meta_insights_performance_day d
               ON d.campaign_name = p.campaign_name AND d.artist_id = p.artist_id
-            WHERE p.artist_id = %s
+            WHERE p.artist_id = %s"""
+            f"{_acct_p}"
+            """
             GROUP BY p.campaign_name
             ORDER BY first_day DESC NULLS LAST, p.campaign_name DESC
             """,
-            (artist_id,)
+            (artist_id, *_acct_params)
         )
         all_campaigns = df_list['campaign_name'].dropna().tolist()
     except Exception as e:
@@ -69,11 +78,13 @@ def _show_meta_ads(db, artist_id):
     # Values are always passed as %s parameters — never interpolated into the SQL string.
     # Validate that selected_campaigns is a subset of all_campaigns (allowlist check).
     selected_campaigns = [c for c in selected_campaigns if c in set(all_campaigns)]
-    _campaign_in = (
+    # Le filtre de compte se colle AVANT celui des campagnes : ses paramètres se
+    # placent donc juste après `artist_id`.
+    _campaign_in = _acct + (
         " AND campaign_name IN ({})".format(','.join(['%s'] * len(selected_campaigns)))
         if selected_campaigns else ""
     )
-    params = (artist_id, *selected_campaigns)
+    params = (artist_id, *_acct_params, *selected_campaigns)
 
     # ==============================================================================
     # 🟢 SECTION 1 : VUE MACRO (KPIS)
@@ -467,7 +478,7 @@ def _show_meta_ads(db, artist_id):
     st.subheader(t("meta_ads_overview.summary_table", "🗃️ Tableau Récapitulatif"))
 
     # ⚠️ %% in CTR column alias avoids Python IndexError in format strings
-    _campaign_in_p = (
+    _campaign_in_p = _acct_p + (
         f" AND p.campaign_name IN ({','.join(['%s'] * len(selected_campaigns))})"
         if selected_campaigns else ""
     )
@@ -512,10 +523,12 @@ def _show_meta_ads(db, artist_id):
         FROM meta_adsets s
         JOIN meta_ads a ON a.adset_id = s.adset_id
         JOIN meta_insights mi ON mi.ad_id = a.ad_id
-        WHERE s.artist_id = %s
+        WHERE s.artist_id = %s"""
+        f"{_acct_s}"
+        """
         GROUP BY s.optimization_goal, s.gender, s.publisher_platforms, s.age_min, s.age_max
         """,
-        (artist_id,),
+        (artist_id, *_acct_params),
     )
     if df_tgt.empty:
         st.info(t("meta_ads_overview.no_targeting_data", "Aucune donnée de ciblage ad set disponible."))
