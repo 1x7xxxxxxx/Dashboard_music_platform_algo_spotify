@@ -200,6 +200,34 @@ def _module_name(path: Path) -> str:
     return path.relative_to(ROOT).with_suffix("").as_posix().replace("/", ".")
 
 
+def _calls_http(text: str) -> bool:
+    """Ce module utilise-t-il vraiment un client HTTP ? (AST, jamais du texte)
+
+    Trois formes, et rien d'autre : importer le client, accéder à un de ses
+    attributs (`requests.get`), ou appeler `urlopen`. Une mention en commentaire ou
+    en docstring n'est pas un appel.
+    """
+    _MODULES = {"requests", "googleapiclient", "urllib.request", "httpx", "aiohttp"}
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:  # pragma: no cover - defensive
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] in _MODULES or alias.name in _MODULES:
+                    return True
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            root = node.module.split(".")[0]
+            if root in _MODULES or node.module in _MODULES:
+                return True
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            if node.value.id in _MODULES:
+                return True
+        elif isinstance(node, ast.Name) and node.id == "urlopen":
+            return True
+    return False
+
 def _modules_that_call_http() -> list[str]:
     sources: dict[str, tuple[str, Path]] = {}
     for sub in _SCOPE_DIRS:
@@ -208,9 +236,31 @@ def _modules_that_call_http() -> list[str]:
                 continue
             sources[_module_name(path)] = (path.read_text(encoding="utf-8"), path)
 
-    # Seed: modules that touch an HTTP client themselves.
+    # Seed: modules that touch an HTTP client themselves — lu par AST, pas en
+    # texte brut.
+    #
+    # La version en sous-chaîne cherchait `googleapiclient` n'importe où dans le
+    # fichier, **docstrings comprises**. `src/utils/safe_error.py` — le module dont
+    # le rôle est précisément de rédiger ces messages — nomme les deux APIs dans sa
+    # prose pour expliquer pourquoi il existe. Il était donc marqué « touche un
+    # client HTTP », et **tout module qui l'importait héritait de la marque**.
+    # Conséquence mesurée le 2026-08-24 : appliquer le correctif recommandé faisait
+    # entrer le module corrigé dans la portée du garde et le faisait échouer sur des
+    # lignes sans rapport. Un garde qui punit l'application de son propre remède
+    # finit désactivé.
+    # …ET les modules qui importent le module de rédaction. Ce n'est pas circulaire :
+    # importer `safe_error` est un AVEU — ce module formate des exceptions porteuses
+    # de credentials, sinon il n'aurait aucune raison d'aller y chercher `redact`.
+    #
+    # Sans cette seconde graine, la correction du faux positif ci-dessus faisait
+    # tomber **19 modules** hors de la portée (mesuré : 40 → 21), dont
+    # `meta_ads_api_daily`, `_meta_config_fetch` et les dix DAGs. Aucun n'était en
+    # faute ce jour-là, mais ils manipulent tous de vraies exceptions HTTP :
+    # l'ancienne graine les couvrait par accident, à travers la prose de
+    # `safe_error`. Réparer un faux positif ne doit pas coûter une vraie couverture.
+    _REMEDY = "src.utils.safe_error"
     tainted = {mod for mod, (text, _) in sources.items()
-               if any(m in text for m in _HTTP_MARKERS)}
+               if _calls_http(text) or _REMEDY in text}
 
     # Closure: a module that imports a tainted module handles its exceptions.
     changed = True
@@ -233,6 +283,27 @@ def _modules_that_call_http() -> list[str]:
     return [sources[m][1].relative_to(ROOT).as_posix()
             for m in sorted(tainted)
             if "except" in sources[m][0]]
+
+
+# Plancher de portée. Une portée qui rétrécit en silence est un garde qui cesse de
+# garder sans jamais passer au rouge — c'est la forme que ce dépôt a déjà rencontrée
+# six fois. Mesuré le 2026-08-24 après le passage de la graine en AST : **38**
+# modules. Deux sont sortis ce jour-là (`safe_error.py` et `api_errors.py`, tous
+# deux tainted par leur seule PROSE), et tous deux sont couverts par
+# `tests/test_an_exception_passed_as_an_argument_is_redacted.py`, dont la portée est
+# tout `src/` + `airflow/` + `tools/`. Relever ce plancher quand le vrai nombre
+# monte ; ne jamais le baisser pour faire passer un test.
+_SCOPE_FLOOR = 36
+
+
+def test_the_http_scope_does_not_silently_shrink() -> None:
+    covered = _modules_that_call_http()
+    assert len(covered) >= _SCOPE_FLOOR, (
+        f"la portée du garde anti-fuite est tombée à {len(covered)} modules "
+        f"(plancher {_SCOPE_FLOOR}). Un module qui en sort cesse d'être vérifié "
+        "sans qu'aucun test ne rougisse — vérifier ce qui est sorti et pourquoi "
+        "avant de toucher au plancher."
+    )
 
 
 @pytest.mark.parametrize("rel", _modules_that_call_http())

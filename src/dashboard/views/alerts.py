@@ -43,7 +43,19 @@ def _section_circuit_breakers(db, artist_id) -> int:
         )
 
     if not rows:
-        st.success(t("alerts.circuits_all_closed", "✅ All circuits closed — no platform collection failures."))
+        from src.utils.circuit_breaker import circuit_mechanism_is_recording
+        if circuit_mechanism_is_recording(db):
+            st.success(t("alerts.circuits_all_closed",
+                         "✅ All circuits closed — no platform collection failures."))
+        else:
+            # Pas un ✅ : rien n'écrit dans cette table, donc « aucun circuit
+            # ouvert » ne dit rien de la santé des collectes.
+            st.info(t(
+                "alerts.circuits_not_recording",
+                "ℹ️ Aucun circuit breaker n'a encore été enregistré. Ce panneau ne "
+                "prouve donc **rien** sur l'état des collectes — la fraîcheur des "
+                "données ci-dessous est la mesure qui fait foi."
+            ))
         return 0
 
     for row in rows:

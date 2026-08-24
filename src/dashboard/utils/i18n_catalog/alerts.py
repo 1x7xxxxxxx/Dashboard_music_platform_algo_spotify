@@ -18,6 +18,11 @@ EN = {
     "alerts.section_users": "👥 Users (email & signup date)",
     # Circuit breakers
     "alerts.circuits_all_closed": "✅ All circuits closed — no platform collection failures.",
+    "alerts.circuits_not_recording": (
+        "ℹ️ No circuit breaker has been recorded yet. This panel therefore proves "
+        "**nothing** about collection health — the data freshness below is the "
+        "measure that counts."
+    ),
     "alerts.circuit_line": "(artist #{aid}) — <span style='color:{color};font-weight:bold'>{state}</span> — {failures} failure(s) — last: {fail_str}",
     # Freshness
     "alerts.sources_all_fresh": "✅ All data sources are fresh.",

@@ -110,6 +110,62 @@ Deux des quatre questions étaient « je ne sais plus ». Les renvoyer aurait é
   qui a besoin de pre-commit. Constaté en réinstallant le lock : la suite ne démarrait
   plus.
 
+### Suite — ce que la vérification avant déploiement a trouvé
+
+Avant de pousser, j'ai confronté les validateurs fraîchement branchés aux **lignes
+réelles de la base**. Ils en refusaient **70**.
+
+- **`max_length=255` était inventé.** Les colonnes `campaign_name` / `adset_name` /
+  `ad_name` sont des `text`, sans limite, et la production contient une campagne de
+  **313 caractères** (nom généré, avec emoji). Le modèle lève : la collecte Meta de ce
+  locataire se serait arrêtée dès la nuit suivante. La borne venait du fichier
+  d'origine et n'avait jamais rencontré une colonne.
+- **`targeting` est `jsonb`** : le collecteur y écrit une chaîne JSON, psycopg2 la
+  relit en `dict`. Le même contenu a deux types selon le sens du trajet ; le modèle
+  n'en acceptait qu'un, donc 69 lignes sur 69 refusées à la relecture.
+
+Les tests unitaires du modèle ne pouvaient pas le voir : ils lui présentent des
+payloads écrits à la main, donc courts et propres. **Quand on branche une validation
+qui lève, la première chose à faire est de lui montrer la production.**
+
+### Le circuit breaker : trois défauts dans le même module
+
+En balayant la classe « borne inventée », je suis tombé sur `src/utils/circuit_breaker.py`.
+
+- **Il n'a aucun appelant de production.** Il n'est instancié que dans son propre
+  exemple de docstring et dans son helper `reset_circuit` ; la table est vide. Trois
+  vues admin le lisent.
+- **Deux panneaux affirmaient une bonne santé** — `st.success("✅ … fonctionnement
+  normal")` — sur zéro ligne. Or « aucune ligne » a deux causes opposées : rien n'est
+  en panne, ou **personne n'écrit jamais**. Sur la page d'alertes. Balayée sur les 41
+  vues, la classe a **16 sites** et **un seul en faute** : les 15 autres lisent des
+  tables réellement écrites. Mesurer l'incidence avant de généraliser.
+- **Son contrat prescrivait `cb.record_failure(str(e))`** — et cette chaîne est
+  persistée (`last_error`, 500 car.) puis affichée. Aucun DAG ne l'appelait, donc rien
+  n'a fuité, mais le premier à suivre la documentation aurait écrit le token partagé
+  en base. La rédaction est désormais **à l'entrée de la fonction** : compter sur les
+  appelants marche jusqu'au premier qui copie l'exemple d'un autre DAG.
+
+Câbler le mécanisme dans les 5 DAGs collecteurs n'a **pas** été fait : ça change quand
+la production *saute* une collecte, et ça mérite sa propre séance.
+
+### Un garde qui punissait l'application de son propre remède
+
+Ajouter `from src.utils.safe_error import redact` à `circuit_breaker.py` l'a fait
+**échouer** au garde anti-fuite. Cause : le garde amorçait sa portée en cherchant
+`googleapiclient` **en sous-chaîne, docstrings comprises** — et `safe_error.py`, dont
+le rôle est précisément de rédiger ces messages, nomme les deux APIs dans sa prose
+pour expliquer pourquoi il existe. Tout module l'important héritait de la marque.
+
+C'est la forme la plus coûteuse du faux positif : elle décourage exactement le geste
+qu'on veut encourager. La graine est passée en **AST**. Et la correction a failli
+créer le défaut inverse — la portée tombait de **40 à 21** modules en silence, dont
+les dix DAGs, parce que l'ancienne graine les couvrait par accident à travers cette
+prose. Une seconde graine (« importer `safe_error` est un aveu ») restaure la
+couverture, et un `_SCOPE_FLOOR` empêche le prochain rétrécissement muet.
+
+**2307 tests verts**, 126 classes d'erreur, 0 non gardée.
+
 ### Ce qui reste
 
 **R49b** (image Airflow 3.2.2 → 3.3.1 — un `Dockerfile`, pas une dépendance Python),

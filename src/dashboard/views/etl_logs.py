@@ -250,8 +250,14 @@ def _section_circuit_breakers(db):
     )
 
     if not rows:
-        st.success(t("etl_logs.cb_none",
-                     "✅ Aucun circuit breaker enregistré — toutes les plateformes sont en fonctionnement normal."))
+        # « Aucune ligne » ne veut PAS dire « tout va bien » : voir
+        # `circuit_mechanism_is_recording`.
+        st.info(t(
+            "etl_logs.cb_none",
+            "ℹ️ Aucun circuit breaker enregistré. Le mécanisme n'est écrit par aucune "
+            "collecte à ce jour : ce panneau ne prouve rien sur l'état des "
+            "plateformes. Se fier à l'historique ETL et à la fraîcheur ci-dessus."
+        ))
         return
 
     for row in rows:

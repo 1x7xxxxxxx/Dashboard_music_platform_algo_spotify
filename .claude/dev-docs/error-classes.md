@@ -183,6 +183,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [leak-via-an-exception-received-as-an-argument](#leak-via-an-exception-received-as-an-argument) | P2 | deterministic | guarded | none |
 | [format-marker-in-a-plain-string](#format-marker-in-a-plain-string) | P2 | deterministic | guarded | none |
 | [audit-reads-the-constraints-not-the-installed-set](#audit-reads-the-constraints-not-the-installed-set) | P3 | deterministic | guarded | none |
+| [validation-bound-invented-not-read-from-the-schema](#validation-bound-invented-not-read-from-the-schema) | P2 | deterministic | guarded | none |
+| [empty-table-rendered-as-health](#empty-table-rendered-as-health) | P3 | deterministic | guarded | none |
+| [guard-seeded-by-prose-not-by-code](#guard-seeded-by-prose-not-by-code) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2139,3 +2142,51 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-24
 - History:
   - 2026-08-24: après régénération du lock, 127 avis sur 18 paquets → 12 sur 2. Les deux restants sont assumés : `apache-airflow` (pin délibéré sur la version de l'image Docker, suivi en R49b) et `ecdsa` (sans correctif amont).
+
+
+## validation-bound-invented-not-read-from-the-schema
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un validateur qui **lève** refuse une donnée parfaitement légitime, parce qu'une de ses bornes a été tapée à la main au lieu d'être lue dans le schéma. La collecte du locataire s'arrête, et le message parle d'une limite qui n'existe nulle part.
+- root_cause: `src/models/meta_ads_validators.py` déclarait `max_length=255` sur `campaign_name`, `adset_name` et `ad_name`. Les colonnes correspondantes sont des `text`, sans limite, et la production contient une campagne de **313 caractères** (nom généré, avec emoji). Le modèle venait d'être branché (R47) et **lève** : la première collecte Meta de ce locataire se serait arrêtée. Second cas dans le même fichier : `targeting` typé `str` alors que la colonne est `jsonb` — le collecteur y écrit `json.dumps(...)` et psycopg2 le relit en `dict`, donc 69 lignes sur 69 étaient refusées à la relecture.
+- signature: `python3 -m pytest tests/test_the_validators_accept_what_production_holds.py -q`
+- long_term_fix: le garde confronte les modèles aux **lignes réelles déjà en base** — un modèle qui refuse ce que la production contient déjà refusera le même payload la nuit suivante — et un second test, sans base, interdit toute borne de longueur qu'aucune colonne ne porte. Règle générale : **une borne de validation se lit dans le schéma, elle ne s'invente pas** ; si une vraie limite apparaît, la lire dans `information_schema`.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_validators_accept_what_production_holds.py }
+- rex_ref: src/models/meta_ads_validators.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: trouvé **avant tout déploiement**, en confrontant délibérément les modèles fraîchement branchés aux lignes de la base. Les tests unitaires du modèle ne pouvaient pas le voir : ils lui présentent des payloads écrits à la main, donc courts et propres. Corollaire de méthode : quand on branche une validation qui lève, la première chose à faire est de lui montrer la production.
+
+## empty-table-rendered-as-health
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un panneau affiche « ✅ tout va bien » à partir d'une requête qui ne rend rien — alors que « rien » a deux causes opposées : il n'y a effectivement aucun problème, ou **personne n'écrit jamais dans cette table**.
+- root_cause: `views/alerts.py::_section_circuit_breakers` et `views/etl_logs.py` interrogent `etl_circuit_breaker` avec `WHERE state != 'closed'` et affichaient `st.success("✅ … fonctionnement normal")` sur zéro ligne. Or `CircuitBreaker` (`src/utils/circuit_breaker.py`) n'a **aucun appelant de production** — il n'est instancié que dans son propre exemple de docstring et dans son helper `reset_circuit` — et la table est vide. Les deux panneaux affirmaient une bonne santé qu'aucune mesure ne soutenait, dont un sur la page d'alertes.
+- signature: `python3 -m pytest tests/test_an_empty_table_is_not_a_clean_bill_of_health.py -q`
+- long_term_fix: `circuit_mechanism_is_recording(db)` répond à « cette table est-elle écrite ? », et le ✅ y est conditionné ; sinon le panneau dit explicitement qu'il ne prouve rien et renvoie vers la mesure qui fait foi (la fraîcheur). Le garde repère par AST un `st.success` dans la branche « aucune ligne » d'une fonction qui interroge cette table.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_empty_table_is_not_a_clean_bill_of_health.py }
+- rex_ref: src/utils/circuit_breaker.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: la classe a été balayée sur les 41 vues — **16 sites** « aucune ligne → ✅ », dont **un seul** est en faute. Les 15 autres lisent des tables réellement écrites (`etl_run_log`, `saas_users`, `artist_subscriptions`), où « aucune ligne » est une vraie mesure. Corriger les 16 aurait été du bruit ; l'incidence se mesure avant de généraliser, comme pour l'élargissement du garde anti-fuite le même jour.
+  - 2026-08-24: défaut jumeau corrigé dans le même module — le contrat du circuit breaker prescrivait littéralement `cb.record_failure(str(e))` dans sa docstring, et cette chaîne est **persistée** (`last_error`, 500 car.) puis **affichée**. Aucun DAG ne l'appelait, donc rien n'a fuité, mais le premier à suivre la documentation aurait écrit le token partagé en base. `record_failure` rédige désormais **à l'entrée** : compter sur les appelants marche jusqu'au premier qui copie l'exemple.
+
+
+## guard-seeded-by-prose-not-by-code
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde marque en faute un module qui vient d'appliquer son propre correctif. Le module ne fait rien de risqué : il a seulement **importé le remède**, et le remède est marqué dangereux parce que sa documentation nomme le danger.
+- root_cause: `tests/test_credentials_security.py::_modules_that_call_http` amorçait sa portée en cherchant `"requests."`, `"googleapiclient"`, `"urlopen"` **en sous-chaîne dans le texte du fichier**, docstrings comprises. `src/utils/safe_error.py` — dont le rôle est précisément de rédiger ces messages — nomme les deux APIs dans sa prose pour expliquer pourquoi il existe. Il était donc « touche un client HTTP », et **tout module l'important héritait de la marque**. Mesuré le 2026-08-24 : ajouter `from src.utils.safe_error import redact` à `circuit_breaker.py` l'a fait entrer dans la portée et échouer sur trois lignes sans rapport.
+- signature: `python3 -m pytest tests/test_credentials_security.py -q`
+- long_term_fix: la graine est lue par **AST** (`_calls_http`) — import du client, accès à un de ses attributs, appel à `urlopen` — jamais en texte. Une mention en commentaire n'est pas un appel. Et parce que corriger un faux positif ne doit pas coûter de la vraie couverture, une **seconde graine** a été ajoutée : importer `src.utils.safe_error` est un aveu (ce module formate des exceptions porteuses de credentials, sinon il n'irait pas y chercher `redact`). Sans elle, la correction faisait tomber 19 modules hors de portée — 40 → 21. Un `_SCOPE_FLOOR` garde désormais la taille de la portée.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_credentials_security.py::test_the_http_scope_does_not_silently_shrink }
+- rex_ref: tests/test_credentials_security.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: **un garde qui punit l'application de son propre remède finit désactivé** — c'est la forme la plus coûteuse du faux positif, parce qu'elle décourage exactement le geste qu'on veut encourager. Et la correction a failli créer le défaut inverse : la portée passait de 40 à 21 modules en silence, ce qui est la 7ᵉ occurrence de « la portée d'un garde est le défaut », dans le sens du rétrécissement cette fois. D'où le plancher.

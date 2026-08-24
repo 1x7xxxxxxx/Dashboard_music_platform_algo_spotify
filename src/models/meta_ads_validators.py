@@ -25,6 +25,14 @@ l'architecture, et que rien n'exécute. Le test passait *parce que* rien ne
 l'exécutait — il vérifiait le modèle contre des payloads inventés par le test,
 jamais contre ceux du collecteur.
 
+**Une borne de validation se lit dans le schéma, elle ne s'invente pas.** Les trois
+`max_length=255` de la version d'origine ont été retirés le 2026-08-24 : les colonnes
+`campaign_name`, `adset_name` et `ad_name` sont des `text`, sans limite, et la
+production contient une campagne de **313 caractères** (un nom généré, avec emoji).
+Le modèle l'aurait rejetée, et comme il LÈVE, il aurait arrêté toute la collecte Meta
+de ce locataire dès la nuit suivante. La borne venait d'un fichier écrit des mois plus
+tôt, et n'avait jamais été confrontée à une colonne.
+
 Ce que ces modèles refusent maintenant, et pourquoi ça vaut d'être refusé :
 identifiant vide, locataire absent, budget négatif, statut hors de l'énumération
 Meta, métrique négative. Chacun produit une ligne en base qu'aucune vue ne peut
@@ -32,7 +40,7 @@ rattraper.
 """
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -68,7 +76,7 @@ class MetaCampaign(_TenantScoped):
     """Une campagne, telle que `_fetch_campaigns` la construit."""
 
     campaign_id: str = Field(..., min_length=1)
-    campaign_name: str = Field(..., min_length=1, max_length=255)
+    campaign_name: str = Field(..., min_length=1)
     status: Optional[str] = Field(None, pattern=_OBJECT_STATUS)
     objective: Optional[str] = None
     daily_budget: Optional[Decimal] = Field(None, ge=0)
@@ -90,7 +98,7 @@ class MetaAdset(_TenantScoped):
     """Un ad set. Les quinze colonnes de ciblage sont ignorées, pas interdites."""
 
     adset_id: str = Field(..., min_length=1)
-    adset_name: str = Field(..., min_length=1, max_length=255)
+    adset_name: str = Field(..., min_length=1)
     campaign_id: str = Field(..., min_length=1)
     status: Optional[str] = Field(None, pattern=_OBJECT_STATUS)
     optimization_goal: Optional[str] = None
@@ -99,19 +107,20 @@ class MetaAdset(_TenantScoped):
     lifetime_budget: Optional[Decimal] = Field(None, ge=0)
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    # Une CHAÎNE JSON, pas un dict : `_fetch_adsets` fait `json.dumps(tgt_dict)`
-    # avant d'écrire, parce que la colonne est du texte et que les attributs de
-    # ciblage utiles sont déjà éclatés en colonnes propres (countries, gender…).
-    # Le modèle déclarait `Dict[str, Any]` — troisième divergence trouvée en
-    # branchant, et celle qui aurait fait échouer la collecte dès la première nuit.
-    targeting: Optional[str] = None
+    # Les DEUX formes, et ce n'est pas de la complaisance : la colonne est
+    # `jsonb`, `_fetch_adsets` y écrit `json.dumps(tgt_dict)` — une CHAÎNE, que
+    # psycopg2 adapte — et psycopg2 la relit en **dict**. Le même contenu a donc
+    # deux types selon le sens du trajet, et un modèle qui n'en accepte qu'un
+    # refuse la moitié des appels légitimes. Mesuré le 2026-08-24 :
+    # `Optional[str]` rejetait 69 lignes sur 69 relues depuis la base.
+    targeting: Optional[Union[str, dict[str, Any]]] = None
 
 
 class MetaAd(_TenantScoped):
     """Une publicité."""
 
     ad_id: str = Field(..., min_length=1)
-    ad_name: str = Field(..., min_length=1, max_length=255)
+    ad_name: str = Field(..., min_length=1)
     adset_id: str = Field(..., min_length=1)
     campaign_id: str = Field(..., min_length=1)
     status: Optional[str] = Field(None, pattern=_OBJECT_STATUS)

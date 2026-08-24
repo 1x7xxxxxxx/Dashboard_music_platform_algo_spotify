@@ -39,7 +39,9 @@ EN = {
     "etl_logs.cb_header": "🔌 Circuit Breakers",
     "etl_logs.cb_caption": "If a circuit is OPEN, the corresponding DAG skips collection "
                            "to avoid burning retries on known-broken credentials.",
-    "etl_logs.cb_none": "✅ No circuit breaker recorded — all platforms are operating normally.",
+    "etl_logs.cb_none": (
+        "ℹ️ No circuit breaker recorded. The mechanism is not written by any collection to date: this panel proves nothing about platform health. Rely on the ETL history and the freshness above."
+    ),
     "etl_logs.cb_failures": "{icon} **{platform}** (artist #{artist_id}) — "
                             "<span style='color:{color};font-weight:bold'>{state}</span> "
                             "— {failures} failure(s)",

@@ -22,17 +22,39 @@ Usage in a DAG task:
         rows = collector.run()
         cb.record_success()
     except Exception as e:
-        cb.record_failure(str(e))
+        cb.record_failure(safe_error(e))
         raise
+
+⚠️ `safe_error(e)`, jamais `str(e)` — et `record_failure` le refait de son côté.
+Le message d'une exception `requests` embarque l'URL préparée, donc `access_token=`
+ou `key=`. Ici cette chaîne est **persistée** (`etl_circuit_breaker.last_error`,
+500 caractères) et **rendue à l'écran** par `views/alerts.py` et `views/etl_logs.py`.
+Le contrat prescrivait littéralement `str(e)` jusqu'au 2026-08-24 ; comme aucun DAG
+ne l'appelait encore, rien n'a fuité — mais le premier à suivre la documentation
+aurait écrit le token partagé en base.
 """
 import logging
 from datetime import datetime, timedelta
+
+from src.utils.safe_error import redact, safe_error
 
 logger = logging.getLogger(__name__)
 
 CLOSED    = 'closed'
 OPEN      = 'open'
 HALF_OPEN = 'half_open'
+
+def _redacted(error) -> str:
+    """Le message, credentials retirés, borné à 500 caractères.
+
+    **À l'ENTRÉE, pas au point d'appel.** Compter sur les appelants pour passer
+    `safe_error(e)` marche jusqu'au premier qui copie l'exemple d'un autre DAG ;
+    ici la valeur est persistée puis affichée, donc la rédaction doit être une
+    propriété de la fonction, pas une discipline. Le double emploi avec un appelant
+    déjà propre est sans effet — `redact` est idempotent.
+    """
+    return redact(error or "")[:500]
+
 
 _FAILURE_THRESHOLD  = 3    # failures before opening
 _RESET_AFTER_HOURS  = 6    # hours before half_open attempt
@@ -100,7 +122,7 @@ class CircuitBreaker:
             self._upsert(
                 state=OPEN,
                 failure_count=failure_count,
-                last_error=error[:500],
+                last_error=_redacted(error),
                 last_failure_at=now,
                 opened_at=row.get('opened_at') or now,
                 reset_at=reset_at,
@@ -109,13 +131,13 @@ class CircuitBreaker:
                 f"CircuitBreaker [{self.platform}/{self.artist_id}]: "
                 f"OPEN after {failure_count} failures. "
                 f"Will retry at {reset_at.strftime('%Y-%m-%d %H:%M')} UTC. "
-                f"Last error: {error[:100]}"
+                f"Last error: {_redacted(error)[:100]}"
             )
         else:
             self._upsert(
                 state=CLOSED,
                 failure_count=failure_count,
-                last_error=error[:500],
+                last_error=_redacted(error),
                 last_failure_at=now,
                 opened_at=None,
                 reset_at=None,
@@ -137,7 +159,7 @@ class CircuitBreaker:
         return (
             f"Circuit OPEN for {self.platform} (artist {self.artist_id}): "
             f"{failure_count} failures since {opened_str}. "
-            f"Next retry: {reset_str}. Last error: {last_error[:100]}"
+            f"Next retry: {reset_str}. Last error: {_redacted(last_error)[:100]}"
         )
 
     def reset(self):
@@ -165,7 +187,7 @@ class CircuitBreaker:
             keys = ['state', 'failure_count', 'last_failure_at', 'opened_at', 'reset_at', 'last_error']
             return dict(zip(keys, row))
         except Exception as e:
-            logger.debug(f"CircuitBreaker: DB load failed — {e}")
+            logger.debug("CircuitBreaker: DB load failed — %s", safe_error(e))
             return {}
 
     def _transition(self, new_state: str):
@@ -206,7 +228,7 @@ class CircuitBreaker:
             cur.close()
             c.close()
         except Exception as e:
-            logger.debug(f"CircuitBreaker: DB write failed — {e}")
+            logger.debug("CircuitBreaker: DB write failed — %s", safe_error(e))
 
 
 # ── Admin helpers ─────────────────────────────────────────────────
@@ -231,10 +253,29 @@ def get_all_circuit_states() -> list[dict]:
                 'last_failure_at', 'reset_at', 'last_error', 'updated_at']
         return [dict(zip(keys, r)) for r in rows]
     except Exception as e:
-        logger.warning(f"get_all_circuit_states: {e}")
+        logger.warning("get_all_circuit_states: %s", safe_error(e))
         return []
 
 
 def reset_circuit(platform: str, artist_id: int = 0):
     """Force-reset a specific circuit to CLOSED (for dashboard admin use)."""
     CircuitBreaker(platform=platform, artist_id=artist_id).reset()
+
+
+def circuit_mechanism_is_recording(db) -> bool:
+    """La table a-t-elle jamais reçu une ligne ?
+
+    `SELECT … WHERE state != 'closed'` ne rend rien dans DEUX situations opposées :
+    aucune plateforme n'est en panne, ou **personne n'écrit jamais dans la table**.
+    Les afficher pareil, avec un ✅, transforme un mécanisme inactif en bulletin de
+    santé — mesuré le 2026-08-24 : `CircuitBreaker` n'a aucun appelant de production,
+    la table est vide, et les deux panneaux annonçaient « toutes les plateformes en
+    fonctionnement normal ».
+    """
+    try:
+        rows = db.fetch_query("SELECT 1 FROM etl_circuit_breaker LIMIT 1")
+        return bool(rows)
+    except Exception:
+        # Table absente ou base indisponible : on ne peut rien affirmer, donc on
+        # n'affirme rien — l'appelant affiche l'avertissement, pas le ✅.
+        return False

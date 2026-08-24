@@ -300,8 +300,8 @@ non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `son
 **▶️ L'index de code est vide à une entrée près — R49b, qui est un changement
 d'image Docker. Les quatre questions qui bloquaient sont tranchées.**
 
-**2296 tests verts**, 22 skippés, ruff propre, `make config-check` clean
-(117 classes d'erreur, 0 non gardée), 77 migrations appliquées.
+**2307 tests verts**, 22 skippés, ruff propre, `make config-check` clean
+(**126 classes d'erreur**, 0 non gardée), 77 migrations appliquées.
 ⚠️ **Rien n'est déployé** : cette séance s'arrête au dépôt.
 
 ### Ce que la journée a livré, en une phrase chacun
@@ -341,6 +341,21 @@ pourrit.** Plus il attend, plus le brancher devient dangereux.
   pouvait pas le voir : sa portée suit le **graphe d'imports**, et cette exception
   arrive en **argument**. Septième fois que la portée d'un garde est le défaut, et
   la première où l'élargir au graphe d'imports n'aurait rien donné.
+
+### Ce que la vérification AVANT déploiement a rattrapé
+
+Les validateurs fraîchement branchés refusaient **70 lignes déjà en base** : une borne
+`max_length=255` **inventée** (les colonnes sont des `text`, et la prod contient une
+campagne de 313 caractères) et un `targeting` typé `str` alors que la colonne est
+`jsonb`. Comme les modèles **lèvent**, la collecte Meta se serait arrêtée dès la nuit
+suivante. **Quand on branche une validation qui lève, on lui montre la production
+avant de déployer** — les tests unitaires du modèle lui présentent des payloads écrits
+à la main, donc courts et propres.
+
+Dans la foulée, trois défauts dans `circuit_breaker.py` (aucun appelant, deux panneaux
+qui affirment une bonne santé sur une table que personne n'écrit, un contrat qui
+prescrit `str(e)` pour une valeur persistée puis affichée), et un garde anti-fuite qui
+**punissait l'application de son propre remède**.
 
 ### Ce qu'il faut savoir avant de toucher au code demain
 
@@ -399,6 +414,21 @@ rien ne le signalait.
 - **Un nettoyage plus large que son écriture** : `_prune_renamed_campaigns` supprimait par
   LOCATAIRE ce qu'il venait d'écrire par COMPTE. Corrigé **avant** que le multi-comptes
   existe — sinon il n'aurait été visible qu'en constatant des données manquantes.
+
+### Ce que la vérification AVANT déploiement a rattrapé
+
+Les validateurs fraîchement branchés refusaient **70 lignes déjà en base** : une borne
+`max_length=255` **inventée** (les colonnes sont des `text`, et la prod contient une
+campagne de 313 caractères) et un `targeting` typé `str` alors que la colonne est
+`jsonb`. Comme les modèles **lèvent**, la collecte Meta se serait arrêtée dès la nuit
+suivante. **Quand on branche une validation qui lève, on lui montre la production
+avant de déployer** — les tests unitaires du modèle lui présentent des payloads écrits
+à la main, donc courts et propres.
+
+Dans la foulée, trois défauts dans `circuit_breaker.py` (aucun appelant, deux panneaux
+qui affirment une bonne santé sur une table que personne n'écrit, un contrat qui
+prescrit `str(e)` pour une valeur persistée puis affichée), et un garde anti-fuite qui
+**punissait l'application de son propre remède**.
 
 ### Ce qu'il faut savoir avant de toucher au code demain
 
