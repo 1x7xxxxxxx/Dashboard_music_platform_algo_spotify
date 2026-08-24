@@ -1,4 +1,4 @@
-﻿FROM apache/airflow:2.8.1-python3.11
+﻿FROM apache/airflow:2.11.2-python3.11
 
 USER root
 
@@ -16,9 +16,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 USER airflow
 
-# Copier et installer les requirements
+# Requirements installés avec le CŒUR Airflow épinglé.
+#
+# `pip install -r requirements.txt` nu est la façon documentée de casser une image
+# Airflow : ce fichier liste `apache-airflow-providers-*` **sans version**, et pip est
+# libre de résoudre un provider qui exige un autre cœur — donc de DÉPLACER Airflow
+# sous nos pieds, silencieusement, à la construction.
+#
+# Le fichier de contraintes OFFICIEL d'Airflow serait la réponse canonique. Il ne
+# s'applique pas ici, et c'est mesuré (2026-08-24) : il épingle `pandas` à une autre
+# version que la nôtre (`pandas==2.3.3`, dont dépend tout le code d'analyse) et pip
+# rend `ResolutionImpossible`. Un projet qui superpose ses propres dépendances
+# applicatives à Airflow ne peut pas adopter le jeu complet — il doit protéger ce qui
+# compte : le CŒUR, pas l'arbre entier.
+#
+# D'où une contrainte d'une ligne. Elle fait échouer la construction, bruyamment, si
+# un provider tente d'emmener Airflow ailleurs — ce qui est exactement le risque que
+# la version non épinglée laissait ouvert.
+#
+# Monté de 2.8.1 (février 2024) à 2.11.2 le 2026-08-24 — R49b. Ce n'était possible
+# qu'après avoir retiré `schedule_interval` et `provide_context` des 16 DAGs.
+ARG AIRFLOW_VERSION=2.11.2
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN echo "apache-airflow==${AIRFLOW_VERSION}" > /tmp/core-constraint.txt \
+    && pip install --no-cache-dir -r /tmp/requirements.txt \
+       --constraint /tmp/core-constraint.txt
 
 # Copier le code source du projet
 COPY src /opt/airflow/src
