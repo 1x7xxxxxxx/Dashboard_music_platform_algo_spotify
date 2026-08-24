@@ -205,6 +205,54 @@ Deux défauts de plus, trouvés en posant ce correctif :
 
 **2459 tests verts**, 127 classes d'erreur, 0 non gardée.
 
+### R49b débloqué en tirant sur un fil de Dependabot
+
+En regardant les PR ouvertes : **#100 propose `apache/airflow` 2.8.1 → 3.3.0**, ouverte
+depuis le 1ᵉʳ août, et elle ressemble exactement au correctif de sécurité attendu. Prod
+tourne bien 2.8.1 — février 2024.
+
+**La merger aurait arrêté toute la collecte.** Les 16 DAGs portaient
+`schedule_interval=` (l'orthographe d'Airflow 1/2.3, remplacée par `schedule=` en 2.4)
+et 7 d'entre eux `provide_context=True` (un argument d'Airflow **1.x**, sans effet
+depuis la 2.0). Airflow 2.8.1 les accepte en silence ; Airflow 3 les rejette — aucun
+des 16 DAGs ne se serait importé.
+
+Les deux vestiges sont retirés. Aucun changement de comportement en 2.8.1, et **un
+effet qu'on n'espérait plus** : les 16 DAGs s'importent maintenant **hors conteneur**.
+Ce dépôt portait la note « aucun DAG n'est importable hors conteneur » comme une
+fatalité, avec une conséquence coûteuse — les seuils de collecte avaient dû être
+déplacés dans `src/utils/` pour être testables, et un test qui passait par l'import
+skippait en silence. **Le blocage était aussi ce qui empêchait de le voir.**
+
+### Deux stubs dont la justification avait cessé d'être vraie
+
+Le nouveau test d'import a d'abord été **rouge en exécution groupée et vert isolément**
+sur 4 DAGs — la signature d'une dépendance à l'ordre. Cause :
+`tests/test_e2e_two_tenants.py` posait `sys.modules["airflow.operators"] = MagicMock()`
+dès la collecte et sans restaurer, si bien que tout `from airflow.operators.empty
+import …` ultérieur échouait sur « n'est pas un paquet ».
+
+Sa justification écrite — « Airflow vit dans l'image Docker, pas dans le venv de
+dev/CI » — était vraie quand elle a été écrite et ne l'est plus. Même chose pour les
+stubs de `spotipy` et `googleapiclient` dans deux fichiers : les quatre paquets sont
+des dépendances déclarées et installées. Un test qui croit exercer le vrai client
+travaillait contre un mock.
+
+**Rien ne relit un commentaire quand l'environnement change.** Les stubs sont retirés,
+un garde vérifie qu'aucun test ne remplace un paquet **installé** par un mock — et
+`test_e2e_two_tenants` est plus fidèle qu'avant : les opérateurs sont construits pour
+de vrai.
+
+**2664 tests verts**, 129 classes d'erreur, 0 non gardée.
+
+### Déployé
+
+`d54ac5c` en production : migration 077 appliquée (10 contraintes, `NULLS NOT
+DISTINCT`, backfill 34/34 et 231/231), `prod == canonique` (946 colonnes / 94 tables),
+parité env verte, api + dashboard sains. **Le DAG Meta déclenché à la main : succès en
+2 min 06**, 100 % des lignes stampées `act_567214713853881`, fraîcheur à la minute. Et
+« Prod — Daily health check » repassé au **vert** dans son vrai runner.
+
 ### Ce qui reste
 
 **R49b** (image Airflow 3.2.2 → 3.3.1 — un `Dockerfile`, pas une dépendance Python),

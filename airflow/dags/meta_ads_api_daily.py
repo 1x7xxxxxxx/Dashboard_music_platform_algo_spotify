@@ -104,7 +104,7 @@ with DAG(
     'meta_ads_api_daily',
     default_args=default_args,
     description='Daily Meta Ads API collection (campaigns, adsets, ads, insights)',
-    schedule_interval='0 5 * * *',
+    schedule='0 5 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,  # concurrent runs hammer the same ad-account → Meta throttle 80004
@@ -114,5 +114,4 @@ with DAG(
     collect_task = PythonOperator(
         task_id='collect_meta_api',
         python_callable=run_meta_api_collector,
-        provide_context=True,
     )

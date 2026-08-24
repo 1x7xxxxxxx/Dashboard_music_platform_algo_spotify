@@ -286,7 +286,7 @@ with DAG(
     'weekly_digest',
     default_args=default_args,
     description='Weekly KPI digest email per active artist',
-    schedule_interval='0 8 * * 1',  # Every Monday at 08:00 UTC
+    schedule='0 8 * * 1',  # Every Monday at 08:00 UTC
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,  # avoid concurrent runs sending duplicate digest emails

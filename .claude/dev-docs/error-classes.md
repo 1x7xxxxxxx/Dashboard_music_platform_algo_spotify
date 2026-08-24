@@ -187,6 +187,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [empty-table-rendered-as-health](#empty-table-rendered-as-health) | P3 | deterministic | guarded | none |
 | [guard-seeded-by-prose-not-by-code](#guard-seeded-by-prose-not-by-code) | P3 | deterministic | guarded | none |
 | [boundary-with-no-named-exit-kills-what-must-pass](#boundary-with-no-named-exit-kills-what-must-pass) | P2 | deterministic | guarded | none |
+| [dead-argument-from-a-major-version-ago](#dead-argument-from-a-major-version-ago) | P2 | deterministic | guarded | none |
+| [session-wide-stub-of-an-installed-package](#session-wide-stub-of-an-installed-package) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2208,3 +2210,36 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-24: le marqueur n'a pas pris du premier coup — `test_prod_health.py` affectait DÉJÀ `pytestmark`, et une seconde affectation **écrase la première sans avertissement**. Le marqueur perdu ne manque à personne : il cesse simplement de s'appliquer. Garde ajouté sur les 150 fichiers de test : `pytestmark` s'affecte au plus une fois.
   - 2026-08-24: le garde de portée de l'échappatoire a lui-même commencé en cherchant `"real_http" in source`, et accusait le méta-test voisin qui ne fait que **nommer** la fixture `_no_real_http`. C'est `guard-seeded-by-prose-not-by-code`, cataloguée une heure plus tôt le même jour et aussitôt réintroduite. Le réflexe du `in source` est tenace ; sur une question qui porte sur du code, la réponse est l'AST.
+
+
+## dead-argument-from-a-major-version-ago
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un paramètre d'une version majeure précédente traîne dans le code. Il ne fait **rien** sur la version qui tourne, donc rien ne le signale — et il rend la montée de version impossible, ce qu'on découvre le jour où on la tente.
+- root_cause: les 16 DAGs portaient `schedule_interval=` (l'orthographe d'Airflow 1/2.3, remplacée par `schedule=` en 2.4) et 7 d'entre eux `provide_context=True` (un argument d'Airflow **1.x**, sans effet depuis la 2.0 où le contexte est passé automatiquement). Airflow 2.8.1 — la version de production — les accepte en silence ; Airflow 3 les **rejette**. Conséquence directe : la PR Dependabot #100 (`apache/airflow` 2.8.1 → 3.3.0), ouverte depuis le 2026-08-01 et qui ressemble exactement au correctif de sécurité attendu, aurait fait échouer l'import des **16** DAGs, donc arrêté toute la collecte.
+- signature: `python3 -m pytest tests/test_every_dag_imports.py -q`
+- long_term_fix: les deux vestiges sont retirés (aucun changement de comportement en 2.8.1), et un garde importe **réellement les 16 DAGs** à chaque exécution de la suite. Ce garde n'était pas possible avant : ces mêmes vestiges rendaient l'import impossible hors conteneur, et ce dépôt le documentait comme une fatalité — « aucun DAG n'est importable hors conteneur », donc les seuils de collecte avaient dû être déplacés dans `src/utils/` pour être testables du tout.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_dag_imports.py }
+- rex_ref: airflow/dags/meta_ads_api_daily.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: la contrepartie mérite d'être nommée — **le blocage était aussi ce qui empêchait de le voir**. Tant que les DAGs ne s'importaient pas, aucun test ne pouvait dire qu'ils étaient cassés pour la version suivante, et la note « c'est comme ça » a tenu des mois. Retirer deux mots-clés morts a rendu 16 DAGs testables et débloqué R49b du même coup.
+
+
+## session-wide-stub-of-an-installed-package
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: des tests passent ou échouent selon l'ORDRE d'exécution. Isolés ils sont verts ; groupés, quatre d'entre eux tombent sur « n'est pas un paquet ». Et, plus discrètement, des tests qui croient exercer un vrai client travaillent contre un mock.
+- root_cause: `tests/test_e2e_two_tenants.py` et `tests/test_collectors_errors.py` posaient `sys.modules["spotipy"] = MagicMock()`, idem pour `googleapiclient`, `airflow`, `airflow.operators` — **à l'import du fichier, donc dès la COLLECTE**, et sans jamais restaurer. La justification écrite (« ils vivent dans l'image Airflow, pas dans le venv de dev ou de CI ») a cessé d'être vraie sans que personne le remarque : les quatre paquets sont des dépendances déclarées et installées. `airflow.operators` devenu MagicMock, tout `from airflow.operators.empty import EmptyOperator` ultérieur échouait.
+- signature: `python3 -m pytest tests/test_no_test_stubs_an_installed_package.py -q`
+- long_term_fix: les stubs obsolètes sont retirés (les paquets existent, les imports résolvent), et un garde vérifie par AST qu'aucun fichier de test ne remplace un paquet **installé** par un mock. Le prédicat porte bien sur la question — le stub reste légitime pour un paquet réellement absent, et un garde qui l'interdirait partout serait contourné.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_test_stubs_an_installed_package.py }
+- rex_ref: tests/test_e2e_two_tenants.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: la justification du stub était datée, pas fausse à l'origine — et c'est ce qui rend la classe pénible : **rien ne relit un commentaire quand l'environnement change**. Ici le changement d'environnement était l'installation d'Airflow dans le venv, et le stub a survécu des mois à sa raison d'être, en cassant les imports des autres.
+  - 2026-08-24: retirer le stub d'`airflow` a rendu `test_e2e_two_tenants` plus fidèle, pas moins : les opérateurs sont désormais construits pour de vrai, donc une erreur de structure du DAG est vue dans la suite plutôt qu'au réveil du scheduler.

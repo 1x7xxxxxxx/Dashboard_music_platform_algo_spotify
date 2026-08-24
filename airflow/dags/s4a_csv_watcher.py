@@ -262,7 +262,7 @@ with DAG(
     dag_id='s4a_csv_watcher',
     default_args=default_args,
     description='🎵 Surveillance automatique des CSV Spotify for Artists',
-    schedule_interval='*/15 * * * *',  # Every 15 min — picks up new CSV drops
+    schedule='*/15 * * * *',  # Every 15 min — picks up new CSV drops
     start_date=datetime(2025, 1, 20),
     catchup=False,  # Ne pas rattraper les exécutions passées
     tags=['spotify', 's4a', 'csv', 'production'],
@@ -273,14 +273,12 @@ with DAG(
     check_csv_task = BranchPythonOperator(
         task_id='check_new_csv',
         python_callable=check_for_new_csv,
-        provide_context=True,
     )
 
     # Tâche 2: Traiter les CSV trouvés
     process_csv_task = PythonOperator(
         task_id='process_csv_files',
         python_callable=process_csv_files,
-        provide_context=True,
     )
 
     # Tâche 3: Fin (si pas de fichiers à traiter)

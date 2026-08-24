@@ -176,7 +176,7 @@ with DAG(
     'onboarding_report',
     default_args=default_args,
     description='First analytics PDF report emailed once per artist post first collection',
-    schedule_interval='0 9 * * *',  # daily 09:00 UTC, after the collection DAGs
+    schedule='0 9 * * *',  # daily 09:00 UTC, after the collection DAGs
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,  # avoid concurrent runs double-sending before the stamp commits

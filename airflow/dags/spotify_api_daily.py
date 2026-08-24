@@ -426,7 +426,7 @@ with DAG(
     'spotify_api_daily',
     default_args=default_args,
     description='Collecte quotidienne Spotify API (artistes + tracks + historique popularité)',
-    schedule_interval='0 7 * * *',  # Daily 07:00 UTC (09:00 Paris)
+    schedule='0 7 * * *',  # Daily 07:00 UTC (09:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
     max_active_runs=1,  # serialize external-API collection to avoid rate limits
@@ -437,14 +437,12 @@ with DAG(
     collect_artists_task = PythonOperator(
         task_id='collect_artists',
         python_callable=collect_spotify_artists,
-        provide_context=True,
     )
 
     # Tâche 2: Collecter les top tracks + historique popularité
     collect_tracks_task = PythonOperator(
         task_id='collect_top_tracks',
         python_callable=collect_spotify_top_tracks,
-        provide_context=True,
     )
 
     # Définir l'ordre d'exécution

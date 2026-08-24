@@ -93,7 +93,7 @@ with DAG(
     dag_id='ml_outcome_labeling',
     default_args=default_args,
     description='Labellisation hebdo des prédictions ML avec les outcomes DW/RR/Radio réalisés',
-    schedule_interval='0 6 * * 1',  # Monday 06:00 UTC
+    schedule='0 6 * * 1',  # Monday 06:00 UTC
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,

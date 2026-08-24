@@ -202,7 +202,7 @@ with DAG(
     dag_id='imusician_csv_watcher',
     default_args=default_args,
     description='iMusician CSV ingestion (release summary + sales detail)',
-    schedule_interval='*/15 * * * *',
+    schedule='*/15 * * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=['imusician', 'csv', 'production'],
@@ -212,13 +212,11 @@ with DAG(
     check_task = BranchPythonOperator(
         task_id='check_new_csv',
         python_callable=check_for_new_csv,
-        provide_context=True,
     )
 
     process_task = PythonOperator(
         task_id='process_csv_files',
         python_callable=process_csv_files,
-        provide_context=True,
     )
 
     skip_task = EmptyOperator(task_id='skip_processing')

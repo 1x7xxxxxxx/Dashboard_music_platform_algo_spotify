@@ -218,7 +218,7 @@ with DAG(
     dag_id='apple_music_csv_watcher',
     default_args=default_args,
     description='Ingestion Apple Music (Performance + Snapshot Historique)',
-    schedule_interval='*/15 * * * *',  # Toutes les 15 minutes
+    schedule='*/15 * * * *',  # Toutes les 15 minutes
     start_date=datetime(2025, 1, 20),
     catchup=False,
     tags=['apple', 'csv', 'production'],
@@ -228,13 +228,11 @@ with DAG(
     check_task = BranchPythonOperator(
         task_id='check_new_csv',
         python_callable=check_for_new_csv,
-        provide_context=True
     )
 
     process_task = PythonOperator(
         task_id='process_csv_files',
         python_callable=process_csv_files,
-        provide_context=True
     )
 
     skip_task = EmptyOperator(task_id='skip_processing')

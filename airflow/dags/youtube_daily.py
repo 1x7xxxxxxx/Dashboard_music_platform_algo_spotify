@@ -263,7 +263,7 @@ with DAG(
     'youtube_daily',
     default_args=default_args,
     description='🎬 Collecte manuelle YouTube Data API',
-    schedule_interval='0 8 * * *',  # Daily 08:00 UTC (10:00 Paris)
+    schedule='0 8 * * *',  # Daily 08:00 UTC (10:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
     max_active_runs=1,  # serialize external-API collection to protect the daily YouTube quota
@@ -273,5 +273,4 @@ with DAG(
     collect_task = PythonOperator(
         task_id='collect_youtube_data',
         python_callable=collect_youtube_data,
-        provide_context=True,
     )

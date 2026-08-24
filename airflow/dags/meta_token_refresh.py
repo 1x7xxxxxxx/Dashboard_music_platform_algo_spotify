@@ -173,7 +173,7 @@ with DAG(
     'meta_token_refresh',
     default_args=default_args,
     description='Weekly automatic renewal of Meta long-lived access tokens',
-    schedule_interval='0 7 * * 1',  # every Monday at 07:00 UTC
+    schedule='0 7 * * 1',  # every Monday at 07:00 UTC
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,  # avoid concurrent token exchanges on the same Meta app
@@ -183,5 +183,4 @@ with DAG(
     refresh_task = PythonOperator(
         task_id='refresh_meta_tokens',
         python_callable=refresh_meta_tokens,
-        provide_context=True,
     )

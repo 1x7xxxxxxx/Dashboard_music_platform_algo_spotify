@@ -533,7 +533,7 @@ with DAG(
     dag_id='data_quality_check',
     default_args=default_args,
     description='🔍 Vérification quotidienne qualité des données + statistiques',
-    schedule_interval='0 22 * * *',  # Daily at 22:00 UTC (after all collectors)
+    schedule='0 22 * * *',  # Daily at 22:00 UTC (after all collectors)
     start_date=datetime(2025, 1, 20),
     catchup=False,  # Ne pas rattraper les exécutions passées
     tags=['quality', 'monitoring', 'statistics', 'production'],

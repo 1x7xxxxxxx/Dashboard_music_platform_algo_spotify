@@ -25,7 +25,23 @@ from unittest.mock import MagicMock, patch
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _stub_module(name: str):
-    """Insert a MagicMock as a top-level module (and all its dotted parents)."""
+    """Insert a MagicMock as a top-level module (and all its dotted parents).
+
+    **N'est plus appelé pour `spotipy` / `googleapiclient` depuis le 2026-08-24.** La
+    prémisse — « ils vivent dans l'image Airflow, pas dans le venv de dev ou de CI » —
+    est fausse : les quatre paquets sont des dépendances du projet et sont installés.
+
+    Le stub était posé **à l'import du fichier de test**, donc dès la COLLECTE, et sans
+    restauration : il remplaçait `spotipy` et `googleapiclient` par des MagicMock pour
+    toute la session. Un test qui croit exercer le vrai client travaille alors contre
+    un mock et passe au vert sans rien prouver — et un import légitime d'un
+    sous-module échoue plus loin sur « n'est pas un paquet ». C'est ce qui est arrivé
+    à `airflow.operators` le même jour, avec quatre DAGs qui tombaient en exécution
+    groupée et passaient isolément.
+
+    Le helper est conservé pour un paquet réellement absent ; ce jour-là, il n'y en a
+    aucun.
+    """
     parts = name.split(".")
     for i in range(1, len(parts) + 1):
         key = ".".join(parts[:i])
@@ -33,8 +49,6 @@ def _stub_module(name: str):
             sys.modules[key] = MagicMock()
 
 
-for _mod in ["spotipy", "spotipy.oauth2", "googleapiclient", "googleapiclient.discovery"]:
-    _stub_module(_mod)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

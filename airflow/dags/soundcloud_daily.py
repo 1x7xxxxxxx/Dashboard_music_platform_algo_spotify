@@ -195,7 +195,7 @@ with DAG(
     'soundcloud_daily',
     default_args=default_args,
     description='Collecte journalière des stats SoundCloud',
-    schedule_interval='0 9 * * *',
+    schedule='0 9 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,  # serialize external-API collection to avoid rate limits

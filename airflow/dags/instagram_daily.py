@@ -145,7 +145,7 @@ with DAG(
     'instagram_daily',
     default_args=default_args,
     description='Collecte journalière Instagram',
-    schedule_interval='0 10 * * *',
+    schedule='0 10 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     max_active_runs=1,  # concurrent runs hammer the same Meta/IG Graph API → throttle

@@ -29,11 +29,22 @@ _ROOT = Path(__file__).resolve().parents[1]
 
 
 def _stub_module(name: str) -> None:
-    """Insert a MagicMock as a top-level module (same helper as test_collectors_errors).
+    """Insert a MagicMock as a top-level module (and all its dotted parents).
 
-    spotipy / googleapiclient ship in the Airflow image, not in the dev or CI venv.
-    The collectors import them at module level, so the module must exist before the
-    DAG task imports the collector — we replace the class itself anyway.
+    **N'est plus appelé pour `spotipy` / `googleapiclient` depuis le 2026-08-24.** La
+    prémisse — « ils vivent dans l'image Airflow, pas dans le venv de dev ou de CI » —
+    est fausse : les quatre paquets sont des dépendances du projet et sont installés.
+
+    Le stub était posé **à l'import du fichier de test**, donc dès la COLLECTE, et sans
+    restauration : il remplaçait `spotipy` et `googleapiclient` par des MagicMock pour
+    toute la session. Un test qui croit exercer le vrai client travaille alors contre
+    un mock et passe au vert sans rien prouver — et un import légitime d'un
+    sous-module échoue plus loin sur « n'est pas un paquet ». C'est ce qui est arrivé
+    à `airflow.operators` le même jour, avec quatre DAGs qui tombaient en exécution
+    groupée et passaient isolément.
+
+    Le helper est conservé pour un paquet réellement absent ; ce jour-là, il n'y en a
+    aucun.
     """
     parts = name.split(".")
     for i in range(1, len(parts) + 1):
@@ -42,23 +53,29 @@ def _stub_module(name: str) -> None:
             sys.modules[key] = MagicMock()
 
 
-for _mod in ("spotipy", "spotipy.oauth2", "googleapiclient", "googleapiclient.discovery"):
-    _stub_module(_mod)
 
 
 def _load_dag_module(name: str):
-    """Import a DAG file without the `airflow` package installed.
+    """Import a DAG file pour de vrai, et appeler ses fonctions de tâche.
 
-    Airflow lives in the Docker image, not in the dev/CI venv, so the DAG modules
-    cannot be imported normally — the same reason `test_dag_fleet_isolation.py`
-    settles for AST analysis. Stubbing the package (the `_stub_module` pattern
-    already used in test_collectors_errors.py) and loading the file by path lets
-    us call the REAL task functions, which is where the tenant bugs live. The
-    module is registered under `dag_<name>` so it never shadows the stub.
+    **Le stub d'`airflow` a été retiré le 2026-08-24, avec sa prémisse.** Ce helper
+    posait `sys.modules.setdefault("airflow.operators", MagicMock())` en expliquant
+    qu'« Airflow vit dans l'image Docker, pas dans le venv de dev/CI, donc les
+    modules de DAG ne peuvent pas être importés normalement ». Les deux moitiés sont
+    fausses aujourd'hui : Airflow **est** dans le venv, et depuis le retrait de
+    `schedule_interval` et `provide_context` (deux vestiges d'Airflow 1/2.3 morts sur
+    la 2.8.1 de production) les 16 DAGs s'importent réellement.
+
+    Le stub n'était pas seulement inutile, il **cassait les autres tests** : posé
+    sans jamais être restauré, il laissait `airflow.operators` être un MagicMock pour
+    toute la suite, et tout import ultérieur de `airflow.operators.empty` échouait
+    sur « 'airflow.operators' is not a package ». Quatre DAGs tombaient ainsi en
+    exécution groupée et passaient isolément — la signature exacte d'une dépendance à
+    l'ordre, dont ce dépôt a déjà payé un exemplaire (l'éviction `del sys.modules`).
+
+    Importer pour de vrai est aussi plus fidèle : les opérateurs sont construits, donc
+    une erreur de structure du DAG est vue ici, pas au réveil du scheduler.
     """
-    for mod in ("airflow", "airflow.operators", "airflow.operators.python",
-                "airflow.models"):
-        sys.modules.setdefault(mod, MagicMock())
     key = f"dag_{name}"
     if key in sys.modules:
         return sys.modules[key]

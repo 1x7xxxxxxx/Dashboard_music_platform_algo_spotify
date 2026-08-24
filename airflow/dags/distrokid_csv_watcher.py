@@ -190,7 +190,7 @@ with DAG(
     dag_id='distrokid_csv_watcher',
     default_args=default_args,
     description='DistroKid bank-details ingestion (sales detail + monthly EUR rollup)',
-    schedule_interval='*/15 * * * *',
+    schedule='*/15 * * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=['distrokid', 'csv', 'production'],

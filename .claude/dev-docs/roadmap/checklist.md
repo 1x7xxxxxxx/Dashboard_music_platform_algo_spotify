@@ -37,7 +37,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| R49b | L'image Airflow de production est en retard (3.2.2 → 3.3.1) | P3 | actionnable — 11 avis, tous corrigés en amont ; le pin suit la version de l'image, donc c'est le `Dockerfile` qui bouge |
+| R49b | L'image Airflow de production est en retard (**2.8.1**, février 2024) | P3 | **débloqué le 2026-08-24** — les 16 DAGs sont désormais compatibles 3.x (`schedule=`, plus de `provide_context`) et s'importent hors conteneur. ⚠️ La PR Dependabot **#100** (2.8.1 → 3.3.0) reste un saut MAJEUR : à tenter sur une image de test, pas à merger telle quelle. Une étape 2.8.1 → 2.11.x prend les correctifs de sécurité sans le saut |
 
 
 ### R49b — L'image Airflow de production est en retard · P3
@@ -70,7 +70,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 928 colonnes / 93 tables, 75 migrations, Caddy inclus). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
 | R54 | Le GIF animé au bas des e-mails | P4 | **rien à corriger dans le code** — vérifié le 2026-08-24 : aucun `<img>`, aucun `MIMEImage`, aucune URL d'image dans les trois expéditeurs. C'est le relais Brevo ou l'avatar du compte expéditeur, comme le nom d'expéditeur de R38. Runbook §8. |
 
 ## 🔍 Ce que le graphe de code a sorti (2026-08-23)
@@ -300,9 +300,10 @@ non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `son
 **▶️ L'index de code est vide à une entrée près — R49b, qui est un changement
 d'image Docker. Les quatre questions qui bloquaient sont tranchées.**
 
-**2459 tests verts**, 22 skippés, ruff propre, `make config-check` clean
-(**127 classes d'erreur**, 0 non gardée), 77 migrations appliquées.
-⚠️ **Rien n'est déployé** : cette séance s'arrête au dépôt.
+**2664 tests verts**, 22 skippés, ruff propre, `make config-check` clean
+(**129 classes d'erreur**, 0 non gardée), 77 migrations appliquées.
+✅ **Déployé et vérifié en production** : migration 077 appliquée, `prod == canonique`
+(946 colonnes / 94 tables), DAG Meta déclenché → succès, 100 % des lignes stampées.
 
 ### Ce que la journée a livré, en une phrase chacun
 

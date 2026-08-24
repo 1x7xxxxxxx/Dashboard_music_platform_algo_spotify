@@ -1822,7 +1822,7 @@ with DAG(
     dag_id='alert_monitor',
     default_args=default_args,
     description='Monitoring consolidé : failures, freshness, credentials — envoi email quotidien',
-    schedule_interval='0 23 * * *',
+    schedule='0 23 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=['monitoring', 'alerting', 'production'],
