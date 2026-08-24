@@ -105,6 +105,17 @@ where = ["src"]
 # Existing ruff config lives in ruff.toml — keep it authoritative.
 extend = "ruff.toml"
 
+[tool.pytest.ini_options]
+# Le seul marqueur du dépôt, et il est délibérément unique.
+#
+# `real_http` est l'unique sortie de la frontière HTTP de `tests/conftest.py`. Déclaré
+# ici pour que `--strict-markers` (ou une faute de frappe) ne le laisse pas passer en
+# silence : un marqueur mal orthographié ne sort pas de la frontière, il la subit — et
+# le test échoue avec un message qui parle d'autre chose.
+markers = [
+    "real_http: le test sort VRAIMENT sur le réseau (sonde de production). Seule sortie de la frontière HTTP de tests/conftest.py ; sa portée est gardée par tests/test_the_http_escape_hatch_stays_narrow.py",
+]
+
 [tool.coverage.run]
 source = ["src"]
 omit = [

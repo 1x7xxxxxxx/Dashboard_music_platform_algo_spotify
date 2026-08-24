@@ -157,10 +157,35 @@ def _no_real_smtp(monkeypatch, request):
 # trois aurait laissé les autres sortir. Seuls les ports 80/443 sont refusés — Postgres
 # (5433) doit continuer de passer, c'est une dépendance *managed*.
 
+# L'ÉCHAPPATOIRE, et pourquoi elle doit exister.
+#
+# Une frontière `autouse` sans exception nommée ne borne pas le rayon de souffle : elle
+# éteint aussi ce qui DOIT sortir. Mesuré le 2026-08-24 sur la CI de production —
+# `tests/test_prod_health.py`, dont le rôle est de sonder l'application LIVE à travers
+# Cloudflare, rendait **14 failed, 14 errors** chaque matin depuis que la frontière
+# existe. La sonde synthétique externe, l'une des trois épaisseurs du filet de
+# surveillance, était donc morte, et son rouge quotidien se lisait comme du bruit.
+#
+# La suite se gardait pourtant déjà elle-même (`RUN_PROD_HEALTH=1`, sinon elle skippe,
+# « so a push never hammers prod ») : c'est la frontière qui l'écrasait au niveau
+# SOCKET, sous son propre garde.
+#
+# La sortie est donc **nommée** (`@pytest.mark.real_http`), pas silencieuse, et
+# `tests/test_the_http_escape_hatch_stays_narrow.py` échoue si un second fichier la
+# prend. Une échappatoire qui se propage redevient l'absence de frontière.
+_REAL_HTTP_MARK = "real_http"
+
+
 @pytest.fixture(autouse=True)
 def _no_real_http(monkeypatch, request):
     """No test may reach an external HTTP(S) endpoint. Records, fails at teardown."""
     import socket
+
+    if request.node.get_closest_marker(_REAL_HTTP_MARK) is not None:
+        # Sortie assumée : ce test EST un appel réseau réel. Rien n'est patché, donc
+        # rien à restaurer — et l'assertion de fin ne s'exécute pas non plus.
+        yield
+        return
 
     attempts: list[str] = []
     original = socket.socket.connect

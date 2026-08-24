@@ -186,6 +186,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [validation-bound-invented-not-read-from-the-schema](#validation-bound-invented-not-read-from-the-schema) | P2 | deterministic | guarded | none |
 | [empty-table-rendered-as-health](#empty-table-rendered-as-health) | P3 | deterministic | guarded | none |
 | [guard-seeded-by-prose-not-by-code](#guard-seeded-by-prose-not-by-code) | P3 | deterministic | guarded | none |
+| [boundary-with-no-named-exit-kills-what-must-pass](#boundary-with-no-named-exit-kills-what-must-pass) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2190,3 +2191,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-24
 - History:
   - 2026-08-24: **un garde qui punit l'application de son propre remède finit désactivé** — c'est la forme la plus coûteuse du faux positif, parce qu'elle décourage exactement le geste qu'on veut encourager. Et la correction a failli créer le défaut inverse : la portée passait de 40 à 21 modules en silence, ce qui est la 7ᵉ occurrence de « la portée d'un garde est le défaut », dans le sens du rétrécissement cette fois. D'où le plancher.
+
+
+## boundary-with-no-named-exit-kills-what-must-pass
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une frontière posée pour borner le rayon de souffle de la suite éteint aussi **ce qui doit sortir**. Le composant tué est un moniteur : son rouge quotidien se lit comme du bruit, et personne ne remarque qu'il ne mesure plus rien.
+- root_cause: `tests/conftest.py::_no_real_http` est `autouse` et refuse toute connexion sortante sur 80/443, sans exception nommée. `tests/test_prod_health.py` — dont le rôle est de sonder l'application LIVE **à travers Cloudflare**, l'une des trois épaisseurs du filet de surveillance, celle qui voit ce que les contrôles internes ne voient pas (le 403 Bot Fight Mode du webhook Stripe, 2026-06-14) — rendait **14 failed, 14 errors** chaque matin depuis le 2026-08-23. La suite se gardait pourtant déjà elle-même (`RUN_PROD_HEALTH=1`, sinon skip, « so a push never hammers prod ») : la frontière l'écrasait au niveau SOCKET, sous son propre garde.
+- signature: `python3 -m pytest tests/test_the_http_escape_hatch_stays_narrow.py -q`
+- long_term_fix: une sortie **nommée et unique** — `@pytest.mark.real_http`, consultée par la frontière, déclarée dans `pyproject.toml`. Deux gardes l'encadrent : la liste des fichiers autorisés est explicite (une échappatoire qui se propage redevient l'absence de frontière), et la frontière doit continuer de consulter le marqueur. Règle générale : **une frontière `autouse` sans exception nommée n'est pas une frontière, c'est un interrupteur** — poser la sortie en même temps que la frontière, pas après.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_http_escape_hatch_stays_narrow.py }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: le marqueur n'a pas pris du premier coup — `test_prod_health.py` affectait DÉJÀ `pytestmark`, et une seconde affectation **écrase la première sans avertissement**. Le marqueur perdu ne manque à personne : il cesse simplement de s'appliquer. Garde ajouté sur les 150 fichiers de test : `pytestmark` s'affecte au plus une fois.
+  - 2026-08-24: le garde de portée de l'échappatoire a lui-même commencé en cherchant `"real_http" in source`, et accusait le méta-test voisin qui ne fait que **nommer** la fixture `_no_real_http`. C'est `guard-seeded-by-prose-not-by-code`, cataloguée une heure plus tôt le même jour et aussitôt réintroduite. Le réflexe du `in source` est tenace ; sur une question qui porte sur du code, la réponse est l'AST.

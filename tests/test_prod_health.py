@@ -36,10 +36,27 @@ HEALTHCHECK_PASSWORD = os.getenv("HEALTHCHECK_PASSWORD")
 _TIMEOUT = 15
 _RETRIES = 3
 
-pytestmark = pytest.mark.skipif(
-    os.getenv("RUN_PROD_HEALTH") != "1",
-    reason="prod probes run only in the scheduled workflow (RUN_PROD_HEALTH=1)",
-)
+# UNE seule affectation de `pytestmark`, et c'est une LISTE.
+#
+# Deux affectations successives ne se combinent pas : la seconde écrase la première,
+# sans avertissement, et le marqueur perdu ne manque à personne — il ne s'applique
+# simplement plus. Constaté ici même le 2026-08-24 en ajoutant `real_http` au-dessus
+# de ce bloc.
+#
+# `real_http` — cette suite SORT sur le réseau, c'est son objet. La frontière HTTP de
+# `conftest.py` est `autouse` et bloquait donc la sonde de production elle-même :
+# 14 failed, 14 errors chaque matin depuis le 2026-08-23, sur la seule des trois
+# épaisseurs du filet qui regarde l'application comme un vrai client.
+#
+# `skipif` — et malgré tout, rien ne part en CI ordinaire : la sortie réseau est
+# autorisée, elle n'est pas déclenchée.
+pytestmark = [
+    pytest.mark.real_http,
+    pytest.mark.skipif(
+        os.getenv("RUN_PROD_HEALTH") != "1",
+        reason="prod probes run only in the scheduled workflow (RUN_PROD_HEALTH=1)",
+    ),
+]
 
 
 def _request(method: str, url: str, **kwargs) -> requests.Response:

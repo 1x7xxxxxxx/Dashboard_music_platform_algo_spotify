@@ -300,8 +300,8 @@ non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `son
 **▶️ L'index de code est vide à une entrée près — R49b, qui est un changement
 d'image Docker. Les quatre questions qui bloquaient sont tranchées.**
 
-**2307 tests verts**, 22 skippés, ruff propre, `make config-check` clean
-(**126 classes d'erreur**, 0 non gardée), 77 migrations appliquées.
+**2459 tests verts**, 22 skippés, ruff propre, `make config-check` clean
+(**127 classes d'erreur**, 0 non gardée), 77 migrations appliquées.
 ⚠️ **Rien n'est déployé** : cette séance s'arrête au dépôt.
 
 ### Ce que la journée a livré, en une phrase chacun
@@ -356,6 +356,17 @@ Dans la foulée, trois défauts dans `circuit_breaker.py` (aucun appelant, deux 
 qui affirment une bonne santé sur une table que personne n'écrit, un contrat qui
 prescrit `str(e)` pour une valeur persistée puis affichée), et un garde anti-fuite qui
 **punissait l'application de son propre remède**.
+
+### La sonde de production était morte, et son rouge passait pour du bruit
+
+« Prod — Daily health check » échouait chaque matin depuis le 2026-08-23 : la
+frontière HTTP `autouse` de `conftest.py` bloquait, au niveau socket, la seule suite
+dont l'objet EST de sortir sur le réseau — celle qui regarde l'app **à travers
+Cloudflare**. Sortie nommée posée (`@pytest.mark.real_http`), portée gardée, et
+vérifiée en la lançant : **10 passed**, production saine.
+
+**Une frontière `autouse` sans exception nommée n'est pas une frontière, c'est un
+interrupteur.**
 
 ### Ce qu'il faut savoir avant de toucher au code demain
 
@@ -429,6 +440,17 @@ Dans la foulée, trois défauts dans `circuit_breaker.py` (aucun appelant, deux 
 qui affirment une bonne santé sur une table que personne n'écrit, un contrat qui
 prescrit `str(e)` pour une valeur persistée puis affichée), et un garde anti-fuite qui
 **punissait l'application de son propre remède**.
+
+### La sonde de production était morte, et son rouge passait pour du bruit
+
+« Prod — Daily health check » échouait chaque matin depuis le 2026-08-23 : la
+frontière HTTP `autouse` de `conftest.py` bloquait, au niveau socket, la seule suite
+dont l'objet EST de sortir sur le réseau — celle qui regarde l'app **à travers
+Cloudflare**. Sortie nommée posée (`@pytest.mark.real_http`), portée gardée, et
+vérifiée en la lançant : **10 passed**, production saine.
+
+**Une frontière `autouse` sans exception nommée n'est pas une frontière, c'est un
+interrupteur.**
 
 ### Ce qu'il faut savoir avant de toucher au code demain
 

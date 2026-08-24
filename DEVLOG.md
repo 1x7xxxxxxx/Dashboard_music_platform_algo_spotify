@@ -166,6 +166,45 @@ couverture, et un `_SCOPE_FLOOR` empêche le prochain rétrécissement muet.
 
 **2307 tests verts**, 126 classes d'erreur, 0 non gardée.
 
+### La sonde de production était morte depuis la veille
+
+En regardant l'état de la CI avant de déployer : **« Prod — Daily health check »
+échouait**, 14 failed + 14 errors, chaque matin depuis le 2026-08-23.
+
+Cause : la **frontière HTTP** posée ce jour-là dans `conftest.py` est `autouse` et
+sans exception nommée. Elle bloquait donc, au niveau socket, la seule suite dont
+l'objet EST de sortir sur le réseau — `tests/test_prod_health.py`, qui sonde
+l'application live **à travers Cloudflare**, c'est-à-dire la seule des trois
+épaisseurs du filet qui voit ce que les contrôles internes ne voient pas (le 403 Bot
+Fight Mode du webhook Stripe, en juin, n'avait été vu que par elle).
+
+La suite se gardait pourtant déjà elle-même (`RUN_PROD_HEALTH=1`, sinon elle skippe,
+« so a push never hammers prod ») : la frontière l'écrasait **sous son propre garde**.
+Et son rouge quotidien se lisait comme du bruit.
+
+**Une frontière `autouse` sans exception nommée n'est pas une frontière, c'est un
+interrupteur.** Sortie posée : `@pytest.mark.real_http`, déclarée dans
+`pyproject.toml`, consultée par la frontière, et dont la portée est gardée — une
+échappatoire qui se propage redevient l'absence de frontière.
+
+Vérifié en la lançant : **10 passed**, et la production est saine (liveness, redirect
+HTTPS, en-têtes de sécurité, certificats d'edge, `/docs` et `/openapi.json` bien
+désactivés).
+
+Deux défauts de plus, trouvés en posant ce correctif :
+
+- **Le marqueur n'a pas pris du premier coup.** `test_prod_health.py` affectait déjà
+  `pytestmark`, et une seconde affectation **écrase la première sans avertissement** —
+  le marqueur perdu ne manque à personne, il cesse simplement de s'appliquer. Garde
+  posé sur les 150 fichiers de test.
+- **Le garde de portée a commencé en cherchant `"real_http" in source`** et accusait
+  le méta-test voisin, qui ne fait que *nommer* la fixture `_no_real_http`. C'est la
+  classe `guard-seeded-by-prose-not-by-code`, cataloguée une heure plus tôt le même
+  jour et aussitôt réintroduite. Le réflexe du `in source` est tenace ; sur une
+  question qui porte sur du code, la réponse est l'AST.
+
+**2459 tests verts**, 127 classes d'erreur, 0 non gardée.
+
 ### Ce qui reste
 
 **R49b** (image Airflow 3.2.2 → 3.3.1 — un `Dockerfile`, pas une dépendance Python),
