@@ -37,7 +37,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| R49b | L'image Airflow de production est en retard (**2.8.1**, février 2024) | P3 | **débloqué le 2026-08-24** — les 16 DAGs sont désormais compatibles 3.x (`schedule=`, plus de `provide_context`) et s'importent hors conteneur. ⚠️ La PR Dependabot **#100** (2.8.1 → 3.3.0) reste un saut MAJEUR : à tenter sur une image de test, pas à merger telle quelle. Une étape 2.8.1 → 2.11.x prend les correctifs de sécurité sans le saut |
+| ~~R49b~~ | ~~L'image Airflow de production est en retard~~ | ✅ | **FAIT le 2026-08-24 — prod en Airflow 2.11.2**, cœur épinglé, base de métadonnées sauvegardée puis migrée, SoundCloud collecté dessus pour tous les locataires. ⚠️ La PR Dependabot **#100** (→ 3.3.1 après rebase) reste un saut MAJEUR à ne pas merger ; la clause « pas de majeure automatique » est désormais posée sur les **trois** écosystèmes |
 
 
 ### R49b — L'image Airflow de production est en retard · P3
@@ -300,7 +300,7 @@ non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `son
 **▶️ L'index de code est vide à une entrée près — R49b, qui est un changement
 d'image Docker. Les quatre questions qui bloquaient sont tranchées.**
 
-**2664 tests verts**, 22 skippés, ruff propre, `make config-check` clean
+**2688 tests verts**, 22 skippés, ruff propre, `make config-check` clean
 (**129 classes d'erreur**, 0 non gardée), 77 migrations appliquées.
 ✅ **Déployé et vérifié en production** : migration 077 appliquée, `prod == canonique`
 (946 colonnes / 94 tables), DAG Meta déclenché → succès, 100 % des lignes stampées.

@@ -253,6 +253,79 @@ parité env verte, api + dashboard sains. **Le DAG Meta déclenché à la main :
 2 min 06**, 100 % des lignes stampées `act_567214713853881`, fraîcheur à la minute. Et
 « Prod — Daily health check » repassé au **vert** dans son vrai runner.
 
+### Les quatre alertes reçues, triées en interrogeant la prod
+
+**Deux des quatre venaient du LOCAL** (lien `localhost:8080`, expéditeur gmail) : le
+scheduler de mon poste a rejoué un run planifié et échoué sur le credential SoundCloud
+partagé — que la prod venait de faire tourner 28 min plus tôt, SoundCloud faisant
+tourner ses `refresh_token`. **La production n'était pas en panne.**
+
+**L'alerte prod de 01h00 était fausse sur deux lignes** : « NE COLLECTE PAS :
+1x7xxxxxxx (Spotify), (Instagram) ». Mesuré : Spotify a collecté **chaque jour** depuis
+le 17, `artist_readiness` rend `ok` sur les cinq plateformes d'artist 1, zéro red flag,
+et le préflight est vert. Une fausse alarme qui revient chaque nuit apprend à ignorer
+tout le message — c'est ainsi que le vrai rouge se perd.
+
+**Les deux rouges réels** sont ceux de la première alerte, et tous deux attendent un
+geste humain : Benken/Meta (`act_65390907` jamais partagé avec l'app, connu depuis
+juin) et GRiNCH/SoundCloud.
+
+### Ce que le mail lui-même contenait
+
+`dag_failure_callback` interpolait l'**exception brute** dans un corps envoyé par
+Brevo. Mon garde ne pouvait pas le voir : il cherche une exception reçue en
+*paramètre*, et Airflow la passe par une **clé de dictionnaire**. Prédicat élargi →
+**trois sites de plus**, dont `meta_token_refresh` (où `err` peut être le corps ENTIER
+de la réponse Meta) et la ligne « la sonde elle-même a échoué » qui part dans l'alerte
+nocturne.
+
+Et aucune instance ne se nommait dans ce qu'elle envoie, alors qu'il existe **quatre**
+chemins d'envoi. `instance_label()` les préfixe tous ; vide en production à dessein,
+c'est son absence qui doit vouloir dire « ceci est réel ». `STREAMLYTICS_ENV` entre
+dans la porte de parité — son absence retournerait le sens du message, et la porte a
+d'ailleurs bloqué le déploiement tant que le scheduler ne l'avait pas.
+
+Deux nuances mesurées **contre mon premier diagnostic**, notées parce qu'elles
+comptent : les liens `localhost:8080` partent à l'**admin** et l'UI Airflow est liée à
+127.0.0.1 seulement — `localhost` y était donc juste, ce n'était pas le défaut
+`APP_BASE_URL` ; et `AIRFLOW_BASE_URL` existait déjà avec une autre sémantique (DNS
+interne pour les *appels*), collision attrapée par le hook `check-yaml`, pas par moi.
+Le lien cliquable a son propre nom.
+
+### Le préflight refusait de regarder ce qu'on lui demandait de diagnostiquer
+
+Pour GRiNCH, `artist_preflight` s'arrête sur « identités manquantes » — et ne teste
+donc **jamais** SoundCloud, la seule plateforme qu'il ait déclarée et justement celle
+qui ne collecte pas. L'arrêt au premier rouge est voulu (deux sessions de test brûlées)
+mais la porte était **mono-usage**. `--diagnose` joue toutes les étapes sans la
+relâcher, et le message d'arrêt nomme le drapeau.
+
+Réponse obtenue en une commande : *« User ID 72854583 joignable, mais aucun titre
+public n'y est rattaché »*. Rien n'est cassé chez nous.
+
+### R49b — et la PR qui ressemblait au correctif
+
+Prod tournait Airflow **2.8.1** (février 2024). Montée à **2.11.2**, vérifiée avant
+d'approcher le serveur : image construite en local, DagBag → 16 DAGs, 0 erreur ; puis
+sauvegarde de la base de métadonnées (9 Mo), `db migrate`, recréation, et **SoundCloud
+collecté en production sur 2.11.2** pour tous les locataires.
+
+Le fichier de contraintes officiel d'Airflow ne s'applique pas ici — il épingle
+`pandas` ailleurs que nous et pip rend `ResolutionImpossible`. Un projet qui superpose
+ses dépendances applicatives doit protéger le **cœur**, pas l'arbre : une contrainte
+d'une ligne ferme le risque que l'image portait depuis toujours (providers non
+versionnés → pip libre de déplacer Airflow).
+
+**La PR Dependabot #100 proposait 3.3.0, puis a rebasé vers 3.3.1.** La merger aurait
+fait échouer l'import des 16 DAGs. La cause n'était pas Dependabot : la clause
+« Manual review for majors — high blast radius » existait pour `pip` **et pour lui
+seul**. Ajoutée à `docker` ; et le garde, écrit pour poser la question GÉNÉRALE plutôt
+que celle du jour, a immédiatement trouvé un **troisième** écosystème découvert
+(`github-actions`). *Une politique partielle est plus dangereuse qu'une politique
+absente : elle empêche de se poser la question.*
+
+**2688 tests verts**, 134 classes d'erreur, 0 non gardée.
+
 ### Ce qui reste
 
 **R49b** (image Airflow 3.2.2 → 3.3.1 — un `Dockerfile`, pas une dépendance Python),

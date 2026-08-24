@@ -191,6 +191,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [session-wide-stub-of-an-installed-package](#session-wide-stub-of-an-installed-package) | P2 | deterministic | guarded | none |
 | [a-dev-instance-sends-production-shaped-mail](#a-dev-instance-sends-production-shaped-mail) | P2 | deterministic | guarded | none |
 | [a-fail-fast-gate-cannot-diagnose](#a-fail-fast-gate-cannot-diagnose) | P3 | deterministic | guarded | none |
+| [automation-gap-between-two-ecosystems](#automation-gap-between-two-ecosystems) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2276,3 +2277,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-24
 - History:
   - 2026-08-24: la porte n'était pas trop stricte, elle était **mono-usage**. Relâcher l'arrêt aurait détruit la raison mesurée qui l'a fait naître ; c'est le mode qui manquait, pas la sévérité.
+
+
+## automation-gap-between-two-ecosystems
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une règle de sécurité existe, elle est écrite, elle est commentée — et elle ne couvre qu'un des écosystèmes auxquels elle s'applique. La proposition dangereuse arrive donc par celui qui n'est pas gardé, et elle ressemble exactement à ce qu'on attendait.
+- root_cause: `.github/dependabot.yml` portait « Manual review for majors — high blast radius » sur l'écosystème **pip** seulement. `docker` et `github-actions` n'avaient rien. C'est par là qu'est passée la PR #100 — `apache/airflow` 2.8.1 → 3.3.0, puis rebasée en 2.11.2 → 3.3.1 — qui ressemble au correctif de sécurité attendu et qui aurait fait échouer l'import des **16** DAGs (`schedule_interval` et `provide_context`, supprimés en 3.x), donc arrêté toute la collecte. Une majeure d'image de base est le plus large rayon de souffle du fichier : elle change le runtime SOUS l'application, et aucun test du dépôt ne s'exécute dedans avant le déploiement.
+- signature: `python3 -m pytest tests/test_no_ecosystem_auto_merges_a_major.py -q`
+- long_term_fix: le garde ne demande pas « docker a-t-il la clause ? » mais « **un** écosystème en est-il dépourvu ? ». Poser la question du jour aurait fermé un trou ; poser la question générale en a trouvé un **troisième** que personne ne cherchait (`github-actions`), et couvre par construction tout écosystème ajouté demain.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_ecosystem_auto_merges_a_major.py }
+- rex_ref: .github/dependabot.yml
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: la règle n'était ni absente ni fausse — elle était **partielle**, et un commentaire soigné (« high blast radius ») donnait toute l'apparence d'une politique en place. Une politique qui ne couvre qu'une partie de ses cas est plus dangereuse qu'une politique absente : elle empêche de se poser la question.

@@ -54,6 +54,17 @@ updates:
       actions:
         patterns:
           - "*"
+    # Manual review for majors — comme pip et docker.
+    #
+    # Trouvé le 2026-08-24 par le garde `test_no_ecosystem_auto_merges_a_major`,
+    # écrit pour combler le trou de `docker` : il pose la question GÉNÉRALE (« un
+    # écosystème est-il dépourvu de la clause ? ») plutôt que la question du jour,
+    # et a donc signalé ce troisième cas que personne ne cherchait. Une majeure
+    # d'action change le runner sous la CI — moins large qu'une image de base, mais
+    # la CI est la seule chose qui parle avant un déploiement.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # ─── Docker (3 Dockerfiles at root: Dockerfile, Dockerfile.airflow,
   # Dockerfile.api). Dependabot auto-discovers all Dockerfile* in the dir. ───
@@ -66,3 +77,19 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # Manual review for majors — MÊME règle que l'écosystème pip ci-dessus.
+    #
+    # L'asymétrie a coûté : `pip` portait cette clause, `docker` non, et Dependabot
+    # a donc ouvert la PR #100 — `apache/airflow` 2.8.1 → 3.3.0 — qui ressemble
+    # exactement au correctif de sécurité attendu. La merger aurait fait échouer
+    # l'import des **16** DAGs (`schedule_interval` et `provide_context`, supprimés
+    # en 3.x), c'est-à-dire arrêté toute la collecte. Mesuré le 2026-08-24 ; la
+    # montée effectivement faite ce jour-là est 2.8.1 → 2.11.2, dans la ligne 2.x.
+    #
+    # Une majeure d'image de base change le runtime SOUS l'application, sans qu'aucun
+    # test du dépôt ne s'exécute dedans avant le déploiement. C'est le rayon de
+    # souffle le plus large de tout le fichier ; c'était le seul écosystème sans
+    # garde-fou.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
