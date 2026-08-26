@@ -2243,3 +2243,23 @@ non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `son
 - [x] **R52** — corriger les quatre défauts SoundCloud ; passer le fichier de Benj dans
       `_detect_platform` **quand il arrive** et corriger la règle qui l'a manqué, pas
       deviner ; nommer la raison du refus (le séparateur n'est jamais mentionné).
+
+
+### R55 — La section PDF « 30 premiers jours vs actuel » · P3
+
+Créée puis close le 2026-08-26, dans la même journée. Elle attendait une **définition**,
+et les trois candidates que j'avais proposées étaient toutes fausses : part de
+catalogue, portes par titre, délai médian — trois agrégats de PORTEFEUILLE. L'auteur du
+produit a tranché en une phrase : **le taux de trigger est le % de chance d'intégrer
+l'algorithme en question, et il porte sur UN SEUL titre.**
+
+`ml_song_predictions` portait déjà exactement ça, avec `days_since_release` et
+`model_version`. La section compare donc la médiane des 30 premiers jours à la mesure
+courante, par porte, et refuse trois façons de mentir : soustraire deux versions de
+modèle (la v3 est une reconstruction group-CV avec calibration OOF — l'écart mêlerait
+le titre et le modèle), dessiner une absence en 0 %, et donner une valeur de fenêtre
+sans son effectif.
+
+- [x] **R55** — métrique définie, `src/utils/trigger_rate_history.py`, section branchée
+      dans le PDF sur les rapports mono-titre uniquement, 12 tests, 4 mutations vues
+      rouges.

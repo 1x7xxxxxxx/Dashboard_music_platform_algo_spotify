@@ -13,7 +13,7 @@ from ._collectors import (
     _collect_apple, _collect_apple_timeline, _collect_credentials_status, _collect_hypeddit, _collect_ig_monthly, _collect_instagram, _collect_j28, _collect_mapping, _collect_meta, _collect_meta_breakdowns, _collect_meta_daily, _collect_meta_funnel, _collect_meta_x_spotify, _collect_ml_explain, _collect_pi_gate, _collect_playlist_adds_windows, _collect_revenue_forecast, _collect_s4a_audience, _collect_s4a_daily, _collect_s4a_top_songs, _collect_sc_series, _collect_score20, _collect_song_timeline, _collect_songs_focus, _collect_soundcloud_tracks, _collect_youtube, _collect_youtube_history, _get_artist_name, _has_wrapped, _latest_release,
 )
 from ._renderers import (
-    _chart, _render_apple, _render_completeness, _render_credentials, _render_freshness, _render_hypeddit, _render_instagram, _render_mapping, _render_meta, _render_overview, _render_revenue_forecast, _render_roi, _render_s4a_top_songs, _render_score20, _render_songs_focus, _render_soundcloud_tracks, _render_youtube,
+    _chart, _render_apple, _render_completeness, _render_credentials, _render_freshness, _render_hypeddit, _render_instagram, _render_mapping, _render_meta, _render_overview, _render_revenue_forecast, _render_roi, _render_trigger_then_now, _render_s4a_top_songs, _render_score20, _render_songs_focus, _render_soundcloud_tracks, _render_youtube,
 )
 
 
@@ -103,6 +103,13 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
     pi_tables, pi_here = _collect_pi_gate(db, artist_id, _focus_song)
     pl_windows = _collect_playlist_adds_windows(db, artist_id, _focus_song)
     score20 = _collect_score20(db, artist_id, _sel)
+    # R55 — la grandeur porte sur UN titre, donc la section n'existe que sur un
+    # rapport mono-titre. `_focus_song` retomberait sur la dernière sortie, ce qui
+    # afficherait l'évolution d'un AUTRE titre que celui demandé.
+    trigger_then_now = None
+    if _single_song:
+        from src.utils.trigger_rate_history import trigger_rate_then_and_now
+        trigger_then_now = trigger_rate_then_and_now(db, artist_id, _single_song)
     _explain_tracks = _sel or ([_focus_song] if _focus_song else [])
     ml_explain = _collect_ml_explain(db, artist_id, _explain_tracks)
     from src.dashboard.utils import pdf_charts
@@ -192,6 +199,7 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
         'pl_windows':      pl_windows,
         'focus_song':      _focus_song,
         'score20':         score20,
+        'trigger_then_now': trigger_then_now,
         'ml_explain':      ml_explain,
         'ml_explain_truncated': _n > 5,
     }
@@ -204,6 +212,12 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     lang : langue de rendu ('fr' par défaut → snapshot golden inchangé ; 'en' traduit).
     """
     _set_lang(lang)
+    # APRÈS `_set_lang` : ce bloc appelle `_t()`, et le calculer avant l'aurait
+    # rendu dans la langue du rapport PRÉCÉDENT.
+    _rendered = _render_trigger_then_now(data.get("trigger_then_now"))
+    # Une section absente n'émet RIEN — pas même un saut de ligne, sinon
+    # l'instantané de référence bouge sur un rapport qui ne la porte pas.
+    _trigger_block = f"{_rendered}\n" if _rendered else ""
     if sections is None:
         sections = {k: True for k in ALL_SECTIONS}
 
@@ -404,7 +418,7 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     if sections.get('revenue_forecast'):
         h_rfc = _t("pdf.section.revenue_forecast", "📈 Prévisions revenus")
         _sec(f"<div class='section'><h2>{h_rfc}</h2>\n"
-             f"{_render_revenue_forecast(data.get('revenue_fc'))}\n"
+             f"{_render_revenue_forecast(data.get('revenue_fc'))}\n"             f"{_trigger_block}"
              f"{_chart(charts.get('revenue_fc'))}</div>")
 
     body_html = "\n\n".join(body_parts)

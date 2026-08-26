@@ -334,6 +334,53 @@ def _render_revenue_forecast(rfc):
     return _kpi_grid(cards)
 
 
+def _render_trigger_then_now(cmp_):
+    """R55 — le taux de trigger de CE titre : ses 30 premiers jours, et aujourd'hui.
+
+    Le taux de trigger est le % de chance d'intégrer L'ALGORITHME en question, pour UN
+    titre. La section n'existe donc que sur un rapport mono-titre, et elle refuse trois
+    façons de mentir : soustraire deux versions de modèle, dessiner une absence comme un
+    0 %, et donner une valeur de fenêtre sans son effectif.
+    """
+    from src.utils.trigger_rate_history import as_points
+
+    if not cmp_:
+        return ""
+    if cmp_.get("early") is None and cmp_.get("now") is None:
+        return (f'<p class="no-data">{_t("pdf.nodata.trigger_then_now", "Taux de trigger indisponible")} '
+                f'— {cmp_.get("reason", "")}</p>')
+
+    def _pct(v):
+        # Une absence n'est PAS un zéro : c'est le défaut corrigé le 2026-08-24 sur le
+        # graphique des portes, où un panier n=0 se dessinait à hauteur zéro.
+        return f"{v * 100:.0f}%" if v is not None else _t("pdf.cell.not_measured", "non mesuré")
+
+    def _delta(v):
+        if v is None:
+            return "—"
+        arrow = "▲" if v > 0 else ("▼" if v < 0 else "=")
+        return f"{arrow} {abs(v) * 100:.0f} pts"
+
+    body = "".join(
+        f"<tr><td>{p['gate']}</td><td>{_pct(p['early'])}</td>"
+        f"<td><b>{_pct(p['now'])}</b></td><td>{_delta(p['delta'])}</td></tr>"
+        for p in as_points(cmp_)
+    )
+    early = cmp_.get("early") or {}
+    note = ""
+    if cmp_.get("reason"):
+        note += f"<p class='subtitle'>⚠️ {cmp_['reason']}</p>"
+    if early.get("n"):
+        note += (f"<p class='subtitle'>"
+                 f"{_t('pdf.note.trigger_early_n', 'Fenêtre initiale : médiane de {n} mesure(s).').format(n=early['n'])}"
+                 f"</p>")
+    return note + _html_table(
+        [_t("pdf.col.algo", "Algorithme"),
+         _t("pdf.col.first_30d", "30 premiers jours"),
+         _t("pdf.col.now", "Aujourd'hui"),
+         _t("pdf.col.delta", "Écart")], body)
+
+
 def _render_score20(rows):
     if not rows:
         return f'<p class="no-data">{_t("pdf.nodata.score20", "Score /20 indisponible (lancez `ml_scoring_daily`).")}</p>'
