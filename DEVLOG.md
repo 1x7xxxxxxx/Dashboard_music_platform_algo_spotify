@@ -5,6 +5,53 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-26 — Les alertes disaient le symptôme et retenaient le geste
+
+**Contexte** : une alerte de production de 01h00, apportée telle quelle. Puis, en
+cours de séance, deux mails d'une instance **locale** — que la séance a elle-même
+provoqués en redémarrant le Postgres local pour faire tourner la suite sur une vraie
+base. Le scheduler local, inactif faute de base, l'a retrouvée et a rejoué ses runs.
+
+**What changed** :
+- **Le diagnostic était coupé en deux et seule la première moitié partait.**
+  `platform_probes` gardait `splitlines()[0]` ; or les sondes écrivent le SYMPTÔME en
+  ligne 1 et le GESTE après une ligne vide. Les **2 lignes rouges sur 2** perdaient le
+  geste, dont l'instruction Business Manager qui débloque `act_65390907`, en attente
+  depuis juin. `src/utils/diagnosis_text.py` rend par surface au lieu d'aplatir.
+- **Une action impossible, 2 sources stale sur 2** : « relancer le DAG » sur des
+  sources alimentées par dépôt de CSV. `fed_by` déclaré dans le registre et porté
+  jusqu'au mail.
+- **11 lignes sur 12 dites deux fois** : deux contrôles évaluent le même prédicat.
+- **Un faux positif que le dé-bruitage isolait** : l'admin réclamé chaque nuit pour une
+  identité Spotify présente sur son **miroir**, que seul un des deux lecteurs lisait.
+- **Hors production, le silence est le défaut**, sur les deux chemins d'envoi.
+- **Un CSV en `;` n'importait rien et le refus ne nommait rien** ; 9 `except:` nus balayés.
+- **32 rouges de suite → 0**, sans toucher au code applicatif : un diff non commité
+  supprimait 4 tests dont trois sont le garde nommé d'une classe, et la suite tournait
+  avec un interpréteur sans les dépendances du projet.
+
+Roadmap : R49b, R50, R51, R52 archivées, index machine à **zéro**. R55 créée — elle
+attend une décision, pas du code.
+
+### Le fil : quatre fois, un garde est passé sur sa propre documentation
+
+Chaque fois, le commentaire français qui expliquait le correctif contenait le nom que
+le garde cherchait. Chaque fois la réponse a été l'AST. Deux autres gardes étaient
+**vacants** — l'un ne matchait rien, l'autre couvrait deux fois la même branche sans
+jamais atteindre la seconde. **Muter un garde n'est pas une formalité de fin ; c'est la
+seule chose qui prouve qu'il garde quelque chose.** 34 mutations vues rouges.
+
+Second fil : **R50/R51/R52 étaient en grande partie déjà faites.** Leurs notes
+décrivaient un état d'avant le 2026-08-23. Une roadmap se périme comme n'importe quel
+commentaire — vérifier chaque point dans le code avant de cocher a évité d'en refaire
+trois. Et deux conclusions tirées d'un fichier **gitignoré** se sont révélées fausses.
+
+**Déployé et vérifié en production** (`350ed8d`) : aucune reconstruction d'image, le
+scheduler bind-monte `src/`. Preuve prise sur les données réelles dans le conteneur.
+2858 tests verts, ruff propre, `audit clean`, 141 classes d'erreur.
+
+---
+
 ## 2026-08-24 — Trois couches présentes que rien n'exécutait, et qu'on ne pouvait plus brancher telles quelles
 
 **Contexte** : finir l'index de la roadmap. Quatre entrées ouvertes (R53, R47, R48,

@@ -27,7 +27,14 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 humains : R1 (inviter la bêta), R13 (token Meta), R17 (corpus ergonomie), R54 (GIF Brevo,
 rien à corriger en code), R55 (choisir une métrique — trois candidates, runbook §9).
 
-**⚠️ Rien n'est commité ni déployé.** La production tourne encore le code d'avant.
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** le 2026-08-26 (commit `350ed8d`).
+`prod == origin/main`, aucune reconstruction d'image nécessaire — le scheduler
+bind-monte `src/` et `airflow/dags/`. Trois preuves prises **dans le conteneur de
+prod** : `diagnosis_text` importable, le rendu produit `<b>`/`<br>`, et
+`instance_env() == production` (donc la porte anti-mail hors-prod ne peut pas rendre
+la production muette). Puis la preuve sur les **données réelles**, appels API compris :
+les diagnostics de Benken (Meta) et GRiNCH (SoundCloud) portent enfin leur moitié
+actionnable, dont l'instruction Business Manager qui débloque `act_65390907`.
 
 ### Ce que la séance a livré
 
