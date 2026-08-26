@@ -25,6 +25,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.dep_gate import requires
+
+# Ce parcours CHARGE les modules de DAG (`_load_dag_module`) pour prouver
+# l'isolation locataire de bout en bout. Sans `apache-airflow`, chaque
+# chargement rend un module vide et l'échec parle de l'environnement.
+
 _ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -89,7 +95,11 @@ def _load_dag_module(name: str):
 # ── DB readiness gate ────────────────────────────────────────────────────────
 from tests.db_gate import requires_live_db  # noqa: E402
 
-pytestmark = requires_live_db()
+# DEUX conditions, dans UNE liste. Elles étaient deux affectations séparées de
+# `pytestmark` et la seconde ÉCRASAIT la première sans bruit — une porte qui a
+# l'air posée et ne l'est pas. Ce parcours charge des modules de DAG, donc il
+# lui faut `apache-airflow` autant que la base.
+pytestmark = [requires("airflow"), requires_live_db()]
 
 # Identities. ADMIN_* are what the environment variables hold in production; the
 # whole class of bugs is a tenant silently ending up with these.

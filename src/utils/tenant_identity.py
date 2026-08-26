@@ -120,19 +120,36 @@ def identity_field(logical: str) -> str | None:
     return spec.field if spec else None
 
 
-def declared_identities(extra_by_platform: dict) -> set:
+def declared_identities(extra_by_platform: dict, mirrors: dict | None = None) -> set:
     """Logical platforms this tenant has actually DECLARED an identity for.
 
-    Pure — no DB, no Streamlit. `extra_by_platform` is {storage_platform: extra_config}.
+    Pure — no DB, no Streamlit. `extra_by_platform` is {storage_platform: extra_config};
+    `mirrors` is {logical_platform: value} for the identities this repo ALSO keeps on a
+    `saas_artists` column, i.e. exactly the specs carrying a `mirror`.
 
     Exists because four surfaces decided "connected" from the EXISTENCE of an
     `artist_credentials` row rather than from the identity value, so an artist who
     opened a tab and saved it blank was shown ✅ while readiness said ⚪. The Meta row
     made it worse: a row holding only `ig_user_id` counted as Meta-connected.
+
+    `mirrors` was added 2026-08-26. Reading only `extra_config` made this function
+    disagree with `artist_readiness._identity`, which honours the mirror explicitly —
+    two readers, one question, two answers. Measured in production: the owner (id=1)
+    has NO `spotify` row at all and `saas_artists.spotify_artist_id` =
+    `7sbfafbLjNZGZJZjZ3xoPB`, so the nightly mail announced a missing credential that
+    is present. A mirror only the WRITER knows about is how the canary went green on
+    nothing; a mirror only ONE reader knows about is how an alert cries wolf.
+
+    Omitting `mirrors` keeps the old behaviour, so a caller that has no cheap way to
+    read `saas_artists` is not forced to grow a query — it just cannot see a mirrored
+    identity, which is the pre-2026-08-26 contract and is stated rather than implied.
     """
+    mirrors = mirrors or {}
     out = set()
     for logical, spec in PLATFORM_IDENTITIES.items():
         value = (extra_by_platform.get(spec.storage) or {}).get(spec.field)
+        if not str(value or "").strip() and spec.mirror:
+            value = mirrors.get(logical)
         if str(value or "").strip():
             out.add(logical)
     return out

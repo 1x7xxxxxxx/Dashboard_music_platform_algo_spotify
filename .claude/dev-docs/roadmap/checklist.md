@@ -21,36 +21,87 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 Index concis des tâches **qu'on peut commencer maintenant**. À la complétion d'une tâche :
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
-`archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE` ci-dessous.
+`archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE — état au 2026-08-26, séance close (à lire EN PREMIER au `/resume`)
 
-> **Les quatre entrées de code sont livrées et archivées** (2026-08-24) :
-> R53 (Meta multi-comptes), R47 (validateurs branchés), R48 (`error_handler`
-> retiré), R49 (lock régénéré, audit repointé). Détail dans `archive.md`.
+**▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne restent que des gestes
+humains : R1 (inviter la bêta), R13 (token Meta), R17 (corpus ergonomie), R54 (GIF Brevo,
+rien à corriger en code), R55 (choisir une métrique — trois candidates, runbook §9).
+
+**⚠️ Rien n'est commité ni déployé.** La production tourne encore le code d'avant.
+
+### Ce que la séance a livré
+
+Sept défauts, sept classes d'erreur, chacune avec un garde **vu rouge par mutation**.
+Point de départ : une alerte nocturne de production, puis deux mails d'une instance
+LOCALE — provoqués par cette séance même, en redémarrant le Postgres local pour la suite.
+
+| | |
+|---|---|
+| Diagnostic amputé | `platform_probes` gardait `splitlines()[0]` : les **2 lignes rouges sur 2** perdaient le geste qui répare, dont l'instruction Business Manager qui débloque `act_65390907` |
+| Action impossible | « relancer le DAG » sur des sources alimentées par CSV — **2 stale sur 2** |
+| Doublons | « Inscrits sans rien connecter » et « Credentials manquants » posent le MÊME prédicat : 11 lignes sur 12 dites deux fois |
+| Faux positif | l'admin réclamé chaque nuit pour une identité Spotify **présente sur son miroir** — et c'était la seule ligne que le dé-bruitage laissait |
+| Mails de dev | hors production, le silence est désormais le défaut, sur les **deux** chemins d'envoi |
+| Montage manquant | `./tools` absent du compose du dépôt ⇒ deux faux rouges en ligne de sujet |
+| Import muet | un CSV en `;` n'importait rien et le refus ne nommait rien ; **9 `except:` nus** balayés dans `src/` |
+
+### Deuxième passe — les gardes rouges de la CI (2026-08-26, soir)
+
+`audit_runner --deterministic` signalait **6 classes en HIT**, toutes bloquantes en CI.
+Deux causes, aucune dans le code applicatif :
+
+- **Un diff non commité supprimait 4 tests** de `test_claude_config_floor.py`, dont
+  **trois sont le `guard:` ou la `signature:`** de classes cataloguées. Le catalogue
+  affichait toujours `guarded`. Restaurés (l'amélioration de commentaire du diff est
+  conservée), et le catalogue est désormais **parsé par la suite** : un nœud pytest
+  nommé qui ne résout plus fait échouer le build. Ce garde a trouvé **13 références
+  mortes de plus** — 11 vers la forme À PLAT des skills, migrée le 2026-07-28.
+- **La suite tournait avec le mauvais interpréteur.** `/usr/bin/python3` n'a ni
+  `apache-airflow`, ni `googleapiclient`, ni `spotipy` : 28 rouges qui disaient
+  « environnement », pas « code ». `tests/dep_gate.py` (jumeau de `db_gate`) les
+  transforme en skips **criés**, avec l'appariement qui rend ça sûr : `CI` présent ⇒
+  aucune porte ne peut sauter. En posant les portes, `test_e2e_two_tenants` s'est
+  révélé porter **deux `pytestmark`**, le second écrasant le premier sans bruit.
+
+**Suite : 2 échecs → 0.** De 32 rouges ce matin à zéro, sans toucher au code applicatif.
+
+### Le fil, et il vise les gardes eux-mêmes
+
+**Quatre fois dans la journée, un garde que je venais d'écrire est passé sur sa propre
+documentation** — la dernière étant le garde des références mortes, qui trébuchait sur
+l'exemple `tests/x.py::TestFoo` écrit dans sa PROPRE fiche — le commentaire français qui expliquait le correctif contenait le nom
+recherché. Chaque fois, la réponse a été l'AST. Et deux gardes étaient **vacants** :
+l'un ne matchait rien (`status_matrix` n'a pas de f-string), l'autre couvrait deux fois
+la même branche. Corollaire : après avoir écrit un garde, le muter n'est pas une
+formalité — c'est la seule chose qui prouve qu'il garde quelque chose.
+
+Second fil : **R50/R51/R52 étaient en grande partie déjà faites.** Leurs notes
+décrivaient un état d'avant le 2026-08-23. Vérifier chaque point dans le code avant de
+cocher a évité de refaire trois briques — et a montré que la roadmap se périme comme
+n'importe quel commentaire.
+
+
+---
+
+### Archive de la séance précédente
+
+#### REPRISE` ci-dessous.
+
+> **L'index de code est VIDE au 2026-08-26.** R49b, R50, R51 et R52 sont descendues
+> dans `archive.md`. R50/R51/R52 étaient en grande partie déjà faites : leurs notes
+> décrivaient un état antérieur au 2026-08-23, et chaque point a été vérifié dans le
+> code avant d'être coché — jamais sur la foi du texte de la roadmap.
 >
-> **Les quatre questions ouvertes sont tranchées**, section « Les questions,
-> tranchées » plus bas. Deux ont produit du code (le sélecteur de compte avant
-> l'export PDF ; le graphique de taux de trigger qui dessinait une absence comme
-> un zéro), deux se règlent hors du dépôt.
+> Ce qui restait réellement et a été livré ce jour : le séparateur CSV mesuré et le
+> refus qui nomme sa raison (R52), le bouton de téléchargement du guide (R50),
+> `secondary_analyses()` sur la cinquième vue dense (R51).
 >
-> Reste **R49b**, une seule tâche machine — et c'est un changement d'image Docker,
-> pas de dépendance Python. Plus les gestes humains ci-dessous.
+> Ne restent que des **gestes humains**, ci-dessous. Aucun ne se code.
 
 | id | tâche | prio | statut / déclencheur |
 |----|-------|------|----------------------|
-| ~~R49b~~ | ~~L'image Airflow de production est en retard~~ | ✅ | **FAIT le 2026-08-24 — prod en Airflow 2.11.2**, cœur épinglé, base de métadonnées sauvegardée puis migrée, SoundCloud collecté dessus pour tous les locataires. ⚠️ La PR Dependabot **#100** (→ 3.3.1 après rebase) reste un saut MAJEUR à ne pas merger ; la clause « pas de majeure automatique » est désormais posée sur les **trois** écosystèmes |
+| — | *(aucune tâche machine ouverte)* | — | — |
 
-
-### R49b — L'image Airflow de production est en retard · P3
-
-Séparé de R49, livré le 2026-08-24 : le lock Python a été régénéré et l'audit
-nocturne lit désormais le lock résolu. L'image Airflow, elle, ne vient pas du
-lock — elle vient du `Dockerfile`, et c'est la seule dépendance réellement en
-retard en production. `apache-airflow 3.2.2` porte 11 avis, tous corrigés en
-3.3.1. Le pin est délibéré (il doit suivre la version de l'image), donc le
-remonter est un changement d'infrastructure, pas de dépendance.
-
-- [ ] **R49b** — mettre à jour l'image Airflow (2.8.1 → ≥ 2.11.1). Non urgent au sens
-      réseau, mais c'est la seule version réellement en retard en production.
 
 ---
 
@@ -71,6 +122,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
+| R55 | La section PDF « 30 premiers jours vs actuel » sur le taux de trigger | P3 | **une décision, pas du code** : R51 demandait cette section en laissant la métrique « à préciser ». Trois candidates, incompatibles entre elles — part des titres ayant déclenché au moins une porte algorithmique, nombre moyen de portes par titre, ou délai médian avant la première porte. Chacune raconte une histoire différente et aucune n'est déductible du code. Dis laquelle et je la construis. Runbook §9. |
 | R54 | Le GIF animé au bas des e-mails | P4 | **rien à corriger dans le code** — vérifié le 2026-08-24 : aucun `<img>`, aucun `MIMEImage`, aucune URL d'image dans les trois expéditeurs. C'est le relais Brevo ou l'avatar du compte expéditeur, comme le nom d'expéditeur de R38. Runbook §8. |
 
 ## 🔍 Ce que le graphe de code a sorti (2026-08-23)
@@ -210,90 +262,6 @@ d'ergonomie (11 ouvrages déjà ingérés, R17 close — ils sourcent le plan), 
 période (retiré par l'auteur des notes). Et « case verte ou rouge par plateforme » **existe
 déjà** (`status_matrix.py`, 3 colonnes, 4 surfaces) — c'était sa sémantique qu'il fallait
 corriger, pas son absence.
-
-### R50 — Le parcours de setup · P2
-
-Quatre défauts structurels mesurés, tous invisibles à la lecture du code :
-
-1. **Les guides d'API lus pendant les tests sont du code mort.**
-   `_registry._render_platform_guide` et les quatre `_guide_*` des modules plateforme
-   **n'ont aucun appelant** — ~450 lignes maintenues et traduites, qui **contredisent** les
-   guides réellement affichés (`content/credential_guides.py`). Sur Spotify : le vivant dit
-   « tu n'as rien à créer », le mort dit « crée une app, copie le Client ID et le Secret ».
-2. **Le guide ANGLAIS est un miroir périmé du corpus mort**, et il est **expédié dans le
-   PDF d'onboarding** quand `lang == "en"` : `Redirect URI = http://127.0.0.1:8888/callback`
-   … `Tick Web API`. C'est la source exacte des notes « uri non bonne », « rajout de s sur
-   uri », « web api pas cochée ». Le dépôt porte **trois orthographes** du même URI jetable
-   (`127.0.0.1:8888`, `localhost:8888`, `http://localhost`), toutes en `http://`, aucune en
-   `https://` — héritées du défaut de `spotipy`, que le tableau de bord Spotify **refuse
-   désormais** sous la forme `localhost`.
-3. **Le sélecteur Mac/Windows ne s'affiche jamais.** `os_hints.os_selector()` n'est appelé
-   que par `render_credential_guides()`, **sans appelant**. Le chemin vivant devine l'OS par
-   User-Agent, **Windows par défaut**, sans moyen de corriger. C'est la note GRiNCH.
-4. **Le guide de démarrage a deux surfaces, dont une injoignable.** L'entrée de navigation
-   pointe `process_guide.py` (quatre listes à puces plates, ni onglets ni dépliants) ;
-   l'assistant qui porte la sélection cochable est `onboarding.py`, **absent de toute
-   navigation**, joignable seulement par `?page=onboarding` depuis l'e-mail. Mail fermé,
-   onglet fermé : il n'existe plus.
-
-Et deux petits, à fort effet : les quatre étapes de l'accueil **nomment leur destination
-sans y mener** (`home.py:168`, la clé de page est liée à `_` puis jetée), et le PDF
-d'onboarding n'est **livré qu'en pièce jointe d'e-mail** — aucun bouton dans l'application.
-
-- [ ] **R50** — supprimer le corpus mort et ses traductions ; une seule chaîne d'URI définie
-      une fois, en `https://` là où la plateforme l'exige ; afficher le sélecteur d'OS ;
-      entrée de navigation permanente vers l'assistant + atterrissage automatique dessus à
-      la première connexion tant que rien n'est configuré ; étapes d'accueil cliquables ;
-      bouton de téléchargement du PDF ; lien `artists.apple.com` visible par un artiste
-      (aujourd'hui seulement sur `useful_links`, **réservée admin**) ; définitions CSV
-      remontées hors du dépliant replié ; captures YouTube ; étape « créer le projet Google
-      Cloud » ; surbrillance de `soundcloud:users`. Unifier les **trois ordres de
-      plateformes** (onglets / sélecteur d'onboarding / guides) et cesser de proposer
-      Instagram et Apple Music dans l'onboarding alors qu'ils n'ont pas d'onglet.
-      Vérif : parcours e2e dans un navigateur — première connexion, étapes cliquables,
-      guide joignable depuis la navigation, sélecteur d'OS visible.
-
-### R51 — La page qui donne la valeur · P2
-
-`src/dashboard/utils/ui.py:83` — `secondary_analyses()` a été écrit **explicitement pour la
-remarque de GRiNCH du 2026-08-12** (le commentaire du fichier la cite mot pour mot) et
-applique « une décision par écran ». Il est utilisé sur 4 sites et sur **aucune** des cinq
-vues les plus denses : `trigger_algo` (15 graphiques + jusqu'à 17 jauges ≈ **35 figures**),
-`data_wrapped` (9), `meta_creatives` (8), `meta_ads_overview` (8), `revenue_forecast` (6).
-C'est donc **appliquer un motif existant**, pas en inventer un.
-
-L'accueil, lui, est un tableau d'état : **0 graphique**, 4 tuiles, 9 cartes de statut DAG.
-Il dit si la machine tourne, pas ce que l'artiste doit faire. Few : un tableau de bord tient
-dans un coup d'œil et sert de **rampe de lancement**. Knaflic : désencombrer ne suffit pas,
-il faut ensuite **montrer où regarder**.
-
-- [ ] **R51** — appliquer `secondary_analyses()` aux cinq vues denses ; concevoir une page
-      récap de 3 à 5 visuels répondant chacun à « dois-je faire quelque chose ? » ; déplacer
-      Export PDF et Export CSV, aujourd'hui entrées **n°2 et n°3** de la navigation, avant
-      le guide et les credentials — alors que `app.py:180` annonce « Order = user journey ».
-      Ajouter la section PDF « 30 premiers jours vs actuel » sur le taux de trigger
-      (**métrique à préciser**).
-
-### R52 — Débloquer les deux artistes en test · P2
-
-**GRiNCH / SoundCloud.** La fonctionnalité « Mes titres hébergés sur d'autres comptes »
-**existe et fonctionne de bout en bout** (widget, `track_platform_link`, `migrations/074`,
-consommation par le collecteur). Quatre défauts autour : le message d'erreur dit « ci-dessous »
-alors que le widget est rendu **au-dessus** ; pas d'exemple d'URL ; `_claimed_count` a besoin
-de `fields['_artist_id']`, injecté seulement dans l'interface — donc `artist_preflight` et la
-sonde nocturne obtiennent **0** et rendent un rouge **à tort** ; et un **trou réel** : un
-artiste **sans compte SoundCloud du tout** n'est jamais collecté, `soundcloud_daily.py:134`
-le saute avant de lire ses déclarations.
-
-**Benj / CSV.** Causes probables, par fréquence : séparateur `;` (**non supporté** — seuls
-`,` et la tabulation sont testés), ligne de préambule au-dessus des en-têtes, `.xlsx`
-non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `songs-all` est
-*détecté* par son nom de fichier (règle 6) puis **rejeté** par `_detect_window`
-(`s4a_csv_parser.py:99`).
-
-- [ ] **R52** — corriger les quatre défauts SoundCloud ; passer le fichier de Benj dans
-      `_detect_platform` **quand il arrive** et corriger la règle qui l'a manqué, pas
-      deviner ; nommer la raison du refus (le séparateur n'est jamais mentionné).
 
 ## 🔖 REPRISE — état au 2026-08-24, séance close (à lire EN PREMIER au `/resume`)
 

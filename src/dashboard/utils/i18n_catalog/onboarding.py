@@ -3,6 +3,7 @@
 EN = {
     # Step 1 — Welcome
     "onboarding.welcome_title": "🎵 Welcome to streaMLytics!",
+    "onboarding.download_guide": "📄 Download the setup guide (PDF)",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
     "onboarding.feat_revenue": "+ 📈 Revenue forecasts",

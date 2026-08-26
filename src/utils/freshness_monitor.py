@@ -28,11 +28,17 @@ MONITOR_TARGETS = [
      "tenant_table": "track_popularity_history", "tenant_col": "collected_at",
      "tenant_metric_col": "date"},
     {"source": "Spotify S4A",  "table": "s4a_song_timeline",       "col": "collected_at", "stale_h": _CSV_STALE_H,
+     # Fed by a human dropping an export, not by a scheduled fetch. Stated here
+     # because the alert used to tell the reader to "relancer le DAG" for EVERY
+     # stale source — an action that cannot move a CSV watcher whose dropbox is
+     # empty, and the only two stale sources of 2026-08-26 were both this kind.
+     "fed_by": "csv",
      "metric_col": "date"},
     {"source": "YouTube",      "table": "youtube_channel_history",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "SoundCloud",   "table": "soundcloud_tracks_daily",  "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
     {"source": "Instagram",    "table": "instagram_daily_stats",    "col": "collected_at", "stale_h": _DEFAULT_STALE_H},
-    {"source": "Apple Music",  "table": "apple_songs_performance",  "col": "collected_at", "stale_h": _CSV_STALE_H},
+    {"source": "Apple Music",  "table": "apple_songs_performance",  "col": "collected_at", "stale_h": _CSV_STALE_H,
+     "fed_by": "csv"},
     {"source": "Meta Ads",     "table": "meta_insights_performance_day", "col": "collected_at", "stale_h": _DEFAULT_STALE_H,
      # Ads insights only exist while ads run. Measured 2026-08-21: the admin
      # account holds 19 ARCHIVED + 15 PAUSED campaigns, zero ACTIVE, and the
@@ -243,6 +249,10 @@ def check_freshness(db, artist_id=None):
             # be able to tell "no data because broken" from "no data because there is
             # none to collect" — the second is not an incident.
             "expected_silence": expected_silence,
+            # How this source is fed. A CSV source waits on a human dropping an
+            # export; relaunching its watcher over an empty dropbox changes nothing,
+            # so the alert must not name that as the action (ADR-011).
+            "fed_by": t.get("fed_by", "dag"),
             "last_dt": val,
             "age_h": age_h,
             "stale": stale,

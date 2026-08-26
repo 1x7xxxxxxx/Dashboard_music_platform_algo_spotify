@@ -2,6 +2,7 @@
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.ui import secondary_analyses
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -153,42 +154,51 @@ def _show_tab_model(db, track: str, artist_id):
                 st.info(t("trigger_algo.model.no_radio_pred",
                           "Pas de prédictions Radio disponibles pour ce titre."))
 
-        st.markdown("---")
-        st.subheader(t("trigger_algo.model.residuals_header",
-                       "📉 Résidus dans le temps (Actuel − Forecast DW)"))
-        df_res = df_hist.dropna(subset=["predicted_dw"]).copy()
-        if df_res.empty:
-            st.info(t("trigger_algo.model.no_residuals",
-                      "Résidus DW indisponibles — le volume DW n'est pas prédit (régresseur "
-                      "gelé par design). Rien d'anormal pour ce titre."))
-        else:
-            df_res["residual"] = df_res["actual"].astype(float) - df_res["predicted_dw"].astype(float)
-            colors = ["#1DB954" if r >= 0 else "#FF6B6B" for r in df_res["residual"]]
+        # Diagnostic du MODÈLE : ces résidus affinent la compréhension, ils ne
+        # décident rien pour l'artiste — la définition littérale de
+        # `secondary_analyses()`. Cet onglet portait 4 figures sur les ~35 de la
+        # vue, la plus dense du tableau de bord, et R51 demandait d'appliquer un
+        # motif DÉJÀ écrit (2026-08-12, pour la remarque « réduire le nombre de
+        # graphs ») aux cinq vues denses. Quatre l'avaient ; celle-ci pas.
+        # Rien n'est supprimé : tout reste à un clic.
+        with secondary_analyses(t("trigger_algo.model.residuals_expander",
+                                  "📉 Diagnostic du modèle — résidus (facultatif)")):
+            st.markdown("---")
+            st.subheader(t("trigger_algo.model.residuals_header",
+                           "📉 Résidus dans le temps (Actuel − Forecast DW)"))
+            df_res = df_hist.dropna(subset=["predicted_dw"]).copy()
+            if df_res.empty:
+                st.info(t("trigger_algo.model.no_residuals",
+                          "Résidus DW indisponibles — le volume DW n'est pas prédit (régresseur "
+                          "gelé par design). Rien d'anormal pour ce titre."))
+            else:
+                df_res["residual"] = df_res["actual"].astype(float) - df_res["predicted_dw"].astype(float)
+                colors = ["#1DB954" if r >= 0 else "#FF6B6B" for r in df_res["residual"]]
 
-            fig_res = go.Figure()
-            fig_res.add_trace(go.Bar(
-                x=df_res["prediction_date"], y=df_res["residual"],
-                marker_color=colors, name="Résidu",
-                hovertemplate="Date: %{x}<br>Résidu: %{y:,.0f}"
-            ))
-            fig_res.add_hline(y=0, line_color="white", line_width=1)
-            fig_res.update_layout(
-                title="Vert = sous-prédit (actuel > forecast) | Rouge = sur-prédit",
-                xaxis_title="Date de prédiction",
-                yaxis_title="Actuel − Forecast DW (streams)",
-                height=340, hovermode="x unified"
-            )
-            st.plotly_chart(fig_res, width='stretch')
+                fig_res = go.Figure()
+                fig_res.add_trace(go.Bar(
+                    x=df_res["prediction_date"], y=df_res["residual"],
+                    marker_color=colors, name="Résidu",
+                    hovertemplate="Date: %{x}<br>Résidu: %{y:,.0f}"
+                ))
+                fig_res.add_hline(y=0, line_color="white", line_width=1)
+                fig_res.update_layout(
+                    title="Vert = sous-prédit (actuel > forecast) | Rouge = sur-prédit",
+                    xaxis_title="Date de prédiction",
+                    yaxis_title="Actuel − Forecast DW (streams)",
+                    height=340, hovermode="x unified"
+                )
+                st.plotly_chart(fig_res, width='stretch')
 
-            mean_res = df_res["residual"].mean()
-            std_res = df_res["residual"].std()
-            st.caption(t("trigger_algo.model.bias_caption",
-                         "Biais moyen : {mean:,.0f} streams | Écart-type : {std:,.0f} streams")
-                       .format(mean=mean_res, std=std_res))
-            if len(df_res) >= 3 and abs(mean_res) > std_res:
-                st.warning(t("trigger_algo.model.systematic_bias",
-                             "Biais systématique détecté — le modèle sur- ou sous-prédit "
-                             "de façon consistante pour ce titre."))
+                mean_res = df_res["residual"].mean()
+                std_res = df_res["residual"].std()
+                st.caption(t("trigger_algo.model.bias_caption",
+                             "Biais moyen : {mean:,.0f} streams | Écart-type : {std:,.0f} streams")
+                           .format(mean=mean_res, std=std_res))
+                if len(df_res) >= 3 and abs(mean_res) > std_res:
+                    st.warning(t("trigger_algo.model.systematic_bias",
+                                 "Biais systématique détecté — le modèle sur- ou sous-prédit "
+                                 "de façon consistante pour ce titre."))
 
     except Exception as e:
         st.warning(t("trigger_algo.model.chart_unavailable",

@@ -177,13 +177,41 @@ class S4ACSVParser:
     def parse_csv_file(self, file_path: Path) -> Dict:
         """Parse un fichier CSV."""
         try:
-            # Lecture robuste (Header variable)
+            # Lecture robuste : le séparateur est MESURÉ sur la ligne d'en-tête, pas
+            # supposé. Un export S4A téléchargé sur une machine en locale française
+            # est séparé par `;` (Excel écrit le séparateur de liste du système) —
+            # il se lisait alors comme UNE colonne, aucun en-tête attendu n'était
+            # trouvé, et le `except:` nu ci-dessous renvoyait `{'type': None}` sans
+            # jamais nommer la raison. « Mon CSV ne marche pas » était tout le
+            # diagnostic disponible, pour l'artiste comme pour nous (R52).
+            from src.transformers.csv_dialect import (
+                AmbiguousSeparatorError, describe, sniff_separator)
             try:
-                df = pd.read_csv(file_path)
+                with open(file_path, encoding='utf-8-sig', errors='replace') as fh:
+                    head = fh.readline() + fh.readline()
+                sep = sniff_separator(head)
+            except AmbiguousSeparatorError as e:
+                logger.error("CSV %s refusé : %s", file_path.name, e)
+                return {'type': None, 'data': [], 'reason': str(e)}
+            except OSError as e:
+                logger.error("CSV %s illisible : %s", file_path.name, e)
+                return {'type': None, 'data': [], 'reason': f"unreadable file: {e}"}
+
+            try:
+                df = pd.read_csv(file_path, sep=sep)
                 if 'date' not in df.columns.str.lower() and len(df) > 0:
-                     df = pd.read_csv(file_path, header=1)
-            except:
-                return {'type': None, 'data': []}
+                    # Une ligne de préambule au-dessus des en-têtes : deuxième essai.
+                    df = pd.read_csv(file_path, sep=sep, header=1)
+            except Exception as e:  # noqa: BLE001 — narrowed to a NAMED refusal
+                # Jamais un `except:` nu ici : il avalait aussi bien un fichier
+                # corrompu qu'un séparateur inattendu, et rendait les deux comme
+                # « rien à lire ». La raison remonte maintenant avec le séparateur
+                # effectivement retenu, qui est l'information manquante neuf fois
+                # sur dix.
+                reason = (f"illisible avec le séparateur {describe(sep)} : "
+                          f"{type(e).__name__}: {e}")
+                logger.error("CSV %s refusé : %s", file_path.name, reason)
+                return {'type': None, 'data': [], 'reason': reason}
 
             df.columns = df.columns.str.strip().str.lower()
 
@@ -206,7 +234,7 @@ class S4ACSVParser:
                                 'date': pd.to_datetime(row['date']).date(),
                                 'streams': _to_int(row[stream_col]),
                             })
-                        except:
+                        except Exception:
                             continue
 
                 csv_type = 'song_timeline'

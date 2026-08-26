@@ -49,6 +49,34 @@ def tmp_csv(tmp_path):
 # "green" does not.
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Une dépendance absente ne doit pas se lire comme une couverture complète.
+
+    Ajouté le 2026-08-26, en transformant 32 rouges d'environnement en skips. Le
+    danger du geste est connu ici : c'est exactement la mécanique du bloc Postgres
+    ci-dessous — « 163 skipped » défile et « vert » ne défile pas. Un skip qu'on ne
+    crie pas est pire que le rouge qu'il remplace, parce qu'il se confond avec une
+    suite qui a tout prouvé.
+    """
+    from tests.dep_gate import GATED, missing
+
+    absent = missing()
+    if absent:
+        tw = terminalreporter
+        tw.write_sep("=", "DÉPENDANCES ABSENTES — GARDES NON EXÉCUTÉS", red=True, bold=True)
+        tw.write_line(
+            f"{len(absent)} dépendance(s) manquent à CET interpréteur : "
+            f"{', '.join(absent)}."
+        )
+        tw.write_line(
+            "Les DAGs, les collecteurs et le parcours deux-locataires n'ont donc RIEN "
+            "prouvé dans cette exécution."
+        )
+        for name in absent:
+            tw.write_line(f"    {name} → {GATED[name][1]}")
+        tw.write_line(f"    (interpréteur utilisé : {__import__('sys').executable})")
+
+
+def _pytest_terminal_summary_db(terminalreporter, exitstatus, config):
     from tests.db_gate import DB_HOST, DB_PORT, db_ready
 
     if db_ready():

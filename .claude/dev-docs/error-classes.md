@@ -108,6 +108,15 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [state-path-namespaced-by-another-project](#state-path-namespaced-by-another-project) | P3 | deterministic | guarded | none |
 | [migrate-heals-only-if-run-to-completion](#migrate-heals-only-if-run-to-completion) | P2 | deterministic | guarded | none |
 | [freshness-measured-on-write-time](#freshness-measured-on-write-time) | P2 | deterministic | guarded | none |
+| [message-flattened-for-the-narrowest-renderer](#message-flattened-for-the-narrowest-renderer) | P2 | deterministic | guarded | none |
+| [alert-names-an-action-its-source-cannot-take](#alert-names-an-action-its-source-cannot-take) | P3 | deterministic | guarded | none |
+| [two-checks-one-question-reported-twice](#two-checks-one-question-reported-twice) | P3 | deterministic | guarded | none |
+| [mirror-visible-to-one-reader-only](#mirror-visible-to-one-reader-only) | P2 | deterministic | guarded | none |
+| [nonprod-instance-puts-mail-on-the-wire](#nonprod-instance-puts-mail-on-the-wire) | P2 | deterministic | guarded | none |
+| [compose-omits-a-package-the-dags-import](#compose-omits-a-package-the-dags-import) | P3 | deterministic | guarded | none |
+| [import-refused-without-naming-the-reason](#import-refused-without-naming-the-reason) | P2 | deterministic | guarded | none |
+| [named-guard-deleted-while-the-class-reads-guarded](#named-guard-deleted-while-the-class-reads-guarded) | P2 | deterministic | guarded | none |
+| [environment-failure-worn-as-a-code-failure](#environment-failure-worn-as-a-code-failure) | P3 | deterministic | guarded | none |
 | [dag-conf-honoured-by-one-task-only](#dag-conf-honoured-by-one-task-only) | P3 | deterministic | guarded | none |
 | [local-db-drifts-from-canonical](#local-db-drifts-from-canonical) | P3 | manual | reported | none |
 
@@ -323,7 +332,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: the PostToolUse hook rejects a `.style.format(` with no `na_rep=` at edit time, before the view is ever rendered.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: .claude/hooks/lint_dashboard_view.py }
-- rex_ref: .claude/skills/dashboard-view.md
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-14 (ref: DEVLOG#2026-05-14)
 - History:
   - 2026-05-14: `lint_dashboard_view.py` PostToolUse hook added (warns on save).
@@ -355,7 +364,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: migrate the remaining views to `view_session()`; the class closes when no view holds its own copy of the guard.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: CLAUDE.md#9 }
-- rex_ref: .claude/skills/dashboard-view.md
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: `view_session()` shipped + mandated for NEW views (CLAUDE.md #7/#9, dashboard-view skill). 2/32 views migrated (instagram, soundcloud — the clean try/finally shape). 30 remain on the legacy guard (try/except/finally or db-None/require_plan/helper-fn variants — migrating changes behaviour, so deliberately incremental). NOT CI-blocking: 30 valid views would make the gate permanently red (flaky-gate antipattern, cf. rules #6–#10). Status `open` = adoption backlog, not a defect; per-view migration is opt-in maintenance.
@@ -369,8 +378,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: psycopg2 returns `datetime.date` for a DATE column while `pd.to_datetime` produces `pd.Timestamp`, and the two compare fine until a sort or a merge puts them side by side.
 - long_term_fix: normalise at the boundary — every date leaving a query goes through `pd.to_datetime` before it reaches view code.
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (Pitfall #5) }
-- rex_ref: .claude/skills/dashboard-view.md
+- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (Pitfall #5) }
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered live in `meta_x_spotify.py` (campaign with BOTH Meta + Spotify-popularity data → `all_dates` mixed types). Fixed commit `d264a5e` (`sorted(pd.to_datetime(all_dates))`). Project-wide sweep: this was the ONLY genuine instance; signature is noisy (matches any `sorted(df[col].unique())` incl. string/int cols — db_health/meta_creatives/imusician/ml_performance are false positives). Durable guard = dashboard-view skill Pitfall #5 (normalize date cols right after fetch_df). Heuristic + report-only — NOT CI/`make audit` (false-positive rate too high; flaky-gate antipattern).
@@ -384,7 +393,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: shipping code and running it are separate events here: `src/` is volume-mounted so the code is live instantly, while the table only fills on the DAG's next schedule.
 - long_term_fix: the freshness monitor reports a table that exists with zero rows as a collection gap rather than as no data — an empty table with a live DAG is a state the dashboard must name, not render as a blank chart.
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: dev-docs/error-classes.md (operational runbook) }
+- guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operational runbook) }
 - rex_ref: .claude/skills/airflow-dag.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -399,8 +408,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: `collected_at` is present on every table and a release date is not, so it is the column at hand when a default entity has to be picked.
 - long_term_fix: `EntitySpec` carries an explicit `release_column`; ordering by ingest time is then a choice someone had to write, not the default.
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (Pitfall #6) }
-- rex_ref: .claude/skills/dashboard-view.md
+- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (Pitfall #6) }
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: discovered live (SoundCloud default track wrong). Root cause: `entity_period_filter` ordered by `MIN(collected_at)` = first ingest, not upload date. Fixed: SC API `track.created_at` → `soundcloud_tracks_daily.track_created_at` (migration 028) + `EntitySpec.release_column` + `soundcloud.py release_column="track_created_at"`. Sweep: only real instance was SC (fixed); `apple_music.py` is the ACCEPTED proxy (no Apple API created_at, `tracks` name-join rejected as over-reach — documented, not a defect). Durable guard = dashboard-view skill Pitfall #6. Heuristic/report-only — NOT CI/`make audit` (broad collected_at-DESC is legit "latest snapshot" everywhere → flaky-gate antipattern).
@@ -414,7 +423,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: operator-facing prose is not executed by anything, so a script rename or an auth-model change leaves it behind with no test going red.
 - long_term_fix: every command named in operator text is either a real path this signature checks, or the text names the surface instead of the script.
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
+- guard: { type: cross-cutting-rule, ref: .claude/dev-docs/error-classes.md (operator-doc-vs-collector-auth invariant) }
 - rex_ref: .claude/dev-docs/token-management-bilan.md
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
@@ -430,7 +439,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: `pd.to_numeric(..., errors='coerce')` at the query boundary; the render-smoke suite against the live DB is what makes the NULL show up before a user does.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py (AppTest renders every view against the live DB → catches it when a NULL is present) }
-- rex_ref: .claude/skills/dashboard-view.md
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-05-29 (ref: DEVLOG#2026-05-29)
 - History:
   - 2026-05-29: first hit in `revenue_forecast.py` — `ml_song_predictions.{dw,rr,radio}_probability` can be NULL (a model that fails to score writes None) → object Series → `(ml_df[col]*100).round(1)` raised. Fixed with `pd.to_numeric(errors='coerce')` + `.map(...)`.
@@ -446,7 +455,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: `pd.to_datetime(..., utc=True)` everywhere, plus the aware-timestamp rule in `.claude/rules/python.md` so the data stops growing new naive rows.
 - autofix: none
 - guard: { type: posttooluse-hook, ref: tests/test_views_render_smoke.py }
-- rex_ref: .claude/skills/dashboard-view.md
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-01 (ref: DEVLOG#2026-06-01)
 - History:
   - 2026-06-01: `airflow_kpi.py` `df_runs` `start_date`/`end_date` (Airflow REST ISO strings, mixed offsets across old vs recent runs) → `pd.to_datetime` + `px.timeline` raised "at position 26". Surfaced by the render-smoke harness on fresh live data. Fixed by normalising both columns once at source: `pd.to_datetime(col, utc=True, errors='coerce').dt.tz_localize(None)`. Durable fix: when building a datetime column from heterogeneous string sources, always pass `utc=True` then drop the tz (`.dt.tz_localize(None)`) so every consumer sees uniform naive-UTC. Heuristic + report-only (the grep matches benign `to_datetime` calls). Related: `mixed-date-timestamp`.
@@ -476,7 +485,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - long_term_fix: `canonical_song()` / `canonical_song_sql()` in `src/utils/track_matching.py` — one normalisation both sides call, rather than each join inventing its own.
 - autofix: none
 - guard: { type: cross-cutting-rule, ref: src/utils/track_matching.py — canonical_song()/canonical_song_sql() single-source helper; regression test tests/test_song_canonical.py }
-- rex_ref: .claude/skills/dashboard-view.md
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-08 (ref: DEVLOG#2026-06-08)
 - History:
   - 2026-06-08: discovered live — Vue Globale showed no Listeners/Saves for "Qui a bu le crachoir du saloon ?" because `s4a_songs_global` kept `?` while the timeline-derived selector passed `_`. Same class also silently zeroed the ml_inference Saves/listeners feature for all `?` titles, blanked the PI line (`track_popularity_history`) in Suivi Algorithmes, and excluded `?` tracks from the Meta CPR optimizer join (`campaign_track_mapping`). Fix: write-side normalisation in `parse_songs_global` via `canonical_song()` (+ migration 043 backfilling existing rows incl. `s4a_song_saves_daily`), and query-side `canonical_song_sql()` on the CSV/API side of every cross-convention join (`_tab_algos` PI ×4, `meta_cpr_optimizer`, `router` tracks join ×3). `track_release_reference` was already immune (its `normalize_track_title` strips both `?` and `_`). Heuristic + manual triage — the signature also matches same-convention joins (false positives); the durable guard is to route every cross-convention title join through `canonical_song_sql()`.
@@ -535,8 +544,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - root_cause: `config.yaml` exists in dev and not in prod, so `config['x']` is correct on the machine where the code is written and a `KeyError` on the machine where it runs.
 - long_term_fix: env-first resolution with config.yaml as the local fallback (the `_smtp_config()` shape), so the dev path is the exceptional one.
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view.md (pitfall: config env-fallback) }
-- rex_ref: .claude/skills/dashboard-view.md
+- guard: { type: cross-cutting-rule, ref: .claude/skills/dashboard-view/SKILL.md (pitfall: config env-fallback) }
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite15)
 - History:
   - 2026-06-13: the 11 `src/database/*_schema.py` `__main__` bootstraps did `PostgresHandler(**config['database'])` → `KeyError` when launched in prod (no config.yaml; `config_loader.load()` returns `{}`). Fixed via `PostgresHandler.from_env_or_config()` (env DATABASE_URL → config.yaml → explicit RuntimeError). Catalogued **scoped to `*_schema.py`** (0 hits today) to flag regressions; kept `heuristic`/nightly — a project-wide `config[` sweep false-positives on the dashboard, which reads config.yaml *by design* (CLAUDE.md). The narrow scope IS the precision.
@@ -2293,3 +2302,153 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-24
 - History:
   - 2026-08-24: la règle n'était ni absente ni fausse — elle était **partielle**, et un commentaire soigné (« high blast radius ») donnait toute l'apparence d'une politique en place. Une politique qui ne couvre qu'une partie de ses cas est plus dangereuse qu'une politique absente : elle empêche de se poser la question.
+
+
+## message-flattened-for-the-narrowest-renderer
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un diagnostic en deux moitiés — le symptôme, puis le geste qui le répare — arrive sur ses surfaces automatiques amputé de la seconde. L'alerte nomme le problème et retient la solution ; pire, la phrase conservée annonce une énumération (« Deux cas : ») et n'énumère rien.
+- root_cause: `src/utils/platform_probes.py` renvoyait `str(message).splitlines()[0][:300]`. Les sondes rédigent leur diagnostic pour `st.error` (markdown) ; la couture réconciliait TROIS lecteurs — un formulaire markdown, un `<td>` HTML, un terminal — en aplatissant pour le plus étroit. Or les sondes placent le SYMPTÔME en ligne 1 et le GESTE après une ligne vide : la coupe tombait systématiquement sur la moitié actionnable. Mesuré le 2026-08-26 sur l'alerte de production de 01h00 : **les 2 lignes rouges sur 2** de la section « À regarder » avaient perdu leur geste, dont l'instruction de partage Business Manager qui débloque `act_65390907` — le blocage opérationnel ouvert depuis juin.
+- signature: `python3 .claude/scripts/check_diagnosis_rendering.py`
+- long_term_fix: `src/utils/diagnosis_text.py` — un rendu par surface (`as_html` / `as_markdown` / `as_console`), le message reste ENTIER dans le magasin et chaque lecteur s'adapte à lui. La règle : **le rendu s'adapte au message, jamais le message au rendu** — il y a un auteur et trois lecteurs, et seul l'auteur sait laquelle des deux moitiés est le geste.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_actionable_half_survives.py }
+- rex_ref: .claude/scripts/check_diagnosis_rendering.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: rien ne l'a vu pendant quatre jours parce que le garde existant, `test_readiness_carries_the_live_diagnosis`, épinglait un `_GRINCH_TRUTH` **recopié à la main** qui s'arrêtait lui aussi avant « Deux cas : », en se déclarant « the exact string ». Un test qui compare la production à une copie de la production teste la copie. Le nouveau garde pilote la vraie sonde, réseau bouchonné ; l'ancien porte désormais l'assertion qu'il n'est qu'un préfixe du vrai message.
+  - 2026-08-26: le garde de câblage a trouvé **4 sites HTML** de plus que les 3 identifiés à la lecture — affirmer que `as_html` est correct ne dit rien de son appel. Sa première version interrogeait le symptôme (« le nom apparaît dans une f-string ») et signalait un `logger.warning` ; recentrée sur la question (« un diagnostic atteint-il une cellule de balisage sans rendu ? »), plus une assertion de non-vacuité, la règle `status_matrix` de la première version n'assertant rien du tout.
+
+
+## alert-names-an-action-its-source-cannot-take
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une alerte vraie nomme une action qui ne peut pas changer l'état qu'elle signale. Le lecteur l'exécute, rien ne bouge, et le même message repart la nuit suivante.
+- root_cause: `airflow/dags/alert_monitor.py` composait **une seule phrase pour toute source stale** — « Airflow UI → relancer le DAG correspondant » — sans distinguer les sources alimentées par une collecte planifiée de celles alimentées par un dépôt humain. Relancer `s4a_csv_watcher` sur une boîte vide n'upserte rien et sort SUCCESS. Le 2026-08-26 les **2 sources stale sur 2** (Spotify S4A 1921h, Apple Music 1709h) étaient de ce type : le geste nommé était impossible deux fois sur deux. La péremption, elle, est VRAIE (R46 : S4A muette depuis ~80 j, seul l'admin a jamais déposé) — donc taire la ligne serait le mauvais correctif ; c'est l'action qui était fausse.
+- signature: `python3 -m pytest tests/test_the_alert_names_a_workable_action.py -q`
+- long_term_fix: `fed_by` déclaré dans `MONITOR_TARGETS` — le registre le savait déjà implicitement, `_CSV_STALE_H` ne s'appliquant qu'à ces deux sources — et porté jusqu'à l'e-mail. Le garde vérifie l'accord entre les deux (`fed_by == csv` ⟺ seuil CSV), donc une source CSV ajoutée sans le champ sort ici et non dans un mail nocturne.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_alert_names_a_workable_action.py }
+- rex_ref: src/utils/freshness_monitor.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: le vrai enseignement est sur le HOP, pas sur le champ. Les commentaires de `alert_monitor` racontent déjà DEUX champs perdus à la frontière xcom (`error`, `measured_on`), chacun ayant coûté une instruction fausse dans le mail. `fed_by` est le troisième. Le garde porte donc sur la frontière elle-même — tout champ produit par `check_freshness` et non recopié — et non sur la liste des champs du jour.
+
+
+## two-checks-one-question-reported-twice
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: deux contrôles portant des noms différents évaluent le MÊME prédicat, et le rapport imprime chaque fait deux fois, sous deux formulations du même geste — puis le recompte dans le sujet. La ligne unique qui méritait une question se noie dans ses propres doublons.
+- root_cause: `readiness_stalled_flags` (`src/utils/artist_readiness.py`) renvoie les plateformes au statut `TODO` ; `check_credentials_all` (`airflow/dags/alert_monitor.py`) renvoie celles absentes de `declared_identities()`. Or `TODO` **est** « aucune identité déclarée » : `stalled` est donc `missing_creds` restreint aux comptes de plus de 7 jours — un sous-ensemble strict par construction, pas par coïncidence. Mesuré le 2026-08-26 : section « Inscrits sans rien connecter » = 11 lignes, section « Credentials manquants » = 12, dont **les mêmes 11**. Une seule ligne (l'identité Spotify de l'admin) n'était pas déjà dite au-dessus, et c'était la seule intéressante.
+- signature: `python3 -m pytest tests/test_two_checks_one_question.py -q`
+- long_term_fix: soustraction plutôt que déduplication — la section la plus précise (celle qui nomme le champ à remplir) est conservée, l'autre ne montre que ce qu'elle n'a pas dit, et le sujet compte APRÈS. Surtout, le garde porte sur la RELATION (« ces deux contrôles lisent-ils toujours le même prédicat ? ») et non sur les nombres du jour : si l'un cesse d'être un sous-ensemble de l'autre, soustraire se mettrait à **cacher** des lignes, défaut bien pire que la redondance qu'on corrigeait.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_two_checks_one_question.py }
+- rex_ref: src/utils/artist_readiness.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: le piège était dans la clé. `stalled` porte `m['label']` (« ☁️ SoundCloud »), `missing_creds` porte le nom logique (« soundcloud ») : une soustraction keyée sur le libellé ne matche jamais rien, ne retire aucune ligne, et laisse un garde vert sur un défaut intact. C'est la mutation M9, et elle est dans le garde.
+
+
+## mirror-visible-to-one-reader-only
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une identité stockée à DEUX endroits (une ligne de credentials et une colonne miroir sur `saas_artists`) n'est vue que par l'un des lecteurs. Le lecteur aveugle annonce « manquant » ce qui est présent — et il se trouve que c'est celui qui tourne sans personne devant.
+- root_cause: `declared_identities()` (`src/utils/tenant_identity.py`) ne lisait que `extra_by_platform`, alors que `PLATFORM_IDENTITIES['spotify']` déclare `mirror='spotify_artist_id'` et que `artist_readiness._identity()` honore ce miroir explicitement. Mesuré sur la PROD le 2026-08-26 : le propriétaire (id=1) n'a **aucune** ligne `spotify` dans `artist_credentials` et porte `saas_artists.spotify_artist_id = 7sbfafbLjNZGZJZjZ3xoPB` — le mail nocturne réclamait donc chaque nuit un credential déjà renseigné.
+- signature: `python3 -m pytest tests/test_a_mirrored_identity_is_seen_by_every_reader.py -q`
+- long_term_fix: `declared_identities(extra, mirrors)` — repli sur le miroir, **jamais** override (sinon le repli devient un moyen de falsifier une identité), et les colonnes miroir dérivées de `IDENTITY_MIRRORS` plutôt que réécrites à la main. Le garde porte sur l'ACCORD des deux lecteurs pour **toute** plateforme déclarant un `mirror`, donc un second miroir ajouté plus tard ne peut pas rouvrir la scission.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_mirrored_identity_is_seen_by_every_reader.py }
+- rex_ref: src/utils/tenant_identity.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: le commentaire du dépôt disait déjà « a mirror that only one WRITER knows about is how the canary went green on nothing ». La moitié manquante est symétrique et coûtait déjà : un miroir que seul UN LECTEUR connaît fait crier au loup. Trouvé en enquêtant sur une ligne laissée ouverte, pas en cherchant ce défaut.
+  - 2026-08-26: gravité réelle amplifiée par le correctif du même jour (`two-checks-one-question-reported-twice`) : après soustraction des doublons, cette ligne était la SEULE restante de sa section. Dé-bruiter un rapport concentre l'attention sur ce qui reste — un faux positif survivant à un dé-bruitage est bien pire qu'avant.
+
+
+## nonprod-instance-puts-mail-on-the-wire
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une instance hors production expédie de vrais e-mails à de vraies boîtes. Ils ressemblent à une panne, il faut les ouvrir, les lire et les écarter — et à force, on écarte aussi les vrais.
+- root_cause: `EmailAlert.send_alert` et `EmailAlert.send_email` n'ont jamais consulté l'identité de l'instance avant de composer avec le serveur SMTP. **Troisième occurrence en trois jours**, et les deux correctifs précédents avaient chacun une portée trop étroite : le 2026-08-23, une frontière SMTP posée dans `conftest` (donc la SUITE bornée, jamais le scheduler) ; le 2026-08-24, le préfixe `[LOCAL]` sur le sujet (un correctif d'AFFICHAGE pour un problème d'ENVOI). Le 2026-08-26 à 19h48, une session a redémarré le Postgres local pour faire tourner les tests sur une vraie base ; le scheduler local, inactif faute de base, l'a retrouvée et a rejoué ses runs planifiés. Le préfixe `[LOCAL]` a parfaitement fonctionné — et les deux mails sont arrivés quand même.
+- signature: `python3 -m pytest tests/test_only_production_puts_mail_on_the_wire.py -q`
+- long_term_fix: le silence est le DÉFAUT hors production, sur les **deux** chemins d'envoi, avec un opt-in explicite par run (`STREAMLYTICS_ALLOW_NONPROD_EMAIL=1`) et un refus qui nomme son propre échappatoire. Le coût d'une alerte non désirée se paie à la RÉCEPTION, pas à l'inspection : nommer l'instance est nécessaire et jamais suffisant.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_only_production_puts_mail_on_the_wire.py }
+- rex_ref: src/utils/email_alerts.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: la moitié dangereuse du correctif est la suppression elle-même — une porte qui étouffe des alertes ne doit JAMAIS pouvoir rendre la production muette, le silence d'une alerte ÉTANT l'incident (`AlertDeliveryError`). Sûr uniquement parce que `STREAMLYTICS_ENV` est déjà exigée pour `airflow_scheduler` par `tools/check_env_parity.py`, que `tools/deploy.sh` exécute et sur laquelle il échoue. Cet appariement est asserté, pas supposé.
+  - 2026-08-26: le garde de cette assertion-là a d'abord été VACANT — il découpait le source sur une chaîne, et le commentaire au-dessus du dict comme l'entrée `dashboard` contiennent le même nom, donc il ne pouvait pas rougir. Réécrit pour importer le module et lire `_SERVICE_EXTRA`. La leçon « un garde lit la structure, pas le texte » est tombée sur la seule assertion qui protégeait la prod du silence.
+
+
+## compose-omits-a-package-the-dags-import
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un contrôle répond honnêtement « je n'ai pas pu tourner » (`ModuleNotFoundError`), et cette honnêteté remonte en ligne de sujet comme une alarme métier. On enquête sur la donnée ; le défaut est dans le montage.
+- root_cause: le `docker-compose.yml` **local et non suivi** (gitignoré) montait `./airflow/dags` et `./src` dans les trois services Airflow, mais pas `./tools`. Le gabarit SUIVI `docker-compose.example.yml` le montait déjà, et la production aussi. `check_canary_preflight` et `check_tenant_contamination` shellent tous deux vers `tools/`, donc tous deux renvoyaient UNAVAILABLE, et le sujet portait `🐤 PRÉFLIGHT ROUGE` et `🧬 CONTAMINATION : 1` sur une instance dont la seule anomalie était son propre compose. C'était donc une **copie de travail** en retard sur le gabarit, ni la prod ni le dépôt — la variante la plus discrète, car aucun garde ne peut lire un fichier gitignoré en CI, et l'alarme ne se déclenche QUE hors production, précisément là où personne ne la poursuit.
+- signature: `python3 -m pytest tests/test_the_compose_mounts_what_the_dags_import.py -q`
+- long_term_fix: le garde lit l'AST des DAGs, relève les paquets de premier niveau qu'ils importent, et exige un montage dans les trois services — **sur le gabarit suivi**, donc vérifiable en CI, et sur la copie locale seulement quand elle existe (skip explicite sinon). Il porte sur la relation « ce qu'un DAG importe doit être monté », pas sur `tools`.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_compose_mounts_what_the_dags_import.py }
+- rex_ref: docker-compose.yml
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: `prod-compose-drift` existait déjà, orientée « la prod a dérivé du dépôt ». Celle-ci est la dérive INVERSE, et c'est la plus discrète : quand c'est la prod qui a raison, le symptôme n'apparaît jamais là où il compte, donc rien ne le priorise.
+  - 2026-08-26 (correction) : la première rédaction de cette fiche accusait « le compose du dépôt ». **Faux** — vérifié en préparant le déploiement : `docker-compose.example.yml`, qui est suivi, monte `./tools:ro` dans les trois services depuis toujours. Seule ma copie locale non suivie avait dérivé. Le garde visait donc un fichier absent en CI : il aurait planté au lieu de garder. Deuxième fois dans la séance qu'une conclusion tirée d'un fichier gitignoré est fausse.
+
+
+## import-refused-without-naming-the-reason
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un fichier déposé par un artiste n'importe rien, et le refus ne nomme rien. « Mon CSV ne marche pas » est alors tout le diagnostic disponible — pour lui comme pour nous.
+- root_cause: `s4a_csv_parser.parse_csv_file` lisait `pd.read_csv(file_path)`, virgule seule. Un export téléchargé sur une machine en locale française est séparé par `;` (Excel écrit le séparateur de liste du système), donc la trame revenait en UNE colonne, aucun en-tête attendu n'était trouvé, et un **`except:` nu** rendait `{'type': None, 'data': []}` — indiscernable d'un fichier vide. `distrokid_parser._sniff_sep` avait l'angle mort symétrique : il tranchait entre tabulation et virgule et n'a jamais envisagé `;`. Deux lecteurs d'une même question, la forme cataloguée en `two-checks-one-question-reported-twice`.
+- signature: `python3 -m pytest tests/test_a_csv_refusal_names_its_reason.py -q`
+- long_term_fix: `src/transformers/csv_dialect.sniff_separator` — le séparateur est MESURÉ sur la ligne d'en-tête (jamais sur le fichier entier : un titre contenant une virgule est ordinaire), un ex aequo est REFUSÉ plutôt que deviné, et les deux parseurs le partagent. Le refus nomme le séparateur réellement tenté, qui est la phrase manquante neuf fois sur dix.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_csv_refusal_names_its_reason.py }
+- rex_ref: src/transformers/csv_dialect.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: le garde anti-`except:` nu a été écrit en cherchant du TEXTE dans un seul fichier ; sa première exécution a trouvé un SECOND handler nu plus bas dans ce même fichier, que le correctif n'avait pas touché. Élargi au dépôt et passé à l'AST, il en a trouvé **9 au total** dans `src/` — dont quatre écrits `except: pass` sur une ligne, forme qu'une recherche de texte ne distingue pas. Une instance n'est jamais la classe.
+  - 2026-08-26: le premier jeu de tests couvrait DEUX FOIS la branche « refus au reniflage » et jamais « refus à la lecture » — un fichier à une colonne est écarté avant `read_csv`. La mutation qui supprimait la raison de la seconde branche restait verte. Un garde doit atteindre chaque branche qu'il prétend couvrir.
+
+
+## named-guard-deleted-while-the-class-reads-guarded
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une classe d'erreur affiche `status: guarded` et nomme un test qui n'existe plus. La classe est rouverte, le catalogue dit le contraire, et rien n'échoue.
+- root_cause: `error-classes.md` est de la PROSE : elle pointe des chemins et des identifiants de nœuds pytest, et rien ne vérifiait qu'ils résolvent. Mesuré le 2026-08-26 : l'arbre de travail portait un changement non commité retirant **4 tests** de `tests/test_claude_config_floor.py`, dont **trois sont le `guard:` ou la `signature:`** de classes cataloguées (`trigger-threshold-split`, `rex-delimiter-unanchored`, `config-path-dangling`). Seul `audit_runner`, lancé à la main, l'a vu. C'est `config-path-dangling` d'un cran au-dessus : une référence qui rate sans se plaindre.
+- signature: `python3 -m pytest tests/test_every_named_guard_exists.py -q`
+- long_term_fix: le catalogue est PARSÉ par la suite — chaque identifiant de nœud pytest qu'il nomme doit résoudre dans l'AST, chaque chemin de `guard:` doit exister sur le disque. Ça tourne en une seconde et ça appartient à la suite, pas à un rapport nocturne : un garde supprimé rouvre sa classe **maintenant**.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_named_guard_exists.py }
+- rex_ref: .claude/dev-docs/error-classes.md
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: le garde a trouvé **13 références mortes de plus** que le défaut cherché — 11 vers `.claude/skills/dashboard-view.md`, la forme À PLAT migrée en dossier le 2026-07-28 (CLAUDE.md documente cette migration et prévient qu'« une référence qui rate sans se plaindre » est justement cette classe), et 2 vers `dev-docs/error-classes.md` sans le préfixe `.claude/`. `check_config_refs.py` ne balaie pas cette surface.
+  - 2026-08-26: première version en faux positif sur `tests/x.py::TestFoo` — elle ne collectait que les `FunctionDef`, alors qu'une CLASSE est un nœud pytest valide. Un faux positif dans le garde qui traque les références mortes est la meilleure façon de le faire désactiver.
+
+
+## environment-failure-worn-as-a-code-failure
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: la suite rend des dizaines de rouges qui disent « mauvais interpréteur », pas « code cassé ». On apprend à ne plus lire le récapitulatif, et un vrai échec arrive habillé pareil.
+- root_cause: `python3 -m pytest tests/` rendait **32 échecs sur arbre propre** : 28 en `ImportError: cannot import name 'DAG' from 'airflow'` et `ModuleNotFoundError` sur `googleapiclient` / `spotipy`, parce que `/usr/bin/python3` n'a pas les dépendances du projet. **Quatre classes bloquantes en CI** remontaient HIT pour cette seule raison. Piège aggravant : le dépôt porte un dossier `airflow/` à la racine, capté comme paquet-espace-de-noms depuis la racine — donc l'erreur ressemble à une installation CORROMPUE et non ABSENTE.
+- signature: `python3 -m pytest tests/test_a_dependency_gate_cannot_hide_a_break.py -q`
+- long_term_fix: `tests/dep_gate.py`, jumeau de `db_gate` — la sonde exige `spec.origin` non nul (un espace de noms n'est pas un paquet), le récapitulatif CRIE la dépendance absente et la commande qui l'installe, et **`CI` présent ⇒ aucune porte ne peut sauter**. C'est cet appariement qui rend le skip acceptable : sauter est une courtoisie pour le shell d'un développeur, jamais un comportement du pipeline.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_dependency_gate_cannot_hide_a_break.py }
+- rex_ref: tests/dep_gate.py
+- first_seen: 2026-08-26
+- History:
+  - 2026-08-26: en posant les portes, `test_e2e_two_tenants.py` s'est révélé porter **deux affectations de `pytestmark`** — la seconde écrasait la première sans bruit, donc le module paraissait gardé en tournant sans garde. Les conditions vont dans UNE liste, et un garde balaie désormais le cas sur toute la suite.

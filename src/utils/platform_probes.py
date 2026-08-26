@@ -41,6 +41,8 @@ from __future__ import annotations
 import logging
 from typing import Callable, Optional
 
+from src.utils.diagnosis_text import clamp
+
 logger = logging.getLogger(__name__)
 
 # What a probe can answer. `None` is NOT a verdict — it means the probe did not run
@@ -79,7 +81,11 @@ def probe(db, artist_id: int, logical_platform: str) -> ProbeResult:
         # A raising probe is a red REASON, never a crash and never a verdict about
         # the artist — `broken-probe-rendered-as-user-fault`.
         return False, f"la vérification a échoué ({type(exc).__name__})"
-    return bool(ok), str(message).splitlines()[0][:300]
+    # The WHOLE diagnosis, not its first line. A probe message is authored in two
+    # halves — the symptom, then the gesture that fixes it — and `splitlines()[0]`
+    # kept the half nobody can act on. See `src.utils.diagnosis_text`, which renders
+    # it per surface instead of flattening it for the narrowest one.
+    return bool(ok), clamp(str(message))
 
 
 def _identity_fields(db, artist_id: int, logical_platform: str, storage_platform):

@@ -225,7 +225,7 @@ class AirflowMonitor:
             try:
                 last_24h = datetime.now(df['start_date'].iloc[0].tzinfo) - timedelta(hours=24)
                 df_24h = df[df['start_date'] >= last_24h]
-            except:
+            except Exception:
                 df_24h = df # Fallback
         else:
             df_24h = pd.DataFrame()

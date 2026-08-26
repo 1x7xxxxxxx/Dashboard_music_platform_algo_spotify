@@ -105,7 +105,7 @@ class AppleMusicCSVParser:
             value = value.replace(',', '').replace(' ', '').strip()
             try:
                 return int(float(value))
-            except:
+            except Exception:
                 return 0
         return 0
 
@@ -274,7 +274,7 @@ class AppleMusicCSVParser:
                     df = pd.read_csv(file_path, encoding=encoding)
                     logger.info(f"   ✅ Encodage détecté: {encoding}")
                     break
-                except:
+                except Exception:
                     continue
 
             if df is None:

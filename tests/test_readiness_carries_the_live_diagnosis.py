@@ -33,9 +33,36 @@ _SOUNDCLOUD = {
     "id_hint": "ton User ID SoundCloud numérique",
     "nodata_hint": "vérifie le User ID ; l'app SoundCloud partagée doit être configurée (admin)",
 }
-# The exact string `_platform_soundcloud._test_soundcloud` returns for GRiNCH.
+# The OPENING of what `_platform_soundcloud._test_soundcloud` returns for GRiNCH —
+# its first line, not the whole message. It said "the exact string" until 2026-08-26,
+# and that claim is why nobody noticed production had stopped sending the rest: the
+# real diagnosis continues "Deux cas :" and then names the two gestures that fix it,
+# and `platform_probes` was dropping exactly that continuation. A test that compares
+# production to a hand-written copy of production tests the copy.
+# `test_the_actionable_half_survives` now drives the real function; the assertion
+# below keeps this copy honest about being a prefix of it.
 _GRINCH_TRUTH = ("User ID 72854583 joignable, mais **aucun titre public** n'y est "
                  "rattaché — il n'y aura donc rien à collecter.")
+
+
+def test_this_fixture_is_still_a_prefix_of_what_the_probe_really_says(monkeypatch):
+    """Non-vacuity for every assertion below: they all use `_GRINCH_TRUTH`."""
+    from src.dashboard.views.credentials import _platform_soundcloud as mod
+
+    class _R:
+        def __init__(self, p):
+            self.status_code, self._p, self.text = 200, p, str(p)
+
+        def json(self):
+            return self._p
+
+    monkeypatch.setattr(mod.requests, "post", lambda *a, **k: _R({"access_token": "t"}))
+    monkeypatch.setattr(mod.requests, "get", lambda *a, **k: _R({"collection": []}))
+    _, real = mod._test_soundcloud(
+        {"user_id": "72854583", "client_id": "c", "client_secret": "s"})
+    assert real.startswith(_GRINCH_TRUTH), (
+        "the fixture drifted from the authored message — update it from the real "
+        f"probe, never from memory:\n{real!r}")
 
 
 # ── the pure function ────────────────────────────────────────────────────────

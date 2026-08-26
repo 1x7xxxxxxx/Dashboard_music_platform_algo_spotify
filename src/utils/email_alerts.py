@@ -31,9 +31,46 @@ class EmailAlert:
         self.smtp_password = os.getenv('SMTP_PASSWORD')
         self.alert_email = os.getenv('ALERT_EMAIL')
 
+    # Opt-in escape hatch, for the one legitimate case: deliberately testing the mail
+    # itself from a dev box. Explicit, per-run, and never a default.
+    _OPT_IN = "STREAMLYTICS_ALLOW_NONPROD_EMAIL"
+
+    def _outbound_blocked(self) -> str | None:
+        """Why this instance must not put a message on the wire, or None.
+
+        Added 2026-08-26, after a LOCAL scheduler mailed a real inbox twice in one
+        evening — a session had restarted the local Postgres for the test suite, the
+        long-idle scheduler got its database back and replayed its scheduled runs.
+
+        The 2026-08-24 fix for the same event added the `[LOCAL]` subject prefix. It
+        was a LABELLING fix for a SENDING problem: the mail still arrived, still
+        looked like an incident, and still had to be read before it could be
+        dismissed. Naming the instance is necessary and it is not sufficient — the
+        cost of these alerts is paid on receipt, not on inspection.
+
+        Safe to make silence the default here ONLY because `STREAMLYTICS_ENV` is a
+        required variable for `airflow_scheduler` in `tools/check_env_parity.py`,
+        which `tools/deploy.sh` runs and fails on. Without that pairing this gate
+        would turn a missing variable into a silent production — and the silence of
+        an alert IS the incident (`AlertDeliveryError`).
+        """
+        from src.utils.instance_identity import instance_env, is_production
+
+        if is_production():
+            return None
+        if str(os.getenv(self._OPT_IN, "")).strip().lower() in {"1", "true", "yes"}:
+            return None
+        return (f"instance '{instance_env()}' is not production — not sending. "
+                f"Set {self._OPT_IN}=1 for this run to send anyway.")
+
     def send_alert(self, subject: str, body: str) -> bool:
         """Envoie une alerte par email. Retourne True si succès."""
         self.last_error = None
+        blocked = self._outbound_blocked()
+        if blocked:
+            self.last_error = blocked
+            logger.info("✉️  suppressed (%s): %s", blocked, subject)
+            return False
         if not self.smtp_user or not self.smtp_password or not self.alert_email:
             missing = [n for n, v in (("SMTP_USER", self.smtp_user),
                                       ("SMTP_PASSWORD", self.smtp_password),
@@ -83,6 +120,13 @@ class EmailAlert:
         no attachment), this targets a client address and can attach a PDF.
         Non-raising — returns False (and logs) when SMTP creds are missing or send fails.
         """
+        blocked = self._outbound_blocked()
+        if blocked:
+            # The tenant-facing path. It matters MORE than send_alert, not less: this
+            # one reaches artists, and the suite already shipped three real
+            # verification mails to real people on 2026-08-23.
+            logger.info("✉️  suppressed (%s): %s → %s", blocked, subject, to_email)
+            return False
         if not self.smtp_user or not self.smtp_password or not to_email:
             logger.warning("⚠️ SMTP non configuré ou destinataire manquant — email '%s' ignoré.",
                            subject)
@@ -144,6 +188,17 @@ def deliver_or_raise(subject: str, body: str) -> None:
     A monitor that cannot prove its own output left the building is not a monitor.
     """
     alert = EmailAlert()
+    # A deliberate non-production suppression is NOT a delivery failure, and raising
+    # on it would paint every local DAG task red for behaving exactly as designed —
+    # then train the eye to ignore a red `send_consolidated_alert`, which is the one
+    # task whose redness this function exists to produce. Checked BEFORE sending so
+    # the distinction the two branches below carry ("SMTP absent" vs "SMTP configured
+    # and the send failed") stays legible; collapsing all three into one message is
+    # what `tests/test_alert_delivery_is_proven` caught when this gate was added.
+    suppressed = alert._outbound_blocked()
+    if suppressed:
+        logger.info("✉️  nightly alert suppressed (%s): %r", suppressed, subject)
+        return
     if alert.send_alert(subject, body):
         return
     raise AlertDeliveryError(

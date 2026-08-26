@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
+from src.utils.diagnosis_text import as_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +229,11 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
         action = r["next_action"]
         if remembered is not None and not remembered[0]:
             action = remembered[1] or action
-        cols[4].caption(_html.escape(action) if action else "—")
+        # `as_markdown` only fixes the line breaks: a single `\n` is not a break in
+        # markdown, so the two bullets of a two-case diagnosis would run into one.
+        # The escape stays — the tail of this string is a platform's own answer.
+        cols[4].caption(
+            as_markdown(_html.escape(action)) if action else "—")
 
     if allow_probe:
         checkable = [r["key"] for r in rows if r["status"] != "todo"]

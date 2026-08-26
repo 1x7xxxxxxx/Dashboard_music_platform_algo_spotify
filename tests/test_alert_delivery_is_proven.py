@@ -33,6 +33,23 @@ REPO = Path(__file__).resolve().parents[1]
 
 # ── the wrapper's own contract ───────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def _this_file_tests_production(monkeypatch):
+    """Every assertion here is about DELIVERY, which only happens in production.
+
+    Since 2026-08-26 a non-production instance suppresses the send deliberately, and
+    a deliberate suppression is not a delivery failure — so off production this
+    wrapper returns instead of raising, and each `pytest.raises` below would fail on
+    behaviour that is correct.
+
+    Stated as a fixture rather than three edits because it is the premise of the
+    whole file, and because a test that relied on `STREAMLYTICS_ENV` happening to be
+    unset was asserting against the ambient environment rather than against a state
+    it had chosen.
+    """
+    monkeypatch.setenv("STREAMLYTICS_ENV", "production")
+
+
 def test_deliver_or_raise_raises_when_smtp_is_not_configured(monkeypatch):
     """The literal production condition of 16-18 August."""
     from src.utils import email_alerts

@@ -72,7 +72,7 @@ class AirflowTrigger:
                 try:
                     error_detail = response.json()
                     error_msg = error_detail.get('detail', error_msg)
-                except:
+                except Exception:
                     error_msg = response.text[:200]
 
                 logger.error(f"❌ Échec déclenchement {dag_id}: {error_msg}")

@@ -126,6 +126,7 @@ EN = {
     "trigger_algo.model.radio_forecast": "**Radio forecast**",
     "trigger_algo.model.no_radio_pred": "No Radio predictions available for this track.",
     "trigger_algo.model.residuals_header": "📉 Residuals over time (Actual − DW Forecast)",
+    "trigger_algo.model.residuals_expander": "📉 Model diagnostics — residuals (optional)",
     "trigger_algo.model.no_residuals": (
         "DW residuals unavailable — DW volume is not predicted (regressor frozen "
         "by design). Nothing abnormal for this track."

@@ -57,11 +57,15 @@ def test_every_skill_stays_loadable():
     # Le defaut, teste directement. Jusqu'au 2026-08-03 ce test assertionnait un
     # PLANCHER sur len(loadable) et calculait `flat` sans jamais s'en servir
     # ailleurs que dans le message d'erreur. Verifie par mutation : on depose un
-    # `skills/faux-skill-plat.md` — exactement le fichier que la docstring dit
-    # « never read by the harness » — et les 10 tests passent. Le garde ratait ce
-    # qu'il decrivait, et rougissait sur un retrait deliberе qu'il n'a jamais
-    # pretendu garder. Un plancher de comptage ne distingue pas « un skill est
-    # devenu illisible » de « un skill a ete retire expres ».
+    # `skills/faux-plat.md` — exactement le fichier que la docstring dit « never
+    # read by the harness » — et les 10 tests passaient. Un plancher de comptage
+    # ne distingue pas « un skill est devenu illisible » de « un skill a ete
+    # retire expres », et il rougit sur le second en ratant le premier.
+    #
+    # 2026-08-04 : le correctif etait dans les fichiers DEPLOYES, pas dans ce
+    # gabarit — le prochain `--write` aurait reinstalle la version a plancher sur
+    # les 8 depots. Un correctif qui ne remonte pas au generateur est un
+    # correctif a duree de vie limitee.
     assert not flat, (
         f"skill(s) a plat, jamais charges par le harness : {[f.name for f in flat]}. "
         f"Un fichier plat est indiscernable d'un skill qui marche dans tout listing "

@@ -16,6 +16,13 @@ Coverage:
 import sys
 import types
 import pytest
+
+from tests.dep_gate import requires
+
+# Les collecteurs Spotify et YouTube importent `spotipy` et `googleapiclient` en
+# tête de module : sans eux, 9 rouges qui parlent de l'interpréteur, pas du
+# motif « succès silencieux » que ce fichier garde.
+pytestmark = requires("spotipy")
 from unittest.mock import MagicMock, patch
 
 

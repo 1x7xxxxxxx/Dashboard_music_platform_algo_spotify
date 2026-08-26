@@ -30,6 +30,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from src.utils.diagnosis_text import as_console
 from src.utils.safe_error import safe_error
 
 # A shell has no .env; Docker does. Resolve it from the repo root so this tool is
@@ -180,7 +181,11 @@ def step_connection_tests(db, artist_id: int, scope: set[str] | None = None) -> 
             passed, message = test(fields)
         except Exception as exc:  # noqa: BLE001 — a probe error is a red, not a crash
             passed, message = False, safe_error(exc)
-        print(f"  {_OK if passed else _KO} {platform}: {message.splitlines()[0][:140]}")
+        # The whole diagnosis, continuations indented under the platform's line. The
+        # old `splitlines()[0][:140]` kept the symptom and dropped the gesture — the
+        # operator running this before a beta invitation is exactly who needs the
+        # gesture. See `src.utils.diagnosis_text`.
+        print(f"  {_OK if passed else _KO} {platform}: {as_console(message)}")
         ok = ok and passed
     return ok
 

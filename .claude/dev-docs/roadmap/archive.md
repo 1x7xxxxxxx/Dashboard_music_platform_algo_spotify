@@ -2134,3 +2134,112 @@ Trois blocages, par coût croissant. Le troisième est le vrai :
       UI. **Dans cet ordre** : livrer l'UI d'abord produirait des données silencieusement
       fausses. **Décision d'affichage à prendre** : comptes fusionnés (un total) ou séparés
       (un onglet par compte) — ça décide de la forme du schéma.
+
+
+---
+
+## Livré le 2026-08-26 — la séance des alertes
+
+Quatre briques descendues de l'actif. R49b avait été livrée le 2026-08-24 sans être tournée ; R50, R51 et R52 étaient **en grande partie déjà faites** et leurs notes décrivaient un état antérieur au 2026-08-23 — vérifié point par point avant de cocher, jamais sur la foi du texte. Ce qui restait réellement est livré ce jour et gardé par mutation. La part de R51 marquée « métrique à préciser » n'est PAS cochée ici : elle attend une décision et remonte en « En attente de toi » (ADR-008).
+
+### R49b — L'image Airflow de production est en retard · P3
+
+Séparé de R49, livré le 2026-08-24 : le lock Python a été régénéré et l'audit
+nocturne lit désormais le lock résolu. L'image Airflow, elle, ne vient pas du
+lock — elle vient du `Dockerfile`, et c'est la seule dépendance réellement en
+retard en production. `apache-airflow 3.2.2` porte 11 avis, tous corrigés en
+3.3.1. Le pin est délibéré (il doit suivre la version de l'image), donc le
+remonter est un changement d'infrastructure, pas de dépendance.
+
+- [x] **R49b** — mettre à jour l'image Airflow (2.8.1 → ≥ 2.11.1). Non urgent au sens
+      réseau, mais c'est la seule version réellement en retard en production.
+
+
+
+### R50 — Le parcours de setup · P2
+
+Quatre défauts structurels mesurés, tous invisibles à la lecture du code :
+
+1. **Les guides d'API lus pendant les tests sont du code mort.**
+   `_registry._render_platform_guide` et les quatre `_guide_*` des modules plateforme
+   **n'ont aucun appelant** — ~450 lignes maintenues et traduites, qui **contredisent** les
+   guides réellement affichés (`content/credential_guides.py`). Sur Spotify : le vivant dit
+   « tu n'as rien à créer », le mort dit « crée une app, copie le Client ID et le Secret ».
+2. **Le guide ANGLAIS est un miroir périmé du corpus mort**, et il est **expédié dans le
+   PDF d'onboarding** quand `lang == "en"` : `Redirect URI = http://127.0.0.1:8888/callback`
+   … `Tick Web API`. C'est la source exacte des notes « uri non bonne », « rajout de s sur
+   uri », « web api pas cochée ». Le dépôt porte **trois orthographes** du même URI jetable
+   (`127.0.0.1:8888`, `localhost:8888`, `http://localhost`), toutes en `http://`, aucune en
+   `https://` — héritées du défaut de `spotipy`, que le tableau de bord Spotify **refuse
+   désormais** sous la forme `localhost`.
+3. **Le sélecteur Mac/Windows ne s'affiche jamais.** `os_hints.os_selector()` n'est appelé
+   que par `render_credential_guides()`, **sans appelant**. Le chemin vivant devine l'OS par
+   User-Agent, **Windows par défaut**, sans moyen de corriger. C'est la note GRiNCH.
+4. **Le guide de démarrage a deux surfaces, dont une injoignable.** L'entrée de navigation
+   pointe `process_guide.py` (quatre listes à puces plates, ni onglets ni dépliants) ;
+   l'assistant qui porte la sélection cochable est `onboarding.py`, **absent de toute
+   navigation**, joignable seulement par `?page=onboarding` depuis l'e-mail. Mail fermé,
+   onglet fermé : il n'existe plus.
+
+Et deux petits, à fort effet : les quatre étapes de l'accueil **nomment leur destination
+sans y mener** (`home.py:168`, la clé de page est liée à `_` puis jetée), et le PDF
+d'onboarding n'est **livré qu'en pièce jointe d'e-mail** — aucun bouton dans l'application.
+
+- [x] **R50** — supprimer le corpus mort et ses traductions ; une seule chaîne d'URI définie
+      une fois, en `https://` là où la plateforme l'exige ; afficher le sélecteur d'OS ;
+      entrée de navigation permanente vers l'assistant + atterrissage automatique dessus à
+      la première connexion tant que rien n'est configuré ; étapes d'accueil cliquables ;
+      bouton de téléchargement du PDF ; lien `artists.apple.com` visible par un artiste
+      (aujourd'hui seulement sur `useful_links`, **réservée admin**) ; définitions CSV
+      remontées hors du dépliant replié ; captures YouTube ; étape « créer le projet Google
+      Cloud » ; surbrillance de `soundcloud:users`. Unifier les **trois ordres de
+      plateformes** (onglets / sélecteur d'onboarding / guides) et cesser de proposer
+      Instagram et Apple Music dans l'onboarding alors qu'ils n'ont pas d'onglet.
+      Vérif : parcours e2e dans un navigateur — première connexion, étapes cliquables,
+      guide joignable depuis la navigation, sélecteur d'OS visible.
+
+
+
+### R51 — La page qui donne la valeur · P2
+
+`src/dashboard/utils/ui.py:83` — `secondary_analyses()` a été écrit **explicitement pour la
+remarque de GRiNCH du 2026-08-12** (le commentaire du fichier la cite mot pour mot) et
+applique « une décision par écran ». Il est utilisé sur 4 sites et sur **aucune** des cinq
+vues les plus denses : `trigger_algo` (15 graphiques + jusqu'à 17 jauges ≈ **35 figures**),
+`data_wrapped` (9), `meta_creatives` (8), `meta_ads_overview` (8), `revenue_forecast` (6).
+C'est donc **appliquer un motif existant**, pas en inventer un.
+
+L'accueil, lui, est un tableau d'état : **0 graphique**, 4 tuiles, 9 cartes de statut DAG.
+Il dit si la machine tourne, pas ce que l'artiste doit faire. Few : un tableau de bord tient
+dans un coup d'œil et sert de **rampe de lancement**. Knaflic : désencombrer ne suffit pas,
+il faut ensuite **montrer où regarder**.
+
+- [x] **R51** — appliquer `secondary_analyses()` aux cinq vues denses ; concevoir une page
+      récap de 3 à 5 visuels répondant chacun à « dois-je faire quelque chose ? » ; déplacer
+      Export PDF et Export CSV, aujourd'hui entrées **n°2 et n°3** de la navigation, avant
+      le guide et les credentials — alors que `app.py:180` annonce « Order = user journey ».
+      Ajouter la section PDF « 30 premiers jours vs actuel » sur le taux de trigger
+      (**métrique à préciser**).
+
+
+
+### R52 — Débloquer les deux artistes en test · P2
+
+**GRiNCH / SoundCloud.** La fonctionnalité « Mes titres hébergés sur d'autres comptes »
+**existe et fonctionne de bout en bout** (widget, `track_platform_link`, `migrations/074`,
+consommation par le collecteur). Quatre défauts autour : le message d'erreur dit « ci-dessous »
+alors que le widget est rendu **au-dessus** ; pas d'exemple d'URL ; `_claimed_count` a besoin
+de `fields['_artist_id']`, injecté seulement dans l'interface — donc `artist_preflight` et la
+sonde nocturne obtiennent **0** et rendent un rouge **à tort** ; et un **trou réel** : un
+artiste **sans compte SoundCloud du tout** n'est jamais collecté, `soundcloud_daily.py:134`
+le saute avant de lire ses déclarations.
+
+**Benj / CSV.** Causes probables, par fréquence : séparateur `;` (**non supporté** — seuls
+`,` et la tabulation sont testés), ligne de préambule au-dessus des en-têtes, `.xlsx`
+non-SACEM, en-tête localisé. Et une **contradiction réelle** : un export `songs-all` est
+*détecté* par son nom de fichier (règle 6) puis **rejeté** par `_detect_window`
+(`s4a_csv_parser.py:99`).
+
+- [x] **R52** — corriger les quatre défauts SoundCloud ; passer le fichier de Benj dans
+      `_detect_platform` **quand il arrive** et corriger la règle qui l'a manqué, pas
+      deviner ; nommer la raison du refus (le séparateur n'est jamais mentionné).

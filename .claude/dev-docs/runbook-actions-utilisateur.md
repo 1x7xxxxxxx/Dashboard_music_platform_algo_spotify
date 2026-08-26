@@ -367,3 +367,34 @@ substitut.
 **R2** (landing + pixel + CAPI) démarre avec la **première campagne**, pas avant — voir
 `docs/adr/ADR-008`. Retiens seulement ceci : l'attribution est la seule partie qui a une
 échéance, parce que `_fbp`/`_fbc` et les UTM ne se récupèrent pas rétroactivement.
+
+## 9. R55 — Choisir la métrique « 30 premiers jours vs actuel » · P3
+
+Écrit le 2026-08-26, en fermant R51. La brique demandait une section du PDF comparant
+les 30 premiers jours d'un titre à son état actuel « sur le taux de trigger », et
+laissait la métrique **à préciser**. Ce n'est pas un oubli qu'on peut combler en lisant
+le code : « taux de trigger » désigne trois grandeurs différentes, déjà toutes
+calculables, et elles ne racontent pas la même histoire.
+
+### Les trois candidates
+
+| | Ce qu'elle dit | Ce qu'elle cache |
+|---|---|---|
+| **A. Part des titres ayant franchi ≥1 porte** | « 4 titres sur 10 sont entrés dans un algorithme » — la plus lisible pour un artiste | Un titre entré dans Discover Weekly compte comme un titre entré dans Radio ; l'intensité disparaît |
+| **B. Nombre moyen de portes par titre** | L'intensité de la poussée algorithmique | Une moyenne sur peu de titres bouge énormément — c'est le défaut « 66,7 % sur 3 titres » déjà corrigé dans ce PDF le 2026-08-24 |
+| **C. Délai médian avant la première porte** | La vitesse de réaction de l'algorithme, la plus actionnable pour décider **quand** pousser | Muette sur les titres qui n'ont jamais déclenché ; une médiane sur des données censurées ment |
+
+### Le geste
+
+Réponds par **A**, **B** ou **C** (ou décris la tienne). C'est tout — la construction
+suit, y compris le garde qui empêchera d'afficher un panier vide comme un 0 %, comme
+pour les portes algorithmiques.
+
+### Vérification
+
+```bash
+python3 -m pytest tests/test_the_pdf_says_what_the_screen_says.py -q
+```
+
+Et l'existence de la section dans le PDF rendu : `python3 -m src.dashboard.utils.pdf_exporter --artist <id>`
+puis ouvrir le fichier — le rendu, pas la config.

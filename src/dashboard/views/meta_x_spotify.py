@@ -56,7 +56,7 @@ def _show_body(db, artist_id):
                        "ORDER BY MAX(day_date) DESC NULLS LAST")  # campagne la plus récente en haut
         camp_list_df = db.fetch_df(q_camp_list, (artist_id, *_acct_params))
         available_campaigns = camp_list_df['campaign_name'].tolist()
-    except:
+    except Exception:
         available_campaigns = []
 
     # --- SÉLECTEUR CAMPAGNE ---
@@ -109,7 +109,7 @@ def _show_body(db, artist_id):
         else:
             st.warning(t("meta_x_spotify.no_linked_track",
                          "⚠️ Pas de titre associé. Configurez le lien en haut de page."))
-    except: pass
+    except Exception: pass
 
     # =========================================================================
     # 3. RÉCUPÉRATION DES DONNÉES
@@ -133,7 +133,7 @@ def _show_body(db, artist_id):
     """
     try:
         df_hypeddit = db.fetch_df(q_hypeddit, (artist_id, selected_campaign, start_date, end_date))
-    except:
+    except Exception:
         df_hypeddit = pd.DataFrame()
 
     # C. SPOTIFY
@@ -158,7 +158,7 @@ def _show_body(db, artist_id):
                 WHERE artist_id = %s AND TRIM(track_name) = %s AND date >= %s AND date <= %s
             """
             df_pop = db.fetch_df(q_pop, (artist_id, mapped_track.strip(), start_date, end_date))
-        except: df_pop = pd.DataFrame()
+        except Exception: df_pop = pd.DataFrame()
 
         if not df_streams.empty:
             df_spotify = df_streams.copy()

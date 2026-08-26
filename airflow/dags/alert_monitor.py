@@ -22,6 +22,7 @@ sys.path.insert(0, '/opt/airflow')
 # Redact credentials out of any exception this module logs: an HTTP
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
+from src.utils.diagnosis_text import as_html
 from src.utils.safe_error import redact, safe_error
 
 import os
@@ -86,6 +87,42 @@ default_args = {
 # Task 1 — Credential audit across all active artists
 # ─────────────────────────────────────────────────────────────────
 
+def _mirrored_identities(artist_id: int) -> dict:
+    """{logical_platform: value} for the identities also kept on `saas_artists`.
+
+    Derived from `IDENTITY_MIRRORS` rather than naming `spotify_artist_id` here: the
+    registry already declares which platforms mirror and onto which column, and a
+    sixth hand-written copy of that fact is what `declared_identities` was missing.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.tenant_identity import IDENTITY_MIRRORS
+
+    if not IDENTITY_MIRRORS:
+        return {}
+    cols = sorted(set(IDENTITY_MIRRORS.values()))
+    # Column names come from the registry, never from user input — but they are
+    # interpolated, so they are checked against the table's own allowlist first
+    # (cross-cutting rule #8).
+    allowed = frozenset({"spotify_artist_id"})
+    unknown = [c for c in cols if c not in allowed]
+    if unknown:
+        logger.error("unknown mirror column(s) %s — not querying", unknown)
+        return {}
+    db = PostgresHandler()
+    try:
+        row = db.fetch_query(
+            f"SELECT {', '.join(cols)} FROM saas_artists WHERE id = %s", (artist_id,))
+    except Exception as e:  # noqa: BLE001 — an unreadable mirror is not a verdict
+        logger.error("mirror read failed for artist %s: %s", artist_id, type(e).__name__)
+        return {}
+    finally:
+        db.close()
+    if not row:
+        return {}
+    by_col = dict(zip(cols, row[0]))
+    return {logical: by_col.get(col) for logical, col in IDENTITY_MIRRORS.items()}
+
+
 def check_credentials_all(**context):
     """Check which artist×platform combinations have no credentials in DB."""
     from src.utils.credential_loader import get_active_artists, load_platform_credentials
@@ -119,7 +156,11 @@ def check_credentials_all(**context):
             except Exception as e:  # noqa: BLE001 — one unreadable row, not the fleet
                 logger.error("credential read failed for %s / %s: %s",
                              artist_name, platform, type(e).__name__)
-        declared = declared_identities(extra_by_platform)
+        # The mirrored identities too. `artist_readiness` has always honoured
+        # `saas_artists.spotify_artist_id`; this check did not, so the owner — whose
+        # Spotify id lives ONLY on the mirror — was reported as missing a credential
+        # he has. Two readers of one question must not answer differently.
+        declared = declared_identities(extra_by_platform, _mirrored_identities(artist_id))
 
         for platform in platforms:
             if platform in declared:
@@ -322,6 +363,9 @@ def check_data_freshness(**context):
             # months.
             'error': r.get('error'),
             'measured_on': r.get('measured_on'),
+            # Third field this hop has to carry for the email to name a real action.
+            # The two before it were dropped here and each cost a wrong instruction.
+            'fed_by': r.get('fed_by'),
         })
 
     context['task_instance'].xcom_push(key='freshness_results', value=serializable)
@@ -896,6 +940,10 @@ def check_onboarding_readiness(**context):
                 for m in readiness_stalled_flags(db, aid):
                     stalled.append({'artist_id': aid, 'artist_name': name,
                                     'platform': m['label'],
+                                    # The LOGICAL key too, not only the label. The
+                                    # credentials section keys on it to avoid saying
+                                    # the same fact twice — see `already_stated`.
+                                    'key': m['key'],
                                     'next_action': m['next_action']})
             except Exception as e:  # per-artist isolation
                 logger.error(f"Readiness check failed for {name} (id={aid}): {safe_error(e)}")
@@ -1232,6 +1280,27 @@ def send_consolidated_alert(**context):
     contamination = ti.xcom_pull(
         task_ids='check_tenant_contamination', key='contamination') or []
 
+    # Both checks ask the SAME question — `readiness_stalled_flags` returns the
+    # platforms at TODO, `check_credentials_all` the ones absent from
+    # `declared_identities()`, and TODO *is* "no declared identity". So `stalled` is
+    # `missing_creds` restricted to accounts older than a week: a strict subset, by
+    # construction and not by coincidence. The mail of 2026-08-26 printed the
+    # intersection twice — 11 rows of 12 — under two different action wordings for
+    # one gesture, and counted them again in the subject.
+    #
+    # Subtracted rather than deduplicated away: the stalled section is kept because
+    # it names the exact field to fill, and what survives here is what it does NOT
+    # say — tonight, one line, and that line is the one worth a question.
+    already_stated = {(s_['artist_id'], s_.get('key')) for s_ in stalled_tenants}
+    _n_before = len(missing_creds)
+    missing_creds = [m for m in missing_creds
+                     if (m['artist_id'], m['platform']) not in already_stated]
+    # Say how many were removed, and never say it silently: a section that shrinks
+    # without explaining itself reads as coverage that got smaller.
+    _dropped = _n_before - len(missing_creds)
+    _stated_note = (f" ({_dropped} ligne(s) déjà dite(s) dans « Inscrits sans rien "
+                    f"connecter »)" if _dropped else "")
+
     stale_sources = [r for r in freshness if r['stale']]
     # `central_broken` and `canary` belong in this decision, not only in the body.
     # They were rendered at the bottom of this function and in the subject line, but
@@ -1318,7 +1387,16 @@ def send_consolidated_alert(**context):
                 colour = '#e67e22'
                 measured = ('date de la métrique' if r.get('measured_on') == 'metric'
                             else "date d'écriture")
-                action = f"Airflow UI → relancer le DAG correspondant ({measured})"
+                if r.get('fed_by') == 'csv':
+                    # Nothing arrives here until a human drops an export. Relaunching
+                    # the watcher over an empty dropbox is an action that cannot
+                    # change the state — and both stale sources of 2026-08-26 were of
+                    # this kind, so the mail named an impossible gesture twice out of
+                    # twice. ADR-011: an alert names a symptom AND a workable action.
+                    action = (f"Déposer un export {r['source']} — cette source attend "
+                              f"un CSV, relancer son DAG ne collecte rien ({measured})")
+                else:
+                    action = f"Airflow UI → relancer le DAG correspondant ({measured})"
             rows += f"""
             <tr>
               <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>{r['source']}</b></td>
@@ -1376,7 +1454,7 @@ def send_consolidated_alert(**context):
                 f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
                 f"<b>{f['step']}</b></td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>"
-                f"{f['reason']}</td></tr>"
+                f"{as_html(f['reason'])}</td></tr>"
             )
         sections.append(f"""
         <h2 style="color:#d35400;border-left:4px solid #d35400;padding-left:10px">
@@ -1408,7 +1486,7 @@ def send_consolidated_alert(**context):
                 f"<b>{escape(f['artist_name'])}</b> (id={f['artist_id']})</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>{f['platform']}</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#8e44ad'>"
-                f"{f['next_action']}</td></tr>"
+                f"{as_html(f['next_action'])}</td></tr>"
             )
         sections.append(f"""
         <h2 style="color:#8e44ad;border-left:4px solid #8e44ad;padding-left:10px">
@@ -1434,7 +1512,7 @@ def send_consolidated_alert(**context):
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>"
                 f"{'⚠️ sonde en échec' if f.get('status') == 'broken' else '🔴 aucune donnée'}</td>"
                 f"<td style='padding:6px 12px;border-bottom:1px solid #eee;color:#2980b9'>"
-                f"{f['next_action']}</td></tr>"
+                f"{as_html(f['next_action'])}</td></tr>"
             )
         sections.append(f"""
         <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
@@ -1469,6 +1547,9 @@ def send_consolidated_alert(**context):
         <h2 style="color:#8e44ad;border-left:4px solid #8e44ad;padding-left:10px">
           🔑 Credentials manquants ({len(missing_creds)})
         </h2>
+        <p style="font-size:0.85em;color:#777;margin:0 0 8px">
+          Hors ceux déjà listés ci-dessus{_stated_note} — même fait, même geste.
+        </p>
         <table style="border-collapse:collapse;width:100%;font-size:0.9em">
           <thead>
             <tr style="background:#faf5ff">
@@ -1534,7 +1615,7 @@ def send_consolidated_alert(**context):
               <td style="padding:6px 12px;border-bottom:1px solid #eee">
                 {b['artist_name']} <span style="color:#888">(id={b['artist_id']})</span>
               </td>
-              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b">{b['reason']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b">{as_html(b['reason'])}</td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#2980b9">
                 Stripe → Subscriptions + vérifier les webhooks récents
               </td>
@@ -1643,7 +1724,7 @@ def send_consolidated_alert(**context):
                 {f['status']}
               </td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#555">
-                {f['reason']}
+                {as_html(f['reason'])}
               </td>
             </tr>"""
 
@@ -1693,7 +1774,7 @@ def send_consolidated_alert(**context):
     central_html = ""
     if central_broken:
         rows = ''.join(
-            f"<li><b>{c['platform']}</b> — {c['reason']}</li>" for c in central_broken)
+            f"<li><b>{c['platform']}</b> — {as_html(c['reason'])}</li>" for c in central_broken)
         central_html = (
             '<div style="background:#fdecea;border-left:4px solid #c0392b;'
             'padding:12px 16px;margin:16px 0">'
@@ -1712,7 +1793,7 @@ def send_consolidated_alert(**context):
         # Its section sits next to the shared apps because both are fleet-wide.
         sections.append(
             "<h3>🐤 Canari — le locataire témoin ne collecte plus</h3><ul>"
-            + "".join(f"<li><b>{c['platform']}</b> — {c['reason']}</li>" for c in canary)
+            + "".join(f"<li><b>{c['platform']}</b> — {as_html(c['reason'])}</li>" for c in canary)
             + "</ul><p>Un signal global peut rester vert pendant que la chaîne "
               "<i>par locataire</i> est cassée : une source reste fraîche tant qu'UN "
               "locataire collecte, et c'est presque toujours l'admin. C'est exactement "

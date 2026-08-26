@@ -30,6 +30,16 @@ import warnings
 
 import pytest
 
+from tests.dep_gate import requires
+
+# Sans `apache-airflow` dans CET interpréteur, chacun des 16 imports échoue en
+# `ImportError: cannot import name 'DAG' from 'airflow'` — 16 rouges qui disent
+# « mauvais interpréteur », pas « DAG cassé ». Le piège : le dossier `airflow/` du
+# dépôt est capté comme paquet-espace-de-noms, donc l'erreur ressemble à une
+# installation corrompue. `dep_gate` distingue les deux, et `CI` ne peut pas
+# emprunter ce chemin (voir `test_ci_never_skips_a_dependency_gate`).
+pytestmark = requires("airflow")
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DAGS = ROOT / "airflow" / "dags"
 

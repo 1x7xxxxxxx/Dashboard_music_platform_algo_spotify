@@ -6,12 +6,15 @@ Depends on: artist_credentials table, saas_artists table
 Accessible via /?page=onboarding (authenticated route).
 """
 import json
+import logging
 
 import streamlit as st
 
+logger = logging.getLogger(__name__)
+
 from src.dashboard.utils import get_db_connection
 from src.utils.tenant_identity import declared_identities
-from src.dashboard.utils.i18n import t
+from src.dashboard.utils.i18n import get_lang, t
 from src.dashboard.auth import tenant_scope, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.content.platform_value import (
@@ -88,6 +91,30 @@ def _get_configured_platforms(artist_id: int, db) -> set[str]:
         return set()
 
 
+def _guide_pdf_bytes(lang: str) -> bytes | None:
+    """The onboarding guide as bytes, or None when it cannot be produced here.
+
+    R50: the guide existed ONLY as an attachment to the welcome e-mail. Mail closed,
+    guide gone — the same shape as the wizard that was itself reachable only from a
+    link in that mail. A document a person cannot fetch again is one they have lost.
+
+    Prefers the copy already rendered under `docs/guides/` and only renders when it is
+    absent: WeasyPrint is slow enough to be felt inside a Streamlit rerun, and it is an
+    optional dependency in some containers. A missing one must degrade to "no button",
+    never to a traceback on a new artist's first screen.
+    """
+    try:
+        from src.dashboard.guides.guide_pdf import build_guide_pdf, output_pdf_path
+        path = output_pdf_path(lang)
+        if path.exists():
+            return path.read_bytes()
+        return build_guide_pdf(lang).read_bytes()
+    except Exception as e:  # noqa: BLE001 — an absent guide is not a broken account
+        logger.warning("onboarding guide PDF unavailable (%s): %s",
+                       type(e).__name__, e)
+        return None
+
+
 def _step_welcome(plan: str) -> None:
     st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur streaMLytics !"))
     st.markdown(
@@ -95,6 +122,19 @@ def _step_welcome(plan: str) -> None:
           "Votre compte a été créé avec le plan **{plan}**. "
           "Voici ce qui est inclus dans votre plan actuel :").format(plan=plan.capitalize())
     )
+
+    # The guide, fetchable. It shipped only as an e-mail attachment, so an artist who
+    # lost that mail had no way back to it (R50).
+    _pdf = _guide_pdf_bytes(get_lang())
+    if _pdf:
+        st.download_button(
+            t("onboarding.download_guide",
+              "📄 Télécharger le guide de mise en route (PDF)"),
+            data=_pdf,
+            file_name=f"streamlytics-guide-{get_lang()}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible

@@ -58,8 +58,21 @@ class DistroKidParser:
 
     @staticmethod
     def _sniff_sep(text: str) -> str:
-        first_line = text.split('\n', 1)[0]
-        return '\t' if first_line.count('\t') > first_line.count(',') else ','
+        """Delegates to the one sniffer. Kept as a name because callers use it.
+
+        Its own version knew only tab-vs-comma, so a `;` export — what Excel writes
+        on a French-locale machine — read as one column here too. Two readers of one
+        question is the shape that let the S4A gap live undetected; this one now
+        agrees by construction. A file that cannot be decided keeps the previous
+        behaviour and falls back to a comma, because this parser's caller already
+        treats an unparseable frame as a read failure.
+        """
+        from src.transformers.csv_dialect import (
+            AmbiguousSeparatorError, sniff_separator)
+        try:
+            return sniff_separator(text)
+        except AmbiguousSeparatorError:
+            return ','
 
     def to_dataframe(self, raw: bytes) -> Optional[pd.DataFrame]:
         """bytes → DataFrame, or None when undecodable/unreadable."""

@@ -13,7 +13,7 @@ def parse_duration(duration_str):
         if not duration_str: return 0
         td = isodate.parse_duration(duration_str)
         return td.total_seconds()
-    except:
+    except Exception:
         return 0
 
 def show():
