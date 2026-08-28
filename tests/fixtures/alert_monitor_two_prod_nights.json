@@ -1,0 +1,432 @@
+{
+ "scheduled__2026-08-25T23:00:00+00:00": {
+  "check_dag_failures.failing_dags": {},
+  "check_billing_sync.billing_issues": [],
+  "check_canary_health.canary_problems": [],
+  "check_row_dips.row_dips": [],
+  "check_resurrection_sparks.resurrection_sparks": [],
+  "check_data_freshness.freshness_results": [
+   {
+    "source": "Spotify API",
+    "last_dt": "2026-08-26 09:00:01.999795",
+    "age_h": 16.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "metric",
+    "fed_by": "dag"
+   },
+   {
+    "source": "Spotify S4A",
+    "last_dt": "2026-06-07 00:00:00",
+    "age_h": 1945.0,
+    "stale": true,
+    "stale_h": 168,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "metric",
+    "fed_by": "csv"
+   },
+   {
+    "source": "YouTube",
+    "last_dt": "2026-08-26 10:00:04.937036",
+    "age_h": 15.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "dag"
+   },
+   {
+    "source": "SoundCloud",
+    "last_dt": "2026-08-26 11:00:09.052018",
+    "age_h": 14.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "dag"
+   },
+   {
+    "source": "Instagram",
+    "last_dt": "2026-08-26 12:00:02.791877",
+    "age_h": 13.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "dag"
+   },
+   {
+    "source": "Apple Music",
+    "last_dt": "2026-06-15 20:13:56.194662",
+    "age_h": 1732.8,
+    "stale": true,
+    "stale_h": 168,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "csv"
+   },
+   {
+    "source": "Meta Ads",
+    "last_dt": "2024-09-30 00:00:00",
+    "age_h": 16705.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": "no ACTIVE campaign (34 known, none running) — Meta Ads insights only exist while ads run, so this silence is expected",
+    "error": null,
+    "measured_on": "metric",
+    "fed_by": "dag"
+   }
+  ],
+  "check_data_freshness.tenant_freshness_gaps": [
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "stale_sources": [
+     "Meta Ads"
+    ]
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "stale_sources": [
+     "SoundCloud"
+    ]
+   }
+  ],
+  "check_collection_outcomes.collection_failures": [
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "meta",
+    "dag_id": "meta_ads_api_daily",
+    "status": "failed",
+    "reason": "RuntimeError: Meta collect: 1/1 ad account(s) failed for artist_id=12 — act_65390907 (FacebookRequestError). 0 insight rows were still written by the accounts that worked.",
+    "when": "2026-08-26 07:02:16.102309"
+   }
+  ],
+  "check_drift_anomalies.drift_anomalies": [],
+  "check_central_apps.central_apps_broken": [],
+  "check_tenant_contamination.contamination": [],
+  "check_row_anomalies.row_anomalies": [],
+  "check_onboarding_readiness.onboarding_red_flags": [
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "📱 Meta Ads",
+    "status": "no_data",
+    "next_action": "Compte publicitaire **act_65390907** inaccessible avec l'app partagée : (#200) Ad account owner has NOT grant ads_management or ads_read permission, refer to https://developers.facebook.com/docs/marketing-api/get-started/authorization/#permissions-and-features for details\n\n→ Cause la plus fréquente : le compte n'a pas été **partagé** avec l'app (Business Manager → Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → Ajouter des assets → Compte publicitaire, permission Annonceur).",
+    "probe_ran": true
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "☁️ SoundCloud",
+    "status": "no_data",
+    "next_action": "User ID 72854583 joignable, mais **aucun titre public** n'y est rattaché — il n'y aura donc rien à collecter. Deux cas :\n\n• **Tes sorties paraissent sous un label ou un autre compte** → déclare-les dans la section **« Mes titres hébergés sur d'autres comptes »**, plus haut dans cet onglet. Colle l'URL de chaque titre, une par ligne.\n• **Sinon** → vérifie que c'est bien l'ID de TON profil et que tes titres sont en **public** (et non privés ou en écoute restreinte).",
+    "probe_ran": true
+   }
+  ],
+  "check_onboarding_readiness.onboarding_stalled": [
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "☁️ SoundCloud",
+    "key": "soundcloud",
+    "next_action": "Renseigne ton User ID SoundCloud numérique."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "🎵 Spotify",
+    "key": "spotify",
+    "next_action": "Renseigne l'URL de ta page Spotify Artist."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "🎬 YouTube",
+    "key": "youtube",
+    "next_action": "Renseigne ton Channel ID (UC…)."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "📱 Meta Ads",
+    "key": "meta",
+    "next_action": "Renseigne ton Ad Account ID."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "📸 Instagram",
+    "key": "instagram",
+    "next_action": "Renseigne ton Instagram Business Account ID."
+   },
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "🎵 Spotify",
+    "key": "spotify",
+    "next_action": "Renseigne l'URL de ta page Spotify Artist."
+   },
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "📸 Instagram",
+    "key": "instagram",
+    "next_action": "Renseigne ton Instagram Business Account ID."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "🎵 Spotify",
+    "key": "spotify",
+    "next_action": "Renseigne l'URL de ta page Spotify Artist."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "🎬 YouTube",
+    "key": "youtube",
+    "next_action": "Renseigne ton Channel ID (UC…)."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "📱 Meta Ads",
+    "key": "meta",
+    "next_action": "Renseigne ton Ad Account ID."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "📸 Instagram",
+    "key": "instagram",
+    "next_action": "Renseigne ton Instagram Business Account ID."
+   }
+  ],
+  "check_canary_preflight.canary_preflight": []
+ },
+ "scheduled__2026-08-26T23:00:00+00:00": {
+  "check_resurrection_sparks.resurrection_sparks": [],
+  "check_row_dips.row_dips": [],
+  "check_data_freshness.freshness_results": [
+   {
+    "source": "Spotify API",
+    "last_dt": "2026-08-27 09:00:01.617047",
+    "age_h": 16.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "metric",
+    "fed_by": "dag"
+   },
+   {
+    "source": "Spotify S4A",
+    "last_dt": "2026-06-07 00:00:00",
+    "age_h": 1969.0,
+    "stale": true,
+    "stale_h": 168,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "metric",
+    "fed_by": "csv"
+   },
+   {
+    "source": "YouTube",
+    "last_dt": "2026-08-27 10:00:04.952224",
+    "age_h": 15.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "dag"
+   },
+   {
+    "source": "SoundCloud",
+    "last_dt": "2026-08-27 11:00:09.869356",
+    "age_h": 14.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "dag"
+   },
+   {
+    "source": "Instagram",
+    "last_dt": "2026-08-27 12:00:03.332070",
+    "age_h": 13.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "dag"
+   },
+   {
+    "source": "Apple Music",
+    "last_dt": "2026-06-15 20:13:56.194662",
+    "age_h": 1756.8,
+    "stale": true,
+    "stale_h": 168,
+    "expected_silence": null,
+    "error": null,
+    "measured_on": "write",
+    "fed_by": "csv"
+   },
+   {
+    "source": "Meta Ads",
+    "last_dt": "2024-09-30 00:00:00",
+    "age_h": 16729.0,
+    "stale": false,
+    "stale_h": 48,
+    "expected_silence": "no ACTIVE campaign (34 known, none running) — Meta Ads insights only exist while ads run, so this silence is expected",
+    "error": null,
+    "measured_on": "metric",
+    "fed_by": "dag"
+   }
+  ],
+  "check_data_freshness.tenant_freshness_gaps": [
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "stale_sources": [
+     "Meta Ads"
+    ]
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "stale_sources": [
+     "SoundCloud"
+    ]
+   }
+  ],
+  "check_billing_sync.billing_issues": [],
+  "check_drift_anomalies.drift_anomalies": [],
+  "check_row_anomalies.row_anomalies": [],
+  "check_canary_preflight.canary_preflight": [],
+  "check_canary_health.canary_problems": [],
+  "check_dag_failures.failing_dags": {},
+  "check_collection_outcomes.collection_failures": [
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "meta",
+    "dag_id": "meta_ads_api_daily",
+    "status": "failed",
+    "reason": "RuntimeError: Meta collect: 1/1 ad account(s) failed for artist_id=12 — act_65390907 (FacebookRequestError). 0 insight rows were still written by the accounts that worked.",
+    "when": "2026-08-27 07:02:06.017601"
+   }
+  ],
+  "check_tenant_contamination.contamination": [],
+  "check_central_apps.central_apps_broken": [],
+  "check_onboarding_readiness.onboarding_red_flags": [
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "📱 Meta Ads",
+    "status": "no_data",
+    "next_action": "Compte publicitaire **act_65390907** inaccessible avec l'app partagée : (#200) Ad account owner has NOT grant ads_management or ads_read permission, refer to https://developers.facebook.com/docs/marketing-api/get-started/authorization/#permissions-and-features for details\n\n→ Cause la plus fréquente : le compte n'a pas été **partagé** avec l'app (Business Manager → Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business Assets → Ajouter des assets → Compte publicitaire, permission Annonceur).",
+    "probe_ran": true
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "☁️ SoundCloud",
+    "status": "no_data",
+    "next_action": "User ID 72854583 joignable, mais **aucun titre public** n'y est rattaché — il n'y aura donc rien à collecter. Deux cas :\n\n• **Tes sorties paraissent sous un label ou un autre compte** → déclare-les dans la section **« Mes titres hébergés sur d'autres comptes »**, plus haut dans cet onglet. Colle l'URL de chaque titre, une par ligne.\n• **Sinon** → vérifie que c'est bien l'ID de TON profil et que tes titres sont en **public** (et non privés ou en écoute restreinte).",
+    "probe_ran": true
+   }
+  ],
+  "check_onboarding_readiness.onboarding_stalled": [
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "☁️ SoundCloud",
+    "key": "soundcloud",
+    "next_action": "Renseigne ton User ID SoundCloud numérique."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "🎵 Spotify",
+    "key": "spotify",
+    "next_action": "Renseigne l'URL de ta page Spotify Artist."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "🎬 YouTube",
+    "key": "youtube",
+    "next_action": "Renseigne ton Channel ID (UC…)."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "📱 Meta Ads",
+    "key": "meta",
+    "next_action": "Renseigne ton Ad Account ID."
+   },
+   {
+    "artist_id": 11,
+    "artist_name": "Cuzebo",
+    "platform": "📸 Instagram",
+    "key": "instagram",
+    "next_action": "Renseigne ton Instagram Business Account ID."
+   },
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "🎵 Spotify",
+    "key": "spotify",
+    "next_action": "Renseigne l'URL de ta page Spotify Artist."
+   },
+   {
+    "artist_id": 12,
+    "artist_name": "Benken",
+    "platform": "📸 Instagram",
+    "key": "instagram",
+    "next_action": "Renseigne ton Instagram Business Account ID."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "🎵 Spotify",
+    "key": "spotify",
+    "next_action": "Renseigne l'URL de ta page Spotify Artist."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "🎬 YouTube",
+    "key": "youtube",
+    "next_action": "Renseigne ton Channel ID (UC…)."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "📱 Meta Ads",
+    "key": "meta",
+    "next_action": "Renseigne ton Ad Account ID."
+   },
+   {
+    "artist_id": 13,
+    "artist_name": "GRiNCH",
+    "platform": "📸 Instagram",
+    "key": "instagram",
+    "next_action": "Renseigne ton Instagram Business Account ID."
+   }
+  ]
+ }
+}

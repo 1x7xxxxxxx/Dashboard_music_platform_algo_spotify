@@ -108,7 +108,12 @@ def _mirrored_identities(artist_id: int) -> dict:
     if unknown:
         logger.error("unknown mirror column(s) %s — not querying", unknown)
         return {}
-    db = PostgresHandler()
+    # `PostgresHandler()` takes five required arguments; the zero-argument form shipped
+    # on 2026-08-26 and raised TypeError on the first nightly run, two nights running.
+    # `from_env_or_config()` is the door that works inside Airflow — the scheduler gets
+    # DATABASE_HOST and no DATABASE_URL, which is exactly the case its middle step
+    # was added for. Guard: tests/test_a_handler_is_built_with_its_arguments.py
+    db = PostgresHandler.from_env_or_config()
     try:
         row = db.fetch_query(
             f"SELECT {', '.join(cols)} FROM saas_artists WHERE id = %s", (artist_id,))
@@ -1213,7 +1218,7 @@ def _record_quiet_run():
         return None
 
 
-def _record_alert_attempt(subject: str, issues_count: int):
+def _record_alert_attempt(subject: str, issues_count: int, digest: str = None):
     """Open a `monitoring_run` row before attempting delivery. Never raises.
 
     Bookkeeping must not be able to block the alert: if this fails we log and return
@@ -1225,14 +1230,66 @@ def _record_alert_attempt(subject: str, issues_count: int):
         db = PostgresHandler.from_env_or_config()
         try:
             rows = db.fetch_query(
-                "INSERT INTO monitoring_run (subject, issues_count, delivery_expected) "
-                "VALUES (%s, %s, TRUE) RETURNING id", (subject, issues_count))
+                "INSERT INTO monitoring_run (subject, issues_count, delivery_expected, "
+                "findings_digest) VALUES (%s, %s, TRUE, %s) RETURNING id",
+                (subject, issues_count, digest))
             return rows[0][0]
         finally:
             db.close()
     except Exception as e:  # noqa: BLE001 — see docstring
         logger.error("could not open the alert-delivery ledger row: %s", safe_error(e))
         return None
+
+
+def _last_delivered_digest():
+    """(findings_digest, run_at) of the last alert that actually LEFT, or (None, None).
+
+    `WHERE delivered` is load-bearing twice over. A suppressed night must not become
+    the comparison point — the silence window would re-arm itself every night and
+    never close again — and neither must a FAILED delivery, whose findings nobody
+    ever read.
+
+    Any failure here returns (None, None), which makes the caller send. Bookkeeping
+    that cannot be read is a reason to mail, never a reason to stay quiet.
+    """
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+        try:
+            rows = db.fetch_query(
+                "SELECT findings_digest, run_at FROM monitoring_run "
+                "WHERE delivered AND findings_digest IS NOT NULL "
+                "ORDER BY run_at DESC LIMIT 1")
+            return (rows[0][0], rows[0][1]) if rows else (None, None)
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001 — see docstring
+        logger.error("could not read the last delivered digest: %s", safe_error(e))
+        return (None, None)
+
+
+def _record_suppressed_repeat(subject: str, issues_count: int, digest: str, why: str):
+    """Record a night whose findings were identical to the last delivered mail.
+
+    `delivery_expected = FALSE` on purpose, exactly like a quiet night: no mail was
+    owed, so `tools/infra_health_cron.sh` — which reads the latest row and escalates
+    `expected AND NOT delivered` — must not read a suppression as an alert-channel
+    outage. The row still exists, so "nothing changed" and "the scheduler never ran"
+    stay distinguishable, which is the whole point of migration 073.
+    """
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+        try:
+            db.execute_query(
+                "INSERT INTO monitoring_run (subject, issues_count, delivery_expected, "
+                "delivered, delivery_error, findings_digest) "
+                "VALUES (%s, %s, FALSE, FALSE, %s, %s)",
+                (f"(répétition non envoyée) {subject}", issues_count, why, digest))
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001
+        logger.error("could not record the suppressed repeat: %s", safe_error(e))
 
 
 def _close_alert_attempt(run_id, delivered: bool, error) -> None:
@@ -1254,6 +1311,7 @@ def _close_alert_attempt(run_id, delivered: bool, error) -> None:
 
 def send_consolidated_alert(**context):
     """Assemble one email with all findings: failures, freshness, missing creds."""
+    from src.utils.alert_repetition import findings_digest, suppression_reason
     from src.utils.email_alerts import AlertDeliveryError, deliver_or_raise
 
     ti = context['task_instance']
@@ -1890,7 +1948,29 @@ def send_consolidated_alert(**context):
     # survives exactly the SMTP outage that silenced us) sees the failure. A row
     # written only after a successful send would leave no trace of the one case that
     # matters.
-    run_id = _record_alert_attempt(subject, len(sections))
+    # Is this the same mail as the last one that actually left? Computed on the
+    # findings, not on the subject: the subject truncates to three names and a "+2",
+    # so two genuinely different nights can share one. Measured 2026-08-28 — the runs
+    # of 25 and 26 August differ only by `age_h` and `when`, both of which move on
+    # their own; the findings, the tenants and the gestures were word-for-word equal.
+    digest = findings_digest({
+        'failing_dags': failing_dags, 'stale_sources': stale_sources,
+        'missing_creds': missing_creds, 'sparks': sparks, 'drift': drift,
+        'billing_issues': billing_issues, 'row_anomalies': row_anomalies,
+        'row_dips': row_dips, 'tenant_gaps': tenant_gaps,
+        'central_broken': central_broken, 'canary': canary,
+        'readiness_flags': readiness_flags, 'stalled_tenants': stalled_tenants,
+        'canary_preflight': canary_preflight,
+        'collection_failures': collection_failures, 'contamination': contamination,
+    })
+    _last_digest, _last_at = _last_delivered_digest()
+    suppressed = suppression_reason(digest, _last_digest, _last_at)
+    if suppressed:
+        _record_suppressed_repeat(subject, len(sections), digest, suppressed)
+        logger.info("✉️  not re-sent (%s): %s", suppressed, subject)
+        return
+
+    run_id = _record_alert_attempt(subject, len(sections), digest)
     try:
         deliver_or_raise(subject, body)
     except AlertDeliveryError as exc:
