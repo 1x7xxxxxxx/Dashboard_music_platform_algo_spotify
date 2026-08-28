@@ -15,7 +15,12 @@ name: Prod — Daily health check
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # 06:00 UTC daily
+    # 06:17 et non 06:00. Mesuré le 2026-08-28 sur 38 exécutions : les écarts tenaient
+    # 22,7–25,4 h, sauf UN à **34,6 h** — un créneau entier abandonné, puis un run à
+    # 17:07. Le cron d'Actions est best-effort et les minutes rondes sont les plus
+    # demandées, donc les premières lâchées sous charge. Décaler ne garantit rien ;
+    # c'est `tests/test_the_monitor_itself_still_runs.py` qui garantit qu'on le SAURA.
+    - cron: "17 6 * * *"   # 06:17 UTC daily
   workflow_dispatch:
 
 jobs:

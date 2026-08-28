@@ -34,7 +34,15 @@ TESTS = ROOT / "tests"
 # Les SEULS fichiers autorisés à sortir sur le réseau. Un ajout ici se justifie dans
 # le message de commit : la question n'est pas « ce test a-t-il besoin du réseau ? »
 # mais « son objet EST-IL le réseau ? ».
-_ALLOWED_REAL_HTTP = {"test_prod_health.py"}
+_ALLOWED_REAL_HTTP = {
+    "test_prod_health.py",
+    # Ajouté le 2026-08-28, et il passe le critère ci-dessus : son objet est une
+    # observation qui n'existe QUE sur le réseau — « le workflow planifié a-t-il
+    # tourné ? » ne se répond nulle part dans ce dépôt, l'état vit chez GitHub.
+    # Il est de surcroît borné par construction : sans `GITHUB_TOKEN` il saute, donc
+    # il ne sort jamais depuis un poste de développement, seulement en CI.
+    "test_the_monitor_itself_still_runs.py",
+}
 
 
 def _marked_real_http(path: pathlib.Path) -> bool:

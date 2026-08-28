@@ -211,6 +211,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [state-file-accumulates-its-own-history](#state-file-accumulates-its-own-history) | P3 | deterministic | guarded | none |
 | [dev-doc-nothing-points-at](#dev-doc-nothing-points-at) | P3 | deterministic | guarded | none |
 | [code-ships-without-a-trace](#code-ships-without-a-trace) | P3 | deterministic | guarded | none |
+| [the-watcher-is-not-watched](#the-watcher-is-not-watched) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2611,3 +2612,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-28
 - History:
   - 2026-08-28: un hook est du code et se teste comme du code. Les trois mutations qui l'ont validé — retirer `airflow/`, ne réclamer que le journal, se taire dès qu'UNE trace existe — sont exactement les trois façons dont il se serait affaibli sans bruit.
+
+## the-watcher-is-not-watched
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un contrôle planifié cesse de tourner et tout reste vert, parce que rien ne surveille le surveillant. L'absence d'échec est lue comme une absence de problème, alors qu'elle est l'absence de la question.
+- root_cause: `.github/workflows/prod-health.yml` est planifié à 06:00 UTC et rien ne vérifiait qu'il tournait. Mesuré le 2026-08-28 sur 38 exécutions depuis le 21 juillet : les écarts tenaient 22,7–25,4 h, sauf **un à 34,6 h** — un créneau entier abandonné, puis un run à 17:07 au lieu de 06:00. Le cron de GitHub Actions est best-effort. Ce workflow porte les 16 sondes de `test_prod_health.py`, qui tournent **là et nulle part ailleurs** : c'est la seule surface qui regarde la production comme un vrai client, À TRAVERS Cloudflare. Tout le reste tourne sur la machine et est structurellement aveugle aux régressions d'edge, de certificat, de DNS et de routage — le 403 Bot Fight Mode du 2026-06-14 sur le webhook Stripe l'a prouvé.
+- signature: `python3 -m pytest tests/test_the_monitor_itself_still_runs.py -q`
+- long_term_fix: `tests/test_the_monitor_itself_still_runs.py` interroge l'API Actions et échoue au-delà de 30 h. Il vit dans la SUITE et non dans un second cron : un cron qui en surveille un autre partage le mode de panne surveillé, tandis que la CI se déclenche à chaque push. `GITHUB_TOKEN` est injecté d'office par Actions — aucun secret créé, aucune surface ouverte. Hors CI, il saute bruyamment : sans jeton la question n'existe pas, et inventer une réponse serait pire que rien. La planification est par ailleurs décalée à 06:17 : les minutes rondes sont les plus demandées, donc les premières lâchées — ça ne garantit rien, c'est le garde qui garantit qu'on le saura.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_monitor_itself_still_runs.py }
+- rex_ref: .github/workflows/prod-health.yml
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: le seuil a d'abord été écrit **à l'instinct, à 36 h — il n'aurait déclenché 0 fois sur 37 écarts.** Un plafond au-dessus du pire événement jamais survenu n'est pas un plafond. Lire la distribution avant de figer a donné 30 h : déclenche exactement une fois, sur la seule vraie anomalie, avec 4,6 h de marge au-dessus du deuxième plus grand écart. Le test épingle la DISTRIBUTION (médiane 24,0 · 2ᵉ 25,4 · max 34,6) et non la constante — asserter `_MAX_AGE_H == 30` aurait été tout aussi vert à 36.
+  - 2026-08-28: le diagnostic initial disait « 30 h sans run » ; c'était de l'arithmétique, pas une mesure (17:07 → 12:10 fait 19 h). La vraie anomalie était l'écart de 34,6 h de la veille, et elle n'est apparue qu'en tirant toute la distribution.

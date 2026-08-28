@@ -5,6 +5,47 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-28 (surveillant) — Un plafond au-dessus du pire événement n'est pas un plafond
+
+**Contexte** : mettre en place ce qui restait proposé. Le point ouvert était le cron
+`prod-health.yml`, qui porte les 16 sondes regardant la production **à travers
+Cloudflare** — la seule couche que rien d'autre ne couvre.
+
+**What changed** :
+- **`tests/test_the_monitor_itself_still_runs.py`** interroge l'API Actions et échoue
+  si le workflow n'a pas tourné depuis 30 h. Il vit dans la SUITE, pas dans un second
+  cron : un cron qui en surveille un autre partage le mode de panne surveillé, alors que
+  la CI se déclenche à chaque push. `GITHUB_TOKEN` est injecté d'office par Actions —
+  **aucun secret créé, aucune surface ouverte**. Hors CI il saute : sans jeton la
+  question n'existe pas.
+- **Le seuil a d'abord été écrit à l'instinct, à 36 h. Il n'aurait déclenché 0 fois sur
+  37 écarts.** Lire la distribution avant de figer — 38 runs depuis le 21 juillet,
+  médiane 24,0 h, deuxième plus grand 25,4 h, un seul outlier à **34,6 h** — a donné
+  30 h : déclenche exactement une fois, sur la seule vraie anomalie, 4,6 h de marge
+  au-dessus du bruit normal. Le test épingle la DISTRIBUTION, pas la constante.
+- **Et mon diagnostic de départ était faux** : j'avais annoncé « 30 h sans run ».
+  C'était de l'arithmétique, pas une mesure — 17:07 → 12:10 fait 19 h. La vraie anomalie
+  était l'écart de 34,6 h de la veille, invisible tant qu'on ne tire pas toute la série.
+- **Planification décalée à 06:17** : les minutes rondes sont les plus demandées, donc
+  les premières lâchées sous charge. Ça ne garantit rien ; c'est le garde qui garantit
+  qu'on le saura.
+- **Un garde existant a attrapé mon nouveau test** : la frontière HTTP n'autorise qu'un
+  fichier à sortir sur le réseau. Inscrit avec sa justification, comme son commentaire
+  le prescrit — son objet EST une observation qui n'existe que sur le réseau.
+- **Graphe régénéré** : 5468 → **6393 nœuds / 12548 arêtes / 849 communautés**, chiffres
+  de `CLAUDE.md` corrigés. Et remesuré **après** régénération : **17 fichiers fantômes
+  (145 nœuds, 2 %)** subsistent — donc régénérer ne nettoie pas, et la mise en garde du
+  fichier est désormais adossée à une mesure fraîche plutôt qu'à celle du 23 août.
+
+**Le fil** : deux fois dans la même heure, un chiffre écrit d'instinct s'est révélé faux
+— le seuil de 36 h, et le « 30 h sans run ». Les deux ont été corrigés par la même
+chose : tirer la série complète au lieu de regarder le dernier point.
+
+**Vérification** : 3428 passed / 25 skipped / 0 échec, ruff clean, 4 mutations vues
+rouges dont le seuil aveugle de 36 h. Classe `the-watcher-is-not-watched`.
+
+---
+
 ## 2026-08-28 (gardes docs) — Une prose ne se vérifie pas ; une prose ancrée se vérifie
 
 **Contexte** : quels gardes peuvent tenir les dev-docs à jour automatiquement. Tirés de

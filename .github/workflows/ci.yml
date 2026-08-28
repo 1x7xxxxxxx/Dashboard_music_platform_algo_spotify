@@ -187,6 +187,13 @@ jobs:
           # and the next person needing a key locally copies the one they can see.
           # A fresh key per run is the same one line and cannot be reused anywhere.
           FERNET_KEY: ${{ steps.ci_fernet.outputs.key }}
+          # Le jeton fourni d'office par Actions — aucun secret à créer, aucune
+          # permission ajoutée (lecture des runs du dépôt courant). Il n'active
+          # qu'une chose : tests/test_the_monitor_itself_still_runs.py, qui vérifie
+          # que `prod-health.yml` a réellement tourné. Ce garde vit ICI et pas dans
+          # un second cron, parce qu'un cron qui en surveille un autre partage le
+          # mode de panne surveillé ; la CI, elle, se déclenche à chaque push.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # --cov-report=xml: for codecov-style downstream tooling.
         # --cov-report=term-missing: visible in CI logs (line numbers of uncovered code).
         # No --cov-fail-under: measure first, gate later.
