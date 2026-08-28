@@ -207,6 +207,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [views-map-drifts-from-the-views](#views-map-drifts-from-the-views) | P3 | deterministic | guarded | none |
 | [selector-blind-to-the-import-prefix](#selector-blind-to-the-import-prefix) | P2 | deterministic | guarded | none |
 | [boundary-wider-than-its-docstring](#boundary-wider-than-its-docstring) | P2 | deterministic | guarded | none |
+| [resume-header-claims-what-the-index-denies](#resume-header-claims-what-the-index-denies) | P3 | deterministic | guarded | none |
+| [state-file-accumulates-its-own-history](#state-file-accumulates-its-own-history) | P3 | deterministic | guarded | none |
+| [dev-doc-nothing-points-at](#dev-doc-nothing-points-at) | P3 | deterministic | guarded | none |
+| [code-ships-without-a-trace](#code-ships-without-a-trace) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2551,3 +2555,59 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-28
 - History:
   - 2026-08-28: septième occurrence de « la portée d'un garde est le défaut » dans ce dépôt, et la première dans du code écrit le jour même, **en décrivant correctement la portée voulue dans le docstring**. Écrire l'intention ne l'implémente pas. Le module patché doit être interrogé (`_retry.time is time`), jamais supposé.
+
+## resume-header-claims-what-the-index-denies
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'en-tête d'un fichier d'état énumère des tâches comme restant à faire alors que le corps du même fichier les dit closes. Le lecteur ouvre sa séance avec cinq gestes en attente au lieu d'un.
+- root_cause: l'affirmation vivait en PROSE et rien ne pouvait la comparer à l'index. Mesuré le 2026-08-28 : `## 🔖 REPRISE` ouvrait sur « ne restent que des gestes humains : R1, R13, R17, R54, R55 » — R13 close le 22, R17 le 21, R55 le 26. Le tableau `🙋` du même fichier listait deux lignes. Seul l'en-tête n'avait pas suivi, et c'est la partie que `/resume` recopie sans la relire.
+- signature: `python3 -m pytest tests/test_the_resume_header_is_checked.py -q`
+- long_term_fix: donner à la prose un ANCRAGE lisible par machine — une ligne `<!-- reprise: open=R1 -->` qui porte la même affirmation sous une forme comparable aux deux tableaux d'index. Chercher des ids dans la prose ne marche pas : « ne restent que R13 » et « R13 est close » sont les mêmes jetons dans deux affirmations opposées, donc le prédicat déclencherait sur chaque phrase rétrospective honnête ou ne verrait rien — le piège `a-guards-scope-is-the-defect`, déjà payé six fois ici. **Une prose ne se vérifie pas ; une prose ancrée se vérifie.**
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_resume_header_is_checked.py }
+- rex_ref: .claude/dev-docs/roadmap/checklist.md
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: la leçon transférable dépasse la roadmap. Quand un document affirme quelque chose de vérifiable, l'affirmation doit exister sous une forme structurée À CÔTÉ de la prose. Le coût est une ligne ; le retour est qu'elle ne peut plus se périmer en silence.
+
+## state-file-accumulates-its-own-history
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: le fichier lu en PREMIER à chaque séance grossit sans fin parce qu'on empile les états successifs au lieu de les faire tourner. Le coût est payé à chaque ouverture, pour du contenu qui n'est plus vrai.
+- root_cause: rien ne bornait `checklist.md`. Mesuré le 2026-08-28 : **88 Ko, ~22 600 tokens, dont 72 % d'historique** — sept blocs REPRISE/Historique remontant au 21 août, **deux portant tous les deux « à lire EN PREMIER au `/resume` »** (ce qui ne peut pas être vrai des deux), plus deux sections dupliquées mot pour mot. Après rotation vers `archive.md` : 34 Ko.
+- signature: `python3 -m pytest tests/test_the_resume_header_is_checked.py -q`
+- long_term_fix: trois bornes structurelles — **un seul** bloc `## 🔖 REPRISE`, **zéro** bloc `## 🔖 Historique` dans le fichier actif, et un plafond d'octets (50 Ko). Le plafond est un filet grossier et c'est voulu : il ne juge pas le contenu, il rend le prochain empilement bruyant. La rotation se fait vers `archive.md`, jamais par suppression — `test_roadmap_two_files.py` échoue si la somme rétrécit.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_resume_header_is_checked.py }
+- rex_ref: .claude/dev-docs/roadmap/checklist.md
+- first_seen: 2026-08-28
+
+## dev-doc-nothing-points-at
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un document utile existe et reste introuvable, parce qu'aucun index ne le nomme. Symétriquement, des gabarits vides survivent des mois sans que personne s'en aperçoive.
+- root_cause: aucun contrôle d'atteignabilité. Mesuré le 2026-08-28 : **huit** fichiers de `.claude/dev-docs/` n'étaient nommés par rien hors de ce dossier. Quatre étaient des gabarits vides — `system-invariants.md` s'annonçait « Source of truth for thresholds, anti-patterns, and deployment rules » et ne contenait que des `TODO`, donc pire qu'absent : il aurait été cru. Deux décrivaient l'amorçage d'un AUTRE dépôt (`tools/setup-claude-code.sh` absent ici, `.claude/skills/domain_{1,2,3}.md` inexistants, trois agents cités qui ne sont aucun des huit). Et deux étaient utiles : `runbook-artist-test-session.md` est la procédure de **R1, la seule tâche ouverte**.
+- signature: `python3 -m pytest tests/test_every_dev_doc_is_reachable.py -q`
+- long_term_fix: chaque `.md` de `dev-docs/` doit être nommé par un fichier suivi hors de `dev-docs/roadmap/`. L'exclusion de la roadmap est ce qui rend le garde non vacuant : elle est réécrite chaque séance et mentionne tout au passage, donc la compter ferait passer des documents que nul index n'atteint. Le garde vérifie l'EXISTENCE d'un pointeur, jamais sa qualité — juger une description est infalsifiable et le test finirait supprimé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_dev_doc_is_reachable.py }
+- rex_ref: CLAUDE.md
+- first_seen: 2026-08-28
+
+## code-ships-without-a-trace
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une séance modifie du code de production et se termine sans entrée de journal ni mise à jour de roadmap. Le code part ; le raisonnement qui l'a produit ne reste nulle part.
+- root_cause: le rappel de fin de séance (`session_summary.check_config_devlog_sync`) ne surveillait que la CONFIGURATION Claude Code — `.claude/rules`, `tools`, `CLAUDE.md`, `.claude/hooks`, `.claude/skills`. **`src/` et `airflow/` en étaient absents**, donc la séance dont l'oubli coûte le plus cher ne déclenchait rien. Il comparait de surcroît des `mtime`, qui mentent dans les deux sens : un `git checkout` remet une date à zéro sans rien changer, et toucher `DEVLOG.md` pour une virgule éteignait l'alerte sans rien journaliser.
+- signature: `python3 -m pytest tests/test_code_without_a_trace_is_flagged.py -q`
+- long_term_fix: `check_code_without_a_trace` lit `git status` et exige les DEUX traces (journal et roadmap), en nommant celle qui manque quand une seule est là. Elle ne lève jamais — un rappel qui casse la fin de séance n'est pas corrigé, il est désactivé. Le garde monte un dépôt git jetable par cas plutôt que d'observer l'arbre courant : sinon il testerait l'état où l'arbre se trouve ce jour-là et serait vert par hasard.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_code_without_a_trace_is_flagged.py }
+- rex_ref: .claude/hooks/session_summary.py
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: un hook est du code et se teste comme du code. Les trois mutations qui l'ont validé — retirer `airflow/`, ne réclamer que le journal, se taire dès qu'UNE trace existe — sont exactement les trois façons dont il se serait affaibli sans bruit.

@@ -27,10 +27,18 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 ## 🔖 REPRISE — état au 2026-08-28, séance close (à lire EN PREMIER au `/resume`)
 
-**▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne restent que **deux**
-geste humain, et lui seul : **R1** — inviter la bêta. Il est détaillé au § « En attente
-de toi » ci-dessous. R54 est close le 2026-08-28 : l'avatar animé est en place et vérifié
+<!-- reprise: open=R1 -->
+
+**▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne reste qu'**un** geste
+humain, et lui seul : **R1** — inviter la bêta. Il est détaillé au § « En attente de
+toi » ci-dessous. R54 est close le 2026-08-28 : l'avatar animé est en place et vérifié
 par son destinataire.
+
+> La ligne `<!-- reprise: open=… -->` ci-dessus n'est pas décorative : c'est la même
+> affirmation que le paragraphe, sous une forme que `tests/test_the_resume_header_is_checked.py`
+> peut comparer aux deux tableaux d'index. Une prose ne se vérifie pas ; une prose
+> **ancrée** se vérifie. C'est la seule chose qui empêche cet en-tête de reprendre la
+> dérive décrite juste en dessous.
 
 > ⚠️ Ce bloc nommait encore R13, R17 et R55 le 2026-08-28 alors que les trois étaient
 > closes — R13 le 2026-08-22, R17 le 2026-08-21, R55 le 2026-08-26. Le corps du fichier

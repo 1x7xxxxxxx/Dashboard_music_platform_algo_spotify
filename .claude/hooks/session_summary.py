@@ -153,6 +153,53 @@ def get_session_turns(transcript_path: str) -> int:
         return 0
 
 
+# ── Code touched vs docs untouched ───────────────────────────────────────────
+
+# Les arbres dont un changement DOIT laisser une trace dans le journal et la roadmap.
+# `_CONFIG_WATCH` ci-dessus ne couvre que la configuration Claude Code : mesuré le
+# 2026-08-28, une séance qui ne touche que `src/` et `airflow/dags/` — la correction
+# d'`alert_monitor` de ce matin, par exemple — ne déclenchait AUCUN rappel. C'est
+# pourtant la séance dont l'oubli coûte le plus cher : le code part en production et
+# le journal n'en garde rien.
+_CODE_WATCH = ("src/", "airflow/")
+_DOC_TRACES = ("DEVLOG.md", ".claude/dev-docs/roadmap/checklist.md")
+
+
+def check_code_without_a_trace(repo_root: str) -> list[str]:
+    """Le code a changé, ni le journal ni la roadmap : nommer les deux.
+
+    Lit `git status`, pas les dates de fichiers. `check_config_devlog_sync` compare des
+    `mtime`, ce qui est fragile dans les deux sens : un `git checkout` remet une date à
+    zéro sans que rien n'ait changé, et toucher `DEVLOG.md` pour une virgule éteint
+    l'alerte sans rien avoir journalisé. Le diff, lui, dit ce qui a réellement bougé.
+
+    N'échoue jamais : un dépôt sans git, un `git` absent ou lent rend une liste vide.
+    Un rappel de fin de séance qui casse la fin de séance ne serait pas rappelé deux
+    fois, il serait désactivé.
+    """
+    try:
+        out = subprocess.run(["git", "status", "--porcelain"], cwd=repo_root,
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+
+    changed = {line[3:].strip().split(" -> ")[-1] for line in out.stdout.splitlines() if line[3:].strip()}
+    code = sorted(c for c in changed if c.startswith(_CODE_WATCH))
+    if not code:
+        return []
+    missing = [d for d in _DOC_TRACES if d not in changed]
+    if not missing:
+        return []
+
+    lines = [f"  🔧 {c}" for c in code[:6]]
+    if len(code) > 6:
+        lines.append(f"  … et {len(code) - 6} autre(s) fichier(s) de code")
+    lines += [f"  📄 {d} — PAS modifié" for d in missing]
+    return lines
+
+
 # ── Deliverable freshness ─────────────────────────────────────────────────────
 
 # ── Pytest ───────────────────────────────────────────────────────────────────
@@ -465,6 +512,15 @@ def main():
         )
 
     # 6. Deliverable freshness
+    code_untraced = check_code_without_a_trace(repo_root)
+    if code_untraced:
+        sections.append(
+            "\n⚠️  Du code a changé sans laisser de trace :\n"
+            + "\n".join(code_untraced)
+            + "\n  → Une entrée DEVLOG et l'état de la roadmap, AVANT /clear."
+              " Le code part en production ; le journal est ce qui reste."
+        )
+
     deliverable_warnings = check_deliverables_freshness()
     if deliverable_warnings:
         sections.append(

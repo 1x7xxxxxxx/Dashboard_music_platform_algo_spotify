@@ -5,6 +5,49 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-28 (gardes docs) — Une prose ne se vérifie pas ; une prose ancrée se vérifie
+
+**Contexte** : quels gardes peuvent tenir les dev-docs à jour automatiquement. Tirés de
+ce qui a réellement pourri dans la journée, pas d'une liste de bonnes pratiques.
+
+**Le constat qui a décidé de la forme** : le défaut du matin n'était pas une date, c'était
+du CONTENU. L'en-tête `## 🔖 REPRISE` disait « ne restent que R1, R13, R17, R54, R55 »
+quand le tableau du même fichier en listait deux. Chercher des ids dans la prose ne peut
+pas marcher — « ne restent que R13 » et « R13 est close » sont les mêmes jetons dans deux
+affirmations opposées. Le prédicat déclencherait sur chaque phrase rétrospective honnête,
+ou ne verrait rien. **Donc on donne à la prose un ancrage** : une ligne
+`<!-- reprise: open=R1 -->` qui porte la même affirmation sous une forme comparable aux
+tableaux d'index.
+
+**What changed** :
+- **`test_the_resume_header_is_checked.py`** — l'ancrage égale l'index ; **un seul**
+  bloc REPRISE ; **zéro** bloc Historique dans l'actif ; plafond de 50 Ko. 5 mutations
+  vues rouges, dont l'exacte reprise du défaut du matin.
+- **`test_every_dev_doc_is_reachable.py`** — chaque `.md` de `dev-docs/` doit être nommé
+  hors de `dev-docs/roadmap/`. L'exclusion de la roadmap est ce qui rend le garde non
+  vacuant : réécrite chaque séance, elle mentionne tout au passage.
+- **Deux derniers stubs du baseline retirés** — ils disaient de lancer
+  `tools/setup-claude-code.sh` (absent), de remplir `.claude/skills/domain_{1,2,3}.md`
+  (zéro fichier) et d'adapter trois agents dont aucun n'existe parmi les huit. Chaque
+  ligne actionnable était fausse pour ce dépôt.
+- **Le hook Stop couvre enfin le code qui part en production.** `_CONFIG_WATCH` ne
+  surveillait que la configuration Claude Code : une séance ne touchant que `src/` et
+  `airflow/` ne déclenchait AUCUN rappel — la correction d'`alert_monitor` de ce matin,
+  précisément. `check_code_without_a_trace` lit `git status` (pas des `mtime`, qui
+  mentent dans les deux sens) et exige les DEUX traces, en nommant celle qui manque.
+  Testé contre des dépôts git jetables, un cas par état, parce qu'observer l'arbre
+  courant serait vert par hasard. 3 mutations vues rouges.
+
+**Le fil, et il vaut au-delà de la roadmap** : un garde de documentation ne peut pas
+forcer quelqu'un à écrire. Il peut rendre une contradiction impossible à ignorer — à
+condition que l'affirmation existe sous une forme structurée à côté de la prose. Le coût
+est une ligne ; le retour est qu'elle ne peut plus se périmer en silence.
+
+**Vérification** : 3422 passed / 25 skipped / 0 échec en 242 s, ruff clean, 10 mutations
+vues rouges au total. Quatre classes cataloguées.
+
+---
+
 ## 2026-08-28 (optimisation) — L'outil que la règle 16 prescrit était aveugle
 
 **Contexte** : demande de suggestions d'optimisation. Mesurer d'abord.
