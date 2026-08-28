@@ -5,6 +5,40 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-28 (fin) — Prédire la nuit suivante plutôt que l'attendre
+
+**Contexte** : quatre mails rapportés. Vérification d'abord : ce sont les MÊMES que ceux
+du matin (`run_id scheduled__2026-08-26T23:00:00`, reçu à 01:00, soit avant le
+déploiement de midi). Zéro échec en production depuis. Mais « ça devrait marcher » ne
+prouve rien, alors j'ai exécuté la tâche corrigée en prod et **calculé ce que ce soir
+allait produire**. Ce calcul a trouvé deux défauts, dont un de ma main.
+
+**What changed** :
+- **La tâche réparée tourne** : `check_credentials_all` rend 11 manquants sur 20
+  combinaisons, là où elle ne produisait rien depuis deux nuits.
+- **Absent ≠ vide dans l'empreinte.** La catégorie était absente pendant la panne, elle
+  vaut `[]` une fois réparée — et les deux empreintes différaient. Or les 11 manquants
+  sont **tous déjà dits** par « Inscrits sans rien connecter » : zéro information neuve,
+  et un mail serait parti pour l'annoncer. La forme la plus vicieuse de la classe :
+  **une vérification qui se répare déclenche une alerte.**
+- **Mon empreinte de référence hachait une autre forme que la production.** Le
+  rétro-remplissage du matin reconstruisait le dictionnaire avec les clés brutes des
+  XCom. Deux valeurs qui se ressemblent et ne se comparent jamais — la fenêtre de
+  silence ne se serait plus refermée. `digest_input()` est désormais le seul
+  constructeur, et il refuse bruyamment une catégorie non déclarée.
+- **Empreinte de référence recalculée par le chemin de production**, puis la décision de
+  ce soir simulée **par le code déployé** : `SUPPRIMÉ — constats inchangés, renvoi dans
+  6j ou dès qu'un constat change`.
+
+**Le fil** : prédire coûte une heure et attendre coûte une nuit — mais ce n'est pas
+l'argument principal. Attendre n'aurait montré qu'un symptôme (un mail de trop) ; le
+calcul a montré la CAUSE, et une seconde cause que le symptôme n'aurait jamais
+révélée, parce qu'elle ne se serait manifestée que la nuit d'après.
+
+**Vérification** : 3 mutations vues rouges, suite 3344 passed / 25 skipped / 0 échec.
+
+---
+
 ## 2026-08-28 (suite) — La documentation pourrit exactement là où rien ne la lit
 
 **Contexte** : R54 close par son destinataire — l'avatar animé est en place et il bouge.
