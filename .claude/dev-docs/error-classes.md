@@ -201,6 +201,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-dev-instance-sends-production-shaped-mail](#a-dev-instance-sends-production-shaped-mail) | P2 | deterministic | guarded | none |
 | [a-fail-fast-gate-cannot-diagnose](#a-fail-fast-gate-cannot-diagnose) | P3 | deterministic | guarded | none |
 | [automation-gap-between-two-ecosystems](#automation-gap-between-two-ecosystems) | P2 | deterministic | guarded | none |
+| [handler-built-without-its-arguments](#handler-built-without-its-arguments) | P2 | deterministic | guarded | none |
+| [alert-repeats-an-unactionable-verdict](#alert-repeats-an-unactionable-verdict) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2452,3 +2454,34 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-26
 - History:
   - 2026-08-26: en posant les portes, `test_e2e_two_tenants.py` s'est révélé porter **deux affectations de `pytestmark`** — la seconde écrasait la première sans bruit, donc le module paraissait gardé en tournant sans garde. Les conditions vont dans UNE liste, et un garde balaie désormais le cas sur toute la suite.
+
+## handler-built-without-its-arguments
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une tâche planifiée lève `TypeError: X.__init__() missing N required positional arguments` à sa première exécution réelle, des heures après le commit. Le mail d'échec est le symptôme visible ; le vrai coût est en dessous — la tâche ne produit plus rien, `xcom_pull` renvoie `None`, et **la section qu'elle alimentait disparaît en silence** du rapport en aval, qui continue de paraître complet.
+- root_cause: `airflow/dags/alert_monitor.py:111` a reçu `db = PostgresHandler()` le 2026-08-26 (`350ed8d`), dans `_mirrored_identities` — le lecteur ajouté justement pour éteindre un faux positif. Le constructeur demande cinq arguments positionnels. Rien entre l'écriture et 01 h 00 ne pouvait le dire : le fichier n'est ni importé par la suite au point d'exécuter cette ligne, ni couvert par un test qui appelle la fonction, et `ruff` ne vérifie pas l'arité d'un appel. Deux nuits d'audit de credentials aveugle, sous une alerte qui avait l'air complète, et le dé-bruitage par le miroir jamais exécuté.
+- signature: `python3 -m pytest tests/test_a_handler_is_built_with_its_arguments.py -q`
+- long_term_fix: `tests/test_a_handler_is_built_with_its_arguments.py` parcourt `src/`, `airflow/` et `tools/` par AST et tente de **lier** chaque appel `PostgresHandler(...)` à `inspect.signature(PostgresHandler.__init__)`. Deux refus délibérés : pas de `grep` — le fichier fautif porte neuf appels corrects et la chaîne cherchée apparaît dans les commentaires, y compris ceux écrits pour ce correctif (`guard-seeded-by-prose-not-by-code`) ; et pas de liste de cinq noms codés en dur — elle mentirait le jour où la signature change. Les appels portant `*args`/`**kwargs` sont ignorés explicitement plutôt que devinés.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_handler_is_built_with_its_arguments.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: la classe généralise au-delà d'un constructeur. La question est « cet appel peut-il seulement réussir ? », et elle se pose partout où du code n'est atteint qu'à l'exécution planifiée. Le correctif de 2026-08-26 avait posé la porte anti-mail hors-prod ; c'est elle qui a permis de conclure en une lecture que ces quatre mails venaient de la PRODUCTION — l'absence du préfixe `[LOCAL]`, et non le lien `localhost` qui, lui, est correct pour l'administrateur.
+
+## alert-repeats-an-unactionable-verdict
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: la même alerte arrive chaque nuit avec le même contenu, sur un problème dont le geste correctif est une action humaine dans une interface tierce. Le lecteur ne peut rien en faire le soir même ; au bout de quelques nuits il cesse de l'ouvrir, et c'est le mail SUIVANT — celui qui aurait changé — qu'il ne lira pas.
+- root_cause: `alert_monitor.send_consolidated_alert` envoyait à chaque exécution, sans jamais comparer aux constats précédents. Mesuré le 2026-08-28 sur les XCom de production des runs du 25 et du 26 août : **identiques à deux champs près**, `age_h` (1945.0 → 1969.0, une source qui vieillit) et `when` (l'horodatage du dernier échec Meta). Le registre `monitoring_run` montre **cinq** nuits consécutives au même sujet. Une comparaison naïve sur le corps ou le sujet ne pouvait pas marcher : le sujet tronque à trois noms et un « +2 », et le corps porte les mesures qui bougent seules.
+- signature: `python3 -m pytest tests/test_the_same_night_twice_is_not_two_alerts.py -q`
+- long_term_fix: `src/utils/alert_repetition.py` empreinte les constats en retirant les champs de MESURE et en gardant ceux d'IDENTITÉ ; `monitoring_run.findings_digest` (migration 078) porte l'empreinte du dernier envoi **réellement délivré**. Trois bornes rendent la classe non réouvrable dans l'autre sens : un constat nouveau, disparu ou de raison changée part la nuit même ; au-delà de `ALERT_REPEAT_SILENCE_DAYS` (7) le même constat repart, parce qu'un silence permanent est indiscernable d'un moniteur mort ; et la nuit supprimée s'écrit `delivery_expected = FALSE`, comme une nuit calme, pour que `tools/infra_health_cron.sh` n'y lise pas une panne du canal.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_same_night_twice_is_not_two_alerts.py }
+- rex_ref: src/utils/alert_repetition.py
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: la liste des champs volatils est une liste **noire**, pas blanche, et le sens du biais est le cœur de la classe. Un champ de constat ajouté demain entre par défaut dans l'empreinte : au pire un mail de trop. Une liste blanche aurait rendu deux constats différents indiscernables sur un champ oublié, donc supprimé un mail dû — soit rouvrir `a-guards-scope-is-the-defect` du côté où ça coûte le plus cher.
+  - 2026-08-28: la fixture est le vrai XCom des deux nuits, tiré de la base de production, et non une forme inventée par le test. Le test le vérifie lui-même (`test_the_two_nights_are_not_equal_before_stripping`) : sans la dérive réelle dans les données, la comparaison passerait pour la mauvaise raison. Même leçon que `calibrate_a_threshold_on_real_data` — une règle écrite d'instinct aurait laissé passer `age_h` et n'aurait rien supprimé.

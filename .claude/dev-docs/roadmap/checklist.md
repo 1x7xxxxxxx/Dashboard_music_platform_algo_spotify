@@ -21,11 +21,54 @@ Resume after `/clear`: *"Read `.claude/dev-docs/roadmap/checklist.md` and contin
 
 Index concis des tâches **qu'on peut commencer maintenant**. À la complétion d'une tâche :
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
-`archive.md`** (CLAUDE.md — flux roadmap). État courant : `## 🔖 REPRISE — état au 2026-08-26, séance close (à lire EN PREMIER au `/resume`)
+`archive.md`** (CLAUDE.md — flux roadmap).
 
-**▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne restent que des gestes
-humains : R1 (inviter la bêta), R13 (token Meta), R17 (corpus ergonomie), R54 (GIF Brevo,
-rien à corriger en code), R55 (choisir une métrique — trois candidates, runbook §9).
+---
+
+## 🔖 REPRISE — état au 2026-08-28, séance close (à lire EN PREMIER au `/resume`)
+
+**▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne restent que **deux**
+gestes humains, et eux seuls : **R1** (inviter la bêta) et **R54** (GIF Brevo, rien à
+corriger en code). Ils sont détaillés au § « En attente de toi » ci-dessous.
+
+> ⚠️ Ce bloc nommait encore R13, R17 et R55 le 2026-08-28 alors que les trois étaient
+> closes — R13 le 2026-08-22, R17 le 2026-08-21, R55 le 2026-08-26. Le corps du fichier
+> le disait déjà ; c'est l'en-tête qui n'avait pas suivi. Une roadmap se périme comme un
+> commentaire, et son en-tête plus vite que son corps : c'est la seule partie que
+> `/resume` recopie sans la relire.
+
+### Séance du 2026-08-28 — quatre mails en deux nuits, deux causes
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `4b940fe`, migration 078 appliquée).
+Point de départ : quatre alertes apportées telles quelles. Le tri d'abord — le lien
+`localhost:8080` ne prouve rien (l'UI Airflow de prod est liée à 127.0.0.1), c'est
+**l'absence de préfixe `[LOCAL]`** qui tranche : les quatre venaient de la production.
+Deux mails par nuit, deux causes distinctes.
+
+| | |
+|---|---|
+| **Le plantage** | `PostgresHandler()` sans argument dans `_mirrored_identities`, arrivé avec `350ed8d`. Seul site du dépôt. Plus grave que le mail : `xcom_pull` rendant None, la section « credentials manquants » a **disparu des deux alertes consolidées** sans que rien ne le dise, et le dé-bruitage par le miroir n'a jamais tourné. Garde AST lisant la **vraie** signature par `inspect` — un `grep` aurait trébuché sur les commentaires du correctif lui-même |
+| **La redite** | Le récapitulatif repartait chaque nuit à l'identique. Mesuré sur les XCom de prod des 25 et 26 : **identiques à deux champs près**, `age_h` (1945.0 → 1969.0) et `when`. Le registre montre **cinq** nuits de suite avec le même sujet, pas deux. `src/utils/alert_repetition.py` empreinte les constats en ignorant la MESURE et en gardant l'IDENTITÉ ; migration 078 |
+
+**Ce que la suppression ne peut pas faire**, et c'est le point : un constat nouveau,
+disparu ou de raison changée part la nuit même ; au-delà de `ALERT_REPEAT_SILENCE_DAYS`
+(7) le même constat repart, parce qu'un silence permanent est indiscernable d'un moniteur
+mort. La nuit supprimée s'écrit `delivery_expected = FALSE`, comme une nuit calme, pour
+que `infra_health_cron.sh` ne la lise pas comme une panne du canal d'alerte.
+
+**Le fil : la liste des champs volatils est une liste NOIRE, pas blanche.** Un champ de
+constat ajouté demain entre par défaut dans l'empreinte — au pire un mail de trop. Une
+liste blanche aurait fait qu'un champ oublié rende deux constats différents
+indiscernables, donc supprime un mail dû. Entre trop de courrier et un constat perdu, le
+biais est choisi une fois et il va toujours du même côté.
+
+**Et la fixture est le vrai XCom des deux nuits**, pas une forme inventée par le test :
+une règle écrite de mémoire aurait laissé passer `age_h` et n'aurait rien supprimé. Un
+test garde la RÉALITÉ mesurée, jamais la constante qu'on vient d'écrire.
+
+---
+
+### Archive — séance du 2026-08-26
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** le 2026-08-26 (commit `350ed8d`).
 `prod == origin/main`, aucune reconstruction d'image nécessaire — le scheduler

@@ -5,6 +5,68 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-28 — Quatre mails en deux nuits : un plantage, et une redite
+
+**Contexte** : quatre alertes de production apportées telles quelles, avec la
+demande de ne plus les recevoir. Le tri d'abord, le correctif ensuite.
+
+**Le tri, et il corrige un réflexe.** Le lien `localhost:8080` dans le corps du mail
+ne prouve pas une instance locale : l'UI Airflow de prod est liée à `127.0.0.1` et
+`localhost:8080` est l'adresse JUSTE pour son destinataire, l'administrateur. Ce qui
+tranche, c'est **l'absence du préfixe `[LOCAL]`** au sujet — la porte posée le
+2026-08-26. Les quatre venaient de la production. Deux mails par nuit, deux causes.
+
+**What changed** :
+- **`PostgresHandler()` sans argument** dans `_mirrored_identities`, arrivé avec
+  `350ed8d` — le constructeur en demande cinq. Seul site du dépôt. La conséquence
+  dépasse le mail : `xcom_pull` renvoyant None, la section « credentials manquants »
+  a **disparu des deux alertes consolidées** sans que rien ne le signale, et le
+  dé-bruitage par le miroir — ajouté précisément pour éteindre un faux positif — n'a
+  jamais tourné. Deux nuits d'audit aveugle sous une alerte qui avait l'air complète.
+  Prouvé dans le conteneur de prod : l'ancienne forme lève le `TypeError` du mail, la
+  nouvelle rend l'id Spotify du canari.
+- **Le garde lit la vraie signature.** `tests/test_a_handler_is_built_with_its_arguments.py`
+  vérifie par AST que chaque appel `PostgresHandler(...)` de `src/`, `airflow/` et
+  `tools/` peut se **lier** à `inspect.signature(__init__)`. Ni grep — le fichier
+  contient neuf appels corrects et la chaîne cherchée apparaît dans les commentaires,
+  y compris ceux écrits pour ce correctif — ni cinq noms codés en dur, qui mentiraient
+  le jour où la signature change.
+- **Le récapitulatif redisait la même chose chaque nuit.** Mesuré sur les XCom de
+  production des runs du 25 et du 26 : **identiques à deux champs près**, `age_h`
+  (1945.0 → 1969.0, une source qui vieillit) et `when`. Mêmes locataires, mêmes
+  plateformes, mêmes gestes — partager `act_65390907` dans Business Manager pour
+  Benken, un titre public SoundCloud pour GRiNCH — et aucun actionnable le soir même.
+  Le registre montre **cinq** nuits de suite avec le même sujet, pas deux.
+- **`src/utils/alert_repetition.py` + migration 078** : empreinte des constats qui
+  ignore les champs de MESURE et garde ceux d'IDENTITÉ. Identique et récente ⇒ la nuit
+  est enregistrée, pas envoyée. Ce qu'elle ne peut PAS faire est le point : un constat
+  nouveau, disparu ou de raison changée part la nuit même ; au-delà de sept jours le
+  même constat repart, parce qu'un silence permanent est indiscernable d'un moniteur
+  mort. La nuit supprimée s'écrit `delivery_expected = FALSE`, comme une nuit calme,
+  pour que `infra_health_cron.sh` n'y lise pas une panne du canal d'alerte.
+
+**Le fil** : la liste des champs volatils est une liste **noire**, pas blanche. Un
+champ ajouté demain entre par défaut dans l'empreinte — au pire un mail de trop. Une
+liste blanche aurait fait qu'un champ oublié rende deux constats différents
+indiscernables, donc supprime un mail dû. Le biais est choisi une fois, et il va
+toujours vers l'envoi.
+
+**Second fil** : la fixture est le **vrai** XCom des deux nuits, tiré de la base de
+prod. Une règle écrite de mémoire aurait laissé passer `age_h` et n'aurait rien
+supprimé du tout — le test aurait été vert sur une forme que le test s'invente.
+
+**Ménage** : l'en-tête REPRISE de la roadmap nommait encore R13, R17 et R55 comme
+ouvertes alors que les trois étaient closes depuis des jours. Le corps du fichier le
+disait déjà ; c'est l'en-tête qui n'avait pas suivi — et c'est la seule partie que
+`/resume` recopie sans la relire.
+
+**Vérification** : suite 3283 passed / 23 skipped / 0 échec (base vivante), ruff clean,
+5 mutations vues rouges (4 sur le module de répétition, 1 sur le fichier réel pour le
+garde de signature). Déployé `4b940fe`, migration 078 appliquée, les deux moitiés
+prouvées dans le conteneur de production sur les données réelles.
+
+---
+
 ## 2026-08-26 — Les alertes disaient le symptôme et retenaient le geste
 
 **Contexte** : une alerte de production de 01h00, apportée telle quelle. Puis, en
