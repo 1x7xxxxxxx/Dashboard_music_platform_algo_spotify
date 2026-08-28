@@ -246,3 +246,56 @@ def _no_real_http(monkeypatch, request):
         f"patch the transport yourself — your patch lands after this one and is never "
         f"seen here."
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Le backoff du retry ne se paie pas en temps de suite
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def _retry_backoff_costs_no_wall_clock(monkeypatch):
+    """`src.utils.retry` n'attend pas pendant les tests. Il compte quand même.
+
+    Mesuré le 2026-08-28 avec `--durations` : **onze** tests de
+    `test_collectors_errors.py` duraient exactement 6,00 s chacun — 2,0 s + 4,0 s, le
+    backoff exponentiel de `retry(max_attempts=3, base_delay=2.0)` sur trois tentatives
+    vouées à échouer. **66 s des 275 s de la suite passées à dormir**, un quart du
+    total, pour vérifier qu'un collecteur LÈVE.
+
+    Ce qui rend le remplacement sûr, et il fallait le vérifier avant : aucun test
+    n'asserte sur du temps écoulé. `test_retry.py` pose déjà son propre patch sur
+    `src.utils.retry.time.sleep` et n'asserte que sur les VALEURS reçues
+    (`sleep_calls == [2.0, 4.0]`) — donc sur la stratégie de backoff, pas sur son
+    effet horaire. Son patch s'applique par-dessus celui-ci et le masque le temps de
+    son bloc ; il continue de mesurer exactement ce qu'il mesurait.
+
+    Portée délibérément étroite : **ce `sleep`-ci**, pas `time.sleep` en général. Et
+    l'écrire n'a pas suffi — la première version de cette fixture faisait
+    `setattr(_retry.time, "sleep", …)`, or `_retry.time` **EST** le module `time`
+    global (`retry.py` fait `import time`). Elle neutralisait donc tous les `sleep`
+    du processus. Constat immédiat : la suite est passée de 275 s à **608 s** et les
+    deux tests les plus lents sont devenus ROUGES — les attentes de rendu Streamlit
+    et WeasyPrint retournaient instantanément et lisaient une page pas encore prête.
+
+    Remplacer la RÉFÉRENCE dans l'espace de noms du module, et non l'attribut d'un
+    module partagé, est la seule forme qui tienne la promesse du paragraphe ci-dessus.
+    Septième fois dans ce dépôt que la portée est le défaut, et la première dans du
+    code que je venais d'écrire en la décrivant correctement.
+    """
+    try:
+        import src.utils.retry as _retry
+    except ImportError:      # environnement sans le paquet applicatif : rien à borner
+        return
+
+    class _NoWait:
+        """Le module `time` vu par `retry.py` seul : tout, sauf l'attente."""
+
+        def __getattr__(self, name):
+            return getattr(_real_time, name)
+
+        @staticmethod
+        def sleep(_seconds):
+            return None
+
+    import time as _real_time
+    monkeypatch.setattr(_retry, "time", _NoWait())

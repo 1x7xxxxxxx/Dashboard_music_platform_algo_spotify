@@ -5,6 +5,49 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-28 (optimisation) — L'outil que la règle 16 prescrit était aveugle
+
+**Contexte** : demande de suggestions d'optimisation. Mesurer d'abord.
+
+**What changed** :
+- **`select_tests.py` rendait un ensemble CONSTANT.** 19 fichiers, octet pour octet
+  identiques, pour un collecteur, une vue et un util — et cet ensemble **excluait le
+  test du module modifié**. La règle transverse 16 prescrit de lancer cette liste au
+  lieu de la suite : la suivre revenait à sauter précisément les tests du changement,
+  pendant qu'un `19/169` donnait l'air d'un vrai filtrage.
+  Cause lue dans le code : `src/` est une racine d'imports, donc `src/utils/x.py` était
+  indexé `utils.x`, quand ce dépôt écrit `from src.utils.x`. **59 arêtes sur 979** —
+  94 % du graphe perdu, tous les tests à zéro dépendance. C'est le défaut que
+  `source_roots()` corrigeait le 2026-07-30 **dans l'autre sens** : un outil partagé
+  entre huit dépôts ne peut pas choisir une convention de préfixe.
+  `module_aliases()` indexe désormais tous les noms ; aucun style n'est privilégié.
+- **66 s de la suite passées à dormir.** Onze tests à exactement 6,00 s — 2,0 + 4,0, le
+  backoff de `retry(max_attempts=3, base_delay=2.0)` sur trois tentatives vouées à
+  échouer. Vérifié avant de neutraliser qu'aucun test n'asserte sur du temps écoulé.
+  **Suite : 275 s → 205 s, −25 %.**
+- **Et ma première version de cette fixture était un patch GLOBAL de `time.sleep`** :
+  `retry.py` fait `import time`, donc `_retry.time` **est** le module `time`. Suite à
+  608 s et les deux tests les plus lents rouges — les attentes Streamlit et WeasyPrint
+  retournaient instantanément. Mon docstring affirmait la portée étroite dans le même
+  paragraphe. Corrigé en substituant la RÉFÉRENCE dans l'espace de noms du module.
+- **`checklist.md` : 88 Ko → 34 Ko** (~22 600 → ~8 700 tokens), le fichier que `/resume`
+  lit en premier à chaque séance. **72 % en était de l'historique** — sept blocs
+  REPRISE/Historique remontant au 21 août, dont **deux portaient tous deux « à lire EN
+  PREMIER »**, plus deux sections dupliquées mot pour mot. Déplacé vers `archive.md`.
+
+**Le fil** : les trois défauts se ressemblent. Un outil dont la sortie a l'air
+plausible (19/169), une fixture dont le docstring dit le contraire de ce qu'elle fait,
+un fichier d'état où 72 % est de l'archive. **Aucun ne se voyait sans une mesure** —
+compter les arêtes, lire `--durations`, peser le fichier. Et la deuxième leçon est plus
+inconfortable : la fixture fautive, c'est moi qui l'ai écrite l'heure d'avant, en
+décrivant correctement la portée que je voulais. Écrire l'intention ne l'implémente pas.
+
+**Vérification** : 3357 passed / 25 skipped / 0 échec en 205 s, 4 mutations vues rouges,
+audit déterministe 22/22 clean. Classes `selector-blind-to-the-import-prefix` et
+`boundary-wider-than-its-docstring`.
+
+---
+
 ## 2026-08-28 (fin) — Prédire la nuit suivante plutôt que l'attendre
 
 **Contexte** : quatre mails rapportés. Vérification d'abord : ce sont les MÊMES que ceux

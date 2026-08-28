@@ -302,6 +302,40 @@ def module_name(root: Path, path: Path, roots: list[Path] | None = None) -> str:
     return ".".join(parts)
 
 
+def module_aliases(root: Path, path: Path, roots: list[Path] | None = None) -> set[str]:
+    """TOUS les noms sous lesquels un `import` peut désigner ce fichier.
+
+    `module_name` n'en rend qu'un — celui de la racine la plus profonde. C'était
+    suffisant tant qu'un dépôt n'écrivait qu'un style de préfixe, et ça ne l'est pas.
+
+    Mesuré le 2026-08-28 sur streaMLytics. `src` est une racine (elle contient des
+    paquets), donc `src/utils/x.py` était nommé `utils.x` — mais ce dépôt-ci écrit
+    `from src.utils.x import …`, la forme relative à la racine git. Les deux noms ne
+    se rencontraient jamais : **59 arêtes retenues sur 979**, 94 % du graphe perdu,
+    et tous les tests avec zéro dépendance. Le sélecteur rendait alors un ensemble
+    CONSTANT de 19 fichiers, identique pour un collecteur, une vue et un util — dont
+    aucun des tests du module modifié.
+
+    C'est le même défaut que celui que `source_roots` a corrigé le 2026-07-30, dans
+    l'autre sens : ce jour-là un dépôt écrivait `from app import repo` et la racine
+    `src/` a été ajoutée pour lui. Choisir UN nom, quel qu'il soit, casse l'autre
+    style. Les indexer tous n'en casse aucun.
+    """
+    out: set[str] = set()
+    for r in (roots or [root]):
+        try:
+            rel = path.relative_to(r).with_suffix("")
+        except ValueError:
+            continue
+        parts = list(rel.parts)
+        if parts and parts[-1] == "__init__":
+            parts.pop()
+        name = ".".join(parts)
+        if name and _NOM_IMPORTABLE(name):
+            out.add(name)
+    return out
+
+
 def _NOM_IMPORTABLE(mod: str) -> bool:
     """Un `import` peut-il seulement NOMMER ce module ?
 
@@ -371,6 +405,14 @@ def build_graph(root: Path,
     roots = roots or source_roots(root)
     py = _walk_python(root, roots)
     known = {module_name(root, p, roots): p for p in py}
+    # Un fichier, plusieurs noms possibles selon la racine par laquelle on l'importe.
+    # `known` reste la carte CANONIQUE (un nom, celui du graphe) ; cet index-ci relie
+    # chaque alias à ce nom canonique, et c'est lui qui résout les `import`.
+    alias: dict[str, str] = {}
+    for p in py:
+        canon = module_name(root, p, roots)
+        for a in module_aliases(root, p, roots):
+            alias.setdefault(a, canon)
     imports: dict[str, set[str]] = {}
     dynamic: set[str] = set()
     unparsable: list[str] = []
@@ -416,13 +458,13 @@ def build_graph(root: Path,
         # dépendance tierce, dont on ne suit pas les modifications ici.
         resolved = set()
         for name in got:
-            if name in known:
-                resolved.add(name)
+            if name in alias:
+                resolved.add(alias[name])
             else:
                 # `from a.b import c` où c est un symbole : a.b est le module.
                 head = name.rsplit(".", 1)[0]
-                if head in known:
-                    resolved.add(head)
+                if head in alias:
+                    resolved.add(alias[head])
         imports[mod] = resolved
 
     return imports, dynamic, unparsable, known

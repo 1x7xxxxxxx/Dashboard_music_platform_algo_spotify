@@ -205,6 +205,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [alert-repeats-an-unactionable-verdict](#alert-repeats-an-unactionable-verdict) | P3 | deterministic | guarded | none |
 | [procedure-outlives-its-task](#procedure-outlives-its-task) | P3 | deterministic | guarded | none |
 | [views-map-drifts-from-the-views](#views-map-drifts-from-the-views) | P3 | deterministic | guarded | none |
+| [selector-blind-to-the-import-prefix](#selector-blind-to-the-import-prefix) | P2 | deterministic | guarded | none |
+| [boundary-wider-than-its-docstring](#boundary-wider-than-its-docstring) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2519,3 +2521,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-28
 - History:
   - 2026-08-28: une règle qui demande un AGENT ne remplace pas un contrôle qui tourne. Les deux dérives précédentes sont documentées dans `CLAUDE.md` — une phrase d'avertissement dans un fichier lu à chaque séance n'a empêché ni la troisième, ni les mentions périmées du palier `basic` dans la même table.
+
+## selector-blind-to-the-import-prefix
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un sélecteur de tests rend un ensemble qui a l'air restreint — 19 sur 169, 11 % — et qui est en réalité CONSTANT : le même, octet pour octet, pour un collecteur, une vue et un util. Il exclut le test du module qu'on vient de modifier. Suivre la règle qui prescrit de lancer cette liste revient donc à sauter exactement les tests qui couvrent le changement.
+- root_cause: `source_roots()` retient `src/` comme racine d'imports (elle contient des paquets), donc `module_name()` indexe `src/utils/x.py` sous `utils.x` — alors que ce dépôt écrit `from src.utils.x import …`, la forme relative à la racine git. Les deux noms ne se rencontrent jamais : **59 arêtes résolues sur 979**, 94 % du graphe perdu, tous les tests avec zéro dépendance. Les 19 fichiers venaient uniquement de `dynamic` et des mentions littérales ; l'atteignabilité ne contribuait à rien. C'est le MÊME défaut que `source_roots()` avait été écrite pour corriger le 2026-07-30, dans l'autre sens : ce jour-là un dépôt écrivait `from app import repo` et `src/` fut ajoutée pour lui. Choisir UN nom casse l'autre style.
+- signature: `python3 -m pytest tests/test_the_selector_selects_what_changed.py -q`
+- long_term_fix: `module_aliases()` indexe chaque fichier sous TOUS ses noms relatifs aux racines ; `build_graph` résout les imports via cet index d'alias vers le nom canonique. Aucun style de préfixe n'est privilégié, donc aucun n'est cassé. Le garde vérifie l'EFFET — l'arête test → module existe, le graphe dépasse 400 arêtes — et non l'artefact (le script existe, il sort 0), distinction que le docstring du script nomme lui-même comme sa raison d'être.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_selector_selects_what_changed.py }
+- rex_ref: .claude/scripts/select_tests.py
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: un outil partagé entre huit dépôts ne peut pas choisir une convention. La correction d'un dépôt a cassé un autre dépôt en silence pendant quatre semaines, et le compteur `19/169` rendait la panne indiscernable d'un fonctionnement normal. Un sélecteur doit être jugé sur « sélectionne-t-il le test de ce que j'ai changé ? », jamais sur la taille de sa sortie.
+
+## boundary-wider-than-its-docstring
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une frontière de test annonce une portée étroite dans son docstring et l'applique à tout le processus. Symptôme observable : des tests deviennent ROUGES sans que le code testé ait changé, et la suite RALENTIT au lieu d'accélérer.
+- root_cause: `conftest._retry_backoff_costs_no_wall_clock` faisait `monkeypatch.setattr(_retry.time, "sleep", …)` pour éviter le backoff de `src.utils.retry`. Or `retry.py` fait `import time` : `_retry.time` **EST** le module `time` global, donc la fixture neutralisait tous les `sleep` du processus. Mesuré : suite de 275 s → **608 s**, et les deux tests les plus lents rouges — les attentes de rendu Streamlit `AppTest` et WeasyPrint retournaient instantanément et lisaient une page pas encore prête. Le docstring affirmait l'inverse dans le même paragraphe.
+- signature: `python3 -m pytest tests/test_the_no_wait_boundary_stays_narrow.py -q`
+- long_term_fix: substituer la RÉFÉRENCE dans l'espace de noms du consommateur (`setattr(_retry, "time", shim)`), jamais un attribut d'un module partagé. Le garde épingle les DEUX moitiés — le raccourci fonctionne (trois tentatives en moins d'une seconde) **et** le reste du processus peut encore attendre (`time.sleep(0.05)` avance vraiment l'horloge) — parce qu'une seule des deux avait été cassée, et qu'un garde sur la seule moitié qui marchait n'aurait rien vu.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_no_wait_boundary_stays_narrow.py }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: septième occurrence de « la portée d'un garde est le défaut » dans ce dépôt, et la première dans du code écrit le jour même, **en décrivant correctement la portée voulue dans le docstring**. Écrire l'intention ne l'implémente pas. Le module patché doit être interrogé (`_retry.time is time`), jamais supposé.
