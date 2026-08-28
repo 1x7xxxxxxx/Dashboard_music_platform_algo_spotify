@@ -35,7 +35,12 @@ DOCS = (
     "CLAUDE.md",
 )
 # Tools that read no environment at all — they answer from files in the repo.
-_NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render_html.py"}
+# Tools that genuinely read nothing from the environment. Each entry is a claim that
+# has to stay true: `make_avatar_gif.py` derives every value from constants and from
+# `src/dashboard/assets/logo_mark.svg`, and writes one GIF — there is no configuration
+# for it to read the wrong copy of.
+_NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render_html.py",
+           "tools/dev/make_avatar_gif.py"}
 
 
 def _documented_tools() -> list[str]:

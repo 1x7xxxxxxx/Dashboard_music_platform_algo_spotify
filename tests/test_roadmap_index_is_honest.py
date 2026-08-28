@@ -189,3 +189,66 @@ def test_the_roadmap_never_states_two_different_test_counts() -> None:
     assert len(tables) <= 1, (
         f"the roadmap states {len(tables)} different schema sizes: {sorted(tables)}."
     )
+
+# The reverse direction. `test_every_waiting_row_names_the_gesture_it_waits_on` asks
+# "does every open row have a procedure?"; nothing asked "does every procedure still
+# have an open row?" — and that is the half that rotted.
+# Anchored on the numbered task-section form the runbook actually uses — `## 8. R54 — …`
+# — and not on "any heading mentioning an id". The looser version flagged R42 on its
+# first run: `### Ce qui a changé le 2026-08-23 (R42)` is a narrative sub-heading INSIDE
+# an already-struck section, describing history rather than proposing work. The
+# predicate has to match the question (does this section present a task as to-do?)
+# rather than the symptom (does an id appear in a heading?).
+_LIVE_HEADING = re.compile(r"^## \d+\. (?!~~)(R\d+) ", re.M)
+
+
+def _live_runbook_ids() -> set[str]:
+    """Runbook sections NOT struck through — i.e. presented as still to do."""
+    if not RUNBOOK.exists():
+        return set()
+    return set(_LIVE_HEADING.findall(RUNBOOK.read_text(encoding="utf-8")))
+
+
+def test_no_runbook_section_outlives_its_task():
+    """A closed task must not keep a live-looking procedure with a priority on it.
+
+    Measured 2026-08-28. The runbook carried `## 1. R13 — … · P2`, `## 4. R17 — … · P3`
+    and `## 9. R55 — … · P3` — three headings that read as open work, with a severity
+    each, for tasks closed on 22, 21 and 26 August. The checklist knew; the runbook did
+    not, and nothing compared them.
+
+    The existing guard only walks checklist → runbook, so a row leaving the index takes
+    its evidence with it and leaves the procedure looking live. This walks the other
+    way. The convention it enforces already existed and was simply not checked: a done
+    section is struck through and dated (`~~R20 — …~~ · ✅ FAIT le 2026-08-21`), which
+    keeps the steps readable for the day the row comes back.
+
+    Same class as the `## 🔖 REPRISE` header naming three closed ids the same morning:
+    a document goes stale exactly where nothing reads it against the code.
+    """
+    open_ids = set(_ids(_ACTIONABLE_H)) | set(_ids(_WAITING_H))
+    orphans = sorted(_live_runbook_ids() - open_ids)
+    assert not orphans, (
+        f"{orphans} have a live (not struck through) section in {RUNBOOK.name} but no "
+        "row in either roadmap index. Either the task is open and its row is missing, "
+        "or it is done and its heading must be struck through and dated — the "
+        "`~~R20 — …~~ · ✅ FAIT le …` form already used by six other sections. A "
+        "procedure that still shows a priority is a task that still looks open."
+    )
+
+
+def test_the_live_heading_pattern_actually_distinguishes_the_two_forms():
+    """Non-vacuity: a regex that matched everything, or nothing, would pass silently.
+
+    `_LIVE_HEADING` carries a negative lookahead, the kind of predicate that fails
+    open. Pinned against both real forms rather than trusted.
+    """
+    import re as _re
+    live = "## 5. R1 — Ouvrir la bêta privée · P3"
+    done = "## 2. ~~R20 — Créer le canari~~ · ✅ FAIT le 2026-08-21"
+    assert _LIVE_HEADING.findall(live) == ["R1"], "a live heading must be seen"
+    assert _LIVE_HEADING.findall(done) == [], "a struck heading must be ignored"
+    assert _live_runbook_ids(), (
+        "the runbook yielded no live section at all — either every task is done, in "
+        "which case delete this test, or the pattern stopped matching the file."
+    )

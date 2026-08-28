@@ -68,7 +68,7 @@ Ce qui est ici : ce qui **documente**.
 - MLflow / Sentry MCPs : aucune dépendance détectée dans le repo
 - Filesystem / Sequential-thinking MCPs : redondants avec les outils natifs de Claude Code
 - Notion / Gmail / Drive : déjà disponibles côté Claude.ai (deferred tools)
-- Spotify Web API MCP : redondant avec `src/collectors/spotify_collector.py`
+- Spotify Web API MCP : redondant avec `src/collectors/spotify_api.py`
 
 ---
 

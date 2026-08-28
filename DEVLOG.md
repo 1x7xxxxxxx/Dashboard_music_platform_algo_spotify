@@ -5,6 +5,56 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-28 (suite) — La documentation pourrit exactement là où rien ne la lit
+
+**Contexte** : R54 close par son destinataire — l'avatar animé est en place et il bouge.
+Rotation, puis passe de propreté sur `dev-docs/`.
+
+**What changed** :
+- **R54 archivée**, et la section du runbook réécrite avec ce qui a réellement été fait
+  plutôt qu'avec les deux hypothèses de 2026-08-24. Ne reste que **R1**.
+- **Trois procédures présentées comme À FAIRE pour des tâches closes** : `## 1. R13 · P2`,
+  `## 4. R17 · P3`, `## 9. R55 · P3`, closes les 22, 21 et 26 août. Cause : la cohérence
+  index ↔ runbook n'était vérifiée que dans UN sens — « chaque tâche ouverte a-t-elle sa
+  procédure ? », jamais « chaque procédure a-t-elle encore une tâche ? ». Une ligne qui
+  quitte l'index emporte sa preuve et laisse la procédure intacte, avec sa priorité.
+- **Le garde du sens manquant a trouvé un cas de plus dès sa première exécution** — et il
+  avait tort : R42 est close, et le titre incriminé est un sous-titre NARRATIF dans une
+  section déjà barrée. Prédicat resserré sur la forme numérotée de section. Sixième fois
+  que la portée d'un garde est le défaut, première fois que je la corrige avant de commiter.
+- **La Views Map avait dérivé une troisième fois : 15 vues sur 44 absentes**, dont
+  `onboarding` et `onboarding_health` — deux des premières surfaces qu'un artiste
+  rencontre. La même table annonçait « Billing — 3-column Free/Basic/Premium » et un rôle
+  `basic+` alors que `basic` est retiré depuis la migration 048. `CLAUDE.md` avertissait
+  de cette dérive depuis le 2026-08-21, et la règle 18 demande une revue par agent :
+  ni l'un ni l'autre ne l'ont empêchée. Garde mécanique posé, paramétré sur les vues réelles.
+- **Quatre gabarits vides retirés** (`system-invariants.md`, `reference/project_map.md`,
+  `operations/alerting.md`, `operations/logging.md`) — 100 % de `TODO` depuis le
+  2026-07-27, nommés par aucun fichier. Le premier se présentait comme « Source of truth
+  for thresholds, anti-patterns, and deployment rules » tout en ne disant rien : pire
+  qu'absent, il aurait été cru.
+- **Quatre documents orphelins indexés dans `CLAUDE.md`**, dont
+  `runbook-artist-test-session.md` — la procédure de **R1, la seule tâche encore
+  ouverte**, que rien hors de `dev-docs/` ne nommait.
+- **27 références de fichiers mortes examinées, une seule corrigée** :
+  `tooling-reference.md` pointait `spotify_collector.py`, le fichier s'appelle
+  `spotify_api.py`. Les 26 autres sont de l'histoire juste — `error_handler.py`, retiré
+  par R48, est nommé par des archives dont c'est le rôle, et `error-classes.md` écrit
+  lui-même « (deleted 2026-08-03) » — ou des faux positifs de la recherche
+  (`/openapi.json` est une route HTTP, pas un fichier).
+
+**Le fil** : un document se périme là où rien ne le lit CONTRE le code. Les trois défauts
+du jour sont le même : une moitié de cohérence non vérifiée, une carte que rien ne
+compare à son répertoire, un fichier que rien n'indexe. Et une phrase d'avertissement
+dans `CLAUDE.md`, lue à chaque séance, n'a empêché aucune des trois dérives de la Views
+Map — une règle qui demande un agent ne remplace pas un contrôle qui tourne.
+
+**Vérification** : 5 mutations vues rouges sur les deux gardes neufs, dont la vacuité de
+chacun. Classes `procedure-outlives-its-task` et `views-map-drifts-from-the-views`
+cataloguées.
+
+---
+
 ## 2026-08-28 — Quatre mails en deux nuits : un plantage, et une redite
 
 **Contexte** : quatre alertes de production apportées telles quelles, avec la

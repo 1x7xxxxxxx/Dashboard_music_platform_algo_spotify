@@ -203,6 +203,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [automation-gap-between-two-ecosystems](#automation-gap-between-two-ecosystems) | P2 | deterministic | guarded | none |
 | [handler-built-without-its-arguments](#handler-built-without-its-arguments) | P2 | deterministic | guarded | none |
 | [alert-repeats-an-unactionable-verdict](#alert-repeats-an-unactionable-verdict) | P3 | deterministic | guarded | none |
+| [procedure-outlives-its-task](#procedure-outlives-its-task) | P3 | deterministic | guarded | none |
+| [views-map-drifts-from-the-views](#views-map-drifts-from-the-views) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2485,3 +2487,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-28: la liste des champs volatils est une liste **noire**, pas blanche, et le sens du biais est le cœur de la classe. Un champ de constat ajouté demain entre par défaut dans l'empreinte : au pire un mail de trop. Une liste blanche aurait rendu deux constats différents indiscernables sur un champ oublié, donc supprimé un mail dû — soit rouvrir `a-guards-scope-is-the-defect` du côté où ça coûte le plus cher.
   - 2026-08-28: la fixture est le vrai XCom des deux nuits, tiré de la base de production, et non une forme inventée par le test. Le test le vérifie lui-même (`test_the_two_nights_are_not_equal_before_stripping`) : sans la dérive réelle dans les données, la comparaison passerait pour la mauvaise raison. Même leçon que `calibrate_a_threshold_on_real_data` — une règle écrite d'instinct aurait laissé passer `age_h` et n'aurait rien supprimé.
+
+## procedure-outlives-its-task
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un document de procédure présente comme À FAIRE, priorité comprise, une tâche close depuis des jours ou des semaines. Le lecteur ouvre une séance en croyant avoir cinq gestes en attente alors qu'il en a un.
+- root_cause: la cohérence entre l'index de la roadmap et le runbook n'était vérifiée QUE dans un sens. `test_every_waiting_row_names_the_gesture_it_waits_on` demandait « chaque tâche ouverte a-t-elle sa procédure ? » ; personne ne demandait « chaque procédure a-t-elle encore une tâche ouverte ? ». Une ligne qui quitte l'index emporte sa preuve et laisse la procédure intacte, avec son `· P2`. Mesuré le 2026-08-28 : `## 1. R13 · P2`, `## 4. R17 · P3` et `## 9. R55 · P3` étaient vivantes pour des tâches closes les 22, 21 et 26 août. Même journée, même classe, un cran plus haut : l'en-tête `## 🔖 REPRISE` de la checklist nommait les trois mêmes ids.
+- signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py -q`
+- long_term_fix: `test_no_runbook_section_outlives_its_task` marche dans l'autre sens : toute section `## <n>. R<id> — …` non barrée doit avoir sa ligne dans un des deux index. La convention imposée existait déjà et n'était simplement pas contrôlée (`~~R20 — …~~ · ✅ FAIT le 2026-08-21`) — elle garde les étapes lisibles pour le jour où la tâche revient. Le prédicat est ancré sur la forme NUMÉROTÉE de section, pas sur « un titre qui mentionne un id » : la version large a signalé R42 dès sa première exécution, alors que `### Ce qui a changé le 2026-08-23 (R42)` est un sous-titre narratif à l'intérieur d'une section déjà barrée. La portée du garde doit épouser la question, pas le symptôme.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
+- rex_ref: .claude/dev-docs/runbook-actions-utilisateur.md
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: généralise `a-guards-scope-is-the-defect` d'un cran. Un garde bidirectionnel n'est pas deux fois le même garde : c'est le sens NON contrôlé qui pourrit, parce que rien ne le regarde jamais. Quand une cohérence lie deux fichiers, demander laquelle des deux questions n'est pas posée.
+
+## views-map-drifts-from-the-views
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: la carte d'architecture décrit un sous-ensemble du produit et rien ne le dit. Le lecteur la consulte AU LIEU de lister le répertoire — c'est sa fonction — donc une vue absente est une vue que personne ne sait aller voir.
+- root_cause: aucun contrôle mécanique ne comparait `## Dashboard Views Map` à `src/dashboard/views/`. `CLAUDE.md` portait depuis le 2026-08-21 la phrase « La Views Map a déjà divergé deux fois sans que rien ne le signale », et la règle 18 demande un `code-architecture-reviewer` au-delà de cinq modules changés — une REVUE, donc quelque chose qu'il faut penser à demander. Trois dérives se sont produites pendant qu'elle existait. Mesuré le 2026-08-28 : **15 vues sur 44 absentes**, dont `onboarding` et `onboarding_health`, deux des premières surfaces qu'un artiste rencontre. La même carte annonçait par ailleurs « Billing — 3-column Free/Basic/Premium » et un rôle `basic+` alors que `basic` est retiré depuis la migration 048.
+- signature: `python3 -m pytest tests/test_the_views_map_lists_every_view.py -q`
+- long_term_fix: `tests/test_the_views_map_lists_every_view.py` paramétrise sur les vues réelles et vérifie les deux sens — chaque vue est nommée, aucune ligne ne survit à sa vue. Il contrôle la PRÉSENCE, jamais la qualité de la description : un garde qui jugerait la prose serait infalsifiable ou échouerait à chaque édition honnête, et serait supprimé dans la semaine. La présence est ce qui a réellement pourri. L'extraction est bornée à la section, parce que plusieurs de ces noms apparaissent ailleurs dans le fichier — un `in text` global aurait passé sur des vues que la carte ne liste pas, exactement la vacuité qui a laissé passer trois dérives.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_views_map_lists_every_view.py }
+- rex_ref: .claude/dev-docs/architecture.md
+- first_seen: 2026-08-28
+- History:
+  - 2026-08-28: une règle qui demande un AGENT ne remplace pas un contrôle qui tourne. Les deux dérives précédentes sont documentées dans `CLAUDE.md` — une phrase d'avertissement dans un fichier lu à chaque séance n'a empêché ni la troisième, ni les mentions périmées du palier `basic` dans la même table.

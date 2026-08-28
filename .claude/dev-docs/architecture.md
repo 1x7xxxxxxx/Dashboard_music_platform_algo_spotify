@@ -208,16 +208,31 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `apple_music.py` | Apple Music | apple_* | all |
 | `hypeddit.py` | Hypeddit | hypeddit_* | all |
 | `imusician.py` | iMusician (Distributeur) | imusician_monthly_revenue (derived from imusician_sales_detail) | all |
-| `revenue_forecast.py` | 📈 Prévisions revenus | imusician_monthly_revenue (derived), ml_song_predictions | basic+ |
+| `revenue_forecast.py` | 📈 Prévisions revenus | imusician_monthly_revenue (derived), ml_song_predictions | premium |
 | `trigger_algo.py` | Trigger Algo — 7 tabs (Global/Suivi Algos/Budget/Explainabilité/Modèle/Cycle de vie & Benchmark/**Streams algos générés** — last one NEW 2026-06-12: stacked bar of realized DW/RR/Radio streams, cumulative total + per-playlist, 7d/28d/custom, from `s4a_song_algo_outcomes`); Modèle + Explainabilité tabs stack ALL populated algos (DW + Radio + RR — all 3 populated as of 2026-05-30) via `ml_widgets` scorecard / feature gauges + `algo_knowledge` zones; volume layer (2026-05-30): floor wording in `_display_prob_bar`, `render_volume_gauges` in the coach loop, regressor SHAP autopsy (`render_shap_narrative`/`render_regressor_badge`) in Explainabilité, organic budget-scaling section in Budget; Budget tab `_show_velocity_budget_advice` cross-link routes through `algo_knowledge.velocity_penalty_threshold` | ml_song_predictions, algo_lifecycle_benchmark (lifecycle tab, GLOBAL read-only) | all |
 | `ml_performance.py` | ML Performance — + "Scorecard classification" tab (shared `ml_widgets`) since 2026-05-29; scorecard grid loops `ak.populated_algos()` (no hardcoded algo tuple) since 2026-05-30 | ml_song_predictions, mlruns | admin |
 | `airflow_kpi.py` | Airflow KPI | Airflow REST API | admin |
 | `admin.py` | Admin | saas_artists, artist_credentials | admin |
 | `credentials/` (package) | Credentials API — under "Données" section since 2026-05-28 (above Import CSV) | artist_credentials | all |
 | `process_guide.py` | 📋 Guide de démarrage (since 2026-05-28) — downloadable PDF (WeasyPrint, HTML fallback) | static | all |
-| `billing.py` | Billing — 3-column Free/Basic/Premium since 2026-05-28 | subscription_plans, artist_subscriptions, subscription_plan_history | all |
+| `billing.py` | Billing — **2 colonnes Free / Premium**. Le palier `basic` est retiré (migration 048) ; la source de vérité est `PLAN_FEATURES` / `PLAN_CATALOG` dans `src/database/stripe_schema.py`, jamais un prix écrit ici | subscription_plans, artist_subscriptions, subscription_plan_history | all |
 | `alerts.py` | Alerting — + plan-evolution stacked-area + users table (admin) since 2026-05-28 | subscription_plan_history, saas_artists, circuit/freshness/billing alerts | admin |
 | `saisie_s4a.py` | 📝 Saisie S4A (since 2026-06-08, "Prédiction algos" section, above Road to Algo) — bulk `st.data_editor` grid (track × 7j/28j/12m + Discovery Mode) with grouped save + a custom date-range section for the days after a release. Replaced the short-lived `reglages.py` standalone view (deleted same session). S4A-UI-only signals, no API. | s4a_song_timeline + tracks (read) → s4a_song_playlist_adds (windowed, migration 044), s4a_song_discovery_mode (write) | all |
+| `onboarding.py` | 🚀 Mise en route (assistant) — 3 étapes post-inscription. Verrouillé par aucun plan depuis le 2026-08-23 : faire payer le droit de brancher ses propres comptes n'aurait pas de sens | saas_artists, artist_credentials | all |
+| `onboarding_health.py` | 🚦 Santé onboarding — matrice de préparation par artiste | `src.utils.artist_readiness` | all |
+| `db_health.py` | 🗄️ Santé des données — imports et fraîcheur | pg_stat_user_tables, colonnes `collected_at` | all |
+| `meta_cpr_optimizer.py` | 📊 CPR Optimizer — score ML × CPR et recommandations de budget | meta_insights_*, ml_song_predictions | premium |
+| `sacem.py` | 🎼 SACEM — répartitions brutes, charges sociales et net dans le temps | sacem_statements | all |
+| `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution | artist_wrapped | all |
+| `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |
+| `referral.py` | 🎁 Parrainage — page côté artiste | referral_codes, referral_events | all |
+| `upgrade.py` | Paywall de comparaison des plans — **hors navigation**, affichée quand une fonctionnalité verrouillée est cliquée | PLAN_FEATURES, PLAN_RANK | all |
+| `register.py` | Inscription — **hors navigation**, avant connexion | saas_artists, envoi du mail de vérification | public |
+| `privacy.py` | Politique de confidentialité (RGPD) — **hors navigation**, accessible sans connexion via `/?page=privacy` | statique | public |
+| `usage_analytics.py` | 📈 Usage Analytics — journal `usage_events` de première partie | usage_events | admin |
+| `etl_logs.py` | 🗂️ Historique ETL — runs et état du circuit breaker | etl_run_log, etl_circuit_breaker | admin |
+| `referral_admin.py` | 📊 Referral KPIs — **la clé de page est `referral_kpi`**, le fichier `referral_admin.py`. Le routage les relie ; ils ne se déduisent pas l'un de l'autre | referral_events, referral_codes | admin |
+| `promo_admin.py` | 🎟️ Promo Codes | promo_codes, promo_events | admin |
 | `upload_csv.py` | Upload CSV | all CSV-sourced tables | all |
 | `export_csv.py` | Export CSV (ZIP or Excel) | all tables | all |
 | `export_pdf.py` | Export PDF (WeasyPrint; promoted right after Accueil since 2026-06-08) — full visual redesign 2026-06-08: branded cover + headline KPIs, "Dernière sortie" spotlight, charts embedded via `utils/pdf_charts.py` (matplotlib→base64 PNG, no new dep); emoji stripped before `write_pdf` (WeasyPrint base fonts lack glyphs); "Depuis le début" all-time period; sections all-checked by default, song selectors auto-focus latest release | all tables | all |

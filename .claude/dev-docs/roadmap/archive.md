@@ -2263,3 +2263,29 @@ sans son effectif.
 - [x] **R55** — métrique définie, `src/utils/trigger_rate_history.py`, section branchée
       dans le PDF sur les rapports mono-titre uniquement, 12 tests, 4 mutations vues
       rouges.
+
+### R54 — Le GIF animé à côté des e-mails · P4
+
+Close le 2026-08-28, **vérifiée par son destinataire** : l'avatar est en place et il
+bouge.
+
+Trois diagnostics successifs, dont deux faux, et c'est le fil de la brique :
+
+1. « quelque chose que l'application envoie » — faux. Vérifié le 2026-08-24 : aucun
+   `<img>`, aucun `MIMEImage`, aucune URL distante dans les trois expéditeurs.
+2. « le relais Brevo » — insuffisant. C'est la **photo de profil du compte Google
+   expéditeur**, ce que seul le destinataire pouvait dire, et il l'a dit.
+3. « il faut que ça bouge dans la ligne du mail » — **impossible, et c'est mesuré** :
+   Gmail fige la frame 1 dans la liste dense et n'anime que les vues de profil
+   dépliées. La règle de conception s'inverse donc : la frame 1 doit être un avatar
+   complet, parce que la frame 1 EST la ligne du mail.
+
+BIMI écarté sur un fait, pas sur son prix : `SVG Tiny PS` **interdit l'animation** — un
+logo BIMI ne peut structurellement pas bouger. Il aurait fallu en plus passer
+`_dmarc.streamlytics.fr` de `p=none` à `p=quarantine` et un certificat VMC payant, pour
+un résultat immobile.
+
+- [x] **R54** — `tools/dev/make_avatar_gif.py` → `assets/brand/avatar_streamlytics.gif`
+      (256×256, 24 frames, 35 KB) dérivé de `logo_mark.svg` ; frame 0 = le logo exact,
+      tout dans les 70 % centraux parce que Gmail recadre en cercle. Posé sur le compte
+      Google expéditeur, confirmé en réception.

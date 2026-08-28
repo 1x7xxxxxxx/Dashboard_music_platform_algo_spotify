@@ -9,7 +9,7 @@ Après chacun, la vérification est donnée — ne pas la sauter : c'est elle qu
 
 ---
 
-## 1. R13 — Régénérer le token Meta System User  · P2
+## 1. ~~R13 — Régénérer le token Meta System User~~ · ✅ CLOS le 2026-08-22 — **il n'a jamais fallu régénérer**
 
 ### La réponse à « faut-il vraiment le régénérer ? » : oui, et voici pourquoi
 
@@ -130,7 +130,7 @@ La CI sème maintenant un second locataire, et
 
 ---
 
-## 4. R17 — Ingérer un corpus ergonomie / front-end · P3
+## 4. ~~R17 — Ingérer un corpus ergonomie / front-end~~ · ✅ FAIT le 2026-08-21 — 11 ouvrages indexés
 
 Vérifié le 2026-08-21 : le dossier ne contient qu'un `README.md`, **zéro PDF ou EPUB**.
 
@@ -193,7 +193,7 @@ en premier.
 
 ---
 
-## 8. R54 — Le GIF animé au bas des e-mails · P4
+## 8. ~~R54 — Le GIF animé à côté des e-mails~~ · ✅ FAIT le 2026-08-28 — avatar posé et **vérifié en réception**
 
 **Le constat, mesuré le 2026-08-24 : il ne vient pas de l'application.** Le dépôt a été
 inspecté sur les trois expéditeurs — `src/utils/email_alerts.py`,
@@ -206,26 +206,43 @@ inspecté sur les trois expéditeurs — `src/utils/email_alerts.py`,
   `tools/` ;
 - le pied de page de désinscription (`_unsubscribe_footer`) est du texte et un lien.
 
-Il reste donc deux sources possibles, toutes deux **hors du produit** — c'est
-exactement le cas de R38, où le nom d'expéditeur venait du compte Brevo et écrasait
-celui du code :
+**La réponse, donnée par le destinataire le 2026-08-28** : c'est **la photo de profil du
+compte Google expéditeur**. Ni Brevo, ni une signature — la seule des deux hypothèses
+que personne dans le dépôt ne pouvait trancher, parce qu'elle se lit dans une boîte de
+réception et nulle part ailleurs.
 
-1. **Brevo** — signature ou pied de page ajouté au niveau du compte / de l'expéditeur ;
-2. **l'avatar du compte expéditeur**, que la messagerie du destinataire (Gmail,
-   notamment) affiche à côté du message.
+**Et la demande telle qu'énoncée était impossible.** « Quelque chose qui bouge, dans la
+ligne du mail » : la ligne de la boîte de réception est précisément la surface que Gmail
+n'anime pas. Il y fige la frame 1 et ne joue l'animation que dans les vues de profil
+dépliées (survol, fiche contact). La règle de conception s'inverse donc —
 
-**Le geste** : Brevo → *Expéditeurs, domaines & IPs* → l'expéditeur
-`noreply@streamlytics.fr` → vérifier qu'aucune signature ni pied de page n'y est
-attaché ; puis, dans les réglages du compte Google associé à l'adresse, vérifier la
-photo de profil.
+> la frame 1 doit être un avatar complet, **parce que la frame 1 EST la ligne du mail**.
 
-**La vérification** : s'inscrire avec une adresse jetable, ouvrir le mail de
-confirmation et regarder **la source** du message (Gmail : « Afficher l'original »). Si
-le GIF n'apparaît pas dans le HTML source, il est ajouté à l'affichage par la messagerie
-(avatar) et non par l'envoi.
+Le mouvement est un bonus pour les surfaces qui l'affichent, jamais la fonction.
 
-**Pourquoi c'est P4** : purement cosmétique, aucun effet sur la délivrabilité ni sur les
-données. À traiter quand tu passeras sur les réglages Brevo pour autre chose.
+**BIMI est écarté sur un fait, pas sur son prix** : `SVG Tiny PS` **interdit
+l'animation**, donc un logo BIMI ne peut structurellement pas bouger. Il demanderait en
+plus de passer `_dmarc.streamlytics.fr` de `p=none` (état vérifié le 2026-08-28) à
+`p=quarantine`, et un certificat VMC payant — pour un résultat immobile.
+
+**Le geste, s'il faut le refaire** :
+
+```bash
+python3 tools/dev/make_avatar_gif.py     # → assets/brand/avatar_streamlytics.gif
+```
+
+256×256, 24 frames, 35 KB, dérivé de `src/dashboard/assets/logo_mark.svg`. Puis, sur le
+compte Google expéditeur : badge de profil → icône appareil photo → **Modifier** →
+**Importer une photo** → déposer le GIF, quelques minutes de propagation.
+
+Deux contraintes que le script tient déjà, et qui sont la raison de son existence :
+la **frame 0 reproduit exactement** les hauteurs de barres du SVG (une boucle qui
+s'en écarterait ferait afficher à la ligne du mail une image que la marque n'a jamais
+validée), et tout tient dans les **70 % centraux** parce que Gmail recadre en cercle —
+une marque qui se lit en carré perd ses bords dès qu'elle sert d'avatar.
+
+**La vérification** : la ligne de la boîte montre la marque fixe ; survoler l'avatar
+déplie la fiche et les barres bougent. Fait le 2026-08-28.
 
 ---
 
@@ -302,6 +319,11 @@ envoie un vrai e-mail de résumé. Mesuré le 2026-08-23.
 
 ## 5. R1 — Ouvrir la bêta privée · P3
 
+> 📋 **La procédure pas à pas est `.claude/dev-docs/runbook-artist-test-session.md`** —
+> écrite après deux sessions de test artiste ratées pour la même heure perdue. Elle
+> était orpheline jusqu'au 2026-08-28 : aucun fichier hors de `dev-docs/` ne la nommait,
+> donc la seule tâche encore ouverte n'avait, en pratique, pas de runbook trouvable.
+
 Les prérequis sont prouvés en production : funnel d'inscription complet, e-mails Brevo
 livrés, paiement Stripe validé de bout en bout, isolation locataire testée.
 
@@ -368,7 +390,7 @@ substitut.
 `docs/adr/ADR-008`. Retiens seulement ceci : l'attribution est la seule partie qui a une
 échéance, parce que `_fbp`/`_fbc` et les UTM ne se récupèrent pas rétroactivement.
 
-## 9. R55 — Choisir la métrique « 30 premiers jours vs actuel » · P3
+## 9. ~~R55 — Choisir la métrique « 30 premiers jours vs actuel »~~ · ✅ TRANCHÉ le 2026-08-26
 
 Écrit le 2026-08-26, en fermant R51. La brique demandait une section du PDF comparant
 les 30 premiers jours d'un titre à son état actuel « sur le taux de trigger », et

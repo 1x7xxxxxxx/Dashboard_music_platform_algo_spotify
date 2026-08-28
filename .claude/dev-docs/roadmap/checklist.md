@@ -28,8 +28,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 ## 🔖 REPRISE — état au 2026-08-28, séance close (à lire EN PREMIER au `/resume`)
 
 **▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne restent que **deux**
-gestes humains, et eux seuls : **R1** (inviter la bêta) et **R54** (GIF Brevo, rien à
-corriger en code). Ils sont détaillés au § « En attente de toi » ci-dessous.
+geste humain, et lui seul : **R1** — inviter la bêta. Il est détaillé au § « En attente
+de toi » ci-dessous. R54 est close le 2026-08-28 : l'avatar animé est en place et vérifié
+par son destinataire.
 
 > ⚠️ Ce bloc nommait encore R13, R17 et R55 le 2026-08-28 alors que les trois étaient
 > closes — R13 le 2026-08-22, R17 le 2026-08-21, R55 le 2026-08-26. Le corps du fichier
@@ -172,7 +173,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
-| R54 | Le GIF animé au bas des e-mails | P4 | **rien à corriger dans le code** — vérifié le 2026-08-24 : aucun `<img>`, aucun `MIMEImage`, aucune URL d'image dans les trois expéditeurs. C'est le relais Brevo ou l'avatar du compte expéditeur, comme le nom d'expéditeur de R38. Runbook §8. |
 
 ## 🔍 Ce que le graphe de code a sorti (2026-08-23)
 
