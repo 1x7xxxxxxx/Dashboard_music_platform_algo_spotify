@@ -1311,7 +1311,8 @@ def _close_alert_attempt(run_id, delivered: bool, error) -> None:
 
 def send_consolidated_alert(**context):
     """Assemble one email with all findings: failures, freshness, missing creds."""
-    from src.utils.alert_repetition import findings_digest, suppression_reason
+    from src.utils.alert_repetition import (
+        digest_input, findings_digest, suppression_reason)
     from src.utils.email_alerts import AlertDeliveryError, deliver_or_raise
 
     ti = context['task_instance']
@@ -1953,16 +1954,16 @@ def send_consolidated_alert(**context):
     # so two genuinely different nights can share one. Measured 2026-08-28 — the runs
     # of 25 and 26 August differ only by `age_h` and `when`, both of which move on
     # their own; the findings, the tenants and the gestures were word-for-word equal.
-    digest = findings_digest({
-        'failing_dags': failing_dags, 'stale_sources': stale_sources,
-        'missing_creds': missing_creds, 'sparks': sparks, 'drift': drift,
-        'billing_issues': billing_issues, 'row_anomalies': row_anomalies,
-        'row_dips': row_dips, 'tenant_gaps': tenant_gaps,
-        'central_broken': central_broken, 'canary': canary,
-        'readiness_flags': readiness_flags, 'stalled_tenants': stalled_tenants,
-        'canary_preflight': canary_preflight,
-        'collection_failures': collection_failures, 'contamination': contamination,
-    })
+    digest = findings_digest(digest_input(
+        failing_dags=failing_dags, stale_sources=stale_sources,
+        missing_creds=missing_creds, sparks=sparks, drift=drift,
+        billing_issues=billing_issues, row_anomalies=row_anomalies,
+        row_dips=row_dips, tenant_gaps=tenant_gaps,
+        central_broken=central_broken, canary=canary,
+        readiness_flags=readiness_flags, stalled_tenants=stalled_tenants,
+        canary_preflight=canary_preflight,
+        collection_failures=collection_failures, contamination=contamination,
+    ))
     _last_digest, _last_at = _last_delivered_digest()
     suppressed = suppression_reason(digest, _last_digest, _last_at)
     if suppressed:

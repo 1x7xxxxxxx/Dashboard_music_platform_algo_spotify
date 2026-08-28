@@ -114,9 +114,21 @@ def findings_digest(findings: dict) -> str:
     l'empreinte dépendrait de l'ordre d'insertion des dictionnaires, sans le second un
     `datetime` ou un `Decimal` remonté d'une requête ferait lever `TypeError` au beau
     milieu de l'envoi — et une empreinte qui plante est un mail qui ne part pas.
+
+    **Les catégories vides sont retirées**, et ce n'est pas une optimisation. Mesuré le
+    2026-08-28 en prédisant la nuit suivante sur les données de production : avec
+    `check_credentials_all` en panne, la catégorie était ABSENTE ; une fois la tâche
+    réparée, elle valait `[]` — zéro constat, rien de changé dans le monde — et les deux
+    empreintes différaient. Un mail serait reparti pour annoncer que rien n'avait bougé.
+
+    La règle que cela impose est plus large que le cas : **l'empreinte doit dépendre de
+    ce qui NE VA PAS, jamais de la liste des catégories que l'appelant a énumérées.**
+    Sinon toute vérification qui se met à marcher, ou cesse de marcher, relance un
+    courrier dont le contenu est identique.
     """
+    stripped = {k: v for k, v in _strip(findings).items() if v not in ([], {}, None, "")}
     return hashlib.sha256(
-        json.dumps(_strip(findings), sort_keys=True, ensure_ascii=False,
+        json.dumps(stripped, sort_keys=True, ensure_ascii=False,
                    default=str).encode("utf-8")
     ).hexdigest()
 
@@ -154,3 +166,34 @@ def suppression_reason(digest: str, last_digest, last_delivered_at, now=None) ->
     return (f"constats inchangés depuis le dernier envoi ({age.days}j), "
             f"renvoi dans {max(1, remaining.days)}j ou dès qu'un constat change "
             f"({_WINDOW_VAR}={window})")
+
+# Les catégories de constats, dans l'ordre où le mail les rend. Nommées ici et pas au
+# point d'appel pour une raison mesurée le 2026-08-28 : l'empreinte de référence
+# rétro-remplie ce jour-là avait été calculée par un script qui reconstruisait le
+# dictionnaire de son côté, avec les clés BRUTES des XCom. Elle hachait donc une autre
+# forme que le code de production, sans que rien ne puisse le dire — deux empreintes
+# incomparables qui se ressemblent, et une fenêtre de silence qui ne se serait jamais
+# refermée. Un seul endroit construit l'entrée ; tout le reste l'appelle.
+FINDING_CATEGORIES = (
+    "failing_dags", "stale_sources", "missing_creds", "sparks", "drift",
+    "billing_issues", "row_anomalies", "row_dips", "tenant_gaps", "central_broken",
+    "canary", "readiness_flags", "stalled_tenants", "canary_preflight",
+    "collection_failures", "contamination",
+)
+
+
+def digest_input(**findings) -> dict:
+    """Le dictionnaire à hacher. Refuse une catégorie qu'il ne connaît pas.
+
+    Le refus est le point : ajouter un contrôle sans l'inscrire dans
+    `FINDING_CATEGORIES` le rendrait invisible à la suppression — son constat
+    n'entrerait pas dans l'empreinte, donc une nuit où lui seul change se tairait.
+    Un `KeyError` bruyant au moment du câblage vaut mieux qu'une alerte muette.
+    """
+    unknown = sorted(set(findings) - set(FINDING_CATEGORIES))
+    if unknown:
+        raise KeyError(
+            f"catégorie(s) de constat inconnue(s) : {unknown}. Ajoute-les à "
+            f"FINDING_CATEGORIES, sinon leur constat n'entre pas dans l'empreinte et "
+            f"une nuit où elles seules changent ne sera pas envoyée.")
+    return {k: findings.get(k) for k in FINDING_CATEGORIES}

@@ -27,6 +27,8 @@ from pathlib import Path
 import pytest
 
 from src.utils.alert_repetition import (
+    FINDING_CATEGORIES,
+    digest_input,
     findings_digest,
     repeat_window_days,
     suppression_reason,
@@ -144,3 +146,77 @@ def test_a_broken_window_variable_falls_back_instead_of_silencing(monkeypatch):
     for bad in ("", "   ", "seven", "0", "-3"):
         monkeypatch.setenv("ALERT_REPEAT_SILENCE_DAYS", bad)
         assert repeat_window_days() == 7, bad
+
+# ── Absent, vide : le même monde ────────────────────────────────────────────────
+
+def test_an_absent_category_and_an_empty_one_digest_the_same(nights):
+    """Zéro constat n'est pas un constat, quelle que soit la forme que prend le zéro.
+
+    Mesuré le 2026-08-28 en PRÉDISANT la nuit suivante sur les données de production,
+    pas en imaginant un cas. `check_credentials_all` était en panne : la catégorie était
+    absente de la nuit stockée. Une fois la tâche réparée, elle valait `[]` — 11
+    credentials manquants, **11 déjà dits** par « Inscrits sans rien connecter », donc
+    zéro survivant, donc rien de neuf pour le lecteur. Les deux empreintes différaient
+    quand même, et un mail serait reparti pour annoncer que rien n'avait bougé.
+
+    C'est la forme la plus vicieuse de la classe : une vérification qui se RÉPARE
+    déclenche une alerte, exactement au moment où l'on croit avoir supprimé le bruit.
+    """
+    base = json.loads(json.dumps(nights[1]))
+    with_empty = dict(base, une_categorie_neuve=[])
+    assert findings_digest(base) == findings_digest(with_empty)
+
+    without = {k: v for k, v in base.items() if v not in ([], {}, None)}
+    assert findings_digest(base) == findings_digest(without), (
+        "removing the categories that hold nothing must not change the digest"
+    )
+
+
+def test_a_category_that_becomes_non_empty_still_changes_the_digest(nights):
+    """La contrepartie : le retrait des vides ne doit pas rendre le garde aveugle."""
+    base = json.loads(json.dumps(nights[1]))
+    filled = dict(base, une_categorie_neuve=[{"artist_id": 99, "platform": "spotify"}])
+    assert findings_digest(base) != findings_digest(filled)
+
+
+# ── Un seul constructeur d'entrée ──────────────────────────────────────────────
+
+def test_the_dag_and_the_module_agree_on_the_categories():
+    """Le DAG doit passer exactement les catégories que le module déclare.
+
+    Mesuré le 2026-08-28, et c'est le défaut que j'ai introduit moi-même : l'empreinte
+    de référence rétro-remplie ce jour-là avait été calculée par un script qui
+    reconstruisait le dictionnaire avec les clés BRUTES des XCom. Elle hachait une autre
+    forme que la production, rien ne pouvait le dire, et la fenêtre de silence ne se
+    serait jamais refermée — la comparaison aurait échoué chaque nuit.
+
+    Lu par AST dans le DAG plutôt qu'en l'important : `alert_monitor.py` importe
+    `airflow`, absent de certains environnements de test, et une porte de dépendance
+    ferait sauter ce contrôle en silence.
+    """
+    import ast
+    dag = Path(__file__).resolve().parents[1] / "airflow" / "dags" / "alert_monitor.py"
+    tree = ast.parse(dag.read_text(encoding="utf-8"))
+    calls = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+             and n.func.id == "digest_input"]
+    assert len(calls) == 1, f"expected exactly one digest_input(...) call, found {len(calls)}"
+    passed = {kw.arg for kw in calls[0].keywords if kw.arg}
+    assert passed == set(FINDING_CATEGORIES), (
+        f"the DAG passes {sorted(passed ^ set(FINDING_CATEGORIES))} differently from "
+        "FINDING_CATEGORIES. A category the DAG computes but does not pass is invisible "
+        "to suppression: a night where only it changes would stay silent."
+    )
+
+
+def test_an_unknown_category_is_refused_loudly():
+    """Un contrôle neuf non déclaré doit casser au câblage, pas se taire une nuit."""
+    with pytest.raises(KeyError, match="inconnue"):
+        digest_input(failing_dags={}, un_controle_tout_neuf=[{"x": 1}])
+
+
+def test_the_constructor_is_order_independent():
+    """L'appelant nomme ses arguments ; l'ordre ne doit jamais changer l'empreinte."""
+    a = digest_input(failing_dags={"d": 1}, sparks=[{"s": 2}])
+    b = digest_input(sparks=[{"s": 2}], failing_dags={"d": 1})
+    assert findings_digest(a) == findings_digest(b)
