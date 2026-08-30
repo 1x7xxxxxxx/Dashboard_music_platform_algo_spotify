@@ -26,7 +26,7 @@ EN = {
     "data_wrapped.recap_profitable": "profitable",
     # Recap — ML
     "data_wrapped.recap_ml_header": "🔮 ML highlight",
-    "data_wrapped.recap_no_ml": "No ML prediction — run the `ml_scoring_daily` DAG.",
+    "data_wrapped.recap_no_ml": 'No prediction yet — they are recomputed every day, late morning.',
     "data_wrapped.recap_ml_best": "🔮 Most promising track: **{song}** — {algo} **{pct}%**",
     "data_wrapped.recap_ml_caption": "Absolute trigger probability (calibrated model output). "
                                      "See “🚀 Road to Algo (ML)” for details.",

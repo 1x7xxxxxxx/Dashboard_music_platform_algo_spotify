@@ -15,7 +15,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
-from src.dashboard.auth import require_plan
+from src.dashboard.auth import require_plan, is_admin
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
 _QUERY_TS_ALL = """
@@ -122,22 +122,29 @@ def _render_uncollected_notice(uncollected: pd.DataFrame) -> None:
         expanded=False,
     ):
         if n_delivered:
+            # Le bloc disait à l'ARTISTE d'ouvrir l'UI Airflow et de relancer un DAG
+            # avec une config JSON, ou de lancer un script Python en local. Il ne peut
+            # faire ni l'un ni l'autre. Le constat lui appartient — c'est son argent —
+            # la manœuvre appartient à l'exploitant.
             st.markdown(t(
                 "meta_creatives.uncollected_body",
-                "**{n} campagne(s) ont bien dépensé** (collectées au niveau "
-                "campagne) mais **leur détail par créative (ad-level) n'a pas été "
-                "collecté**. Cas typique : campagne **en pause ou archivée** — ses "
-                "publicités passent en statut `CAMPAIGN_PAUSED`/`ARCHIVED` et ne sont "
-                "rechargées que par une collecte **full-history complète** (qui re-fetche "
-                "la config ads, pas seulement les insights) :\n"
-                "- Airflow → DAG `meta_ads_api_daily` → *Trigger DAG w/ config* "
-                "`{{\"full_history\": true}}` (run **non** `insights_only`), ou\n"
-                "- en local : `python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`\n\n"
-                "_Réserves :_ (1) le détail par créative n'est récupérable que si les "
-                "publicités existent encore côté Meta (non supprimées) ; (2) Meta ne "
-                "conserve les insights que **~37 mois** — au-delà, seul le total campagne "
-                "reste disponible."
+                "**{n} campagne(s) ont bien dépensé**, mais le détail **par créative** "
+                "n'a pas pu être récupéré. Cas courant : une campagne **en pause ou "
+                "archivée** — Meta cesse d'en livrer le détail publicité par publicité.\n\n"
+                "Le total de la campagne reste juste ; seule la répartition entre "
+                "créatives manque. Signale-le à l'administrateur si ces campagnes "
+                "comptent pour toi."
             ).format(n=n_delivered))
+            if is_admin():
+                st.caption(t(
+                    "meta_creatives.uncollected_admin",
+                    "🛠️ Rechargeable par une collecte full-history (qui re-récupère la "
+                    "config des ads, pas seulement les insights) : Airflow → "
+                    "`meta_ads_api_daily` → *Trigger DAG w/ config* "
+                    "`{{\"full_history\": true}}`, ou en local "
+                    "`python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`. "
+                    "Réserves : les publicités doivent exister encore côté Meta, et Meta "
+                    "ne conserve les insights que ~37 mois."))
         col_spend = t("meta_creatives.col_campaign_spend", "Dépense campagne (€)")
         st.dataframe(
             df.rename(columns={
@@ -509,9 +516,9 @@ def show() -> None:
         if df.empty:
             st.info(t(
                 "meta_creatives.no_data",
-                "Aucune donnée de créative disponible. "
-                "Vérifiez que le DAG **meta_ads_api_daily** a bien collecté des données "
-                "via l'API Meta Ads (tables `meta_ads` + `meta_insights`)."
+                "Aucune donnée de créative. Vérifie que Meta Ads est connecté dans "
+                "**🔑 Credentials API**, puis lance **🚀 Lancer TOUTES les collectes** "
+                "dans la barre latérale."
             ))
             return
 

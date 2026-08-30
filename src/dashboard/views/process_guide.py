@@ -57,8 +57,8 @@ def _get_steps() -> list[tuple[str, list[str]]]:
             t("process_guide.s2_title", "3. Lancer la collecte"),
             [
                 t("process_guide.s2_i1",
-                  "Dans la barre latérale, cliquez sur **🚀 Lancer TOUTES les collectes** "
-                  "pour déclencher tous les DAGs d'un coup."),
+                  "Dans la barre latérale, clique sur **🚀 Lancer TOUTES les collectes** — "
+                  "toutes tes plateformes sont interrogées d'un coup."),
                 t("process_guide.s2_i2",
                   "Vous pouvez aussi laisser les collectes quotidiennes programmées s'exécuter."),
                 t("process_guide.s2_i3",

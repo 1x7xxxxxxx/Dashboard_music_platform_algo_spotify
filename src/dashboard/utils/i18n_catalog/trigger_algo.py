@@ -184,8 +184,7 @@ EN = {
         "Red bars = it helps the score, blue = it penalises it."
     ),
     "trigger_algo.explain.no_pred": (
-        "No ML prediction available for this track. Run the `ml_scoring_daily` DAG."
-    ),
+        'No prediction for this track yet — they are recomputed every day, late morning.'),
     "trigger_algo.explain.no_features": "features_json missing from the ML prediction.",
     "trigger_algo.explain.parse_failed": "Unable to parse features_json.",
     "trigger_algo.explain.inference_unavailable": "ml_inference unavailable: {err}",
@@ -357,9 +356,7 @@ EN = {
     "trigger_algo.common.estimated_volume": "Estimated volume",
     "trigger_algo.common.ml_pred_date": "ML prediction from **{date}** — model `{ver}`",
     "trigger_algo.common.heuristic_mode": (
-        "⚠️ **Heuristic Mode** — No ML prediction available. "
-        "Run the `ml_scoring_daily` DAG to get ML probabilities."
-    ),
+        "⚠️ **Heuristic mode** — no prediction for this track yet. The model's probabilities arrive at the next computation, late morning."),
     "trigger_algo.common.heur_rr": "**📡 Release Radar** ({pct}%)",
     "trigger_algo.common.trigger_activated": "✅ Trigger theoretically activated!",
     "trigger_algo.common.rr_missing": "{n:,.0f} streams short (rounded heuristic threshold)",
@@ -510,9 +507,7 @@ EN = {
     ),
     "trigger_algo.common.ar_selector_header": "🎯 A&R selection by budget (top-N%)",
     "trigger_algo.common.ar_selector_min": (
-        "Tool available from ≥ 3 scored tracks (catalogue scale). "
-        "Run the `ml_scoring_daily` DAG."
-    ),
+        'Tool available from 3 scored tracks (catalogue scale). The computation runs every day, late morning.'),
     "trigger_algo.common.ar_slider": "Push the top N% by score",
     "trigger_algo.common.ar_slider_help": (
         "Low threshold → high precision (little waste); high threshold → high recall."

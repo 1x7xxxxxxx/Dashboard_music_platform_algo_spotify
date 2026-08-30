@@ -112,7 +112,8 @@ EN = {
         "🚀 {platform} collection started — data available in ~2 min"
     ),
     "credentials.dag_trigger_failed": (
-        "⚠️ Credentials saved but DAG trigger failed: {err}"
+        "⚠️ Credentials saved, but the first collection could not start ({err}). "
+        "It will run again tonight."
     ),
     "credentials.probing_now": "Checking the {platform} connection…",
     "credentials.save_ok": "✅ {platform} credentials saved.",

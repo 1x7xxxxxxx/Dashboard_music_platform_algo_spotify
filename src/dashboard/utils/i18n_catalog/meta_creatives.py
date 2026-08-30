@@ -1,14 +1,13 @@
 """EN strings for the Meta Ads creatives view."""
 
 EN = {
+    'meta_creatives.uncollected_admin': '🛠️ Recoverable with a full-history collection (which re-fetches the ad config, not only the insights): Airflow → `meta_ads_api_daily` → *Trigger DAG w/ config* `{{"full_history": true}}`, or locally `python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`. Caveats: the ads must still exist on Meta\'s side, and Meta only keeps insights ~37 months.',
     "meta_creatives.title": "🎨 Meta Ads Creatives",
     "meta_creatives.subtitle": (
         "Your creatives ranked by CPR — based on Meta Ads API data (meta_ads × meta_insights)."
     ),
     "meta_creatives.no_data": (
-        "No creative data available. Check that the **meta_ads_api_daily** DAG has "
-        "collected data via the Meta Ads API (tables `meta_ads` + `meta_insights`)."
-    ),
+        'No creative data. Check that Meta Ads is connected in **🔑 Credentials API**, then run **🚀 Launch ALL collections** in the sidebar.'),
     "meta_creatives.filter_by_campaign": "Filter by campaign",
     "meta_creatives.all_campaigns": "All",
     "meta_creatives.no_creative_campaign": "No creative for this campaign.",
@@ -25,19 +24,7 @@ EN = {
     # Uncollected-campaigns notice
     "meta_creatives.uncollected_title": "⚠️ {n} campaign(s) missing from the creative ranking",
     "meta_creatives.uncollected_body": (
-        "**{n} campaign(s) did spend** (collected at campaign level) but **their "
-        "per-creative (ad-level) detail was not collected**. Typical case: a "
-        "**paused or archived** campaign — its ads switch to "
-        "`CAMPAIGN_PAUSED`/`ARCHIVED` status and are only reloaded by a complete "
-        "**full-history** collection (which re-fetches the ads config, not just the "
-        "insights):\n"
-        "- Airflow → DAG `meta_ads_api_daily` → *Trigger DAG w/ config* "
-        "`{{\"full_history\": true}}` (run **not** `insights_only`), or\n"
-        "- locally: `python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`\n\n"
-        "_Caveats:_ (1) per-creative detail is only retrievable while the ads still "
-        "exist on Meta's side (not deleted); (2) Meta only keeps insights for "
-        "**~37 months** — beyond that, only the campaign total remains available."
-    ),
+        '**{n} campaign(s) did spend**, but the **per-creative** breakdown could not be retrieved. Common case: a **paused or archived** campaign — Meta stops serving its ad-by-ad detail.\n\nThe campaign total is still correct; only the split across creatives is missing. Tell the administrator if those campaigns matter to you.'),
     "meta_creatives.col_campaign": "Campaign",
     "meta_creatives.col_ads": "Ads",
     "meta_creatives.col_campaign_spend": "Campaign spend (€)",

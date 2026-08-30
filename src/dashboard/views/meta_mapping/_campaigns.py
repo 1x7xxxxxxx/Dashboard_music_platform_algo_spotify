@@ -216,7 +216,8 @@ def render_campaign_tab(db, artist_id, canonical):
     bl = _load_campaign_backlog(db, artist_id)
     if bl.empty:
         st.info(t("meta_mapping.no_campaigns",
-                  "Aucune campagne trouvée dans `meta_campaigns`. Lancez d'abord le DAG Meta Ads."))
+                  "Aucune campagne. Connecte Meta Ads dans **🔑 Credentials API**, puis lance "
+                  "**🚀 Lancer TOUTES les collectes** dans la barre latérale."))
     else:
         def _status(r):
             return ("🔴 Rejeté" if r['rejected'] else "✅ Associé" if r['track'] else "⏳ À traiter")

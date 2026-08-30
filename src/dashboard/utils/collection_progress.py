@@ -17,6 +17,10 @@ is testable without Streamlit or Airflow.
 from __future__ import annotations
 
 RUNS_KEY = "_collection_runs"
+# Ce qui n'a même pas démarré. Séparé de RUNS_KEY parce qu'il n'y a PAS de run à
+# interroger : un déclenchement refusé n'a pas d'identifiant de run, donc aucune
+# tâche à lire. C'était dit dans une `st.status` qui se referme, puis nulle part.
+NOT_LAUNCHED_KEY = "_collection_not_launched"
 
 _TERMINAL_OK = {"success"}
 _TERMINAL_KO = {"failed", "upstream_failed"}
@@ -77,6 +81,17 @@ def remember_runs(runs: dict[str, str]) -> None:
         st.session_state[RUNS_KEY] = runs
 
 
+def remember_not_launched(failures: dict[str, str]) -> None:
+    """Keep {dag_id: reason} for collections that never started.
+
+    Écrit à chaque clic, y compris vide : sans l'effacement, une plateforme réparée
+    resterait affichée en échec jusqu'à la fin de la session.
+    """
+    import streamlit as st
+
+    st.session_state[NOT_LAUNCHED_KEY] = failures or {}
+
+
 def render_progress(monitor, labels: dict[str, str]) -> None:
     """Show the state of the runs launched in this session. Safe to call every rerun."""
     import streamlit as st
@@ -84,10 +99,18 @@ def render_progress(monitor, labels: dict[str, str]) -> None:
     from src.dashboard.utils.i18n import t
 
     runs = st.session_state.get(RUNS_KEY) or {}
-    if not runs:
+    not_launched = st.session_state.get(NOT_LAUNCHED_KEY) or {}
+    if not runs and not not_launched:
         return
 
     st.sidebar.markdown(t("app.collection_progress", "**Collecte en cours**"))
+
+    # D'abord ce qui n'a pas démarré : c'est la seule ligne qui appelle un geste.
+    for dag_id, reason in not_launched.items():
+        st.sidebar.write(f"❌ {labels.get(dag_id, dag_id)}")
+        if reason:
+            st.sidebar.caption(reason)
+
     for dag_id, run_id in runs.items():
         label = labels.get(dag_id, dag_id)
         tasks = monitor.get_task_instances(dag_id, run_id) if monitor else []
@@ -108,9 +131,13 @@ def render_progress(monitor, labels: dict[str, str]) -> None:
                     dag_id, run_id, failed["task_id"], failed.get("try_number", 1)))
             st.sidebar.write(f"❌ {label}" + (f" — {hint}" if hint else ""))
             if not hint:
+                # Le texte renvoyait vers « 📊 Airflow KPI », qui est dans
+                # `_ADMIN_ONLY` : l'artiste à qui on le disait ne pouvait pas y
+                # aller. Un cul-de-sac, pas une aide.
                 st.sidebar.caption(t(
                     "app.collection_failed_unknown",
-                    "Échec non reconnu — voir 📊 Airflow KPI pour le détail."))
+                    "Nous n'avons pas su interpréter cette erreur. Réessaie ; "
+                    "si elle revient, contacte l'administrateur."))
 
     if st.sidebar.button(t("app.collection_refresh", "🔄 Rafraîchir l'état"),
                          key="_collection_refresh"):

@@ -27,6 +27,20 @@ C'est la même famille que la croix verte de collecte qui ne prouve pas l'arriv�
 données : un message d'état qui ne mesure pas l'état qu'il annonce. Le garde est
 structurel — il exige que l'appel soit sous un `if`, ce qu'aucune relecture n'avait
 attrapé en deux mois.
+
+Mise à jour du 2026-08-30 — la surface a changé, pas la question
+---------------------------------------------------------------
+« Lancé ! » n'existe plus du tout : le panneau ne dit plus rien pendant le
+déclenchement, et TOUT le résultat descend dans « Collecte en cours », qui survit aux
+reruns. Le premier test de ce fichier exigeait la présence de `app.launched` — il est
+devenu rouge, ce qui est exactement ce que son propre message demandait de faire
+(« mettre ce garde à jour plutôt que de le laisser vert sur rien »).
+
+La question protégée est inchangée : **quand rien n'a démarré, l'artiste doit
+l'apprendre**. Ce qui la garantit maintenant, ce n'est plus une branche `else` mais le
+fait que les déclenchements REFUSÉS soient mémorisés (`remember_not_launched`) et rendus
+(`render_progress`). Un échec qui n'est pas mémorisé disparaît à la fermeture de la
+`st.status`, c'est-à-dire aussitôt.
 """
 
 import ast
@@ -82,11 +96,22 @@ def _guarded_lines(tree: ast.Module) -> set[int]:
     return covered
 
 
-def test_the_success_message_exists_at_all():
-    calls = _success_calls(_tree())
-    assert calls, (
-        "aucun appel `success('app.launched')` trouvé — la clé a été renommée ? "
-        "Mettre ce garde à jour plutôt que de le laisser vert sur rien."
+def test_no_unconditional_success_survives_in_the_panel():
+    """Aucun `success()` non gardé ne doit revenir dans le panneau de collecte."""
+    tree = _tree()
+    panel = next((n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef)
+                  and n.name == "show_data_collection_panel"), None)
+    assert panel is not None, "show_data_collection_panel a disparu de app.py"
+
+    guarded = _guarded_lines(tree)
+    stray = [n.lineno for n in ast.walk(panel)
+             if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "success"
+             and n.lineno not in guarded]
+    assert not stray, (
+        f"ligne(s) {stray} : un message de succès est réapparu dans le panneau de "
+        f"collecte sans être sous un `if` qui teste le RÉSULTAT. C'est la forme exacte "
+        f"de « Lancé ! » : sept échecs, puis un vert."
     )
 
 
@@ -102,10 +127,40 @@ def test_the_launch_success_is_inside_a_condition():
     )
 
 
-def test_a_failure_is_told_too():
-    """Ne rien dire quand tout échoue est le second défaut possible du même correctif."""
-    text = _APP.read_text(encoding="utf-8")
-    assert "app.launch_all_failed" in text, (
-        "quand aucun déclenchement ne réussit, il faut le DIRE : conditionner le succès "
-        "sans ajouter la branche d'échec remplacerait un faux vert par un silence."
+def test_a_refused_trigger_is_remembered_and_rendered():
+    """Ne rien dire quand tout échoue est le second défaut possible du même correctif.
+
+    Un déclenchement refusé n'a PAS d'identifiant de run : il n'y a donc rien à
+    interroger plus tard, et s'il n'est pas mémorisé au moment du clic il n'existe
+    nulle part dès que la `st.status` se referme.
+    """
+    tree = _tree()
+    panel = next((n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef)
+                  and n.name == "show_data_collection_panel"), None)
+    assert panel is not None, "show_data_collection_panel a disparu de app.py"
+
+    called = {getattr(n.func, "id", getattr(n.func, "attr", ""))
+              for n in ast.walk(panel) if isinstance(n, ast.Call)}
+    assert "remember_not_launched" in called, (
+        "les déclenchements refusés ne sont plus mémorisés. Sans ça ils ne vivent que "
+        "dans la `st.status` du clic, qui se referme — l'artiste voit un panneau "
+        "« Collecte en cours » qui ne mentionne pas les plateformes n'ayant jamais "
+        "démarré, et conclut qu'elles tournent."
     )
+
+    # Structurel, et pas `"NOT_LAUNCHED_KEY" in source` : cette version-là est restée
+    # VERTE alors que la constante était débranchée, parce que son nom subsistait dans
+    # les autres fonctions du module. Ce qui compte, c'est que le RENDU la lise.
+    prog_tree = ast.parse(
+        (_APP.parent / "utils" / "collection_progress.py").read_text(encoding="utf-8"))
+    fns = {n.name: n for n in ast.walk(prog_tree) if isinstance(n, ast.FunctionDef)}
+
+    for fname in ("render_progress", "remember_not_launched"):
+        assert fname in fns, f"collection_progress.{fname} a disparu"
+        names = {n.id for n in ast.walk(fns[fname]) if isinstance(n, ast.Name)}
+        assert "NOT_LAUNCHED_KEY" in names, (
+            f"collection_progress.{fname} ne référence plus NOT_LAUNCHED_KEY. "
+            "Mémoriser sans afficher — ou afficher sans mémoriser — remplace un faux "
+            "vert par un silence, ce qui est le même défaut."
+        )

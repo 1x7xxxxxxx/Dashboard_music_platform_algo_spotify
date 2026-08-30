@@ -373,7 +373,7 @@ def _show_batch_sizes(df_weekly: pd.DataFrame):
 
 def show():
     st.title(t("db_health.title", "🗄️ Santé des données"))
-    st.markdown(t("db_health.intro", "Suivi des imports, fraîcheur et volumes par dataset PostgreSQL."))
+    st.markdown(t("db_health.intro", "Suivi des imports, de la fraîcheur et des volumes, par jeu de données."))
 
     db = get_db_connection()
     artist_id = get_artist_id()

@@ -26,7 +26,8 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
     ))
     if not ml_pred:
         st.info(t("trigger_algo.explain.no_pred",
-                  "Aucune prédiction ML disponible pour ce titre. Lancez le DAG `ml_scoring_daily`."))
+                  "Pas encore de prédiction pour ce titre — elles sont recalculées chaque "
+                  "jour en fin de matinée."))
         return
 
     features_json = ml_pred.get("features_json")
