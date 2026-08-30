@@ -7,7 +7,7 @@ PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | 
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight canary tenant-check caddy-validate env-parity
+.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook canary tenant-check caddy-validate env-parity
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -65,6 +65,13 @@ canary:      ## Create/refresh the canary tenant preflight needs. NAME="…" SPO
 		$(if $(SOUNDCLOUD),--soundcloud "$(SOUNDCLOUD)",) \
 		$(if $(META),--meta "$(META)",) \
 		$(if $(DRY_RUN),--dry-run,)
+
+artist-firstlook: check-db ## Show what a BRAND-NEW artist sees, page by page. ARTIST=<id> optional
+	@# Not "did it raise" — the render-smoke already answers that, and it was green
+	@# through both failed beta sessions. This prints what is ON THE SCREEN: titles,
+	@# buttons, messages, and whether the page offers anything to do at all. The six
+	@# defects of 2026-08-23 were all correct code that nothing reached.
+	@python3 tools/artist_first_look.py $(if $(ARTIST),--artist $(ARTIST),)
 
 artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist. ARTIST=<id> optional
 	@# Five steps, stops at the first red: central apps present+authenticating,
