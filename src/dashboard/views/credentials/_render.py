@@ -31,6 +31,7 @@ from ._registry import CONNECTION_TESTS
 logger = logging.getLogger(__name__)
 from src.dashboard.content.credential_guides_st import render_credential_guide_for
 from src.utils.tenant_identity import mirrored_columns, write_platform_identity
+from src.dashboard.utils.tz import to_local_datetime
 
 
 def _declared_from_rows(existing: dict) -> set:
@@ -98,14 +99,21 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     if existing_row:
         updated = existing_row.get('updated_at')
         updated_str = (
-            pd.to_datetime(updated).strftime('%d/%m/%Y %H:%M') if updated else '?'
+            to_local_datetime(updated).strftime('%d/%m/%Y %H:%M') if updated else '?'
         )
         # Expiry badge for platforms that use expiring tokens (Meta)
         expires_at = existing_row.get('expires_at')
         if expires_at is not None:
             try:
-                exp = pd.to_datetime(expires_at)
-                days_left = (exp - pd.Timestamp.utcnow().tz_localize(None)).days
+                # Both sides tz-aware in UTC. The previous form parsed a
+                # `timestamptz` (hence AWARE) and subtracted
+                # `pd.Timestamp.utcnow().tz_localize(None)` (NAIVE), which raises
+                # `TypeError: Cannot subtract tz-naive and tz-aware datetime-like
+                # objects` — verified 2026-08-30. It never fired only because no row
+                # carries `expires_at` yet: the first Meta token with an expiry would
+                # have broken the Credentials page, the one an artist uses to connect.
+                exp = to_local_datetime(expires_at)
+                days_left = (exp - pd.Timestamp.now(tz="UTC")).days
                 if days_left <= 0:
                     st.error(t("credentials.token_expired",
                                "Token **expiré** depuis le {date}. Renouvellement requis.").format(

@@ -13,6 +13,7 @@ import streamlit as st
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import verify_password, hash_password, _validate_password_strength
+from src.dashboard.utils.tz import to_local_datetime
 
 
 def _get_user_row(db, username: str) -> dict | None:
@@ -67,9 +68,8 @@ def _section_profile(user: dict) -> None:
         )
     joined = user.get("created_at")
     if joined:
-        import pandas as pd
         st.caption(t("account.member_since", "Membre depuis : {date}").format(
-            date=pd.to_datetime(joined).strftime('%d %B %Y')))
+            date=to_local_datetime(joined).strftime('%d %B %Y')))
 
 
 def _section_change_password(db, user: dict) -> None:
@@ -127,10 +127,9 @@ def _section_consent(db, user: dict) -> None:
                "(newsletters, actualités de la plateforme).")
     )
     if user.get("marketing_consent_at"):
-        import pandas as pd
         st.caption(
             t("account.consent_updated", "Dernière mise à jour : {date}").format(
-                date=pd.to_datetime(user['marketing_consent_at']).strftime('%d/%m/%Y %H:%M'))
+                date=to_local_datetime(user['marketing_consent_at']).strftime('%d/%m/%Y %H:%M'))
         )
 
     # Email alerts checked by default: for users who never set a preference,

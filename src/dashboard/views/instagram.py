@@ -5,6 +5,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses, show_empty_state
+from src.dashboard.utils.tz import to_local_naive
 
 def show():
     st.title(t("instagram.title", "📸 Instagram - Performance"))
@@ -65,7 +66,8 @@ def show():
             df_hist = db.fetch_df(query, (artist_id, *frag_params))
 
             if not show_empty_state(df_hist, t("instagram.no_history", "Aucune donnée d'historique pour cette période.")):
-                df_hist['collected_at'] = pd.to_datetime(df_hist['collected_at'])
+                # timestamptz across a DST change → mixed offsets (utils/tz.py).
+                df_hist['collected_at'] = to_local_naive(df_hist['collected_at'])
 
                 # Abonnés — px.line + axe Y serré : la variation macro doit
                 # rester lisible (px.area pinnait l'axe à 0 → tendance écrasée).

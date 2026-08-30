@@ -55,8 +55,22 @@ VIEWS = REPO / "src" / "dashboard" / "views"
 # Measured 2026-08-21. Lower a number when a view is migrated; never raise one.
 # A view absent from this map must open at most one connection.
 _KNOWN_MULTI: dict[str, int] = {}
-# Emptied 2026-08-21. Every view under src/dashboard/views/ now opens exactly one
-# connection per render. A name reappearing here is a regression, not a baseline.
+# Emptied 2026-08-21.
+#
+# ⚠️ Corrected 2026-08-30. This comment used to read "Every view under
+# src/dashboard/views/ now opens exactly one connection per render". That claim was
+# false, and it was false *because of how this file measures*: the count below is a
+# regex over the source text, so it cannot see `project_db()`, `view_session()`, or a
+# connection opened by a CALLEE. Measured at the render — patching
+# `PostgresHandler._connect` and rendering all 42 views — `hypeddit` opened TWO,
+# because `_render_history()` closed the shared connection mid-page and
+# `_ensure_connection()` silently reconnected.
+#
+# The runtime count now lives in `tests/test_a_render_opens_one_connection.py`, which
+# asks rule #9's actual question. This file keeps its ratchet on the TEXTUAL count —
+# still useful, and honest about being a proxy.
+#
+# A name reappearing here is a regression, not a baseline.
 # Lowered 2026-08-21: export_csv.py and export_pdf.py each opened a `db2` while
 # `db` was still open — the fallback rule #9 forbids by name. export_pdf's was the
 # starker case: `_show_form(db)` received the right connection as a parameter and

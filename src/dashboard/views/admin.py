@@ -9,6 +9,7 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table
+from src.dashboard.utils.tz import to_local_datetime
 
 
 def _guard():
@@ -568,7 +569,9 @@ def show():
 
                 df_display = df_artists.copy()
                 df_display['Statut'] = df_display['active'].apply(_status)
-                df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+                # `created_at` is timestamptz: rows either side of a DST change carry
+                # different offsets and plain to_datetime raises. See utils/tz.py.
+                df_display['created_at'] = to_local_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
                 st.dataframe(
                     df_display[['id', 'name', 'slug', 'tier', 'Statut', 'created_at']].rename(columns={
                         'id': 'ID', 'name': 'Nom', 'slug': 'Slug',
@@ -649,7 +652,9 @@ def show():
                 df_display = df_users.copy()
                 df_display['Accès'] = df_display['active'].apply(lambda v: _fmt_bool(v, "✅ Actif", "🔴 Révoqué"))
                 df_display['Email vérifié'] = df_display['email_verified'].apply(lambda v: _fmt_bool(v, "✅ Oui", "⏳ Non"))
-                df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
+                # `created_at` is timestamptz: rows either side of a DST change carry
+                # different offsets and plain to_datetime raises. See utils/tz.py.
+                df_display['created_at'] = to_local_datetime(df_display['created_at']).dt.strftime('%d/%m/%Y')
                 st.dataframe(
                     df_display[['id', 'username', 'email', 'role', 'artist_name', 'Accès', 'Email vérifié', 'created_at']].rename(columns={
                         'id': 'ID', 'username': 'Utilisateur', 'email': 'Email',

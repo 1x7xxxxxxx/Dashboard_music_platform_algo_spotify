@@ -187,7 +187,12 @@ def _render_history(db):
         WHERE artist_id = %s
         ORDER BY date DESC LIMIT 50
     """, (artist_id,))
-    db.close()
+    # No `db.close()` here: this helper did not open the connection, `show()` did and
+    # closes it in its own `finally`. Closing it mid-page left `_render_entry_form`
+    # querying a closed handle, which `PostgresHandler._ensure_connection()` silently
+    # repaired by reconnecting — so the page worked, opened TWO connections per
+    # render against rule #9, and nothing said so. A leftover from before 2026-08-21,
+    # when each helper owned its own connection.
 
     if not df_hist.empty:
         df_hist['date'] = pd.to_datetime(df_hist['date']).dt.strftime('%d/%m/%Y')
