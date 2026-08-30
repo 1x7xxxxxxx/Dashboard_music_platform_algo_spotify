@@ -66,7 +66,14 @@ trouvailles étaient des **bugs de correction** déguisés en lenteur.
 utilisent `tenant_scope()`, qui rend `None` pour l'admin là où `view_session()` rend
 `artist_id = 1`.
 
-3 classes de plus au catalogue, chacune avec sa signature **vue rouge sur le vrai
+**Et le refactor final a produit sa propre leçon.** `admin.show()` découpée (401 → 64
+lignes) : le premier jet retirait le `with tab_gdpr:` et rendait le contenu **hors** de
+l'onglet. **Trois gardes existants sont passés dessus**, dont l'empreinte de rendu que
+j'avais écrite pour prouver l'équivalence — `at.main` aplatit l'arbre. Une vérification
+qui rend la même réponse pour le code juste et le code cassé n'est pas une
+vérification.
+
+4 classes de plus au catalogue, chacune avec sa signature **vue rouge sur le vrai
 code d'avant**.
 
 ---

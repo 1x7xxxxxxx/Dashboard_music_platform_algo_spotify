@@ -219,6 +219,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [timestamptz-parsed-across-a-dst-change](#timestamptz-parsed-across-a-dst-change) | P1 | deterministic | guarded | none |
 | [page-window-answers-a-per-entity-question](#page-window-answers-a-per-entity-question) | P2 | deterministic | guarded | none |
 | [helper-closes-a-connection-it-did-not-open](#helper-closes-a-connection-it-did-not-open) | P3 | deterministic | guarded | none |
+| [content-rendered-outside-its-container](#content-rendered-outside-its-container) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2752,3 +2753,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: le nouveau garde porte sa propre mutation (`test_the_counter_actually_counts`) : un compteur branché sur rien rendrait 0 pour les 42 vues et le fichier entier passerait en ne mesurant rien — le mode de panne que ce dépôt a déjà rencontré quatre fois.
   - 2026-08-30: après correctif, la carte des plafonds est **vide** — les 42 vues ouvrent exactement une connexion, vérifié au rendu et non dans le texte.
+
+## content-rendered-outside-its-container
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: le contenu d'un onglet (ou de tout conteneur Streamlit) se rend **à côté** au lieu de dedans. Aucune exception, tous les éléments présents, tous les tests verts — seul l'œil sur la page voit que l'onglet est vide.
+- root_cause: extraire le corps d'un `with tab_x:` dans une fonction et appeler cette fonction **sans le `with`**. Commis le 2026-08-30 en découpant `admin.show()` (401 lignes) : `with tab_gdpr:` + 85 lignes remplacé par `_tab_gdpr(db)` nu. Streamlit n'a rien à signaler — le contexte de conteneur est implicite, son absence est un placement, pas une erreur.
+- signature: `python3 -m pytest tests/test_a_tab_renders_inside_its_tab.py -q`
+- long_term_fix: `tests/test_a_tab_renders_inside_its_tab.py` compte les widgets **par onglet** via `at.tabs` et échoue si un onglet en rend zéro. Cru volontairement : aucune attente par vue à maintenir, et il échoue sur exactement l'erreur facile à commettre et invisible au reste.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_tab_renders_inside_its_tab.py }
+- rex_ref: src/dashboard/views/admin.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: **trois gardes existants sont passés dessus.** `test_views_render_smoke` n'asserte que « pas d'exception » — il n'y en avait pas ; `test_admin_hypeddit_buttons` cherche les boutons par label — tous encore là ; et l'empreinte du rendu que j'avais construite pour prouver l'équivalence du refactor est revenue **identique au caractère près**, parce que `at.main` **aplatit** l'arbre : du contenu sorti d'un onglet reste du contenu sur la page.
+  - 2026-08-30: j'ai donc déclaré le refactor « prouvé » sur une empreinte qui ne prouvait rien, avant de la muter et de découvrir qu'elle était aveugle. La leçon n'est pas sur Streamlit : **une vérification qui rend la même réponse pour le code juste et le code cassé n'est pas une vérification** — et il faut la muter pour le savoir, y compris quand on vient de l'écrire soi-même.
+  - 2026-08-30: seul le comptage PAR ONGLET diverge (9 widgets → 0). Le garde porte cette explication dans son docstring pour qu'il ne soit pas remplacé par la version plate, moins chère.
