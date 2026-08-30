@@ -13,6 +13,7 @@ import streamlit as st
 logger = logging.getLogger(__name__)
 
 from src.dashboard.utils import get_db_connection
+from src.dashboard.utils.guide_assets import credentials_guide_pdf
 from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import get_lang, t
 from src.dashboard.auth import tenant_scope, get_artist_plan
@@ -102,17 +103,13 @@ def _guide_pdf_bytes(lang: str) -> bytes | None:
     absent: WeasyPrint is slow enough to be felt inside a Streamlit rerun, and it is an
     optional dependency in some containers. A missing one must degrade to "no button",
     never to a traceback on a new artist's first screen.
+
+    That reasoning now lives in `utils/guide_assets.py` and is CACHED there. It used to
+    live only here, and `process_guide.py` — written the same day, for the same reason,
+    calling the same builder — rebuilt the PDF on every rerun for 573 ms. One lesson
+    held in one place is the only shape that stops the second caller from re-deriving it.
     """
-    try:
-        from src.dashboard.guides.guide_pdf import build_guide_pdf, output_pdf_path
-        path = output_pdf_path(lang)
-        if path.exists():
-            return path.read_bytes()
-        return build_guide_pdf(lang).read_bytes()
-    except Exception as e:  # noqa: BLE001 — an absent guide is not a broken account
-        logger.warning("onboarding guide PDF unavailable (%s): %s",
-                       type(e).__name__, e)
-        return None
+    return credentials_guide_pdf(lang)
 
 
 def _step_welcome(plan: str) -> None:

@@ -17,6 +17,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import sys
 from src.utils.safe_error import redact
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 sys.path.insert(0, '/opt/airflow')
 
@@ -181,6 +182,7 @@ with DAG(
     schedule='0 7 * * 1',  # every Monday at 07:00 UTC
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('meta_token_refresh'),
     max_active_runs=1,  # avoid concurrent token exchanges on the same Meta app
     tags=['meta', 'instagram', 'credentials'],
 ) as dag:

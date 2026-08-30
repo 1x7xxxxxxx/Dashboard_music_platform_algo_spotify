@@ -13,8 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# The API installs its OWN manifest, not the project-wide one: see the header of
+# requirements-api.txt for what was measured out of this image and why streamlit
+# stays. `tests/test_the_api_image_carries_only_what_the_api_imports.py` keeps the
+# claim honest.
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
+
 
 COPY src/ ./src/
 COPY config/ ./config/

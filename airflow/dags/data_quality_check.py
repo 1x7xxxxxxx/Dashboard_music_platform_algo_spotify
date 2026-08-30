@@ -18,6 +18,7 @@ sys.path.insert(0, '/opt/airflow')
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 #Déjà lecture via docker-compose.yml
 #from dotenv import load_dotenv
@@ -539,6 +540,7 @@ with DAG(
     schedule='0 22 * * *',  # Daily at 22:00 UTC (after all collectors)
     start_date=datetime(2025, 1, 20),
     catchup=False,  # Ne pas rattraper les exécutions passées
+    dagrun_timeout=dagrun_timeout_for('data_quality_check'),
     tags=['quality', 'monitoring', 'statistics', 'production'],
     max_active_runs=1,  # Une seule exécution à la fois
 ) as dag:

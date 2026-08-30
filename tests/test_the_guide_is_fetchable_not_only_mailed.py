@@ -27,20 +27,50 @@ def test_the_wizard_offers_the_guide_for_download():
 
 
 def test_the_button_is_wired_to_the_real_builder():
-    """A button fed by something other than the shipped guide would drift from it."""
+    """A button fed by something other than the shipped guide would drift from it.
+
+    The builder moved on 2026-08-30: `onboarding` now delegates to
+    `utils/guide_assets.credentials_guide_pdf`, which is `@st.cache_data`-decorated
+    because `process_guide` was rebuilding the same PDF on every rerun (573 ms).
+    The question this test asks is unchanged — *is the button fed by the shipped
+    guide?* — so the assertion follows the delegation rather than being relaxed to
+    whatever onboarding.py still happens to contain.
+    """
     assert "_guide_pdf_bytes" in SRC
-    assert "from src.dashboard.guides.guide_pdf import" in SRC
+    assert "credentials_guide_pdf" in SRC, (
+        "onboarding no longer reaches the shared guide builder")
+
+    assets = (REPO / "src/dashboard/utils/guide_assets.py").read_text(encoding="utf-8")
+    assert "from src.dashboard.guides.guide_pdf import" in assets, (
+        "guide_assets no longer imports the real guide builder — the button would "
+        "be fed by something that can drift from the shipped document")
 
 
 def test_a_missing_renderer_degrades_to_no_button_not_a_traceback(monkeypatch):
     """WeasyPrint is optional in some containers, and this is a NEW artist's first
-    screen: the failure mode must be a missing button, never a stack trace."""
-    import src.dashboard.views.onboarding as ob
+    screen: the failure mode must be a missing button, never a stack trace.
 
+    The cache has to be cleared first, and the reason is worth stating rather than
+    working around. Since 2026-08-30 the builder is `@st.cache_data`-decorated, so a
+    call that already succeeded in this process returns its bytes without ever
+    reaching the patched renderer — the degradation path becomes unobservable. That
+    is correct in production (a PDF built once should keep being served) and wrong
+    in a test whose entire subject IS that path. CI caught it: the test passed
+    serially and failed under `-n auto --dist loadfile`, where an earlier call in the
+    same worker had warmed the entry.
+    """
+    import src.dashboard.views.onboarding as ob
+    from src.dashboard.utils.guide_assets import credentials_guide_pdf
+
+    credentials_guide_pdf.clear()
     monkeypatch.setattr(
         "src.dashboard.guides.guide_pdf.output_pdf_path",
         lambda lang: (_ for _ in ()).throw(ImportError("no weasyprint")))
-    assert ob._guide_pdf_bytes("fr") is None
+    try:
+        assert ob._guide_pdf_bytes("fr") is None
+    finally:
+        # Leave no poisoned entry behind for whatever runs next in this worker.
+        credentials_guide_pdf.clear()
 
 
 def test_the_guide_follows_the_readers_language():

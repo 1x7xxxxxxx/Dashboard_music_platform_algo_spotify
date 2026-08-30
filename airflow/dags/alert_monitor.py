@@ -23,6 +23,7 @@ sys.path.insert(0, '/opt/airflow')
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.diagnosis_text import as_html
+from src.utils.dag_timeouts import dagrun_timeout_for
 from src.utils.safe_error import redact, safe_error
 
 import os
@@ -1995,6 +1996,7 @@ with DAG(
     schedule='0 23 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('alert_monitor'),
     tags=['monitoring', 'alerting', 'production'],
     max_active_runs=1,
 ) as dag:

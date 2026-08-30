@@ -1,0 +1,62 @@
+# Dependencies of the FastAPI image ONLY — see Dockerfile.api.
+#
+# Why this file exists
+# --------------------
+# One `requirements.txt` was installed into every image. The API — which serves
+# JSON — was therefore carrying, measured in production on 2026-08-30:
+#
+#     454 MB  nvidia-nccl-cu12   (CUDA collective comms, on a CPU-only VPS)
+#     228 MB  xgboost
+#     188 MB  plotly
+#     173 MB  llvmlite  (+ 35 MB numba, via shap)
+#      97 MB  googleapiclient
+#      50 MB  sklearn,  32 MB skimage (via lime),  36 MB matplotlib
+#
+# None of it reachable from `src.api.main`. That was verified, not assumed: the
+# module was imported inside the running production container with every one of
+# those packages blocked by a `sys.meta_path` hook, and it imported clean.
+# `tests/test_the_api_image_carries_only_what_the_api_imports.py` is that same
+# proof, kept runnable so the claim cannot quietly stop being true.
+#
+# What must stay, and why it looks odd
+# ------------------------------------
+# `streamlit` is here on purpose. `src/api` reaches `get_db_connection()` in
+# `src.dashboard.utils`, which imports streamlit at module scope. Removing it means
+# untangling that dependency first — a separate change, with its own risk. Naming
+# the reason is what stops the next reader from "cleaning it up" and breaking prod.
+
+# --- Data ---
+pandas==2.3.3
+numpy==1.26.4
+psutil>=5.9.0
+
+# --- Web framework ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+
+# --- Auth ---
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+# Pin bcrypt<4.1: bcrypt 4.1+ rejects passwords >72 bytes with ValueError,
+# breaking passlib 1.7.4's detect_wrap_bug probe. Same rationale as
+# requirements.txt — keep the two in step.
+bcrypt>=4.0,<4.1
+cryptography>=42.0.0
+pyotp>=2.9.0
+qrcode[pil]>=7.4.2
+
+# --- Billing ---
+stripe>=8.0.0
+
+# --- Database ---
+psycopg2-binary==2.9.12
+
+# --- Shared with the dashboard layer (see header) ---
+streamlit==1.58.0
+
+# --- Utilities ---
+python-dateutil>=2.8.2
+PyYAML==6.0.3
+requests==2.34.2
+python-dotenv==1.2.2

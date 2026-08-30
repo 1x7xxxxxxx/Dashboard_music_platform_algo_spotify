@@ -11,6 +11,7 @@ track names. Offers a downloadable PDF of the same content.
 """
 import streamlit as st
 
+from src.dashboard.utils.guide_assets import credentials_guide_pdf, pdf_from_html
 from src.dashboard.utils.i18n import t
 
 
@@ -128,16 +129,17 @@ def _render_credentials_pdf() -> None:
     vérification : e-mail perdu, PDF perdu, et aucun bouton nulle part dans
     l'application. Note d'origine : « mettre lien de dl du pdf dans guide de démarrage ».
 
-    Construit à la demande — le fichier de `docs/guides/` peut ne pas exister dans un
-    conteneur fraîchement bâti, et le régénérer coûte moins qu'un lien mort.
+    Le fichier de `docs/guides/` peut ne pas exister dans un conteneur fraîchement
+    bâti, et le régénérer coûte moins qu'un lien mort — mais le régénérer à CHAQUE
+    rerun coûtait 573 ms mesurés en prod, déplier un accordéon suffisant à les
+    repayer. `credentials_guide_pdf` préfère la copie pré-rendue et met en cache le
+    reste ; voir `src/dashboard/utils/guide_assets.py`.
     """
     st.subheader(t("process_guide.cred_pdf_title",
                    "📘 Guide des identifiants (PDF, avec captures d'écran)"))
     lang = st.session_state.get("lang", "fr")
-    try:
-        from src.dashboard.guides.guide_pdf import build_guide_html
-        from weasyprint import HTML
-        pdf_bytes = HTML(string=build_guide_html(lang)).write_pdf()
+    pdf_bytes = credentials_guide_pdf(lang)
+    if pdf_bytes:
         st.download_button(
             t("process_guide.cred_pdf_dl", "⬇️ Télécharger le guide des identifiants"),
             data=pdf_bytes,
@@ -148,7 +150,7 @@ def _render_credentials_pdf() -> None:
         st.caption(t("process_guide.cred_pdf_note",
                      "C'est le même document que celui joint à ton e-mail de "
                      "vérification — plateforme par plateforme, avec les captures."))
-    except Exception:      # noqa: BLE001 — WeasyPrint absent : on le dit, on ne casse pas
+    else:                  # WeasyPrint absent ou guide introuvable : on le dit, on ne casse pas
         st.info(t("process_guide.cred_pdf_unavailable",
                   "Le PDF n'a pas pu être généré ici. Il reste disponible en pièce "
                   "jointe de ton e-mail de vérification, et les mêmes étapes sont "
@@ -238,19 +240,22 @@ def show():
     st.markdown("---")
 
     # Downloadable PDF (falls back to HTML if WeasyPrint is unavailable).
-    try:
-        from weasyprint import HTML
-        pdf_bytes = HTML(string=_build_html()).write_pdf()
+    # `pdf_from_html` is cached on the HTML string: the document is a pure function of
+    # the session language, so re-rendering it on every rerun bought nothing and cost
+    # 148 ms measured in production.
+    html = _build_html()
+    pdf_bytes = pdf_from_html(html)
+    if pdf_bytes:
         st.download_button(
             t("process_guide.download_pdf", "⬇️ Télécharger le guide (PDF)"),
             data=pdf_bytes,
             file_name="streamlytics_guide_demarrage.pdf",
             mime="application/pdf",
         )
-    except Exception:
+    else:
         st.download_button(
             t("process_guide.download_html", "⬇️ Télécharger le guide (HTML)"),
-            data=_build_html(),
+            data=html,
             file_name="streamlytics_guide_demarrage.html",
             mime="text/html",
         )

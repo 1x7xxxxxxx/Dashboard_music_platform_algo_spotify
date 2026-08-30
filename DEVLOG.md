@@ -5,6 +5,191 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-30 — Le chiffre mesuré au mauvais endroit, trois fois
+
+**Contexte** : relancer les vérifications périmées, puis chercher des optimisations
+« sur toutes les thématiques, notamment la vitesse de Streamlit ».
+
+### Ce qui a failli partir faux
+
+Les premiers chiffres de perf venaient de **WSL2**, sur `/mnt/c`. Import d'une vue :
+900–1250 ms — au-dessus du seuil d'ADR-007, donc « le déclencheur est tiré, il faut
+rendre les imports paresseux ». Les mêmes imports **dans le conteneur de production :
+6–77 ms**. Rendu de `trigger_algo` : 9801 ms en WSL, **625 ms en prod**. Un facteur 5
+à 160 selon l'opération.
+
+**Aucune mesure de performance faite depuis WSL n'est utilisable pour décider.** Tout
+ce qui suit vient du conteneur de prod ou de la base de prod.
+
+### Les quatre déclencheurs d'ADR-007, vérifiés
+
+| Déclencheur | Mesure du 2026-08-30 | Verdict |
+|---|---|---|
+| Cache sur 4 vues ← >1 locataire concurrent | `s4a_song_timeline` : **1 seul locataire** a jamais déposé | non tiré |
+| Index composite ← ~140 k lignes | **13 794 lignes** ; plus grosse table prod 15 712 lignes / 8 MB | non tiré |
+| Imports paresseux ← démarrage > 1 s | 6–77 ms par vue en conteneur | non tiré |
+| Split god-functions ← opportunité | — | inchangé |
+
+La porte tient. Les quatre items restent fermés, et c'est maintenant **mesuré** plutôt
+que supposé — l'ADR nommait lui-même ce risque : « un trigger que personne ne surveille
+est une décision que personne ne revisite ».
+
+### Ce que l'ADR ne couvrait pas
+
+`process_guide` : **1034 ms par rerun en prod, dont 721 ms de WeasyPrint** —
+`HTML(...).write_pdf()` appelé deux fois à chaque interaction, pour remplir deux
+`st.download_button`. Déplier un accordéon suffisait à les repayer, sur la première
+page qu'un artiste neuf ouvre.
+
+Le prémisse d'ADR-007 ne s'y applique pas : il écarte le cache parce que « les requêtes
+tournent en moins d'1 ms ». Ici le coût est du **CPU de rendu**, et la sortie est une
+fonction pure de la langue. Coût différent, réponse opposée.
+
+**Le dépôt connaissait déjà la réponse trois fois** — `export_pdf` et `export_csv`
+construisent au clic et rangent les octets en `session_state` ; `onboarding` préfère le
+fichier pré-rendu, et son docstring dit « WeasyPrint is slow enough to be felt inside a
+Streamlit rerun ». `process_guide`, écrit **le même jour, pour la même raison (R50), en
+appelant le même constructeur**, ne faisait ni l'un ni l'autre.
+
+→ `src/dashboard/utils/guide_assets.py` tient les deux constructeurs, décorés
+`@st.cache_data` ; `onboarding` y délègue aussi, pour que les deux vues ne puissent plus
+diverger. Garde AST : il remonte l'expression passée à `data=` jusqu'à son assignation et
+n'accepte que les trois formes déjà présentes dans le dépôt.
+
+Mesuré en A/B sur la même machine, même harnais, même base — la version d'avant remise
+par `git stash` :
+
+    avant   4828 ms (médiane de 5)
+    après     28 ms
+            ────────
+            172x
+
+Les valeurs absolues sont celles de WSL, donc gonflées ; c'est le **rapport** qui est
+l'affirmation. En prod, la vue passe des 1034 ms mesurés à l'ordre de 300 ms.
+
+### Le défaut le plus grave n'était pas une lenteur
+
+**Aucun des 16 DAGs ne déclarait `dagrun_timeout`.** Le défaut d'Airflow est `None` : un
+run bloqué l'est indéfiniment, garde son créneau, et peut être enregistré **success**.
+Lu sur tout l'historique de `dag_run` en prod :
+
+    alert_monitor        p50 3,4 s     un run de 47 287 s — 13,1 h — en état SUCCESS
+    data_quality_check   un run        de 63 655 s (17,7 h)
+
+`alert_monitor` **est** le canal d'alerte nocturne. Pendant treize heures rien ne pouvait
+dire qu'il était bloqué, parce qu'un moniteur muet et une nuit calme se ressemblent trait
+pour trait — la panne exacte que `infra_health_cron.sh` regarde depuis l'autre bord.
+
+→ `src/utils/dag_timeouts.py`, plancher 30 min, seuil `max(4 × p95, plancher)`.
+**Jamais le maximum observé** : sur les deux DAGs concernés, le maximum EST la pathologie
+— s'en servir aurait réglé `alert_monitor` à treize heures et garanti que le garde ne
+serve jamais. Le test épingle la distribution de production, pas la constante. Il a
+d'ailleurs refusé ma première dérogation : `meta_ads_api_daily` à 2 h alors que 4 × p95
+fait 2 h 10. Les 16 DAGs vérifiés importables **sous Airflow 2.11.2 — la version que la
+prod exécute**, pas le 3.2.2 du `.venv` local.
+
+### Les images portaient ce qu'aucun processus n'importe
+
+Un seul `requirements.txt` installé dans toutes les images. L'image FastAPI — qui sert du
+JSON — portait 454 MB de `nvidia-nccl-cu12` (communication collective multi-GPU, sur un
+VPS sans GPU, tirée par `xgboost`), plus xgboost, plotly, llvmlite, googleapiclient,
+sklearn, skimage, matplotlib, weasyprint.
+
+Vérifié plutôt que supposé : `src.api.main` importé **dans le conteneur de prod** avec
+chacun de ces paquets bloqué par `sys.meta_path` — import propre.
+
+| Image | avant | après | par |
+|---|---|---|---|
+| api | 0,98 GB | **0,26 GB** | `requirements-api.txt` dédié |
+| dashboard | 0,99 GB | **0,67 GB** | retrait de nccl |
+| airflow-scheduler | 1,44 GB | **1,11 GB** | retrait de nccl |
+
+Les trois chiffres viennent de builds réels sur le VPS, relus par `docker image inspect`
+— pas de la colonne SIZE de `docker images`, qui m'a donné des valeurs incohérentes deux
+fois. L'image Airflow reconstruite porte **0 paquet nvidia**, `xgboost 3.2.0` et
+`airflow 2.11.2` : la contrainte de cœur a tenu.
+
+**Et mon premier correctif était faux.** Le `pip uninstall` était dans un **RUN séparé** :
+build vert, `pip list` propre, image inchangée à l'octet près — une suppression dans une
+couche postérieure masque les fichiers, les octets restent dessous. Le commentaire que
+j'avais écrit décrivait un correctif que je n'avais pas implémenté. Seul le build mesuré
+l'a montré.
+
+### Deux choses trouvées en déployant, pas en codant
+
+**La CI a trouvé un effet de second ordre de mon propre correctif.**
+`test_a_missing_renderer_degrades_to_no_button_not_a_traceback` patche le rendu pour
+qu'il lève et attend `None`. Avec `@st.cache_data`, un appel déjà réussi dans le
+processus rend ses octets sans jamais atteindre le patch : **le cache rend le chemin de
+dégradation inobservable**. C'est correct en production — un PDF construit une fois doit
+continuer d'être servi — et faux dans un test dont c'est exactement le sujet. `.clear()`
+avant et après, pas un contournement. Visible **seulement en CI** : vert en série, rouge
+sous `-n auto --dist loadfile`, où un appel antérieur du même worker avait chauffé
+l'entrée. Mon propre run parallèle local ne l'a pas reproduit.
+
+**`tools/migrate.sh --dry-run` applique pour de vrai.** Le script ne prend aucun argument
+positionnel — la répétition est `DRY_RUN=1`, une variable d'environnement — et un argument
+inconnu était ignoré en silence. Constaté en le faisant, sur la production. Sans dommage :
+la seule migration en attente était **078, déjà appliquée à la main le 2026-08-28 sans
+passer par le registre**, d'où un `sync-check` rouge en permanence que personne ne pouvait
+plus lire comme un signal. Elle est maintenant enregistrée, `sync-check` est vert sur ses
+5 contrôles, et le script refuse tout argument. Un drapeau qui se lit comme une sécurité
+ne doit jamais être un no-op.
+
+### Écarté, avec la raison écrite
+
+- **Index, réécriture SQL, pooling** — base de prod à 15 712 lignes max, `connect` à 10 ms.
+- **Les 7 boucles `fetch_query`** détectées : elles itèrent sur des **listes statiques de
+  tables** (11, 7, 33), pas sur des lignes. ~0,5 ms l'aller-retour.
+- **`ray` (166 MB) et `google` (294 MB)** dans les images Airflow : ils viennent
+  d'`apache-airflow-providers-google`, livré par l'image de base `apache/airflow`. Pas nos
+  dépendances.
+- **Le test `export_pdf` à 42 s** : c'est une vraie génération de PDF. L'accélérer voudrait
+  dire la simuler, donc supprimer ce qu'il prouve.
+- **Le cache de build (30 GB)** : `--filter until=168h` n'a rendu que 128 MB, le reste sert
+  les images courantes. Le purger coûterait un rebuild complet au prochain déploiement,
+  pour 30 GB sur un disque à 41 %.
+
+### Le garde écrit pour vérifier une hypothèse est né rouge
+
+Dernier point, trouvé en cherchant pourquoi 101 tests sautaient : **`uv.lock` résolvait
+`apache-airflow 3.2.2` quand la production tourne en 2.11.2.** Rien n'épinglait le cœur
+côté dev — les providers sont listés sans version et le résolveur est libre d'emmener un
+cœur avec eux. `Dockerfile.airflow` défend l'IMAGE par un `--constraint` d'une ligne, et
+son commentaire explique longuement pourquoi ; il ne peut rien pour l'interpréteur de la
+suite. Chaque test de forme DAG qui tournait validait donc les DAGs contre un Airflow que
+l'ordonnanceur ne charge pas, et rendait vert. La PR Dependabot #100 (3.3.0) aurait cassé
+l'import des 16 DAGs : le garde de l'image l'aurait vue au build, **après** le vert.
+
+→ `apache-airflow==2.11.2` épinglé dans `pyproject.toml`, `uv lock` + `uv sync` refaits,
+et un garde à trois assertions — tag d'image vs ARG, lock vs prod, interpréteur vs prod.
+
+Détail qui compte : `importlib.util.find_spec("airflow")` ne répond PAS « airflow est-il
+installé ». Ce dépôt a un **répertoire** `airflow/` à sa racine, laquelle est dans
+`sys.path` : `find_spec` rend un paquet d'espace de noms avec `origin is None` même quand
+la distribution est absente, et demander `.__version__` lève au lieu de sauter.
+
+### Ce que l'épinglage a débloqué
+
+Avec le venv resynchronisé, la suite ne saute plus les tests de DAGs, de collecteurs et
+le parcours deux-locataires :
+
+    avant   3399 passed, 101 skipped
+    après   3483 passed,  25 skipped, 0 failed
+
+**84 tests de plus s'exécutent réellement**, et ils passent. Ils sautaient en silence
+depuis assez longtemps pour que la suite affiche « vert » sur des surfaces qu'elle ne
+touchait pas.
+
+**Ce qui change** : 4 gardes neufs, chacun avec son rouge observé sur le vrai code
+d'avant ; 4 classes d'erreur au catalogue ; 16 DAGs bornés ; 84 tests rendus à la suite.
+
+(La suite est passée de 240 s à 136 s entre les deux exécutions. J'ai d'abord écrit
+que c'était l'effet du cache PDF — c'est faux, ou du moins non établi : les deux vues
+concernées ne pèsent qu'une douzaine de secondes. Le reste est très probablement le
+cache disque de WSL entre deux passes. Une corrélation dans le bon sens n'est pas une
+mesure.)
+
 ## 2026-08-28 (surveillant) — Un plafond au-dessus du pire événement n'est pas un plafond
 
 **Contexte** : mettre en place ce qui restait proposé. Le point ouvert était le cron

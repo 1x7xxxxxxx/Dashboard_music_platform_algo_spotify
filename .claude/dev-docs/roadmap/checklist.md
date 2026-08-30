@@ -46,6 +46,35 @@ par son destinataire.
 > commentaire, et son en-tête plus vite que son corps : c'est la seule partie que
 > `/resume` recopie sans la relire.
 
+### Séance du 2026-08-30 — la mesure prise au mauvais endroit
+
+Point de départ : relancer les vérifications périmées, puis chercher des optimisations.
+Rien n'était ouvert côté machine ; ce qui suit a été **trouvé**, pas planifié.
+
+**Les quatre déclencheurs d'ADR-007 ont été lus contre la production : aucun n'est
+tiré.** 1 seul locataire a jamais déposé du S4A, 13 794 lignes (le seuil est 140 k),
+6–77 ms d'import par vue en conteneur. La porte tient — et c'est maintenant mesuré,
+ce que l'ADR nommait lui-même comme son risque.
+
+**Ne pas mesurer la performance depuis WSL.** Le déclencheur « imports paresseux »
+paraissait tiré depuis `/mnt/c` (900–1250 ms par vue). En conteneur : 6–77 ms.
+`trigger_algo` : 9801 ms en WSL, 625 ms en prod. Facteur 5 à 160.
+
+| Trouvaille | État |
+|---|---|
+| `process_guide` reconstruisait **deux PDF WeasyPrint par rerun** — 721 ms des 1034 ms de la vue, sur la première page d'un artiste neuf | corrigé, `utils/guide_assets.py` + garde AST |
+| **Aucun des 16 DAGs** ne déclarait `dagrun_timeout`. `alert_monitor` (p50 3,4 s) porte un run de **13,1 h en état success** — le canal d'alerte, muet, indiscernable d'une nuit calme | corrigé, `src/utils/dag_timeouts.py` + garde |
+| L'image API portait 454 MB de CUDA + xgboost + plotly qu'elle n'importe jamais : **0,98 → 0,26 GB** ; dashboard 0,99 → 0,67 GB | corrigé, `requirements-api.txt` + garde |
+| `uv.lock` résolvait **apache-airflow 3.2.2** quand la prod tourne en **2.11.2** : chaque test de forme DAG validait un Airflow que l'ordonnanceur ne charge pas, et rendait vert | corrigé, cœur épinglé dans `pyproject.toml` + garde à 3 assertions |
+
+4 classes au catalogue, chacune avec une signature **vue rouge sur le vrai code
+d'avant** et verte après. Suite complète : **3483 passed, 25 skipped, 0 failed** —
+84 tests de plus qu'avant, l'épinglage d'Airflow ayant rendu à la suite les tests de
+DAGs et de collecteurs qui sautaient en silence. ⚠️ **Rien de tout ça n'est déployé** : `deploy.sh` ne vise
+que api+dashboard, et les DAGs passent par un `git pull` côté scheduler (bind-mount).
+
+---
+
 ### Séance du 2026-08-28 — quatre mails en deux nuits, deux causes
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `4b940fe`, migration 078 appliquée).

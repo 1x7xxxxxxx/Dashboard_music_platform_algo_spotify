@@ -64,8 +64,18 @@ dependencies = [
     # Database driver
     "psycopg2-binary==2.9.12",
 
-    # Airflow providers (installed in Airflow Docker image, but declared for
-    # local-dev consistency — we don't pin Airflow itself here)
+    # Airflow. The CORE is pinned to the version production runs, and that is not
+    # cosmetic: the providers below carry no version, so the resolver is free to
+    # bring a core along with them — and it did. Measured 2026-08-30, uv.lock held
+    # apache-airflow 3.2.2 while production ran 2.11.2, so every DAG-shaped test in
+    # the suite validated the DAGs against an Airflow the scheduler never loads,
+    # and reported green. Dependabot PR #100 (3.3.0) would have broken the import of
+    # all 16 DAGs; only the image's own --constraint stood in the way, at build time,
+    # after the suite had already passed.
+    #
+    # Keep this in step with ARG AIRFLOW_VERSION in Dockerfile.airflow — the two are
+    # compared by tests/test_the_tests_run_the_airflow_production_runs.py.
+    "apache-airflow==2.11.2",
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-http",
     "apache-airflow-providers-common-sql",

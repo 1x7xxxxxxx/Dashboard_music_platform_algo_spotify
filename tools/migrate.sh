@@ -47,6 +47,20 @@ fi
 
 psql_q() { docker exec -i "$PG_CONT" psql -U "$USER_" -d "$DB" -tAq -c "$1" 2>/dev/null; }
 
+# ── Arguments ─────────────────────────────────────────────────────────────────
+# This script takes NO positional arguments; the dry run is `DRY_RUN=1`, an env
+# var. Until 2026-08-30 an unknown argument was ignored in silence, so
+# `bash tools/migrate.sh --dry-run` — the spelling anyone would try first — APPLIED
+# every pending migration against production while looking like a rehearsal. It did
+# so once, harmlessly (the pending file was idempotent), which is the only reason
+# this is a note and not an incident. A flag that reads as a safety switch must
+# never be a no-op.
+if [ $# -gt 0 ]; then
+    echo "❌ tools/migrate.sh takes no arguments (got: $*)" >&2
+    echo "   To rehearse without writing:  DRY_RUN=1 bash tools/migrate.sh" >&2
+    exit 2
+fi
+
 # ── The ledger ────────────────────────────────────────────────────────────────
 # ADR-002 kept flat SQL files and rejected Alembic. Re-reading it on 2026-08-21
 # showed its premise was false ("26 files, all idempotent" — they are 70 and they

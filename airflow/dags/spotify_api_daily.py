@@ -18,6 +18,7 @@ sys.path.insert(0, '/opt/airflow')
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 
 logger = logging.getLogger(__name__)
@@ -429,6 +430,7 @@ with DAG(
     schedule='0 7 * * *',  # Daily 07:00 UTC (09:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('spotify_api_daily'),
     max_active_runs=1,  # serialize external-API collection to avoid rate limits
     tags=['spotify', 'api', 'production'],
 ) as dag:
