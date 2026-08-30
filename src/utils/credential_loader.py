@@ -10,6 +10,8 @@ import json
 import logging
 import os
 
+from src.utils.tenant_kind import EXCLUDE_NON_HUMAN
+
 logger = logging.getLogger(__name__)
 
 
@@ -252,7 +254,7 @@ def get_active_artists(include_artist_id: int = None,
         else:
             cur.execute(
                 "SELECT id, name FROM saas_artists WHERE active = TRUE"
-                + (" AND COALESCE(is_canary, FALSE) = FALSE" if exclude_canaries else "")
+                + (EXCLUDE_NON_HUMAN if exclude_canaries else "")
                 + " ORDER BY id"
             )
 

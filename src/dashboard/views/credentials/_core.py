@@ -393,25 +393,60 @@ def _decode_row(row: dict, fields: list) -> dict:
 UNIQUE_IDENTITY_FIELDS = {k: v.field for k, v in PLATFORM_IDENTITIES.items()}
 
 
+def sandbox_tenant_ids(db) -> set[int]:
+    """Tenants the operator runs to rehearse the journey. Never raises.
+
+    A read that fails must NOT be read as "there are no sandboxes" in a way that
+    weakens the guard — and it cannot, because the caller only ever uses this set to
+    IGNORE conflicts. An empty set on failure means the guard stays fully enforced,
+    which is the safe direction.
+    """
+    try:
+        rows = db.fetch_query(
+            "SELECT id FROM saas_artists WHERE COALESCE(is_sandbox, FALSE)")
+    except Exception as exc:            # noqa: BLE001 — fail towards the strict side
+        logger.warning("sandbox_tenant_ids: %s", type(exc).__name__)
+        return set()
+    return {r[0] for r in rows}
+
+
 def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
     """Another active tenant already claiming this identity, or None.
 
     Returns (field, value, other_artist_id). Checked at SAVE time because that is
     the only moment a human is present to fix it; discovering it at collection
     time means someone's dashboard is already wrong.
+
+    Sandbox tenants (migration 080) are exempt in BOTH directions, and both halves
+    are needed:
+
+      * a sandbox is never blocked — that is the whole point: the operator replays
+        the onboarding with their OWN platform identity, which a real tenant of
+        theirs already holds;
+      * a sandbox never blocks anyone — otherwise a rehearsal left lying around
+        would refuse a real artist their own identifier, which is worse than the
+        problem it was created to explore.
+
+    The canary is NOT exempt: it uses public artist ids and an accidental collision
+    there is a real defect, not an intended rehearsal.
     """
+    sandboxes = sandbox_tenant_ids(db)
+    if artist_id in sandboxes:
+        return None
     field = UNIQUE_IDENTITY_FIELDS.get(platform)
     if not field:
         return None
 
     if platform == 'meta':
+        # Même exemption, appliquée dans la fonction dédiée : le chemin Meta ne
+        # repasse pas par le filtre ci-dessous.
         # Meta est la seule identité PLURIELLE (R53 / ADR-013 : un artiste passant
         # par une agence a N comptes publicitaires). Comparer le seul scalaire
         # `account_id` rouvrirait exactement le trou que cette fonction ferme : le
         # DEUXIÈME compte d'un artiste n'apparaît dans le scalaire de personne, donc
         # un autre locataire pourrait le revendiquer comme son premier — deux
         # tableaux de bord sur les mêmes dépenses, en silence.
-        return _find_meta_account_conflict(db, artist_id, extra)
+        return _find_meta_account_conflict(db, artist_id, extra, sandboxes)
 
     value = (extra.get(field) or '').strip()
     if not value:
@@ -431,6 +466,7 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
             "SELECT id FROM saas_artists WHERE id <> %s AND spotify_artist_id = %s",
             (artist_id, value),
         )
+    rows = [r for r in rows if r[0] not in sandboxes]
     if rows:
         # The third element is the tenant that already holds this identifier. It is
         # returned on purpose — an admin resolving a duplicate claim needs to know
@@ -447,7 +483,8 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
     return None
 
 
-def _find_meta_account_conflict(db, artist_id: int, extra: dict):
+def _find_meta_account_conflict(db, artist_id: int, extra: dict,
+                                sandboxes: set[int] | None = None):
     """(field, value, other_artist_id) si un autre locataire tient l'un des comptes.
 
     Compare CHAQUE compte déclaré contre le scalaire `account_id` ET la liste
@@ -482,6 +519,14 @@ def _find_meta_account_conflict(db, artist_id: int, extra: dict):
         "     WHERE e2.value = ANY(%s)))",
         (variants, artist_id, variants, variants),
     )
+    # Le même filtre bac à sable que le chemin scalaire : sans lui, Meta serait la
+    # seule plateforme où une répétition bloquerait un vrai artiste.
+    sandboxes = sandboxes or set()
+
+    def _owner(r):
+        return r[0] if isinstance(r, (tuple, list)) else r['artist_id']
+
+    rows = [r for r in rows if _owner(r) not in sandboxes]
     if not rows:
         return None
     row = rows[0]

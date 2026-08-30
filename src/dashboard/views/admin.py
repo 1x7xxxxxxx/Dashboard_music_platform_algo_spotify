@@ -467,12 +467,12 @@ def _render_supervision(db):
         "FROM saas_users WHERE role <> 'admin'"
     )
     s7, s30, verified, total_u = (su[0] if su else (0, 0, 0, 0))
-    # Même définition que le compteur public (`live_pulse._HUMAN_TENANTS`) :
-    # deux chiffres censés dire « combien d'artistes » ne peuvent pas différer
-    # selon la page qui les affiche.
-    na = db.fetch_query(
-        "SELECT COUNT(*) FROM saas_artists "
-        "WHERE active = TRUE AND COALESCE(is_canary, FALSE) = FALSE")
+    # Même définition que le compteur public — et depuis le 2026-08-30, la MÊME
+    # constante, pas une phrase qui dit qu'elles sont les mêmes. C'était une copie :
+    # le drapeau `is_sandbox` ajouté ce jour-là a été posé sur les deux sites que je
+    # connaissais, et celui-ci a été trouvé par le garde, pas par la relecture.
+    from src.utils.tenant_kind import HUMAN_TENANTS
+    na = db.fetch_query(f"SELECT COUNT(*) FROM saas_artists WHERE {HUMAN_TENANTS}")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(t("admin.metric_signups_7d", "Inscriptions 7 j"), s7 or 0)
     c2.metric(t("admin.metric_signups_30d", "Inscriptions 30 j"), s30 or 0)

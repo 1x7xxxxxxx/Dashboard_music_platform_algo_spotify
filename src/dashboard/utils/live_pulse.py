@@ -41,7 +41,11 @@ def bump_heartbeat(db, artist_id: int) -> None:
 # robots. `credential_loader.load_all_artists(exclude_canaries=True)` fait déjà
 # cette distinction depuis la migration 064 ; les compteurs, non — ils comptaient
 # tout ce qui est actif.
-_HUMAN_TENANTS = "active = TRUE AND COALESCE(is_canary, FALSE) = FALSE"
+# Le prédicat vit dans `src/utils/tenant_kind.py` : il était écrit ici ET dans
+# `credential_loader`, et le drapeau `is_sandbox` ajouté le 2026-08-30 aurait dû
+# être posé aux deux endroits — dont celui-ci, une f-string dans un compteur
+# auquel personne ne pense en ajoutant une colonne.
+from src.utils.tenant_kind import HUMAN_TENANTS as _HUMAN_TENANTS
 
 
 def get_live_pulse(db, ttl_minutes: int = 5) -> tuple[int, int]:
