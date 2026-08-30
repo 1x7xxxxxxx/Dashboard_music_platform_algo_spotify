@@ -403,6 +403,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 )
                 result = trigger.trigger_dag(dag_id, conf={'artist_id': artist_id})
                 if result.get('success'):
+                    # The artist reads the DAG status right after this toast. The
+                    # cached view of "latest run per DAG" is now wrong by definition,
+                    # so drop it here rather than letting the TTL decide: this is the
+                    # one moment staleness is felt as the page lying.
+                    from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
+                    cached_last_run_per_dag.clear()
                     st.toast(t("credentials.collect_started",
                                "🚀 Collecte {platform} lancée — données disponibles dans ~2 min").format(
                                    platform=platform_key), icon="✅")

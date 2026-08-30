@@ -78,6 +78,37 @@ aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête aff
 cause de sa façon de mesurer**. Le comptage vit désormais au rendu ; après correctif
 la carte des plafonds est vide, vérifié sur les 42 vues.
 
+### « Faut-il allonger le cache ? » — non, le TTL n'était pas le bouton
+
+Question posée après le déploiement. En cherchant à la calibrer, j'ai trouvé un trou
+dans ce que je venais de livrer.
+
+`cached_last_run_per_dag()` a été ajouté **sans invalidation**. Or deux chemins
+déclenchent un DAG depuis le dashboard :
+
+    views/credentials/_render.py:404   enregistre, déclenche, et affiche
+                                       « 🚀 Collecte lancée — données dans ~2 min »
+    app.py:422                         la synchro de la barre latérale
+
+L'artiste regarde le statut **juste après** ce toast — et on lui servait une vue
+cachée des runs **antérieurs à son propre clic**. La page lui disait que rien n'avait
+démarré. Même famille que le défaut que ce cache servait à réparer (`home` affichant
+12 DAGs sur 16 comme « sans run »), une couche plus haut. **Une page rapide qui
+affirme quelque chose de faux reste une page qui ment.**
+
+**Et raccourcir le TTL n'aurait rien réglé.** Mesuré sur 7 jours de `dag_run` :
+**16,3 runs se terminent par heure**, médiane 16, **pas une heure creuse**. Aucun TTL
+raisonnable ne rend la page courante. Mais 384 des 392 runs quotidiens sont les 4
+watchers CSV, qu'aucun artiste ne regarde : calibrer sur la fréquence **brute** des
+changements aurait donné une réponse absurde. Ce qui compte est la fréquence des
+changements que **le lecteur attend** — une fois par nuit, ou à l'instant où il
+appuie.
+
+La fraîcheur ici est donc **événementielle**. `.clear()` sur les deux chemins de
+succès rend cet instant exact ; le TTL ne gouverne plus que la dérive de fond, et se
+règle alors pour le lecteur : **60 → 300 s**, soit un blocage d'~1 s par visite de
+cinq minutes au lieu de cinq.
+
 ### polars, Rust, remplacer Streamlit : la mesure répond non aux trois
 
 Question posée en fin de séance. Profil de `trigger_algo` (662 ms, la vue la plus

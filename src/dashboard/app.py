@@ -421,6 +421,10 @@ def show_data_collection_panel():
                     conf = {'artist_id': artist_id} if artist_id is not None else {}
                     result = airflow_trigger.trigger_dag(dag_id, conf=conf)
                     if result.get('success'):
+                        # Same reason as views/credentials/_render.py: the cached
+                        # "latest run per DAG" is stale the instant a run is launched.
+                        from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
+                        cached_last_run_per_dag.clear()
                         st.write(f"✅ {label}")
                         # Keep the run id: "Lancé !" was the last thing the artist
                         # ever heard about this collection.
