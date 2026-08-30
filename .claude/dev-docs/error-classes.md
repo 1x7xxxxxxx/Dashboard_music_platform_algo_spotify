@@ -212,6 +212,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [dev-doc-nothing-points-at](#dev-doc-nothing-points-at) | P3 | deterministic | guarded | none |
 | [code-ships-without-a-trace](#code-ships-without-a-trace) | P3 | deterministic | guarded | none |
 | [the-watcher-is-not-watched](#the-watcher-is-not-watched) | P2 | deterministic | guarded | none |
+| [download-payload-rebuilt-per-rerun](#download-payload-rebuilt-per-rerun) | P3 | deterministic | guarded | none |
+| [dag-without-dagrun-timeout](#dag-without-dagrun-timeout) | P2 | deterministic | guarded | none |
+| [image-ships-what-it-never-imports](#image-ships-what-it-never-imports) | P4 | deterministic | guarded | none |
+| [tests-run-a-different-core-than-prod](#tests-run-a-different-core-than-prod) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2628,3 +2632,68 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-28: le seuil a d'abord été écrit **à l'instinct, à 36 h — il n'aurait déclenché 0 fois sur 37 écarts.** Un plafond au-dessus du pire événement jamais survenu n'est pas un plafond. Lire la distribution avant de figer a donné 30 h : déclenche exactement une fois, sur la seule vraie anomalie, avec 4,6 h de marge au-dessus du deuxième plus grand écart. Le test épingle la DISTRIBUTION (médiane 24,0 · 2ᵉ 25,4 · max 34,6) et non la constante — asserter `_MAX_AGE_H == 30` aurait été tout aussi vert à 36.
   - 2026-08-28: le diagnostic initial disait « 30 h sans run » ; c'était de l'arithmétique, pas une mesure (17:07 → 12:10 fait 19 h). La vraie anomalie était l'écart de 34,6 h de la veille, et elle n'est apparue qu'en tirant toute la distribution.
+
+## download-payload-rebuilt-per-rerun
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une page Streamlit reconstruit à chaque rerun le fichier qu'elle propose au téléchargement. Déplier un accordéon suffit à repayer le rendu complet d'un PDF que personne n'a demandé. Rien ne casse — la page est simplement lente, et le coût est invisible dans les logs.
+- root_cause: `show()` est ré-exécuté à CHAQUE interaction, et `st.download_button` exige son payload présent au rendu. `src/dashboard/views/process_guide.py` appelait donc `HTML(...).write_pdf()` deux fois par rerun. Mesuré dans le conteneur de prod le 2026-08-30 : **573 ms** (guide des identifiants, avec captures) + **148 ms** (guide de démarrage) = 721 ms des 1034 ms de la vue — sur la première page qu'un artiste neuf ouvre.
+- signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_download_is_built_on_click_not_on_rerun import offending_downloads, _iter_view_modules; sys.exit(1 if offending_downloads(_iter_view_modules()) else 0)"`
+- long_term_fix: `src/dashboard/utils/guide_assets.py` détient les deux constructeurs, décorés `@st.cache_data`, et `onboarding.py` comme `process_guide.py` y délèguent — une leçon tenue à UN endroit est la seule forme qui empêche le deuxième appelant de la re-dériver. Le garde lit l'AST : il remonte l'expression passée à `data=` jusqu'à son assignation et n'accepte que trois formes, celles déjà présentes dans le dépôt — lecture de `st.session_state` (construit au clic : `export_pdf`, `export_csv`), producteur décoré `cache_data`, ou pas de construction coûteuse du tout.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_download_is_built_on_click_not_on_rerun.py }
+- rex_ref: src/dashboard/utils/guide_assets.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: le dépôt connaissait déjà la réponse **trois fois** — `export_pdf` et `export_csv` construisent au clic, `onboarding` préfère le fichier pré-rendu et son docstring dit noir sur blanc « WeasyPrint is slow enough to be felt inside a Streamlit rerun ». `process_guide`, écrit le même jour pour la même raison (R50) et appelant le même constructeur, ne faisait ni l'un ni l'autre. La portée du garde est encore le défaut.
+  - 2026-08-30: ADR-007 avait écarté `@st.cache_data` sur quatre vues, à raison — leur coût était du SQL sous la milliseconde. Ici le coût est du CPU de rendu et la sortie est une fonction pure de la langue. Le prémisse de l'ADR porte sur les REQUÊTES ; ne pas le lire comme une interdiction de cacher.
+  - 2026-08-30: la liste `EXPENSIVE` du garde contenait au premier jet deux noms — `build_zip`, `build_xlsx` — qui n'ont jamais existé dans ce dépôt. C'est `test_the_known_shapes_are_still_there` qui les a trouvés : le vocabulaire d'un garde se périme comme le reste.
+
+## dag-without-dagrun-timeout
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un DAG qui se bloque ne se termine jamais, garde son créneau, et peut être enregistré **success**. Aucune alerte : Airflow n'a rien à signaler tant que la tâche n'a pas échoué.
+- root_cause: `dagrun_timeout` vaut `None` par défaut et aucun des 16 DAGs ne le déclarait. Lu sur tout l'historique de `dag_run` en production le 2026-08-30 : `alert_monitor` (p50 **3,4 s**) porte un run de **47 287 s — 13,1 h — en état success**, et `data_quality_check` un de **63 655 s (17,7 h)**. Le premier EST le canal d'alerte nocturne : pendant treize heures rien ne pouvait dire qu'il était bloqué, parce qu'un moniteur muet et une nuit calme se ressemblent trait pour trait.
+- signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_every_dag_can_be_called_dead import dags_without_timeout, _dag_files; sys.exit(1 if dags_without_timeout(_dag_files()) else 0)"`
+- long_term_fix: `src/utils/dag_timeouts.py` porte un plancher de 30 min et deux dérogations mesurées ; les 16 DAGs passent par `dagrun_timeout_for(dag_id)`. Le seuil est `max(4 × p95, plancher)` — **jamais le maximum observé**, qui sur les deux DAGs concernés EST la pathologie qu'on cherche à attraper. Le test épingle la distribution de production, pas la constante : asserter `FLOOR == 30 min` suivrait n'importe quelle édition.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_dag_can_be_called_dead.py }
+- rex_ref: src/utils/dag_timeouts.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: la dérogation de `meta_ads_api_daily` a d'abord été écrite à 2 h, à l'œil. Son p95 réel est 1953 s, donc 4 × p95 = 2 h 10 : le garde l'a refusée avant qu'elle parte. C'est l'argument entier pour dériver la borne de la mesure au lieu de re-déclarer la constante.
+  - 2026-08-30: les 16 DAGs ont été vérifiés importables **sous Airflow 2.11.2, la version que la production exécute** — et non sous le 3.2.2 du `.venv` local. Les deux ne sont pas d'accord, et seule la première compte.
+
+## image-ships-what-it-never-imports
+- status: guarded
+- severity: P4
+- kind: deterministic
+- symptom: une image Docker embarque des centaines de mégaoctets qu'aucun de ses processus n'importera jamais. Rien ne casse : le build est plus long, le déploiement plus lourd, le disque se remplit.
+- root_cause: un seul `requirements.txt` installé dans TOUTES les images. Mesuré en production le 2026-08-30, l'image FastAPI — qui sert du JSON — portait 454 MB de `nvidia-nccl-cu12` (bibliothèque de communication collective multi-GPU, sur un VPS sans GPU, tirée par `xgboost`), plus `xgboost` 228 MB, `plotly` 188 MB, `llvmlite` 173 MB, `googleapiclient` 97 MB, `sklearn`, `skimage`, `matplotlib`, `weasyprint`.
+- signature: `python3 -m pytest tests/test_the_api_image_carries_only_what_the_api_imports.py -q`
+- long_term_fix: `requirements-api.txt` — manifeste propre à `Dockerfile.api`, contraint d'être un sous-ensemble strict du manifeste projet pour que les deux ne dérivent pas en deux résolutions de la même application. Image mesurée après build réel sur le VPS : **3,87 GB → 280 MB**. Le garde ne compare pas deux fichiers (un diff ne voit pas un `import shap` paresseux dans un handler) : il importe `src.api.main` dans un sous-processus avec chaque paquet exclu bloqué par `sys.meta_path`, ET relit l'arbre de `src/api` pour l'import à portée de fonction que la preuve d'exécution ne peut pas voir.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_api_image_carries_only_what_the_api_imports.py }
+- rex_ref: requirements-api.txt
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: le premier correctif retirait `nvidia-nccl-cu12` dans un **RUN séparé** du `pip install`. Le build est passé, `pip list` était propre, et l'image faisait toujours 3,87 GB : une suppression dans une couche postérieure masque les fichiers, les octets restent dans la couche du dessous. Le commentaire que j'avais écrit décrivait un correctif que je n'avais pas implémenté. Seul le build mesuré l'a montré — un `docker images` vaut mieux qu'une relecture.
+  - 2026-08-30: `ray` (166 MB) et `google` (294 MB) dans les images Airflow viennent d'`apache-airflow-providers-google`, livré par l'image de base `apache/airflow`. Ce ne sont pas nos dépendances : les retirer serait désinstaller un provider du socle. Écarté, et la raison est écrite ici pour qu'elle ne soit pas re-proposée.
+
+## tests-run-a-different-core-than-prod
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la suite valide le code contre une version majeure d'un socle que la production n'exécute pas, et rend vert. Rien ne signale l'écart : les deux moitiés fonctionnent, chacune dans son monde.
+- root_cause: aucun fichier n'épinglait le CŒUR Airflow pour l'environnement de dev. `requirements.txt` et `pyproject.toml` listaient `apache-airflow-providers-*` sans version, et le résolveur est libre d'emmener un cœur avec eux — il l'a fait. Mesuré le 2026-08-30 : `uv.lock` résolvait **apache-airflow 3.2.2** quand la production tourne en **2.11.2**. `Dockerfile.airflow` défend l'IMAGE par un `--constraint` d'une ligne et son commentaire explique pourquoi ; il ne peut rien pour l'interpréteur de la suite. La PR Dependabot #100 (3.3.0) aurait cassé l'import des 16 DAGs — le garde de l'image l'aurait attrapée au build, APRÈS que la suite soit passée au vert.
+- signature: `python3 -m pytest tests/test_the_tests_run_the_airflow_production_runs.py -q`
+- long_term_fix: `apache-airflow==2.11.2` épinglé dans `pyproject.toml`, tenu en phase avec `ARG AIRFLOW_VERSION` par le test. Trois assertions : le tag de l'image et l'ARG s'accordent, `uv.lock` porte le même MAJEUR que la prod, et l'interpréteur qui exécute la suite aussi. La comparaison porte sur le majeur — une dérive de patch entre un lock et un tag est ordinaire ; c'est le majeur qui a déplacé `schedule_interval` et `provide_context` sous les DAGs.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_tests_run_the_airflow_production_runs.py }
+- rex_ref: pyproject.toml
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: le garde a été écrit pour vérifier une hypothèse et a trouvé la divergence du premier coup — il est né rouge, sur trois assertions.
+  - 2026-08-30: `importlib.util.find_spec("airflow")` ne suffit pas à répondre « airflow est-il installé ? ». Ce dépôt a un **répertoire** `airflow/` à sa racine, laquelle est dans `sys.path` : `find_spec` rend un paquet d'espace de noms avec `origin is None` même quand la distribution est absente, et demander `.__version__` lève `AttributeError` au lieu de sauter. Un spec sans origine n'est pas un module.

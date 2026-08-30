@@ -26,6 +26,7 @@ sys.path.insert(0, '/opt/airflow')
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +180,7 @@ with DAG(
     schedule='0 9 * * *',  # daily 09:00 UTC, after the collection DAGs
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('onboarding_report'),
     max_active_runs=1,  # avoid concurrent runs double-sending before the stamp commits
     tags=['email', 'onboarding', 'report'],
 ) as dag:

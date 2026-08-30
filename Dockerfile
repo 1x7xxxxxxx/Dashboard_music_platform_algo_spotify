@@ -25,7 +25,22 @@ WORKDIR /app
 
 # Install Python deps first (cached layer)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# `xgboost` declares `nvidia-nccl-cu12` (454 MB) as a hard dependency: pip installs
+# it on every image, GPU or not. This VPS is CPU-only, and nccl is the multi-GPU
+# collective-communication library — nothing here can reach it.
+#
+# The uninstall MUST share this RUN. A separate layer only hides the files: the
+# bytes stay in the layer below and the image does not shrink. Measured on
+# 2026-08-30 — the first version of this change used a second RUN and the API image
+# stayed at 3.87 GB with a clean-looking `pip list`.
+#
+# The train() below is the proof, executed at build time, so a future xgboost that
+# genuinely needs nccl fails the BUILD rather than a nightly DAG.
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y nvidia-nccl-cu12 \
+    && python -c "import numpy as np, xgboost as xgb; \
+xgb.train({}, xgb.DMatrix(np.array([[1.0],[2.0]]), label=np.array([0,1])), 2); \
+print('xgboost OK without nccl')"
 
 # Copy project source
 COPY src/ ./src/

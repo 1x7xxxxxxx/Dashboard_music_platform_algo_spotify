@@ -75,6 +75,36 @@ so nobody has to re-derive the judgement.
   outright. It stays open, with `tests/test_view_connection_budget.py` holding
   the ceiling.
 
+### Trigger review — 2026-08-30
+
+The negative consequence above ("a trigger nobody watches is a decision nobody
+revisits") was tested by reading all four against production. **None has fired.**
+
+| Item | Measured 2026-08-30 | Verdict |
+|---|---|---|
+| Caching on the 4 heavy views | `s4a_song_timeline` has exactly **one** tenant that has ever deposited data | not fired |
+| Composite index | **13 794 rows**, unchanged; the largest production table is 15 712 rows / 8 MB | not fired |
+| Lazy imports | 6–77 ms per view **inside the production container** | not fired |
+| Splitting god-functions | opportunity-gated, unchanged | — |
+
+Two things this review established that the ADR did not say, and that the next
+reader needs:
+
+**1. Do not measure this on WSL.** The lazy-import trigger appeared fired when
+measured from `/mnt/c`: 900–1250 ms per view, against a 1 s threshold. In the
+production container the same imports cost 6–77 ms. `trigger_algo` renders in
+9801 ms on WSL and 625 ms in production. A decision taken on the WSL numbers would
+have spent risk against nothing.
+
+**2. This ADR is about QUERIES, not about caching.** Its case against
+`@st.cache_data` rests on a measurement of SQL — "the queries run in under 1 ms" —
+and does not extend to CPU. `process_guide` was rendering two WeasyPrint PDFs on
+every rerun (721 ms of its 1034 ms, production, same day), and the right fix there
+was exactly `@st.cache_data`, because the output is a pure function of the session
+language with no tenant data and nothing to go stale. See
+`src/dashboard/utils/guide_assets.py` and the `download-payload-rebuilt-per-rerun`
+error class. Reading this ADR as a ban on caching would have left that in place.
+
 ## Alternatives rejected
 
 | Option | Why rejected |

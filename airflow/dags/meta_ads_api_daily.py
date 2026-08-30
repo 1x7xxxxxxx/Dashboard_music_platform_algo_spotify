@@ -15,6 +15,7 @@ sys.path.insert(0, '/opt/airflow')
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -107,6 +108,7 @@ with DAG(
     schedule='0 5 * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('meta_ads_api_daily'),
     max_active_runs=1,  # concurrent runs hammer the same ad-account → Meta throttle 80004
     tags=['meta', 'ads', 'api'],
 ) as dag:

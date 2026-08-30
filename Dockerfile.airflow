@@ -40,7 +40,11 @@ ARG AIRFLOW_VERSION=2.11.2
 COPY requirements.txt /tmp/requirements.txt
 RUN echo "apache-airflow==${AIRFLOW_VERSION}" > /tmp/core-constraint.txt \
     && pip install --no-cache-dir -r /tmp/requirements.txt \
-       --constraint /tmp/core-constraint.txt
+       --constraint /tmp/core-constraint.txt \
+    && pip uninstall -y nvidia-nccl-cu12 \
+    && python -c "import numpy as np, xgboost as xgb; \
+xgb.train({}, xgb.DMatrix(np.array([[1.0],[2.0]]), label=np.array([0,1])), 2); \
+print('xgboost OK without nccl')"
 
 # Copier le code source du projet
 COPY src /opt/airflow/src

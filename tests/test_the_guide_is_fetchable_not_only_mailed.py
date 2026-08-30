@@ -27,9 +27,23 @@ def test_the_wizard_offers_the_guide_for_download():
 
 
 def test_the_button_is_wired_to_the_real_builder():
-    """A button fed by something other than the shipped guide would drift from it."""
+    """A button fed by something other than the shipped guide would drift from it.
+
+    The builder moved on 2026-08-30: `onboarding` now delegates to
+    `utils/guide_assets.credentials_guide_pdf`, which is `@st.cache_data`-decorated
+    because `process_guide` was rebuilding the same PDF on every rerun (573 ms).
+    The question this test asks is unchanged — *is the button fed by the shipped
+    guide?* — so the assertion follows the delegation rather than being relaxed to
+    whatever onboarding.py still happens to contain.
+    """
     assert "_guide_pdf_bytes" in SRC
-    assert "from src.dashboard.guides.guide_pdf import" in SRC
+    assert "credentials_guide_pdf" in SRC, (
+        "onboarding no longer reaches the shared guide builder")
+
+    assets = (REPO / "src/dashboard/utils/guide_assets.py").read_text(encoding="utf-8")
+    assert "from src.dashboard.guides.guide_pdf import" in assets, (
+        "guide_assets no longer imports the real guide builder — the button would "
+        "be fed by something that can drift from the shipped document")
 
 
 def test_a_missing_renderer_degrades_to_no_button_not_a_traceback(monkeypatch):

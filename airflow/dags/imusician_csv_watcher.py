@@ -28,6 +28,7 @@ sys.path.insert(0, '/opt/airflow')
 # exception message embeds the prepared URL, and several upstream APIs take
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +206,7 @@ with DAG(
     schedule='*/15 * * * *',
     start_date=datetime(2025, 1, 1),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('imusician_csv_watcher'),
     tags=['imusician', 'csv', 'production'],
     max_active_runs=1,
 ) as dag:

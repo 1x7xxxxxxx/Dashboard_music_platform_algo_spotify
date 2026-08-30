@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import sys
 import os
 import logging
+from src.utils.dag_timeouts import dagrun_timeout_for
 
 sys.path.insert(0, '/opt/airflow')
 
@@ -266,6 +267,7 @@ with DAG(
     schedule='0 8 * * *',  # Daily 08:00 UTC (10:00 Paris)
     start_date=datetime(2025, 1, 20),
     catchup=False,
+    dagrun_timeout=dagrun_timeout_for('youtube_daily'),
     max_active_runs=1,  # serialize external-API collection to protect the daily YouTube quota
     tags=['youtube', 'api', 'production'],
 ) as dag:
