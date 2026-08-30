@@ -25,7 +25,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 ---
 
-## 🔖 REPRISE — état au 2026-08-28, séance close (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-08-30, séance close (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R1 -->
 
@@ -33,6 +33,12 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 humain, et lui seul : **R1** — inviter la bêta. Il est détaillé au § « En attente de
 toi » ci-dessous. R54 est close le 2026-08-28 : l'avatar animé est en place et vérifié
 par son destinataire.
+
+**R1 a commencé le 2026-08-30** : premier parcours d'onboarding fait en entier, ~20
+remarques de terrain, toutes traitées et déployées (PR #115, migration 079). Aucune ne
+portait sur la lenteur — la classe dominante était du texte adressé au mauvais lecteur.
+R1 reste ouverte parce que le test n'est pas fini : l'artiste reprend là où il s'était
+arrêté.
 
 > La ligne `<!-- reprise: open=… -->` ci-dessus n'est pas décorative : c'est la même
 > affirmation que le paragraphe, sous une forme que `tests/test_the_resume_header_is_checked.py`
