@@ -146,11 +146,23 @@ the exact leak that took two failed artist-test sessions to find.
 - Raw RSS lies: the scheduler's 33 idle LocalExecutor workers total **6571 MiB of
   RSS for 960 MiB charged by the cgroup** — ~85 % copy-on-write shared. "33 processes
   x 205 MiB" is not a diagnosis.
-- `webserver.workers = 4` was the only unjustified default — a team-sized UI bound to
-  `127.0.0.1` with one reader. Set to 2 in the production compose (gitignored, so it
-  is a change on the box, saved as `docker-compose.yml.bak-workers-20260830`).
-  **Measured after: 997 -> 884 MiB, −113 MiB.** Modest, as predicted, and for the
-  predicted reason.
+- `webserver.workers = 4` looked like the only unjustified default — a team-sized UI
+  bound to `127.0.0.1` with one reader — and setting it to 2 did save memory. **Then
+  the post-deploy check found it had cost more than it saved**, and it was reverted.
+
+  The two changes of this session interact, which neither one predicted: the
+  dashboard fetches the latest run of all 16 DAGs **through** that webserver, 8
+  requests at a time, so fewer gunicorn workers means those requests queue.
+
+  | workers | `get_all_dags_last_state` | webserver |
+  |---|---|---|
+  | 2 | **800 ms** | 884 MiB |
+  | 4 | **483 ms** | 1000 MiB |
+
+  116 MiB buys 317 ms on every render of `home` — the artist landing page — on a box
+  with 4.8 GiB free and no memory pressure. **Left at 4.** The lesson is not about
+  gunicorn: a change measured good in isolation can be bad in place, and only the
+  check *after deploying* asked the question in place.
 
 ## Alternatives rejected
 

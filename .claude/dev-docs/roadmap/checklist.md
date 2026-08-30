@@ -58,7 +58,7 @@ trouvailles étaient des **bugs de correction** déguisés en lenteur.
 | La vue `admin` **plantait en prod** : `timestamptz` relu à cheval sur un changement d'heure (`+01`/`+02`). 4 autres sites latents, dont un `aware - naïf` qui aurait cassé la page Credentials au premier token Meta | corrigé, `utils/tz.py` + garde AST |
 | **12 DAGs sur 16 affichés « sans run »** sur l'accueil : une fenêtre globale de 200 runs pour répondre à une question par DAG, alors que 4 watchers font 98 % des 392 runs/jour | corrigé, `_runs_per_dag` parallèle — 16/16, et `airflow_kpi` de 1541 à 499 ms |
 | `hypeddit` ouvrait 2 connexions : un helper fermait la connexion partagée, `_ensure_connection` reconnectait en silence. Le garde comptait le **texte source**, pas le rendu | corrigé, comptage au rendu, plafonds vides sur 42 vues |
-| `webserver.workers = 4` sur une UI à un lecteur | 2 désormais, **997 → 884 Mio** |
+| `webserver.workers = 4` sur une UI à un lecteur | passé à 2 puis **remis à 4** : la vérification post-déploiement a montré que 116 Mio coûtaient **317 ms sur chaque rendu de l'accueil** (le dashboard interroge les 16 DAGs *à travers* ce webserver) |
 
 **Deux choses que la mesure a interdites**, et c'est le plus utile :
 `core.parallelism` reste à 32 (pic réel **19** sur 108 215 tâches — j'allais proposer

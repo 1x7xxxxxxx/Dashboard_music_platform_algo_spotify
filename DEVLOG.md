@@ -90,8 +90,21 @@ artiste. Un garde échoue maintenant si une vue importe les deux.
 
 **Et `core.parallelism = 32` reste.** J'allais proposer 8 ; le pic réel sur
 **108 215 task instances** est **19**. Le RSS brut ment aussi : 6571 Mio de workers
-pour 960 Mio facturés, ~85 % de pages partagées. Seul `webserver.workers = 4` était
-injustifié — 2 désormais, **997 → 884 Mio**, modeste comme annoncé avant la mesure.
+pour 960 Mio facturés, ~85 % de pages partagées. Seul `webserver.workers = 4` semblait
+injustifié — passé à 2, **997 → 884 Mio**, modeste comme annoncé.
+
+**Puis la vérification post-déploiement l'a annulé, et c'est la meilleure leçon de la
+séance.** Mes deux changements interagissent : le dashboard va chercher le dernier run
+des 16 DAGs **à travers** ce webserver, 8 requêtes à la fois — moins de workers
+gunicorn, et les requêtes font la queue.
+
+    workers=2   get_all_dags_last_state 800 ms   webserver  884 Mio
+    workers=4   get_all_dags_last_state 483 ms   webserver 1000 Mio
+
+116 Mio achètent **317 ms sur chaque rendu de l'accueil**, sur une machine avec 4,8 Gio
+libres. Remis à 4. Ce n'est pas une leçon sur gunicorn : **un changement mesuré bon
+isolément peut être mauvais en place**, et seule la mesure *après déploiement* pose la
+question en place.
 
 ## 2026-08-30 — Le chiffre mesuré au mauvais endroit, trois fois
 
