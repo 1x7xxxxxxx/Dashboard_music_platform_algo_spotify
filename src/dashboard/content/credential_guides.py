@@ -41,7 +41,18 @@ class PlatformCred:
     portal_url: str
     steps: tuple[CredStep, ...]
     fields: tuple[CredField, ...]
+    # Ce que l'ARTISTE doit lire. Rendu sur sa page et dans son PDF.
     note: str | None = None
+    # Ce que l'ADMIN doit lire, et lui seul. Ni sur l'écran de l'artiste, ni dans
+    # son PDF.
+    #
+    # Le champ existe parce que la distinction manquait : la note Spotify disait
+    # « **Admin (une seule fois)** : créer une app sur developer.spotify.com…
+    # renseigner SPOTIFY_CLIENT_ID en variables d'environnement. Les artistes n'ont
+    # alors qu'à coller le lien de leur profil. » Sa dernière phrase prouve qu'elle
+    # est écrite POUR l'admin — et elle s'affichait à l'artiste, sur la page où il
+    # doit justement se contenter de coller un lien.
+    admin_note: str | None = None
 
 
 def assets_dir() -> Path:
@@ -86,7 +97,7 @@ _SPOTIFY = PlatformCred(
                   "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
                   note="colle l'URL complète de ta page artiste — on extrait l'ID"),
     ),
-    note=(
+    admin_note=(
         "**Admin (une seule fois)** : créer une app sur developer.spotify.com (flux "
         "`client_credentials`, aucune Redirect URI utilisée) et renseigner "
         "`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` en variables d'environnement. "
@@ -190,8 +201,22 @@ _META = PlatformCred(
         CredStep("⚠️ Ne confondez pas avec `business_id=…` (votre Business Manager) ni "
                  "avec un **ID d'ensemble de publicités** (ad set) : seul le nombre "
                  "après **`act=`** est le bon."),
+        # Cette étape existait, formulée comme « **Prérequis admin** », dans la note
+        # de bas de page. L'étiquette disait à l'artiste que ce n'était pas son
+        # affaire — alors que c'est SON compte publicitaire, dans SON Business
+        # Manager, et que personne d'autre ne peut le faire à sa place. Il ne le
+        # faisait donc pas, le test de connexion échouait, et rien ne disait
+        # pourquoi. C'est ce qui a bloqué la session du 2026-06-19.
+        CredStep("⚠️ **Étape indispensable, et c'est vous qui la faites.** Tant que "
+                 "ce compte n'est pas partagé, la collecte ne verra rien — même avec "
+                 "le bon ID. Dans **Business Manager → Paramètres → Applications**, "
+                 "trouvez **ETL_DASHBOARD_SPOTIFY** (demandez-nous de vous l'ajouter "
+                 "si elle n'y est pas), puis **Actifs commerciaux → Ajouter des "
+                 "actifs → Compte publicitaire** : sélectionnez le vôtre et donnez-lui "
+                 "l'autorisation **Analyste** (ou Annonceur)."),
         CredStep("Collez ce nombre dans **🔑 Credentials API → Meta / Instagram**, puis "
-                 "**Tester la connexion**. (Le préfixe `act_` est ajouté automatiquement.)"),
+                 "**Tester la connexion**. (Le préfixe `act_` est ajouté automatiquement.) "
+                 "Un ❌ ici pointe presque toujours vers l'étape de partage ci-dessus."),
         CredStep("**Instagram (optionnel mais recommandé).** Pour suivre vos followers "
                  "et vos posts, il faut l'**ID du compte Instagram Business** — pas votre "
                  "@pseudo. Ouvrez **Meta Business Suite → Paramètres → Comptes → Comptes "
@@ -207,10 +232,9 @@ _META = PlatformCred(
         CredField("Instagram Business Account ID", "17841400000000000",
                   note="optionnel — ~17 chiffres, pour les stats Instagram"),
     ),
-    note=(
-        "**Prérequis admin** : votre compte publicitaire doit être lié à l'app "
-        "partagée (System User) dans Business Manager pour que la collecte "
-        "fonctionne. Instagram est rattaché côté admin."
+    admin_note=(
+        "Côté admin : System User créé, token à 5 scopes en place, et le rattachement "
+        "Instagram fait au niveau de la Page Facebook."
     ),
 )
 

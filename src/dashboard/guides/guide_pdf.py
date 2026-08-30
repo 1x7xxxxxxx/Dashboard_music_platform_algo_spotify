@@ -181,6 +181,9 @@ def _render_cred_html(cred: PlatformCred, ui: dict) -> str:
         parts.append(_fields_table(cred, ui))
     if cred.note:
         parts.append(f'<p class="caption">{ui["note"]} — {_inline_md(cred.note)}</p>')
+    # `cred.admin_note` n'est délibérément PAS rendu : ce PDF est joint à l'e-mail de
+    # bienvenue d'un artiste. Ce qui relève de l'exploitant — créer une app chez le
+    # fournisseur, poser une variable d'environnement — n'a rien à y faire.
     # Highlighted action bar: open the portal + jump straight to the credentials page.
     app_base = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
     portal = html.escape(cred.portal_url)

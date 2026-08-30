@@ -17,6 +17,7 @@ from src.dashboard.content.credential_guides import (
 from src.dashboard.content.csv_guides_st import _display_width
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.os_hints import md as _os_md, os_selector
+from src.dashboard.auth import is_admin
 
 
 _BY_KEY = {g.key: g for g in CREDENTIAL_GUIDES}
@@ -68,6 +69,13 @@ def _render_guide_expander(guide: PlatformCred) -> None:
         _render_fields_table(guide)
         if guide.note:
             st.info(_os_md(t(f"credentials.guide.{guide.key}.note", guide.note)))
+        # `admin_note` porte ce qui relève de l'exploitant — créer une app chez le
+        # fournisseur, poser une variable d'environnement. L'artiste n'a pas ces
+        # accès, et le lui montrer sur la page où il colle un lien lui fait croire
+        # qu'il manque une étape. Rendu au seul admin.
+        if guide.admin_note and is_admin():
+            st.caption("🛠️ " + _os_md(
+                t(f"credentials.guide.{guide.key}.admin_note", guide.admin_note)))
 
 
 def _render_step(platform_key: str, num: int, step: CredStep) -> None:
