@@ -78,6 +78,35 @@ aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête aff
 cause de sa façon de mesurer**. Le comptage vit désormais au rendu ; après correctif
 la carte des plafonds est vide, vérifié sur les 42 vues.
 
+### « Pourquoi le preflight n'est pas automatique ? » — il l'est, au mauvais moment
+
+Question posée après que j'ai conseillé `make artist-preflight` comme un réflexe
+manuel. En vérifiant, ma propre recommandation était périmée : **le DAG nocturne
+`alert_monitor` exécute déjà les cinq mêmes contrôles**, par locataire —
+`check_central_apps`, `check_onboarding_readiness`, `check_tenant_contamination`, et
+une boucle qui sonde chaque plateforme de chaque locataire **et mémorise le verdict**.
+
+Ce qui manquait n'était donc pas l'automatisation. C'était **le moment**.
+
+    inscription -> vérification e-mail : trop TÔT
+                   (ni credentials, ni identité, ni données : 5 rouges sans information)
+    alert_monitor à 23 h                : trop TARD
+                   (l'artiste connecte à 15 h et attend huit heures)
+    make artist-preflight               : une commande d'OPÉRATEUR sur la machine,
+                   qu'un artiste ne peut pas lancer
+
+Le premier instant où la question **a** une réponse est l'enregistrement des
+credentials. `_handle_save()` appelle maintenant `run_probes_now(db, artist_id,
+[platform_key])` juste après le déclenchement — la même sonde que le bouton
+« 🔌 Vérifier maintenant », qui écrit dans `tenant_platform_probe`, d'où la matrice
+de l'accueil, de l'onboarding et de la page Credentials la lit **sans que personne
+n'appuie**.
+
+**Un contrôle correct au mauvais instant est indiscernable d'un contrôle absent**,
+du point de vue de celui qui attend la réponse. Et le réflexe — câbler ça à la
+vérification de l'e-mail, puisque c'est là qu'on parle d'« inscription » — aurait
+produit cinq rouges vides à chaque nouveau compte.
+
 ### « Faut-il allonger le cache ? » — non, le TTL n'était pas le bouton
 
 Question posée après le déploiement. En cherchant à la calibrer, j'ai trouvé un trou
