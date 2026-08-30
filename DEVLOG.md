@@ -78,6 +78,44 @@ aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête aff
 cause de sa façon de mesurer**. Le comptage vit désormais au rendu ; après correctif
 la carte des plafonds est vide, vérifié sur les 42 vues.
 
+### Le seul défaut que la mesure ne pouvait pas trouver
+
+Rapporté par l'artiste en test : *« des fois je clique sur un bouton et il ne se passe
+rien, je dois recliquer »*. Depuis le début, un peu partout.
+
+**C'est une précision de sa part qui a tout tranché** : « rien ne bouge du tout » — ni
+spinner, ni « Running… ». Un clic sans la moindre réaction **n'a jamais atteint le
+serveur**, donc aucune logique de bouton ne pouvait l'expliquer.
+
+Sans cette précision, le réflexe était de balayer les `st.button`. Je l'avais commencé,
+et ça n'aurait rien donné : les trois seuls sites suspects (`admin.py` ×2,
+`export_csv.py`) sont sur des pages que l'artiste ne visite pas. Les causes classiques
+étaient d'ailleurs écartées mécaniquement — aucun `st.button` dans un `st.form`, tous
+les boutons de navigation passent par `goto()` → `st.rerun()`.
+
+Deux mesures ont suffi :
+
+    curl -I https://app.streamlytics.fr/   ->  server: cloudflare, cf-ray: …
+    server.websocketPingInterval           ->  None   (aucun keepalive)
+
+Streamlit parle au navigateur par un **websocket**, et Cloudflare ferme ceux qui
+restent inactifs. Un artiste qui lit une page deux minutes perd la connexion en
+silence ; son clic suivant ne part nulle part, celui d'après marche parce que le
+navigateur s'est reconnecté. L'aide de Streamlit pour cette option nomme la situation :
+*« if you're experiencing frequent disconnections in certain proxy setups »*.
+
+`websocketPingInterval = 20`, largement sous la fenêtre d'inactivité de Cloudflare.
+
+**Ce que ça dit sur la séance.** J'ai mesuré 42 vues, profilé le Python, calibré des
+seuils sur sept jours d'historique — et le défaut que l'utilisateur ressentait le plus
+n'était visible depuis aucune de ces surfaces. Il fallait quelqu'un devant l'écran, et
+il fallait qu'il décrive ce qu'il voyait plutôt que ce qu'il supposait. **« Rien ne
+bouge » et « ça ne marche pas » ne mènent pas au même endroit.**
+
+Et la valeur est désormais sous test, parce que sa voisine avait déjà repris son défaut
+en silence : `showErrorDetails` était mesuré à `full` en production le 2026-08-23,
+envoyant les tracebacks complètes au navigateur des visiteurs.
+
 ### « Pourquoi le preflight n'est pas automatique ? » — il l'est, au mauvais moment
 
 Question posée après que j'ai conseillé `make artist-preflight` comme un réflexe
