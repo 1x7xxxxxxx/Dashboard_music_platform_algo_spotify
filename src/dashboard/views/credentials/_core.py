@@ -186,11 +186,11 @@ _STATE_ICON = {
 def _fetch_dag_last_states() -> dict:
     """Returns {dag_id: {state, date}} for all platform DAGs. Non-blocking on failure."""
     try:
-        from src.dashboard.utils.airflow_monitor import AirflowMonitor
-        monitor = AirflowMonitor()
+        from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
         all_ids = {d for dags in PLATFORM_TO_DAGS.values() for d in dags}
-        # Single batch call for all DAGs' latest run (was N+1: one call per DAG).
-        last_states = monitor.get_all_dags_last_state()
+        # One request per DAG, issued concurrently, behind a 60 s cache — this page
+        # re-runs on every widget interaction and the fetch costs 16 HTTP round-trips.
+        last_states = cached_last_run_per_dag()
         result = {}
         for dag_id in all_ids:
             r = last_states.get(dag_id)

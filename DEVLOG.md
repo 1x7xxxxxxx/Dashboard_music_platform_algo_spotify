@@ -78,6 +78,62 @@ aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête aff
 cause de sa façon de mesurer**. Le comptage vit désormais au rendu ; après correctif
 la carte des plafonds est vide, vérifié sur les 42 vues.
 
+### polars, Rust, remplacer Streamlit : la mesure répond non aux trois
+
+Question posée en fin de séance. Profil de `trigger_algo` (662 ms, la vue la plus
+lente restante) **dans le bon thread** — cProfile sur le thread principal ne voyait
+qu'AppTest attendre, c'est ainsi que la première tentative n'a rien mesuré :
+
+    plotly/basedatatypes.__setitem__        0.327 s
+    plotly/basedatatypes.__getitem__        0.199 s
+    copy.deepcopy  (82 462 appels)          0.141 s
+    plotly/_get_validator (35 123 appels)   0.047 s
+    psycopg2 execute (30 requêtes)          0.067 s
+
+**pandas n'apparaît pas.** Le temps part dans la validation de propriétés de plotly.
+Cause structurelle : la vue construit **36 figures sur 7 fichiers**, et Streamlit
+exécute le corps de **tous les onglets** à chaque rerun — six onglets payés, un
+regardé.
+
+- **polars** : plus grosse table 15 712 lignes / 8 Mo, SQL à 2 ms la requête, pandas
+  absent du profil. Gain mesuré : zéro, pour une migration de toute la couche
+  `transformers/`.
+- **Rust** : le code chaud **n'est pas le nôtre**. Réécrire nos modules ne toucherait
+  rien ; il faudrait réécrire plotly.
+- **Streamlit** : ADR-003 avait déjà tranché sur trois signaux. Relus et datés —
+  **aucun n'a tiré**. Les ~30 notes des deux artistes portaient sur l'atteignabilité
+  et les identifiants, **jamais sur la lenteur**. Et la livraison n'est pas le goulot :
+  le bundle sort déjà du cache edge Cloudflare.
+
+Le vrai levier, si un jour la page devient gênante, est le **rendu paresseux des
+onglets** — dans Streamlit, pas contre lui. Consigné comme condition permanente dans
+ADR-007 avec son déclencheur (1,5 s en conteneur ; on est à 662 ms).
+
+### Le correctif avait un prix, mesuré après coup, et payé
+
+Rendre le moniteur juste (16/16 DAGs) a **ralenti deux pages destinées aux artistes** —
+mesuré dans le conteneur de prod après déploiement, pas estimé :
+
+    home         378 ms -> 636-713 ms    (mais 16/16 DAGs au lieu de 4/16)
+    credentials  288 ms -> 507-528 ms
+
+`credentials` est la page par laquelle un artiste connecte ses plateformes, `home` est
+sa page d'accueil. Et `show()` se ré-exécute à chaque interaction : les 16 allers-retours
+HTTP étaient repayés **à chaque clic**.
+
+`cached_last_run_per_dag()`, TTL 60 s :
+
+    home  **144 ms**      credentials  **81 ms**
+
+Plus rapide qu'avant la séance, et toujours 16/16.
+
+Ce n'est pas une contradiction d'ADR-007 : son refus du cache s'appuie sur une mesure de
+**SQL sous la milliseconde**. Ici le coût est du HTTP inter-conteneurs que la justesse
+rend inévitable, et le TTL est borné par la vitesse réelle de la valeur — le DAG le plus
+fréquent tourne toutes les 15 minutes, donc 60 s est deux ordres de grandeur en dessous.
+**La règle commune : on cache quand le coût est réel et la péremption bornée par une
+mesure, pas quand le coût est un arrondi.**
+
 ### Le refactor a produit sa propre leçon
 
 Dernier item : découper `admin.show()` (401 → **64 lignes**, quatre fonctions, une par
