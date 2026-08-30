@@ -7,7 +7,7 @@ PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | 
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook canary tenant-check caddy-validate env-parity
+.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -72,6 +72,17 @@ artist-firstlook: check-db ## Show what a BRAND-NEW artist sees, page by page. A
 	@# buttons, messages, and whether the page offers anything to do at all. The six
 	@# defects of 2026-08-23 were all correct code that nothing reached.
 	@python3 tools/artist_first_look.py $(if $(ARTIST),--artist $(ARTIST),)
+
+artist-firstlook-prod: ## Same, but against the code RUNNING IN PRODUCTION. PROD_SSH=user@host
+	@# `artist-firstlook` renders the LOCAL working tree against the LOCAL database
+	@# on 127.0.0.1:5433 (see check-db). That answers "what will my change show an
+	@# artist", not "what does the live app show one" — and this session measured a
+	@# 15x gap between the two environments on import time alone.
+	@test -n "$(PROD_SSH)" || { echo "❌ set PROD_SSH=user@host"; exit 1; }
+	@scp -q tools/artist_first_look.py $(PROD_SSH):/tmp/afl.py
+	@ssh $(PROD_SSH) 'docker cp /tmp/afl.py streamlytics_dashboard:/tmp/afl.py >/dev/null \
+		&& docker exec streamlytics_dashboard python3 /tmp/afl.py 2>/dev/null; \
+		rm -f /tmp/afl.py; docker exec streamlytics_dashboard rm -f /tmp/afl.py'
 
 artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist. ARTIST=<id> optional
 	@# Five steps, stops at the first red: central apps present+authenticating,

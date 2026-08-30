@@ -39,7 +39,23 @@ import os
 import sys
 import uuid
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+def _repo_root() -> str:
+    """Where `src/` lives — the file's own directory is not a safe answer.
+
+    `make artist-firstlook-prod` copies this script into the container at /tmp, so
+    `dirname(__file__)/..` resolves to `/` and the import of `src` fails. Look for a
+    directory that actually CONTAINS src/, starting from the obvious candidates.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    for candidate in (os.path.join(here, ".."), os.getcwd(), "/app", "/opt/airflow"):
+        if os.path.isdir(os.path.join(candidate, "src")):
+            return os.path.abspath(candidate)
+    return os.path.abspath(os.path.join(here, ".."))
+
+
+ROOT = _repo_root()
+sys.path.insert(0, ROOT)
+os.chdir(ROOT)   # the rendered script uses os.getcwd() to find the package
 
 from src.utils.env_files import load_project_env  # noqa: E402
 
@@ -143,7 +159,11 @@ def _offers_a_download(view: str) -> bool:
     reported as one until this existed.
     """
     import pathlib
-    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views"
+    # ROOT, not `parents[1]`: in the container this file sits at /tmp, so the
+    # relative walk lands on `/` and every page reads as offering no download —
+    # `process_guide` was flagged a dead end for exactly that reason. Same defect as
+    # the import path above; fixing one and not the other is how a tool half-works.
+    root = pathlib.Path(ROOT) / "src" / "dashboard" / "views"
     for candidate in (root / f"{view}.py", root / view / "__init__.py"):
         if candidate.exists():
             body = candidate.read_text(encoding="utf-8")

@@ -223,6 +223,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [cache-not-invalidated-by-the-event-that-stales-it](#cache-not-invalidated-by-the-event-that-stales-it) | P3 | deterministic | guarded | none |
 | [verdict-exists-but-not-when-it-is-needed](#verdict-exists-but-not-when-it-is-needed) | P3 | deterministic | guarded | none |
 | [websocket-dies-behind-the-proxy](#websocket-dies-behind-the-proxy) | P2 | deterministic | guarded | none |
+| [guide-addresses-the-wrong-reader](#guide-addresses-the-wrong-reader) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2821,3 +2822,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: **c'est le détail « rien ne bouge » qui rend le défaut diagnosticable.** Un clic sans aucune réaction n'a jamais atteint le serveur : aucune logique de bouton ne pouvait l'expliquer. Sans cette précision, le réflexe aurait été de balayer les `st.button` — ce que j'ai commencé à faire, et qui n'aurait rien trouvé, puisque les trois seuls sites suspects sont sur des pages d'admin que l'artiste ne visite pas.
   - 2026-08-30: la valeur est mise sous test parce que la voisine avait déjà silencieusement repris son défaut : `showErrorDetails` était mesuré à `full` en production le 2026-08-23, envoyant les tracebacks complètes au navigateur du visiteur. Une valeur de configuration que personne n'asserte est une valeur qui revient à son défaut — et ici le défaut EST le comportement cassé.
+
+## guide-addresses-the-wrong-reader
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un guide montre à l'utilisateur du travail qu'il ne peut pas faire, ou étiquette « admin » une action qui n'appartient qu'à lui. Dans les deux cas il ne fait pas ce qu'il devrait, et l'échec qui suit ne dit pas pourquoi.
+- root_cause: `PlatformCred.note` ne distinguait pas le destinataire, et le rendu l'affichait sans condition — sur l'écran ET dans le PDF joint à l'e-mail de bienvenue. Deux conséquences opposées, trouvées le 2026-08-30 par `make artist-firstlook` : **(1)** la note Spotify disait « **Admin (une seule fois)** : créer une app sur developer.spotify.com… renseigner `SPOTIFY_CLIENT_ID` en variables d'environnement » — sa dernière phrase (« Les artistes n'ont alors qu'à coller le lien ») prouve qu'elle est écrite pour l'exploitant, et elle s'affichait à l'artiste sur la page où il doit justement coller un lien ; **(2)** le partage du compte publicitaire Meta, qui est l'action de l'artiste sur SON compte dans SON Business Manager, était en note de bas de page sous l'étiquette « **Prérequis admin** ». Il ne le faisait donc pas, le test de connexion échouait, et rien ne disait pourquoi — la séance du 2026-06-19.
+- signature: `python3 -m pytest tests/test_the_guide_tells_the_artist_only_what_is_theirs.py -q`
+- long_term_fix: un champ `admin_note`, distinct de `note`, qui **dit à qui le texte s'adresse** au lieu de laisser le rendu deviner. Réservé à l'admin dans `credential_guides_st.py`, et **jamais** rendu par `guide_pdf.py` — ce PDF part à l'artiste. Le partage Meta est passé de note de bas de page à **étape numérotée, avant le test de connexion**, formulée comme son action, dans les deux langues. Le garde interdit un vocabulaire d'exploitant (`variables d'environnement`, `SPOTIFY_CLIENT_ID`, `System User`…) dans `note` et `steps`, et vérifie que l'étape de partage précède le test.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_guide_tells_the_artist_only_what_is_theirs.py }
+- rex_ref: src/dashboard/content/credential_guides.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: mon premier rapport affirmait que le guide **ne mentionnait nulle part** le partage du compte Meta. **C'était faux** : il le disait, mais sous une étiquette qui en attribuait la charge à quelqu'un d'autre. Le défaut n'était pas l'absence d'information mais son **adressage** — et la correction n'est donc pas d'ajouter du texte, mais de le déplacer et de le ré-étiqueter.
+  - 2026-08-30: trouvé par `make artist-firstlook`, pas par un test. Aucune assertion de la suite ne pouvait le voir : la page rendait parfaitement, tous les tests étaient verts, et le texte fautif était du contenu correct adressé au mauvais lecteur.

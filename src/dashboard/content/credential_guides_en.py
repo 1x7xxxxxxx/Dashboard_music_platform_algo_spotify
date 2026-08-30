@@ -31,7 +31,7 @@ _SPOTIFY = PlatformCred(
                   "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
                   note="paste the full URL of your artist page — we extract the id"),
     ),
-    note=(
+    admin_note=(
         "**Admin, once** : create an app on developer.spotify.com (`client_credentials` "
         "flow, no Redirect URI is ever used) and set `SPOTIFY_CLIENT_ID` / "
         "`SPOTIFY_CLIENT_SECRET` as environment variables. Artists then only paste "
@@ -129,6 +129,17 @@ _META = PlatformCred(
                  "meta_url_id.png", "The number after act= in the address bar"),
         CredStep("⚠️ Don't confuse it with `business_id=…` (your Business Manager) "
                  "or an **ad set ID**: only the number after **`act=`** is correct."),
+        # This step existed as an "**Admin prerequisite**" footnote. The label told
+        # the artist it was not their job — while it is THEIR ad account, in THEIR
+        # Business Manager, and nobody else can do it for them. So they did not, the
+        # connection test failed, and nothing said why. That is the 2026-06-19
+        # session.
+        CredStep("⚠️ **Required, and it is yours to do.** Until this account is "
+                 "shared, collection sees nothing — even with the right ID. In "
+                 "**Business Manager → Settings → Apps**, find "
+                 "**ETL_DASHBOARD_SPOTIFY** (ask us to add it if it is not there), "
+                 "then **Business Assets → Add Assets → Ad Account**: pick yours and "
+                 "grant **Analyst** (or Advertiser) permission."),
         CredStep("Paste this number into **🔑 API Credentials → Meta / Instagram**, "
                  "then **Test the connection**. (The `act_` prefix is added automatically.)"),
         CredStep("**Instagram (optional but recommended).** To track followers and "
@@ -146,10 +157,9 @@ _META = PlatformCred(
         CredField("Instagram Business Account ID", "17841400000000000",
                   note="optional — ~17 digits, for Instagram stats"),
     ),
-    note=(
-        "**Admin prerequisite**: your ad account must be linked to the shared app "
-        "(System User) in Business Manager for collection to work. The same applies "
-        "to the Facebook Page your Instagram account is attached to."
+    admin_note=(
+        "On our side: System User created, 5-scope token in place, and the Instagram "
+        "attachment done at the Facebook Page level."
     ),
 )
 
