@@ -78,6 +78,29 @@ aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête aff
 cause de sa façon de mesurer**. Le comptage vit désormais au rendu ; après correctif
 la carte des plafonds est vide, vérifié sur les 42 vues.
 
+### Le refactor a produit sa propre leçon
+
+Dernier item : découper `admin.show()` (401 → **64 lignes**, quatre fonctions, une par
+onglet). Mécanique, et vérifié comme tel **avant** de couper : l'AST dit que chaque
+bloc n'a que `db` comme variable libre.
+
+**Le premier jet était faux**, et c'est ce qui vaut d'être gardé. Il remplaçait
+`with tab_gdpr:` + 85 lignes par `_tab_gdpr(db)` nu. Le contenu se rendait alors
+**hors** de l'onglet — aucune exception, tous les éléments présents.
+
+**Trois gardes existants sont passés dessus** : le render-smoke n'asserte que « pas
+d'exception » ; les tests de boutons les trouvent par label ; et l'empreinte du rendu
+que j'avais construite **pour prouver l'équivalence** est revenue identique au
+caractère près, parce que `at.main` **aplatit** l'arbre.
+
+J'ai donc déclaré le refactor « prouvé » sur une empreinte qui ne prouvait rien — et
+je ne l'ai su qu'en la mutant. Seul le comptage **par onglet** diverge : 9 widgets → 0.
+
+La leçon n'est pas sur Streamlit : **une vérification qui rend la même réponse pour le
+code juste et le code cassé n'est pas une vérification**, et il faut la muter pour le
+savoir — y compris quand on vient de l'écrire soi-même, dix minutes après avoir écrit
+quatre gardes en insistant sur ce principe.
+
 ### Ce que la mesure a interdit
 
 **Le balayage `view_session` aurait été une fuite locataire.** Des 25 vues qui ne
