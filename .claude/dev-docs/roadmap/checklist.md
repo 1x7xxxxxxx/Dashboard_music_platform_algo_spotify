@@ -46,6 +46,22 @@ par son destinataire.
 > commentaire, et son en-tête plus vite que son corps : c'est la seule partie que
 > `/resume` recopie sans la relire.
 
+### Séance du 2026-08-30 (test artiste) — le défaut qu'aucune mesure ne voyait
+
+L'artiste en test : *« des fois je clique sur un bouton et il ne se passe rien »*.
+Cause : **`server.websocketPingInterval` valait `None`** — aucun keepalive — et le
+dashboard est servi à travers **Cloudflare**, qui ferme les websockets inactifs. Lire
+une page deux minutes suffisait à perdre la connexion, en silence.
+
+C'est sa précision « **rien ne bouge du tout**, pas même un spinner » qui a tranché :
+un clic sans réaction n'a jamais atteint le serveur. J'avais commencé à balayer les
+`st.button` — ça n'aurait rien donné, les 3 sites suspects sont sur des pages d'admin.
+
+`websocketPingInterval = 20`, et la valeur mise sous test parce que sa voisine
+(`showErrorDetails`) avait déjà repris son défaut en silence.
+
+---
+
 ### Séance du 2026-08-30 (soir) — la passe d'optimisation n'en était pas une
 
 Les 42 vues mesurées **dans le conteneur de prod**, SQL séparé de Python. Résultat :

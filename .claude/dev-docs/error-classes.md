@@ -222,6 +222,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [content-rendered-outside-its-container](#content-rendered-outside-its-container) | P3 | deterministic | guarded | none |
 | [cache-not-invalidated-by-the-event-that-stales-it](#cache-not-invalidated-by-the-event-that-stales-it) | P3 | deterministic | guarded | none |
 | [verdict-exists-but-not-when-it-is-needed](#verdict-exists-but-not-when-it-is-needed) | P3 | deterministic | guarded | none |
+| [websocket-dies-behind-the-proxy](#websocket-dies-behind-the-proxy) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2804,3 +2805,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: la question posée était « pourquoi le preflight n'est-il pas automatique ? ». La réponse honnête était qu'**il l'est déjà** — `alert_monitor` exécute les cinq mêmes contrôles chaque nuit. Ce qui manquait n'était pas l'automatisation mais le **moment**. Un contrôle correct au mauvais instant est indiscernable d'un contrôle absent, du point de vue de celui qui attend la réponse.
   - 2026-08-30: le réflexe aurait été de câbler le preflight à la vérification de l'e-mail, puisque c'est là qu'on parle d'« inscription ». Ça aurait produit cinq rouges sans information à chaque nouveau compte — la sonde ne peut pas répondre avant qu'il y ait quelque chose à sonder.
+
+## websocket-dies-behind-the-proxy
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: « je clique sur un bouton et il ne se passe rien, je dois recliquer ». Pas UN bouton — **tous**, par intermittence, et avec **aucune réaction** : ni spinner, ni « Running… ». Rapporté par un artiste en test le 2026-08-30.
+- root_cause: Streamlit parle au navigateur par un **websocket**, et `server.websocketPingInterval` valait `None` — **aucun keepalive**. Le dashboard est servi à travers Cloudflare (`server: cloudflare`, `cf-ray` présents sur `app.streamlytics.fr`), qui ferme un websocket resté inactif. Un artiste qui lit une page deux minutes perd la connexion en silence ; le clic suivant ne part nulle part, celui d'après fonctionne parce que le navigateur s'est reconnecté entre-temps. L'aide de Streamlit pour cette option nomme la situation : *« if you're experiencing frequent disconnections in certain proxy setups »*.
+- signature: `python3 -m pytest tests/test_the_websocket_survives_the_proxy.py -q`
+- long_term_fix: `websocketPingInterval = 20` dans `.streamlit/config.toml`, largement sous la fenêtre d'inactivité de Cloudflare, pour une trame minuscule par client toutes les 20 s. Le garde vérifie aussi que `.streamlit/` est toujours copié par le `Dockerfile` — une configuration que l'image ne lit pas est une configuration inerte.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_websocket_survives_the_proxy.py }
+- rex_ref: .streamlit/config.toml
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: **c'est le détail « rien ne bouge » qui rend le défaut diagnosticable.** Un clic sans aucune réaction n'a jamais atteint le serveur : aucune logique de bouton ne pouvait l'expliquer. Sans cette précision, le réflexe aurait été de balayer les `st.button` — ce que j'ai commencé à faire, et qui n'aurait rien trouvé, puisque les trois seuls sites suspects sont sur des pages d'admin que l'artiste ne visite pas.
+  - 2026-08-30: la valeur est mise sous test parce que la voisine avait déjà silencieusement repris son défaut : `showErrorDetails` était mesuré à `full` en production le 2026-08-23, envoyant les tracebacks complètes au navigateur du visiteur. Une valeur de configuration que personne n'asserte est une valeur qui revient à son défaut — et ici le défaut EST le comportement cassé.

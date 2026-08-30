@@ -1,6 +1,29 @@
 [server]
 # INFO-06: cap upload size to 50 MB to limit DoS via large file uploads
 maxUploadSize = 50
+# Keep the websocket alive THROUGH Cloudflare.
+#
+# Reported by an artist testing on 2026-08-30: "sometimes a button does nothing and
+# I have to click it again". Not one button — ALL of them, and with NO reaction at
+# all: no spinner, no "Running…". A click that produces no reaction never reached
+# the server, so this was never about button logic. Ruled out first, mechanically:
+# no st.button misplaced inside a st.form, every navigation button already calls
+# st.rerun(), and no widget-key collision on the tenant path.
+#
+# Streamlit talks to the browser over a websocket. Measured the same day:
+#
+#     curl -I https://app.streamlytics.fr/  ->  server: cloudflare, cf-ray: …
+#     server.websocketPingInterval          ->  None   (no keepalive AT ALL)
+#
+# Cloudflare closes an idle websocket. With no ping, an artist reading a page for a
+# couple of minutes has the connection silently dropped; the next click goes
+# nowhere, and the one after it works because the browser has reconnected in the
+# meantime. That is exactly the reported symptom.
+#
+# Streamlit's own help for this option names the case: "if you're experiencing
+# frequent disconnections in certain proxy setups". 20 s is comfortably below
+# Cloudflare's idle window and costs one tiny frame per client per 20 s.
+websocketPingInterval = 20
 # WSL2 + future Hetzner VPS: skip auto-open browser (gio fails on WSL2 without wslu;
 # headless servers have no browser at all). Open the URL manually in your browser.
 headless = true
