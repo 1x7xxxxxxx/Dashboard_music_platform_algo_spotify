@@ -46,6 +46,31 @@ par son destinataire.
 > commentaire, et son en-tête plus vite que son corps : c'est la seule partie que
 > `/resume` recopie sans la relire.
 
+### Séance du 2026-08-30 (soir) — la passe d'optimisation n'en était pas une
+
+Les 42 vues mesurées **dans le conteneur de prod**, SQL séparé de Python. Résultat :
+**SQL = 2 ms la requête** (755 ms / 372 requêtes), **p50 de rendu = 61 ms**, 33 vues
+sur 42 sous 150 ms. Il n'y avait rien à optimiser au sens large — trois des quatre
+trouvailles étaient des **bugs de correction** déguisés en lenteur.
+
+| Trouvaille | État |
+|---|---|
+| La vue `admin` **plantait en prod** : `timestamptz` relu à cheval sur un changement d'heure (`+01`/`+02`). 4 autres sites latents, dont un `aware - naïf` qui aurait cassé la page Credentials au premier token Meta | corrigé, `utils/tz.py` + garde AST |
+| **12 DAGs sur 16 affichés « sans run »** sur l'accueil : une fenêtre globale de 200 runs pour répondre à une question par DAG, alors que 4 watchers font 98 % des 392 runs/jour | corrigé, `_runs_per_dag` parallèle — 16/16, et `airflow_kpi` de 1541 à 499 ms |
+| `hypeddit` ouvrait 2 connexions : un helper fermait la connexion partagée, `_ensure_connection` reconnectait en silence. Le garde comptait le **texte source**, pas le rendu | corrigé, comptage au rendu, plafonds vides sur 42 vues |
+| `webserver.workers = 4` sur une UI à un lecteur | 2 désormais, **997 → 884 Mio** |
+
+**Deux choses que la mesure a interdites**, et c'est le plus utile :
+`core.parallelism` reste à 32 (pic réel **19** sur 108 215 tâches — j'allais proposer
+8), et le balayage `view_session` aurait été **une fuite locataire** : 17 des 25 vues
+utilisent `tenant_scope()`, qui rend `None` pour l'admin là où `view_session()` rend
+`artist_id = 1`.
+
+3 classes de plus au catalogue, chacune avec sa signature **vue rouge sur le vrai
+code d'avant**.
+
+---
+
 ### Séance du 2026-08-30 — la mesure prise au mauvais endroit
 
 Point de départ : relancer les vérifications périmées, puis chercher des optimisations.

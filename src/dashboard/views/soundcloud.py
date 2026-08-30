@@ -5,6 +5,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
+from src.dashboard.utils.tz import to_local_datetime, to_local_naive
 
 def show():
     st.title(t("soundcloud.title", "☁️ SoundCloud - Performance"))
@@ -46,7 +47,8 @@ def show():
                 total_tracks = len(df_latest)
 
                 # Récupération de la dernière date de collecte
-                last_date_str = pd.to_datetime(df_latest['collected_at']).max().strftime('%d/%m/%Y')
+                # timestamptz across a DST change → mixed offsets (utils/tz.py).
+                last_date_str = to_local_datetime(df_latest['collected_at']).max().strftime('%d/%m/%Y')
 
                 # Affichage sur 2 lignes
                 c1, c2, c3 = st.columns(3)
@@ -108,7 +110,7 @@ def show():
 
             if not df_history.empty:
                 # Conversion types
-                df_history['collected_at'] = pd.to_datetime(df_history['collected_at']).dt.date
+                df_history['collected_at'] = to_local_naive(df_history['collected_at']).dt.date
 
                 # APPLICATION DES FILTRES
                 mask_date = (df_history['collected_at'] >= start_d) & (df_history['collected_at'] <= end_d)

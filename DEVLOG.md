@@ -5,6 +5,94 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-30 (soir) — « Optimiser » n'était pas le mot : trois des quatre étaient des bugs
+
+**Contexte** : « d'autres axes d'optimisation ? j'aimerais faire une grosse passe ».
+Les 42 vues mesurées **dans le conteneur de production**, coût SQL séparé du coût
+Python, plus la mémoire des conteneurs et le volume de runs Airflow.
+
+### Il n'y avait pas de passe de performance à faire
+
+    SQL sur les 42 vues   755 ms pour 372 requêtes   = 2 ms la requête
+    rendu                 p50 = 61 ms   p95 = 378 ms   33/42 sous 150 ms
+
+Aucune vue n'est limitée par la base. Le cache généralisé, les index, le pooling :
+écartés par le chiffre, pas par principe.
+
+**Le coût restant tenait en trois points, et aucun n'était une lenteur.**
+
+### 1. La vue `admin` plantait en production
+
+`ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless
+utc=True, at position 2`. Cause racine : une colonne `timestamptz` relue par psycopg2
+rend le décalage **en vigueur à cet instant**, donc mars est en `+01` et juin en
+`+02`. Mesuré sur `saas_users.created_at` : ids 1–2 en `+01`, id 10 en `+02` —
+« position 2 » exactement.
+
+**Le déclencheur n'est pas un chemin de code, c'est une date au calendrier.** Quatre
+autres sites avaient la forme identique et n'avaient simplement jamais reçu une
+fenêtre franchissant un changement d'heure.
+
+Le garde a trouvé plus que moi, deux fois :
+- il a signalé un scalaire que je croyais exempt — **l'AST ne distingue pas
+  `df['col']` de `row['col']`**. Affaiblir la règle aurait voulu dire deviner ce que
+  l'arbre ne dit pas ; je l'ai élargie ;
+- étendu à **un saut d'assignation**, il a sorti 3 sites de plus, dont
+  `credentials/_render.py:107` qui faisait `aware - naïf` : `TypeError` garanti,
+  vérifié. Il n'a jamais tiré parce qu'aucune ligne ne porte encore `expires_at` — le
+  premier token Meta avec expiration aurait cassé la page par laquelle on connecte
+  Meta.
+
+### 2. La page d'accueil affichait 12 DAGs sur 16 comme « sans run »
+
+`get_all_dags_last_state()` répondait « le dernier run de chaque DAG » par une
+**fenêtre globale** (`page_limit=200`). Son docstring énonçait l'hypothèse : « with
+daily schedules each DAG's latest run sits well within 200 ». La production :
+**392 runs en 24 h, dont 384 pour 4 watchers CSV**. La fenêtre couvrait ~12 h et 98 %
+de quatre DAGs.
+
+    batch, page_limit=200    254 ms   1 appel    4/16 DAGs
+    batch + filtre dag_ids   194 ms   1 appel    4/16   ← l'API plafonne à 100
+    per-DAG, séquentiel     1315 ms  16 appels  16/16
+    per-DAG, 8 threads       440 ms  16 appels  16/16
+
+Le filtre `dag_ids` semblait le correctif évident : **sondé contre l'API réelle, il
+ne change rien.** L'hypothèse est morte sur la mesure avant d'être écrite.
+
+8 workers et pas 16 : à 16 c'est **plus lent** (475 ms), parce que le webserver
+tourne avec 4 processus gunicorn. `airflow_kpi` passe de 1541 à 499 ms ; `home`
+devient ~190 ms plus lente **et cesse de mentir**.
+
+Le garde assied son assertion sur la **complétude**, pas sur le nombre d'appels HTTP
+— ce dernier aurait félicité la version cassée, qui n'en faisait qu'un.
+
+### 3. `hypeddit` ouvrait deux connexions, sans second `get_db_connection()`
+
+`_render_history()` appelait `db.close()` sur la connexion que `show()` possède ;
+`_render_entry_form()` continuait d'interroger un handle fermé et
+`_ensure_connection()` **reconnectait en silence**.
+
+Le garde existant comptait `get_db_connection()` par **regex sur le texte source** —
+aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête affirmait
+« chaque vue ouvre exactement une connexion par rendu ». C'était faux, **et faux à
+cause de sa façon de mesurer**. Le comptage vit désormais au rendu ; après correctif
+la carte des plafonds est vide, vérifié sur les 42 vues.
+
+### Ce que la mesure a interdit
+
+**Le balayage `view_session` aurait été une fuite locataire.** Des 25 vues qui ne
+l'utilisent pas, **une seule** correspond à la forme héritée. **17 n'appellent jamais
+`get_artist_id()`** : elles utilisent `tenant_scope()`, qui rend **None** pour un
+admin — l'exact opposé du repli `artist_id = 1`. `home.py:246` l'écrit :
+*« None = admin only, never a stray artist »*. Les migrer mécaniquement aurait redonné
+à chaque admin les données de l'artiste 1, la classe qui a coûté deux séances de test
+artiste. Un garde échoue maintenant si une vue importe les deux.
+
+**Et `core.parallelism = 32` reste.** J'allais proposer 8 ; le pic réel sur
+**108 215 task instances** est **19**. Le RSS brut ment aussi : 6571 Mio de workers
+pour 960 Mio facturés, ~85 % de pages partagées. Seul `webserver.workers = 4` était
+injustifié — 2 désormais, **997 → 884 Mio**, modeste comme annoncé avant la mesure.
+
 ## 2026-08-30 — Le chiffre mesuré au mauvais endroit, trois fois
 
 **Contexte** : relancer les vérifications périmées, puis chercher des optimisations

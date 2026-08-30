@@ -216,6 +216,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [dag-without-dagrun-timeout](#dag-without-dagrun-timeout) | P2 | deterministic | guarded | none |
 | [image-ships-what-it-never-imports](#image-ships-what-it-never-imports) | P4 | deterministic | guarded | none |
 | [tests-run-a-different-core-than-prod](#tests-run-a-different-core-than-prod) | P2 | deterministic | guarded | none |
+| [timestamptz-parsed-across-a-dst-change](#timestamptz-parsed-across-a-dst-change) | P1 | deterministic | guarded | none |
+| [page-window-answers-a-per-entity-question](#page-window-answers-a-per-entity-question) | P2 | deterministic | guarded | none |
+| [helper-closes-a-connection-it-did-not-open](#helper-closes-a-connection-it-did-not-open) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2699,3 +2702,53 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: le garde a été écrit pour vérifier une hypothèse et a trouvé la divergence du premier coup — il est né rouge, sur trois assertions.
   - 2026-08-30: `importlib.util.find_spec("airflow")` ne suffit pas à répondre « airflow est-il installé ? ». Ce dépôt a un **répertoire** `airflow/` à sa racine, laquelle est dans `sys.path` : `find_spec` rend un paquet d'espace de noms avec `origin is None` même quand la distribution est absente, et demander `.__version__` lève `AttributeError` au lieu de sauter. Un spec sans origine n'est pas un module.
+
+## timestamptz-parsed-across-a-dst-change
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: une page plante avec `ValueError: Tz-aware datetime.datetime cannot be converted to datetime64 unless utc=True, at position N`. Elle marchait la veille : le déclencheur n'est pas un chemin de code, c'est **une date au calendrier**.
+- root_cause: toute colonne `timestamptz` relue par psycopg2 rend des datetimes portant le décalage **en vigueur à cet instant-là**. Une table qui contient des lignes de mars et de juin contient donc `+01:00` et `+02:00` côte à côte, et `pd.to_datetime` sur cette Series refuse. Mesuré en production le 2026-08-30 sur `saas_users.created_at` : ids 1-2 en `+01`, id 10 et suivants en `+02` — « position 2 » exactement. `views/admin.py:652` plantait **en production** sur la liste des utilisateurs ; quatre autres sites avaient la forme identique et n'avaient simplement jamais reçu une fenêtre franchissant un changement d'heure.
+- signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_timestamptz_column_survives_daylight_saving import unsafe_timestamptz_parses, _sources; sys.exit(1 if unsafe_timestamptz_parses(_sources()) else 0)"`
+- long_term_fix: `src/dashboard/utils/tz.py` — `to_local_datetime` / `to_local_naive` normalisent en UTC **puis reconvertissent** vers `Europe/Paris`. Les deux étapes comptent : `utc=True` seul décale l'heure affichée, et près de minuit la DATE affichée. Vérifié sur les données réelles de prod : les chaînes rendues sont identiques à l'ancien code, sur les dates, les heures et `.dt.date`. Le garde intersecte la liste des colonnes `timestamptz` lue au schéma avec les appels de l'arbre : les colonnes `DATE` (`date`, `week`, `day`, `prediction_date`) ne peuvent pas porter deux décalages et ne sont pas signalées.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_timestamptz_column_survives_daylight_saving.py }
+- rex_ref: src/dashboard/utils/tz.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: la règle a d'abord exempté les scalaires — un scalaire ne peut effectivement pas porter deux décalages. Puis le garde a signalé `account.py:133` quand même : **l'AST ne distingue pas `df['col']` de `row['col']`**, les deux sont un Subscript à clé littérale, et seul un vérificateur de types sait lequel. Affaiblir la règle aurait voulu dire deviner, à chaque site, ce que l'arbre ne dit pas. L'élargir coûte un appel à un helper mesuré identique sur un scalaire dans les deux régimes horaires.
+  - 2026-08-30: la première version ne lisait que l'argument de l'appel et ratait donc `account.py:72`, où la valeur passe par une variable locale une ligne plus haut. Étendre à **un saut d'assignation** a fait apparaître 3 sites de plus, dont 2 dans `credentials/_render.py` que le balayage initial ne voyait pas du tout.
+  - 2026-08-30: l'un d'eux était pire qu'un affichage. `credentials/_render.py:107` faisait `exp - pd.Timestamp.utcnow().tz_localize(None)` — un **aware moins un naïf**, soit `TypeError: Cannot subtract tz-naive and tz-aware datetime-like objects`, vérifié. Il n'a jamais tiré uniquement parce qu'aucune ligne ne porte encore `expires_at` : le premier token Meta avec expiration aurait cassé la page Credentials, celle par laquelle un artiste connecte justement Meta.
+
+## page-window-answers-a-per-entity-question
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une vue de supervision affiche une fraction des entités et présente l'absence comme une donnée — « aucun run » au lieu de « je n'ai pas regardé ». Tout répond 200, aucune erreur nulle part.
+- root_cause: `airflow_monitor.get_all_dags_last_state()` répondait « le dernier run de chaque DAG » par **une fenêtre globale** (`POST /dags/~/dagRuns/list`, `page_limit=200`) et prenait ce qui revenait. Son propre docstring énonçait l'hypothèse : « with daily schedules each DAG's latest run sits well within 200 ». La production l'a démentie — mesuré le 2026-08-30 : **392 runs en 24 h, dont 384 pour les 4 watchers CSV** (96 chacun, toutes les 15 min). La fenêtre couvrait donc ~12 h et 98 % de quatre DAGs. `views/home.py` en tire la santé des DAGs : **12 DAGs sur 16 s'affichaient « sans run »** sur la page d'accueil.
+- signature: `python3 -m pytest tests/test_the_dag_monitor_sees_every_dag.py -q`
+- long_term_fix: `_runs_per_dag()` — une requête par DAG, émises en parallèle (8 workers), factorisée en un seul endroit dont `get_dag_runs` et `get_all_dags_last_state` dépendent. Correct par construction : la fenêtre disparaît. Mesuré en prod : batch 254 ms / **4 DAGs sur 16** → parallèle **440 ms / 16 sur 16**, et `get_dag_runs` passe de 1541 ms à 499 ms. Le garde assied son assertion sur la **complétude** (« combien de DAGs sont revenus ») et non sur le nombre d'appels HTTP — ce dernier aurait félicité la version cassée, qui n'en faisait qu'un.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_dag_monitor_sees_every_dag.py }
+- rex_ref: src/dashboard/utils/airflow_monitor.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: filtrer la requête par `dag_ids` semblait le correctif évident. Sondé contre l'API réelle : HTTP 200, et **toujours 4 DAGs sur 16** — l'API plafonne `page_limit` à 100, donc le filtre ne déplace pas la fenêtre. L'hypothèse est morte sur la mesure avant d'être écrite.
+  - 2026-08-30: 8 workers et pas 16. Mesuré : 8 → 440 ms, 16 → **475 ms**. Au-delà de 8 c'est plus lent, parce que le webserver Airflow tourne avec `webserver.workers = 4` et que les threads en trop ne font que faire la queue.
+  - 2026-08-30: `home` devient ~190 ms plus lente (254 → 440 ms) et cesse de mentir. Une page rapide et fausse est pire qu'une page juste.
+
+## helper-closes-a-connection-it-did-not-open
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une vue ouvre deux connexions par rendu au lieu d'une, sans qu'aucun deuxième `get_db_connection()` n'existe dans son fichier. Rien ne casse : la page s'affiche.
+- root_cause: `views/hypeddit.py:190`, `_render_history()` appelait `db.close()` sur la connexion que `show()` possède et ferme déjà dans son propre `finally`. `_render_entry_form()`, appelé juste après, continuait d'interroger un handle fermé, et `PostgresHandler._ensure_connection()` **reconnectait en silence**. Vestige d'avant le 2026-08-21, quand chaque helper possédait sa connexion : la migration a retiré les ouvertures et laissé une fermeture.
+- signature: `python3 -m pytest tests/test_a_render_opens_one_connection.py -q`
+- long_term_fix: la fermeture parasite retirée, et surtout le comptage déplacé **au rendu** : `tests/test_a_render_opens_one_connection.py` patche `PostgresHandler._connect` et rend les 42 vues. Le garde existant, `test_view_connection_budget.py`, comptait `get_db_connection()` par une **regex sur le texte source** — aveugle à `project_db()`, à `view_session()` et aux appelés. Son en-tête affirmait « chaque vue ouvre exactement une connexion par rendu » ; c'était faux, et faux à cause de sa façon de mesurer. L'affirmation est corrigée sur place, le ratchet textuel reste, honnête sur son statut d'approximation.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_render_opens_one_connection.py }
+- rex_ref: tests/test_view_connection_budget.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: le nouveau garde porte sa propre mutation (`test_the_counter_actually_counts`) : un compteur branché sur rien rendrait 0 pour les 42 vues et le fichier entier passerait en ne mesurant rien — le mode de panne que ce dépôt a déjà rencontré quatre fois.
+  - 2026-08-30: après correctif, la carte des plafonds est **vide** — les 42 vues ouvrent exactement une connexion, vérifié au rendu et non dans le texte.

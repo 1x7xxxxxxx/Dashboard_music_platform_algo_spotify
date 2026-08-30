@@ -105,6 +105,53 @@ language with no tenant data and nothing to go stale. See
 `src/dashboard/utils/guide_assets.py` and the `download-payload-rebuilt-per-rerun`
 error class. Reading this ADR as a ban on caching would have left that in place.
 
+### Second trigger review — 2026-08-30 (evening)
+
+All 42 views were then measured **inside the production container**, SQL separated
+from Python. The headline is that there was almost nothing to optimise:
+
+- **SQL is not the constraint anywhere**: 755 ms for **372 queries across 42 views**,
+  2 ms per query. The composite-index trigger stays unfired for a second reason.
+- **p50 render = 61 ms**, p95 = 378 ms; 33 of 42 views are under 150 ms.
+- The three expensive outliers were **not slowness**. `airflow_kpi` (2215 ms) was an
+  HTTP N+1 whose batch replacement returned 4 of 16 DAGs; `admin` (247 ms) was
+  *crashing*; `hypeddit` opened two connections because a helper closed the shared
+  one. All three are fixed as correctness defects, not as performance work.
+
+#### One item added to the standing-conditions table
+
+| Item | Trigger that reopens it |
+|---|---|
+| `onboarding_health` builds a status matrix **per active artist in a loop** (`onboarding_health.py:60`) — **106 queries for 6 artists**, 124 ms | **~25 active artists**, or a measured render above 1 s. At 50 artists it is ~900 queries. The shape is linear and known; it costs nothing today. |
+
+#### And one thing that must NOT be swept, measured
+
+Rule #9 and roadmap R9 read as "migrate the remaining views to `view_session()`".
+Of the 25 views that do not use it, **only one** (`hypeddit`) matches the legacy
+shape it replaces. **17 never call `get_artist_id()` at all** — they use
+`tenant_scope()`, which returns **None** for an admin, the deliberate opposite of
+`view_session()`'s `artist_id = 1` fallback (`home.py:246`: *"None = admin only,
+never a stray artist"*). A mechanical sweep would hand every admin artist 1's data —
+the exact leak that took two failed artist-test sessions to find.
+
+`tests/test_tenant_scope_is_not_view_session.py` now fails if a view imports both.
+
+#### Airflow memory, dug into rather than guessed
+
+`airflow_webserver` 997 MiB + `airflow_scheduler` 960 MiB = 2 GB of 7.6.
+
+- `core.parallelism = 32` **stays**. Peak concurrency over the whole production
+  history — **108 215 task instances** — is **19** (p95 = 3, p99 = 5). 32 is a 1.7x
+  margin, not waste. The instinct to cut it to 8 would have throttled a real peak.
+- Raw RSS lies: the scheduler's 33 idle LocalExecutor workers total **6571 MiB of
+  RSS for 960 MiB charged by the cgroup** — ~85 % copy-on-write shared. "33 processes
+  x 205 MiB" is not a diagnosis.
+- `webserver.workers = 4` was the only unjustified default — a team-sized UI bound to
+  `127.0.0.1` with one reader. Set to 2 in the production compose (gitignored, so it
+  is a change on the box, saved as `docker-compose.yml.bak-workers-20260830`).
+  **Measured after: 997 -> 884 MiB, −113 MiB.** Modest, as predicted, and for the
+  predicted reason.
+
 ## Alternatives rejected
 
 | Option | Why rejected |
