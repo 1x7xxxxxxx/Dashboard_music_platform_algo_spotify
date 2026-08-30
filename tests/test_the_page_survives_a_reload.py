@@ -113,18 +113,33 @@ def test_the_seed_is_conditioned_on_what_the_mirror_wrote():
 
 
 def test_a_fresh_session_opening_a_page_url_lands_on_that_page():
-    """The property itself, exercised: no session state, only the URL."""
+    """The property itself, exercised: no session state, only the URL.
+
+    The nav keys are resolved HERE and injected as a literal, instead of importing
+    `src.dashboard.app` inside the AppTest script. That import pulls the whole
+    dashboard into the test's script runner: fine serially, but under `-n auto` it
+    blew past the 30 s timeout — the failure that this file's own Makefile change
+    surfaced before CI could. The assertion is unchanged; only the accidental cost
+    is gone.
+
+    What this covers, stated plainly: the seeding RULE, re-expressed. The three tests
+    above are what hold the real code to it; this one shows the rule produces the
+    right landing for a session that has nothing but a URL.
+    """
     from streamlit.testing.v1 import AppTest
 
-    script = f'''
-import sys
-sys.path.insert(0, {str(_ROOT)!r})
-import streamlit as st
-from src.dashboard import app as A
+    import sys
+    sys.path.insert(0, str(_ROOT))
+    from src.dashboard.app import _NAV_SECTIONS
 
+    nav_keys = sorted({key for _, _, items in _NAV_SECTIONS for _, key in items})
+    assert "credentials" in nav_keys, "the credentials page left the navigation"
+
+    script = f'''
+import streamlit as st
+_NAV_KEYS = {nav_keys!r}
 _param = st.query_params.get("page")
-_nav_keys = {{key for _, _, items in A._NAV_SECTIONS for _, key in items}}
-if _param in _nav_keys and _param != st.session_state.get("_page_mirrored"):
+if _param in _NAV_KEYS and _param != st.session_state.get("_page_mirrored"):
     st.session_state["_nav_page"] = _param
 st.write("PAGE=", st.session_state.get("_nav_page"))
 '''
