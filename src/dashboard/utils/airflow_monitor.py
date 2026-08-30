@@ -279,7 +279,7 @@ class AirflowMonitor:
         }
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def cached_last_run_per_dag() -> dict:
     """`get_all_dags_last_state()` behind a 60 s cache. Use this from views.
 
@@ -300,14 +300,31 @@ def cached_last_run_per_dag() -> dict:
     artist connects a platform — and `show()` re-runs on every widget interaction, so
     that cost was being paid again on each click, not once per visit.
 
-    Why 60 s, and not a number picked to look modest
-    ------------------------------------------------
-    A stale answer here is the same defect class this call was just fixed for: the
-    page must not report a DAG state that is no longer true. What bounds the staleness
-    is how fast the underlying value actually changes — the busiest DAGs run every 15
-    minutes, the rest daily or weekly. 60 s is two orders of magnitude below the
-    fastest of those, and it is the same TTL `kpi_helpers` already uses for read-only
-    metadata of exactly this kind. It also matches the human loop: someone who
-    triggers a DAG and refreshes sees the new state within a minute.
+    Why 300 s, and why the TTL is the wrong knob anyway
+    ---------------------------------------------------
+    A stale answer here is the same defect class this call was fixed for: the page
+    must not report a DAG state that is no longer true. But shortening the TTL is a
+    poor way to buy that, and the numbers say why.
+
+    Measured on production `dag_run`, 7 days: **16.3 runs finish per hour**, median
+    16, and **not one empty hour** — so no TTL short of seconds makes the page
+    reliably current. Yet 384 of the 392 daily runs are the four CSV watchers, whose
+    state no artist is looking at. The value an artist cares about — "did my
+    collection run?" — changes once a night, or **the moment they press the button
+    themselves**.
+
+    So the freshness that matters is event-driven, not time-driven:
+
+      * `views/credentials/_render.py` triggers a DAG on save and toasts "collecte
+        lancée"; the artist looks at the status right after,
+      * `app.py`'s sidebar sync triggers every collection DAG.
+
+    Both call `cached_last_run_per_dag.clear()` on success. That makes the one moment
+    freshness is felt **exact**, instead of up to a TTL stale.
+
+    With that handled, the TTL only governs background drift, so it is set for the
+    reader instead: a cold miss costs ~1 s (16 HTTP round-trips), and at 60 s an
+    artist browsing for five minutes paid that stall **five times**. At 300 s they pay
+    it once. Same correctness, one fifth of the interruptions.
     """
     return AirflowMonitor().get_all_dags_last_state()

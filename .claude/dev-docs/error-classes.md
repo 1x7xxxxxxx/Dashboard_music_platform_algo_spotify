@@ -220,6 +220,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [page-window-answers-a-per-entity-question](#page-window-answers-a-per-entity-question) | P2 | deterministic | guarded | none |
 | [helper-closes-a-connection-it-did-not-open](#helper-closes-a-connection-it-did-not-open) | P3 | deterministic | guarded | none |
 | [content-rendered-outside-its-container](#content-rendered-outside-its-container) | P3 | deterministic | guarded | none |
+| [cache-not-invalidated-by-the-event-that-stales-it](#cache-not-invalidated-by-the-event-that-stales-it) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2770,3 +2771,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-08-30: **trois gardes existants sont passés dessus.** `test_views_render_smoke` n'asserte que « pas d'exception » — il n'y en avait pas ; `test_admin_hypeddit_buttons` cherche les boutons par label — tous encore là ; et l'empreinte du rendu que j'avais construite pour prouver l'équivalence du refactor est revenue **identique au caractère près**, parce que `at.main` **aplatit** l'arbre : du contenu sorti d'un onglet reste du contenu sur la page.
   - 2026-08-30: j'ai donc déclaré le refactor « prouvé » sur une empreinte qui ne prouvait rien, avant de la muter et de découvrir qu'elle était aveugle. La leçon n'est pas sur Streamlit : **une vérification qui rend la même réponse pour le code juste et le code cassé n'est pas une vérification** — et il faut la muter pour le savoir, y compris quand on vient de l'écrire soi-même.
   - 2026-08-30: seul le comptage PAR ONGLET diverge (9 widgets → 0). Le garde porte cette explication dans son docstring pour qu'il ne soit pas remplacé par la version plate, moins chère.
+
+## cache-not-invalidated-by-the-event-that-stales-it
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'utilisateur déclenche une action, l'interface lui confirme qu'elle est lancée, puis affiche l'état d'AVANT son clic — jusqu'à l'expiration du TTL. La page semble dire que rien ne s'est passé.
+- root_cause: `cached_last_run_per_dag()` a été ajouté le 2026-08-30 pour éviter 16 allers-retours HTTP par interaction, **sans invalidation**. Or `views/credentials/_render.py:404` enregistre les credentials, déclenche le DAG et affiche « 🚀 Collecte lancée » ; l'artiste regarde le statut juste après. `app.py:422` fait pareil depuis la barre latérale. Les deux servaient une vue cachée des runs antérieurs au clic de l'artiste.
+- signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_a_trigger_invalidates_what_it_makes_stale import trigger_sites_without_invalidation, _dashboard_sources; sys.exit(1 if trigger_sites_without_invalidation(_dashboard_sources()) else 0)"`
+- long_term_fix: `cached_last_run_per_dag.clear()` sur le chemin de succès des deux déclencheurs, et un garde AST qui remonte du `trigger_dag(...)` à son `if result.get('success'):` pour exiger l'appel. **Raccourcir le TTL n'était pas la réponse** : mesuré sur 7 jours de `dag_run`, 16,3 runs se terminent par heure sans une seule heure creuse — aucun TTL raisonnable ne rend la page courante. La fraîcheur qui compte est ÉVÉNEMENTIELLE. Une fois l'événement traité, le TTL ne gouverne plus que la dérive de fond et se règle pour le lecteur : 60 → 300 s, soit un blocage d'~1 s par visite de cinq minutes au lieu de cinq.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_trigger_invalidates_what_it_makes_stale.py }
+- rex_ref: src/dashboard/utils/airflow_monitor.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: le cache a été introduit pour corriger une régression de performance, et a immédiatement créé un défaut de la MÊME FAMILLE que celui qu'il servait — `home` affichant 12 DAGs sur 16 comme « sans run ». Une page rapide qui affirme quelque chose de faux reste une page qui ment.
+  - 2026-08-30: 384 des 392 runs quotidiens appartiennent aux 4 watchers CSV, qu'aucun artiste ne regarde. Calibrer un TTL sur la fréquence BRUTE des changements aurait donné une réponse absurde ; ce qui compte est la fréquence des changements que le lecteur attend.
