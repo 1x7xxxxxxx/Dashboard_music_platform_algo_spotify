@@ -11,7 +11,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.auth import tenant_scope
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.status_matrix import render_status_matrix
-from src.dashboard.utils.airflow_monitor import AirflowMonitor
+from src.dashboard.utils.airflow_monitor import AirflowMonitor, cached_last_run_per_dag
 from src.dashboard.utils.kpi_helpers import (
     get_source_freshness, freshness_status,
     get_total_streams_s4a, get_total_views_youtube,
@@ -207,7 +207,8 @@ def _section_dag_status():
         return
 
     # Single batch call for every DAG's latest run (was N+1: one call per DAG).
-    last_states = monitor.get_all_dags_last_state()
+    # Cached 60 s: 16 HTTP round-trips, re-paid on every widget interaction.
+    last_states = cached_last_run_per_dag()
     rows = []
     for dag_id in dag_list:
         r = last_states.get(dag_id)

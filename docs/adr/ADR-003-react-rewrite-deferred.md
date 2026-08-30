@@ -65,6 +65,32 @@ These are framework limits, not implementation problems.
 
 Aucun de ces 4 signaux n'est actif aujourd'hui (~5 artistes en pilote, zéro retour UX négatif documenté, aucune contrainte SEO).
 
+### Signal review — 2026-08-30
+
+The three signals were read against the product, not remembered. **None has fired.**
+
+| Signal | State on 2026-08-30 |
+|---|---|
+| Recurring artist UX complaints (slowness, mobile, "internal tool" feel) | **None on slowness.** The ~30 field notes from the two beta artists (Benken 2026-06-19, GRiNCH 2026-08-12) were about *reachability* and *credentials* — a page outside the navigation, a wizard reachable only from an e-mail, an identity field missing from a form. Not one about speed. |
+| WebSocket / SSE need | None. Alerts go out by e-mail, nightly. |
+| SEO on public pages | The landing page is already planned **outside Streamlit** — a separate static site (roadmap section E), because Streamlit cannot host a tracking pixel either. So this signal is structurally routed around rather than pending. |
+
+Two measurements this ADR did not have, both from the production container:
+
+- **Server render p50 = 61 ms**, p95 = 378 ms, 33 of 42 views under 150 ms. Option A's
+  premise ("incremental perf fixes are enough") held.
+- **Delivery is not the bottleneck**: the Streamlit JS bundle is served from the
+  Cloudflare edge cache (`cf-cache-status: HIT`, `immutable`, 1 year). A React bundle
+  would be served the same way, from the same edge, for the same cost.
+
+The slowest page left, `trigger_algo` at 662 ms, is slow for a reason a rewrite does
+**not** address either: it builds 36 plotly figures per rerun because Streamlit
+executes every tab body. The fix for that is lazy rendering within Streamlit, logged
+as a standing condition in ADR-007 — not a framework change.
+
+**Decision unchanged: defer.** Re-read this table when inviting the beta (R1), which
+is the event most likely to make signal 1 fire — or to show that it does not.
+
 ## Consequences
 
 **Short-term (next 1-3 months)** :

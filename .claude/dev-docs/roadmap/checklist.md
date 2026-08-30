@@ -66,6 +66,11 @@ trouvailles étaient des **bugs de correction** déguisés en lenteur.
 utilisent `tenant_scope()`, qui rend `None` pour l'admin là où `view_session()` rend
 `artist_id = 1`.
 
+**Le correctif Airflow avait un prix, trouvé en re-mesurant après déploiement** :
+`home` 378 → 670 ms et `credentials` 288 → 515 ms, les deux appelant le moniteur à
+chaque rerun. Cache 60 s → **home 144 ms, credentials 81 ms** — plus rapide qu'avant
+la séance, et toujours 16/16 DAGs.
+
 **Et le refactor final a produit sa propre leçon.** `admin.show()` découpée (401 → 64
 lignes) : le premier jet retirait le `with tab_gdpr:` et rendait le contenu **hors** de
 l'onglet. **Trois gardes existants sont passés dessus**, dont l'empreinte de rendu que

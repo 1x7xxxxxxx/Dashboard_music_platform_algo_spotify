@@ -118,10 +118,38 @@ from Python. The headline is that there was almost nothing to optimise:
   *crashing*; `hypeddit` opened two connections because a helper closed the shared
   one. All three are fixed as correctness defects, not as performance work.
 
+#### Where the remaining Python time actually goes — and what it rules out
+
+`trigger_algo` (662 ms) is the slowest view left. Profiled **inside the script
+thread** in the production container on 2026-08-30 — cProfile on the main thread sees
+only AppTest waiting, which is how the first attempt measured nothing:
+
+    plotly/basedatatypes.__setitem__        0.327 s cum
+    plotly/basedatatypes.__getitem__        0.199 s cum
+    copy.deepcopy  (82 462 calls)           0.141 s cum
+    plotly/basedatatypes._str_to_dict_path  0.137 s cum
+    plotly/_get_validator (35 123 calls)    0.047 s own
+    psycopg2 cursor.execute (30 queries)    0.067 s
+
+**pandas does not appear** — not in own time, not in the top 20 cumulative. The cost
+is plotly's property-validation machinery and the deepcopies it makes building
+figures. The structural cause: `trigger_algo` builds **36 figures/traces across 7
+files** (24 `add_trace`), and Streamlit executes **every tab's body on every rerun** —
+tabs are a client-side display. The page pays for six tabs to show one.
+
+This settles three recurring questions, so they need not be re-derived:
+
+| Proposal | Why the measurement rejects it |
+|---|---|
+| **pandas → polars** | Largest production table: 15 712 rows / 8 MB. Whole-app SQL: 755 ms over 372 queries. pandas is **not in the profile**. Polars wins on tens of millions of rows. Migration cost: `transformers/`, the CSV parsers, `dashboard/utils/`, the tests. Measured gain: zero. |
+| **Python → Rust (PyO3)** | The hot code **is not ours** — it is plotly's Python-side validation. Rewriting our modules touches none of it; one would have to rewrite plotly. And the render p50 is 61 ms. |
+| **Replacing Streamlit** | ADR-003 already decided this, on signals. See the dated review there. |
+
 #### One item added to the standing-conditions table
 
 | Item | Trigger that reopens it |
 |---|---|
+| Lazy tab rendering in `trigger_algo` — 36 plotly figures built per rerun, ~5 of 6 tabs invisible to the reader | an artist complaining about **that page**, or a render measured above **1.5 s** in the container. It sits at 662 ms. |
 | `onboarding_health` builds a status matrix **per active artist in a loop** (`onboarding_health.py:60`) — **106 queries for 6 artists**, 124 ms | **~25 active artists**, or a measured render above 1 s. At 50 artists it is ~900 queries. The shape is linear and known; it costs nothing today. |
 
 #### And one thing that must NOT be swept, measured
@@ -135,6 +163,31 @@ never a stray artist"*). A mechanical sweep would hand every admin artist 1's da
 the exact leak that took two failed artist-test sessions to find.
 
 `tests/test_tenant_scope_is_not_view_session.py` now fails if a view imports both.
+
+#### The one place caching WAS the answer
+
+The correctness fix above made two artist-facing pages slower, measured in the
+production container after it shipped:
+
+    home         378 ms -> 636-713 ms    (but 16/16 DAGs instead of 4/16)
+    credentials  288 ms -> 507-528 ms
+
+Both call `AirflowMonitor`, and `show()` re-runs on every widget interaction — so 16
+HTTP round-trips to another container were being paid again on each click.
+
+`cached_last_run_per_dag()`, 60 s TTL, in `utils/airflow_monitor.py`:
+
+    home         **144 ms**    credentials  **81 ms**
+
+Faster than before the session, and still 16/16. This does not weaken the ADR's
+position: its case against caching rests on a measurement of **SQL under 1 ms**.
+Here the cost is cross-container HTTP that correctness made unavoidable, and the TTL
+is bounded by how fast the value really changes — the busiest DAG runs every 15
+minutes, so 60 s is two orders of magnitude below it and matches the TTL
+`kpi_helpers` already uses for the same class of read-only metadata.
+
+**The rule the two cases share**: cache when the cost is real and the staleness is
+bounded by measurement, not when the cost is a rounding error.
 
 #### Airflow memory, dug into rather than guessed
 

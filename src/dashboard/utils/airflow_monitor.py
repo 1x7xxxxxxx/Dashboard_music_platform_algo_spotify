@@ -1,4 +1,5 @@
 import requests
+import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 from datetime import datetime, timedelta
@@ -276,3 +277,37 @@ class AirflowMonitor:
             'recent_failures': failures,
             'raw_data': df
         }
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def cached_last_run_per_dag() -> dict:
+    """`get_all_dags_last_state()` behind a 60 s cache. Use this from views.
+
+    Why a cache is right here, when ADR-007 says it usually is not
+    ---------------------------------------------------------------
+    ADR-007 rejected `@st.cache_data` on the heavy views because their cost was SQL
+    measured under 1 ms: caching traded freshness for nothing. This is the opposite
+    case on every axis, and both halves were measured.
+
+    The cost is **16 HTTP round-trips to another container**, and correctness made it
+    unavoidable: the single batch call this replaced returned 4 of 16 DAGs. Measured
+    in the production container on 2026-08-30, after that fix shipped:
+
+        home         378 ms -> 636-713 ms
+        credentials  288 ms -> 507-528 ms
+
+    Both are artist-facing — `home` is the landing page, `credentials` is where an
+    artist connects a platform — and `show()` re-runs on every widget interaction, so
+    that cost was being paid again on each click, not once per visit.
+
+    Why 60 s, and not a number picked to look modest
+    ------------------------------------------------
+    A stale answer here is the same defect class this call was just fixed for: the
+    page must not report a DAG state that is no longer true. What bounds the staleness
+    is how fast the underlying value actually changes — the busiest DAGs run every 15
+    minutes, the rest daily or weekly. 60 s is two orders of magnitude below the
+    fastest of those, and it is the same TTL `kpi_helpers` already uses for read-only
+    metadata of exactly this kind. It also matches the human loop: someone who
+    triggers a DAG and refreshes sees the new state within a minute.
+    """
+    return AirflowMonitor().get_all_dags_last_state()
