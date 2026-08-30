@@ -6,6 +6,8 @@ Depends on: assets/credential_guide/*.png (optional — missing images degrade)
 Persists in: nothing
 """
 import pandas as pd
+from urllib.parse import quote
+
 import streamlit as st
 
 from src.dashboard.content.credential_guides import (
@@ -33,7 +35,8 @@ def render_credential_guides() -> None:
         _render_guide_expander(guide)
 
 
-def render_credential_guide_for(platform_key: str) -> None:
+def render_credential_guide_for(platform_key: str,
+                                artist_name: str | None = None) -> None:
     """Render the single-platform guide (used inside that platform's tab).
 
     Le sélecteur d'OS est rendu ICI depuis le 2026-08-23. Il existait déjà
@@ -50,10 +53,11 @@ def render_credential_guide_for(platform_key: str) -> None:
     guide = _BY_KEY.get(platform_key)
     if guide is not None:
         os_selector(key=f"cred_guide_os_{platform_key}")
-        _render_guide_expander(guide)
+        _render_guide_expander(guide, artist_name=artist_name)
 
 
-def _render_guide_expander(guide: PlatformCred) -> None:
+def _render_guide_expander(guide: PlatformCred,
+                           artist_name: str | None = None) -> None:
     # Translate at the render site: the PlatformCred constants are evaluated at
     # import (language not yet chosen), so the FR source strings are passed as
     # the `t()` default and the EN keys live in the credentials catalog.
@@ -62,8 +66,7 @@ def _render_guide_expander(guide: PlatformCred) -> None:
                   icon=guide.icon, title=guide.title)
     with st.expander(title, expanded=False):
         st.markdown(_os_md(t(f"credentials.guide.{guide.key}.intro", guide.intro)))
-        st.markdown(t("credentials.guide.portal", "🔗 Portail : [{url}]({url})").format(
-            url=guide.portal_url))
+        _render_portal_link(guide, artist_name)
         for i, step in enumerate(guide.steps, 1):
             _render_step(guide.key, i, step)
         _render_fields_table(guide)
@@ -76,6 +79,22 @@ def _render_guide_expander(guide: PlatformCred) -> None:
         if guide.admin_note and is_admin():
             st.caption("🛠️ " + _os_md(
                 t(f"credentials.guide.{guide.key}.admin_note", guide.admin_note)))
+
+
+def _render_portal_link(guide: PlatformCred, artist_name: str | None) -> None:
+    """The portal link, aimed at this artist when the platform allows it.
+
+    `quote` and not `quote_plus`: Spotify's search path takes the query as a PATH
+    segment, where a `+` stays a literal plus sign and would search for it.
+    """
+    if guide.portal_search_url and artist_name and artist_name.strip():
+        url = guide.portal_search_url.format(q=quote(artist_name.strip(), safe=""))
+        st.markdown(t("credentials.guide.portal_search",
+                      "🔗 Ouvrir **{name}** sur {title} : [{url}]({url})").format(
+                          name=artist_name.strip(), title=guide.title, url=url))
+        return
+    st.markdown(t("credentials.guide.portal", "🔗 Portail : [{url}]({url})").format(
+        url=guide.portal_url))
 
 
 def _render_step(platform_key: str, num: int, step: CredStep) -> None:

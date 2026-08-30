@@ -8,9 +8,12 @@ Persists in: artist_credentials (token_encrypted Fernet blob + extra_config JSON
 Pure relocation from the former credentials.py — no logic change.
 """
 import json
+import logging
 
 from src.utils.config_loader import config_loader
 from src.utils.tenant_identity import PLATFORM_IDENTITIES, storage_platform
+
+logger = logging.getLogger(__name__)
 
 
 # LOGICAL platform → DAG to auto-trigger when its identity is saved.
@@ -182,6 +185,23 @@ _STATE_ICON = {
     None:      '⚫',
 }
 
+
+def artist_display_name(db, artist_id: int | None) -> str | None:
+    """This tenant's artist name, or None — used only to aim a portal link.
+
+    Never raises and never falls back to another tenant: a name that cannot be read
+    simply means the generic portal link is shown, which is what every artist saw
+    before. `saas_artists.id` IS the tenant here (the VARCHAR `artist_id` of the
+    `artists` table is a Spotify id, a different thing entirely).
+    """
+    if db is None or artist_id is None:
+        return None
+    try:
+        rows = db.fetch_query("SELECT name FROM saas_artists WHERE id = %s", (artist_id,))
+    except Exception as exc:            # noqa: BLE001 — cosmetic read, never fatal
+        logger.warning("artist_display_name: %s", exc)
+        return None
+    return rows[0][0] if rows and rows[0][0] else None
 
 def _fetch_dag_last_states() -> dict:
     """Returns {dag_id: {state, date}} for all platform DAGs. Non-blocking on failure."""

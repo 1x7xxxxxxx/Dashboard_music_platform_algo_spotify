@@ -65,8 +65,12 @@ def _declared_from_rows(existing: dict) -> set:
 #     so a tenant whose only identity was `ig_user_id` read "à connecter" while
 #     `instagram_daily` collected for them.
 #
-# The per-tab DAG badge below stays: there, the fleet state is what the caption
-# claims to show.
+# The per-tab DAG badge below said, until 2026-08-30, that it could stay "because the
+# caption shows exactly what it claims". That was wrong, and an artist found it in one
+# reading: the caption names a DAG ID and a state. Nothing in "DAG `spotify_api_daily`
+# — 🟢 success" tells a reader it describes the FLEET rather than their own account,
+# and a brand-new artist read it as proof their collection had already run. It is now
+# rendered to admins only, at the bottom of the tab.
 
 
 def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
@@ -86,19 +90,19 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
 
 
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
-                         existing_row, fernet_ok, dag_states: dict | None = None):
+                         existing_row, fernet_ok, dag_states: dict | None = None,
+                         artist_name: str | None = None):
     # Un champ `admin_only` est une surcharge d'exploitant : l'artiste ne doit ni
     # le voir ni pouvoir l'écrire. Filtré ICI, donc `_handle_save` ne le lit pas non
     # plus — le filtre porte sur la définition, pas seulement sur l'affichage.
     fields_def = [f for f in platform_info['fields']
                   if not f.get('admin_only') or is_admin()]
 
-    # ── Statut DAG ────────────────────────────────────────────────────
-    if dag_states is not None:
-        _render_dag_status_badge(platform_key, dag_states)
-
-    # ── Guide (rich single-source content + screenshots + example values) ──
-    render_credential_guide_for(platform_key)
+    # L'ordre de cet onglet a été inversé le 2026-08-30, après le premier parcours
+    # artiste complet. Il était : état du DAG → mode d'emploi → statut → formulaire.
+    # L'action — la seule chose que l'artiste ait à FAIRE ici — arrivait donc en
+    # quatrième position, sous un sélecteur d'OS et un pavé qu'il faut déplier.
+    # Il est maintenant : statut → ACTION → test → mode d'emploi → (admin) DAG.
 
     # ── Statut actuel ──────────────────────────────────────────────────
     if existing_row:
@@ -150,14 +154,22 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         # « Mettre à jour » sur un formulaire vierge : signalé par un artiste en test
         # le 2026-08-30 — « on ne met pas à jour la première fois ». Le titre doit
         # nommer l'action qu'il a devant lui, pas celle qu'il fera plus tard.
+        # `:orange-background[…]` est du markdown Streamlit documenté (≥ 1.32), donc
+        # une couleur qui survit à une montée de version. Un `<style>` visant les
+        # classes internes de Streamlit — l'autre façon de colorer un bloc — se
+        # casserait en silence, et un fond qui disparaît ne lève aucune exception.
+        # La consigne de la séance : l'ACTION en gros, en gras, en surbrillance ;
+        # l'information en caption.
         if existing_row:
-            st.subheader(t("credentials.form.update", "Mettre à jour"))
+            st.markdown("### :orange-background[✏️ "
+                        + t("credentials.form.update", "Mettre à jour") + "]")
             st.caption(t(
                 "credentials.form.caption",
                 "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
             ))
         else:
-            st.subheader("👉 " + t("credentials.form.enter", "Saisir tes identifiants"))
+            st.markdown("### :orange-background[👉 "
+                        + t("credentials.form.enter", "Saisir tes identifiants") + "]")
             st.caption(t(
                 "credentials.form.caption_first",
                 "🔒 Chiffrés à l'enregistrement. C'est la seule action à faire sur "
@@ -238,6 +250,26 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 else:
                     st.error(t("credentials.test_failed",
                                "Connexion échouée : {msg}").format(msg=msg))
+
+    # ── Le mode d'emploi, SOUS l'action qu'il explique ────────────────
+    # Il est déjà dans un expander replié ; ce qui le rendait encombrant, c'était sa
+    # position — au-dessus du formulaire, précédé d'un sélecteur d'OS.
+    st.markdown("---")
+    render_credential_guide_for(platform_key, artist_name=artist_name)
+
+    # ── Statut DAG — ADMIN SEULEMENT ──────────────────────────────────
+    # Un artiste qui vient de créer son compte lisait ici « DAG spotify_api_daily —
+    # 🟢 success — dernier run : … » et l'a compris comme SA collecte. C'est l'état
+    # de la FLOTTE : le run de l'admin. Exactement la classe décrite en tête de ce
+    # fichier — la même que `_render_global_kpi`, retirée le 2026-08-22 pour cette
+    # raison — et le commentaire d'alors affirmait que ce badge-ci pouvait rester
+    # « parce que la légende dit bien ce qu'elle montre ». Elle ne le dit pas : elle
+    # nomme un identifiant de DAG, que rien ne permet de lire comme « toute la
+    # flotte ». Balayage du 2026-08-30 : les deux autres lecteurs d'état de flotte
+    # (`views/airflow_kpi.py`, page admin-only, et `views/home.py`, gardé le même
+    # jour) étaient déjà couverts ; celui-ci était le dernier vivant.
+    if dag_states is not None and is_admin():
+        _render_dag_status_badge(platform_key, dag_states)
 
     # The Meta token refresh UI lived here until 2026-08-22. It is gone, not fixed.
     #
@@ -363,6 +395,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 "artiste — vérifie que c'est bien le tien. Si tu penses qu'il "
                 "s'agit d'une erreur, contacte l'administrateur."
             ).format(field=field, value=value))
+            # L'artiste ne doit pas apprendre qui d'autre existe sur la plateforme ;
+            # l'admin, lui, doit pouvoir trancher sans ouvrir psql — c'est lui que
+            # le message ci-dessus invite à contacter.
+            if is_admin():
+                st.caption(t("credentials.identity_taken_admin",
+                             "🛠️ Détenu par l'artiste #{other}.").format(other=_other))
             return
 
         # `''` means "do not touch the stored secret", NOT "erase it" — see the

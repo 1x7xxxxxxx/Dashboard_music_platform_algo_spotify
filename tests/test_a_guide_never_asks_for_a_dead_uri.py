@@ -103,3 +103,34 @@ def test_the_two_languages_tell_the_same_story():
     fdrift = [f"{k}: FR {len(fr[k].fields)} champs / EN {len(en[k].fields)}"
               for k in sorted(fr) if len(fr[k].fields) != len(en[k].fields)]
     assert not fdrift, "champs à saisir divergents :\n  " + "\n  ".join(fdrift)
+
+
+def test_a_prefilled_portal_link_is_a_template_that_can_resolve():
+    """`portal_search_url` must carry {q}, and must not be a path that 404s empty.
+
+    Measured 2026-08-30, because the shape was proposed and then withdrawn during the
+    test session itself:
+
+        https://open.spotify.com/search/NASA/artists  → 200
+        https://open.spotify.com/artist/              → 500
+        https://open.spotify.com                      → 200
+
+    A search path takes the query as a PATH SEGMENT, so the artist name must be
+    percent-encoded with `safe=""` — an unescaped `/` in a name like "AC/DC" would
+    otherwise split the path and silently search for something else.
+    """
+    from src.dashboard.content.credential_guides import CREDENTIAL_GUIDES
+
+    for guide in CREDENTIAL_GUIDES:
+        tpl = getattr(guide, "portal_search_url", None)
+        if not tpl:
+            continue
+        assert "{q}" in tpl, (
+            f"{guide.key}: portal_search_url has no {{q}} placeholder, so every artist "
+            f"is sent to the same page: {tpl!r}"
+        )
+        stripped = tpl.replace("{q}", "")
+        assert not stripped.rstrip("/").endswith("/artist"), (
+            f"{guide.key}: {tpl!r} degenerates to a bare /artist/ path, which answers "
+            "500. That exact URL was proposed and withdrawn during the 2026-08-30 test."
+        )

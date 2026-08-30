@@ -18,6 +18,7 @@ EN = {
         "print(Fernet.generate_key().decode())\"`"
     ),
     "credentials.fetching_dag_status": "Fetching DAG status…",
+    "credentials.identity_taken_admin": "🛠️ Held by artist #{other}.",
     "credentials.identity_taken": (
         "❌ **{field} = {value}** already belongs to another account. A platform "
         "identifier can belong to one artist only — check that this one is yours. "
@@ -274,6 +275,7 @@ EN = {
     "credentials.guide.list_header": (
         "**How to obtain the credentials for each platform?**"
     ),
+    "credentials.guide.portal_search": "🔗 Open **{name}** on {title}: [{url}]({url})",
     "credentials.guide.portal": "🔗 Portal: [{url}]({url})",
     "credentials.guide.col_field": "Field",
     "credentials.guide.col_example": "Example (fake)",

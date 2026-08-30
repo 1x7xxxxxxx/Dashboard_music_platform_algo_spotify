@@ -5,6 +5,63 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-30 (nuit, 2) — Le badge que j'avais déclaré sûr par écrit, huit jours durant
+
+**Contexte** : deuxième moitié des notes du premier parcours artiste.
+
+### L'ordre de l'onglet Credentials était l'inverse de l'usage
+
+Il était : état du DAG → mode d'emploi → statut → formulaire. **L'action — la seule
+chose que l'artiste ait à faire sur cette page — arrivait en quatrième position**, sous
+un sélecteur d'OS et un pavé à déplier. Il est maintenant : statut → **ACTION** → test →
+mode d'emploi → (admin) DAG.
+
+La mise en couleur passe par `:orange-background[…]`, du markdown Streamlit documenté.
+Un `<style>` visant les classes internes de Streamlit — l'autre façon de colorer un bloc
+— se casserait en silence à la montée de version, et un fond qui disparaît ne lève
+aucune exception.
+
+### Le badge DAG : trois occurrences, et un commentaire qui affirmait le contraire
+
+Un artiste tout neuf lisait `DAG spotify_api_daily — 🟢 success — dernier run : …` et a
+demandé s'il voyait les données d'un autre. **Oui** : Airflow ne connaît pas les
+locataires, c'est l'état de la flotte, en pratique le run de l'admin.
+
+Le commentaire en tête de `_render.py` décrivait cette classe exactement — il avait servi
+à retirer `_render_global_kpi` le 2026-08-22 — et concluait : *« le badge par onglet
+ci-dessous reste : là, l'état de la flotte est bien ce que la légende annonce »*. Il ne
+l'annonce pas. Il nomme un identifiant de DAG, que rien ne permet de lire comme « toute
+la flotte ». **Une affirmation écrite n'est pas un garde**, et celle-ci a couvert le
+défaut pendant huit jours.
+
+Balayage : trois lecteurs d'état de flotte, `airflow_kpi` (page admin-only) et `home`
+(gardé le matin même) étaient couverts ; celui-ci était le dernier vivant.
+
+### Le garde de cette classe est passé au vert sur le défaut — deux fois
+
+Première version : « la fonction appelle-t-elle `is_admin()` ? ». **Vert sur le défaut
+réel**, parce que `_render_platform_tab` appelle déjà `is_admin()` vingt lignes plus haut,
+pour filtrer les champs `admin_only`. Le prédicat épousait le symptôme, pas la question.
+
+Deuxième version : l'appel doit être **sous un `if` dont le test** interroge `is_admin`,
+ou après une clause de garde qui sort. Muté deux fois — badge dégardé, clause de `home`
+neutralisée — **rouge les deux fois**.
+
+### Deux autres défauts attrapés avant l'écran
+
+- **Emoji doublé en anglais** : sortir `📄` du `t()` pour le mettre dans le préfixe
+  laissait `"📄 Your starter guide"` dans le catalogue EN. `test_i18n` ne peut pas le
+  voir — la clé existe — et un test de rendu non plus : un emoji doublé reste une chaîne
+  présente. Garde AST écrit, muté, rouge sur le défaut exact.
+- **`https://open.spotify.com/artist/` répond 500** (mesuré). Le lien prérempli est
+  `/search/{q}/artists` (200), avec `quote(safe="")` — sans quoi un nom comme « AC/DC »
+  couperait le chemin.
+
+**Vérification** : suite complète verte ; 6 mutations passées sur 3 gardes neufs, toutes
+vues rouges.
+
+---
+
 ## 2026-08-30 (nuit) — Les notes de terrain du premier vrai parcours artiste
 
 **Contexte** : premier passage complet de l'onboarding par un artiste, écran par écran,
