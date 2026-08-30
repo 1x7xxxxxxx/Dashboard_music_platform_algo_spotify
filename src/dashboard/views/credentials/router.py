@@ -142,10 +142,25 @@ def show():
         st.markdown("---")
 
         # ── Onglets plateforme ────────────────────────────────────────────
-        tab_labels = [info['label'] for info in PLATFORMS.values()]
+        # L'ordre EST la sélection : `st.tabs` ouvre toujours le premier onglet et
+        # n'expose aucun index actif. Le bandeau ci-dessus annonçait « Suivante :
+        # 🎵 Spotify » pendant que la page s'ouvrait sur SoundCloud, premier du dict
+        # PLATFORMS — signalé par un artiste en test le 2026-08-30 : « ça nous
+        # emmène sur l'onglet soundcloud donc c'est incohérent ».
+        #
+        # On met donc en tête la plateforme que le bandeau vient de nommer, puis le
+        # reste de sa sélection, puis les autres. Chaque groupe garde l'ordre du
+        # registre, pour que la page ne se réorganise pas sous ses yeux à chaque
+        # rerun.
+        ordered = list(PLATFORMS.items())
+        if focus:
+            head = remaining(focus, connected)[:1]      # celle que le bandeau nomme
+            rank = {k: i for i, k in enumerate(head + [f for f in focus if f not in head])}
+            ordered.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
+        tab_labels = [info['label'] for _, info in ordered]
         tabs = st.tabs(tab_labels)
 
-        for tab, (platform_key, platform_info) in zip(tabs, PLATFORMS.items()):
+        for tab, (platform_key, platform_info) in zip(tabs, ordered):
             with tab:
                 _render_platform_tab(
                     db=db,

@@ -9,6 +9,7 @@ EN = {
     "app.verify_expired": ("This verification link has expired (48 hours). "
                            "Please register again or use the resend option on the "
                            "sign-in page."),
+    "app.verify_login_btn": "→ Sign in",
     "app.verify_success": ("✅ Email verified! Welcome, **{u}**. "
                            "We've emailed you a welcome guide. You can now [sign in](/)."),
     "app.sending_welcome": "Sending your welcome guide…",

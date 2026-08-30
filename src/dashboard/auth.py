@@ -314,6 +314,17 @@ def _hydrate_session(user: dict) -> None:
     st.session_state['artist_id']     = user['artist_id']  # None = admin
     st.session_state['role']          = user['role']
     st.session_state['user_id']       = user['id']
+    # Restaurer la langue choisie lors d'une session précédente. `_hydrate_session`
+    # est appelé APRÈS `session_state.clear()` (fixation de session MEDIUM-01), donc
+    # c'est ici, et pas plus tôt, que le choix retrouve sa place.
+    try:
+        from src.dashboard.utils.lang_pref import load_preferred_lang
+        preferred = load_preferred_lang(user['id'])
+        if preferred:
+            from src.dashboard.utils.i18n import set_lang
+            set_lang(preferred)
+    except Exception:  # noqa: BLE001 — une préférence illisible n'empêche pas d'entrer
+        pass
     try:
         from src.dashboard.utils.usage_tracker import track
         track('login')

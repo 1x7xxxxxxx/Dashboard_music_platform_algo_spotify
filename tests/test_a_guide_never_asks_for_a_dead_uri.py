@@ -67,13 +67,39 @@ def test_no_artist_guide_asks_for_a_redirect_uri():
 
 
 def test_the_two_languages_tell_the_same_story():
-    """Le guide EN était un miroir périmé du FR — c'est ça qui a coûté la session."""
-    fr = (_CONTENT / "credential_guides.py").read_text(encoding="utf-8")
-    en = (_CONTENT / "credential_guides_en.py").read_text(encoding="utf-8")
-    # Le FR dit « tu n'as rien à créer » ; l'EN doit dire la même chose.
-    assert "rien à créer" in fr, "le guide FR a changé de modèle — revoir ce garde"
-    assert "nothing for you to create" in en, (
-        "le guide EN ne porte plus le modèle central alors que le FR si. C'est "
-        "exactement la divergence qui a envoyé un artiste créer une app Spotify dont "
-        "il n'avait pas besoin."
-    )
+    """Le guide EN était un miroir périmé du FR — c'est ça qui a coûté la session.
+
+    Ancré sur la STRUCTURE, plus sur une phrase. La version d'avant cherchait
+    littéralement « rien à créer » côté FR et « nothing for you to create » côté EN.
+    Elle a échoué le 2026-08-30 quand ces deux intros ont été raccourcies — sur une
+    reformulation, pas sur une divergence. Son propre message le disait : « le guide
+    FR a changé de modèle — revoir ce garde ».
+
+    Ce qu'il faut vraiment tenir : les deux langues décrivent le même parcours. Un
+    nombre d'étapes différent EST la divergence qui a envoyé un artiste créer une app
+    Spotify dont il n'avait pas besoin — l'EN portait encore l'ancien modèle avec ses
+    étapes en plus.
+    """
+    import sys
+    sys.path.insert(0, str(_CONTENT.parents[3]))
+    import src.dashboard.content.credential_guides as fr_mod
+    import src.dashboard.content.credential_guides_en as en_mod
+
+    def by_key(mod):
+        return {v.key: v for v in vars(mod).values()
+                if hasattr(v, "key") and hasattr(v, "steps")}
+
+    fr, en = by_key(fr_mod), by_key(en_mod)
+    assert set(fr) == set(en), (
+        f"plateformes présentes dans une langue seulement : {set(fr) ^ set(en)}")
+
+    drift = [f"{k}: FR {len(fr[k].steps)} étapes / EN {len(en[k].steps)}"
+             for k in sorted(fr) if len(fr[k].steps) != len(en[k].steps)]
+    assert not drift, (
+        "les deux langues ne décrivent plus le même parcours :\n  " + "\n  ".join(drift)
+        + "\nUne étape présente dans une seule langue, c'est un artiste anglophone à "
+          "qui on demande un geste que le modèle central a supprimé — ou l'inverse.")
+
+    fdrift = [f"{k}: FR {len(fr[k].fields)} champs / EN {len(en[k].fields)}"
+              for k in sorted(fr) if len(fr[k].fields) != len(en[k].fields)]
+    assert not fdrift, "champs à saisir divergents :\n  " + "\n  ".join(fdrift)

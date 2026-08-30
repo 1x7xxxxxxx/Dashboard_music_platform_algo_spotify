@@ -321,8 +321,17 @@ def _render_success(artist_name: str, email: str, discount_msg: str,
               "Demandez à un admin de vérifier votre compte manuellement.").format(
                   name=artist_name, msg=discount_msg)
         )
-    st.link_button(t("register.onboarding_btn", "→ Configurer votre dashboard (2 min)"),
-                   "/?page=onboarding")
+    # Le bouton pointait vers `/?page=onboarding`. À cet instant précis le compte
+    # existe mais n'est PAS vérifié : `require_login` renvoie donc vers la page de
+    # connexion. Le bouton promettait l'onboarding et livrait un formulaire de login
+    # — signalé en test le 2026-08-30 (« ça nous emmène directement dans la page
+    # d'accueil »).
+    #
+    # À cet instant, la seule action possible est dans sa boîte mail. On la nomme.
+    st.info(t("register.next_step",
+              "📬 **Prochaine étape : ouvre ta boîte mail.** Le lien de vérification "
+              "active ton compte — l'onboarding s'ouvre juste après."))
+    st.link_button(t("register.login_btn", "→ J'ai vérifié, me connecter"), "/")
 
 
 def _notify_existing_account(db, email: str) -> bool:

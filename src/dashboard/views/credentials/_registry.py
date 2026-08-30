@@ -21,6 +21,12 @@ from ._platform_meta import _test_meta, _test_instagram
 # no third-party app). SoundCloud (user_id) → Spotify (profile URL) → YouTube (channel id)
 # → Meta (ad account + asset-sharing). This dict order drives the tabs (router.py) and the
 # global KPI (_render.py).
+# `admin_only: True` sur un champ = surcharge d'exploitant, jamais montrée à
+# l'artiste. Ces trois-là portaient le libellé « (optionnel — admin) » et
+# s'affichaient quand même dans SON formulaire : il lit « admin », ne sait pas si
+# c'est à lui, et hésite sur la page où il n'a qu'une valeur à coller.
+# Même classe que `guide-addresses-the-wrong-reader` — le premier balayage n'avait
+# regardé que les NOTES, pas les CHAMPS.
 PLATFORMS = {
     'soundcloud': {
         'label': '☁️ SoundCloud',
@@ -41,8 +47,8 @@ PLATFORMS = {
         # saas_artists.spotify_artist_id on save (the per-tenant collection key).
         'fields': [
             {'key': 'spotify_artist_id', 'label': 'Spotify Artist ID ou URL profil', 'secret': False},
-            {'key': 'client_id',     'label': 'Client ID (optionnel — admin)',     'secret': False},
-            {'key': 'client_secret', 'label': 'Client Secret (optionnel — admin)', 'secret': True},
+            {'key': 'client_id',     'label': 'Client ID (surcharge)',     'secret': False, 'admin_only': True},
+            {'key': 'client_secret', 'label': 'Client Secret (surcharge)', 'secret': True, 'admin_only': True},
         ],
     },
     'youtube': {
@@ -53,7 +59,7 @@ PLATFORMS = {
         # channel resolves (a bad UC… 404s the collector, not the key test).
         'fields': [
             {'key': 'channel_id', 'label': 'Channel ID (UC…)',                    'secret': False},
-            {'key': 'api_key',    'label': 'API Key (optionnel — admin)',         'secret': True},
+            {'key': 'api_key',    'label': 'API Key (surcharge)',         'secret': True, 'admin_only': True},
         ],
     },
     'meta': {

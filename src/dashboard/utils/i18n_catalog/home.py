@@ -19,6 +19,7 @@ EN = {
     "home.onboarding_run": "🚀 Run your first data collection",
     "home.onboarding_done_header": "#### ✅ Getting started — setup complete",
     "home.onboarding_done": "All getting-started steps are complete. 🎉",
+    "home.onboarding_ticks_on_action": "A step is ticked when the action is **done**, not when the page is opened.",
     "home.onboarding_progress": "#### 🚀 Getting started — {done}/{total} steps completed",
     # Pipeline status
     "home.dag_header": "🚦 Pipeline status",
