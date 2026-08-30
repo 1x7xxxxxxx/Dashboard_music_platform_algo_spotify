@@ -65,7 +65,15 @@ par `git stash` :
             172x
 
 Les valeurs absolues sont celles de WSL, donc gonflées ; c'est le **rapport** qui est
-l'affirmation. En prod, la vue passe des 1034 ms mesurés à l'ordre de 300 ms.
+l'affirmation.
+
+**Et le chiffre de prod, mesuré après déploiement sur le code réel : 1034 ms → 8 ms.**
+J'avais extrapolé « de l'ordre de 300 ms » — trop prudent d'un facteur 37, parce que
+l'extrapolation supposait qu'on payait encore le rendu une fois. On ne le paie plus du
+tout : `docs/guides/` est bind-monté dans le conteneur, les deux PDF pré-rendus y sont,
+et `credentials_guide_pdf` lit le fichier au lieu d'appeler WeasyPrint. C'est exactement
+ce que l'ancien code ne faisait pas — il appelait `build_guide_html` + `write_pdf` sans
+jamais regarder si le fichier existait, là où `onboarding` le regardait.
 
 ### Le défaut le plus grave n'était pas une lenteur
 

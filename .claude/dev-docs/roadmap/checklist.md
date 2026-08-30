@@ -62,7 +62,7 @@ paraissait tiré depuis `/mnt/c` (900–1250 ms par vue). En conteneur : 6–77 
 
 | Trouvaille | État |
 |---|---|
-| `process_guide` reconstruisait **deux PDF WeasyPrint par rerun** — 721 ms des 1034 ms de la vue, sur la première page d'un artiste neuf | corrigé, `utils/guide_assets.py` + garde AST |
+| `process_guide` reconstruisait **deux PDF WeasyPrint par rerun** — 721 ms des 1034 ms de la vue, sur la première page d'un artiste neuf | **déployé et mesuré en prod : 1034 ms → 8 ms**, `utils/guide_assets.py` + garde AST |
 | **Aucun des 16 DAGs** ne déclarait `dagrun_timeout`. `alert_monitor` (p50 3,4 s) porte un run de **13,1 h en état success** — le canal d'alerte, muet, indiscernable d'une nuit calme | corrigé, `src/utils/dag_timeouts.py` + garde |
 | L'image API portait 454 MB de CUDA + xgboost + plotly qu'elle n'importe jamais : **0,98 → 0,26 GB** ; dashboard 0,99 → 0,67 GB | corrigé, `requirements-api.txt` + garde |
 | `uv.lock` résolvait **apache-airflow 3.2.2** quand la prod tourne en **2.11.2** : chaque test de forme DAG validait un Airflow que l'ordonnanceur ne charge pas, et rendait vert | corrigé, cœur épinglé dans `pyproject.toml` + garde à 3 assertions |
