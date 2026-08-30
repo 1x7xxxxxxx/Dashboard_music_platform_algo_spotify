@@ -41,6 +41,16 @@ class PlatformCred:
     portal_url: str
     steps: tuple[CredStep, ...]
     fields: tuple[CredField, ...]
+    # Un portail qu'on peut ouvrir DÉJÀ POSÉ sur l'artiste, quand la plateforme
+    # expose une recherche par URL. `{q}` reçoit son nom d'artiste, échappé.
+    # Demandé en test le 2026-08-30 : « vu qu'on a le nom d'artiste, on pourrait
+    # même proposer le lien avec son nom directement dans l'URL ? ». Oui — et
+    # c'est la seule façon de raccourcir une étape sans retirer d'information :
+    # le lien fait le travail au lieu de le décrire.
+    #
+    # Ce n'est PAS `https://open.spotify.com/artist/` : sans identifiant derrière,
+    # cette URL est un 404. Le testeur l'avait proposée puis retirée lui-même.
+    portal_search_url: str | None = None
     # Ce que l'ARTISTE doit lire. Rendu sur sa page et dans son PDF.
     note: str | None = None
     # Ce que l'ADMIN doit lire, et lui seul. Ni sur l'écran de l'artiste, ni dans
@@ -85,6 +95,7 @@ _SPOTIFY = PlatformCred(
     # être au plus simple possible ». Une seule phrase, à l'impératif.
     intro="**Une seule valeur à coller : le lien de ta page Spotify Artist.**",
     portal_url="https://open.spotify.com",
+    portal_search_url="https://open.spotify.com/search/{q}/artists",
     steps=(
         CredStep("Sur Spotify, ouvre **ta page artiste** → **⋯** → **Partager** → "
                  "**Copier le lien vers l'artiste**."),

@@ -23,7 +23,8 @@ from src.dashboard.utils.setup_focus import (
     connected_platforms, get_focus, progress, remaining,
 )
 
-from ._core import _load_credentials, _fetch_dag_last_states, fernet_state
+from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
+                    artist_display_name)
 from ._registry import PLATFORMS
 from ._render import _render_platform_tab
 from src.dashboard.utils.status_matrix import render_status_matrix
@@ -85,11 +86,20 @@ def show():
 
         # ── Chargement credentials existants ─────────────────────────────
         existing = _load_credentials(db, target_artist_id)
+        # Une seule lecture pour les quatre onglets — chacun la passe à son guide,
+        # qui s'en sert pour viser le portail sur CET artiste.
+        artist_name = artist_display_name(db, target_artist_id)
 
-        # ── Statut DAGs (non-bloquant) ────────────────────────────────────
-        with st.spinner(t("credentials.fetching_dag_status",
-                          "Récupération du statut des DAGs…")):
-            dag_states = _fetch_dag_last_states()
+        # ── Statut DAGs (non-bloquant, ADMIN seulement) ───────────────────
+        # Seul `_render_platform_tab` l'affiche, et seulement à un admin depuis le
+        # 2026-08-30. Le chercher pour un artiste, c'était payer un aller-retour
+        # Airflow — sous un spinner qui nomme un objet dont il n'entendra jamais
+        # parler — pour une valeur que personne ne lit.
+        dag_states: dict = {}
+        if is_admin():
+            with st.spinner(t("credentials.fetching_dag_status",
+                              "Récupération du statut des DAGs…")):
+                dag_states = _fetch_dag_last_states()
 
         # ── Matrice de setup ─────────────────────────────────────────────
         # Remplace l'ancien bandeau KPI, dont le second axe était l'état Airflow de
@@ -119,7 +129,8 @@ def show():
                 st.info(t(
                     "credentials.focus_banner",
                     "🎯 **Ta sélection : {done}/{total} connectée(s).** "
-                    "Suivante : **{icon} {label}** — à fournir : {need}."
+                    "Suivante : **{icon} {label}** — à fournir : {need}.\n\n"
+                    "👇 Son onglet est le **premier ci-dessous**, déjà ouvert."
                 ).format(done=done, total=total,
                          icon=nxt.icon if nxt else "", label=nxt.label if nxt else left[0],
                          need=nxt.need if nxt else ""))
@@ -170,6 +181,7 @@ def show():
                     existing_row=existing.get(platform_key),
                     fernet_ok=fernet_ok,
                     dag_states=dag_states,
+                    artist_name=artist_name,
                 )
     finally:
         db.close()

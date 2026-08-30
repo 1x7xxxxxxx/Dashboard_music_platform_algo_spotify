@@ -212,7 +212,8 @@ def _step_welcome(plan: str) -> None:
     # seule action de cette étape, elle doit se lire comme telle.
     _pdf = _guide_pdf_bytes(get_lang())
     if _pdf:
-        st.markdown("### " + t("onboarding.guide_cta", "📄 Ton guide de démarrage"))
+        st.markdown("### :orange-background["
+                    + t("onboarding.guide_cta", "📄 Ton guide de démarrage") + "]")
         st.caption(t(
             "onboarding.guide_also_mailed",
             "Tu l'as aussi reçu en pièce jointe de l'e-mail de bienvenue — "
@@ -328,7 +329,11 @@ def _step_credentials(plan: str, artist_id: int) -> None:
     # L'ACTION en gros, l'info en petit — demandé après le test du 2026-08-30 :
     # « mettre en gros gras surbrillance de section les ACTIONS à effectuer, en plus
     # petit les infos ».
-    st.markdown("### " + t("onboarding.pick_action", "👉 Coche ce que tu veux configurer maintenant"))
+    # ACTION → surbrillance. Voir le commentaire de `_render_platform_tab` sur le
+    # choix de `:orange-background[…]` plutôt qu'un `<style>`.
+    st.markdown("### :orange-background["
+                + t("onboarding.pick_action", "👉 Coche ce que tu veux configurer maintenant")
+                + "]")
     st.caption(t("onboarding.pick_hint",
                  "Tu n'as pas besoin de tout connecter. Le reste attendra dans "
                  "l'onglet **Credentials API**, plus tard, dans l'application."))
