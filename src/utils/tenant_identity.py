@@ -204,6 +204,27 @@ def write_platform_identity(db, artist_id: int, platform: str, extra: dict) -> N
         )
 
 
+def clear_platform_identities(db, artist_id: int) -> None:
+    """Remove every identity this tenant declares — credentials rows AND mirrors.
+
+    The counterpart of `write_platform_identity`, and it exists for the same reason:
+    an identity lives in two places, so forgetting one leaves a tenant that HAS no
+    credential yet still answers with a mirrored id — which is how a "reset" account
+    keeps collecting under an identity its owner believes they removed.
+
+    `tools/create_sandbox.py --reset` was written deleting the credentials rows and
+    nulling `spotify_artist_id` by hand; `test_tenant_identity_mirrors` refused it,
+    correctly. The right answer was the missing door, not an exemption.
+    """
+    db.execute_query("DELETE FROM artist_credentials WHERE artist_id = %s", (artist_id,))
+    for column in set(IDENTITY_MIRRORS.values()):
+        # The column name comes from IDENTITY_MIRRORS, a module constant — never from
+        # a caller — so the f-string interpolates an allow-listed identifier
+        # (cross-cutting rule #8). The VALUE is not interpolated at all.
+        db.execute_query(
+            f"UPDATE saas_artists SET {column} = NULL WHERE id = %s", (artist_id,))
+
+
 def mirrored_columns() -> dict[str, str]:
     """Exposed so a test can assert every writer covers the same mirrors."""
     return dict(IDENTITY_MIRRORS)

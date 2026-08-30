@@ -5,6 +5,74 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-31 — Le troisième genre de locataire
+
+**Le besoin** : refaire l'onboarding depuis zéro pour vérifier que **ses propres**
+identifiants de plateforme fonctionnent — avec un seul profil d'artiste en main. Le
+garde d'unicité refuse, à raison : l'identité Spotify demandée appartient déjà au
+locataire 1, le compte réel du testeur.
+
+### Pourquoi désactiver le garde était la mauvaise forme
+
+C'est le garde qui a fermé la fuite locataire ayant coûté deux sessions de test. Et un
+doublon d'identité, une fois écrit, **ne se voit plus** : rien ne le signale ensuite.
+Une désactivation « temporaire » n'a pas de moment où quelqu'un la remarque.
+
+### Trois genres, pas deux
+
+| genre | ce que c'est | garde d'identité | compté / alerté |
+|---|---|---|---|
+| réel | un client | appliqué | oui |
+| canari (mig. 064) | notre robot de surveillance, identités **publiques** | appliqué | non |
+| **bac à sable** (mig. 080) | notre répétition jetable | **exempt** | non |
+
+L'exemption vaut **dans les deux sens**, et n'avoir qu'une moitié serait pire que rien :
+un bac à sable n'est jamais bloqué (c'est le but), et **ne bloque jamais** — sinon une
+répétition oubliée refuserait à un vrai artiste son propre identifiant.
+
+Le canari n'est **pas** exempt : il collecte des artistes publics, où une collision est
+un défaut à signaler, pas une répétition. Un drapeau, une permission.
+
+Prouvé sur base réelle avant d'écrire les tests : bac à sable réclamant l'identité d'un
+réel → `None` ; réel réclamant celle d'un autre réel → conflit ; réel réclamant une
+identité que seul un bac à sable détient → `None`.
+
+### `make artist-sandbox`, et surtout `RESET=1`
+
+L'outil crée le locataire, son compte de connexion, et lui accorde **le même essai
+premium qu'une vraie inscription** — sans quoi le parcours répété ne serait pas celui
+que voit un nouvel artiste. `RESET=1` vide identifiants et données collectées : le même
+compte repart sur l'onboarding vide, autant de fois qu'on veut.
+
+### Le prédicat vivait en trois exemplaires
+
+« Ce locataire n'est pas un vrai » était écrit à la main dans `live_pulse` (dans une
+f-string), dans `credential_loader`, **et dans `admin.py`** — ce troisième que mon
+balayage manuel avait manqué et que le garde a trouvé. Son commentaire disait « même
+définition que le compteur public » : c'était une **copie**, pas une référence.
+
+Le prédicat vit maintenant dans `src/utils/tenant_kind.py`, et
+`test_a_tenant_flag_is_applied_everywhere.py` échoue si une requête exclut un drapeau
+sans l'autre.
+
+### Le cliquet sur les gardes textuels
+
+Recommandation de la veille intégrée : **32 fichiers** de test inspectent le code en
+cherchant des chaînes. Quatre ont été pris en flagrant délit de cécité en une soirée,
+chacun sur le défaut qu'il gardait — un nom présent dans un fichier ne dit rien de ce
+que le code en fait, et un commentaire ou un docstring suffit à satisfaire la
+correspondance.
+
+Les convertir d'un coup serait une modification que personne ne peut relire. Le cliquet
+gèle la liste : elle ne peut que **raccourcir**. Un nouveau garde lit l'AST, ou il ne
+s'écrit pas.
+
+**Vérification** : suite complète verte ; 6 mutations sur 3 gardes, toutes rouges — dont
+une qui a exigé de réécrire une assertion textuelle en structurelle, pour la quatrième
+fois de la séance.
+
+---
+
 ## 2026-08-30 (nuit, 4) — La suite n'est pas sur-testée ; elle est mal lancée
 
 **Contexte** : « réduire le temps de la suite au maximum et éviter les conséquences de

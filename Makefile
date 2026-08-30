@@ -7,7 +7,7 @@ PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | 
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity
+.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -94,6 +94,10 @@ artist-firstlook-prod: ## Same, but against the code RUNNING IN PRODUCTION. PROD
 	@ssh $(PROD_SSH) 'docker cp /tmp/afl.py streamlytics_dashboard:/tmp/afl.py >/dev/null \
 		&& docker exec streamlytics_dashboard python3 /tmp/afl.py 2>/dev/null; \
 		rm -f /tmp/afl.py; docker exec streamlytics_dashboard rm -f /tmp/afl.py'
+
+artist-sandbox: check-db ## Locataire d'essai pour rejouer l'onboarding avec TES identifiants. RESET=1 / DELETE=1
+	@$(PYTHON) tools/create_sandbox.py \
+	  $(if $(SLUG),--slug $(SLUG),) $(if $(RESET),--reset,) $(if $(DELETE),--delete,)
 
 artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist. ARTIST=<id> optional
 	@# Five steps, stops at the first red: central apps present+authenticating,

@@ -10,6 +10,7 @@ sur la page d'inscription, à un visiteur qui n'a aucun moyen de recouper.
 Garde structurel : on inspecte le SQL réellement exécuté, pas un commentaire.
 """
 import ast
+import importlib
 import pathlib
 
 import pytest
@@ -37,6 +38,25 @@ def _tenant_count_queries(path: pathlib.Path) -> list:
                 and isinstance(node.value, ast.Constant)
                 and isinstance(node.value.value, str)):
             consts[node.targets[0].id] = node.value.value
+
+    # …et les constantes IMPORTÉES. Le prédicat a quitté ces deux fichiers le
+    # 2026-08-31 pour `src/utils/tenant_kind.py`, précisément parce qu'il y était
+    # recopié en trois exemplaires. Ce test est alors redevenu rouge sur du code
+    # correct — la sœur exacte du cas que son docstring raconte déjà. Un nom peut
+    # venir d'un `import` autant que d'une affectation ; ne résoudre qu'une des deux
+    # formes, c'est mesurer où la constante était hier.
+    # `ast.walk`, pas `tree.body` : admin.py importe DANS la fonction.
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            continue
+        try:
+            mod = importlib.import_module(node.module)
+        except Exception:                   # noqa: BLE001 — un import qui échoue n'est
+            continue                        # pas une constante à résoudre
+        for alias in node.names:
+            value = getattr(mod, alias.name, None)
+            if isinstance(value, str):
+                consts[alias.asname or alias.name] = value
 
     def _render(node) -> str:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
