@@ -26,21 +26,17 @@ EN = {
     "app.db_health_error": ("❌ **PostgreSQL database unreachable.** "
                             "Make sure Docker is running: `docker-compose up -d`"),
     # Sidebar — Live Activity
-    "app.live_header": "### 🟢 Live Activity",
-    "app.live_active": "🟢 Active",
-    "app.live_active_help": "Artists active within the last 5 minutes",
-    "app.live_total": "👥 Total",
-    "app.live_total_help": "Total active artist accounts",
     # Sidebar — data collection panel
     "app.run_all_collections": "🚀 Run ALL collections",
     "app.syncing": "Synchronizing...",
     # Collection progress (collection_progress.py) — what happened after "Lancé !"
+    "app.live_line": "🟢 {live} online · 👥 {total} artists",
     "app.collection_progress": "**Collection in progress**",
     "app.collection_refresh": "🔄 Refresh status",
     "app.collection_failed_unknown": (
-        "Unrecognised failure — see 📊 Airflow KPI for the detail."
+        "We could not interpret this error. Try again; if it comes back, "
+        "contact the administrator."
     ),
-    "app.launched": "Launched!",
     # Cookie notice (RGPD Art. 13)
     "app.cookie_notice": ("🍪 This platform uses a single session cookie (`music_dashboard`) "
                           "strictly necessary for authentication. No tracking, no "
@@ -54,5 +50,4 @@ EN = {
     "ui.custom_range": "Custom range",
     "ui.range": "Range",
     "app.fatal_error": "❌ An error occurred. The administrator has been notified; please try again shortly.",
-    "app.launch_all_failed": "❌ No collection started ({n} failure(s)) — check your credentials, then try again.",
 }

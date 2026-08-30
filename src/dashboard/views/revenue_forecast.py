@@ -444,8 +444,8 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
 
     if roi_df.empty or roi_df['meta_spend'].sum() == 0:
         st.info(t("revenue_forecast.no_meta_spend",
-                  "Aucune dépense Meta Ads trouvée pour cet artiste sur la période. "
-                  "Connectez Meta via **Credentials API** et déclenchez le DAG Meta Insights."))
+                  "Aucune dépense Meta Ads sur la période. Connecte Meta dans "
+                  "**🔑 Credentials API**, puis lance **🚀 Lancer TOUTES les collectes**."))
     else:
         roi_df = roi_df.sort_values('period_date')
         # VRAI ROI = (revenus − dépenses) / dépenses × 100 (0 % = équilibre).
@@ -519,8 +519,8 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
 
     if ml_df.empty:
         st.info(t("revenue_forecast.no_ml",
-                  "Aucune prédiction ML disponible. Déclenchez le DAG **ml_scoring_daily** "
-                  "depuis **Monitoring ETL** ou l'UI Airflow."))
+                  "Pas encore de prédiction. Elles sont recalculées chaque jour en fin de "
+                  "matinée, à partir des données déjà collectées."))
     else:
         ml_df = ml_df.sort_values('dw_probability', ascending=False).reset_index(drop=True)
         ml_df['prediction_date'] = pd.to_datetime(ml_df['prediction_date']).dt.strftime('%Y-%m-%d')

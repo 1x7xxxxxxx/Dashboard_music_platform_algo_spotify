@@ -60,8 +60,8 @@ def _show_budget_tier_selector(db, artist_id):
     df = _load_scored_tracks(db, artist_id)
     if df is None or len(df) < 3:
         st.info(t("trigger_algo.common.ar_selector_min",
-                  "Outil disponible dès ≥ 3 titres scorés (échelle catalogue). "
-                  "Lancez le DAG `ml_scoring_daily`."))
+                  "Outil disponible dès 3 titres scorés (échelle catalogue). Le calcul "
+                  "tourne chaque jour en fin de matinée."))
         return
     m = ak.ALGO_MODEL_METRICS.get("DW", {})
     n = len(df)

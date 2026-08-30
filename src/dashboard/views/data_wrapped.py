@@ -316,7 +316,7 @@ def _recap_ml(db, aid):
         df_ml = None
     if df_ml is None or df_ml.empty:
         st.caption(t("data_wrapped.recap_no_ml",
-                     "Aucune prédiction ML — lance le DAG `ml_scoring_daily`."))
+                     "Pas encore de prédiction — elles sont recalculées chaque jour en fin de matinée."))
         return
     cols = ["dw_probability", "rr_probability", "radio_probability"]
     df_ml["best"] = df_ml[cols].max(axis=1)

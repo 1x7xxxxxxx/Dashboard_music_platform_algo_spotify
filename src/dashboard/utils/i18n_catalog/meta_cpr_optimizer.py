@@ -6,9 +6,7 @@ EN = {
         "Based on `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
     ),
     "meta_cpr_optimizer.no_mapping": (
-        "No campaign → track mapping found. "
-        "Create mappings first in **🔗 Meta Mapping**, then re-run the Meta Ads DAG."
-    ),
+        'No campaign → track mapping. Create them in **🔗 Cross-platform mapping**, then run **🚀 Launch ALL collections** in the sidebar.'),
     "meta_cpr_optimizer.account_median": "Account median CPR: **{v}€**",
     "meta_cpr_optimizer.tab_cards": "🃏 Detailed recommendations",
     "meta_cpr_optimizer.tab_table": "📋 Table",

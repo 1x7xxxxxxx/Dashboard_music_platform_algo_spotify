@@ -5,6 +5,75 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-30 (nuit, 3) — Trois classes derrière quatre remarques
+
+**Contexte** : quatre remarques de plus. La demande explicite était de nommer le *type*
+d'amélioration pour le décliner sur toute l'app. Elles se rangent en trois classes.
+
+### Classe A — l'app parle de sa mécanique là où l'artiste attend un état métier
+
+Le garde `test_an_artist_never_reads_our_plumbing.py` cherche `DAG`, `Airflow`,
+`dag_id`, `PostgreSQL` dans les catalogues servant une page non-admin. **14 sites**, sur
+9 modules. Tous des messages d'état vide qui disent à l'artiste de lancer un DAG —
+et `ml_scoring_daily`, cité six fois, **n'est même pas dans le bouton de collecte** : il
+tourne à 11h UTC, personne ne peut le déclencher depuis l'app. Une consigne impossible,
+répétée six fois.
+
+Deux cas plus francs : `app.collection_failed_unknown` renvoyait vers « 📊 Airflow KPI »,
+qui est dans `_ADMIN_ONLY` — un cul-de-sac ; et le pavé `meta_creatives.uncollected_body`
+demandait à l'artiste d'ouvrir l'UI Airflow avec une config JSON, ou de lancer un script
+Python en local. Le constat lui revient (c'est son argent), la manœuvre non : elle est
+passée sous `is_admin()`.
+
+Une **deuxième assertion** couvre le cas où le texte ne nomme pas l'infrastructure mais
+pointe une page que le lecteur ne peut pas ouvrir.
+
+### Classe B — le poids visuel ne suit pas ce que la chose change pour le lecteur
+
+- *Live Activity* : un `###` et deux `st.metric` — le gabarit d'un KPI qu'on vient
+  consulter — pour un compteur d'ambiance, en haut de la barre latérale, **au-dessus de
+  la navigation**. Devenu une ligne de caption au-dessus du logo.
+- *Bandeau cookie* : `st.info` pleine largeur + bouton OK, sur **toutes** les pages
+  jusqu'à fermeture. Il informait de surcroît APRÈS la connexion, donc après que le
+  cookie est posé — l'Art. 13 demande l'inverse. Il est passé sur l'écran de connexion,
+  en caption, sans bouton ni état de session.
+- *« Lancé ! »* : sept ✅ dans une `st.status` qui se referme, puis plus rien. Et
+  « lancé » n'est pas « des données sont arrivées », qui est la question suivante. Tout
+  descend dans « Collecte en cours », y compris — c'est le point — les déclenchements
+  **refusés**, qui n'apparaissaient nulle part une fois la boîte refermée.
+
+### Classe C — un état sans support durable disparaît au premier accident
+
+Le bug signalé : changer de langue depuis Credentials renvoie à l'accueil. Cause lue
+dans le code : `?page=` était consommé **puis supprimé**, donc la page n'existait plus
+que dans `session_state`. La langue, elle, avait reçu deux supports (URL, puis base).
+**C'est l'asymétrie qui est le bug** : tout ce qui démarre une session Streamlit neuve
+— rechargement, reconnexion WebSocket, onglet restauré — perdait la page et gardait la
+langue.
+
+Je n'ai **pas** reproduit la bascule sous AppTest, qui ne modélise ni rechargement ni
+reconnexion. Ce que le test tient, c'est la propriété dont l'absence rend la bascule
+possible, et qui vaut pour elle-même : ouvrir, recharger ou partager l'URL d'une page y
+mène.
+
+Le miroir a besoin de `_page_mirrored` : sans lui, « le paramètre diffère de la page
+active » désigne AUSSI le rerun qui suit un clic dans le menu — l'URL y porte encore
+l'ancienne page — et le paramètre écraserait le clic.
+
+### Deux erreurs à moi, dans l'outillage
+
+Une réécriture des catalogues par AST a **mangé une clé** (`data_wrapped.recap_ml_best`) :
+`ast` compte les colonnes en **octets**, mon indexation en caractères, et un `—` dans la
+ligne suffit à décaler la fin du span. Détecté en comparant le nombre de clés avant/après,
+pas par le lint — le fichier restait syntaxiquement valide.
+
+Et un `git checkout --` sur le dossier des catalogues a annulé deux corrections
+antérieures de la même séance. Retrouvées par le garde, refaites.
+
+**Vérification** : suite complète verte ; 4 mutations sur 2 gardes neufs, toutes rouges.
+
+---
+
 ## 2026-08-30 (nuit, 2) — Le badge que j'avais déclaré sûr par écrit, huit jours durant
 
 **Contexte** : deuxième moitié des notes du premier parcours artiste.

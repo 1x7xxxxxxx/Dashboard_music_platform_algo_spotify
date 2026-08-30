@@ -31,7 +31,7 @@ EN = {
     "meta_mapping.delete_title": "Delete a mapping",
     "meta_mapping.select_delete": "Select mapping to delete",
     "meta_mapping.deleted": "Deleted: {label}",
-    "meta_mapping.no_campaigns": "No campaigns found in `meta_campaigns`. Run the Meta Ads DAG first.",
+    "meta_mapping.no_campaigns": 'No campaigns. Connect Meta Ads in **🔑 Credentials API**, then run **🚀 Launch ALL collections** in the sidebar.',
     "meta_mapping.no_tracks": "No tracks found. Import your S4A CSVs first.",
     "meta_mapping.meta_campaign": "Meta campaign",
     "meta_mapping.spotify_track": "Spotify track",

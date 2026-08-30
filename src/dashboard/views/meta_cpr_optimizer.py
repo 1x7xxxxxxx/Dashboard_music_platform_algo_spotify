@@ -243,9 +243,9 @@ def show() -> None:
     if df.empty:
         st.info(t(
             "meta_cpr_optimizer.no_mapping",
-            "Aucun mapping campagne → track trouvé. "
-            "Créez d'abord des mappings dans **🔗 Meta Mapping**, "
-            "puis relancez le DAG Meta Ads."
+            "Aucun mapping campagne → titre. "
+            "Crée-les dans **🔗 Mapping cross-plateforme**, puis relance "
+            "**🚀 Lancer TOUTES les collectes** dans la barre latérale."
         ))
         return
 

@@ -3,7 +3,7 @@
 EN = {
     # Entrypoint
     "db_health.title": "🗄️ Data health",
-    "db_health.intro": "Tracking imports, freshness and volumes per PostgreSQL dataset.",
+    "db_health.intro": 'Tracking imports, freshness and volumes, per dataset.',
     "db_health.spinner": "Loading DB metrics…",
     "db_health.session_invalid": "Invalid session.",
     # Health table

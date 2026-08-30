@@ -27,8 +27,7 @@ EN = {
                               "pick up files **already dropped**.",
     # Step 3
     "process_guide.s2_title": "3. Launch data collection",
-    "process_guide.s2_i1": "In the sidebar, click **🚀 Launch ALL collections** "
-                           "to trigger every DAG at once.",
+    "process_guide.s2_i1": 'In the sidebar, click **🚀 Launch ALL collections** — every platform of yours is queried at once.',
     "process_guide.s2_i2": "You can also let the scheduled daily collections run on their own.",
     "process_guide.s2_i3": "Track collection status in **🔑 API Credentials** (last-run "
                            "badge per platform) or in **🏗️ ETL monitoring** (admin).",

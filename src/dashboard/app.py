@@ -377,13 +377,13 @@ def show_live_activity_sidebar():
             live, registered = get_live_pulse(db, ttl_minutes=5)
     except Exception:
         return  # Silently skip if DB unavailable — keeps sidebar usable
-    st.sidebar.markdown(t("app.live_header", "### 🟢 Live Activity"))
-    c1, c2 = st.sidebar.columns(2)
-    c1.metric(t("app.live_active", "🟢 Actifs"), f"{live:,}",
-              help=t("app.live_active_help", "Artistes actifs dans les 5 dernières minutes"))
-    c2.metric(t("app.live_total", "👥 Total"), f"{registered:,}",
-              help=t("app.live_total_help", "Nombre total de comptes artistes actifs"))
-    st.sidebar.markdown("---")
+    # Un en-tête `###` et deux `st.metric` — le gabarit d'un KPI qu'on vient
+    # consulter. Or ce compteur ne demande aucune action et ne change aucune
+    # décision : il occupait le haut de la barre latérale, au-dessus de la
+    # navigation, pour une information d'ambiance. Une ligne de caption, au-dessus
+    # du logo. Le poids visuel suit ce que la chose change pour l'artiste.
+    st.sidebar.caption(t("app.live_line", "🟢 {live} en ligne · 👥 {total} artistes")
+                       .format(live=f"{live:,}", total=f"{registered:,}"))
 
 
 # The DAGs the collection button fires, in the order an artist reads them.
@@ -409,15 +409,24 @@ def show_data_collection_panel():
     if artist_id is None and not is_admin():
         # Rule #7: a non-admin without a resolved tenant triggers nothing.
         return
-    from src.dashboard.utils.collection_progress import remember_runs, render_progress
+    from src.dashboard.utils.collection_progress import (
+        remember_runs, remember_not_launched, render_progress)
 
     if st.sidebar.button(t("app.run_all_collections", "🚀 Lancer TOUTES les collectes"),
                          type="primary"):
         from src.utils.safe_error import safe_error
 
-        launched = {}
-        failed = 0
-        with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=True):
+        launched: dict[str, str] = {}
+        not_launched: dict[str, str] = {}
+        # Le panneau ne rend plus RIEN ligne à ligne pendant le déclenchement.
+        # Il affichait « ✅ Spotify » par plateforme puis « Lancé ! », dans une
+        # `st.status` qui se referme : sept lignes qui disparaissent, et qui ne
+        # parlaient que du déclenchement — pas de la collecte. « Lancé » ne veut pas
+        # dire « des données sont arrivées », et c'est bien la deuxième chose que
+        # l'artiste allait vérifier. Tout ce qui compte — y compris un déclenchement
+        # REFUSÉ — descend maintenant dans « Collecte en cours », qui survit aux
+        # reruns et se met à jour tout seul.
+        with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=False):
             for dag_id, label in COLLECTION_DAGS:
                 try:
                     conf = {'artist_id': artist_id} if artist_id is not None else {}
@@ -427,7 +436,6 @@ def show_data_collection_panel():
                         # "latest run per DAG" is stale the instant a run is launched.
                         from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
                         cached_last_run_per_dag.clear()
-                        st.write(f"✅ {label}")
                         # Keep the run id: "Lancé !" was the last thing the artist
                         # ever heard about this collection.
                         if result.get('dag_run_id'):
@@ -435,26 +443,16 @@ def show_data_collection_panel():
                     else:
                         # Say WHY: a bare ❌ is what made "toutes les credentials
                         # ont échoué" impossible to act on during a live session.
-                        failed += 1
-                        st.error(f"❌ {label} — {result.get('error', result.get('message', '?'))}")
+                        not_launched[dag_id] = str(
+                            result.get('error', result.get('message', '')) or '')
                 except Exception as e:
-                    failed += 1
                     # `safe_error`, jamais `{e}` : `trigger_dag` parle à l'API REST
                     # d'Airflow avec des identifiants, et ce message est rendu À
                     # L'ARTISTE. `app.py` n'est pas dans la portée du garde
                     # `secret-in-an-exception-message`, donc rien ne l'aurait dit.
-                    st.error(f"❌ {label} — {safe_error(e)}")
-            # « Lancé ! » s'affichait ICI, hors de toute condition : il apparaissait
-            # même quand les sept déclenchements avaient échoué. Remonté par un artiste
-            # en test — c'est la même famille que « croix verte sans données », un
-            # message de succès qui ne teste pas le succès.
-            if launched:
-                st.sidebar.success(t("app.launched", "Lancé !"))
-            elif failed:
-                st.sidebar.error(t("app.launch_all_failed",
-                                   "❌ Aucune collecte n'a démarré ({n} échec(s)) — "
-                                   "vérifie tes credentials, puis réessaie.").format(n=failed))
+                    not_launched[dag_id] = safe_error(e)
         remember_runs(launched)
+        remember_not_launched(not_launched)
 
     # Reported on every rerun, not only right after the click.
     try:
@@ -493,20 +491,26 @@ def _check_db_health():
 
 
 def _show_cookie_notice():
-    """Display a one-time cookie notice per session (RGPD Art. 13)."""
-    if st.session_state.get('_cookie_notice_dismissed'):
-        return
-    with st.container():
-        cols = st.columns([8, 1])
-        cols[0].info(t(
-            "app.cookie_notice",
-            "🍪 Cette plateforme utilise un unique cookie de session (`music_dashboard`) "
-            "strictement nécessaire à l'authentification. Aucun tracking, aucun cookie "
-            "tiers. [Politique de confidentialité](?page=privacy)"
-        ))
-        if cols[1].button("OK", key="_dismiss_cookie"):
-            st.session_state['_cookie_notice_dismissed'] = True
-            st.rerun()
+    """Cookie notice (RGPD Art. 13) — rendered on the login screen only.
+
+    Il était rendu sur TOUTES les pages jusqu'à ce que l'artiste le referme : un
+    encadré `st.info` pleine largeur, en haut du contenu, à côté d'un bouton OK.
+    Deux défauts dans le même bloc :
+
+    * il informait APRÈS la connexion, donc après que le cookie a été posé — Art. 13
+      demande l'inverse ;
+    * il n'appelle aucune action (un cookie de session strictement nécessaire ne se
+      refuse pas) et occupait pourtant le gabarit d'un message qui en demande une.
+
+    Une caption sur l'écran de connexion informe au bon moment, sans bouton à
+    cliquer et sans état de session à retenir.
+    """
+    st.caption(t(
+        "app.cookie_notice",
+        "🍪 Cette plateforme utilise un unique cookie de session (`music_dashboard`) "
+        "strictement nécessaire à l'authentification. Aucun tracking, aucun cookie "
+        "tiers. [Politique de confidentialité](?page=privacy)"
+    ))
 
 
 def _render_page(page):
@@ -629,6 +633,12 @@ def _main_body():
         _unsubscribe(st.query_params.get("uid", ""), st.query_params.get("t", ""))
         st.stop()
 
+    # RGPD Art. 13 : informer AVANT de poser le cookie, donc sur l'écran de
+    # connexion — et là seulement. Il s'affichait sur toutes les pages jusqu'à ce
+    # qu'on le referme, c'est-à-dire au moment où le cookie est déjà posé : à la
+    # fois plus tard que nécessaire et partout où il ne sert plus.
+    if not st.session_state.get('authenticated'):
+        _show_cookie_notice()
     if not require_login():
         st.stop()
 
@@ -637,31 +647,36 @@ def _main_body():
         show_onboarding()
         st.stop()
 
-    # Deep-link into an authenticated page from an email/PDF link (e.g. the onboarding
-    # guide's "Tester la connexion" → ?page=credentials). Set the active page once, then
-    # drop the param so navigation isn't pinned and the user can move freely afterwards.
+    # ── La page active vit dans l'URL ─────────────────────────────────────
+    # Elle n'y vivait pas : `?page=` était lu une fois puis SUPPRIMÉ, et la page
+    # n'existait plus que dans `st.session_state['_nav_page']`. Toute perte de
+    # session — rechargement, reconnexion du WebSocket, onglet restauré — renvoyait
+    # donc à l'accueil, alors que la langue, elle, survivait (URL + base). C'est
+    # l'asymétrie qu'un artiste a signalée en changeant de langue depuis la page
+    # Credentials : le seul état de navigation sans support durable était la page.
+    #
+    # `_page_mirrored` est ce qui rend le miroir sûr. Sans lui, « le paramètre diffère
+    # de la page active » désignerait AUSSI le rerun qui suit un clic dans le menu —
+    # l'URL y porte encore l'ancienne page — et le paramètre écraserait le clic.
+    # En mémorisant ce que le miroir a écrit, on distingue « c'est nous » (à ignorer)
+    # de « quelqu'un a ouvert un lien » (à honorer).
     if _page_param:
         _nav_keys = {key for _, _, items in _NAV_SECTIONS for _, key in items}
-        if _page_param in _nav_keys:
+        if _page_param in _nav_keys and _page_param != st.session_state.get('_page_mirrored'):
             st.session_state['_nav_page'] = _page_param
-            try:
-                del st.query_params['page']
-            except Exception:
-                pass
 
     _check_db_health()
-    _show_cookie_notice()
 
     real_role = st.session_state.get('role', 'artist')
     # Brand logo at the very top of the sidebar (just above Live Activity).
     from src.dashboard.utils import logo_html
+    show_live_activity_sidebar()          # une ligne, juste au-dessus du logo
     _sb_logo = logo_html(variant="adaptive", max_width=220)
     if _sb_logo:
         st.sidebar.markdown(_sb_logo, unsafe_allow_html=True)
     # Language toggle — set before the nav so the whole sidebar renders in the choice.
     from src.dashboard.utils.i18n import language_selector
     language_selector()
-    show_live_activity_sidebar()
     show_data_collection_panel()
     # Admin "Voir comme" QA toggle — must run before the nav so the impersonated plan
     # is set in session_state when get_artist_plan() reads it. An admin previewing
@@ -671,6 +686,16 @@ def _main_body():
     _view_as = st.session_state.get('_view_as')
     role = 'artist' if (real_role == 'admin' and _view_as in ('free', 'premium')) else real_role
     page = show_navigation_menu(role)
+
+    # Le miroir : l'URL nomme la page en cours, donc un rechargement la retrouve.
+    # Écriture gardée — réécrire la même valeur relancerait le script en boucle.
+    try:
+        if st.query_params.get("page") != page:
+            st.query_params["page"] = page
+        st.session_state['_page_mirrored'] = page
+    except Exception:      # noqa: BLE001 — hors contexte Streamlit (tests headless)
+        pass
+
     show_user_sidebar()
 
     # First-party usage tracking — deduped per session (no inflation on rerun).

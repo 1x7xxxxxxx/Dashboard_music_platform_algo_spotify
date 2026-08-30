@@ -73,9 +73,7 @@ EN = {
     # Meta Ads ROI
     "revenue_forecast.meta_roi_header": "### 💸 Meta Ads — historical ROI",
     "revenue_forecast.no_meta_spend": (
-        "No Meta Ads spend found for this artist over the period. "
-        "Connect Meta via **API Credentials** and trigger the Meta Insights DAG."
-    ),
+        'No Meta Ads spend over the period. Connect Meta in **🔑 Credentials API**, then run **🚀 Launch ALL collections**.'),
     "revenue_forecast.total_meta_spend": "Total Meta spend",
     "revenue_forecast.total_imusician_revenue": "Total iMusician revenue",
     "revenue_forecast.global_roi": "Global ROI",
@@ -84,9 +82,7 @@ EN = {
     # ML predictions
     "revenue_forecast.ml_header": "### 🤖 ML predictions — scores per track",
     "revenue_forecast.no_ml": (
-        "No ML prediction available. Trigger the **ml_scoring_daily** DAG "
-        "from **ETL Monitoring** or the Airflow UI."
-    ),
+        'No prediction yet. They are recomputed every day, late morning, from the data already collected.'),
     "revenue_forecast.ml_caption": (
         "🛡️ The *floor* columns are **worst-case estimates**: the volume model "
         "underestimates hits, the real potential is often higher. "

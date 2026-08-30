@@ -59,8 +59,8 @@ def _show_ml_section(pred: dict):
 
 def _show_heuristic_section(current_total: float, current_pop: float):
     st.info(t("trigger_algo.common.heuristic_mode",
-              "⚠️ **Mode Heuristique** — Aucune prédiction ML disponible. "
-              "Lancez le DAG `ml_scoring_daily` pour obtenir des probabilités ML."))
+              "⚠️ **Mode heuristique** — pas encore de prédiction pour ce titre. Les "
+              "probabilités du modèle arrivent au prochain calcul, en fin de matinée."))
     GOAL_RR = HEURISTIC_GOALS["RR"]
     GOAL_DW_S = HEURISTIC_GOALS["DW"]
     GOAL_DW_P = 30
