@@ -115,6 +115,27 @@ couche postérieure masque les fichiers, les octets restent dessous. Le commenta
 j'avais écrit décrivait un correctif que je n'avais pas implémenté. Seul le build mesuré
 l'a montré.
 
+### Deux choses trouvées en déployant, pas en codant
+
+**La CI a trouvé un effet de second ordre de mon propre correctif.**
+`test_a_missing_renderer_degrades_to_no_button_not_a_traceback` patche le rendu pour
+qu'il lève et attend `None`. Avec `@st.cache_data`, un appel déjà réussi dans le
+processus rend ses octets sans jamais atteindre le patch : **le cache rend le chemin de
+dégradation inobservable**. C'est correct en production — un PDF construit une fois doit
+continuer d'être servi — et faux dans un test dont c'est exactement le sujet. `.clear()`
+avant et après, pas un contournement. Visible **seulement en CI** : vert en série, rouge
+sous `-n auto --dist loadfile`, où un appel antérieur du même worker avait chauffé
+l'entrée. Mon propre run parallèle local ne l'a pas reproduit.
+
+**`tools/migrate.sh --dry-run` applique pour de vrai.** Le script ne prend aucun argument
+positionnel — la répétition est `DRY_RUN=1`, une variable d'environnement — et un argument
+inconnu était ignoré en silence. Constaté en le faisant, sur la production. Sans dommage :
+la seule migration en attente était **078, déjà appliquée à la main le 2026-08-28 sans
+passer par le registre**, d'où un `sync-check` rouge en permanence que personne ne pouvait
+plus lire comme un signal. Elle est maintenant enregistrée, `sync-check` est vert sur ses
+5 contrôles, et le script refuse tout argument. Un drapeau qui se lit comme une sécurité
+ne doit jamais être un no-op.
+
 ### Écarté, avec la raison écrite
 
 - **Index, réécriture SQL, pooling** — base de prod à 15 712 lignes max, `connect` à 10 ms.
