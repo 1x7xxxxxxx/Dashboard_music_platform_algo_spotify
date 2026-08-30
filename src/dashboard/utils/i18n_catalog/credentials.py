@@ -111,6 +111,7 @@ EN = {
     "credentials.dag_trigger_failed": (
         "⚠️ Credentials saved but DAG trigger failed: {err}"
     ),
+    "credentials.probing_now": "Checking the {platform} connection…",
     "credentials.save_ok": "✅ {platform} credentials saved.",
     "credentials.save_error": "❌ Error while saving: {err}",
     # ── _platform_spotify.py ───────────────────────────────────────────

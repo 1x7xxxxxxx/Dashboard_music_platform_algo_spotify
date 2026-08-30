@@ -221,6 +221,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [helper-closes-a-connection-it-did-not-open](#helper-closes-a-connection-it-did-not-open) | P3 | deterministic | guarded | none |
 | [content-rendered-outside-its-container](#content-rendered-outside-its-container) | P3 | deterministic | guarded | none |
 | [cache-not-invalidated-by-the-event-that-stales-it](#cache-not-invalidated-by-the-event-that-stales-it) | P3 | deterministic | guarded | none |
+| [verdict-exists-but-not-when-it-is-needed](#verdict-exists-but-not-when-it-is-needed) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2787,3 +2788,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: le cache a été introduit pour corriger une régression de performance, et a immédiatement créé un défaut de la MÊME FAMILLE que celui qu'il servait — `home` affichant 12 DAGs sur 16 comme « sans run ». Une page rapide qui affirme quelque chose de faux reste une page qui ment.
   - 2026-08-30: 384 des 392 runs quotidiens appartiennent aux 4 watchers CSV, qu'aucun artiste ne regarde. Calibrer un TTL sur la fréquence BRUTE des changements aurait donné une réponse absurde ; ce qui compte est la fréquence des changements que le lecteur attend.
+
+## verdict-exists-but-not-when-it-is-needed
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: le contrôle qui répondrait à la question de l'utilisateur existe, tourne, et donne la bonne réponse — mais à un moment où plus personne ne la lit. L'utilisateur agit, l'interface confirme l'action, et il apprend huit heures plus tard que ça n'a pas marché. Ou jamais.
+- root_cause: deux mécanismes répondaient déjà à « ce locataire fonctionne-t-il ? » — `make artist-preflight` (cinq contrôles, **commande d'opérateur sur la machine**, qu'un artiste ne peut pas lancer) et le DAG nocturne `alert_monitor` à **23 h**. Un artiste qui connecte une plateforme à 15 h n'avait donc aucune réponse pendant huit heures, alors que l'app venait de lui afficher « 🚀 Collecte lancée ». Le moment de la vérification d'e-mail, lui, est **trop tôt** : sans credentials ni identité ni données, les cinq contrôles sont rouges et aucun rouge ne signifie quoi que ce soit.
+- signature: `python3 -c "import sys; sys.path.insert(0,'tests'); from test_saving_credentials_yields_a_verdict_now import save_paths_without_a_probe, _RENDER; sys.exit(1 if save_paths_without_a_probe(_RENDER) else 0)"`
+- long_term_fix: `_handle_save()` appelle `run_probes_now(db, artist_id, [platform_key])` juste après le déclenchement — la même sonde que le bouton « 🔌 Vérifier maintenant », qui **écrit** son verdict dans `tenant_platform_probe`, d'où la matrice de l'accueil, de l'onboarding et de la page Credentials le lit sans que personne n'appuie. Le garde remonte de `trigger_dag(...)` à la fonction qui le contient et exige la sonde : un second chemin d'enregistrement ne pourra pas revenir en silence à « connecté, et personne ne sait si ça marche ».
+- autofix: none
+- guard: { type: pytest, ref: tests/test_saving_credentials_yields_a_verdict_now.py }
+- rex_ref: src/dashboard/views/credentials/_render.py
+- first_seen: 2026-08-30
+- History:
+  - 2026-08-30: la question posée était « pourquoi le preflight n'est-il pas automatique ? ». La réponse honnête était qu'**il l'est déjà** — `alert_monitor` exécute les cinq mêmes contrôles chaque nuit. Ce qui manquait n'était pas l'automatisation mais le **moment**. Un contrôle correct au mauvais instant est indiscernable d'un contrôle absent, du point de vue de celui qui attend la réponse.
+  - 2026-08-30: le réflexe aurait été de câbler le preflight à la vérification de l'e-mail, puisque c'est là qu'on parle d'« inscription ». Ça aurait produit cinq rouges sans information à chaque nouveau compte — la sonde ne peut pas répondre avant qu'il y ait quelque chose à sonder.

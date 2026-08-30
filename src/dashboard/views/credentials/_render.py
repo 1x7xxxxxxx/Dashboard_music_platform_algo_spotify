@@ -437,6 +437,32 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                              "n'a pas pu démarrer ({err}). Elle repartira cette nuit."
                              ).format(err=type(trigger_err).__name__))
 
+        # ── The verdict, now, instead of tonight ────────────────────────────
+        # `make artist-preflight` and the nightly `alert_monitor` both answer "does
+        # this tenant actually work". The nightly one runs at 23h: an artist who
+        # connects a platform at 15h had no answer for eight hours, and the manual
+        # command is not something an artist can run.
+        #
+        # This is the first moment in the whole flow where the question HAS an
+        # answer — credentials exist, the identity is stored, the API can be called.
+        # Verification time is too early (nothing configured yet, five reds carrying
+        # no information); the nightly run is too late.
+        #
+        # `run_probes_now` reuses the probe the "🔌 Vérifier maintenant" button runs
+        # and REMEMBERS the verdict in `tenant_platform_probe`, so the matrix on
+        # Home, Onboarding and this page shows it without anyone pressing anything.
+        # It never raises and never opens a connection of its own (rule #9): `db` is
+        # the one this view already holds.
+        try:
+            from src.dashboard.utils.status_matrix import run_probes_now
+            with st.spinner(t("credentials.probing_now",
+                              "Vérification de la connexion {platform}…").format(
+                                  platform=platform_key)):
+                run_probes_now(db, artist_id, [platform_key])
+        except Exception as probe_err:  # noqa: BLE001 — a verdict is a bonus, never a blocker
+            logger.warning("post-save probe of %s failed for artist %s: %s",
+                           platform_key, artist_id, type(probe_err).__name__)
+
         st.success(t("credentials.save_ok",
                      "✅ Credentials {platform} enregistrés.").format(platform=platform_key))
         st.rerun()
