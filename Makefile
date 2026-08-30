@@ -7,7 +7,7 @@ PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | 
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity
+.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -22,8 +22,19 @@ down:        ## docker-compose down (keeps volumes)
 logs:        ## Tail Airflow scheduler logs
 	docker-compose logs -f airflow-scheduler
 
-test:        ## Pytest suite — test_api.py auto-skips if dev extras absent
-	$(PYTHON) -m pytest tests/ -q
+# Mêmes drapeaux de distribution que `.github/workflows/ci.yml`. Mesuré le
+# 2026-08-30 sur ce dépôt : 238 s en sériel, 151 s ici (1,57x). Le gain n'est pas
+# la raison principale — c'est que « vert en local » et « vert en CI » cessent
+# d'être deux affirmations différentes. `--dist loadfile` garde les tests d'un
+# même fichier sur le même worker, ce dont dépendent ceux qui portent un état de
+# module.
+PYTEST_DIST := -n auto --dist loadfile
+
+test:        ## Pytest suite (mêmes drapeaux que la CI) — test_api.py auto-skips if dev extras absent
+	$(PYTHON) -m pytest tests/ -q $(PYTEST_DIST)
+
+test-changed: ## Seulement les tests atteignables depuis ce qui a changé (règle 16)
+	@$(PYTHON) .claude/scripts/select_tests.py | grep -v '^#' | xargs $(PYTHON) -m pytest -q $(PYTEST_DIST)
 
 lint:        ## Ruff lint on src/ and tests/
 	ruff check src/ tests/

@@ -5,6 +5,66 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-30 (nuit, 4) — La suite n'est pas sur-testée ; elle est mal lancée
+
+**Contexte** : « réduire le temps de la suite au maximum et éviter les conséquences de
+la sur-unitesting ».
+
+### Ce que la mesure dit, et qui contredit l'intuition
+
+| | |
+|---|---|
+| tests collectés | 3 644 (977 fonctions, 200 fichiers) |
+| sériel | **238 s** |
+| `-n auto` | 166 s (1,4x) |
+| `-n auto --dist loadfile` — l'invocation de la CI | **151 s (1,57x)** |
+| les **5 tests** les plus lents | **87 s, soit 37 %** |
+| les 40 plus lents | 160 s, 67 % |
+| les 3 599 restants | ~78 s, soit **~22 ms pièce** |
+
+**La masse n'est pas le problème.** Trois mille six cents tests tiennent en 78 secondes.
+Le temps est concentré dans cinq tests — et ce sont parmi les plus utiles du dépôt
+(génération PDF réelle, plafond de connexions par vue, E2E deux locataires). Les
+découper en « rapides / lents » avec les lents désactivés par défaut est précisément le
+piège que ce dépôt a déjà payé : ~160 tests qui skippaient en silence sans Postgres.
+
+### Le vrai défaut n'était pas la durée
+
+`.github/workflows/ci.yml` lançait `-n auto --dist loadfile`. `make test` lançait un
+`pytest` **sériel**. « Vert en local » et « vert en CI » n'étaient donc pas la même
+affirmation — et ce dépôt a déjà livré un défaut que seul le runner voyait.
+
+`make test` utilise maintenant les mêmes drapeaux, via une variable `PYTEST_DIST` que
+`tests/test_local_and_ci_run_the_same_suite.py` compare aux deux fichiers. Il ne fige
+pas la valeur : changer le parallélisme est une décision légitime, la changer dans **un
+seul** des deux endroits ne l'est pas.
+
+**Le changement a payé dans la minute** : un test que j'avais écrit une heure plus tôt
+passait en sériel et **expirait sous 8 workers** — il importait tout `src.dashboard.app`
+dans le sous-processus AppTest pour n'en tirer que les clés de navigation. Résolues dans
+le processus de test et injectées en littéral : même assertion, coût accidentel supprimé.
+Sans cet alignement, la CI l'aurait trouvé à ma place.
+
+### Sur-unitesting : la brittleness, pas le nombre
+
+Sur 200 fichiers : **111 lisent le code source** (gardes structurels), 90 exercent un
+comportement. Plus de la moitié de la suite teste donc la **forme** du code.
+
+Le coût s'est manifesté ce soir : `test_a_success_message_tests_success` est passé rouge
+sur un changement **correct** (« Lancé ! » supprimé volontairement). Son propre message
+disait quoi faire — « mettre ce garde à jour plutôt que de le laisser vert sur rien » —
+et c'est ce qui a été fait.
+
+Le sous-ensemble réellement problématique est mesurable : **30 gardes textuels**, qui
+lisent la source sans l'analyser. Ils cumulent les deux défauts — ils cassent sur une
+reformulation, ET ils sont aveugles. Trois l'ont prouvé ce soir en restant verts sur le
+défaut qu'ils gardaient. Les 81 gardes AST, eux, n'ont pas ce problème.
+
+**Conclusion** : la suite n'est pas sur-testée au sens coûteux. Sa dette est concentrée
+dans 30 fichiers à convertir en AST ou à supprimer, pas dans son volume.
+
+---
+
 ## 2026-08-30 (nuit, 3) — Trois classes derrière quatre remarques
 
 **Contexte** : quatre remarques de plus. La demande explicite était de nommer le *type*
