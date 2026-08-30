@@ -165,6 +165,14 @@ def _section_onboarding(db, artist_id: int) -> None:
                       "#### 🚀 Mise en route — {done}/{total} étapes complétées").format(
                           done=completed, total=len(steps)))
         st.progress(completed / len(steps))
+        # Ce que la coche MESURE. Un artiste en test a cliqué « Connecter ma
+        # sélection », est arrivé sur la page, et s'est étonné que la case reste
+        # vide : « ça ne coche pas le rond de données credentials API, c'est
+        # confus ». La case suit l'ACTION, pas la visite — la cocher à l'arrivée
+        # dirait que c'est fait alors que rien n'est enregistré.
+        st.caption(t("home.onboarding_ticks_on_action",
+                     "Une étape se coche quand l'action est **faite**, pas quand la "
+                     "page est ouverte."))
 
     # Les quatre étapes NOMMAIENT leur destination sans y mener : la clé de page était
     # liée à `_page` puis jetée, et les lignes étaient du `st.markdown`. Un artiste en
@@ -192,7 +200,28 @@ def _section_onboarding(db, artist_id: int) -> None:
 
 
 def _section_dag_status():
-    """Résumé du dernier run de chaque DAG."""
+    """Résumé du dernier run de chaque DAG. **Admin seulement.**
+
+    Cette section montre l'état Airflow de TOUTE LA FLOTTE : `get_dag_list()` ne
+    prend pas d'`artist_id`, et il n'en existe pas de version par locataire — un run
+    de DAG appartient à l'infrastructure, pas à un artiste.
+
+    Rapporté par un artiste en test le 2026-08-30, sur un compte créé la minute
+    d'avant, sans une seule credential : « DAG spotify_api_daily — 🟢 success —
+    dernier run 15:27 ». Il a demandé si c'était le bug des données d'un autre.
+    Ce n'en est pas un — aucune donnée d'artiste ne fuit — mais l'effet est pire
+    qu'inutile : un vert affiché à quelqu'un qui n'a rien connecté lui dit que sa
+    collecte a fonctionné.
+
+    Sa remarque suivante tranche le sort de la section : « cette ligne n'a rien à
+    faire là, on s'en fout ici vu qu'on a déjà l'état des plateformes ». La matrice
+    Configuré / Répond / Données répond à SA question, par locataire. Celle-ci
+    répond à la mienne.
+    """
+    from src.dashboard.auth import is_admin
+    if not is_admin():
+        return
+
     st.subheader(t("home.dag_header", "🚦 Statut des pipelines"))
 
     monitor = AirflowMonitor()

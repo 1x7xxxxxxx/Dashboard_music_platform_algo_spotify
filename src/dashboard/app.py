@@ -122,9 +122,11 @@ def _verify_email(token: str) -> None:
         st.success(t(
             "app.verify_success",
             "✅ Email vérifié ! Bienvenue, **{u}**. "
-            "Nous vous avons envoyé un guide de bienvenue par email. "
-            "Vous pouvez maintenant [vous connecter](/)."
+            "Nous vous avons envoyé un guide de bienvenue par email."
         ).format(u=username))
+        # Un lien en markdown au milieu d'un paragraphe se rate. À cet instant il n'y
+        # a qu'une chose à faire, et elle mérite un bouton.
+        st.link_button(t("app.verify_login_btn", "→ Me connecter"), "/", type="primary")
         # Welcome email + onboarding guide PDF — sent now (account confirmed), NOT at
         # signup, so the guide lands only once the address is proven deliverable.
         try:

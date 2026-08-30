@@ -12,8 +12,9 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, project_db
 from src.dashboard.utils.guide_assets import credentials_guide_pdf
+from src.dashboard.utils.tz import to_local_datetime
 from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import get_lang, t
 from src.dashboard.auth import tenant_scope, get_artist_plan
@@ -112,26 +113,125 @@ def _guide_pdf_bytes(lang: str) -> bytes | None:
     return credentials_guide_pdf(lang)
 
 
+def _trial_deadline(artist_id: int | None) -> str | None:
+    """La date de fin de l'essai premium, ou None. Jamais d'exception.
+
+    `_grant_welcome_trial` pose `promo_plan_expires_at` à la création du compte. Rien
+    ne le disait à l'artiste : il lisait « votre compte a été créé avec le plan
+    Premium » et en déduisait que c'était acquis. Signalé en test le 2026-08-30.
+    """
+    if artist_id is None:
+        return None
+    try:
+        with project_db() as db:
+            row = db.fetch_query(
+                "SELECT promo_plan_expires_at FROM saas_artists WHERE id = %s",
+                (artist_id,))
+        if row and row[0][0]:
+            return to_local_datetime(row[0][0]).strftime("%d/%m/%Y")
+    except Exception:  # noqa: BLE001 — une date manquante n'empêche pas l'onboarding
+        return None
+    return None
+
+
+def _setup_roadmap() -> None:
+    """The journey ahead, with the time it actually costs.
+
+    Field note, 2026-08-30: the artist asked to see the roadmap *and its estimated
+    time* on the welcome step. Two things make this block honest rather than
+    decorative:
+
+    - the minutes are COMPUTED from `total_effort(RECOMMENDED)`, never typed here.
+      A hand-written duration is a number that stops being true the day a platform's
+      `effort_min` changes, and nothing would notice. The per-platform matrix on the
+      next step reads the same field, so the two can no longer disagree.
+    - it names the exit ("tu peux t'arrêter après la première"), because the artist
+      who reads a total and has less time will otherwise close the tab instead of doing one.
+    """
+    mins = total_effort(RECOMMENDED)
+    names = ", ".join(BY_KEY[k].label for k in RECOMMENDED if k in BY_KEY)
+    st.markdown("### " + t("onboarding.roadmap_title", "🗺️ Ta mise en route"))
+    st.markdown(t(
+        "onboarding.roadmap_body",
+        "**1. Tu choisis tes plateformes** · ≈1 min\n"
+        "→ à l'étape suivante, tu coches ce que tu veux brancher.\n\n"
+        "**2. Tu saisis tes identifiants** · ≈{mins} min pour les deux "
+        "recommandées ({names})\n"
+        "→ chaque plateforme a son guide illustré, dans l'onglet Credentials API.\n\n"
+        "**3. La collecte tourne cette nuit** · 0 min\n"
+        "→ tes premiers graphiques sont là demain matin, puis chaque jour."
+    ).format(mins=mins, names=names))
+    st.caption(t(
+        "onboarding.roadmap_partial",
+        "Tu peux t'arrêter après une seule plateforme et revenir quand tu veux — "
+        "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
+
+
 def _step_welcome(plan: str) -> None:
     st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur streaMLytics !"))
-    st.markdown(
-        t("onboarding.welcome_body",
-          "Votre compte a été créé avec le plan **{plan}**. "
-          "Voici ce qui est inclus dans votre plan actuel :").format(plan=plan.capitalize())
-    )
 
-    # The guide, fetchable. It shipped only as an e-mail attachment, so an artist who
-    # lost that mail had no way back to it (R50).
+    # « streaMLytics en bref » — demandé après le test du 2026-08-30. Un artiste qui
+    # vient de créer son compte sait ce qu'il a acheté ; il ne sait pas encore ce que
+    # l'outil FAIT. Trois phrases, avant l'offre et avant le guide.
+    st.markdown(t(
+        "onboarding.in_brief",
+        "#### streaMLytics en bref\n\n"
+        "**1. Toutes tes données au même endroit, récupérées chaque jour, "
+        "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
+        "Apple Music. Tes identifiants sont chiffrés ; tu ne ressaisis rien.\n\n"
+        "**2. La prédiction des algorithmes Spotify** — quand un titre a des chances "
+        "de déclencher Discover Weekly ou Release Radar, et combien d'écoutes en "
+        "attendre, via des modèles de machine learning entraînés sur tes données.\n\n"
+        "**3. L'optimisation de tes campagnes** — en reliant ce que tu dépenses en "
+        "promo à ce que ça produit réellement en écoutes."
+    ))
+    st.markdown("---")
+
+    # L'offre, avec sa DURÉE et son échéance. Un essai dont on ne dit pas qu'il est un
+    # essai n'est pas une offre, c'est une surprise à J+30.
+    deadline = _trial_deadline(st.session_state.get("artist_id"))
+    if plan == "premium" and deadline:
+        st.success(t(
+            "onboarding.trial_offer",
+            "🎁 **Offre de bienvenue — Premium offert pendant 30 jours**, "
+            "jusqu'au **{date}**.\n\n"
+            "Ensuite ton compte repasse en **Free** : tu gardes tes données, tes "
+            "connexions et tes exports. Tu perds **🚀 Road to Algo** (les prédictions "
+            "de déclenchement Discover Weekly), les **prévisions de revenus** et les "
+            "**analyses croisées Meta × Spotify**."
+        ).format(date=deadline))
+    else:
+        st.markdown(
+            t("onboarding.welcome_body",
+              "Votre compte a été créé avec le plan **{plan}**. "
+              "Voici ce qui est inclus dans votre plan actuel :").format(plan=plan.capitalize())
+        )
+
+    # Le guide. Il n'existait qu'en pièce jointe : e-mail perdu, guide perdu (R50).
+    # Mis en avant et centré parce qu'un artiste en test ne l'a pas vu — c'est la
+    # seule action de cette étape, elle doit se lire comme telle.
     _pdf = _guide_pdf_bytes(get_lang())
     if _pdf:
-        st.download_button(
-            t("onboarding.download_guide",
-              "📄 Télécharger le guide de mise en route (PDF)"),
-            data=_pdf,
-            file_name=f"streamlytics-guide-{get_lang()}.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-        )
+        st.markdown("### " + t("onboarding.guide_cta", "📄 Ton guide de démarrage"))
+        st.caption(t(
+            "onboarding.guide_also_mailed",
+            "Tu l'as aussi reçu en pièce jointe de l'e-mail de bienvenue — "
+            "le voici si tu préfères le récupérer ici."))
+        _c1, _c2, _c3 = st.columns([1, 2, 1])
+        with _c2:
+            st.download_button(
+                t("onboarding.download_guide",
+                  "📄 Télécharger le guide de mise en route (PDF)"),
+                data=_pdf,
+                file_name=f"streamlytics-guide-{get_lang()}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary",
+            )
+        st.markdown("---")
+
+    _setup_roadmap()
+    st.markdown("---")
 
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
@@ -183,11 +283,9 @@ def _step_welcome(plan: str) -> None:
 
 def _step_credentials(plan: str, artist_id: int) -> None:
     st.title(t("onboarding.creds_title", "🔑 Par quoi veux-tu commencer ?"))
-    st.markdown(
-        t("onboarding.creds_body",
-          "**Tu n'as pas besoin de tout connecter.** Coche ce que tu veux configurer "
-          "maintenant — le reste attendra dans **Credentials API**.")
-    )
+    # L'instruction « coche ce que tu veux » était ICI, au-dessus de la matrice
+    # d'état — un artiste en test a essayé de cocher dans la matrice, où il n'y a
+    # rien à cocher. Elle est descendue juste avant les vraies cases.
 
     # One connection for the whole step: the matrix and the checkbox list ask the
     # same database about the same tenant.
@@ -200,6 +298,9 @@ def _step_credentials(plan: str, artist_id: int) -> None:
         render_status_matrix(db, artist_id, key_suffix="onboarding")
         st.caption(t(
             "onboarding.matrix_legend",
+            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger. "
+            "**L'objectif : les trois colonnes vertes sur chaque plateforme que tu "
+            "veux suivre.**\n\n"
             "**Configuré** : l'identifiant est saisi. **Répond** : la plateforme "
             "nous a bien répondu. **Données** : des chiffres sont arrivés."))
         st.markdown("---")
@@ -215,13 +316,22 @@ def _step_credentials(plan: str, artist_id: int) -> None:
     if reco:
         st.info(t(
             "onboarding.reco_banner",
-            "⭐ **Recommandé pour démarrer : {names}** — en {mins} min tu vois d'où "
-            "viennent tes écoutes *et* si ton audience suit. C'est le couple qui "
-            "permet de décider quelque chose ; le reste affine."
+            "⭐ **Recommandé pour démarrer : {names}** — les plus rapides, {mins} min.\n\n"
+            "La plus grosse valeur viendra ensuite du croisement **Meta Ads × import "
+            "CSV Spotify for Artists** (différent de l'API Spotify) : c'est lui qui "
+            "relie ce que tu dépenses en promo à ce que ça produit en écoutes."
         ).format(names=" + ".join(f"{p.icon} {p.label}" for p in reco),
                  mins=total_effort(p.key for p in reco)))
 
     st.markdown("---")
+
+    # L'ACTION en gros, l'info en petit — demandé après le test du 2026-08-30 :
+    # « mettre en gros gras surbrillance de section les ACTIONS à effectuer, en plus
+    # petit les infos ».
+    st.markdown("### " + t("onboarding.pick_action", "👉 Coche ce que tu veux configurer maintenant"))
+    st.caption(t("onboarding.pick_hint",
+                 "Tu n'as pas besoin de tout connecter. Le reste attendra dans "
+                 "l'onglet **Credentials API**, plus tard, dans l'application."))
 
     selection: list[str] = []
     for pv in ordered_for_setup(configured):

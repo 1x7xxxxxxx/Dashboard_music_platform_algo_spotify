@@ -78,18 +78,17 @@ _SPOTIFY = PlatformCred(
     key="spotify",
     title="Spotify",
     icon="🎵",
-    intro=(
-        "**Tu n'as rien à créer.** L'app Spotify est gérée par l'administrateur "
-        "(partagée par tous les artistes). Tu colles **une seule valeur** : le **lien "
-        "de ta page Spotify Artist**."
-    ),
+    # Au plus court. L'intro expliquait d'abord que l'app est « gérée par
+    # l'administrateur et partagée par tous les artistes » — une information
+    # d'architecture, vraie, et sans usage pour quelqu'un qui a une valeur à coller.
+    # Signalé en test le 2026-08-30 : « ça ajoute de la complexité pour rien, il faut
+    # être au plus simple possible ». Une seule phrase, à l'impératif.
+    intro="**Une seule valeur à coller : le lien de ta page Spotify Artist.**",
     portal_url="https://open.spotify.com",
     steps=(
-        CredStep("Ouvre **ta page artiste** sur Spotify (appli ou open.spotify.com). "
-                 "Menu **⋯ → Partager → Copier le lien vers l'artiste**. Tu obtiens "
-                 "une URL du type `https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4`."),
-        CredStep("Colle ce lien dans **🔑 Credentials API → Spotify** (champ *Spotify "
-                 "Artist ID ou URL*), puis **Tester la connexion**. On extrait l'ID "
+        CredStep("Sur Spotify, ouvre **ta page artiste** → **⋯** → **Partager** → "
+                 "**Copier le lien vers l'artiste**."),
+        CredStep("Colle-le ci-dessous → **Enregistrer**. On extrait l'ID "
                  "automatiquement — pas besoin de le découper."),
     ),
     fields=(

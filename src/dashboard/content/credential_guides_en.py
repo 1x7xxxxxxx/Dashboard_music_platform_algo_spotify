@@ -12,19 +12,13 @@ _SPOTIFY = PlatformCred(
     key="spotify",
     title="Spotify",
     icon="🎵",
-    intro=(
-        "**There is nothing for you to create.** The Spotify app is managed by the "
-        "administrator and shared by every artist. You paste **one single value**: the "
-        "**link to your Spotify Artist page**."
-    ),
+        intro="**One single value to paste: the link to your Spotify Artist page.**",
     portal_url="https://open.spotify.com",
     steps=(
-        CredStep("Open **your artist page** on Spotify (app or open.spotify.com). "
-                 "Menu **⋯ → Share → Copy link to artist**. You get a URL like "
-                 "`https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4`."),
-        CredStep("Paste that link into **🔑 API Credentials → Spotify** (*Spotify "
-                 "Artist ID or URL* field), then **Test the connection**. We extract "
-                 "the id for you — no need to cut the URL up."),
+        CredStep("On Spotify, open **your artist page** → **⋯** → **Share** → "
+                 "**Copy link to artist**."),
+        CredStep("Paste it below → **Save**. We extract the ID automatically — "
+                 "no need to cut it up."),
     ),
     fields=(
         CredField("Spotify Artist ID or URL",

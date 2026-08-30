@@ -5,6 +5,56 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-30 (nuit) — Les notes de terrain du premier vrai parcours artiste
+
+**Contexte** : premier passage complet de l'onboarding par un artiste, écran par écran,
+avec ~20 remarques prises pendant le test. Aucune ne portait sur la lenteur — toutes
+sur ce qui est **dit**, à **qui**, et dans quel **ordre**.
+
+### Ce que le test a montré
+
+Trois formes reviennent, et aucune n'est un bug au sens habituel :
+
+1. **Du texte adressé au mauvais lecteur.** Le guide Meta décrivait le partage du
+   compte publicitaire sous un titre « Prérequis admin » : l'information ÉTAIT là, à
+   l'endroit où l'artiste ne se reconnaît pas. Le défaut n'était pas l'absence, c'était
+   l'adressage. Idem pour `client_id` / `client_secret` / `api_key`, affichés à tous
+   alors qu'ils relèvent du modèle central-app (ADR-006) : marqués `admin_only`, ils
+   disparaissent du formulaire de l'artiste.
+2. **Un ordre qui contredit l'intention.** `st.tabs` ouvre TOUJOURS le premier onglet et
+   n'expose aucun index actif : « configurer ma sélection Spotify » atterrissait sur
+   SoundCloud. Les onglets sont désormais réordonnés selon la sélection.
+3. **Une action dont rien ne prouve qu'elle a eu lieu.** Un verdict de connexion qui
+   n'arrivait qu'au run de 23 h : `run_probes_now()` est appelé à l'enregistrement.
+
+### La langue, et pourquoi `NULL` n'est pas `'fr'`
+
+Migration 079 : `saas_users.lang`, **sans DEFAULT**. Rétro-remplir les comptes existants
+avec `'fr'` inventerait un choix qu'ils n'ont pas fait, et interdirait de changer le
+défaut plus tard sans écraser de vrais choix. `utils/lang_pref.py` est séparé de
+`i18n.py` parce qu'`i18n` sert des surfaces sans base (export PDF headless, DAGs) :
+y mettre du SQL casserait exactement ces appelants. L'URL `?lang=` reste — le login fait
+`session_state.clear()`, donc un choix fait avant connexion n'existe que là.
+
+### La roadmap de mise en route somme, elle ne récite pas
+
+L'étape d'accueil annonce « ≈7 min pour les deux recommandées ». Ce 7 est
+`total_effort(RECOMMENDED)`, le même champ `effort_min` que lit la matrice de l'étape
+suivante — les deux surfaces ne peuvent plus se contredire. Le garde
+(`test_the_roadmap_time_is_computed_not_typed.py`) vérifie les **deux langues** : un
+traducteur qui reçoit « ≈7 min » comme texte source n'a aucune raison de conserver un
+`{mins}`.
+
+Ce garde a d'abord échoué **sur son propre docstring**, où j'avais écrit « ≈7 min »
+comme exemple. Septième occurrence de la même classe : le prédicat épousait le symptôme
+(« un chiffre suivi de min ») au lieu de la question (« que lit l'artiste »). Corrigé en
+excluant le docstring, pas en supprimant le test.
+
+**Vérification** : suite complète verte ; 3 mutations passées sur le nouveau garde
+(nombre en dur, `{mins}` perdu côté EN, durée tapée côté FR) — chacune vue rouge.
+
+---
+
 ## 2026-08-30 (soir) — « Optimiser » n'était pas le mot : trois des quatre étaient des bugs
 
 **Contexte** : « d'autres axes d'optimisation ? j'aimerais faire une grosse passe ».

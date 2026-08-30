@@ -190,3 +190,11 @@ def language_selector(sidebar: bool = True) -> None:
         key="_lang_sel" if sidebar else "_lang_sel_pre_login",
         label_visibility="visible")
     set_lang(choice)
+    # Mémoire longue, pour un utilisateur connecté. Import local : `i18n` est appelé
+    # par des surfaces sans base (PDF headless, DAGs, tests) et ne doit pas en
+    # dépendre au chargement.
+    try:
+        from src.dashboard.utils.lang_pref import remember_lang
+        remember_lang(choice)
+    except Exception:  # noqa: BLE001 — la langue change à l'écran quoi qu'il arrive
+        pass

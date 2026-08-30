@@ -42,12 +42,13 @@ EN = {
     "register.promo_active": " Your **{plan} plan** is active for **{days} days**.",
     "register.welcome_trial": " You get **{days} days of free Premium access**.",
     "register.referral_discount": " A **20% discount** will be applied to your first paid month.",
+    "register.next_step": "📬 **Next step: open your mailbox.** The verification link activates your account — onboarding opens right after.",
+    "register.login_btn": "→ I have verified, sign me in",
     "register.success": "✅ Account created for **{name}**!{msg} "
                         "A verification email has been sent to **{email}**. "
                         "Click the link in the email to activate your account.",
     "register.email_failed": "✅ Account created for **{name}**,{msg} but the verification email "
                              "could not be sent (SMTP not configured). "
                              "Ask an admin to manually verify your account.",
-    "register.onboarding_btn": "→ Set up your dashboard (2 min)",
     "register.failed": "Sign-up did not go through. Try again; if the problem persists, contact us quoting reference **{ref}**.",
 }

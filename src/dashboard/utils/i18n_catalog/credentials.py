@@ -91,6 +91,8 @@ EN = {
     "credentials.creds_saved": "Credentials saved — updated: {updated}",
     "credentials.no_creds_platform": "No credentials saved for this platform.",
     # ── _render.py — form ──────────────────────────────────────────────
+    "credentials.form.enter": "Enter your credentials",
+    "credentials.form.caption_first": "🔒 Encrypted on save. This is the only action to take on this page.",
     "credentials.form.update": "Update",
     "credentials.form.caption": (
         "🔒 Secret fields encrypted • Leave empty to keep the current value"

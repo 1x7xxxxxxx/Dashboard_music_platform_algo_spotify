@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 from src.dashboard.content.credential_guides_st import render_credential_guide_for
 from src.utils.tenant_identity import mirrored_columns, write_platform_identity
 from src.dashboard.utils.tz import to_local_datetime
+from src.dashboard.auth import is_admin
 
 
 def _declared_from_rows(existing: dict) -> set:
@@ -86,7 +87,11 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
 
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None):
-    fields_def = platform_info['fields']
+    # Un champ `admin_only` est une surcharge d'exploitant : l'artiste ne doit ni
+    # le voir ni pouvoir l'écrire. Filtré ICI, donc `_handle_save` ne le lit pas non
+    # plus — le filtre porte sur la définition, pas seulement sur l'affichage.
+    fields_def = [f for f in platform_info['fields']
+                  if not f.get('admin_only') or is_admin()]
 
     # ── Statut DAG ────────────────────────────────────────────────────
     if dag_states is not None:
@@ -142,11 +147,22 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
 
     # ── Formulaire standard (toutes plateformes) ─────────────────────
     with st.form(f"cred_{platform_key}_{artist_id}"):
-        st.subheader(t("credentials.form.update", "Mettre à jour"))
-        st.caption(t(
-            "credentials.form.caption",
-            "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
-        ))
+        # « Mettre à jour » sur un formulaire vierge : signalé par un artiste en test
+        # le 2026-08-30 — « on ne met pas à jour la première fois ». Le titre doit
+        # nommer l'action qu'il a devant lui, pas celle qu'il fera plus tard.
+        if existing_row:
+            st.subheader(t("credentials.form.update", "Mettre à jour"))
+            st.caption(t(
+                "credentials.form.caption",
+                "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
+            ))
+        else:
+            st.subheader("👉 " + t("credentials.form.enter", "Saisir tes identifiants"))
+            st.caption(t(
+                "credentials.form.caption_first",
+                "🔒 Chiffrés à l'enregistrement. C'est la seule action à faire sur "
+                "cette page."
+            ))
 
         form_values = {}
         pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]
