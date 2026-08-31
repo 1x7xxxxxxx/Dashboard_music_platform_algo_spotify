@@ -23,6 +23,7 @@ sys.path.insert(0, '/opt/airflow')
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
 from src.utils.dag_timeouts import dagrun_timeout_for
+from src.utils.digest_queries import SOUNDCLOUD_WEEKLY_DELTA_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -152,21 +153,22 @@ def send_weekly_digest(**context):
             ig_delta = (ig_latest - ig_week_ago) if (ig_latest and ig_week_ago) else None
 
             # ── SoundCloud plays delta ────────────────────────────────────────
+            # A snapshot is keyed by the DAY, never by `collected_at` itself: the
+            # collector stamps every row of one batch with its own microsecond
+            # (measured in prod 2026-08-31 — 19 tracks, 19 distinct timestamps in
+            # the same run). `collected_at = MAX(collected_at)` therefore summed a
+            # SINGLE track and mailed the artist a -21,324 collapse that never
+            # happened (2,229 reported against a real 23,557). The table already
+            # declares the grain: UNIQUE (artist_id, track_id, (collected_at::date)).
+            # DISTINCT ON keeps that true even if a day ever gets two runs.
+            # No COALESCE: an absent snapshot must read "N/A", not a fabricated 0.
             sc_rows = db.fetch_query(
-                """
-                SELECT
-                    COALESCE(SUM(CASE WHEN collected_at = (SELECT MAX(collected_at) FROM soundcloud_tracks_daily WHERE artist_id = %s)
-                                  THEN playback_count END), 0) AS latest_total,
-                    COALESCE(SUM(CASE WHEN collected_at::date = CURRENT_DATE - 7 THEN playback_count END), 0) AS week_ago_total
-                FROM soundcloud_tracks_daily
-                WHERE artist_id = %s
-                  AND collected_at >= CURRENT_DATE - 8
-                """,
-                (artist_id, artist_id)
+                SOUNDCLOUD_WEEKLY_DELTA_SQL,
+                (artist_id, artist_id, artist_id, artist_id)
             )
-            sc_latest = int(sc_rows[0][0]) if sc_rows else 0
-            sc_week_ago = int(sc_rows[0][1]) if sc_rows else 0
-            sc_delta = sc_latest - sc_week_ago
+            sc_latest = int(sc_rows[0][0]) if (sc_rows and sc_rows[0][0] is not None) else None
+            sc_week_ago = int(sc_rows[0][1]) if (sc_rows and sc_rows[0][1] is not None) else None
+            sc_delta = (sc_latest - sc_week_ago) if (sc_latest is not None and sc_week_ago is not None) else None
 
             # ── ML top prediction ─────────────────────────────────────────────
             ml_rows = db.fetch_query(
@@ -244,7 +246,7 @@ def send_weekly_digest(**context):
               <tr style="background:#f5f5f5;">
                 <td style="padding:8px;">Plays delta (7d)</td>
                 <td style="padding:8px;text-align:right;">{sc_delta_str}</td>
-                <td style="padding:8px;text-align:right;color:#888;">{sc_latest:,} total today</td>
+                <td style="padding:8px;text-align:right;color:#888;">{f"{sc_latest:,}" if sc_latest is not None else "N/A"} total</td>
               </tr>
             </table>
 

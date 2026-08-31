@@ -224,6 +224,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [verdict-exists-but-not-when-it-is-needed](#verdict-exists-but-not-when-it-is-needed) | P3 | deterministic | guarded | none |
 | [websocket-dies-behind-the-proxy](#websocket-dies-behind-the-proxy) | P2 | deterministic | guarded | none |
 | [guide-addresses-the-wrong-reader](#guide-addresses-the-wrong-reader) | P3 | deterministic | guarded | none |
+| [snapshot-keyed-by-a-per-row-timestamp](#snapshot-keyed-by-a-per-row-timestamp) | P2 | deterministic | guarded | none |
+| [route-depends-on-an-unstated-import-path](#route-depends-on-an-unstated-import-path) | P3 | deterministic | guarded | none |
+| [assertion-wider-than-the-question-it-asks](#assertion-wider-than-the-question-it-asks) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2838,3 +2841,51 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-30: mon premier rapport affirmait que le guide **ne mentionnait nulle part** le partage du compte Meta. **C'était faux** : il le disait, mais sous une étiquette qui en attribuait la charge à quelqu'un d'autre. Le défaut n'était pas l'absence d'information mais son **adressage** — et la correction n'est donc pas d'ajouter du texte, mais de le déplacer et de le ré-étiqueter.
   - 2026-08-30: trouvé par `make artist-firstlook`, pas par un test. Aucune assertion de la suite ne pouvait le voir : la page rendait parfaitement, tous les tests étaient verts, et le texte fautif était du contenu correct adressé au mauvais lecteur.
+
+## snapshot-keyed-by-a-per-row-timestamp
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un agrégat sur « le dernier relevé » ne somme qu'**une** ligne du lot, et le delta qui en découle part à l'utilisateur comme un effondrement.
+- root_cause: `airflow/dags/weekly_digest.py:158` identifiait le relevé SoundCloud par `collected_at = (SELECT MAX(collected_at) …)`. Le collecteur horodate **chaque ligne** du même lot : mesuré en prod le 2026-08-31, un run de 19 titres portait 19 timestamps distincts (`11:00:04.101372`, `.101370`, `.101367`…). L'égalité ne retenait donc que la **dernière ligne insérée**. L'artiste a reçu `Plays delta (7d) -21,324` sur `2,229 total` quand les vrais totaux étaient 23 557 aujourd'hui et 23 553 sept jours plus tôt — un delta réel de **+4**. La table déclarait pourtant le grain elle-même : `UNIQUE (artist_id, track_id, (collected_at::date))`. Les deux moitiés d'un même delta étaient calculées à deux grains différents : la moitié « semaine passée » clavait sur `collected_at::date` et était juste.
+- signature: `.venv/bin/python -m pytest tests/test_a_snapshot_is_keyed_by_the_day.py -q`
+- long_term_fix: la requête vit dans `src/utils/digest_queries.py`, un module **sans dépendance Airflow** — un garde posé à côté du DAG skippe en silence sur les interpréteurs sans `airflow`, ce qui est exactement comment ce défaut a survécu. Le relevé est clavé sur `collected_at::date`, dédupliqué par `DISTINCT ON (track_id)`, et le `COALESCE(…,0)` est retiré : un relevé absent doit s'afficher `N/A`, jamais un 0 qui se lit comme une mesure.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_snapshot_is_keyed_by_the_day.py }
+- rex_ref: src/utils/digest_queries.py
+- first_seen: 2026-08-31
+- History:
+  - 2026-08-31: vu rouge par mutation — la requête d'origine restaurée fait tomber les 3 assertions, dont celle qui distingue `NULL` de `0`. Le test épingle la **réalité mesurée** (un lot de 19 lignes à microsecondes distinctes), pas la constante que le correctif emploie.
+  - 2026-08-31: le chiffre était bien formé, le DAG vert, et la moitié juste de la requête masquait l'autre. Rien dans la suite ne pouvait le voir : aucun test ne lisait le nombre que l'artiste reçoit.
+
+## route-depends-on-an-unstated-import-path
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'application démarre proprement puis meurt au **premier clic**, sur un `ModuleNotFoundError` qui nomme un paquet présent sur le disque.
+- root_cause: `src/dashboard/app.py` insérait la racine du dépôt dans `sys.path` (pour `src.*`) mais **jamais son propre répertoire**, dont dépendent ses 44 routes `from views.<page> import show`. Cette entrée n'arrivait que par effet de bord du bootstrap Streamlit (`sys.path.insert(0, dirname(abspath(main_script_path)))`) : chaque route reposait donc sur un détail d'implémentation tiers que le fichier n'affirmait nulle part. Les routes étant importées **paresseusement**, l'absence ne se voit pas au démarrage. Une instance locale a produit `ModuleNotFoundError: No module named 'views'` sur la page `credentials` le 2026-08-30 à 22:34.
+- signature: `python3 -m pytest tests/test_the_route_table_can_import_its_views.py -q`
+- long_term_fix: `app.py` insère explicitement son propre répertoire, symétriquement à la racine qu'il garantissait déjà — trois lignes qui énoncent la garantie au lieu de l'emprunter. Le garde lit l'**AST** (profondeur des chaînes `Path(__file__).resolve().parent…` réellement passées à `sys.path.insert`) : un commentaire ou un docstring qui nomme `views` ne peut pas le satisfaire.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_route_table_can_import_its_views.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-08-31
+- History:
+  - 2026-08-31: vu rouge par mutation — le mécanisme retiré **en laissant le commentaire explicatif en place**, le garde tombe quand même. C'est le mode d'échec qui avait piégé quatre gardes le 2026-08-26.
+  - 2026-08-31: la production n'était pas exposée (Dockerfile:58 lance `streamlit run`, qui abspath le script) et le lanceur local exact n'a pas été identifié. Le défaut corrigé n'est donc pas l'incident mais la **garantie implicite** qui le rendait possible.
+
+## assertion-wider-than-the-question-it-asks
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un test accuse une régression de destruction de données qui n'a jamais eu lieu, et bloque une PR sans rapport.
+- root_cause: `tests/test_admin_hypeddit_buttons.py::test_gdpr_erasure_refuses_without_a_reason` lisait `SELECT count(*) FROM saas_artists` avant et après le clic. La question posée est « **ce** clic a-t-il effacé **cet** artiste ? » ; le prédicat demandait « la table a-t-elle rétréci ? ». **Douze** modules de test suppriment des `saas_artists` en teardown de fixture : sous `pytest-xdist`, n'importe lequel peut atterrir entre les deux lectures. Sur la CI 33356700452 (PR #103, bump de dépendances), après 14 exécutions vertes consécutives, le test a rapporté « went from 3 to 2 rows … The two-step guard is gone » alors que la porte RGPD est prouvée close par lecture : `_confirm_gdpr` n'est posé que si le motif est non vide, et `_erase_artist_gdpr` n'est atteignable que derrière un second bouton.
+- signature: `.venv/bin/python -m pytest tests/test_admin_hypeddit_buttons.py -q`
+- long_term_fix: l'assertion porte sur l'artiste que le formulaire vise réellement — lu dans le `selectbox` `gdpr_sel` — et sur `gdpr_erasure_log` pour **ce** locataire. Un prédicat plus large que sa question ne se contente pas de rater son défaut : il en invente un, et le coût est une matinée passée sur une porte qui n'a jamais cédé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_admin_hypeddit_buttons.py }
+- rex_ref: tests/test_admin_hypeddit_buttons.py
+- first_seen: 2026-08-31
+- History:
+  - 2026-08-31: vu rouge par mutation **non destructive** — le contrôle de motif retiré de `admin.py` sans toucher au chemin de suppression, le test tombe. La mutation destructive a été écartée délibérément : la base locale est une copie migrée de la production.
+  - 2026-08-31: 7ᵉ occurrence de « la portée du prédicat est le défaut », et la première où la portée trop **large** produit une fausse accusation au lieu d'un angle mort.
