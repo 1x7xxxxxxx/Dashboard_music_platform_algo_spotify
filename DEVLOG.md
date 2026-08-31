@@ -5,6 +5,62 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-31 (nuit) — « Je n'ai pas encore validé » : ils n'en recevaient pas, et c'était un hasard
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `5d22bd2`, PR #121). Point de départ :
+une question, posée en voyant `[Benken] Weekly KPI` arriver — *comment ça les artistes
+reçoivent des mails ?*
+
+### La réponse est non, et ma phrase précédente était fausse
+
+J'avais écrit, quelques heures plus tôt, que Benken avait reçu un `-2 321`. **Il n'a rien
+reçu.** La ligne d'envoi du digest est `email_client.send_alert(...)`, et `send_alert`
+fait `msg['To'] = self.alert_email`. Le sujet `[Benken] Weekly KPI` **nomme** le
+locataire, il ne l'adresse pas. Le log du run de 10:00 : `7/7 emails sent`, les sept dans
+la boîte de l'exploitant.
+
+Je n'avais pas suivi la ligne d'envoi jusqu'à son `To:` avant de conclure sur la portée.
+Le défaut de chiffre était réel et reste corrigé ; c'est sa **portée** que j'avais
+inventée. Lire la fonction qui calcule ne dit rien de la fonction qui expédie.
+
+### Ce qui était armé, et que personne n'avait validé
+
+`onboarding_report` est le seul appelant de `EmailAlert.send_email`, donc le seul chemin
+portant une adresse de locataire en `To:` — 4 sites `msg['To']` dans tout le dépôt.
+Il tournait **chaque jour à 09:00 UTC**.
+
+Il n'avait jamais tiré pour un artiste — `onboarding_report_sent_at` NULL pour les sept,
+renseigné pour le seul admin. Mais la retenue venait d'une **condition de données** : le
+DAG exige des lignes S4A, et un seul locataire en a (13 794). **Le premier artiste à
+déposer un CSV recevait un rapport PDF le lendemain matin, sans que personne ait dit oui.**
+
+Un silence obtenu par coïncidence se lit exactement comme un silence décidé. C'est ce qui
+rendait la chose invisible : rien n'était cassé, rien n'était en attente, et l'envoi
+serait parti au premier changement de données.
+
+### Deux moitiés, parce que la première ne tient pas seule
+
+**Immédiat** : DAG mis en pause en production. **Durable** : une pause vit dans la base
+d'Airflow — un `--force-recreate`, une restauration ou un clic dans l'UI la défont, et
+rien nulle part ne le dirait. `send_email` exige désormais
+`STREAMLYTICS_ALLOW_ARTIST_EMAIL=1`.
+
+La distinction qui porte le correctif : `_outbound_blocked` garde l'**instance** (est-ce
+la production ?), la nouvelle garde l'**audience** (ce destinataire est-il un client ?).
+Les deux sont indépendantes — une production correcte qui écrit à un locataire que
+personne n'a décidé de contacter reste un envoi non voulu. Vérifié dans le conteneur de
+prod : `instance_env=production`, opt-in absent, `send_email` vers un artiste rend
+`False`.
+
+**Non gardé délibérément** : `verification_email`, que l'artiste déclenche par sa propre
+inscription. C'est le **consentement** qui fait la frontière, pas le destinataire. Et
+`send_alert` est intact, avec un test dédié : un moniteur muet EST l'incident.
+
+Garde vu rouge par mutation — retirée en laissant TOUS les commentaires explicatifs en
+place, 7 tests tombent. Suite complète : **3704 passés, 27 skippés, 0 rouge**.
+
+---
+
 ## 2026-08-31 (soir) — Un relevé est un jour, pas une microseconde
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `6bdefb0`, PR #120, `deploy.sh api dashboard`).
