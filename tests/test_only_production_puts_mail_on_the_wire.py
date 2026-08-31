@@ -118,6 +118,13 @@ def test_production_still_sends(monkeypatch, wired):
     so a non-empty record proves the gate let the message through.
     """
     monkeypatch.setenv("STREAMLYTICS_ENV", "production")
+    # The artist-audience opt-in (added 2026-08-31) is a SECOND, independent gate on
+    # `send_email`. Setting it here keeps this test about the one thing it was written
+    # to check — that the INSTANCE gate does not silence production — instead of
+    # quietly becoming a test of both. `tests/test_writing_to_a_client_is_a_decision.py`
+    # owns the audience question, including the case this line now excludes: production
+    # WITHOUT the opt-in must not reach a tenant.
+    monkeypatch.setenv("STREAMLYTICS_ALLOW_ARTIST_EMAIL", "1")
     assert EmailAlert().send_alert("panne réelle", "<p>x</p>") is True
     assert EmailAlert().send_email("artiste@example.com", "rapport", "<p>x</p>") is True
     assert len(wired) == 2, (

@@ -12,6 +12,22 @@ from src.utils.safe_error import redact, safe_error
 
 logger = logging.getLogger(__name__)
 
+# Reaching a CLIENT is a decision, never a side effect of a data condition.
+# Read at call time, not at import: a DAG process is long-lived, and an operator
+# who sets the variable expects the next run to honour it.
+_ARTIST_MAIL_OPT_IN = "STREAMLYTICS_ALLOW_ARTIST_EMAIL"
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _artist_mail_opted_in() -> bool:
+    """Has someone explicitly decided we may write to tenants?
+
+    Deliberately the same shape as `EmailAlert._OPT_IN`: a vague value is not an
+    opt-in. "maybe", "" and "0" all mean no, so a half-configured environment
+    stays silent rather than guessing in the direction that mails a stranger.
+    """
+    return (os.getenv(_ARTIST_MAIL_OPT_IN) or "").strip().lower() in _TRUTHY
+
 
 class AlertDeliveryError(RuntimeError):
     """The one alert whose silence IS the incident could not be delivered."""
@@ -126,6 +142,26 @@ class EmailAlert:
             # one reaches artists, and the suite already shipped three real
             # verification mails to real people on 2026-08-23.
             logger.info("✉️  suppressed (%s): %s → %s", blocked, subject, to_email)
+            return False
+        if not _artist_mail_opted_in():
+            # `_outbound_blocked` gates on the INSTANCE (is this production?). This
+            # gates on the AUDIENCE (is the recipient a client of ours?), and the two
+            # are independent: a correct production instance mailing a tenant nobody
+            # decided to mail is still an unwanted send.
+            #
+            # Asked on 2026-08-31 — « comment ça les artistes reçoivent des mails ?
+            # Je n'ai pas encore validé ». They did not: `onboarding_report`, the only
+            # caller, had never fired for an artist, held back by a DATA condition
+            # (it needs S4A rows, and one tenant has any). That is a coincidence, not
+            # a decision — the first artist to upload a CSV would have been mailed a
+            # PDF the next morning at 09:00 with nobody having said yes.
+            #
+            # Pausing the DAG was the immediate fix and it lives in Airflow's own
+            # database: a `--force-recreate`, a restore or one click in the UI undoes
+            # it, and nothing anywhere would say so. A default that has to be turned
+            # ON to reach a client is the version that survives all three.
+            logger.info("✉️  suppressed (artist mail not opted in: set %s=1): %s → %s",
+                        _ARTIST_MAIL_OPT_IN, subject, to_email)
             return False
         if not self.smtp_user or not self.smtp_password or not to_email:
             logger.warning("⚠️ SMTP non configuré ou destinataire manquant — email '%s' ignoré.",
