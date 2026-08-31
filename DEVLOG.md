@@ -5,6 +5,72 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-08-31 (soir) — Un relevé est un jour, pas une microseconde
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `6bdefb0`, PR #120, `deploy.sh api dashboard`).
+Point de départ : trois mails apportés tels quels. Le tri d'abord — ils ne valaient pas
+la même chose, et deux des trois ne disaient pas ce qu'ils avaient l'air de dire.
+
+### Le seul vrai incident, et il touchait un client
+
+`collected_at` porte un horodatage **par ligne**. Mesuré en prod : un run de 19 titres
+écrit 19 timestamps distincts (`11:00:04.101372`, `.101370`, `.101367`…). Le digest
+identifiait le relevé par `collected_at = MAX(collected_at)` — un prédicat vrai pour
+**une seule** ligne, la dernière insérée.
+
+| locataire | reçu le matin | réalité | vrai delta |
+|---|---|---|---|
+| 1x7xxxxxxx (id=1) | `-21 324` sur `2 229` | 23 557 | **+4** |
+| **Benken (id=12)** | `-2 321` sur `83` | 2 410 | **+6** |
+| GRiNCH (id=13) | `0 total today` | aucun titre public | **N/A** |
+
+La table déclarait pourtant son grain : `UNIQUE (artist_id, track_id, (collected_at::date))`.
+
+**Ce qui l'a rendu invisible est le plus instructif** : la moitié « semaine passée » de
+la MÊME requête clavait bien sur `collected_at::date` et était juste. Les deux moitiés
+d'un même delta calculées à deux grains différents — le nombre reste bien formé, le DAG
+vert, et aucun test ne lisait le chiffre que l'artiste reçoit. La requête vit désormais
+dans `src/utils/digest_queries.py`, **sans dépendance Airflow** : un garde posé à côté
+du DAG skippe en silence sur un interpréteur sans `airflow`, ce qui est exactement
+comment ce défaut a survécu.
+
+Balayage : seul site du dépôt. Les jointures YouTube prennent un max **par vidéo**
+(correct), les 4 sites `prediction_date` portent sur une colonne `date` (correct), et
+la requête S4A du même fichier déduplique déjà par `DISTINCT ON (date, song)`.
+
+### Les deux autres mails ne disaient pas ce qu'ils avaient l'air de dire
+
+**Le `ModuleNotFoundError` était local** — préfixe `[LOCAL]`, et 0 occurrence en 72 h
+dans les logs du dashboard de prod. Le lanceur exact n'a **pas** été identifié, et le
+dire vaut mieux que l'inventer. Ce qui est corrigé n'est pas l'incident mais la cause
+qui le rendait possible : `app.py` garantissait la racine du dépôt pour `src.*` mais
+**jamais son propre répertoire**, dont dépendent ses 44 routes. L'entrée n'arrivait que
+par effet de bord du bootstrap Streamlit. Les routes étant importées paresseusement,
+l'app démarre propre et meurt au **premier clic**.
+
+**La CI de la PR #103 accusait à tort.** `test_gdpr_erasure_refuses_without_a_reason`
+comparait `count(*)` sur TOUTE la table `saas_artists`, quand sa question est « ce clic
+a-t-il effacé **cet** artiste ? ». Douze modules suppriment des locataires en teardown :
+sous xdist, l'un d'eux atterrit entre les deux lectures. La porte RGPD est prouvée close
+par lecture (`_confirm_gdpr` n'est posé que si le motif est non vide, `_erase_artist_gdpr`
+n'est atteignable que derrière un second bouton) et verte en série. **Un prédicat plus
+large que sa question ne se contente pas de rater son défaut : il en invente un.**
+
+### Le fil, et il vise mon propre travail
+
+Les 3 gardes sont vus rouges **par mutation** — celui d'`app.py` avec son commentaire
+explicatif laissé en place, celui du RGPD par une mutation **non destructive**, la base
+locale étant une copie migrée de la production.
+
+Et le catalogue m'a pris en défaut : mes 3 classes manquaient à son **index**, ce qu'a
+signalé `test_error_class_index_is_complete` — le seul rouge de la suite complète, et il
+était à moi. Le garde écrit pour la dérive de documentation a fonctionné sur son auteur.
+
+Suite complète sous le venv **airflow 2.11.2** (le cœur de la prod) : **3692 passés,
+27 skippés, 0 rouge**. 167 classes au catalogue.
+
+---
+
 ## 2026-08-31 — Le troisième genre de locataire
 
 **Le besoin** : refaire l'onboarding depuis zéro pour vérifier que **ses propres**
