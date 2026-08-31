@@ -154,12 +154,6 @@ def test_gdpr_erasure_refuses_without_a_reason():
     """
     from src.dashboard.utils import get_db_connection
 
-    db = get_db_connection()
-    try:
-        before = db.fetch_query("SELECT count(*) FROM saas_artists")[0][0]
-    finally:
-        db.close()
-
     at = _app("admin")
     _no_exception(at, "admin", "on first render")
 
@@ -172,15 +166,35 @@ def test_gdpr_erasure_refuses_without_a_reason():
     _click(at, idx, "admin", "🗑️ Lancer l'effacement")
     _no_exception(at, "admin", "after clicking erase with no reason")
 
+    # Scoped to the artist the button actually targets, NOT to `count(*)` on the
+    # whole table. The count form accused this gate on 2026-08-31 (CI run
+    # 33356700452, "went from 3 to 2") after 14 consecutive green runs: twelve
+    # other test modules delete from `saas_artists` in fixture teardown, and under
+    # xdist any of them can land between the two reads. The question is "did THIS
+    # click erase THIS artist?" — so that is what is asked. A predicate wider than
+    # its question reports a data-destruction regression that never happened, and
+    # the next person spends the morning on a gate that was never broken.
+    target = at.selectbox(key="gdpr_sel").value
+    target_id = int(str(target).split("—", 1)[0].strip())
+
     db = get_db_connection()
     try:
-        after = db.fetch_query("SELECT count(*) FROM saas_artists")[0][0]
+        still_there = db.fetch_query(
+            "SELECT count(*) FROM saas_artists WHERE id = %s", (target_id,)
+        )[0][0]
+        erasures = db.fetch_query(
+            "SELECT count(*) FROM gdpr_erasure_log WHERE erased_artist_id = %s", (target_id,)
+        )[0][0]
     finally:
         db.close()
 
-    assert after == before, (
-        f"saas_artists went from {before} to {after} rows after clicking the "
-        "erasure button with an EMPTY reason. The two-step guard is gone."
+    assert still_there == 1, (
+        f"artist {target_id} — the one selected in the erasure form — is gone after "
+        "clicking the erasure button with an EMPTY reason. The two-step guard is gone."
+    )
+    assert erasures == 0, (
+        f"an erasure was logged for artist {target_id} with no reason given; the "
+        "reason check ran but did not stop the deletion."
     )
     said_so = any("motif" in (getattr(e, "value", "") or "").lower()
                   for e in (at.error or []))

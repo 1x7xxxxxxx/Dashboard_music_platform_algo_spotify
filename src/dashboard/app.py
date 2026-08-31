@@ -18,6 +18,18 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+# ...and this file's OWN directory, for the 44 `from views.<page> import show`
+# routes below. That entry was never guaranteed here: it came for free from
+# Streamlit's bootstrap (`sys.path.insert(0, dirname(abspath(main_script)))`),
+# so every route depended on a third-party implementation detail that app.py
+# never asserted. Any launcher that is not `streamlit run` — and a local run on
+# 2026-08-30 22:34 produced exactly that — raises `ModuleNotFoundError: No
+# module named 'views'` on the FIRST navigation, not at boot, so the app starts
+# clean and dies on a click. Stating the guarantee costs three lines.
+_dashboard_dir = str(Path(__file__).resolve().parent)
+if _dashboard_dir not in sys.path:
+    sys.path.insert(0, _dashboard_dir)
+
 # Resolve .env from the repository root, NOT from the cwd: the documented launch is
 # `cd src/dashboard && streamlit run app.py`, where the cwd-relative test below found
 # neither file and load_dotenv() returned False without a word (measured 2026-08-21).
