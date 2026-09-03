@@ -7,6 +7,17 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ## 2026-09-03 — Trois jours sans personne : ce qui a tenu, et la phrase qui manquait
 
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`f64c3b5`, PR #122). Le DAG Meta relancé à la
+main sur la vraie panne : `etl_run_log` porte désormais
+
+```
+act_65390907 (FacebookRequestError #200: (#200) Ad account owner has NOT grant
+ads_management or ads_read permission, refer to …)
+```
+
+au lieu de `act_65390907 (FacebookRequestError)`. Le locataire 1 est resté en
+`success` dans le même run — le repli n'a rien changé pour qui collectait déjà.
+
 Point de départ : *« ça fait plusieurs jours qu'on a laissé tourner l'appli, tu peux
 faire un audit ? »* — pas une plainte, pas un symptôme. L'intérêt de la séance est là :
 tout ce qui suit a été **trouvé**, rien n'a été signalé.
