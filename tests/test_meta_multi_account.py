@@ -240,3 +240,131 @@ def test_no_account_marker_survives_in_a_plain_string():
         "marqueur de compte dans une chaîne non-f : il partira tel quel dans le SQL "
         f"→ {hits}"
     )
+
+
+# ── 6. L'alerte nomme le geste, pas seulement le symptôme ────────────────────
+
+class TestFailureReasonReachesTheOperator:
+    """Mesuré le 2026-09-03, sur cinq nuits d'échec réel.
+
+    `etl_run_log` et le mail consolidé disaient `act_65390907
+    (FacebookRequestError)`. La phrase qui dit quoi faire — *(#200) Ad account owner
+    has NOT grant ads_management or ads_read permission* — ne vivait que dans le log
+    Airflow du conteneur. Un nom de classe envoie le lecteur le chercher ; ADR-011
+    demande qu'une alerte porte le symptôme **et** l'action.
+
+    La contrainte qui rend ces tests non triviaux : `str(exc)` reste interdit — la
+    SDK Meta stringifie la REQUÊTE PRÉPARÉE, token compris. On lit donc les champs
+    d'erreur de l'API, où la requête ne figure pas.
+    """
+
+    class _FakeMetaError(Exception):
+        """La forme que `facebook_business.exceptions.FacebookRequestError` expose.
+
+        Reproduite plutôt qu'importée : le paquet n'est pas installé partout où cette
+        suite tourne, et c'est le CONTRAT d'accesseurs qui est gardé ici.
+        """
+
+        def __init__(self, code, message, subcode=None, text="<prepared request>"):
+            super().__init__(text)
+            self._code, self._message, self._subcode = code, message, subcode
+
+        def api_error_code(self):
+            return self._code
+
+        def api_error_subcode(self):
+            return self._subcode
+
+        def api_error_message(self):
+            return self._message
+
+    def _raise(self, exc):
+        return lambda self, **kw: (_ for _ in ()).throw(exc)
+
+    def test_the_real_2026_09_03_failure_says_what_to_do(self, monkeypatch):
+        c = _collector(['act_65390907'])
+        monkeypatch.setattr(type(c), '_run_one_account', self._raise(
+            self._FakeMetaError(
+                200,
+                "(#200) Ad account owner has NOT grant ads_management or ads_read "
+                "permission, refer to https://developers.facebook.com/docs/",
+            )))
+        with pytest.raises(RuntimeError) as exc:
+            c.run()
+        msg = str(exc.value)
+        assert 'act_65390907' in msg
+        assert '#200' in msg, "le code de l'API est ce qui se cherche dans la doc Meta"
+        assert 'ads_management' in msg, (
+            "la permission manquante EST le geste : sans elle le lecteur doit ouvrir "
+            "le conteneur pour savoir quoi demander au propriétaire du compte"
+        )
+
+    def test_the_subcode_is_kept_when_meta_sends_one(self, monkeypatch):
+        """190/460 (mot de passe changé) et 190 nu appellent des gestes différents."""
+        c = _collector(['act_1'])
+        monkeypatch.setattr(type(c), '_run_one_account', self._raise(
+            self._FakeMetaError(190, "Error validating access token", subcode=460)))
+        with pytest.raises(RuntimeError) as exc:
+            c.run()
+        assert '#190/460' in str(exc.value)
+
+    def test_a_meta_message_is_still_redacted(self, monkeypatch):
+        """Un message qu'on n'écrit pas est un message dont on ne présume rien."""
+        c = _collector(['act_1'])
+        monkeypatch.setattr(type(c), '_run_one_account', self._raise(
+            self._FakeMetaError(
+                1,
+                "failed calling ?access_token=SECRET",  # pragma: allowlist secret
+            )))
+        with pytest.raises(RuntimeError) as exc:
+            c.run()
+        msg = str(exc.value)
+        assert 'SECRET' not in msg
+        # Sans cette seconde moitié le test est vert quoi qu'il arrive : un message
+        # vide ne contient pas le secret non plus. Il faut que la prose de Meta soit
+        # ARRIVÉE, et qu'elle soit arrivée caviardée.
+        assert 'failed calling' in msg and 'access_token=***' in msg
+
+    def test_the_prepared_request_never_reaches_the_message(self, monkeypatch):
+        """`str(exc)` reste interdit : c'est lui qui porte le token."""
+        c = _collector(['act_1'])
+        monkeypatch.setattr(type(c), '_run_one_account', self._raise(
+            self._FakeMetaError(
+                200, "no permission",
+                text="GET https://graph.facebook.com/v23.0/act_1?access_token=LEAK",
+            )))
+        with pytest.raises(RuntimeError) as exc:
+            c.run()
+        msg = str(exc.value)
+        assert 'LEAK' not in msg
+        assert 'graph.facebook.com' not in msg
+        # Même raison qu'au-dessus : c'est le couple « la raison passe, la requête
+        # ne passe pas » qui est gardé. Un nom de classe seul satisferait les deux
+        # premières assertions sans rien prouver.
+        assert 'no permission' in msg
+
+    def test_a_non_meta_exception_still_degrades_to_its_class_name(self, monkeypatch):
+        """Le comportement d'avant, conservé pour tout ce qui n'est pas une erreur API.
+
+        Vert avant comme après le correctif, et c'est voulu : ce test garde une
+        NON-régression, pas le correctif. Les deux premiers de cette classe sont
+        ceux qui tombent si `_account_failure_reason` disparaît.
+        """
+        c = _collector(['act_1'])
+        monkeypatch.setattr(type(c), '_run_one_account',
+                            self._raise(ConnectionError("dns")))
+        with pytest.raises(RuntimeError) as exc:
+            c.run()
+        assert 'ConnectionError' in str(exc.value)
+
+    def test_a_malformed_sdk_error_does_not_mask_the_outage(self, monkeypatch):
+        """Un accesseur qui lève ne doit pas remplacer une panne par une autre."""
+        class _Broken(Exception):
+            def api_error_code(self):
+                raise KeyError('code')
+
+        c = _collector(['act_1'])
+        monkeypatch.setattr(type(c), '_run_one_account', self._raise(_Broken()))
+        with pytest.raises(RuntimeError) as exc:
+            c.run()
+        assert '_Broken' in str(exc.value)

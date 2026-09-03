@@ -27,6 +27,7 @@ import logging
 import os
 
 from src.utils.meta_config import META_API_VERSION
+from src.utils.safe_error import redact
 
 from ._meta_config_fetch import _MetaConfigFetchMixin
 from ._meta_constants import _CAMPAIGN_GRAIN_TABLES
@@ -34,6 +35,44 @@ from ._meta_insight_fetch import _MetaInsightFetchMixin
 from ._meta_upsert import _MetaUpsertMixin
 
 logger = logging.getLogger(__name__)
+
+# Meta's own error fields, in the order an operator reads them. Never `str(exc)`:
+# the SDK stringifies the PREPARED REQUEST, so its message carries the shared System
+# User token. These four accessors return only what the API itself answered, and the
+# request is not among them.
+_META_ERROR_FIELDS = ("api_error_code", "api_error_subcode", "api_error_message")
+
+
+def _account_failure_reason(exc: BaseException) -> str:
+    """What to tell the operator about one failed ad account — the class AND the gesture.
+
+    Measured 2026-09-03, on five consecutive nights of a real failure. `etl_run_log`
+    and the nightly consolidated mail both said only
+    `act_65390907 (FacebookRequestError)`. The reason was in the Airflow task log and
+    nowhere else:
+
+        (#200) Ad account owner has NOT grant ads_management or ads_read permission
+
+    That sentence IS the gesture — the account owner shares the asset, nothing changes
+    on our side. A class name alone sends the reader into the container to find it, so
+    the alert named a symptom and withheld the action (ADR-011).
+
+    Falls back to the class name for any exception that is not a Meta API error, which
+    is what the previous code did for every one of them.
+    """
+    code = getattr(exc, "api_error_code", None)
+    if not callable(code):
+        return type(exc).__name__
+    try:
+        parts = [str(getattr(exc, f)()) for f in _META_ERROR_FIELDS]
+    except Exception:  # noqa: BLE001 — a malformed SDK error must not mask the outage
+        return type(exc).__name__
+    code_s, subcode_s, message = parts
+    if subcode_s not in ("", "None", "0"):
+        code_s = f"{code_s}/{subcode_s}"
+    # Redacted anyway: `api_error_message` is Meta's prose, but a message we have not
+    # written is a message we do not get to assume is credential-free.
+    return f"{type(exc).__name__} #{code_s}: {redact(message)}"[:300]
 
 
 class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUpsertMixin):
@@ -179,7 +218,7 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
                 # Jamais `str(exc)` dans le journal : le message d'une erreur réseau
                 # de la SDK Meta embarque l'URL préparée, donc le token partagé.
                 logger.exception(f"Meta collect FAILED on account {account}")
-                failures.append((account, type(exc).__name__))
+                failures.append((account, _account_failure_reason(exc)))
         if failures:
             detail = ", ".join(f"{a} ({e})" for a, e in failures)
             raise RuntimeError(

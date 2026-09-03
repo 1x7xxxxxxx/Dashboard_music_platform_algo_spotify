@@ -5,6 +5,102 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-03 — Trois jours sans personne : ce qui a tenu, et la phrase qui manquait
+
+Point de départ : *« ça fait plusieurs jours qu'on a laissé tourner l'appli, tu peux
+faire un audit ? »* — pas une plainte, pas un symptôme. L'intérêt de la séance est là :
+tout ce qui suit a été **trouvé**, rien n'a été signalé.
+
+### Ce que trois jours d'absence ont prouvé
+
+La production tourne depuis 64 jours. Le contrôle a porté sur les surfaces de preuve
+construites en août, pas sur des impressions :
+
+| Lu | Verdict |
+|---|---|
+| 16 DAGs, 4 jours de runs | **0 tâche Airflow en échec** — les 4 « sans run récent » sont hebdomadaires |
+| `etl_run_log`, locataire × plateforme | 1 seule défaillance, 5 nuits d'affilée : Meta / Benken |
+| `check_tenant_contamination` | 0 constat |
+| `check_canary_health` (locataire 14) | 0 problème, et il redit lui-même ne couvrir ni Meta ni Instagram |
+| `check_row_dips` | 0 collecte partielle |
+| `check_central_apps` | 0 app cassée sur 4 — le token System User de la flotte est vivant |
+| Sources périmées | 2, **S4A (88 j) et Apple Music (79 j)**, les deux alimentées par CSV que personne ne dépose |
+| `app.` / `api.` / apex | 200 en ~0,2 s ; `/health` → `ok` |
+| Sauvegardes | quotidiennes, 4 dernières présentes et croissantes |
+
+**Le résultat le plus utile n'est pas un chiffre vert, c'est une phrase de log** :
+`✉️ not re-sent (constats inchangés depuis le dernier envoi (2j), renvoi dans 4j ou dès
+qu'un constat change)`. Le mail nocturne n'est pas parti, et on peut le prouver
+**décidé** plutôt que perdu. C'est exactement ce que visait `5d22bd2`, vérifié pour la
+première fois sur une absence réelle.
+
+### Le défaut : l'alerte nommait la classe, pas le geste
+
+Cinq nuits de suite, `etl_run_log` et le mail consolidé disaient, pour Benken :
+
+    act_65390907 (FacebookRequestError)
+
+La raison n'existait que dans le log de la tâche, dans le conteneur :
+
+    (#200) Ad account owner has NOT grant ads_management or ads_read permission
+
+Cette phrase **est** le geste — le propriétaire du compte partage l'asset, rien ne change
+chez nous. Et `FacebookRequestError` est le même nom de classe pour un token expiré, un
+throttle et un partage manquant : trois gestes sous une seule étiquette.
+
+**Ce qui rend le défaut intéressant, c'est que le code avait raison.** L'exclusion de
+`str(exc)` est délibérée et documentée sur place : la SDK Meta stringifie la requête
+préparée, donc le token System User partagé. La contrainte de sécurité était juste ; elle
+avait simplement emporté l'information d'exploitation avec elle.
+
+Le correctif ne la desserre pas. `_account_failure_reason()` lit les accesseurs
+**structurés** de l'erreur Meta — `api_error_code`, `api_error_subcode`,
+`api_error_message` — qui ne rendent que ce que l'API a répondu : la requête n'y figure
+pas. La contrainte est donc tenue par construction, plus par omission. Le message passe
+en plus par `redact()`, parce qu'une prose qu'on n'écrit pas est une prose dont on ne
+présume rien.
+
+Le balayage des frères a rendu **un seul site** : les 19 autres `type(e).__name__` du
+dépôt sont des `logger.warning` ou des chaînes d'UI, dont plusieurs délibérées (une vue
+de credentials ne montre pas le message d'erreur à un locataire).
+
+### Et les gardes ont repris leur défaut au premier jet
+
+Six gardes écrits, **deux seulement** sont tombés à la mutation. Les quatre autres
+étaient verts des deux côtés : `assert 'SECRET' not in msg` est satisfait par un message
+vide autant que par un message caviardé. Il manquait la seconde moitié — que la prose de
+Meta soit **arrivée**, et arrivée caviardée. Après renforcement : **4 rouges sur 6**, et
+les 2 restants disent dans leur docstring qu'ils gardent le repli, pas le correctif.
+
+C'est la 5ᵉ fois qu'un garde neuf passe sur son propre défaut. La forme est stable : le
+prédicat épouse le **symptôme** (le secret est absent) au lieu de la **question** (la
+raison est-elle passée ?).
+
+### Hygiène, faite dans la foulée
+
+- `pending-rex.md` supprimé : son unique brouillon était **déjà promu** dans
+  `check_diagnosis_rendering.py` depuis le 2026-08-26 ; seul `validated:` n'avait pas été
+  coché, et le hook Stop réclamait donc un travail fait.
+- **`checklist.md` : 42 Ko → 29 Ko.** Les comptes rendus des séances du 26 au 30 août
+  rotés dans `archive.md` — déplacement, jamais suppression ; aucun item à cocher dans le
+  bloc, le total des deux fichiers est inchangé. Le fichier repassait sous le plafond de
+  50 Ko posé le 2026-08-28, mais il remontait dans la même direction.
+- En-tête `## 🔖 REPRISE` daté du 2026-08-30 alors que trois séances l'avaient suivi :
+  réécrit au 2026-09-03. C'est la partie que `/resume` recopie sans la relire.
+
+### Ce qui attend une décision, pas un correctif
+
+`STREAMLYTICS_ALLOW_ARTIST_EMAIL` n'est posée dans **aucun** conteneur de production. Le
+garde d'audience de `#121` est donc actif et **aucun e-mail ne partira jamais vers un
+locataire** tant qu'elle n'y est pas. C'est l'état voulu aujourd'hui ; c'est aussi la
+variable à poser le jour où R1 passe à l'invitation réelle. `verification_email` n'est
+pas concernée — l'inscription vaut consentement.
+
+Suite complète sous `.venv` (airflow 2.11.2), base locale vivante : **3 711 passés,
+27 skippés, 0 rouge**.
+
+---
+
 ## 2026-08-31 (nuit) — « Je n'ai pas encore validé » : ils n'en recevaient pas, et c'était un hasard
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `5d22bd2`, PR #121). Point de départ :
