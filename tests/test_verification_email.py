@@ -54,7 +54,10 @@ def captured_emails(monkeypatch):
     monkeypatch.setenv("SMTP_USER", "test@example.com")
     monkeypatch.setenv("SMTP_PASSWORD", "x")
     # No attachments needed; keep the welcome path from touching the filesystem.
-    monkeypatch.setattr(ve, "_guide_pdf_paths", lambda: [])
+    # `*_` and not `()`: the resolver takes the reader's language since 2026-09-03,
+    # and a stub that refuses its argument turns a signature change into a collection
+    # error instead of a test result.
+    monkeypatch.setattr(ve, "_guide_pdf_paths", lambda *_: [])
 
     assert ve.send_verification_email("a@b.co", "Ada", "tok", lang="en") is True
     assert ve.send_welcome_email("a@b.co", "Ada", user_id=1, lang="en") is True

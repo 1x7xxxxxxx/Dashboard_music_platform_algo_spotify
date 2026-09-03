@@ -227,6 +227,105 @@ def output_pdf_path(lang: str = "fr") -> Path:
     return config_loader.project_root / "docs" / "guides" / name
 
 
+def fingerprint_path() -> Path:
+    """Where the fingerprint of the last rendered guide lives."""
+    from src.utils.config_loader import config_loader
+    return config_loader.project_root / "docs" / "guides" / ".guide_fingerprint"
+
+
+def source_fingerprint() -> str:
+    """A stable digest of everything the guide RENDERS, both languages.
+
+    Why the rendered HTML and not the content dataclasses — measured 2026-09-03.
+    The shipped `docs/guides/*.pdf` was 82 days behind its own sources: it still told
+    artists to set `Redirect URI = http://127.0.0.1:8888/callback` and to copy a
+    `Client Secret`, both deleted from the source in June. Six guards check the
+    SOURCE; nothing compared the ARTEFACT, and the artefact is what the welcome e-mail
+    attaches and what both download buttons serve.
+
+    Hashing the dataclasses would have been wrong in both directions:
+
+    * `PlatformCred.admin_note` exists in the source and is deliberately NOT rendered
+      (see `_render_cred_html`), so editing it would turn this guard red for a PDF
+      that did not change — the way a guard earns the right to be ignored;
+    * the screenshots are base64-embedded, so a re-captured PNG changes the PDF while
+      leaving every dataclass byte-identical. Only the rendered HTML sees both.
+
+    Hashing the PDF itself would be worse still: WeasyPrint is not byte-reproducible
+    across versions, so the guard would go red on a dependency bump and get disabled
+    (`permanently-red-guard-reports-nothing`).
+
+    The one substitution below exists because `_render_cred_html` embeds
+    `APP_BASE_URL`, which legitimately differs between a laptop, CI and production.
+    Left in, this digest would depend on where it was computed — a guard that is red
+    for a reason that has nothing to do with the guide.
+    """
+    import hashlib
+
+    app_base = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
+    joined = "\x00".join(build_guide_html(lang) for lang in ("fr", "en"))
+    normalised = joined.replace(app_base, "{APP_BASE_URL}")
+    return hashlib.sha256(normalised.encode("utf-8")).hexdigest()
+
+
+def rendered_fingerprint() -> str:
+    """A digest of the PDF FILES currently on disk, both languages.
+
+    Separate from `source_fingerprint` on purpose, and the separation is the whole
+    point — measured 2026-09-03, on the first version of this guard.
+
+    That version stored only the source digest and compared it to the sources. It
+    therefore answered "have the sources moved since someone last rebuilt?" — which
+    is a proxy, not the question. Restoring the June PDFs while leaving the
+    fingerprint file alone left it **green**, on exactly the defect it was written
+    for. A predicate that fits the symptom instead of the question is this repo's
+    most repeated defect (`a-guards-scope-is-the-defect`); this is its seventh.
+
+    WeasyPrint's non-reproducibility is not an objection here: this digest is never
+    compared ACROSS rebuilds, only against the value recorded when these very files
+    were written. Both are rewritten together, so a rebuild can never make it red.
+    """
+    import hashlib
+
+    h = hashlib.sha256()
+    for lang in ("fr", "en"):
+        path = output_pdf_path(lang)
+        h.update(path.name.encode("utf-8"))
+        h.update(path.read_bytes() if path.is_file() else b"<missing>")
+    return h.hexdigest()
+
+
+def write_fingerprint() -> Path:
+    """Record both digests next to the PDFs. Called only after a real render."""
+    target = fingerprint_path()
+    # The trailing pragma is not decoration: `detect-secrets` (pre-commit) classes a
+    # bare 64-char hex digest as a "Hex High Entropy String" and refuses the commit.
+    # Marking it here rather than widening `.secrets.baseline` keeps the baseline
+    # meaning "acknowledged secret" instead of "acknowledged noise", and it survives
+    # every regeneration because the writer emits it. `read_fingerprint` strips it.
+    pragma = "  # pragma: allowlist secret"
+    target.write_text(
+        f"source={source_fingerprint()}{pragma}\n"
+        f"rendered={rendered_fingerprint()}{pragma}\n",
+        encoding="utf-8",
+    )
+    return target
+
+
+def read_fingerprint() -> dict[str, str]:
+    """The recorded digests, or an empty mapping when the file is absent."""
+    path = fingerprint_path()
+    if not path.is_file():
+        return {}
+    out: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        key, _, value = line.partition("=")
+        value = value.split("#", 1)[0]  # drop the allowlist pragma written above
+        if value.strip():
+            out[key.strip()] = value.strip()
+    return out
+
+
 def build_guide_pdf(lang: str = "fr", out: Path | None = None) -> Path:
     """Render the guide HTML to a PDF on disk. Returns the output path."""
     from weasyprint import HTML
@@ -239,3 +338,6 @@ def build_guide_pdf(lang: str = "fr", out: Path | None = None) -> Path:
 if __name__ == "__main__":
     for _lang in ("fr", "en"):
         print(f"Guide PDF ({_lang}) written to {build_guide_pdf(_lang)}")
+    # Written in the same breath as the PDFs, never separately: a fingerprint updated
+    # on its own would certify an artefact nobody rebuilt.
+    print(f"Guide fingerprint written to {write_fingerprint()}")
