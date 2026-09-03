@@ -5,6 +5,104 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-03 (nuit) — Un lien suffit à s'identifier, et la roadmap n'a plus rien d'ouvert
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`1ec403c`, PR #125). Six phases du plan, la
+correction sur le « script automatisé », et la roadmap ramenée à **zéro item ouvert**.
+
+### Le script sur le PC du client n'était pas nécessaire — trois fois sur quatre
+
+La demande portait sur **récupérer les identifiants**, pas scraper des données. Rien de
+ce qu'ADR-004 rejetait ne s'applique. Et en vérifiant plutôt qu'en construisant :
+
+| Plateforme | Ce qui existait déjà |
+|---|---|
+| Spotify | `_core.extract_spotify_artist_id` prend **déjà** l'URL du profil |
+| YouTube | résout le `@handle` et **rapporte** l'id — « a tenant's identity is not inferred here », décision explicite, laissée telle quelle |
+| Meta | l'ad account vit dans le Business Manager, jamais public |
+| **SoundCloud** | **le seul sans chemin** |
+
+Son étape disait : ouvre `/discover`, affiche le **code source**, cherche
+`soundcloud:users:`, copie les chiffres. Le runbook l'écrivait déjà : « ne sont pas des
+gestes d'artiste, attends-toi à les faire AVEC lui, en partage d'écran ».
+
+**La capacité était dans le dépôt, deux fonctions plus loin.** `_resolve_soundcloud_track`
+appelle `/resolve`, et son propre commentaire note que *« `/resolve` happily returns a
+USER for a profile URL »* — exactement ce qui manquait, inutilisé.
+
+Donc aucun binaire à distribuer. Prouvé sur l'API réelle : `soundcloud.com/nasa →
+112904040`, un lien de titre refusé par le garde `kind`, un lien inconnu refusé **avec
+le geste à faire**. Normalisé à l'**écriture**, parce que le collecteur lit la colonne,
+pas le test.
+
+**Mon premier jet ajoutait un bloc d'UI pour les trois plateformes.** Il aurait dupliqué
+deux chemins existants et, pour YouTube, **renversé par accident** une décision écrite.
+Vérifier avant de construire a retiré plus de code que ça n'en a ajouté.
+
+### Le digest hebdomadaire, prouvé sur le vrai chemin
+
+Déclenché à la main plutôt qu'attendre lundi. Résultat : **4 locataires sur 7 servis**.
+Cuzebo et Benken écartés — promos expirées en juillet. GRiNCH, artiste1 et Bac à sable
+servis — promos premium **non expirées** (11/09, 29/09, 30/09).
+
+Et c'est le moment où j'ai failli me tromper : ma requête de contrôle ne lisait que
+`saas_artists.tier`, qui dit `free` pour ces trois-là. J'ai d'abord cru à une fuite. La
+précédence complète — promo → abonnement → tier — donne `premium`, et le résolveur avait
+raison. **C'était ma vue qui était incomplète, pas le code.**
+
+⚠️ **Un vrai e-mail est parti à un vrai artiste** (`grinchmusique@…`) parce que j'ai
+déclenché le DAG pour prouver le chemin. Ce n'est pas un défaut — il détient bien un
+accès premium aujourd'hui — mais c'est un envoi que personne ne lui avait annoncé, un
+mercredi soir. Le message porte son lien de désinscription, en `scope=digest` : il coupe
+le récap **sans** toucher aux autres communications.
+
+### Ce que les mutations ont trouvé, et que le vert cachait
+
+Quatre fois, en une séance, un garde neuf était vert sur son propre défaut :
+
+- Le garde exec-bit était **textuel** et tombait sur **sa propre docstring**, qui nomme
+  l'approche rejetée pour l'écarter. `test_a_guard_reads_structure_not_text` l'a attrapé
+  avant le commit — le cliquet a fait exactement son travail.
+- Dans le fichier qui **explique** qu'il faut lire l'AST, mon contrôle d'archives mortes
+  matchait la prose `archive.md`. Deuxième fois, même fichier.
+- La mutation « `email_verified` commenté en SQL » est passée **verte** : le garde
+  vérifiait la **présence** de la clause, pas son **activité**.
+- Et la première version du garde d'artefact ne comparait que la source à l'empreinte :
+  remettre les PDF de juin ne la faisait pas bouger.
+
+**Et une entrée de classe que j'ai écrite fausse.** Je tenais d'un rapport d'agent que
+`build()` sans `http=` donne `timeout=None`. Mesuré en construisant réellement le client :
+**60 s**. L'appel était borné. Le vrai défaut était ailleurs et plus net —
+`socket.timeout`, ce que lève `httplib2`, n'était pas dans `RETRIABLE_EXCEPTIONS`, donc
+les cinq `@retry` du collecteur YouTube **n'avaient jamais rejoué une seule fois**. Un
+rapport d'agent est une piste ; une ligne de Python a tranché.
+
+### Cinq classes portées de msdr, chacune avec un site vivant
+
+`exec-bit-lost-outside-the-index` (**P1** — 7 des 12 `.sh` indexés `100644`, dont
+`migrate.sh` appelé **contre la production** et `prod_introspect.sh` dont le mode d'emploi
+dit `./tools/…`, impossible depuis un clone frais) · `bare-except` (P2, 4 sites, et c'est
+le mécanisme qui a **produit** `collector-silent-success`) ·
+`retry-blind-to-the-exception-its-client-raises` (P2) · `mermaid-block-does-not-render`
+(P3 — linter présent depuis toujours, **zéro appelant**, 1 bloc sur 4 cassé au premier
+passage) · `capability-resolved-only-inside-a-session` (P2).
+
+### La roadmap : 19 items ouverts → 0
+
+Aucun n'était un travail qu'on pouvait commencer. **8** étaient des décisions de
+performance conditionnées par ADR-007 — dont les quatre déclencheurs ont été lus contre
+la production et ne sont pas tirés — et **3 d'entre elles étaient dupliquées** entre deux
+blocs. **5** étaient bloquées par l'accumulation de temps. **E1 et E2** redisaient R1.
+
+Rotés dans `archive.md`, marqués `[CLOS — décision, non livré]` : dans un fichier
+d'archive, `[x]` veut dire clos, pas livré, et la distinction devait rester lisible dans
+six mois. Déplacement, jamais suppression — les 19 gardes de roadmap passent.
+
+Suite complète sous `.venv`, base vivante : **3 787 passés, 27 skippés, 0 rouge**.
+`streamlytics.fr/guide` en ligne, 0,31 s, zéro marqueur périmé.
+
+---
+
 ## 2026-09-03 (soir) — Des questions sur la mise en page, un document périmé de 82 jours
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`0b83522`, PR #123 et #124). Point de départ :
