@@ -115,10 +115,24 @@ sauvegardes, pas pour un data lake.** Les deux sont corrigés dans la même séa
 
 - La stack reste **Postgres + Airflow + Streamlit**. Aucun composant ajouté, aucun
   fournisseur de plus à surveiller.
-- **Airflow est le poste le plus cher** : 1,6 Go et 21 % de la machine pour 16 DAGs,
-  dont 4 watchers à 384 runs/jour chacun, tous `skipped`. Si la RAM devient contrainte,
-  la première action est de **fusionner les 4 `*_csv_watcher`** — pas de changer
-  d'orchestrateur.
+- **Airflow était le poste le plus cher, et il a été traité le 2026-09-04** — sans
+  changer d'orchestrateur. Trois mesures, trois corrections :
+
+  | Constat mesuré | Correction | Résultat mesuré |
+  |---|---|---|
+  | 16 DAGs reparsés **toutes les 30 s** (défaut d'Airflow) ; scheduler à **28,9 %** de CPU, webserver à 0,33 % | `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL` 30 → 300 | **CPU 2,45 %**, RAM scheduler **878 → 622 Mo** |
+  | Les 4 `*_csv_watcher` = **97,2 % des `dag_run`** et **98,4 % des `task_instance`**, 1 536 exécutions/jour, toutes `skipped`, sur des répertoires **vides** | cadence `*/15` → horaire | 1 536 → **384** exécutions/jour |
+  | Base de métadonnées à **246 Mo** — six fois la base applicative — 83 jours jamais purgés, `airflow db clean` **jamais lancé** | `tools/airflow_db_clean.sh`, cron hebdomadaire, rétention 30 j, plus un `VACUUM FULL` initial | **246 → 91 Mo** |
+
+  **Non fait, et c'est une décision** : fusionner les 4 watchers en un seul. À cadence
+  horaire cela économise 72 exécutions/jour pour un refactor touchant 4 DAGs, 4 scripts
+  de debug et leurs parseurs. Le levier était la **cadence**, pas le nombre de DAGs —
+  et ADR-007 pose que dépenser du risque contre un bénéfice mesuré proche de zéro est
+  le défaut, pas le correctif.
+
+  Ce que la mesure a aussi corrigé : réduire les exécutions ne rend **pas** la RAM.
+  Les 1,6 Go sont les processus Python eux-mêmes. C'est l'intervalle de parsing qui a
+  rendu 256 Mo, pas la cadence des watchers.
 - La duplication se traite **au fil de l'eau**, jamais en balayage : ADR-007 rappelle
   qu'un balayage mécanique « pour la cohérence » aurait donné à chaque admin les données
   de l'artiste 1. Seules les deux définitions **fausses** se corrigent tout de suite.

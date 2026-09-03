@@ -5,6 +5,59 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite) — Le poste le plus visible n'était pas le plus cher
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION**. Point de départ : « Airflow consomme 1,6 Go,
+le levier ce sont les 4 watchers ». La moitié de cette phrase était vraie.
+
+### Ce que la mesure a corrigé dans la prémisse
+
+**Les 1,6 Go sont les processus Python eux-mêmes** — 878 Mo scheduler + 903 Mo
+webserver — pas l'historique d'exécution. Réduire les runs ne les rend pas. Ce qui les
+rend, c'est un paramètre que personne ne regardait.
+
+Le vrai signal était ailleurs : **scheduler à 28,9 % de CPU en continu, webserver à
+0,33 %**. Le brassage est au parsing, pas à l'affichage. Et
+`min_file_process_interval` était au **défaut de 30 secondes** : les 16 fichiers de DAG
+étaient relus **deux fois par minute**.
+
+### Trois corrections, par ordre d'effet mesuré
+
+| Constat | Correction | Résultat |
+|---|---|---|
+| 16 DAGs reparsés toutes les 30 s | intervalle 30 → 300 s | **CPU 28,9 % → 2,45 %**, RAM scheduler **878 → 622 Mo** |
+| 4 watchers = **97,2 % des `dag_run`**, **98,4 % des `task_instance`**, 1 536 exécutions/jour toutes `skipped`, sur des dossiers **vides** | cadence `*/15` → horaire | 1 536 → **384**/jour |
+| Métadonnées à **246 Mo** — six fois la base applicative — 83 jours jamais purgés | `tools/airflow_db_clean.sh` hebdo, rétention 30 j + `VACUUM FULL` | **246 → 91 Mo** |
+
+`airflow db clean` n'avait **jamais** tourné depuis le 2026-06-13. Le `DELETE` seul ne
+rend rien à l'OS : sans le `VACUUM FULL`, la taille serait restée à 246 Mo alors que
+`task_instance` était passé de 115 160 à 45 048 lignes. 16/16 DAGs toujours chargés
+après la purge.
+
+### Ce que je n'ai pas fait, et pourquoi
+
+**Fusionner les 4 watchers en un seul** — c'était pourtant ma propre suggestion dans
+ADR-014. À cadence horaire, ça économise 72 exécutions/jour pour un refactor touchant
+4 DAGs, 4 scripts de debug et leurs parseurs. **Le levier était la cadence, pas le
+nombre de DAGs**, et une fois la cadence corrigée le gain restant ne paie plus le
+risque. ADR-007 dit exactement ça : dépenser du risque contre un bénéfice mesuré proche
+de zéro est le défaut, pas le correctif.
+
+Les watchers ne sont pas supprimés non plus : ils servent le dépôt **manuel** de
+fichiers, un chemin distinct de la page d'import — laquelle parse dans l'app et n'écrit
+jamais dans ces répertoires. Une heure reste généreuse pour un geste humain.
+
+### Le détail qui aurait pu passer inaperçu
+
+`airflow db clean` **demande confirmation par défaut**. Sous cron, une invite bloque
+indéfiniment sans que rien ne le signale — le script porte `--yes`, et le garde
+l'exige. C'est la même famille que le reste de la séance : un mécanisme qui échoue en
+silence est pire que pas de mécanisme.
+
+Suite complète : **3 810 passés, 27 skippés, 0 rouge**.
+
+---
+
 ## 2026-09-04 — Non à dbt, et les sauvegardes vivaient sur le disque qu'elles protègent
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`afbff58`, ADR-014). Question posée : faut-il

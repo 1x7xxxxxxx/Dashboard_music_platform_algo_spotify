@@ -236,6 +236,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [capability-resolved-only-inside-a-session](#capability-resolved-only-inside-a-session) | P2 | deterministic | guarded | none |
 | [probe-reads-unreadable-as-absent](#probe-reads-unreadable-as-absent) | P2 | deterministic | guarded | none |
 | [backup-shares-the-fate-of-what-it-protects](#backup-shares-the-fate-of-what-it-protects) | P1 | deterministic | guarded | none |
+| [orchestrator-costs-more-than-what-it-orchestrates](#orchestrator-costs-more-than-what-it-orchestrates) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3045,3 +3046,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-04: trois mutations, trois rouges — `rclone copy` retiré, le drill revenu à l'estimation, le constat retiré du mail.
   - 2026-09-04: **la première version du drill comparait deux estimations.** `pg_stat_user_tables.n_live_tup` n'est rafraîchi que par ANALYZE et l'autovacuum : il rendait « 40 015 lignes restaurées contre 1 149 vivantes » **sur la même base**. Un garde bâti sur une estimation compare du bruit. Compte exact désormais.
   - 2026-09-04: et le garde lui-même a porté **deux prédicats textuels faux** — `body.index("fi")` tombait sur le « fi » de « défini » et tronquait la branche inspectée ; et la recherche de `n_live_tup` matchait le commentaire qui explique justement pourquoi l'éviter. Découpage ligne à ligne, commentaires retirés. Troisième fois dans la journée qu'une sous-chaîne répond à une question de structure.
+
+## orchestrator-costs-more-than-what-it-orchestrates
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'outil qui coordonne le travail consomme plus que le travail lui-même, et personne ne le remarque parce que tout est vert.
+- root_cause: mesuré le 2026-09-04. **La base de métadonnées Airflow pesait 246 Mo — six fois la base applicative (43 Mo)** — avec 83 jours d'historique depuis le 2026-06-13 et **`airflow db clean` jamais lancé** (`task_instance` 115 160 lignes / 106 Mo, `log` 320 765 / 80 Mo). Et la répartition était sans appel : les 4 `*_csv_watcher` produisaient **97,2 % des `dag_run` et 98,4 % des `task_instance`** — 113 296 lignes sur 115 160 — pour **1 536 exécutions par jour, toutes `skipped`**, contre quatre répertoires **vides** où `find` n'a jamais trouvé un fichier. Cause plus profonde et plus coûteuse : `min_file_process_interval` était au **défaut de 30 s**, donc les 16 fichiers de DAG étaient reparsés deux fois par minute — **scheduler à 28,9 % de CPU en continu** quand le webserver était à 0,33 %.
+- signature: `.venv/bin/python -m pytest tests/test_the_scheduler_is_not_the_biggest_cost.py -q`
+- long_term_fix: trois corrections, par ordre d'effet **mesuré** : (1) `MIN_FILE_PROCESS_INTERVAL` 30 → 300 s, qui rend **CPU 28,9 % → 2,45 %** et **RAM scheduler 878 → 622 Mo** ; (2) cadence des watchers `*/15` → horaire, 1 536 → 384 exécutions/jour ; (3) `tools/airflow_db_clean.sh` hebdomadaire, rétention 30 j, plus un `VACUUM FULL` initial — **246 → 91 Mo** (le `DELETE` seul ne rend rien à l'OS). Le garde épingle la cadence et l'intervalle de parsing, et vérifie que le script de purge est non interactif : `airflow db clean` demande confirmation par défaut, et sous cron une invite bloque indéfiniment sans que rien ne le signale.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_scheduler_is_not_the_biggest_cost.py }
+- rex_ref: tools/airflow_db_clean.sh
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-04: deux mutations, deux rouges — cadence remise à `*/15`, intervalle de parsing remis à 30.
+  - 2026-09-04: **la prémisse de départ était partiellement fausse, et le mesurer a changé le correctif.** « Airflow consomme 1,6 Go, le levier ce sont les watchers » : les 1,6 Go sont les processus Python eux-mêmes, et réduire les exécutions ne les rend pas. Ce sont les 256 Mo rendus par l'intervalle de parsing — un paramètre que personne ne regardait — pas la cadence des watchers. Le poste le plus visible n'était pas le plus cher.
+  - 2026-09-04: fusionner les 4 watchers en un seul a été **écarté** : à cadence horaire cela économise 72 exécutions/jour pour un refactor touchant 4 DAGs, 4 scripts de debug et leurs parseurs. Le levier était la cadence, pas le nombre de DAGs (ADR-007 : dépenser du risque contre un bénéfice proche de zéro est le défaut).
