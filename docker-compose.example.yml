@@ -88,6 +88,10 @@ services:
       # above: `.env` had the value, this block did not pass it on.
       APP_BASE_URL: ${APP_BASE_URL}
       STREAMLYTICS_ENV: ${STREAMLYTICS_ENV:-local}
+      # Écrire à un CLIENT est une décision. Sans cette variable, `send_email`
+      # refuse — et depuis le 2026-09-03 le récap hebdomadaire premium en
+      # dépend, donc `check_env_parity` l'exige sur le scheduler.
+      STREAMLYTICS_ALLOW_ARTIST_EMAIL: ${STREAMLYTICS_ALLOW_ARTIST_EMAIL:-0}
       AIRFLOW_UI_URL: ${AIRFLOW_UI_URL:-http://localhost:8080}
 
       # Spotify API

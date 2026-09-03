@@ -99,12 +99,28 @@ def test_user_agent_detection(ua, expected):
     assert detect_os_from_user_agent(ua) == expected
 
 
-def test_soundcloud_guide_is_followable_on_mac():
-    """End-to-end on the step that blocked the beta tester."""
+def test_the_soundcloud_guide_asks_for_no_keyboard_gesture_at_all():
+    """The step that blocked the beta tester no longer exists — that is the fix.
+
+    This test used to assert the Mac spelling of "view page source" was present, which
+    was right while the guide asked an artist to read a page's HTML. On 2026-09-03 the
+    step was removed entirely: the artist pastes the link to their profile and the
+    server resolves the id through SoundCloud's own `/resolve` endpoint.
+
+    Asserting the ABSENCE of every OS-specific gesture is the stronger claim. A guide
+    with no shortcut in it cannot spell one wrong for half its readers, which is what
+    `guide-single-os-shortcut` is about; the per-OS token machinery stays tested by the
+    cases above, on the guides that still need it (YouTube, Meta).
+    """
     from src.dashboard.content.credential_guides import CREDENTIAL_GUIDES
 
     sc = next(g for g in CREDENTIAL_GUIDES if g.key == "soundcloud")
-    steps = [resolve_os_tokens(s.text, MAC) for s in sc.steps]
-    joined = " ".join(steps)
-    assert "Cmd+Option+U" in joined, "Mac reader has no way to view the page source"
-    assert "Ctrl+" not in joined
+    for os_family in (MAC, WINDOWS):
+        joined = " ".join(resolve_os_tokens(s.text, os_family) for s in sc.steps)
+        for shortcut in ("Ctrl+", "Cmd+", "⌘", "F12"):
+            assert shortcut not in joined, (
+                f"the SoundCloud guide spells {shortcut!r} again. It needs no keyboard "
+                "gesture: the artist pastes their profile link and the id is resolved "
+                "server-side."
+            )
+        assert "{{" not in joined, "an unresolved OS token survived into the text"

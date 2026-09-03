@@ -19,7 +19,12 @@ _DYNAMIC_PREFIXES = (
     "email.",
     "algo.calib.", "algo.divnote.", "algo.label.", "algo.lever.", "algo.model.",
     "algo.regressor.", "algo.suppressed.", "common.month.", "credentials.field.",
-    "credentials.guide.", "export_csv.source.", "export_pdf.period.", "export_pdf.section.",
+    "credentials.guide.",
+    # Built as t(f"credentials.resolve.{code}") from ResolutionError.code — the codes
+    # themselves are enumerated in `platform_identity_resolver.RESOLUTION_CODES`, and
+    # `test_a_link_is_enough_to_identify_a_tenant` checks every one has an entry.
+    "credentials.resolve.",
+    "export_csv.source.", "export_pdf.period.", "export_pdf.section.",
     "home.dag.", "meta_ads_overview.dim.", "meta_ads_overview.gender.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",

@@ -271,11 +271,20 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
 # ─────────────────────────────────────────────
 
 def show():
-    st.title(t("upload_csv.title", "📂 Import CSV"))
+    # Named by what the artist GETS, not by what the machine eats. Measured
+    # 2026-09-03: 2 of the 6 tenants who ever logged in reached this page and **none**
+    # ever completed an upload — every CSV-fed table in production holds rows for the
+    # admin alone. The page opened on the word "CSV" three times before explaining it
+    # once, which is Johnson's « geek speak » (Designing with the Mind in Mind, p.18):
+    # « Why should shopping on the Web require us to learn "USB", "TIFF" or
+    # "broadband"? ». The old title is kept as the subtitle so anyone who was told
+    # "go to Import CSV" still recognises the page.
+    st.title(t("upload_csv.title", "📂 Ajouter mes chiffres Spotify & Apple"))
     st.caption(t(
         "upload_csv.caption",
-        "Déposez jusqu'à une dizaine de fichiers CSV en une fois. "
-        "Le type est détecté automatiquement depuis le nom de fichier et les colonnes."
+        "Un **CSV** est un petit fichier tableau que ces plateformes vous laissent "
+        "télécharger. Vous n'avez pas à l'ouvrir : téléchargez-le, puis déposez-le "
+        "ici. Jusqu'à une dizaine à la fois — le type est reconnu tout seul."
     ))
 
     from src.dashboard.content.csv_guides_st import render_csv_guides

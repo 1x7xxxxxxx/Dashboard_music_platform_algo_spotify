@@ -191,3 +191,33 @@ def test_the_send_path_passes_the_language_through():
             f"_guide_pdf_paths() called with no argument at line {call.lineno}: it "
             "falls back to French for every reader, which is the defect this guards."
         )
+
+
+# ── The web version, which is the one that cannot go stale ──────────────────
+
+@pytest.mark.parametrize("name", ["index.html", "index_en.html"])
+def test_the_guide_web_page_is_built_alongside_the_pdf(name: str):
+    """Same source, three renderings. A page is fixed by saving it.
+
+    Added 2026-09-03 with the Caddy `handle /guide*` route. The PDF stayed 82 days
+    behind its sources partly because correcting it means redistributing it; a page
+    served from the checkout is corrected by `make guide` and a `git pull`.
+    """
+    page = GUIDES / name
+    assert page.is_file(), f"{page} is missing — run `{REBUILD}`"
+    text = page.read_text(encoding="utf-8")
+    assert text.lstrip().startswith("<!DOCTYPE html>")
+    assert "data:image/png;base64," in text, (
+        "the page references images instead of embedding them: `file_server` would "
+        "have to resolve paths, and a copy of the file anywhere would break."
+    )
+
+
+def test_the_caddy_route_precedes_the_streamlit_proxy():
+    """Order is load-bearing: `reverse_proxy` first and Streamlit swallows /guide."""
+    caddy = (_repo_root() / "deploy" / "Caddyfile").read_text(encoding="utf-8")
+    assert "handle /guide*" in caddy, "the /guide route is gone from deploy/Caddyfile"
+    assert caddy.index("handle /guide*") < caddy.index("reverse_proxy 127.0.0.1:8501"), (
+        "the /guide handler is declared AFTER the dashboard proxy — Caddy matches the "
+        "proxy first and the guide URL renders the Streamlit app instead."
+    )

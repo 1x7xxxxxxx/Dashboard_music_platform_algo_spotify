@@ -46,7 +46,31 @@ def _test_soundcloud(fields: dict) -> tuple:
 
     if not user_id:
         return False, t("credentials.soundcloud.user_id_empty",
-                        "User ID vide — voir le guide ci-dessus pour le trouver (/discover).")
+                        "Rien à tester : colle le **lien de ton profil SoundCloud** "
+                        "(https://soundcloud.com/ton-nom) dans le champ ci-dessous — "
+                        "on en déduit ton User ID.")
+
+    # A profile URL is what an artist HAS; the numeric id is what the pipeline needs.
+    # The CANONICAL conversion happens at write time, in `_render._save_credentials`,
+    # so the column only ever holds digits. This branch is the tolerant read for rows
+    # stored BEFORE 2026-09-03: saving never validated, so a URL could land in the
+    # column and then fail here with SoundCloud's own opaque error. One rule, two
+    # entry points — both call `soundcloud_user_id_from_url`, so they cannot drift.
+    #
+    # Substituting rather than reporting, unlike YouTube: `/resolve` on a profile URL
+    # is not a NAME search, it is the platform dereferencing a link that already
+    # identifies exactly one account. Nothing is inferred. YouTube's resolve-and-report
+    # answers a different question ("which channel is called this?") and stays as it is.
+    if not user_id.isdigit():
+        from src.utils.platform_identity_resolver import (
+            ResolutionError,
+            soundcloud_user_id_from_url,
+        )
+        try:
+            user_id, _permalink = soundcloud_user_id_from_url(user_id)
+        except ResolutionError as exc:
+            from ._render import resolve_message
+            return False, resolve_message(exc.code)
     if not client_id or not client_secret:
         return False, t("credentials.soundcloud.app_not_configured",
                         "App SoundCloud non configurée côté plateforme "

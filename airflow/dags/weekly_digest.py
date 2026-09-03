@@ -45,6 +45,45 @@ default_args = {
 }
 
 
+def _digest_recipients(db, artist_id: int) -> list[tuple[int, str]]:
+    """`(user_id, email)` for everyone entitled to this tenant's recap.
+
+    ALL eligible users, not one canonical: `saas_users.artist_id` carries no UNIQUE
+    constraint, so a tenant may have several accounts. Picking one would need an
+    arbitrary tie-break (`min(id)`?) that silently drops a co-manager.
+
+    Query shape mirrors `onboarding_report.py:100-111`, the existing precedent for
+    per-user eligibility. `weekly_digest_optout_at IS NULL` and not
+    `marketing_consent`: a recap of the customer's own numbers, for a feature they
+    pay for, is a service e-mail — see migration 081 for the full argument.
+    """
+    rows = db.fetch_query(
+        """
+        SELECT id, email
+        FROM saas_users
+        WHERE artist_id = %s
+          AND active
+          AND email_verified
+          AND role = 'artist'
+          AND weekly_digest_optout_at IS NULL
+        ORDER BY id
+        """,
+        (artist_id,),
+    )
+    return [(r[0], r[1]) for r in (rows or [])]
+
+
+def _unsubscribe_footer(user_id: int, lang: str = 'fr', scope: str = 'digest') -> str:
+    """The existing HMAC unsubscribe mechanism, scoped to this feature.
+
+    Built in `src/utils/verification_email.py` since 2026-06 and used by exactly one
+    caller (`onboarding_report`) until now. Imported rather than reimplemented: a
+    second token scheme would be a second thing to get wrong.
+    """
+    from src.utils.verification_email import _unsubscribe_footer as footer
+    return footer(user_id, lang=lang, scope=scope)
+
+
 def send_weekly_digest(**context):
     """Build and send one digest email per active artist."""
     from src.database.postgres_handler import PostgresHandler
@@ -67,6 +106,7 @@ def send_weekly_digest(**context):
 
     email_client = EmailAlert()
     sent = 0
+    undelivered: list[str] = []
 
     for artist_id, artist_name in artists:
         try:
@@ -266,14 +306,41 @@ def send_weekly_digest(**context):
             </body></html>
             """
 
+            # Premium only. Measured 2026-08-31: this loop sent one message PER
+            # TENANT and every one of them to `ALERT_EMAIL` — the subject
+            # `[Benken] Weekly KPI` NAMED the tenant without addressing them, and
+            # the run logged `7/7 emails sent`, all seven in the operator's inbox.
+            from src.utils.plan_resolver import has_capability
+            if not has_capability(db, artist_id, 'weekly_digest'):
+                logger.info(f"  {artist_name}: free plan — no digest")
+                continue
+
+            recipients = _digest_recipients(db, artist_id)
+            if not recipients:
+                # Not an error: a premium tenant may have no verified address yet, or
+                # have opted out. Named so the operator can tell it apart from a send
+                # that failed.
+                logger.info(f"  {artist_name}: premium, but no enrolled recipient")
+                continue
+
             subject = f"[{artist_name}] Weekly KPI — {run_date}"
-            ok = email_client.send_alert(subject, html)
-            if ok:
+            delivered = 0
+            for user_id, email in recipients:
+                body = html + _unsubscribe_footer(user_id, lang='fr', scope='digest')
+                if email_client.send_email(email, subject, body):
+                    delivered += 1
+                else:
+                    logger.warning(f"  {artist_name}: send failed for user {user_id}")
+            if delivered:
                 sent += 1
-                logger.info(f"  Digest sent for {artist_name}")
+                logger.info(f"  Digest sent for {artist_name} ({delivered} recipient(s))")
             else:
-                logger.warning(f"  Email not configured — digest for {artist_name} logged only")
-                logger.info(f"  S4A: {last_7d:,} streams ({'+' if streams_delta >= 0 else ''}{streams_delta:,}), top: {top_song}")
+                # A PAID feature that silently did not ship is an incident, not a
+                # statistic. Collected and raised at the end so one tenant's failure
+                # still does not stop the others.
+                undelivered.append(artist_name)
+                logger.error(f"  {artist_name}: premium, {len(recipients)} recipient(s), "
+                             f"0 delivered")
 
         except Exception as e:
             # Per-artist isolation: one tenant's bad data must not block every other
@@ -281,7 +348,14 @@ def send_weekly_digest(**context):
             logger.error(f"Weekly digest failed for {artist_name} (id={artist_id}): {safe_error(e)}")
             continue
     db.close()
-    logger.info(f"Weekly digest done — {sent}/{len(artists)} emails sent")
+    logger.info(f"Weekly digest done — {sent}/{len(artists)} tenant(s) reached")
+    if undelivered:
+        raise RuntimeError(
+            "Weekly digest: paid feature not delivered for "
+            f"{len(undelivered)} premium tenant(s) — {', '.join(undelivered)}. "
+            "Check SMTP credentials and STREAMLYTICS_ALLOW_ARTIST_EMAIL on the "
+            "scheduler. Every other tenant was served."
+        )
     return {'artists': len(artists), 'emails_sent': sent}
 
 

@@ -180,7 +180,32 @@ EN = {
     ),
     # ── _platform_soundcloud.py ────────────────────────────────────────
     "credentials.soundcloud.user_id_empty": (
-        "User ID empty — see the guide above to find it (/discover)."
+        "Nothing to test: paste the **link to your SoundCloud profile** "
+        "(https://soundcloud.com/your-name) in the field below — we derive your "
+        "User ID from it."
+    ),
+    "credentials.resolve.empty": "Paste the link to your SoundCloud profile first.",
+    "credentials.resolve.app_not_configured": (
+        "The platform's SoundCloud app is not configured — this is on us, not you. "
+        "Please report it to the administrator."
+    ),
+    "credentials.resolve.token_refused": (
+        "SoundCloud did not issue a token to the platform — this is not on you. "
+        "Try again in a few minutes."
+    ),
+    "credentials.resolve.not_found": (
+        "SoundCloud does not know this link. Check it is your PROFILE address, "
+        "for example https://soundcloud.com/your-name"
+    ),
+    "credentials.resolve.upstream_error": (
+        "SoundCloud did not answer. Try again in a few minutes."
+    ),
+    "credentials.resolve.is_a_track": (
+        "That link points to a track, not a profile. Click your artist name at the "
+        "top of the page, then copy the address."
+    ),
+    "credentials.soundcloud.resolved": (
+        "Link recognised: soundcloud.com/{p} → User ID **{i}**"
     ),
     "credentials.soundcloud.app_not_configured": (
         "SoundCloud app not configured on the platform side "

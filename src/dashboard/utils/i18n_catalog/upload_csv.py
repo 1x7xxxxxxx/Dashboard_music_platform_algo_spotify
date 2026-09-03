@@ -2,10 +2,11 @@
 
 EN = {
     # Header / intro (pre-existing keys)
-    "upload_csv.title": "📂 CSV Import",
+    "upload_csv.title": "📂 Add my Spotify & Apple numbers",
     "upload_csv.caption": (
-        "Drop up to about ten CSV files at once. "
-        "The type is detected automatically from the filename and the columns."
+        "A **CSV** is a small spreadsheet file these platforms let you download. "
+        "You do not have to open it: download it, then drop it here. Up to about "
+        "ten at a time — the type is recognised on its own."
     ),
     "upload_csv.no_active_artist": "No active artist. Create one in the Admin tab.",
     "upload_csv.target_artist": "Target artist",

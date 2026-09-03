@@ -160,6 +160,13 @@ audit:       ## Sweep ALL error-class signatures (heuristic, non-blocking) — d
 	@# sweeps it automatically (no hand-synced greps here anymore). Deterministic
 	@# classes also block CI (ci.yml); this `--all` run is the nightly heuristic pass.
 	@python3 .claude/scripts/audit_runner.py --all
+	@echo "▶ exec bit (git index, not the disk — /mnt/c never reports it back)…"
+	@python3 .claude/scripts/check_exec_bit.py || true
+	@echo "▶ mermaid blocks…"
+	@# In `audit` (nightly) and NOT in the PR gate: `mmdc` is a dev-only dependency CI
+	@# does not install, so a blocking signature would go red on every machine without
+	@# it — `permanently-red-guard-reports-nothing`, which is how a check gets deleted.
+	@python3 .claude/scripts/check_mermaid.py || true
 
 config-check: ## Check the .claude/ config itself: dangling paths, class schema, prose-only signatures
 	@# python3 + stdlib only — no runtime dependency, so no fail-fast prerequisite

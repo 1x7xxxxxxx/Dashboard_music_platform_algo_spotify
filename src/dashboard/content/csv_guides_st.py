@@ -26,15 +26,19 @@ def render_csv_guides() -> None:
     """Render one expander per platform with download steps + expected-CSV table."""
     st.markdown(t("csv_guides.intro_heading",
                   "**Comment télécharger puis importer vos fichiers ?**"))
-    for guide in CSV_GUIDES:
-        _render_guide_expander(guide)
+    # The FIRST one opens; the rest stay folded. `expanded=False` everywhere meant an
+    # artist had to click to discover what they did not know they did not know — and
+    # the two who reached this page never did. Progressive disclosure keeps the rest
+    # closed (Cooper, About Face, p.271), which is why this is not "open them all".
+    for i, guide in enumerate(CSV_GUIDES):
+        _render_guide_expander(guide, expanded=(i == 0))
 
 
-def _render_guide_expander(guide: PlatformGuide) -> None:
+def _render_guide_expander(guide: PlatformGuide, expanded: bool = False) -> None:
     label = t("csv_guides.expander_suffix",
               "{icon} {title} — télécharger & importer").format(
         icon=guide.icon, title=guide.title)
-    with st.expander(label, expanded=False):
+    with st.expander(label, expanded=expanded):
         st.markdown(guide.intro)
         for i, step in enumerate(guide.steps, 1):
             _render_step(i, step)

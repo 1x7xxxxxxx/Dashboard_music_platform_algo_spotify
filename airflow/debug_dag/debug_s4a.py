@@ -67,8 +67,8 @@ def step_1_check_env():
         try:
             os.makedirs(RAW_DIR, exist_ok=True)
             logger.info("✅ Dossier créé.")
-        except:
-            logger.error("❌ Impossible de créer le dossier.")
+        except OSError as exc:
+            logger.error("❌ Impossible de créer le dossier %s : %s", RAW_DIR, exc)
             return False
     else:
         logger.info(f"✅ Dossier RAW présent : {RAW_DIR}")
