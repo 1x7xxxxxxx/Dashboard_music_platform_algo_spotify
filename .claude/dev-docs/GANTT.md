@@ -28,10 +28,10 @@ gantt
     %% Status tags : done (✅) / active (🟡) / crit (❌ on critical path).
 
     section Closed
-    B01 Bootstrap setup         :done,   b01,  YYYY-MM-DD, YYYY-MM-DD
+    B01 Bootstrap setup         :done,   b01,  2026-01-01, 2026-01-07
 
     section Active
-    B02 First real feature      :active, b02,  YYYY-MM-DD, Nd
+    B02 First real feature      :active, b02,  2026-01-08, 14d
 
     section Blocked / Future
     B03 Hardware-blocked step   :crit,   b03,  after b02, Nd

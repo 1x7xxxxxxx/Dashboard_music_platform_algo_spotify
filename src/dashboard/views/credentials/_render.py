@@ -286,6 +286,33 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     # calls /debug_token with the app credentials. Putting a CENTRAL failure on a
     # PER-ARTIST page is what made two beta testers read "my credentials are broken".
 
+_RESOLVE_MESSAGES = {
+    "empty": "Collez d'abord le lien de votre profil SoundCloud.",
+    "app_not_configured": ("L'app SoundCloud de la plateforme n'est pas configurée — "
+                           "ce n'est pas vous, c'est nous. Signalez-le à l'administrateur."),
+    "token_refused": ("SoundCloud n'a pas délivré de jeton à la plateforme — ce n'est "
+                      "pas vous. Réessayez dans quelques minutes."),
+    "not_found": ("SoundCloud ne connaît pas ce lien. Vérifiez qu'il s'agit bien de "
+                  "l'adresse de votre profil, par exemple https://soundcloud.com/votre-nom"),
+    "upstream_error": "SoundCloud n'a pas répondu. Réessayez dans quelques minutes.",
+    "is_a_track": ("Ce lien pointe vers un titre, pas vers un profil. Cliquez sur votre "
+                   "nom d'artiste en haut de la page, puis copiez l'adresse."),
+}
+
+
+def resolve_message(code: str) -> str:
+    """The artist-facing sentence for a resolution failure code.
+
+    Rendered HERE and not raised from `src/utils/`: nothing built from a caught
+    exception may reach the UI in a credentials module (those pass credentials in
+    query strings, so an exception's text can carry one —
+    `test_no_probe_surfaces_a_whole_exception`). Going through `t()` also means an
+    English reader gets English, which a sentence hardcoded in the resolver could not.
+    """
+    return t(f"credentials.resolve.{code}",
+             _RESOLVE_MESSAGES.get(code, _RESOLVE_MESSAGES["upstream_error"]))
+
+
 def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_values):
     """Prépare et sauvegarde les credentials chiffrés."""
     try:
@@ -327,6 +354,37 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 extra['spotify_artist_id'] = sp_id
             else:
                 extra.pop('spotify_artist_id', None)
+
+        # SoundCloud: the artist supplies their PROFILE URL; the pipeline needs the
+        # numeric user id. Normalised HERE, at write time, for the same reason the
+        # Meta block below is: the connection test resolving it would prove the link
+        # good and still persist the URL, and `soundcloud_daily` reads the column, not
+        # the test. Until 2026-09-03 the guide bridged this by hand: open /discover,
+        # display the page's HTML source, hunt for the `soundcloud:users:` marker and
+        # copy the digits. (The keyboard shortcut is deliberately not spelled out here:
+        # `guide-single-os-shortcut` greps for it, and a comment DESCRIBING the old
+        # step would fire the detector for the step itself.)
+        # `runbook-artist-test-session.md:127` calls that gesture one to do on a screen
+        # share; 2 of the 4 tenants who reached this page never got past it.
+        if platform_key == 'soundcloud':
+            typed = str(extra.get('user_id', '')).strip()
+            if typed and not typed.isdigit():
+                from src.utils.platform_identity_resolver import (
+                    ResolutionError,
+                    soundcloud_user_id_from_url,
+                )
+                try:
+                    resolved, permalink = soundcloud_user_id_from_url(typed)
+                except ResolutionError as exc:
+                    # Refuse the save rather than store a URL in a numeric column.
+                    # A row that looks filled but cannot collect is worse than an
+                    # empty one: every surface that counts rows reads it as connected.
+                    st.error(resolve_message(exc.code))
+                    return
+                extra['user_id'] = resolved
+                st.caption(t("credentials.soundcloud.resolved",
+                             "Lien reconnu : soundcloud.com/{p} → User ID **{i}**")
+                           .format(p=permalink, i=resolved))
 
         # Meta: N comptes publicitaires → une liste canonique (R53 / ADR-013).
         # Fait AVANT le contrôle de forme, pour que celui-ci voie la valeur qui sera

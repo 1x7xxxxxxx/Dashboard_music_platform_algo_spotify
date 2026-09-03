@@ -76,26 +76,21 @@ _SOUNDCLOUD = PlatformCred(
     title="SoundCloud",
     icon="☁️",
     intro=(
-        "A **single value** to provide: your SoundCloud **User ID** (a number). "
-        "Streams and followers are then collected automatically."
+        "A **single thing** to provide: the **link to your SoundCloud profile**. "
+        "We derive your identifier from it; streams and followers are then collected "
+        "automatically."
     ),
-    portal_url="https://soundcloud.com/discover",
+    portal_url="https://soundcloud.com",
     steps=(
-        CredStep("Signed into SoundCloud, open "
-                 "[soundcloud.com/discover](https://soundcloud.com/discover)."),
-        CredStep("View the page **source** (**{{VIEW_SOURCE}}**), then search "
-                 "(**{{FIND}}**) for exactly this:\n\n"
-                 "```\nsoundcloud:users:\n```\n"
-                 "The **number stuck right after the colon** is your **User ID** — in "
-                 "`soundcloud:users:377065610` that is `377065610`. Copy neither the "
-                 "prefix nor the colon.",
-                 "soundcloud_user_id.png", "Source → soundcloud:users:<your ID>"),
-        CredStep("Paste this **User ID** into **🔑 API Credentials → SoundCloud**, "
-                 "then **Test the connection**."),
+        CredStep("Open your **SoundCloud profile** and copy the address shown in the "
+                 "browser bar — it looks like `https://soundcloud.com/your-name`."),
+        CredStep("Paste that link into **🔑 API Credentials → SoundCloud**, then "
+                 "**Save**. Your User ID is looked up automatically and shown back "
+                 "to you as confirmation."),
     ),
     fields=(
-        CredField("User ID", "377065610",
-                  note="the number found in the /discover page source"),
+        CredField("SoundCloud profile", "https://soundcloud.com/your-name",
+                  note="your page link; the numeric User ID is derived from it"),
     ),
 )
 

@@ -17,6 +17,10 @@ EN = {
     "app.unsub_title": "📧 Unsubscribe",
     "app.unsub_invalid": "Invalid unsubscribe link.",
     "app.unsub_expired": "Invalid or expired unsubscribe link.",
+    "app.unsub_digest_success": (
+        "✅ Done — you will no longer receive the weekly recap. "
+        "Your other e-mails are unchanged."
+    ),
     "app.unsub_success": ("✅ Done — you will no longer receive marketing communications. "
                           "You can re-enable the option anytime in "
                           "\"My account → Communications\"."),

@@ -226,8 +226,16 @@ def verify_unsubscribe_token(user_id: int, token: str) -> bool:
     return hmac.compare_digest(expected, token)
 
 
-def _unsubscribe_footer(user_id: int | None, lang: str = "fr") -> str:
-    """One-click unsubscribe link (sets marketing_consent=FALSE), or a static notice."""
+def _unsubscribe_footer(user_id: int | None, lang: str = "fr",
+                        scope: str = "marketing") -> str:
+    """One-click unsubscribe link, or a static notice when there is no user id.
+
+    `scope` says WHAT is being unsubscribed from. Added 2026-09-03 with the premium
+    weekly digest: a recap of the customer's own numbers, for a feature they pay for,
+    is a service e-mail, and switching off `marketing_consent` for it would also stop
+    every unrelated communication. One token mechanism, two scopes — never a second
+    HMAC scheme, which would be a second thing to get wrong.
+    """
     style = ("color:#aaa;font-size:11px;margin-top:24px;border-top:1px solid #eee;"
              "padding-top:8px;")
     if user_id is None:
@@ -235,7 +243,8 @@ def _unsubscribe_footer(user_id: int | None, lang: str = "fr") -> str:
                      "Pour ne plus recevoir ces emails, décochez l'option dans "
                      "<em>Mon compte → Communications</em>.", lang)
         return f"<p style='{style}'>{static}</p>"
-    url = f"{_base_url()}?page=unsubscribe&uid={user_id}&t={unsubscribe_token(user_id)}"
+    url = (f"{_base_url()}?page=unsubscribe&uid={user_id}"
+           f"&t={unsubscribe_token(user_id)}&scope={scope}")
     notice = _tr('email.unsub.notice',
                  "Vous recevez cet email car vous avez un compte streaMLytics. ", lang)
     link = _tr('email.unsub.link', "Se désinscrire des communications", lang)

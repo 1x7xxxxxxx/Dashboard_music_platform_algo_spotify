@@ -719,27 +719,14 @@ def _cached_plan_row(artist_id: int):
     if db is None:
         return None
     try:
-        # Single query: promo state + subscription plan + tier fallback
-        row = db.fetch_query(
-            """
-            SELECT
-                sa.promo_plan,
-                sa.promo_plan_expires_at,
-                sp.name        AS subscription_plan,
-                sa.tier
-            FROM saas_artists sa
-            LEFT JOIN artist_subscriptions asub
-                ON asub.artist_id = sa.id
-                AND asub.status IN ('active', 'trialing')
-            LEFT JOIN subscription_plans sp ON sp.id = asub.plan_id
-            WHERE sa.id = %s
-            LIMIT 1
-            """,
-            (artist_id,),
-        )
+        # The SQL itself lives in `src/utils/plan_resolver`, which imports no
+        # streamlit — that is the condition for a DAG being able to ask the same
+        # question. Two copies of this precedence would drift towards billing a
+        # customer for premium while a nightly job treats them as free.
+        from src.utils.plan_resolver import plan_row
+        return plan_row(db, artist_id)
     finally:
         db.close()
-    return row[0] if row else None
 
 
 def get_artist_plan() -> str:
@@ -748,7 +735,6 @@ def get_artist_plan() -> str:
     Reads artist_subscriptions from DB; falls back to saas_artists.tier. Any retired
     'basic' value is collapsed onto 'premium'. Returns 'premium' for admin sessions.
     """
-    from src.database.stripe_schema import normalize_plan
     if is_admin():
         # Admin QA "Voir comme" selector: impersonate a tenant plan for the current
         # session so the free/premium nav + paywalls can be previewed. This previews
@@ -763,25 +749,11 @@ def get_artist_plan() -> str:
         return 'premium'
 
     try:
-        from datetime import datetime, timezone
-        row = _cached_plan_row(artist_id)
-        if not row:
-            return 'free'
-
-        promo_plan, promo_expires, subscription_plan, tier = row
-
-        # Promo takes precedence if still active
-        if promo_plan and (promo_expires is None or promo_expires > datetime.now(timezone.utc)):
-            return normalize_plan(promo_plan)
-
-        # Active Stripe subscription
-        if subscription_plan:
-            return normalize_plan(subscription_plan)
-
-        # Legacy tier fallback
-        if tier:
-            return normalize_plan(tier)
-
+        # `plan_row` is memoized (60 s); `plan_from_row` is NOT, and the split is
+        # deliberate — the promo-expiry comparison must be fresh, or a promo that
+        # lapses inside the cache window keeps granting access.
+        from src.utils.plan_resolver import plan_from_row
+        return plan_from_row(_cached_plan_row(artist_id))
     except Exception:
         pass
     return 'free'

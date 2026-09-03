@@ -78,6 +78,20 @@ SERVICE_CONTACT_EMAIL = "1x7xxxxxxx@gmail.com"
 # Pages qu'aucun plan ne verrouille. `onboarding` en fait partie depuis le
 # 2026-08-23 : mettre l'assistant de mise en route derrière un paywall reviendrait à
 # faire payer le droit de brancher ses propres comptes.
+# Non-page entitlements. `PLAN_FEATURES` above is, by the contract stated at the top
+# of this file, a map of **page route keys** — and `tests/test_plan_gating.py` iterates
+# the free set AS PAGES. A feature that is not a page (a weekly e-mail, an export job,
+# a webhook) therefore cannot live there; slipping one in would break that test for
+# the right reason. This is its sibling, and the first entry is the weekly digest,
+# made a paid feature on 2026-09-03.
+#
+# Read through `src.utils.plan_resolver.has_capability`, which works from a plain DB
+# handle — a DAG has no Streamlit session to resolve a plan from.
+PLAN_CAPABILITIES: dict[str, frozenset[str]] = {
+    'free': frozenset(),
+    'premium': frozenset({'weekly_digest'}),
+}
+
 ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide', 'onboarding'}
 
 # 'basic' kept as an alias (rank of premium) so any legacy 'basic' value still

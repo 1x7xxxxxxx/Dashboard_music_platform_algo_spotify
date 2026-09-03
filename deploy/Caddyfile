@@ -68,6 +68,17 @@ streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
 	header Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	import logging
 	encode gzip zstd
+	# The setup guide as a WEB PAGE, from the repo checkout, before the proxy.
+	# Added 2026-09-03. The guide existed only as a committed PDF, and that PDF had
+	# been 82 days behind its sources without anything noticing — a document is fixed
+	# by redistributing it, a page by saving it. Caddy runs as a host systemd service
+	# here, so `root *` reads the checkout directly: no volume, no image, no rebuild.
+	# `handle` must precede `reverse_proxy` or Streamlit swallows the path.
+	handle /guide* {
+		root * /opt/streamlytics/docs/guides
+		try_files {path} /index.html
+		file_server
+	}
 	reverse_proxy 127.0.0.1:8501 {
 		import proxy_opts
 	}

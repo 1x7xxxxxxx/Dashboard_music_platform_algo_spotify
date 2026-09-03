@@ -121,6 +121,26 @@ def _strip_md(text: str) -> str:
 
 
 
+def _render_guide_web_link() -> None:
+    """Point at the web version, which is the one that is never stale.
+
+    `st.link_button` and a new tab, not `components.html`: the dashboard's own CSP
+    sets `frame-ancestors 'none'` (deploy/Caddyfile), so the page cannot be framed
+    inside Streamlit — an iframe would render an empty box with nothing in the logs.
+    """
+    import os
+
+    base = os.environ.get("APP_BASE_URL", "").rstrip("/")
+    if not base:
+        return
+    st.link_button(
+        t("process_guide.web_version", "🌐 Ouvrir le guide complet dans un onglet"),
+        f"{base}/guide", use_container_width=False,
+    )
+    st.caption(t("process_guide.web_version_note",
+                 "Version web : toujours à jour, images nettes, liens cliquables."))
+
+
 def _render_credentials_pdf() -> None:
     """Le guide d'identifiants COMPLET, avec ses captures — téléchargeable ici.
 
@@ -233,6 +253,7 @@ def show():
 
     st.markdown("---")
 
+    _render_guide_web_link()
     _render_credentials_pdf()
     _render_csv_definitions()
     _render_platform_links()

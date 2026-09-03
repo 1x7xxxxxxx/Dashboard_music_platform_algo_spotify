@@ -10,8 +10,21 @@ from src.utils.safe_error import safe_error
 logger = logging.getLogger(__name__)
 
 # Exceptions qui méritent un retry (réseau / connexion transitoire)
+#
+# `TimeoutError` (alias de `socket.timeout` depuis Python 3.10) est ici pour une
+# raison mesurée le 2026-09-03 : le collecteur YouTube n'utilise pas `requests` mais
+# `googleapiclient`, donc `httplib2`, qui lève `socket.timeout` — ni
+# `requests.exceptions.Timeout`, ni `ConnectionError`. Ses cinq méthodes portaient
+# `@retry` depuis toujours **sans qu'aucune tentative ne soit jamais rejouée** : un
+# blip réseau faisait échouer la tâche du premier coup, là où chaque autre
+# collecteur en rejoue trois.
+#
+# Volontairement `TimeoutError` et pas `OSError` : ce dernier couvre aussi
+# `FileNotFoundError` et `PermissionError`, qu'il ne faut surtout pas rejouer —
+# elles ne deviennent pas vraies en attendant.
 RETRIABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
     psycopg2.OperationalError,
+    TimeoutError,
 )
 
 # Importation optionnelle de requests (pas toujours installé dans le contexte Airflow)

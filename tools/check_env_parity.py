@@ -60,8 +60,14 @@ _SERVICE_EXTRA = {
     # PRODUCTION préfixerait ses propres alertes comme si elles venaient d'un poste
     # de dev. Une variable dont l'absence retourne le sens du message doit être une
     # porte, pas une convention.
+    # STREAMLYTICS_ALLOW_ARTIST_EMAIL added 2026-09-03, when the weekly recap became a
+    # PAID feature. Its absence used to mean silence, and that was the right default
+    # while nobody had decided to write to clients. It is no longer: a premium tenant
+    # receiving nothing because a variable is missing is an incident, not prudence —
+    # and `tools/deploy.sh` failing on this check imposes the right order, set the
+    # variable, then deploy.
     "airflow_scheduler": ("FERNET_KEY", "APP_BASE_URL", "ALERT_EMAIL",
-                          "STREAMLYTICS_ENV",
+                          "STREAMLYTICS_ENV", "STREAMLYTICS_ALLOW_ARTIST_EMAIL",
                           "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"),
     "airflow_webserver": ("FERNET_KEY", "APP_BASE_URL"),
     "streamlytics_dashboard": ("FERNET_KEY", "APP_BASE_URL", "STREAMLYTICS_ENV",

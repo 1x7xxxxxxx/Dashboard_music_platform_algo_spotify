@@ -229,6 +229,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [assertion-wider-than-the-question-it-asks](#assertion-wider-than-the-question-it-asks) | P3 | deterministic | guarded | none |
 | [alert-names-the-class-and-drops-the-reason](#alert-names-the-class-and-drops-the-reason) | P3 | deterministic | guarded | none |
 | [shipped-artifact-lags-its-source](#shipped-artifact-lags-its-source) | P2 | deterministic | guarded | none |
+| [exec-bit-lost-outside-the-index](#exec-bit-lost-outside-the-index) | P1 | deterministic | guarded | none |
+| [mermaid-block-does-not-render](#mermaid-block-does-not-render) | P3 | heuristic | guarded | none |
+| [bare-except](#bare-except) | P2 | deterministic | guarded | none |
+| [retry-blind-to-the-exception-its-client-raises](#retry-blind-to-the-exception-its-client-raises) | P2 | deterministic | guarded | none |
+| [capability-resolved-only-inside-a-session](#capability-resolved-only-inside-a-session) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2925,3 +2930,83 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-03: **la première version du garde est passée VERTE sur son propre défaut.** Elle ne stockait que `source=` et le comparait aux sources : elle répondait donc « les sources ont-elles bougé depuis la dernière reconstruction ? », un substitut, pas la question. Remettre les PDF de juin en laissant l'empreinte intacte ne la faisait pas bouger. 7ᵉ occurrence de `a-guards-scope-is-the-defect`. La moitié `rendered=` répond à la vraie question : « ce qu'on livre est-il ce qu'on a construit ? »
   - 2026-09-03: trois mutations, trois rouges. (A) PDF de juin restaurés, empreinte intacte → `test_the_pdfs_on_disk_are_the_ones_the_fingerprint_certifies` tombe, et **les 25 assertions des cinq fichiers de gardes existants restent vertes** — c'est la mesure du trou. (B) une phrase de `csv_guides.py` modifiée sans reconstruction → la moitié `source=` tombe. (C) le call site remis en `_guide_pdf_paths()` sans langue → le garde AST tombe.
   - 2026-09-03: défaut voisin corrigé dans la même passe — `_guide_pdf_paths()` attachait **les deux PDF, FR et EN, à tout destinataire** (~1,5 Mo dont la moitié n'adresse personne) alors que `send_welcome_email` reçoit `lang` et s'en sert pour toutes les autres chaînes. Pluriel introduit délibérément le 2026-06-13, jamais resserré depuis.
+
+## exec-bit-lost-outside-the-index
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un script du dépôt refuse de s'exécuter depuis un clone frais — et son propre mode d'emploi dit de le lancer ainsi.
+- root_cause: **7 des 12 `.sh` suivis étaient stockés en `100644` dans l'index git** — dont `tools/migrate.sh` (appelé par `Makefile:46`, et par SSH contre la PRODUCTION à `Makefile:52`), `tools/dev/check_prod_ledger.sh` (`Makefile:228`, dans `sync-check`), `scripts/backup_db.sh`, et `tools/prod_introspect.sh` dont le bloc d'usage ligne 22 écrit `./tools/prod_introspect.sh` — invocation **impossible depuis un clone frais**. Le dépôt vit sur `/mnt/c`, un montage DrvFs : les bits de mode de l'arbre de travail sont synthétisés par le pilote et ne remontent jamais à git. **Sur cette machine le disque ment, l'index non.** Le défaut ne s'était jamais manifesté parce que chaque appelant écrit `bash tools/…`, immunisé aux permissions — la forme inversée du défaut d'origine : le garde passe parce que l'appelant contourne ce qu'il devait vérifier. Et le dépôt avait déjà payé une fois : `tools/infra_health_cron.sh:7` le dit lui-même — *« would have caught the 2026-06-14 incident: db_backup.sh lost its exec bit → no pg_dump since 06-12 »*. L'incident a eu lieu, un détecteur voisin a été écrit, la classe n'a jamais été enregistrée : `exec bit`, `chmod`, `100644` renvoyaient **0 occurrence** sur les 2909 lignes du catalogue.
+- signature: `python3 .claude/scripts/check_exec_bit.py`
+- long_term_fix: `check_exec_bit.py` interroge `git ls-files -s`, c'est-à-dire le mode **stocké**, jamais le disque — un contrôle par le système de fichiers serait vert pour toujours ici. Câblé dans `make audit` (nocturne), pas dans la porte de PR. Correction par `git update-index --chmod=+x`, jamais `chmod` seul. Classe portée de `msdr_predictive_maintenance` (`md5-audit-blind-to-file-mode`) après vérification qu'elle est vivante ici.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_shipped_script_can_actually_run.py }
+- rex_ref: .claude/scripts/check_exec_bit.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: détecteur **vu rouge sur le vrai défaut** au premier passage — 7 fichiers, avant toute mutation. Puis mutation : `tools/migrate.sh` remis en `100644`, le garde tombe ; et le détecteur basculé sur `find -perm` en laissant la docstring intacte, le second garde tombe.
+  - 2026-09-03: le **premier jet du garde était textuel** et échouait sur la prose de sa propre docstring, qui nomme l'approche rejetée pour l'écarter. `tests/test_a_guard_reads_structure_not_text.py` l'a attrapé avant le commit — le cliquet a fait exactement son travail. Réécrit sur l'AST, docstrings retirées, en ne lisant que les littéraux réellement passés à `subprocess`.
+
+## mermaid-block-does-not-render
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown.
+- root_cause: `.claude/scripts/check_mermaid.py` **existait dans le dépôt sans aucun appelant** : sa seule occurrence était son propre docstring, ligne 21. Aucun `Makefile`, aucun workflow, aucun hook. Premier passage le 2026-09-03 : **1 bloc sur 4 ne rendait pas**. Le coupable est `.claude/dev-docs/GANTT.md`, un **template généré par `tools/generate-dev-docs.py`** dont les lignes de tâches portent des `YYYY-MM-DD` littéraux — parsables comme déclaration de `dateFormat`, pas comme dates. Un template livré cassé se propage à chaque dépôt que le baseline déploie. Le commit `2e36105` (2026-08-03) avait déjà nommé ce fichier « un template jamais rendu » sans que son diagramme soit corrigé.
+- signature: `python3 .claude/scripts/check_mermaid.py`
+- long_term_fix: le linter est appelé depuis `make audit` — **nocturne, et non la porte de PR** : `mmdc` est une dépendance de dev que la CI n'installe pas, donc en faire une signature bloquante rendrait le garde rouge sur toute machine sans elle (`permanently-red-guard-reports-nothing`, la façon dont un contrôle finit supprimé). Les lignes de tâches du template portent des dates de remplissage évidentes (`2026-01-01`) qui parsent, la déclaration `dateFormat YYYY-MM-DD` restant intacte.
+- autofix: none
+- guard: { type: manual, ref: make audit }
+- rex_ref: .claude/scripts/check_mermaid.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: câblé pour la première fois depuis son écriture. 4/4 après correction. Chez msdr, le premier passage après un mois avait trouvé 19 diagrammes non rendables sur 238 — le même outil, la même absence d'appelant.
+
+## bare-except
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un `except:` nu avale aussi `KeyboardInterrupt` et `SystemExit` — donc une interruption volontaire et l'arrêt du processus — et il ne dit jamais QUELLE classe il a mangée, ce qui rend le défaut suivant indiagnosticable.
+- root_cause: 4 sites vivants au 2026-09-03 : `scripts/manage_mapping.py:76,92,131` — un outil d'exploitation interactif qui écrit la table de mapping Meta, où avaler `Ctrl-C` signifie qu'on ne peut pas abandonner une invite — et `airflow/debug_dag/debug_s4a.py:70`, qui journalisait « Impossible de créer le dossier » **sans jamais dire pourquoi**. Ce n'est pas une question de style ici : c'est le mécanisme qui a produit la classe phare du dépôt. Deux commentaires le disent encore, dans l'arbre : `src/transformers/s4a_csv_parser.py:184` (« le `except:` nu ci-dessous renvoyait `{'type': None}` ») et `src/transformers/csv_dialect.py:20` (« the S4A path answered `{'type': None, 'data': []}` out of a bare `except:` »). Autrement dit `collector-silent-success` — une famille entière de gardes, une règle transverse (#6) et un auditeur AST dédié — **a été produite par un `except:` nu**, corrigé deux fois au site d'appel et jamais enregistré comme classe.
+- signature: `.venv/bin/python -m pytest tests/test_no_except_swallows_the_interrupt.py -q`
+- long_term_fix: chaque site nomme sa classe d'exception (`(ValueError, IndexError)` pour un `int(input())`, `OSError` pour une création de dossier, avec la raison journalisée). Le garde lit `ast.ExceptHandler.type is None` : les deux commentaires ci-dessus contiennent la chaîne exacte qu'un `grep` chercherait, donc un garde textuel serait rouge sur du code correct — et le réflexe suivant serait d'affaiblir la documentation pour faire taire le test. Portée déclarée en positif (`_ROOTS`), archives exclues **par nom** et l'exclusion prouvée honnête par `test_the_archives_are_really_dead`, qui vérifie en AST qu'aucun module vivant ne les importe.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_except_swallows_the_interrupt.py }
+- rex_ref: scripts/manage_mapping.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: vu rouge par mutation — un `except:` nu réintroduit dans `manage_mapping.py`, le garde tombe.
+  - 2026-09-03: **le contrôle d'archives mortes était textuel au premier jet** et matchait la prose `archive.md` dans des commentaires ordinaires. Deuxième fois dans le MÊME fichier, celui qui explique pourquoi il faut lire l'AST. Réécrit sur `ast.Import`/`ast.ImportFrom`.
+
+## retry-blind-to-the-exception-its-client-raises
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un décorateur `@retry` est en place, visible, jamais retiré — et **aucune tentative n'a jamais été rejouée**. Un blip réseau fait échouer la tâche du premier coup, là où le collecteur voisin en rejoue trois.
+- root_cause: `src/utils/retry.py` ne listait que `psycopg2.OperationalError`, `requests.exceptions.Timeout` et `ConnectionError`. Or `src/collectors/youtube_collector.py` n'utilise pas `requests` : il passe par `googleapiclient`, donc `httplib2`, qui lève **`socket.timeout`** — aucune des trois. Les cinq méthodes du collecteur portent `@retry(max_attempts=3)` depuis toujours (`:27,77,156,207,261`) et le décorateur ne pouvait attraper aucune de leurs pannes réseau. Le défaut est invisible parce que le symptôme — un run YouTube rouge — se lit comme une panne d'API, pas comme un retry qui n'a pas eu lieu.
+- signature: `.venv/bin/python -m pytest tests/test_every_network_call_has_a_deadline.py -q`
+- long_term_fix: `TimeoutError` (alias de `socket.timeout` depuis Python 3.10) ajouté à `RETRIABLE_EXCEPTIONS`. **Pas `OSError`** : il couvrirait `FileNotFoundError` et `PermissionError`, qui ne deviennent pas vraies en attendant. Vérifié dans les deux sens — `socket.timeout` rejoué, `FileNotFoundError` non. Le client YouTube reçoit en plus un `http=httplib2.Http(timeout=30)` explicite, pour s'aligner sur le plafond des collecteurs voisins plutôt que d'hériter du défaut de la bibliothèque.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_network_call_has_a_deadline.py }
+- rex_ref: src/utils/retry.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: **ma première rédaction de cette classe était fausse.** Elle affirmait, d'après un rapport d'agent, que `build()` sans `http=` donne `timeout=None` et que l'appel était donc illimité. Mesuré en construisant réellement le client : googleapiclient impose **60 s** par défaut. L'appel était borné ; ce qui ne l'était pas, c'est la capacité du retry à voir l'exception. Corriger la cause a rendu la classe plus utile, pas moins : le correctif d'origine (baisser le timeout) n'aurait rien réparé.
+  - 2026-09-03: leçon d'outillage — un rapport d'agent est une piste, pas une mesure. Une ligne de Python (`build(...)._http.timeout`) a suffi à trancher.
+
+## capability-resolved-only-inside-a-session
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une fonctionnalité facturée ne peut pas être livrée par un travail de fond, parce que la seule façon de savoir qui y a droit exige une session de navigateur.
+- root_cause: **aucun DAG n'avait jamais lu les tables de plan pour un droit d'accès.** La précédence complète — promo → abonnement Stripe actif → `saas_artists.tier` hérité → `free` — n'existait qu'une fois, dans `src/dashboard/auth.py:711-787`, derrière `@st.cache_data` et `st.session_state`. `alert_monitor.check_billing_sync` touche bien `artist_subscriptions`, mais seulement pour signaler une dérive Stripe à l'exploitant : il ne demande jamais si un locataire a droit à une fonctionnalité. Conséquence directe : le digest hebdomadaire, devenu payant le 2026-09-03, n'avait aucun moyen de poser la question. Et le contrat de `PLAN_FEATURES` (`stripe_schema.py` : *« Keys must match page route keys defined in app.py »*) interdit d'y glisser une fonctionnalité qui n'est pas une page — `tests/test_plan_gating.py` itère l'ensemble gratuit **comme des pages**.
+- signature: `.venv/bin/python -m pytest tests/test_the_digest_is_a_paid_feature.py -q`
+- long_term_fix: `src/utils/plan_resolver.py` porte la SQL de précédence et n'importe **pas** streamlit — c'est la condition pour qu'un DAG puisse l'importer. `auth.py` garde sa couche `@st.cache_data` et délègue : une seule règle, jamais deux copies qui divergent dans la direction qui ne se voit sur aucune des deux surfaces (un client facturé premium qui cesse de recevoir, ou un gratuit qui reçoit). Le raccourci admin `_view_as` est délibérément **absent** du résolveur : c'est un aperçu de session, jamais un fait de facturation. `PLAN_CAPABILITIES` est l'ensemble frère pour tout ce qui n'est pas une page, et un test affirme l'inverse du contrat existant — aucune capacité n'est une route.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_digest_is_a_paid_feature.py }
+- rex_ref: src/utils/plan_resolver.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: trois mutations, trois rouges — test de capacité retiré, `email_verified` retiré de la requête, `raise` final retiré.
+  - 2026-09-03: **la mutation sur `email_verified` est d'abord passée VERTE.** La clause avait été commentée en SQL (`--`), donc la chaîne restait présente dans le littéral et le garde la trouvait. Un garde qui vérifie la PRÉSENCE d'une clause ne vérifie pas son ACTIVITÉ : les commentaires SQL sont désormais retirés avant comparaison.
+  - 2026-09-03: `marketing_consent` écarté au profit d'une colonne dédiée (migration 081). Un récapitulatif des chiffres du client, pour une fonctionnalité qu'il paie, est un e-mail de **service** ; le drapeau marketing vaut FALSE par défaut et n'est posé qu'à l'inscription, donc s'y adosser aurait fait que la majorité des premium ne recevrait jamais ce qu'elle a acheté — sans que rien ne le signale.

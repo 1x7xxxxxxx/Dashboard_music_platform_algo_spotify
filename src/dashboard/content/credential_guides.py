@@ -163,26 +163,22 @@ _SOUNDCLOUD = PlatformCred(
     title="SoundCloud",
     icon="☁️",
     intro=(
-        "Une **seule valeur** à fournir : votre **User ID** SoundCloud (un nombre). "
-        "Streams et followers sont ensuite collectés automatiquement."
+        "Une **seule chose** à fournir : le **lien de votre profil** SoundCloud. "
+        "On en déduit votre identifiant ; streams et followers sont ensuite collectés "
+        "automatiquement."
     ),
-    portal_url="https://soundcloud.com/discover",
+    portal_url="https://soundcloud.com",
     steps=(
-        CredStep("Connecté à SoundCloud, ouvrez "
-                 "[soundcloud.com/discover](https://soundcloud.com/discover)."),
-        CredStep("Affichez le **code source** de la page (**{{VIEW_SOURCE}}**), puis "
-                 "cherchez (**{{FIND}}**) exactement ceci :\n\n"
-                 "```\nsoundcloud:users:\n```\n"
-                 "Le **nombre collé juste après les deux-points** est votre **User ID** "
-                 "— dans `soundcloud:users:377065610`, c'est `377065610`. Ne copiez ni "
-                 "le préfixe, ni les deux-points.",
-                 "soundcloud_user_id.png", "Code source → soundcloud:users:<votre ID>"),
-        CredStep("Collez ce **User ID** dans **🔑 Credentials API → SoundCloud**, puis "
-                 "**Tester la connexion**."),
+        CredStep("Ouvrez votre **profil SoundCloud** et copiez l'adresse affichée "
+                 "dans la barre du navigateur — elle ressemble à "
+                 "`https://soundcloud.com/votre-nom`."),
+        CredStep("Collez ce lien dans **🔑 Credentials API → SoundCloud**, puis "
+                 "**Enregistrer**. Votre User ID est retrouvé automatiquement et "
+                 "affiché en confirmation."),
     ),
     fields=(
-        CredField("User ID", "377065610",
-                  note="le nombre trouvé dans le code source de /discover"),
+        CredField("Profil SoundCloud", "https://soundcloud.com/votre-nom",
+                  note="le lien de votre page ; le User ID numérique en est déduit"),
     ),
 )
 

@@ -73,7 +73,7 @@ def add_mapping():
         idx = int(input("\n👉 Entrez le numéro de la campagne (index) : "))
         selected_camp = df_camp.iloc[idx]['campaign_name']
         print(f"✅ Campagne : {selected_camp}")
-    except:
+    except (ValueError, IndexError):
         print("❌ Sélection invalide.")
         return
 
@@ -89,7 +89,7 @@ def add_mapping():
         idx = int(input("\n👉 Entrez le numéro de la chanson : "))
         selected_track = df_tracks.iloc[idx]['track_name']
         print(f"✅ Chanson : {selected_track}")
-    except:
+    except (ValueError, IndexError):
         print("❌ Sélection invalide.")
         return
 
@@ -128,7 +128,7 @@ def delete_mapping():
             db.conn.commit()
         print("🗑️ Supprimé.")
         db.close()
-    except:
+    except (ValueError, IndexError):
         print("Erreur ou Annulation.")
 
 def main_menu():

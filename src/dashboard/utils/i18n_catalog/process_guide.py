@@ -1,6 +1,10 @@
 """EN catalog for the process_guide view."""
 
 EN = {
+    "process_guide.web_version": "🌐 Open the full guide in a tab",
+    "process_guide.web_version_note": (
+        "Web version: always current, sharp images, clickable links."
+    ),
     "process_guide.title": "📋 Getting started guide",
     "process_guide.caption": "The 4 steps to set up your credentials, import your CSVs, launch "
                              "data collection and link your Meta Ads campaigns to your Spotify tracks.",

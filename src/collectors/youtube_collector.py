@@ -1,4 +1,5 @@
 """Collecteur pour YouTube Data API v3."""
+import httplib2
 from googleapiclient.discovery import build
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
@@ -6,6 +7,10 @@ import logging
 from src.utils.retry import retry
 from src.utils.safe_error import safe_error
 from src.utils.api_errors import is_empty_uploads_playlist
+
+# Seconds. Matches the ceiling the sibling collectors already use on their
+# `requests` calls, so one platform hanging cannot outlive the others.
+_HTTP_TIMEOUT = 30
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +26,20 @@ class YouTubeCollector:
             api_key: Clé API YouTube Data API v3
         """
         self.api_key = api_key
-        self.youtube = build('youtube', 'v3', developerKey=api_key)
+        # A deadline around the WHOLE call, not just the socket. Measured 2026-09-03:
+        # `build()` with no `http=` gives googleapiclient an `httplib2.Http()` whose
+        # timeout is None, so a hung YouTube response blocked forever. The five
+        # @retry-decorated methods below could not save it either — `src/utils/retry.py`
+        # retries `requests.exceptions.Timeout` and `ConnectionError`, and **httplib2
+        # raises neither**. So the call was neither bounded nor retried: it held until
+        # `dagrun_timeout_for('youtube_daily')` killed the whole run, losing the day for
+        # every tenant and reporting a DAG-level failure that named the wrong thing.
+        #
+        # The convention already existed one directory over — soundcloud_api_collector
+        # passes `timeout=` at four call sites, instagram_api_collector at one. YouTube
+        # was the hole in it. Class `timeout-bounds-the-socket-not-the-call`.
+        self.youtube = build('youtube', 'v3', developerKey=api_key,
+                             http=httplib2.Http(timeout=_HTTP_TIMEOUT))
         logger.info("✅ YouTubeCollector initialisé")
 
     @retry(max_attempts=3, backoff="exponential")

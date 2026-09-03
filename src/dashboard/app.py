@@ -153,8 +153,8 @@ def _verify_email(token: str) -> None:
         db.close()
 
 
-def _unsubscribe(uid: str, token: str) -> None:
-    """Handle the one-click unsubscribe link (?page=unsubscribe&uid=&t=).
+def _unsubscribe(uid: str, token: str, scope: str = "marketing") -> None:
+    """Handle the one-click unsubscribe link (?page=unsubscribe&uid=&t=&scope=).
 
     Verifies the HMAC token, then sets marketing_consent=FALSE for that user — no
     login required. Mirrors the toggle in 'Mon compte → Communications'.
@@ -176,16 +176,32 @@ def _unsubscribe(uid: str, token: str) -> None:
                    "Base de données injoignable. Réessayez plus tard."))
         return
     try:
-        db.execute_query(
-            "UPDATE saas_users SET marketing_consent = FALSE, marketing_consent_at = now() "
-            "WHERE id = %s",
-            (user_id,),
-        )
-        st.success(t(
-            "app.unsub_success",
-            "✅ C'est fait — vous ne recevrez plus de communications marketing. "
-            "Vous pouvez réactiver l'option à tout moment dans « Mon compte → Communications »."
-        ))
+        # One link, two scopes. `digest` stops the weekly recap ONLY: it is a service
+        # e-mail for a paid feature, and clearing `marketing_consent` for it would
+        # silently switch off every unrelated communication as well. Column names are
+        # not interpolated — the branch is explicit, so there is no identifier to
+        # validate against an allowlist (cross-cutting rule #8).
+        if scope == "digest":
+            db.execute_query(
+                "UPDATE saas_users SET weekly_digest_optout_at = now() WHERE id = %s",
+                (user_id,),
+            )
+            st.success(t(
+                "app.unsub_digest_success",
+                "✅ C'est fait — vous ne recevrez plus le récapitulatif hebdomadaire. "
+                "Vos autres e-mails ne changent pas."
+            ))
+        else:
+            db.execute_query(
+                "UPDATE saas_users SET marketing_consent = FALSE, marketing_consent_at = now() "
+                "WHERE id = %s",
+                (user_id,),
+            )
+            st.success(t(
+                "app.unsub_success",
+                "✅ C'est fait — vous ne recevrez plus de communications marketing. "
+                "Vous pouvez réactiver l'option à tout moment dans « Mon compte → Communications »."
+            ))
     finally:
         db.close()
 
@@ -201,7 +217,7 @@ _NAV_SECTIONS = [
     ("data",      "📁 Données",             [("🚀 Mise en route (assistant)", "onboarding"),
                                              ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
-                                             ("📂 Import CSV", "upload_csv"),
+                                             ("📂 Ajouter mes chiffres Spotify & Apple", "upload_csv"),
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
@@ -642,7 +658,9 @@ def _main_body():
         st.stop()
 
     if _page_param == "unsubscribe":
-        _unsubscribe(st.query_params.get("uid", ""), st.query_params.get("t", ""))
+        _unsubscribe(st.query_params.get("uid", ""),
+                     st.query_params.get("t", ""),
+                     st.query_params.get("scope", "marketing"))
         st.stop()
 
     # RGPD Art. 13 : informer AVANT de poser le cookie, donc sur l'écran de
