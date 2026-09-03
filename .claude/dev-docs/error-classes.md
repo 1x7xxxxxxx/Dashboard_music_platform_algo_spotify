@@ -234,6 +234,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [bare-except](#bare-except) | P2 | deterministic | guarded | none |
 | [retry-blind-to-the-exception-its-client-raises](#retry-blind-to-the-exception-its-client-raises) | P2 | deterministic | guarded | none |
 | [capability-resolved-only-inside-a-session](#capability-resolved-only-inside-a-session) | P2 | deterministic | guarded | none |
+| [probe-reads-unreadable-as-absent](#probe-reads-unreadable-as-absent) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3010,3 +3011,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-03: trois mutations, trois rouges — test de capacité retiré, `email_verified` retiré de la requête, `raise` final retiré.
   - 2026-09-03: **la mutation sur `email_verified` est d'abord passée VERTE.** La clause avait été commentée en SQL (`--`), donc la chaîne restait présente dans le littéral et le garde la trouvait. Un garde qui vérifie la PRÉSENCE d'une clause ne vérifie pas son ACTIVITÉ : les commentaires SQL sont désormais retirés avant comparaison.
   - 2026-09-03: `marketing_consent` écarté au profit d'une colonne dédiée (migration 081). Un récapitulatif des chiffres du client, pour une fonctionnalité qu'il paie, est un e-mail de **service** ; le drapeau marketing vaut FALSE par défaut et n'est posé qu'à l'inscription, donc s'y adosser aurait fait que la majorité des premium ne recevrait jamais ce qu'elle a acheté — sans que rien ne le signale.
+
+## probe-reads-unreadable-as-absent
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un outil de diagnostic accuse le produit d'un défaut qu'il n'a pas — et il vise précisément la page où un vrai défaut coûterait le plus cher.
+- root_cause: `make artist-firstlook` a rapporté `upload_csv` en **CUL-DE-SAC** — « rien à cliquer, saisir ou télécharger » — alors que la page porte un `st.file_uploader` et détient un taux de complétion de **0 sur 4** chez les artistes invités. La chaîne : le `Makefile` lançait l'outil sous le `python3` **système**, qui porte Streamlit **1.54**, quand le venv de la suite porte **1.62** ; sur 1.54, `AppTest` n'a **aucun** attribut `file_uploader`, donc `getattr` lève ; `_has_any` attrapait ça par un `except: continue` et rendait `False` ; ce `False` alimentait directement `dead_end`. **« Je ne sais pas lire » était devenu « il n'y en a pas ».** Deux défauts distincts en un : l'interpréteur (`tests-run-a-different-core-than-prod`) et l'effondrement de *inconnu* sur *non*. Second constat de la même séance : `--artist 17` contre la base LOCALE rendait chaque page sous `user_id=0` et sortait « Utilisateur introuvable » — l'artiste 17 a une ligne utilisateur en production et aucune en local, donc l'outil décrivait la base, pas le produit.
+- signature: `.venv/bin/python -m pytest tests/test_a_probe_says_when_it_cannot_see.py -q`
+- long_term_fix: `_has_any` rend `(trouvé, illisibles)` et un verdict de cul-de-sac exige que **tout** ait été lisible ; les accesseurs illisibles sont imprimés, jamais comptés comme absents. Le `Makefile` appelle les outils de parcours avec `$(GUIDE_PY)`, le même interpréteur que la suite. L'outil **refuse** un locataire sans ligne `saas_users` en nommant la commande qui marcherait (`artist-firstlook-prod`) — un refus qui ne dit pas quoi faire ensuite est un demi-refus. Et `artist-preflight` refuse désormais un `PROD_SSH` qu'il ignorait silencieusement : la cible lit la base locale, et le croire a coûté un diagnostic entier sur le mauvais locataire.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_probe_says_when_it_cannot_see.py }
+- rex_ref: tools/artist_first_look.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: deux mutations, deux rouges — retour au `python3` système, et `_has_any` rendu à un booléen nu.
+  - 2026-09-03: **le garde lui-même a commis deux fois la faute qu'il décrit.** Première version : interdire `python3 tools/…` partout dans le `Makefile`, ce qui condamnait un `docker exec … python3` où l'interpréteur du conteneur est le BON. Deuxième : lire ligne à ligne, alors qu'une recette make est une COMMANDE — `docker exec` était sur une ligne et `python3` sur la suivante. Prédicat resserré, continuations jointes.

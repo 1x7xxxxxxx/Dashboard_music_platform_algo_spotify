@@ -7,11 +7,14 @@ PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | 
 # The guide PDF needs WeasyPrint's NATIVE stack (cairo/pango). The Windows venv in
 # $(PYTHON) does not carry it; the Linux one does. Resolved here rather than in the
 # recipe so `make guide` fails on its precondition (rule #10) and not mid-render.
+# Also used by the artist-journey tools: the SYSTEM python3 carries a different
+# Streamlit (1.54 vs 1.62 here), whose AppTest lacks `file_uploader` — which
+# reported `upload_csv` as a dead end when it is not.
 GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(PYTHON))
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -101,9 +104,9 @@ artist-firstlook: check-db ## Show what a BRAND-NEW artist sees, page by page. A
 	@# through both failed beta sessions. This prints what is ON THE SCREEN: titles,
 	@# buttons, messages, and whether the page offers anything to do at all. The six
 	@# defects of 2026-08-23 were all correct code that nothing reached.
-	@python3 tools/artist_first_look.py $(if $(ARTIST),--artist $(ARTIST),)
+	@$(GUIDE_PY) tools/artist_first_look.py $(if $(ARTIST),--artist $(ARTIST),)
 
-artist-firstlook-prod: ## Same, but against the code RUNNING IN PRODUCTION. PROD_SSH=user@host
+artist-firstlook-prod: ## Same, against the code RUNNING IN PROD. PROD_SSH=user@host ARTIST=<id>
 	@# `artist-firstlook` renders the LOCAL working tree against the LOCAL database
 	@# on 127.0.0.1:5433 (see check-db). That answers "what will my change show an
 	@# artist", not "what does the live app show one" — and this session measured a
@@ -111,21 +114,42 @@ artist-firstlook-prod: ## Same, but against the code RUNNING IN PRODUCTION. PROD
 	@test -n "$(PROD_SSH)" || { echo "❌ set PROD_SSH=user@host"; exit 1; }
 	@scp -q tools/artist_first_look.py $(PROD_SSH):/tmp/afl.py
 	@ssh $(PROD_SSH) 'docker cp /tmp/afl.py streamlytics_dashboard:/tmp/afl.py >/dev/null \
-		&& docker exec streamlytics_dashboard python3 /tmp/afl.py 2>/dev/null; \
+		&& docker exec streamlytics_dashboard python3 /tmp/afl.py $(if $(ARTIST),--artist $(ARTIST),) 2>/dev/null; \
 		rm -f /tmp/afl.py; docker exec streamlytics_dashboard rm -f /tmp/afl.py'
+
+artist-preflight-prod: ## Preflight contre la PRODUCTION. PROD_SSH=user@host ARTIST=<id>
+	@# Ajoutee le 2026-09-03, apres avoir refait l incantation a la main. `tools/`
+	@# n est monte dans AUCUN conteneur (contrainte connue), donc il faut l y copier
+	@# avant de lancer — quatre commandes que personne ne retient, et dont l oubli
+	@# fait croire que le preflight ne marche pas.
+	@test -n "$(PROD_SSH)" || { echo "❌ set PROD_SSH=user@host"; exit 1; }
+	@tar czf /tmp/_afp_tools.tgz tools/*.py
+	@scp -q /tmp/_afp_tools.tgz $(PROD_SSH):/tmp/_afp_tools.tgz
+	@ssh $(PROD_SSH) 'docker cp /tmp/_afp_tools.tgz streamlytics_dashboard:/tmp/ >/dev/null \
+		&& docker exec -w /app streamlytics_dashboard sh -c "tar xzf /tmp/_afp_tools.tgz -C /app \
+		&& python3 tools/artist_preflight.py $(if $(ARTIST),--artist $(ARTIST),) --diagnose"; \
+		rm -f /tmp/_afp_tools.tgz'
+	@rm -f /tmp/_afp_tools.tgz
 
 artist-sandbox: check-db ## Locataire d'essai pour rejouer l'onboarding avec TES identifiants. RESET=1 / DELETE=1
 	@$(PYTHON) tools/create_sandbox.py \
 	  $(if $(SLUG),--slug $(SLUG),) $(if $(RESET),--reset,) $(if $(DELETE),--delete,)
 
-artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist. ARTIST=<id> optional
+artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an artist (base LOCALE). ARTIST=<id>
 	@# Five steps, stops at the first red: central apps present+authenticating,
 	@# tenant identity declared, connection tests, data landed, no contaminated rows.
 	@# Two beta sessions failed on things every one of these would have caught.
-	@python3 tools/artist_preflight.py $(if $(ARTIST),--artist $(ARTIST),)
+	@# Cette cible lit la base LOCALE (voir `check-db`). Passer PROD_SSH n'y change
+	@# rien, et le croire coûte une séance : le 2026-09-03 elle a été lancée avec
+	@# PROD_SSH et a testé le locataire 471, un canari LOCAL, pas la production.
+	@# Un argument silencieusement ignoré est pire qu'un argument refusé.
+	@test -z "$(PROD_SSH)" || { echo "❌ artist-preflight lit la base LOCALE — PROD_SSH est ignoré."; \
+	  echo "   Pour la production : make artist-firstlook-prod PROD_SSH=$(PROD_SSH)"; \
+	  echo "   Ou relancez sans PROD_SSH pour viser la base locale."; exit 1; }
+	@$(GUIDE_PY) tools/artist_preflight.py $(if $(ARTIST),--artist $(ARTIST),)
 
 tenant-check: check-db ## Report rows sitting under a tenant they cannot belong to (read-only)
-	@python3 tools/tenant_contamination_check.py
+	@$(GUIDE_PY) tools/tenant_contamination_check.py
 
 check-db:    ## Fail fast if the app database is unreachable (prerequisite, rule #10)
 	@python3 -c "import os,sys,socket;\
