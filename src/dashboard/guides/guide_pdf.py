@@ -388,6 +388,44 @@ def output_html_path(lang: str = "fr") -> Path:
     return config_loader.project_root / "docs" / "guides" / name
 
 
+_DATA_URI_RE = re.compile(r'data:image/png;base64,([A-Za-z0-9+/=]+)')
+
+
+def _externalise_images(html_text: str, out_dir: Path) -> str:
+    """Write the embedded PNGs as files and point the page at them.
+
+    Measured 2026-09-03, on the page published an hour earlier: **98 % of its 978 KB
+    was base64**, and base64 inflates a PNG by exactly 33 % (719 KB of image became
+    957 KB of text). The prose and CSS are 20 KB. So a reader paid ~700 KB gzipped
+    on EVERY visit for a document whose text is a rounding error, and a browser could
+    cache none of it separately because it was one HTML blob.
+
+    Files for the PAGE, base64 for the PDF — the asymmetry is the point. A PDF is
+    mailed and downloaded, so it has to be self-contained; a page is served from a
+    directory Caddy already exposes, where each image is cacheable on its own and
+    unchanged images survive a guide edit.
+
+    Named by content hash: two guides referencing the same screenshot write it once,
+    and a re-render with no visual change produces byte-identical filenames, so the
+    directory does not churn.
+    """
+    import base64
+    import hashlib
+
+    img_dir = out_dir / "img"
+    img_dir.mkdir(parents=True, exist_ok=True)
+
+    def _swap(match: re.Match) -> str:
+        raw = base64.b64decode(match.group(1))
+        name = f"{hashlib.sha256(raw).hexdigest()[:16]}.png"
+        path = img_dir / name
+        if not path.exists():
+            path.write_bytes(raw)
+        return f"img/{name}"
+
+    return _DATA_URI_RE.sub(_swap, html_text)
+
+
 def build_guide_html_page(lang: str = "fr", out: Path | None = None) -> Path:
     """Write the SAME html the PDF is made of, as a standalone web page.
 
@@ -409,10 +447,11 @@ def build_guide_html_page(lang: str = "fr", out: Path | None = None) -> Path:
     """
     target = out or output_html_path(lang)
     target.parent.mkdir(parents=True, exist_ok=True)
+    html_text = _externalise_images(build_guide_html(lang), target.parent)
     # Trailing newline emitted here, not left to `end-of-file-fixer`: without it the
     # pre-commit hook rewrites the file after `make guide` has fingerprinted it, so
     # every commit would fail the artefact guard it just satisfied.
-    target.write_text(build_guide_html(lang) + "\n", encoding="utf-8")
+    target.write_text(html_text + "\n", encoding="utf-8")
     return target
 
 

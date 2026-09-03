@@ -108,7 +108,7 @@ identité**. Sauf deux exceptions, ci-dessous.
 | Plateforme | Ce que l'ARTISTE fait | Ce que TOI tu dois avoir fait avant |
 |---|---|---|
 | **🎵 Spotify** | ouvre sa page artiste → **⋯ → Partager → Copier le lien** → colle l'URL | app `client_credentials` créée, `SPOTIFY_CLIENT_ID/SECRET` dans le conteneur |
-| **☁️ SoundCloud** | ouvre `soundcloud.com/discover`, **affiche le code source**, cherche `soundcloud:users:` → colle le nombre | OAuth `refresh_token` frappé (runbook SoundCloud) |
+| **☁️ SoundCloud** | ouvre **son profil** et colle l'adresse (`soundcloud.com/son-nom`) — l'ID est retrouvé tout seul | OAuth `refresh_token` frappé (runbook SoundCloud) |
 | **📱 Meta Ads** | ouvre `adsmanager.facebook.com`, lit `act=…` dans **l'URL** → colle le nombre | System User + token 5 scopes |
 | **📱 Instagram** *(optionnel)* | l'**ID du compte Instagram Business** — le compte doit être en **Business/Créateur** et relié à une **Page Facebook** | idem Meta |
 | **🎬 YouTube** | crée une **clé API** sur Google Cloud Console (7 étapes) + relève son **Channel ID** | — |
@@ -121,9 +121,10 @@ que l'artiste n'a pas **partagé ce compte avec ton Business Manager** (Business
 Le guide dans l'app ne le dit nulle part. **Dis-le à l'artiste de vive voix**, jusqu'à ce
 que ce soit corrigé.
 
-**⚠️ Deux gestes de développeur.** YouTube (créer une clé API Google Cloud) et SoundCloud
-(afficher le code source d'une page) ne sont pas des gestes d'artiste. Attends-toi à les
-faire **avec lui**, en partage d'écran. Note son hésitation : c'est une donnée produit.
+**⚠️ Un geste de développeur, plus deux.** Depuis le 2026-09-03, SoundCloud n'en est
+plus un : l'artiste colle le lien de son profil et le serveur résout l'ID via `/resolve`.
+Reste **YouTube** (créer une clé API Google Cloud, 7 étapes) — attends-toi à le faire
+**avec lui**, en partage d'écran. Note son hésitation : c'est une donnée produit.
 
 ### Étape 5 — après chaque connexion, le verdict est immédiat
 

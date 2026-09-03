@@ -76,6 +76,12 @@ streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
 	# `handle` must precede `reverse_proxy` or Streamlit swallows the path.
 	handle /guide* {
 		root * /opt/streamlytics/docs/guides
+		# Les captures sont nommees par hash de contenu : une image qui change change
+		# de nom, donc un cache long ne peut pas servir une version perimee. Sans cet
+		# en-tete le lecteur retelechargeait 700 Ko a chaque visite.
+		@img path *.png
+		header @img Cache-Control "public, max-age=31536000, immutable"
+		header Cache-Control "public, max-age=300"
 		try_files {path} /index.html
 		file_server
 	}

@@ -51,6 +51,7 @@ rather than the content dataclasses, and why `APP_BASE_URL` is normalised out.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -207,9 +208,30 @@ def test_the_guide_web_page_is_built_alongside_the_pdf(name: str):
     assert page.is_file(), f"{page} is missing — run `{REBUILD}`"
     text = page.read_text(encoding="utf-8")
     assert text.lstrip().startswith("<!DOCTYPE html>")
-    assert "data:image/png;base64," in text, (
-        "the page references images instead of embedding them: `file_server` would "
-        "have to resolve paths, and a copy of the file anywhere would break."
+    # Files, not data URIs — the opposite of the PDF, and measured. The first version
+    # of this page embedded every screenshot: 98 % of its 978 KB was base64, which
+    # inflates a PNG by 33 %, for 20 KB of actual prose. Now 21 KB of HTML plus images
+    # a browser caches on their own.
+    assert "data:image/png;base64," not in text, (
+        "the page embeds its images again: a reader pays ~700 KB gzipped on every "
+        "visit for 20 KB of text, and no image can be cached separately."
+    )
+    assert 'src="img/' in text, "the page references no image at all"
+    for ref in set(re.findall(r'src="(img/[0-9a-f]+\.png)"', text)):
+        assert (GUIDES / ref).is_file(), f"{ref} is referenced but was not written"
+
+
+def test_the_pdf_stays_self_contained():
+    """The asymmetry with the page, asserted so a refactor cannot unify them.
+
+    A PDF is mailed and downloaded; it has to carry its images. A page is served from
+    a directory. Externalising the PDF's images would produce a document that renders
+    as broken boxes in an inbox.
+    """
+    pdf = (GUIDES / "onboarding_guide.pdf").read_bytes()
+    assert b"img/" not in pdf[:4096], (
+        "the PDF references external images — mailed as an attachment it would show "
+        "empty frames."
     )
 
 
