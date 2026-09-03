@@ -5,6 +5,108 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-03 (soir) — Des questions sur la mise en page, un document périmé de 82 jours
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`0b83522`, PR #123 et #124). Point de départ :
+six questions sur le **guide de démarrage** — alignement, couleurs, trous, sommaire,
+faut-il expliquer le CSV, quel format. Aucune ne parlait de contenu périmé.
+
+### Ce que la vérification a trouvé avant de répondre
+
+Le PDF servi aux artistes avait **82 jours de retard sur ses propres sources** :
+commité le 2026-06-13 (`1141d02`), sources modifiées le 2026-08-30, et le serveur
+portait toujours les deux fichiers datés `Jun 13 00:00`. `pdftotext` sur ce qui était
+livré, contre **zéro** dans la source :
+
+| Chaîne livrée | × | Dans la source |
+|---|---|---|
+| `127.0.0.1:8888` | 2 | supprimée par R50 |
+| `Client Secret` | 2 | remplacée par « une seule valeur : ton lien Spotify Artist » |
+| `Web API` | 1 | supprimée |
+
+Ces trois chaînes **sont** les remarques d'artiste « uri non bonne », « rajout de s sur
+uri », « web api pas cochée ». Corrigées dans le code en juin, **encore livrées en
+septembre**.
+
+Six gardes couvrent ce guide. Ils lisent tous la **source** ; aucun n'ouvre le PDF. Or
+c'est le PDF que l'e-mail de bienvenue attache et que les deux boutons servent. La
+chaîne complète est la classe : *construit à la main → commité → reconstruit par aucune
+automatisation → rendu par aucun test → monté dans le conteneur → servi.*
+
+### Le garde, et pourquoi il a fallu deux essais
+
+Ni « reconstruire en CI » (`ci.yml:62-70` retire délibérément `libcairo2-dev` —
+« dashboard-only, not CI ») ni « hasher le PDF » (WeasyPrint n'est pas reproductible
+d'une version à l'autre). D'où `.guide_fingerprint`, écrit dans le même souffle que les
+PDF.
+
+**La première version est passée VERTE sur son propre défaut.** Elle ne stockait que
+`source=` et le comparait aux sources : elle répondait « les sources ont-elles bougé ? »,
+un substitut. Remettre les PDF de juin en laissant l'empreinte intacte ne la faisait pas
+bouger. 7ᵉ occurrence de « la portée du prédicat est le défaut ». La moitié `rendered=`
+pose la vraie question : *ce qu'on livre est-il ce qu'on a construit ?*
+
+Trois mutations, trois rouges. La plus parlante : PDF de juin restaurés → le nouveau
+garde tombe et **les 25 assertions des cinq fichiers de gardes existants restent
+vertes**. C'est la mesure exacte du trou.
+
+### Ce que la production a dit des questions posées
+
+Les questions portaient sur la qualité du guide. La base répond autre chose.
+
+**L'étape CSV a un taux de complétion de 0 sur 4.** Toutes les tables alimentées par CSV
+— `s4a_song_timeline`, `s4a_audience`, `apple_daily_plays`, `distrokid_monthly_revenue`,
+`imusician_monthly_revenue` — ne contiennent des lignes que pour l'artiste 1, l'admin.
+`usage_events` donne l'entonnoir : `home` 6 locataires → `credentials` 3 →
+`process_guide` 3 → `upload_csv` **2** → **0 dépôt**. Et `pdf_generate` : 14 fois, un
+seul locataire, l'admin, la dernière le 2026-06-15 — **aucun artiste n'a jamais généré
+le guide** dont on discutait la typographie.
+
+**Et la rétention est de 0 sur 6.** Chaque locataire non-admin n'a qu'**une seule
+journée** d'activité. Confirmé par un second type d'événement pour écarter un artefact
+d'instrumentation : `count(DISTINCT ts::date)` sur les `login` donne 1 jour pour chacun
+des 6, contre **13 jours pour l'admin** sur la même fenêtre.
+
+### Le diagnostic de mise en page, mesuré et non ressenti
+
+- **L'alignement était déjà juste** : aucun `text-align` déclaré, donc drapeau à gauche
+  par défaut — la bonne valeur (Few, *Show Me the Numbers* p.192). Rien ne l'énonçait.
+- **Les « trous » ont une cause mécanique** : `.platform { page-break-inside: avoid }`
+  sans `orphans`/`widows`. Un bloc qui ne tient pas est repoussé entier.
+- **Les captures pixelisées sont exactement 9 sur 25.** Colonne utile A4 = 174 mm ≈
+  **658 px**. `max-width: 100%` ne fait que réduire : les 9 images plus étroites que
+  658 px s'affichent à leur taille naturelle, donc **96 dpi, jamais plus**. Les 16 autres
+  sont ramenées à la colonne et tombent entre 105 et 279 dpi — elles vont bien.
+- **`.caption` est à 3,5:1** sur fond blanc, sous le seuil WCAG AA de 4,5:1, à 10 px —
+  et c'est le texte qui légende chaque capture.
+
+### Défaut voisin, corrigé dans la même passe
+
+`_guide_pdf_paths()` attachait **les deux PDF, FR et EN, à tout destinataire** — ~1,5 Mo
+dont la moitié n'adresse personne — alors que `send_welcome_email` reçoit `lang` et s'en
+sert pour toutes les autres chaînes. Pluriel introduit le 2026-06-13, jamais resserré.
+
+### Les quatre PR Dependabot
+
+Trois fermées, une fusionnée autrement. #103 et #6 touchaient `pyproject.toml` et les
+`requirements*.txt` **sans `uv.lock`** : les merger telles quelles aurait laissé la prod
+sur les anciennes versions pendant que les manifestes annonçaient les nouvelles. Refaites
+avec le lock régénéré (#124) : Streamlit **1.58 → 1.62**, ruff 0.15.17 → 0.16.5,
+google-api-python-client, python-dotenv. `bcrypt` : la borne s'élargit à `<5.1`, la
+version résolue **reste 4.0.1**, donc l'incompatibilité connue de bcrypt 5.x avec
+`passlib.CryptContext` ne se matérialise pas.
+
+**#4 (python 3.11-slim → 3.14-slim) fermée sans merge.** La CI installe 3.11 et
+`Dockerfile.airflow` est sur `apache/airflow:2.11.2-python3.11`, qui ne peut pas monter
+en 3.14. La merger mettrait trois interpréteurs en jeu. Sa CI était verte uniquement
+parce qu'elle ne construit jamais ces images avec la nouvelle base.
+
+Suite complète sous `.venv`, base vivante, sur les dépendances montées : **3 727 passés,
+27 skippés, 0 rouge** — harnais de rendu des 42 vues compris, qui est la seule chose qui
+prouve un saut de 4 versions mineures de Streamlit.
+
+---
+
 ## 2026-09-03 — Trois jours sans personne : ce qui a tenu, et la phrase qui manquait
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`f64c3b5`, PR #122). Le DAG Meta relancé à la
