@@ -4,10 +4,14 @@
 
 PYTHON  := venv/Scripts/python.exe
 PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
+# The guide PDF needs WeasyPrint's NATIVE stack (cairo/pango). The Windows venv in
+# $(PYTHON) does not carry it; the Linux one does. Resolved here rather than in the
+# recipe so `make guide` fails on its precondition (rule #10) and not mid-render.
+GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(PYTHON))
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity
+.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -35,6 +39,21 @@ test:        ## Pytest suite (mêmes drapeaux que la CI) — test_api.py auto-sk
 
 test-changed: ## Seulement les tests atteignables depuis ce qui a changé (règle 16)
 	@$(PYTHON) .claude/scripts/select_tests.py | grep -v '^#' | xargs $(PYTHON) -m pytest -q $(PYTEST_DIST)
+
+check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
+	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \
+	  echo "❌ WeasyPrint is not importable by $(GUIDE_PY)."; \
+	  echo "   The guide PDF needs its native stack (cairo/pango), which CI deliberately"; \
+	  echo "   does NOT install (.github/workflows/ci.yml: 'dashboard-only, not CI')."; \
+	  echo "   Run: make sync"; exit 1; }
+
+guide: check-guide-deps ## Rebuild docs/guides/*.pdf + .guide_fingerprint from the sources
+	@# The ONLY way to refresh the guide. The fingerprint is written by the same command,
+	@# never on its own: one updated alone would certify an artefact nobody rebuilt.
+	@# Enforcement lives in tests/test_the_shipped_guide_is_the_current_guide.py, NOT here
+	@# and not in `sync-check` — the check has to run where WeasyPrint is absent (CI), so
+	@# it compares digests instead of rendering. This target is the remedy it names.
+	@$(GUIDE_PY) -m src.dashboard.guides.guide_pdf
 
 lint:        ## Ruff lint on src/ and tests/
 	ruff check src/ tests/

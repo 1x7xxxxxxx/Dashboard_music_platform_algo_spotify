@@ -178,7 +178,7 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
     """
     subject = _tr('email.welcome.subject',
                   "🎵 Bienvenue — vos premières actions sur streaMLytics", lang)
-    return _send_html(to_email, subject, html, attachments=_guide_pdf_paths())
+    return _send_html(to_email, subject, html, attachments=_guide_pdf_paths(lang))
 
 
 def _unsub_secret() -> bytes:
@@ -245,13 +245,29 @@ def _unsubscribe_footer(user_id: int | None, lang: str = "fr") -> str:
             f"<a href='{url}' style='color:#aaa;'>{link}</a>{suffix}</p>")
 
 
-def _guide_pdf_paths() -> list[str]:
-    """Prebuilt onboarding guide PDFs to attach (FR + EN), existing files only."""
+def _guide_pdf_paths(lang: str = "fr") -> list[str]:
+    """The prebuilt onboarding guide PDF for THIS reader, existing files only.
+
+    Sends one document, not two. Measured 2026-09-03: this function returned both the
+    FR and the EN PDF to every recipient regardless of language — ~1.5 MB of
+    attachments of which half addresses nobody — while `send_welcome_email` already
+    receives `lang` and uses it for every other string in the message. The plural was
+    introduced deliberately on 2026-06-13 (`_guide_pdf_path` -> `_guide_pdf_paths`)
+    and never narrowed afterwards.
+
+    The fallback is the FR document rather than nothing: a reader whose language has
+    no rendered PDF is better served by a guide in the wrong language than by a
+    welcome mail that silently promises an attachment it does not carry — the body
+    says « le guide PDF joint » unconditionally.
+    """
     try:
         import os
         from src.dashboard.guides.guide_pdf import output_pdf_path
-        candidates = [str(output_pdf_path('fr')), str(output_pdf_path('en'))]
-        return [p for p in candidates if os.path.exists(p)]
+        wanted = str(output_pdf_path(lang if lang in ("fr", "en") else "fr"))
+        if os.path.exists(wanted):
+            return [wanted]
+        fallback = str(output_pdf_path("fr"))
+        return [fallback] if os.path.exists(fallback) else []
     except Exception as e:  # noqa: BLE001 — attachment is best-effort, never blocks signup
         logger.warning("Guide PDF paths unavailable: %s", e)
         return []
