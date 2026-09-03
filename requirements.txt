@@ -11,10 +11,10 @@ lime>=0.2.0
 # --- API Clients ---
 facebook-business==18.0.5
 spotipy==2.26.0
-google-api-python-client==2.197.0
+google-api-python-client==2.199.0
 
 # --- Dashboard (Local only - Docker les installera mais ne s'en servira pas) ---
-streamlit==1.58.0
+streamlit==1.62.0
 plotly==5.24.1
 watchdog==3.0.0
 weasyprint>=62.0
@@ -23,7 +23,7 @@ weasyprint>=62.0
 python-dateutil>=2.8.2
 PyYAML==6.0.3
 requests==2.34.2
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 cryptography>=42.0.0
 
 # --- REST API (Brick 14) ---
@@ -37,7 +37,7 @@ passlib[bcrypt]>=1.7.4
 # wrap bug). Without this pin, the entire bcrypt backend fails to load
 # and verify_password / login tests crash. Re-evaluate when passlib >1.7.4
 # ships (project is dormant since 2020).
-bcrypt>=4.0,<4.1
+bcrypt>=4.0,<5.1
 python-multipart>=0.0.9
 
 # --- Stripe billing (Brick 21) ---
