@@ -227,6 +227,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [snapshot-keyed-by-a-per-row-timestamp](#snapshot-keyed-by-a-per-row-timestamp) | P2 | deterministic | guarded | none |
 | [route-depends-on-an-unstated-import-path](#route-depends-on-an-unstated-import-path) | P3 | deterministic | guarded | none |
 | [assertion-wider-than-the-question-it-asks](#assertion-wider-than-the-question-it-asks) | P3 | deterministic | guarded | none |
+| [alert-names-the-class-and-drops-the-reason](#alert-names-the-class-and-drops-the-reason) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -2889,3 +2890,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-31: vu rouge par mutation **non destructive** — le contrôle de motif retiré de `admin.py` sans toucher au chemin de suppression, le test tombe. La mutation destructive a été écartée délibérément : la base locale est une copie migrée de la production.
   - 2026-08-31: 7ᵉ occurrence de « la portée du prédicat est le défaut », et la première où la portée trop **large** produit une fausse accusation au lieu d'un angle mort.
+
+## alert-names-the-class-and-drops-the-reason
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une panne de collecte est correctement détectée, correctement isolée, correctement alertée — et le message reçu ne dit pas quoi faire, parce que la phrase de l'API qui porte le geste est restée dans le conteneur.
+- root_cause: `src/collectors/meta_ads_api_collector.py:182` agrégeait ses échecs par compte publicitaire en `failures.append((account, type(exc).__name__))`. Ce couple part dans le `RuntimeError` du collecteur, donc dans `etl_run_log.error_message` **et** dans le mail nocturne consolidé. Mesuré en prod le 2026-09-03 : cinq nuits d'affilée, le locataire 12 (Benken) recevait `act_65390907 (FacebookRequestError)`. La cause réelle — `(#200) Ad account owner has NOT grant ads_management or ads_read permission` — n'existait que dans le log de la tâche Airflow. Le nom de classe est identique pour un token expiré, un throttle et un partage d'asset manquant : trois gestes différents sous une seule étiquette. L'exclusion de `str(exc)` était, elle, **délibérée et juste** — la SDK Meta stringifie la requête préparée, donc le token System User partagé — mais la contrainte de sécurité avait emporté l'information d'exploitation avec elle.
+- signature: `.venv/bin/python -m pytest tests/test_meta_multi_account.py::TestFailureReasonReachesTheOperator -q`
+- long_term_fix: `_account_failure_reason()` lit les **accesseurs structurés** de l'erreur Meta (`api_error_code`, `api_error_subcode`, `api_error_message`), qui ne rendent que ce que l'API a répondu — la requête n'y figure pas, la contrainte de sécurité est donc tenue par construction et non par omission. Le message est en plus passé par `redact()` : une prose qu'on n'écrit pas est une prose dont on ne présume rien. Le repli sur le nom de classe est conservé pour tout ce qui n'est pas une erreur d'API, y compris un accesseur qui lève — une SDK malformée ne doit pas remplacer une panne par une autre.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_meta_multi_account.py }
+- rex_ref: src/collectors/meta_ads_api_collector.py
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-03: vu rouge par mutation — l'appel remplacé par `type(exc).__name__` en laissant TOUS les commentaires explicatifs en place, 4 des 6 gardes tombent. Les 2 restants sont nommés dans le fichier comme gardes de non-régression du repli, pas du correctif : au premier jet ils étaient verts des deux côtés sans le dire, ce qui est le mode d'échec de `a-textual-guard-is-blind`.
+  - 2026-09-03: le correctif a fait rougir `collector-silent-success` en CI — un `return` depuis un `except` dans un module de `collectors/`. Le prédicat est plus large que sa question (cette fonction ne collecte rien, elle met en forme), et la réponse a été de **restructurer autour d'une sentinelle**, pas de desserrer le garde : un garde à qui on fait de la place ne garde plus rien.
+  - 2026-09-03: trouvé par un audit de tourne, pas par une plainte. Le défaut n'a jamais fait rougir quoi que ce soit : la détection, l'isolation par locataire et l'envoi fonctionnaient tous. C'est la classe voisine de `an-alert-names-a-symptom-and-an-action` (ADR-011), vue cette fois **sous** la couche d'alerte, dans le collecteur qui la nourrit.

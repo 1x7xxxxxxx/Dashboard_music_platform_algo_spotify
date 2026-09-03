@@ -25,14 +25,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 ---
 
-## 🔖 REPRISE — état au 2026-08-30, séance close (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-03, audit de tourne (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R1 -->
 
 **▶️ L'index de code est VIDE. Zéro tâche machine ouverte.** Ne reste qu'**un** geste
 humain, et lui seul : **R1** — inviter la bêta. Il est détaillé au § « En attente de
-toi » ci-dessous. R54 est close le 2026-08-28 : l'avatar animé est en place et vérifié
-par son destinataire.
+toi » ci-dessous.
 
 **R1 a commencé le 2026-08-30** : premier parcours d'onboarding fait en entier, ~20
 remarques de terrain, toutes traitées et déployées (PR #115, migration 079). Aucune ne
@@ -40,220 +39,53 @@ portait sur la lenteur — la classe dominante était du texte adressé au mauva
 R1 reste ouverte parce que le test n'est pas fini : l'artiste reprend là où il s'était
 arrêté.
 
+### Audit du 2026-09-03 — trois jours de tourne sans intervention
+
+La prod tourne depuis 64 jours (`postgres` 2 mois, `dashboard`/`api` 3 jours). **Rien
+n'a cassé pendant l'absence** et, pour la première fois, ce n'est pas une déduction :
+les surfaces de preuve construites en août ont toutes répondu.
+
+| Ce qui a été lu | Verdict |
+|---|---|
+| 16 DAGs, 4 jours de runs | **0 tâche Airflow en échec** ; les 4 DAGs sans run récent sont hebdomadaires (`0 * * 1`), pas muets |
+| `etl_run_log`, par locataire × plateforme | 1 seule défaillance : `meta_ads_api_daily` / Benken (12), 5 nuits d'affilée, `act_65390907` — **le blocage connu de partage de compte, pas une régression** |
+| `check_tenant_contamination` | **0 constat** — aucune ligne sous un locataire qui ne peut pas la porter |
+| `check_canary_health` (locataire 14) | 0 problème, et il redit lui-même qu'il ne couvre ni Meta ni Instagram (ADR-010) |
+| `check_row_dips` | 0 collecte partielle |
+| Sources périmées | 2 : **S4A (88 j) et Apple Music (79 j)** — les deux alimentées par CSV, que personne ne dépose. Attendu, pas un incident (R46) |
+| Meta Ads « silencieux » | qualifié `expected_silence` : 34 campagnes connues, aucune active — la vue distingue enfin « pas de données » de « pas de campagne » |
+| `app.` / `api.` / apex `streamlytics.fr` | 200, ~0,2 s ; `/health` → `{"status":"ok"}` |
+| Sauvegardes | quotidiennes à 03:00, 4 dernières présentes et **croissantes** (1,52 → 1,79 Mo) |
+| Disque / RAM | 42 % de 150 Go ; 4,5 Go dispo sur 7,7 |
+
+**Le point le plus utile de l'audit** : le mail nocturne n'est pas parti, et c'est
+**décidé**. Le log dit `✉️ not re-sent (constats inchangés depuis le dernier envoi
+(2j), renvoi dans 4j ou dès qu'un constat change)`. Un silence obtenu par dédup nommée,
+pas un silence par accident — exactement ce que le commit `5d22bd2` visait.
+
+**Ce qui attend une décision, pas un correctif** : `STREAMLYTICS_ALLOW_ARTIST_EMAIL`
+n'est posée dans aucun conteneur de prod. Le garde d'audience de PR #121 est donc actif,
+et **aucun e-mail ne partira jamais vers un locataire** tant qu'elle n'est pas posée.
+C'est l'état voulu aujourd'hui ; c'est aussi la variable à poser le jour où R1 passe à
+l'invitation réelle. `verification_email` n'est pas concernée — l'inscription vaut
+consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
+`STREAMLYTICS_ENV=production` et ses trois variables SMTP.
+
+> `streamlytics_api` n'a pas `STREAMLYTICS_ENV`. Sans effet aujourd'hui : `src/api/`
+> n'importe ni `email_alerts` ni `instance_identity`, donc aucun chemin d'envoi n'y
+> passe. À reposer si l'API se met un jour à écrire à quelqu'un.
+
 > La ligne `<!-- reprise: open=… -->` ci-dessus n'est pas décorative : c'est la même
 > affirmation que le paragraphe, sous une forme que `tests/test_the_resume_header_is_checked.py`
 > peut comparer aux deux tableaux d'index. Une prose ne se vérifie pas ; une prose
-> **ancrée** se vérifie. C'est la seule chose qui empêche cet en-tête de reprendre la
-> dérive décrite juste en dessous.
+> **ancrée** se vérifie.
 
 > ⚠️ Ce bloc nommait encore R13, R17 et R55 le 2026-08-28 alors que les trois étaient
-> closes — R13 le 2026-08-22, R17 le 2026-08-21, R55 le 2026-08-26. Le corps du fichier
-> le disait déjà ; c'est l'en-tête qui n'avait pas suivi. Une roadmap se périme comme un
-> commentaire, et son en-tête plus vite que son corps : c'est la seule partie que
-> `/resume` recopie sans la relire.
-
-### Séance du 2026-08-30 (test artiste) — le défaut qu'aucune mesure ne voyait
-
-L'artiste en test : *« des fois je clique sur un bouton et il ne se passe rien »*.
-Cause : **`server.websocketPingInterval` valait `None`** — aucun keepalive — et le
-dashboard est servi à travers **Cloudflare**, qui ferme les websockets inactifs. Lire
-une page deux minutes suffisait à perdre la connexion, en silence.
-
-C'est sa précision « **rien ne bouge du tout**, pas même un spinner » qui a tranché :
-un clic sans réaction n'a jamais atteint le serveur. J'avais commencé à balayer les
-`st.button` — ça n'aurait rien donné, les 3 sites suspects sont sur des pages d'admin.
-
-`websocketPingInterval = 20`, et la valeur mise sous test parce que sa voisine
-(`showErrorDetails`) avait déjà repris son défaut en silence.
-
----
-
-### Séance du 2026-08-30 (soir) — la passe d'optimisation n'en était pas une
-
-Les 42 vues mesurées **dans le conteneur de prod**, SQL séparé de Python. Résultat :
-**SQL = 2 ms la requête** (755 ms / 372 requêtes), **p50 de rendu = 61 ms**, 33 vues
-sur 42 sous 150 ms. Il n'y avait rien à optimiser au sens large — trois des quatre
-trouvailles étaient des **bugs de correction** déguisés en lenteur.
-
-| Trouvaille | État |
-|---|---|
-| La vue `admin` **plantait en prod** : `timestamptz` relu à cheval sur un changement d'heure (`+01`/`+02`). 4 autres sites latents, dont un `aware - naïf` qui aurait cassé la page Credentials au premier token Meta | corrigé, `utils/tz.py` + garde AST |
-| **12 DAGs sur 16 affichés « sans run »** sur l'accueil : une fenêtre globale de 200 runs pour répondre à une question par DAG, alors que 4 watchers font 98 % des 392 runs/jour | corrigé, `_runs_per_dag` parallèle — 16/16, et `airflow_kpi` de 1541 à 499 ms |
-| `hypeddit` ouvrait 2 connexions : un helper fermait la connexion partagée, `_ensure_connection` reconnectait en silence. Le garde comptait le **texte source**, pas le rendu | corrigé, comptage au rendu, plafonds vides sur 42 vues |
-| `webserver.workers = 4` sur une UI à un lecteur | passé à 2 puis **remis à 4** : la vérification post-déploiement a montré que 116 Mio coûtaient **317 ms sur chaque rendu de l'accueil** (le dashboard interroge les 16 DAGs *à travers* ce webserver) |
-
-**Deux choses que la mesure a interdites**, et c'est le plus utile :
-`core.parallelism` reste à 32 (pic réel **19** sur 108 215 tâches — j'allais proposer
-8), et le balayage `view_session` aurait été **une fuite locataire** : 17 des 25 vues
-utilisent `tenant_scope()`, qui rend `None` pour l'admin là où `view_session()` rend
-`artist_id = 1`.
-
-**Le correctif Airflow avait un prix, trouvé en re-mesurant après déploiement** :
-`home` 378 → 670 ms et `credentials` 288 → 515 ms, les deux appelant le moniteur à
-chaque rerun. Cache 60 s → **home 144 ms, credentials 81 ms** — plus rapide qu'avant
-la séance, et toujours 16/16 DAGs.
-
-**Et le refactor final a produit sa propre leçon.** `admin.show()` découpée (401 → 64
-lignes) : le premier jet retirait le `with tab_gdpr:` et rendait le contenu **hors** de
-l'onglet. **Trois gardes existants sont passés dessus**, dont l'empreinte de rendu que
-j'avais écrite pour prouver l'équivalence — `at.main` aplatit l'arbre. Une vérification
-qui rend la même réponse pour le code juste et le code cassé n'est pas une
-vérification.
-
-4 classes de plus au catalogue, chacune avec sa signature **vue rouge sur le vrai
-code d'avant**.
-
----
-
-### Séance du 2026-08-30 — la mesure prise au mauvais endroit
-
-Point de départ : relancer les vérifications périmées, puis chercher des optimisations.
-Rien n'était ouvert côté machine ; ce qui suit a été **trouvé**, pas planifié.
-
-**Les quatre déclencheurs d'ADR-007 ont été lus contre la production : aucun n'est
-tiré.** 1 seul locataire a jamais déposé du S4A, 13 794 lignes (le seuil est 140 k),
-6–77 ms d'import par vue en conteneur. La porte tient — et c'est maintenant mesuré,
-ce que l'ADR nommait lui-même comme son risque.
-
-**Ne pas mesurer la performance depuis WSL.** Le déclencheur « imports paresseux »
-paraissait tiré depuis `/mnt/c` (900–1250 ms par vue). En conteneur : 6–77 ms.
-`trigger_algo` : 9801 ms en WSL, 625 ms en prod. Facteur 5 à 160.
-
-| Trouvaille | État |
-|---|---|
-| `process_guide` reconstruisait **deux PDF WeasyPrint par rerun** — 721 ms des 1034 ms de la vue, sur la première page d'un artiste neuf | **déployé et mesuré en prod : 1034 ms → 8 ms**, `utils/guide_assets.py` + garde AST |
-| **Aucun des 16 DAGs** ne déclarait `dagrun_timeout`. `alert_monitor` (p50 3,4 s) porte un run de **13,1 h en état success** — le canal d'alerte, muet, indiscernable d'une nuit calme | corrigé, `src/utils/dag_timeouts.py` + garde |
-| L'image API portait 454 MB de CUDA + xgboost + plotly qu'elle n'importe jamais : **0,98 → 0,26 GB** ; dashboard 0,99 → 0,67 GB | corrigé, `requirements-api.txt` + garde |
-| `uv.lock` résolvait **apache-airflow 3.2.2** quand la prod tourne en **2.11.2** : chaque test de forme DAG validait un Airflow que l'ordonnanceur ne charge pas, et rendait vert | corrigé, cœur épinglé dans `pyproject.toml` + garde à 3 assertions |
-
-4 classes au catalogue, chacune avec une signature **vue rouge sur le vrai code
-d'avant** et verte après. Suite complète : **3483 passed, 25 skipped, 0 failed** —
-84 tests de plus qu'avant, l'épinglage d'Airflow ayant rendu à la suite les tests de
-DAGs et de collecteurs qui sautaient en silence. ⚠️ **Rien de tout ça n'est déployé** : `deploy.sh` ne vise
-que api+dashboard, et les DAGs passent par un `git pull` côté scheduler (bind-mount).
-
----
-
-### Séance du 2026-08-28 — quatre mails en deux nuits, deux causes
-
-✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (commit `4b940fe`, migration 078 appliquée).
-Point de départ : quatre alertes apportées telles quelles. Le tri d'abord — le lien
-`localhost:8080` ne prouve rien (l'UI Airflow de prod est liée à 127.0.0.1), c'est
-**l'absence de préfixe `[LOCAL]`** qui tranche : les quatre venaient de la production.
-Deux mails par nuit, deux causes distinctes.
-
-| | |
-|---|---|
-| **Le plantage** | `PostgresHandler()` sans argument dans `_mirrored_identities`, arrivé avec `350ed8d`. Seul site du dépôt. Plus grave que le mail : `xcom_pull` rendant None, la section « credentials manquants » a **disparu des deux alertes consolidées** sans que rien ne le dise, et le dé-bruitage par le miroir n'a jamais tourné. Garde AST lisant la **vraie** signature par `inspect` — un `grep` aurait trébuché sur les commentaires du correctif lui-même |
-| **La redite** | Le récapitulatif repartait chaque nuit à l'identique. Mesuré sur les XCom de prod des 25 et 26 : **identiques à deux champs près**, `age_h` (1945.0 → 1969.0) et `when`. Le registre montre **cinq** nuits de suite avec le même sujet, pas deux. `src/utils/alert_repetition.py` empreinte les constats en ignorant la MESURE et en gardant l'IDENTITÉ ; migration 078 |
-
-**Ce que la suppression ne peut pas faire**, et c'est le point : un constat nouveau,
-disparu ou de raison changée part la nuit même ; au-delà de `ALERT_REPEAT_SILENCE_DAYS`
-(7) le même constat repart, parce qu'un silence permanent est indiscernable d'un moniteur
-mort. La nuit supprimée s'écrit `delivery_expected = FALSE`, comme une nuit calme, pour
-que `infra_health_cron.sh` ne la lise pas comme une panne du canal d'alerte.
-
-**Le fil : la liste des champs volatils est une liste NOIRE, pas blanche.** Un champ de
-constat ajouté demain entre par défaut dans l'empreinte — au pire un mail de trop. Une
-liste blanche aurait fait qu'un champ oublié rende deux constats différents
-indiscernables, donc supprime un mail dû. Entre trop de courrier et un constat perdu, le
-biais est choisi une fois et il va toujours du même côté.
-
-**Et la fixture est le vrai XCom des deux nuits**, pas une forme inventée par le test :
-une règle écrite de mémoire aurait laissé passer `age_h` et n'aurait rien supprimé. Un
-test garde la RÉALITÉ mesurée, jamais la constante qu'on vient d'écrire.
-
----
-
-### Archive — séance du 2026-08-26
-
-✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** le 2026-08-26 (commit `350ed8d`).
-`prod == origin/main`, aucune reconstruction d'image nécessaire — le scheduler
-bind-monte `src/` et `airflow/dags/`. Trois preuves prises **dans le conteneur de
-prod** : `diagnosis_text` importable, le rendu produit `<b>`/`<br>`, et
-`instance_env() == production` (donc la porte anti-mail hors-prod ne peut pas rendre
-la production muette). Puis la preuve sur les **données réelles**, appels API compris :
-les diagnostics de Benken (Meta) et GRiNCH (SoundCloud) portent enfin leur moitié
-actionnable, dont l'instruction Business Manager qui débloque `act_65390907`.
-
-### Ce que la séance a livré
-
-Sept défauts, sept classes d'erreur, chacune avec un garde **vu rouge par mutation**.
-Point de départ : une alerte nocturne de production, puis deux mails d'une instance
-LOCALE — provoqués par cette séance même, en redémarrant le Postgres local pour la suite.
-
-| | |
-|---|---|
-| Diagnostic amputé | `platform_probes` gardait `splitlines()[0]` : les **2 lignes rouges sur 2** perdaient le geste qui répare, dont l'instruction Business Manager qui débloque `act_65390907` |
-| Action impossible | « relancer le DAG » sur des sources alimentées par CSV — **2 stale sur 2** |
-| Doublons | « Inscrits sans rien connecter » et « Credentials manquants » posent le MÊME prédicat : 11 lignes sur 12 dites deux fois |
-| Faux positif | l'admin réclamé chaque nuit pour une identité Spotify **présente sur son miroir** — et c'était la seule ligne que le dé-bruitage laissait |
-| Mails de dev | hors production, le silence est désormais le défaut, sur les **deux** chemins d'envoi |
-| Montage manquant | `./tools` absent du compose du dépôt ⇒ deux faux rouges en ligne de sujet |
-| Import muet | un CSV en `;` n'importait rien et le refus ne nommait rien ; **9 `except:` nus** balayés dans `src/` |
-
-### Deuxième passe — les gardes rouges de la CI (2026-08-26, soir)
-
-`audit_runner --deterministic` signalait **6 classes en HIT**, toutes bloquantes en CI.
-Deux causes, aucune dans le code applicatif :
-
-- **Un diff non commité supprimait 4 tests** de `test_claude_config_floor.py`, dont
-  **trois sont le `guard:` ou la `signature:`** de classes cataloguées. Le catalogue
-  affichait toujours `guarded`. Restaurés (l'amélioration de commentaire du diff est
-  conservée), et le catalogue est désormais **parsé par la suite** : un nœud pytest
-  nommé qui ne résout plus fait échouer le build. Ce garde a trouvé **13 références
-  mortes de plus** — 11 vers la forme À PLAT des skills, migrée le 2026-07-28.
-- **La suite tournait avec le mauvais interpréteur.** `/usr/bin/python3` n'a ni
-  `apache-airflow`, ni `googleapiclient`, ni `spotipy` : 28 rouges qui disaient
-  « environnement », pas « code ». `tests/dep_gate.py` (jumeau de `db_gate`) les
-  transforme en skips **criés**, avec l'appariement qui rend ça sûr : `CI` présent ⇒
-  aucune porte ne peut sauter. En posant les portes, `test_e2e_two_tenants` s'est
-  révélé porter **deux `pytestmark`**, le second écrasant le premier sans bruit.
-
-**Suite : 2 échecs → 0.** De 32 rouges ce matin à zéro, sans toucher au code applicatif.
-
-### Le fil, et il vise les gardes eux-mêmes
-
-**Quatre fois dans la journée, un garde que je venais d'écrire est passé sur sa propre
-documentation** — la dernière étant le garde des références mortes, qui trébuchait sur
-l'exemple `tests/x.py::TestFoo` écrit dans sa PROPRE fiche — le commentaire français qui expliquait le correctif contenait le nom
-recherché. Chaque fois, la réponse a été l'AST. Et deux gardes étaient **vacants** :
-l'un ne matchait rien (`status_matrix` n'a pas de f-string), l'autre couvrait deux fois
-la même branche. Corollaire : après avoir écrit un garde, le muter n'est pas une
-formalité — c'est la seule chose qui prouve qu'il garde quelque chose.
-
-Second fil : **R50/R51/R52 étaient en grande partie déjà faites.** Leurs notes
-décrivaient un état d'avant le 2026-08-23. Vérifier chaque point dans le code avant de
-cocher a évité de refaire trois briques — et a montré que la roadmap se périme comme
-n'importe quel commentaire.
-
-
----
-
-### Archive de la séance précédente
-
-#### REPRISE` ci-dessous.
-
-> **L'index de code est VIDE au 2026-08-26.** R49b, R50, R51 et R52 sont descendues
-> dans `archive.md`. R50/R51/R52 étaient en grande partie déjà faites : leurs notes
-> décrivaient un état antérieur au 2026-08-23, et chaque point a été vérifié dans le
-> code avant d'être coché — jamais sur la foi du texte de la roadmap.
->
-> Ce qui restait réellement et a été livré ce jour : le séparateur CSV mesuré et le
-> refus qui nomme sa raison (R52), le bouton de téléchargement du guide (R50),
-> `secondary_analyses()` sur la cinquième vue dense (R51).
->
-> Ne restent que des **gestes humains**, ci-dessous. Aucun ne se code.
-
-| id | tâche | prio | statut / déclencheur |
-|----|-------|------|----------------------|
-| — | *(aucune tâche machine ouverte)* | — | — |
-
-
----
-
-
----
+> closes. Le corps du fichier le disait déjà ; c'est l'en-tête qui n'avait pas suivi.
+> Une roadmap se périme comme un commentaire, et son en-tête plus vite que son corps :
+> c'est la seule partie que `/resume` recopie sans la relire. Les comptes rendus des
+> séances du 26 au 30 août ont été **rotés dans `archive.md` le 2026-09-03** — le
+> fichier actif était à 42 Ko dont ~80 % d'historique.
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
