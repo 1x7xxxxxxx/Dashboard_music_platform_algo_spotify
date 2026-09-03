@@ -76,6 +76,11 @@ streamlytics.fr, www.streamlytics.fr, app.streamlytics.fr {
 	# `handle` must precede `reverse_proxy` or Streamlit swallows the path.
 	handle /guide* {
 		root * /opt/streamlytics/docs/guides
+		# `strip_prefix` est obligatoire, pas cosmetique : sans lui Caddy cherche
+		# `docs/guides/guide/img/x.png` et retombe sur index.html. La premiere version
+		# de cette page encapsulait ses images en base64, ce qui MASQUAIT le defaut :
+		# le repli servait un document complet. Externaliser les images l a revele.
+		uri strip_prefix /guide
 		# Les captures sont nommees par hash de contenu : une image qui change change
 		# de nom, donc un cache long ne peut pas servir une version perimee. Sans cet
 		# en-tete le lecteur retelechargeait 700 Ko a chaque visite.

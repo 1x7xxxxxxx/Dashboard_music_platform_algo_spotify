@@ -216,8 +216,8 @@ def test_the_guide_web_page_is_built_alongside_the_pdf(name: str):
         "the page embeds its images again: a reader pays ~700 KB gzipped on every "
         "visit for 20 KB of text, and no image can be cached separately."
     )
-    assert 'src="img/' in text, "the page references no image at all"
-    for ref in set(re.findall(r'src="(img/[0-9a-f]+\.png)"', text)):
+    assert 'src="media/' in text, "the page references no image at all"
+    for ref in set(re.findall(r'src="(media/[0-9a-f]+\.png)"', text)):
         assert (GUIDES / ref).is_file(), f"{ref} is referenced but was not written"
 
 
@@ -229,7 +229,7 @@ def test_the_pdf_stays_self_contained():
     as broken boxes in an inbox.
     """
     pdf = (GUIDES / "onboarding_guide.pdf").read_bytes()
-    assert b"img/" not in pdf[:4096], (
+    assert b"media/" not in pdf[:4096], (
         "the PDF references external images — mailed as an attachment it would show "
         "empty frames."
     )

@@ -412,7 +412,12 @@ def _externalise_images(html_text: str, out_dir: Path) -> str:
     import base64
     import hashlib
 
-    img_dir = out_dir / "img"
+    # `media/` et non `img/` : pendant la fenêtre où le préfixe `/guide` n'était
+    # pas retiré, Caddy a répondu index.html sur chaque URL d'image, et
+    # Cloudflare a mis CES réponses en cache pour 4 h. Renommer le répertoire
+    # change toutes les URL d'un coup — un MISS garanti, sans credential de
+    # purge. Les noms de fichiers restent des hashs de contenu.
+    img_dir = out_dir / "media"
     img_dir.mkdir(parents=True, exist_ok=True)
 
     def _swap(match: re.Match) -> str:
@@ -421,7 +426,7 @@ def _externalise_images(html_text: str, out_dir: Path) -> str:
         path = img_dir / name
         if not path.exists():
             path.write_bytes(raw)
-        return f"img/{name}"
+        return f"media/{name}"
 
     return _DATA_URI_RE.sub(_swap, html_text)
 
