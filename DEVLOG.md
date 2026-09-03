@@ -5,6 +5,99 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 — Non à dbt, et les sauvegardes vivaient sur le disque qu'elles protègent
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`afbff58`, ADR-014). Question posée : faut-il
+dbt, et plus largement Next.js, ECharts, dlt, S3/R2, Parquet, DuckDB, ClickHouse,
+Supabase, Dagster ? Objectif : stabilité, robustesse, rapidité, long terme.
+
+### Deux chiffres tranchent la moitié de la liste
+
+| Mesure | Valeur |
+|---|---|
+| Lignes / taille de la base | **49 096** · **43 Mo** |
+| Agrégat complet `GROUP BY` sur la plus grosse table (21 813 l.) | **18,5 ms** |
+| Croissance | **2 736 lignes/jour** |
+| RAM Postgres / RAM Airflow | **172 Mo** / **1,6 Go** |
+| Machine | 4 vCPU, 4,8 Go libres, charge **12 %** |
+
+43 Mo et 18,5 ms disent qu'il n'existe aucun problème analytique. Et **Airflow coûte
+dix fois la base qu'il orchestre** — s'il y a un poste à interroger, ce n'est pas le
+stockage. ADR-014 pose le verdict par outil, chacun avec un déclencheur **calculable**.
+La moitié de la liste était d'ailleurs déjà décidée : ADR-003 (React) porte 4 signaux,
+relus le 2026-08-30, aucun tiré.
+
+### dbt : ma première mesure était fausse, et la corriger a renforcé la conclusion
+
+`CREATE VIEW` dans les migrations rend **1**. La vraie couche dérivée en compte **5** —
+quatre sont des `INSERT … SELECT` dans des modules Python. Un grep sur un mot-clé SQL
+ratait 80 % de la réponse.
+
+Et la duplication est massive : ~60 filtres `1x7xxxxxxx` en **5 orthographes**, **286**
+`artist_id = %s` pour une primitive utilisée dans 6 fichiers, le **CPR défini 5 fois
+contre 2 tables sources**, et « streams récents » calculé sur **7/28/35-7 j pour le
+modèle** contre **7/14-7 j pour l'e-mail artiste**. Les deux dernières ne sont pas de la
+dette de style : ce sont des défauts vivants.
+
+**Mais dbt ne les résout pas.** dbt *matérialise* ; ces duplications vivent dans des
+requêtes que Streamlit exécute **à la lecture**. L'adopter n'en retirerait aucune. Ce
+qui les retire, le dépôt l'a déjà fait : `migrations/056` documente qu'une **vue
+Postgres ordinaire** a remplacé « les ~6 endroits qui copiaient-collaient cette UNION ».
+Déclencheur pour rouvrir : ≥ 10 objets dérivés **et** ≥ 3 qui dépendent l'un de l'autre.
+Aujourd'hui : 5 objets, **0 dépendance** — il n'y a pas de graphe, il y a cinq feuilles.
+
+### Le trou que la question ne cherchait pas
+
+En vérifiant la robustesse — l'objectif déclaré — deux trous réels, aucun lié à dbt.
+
+**Les 21 sauvegardes quotidiennes vivaient sur `/dev/sda1`, le disque de la base.**
+Aucun `rsync`, `s3` ni `rclone` dans le crontab. Si ce disque meurt, elles meurent avec.
+L'en-tête du script annonçait pourtant « Phase D wires it to a Storage Box » — écrit en
+juin, jamais câblé.
+
+**`db_restore_test.sh` existait sans appelant planifié**, et n'assertait que
+`TABLES >= 1` en **affichant** un compte de lignes sans jamais le comparer. Un dump
+tronqué à sa première table passait au vert : un contrôle de `gunzip` portant le nom
+d'un contrôle de sauvegarde.
+
+L'intuition « S3 / Cloudflare R2 » était donc **juste** — mais pour la durabilité des
+sauvegardes, pas pour un data lake.
+
+Corrigé, et prouvé en prod : le drill passe pour la première fois — **94 tables des
+deux côtés, 67 532 lignes restaurées contre 69 383 vivantes**, 2,7 % d'écart, soit
+exactement une journée de croissance. Cron hebdomadaire posé, `rclone` installé.
+
+Le script reste **vert** sans `R2_REMOTE` : la sauvegarde locale a réussi, et la faire
+rougir la rendrait indiscernable d'un `pg_dump` cassé. C'est
+`alert_monitor.check_offsite_backup` qui refuse le silence — vérifié en prod ce soir :
+`Offsite backup: NOT CONFIGURED`. Il le redira chaque nuit.
+
+### Ce que les gardes existants ont attrapé chez moi
+
+`test_every_pulled_finding_takes_part_in_the_send_decision` : mon constat s'affichait
+dans le mail **sans participer à la décision d'envoyer**. Or une copie hors-site absente
+est l'état qui peut durer des mois tous autres signaux verts — il aurait donc été le
+seul constat de la nuit, et n'aurait déclenché aucun envoi. Exactement le silence qu'il
+existe pour briser.
+
+Et ma première version du drill comparait deux **estimations** :
+`pg_stat_user_tables.n_live_tup` rendait « 40 015 restaurées contre 1 149 vivantes »
+**sur la même base** — il n'est rafraîchi que par ANALYZE. Compte exact désormais.
+
+### Un défaut trouvé par accident, antérieur à la séance
+
+`test_a_snapshot_is_keyed_by_the_day` rougissait **sur l'arbre propre**. Cause :
+Postgres tourne en `Etc/UTC`, le test semait au `datetime.now().date()` **local**
+(Europe/Paris). Entre minuit local et minuit UTC les deux diffèrent d'un jour, et la
+requête ne trouvait plus le relevé de la semaine passée. **La suite rougissait deux
+heures par nuit**, sur la requête qui alimente l'e-mail hebdomadaire — et un test rouge
+pour une raison étrangère au code est la façon dont un vrai échec passe. Le test lit
+maintenant l'horloge de la **base**.
+
+Suite complète : **3 806 passés, 27 skippés, 0 rouge**.
+
+---
+
 ## 2026-09-03 (nuit) — Un lien suffit à s'identifier, et la roadmap n'a plus rien d'ouvert
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`1ec403c`, PR #125). Six phases du plan, la
