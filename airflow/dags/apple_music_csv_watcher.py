@@ -219,7 +219,19 @@ with DAG(
     dag_id='apple_music_csv_watcher',
     default_args=default_args,
     description='Ingestion Apple Music (Performance + Snapshot Historique)',
-    schedule='*/15 * * * *',  # Toutes les 15 minutes
+    # Cadence ramenée de */15 à l'heure le 2026-09-04, sur mesure.
+    #
+    # Les 4 watchers pesaient **97,2 % des dag_run et 98,4 % des task_instance** de
+    # toute l'instance — 113 296 lignes sur 115 160 — pour 1 536 exécutions par jour,
+    # TOUTES en `skipped`. Et les quatre répertoires surveillés
+    # (`/opt/airflow/data/raw/*`) sont vides : `find` n'y a jamais trouvé un fichier.
+    #
+    # Ils ne sont pas supprimés : ils servent le dépôt MANUEL de fichiers, un chemin
+    # distinct de la page d'import (qui, elle, parse dans l'app et n'écrit jamais dans
+    # ces dossiers). Une heure reste généreuse pour un geste humain, et coûte 4 fois
+    # moins. Le déclencheur pour revenir à */15 : quelqu'un dépose réellement des
+    # fichiers et attend mieux qu'une heure.
+    schedule='0 * * * *',
     start_date=datetime(2025, 1, 20),
     catchup=False,
     dagrun_timeout=dagrun_timeout_for('apple_music_csv_watcher'),

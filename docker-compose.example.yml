@@ -52,6 +52,15 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+      # Reparsing des DAGs : 30 s (le defaut) -> 300 s. Mesure le 2026-09-04 :
+      # scheduler a 28,9 % de CPU en continu pour 16 DAGs, contre 0,33 % au
+      # webserver — le brassage est du cote parsing, pas de l affichage.
+      #
+      # Le prix : un DAG nouveau ou modifie met jusqu a 5 min a apparaitre au lieu
+      # de 30 s. Sur un depot ou les DAGs bougent quelques fois par mois, c est le
+      # bon echange ; sur un depot ou on itere sur un DAG toute la journee, ca ne le
+      # serait pas. `airflow dags reserialize` force la relecture quand on est presse.
+      AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: '300'
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
