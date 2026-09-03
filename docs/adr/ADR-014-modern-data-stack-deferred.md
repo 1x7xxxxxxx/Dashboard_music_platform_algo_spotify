@@ -120,7 +120,7 @@ sauvegardes, pas pour un data lake.** Les deux sont corrigés dans la même séa
 
   | Constat mesuré | Correction | Résultat mesuré |
   |---|---|---|
-  | 16 DAGs reparsés **toutes les 30 s** (défaut d'Airflow) ; scheduler à **28,9 %** de CPU, webserver à 0,33 % | `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL` 30 → 300 | **CPU 2,45 %**, RAM scheduler **878 → 622 Mo** |
+  | 16 DAGs reparsés **toutes les 30 s** (défaut d'Airflow) ; scheduler à **28,9 %** de CPU, webserver à 0,33 % | `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL` 30 → 300 | **CPU au repos ~2 %** (pointe ~100 % à chaque relecture, désormais toutes les 5 min au lieu de 30 s : rapport cyclique ÷10), RAM scheduler **878 → 622 Mo** |
   | Les 4 `*_csv_watcher` = **97,2 % des `dag_run`** et **98,4 % des `task_instance`**, 1 536 exécutions/jour, toutes `skipped`, sur des répertoires **vides** | cadence `*/15` → horaire | 1 536 → **384** exécutions/jour |
   | Base de métadonnées à **246 Mo** — six fois la base applicative — 83 jours jamais purgés, `airflow db clean` **jamais lancé** | `tools/airflow_db_clean.sh`, cron hebdomadaire, rétention 30 j, plus un `VACUUM FULL` initial | **246 → 91 Mo** |
 

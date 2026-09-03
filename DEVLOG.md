@@ -25,7 +25,7 @@ Le vrai signal était ailleurs : **scheduler à 28,9 % de CPU en continu, webser
 
 | Constat | Correction | Résultat |
 |---|---|---|
-| 16 DAGs reparsés toutes les 30 s | intervalle 30 → 300 s | **CPU 28,9 % → 2,45 %**, RAM scheduler **878 → 622 Mo** |
+| 16 DAGs reparsés toutes les 30 s | intervalle 30 → 300 s | **CPU au repos ~2 %** (pointe ~100 % par relecture, toutes les 5 min au lieu de 30 s), RAM **878 → 622 Mo** |
 | 4 watchers = **97,2 % des `dag_run`**, **98,4 % des `task_instance`**, 1 536 exécutions/jour toutes `skipped`, sur des dossiers **vides** | cadence `*/15` → horaire | 1 536 → **384**/jour |
 | Métadonnées à **246 Mo** — six fois la base applicative — 83 jours jamais purgés | `tools/airflow_db_clean.sh` hebdo, rétention 30 j + `VACUUM FULL` | **246 → 91 Mo** |
 

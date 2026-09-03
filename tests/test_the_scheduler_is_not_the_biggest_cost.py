@@ -28,7 +28,11 @@ And the CPU was real: **scheduler at 28,9 %, webserver at 0,33 %**.
 ## What changed, in order of measured effect
 
 1. `min_file_process_interval` 30 s → 300 s. The 16 DAG files were re-parsed every
-   30 seconds. **CPU 28,9 % → 2,45 %, scheduler RAM 878 → 622 MB.**
+   30 seconds. Sampled over two minutes afterwards, the scheduler **idles at ~2 %**
+   with a **~100 % burst per re-parse** — the burst is the same work, it just
+   happens ten times less often. Scheduler RAM **878 → 622 MB**.
+   (A single `docker stats` sample is not a duty cycle: the first reading after
+   the change said 2,45 %, the next said 36,9 %. Both were true instants.)
 2. The watchers went from `*/15` to hourly: 1 536 → 384 runs/day.
 3. `tools/airflow_db_clean.sh`, weekly, retention 30 days. **246 MB → 91 MB** after
    the first pass plus a `VACUUM FULL` (the DELETE alone returns nothing to the OS).
@@ -93,8 +97,8 @@ def test_the_dag_parsing_interval_is_not_the_default():
     m = re.search(r"AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL:\s*['\"]?(\d+)", body)
     assert m, (
         "MIN_FILE_PROCESS_INTERVAL is gone from the compose file. At Airflow's default "
-        "of 30 s the 16 DAG files are re-parsed twice a minute: measured 28,9 % "
-        "scheduler CPU, against 2,45 % at 300 s."
+        "of 30 s the 16 DAG files are re-parsed twice a minute, which measured as "
+        "a scheduler almost always busy; at 300 s it idles at ~2 % between bursts."
     )
     assert int(m.group(1)) >= 120, (
         f"the parsing interval is back down to {m.group(1)} s. Below ~2 minutes the "
