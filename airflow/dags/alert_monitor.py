@@ -1044,6 +1044,104 @@ def check_collection_outcomes(**context):
 
 
 
+def check_offsite_backup(**context):
+    """Is there a copy of the database somewhere other than the disk it lives on?
+
+    Measured 2026-09-03: 21 daily archives, all under `/opt/streamlytics/backups` on
+    `/dev/sda1` — **the same disk as the database** — and no `rsync`, `s3` or `rclone`
+    anywhere in the crontab. A backup that dies with what it protects is a copy, not a
+    backup.
+
+    This check is what makes the absence impossible to ignore. `tools/db_backup.sh`
+    deliberately still exits 0 when `R2_REMOTE` is unset — turning a working local
+    backup red would make it indistinguishable from a broken `pg_dump`. The refusal to
+    be silent lives HERE instead: every night, until an offsite copy exists.
+
+    Freshness IS the proof, as everywhere else in this monitor: the question is not
+    "is the script installed" but "is there a remote archive younger than 48 h". A
+    configured push that quietly stopped working answers the first and fails the second.
+    """
+    import json
+    import os
+    import subprocess
+
+    ti = context['ti']
+    remote = os.getenv('R2_REMOTE', '').strip()
+
+    if not remote:
+        ti.xcom_push(key='offsite_backup', value=[{
+            'state': 'absent',
+            'detail': "Aucune copie hors-site : R2_REMOTE n'est pas défini. Les "
+                      "sauvegardes vivent sur le disque de la base — si ce disque "
+                      "meurt, elles meurent avec.",
+            'action': "Créer le bucket R2, `rclone config`, puis poser R2_REMOTE "
+                      "dans .env et recréer airflow-scheduler.",
+        }])
+        logger.warning("Offsite backup: NOT CONFIGURED (R2_REMOTE unset)")
+        return
+
+    try:
+        out = subprocess.run(
+            ['rclone', 'lsjson', remote, '--include', '*.sql.gz'],
+            capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError) as exc:
+        ti.xcom_push(key='offsite_backup', value=[{
+            'state': 'unreadable',
+            'detail': f"Impossible d'interroger {remote} : {type(exc).__name__}.",
+            'action': "Vérifier que rclone est installé et que le remote répond.",
+        }])
+        logger.error("Offsite backup: probe failed (%s)", type(exc).__name__)
+        return
+
+    if out.returncode != 0:
+        ti.xcom_push(key='offsite_backup', value=[{
+            'state': 'unreadable',
+            'detail': f"rclone a répondu {out.returncode} sur {remote}.",
+            'action': "Vérifier les credentials R2 et le nom du bucket.",
+        }])
+        logger.error("Offsite backup: rclone rc=%s", out.returncode)
+        return
+
+    try:
+        entries = json.loads(out.stdout or '[]')
+    except ValueError:
+        entries = []
+
+    if not entries:
+        ti.xcom_push(key='offsite_backup', value=[{
+            'state': 'empty',
+            'detail': f"{remote} est vide — aucune archive n'y est jamais arrivée.",
+            'action': "Lancer `bash tools/db_backup.sh` à la main et lire sa sortie.",
+        }])
+        logger.error("Offsite backup: remote is EMPTY")
+        return
+
+    newest = max(e.get('ModTime', '') for e in entries)
+    age_h = None
+    try:
+        from datetime import datetime, timezone
+        parsed = datetime.fromisoformat(newest.replace('Z', '+00:00'))
+        age_h = (datetime.now(timezone.utc) - parsed).total_seconds() / 3600
+    except (ValueError, TypeError):
+        pass
+
+    # 48 h and not 24: the cron runs daily at 03:00, so a single missed night is a
+    # blip, two is a pattern. Same reasoning as `check_data_freshness`, which this
+    # deliberately mirrors rather than inventing its own cadence.
+    if age_h is not None and age_h > 48:
+        ti.xcom_push(key='offsite_backup', value=[{
+            'state': 'stale',
+            'detail': f"La dernière archive distante a {age_h:.0f} h "
+                      f"({len(entries)} au total sur {remote}).",
+            'action': "Lire /var/log/streamlytics-backup.log : la copie a cessé.",
+        }])
+        logger.error("Offsite backup: STALE (%.0f h)", age_h)
+        return
+
+    logger.info("Offsite backup: %d archive(s), newest %.0f h old",
+                len(entries), age_h if age_h is not None else -1)
+
+
 def check_tenant_contamination(**context):
     """Rows sitting under a tenant they cannot belong to, across the whole fleet.
 
@@ -1340,6 +1438,9 @@ def send_consolidated_alert(**context):
     contamination = ti.xcom_pull(
         task_ids='check_tenant_contamination', key='contamination') or []
 
+    offsite = ti.xcom_pull(
+        task_ids='check_offsite_backup', key='offsite_backup') or []
+
     # Both checks ask the SAME question — `readiness_stalled_flags` returns the
     # platforms at TODO, `check_credentials_all` the ones absent from
     # `declared_identities()`, and TODO *is* "no declared identity". So `stalled` is
@@ -1368,10 +1469,17 @@ def send_consolidated_alert(**context):
     # at all: the function returned early just below. Masked today only because Meta
     # is simultaneously broken and stale. The check added to break a silence was
     # itself silent (found 2026-08-21).
+    # `offsite` joins for the same reason, and it is the clearest case yet: an
+    # absent offsite copy is a state that can persist for months with every other
+    # signal green, so it would be the ONLY finding on most nights. Rendered but not
+    # decisive, it would have produced exactly the silence it exists to break —
+    # caught here by `test_every_pulled_finding_takes_part_in_the_send_decision`
+    # before it shipped, which is the guard doing precisely its job.
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
                   or billing_issues or row_anomalies or row_dips or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
-                  or canary_preflight or collection_failures or contamination)
+                  or canary_preflight or collection_failures or contamination
+                  or offsite)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -1729,6 +1837,31 @@ def send_consolidated_alert(**context):
           et le périmètre collecté de cet artiste.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
+    # Section: offsite backup. First, and on purpose. Every other finding here is
+    # about data that did not arrive; this one is about the data already held having
+    # no copy anywhere else. It is the only line in this mail that describes a way to
+    # lose everything at once, and `tools/db_backup.sh` deliberately stays green
+    # without it — so if this section is silent, nothing else says it.
+    if offsite:
+        rows = ''
+        for o in offsite:
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>{o['state']}</b></td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{o['detail']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#555">
+                {o['action']}
+              </td>
+            </tr>"""
+        sections.append(f"""
+        <h3 style="color:#b00">💾 Sauvegarde hors-site</h3>
+        <table style="border-collapse:collapse;font-size:0.9em">
+          <tr><th style="text-align:left;padding:6px 12px">État</th>
+              <th style="text-align:left;padding:6px 12px">Constat</th>
+              <th style="text-align:left;padding:6px 12px">Geste</th></tr>
+          {rows}
+        </table>""")
+
     # Section: tenant contamination. Deliberately assembled before the others: a row
     # sitting under a tenant it cannot belong to is the only finding here that is a
     # data-integrity fault rather than a collection gap, and it is the class this
@@ -2071,6 +2204,11 @@ with DAG(
         python_callable=check_tenant_contamination,
     )
 
+    t_offsite = PythonOperator(
+        task_id='check_offsite_backup',
+        python_callable=check_offsite_backup,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -2079,4 +2217,4 @@ with DAG(
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
-     t_preflight, t_outcomes, t_contamination, t_dips] >> t_alert
+     t_preflight, t_outcomes, t_contamination, t_dips, t_offsite] >> t_alert

@@ -235,6 +235,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [retry-blind-to-the-exception-its-client-raises](#retry-blind-to-the-exception-its-client-raises) | P2 | deterministic | guarded | none |
 | [capability-resolved-only-inside-a-session](#capability-resolved-only-inside-a-session) | P2 | deterministic | guarded | none |
 | [probe-reads-unreadable-as-absent](#probe-reads-unreadable-as-absent) | P2 | deterministic | guarded | none |
+| [backup-shares-the-fate-of-what-it-protects](#backup-shares-the-fate-of-what-it-protects) | P1 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3027,3 +3028,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-03: deux mutations, deux rouges — retour au `python3` système, et `_has_any` rendu à un booléen nu.
   - 2026-09-03: **le garde lui-même a commis deux fois la faute qu'il décrit.** Première version : interdire `python3 tools/…` partout dans le `Makefile`, ce qui condamnait un `docker exec … python3` où l'interpréteur du conteneur est le BON. Deuxième : lire ligne à ligne, alors qu'une recette make est une COMMANDE — `docker exec` était sur une ligne et `python3` sur la suivante. Prédicat resserré, continuations jointes.
+
+## backup-shares-the-fate-of-what-it-protects
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: les sauvegardes tournent chaque nuit, réussissent, et ne survivraient pas à l'incident contre lequel elles existent.
+- root_cause: mesuré sur l'hôte de production le 2026-09-03 — **21 archives quotidiennes, toutes sous `/opt/streamlytics/backups` sur `/dev/sda1`, c'est-à-dire le disque de la base qu'elles sauvegardent**. `crontab -l` ne contenait ni `rsync`, ni `s3`, ni `rclone` : aucune copie hors-site. L'en-tête de `tools/db_backup.sh` annonçait pourtant *« Phase D wires it to a Storage Box »* — une intention écrite en juin et jamais câblée. Second volet : **`tools/db_restore_test.sh` existait sans aucun appelant planifié** (3 crons : sauvegarde 03:00, dérive de schéma 04:00, santé infra 05:00 — aucun ne restaure), et sa seule assertion était `TABLES >= 1`. Il **affichait** un compte de lignes sans jamais le comparer : un dump tronqué à sa première table, ou un `pg_dump --schema-only`, passait au vert. C'était un contrôle de `gunzip` portant le nom d'un contrôle de sauvegarde.
+- signature: `.venv/bin/python -m pytest tests/test_a_backup_survives_its_disk.py -q`
+- long_term_fix: `db_backup.sh` pousse l'archive vers R2 (`rclone`), avec une rétention distante indépendante de la locale. Il **n'échoue pas** quand `R2_REMOTE` est absent — la sauvegarde locale a réussi, et la faire rougir la rendrait indiscernable d'un `pg_dump` cassé ; le refus du silence vit dans `alert_monitor.check_offsite_backup`, qui distingue quatre états (`absent`, `empty`, `stale`, `unreadable`) et les rend dans le mail consolidé. Le drill **compare** la base restaurée à la vivante, avec un compte EXACT via `query_to_xml`, et une tolérance de 10 % calibrée sur la croissance mesurée (2 736 lignes/jour pour ~49 000 en base ≈ 5,6 %/jour).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_backup_survives_its_disk.py }
+- rex_ref: tools/db_backup.sh
+- first_seen: 2026-09-03
+- History:
+  - 2026-09-04: trois mutations, trois rouges — `rclone copy` retiré, le drill revenu à l'estimation, le constat retiré du mail.
+  - 2026-09-04: **la première version du drill comparait deux estimations.** `pg_stat_user_tables.n_live_tup` n'est rafraîchi que par ANALYZE et l'autovacuum : il rendait « 40 015 lignes restaurées contre 1 149 vivantes » **sur la même base**. Un garde bâti sur une estimation compare du bruit. Compte exact désormais.
+  - 2026-09-04: et le garde lui-même a porté **deux prédicats textuels faux** — `body.index("fi")` tombait sur le « fi » de « défini » et tronquait la branche inspectée ; et la recherche de `n_live_tup` matchait le commentaire qui explique justement pourquoi l'éviter. Découpage ligne à ligne, commentaires retirés. Troisième fois dans la journée qu'une sous-chaîne répond à une question de structure.

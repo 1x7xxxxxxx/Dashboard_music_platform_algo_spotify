@@ -72,9 +72,29 @@ def _seed_batch(db, artist_id, day, plays_per_track):
         )
 
 
+def _db_today(db):
+    """The DATABASE's notion of today, never Python's.
+
+    Measured 2026-09-04 at 00:35 local. The three tests below seeded rows at
+    `datetime.now().date()` — the **local** date, Europe/Paris — while
+    `SOUNDCLOUD_WEEKLY_DELTA_SQL` compares against Postgres `CURRENT_DATE`, and the
+    container runs `Etc/UTC`. Between local midnight and UTC midnight the two differ
+    by a day: the `week_ago` CTE looked for a snapshot `<= CURRENT_DATE - 7` =
+    2026-08-27 while the fixture had seeded 2026-08-28, found nothing, and the test
+    failed with `int - None`.
+
+    So this suite went red for **two hours every night**, on a query that feeds a
+    customer-facing e-mail — and a test that is red for reasons unrelated to the code
+    is how a real failure gets waved through. Mixing clocks is the defect
+    (`naive-datetime-now`, and `.claude/rules/python.md`: a bare `datetime.now()` is
+    reserved for cosmetics that do not persist).
+    """
+    return db.fetch_query("SELECT CURRENT_DATE")[0][0]
+
+
 def test_the_latest_total_is_the_whole_batch_not_its_last_row(db, tenant):
     """`collected_at = MAX(collected_at)` returns one track. The day returns all."""
-    today = datetime.now().date()
+    today = _db_today(db)
     plays = [100 + i for i in range(BATCH_SIZE)]      # 100..118
     _seed_batch(db, tenant, today, plays)
 
@@ -93,7 +113,7 @@ def test_the_latest_total_is_the_whole_batch_not_its_last_row(db, tenant):
 
 def test_a_seven_day_delta_is_not_a_fabricated_collapse(db, tenant):
     """The end-to-end number the artist reads in the mail."""
-    today = datetime.now().date()
+    today = _db_today(db)
     week_ago = today - timedelta(days=7)
     _seed_batch(db, tenant, week_ago, [100 + i for i in range(BATCH_SIZE)])
     _seed_batch(db, tenant, today, [101 + i for i in range(BATCH_SIZE)])
@@ -111,7 +131,7 @@ def test_a_seven_day_delta_is_not_a_fabricated_collapse(db, tenant):
 
 def test_an_absent_snapshot_is_null_not_zero(db, tenant):
     """No history yet: the mail must read N/A, never a 0 that looks measured."""
-    today = datetime.now().date()
+    today = _db_today(db)
     _seed_batch(db, tenant, today, [100 + i for i in range(BATCH_SIZE)])
 
     latest, prev = db.fetch_query(SOUNDCLOUD_WEEKLY_DELTA_SQL,
