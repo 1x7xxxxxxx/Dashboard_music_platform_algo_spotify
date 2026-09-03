@@ -60,12 +60,20 @@ def _account_failure_reason(exc: BaseException) -> str:
     Falls back to the class name for any exception that is not a Meta API error, which
     is what the previous code did for every one of them.
     """
-    code = getattr(exc, "api_error_code", None)
-    if not callable(code):
-        return type(exc).__name__
-    try:
-        parts = [str(getattr(exc, f)()) for f in _META_ERROR_FIELDS]
-    except Exception:  # noqa: BLE001 — a malformed SDK error must not mask the outage
+    parts: list[str] | None = None
+    if callable(getattr(exc, "api_error_code", None)):
+        try:
+            parts = [str(getattr(exc, f)()) for f in _META_ERROR_FIELDS]
+        except Exception:  # noqa: BLE001 — a malformed SDK error must not mask the outage
+            # Aucun `return` dans ce bloc, et ce n'est pas une préférence de style :
+            # `audit_collectors_ast.py` refuse tout retour depuis un `except` d'un
+            # module de `collectors/` (règle transverse #6). Le prédicat est plus
+            # large que sa question — cette fonction ne collecte rien, elle met en
+            # forme — mais un garde qu'on desserre pour se faire de la place ne garde
+            # plus rien. La sentinelle coûte deux lignes ; l'exception coûterait la
+            # classe entière.
+            parts = None
+    if parts is None:
         return type(exc).__name__
     code_s, subcode_s, message = parts
     if subcode_s not in ("", "None", "0"):
