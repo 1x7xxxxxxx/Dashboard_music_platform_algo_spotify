@@ -5,6 +5,58 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 7) — La mise en route en 4 blocs, et réduite au premier jour
+
+✅ **DÉPLOYÉ** (`75d703b`). Parcours rejoué au navigateur depuis un `--reset`.
+
+### L'étape Bienvenue, telle que tes notes la demandaient
+
+| Bloc | Ce qu'il porte |
+|---|---|
+| **0. Ta langue** | deux **boutons** sur la page, plus seulement dans la barre latérale ; la mémoire longue existait déjà (`saas_users.lang`, mig. 079) |
+| **1. streaMLytics en bref** | inchangé |
+| **2. Ton offre de bienvenue** | « Premium offert pendant **1 mois** (30 jours) », et le tableau Free/Premium **remonté juste dessous** — ce qu'on perd se lit dans la même vue que ce qu'on offre |
+| **3. Ton guide de démarrage** | **deux** boutons PDF (FR + EN, celui de ta langue en avant) + le temps **par plateforme** |
+
+**Pourquoi des boutons et pas un radio pour la langue** : deux radios indépendants se
+réécrivent l'un l'autre à chaque rerun — celui de la page annulerait le choix fait dans
+la barre latérale, et réciproquement. Un bouton ne porte aucun état : il pose la valeur,
+met à jour la clé du radio de la barre **avant** son instanciation au run suivant, et
+relance. Même règle que pour les radios du menu.
+
+**Les minutes par plateforme sont toutes lues dans `effort_min`** du registre. Aucune
+n'est écrite dans la page : une durée tapée à la main cesse d'être vraie le jour où une
+plateforme change, et personne ne le remarque.
+
+### La réduction du premier jour, et sa portée
+
+La page Credentials ne montre que les plateformes **cochées**, les autres repliées dans
+un expander (repliées, pas cachées : masquer ce qui existe fait chercher). La portée
+vient de ta propre hypothèse — « peut-être uniquement après création du compte ».
+
+**Le drapeau de première connexion couvre maintenant le PARCOURS**, pas le seul écran de
+l'assistant : onboarding, credentials, import CSV, guide. Il tombait au premier clic vers
+Credentials, c'est-à-dire exactement sur la page qui doit se réduire. Invisible en test,
+vu en deux clics au navigateur.
+
+**Et un deuxième défaut au premier essai** : Instagram n'a pas d'onglet à lui — il se
+saisit dans celui de Meta. Un artiste qui cochait Instagram voyait son onglet **replié**,
+ce qui est pire que six onglets. La sélection est traduite en onglets, avec un garde sur
+la table de traduction.
+
+### `--reset` rejoue enfin la vérification d'e-mail
+
+Il posait `email_verified = TRUE` : le parcours commençait une étape après celle d'un
+vrai artiste. Il repart désormais non vérifié, avec un jeton, et **imprime le lien** —
+`authenticate` refuse un compte non vérifié, et le bac à sable existe pour ne dépendre de
+rien, surtout pas de l'arrivée d'un mail. `--verified` saute l'étape.
+
+7 gardes neufs, tous rouges par mutation — dont un **refait en AST** après être resté
+vert sur `first_run = False`, le nom survivant dans l'import et le commentaire. Sixième
+fois qu'un prédicat textuel répond à une question de structure. Suite : **3790 verts**.
+
+---
+
 ## 2026-09-04 (suite 6) — Une erreur laisse une ligne, pas seulement un e-mail
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`7e53c0a`, migration 083, tâche nocturne verte).
