@@ -5,6 +5,115 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 21) — « Créez-en un » ouvrait un deuxième onglet
+
+Un `[texte](?page=register)` écrit en markdown devient un `<a>` dans l'iframe de
+Streamlit, et le navigateur l'ouvre où il veut. **Mesuré** : le seul lien markdown
+restant sur l'écran de connexion porte `target="_blank"`, posé par Streamlit
+lui-même.
+
+La facture n'est pas l'onglet, c'est la session. Deux onglets de la même application,
+c'est deux sessions Streamlit distinctes — l'état de l'une n'est pas celui de l'autre,
+et l'artiste garde ouvert un écran qu'il vient de quitter.
+
+`st.query_params` + `st.rerun()` relancent le script sans aucune navigation HTML.
+C'est déjà ce que fait le lien de validation d'e-mail depuis le matin du même jour,
+corrigé pour la même raison — **troisième fois de la journée** qu'un correctif
+s'applique à un site et pas à ses frères.
+
+### Le retour n'avait pas été signalé, il portait la même forme
+
+« Vous avez déjà un compte ? Connectez-vous » était le trajet miroir, en markdown lui
+aussi, et `?page=login` n'était routé nulle part : vider le paramètre EST le retour à
+la connexion. Un aller-retour entre connexion et inscription est le parcours le plus
+banal de l'application.
+
+### Ce qui reste un lien, et pourquoi
+
+La politique de confidentialité. Ce n'est pas un écran de l'application, c'est un
+document : l'ouvrir à côté est le bon comportement, et le contraire ferait perdre un
+formulaire d'inscription à moitié rempli. La distinction que le garde applique n'est
+donc pas « lien ou bouton » mais **« document ou écran »**.
+
+### Le garde a accusé son propre commentaire
+
+Écrit avec une regex sur chaque ligne, il a immédiatement dénoncé `auth.py` — sur le
+commentaire que je venais d'y mettre pour expliquer pourquoi le lien avait été retiré.
+Deuxième fois dans la même journée qu'un garde trouve un défaut dans de la
+documentation. Il lit maintenant les CHAÎNES de l'arbre syntaxique, où les commentaires
+n'existent pas.
+
+### Un test qui parlait de sa copie
+
+`test_readiness_carries_the_live_diagnosis` a viré au rouge sur la reformulation de la
+veille — pas sur un comportement, sur un littéral : `_SOUNDCLOUD` y était une copie
+écrite à la main de la ligne de production. Le fichier portait pourtant déjà la leçon,
+dix lignes plus bas, à propos d'une AUTRE copie : « un test qui compare la production
+à une copie écrite à la main teste la copie ». Elle était écrite, elle n'avait pas été
+appliquée au voisin. La copie lit désormais `_PLATFORMS`.
+
+---
+
+## 2026-09-04 (suite 20) — Spotify : trois impératifs, et une capture que la matrice cachait
+
+« On doit à tout prix éviter le blabla et aller à l'essentiel. » Sept suppressions,
+et chacune retirait un contexte que l'artiste a déjà sous les yeux :
+
+  « Une seule valeur à coller : le lien de ta page Spotify Artist »  annonce les trois
+                                                                     étapes qui suivent
+  « Sur Spotify, ouvre ta page artiste, puis… »                      il y est
+  « — les trois petits points, à droite du bouton Suivre / Abonné »  la capture le montre
+  « Dans le menu qui s'ouvre : »                                     il vient de l'ouvrir
+  « 🔒 Chiffrés à l'enregistrement. C'est la seule action à faire
+    sur cette page. »                                                un champ le montre
+
+Ce qui reste est ce qu'on ne peut pas deviner : quel bouton, quelle entrée de menu,
+quel champ.
+
+  1. Clique le bouton `•••` sur ta page artiste.   [capture]
+  2. **Partager** → **Copier le lien vers l'artiste**.
+  3. Colle le lien ⬅ dans **URL profil artiste**.
+
+Le champ s'appelait « Spotify Artist ID **ou** URL profil » — un choix qui n'en est
+pas un : on ne colle jamais l'ID, on colle l'URL et le code en extrait l'ID. Nommer
+les deux transformait un geste en arbitrage, sur un formulaire à un champ.
+
+### « Il n'y a pas le screen » — mesuré, il y est
+
+Elle est bien dans l'onglet, dans le formulaire, 94 px sous le champ, même colonne
+(x=396 contre 397). Mais le champ est à **y = 1475** sur une page de 2141 : la
+matrice « 📋 État de tes plateformes » occupe les 900 premiers pixels, et personne ne
+fait défiler une page de configuration pour trouver le champ à remplir.
+
+Ce n'est donc pas une capture manquante, c'est une capture hors d'atteinte — la même
+forme que « du code correct que rien n'atteint », appliquée à la mise en page. Je ne
+déplace pas la matrice sans le demander : c'est un changement de structure, pas une
+correction de texte.
+
+### La classe, vue deux fois en deux jours
+
+La matrice d'état répondait encore « Renseigne ton User ID SoundCloud numérique » —
+la formulation corrigée la veille dans le guide, le champ, le `need` et la traduction.
+Elle vit dans `src/utils/artist_readiness.py` : personne ne la relit en retouchant un
+guide, et rien ne la comparait au champ.
+
+Quatre à cinq surfaces répondent à « qu'est-ce que je dois fournir ? », dans quatre
+fichiers et trois paquets. Aucune n'est fausse toute seule — c'est leur DÉSACCORD qui
+est le défaut, et un désaccord n'a pas de fichier où le lire. Le garde prend l'`example`
+du champ comme référence : c'est la seule chaîne que le code doit littéralement
+accepter, donc la seule qui ne peut pas dériver en silence.
+
+Écrit d'abord sur « l'unique champ non secret », il excluait Spotify — deux champs,
+dont un optionnel sans exemple — c'est-à-dire la plateforme dont le défaut l'a motivé.
+La portée d'un garde est le défaut, encore. Les quatre surfaces mutées rougissent.
+
+Et le catalogue anglais était périmé une deuxième fois : DEUX étapes là où le français
+en a trois, avec « Test connection » alors que le bouton dit « Enregistrer ». Même
+défaut que SoundCloud la veille, même cause — rien ne relie une clé de traduction à la
+version du guide qu'elle traduit.
+
+---
+
 ## 2026-09-04 (suite 19) — SoundCloud : une seule demande, dite pareil partout
 
 « C'est bizarre, tu demandes de saisir l'URL d'artiste et tu me demandes mon User ID

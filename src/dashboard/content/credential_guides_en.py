@@ -19,7 +19,7 @@ _SPOTIFY = PlatformCred(
     key="spotify",
     title="Spotify",
     icon="🎵",
-        intro="**One single value to paste: the link to your Spotify Artist page.**",
+        intro=None,
     portal_url="https://open.spotify.com",
     steps=(
         CredStep("On Spotify, open **your artist page**, then click the `•••` "
@@ -27,12 +27,11 @@ _SPOTIFY = PlatformCred(
                  "*Follow / Following* button.",
                  "spotify_share_artist_link.png",
                  "The ••• button → Share → Copy link to artist"),
-        CredStep("In the menu that opens: **Share** → **Copy link to artist**."),
-        CredStep("Paste the link into the **Spotify Artist ID or profile URL** "
-                 "field, then **💾 Save**."),
+        CredStep("**Share** → **Copy link to artist**."),
+        CredStep("Paste the link ⬅ into **Artist profile URL**."),
     ),
     fields=(
-        CredField("Spotify Artist ID or profile URL",
+        CredField("Artist profile URL",
                   "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
                   note="paste the full URL of your artist page — we extract the id"),
     ),

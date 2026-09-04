@@ -25,14 +25,18 @@ from __future__ import annotations
 import pytest
 
 from src.utils.artist_readiness import (
-    BROKEN, NO_DATA, OK, TODO, next_action,
+    _PLATFORMS, BROKEN, NO_DATA, OK, TODO, next_action,
 )
 
-_SOUNDCLOUD = {
-    "key": "soundcloud", "label": "☁️ SoundCloud",
-    "id_hint": "ton User ID SoundCloud numérique",
-    "nodata_hint": "vérifie le User ID ; l'app SoundCloud partagée doit être configurée (admin)",
-}
+# LA vraie ligne, pas une copie. Elle a été recopiée à la main jusqu'au 2026-09-04, et
+# elle a dérivé le jour où `id_hint` a cessé de réclamer un « User ID numérique » —
+# une reformulation qui ne change aucun comportement a rendu le test rouge, ce qui est
+# la définition d'un test qui parle de sa copie.
+#
+# C'est exactement ce que le commentaire de `_GRINCH_TRUTH`, dix lignes plus bas,
+# reprochait déjà à une autre copie du même fichier. La leçon était écrite ; elle
+# n'avait simplement pas été appliquée au voisin.
+_SOUNDCLOUD = next(p for p in _PLATFORMS if p["key"] == "soundcloud")
 # The OPENING of what `_platform_soundcloud._test_soundcloud` returns for GRiNCH —
 # its first line, not the whole message. It said "the exact string" until 2026-08-26,
 # and that claim is why nobody noticed production had stopped sending the rest: the

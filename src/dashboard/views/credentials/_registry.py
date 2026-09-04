@@ -57,7 +57,7 @@ PLATFORMS = {
         # optional per-artist override. spotify_artist_id is synced to
         # saas_artists.spotify_artist_id on save (the per-tenant collection key).
         'fields': [
-            {'key': 'spotify_artist_id', 'label': 'Spotify Artist ID ou URL profil',
+            {'key': 'spotify_artist_id', 'label': 'URL profil artiste',
              'secret': False,
              'example': 'https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4'},
             {'key': 'client_id',     'label': 'Client ID (surcharge)',     'secret': False, 'admin_only': True},

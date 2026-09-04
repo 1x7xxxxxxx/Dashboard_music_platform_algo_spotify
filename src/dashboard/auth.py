@@ -560,8 +560,20 @@ def require_login() -> bool:
                                       autocomplete="current-password")
             submitted = st.form_submit_button(_t("auth.signin", "Se connecter"), type="primary")
 
-        st.markdown(_t("auth.register_link",
-                       "[Pas encore de compte ? **Créez-en un**](?page=register)"))
+        # UN BOUTON, pas un lien. Signalé le 2026-09-04 : « ça nous ouvre une autre
+        # page du navigateur, est-ce qu'on pourrait lancer via le même onglet pour
+        # éviter de dupliquer ? ». Un `[texte](?page=register)` est un `<a>` rendu
+        # dans l'iframe de Streamlit, et le navigateur l'ouvre où il veut — souvent à
+        # côté. L'artiste se retrouve avec deux onglets de la même application, dont
+        # un resté sur l'écran qu'il vient de quitter.
+        #
+        # `st.query_params` + `st.rerun()` relancent le script SANS navigation HTML :
+        # il n'y a donc aucun onglet possible. Même remède que le lien de validation
+        # d'e-mail, corrigé le même jour pour la même raison.
+        if st.button(_t("auth.register_link", "Pas encore de compte ? Créez-en un"),
+                     key="_goto_register"):
+            st.query_params["page"] = "register"
+            st.rerun()
         st.caption(_t("auth.pw_encrypted_notice",
                       "🔒 Votre mot de passe est chiffré (bcrypt) et n'est jamais stocké "
                       "en clair — conformément au RGPD."))

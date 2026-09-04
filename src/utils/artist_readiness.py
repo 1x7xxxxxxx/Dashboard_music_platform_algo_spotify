@@ -46,8 +46,8 @@ _LABEL = {
 _PLATFORMS = (
     {"key": "soundcloud", "label": "☁️ SoundCloud",
      "where": "Credentials API → SoundCloud",
-     "id_hint": "ton User ID SoundCloud numérique",
-     "nodata_hint": "vérifie le User ID ; l'app SoundCloud partagée doit être configurée (admin)"},
+     "id_hint": "le lien de ton profil SoundCloud",
+     "nodata_hint": "vérifie le lien du profil ; l'app SoundCloud partagée doit être configurée (admin)"},
     {"key": "spotify", "label": "🎵 Spotify",
      "where": "Credentials API → Spotify",
      "id_hint": "l'URL de ta page Spotify Artist",

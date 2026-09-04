@@ -118,42 +118,38 @@ _SPOTIFY = PlatformCred(
     # d'architecture, vraie, et sans usage pour quelqu'un qui a une valeur à coller.
     # Signalé en test le 2026-08-30 : « ça ajoute de la complexité pour rien, il faut
     # être au plus simple possible ». Une seule phrase, à l'impératif.
-    intro="**Une seule valeur à coller : le lien de ta page Spotify Artist.**",
+    # Pas d'intro. « Une seule valeur à coller : le lien de ta page Spotify Artist »
+    # annonçait les trois étapes qui suivent — et la troisième les dit mieux, parce
+    # qu'elle fait faire quelque chose. Retirée le 2026-09-04, avec la même consigne
+    # que le reste de ce guide : « on doit à tout prix éviter le blabla ».
+    intro=None,
     portal_url="https://open.spotify.com",
     portal_search_url="https://open.spotify.com/search/{q}/artists",
+    # TROIS impératifs, rien d'autre. Chaque mot retiré ci-dessous décrivait un
+    # contexte que l'artiste a déjà sous les yeux :
+    #
+    #   « Sur Spotify, ouvre ta page artiste, puis… »  il y est ;
+    #   « — les trois petits points, à droite du
+    #     bouton Suivre / Abonné »                     la capture le montre ;
+    #   « Dans le menu qui s'ouvre : »                 il vient de l'ouvrir.
+    #
+    # Ce qui RESTE est ce qu'on ne peut pas deviner : quel bouton, quelle entrée de
+    # menu, quel champ. Le glyphe garde son fond de code — `⋯` nu se lisait comme une
+    # coupure de texte — et la capture reste sur l'étape où deux testeurs se sont
+    # arrêtés.
     steps=(
-        # `⋯` seul se lisait comme une coupure de texte, pas comme un bouton :
-        # signalé le 2026-09-04 — « on peut confondre avec du texte ». Le glyphe
-        # porte donc un fond de code (une forme, pas une ponctuation), il est NOMMÉ
-        # en toutes lettres, et il est situé par rapport à un repère que l'artiste
-        # a sous les yeux. La capture d'écran fait le reste : c'est l'étape où deux
-        # testeurs se sont arrêtés.
-        CredStep("Sur Spotify, ouvre **ta page artiste**, puis clique le bouton "
-                 "`•••` — les **trois petits points**, à droite du bouton "
-                 "*Suivre / Abonné*.",
+        CredStep("Clique le bouton `•••` sur ta page artiste.",
                  "spotify_share_artist_link.png",
                  "Le bouton ••• → Partager → Copier le lien vers l'artiste"),
-        CredStep("Dans le menu qui s'ouvre : **Partager** → **Copier le lien vers "
-                 "l'artiste**."),
-        # Trois formulations en trois jours pour cette étape, et à chaque fois pour
-        # la même raison : elle décrivait OÙ coller, donc elle devenait fausse dès
-        # que le formulaire bougeait.
-        #
-        #   « Colle-le ci-dessous »  → faux quand le guide est passé SOUS le
-        #                              formulaire (ce qui est dessous, c'est le DAG) ;
-        #   « page Credentials API → Spotify, encadré Saisir tes identifiants »
-        #                            → exact, et redondant depuis que le guide est la
-        #                              colonne de droite DE cet encadré : on décrit à
-        #                              quelqu'un l'endroit où il se trouve déjà.
-        #
-        # Elle ne dit donc plus que le CHAMP, qui est la seule chose à savoir et la
-        # seule qui ne bouge pas — vrai à l'écran comme dans le PDF, qui n'a ni
-        # « dessus », ni « à côté ».
-        CredStep("Colle le lien dans le champ **Spotify Artist ID ou URL profil**, "
-                 "puis **💾 Enregistrer**."),
+        CredStep("**Partager** → **Copier le lien vers l'artiste**."),
+        # La flèche pointe la colonne de gauche, où est le champ. Elle est décorative :
+        # la phrase reste vraie sans elle, et le nom du champ suffit dans le PDF.
+        CredStep("Colle le lien ⬅ dans **URL profil artiste**."),
     ),
     fields=(
-        CredField("Spotify Artist ID ou URL profil",
+        # « Spotify Artist ID ou URL profil » offrait un choix qui n'en est pas un :
+        # on ne colle jamais l'ID, on colle l'URL, et le code en extrait l'ID.
+        CredField("URL profil artiste",
                   "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
                   note="colle l'URL complète de ta page artiste — on extrait l'ID"),
     ),

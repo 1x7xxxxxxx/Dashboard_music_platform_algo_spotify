@@ -95,7 +95,6 @@ EN = {
     "credentials.no_creds_platform": "No credentials saved for this platform.",
     # ── _render.py — form ──────────────────────────────────────────────
     "credentials.form.enter": "Enter your credentials",
-    "credentials.form.caption_first": "🔒 Encrypted on save. This is the only action to take on this page.",
     "credentials.form.update": "Update",
     "credentials.form.caption": (
         "🔒 Secret fields encrypted • Leave empty to keep the current value"
@@ -309,21 +308,16 @@ EN = {
     "credentials.guide.paste_caption": "Values to paste into 🔑 API Credentials:",
     # ── credential_guides.py — Spotify guide ───────────────────────────
     "credentials.guide.spotify.expander": "{icon} {title} — obtain the credentials",
-    "credentials.guide.spotify.intro": (
-        "**You don't have to create anything.** The Spotify app is managed by the "
-        "administrator (shared across all artists). You paste **one value**: the "
-        "**link to your Spotify Artist page**."
-    ),
-    "credentials.guide.spotify.step_1": (
-        "Open **your artist page** on Spotify (app or open.spotify.com). Menu "
-        "**⋯ → Share → Copy link to artist**. You get a URL like "
-        "`https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4`."
-    ),
-    "credentials.guide.spotify.step_2": (
-        "Paste that link into **🔑 API Credentials → Spotify** (field *Spotify "
-        "Artist ID or URL*), then **Test connection**. We extract the ID "
-        "automatically — no need to split it."
-    ),
+    # Pas d'`intro` : la source française n'en a plus. Et les étapes ci-dessous
+    # étaient périmées d'une autre façon — DEUX étapes là où le français en a trois,
+    # avec « Test connection » alors que le bouton dit « Enregistrer » depuis
+    # longtemps. Le rendu préférant la traduction à la source, un lecteur anglophone
+    # recevait un guide qu'aucun francophone ne lisait plus (même défaut que
+    # SoundCloud, corrigé la veille — voir `test_the_soundcloud_ask_is_one_thing`).
+    "credentials.guide.spotify.step_1": "Click the `•••` button on your artist page.",
+    "credentials.guide.spotify.step_2": "**Share** → **Copy link to artist**.",
+    "credentials.guide.spotify.step_3": "Paste the link ⬅ into **Artist profile URL**.",
+    "credentials.guide.spotify.field_1": "Artist profile URL",
     "credentials.guide.spotify.note_1": (
         "paste the full URL of your artist page — we extract the ID"
     ),

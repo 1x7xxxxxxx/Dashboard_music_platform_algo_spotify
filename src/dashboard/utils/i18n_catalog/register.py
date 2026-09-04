@@ -29,7 +29,7 @@ EN = {
                                    "by email (optional)",
     "register.marketing_help": "You can withdraw this consent at any time.",
     "register.submit": "Create account",
-    "register.already_have": "[Already have an account? **Sign in**](?page=login)",
+    "register.already_have": "Already have an account? Sign in",
     # Uniqueness errors
     # register.email_taken / register.code_invalid were retired on 2026-08-22: both
     # answered an anonymous visitor a question only an account holder should be able

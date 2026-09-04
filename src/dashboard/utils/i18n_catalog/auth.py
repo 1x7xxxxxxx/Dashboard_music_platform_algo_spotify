@@ -42,7 +42,7 @@ EN = {
     "auth.password": "Password",  # pragma: allowlist secret
     "auth.confirm_password": "Confirm password",  # pragma: allowlist secret
     "auth.enter_credentials": "Please enter your username and password.",
-    "auth.register_link": "[Don't have an account? **Create one**](?page=register)",
+    "auth.register_link": "Don't have an account? Create one",
     "auth.pw_encrypted_notice": ("🔒 Your password is encrypted (bcrypt) and never stored "
                                  "in plain text — GDPR compliant."),
     "auth.session_expired": "🔒 Session expired after inactivity. Please sign in again.",

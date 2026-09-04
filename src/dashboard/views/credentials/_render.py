@@ -329,11 +329,12 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             else:
                 st.markdown("### :orange-background[👉 "
                             + t("credentials.form.enter", "Saisir tes identifiants") + "]")
-                st.caption(t(
-                    "credentials.form.caption_first",
-                    "🔒 Chiffrés à l'enregistrement. C'est la seule action à faire sur "
-                    "cette page."
-                ))
+                # Rien sous le titre. « 🔒 Chiffrés à l'enregistrement. C'est la seule
+                # action à faire sur cette page. » disait deux choses justes et
+                # inutiles ici : le chiffrement, que personne ne vérifie au moment de
+                # coller, et l'unicité de l'action, qu'un formulaire à un champ montre
+                # déjà. La ligne équivalente du cas « déjà rempli » reste, elle : elle
+                # explique un COMPORTEMENT — laisser vide conserve la valeur.
 
             form_values = {}
             pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]

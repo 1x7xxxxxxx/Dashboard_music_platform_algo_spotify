@@ -530,7 +530,13 @@ def show():
 
         submitted = st.form_submit_button(t("register.submit", "Créer le compte"), type="primary")
 
-    st.markdown(t("register.already_have", "[Vous avez déjà un compte ? **Connectez-vous**](?page=login)"))
+    # Le trajet miroir de « Créez-en un », et le même défaut : deux onglets pour un
+    # aller-retour entre deux écrans de la même application. `?page=login` n'était
+    # d'ailleurs routé nulle part — vider le paramètre EST le retour à la connexion.
+    if st.button(t("register.already_have", "Vous avez déjà un compte ? Connectez-vous"),
+                 key="_goto_login"):
+        st.query_params.clear()
+        st.rerun()
 
     if not submitted:
         return
