@@ -464,9 +464,7 @@ EN = {
         "Its page is **📂 CSV import**."
     ),
     "credentials.focus_elsewhere_go": "📂 Go to CSV import →",
-    "credentials.guide.paste_header": (
-        "**To paste into the 👉 Enter your credentials box**, at the top of this tab:"
-    ),
+    "credentials.guide.paste_header": "**The values to paste:**",
     "credentials.guide.example_inline": (
         "*e.g. {example}* — sample format, do not copy it"
     ),

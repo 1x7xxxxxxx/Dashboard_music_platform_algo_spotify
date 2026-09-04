@@ -160,8 +160,7 @@ _UI = {
         'th_field': "Champ", 'th_example': "Exemple (format)", 'th_note': "Note",
         'note': "Note", 'open_portal': "Ouvrir le portail {title}",
         'test_conn': "Tester la connexion dans streaMLytics",
-        'paste_head': ("À coller dans l'encadré 👉 Saisir tes identifiants, "
-                       "en haut de cet onglet :"),
+        'paste_head': "Les valeurs à coller :",
         'ex_prefix': "ex.", 'ex_suffix': "exemple de forme, ne le copie pas",
     },
     'en': {
@@ -182,8 +181,7 @@ _UI = {
         'th_field': "Field", 'th_example': "Example (format)", 'th_note': "Note",
         'note': "Note", 'open_portal': "Open the {title} portal",
         'test_conn': "Test the connection in streaMLytics",
-        'paste_head': ("To paste into the 👉 Enter your credentials box, "
-                       "at the top of that tab:"),
+        'paste_head': "The values to paste:",
         'ex_prefix': "e.g.", 'ex_suffix': "sample format, do not copy it",
     },
 }

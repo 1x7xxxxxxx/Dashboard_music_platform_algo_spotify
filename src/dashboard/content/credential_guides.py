@@ -130,15 +130,23 @@ _SPOTIFY = PlatformCred(
                  "Le bouton ••• → Partager → Copier le lien vers l'artiste"),
         CredStep("Dans le menu qui s'ouvre : **Partager** → **Copier le lien vers "
                  "l'artiste**."),
-        # « Colle-le ci-dessous » était faux depuis que le guide est passé SOUS le
-        # formulaire (2026-08-30) : ce qui se trouve dessous, c'est le statut du DAG.
-        # Une direction relative ne survit pas à un déplacement de bloc ; on nomme
-        # donc la page et l'encadré, ce qui reste vrai dans le PDF, qui n'a ni
-        # « dessus » ni « dessous ».
-        CredStep("Dans l'application, page **🔑 Credentials API → Spotify**, encadré "
-                 "**👉 Saisir tes identifiants** : colle le lien dans le champ "
-                 "**Spotify Artist ID ou URL profil**, puis **💾 Enregistrer**. "
-                 "On extrait l'ID automatiquement — pas besoin de le découper."),
+        # Trois formulations en trois jours pour cette étape, et à chaque fois pour
+        # la même raison : elle décrivait OÙ coller, donc elle devenait fausse dès
+        # que le formulaire bougeait.
+        #
+        #   « Colle-le ci-dessous »  → faux quand le guide est passé SOUS le
+        #                              formulaire (ce qui est dessous, c'est le DAG) ;
+        #   « page Credentials API → Spotify, encadré Saisir tes identifiants »
+        #                            → exact, et redondant depuis que le guide est la
+        #                              colonne de droite DE cet encadré : on décrit à
+        #                              quelqu'un l'endroit où il se trouve déjà.
+        #
+        # Elle ne dit donc plus que le CHAMP, qui est la seule chose à savoir et la
+        # seule qui ne bouge pas — vrai à l'écran comme dans le PDF, qui n'a ni
+        # « dessus », ni « à côté ».
+        CredStep("Colle le lien dans le champ **Spotify Artist ID ou URL profil**, "
+                 "puis **💾 Enregistrer**. On extrait l'ID automatiquement — pas "
+                 "besoin de le découper."),
     ),
     fields=(
         CredField("Spotify Artist ID ou URL profil",
@@ -273,10 +281,10 @@ _META = PlatformCred(
                  f"[Comptes publicitaires]({_META_BM_ADACCOUNTS_URL}) → **Ajouter "
                  "des personnes / des applications**, sélectionnez le vôtre et "
                  "donnez-lui l'autorisation **Analyste** (ou Annonceur)."),
-        CredStep("Collez la valeur dans **🔑 Credentials API → Meta / Instagram**, "
-                 "encadré **👉 Saisir tes identifiants**, puis **💾 Enregistrer** — "
-                 "la connexion est testée dans la foulée. Un ❌ ici pointe presque "
-                 "toujours vers l'étape de partage ci-dessus."),
+        CredStep("Colle la valeur dans le champ **Ad Account ID**, puis "
+                 "**💾 Enregistrer** — la connexion est testée dans la foulée. "
+                 "Un ❌ ici pointe presque toujours vers l'étape de partage "
+                 "ci-dessus."),
         CredStep("**Instagram (optionnel mais recommandé).** Pour suivre vos followers "
                  "et vos posts, il faut l'**ID du compte Instagram Business** — pas votre "
                  "@pseudo. Ouvrez **Meta Business Suite → Paramètres → Comptes → Comptes "

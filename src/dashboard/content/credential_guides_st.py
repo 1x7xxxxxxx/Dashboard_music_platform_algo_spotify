@@ -37,7 +37,8 @@ def render_credential_guides() -> None:
 
 
 def render_credential_guide_for(platform_key: str,
-                                artist_name: str | None = None) -> None:
+                                artist_name: str | None = None,
+                                expanded: bool = False) -> None:
     """Render the single-platform guide (used inside that platform's tab).
 
     Le sélecteur d'OS est rendu ICI depuis le 2026-08-23. Il existait déjà
@@ -60,7 +61,7 @@ def render_credential_guide_for(platform_key: str,
         # jour où un guide redemande un raccourci, il revient tout seul.
         if _needs_os_selector(guide):
             os_selector(key=f"cred_guide_os_{platform_key}")
-        _render_guide_expander(guide, artist_name=artist_name)
+        _render_guide_expander(guide, artist_name=artist_name, expanded=expanded)
 
 
 def _needs_os_selector(guide: PlatformCred) -> bool:
@@ -79,14 +80,20 @@ def _needs_os_selector(guide: PlatformCred) -> bool:
 
 
 def _render_guide_expander(guide: PlatformCred,
-                           artist_name: str | None = None) -> None:
+                           artist_name: str | None = None,
+                           expanded: bool = False) -> None:
     # Translate at the render site: the PlatformCred constants are evaluated at
     # import (language not yet chosen), so the FR source strings are passed as
     # the `t()` default and the EN keys live in the credentials catalog.
     title = t(f"credentials.guide.{guide.key}.expander",
               "{icon} {title} — obtenir les identifiants").format(
                   icon=guide.icon, title=guide.title)
-    with st.expander(title, expanded=False):
+    # `expanded` est décidé par l'APPELANT, pas ici. Dans l'onglet de saisie il vaut
+    # True : le guide est la colonne de droite, il n'y a rien à ouvrir pour lire ce
+    # qu'on doit faire à gauche. Sur la page « Process — Credentials », qui liste les
+    # quatre guides à la suite, il reste replié — quatre pavés dépliés y seraient un
+    # mur, pas une aide.
+    with st.expander(title, expanded=expanded):
         st.markdown(_os_md(t(f"credentials.guide.{guide.key}.intro", guide.intro)))
         _render_portal_link(guide, artist_name)
         for i, step in enumerate(guide.steps, 1):
@@ -146,10 +153,11 @@ def _render_fields_table(guide: PlatformCred) -> None:
     copie pas » ; le tableau disparaît au profit d'une liste, qui tient sur un
     téléphone là où un `st.dataframe` à quatre colonnes défile latéralement.
     """
-    st.markdown(t(
-        "credentials.guide.paste_header",
-        "**À coller dans l'encadré 👉 Saisir tes identifiants**, en haut de cet "
-        "onglet :"))
+    # Ne nomme plus l'encadré ni sa position : le guide est la colonne d'à côté DE
+    # cet encadré depuis le 2026-09-04, donc la phrase décrivait à quelqu'un
+    # l'endroit où il se trouve déjà. Elle dit ce qu'elle a à dire — quoi coller —
+    # et reste vraie dans le PDF, qui n'a ni « en haut » ni « à côté ».
+    st.markdown(t("credentials.guide.paste_header", "**Les valeurs à coller :**"))
     for i, f in enumerate(guide.fields, 1):
         lock = " 🔒" if f.secret else ""
         label = t(f"credentials.guide.{guide.key}.field_{i}", f.label)

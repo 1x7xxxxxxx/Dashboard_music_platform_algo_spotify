@@ -152,3 +152,88 @@ def test_no_guide_step_points_below_itself():
         f"DAG et non le formulaire : {offenders}. Nomme la page et l'encadré — "
         "c'est la seule formulation qui reste vraie dans le PDF."
     )
+
+
+# ── 4. Le guide est À CÔTÉ du champ, donc il ne dit plus où est le champ ─────
+
+def test_the_guide_never_describes_where_the_reader_already_is():
+    """Depuis le 2026-09-04 le guide est la colonne de DROITE du formulaire.
+
+    Trois formulations en trois jours pour la même étape, chacune décrivant OÙ
+    coller, chacune devenue fausse ou redondante quand le formulaire a bougé :
+
+      « Colle-le ci-dessous »          → dessous, c'est le statut du DAG ;
+      « page Credentials API → Spotify,
+        encadré Saisir tes identifiants » → exact, et on le dit à quelqu'un qui est
+                                            déjà dessus, le champ à sa gauche.
+
+    Une étape doit nommer le CHAMP — la seule chose à savoir, et la seule qui ne
+    bouge pas d'un rendu à l'autre. Elle reste vraie à l'écran ET dans le PDF, qui
+    n'a ni « dessous » ni « à côté ».
+    """
+    located = []
+    for lang, guide in _all_guides():
+        for i, step in enumerate(guide.steps, 1):
+            text = (step.text or "").lower()
+            for phrase in ("en haut de cet onglet", "at the top of this tab",
+                           "encadré 👉 saisir", "box 👉 enter",
+                           "page 🔑 credentials api →", "page 🔑 api credentials →"):
+                if phrase in text:
+                    located.append(f"{lang}/{guide.key} étape {i} : {phrase!r}")
+    assert not located, (
+        "Ces étapes situent le formulaire pour quelqu'un qui l'a sous les yeux :\n  "
+        + "\n  ".join(located)
+        + "\n\nNomme le champ, pas l'endroit."
+    )
+
+
+def test_the_tab_renders_the_guide_beside_the_form_and_open():
+    """Deux colonnes, et le guide déplié — sinon la capture reste à ouvrir.
+
+    La capture du menu Partager est dans le guide depuis le matin du 2026-09-04, et
+    la remarque du soir était « il n'y a toujours pas le screen » : personne ne
+    déplie un pavé pour aller chercher une image pendant qu'il remplit un champ.
+    Une consigne qu'il faut ouvrir pour lire n'est pas à côté de l'action.
+    """
+    import ast
+    from pathlib import Path as _Path
+
+    render = (_Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views"
+              / "credentials" / "_render.py")
+    src = render.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
+    body = ast.get_source_segment(src, fn) or ""
+
+    assert "st.columns" in body, (
+        "l'onglet ne rend plus le formulaire et son guide côte à côte — le guide "
+        "retomberait sous le formulaire, replié, là où deux artistes ne l'ont pas vu"
+    )
+    call = next((n for n in ast.walk(fn)
+                 if isinstance(n, ast.Call)
+                 and getattr(n.func, "id", "") == "render_credential_guide_for"), None)
+    assert call is not None, "le guide n'est plus rendu dans l'onglet de saisie"
+    expanded = next((k.value for k in call.keywords if k.arg == "expanded"), None)
+    assert isinstance(expanded, ast.Constant) and expanded.value is True, (
+        "le guide de l'onglet n'est plus déplié : il redevient un pavé à ouvrir, "
+        "et la capture d'écran redevient invisible"
+    )
+
+
+def test_the_standalone_guide_list_stays_collapsed():
+    """L'autre appelant garde des pavés repliés — quatre guides ouverts sont un mur.
+
+    Le défaut serait de généraliser `expanded=True` « par cohérence ». Les deux
+    surfaces ne posent pas la même question : dans l'onglet, le guide accompagne UN
+    champ ; sur la page qui liste les quatre, il faut pouvoir choisir.
+    """
+    import inspect
+
+    from src.dashboard.content.credential_guides_st import render_credential_guide_for
+
+    sig = inspect.signature(render_credential_guide_for)
+    assert sig.parameters["expanded"].default is False, (
+        "le guide est déplié PAR DÉFAUT : la page qui en liste quatre deviendrait "
+        "un mur. C'est l'appelant qui décide, pas la fonction."
+    )

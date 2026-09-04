@@ -28,10 +28,9 @@ _SPOTIFY = PlatformCred(
                  "spotify_share_artist_link.png",
                  "The ••• button → Share → Copy link to artist"),
         CredStep("In the menu that opens: **Share** → **Copy link to artist**."),
-        CredStep("In the app, page **🔑 API Credentials → Spotify**, box "
-                 "**👉 Enter your credentials**: paste the link into the "
-                 "**Spotify Artist ID or profile URL** field, then **💾 Save**. "
-                 "We extract the ID automatically — no need to cut it up."),
+        CredStep("Paste the link into the **Spotify Artist ID or profile URL** "
+                 "field, then **💾 Save**. We extract the ID automatically — no "
+                 "need to cut it up."),
     ),
     fields=(
         CredField("Spotify Artist ID or profile URL",
@@ -145,10 +144,9 @@ _META = PlatformCred(
                  f"Then, in [Ad accounts]({_META_BM_ADACCOUNTS_URL}) → **Add people "
                  "/ apps**, pick yours and grant **Analyst** (or Advertiser) "
                  "permission."),
-        CredStep("Paste the value into **🔑 API Credentials → Meta / Instagram**, "
-                 "box **👉 Enter your credentials**, then **💾 Save** — the "
-                 "connection is tested right after. A ❌ here almost always points "
-                 "back to the sharing step above."),
+        CredStep("Paste the value into the **Ad Account ID** field, then "
+                 "**💾 Save** — the connection is tested right after. A ❌ here "
+                 "almost always points back to the sharing step above."),
         CredStep("**Instagram (optional but recommended).** To track followers and "
                  "posts we need the **Instagram Business Account ID** — not your "
                  "@handle. Open **Meta Business Suite → Settings → Accounts → "

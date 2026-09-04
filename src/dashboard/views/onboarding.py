@@ -458,24 +458,22 @@ def _step_welcome(plan: str, db) -> None:
 
 def _step_credentials(plan: str, artist_id: int, db) -> None:
     st.title(t("onboarding.creds_title", "🔑 Par quoi veux-tu commencer ?"))
-    # L'instruction « coche ce que tu veux » était ICI, au-dessus de la matrice
-    # d'état — un artiste en test a essayé de cocher dans la matrice, où il n'y a
-    # rien à cocher. Elle est descendue juste avant les vraies cases.
+    # L'ORDRE de cette étape, deux fois corrigé, et par la même personne.
+    #
+    # Le 2026-08-30 : « coche ce que tu veux » vivait au-dessus de la matrice d'état,
+    # et un artiste a essayé de cocher DANS la matrice, où il n'y a rien à cocher.
+    # L'instruction est descendue juste avant les vraies cases.
+    #
+    # Le 2026-09-04 : la matrice elle-même passe SOUS les cases. « On se répète » —
+    # et c'est exact : cette étape demandait de choisir, et l'écran s'ouvrait sur un
+    # tableau de cinq lignes toutes ⚪ qui redit, plateforme par plateforme, ce que
+    # les cases vont demander. Un état vide n'apprend rien tant qu'on n'a rien
+    # choisi ; il devient utile juste après, quand il montre l'effet du choix.
 
     # La connexion est celle de `show()`, ouverte une fois pour le rendu entier et
     # fermée par lui. Elle l'était ici, et refermée au milieu de l'étape : le bandeau
     # d'état ajouté au-dessus en aurait ouvert une seconde (règle transverse #9).
     configured = _get_configured_platforms(artist_id, db)
-
-    if db is not None and artist_id is not None:
-        st.markdown(t("onboarding.matrix_header",
-                      "#### 📋 Où tu en es, plateforme par plateforme"))
-        render_status_matrix(db, artist_id, key_suffix="onboarding")
-        # Même raison qu'à la page Credentials : la légende vit dans la matrice.
-        st.caption(t(
-            "onboarding.matrix_legend",
-            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
-        st.markdown("---")
 
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
@@ -539,6 +537,17 @@ def _step_credentials(plan: str, artist_id: int, db) -> None:
         if pv.caveat and not connected:
             st.caption(t(f"onboarding.caveat.{pv.key}", "⚠️ {c}").format(c=pv.caveat))
         st.markdown("")
+
+    # …et l'état APRÈS le choix, là où il répond à « et maintenant, où j'en suis ? »
+    if db is not None and artist_id is not None:
+        st.markdown("---")
+        st.markdown(t("onboarding.matrix_header",
+                      "#### 📋 Où tu en es, plateforme par plateforme"))
+        render_status_matrix(db, artist_id, key_suffix="onboarding")
+        # Même raison qu'à la page Credentials : la légende vit dans la matrice.
+        st.caption(t(
+            "onboarding.matrix_legend",
+            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
 
     st.markdown("---")
     col_back, col_next = st.columns([1, 3])

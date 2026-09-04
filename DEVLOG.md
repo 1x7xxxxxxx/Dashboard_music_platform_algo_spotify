@@ -5,6 +5,51 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 12) — La consigne à côté du champ, pas sous un pavé à ouvrir
+
+Quatre retours, une même racine : **une aide qu'il faut aller chercher n'est pas une
+aide**, et un texte qui décrit un endroit devient faux dès que cet endroit bouge.
+
+### « Il n'y a toujours pas le screen »
+
+Il y était depuis le matin. Mais le guide vivait SOUS le formulaire, dans un expander
+**replié** — personne ne déplie un pavé pour aller chercher une image pendant qu'il
+remplit un champ. L'onglet passe en **deux colonnes** : la saisie à gauche, son mode
+d'emploi **déplié** à droite, capture comprise. On lit à droite, on colle à gauche,
+sans rien ouvrir.
+
+`expanded` est décidé par l'APPELANT, pas par la fonction : la page « Process —
+Credentials », qui liste les quatre guides à la suite, les garde repliés. Quatre pavés
+ouverts y seraient un mur. Deux surfaces, deux questions.
+
+### Trois formulations en trois jours pour la même étape
+
+Chacune décrivait **où** coller, donc chacune est devenue fausse ou redondante quand le
+formulaire a bougé :
+
+| Version | Ce qui l'a tuée |
+|---|---|
+| « Colle-le ci-dessous » | le guide est passé sous le formulaire — dessous, c'est le statut du DAG |
+| « page 🔑 Credentials API → Spotify, encadré 👉 Saisir tes identifiants » | exact, et dit à quelqu'un qui est déjà dessus, le champ à sa gauche |
+| **« Colle le lien dans le champ Spotify Artist ID ou URL profil »** | — |
+
+La troisième nomme le **champ** : la seule chose à savoir, et la seule qui ne bouge pas
+d'un rendu à l'autre. Vraie à l'écran comme dans le PDF, qui n'a ni « dessous » ni
+« à côté ». Même correction sur Meta et sur l'entête « À coller dans l'encadré…, en
+haut de cet onglet » → « Les valeurs à coller ».
+
+### L'étape 2 se répétait
+
+« Coche ce que tu veux configurer » ouvrait sur un tableau de cinq lignes toutes ⚪ qui
+redit, plateforme par plateforme, ce que les cases allaient demander. Un état vide
+n'apprend rien tant qu'on n'a rien choisi. La matrice descend **sous** les cases, là où
+elle montre l'effet du choix au lieu de le précéder.
+
+C'est le deuxième réordonnancement de cet écran, par la même personne : le 2026-08-30,
+l'instruction « coche » était passée au-dessus de la matrice parce qu'un artiste avait
+essayé de cocher *dans* la matrice. Les deux corrections vont dans le même sens — ce
+qu'on demande d'abord, ce qu'on constate ensuite.
+
 ## 2026-09-04 (suite 11) — Le menu nommait nos objets ; la matrice fondait ce qui est distinct
 
 Deuxième lot du même parcours. Aucune de ces remarques n'est de l'ergonomie : chacune
