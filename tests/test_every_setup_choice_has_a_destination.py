@@ -234,3 +234,104 @@ def test_the_tab_order_guard_goes_red_on_the_shape_that_shipped():
         "la mutation ne reproduit plus le défaut — vérifie qu'Instagram n'a toujours "
         "pas d'onglet à lui"
     )
+
+
+# ── Après un enregistrement réussi, l'onglet SUIVANT s'ouvre ─────────────────
+
+def test_a_successful_save_opens_the_next_tab():
+    """`st.tabs` n'expose pas d'onglet actif : l'ORDRE est la redirection.
+
+    Demandé le 2026-09-05 : « quand c'est marqué Suivante : SoundCloud, il faudrait
+    que ça redirige directement vers l'onglet SoundCloud ».
+
+    `st.tabs(default=…)` existe en 1.54 et A ÉTÉ ESSAYÉ EN PREMIER. Sa docstring dit
+    « the default tab to select » — vrai au premier MONTAGE du widget ; sur un rerun,
+    Streamlit conserve l'onglet sélectionné, et l'enregistrement passe précisément par
+    un rerun. Vu au navigateur : l'onglet restait sur Spotify, `default` posé.
+
+    Ce qui marche est de mettre la suivante EN TÊTE pour ce rerun-là. Le test fige la
+    RÈGLE de ce réordonnancement, pas la séquence de clics.
+    """
+    import ast
+    from pathlib import Path as _P
+
+    router = _P(__file__).resolve().parents[1] / "src/dashboard/views/credentials/router.py"
+    tree = ast.parse(router.read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "show")
+
+    reorders = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", "") == "ordered" for t in n.targets)]
+    assert len(reorders) >= 2, (
+        "la page ne réordonne plus ses onglets : après un enregistrement, elle "
+        "rouvrirait celui qu'on vient de quitter")
+
+    names = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
+    assert "VERDICT_KEY" in names, (
+        "le réordonnancement n'est plus conditionné au verdict : la page se "
+        "réorganiserait sous les yeux de l'artiste à chaque rerun")
+
+
+def test_only_one_tab_renders_the_verdict():
+    """`pop` consomme le verdict — deux appelants et il disparaît au mauvais endroit.
+
+    Le routeur désigne UN propriétaire (`verdict_owner`) et l'onglet ne rend que s'il
+    l'est. Sans ce filtre, le premier onglet rendu par Streamlit — qui n'est pas celui
+    qu'on regarde — mangerait le message.
+    """
+    import ast
+    from pathlib import Path as _P
+
+    base = _P(__file__).resolve().parents[1] / "src/dashboard/views/credentials"
+    tree = ast.parse((base / "_render.py").read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
+
+    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+             and getattr(n.func, "id", "") == "render_save_verdict"]
+    assert len(calls) == 1, f"{len(calls)} appels au verdict dans un onglet"
+
+    guarded = any(
+        isinstance(n, ast.If)
+        and any(getattr(x, "id", "") == "verdict_owner" for x in ast.walk(n.test))
+        and any(isinstance(c, ast.Call) and getattr(c.func, "id", "") == "render_save_verdict"
+                for c in ast.walk(n))
+        for n in ast.walk(fn))
+    assert guarded, (
+        "le verdict n'est plus filtré par `verdict_owner` : les cinq onglets "
+        "l'appelleraient, et `pop` le ferait disparaître dans le premier rendu")
+
+
+def test_the_soundcloud_failure_points_at_the_page_that_holds_the_panel():
+    """Le message nommait « plus haut dans cet onglet » — le panneau n'y est plus.
+
+    Il a été déplacé sur ☁️ SoundCloud — Performance le 2026-09-04, et le message a
+    survécu au déplacement : il envoyait chercher, dans l'onglet Credentials, une
+    section qui n'y était plus. Une direction relative ne survit pas au déplacement de
+    ce qu'elle désigne — quatrième fois dans ce dépôt.
+
+    Les DEUX langues, parce que l'anglaise avait perdu la moitié du message : elle ne
+    disait que « vérifie que c'est ton profil » et taisait le recours pour un artiste
+    signé sur un label — c'est-à-dire le cas qui a motivé la fonctionnalité.
+    """
+    from pathlib import Path as _P
+
+    from src.dashboard.utils.i18n_catalog.credentials import EN
+
+    src = (_P(__file__).resolve().parents[1]
+           / "src/dashboard/views/credentials/_platform_soundcloud.py"
+           ).read_text(encoding="utf-8")
+    import ast as _ast
+    fr = " ".join(n.value for n in _ast.walk(_ast.parse(src))
+                  if isinstance(n, _ast.Constant) and isinstance(n.value, str))
+    assert "plus haut dans cet onglet" not in fr, (
+        "le message renvoie de nouveau « plus haut dans cet onglet » : le panneau des "
+        "titres revendiqués vit sur ☁️ SoundCloud — Performance depuis le 2026-09-04")
+    assert "SoundCloud — Performance" in fr, (
+        "le message ne nomme plus la page qui porte le panneau")
+
+    en = EN.get("credentials.soundcloud.no_public_tracks", "")
+    assert en, "la traduction du message a disparu"
+    assert "Performance" in en, (
+        "la traduction ne nomme pas la page qui porte le panneau — un anglophone "
+        "signé sur un label lirait « ton ID est peut-être faux » alors qu'il est juste")

@@ -5,6 +5,59 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 2) — L'onglet suivant s'ouvre, et un message pointait où il n'y a plus rien
+
+### La redirection : `default` a été essayé en premier, et ne suffit pas
+
+`st.tabs(default=…)` existe en 1.54, et sa docstring dit « the default tab to
+select ». C'est vrai **au premier montage du widget** ; sur un rerun, Streamlit
+conserve l'onglet sélectionné — et l'enregistrement passe précisément par un rerun.
+Vu au navigateur : l'onglet restait sur Spotify, `default` posé.
+
+Ce qui marche est de mettre la suivante EN TÊTE pour ce rerun-là : l'index
+sélectionné (0, celui où l'artiste vient d'enregistrer) désigne alors la plateforme
+suivante.
+
+Ce réordonnancement avait été **supprimé la veille**, et pour une vraie raison : il
+déplaçait l'onglet qui portait le verdict, donc « ✅ Spotify est connecté » s'affichait
+dans un onglet fermé. Il revient sans ce défaut parce que le verdict est désormais
+rendu par un onglet NOMMÉ : on le fait rendre par celui qui passe en tête, c'est-à-dire
+par celui qui s'ouvre.
+
+Deux corrections en chaîne, chacune vue au navigateur :
+
+  1. avec `owner=platform_key`, **aucun** onglet ne correspondait à la plateforme
+     sauvée une fois la suivante en tête — le verdict n'aurait jamais été rendu ni
+     consommé. Le routeur désigne maintenant un propriétaire unique ;
+  2. le verdict s'affichait bien dans l'onglet SoundCloud et annonçait « Suivante :
+     Instagram », parce que chaque onglet reçoit « ce qui vient après LUI ». Juste
+     dans l'absolu, faux ici : l'artiste est déjà sur celle qu'on lui annonçait.
+
+Mesuré après : onglet actif ☁️ SoundCloud, « ✅ 🎵 Spotify est connecté », « 👉
+Suivante : ☁️ SoundCloud ».
+
+### Un message qui pointait vers une section que j'avais déplacée
+
+« Déclare-les dans la section *Mes titres hébergés sur d'autres comptes*, **plus haut
+dans cet onglet** » — le panneau a quitté cet onglet le 2026-09-04, pour ☁️ SoundCloud
+— Performance. Le message a survécu au déplacement, et envoyait chercher dans
+Credentials une section qui n'y est plus. **Quatrième fois dans ce dépôt qu'une
+direction relative ne survit pas au déplacement de ce qu'elle désigne** ; il nomme
+maintenant la PAGE, la seule chose qui ne bouge pas quand la mise en page change.
+
+Le collecteur portait la même phrase et a été corrigé dans la même passe.
+
+### Et la traduction anglaise avait perdu la moitié du message
+
+`credentials.soundcloud.no_public_tracks` (EN) ne disait que « vérifie que c'est ton
+profil » et **taisait le recours pour un artiste signé sur un label** — c'est-à-dire le
+cas qui a motivé toute la fonctionnalité (GRiNCH, `track_count=0` par construction). Un
+anglophone dans ce cas lisait « ton ID est peut-être faux » alors que son ID était
+juste. Troisième occurrence de `one-guide-three-sources`, sur une chaîne que le garde
+de parité ne couvre pas — il compare les guides, pas les messages de sonde.
+
+---
+
 ## 2026-09-05 (suite) — Deux filets à la file, et le cliquet qui mord son auteur
 
 « Retire les 2 lignes blanches juste au-dessus du bouton connecter mes sources, et

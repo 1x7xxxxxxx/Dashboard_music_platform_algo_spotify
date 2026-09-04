@@ -58,8 +58,9 @@ class SoundCloudCollector:
             raise ValueError(
                 f"SoundCloudCollector: no user_id for artist_id={artist_id}, and no "
                 "claimed track either. Set the User ID in Dashboard → Credentials → "
-                "SoundCloud, or declare your tracks under « Mes titres hébergés sur "
-                "d'autres comptes »."
+                "SoundCloud, or declare your tracks on the « ☁️ SoundCloud — "
+                "Performance » page, section « Mes titres hébergés sur d'autres "
+                "comptes » (moved there 2026-09-04)."
             )
         # Optional OAuth user-token (B2 P2). Absent ⇒ client_credentials mode
         # (unchanged behaviour). Present ⇒ user-context token → real per-track

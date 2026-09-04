@@ -224,11 +224,19 @@ EN = {
     "credentials.soundcloud.claimed_only":
         "Profile has no public track, but **{n} declared track(s)** hosted on other "
         "accounts — those are what will be collected ✅",
+    # Cette traduction a perdu LA MOITIÉ du message français : elle ne disait que
+    # « vérifie que c'est ton profil », et taisait le recours pour un artiste signé
+    # sur un label — c'est-à-dire le cas qui a motivé toute la fonctionnalité (GRiNCH,
+    # 2026-08-23, `track_count=0` par construction). Un anglophone dans ce cas lisait
+    # « ton ID est peut-être faux » alors que son ID était juste.
     "credentials.soundcloud.no_public_tracks": (
-        "User ID {user_id} is reachable, but **no public track** is attached to "
-        "it — there will be nothing to collect. Check that it is YOUR profile ID "
-        "(not a label or secondary account) and that your tracks are **public**, "
-        "not private/unlisted."
+        "User ID {user_id} is reachable, but **no public track** is attached to it — "
+        "there will be nothing to collect. Two cases:\n\n"
+        "• **Your releases come out under a label or another account** → declare them "
+        "on the **☁️ SoundCloud — Performance** page, section « Mes titres hébergés "
+        "sur d'autres comptes ». Paste each track URL, one per line.\n"
+        "• **Otherwise** → check that this is YOUR profile ID and that your tracks are "
+        "**public** (not private or unlisted)."
     ),
     "credentials.soundcloud.not_found": (
         "404 — User ID '{user_id}' not found. Check that it is the numeric ID."

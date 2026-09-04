@@ -29,7 +29,7 @@ from src.dashboard.utils.setup_focus import (
 from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
                     artist_display_name)
 from ._registry import PLATFORMS
-from ._render import _render_platform_tab
+from ._render import VERDICT_KEY, _render_platform_tab
 
 
 # La sélection d'onboarding est par PLATEFORME ; les onglets de cette page sont par
@@ -265,12 +265,6 @@ def show():
 
         tab_labels = [info['label'] for _, info in ordered]
         _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple)")
-        tabs = st.tabs(tab_labels + [_CSV_TAB])
-
-        # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
-        # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient
-        # d'être enregistrée compte déjà comme connectée, donc `left_here` désigne
-        # bien la suivante et non celle qu'on vient de faire.
         # « La suivante » n'est plus tirée d'une sélection — il n'y en a plus. C'est
         # le prochain ONGLET non connecté dans l'ordre conseillé, ce qui est la même
         # promesse en plus simple : le parcours incite à tout faire, dans cet ordre.
@@ -288,6 +282,60 @@ def show():
                 if logical not in connected:
                     return (logical, _next_label(logical))
             return None
+
+        # OUVRIR l'onglet de la plateforme suivante après un enregistrement réussi.
+        # Demandé le 2026-09-05 : « quand c'est marqué Suivante : SoundCloud, il
+        # faudrait que ça redirige directement vers l'onglet SoundCloud ».
+        #
+        # `st.tabs(default=…)` existe en 1.54 et A ÉTÉ ESSAYÉ EN PREMIER : il ne suffit
+        # pas. Sa docstring dit « the default tab to select », et c'est vrai au premier
+        # MONTAGE du widget ; sur un rerun, Streamlit conserve l'onglet que l'artiste
+        # avait sélectionné. Or l'enregistrement passe précisément par un rerun. Vu au
+        # navigateur : l'onglet restait sur Spotify, `default` posé.
+        #
+        # Ce qui marche est de mettre la suivante EN TÊTE pour ce rerun-là : l'index
+        # sélectionné (0, celui où l'artiste vient d'enregistrer) désigne alors la
+        # plateforme suivante.
+        #
+        # Le réordonnancement avait été supprimé la veille parce qu'il déplaçait
+        # l'onglet portant le verdict — « ✅ Spotify est connecté » s'affichait dans un
+        # onglet fermé. Il revient SANS ce défaut parce que le verdict est maintenant
+        # rendu par un onglet nommé (`owner`) : on le fait rendre par celui qui passe
+        # en tête, c'est-à-dire par celui qui s'ouvre.
+        def _tab_of(logical: str) -> str:
+            dest = platform_destination(logical)
+            return dest.split(":", 1)[1] if dest.startswith("tab:") else ""
+
+        _pending = st.session_state.get(VERDICT_KEY)
+        _verdict_next: tuple | None = None
+        # L'onglet qui RENDRA le verdict. Un seul, sinon `pop` le fait disparaître
+        # dans le premier rendu par Streamlit — qui n'est pas celui qu'on regarde.
+        _verdict_owner = _tab_of(_pending[0]) if _pending else None
+        if _pending and _pending[1]:                       # sauvegarde RÉUSSIE
+            _nxt = _next_after(_pending[0])
+            _wanted = _tab_of(_nxt[0]) if _nxt else ""
+            if _wanted:
+                ordered = ([kv for kv in ordered if kv[0] == _wanted]
+                           + [kv for kv in ordered if kv[0] != _wanted])
+                # Le verdict suit l'onglet qui s'OUVRE, pas celui qu'on vient de
+                # quitter. En échec, il reste dans le sien : l'artiste doit corriger
+                # là où il a saisi.
+                _verdict_owner = _wanted
+                # « Suivante » nomme la plateforme de l'onglet OUVERT, pas celle
+                # d'après. Vu au navigateur le 2026-09-05 : le verdict s'affichait
+                # bien dans l'onglet SoundCloud et annonçait « Suivante : Instagram »,
+                # parce que chaque onglet reçoit « ce qui vient après LUI ». Juste
+                # dans l'absolu, faux ici : l'artiste est déjà sur celle qu'on lui
+                # annonçait, et on lui en désigne encore une autre.
+                _verdict_next = _nxt
+
+        tab_labels = [info['label'] for _, info in ordered]
+        tabs = st.tabs(tab_labels + [_CSV_TAB])
+
+        # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
+        # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient
+        # d'être enregistrée compte déjà comme connectée, donc `left_here` désigne
+        # bien la suivante et non celle qu'on vient de faire.
 
         # Le verdict de la sauvegarde qui vient d'avoir lieu — AU-DESSUS des onglets.
         # Dans l'onglet, il tombait dans celui qu'on venait de quitter : la page se
@@ -319,7 +367,10 @@ def show():
                     fernet_ok=fernet_ok,
                     dag_states=dag_states,
                     artist_name=artist_name,
-                    next_platform=_next_after(platform_key),
+                    next_platform=(_verdict_next
+                                   if platform_key == _verdict_owner and _verdict_next
+                                   else _next_after(platform_key)),
+                    verdict_owner=_verdict_owner,
                 )
 
         with tabs[-1]:

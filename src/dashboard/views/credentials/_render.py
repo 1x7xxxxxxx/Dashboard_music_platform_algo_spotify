@@ -78,8 +78,7 @@ def _verdict_from_probes(probes: dict, platform_key: str) -> tuple:
 
 
 def render_save_verdict(next_platform: tuple | None,
-                        selection_complete: bool = False,
-                        owner: str | None = None) -> None:
+                        selection_complete: bool = False) -> None:
     """Le verdict de la sauvegarde qui vient d'avoir lieu, en gros, une seule fois.
 
     Rendu DANS l'onglet, au-dessus de « Saisir tes identifiants » — et il a fait
@@ -95,10 +94,15 @@ def render_save_verdict(next_platform: tuple | None,
     plus, et l'endroit demandé — « au-dessus de saisir tes identifiants » — est celui
     où l'on regarde après avoir collé une valeur.
 
-    **Seul l'onglet CONCERNÉ le rend.** `pop` consomme le verdict : appelée depuis
-    les cinq onglets, la fonction le verrait disparaître dans le premier rendu par
-    Streamlit, qui n'est pas forcément celui qu'on regarde. Le filtre est donc dans
-    l'appelant, et `owner` le rend explicite.
+    **Un seul onglet l'appelle.** `pop` consomme le verdict : appelée depuis les cinq
+    onglets, la fonction le verrait disparaître dans le premier rendu par Streamlit,
+    qui n'est pas celui qu'on regarde. Le routeur désigne donc `verdict_owner`, et
+    `_render_platform_tab` ne l'appelle que si c'est lui.
+
+    Lequel ? Après un enregistrement RÉUSSI, l'onglet de la plateforme SUIVANTE — la
+    page la met en tête, c'est donc elle qui s'ouvre, et le verdict doit s'afficher là
+    où l'artiste regarde. Après un ÉCHEC, l'onglet de la plateforme saisie : il faut
+    corriger là où l'on a saisi.
 
     Consommé (`pop`) : c'est le compte rendu d'une action, pas un état. Laissé en
     place, il réapparaîtrait à chaque rerun de la page, y compris des jours plus
@@ -107,8 +111,6 @@ def render_save_verdict(next_platform: tuple | None,
     pending = st.session_state.get(VERDICT_KEY)
     if not pending:
         return
-    if owner is not None and pending[0] != owner:
-        return                      # ce verdict n'est pas le nôtre : ne pas le manger
     st.session_state.pop(VERDICT_KEY, None)
     platform_key, ok, reason = pending
     label = platform_label(platform_key)
@@ -222,7 +224,8 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None,
                          artist_name: str | None = None,
-                         next_platform: tuple | None = None):
+                         next_platform: tuple | None = None,
+                         verdict_owner: str | None = None):
     # Un champ `admin_only` est une surcharge d'exploitant : l'artiste ne doit ni
     # le voir ni pouvoir l'écrire. Filtré ICI, donc `_handle_save` ne le lit pas non
     # plus — le filtre porte sur la définition, pas seulement sur l'affichage.
@@ -321,7 +324,15 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
 
     # Le verdict de la sauvegarde qui vient d'avoir lieu, AU-DESSUS de tout le reste
     # de cet onglet — donc au-dessus de « Saisir tes identifiants ».
-    render_save_verdict(next_platform, owner=platform_key)
+    # `verdict_owner` et non `platform_key` : après un enregistrement réussi, la page
+    # met la plateforme SUIVANTE en tête, donc c'est SON onglet qui s'ouvre. Le
+    # verdict — « ✅ Spotify est connecté / 👉 Suivante : SoundCloud » — doit s'afficher
+    # là où l'artiste regarde, pas dans l'onglet qu'il vient de quitter.
+    #
+    # Hors de ce cas, l'appelant passe `platform_key` : chaque onglet ne rend que le
+    # sien, et `pop` ne mange pas le verdict d'un autre.
+    if verdict_owner == platform_key:
+        render_save_verdict(next_platform)
 
     # ── Meta : l'assistant qui trouve le numéro de compte ─────────
     # AU-DESSUS du formulaire, parce que c'est l'étape qui précède la saisie : il

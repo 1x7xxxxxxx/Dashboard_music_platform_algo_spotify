@@ -129,10 +129,16 @@ def _test_soundcloud(fields: dict) -> tuple:
                     "credentials.soundcloud.no_public_tracks",
                     "User ID {user_id} joignable, mais **aucun titre public** n'y est "
                     "rattaché — il n'y aura donc rien à collecter. Deux cas :\n\n"
+                    # « plus haut dans cet onglet » était vrai jusqu'au 2026-09-04,
+                    # jour où le panneau a été déplacé sur ☁️ SoundCloud —
+                    # Performance. Le message a survécu au déplacement et envoyait
+                    # chercher, dans cet onglet, une section qui n'y est plus. Il
+                    # nomme donc la PAGE, la seule chose qui ne bouge pas quand la
+                    # mise en page change.
                     "• **Tes sorties paraissent sous un label ou un autre compte** → "
-                    "déclare-les dans la section **« Mes titres hébergés sur d'autres "
-                    "comptes »**, plus haut dans cet onglet. Colle l'URL de chaque "
-                    "titre, une par ligne.\n"
+                    "déclare-les sur la page **☁️ SoundCloud — Performance**, section "
+                    "**« Mes titres hébergés sur d'autres comptes »**. Colle l'URL de "
+                    "chaque titre, une par ligne.\n"
                     "• **Sinon** → vérifie que c'est bien l'ID de TON profil et que tes "
                     "titres sont en **public** (et non privés ou en écoute restreinte)."
                 ).format(user_id=user_id)
