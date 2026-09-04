@@ -77,7 +77,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.instagram": "📸 Instagram",
         "nav.item.hypeddit": "📱 Hypeddit",
         "nav.item.saisie_s4a": "📝 S4A entry (playlist & Discovery)",
-        "nav.item.trigger_algo": "🚀 Road to Algo (ML)",
+        "nav.item.trigger_algo": "🚀 Discover Weekly prediction",
         "nav.item.meta_ads_overview": "📱 Overview",
         "nav.item.meta_creatives": "🎨 Creatives",
         "nav.item.meta_breakdowns": "🌍 Meta breakdowns",

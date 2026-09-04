@@ -580,9 +580,80 @@ def test_the_plan_table_does_not_contradict_the_real_gating():
     fn = _fn(ONB, "_step_welcome")
     src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
     free_block = src[src.index("('free',"):src.index("('premium',")]
-    assert "export_pdf" in free_block, (
-        "the Free column dropped the on-demand PDF export, which Free actually has: "
-        f"{sorted(PLAN_FEATURES['free'])[:6]}… — the table would understate Free.")
     premium_block = src[src.index("('premium',"):]
+
+    # DÉRIVÉ du gating, jamais figé sur un item : la première version affirmait
+    # « export_pdf est dans Free » et serait devenue fausse le jour où le prix change —
+    # c'est-à-dire le lendemain (2026-09-04, `export_pdf` est passé Premium). Un garde
+    # qui recopie une décision se périme avec elle ; celui-ci lit la décision.
+    checked = {"export_pdf": "nav.item.export_pdf", "export_csv": "feat_export_csv",
+               "data_wrapped": "Data Wrapped"}
+    for feature, marker in checked.items():
+        free = feature in PLAN_FEATURES["free"]
+        assert (marker in free_block) is free, (
+            f"the plan table puts {feature!r} in the wrong column: PLAN_FEATURES says "
+            f"free={free}, the table says {marker in free_block}. A comparison table "
+            "that misstates the current plan is worse than none."
+        )
+        if not free:
+            assert marker in premium_block or "feat_pdf_weekly" in premium_block, (
+                f"{feature!r} left Free and appears nowhere in Premium either — it "
+                "vanished from the table entirely")
     assert "feat_pdf_weekly" in premium_block, (
         "the weekly mailed report left the Premium column")
+
+
+# ── 8. Les optimisations du 2026-09-04 ───────────────────────────────────────
+
+HOME = REPO / "src" / "dashboard" / "views" / "home.py"
+TRIAL = REPO / "airflow" / "dags" / "trial_expiry_reminder.py"
+
+
+def test_the_home_says_WHEN_instead_of_showing_four_zeros():
+    """Four zeros say « nothing », not « not yet ».
+
+    Day one they are false and discouraging: collection runs in the morning, and a
+    manual trigger brings numbers back in ~2 min. The biggest expectation gap left in
+    the journey.
+    """
+    fn = _fn(HOME, "_section_streams")
+    src = ast.get_source_segment(HOME.read_text(encoding="utf-8"), fn) or ""
+    assert "home.no_data_yet" in src, (
+        "the empty-state message is gone: a brand-new tenant sees four zeros again")
+    assert src.index("home.no_data_yet") < src.index("grand_total:,"), (
+        "the message is rendered after the zero tiles instead of replacing them")
+
+
+def test_the_launch_step_launches():
+    """An instruction is what you write when the button is somewhere else."""
+    fn = _fn(HOME, "_section_onboarding")
+    assert _call_lines(fn, "_launch_collections"), (
+        "the 'launch your first collection' step no longer launches anything — it "
+        "names the action and sends the artist to the sidebar to perform it.")
+    # And the rule must not be copied: a second `conf={'artist_id': …}` is what
+    # produced the tenant leak.
+    launcher = _fn(HOME, "_launch_collections")
+    lsrc = ast.get_source_segment(HOME.read_text(encoding="utf-8"), launcher) or ""
+    assert "trigger_all_collections" in lsrc, (
+        "home re-implements the trigger instead of calling the shared one")
+    assert "artist_id" not in lsrc.split("trigger_all_collections")[0].split("conf")[-1] \
+        or "conf=" not in lsrc, (
+        "home builds its own `conf` — the per-tenant rule must have ONE owner")
+
+
+def test_the_trial_reminder_never_fires_twice():
+    """A trial reminder sent twice reads as pressure, not as information."""
+    src = TRIAL.read_text(encoding="utf-8")
+    assert "trial_reminder_sent_at IS NULL" in src, (
+        "the query no longer excludes accounts already reminded")
+    # And the stamp must be written only AFTER a confirmed send, so a closed audience
+    # gate does not consume the reminder.
+    fn = _fn(TRIAL, "send_trial_reminders")
+    fsrc = ast.get_source_segment(src, fn) or ""
+    send = fsrc.index("send_email")
+    stamp = fsrc.index("trial_reminder_sent_at = NOW()")
+    assert send < stamp, (
+        "the reminder is marked as sent before the send is confirmed: a closed "
+        "audience gate would burn it and the artist would never be warned.")
+    assert "is_canary" in src and "is_sandbox" in src, (
+        "the reminder targets canaries or sandboxes — accounts we create ourselves")

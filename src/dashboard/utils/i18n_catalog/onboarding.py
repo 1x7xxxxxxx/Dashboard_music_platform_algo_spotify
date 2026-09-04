@@ -13,12 +13,14 @@ EN = {
     "onboarding.guide_also_mailed": "You also received it attached to the welcome e-mail — here it is if you prefer to grab it from here.",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
-    "onboarding.feat_revenue": "+ 📈 Revenue forecasts",
+    "onboarding.feat_algo": "+ 🚀 **Know whether a track will trigger Discover Weekly** — before you spend on promotion",
+    "onboarding.feat_revenue": "+ 📈 **What your streams will earn** next month",
+    "onboarding.feat_meta_x": "+ 🔀 **Which euro of ads produced which streams**",
     "onboarding.feat_spotify": "🎵 Spotify + Spotify for Artists",
     "onboarding.feat_distributors": "💰 Distributors (iMusician, DistroKid…)",
     "onboarding.feat_export_csv": "⬇️ CSV export — a spreadsheet file (Excel-style) with your raw data",
-    "onboarding.feat_pdf_weekly": "+ 📄 Your filterable PDF report, mailed to you every week",
-    "onboarding.feat_creatives": "+ 🎨 Meta Creatives & CPR",
+    "onboarding.feat_pdf_weekly": "+ 📄 Your filterable PDF report — on demand, and mailed to you every week",
+    "onboarding.feat_creatives": "+ 🎨 **Which creative costs least** per stream gained",
     "onboarding.your_plan": " ← *your plan*",
     "onboarding.upgrade_to": "Upgrade to {tier} →",
     "onboarding.next_data": "Next: Set up my data →",
@@ -104,7 +106,9 @@ EN = {
                           "We remember it: you only pick it once.",
     "onboarding.b2_title": "2. Your welcome offer",
     "onboarding.b2_after": "Below: what you keep for ever (Free), and what you lose "
-                           "after the month if you do not go Premium.",
+                           "after the month if you do not go Premium. **Your data stays "
+                           "yours either way** — nothing is deleted, and the CSV export "
+                           "stays free.",
     "onboarding.b3_title": "3. Your getting-started guide",
     "onboarding.download_guide_fr": "🇫🇷 Guide en français (PDF)",
     "onboarding.download_guide_en": "🇬🇧 Guide in English (PDF)",

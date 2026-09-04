@@ -283,8 +283,10 @@ def _step_welcome(plan: str, db) -> None:
         )
 
     st.caption(t("onboarding.b2_after",
-                 "Ci-dessous, ce que tu gardes pour toujours (Free) et ce que "
-                 "tu perds au bout du mois si tu ne prends pas Premium."))
+                 "Ci-dessous, ce que tu gardes pour toujours (Free) et ce que tu perds "
+                 "au bout du mois si tu ne prends pas Premium. **Tes données restent "
+                 "les tiennes dans les deux cas** — rien n'est effacé, et l'export CSV "
+                 "reste gratuit."))
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
@@ -302,12 +304,6 @@ def _step_welcome(plan: str, db) -> None:
                                 t("onboarding.feat_distributors",
                                   "💰 Distributeurs (iMusician, DistroKid…)"),
                                 t("nav.item.upload_csv", "📂 Import CSV"),
-                                # L'export PDF À LA DEMANDE reste Free — il l'est dans
-                                # `PLAN_FEATURES`, et une colonne qui ne le dirait plus
-                                # mentirait sur ce que Free donne. Ce qui passe en
-                                # Premium, c'est le rapport HEBDOMADAIRE envoyé tout
-                                # seul (migration 081) : deux choses distinctes.
-                                t("nav.item.export_pdf", "📄 Export PDF"),
                                 # « Export CSV » ne dit rien à qui n'est pas
                                 # développeur. La glose est plus longue que le nom,
                                 # et c'est le bon rapport : le nom ne se comprend pas.
@@ -315,15 +311,23 @@ def _step_welcome(plan: str, db) -> None:
                                   "⬇️ Export CSV — un fichier tableur (type Excel) "
                                   "avec tes données brutes"),
                                 '🎁 Data Wrapped']),
-        ('premium', 'Premium', ['+ 🚀 Road to Algo (ML)',
-                                t("onboarding.feat_revenue", "+ 📈 Prévisions revenus"),
-                                '+ 🔀 META x Spotify',
-                                t("onboarding.feat_creatives", "+ 🎨 Créatives & CPR Meta"),
+        ('premium', 'Premium', [t("onboarding.feat_algo",
+                                  "+ 🚀 **Savoir si un titre va déclencher Discover "
+                                  "Weekly** — avant de dépenser en promo"),
+                                t("onboarding.feat_revenue",
+                                  "+ 📈 **Ce que tes écoutes vont rapporter** le mois "
+                                  "prochain"),
+                                t("onboarding.feat_meta_x",
+                                  "+ 🔀 **Quel euro de pub a produit quelles écoutes**"),
+                                t("onboarding.feat_creatives",
+                                  "+ 🎨 **Quelle créative coûte le moins cher** par "
+                                  "écoute gagnée"),
                                 # Déplacé de Free vers Premium le 2026-09-04 : ce qui
                                 # se paie n'est pas le PDF, c'est le rapport filtrable
                                 # envoyé chaque semaine sans qu'on y pense.
                                 t("onboarding.feat_pdf_weekly",
-                                  "+ 📄 Ton rapport PDF filtrable, envoyé par mail chaque semaine")]),
+                                  "+ 📄 Ton rapport PDF filtrable — à la demande, et "
+                                  "envoyé par mail chaque semaine")]),
     ]
 
     plan_ranks = {'free': 0, 'premium': 1}

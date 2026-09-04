@@ -230,7 +230,7 @@ _NAV_SECTIONS = [
                                              ("📸 Instagram", "instagram"),
                                              ("📱 Hypeddit", "hypeddit")]),
     ("advanced",  "🔮 Prédiction algos Spotify", [("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
-                                             ("🚀 Road to Algo (ML)", "trigger_algo")]),
+                                             ("🚀 Prédiction Discover Weekly", "trigger_algo")]),
     ("ads",       "📣 Publicité Meta Ads",  [("📱 Vue d'ensemble", "meta_ads_overview"),
                                              ("🎨 Créatives", "meta_creatives"),
                                              ("🌍 Breakdowns Meta", "meta_breakdowns"),
@@ -538,43 +538,18 @@ def show_data_collection_panel():
 
     if st.sidebar.button(t("app.run_all_collections", "🚀 Lancer TOUTES les collectes"),
                          type="primary"):
-        from src.utils.safe_error import safe_error
+        # La règle de déclenchement vit dans `utils.collection_trigger` — l'étape 4 de
+        # l'accueil en avait besoin, et une deuxième copie de « conf={'artist_id': …} »
+        # est exactement ce qui a produit la fuite de locataire.
+        from src.dashboard.utils.collection_trigger import trigger_all_collections
 
-        launched: dict[str, str] = {}
-        not_launched: dict[str, str] = {}
-        # Le panneau ne rend plus RIEN ligne à ligne pendant le déclenchement.
-        # Il affichait « ✅ Spotify » par plateforme puis « Lancé ! », dans une
-        # `st.status` qui se referme : sept lignes qui disparaissent, et qui ne
-        # parlaient que du déclenchement — pas de la collecte. « Lancé » ne veut pas
-        # dire « des données sont arrivées », et c'est bien la deuxième chose que
-        # l'artiste allait vérifier. Tout ce qui compte — y compris un déclenchement
-        # REFUSÉ — descend maintenant dans « Collecte en cours », qui survit aux
-        # reruns et se met à jour tout seul.
+        # Le panneau ne rend plus RIEN ligne à ligne pendant le déclenchement : sept
+        # lignes qui disparaissent, et qui ne parlaient que du déclenchement — « lancé »
+        # ne veut pas dire « des données sont arrivées ». Tout ce qui compte descend
+        # dans « Collecte en cours », qui survit aux reruns.
         with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=False):
-            for dag_id, label in COLLECTION_DAGS:
-                try:
-                    conf = {'artist_id': artist_id} if artist_id is not None else {}
-                    result = airflow_trigger.trigger_dag(dag_id, conf=conf)
-                    if result.get('success'):
-                        # Same reason as views/credentials/_render.py: the cached
-                        # "latest run per DAG" is stale the instant a run is launched.
-                        from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
-                        cached_last_run_per_dag.clear()
-                        # Keep the run id: "Lancé !" was the last thing the artist
-                        # ever heard about this collection.
-                        if result.get('dag_run_id'):
-                            launched[dag_id] = result['dag_run_id']
-                    else:
-                        # Say WHY: a bare ❌ is what made "toutes les credentials
-                        # ont échoué" impossible to act on during a live session.
-                        not_launched[dag_id] = str(
-                            result.get('error', result.get('message', '')) or '')
-                except Exception as e:
-                    # `safe_error`, jamais `{e}` : `trigger_dag` parle à l'API REST
-                    # d'Airflow avec des identifiants, et ce message est rendu À
-                    # L'ARTISTE. `app.py` n'est pas dans la portée du garde
-                    # `secret-in-an-exception-message`, donc rien ne l'aurait dit.
-                    not_launched[dag_id] = safe_error(e)
+            launched, not_launched = trigger_all_collections(
+                artist_id, airflow_trigger, COLLECTION_DAGS)
         remember_runs(launched)
         remember_not_launched(not_launched)
 

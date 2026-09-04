@@ -56,6 +56,11 @@ P95_SECONDS = {
     "s4a_csv_watcher": 4.1,
     "spotify_api_daily": 3.4,
     "weekly_digest": 2.9,
+    # Ajouté le 2026-09-04, AUCUN historique de production : ce nombre n'est pas
+    # une mesure, c'est celui de son jumeau le plus proche — `weekly_digest`, même
+    # forme (parcourir les locataires, envoyer un mail). Il hérite donc du plancher.
+    # À relire contre `dag_run` après une trentaine d'exécutions réelles.
+    "trial_expiry_reminder": 2.9,
     "ml_scoring_daily": 2.6,
     "onboarding_report": 2.3,
     "ml_outcome_labeling": 1.6,

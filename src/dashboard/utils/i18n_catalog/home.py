@@ -1,6 +1,24 @@
 """EN catalog for the home view."""
 
 EN = {
+    # First day: four zeros say "nothing", not "not yet"
+    "home.no_data_yet": (
+        "🕐 **Your first numbers are not here yet — that is normal.**\n\n"
+        "Collection runs **every morning between 9 and 10 am** (Paris time) and fills "
+        "this page on its own. You have nothing to do.\n\n"
+        "Do not want to wait for tomorrow? The **🚀 Run ALL collections** button in the "
+        "sidebar brings your numbers back in ~2 minutes."
+    ),
+    "home.no_data_hint": (
+        "If nothing arrives after a collection, the **🚦 Onboarding health** page says "
+        "which source is not answering, and why."
+    ),
+    "home.launching": "Launching collections…",
+    "home.launched": "🚀 Collection launched — your first numbers arrive in "
+                     "~2 minutes. Reload the page to see them.",
+    "home.launch_refused": "❌ {n} collection(s) refused: {why}",
+    "home.launch_unavailable": "⚠️ Launching is not available here. Use the "
+                               "**🚀 Run ALL collections** button in the sidebar.",
     "home.title": "🎵 streaMLytics — Music platform dashboard",
     "home.freshness_header": "📡 Data freshness",
     "home.freshness_caption": (

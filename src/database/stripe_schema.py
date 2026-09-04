@@ -15,7 +15,7 @@ STRIPE_SCHEMA = {
 
         INSERT INTO subscription_plans (name, price_monthly, max_artists, features)
         VALUES
-            ('free',    0.00,  1,  '["home","spotify_s4a_combined","youtube","meta_ads_overview","instagram","soundcloud","apple_music","hypeddit","imusician","upload_csv","credentials","export_csv","export_pdf","data_wrapped","meta_mapping","referral"]'),
+            ('free',    0.00,  1,  '["home","spotify_s4a_combined","youtube","meta_ads_overview","instagram","soundcloud","apple_music","hypeddit","imusician","upload_csv","credentials","export_csv","data_wrapped","meta_mapping","referral"]'),
             ('premium', 10.00, 10, '["*"]')
         ON CONFLICT (name) DO NOTHING;
     """,
@@ -50,12 +50,18 @@ STRIPE_SCHEMA = {
 # Plan feature sets — used by auth.py for feature gating
 # Keys must match page route keys defined in app.py show_navigation_menu()
 # Tiering (validated 2026-06-09 — 2 tiers only, basic merged into premium):
-#   free    = full multi-platform analytics + CSV/PDF export + Data Wrapped + mapping
+#   free    = full multi-platform analytics + CSV export + Data Wrapped + mapping
 #   premium = everything ('*'): + Road to Algo (ML), revenue_forecast, meta_creatives…
+#
+# `export_pdf` a quitté Free le 2026-09-04. Ce qui se vend n'est pas la donnée — elle
+# reste exportable en CSV, et un artiste garde toujours ses chiffres — c'est le
+# RAPPORT : mis en page, filtrable, et envoyé chaque semaine sans qu'on y pense. Une
+# décision de prix, pas de technique : la sortie brute reste gratuite pour que personne
+# ne se sente enfermé, la mise en forme est le service.
 _FREE_FEATURES = {
     'home', 'spotify_s4a_combined', 'youtube', 'meta_ads_overview', 'instagram',
     'soundcloud', 'apple_music', 'hypeddit', 'imusician', 'upload_csv', 'credentials',
-    'export_csv', 'export_pdf', 'data_wrapped', 'meta_mapping', 'referral', 'sacem',
+    'export_csv', 'data_wrapped', 'meta_mapping', 'referral', 'sacem',
     'db_health',
 }
 PLAN_FEATURES = {

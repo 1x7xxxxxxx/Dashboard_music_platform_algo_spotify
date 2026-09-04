@@ -74,6 +74,23 @@ def _section_streams(db, artist_id):
     ig_count = ig['followers'] if ig else 0
     grand_total = s4a + yt + sc + apple  # Instagram followers ≠ streams, not summed
 
+    # Quatre zéros ne disent pas « pas encore », ils disent « rien ». Le premier jour,
+    # c'est faux et décourageant : la collecte automatique tourne le matin, et un
+    # déclenchement manuel ramène des chiffres en ~2 min. Une phrase DATÉE vaut mieux
+    # qu'un tableau vide — c'est le plus gros écart attente/réalité du parcours.
+    if grand_total == 0 and ig_count == 0:
+        st.info(t(
+            "home.no_data_yet",
+            "🕐 **Tes premiers chiffres ne sont pas encore là — c'est normal.**\n\n"
+            "La collecte automatique tourne **chaque matin entre 9 h et 10 h** (heure "
+            "de Paris) et remplit cette page toute seule. Tu n'as rien à faire.\n\n"
+            "Tu ne veux pas attendre demain ? Le bouton **🚀 Lancer TOUTES les "
+            "collectes** dans la barre latérale ramène tes chiffres en ~2 minutes."))
+        st.caption(t("home.no_data_hint",
+                     "Si rien n'arrive après une collecte, la page **🚦 Santé "
+                     "onboarding** dit quelle source ne répond pas, et pourquoi."))
+        return
+
     st.markdown(
         f"""<div style="text-align:center; padding:16px; background:#f0f2f6;
             border-radius:10px; margin-bottom:16px;">
@@ -160,8 +177,18 @@ def _section_onboarding(db, artist_id: int) -> None:
     for idx, (done, label, page_key) in enumerate(steps):
         if done:
             st.markdown(f"✅ {label}")
-        elif st.button(f"⬜ {label}", key=f"home_step_{idx}",
-                       use_container_width=True):
+            continue
+        # L'étape « lancer ta première collecte » NOMMAIT le geste et envoyait vers une
+        # autre page pour le faire ; le bouton, lui, est dans la barre latérale. Deux
+        # endroits pour une action, c'est une consigne — et une consigne est ce qu'on
+        # écrit quand le bouton est ailleurs. Elle le fait maintenant elle-même.
+        if page_key == "onboarding" and idx == len(steps) - 1:
+            if st.button(f"⬜ {label}", key=f"home_step_{idx}",
+                         use_container_width=True, type="primary"):
+                _launch_collections()
+            continue
+        if st.button(f"⬜ {label}", key=f"home_step_{idx}",
+                     use_container_width=True):
             goto(page_key)
 
     # One compact line of per-platform boxes, only while something is still amber or
@@ -174,6 +201,38 @@ def _section_onboarding(db, artist_id: int) -> None:
                              key_suffix="home")
 
     st.markdown("---")
+
+
+def _launch_collections() -> None:
+    """Déclenche les collectes de CE locataire, depuis l'étape qui les nomme."""
+    from src.dashboard.utils.collection_trigger import trigger_all_collections
+    from src.dashboard.utils.collection_progress import (
+        remember_not_launched, remember_runs)
+
+    try:
+        from src.utils.airflow_trigger import AirflowTrigger
+        from src.dashboard.app import COLLECTION_DAGS      # noqa: PLC0415
+    except Exception:      # noqa: BLE001 — hors app : le bouton ne doit pas casser la page
+        st.warning(t("home.launch_unavailable",
+                     "⚠️ Le déclenchement n'est pas disponible ici. Utilise le bouton "
+                     "**🚀 Lancer TOUTES les collectes** dans la barre latérale."))
+        return
+
+    artist_id = tenant_scope()
+    with st.status(t("home.launching", "Lancement des collectes…"), expanded=False):
+        launched, not_launched = trigger_all_collections(
+            artist_id, AirflowTrigger(), COLLECTION_DAGS)
+    remember_runs(launched)
+    remember_not_launched(not_launched)
+    if launched:
+        st.success(t("home.launched",
+                     "🚀 Collecte lancée — tes premiers chiffres arrivent dans "
+                     "~2 minutes. Recharge la page pour les voir.").format())
+    if not_launched:
+        st.error(t("home.launch_refused",
+                   "❌ {n} collecte(s) refusée(s) : {why}").format(
+                       n=len(not_launched),
+                       why=" · ".join(f"{k} — {v}" for k, v in not_launched.items())))
 
 
 def _section_dag_status():
