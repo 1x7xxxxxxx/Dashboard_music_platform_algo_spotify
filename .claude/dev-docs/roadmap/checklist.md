@@ -113,6 +113,9 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
 > séances du 26 au 30 août ont été **rotés dans `archive.md` le 2026-09-03** — le
 > fichier actif était à 42 Ko dont ~80 % d'historique.
 
+📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
+<!-- error-inbox: open=0 -->
+
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 
 Elles restent comptées comme ouvertes — rien n'est supprimé — mais elles ne sont pas dans

@@ -14,7 +14,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-inbox error-resolve help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -80,6 +80,14 @@ backup:      ## Dump spotify_etl → backups/*.sql.gz (+ retention)
 backup-test: ## Restore the latest backup into a throwaway DB + verify (drill)
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
 	@bash tools/db_restore_test.sh
+
+error-inbox: check-db ## Registre des erreurs applicatives → .claude/dev-docs/error-inbox.md
+	@python3 tools/error_inbox.py
+
+error-resolve: check-db ## Ferme une entrée du registre. FP=<12 car.> NOTE="..."
+	@test -n "$(FP)" || { echo "❌ FP manquant. Ex: make error-resolve FP=a1b2c3d4e5f6 NOTE=\"corrigé par …\""; exit 1; }
+	@test -n "$(NOTE)" || { echo "❌ NOTE manquant : une entrée fermée sans raison est une entrée perdue."; exit 1; }
+	@python3 tools/error_inbox.py --resolve "$(FP)" --note "$(NOTE)"
 
 check-env:   ## Verify critical imports + pip dep coherence (canary check)
 	@python3 -c "import isodate, streamlit, plotly, pandas, psycopg2" 2>/dev/null \

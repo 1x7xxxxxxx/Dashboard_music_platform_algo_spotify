@@ -1157,6 +1157,65 @@ def check_offsite_backup(**context):
                 archives, remote, age_h)
 
 
+def check_app_errors(**context):
+    """Unresolved application defects — the inbox turned into a nightly line.
+
+    An e-mail per exception was the whole system until 2026-09-04, and an inbox cannot
+    be counted, cannot be closed, and forgets. `app_error_log` (migration 083) holds ONE
+    row per fingerprint; this reports the OPEN ones, once a night, next to everything
+    else that needs a decision.
+
+    Deliberately compact: exception class, where, how many times, how long it has been
+    open. No traceback — the traceback belongs in `make error-inbox`, and a nightly mail
+    that carries three of them stops being read, which is how the offsite-backup finding
+    nearly went unnoticed.
+    """
+    import sys
+    sys.path.insert(0, '/opt/airflow')
+
+    problems = []
+    db = None
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        from src.utils.error_registry import open_errors
+        db = PostgresHandler.from_env_or_config()
+        for e in open_errors(db, limit=15):
+            age_h = None
+            try:
+                from datetime import datetime, timezone
+                age_h = (datetime.now(timezone.utc)
+                         - e['first_seen']).total_seconds() / 3600
+            except (TypeError, ValueError):
+                pass
+            problems.append({
+                'fingerprint': e['fingerprint'][:12],
+                'exc_type': e['exc_type'],
+                'origin': e['origin'] or '?',
+                'page': e['page'] or '—',
+                'environment': e['environment'],
+                'occurrences': e['occurrences'],
+                'age': f"{age_h:.0f} h" if age_h is not None and age_h < 48
+                       else (f"{age_h / 24:.0f} j" if age_h is not None else '?'),
+            })
+    except Exception as e:      # noqa: BLE001
+        # Same contract as the other checks: a check that could not run says so,
+        # instead of looking like a passing one.
+        logger.error(f"app error registry unavailable: {safe_error(e)}")
+        problems.append({'fingerprint': '—', 'exc_type': 'UNAVAILABLE',
+                         'origin': f'registry unreadable: {safe_error(e)}',
+                         'page': '—', 'environment': '—', 'occurrences': 0,
+                         'age': '?'})
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:      # noqa: BLE001
+                pass
+
+    logger.info("app errors: %d open defect(s)", len(problems))
+    context['task_instance'].xcom_push(key='app_errors', value=problems)
+
+
 def check_tenant_contamination(**context):
     """Rows sitting under a tenant they cannot belong to, across the whole fleet.
 
@@ -1456,6 +1515,8 @@ def send_consolidated_alert(**context):
     offsite = ti.xcom_pull(
         task_ids='check_offsite_backup', key='offsite_backup') or []
 
+    app_errors = ti.xcom_pull(task_ids='check_app_errors', key='app_errors') or []
+
     # Both checks ask the SAME question — `readiness_stalled_flags` returns the
     # platforms at TODO, `check_credentials_all` the ones absent from
     # `declared_identities()`, and TODO *is* "no declared identity". So `stalled` is
@@ -1484,6 +1545,10 @@ def send_consolidated_alert(**context):
     # at all: the function returned early just below. Masked today only because Meta
     # is simultaneously broken and stale. The check added to break a silence was
     # itself silent (found 2026-08-21).
+    # `app_errors` joins for a third reason: an unresolved defect can sit there
+    # for weeks with every collection signal green — it is about the APP, not the
+    # data. Rendered but not decisive, the registry would be a page nobody is
+    # ever told to open. Caught here by the same guard, again before shipping.
     # `offsite` joins for the same reason, and it is the clearest case yet: an
     # absent offsite copy is a state that can persist for months with every other
     # signal green, so it would be the ONLY finding on most nights. Rendered but not
@@ -1494,7 +1559,7 @@ def send_consolidated_alert(**context):
                   or billing_issues or row_anomalies or row_dips or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
-                  or offsite)
+                  or offsite or app_errors)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -1877,6 +1942,32 @@ def send_consolidated_alert(**context):
           {rows}
         </table>""")
 
+    if app_errors:
+        rows = ''
+        for a in app_errors:
+            rows += f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee"><code>{a['fingerprint']}</code></td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>{a['exc_type']}</b></td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee"><code>{a['origin']}</code></td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">{a['page']} · {a['environment']}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee">×{a['occurrences']}, {a['age']}</td>
+            </tr>"""
+        sections.append(f"""
+        <h3 style="color:#b00">🐞 Erreurs applicatives non triées</h3>
+        <table style="border-collapse:collapse;font-size:0.9em">
+          <tr><th style="text-align:left;padding:6px 12px">Empreinte</th>
+              <th style="text-align:left;padding:6px 12px">Exception</th>
+              <th style="text-align:left;padding:6px 12px">Où</th>
+              <th style="text-align:left;padding:6px 12px">Page · env</th>
+              <th style="text-align:left;padding:6px 12px">Vue</th></tr>
+          {rows}
+        </table>
+        <p style="color:#555;font-size:0.85em">
+          Le détail et les tracebacks : <code>make error-inbox</code>.
+          Fermer : <code>make error-resolve FP=&lt;empreinte&gt; NOTE="..."</code>.
+        </p>""")
+
     # Section: tenant contamination. Deliberately assembled before the others: a row
     # sitting under a tenant it cannot belong to is the only finding here that is a
     # data-integrity fault rather than a collection gap, and it is the class this
@@ -2224,6 +2315,11 @@ with DAG(
         python_callable=check_offsite_backup,
     )
 
+    t_app_errors = PythonOperator(
+        task_id='check_app_errors',
+        python_callable=check_app_errors,
+    )
+
     t_alert = PythonOperator(
         task_id='send_consolidated_alert',
         python_callable=send_consolidated_alert,
@@ -2232,4 +2328,5 @@ with DAG(
 
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
-     t_preflight, t_outcomes, t_contamination, t_dips, t_offsite] >> t_alert
+     t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
+     t_app_errors] >> t_alert

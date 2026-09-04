@@ -125,6 +125,33 @@ def _pytest_terminal_summary_db(terminalreporter, exitstatus, config):
 # A test that legitimately exercises the send path patches `smtplib.SMTP` itself; its
 # patch lands after this one, so it is never recorded and never fails here.
 
+# ── Frontière REGISTRE — un test ne salit pas le journal des défauts ──────────
+#
+# Mesuré le 2026-09-04, le jour où le registre a été construit : après une exécution de
+# la suite, `app_error_log` portait `ValueError | unknown | ×8`, en environnement
+# `local`, écrit par les tests de `error_alert` qui appellent `notify_app_error` pour
+# de bon. Ces lignes ne décrivent aucun défaut — elles décrivent la suite — et elles
+# arrivent dans la MÊME base que celle qu'on lit pour trier.
+#
+# Même famille que la frontière SMTP ci-dessous : la question n'est pas « le code
+# est-il juste » mais « que fait la suite au monde extérieur ». Un test qui veut
+# vraiment écrire dans le registre appelle `record_error` directement — c'est le cas
+# de `test_an_error_leaves_a_row.py`, qui ne passe jamais par cette porte.
+
+@pytest.fixture(autouse=True)
+def _no_registry_writes(monkeypatch):
+    """`notify_app_error` ne persiste rien pendant la suite."""
+    try:
+        from src.dashboard.utils import error_alert
+    except Exception:      # noqa: BLE001 — dépendances absentes : rien à border
+        yield
+        return
+    monkeypatch.setattr(error_alert, "_record", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(error_alert, "_mark_emailed", lambda *a, **k: None,
+                        raising=False)
+    yield
+
+
 @pytest.fixture(autouse=True)
 def _no_real_smtp(monkeypatch, request):
     """No test may open a real SMTP connection. Records attempts, fails at teardown."""

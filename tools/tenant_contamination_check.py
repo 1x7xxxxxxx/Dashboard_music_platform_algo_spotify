@@ -129,6 +129,7 @@ _OUT_OF_SCOPE = {
     "usage_events": "first-party analytics",
     "csv_upload_log": "audit trail of uploads",
     "etl_run_log": "pipeline telemetry",
+    "app_error_log": "diagnostics: one row per DEFECT, keyed by fingerprint. artist_id records WHO happened to hit it, never who owns the row — a defect has no tenant",
     "etl_circuit_breaker": "pipeline telemetry",
     "artist_wrapped": "derived from the tenant's own data",
     "tenant_platform_probe": "our own record of what a platform answered us — not "
