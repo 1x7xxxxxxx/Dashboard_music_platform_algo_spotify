@@ -637,8 +637,18 @@ def require_login() -> bool:
 # Sidebar
 # ─────────────────────────────────────────────
 
-def show_user_sidebar():
-    """Show username, role, and logout button in sidebar."""
+def show_user_sidebar(plan: str | None = None):
+    """Qui je suis, quel plan j'ai, et comment je sors — un seul bloc, en haut.
+
+    Les deux moitiés de la même information étaient aux deux extrémités de la barre
+    latérale : « Votre plan : 💎 Premium » ouvrait la navigation, et le nom d'artiste
+    fermait la page, sous tout le menu. Signalé le 2026-09-04 : « il faudrait remonter
+    dans la navigation artiste <nom> au niveau de votre plan : premium ».
+
+    `plan` est passé par l'appelant, jamais relu ici : `get_artist_plan()` doit tourner
+    APRÈS le sélecteur « Voir comme » de l'admin, et l'appelant est le seul à connaître
+    cet ordre.
+    """
     name      = st.session_state.get('name', '')
     role      = st.session_state.get('role', 'artist')
     artist_id = st.session_state.get('artist_id')
@@ -646,6 +656,17 @@ def show_user_sidebar():
     role_label = (_t("auth.role_admin", "👑 Admin") if role == 'admin'
                   else _t("auth.role_artist", "🎤 Artiste"))
     st.sidebar.markdown(f"**{role_label}** — {name}")
+
+    # Le plan, collé à l'identité qu'il qualifie. Indicatif, jamais masquant : les
+    # entrées Premium restent visibles avec un 🔒 (montée en gamme, pas mur).
+    if plan and role != 'admin':
+        if plan == 'premium':
+            st.sidebar.caption(_t("nav.plan_badge_premium", "Votre plan : **💎 Premium**"))
+        else:
+            st.sidebar.caption(
+                _t("nav.plan_badge_free",
+                   "Votre plan : **🆓 Free**  ·  🔒 = fonctions **Premium**"))
+
     if artist_id is not None:
         st.sidebar.caption(f"artist_id = {artist_id}")
     else:

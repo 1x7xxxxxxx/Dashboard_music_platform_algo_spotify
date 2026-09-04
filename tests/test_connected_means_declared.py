@@ -55,7 +55,18 @@ _SURFACES = (
     "src/dashboard/views/onboarding.py",
     "src/dashboard/utils/setup_focus.py",
     "src/dashboard/views/home.py",
+    # Added 2026-09-04: the home page's four setup steps moved here, because the
+    # landing router asked the same question and answered it differently. The query
+    # travelled with them, so this is where the identity condition now has to hold.
+    "src/dashboard/utils/setup_completion.py",
 )
+
+# A surface may consult the registry THROUGH a helper rather than by naming it. What
+# must never happen is a surface deriving "connected" from raw rows on its own — which
+# is what the two sweeps above check, and they check the helper too.
+_DELEGATES_TO = {
+    "src/dashboard/views/home.py": "read_setup_state",
+}
 
 
 @pytest.mark.parametrize("rel", _SURFACES)
@@ -101,9 +112,13 @@ def test_no_surface_builds_connection_from_a_bare_row_set(rel: str) -> None:
 
 def test_every_surface_actually_calls_the_shared_helper() -> None:
     """If they stop calling it, the cases above keep passing while the UI lies again."""
-    missing = [
-        rel for rel in _SURFACES
-        if "declared_identities" not in (ROOT / rel).read_text(encoding="utf-8")
-        and "PLATFORM_IDENTITIES" not in (ROOT / rel).read_text(encoding="utf-8")
-    ]
+    missing = []
+    for rel in _SURFACES:
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        markers = ["declared_identities", "PLATFORM_IDENTITIES"]
+        delegate = _DELEGATES_TO.get(rel)
+        if delegate:
+            markers.append(delegate)
+        if not any(m in text for m in markers):
+            missing.append(rel)
     assert not missing, f"surface(s) no longer consult the identity registry: {missing}"

@@ -12,7 +12,7 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-from src.dashboard.utils import get_db_connection, project_db
+from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.guide_assets import credentials_guide_pdf
 from src.dashboard.utils.tz import to_local_datetime
 from src.utils.tenant_identity import declared_identities
@@ -113,20 +113,24 @@ def _guide_pdf_bytes(lang: str) -> bytes | None:
     return credentials_guide_pdf(lang)
 
 
-def _trial_deadline(artist_id: int | None) -> str | None:
+def _trial_deadline(artist_id: int | None, db) -> str | None:
     """La date de fin de l'essai premium, ou None. Jamais d'exception.
 
     `_grant_welcome_trial` pose `promo_plan_expires_at` à la création du compte. Rien
     ne le disait à l'artiste : il lisait « votre compte a été créé avec le plan
     Premium » et en déduisait que c'était acquis. Signalé en test le 2026-08-30.
+
+    Prend la connexion de `show()` : elle ouvrait la sienne via `project_db()`, ce qui
+    faisait DEUX connexions par rendu dès que `show()` a eu besoin de lire l'état de
+    configuration. Attrapé par `tests/test_a_render_opens_one_connection.py`, qui
+    compte à l'exécution — le compteur textuel, lui, ne voit pas `project_db()`.
     """
-    if artist_id is None:
+    if artist_id is None or db is None:
         return None
     try:
-        with project_db() as db:
-            row = db.fetch_query(
-                "SELECT promo_plan_expires_at FROM saas_artists WHERE id = %s",
-                (artist_id,))
+        row = db.fetch_query(
+            "SELECT promo_plan_expires_at FROM saas_artists WHERE id = %s",
+            (artist_id,))
         if row and row[0][0]:
             return to_local_datetime(row[0][0]).strftime("%d/%m/%Y")
     except Exception:  # noqa: BLE001 — une date manquante n'empêche pas l'onboarding
@@ -167,7 +171,7 @@ def _setup_roadmap() -> None:
         "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
 
 
-def _step_welcome(plan: str) -> None:
+def _step_welcome(plan: str, db) -> None:
     st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur streaMLytics !"))
 
     # « streaMLytics en bref » — demandé après le test du 2026-08-30. Un artiste qui
@@ -189,7 +193,7 @@ def _step_welcome(plan: str) -> None:
 
     # L'offre, avec sa DURÉE et son échéance. Un essai dont on ne dit pas qu'il est un
     # essai n'est pas une offre, c'est une surprise à J+30.
-    deadline = _trial_deadline(st.session_state.get("artist_id"))
+    deadline = _trial_deadline(st.session_state.get("artist_id"), db)
     if plan == "premium" and deadline:
         st.success(t(
             "onboarding.trial_offer",
@@ -282,15 +286,15 @@ def _step_welcome(plan: str) -> None:
         st.rerun()
 
 
-def _step_credentials(plan: str, artist_id: int) -> None:
+def _step_credentials(plan: str, artist_id: int, db) -> None:
     st.title(t("onboarding.creds_title", "🔑 Par quoi veux-tu commencer ?"))
     # L'instruction « coche ce que tu veux » était ICI, au-dessus de la matrice
     # d'état — un artiste en test a essayé de cocher dans la matrice, où il n'y a
     # rien à cocher. Elle est descendue juste avant les vraies cases.
 
-    # One connection for the whole step: the matrix and the checkbox list ask the
-    # same database about the same tenant.
-    db = get_db_connection()
+    # La connexion est celle de `show()`, ouverte une fois pour le rendu entier et
+    # fermée par lui. Elle l'était ici, et refermée au milieu de l'étape : le bandeau
+    # d'état ajouté au-dessus en aurait ouvert une seconde (règle transverse #9).
     configured = _get_configured_platforms(artist_id, db)
 
     if db is not None and artist_id is not None:
@@ -305,8 +309,6 @@ def _step_credentials(plan: str, artist_id: int) -> None:
             "**Configuré** : l'identifiant est saisi. **Répond** : la plateforme "
             "nous a bien répondu. **Données** : des chiffres sont arrivés."))
         st.markdown("---")
-    if db is not None:
-        db.close()
 
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
@@ -441,6 +443,96 @@ def _step_ready() -> None:
     )
 
 
+def _step_labels() -> list[str]:
+    return [
+        t("onboarding.step1", "1. Bienvenue"),
+        t("onboarding.step2", "2. Données"),
+        t("onboarding.step3", "3. Prêt !"),
+    ]
+
+
+def render_sidebar_steps() -> None:
+    """Les trois étapes, EN HAUT de la barre latérale, et cliquables.
+
+    Deux défauts en un, tous deux rapportés depuis une vraie deuxième connexion le
+    2026-09-04.
+
+    **La position.** Ce bloc vivait dans `show()`, donc il s'écrivait pendant la phase
+    de CONTENU — après le logo, la langue, le menu et le bouton de déconnexion. Il
+    atterrissait sous tout le reste : « c'est tout en bas du volet de navigation ».
+    `app._main_body` l'appelle maintenant depuis la phase BARRE LATÉRALE, ce qui a
+    demandé de séparer « quelle est la page ? » de « dessine le menu ».
+
+    **L'atteignabilité.** Les trois lignes étaient du `st.markdown` : elles NOMMAIENT
+    les étapes sans y mener — « impossible de revenir aux différentes étapes de
+    config ». Même forme que les quatre étapes de l'accueil, corrigées le 2026-08-30
+    pour la même raison. L'étape courante reste du texte : il n'y a rien à y aller.
+    """
+    if _STEP_KEY not in st.session_state:
+        st.session_state[_STEP_KEY] = 1
+    step = st.session_state[_STEP_KEY]
+
+    st.sidebar.markdown(t("onboarding.steps_header", "### Étapes"))
+    for i, label in enumerate(_step_labels(), 1):
+        prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
+        if i == step:
+            st.sidebar.markdown(f"**{prefix} {label}**")
+        elif st.sidebar.button(f"{prefix} {label}", key=f"_onb_jump_{i}",
+                               use_container_width=True):
+            st.session_state[_STEP_KEY] = i
+            st.rerun()
+    st.sidebar.markdown("---")
+
+
+def _render_landing_choice(db, state) -> None:
+    """La sortie, et le droit de ne plus revenir.
+
+    Demandé le 2026-09-04 : « un gros bouton d'accès à l'app si on le souhaite avec
+    case à cocher qui nous dit qu'on souhaite garder cette page de connexion au début
+    ou non ». Les deux comptent, et pour la même raison : l'assistant redevient
+    l'atterrissage tant que la configuration n'est pas finie, ce qui n'est utile que si
+    on peut le traverser **et** le désactiver. Un écran qu'on ne peut pas quitter n'est
+    pas une aide, c'est une porte.
+
+    L'écriture est synchrone, pas dans un `on_change` : le callback tournerait au début
+    du run SUIVANT, quand la connexion de `show()` est déjà fermée.
+    """
+    from src.dashboard.utils.setup_completion import set_show_on_login
+
+    if state.complete:
+        st.success(t("onboarding.setup_complete",
+                     "✅ Ta configuration est complète ({done}/{total}). "
+                     "Cette page ne s'affichera plus à la connexion.")
+                   .format(done=state.done_count, total=state.total))
+    else:
+        st.progress(state.done_count / state.total if state.total else 0.0)
+        st.caption(t("onboarding.setup_progress",
+                     "Configuration : **{done}/{total}** — tant que ce n'est pas "
+                     "complet, tu retombes ici à la connexion.")
+                   .format(done=state.done_count, total=state.total))
+
+    col_go, col_keep = st.columns([2, 3])
+    with col_go:
+        if st.button(t("onboarding.enter_app", "🏠 Accéder à l'application →"),
+                     type="primary", use_container_width=True, key="_onb_enter_app"):
+            _goto('home')
+    with col_keep:
+        keep = st.checkbox(
+            t("onboarding.keep_landing",
+              "Afficher cette page à la connexion tant que ma configuration "
+              "n'est pas terminée"),
+            value=state.show_on_login, key="_onb_keep_landing")
+        user_id = st.session_state.get('user_id')
+        if keep != state.show_on_login and user_id and db is not None:
+            try:
+                set_show_on_login(db, user_id, keep)
+            except Exception as exc:      # noqa: BLE001 — une préférence, jamais un mur
+                logger.warning("show_setup_on_login not saved: %s", type(exc).__name__)
+                st.caption(t("onboarding.keep_landing_unsaved",
+                             "⚠️ Préférence non enregistrée — réessaie plus tard."))
+    st.markdown("---")
+
+
 def show() -> None:
     if _STEP_KEY not in st.session_state:
         st.session_state[_STEP_KEY] = 1
@@ -449,20 +541,21 @@ def show() -> None:
     plan = get_artist_plan()
     artist_id = tenant_scope()
 
-    # Step progress indicator
-    steps = [
-        t("onboarding.step1", "1. Bienvenue"),
-        t("onboarding.step2", "2. Données"),
-        t("onboarding.step3", "3. Prêt !"),
-    ]
-    st.sidebar.markdown(t("onboarding.steps_header", "### Étapes"))
-    for i, label in enumerate(steps, 1):
-        prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
-        st.sidebar.markdown(f"{prefix} {label}")
+    # Une seule connexion pour tout le rendu — l'état de configuration, la matrice et
+    # la liste de cases posent la même question à la même base (règle transverse #9).
+    db = get_db_connection()
+    try:
+        from src.dashboard.utils.setup_completion import read_setup_state
+        state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
+        if state.steps:
+            _render_landing_choice(db, state)
 
-    if step == 1:
-        _step_welcome(plan)
-    elif step == 2:
-        _step_credentials(plan, artist_id)
-    else:
-        _step_ready()
+        if step == 1:
+            _step_welcome(plan, db)
+        elif step == 2:
+            _step_credentials(plan, artist_id, db)
+        else:
+            _step_ready()
+    finally:
+        if db is not None:
+            db.close()

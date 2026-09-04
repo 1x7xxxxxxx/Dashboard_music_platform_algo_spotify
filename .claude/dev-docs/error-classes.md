@@ -84,6 +84,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [prod-canonical-schema-drift](#prod-canonical-schema-drift) | P2 | manual | reported | none |
 | [multitenant-dag-fleet-poisoning](#multitenant-dag-fleet-poisoning) | P2 | deterministic | guarded | none |
 | [collector-import-dotenv-crash](#collector-import-dotenv-crash) | P2 | deterministic | guarded | none |
+| [widget-key-written-after-instantiation](#widget-key-written-after-instantiation) | P2 | deterministic | guarded | none |
 | [check-calls-a-binary-its-image-lacks](#check-calls-a-binary-its-image-lacks) | P2 | deterministic | guarded | none |
 | [env-not-wired-to-service](#env-not-wired-to-service) | P1 | deterministic | guarded | none |
 | [prod-compose-drift](#prod-compose-drift) | P2 | heuristic | reported | none |
@@ -633,6 +634,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
   - 2026-06-19: unmasked when the soundcloud precheck fix let the collect task reach import. `soundcloud_api_collector.py` + `instagram_api_collector.py` both crashed at import. Fix: wrap `load_dotenv()` in `try/except OSError` (no-op on unreadable .env). PR #88/#89.
+
+## widget-key-written-after-instantiation
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a helper called from a VIEW writes `st.session_state[<key>]` for a key that is a sidebar widget's, and Streamlit raises `StreamlitAPIException: st.session_state.<key> cannot be modified after the widget with key <key> is instantiated`. The page renders the central error banner instead of navigating. Found 2026-09-04 in a browser: `utils.navigation.goto()` set every `_nav_<section>` radio to None, so EVERY programmatic navigation from a view raised — the home page's four setup steps included. It was masked on the assistant by an early `?page=onboarding` route that rendered no sidebar at all; deleting that route is what exposed it.
+- root_cause: Streamlit has two phases in one script run — the sidebar is built first, the view second — and the repo's navigation rule ("point the menu at the new page") was written where the navigation happens (the view) rather than where the widgets are created (before them). The helper's own docstring asserted the write was legal "because show_navigation_menu repairs state BEFORE creating them", which is true of the menu's own callback and false of every view.
+- long_term_fix: menu/page agreement belongs to ONE place that runs before the widgets exist — `app.resolve_nav_page`, which re-asserts it on every run, not only when repairing. `goto()` now writes `_nav_page` (plain state, not a widget) and nothing else. Guard walks `goto`'s AST and fails on any other `session_state[...]` assignment.
+- signature: `python3 -m pytest tests/test_the_setup_page_is_reachable_and_on_top.py -q`
+- autofix: none
+- guard: { type: test, ref: tests/test_the_setup_page_is_reachable_and_on_top.py (AST: goto writes only _nav_page) }
+- rex_ref: DEVLOG 2026-09-04
+- first_seen: 2026-09-04 (ref: second sandbox login)
+- History:
+  - 2026-09-04: two defects hid each other. The early `?page=onboarding` route made the assistant render alone, with no sidebar — which BOTH hid this crash and caused « impossible de revenir aux différentes étapes de config », because the URL mirror wrote `?page=onboarding` on every run so the branch fired for ever. Only a real browser showed it: the whole test suite was green, including the render-smoke pass, because no test renders the sidebar and a view in the same run.
 
 ## check-calls-a-binary-its-image-lacks
 - status: guarded

@@ -290,21 +290,32 @@ def show_view_as_selector():
 
 
 def _first_run_landing(role: str) -> str:
-    """`onboarding` tant que l'artiste n'a RIEN branché, `home` ensuite.
+    """`onboarding` tant que la configuration n'est pas FINIE, `home` ensuite.
 
     Tout le monde atterrissait sur `home` sans condition. Pour un artiste qui vient de
     s'inscrire, `home` est un tableau d'état vide : quatre tuiles à zéro et des cartes de
     fraîcheur qui n'ont rien à rafraîchir. Il ne dit pas quoi faire, et l'assistant qui le
     dirait n'était joignable que depuis l'e-mail de vérification.
 
-    Ne se déclenche qu'à la PREMIÈRE évaluation de la session (`_nav_page` absent), donc
-    un artiste qui navigue ensuite vers l'accueil y reste. Et seulement tant que rien
-    n'est configuré : dès la première identité déclarée, l'atterrissage redevient `home`,
-    ce que demandait la note (« tomber direct sur guide de démarrage … et ensuite sur
-    accueil »).
+    Le seuil a changé le 2026-09-04, et c'est le cœur du correctif. Il valait « l'artiste
+    n'a-t-il **rien** branché ? » (`all(status == 'todo')`), donc une seule identité
+    déclarée suffisait à faire disparaître l'assistant : la deuxième connexion tombait
+    sur un accueil à 1/4, sans chemin de retour vers le reste de la configuration.
+    Rapporté tel quel depuis un vrai deuxième login — « je ne suis plus sur étapes 1 2
+    3 », « impossible de revenir aux différentes étapes de config ». La question est
+    « a-t-il **fini** ? », et elle a une seule définition, dans
+    `utils.setup_completion` — la même que l'accueil affiche en `{done}/4`.
 
-    Toute erreur retombe sur `home` : un aiguillage d'accueil ne doit jamais empêcher
-    d'entrer dans l'application.
+    L'artiste garde la main : la case à cocher de l'assistant écrit
+    `saas_users.show_setup_on_login`, et une configuration terminée rend la question
+    sans objet.
+
+    Ne se déclenche qu'à la PREMIÈRE évaluation de la session (`_nav_page` absent), donc
+    un artiste qui navigue ensuite vers l'accueil y reste.
+
+    Toute erreur — et toute lecture qui n'a rien rendu — retombe sur `home` : un
+    aiguillage d'accueil ne doit jamais empêcher d'entrer dans l'application, et
+    « je n'ai pas pu lire » n'est pas « il n'a pas fini ».
     """
     if role == 'admin':
         return 'home'
@@ -314,44 +325,35 @@ def _first_run_landing(role: str) -> str:
         if artist_id is None:
             return 'home'
         from src.dashboard.utils import get_db_connection
-        from src.utils.artist_readiness import artist_readiness
+        from src.dashboard.utils.setup_completion import read_setup_state
         db = get_db_connection()
         if db is None:
             return 'home'
         try:
-            rows = artist_readiness(db, artist_id)
+            state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
         finally:
             db.close()
-        # `todo` == aucune identité déclarée pour cette plateforme. Tout en `todo`
-        # signifie que l'artiste n'a strictement rien branché.
-        nothing_yet = bool(rows) and all(r.get("status") == "todo" for r in rows)
-        return 'onboarding' if nothing_yet else 'home'
+        if not state.steps or state.complete or not state.show_on_login:
+            return 'home'
+        return 'onboarding'
     except Exception:      # noqa: BLE001 — jamais bloquer l'entrée dans l'app
         return 'home'
 
 
-def show_navigation_menu(role: str = 'artist'):
-    st.sidebar.title(t("nav.title", "🎵 Navigation"))
+def resolve_nav_page(role: str = 'artist'):
+    """Decide the active page and repair nav state — WITHOUT drawing anything.
 
-    # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
-    plan = get_artist_plan()
-    accessible = PLAN_FEATURES.get(plan, set())
-    is_all = '*' in accessible  # premium: unrestricted
+    Split out of `show_navigation_menu` on 2026-09-04 so that the sidebar can be built
+    in the order a reader expects. The assistant's step list (`### Étapes`) is written
+    by `views/onboarding.show()`, which runs in the CONTENT phase — i.e. after the
+    whole sidebar — so it landed at the very bottom, under the logout button. Reported
+    as « c'est tout en bas du volet de navigation ». Nothing can be placed above the
+    navigation while the navigation is what computes the page.
 
-    # Artist-facing plan vision: show the current plan + flag that 🔒 items are the
-    # Premium upsell (shown indicatively, never hidden). Admins use the toggle instead.
-    if role != 'admin':
-        if plan == 'premium':
-            st.sidebar.caption(t("nav.plan_badge_premium", "Votre plan : **💎 Premium**"))
-        else:
-            st.sidebar.caption(
-                t("nav.plan_badge_free",
-                  "Votre plan : **🆓 Free**  ·  🔒 = fonctions **Premium**"))
-
-    def _is_locked(key: str) -> bool:
-        return not (is_all or key in ALWAYS_ACCESSIBLE or key in accessible)
-
-    # Filter sections by role; drop empty sections entirely (no orphan header)
+    Returns `(page_key, rendered, all_skeys)`. Widgets are drawn by
+    `render_navigation`; the page returned here is the raw key, plan-gating is applied
+    at the end of the render.
+    """
     rendered = []  # list of (skey, header, [(label, key), ...])
     for sec_id, header, items in _NAV_SECTIONS:
         vis = [(lbl, key) for lbl, key in items
@@ -368,9 +370,48 @@ def show_navigation_menu(role: str = 'artist'):
     if st.session_state.get('_nav_page') not in visible_keys:
         landing = _first_run_landing(role) if '_nav_page' not in st.session_state else 'home'
         st.session_state['_nav_page'] = landing
-        for skey in all_skeys:
-            st.session_state[skey] = None
-        st.session_state['_nav_start'] = landing if landing in visible_keys else 'home'
+        # `_nav_start` n'est PAS une clé d'état libre : c'est la clé du radio de la
+        # section `start`, dont la seule option est `home`. La ligne retirée ici y
+        # écrivait la page d'atterrissage — donc `onboarding`, une valeur que ce radio
+        # n'offre pas. `navigation.py` la traitait d'ailleurs comme « pas une section ».
+        # `_select_nav_radio` ci-dessous lui donne la seule valeur correcte.
+
+    page = st.session_state.get('_nav_page', 'home')
+    # Toujours, pas seulement à la réparation. `utils.navigation.goto` remet toutes les
+    # radios à `None` — le menu n'affichait donc AUCUNE sélection après un bouton
+    # « Configurer les credentials », exactement comme à la première connexion. Réaffirmer
+    # l'accord ici est idempotent : un clic dans le menu a déjà posé la bonne valeur.
+    # Légal parce que ceci tourne AVANT que les radios soient instanciées.
+    _select_nav_radio(page, rendered)
+    return page, rendered, all_skeys
+
+
+def _select_nav_radio(page_key: str, rendered) -> None:
+    """Point the section radios at `page_key` — the one that owns it, and no other.
+
+    Every radio was set to `None` here, which is why NOTHING was highlighted in the
+    menu on a first connection: `_nav_page` said `onboarding`, the content rendered the
+    assistant, and the sidebar showed no selection at all. Reported twice — « il n'y a
+    toujours pas d'onglet sélectionné dans le navigateur quand on se connecte la
+    première fois ». The page and the menu are the same fact; they must be written
+    together.
+    """
+    for skey, _, items in rendered:
+        keys = [key for _, key in items]
+        st.session_state[skey] = page_key if page_key in keys else None
+
+
+def render_navigation(role: str, rendered, all_skeys) -> str:
+    """Draw the section radios; return the page, plan-gating applied."""
+    st.sidebar.title(t("nav.title", "🎵 Navigation"))
+
+    # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
+    plan = get_artist_plan()
+    accessible = PLAN_FEATURES.get(plan, set())
+    is_all = '*' in accessible  # premium: unrestricted
+
+    def _is_locked(key: str) -> bool:
+        return not (is_all or key in ALWAYS_ACCESSIBLE or key in accessible)
 
     label_by_key = {key: t(f"nav.item.{key}", lbl)
                     for _, _, items in rendered for lbl, key in items}
@@ -395,6 +436,12 @@ def show_navigation_menu(role: str = 'artist'):
 
     page_key = st.session_state.get('_nav_page', 'home')
     return 'upgrade' if _is_locked(page_key) else page_key
+
+
+def show_navigation_menu(role: str = 'artist'):
+    """Back-compat wrapper: resolve then render in one call."""
+    page, rendered, all_skeys = resolve_nav_page(role)
+    return render_navigation(role, rendered, all_skeys)
 
 def show_live_activity_sidebar():
     """Live Activity counters in the sidebar — visible on every page."""
@@ -671,10 +718,21 @@ def _main_body():
     if not require_login():
         st.stop()
 
-    if _page_param == "onboarding":
-        from views.onboarding import show as show_onboarding
-        show_onboarding()
-        st.stop()
+    # `?page=onboarding` N'A PLUS de route anticipée, et c'était la cause racine.
+    #
+    # Elle datait du temps où l'assistant n'était joignable QUE par ce lien (e-mail de
+    # vérification, écran post-inscription) : elle le rendait seul, puis `st.stop()`.
+    # Depuis qu'il est une entrée de menu, deux choses se combinent :
+    #   1. `_render_page` route déjà `onboarding` — la route anticipée est redondante ;
+    #   2. le miroir d'URL écrit `?page=<page>` à CHAQUE rendu.
+    # Donc dès le premier affichage de l'assistant, l'URL portait `?page=onboarding`, et
+    # tout rerun suivant repassait par la route anticipée : plus de barre latérale, plus
+    # de menu, plus d'étapes, et un clic sur un bouton de la barre latérale qui ne
+    # correspondait à aucun widget instancié. « Impossible de revenir aux différentes
+    # étapes de config » se lit là. Vérifié au navigateur le 2026-09-04.
+    #
+    # Le paramètre reste honoré, plus bas, par le même chemin que toutes les autres
+    # pages — l'assistant s'affiche donc DANS l'application, pas à sa place.
 
     # ── La page active vit dans l'URL ─────────────────────────────────────
     # Elle n'y vivait pas : `?page=` était lu une fois puis SUPPRIMÉ, et la page
@@ -706,7 +764,6 @@ def _main_body():
     # Language toggle — set before the nav so the whole sidebar renders in the choice.
     from src.dashboard.utils.i18n import language_selector
     language_selector()
-    show_data_collection_panel()
     # Admin "Voir comme" QA toggle — must run before the nav so the impersonated plan
     # is set in session_state when get_artist_plan() reads it. An admin previewing
     # free/premium is treated as an 'artist' for role-gating (admin-only pages hidden).
@@ -714,7 +771,20 @@ def _main_body():
         show_view_as_selector()
     _view_as = st.session_state.get('_view_as')
     role = 'artist' if (real_role == 'admin' and _view_as in ('free', 'premium')) else real_role
-    page = show_navigation_menu(role)
+
+    # ── L'ordre de la barre latérale ─────────────────────────────────────────
+    # Qui je suis → où j'en suis → où je vais → ce que je lance. Il était : ce que je
+    # lance → où je vais → … → qui je suis, tout en bas, sous le menu ; et la liste des
+    # étapes de l'assistant arrivait APRÈS tout ça, écrite par la vue elle-même.
+    # C'est pour cela que la page est résolue AVANT d'être rendue : rien ne peut se
+    # placer au-dessus de la navigation tant que c'est la navigation qui calcule la page.
+    show_user_sidebar(get_artist_plan())
+    page, _rendered, _all_skeys = resolve_nav_page(role)
+    if page == 'onboarding':
+        from views.onboarding import render_sidebar_steps
+        render_sidebar_steps()
+    page = render_navigation(role, _rendered, _all_skeys)
+    show_data_collection_panel()
 
     # Le miroir : l'URL nomme la page en cours, donc un rechargement la retrouve.
     # Écriture gardée — réécrire la même valeur relancerait le script en boucle.
@@ -724,8 +794,6 @@ def _main_body():
         st.session_state['_page_mirrored'] = page
     except Exception:      # noqa: BLE001 — hors contexte Streamlit (tests headless)
         pass
-
-    show_user_sidebar()
 
     # First-party usage tracking — deduped per session (no inflation on rerun).
     from src.dashboard.utils.usage_tracker import track_page_view

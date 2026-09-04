@@ -96,4 +96,12 @@ EN = {
     "onboarding.step1": "1. Welcome",
     "onboarding.step2": "2. Data",
     "onboarding.step3": "3. Ready!",
+    # Landing choice — the way out, and the right not to come back
+    "onboarding.enter_app": "🏠 Go to the app →",
+    "onboarding.keep_landing": "Show this page on login until my setup is complete",
+    "onboarding.keep_landing_unsaved": "⚠️ Preference not saved — try again later.",
+    "onboarding.setup_complete": "✅ Your setup is complete ({done}/{total}). "
+                                 "This page will no longer open on login.",
+    "onboarding.setup_progress": "Setup: **{done}/{total}** — until it is complete, "
+                                 "login brings you back here.",
 }

@@ -18,7 +18,6 @@ from src.dashboard.utils.kpi_helpers import (
     get_total_plays_soundcloud, get_total_plays_apple,
     get_instagram_followers,
 )
-from src.utils.tenant_identity import PLATFORM_IDENTITIES
 
 
 def _freshness_badge(label, icon, last_dt):
@@ -121,39 +120,19 @@ _STATE_COLOR = {
 
 def _section_onboarding(db, artist_id: int) -> None:
     """Brick 29 — Onboarding progress tracker for new artists."""
-    # Run all four checks in one round-trip.
-    #
-    # `has_creds` counts rows carrying a NON-EMPTY identity, not rows. `COUNT(*)`
-    # ticked the whole credentials step as done on a single row for any platform —
-    # including a tab the artist opened and saved blank. The field names come from
-    # the identity registry and are bound as a parameter array, never interpolated.
-    identity_fields = sorted({spec.field for spec in PLATFORM_IDENTITIES.values()})
-    rows = db.fetch_query(
-        """
-        SELECT
-            (SELECT COUNT(*) FROM artist_credentials  WHERE artist_id = %s
-               AND EXISTS (
-                 SELECT 1 FROM jsonb_each_text(COALESCE(extra_config, '{}'::jsonb)) AS kv(k, v)
-                 WHERE kv.k = ANY(%s) AND btrim(kv.v) <> ''
-               )) AS has_creds,
-            (SELECT COUNT(*) FROM etl_run_log         WHERE artist_id = %s AND status = 'success') AS has_runs,
-            (SELECT COUNT(*) FROM s4a_song_timeline   WHERE artist_id = %s LIMIT 1) AS has_csv,
-            (SELECT COUNT(*) FROM apple_songs_performance WHERE artist_id = %s LIMIT 1) AS has_apple
-        """,
-        (artist_id, identity_fields, artist_id, artist_id, artist_id),
-    )
-    if not rows:
+    # La définition des quatre étapes vit dans `utils.setup_completion`, pas ici.
+    # Elle était écrite ICI et l'aiguillage d'accueil en posait une AUTRE (« l'artiste
+    # n'a-t-il rien branché du tout ? ») : deux surfaces, même question, réponses
+    # opposées dès la deuxième connexion. Une seule règle, deux lecteurs.
+    from src.dashboard.utils.setup_completion import STEP_LABELS, read_setup_state
+
+    state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
+    if not state.steps:
         return
 
-    has_creds, has_runs, has_csv, has_apple = rows[0]
-    steps = [
-        (bool(has_creds), t("home.onboarding_creds", "🔑 Configurer les credentials API"), "credentials"),
-        (bool(has_csv),   t("home.onboarding_s4a", "📂 Importer un CSV Spotify for Artists"), "upload_csv"),
-        (bool(has_apple), t("home.onboarding_apple", "🍎 Importer un CSV Apple Music"), "upload_csv"),
-        (bool(has_runs),  t("home.onboarding_run", "🚀 Lancer votre première collecte de données"), "trigger_algo"),
-    ]
-    completed = sum(1 for done, *_ in steps if done)
-    all_done = completed == len(steps)
+    steps = [(s.done, STEP_LABELS[s.key](), s.page) for s in state.steps]
+    completed = state.done_count
+    all_done = state.complete
 
     if all_done:
         st.markdown(t("home.onboarding_done_header", "#### ✅ Mise en route — configuration terminée"))
