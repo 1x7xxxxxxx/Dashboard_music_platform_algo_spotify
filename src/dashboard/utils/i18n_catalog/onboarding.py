@@ -127,6 +127,7 @@ EN = {
     ),
     "onboarding.status_title": "📋 Where you stand",
     "onboarding.pick_first_time": (
-        "**What each platform costs you, the first time** — the minutes below. After that, everything updates on its own."
+        "The minutes shown are **first-time** effort. After that, everything updates on its own."
     ),
+    "onboarding.costs_expander": "📊 What each platform costs you, the first time",
 }

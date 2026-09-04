@@ -45,11 +45,19 @@ quatre avertissements, **aucune** des durées. Chaque case porte icône, nom, mi
 ⭐ et « À fournir », et y ajoute ce que l'ancienne liste n'avait pas : la valeur de la
 plateforme et son piège. « À fournir » est passé de 12 à 6 occurrences.
 
-**Ce qui manquait vraiment** était la formule elle-même — « ce que coûte chaque
-plateforme, la première fois » — demandée le matin même (« un total de 7 minutes ne dit
-pas si on peut en faire une maintenant »). Elle est revenue **en tête des cases**, en
-une ligne. Une phrase n'est pas un second inventaire : c'est la différence avec le bloc
-retiré, et c'est le compromis entre les deux lectures possibles de la demande.
+**Ce qui manquait vraiment** était la question à laquelle le bloc répondait — « laquelle
+est la plus rapide ? » — demandée le matin même (« un total de 7 minutes ne dit pas si
+on peut en faire une maintenant »). Six cases détaillées, chacune avec sa valeur et son
+piège, ne se comparent pas d'un coup d'œil ; six lignes nues, si.
+
+Le récapitulatif revient donc, **replié**, et le repli est tout le changement. Ouvert
+en pleine page, il obligeait à relire le même inventaire deux fois — la duplication
+signalée. Fermé, il ne coûte rien à qui ne l'ouvre pas et reste à un clic de qui veut
+comparer. Le titre exact est conservé, parce que c'est sous ce nom que la demande le
+désignait.
+
+C'est le compromis entre les deux lectures possibles de la demande : le vocabulaire et
+la structure sont là, la relecture imposée ne l'est plus.
 
 ### Ce que ça change pour qui lit
 
