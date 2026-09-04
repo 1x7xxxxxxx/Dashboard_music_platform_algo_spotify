@@ -421,7 +421,7 @@ python3 -m pytest tests/test_the_pdf_says_what_the_screen_says.py -q
 Et l'existence de la section dans le PDF rendu : `python3 -m src.dashboard.utils.pdf_exporter --artist <id>`
 puis ouvrir le fichier — le rendu, pas la config.
 
-## 10. R57 — Créer le bucket de sauvegarde hors-site · P1
+## 10. ~~R57 — Créer le bucket de sauvegarde hors-site~~ · ✅ FAIT le 2026-09-04, **sans bucket**
 
 <!-- Le titre ne dit pas « Cloudflare R2 » à dessein : l'index de roadmap
      repère un id par `^#{2,3} .*\b(R\d+)\b`, dont le `.*` est gourmand — sur
@@ -429,44 +429,65 @@ puis ouvrir le fichier — le rendu, pas la config.
      de procédure. Un identifiant de roadmap et un nom de produit partagent
      ici le même espace de noms. -->
 
-**Ce que ça débloque** : la seule copie de la base vit aujourd'hui sur le disque de la
-base. Mesuré le 2026-09-03 : 21 archives quotidiennes, toutes sur `/dev/sda1`, et aucun
-`rsync`/`s3`/`rclone` dans le crontab. Si ce disque meurt, les sauvegardes meurent avec.
+**Le geste attendu n'a jamais eu lieu, et c'est ce qui a fait changer de cible.** Tous
+les stockages objet à palier gratuit — R2, B2, Scaleway, Wasabi, Storj — exigent une
+carte bancaire pour activer le service, y compris quand le palier reste à 0 €. Aucune
+API n'amorce cette étape. La tâche est donc partie sur la seule cible configurable
+**sans aucun geste humain** : un dépôt GitHub privé, l'archive chiffrée avant de partir.
+Décision et alternatives : **ADR-015**.
 
-Le code est en place et attend la variable. Tant qu'elle manque, `alert_monitor` le
-redit **chaque nuit** — c'est voulu.
+### Ce qui tourne depuis le 2026-09-04
 
-**Les gestes**, dans l'ordre :
+| Élément | Valeur |
+|---|---|
+| Cible | `git@github-backup:1x7xxxxxxx/streamlytics-db-backups.git` (privé) |
+| Chiffrement | `gpg --symmetric --cipher-algo AES256`, phrase de 44 caractères |
+| Accès | clé de déploiement **en écriture, limitée à ce seul dépôt** — pas de PAT sur la machine |
+| Rétention distante | 30 jours ; commit orphelin + `push --force`, le dépôt ne s'accumule pas |
+| Archives distantes | **22**, ~1,9 Mo chacune |
+| Reçu | `data/offsite_receipt.json`, écrit seulement après relecture du distant |
+| Drill hebdomadaire | restaure désormais l'archive **chiffrée** (lundi 06:00) |
 
-1. Sur `dash.cloudflare.com` → **R2** → *Create bucket*, nom `streamlytics-backups`,
-   juridiction **EU**.
-2. *Manage R2 API Tokens* → *Create API token*, permission **Object Read & Write**,
-   limité à ce bucket. Noter l'`Access Key ID`, le `Secret Access Key` et l'`endpoint`
-   (`https://<account_id>.r2.cloudflarestorage.com`).
-3. Sur le serveur :
-   ```bash
-   ssh root@167.233.92.1
-   rclone config
-   # n) new remote · nom : r2 · type : s3 · provider : Cloudflare
-   # access_key_id / secret_access_key / endpoint : les valeurs de l'étape 2
-   ```
-4. Poser la variable et recréer le scheduler :
-   ```bash
-   echo 'R2_REMOTE=r2:streamlytics-backups/db' >> /opt/streamlytics/.env
-   cd /opt/streamlytics && docker compose up -d --force-recreate airflow-scheduler
-   ```
-
-**La commande qui prouve que c'est fait** — et ce n'est pas « le script sort 0 » :
+### Les commandes qui le prouvent
 
 ```bash
+# 1. la copie part et le distant porte bien ce qu'on a poussé
 ssh root@167.233.92.1 'cd /opt/streamlytics && bash tools/db_backup.sh 2>&1 | tail -2'
-# doit afficher : ✅ Hors-site OK — N archive(s) distante(s), rétention 30 j.
+# ✅ Hors-site OK — N archive(s) distante(s) chiffrée(s), rétention 30 j.
+
+# 2. le contrôle nocturne le voit — il ne le pouvait PAS avant (voir plus bas)
+ssh root@167.233.92.1 'docker exec airflow_scheduler airflow tasks test \
+  alert_monitor check_offsite_backup 2026-09-04 2>&1 | grep Offsite'
+# INFO - Offsite backup: 22 archive(s) on git@github-backup:…, proven 0 h ago
+
+# 3. la seule preuve qui compte : restaurer SANS le serveur
+gh api -H "Accept: application/vnd.github.raw" \
+  "repos/1x7xxxxxxx/streamlytics-db-backups/contents/<archive>.sql.gz.gpg?ref=backups" > /tmp/a.gpg
+gpg --batch --decrypt --passphrase-file ~/streamlytics-backup-passphrase.txt /tmp/a.gpg | gunzip | head
+# fait le 2026-09-04 : 9,88 Mo de SQL, 93 tables
 ```
 
-Puis, la vraie preuve, une restauration depuis le distant :
+### Le geste qui reste — 10 secondes, un jour où tu y penses
 
-```bash
-ssh root@167.233.92.1 'rclone lsf r2:streamlytics-backups/db | tail -1'
-```
+**Mettre la phrase de passe dans ton gestionnaire de mots de passe.** Elle vit
+aujourd'hui à deux endroits : `/opt/streamlytics/.backup_passphrase` sur le serveur, et
+`~/streamlytics-backup-passphrase.txt` sur ce poste. Une clé qui ne survit pas aux deux
+machines rend les 22 archives illisibles — une sauvegarde qu'on ne sait plus déchiffrer
+n'est pas une sauvegarde.
 
-Coût : ~38 Mo pour 21 archives, egress à 0 $ — moins d'un centime par mois.
+### Deux défauts trouvés en câblant la vérification
+
+1. **`check_offsite_backup` appelait `rclone` depuis le conteneur Airflow, qui n'a ni
+   `rclone` ni `git`.** Il aurait répondu `unreadable` toutes les nuits, **y compris une
+   fois R2 correctement configuré**. Un contrôle qui appelle un binaire absent de son
+   image ne devient jamais vert. Seul site des 12 DAGs.
+2. **La procédure ci-dessus posait la variable là où elle ne sert pas.** « `echo
+   R2_REMOTE=… >> .env` puis recréer le scheduler » l'aurait posée pour le **conteneur**,
+   jamais pour le **cron** qui pousse — `0 3 * * *` n'hérite d'aucun environnement.
+   `db_backup.sh` lit désormais ses propres clés dans `.env`.
+
+### Si tu poses une carte un jour
+
+Rien à réécrire : créer le bucket, `rclone config`, puis
+`echo 'R2_REMOTE=r2:streamlytics-backups/db' >> /opt/streamlytics/.env`. `R2_REMOTE` est
+prioritaire dans le script ; le chemin git s'éteint de lui-même.

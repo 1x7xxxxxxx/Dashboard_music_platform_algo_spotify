@@ -84,6 +84,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [prod-canonical-schema-drift](#prod-canonical-schema-drift) | P2 | manual | reported | none |
 | [multitenant-dag-fleet-poisoning](#multitenant-dag-fleet-poisoning) | P2 | deterministic | guarded | none |
 | [collector-import-dotenv-crash](#collector-import-dotenv-crash) | P2 | deterministic | guarded | none |
+| [check-calls-a-binary-its-image-lacks](#check-calls-a-binary-its-image-lacks) | P2 | deterministic | guarded | none |
 | [env-not-wired-to-service](#env-not-wired-to-service) | P1 | deterministic | guarded | none |
 | [prod-compose-drift](#prod-compose-drift) | P2 | heuristic | reported | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
@@ -633,6 +634,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-06-19: unmasked when the soundcloud precheck fix let the collect task reach import. `soundcloud_api_collector.py` + `instagram_api_collector.py` both crashed at import. Fix: wrap `load_dotenv()` in `try/except OSError` (no-op on unreadable .env). PR #88/#89.
 
+## check-calls-a-binary-its-image-lacks
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: a check running INSIDE a container shells out to a host binary (`rclone`, `git`, `docker`, `psql`) that is not in that image. It never crashes — it takes its own `except OSError` branch and reports the neutral-sounding state (`unreadable`, `unavailable`, `skipped`) every single run, so the check looks like it is working and can never go green. Found 2026-09-04: `alert_monitor.check_offsite_backup` ran `subprocess.run(['rclone', 'lsjson', …])` from an Airflow task; `command -v rclone` and `command -v git` both return nothing in that image, so it would have reported `unreadable` every night INCLUDING once R2 was correctly configured on the host.
+- root_cause: the code was written against the host's environment (where the operator tested it by hand) and deployed into a container's. Nothing joins "what this code invokes" to "what this image contains" — the Dockerfile and the check live in different files, and a missing binary raises the same exception class as a genuinely unreachable remote, so the two are indistinguishable at the call site.
+- long_term_fix: the probe moves to the only place that holds both the binary and the credentials (the host script), and the in-container check reads a RECEIPT that probe leaves behind — written only after the script read the remote back (`rclone lsf`, or a local/remote SHA comparison). The check then asserts freshness of a proof rather than re-doing the probe. `tests/test_a_backup_survives_its_disk.py` walks the check's AST and fails if it names any host binary.
+- signature: `python3 -m pytest tests/test_a_backup_survives_its_disk.py -q`
+- autofix: none
+- guard: { type: test, ref: tests/test_a_backup_survives_its_disk.py (AST: no host-binary literal inside check_offsite_backup) }
+- rex_ref: docs/adr/ADR-015-offsite-backup-is-an-encrypted-private-git-repo.md
+- first_seen: 2026-09-04 (ref: R57)
+- History:
+  - 2026-09-04: swept all 12 DAGs — `check_offsite_backup` was the ONLY site. Fix: receipt-based check + AST guard, verified red by mutation (re-inserting the `'rclone'` literal fails the guard). The class is worth keeping because the failure is silent by construction: a check that can never pass looks exactly like a check that keeps finding a problem.
+
 ## env-not-wired-to-service
 - status: guarded
 - severity: P1
@@ -647,6 +663,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-19 (ref: Benken onboarding incident)
 - History:
   - 2026-06-19: the prod (untracked) compose dashboard service omitted SPOTIFY/YOUTUBE/SOUNDCLOUD/META env; SoundCloud was in no service. Fix: wired the central-app block into the dashboard service of `docker-compose.example.yml` + the SoundCloud vars into the airflow anchor; guard test cross-checks code reads vs the service env block. PR #87/#91.
+  - 2026-09-04: same class, a NON-service consumer. The R57 procedure said "put `R2_REMOTE` in `.env`, then recreate airflow-scheduler" — which wires the CONTAINER, while the process that actually pushes is a host cron (`0 3 * * * bash tools/db_backup.sh`) that inherits no environment at all. The variable would have been configured everywhere except where it is used, and the script would have taken its "no target configured" branch every night in silence. Fix: `db_backup.sh` reads its own keys out of `.env` (an explicit environment still wins), plus `R2_REMOTE`/`OFFSITE_GIT_REMOTE` added to the shared airflow anchor. A service env block is not the only place a variable can fail to arrive.
 
 ## prod-compose-drift
 - status: reported

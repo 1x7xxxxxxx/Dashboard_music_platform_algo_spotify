@@ -5,6 +5,81 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 3) — La sauvegarde hors-site est partie sans que tu poses de carte
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`7ea5d5a`, `ef46294`). R57 est close. Elle
+attendait un bucket Cloudflare R2 depuis la veille, et ce bucket n'allait pas se créer :
+**tous les stockages objet à palier gratuit exigent une carte bancaire pour activer le
+service** — R2, B2, Scaleway, Wasabi, Storj — y compris quand le palier reste à 0 €, et
+aucune API n'amorce cette étape. Vérifié aussi : aucun jeton Cloudflare nulle part
+(Caddy passe par le challenge HTTP), et aucune seconde machine joignable.
+
+### Ce qui a été fait
+
+Ce qui existait déjà et ne demandait rien : un compte GitHub, un jeton, `git` et `gpg`
+sur l'hôte. La cible est donc un **dépôt privé dédié**, avec trois propriétés qui la
+rendent acceptable — et c'est le chiffrement qui compte, pas le fait que le dépôt soit
+privé (un dépôt privé est une permission, un chiffrement est une propriété) :
+
+| | |
+|---|---|
+| Chiffrement | `gpg --symmetric --cipher-algo AES256`, **avant** que l'archive bouge |
+| Accès | clé de déploiement en écriture **limitée à ce seul dépôt** — pas de PAT sur la machine |
+| Croissance | commit orphelin + `push --force` chaque nuit : le dépôt porte la fenêtre de 30 j, jamais l'accumulation ; git n'envoie que le blob du soir (~1,9 Mo) |
+
+**22 archives distantes** au soir. `R2_REMOTE` reste prioritaire dans le script : le jour
+où une carte est posée, la variable suffit et le chemin git s'éteint seul. **ADR-015**.
+
+### La preuve, et elle ne passe pas par le serveur
+
+```
+archive tirée de GitHub → déchiffrée avec ~/streamlytics-backup-passphrase.txt
+→ 9 880 636 octets de SQL, 93 tables
+```
+
+C'est la seule qui répond à la question posée. Le drill hebdomadaire restaure d'ailleurs
+désormais l'archive **chiffrée** et non plus la claire : le maillon faible n'est pas le
+`pg_dump`, c'est la phrase de passe. Drill relancé en prod : **94 tables, 69 696 lignes,
+exactement le vivant**.
+
+### Deux défauts que seul le câblage pouvait montrer
+
+**1. Le contrôle ne pouvait pas devenir vert.** `check_offsite_backup` appelait
+`subprocess.run(['rclone', …])` depuis une tâche Airflow — et le conteneur
+`airflow_scheduler` n'a **ni `rclone` ni `git`**. Il aurait répondu `unreadable` toutes
+les nuits, **y compris une fois R2 correctement configuré sur l'hôte**. Le plus vicieux
+est qu'un contrôle qui ne peut jamais passer ressemble trait pour trait à un contrôle qui
+trouve un vrai problème. Seul site des 12 DAGs (balayé). Classe
+`check-calls-a-binary-its-image-lacks`.
+
+La sonde est repartie là où vivent le binaire et les identifiants — le script d'hôte — et
+la tâche lit un **reçu** qu'il n'écrit qu'après avoir **relu le distant** (SHA local vs
+distant pour git, `rclone lsf` pour R2). Le reçu atteste une présence, jamais une
+intention. Log de prod, pour la première fois :
+`Offsite backup: 22 archive(s) on git@github-backup:…, proven 0 h ago`.
+
+**2. La procédure posait la variable là où elle ne sert pas.** « `echo R2_REMOTE=… >>
+.env` puis recréer le scheduler » l'aurait posée pour le **conteneur** ; or ce qui pousse
+est un **cron d'hôte**, `0 3 * * * bash tools/db_backup.sh`, qui n'hérite d'aucun
+environnement. Configurée partout sauf là où elle sert, et le script serait retombé
+chaque nuit sur sa branche « aucune cible » en silence. Variante de
+`env-not-wired-to-service` : un bloc `environment:` n'est pas le seul endroit où une
+variable peut ne pas arriver.
+
+### Gardes
+
+5 neufs, **les 5 vérifiés rouges par mutation sur leur propre défaut** — dont celui qui
+attrape la réintroduction du littéral `'rclone'` dans la tâche, et celui qui attrape un
+glob élargi de `*.sql.gz.gpg` à `*.sql.gz`, qui publierait les dumps **en clair**.
+
+### Ce qui reste, et qui n'est pas sur le chemin critique
+
+Ranger la phrase de passe dans un gestionnaire de mots de passe. Elle vit à deux endroits
+(serveur + ce poste), ce qui suffit déjà à ce qu'elle ne partage pas le sort de ce
+qu'elle ouvre. 10 secondes, un jour où tu y penses.
+
+---
+
 ## 2026-09-04 (suite 2) — Les watchers n'étaient utiles que pour une chose, et pas celle-là
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`bcd4154`). Ton intuition était juste : les

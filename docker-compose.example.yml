@@ -101,6 +101,12 @@ services:
       # refuse — et depuis le 2026-09-03 le récap hebdomadaire premium en
       # dépend, donc `check_env_parity` l'exige sur le scheduler.
       STREAMLYTICS_ALLOW_ARTIST_EMAIL: ${STREAMLYTICS_ALLOW_ARTIST_EMAIL:-0}
+      # Posées le 2026-09-04 (R57), même classe `env-not-wired-to-service` que la
+      # ligne au-dessus : `.env` portait déjà `OFFSITE_GIT_REMOTE` et ce bloc ne la
+      # transmettait pas, donc `check_offsite_backup` ne pouvait pas distinguer
+      # « rien n'est configuré » de « c'est configuré et n'a jamais réussi ».
+      R2_REMOTE: ${R2_REMOTE:-}
+      OFFSITE_GIT_REMOTE: ${OFFSITE_GIT_REMOTE:-}
       AIRFLOW_UI_URL: ${AIRFLOW_UI_URL:-http://localhost:8080}
 
       # Spotify API

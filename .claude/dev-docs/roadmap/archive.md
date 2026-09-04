@@ -11,6 +11,29 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 <!-- section actif : Open Bugs -->
 
+### R57 — La sauvegarde hors-site, sans jamais créer de bucket (clos 2026-09-04)
+
+- [x] **R57 — copie hors-site de `spotify_etl`, chiffrée, prouvée restaurable sans le
+  serveur.** La tâche attendait un bucket Cloudflare R2, donc une carte bancaire : tous
+  les stockages objet à palier gratuit en exigent une, y compris quand le palier reste à
+  0 €, et aucune API n'amorce cette étape. Elle est donc partie sur la seule cible
+  configurable **sans aucun geste humain** — un dépôt GitHub privé, clé de déploiement en
+  écriture limitée à ce seul dépôt, archive chiffrée AES256 **avant** de quitter la
+  machine, historique réécrit chaque nuit pour que le dépôt ne s'accumule pas
+  (**ADR-015**). 22 archives distantes au soir du 2026-09-04, et la preuve qui compte a
+  été faite : une archive tirée de GitHub, déchiffrée avec la copie locale de la phrase
+  de passe, **9,88 Mo de SQL, 93 tables, sans toucher au serveur**.
+  Deux défauts trouvés en câblant la vérification : `check_offsite_backup` appelait
+  `rclone` depuis le conteneur Airflow, qui n'a ni `rclone` ni `git` — il aurait répondu
+  `unreadable` toutes les nuits, **y compris une fois R2 correctement configuré** ; et la
+  procédure posait la variable dans `.env` pour le conteneur alors que c'est le **cron**
+  qui pousse, et un cron n'hérite d'aucun environnement. Le drill hebdomadaire restaure
+  désormais l'archive **chiffrée**, parce que le maillon faible n'est pas le `pg_dump`
+  mais la phrase de passe. Reste un geste de 10 secondes, hors chemin critique : la
+  ranger dans un gestionnaire de mots de passe. Runbook §10.
+  **Ce qui rouvre** : une carte posée sur Cloudflare (poser `R2_REMOTE`, le chemin git
+  s'éteint seul), ou une archive nocturne au-delà de ~50 Mo.
+
 ### R50 · R51 · R52 — Les notes des tests artistes, livrées (clos 2026-08-23)
 
 Trois tracks du plan de simplification UI/UX. Le fil commun n'était pas prévu et mérite
