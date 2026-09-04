@@ -512,4 +512,5 @@ EN = {
         "Ads Manager**, with an account open."
     ),
     "credentials.spotify.shot_caption": "The ••• button → Share → Copy link to artist",
+    "credentials.form.example_inline": "e.g. {ex}",
 }

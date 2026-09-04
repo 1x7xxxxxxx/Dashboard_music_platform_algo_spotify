@@ -145,8 +145,7 @@ _SPOTIFY = PlatformCred(
         # seule qui ne bouge pas — vrai à l'écran comme dans le PDF, qui n'a ni
         # « dessus », ni « à côté ».
         CredStep("Colle le lien dans le champ **Spotify Artist ID ou URL profil**, "
-                 "puis **💾 Enregistrer**. On extrait l'ID automatiquement — pas "
-                 "besoin de le découper."),
+                 "puis **💾 Enregistrer**."),
     ),
     fields=(
         CredField("Spotify Artist ID ou URL profil",

@@ -50,6 +50,17 @@ from src.dashboard.auth import is_admin
 VERDICT_KEY = "_cred_last_verdict"
 
 
+def _spotify_shot():
+    """Le chemin de la capture du menu Partager, ou None si elle manque.
+
+    Le MÊME fichier que celui du guide, résolu par le même chemin : une copie dans
+    les assets serait une capture qui vieillit deux fois et ne se met à jour qu'une.
+    """
+    from src.dashboard.content.credential_guides import screenshot_path
+    path = screenshot_path("spotify_share_artist_link.png")
+    return path if path.exists() else None
+
+
 def platform_label(platform_key: str) -> str:
     """Le nom que l'artiste voit sur l'onglet, jamais la clé technique.
 
@@ -356,8 +367,34 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                             field_label,
                             value=existing_val or field.get('default', ''),
                             key=f"{platform_key}_{artist_id}_{key}",
+                            placeholder=field.get('example', ''),
                         )
                     form_values[key] = val
+
+                    # L'exemple SOUS le champ, et plus dans un bloc « Les valeurs à
+                    # coller » au bas du guide. Demandé le 2026-09-04 : « intègre
+                    # sous le champ ». Le `placeholder` ci-dessus le montre déjà
+                    # DANS le champ tant qu'il est vide — c'est la forme la plus
+                    # directe — et cette ligne le garde lisible une fois qu'on a
+                    # commencé à taper.
+                    if field.get('example') and not field['secret']:
+                        col.caption(t("credentials.form.example_inline",
+                                      "ex. {ex}").format(ex=field['example']))
+
+            # La capture, DANS le formulaire, juste sous le champ qu'elle explique.
+            #
+            # Elle était sous le bouton « Enregistrer », donc après l'action : « il
+            # n'y a toujours pas la capture à côté ou juste en dessous de saisir tes
+            # identifiants ». Une image qui montre OÙ trouver la valeur doit être lue
+            # AVANT de la saisir, pas après avoir validé.
+            if platform_key == 'spotify':
+                _shot = _spotify_shot()
+                if _shot is not None:
+                    st.image(str(_shot),
+                             caption=t("credentials.spotify.shot_caption",
+                                       "Le bouton ••• → Partager → Copier le lien "
+                                       "vers l'artiste"),
+                             use_container_width=True)
 
             submitted = st.form_submit_button(
                 t("credentials.form.save", "💾 Enregistrer"),
@@ -374,28 +411,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                     form_values=form_values,
                     existing_values=existing_values,
                 )
-
-        # ── La capture, SOUS le champ qu'elle explique ────────────────────
-        # Demandé le 2026-09-04 : « sur le panneau de saisie Spotify, on peut mettre
-        # le screen juste en dessous de saisir les identifiants, aligné sur le
-        # paragraphe qui l'explique ? »
-        #
-        # Elle est déjà dans le guide, colonne de droite, à son étape 1. Mais le
-        # regard de quelqu'un qui remplit un champ ne quitte pas la colonne gauche :
-        # l'image y est à sa place, sous le champ, à la hauteur du paragraphe qui la
-        # décrit. C'est la MÊME image, résolue par le même chemin — pas une copie
-        # dans les assets : un fichier dupliqué, c'est une capture qui vieillit deux
-        # fois et ne se met à jour qu'une.
-        if platform_key == 'spotify':
-            from src.dashboard.content.credential_guides import screenshot_path
-            from src.dashboard.content.csv_guides_st import _display_width
-            _shot = screenshot_path("spotify_share_artist_link.png")
-            if _shot.exists():
-                st.image(str(_shot),
-                         caption=t("credentials.spotify.shot_caption",
-                                   "Le bouton ••• → Partager → Copier le lien vers "
-                                   "l'artiste"),
-                         width=_display_width(_shot))
 
         # ── Titres hébergés ailleurs (SoundCloud seulement) ───────────────
         if platform_key == 'soundcloud':

@@ -21,6 +21,11 @@ from ._platform_meta import _test_meta, _test_instagram
 # no third-party app). SoundCloud (user_id) → Spotify (profile URL) → YouTube (channel id)
 # → Meta (ad account + asset-sharing). This dict order drives the tabs (router.py) and the
 # global KPI (_render.py).
+# `example` : la forme attendue, montrée EN PLACEHOLDER dans le champ et rappelée
+# sous lui. Elle vivait au bas du guide, dans un bloc « Les valeurs à coller » —
+# c'est-à-dire à deux colonnes de l'endroit où on tape. Demandé le 2026-09-04 :
+# « intègre sous le champ ». Un exemple sert au moment de la saisie ou ne sert pas.
+# Ce sont des formes FICTIVES mais correctes, jamais un vrai secret.
 # `admin_only: True` sur un champ = surcharge d'exploitant, jamais montrée à
 # l'artiste. Ces trois-là portaient le libellé « (optionnel — admin) » et
 # s'affichaient quand même dans SON formulaire : il lit « admin », ne sait pas si
@@ -35,7 +40,8 @@ PLATFORMS = {
         # The optional OAuth real-likes path is an admin runbook (mint script),
         # not exposed in the artist form.
         'fields': [
-            {'key': 'user_id', 'label': 'User ID numérique (ex: 377065610)', 'secret': False},
+            {'key': 'user_id', 'label': 'User ID numérique', 'secret': False,
+             'example': '377065610'},
         ],
     },
     'spotify': {
@@ -46,7 +52,9 @@ PLATFORMS = {
         # optional per-artist override. spotify_artist_id is synced to
         # saas_artists.spotify_artist_id on save (the per-tenant collection key).
         'fields': [
-            {'key': 'spotify_artist_id', 'label': 'Spotify Artist ID ou URL profil', 'secret': False},
+            {'key': 'spotify_artist_id', 'label': 'Spotify Artist ID ou URL profil',
+             'secret': False,
+             'example': 'https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4'},
             {'key': 'client_id',     'label': 'Client ID (surcharge)',     'secret': False, 'admin_only': True},
             {'key': 'client_secret', 'label': 'Client Secret (surcharge)', 'secret': True, 'admin_only': True},
         ],
@@ -58,7 +66,8 @@ PLATFORMS = {
         # remains an optional per-artist override. The connection test validates the
         # channel resolves (a bad UC… 404s the collector, not the key test).
         'fields': [
-            {'key': 'channel_id', 'label': 'Channel ID (UC…)',                    'secret': False},
+            {'key': 'channel_id', 'label': 'Channel ID (UC…)', 'secret': False,
+             'example': 'UC_x5XG1OV2P6uZZ5FSM9Ttw'},
             {'key': 'api_key',    'label': 'API Key (surcharge)',         'secret': True, 'admin_only': True},
         ],
     },
@@ -73,9 +82,10 @@ PLATFORMS = {
         # so Instagram was unconnectable by the artist (the collector's own error
         # message pointed at a field that did not exist).
         'fields': [
-            {'key': 'account_id', 'label': 'Ad Account ID (act_… ou numérique)', 'secret': False},
+            {'key': 'account_id', 'label': 'Ad Account ID (act_… ou numérique)',
+             'secret': False, 'example': 'act_1234567890'},
             {'key': 'ig_user_id', 'label': 'Instagram Business Account ID (optionnel)',
-             'secret': False},
+             'secret': False, 'example': '17841400000000000'},
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
             # plutôt qu'une liste dans `account_id` : les 100 % de locataires
             # mono-compte d'aujourd'hui ne voient aucun changement, et le champ

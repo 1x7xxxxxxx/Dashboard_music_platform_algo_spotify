@@ -29,8 +29,7 @@ _SPOTIFY = PlatformCred(
                  "The ••• button → Share → Copy link to artist"),
         CredStep("In the menu that opens: **Share** → **Copy link to artist**."),
         CredStep("Paste the link into the **Spotify Artist ID or profile URL** "
-                 "field, then **💾 Save**. We extract the ID automatically — no "
-                 "need to cut it up."),
+                 "field, then **💾 Save**."),
     ),
     fields=(
         CredField("Spotify Artist ID or profile URL",

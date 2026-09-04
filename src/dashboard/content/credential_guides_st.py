@@ -98,7 +98,16 @@ def _render_guide_expander(guide: PlatformCred,
         _render_portal_link(guide, artist_name)
         for i, step in enumerate(guide.steps, 1):
             _render_step(guide.key, i, step)
-        _render_fields_table(guide)
+        # `_render_fields_table` n'est plus appelé ICI depuis le 2026-09-04.
+        #
+        # Il listait « Les valeurs à coller » avec leur exemple, au bas du guide —
+        # c'est-à-dire à deux colonnes de l'endroit où on tape. L'exemple vit
+        # désormais DANS le champ (placeholder) et sous lui (`_registry` porte
+        # `example`), ce qui est le seul moment où il sert. Le bloc restait une
+        # troisième énumération des mêmes champs sur le même écran.
+        #
+        # Le PDF, lui, garde sa liste (`guide_pdf._fields_list`) : il se lit loin de
+        # l'écran, sans champ à côté, et l'énumération y est la seule forme possible.
         if guide.note:
             st.info(_os_md(t(f"credentials.guide.{guide.key}.note", guide.note)))
         # `admin_note` porte ce qui relève de l'exploitant — créer une app chez le

@@ -5,6 +5,36 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 17) — L'exemple et la capture rejoignent le champ
+
+« Il n'y a toujours pas la capture à côté ou juste en dessous de saisir tes
+identifiants. » Elle y était — **sous le bouton Enregistrer**, c'est-à-dire après
+l'action qu'elle sert à préparer. Une image qui montre OÙ trouver une valeur se lit
+avant de la saisir ; placée après, elle n'existe pas.
+
+Elle entre donc DANS le formulaire, juste sous le champ. Même fichier que le guide,
+résolu par le même chemin — une copie dans les assets serait une capture qui vieillit
+deux fois et ne se met à jour qu'une.
+
+### Le même écran énumérait ses champs trois fois
+
+Sur l'onglet Spotify, à un champ, on lisait :
+
+1. le champ lui-même, **Spotify Artist ID ou URL profil** ;
+2. l'étape 3 du guide : « colle le lien dans le champ *Spotify Artist ID ou URL
+   profil* — on extrait l'ID automatiquement, pas besoin de le découper » ;
+3. le bloc « Les valeurs à coller » : le même nom de champ, sa note (« colle l'URL
+   complète — on extrait l'ID ») et son exemple.
+
+Trois fois le même champ, deux fois la même promesse d'extraction automatique. Le
+troisième bloc disparaît de l'écran, et l'exemple descend là où il sert : **dans** le
+champ en `placeholder`, et **sous** lui en rappel. `_registry.PLATFORMS` porte
+désormais un `example` par champ — c'est le registre de la saisie, l'exemple lui
+appartient.
+
+Le PDF garde sa liste : il se lit loin de l'écran, sans champ à côté, et
+l'énumération y est la seule forme possible.
+
 ## 2026-09-04 (suite 16) — Le verdict s'affichait dans l'onglet qu'on venait de quitter
 
 ### Deux comportements justes qui s'annulaient
