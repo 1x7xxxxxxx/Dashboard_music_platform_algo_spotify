@@ -35,7 +35,8 @@ def show():
                       "3. Réglez le filtre de **date sur « depuis l'inscription »** (pour tout "
                       "l'historique).\n"
                       "4. **Téléchargez le fichier `.xlsx`**.\n"
-                      "5. Importez-le depuis **📂 Import CSV** (le type SACEM est détecté "
+                      "5. Importez-le depuis **📂 Ajouter mes chiffres Spotify for Artists & Apple** "
+                      "(le type SACEM est détecté "
                       "automatiquement)."))
 
     with view_session() as (db, artist_id):
@@ -43,7 +44,7 @@ def show():
         if df.empty:
             st.info(t("sacem.no_data",
                       "Aucune donnée SACEM. Importez votre relevé de compte (.xlsx) depuis "
-                      "**📂 Import CSV**."))
+                      "**📂 Ajouter mes chiffres Spotify for Artists & Apple**."))
             return
 
         df['mouvement_eur'] = pd.to_numeric(df['mouvement_eur'], errors='coerce').fillna(0.0)

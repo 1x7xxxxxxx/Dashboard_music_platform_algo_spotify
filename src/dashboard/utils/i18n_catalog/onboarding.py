@@ -6,8 +6,6 @@ EN = {
     "onboarding.pick_action": "👉 Tick what you want to set up now",
     "onboarding.pick_hint": "You do not have to connect everything. The rest will wait in the **API Credentials** tab, later, inside the app.",
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
-    "onboarding.roadmap_partial": "You can stop after a single platform and come back whenever you like — nothing is lost, and each platform you add enriches the others.",
-    "onboarding.guide_also_mailed": "You also received it attached to the welcome e-mail — here it is if you prefer to grab it from here.",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
     "onboarding.feat_algo": "+ 🚀 **Know whether a track will trigger Discover Weekly** — before you spend on promotion",
@@ -102,10 +100,6 @@ EN = {
                            "after the month if you do not go Premium. **Your data stays "
                            "yours either way** — nothing is deleted, and the CSV export "
                            "stays free.",
-    "onboarding.b3_title": "3. Your guide, and what happens next",
-    "onboarding.download_guide_fr": "🇫🇷 Guide en français (PDF)",
-    "onboarding.download_guide_en": "🇬🇧 Guide in English (PDF)",
-    # Landing choice — the way out, and the right not to come back
     "onboarding.enter_app": "🏠 Go to the app →",
     "onboarding.keep_landing": "Show this page on login until my setup is complete",
     "onboarding.keep_landing_unsaved": "⚠️ Preference not saved — try again later.",
@@ -122,11 +116,16 @@ EN = {
     "onboarding.pick_first_time": (
         "The minutes shown are **first-time** effort. After that, everything updates on its own."
     ),
-    "onboarding.collection_tonight": (
-        "**Collection runs tonight** · 0 min on your side → your first charts are "
-        "there tomorrow morning, then every day."
-    ),
-    "onboarding.reco_line": (
-        "⭐ **Recommended to start: {names}** — the quickest ones, {mins} min."
+    # Les trois colonnes du sélecteur — le geste, pas le goût.
+    "onboarding.col.quick": "⭐ Start here",
+    "onboarding.col.longer": "A little longer",
+    "onboarding.col.csv": "By file (CSV)",
+    "onboarding.col_hint.quick": "A link to copy, nothing to install.",
+    "onboarding.col_hint.longer": "An identifier to fetch from a third-party account.",
+    "onboarding.col_hint.csv": "An export to download, then drop into the app.",
+    "onboarding.value.s4a": (
+        "Your playlists, your Discovery Mode and where the listens come from — "
+        "what the Spotify API does not give, and what the algorithm predictions "
+        "are computed on."
     ),
 }

@@ -14,14 +14,14 @@ import streamlit as st
 logger = logging.getLogger(__name__)
 
 from src.dashboard.utils import get_db_connection
-from src.dashboard.utils.guide_assets import credentials_guide_pdf
 from src.dashboard.utils.tz import to_local_datetime
 from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import get_lang, t
 from src.dashboard.auth import tenant_scope, get_artist_plan
 from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.content.platform_value import (
-    BY_KEY, RECOMMENDED, ordered_for_setup, total_effort,
+    COLUMN_CSV, COLUMN_LONGER, COLUMN_QUICK, SETUP_COLUMN_ORDER,
+    BY_KEY, setup_columns, total_effort,
 )
 from src.dashboard.utils.setup_focus import FOCUS_KEY
 from src.dashboard.utils.status_matrix import render_status_matrix
@@ -92,26 +92,6 @@ def _get_configured_platforms(artist_id: int, db) -> set[str]:
             "instant avant de tout reconfigurer."
         ).format(err=type(e).__name__))
         return set()
-
-
-def _guide_pdf_bytes(lang: str) -> bytes | None:
-    """The onboarding guide as bytes, or None when it cannot be produced here.
-
-    R50: the guide existed ONLY as an attachment to the welcome e-mail. Mail closed,
-    guide gone — the same shape as the wizard that was itself reachable only from a
-    link in that mail. A document a person cannot fetch again is one they have lost.
-
-    Prefers the copy already rendered under `docs/guides/` and only renders when it is
-    absent: WeasyPrint is slow enough to be felt inside a Streamlit rerun, and it is an
-    optional dependency in some containers. A missing one must degrade to "no button",
-    never to a traceback on a new artist's first screen.
-
-    That reasoning now lives in `utils/guide_assets.py` and is CACHED there. It used to
-    live only here, and `process_guide.py` — written the same day, for the same reason,
-    calling the same builder — rebuilt the PDF on every rerun for 573 ms. One lesson
-    held in one place is the only shape that stops the second caller from re-deriving it.
-    """
-    return credentials_guide_pdf(lang)
 
 
 def _trial_deadline(artist_id: int | None, db) -> str | None:
@@ -309,7 +289,7 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
                                 '🎎 Apple Music',
                                 t("onboarding.feat_distributors",
                                   "💰 Distributeurs (iMusician, DistroKid…)"),
-                                t("nav.item.upload_csv", "📂 Import CSV"),
+                                t("nav.item.upload_csv", "📂 Ajouter mes chiffres Spotify for Artists & Apple"),
                                 # « Export CSV » ne dit rien à qui n'est pas
                                 # développeur. La glose est plus longue que le nom,
                                 # et c'est le bon rapport : le nom ne se comprend pas.
@@ -377,50 +357,27 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
 
     st.markdown("---")
 
-    # Bloc 3 — le guide et ce que la configuration coûte en minutes.
+    # Il n'y a PAS de bloc 3. Ce qui s'y trouvait a été retiré le 2026-09-04, en
+    # une fois, parce que les quatre morceaux avaient le même défaut : ils parlaient
+    # au lieu de faire avancer.
     #
-    # DEUX boutons, un par langue, et c'est une demande de terrain : le PDF suivait la
-    # langue de l'écran, donc un artiste qui lit en français mais veut envoyer le guide
-    # à quelqu'un en anglais devait changer toute l'interface pour l'obtenir. Un
-    # document qu'on télécharge n'a pas à hériter de la langue de la page.
-    st.markdown("### " + t("onboarding.b3_title",
-                          "3. Ton guide, et ce qui se passe ensuite"))
-    st.caption(t(
-        "onboarding.guide_also_mailed",
-        "Tu l'as aussi reçu en pièce jointe de l'e-mail de bienvenue — "
-        "le voici si tu préfères le récupérer ici."))
-    _c1, _c2, _c3 = st.columns([1, 1, 1])
-    _cur = get_lang()
-    for _col, (_code, _lbl) in zip((_c1, _c2),
-                                   (("fr", "🇫🇷 Guide en français (PDF)"),
-                                    ("en", "🇬🇧 Guide in English (PDF)"))):
-        _bytes = _guide_pdf_bytes(_code)
-        if not _bytes:
-            continue
-        with _col:
-            st.download_button(
-                t(f"onboarding.download_guide_{_code}", _lbl),
-                data=_bytes,
-                file_name=f"streamlytics-guide-{_code}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                # L'action mise en avant est celle de SA langue ; l'autre reste
-                # disponible sans réclamer l'attention.
-                type="primary" if _code == _cur else "secondary",
-                key=f"_onb_guide_{_code}",
-            )
-
-    # La seule ligne de l'ancienne feuille de route qui disait quelque chose : ce qui
-    # se passe une fois l'onglet fermé. Les deux autres décrivaient l'écran en cours.
-    st.markdown(t(
-        "onboarding.collection_tonight",
-        "**La collecte tourne cette nuit** · 0 min de ta part → tes premiers "
-        "graphiques sont là demain matin, puis chaque jour."))
-    st.caption(t(
-        "onboarding.roadmap_partial",
-        "Tu peux t'arrêter après une seule plateforme et revenir quand tu veux — "
-        "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
-    st.markdown("---")
+    #   « 3. Ton guide, et ce qui se passe ensuite »  — un titre pour deux boutons ;
+    #   « Tu l'as aussi reçu en pièce jointe… »       — une phrase pour dire qu'on
+    #                                                   répète le mail ;
+    #   les deux boutons de téléchargement du PDF     — « ça sert à rien, on l'envoie
+    #                                                   par mail, et sinon je préfère
+    #                                                   qu'il suive la page
+    #                                                   d'onboarding » ;
+    #   « La collecte tourne cette nuit »             — vrai, et sans effet sur le
+    #                                                   geste demandé juste après ;
+    #   « Tu peux t'arrêter après une seule… »        — une permission que personne
+    #                                                   n'avait demandée.
+    #
+    # Le guide reste téléchargeable là où il sert vraiment : sur l'écran qui suit
+    # l'inscription, pendant qu'on attend le mail de vérification et qu'il n'y a rien
+    # d'autre à faire (`register._guide_download`, couvert par son propre test). Ici,
+    # l'écran a une suite — la page de mise en route — et c'est elle qu'on veut faire
+    # suivre, pas un PDF qui ouvre un autre contexte.
 
     # Le choix, ICI. Il vivait sur une deuxième page qui commençait par redire la
     # liste que la feuille de route venait d'énumérer. Une page de moins, un
@@ -468,8 +425,6 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     plan_ranks = {'free': 0, 'premium': 1}
     current_rank = plan_ranks.get(plan, 0)
 
-    reco = [BY_KEY[k] for k in RECOMMENDED if k not in configured]
-
     # L'ACTION en gros, l'info en petit — demandé après le test du 2026-08-30 :
     # « mettre en gros gras surbrillance de section les ACTIONS à effectuer, en plus
     # petit les infos ».
@@ -478,22 +433,15 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     st.markdown("### :orange-background["
                 + t("onboarding.pick_action", "👉 Coche ce que tu veux configurer maintenant")
                 + "]")
-    # La recommandation, EN UNE LIGNE, juste sous l'action — et plus dans un pavé
-    # bleu au-dessus. Demandé le 2026-09-04 : « supprime-la et intègre les éléments
-    # simples au lieu de détaillés, juste en dessous de Coche ce que tu veux
-    # configurer ».
+    # Il n'y a plus de ligne « ⭐ Recommandé pour démarrer : … ». Elle a été le pavé
+    # bleu, puis une ligne sous l'action, et le 2026-09-04 elle est devenue le TITRE
+    # de la première colonne — « ⭐ Commence par là ». Trois formes de la même phrase
+    # en une journée, dont la dernière la MONTRE au lieu de la dire : la colonne
+    # groupe exactement ce que la ligne énumérait, et son total est déjà sur le bouton
+    # (« Configurer ma sélection (3) → ≈9 min »).
     #
-    # Ce qui part avec le pavé : sa deuxième phrase, sur le croisement Meta Ads ×
-    # CSV S4A. Elle est juste, et elle n'a rien à faire là — elle décrit la valeur
-    # d'une combinaison à quelqu'un qui n'a encore rien branché, au moment précis où
-    # on lui demande de cocher. Les cases portent déjà la valeur de chaque
-    # plateforme, une par une, ce qui est la forme utile ici.
-    if reco:
-        st.caption(t(
-            "onboarding.reco_line",
-            "⭐ **Recommandé pour démarrer : {names}** — les plus rapides, {mins} min."
-        ).format(names=" + ".join(f"{p.icon} {p.label}" for p in reco),
-                 mins=total_effort(p.key for p in reco)))
+    # La liste des recommandées non encore connectées, qu'elle calculait, part avec
+    # elle : personne d'autre ne la lisait, et `setup_columns()` regroupe déjà.
     st.caption(t("onboarding.pick_hint",
                  "Tu n'as pas besoin de tout connecter. Le reste attendra dans "
                  "l'onglet **Credentials API**, plus tard, dans l'application."))
@@ -515,40 +463,77 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     # Ce qui reste de son intention est la ligne au-dessus : ces minutes sont celles
     # de la première fois. C'était la seule chose qu'aucune case ne disait.
 
+    # TROIS COLONNES, et pas six cases empilées. Demandé le 2026-09-04 : « mettre à
+    # gauche et cochées celles qu'on recommande, à droite les autres, et ranger par
+    # colonne pour bien comprendre ».
+    #
+    # Une pile ne hiérarchise rien : le ⭐ posé sur trois lignes d'une même liste est
+    # un ornement, pas un ordre. Les colonnes, elles, disent la seule chose qui aide à
+    # choisir — combien de travail chaque groupe demande. Le découpage vient de
+    # `setup_columns()`, donc d'un champ des plateformes, pas de trois listes de clés
+    # recopiées ici (voir son commentaire).
     selection: list[str] = []
-    for pv in ordered_for_setup(configured):
-        meta = _PLATFORM_META.get(pv.key, {})
-        required_rank = plan_ranks.get(meta.get('plan', 'free'), 0)
-        if not (is_all or required_rank <= current_rank):
-            st.markdown(
-                t("onboarding.locked_platform",
-                  "🔒 {icon} **{label}** — *Disponible en plan {plan}*").format(
-                      icon=pv.icon, label=pv.label,
-                      plan=meta.get('plan', 'free').capitalize())
-            )
-            continue
-
-        connected = pv.key in configured
-        head = f"{pv.icon} **{pv.label}**"
-        if connected:
-            head += t("onboarding.already_connected", " — ✅ déjà connecté")
-        elif pv.recommended:
-            head += t("onboarding.reco_tag", " — ⭐ recommandé")
-        head += t("onboarding.effort", " · ≈{mins} min").format(mins=pv.effort_min)
-
-        checked = st.checkbox(head, value=(pv.recommended and not connected),
-                              disabled=connected, key=f"_onb_pick_{pv.key}")
-        if checked and not connected:
-            selection.append(pv.key)
-        # The value line is what makes the checkbox answerable: an artist cannot
-        # prioritise a platform name, only what it tells them.
-        st.caption(t(f"onboarding.value.{pv.key}", pv.value))
-        st.caption(t("onboarding.need", "À fournir : {need}").format(need=pv.need))
-        if pv.caveat and not connected:
-            st.caption(t(f"onboarding.caveat.{pv.key}", "⚠️ {c}").format(c=pv.caveat))
-        st.markdown("")
+    groups = setup_columns(configured)
+    cols = st.columns(len(SETUP_COLUMN_ORDER), gap="medium")
+    for _col, _name in zip(cols, SETUP_COLUMN_ORDER):
+        with _col:
+            st.markdown("**" + t(f"onboarding.col.{_name}", _COLUMN_TITLES[_name]) + "**")
+            st.caption(t(f"onboarding.col_hint.{_name}", _COLUMN_HINTS[_name]))
+            for pv in groups[_name]:
+                selection.extend(_platform_checkbox(
+                    pv, configured, is_all, plan_ranks, current_rank))
 
     return selection
+
+
+_COLUMN_TITLES = {
+    COLUMN_QUICK: "⭐ Commence par là",
+    COLUMN_LONGER: "Un peu plus long",
+    COLUMN_CSV: "Par fichier (CSV)",
+}
+_COLUMN_HINTS = {
+    COLUMN_QUICK: "Un lien à copier, rien à installer.",
+    COLUMN_LONGER: "Un identifiant à aller chercher sur un compte tiers.",
+    COLUMN_CSV: "Un export à télécharger, puis à déposer dans l'application.",
+}
+
+
+def _platform_checkbox(pv, configured: set[str], is_all: bool,
+                       plan_ranks: dict, current_rank: int) -> list[str]:
+    """Une case et ce qu'elle dit — extraite le 2026-09-04 pour tenir en colonne.
+
+    Renvoie une liste plutôt qu'un booléen : l'appelant l'`extend`, donc une case
+    verrouillée ou déjà connectée n'ajoute rien sans que personne ait à filtrer.
+    """
+    meta = _PLATFORM_META.get(pv.key, {})
+    required_rank = plan_ranks.get(meta.get('plan', 'free'), 0)
+    if not (is_all or required_rank <= current_rank):
+        st.markdown(
+            t("onboarding.locked_platform",
+              "🔒 {icon} **{label}** — *Disponible en plan {plan}*").format(
+                  icon=pv.icon, label=pv.label,
+                  plan=meta.get('plan', 'free').capitalize())
+        )
+        return []
+
+    connected = pv.key in configured
+    head = f"{pv.icon} **{pv.label}**"
+    if connected:
+        head += t("onboarding.already_connected", " — ✅ déjà connecté")
+    head += t("onboarding.effort", " · ≈{mins} min").format(mins=pv.effort_min)
+
+    # Le ⭐ de la ligne a disparu avec la pile : dans une colonne intitulée
+    # « Commence par là », le répéter sur chacune de ses cases ne dit rien de plus.
+    checked = st.checkbox(head, value=(pv.recommended and not connected),
+                          disabled=connected, key=f"_onb_pick_{pv.key}")
+    # The value line is what makes the checkbox answerable: an artist cannot
+    # prioritise a platform name, only what it tells them.
+    st.caption(t(f"onboarding.value.{pv.key}", pv.value))
+    st.caption(t("onboarding.need", "À fournir : {need}").format(need=pv.need))
+    if pv.caveat and not connected:
+        st.caption(t(f"onboarding.caveat.{pv.key}", "⚠️ {c}").format(c=pv.caveat))
+    st.markdown("")
+    return [pv.key] if (checked and not connected) else []
 
 
 def _step_status(db, artist_id: int) -> None:

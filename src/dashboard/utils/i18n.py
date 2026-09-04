@@ -64,7 +64,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.onboarding": "🚀 Set-up wizard",
         "nav.item.process_guide": "📋 Getting started",
         "nav.item.credentials": "🔑 API Credentials",
-        "nav.item.upload_csv": "📂 CSV Import",
+        "nav.item.upload_csv": "📂 Add my Spotify for Artists & Apple figures",
         "nav.item.meta_mapping": "🔗 Cross-platform mapping",
         "nav.item.onboarding_health": "🚦 Onboarding health",
         "nav.item.db_health": "🗄️ Data health",

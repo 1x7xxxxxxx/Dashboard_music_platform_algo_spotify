@@ -29,11 +29,14 @@ _DYNAMIC_PREFIXES = (
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",
     "onboarding.caveat.", "onboarding.value.",
-    # `t(f"onboarding.download_guide_{code}")` — une clé par langue, construite
-    # à l'appel : les deux boutons de téléchargement du guide (2026-09-04).
     # `for key, default, image in (…)` : les trois promesses du bloc 1 passent
     # leur clé en VARIABLE, une par figure d'exemple (2026-09-04).
-    "onboarding.brief_", "onboarding.download_guide_", "upgrade.page.",
+    #
+    # `t(f"onboarding.col.{name}")` et `col_hint` : un titre et une aide par colonne
+    # du sélecteur, construits en bouclant sur `SETUP_COLUMN_ORDER` (2026-09-04).
+    # `onboarding.download_guide_` a disparu le même jour avec les deux boutons de
+    # téléchargement du guide, retirés de la page de bienvenue.
+    "onboarding.brief_", "onboarding.col.", "onboarding.col_hint.", "upgrade.page.",
     "upload_csv.platform.",
 )
 

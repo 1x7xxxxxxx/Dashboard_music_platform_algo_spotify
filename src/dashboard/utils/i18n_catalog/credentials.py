@@ -455,15 +455,16 @@ EN = {
     "credentials.focus_recap": "🎯 **What you chose to connect ({done}/{total}):**",
     "credentials.focus_item_done": "- ✅ **{name}** — connected",
     "credentials.focus_item_csv": (
-        "- 📂 **{name}** — by file, on the **CSV import** page"
+        "- 📂 **{name}** — by file, on the "
+        "**📂 Add my Spotify for Artists & Apple figures** page"
     ),
     "credentials.focus_item_todo": "- ⬜ {label}",
     "credentials.next_in_tab": "{name} — in the **{tab}** tab",
     "credentials.focus_elsewhere": (
         "📂 **{names}** is not connected with an identifier: it is a file to drop. "
-        "Its page is **📂 CSV import**."
+        "Its page is **📂 Add my Spotify for Artists & Apple figures**."
     ),
-    "credentials.focus_elsewhere_go": "📂 Go to CSV import →",
+    "credentials.focus_elsewhere_go": "📂 Go and drop my files →",
     "credentials.guide.paste_header": "**The values to paste:**",
     "credentials.guide.example_inline": (
         "*e.g. {example}* — sample format, do not copy it"

@@ -20,7 +20,8 @@ EN = {
                            "Saving automatically triggers the first collection.",
     # Step 2 — CSV import (before launching collection)
     "process_guide.s2csv_title": "2. Import your CSV files",
-    "process_guide.s2csv_i1": "Open the **📂 CSV Import** page and drop your files (up to about "
+    "process_guide.s2csv_i1": "Open the **📂 Add my Spotify for Artists & Apple figures** page and drop your "
+                              "files (up to about "
                               "ten at once) — the type is auto-detected from the filename and columns.",
     "process_guide.s2csv_i2": "Recognized sources: **Spotify for Artists** (timeline + songs-global "
                               "— songs-global rebuilds the **release reference** used by the mapping "

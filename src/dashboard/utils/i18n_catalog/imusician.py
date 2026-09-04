@@ -5,7 +5,8 @@ EN = {
     "imusician.intro": (
         "Visualisation of the revenue generated through your distributors "
         "(iMusician, DistroKid). Imports (iMusician CSV, DistroKid TSV/CSV) are "
-        "done from the **📂 CSV Import** page; a manual monthly entry is also "
+        "done from the **📂 Add my Spotify for Artists & Apple figures** page; a manual "
+        "monthly entry is also "
         "possible below."
     ),
     "imusician.tab_data": "📊 Data",
@@ -14,7 +15,8 @@ EN = {
     # Data tab
     "imusician.no_revenue": (
         "No revenue recorded for this selection. Import an iMusician or DistroKid "
-        "export (**📂 CSV Import** page) or enter a revenue manually below."
+        "export (**📂 Add my Spotify for Artists & Apple figures** page) or enter a "
+        "revenue manually below."
     ),
     "imusician.select_year_month": "Select at least one year and one month.",
     "imusician.kpi_total": "Cumulative total",

@@ -30,14 +30,29 @@ def test_every_platform_states_value_need_and_cost(pv):
 
 
 def test_recommended_set_is_small_enough_to_be_a_recommendation():
-    assert 1 <= len(RECOMMENDED) <= 2, (
+    """A MINORITY of the list, whatever the list grows to.
+
+    It read `<= 2` until 2026-09-04, which is the same defect one level up: an
+    absolute bound pinned to the list's size on the day it was written. Adding
+    Spotify for Artists took the registry to seven, and two-of-seven versus
+    three-of-seven is not the question — "does the starred group still stand out
+    from the rest" is.
+    """
+    assert RECOMMENDED, "nothing is recommended: the first column would be empty"
+    assert len(RECOMMENDED) < len(PLATFORM_VALUES) / 2, (
+        f"{len(RECOMMENDED)} of {len(PLATFORM_VALUES)} platforms are recommended — "
         "recommending half the list recommends nothing"
     )
 
 
-def test_recommended_pair_is_spotify_and_instagram():
-    """The pair chosen with the user: where streams come from + whether people follow."""
-    assert set(RECOMMENDED) == {"spotify", "instagram"}
+def test_recommended_are_the_three_chosen_with_the_user():
+    """Where the streams come from, whether the audience follows, what moves fastest.
+
+    Chosen on 2026-09-04: « à gauche et cochées celles qu'on recommande : spotify
+    insta et soundcloud ». All three are a link to paste, and none needs an
+    advertising account.
+    """
+    assert set(RECOMMENDED) == {"spotify", "instagram", "soundcloud"}
 
 
 def test_recommended_start_is_under_ten_minutes():
@@ -54,16 +69,85 @@ def test_platforms_that_fail_for_real_people_carry_a_caveat():
 
 def test_order_puts_recommended_first_then_cheapest():
     keys = [p.key for p in ordered_for_setup(set())]
-    assert keys[:2] == list(RECOMMENDED) or set(keys[:2]) == set(RECOMMENDED)
-    rest = [BY_KEY[k].effort_min for k in keys[2:]]
-    assert rest == sorted(rest), "after the recommended pair, cheapest first"
+    n = len(RECOMMENDED)
+    assert set(keys[:n]) == set(RECOMMENDED), (
+        f"the recommended group is not on top: {keys[:n]}")
+    rest = [BY_KEY[k].effort_min for k in keys[n:]]
+    assert rest == sorted(rest), "after the recommended group, cheapest first"
+
+
+# ── Les trois colonnes du sélecteur ─────────────────────────────────────────
+
+def test_the_three_columns_partition_the_registry():
+    """Chaque plateforme dans une colonne et une seule — sinon une case disparaît.
+
+    C'est la propriété qu'une liste de clés écrite à la main perd en silence : elle
+    reste juste le jour où on l'écrit, et le jour où quelqu'un ajoute une plateforme
+    elle en oublie une sans que rien ne le dise. La dérivation ne le peut pas ; ce
+    test le prouve plutôt que de le supposer.
+    """
+    from src.dashboard.content.platform_value import SETUP_COLUMN_ORDER, setup_columns
+
+    groups = setup_columns(set())
+    assert set(groups) == set(SETUP_COLUMN_ORDER), "une colonne a disparu du rendu"
+    placed = [pv.key for col in SETUP_COLUMN_ORDER for pv in groups[col]]
+    assert sorted(placed) == sorted(p.key for p in PLATFORM_VALUES), (
+        f"partition incomplète ou en double : {placed}")
+
+
+def test_each_column_holds_what_its_title_promises():
+    """Le titre d'une colonne est une promesse sur le GESTE qu'elle demande."""
+    from src.dashboard.content.platform_value import (
+        COLUMN_CSV, COLUMN_LONGER, COLUMN_QUICK, setup_columns,
+    )
+
+    g = setup_columns(set())
+    assert {p.key for p in g[COLUMN_QUICK]} == set(RECOMMENDED)
+    assert all(p.where == CREDENTIALS for p in g[COLUMN_LONGER]), (
+        "« un peu plus long » contient un import de fichier")
+    assert all(p.where == CSV for p in g[COLUMN_CSV]), (
+        "« par fichier » contient une plateforme qui se connecte par identifiant")
+    assert {p.key for p in g[COLUMN_CSV]} == {"s4a", "apple_music"}, (
+        "les deux imports CSV sont Spotify for Artists et Apple Music")
+
+
+def test_a_hardcoded_column_would_have_missed_the_new_platform():
+    """Mutation : les trois listes de clés qu'on aurait pu écrire à la main.
+
+    Elles étaient justes avant l'ajout de Spotify for Artists. Sans cette assertion,
+    les deux tests au-dessus passeraient aussi bien sur une partition figée — donc
+    sur la forme qui produit le défaut, pas sur celle qui l'empêche.
+    """
+    from src.dashboard.content.platform_value import SETUP_COLUMN_ORDER, setup_columns
+
+    frozen = {
+        "quick": ["spotify", "instagram", "soundcloud"],
+        "longer": ["youtube", "meta"],
+        "csv": ["apple_music"],
+    }
+    missed = {p.key for p in PLATFORM_VALUES} - {k for v in frozen.values() for k in v}
+    assert missed, (
+        "la partition figée couvre encore tout le registre — la mutation ne reproduit "
+        "plus le défaut ; vérifie qu'une plateforme a bien été ajoutée depuis")
+    live = setup_columns(set())
+    assert not (missed - {pv.key for c in SETUP_COLUMN_ORDER for pv in live[c]}), (
+        "la dérivation en oublie autant que la liste figée")
 
 
 def test_connected_platforms_sink_to_the_bottom():
+    """Connected → last, and the CHEAPEST of the ones left leads.
+
+    It named Instagram until 2026-09-04, which was a fact of the two-platform pair
+    and not the rule: with SoundCloud recommended too, the next thing to offer after
+    Spotify is the two-minute one, not the five-minute one. Naming the winner rather
+    than the reason is how a test starts arguing for the old data.
+    """
     keys = [p.key for p in ordered_for_setup({"spotify"})]
-    # Already connected → last, despite being a recommended platform.
     assert keys[-1] == "spotify"
-    assert keys[0] == "instagram", "the remaining recommended one leads"
+    left = [k for k in RECOMMENDED if k != "spotify"]
+    assert keys[0] in left, "a recommended platform no longer leads"
+    assert BY_KEY[keys[0]].effort_min == min(BY_KEY[k].effort_min for k in left), (
+        "the recommended platform on top is not the cheapest one still to do")
 
 
 # ── The carried selection ───────────────────────────────────────────────────

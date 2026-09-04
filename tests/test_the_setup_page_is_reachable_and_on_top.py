@@ -381,23 +381,65 @@ CREDS = REPO / "src" / "dashboard" / "views" / "credentials" / "router.py"
 SANDBOX = REPO / "tools" / "create_sandbox.py"
 
 
-def test_the_welcome_step_is_four_numbered_blocks():
-    """0 langue · 1 à quoi ça sert · 2 ce que tu as et ce que tu perds · 3 le guide.
+def test_the_welcome_step_is_three_numbered_blocks_then_the_choice():
+    """0 langue · 1 à quoi ça sert · 2 ce que tu as et ce que tu perds · puis on coche.
 
-    The same content was already there, in a different order and unnumbered: the
-    language lived in the sidebar, the offer announced its duration in small print,
-    the PDF was buried and the roadmap only gave a total. Numbered from field notes
-    on 2026-09-04.
+    Four blocks until 2026-09-04. The fourth — « 3. Ton guide, et ce qui se passe
+    ensuite », its two PDF buttons and the two sentences under them — was removed on
+    the artist's word: « ça sert à rien, on l'envoie par mail, et sinon je préfère
+    qu'il suive la page d'onboarding ». What replaces it is nothing: the page ends on
+    the only thing it asks for.
+
+    The ordering assertion survives the deletion because it was never about the
+    guide; it is about a reader who picks a language, learns what the tool does, sees
+    what they keep and lose, and only then chooses. The picker is now the last term.
     """
     fn = _fn(ONB, "_step_welcome")
     src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
     lang = src.index("_language_buttons()")
     brief = src.index("1. streaMLytics en bref")
     offer = src.index("onboarding.b2_title")
-    guide = src.index("onboarding.b3_title")
-    assert lang < brief < offer < guide, (
-        "the four blocks are out of order: the reader picks a language, learns what "
-        "the tool does, sees what they have and lose, then gets the guide."
+    pick = src.index("_platform_picker(")
+    assert lang < brief < offer < pick, (
+        "the blocks are out of order: the reader picks a language, learns what the "
+        "tool does, sees what they have and lose, then chooses what to connect."
+    )
+    assert "onboarding.b3_title" not in src, (
+        "the guide block is back on the welcome step — it was removed because the "
+        "guide is mailed and downloadable on its own page (📋 Guide de démarrage)"
+    )
+    assert "download_button" not in src, (
+        "a PDF download is back on the welcome step: it opens another context at the "
+        "exact moment the page asks for a choice"
+    )
+
+
+def test_the_picker_lays_out_three_derived_columns():
+    """Trois colonnes, et leur contenu vient des données — pas de trois listes ici.
+
+    Mesuré au navigateur le 2026-09-04 à 1440 px : x = 380 / 717 / 1055, gauche
+    cochée. Ce test ne remesure pas ces pixels — `st.columns` les décide — il fige
+    ce qu'un navigateur ne dira jamais : que les groupes sont DÉRIVÉS. Une pile de
+    six cases et trois colonnes alimentées par des clés recopiées se ressemblent à
+    l'écran ; seule la seconde oublie une plateforme le jour où on en ajoute une.
+    """
+    fn = _fn(ONB, "_platform_picker")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    assert "setup_columns(" in src, (
+        "le sélecteur ne dérive plus ses colonnes du registre : il porte sa propre "
+        "idée de qui va où, et elle se périmera sans bruit"
+    )
+    assert "st.columns(len(SETUP_COLUMN_ORDER)" in src, (
+        "le nombre de colonnes est écrit en dur : ajouter un groupe en laisserait "
+        "un hors de l'écran"
+    )
+    # Aucune clé de plateforme littérale dans le corps du sélecteur — c'est la forme
+    # exacte qu'on refuse.
+    from src.dashboard.content.platform_value import PLATFORM_VALUES
+    hard = [pv.key for pv in PLATFORM_VALUES if f'"{pv.key}"' in src or f"'{pv.key}'" in src]
+    assert not hard, (
+        f"le sélecteur nomme {hard} en dur ; il doit lire le registre, sinon la "
+        "septième plateforme atterrit dans aucune colonne"
     )
 
 
@@ -509,15 +551,20 @@ def test_every_selectable_platform_maps_to_a_tab_that_exists():
     naive `key in focus` folded Instagram away for an artist who had just chosen it:
     worse than the six tabs it replaced. Caught in a browser on the first try.
 
-    `apple_music` legitimately has no tab: it is a CSV import, nothing to type here.
+    A CSV platform legitimately has no tab: it is a file import, nothing to type
+    here. The exemption is READ from the registry (`where == CSV`) and not written
+    down: it said `{"apple_music"}` until 2026-09-04, and Spotify for Artists — added
+    the same day, also CSV — went red on a rule it satisfied. An exemption list is a
+    second copy of a fact the data already carries.
     """
     import sys
     sys.path.insert(0, str(REPO))
-    from src.dashboard.content.platform_value import PLATFORM_VALUES
+    from src.dashboard.content.platform_value import CSV, PLATFORM_VALUES
     from src.dashboard.views.credentials._registry import PLATFORMS
     from src.dashboard.views.credentials.router import _TAB_FOR_PLATFORM
 
-    csv_only = {"apple_music"}
+    csv_only = {pv.key for pv in PLATFORM_VALUES if pv.where == CSV}
+    assert csv_only, "no CSV platform — the exemption below would be vacuous"
     unreachable = [
         pv.key for pv in PLATFORM_VALUES
         if pv.key not in csv_only

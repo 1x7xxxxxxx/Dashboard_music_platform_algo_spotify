@@ -5,6 +5,106 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 18) — La page de bienvenue s'arrête de parler, et le choix se range en trois colonnes
+
+Quatre morceaux du bloc 3 partaient ensemble parce qu'ils avaient le même défaut :
+ils **parlaient** au lieu de faire avancer.
+
+  « 3. Ton guide, et ce qui se passe ensuite »  — un titre pour deux boutons
+  « Tu l'as aussi reçu en pièce jointe… »       — une phrase pour dire qu'on répète
+                                                  le mail
+  les deux boutons de téléchargement du PDF     — « ça sert à rien, on l'envoie par
+                                                  mail, et sinon je préfère qu'il
+                                                  suive la page d'onboarding »
+  « La collecte tourne cette nuit »             — vrai, et sans effet sur le geste
+                                                  demandé juste après
+  « Tu peux t'arrêter après une seule… »        — une permission que personne
+                                                  n'avait demandée
+
+Rien ne les remplace. La page finit maintenant sur la seule chose qu'elle demande.
+
+### Le garde du guide n'est pas parti avec les boutons
+
+`test_the_guide_is_fetchable_not_only_mailed.py` existait pour R50 : *un document qui
+n'arrive que par mail est un document qu'on peut perdre*. La lecture facile aurait été
+de le supprimer avec la surface qu'il regardait. C'est exactement ce qu'il ne faut pas
+faire — la propriété qui échouait ici est l'atteignabilité, et un garde qui disparaît
+avec sa surface arrête de surveiller la propriété.
+
+Il pointe donc vers la page qui porte encore le PDF — **📋 Guide de démarrage**, une
+vraie entrée de navigation — et un test de plus vérifie que cette page-là est
+atteignable. Vérifié avant de décider : le guide y est téléchargeable en trois
+formes, donc retirer les boutons de bienvenue ne perd rien.
+
+### Trois colonnes, et pourquoi elles ne sont pas trois listes
+
+« Mettre à gauche et cochées celles qu'on recommande : spotify insta et soundcloud ;
+à droite youtube apple music, meta ads ; ajouter aussi l'import CSV de Spotify for
+Artists ; rangé par colonne pour bien comprendre. »
+
+Six cases empilées se lisent comme une liste de courses. Le ⭐ posé sur trois d'entre
+elles était un ornement : dans une colonne unique, il ne hiérarchise rien.
+
+Ce qui distingue les trois groupes n'est pas le goût, c'est le **geste** — coller un
+lien qu'on a déjà / aller chercher un identifiant sur un compte tiers / déposer un
+fichier qu'il faut d'abord exporter. D'où une **dérivation** (`setup_columns()`, qui
+lit `recommended` et `where`) plutôt que trois listes de clés. Ce n'est pas de la
+coquetterie : la mutation le montre, une partition écrite à la main était juste le
+matin même et perdait Spotify for Artists l'après-midi de son ajout.
+
+Trois autres endroits portaient la même liste figée et sont tombés pour la même
+raison — `csv_only = {"apple_music"}` dans un test, la mutation `== ["apple_music"]`
+d'un autre, et `RECOMMENDED <= 2`, une borne absolue calée sur la taille du registre
+le jour où elle a été écrite. Toutes les trois relisent maintenant le registre.
+
+Mesuré au navigateur (1440 px, locataire bac à sable) : colonnes à x = 380 / 717 /
+1055, gauche cochée, bouton « Configurer ma sélection (3) → ≈9 min ».
+
+### Une ligne supprimée que personne n'avait demandée
+
+« ⭐ Recommandé pour démarrer : Spotify + Instagram + SoundCloud — les plus rapides,
+9 min. » Elle a été un pavé bleu le matin, une ligne sous l'action à midi, et le titre
+de la première colonne le soir. La troisième forme la **montre** au lieu de la dire,
+et le total est déjà sur le bouton. Je l'ai retirée sans qu'on me le demande, parce
+que c'est ma propre duplication qui l'a rendue redondante.
+
+Son garde de durée — « une durée annoncée à un artiste doit être sommée, jamais
+tapée » — a donc déménagé une deuxième fois dans la journée, vers `_step_welcome`.
+La revendication protégée n'a pas changé d'un mot en trois déménagements ; c'est bien
+pourquoi ce garde vise une fonction nommée et pas un libellé : ancré sur « Recommandé
+pour démarrer », il serait mort trois fois.
+
+---
+
+### Un nom de page qui a survécu à son renommage, dans dix phrases
+
+En branchant Spotify for Artists sur la page d'import, j'ai relu le message qui y
+envoie : « Sa page est **📂 Import CSV** ». Ce nom n'existe plus depuis le lot 2 du
+matin — la page s'appelle « 📂 Ajouter mes chiffres Spotify for Artists & Apple »,
+justement parce qu'« un CSV » ne dit rien à un artiste.
+
+Le renommage a touché `_NAV_SECTIONS`. Les phrases qui citaient l'ancien nom vivaient
+ailleurs : **dix occurrences, dans neuf fichiers**, dont six vues françaises et quatre
+catalogues anglais. Aucun test ne pouvait les voir — les tests de menu vérifient le
+menu.
+
+Le garde posé (`test_a_message_names_a_page_as_the_menu_does.py`) tient une liste
+courte de noms qu'on SAIT morts, plutôt qu'une règle générale du type « tout gras qui
+ressemble à un nom de page doit exister » — celle-là hurlerait sur les noms de boutons,
+d'onglets, de champs et de plateformes, et finirait désarmée.
+
+Écrit sensible à la casse, il a trouvé les six occurrences françaises et **raté les
+quatre anglaises**, qui écrivaient « CSV Import » avec un I majuscule. La portée du
+garde était le défaut — pour la sixième fois cette semaine, et cette fois sur le garde
+écrit exprès pour ce défaut-là. Il compare désormais sans casse.
+
+Et la vraie source était plus haut : `nav.item.upload_csv` valait toujours
+« 📂 CSV Import » côté anglais. Le lot 2 avait renommé le libellé français et pas sa
+traduction — les dix phrases pointaient donc vers un nom que le menu anglais affichait
+encore. Corriger la source d'abord évitait de réécrire dix phrases autour d'une erreur.
+
+---
+
 ## 2026-09-04 (suite 17) — L'exemple et la capture rejoignent le champ
 
 « Il n'y a toujours pas la capture à côté ou juste en dessous de saisir tes

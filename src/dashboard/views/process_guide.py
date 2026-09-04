@@ -39,7 +39,8 @@ def _get_steps() -> list[tuple[str, list[str]]]:
             t("process_guide.s2csv_title", "2. Importer vos fichiers CSV"),
             [
                 t("process_guide.s2csv_i1",
-                  "Ouvrez la page **📂 Import CSV** et déposez vos fichiers (jusqu'à une "
+                  "Ouvrez la page **📂 Ajouter mes chiffres Spotify for Artists & Apple** "
+                  "et déposez vos fichiers (jusqu'à une "
                   "dizaine d'un coup) — le type est détecté automatiquement d'après le nom et "
                   "les colonnes."),
                 t("process_guide.s2csv_i2",

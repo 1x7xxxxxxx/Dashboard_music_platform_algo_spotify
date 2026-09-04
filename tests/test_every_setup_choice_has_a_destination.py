@@ -143,12 +143,15 @@ def test_the_guard_goes_red_on_the_shape_that_shipped():
     def old_destination(key: str) -> str:
         return f"tab:{ {'instagram': 'meta'}.get(key, key) }"
 
-    offenders = [pv.key for pv in PLATFORM_VALUES
-                 if old_destination(pv.key).split(":", 1)[1] not in PLATFORMS]
-    assert offenders == ["apple_music"], (
-        "la mutation ne reproduit plus le défaut d'origine — vérifie que le registre "
-        f"porte toujours une plateforme sans onglet (trouvé : {offenders})"
+    offenders = {pv.key for pv in PLATFORM_VALUES
+                 if old_destination(pv.key).split(":", 1)[1] not in PLATFORMS}
+    csv_keys = {pv.key for pv in PLATFORM_VALUES if pv.where == CSV}
+    assert offenders == csv_keys, (
+        "la mutation ne reproduit plus le défaut d'origine : elle devrait perdre "
+        f"exactement les plateformes qui s'importent par fichier. Attendu {csv_keys}, "
+        f"trouvé {offenders}."
     )
+    assert csv_keys, "plus aucune plateforme CSV : la mutation ne prouverait rien"
 
 
 # ── L'onglet qui S'OUVRE après un enregistrement ────────────────────────────

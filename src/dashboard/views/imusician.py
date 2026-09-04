@@ -212,7 +212,8 @@ def show():
         "imusician.intro",
         "Visualisation des revenus générés via vos distributeurs (iMusician, DistroKid). "
         "L'import des exports (CSV iMusician, TSV/CSV DistroKid) se fait depuis la page "
-        "**📂 Import CSV** ; une saisie manuelle par mois est aussi possible ci-dessous."
+        "**📂 Ajouter mes chiffres Spotify for Artists & Apple** ; une saisie manuelle par mois est aussi "
+        "possible ci-dessous."
     ))
 
     tab_data, tab_roi = st.tabs([
@@ -244,7 +245,8 @@ def show():
                 st.info(t(
                     "imusician.no_revenue",
                     "Aucun revenu enregistré pour cette sélection. Importez un export "
-                    "iMusician ou DistroKid (page **📂 Import CSV**) ou saisissez un revenu "
+                    "iMusician ou DistroKid (page **📂 Ajouter mes chiffres Spotify for Artists & Apple**) "
+                    "ou saisissez un revenu "
                     "manuellement ci-dessous."
                 ))
             else:

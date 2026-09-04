@@ -44,7 +44,9 @@ _TAB_FOR_PLATFORM = {"instagram": "meta"}
 # NULLE PART — ni en onglet, ni dans le repli « les autres plateformes », qui se
 # construit à partir des onglets. Elle disparaissait de son plan sans un mot, ce qui
 # est la forme exacte du défaut qu'il a signalé le même jour sur SoundCloud.
-_PAGE_FOR_PLATFORM = {"apple_music": "upload_csv"}
+# Les deux plateformes qui ne se CONNECTENT pas : on y dépose un fichier. Elles
+# partagent la même page — « 📂 Ajouter mes chiffres Spotify for Artists & Apple ».
+_PAGE_FOR_PLATFORM = {"apple_music": "upload_csv", "s4a": "upload_csv"}
 
 
 def platform_destination(key: str) -> str:
@@ -197,7 +199,9 @@ def show():
                                   "- ✅ **{name}** — connecté").format(name=name))
                 elif platform_destination(key).startswith("page:"):
                     st.markdown(t("credentials.focus_item_csv",
-                                  "- 📂 **{name}** — par fichier, page **Import CSV**"
+                                  "- 📂 **{name}** — par fichier, page "
+                                  "**📂 Ajouter mes chiffres Spotify for Artists "
+                                  "& Apple**"
                                   ).format(name=name))
                 else:
                     st.markdown(t("credentials.focus_item_todo",
@@ -234,10 +238,11 @@ def show():
                 st.info(t(
                     "credentials.focus_elsewhere",
                     "📂 **{names}** ne se connecte pas par identifiant : c'est un "
-                    "fichier à déposer. Sa page est **📂 Import CSV**."
+                    "fichier à déposer. Sa page est **📂 Ajouter mes chiffres "
+                    "Spotify for Artists & Apple**."
                 ).format(names=names))
                 if st.button(t("credentials.focus_elsewhere_go",
-                               "📂 Aller à l'import CSV →"),
+                               "📂 Aller y déposer mes fichiers →"),
                              key="_creds_focus_elsewhere"):
                     goto(_PAGE_FOR_PLATFORM[elsewhere[0]])
         elif not existing:
