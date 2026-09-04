@@ -85,6 +85,20 @@ def _wipe(db, artist_id: int) -> None:
             continue
         print(f"   {_OK} {table} vidée")
 
+    # « Rejouer depuis zéro » inclut les préférences que l'onboarding lui-même écrit.
+    # Mesuré le 2026-09-04 : après un `--reset`, la connexion suivante atterrissait sur
+    # l'ACCUEIL et non sur la mise en route, parce qu'un passage précédent avait décoché
+    # « afficher cette page à la connexion » (migration 082). Le compte était vide de
+    # données et pourtant plus tout à fait neuf — c'est le pire des deux : on croit
+    # rejouer le premier parcours, on rejoue le deuxième.
+    try:
+        db.execute_query(
+            "UPDATE saas_users SET show_setup_on_login = TRUE WHERE artist_id = %s",
+            (artist_id,))
+        print(f"   {_OK} préférences d'onboarding remises au défaut")
+    except Exception as exc:                # noqa: BLE001 — colonne absente = base ancienne
+        print(f"   ⚠️  show_setup_on_login: {type(exc).__name__}")
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)

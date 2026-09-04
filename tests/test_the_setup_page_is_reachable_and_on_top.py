@@ -244,3 +244,74 @@ def test_the_assistant_has_no_early_route_that_skips_the_sidebar():
         "because the URL mirror writes ?page=<page> on every run, that branch fires on "
         "every rerun once the assistant has been shown once."
     )
+
+
+# ── 6. First run: the assistant and nothing else, exit at the bottom ──────────
+
+def test_the_first_run_hides_the_menu_and_the_collect_button():
+    """« lors de la première connexion qu'on ait accès uniquement à la mise en route ».
+
+    A full 40-entry menu and a collect button next to an account that has declared no
+    identity offer forty destinations with nothing to show and one action that can
+    collect nothing. The exit is the button at the bottom of the page, and unchecking
+    the box brings the menu back on the spot — so this is a focus, not a door.
+    """
+    body = _fn(APP, "_main_body")
+    guarded = []
+    for node in ast.walk(body):
+        if not isinstance(node, ast.If):
+            continue
+        # The nav + collect panel must live in the `else` of the focus test.
+        names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
+        if "FIRST_RUN_FOCUS" not in names and "_focus" not in names:
+            continue
+        else_calls = {c for stmt in node.orelse for c in _names_called(stmt)}
+        if {"render_navigation", "show_data_collection_panel"} <= else_calls:
+            guarded.append(node.lineno)
+    assert guarded, (
+        "the navigation and the collect button are not gated on the first-run focus "
+        "flag: a brand-new account gets the whole app instead of its setup."
+    )
+
+
+def _names_called(node: ast.AST) -> set[str]:
+    out = set()
+    for n in ast.walk(node):
+        if isinstance(n, ast.Call):
+            f = n.func
+            if isinstance(f, ast.Name):
+                out.add(f.id)
+            elif isinstance(f, ast.Attribute):
+                out.add(f.attr)
+    return out
+
+
+def test_the_way_out_is_rendered_after_the_step_content():
+    """« le bouton accéder à l'application [doit être] à la fin ».
+
+    It was above the step's own title: the first thing an artist saw on their setup
+    page was the button for leaving it.
+    """
+    show = _fn(ONB, "show")
+    exit_lines = _call_lines(show, "_render_landing_choice")
+    step_lines = (_call_lines(show, "_step_welcome")
+                  + _call_lines(show, "_step_credentials")
+                  + _call_lines(show, "_step_ready"))
+    assert exit_lines and step_lines, "show() no longer renders both"
+    assert min(exit_lines) > max(step_lines), (
+        "the exit block is rendered before the step content — it reads as a header, "
+        "which is what was reported."
+    )
+
+
+def test_leaving_the_assistant_clears_the_focus():
+    """Coming back later through the menu must give the whole app, not the focus."""
+    fn = _fn(APP, "resolve_nav_page")
+    pops = [n for n in ast.walk(fn)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "pop"
+            and any(isinstance(a, ast.Name) and a.id == "FIRST_RUN_FOCUS" for a in n.args)]
+    assert pops, (
+        "resolve_nav_page never clears the first-run flag: an artist who later opens "
+        "the assistant from the menu would lose the menu."
+    )

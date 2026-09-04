@@ -42,6 +42,7 @@ from src.utils.airflow_trigger import AirflowTrigger
 from src.dashboard.auth import require_login, show_user_sidebar, get_artist_plan
 from src.dashboard.utils.i18n import t, get_lang
 from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
+from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
 
 st.set_page_config(page_title="streaMLytics", page_icon="🎵", layout="wide")
 
@@ -335,6 +336,12 @@ def _first_run_landing(role: str) -> str:
             db.close()
         if not state.steps or state.complete or not state.show_on_login:
             return 'home'
+        # Première connexion : la mise en route, et RIEN d'autre — demandé le
+        # 2026-09-04 (« j'aimais bien lors de la première connexion qu'on ait accès
+        # uniquement à la mise en route »). Le drapeau ne vaut que pour cette arrivée ;
+        # `resolve_nav_page` l'efface dès que la page n'est plus l'assistant, donc
+        # revenir plus tard par le menu rend l'application entière.
+        st.session_state[FIRST_RUN_FOCUS] = True
         return 'onboarding'
     except Exception:      # noqa: BLE001 — jamais bloquer l'entrée dans l'app
         return 'home'
@@ -377,6 +384,11 @@ def resolve_nav_page(role: str = 'artist'):
         # `_select_nav_radio` ci-dessous lui donne la seule valeur correcte.
 
     page = st.session_state.get('_nav_page', 'home')
+    # Le mode « première connexion » ne survit pas à la sortie de l'assistant : dès que
+    # la page est autre chose, l'artiste a vu l'application, et y revenir par le menu
+    # doit la lui rendre entière.
+    if page != 'onboarding':
+        st.session_state.pop(FIRST_RUN_FOCUS, None)
     # Toujours, pas seulement à la réparation. `utils.navigation.goto` remet toutes les
     # radios à `None` — le menu n'affichait donc AUCUNE sélection après un bouton
     # « Configurer les credentials », exactement comme à la première connexion. Réaffirmer
@@ -783,8 +795,23 @@ def _main_body():
     if page == 'onboarding':
         from views.onboarding import render_sidebar_steps
         render_sidebar_steps()
-    page = render_navigation(role, _rendered, _all_skeys)
-    show_data_collection_panel()
+
+    # Première connexion : la mise en route, et rien d'autre.
+    #
+    # Le menu complet et le bouton de collecte à côté d'un compte qui n'a encore aucune
+    # identité déclarée offrent 40 destinations dont aucune n'a de données à montrer, et
+    # une action qui ne peut rien collecter. Demandé le 2026-09-04 après avoir rejoué
+    # l'onboarding depuis zéro. Ce n'est PAS une porte : la sortie est le gros bouton en
+    # bas de la page, et décocher la case rend le menu sur-le-champ.
+    _focus = bool(st.session_state.get(FIRST_RUN_FOCUS)) and page == 'onboarding'
+    if _focus:
+        st.sidebar.caption(t(
+            "nav.first_run_focus",
+            "Le menu complet apparaîtra dès que tu entres dans l'application — "
+            "le bouton est en bas de cette page."))
+    else:
+        page = render_navigation(role, _rendered, _all_skeys)
+        show_data_collection_panel()
 
     # Le miroir : l'URL nomme la page en cours, donc un rechargement la retrouve.
     # Écriture gardée — réécrire la même valeur relancerait le script en boucle.

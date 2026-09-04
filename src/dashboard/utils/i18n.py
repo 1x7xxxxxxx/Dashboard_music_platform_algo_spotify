@@ -46,6 +46,8 @@ _TR: dict[str, dict[str, str]] = {
         "nav.view_as_help": "Free/Premium access preview. Data stays admin-wide.",
         "nav.plan_badge_premium": "Your plan: **💎 Premium**",
         "nav.plan_badge_free": "Your plan: **🆓 Free**  ·  🔒 = **Premium** features",
+        "nav.first_run_focus": "The full menu appears as soon as you enter the app — "
+                               "the button is at the bottom of this page.",
         # Section headers
         "nav.section.data": "📁 Data",
         "nav.section.analytics": "📊 Platform analytics",

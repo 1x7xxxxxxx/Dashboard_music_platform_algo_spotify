@@ -27,6 +27,15 @@ from __future__ import annotations
 from typing import NamedTuple, Optional
 
 
+# Session flag: this arrival is a FIRST RUN, so the app shows the setup assistant and
+# nothing else — no section menu, no collect button. Not a preference and not derived
+# from the database: it is "how this session arrived", set by the landing router and
+# cleared the moment the artist is on any other page. Named here rather than in
+# `setup_focus.py`, whose `FOCUS_KEY` is a different thing entirely (the platforms the
+# artist picked to set up first).
+FIRST_RUN_FOCUS = "_first_run_focus"
+
+
 class Step(NamedTuple):
     """One setup step: is it done, what to call it, and where the button goes."""
     key: str

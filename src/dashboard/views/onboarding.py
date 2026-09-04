@@ -497,8 +497,9 @@ def _render_landing_choice(db, state) -> None:
     L'écriture est synchrone, pas dans un `on_change` : le callback tournerait au début
     du run SUIVANT, quand la connexion de `show()` est déjà fermée.
     """
-    from src.dashboard.utils.setup_completion import set_show_on_login
+    from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS, set_show_on_login
 
+    st.markdown("---")
     if state.complete:
         st.success(t("onboarding.setup_complete",
                      "✅ Ta configuration est complète ({done}/{total}). "
@@ -530,7 +531,13 @@ def _render_landing_choice(db, state) -> None:
                 logger.warning("show_setup_on_login not saved: %s", type(exc).__name__)
                 st.caption(t("onboarding.keep_landing_unsaved",
                              "⚠️ Préférence non enregistrée — réessaie plus tard."))
-    st.markdown("---")
+            else:
+                if not keep:
+                    # Décocher rend le menu TOUT DE SUITE. La barre latérale de ce run
+                    # est déjà dessinée sans lui : sans ce rerun, l'artiste décoche et
+                    # ne voit rien changer avant sa prochaine action.
+                    st.session_state.pop(FIRST_RUN_FOCUS, None)
+                    st.rerun()
 
 
 def show() -> None:
@@ -547,8 +554,6 @@ def show() -> None:
     try:
         from src.dashboard.utils.setup_completion import read_setup_state
         state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
-        if state.steps:
-            _render_landing_choice(db, state)
 
         if step == 1:
             _step_welcome(plan, db)
@@ -556,6 +561,13 @@ def show() -> None:
             _step_credentials(plan, artist_id, db)
         else:
             _step_ready()
+
+        # En BAS, pas en haut. Il y était, au-dessus du titre de l'étape : la première
+        # chose qu'un artiste voyait en arrivant sur sa mise en route était le bouton
+        # pour en sortir. Demandé le 2026-09-04 : « le bouton accéder à l'application
+        # [doit être] à la fin ». Une sortie se lit après le contenu, pas à sa place.
+        if state.steps:
+            _render_landing_choice(db, state)
     finally:
         if db is not None:
             db.close()
