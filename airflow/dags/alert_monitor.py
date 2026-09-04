@@ -1056,69 +1056,84 @@ def check_offsite_backup(**context):
     be silent lives HERE instead: every night, until an offsite copy exists.
 
     Freshness IS the proof, as everywhere else in this monitor: the question is not
-    "is the script installed" but "is there a remote archive younger than 48 h". A
-    configured push that quietly stopped working answers the first and fails the second.
+    "is the script installed" but "was an offsite archive proven present in the last
+    48 h". A configured push that quietly stopped working answers the first and fails
+    the second.
+
+    Why it reads a receipt and no longer shells out to `rclone`
+    ----------------------------------------------------------
+    Because this task runs INSIDE the Airflow image, and that image has neither
+    `rclone` nor `git` — measured 2026-09-04, `command -v` returns nothing for both.
+    The previous version would therefore have answered `unreadable` for ever, even
+    once R2 was correctly configured on the host: a check that shells out to a binary
+    absent from its own image can never go green. It was the only such call in any
+    DAG (swept 2026-09-04); the class is `check-calls-a-binary-its-image-lacks`.
+
+    So the probe moved to the only place that can talk to the remote — `db_backup.sh`,
+    on the host — and this task reads what that probe left behind. The receipt is
+    written ONLY after the script has read the archive back from the remote (an
+    `rclone lsf`, or a remote/local SHA comparison for the git target), so it attests
+    a presence, never an intention. Same contract for both targets, one code path.
     """
     import json
     import os
-    import subprocess
+    from datetime import datetime, timezone
 
     ti = context['ti']
-    remote = os.getenv('R2_REMOTE', '').strip()
-
-    if not remote:
-        ti.xcom_push(key='offsite_backup', value=[{
-            'state': 'absent',
-            'detail': "Aucune copie hors-site : R2_REMOTE n'est pas défini. Les "
-                      "sauvegardes vivent sur le disque de la base — si ce disque "
-                      "meurt, elles meurent avec.",
-            'action': "Créer le bucket R2, `rclone config`, puis poser R2_REMOTE "
-                      "dans .env et recréer airflow-scheduler.",
-        }])
-        logger.warning("Offsite backup: NOT CONFIGURED (R2_REMOTE unset)")
-        return
+    receipt_path = os.getenv('OFFSITE_RECEIPT', '/opt/airflow/data/offsite_receipt.json')
+    target = (os.getenv('R2_REMOTE') or os.getenv('OFFSITE_GIT_REMOTE') or '').strip()
 
     try:
-        out = subprocess.run(
-            ['rclone', 'lsjson', remote, '--include', '*.sql.gz'],
-            capture_output=True, text=True, timeout=60)
-    except (OSError, subprocess.SubprocessError) as exc:
+        with open(receipt_path, encoding='utf-8') as fh:
+            receipt = json.load(fh)
+    except FileNotFoundError:
+        # No receipt at all: either nothing is configured (absent), or something is
+        # configured and has never once succeeded (empty). Two different gestures.
+        if not target:
+            ti.xcom_push(key='offsite_backup', value=[{
+                'state': 'absent',
+                'detail': "Aucune copie hors-site : ni R2_REMOTE ni OFFSITE_GIT_REMOTE "
+                          "ne sont définis. Les sauvegardes vivent sur le disque de la "
+                          "base — si ce disque meurt, elles meurent avec.",
+                'action': "Poser OFFSITE_GIT_REMOTE (dépôt privé + clé de déploiement) "
+                          "ou R2_REMOTE dans .env, puis recréer airflow-scheduler.",
+            }])
+            logger.warning("Offsite backup: NOT CONFIGURED (no target)")
+        else:
+            ti.xcom_push(key='offsite_backup', value=[{
+                'state': 'empty',
+                'detail': f"{target} est configuré mais aucune archive n'y est jamais "
+                          f"arrivée : {receipt_path} n'existe pas.",
+                'action': "Lancer `bash tools/db_backup.sh` à la main et lire sa sortie.",
+            }])
+            logger.error("Offsite backup: configured but NEVER succeeded")
+        return
+    except (OSError, ValueError) as exc:
         ti.xcom_push(key='offsite_backup', value=[{
             'state': 'unreadable',
-            'detail': f"Impossible d'interroger {remote} : {type(exc).__name__}.",
-            'action': "Vérifier que rclone est installé et que le remote répond.",
+            'detail': f"{receipt_path} illisible : {type(exc).__name__}.",
+            'action': "Vérifier que /opt/streamlytics/data est monté et lisible, puis "
+                      "relancer `bash tools/db_backup.sh`.",
         }])
-        logger.error("Offsite backup: probe failed (%s)", type(exc).__name__)
+        logger.error("Offsite backup: receipt unreadable (%s)", type(exc).__name__)
         return
 
-    if out.returncode != 0:
-        ti.xcom_push(key='offsite_backup', value=[{
-            'state': 'unreadable',
-            'detail': f"rclone a répondu {out.returncode} sur {remote}.",
-            'action': "Vérifier les credentials R2 et le nom du bucket.",
-        }])
-        logger.error("Offsite backup: rclone rc=%s", out.returncode)
-        return
+    archives = receipt.get('archives') or 0
+    remote = receipt.get('target') or target or '?'
 
-    try:
-        entries = json.loads(out.stdout or '[]')
-    except ValueError:
-        entries = []
-
-    if not entries:
+    if not archives:
         ti.xcom_push(key='offsite_backup', value=[{
             'state': 'empty',
-            'detail': f"{remote} est vide — aucune archive n'y est jamais arrivée.",
+            'detail': f"{remote} est vide — la dernière copie a rendu 0 archive.",
             'action': "Lancer `bash tools/db_backup.sh` à la main et lire sa sortie.",
         }])
         logger.error("Offsite backup: remote is EMPTY")
         return
 
-    newest = max(e.get('ModTime', '') for e in entries)
     age_h = None
     try:
-        from datetime import datetime, timezone
-        parsed = datetime.fromisoformat(newest.replace('Z', '+00:00'))
+        parsed = datetime.fromisoformat(
+            str(receipt.get('verified_at', '')).replace('Z', '+00:00'))
         age_h = (datetime.now(timezone.utc) - parsed).total_seconds() / 3600
     except (ValueError, TypeError):
         pass
@@ -1126,18 +1141,20 @@ def check_offsite_backup(**context):
     # 48 h and not 24: the cron runs daily at 03:00, so a single missed night is a
     # blip, two is a pattern. Same reasoning as `check_data_freshness`, which this
     # deliberately mirrors rather than inventing its own cadence.
-    if age_h is not None and age_h > 48:
+    if age_h is None or age_h > 48:
         ti.xcom_push(key='offsite_backup', value=[{
             'state': 'stale',
-            'detail': f"La dernière archive distante a {age_h:.0f} h "
-                      f"({len(entries)} au total sur {remote}).",
+            'detail': (f"La dernière copie hors-site prouvée remonte à {age_h:.0f} h "
+                       f"({archives} archive(s) sur {remote})." if age_h is not None
+                       else f"Le reçu de {remote} ne porte pas d'horodatage lisible."),
             'action': "Lire /var/log/streamlytics-backup.log : la copie a cessé.",
         }])
-        logger.error("Offsite backup: STALE (%.0f h)", age_h)
+        logger.error("Offsite backup: STALE (%s h)",
+                     f"{age_h:.0f}" if age_h is not None else "?")
         return
 
-    logger.info("Offsite backup: %d archive(s), newest %.0f h old",
-                len(entries), age_h if age_h is not None else -1)
+    logger.info("Offsite backup: %d archive(s) on %s, proven %.0f h ago",
+                archives, remote, age_h)
 
 
 def check_tenant_contamination(**context):

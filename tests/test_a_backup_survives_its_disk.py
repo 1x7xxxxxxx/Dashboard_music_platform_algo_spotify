@@ -125,3 +125,67 @@ def test_the_drill_compares_the_restore_to_the_live_database():
         "1 149 live on the same database."
     )
     assert "query_to_xml" in body, "the drill no longer counts rows exactly"
+
+
+def test_the_monitor_does_not_shell_out_to_a_binary_its_image_lacks():
+    """Error class `check-calls-a-binary-its-image-lacks`.
+
+    Measured 2026-09-04 inside `airflow_scheduler`: `command -v rclone` and
+    `command -v git` both return nothing. The first version of this check ran
+    `subprocess.run(['rclone', 'lsjson', ...])` from an Airflow task, so it would have
+    answered `unreadable` every single night — including after R2 was correctly
+    configured on the host. A check that can never go green is not a check.
+
+    The probe belongs where the credentials and the binaries are (the host script);
+    the task reads the receipt that probe leaves behind.
+    """
+    tree = ast.parse(MONITOR.read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "check_offsite_backup")
+    forbidden = {"rclone", "git", "docker", "psql", "gpg"}
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            assert node.value not in forbidden, (
+                f"check_offsite_backup names the host binary {node.value!r}. It runs "
+                "inside the Airflow image, which has none of them."
+            )
+
+
+def test_the_receipt_is_the_single_contract_between_the_two_halves():
+    """The host writes it, the container reads it — a rename on one side is silent."""
+    backup = BACKUP.read_text(encoding="utf-8")
+    monitor = MONITOR.read_text(encoding="utf-8")
+    assert "offsite_receipt.json" in backup and "offsite_receipt.json" in monitor, (
+        "the receipt path diverged between db_backup.sh and alert_monitor: the "
+        "monitor would read a file nobody writes and report 'absent' for ever."
+    )
+    for key in ("archives", "verified_at", "target"):
+        assert f'"{key}"' in backup, f"db_backup.sh no longer writes {key!r}"
+        assert f"'{key}'" in monitor or f'"{key}"' in monitor, (
+            f"alert_monitor no longer reads {key!r} from the receipt")
+
+
+def test_the_git_target_encrypts_before_it_pushes():
+    """The archive leaves the machine encrypted, or it does not leave.
+
+    The git target is a third-party host (ADR-015). What makes it acceptable is not
+    the repo being private — it is that the bytes are AES256 before they move.
+    """
+    body = BACKUP.read_text(encoding="utf-8")
+    enc = body.index("--cipher-algo AES256")
+    push = body.index("push -q --force origin backups")
+    assert enc < push, "the push happens before the encryption"
+    assert "*.sql.gz.gpg" in body, (
+        "the offsite work tree no longer selects the ENCRYPTED archives — a glob "
+        "widened to *.sql.gz would publish the dumps in clear."
+    )
+
+
+def test_the_offsite_push_is_verified_by_reading_the_remote_back():
+    """The receipt attests a presence, not an intention."""
+    body = BACKUP.read_text(encoding="utf-8")
+    assert "ls-remote origin refs/heads/backups" in body, (
+        "nothing reads the remote back after the git push: the receipt would be "
+        "written on the strength of a zero exit code alone."
+    )
+    assert 'LOCAL_SHA" != "$REMOTE_SHA' in body, "the two SHAs are no longer compared"

@@ -103,3 +103,8 @@ backups/
 # schemathesis run cache (make/runbook §6c fuzzing) — never committed
 .schemathesis/
 data/uploads/
+
+# Copie hors-site (R57) — dépôt de travail et phrase de passe : jamais versionnés.
+.offsite-git/
+.backup_passphrase
+data/offsite_receipt.json

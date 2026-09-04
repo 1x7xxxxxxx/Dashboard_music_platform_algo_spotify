@@ -17,18 +17,42 @@ if [ -z "$PG_CONT" ]; then
     exit 1
 fi
 
+# Le drill restaure en PRIORITÉ l'archive chiffrée, pas la claire.
+#
+# C'est elle qui part hors-site (ADR-015), et le maillon faible de tout le dispositif
+# n'est pas le `pg_dump` : c'est la phrase de passe. Une archive distante qu'on ne
+# sait plus déchiffrer n'est pas une sauvegarde. Restaurer la copie claire prouverait
+# le dump et laisserait la seule question qui compte sans réponse.
+PASSPHRASE_FILE="${BACKUP_PASSPHRASE_FILE:-$ROOT/.backup_passphrase}"
+ENCRYPTED="$(ls -t "$OUT_DIR"/${DB}_*.sql.gz.gpg 2>/dev/null | head -1 || true)"
 LATEST="$(ls -t "$OUT_DIR"/${DB}_*.sql.gz 2>/dev/null | head -1 || true)"
+
+DECRYPT=""
+if [ -n "$ENCRYPTED" ] && [ -s "$PASSPHRASE_FILE" ] && command -v gpg >/dev/null 2>&1; then
+    LATEST="$ENCRYPTED"
+    DECRYPT="yes"
+elif [ -n "$ENCRYPTED" ]; then
+    echo "⚠️  Une archive chiffrée existe ($(basename "$ENCRYPTED")) mais elle ne peut" >&2
+    echo "    pas être lue ici : phrase de passe absente ou gpg manquant. Le drill se" >&2
+    echo "    replie sur la copie claire et ne prouve donc PAS la copie hors-site." >&2
+fi
+
 if [ -z "$LATEST" ]; then
     echo "❌ No backup found in $OUT_DIR — run 'make backup' first." >&2
     exit 1
 fi
-echo "→ Restoring latest backup: $LATEST"
+echo "→ Restoring latest backup: $LATEST${DECRYPT:+ (déchiffré)}"
 
 docker exec "$PG_CONT" psql -U postgres -q -c "DROP DATABASE IF EXISTS $TEST_DB;"
 docker exec "$PG_CONT" psql -U postgres -q -c "CREATE DATABASE $TEST_DB;"
 trap 'docker exec "$PG_CONT" psql -U postgres -q -c "DROP DATABASE IF EXISTS '"$TEST_DB"';" >/dev/null 2>&1 || true' EXIT
 
-gunzip -c "$LATEST" | docker exec -i "$PG_CONT" psql -U postgres -q -d "$TEST_DB" > /dev/null
+if [ -n "$DECRYPT" ]; then
+    gpg --batch --quiet --decrypt --passphrase-file "$PASSPHRASE_FILE" "$LATEST" \
+        | gunzip -c | docker exec -i "$PG_CONT" psql -U postgres -q -d "$TEST_DB" > /dev/null
+else
+    gunzip -c "$LATEST" | docker exec -i "$PG_CONT" psql -U postgres -q -d "$TEST_DB" > /dev/null
+fi
 
 # Ce que ce drill doit prouver — et ne prouvait pas jusqu'au 2026-09-04.
 #
