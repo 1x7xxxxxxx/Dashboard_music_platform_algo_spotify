@@ -122,3 +122,36 @@ def test_the_labels_carry_no_link_syntax():
         assert "](" not in value and "[" not in value, (
             f"{name}/{key} garde une syntaxe de lien : {value!r} — un bouton "
             "l'afficherait tel quel")
+
+
+def test_the_highlight_wraps_a_translated_label():
+    """La surbrillance entoure `_t(...)`, jamais une chaîne française en dur.
+
+    Demandé le 2026-09-04 : « mets en surbrillance bleu "pas encore de compte ?
+    Créez-en un" ». Le piège d'une décoration posée au dernier moment est de figer le
+    texte avec elle — `st.button(":blue-background[Pas encore de compte ?…]")` est plus
+    court à écrire, s'affiche pareil, et rend le bouton unilingue.
+
+    Le test lit l'ARBRE : l'argument de `st.button` doit contenir un appel à `_t`.
+    Vérifié au navigateur le même jour — fond mesuré `rgba(28, 131, 255, 0.1)`, et la
+    syntaxe `:blue-background[` absente du texte affiché.
+    """
+    tree = ast.parse((_DASHBOARD / "auth.py").read_text(encoding="utf-8"))
+    call = next(
+        (n for n in ast.walk(tree)
+         if isinstance(n, ast.Call)
+         and getattr(n.func, "attr", "") == "button"
+         and any(k.arg == "key" and getattr(k.value, "value", "") == "_goto_register"
+                 for k in n.keywords)),
+        None)
+    assert call is not None, "le bouton « Créez-en un » a disparu ou changé de clé"
+
+    label = call.args[0]
+    literals = [n.value for n in ast.walk(label)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+    assert any(":blue-background[" in x for x in literals), (
+        "le libellé n'est plus en surbrillance bleue")
+    assert any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_t"
+               for n in ast.walk(label)), (
+        "la surbrillance entoure un texte figé au lieu d'un `_t(...)` : le bouton "
+        "resterait en français pour un lecteur anglophone")
