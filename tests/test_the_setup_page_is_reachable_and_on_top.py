@@ -443,6 +443,62 @@ def test_the_picker_lays_out_three_derived_columns():
     )
 
 
+def test_the_picker_shows_checkboxes_and_nothing_else():
+    """Une case, et rien sous elle.
+
+    Trois légendes accompagnaient chaque plateforme — sa valeur, « À fournir : … »,
+    et le piège qui la fait échouer en silence. Sept plateformes : vingt et une lignes
+    de prose sur un écran dont le geste tient en sept clics. « On ne garde uniquement
+    les sections à cocher » (2026-09-04).
+
+    Aucune n'était fausse, et aucune n'est perdue : le piège vit dans le guide de sa
+    plateforme (lisible quand on y est), « À fournir » dans ce guide et dans la
+    dernière colonne de la matrice d'état, la valeur dans le titre de la colonne qui
+    groupe par effort. Ce test empêche leur retour ICI, pas leur existence.
+    """
+    fn = _fn(ONB, "_platform_checkbox")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    tree = ast.parse(src)
+    captions = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                and getattr(n.func, "attr", "") == "caption"]
+    assert not captions, (
+        f"{len(captions)} légende(s) sont revenues sous les cases à cocher — c'est "
+        "la prose qui a été retirée le 2026-09-04, pas seulement son texte")
+
+    body = ONB.read_text(encoding="utf-8")
+    for key in ("onboarding.value.", "onboarding.need", "onboarding.caveat."):
+        assert key not in body, (
+            f"« {key} » est de retour sur la page de mise en route")
+
+
+def test_the_three_columns_are_bordered_cells():
+    """« Des lignes démarcatrices comme un tableau entre les 3 colonnes. »
+
+    `st.columns` ne trace rien : trois listes côte à côte se lisent comme une seule au
+    fil de l'œil. Le garde exige le cadre de Streamlit — `container(border=True)` —
+    et pas un `<style>` visant le DOM : un sélecteur sur la structure interne se
+    casse à la première montée de version, en silence, et personne ne le voit puisque
+    la page continue de s'afficher.
+
+    Mesuré au navigateur : trois cellules à x = 380 / 717 / 1055, bordure 1 px.
+    """
+    fn = _fn(ONB, "_platform_picker")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    tree = ast.parse(src)
+    containers = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                  and getattr(n.func, "attr", "") == "container"]
+    assert containers, (
+        "les colonnes ne sont plus des conteneurs : rien ne les sépare visuellement")
+    for call in containers:
+        border = next((k.value for k in call.keywords if k.arg == "border"), None)
+        assert isinstance(border, ast.Constant) and border.value is True, (
+            "le conteneur de colonne n'a plus de bordure — les trois listes "
+            "redeviennent une seule")
+    assert "unsafe_allow_html" not in src, (
+        "la séparation est retombée sur du HTML brut : un sélecteur visant le DOM de "
+        "Streamlit se casse à la montée de version sans que rien ne le dise")
+
+
 def test_the_trial_says_one_month_not_only_thirty_days():
     body = ONB.read_text(encoding="utf-8")
     assert "1 mois" in body, (

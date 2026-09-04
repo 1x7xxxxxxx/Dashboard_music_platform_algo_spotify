@@ -570,11 +570,16 @@ def require_login() -> bool:
         # `st.query_params` + `st.rerun()` relancent le script SANS navigation HTML :
         # il n'y a donc aucun onglet possible. Même remède que le lien de validation
         # d'e-mail, corrigé le même jour pour la même raison.
-        # La surbrillance est posée ICI, pas dans le catalogue : celui-ci ne porte
+        # La COULEUR DE POLICE, pas un fond : `:blue-background[…]` a vécu une heure
+        # et l'auteur s'est repris — « je me suis mal exprimé ». Un fond posé sur une
+        # ligne entière la transforme en bandeau, ce qui est plus lourd que le lien
+        # qu'elle remplace ; une police bleue dit « c'est cliquable » et rien d'autre.
+        #
+        # La décoration est posée ICI, pas dans le catalogue : celui-ci ne porte
         # que du texte, et `test_navigation_inside_the_app_opens_no_tab` vérifie
         # justement qu'aucun libellé n'y garde de syntaxe markdown — un crochet dans
         # une traduction s'afficherait tel quel le jour où le rendu changerait.
-        if st.button(":blue-background["
+        if st.button(":blue["
                      + _t("auth.register_link", "Pas encore de compte ? Créez-en un")
                      + "]",
                      key="_goto_register"):

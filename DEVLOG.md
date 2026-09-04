@@ -5,6 +5,45 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 23) — Le sélecteur ne porte plus que ses cases
+
+Trois légendes accompagnaient chaque plateforme — sa valeur, « À fournir : … », et le
+piège qui la fait échouer en silence. Sept plateformes : **vingt et une lignes de
+prose** sur un écran dont le geste tient en sept clics. Plus trois sous-titres de
+colonne, dont le « rien à installer » que l'auteur a cité en premier.
+
+Aucune n'était fausse, et aucune n'est perdue — elles sont dites là où elles servent
+au lieu d'être dites toutes ensemble avant que rien ne serve :
+
+  le PIÈGE (compte Business, titres publics, chaîne « … - Topic », asset sharing)
+    vit dans le guide de sa plateforme, lisible parce qu'on y est déjà ;
+  « À FOURNIR » vit dans ce même guide et dans la dernière colonne de la matrice ;
+  la VALEUR vit dans le titre de la colonne, qui groupe par effort.
+
+### Trois cellules, et pourquoi pas du CSS
+
+« Des lignes démarcatrices comme un tableau entre les 3 colonnes. » `st.columns` ne
+trace rien : trois listes côte à côte se lisent comme une seule au fil de l'œil.
+
+Le cadre est celui de Streamlit (`container(border=True)`), pas un `<style>` visant
+son DOM. Un sélecteur sur la structure interne se casse à la première montée de
+version **en silence** — la page continue de s'afficher, sans séparation, et rien ne
+le signale. Le garde interdit explicitement le retour au HTML brut.
+
+Mesuré : bordure 1 px, cellules à x = 380 / 717 / 1055, largeurs identiques.
+
+### Une décoration corrigée une heure après
+
+`:blue-background[…]` → `:blue[…]` : « je me suis mal exprimé ». Le fond transformait
+la ligne en bandeau, plus lourd que le lien qu'elle remplaçait ; la police bleue dit
+« c'est cliquable » et rien d'autre. Mesuré `rgb(0, 84, 163)`, sans fond.
+
+Le garde qui l'accompagne n'attrape pas la couleur — une décoration se change — mais
+le piège qui l'accompagne : `st.button(":blue[Pas encore de compte…]")` s'écrit plus
+court, s'affiche pareil, et rend le bouton unilingue.
+
+---
+
 ## 2026-09-04 (suite 22) — La capture manquait de place, pas d'existence
 
 « Pourquoi il n'y a toujours pas l'image screen alors que ça fait 4 fois que je te

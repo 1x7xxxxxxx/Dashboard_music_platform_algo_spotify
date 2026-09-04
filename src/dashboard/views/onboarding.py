@@ -476,9 +476,14 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     groups = setup_columns(configured)
     cols = st.columns(len(SETUP_COLUMN_ORDER), gap="medium")
     for _col, _name in zip(cols, SETUP_COLUMN_ORDER):
-        with _col:
+        # Une cellule ENCADRÉE par colonne — « des lignes démarcatrices comme un
+        # tableau entre les 3 colonnes » (2026-09-04). `st.columns` ne trace aucune
+        # séparation : trois listes côte à côte se lisent comme une seule au fil de
+        # l'œil. Le cadre est celui de Streamlit (`st.container(border=True)`), pas
+        # du CSS visant le DOM — un sélecteur sur la structure interne se casse à la
+        # première montée de version, en silence.
+        with _col.container(border=True):
             st.markdown("**" + t(f"onboarding.col.{_name}", _COLUMN_TITLES[_name]) + "**")
-            st.caption(t(f"onboarding.col_hint.{_name}", _COLUMN_HINTS[_name]))
             for pv in groups[_name]:
                 selection.extend(_platform_checkbox(
                     pv, configured, is_all, plan_ranks, current_rank))
@@ -486,15 +491,14 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     return selection
 
 
+# Les sous-titres de colonne ont vécu une journée : « Un lien à copier, rien à
+# installer. » / « Un identifiant à aller chercher… » / « Un export à télécharger… ».
+# Ils expliquaient le critère de groupement à quelqu'un qui n'a pas à le connaître —
+# le titre de la colonne suffit à dire dans quel ordre s'y prendre.
 _COLUMN_TITLES = {
     COLUMN_QUICK: "⭐ Commence par là",
     COLUMN_LONGER: "Un peu plus long",
     COLUMN_CSV: "Par fichier (CSV)",
-}
-_COLUMN_HINTS = {
-    COLUMN_QUICK: "Un lien à copier, rien à installer.",
-    COLUMN_LONGER: "Un identifiant à aller chercher sur un compte tiers.",
-    COLUMN_CSV: "Un export à télécharger, puis à déposer dans l'application.",
 }
 
 
@@ -526,13 +530,23 @@ def _platform_checkbox(pv, configured: set[str], is_all: bool,
     # « Commence par là », le répéter sur chacune de ses cases ne dit rien de plus.
     checked = st.checkbox(head, value=(pv.recommended and not connected),
                           disabled=connected, key=f"_onb_pick_{pv.key}")
-    # The value line is what makes the checkbox answerable: an artist cannot
-    # prioritise a platform name, only what it tells them.
-    st.caption(t(f"onboarding.value.{pv.key}", pv.value))
-    st.caption(t("onboarding.need", "À fournir : {need}").format(need=pv.need))
-    if pv.caveat and not connected:
-        st.caption(t(f"onboarding.caveat.{pv.key}", "⚠️ {c}").format(c=pv.caveat))
-    st.markdown("")
+    # RIEN sous la case. Trois légendes l'accompagnaient — la valeur de la
+    # plateforme, « À fournir : … », et le piège qui la fait échouer — soit vingt et
+    # une lignes de prose sur un écran dont le geste tient en sept clics.
+    #
+    # Elles avaient chacune une raison d'être, et le mot juste est « avaient » :
+    #
+    #   la VALEUR répondait à « pourquoi celle-là ? » — la colonne y répond
+    #     maintenant, en groupant par effort ;
+    #   « À FOURNIR » répondait à « qu'est-ce qu'on va me demander ? » — le guide de
+    #     chaque onglet le dit à l'instant où c'est utile, c'est-à-dire quand on le
+    #     fournit, et la matrice d'état le redit dans sa dernière colonne ;
+    #   le PIÈGE (compte Business, titres publics, chaîne « … - Topic », asset
+    #     sharing) reste dans le guide de sa plateforme, où il est lisible parce
+    #     qu'on y est déjà.
+    #
+    # Aucune n'est perdue : elles sont dites là où elles servent, au lieu d'être
+    # dites toutes ensemble avant que rien ne serve.
     return [pv.key] if (checked and not connected) else []
 
 

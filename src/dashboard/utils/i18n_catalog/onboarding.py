@@ -37,40 +37,12 @@ EN = {
         "brings data back."
     ),
     "onboarding.go_configure": "🔑 Connect my selection →",
-    # Per-platform value / caveat lines (dynamic keys: onboarding.value.* / .caveat.*)
-    "onboarding.value.spotify": (
-        "Where your streams come from: algorithmic playlists, radio, search — "
-        "so where to push your next release."
-    ),
-    "onboarding.value.instagram": (
-        "Whether your audience really follows: followers, reach and the posts that "
-        "convert, set against your streaming peaks."
-    ),
-    "onboarding.value.soundcloud": (
-        "Plays, likes and reposts per track — the fastest signal on a track taking off."
-    ),
-    "onboarding.value.youtube": (
-        "Views, likes and comments per video — useful to arbitrate video vs audio-only."
-    ),
-    "onboarding.value.meta": (
-        "What each euro of ads returns in streams — connect it only if you run campaigns."
-    ),
-    "onboarding.value.apple_music": "Plays and Shazams on Apple, alongside Spotify.",
-    "onboarding.caveat.instagram": (
-        "⚠️ a **Business or Creator** account linked to a Facebook Page — a personal "
-        "account returns no statistics at all."
-    ),
-    "onboarding.caveat.soundcloud": (
-        "⚠️ your tracks must be **public**: a profile with no public track returns nothing."
-    ),
-    "onboarding.caveat.youtube": (
-        "⚠️ if your music is distributed, it is usually the **“… - Topic”** channel "
-        "you need, not your personal one."
-    ),
-    "onboarding.caveat.meta": (
-        "⚠️ your ad account must be **shared** with the platform's Business Manager "
-        "(asset sharing) — otherwise zero data."
-    ),
+    # Les lignes de valeur et de piège par plateforme ont été retirées de l'écran le
+    # 2026-09-04 — « on ne garde uniquement les sections à cocher ». Elles vivent
+    # désormais là où elles servent : le guide de chaque onglet pour le piège, la
+    # colonne pour la valeur. `onboarding.need` reste : son appelant est l'écran
+    # d'attente après inscription, où il n'y a rien d'autre à faire que rassembler
+    # ses identifiants.
     "onboarding.locked_platform": "🔒 {icon} **{label}** — *Available on the {plan} plan*",
     "onboarding.back": "← Back",
     "onboarding.next_finish": "Next: Finish →",
@@ -120,12 +92,4 @@ EN = {
     "onboarding.col.quick": "⭐ Start here",
     "onboarding.col.longer": "A little longer",
     "onboarding.col.csv": "By file (CSV)",
-    "onboarding.col_hint.quick": "A link to copy, nothing to install.",
-    "onboarding.col_hint.longer": "An identifier to fetch from a third-party account.",
-    "onboarding.col_hint.csv": "An export to download, then drop into the app.",
-    "onboarding.value.s4a": (
-        "Your playlists, your Discovery Mode and where the listens come from — "
-        "what the Spotify API does not give, and what the algorithm predictions "
-        "are computed on."
-    ),
 }

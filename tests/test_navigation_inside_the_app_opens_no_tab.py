@@ -127,14 +127,17 @@ def test_the_labels_carry_no_link_syntax():
 def test_the_highlight_wraps_a_translated_label():
     """La surbrillance entoure `_t(...)`, jamais une chaîne française en dur.
 
-    Demandé le 2026-09-04 : « mets en surbrillance bleu "pas encore de compte ?
-    Créez-en un" ». Le piège d'une décoration posée au dernier moment est de figer le
-    texte avec elle — `st.button(":blue-background[Pas encore de compte ?…]")` est plus
+    Demandé le 2026-09-04, puis corrigé une heure plus tard par son auteur : « mets en
+    couleur de police bleu au lieu de la surbrillance, je me suis mal exprimé ». Le
+    fond transformait la ligne en bandeau — plus lourd que le lien qu'elle remplace.
+
+    Le piège d'une décoration posée au dernier moment est de figer le texte avec elle — `st.button(":blue-background[Pas encore de compte ?…]")` est plus
     court à écrire, s'affiche pareil, et rend le bouton unilingue.
 
     Le test lit l'ARBRE : l'argument de `st.button` doit contenir un appel à `_t`.
-    Vérifié au navigateur le même jour — fond mesuré `rgba(28, 131, 255, 0.1)`, et la
-    syntaxe `:blue-background[` absente du texte affiché.
+    Vérifié au navigateur, et c'est la moitié que l'AST ne voit pas : Streamlit ne
+    rend cette syntaxe que sur les widgets qui acceptent du markdown. Sur les autres,
+    `:blue[…]` s'affiche littéralement.
     """
     tree = ast.parse((_DASHBOARD / "auth.py").read_text(encoding="utf-8"))
     call = next(
@@ -149,8 +152,9 @@ def test_the_highlight_wraps_a_translated_label():
     label = call.args[0]
     literals = [n.value for n in ast.walk(label)
                 if isinstance(n, ast.Constant) and isinstance(n.value, str)]
-    assert any(":blue-background[" in x for x in literals), (
-        "le libellé n'est plus en surbrillance bleue")
+    assert any(x.startswith(":blue[") for x in literals), (
+        "le libellé n'est plus en bleu — il redevient une ligne grise de même poids "
+        "que la mention RGPD posée juste sous lui, alors qu'une seule est une action")
     assert any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_t"
                for n in ast.walk(label)), (
         "la surbrillance entoure un texte figé au lieu d'un `_t(...)` : le bouton "
