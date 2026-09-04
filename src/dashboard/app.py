@@ -410,6 +410,22 @@ def _first_run_landing(role: str) -> str:
 _SETUP_PAGES = frozenset({'onboarding', 'credentials', 'upload_csv', 'process_guide',
                           'platform_status'})
 
+# Les pages qu'un LIEN a le droit d'imposer à une première arrivée. Ce n'est PAS
+# `_SETUP_PAGES`, et les confondre était un défaut : un seul ensemble répondait à deux
+# questions différentes —
+#
+#   « le mode première connexion survit-il à cette page ? »  → _SETUP_PAGES
+#       (il traverse tout le parcours : Credentials, l'import CSV, l'état…)
+#   « ce paramètre d'URL peut-il battre l'atterrissage ? »   → _LANDING_LINKS
+#       (une seule page est visée par un lien réel : celui du mot de bienvenue)
+#
+# Signalé le 2026-09-04 : « je viens de me connecter avec le reset et je tombe
+# directement sur la page Credentials API alors qu'on devrait tomber vers Mise en
+# route ». L'URL portait encore `?page=credentials` de la session précédente ; comme
+# Credentials appartient au parcours, elle était honorée. Aucun lien n'envoie
+# pourtant personne là au premier jour — seul un onglet resté ouvert le fait.
+_LANDING_LINKS = frozenset({'onboarding'})
+
 
 def resolve_nav_page(role: str = 'artist'):
     """Decide the active page and repair nav state — WITHOUT drawing anything.
@@ -915,12 +931,15 @@ def _main_body():
 
     if _page_param:
         _nav_keys = {key for _, _, items in _NAV_SECTIONS for _, key in items}
-        # Une page HORS mise en route ne peut pas détourner une première arrivée.
-        # Les pages du parcours (`_SETUP_PAGES`) restent honorées : c'est ce qui fait
-        # marcher le lien `?page=onboarding` du mot de bienvenue, et un lien profond
-        # vers Credentials pendant l'installation.
+        # Une première arrivée va sur son assistant, sauf si le paramètre vient d'un
+        # LIEN qu'on a nous-mêmes envoyé — c'est-à-dire `?page=onboarding`, du mot de
+        # bienvenue. Tout le reste est un vestige : l'onglet d'hier, une URL copiée.
+        #
+        # Le test valait `not in _SETUP_PAGES`, ce qui exemptait Credentials, l'import
+        # CSV et l'état des plateformes. Aucun lien n'y envoie au premier jour ; seule
+        # une session précédente le fait.
         _setup_landing = (bool(st.session_state.get(FIRST_RUN_FOCUS))
-                          and _page_param not in _SETUP_PAGES)
+                          and _page_param not in _LANDING_LINKS)
         if (_page_param in _nav_keys and not _setup_landing
                 and _page_param != st.session_state.get('_page_mirrored')):
             st.session_state['_nav_page'] = _page_param

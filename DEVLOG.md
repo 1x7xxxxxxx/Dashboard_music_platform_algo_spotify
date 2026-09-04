@@ -5,6 +5,62 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 26) — Un ensemble qui répondait à deux questions
+
+« Je viens de me connecter avec le reset et je tombe directement sur la page
+Credentials API alors qu'on devrait tomber vers Mise en route. »
+
+L'URL portait encore `?page=credentials` de la session précédente. Le bloc d'URL
+exemptait `_SETUP_PAGES` de l'atterrissage — et Credentials en fait partie.
+
+Le défaut n'est pas l'exemption, c'est qu'**un seul ensemble répondait à deux
+questions différentes** :
+
+    « le mode première connexion survit-il à cette page ? »  → _SETUP_PAGES
+        (il traverse tout le parcours : Credentials, l'import CSV, l'état…)
+    « ce paramètre d'URL peut-il battre l'atterrissage ? »   → _LANDING_LINKS
+        (une seule page est visée par un lien réel : le mot de bienvenue)
+
+Les deux se ressemblent assez pour qu'on les confonde, et la confusion ne se voit
+qu'avec un onglet resté ouvert. Rejoué au navigateur : déconnexion depuis
+`?page=credentials`, reconnexion → `?page=onboarding`, barre latérale réduite.
+
+### Trois bandes au lieu de deux colonnes
+
+« Garder la section saisir tes identifiants tout en haut au centre, et l'explication
+textuelle en bas à gauche, alignée avec le screen. »
+
+    1. le formulaire, PLEINE LARGEUR — c'est le geste, il vient en premier
+    2. les étapes du guide, à gauche
+    3. la capture, à droite, en face du texte qui la décrit
+
+Ce que les deux colonnes coûtaient : le champ était comprimé à 3/5 de la largeur pour
+laisser la place à une consigne qu'on lit une fois. Mesuré après : champ x=397 sur
+946 px, capture x=902, page 1311 px, **une seule image visible**.
+
+Les captures sont sorties du guide (`with_images=False`) et posées par l'onglet. La
+question « une image, un endroit » est désormais structurelle : une seule surface les
+rend, et le garde vérifie la PAIRE — si l'onglet en rend, le guide doit être appelé
+sans elles.
+
+### Le garde suivait l'endroit, pas la question
+
+Il exigeait « aucun `st.image` dans l'onglet », ce qui était vrai tant que le guide
+les rendait. La bonne disposition l'aurait donc rendu rouge — et empêchée. Un garde
+ancré sur *qui* rend au lieu de *combien de fois* argumente pour l'ancienne mise en
+page.
+
+### Et un troisième garde textuel pris sur sa propre documentation
+
+`test_the_url_block_consults_the_first_run_flag` lisait la CHAÎNE du bloc d'URL. Il
+se satisfaisait du commentaire que je venais d'y écrire — celui qui explique que le
+test valait `_SETUP_PAGES` avant aujourd'hui. Troisième fois dans la journée. Il lit
+l'arbre, et sélectionne le `if _page_param:` par la forme de son test (un `Name` nu),
+pas par le premier `If` qui mentionne ce nom — la première version attrapait
+`if _page_param == "register":`, quatre-vingts lignes plus haut.
+
+---
+
 ## 2026-09-04 (suite 25) — Une capture de trop, et un mécanisme qui ne parlait pas à son testeur
 
 ### La seconde copie n'aurait jamais dû exister

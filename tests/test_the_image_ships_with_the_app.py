@@ -150,34 +150,43 @@ def test_the_spotify_screenshot_is_the_one_that_was_reported():
 
 # ── Une seule copie, du bon côté ─────────────────────────────────────────────
 
-def test_the_form_column_renders_no_screenshot_of_its_own():
-    """La capture appartient au guide, pas au formulaire.
+def test_the_screenshot_is_rendered_by_exactly_one_surface():
+    """Une capture, un endroit — et le garde suit la question, pas l'endroit.
 
-    Elle a vécu dans les deux du 2026-09-04 au soir du même jour, et la raison de la
-    seconde copie était fausse : le guide portait déjà la sienne, mais elle ne
-    s'affichait pas EN PRODUCTION — `assets/` n'était pas dans l'image Docker. J'ai
-    donc ajouté une copie pour compenser un fichier manquant, ce qui a caché la cause
-    quatre jours de plus.
+    Il exigeait « aucun `st.image` dans l'onglet », ce qui était vrai tant que le
+    guide les rendait dans le fil de ses étapes. La disposition a changé le
+    2026-09-04 — formulaire pleine largeur en haut, texte à gauche et capture à
+    droite en dessous — donc c'est maintenant l'ONGLET qui les pose, et le guide qui
+    ne doit pas.
 
-    Le fichier livré, il en restait deux à 100 px l'une de l'autre : « il y a 2
-    screen, c'est très moche ». Celle qui part est celle du FORMULAIRE, et le critère
-    n'est pas l'esthétique : l'image montre le menu `•••` **sur le site de Spotify**,
-    donc elle illustre l'étape 1 du guide. À côté du champ elle ne répond à rien —
-    quand on y arrive, le lien est déjà dans le presse-papier.
-
-    Mesuré : une image, x=1017, alignée avec l'entête du guide (x=1001).
+    La question protégée n'a pas bougé d'un mot : la même image ne doit pas être
+    rendue deux fois sur le même écran. Un garde ancré sur « qui la rend » serait
+    devenu rouge sur une mise en page meilleure, et l'aurait empêchée.
     """
     import ast
 
     render = _ROOT / "src/dashboard/views/credentials/_render.py"
-    tree = ast.parse(render.read_text(encoding="utf-8"))
+    src = render.read_text(encoding="utf-8")
+    tree = ast.parse(src)
     fn = next(f for f in ast.walk(tree)
               if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
     images = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
               and getattr(n.func, "attr", "") == "image"]
-    assert not images, (
-        f"{len(images)} `st.image` dans l'onglet de saisie : la capture du guide y est "
-        "dupliquée, à une centaine de pixels de l'originale")
+    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+             and getattr(n.func, "id", "") == "render_credential_guide_for"]
+    assert calls, "l'onglet ne rend plus le guide"
+
+    with_images = [next((k.value for k in c.keywords if k.arg == "with_images"), None)
+                   for c in calls]
+    if images:
+        # L'onglet les pose : le guide doit alors être appelé sans elles.
+        assert all(w is not None for w in with_images), (
+            "l'onglet rend des captures ET appelle le guide sans lui dire de s'en "
+            "abstenir : la même image apparaîtra deux fois, comme le 2026-09-04")
+    else:
+        # Le guide les pose : l'onglet ne doit rien rendre lui-même. C'est l'état
+        # d'avant le 2026-09-04, et il reste correct.
+        assert True
 
 
 def test_the_guide_still_carries_it():

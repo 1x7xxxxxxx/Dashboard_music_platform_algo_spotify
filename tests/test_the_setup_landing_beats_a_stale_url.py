@@ -40,7 +40,7 @@ from pathlib import Path
 
 import pytest
 
-from src.dashboard.app import _NAV_SECTIONS, _SETUP_PAGES
+from src.dashboard.app import _LANDING_LINKS, _NAV_SECTIONS, _SETUP_PAGES
 
 _ROOT = Path(__file__).resolve().parents[1]
 _APP = _ROOT / "src" / "dashboard" / "app.py"
@@ -112,6 +112,27 @@ def test_the_first_run_decision_is_taken_before_the_url_is_honoured():
     )
 
 
+def _url_block_names() -> set[str]:
+    """Les NOMS que le bloc d'URL lit vraiment — arbre, pas texte.
+
+    Ces deux assertions ont été écrites sur la chaîne du bloc, et elles se sont
+    trouvées satisfaites par un COMMENTAIRE : celui qui explique, dans ce bloc même,
+    que le test valait `_SETUP_PAGES` avant le 2026-09-04. Troisième garde textuel
+    pris sur sa propre documentation dans la même journée.
+    """
+    src = _APP.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "_main_body")
+    # `if _page_param:` — le test de VÉRITÉ, pas les `if _page_param == "register":`
+    # qui routent les pages publiques plus haut dans la même fonction. Sans cette
+    # précision le helper attrapait le premier venu et lisait un bloc sans rapport.
+    node = next(n for n in ast.walk(fn)
+                if isinstance(n, ast.If)
+                and isinstance(n.test, ast.Name) and n.test.id == "_page_param")
+    return {x.id for x in ast.walk(node) if isinstance(x, ast.Name)}
+
+
 def test_the_url_block_consults_the_first_run_flag():
     """Le bloc d'URL doit lire le drapeau — pas seulement `_page_mirrored`.
 
@@ -119,16 +140,14 @@ def test_the_url_block_consults_the_first_run_flag():
     `session_state.clear()` la réponse est non, ce qui est vrai et sans rapport avec
     la question qui compte ici : « cet artiste a-t-il fini sa configuration ? »
     """
-    body = _main_body_src()
-    i_url = body.find("if _page_param:")
-    block = body[i_url:i_url + 1400]
-    assert "FIRST_RUN_FOCUS" in block, (
+    names = _url_block_names()
+    assert "FIRST_RUN_FOCUS" in names, (
         "le bloc d'URL ne consulte pas le drapeau de première arrivée : un "
         "`?page=home` hérité de la session précédente reprendrait la main"
     )
-    assert "_SETUP_PAGES" in block, (
-        "le bloc d'URL n'exempte pas les pages du parcours : le lien "
-        "`?page=onboarding` du mot de bienvenue serait écrasé lui aussi"
+    assert "_LANDING_LINKS" in names, (
+        "le bloc d'URL n'exempte plus le lien du mot de bienvenue : "
+        "`?page=onboarding` serait écrasé lui aussi"
     )
 
 
@@ -233,3 +252,62 @@ def test_the_admin_note_is_not_shown_to_artists():
     assert inside_guard, (
         "la note admin est rendue hors du `if is_admin()` : tous les artistes la "
         "liraient")
+
+
+# ── Un vestige d'URL ne bat pas l'atterrissage ───────────────────────────────
+
+def test_only_a_link_we_actually_send_may_beat_the_landing():
+    """`_SETUP_PAGES` répondait à DEUX questions ; c'était le défaut.
+
+    « Je viens de me connecter avec le reset et je tombe directement sur la page
+    Credentials API alors qu'on devrait tomber vers Mise en route » (2026-09-04).
+    L'URL portait encore `?page=credentials` de la session précédente, et comme
+    Credentials appartient au parcours d'installation, elle était honorée.
+
+    Les deux questions ne sont pas la même :
+
+        « le mode première connexion survit-il à cette page ? »  → _SETUP_PAGES
+        « ce paramètre d'URL peut-il battre l'atterrissage ? »   → _LANDING_LINKS
+
+    Seule la seconde décide de l'atterrissage, et elle a une réponse courte : les
+    pages vers lesquelles on envoie VRAIMENT un lien. Il n'y en a qu'une, celle du
+    mot de bienvenue. Tout le reste est un onglet resté ouvert.
+    """
+    assert _LANDING_LINKS == {"onboarding"}, (
+        f"`_LANDING_LINKS` vaut {sorted(_LANDING_LINKS)}. Chaque page ajoutée ici "
+        "peut détourner une première arrivée : n'y mets qu'une page vers laquelle "
+        "l'application envoie elle-même un lien.")
+    assert _LANDING_LINKS < _SETUP_PAGES, (
+        "les liens d'atterrissage doivent être un sous-ensemble STRICT des pages de "
+        "mise en route — sinon les deux ensembles répondent de nouveau à la même "
+        "question, ce qui est le défaut d'origine")
+    assert "credentials" not in _LANDING_LINKS, (
+        "un `?page=credentials` hérité de la session précédente reprendrait la main "
+        "sur l'assistant, exactement comme le 2026-09-04")
+
+
+def test_the_url_block_arbitrates_on_the_narrow_set():
+    """Le bloc d'URL doit lire `_LANDING_LINKS`, pas `_SETUP_PAGES`.
+
+    Les deux constantes se ressemblent assez pour qu'une relecture les échange sans
+    que rien ne change à l'écran — jusqu'à la première arrivée avec un onglet resté
+    ouvert.
+    """
+    names = _url_block_names()
+    assert "_LANDING_LINKS" in names, (
+        "le bloc d'URL n'arbitre plus sur les liens d'atterrissage")
+    assert "_SETUP_PAGES" not in names, (
+        "le bloc d'URL est revenu à `_SETUP_PAGES` : Credentials, l'import CSV et "
+        "l'état des plateformes détourneraient de nouveau l'atterrissage")
+
+
+@pytest.mark.parametrize("page,first_run,honoured", [
+    ("credentials", True,  False),   # le défaut signalé : l'onglet d'hier
+    ("upload_csv",  True,  False),
+    ("onboarding",  True,  True),    # le lien du mot de bienvenue
+    ("home",        True,  False),
+    ("credentials", False, True),    # configuration finie : l'URL reprend ses droits
+])
+def test_which_links_survive_a_first_arrival(page, first_run, honoured):
+    detourned = first_run and page not in _LANDING_LINKS
+    assert (not detourned) is honoured

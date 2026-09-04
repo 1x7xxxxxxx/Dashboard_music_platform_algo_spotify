@@ -5,6 +5,7 @@ Uses: streamlit, src.dashboard.content.credential_guides
 Depends on: assets/credential_guide/*.png (optional — missing images degrade)
 Persists in: nothing
 """
+from pathlib import Path
 from urllib.parse import quote
 
 import streamlit as st
@@ -36,9 +37,34 @@ def render_credential_guides() -> None:
         _render_guide_expander(guide)
 
 
+def guide_screenshots(platform_key: str) -> list[tuple[Path, str | None]]:
+    """Les captures d'un guide, résolues, avec leur légende traduite.
+
+    Extraite le 2026-09-04 pour que l'onglet puisse les poser AILLEURS que dans le
+    fil des étapes : « saisir tes identifiants au milieu en haut, le texte en bas à
+    gauche, l'image à droite ». Rendre les images sur place et à côté produirait deux
+    copies — c'est le défaut qu'on vient de fermer.
+    """
+    guide = _BY_KEY.get(platform_key)
+    if guide is None:
+        return []
+    out: list[tuple[Path, str | None]] = []
+    for i, step in enumerate(guide.steps, 1):
+        if not step.screenshot:
+            continue
+        path = screenshot_path(step.screenshot)
+        if not path.exists():
+            continue
+        caption = (t(f"credentials.guide.{platform_key}.step_{i}_caption", step.caption)
+                   if step.caption else None)
+        out.append((path, caption))
+    return out
+
+
 def render_credential_guide_for(platform_key: str,
                                 artist_name: str | None = None,
-                                expanded: bool = False) -> None:
+                                expanded: bool = False,
+                                with_images: bool = True) -> None:
     """Render the single-platform guide (used inside that platform's tab).
 
     Le sélecteur d'OS est rendu ICI depuis le 2026-08-23. Il existait déjà
@@ -51,6 +77,11 @@ def render_credential_guide_for(platform_key: str,
 
     Une clé par plateforme : les onglets coexistent dans la même session, et une clé
     partagée ferait basculer les quatre en même temps depuis un seul onglet.
+
+    `with_images=False` rend les étapes SANS leurs captures : l'onglet de saisie les
+    pose lui-même dans sa colonne de droite (`guide_screenshots`). Un défaut par
+    excès de zèle serait de les rendre aux deux endroits — c'est exactement ce qui
+    a produit « il y a 2 screen, c'est très moche ».
     """
     guide = _BY_KEY.get(platform_key)
     if guide is not None:
@@ -61,7 +92,8 @@ def render_credential_guide_for(platform_key: str,
         # jour où un guide redemande un raccourci, il revient tout seul.
         if _needs_os_selector(guide):
             os_selector(key=f"cred_guide_os_{platform_key}")
-        _render_guide_expander(guide, artist_name=artist_name, expanded=expanded)
+        _render_guide_expander(guide, artist_name=artist_name,
+                               expanded=expanded, with_images=with_images)
 
 
 def _needs_os_selector(guide: PlatformCred) -> bool:
@@ -81,7 +113,8 @@ def _needs_os_selector(guide: PlatformCred) -> bool:
 
 def _render_guide_expander(guide: PlatformCred,
                            artist_name: str | None = None,
-                           expanded: bool = False) -> None:
+                           expanded: bool = False,
+                           with_images: bool = True) -> None:
     # Translate at the render site: the PlatformCred constants are evaluated at
     # import (language not yet chosen), so the FR source strings are passed as
     # the `t()` default and the EN keys live in the credentials catalog.
@@ -102,7 +135,7 @@ def _render_guide_expander(guide: PlatformCred,
             st.markdown(_os_md(_intro))
         _render_portal_link(guide, artist_name)
         for i, step in enumerate(guide.steps, 1):
-            _render_step(guide.key, i, step)
+            _render_step(guide.key, i, step, with_image=with_images)
         # `_render_fields_table` n'est plus appelé ICI depuis le 2026-09-04.
         #
         # Il listait « Les valeurs à coller » avec leur exemple, au bas du guide —
@@ -140,10 +173,11 @@ def _render_portal_link(guide: PlatformCred, artist_name: str | None) -> None:
         url=guide.portal_url))
 
 
-def _render_step(platform_key: str, num: int, step: CredStep) -> None:
+def _render_step(platform_key: str, num: int, step: CredStep,
+                 with_image: bool = True) -> None:
     text = _os_md(t(f"credentials.guide.{platform_key}.step_{num}", step.text))
     st.markdown(f"**{num}.** {text}")
-    if step.screenshot:
+    if step.screenshot and with_image:
         path = screenshot_path(step.screenshot)
         if path.exists():
             caption = (t(f"credentials.guide.{platform_key}.step_{num}_caption",

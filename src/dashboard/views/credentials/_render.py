@@ -29,7 +29,9 @@ from ._core import (
 from ._registry import CONNECTION_TESTS
 
 logger = logging.getLogger(__name__)
-from src.dashboard.content.credential_guides_st import render_credential_guide_for
+from src.dashboard.content.credential_guides_st import (
+    guide_screenshots, render_credential_guide_for,
+)
 from src.utils.tenant_identity import mirrored_columns, write_platform_identity
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.auth import is_admin
@@ -280,159 +282,183 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     # Côte à côte, et le guide DÉPLIÉ : on lit à droite, on colle à gauche, sans
     # rien ouvrir. Sur un écran étroit, Streamlit empile les colonnes — la saisie
     # reste au-dessus, ce qui est le bon ordre quand on ne peut pas avoir les deux.
-    _col_form, _col_guide = st.columns([3, 2], gap="large")
+    # TROIS BANDES, pas deux colonnes. Demandé le 2026-09-04, après avoir essayé les
+    # deux : « garder la section saisir tes identifiants tout en haut au centre, et
+    # l'explication textuelle en bas à gauche, alignée avec le screen ».
+    #
+    #   1. le formulaire, PLEINE LARGEUR — c'est le geste, il vient en premier ;
+    #   2. les étapes du guide, à gauche ;
+    #   3. la capture, à droite, en face du texte qui la décrit.
+    #
+    # Ce que la mise en page à deux colonnes coûtait : le champ à remplir était
+    # comprimé à 3/5 de la largeur pour laisser la place à une consigne qu'on lit une
+    # fois. Et la capture, rendue DANS le fil des étapes, tombait sous elles au lieu
+    # d'être en face.
+    #
+    # Les images sont sorties du guide (`with_images=False`) et posées ici : les
+    # rendre aux deux endroits est exactement ce qui a produit « il y a 2 screen ».
+    _shots = guide_screenshots(platform_key)
 
-    with _col_guide:
-        render_credential_guide_for(platform_key, artist_name=artist_name,
-                                    expanded=True)
+    def _render_guide_below() -> None:
+        _col_text, _col_shot = st.columns(2, gap="large")
+        with _col_text:
+            render_credential_guide_for(platform_key, artist_name=artist_name,
+                                        expanded=True, with_images=not _shots)
+        with _col_shot:
+            for _path, _caption in _shots:
+                st.image(str(_path), caption=_caption, use_container_width=True)
 
-    with _col_form:
-        # ── Meta : l'assistant qui trouve le numéro de compte ─────────
-        # AU-DESSUS du formulaire, parce que c'est l'étape qui précède la saisie : il
-        # produit la valeur que le champ attend. Hors du `st.form` — un formulaire ne
-        # rend rien tant qu'on ne l'a pas soumis, donc le numéro trouvé n'apparaîtrait
-        # qu'après un enregistrement, c'est-à-dire trop tard pour aider à le remplir.
-        if platform_key == 'meta':
-            from ._platform_meta import render_ad_account_picker
-            render_ad_account_picker(artist_id)
-            st.markdown("---")
+    # ── Meta : l'assistant qui trouve le numéro de compte ─────────
+    # AU-DESSUS du formulaire, parce que c'est l'étape qui précède la saisie : il
+    # produit la valeur que le champ attend. Hors du `st.form` — un formulaire ne
+    # rend rien tant qu'on ne l'a pas soumis, donc le numéro trouvé n'apparaîtrait
+    # qu'après un enregistrement, c'est-à-dire trop tard pour aider à le remplir.
+    if platform_key == 'meta':
+        from ._platform_meta import render_ad_account_picker
+        render_ad_account_picker(artist_id)
+        st.markdown("---")
 
-        # ── Formulaire standard (toutes plateformes) ─────────────────────
-        with st.form(f"cred_{platform_key}_{artist_id}"):
-            # « Mettre à jour » sur un formulaire vierge : signalé par un artiste en test
-            # le 2026-08-30 — « on ne met pas à jour la première fois ». Le titre doit
-            # nommer l'action qu'il a devant lui, pas celle qu'il fera plus tard.
-            # `:orange-background[…]` est du markdown Streamlit documenté (≥ 1.32), donc
-            # une couleur qui survit à une montée de version. Un `<style>` visant les
-            # classes internes de Streamlit — l'autre façon de colorer un bloc — se
-            # casserait en silence, et un fond qui disparaît ne lève aucune exception.
-            # La consigne de la séance : l'ACTION en gros, en gras, en surbrillance ;
-            # l'information en caption.
-            if existing_row:
-                st.markdown("### :orange-background[✏️ "
-                            + t("credentials.form.update", "Mettre à jour") + "]")
-                st.caption(t(
-                    "credentials.form.caption",
-                    "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
-                ))
-            else:
-                st.markdown("### :orange-background[👉 "
-                            + t("credentials.form.enter", "Saisir tes identifiants") + "]")
-                # Rien sous le titre. « 🔒 Chiffrés à l'enregistrement. C'est la seule
-                # action à faire sur cette page. » disait deux choses justes et
-                # inutiles ici : le chiffrement, que personne ne vérifie au moment de
-                # coller, et l'unicité de l'action, qu'un formulaire à un champ montre
-                # déjà. La ligne équivalente du cas « déjà rempli » reste, elle : elle
-                # explique un COMPORTEMENT — laisser vide conserve la valeur.
+    # ── Formulaire standard (toutes plateformes) ─────────────────────
+    with st.form(f"cred_{platform_key}_{artist_id}"):
+        # « Mettre à jour » sur un formulaire vierge : signalé par un artiste en test
+        # le 2026-08-30 — « on ne met pas à jour la première fois ». Le titre doit
+        # nommer l'action qu'il a devant lui, pas celle qu'il fera plus tard.
+        # `:orange-background[…]` est du markdown Streamlit documenté (≥ 1.32), donc
+        # une couleur qui survit à une montée de version. Un `<style>` visant les
+        # classes internes de Streamlit — l'autre façon de colorer un bloc — se
+        # casserait en silence, et un fond qui disparaît ne lève aucune exception.
+        # La consigne de la séance : l'ACTION en gros, en gras, en surbrillance ;
+        # l'information en caption.
+        if existing_row:
+            st.markdown("### :orange-background[✏️ "
+                        + t("credentials.form.update", "Mettre à jour") + "]")
+            st.caption(t(
+                "credentials.form.caption",
+                "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
+            ))
+        else:
+            st.markdown("### :orange-background[👉 "
+                        + t("credentials.form.enter", "Saisir tes identifiants") + "]")
+            # Rien sous le titre. « 🔒 Chiffrés à l'enregistrement. C'est la seule
+            # action à faire sur cette page. » disait deux choses justes et
+            # inutiles ici : le chiffrement, que personne ne vérifie au moment de
+            # coller, et l'unicité de l'action, qu'un formulaire à un champ montre
+            # déjà. La ligne équivalente du cas « déjà rempli » reste, elle : elle
+            # explique un COMPORTEMENT — laisser vide conserve la valeur.
 
-            form_values = {}
-            pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]
+        form_values = {}
+        pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]
 
-            for pair in pairs:
-                cols = st.columns(len(pair))
-                for col, field in zip(cols, pair):
-                    key = field['key']
-                    existing_val = existing_values.get(key, '')
-                    field_label = t(f"credentials.field.{key}", field['label'])
+        for pair in pairs:
+            cols = st.columns(len(pair))
+            for col, field in zip(cols, pair):
+                key = field['key']
+                existing_val = existing_values.get(key, '')
+                field_label = t(f"credentials.field.{key}", field['label'])
 
-                    if field['secret']:
-                        val = col.text_input(
-                            field_label,
-                            type='password',
-                            placeholder=_mask(existing_val) if existing_val
-                            else t("credentials.form.undefined", "Non défini"),
-                            help=t("credentials.form.secret_help",
-                                   "🔒 Chiffré en base — laisser vide pour conserver"),
-                            key=f"{platform_key}_{artist_id}_{key}",
-                        )
-                    elif field.get('multiline'):
-                        val = col.text_area(
-                            field_label,
-                            value=existing_val or field.get('default', ''),
-                            key=f"{platform_key}_{artist_id}_{key}",
-                            height=90,
-                        )
-                    else:
-                        val = col.text_input(
-                            field_label,
-                            value=existing_val or field.get('default', ''),
-                            key=f"{platform_key}_{artist_id}_{key}",
-                            placeholder=field.get('example', ''),
-                        )
-                    form_values[key] = val
+                if field['secret']:
+                    val = col.text_input(
+                        field_label,
+                        type='password',
+                        placeholder=_mask(existing_val) if existing_val
+                        else t("credentials.form.undefined", "Non défini"),
+                        help=t("credentials.form.secret_help",
+                               "🔒 Chiffré en base — laisser vide pour conserver"),
+                        key=f"{platform_key}_{artist_id}_{key}",
+                    )
+                elif field.get('multiline'):
+                    val = col.text_area(
+                        field_label,
+                        value=existing_val or field.get('default', ''),
+                        key=f"{platform_key}_{artist_id}_{key}",
+                        height=90,
+                    )
+                else:
+                    val = col.text_input(
+                        field_label,
+                        value=existing_val or field.get('default', ''),
+                        key=f"{platform_key}_{artist_id}_{key}",
+                        placeholder=field.get('example', ''),
+                    )
+                form_values[key] = val
 
-                    # L'exemple SOUS le champ, et plus dans un bloc « Les valeurs à
-                    # coller » au bas du guide. Demandé le 2026-09-04 : « intègre
-                    # sous le champ ». Le `placeholder` ci-dessus le montre déjà
-                    # DANS le champ tant qu'il est vide — c'est la forme la plus
-                    # directe — et cette ligne le garde lisible une fois qu'on a
-                    # commencé à taper.
-                    if field.get('example') and not field['secret']:
-                        col.caption(t("credentials.form.example_inline",
-                                      "ex. {ex}").format(ex=field['example']))
+                # L'exemple SOUS le champ, et plus dans un bloc « Les valeurs à
+                # coller » au bas du guide. Demandé le 2026-09-04 : « intègre
+                # sous le champ ». Le `placeholder` ci-dessus le montre déjà
+                # DANS le champ tant qu'il est vide — c'est la forme la plus
+                # directe — et cette ligne le garde lisible une fois qu'on a
+                # commencé à taper.
+                if field.get('example') and not field['secret']:
+                    col.caption(t("credentials.form.example_inline",
+                                  "ex. {ex}").format(ex=field['example']))
 
-            # La capture, DANS le formulaire, juste sous le champ qu'elle explique.
-            #
-            # Elle était sous le bouton « Enregistrer », donc après l'action : « il
-            # n'y a toujours pas la capture à côté ou juste en dessous de saisir tes
-            # identifiants ». Une image qui montre OÙ trouver la valeur doit être lue
-            # AVANT de la saisir, pas après avoir validé.
-            # Pas de capture ICI. Elle y a vécu du 2026-09-04 au soir du même
-            # jour, et pour une raison qui s'est révélée fausse : le guide de droite
-            # portait déjà la sienne, mais elle ne s'affichait pas EN PRODUCTION —
-            # `assets/` n'était pas dans l'image Docker. J'ai donc ajouté une
-            # deuxième copie pour compenser un fichier manquant.
-            #
-            # Le fichier livré, il en restait deux, à 100 px l'une de l'autre :
-            # « il y a 2 screen, c'est très moche ». Celle qui part est celle-ci, et
-            # pas l'autre : l'image montre le menu `•••` SUR LE SITE DE SPOTIFY,
-            # donc elle illustre l'étape 1 du guide, pas le champ. À côté du champ
-            # elle ne répond à rien — quand on y arrive, le lien est déjà copié.
-            #
-            # Le lien entre les deux colonnes est la flèche de l'étape 3 : « Colle le
-            # lien ⬅ dans **URL profil artiste** ».
+        # La capture, DANS le formulaire, juste sous le champ qu'elle explique.
+        #
+        # Elle était sous le bouton « Enregistrer », donc après l'action : « il
+        # n'y a toujours pas la capture à côté ou juste en dessous de saisir tes
+        # identifiants ». Une image qui montre OÙ trouver la valeur doit être lue
+        # AVANT de la saisir, pas après avoir validé.
+        # Pas de capture ICI. Elle y a vécu du 2026-09-04 au soir du même
+        # jour, et pour une raison qui s'est révélée fausse : le guide de droite
+        # portait déjà la sienne, mais elle ne s'affichait pas EN PRODUCTION —
+        # `assets/` n'était pas dans l'image Docker. J'ai donc ajouté une
+        # deuxième copie pour compenser un fichier manquant.
+        #
+        # Le fichier livré, il en restait deux, à 100 px l'une de l'autre :
+        # « il y a 2 screen, c'est très moche ». Celle qui part est celle-ci, et
+        # pas l'autre : l'image montre le menu `•••` SUR LE SITE DE SPOTIFY,
+        # donc elle illustre l'étape 1 du guide, pas le champ. À côté du champ
+        # elle ne répond à rien — quand on y arrive, le lien est déjà copié.
+        #
+        # Le lien entre les deux colonnes est la flèche de l'étape 3 : « Colle le
+        # lien ⬅ dans **URL profil artiste** ».
 
-            submitted = st.form_submit_button(
-                t("credentials.form.save", "💾 Enregistrer"),
-                type="primary",
-                disabled=not fernet_ok,
+        submitted = st.form_submit_button(
+            t("credentials.form.save", "💾 Enregistrer"),
+            type="primary",
+            disabled=not fernet_ok,
+        )
+
+        if submitted and fernet_ok:
+            _handle_save(
+                db=db,
+                platform_key=platform_key,
+                fields_def=fields_def,
+                artist_id=artist_id,
+                form_values=form_values,
+                existing_values=existing_values,
             )
 
-            if submitted and fernet_ok:
-                _handle_save(
-                    db=db,
-                    platform_key=platform_key,
-                    fields_def=fields_def,
-                    artist_id=artist_id,
-                    form_values=form_values,
-                    existing_values=existing_values,
-                )
+    # Les « titres hébergés sur d'autres comptes » vivaient ici et sont partis
+    # sur ☁️ SoundCloud — Performance le 2026-09-04. Ils n'ont jamais été un
+    # identifiant : c'est une déclaration de catalogue, qu'on fait en regardant
+    # ses chiffres et en constatant qu'un titre manque, pas en collant un lien de
+    # profil. Voir `views/soundcloud_claims.py`.
 
-        # Les « titres hébergés sur d'autres comptes » vivaient ici et sont partis
-        # sur ☁️ SoundCloud — Performance le 2026-09-04. Ils n'ont jamais été un
-        # identifiant : c'est une déclaration de catalogue, qu'on fait en regardant
-        # ses chiffres et en constatant qu'un titre manque, pas en collant un lien de
-        # profil. Voir `views/soundcloud_claims.py`.
+    # Le guide, SOUS le formulaire et sur toute la largeur : texte à gauche,
+    # capture à droite, en face du texte qui la décrit.
+    st.markdown("---")
+    _render_guide_below()
 
-        # ── Test de connexion (hors form) ─────────────────────────────────
-        if existing_row and platform_key in CONNECTION_TESTS:
-            st.markdown("---")
-            if st.button(
-                t("credentials.test_button", "🔌 Tester la connexion"),
-                key=f"test_{platform_key}_{artist_id}",
-            ):
-                with st.spinner(t("credentials.testing", "Test en cours…")):
-                    test_fields = _decode_row(existing_row, fields_def)
-                    # Who is asking — the SoundCloud probe reads this tenant's declared
-                    # tracks, so that an artist released under a label is not told to fix
-                    # the one thing that is already correct.
-                    test_fields["_artist_id"] = artist_id
-                    ok, msg = CONNECTION_TESTS[platform_key](test_fields)
-                    if ok:
-                        st.success(msg)
-                    else:
-                        st.error(t("credentials.test_failed",
-                                   "Connexion échouée : {msg}").format(msg=msg))
+    # ── Test de connexion (hors form) ─────────────────────────────────
+    if existing_row and platform_key in CONNECTION_TESTS:
+        st.markdown("---")
+        if st.button(
+            t("credentials.test_button", "🔌 Tester la connexion"),
+            key=f"test_{platform_key}_{artist_id}",
+        ):
+            with st.spinner(t("credentials.testing", "Test en cours…")):
+                test_fields = _decode_row(existing_row, fields_def)
+                # Who is asking — the SoundCloud probe reads this tenant's declared
+                # tracks, so that an artist released under a label is not told to fix
+                # the one thing that is already correct.
+                test_fields["_artist_id"] = artist_id
+                ok, msg = CONNECTION_TESTS[platform_key](test_fields)
+                if ok:
+                    st.success(msg)
+                else:
+                    st.error(t("credentials.test_failed",
+                               "Connexion échouée : {msg}").format(msg=msg))
 
     # ── Statut DAG — ADMIN SEULEMENT ──────────────────────────────────
     # Un artiste qui vient de créer son compte lisait ici « DAG spotify_api_daily —
