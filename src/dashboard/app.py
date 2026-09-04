@@ -290,8 +290,8 @@ def show_view_as_selector():
     st.sidebar.markdown("---")
 
 
-def _first_run_landing(role: str) -> str:
-    """`onboarding` tant que la configuration n'est pas FINIE, `home` ensuite.
+def _setup_is_unfinished(role: str) -> bool:
+    """Cette arrivée mérite-t-elle la mise en route ? (configuration non finie, non refusée)
 
     Tout le monde atterrissait sur `home` sans condition. Pour un artiste qui vient de
     s'inscrire, `home` est un tableau d'état vide : quatre tuiles à zéro et des cartes de
@@ -319,32 +319,57 @@ def _first_run_landing(role: str) -> str:
     « je n'ai pas pu lire » n'est pas « il n'a pas fini ».
     """
     if role == 'admin':
-        return 'home'
+        return False
     try:
         from src.dashboard.auth import get_artist_id
         artist_id = get_artist_id()
         if artist_id is None:
-            return 'home'
+            return False
         from src.dashboard.utils import get_db_connection
         from src.dashboard.utils.setup_completion import read_setup_state
         db = get_db_connection()
         if db is None:
-            return 'home'
+            return False
         try:
             state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
         finally:
             db.close()
         if not state.steps or state.complete or not state.show_on_login:
-            return 'home'
-        # Première connexion : la mise en route, et RIEN d'autre — demandé le
-        # 2026-09-04 (« j'aimais bien lors de la première connexion qu'on ait accès
-        # uniquement à la mise en route »). Le drapeau ne vaut que pour cette arrivée ;
-        # `resolve_nav_page` l'efface dès que la page n'est plus l'assistant, donc
-        # revenir plus tard par le menu rend l'application entière.
-        st.session_state[FIRST_RUN_FOCUS] = True
-        return 'onboarding'
+            return False
+        return True
     except Exception:      # noqa: BLE001 — jamais bloquer l'entrée dans l'app
-        return 'home'
+        return False
+
+
+_FIRST_RUN_EVALUATED = '_first_run_evaluated'
+
+
+def arm_first_run_once(role: str) -> None:
+    """Décide UNE fois par session si cette arrivée est une première connexion.
+
+    Séparé de l'atterrissage le 2026-09-04, et c'est un correctif, pas un rangement.
+    Le drapeau n'était posé que dans la branche de réparation de `resolve_nav_page`,
+    qui ne se déclenche que si `_nav_page` est ABSENT de la session. Or le mail de
+    bienvenue envoie sur `?page=onboarding`, et `_main_body` épingle ce paramètre
+    AVANT : la page était donc déjà connue, la branche ne tournait pas, et l'artiste
+    qui arrivait par le lien du mail — c'est-à-dire **le chemin nominal** — recevait le
+    menu complet. Signalé tel quel : « normalement la première fois qu'on se connecte
+    on n'a pas accès au volet de navigation, il faudrait le remettre ».
+
+    La question « est-ce une première connexion ? » ne dépend pas de la façon dont la
+    page a été choisie. Elle se pose donc ici, une fois par session, quel que soit le
+    chemin d'entrée.
+    """
+    if st.session_state.get(_FIRST_RUN_EVALUATED):
+        return
+    st.session_state[_FIRST_RUN_EVALUATED] = True
+    if _setup_is_unfinished(role):
+        st.session_state[FIRST_RUN_FOCUS] = True
+
+
+def _first_run_landing(role: str) -> str:
+    """`onboarding` si cette arrivée est une première connexion, `home` sinon."""
+    return 'onboarding' if st.session_state.get(FIRST_RUN_FOCUS) else 'home'
 
 
 # Les pages qui font PARTIE de la mise en route. Le mode « première connexion » les
@@ -366,6 +391,8 @@ def resolve_nav_page(role: str = 'artist'):
     `render_navigation`; the page returned here is the raw key, plan-gating is applied
     at the end of the render.
     """
+    arm_first_run_once(role)
+
     rendered = []  # list of (skey, header, [(label, key), ...])
     for sec_id, header, items in _NAV_SECTIONS:
         vis = [(lbl, key) for lbl, key in items

@@ -142,12 +142,42 @@ def test_the_assistant_offers_a_way_into_the_app_and_a_way_to_stop_showing_it():
 
 def test_the_landing_asks_whether_the_setup_is_FINISHED():
     src = ast.get_source_segment(
-        APP.read_text(encoding="utf-8"), _fn(APP, "_first_run_landing")) or ""
+        APP.read_text(encoding="utf-8"), _fn(APP, "_setup_is_unfinished")) or ""
     assert "read_setup_state" in src, (
-        "the landing router no longer reads the shared completion state.")
+        "the first-run predicate no longer reads the shared completion state.")
     assert "artist_readiness" not in src, (
         "the router is back on artist_readiness, whose 'all todo' threshold means "
         "'has not STARTED' — one declared identity made the assistant disappear."
+    )
+
+
+def test_the_first_run_is_decided_whatever_the_entry_path():
+    """Not only when the session has no page yet.
+
+    The welcome e-mail links to `?page=onboarding`, `_main_body` pins that parameter
+    BEFORE the sidebar runs, so `_nav_page` was already known and the repair branch —
+    the only place that armed the flag — never fired. An artist arriving by the mail
+    link, i.e. the NOMINAL path, got the whole menu. Reported on 2026-09-04:
+    « normalement la première fois qu'on se connecte on n'a pas accès au volet de
+    navigation, il faudrait le remettre ».
+    """
+    fn = _fn(APP, "resolve_nav_page")
+    calls = _call_lines(fn, "arm_first_run_once")
+    assert calls, (
+        "resolve_nav_page no longer arms the first-run flag: it would only be set on "
+        "the path where the session has no page — never when a link names one."
+    )
+    # And it must be armed BEFORE the repair branch reads it.
+    repair = [n.lineno for n in ast.walk(fn) if isinstance(n, ast.If)
+              and "_nav_page" in ast.dump(n.test)]
+    assert repair and min(calls) < min(repair), (
+        "the flag is armed after the branch that reads it")
+
+    armed = _fn(APP, "arm_first_run_once")
+    src = ast.get_source_segment(APP.read_text(encoding="utf-8"), armed) or ""
+    assert "_FIRST_RUN_EVALUATED" in src, (
+        "nothing stops the decision being re-taken on every rerun: it would re-arm "
+        "the focus after the artist has left the setup, taking the menu away again."
     )
 
 
@@ -463,3 +493,43 @@ def test_every_selectable_platform_maps_to_a_tab_that_exists():
         f"{unreachable} can be ticked during setup but map to no credentials tab: on "
         "a first run the page would fold away exactly what the artist chose."
     )
+
+
+def test_the_sandbox_default_email_is_deliverable():
+    """`<slug>@sandbox.local` bounced, and the bounce is the evidence.
+
+    Gmail returned the welcome mail on 2026-09-04: « le domaine sandbox.local est
+    introuvable ». A sandbox that replays signup must receive what an artist receives,
+    otherwise it replays half of it — the half without the two e-mails.
+    """
+    src = SANDBOX.read_text(encoding="utf-8")
+    # AST: `"_default_email" in src` stayed GREEN when the function was renamed to
+    # `_default_email_disabled` and the caller went back to the literal — the name is
+    # a SUBSTRING of the new one. Seventh textual predicate to answer a structural
+    # question in this repo.
+    called = _call_lines(_fn(SANDBOX, "main"), "_default_email")
+    assert called, (
+        "main() no longer calls _default_email: the default address is hardcoded "
+        "again, and `.local` bounces.")
+    assert "ALERT_EMAIL" in src and "SMTP_USER" in src, (
+        "the default no longer derives a `+alias` from the operator's own address")
+    assert 'n\'est pas une adresse livrable' in src, (
+        "nothing warns when the address cannot receive: the two mails of the journey "
+        "would bounce in silence and the rehearsal would look complete")
+
+
+def test_adopting_a_registered_account_refuses_anything_that_is_not_fresh():
+    """`--adopt` is the door that makes « replay from signup » possible at all.
+
+    Replaying from the real form means creating an ORDINARY tenant; the uniqueness
+    exemption is only needed afterwards, to type one's own identifiers into it. What
+    makes the door safe is the condition, not the intention.
+    """
+    fn = _fn(SANDBOX, "_adopt")
+    src = ast.get_source_segment(SANDBOX.read_text(encoding="utf-8"), fn) or ""
+    assert "_TENANT_DATA_TABLES" in src, (
+        "adoption no longer checks for collected rows: exempting a live tenant from "
+        "the uniqueness guard would reopen the tenant leak that guard closed")
+    assert "is_canary" in src, (
+        "a canary can be adopted: it is a FLAG, not a permission — exempting it would "
+        "hollow out the nightly per-tenant proof it carries")

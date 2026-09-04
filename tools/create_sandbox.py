@@ -60,6 +60,23 @@ def _db():
     return PostgresHandler.from_env_or_config()
 
 
+def _default_email(slug: str) -> str:
+    """Un alias `+slug` de l'adresse de l'opérateur, quand on en connaît une.
+
+    `<slug>@sandbox.local` était le défaut : le domaine n'existe pas, donc les deux
+    e-mails du parcours rebondissaient. Un alias `+` arrive dans la même boîte, se
+    filtre, et surtout **existe** — c'est ce qui rend l'inscription rejouable en
+    entier, e-mails compris.
+    """
+    for var in ("SANDBOX_EMAIL", "ALERT_EMAIL", "SMTP_USER"):
+        base = (os.getenv(var) or "").strip()
+        if "@" in base and not base.endswith(".local"):
+            local, _, domain = base.partition("@")
+            local = local.split("+", 1)[0]       # jamais un alias d'alias
+            return f"{local}+{slug}@{domain}"
+    return f"{slug}@sandbox.local"
+
+
 def _existing(db, slug: str):
     return db.fetch_query(
         "SELECT id, COALESCE(is_sandbox, FALSE) FROM saas_artists WHERE slug = %s",
@@ -101,6 +118,68 @@ def _wipe(db, artist_id: int) -> None:
         print(f"   ⚠️  show_setup_on_login: {type(exc).__name__}")
 
 
+def _adopt(db, needle: str) -> int:
+    """Promeut en bac à sable un compte créé par le VRAI formulaire d'inscription.
+
+    Pourquoi cette porte existe, alors que l'outil REFUSE par ailleurs de convertir un
+    locataire réel : les deux réponses sont la même. Rejouer le parcours « depuis la
+    création de compte » veut dire passer par le formulaire — donc créer un locataire
+    ordinaire — et c'est seulement ENSUITE qu'on a besoin de l'exemption d'unicité pour
+    y saisir ses propres identifiants. Sans cette commande, la seule façon d'obtenir un
+    bac à sable était de sauter l'inscription, c'est-à-dire de ne pas tester ce qu'on
+    voulait tester.
+
+    Ce qui la rend sûre est la condition, pas l'intention : **on refuse tout locataire
+    qui porte déjà des données collectées**. Un compte qui a des lignes n'est pas un
+    compte fraîchement inscrit, et l'exempter du garde d'unicité rouvrirait la fuite de
+    locataire que ce garde a fermée.
+    """
+    rows = db.fetch_query(
+        "SELECT a.id, a.slug, a.name, COALESCE(a.is_sandbox, FALSE), u.email, "
+        "       COALESCE(a.is_canary, FALSE) "
+        "FROM saas_artists a LEFT JOIN saas_users u ON u.artist_id = a.id "
+        "WHERE a.slug = %s OR lower(u.email) = lower(%s)",
+        (needle.strip().lower(), needle.strip()))
+    if not rows:
+        print(f"{_KO} aucun compte pour {needle!r} — inscris-le d'abord par le "
+              "formulaire, puis relance cette commande.")
+        return 0
+    artist_id, slug, name, is_sandbox, email, is_canary = rows[0]
+    if is_sandbox:
+        print(f"{_OK} {slug} (artist_id={artist_id}) est déjà un bac à sable")
+        return artist_id
+    if is_canary:
+        # Trois genres de locataire, et le canari n'est PAS exempt du garde d'unicité :
+        # c'est un drapeau, pas une permission. Le promouvoir en bac à sable lui
+        # donnerait cette permission en silence, et le canari est justement ce qui
+        # prouve chaque nuit que la collecte par locataire fonctionne.
+        print(f"{_KO} {slug} (artist_id={artist_id}) est un CANARI. Refus : le canari "
+              "n'est pas exempt du garde d'unicité, et l'exempter viderait de son sens "
+              "la surveillance nocturne qu'il porte.")
+        return 0
+
+    for table in _TENANT_DATA_TABLES:
+        if table == "artist_credentials":
+            continue
+        try:
+            n = db.fetch_query(
+                f"SELECT COUNT(*) FROM {table} WHERE artist_id = %s", (artist_id,))
+        except Exception:      # noqa: BLE001 — table absente : rien à protéger
+            continue
+        if n and n[0][0]:
+            print(f"{_KO} {slug} (artist_id={artist_id}) porte déjà {n[0][0]} ligne(s) "
+                  f"dans {table} — ce n'est pas un compte fraîchement inscrit. Refus : "
+                  "exempter un locataire vivant du garde d'unicité rouvrirait la fuite "
+                  "que ce garde a fermée.")
+            return 0
+
+    db.execute_query("UPDATE saas_artists SET is_sandbox = TRUE WHERE id = %s",
+                     (artist_id,))
+    print(f"{_OK} {slug} (artist_id={artist_id}, {email}) est devenu un bac à sable — "
+          f"« {name} » peut désormais réutiliser TES identifiants de plateforme.")
+    return artist_id
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--slug", default="sandbox", help="slug du locataire (défaut: sandbox)")
@@ -109,6 +188,9 @@ def main() -> int:
     ap.add_argument("--reset", action="store_true",
                     help="vide identifiants et données collectées, garde le compte")
     ap.add_argument("--delete", action="store_true", help="supprime le locataire et son compte")
+    ap.add_argument("--adopt", metavar="SLUG_OR_EMAIL",
+                    help="promeut en bac à sable un compte créé par le VRAI formulaire "
+                         "d'inscription (refuse s'il porte déjà des données)")
     ap.add_argument("--verified", action="store_true",
                     help="saute l'étape de vérification d'e-mail (compte prêt à l'emploi)")
     ap.add_argument("--dry-run", action="store_true")
@@ -119,8 +201,27 @@ def main() -> int:
         print(f"{_KO} argument(s) inconnu(s) : {unknown}")
         return 2
 
+    if args.adopt:
+        db = _db()
+        try:
+            return 0 if _adopt(db, args.adopt) else 1
+        finally:
+            try:
+                db.close()
+            except Exception:      # noqa: BLE001
+                pass
+
     slug = args.slug.strip().lower()
-    email = args.email or f"{slug}@sandbox.local"
+    email = args.email or _default_email(slug)
+    if email.endswith(".local"):
+        # Constaté le 2026-09-04 : le mot de bienvenue est bien parti, et Gmail l'a
+        # renvoyé — « le domaine sandbox.local est introuvable ». Un bac à sable qui
+        # rejoue l'inscription doit recevoir ce qu'un artiste reçoit, sinon il ne
+        # rejoue pas l'inscription : il en saute la moitié.
+        print(f"⚠️  {email} n'est pas une adresse livrable — les e-mails de "
+              "bienvenue et de vérification REBONDIRONT.")
+        print("   Passe --email ton.adresse+sandbox@gmail.com, ou pose ALERT_EMAIL "
+              "dans l'environnement pour que l'alias soit calculé tout seul.")
     db = _db()
     try:
         rows = _existing(db, slug)
