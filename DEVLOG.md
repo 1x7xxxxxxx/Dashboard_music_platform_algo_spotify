@@ -5,6 +5,40 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite) — Deux filets à la file, et le cliquet qui mord son auteur
+
+« Retire les 2 lignes blanches juste au-dessus du bouton connecter mes sources, et
+augmente sa taille et place-le au milieu. »
+
+Les deux lignes venaient de **deux `st.markdown("---")` consécutifs** : celui qui
+ferme le bloc 2, et un second posé avec le bouton. Entre les deux, il ne restait que
+le commentaire expliquant la suppression du sélecteur — donc rien de RENDU.
+
+C'est la trace d'une suppression : le bloc qui vivait là portait son propre
+séparateur, et le retirer laisse celui du voisin. Le garde compte donc ce qui se
+**rend** entre deux filets, pas les lignes du fichier — un commentaire ne figure pas
+dans l'arbre, ce qui est exactement la propriété qu'on veut.
+
+Le bouton est centré par trois colonnes 1-2-1, pas par un `<style>` visant le DOM de
+Streamlit : un sélecteur sur sa structure interne se casse à la montée de version en
+silence — la page continue de s'afficher, simplement décentrée, et rien ne le
+signale. Mesuré : **écart au centre = 0 px**, largeur 479 px contre ~200 en
+dimensionnement automatique.
+
+### Le cliquet a mordu le garde écrit une heure plus tôt
+
+`test_the_only_action_is_centred_and_full_width` contenait
+`assert "unsafe_allow_html" not in src` — une comparaison de chaîne sur du source
+Python, exactement ce que `test_a_guard_reads_structure_not_text` interdit depuis la
+veille. Il l'a refusée.
+
+`unsafe_allow_html` est un mot-clé d'appel : l'arbre y répond exactement. Le cliquet
+n'a donc pas coûté un contournement, il a produit une meilleure assertion — et c'est
+la première fois de la journée qu'il attrape une régression **avant** qu'elle soit
+livrée, au lieu de documenter une leçon après coup.
+
+---
+
 ## 2026-09-05 — Le parcours cesse de demander, et le bac à sable retrouve ses e-mails
 
 ### « Je n'ai pas l'email » — ce n'était pas le SMTP

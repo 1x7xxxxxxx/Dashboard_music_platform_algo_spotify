@@ -491,6 +491,87 @@ def test_nothing_asks_the_artist_to_pick_before_seeing():
         "le sélecteur est revenu")
 
 
+def test_no_two_separators_follow_each_other():
+    """Deux filets à la file ne séparent rien — ils doublent le blanc.
+
+    Signalé le 2026-09-05 : « retire les 2 lignes blanches juste au-dessus du bouton
+    connecter mes sources ». Elles venaient de deux `st.markdown("---")` consécutifs :
+    celui qui fermait le bloc 2, et un second posé avec le bouton. Entre les deux, il
+    ne restait que le commentaire expliquant la suppression du sélecteur — donc rien
+    de RENDU.
+
+    C'est la trace d'une suppression : le bloc qui vivait là portait son propre
+    séparateur, et le retirer laisse celui du voisin. Le garde lit l'arbre et compte
+    ce qui se rend entre deux filets, pas les lignes du fichier — un commentaire n'y
+    figure pas, ce qui est exactement la propriété qu'on veut.
+    """
+    fn = _fn(ONB, "_step_welcome")
+    body = fn.body
+    prev_sep = None
+    for i, stmt in enumerate(body):
+        is_sep = (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call)
+                  and getattr(stmt.value.func, "attr", "") == "markdown"
+                  and stmt.value.args
+                  and isinstance(stmt.value.args[0], ast.Constant)
+                  and str(stmt.value.args[0].value).strip() == "---")
+        if not is_sep:
+            continue
+        assert prev_sep != i - 1, (
+            f"deux `st.markdown(\"---\")` consécutifs (lignes {body[i-1].lineno} et "
+            f"{stmt.lineno}) : rien n'est rendu entre eux, donc ils empilent deux "
+            "filets et doublent le blanc")
+        prev_sep = i
+
+
+def test_the_only_action_is_centred_and_full_width():
+    """Une page dont il n'y a qu'une chose à faire la met au milieu, en grand.
+
+    Trois colonnes 1-2-1 plutôt qu'un `<style>` visant le DOM de Streamlit : un
+    sélecteur sur sa structure interne se casse à la montée de version EN SILENCE —
+    la page continue de s'afficher, simplement décentrée, et rien ne le signale.
+    Même raison que pour les cellules encadrées du sélecteur, et que pour les
+    séparateurs ci-dessus.
+
+    Mesuré au navigateur : écart au centre = 0 px, largeur 479 px contre ~200 en
+    dimensionnement automatique.
+    """
+    fn = _fn(ONB, "_step_welcome")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    tree = ast.parse(src)
+
+    btn = next((n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                and getattr(n.func, "attr", "") == "button"
+                and any(k.arg == "key" and getattr(k.value, "value", "") == "_onb_go_creds"
+                        for k in n.keywords)), None)
+    assert btn is not None, "le bouton « Connecter mes sources » a disparu"
+
+    kw = {k.arg: k.value for k in btn.keywords}
+    assert getattr(kw.get("use_container_width"), "value", False) is True, (
+        "le bouton n'occupe plus sa colonne : il retombe à sa largeur automatique, "
+        "celle d'un lien secondaire")
+    assert getattr(kw.get("type"), "value", "") == "primary", (
+        "la seule action de la page n'est plus l'action principale")
+
+    cols = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+            and getattr(n.func, "attr", "") == "columns"
+            and n.args and isinstance(n.args[0], ast.List)]
+    weights = [[getattr(e, "value", None) for e in c.args[0].elts] for c in cols]
+    assert any(w == [1, 2, 1] for w in weights), (
+        f"aucune colonne 1-2-1 dans l'étape de bienvenue ({weights}) : le bouton "
+        "n'est plus centré")
+    # `unsafe_allow_html` est un MOT-CLÉ d'appel : l'arbre y répond exactement, et
+    # la version textuelle de cette assertion a été refusée par
+    # `test_a_guard_reads_structure_not_text` — posé la veille, il a mordu sur le
+    # garde écrit une heure plus tôt. C'est ce qu'on lui demande.
+    raw_html = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                and any(k.arg == "unsafe_allow_html"
+                        and getattr(k.value, "value", False) is True
+                        for k in n.keywords)]
+    assert not raw_html, (
+        "le centrage est retombé sur du HTML brut : un sélecteur visant le DOM de "
+        "Streamlit se casse à la montée de version sans que rien ne le dise")
+
+
 def test_the_trial_says_one_month_not_only_thirty_days():
     body = ONB.read_text(encoding="utf-8")
     assert "1 mois" in body, (

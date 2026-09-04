@@ -451,12 +451,24 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # une colonne « Commence par là » est maintenant le premier onglet, ce qui n'est
     # pas la même information — l'un demande de trancher, l'autre suggère par où
     # entrer et laisse tout atteignable.
-    st.markdown("---")
-    if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
-                 type="primary", key="_onb_go_creds"):
-        st.session_state[_STEP_KEY] = 2
-        _goto('credentials')
-        return
+    # PAS de second `st.markdown("---")` ici. Le bloc 2 se termine déjà par le sien,
+    # ligne 412 ; les deux se suivaient sans rien de rendu entre eux — seulement le
+    # commentaire ci-dessus — et produisaient deux filets empilés, donc le double
+    # blanc signalé le 2026-09-05. Un séparateur sépare deux choses ; deux
+    # séparateurs à la file ne séparent rien.
+    #
+    # Le bouton est CENTRÉ et large : c'est la seule action de la page, et la seule
+    # chose qu'on ait à y faire. Trois colonnes 1-2-1 plutôt qu'un `<style>` visant
+    # le DOM de Streamlit — un sélecteur sur sa structure interne se casse à la
+    # montée de version en silence, la page continuant de s'afficher sans le
+    # centrage. Même raison que pour les cellules encadrées du sélecteur.
+    _l, _mid, _r = st.columns([1, 2, 1])
+    with _mid:
+        if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+                     type="primary", use_container_width=True, key="_onb_go_creds"):
+            st.session_state[_STEP_KEY] = 2
+            _goto('credentials')
+            return
 
 
 # `_platform_picker` et `_platform_checkbox` ont été supprimés le 2026-09-05 avec le
