@@ -46,6 +46,13 @@ print('xgboost OK without nccl')"
 COPY src/ ./src/
 COPY config/ ./config/
 COPY .streamlit/ ./.streamlit/
+# Les captures d'écran des guides d'identifiants. 240 Ko, et elles ont manqué à la
+# PROD pendant cinq signalements : `screenshot_path()` renvoie un chemin inexistant,
+# les deux surfaces qui l'affichent traitent l'absence comme « rien à montrer », et
+# personne — moi compris — n'a regardé ailleurs qu'en local, où le fichier est là.
+# `tests/test_the_image_ships_with_the_app.py` compare désormais ce COPY aux
+# répertoires que le code résout à l'exécution.
+COPY assets/ ./assets/
 
 # Streamlit config — disable usage stats, listen on $PORT
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
