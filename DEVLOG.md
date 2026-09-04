@@ -5,6 +5,78 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 2) — Les watchers n'étaient utiles que pour une chose, et pas celle-là
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`bcd4154`). Ton intuition était juste : les
+quatre `*_csv_watcher` étaient un vestige du poste de développement.
+
+### Ce qu'ils coûtaient, avant de les retirer
+
+| Mesure | Valeur |
+|---|---|
+| Part des `dag_run` | **97,2 %** |
+| Part des `task_instance` | **98,4 %** — 113 296 lignes sur 115 160 |
+| Exécutions | **1 536/jour**, toutes en `skipped` |
+| Les 4 répertoires sondés | **vides** — `find` n'y a jamais trouvé un fichier |
+
+Et ils couvraient **moins** que la page d'import : `parse_csv_file` ne construit
+aucune ligne `songs_global`, `parse_songs_global` si. La page parse déjà dans l'app et
+n'écrit jamais dans ces répertoires.
+
+**Résultat en prod** : `dag_run` **11 363 → 290**, métadonnées **246 → 53 Mo**. Elles
+sont enfin plus petites que la base applicative qu'elles orchestrent (43 Mo). 12 DAGs.
+
+### La moitié qui servait vraiment
+
+Un watcher de répertoire garde le fichier sur le disque. C'était le seul intérêt — et
+la page, elle, lisait les octets en mémoire puis les laissait partir. `csv_upload_log`
+savait qu'un fichier X avait produit N lignes ; **il ne pouvait pas dire ce qu'il y
+avait dedans**. Toute la classe des imports qui réussissent en donnant des chiffres
+faux — une colonne renommée en amont, un séparateur mal lu — devenait indiagnosticable
+après coup.
+
+`src/utils/upload_archive.py` garde les octets **14 jours**, uniquement dans la branche
+de succès, là où `count` prouve que les lignes ont atteint la base. Quatre règles,
+chacune avec son mode d'échec nommé : archiver seulement après succès, ne jamais lever,
+un dossier par locataire, et un nom de fichier reconstruit — il arrive d'un navigateur.
+
+Purge **opportuniste depuis la page**, pas un cron : le répertoire ne grossit que quand
+quelqu'un dépose. Une chose planifiée de moins à oublier — ce dépôt vient de passer une
+séance sur un drill de restauration qui dormait sans appelant depuis juin.
+
+### Trois gardes existants ont attrapé de vraies conséquences
+
+- `test_the_known_list_has_not_rotted` : la liste d'exemptions DSN nommait quatre
+  fichiers supprimés.
+- `test_readiness_reads_a_table_the_dag_actually_writes` : **plus aucun DAG n'écrit
+  `apple_songs_performance`**. Vrai pour les DAGs, faux pour le produit —
+  `upload_csv._PLATFORMS` l'alimente. La portée du garde suivait une hypothèse (« une
+  table est écrite par un DAG ou un collecteur ») que le dépôt venait de rendre fausse.
+- `test_the_scope_is_not_empty` : plancher à 16 DAGs. Remis au compte **exact** de 12,
+  pas 10 — un plancher avec du mou laisserait deux disparitions de plus passer.
+
+Et mon propre garde de cadence serait devenu **vide de sens** : il ne cherchait que
+`*_csv_watcher.py`, désormais absents. Élargi à tous les DAGs, avec une assertion de
+non-vacuité.
+
+### Le détail de nommage qui a coûté dix minutes
+
+Le test d'honnêteté de la roadmap repère un identifiant par `^#{2,3} .*\b(R\d+)\b`.
+Sur un titre disant « Créer le bucket **Cloudflare R2** », le `.*` gourmand retenait
+**R2** et concluait que R57 n'avait pas de procédure. Un identifiant de roadmap et un
+nom de produit partageaient le même espace de noms — le titre ne dit plus « R2 ».
+
+### Roadmap
+
+Toujours **0 tâche machine**. **R57** créée et suivie comme geste humain : le bucket de
+sauvegarde hors-site. Le code est posé, `rclone` installé, `alert_monitor` le signale
+chaque nuit — il ne manque que le bucket et la variable. Runbook §10, avec la commande
+qui prouve que c'est fait.
+
+Suite complète : **3 799 passés, 27 skippés, 0 rouge**.
+
+---
+
 ## 2026-09-04 (suite) — Le poste le plus visible n'était pas le plus cher
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION**. Point de départ : « Airflow consomme 1,6 Go,
