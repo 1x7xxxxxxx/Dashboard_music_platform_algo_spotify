@@ -5,6 +5,60 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 9) — L'attente après l'inscription, et trois figures qui disent qu'elles sont des exemples
+
+✅ **DÉPLOYÉ** (`e999a57`, `c62370d`).
+
+### L'attente : mesurée avant d'être corrigée
+
+Poignée de main SMTP depuis la production : **0,24 s** (connect 0,06 · starttls 0,13 ·
+login 0,05). **L'envoi n'est pas la lenteur** — c'est la distribution, et pendant cette
+minute l'écran ne proposait rien.
+
+**Un vrai défaut trouvé en cherchant** : les quatre `smtplib.SMTP(host, port)` n'avaient
+**aucun `timeout=`**. Un relais qui ne répond pas fait attendre le délai TCP du système
+— jusqu'à ~2 min — et l'un de ces appels est dans le chemin de la soumission
+d'inscription. Reproduit par accident : le navigateur a expiré sur la page figée, et la
+capture d'écran avec. `timeout=15` partout.
+
+**L'écran d'après-inscription devient une page.** Il ne vivait QUE pendant le run du
+submit — le moindre bouton le faisait disparaître, ce qui explique qu'il ne portait
+qu'un lien. Mémorisé en session, il porte maintenant : combien de temps, où chercher
+(spams, onglet Promotions), le **guide PDF téléchargeable tout de suite**, la liste des
+identifiants à rassembler, et un bouton de renvoi (60 s de cooldown) présent dans les
+DEUX branches — l'écran d'adresse-déjà-prise doit rester indiscernable.
+
+### Trois figures, construites une fois et regardées
+
+Un compte neuf n'a AUCUNE donnée : ce qu'on lui montre est une illustration. PNG
+construits hors ligne (`make example-charts`), parce que `kaleido` est absent de toutes
+les images — Plotly ne saurait pas exporter — et parce qu'un fichier committé peut être
+**regardé avant d'atteindre quelqu'un**.
+
+| Figure | Forme choisie, et pourquoi |
+|---|---|
+| Dashboard global | aire empilée, 4 séries, étiquettes directes (règle de relief) |
+| Prédiction Discover Weekly | une seule série ⇒ pas de légende ; bande = la prévision |
+| Meta × Spotify | **deux panneaux** partageant l'axe du temps — jamais deux échelles |
+
+Palette passée au **validateur** (pas jugée à l'œil) : tout PASS, pire paire adjacente
+CVD ΔE 9.1, vision normale 22.9. Et les figures ont été **regardées** : trois défauts de
+mise en page corrigés, dont un formateur qui rendait **trois graduations « 1k »** à
+trois hauteurs différentes.
+
+Chaque figure porte « Exemple — données fictives » **dans l'image**, donc la mention
+survit à une capture, un copier-coller, un transfert. Le compteur public qui comptait
+nos canaris avait déjà coûté cette leçon.
+
+**Dans le mot de bienvenue : UNE image, par Content-ID**, jamais par URL — le client du
+destinataire dirait à un tiers quand le message a été ouvert, et la plupart les bloquent.
+Le texte reste complet sans elle : images bloquées est le cas normal.
+
+7 gardes neufs, tous rouges par mutation — dont deux refaits en AST après s'être
+déclenchés sur leur propre commentaire. Suite : **3821 verts**.
+
+---
+
 ## 2026-09-04 (suite 8) — Le rapport PDF devient payant, et cinq écarts du parcours
 
 ✅ **DÉPLOYÉ** (`5fdc65a`, migrations 084 et 085, DAG `trial_expiry_reminder` actif).
