@@ -5,6 +5,7 @@ import warnings
 # time — silenced before any view imports matplotlib/altair so it never reaches the UI/logs.
 warnings.filterwarnings("ignore", message="Unable to import Axes3D")
 
+import html as _html
 import streamlit as st
 from pathlib import Path
 import sys
@@ -498,14 +499,62 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     # suit fait accorder le menu par `resolve_nav_page`.
     _cur = st.session_state.get('_nav_page', 'home')
     _prev, _next = _neighbour_pages(rendered, _cur, _is_locked)
-    _c_title, _c_prev, _c_next = st.sidebar.columns([5, 1, 1])
-    _c_title.title(t("nav.title", "🎵 Navigation"))
+
+    # `vertical_alignment="center"` et un `###` plutôt qu'un `st.title`.
+    #
+    # Un `st.title` mesure ~2,5 fois la hauteur d'un bouton et porte sa propre marge
+    # haute ; les colonnes s'alignant par le HAUT, les deux flèches flottaient contre
+    # le sommet du titre, très au-dessus de sa ligne de base. « Pas alignées avec
+    # Navigation, c'est moche » — 2026-09-04, et c'est exact : rien ne les alignait.
+    #
+    # Deux corrections, pas une. L'alignement centre les trois colonnes sur la même
+    # ligne médiane ; le titre passe en `###` pour que cette ligne médiane soit à peu
+    # près la hauteur d'un bouton — centrer un titre trois fois trop haut aurait
+    # laissé les flèches au milieu d'un grand vide.
+    try:
+        _c_title, _c_prev, _c_next = st.sidebar.columns(
+            [5, 1, 1], vertical_alignment="center")
+    except TypeError:      # Streamlit < 1.36 — pas d'alignement vertical
+        _c_title, _c_prev, _c_next = st.sidebar.columns([5, 1, 1])
+    # Le titre reçoit la HAUTEUR d'un bouton, et s'y centre lui-même.
+    #
+    # Mesuré au navigateur, parce que deux tentatives ont raté avant celle-ci. Un
+    # `st.title` place les flèches ~25 px au-dessus de sa ligne de base (colonnes
+    # alignées par le haut). `vertical_alignment="center"` + un `###` laisse encore
+    # 8 px, et la mesure dit pourquoi : le conteneur `stMarkdown` du titre est haut
+    # de **13 px** alors que le `<h3>` qu'il porte en fait **29** — le titre déborde
+    # de la boîte que Streamlit centre. Mettre la marge à zéro n'y change rien : ce
+    # n'est pas la marge qui est fausse, c'est la hauteur mesurée.
+    #
+    # On cesse donc de compenser et on égalise : une boîte de 40 px — la hauteur
+    # d'un bouton Streamlit — qui centre son propre texte. Les deux colonnes ont
+    # alors la même hauteur de contenu, et l'alignement est vrai quelle que soit la
+    # façon dont Streamlit la calcule. C'est NOTRE balise, pas un `<style>` visant
+    # ses classes internes (`st-emotion-cache-…` change sans prévenir).
+    #
+    # Le `-16px` est MESURÉ, et sa valeur a une raison qui vaut d'être écrite : à
+    # hauteurs égales (40 px des deux côtés, Streamlit 1.54), le bloc de texte
+    # commençait 8 px plus bas que le bouton. Une compensation de -8 px n'en a
+    # rattrapé que 4 — `vertical_alignment="center"` recentre APRÈS la marge, donc
+    # il en amortit la moitié. Il faut le double de l'écart observé.
+    #
+    # Pour le remesurer un jour : comparer `getBoundingClientRect()` du div ci-
+    # dessous et d'une flèche, et mettre ici deux fois l'écart des centres. Trop
+    # petit pour valoir un test — un test de pixels casse à chaque montée de
+    # version et n'apprendrait rien de plus que l'œil.
+    _c_title.markdown(
+        '<div style="height:40px;margin-top:-16px;display:flex;align-items:center;'
+        'font-size:1.25rem;font-weight:600;">'
+        + _html.escape(t("nav.title", "🎵 Navigation")) + '</div>',
+        unsafe_allow_html=True)
     from src.dashboard.utils.navigation import goto
     if _c_prev.button("◀", key="_nav_prev", disabled=_prev is None,
-                      help=t("nav.prev", "Page précédente")):
+                      help=t("nav.prev", "Page précédente"),
+                      use_container_width=True):
         goto(_prev)
     if _c_next.button("▶", key="_nav_next", disabled=_next is None,
-                      help=t("nav.next", "Page suivante")):
+                      help=t("nav.next", "Page suivante"),
+                      use_container_width=True):
         goto(_next)
 
     label_by_key = {key: t(f"nav.item.{key}", lbl)
@@ -817,10 +866,42 @@ def _main_body():
     # l'URL y porte encore l'ancienne page — et le paramètre écraserait le clic.
     # En mémorisant ce que le miroir a écrit, on distingue « c'est nous » (à ignorer)
     # de « quelqu'un a ouvert un lien » (à honorer).
+    # La mise en route PASSE DEVANT le paramètre d'URL, et c'est le correctif du
+    # 2026-09-04 au soir : « pourquoi dès que je m'inscris après reset et que j'ai le
+    # mail, ça ne nous emmène pas direct sur les steps de configuration ? »
+    #
+    # Reproduit au navigateur : l'artiste entre dans l'app, le miroir écrit
+    # `?page=home`, il se déconnecte — l'URL de l'écran de connexion porte encore
+    # `page=home`. Il se reconnecte : `session_state.clear()` a effacé
+    # `_page_mirrored`, la condition ci-dessous passe, `_nav_page` vaut `home`, et
+    # `resolve_nav_page` n'a plus rien à décider. Il atterrit dans l'application avec
+    # une configuration à 0/4, sans jamais voir les étapes.
+    #
+    # Deux mécanismes justes qui se contredisaient : le miroir existe pour qu'un
+    # rechargement retrouve sa page, l'atterrissage pour qu'un compte non configuré
+    # voie sa mise en route. Le second gagne — une page retrouvée n'a de valeur que
+    # pour quelqu'un qui sait déjà où il va.
+    #
+    # `arm_first_run_once` est donc appelée ICI, avant le bloc, et non plus seulement
+    # dans `resolve_nav_page`. Elle est idempotente : le deuxième appel ne fait rien.
+    arm_first_run_once(st.session_state.get('role', 'artist'))
+
     if _page_param:
         _nav_keys = {key for _, _, items in _NAV_SECTIONS for _, key in items}
-        if _page_param in _nav_keys and _page_param != st.session_state.get('_page_mirrored'):
+        # Une page HORS mise en route ne peut pas détourner une première arrivée.
+        # Les pages du parcours (`_SETUP_PAGES`) restent honorées : c'est ce qui fait
+        # marcher le lien `?page=onboarding` du mot de bienvenue, et un lien profond
+        # vers Credentials pendant l'installation.
+        _setup_landing = (bool(st.session_state.get(FIRST_RUN_FOCUS))
+                          and _page_param not in _SETUP_PAGES)
+        if (_page_param in _nav_keys and not _setup_landing
+                and _page_param != st.session_state.get('_page_mirrored')):
             st.session_state['_nav_page'] = _page_param
+        elif _setup_landing:
+            # Sans cette ligne, `resolve_nav_page` garderait la page de la session
+            # PRÉCÉDENTE (`_nav_page` survit-il ? non — mais l'URL, elle, revient à
+            # chaque rendu) et le paramètre reprendrait la main au rerun suivant.
+            st.session_state.pop('_nav_page', None)
 
     _check_db_health()
 

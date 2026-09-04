@@ -5,6 +5,54 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 13) — L'URL de la session d'avant décidait de l'atterrissage
+
+### Le défaut, reproduit avant d'être corrigé
+
+« Pourquoi dès que je m'inscris après reset et que j'ai le mail, ça ne nous emmène pas
+direct sur les steps de configuration ? Il faudrait le même parcours tout le temps. »
+
+Deux parcours ont été rejoués au navigateur et **passaient tous les deux** : le lien de
+vérification dans un onglet neuf, et la re-vérification avec une session vivante. Le
+troisième, celui qu'il vit, échoue :
+
+1. l'artiste entre dans l'application ; le miroir d'URL écrit `?page=home` ;
+2. il se déconnecte — l'écran de connexion **garde `?page=home`** dans son adresse ;
+3. il se reconnecte. `session_state.clear()` a effacé `_page_mirrored`, donc la garde
+   « c'est nous qui avons écrit ce paramètre » ne s'applique plus : le bloc d'URL pose
+   `_nav_page = 'home'` ;
+4. `resolve_nav_page` trouve une page valide et n'a plus rien à décider. Il entre dans
+   l'app avec une configuration à **0/4**, sans jamais voir ses étapes.
+
+Encore **deux mécanismes justes qui se contredisent** — la troisième fois en deux
+jours. Le miroir existe pour qu'un rechargement retrouve sa page ; l'atterrissage,
+pour qu'un compte non configuré voie sa mise en route. Le second gagne : une page
+retrouvée n'a de valeur que pour quelqu'un qui sait déjà où il va.
+
+`arm_first_run_once` est appelée AVANT le bloc d'URL — elle ne l'était que dans
+`resolve_nav_page`, qui tourne après, au moment où il n'y a plus rien à arbitrer. Les
+pages du parcours (`_SETUP_PAGES`) restent honorées : c'est ce qui fait marcher le lien
+`?page=onboarding` du mot de bienvenue et un lien profond vers Credentials pendant
+l'installation. Vérifié : la même URL `?page=home` qui menait à l'app mène maintenant
+aux étapes.
+
+### Les flèches, alignées à la mesure
+
+Trois tentatives, et les deux premières ratées valent d'être écrites. Un `st.title`
+place les flèches ~25 px au-dessus de sa ligne de base — les colonnes s'alignent par le
+haut. `vertical_alignment="center"` plus un `###` laisse encore **8 px**, et la mesure
+dit pourquoi : le conteneur `stMarkdown` du titre est haut de **13 px** quand le `<h3>`
+qu'il porte en fait **29** — le titre déborde de la boîte que Streamlit centre. Mettre
+sa marge à zéro n'y change rien : ce n'est pas la marge qui est fausse, c'est la
+hauteur mesurée.
+
+On égalise donc les hauteurs — une boîte de 40 px, celle d'un bouton, qui centre son
+propre texte — et il reste 8 px de retrait que Streamlit applique au bloc de texte et
+pas au bouton. Une compensation de −8 px n'en rattrape que **4** : `vertical_alignment`
+recentre APRÈS la marge, donc il en amortit la moitié. À −16 px, l'écart mesuré est de
+**0**. La valeur a une raison, et le commentaire dit comment la remesurer — c'est ce
+qui la distingue d'un nombre magique.
+
 ## 2026-09-04 (suite 12) — La consigne à côté du champ, pas sous un pavé à ouvrir
 
 Quatre retours, une même racine : **une aide qu'il faut aller chercher n'est pas une
