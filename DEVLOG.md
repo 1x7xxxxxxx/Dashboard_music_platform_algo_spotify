@@ -5,6 +5,63 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 6) — Une erreur laisse une ligne, pas seulement un e-mail
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`7e53c0a`, migration 083, tâche nocturne verte).
+
+Question posée : « un process automatisé qui intègre en roadmap **ou** dans un document
+qu'on relie automatiquement pour chaque erreur ». Les deux étaient possibles ; **un seul
+est sûr**, et le refus de l'autre est la décision principale de la séance.
+
+### Ce qui existait, et pourquoi ça ne suffisait pas
+
+Un `logger.error`, une ligne `usage_events` de 200 caractères, un e-mail. **La traceback
+ne vivait que dans l'e-mail.** Une boîte mail ne se compte pas, ne se ferme pas, ne se
+relie pas à une classe d'erreur — le même défaut est arrivé trois fois en deux jours en
+ayant l'air de trois. Et la limitation de débit vivait dans un dict de processus : un
+redémarrage de conteneur renvoyait la même alerte.
+
+### L'empreinte, et surtout ce qu'elle EXCLUT
+
+`classe d'exception + premier cadre de pile qui NOUS appartient`, en chemin relatif au
+dépôt. Sont volontairement jetés :
+
+| Jeté | Pourquoi |
+|---|---|
+| le **numéro de ligne** | il bouge au premier commit qui touche quoi que ce soit au-dessus — le compteur repartirait à 1 à chaque déploiement |
+| le **message** | il porte presque toujours une valeur qui change (un id, une clé) — une ligne par occurrence, c'est déjà ce qu'une boîte mail fait |
+| les cadres **tiers** | le dernier cadre est presque toujours celui d'une bibliothèque : il décrit la machinerie de Streamlit, pas notre défaut |
+
+Vérifié sur le cas réel de la veille : trois numéros de ligne, trois messages nommant
+une clé différente, **une seule ligne** — `utils/navigation.py:goto`.
+
+### La règle qui compte : le document oui, la roadmap non
+
+`make error-inbox` régénère **en entier** `.claude/dev-docs/error-inbox.md`. La roadmap
+ne reçoit qu'**une ligne de renvoi ancrée** avec le compte. Y écrire des tâches
+casserait l'invariant de déplacement des deux fichiers (`test_roadmap_two_files.py`) et
+enterrerait les deux vraies tâches sous quarante lignes de machine. Fermer :
+`make error-resolve FP=… NOTE="…"`, **note obligatoire** — une entrée fermée sans raison
+est une entrée perdue. Une nouvelle occurrence **rouvre** l'entrée.
+
+### Ce que les gardes existants ont attrapé avant l'envoi
+
+- `app_errors` était **rendu dans le mail mais absent de `has_issues`** : le registre
+  aurait été une page dont personne n'est jamais prévenu. Attrapé par
+  `test_every_pulled_finding_takes_part_in_the_send_decision`.
+- `app_error_log` n'était **pas déclaré dans la portée de contamination** — il porte un
+  `artist_id`. Excusé avec sa raison : un défaut n'a pas de locataire.
+- **La suite écrivait dans le registre** : 8 lignes `ValueError | unknown` par
+  exécution, dans la même base que celle qu'on lit pour trier. Frontière posée dans
+  `conftest.py`, à côté de la frontière SMTP, **vérifiée à 0**.
+
+7 gardes neufs, les 5 mutables rouges par mutation. **Deux étaient aveugles à leur
+premier jet** — l'un rouge sur un `marker = "## …"` qui sert à CHERCHER, l'autre sur sa
+propre docstring qui explique pourquoi il n'y a pas de traceback. Refaits en AST.
+Cinquième fois que la portée du prédicat est le défaut du garde.
+
+---
+
 ## 2026-09-04 (suite 5) — La première connexion ne montre que la mise en route
 
 ✅ **DÉPLOYÉ** (`4f6f3e6`). Deux ajustements après avoir rejoué l'onboarding depuis zéro.
