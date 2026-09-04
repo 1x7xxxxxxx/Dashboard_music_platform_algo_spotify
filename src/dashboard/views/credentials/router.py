@@ -19,6 +19,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
 from src.dashboard.content.platform_value import BY_KEY
+from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
 from src.dashboard.utils.setup_focus import (
     connected_platforms, get_focus, progress, remaining,
 )
@@ -28,6 +29,13 @@ from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
 from ._registry import PLATFORMS
 from ._render import _render_platform_tab
 from src.dashboard.utils.status_matrix import render_status_matrix
+
+
+# La sélection d'onboarding est par PLATEFORME ; les onglets de cette page sont par
+# CREDENTIAL. Instagram n'a pas d'onglet à lui : il se saisit dans celui de Meta.
+# Apple Music n'en a aucun (c'est un import CSV) et disparaît donc de la
+# traduction — ce qui est correct : il n'y a rien à saisir ici pour lui.
+_TAB_FOR_PLATFORM = {"instagram": "meta"}
 
 
 def show():
@@ -168,6 +176,37 @@ def show():
             head = remaining(focus, connected)[:1]      # celle que le bandeau nomme
             rank = {k: i for i, k in enumerate(head + [f for f in focus if f not in head])}
             ordered.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
+
+        # ── Première connexion : SEULEMENT ce qui a été coché ──────────────
+        #
+        # Réordonner ne suffisait pas. Signalé le 2026-09-04 : « il y avait uniquement
+        # les items qu'on avait sélectionnés, il faudrait le remettre, il y a trop
+        # d'infos au début — le plus simple possible, mais c'est peut-être uniquement
+        # après création du compte ? » La dernière moitié est la bonne réponse et
+        # c'est l'artiste qui la formule : la réduction n'a de sens que le premier
+        # jour. Le drapeau qui la porte est déjà celui de l'ARRIVÉE
+        # (`FIRST_RUN_FOCUS`), pas de la page, et il meurt dès que l'artiste est
+        # ailleurs — sa sélection (`FOCUS_KEY`) vit dans la même session, les deux
+        # apparaissent et disparaissent ensemble.
+        #
+        # Les autres plateformes ne sont pas cachées, elles sont REPLIÉES : masquer
+        # ce qui existe fait chercher, et le dépôt a déjà payé « du code correct que
+        # rien n'atteignait » six fois en une séance.
+        #
+        # `instagram` n'a PAS d'onglet : il vit dans celui de `meta` (« 📱 Meta /
+        # Instagram »), et `apple_music` n'en a pas du tout — c'est un import CSV.
+        # Traduire la sélection en onglets est donc obligatoire : sans ça, un artiste
+        # qui coche Instagram voyait son onglet REPLIÉ, ce qui est pire que six
+        # onglets. Vu au navigateur, à la première tentative.
+        hidden = []
+        first_run = bool(st.session_state.get(FIRST_RUN_FOCUS))
+        if first_run and focus:
+            tabs_wanted = {_TAB_FOR_PLATFORM.get(k, k) for k in focus}
+            keep = [kv for kv in ordered if kv[0] in tabs_wanted]
+            hidden = [kv for kv in ordered if kv[0] not in tabs_wanted]
+            if keep:
+                ordered = keep
+
         tab_labels = [info['label'] for _, info in ordered]
         tabs = st.tabs(tab_labels)
 
@@ -183,6 +222,30 @@ def show():
                     dag_states=dag_states,
                     artist_name=artist_name,
                 )
+
+        if hidden:
+            with st.expander(t("credentials.other_platforms",
+                               "➕ Les {n} autres plateformes ({names})").format(
+                                   n=len(hidden),
+                                   names=", ".join(i['label'] for _, i in hidden))):
+                st.caption(t(
+                    "credentials.other_platforms_help",
+                    "Repliées parce que tu ne les as pas cochées à la mise en route. "
+                    "Elles restent connectables ici, maintenant ou plus tard — et le "
+                    "menu complet réapparaît dès que tu entres dans l'application."))
+                sub = st.tabs([i['label'] for _, i in hidden])
+                for tab, (platform_key, platform_info) in zip(sub, hidden):
+                    with tab:
+                        _render_platform_tab(
+                            db=db,
+                            platform_key=platform_key,
+                            platform_info=platform_info,
+                            artist_id=target_artist_id,
+                            existing_row=existing.get(platform_key),
+                            fernet_ok=fernet_ok,
+                            dag_states=dag_states,
+                            artist_name=artist_name,
+                        )
     finally:
         db.close()
 

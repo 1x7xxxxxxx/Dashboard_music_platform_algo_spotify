@@ -6,13 +6,11 @@ EN = {
     "onboarding.in_brief": "#### streaMLytics in brief\n\n**1. All your data in one place, pulled every day, automatically** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, Apple Music. Your credentials are encrypted; you never re-enter them.\n\n**2. Spotify algorithm predictions** — when a track is likely to trigger Discover Weekly or Release Radar, and how many streams to expect, from machine learning models trained on your data.\n\n**3. Campaign optimisation** — by linking what you spend on promotion to what it actually produces in streams.",
     "onboarding.pick_action": "👉 Tick what you want to set up now",
     "onboarding.pick_hint": "You do not have to connect everything. The rest will wait in the **API Credentials** tab, later, inside the app.",
-    "onboarding.trial_offer": "🎁 **Welcome offer — Premium free for 30 days**, until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
-    "onboarding.guide_cta": "📄 Your starter guide",
+    "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
     "onboarding.roadmap_title": "🗺️ Your setup, step by step",
     "onboarding.roadmap_body": "**1. You pick your platforms** · ≈1 min\n→ on the next step, tick whatever you want to connect.\n\n**2. You enter your credentials** · ≈{mins} min for the two recommended ones ({names})\n→ every platform has its own illustrated guide, in the Credentials API tab.\n\n**3. Collection runs tonight** · 0 min\n→ your first charts are there tomorrow morning, then every day.",
     "onboarding.roadmap_partial": "You can stop after a single platform and come back whenever you like — nothing is lost, and each platform you add enriches the others.",
     "onboarding.guide_also_mailed": "You also received it attached to the welcome e-mail — here it is if you prefer to grab it from here.",
-    "onboarding.download_guide": "📄 Download the setup guide (PDF)",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
     "onboarding.feat_revenue": "+ 📈 Revenue forecasts",
@@ -96,6 +94,17 @@ EN = {
     "onboarding.step1": "1. Welcome",
     "onboarding.step2": "2. Data",
     "onboarding.step3": "3. Ready!",
+    # The four numbered blocks of the welcome step
+    "onboarding.b0_title": "0. Your language",
+    "onboarding.b0_help": "It applies to the whole app and to your PDF guide. "
+                          "We remember it: you only pick it once.",
+    "onboarding.b2_title": "2. Your welcome offer",
+    "onboarding.b2_after": "Below: what you keep for ever (Free), and what you lose "
+                           "after the month if you do not go Premium.",
+    "onboarding.b3_title": "3. Your getting-started guide",
+    "onboarding.download_guide_fr": "🇫🇷 Guide en français (PDF)",
+    "onboarding.download_guide_en": "🇬🇧 Guide in English (PDF)",
+    "onboarding.roadmap_per_platform": "**What each platform costs you, first time:**",
     # Landing choice — the way out, and the right not to come back
     "onboarding.enter_app": "🏠 Go to the app →",
     "onboarding.keep_landing": "Show this page on login until my setup is complete",

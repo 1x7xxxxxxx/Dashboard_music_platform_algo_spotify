@@ -28,6 +28,12 @@ EN = {
         "🎯 **Your selection: {done}/{total} connected.** "
         "Next: **{icon} {label}** — you will need: {need}."
     ),
+    "credentials.other_platforms": "➕ The {n} other platforms ({names})",
+    "credentials.other_platforms_help": (
+        "Folded away because you did not tick them during setup. You can still "
+        "connect them here, now or later — and the full menu comes back as soon as "
+        "you enter the app."
+    ),
     "credentials.focus_done": (
         "🎯 **Selection complete ({total}/{total}).** Data lands within ~2 min; the "
         "**🚦 Onboarding health** page will say whether each source really brings "

@@ -170,16 +170,82 @@ def _setup_roadmap() -> None:
         "Tu peux t'arrêter après une seule plateforme et revenir quand tu veux — "
         "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
 
+    # Le temps PAR PLATEFORME, pas seulement le total. Demandé le 2026-09-04 : un
+    # total de 7 minutes ne dit pas si on peut en faire une maintenant. Les minutes
+    # viennent toutes de `effort_min` du registre — aucune n'est écrite ici, sinon
+    # elles cesseraient d'être vraies le jour où une plateforme change et personne
+    # ne le remarquerait.
+    st.markdown(t("onboarding.roadmap_per_platform",
+                  "**Ce que coûte chaque plateforme, la première fois :**"))
+    for pv in ordered_for_setup(set()):
+        star = t("onboarding.reco_tag", " — ⭐ recommandé") if pv.recommended else ""
+        st.markdown(
+            f"- {pv.icon} **{pv.label}** · "
+            + t("onboarding.effort", " ≈{mins} min").format(mins=pv.effort_min).strip()
+            + f"{star} — "
+            + t("onboarding.need", "À fournir : {need}").format(need=pv.need))
+
+
+def _language_buttons() -> None:
+    """Bloc 0 — choisir sa langue SUR la page, et que ça se retienne.
+
+    Deux BOUTONS, pas un `st.radio`, et c'est la seule contrainte technique de ce
+    bloc : la barre latérale porte déjà un radio de langue (`_lang_sel`). Deux widgets
+    ne peuvent pas partager une clé, et deux radios indépendants se réécrivent l'un
+    l'autre à chaque rerun — celui de la page annulerait le choix fait dans la barre,
+    et réciproquement. Un bouton ne porte aucun état : il pose la valeur, met à jour
+    la clé du radio de la barre AVANT que celui-ci soit instancié au run suivant, et
+    relance. C'est la même règle que pour les radios du menu.
+
+    La mémoire longue existait déjà (`saas_users.lang`, migration 079) : ce qui
+    manquait était de pouvoir choisir sans aller chercher dans la barre latérale, le
+    jour où la barre est justement réduite au minimum.
+    """
+    from src.dashboard.utils.i18n import set_lang
+
+    cur = get_lang()
+    st.markdown("### " + t("onboarding.b0_title", "0. Ta langue"))
+    st.caption(t("onboarding.b0_help",
+                 "Elle vaut pour toute l'application et pour ton guide PDF. "
+                 "On la retient : tu ne la choisiras qu'une fois."))
+    cols = st.columns([1, 1, 3])
+    for col, (code, label) in zip(cols, (("fr", "🇫🇷 Français"), ("en", "🇬🇧 English"))):
+        with col:
+            if st.button(label, key=f"_onb_lang_{code}", use_container_width=True,
+                         type="primary" if cur == code else "secondary",
+                         disabled=(cur == code)):
+                set_lang(code)
+                # La clé du radio de la barre latérale, écrite avant son instanciation
+                # au prochain run : sans ça il ré-imposerait l'ancienne langue.
+                st.session_state["_lang_sel"] = code
+                try:
+                    from src.dashboard.utils.lang_pref import remember_lang
+                    remember_lang(code)
+                except Exception:      # noqa: BLE001 — la langue change à l'écran quoi qu'il arrive
+                    logger.warning("lang preference not persisted")
+                st.rerun()
+    st.markdown("---")
+
 
 def _step_welcome(plan: str, db) -> None:
+    """Quatre blocs numérotés, dans l'ordre où l'artiste en a besoin.
+
+    La page disait la même chose, dans le désordre : la langue vivait dans la barre
+    latérale, l'offre n'annonçait sa durée qu'en petit, le guide PDF était noyé et la
+    feuille de route ne donnait un temps que pour le total. Numérotés le 2026-09-04
+    à partir des notes de terrain — 0 langue · 1 à quoi ça sert · 2 ce que tu as et ce
+    que tu perds · 3 le guide et le temps que ça coûte.
+    """
     st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur streaMLytics !"))
+
+    _language_buttons()
 
     # « streaMLytics en bref » — demandé après le test du 2026-08-30. Un artiste qui
     # vient de créer son compte sait ce qu'il a acheté ; il ne sait pas encore ce que
     # l'outil FAIT. Trois phrases, avant l'offre et avant le guide.
     st.markdown(t(
         "onboarding.in_brief",
-        "#### streaMLytics en bref\n\n"
+        "### 1. streaMLytics en bref\n\n"
         "**1. Toutes tes données au même endroit, récupérées chaque jour, "
         "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
         "Apple Music. Tes identifiants sont chiffrés ; tu ne ressaisis rien.\n\n"
@@ -191,13 +257,15 @@ def _step_welcome(plan: str, db) -> None:
     ))
     st.markdown("---")
 
+    st.markdown("### " + t("onboarding.b2_title",
+                          "2. Ton offre de bienvenue"))
     # L'offre, avec sa DURÉE et son échéance. Un essai dont on ne dit pas qu'il est un
     # essai n'est pas une offre, c'est une surprise à J+30.
     deadline = _trial_deadline(st.session_state.get("artist_id"), db)
     if plan == "premium" and deadline:
         st.success(t(
             "onboarding.trial_offer",
-            "🎁 **Offre de bienvenue — Premium offert pendant 30 jours**, "
+            "🎁 **Premium offert pendant 1 mois** (30 jours), "
             "jusqu'au **{date}**.\n\n"
             "Ensuite ton compte repasse en **Free** : tu gardes tes données, tes "
             "connexions et tes exports. Tu perds **🚀 Road to Algo** (les prédictions "
@@ -211,33 +279,9 @@ def _step_welcome(plan: str, db) -> None:
               "Voici ce qui est inclus dans votre plan actuel :").format(plan=plan.capitalize())
         )
 
-    # Le guide. Il n'existait qu'en pièce jointe : e-mail perdu, guide perdu (R50).
-    # Mis en avant et centré parce qu'un artiste en test ne l'a pas vu — c'est la
-    # seule action de cette étape, elle doit se lire comme telle.
-    _pdf = _guide_pdf_bytes(get_lang())
-    if _pdf:
-        st.markdown("### :orange-background["
-                    + t("onboarding.guide_cta", "📄 Ton guide de démarrage") + "]")
-        st.caption(t(
-            "onboarding.guide_also_mailed",
-            "Tu l'as aussi reçu en pièce jointe de l'e-mail de bienvenue — "
-            "le voici si tu préfères le récupérer ici."))
-        _c1, _c2, _c3 = st.columns([1, 2, 1])
-        with _c2:
-            st.download_button(
-                t("onboarding.download_guide",
-                  "📄 Télécharger le guide de mise en route (PDF)"),
-                data=_pdf,
-                file_name=f"streamlytics-guide-{get_lang()}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                type="primary",
-            )
-        st.markdown("---")
-
-    _setup_roadmap()
-    st.markdown("---")
-
+    st.caption(t("onboarding.b2_after",
+                 "Ci-dessous, ce que tu gardes pour toujours (Free) et ce que "
+                 "tu perds au bout du mois si tu ne prends pas Premium."))
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
@@ -279,6 +323,44 @@ def _step_welcome(plan: str, db) -> None:
                 if st.button(t("onboarding.upgrade_to", "Passer à {tier} →").format(tier=tier_label),
                              key=f"_onb_upgrade_{tier_key}"):
                     _goto('billing')
+
+    st.markdown("---")
+
+    # Bloc 3 — le guide et ce que la configuration coûte en minutes.
+    #
+    # DEUX boutons, un par langue, et c'est une demande de terrain : le PDF suivait la
+    # langue de l'écran, donc un artiste qui lit en français mais veut envoyer le guide
+    # à quelqu'un en anglais devait changer toute l'interface pour l'obtenir. Un
+    # document qu'on télécharge n'a pas à hériter de la langue de la page.
+    st.markdown("### " + t("onboarding.b3_title", "3. Ton guide de démarrage"))
+    st.caption(t(
+        "onboarding.guide_also_mailed",
+        "Tu l'as aussi reçu en pièce jointe de l'e-mail de bienvenue — "
+        "le voici si tu préfères le récupérer ici."))
+    _c1, _c2, _c3 = st.columns([1, 1, 1])
+    _cur = get_lang()
+    for _col, (_code, _lbl) in zip((_c1, _c2),
+                                   (("fr", "🇫🇷 Guide en français (PDF)"),
+                                    ("en", "🇬🇧 Guide in English (PDF)"))):
+        _bytes = _guide_pdf_bytes(_code)
+        if not _bytes:
+            continue
+        with _col:
+            st.download_button(
+                t(f"onboarding.download_guide_{_code}", _lbl),
+                data=_bytes,
+                file_name=f"streamlytics-guide-{_code}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                # L'action mise en avant est celle de SA langue ; l'autre reste
+                # disponible sans réclamer l'attention.
+                type="primary" if _code == _cur else "secondary",
+                key=f"_onb_guide_{_code}",
+            )
+    st.markdown("---")
+
+    _setup_roadmap()
+    st.markdown("---")
 
     st.markdown("---")
     if st.button(t("onboarding.next_data", "Suivant : Configurer mes données →"), type="primary"):

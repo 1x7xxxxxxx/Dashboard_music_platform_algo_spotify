@@ -75,8 +75,22 @@ def test_a_missing_renderer_degrades_to_no_button_not_a_traceback(monkeypatch):
 
 def test_the_guide_follows_the_readers_language():
     """The PDF exists in fr and en; handing an English reader the French one is the
-    same defect as the stale English guide this brick removed."""
-    assert "_guide_pdf_bytes(get_lang())" in SRC
+    same defect as the stale English guide this brick removed.
+
+    Rewritten 2026-09-04. It asserted the literal `_guide_pdf_bytes(get_lang())`, and
+    went red when the page started offering BOTH languages — a strictly better answer
+    to its own question. The predicate matched one implementation, not the question.
+    What must hold: both PDFs are offered, and the reader's own language is the one
+    put forward.
+    """
+    assert "_guide_pdf_bytes(_code)" in SRC or "_guide_pdf_bytes(get_lang())" in SRC, (
+        "nothing builds the guide PDF from a language any more")
+    assert '"fr"' in SRC and '"en"' in SRC, (
+        "the two languages are no longer both offered — an artist who reads in one "
+        "language cannot hand the guide to someone who reads the other")
+    assert 'type="primary" if _code == _cur' in SRC, (
+        "the reader's own language is no longer the highlighted button: two equal "
+        "buttons make the reader choose something they already told us")
 
 
 def test_the_wizard_is_reachable_from_the_navigation():

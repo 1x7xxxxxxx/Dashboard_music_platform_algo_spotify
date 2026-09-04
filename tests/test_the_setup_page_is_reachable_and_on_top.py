@@ -304,7 +304,32 @@ def test_the_way_out_is_rendered_after_the_step_content():
     )
 
 
-def test_leaving_the_assistant_clears_the_focus():
+def test_the_first_run_covers_the_whole_setup_journey_then_dies():
+    """Not just the assistant's own page.
+
+    It cleared on ANY page change, so « Connecter ma sélection » → Credentials killed
+    it in one click and that page — the one that must narrow to the ticked platforms —
+    showed all six again. Seen in a browser on 2026-09-04, green in every test.
+    It now spans the setup pages and dies on the first page that is not one.
+    """
+    src = APP.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    setup = next(
+        (n.value for n in ast.walk(tree)
+         if isinstance(n, ast.Assign)
+         and any(getattr(t, "id", "") == "_SETUP_PAGES" for t in n.targets)),
+        None)
+    assert setup is not None, "_SETUP_PAGES is gone — the flag is back to one page"
+    names = {c.value for c in ast.walk(setup)
+             if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+    assert {"onboarding", "credentials"} <= names, (
+        f"the setup journey no longer includes Credentials: {sorted(names)}. That is "
+        "the page the narrowing exists for.")
+    assert "home" not in names, (
+        "the home page counts as setup: the reduced view would never end")
+
+
+def test_leaving_the_setup_clears_the_focus():
     """Coming back later through the menu must give the whole app, not the focus."""
     fn = _fn(APP, "resolve_nav_page")
     pops = [n for n in ast.walk(fn)
@@ -314,4 +339,127 @@ def test_leaving_the_assistant_clears_the_focus():
     assert pops, (
         "resolve_nav_page never clears the first-run flag: an artist who later opens "
         "the assistant from the menu would lose the menu."
+    )
+
+
+# ── 7. La mise en route, réduite au strict nécessaire le premier jour ─────────
+
+CREDS = REPO / "src" / "dashboard" / "views" / "credentials" / "router.py"
+SANDBOX = REPO / "tools" / "create_sandbox.py"
+
+
+def test_the_welcome_step_is_four_numbered_blocks():
+    """0 langue · 1 à quoi ça sert · 2 ce que tu as et ce que tu perds · 3 le guide.
+
+    The same content was already there, in a different order and unnumbered: the
+    language lived in the sidebar, the offer announced its duration in small print,
+    the PDF was buried and the roadmap only gave a total. Numbered from field notes
+    on 2026-09-04.
+    """
+    fn = _fn(ONB, "_step_welcome")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    lang = src.index("_language_buttons()")
+    brief = src.index("1. streaMLytics en bref")
+    offer = src.index("onboarding.b2_title")
+    guide = src.index("onboarding.b3_title")
+    assert lang < brief < offer < guide, (
+        "the four blocks are out of order: the reader picks a language, learns what "
+        "the tool does, sees what they have and lose, then gets the guide."
+    )
+
+
+def test_the_trial_says_one_month_not_only_thirty_days():
+    body = ONB.read_text(encoding="utf-8")
+    assert "1 mois" in body, (
+        "the welcome offer no longer says how long it lasts in the words the artist "
+        "used. « 30 jours » alone was read as a detail, not as an expiry."
+    )
+
+
+def test_the_language_choice_is_buttons_not_a_second_radio():
+    """A second radio would fight the sidebar's on every rerun.
+
+    Two widgets cannot share a key, and two independent radios overwrite each other:
+    the page one would undo a choice made in the sidebar, and vice versa. A button
+    holds no state — it writes the sidebar radio's key BEFORE that widget is created
+    on the next run, exactly like the nav radios.
+    """
+    fn = _fn(ONB, "_language_buttons")
+    assert _call_lines(fn, "button"), "the language block is no longer buttons"
+    assert not _call_lines(fn, "radio"), (
+        "a radio came back into the page: it will fight the sidebar's language radio")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    assert '"_lang_sel"' in src, (
+        "the page no longer updates the sidebar radio's key — the sidebar would "
+        "re-impose the previous language on the next run")
+    assert "remember_lang" in src, "the choice is no longer persisted per artist"
+
+
+def test_the_first_run_shows_only_the_platforms_that_were_ticked():
+    """« il y avait uniquement les items qu'on avait sélectionnés, il faudrait le
+    remettre » — and the artist's own hypothesis, « peut-être uniquement après
+    création du compte », is the right scope."""
+    src = CREDS.read_text(encoding="utf-8")
+    # AST, not the word. The first version asserted `"FIRST_RUN_FOCUS" in src` and
+    # stayed GREEN when the flag was replaced by `first_run = False` — the name still
+    # appeared in the import and the comment. Sixth time a textual predicate answered
+    # a question about structure.
+    tree = ast.parse(src)
+    reads = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "get"
+             and any(isinstance(a, ast.Name) and a.id == "FIRST_RUN_FOCUS"
+                     for a in n.args)]
+    assert reads, (
+        "nothing READS the first-run flag from the session any more: the credentials "
+        "page shows all six platforms on day one again."
+    )
+    assert "credentials.other_platforms" in src, (
+        "the unselected platforms are HIDDEN rather than folded away: hiding what "
+        "exists makes people hunt for it."
+    )
+
+
+def test_the_sandbox_reset_replays_the_email_verification():
+    """« ça ne nous remet pas à l'étape de mail à vérifier ».
+
+    `authenticate` refuses an unverified account, so replaying that step means
+    writing the token AND printing the link — the sandbox exists precisely so the
+    rehearsal depends on nothing, least of all on an e-mail arriving.
+    """
+    src = SANDBOX.read_text(encoding="utf-8")
+    assert "verification_token" in src, (
+        "the reset no longer arms a verification token: the journey would start one "
+        "step after where a real artist starts")
+    assert "page=verify&token=" in src, (
+        "the reset does not print the verification link — the account would be "
+        "unverified AND unreachable, which is worse than skipping the step")
+    assert "--verified" in src, "no way to skip the step when you just want in"
+
+
+def test_every_selectable_platform_maps_to_a_tab_that_exists():
+    """Otherwise narrowing HIDES what the artist just ticked.
+
+    The onboarding selection is per PLATFORM; the credentials tabs are per
+    CREDENTIAL. Instagram has no tab of its own — it is entered inside Meta's — so a
+    naive `key in focus` folded Instagram away for an artist who had just chosen it:
+    worse than the six tabs it replaced. Caught in a browser on the first try.
+
+    `apple_music` legitimately has no tab: it is a CSV import, nothing to type here.
+    """
+    import sys
+    sys.path.insert(0, str(REPO))
+    from src.dashboard.content.platform_value import PLATFORM_VALUES
+    from src.dashboard.views.credentials._registry import PLATFORMS
+    from src.dashboard.views.credentials.router import _TAB_FOR_PLATFORM
+
+    csv_only = {"apple_music"}
+    unreachable = [
+        pv.key for pv in PLATFORM_VALUES
+        if pv.key not in csv_only
+        and _TAB_FOR_PLATFORM.get(pv.key, pv.key) not in PLATFORMS
+    ]
+    assert not unreachable, (
+        f"{unreachable} can be ticked during setup but map to no credentials tab: on "
+        "a first run the page would fold away exactly what the artist chose."
     )

@@ -28,6 +28,7 @@ again — same tenant, same login, nothing carried over.
 from __future__ import annotations
 
 import argparse
+import os
 import secrets
 import sys
 from datetime import datetime, timezone
@@ -108,6 +109,8 @@ def main() -> int:
     ap.add_argument("--reset", action="store_true",
                     help="vide identifiants et données collectées, garde le compte")
     ap.add_argument("--delete", action="store_true", help="supprime le locataire et son compte")
+    ap.add_argument("--verified", action="store_true",
+                    help="saute l'étape de vérification d'e-mail (compte prêt à l'emploi)")
     ap.add_argument("--dry-run", action="store_true")
     args, unknown = ap.parse_known_args()
     if unknown:
@@ -168,20 +171,32 @@ def main() -> int:
         from src.dashboard.auth import hash_password
         password = secrets.token_urlsafe(12)
         now = datetime.now(timezone.utc)
+
+        # Le parcours d'un vrai artiste COMMENCE à la vérification de l'e-mail, et
+        # `--reset` sautait cette étape (`email_verified = TRUE`). Signalé le
+        # 2026-09-04 : « ça ne nous remet pas à l'étape de mail à vérifier ». Or
+        # `authenticate` refuse un compte non vérifié — la seule façon de rejouer
+        # l'étape est donc de poser le jeton ET d'imprimer le lien, sans dépendre de
+        # l'arrivée d'un mail : le bac à sable sert justement à ne dépendre de rien.
+        verified = args.verified
+        token = None if verified else secrets.token_urlsafe(32)
+
         user = db.fetch_query("SELECT id FROM saas_users WHERE artist_id = %s", (artist_id,))
         if user:
             db.execute_query(
                 "UPDATE saas_users SET password_hash = %s, email = %s, "
-                "email_verified = TRUE, active = TRUE, token_version = token_version + 1 "
+                "email_verified = %s, verification_token = %s, "
+                "active = TRUE, token_version = token_version + 1 "
                 "WHERE id = %s",
-                (hash_password(password), email, user[0][0]))
+                (hash_password(password), email, verified, token, user[0][0]))
             print(f"{_OK} compte existant mis à jour — mot de passe régénéré")
         else:
             db.execute_query(
                 "INSERT INTO saas_users (username, email, password_hash, artist_id, role, "
-                "active, email_verified, terms_accepted, terms_accepted_at) "
-                "VALUES (%s, %s, %s, %s, 'artist', TRUE, TRUE, TRUE, %s)",
-                (slug, email, hash_password(password), artist_id, now))
+                "active, email_verified, verification_token, terms_accepted, "
+                "terms_accepted_at) "
+                "VALUES (%s, %s, %s, %s, 'artist', TRUE, %s, %s, TRUE, %s)",
+                (slug, email, hash_password(password), artist_id, verified, token, now))
             print(f"{_OK} compte artiste créé")
 
         # Le même essai qu'une vraie inscription : sans lui, le parcours répété ne
@@ -194,6 +209,13 @@ def main() -> int:
         print("─" * 62)
         print(f"  Connexion : {email}")
         print(f"  Mot de passe : {password}")
+        if token:
+            base = (os.getenv("APP_BASE_URL") or "http://localhost:8501").rstrip("/")
+            print("─" * 62)
+            print("  ⚠️  Compte NON vérifié — le parcours commence ici, comme pour un")
+            print("      vrai artiste. Ouvre ce lien AVANT de te connecter :")
+            print(f"  {base}/?page=verify&token={token}")
+            print("      (`--verified` saute cette étape quand tu veux juste entrer.)")
         print("─" * 62)
         print("  Le garde d'unicité laisse ce locataire réutiliser TES identifiants.")
         print("  Il collecte pour de vrai ; il ne compte dans aucune statistique.")

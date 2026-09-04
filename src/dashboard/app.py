@@ -347,6 +347,11 @@ def _first_run_landing(role: str) -> str:
         return 'home'
 
 
+# Les pages qui font PARTIE de la mise en route. Le mode « première connexion » les
+# traverse toutes ; il s'éteint sur la première page qui n'en est pas.
+_SETUP_PAGES = frozenset({'onboarding', 'credentials', 'upload_csv', 'process_guide'})
+
+
 def resolve_nav_page(role: str = 'artist'):
     """Decide the active page and repair nav state — WITHOUT drawing anything.
 
@@ -384,10 +389,16 @@ def resolve_nav_page(role: str = 'artist'):
         # `_select_nav_radio` ci-dessous lui donne la seule valeur correcte.
 
     page = st.session_state.get('_nav_page', 'home')
-    # Le mode « première connexion » ne survit pas à la sortie de l'assistant : dès que
-    # la page est autre chose, l'artiste a vu l'application, et y revenir par le menu
-    # doit la lui rendre entière.
-    if page != 'onboarding':
+    # Le mode « première connexion » couvre le PARCOURS de mise en route, pas la seule
+    # page de l'assistant. Il ne durait qu'un écran : le bouton « Connecter ma
+    # sélection » mène à Credentials, la page changeait, le drapeau tombait — et la
+    # page qui doit justement se réduire aux plateformes cochées les affichait toutes
+    # les six. Vérifié au navigateur le 2026-09-04.
+    #
+    # Il meurt dès que l'artiste est ailleurs que dans son installation : l'accueil ou
+    # n'importe quelle vue d'analyse veut dire qu'il est entré dans l'application, et
+    # y revenir plus tard par le menu doit la lui rendre entière.
+    if page not in _SETUP_PAGES:
         st.session_state.pop(FIRST_RUN_FOCUS, None)
     # Toujours, pas seulement à la réparation. `utils.navigation.goto` remet toutes les
     # radios à `None` — le menu n'affichait donc AUCUNE sélection après un bouton

@@ -28,7 +28,10 @@ _DYNAMIC_PREFIXES = (
     "home.dag.", "meta_ads_overview.dim.", "meta_ads_overview.gender.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",
-    "onboarding.caveat.", "onboarding.value.", "upgrade.page.",
+    "onboarding.caveat.", "onboarding.value.",
+    # `t(f"onboarding.download_guide_{code}")` — une clé par langue, construite
+    # à l'appel : les deux boutons de téléchargement du guide (2026-09-04).
+    "onboarding.download_guide_", "upgrade.page.",
     "upload_csv.platform.",
 )
 
