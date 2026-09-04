@@ -154,3 +154,82 @@ def test_which_pages_survive_a_first_arrival(page, first_run, honoured):
         f"page={page!r}, première arrivée={first_run} : le paramètre d'URL devrait "
         f"{'être honoré' if honoured else 'céder à la mise en route'}"
     )
+
+
+# ── L'admin, qui ne sera jamais amené ici ────────────────────────────────────
+
+def test_an_admin_is_told_why_the_landing_never_arms_for_them():
+    """La règle est juste ; c'est son silence qui coûtait.
+
+    `_setup_is_unfinished` renvoie `False` dès la première ligne pour `role ==
+    'admin'` — un admin n'a pas d'`artist_id`, donc pas de mise en route. C'est
+    voulu, et c'est invisible : il se connecte, atterrit sur l'accueil avec le menu
+    complet, ouvre l'assistant depuis le menu, et conclut que l'atterrissage est
+    cassé. Demandé deux fois le 2026-09-04 — « on n'arrive pas directement sur mise
+    en route, c'est normal ? », « pourquoi on retrouve le volet de navigation ? ».
+
+    Vérifié en base de production avant d'écrire quoi que ce soit : le compte qui
+    posait la question est `role=admin`, `artist_id` NULL, et les deux locataires
+    artistes sont à 0/4 — le mécanisme marche, il ne s'adressait simplement pas à
+    celui qui le testait.
+
+    Le test porte sur la RÈGLE — la sortie de l'admin est gardée par `is_admin()` —
+    et sur le fait qu'elle nomme le bac à sable, qui est la façon de tester le
+    parcours pour de vrai.
+    """
+    import ast as _ast
+
+    onb = _ROOT / "src" / "dashboard" / "views" / "onboarding.py"
+    src = onb.read_text(encoding="utf-8")
+    tree = _ast.parse(src)
+    fn = next(f for f in _ast.walk(tree)
+              if isinstance(f, _ast.FunctionDef) and f.name == "_step_welcome")
+
+    guarded = [n for n in _ast.walk(fn)
+               if isinstance(n, _ast.If)
+               and any(isinstance(c, _ast.Call) and getattr(c.func, "id", "") == "is_admin"
+                       for c in _ast.walk(n.test))]
+    assert guarded, (
+        "rien n'explique à un admin pourquoi l'atterrissage ne s'arme pas pour lui — "
+        "il conclura que c'est cassé, comme deux fois le 2026-09-04")
+
+    literals = [n.value for n in _ast.walk(guarded[0])
+                if isinstance(n, _ast.Constant) and isinstance(n.value, str)]
+    joined = " ".join(literals).lower()
+    assert "sandbox" in joined or "bac à sable" in joined, (
+        "le message n'indique pas le compte bac à sable : il dit que c'est normal "
+        "sans dire comment tester le parcours pour de vrai")
+
+    from src.dashboard.utils.i18n_catalog.onboarding import EN
+    assert "onboarding.admin_preview" in EN, (
+        "l'explication n'a pas de traduction : un admin anglophone lirait le français")
+
+
+def test_the_admin_note_is_not_shown_to_artists():
+    """Sept artistes n'ont aucune raison de lire une note sur les comptes admin.
+
+    C'est la moitié qu'on rate en ajoutant une explication : la rendre générale. Le
+    dépôt a déjà payé « du texte adressé au mauvais lecteur » — un parcours artiste
+    entier où l'information existait, sous un titre où le lecteur ne se reconnaît pas.
+    """
+    import ast as _ast
+
+    onb = _ROOT / "src" / "dashboard" / "views" / "onboarding.py"
+    tree = _ast.parse(onb.read_text(encoding="utf-8"))
+    calls = [n for n in _ast.walk(tree) if isinstance(n, _ast.Call)
+             and any(isinstance(c, _ast.Constant) and c.value == "onboarding.admin_preview"
+                     for c in _ast.walk(n))]
+    assert calls, "la clé `onboarding.admin_preview` n'est plus rendue"
+
+    fn = next(f for f in _ast.walk(tree)
+              if isinstance(f, _ast.FunctionDef) and f.name == "_step_welcome")
+    inside_guard = any(
+        isinstance(n, _ast.If)
+        and any(isinstance(c, _ast.Call) and getattr(c.func, "id", "") == "is_admin"
+                for c in _ast.walk(n.test))
+        and any(isinstance(k, _ast.Constant) and k.value == "onboarding.admin_preview"
+                for k in _ast.walk(n))
+        for n in _ast.walk(fn))
+    assert inside_guard, (
+        "la note admin est rendue hors du `if is_admin()` : tous les artistes la "
+        "liraient")

@@ -3,6 +3,14 @@
 EN = {
     # Step 1 — Welcome
     "onboarding.welcome_title": "🎵 Welcome to streaMLytics!",
+    "onboarding.admin_preview": (
+        "🔧 **Admin account.** Landing on this page automatically only arms for an "
+        "**artist** account whose setup is unfinished — an admin has no `artist_id`, "
+        "so no setup. You see this page exactly as an artist sees it, but you will "
+        "never be brought here on your own.\n\n"
+        "To replay the whole journey, sign in with the **sandbox** account: that is "
+        "the tenant made for it."
+    ),
     "onboarding.pick_action": "👉 Tick what you want to set up now",
     "onboarding.pick_hint": "You do not have to connect everything. The rest will wait in the **API Credentials** tab, later, inside the app.",
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",

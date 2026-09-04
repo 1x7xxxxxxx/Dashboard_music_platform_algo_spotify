@@ -20,8 +20,11 @@ Le `Dockerfile` copiait `src/`, `config/` et `.streamlit/`. Pas `assets/` — 24
 
 Ce qui rend la classe silencieuse
 ----------------------------------
-Les DEUX surfaces qui affichent cette image traitent l'absence comme « rien à
-montrer » : `_spotify_shot()` renvoie `None`, et le rendu du guide saute l'étape.
+Le rendu du guide traite l'absence comme « rien à montrer » : `screenshot_path()`
+rend un chemin inexistant, et l'étape se dessine sans son image. Une seconde copie
+vivait alors dans le formulaire — ajoutée, précisément, pour compenser une image
+qu'on croyait mal placée alors qu'elle était absente ; elle est repartie le soir même
+(« il y a 2 screen, c'est très moche »).
 C'est le bon comportement pour un artiste — une image cassée serait pire — mais il
 transforme un fichier manquant en page simplement plus courte. Rien ne lève, rien ne
 se journalise, et la seule personne qui peut voir le manque est celle qui regarde
@@ -143,3 +146,49 @@ def test_the_spotify_screenshot_is_the_one_that_was_reported():
         f"{shot} pèse {shot.stat().st_size} octets — un fichier tronqué s'affiche "
         "aussi mal qu'un fichier absent")
     assert assets_dir().exists(), "le répertoire des captures n'existe plus"
+
+
+# ── Une seule copie, du bon côté ─────────────────────────────────────────────
+
+def test_the_form_column_renders_no_screenshot_of_its_own():
+    """La capture appartient au guide, pas au formulaire.
+
+    Elle a vécu dans les deux du 2026-09-04 au soir du même jour, et la raison de la
+    seconde copie était fausse : le guide portait déjà la sienne, mais elle ne
+    s'affichait pas EN PRODUCTION — `assets/` n'était pas dans l'image Docker. J'ai
+    donc ajouté une copie pour compenser un fichier manquant, ce qui a caché la cause
+    quatre jours de plus.
+
+    Le fichier livré, il en restait deux à 100 px l'une de l'autre : « il y a 2
+    screen, c'est très moche ». Celle qui part est celle du FORMULAIRE, et le critère
+    n'est pas l'esthétique : l'image montre le menu `•••` **sur le site de Spotify**,
+    donc elle illustre l'étape 1 du guide. À côté du champ elle ne répond à rien —
+    quand on y arrive, le lien est déjà dans le presse-papier.
+
+    Mesuré : une image, x=1017, alignée avec l'entête du guide (x=1001).
+    """
+    import ast
+
+    render = _ROOT / "src/dashboard/views/credentials/_render.py"
+    tree = ast.parse(render.read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
+    images = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+              and getattr(n.func, "attr", "") == "image"]
+    assert not images, (
+        f"{len(images)} `st.image` dans l'onglet de saisie : la capture du guide y est "
+        "dupliquée, à une centaine de pixels de l'originale")
+
+
+def test_the_guide_still_carries_it():
+    """L'autre moitié : retirer la copie ne doit pas retirer l'image.
+
+    Sans cette assertion, la précédente serait satisfaite par une page sans aucune
+    capture — c'est-à-dire par l'état de la production pendant cinq signalements.
+    """
+    spotify = next(g for g in CREDENTIAL_GUIDES if g.key == "spotify")
+    shots = [s.screenshot for s in spotify.steps if s.screenshot]
+    assert shots == ["spotify_share_artist_link.png"], (
+        f"le guide Spotify ne porte plus exactement une capture : {shots}")
+    assert spotify.steps[0].screenshot, (
+        "la capture n'est plus sur l'étape qu'elle illustre — le clic sur `•••`")

@@ -5,6 +5,109 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 25) — Une capture de trop, et un mécanisme qui ne parlait pas à son testeur
+
+### La seconde copie n'aurait jamais dû exister
+
+Elle avait été ajoutée dans le formulaire pour répondre à « il n'y a pas le screen »
+— alors que la cause était le fichier absent de l'image Docker. **J'ai compensé un
+bug par un doublon**, ce qui a masqué la cause quatre jours de plus et produit le
+« très moche » d'aujourd'hui : le déploiement qui a livré `assets/` a rendu visible
+la copie du guide, donc deux images à 100 px l'une de l'autre.
+
+Celle qui part est celle du formulaire, et le critère n'est pas l'esthétique :
+l'image montre le menu `•••` **sur le site de Spotify**, donc elle illustre l'étape 1
+du guide. À côté du champ elle ne répond à rien — quand on y arrive, le lien est déjà
+copié. Le lien entre les deux colonnes est la flèche de l'étape 3 : « Colle le lien ⬅
+dans **URL profil artiste** ».
+
+Mesuré après : une image, x=1017, alignée avec l'entête du guide (x=1001).
+
+### « Appliqué » ne veut pas dire « déployé »
+
+Signalé une heure plus tard : « j'ai toujours les 2 images ». C'était exact — la prod
+tournait sur le commit qui *livre le fichier*, pas sur celui qui *retire le doublon*,
+lequel n'était que local. J'avais écrit « appliqué » sans dire « pas encore poussé ».
+La même confusion présence/visibilité que la veille, déplacée d'un cran : local/prod.
+
+### Le mécanisme d'atterrissage marchait ; il ne parlait pas à son testeur
+
+« On n'arrive pas directement sur mise en route après première connexion, c'est
+normal ? » — et la veille, « pourquoi on retrouve le volet de navigation ? ». Deux
+questions, une cause, lue en base de PRODUCTION avant d'écrire une ligne :
+
+    Timothé  | admin  | artist_id = NULL
+    sandbox  | artist | artist_id 18 | 0/4 étapes
+    artiste1 | artist | artist_id 17 | 0/4 étapes
+
+`_setup_is_unfinished()` renvoie `False` dès sa première ligne pour `role == 'admin'`.
+C'est voulu — un admin n'a pas d'`artist_id`, donc pas de configuration — et les deux
+locataires artistes, à 0/4, atterriraient bien sur l'assistant. **Le mécanisme
+fonctionne ; il ne s'adressait pas à celui qui le testait.**
+
+Deux fois la même question en deux messages : le défaut n'est donc pas la règle, c'est
+son silence. Un encadré visible **des seuls admins** dit maintenant pourquoi, et
+renvoie vers le compte bac à sable — le locataire créé exactement pour rejouer ce
+parcours. Le second garde vérifie l'autre moitié : que sept artistes ne lisent pas une
+note sur les comptes admin (« du texte adressé au mauvais lecteur », déjà payé).
+
+### Le cliquet anti-gardes-textuels promettait une exemption qu'il n'avait pas
+
+Il a refusé le garde du Dockerfile, alors que son propre message annonce : « If this
+file really cannot parse (it inspects Markdown, a Makefile, a workflow), it does not
+trip this test at all ». Le prédicat ne regardait pas ce qui est lu.
+
+Corrigé — il ne se déclenche que sur les fichiers qui nomment du `.py` — et sa liste
+blanche est passée de **32 à 21**. Les onze retirées n'avaient jamais relevé de ce
+cliquet (migrations SQL, CI, ROADMAP) : listées, elles constituaient du budget pour un
+futur garde textuel sur du Python que personne n'aurait décidé d'admettre.
+
+---
+
+## 2026-09-04 (suite 24) — La capture n'était pas dans l'image de production
+
+Cinquième signalement. Il avait raison les cinq fois ; j'ai répondu « elle y est »
+les cinq fois — en la mesurant **en local**, où le dépôt entier est sur le disque.
+
+    $ docker exec streamlytics_dashboard ls /app/assets/credential_guide/spotify/
+    ls: cannot access '…': No such file or directory
+
+Le `Dockerfile` copiait `src/`, `config/` et `.streamlit/`. Pas `assets/` — 240 Ko.
+Et ce n'était pas une capture : **les huit** étaient absentes, les six du guide
+YouTube et celle de Meta comprises. Aucune n'avait jamais été vue en production.
+
+### Ce qui rend la classe silencieuse
+
+Les deux surfaces qui affichent ces images traitent l'absence comme « rien à
+montrer » : `_spotify_shot()` renvoie `None`, le rendu du guide saute l'étape. C'est
+le bon comportement pour un artiste — une image cassée serait pire — mais il
+transforme un fichier manquant en **page simplement plus courte**. Rien ne lève, rien
+ne se journalise, et la seule personne qui peut voir le manque est celle qui regarde
+l'écran de prod.
+
+### Quatre corrections justes qui n'atteignaient pas la cause
+
+Déplacer la capture sous le champ, la rapprocher du guide, raccourcir le texte
+autour, sortir la matrice pour lui faire de la place : tout cela était demandé, tout
+cela était juste, et rien de tout cela ne pouvait marcher.
+
+L'erreur de méthode est nommable. « Il n'y a pas le screen » est une observation
+faite **en production** ; j'y ai répondu par une vérification faite **en local**. Ce
+sont deux questions différentes, et j'ai pris la seconde pour une réponse à la
+première — quatre fois de suite, chaque fois en produisant une mesure qui avait l'air
+d'une preuve.
+
+### Le garde lit les deux côtés
+
+`test_the_image_ships_with_the_app` compare les `COPY` du Dockerfile aux répertoires
+que le CODE résout — `assets_dir()` est lu, pas recopié — vérifie que
+`.dockerignore` n'exclut pas ce qu'on copie (l'autre moitié du même défaut : un COPY
+qui copie du vide sans avoir l'air faux), et que chaque capture nommée par un guide
+existe sur le disque. La mutation qui retire le `COPY assets/` reproduit l'état exact
+de la prod d'avant.
+
+---
+
 ## 2026-09-04 (suite 23) — Le sélecteur ne porte plus que ses cases
 
 Trois légendes accompagnaient chaque plateforme — sa valeur, « À fournir : … », et le

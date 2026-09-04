@@ -480,6 +480,5 @@ EN = {
         "⚠️ No `act=` in this address. Check that you copied the address bar **of "
         "Ads Manager**, with an account open."
     ),
-    "credentials.spotify.shot_caption": "The ••• button → Share → Copy link to artist",
     "credentials.form.example_inline": "e.g. {ex}",
 }

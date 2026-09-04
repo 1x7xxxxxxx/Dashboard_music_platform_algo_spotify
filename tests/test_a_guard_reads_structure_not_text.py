@@ -41,11 +41,15 @@ from pathlib import Path
 _TESTS = Path(__file__).resolve().parent
 
 # Frozen 2026-08-30. This list may only ever get SHORTER.
+# 2026-09-04 : passée de 32 à 21. Onze entrées n'ont pas été « autorisées » puis
+# oubliées — elles ne relevaient JAMAIS de ce cliquet : elles gardent des migrations
+# SQL, un Makefile, des workflows CI, la ROADMAP. Le prédicat les attrapait par
+# excès de portée, et les avoir listées donnait du budget à un futur garde textuel
+# sur du Python que personne n'aurait décidé d'admettre.
 _TEXTUAL_GUARDS = {
     "test_a_guide_never_asks_for_a_dead_uri.py",
     "test_a_mirrored_identity_is_seen_by_every_reader.py",
     "test_a_tenant_flag_is_applied_everywhere.py",
-    "test_a_traceback_never_reaches_the_visitor.py",
     "test_alert_subject_names_the_tenant.py",
     "test_allowed_tables_coverage.py",
     "test_an_artist_never_reads_our_plumbing.py",
@@ -53,33 +57,42 @@ _TEXTUAL_GUARDS = {
     "test_canary_onboarding_walk.py",
     "test_claude_config_floor.py",
     "test_env_is_root_anchored.py",
-    "test_error_class_index_is_complete.py",
     "test_every_dag_imports.py",
     "test_every_dev_doc_is_reachable.py",
     "test_i18n.py",
     "test_i18n_orphans.py",
     "test_identity_fields_collectable.py",
-    "test_local_and_ci_run_the_same_suite.py",
-    "test_migrate_reports_errors.py",
-    "test_migrations_are_replay_safe.py",
-    "test_no_ecosystem_auto_merges_a_major.py",
     "test_only_production_puts_mail_on_the_wire.py",
     "test_operational_scripts_are_reachable_in_containers.py",
     "test_os_hints.py",
     "test_probes_scoped_to_repo.py",
-    "test_roadmap_index_is_honest.py",
-    "test_roadmap_two_files.py",
-    "test_the_resume_header_is_checked.py",
-    "test_the_tests_run_the_airflow_production_runs.py",
     "test_the_views_map_lists_every_view.py",
-    "test_the_websocket_survives_the_proxy.py",
     "test_view_connection_budget.py",
 }
 
 
 def _reads_source_textually(path: Path) -> bool:
+    """Lit-il du code PYTHON par correspondance de chaînes ?
+
+    Le troisième terme a été ajouté le 2026-09-04 : sans lui, le prédicat attrapait
+    tout fichier lisant un fichier quelconque. Il a refusé un garde qui compare les
+    `COPY` d'un **Dockerfile** aux répertoires que le code résout — alors que le
+    message de ce test promet exactement cette exemption : « If this file really
+    cannot parse (it inspects Markdown, a Makefile, a workflow), it does not trip
+    this test at all ». La promesse était écrite, elle n'était pas implémentée.
+
+    Ce que le cliquet vise est précis : inspecter du Python par le TEXTE, là où
+    `ast` répond mieux. Un Dockerfile, un Makefile ou un Markdown n'ont pas d'arbre —
+    les y interdire ne protège rien et pousse à recopier une liste blanche.
+    """
     body = path.read_text(encoding="utf-8")
-    return "read_text(encoding" in body and "ast.parse" not in body and "ast.walk" not in body
+    if "ast.parse" in body or "ast.walk" in body:
+        return False
+    if "read_text(encoding" not in body:
+        return False
+    # Nomme-t-il des fichiers Python ? `".py"` couvre les deux formes utilisées ici :
+    # un chemin littéral (`… / "app.py"`) et un balayage (`rglob("*.py")`).
+    return '.py"' in body or ".py'" in body
 
 
 def test_no_new_textual_guard_is_added():

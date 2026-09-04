@@ -17,7 +17,7 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.tz import to_local_datetime
 from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import get_lang, t
-from src.dashboard.auth import tenant_scope, get_artist_plan
+from src.dashboard.auth import tenant_scope, get_artist_plan, is_admin
 from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.content.platform_value import (
     COLUMN_CSV, COLUMN_LONGER, COLUMN_QUICK, SETUP_COLUMN_ORDER,
@@ -200,6 +200,27 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     que tu perds · 3 le guide et le temps que ça coûte.
     """
     st.title(t("onboarding.welcome_title", "🎵 Bienvenue sur streaMLytics !"))
+
+    # Un ADMIN qui ouvre cette page ne verra jamais le parcours qu'elle décrit, et
+    # rien ne le lui disait. `_setup_is_unfinished` renvoie False dès la première
+    # ligne pour `role == 'admin'` — c'est voulu (un admin n'a pas de configuration
+    # à faire, `artist_id` vaut NULL) mais c'est invisible : il se connecte, atterrit
+    # sur l'accueil avec le menu complet, ouvre l'assistant depuis le menu, et conclut
+    # que l'atterrissage est cassé. Demandé deux fois le 2026-09-04, dans ces termes :
+    # « on n'arrive pas directement sur mise en route, c'est normal ? »
+    #
+    # La réponse tient en deux phrases et n'a de sens que pour lui — d'où le garde
+    # `is_admin()`, et pas une note générale que sept artistes liraient sans raison.
+    if is_admin():
+        st.info(t(
+            "onboarding.admin_preview",
+            "🔧 **Compte admin.** L'atterrissage automatique sur cette page ne "
+            "s'arme que pour un compte **artiste** dont la configuration n'est pas "
+            "terminée — un admin n'a pas d'`artist_id`, donc pas de mise en route. "
+            "Tu vois cette page telle qu'un artiste la voit, mais tu n'y seras "
+            "jamais amené tout seul.\n\n"
+            "Pour rejouer le parcours en entier, connecte-toi avec le compte "
+            "**bac à sable** (`sandbox`) : c'est le locataire créé pour ça."))
 
     _language_buttons()
 

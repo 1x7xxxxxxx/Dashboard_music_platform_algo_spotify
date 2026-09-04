@@ -50,17 +50,6 @@ from src.dashboard.auth import is_admin
 VERDICT_KEY = "_cred_last_verdict"
 
 
-def _spotify_shot():
-    """Le chemin de la capture du menu Partager, ou None si elle manque.
-
-    Le MÊME fichier que celui du guide, résolu par le même chemin : une copie dans
-    les assets serait une capture qui vieillit deux fois et ne se met à jour qu'une.
-    """
-    from src.dashboard.content.credential_guides import screenshot_path
-    path = screenshot_path("spotify_share_artist_link.png")
-    return path if path.exists() else None
-
-
 def platform_label(platform_key: str) -> str:
     """Le nom que l'artiste voit sur l'onglet, jamais la clé technique.
 
@@ -388,14 +377,20 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             # n'y a toujours pas la capture à côté ou juste en dessous de saisir tes
             # identifiants ». Une image qui montre OÙ trouver la valeur doit être lue
             # AVANT de la saisir, pas après avoir validé.
-            if platform_key == 'spotify':
-                _shot = _spotify_shot()
-                if _shot is not None:
-                    st.image(str(_shot),
-                             caption=t("credentials.spotify.shot_caption",
-                                       "Le bouton ••• → Partager → Copier le lien "
-                                       "vers l'artiste"),
-                             use_container_width=True)
+            # Pas de capture ICI. Elle y a vécu du 2026-09-04 au soir du même
+            # jour, et pour une raison qui s'est révélée fausse : le guide de droite
+            # portait déjà la sienne, mais elle ne s'affichait pas EN PRODUCTION —
+            # `assets/` n'était pas dans l'image Docker. J'ai donc ajouté une
+            # deuxième copie pour compenser un fichier manquant.
+            #
+            # Le fichier livré, il en restait deux, à 100 px l'une de l'autre :
+            # « il y a 2 screen, c'est très moche ». Celle qui part est celle-ci, et
+            # pas l'autre : l'image montre le menu `•••` SUR LE SITE DE SPOTIFY,
+            # donc elle illustre l'étape 1 du guide, pas le champ. À côté du champ
+            # elle ne répond à rien — quand on y arrive, le lien est déjà copié.
+            #
+            # Le lien entre les deux colonnes est la flèche de l'étape 3 : « Colle le
+            # lien ⬅ dans **URL profil artiste** ».
 
             submitted = st.form_submit_button(
                 t("credentials.form.save", "💾 Enregistrer"),
