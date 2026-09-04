@@ -518,8 +518,8 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     # plateforme et son piège. Une phrase, pas un second inventaire : c'est ce qui la
     # distingue du bloc retiré le 2026-09-04.
     st.caption(t("onboarding.pick_first_time",
-                 "Les minutes indiquées sont **le temps de la première fois** — "
-                 "ensuite, tout se met à jour tout seul."))
+                 "**Ce que coûte chaque plateforme, la première fois** — les minutes "
+                 "ci-dessous. Ensuite, tout se met à jour tout seul."))
 
     selection: list[str] = []
     for pv in ordered_for_setup(configured):

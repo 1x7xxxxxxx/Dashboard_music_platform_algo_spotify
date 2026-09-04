@@ -39,12 +39,17 @@ lue comme « supprime la répétition », pas comme « garde les deux » — et 
 a porté sur le bloc de la page 1, parce qu'il ne portait rien que les cases n'aient
 déjà.
 
-Vérifié champ par champ avant de conclure : icône, nom, minutes, ⭐ recommandé et
-« À fournir » sont rendus par chaque case, qui y ajoute la valeur de la plateforme et
-son piège. **Une seule chose manquait** — la phrase disant que ces minutes sont le coût
-de la PREMIÈRE fois, demandée le matin même (« un total de 7 minutes ne dit pas si on
-peut en faire une maintenant »). Elle est revenue au-dessus des cases, en une ligne.
-Une phrase n'est pas un second inventaire : c'est la différence avec le bloc retiré.
+Vérifié au navigateur, élément par élément, avant de conclure — et le relevé est net :
+sur la page de bienvenue, **aucune** des six descriptions ne manque, **aucun** des
+quatre avertissements, **aucune** des durées. Chaque case porte icône, nom, minutes,
+⭐ et « À fournir », et y ajoute ce que l'ancienne liste n'avait pas : la valeur de la
+plateforme et son piège. « À fournir » est passé de 12 à 6 occurrences.
+
+**Ce qui manquait vraiment** était la formule elle-même — « ce que coûte chaque
+plateforme, la première fois » — demandée le matin même (« un total de 7 minutes ne dit
+pas si on peut en faire une maintenant »). Elle est revenue **en tête des cases**, en
+une ligne. Une phrase n'est pas un second inventaire : c'est la différence avec le bloc
+retiré, et c'est le compromis entre les deux lectures possibles de la demande.
 
 ### Ce que ça change pour qui lit
 
