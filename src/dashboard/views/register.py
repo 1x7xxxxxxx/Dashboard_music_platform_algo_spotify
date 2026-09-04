@@ -36,6 +36,7 @@ from src.utils.verification_email import (
     send_verification_email,
 )
 from src.utils.plan_history import log_plan_change
+from src.dashboard.content.platform_value import ordered_for_setup
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +299,8 @@ def _welcome_trial_msg() -> str:
 
 
 def _render_success(artist_name: str, email: str, discount_msg: str,
-                    email_sent: bool = True) -> None:
+                    email_sent: bool = True, resend: str = "verify",
+                    username: str | None = None, token: str | None = None) -> None:
     """The post-submit screen. The ONLY success renderer on this page.
 
     Both branches — account created, and address already taken — go through here, so
@@ -326,12 +328,109 @@ def _render_success(artist_name: str, email: str, discount_msg: str,
     # connexion. Le bouton promettait l'onboarding et livrait un formulaire de login
     # — signalé en test le 2026-08-30 (« ça nous emmène directement dans la page
     # d'accueil »).
-    #
-    # À cet instant, la seule action possible est dans sa boîte mail. On la nomme.
     st.info(t("register.next_step",
               "📬 **Prochaine étape : ouvre ta boîte mail.** Le lien de vérification "
-              "active ton compte — l'onboarding s'ouvre juste après."))
+              "active ton compte — l'onboarding s'ouvre juste après.\n\n"
+              "Il part **immédiatement** et arrive en général en moins d'une minute. "
+              "S'il n'est pas là : regarde dans les **spams**, et chez Gmail dans "
+              "l'onglet **Promotions**."))
+
+    _resend_button(email, resend, username, token)
     st.link_button(t("register.login_btn", "→ J'ai vérifié, me connecter"), "/")
+
+    # ── Ce qu'on peut faire PENDANT l'attente ────────────────────────────────
+    #
+    # Signalé le 2026-09-04 : « beaucoup de temps entre l'inscription et la réception
+    # du mail, et on ne sait pas quoi faire en attendant ». L'envoi n'y est pour rien
+    # — la poignée de main SMTP mesurée en production coûte 0,24 s ; c'est la
+    # DISTRIBUTION qui prend une minute, et pendant cette minute l'écran ne proposait
+    # rien. Le travail suivant est réel et ne demande aucun compte : rassembler ses
+    # identifiants. Autant le faire maintenant.
+    st.markdown("---")
+    st.markdown("### " + t("register.meanwhile", "⏳ Pendant que le mail arrive"))
+    _guide_download()
+    st.markdown(t("register.prepare_header",
+                  "**Rassemble ce que tu auras à coller**, c'est tout ce que la mise "
+                  "en route demande :"))
+    for pv in ordered_for_setup(set()):
+        star = t("onboarding.reco_tag", " — ⭐ recommandé") if pv.recommended else ""
+        st.markdown(f"- {pv.icon} **{pv.label}** · ≈{pv.effort_min} min{star} — "
+                    + t("onboarding.need", "À fournir : {need}").format(need=pv.need))
+    st.caption(t("register.prepare_hint",
+                 "Tu n'as pas besoin de tout : deux plateformes suffisent pour "
+                 "commencer, et tu pourras ajouter le reste quand tu veux."))
+
+
+def _guide_download() -> None:
+    """Le guide PDF, téléchargeable AVANT même d'avoir vérifié son adresse.
+
+    Il n'existait qu'après vérification (pièce jointe du mot de bienvenue) et dans
+    l'application. Or c'est exactement le document qu'on veut lire pendant qu'on
+    attend un mail — et il ne contient rien de personnel : c'est de la documentation.
+    """
+    try:
+        from src.dashboard.utils.guide_assets import credentials_guide_pdf
+        data = credentials_guide_pdf(get_lang())
+    except Exception:      # noqa: BLE001 — un PDF absent ne bloque pas l'inscription
+        data = None
+    if not data:
+        return
+    st.download_button(
+        t("register.download_guide", "📄 Télécharger le guide de démarrage (PDF)"),
+        data=data, file_name=f"streamlytics-guide-{get_lang()}.pdf",
+        mime="application/pdf", type="primary", key="_reg_guide")
+
+
+_RESEND_KEY = "_register_resend_at"
+_RESEND_COOLDOWN_S = 60
+
+
+def _resend_button(email: str, resend: str, username, token) -> None:
+    """Renvoyer le mail — la même forme dans les DEUX branches.
+
+    L'écran d'adresse-déjà-prise doit rester indiscernable de celui d'un compte créé
+    (oracle d'énumération). Le bouton est donc présent des deux côtés et fait la même
+    chose des deux côtés : un envoi SMTP, un booléen, le même message. Ce qui change
+    est le contenu du mail, que le visiteur ne voit pas.
+    """
+    import time
+
+    last = st.session_state.get(_RESEND_KEY, 0.0)
+    left = int(_RESEND_COOLDOWN_S - (time.time() - last))
+    if left > 0:
+        st.caption(t("register.resend_wait",
+                     "Tu pourras redemander un envoi dans {s} s.").format(s=left))
+        return
+    if not st.button(t("register.resend", "✉️ Je n'ai rien reçu — renvoyer le mail"),
+                     key="_reg_resend"):
+        return
+    st.session_state[_RESEND_KEY] = time.time()
+    ok = False
+    try:
+        if resend == "verify" and username and token:
+            ok = send_verification_email(email, username, token, lang=get_lang())
+        else:
+            with project_db() as db:
+                ok = _notify_existing_account(db, email)
+    except Exception:      # noqa: BLE001 — surface anonyme : jamais de détail
+        ok = False
+    if ok:
+        st.success(t("register.resent", "✅ Renvoyé à **{email}**.").format(email=email))
+    else:
+        st.warning(t("register.resend_failed",
+                     "L'envoi n'a pas abouti. Réessaie dans une minute."))
+
+
+def _remember_success(artist_name: str, email: str, discount_msg: str, *,
+                      email_sent: bool, resend: str,
+                      username: str | None = None, token: str | None = None) -> None:
+    """Mémorise l'écran de succès, puis relance pour qu'il devienne la page."""
+    st.session_state[_DONE_KEY] = {
+        "artist_name": artist_name, "email": email, "discount_msg": discount_msg,
+        "email_sent": email_sent, "resend": resend,
+        "username": username, "token": token,
+    }
+    st.rerun()
 
 
 def _notify_existing_account(db, email: str) -> bool:
@@ -353,7 +452,19 @@ def _notify_existing_account(db, email: str) -> bool:
         return False
 
 
+_DONE_KEY = "_register_done"
+
+
 def show():
+    # L'écran d'après-inscription ne vivait QUE pendant le run du submit : le moindre
+    # bouton dessus le faisait disparaître, puisque le rerun ne repasse pas dans la
+    # branche du formulaire. C'est pour ça qu'il ne portait qu'un `link_button` (un
+    # lien ne relance pas le script) — et donc rien à faire pendant l'attente du mail.
+    # On le mémorise, on le rend en tête, et il devient une vraie page.
+    if st.session_state.get(_DONE_KEY):
+        _render_success(**st.session_state[_DONE_KEY])
+        return
+
     # Title + pre-login language toggle on one row (toggle right-aligned), persisted
     # via ?lang= into the app.
     from src.dashboard.utils.i18n import language_selector
@@ -448,9 +559,11 @@ def show():
             # difference here — a distinct message, a missing button, a faster
             # response — is an account-enumeration oracle for an anonymous visitor.
             if _email_taken(db, email):
-                sent = _notify_existing_account(db, email)
-                _render_success(artist_name, email, _welcome_trial_msg(),
-                                email_sent=sent)
+                with st.spinner(t("register.sending",
+                                  "Envoi de ton e-mail de vérification…")):
+                    sent = _notify_existing_account(db, email)
+                _remember_success(artist_name, email, _welcome_trial_msg(),
+                                  email_sent=sent, resend="existing")
                 return
             # slug + username are auto-derived (hidden fields) and made unique here.
             slug, username = _derive_identifiers(db, artist_name)
@@ -507,8 +620,16 @@ def show():
             # The welcome email + onboarding guide PDF is sent AFTER the user confirms
             # their address (see app._verify_email), not here — so the guide only reaches
             # a proven-deliverable inbox.
-            email_sent = send_verification_email(email, username, token, lang=get_lang())
-            _render_success(artist_name, email, discount_msg, email_sent=email_sent)
+            # L'envoi est dans le chemin de la requête, et il le restera : la réponse
+            # doit dire si le mail est parti. Ce qui change, c'est qu'on NOMME
+            # l'attente — un spinner muet et un écran figé se ressemblent trop.
+            with st.spinner(t("register.sending",
+                              "Envoi de ton e-mail de vérification…")):
+                email_sent = send_verification_email(email, username, token,
+                                                     lang=get_lang())
+            _remember_success(artist_name, email, discount_msg,
+                              email_sent=email_sent, resend="verify",
+                              username=username, token=token)
 
         except Exception as e:  # noqa: BLE001 — anonymous surface, see module docstring
             ref = public_error_ref(e, logger, "registration")

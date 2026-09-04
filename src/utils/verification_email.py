@@ -18,6 +18,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Plafond de panne, pas de latence : 0,24 s mesurés en production.
+_SMTP_TIMEOUT_S = 15
+
 # Public base URL used in verification + welcome links. Override in prod via the
 # APP_BASE_URL env var (e.g. https://app.streamlytics.io); defaults to local dev.
 #
@@ -111,7 +114,12 @@ def _send_html(to_email: str, subject: str, html: str,
         for _att in (attachments or []):
             _attach_pdf(msg, _att)
 
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+                # `timeout=` EXPLICITE. Sans lui, `smtplib.SMTP` attend le délai TCP du
+        # système — jusqu'à ~2 minutes sur Linux — et cet appel est DANS le chemin de
+        # la requête : l'artiste regarde un spinner pendant que le serveur de mail ne
+        # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
+        # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
             server.starttls()
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
@@ -344,7 +352,12 @@ def send_verification_email(to_email: str, username: str, token: str,
             'email.verify.subject', "🎵 Vérifiez votre compte streaMLytics", lang)
         msg.attach(MIMEText(html, 'html'))
 
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+                # `timeout=` EXPLICITE. Sans lui, `smtplib.SMTP` attend le délai TCP du
+        # système — jusqu'à ~2 minutes sur Linux — et cet appel est DANS le chemin de
+        # la requête : l'artiste regarde un spinner pendant que le serveur de mail ne
+        # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
+        # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
             server.starttls()
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)

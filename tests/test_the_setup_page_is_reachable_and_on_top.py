@@ -657,3 +657,66 @@ def test_the_trial_reminder_never_fires_twice():
         "audience gate would burn it and the artist would never be warned.")
     assert "is_canary" in src and "is_sandbox" in src, (
         "the reminder targets canaries or sandboxes — accounts we create ourselves")
+
+
+def test_every_smtp_connection_declares_a_timeout():
+    """Error class: an unbounded socket in the request path.
+
+    `smtplib.SMTP(host, port)` with no `timeout=` waits for the OS TCP timeout — up to
+    ~2 minutes on Linux — and one of these calls runs inside the SIGNUP submit, so the
+    artist watches a spinner for that long. Measured 2026-09-04: the real handshake
+    costs 0.24 s in production, so the cap bounds the OUTAGE and never the nominal case.
+    Four call sites had none.
+    """
+    for rel in ("src/utils/verification_email.py", "src/utils/email_alerts.py"):
+        tree = ast.parse((REPO / rel).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in {"SMTP", "SMTP_SSL"}):
+                continue
+            kw = {k.arg for k in node.keywords}
+            assert "timeout" in kw, (
+                f"{rel}:{node.lineno} opens an SMTP connection with no timeout — a "
+                "mail server that stops answering freezes the page that called it."
+            )
+
+
+def test_the_post_signup_screen_gives_something_to_do(tmp_path):
+    """Rendered, not asserted from the source — and it must survive a rerun.
+
+    « Beaucoup de temps entre l'inscription et la réception du mail, et on ne sait pas
+    quoi faire en attendant » (2026-09-04). The screen existed only during the submit
+    run: any button on it vanished on the next rerun, which is why it carried nothing
+    but a link. It is remembered in session state now, so it can carry actions.
+    """
+    from streamlit.testing.v1 import AppTest
+
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(REPO)!r})\n"
+        f"sys.path.insert(0, {str(REPO / 'src' / 'dashboard')!r})\n"
+        "import streamlit as st\n"
+        "st.session_state['_register_done'] = {\n"
+        "    'artist_name': 'A', 'email': 'a@b.c', 'discount_msg': '',\n"
+        "    'email_sent': True, 'resend': 'verify',\n"
+        "    'username': 'a', 'token': 't'}\n"
+        "from views.register import show\n"
+        "show()\n",
+        encoding="utf-8")
+
+    at = AppTest.from_file(str(probe), default_timeout=60).run()
+    assert not at.exception, f"the post-signup screen raised: {at.exception}"
+    body = "\n".join([m.value for m in at.markdown]
+                     + [i.value for i in at.info] + [s.value for s in at.success])
+    assert "Pendant que le mail arrive" in body or "While the e-mail" in body, (
+        "nothing to do while the mail travels — the screen is a dead end again")
+    assert "spam" in body.lower(), (
+        "the screen no longer says where to look when the mail is missing")
+    assert at.get("download_button"), (
+        "the getting-started guide is not downloadable before verification — it is "
+        "documentation, it contains nothing personal, and it is exactly what one "
+        "wants to read while waiting")
+    assert any("renvoyer" in b.label.lower() or "resend" in b.label.lower()
+               for b in at.button), "no way to ask for the mail again"

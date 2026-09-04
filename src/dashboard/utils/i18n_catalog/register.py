@@ -42,7 +42,24 @@ EN = {
     "register.promo_active": " Your **{plan} plan** is active for **{days} days**.",
     "register.welcome_trial": " You get **{days} days of free Premium access**.",
     "register.referral_discount": " A **20% discount** will be applied to your first paid month.",
-    "register.next_step": "📬 **Next step: open your mailbox.** The verification link activates your account — onboarding opens right after.",
+    "register.next_step": "📬 **Next step: open your mailbox.** The verification link "
+                          "activates your account — onboarding opens right after.\n\n"
+                          "It leaves **immediately** and usually arrives in under a "
+                          "minute. If it is not there: check **spam**, and on Gmail the "
+                          "**Promotions** tab.",
+    # What to do while the mail travels (2026-09-04). SMTP costs 0.24 s in production;
+    # it is DELIVERY that takes a minute, and the screen offered nothing meanwhile.
+    "register.sending": "Sending your verification e-mail…",
+    "register.meanwhile": "⏳ While the e-mail is on its way",
+    "register.download_guide": "📄 Download the getting-started guide (PDF)",
+    "register.prepare_header": "**Gather what you will paste in** — that is all the "
+                               "setup asks for:",
+    "register.prepare_hint": "You do not need all of them: two platforms are enough to "
+                             "start, and you can add the rest whenever you like.",
+    "register.resend": "✉️ I received nothing — resend the e-mail",
+    "register.resend_wait": "You can ask for another send in {s} s.",
+    "register.resent": "✅ Sent again to **{email}**.",
+    "register.resend_failed": "The send did not go through. Try again in a minute.",
     "register.login_btn": "→ I have verified, sign me in",
     "register.success": "✅ Account created for **{name}**!{msg} "
                         "A verification email has been sent to **{email}**. "

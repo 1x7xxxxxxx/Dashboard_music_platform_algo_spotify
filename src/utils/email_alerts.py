@@ -12,6 +12,9 @@ from src.utils.safe_error import redact, safe_error
 
 logger = logging.getLogger(__name__)
 
+# Plafond de panne, pas de latence : 0,24 s mesurés en production.
+_SMTP_TIMEOUT_S = 15
+
 # Reaching a CLIENT is a decision, never a side effect of a data condition.
 # Read at call time, not at import: a DAG process is long-lived, and an operator
 # who sets the variable expects the next run to honour it.
@@ -115,7 +118,12 @@ class EmailAlert:
             msg['Subject'] = f"{instance_label()}🚨 Dashboard Alert: {subject}"
             msg.attach(MIMEText(body, 'html'))
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                        # `timeout=` EXPLICITE. Sans lui, `smtplib.SMTP` attend le délai TCP du
+            # système — jusqu'à ~2 minutes sur Linux — et cet appel est DANS le chemin de
+            # la requête : l'artiste regarde un spinner pendant que le serveur de mail ne
+            # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
+            # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
                 server.starttls()
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(msg)
@@ -188,7 +196,12 @@ class EmailAlert:
                 part.add_header('Content-Disposition', 'attachment', filename=attachment_name)
                 msg.attach(part)
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                        # `timeout=` EXPLICITE. Sans lui, `smtplib.SMTP` attend le délai TCP du
+            # système — jusqu'à ~2 minutes sur Linux — et cet appel est DANS le chemin de
+            # la requête : l'artiste regarde un spinner pendant que le serveur de mail ne
+            # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
+            # 0,24 s ; ce plafond ne borne donc que la panne, jamais le cas nominal.
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=_SMTP_TIMEOUT_S) as server:
                 server.starttls()
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(msg)
