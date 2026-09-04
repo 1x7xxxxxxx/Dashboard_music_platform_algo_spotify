@@ -240,6 +240,11 @@ _NAV_SECTIONS = [
     ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
                                              ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
+                                             # Juste APRÈS la saisie : on remplit,
+                                             # puis on regarde où on en est. Sortie
+                                             # de Credentials le 2026-09-04, où elle
+                                             # poussait le champ à y=1475.
+                                             ("📋 État de tes plateformes", "platform_status"),
                                              ("📂 Ajouter mes chiffres Spotify for Artists & Apple", "upload_csv"),
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
@@ -402,7 +407,8 @@ def _first_run_landing(role: str) -> str:
 
 # Les pages qui font PARTIE de la mise en route. Le mode « première connexion » les
 # traverse toutes ; il s'éteint sur la première page qui n'en est pas.
-_SETUP_PAGES = frozenset({'onboarding', 'credentials', 'upload_csv', 'process_guide'})
+_SETUP_PAGES = frozenset({'onboarding', 'credentials', 'upload_csv', 'process_guide',
+                          'platform_status'})
 
 
 def resolve_nav_page(role: str = 'artist'):
@@ -764,6 +770,7 @@ def _render_page(page):
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
     elif page == "process_guide": from views.process_guide import show; show()
+    elif page == "platform_status": from views.platform_status import show; show()
     elif page == "onboarding_health": from views.onboarding_health import show; show()
     elif page == "upload_csv": from views.upload_csv import show; show()
     elif page == "saisie_s4a": from views.saisie_s4a import show; show()

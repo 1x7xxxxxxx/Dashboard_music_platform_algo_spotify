@@ -22,14 +22,13 @@ from src.dashboard.content.platform_value import BY_KEY
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
 from src.dashboard.utils.setup_focus import (
-    connected_platforms, get_focus, progress, remaining,
+    connected_platforms, get_focus, remaining,
 )
 
 from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
                     artist_display_name)
 from ._registry import PLATFORMS
 from ._render import _render_platform_tab, render_save_verdict
-from src.dashboard.utils.status_matrix import render_status_matrix
 
 
 # La sélection d'onboarding est par PLATEFORME ; les onglets de cette page sont par
@@ -153,19 +152,19 @@ def show():
                               "Récupération du statut des DAGs…")):
                 dag_states = _fetch_dag_last_states()
 
-        # ── Matrice de setup ─────────────────────────────────────────────
-        # Remplace l'ancien bandeau KPI, dont le second axe était l'état Airflow de
-        # la FLOTTE : il pouvait afficher 🟢 pendant que ce locataire-ci n'avait pas
-        # une seule ligne. Et il itérait les 4 onglets, donc Instagram — qui est une
-        # plateforme partout ailleurs — n'y figurait pas.
-        st.markdown(t("credentials.matrix_header",
-                      "#### 📋 État de tes plateformes"))
-        # La légende n'est plus recopiée ici : `render_status_matrix` la porte, une
-        # seule fois, à côté des colonnes qu'elle explique. Trois surfaces en
-        # écrivaient chacune une version, et deux d'entre elles ne disaient pas ce
-        # que « Répond » et « Données » veulent dire.
-        render_status_matrix(db, target_artist_id, key_suffix="creds")
-        st.markdown("---")
+        # La matrice « 📋 État de tes plateformes » a vécu ici jusqu'au 2026-09-04.
+        # Elle a sa page à elle depuis : « on l'enlève de Credentials API pour
+        # faciliter la vie à l'utilisateur ».
+        #
+        # Mesuré avant de la déplacer, et c'est ce qui tranche : elle occupait les
+        # 900 premiers pixels d'une page de 2141, et poussait le champ à remplir à
+        # y=1475 — donc la capture d'écran qui l'accompagne à y=1569. Un artiste a
+        # signalé QUATRE FOIS qu'« il n'y a pas le screen » : il y était, sous la
+        # ligne de flottaison d'une page de configuration, ce qui revient au même.
+        #
+        # Les deux blocs ne répondent d'ailleurs pas à la même question. La matrice
+        # dit « où j'en suis », la page dit « que dois-je saisir ». Mettre un bilan
+        # au-dessus d'un formulaire, c'est faire lire avant de faire agir.
 
         # ── Reprise de la sélection faite à l'onboarding ──────────────────
         # Without this the artist arrives on six equal tabs and has to remember
@@ -173,59 +172,23 @@ def show():
         focus = get_focus()
         connected = connected_platforms(existing)
         if focus:
-            done, total = progress(focus, connected)
-            # « Suivante » ne nomme QUE ce qui se saisit sur cette page. Apple Music
-            # n'est jamais « connectée » au sens des identités — c'est un fichier —
-            # donc elle restait éternellement en tête de `remaining`, et le bandeau
-            # promettait un onglet qui n'existe pas. Elle a sa propre ligne, plus bas.
-            left_here = [k for k in remaining(focus, connected)
-                         if platform_destination(k).startswith("tab:")]
-            left = remaining(focus, connected)
-            # La sélection ÉNUMÉRÉE, pas seulement comptée. « 1/3 connectée(s) »
-            # oblige l'artiste à compter des onglets pour savoir si son plan est
-            # arrivé entier — c'est ce qu'il a fait le 2026-09-04, et il a conclu
-            # « il me montre uniquement spotify & meta ». Une liste nommée répond à
-            # la question sans compter : ce qu'il a coché est écrit, ligne à ligne,
-            # avec son état. Si une case s'est perdue en route, l'écart se voit ici
-            # au lieu de se déduire.
-            st.markdown(t("credentials.focus_recap",
-                          "🎯 **Ce que tu as choisi de brancher ({done}/{total}) :**"
-                          ).format(done=done, total=total))
-            for key in focus:
-                pv = BY_KEY.get(key)
-                name = f"{pv.icon} {pv.label}" if pv else key
-                if key in connected:
-                    st.markdown(t("credentials.focus_item_done",
-                                  "- ✅ **{name}** — connecté").format(name=name))
-                elif platform_destination(key).startswith("page:"):
-                    st.markdown(t("credentials.focus_item_csv",
-                                  "- 📂 **{name}** — par fichier, page "
-                                  "**📂 Ajouter mes chiffres Spotify for Artists "
-                                  "& Apple**"
-                                  ).format(name=name))
-                else:
-                    st.markdown(t("credentials.focus_item_todo",
-                                  "- ⬜ {label}").format(label=_next_label(key)))
-
-            if left_here:
-                nxt = BY_KEY.get(left_here[0])
-                st.info(t(
-                    "credentials.focus_banner",
-                    "👉 **Suivante : {label}** — à fournir : {need}.\n\n"
-                    "Son onglet est le **premier ci-dessous**, déjà ouvert."
-                ).format(label=_next_label(left_here[0]),
-                         need=nxt.need if nxt else ""))
-            elif not left:
-                # Rien de « suivant » à annoncer quand il ne reste que du hors-page :
-                # la ligne dédiée plus bas s'en charge, et deux bandeaux qui se
-                # contredisent valent moins qu'un seul qui dit vrai.
-                st.success(t(
-                    "credentials.focus_done",
-                    "🎯 **Sélection terminée ({total}/{total}).** Les données "
-                    "arrivent sous ~2 min ; la page **🚦 Santé onboarding** dira "
-                    "si chaque source ramène vraiment quelque chose."
-                ).format(total=total))
-
+            # Il n'y a plus de récapitulatif ni de bandeau « Suivante ». Ils
+            # disaient, en huit lignes, ce que les onglets montrent :
+            #
+            #   « 🎯 Ce que tu as choisi de brancher (0/3) : ⬜ Spotify ⬜ SoundCloud
+            #     ⬜ Instagram — dans l'onglet Meta / Instagram »
+            #   « 👉 Suivante : 🎵 Spotify — à fournir : le lien de ta page Spotify
+            #     Artist. Son onglet est le premier ci-dessous, déjà ouvert. »
+            #
+            # « Trop long et inutile » (2026-09-04). C'est exact, et pour une raison
+            # qui n'existait pas quand ces lignes ont été écrites : depuis, les
+            # onglets sont RÉDUITS à la sélection le premier jour et ORDONNÉS pour que
+            # le premier soit celui qu'on annonçait. Le bandeau décrivait donc une
+            # mise en page devenue lisible d'elle-même — et son propre texte le
+            # disait, « son onglet est le premier ci-dessous, déjà ouvert ».
+            #
+            # Ce qui reste ci-dessous est ce qu'aucun onglet ne peut montrer : une
+            # plateforme cochée qui ne se configure PAS sur cette page.
             # Ce que l'artiste a coché et qui ne se configure PAS ici. Sans cette
             # ligne, la plateforme s'évaporait entre les deux pages : ni onglet, ni
             # repli, ni message. Elle reste comptée dans sa sélection — c'est bien

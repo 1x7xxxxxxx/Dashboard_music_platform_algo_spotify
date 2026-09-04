@@ -24,20 +24,11 @@ EN = {
         "identifier can belong to one artist only — check that this one is yours. "
         "If you believe this is a mistake, contact the administrator."
     ),
-    "credentials.focus_banner": (
-        "🎯 **Your selection: {done}/{total} connected.** "
-        "Next: **{icon} {label}** — you will need: {need}."
-    ),
     "credentials.other_platforms": "➕ The {n} other platforms ({names})",
     "credentials.other_platforms_help": (
         "Folded away because you did not tick them during setup. You can still "
         "connect them here, now or later — and the full menu comes back as soon as "
         "you enter the app."
-    ),
-    "credentials.focus_done": (
-        "🎯 **Selection complete ({total}/{total}).** Data lands within ~2 min; the "
-        "**🚦 Onboarding health** page will say whether each source really brings "
-        "something back."
     ),
     "credentials.no_creds_banner": (
         "💡 **No credentials configured.** "
@@ -64,8 +55,6 @@ EN = {
     # they belonged to. Left behind they would have been orphans — EN text nothing
     # renders — which `tests/test_i18n_orphans.py` catches, and did.
     # --- Setup matrix header (replaced the fleet-level KPI strip, 2026-08-22) ---
-    "credentials.matrix_header": "#### 📋 Your platforms at a glance",
-    # --- Encryption key: absent and malformed need opposite gestures ---
     "credentials.fernet_malformed":
         "⚠️ The encryption key (`FERNET_KEY`) is **present but invalid** — most "
         "likely truncated when copied. Do NOT generate a new one: already-saved "
@@ -438,13 +427,6 @@ EN = {
     "credentials.youtube.unexpected": "YouTube refused the request ({code}). {msg} If it persists, tell the administrator.",
 
     # ── La sélection, énumérée + le verdict de sauvegarde (2026-09-04) ──
-    "credentials.focus_recap": "🎯 **What you chose to connect ({done}/{total}):**",
-    "credentials.focus_item_done": "- ✅ **{name}** — connected",
-    "credentials.focus_item_csv": (
-        "- 📂 **{name}** — by file, on the "
-        "**📂 Add my Spotify for Artists & Apple figures** page"
-    ),
-    "credentials.focus_item_todo": "- ⬜ {label}",
     "credentials.next_in_tab": "{name} — in the **{tab}** tab",
     "credentials.focus_elsewhere": (
         "📂 **{names}** is not connected with an identifier: it is a file to drop. "

@@ -5,6 +5,53 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 22) — La capture manquait de place, pas d'existence
+
+« Pourquoi il n'y a toujours pas l'image screen alors que ça fait 4 fois que je te
+demande de le faire ? »
+
+Elle y était à chaque fois. Je l'avais même **mesurée** — et j'ai relu son texte au
+lieu de regarder où elle tombait. Quatre passages sur le contenu pour un défaut de
+mise en page.
+
+    avant : page 2141 px · champ y=1475 · capture y=1569   hors écran
+    après : page 1351 px · champ y=686  · capture y=779    premier écran
+
+Le viewport fait 1000 px. « Il n'y a pas le screen » était donc strictement vrai du
+point de vue du lecteur, et strictement faux du mien : j'ai vérifié la présence, il
+parlait de la visibilité. Ce n'est pas la même question, et aucune correction de texte
+ne pouvait y répondre.
+
+### Deux blocs occupaient le haut, aucun n'était faux
+
+La matrice « 📋 État de tes plateformes » (~900 px) et un récapitulatif de sélection
+suivi d'un bandeau « 👉 Suivante ». C'est leur PLACE qui l'était : une page dont le
+geste est *colle une valeur* ne peut pas commencer par un bilan — un bilan se lit, un
+formulaire s'utilise.
+
+La matrice a sa page, juste après Credentials dans le menu : on saisit, puis on
+regarde où on en est.
+
+### Le bandeau décrivait une mise en page devenue évidente
+
+« 👉 Suivante : 🎵 Spotify… Son onglet est le **premier ci-dessous**, déjà ouvert. »
+Il datait d'avant que les onglets soient réduits à la sélection le premier jour et
+ordonnés pour que le premier soit celui qu'on annonce. Son propre texte disait ce
+qu'il était devenu : la description d'un écran qui se lit tout seul.
+
+Ce qui RESTE est ce qu'aucun onglet ne peut montrer — une plateforme cochée qui ne se
+configure pas ici (Spotify for Artists, Apple Music) et son bouton. Son absence avait
+déjà coûté une case à cocher qui menait nulle part.
+
+### Deux gardes existants ont fait leur travail
+
+`test_i18n_orphans` a nommé les **sept clés** dont l'appelant venait de partir, et
+`test_pdf_coverage` a exigé que la nouvelle page déclare sa place dans l'export —
+exclusion documentée, comme sa jumelle `onboarding_health`. Aucun des deux n'a été
+écrit pour ce changement ; c'est ce qu'on attend d'un garde.
+
+---
+
 ## 2026-09-04 (suite 21) — « Créez-en un » ouvrait un deuxième onglet
 
 Un `[texte](?page=register)` écrit en markdown devient un `<a>` dans l'iframe de
