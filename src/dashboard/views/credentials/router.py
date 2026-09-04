@@ -28,7 +28,7 @@ from src.dashboard.utils.setup_focus import (
 from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
                     artist_display_name)
 from ._registry import PLATFORMS
-from ._render import _render_platform_tab
+from ._render import _render_platform_tab, render_save_verdict
 from src.dashboard.utils.status_matrix import render_status_matrix
 
 
@@ -266,7 +266,28 @@ def show():
         if focus:
             head = [k for k in remaining(focus, connected)
                     if platform_destination(k).startswith("tab:")][:1]
-            rank = {k: i for i, k in enumerate(head + [f for f in focus if f not in head])}
+            # Le rang est calculé sur les clés d'ONGLET, pas sur les clés logiques —
+            # et c'est le correctif du 2026-09-04.
+            #
+            # Il était bâti sur `focus`, qui contient `instagram`. Or `instagram`
+            # n'est jamais une clé d'onglet : il se saisit dans celui de `meta`. Son
+            # rang 0 ne s'appliquait donc à personne, `meta` tombait dans le rang par
+            # défaut, et `spotify` — deuxième de la liste, mais bien présent comme
+            # onglet — restait en tête. Après avoir connecté Spotify, l'artiste
+            # rouvrait donc l'onglet Spotify, pendant que le bandeau au-dessus lui
+            # annonçait « Suivante : Instagram ». Vu au navigateur.
+            #
+            # C'est la même classe que le défaut d'hier sur `_TAB_FOR_PLATFORM` : une
+            # traduction logique → onglet posée à un endroit et oubliée à l'autre.
+            # `platform_destination` est le seul traducteur ; ici aussi.
+            def _tab_of(key: str) -> str:
+                dest = platform_destination(key)
+                return dest.split(":", 1)[1] if dest.startswith("tab:") else ""
+
+            wanted = [_tab_of(k) for k in head + [f for f in focus if f not in head]]
+            rank: dict = {}
+            for i, tab in enumerate(t for t in wanted if t):
+                rank.setdefault(tab, i)
             ordered.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
 
         # ── Première connexion : SEULEMENT ce qui a été coché ──────────────
@@ -312,6 +333,12 @@ def show():
         next_platform = (_left_here[0], _next_label(_left_here[0])) if _left_here else None
         selection_complete = bool(focus) and not remaining(focus, connected)
 
+        # Le verdict de la sauvegarde qui vient d'avoir lieu — AU-DESSUS des onglets.
+        # Dans l'onglet, il tombait dans celui qu'on venait de quitter : la page se
+        # réordonne pour ouvrir la plateforme SUIVANTE, donc le « ✅ … est connecté »
+        # s'affichait dans un onglet fermé. Ici, il est lu quoi qu'il arrive.
+        render_save_verdict(next_platform, selection_complete)
+
         for tab, (platform_key, platform_info) in zip(tabs, ordered):
             with tab:
                 _render_platform_tab(
@@ -323,8 +350,6 @@ def show():
                     fernet_ok=fernet_ok,
                     dag_states=dag_states,
                     artist_name=artist_name,
-                    next_platform=next_platform,
-                    selection_complete=selection_complete,
                 )
 
         if hidden:
@@ -349,8 +374,6 @@ def show():
                             fernet_ok=fernet_ok,
                             dag_states=dag_states,
                             artist_name=artist_name,
-                            next_platform=next_platform,
-                            selection_complete=selection_complete,
                         )
     finally:
         db.close()

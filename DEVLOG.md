@@ -5,6 +5,66 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 16) — Le verdict s'affichait dans l'onglet qu'on venait de quitter
+
+### Deux comportements justes qui s'annulaient
+
+Après un enregistrement, la page des credentials fait deux choses correctes :
+
+  * elle **réordonne les onglets** pour ouvrir la plateforme suivante à connecter —
+    c'est ce que « redirige vers la plateforme suivante » veut dire quand `st.tabs`
+    n'expose aucun index actif ;
+  * elle **affiche le verdict** de la sonde : « ✅ 🎵 Spotify est connecté ».
+
+Le verdict était rendu DANS l'onglet de la plateforme qu'on venait d'enregistrer. Après
+réordonnancement, cet onglet n'est plus celui qui s'ouvre : le message tombait dans un
+onglet fermé. Chacune des deux moitiés marchait ; ensemble, elles se neutralisaient.
+
+Le verdict remonte **au-dessus des onglets**, où il est lu quel que soit celui qui est
+ouvert, et juste à côté du bandeau qui nomme la suivante. C'est la troisième fois en
+deux jours que le défaut a cette forme — deux mécanismes corrects dont la composition
+ne l'est pas.
+
+### Et la redirection elle-même ne se produisait pas
+
+En le vérifiant au navigateur, un second défaut : le bandeau annonçait « Suivante :
+📸 Instagram » et la page rouvrait… l'onglet **Spotify**.
+
+Le rang de tri était calculé sur les clés LOGIQUES de la sélection, qui contient
+`instagram`. Or `instagram` n'est jamais une clé d'onglet — il se saisit dans celui de
+`meta`. Son rang 0 ne s'appliquait donc à personne, `meta` tombait au rang par défaut,
+et `spotify` restait en tête. **Même classe que le défaut `_TAB_FOR_PLATFORM` de la
+veille** : une traduction logique → onglet posée à un endroit et oubliée à l'autre.
+`platform_destination` est le seul traducteur ; le tri passe maintenant par lui.
+
+Vérifié au navigateur après correction : enregistrer Spotify ouvre « 📱 Meta /
+Instagram », le verdict « ✅ Spotify est connecté » au-dessus. Garde ajouté, vu rouge
+par mutation sur la forme livrée.
+
+### Le lien de vérification ouvrait un onglet
+
+`st.link_button` rend une balise `<a>` : le navigateur navigue, et selon la façon dont
+la page a été ouverte — depuis un client mail, typiquement — il peut le faire dans un
+nouvel onglet. On ne contrôle pas ce choix. Un **bouton** Streamlit n'en pose pas : il
+efface le paramètre d'URL et relance le script. Aucune navigation HTML, donc aucun
+onglet possible ; le même écran devient l'écran de connexion. Corrigé aux deux endroits
+— le cas nominal et le cas « déjà vérifié », qui portait un lien au fil du texte.
+
+### La capture, sous le champ qu'elle explique
+
+Elle était dans le guide, colonne de droite, à son étape 1. Mais le regard de quelqu'un
+qui remplit un champ ne quitte pas la colonne gauche. Elle s'affiche donc aussi sous le
+formulaire Spotify — **le même fichier**, résolu par le même chemin, pas une copie dans
+les assets : un fichier dupliqué, c'est une capture qui vieillit deux fois et ne se met
+à jour qu'une.
+
+### Le récapitulatif replié, retiré le jour de sa naissance
+
+« On le redit après, donc c'est redondant. » C'est exact, et le repli n'y changeait
+rien : il rangeait la répétition sans la supprimer. Reste la ligne qui portait son
+intention — ces minutes sont celles de la première fois — la seule chose qu'aucune case
+ne disait.
+
 ## 2026-09-04 (suite 15) — La page de bienvenue cesse de commenter l'écran qu'on regarde
 
 Quatre coupes, une même raison : chaque bloc retiré décrivait ce que l'artiste avait

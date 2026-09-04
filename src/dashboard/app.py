@@ -106,7 +106,15 @@ def _verify_email(token: str) -> None:
         uid, username, email, already_verified, token_created_at = rows[0]
         if already_verified:
             st.info(t("app.verify_already",
-                      "Le compte **{u}** est déjà vérifié. [Se connecter](/)").format(u=username))
+                      "Le compte **{u}** est déjà vérifié.").format(u=username))
+            # Même raison que le bouton du cas nominal, plus bas : un lien navigue,
+            # un bouton relance la page. « [Se connecter](/) » au fil du texte
+            # cumulait les deux défauts — il se rate à la lecture, et il peut ouvrir
+            # un onglet.
+            if st.button(t("app.verify_login_btn", "→ Me connecter"), type="primary",
+                         key="_verify_goto_login_already"):
+                st.query_params.clear()
+                st.rerun()
             return
         # INFO-01: reject tokens older than 48 hours
         if token_created_at:
@@ -139,9 +147,21 @@ def _verify_email(token: str) -> None:
             "✅ Email vérifié ! Bienvenue, **{u}**. "
             "Nous vous avons envoyé un guide de bienvenue par email."
         ).format(u=username))
-        # Un lien en markdown au milieu d'un paragraphe se rate. À cet instant il n'y
-        # a qu'une chose à faire, et elle mérite un bouton.
-        st.link_button(t("app.verify_login_btn", "→ Me connecter"), "/", type="primary")
+        # Un BOUTON, pas un `st.link_button`. Signalé le 2026-09-04 : « ça m'ouvre une
+        # nouvelle fenêtre, est-ce qu'on peut rester sur la même fenêtre ? »
+        #
+        # `st.link_button` rend une balise `<a>` : le navigateur navigue, et selon la
+        # façon dont la page a été ouverte — depuis un client mail, typiquement — il
+        # peut le faire dans un nouvel onglet. On ne contrôle pas ce choix.
+        #
+        # Un bouton Streamlit n'en pose pas : il efface le paramètre d'URL et relance
+        # le script. Il n'y a aucune navigation HTML, donc aucun onglet possible. Le
+        # même écran devient l'écran de connexion — c'est ce qu'un lien vers `/`
+        # essayait d'obtenir.
+        if st.button(t("app.verify_login_btn", "→ Me connecter"), type="primary",
+                     key="_verify_goto_login"):
+            st.query_params.clear()
+            st.rerun()
         # Welcome email + onboarding guide PDF — sent now (account confirmed), NOT at
         # signup, so the guide lands only once the address is proven deliverable.
         try:

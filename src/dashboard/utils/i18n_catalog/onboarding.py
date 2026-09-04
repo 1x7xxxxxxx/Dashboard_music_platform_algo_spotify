@@ -122,7 +122,6 @@ EN = {
     "onboarding.pick_first_time": (
         "The minutes shown are **first-time** effort. After that, everything updates on its own."
     ),
-    "onboarding.costs_expander": "📊 What each platform costs you, the first time",
     "onboarding.collection_tonight": (
         "**Collection runs tonight** · 0 min on your side → your first charts are "
         "there tomorrow morning, then every day."

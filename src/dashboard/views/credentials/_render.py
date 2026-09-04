@@ -75,23 +75,30 @@ def _verdict_from_probes(probes: dict, platform_key: str) -> tuple:
     return (platform_key, bool(ok), reason or "")
 
 
-def _render_save_verdict(platform_key: str, next_platform: tuple | None,
-                         selection_complete: bool = False) -> None:
+def render_save_verdict(next_platform: tuple | None,
+                        selection_complete: bool = False) -> None:
     """Le verdict de la sauvegarde qui vient d'avoir lieu, en gros, une seule fois.
+
+    Rendu AU-DESSUS des onglets, par `router.show()`, et c'est un correctif du
+    2026-09-04 : il vivait dans `_render_platform_tab`, donc dans l'onglet de la
+    plateforme qu'on venait d'enregistrer. Or la page se réordonne au rerun pour
+    ouvrir la SUIVANTE à connecter — c'est le comportement voulu, « rediriger vers
+    la plateforme suivante ». Conséquence : l'onglet qui portait le « ✅ Spotify est
+    connecté » n'était plus celui qui s'ouvrait, et le verdict s'affichait dans un
+    onglet fermé. Deux comportements justes qui s'annulaient.
+
+    Au-dessus des onglets, il est lu quel que soit celui qui est ouvert — et il
+    tombe juste à côté du bandeau qui nomme la suivante.
 
     Consommé (`pop`) : c'est le compte rendu d'une action, pas un état. Laissé en
     place, il réapparaîtrait à chaque rerun de la page, y compris des jours plus
     tard, et finirait par contredire la matrice — qui, elle, est un état.
-
-    `next_platform` est `(clé, libellé)` de la suivante encore à connecter, ou None.
-    Demandé le 2026-09-04 : « si c'est OK, ça propose de changer de plateforme (taille
-    de police en plus gros pour qu'on comprenne bien) ».
     """
     pending = st.session_state.get(VERDICT_KEY)
-    if not pending or pending[0] != platform_key:
+    if not pending:
         return
     st.session_state.pop(VERDICT_KEY, None)
-    _key, ok, reason = pending
+    platform_key, ok, reason = pending
     label = platform_label(platform_key)
 
     if ok:
@@ -202,9 +209,7 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
 
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None,
-                         artist_name: str | None = None,
-                         next_platform: tuple | None = None,
-                         selection_complete: bool = False):
+                         artist_name: str | None = None):
     # Un champ `admin_only` est une surcharge d'exploitant : l'artiste ne doit ni
     # le voir ni pouvoir l'écrire. Filtré ICI, donc `_handle_save` ne le lit pas non
     # plus — le filtre porte sur la définition, pas seulement sur l'affichage.
@@ -216,11 +221,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     # L'action — la seule chose que l'artiste ait à FAIRE ici — arrivait donc en
     # quatrième position, sous un sélecteur d'OS et un pavé qu'il faut déplier.
     # Il est maintenant : statut → ACTION → test → mode d'emploi → (admin) DAG.
-
-    # Le compte rendu de la sauvegarde qui vient d'avoir lieu, AVANT le statut :
-    # c'est la réponse à l'action que l'artiste vient de faire, et elle passe devant
-    # l'état permanent de la page.
-    _render_save_verdict(platform_key, next_platform, selection_complete)
 
     # ── Statut actuel ──────────────────────────────────────────────────
     if existing_row:
@@ -374,6 +374,28 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                     form_values=form_values,
                     existing_values=existing_values,
                 )
+
+        # ── La capture, SOUS le champ qu'elle explique ────────────────────
+        # Demandé le 2026-09-04 : « sur le panneau de saisie Spotify, on peut mettre
+        # le screen juste en dessous de saisir les identifiants, aligné sur le
+        # paragraphe qui l'explique ? »
+        #
+        # Elle est déjà dans le guide, colonne de droite, à son étape 1. Mais le
+        # regard de quelqu'un qui remplit un champ ne quitte pas la colonne gauche :
+        # l'image y est à sa place, sous le champ, à la hauteur du paragraphe qui la
+        # décrit. C'est la MÊME image, résolue par le même chemin — pas une copie
+        # dans les assets : un fichier dupliqué, c'est une capture qui vieillit deux
+        # fois et ne se met à jour qu'une.
+        if platform_key == 'spotify':
+            from src.dashboard.content.credential_guides import screenshot_path
+            from src.dashboard.content.csv_guides_st import _display_width
+            _shot = screenshot_path("spotify_share_artist_link.png")
+            if _shot.exists():
+                st.image(str(_shot),
+                         caption=t("credentials.spotify.shot_caption",
+                                   "Le bouton ••• → Partager → Copier le lien vers "
+                                   "l'artiste"),
+                         width=_display_width(_shot))
 
         # ── Titres hébergés ailleurs (SoundCloud seulement) ───────────────
         if platform_key == 'soundcloud':

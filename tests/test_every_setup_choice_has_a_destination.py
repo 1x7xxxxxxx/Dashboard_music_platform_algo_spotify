@@ -149,3 +149,80 @@ def test_the_guard_goes_red_on_the_shape_that_shipped():
         "la mutation ne reproduit plus le défaut d'origine — vérifie que le registre "
         f"porte toujours une plateforme sans onglet (trouvé : {offenders})"
     )
+
+
+# ── L'onglet qui S'OUVRE après un enregistrement ────────────────────────────
+
+def _tab_order(focus, connected):
+    """L'ordre des onglets tel que `router.show()` le calcule.
+
+    Recopié ici plutôt qu'importé, parce que le tri vit dans le corps de `show()` —
+    une fonction Streamlit qu'on ne peut pas appeler sans rendre une page entière.
+    Ce qui est figé est donc la RÈGLE ; la mutation en fin de fichier prouve que la
+    règle recopiée est bien celle qui distingue le bon comportement du défaut.
+    """
+    from src.dashboard.views.credentials._registry import PLATFORMS
+
+    head = [k for k in focus if k not in connected
+            and platform_destination(k).startswith("tab:")][:1]
+
+    def tab_of(k):
+        dest = platform_destination(k)
+        return dest.split(":", 1)[1] if dest.startswith("tab:") else ""
+
+    wanted = [tab_of(k) for k in head + [f for f in focus if f not in head]]
+    rank: dict = {}
+    for i, tab in enumerate(t for t in wanted if t):
+        rank.setdefault(tab, i)
+    out = list(PLATFORMS.items())
+    out.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
+    return [k for k, _ in out]
+
+
+def test_the_next_platform_is_the_tab_that_opens():
+    """`st.tabs` ouvre TOUJOURS le premier : l'ordre EST la redirection.
+
+    Défaut vu au navigateur le 2026-09-04. Après avoir enregistré Spotify, le bandeau
+    annonçait « Suivante : 📸 Instagram » et la page rouvrait… l'onglet Spotify.
+
+    Le rang était calculé sur les clés LOGIQUES de la sélection, qui contient
+    `instagram` — or `instagram` n'est jamais une clé d'onglet : il se saisit dans
+    celui de `meta`. Son rang 0 ne s'appliquait donc à personne, `meta` tombait au
+    rang par défaut, et `spotify` restait en tête. Même classe que le défaut
+    `_TAB_FOR_PLATFORM` de la veille : une traduction logique → onglet posée à un
+    endroit et oubliée à l'autre.
+    """
+    focus = ["spotify", "instagram"]
+    assert _tab_order(focus, set())[0] == "spotify", (
+        "avant toute connexion, l'onglet ouvert doit être la première plateforme "
+        "choisie"
+    )
+    assert _tab_order(focus, {"spotify"})[0] == "meta", (
+        "après avoir connecté Spotify, l'onglet ouvert doit être celui d'Instagram — "
+        "c'est-à-dire « 📱 Meta / Instagram ». Sinon le bandeau annonce une suivante "
+        "que la page n'ouvre pas."
+    )
+
+
+def test_the_tab_order_guard_goes_red_on_the_shape_that_shipped():
+    """Mutation : le rang calculé sur les clés logiques, comme avant le correctif.
+
+    Nom distinct de la mutation du haut de fichier — deux fonctions homonymes dans un
+    module Python, c'est la seconde qui écrase la première : le garde des destinations
+    n'aurait plus jamais tourné. Ruff l'a vu (F811) ; sans lui, un test aurait
+    disparu en silence, ce qui est précisément le genre de perte que ce fichier
+    existe pour empêcher ailleurs.
+    """
+    from src.dashboard.views.credentials._registry import PLATFORMS
+
+    def buggy(focus, connected):
+        head = [k for k in focus if k not in connected][:1]
+        rank = {k: i for i, k in enumerate(head + [f for f in focus if f not in head])}
+        out = list(PLATFORMS.items())
+        out.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
+        return [k for k, _ in out]
+
+    assert buggy(["spotify", "instagram"], {"spotify"})[0] == "spotify", (
+        "la mutation ne reproduit plus le défaut — vérifie qu'Instagram n'a toujours "
+        "pas d'onglet à lui"
+    )

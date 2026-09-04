@@ -506,29 +506,14 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
                  "Les minutes indiquées sont celles de **la première fois**. "
                  "Ensuite, tout se met à jour tout seul."))
 
-    # Le récapitulatif des six coûts, REPLIÉ.
+    # Le récapitulatif replié des six coûts a vécu ici quelques heures, le
+    # 2026-09-04, et il a été retiré le jour même : « on le redit après, donc c'est
+    # redondant ». C'est exact, et le repli n'y changeait rien — il rangeait la
+    # répétition sans la supprimer. Chaque case porte déjà sa durée ; comparer les
+    # six ne vaut pas un bloc de plus sur l'écran qui demande de choisir.
     #
-    # Il a existé comme bloc ouvert, en pleine page, et il a été retiré le 2026-09-04 :
-    # il redisait ligne pour ligne ce que les cases disent juste en dessous, et
-    # l'artiste lisait deux fois le même inventaire — « pourquoi on duplique ? ».
-    #
-    # Il revient replié, ce qui n'est pas la même chose. Ouvert, il obligeait à une
-    # deuxième lecture ; fermé, il ne coûte rien à qui ne l'ouvre pas, et il répond à
-    # la seule question que les cases posent mal : « laquelle est la plus rapide ? ».
-    # Six cases détaillées, chacune avec sa valeur et son piège, ne se comparent pas
-    # d'un coup d'œil — six lignes nues, si. C'est la raison pour laquelle le bloc
-    # avait été demandé (« un total de 7 minutes ne dit pas si on peut en faire une
-    # maintenant »), et elle survit à sa mise en repli.
-    with st.expander(t("onboarding.costs_expander",
-                       "📊 Ce que coûte chaque plateforme, la première fois"),
-                     expanded=False):
-        for pv in ordered_for_setup(configured):
-            star = t("onboarding.reco_tag", " — ⭐ recommandé") if pv.recommended else ""
-            st.markdown(
-                f"- {pv.icon} **{pv.label}** · "
-                + t("onboarding.effort", " ≈{mins} min").format(mins=pv.effort_min).strip()
-                + f"{star} — "
-                + t("onboarding.need", "À fournir : {need}").format(need=pv.need))
+    # Ce qui reste de son intention est la ligne au-dessus : ces minutes sont celles
+    # de la première fois. C'était la seule chose qu'aucune case ne disait.
 
     selection: list[str] = []
     for pv in ordered_for_setup(configured):
