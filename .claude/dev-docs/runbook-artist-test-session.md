@@ -66,6 +66,38 @@ Différent du render-smoke, qui n'asserte que « ça ne plante pas » — et qui
 pendant les deux séances ratées. Les ~30 notes de terrain ne décrivaient jamais un
 crash, mais du **code correct que rien n'atteignait**.
 
+### Rejouer le parcours SOI-MÊME — deux méthodes, deux portées
+
+Mises à jour le 2026-09-04. La différence tient en une ligne : la première part d'un
+compte qu'on fabrique, la seconde part du **vrai formulaire**.
+
+**A. Le bac à sable, fabriqué** — le plus rapide, et il rejoue tout sauf l'inscription :
+
+```bash
+ssh root@167.233.92.1 'docker exec airflow_scheduler python3 /opt/airflow/tools/create_sandbox.py --reset'
+```
+
+Il imprime le login, le mot de passe **et le lien de vérification** — le compte repart
+`email_verified = FALSE`, donc le parcours commence là où celui d'un artiste commence.
+L'adresse est un alias `+sandbox` de `ALERT_EMAIL` : les deux e-mails arrivent vraiment.
+`--verified` saute l'étape quand on veut juste entrer.
+
+**B. Depuis le formulaire d'inscription** — quand c'est l'inscription elle-même qu'on
+teste :
+
+1. `app.streamlytics.fr` → « Créez-en un », avec un alias : `ton.adresse+artiste3@gmail.com` ;
+2. cliquer le lien de vérification reçu ;
+3. **puis seulement** :
+   ```bash
+   ssh root@167.233.92.1 'docker exec airflow_scheduler python3 /opt/airflow/tools/create_sandbox.py --adopt ton.adresse+artiste3@gmail.com'
+   ```
+   Le compte devient un bac à sable et peut réutiliser **tes** identifiants de
+   plateforme. Sans cette étape, le garde d'unicité refuse — à raison.
+
+`--adopt` **refuse** un locataire qui porte déjà des données collectées (l'exempter
+rouvrirait la fuite de locataire) et **refuse** un canari (c'est un drapeau, pas une
+permission).
+
 ### Étape 1 — l'inscription
 
 | | |
