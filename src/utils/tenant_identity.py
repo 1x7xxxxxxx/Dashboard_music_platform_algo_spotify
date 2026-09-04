@@ -253,11 +253,34 @@ def mirrored_columns() -> dict[str, str]:
 META_ACCOUNTS_FIELD = "account_ids"
 
 
+# `act=` dans une URL du Gestionnaire de publicités, et lui seul. Le motif exige le
+# nom de paramètre COMPLET (`(?:^|[?&])act=`) : sans cette borne, `business_id=…` et
+# `contact=…` contiennent tous deux la sous-chaîne « act », et l'artiste aurait
+# enregistré l'identifiant de son Business Manager en croyant enregistrer son compte
+# publicitaire — l'erreur exacte contre laquelle l'étape 3 du guide met en garde.
+_META_ACT_IN_URL = re.compile(r"(?:^|[?&])act=(\d{1,25})")
+
+
 def normalise_meta_account(value: str) -> str:
-    """`act_` en préfixe, une fois et une seule. Chaîne vide si rien d'exploitable."""
+    """`act_` en préfixe, une fois et une seule. Chaîne vide si rien d'exploitable.
+
+    Accepte aussi **l'URL entière** du Gestionnaire de publicités : c'est le geste
+    qu'un artiste sait faire (copier la barre d'adresse), là où « prends le nombre
+    après `act=` et arrête-toi au `&` » lui demande de découper une chaîne à la main.
+    Spotify et SoundCloud acceptaient déjà un lien ; Meta était la seule des trois à
+    exiger une sous-chaîne, et c'est la plateforme dont le guide était signalé comme
+    « confus » le 2026-09-04.
+
+    Une URL SANS `act=` n'est pas rattrapée : elle repart telle quelle et sera
+    refusée par `malformed_meta_accounts`. Deviner un identifiant à partir d'un lien
+    qui n'en porte pas, ce serait enregistrer un compte que personne n'a choisi.
+    """
     raw = (value or "").strip()
     if not raw:
         return ""
+    found = _META_ACT_IN_URL.search(raw)
+    if found:
+        return f"act_{found.group(1)}"
     return raw if raw.startswith("act_") else f"act_{raw}"
 
 

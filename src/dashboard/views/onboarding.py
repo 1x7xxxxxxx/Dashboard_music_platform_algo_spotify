@@ -270,7 +270,18 @@ def _step_welcome(plan: str, db) -> None:
     # public qui comptait nos propres canaris) : un exemple qui ne s'annonce pas est
     # un mensonge avec un graphique autour.
     st.markdown("### " + t("onboarding.b1_title", "1. streaMLytics en bref"))
-    for key, default, image in (
+    # TROIS COLONNES, pas trois blocs empilés. Demandé le 2026-09-04 : « les
+    # graphiques en plus petit sur la même ligne pour que ça soit visuel ». Empilées,
+    # les trois figures faisaient défiler l'écran d'accueil sur trois hauteurs avant
+    # que l'artiste n'atteigne son offre ; côte à côte, elles se lisent d'un regard
+    # comme ce qu'elles sont — trois promesses, pas trois chapitres.
+    #
+    # L'image AVANT son texte dans chaque colonne : c'est elle qui porte la promesse,
+    # le texte l'explique. `use_container_width` la met à la largeur de la colonne,
+    # donc au tiers — c'est là que « plus petit » se décide, pas dans le PNG, qui
+    # doit rester à sa résolution native pour le PDF et l'e-mail.
+    _cols = st.columns(3)
+    for _col, (key, default, image) in zip(_cols, (
         ("onboarding.brief_1",
          "**Toutes tes données au même endroit, récupérées chaque jour, "
          "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
@@ -286,9 +297,10 @@ def _step_welcome(plan: str, db) -> None:
          "en reliant ce que tu dépenses en promo à ce que ça produit réellement en "
          "écoutes.",
          "meta-x-s4a.png"),
-    ):
-        st.markdown(t(key, default))
-        _example_chart(image)
+    )):
+        with _col:
+            _example_chart(image)
+            st.markdown(t(key, default))
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",
@@ -350,6 +362,17 @@ def _step_welcome(plan: str, db) -> None:
                                   "prochain"),
                                 t("onboarding.feat_meta_x",
                                   "+ 🔀 **Quel euro de pub a produit quelles écoutes**"),
+                                # « quel euro de pub ET SON PARAMÉTRAGE », demandé le
+                                # 2026-09-04. Le constat sans le geste laisse
+                                # l'artiste devant un chiffre : ce qui se vend ici,
+                                # c'est la recommandation de budget par campagne
+                                # (+30 % / +10 % / = / −30 %, `meta_cpr_optimizer`).
+                                # La ligne dit le geste, pas la formule — et elle ne
+                                # promet que ce que cette vue calcule réellement.
+                                t("onboarding.feat_meta_budget",
+                                  "+ 💶 **Combien remettre sur quelle campagne** — "
+                                  "augmenter, tenir ou couper, campagne par "
+                                  "campagne, d'après le coût par écoute gagnée"),
                                 t("onboarding.feat_creatives",
                                   "+ 🎨 **Quelle créative coûte le moins cher** par "
                                   "écoute gagnée"),
@@ -448,13 +471,10 @@ def _step_credentials(plan: str, artist_id: int, db) -> None:
         st.markdown(t("onboarding.matrix_header",
                       "#### 📋 Où tu en es, plateforme par plateforme"))
         render_status_matrix(db, artist_id, key_suffix="onboarding")
+        # Même raison qu'à la page Credentials : la légende vit dans la matrice.
         st.caption(t(
             "onboarding.matrix_legend",
-            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger. "
-            "**L'objectif : les trois colonnes vertes sur chaque plateforme que tu "
-            "veux suivre.**\n\n"
-            "**Configuré** : l'identifiant est saisi. **Répond** : la plateforme "
-            "nous a bien répondu. **Données** : des chiffres sont arrivés."))
+            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
         st.markdown("---")
 
     accessible = PLAN_FEATURES.get(plan, set())
@@ -536,6 +556,22 @@ def _step_credentials(plan: str, artist_id: int, db) -> None:
         # Carried to the credentials page, which walks the selection in order and
         # tracks what is left — so "I picked two things" survives the navigation.
         st.session_state[FOCUS_KEY] = selection
+        if selection:
+            # DIRECTEMENT sur la page de saisie. L'étape 3 s'intercalait ici pour
+            # redemander ce qui vient d'être décidé : « 🔑 Connecter ma sélection »
+            # ou « 🏠 Aller au dashboard ». Un écran qui ne fait que reposer la
+            # question à laquelle le bouton précédent vient de répondre coûte un
+            # clic et une hésitation, et rien d'autre. Signalé le 2026-09-04 :
+            # « supprime ça et renvoie directement à la section connecter ma
+            # sélection ».
+            #
+            # L'étape 3 reste atteignable (la barre latérale la liste) et reste le
+            # bon écran pour l'autre branche : quelqu'un qui ne coche rien n'a
+            # justement aucune sélection à connecter, et a besoin qu'on lui dise
+            # où la retrouver plus tard.
+            st.session_state[_STEP_KEY] = 3
+            _goto('credentials')
+            return
         st.session_state[_STEP_KEY] = 3
         st.rerun()
 

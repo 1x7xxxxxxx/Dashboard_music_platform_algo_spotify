@@ -65,10 +65,6 @@ EN = {
     # renders — which `tests/test_i18n_orphans.py` catches, and did.
     # --- Setup matrix header (replaced the fleet-level KPI strip, 2026-08-22) ---
     "credentials.matrix_header": "#### 📋 Your platforms at a glance",
-    "credentials.matrix_legend":
-        "**Set up**: you entered the identifier. **Responds**: the platform answered "
-        "us correctly. **Data**: figures actually arrived. No check is run until you "
-        "click.",
     # --- Encryption key: absent and malformed need opposite gestures ---
     "credentials.fernet_malformed":
         "⚠️ The encryption key (`FERNET_KEY`) is **present but invalid** — most "
@@ -121,8 +117,6 @@ EN = {
         "⚠️ Credentials saved, but the first collection could not start ({err}). "
         "It will run again tonight."
     ),
-    "credentials.probing_now": "Checking the {platform} connection…",
-    "credentials.save_ok": "✅ {platform} credentials saved.",
     "credentials.save_error": "❌ Error while saving: {err}",
     # ── _platform_spotify.py ───────────────────────────────────────────
     "credentials.spotify.artist_missing": (
@@ -456,4 +450,67 @@ EN = {
     "credentials.youtube.admin_key_invalid": "The platform's YouTube API key is being refused by Google. It is not your key and there is nothing for you to fix: please tell the administrator. Your Channel ID can stay as it is.",
     "credentials.youtube.quota_exceeded": "The platform's YouTube quota is exhausted for today. Nothing to fix on your side — try again tomorrow; the nightly collection will resume on its own.",
     "credentials.youtube.unexpected": "YouTube refused the request ({code}). {msg} If it persists, tell the administrator.",
+
+    # ── La sélection, énumérée + le verdict de sauvegarde (2026-09-04) ──
+    "credentials.focus_recap": "🎯 **What you chose to connect ({done}/{total}):**",
+    "credentials.focus_item_done": "- ✅ **{name}** — connected",
+    "credentials.focus_item_csv": (
+        "- 📂 **{name}** — by file, on the **CSV import** page"
+    ),
+    "credentials.focus_item_todo": "- ⬜ {label}",
+    "credentials.next_in_tab": "{name} — in the **{tab}** tab",
+    "credentials.focus_elsewhere": (
+        "📂 **{names}** is not connected with an identifier: it is a file to drop. "
+        "Its page is **📂 CSV import**."
+    ),
+    "credentials.focus_elsewhere_go": "📂 Go to CSV import →",
+    "credentials.guide.paste_header": (
+        "**To paste into the 👉 Enter your credentials box**, at the top of this tab:"
+    ),
+    "credentials.guide.example_inline": (
+        "*e.g. {example}* — sample format, do not copy it"
+    ),
+    "credentials.probing_now": (
+        "⏳ Setting up **{platform}** — asking the platform whether it answers…"
+    ),
+    "credentials.verdict_ok": "✅ {platform} is connected.",
+    "credentials.verdict_next": "👉 Next: **{label}**",
+    "credentials.verdict_all_done": (
+        "🎉 Every platform you picked is connected. The first data arrives in ~2 min."
+    ),
+    "credentials.verdict_go_home": "🏠 Go to the dashboard →",
+    "credentials.verdict_ko": (
+        "❌ {platform}: saved, but the platform does not answer yet."
+    ),
+    "credentials.verdict_ko_what_now": (
+        "Fix it below then **💾 Save** again — we will re-test straight away."
+    ),
+    "credentials.verdict_saved": "💾 {platform} saved.",
+    "credentials.verdict_unknown": (
+        "The check could not conclude for now. Use **🔌 Test the connection** below, "
+        "or come back in a few minutes — tonight's collection will settle it anyway."
+    ),
+
+    # ── L'assistant « trouve mon numéro de compte » (2026-09-04) ──
+    "credentials.meta.picker_title": "🔎 Find my ad account number",
+    "credentials.meta.picker_help": (
+        "① Open Ads Manager and pick the account you want to track. "
+        "② Copy the address shown at the top of your browser and paste it here — "
+        "we extract the number from it."
+    ),
+    "credentials.meta.picker_open": "① Open Ads Manager ↗",
+    "credentials.meta.picker_paste": "② Paste the page address here",
+    "credentials.meta.picker_found": (
+        "✅ Account found: **{acct}** — copy it into the **Ad Account ID** field "
+        "below, then **💾 Save**."
+    ),
+    "credentials.meta.picker_business_id": (
+        "⚠️ This is your **Business Manager** address (`business_id=…`), not an ad "
+        "account. Go back to Ads Manager and open the account itself: its address "
+        "contains `act=`."
+    ),
+    "credentials.meta.picker_not_found": (
+        "⚠️ No `act=` in this address. Check that you copied the address bar **of "
+        "Ads Manager**, with an account open."
+    ),
 }

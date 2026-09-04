@@ -54,4 +54,7 @@ EN = {
     "ui.custom_range": "Custom range",
     "ui.range": "Range",
     "app.fatal_error": "❌ An error occurred. The administrator has been notified; please try again shortly.",
+
+    "nav.prev": "Previous page",
+    "nav.next": "Next page",
 }

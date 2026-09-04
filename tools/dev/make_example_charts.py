@@ -113,12 +113,45 @@ def _series_tag(ax, x: float, y: float, label: str, colour: str,
             fontweight="700", color=INK, ha="left", va=va)
 
 
+# Largeur des vignettes, en pixels RÉELS. Affichées à la moitié (180 px) dans
+# l'e-mail, donc nettes sur un écran à densité double sans peser comme la figure
+# pleine taille.
+_THUMB_WIDTH = 360
+
+
+def _thumbnail(path: Path) -> Path | None:
+    """Une vignette à côté de la figure, ou None si Pillow n'est pas là.
+
+    Le mot de bienvenue montre les trois promesses côte à côte (demandé le
+    2026-09-04) et un e-mail se juge aussi au poids : trois figures pleines font
+    ~240 Ko, trois vignettes ~40. L'objection écrite dans `verification_email.py` —
+    « une image, pas trois, le poids pèse sur la délivrabilité » — reste vraie ; ce
+    sont les images qui changent, pas le raisonnement.
+
+    Absente, elle ne casse rien : `_welcome_images` retombe sur la figure pleine.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        print("⚠️  Pillow absent — pas de vignette (l'e-mail utilisera la figure entière)")
+        return None
+    with Image.open(path) as im:
+        ratio = _THUMB_WIDTH / im.width
+        small = im.convert("RGB").resize(
+            (_THUMB_WIDTH, max(1, round(im.height * ratio))), Image.LANCZOS)
+        out = path.with_name(path.stem + "-thumb.png")
+        small.save(out, optimize=True)
+    print(f"   ↳ {out.name}  ({out.stat().st_size // 1024} Ko)")
+    return out
+
+
 def _save(fig, name: str) -> Path:
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / name
     fig.savefig(path, dpi=144, bbox_inches="tight", pad_inches=0.25)
     plt.close(fig)
     print(f"✅ {path.relative_to(ROOT)}  ({path.stat().st_size // 1024} Ko)")
+    _thumbnail(path)
     return path
 
 
@@ -211,9 +244,38 @@ def meta_x_s4a() -> Path:
     days = np.arange(45)
     spend = np.zeros(45)
     spend[8:26] = np.linspace(18, 46, 18) + rng.normal(0, 3, 18)
-    streams = 260 + rng.normal(0, 18, 45).cumsum() * 0.35
-    streams[11:] += np.concatenate([np.linspace(0, 900, 20),
-                                    np.linspace(900, 640, 14)])
+    # La campagne pousse les écoutes JUSTE SOUS le seuil, puis elles se tassent sans
+    # s'effondrer : c'est l'histoire que la figure doit raconter, parce que c'est
+    # celle où la question « faut-il remettre 50 € ? » se pose vraiment.
+    streams = 260 + rng.normal(0, 14, 45).cumsum() * 0.30
+    streams[11:] += np.concatenate([np.linspace(0, 620, 20),
+                                    np.linspace(620, 560, 14)])
+
+    # Le seuil de déclenchement, la probabilité, et la projection. Demandé le
+    # 2026-09-04 : « sur graph meta spotify, ajouter un seuil de trigger des algos
+    # spotify avec % de chance de trigger et prédiction en pointillés ».
+    #
+    # C'est la figure où les deux moitiés du produit se rencontrent — la dépense d'un
+    # côté, ce que les algorithmes en font de l'autre — et elle ne montrait que la
+    # première. Trois marques, trois rôles distincts, et aucune ne doit ressembler à
+    # une mesure :
+    #   * le SEUIL est une ligne horizontale : un niveau, pas une série ;
+    #   * la PROJECTION est pointillée et part du dernier point observé, ce qui est
+    #     la convention qui distingue « mesuré » de « calculé » sans légende ;
+    #   * le POURCENTAGE est écrit, pas dessiné. Une probabilité rendue en hauteur de
+    #     barre se lit comme un volume — le dépôt a déjà corrigé exactement ça sur
+    #     les paniers de `threshold_tables.json` (2026-08-24).
+    trigger_level = 980.0
+    horizon = 14
+    future = np.arange(days[-1], days[-1] + horizon + 1)
+    # La projection part du dernier point OBSERVÉ — elle ne peut pas commencer
+    # ailleurs sans dessiner une marche que rien ne justifie — et s'infléchit vers le
+    # seuil sans le dépasser franchement. Une droite qui monte à l'infini
+    # promettrait ce qu'aucun modèle ne dit ; une projection qui DESCEND sous le
+    # seuil pendant qu'on annonce 78 % de déclenchement dit le contraire du texte
+    # qu'elle porte, et c'est ce que la première version faisait.
+    reach = (future - days[-1]) / horizon
+    forecast = streams[-1] + (trigger_level * 1.04 - streams[-1]) * reach ** 0.8
 
     fig, (ax1, ax2) = plt.subplots(
         2, 1, figsize=(9, 5.0), sharex=True,
@@ -227,18 +289,49 @@ def meta_x_s4a() -> Path:
     _series_tag(ax1, 0.86, 0.88, "Meta Ads", ORANGE)
 
     ax2.plot(days, streams, color=BLUE, linewidth=2)
+
+    # La projection : même couleur (c'est la même grandeur), mais pointillée et plus
+    # fine — « la suite probable », pas « ce qui s'est passé ».
+    ax2.plot(future, forecast, color=BLUE, linewidth=1.6, linestyle=(0, (3, 3)))
+    ax2.fill_between(future, forecast * 0.86, forecast * 1.14,
+                     color=BLUE, alpha=0.10, linewidth=0)
+
+    # Le seuil de déclenchement, en encre : c'est un repère, pas une série.
+    ax2.axhline(trigger_level, color=INK_MUTED, linewidth=1, linestyle=(0, (5, 4)))
+    # À GAUCHE, au-dessus du trait : la droite du panneau est là où la projection
+    # vient croiser le seuil, donc le seul endroit où le libellé recouvre ce qu'il
+    # commente.
+    ax2.text(0.015, trigger_level, "seuil de déclenchement Discover Weekly",
+             transform=ax2.get_yaxis_transform(), fontsize=9, color=INK_MUTED,
+             va="bottom", ha="left")
+
     _frame(ax2)
     ax2.set_ylabel("écoutes / jour", fontsize=9)
     ax2.set_xlabel("jours", fontsize=9)
-    _series_tag(ax2, 0.88, 0.12, "Spotify", BLUE)
+    _series_tag(ax2, 0.02, 0.34, "Spotify", BLUE)
 
-    for ax in (ax1, ax2):
-        ax.axvspan(8, 26, color=ORANGE, alpha=0.07, linewidth=0)
-        ax.set_xlim(0, days[-1])
+    # La probabilité, ÉCRITE. Elle porte son horizon : « 78 % » sans « d'ici 14
+    # jours » n'est une probabilité de rien.
+    ax2.annotate("78 % de chances\nde déclencher\nd'ici 14 jours",
+                 xy=(future[-3], forecast[-3]),
+                 xytext=(days[-1] - 17, trigger_level * 0.34),
+                 fontsize=10, color=INK, fontweight="600", ha="left",
+                 arrowprops=dict(arrowstyle="-", color=INK_MUTED, linewidth=1),
+                 annotation_clip=False)
+
+    ax1.axvspan(8, 26, color=ORANGE, alpha=0.07, linewidth=0)
+    ax2.axvspan(8, 26, color=ORANGE, alpha=0.07, linewidth=0)
+    # Le panneau du bas va plus loin que celui du haut : la dépense est finie, la
+    # projection continue. Les deux gardent le même ZÉRO, donc le même axe du temps.
+    ax1.set_xlim(0, future[-1])
+    ax2.set_xlim(0, future[-1])
+    # La frontière mesuré / projeté, une fois, sur le panneau qui la porte.
+    ax2.axvline(days[-1], color=GRID, linewidth=1)
 
     ax1.set_title("Quel euro de pub a produit quelles écoutes",
                   fontsize=14, fontweight="700", color=INK, loc="left", pad=40)
-    ax1.text(0, 1.09, "La campagne est la zone teintée — l'effet lui survit 12 jours",
+    ax1.text(0, 1.09,
+             "La campagne est la zone teintée ; à droite du trait, la projection",
              transform=ax1.transAxes, fontsize=10, color=INK_MUTED, va="bottom")
     _example_badge(fig)
     return _save(fig, "meta-x-s4a.png")

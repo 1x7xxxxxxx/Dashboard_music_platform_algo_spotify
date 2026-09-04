@@ -19,6 +19,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
 from src.dashboard.content.platform_value import BY_KEY
+from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
 from src.dashboard.utils.setup_focus import (
     connected_platforms, get_focus, progress, remaining,
@@ -36,6 +37,47 @@ from src.dashboard.utils.status_matrix import render_status_matrix
 # Apple Music n'en a aucun (c'est un import CSV) et disparaît donc de la
 # traduction — ce qui est correct : il n'y a rien à saisir ici pour lui.
 _TAB_FOR_PLATFORM = {"instagram": "meta"}
+
+# Les plateformes de la sélection qui ne se saisissent PAS ici, avec la page qui les
+# porte vraiment. Apple Music est un import de fichier : elle n'a aucun onglet, et
+# jusqu'au 2026-09-04 un artiste qui la cochait à la mise en route ne la retrouvait
+# NULLE PART — ni en onglet, ni dans le repli « les autres plateformes », qui se
+# construit à partir des onglets. Elle disparaissait de son plan sans un mot, ce qui
+# est la forme exacte du défaut qu'il a signalé le même jour sur SoundCloud.
+_PAGE_FOR_PLATFORM = {"apple_music": "upload_csv"}
+
+
+def platform_destination(key: str) -> str:
+    """Où cette plateforme se configure : `tab:<clé d'onglet>` ou `page:<clé de page>`.
+
+    Une seule fonction répond pour TOUTES les clés de `PLATFORM_VALUES` — c'est ce que
+    `tests/test_every_setup_choice_has_a_destination.py` vérifie. Une plateforme
+    qu'on peut cocher et qui n'a pas de destination est une case à cocher qui ne mène
+    à rien.
+    """
+    if key in _PAGE_FOR_PLATFORM:
+        return f"page:{_PAGE_FOR_PLATFORM[key]}"
+    return f"tab:{_TAB_FOR_PLATFORM.get(key, key)}"
+
+
+def _next_label(key: str) -> str:
+    """Le nom de la plateforme, et celui de son onglet quand ils diffèrent.
+
+    « Suivante : Instagram » envoie chercher un onglet Instagram qui n'existe pas —
+    il se saisit dans « 📱 Meta / Instagram ». Nommer les deux coûte six mots et
+    supprime la seule question que la phrase pose.
+    """
+    pv = BY_KEY.get(key)
+    name = f"{pv.icon} {pv.label}" if pv else key
+    dest = platform_destination(key)
+    if dest.startswith("tab:"):
+        tab_key = dest.split(":", 1)[1]
+        tab_label = (PLATFORMS.get(tab_key) or {}).get("label", "")
+        if tab_key != key and tab_label:
+            return t("credentials.next_in_tab", "{name} — dans l'onglet **{tab}**"
+                     ).format(name=name, tab=tab_label)
+        return name
+    return name
 
 
 def show():
@@ -116,12 +158,11 @@ def show():
         # plateforme partout ailleurs — n'y figurait pas.
         st.markdown(t("credentials.matrix_header",
                       "#### 📋 État de tes plateformes"))
+        # La légende n'est plus recopiée ici : `render_status_matrix` la porte, une
+        # seule fois, à côté des colonnes qu'elle explique. Trois surfaces en
+        # écrivaient chacune une version, et deux d'entre elles ne disaient pas ce
+        # que « Répond » et « Données » veulent dire.
         render_status_matrix(db, target_artist_id, key_suffix="creds")
-        st.caption(t(
-            "credentials.matrix_legend",
-            "**Configuré** : tu as saisi l'identifiant. **Répond** : la plateforme "
-            "nous a répondu correctement. **Données** : des chiffres sont bien "
-            "arrivés. Aucune vérification n'est lancée tant que tu ne cliques pas."))
         st.markdown("---")
 
         # ── Reprise de la sélection faite à l'onboarding ──────────────────
@@ -131,24 +172,74 @@ def show():
         connected = connected_platforms(existing)
         if focus:
             done, total = progress(focus, connected)
+            # « Suivante » ne nomme QUE ce qui se saisit sur cette page. Apple Music
+            # n'est jamais « connectée » au sens des identités — c'est un fichier —
+            # donc elle restait éternellement en tête de `remaining`, et le bandeau
+            # promettait un onglet qui n'existe pas. Elle a sa propre ligne, plus bas.
+            left_here = [k for k in remaining(focus, connected)
+                         if platform_destination(k).startswith("tab:")]
             left = remaining(focus, connected)
-            if left:
-                nxt = BY_KEY.get(left[0])
+            # La sélection ÉNUMÉRÉE, pas seulement comptée. « 1/3 connectée(s) »
+            # oblige l'artiste à compter des onglets pour savoir si son plan est
+            # arrivé entier — c'est ce qu'il a fait le 2026-09-04, et il a conclu
+            # « il me montre uniquement spotify & meta ». Une liste nommée répond à
+            # la question sans compter : ce qu'il a coché est écrit, ligne à ligne,
+            # avec son état. Si une case s'est perdue en route, l'écart se voit ici
+            # au lieu de se déduire.
+            st.markdown(t("credentials.focus_recap",
+                          "🎯 **Ce que tu as choisi de brancher ({done}/{total}) :**"
+                          ).format(done=done, total=total))
+            for key in focus:
+                pv = BY_KEY.get(key)
+                name = f"{pv.icon} {pv.label}" if pv else key
+                if key in connected:
+                    st.markdown(t("credentials.focus_item_done",
+                                  "- ✅ **{name}** — connecté").format(name=name))
+                elif platform_destination(key).startswith("page:"):
+                    st.markdown(t("credentials.focus_item_csv",
+                                  "- 📂 **{name}** — par fichier, page **Import CSV**"
+                                  ).format(name=name))
+                else:
+                    st.markdown(t("credentials.focus_item_todo",
+                                  "- ⬜ {label}").format(label=_next_label(key)))
+
+            if left_here:
+                nxt = BY_KEY.get(left_here[0])
                 st.info(t(
                     "credentials.focus_banner",
-                    "🎯 **Ta sélection : {done}/{total} connectée(s).** "
-                    "Suivante : **{icon} {label}** — à fournir : {need}.\n\n"
-                    "👇 Son onglet est le **premier ci-dessous**, déjà ouvert."
-                ).format(done=done, total=total,
-                         icon=nxt.icon if nxt else "", label=nxt.label if nxt else left[0],
+                    "👉 **Suivante : {label}** — à fournir : {need}.\n\n"
+                    "Son onglet est le **premier ci-dessous**, déjà ouvert."
+                ).format(label=_next_label(left_here[0]),
                          need=nxt.need if nxt else ""))
-            else:
+            elif not left:
+                # Rien de « suivant » à annoncer quand il ne reste que du hors-page :
+                # la ligne dédiée plus bas s'en charge, et deux bandeaux qui se
+                # contredisent valent moins qu'un seul qui dit vrai.
                 st.success(t(
                     "credentials.focus_done",
                     "🎯 **Sélection terminée ({total}/{total}).** Les données "
                     "arrivent sous ~2 min ; la page **🚦 Santé onboarding** dira "
                     "si chaque source ramène vraiment quelque chose."
                 ).format(total=total))
+
+            # Ce que l'artiste a coché et qui ne se configure PAS ici. Sans cette
+            # ligne, la plateforme s'évaporait entre les deux pages : ni onglet, ni
+            # repli, ni message. Elle reste comptée dans sa sélection — c'est bien
+            # son plan — mais elle nomme la page qui la porte, et y mène.
+            elsewhere = [k for k in focus
+                         if platform_destination(k).startswith("page:")]
+            if elsewhere:
+                names = ", ".join(f"{BY_KEY[k].icon} {BY_KEY[k].label}"
+                                  for k in elsewhere if k in BY_KEY)
+                st.info(t(
+                    "credentials.focus_elsewhere",
+                    "📂 **{names}** ne se connecte pas par identifiant : c'est un "
+                    "fichier à déposer. Sa page est **📂 Import CSV**."
+                ).format(names=names))
+                if st.button(t("credentials.focus_elsewhere_go",
+                               "📂 Aller à l'import CSV →"),
+                             key="_creds_focus_elsewhere"):
+                    goto(_PAGE_FOR_PLATFORM[elsewhere[0]])
         elif not existing:
             st.info(t(
                 "credentials.no_creds_banner",
@@ -173,7 +264,8 @@ def show():
         # rerun.
         ordered = list(PLATFORMS.items())
         if focus:
-            head = remaining(focus, connected)[:1]      # celle que le bandeau nomme
+            head = [k for k in remaining(focus, connected)
+                    if platform_destination(k).startswith("tab:")][:1]
             rank = {k: i for i, k in enumerate(head + [f for f in focus if f not in head])}
             ordered.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
 
@@ -201,7 +293,8 @@ def show():
         hidden = []
         first_run = bool(st.session_state.get(FIRST_RUN_FOCUS))
         if first_run and focus:
-            tabs_wanted = {_TAB_FOR_PLATFORM.get(k, k) for k in focus}
+            tabs_wanted = {platform_destination(k).split(":", 1)[1] for k in focus
+                           if platform_destination(k).startswith("tab:")}
             keep = [kv for kv in ordered if kv[0] in tabs_wanted]
             hidden = [kv for kv in ordered if kv[0] not in tabs_wanted]
             if keep:
@@ -209,6 +302,15 @@ def show():
 
         tab_labels = [info['label'] for _, info in ordered]
         tabs = st.tabs(tab_labels)
+
+        # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
+        # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient
+        # d'être enregistrée compte déjà comme connectée, donc `left_here` désigne
+        # bien la suivante et non celle qu'on vient de faire.
+        _left_here = [k for k in remaining(focus, connected)
+                      if platform_destination(k).startswith("tab:")] if focus else []
+        next_platform = (_left_here[0], _next_label(_left_here[0])) if _left_here else None
+        selection_complete = bool(focus) and not remaining(focus, connected)
 
         for tab, (platform_key, platform_info) in zip(tabs, ordered):
             with tab:
@@ -221,6 +323,8 @@ def show():
                     fernet_ok=fernet_ok,
                     dag_states=dag_states,
                     artist_name=artist_name,
+                    next_platform=next_platform,
+                    selection_complete=selection_complete,
                 )
 
         if hidden:
@@ -245,6 +349,8 @@ def show():
                             fernet_ok=fernet_ok,
                             dag_states=dag_states,
                             artist_name=artist_name,
+                            next_platform=next_platform,
+                            selection_complete=selection_complete,
                         )
     finally:
         db.close()

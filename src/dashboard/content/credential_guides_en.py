@@ -6,7 +6,14 @@ Depends on: credential_guides (dataclasses + screenshot resolver reused as-is)
 Only the prose is translated; screenshots, portal URLs and the fake example
 values are shared with the FR source. Selected by the guide PDF when lang == 'en'.
 """
-from src.dashboard.content.credential_guides import CredStep, CredField, PlatformCred
+from src.dashboard.content.credential_guides import (
+    META_APP_DISPLAY_NAME,
+    _META_BM_ADACCOUNTS_URL,
+    _META_BM_APPS_URL,
+    CredField,
+    CredStep,
+    PlatformCred,
+)
 
 _SPOTIFY = PlatformCred(
     key="spotify",
@@ -15,13 +22,19 @@ _SPOTIFY = PlatformCred(
         intro="**One single value to paste: the link to your Spotify Artist page.**",
     portal_url="https://open.spotify.com",
     steps=(
-        CredStep("On Spotify, open **your artist page** → **⋯** → **Share** → "
-                 "**Copy link to artist**."),
-        CredStep("Paste it below → **Save**. We extract the ID automatically — "
-                 "no need to cut it up."),
+        CredStep("On Spotify, open **your artist page**, then click the `•••` "
+                 "button — the **three dots**, to the right of the "
+                 "*Follow / Following* button.",
+                 "spotify_share_artist_link.png",
+                 "The ••• button → Share → Copy link to artist"),
+        CredStep("In the menu that opens: **Share** → **Copy link to artist**."),
+        CredStep("In the app, page **🔑 API Credentials → Spotify**, box "
+                 "**👉 Enter your credentials**: paste the link into the "
+                 "**Spotify Artist ID or profile URL** field, then **💾 Save**. "
+                 "We extract the ID automatically — no need to cut it up."),
     ),
     fields=(
-        CredField("Spotify Artist ID or URL",
+        CredField("Spotify Artist ID or profile URL",
                   "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
                   note="paste the full URL of your artist page — we extract the id"),
     ),
@@ -105,16 +118,17 @@ _META = PlatformCred(
     ),
     portal_url="https://adsmanager.facebook.com/",
     steps=(
-        CredStep("Open the **Ads Manager** "
-                 "([adsmanager.facebook.com](https://adsmanager.facebook.com/)) and "
-                 "sign in. Pick the right account if you have several."),
-        CredStep("**Easiest method — via the URL.** Look at your browser's "
-                 "**address bar** (at the very top). The URL contains an **`act=`** "
-                 "parameter, for example:\n\n"
+        CredStep("Open the portal above and sign in. If you manage **several ad "
+                 "accounts**, pick the one you want to track first: that is the one "
+                 "the address will name."),
+        CredStep("**Simplest: copy the whole address.** Click your browser's "
+                 "**address bar** (at the very top), copy all of it, and paste it "
+                 "as-is — we extract the account number from it.\n\n"
                  "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
-                 "Your **Ad Account ID** is the **number right after `act=`** and "
-                 "**before the next `&`**. Tip: double-click that number to select "
-                 "it, then **{{COPY}}**.",
+                 "If you would rather paste the number only, take the one right "
+                 "after **`act=`**, stopping at the `&`. **With or without the "
+                 "`act_` prefix, both work**: `act_123456789012345` and "
+                 "`123456789012345` are accepted identically.",
                  "meta_url_id.png", "The number after act= in the address bar"),
         CredStep("⚠️ Don't confuse it with `business_id=…` (your Business Manager) "
                  "or an **ad set ID**: only the number after **`act=`** is correct."),
@@ -124,13 +138,17 @@ _META = PlatformCred(
         # connection test failed, and nothing said why. That is the 2026-06-19
         # session.
         CredStep("⚠️ **Required, and it is yours to do.** Until this account is "
-                 "shared, collection sees nothing — even with the right ID. In "
-                 "**Business Manager → Settings → Apps**, find "
-                 "**ETL_DASHBOARD_SPOTIFY** (ask us to add it if it is not there), "
-                 "then **Business Assets → Add Assets → Ad Account**: pick yours and "
-                 "grant **Analyst** (or Advertiser) permission."),
-        CredStep("Paste this number into **🔑 API Credentials → Meta / Instagram**, "
-                 "then **Test the connection**. (The `act_` prefix is added automatically.)"),
+                 "shared, collection sees nothing — even with the right ID.\n\n"
+                 f"Open [Business Manager → Apps]({_META_BM_APPS_URL}) and look for "
+                 f"**{META_APP_DISPLAY_NAME}** — that is the name **our application "
+                 "goes by on Meta**; if it is not in the list, ask us to add it. "
+                 f"Then, in [Ad accounts]({_META_BM_ADACCOUNTS_URL}) → **Add people "
+                 "/ apps**, pick yours and grant **Analyst** (or Advertiser) "
+                 "permission."),
+        CredStep("Paste the value into **🔑 API Credentials → Meta / Instagram**, "
+                 "box **👉 Enter your credentials**, then **💾 Save** — the "
+                 "connection is tested right after. A ❌ here almost always points "
+                 "back to the sharing step above."),
         CredStep("**Instagram (optional but recommended).** To track followers and "
                  "posts we need the **Instagram Business Account ID** — not your "
                  "@handle. Open **Meta Business Suite → Settings → Accounts → "
@@ -141,8 +159,9 @@ _META = PlatformCred(
                  "A personal account returns no statistics through the API."),
     ),
     fields=(
-        CredField("Ad Account ID", "act_1234567890",
-                  note="number or 'act_'-prefixed — for Meta Ads"),
+        CredField("Ad Account ID (act_… or numeric)", "act_1234567890",
+                  note="the full Ads Manager URL works too — `act_1234567890` and "
+                       "`1234567890` are accepted identically"),
         CredField("Instagram Business Account ID", "17841400000000000",
                   note="optional — ~17 digits, for Instagram stats"),
     ),

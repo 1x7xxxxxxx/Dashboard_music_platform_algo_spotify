@@ -168,6 +168,88 @@ def _responds_cell(row: dict, probes: dict) -> tuple:
     return "red", "✖", f"{reason or ''} ({age})"
 
 
+# Les deux sources de Spotify, dites avec les mots de l'artiste. « Spotify API » et
+# « Spotify S4A » sont des étiquettes internes de `freshness_monitor` ; S4A est un
+# sigle, et « API » un mot qu'il n'a pas à connaître pour déposer un fichier.
+_SOURCE_LABELS = {
+    "Spotify API": "Spotify (automatique, via ton lien d'artiste)",
+    "Spotify S4A": "Spotify for Artists (ton fichier CSV)",
+}
+_SOURCE_HINTS = {
+    "Spotify API": "Se règle dans Credentials API → Spotify. Rien à déposer.",
+    "Spotify S4A": ("Se dépose dans « Ajouter mes chiffres Spotify for Artists & "
+                    "Apple ». C'est ce fichier qui porte tes playlists et Discovery "
+                    "Mode."),
+}
+
+
+def _shape_cell(row: dict, identities: dict) -> tuple:
+    """(state, glyph, tooltip) pour « Format » — la valeur a-t-elle la bonne forme ?
+
+    Demandé le 2026-09-04 : « rajoute un step saisie des identifiants qui n'est pas
+    le même que configuré, car on peut l'avoir mal renseigné ». C'est exactement la
+    distinction que la matrice ne portait pas : « Configuré » ne disait que « une
+    valeur est là », et une valeur peut être là ET fausse.
+
+    La forme n'est PAS la validité. Un Channel ID bien formé peut désigner une chaîne
+    qui n'existe pas — c'est « Répond » qui tranche, et l'infobulle le dit pour que ce
+    ✅ ne soit pas lu comme une garantie. Ce que cette colonne attrape, c'est ce que
+    le formulaire ne peut plus laisser passer mais que d'anciennes lignes portent
+    encore : une URL entière dans un champ numérique, un @pseudo à la place d'un id.
+    """
+    if row["status"] == "todo":
+        return "grey", "—", t("matrix.tip_shape_na",
+                              "Rien à vérifier tant qu'aucun identifiant n'est saisi.")
+    value = (identities or {}).get(row["key"])
+    if not value:
+        # Saisi mais illisible ici (identité miroir, plateforme sans motif) : on ne
+        # sait pas, et « on ne sait pas » ne se dessine pas en vert.
+        return "grey", "?", t("matrix.tip_shape_unknown",
+                              "Forme non vérifiable pour cette plateforme.")
+    from src.utils.tenant_identity import identity_is_well_formed
+    if identity_is_well_formed(row["key"], value):
+        return "green", "✅", t(
+            "matrix.tip_shape_ok",
+            "L'identifiant a la forme attendue. Cela ne prouve pas qu'il est le "
+            "bon — c'est la colonne « Répond » qui le dit.")
+    return "red", "✖", t(
+        "matrix.tip_shape_bad",
+        "Cet identifiant n'a pas la forme attendue : il a probablement été collé "
+        "avec du texte autour. Ressaisis-le.")
+
+
+def read_identities(db, artist_id: int) -> dict:
+    """{plateforme logique: valeur d'identité} — ce qui est réellement stocké.
+
+    Une seule requête, sur la connexion du rendu (règle transverse #9). Ne lève
+    jamais : une forme non vérifiable s'affiche « ? », jamais « ✖ ».
+    """
+    import json
+
+    from src.utils.tenant_identity import PLATFORM_IDENTITIES
+    out: dict = {}
+    try:
+        rows = db.fetch_query(
+            "SELECT platform, extra_config FROM artist_credentials WHERE artist_id = %s",
+            (artist_id,))
+    except Exception as e:  # noqa: BLE001 — la colonne « Format » est un bonus
+        logger.warning("identities unreadable: %s", type(e).__name__)
+        return {}
+    extra_by_platform = {}
+    for platform, extra in rows:
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except ValueError:
+                extra = {}
+        extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
+    for logical, spec in PLATFORM_IDENTITIES.items():
+        value = (extra_by_platform.get(spec.storage) or {}).get(spec.field)
+        if value:
+            out[logical] = str(value)
+    return out
+
+
 def render_status_matrix(db, artist_id: int, *, compact: bool = False,
                          allow_probe: bool = True, key_suffix: str = "") -> list:
     """Draw the matrix and return the readiness rows.
@@ -191,18 +273,55 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
         st.markdown(line, unsafe_allow_html=True)
         return rows
 
-    header = st.columns([3, 1, 1, 1, 4])
-    for col, label in zip(header, (
+    # Lue APRÈS le retour compact : le bandeau d'accueil n'affiche pas la colonne
+    # « Format », il ne doit pas payer sa requête (règle transverse #9 — une vue
+    # ouvre une connexion, on n'y ajoute pas des lectures qu'elle n'affiche pas).
+    identities = read_identities(db, artist_id)
+
+    # La légende, ICI et une seule fois — pas recopiée par chaque page qui appelle.
+    # Trois surfaces l'écrivaient chacune à sa façon, et deux d'entre elles ne
+    # disaient pas ce que « Répond » et « Données » veulent dire. Demandé le
+    # 2026-09-04 : « explique ce que veulent dire la colonne répond et données +
+    # rajoute une légende en petit à côté d'état des plateformes ».
+    st.caption(t(
+        "matrix.legend_inline",
+        "**Saisi** : tu as entré un identifiant · **Format** : il a la forme "
+        "attendue · **Répond** : la plateforme nous a répondu quand on l'a "
+        "interrogée · **Données** : des chiffres sont réellement arrivés chez nous. "
+        "L'objectif est quatre ✅ par ligne."))
+
+    _W = [3, 1, 1, 1, 1, 4]
+    header = st.columns(_W)
+    for col, label, tip in zip(header, (
             t("matrix.col_platform", "**Plateforme**"),
-            t("matrix.col_set", "**Configuré**"),
+            t("matrix.col_set", "**Saisi**"),
+            t("matrix.col_shape", "**Format**"),
             t("matrix.col_responds", "**Répond**"),
             t("matrix.col_data", "**Données**"),
-            t("matrix.col_action", "**Prochaine étape**"))):
-        col.markdown(label)
+            t("matrix.col_action", "**Prochaine étape**")), (
+            None,
+            t("matrix.help_set", "Un identifiant est enregistré pour cette plateforme."),
+            t("matrix.help_shape",
+              "Cet identifiant a la forme que la plateforme attend. Il peut être "
+              "bien formé et rester faux — c'est « Répond » qui le dit."),
+            t("matrix.help_responds",
+              "La plateforme a répondu correctement la dernière fois qu'on l'a "
+              "interrogée. Des données fraîches valent réponse : dans ce cas rien "
+              "n'est appelé."),
+            t("matrix.help_data",
+              "Des lignes sont arrivées dans notre base pour toi. C'est la seule "
+              "preuve qui compte pour tes graphiques."),
+            None)):
+        col.markdown(label, help=tip)
 
     for r in rows:
-        cols = st.columns([3, 1, 1, 1, 4])
+        cols = st.columns(_W)
+        # Le nom, et SOUS lui l'endroit où ça se règle. « Meta Ads » et « Instagram »
+        # sont deux lignes parce que ce sont deux collectes, mais elles se saisissent
+        # dans le même onglet — et rien ne le disait.
         cols[0].markdown(_html.escape(r["label"]))
+        if r.get("where"):
+            cols[0].caption(_html.escape(r["where"]))
 
         configured = r["status"] != "todo"
         cols[1].markdown(
@@ -212,7 +331,9 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
                  else t("matrix.tip_unset", "Aucun identifiant saisi.")),
             unsafe_allow_html=True)
 
-        cols[2].markdown(_box(*_responds_cell(r, probes)), unsafe_allow_html=True)
+        cols[2].markdown(_box(*_shape_cell(r, identities)), unsafe_allow_html=True)
+
+        cols[3].markdown(_box(*_responds_cell(r, probes)), unsafe_allow_html=True)
 
         # `quiet` était vert : un compte Meta sans campagne active s'affichait « ✅ »
         # avec ZÉRO ligne de données. C'est le bon état (rien à collecter n'est pas une
@@ -220,7 +341,7 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
         # portait déjà la nuance (⏸️, `artist_readiness._ICON`) ; la couleur la niait.
         data_state = {"ok": "green", "stale": "amber", "quiet": "amber",
                       "no_data": "red", "broken": "amber", "todo": "grey"}[r["status"]]
-        cols[3].markdown(
+        cols[4].markdown(
             _box(data_state, r["icon"], r["status_label"]), unsafe_allow_html=True)
 
         # The next step, and for a red platform that is the LIVE reason when we have
@@ -232,8 +353,27 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
         # `as_markdown` only fixes the line breaks: a single `\n` is not a break in
         # markdown, so the two bullets of a two-case diagnosis would run into one.
         # The escape stays — the tail of this string is a platform's own answer.
-        cols[4].caption(
+        cols[5].caption(
             as_markdown(_html.escape(action)) if action else "—")
+
+        # Une plateforme prouvée par PLUSIEURS sources se détaille sous sa ligne.
+        # Spotify en a deux — l'API et l'import CSV Spotify for Artists — et la
+        # ligne unique ne montrait que la meilleure : « 🟢 » pouvait vouloir dire
+        # « l'API remonte » aussi bien que « tu as déposé un CSV il y a trois mois »,
+        # deux situations qui appellent des gestes opposés. Demandé le 2026-09-04.
+        _sources = r.get("by_source") or {}
+        if len(_sources) > 1:
+            for _src, _d in _sources.items():
+                sub = st.columns(_W)
+                sub[0].caption("　↳ " + _html.escape(_SOURCE_LABELS.get(_src, _src)))
+                sub[4].markdown(
+                    _box({"ok": "green", "stale": "amber", "quiet": "amber",
+                          "no_data": "red", "broken": "amber",
+                          "todo": "grey"}[_d["status"]],
+                         _d["icon"], _d["status_label"]),
+                    unsafe_allow_html=True)
+                sub[5].caption(_html.escape(
+                    _SOURCE_HINTS.get(_src, _d["status_label"])))
 
     if allow_probe:
         checkable = [r["key"] for r in rows if r["status"] != "todo"]

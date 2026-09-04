@@ -131,4 +131,9 @@ EN = {
                                  "This page will no longer open on login.",
     "onboarding.setup_progress": "Setup: **{done}/{total}** — until it is complete, "
                                  "login brings you back here.",
+
+    "onboarding.feat_meta_budget": (
+        "+ 💶 **How much to put back on which campaign** — scale up, hold or cut, "
+        "campaign by campaign, from the cost per listen gained"
+    ),
 }

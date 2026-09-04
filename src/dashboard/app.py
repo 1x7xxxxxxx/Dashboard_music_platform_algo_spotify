@@ -39,7 +39,8 @@ load_project_env()
 
 from src.utils.config_loader import config_loader
 from src.utils.airflow_trigger import AirflowTrigger
-from src.dashboard.auth import require_login, show_user_sidebar, get_artist_plan
+from src.dashboard.auth import (require_login, show_user_sidebar, get_artist_plan,
+                                render_logout_footer)
 from src.dashboard.utils.i18n import t, get_lang
 from src.database.stripe_schema import PLAN_FEATURES, ALWAYS_ACCESSIBLE
 from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
@@ -215,10 +216,10 @@ _NAV_SECTIONS = [
     # le commentaire ci-dessus annonce « Order = user journey ». Descendus après les
     # analytics, là où l'artiste a enfin quelque chose à emporter.
     ("start",     "",                       [("🏠 Accueil", "home")]),
-    ("data",      "📁 Données",             [("🚀 Mise en route (assistant)", "onboarding"),
+    ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
                                              ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API", "credentials"),
-                                             ("📂 Ajouter mes chiffres Spotify & Apple", "upload_csv"),
+                                             ("📂 Ajouter mes chiffres Spotify for Artists & Apple", "upload_csv"),
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
@@ -228,18 +229,24 @@ _NAV_SECTIONS = [
                                              ("🎬 YouTube", "youtube"),
                                              ("☁️ SoundCloud", "soundcloud"),
                                              ("📸 Instagram", "instagram"),
-                                             ("📱 Hypeddit", "hypeddit")]),
+                                             ("📱 Hypeddit", "hypeddit"),
+                                             # Data Wrapped vivait dans « Rapports &
+                                             # exports », à côté des exports PDF/CSV.
+                                             # Ce n'est pas un export : c'est une
+                                             # lecture de ses chiffres, comme les six
+                                             # entrées au-dessus. Déplacé le
+                                             # 2026-09-04 à la demande de l'artiste.
+                                             ("🎁 Data Wrapped", "data_wrapped")]),
     ("advanced",  "🔮 Prédiction algos Spotify", [("📝 Saisie S4A (playlist & Discovery)", "saisie_s4a"),
-                                             ("🚀 Prédiction Discover Weekly", "trigger_algo")]),
+                                             ("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo")]),
     ("ads",       "📣 Publicité Meta Ads",  [("📱 Vue d'ensemble", "meta_ads_overview"),
-                                             ("🎨 Créatives", "meta_creatives"),
-                                             ("🌍 Breakdowns Meta", "meta_breakdowns"),
+                                             ("🎨 Visuels de campagne", "meta_creatives"),
+                                             ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
                                              ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
     ("revenue",   "💶 Revenus",             [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),
                                              ("🎼 SACEM", "sacem"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
-    ("reports",   "🎁 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
-                                             ("📄 Export PDF", "export_pdf"),
+    ("reports",   "🎁 Rapports & exports",  [("📄 Export PDF", "export_pdf"),
                                              ("⬇️ Export CSV", "export_csv")]),
     ("account",   "👤 Compte",              [("👤 Mon compte", "account"),
                                              ("💳 Billing", "billing"),
@@ -451,10 +458,28 @@ def _select_nav_radio(page_key: str, rendered) -> None:
         st.session_state[skey] = page_key if page_key in keys else None
 
 
+def _neighbour_pages(rendered, current: str, is_locked) -> tuple:
+    """(page précédente, page suivante) dans l'ordre du menu — ou None de chaque côté.
+
+    Les pages VERROUILLÉES sont sautées : une flèche est un geste d'exploration, et
+    l'envoyer buter sur le paywall une entrée sur deux transforme l'exploration en
+    parcours d'obstacles. Elles restent atteignables par le menu, avec leur 🔒, qui
+    est le bon endroit pour proposer une montée en gamme — le clic y est délibéré.
+
+    Pure : elle ne lit ni Streamlit ni la session, donc l'ordre se teste sans rendre
+    une page.
+    """
+    order = [key for _, _, items in rendered for _, key in items
+             if not is_locked(key)]
+    if current not in order:
+        return None, None
+    i = order.index(current)
+    return (order[i - 1] if i > 0 else None,
+            order[i + 1] if i < len(order) - 1 else None)
+
+
 def render_navigation(role: str, rendered, all_skeys) -> str:
     """Draw the section radios; return the page, plan-gating applied."""
-    st.sidebar.title(t("nav.title", "🎵 Navigation"))
-
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
     plan = get_artist_plan()
     accessible = PLAN_FEATURES.get(plan, set())
@@ -462,6 +487,26 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
 
     def _is_locked(key: str) -> bool:
         return not (is_all or key in ALWAYS_ACCESSIBLE or key in accessible)
+
+    # Le titre, et deux flèches pour passer d'une page à la suivante sans chercher
+    # dans une liste de quarante entrées. Demandé le 2026-09-04 : « rajoute 2 flèches
+    # cliquables qui passent d'un onglet à l'autre à côté de NAVIGATION ».
+    #
+    # Écrire `_nav_page` ici est LÉGAL et ne l'est pas partout : on est dans la phase
+    # barre latérale, avant que les radios de section soient instanciés — c'est
+    # exactement la contrainte documentée dans `utils/navigation.py`. Le rerun qui
+    # suit fait accorder le menu par `resolve_nav_page`.
+    _cur = st.session_state.get('_nav_page', 'home')
+    _prev, _next = _neighbour_pages(rendered, _cur, _is_locked)
+    _c_title, _c_prev, _c_next = st.sidebar.columns([5, 1, 1])
+    _c_title.title(t("nav.title", "🎵 Navigation"))
+    from src.dashboard.utils.navigation import goto
+    if _c_prev.button("◀", key="_nav_prev", disabled=_prev is None,
+                      help=t("nav.prev", "Page précédente")):
+        goto(_prev)
+    if _c_next.button("▶", key="_nav_next", disabled=_next is None,
+                      help=t("nav.next", "Page suivante")):
+        goto(_next)
 
     label_by_key = {key: t(f"nav.item.{key}", lbl)
                     for _, _, items in rendered for lbl, key in items}
@@ -839,6 +884,11 @@ def _main_body():
     else:
         page = render_navigation(role, _rendered, _all_skeys)
         show_data_collection_panel()
+
+    # La sortie, en dernier, dans les DEUX branches — y compris en première connexion,
+    # où le menu n'est pas rendu. Un écran dont on ne peut pas sortir n'est pas une
+    # aide (même raison que le gros bouton de l'assistant).
+    render_logout_footer()
 
     # Le miroir : l'URL nomme la page en cours, donc un rechargement la retrouve.
     # Écriture gardée — réécrire la même valeur relancerait le script en boucle.

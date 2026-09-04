@@ -54,6 +54,13 @@ def _inline_md(text: str) -> str:
     # skips matches preceded by " > = / (already part of an emitted <a>/<code>).
     t = _BARE_URL_RE.sub(lambda m: f'<a href="{m.group(0)}">{m.group(0)}</a>', t)
     t = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", t)
+    # *italique* — APRÈS le gras, sinon `**x**` serait mangé de l'intérieur par ce
+    # motif-ci. Le guide s'en servait déjà (« à droite du bouton *Suivre* ») et le
+    # PDF sortait les astérisques telles quelles : la prose est écrite en markdown
+    # pour Streamlit, et ce rendu-ci n'en connaissait qu'une moitié. Le motif exige
+    # un caractère non-espace de chaque côté, pour qu'un astérisque isolé — une note
+    # de bas de page, une multiplication — ne déclenche rien.
+    t = re.sub(r"(?<!\*)\*(?!\s)([^*]+?)(?<!\s)\*(?!\*)", r"<em>\1</em>", t)
     return t
 
 # Layout decisions below are measured, not felt — see the 2026-09-03 session.
@@ -100,6 +107,13 @@ th { background: #f3f3f3; }
 /* Clickable URLs stand out: green, underlined, with a soft highlight. */
 a { color: #14532d; text-decoration: underline; background: #eefaf1; padding: 0 2px;
     border-radius: 2px; overflow-wrap: anywhere; }
+/* Ce qu'il y a à coller. `.paste-head` porte l'action, la liste porte le détail —
+   l'exemple factice y est une légende en italique, jamais une colonne de tableau
+   aussi nette que le nom du champ (2026-09-04). */
+.paste-head { margin: 12px 0 2px; font-weight: bold; color: #1f3a5f; }
+ul.fields { margin: 2px 0 10px 18px; padding: 0; }
+ul.fields li { margin: 4px 0; }
+ul.fields .caption { margin: 0; display: block; }
 .linkbar { margin: 12px 0 4px; }
 .linkbtn { display: inline-block; background: #eef2f8; border: 1px solid #1f3a5f;
     color: #1f3a5f; padding: 6px 11px; border-radius: 5px; text-decoration: none;
@@ -146,6 +160,9 @@ _UI = {
         'th_field': "Champ", 'th_example': "Exemple (format)", 'th_note': "Note",
         'note': "Note", 'open_portal': "Ouvrir le portail {title}",
         'test_conn': "Tester la connexion dans streaMLytics",
+        'paste_head': ("À coller dans l'encadré 👉 Saisir tes identifiants, "
+                       "en haut de cet onglet :"),
+        'ex_prefix': "ex.", 'ex_suffix': "exemple de forme, ne le copie pas",
     },
     'en': {
         'doc_h1': "Getting started with streaMLytics — API &amp; CSV",
@@ -165,6 +182,9 @@ _UI = {
         'th_field': "Field", 'th_example': "Example (format)", 'th_note': "Note",
         'note': "Note", 'open_portal': "Open the {title} portal",
         'test_conn': "Test the connection in streaMLytics",
+        'paste_head': ("To paste into the 👉 Enter your credentials box, "
+                       "at the top of that tab:"),
+        'ex_prefix': "e.g.", 'ex_suffix': "sample format, do not copy it",
     },
 }
 
@@ -179,15 +199,28 @@ def _expected_table(guide: PlatformGuide, ui: dict) -> str:
     return f"<table>{head}{body}</table>"
 
 
-def _fields_table(cred: PlatformCred, ui: dict) -> str:
-    head = f"<tr><th>{ui['th_field']}</th><th>{ui['th_example']}</th><th>{ui['th_note']}</th></tr>"
-    body = "".join(
-        f"<tr><td>{html.escape(f.label)}{' 🔒' if f.secret else ''}</td>"
-        f"<td><code>{html.escape(f.example)}</code></td>"
-        f"<td>{html.escape(_strip_emoji(f.note or ''))}</td></tr>"
-        for f in cred.fields
-    )
-    return f"<table>{head}{body}</table>"
+def _fields_list(cred: PlatformCred, ui: dict) -> str:
+    """Ce qu'il y a à coller — une liste, plus un tableau d'exemples factices.
+
+    Même changement que sur l'écran (`credential_guides_st._render_fields_table`) et
+    pour la même raison, signalée le 2026-09-04 : dans un tableau, l'exemple factice
+    occupait une colonne aussi nette que le nom du champ, et se lisait comme une
+    valeur à copier. Il passe en italique, précédé de `ex.` et suivi de la phrase qui
+    dit ce qu'il est. Les deux surfaces doivent dire la même chose : le PDF est
+    imprimé et relu loin de l'écran, un écart entre les deux n'est jamais rattrapé.
+    """
+    rows = []
+    for f in cred.fields:
+        lock = " 🔒" if f.secret else ""
+        note = html.escape(_strip_emoji(f.note or ""))
+        rows.append(
+            f'<li><strong>{html.escape(f.label)}</strong>{lock}'
+            + (f'<br/><span class="caption">{note}</span>' if note else "")
+            + f'<br/><span class="caption"><em>{ui["ex_prefix"]} '
+              f'{html.escape(f.example)}</em> — {ui["ex_suffix"]}</span></li>'
+        )
+    return (f'<p class="paste-head">{ui["paste_head"]}</p>'
+            f'<ul class="fields">{"".join(rows)}</ul>')
 
 
 def _render_guide_html(guide: PlatformGuide, ui: dict) -> str:
@@ -215,7 +248,7 @@ def _render_cred_html(cred: PlatformCred, ui: dict) -> str:
         if step.screenshot:
             parts.append(_img_tag(step.screenshot, step.caption, resolver=cred_screenshot_path))
     if cred.fields:
-        parts.append(_fields_table(cred, ui))
+        parts.append(_fields_list(cred, ui))
     if cred.note:
         parts.append(f'<p class="caption">{ui["note"]} — {_inline_md(cred.note)}</p>')
     # `cred.admin_note` n'est délibérément PAS rendu : ce PDF est joint à l'e-mail de

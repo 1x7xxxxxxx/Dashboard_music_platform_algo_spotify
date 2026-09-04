@@ -460,13 +460,30 @@ def find_identity_conflict(db, artist_id: int, platform: str, extra: dict):
         # therefore always report "no conflict".
         (storage_platform(platform), artist_id, field, value),
     )
+    # Le filtre bac à sable s'applique AVANT de décider s'il faut consulter le
+    # miroir, et c'est la correction du 2026-09-04.
+    #
+    # Il vivait après le repli `if not rows`, donc une ligne de bac à sable rendait
+    # `rows` non vide, le miroir `saas_artists` n'était jamais interrogé, et le filtre
+    # vidait ensuite la liste : la fonction répondait « aucun conflit » alors que deux
+    # VRAIS locataires se disputaient l'identifiant. Le bac à sable ne bloquait
+    # personne — ce qui est voulu — mais il rendait aussi AVEUGLE au conflit des
+    # autres, ce qui ne l'est pas : il détient par construction les identifiants de
+    # l'admin, donc il masquait précisément les collisions les plus probables.
+    #
+    # Trouvé en rejouant l'onboarding sur le locataire bac à sable : le test
+    # `test_spotify_conflict_is_seen_through_saas_artists` est passé au rouge à
+    # l'exécution suivante, sur une base où une répétition avait laissé sa ligne.
+    # C'est la classe « la portée d'un garde est le défaut », appliquée à l'ORDRE
+    # des opérations : le prédicat était juste, sa place ne l'était pas.
+    rows = [r for r in rows if r[0] not in sandboxes]
     if not rows and platform == 'spotify':
         # Spotify's identity is mirrored onto saas_artists — check there too.
         rows = db.fetch_query(
             "SELECT id FROM saas_artists WHERE id <> %s AND spotify_artist_id = %s",
             (artist_id, value),
         )
-    rows = [r for r in rows if r[0] not in sandboxes]
+        rows = [r for r in rows if r[0] not in sandboxes]
     if rows:
         # The third element is the tenant that already holds this identifier. It is
         # returned on purpose — an admin resolving a duplicate claim needs to know

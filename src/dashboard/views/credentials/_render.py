@@ -35,6 +35,117 @@ from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.auth import is_admin
 
 
+# Le verdict de la dernière sauvegarde, porté d'un run à l'autre.
+#
+# `_handle_save` finit par `st.rerun()` — il le doit, c'est ce qui fait réapparaître
+# la page avec l'identifiant enregistré et la matrice à jour. Conséquence : tout ce
+# qu'il écrivait à l'écran juste avant était effacé dans la milliseconde. Le
+# « ✅ Credentials spotify enregistrés » qui vivait là n'a donc jamais été lu par
+# personne, et la sonde tournait déjà — son résultat partait en base et nulle part
+# ailleurs. L'artiste voyait un spinner, puis une page rechargée : « j'ai enregistré,
+# et je ne sais pas si ça marche ». C'est la remarque du 2026-09-04.
+#
+# (plateforme, ok | None, raison). `ok is None` = la sonde n'a pas pu conclure —
+# distinct de `ok is False`, qui est un vrai refus de la plateforme.
+VERDICT_KEY = "_cred_last_verdict"
+
+
+def platform_label(platform_key: str) -> str:
+    """Le nom que l'artiste voit sur l'onglet, jamais la clé technique.
+
+    « Vérification de la connexion meta… » nommait une clé de dictionnaire dans une
+    phrase adressée à quelqu'un qui n'a jamais vu ce mot ailleurs que là.
+    """
+    from ._registry import PLATFORMS
+    return (PLATFORMS.get(platform_key) or {}).get('label', platform_key)
+
+
+def _verdict_from_probes(probes: dict, platform_key: str) -> tuple:
+    """(plateforme, ok, raison) depuis la mémoire des sondes. Jamais d'exception.
+
+    Une plateforme absente de `probes` n'est PAS un échec : c'est « la sonde n'a rien
+    pu dire » (pas de sonde pour cette plateforme, API injoignable, table absente).
+    Le rendre comme un ❌ enverrait un artiste réparer une connexion qui n'a jamais
+    été mise en défaut.
+    """
+    remembered = (probes or {}).get(platform_key)
+    if not remembered:
+        return (platform_key, None, "")
+    ok, reason = remembered[0], remembered[1]
+    return (platform_key, bool(ok), reason or "")
+
+
+def _render_save_verdict(platform_key: str, next_platform: tuple | None,
+                         selection_complete: bool = False) -> None:
+    """Le verdict de la sauvegarde qui vient d'avoir lieu, en gros, une seule fois.
+
+    Consommé (`pop`) : c'est le compte rendu d'une action, pas un état. Laissé en
+    place, il réapparaîtrait à chaque rerun de la page, y compris des jours plus
+    tard, et finirait par contredire la matrice — qui, elle, est un état.
+
+    `next_platform` est `(clé, libellé)` de la suivante encore à connecter, ou None.
+    Demandé le 2026-09-04 : « si c'est OK, ça propose de changer de plateforme (taille
+    de police en plus gros pour qu'on comprenne bien) ».
+    """
+    pending = st.session_state.get(VERDICT_KEY)
+    if not pending or pending[0] != platform_key:
+        return
+    st.session_state.pop(VERDICT_KEY, None)
+    _key, ok, reason = pending
+    label = platform_label(platform_key)
+
+    if ok:
+        st.markdown("## " + t("credentials.verdict_ok",
+                              "✅ {platform} est connecté.").format(platform=label))
+        if next_platform:
+            _nxt_key, nxt_label = next_platform
+            # Pas de « — son onglet est ci-dessus » ajouté ici : `_next_label` porte
+            # déjà l'onglet quand il diffère du nom de la plateforme, et la phrase
+            # complète disait « Suivante : Instagram — dans l'onglet Meta /
+            # Instagram — son onglet est ci-dessus » (vu au navigateur le
+            # 2026-09-04). Deux surfaces qui ajoutent chacune leur moitié de phrase
+            # produisent une redite que ni l'une ni l'autre ne voit seule.
+            st.markdown("### " + t(
+                "credentials.verdict_next", "👉 Suivante : **{label}**"
+            ).format(label=nxt_label))
+        elif selection_complete:
+            # « Tout est connecté » ne se dit QUE d'une sélection qu'on peut compter.
+            # Un artiste arrivé ici hors parcours de mise en route n'a pas de
+            # sélection : lui annoncer que tout est connecté serait une affirmation
+            # sur des plateformes auxquelles il n'a jamais touché.
+            st.markdown("### " + t(
+                "credentials.verdict_all_done",
+                "🎉 Toutes les plateformes que tu as choisies sont connectées. Les "
+                "premières données arrivent sous ~2 min."))
+            if st.button(t("credentials.verdict_go_home", "🏠 Aller au dashboard →"),
+                         type="primary", key=f"_verdict_home_{platform_key}"):
+                from src.dashboard.utils.navigation import goto
+                goto('home')
+        return
+
+    if ok is False:
+        st.markdown("## " + t("credentials.verdict_ko",
+                              "❌ {platform} : enregistré, mais la plateforme ne "
+                              "répond pas encore.").format(platform=label))
+        if reason:
+            st.error(reason)
+        st.markdown("### " + t(
+            "credentials.verdict_ko_what_now",
+            "Corrige ci-dessous puis **💾 Enregistre** à nouveau — on retestera "
+            "tout de suite."))
+        return
+
+    # `ok is None` : rien à affirmer. Le dire vaut mieux qu'un ✅ optimiste, qui est
+    # exactement ce que la page faisait avant en écrivant « Credentials enregistrés »
+    # sans avoir rien vérifié.
+    st.markdown("## " + t("credentials.verdict_saved",
+                          "💾 {platform} enregistré.").format(platform=label))
+    st.info(t("credentials.verdict_unknown",
+              "La vérification n'a rien pu conclure pour l'instant. Utilise "
+              "**🔌 Tester la connexion** ci-dessous, ou reviens dans quelques "
+              "minutes — la collecte de cette nuit tranchera de toute façon."))
+
+
 def _declared_from_rows(existing: dict) -> set:
     """{platform: row} → the logical platforms carrying a non-empty identity."""
     import json
@@ -91,7 +202,9 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
 
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None,
-                         artist_name: str | None = None):
+                         artist_name: str | None = None,
+                         next_platform: tuple | None = None,
+                         selection_complete: bool = False):
     # Un champ `admin_only` est une surcharge d'exploitant : l'artiste ne doit ni
     # le voir ni pouvoir l'écrire. Filtré ICI, donc `_handle_save` ne le lit pas non
     # plus — le filtre porte sur la définition, pas seulement sur l'affichage.
@@ -103,6 +216,11 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     # L'action — la seule chose que l'artiste ait à FAIRE ici — arrivait donc en
     # quatrième position, sous un sélecteur d'OS et un pavé qu'il faut déplier.
     # Il est maintenant : statut → ACTION → test → mode d'emploi → (admin) DAG.
+
+    # Le compte rendu de la sauvegarde qui vient d'avoir lieu, AVANT le statut :
+    # c'est la réponse à l'action que l'artiste vient de faire, et elle passe devant
+    # l'état permanent de la page.
+    _render_save_verdict(platform_key, next_platform, selection_complete)
 
     # ── Statut actuel ──────────────────────────────────────────────────
     if existing_row:
@@ -148,6 +266,16 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         existing_values = {}
 
     st.markdown("---")
+
+    # ── Meta : l'assistant qui trouve le numéro de compte ─────────────
+    # AU-DESSUS du formulaire, parce que c'est l'étape qui précède la saisie : il
+    # produit la valeur que le champ attend. Hors du `st.form` — un formulaire ne
+    # rend rien tant qu'on ne l'a pas soumis, donc le numéro trouvé n'apparaîtrait
+    # qu'après un enregistrement, c'est-à-dire trop tard pour aider à le remplir.
+    if platform_key == 'meta':
+        from ._platform_meta import render_ad_account_picker
+        render_ad_account_picker(artist_id)
+        st.markdown("---")
 
     # ── Formulaire standard (toutes plateformes) ─────────────────────
     with st.form(f"cred_{platform_key}_{artist_id}"):
@@ -566,17 +694,25 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # It never raises and never opens a connection of its own (rule #9): `db` is
         # the one this view already holds.
         try:
-            from src.dashboard.utils.status_matrix import run_probes_now
-            with st.spinner(t("credentials.probing_now",
-                              "Vérification de la connexion {platform}…").format(
-                                  platform=platform_key)):
+            from src.dashboard.utils.status_matrix import read_probes, run_probes_now
+            with st.spinner(t(
+                    "credentials.probing_now",
+                    "⏳ Configuration de **{platform}** en cours — on interroge la "
+                    "plateforme pour savoir si elle répond…").format(
+                        platform=platform_label(platform_key))):
                 run_probes_now(db, artist_id, [platform_key])
+                # Le verdict est ÉCRIT par `run_probes_now`, qui ne rend qu'un
+                # compteur ; on le relit à sa source, celle que la matrice lit.
+                # Le porter en session est obligatoire : le `st.rerun()` ci-dessous
+                # efface tout ce qui vient d'être écrit à l'écran — c'est pour ça que
+                # le `st.success` qui vivait ici n'a jamais été lu par personne.
+                st.session_state[VERDICT_KEY] = _verdict_from_probes(
+                    read_probes(db, artist_id), platform_key)
         except Exception as probe_err:  # noqa: BLE001 — a verdict is a bonus, never a blocker
             logger.warning("post-save probe of %s failed for artist %s: %s",
                            platform_key, artist_id, type(probe_err).__name__)
+            st.session_state[VERDICT_KEY] = (platform_key, None, "")
 
-        st.success(t("credentials.save_ok",
-                     "✅ Credentials {platform} enregistrés.").format(platform=platform_key))
         st.rerun()
 
     except Exception as e:

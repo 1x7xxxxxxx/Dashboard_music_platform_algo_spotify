@@ -5,6 +5,210 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 11) — Le menu nommait nos objets ; la matrice fondait ce qui est distinct
+
+Deuxième lot du même parcours. Aucune de ces remarques n'est de l'ergonomie : chacune
+désigne un endroit où **l'app parle d'elle-même** au lieu de parler à celui qui la lit.
+
+### Le menu
+
+« Données » ne contenait aucune donnée — c'est la **Configuration de streaMLytics**.
+« Ajouter mes chiffres Spotify & Apple » se confondait avec l'API Spotify réglée deux
+lignes plus haut : c'est **Spotify for Artists**, et c'est un fichier. « Prédiction
+Discover Weekly » en prédit trois (**DW, Radio, Release Radar**). « Créatives » est du
+vocabulaire d'agence → **Visuels de campagne** ; « Breakdowns Meta » un mot d'API →
+**Qui a vu tes pubs (pays, âge, placement)**. Data Wrapped était rangé avec les
+exports : ce n'est pas un fichier qu'on emporte, c'est une lecture — descendu dans
+Analytics, sous Hypeddit.
+
+**Deux flèches ◀ ▶** à côté de « Navigation » parcourent le menu dans l'ordre, en
+**sautant les pages verrouillées** : une flèche est un geste d'exploration, et tomber
+une fois sur deux sur le paywall la rendrait inutilisable. Le 🔒 du menu reste le bon
+endroit pour proposer la montée en gamme — le clic y est délibéré.
+
+**« Se déconnecter » descend tout en bas**, en petit. Il vivait dans le bloc
+d'identité, donc juste sous le nom de l'artiste : la troisième chose qu'on voyait en
+arrivant était le bouton pour partir. Il est rendu dans les DEUX branches, y compris
+la première connexion où le menu n'existe pas — sans quoi cet écran-là n'aurait plus
+de sortie.
+
+### La matrice d'état : quatre questions, pas trois
+
+**« Configuré » devient « Saisi », et une colonne « Format » apparaît.** La demande :
+« un step saisie des identifiants qui n'est pas le même que configuré, car on peut
+l'avoir mal renseigné ». C'est exact — l'ancienne colonne ne mesurait que « une valeur
+est là », et une valeur peut être là ET fausse. « Format » attrape ce que le
+formulaire ne laisse plus passer mais que d'anciennes lignes portent encore : une URL
+entière dans un champ numérique, un @pseudo à la place d'un id. Son infobulle dit
+qu'un ✅ n'est pas une garantie — c'est « Répond » qui tranche.
+
+**Spotify se dédouble.** Deux sources le prouvent, l'API et le CSV S4A, et la ligne
+unique n'affichait que la meilleure : « 🟢 » pouvait vouloir dire « l'API remonte »
+aussi bien que « tu as déposé un CSV il y a trois mois », deux situations qui appellent
+des gestes opposés. Chacune a maintenant sa sous-ligne, avec l'endroit où elle se
+règle. C'est un **ajout au contrat, pas un changement** : même nombre de lignes, mêmes
+statuts — une ligne de plus aurait fait crier l'alerte nocturne chaque nuit sur une
+source que personne n'alimente (R46), le bruit qu'on a mis un mois à supprimer.
+
+**Meta Ads et Instagram restent deux lignes**, et c'est délibéré : deux identités, deux
+collectes, deux pannes possibles — Instagram peut être muet pendant que Meta Ads
+répond. Ce qui manquait, c'est que rien ne disait qu'elles se saisissent au même
+endroit. Chaque ligne porte désormais son « Credentials API → … ». Simplifier voulait
+dire expliquer, pas fusionner.
+
+**La légende vit dans la matrice**, une seule fois, à côté des colonnes qu'elle
+explique. Trois surfaces en écrivaient chacune une version et deux ne disaient pas ce
+que « Répond » et « Données » veulent dire.
+
+### Meta : coller l'adresse suffit
+
+Un encadré au-dessus du formulaire : **① Ouvrir le Gestionnaire de publicités**,
+**② coller l'adresse** — le numéro de compte est extrait et **montré avant
+l'enregistrement**. Le champ acceptait déjà l'URL depuis ce matin ; ce qui manquait
+était la confirmation, donc rien ne distinguait « j'ai collé la bonne page » de « j'ai
+collé celle du Business Manager ». Ce dernier cas a son propre message.
+
+Ce qu'on ne peut PAS faire, écrit sur place pour que personne ne le retente : lire
+l'onglet que l'artiste vient d'ouvrir (frontière d'origine du navigateur), ni demander
+la liste des comptes à Meta — elle passerait par le jeton de la plateforme et
+renverrait les comptes de tous les locataires.
+
+### L'alerte `spotify_api_daily` du jour
+
+Elle disait : « Check that SPOTIFY_ARTIST_IDS are valid ». **Deux fois faux.** Cette
+variable doit être **vide** en multi-locataire — `check_env_parity._MUST_BE_EMPTY` la
+surveille, parce que renseignée elle réarme la fuite de locataire du 2026-08-20.
+L'alerte envoyait donc son lecteur remplir un champ dont le remplissage EST le défaut.
+Et elle ne nommait ni le locataire ni l'identifiant, alors que la boucle venait de les
+parcourir.
+
+La sévérité dépend en outre de la **portée du run**, ce que le code ignorait : zéro
+titre sur toute la flotte est une panne d'infrastructure (on lève) ; zéro titre sur un
+run scopé à un locataire — le cas d'un enregistrement depuis le dashboard — c'est SON
+identifiant qui ne rend rien. On journalise son échec, qu'il lit dans sa matrice, au
+lieu de réveiller l'admin.
+
+**Et le log de prod donnait la cause, qui n'était pas celle-là :**
+
+    ⚠️ Spotify id 7sbf… is claimed by 2 tenants ([1, 18]) — skipping, ownership
+       is ambiguous.
+
+Le locataire 18 est le **bac à sable**, et il porte l'identifiant de l'exploitant
+**par construction** : c'est ce que la migration 080 autorise, et ce que
+`find_identity_conflict` exempte explicitement pour qu'il le puisse. Le DAG lisait ce
+même partage comme une propriété ambiguë, sautait la ligne, comptait zéro et
+échouait. **Deux gardes écrits séparément se contredisaient** — l'un autorise le
+partage, l'autre le refuse — et chaque répétition d'onboarding réveillait l'admin.
+
+C'est la classe `exempt-row-hides-others-conflict` du matin, prise par l'autre bout :
+une exemption posée d'un côté et ignorée de l'autre. Un id porté par un vrai locataire
+ET un bac à sable n'est pas ambigu — le propriétaire est le vrai locataire ; et un run
+scopé n'a rien à deviner, l'appelant vient de nommer le locataire. L'ambiguïté entre
+deux VRAIS locataires reste refusée : ce garde existe parce que prendre le premier
+attribuait silencieusement un catalogue entier au mauvais compte.
+
+## 2026-09-04 (suite 10) — Douze remarques de parcours : ce que la page demandait et savait déjà
+
+Lot de terrain du deuxième parcours artiste. Le fil commun n'est pas l'ergonomie : dans
+huit cas sur douze, **la page posait une question dont elle connaissait déjà la
+réponse**, ou affirmait quelque chose que son propre code contredisait.
+
+### Le défaut le plus coûteux : un verdict calculé, jamais montré
+
+`_handle_save` sondait déjà la plateforme après enregistrement (`run_probes_now`,
+gardé par `test_saving_credentials_yields_a_verdict_now.py`), écrivait le résultat en
+base… puis appelait `st.rerun()`. Or le `st.success` qui vivait juste avant est effacé
+par ce rerun. **La réponse existait, personne ne la voyait** — l'artiste voyait un
+spinner puis une page rechargée. Le verdict passe désormais par la session et s'affiche
+en tête d'onglet, en H2 : « ✅ 🎵 Spotify est connecté » + la plateforme suivante.
+Vérifié au navigateur sur le locataire bac à sable.
+
+### Ce qui a été retiré
+
+- **Le sélecteur d'OS** en tête de chaque onglet de credentials : plus aucun des quatre
+  guides ne contient d'instruction dépendant du clavier. Il n'est pas supprimé, il est
+  **conditionné** (`os_hints.has_os_tokens`) — le jour où un guide redemande un
+  raccourci, il revient seul. `test_guides_render_per_os` affirmait « les deux rendus
+  diffèrent » : un FAIT de contenu, devenu faux le jour où le dernier jeton est parti.
+  Il affirme maintenant la RÈGLE, vraie dans les deux états.
+- **L'écran intermédiaire** entre « Configurer ma sélection » et la page de saisie. Il
+  ne faisait que reposer la question à laquelle le bouton précédent venait de répondre.
+- **« Ouvrez le Gestionnaire de publicités »** — le lien du portail, rendu deux lignes
+  plus haut, disait déjà exactement cela.
+- **Le tableau « Exemple (factice) »** : dans un tableau, l'exemple occupait une colonne
+  aussi nette que le nom du champ. Il passe en italique, en légende, suivi de « ne le
+  copie pas ». Même changement dans le PDF — deux surfaces qui doivent dire la même
+  chose.
+
+### Ce qui a été ajouté, et pourquoi c'était faux avant
+
+- **La capture d'écran Spotify** (menu ⋯ → Partager → Copier le lien). `⋯` seul se
+  lisait comme une coupure de texte : il porte un fond de code, il est nommé, il est
+  situé. Une seule ligne de contenu — le PDF et la page la prennent toutes deux.
+- **Meta accepte l'URL entière.** « On ne peut pas récupérer le n° act nous-mêmes ? »
+  Non : le token est celui de la plateforme, et lister les comptes qu'il voit
+  exposerait ceux des autres locataires. Mais `normalise_meta_account` extrait
+  désormais `act=` d'une URL collée — le motif exige le nom de paramètre COMPLET,
+  sinon `business_id=` passerait, ce que l'étape 3 du guide dit justement d'éviter.
+  Une URL SANS `act=` reste refusée : deviner vaut pire qu'un refus.
+- **La sélection est ÉNUMÉRÉE**, plus seulement comptée. « 1/3 connectée(s) » oblige à
+  compter des onglets pour savoir si son plan est arrivé entier — c'est ce qui a produit
+  « j'avais sélectionné spotify, insta et soundcloud, et il me montre uniquement spotify
+  et meta ».
+- **Apple Music menait nulle part.** Cochable à la mise en route, elle n'a aucun onglet
+  (c'est un CSV) : ni onglet, ni repli, ni message — et comme elle n'est jamais
+  « connectée » au sens des identités, elle restait éternellement « Suivante », en
+  promettant un onglet qui n'existe pas. `platform_destination()` répond maintenant
+  pour toute clé cochable, et `test_every_setup_choice_has_a_destination.py` le prouve
+  sur le registre, pas sur une liste recopiée.
+
+### Le nom de l'app Meta : il DOIT se voir
+
+« L'user ne doit pas voir le nom de l'app admin ? » Si — c'est le seul moyen pour lui
+de retrouver notre app dans SON Business Manager. Ce qui était faux, c'est qu'un
+identifiant interne était écrit en dur sans dire à quoi il correspond. Il vient de la
+configuration (`META_APP_DISPLAY_NAME`), la phrase dit « le nom sous lequel notre
+application apparaît chez Meta », et les deux réglages ont leur lien direct. Le garde
+qui grepait la chaîne littérale vise désormais le nom **configuré**.
+
+### Les figures
+
+Les trois sur une ligne, en app et en e-mail. Celle de Meta × Spotify porte le seuil de
+déclenchement, « 78 % de chances d'ici 14 jours » et la projection en pointillés — la
+première version montrait une projection qui **descendait** sous le seuil pendant que le
+texte annonçait 78 %, corrigée avant de sortir. Le mot de bienvenue passe de une à trois
+images sans grossir : des vignettes à 360 px, ~78 Ko à elles trois. Le garde « une
+image, pas trois » comptait les images ; il **pèse** maintenant les octets, ce qui est
+ce qu'il voulait dire depuis le début.
+
+### Un défaut de prod trouvé par la répétition elle-même
+
+Rejouer l'onboarding sur le locataire bac à sable a laissé sa ligne d'identifiant
+Spotify en base — et **`test_spotify_conflict_is_seen_through_saas_artists` est passé
+au rouge à l'exécution suivante**. Ce n'était pas un effet de bord de test : c'est un
+défaut P2 de `find_identity_conflict`.
+
+L'identité Spotify est cherchée dans `artist_credentials`, puis — *seulement si rien
+n'est trouvé* — dans son miroir `saas_artists`, celui que le collecteur lit vraiment.
+Le filtre bac à sable, lui, s'appliquait **après**. Une seule ligne de bac à sable
+suffisait donc à rendre la première recherche non vide, le miroir n'était jamais
+consulté, et le filtre vidait ensuite le résultat : « aucun conflit », pendant que deux
+**vrais** locataires se disputaient l'identifiant. Le bac à sable ne bloquait personne
+— ce qui est voulu — mais il rendait aussi aveugle au conflit des autres, ce qui ne
+l'est pas : il détient par construction les identifiants de l'exploitant, donc il
+masquait exactement les collisions les plus probables.
+
+Le prédicat était juste, sa **place** ne l'était pas. Classe
+`exempt-row-hides-others-conflict` au catalogue, garde vu rouge par mutation, et
+balayage fait : le chemin Meta est indemne (sa requête ramène tout d'un coup, sans
+repli conditionnel), et aucun autre site ne combine « repli si vide » et « filtre
+d'exemption ».
+
+### Reste ouvert
+
+**R58** — les figures tirées des vraies données. Différé par celui qui l'a demandé,
+« après le set up initial validé » ; ce qui la débloque est R1, pas du code.
+
 ## 2026-09-04 (suite 9) — L'attente après l'inscription, et trois figures qui disent qu'elles sont des exemples
 
 ✅ **DÉPLOYÉ** (`e999a57`, `c62370d`).

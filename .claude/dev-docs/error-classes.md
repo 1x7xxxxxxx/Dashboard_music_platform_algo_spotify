@@ -240,11 +240,29 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [backup-shares-the-fate-of-what-it-protects](#backup-shares-the-fate-of-what-it-protects) | P1 | deterministic | guarded | none |
 | [orchestrator-costs-more-than-what-it-orchestrates](#orchestrator-costs-more-than-what-it-orchestrates) | P3 | deterministic | guarded | none |
 | [the-only-copy-is-consumed-on-read](#the-only-copy-is-consumed-on-read) | P2 | deterministic | guarded | none |
+| [exempt-row-hides-others-conflict](#exempt-row-hides-others-conflict) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
 
 ---
+
+
+## exempt-row-hides-others-conflict
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une recherche d'unicité trouve une ligne EXEMPTÉE, s'arrête donc là, puis retire l'exemptée du résultat — et répond « aucun conflit » alors que deux locataires non exemptés se disputent bien la valeur.
+- signature: `python3 -m pytest tests/test_a_sandbox_tenant_may_hold_its_owners_identity.py::test_a_sandbox_row_does_not_hide_a_conflict_between_two_real_tenants -q`
+- root_cause: `src/dashboard/views/credentials/_core.py::find_identity_conflict` — le filtre `rows = [r for r in rows if r[0] not in sandboxes]` s'appliquait APRÈS le repli `if not rows and platform == 'spotify'`, qui décide s'il faut consulter le miroir `saas_artists`. Le prédicat était juste, sa PLACE ne l'était pas.
+- long_term_fix: tout filtre d'exemption s'applique immédiatement après la requête qui le produit, jamais après une décision prise sur le résultat non filtré. Une source de repli filtre son propre résultat.
+- autofix: none
+- guard: { type: ci-step, ref: tests/test_a_sandbox_tenant_may_hold_its_owners_identity.py }
+- rex_ref: .claude/rules/python.md
+- first_seen: 2026-09-04 (ref: DEVLOG#2026-09-04)
+- History:
+  - 2026-09-04: trouvé en rejouant l'onboarding sur le locataire bac à sable — la ligne laissée par la répétition a fait passer `test_spotify_conflict_is_seen_through_saas_artists` au rouge à l'exécution SUIVANTE. Le bac à sable détient par construction les identifiants de l'exploitant : il masquait donc exactement les collisions les plus probables. Corrigé (ordre des deux opérations) + garde vu rouge par mutation.
+  - 2026-09-04: balayage — le chemin Meta (`_find_meta_account_conflict`) est indemne : sa requête ramène tous les autres locataires en une fois et n'a aucun repli conditionnel. Aucun autre site dans le dépôt ne combine « repli si vide » et « filtre d'exemption ».
 
 ## streamlit-pin-drift
 - status: guarded

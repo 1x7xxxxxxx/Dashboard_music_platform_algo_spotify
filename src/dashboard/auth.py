@@ -676,7 +676,31 @@ def show_user_sidebar(plan: str | None = None):
         else:
             st.sidebar.caption(_t("auth.global_access", "Accès global (tous les artistes)"))
 
-    if st.sidebar.button(_t("auth.logout", "Se déconnecter")):
+
+def render_logout_footer() -> None:
+    """« Se déconnecter », TOUT EN BAS de la barre, discret.
+
+    Il vivait dans `show_user_sidebar`, donc juste sous le nom de l'artiste et
+    au-DESSUS des quarante entrées du menu : la troisième chose qu'on voyait en
+    arrivant était le bouton pour partir. Demandé le 2026-09-04 : « mettre le bouton
+    se déconnecter tout en bas de l'app en petit ».
+
+    Séparé du bloc d'identité plutôt que déplacé avec lui : l'identité doit rester en
+    haut (c'est ce qui a été corrigé le matin même), la sortie doit descendre. Une
+    seule fonction ne peut pas être aux deux endroits.
+
+    `type="tertiary"` là où Streamlit le connaît — c'est le rendu « lien », donc
+    « petit » au sens demandé ; sur une version plus ancienne, le bouton normal
+    reste, précédé du séparateur. Un `TypeError` sur un argument de style ne doit
+    jamais coûter à quelqu'un la possibilité de se déconnecter.
+    """
+    st.sidebar.markdown("---")
+    label = _t("auth.logout", "Se déconnecter")
+    try:
+        clicked = st.sidebar.button(label, key="_logout_footer", type="tertiary")
+    except TypeError:
+        clicked = st.sidebar.button(label, key="_logout_footer")
+    if clicked:
         # clear(), not a pop-list. `_SESSION_KEYS` named six keys and the session
         # holds more than six — `_totp_pending` carries the account's `totp_secret`
         # and survived a logout, as did the cached plan and the re-auth clock. A

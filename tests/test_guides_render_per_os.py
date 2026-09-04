@@ -120,12 +120,43 @@ def test_the_windows_render_never_spells_a_mac_shortcut(rendered):
     )
 
 
-def test_the_two_renders_actually_differ(rendered):
-    """If the selector is ignored, every assertion above passes on one page twice."""
+def test_the_two_renders_differ_exactly_when_the_guides_depend_on_the_os(rendered):
+    """Le rendu suit le CONTENU, dans les deux sens.
+
+    Cette assertion disait « les deux rendus diffèrent », point. C'était vrai tant
+    qu'un guide portait un jeton, et c'est devenu faux le 2026-09-04 quand le dernier
+    (`{{COPY}}`, guide Meta) est parti : le champ Ad Account accepte désormais l'URL
+    entière, donc plus personne n'a à sélectionner une sous-chaîne au clavier. Le test
+    est alors passé au rouge sur du code correct — il affirmait un FAIT de contenu là
+    où la question est une RÈGLE.
+
+    La règle, elle, tient dans les deux états : deux rendus identiques sont corrects
+    si et seulement si aucun guide ne dépend du clavier — et dans ce cas le sélecteur
+    d'OS ne doit pas non plus s'afficher, sans quoi la page offrirait un choix entre
+    deux réponses identiques. Le jour où un guide redemande un raccourci, la même
+    assertion exige à nouveau que les rendus diffèrent, sans qu'on ait rien à toucher.
+    """
+    from src.dashboard.content.credential_guides import CREDENTIAL_GUIDES
+    from src.dashboard.content.credential_guides_st import _needs_os_selector
     from src.dashboard.utils.os_hints import MAC, WINDOWS
 
-    assert rendered[WINDOWS] != rendered[MAC], (
-        "the Windows and macOS renders are byte-identical — `_guide_os` is not "
-        "reaching the resolver, so the OS selector changes nothing on screen and "
-        "the checks above prove nothing."
-    )
+    os_dependent = [g.key for g in CREDENTIAL_GUIDES if _needs_os_selector(g)]
+    differ = rendered[WINDOWS] != rendered[MAC]
+
+    if os_dependent:
+        assert differ, (
+            f"guide(s) {os_dependent} carry a keyboard instruction, yet the Windows "
+            "and macOS renders are byte-identical — `_guide_os` is not reaching the "
+            "resolver, so every check above proves nothing."
+        )
+    else:
+        assert not differ, (
+            "no credential guide depends on the keyboard any more, yet the two "
+            "renders differ. Something is branching on the OS outside the token "
+            "resolver, where no test can see it."
+        )
+        assert "Instructions adaptées" not in rendered[WINDOWS], (
+            "the OS selector is still drawn while no guide depends on the OS — it "
+            "offers a choice between two identical answers, on top of the one field "
+            "the artist has to fill (reported 2026-09-04)."
+        )

@@ -84,12 +84,19 @@ def test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test():
         if guide.key != "meta":
             continue
         texts = [str(s.text) for s in guide.steps]
+        # The CONFIGURED app name, never the literal that shipped in 2026. The app
+        # is renameable on Meta's side (`META_APP_DISPLAY_NAME`), and a guard that
+        # greps a hardcoded string would then go red on correct code while staying
+        # green on a guide that names an app nobody can find — the failure mode this
+        # repo calls "a guard whose scope is the defect".
+        from src.dashboard.content.credential_guides import META_APP_DISPLAY_NAME
+
         share = [i for i, t in enumerate(texts)
-                 if "ETL_DASHBOARD_SPOTIFY" in t]
+                 if META_APP_DISPLAY_NAME in t]
         assert share, (
             f"{lang}/meta no longer tells the artist to share their ad account with "
-            "ETL_DASHBOARD_SPOTIFY. Without it the collection reads nothing, whatever "
-            "ID they paste."
+            f"{META_APP_DISPLAY_NAME}. Without it the collection reads nothing, "
+            "whatever ID they paste."
         )
         test_step = [i for i, t in enumerate(texts)
                      if "Tester la connexion" in t or "Test connection" in t

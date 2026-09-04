@@ -70,6 +70,28 @@ def resolve_os_tokens(text: str, os_key: str = WINDOWS) -> str:
     return _TOKEN_RE.sub(_render, text)
 
 
+def has_os_tokens(*texts: str) -> bool:
+    """Does any of `texts` carry a token whose rendering DIFFERS between the two OSes?
+
+    The question the OS switch answers is « ton clavier ne fait pas la même chose que
+    le mien ». Where nothing in a guide depends on the machine, the switch is a
+    control that changes nothing — and it sat at the very top of every credential
+    tab, above the one field the artist has to fill. Signalé le 2026-09-04 :
+    « supprime l'instruction adaptée macOS quand on en a pas besoin : ici pas de
+    commande avec le clavier ».
+
+    A token whose two renderings are IDENTICAL does not count: it would show a
+    chooser between two identical answers. Pure — no Streamlit, so the decision is
+    testable without rendering a page.
+    """
+    for text in texts:
+        for name in _TOKEN_RE.findall(text or ""):
+            pair = _TOKENS.get(name)
+            if pair and pair[0] != pair[1]:
+                return True
+    return False
+
+
 def unresolved_tokens(text: str) -> list[str]:
     """Tokens present in `text` that _TOKENS cannot resolve (test helper)."""
     return [n for n in _TOKEN_RE.findall(text or "") if n not in _TOKENS]

@@ -198,16 +198,7 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
             lang, trial_days=trial_days)}</p>
         <h3>{_tr('email.welcome.value_header', "Ce que streaMLytics t'apporte :", lang)}</h3>
         <ul>{value}</ul>
-        <p style="margin:24px 0 8px;">
-        <img src="cid:{_WELCOME_IMAGE_CID}" width="560"
-             style="max-width:100%;height:auto;border-radius:8px;"
-             alt="{_tr('email.welcome.image_alt',
-                       "Exemple : toutes tes plateformes sur un seul écran — "
-                       "données fictives", lang)}">
-      </p>
-      <p style="color:#888;font-size:12px;margin:0 0 20px;">{_tr(
-          'email.welcome.image_caption',
-          "Exemple — ce que tu verras quand tes données seront là.", lang)}</p>
+        {_welcome_image_row(lang)}
       <p>{_tr('email.welcome.one_thing',
             "<strong>Une seule chose à faire pour démarrer :</strong> suis le "
             "<strong>guide de démarrage</strong>. Il est en pièce jointe de cet e-mail, "
@@ -233,18 +224,98 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
                       inline_images=_welcome_images())
 
 
-# UNE image, pas trois. Le mot de bienvenue vient d'être ramené à « la valeur, et une
-# seule chose à faire » ; trois figures le rendraient lourd, et le poids d'un message
-# pèse sur sa délivrabilité. Une suffit à montrer ce qui attend l'artiste — les deux
-# autres l'attendent dans l'application, où il peut les regarder.
+# TROIS figures, sur une ligne, en vignettes. Demandé le 2026-09-04 : « les
+# graphiques en plus petit sur la même ligne pour que ça soit visuel ».
+#
+# La version d'avant n'en portait qu'une, et sa raison écrite était le poids : trois
+# figures pleines font ~240 Ko, et le poids d'un message pèse sur sa délivrabilité.
+# Ce raisonnement reste juste — ce sont les images qui changent. Les vignettes
+# (`*-thumb.png`, 360 px, produites par `make example-charts`) pèsent ~78 Ko à
+# elles trois, soit un tiers de l'image unique d'avant multipliée par trois, et un
+# neuvième du PDF que ce même e-mail transporte déjà en pièce jointe.
+#
+# Chaque figure est un `<td>` d'un `<table>`, jamais un flex ni un `float` : les
+# clients de messagerie (Outlook en tête) ne composent fiablement qu'avec des
+# tableaux, et une ligne qui retombe en trois blocs empilés est précisément ce que la
+# demande visait à supprimer.
 _WELCOME_IMAGE_CID = "streamlytics-example-dashboard"
+
+# (cid, nom de fichier de base, légende FR). L'ordre est celui des trois promesses
+# de la liste au-dessus : la figure est la preuve de la phrase qui la précède, et
+# les deux se liraient mal dans deux ordres différents.
+_WELCOME_FIGURES: tuple[tuple[str, str, str], ...] = (
+    (_WELCOME_IMAGE_CID, "dashboard-global",
+     "Toutes tes plateformes sur un seul écran"),
+    ("streamlytics-example-prediction", "prediction-discover-weekly",
+     "La prédiction de déclenchement Discover Weekly"),
+    ("streamlytics-example-meta", "meta-x-s4a",
+     "Ce que chaque euro de pub a produit"),
+)
+
+
+def _examples_dir() -> Path:
+    return (Path(__file__).resolve().parents[2]
+            / "src" / "dashboard" / "assets" / "examples")
+
+
+def _figure_path(base: str) -> Path | None:
+    """La vignette si elle existe, sinon la figure pleine, sinon None.
+
+    Le repli sur la figure pleine n'est pas de la prudence gratuite : les vignettes
+    sont produites par `make example-charts`, donc une image reconstruite sans
+    Pillow n'en a pas. Mieux vaut un e-mail plus lourd qu'un e-mail avec trois
+    cadres vides.
+    """
+    folder = _examples_dir()
+    for name in (f"{base}-thumb.png", f"{base}.png"):
+        candidate = folder / name
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def _welcome_images() -> list[tuple[str, str]]:
-    """L'image d'exemple du mot de bienvenue, si elle est là."""
-    path = (Path(__file__).resolve().parents[2]
-            / "src" / "dashboard" / "assets" / "examples" / "dashboard-global.png")
-    return [(_WELCOME_IMAGE_CID, str(path))] if path.exists() else []
+    """Les images d'exemple à joindre en ligne — seulement celles qui existent."""
+    out = []
+    for cid, base, _caption in _WELCOME_FIGURES:
+        path = _figure_path(base)
+        if path is not None:
+            out.append((cid, str(path)))
+    return out
+
+
+def _welcome_image_row(lang: str = "fr") -> str:
+    """Les trois figures côte à côte, ou rien du tout.
+
+    Rien du tout est une branche qui compte : un `<img src="cid:…">` dont la pièce
+    jointe n'a pas été attachée s'affiche comme une image cassée chez le
+    destinataire. On ne dessine donc que ce que `_welcome_images` a réellement
+    joint — les deux fonctions lisent la même liste, dans le même ordre.
+    """
+    present = {cid for cid, _ in _welcome_images()}
+    cells = []
+    for cid, _base, caption_fr in _WELCOME_FIGURES:
+        if cid not in present:
+            continue
+        caption = _tr(f'email.welcome.fig_{cid}', caption_fr, lang)
+        cells.append(
+            f'<td width="180" valign="top" style="padding:0 6px;">'
+            f'<img src="cid:{cid}" width="180" '
+            f'style="width:180px;max-width:100%;height:auto;border-radius:6px;" '
+            f'alt="{caption}">'
+            f'<div style="color:#888;font-size:11px;line-height:1.35;padding-top:6px;">'
+            f'{caption}</div></td>'
+        )
+    if not cells:
+        return ""
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        'width="100%" style="margin:24px 0 6px;"><tr>' + "".join(cells) + '</tr></table>'
+        '<p style="color:#888;font-size:12px;margin:0 0 20px;">'
+        + _tr('email.welcome.image_caption',
+              "Exemples — ce que tu verras quand tes données seront là.", lang)
+        + '</p>'
+    )
 
 
 def _unsub_secret() -> bytes:

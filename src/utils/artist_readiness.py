@@ -36,20 +36,32 @@ _LABEL = {
 # platform is collecting lives in `freshness_monitor.SOURCES_FOR_PLATFORM` — restating
 # it here is what let readiness judge Spotify on the CSV table while three other
 # surfaces judged it on three other tables.
+# `where` = l'endroit EXACT où cette plateforme se règle, tel qu'il s'appelle dans le
+# menu. Ajouté le 2026-09-04 : « on a meta ads et instagram séparé mais quand on
+# configure meta ads on a accès à insta ??? À simplifier ». Les deux SONT deux
+# plateformes — deux identités, deux collectes, deux pannes possibles — et les fondre
+# perdrait l'information qui compte (Instagram peut être muet pendant que Meta Ads
+# répond). Ce qui manquait, c'est que rien ne disait qu'elles se saisissent au même
+# endroit. Le dire coûte cinq mots et supprime la question.
 _PLATFORMS = (
     {"key": "soundcloud", "label": "☁️ SoundCloud",
+     "where": "Credentials API → SoundCloud",
      "id_hint": "ton User ID SoundCloud numérique",
      "nodata_hint": "vérifie le User ID ; l'app SoundCloud partagée doit être configurée (admin)"},
     {"key": "spotify", "label": "🎵 Spotify",
+     "where": "Credentials API → Spotify",
      "id_hint": "l'URL de ta page Spotify Artist",
      "nodata_hint": "importe ton CSV Spotify for Artists, ou vérifie l'ID artiste"},
     {"key": "youtube", "label": "🎬 YouTube",
+     "where": "Credentials API → YouTube",
      "id_hint": "ton Channel ID (UC…)",
      "nodata_hint": "ta chaîne n'a peut-être aucune vidéo publique (cherche ta chaîne « … - Topic »)"},
     {"key": "meta", "label": "📱 Meta Ads",
+     "where": "Credentials API → Meta / Instagram",
      "id_hint": "ton Ad Account ID",
      "nodata_hint": "partage ton compte publicitaire avec le Business Manager admin (asset sharing)"},
     {"key": "instagram", "label": "📸 Instagram",
+     "where": "Credentials API → Meta / Instagram",
      "id_hint": "ton Instagram Business Account ID",
      "nodata_hint": "partage ton compte Instagram/Page avec le Business Manager admin"},
 )
@@ -194,6 +206,21 @@ def artist_readiness(db, artist_id: int, probe=None) -> list:
         # should be told to do the other's work.
         sources = sources_for(p["key"]) or ()
         best = None
+        # Le détail PAR SOURCE, en plus du meilleur. Spotify en a deux — l'API et
+        # l'import CSV Spotify for Artists — et la ligne unique ne montrait que le
+        # meilleur des deux : un artiste dont l'API remonte et qui n'a jamais déposé
+        # de CSV lisait « 🟢 » sans savoir que la moitié CSV n'existe pas, et
+        # réciproquement. Demandé le 2026-09-04 : « séparer spotify de spotify 4
+        # artist qui sont 2 process différents ».
+        #
+        # C'est un AJOUT, pas un changement de contrat : le nombre de lignes, les
+        # statuts et les actions ne bougent pas. La matrice s'en sert pour afficher
+        # deux lignes ; l'alerte nocturne, le canari et `artist-preflight` continuent
+        # de lire exactement ce qu'ils lisaient. Une ligne de plus dans le tableau
+        # aurait fait crier l'alerte chaque nuit sur une source que personne
+        # n'alimente (R46, S4A muette depuis 88 jours) — le bruit qu'on a mis un mois
+        # à supprimer.
+        by_source = {}
         for src in sources:
             f = fresh.get(src, {})
             silence = f.get("expected_silence")
@@ -201,6 +228,10 @@ def artist_readiness(db, artist_id: int, probe=None) -> list:
                 identity, f.get("last_dt"), f.get("stale", True), silence,
                 f.get("error"),
             )
+            by_source[src] = {"status": cand, "icon": _ICON[cand],
+                              "status_label": _LABEL[cand],
+                              "last_dt": f.get("last_dt"),
+                              "expected_silence": silence}
             if best is None or _RANK[cand] > _RANK[best[0]]:
                 best = (cand, silence, f.get("last_dt"))
         status, silence, last_dt = best or (
@@ -218,6 +249,7 @@ def artist_readiness(db, artist_id: int, probe=None) -> list:
 
         matrix.append({
             "key": p["key"], "label": p["label"], "icon": _ICON[status],
+            "where": p.get("where", ""), "by_source": by_source,
             "status": status, "status_label": _LABEL[status],
             "expected_silence": silence,
             "last_dt": last_dt,

@@ -11,8 +11,28 @@ resolved anywhere under assets/credential_guide/ (flat or per-platform
 subfolder); a missing file degrades gracefully. Example values are illustrative
 formats only — never real secrets.
 """
+import os
 from dataclasses import dataclass
 from pathlib import Path
+
+
+# Le nom sous lequel NOTRE application Meta apparaît dans le Business Manager de
+# l'artiste. Demandé le 2026-09-04 : « l'user ne doit pas voir le nom de l'app admin
+# ou je comprends mal quelque chose ? »
+#
+# Il doit le voir, et c'est la seule réponse honnête : pour partager SON compte
+# publicitaire, il doit retrouver cette app dans SON Business Manager, où Meta
+# l'affiche déjà. Le masquer rendrait l'étape infaisable. Ce qui était réellement
+# faux, c'est que ce nom — un identifiant interne — était écrit en dur dans le
+# guide sans dire à quoi il correspond : le jour où l'app est renommée côté Meta,
+# le guide envoie l'artiste chercher quelque chose qui n'existe plus, et rien ne le
+# signale. Il vient donc de la configuration, comme le reste de l'identité Meta.
+META_APP_DISPLAY_NAME = os.getenv("META_APP_DISPLAY_NAME", "ETL_DASHBOARD_SPOTIFY")
+
+# Le réglage exact, chez Meta, où se fait le partage. Un lien vaut mieux qu'un
+# chemin de menu recopié : les libellés de Business Manager changent, les URL non.
+_META_BM_APPS_URL = "https://business.facebook.com/settings/apps"
+_META_BM_ADACCOUNTS_URL = "https://business.facebook.com/settings/ad-accounts"
 
 
 @dataclass(frozen=True)
@@ -97,13 +117,31 @@ _SPOTIFY = PlatformCred(
     portal_url="https://open.spotify.com",
     portal_search_url="https://open.spotify.com/search/{q}/artists",
     steps=(
-        CredStep("Sur Spotify, ouvre **ta page artiste** → **⋯** → **Partager** → "
-                 "**Copier le lien vers l'artiste**."),
-        CredStep("Colle-le ci-dessous → **Enregistrer**. On extrait l'ID "
-                 "automatiquement — pas besoin de le découper."),
+        # `⋯` seul se lisait comme une coupure de texte, pas comme un bouton :
+        # signalé le 2026-09-04 — « on peut confondre avec du texte ». Le glyphe
+        # porte donc un fond de code (une forme, pas une ponctuation), il est NOMMÉ
+        # en toutes lettres, et il est situé par rapport à un repère que l'artiste
+        # a sous les yeux. La capture d'écran fait le reste : c'est l'étape où deux
+        # testeurs se sont arrêtés.
+        CredStep("Sur Spotify, ouvre **ta page artiste**, puis clique le bouton "
+                 "`•••` — les **trois petits points**, à droite du bouton "
+                 "*Suivre / Abonné*.",
+                 "spotify_share_artist_link.png",
+                 "Le bouton ••• → Partager → Copier le lien vers l'artiste"),
+        CredStep("Dans le menu qui s'ouvre : **Partager** → **Copier le lien vers "
+                 "l'artiste**."),
+        # « Colle-le ci-dessous » était faux depuis que le guide est passé SOUS le
+        # formulaire (2026-08-30) : ce qui se trouve dessous, c'est le statut du DAG.
+        # Une direction relative ne survit pas à un déplacement de bloc ; on nomme
+        # donc la page et l'encadré, ce qui reste vrai dans le PDF, qui n'a ni
+        # « dessus » ni « dessous ».
+        CredStep("Dans l'application, page **🔑 Credentials API → Spotify**, encadré "
+                 "**👉 Saisir tes identifiants** : colle le lien dans le champ "
+                 "**Spotify Artist ID ou URL profil**, puis **💾 Enregistrer**. "
+                 "On extrait l'ID automatiquement — pas besoin de le découper."),
     ),
     fields=(
-        CredField("Spotify Artist ID ou URL",
+        CredField("Spotify Artist ID ou URL profil",
                   "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
                   note="colle l'URL complète de ta page artiste — on extrait l'ID"),
     ),
@@ -193,16 +231,28 @@ _META = PlatformCred(
     ),
     portal_url="https://adsmanager.facebook.com/",
     steps=(
-        CredStep("Ouvrez le **Gestionnaire de publicités** "
-                 "([adsmanager.facebook.com](https://adsmanager.facebook.com/)) et "
-                 "connectez-vous. Sélectionnez le bon compte si vous en avez plusieurs."),
-        CredStep("**Méthode la plus simple — via l'URL.** Regardez la **barre "
-                 "d'adresse** de votre navigateur (tout en haut). L'URL contient un "
-                 "paramètre **`act=`**, par exemple :\n\n"
+        # L'étape « Ouvrez le Gestionnaire de publicités (adsmanager.facebook.com) »
+        # a été retirée le 2026-09-04 : le lien du portail, rendu juste au-dessus de
+        # la première étape, dit déjà exactement cela. Ce qu'elle portait d'utile —
+        # « sélectionnez le bon compte si vous en avez plusieurs » — est descendu
+        # dans l'étape ci-dessous, qui est celle où le choix se voit.
+        CredStep("Ouvre le portail ci-dessus et connecte-toi. Si tu gères "
+                 "**plusieurs comptes publicitaires**, sélectionne d'abord celui que "
+                 "tu veux suivre : c'est lui que l'adresse va nommer."),
+        # « act_ ou pas act_ ? » — signalé le 2026-09-04 : « c'est confus ». Les deux
+        # sont acceptés (`_handle_save` normalise), donc la réponse n'est pas une
+        # règle de plus à retenir : c'est de dire qu'il n'y a rien à découper. Le
+        # champ accepte désormais l'URL ENTIÈRE, comme Spotify et SoundCloud
+        # acceptent déjà un lien — le geste est « copier la barre d'adresse », que
+        # tout le monde sait faire, au lieu de « sélectionner la bonne sous-chaîne ».
+        CredStep("**Le plus simple : copie l'adresse entière.** Clique dans la "
+                 "**barre d'adresse** de ton navigateur (tout en haut), copie tout, "
+                 "et colle-le tel quel — on en extrait le numéro de compte.\n\n"
                  "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
-                 "Votre **Ad Account ID** est le **nombre situé juste après `act=`** et "
-                 "**avant le `&`** suivant. Astuce : double-cliquez sur ce nombre pour le "
-                 "sélectionner, puis **{{COPY}}**.",
+                 "Si tu préfères ne coller que le numéro, prends celui qui suit "
+                 "**`act=`** et s'arrête au `&`. **Avec ou sans le préfixe `act_`, "
+                 "les deux marchent** : `act_123456789012345` et `123456789012345` "
+                 "sont acceptés à l'identique.",
                  "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
         CredStep("⚠️ Ne confondez pas avec `business_id=…` (votre Business Manager) ni "
                  "avec un **ID d'ensemble de publicités** (ad set) : seul le nombre "
@@ -215,14 +265,18 @@ _META = PlatformCred(
         # pourquoi. C'est ce qui a bloqué la session du 2026-06-19.
         CredStep("⚠️ **Étape indispensable, et c'est vous qui la faites.** Tant que "
                  "ce compte n'est pas partagé, la collecte ne verra rien — même avec "
-                 "le bon ID. Dans **Business Manager → Paramètres → Applications**, "
-                 "trouvez **ETL_DASHBOARD_SPOTIFY** (demandez-nous de vous l'ajouter "
-                 "si elle n'y est pas), puis **Actifs commerciaux → Ajouter des "
-                 "actifs → Compte publicitaire** : sélectionnez le vôtre et donnez-lui "
-                 "l'autorisation **Analyste** (ou Annonceur)."),
-        CredStep("Collez ce nombre dans **🔑 Credentials API → Meta / Instagram**, puis "
-                 "**Tester la connexion**. (Le préfixe `act_` est ajouté automatiquement.) "
-                 "Un ❌ ici pointe presque toujours vers l'étape de partage ci-dessus."),
+                 "le bon ID.\n\n"
+                 f"Ouvrez [Business Manager → Applications]({_META_BM_APPS_URL}) et "
+                 f"cherchez **{META_APP_DISPLAY_NAME}** — c'est le nom sous lequel "
+                 "**notre application apparaît chez Meta** ; si elle n'est pas dans "
+                 "la liste, demandez-nous de vous l'ajouter. Puis, dans "
+                 f"[Comptes publicitaires]({_META_BM_ADACCOUNTS_URL}) → **Ajouter "
+                 "des personnes / des applications**, sélectionnez le vôtre et "
+                 "donnez-lui l'autorisation **Analyste** (ou Annonceur)."),
+        CredStep("Collez la valeur dans **🔑 Credentials API → Meta / Instagram**, "
+                 "encadré **👉 Saisir tes identifiants**, puis **💾 Enregistrer** — "
+                 "la connexion est testée dans la foulée. Un ❌ ici pointe presque "
+                 "toujours vers l'étape de partage ci-dessus."),
         CredStep("**Instagram (optionnel mais recommandé).** Pour suivre vos followers "
                  "et vos posts, il faut l'**ID du compte Instagram Business** — pas votre "
                  "@pseudo. Ouvrez **Meta Business Suite → Paramètres → Comptes → Comptes "
@@ -233,8 +287,9 @@ _META = PlatformCred(
                  "Un compte personnel ne renvoie aucune statistique via l'API."),
     ),
     fields=(
-        CredField("Ad Account ID", "act_1234567890",
-                  note="nombre ou préfixé 'act_' — pour Meta Ads"),
+        CredField("Ad Account ID (act_… ou numérique)", "act_1234567890",
+                  note="l'URL entière du Gestionnaire de publicités convient aussi — "
+                       "`act_1234567890` et `1234567890` sont acceptés à l'identique"),
         CredField("Instagram Business Account ID", "17841400000000000",
                   note="optionnel — ~17 chiffres, pour les stats Instagram"),
     ),

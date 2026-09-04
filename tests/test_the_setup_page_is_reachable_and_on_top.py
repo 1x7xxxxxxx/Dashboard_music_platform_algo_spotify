@@ -800,12 +800,36 @@ def test_the_welcome_mail_embeds_its_image_and_reads_without_it():
         f"an image is fetched from a URL at line(s) {remote}: the recipient's client "
         "would tell a third party when the mail was opened, and most clients block "
         "it anyway")
-    assert "email.welcome.image_alt" in body, (
-        "the embedded image has no alt text — blocked images are the normal case")
-    # One image, not three: a heavier welcome mail is a less deliverable one.
-    fn = _fn(VERIF, "_welcome_images")
-    src = ast.get_source_segment(body, fn) or ""
-    assert src.count(".png") == 1, "the welcome mail carries more than one image"
+    # Un `alt=` NON VIDE sur chaque image, pas une clé i18n nommée. La version
+    # d'avant cherchait la chaîne `email.welcome.image_alt` : elle est passée au rouge
+    # le 2026-09-04 en renommant la clé, sur du code où chaque image porte bel et bien
+    # son texte de remplacement. Un garde qui vise le NOM d'une clé répond « cette clé
+    # existe-t-elle », jamais « ces images ont-elles un alt ».
+    import re as _re
+    from src.utils.verification_email import _welcome_image_row, _welcome_images
+
+    row = _welcome_image_row("fr")
+    imgs = _re.findall(r"<img\b[^>]*>", row)
+    assert imgs, "the welcome mail no longer renders any example figure"
+    for tag in imgs:
+        alt = _re.search(r'alt="([^"]*)"', tag)
+        assert alt and alt.group(1).strip(), (
+            f"an embedded image has no alt text — blocked images are the normal "
+            f"case: {tag[:90]}")
+
+    # Le POIDS, pas le nombre. « Une image, pas trois » était la formulation de la
+    # règle en septembre ; la règle elle-même a toujours été « un mot de bienvenue
+    # lourd se délivre moins bien ». Les trois promesses sont désormais montrées côte
+    # à côte (demandé le 2026-09-04) en VIGNETTES : trois d'entre elles pèsent moins
+    # que la moitié des trois figures pleines, et un neuvième du PDF que ce même
+    # e-mail transporte déjà en pièce jointe. Compter les images aurait interdit le
+    # changement ; peser les octets dit ce qu'on voulait vraiment dire.
+    from pathlib import Path as _Path
+    total = sum(_Path(path).stat().st_size for _cid, path in _welcome_images())
+    assert total <= 120 * 1024, (
+        f"the welcome mail carries {total // 1024} KB of inline images (ceiling: "
+        "120 KB). Rebuild the thumbnails with `make example-charts` — a heavier "
+        "welcome mail is a less deliverable one.")
 
 
 def test_the_sandbox_reset_actually_sends_the_verification_mail():

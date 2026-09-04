@@ -38,4 +38,35 @@ EN = {
     "matrix.age_days": "{n} d ago",
     "matrix.tip_data_proved_then_stopped": "The connection worked — data did arrive, but not recently. Nothing to reconfigure: see the « Data » column.",
     "matrix.tip_connected_nothing_to_send": "The connection works; this source simply has nothing to send right now. This is not a failure.",
+
+    # ── Colonne « Format » + légende intégrée (2026-09-04) ──
+    "matrix.col_shape": "**Shape**",
+    "matrix.legend_inline": (
+        "**Entered**: you typed an identifier · **Shape**: it looks the way the "
+        "platform expects · **Responds**: the platform answered when we asked · "
+        "**Data**: rows actually reached us. Four ✅ per line is the goal."
+    ),
+    "matrix.help_set": "An identifier is stored for this platform.",
+    "matrix.help_shape": (
+        "This identifier has the shape the platform expects. It can be well-formed "
+        "and still wrong — « Responds » is what settles that."
+    ),
+    "matrix.help_responds": (
+        "The platform answered correctly the last time we asked. Fresh data counts "
+        "as an answer: nothing is called in that case."
+    ),
+    "matrix.help_data": (
+        "Rows reached our database for you. It is the only proof that matters for "
+        "your charts."
+    ),
+    "matrix.tip_shape_na": "Nothing to check until an identifier is entered.",
+    "matrix.tip_shape_unknown": "Shape cannot be checked for this platform.",
+    "matrix.tip_shape_ok": (
+        "The identifier has the expected shape. That does not prove it is the right "
+        "one — the « Responds » column says that."
+    ),
+    "matrix.tip_shape_bad": (
+        "This identifier does not have the expected shape: it was probably pasted "
+        "with text around it. Enter it again."
+    ),
 }

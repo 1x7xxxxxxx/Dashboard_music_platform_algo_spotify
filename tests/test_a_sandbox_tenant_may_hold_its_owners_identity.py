@@ -75,6 +75,12 @@ def tenants():
         yield db, made[0], made[1], f"ID{tag.upper()}"
     finally:
         for aid in made:
+            # Les credentials d'abord : une ligne laissée derrière rendrait le
+            # locataire suivant introuvable en cascade, et c'est exactement ce
+            # qu'une répétition oubliée a produit le 2026-09-04 (voir le dernier
+            # test de ce fichier).
+            db.execute_query("DELETE FROM artist_credentials WHERE artist_id = %s",
+                             (aid,))
             db.execute_query("DELETE FROM saas_artists WHERE id = %s", (aid,))
         db.close()
 
@@ -143,4 +149,109 @@ def test_a_canary_keeps_the_guard(tenants):
         "artists; a collision there is an accident to be reported, not a rehearsal, "
         "and widening a dangerous permission to a tenant that never asked for it is "
         "how a guard stops meaning anything."
+    )
+
+
+def test_a_sandbox_row_does_not_hide_a_conflict_between_two_real_tenants(tenants):
+    """La troisième moitié, celle que personne n'avait vue.
+
+    Les deux exemptions déjà épinglées plus haut portent sur QUI est bloqué. Celle-ci
+    porte sur ce que le bac à sable rend INVISIBLE, et c'est un défaut trouvé en
+    production locale le 2026-09-04, en rejouant simplement l'onboarding : la ligne
+    laissée par la répétition a fait passer au rouge, au run suivant,
+    `test_spotify_conflict_is_seen_through_saas_artists`.
+
+    Le mécanisme tenait à l'ORDRE de deux opérations justes. L'identité Spotify est
+    cherchée dans `artist_credentials`, puis — **seulement si rien n'est trouvé** —
+    dans son miroir `saas_artists`, que le collecteur lit vraiment. Le filtre bac à
+    sable, lui, s'appliquait APRÈS. Une ligne de bac à sable suffisait donc à rendre
+    la première recherche non vide, le miroir n'était jamais consulté, et le filtre
+    vidait ensuite le résultat : « aucun conflit », alors que deux VRAIS locataires
+    se disputaient l'identifiant.
+
+    Ce n'est pas un cas de laboratoire : le bac à sable existe pour rejouer
+    l'onboarding avec les identifiants de l'exploitant, donc il détient par
+    construction ceux que son locataire réel détient aussi. Il masquait exactement
+    les collisions les plus probables.
+    """
+    import json
+
+    from src.dashboard.views.credentials._core import find_identity_conflict
+
+    db, sandbox_id, real_id, value = tenants
+
+    # Le bac à sable détient l'identifiant dans artist_credentials — l'état que
+    # `make artist-sandbox` + une saisie laissent derrière eux.
+    db.execute_query(
+        "INSERT INTO artist_credentials (artist_id, platform, extra_config) "
+        "VALUES (%s, 'spotify', %s::jsonb)",
+        (sandbox_id, json.dumps({"spotify_artist_id": value})))
+    # Un VRAI locataire le détient dans le miroir, celui que spotify_api_daily lit.
+    db.execute_query("UPDATE saas_artists SET spotify_artist_id = %s WHERE id = %s",
+                     (value, real_id))
+
+    conflict = find_identity_conflict(
+        db, real_id + 10_000_000, "spotify", {"spotify_artist_id": value})
+
+    assert conflict is not None, (
+        "a sandbox row hid a conflict between two REAL tenants: the guard looked in "
+        "artist_credentials, found the sandbox, therefore never looked at the "
+        "saas_artists mirror, then filtered the sandbox out and answered « no "
+        "conflict ». Two dashboards would collect the same artist and nobody could "
+        "say whose numbers they are."
+    )
+    assert conflict[2] == real_id, (
+        f"the conflict is reported against {conflict[2]} instead of the real tenant "
+        f"{real_id} — the sandbox must never be named as the holder."
+    )
+
+
+def test_the_collector_does_not_call_a_sandbox_share_an_ambiguous_owner():
+    """L'exemption vaut aussi POUR LE COLLECTEUR, pas seulement pour la saisie.
+
+    Défaut de prod du 2026-09-04, arrivé par une alerte e-mail :
+
+        ⚠️ Spotify id 7sbf… is claimed by 2 tenants ([1, 18]) — skipping,
+        ownership is ambiguous.
+        ❌ ValueError: Spotify API collected 0 tracks from 1 artist(s)
+
+    Le locataire 18 est le bac à sable, et il porte l'identifiant de l'exploitant
+    **par construction** — c'est exactement ce que la migration 080 autorise et ce
+    que `find_identity_conflict` exempte trois fonctions plus haut. `spotify_api_daily`
+    lisait ce même partage comme une propriété ambiguë, sautait la ligne, comptait
+    zéro titre et faisait échouer la tâche. Deux gardes écrits séparément se
+    contredisaient : l'un autorise le partage, l'autre le refuse — et la répétition
+    d'onboarding réveillait l'admin à chaque fois.
+
+    Le test lit le SQL du DAG plutôt que d'exécuter Airflow : ce qui doit rester vrai,
+    c'est que la requête d'ambiguïté écarte les bacs à sable, et qu'un run scopé n'a
+    même pas à la poser.
+    """
+    import ast
+    from pathlib import Path as _Path
+
+    dag = (_Path(__file__).resolve().parents[1] / "airflow" / "dags"
+           / "spotify_api_daily.py")
+    src = dag.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef)
+              and f.name == "collect_spotify_top_tracks")
+    body = ast.get_source_segment(src, fn) or ""
+
+    claim_queries = [n for n in ast.walk(fn)
+                     if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                     and "spotify_artist_id = %s" in n.value
+                     and "FROM saas_artists" in n.value]
+    assert claim_queries, "la requête de propriété a disparu du DAG"
+    assert any("is_sandbox" in q.value for q in claim_queries), (
+        "la requête qui décide « cet id est-il revendiqué par plusieurs locataires ? » "
+        "ne filtre pas les bacs à sable. Un bac à sable porte l'identifiant de "
+        "l'exploitant par construction (migration 080) : sans ce filtre, sa seule "
+        "existence rend la collecte de l'artiste réel « ambiguë » et fait échouer "
+        "la tâche chaque nuit."
+    )
+    assert "if artist_id_conf:" in body, (
+        "un run scopé sur un locataire ne tranche plus la propriété par lui-même — "
+        "il n'y a pourtant rien à deviner quand l'appelant a nommé le locataire"
     )

@@ -5,7 +5,6 @@ Uses: streamlit, src.dashboard.content.credential_guides
 Depends on: assets/credential_guide/*.png (optional — missing images degrade)
 Persists in: nothing
 """
-import pandas as pd
 from urllib.parse import quote
 
 import streamlit as st
@@ -18,7 +17,7 @@ from src.dashboard.content.credential_guides import (
 )
 from src.dashboard.content.csv_guides_st import _display_width
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.os_hints import md as _os_md, os_selector
+from src.dashboard.utils.os_hints import has_os_tokens, md as _os_md, os_selector
 from src.dashboard.auth import is_admin
 
 
@@ -29,8 +28,10 @@ def render_credential_guides() -> None:
     """One expander per platform: steps + screenshots + the values to paste."""
     st.markdown(t("credentials.guide.list_header",
                   "**Comment obtenir les identifiants de chaque plateforme ?**"))
-    # Keyboard steps differ on macOS; pick once here for every guide below.
-    os_selector(key="cred_guides_os")
+    # Le sélecteur d'OS n'apparaît que si AU MOINS un guide en dépend — voir
+    # `_needs_os_selector`.
+    if any(_needs_os_selector(g) for g in CREDENTIAL_GUIDES):
+        os_selector(key="cred_guides_os")
     for guide in CREDENTIAL_GUIDES:
         _render_guide_expander(guide)
 
@@ -52,8 +53,29 @@ def render_credential_guide_for(platform_key: str,
     """
     guide = _BY_KEY.get(platform_key)
     if guide is not None:
-        os_selector(key=f"cred_guide_os_{platform_key}")
+        # …et seulement quand ce guide-ci dépend vraiment du clavier. Au 2026-09-04
+        # aucun des quatre n'en dépend plus : le dernier jeton ({{COPY}}, guide Meta)
+        # est parti avec le passage au collage de l'URL entière. Le sélecteur
+        # disparaît donc de fait — mais par la règle, pas par une suppression : le
+        # jour où un guide redemande un raccourci, il revient tout seul.
+        if _needs_os_selector(guide):
+            os_selector(key=f"cred_guide_os_{platform_key}")
         _render_guide_expander(guide, artist_name=artist_name)
+
+
+def _needs_os_selector(guide: PlatformCred) -> bool:
+    """Ce guide contient-il une instruction qui diffère entre Windows et macOS ?
+
+    Lit la MÊME prose que le rendu — intro, étapes, notes de champ, note, note
+    admin. Une portée plus étroite (les seules étapes, par exemple) laisserait un
+    raccourci dans l'intro sans son sélecteur, ce qui est le défaut d'origine à
+    l'envers.
+    """
+    return has_os_tokens(
+        guide.intro or "", guide.note or "", guide.admin_note or "",
+        *[s.text or "" for s in (guide.steps or ())],
+        *[f.note or "" for f in (guide.fields or ())],
+    )
 
 
 def _render_guide_expander(guide: PlatformCred,
@@ -109,15 +131,32 @@ def _render_step(platform_key: str, num: int, step: CredStep) -> None:
 
 
 def _render_fields_table(guide: PlatformCred) -> None:
-    col_field = t("credentials.guide.col_field", "Champ")
-    col_example = t("credentials.guide.col_example", "Exemple (factice)")
-    col_note = t("credentials.guide.col_note", "Note")
-    rows = [{
-        col_field: f.label,
-        col_example: f.example,
-        "🔒": "secret" if f.secret else "",
-        col_note: t(f"credentials.guide.{guide.key}.note_{i}", f.note) if f.note else "",
-    } for i, f in enumerate(guide.fields, 1)]
-    st.caption(t("credentials.guide.paste_caption",
-                 "Valeurs à coller dans 🔑 Credentials API :"))
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    """Ce qu'il y a à coller, et OÙ — plus un tableau d'exemples factices.
+
+    Signalé le 2026-09-04 : « intégrer la section *saisir tes identifiants* à la
+    place de l'exemple factice, car confusion et surcharge ; mettre l'exemple en
+    italique ». Le tableau présentait l'exemple dans une colonne aussi large et
+    aussi nette que le nom du champ, sur une page dont le seul geste est de coller
+    une valeur — un artiste qui copie la ligne d'exemple fait exactement ce que la
+    mise en page lui montre.
+
+    Trois changements, tous dans ce sens : la phrase d'entête nomme l'encadré du
+    formulaire au lieu de dire « ci-dessous » (le guide est SOUS le formulaire) ;
+    l'exemple passe en italique, en légende, précédé de `ex.` et suivi de « ne le
+    copie pas » ; le tableau disparaît au profit d'une liste, qui tient sur un
+    téléphone là où un `st.dataframe` à quatre colonnes défile latéralement.
+    """
+    st.markdown(t(
+        "credentials.guide.paste_header",
+        "**À coller dans l'encadré 👉 Saisir tes identifiants**, en haut de cet "
+        "onglet :"))
+    for i, f in enumerate(guide.fields, 1):
+        lock = " 🔒" if f.secret else ""
+        label = t(f"credentials.guide.{guide.key}.field_{i}", f.label)
+        st.markdown(f"- **{label}**{lock}")
+        note = t(f"credentials.guide.{guide.key}.note_{i}", f.note) if f.note else ""
+        if note:
+            st.caption(f"　{note}")
+        st.caption("　" + t("credentials.guide.example_inline",
+                           "*ex. {example}* — exemple de forme, ne le copie pas")
+                   .format(example=f.example))

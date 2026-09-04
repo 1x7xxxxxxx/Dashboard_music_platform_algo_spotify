@@ -23,13 +23,22 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap).
 
+| id | tâche | prio | ce qu'il faut avant |
+|----|-------|------|----------------------|
+| R58 | Les figures de la mise en route, tirées des VRAIES données du locataire | P3 | rien de technique — un locataire qui a des données, donc R1 |
+
 ---
 
-## 🔖 REPRISE — état au 2026-09-04, zéro tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-04, une tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1 -->
+<!-- reprise: open=R1, R58 -->
 
-**▶️ Zéro `- [ ]` dans ce fichier.** Les 19 derniers ont été **rotés dans
+**▶️ Une seule tâche ouverte, R58**, ouverte le 2026-09-04 au soir et différée par
+celui qui l'a demandée : « on le garde pour maintenant mais on devra y revenir plus tard
+après le set up initial validé ». Elle n'attend aucun travail de plomberie — elle attend
+un locataire qui ait des données à montrer, donc R1.
+
+**Le reste : zéro `- [ ]` dans ce fichier.** Les 19 derniers ont été **rotés dans
 `archive.md` le 2026-09-03 au soir**, marqués `[CLOS — décision, non livré]` : aucun
 n'était un travail qu'on pouvait commencer. Huit étaient des décisions de performance
 conditionnées par ADR-007 — dont les quatre déclencheurs ont été lus contre la
@@ -41,7 +50,24 @@ redite de **R1**, le geste humain porté par la table « En attente de toi » ci
 Ce qui rouvre chacun est écrit dans son bloc, dans l'archive. Ne reste donc qu'**un**
 geste, et lui seul : **R1** — inviter la bêta.
 
-### Ce que le 2026-09-04 a changé sous cette ligne
+### Ce que le 2026-09-04 (soir) a changé sous cette ligne
+
+Deux lots de parcours artiste, traités et déployés le même jour — DEVLOG « suite 10 »
+et « suite 11 ». Vingt remarques, une seule famille : **l'app parlait d'elle-même**.
+Les gestes qui la fermaient sont, dans l'ordre de ce qu'ils ont coûté à un artiste :
+
+- un **verdict de connexion calculé et jamais montré** (le `st.rerun()` effaçait le
+  message juste avant qu'il s'affiche) ;
+- **Apple Music cochable et ne menant nulle part** — aucun onglet, aucun repli, aucun
+  message, et éternellement « Suivante » ;
+- un **sélecteur d'OS** en tête de chaque onglet alors qu'aucun guide ne dépend plus
+  du clavier ;
+- une **alerte DAG** qui envoyait remplir `SPOTIFY_ARTIST_IDS`, variable qui doit
+  rester vide sous peine de réarmer la fuite de locataire du 2026-08-20 ;
+- un **bac à sable qui masquait un conflit d'identité entre deux vrais locataires**
+  (classe `exempt-row-hides-others-conflict`, P2).
+
+### Ce que le 2026-09-04 avait déjà changé
 
 Rien n'a été rouvert ; trois choses ont été **retirées ou rendues prouvables**.
 
@@ -115,6 +141,41 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
 
 📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=0 -->
+
+## 📌 R58 — Les figures de la mise en route, tirées des vraies données
+
+- [ ] **R58** — remplacer les trois figures d'exemple de l'écran de bienvenue (et du
+  mot de bienvenue) par des figures construites sur les données du locataire, dès
+  qu'il en a.
+
+**Ce qui existe déjà**, et qu'il ne faut pas refaire : les trois figures sont en place,
+côte à côte sur une ligne dans l'app (`views/onboarding._step_welcome`) et dans
+l'e-mail (`verification_email._welcome_image_row`, en vignettes), chacune portant
+« Exemple — données fictives » **dans l'image**. Elles sont produites hors ligne par
+`make example-charts` (`tools/dev/make_example_charts.py`), et celle de Meta × Spotify
+porte depuis le 2026-09-04 le seuil de déclenchement, la probabilité et la projection
+en pointillés.
+
+**Pourquoi c'est différé, et par qui.** Demandé et différé le même jour, dans les mêmes
+mots : « on doit les tirer de l'app en elle-même ⇒ on le garde pour maintenant mais on
+devra y revenir plus tard après le set up initial validé ».
+
+**Ce qui la débloque** : un locataire qui a des données. C'est R1. Avant ça il n'y a
+rien à tracer — l'écran de bienvenue s'affiche à un compte qui vient d'être créé, et
+c'est précisément la raison pour laquelle les figures sont des illustrations.
+
+**Les trois obstacles connus, à ne pas redécouvrir** :
+
+1. **`kaleido` est absent de toutes les images** (mesuré le 2026-09-04) : une figure
+   Plotly ne peut pas être exportée en PNG côté serveur. Le mail a besoin d'un PNG.
+   Soit on installe `kaleido`, soit on reste sur matplotlib pour ce qui part par mail.
+2. **Le mot de bienvenue part à la VÉRIFICATION**, donc avant toute collecte : il ne
+   pourra jamais montrer les données de son destinataire. La version « vraies données »
+   ne concerne que l'app — ou alors elle attend un second e-mail, plus tard.
+3. **Un exemple doit continuer à s'annoncer.** Le mélange est le vrai piège : une
+   figure réelle et une figure d'exemple côte à côte, sans que rien ne les distingue,
+   est pire que trois exemples. `tests/test_public_counters_count_humans.py` garde la
+   même classe ailleurs.
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 

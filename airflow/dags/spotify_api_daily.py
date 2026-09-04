@@ -266,6 +266,13 @@ def collect_spotify_top_tracks(**context):
         # conf={'artist_id': …}").
         conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
         artist_id_conf = conf.get('artist_id')
+        # Import DANS la tâche (règle du repo : les DAGs n'importent rien de lourd au
+        # parsing) et `run_id` pris ici, comme dans `collect_spotify_artists` — sans
+        # eux, la branche « ce locataire n'a rien remonté » ci-dessous lèverait un
+        # NameError au lieu de journaliser, c'est-à-dire remplacerait une alerte
+        # inexacte par un plantage.
+        from src.utils.dag_run_logger import record_tenant_failure
+        run_id = context.get('run_id', '') if context else ''
 
         if artist_id_conf:
             artists = db.fetch_query(
@@ -309,23 +316,49 @@ def collect_spotify_top_tracks(**context):
                 if tracks:
                     # Resolve the SaaS tenant for this Spotify artist (migration 039).
                     # Stamp every track so dashboard readers can filter by tenant.
-                    _sa = db.fetch_query(
-                        "SELECT id FROM saas_artists WHERE spotify_artist_id = %s "
-                        "ORDER BY id",
-                        (artist_id,)
-                    )
-                    if len(_sa) > 1:
-                        # Nothing constrains spotify_artist_id to one tenant, and
-                        # taking the first silently attributed a whole catalogue to
-                        # the wrong account. Ambiguous ownership is not a guess to
-                        # make: skip and say who is colliding.
-                        logger.error(
-                            f'⚠️ Spotify id {artist_id} is claimed by {len(_sa)} tenants '
-                            f'({[r[0] for r in _sa]}) — skipping, ownership is ambiguous. '
-                            'Fix saas_artists.spotify_artist_id for the wrong one.'
+                    # Le run SCOPÉ tranche la propriété à lui seul : on collecte
+                    # POUR ce locataire, il n'y a rien à deviner. Sans cette
+                    # branche, un run scopé sur le bac à sable était refusé pour
+                    # « propriété ambiguë » alors que l'appelant venait de nommer
+                    # le propriétaire.
+                    if artist_id_conf:
+                        saas_artist_id = artist_id_conf
+                    else:
+                        # Les bacs à sable sont EXCLUS du calcul d'ambiguïté.
+                        #
+                        # Défaut de prod du 2026-09-04, remonté par une alerte : le
+                        # bac à sable (locataire 18) porte, par construction,
+                        # l'identifiant Spotify de l'exploitant — c'est sa raison
+                        # d'être (migration 080), et `find_identity_conflict`
+                        # l'exempte explicitement pour qu'il le puisse. Ici, ce même
+                        # partage était lu comme « deux locataires revendiquent cet
+                        # id », la ligne était sautée, le compteur restait à zéro, et
+                        # la tâche échouait en réveillant l'admin.
+                        #
+                        # Deux gardes écrits séparément se contredisaient : l'un
+                        # autorise le partage, l'autre le refuse. C'est la classe
+                        # `exempt-row-hides-others-conflict` du même jour, à
+                        # l'envers — une exemption posée d'un côté et ignorée de
+                        # l'autre. Un id porté par un vrai locataire ET un bac à
+                        # sable n'est pas ambigu : le propriétaire est le vrai
+                        # locataire.
+                        #
+                        # L'ambiguïté entre deux VRAIS locataires reste refusée : ce
+                        # garde a été écrit parce que prendre le premier attribuait
+                        # silencieusement un catalogue entier au mauvais compte.
+                        _sa = db.fetch_query(
+                            "SELECT id FROM saas_artists WHERE spotify_artist_id = %s "
+                            "AND COALESCE(is_sandbox, FALSE) = FALSE ORDER BY id",
+                            (artist_id,)
                         )
-                        continue
-                    saas_artist_id = _sa[0][0] if _sa else None
+                        if len(_sa) > 1:
+                            logger.error(
+                                f'⚠️ Spotify id {artist_id} is claimed by {len(_sa)} tenants '
+                                f'({[r[0] for r in _sa]}) — skipping, ownership is ambiguous. '
+                                'Fix saas_artists.spotify_artist_id for the wrong one.'
+                            )
+                            continue
+                        saas_artist_id = _sa[0][0] if _sa else None
                     if saas_artist_id is None:
                         logger.warning(
                             f'⚠️ No SaaS artist bridged to Spotify id {artist_id} '
@@ -407,9 +440,48 @@ def collect_spotify_top_tracks(**context):
         db.close()
 
         if artists and total_tracks == 0:
+            # Le message nommait `SPOTIFY_ARTIST_IDS`, et c'était deux fois faux.
+            #
+            # 1. Cette variable DOIT être vide en multi-locataire — `tools/
+            #    check_env_parity.py::_MUST_BE_EMPTY` la surveille pour cette raison :
+            #    renseignée, elle réarme la fuite de locataire du 2026-08-20. L'alerte
+            #    envoyait donc son lecteur remplir un champ dont le remplissage est le
+            #    défaut. Une alerte doit nommer un symptôme ET une action (ADR-011) ;
+            #    celle-ci nommait une action nuisible.
+            # 2. Elle ne disait NI quel locataire NI quel identifiant Spotify, alors
+            #    que la boucle vient de les parcourir. « 0 tracks from 1 artist(s) »
+            #    n'est actionnable par personne.
+            #
+            # Et la sévérité dépend de la PORTÉE du run, ce que le code ignorait :
+            #   * run de flotte, zéro titre partout ⇒ c'est l'API ou l'app centrale,
+            #     donc une vraie panne d'infrastructure : on lève, l'admin est alerté.
+            #   * run scopé sur UN locataire (le cas d'un enregistrement de
+            #     credentials depuis le dashboard) ⇒ c'est SON identifiant qui ne rend
+            #     rien. Faire échouer la tâche transforme le problème d'un artiste en
+            #     alerte d'infra, et le seul destinataire utile — l'artiste — n'en voit
+            #     rien. On journalise son échec, qu'il lit dans sa matrice d'état.
+            _ids = ", ".join(str(a[0]) for a in artists[:5])
+            detail = (f"Spotify n'a renvoyé aucun titre pour : {_ids}"
+                      + (" …" if len(artists) > 5 else ""))
+            if artist_id_conf:
+                logger.warning(
+                    "⚠️ %s — locataire %s. Identifiant d'artiste probablement faux, "
+                    "profil sans titre public, ou artiste inconnu de Spotify. "
+                    "La tâche n'échoue pas : c'est le réglage de CE locataire.",
+                    detail, artist_id_conf)
+                record_tenant_failure(
+                    'spotify_api_daily', artist_id_conf, 'spotify',
+                    'ValueError',
+                    "Spotify ne renvoie aucun titre pour cet identifiant d'artiste — "
+                    "vérifie le lien de ta page Spotify Artist.",
+                    run_id)
+                db.close()
+                return 0
             raise ValueError(
-                f"Spotify API collected 0 tracks from {len(artists)} artist(s) in DB. "
-                "Check that SPOTIFY_ARTIST_IDS are valid and credentials are active."
+                f"{detail}. Aucun titre pour AUCUN des {len(artists)} artistes : "
+                "c'est l'app Spotify centrale ou l'API qui ne répond pas, pas un "
+                "identifiant d'artiste. Vérifier SPOTIFY_CLIENT_ID / "
+                "SPOTIFY_CLIENT_SECRET et l'état de l'API Spotify."
             )
 
         logger.info(f'✅ Total: {total_tracks} tracks collectées')
