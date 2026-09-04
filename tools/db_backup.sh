@@ -64,6 +64,25 @@ echo "✅ Retention applied (> ${RETENTION_DAYS} days)."
 # une clé de déploiement limitée à ce seul dépôt, l'archive chiffrée AES256 avant de
 # partir. Voir ADR-015 : ce n'est pas le meilleur stockage, c'est le seul qui
 # existait le jour où le disque était encore la seule copie.
+# Le cron n'hérite d'AUCUN environnement : `0 3 * * * bash tools/db_backup.sh` ne
+# source rien. Le runbook R57 disait « poser R2_REMOTE dans .env puis recréer le
+# scheduler » — ce qui l'aurait posée pour le CONTENEUR, et jamais pour le script qui
+# pousse. La cible aurait donc été configurée partout sauf là où elle sert. On lit
+# les quelques clés nous-mêmes, sans sourcer un fichier entier dont les valeurs ne
+# nous appartiennent pas.
+ENV_FILE="${STREAMLYTICS_ENV_FILE:-$ROOT/.env}"
+if [ -f "$ENV_FILE" ]; then
+    for key in R2_REMOTE OFFSITE_GIT_REMOTE R2_RETENTION_DAYS \
+               BACKUP_PASSPHRASE_FILE OFFSITE_RECEIPT OFFSITE_GIT_WORK; do
+        eval "current=\${$key:-}"
+        if [ -z "$current" ]; then
+            value="$(grep -E "^${key}=" "$ENV_FILE" | tail -1 | cut -d= -f2- \
+                     | tr -d '"'"'" || true)"
+            [ -n "$value" ] && export "$key=$value"
+        fi
+    done
+fi
+
 OFFSITE_RETENTION_DAYS="${R2_RETENTION_DAYS:-30}"
 RECEIPT="${OFFSITE_RECEIPT:-$ROOT/data/offsite_receipt.json}"
 

@@ -189,3 +189,25 @@ def test_the_offsite_push_is_verified_by_reading_the_remote_back():
         "written on the strength of a zero exit code alone."
     )
     assert 'LOCAL_SHA" != "$REMOTE_SHA' in body, "the two SHAs are no longer compared"
+
+
+def test_the_backup_script_reads_the_env_file_itself():
+    """The cron hands it nothing.
+
+    `0 3 * * * bash /opt/streamlytics/tools/db_backup.sh` inherits no environment.
+    The R57 runbook said "put R2_REMOTE in .env, then recreate airflow-scheduler",
+    which sets it for the CONTAINER and never for the script that pushes — the target
+    would have been configured everywhere except where it is used. Same class as
+    `check-calls-a-binary-its-image-lacks`: the thing is present, just not where the
+    work happens.
+    """
+    body = BACKUP.read_text(encoding="utf-8")
+    assert "ENV_FILE" in body and "OFFSITE_GIT_REMOTE" in body, (
+        "db_backup.sh no longer loads its offsite keys from .env: run from cron, "
+        "R2_REMOTE and OFFSITE_GIT_REMOTE would both be empty and the script would "
+        "quietly take the 'no target configured' branch every night."
+    )
+    # An explicit environment must still win over the file — that is what lets the
+    # drill and a manual run override the target without editing .env.
+    assert 'eval "current=\\${$key:-}"' in body, (
+        "the loader no longer skips keys already present in the environment")
