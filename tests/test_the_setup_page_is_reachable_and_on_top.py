@@ -806,3 +806,27 @@ def test_the_welcome_mail_embeds_its_image_and_reads_without_it():
     fn = _fn(VERIF, "_welcome_images")
     src = ast.get_source_segment(body, fn) or ""
     assert src.count(".png") == 1, "the welcome mail carries more than one image"
+
+
+def test_the_sandbox_reset_actually_sends_the_verification_mail():
+    """« Le parcours commence ici, comme pour un vrai artiste » — alors il l'envoie.
+
+    `--reset` armait le jeton, imprimait le lien, et n'envoyait rien. Il annonçait donc
+    un parcours identique à celui d'un artiste tout en sautant la seule chose qu'un
+    artiste reçoit. Signalé le 2026-09-04 : « je viens de refaire le process mais
+    toujours pas de mail ». Un outil qui rejoue un parcours rejoue ses effets, ou dit
+    lequel il ne rejoue pas.
+    """
+    fn = _fn(SANDBOX, "_send_verification")
+    src = ast.get_source_segment(SANDBOX.read_text(encoding="utf-8"), fn) or ""
+    assert "send_verification_email" in src, (
+        "the sandbox composes its own mail instead of calling the signup path — the "
+        "day the e-mail changes, the rehearsal would replay the old one")
+    main = _fn(SANDBOX, "main")
+    assert _call_lines(main, "_send_verification"), (
+        "--reset no longer sends the verification mail: it would announce a journey "
+        "identical to an artist's while skipping the only thing an artist receives")
+    body = SANDBOX.read_text(encoding="utf-8")
+    assert "n'est PAS parti" in body, (
+        "a failed send is not reported — the operator would wait for a mail that "
+        "never left, which is exactly what happened")

@@ -118,6 +118,20 @@ def _wipe(db, artist_id: int) -> None:
         print(f"   ⚠️  show_setup_on_login: {type(exc).__name__}")
 
 
+def _send_verification(email: str, username: str, token: str) -> bool:
+    """Envoie le vrai e-mail de vérification. Ne lève jamais.
+
+    Le même chemin que l'inscription (`verification_email.send_verification_email`),
+    pas une copie : si un jour l'e-mail change, le bac à sable rejoue le nouveau.
+    """
+    try:
+        from src.utils.verification_email import send_verification_email
+        return bool(send_verification_email(email, username, token, lang="fr"))
+    except Exception as exc:      # noqa: BLE001 — un mail manquant ne casse pas le reset
+        print(f"   ⚠️  envoi impossible : {type(exc).__name__}")
+        return False
+
+
 def _adopt(db, needle: str) -> int:
     """Promeut en bac à sable un compte créé par le VRAI formulaire d'inscription.
 
@@ -312,10 +326,26 @@ def main() -> int:
         print(f"  Mot de passe : {password}")
         if token:
             base = (os.getenv("APP_BASE_URL") or "http://localhost:8501").rstrip("/")
+            link = f"{base}/?page=verify&token={token}"
+            # ENVOYER le mail, pas seulement armer le jeton.
+            #
+            # `--reset` annonçait « le parcours commence ici, comme pour un vrai
+            # artiste » et ne faisait pas la seule chose qu'un vrai artiste reçoit.
+            # Signalé le 2026-09-04 : « je viens de refaire le process mais toujours
+            # pas de mail ». Un outil qui rejoue un parcours doit rejouer ses effets,
+            # ou dire lequel il ne rejoue pas — pas laisser croire.
+            sent = _send_verification(email, slug, token)
             print("─" * 62)
             print("  ⚠️  Compte NON vérifié — le parcours commence ici, comme pour un")
-            print("      vrai artiste. Ouvre ce lien AVANT de te connecter :")
-            print(f"  {base}/?page=verify&token={token}")
+            print("      vrai artiste.")
+            if sent:
+                print(f"  ✉️  E-mail de vérification ENVOYÉ à {email}.")
+                print("      Clique le lien dans le mail — ou, si tu ne veux pas")
+                print("      attendre, celui-ci :")
+            else:
+                print("  ❌ L'e-mail n'est PAS parti (SMTP absent de ce conteneur ou")
+                print("     refus du relais). Le jeton est bien posé : utilise le lien.")
+            print(f"  {link}")
             print("      (`--verified` saute cette étape quand tu veux juste entrer.)")
         print("─" * 62)
         print("  Le garde d'unicité laisse ce locataire réutiliser TES identifiants.")
