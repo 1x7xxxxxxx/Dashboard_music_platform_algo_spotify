@@ -5,6 +5,37 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 5) — La première connexion ne montre que la mise en route
+
+✅ **DÉPLOYÉ** (`4f6f3e6`). Deux ajustements après avoir rejoué l'onboarding depuis zéro.
+
+**Le menu complet n'apparaît plus à la première connexion.** Quarante destinations dont
+aucune n'a de données à montrer, plus un bouton de collecte qui ne peut rien collecter,
+à côté d'un compte qui n'a déclaré aucune identité. La barre ne porte que l'identité,
+les trois étapes, et une ligne qui dit où est la sortie. Ce n'est pas une porte : le
+gros bouton est en bas de la page, et **décocher la case rend le menu immédiatement**
+(un `st.rerun()` — la barre du run courant est déjà dessinée sans lui). Le drapeau est
+celui de l'**arrivée**, pas de la page : `resolve_nav_page` l'efface dès que la page
+n'est plus l'assistant, donc y revenir plus tard par le menu rend l'application entière.
+
+**La sortie est passée en bas.** Elle était au-dessus du titre de l'étape : la première
+chose qu'un artiste voyait en arrivant sur sa mise en route était le bouton pour en
+sortir.
+
+### Le défaut trouvé en vérifiant
+
+`create_sandbox.py --reset` ne remettait **pas** `show_setup_on_login` au défaut. Le
+compte était vide de données et pourtant plus tout à fait neuf : on croit rejouer le
+premier parcours, on rejoue le deuxième. C'est exactement ce qui s'est produit ici au
+premier essai — atterrissage sur l'accueil au lieu de l'assistant. « Depuis zéro »
+inclut les préférences que l'onboarding lui-même écrit.
+
+3 gardes neufs, **les 3 rouges par mutation**. Parcours rejoué au navigateur depuis un
+`--reset` : assistant sans menu → étapes cliquables → sortie en bas → accueil avec la
+navigation revenue. Suite : **3759 verts avec une vraie base**.
+
+---
+
 ## 2026-09-04 (suite 4) — Cinq remarques, une seule famille : la page existe, rien n'y mène
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`3471d44`, migration 082). Parcours rejoué de
