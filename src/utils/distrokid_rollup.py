@@ -2,7 +2,8 @@
 
 Type: Utility
 Uses: PostgresHandler.execute_query
-Triggers: called by the CSV import (upload_csv) and the distrokid_csv_watcher DAG
+Triggers: called by the CSV import (upload_csv); the distrokid_csv_watcher DAG that
+also called it was removed on 2026-09-04
 Persists in: distrokid_monthly_revenue (source='import' rows only)
 Depends on: distrokid_sales_detail, distrokid_monthly_revenue
 

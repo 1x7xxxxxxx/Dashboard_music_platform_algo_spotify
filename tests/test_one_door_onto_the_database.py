@@ -92,14 +92,10 @@ def test_no_new_module_resolves_the_database_itself():
         "src/api/main.py",
         "src/dashboard/utils/usage_tracker.py",
         "airflow/dags/alert_monitor.py",
-        "airflow/dags/apple_music_csv_watcher.py",
         "airflow/dags/data_quality_check.py",
-        "airflow/dags/distrokid_csv_watcher.py",
-        "airflow/dags/imusician_csv_watcher.py",
         "airflow/dags/ml_outcome_labeling.py",
         "airflow/dags/ml_scoring_daily.py",
         "airflow/dags/onboarding_report.py",
-        "airflow/dags/s4a_csv_watcher.py",
         "airflow/dags/spotify_api_daily.py",
         "airflow/dags/weekly_digest.py",
         "airflow/dags/youtube_daily.py",
@@ -123,11 +119,11 @@ def test_the_known_list_has_not_rotted():
     reading = set(_modules_reading_dsn_env())
     known = {
         "src/api/main.py", "src/dashboard/utils/usage_tracker.py",
-        "airflow/dags/alert_monitor.py", "airflow/dags/apple_music_csv_watcher.py",
-        "airflow/dags/data_quality_check.py", "airflow/dags/distrokid_csv_watcher.py",
-        "airflow/dags/imusician_csv_watcher.py", "airflow/dags/ml_outcome_labeling.py",
+        "airflow/dags/alert_monitor.py",
+        "airflow/dags/data_quality_check.py",
+        "airflow/dags/ml_outcome_labeling.py",
         "airflow/dags/ml_scoring_daily.py", "airflow/dags/onboarding_report.py",
-        "airflow/dags/s4a_csv_watcher.py", "airflow/dags/spotify_api_daily.py",
+        "airflow/dags/spotify_api_daily.py",
         "airflow/dags/weekly_digest.py", "airflow/dags/youtube_daily.py",
     }
     stale = sorted(known - reading)

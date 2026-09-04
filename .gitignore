@@ -102,3 +102,4 @@ backups/
 
 # schemathesis run cache (make/runbook §6c fuzzing) — never committed
 .schemathesis/
+data/uploads/

@@ -210,7 +210,15 @@ def test_readiness_reads_a_table_the_dag_actually_writes():
         p.read_text(encoding="utf-8", errors="ignore")
         for p in (root / "src" / "collectors").glob("*.py")
     )
-    written = dags + collectors
+    # La page d'import écrit elle aussi des tables surveillées. Ajoutée le 2026-09-04,
+    # quand les 4 `*_csv_watcher` ont été supprimés : ce garde a alors signalé que
+    # `apple_songs_performance` n'était plus écrite par personne — vrai pour les DAGs,
+    # faux pour le produit, puisque `upload_csv._PLATFORMS` l'alimente depuis toujours.
+    # La portée du garde suivait une hypothèse (« une table est écrite par un DAG ou un
+    # collecteur ») que le dépôt venait de rendre fausse.
+    page = (root / "src" / "dashboard" / "views" / "upload_csv.py").read_text(
+        encoding="utf-8", errors="ignore")
+    written = dags + collectors + page
 
     unwritten = [
         s["table"] for s in MONITOR_TARGETS

@@ -270,6 +270,24 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
 # View
 # ─────────────────────────────────────────────
 
+def _archive_ok(artist_id: int, result: dict) -> None:
+    """Keep the bytes of a file that imported cleanly, for 14 days.
+
+    Never raises: the rows are already committed by the time this runs, so failing
+    the import because a convenience copy could not be written would trade a working
+    feature for a nice-to-have.
+    """
+    f = result.get('file')
+    if f is None:
+        return
+    try:
+        f.seek(0)
+        from src.utils.upload_archive import archive_upload
+        archive_upload(artist_id, result.get('filename', ''), f.read())
+    except Exception:  # noqa: BLE001 — an archive failure must never block an import
+        pass
+
+
 def show():
     # Named by what the artist GETS, not by what the machine eats. Measured
     # 2026-09-03: 2 of the 6 tenants who ever logged in reached this page and **none**
@@ -286,6 +304,17 @@ def show():
         "télécharger. Vous n'avez pas à l'ouvrir : téléchargez-le, puis déposez-le "
         "ici. Jusqu'à une dizaine à la fois — le type est reconnu tout seul."
     ))
+
+    # Purge opportuniste des archives expirées. Ici plutôt que dans un cron : le
+    # répertoire ne grossit QUE quand quelqu'un dépose un fichier, donc la purge n'a
+    # besoin de tourner qu'à ce moment-là. Une chose planifiée de moins à oublier —
+    # et ce dépôt vient de passer une séance sur un drill de restauration qui dormait
+    # sans appelant depuis juin.
+    try:
+        from src.utils.upload_archive import purge_expired
+        purge_expired()
+    except Exception:  # noqa: BLE001 — une purge ratée ne doit pas fermer la page
+        pass
 
     from src.dashboard.content.csv_guides_st import render_csv_guides
     render_csv_guides()
@@ -346,7 +375,7 @@ def show():
 
         for f in uploaded_files:
             entry = {'filename': f.name, 'platform_key': None, 'label': '—',
-                     'rows': [], 'error': None}
+                     'rows': [], 'error': None, 'file': f}
             try:
                 f.seek(0)
                 seen_cols = []
@@ -466,6 +495,12 @@ def show():
                         update_columns=cfg['update_columns'],
                     )
                     total_ok += count
+                    # Archived only HERE, in the success branch: `count` is the proof
+                    # the rows reached the database. A copy of every file that failed
+                    # to import would fill the directory with the uninteresting case —
+                    # the one worth keeping is a file that imported cleanly and still
+                    # produced numbers that look wrong a week later.
+                    _archive_ok(target_artist_id, r)
                     result_rows.append({
                         t("upload_csv.col_file", "Fichier"): r['filename'],
                         t("upload_csv.col_type", "Type"): r['label'],

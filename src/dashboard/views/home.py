@@ -106,8 +106,6 @@ _DAG_LABELS = {
     "youtube_daily":            ("🎬", "YouTube"),
     "soundcloud_daily":         ("☁️", "SoundCloud"),
     "instagram_daily":          ("📸", "Instagram"),
-    "s4a_csv_watcher":          ("📂", "CSV S4A"),
-    "apple_music_csv_watcher":  ("🍎", "Apple Music"),
     "meta_ads_api_daily":       ("📊", "Meta Ads"),
     "ml_scoring_daily":         ("🤖", "ML Scoring"),
     "data_quality_check":       ("🔍", "Qualité données"),

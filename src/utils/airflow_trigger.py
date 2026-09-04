@@ -127,8 +127,6 @@ class AirflowTrigger:
         dags = [
             'meta_ads_daily_docker',
             'spotify_api_daily',
-            's4a_csv_watcher',
-            'apple_music_csv_watcher',
             'youtube_daily',
             'data_quality_check',
         ]

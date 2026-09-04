@@ -420,3 +420,53 @@ python3 -m pytest tests/test_the_pdf_says_what_the_screen_says.py -q
 
 Et l'existence de la section dans le PDF rendu : `python3 -m src.dashboard.utils.pdf_exporter --artist <id>`
 puis ouvrir le fichier — le rendu, pas la config.
+
+## 10. R57 — Créer le bucket de sauvegarde hors-site · P1
+
+<!-- Le titre ne dit pas « Cloudflare R2 » à dessein : l'index de roadmap
+     repère un id par `^#{2,3} .*\b(R\d+)\b`, dont le `.*` est gourmand — sur
+     « … Cloudflare R2 … » il retenait **R2** et concluait que R57 n'avait pas
+     de procédure. Un identifiant de roadmap et un nom de produit partagent
+     ici le même espace de noms. -->
+
+**Ce que ça débloque** : la seule copie de la base vit aujourd'hui sur le disque de la
+base. Mesuré le 2026-09-03 : 21 archives quotidiennes, toutes sur `/dev/sda1`, et aucun
+`rsync`/`s3`/`rclone` dans le crontab. Si ce disque meurt, les sauvegardes meurent avec.
+
+Le code est en place et attend la variable. Tant qu'elle manque, `alert_monitor` le
+redit **chaque nuit** — c'est voulu.
+
+**Les gestes**, dans l'ordre :
+
+1. Sur `dash.cloudflare.com` → **R2** → *Create bucket*, nom `streamlytics-backups`,
+   juridiction **EU**.
+2. *Manage R2 API Tokens* → *Create API token*, permission **Object Read & Write**,
+   limité à ce bucket. Noter l'`Access Key ID`, le `Secret Access Key` et l'`endpoint`
+   (`https://<account_id>.r2.cloudflarestorage.com`).
+3. Sur le serveur :
+   ```bash
+   ssh root@167.233.92.1
+   rclone config
+   # n) new remote · nom : r2 · type : s3 · provider : Cloudflare
+   # access_key_id / secret_access_key / endpoint : les valeurs de l'étape 2
+   ```
+4. Poser la variable et recréer le scheduler :
+   ```bash
+   echo 'R2_REMOTE=r2:streamlytics-backups/db' >> /opt/streamlytics/.env
+   cd /opt/streamlytics && docker compose up -d --force-recreate airflow-scheduler
+   ```
+
+**La commande qui prouve que c'est fait** — et ce n'est pas « le script sort 0 » :
+
+```bash
+ssh root@167.233.92.1 'cd /opt/streamlytics && bash tools/db_backup.sh 2>&1 | tail -2'
+# doit afficher : ✅ Hors-site OK — N archive(s) distante(s), rétention 30 j.
+```
+
+Puis, la vraie preuve, une restauration depuis le distant :
+
+```bash
+ssh root@167.233.92.1 'rclone lsf r2:streamlytics-backups/db | tail -1'
+```
+
+Coût : ~38 Mo pour 21 archives, egress à 0 $ — moins d'un centime par mois.

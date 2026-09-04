@@ -237,6 +237,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [probe-reads-unreadable-as-absent](#probe-reads-unreadable-as-absent) | P2 | deterministic | guarded | none |
 | [backup-shares-the-fate-of-what-it-protects](#backup-shares-the-fate-of-what-it-protects) | P1 | deterministic | guarded | none |
 | [orchestrator-costs-more-than-what-it-orchestrates](#orchestrator-costs-more-than-what-it-orchestrates) | P3 | deterministic | guarded | none |
+| [the-only-copy-is-consumed-on-read](#the-only-copy-is-consumed-on-read) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3063,3 +3064,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-04: deux mutations, deux rouges — cadence remise à `*/15`, intervalle de parsing remis à 30.
   - 2026-09-04: **la prémisse de départ était partiellement fausse, et le mesurer a changé le correctif.** « Airflow consomme 1,6 Go, le levier ce sont les watchers » : les 1,6 Go sont les processus Python eux-mêmes, et réduire les exécutions ne les rend pas. Ce sont les 256 Mo rendus par l'intervalle de parsing — un paramètre que personne ne regardait — pas la cadence des watchers. Le poste le plus visible n'était pas le plus cher.
   - 2026-09-04: fusionner les 4 watchers en un seul a été **écarté** : à cadence horaire cela économise 72 exécutions/jour pour un refactor touchant 4 DAGs, 4 scripts de debug et leurs parseurs. Le levier était la cadence, pas le nombre de DAGs (ADR-007 : dépenser du risque contre un bénéfice proche de zéro est le défaut).
+
+## the-only-copy-is-consumed-on-read
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un import réussit, produit des chiffres douteux une semaine plus tard, et **il n'existe plus aucune copie de ce qui a été envoyé** pour trancher.
+- root_cause: `src/dashboard/views/upload_csv.py` lisait le fichier téléversé en mémoire (`raw = file.read()`), le parsait, faisait l'upsert, et laissait les octets partir. `csv_upload_log` enregistrait qu'un fichier nommé X avait produit N lignes ; il ne pouvait pas répondre **« qu'y avait-il dans X »**. Toute la classe des défauts d'import — une colonne renommée en amont, un séparateur mal lu, une fenêtre d'export erronée — devenait indiagnosticable après coup. C'est précisément ce manque qui faisait paraître les quatre `*_csv_watcher` nécessaires : ils surveillaient un répertoire, donc un fichier déposé y **restait**. Mais ils sondaient des répertoires où `find` n'a jamais trouvé un seul fichier, coûtaient **97,2 % des `dag_run` et 98,4 % des `task_instance`** de toute l'instance Airflow, et couvraient **moins** que la page — `parse_csv_file` ne construit aucune ligne `songs_global`, `parse_songs_global` si. La moitié utile d'un watcher de répertoire n'a jamais été le sondage : c'était la survie du fichier.
+- signature: `.venv/bin/python -m pytest tests/test_an_imported_file_survives_its_import.py -q`
+- long_term_fix: `src/utils/upload_archive.py` conserve les octets **14 jours**, uniquement dans la branche de succès — là où `count` prouve que les lignes ont atteint la base. Quatre règles, chacune avec son mode d'échec : archiver **seulement après succès** (sinon le répertoire se remplit du cas inintéressant, alors que celui qui compte est un import propre aux chiffres faux) ; **ne jamais lever** (les lignes sont déjà commitées, faire échouer un import pour une copie de confort serait un mauvais échange) ; **un répertoire par locataire** (un répertoire plat rend le fichier d'un locataire atteignable en devinant un chemin, et l'effacement RGPD d'un locataire devient un `grep`) ; **le nom de fichier est reconstruit** (il vient d'un navigateur). Purge opportuniste depuis la page, pas depuis un cron : le répertoire ne grossit que quand quelqu'un dépose. Les 4 watchers et 2 scripts de debug ont été supprimés dans la même passe.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_imported_file_survives_its_import.py }
+- rex_ref: src/utils/upload_archive.py
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-04: deux mutations, deux rouges — `_archive_ok` déplacé dans le `except` (le garde AST voit que l'archive collecterait les imports ÉCHOUÉS), et la condition de purge remplacée par `True` (le garde vérifie les deux directions : l'expiré part, le récent reste — seule la première moitié passerait sur un `rm -rf`).
+  - 2026-09-04: le nettoyeur de nom rendait `2F.._2Fx` pour `..%2F..%2Fx` — inoffensif sans séparateur, et le test sur le **chemin résolu** le prouve, mais un nom qui contient `..` est assez piégeux pour qu'un outil en aval le traite comme un segment. Points consécutifs écrasés.
+  - 2026-09-04: la suppression des watchers a fait rougir `test_the_known_list_has_not_rotted` — la liste d'exemptions DSN nommait quatre fichiers disparus. Le garde a fait exactement son travail. Et `test_no_watcher_polls_more_than_hourly` serait devenu **vide de sens** (il ne cherchait que `*_csv_watcher.py`) : élargi à tous les DAGs, avec une assertion de non-vacuité.

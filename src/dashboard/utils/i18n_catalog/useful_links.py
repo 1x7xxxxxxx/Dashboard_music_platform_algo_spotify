@@ -63,8 +63,6 @@ EN = {
     "useful_links.dag_youtube_daily": "YouTube daily",
     "useful_links.dag_soundcloud_daily": "SoundCloud daily",
     "useful_links.dag_instagram_daily": "Instagram daily",
-    "useful_links.dag_s4a_csv_watcher": "Spotify for Artists CSV",
-    "useful_links.dag_apple_music_csv_watcher": "Apple Music CSV",
     "useful_links.dag_meta_ads_api_daily": "Meta Ads API",
     "useful_links.dag_ml_scoring_daily": "ML Scoring daily",
     "useful_links.dag_data_quality_check": "Data quality",

@@ -307,14 +307,18 @@ def _section_last_runs(db):
     )
 
 
-# Chaque entrée : (label, dag_id, table, col_date, description)
+# Chaque entrée : (label, source, table, col_date, description).
+# `source` est un LIBELLÉ, pas un identifiant de DAG interrogé : les deux tables
+# CSV sont alimentées par la page d'import depuis le 2026-09-04, où les quatre
+# `*_csv_watcher` ont été supprimés — ils sondaient des répertoires vides pour
+# 98,4 % des lignes de métadonnées Airflow.
 _INSERTION_TARGETS = [
-    ("🎵 Spotify S4A",    "s4a_csv_watcher",          "s4a_song_timeline",            "collected_at", "Lignes de streams quotidiens par chanson"),
+    ("🎵 Spotify S4A",    "📂 Import (page)",         "s4a_song_timeline",            "collected_at", "Lignes de streams quotidiens par chanson"),
     ("☁️ SoundCloud",     "soundcloud_daily",          "soundcloud_tracks_daily",       "collected_at", "Tracks SoundCloud avec play/likes/reposts"),
     ("📸 Instagram",      "instagram_daily",           "instagram_daily_stats",         "collected_at", "Stats Instagram journalières"),
     ("🎬 YouTube",        "youtube_daily",             "youtube_channel_history",       "collected_at", "Historique chaîne YouTube"),
     ("📱 Meta Ads",       "meta_ads_api_daily",        "meta_insights_performance_day", "collected_at", "Insights Meta Ads par jour"),
-    ("🎎 Apple Music",    "apple_music_csv_watcher",   "apple_songs_performance",       "collected_at", "Performance Apple Music"),
+    ("🎎 Apple Music",    "📂 Import (page)",          "apple_songs_performance",       "collected_at", "Performance Apple Music"),
     ("🤖 ML Scoring",     "ml_scoring_daily",          "ml_song_predictions",           "prediction_date", "Prédictions ML par chanson"),
 ]
 

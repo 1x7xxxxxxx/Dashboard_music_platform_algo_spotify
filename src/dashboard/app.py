@@ -418,7 +418,6 @@ def show_live_activity_sidebar():
 COLLECTION_DAGS = [
     ("spotify_api_daily", "Spotify"), ("youtube_daily", "YouTube"),
     ("soundcloud_daily", "SoundCloud"), ("instagram_daily", "Instagram"),
-    ("s4a_csv_watcher", "CSV S4A"), ("apple_music_csv_watcher", "CSV Apple"),
     ("meta_ads_api_daily", "Meta Ads"),
 ]
 

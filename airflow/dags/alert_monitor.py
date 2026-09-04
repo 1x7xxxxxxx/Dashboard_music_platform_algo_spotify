@@ -60,8 +60,6 @@ MONITORED_DAGS = [
     'soundcloud_daily',
     'instagram_daily',
     'meta_ads_api_daily',
-    'apple_music_csv_watcher',
-    's4a_csv_watcher',
     'ml_scoring_daily',
     'data_quality_check',
 ]

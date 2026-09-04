@@ -25,9 +25,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-03 (soir), zéro tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-04, zéro tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1 -->
+<!-- reprise: open=R1, R57 -->
 
 **▶️ Zéro `- [ ]` dans ce fichier.** Les 19 derniers ont été **rotés dans
 `archive.md` le 2026-09-03 au soir**, marqués `[CLOS — décision, non livré]` : aucun
@@ -40,6 +40,21 @@ redite de **R1**, le geste humain porté par la table « En attente de toi » ci
 
 Ce qui rouvre chacun est écrit dans son bloc, dans l'archive. Ne reste donc qu'**un**
 geste, et lui seul : **R1** — inviter la bêta.
+
+### Ce que le 2026-09-04 a changé sous cette ligne
+
+Rien n'a été rouvert ; trois choses ont été **retirées ou rendues prouvables**.
+
+- **ADR-014** tranche la stack data moderne (dbt, ClickHouse, DuckDB, dlt, Dagster,
+  Parquet/R2, Supabase, ECharts) : tout différé, chaque refus avec un déclencheur
+  **calculable**. Le chiffre qui tranche : 43 Mo de base, agrégat à 18,5 ms.
+- **Le seul trou de robustesse réel a été comblé** — les 21 sauvegardes vivaient sur le
+  disque de la base, et le drill de restauration n'avait aucun appelant depuis juin.
+  Reste **un geste humain de plus**, désormais suivi comme **R57**.
+- **Airflow a maigri** : parsing 30 → 300 s, métadonnées 246 → 91 Mo, et les 4
+  `*_csv_watcher` **supprimés** — 98,4 % des lignes de métadonnées pour sonder des
+  répertoires vides. La page d'import garde désormais le fichier 14 jours, ce qui
+  était la seule moitié utile d'un watcher.
 
 **R1 a commencé le 2026-08-30** : premier parcours d'onboarding fait en entier, ~20
 remarques de terrain, toutes traitées et déployées (PR #115, migration 079). Aucune ne
@@ -108,6 +123,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R57 | Créer le bucket Cloudflare R2 pour la sauvegarde hors-site | P1 | **le code est posé et attend la variable.** Mesuré le 2026-09-03 : les 21 archives quotidiennes vivent sur `/dev/sda1`, le disque de la base, et le crontab ne contient ni `rsync`, ni `s3`, ni `rclone`. Si ce disque meurt, les sauvegardes meurent avec. `rclone` est installé, `tools/db_backup.sh` pousse déjà, `alert_monitor` le signale chaque nuit — il ne manque que le bucket et `R2_REMOTE`. Runbook §10. Coût : moins d'un centime par mois, egress à 0 $. |
 | R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. |
 
 ## 🔍 Ce que le graphe de code a sorti (2026-08-23)

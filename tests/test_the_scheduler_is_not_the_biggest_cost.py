@@ -63,8 +63,13 @@ COMPOSE = REPO / "docker-compose.example.yml"
 
 def test_no_watcher_polls_more_than_hourly():
     """A quarter-hourly poll on a directory nobody writes to is 98 % of the metadata."""
+    # TOUS les DAGs, pas seulement les `*_csv_watcher` : ceux-ci ont été supprimés le
+    # 2026-09-04, et un garde qui ne cherche que des fichiers absents passe au vert en
+    # n'ayant rien vérifié. La règle durable ne porte pas sur ces quatre-là, elle porte
+    # sur la cadence — un sondage au quart d'heure sur ce dépôt a produit 98,4 % des
+    # lignes de métadonnées Airflow.
     offenders = []
-    for dag in sorted(DAGS.glob("*_csv_watcher.py")):
+    for dag in sorted(DAGS.glob("*.py")):
         # AST, not a regex: a DAG file is Python, and its `schedule=` may appear in a
         # comment, a docstring, or a second DAG object. `test_a_guard_reads_structure_
         # not_text` flagged the first version of this file for exactly that — the
@@ -75,19 +80,26 @@ def test_no_watcher_polls_more_than_hourly():
                      for kw in node.keywords
                      if kw.arg == "schedule" and isinstance(kw.value, ast.Constant)
                      and isinstance(kw.value.value, str)]
-        assert schedules, f"{dag.name} declares no schedule"
-        assert len(schedules) == 1, (
-            f"{dag.name} declares {len(schedules)} schedules; this guard reads one"
-        )
-        minute_field = schedules[0].split()[0]
-        # `*/N` with N < 60, or a bare `*`, means more than once an hour.
-        if minute_field == "*" or (minute_field.startswith("*/")
-                                   and int(minute_field[2:]) < 60):
-            offenders.append(f"{dag.name}: {schedules[0]}")
+        if not schedules:
+            continue  # DAG sans schedule (déclenché à la main)
+        for sched in schedules:
+            if not sched or " " not in sched:
+                continue  # `@daily` & co : par construction jamais infra-horaires
+            minute_field = sched.split()[0]
+            # `*/N` with N < 60, or a bare `*`, means more than once an hour.
+            if minute_field == "*" or (minute_field.startswith("*/")
+                                       and int(minute_field[2:]) < 60):
+                offenders.append(f"{dag.name}: {sched}")
     assert not offenders, (
-        f"{offenders} poll more than hourly. These four DAGs produced 97,2 % of all "
-        "dag_run rows and 98,4 % of all task_instance rows on 2026-09-04, every one "
-        "of them `skipped`, against directories that have never held a file."
+        f"{offenders} run more than once an hour. On 2026-09-04 four such DAGs "
+        "produced 97,2 % of all dag_run rows and 98,4 % of all task_instance rows, "
+        "every one of them `skipped`. A sub-hourly schedule needs a reason that "
+        "survives being asked out loud."
+    )
+    # Non-vacuité : ce garde doit avoir REGARDÉ quelque chose.
+    assert len(list(DAGS.glob("*.py"))) >= 10, (
+        "fewer than 10 DAG files found — the glob is pointing at the wrong place and "
+        "this test is passing on an empty set."
     )
 
 

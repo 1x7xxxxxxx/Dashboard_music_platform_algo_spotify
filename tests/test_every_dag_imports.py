@@ -48,7 +48,10 @@ _DAG_FILES = sorted(p.name for p in DAGS.glob("*.py") if not p.name.startswith("
 
 def test_the_scope_is_not_empty():
     """Un garde qui ne trouve plus de DAG passe au vert sans rien vérifier."""
-    assert len(_DAG_FILES) >= 16, (
+    # 12 et non 10 : c'est le compte EXACT après la suppression des quatre
+    # `*_csv_watcher` le 2026-09-04. Un plancher avec du mou laisserait deux
+    # disparitions de plus passer inaperçues, et ce garde existe pour ça.
+    assert len(_DAG_FILES) >= 12, (
         f"seulement {len(_DAG_FILES)} DAG(s) trouvé(s) dans {DAGS} — "
         "chemin faux, ou des DAGs ont disparu."
     )
