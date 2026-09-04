@@ -238,8 +238,15 @@ def _render_guide_html(guide: PlatformGuide, ui: dict) -> str:
 
 def _render_cred_html(cred: PlatformCred, ui: dict) -> str:
     """Render an API-credential guide from credential_guides (steps + screenshots + fields)."""
-    parts = [f'<div class="platform"><h2>{html.escape(_strip_emoji(cred.title))}</h2>',
-             f'<p class="intro">{_inline_md(resolve_os_tokens(cred.intro, _OS_BOTH))}</p>']
+    # `intro` est FACULTATIF — comme `note` et `fields`, qui étaient déjà gardés
+    # trois lignes plus bas. Il ne l'était pas ici, et le premier guide à s'en passer
+    # (SoundCloud, 2026-09-04) a fait tomber `make guide` sur un `TypeError` dans
+    # `_strip_emoji`. Un champ optionnel traité comme obligatoire par UN des deux
+    # rendus : la version Streamlit, elle, n'affichait rien et ne disait rien.
+    parts = [f'<div class="platform"><h2>{html.escape(_strip_emoji(cred.title))}</h2>']
+    if cred.intro:
+        parts.append(
+            f'<p class="intro">{_inline_md(resolve_os_tokens(cred.intro, _OS_BOTH))}</p>')
     for i, step in enumerate(cred.steps, 1):
         parts.append(f'<div class="step"><span class="step-num">{i}.</span> '
                      f'{_inline_md(resolve_os_tokens(step.text, _OS_BOTH))}</div>')

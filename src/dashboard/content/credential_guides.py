@@ -57,7 +57,12 @@ class PlatformCred:
     key: str
     title: str
     icon: str
-    intro: str
+    # `None` quand le guide n'a pas besoin d'un résumé — c'est le cas dès qu'il tient
+    # en deux étapes, où l'intro ne fait que les annoncer (SoundCloud, 2026-09-04).
+    # Reste POSITIONNEL, sans valeur par défaut : chaque guide dit explicitement s'il
+    # en a une. Un défaut à `None` aurait fait disparaître la question, et c'est celle
+    # qui distingue un guide court d'un guide bavard.
+    intro: str | None
     portal_url: str
     steps: tuple[CredStep, ...]
     fields: tuple[CredField, ...]
@@ -207,23 +212,31 @@ _SOUNDCLOUD = PlatformCred(
     key="soundcloud",
     title="SoundCloud",
     icon="☁️",
-    intro=(
-        "Une **seule chose** à fournir : le **lien de votre profil** SoundCloud. "
-        "On en déduit votre identifiant ; streams et followers sont ensuite collectés "
-        "automatiquement."
-    ),
+    # Pas d'intro. Elle disait « une seule chose à fournir : le lien de votre profil ;
+    # on en déduit votre identifiant » — c'est-à-dire l'étape 1, l'étape 2 et la note
+    # du champ, annoncées avant d'être dites. Un guide de deux lignes n'a pas besoin
+    # d'un résumé (2026-09-04).
+    intro=None,
     portal_url="https://soundcloud.com",
     steps=(
         CredStep("Ouvrez votre **profil SoundCloud** et copiez l'adresse affichée "
                  "dans la barre du navigateur — elle ressemble à "
                  "`https://soundcloud.com/votre-nom`."),
-        CredStep("Collez ce lien dans **🔑 Credentials API → SoundCloud**, puis "
-                 "**Enregistrer**. Votre User ID est retrouvé automatiquement et "
-                 "affiché en confirmation."),
+        # « Collez ce lien dans 🔑 Credentials API → SoundCloud » situait une page à
+        # quelqu'un qui est dessus, et la suite — « votre User ID est retrouvé
+        # automatiquement et affiché en confirmation » — décrivait une confirmation
+        # que l'écran affiche lui-même une seconde plus tard.
+        CredStep("Collez-le dans **Saisir tes identifiants**, la colonne de gauche, "
+                 "puis **Enregistrer**."),
     ),
     fields=(
+        # Le champ prend le LIEN. Il s'est appelé « User ID numérique » jusqu'au
+        # 2026-09-04, ce que la remarque a relevé : « tu demandes de saisir l'URL
+        # d'artiste et tu me demandes mon user ID numérique ». Les deux étaient vrais
+        # à des moments différents — la conversion se fait à l'enregistrement — mais
+        # un artiste ne lit pas deux moments, il lit un formulaire.
         CredField("Profil SoundCloud", "https://soundcloud.com/votre-nom",
-                  note="le lien de votre page ; le User ID numérique en est déduit"),
+                  note="le lien de votre page — rien à découper"),
     ),
 )
 

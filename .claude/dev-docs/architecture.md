@@ -204,6 +204,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `meta_mapping.py` | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |
 | `soundcloud.py` | SoundCloud | soundcloud_tracks | all |
+| `soundcloud_claims.py` | Déclarer les titres hébergés sous le compte d'un label ou d'un collectif — fragment rendu par `soundcloud.py`, sorti de Credentials le 2026-09-04 | track_platform_link | all |
 | `instagram.py` | Instagram | instagram_* | all |
 | `apple_music.py` | Apple Music | apple_* | all |
 | `hypeddit.py` | Hypeddit | hypeddit_* | all |

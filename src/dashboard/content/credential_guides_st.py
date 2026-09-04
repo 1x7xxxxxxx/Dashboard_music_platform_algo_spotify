@@ -94,7 +94,12 @@ def _render_guide_expander(guide: PlatformCred,
     # quatre guides à la suite, il reste replié — quatre pavés dépliés y seraient un
     # mur, pas une aide.
     with st.expander(title, expanded=expanded):
-        st.markdown(_os_md(t(f"credentials.guide.{guide.key}.intro", guide.intro)))
+        # Même raison que dans le PDF : `intro` est facultatif depuis le 2026-09-04.
+        # Ici l'absence ne levait pas — `_os_md(None)` rend "" — mais posait un bloc
+        # markdown vide, donc une marge sans contenu au-dessus du portail.
+        _intro = t(f"credentials.guide.{guide.key}.intro", guide.intro or "")
+        if _intro:
+            st.markdown(_os_md(_intro))
         _render_portal_link(guide, artist_name)
         for i, step in enumerate(guide.steps, 1):
             _render_step(guide.key, i, step)

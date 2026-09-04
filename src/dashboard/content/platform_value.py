@@ -64,7 +64,7 @@ PLATFORM_VALUES: tuple[PlatformValue, ...] = (
         key="soundcloud", icon="☁️", label="SoundCloud",
         value="Écoutes, likes et reposts par titre — le signal le plus rapide "
               "sur un morceau qui décolle.",
-        need="ton User ID numérique",
+        need="le lien de ton profil SoundCloud",
         effort_min=2, where=CREDENTIALS, recommended=True,
         caveat="tes titres doivent être **publics** : un profil sans titre public "
                "ne remonte rien.",

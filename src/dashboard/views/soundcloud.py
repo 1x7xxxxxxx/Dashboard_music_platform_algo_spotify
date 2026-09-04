@@ -6,6 +6,7 @@ from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
 from src.dashboard.utils.tz import to_local_datetime, to_local_naive
+from src.dashboard.views.soundcloud_claims import render_claimed_tracks
 
 def show():
     st.title(t("soundcloud.title", "☁️ SoundCloud - Performance"))
@@ -70,6 +71,17 @@ def show():
 
             else:
                 st.warning(t("soundcloud.no_data", "Aucune donnée SoundCloud trouvée. Lancez le collecteur."))
+                # Un profil vide n'est pas toujours une panne : pour un artiste
+                # signé sur un label, il l'est par construction et le restera. Le
+                # panneau de déclaration est donc rendu ICI aussi, avant le
+                # `return` — sinon la seule page où il compte vraiment est celle
+                # qui n'y arrive jamais.
+                st.caption(t(
+                    "soundcloud.no_data_claim_hint",
+                    "Tes sorties paraissent sous le compte d'un label ou d'un "
+                    "collectif ? Déclare-les ci-dessous : on collectera leurs "
+                    "écoutes même hébergées ailleurs."))
+                render_claimed_tracks(db, artist_id)
                 return
 
         except Exception as e:
@@ -238,6 +250,14 @@ def show():
                 hide_index=True,
                 width="stretch",
             )
+
+        # Les titres sortis sous le compte d'un label ou d'un collectif — déclarés
+        # ICI depuis le 2026-09-04, et plus dans Credentials. C'est en lisant ce
+        # tableau qu'on s'aperçoit qu'une sortie manque ; c'est donc ici qu'on la
+        # réclame. Replié : le cas ne concerne pas la majorité.
+        st.markdown("---")
+        render_claimed_tracks(db, artist_id)
+
 
 if __name__ == "__main__":
     show()

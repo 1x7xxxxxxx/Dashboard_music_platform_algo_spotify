@@ -35,13 +35,18 @@ from ._platform_meta import _test_meta, _test_instagram
 PLATFORMS = {
     'soundcloud': {
         'label': '☁️ SoundCloud',
-        # Artist provides only their numeric user_id; the app credentials
-        # (client_id/client_secret) come from the shared env app, not per-artist.
+        # L'artiste colle le LIEN de son profil ; `_save_credentials` le résout en
+        # User ID numérique avant l'écriture, donc la colonne ne contient que des
+        # chiffres. Le champ s'est appelé « User ID numérique » jusqu'au 2026-09-04 —
+        # il nommait ce que la BASE stocke, pas ce qu'on demande de coller, et le
+        # guide juste à côté disait « collez le lien ». Deux consignes contradictoires
+        # sur un formulaire à un seul champ.
+        # Les app credentials (client_id/client_secret) viennent de l'app partagée.
         # The optional OAuth real-likes path is an admin runbook (mint script),
         # not exposed in the artist form.
         'fields': [
-            {'key': 'user_id', 'label': 'User ID numérique', 'secret': False,
-             'example': '377065610'},
+            {'key': 'user_id', 'label': 'Lien de ton profil SoundCloud', 'secret': False,
+             'example': 'https://soundcloud.com/ton-nom'},
         ],
     },
     'spotify': {

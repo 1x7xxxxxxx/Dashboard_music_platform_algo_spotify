@@ -86,22 +86,17 @@ _SOUNDCLOUD = PlatformCred(
     key="soundcloud",
     title="SoundCloud",
     icon="☁️",
-    intro=(
-        "A **single thing** to provide: the **link to your SoundCloud profile**. "
-        "We derive your identifier from it; streams and followers are then collected "
-        "automatically."
-    ),
+    intro=None,
     portal_url="https://soundcloud.com",
     steps=(
         CredStep("Open your **SoundCloud profile** and copy the address shown in the "
                  "browser bar — it looks like `https://soundcloud.com/your-name`."),
-        CredStep("Paste that link into **🔑 API Credentials → SoundCloud**, then "
-                 "**Save**. Your User ID is looked up automatically and shown back "
-                 "to you as confirmation."),
+        CredStep("Paste it into **Enter your credentials**, the left-hand column, "
+                 "then **Save**."),
     ),
     fields=(
         CredField("SoundCloud profile", "https://soundcloud.com/your-name",
-                  note="your page link; the numeric User ID is derived from it"),
+                  note="your page link — nothing to cut out"),
     ),
 )
 

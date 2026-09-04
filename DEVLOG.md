@@ -5,6 +5,99 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 19) — SoundCloud : une seule demande, dite pareil partout
+
+« C'est bizarre, tu demandes de saisir l'URL d'artiste et tu me demandes mon User ID
+numérique… »
+
+Les deux étaient vrais, **à des moments différents**. Le champ accepte le lien ;
+`_save_credentials` le résout en identifiant numérique avant l'écriture, si bien que
+la colonne ne contient que des chiffres. Le libellé nommait donc ce que la BASE
+stocke, le guide d'à côté ce qu'on demande de coller. Un artiste ne lit pas deux
+moments : il lit un formulaire, et il y a lu deux consignes contradictoires.
+
+Quatre surfaces à aligner — le libellé du champ, la note du guide, le `need` de la
+page de mise en route, et la traduction anglaise.
+
+### La quatrième était pire que fausse
+
+Le catalogue EN décrivait encore la procédure abandonnée le 2026-09-03 : afficher le
+code source de `/discover` et y chercher `soundcloud:users:`. Et le rendu **préfère la
+traduction à la source** (`t(f"credentials.guide.{key}.step_{n}", step.text)`) : un
+artiste anglophone recevait donc un guide qu'aucun francophone ne lisait plus.
+
+Rien ne relie une clé de catalogue à la version du guide qu'elle traduit. Réécrire la
+source française laisse l'anglaise en place, et personne ne la relit — puisqu'elle
+n'est jamais rouge. Le garde interroge maintenant la DEMANDE (« réclame-t-on un
+numéro ? ») plutôt qu'une formulation : on peut réécrire les phrases, pas redemander
+un numéro.
+
+### L'intro qui annonçait ses propres deux lignes
+
+« Une seule chose à fournir : le lien de votre profil ; on en déduit votre
+identifiant. » C'était l'étape 1, l'étape 2 et la note du champ, dites avant d'être
+dites. Un guide de deux lignes n'a pas besoin d'un résumé.
+
+Et l'étape 2 — « Collez ce lien dans 🔑 Credentials API → SoundCloud, puis
+Enregistrer. Votre User ID est retrouvé automatiquement et affiché en confirmation. »
+— situait une page à quelqu'un qui est dessus, puis décrivait une confirmation que
+l'écran affiche lui-même une seconde plus tard. Elle nomme désormais l'encadré et sa
+colonne : « Collez-le dans **Saisir tes identifiants**, la colonne de gauche. »
+
+### Le panneau des titres hébergés ailleurs change de page
+
+Il vivait dans l'onglet Credentials, **déplié**, donc au-dessus du seul champ à
+remplir. Deux choses n'allaient pas, et la seconde explique la première.
+
+**Ce n'est pas un identifiant.** Credentials répond à « qui es-tu sur cette
+plateforme ? » — une valeur, une fois. Revendiquer des titres répond à « que
+manque-t-il à mon catalogue ? », une question qu'on se pose en REGARDANT ses chiffres.
+Il vit donc sur ☁️ SoundCloud — Performance (`views/soundcloud_claims.py`), replié.
+
+**Le déplacement a failli le rendre invisible là où il compte.** La page sort par
+`return` quand aucune donnée n'est trouvée — et un profil vide EST l'état d'un artiste
+signé sur un label : il l'est par construction et le restera. Rendu seulement en fin
+de fonction, le panneau n'apparaissait jamais sur la seule page qui en a besoin.
+Trouvé au navigateur, pas en relisant : le rendu affichait « Aucune donnée SoundCloud
+trouvée » et rien d'autre.
+
+---
+
+### Un champ facultatif dans un seul des deux rendus
+
+`intro=None` a fait tomber `make guide` sur un `TypeError`. `guide_pdf` gardait déjà
+`note` et `fields` trois lignes plus bas — pas `intro`. Le rendu Streamlit, lui, ne
+levait pas : il posait un bloc markdown vide, donc une marge sans contenu que
+personne n'aurait signalée. Deux lecteurs d'un même objet, deux idées de ce qui est
+obligatoire.
+
+Le contrat mentait aussi : `intro: str` sans valeur par défaut. Il dit maintenant
+`str | None`, et reste **positionnel** — chaque guide déclare explicitement s'il en a
+une. Un défaut à `None` aurait fait disparaître la question.
+
+Le garde a mis **quatre versions** à poser la bonne question, et les trois premières
+sont trois façons de se tromper de portée :
+
+1. `f"if cred.{field}"` cherché dans le TEXTE → a accusé `guide_pdf` de lire
+   `admin_note` sans garde, un nom qui n'y figure que dans un commentaire expliquant
+   qu'il n'est pas rendu. *Un garde qui lit des commentaires trouve des défauts dans
+   la documentation.*
+2. l'arbre, mais la question posée au FICHIER : « ce champ est-il testé quelque
+   part ? ». Un `guide.intro or ""` dans une autre fonction y répondait oui — le
+   garde restait **vert sur le rendu non protégé**. Et je l'aurais cru, si la
+   mutation n'avait pas refusé de rougir.
+3. le nom de la variable comme type : `cred` ET `guide`. Or
+   `_render_guide_html(guide: PlatformGuide)` rend les guides d'import CSV, dont
+   l'intro n'est pas optionnelle. Le garde lui reprochait un défaut qui n'est pas le
+   sien. *Le nom d'une variable ne dit pas son type.*
+
+La quatrième lit l'annotation du paramètre pour savoir qui porte un `PlatformCred`,
+puis demande, **site par site** : cette lecture-ci est-elle sous un test qui la
+mentionne, ou repliée par un `or` ? Un champ optionnel lu deux fois doit être gardé
+deux fois. Les trois sites mutés rougissent.
+
+---
+
 ## 2026-09-04 (suite 18) — La page de bienvenue s'arrête de parler, et le choix se range en trois colonnes
 
 Quatre morceaux du bloc 3 partaient ensemble parce qu'ils avaient le même défaut :

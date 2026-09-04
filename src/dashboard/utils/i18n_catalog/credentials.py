@@ -50,7 +50,7 @@ EN = {
     "credentials.field.client_secret": "Client Secret",  # pragma: allowlist secret
     "credentials.field.api_key": "API Key (YouTube Data API v3)",  # pragma: allowlist secret
     "credentials.field.channel_id": "Channel ID (UC…)",
-    "credentials.field.user_id": "Numeric User ID (e.g. 377065610)",
+    "credentials.field.user_id": "Link to your SoundCloud profile",
     "credentials.field.account_id": "Ad Account ID (act_… or numeric)",
     "credentials.field.extra_account_ids": (
         "Additional ad accounts (one per line — agencies)"
@@ -383,29 +383,21 @@ EN = {
     ),
     # ── credential_guides.py — SoundCloud guide ────────────────────────
     "credentials.guide.soundcloud.expander": "{icon} {title} — obtain the credentials",
-    "credentials.guide.soundcloud.intro": (
-        "A **single value** to provide: your SoundCloud **User ID** (a number). "
-        "Streams and followers are then collected automatically."
-    ),
+    # Pas d'`intro` : le guide FR n'en a plus, et une clé de catalogue qui survit à
+    # sa source réapparaît telle quelle à l'écran. C'est ce qui s'était produit ici —
+    # ces clés décrivaient encore la procédure « cherche `soundcloud:users:` dans le
+    # code source de la page », abandonnée le 2026-09-03 côté français. Un lecteur
+    # anglophone lisait donc un guide qu'aucun français ne lisait plus, et le rendu
+    # préfère la traduction à la source (2026-09-04).
     "credentials.guide.soundcloud.step_1": (
-        "Logged into SoundCloud, open "
-        "[soundcloud.com/discover](https://soundcloud.com/discover)."
+        "Open your **SoundCloud profile** and copy the address shown in the browser "
+        "bar — it looks like `https://soundcloud.com/your-name`."
     ),
     "credentials.guide.soundcloud.step_2": (
-        "Show the page **source code** (**{{VIEW_SOURCE}}**), then search "
-        "(**{{FIND}}**) for `soundcloud:users:` — the **number** right after is your "
-        "**User ID** (e.g. `377065610`)."
+        "Paste it into **Enter your credentials**, the left-hand column, then **Save**."
     ),
-    "credentials.guide.soundcloud.step_2_caption": (
-        "Source code → soundcloud:users:<your ID>"
-    ),
-    "credentials.guide.soundcloud.step_3": (
-        "Paste this **User ID** into **🔑 API Credentials → SoundCloud**, then "
-        "**Test connection**."
-    ),
-    "credentials.guide.soundcloud.note_1": (
-        "the number found in the source code of /discover"
-    ),
+    "credentials.guide.soundcloud.field_1": "SoundCloud profile",
+    "credentials.guide.soundcloud.note_1": "your page link — nothing to cut out",
     # ── credential_guides.py — Meta guide ──────────────────────────────
     "credentials.guide.meta.expander": "{icon} {title} — obtain the credentials",
     "credentials.guide.meta.intro": (

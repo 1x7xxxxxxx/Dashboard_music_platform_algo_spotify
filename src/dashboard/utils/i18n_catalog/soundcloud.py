@@ -14,6 +14,10 @@ EN = {
         "linked — separate topic."
     ),
     "soundcloud.no_data": "No SoundCloud data found. Run the collector.",
+    "soundcloud.no_data_claim_hint": (
+        "Are your releases published under a label's or a collective's account? "
+        "Declare them below: we will collect their plays even when hosted elsewhere."
+    ),
     "soundcloud.sql_error_kpi": "SQL error (KPIs): {err}",
     "soundcloud.plays_evolution": "📈 Plays evolution",
     "soundcloud.chart_filters": "⚙️ Chart filters",
