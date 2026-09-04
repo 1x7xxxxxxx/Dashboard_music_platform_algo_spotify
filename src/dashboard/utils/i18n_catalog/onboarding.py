@@ -6,8 +6,6 @@ EN = {
     "onboarding.pick_action": "👉 Tick what you want to set up now",
     "onboarding.pick_hint": "You do not have to connect everything. The rest will wait in the **API Credentials** tab, later, inside the app.",
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
-    "onboarding.roadmap_title": "🗺️ Your setup, step by step",
-    "onboarding.roadmap_body": "**1. You pick your platforms** · ≈1 min\n→ on the next step, tick whatever you want to connect.\n\n**2. You enter your credentials** · ≈{mins} min for the two recommended ones ({names})\n→ every platform has its own illustrated guide, in the Credentials API tab.\n\n**3. Collection runs tonight** · 0 min\n→ your first charts are there tomorrow morning, then every day.",
     "onboarding.roadmap_partial": "You can stop after a single platform and come back whenever you like — nothing is lost, and each platform you add enriches the others.",
     "onboarding.guide_also_mailed": "You also received it attached to the welcome e-mail — here it is if you prefer to grab it from here.",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
@@ -29,11 +27,6 @@ EN = {
     "onboarding.status_unavailable": (
         "⚠️ Could not read your connection status ({err}). The list below may show "
         "“not connected” by mistake — retry in a moment before reconfiguring anything."
-    ),
-    "onboarding.reco_banner": (
-        "⭐ **Recommended to start: {names}** — in {mins} min you see where your "
-        "streams come from *and* whether your audience follows. That pair is what "
-        "lets you decide something; the rest refines it."
     ),
     "onboarding.already_connected": " — ✅ already connected",
     "onboarding.reco_tag": " — ⭐ recommended",
@@ -109,7 +102,7 @@ EN = {
                            "after the month if you do not go Premium. **Your data stays "
                            "yours either way** — nothing is deleted, and the CSV export "
                            "stays free.",
-    "onboarding.b3_title": "3. Your getting-started guide",
+    "onboarding.b3_title": "3. Your guide, and what happens next",
     "onboarding.download_guide_fr": "🇫🇷 Guide en français (PDF)",
     "onboarding.download_guide_en": "🇬🇧 Guide in English (PDF)",
     # Landing choice — the way out, and the right not to come back
@@ -130,4 +123,11 @@ EN = {
         "The minutes shown are **first-time** effort. After that, everything updates on its own."
     ),
     "onboarding.costs_expander": "📊 What each platform costs you, the first time",
+    "onboarding.collection_tonight": (
+        "**Collection runs tonight** · 0 min on your side → your first charts are "
+        "there tomorrow morning, then every day."
+    ),
+    "onboarding.reco_line": (
+        "⭐ **Recommended to start: {names}** — the quickest ones, {mins} min."
+    ),
 }

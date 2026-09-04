@@ -139,46 +139,15 @@ def _trial_deadline(artist_id: int | None, db) -> str | None:
     return None
 
 
-def _setup_roadmap() -> None:
-    """The journey ahead, with the time it actually costs.
-
-    Field note, 2026-08-30: the artist asked to see the roadmap *and its estimated
-    time* on the welcome step. Two things make this block honest rather than
-    decorative:
-
-    - the minutes are COMPUTED from `total_effort(RECOMMENDED)`, never typed here.
-      A hand-written duration is a number that stops being true the day a platform's
-      `effort_min` changes, and nothing would notice. The per-platform matrix on the
-      next step reads the same field, so the two can no longer disagree.
-    - it names the exit ("tu peux t'arrêter après la première"), because the artist
-      who reads a total and has less time will otherwise close the tab instead of doing one.
-    """
-    mins = total_effort(RECOMMENDED)
-    names = ", ".join(BY_KEY[k].label for k in RECOMMENDED if k in BY_KEY)
-    st.markdown("### " + t("onboarding.roadmap_title", "🗺️ Ta mise en route"))
-    st.markdown(t(
-        "onboarding.roadmap_body",
-        "**1. Tu choisis tes plateformes** · ≈1 min\n"
-        "→ juste en dessous, tu coches ce que tu veux brancher.\n\n"
-        "**2. Tu saisis tes identifiants** · ≈{mins} min pour les deux "
-        "recommandées ({names})\n"
-        "→ chaque plateforme a son guide illustré, dans l'onglet Credentials API.\n\n"
-        "**3. La collecte tourne cette nuit** · 0 min\n"
-        "→ tes premiers graphiques sont là demain matin, puis chaque jour."
-    ).format(mins=mins, names=names))
-    st.caption(t(
-        "onboarding.roadmap_partial",
-        "Tu peux t'arrêter après une seule plateforme et revenir quand tu veux — "
-        "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
-
-    # La liste PAR PLATEFORME vivait ici — et elle disait, mot pour mot, ce que les
-    # cases à cocher disent quelques lignes plus bas : nom, durée, « À fournir ».
-    # Signalé le 2026-09-04 : « pourquoi on duplique ? Je veux le plus simple
-    # possible ». Elle est retirée, pas déplacée : les cases la portaient déjà, avec
-    # en plus ce qu'elle n'avait pas — la valeur de chaque plateforme et son piège.
-    #
-    # Ce qui reste ici est ce qu'aucune case ne dit : les trois temps du parcours, et
-    # le droit de s'arrêter après une seule plateforme.
+# `_setup_roadmap()` vivait ici et a été SUPPRIMÉE le 2026-09-04 : « ça sert à rien
+# la section "ta mise en route" ». Elle annonçait trois étapes dont les deux premières
+# sont sous les yeux de celui qui lit — « tu choisis tes plateformes » juste au-dessus
+# des cases, « tu saisis tes identifiants » sur la page où le bouton l'emmène. Décrire
+# un parcours qu'on est en train de faire est du commentaire, pas de l'aide.
+#
+# Sa troisième ligne, elle, disait quelque chose qu'aucun écran ne montre — ce qui se
+# passe APRÈS, quand l'artiste a fermé l'onglet. Elle a rejoint le bloc du guide, qui
+# est devenu « Ton guide, et ce qui se passe ensuite ».
 
 
 _EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "assets" / "examples"
@@ -414,7 +383,8 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # langue de l'écran, donc un artiste qui lit en français mais veut envoyer le guide
     # à quelqu'un en anglais devait changer toute l'interface pour l'obtenir. Un
     # document qu'on télécharge n'a pas à hériter de la langue de la page.
-    st.markdown("### " + t("onboarding.b3_title", "3. Ton guide de démarrage"))
+    st.markdown("### " + t("onboarding.b3_title",
+                          "3. Ton guide, et ce qui se passe ensuite"))
     st.caption(t(
         "onboarding.guide_also_mailed",
         "Tu l'as aussi reçu en pièce jointe de l'e-mail de bienvenue — "
@@ -439,9 +409,17 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
                 type="primary" if _code == _cur else "secondary",
                 key=f"_onb_guide_{_code}",
             )
-    st.markdown("---")
 
-    _setup_roadmap()
+    # La seule ligne de l'ancienne feuille de route qui disait quelque chose : ce qui
+    # se passe une fois l'onglet fermé. Les deux autres décrivaient l'écran en cours.
+    st.markdown(t(
+        "onboarding.collection_tonight",
+        "**La collecte tourne cette nuit** · 0 min de ta part → tes premiers "
+        "graphiques sont là demain matin, puis chaque jour."))
+    st.caption(t(
+        "onboarding.roadmap_partial",
+        "Tu peux t'arrêter après une seule plateforme et revenir quand tu veux — "
+        "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
     st.markdown("---")
 
     # Le choix, ICI. Il vivait sur une deuxième page qui commençait par redire la
@@ -491,15 +469,6 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     current_rank = plan_ranks.get(plan, 0)
 
     reco = [BY_KEY[k] for k in RECOMMENDED if k not in configured]
-    if reco:
-        st.info(t(
-            "onboarding.reco_banner",
-            "⭐ **Recommandé pour démarrer : {names}** — les plus rapides, {mins} min.\n\n"
-            "La plus grosse valeur viendra ensuite du croisement **Meta Ads × import "
-            "CSV Spotify for Artists** (différent de l'API Spotify) : c'est lui qui "
-            "relie ce que tu dépenses en promo à ce que ça produit en écoutes."
-        ).format(names=" + ".join(f"{p.icon} {p.label}" for p in reco),
-                 mins=total_effort(p.key for p in reco)))
 
     # L'ACTION en gros, l'info en petit — demandé après le test du 2026-08-30 :
     # « mettre en gros gras surbrillance de section les ACTIONS à effectuer, en plus
@@ -509,6 +478,22 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     st.markdown("### :orange-background["
                 + t("onboarding.pick_action", "👉 Coche ce que tu veux configurer maintenant")
                 + "]")
+    # La recommandation, EN UNE LIGNE, juste sous l'action — et plus dans un pavé
+    # bleu au-dessus. Demandé le 2026-09-04 : « supprime-la et intègre les éléments
+    # simples au lieu de détaillés, juste en dessous de Coche ce que tu veux
+    # configurer ».
+    #
+    # Ce qui part avec le pavé : sa deuxième phrase, sur le croisement Meta Ads ×
+    # CSV S4A. Elle est juste, et elle n'a rien à faire là — elle décrit la valeur
+    # d'une combinaison à quelqu'un qui n'a encore rien branché, au moment précis où
+    # on lui demande de cocher. Les cases portent déjà la valeur de chaque
+    # plateforme, une par une, ce qui est la forme utile ici.
+    if reco:
+        st.caption(t(
+            "onboarding.reco_line",
+            "⭐ **Recommandé pour démarrer : {names}** — les plus rapides, {mins} min."
+        ).format(names=" + ".join(f"{p.icon} {p.label}" for p in reco),
+                 mins=total_effort(p.key for p in reco)))
     st.caption(t("onboarding.pick_hint",
                  "Tu n'as pas besoin de tout connecter. Le reste attendra dans "
                  "l'onglet **Credentials API**, plus tard, dans l'application."))
@@ -746,11 +731,20 @@ def show() -> None:
         else:
             _step_status(db, artist_id)
 
-        # En BAS, pas en haut. Il y était, au-dessus du titre de l'étape : la première
+        # En BAS, et SEULEMENT à l'étape 2 — deux corrections du même jour, dans le
+        # même sens.
+        #
+        # Le matin : ce bloc était au-dessus du titre de l'étape, donc la première
         # chose qu'un artiste voyait en arrivant sur sa mise en route était le bouton
-        # pour en sortir. Demandé le 2026-09-04 : « le bouton accéder à l'application
-        # [doit être] à la fin ». Une sortie se lit après le contenu, pas à sa place.
-        if state.steps:
+        # pour en sortir. « Le bouton accéder à l'application [doit être] à la fin ».
+        #
+        # Le soir : il ne s'affiche plus du tout sur la page de bienvenue. « Sur cette
+        # page de bienvenue, supprime configuration 0/4 et bouton accéder à l'appli…
+        # elle apparaît uniquement au step 2. » La page 1 pose une question — que
+        # veux-tu brancher ? — et son bouton y répond ; y ajouter une jauge « 0/4 »,
+        # une sortie et une préférence de connexion donne trois façons de partir avant
+        # d'avoir répondu. Ce qui a un sens APRÈS le choix se lit après le choix.
+        if state.steps and step != 1:
             _render_landing_choice(db, state)
     finally:
         if db is not None:

@@ -5,6 +5,45 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 15) — La page de bienvenue cesse de commenter l'écran qu'on regarde
+
+Quatre coupes, une même raison : chaque bloc retiré décrivait ce que l'artiste avait
+déjà sous les yeux, ou lui proposait de partir avant d'avoir répondu.
+
+### « 🗺️ Ta mise en route » — supprimée
+
+« Ça sert à rien. » Elle annonçait trois étapes dont **deux sont sous les yeux de celui
+qui lit** : « 1. Tu choisis tes plateformes » juste au-dessus des cases, « 2. Tu saisis
+tes identifiants » sur la page où le bouton l'emmène. Décrire un parcours qu'on est en
+train de faire est du commentaire, pas de l'aide.
+
+Sa **troisième** ligne disait la seule chose qu'aucun écran ne montre — ce qui se passe
+après avoir fermé l'onglet. Elle rejoint le bloc du guide, devenu « **3. Ton guide, et
+ce qui se passe ensuite** » : « La collecte tourne cette nuit · 0 min de ta part → tes
+premiers graphiques sont là demain matin, puis chaque jour. »
+
+### Le bandeau bleu « ⭐ Recommandé pour démarrer » — replié en une ligne
+
+Il occupait un pavé au-dessus de l'action, et sa **deuxième phrase** — la valeur du
+croisement Meta Ads × CSV S4A — décrivait le bénéfice d'une combinaison à quelqu'un qui
+n'a encore rien branché, au moment précis où on lui demande de cocher. Elle part avec
+le pavé ; les cases portent déjà la valeur de chaque plateforme, une par une, ce qui
+est la forme utile ici. La recommandation elle-même reste, en une ligne, **sous** le
+titre de l'action.
+
+### La sortie ne s'affiche plus sur la page de bienvenue
+
+« Configuration 0/4 », « 🏠 Accéder à l'application » et la case « afficher cette page à
+la connexion » n'apparaissent plus qu'à l'étape 2. Le matin même, ce bloc avait été
+descendu en bas de page parce qu'il s'affichait au-dessus du titre — première chose
+vue : le bouton pour partir. Le soir, il quitte la page 1 entièrement, et pour la même
+raison poussée d'un cran : cette page pose UNE question — que veux-tu brancher ? — et
+son bouton y répond. Y ajouter une jauge, une sortie et une préférence de connexion
+donne trois façons de s'en aller avant d'avoir répondu.
+
+Ce qui a un sens APRÈS le choix se lit après le choix : la jauge et la sortie vivent
+dans « Où tu en es », avec la matrice.
+
 ## 2026-09-04 (suite 14) — Trois écrans pour une mise en route, dont deux qui se répètent
 
 « Pourquoi on duplique ? Je veux le plus simple possible. » Le constat est exact et se
