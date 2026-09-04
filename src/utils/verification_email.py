@@ -127,28 +127,30 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
                        user_id: int | None = None, lang: str = "fr") -> bool:
     """Welcome email recapping the first onboarding actions. Non-raising.
 
-    Sent once the address is verified. Recaps the onboarding sequence in execution
-    order: enter credentials → import CSVs → map Meta campaigns → launch collection
-    → explore. Announces the trial and carries the API+CSV guide PDF as attachment.
+    Sent once the address is verified. It says what streaMLytics BRINGS, and points at
+    ONE thing to do: follow the getting-started guide — attached, and inside the app.
+
+    It used to list the five steps of the setup in execution order. That list is the
+    assistant's job, it was already there when the artist logged in, and reading it
+    twice — once in an e-mail one cannot act on, once in the app — is how a welcome
+    becomes homework. Rewritten 2026-09-04: « uniquement dire suivre le guide de
+    démarrage et donner la valeur ajoutée ». The trial and the attachment stay.
     Localised (FR/EN) via `lang` — the caller threads the verified user's UI language
     (recovered from the `&lang=` carried on the verification link).
     """
     onboarding_url = f"{_base_url()}?page=onboarding&lang={lang}"
     unsub_footer = _unsubscribe_footer(user_id, lang)
-    steps = "".join(
-        f"<li>{_tr(f'email.welcome.step{i}', fr, lang)}</li>"
+    value = "".join(
+        f"<li>{_tr(f'email.welcome.value{i}', fr, lang)}</li>"
         for i, fr in enumerate((
-            "<strong>Saisir vos credentials API</strong> (Spotify, YouTube, SoundCloud, "
-            "Meta Ads) dans la page <em>🔑 Credentials API</em>.",
-            "<strong>Importer vos fichiers CSV</strong> (Spotify for Artists, Apple Music, "
-            "iMusician) via la page <em>📥 Import CSV</em> — suivez le <strong>guide PDF "
-            "joint</strong> pour les exporter puis les déposer.",
-            "<strong>Mapper vos campagnes Meta Ads à vos titres Spotify</strong> dans "
-            "<em>🔗 Mapping Spotify × Meta Ads</em> (à faire <em>avant</em> la collecte, "
-            "pour relier dépenses et streams dès le premier run).",
-            "<strong>Lancer la collecte</strong> via le bouton "
-            "« 🚀 Lancer TOUTES les collectes » dans la barre latérale.",
-            "Explorer vos dashboards analytics et la prédiction ML « Road to Algo ».",
+            "<strong>Toutes tes données au même endroit</strong>, récupérées chaque jour "
+            "automatiquement et chiffrées : Spotify, Spotify for Artists, Instagram, "
+            "Meta Ads, YouTube, SoundCloud, Apple Music, distributeurs.",
+            "<strong>La prédiction des algorithmes Spotify</strong> — quand un titre a "
+            "des chances de déclencher Discover Weekly ou Release Radar, via des "
+            "modèles entraînés sur tes données.",
+            "<strong>L'optimisation de tes campagnes marketing</strong> (Instagram Ads, "
+            "Meta Ads) — en reliant ce que tu dépenses à ce que ça produit en écoutes.",
         ), start=1)
     )
     html = f"""
@@ -158,26 +160,29 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
         <p>{_tr('email.welcome.trial',
             "Votre compte est créé avec <strong>{trial_days} jours d'accès complet (Premium)</strong> offerts. 🎁",
             lang, trial_days=trial_days)}</p>
-        <h3>{_tr('email.welcome.steps_header', "Vos premières actions, dans l'ordre :", lang)}</h3>
-        <ol>{steps}</ol>
+        <h3>{_tr('email.welcome.value_header', "Ce que streaMLytics t'apporte :", lang)}</h3>
+        <ul>{value}</ul>
+        <p>{_tr('email.welcome.one_thing',
+            "<strong>Une seule chose à faire pour démarrer :</strong> suis le "
+            "<strong>guide de démarrage</strong>. Il est en pièce jointe de cet e-mail, "
+            "et dans l'application sous « 📋 Guide de démarrage ».", lang)}</p>
         <p style="text-align: center; margin: 30px 0;">
             <a href="{onboarding_url}"
                style="display: inline-block; background-color: #1DB954; color: white;
                       padding: 14px 28px; text-decoration: none; border-radius: 6px;
                       font-size: 16px; line-height: 1.4;">
-                {_tr('email.welcome.cta', "Configurer mon dashboard (2 min)", lang)}
+                {_tr('email.welcome.cta', "Ouvrir mon guide de démarrage", lang)}
             </a>
         </p>
         <p style="color: #888; font-size: 12px;">
             {_tr('email.welcome.guide_note',
-                "📎 Le <strong>guide PDF de démarrage (API + import CSV)</strong> est en pièce jointe.<br>"
-                "Besoin d'aide ? Consultez la page « 📋 Guide de démarrage » dans l'application.", lang)}
+                "📎 Le <strong>guide PDF de démarrage</strong> est en pièce jointe de cet e-mail.", lang)}
         </p>
         {unsub_footer}
     </body></html>
     """
     subject = _tr('email.welcome.subject',
-                  "🎵 Bienvenue — vos premières actions sur streaMLytics", lang)
+                  "🎵 Bienvenue sur streaMLytics — ton guide de démarrage", lang)
     return _send_html(to_email, subject, html, attachments=_guide_pdf_paths(lang))
 
 

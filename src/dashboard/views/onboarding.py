@@ -215,9 +215,11 @@ def _language_buttons() -> None:
                          type="primary" if cur == code else "secondary",
                          disabled=(cur == code)):
                 set_lang(code)
-                # La clé du radio de la barre latérale, écrite avant son instanciation
-                # au prochain run : sans ça il ré-imposerait l'ancienne langue.
-                st.session_state["_lang_sel"] = code
+                # PAS d'écriture sur `_lang_sel`. Ce fut la première version, et elle
+                # plantait : ce radio vit dans la barre latérale, donc il est déjà
+                # instanciué quand cette fonction tourne, et Streamlit refuse. `app.py`
+                # ne rend simplement pas le sélecteur de barre sur cette page — un seul
+                # propriétaire du réglage à la fois.
                 try:
                     from src.dashboard.utils.lang_pref import remember_lang
                     remember_lang(code)
@@ -250,10 +252,11 @@ def _step_welcome(plan: str, db) -> None:
         "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
         "Apple Music. Tes identifiants sont chiffrés ; tu ne ressaisis rien.\n\n"
         "**2. La prédiction des algorithmes Spotify** — quand un titre a des chances "
-        "de déclencher Discover Weekly ou Release Radar, et combien d'écoutes en "
-        "attendre, via des modèles de machine learning entraînés sur tes données.\n\n"
-        "**3. L'optimisation de tes campagnes** — en reliant ce que tu dépenses en "
-        "promo à ce que ça produit réellement en écoutes."
+        "de déclencher Discover Weekly ou Release Radar, via des modèles de machine "
+        "learning entraînés sur tes données.\n\n"
+        "**3. L'optimisation de tes campagnes marketing (Instagram Ads, Meta Ads)** — "
+        "en reliant ce que tu dépenses en promo à ce que ça produit réellement en "
+        "écoutes."
     ))
     st.markdown("---")
 
@@ -287,16 +290,40 @@ def _step_welcome(plan: str, db) -> None:
 
     col_free, col_premium = st.columns(2)
 
+    # Les noms sont ceux que l'artiste connaît, pas les nôtres : « S4A » et
+    # « iMusician » sont du vocabulaire interne — le premier est un sigle, le second
+    # un fournisseur parmi d'autres. Signalé le 2026-09-04.
     plan_data = [
-        ('free',    'Free',    [t("nav.item.home", "🏠 Accueil"), '🎵 Spotify & S4A', '🎬 YouTube',
+        ('free',    'Free',    [t("nav.item.home", "🏠 Accueil"),
+                                t("onboarding.feat_spotify", "🎵 Spotify + Spotify for Artists"),
+                                '🎬 YouTube',
                                 '📱 Meta Ads', '📸 Instagram', '☁️ SoundCloud',
-                                '🎎 Apple Music', '💰 iMusician',
+                                '🎎 Apple Music',
+                                t("onboarding.feat_distributors",
+                                  "💰 Distributeurs (iMusician, DistroKid…)"),
                                 t("nav.item.upload_csv", "📂 Import CSV"),
-                                t("nav.item.export_pdf", "📄 Export PDF"), '🎁 Data Wrapped']),
+                                # L'export PDF À LA DEMANDE reste Free — il l'est dans
+                                # `PLAN_FEATURES`, et une colonne qui ne le dirait plus
+                                # mentirait sur ce que Free donne. Ce qui passe en
+                                # Premium, c'est le rapport HEBDOMADAIRE envoyé tout
+                                # seul (migration 081) : deux choses distinctes.
+                                t("nav.item.export_pdf", "📄 Export PDF"),
+                                # « Export CSV » ne dit rien à qui n'est pas
+                                # développeur. La glose est plus longue que le nom,
+                                # et c'est le bon rapport : le nom ne se comprend pas.
+                                t("onboarding.feat_export_csv",
+                                  "⬇️ Export CSV — un fichier tableur (type Excel) "
+                                  "avec tes données brutes"),
+                                '🎁 Data Wrapped']),
         ('premium', 'Premium', ['+ 🚀 Road to Algo (ML)',
                                 t("onboarding.feat_revenue", "+ 📈 Prévisions revenus"),
                                 '+ 🔀 META x Spotify',
-                                t("onboarding.feat_creatives", "+ 🎨 Créatives & CPR Meta")]),
+                                t("onboarding.feat_creatives", "+ 🎨 Créatives & CPR Meta"),
+                                # Déplacé de Free vers Premium le 2026-09-04 : ce qui
+                                # se paie n'est pas le PDF, c'est le rapport filtrable
+                                # envoyé chaque semaine sans qu'on y pense.
+                                t("onboarding.feat_pdf_weekly",
+                                  "+ 📄 Ton rapport PDF filtrable, envoyé par mail chaque semaine")]),
     ]
 
     plan_ranks = {'free': 0, 'premium': 1}
@@ -310,10 +337,13 @@ def _step_welcome(plan: str, db) -> None:
             is_current = tier_key == plan
             is_locked = tier_rank > current_rank and not is_all
 
-            header = f"**{tier_label}**"
+            # « ← votre plan » en plus gros : c'est l'information que l'artiste
+            # cherche dans ce tableau, et elle était de la même taille que le reste.
             if is_current:
-                header += t("onboarding.your_plan", " ← *votre plan*")
-            st.markdown(header)
+                st.markdown(f"### {tier_label}"
+                            + t("onboarding.your_plan", " ← *votre plan*"))
+            else:
+                st.markdown(f"**{tier_label}**")
 
             for feat in features:
                 icon = "✅" if not is_locked or tier_rank <= current_rank else "🔒"

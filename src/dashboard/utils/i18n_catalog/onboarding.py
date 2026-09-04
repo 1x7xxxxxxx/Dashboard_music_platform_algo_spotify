@@ -14,6 +14,10 @@ EN = {
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
     "onboarding.feat_revenue": "+ 📈 Revenue forecasts",
+    "onboarding.feat_spotify": "🎵 Spotify + Spotify for Artists",
+    "onboarding.feat_distributors": "💰 Distributors (iMusician, DistroKid…)",
+    "onboarding.feat_export_csv": "⬇️ CSV export — a spreadsheet file (Excel-style) with your raw data",
+    "onboarding.feat_pdf_weekly": "+ 📄 Your filterable PDF report, mailed to you every week",
     "onboarding.feat_creatives": "+ 🎨 Meta Creatives & CPR",
     "onboarding.your_plan": " ← *your plan*",
     "onboarding.upgrade_to": "Upgrade to {tier} →",

@@ -19,10 +19,16 @@ def _get_artists_list(db) -> list[dict]:
 
 def show():
     st.title(t("export_csv.title", "⬇️ Export CSV — Données artiste"))
+    # « ZIP », « CSV », « table » : trois mots de développeur dans deux lignes, pour
+    # une page qui produit… un fichier qu'on ouvre dans Excel. Réécrit le 2026-09-04 —
+    # la première phrase dit CE QUE C'EST, les détails viennent après.
     st.caption(t(
         "export_csv.caption",
-        "Téléchargez toutes vos données sous forme d'un fichier ZIP "
-        "(un CSV par table). Vos données uniquement — filtrées par artiste."
+        "**Un fichier tableur — comme un Excel — avec tes données brutes**, celles que "
+        "la plateforme a collectées pour toi. Tu peux l'ouvrir dans Excel, Google "
+        "Sheets ou Numbers, et en faire ce que tu veux.\n\n"
+        "Le téléchargement est une archive **.zip** : un fichier par source (Spotify, "
+        "YouTube, Meta Ads…). Tes données uniquement."
     ))
     st.markdown("---")
 

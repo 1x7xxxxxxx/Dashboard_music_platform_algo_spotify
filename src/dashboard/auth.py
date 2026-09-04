@@ -667,10 +667,14 @@ def show_user_sidebar(plan: str | None = None):
                 _t("nav.plan_badge_free",
                    "Votre plan : **🆓 Free**  ·  🔒 = fonctions **Premium**"))
 
-    if artist_id is not None:
-        st.sidebar.caption(f"artist_id = {artist_id}")
-    else:
-        st.sidebar.caption(_t("auth.global_access", "Accès global (tous les artistes)"))
+    # `artist_id = 18` ne disait rien à personne d'autre qu'à nous — retiré le
+    # 2026-09-04 (« supprimer ligne artist_id, inutile »). Il reste pour l'ADMIN, qui
+    # bascule d'un locataire à l'autre et pour qui le numéro est le seul repère.
+    if role == 'admin':
+        if artist_id is not None:
+            st.sidebar.caption(f"artist_id = {artist_id}")
+        else:
+            st.sidebar.caption(_t("auth.global_access", "Accès global (tous les artistes)"))
 
     if st.sidebar.button(_t("auth.logout", "Se déconnecter")):
         # clear(), not a pop-list. `_SESSION_KEYS` named six keys and the session

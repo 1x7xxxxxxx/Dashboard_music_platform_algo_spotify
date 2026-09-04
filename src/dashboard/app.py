@@ -222,7 +222,7 @@ _NAV_SECTIONS = [
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
-    ("analytics", "📊 Analytics plateformes", [("🎵 Spotify & S4A", "spotify_s4a_combined"),
+    ("analytics", "📊 Analytics plateformes", [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
                                              ("🎎 Apple Music", "apple_music"),
                                              ("🎬 YouTube", "youtube"),
@@ -235,7 +235,7 @@ _NAV_SECTIONS = [
                                              ("🎨 Créatives", "meta_creatives"),
                                              ("🌍 Breakdowns Meta", "meta_breakdowns"),
                                              ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
-    ("revenue",   "💶 Revenus",             [("💰 Distributeur", "imusician"),
+    ("revenue",   "💶 Revenus",             [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),
                                              ("🎼 SACEM", "sacem"),
                                              ("📈 Prévisions revenus", "revenue_forecast")]),
     ("reports",   "🎁 Rapports & exports",  [("🎁 Data Wrapped", "data_wrapped"),
@@ -811,9 +811,6 @@ def _main_body():
     _sb_logo = logo_html(variant="adaptive", max_width=220)
     if _sb_logo:
         st.sidebar.markdown(_sb_logo, unsafe_allow_html=True)
-    # Language toggle — set before the nav so the whole sidebar renders in the choice.
-    from src.dashboard.utils.i18n import language_selector
-    language_selector()
     # Admin "Voir comme" QA toggle — must run before the nav so the impersonated plan
     # is set in session_state when get_artist_plan() reads it. An admin previewing
     # free/premium is treated as an 'artist' for role-gating (admin-only pages hidden).
@@ -828,8 +825,25 @@ def _main_body():
     # étapes de l'assistant arrivait APRÈS tout ça, écrite par la vue elle-même.
     # C'est pour cela que la page est résolue AVANT d'être rendue : rien ne peut se
     # placer au-dessus de la navigation tant que c'est la navigation qui calcule la page.
-    show_user_sidebar(get_artist_plan())
     page, _rendered, _all_skeys = resolve_nav_page(role)
+
+    # UN SEUL sélecteur de langue à la fois, et c'est un correctif de plantage.
+    #
+    # L'assistant porte le sien (bloc 0). Le radio de la barre latérale, lui, réimpose
+    # sa propre valeur à chaque rendu : pour qu'un choix fait sur la page survive, la
+    # page écrivait la clé `_lang_sel`… depuis la phase CONTENU, donc APRÈS que le
+    # widget existe. Streamlit l'interdit, et la page mourait sur
+    # `❌ Une erreur est survenue` — en anglais, sans moyen de revenir au français.
+    # Trouvé en une requête dans `app_error_log` (migration 083), qui existait depuis
+    # trois heures : `StreamlitAPIException` dans `_language_buttons`.
+    #
+    # Deux propriétaires pour un même réglage, c'est le défaut. Sur l'assistant, la
+    # page est propriétaire ; ailleurs, la barre. Aucune écriture croisée.
+    from src.dashboard.utils.i18n import language_selector
+    if page != 'onboarding':
+        language_selector()
+
+    show_user_sidebar(get_artist_plan())
     if page == 'onboarding':
         from views.onboarding import render_sidebar_steps
         render_sidebar_steps()

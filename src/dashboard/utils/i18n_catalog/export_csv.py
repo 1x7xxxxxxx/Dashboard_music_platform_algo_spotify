@@ -3,8 +3,11 @@
 EN = {
     "export_csv.title": "⬇️ CSV Export — Artist data",
     "export_csv.caption": (
-        "Download all your data as a ZIP file "
-        "(one CSV per table). Your data only — filtered by artist."
+        "**A spreadsheet file — like an Excel — with your raw data**, the numbers the "
+        "platform collected for you. Open it in Excel, Google Sheets or Numbers and do "
+        "whatever you want with it.\n\n"
+        "The download is a **.zip** archive: one file per source (Spotify, YouTube, "
+        "Meta Ads…). Your data only."
     ),
     "export_csv.no_active_artist": "No active artist in the database.",
     "export_csv.artist_select": "👤 Artist to export",

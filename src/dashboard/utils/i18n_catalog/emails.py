@@ -32,29 +32,32 @@ EN = {
                            "created and nothing changed on yours.",
 
     # --- Welcome email ---
-    "email.welcome.subject": "🎵 Welcome — your first steps on streaMLytics",
+    "email.welcome.subject": "🎵 Welcome to streaMLytics — your getting-started guide",
     "email.welcome.title": "🎵 Welcome to streaMLytics, {username}!",
     "email.welcome.trial": "Your account is ready with "
                            "<strong>{trial_days} days of full access (Premium)</strong> "
                            "included. 🎁",
-    "email.welcome.steps_header": "Your first steps, in order:",
-    "email.welcome.step1": "<strong>Enter your API credentials</strong> (Spotify, YouTube, "
-                           "SoundCloud, Meta Ads) on the <em>🔑 API Credentials</em> page.",
-    "email.welcome.step2": "<strong>Import your CSV files</strong> (Spotify for Artists, "
-                           "Apple Music, iMusician) via the <em>📥 CSV Import</em> page — "
-                           "follow the <strong>attached PDF guide</strong> to export and "
-                           "upload them.",
-    "email.welcome.step3": "<strong>Map your Meta Ads campaigns to your Spotify tracks</strong> "
-                           "in <em>🔗 Spotify × Meta Ads mapping</em> (do this <em>before</em> "
-                           "collection, to link spend and streams from the first run).",
-    "email.welcome.step4": "<strong>Start collection</strong> via the "
-                           "“🚀 Run ALL collections” button in the sidebar.",
-    "email.welcome.step5": "Explore your analytics dashboards and the “Road to Algo” "
-                           "ML prediction.",
-    "email.welcome.cta": "Set up my dashboard (2 min)",
-    "email.welcome.guide_note": "📎 The <strong>getting-started PDF guide (API + CSV import)</strong> "
-                                "is attached.<br>Need help? See the “📋 Getting started” page in "
-                                "the app.",
+    # Rewritten 2026-09-04: value first, ONE thing to do. The five ordered steps were
+    # the assistant's job, already on screen when the artist logged in — read twice,
+    # once in a mail one cannot act on, a welcome becomes homework.
+    "email.welcome.value_header": "What streaMLytics brings you:",
+    "email.welcome.value1": "<strong>All your data in one place</strong>, pulled every "
+                            "day automatically and encrypted: Spotify, Spotify for "
+                            "Artists, Instagram, Meta Ads, YouTube, SoundCloud, Apple "
+                            "Music, distributors.",
+    "email.welcome.value2": "<strong>Spotify algorithm predictions</strong> — when a "
+                            "track is likely to trigger Discover Weekly or Release "
+                            "Radar, from models trained on your own data.",
+    "email.welcome.value3": "<strong>Campaign optimisation</strong> (Instagram Ads, "
+                            "Meta Ads) — linking what you spend to what it produces "
+                            "in streams.",
+    "email.welcome.one_thing": "<strong>One thing to get started:</strong> follow the "
+                               "<strong>getting-started guide</strong>. It is attached "
+                               "to this e-mail, and in the app under "
+                               "“📋 Getting started”.",
+    "email.welcome.cta": "Open my getting-started guide",
+    "email.welcome.guide_note": "📎 The <strong>getting-started PDF guide</strong> is "
+                                "attached to this e-mail.",
 
     # --- Unsubscribe footer ---
     "email.unsub.static": "To stop receiving these emails, untick the option in "

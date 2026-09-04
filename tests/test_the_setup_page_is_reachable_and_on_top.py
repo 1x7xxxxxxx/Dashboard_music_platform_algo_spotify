@@ -419,10 +419,41 @@ def test_the_language_choice_is_buttons_not_a_second_radio():
     assert not _call_lines(fn, "radio"), (
         "a radio came back into the page: it will fight the sidebar's language radio")
     src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
-    assert '"_lang_sel"' in src, (
-        "the page no longer updates the sidebar radio's key — the sidebar would "
-        "re-impose the previous language on the next run")
+    # The FIRST version of this guard demanded the opposite — that the page write
+    # `_lang_sel`, the sidebar radio's key — and that write is what crashed the page:
+    # the radio lives in the sidebar, so it is already instantiated when this runs, and
+    # Streamlit refuses. The reasoning ("the sidebar would re-impose the old language")
+    # was right; the remedy was not. One OWNER at a time is the remedy: `app.py` does
+    # not render the sidebar selector on this page. Same error class as `goto()`:
+    # `widget-key-written-after-instantiation`.
+    tree = ast.parse(ONB.read_text(encoding="utf-8"))
+    fn_node = next(n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "_language_buttons")
+    writes = [n.lineno for n in ast.walk(fn_node)
+              if isinstance(n, ast.Assign)
+              for t in n.targets
+              if isinstance(t, ast.Subscript)
+              and isinstance(t.value, ast.Attribute) and t.value.attr == "session_state"
+              and isinstance(t.slice, ast.Constant) and t.slice.value == "_lang_sel"]
+    assert not writes, (
+        f"the page writes the sidebar radio's key at line(s) {writes}. That widget is "
+        "already instantiated — Streamlit raises, and the artist is stuck in a "
+        "language they cannot leave."
+    )
     assert "remember_lang" in src, "the choice is no longer persisted per artist"
+
+
+def test_only_one_language_selector_is_rendered_at_a_time():
+    """Two owners for one setting is the defect; the crash was its symptom."""
+    fn = _fn(APP, "_main_body")
+    src = ast.get_source_segment(APP.read_text(encoding="utf-8"), fn) or ""
+    idx = src.index("language_selector()")
+    guard = src[max(0, idx - 200):idx]
+    assert "page != 'onboarding'" in guard, (
+        "the sidebar language selector is rendered unconditionally again: on the "
+        "assistant it would fight the page's own buttons and re-impose the previous "
+        "language on every rerun."
+    )
 
 
 def test_the_first_run_shows_only_the_platforms_that_were_ticked():
@@ -533,3 +564,25 @@ def test_adopting_a_registered_account_refuses_anything_that_is_not_fresh():
     assert "is_canary" in src, (
         "a canary can be adopted: it is a FLAG, not a permission — exempting it would "
         "hollow out the nightly per-tenant proof it carries")
+
+
+def test_the_plan_table_does_not_contradict_the_real_gating():
+    """A comparison table that lies about the current plan is worse than none.
+
+    `export_pdf` IS in `PLAN_FEATURES['free']`, so the Free column must keep it. What
+    moved to Premium on 2026-09-04 is the WEEKLY MAILED report (migration 081) — a
+    different thing that happens to produce the same file.
+    """
+    import sys
+    sys.path.insert(0, str(REPO))
+    from src.database.stripe_schema import PLAN_FEATURES
+
+    fn = _fn(ONB, "_step_welcome")
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    free_block = src[src.index("('free',"):src.index("('premium',")]
+    assert "export_pdf" in free_block, (
+        "the Free column dropped the on-demand PDF export, which Free actually has: "
+        f"{sorted(PLAN_FEATURES['free'])[:6]}… — the table would understate Free.")
+    premium_block = src[src.index("('premium',"):]
+    assert "feat_pdf_weekly" in premium_block, (
+        "the weekly mailed report left the Premium column")
