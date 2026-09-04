@@ -48,6 +48,31 @@ _TAB_FOR_PLATFORM = {"instagram": "meta"}
 # partagent la même page — « 📂 Ajouter mes chiffres Spotify for Artists & Apple ».
 _PAGE_FOR_PLATFORM = {"apple_music": "upload_csv", "s4a": "upload_csv"}
 
+# L'onglet actif de la page Credentials — un état comme la page, pas une propriété
+# invisible du rendu. Dans l'URL pour être adressable (lien profond, bouton
+# Précédent), et dans `session_state` sous la clé du widget pour être pilotable.
+_TAB_PARAM = "tab"
+_TAB_STATE = "_creds_tab"
+
+
+def _resolve_active_tab(keys: list[str]) -> str:
+    """L'onglet à ouvrir : la session d'abord, l'URL ensuite, le premier sinon.
+
+    L'ORDRE compte. La session porte ce que l'artiste vient de choisir ou ce qu'une
+    redirection vient d'écrire ; l'URL porte ce qu'il a collé ou mis en signet. Lire
+    l'URL en premier ferait gagner un paramètre périmé sur un clic frais — c'est
+    exactement le défaut qui a été corrigé sur la PAGE le 2026-09-04, et il n'y a
+    aucune raison de le réintroduire un niveau plus bas.
+
+    Une valeur inconnue (onglet renommé, lien ancien) retombe sur le premier au lieu
+    de rendre une page vide.
+    """
+    for candidate in (st.session_state.get(_TAB_STATE),
+                      st.query_params.get(_TAB_PARAM)):
+        if candidate in keys:
+            return candidate
+    return keys[0]
+
 
 def platform_destination(key: str) -> str:
     """Où cette plateforme se configure : `tab:<clé d'onglet>` ou `page:<clé de page>`.
@@ -214,14 +239,11 @@ def show():
                                "📂 Aller y déposer mes fichiers →"),
                              key="_creds_focus_elsewhere"):
                     goto(_PAGE_FOR_PLATFORM[elsewhere[0]])
-        elif not existing:
-            st.info(t(
-                "credentials.no_creds_banner",
-                "💡 **Aucun credential configuré.** "
-                "Sélectionnez une plateforme ci-dessous et suivez le guide "
-                "pour connecter vos sources de données. "
-                "Commencez par **SoundCloud** (le plus rapide : un seul identifiant)."
-            ))
+        # Pas de bandeau « Aucun credential configuré » non plus. Il disait trois
+        # choses, toutes redondantes avec l'écran : qu'il n'y a rien (le formulaire le
+        # montre), de choisir une plateforme ci-dessous (la barre d'onglets est juste
+        # là), et de commencer par SoundCloud (c'est l'ORDRE des onglets qui le dit
+        # depuis le 2026-09-05 — et il dit Spotify, ce que le bandeau contredisait).
 
         st.markdown("---")
 
@@ -263,7 +285,6 @@ def show():
         ordered = sorted(PLATFORMS.items(),
                          key=lambda kv: (_rank.get(kv[0], len(_rank)), kv[0]))
 
-        tab_labels = [info['label'] for _, info in ordered]
         _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple)")
         # « La suivante » n'est plus tirée d'une sélection — il n'y en a plus. C'est
         # le prochain ONGLET non connecté dans l'ordre conseillé, ce qui est la même
@@ -302,35 +323,65 @@ def show():
         # onglet fermé. Il revient SANS ce défaut parce que le verdict est maintenant
         # rendu par un onglet nommé (`owner`) : on le fait rendre par celui qui passe
         # en tête, c'est-à-dire par celui qui s'ouvre.
+        # ── L'ONGLET ACTIF EST DANS L'URL ────────────────────────────────
+        #
+        # Refonte du 2026-09-05, demandée en ces termes : « on n'a pas un refactor
+        # avec la meilleure logique possible pour les onglets, la redirection, etc. ? »
+        # La réponse est oui, et les trois bugs signalés le même jour en sont les
+        # symptômes, pas des accidents séparés.
+        #
+        # LE DÉFAUT DE CONCEPTION. `st.tabs` rend tous ses panneaux et n'expose AUCUN
+        # contrôle de l'onglet actif. Chaque fois qu'il a fallu « ouvrir l'onglet X »,
+        # on l'a donc obtenu en RÉORDONNANT la liste. Trois conséquences, toutes
+        # constatées :
+        #
+        #   * la barre d'onglets bougeait sous l'artiste entre deux reruns — « ça nous
+        #     ramène sur Spotify au lieu de Meta » : l'ordre était réordonné au rerun
+        #     d'un enregistrement, puis revenait à sa place au suivant ;
+        #   * « quel onglet montre le verdict » se découplait de « quel onglet est
+        #     ouvert », d'où un rustine `verdict_owner` ;
+        #   * rien n'était adressable : ni lien profond, ni bouton Précédent.
+        #
+        # LA CORRECTION. L'onglet devient un état comme la page : il vit dans l'URL
+        # (`?page=credentials&tab=soundcloud`), et la barre est un vrai widget qu'on
+        # peut piloter — le dépôt a déjà ce motif pour le menu (`_select_nav_radio`).
+        # Un seul panneau est rendu, celui qui est actif : plus de DOM caché, et le
+        # verdict s'affiche par construction là où l'artiste regarde.
+        #
+        # Rediriger n'est plus qu'écrire l'état : poser la clé du widget AVANT qu'il
+        # soit instancié, comme le menu le fait déjà.
+        _CSV_KEY = "__csv__"
+        _tab_keys = [k for k, _ in ordered] + [_CSV_KEY]
+        _tab_label = {k: info['label'] for k, info in ordered} | {_CSV_KEY: _CSV_TAB}
+
         def _tab_of(logical: str) -> str:
             dest = platform_destination(logical)
             return dest.split(":", 1)[1] if dest.startswith("tab:") else ""
 
         _pending = st.session_state.get(VERDICT_KEY)
         _verdict_next: tuple | None = None
-        # L'onglet qui RENDRA le verdict. Un seul, sinon `pop` le fait disparaître
-        # dans le premier rendu par Streamlit — qui n'est pas celui qu'on regarde.
-        _verdict_owner = _tab_of(_pending[0]) if _pending else None
         if _pending and _pending[1]:                       # sauvegarde RÉUSSIE
             _nxt = _next_after(_pending[0])
             _wanted = _tab_of(_nxt[0]) if _nxt else ""
-            if _wanted:
-                ordered = ([kv for kv in ordered if kv[0] == _wanted]
-                           + [kv for kv in ordered if kv[0] != _wanted])
-                # Le verdict suit l'onglet qui s'OUVRE, pas celui qu'on vient de
-                # quitter. En échec, il reste dans le sien : l'artiste doit corriger
-                # là où il a saisi.
-                _verdict_owner = _wanted
-                # « Suivante » nomme la plateforme de l'onglet OUVERT, pas celle
-                # d'après. Vu au navigateur le 2026-09-05 : le verdict s'affichait
-                # bien dans l'onglet SoundCloud et annonçait « Suivante : Instagram »,
-                # parce que chaque onglet reçoit « ce qui vient après LUI ». Juste
-                # dans l'absolu, faux ici : l'artiste est déjà sur celle qu'on lui
-                # annonçait, et on lui en désigne encore une autre.
+            if _wanted in _tab_keys:
+                # AVANT l'instanciation du widget : c'est la seule fenêtre où poser sa
+                # valeur a un effet. Après, Streamlit considère que l'utilisateur a
+                # choisi et refuse l'écriture.
+                st.session_state[_TAB_STATE] = _wanted
+                st.query_params[_TAB_PARAM] = _wanted
+                # « Suivante » nomme l'onglet qu'on OUVRE, pas celui d'après : l'artiste
+                # y est déjà.
                 _verdict_next = _nxt
 
-        tab_labels = [info['label'] for _, info in ordered]
-        tabs = st.tabs(tab_labels + [_CSV_TAB])
+        _active = _resolve_active_tab(_tab_keys)
+        _chosen = st.segmented_control(
+            t("credentials.tab_bar", "Plateforme"), _tab_keys,
+            format_func=lambda k: _tab_label[k],
+            default=_active, key=_TAB_STATE, label_visibility="collapsed",
+        ) or _active
+        # L'URL suit la sélection — un lien profond et le bouton Précédent marchent.
+        if st.query_params.get(_TAB_PARAM) != _chosen:
+            st.query_params[_TAB_PARAM] = _chosen
 
         # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
         # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient
@@ -356,24 +407,7 @@ def show():
         # seul »). Deux onglets obligeraient l'artiste à classer son fichier AVANT de
         # le déposer — une décision que le code prend mieux que lui, sur une page où
         # aucun locataire n'a jamais terminé un import (mesuré le 2026-09-03).
-        for tab, (platform_key, platform_info) in zip(tabs, ordered):
-            with tab:
-                _render_platform_tab(
-                    db=db,
-                    platform_key=platform_key,
-                    platform_info=platform_info,
-                    artist_id=target_artist_id,
-                    existing_row=existing.get(platform_key),
-                    fernet_ok=fernet_ok,
-                    dag_states=dag_states,
-                    artist_name=artist_name,
-                    next_platform=(_verdict_next
-                                   if platform_key == _verdict_owner and _verdict_next
-                                   else _next_after(platform_key)),
-                    verdict_owner=_verdict_owner,
-                )
-
-        with tabs[-1]:
+        if _chosen == _CSV_KEY:
             st.caption(t(
                 "credentials.csv_tab_help",
                 "Ces deux sources ne se connectent pas par identifiant : elles vous "
@@ -381,9 +415,22 @@ def show():
                 "est reconnu tout seul, vous n'avez pas à l'ouvrir."))
             from src.dashboard.views.upload_csv import render_uploader
             render_uploader(db, target_artist_id)
-
-        # L'accordéon « ➕ Les N autres plateformes » a disparu avec le repli qu'il
-        # servait : elles sont toutes des onglets maintenant, au même niveau.
+        else:
+            _info = dict(ordered)[_chosen]
+            _render_platform_tab(
+                db=db,
+                platform_key=_chosen,
+                platform_info=_info,
+                artist_id=target_artist_id,
+                existing_row=existing.get(_chosen),
+                fernet_ok=fernet_ok,
+                dag_states=dag_states,
+                artist_name=artist_name,
+                # Le panneau rendu EST celui qu'on regarde : plus de `verdict_owner`.
+                # La rustine existait parce que l'onglet ouvert et l'onglet porteur du
+                # verdict pouvaient différer ; ils ne le peuvent plus.
+                next_platform=(_verdict_next or _next_after(_chosen)),
+            )
 
     finally:
         db.close()

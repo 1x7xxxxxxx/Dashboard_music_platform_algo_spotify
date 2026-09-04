@@ -521,48 +521,7 @@ def _step_status(db, artist_id: int) -> None:
         _goto('home')
 
 
-def _step_labels() -> list[str]:
-    # DEUX étapes. Il y en avait trois, dont deux ne portaient qu'un bouton chacune :
-    # « 2. Données » commençait par redire la liste de plateformes de la page 1, et
-    # « 3. Prêt ! » redemandait ce que le bouton précédent venait de décider.
-    # Demandé le 2026-09-04 : « je veux le plus simple possible ».
-    return [
-        t("onboarding.step1", "1. Bienvenue & choix"),
-        t("onboarding.step2", "2. Où tu en es"),
-    ]
-
-
-def render_sidebar_steps() -> None:
-    """Les trois étapes, EN HAUT de la barre latérale, et cliquables.
-
-    Deux défauts en un, tous deux rapportés depuis une vraie deuxième connexion le
-    2026-09-04.
-
-    **La position.** Ce bloc vivait dans `show()`, donc il s'écrivait pendant la phase
-    de CONTENU — après le logo, la langue, le menu et le bouton de déconnexion. Il
-    atterrissait sous tout le reste : « c'est tout en bas du volet de navigation ».
-    `app._main_body` l'appelle maintenant depuis la phase BARRE LATÉRALE, ce qui a
-    demandé de séparer « quelle est la page ? » de « dessine le menu ».
-
-    **L'atteignabilité.** Les trois lignes étaient du `st.markdown` : elles NOMMAIENT
-    les étapes sans y mener — « impossible de revenir aux différentes étapes de
-    config ». Même forme que les quatre étapes de l'accueil, corrigées le 2026-08-30
-    pour la même raison. L'étape courante reste du texte : il n'y a rien à y aller.
-    """
-    if _STEP_KEY not in st.session_state:
-        st.session_state[_STEP_KEY] = 1
-    step = st.session_state[_STEP_KEY]
-
-    st.sidebar.markdown(t("onboarding.steps_header", "### Étapes"))
-    for i, label in enumerate(_step_labels(), 1):
-        prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
-        if i == step:
-            st.sidebar.markdown(f"**{prefix} {label}**")
-        elif st.sidebar.button(f"{prefix} {label}", key=f"_onb_jump_{i}",
-                               use_container_width=True):
-            st.session_state[_STEP_KEY] = i
-            st.rerun()
-    st.sidebar.markdown("---")
+# `_step_labels` est parti avec `render_sidebar_steps`, son unique appelant.
 
 
 def _render_landing_choice(db, state) -> None:

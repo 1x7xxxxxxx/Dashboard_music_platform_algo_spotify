@@ -3,6 +3,7 @@
 EN = {
     # ── router.py ──────────────────────────────────────────────────────
     "credentials.title": "🔑 API Credentials + CSV imports",
+    "credentials.tab_bar": "Platform",
     "credentials.csv_tab": "📂 My files (Spotify for Artists, Apple)",
     "credentials.csv_tab_help": (
         "These two sources are not connected with an identifier: they let you "
@@ -26,13 +27,6 @@ EN = {
         "identifier can belong to one artist only — check that this one is yours. "
         "If you believe this is a mistake, contact the administrator."
     ),
-    "credentials.no_creds_banner": (
-        "💡 **No credentials configured.** "
-        "Select a platform below and follow the guide "
-        "to connect your data sources. "
-        "Start with **SoundCloud** (the quickest: a single identifier)."
-    ),
-    # ── _registry.py — field labels ────────────────────────────────────
     "credentials.field.client_id": "Client ID",
     "credentials.field.client_secret": "Client Secret",  # pragma: allowlist secret
     "credentials.field.api_key": "API Key (YouTube Data API v3)",  # pragma: allowlist secret
@@ -76,9 +70,10 @@ EN = {
         "Credentials saved — updated: {updated} · "
         "Token valid until {date} ({days}d)"
     ),
-    "credentials.creds_saved": "Credentials saved — updated: {updated}",
-    "credentials.no_creds_platform": "No credentials saved for this platform.",
-    # ── _render.py — form ──────────────────────────────────────────────
+    "credentials.creds_saved": (
+        "Value saved on {updated} — saved does not mean verified: the test "
+        "below is what says so."
+    ),
     "credentials.form.enter": "Enter your credentials",
     "credentials.form.update": "Update",
     "credentials.form.caption": (

@@ -69,22 +69,6 @@ def _call_lines(fn: ast.AST, name: str) -> list[int]:
 
 # ── 1. Position ───────────────────────────────────────────────────────────────
 
-def test_the_step_list_is_drawn_before_the_navigation():
-    """Above the menu, not under the logout button."""
-    body = _fn(APP, "_main_body")
-    steps = _call_lines(body, "render_sidebar_steps")
-    nav = _call_lines(body, "render_navigation")
-    assert steps, (
-        "_main_body no longer draws the assistant's steps. They would go back to being "
-        "written by views/onboarding.show(), i.e. after the entire sidebar."
-    )
-    assert nav, "_main_body no longer renders the navigation"
-    assert min(steps) < min(nav), (
-        "the step list is drawn after the navigation — it reads as a footer, which is "
-        "exactly what was reported."
-    )
-
-
 def test_the_view_no_longer_writes_the_sidebar_itself():
     """One writer for that block. Two would put it in two places at once."""
     show = _fn(ONB, "show")
@@ -115,16 +99,6 @@ def test_the_identity_block_carries_the_plan_and_is_drawn_before_the_nav():
 
 
 # ── 2. Reachability ───────────────────────────────────────────────────────────
-
-def test_every_step_that_is_not_the_current_one_is_a_button():
-    """A step you cannot click is a step you cannot go back to."""
-    fn = _fn(ONB, "render_sidebar_steps")
-    buttons = _call_lines(fn, "button")
-    assert buttons, (
-        "render_sidebar_steps draws no button: the three steps are text again, and "
-        "« impossible de revenir aux différentes étapes de config » is back."
-    )
-
 
 def test_the_assistant_offers_a_way_into_the_app():
     """Un écran dont on ne peut pas sortir n'est pas une aide, c'est une porte.
@@ -289,6 +263,15 @@ def test_the_assistant_has_no_early_route_that_skips_the_sidebar():
 
 # ── 6. First run: the assistant and nothing else, exit at the bottom ──────────
 
+# `test_the_step_list_is_drawn_before_the_navigation` et
+# `test_every_step_that_is_not_the_current_one_is_a_button` ont été retirés le
+# 2026-09-05 : la barre latérale n'a plus d'« Étapes ». Deux étapes dont la seconde
+# est un bilan ne font pas un fil d'Ariane, et l'auteur a demandé « le + simple
+# possible ». Leur question — « les étapes sont-elles cliquables, et au bon endroit ? »
+# — n'a plus d'objet, ce qui n'est pas la même chose qu'un garde qu'on retire pour
+# faire taire un rouge : le comportement est parti, pas la vérification.
+
+
 def test_the_first_run_hides_the_menu_and_the_collect_button():
     """« lors de la première connexion qu'on ait accès uniquement à la mise en route ».
 
@@ -303,12 +286,22 @@ def test_the_first_run_hides_the_menu_and_the_collect_button():
         if not isinstance(node, ast.If):
             continue
         # The nav + collect panel must live in the `else` of the focus test.
+        # Le NOM de la variable et la POLARITÉ de la branche ne sont pas la question.
+        # Ce garde cherchait `_focus` et le `else` ; la refonte du 2026-09-05 a
+        # renommé la décision `_bare` et inversé le test (`if not _bare:`) — ce qui
+        # l'a fait rougir sur un comportement inchangé. Un garde ancré sur la forme
+        # argumente pour l'ancienne écriture.
+        #
+        # La question : le menu et le bouton de collecte sont-ils SOUS une condition
+        # dérivée de la première connexion, dans une branche et une seule ?
         names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
-        if "FIRST_RUN_FOCUS" not in names and "_focus" not in names:
+        if not (names & {"FIRST_RUN_FOCUS", "_focus", "_bare"}):
             continue
-        else_calls = {c for stmt in node.orelse for c in _names_called(stmt)}
-        if {"render_navigation", "show_data_collection_panel"} <= else_calls:
-            guarded.append(node.lineno)
+        wanted = {"render_navigation", "show_data_collection_panel"}
+        for branch in (node.body, node.orelse):
+            calls = {c for stmt in branch for c in _names_called(stmt)}
+            if wanted <= calls:
+                guarded.append(node.lineno)
     assert guarded, (
         "the navigation and the collect button are not gated on the first-run focus "
         "flag: a brand-new account gets the whole app instead of its setup."
@@ -618,17 +611,41 @@ def test_the_language_choice_is_buttons_not_a_second_radio():
 
 
 def test_only_one_language_selector_is_rendered_at_a_time():
-    """Two owners for one setting is the defect; the crash was its symptom."""
-    fn = _fn(APP, "_main_body")
-    src = ast.get_source_segment(APP.read_text(encoding="utf-8"), fn) or ""
-    idx = src.index("language_selector()")
-    guard = src[max(0, idx - 200):idx]
-    assert "page != 'onboarding'" in guard, (
-        "the sidebar language selector is rendered unconditionally again: on the "
-        "assistant it would fight the page's own buttons and re-impose the previous "
-        "language on every rerun."
-    )
+    """Deux propriétaires pour un réglage : c'est le défaut, le crash en était le
+    symptôme.
 
+    La barre latérale porte un sélecteur de langue et l'assistant en porte un autre,
+    sur sa page. Rendus ensemble, ils se réécrivent l'un l'autre à chaque rerun —
+    celui de la barre annulait le choix fait sur la page.
+
+    Le garde lisait 200 caractères de TEXTE avant l'appel en y cherchant
+    `page != 'onboarding'`. Il a rougi le 2026-09-05 sur un comportement inchangé :
+    la refonte a regroupé la décision sous un nom (`_bare`) et inversé le test. Un
+    prédicat ancré sur la forme argumente pour l'ancienne écriture — et celui-ci
+    lisait en plus une fenêtre de caractères, donc les commentaires.
+    """
+    fn = _fn(APP, "_main_body")
+    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+             and getattr(n.func, "id", "") == "language_selector"]
+    assert calls, "le sélecteur de langue de la barre a disparu"
+
+    parents = {id(c): p for p in ast.walk(fn) for c in ast.iter_child_nodes(p)}
+
+    def _under_first_run_gate(node) -> bool:
+        cur = node
+        while cur is not None:
+            parent = parents.get(id(cur))
+            if isinstance(parent, ast.If):
+                names = {n.id for n in ast.walk(parent.test) if isinstance(n, ast.Name)}
+                if names & {"FIRST_RUN_FOCUS", "_focus", "_bare"}:
+                    return True
+            cur = parent
+        return False
+
+    assert all(_under_first_run_gate(c) for c in calls), (
+        "le sélecteur de langue de la barre est rendu sans condition : sur "
+        "l'assistant il se battrait avec les boutons de la page et réimposerait la "
+        "langue précédente à chaque rerun")
 
 def test_the_first_run_shows_every_platform_at_one_level():
     """Plus de repli : toutes les plateformes sont des onglets, au même niveau.

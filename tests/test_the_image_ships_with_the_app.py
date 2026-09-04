@@ -179,10 +179,15 @@ def test_the_screenshot_is_rendered_by_exactly_one_surface():
     with_images = [next((k.value for k in c.keywords if k.arg == "with_images"), None)
                    for c in calls]
     if images:
-        # L'onglet les pose : le guide doit alors être appelé sans elles.
-        assert all(w is not None for w in with_images), (
-            "l'onglet rend des captures ET appelle le guide sans lui dire de s'en "
-            "abstenir : la même image apparaîtra deux fois, comme le 2026-09-04")
+        # L'onglet les pose : le guide appelé DANS LA MÊME BRANCHE doit s'en
+        # abstenir. Depuis le 2026-09-05 il y a deux appels du guide, un par
+        # disposition — avec capture (colonne de droite, images posées par l'onglet)
+        # et sans capture (SoundCloud : guide à droite du formulaire, rien à poser).
+        # Exiger `with_images` sur les DEUX rendrait rouge la disposition sans image,
+        # où le guide ne peut de toute façon rien afficher.
+        assert any(w is not None for w in with_images), (
+            "aucun appel du guide ne lui dit de s'abstenir alors que l'onglet pose "
+            "des captures : la même image apparaîtrait deux fois, comme le 2026-09-04")
     else:
         # Le guide les pose : l'onglet ne doit rien rendre lui-même. C'est l'état
         # d'avant le 2026-09-04, et il reste correct.

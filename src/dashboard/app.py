@@ -974,7 +974,21 @@ def _main_body():
     real_role = st.session_state.get('role', 'artist')
     # Brand logo at the very top of the sidebar (just above Live Activity).
     from src.dashboard.utils import logo_html
-    show_live_activity_sidebar()          # une ligne, juste au-dessus du logo
+    # La barre latérale est NUE pendant la mise en route. Demandé le 2026-09-05 :
+    # « retire 🎤 Artiste — …, Votre plan : 💎 Premium, Étapes, 🟢 1 en ligne · 👥 5
+    # artistes, et la phrase sur le menu complet → le + simple possible ».
+    #
+    # Chacun de ces éléments répond à une question qu'on ne se pose pas encore : qui
+    # suis-je (il vient de se connecter), quel est mon plan (il n'a rien à arbitrer),
+    # où en suis-je (deux étapes dont la seconde est un bilan), combien sommes-nous
+    # (une statistique de flotte). Ils ont chacun leur place — plus tard, dans
+    # l'application.
+    #
+    # Ce qui RESTE : le logo, et « Se déconnecter ». Un écran dont on ne peut pas
+    # sortir n'est pas une aide.
+    # `show_live_activity_sidebar()` est descendu APRÈS la résolution de la page :
+    # la décision « barre nue ? » dépend de la page, et elle était appelée avant que
+    # la page soit connue.
     _sb_logo = logo_html(variant="adaptive", max_width=220)
     if _sb_logo:
         st.sidebar.markdown(_sb_logo, unsafe_allow_html=True)
@@ -1006,14 +1020,20 @@ def _main_body():
     #
     # Deux propriétaires pour un même réglage, c'est le défaut. Sur l'assistant, la
     # page est propriétaire ; ailleurs, la barre. Aucune écriture croisée.
-    from src.dashboard.utils.i18n import language_selector
-    if page != 'onboarding':
-        language_selector()
+    # UNE seule décision, prise une fois : sommes-nous sur l'écran de mise en route
+    # d'un compte qui n'a pas fini ? Elle était éparpillée en trois conditions
+    # (`page != 'onboarding'`, `page == 'onboarding'`, `_focus`) qui disaient presque
+    # la même chose et divergeaient — un artiste ADMIN voyait les étapes sans le mode
+    # première connexion, par exemple.
+    _bare = bool(st.session_state.get(FIRST_RUN_FOCUS)) and page == 'onboarding'
 
-    show_user_sidebar(get_artist_plan())
-    if page == 'onboarding':
-        from views.onboarding import render_sidebar_steps
-        render_sidebar_steps()
+    from src.dashboard.utils.i18n import language_selector
+    if not _bare:
+        # Pendant la mise en route, la langue se choisit SUR la page (bloc 0) : deux
+        # sélecteurs pour un réglage se réécrivent l'un l'autre.
+        language_selector()
+        show_live_activity_sidebar()
+        show_user_sidebar(get_artist_plan())
 
     # Première connexion : la mise en route, et rien d'autre.
     #
@@ -1022,13 +1042,10 @@ def _main_body():
     # une action qui ne peut rien collecter. Demandé le 2026-09-04 après avoir rejoué
     # l'onboarding depuis zéro. Ce n'est PAS une porte : la sortie est le gros bouton en
     # bas de la page, et décocher la case rend le menu sur-le-champ.
-    _focus = bool(st.session_state.get(FIRST_RUN_FOCUS)) and page == 'onboarding'
-    if _focus:
-        st.sidebar.caption(t(
-            "nav.first_run_focus",
-            "Le menu complet apparaîtra dès que tu entres dans l'application — "
-            "le bouton est en bas de cette page."))
-    else:
+    # La phrase « Le menu complet apparaîtra dès que tu entres dans l'application »
+    # est partie avec le reste : elle expliquait une absence à quelqu'un qui ne l'a
+    # pas remarquée, et la sortie est le gros bouton au milieu de la page.
+    if not _bare:
         page = render_navigation(role, _rendered, _all_skeys)
         show_data_collection_panel()
 

@@ -44,10 +44,6 @@ EN = {
     "onboarding.back": "← Back",
     "onboarding.go_dashboard": "🏠 Go to dashboard →",
     # Sidebar progress
-    "onboarding.steps_header": "### Steps",
-    "onboarding.step1": "1. Welcome & pick",
-    "onboarding.step2": "2. Where you stand",
-    # The four numbered blocks of the welcome step
     "onboarding.b1_title": "1. streaMLytics in brief",
     "onboarding.brief_1": "**All your data in one place, pulled every day, "
                           "automatically** — Spotify, Instagram, Meta Ads, YouTube, "

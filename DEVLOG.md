@@ -5,6 +5,84 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 3) — L'onglet actif entre dans l'URL, et trois bugs disparaissent ensemble
+
+« On n'a pas un refactor avec la meilleure logique possible pour les onglets, la
+redirection, etc. ? » — oui, et **les trois bugs signalés le même jour en étaient les
+symptômes**, pas des accidents séparés.
+
+### Le défaut de conception, nommé
+
+`st.tabs` rend TOUS ses panneaux et n'expose AUCUN contrôle de l'onglet actif. Chaque
+fois qu'il a fallu « ouvrir l'onglet X », on l'a obtenu en **réordonnant** la liste :
+
+  * la barre bougeait sous l'artiste entre deux reruns — « ça nous ramène sur Spotify
+    au lieu de Meta » : l'ordre était réordonné au rerun d'un enregistrement, puis
+    revenait à sa place au suivant ;
+  * « quel onglet montre le verdict » se découplait de « quel onglet est ouvert »,
+    d'où une rustine `verdict_owner` — qui a fini par **masquer le verdict
+    entièrement**, le routeur ayant cessé de la passer sans que rien ne le dise
+    (« aucune alerte que c'est bien fait ou non ») ;
+  * rien n'était adressable : ni lien profond, ni bouton Précédent.
+
+### La correction
+
+L'onglet devient un état comme la page : `?page=credentials&tab=soundcloud`, une barre
+qui est un **vrai widget pilotable** (`st.segmented_control` avec `key`), **un seul
+panneau rendu**. Rediriger n'est plus qu'écrire l'état — le dépôt a déjà ce motif pour
+le menu (`_select_nav_radio`), avec la même contrainte : poser la clé AVANT que le
+widget soit instancié, sinon Streamlit ignore l'écriture.
+
+La rustine `verdict_owner` disparaît par construction : le panneau rendu EST celui
+qu'on regarde.
+
+Mesuré, chaîne complète : Spotify enregistré → `tab=soundcloud` + « ✅ Spotify est
+connecté / 👉 Suivante : ☁️ SoundCloud » ; SoundCloud enregistré → `tab=meta` + son
+propre verdict.
+
+### Ce qui a été retiré de l'écran
+
+La barre latérale est NUE pendant la mise en route — mesuré : « Se déconnecter », rien
+d'autre. Partent le nom du compte, le plan, les « Étapes », la statistique de flotte et
+la phrase sur le menu complet. Chacun répond à une question qu'on ne se pose pas encore.
+
+Trois conditions différentes (`page != 'onboarding'`, `page == 'onboarding'`, `_focus`)
+disaient presque la même chose et divergeaient ; elles sont devenues **une** décision,
+`_bare`, prise une fois.
+
+Partent aussi les deux phrases « Aucun credential » : l'une était la PREMIÈRE ligne de
+la page pour un artiste qui vient s'inscrire — elle lui annonçait l'absence de ce qu'il
+vient faire, avant de lui montrer où le faire.
+
+### « Credentials enregistrés… or c'est faux »
+
+Vérifié en base : la valeur ÉTAIT enregistrée, et l'horodatage juste (01:14 UTC =
+03:14 à Paris). Ce qui était faux est ce que la phrase laisse croire à côté d'une sonde
+qui échoue : « enregistré » se lit « ça marche ». Elle dit maintenant « **Valeur
+enregistrée le … — enregistrée ne veut pas dire vérifiée** », en `caption` et non en
+`success` : le vert est un verdict, et le verdict appartient à la sonde.
+
+### Deux dispositions, une seule règle
+
+Avec capture (Spotify, YouTube, Meta) : formulaire pleine largeur, puis texte à gauche
+et image à droite. Sans capture (SoundCloud) : formulaire à gauche, guide à droite. La
+règle est la même — le texte en face de ce qu'il décrit — et elle donne deux mises en
+page parce que les contenus diffèrent.
+
+### Sept gardes tombés, deux retirés pour la bonne raison
+
+Deux figeaient le réordonnancement et sa rustine : leur question est mieux gardée dans
+`test_the_active_tab_is_addressable`, sur la RÈGLE au lieu de la mécanique. C'est le
+seul cas où retirer un garde est correct — quand un autre pose la même question sur une
+meilleure surface.
+
+Deux autres cherchaient `_focus` et la polarité de sa branche, et ont rougi sur un
+comportement **inchangé** : la refonte avait renommé la décision et inversé le test. Un
+garde ancré sur la forme argumente pour l'ancienne écriture. Le second lisait en plus
+200 caractères de texte autour de l'appel — donc les commentaires.
+
+---
+
 ## 2026-09-05 (suite 2) — L'onglet suivant s'ouvre, et un message pointait où il n'y a plus rien
 
 ### La redirection : `default` a été essayé en premier, et ne suffit pas

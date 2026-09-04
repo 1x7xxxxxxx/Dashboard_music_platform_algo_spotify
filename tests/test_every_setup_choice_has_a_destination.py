@@ -238,68 +238,16 @@ def test_the_tab_order_guard_goes_red_on_the_shape_that_shipped():
 
 # ── Après un enregistrement réussi, l'onglet SUIVANT s'ouvre ─────────────────
 
-def test_a_successful_save_opens_the_next_tab():
-    """`st.tabs` n'expose pas d'onglet actif : l'ORDRE est la redirection.
-
-    Demandé le 2026-09-05 : « quand c'est marqué Suivante : SoundCloud, il faudrait
-    que ça redirige directement vers l'onglet SoundCloud ».
-
-    `st.tabs(default=…)` existe en 1.54 et A ÉTÉ ESSAYÉ EN PREMIER. Sa docstring dit
-    « the default tab to select » — vrai au premier MONTAGE du widget ; sur un rerun,
-    Streamlit conserve l'onglet sélectionné, et l'enregistrement passe précisément par
-    un rerun. Vu au navigateur : l'onglet restait sur Spotify, `default` posé.
-
-    Ce qui marche est de mettre la suivante EN TÊTE pour ce rerun-là. Le test fige la
-    RÈGLE de ce réordonnancement, pas la séquence de clics.
-    """
-    import ast
-    from pathlib import Path as _P
-
-    router = _P(__file__).resolve().parents[1] / "src/dashboard/views/credentials/router.py"
-    tree = ast.parse(router.read_text(encoding="utf-8"))
-    fn = next(f for f in ast.walk(tree)
-              if isinstance(f, ast.FunctionDef) and f.name == "show")
-
-    reorders = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
-                and any(getattr(t, "id", "") == "ordered" for t in n.targets)]
-    assert len(reorders) >= 2, (
-        "la page ne réordonne plus ses onglets : après un enregistrement, elle "
-        "rouvrirait celui qu'on vient de quitter")
-
-    names = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
-    assert "VERDICT_KEY" in names, (
-        "le réordonnancement n'est plus conditionné au verdict : la page se "
-        "réorganiserait sous les yeux de l'artiste à chaque rerun")
-
-
-def test_only_one_tab_renders_the_verdict():
-    """`pop` consomme le verdict — deux appelants et il disparaît au mauvais endroit.
-
-    Le routeur désigne UN propriétaire (`verdict_owner`) et l'onglet ne rend que s'il
-    l'est. Sans ce filtre, le premier onglet rendu par Streamlit — qui n'est pas celui
-    qu'on regarde — mangerait le message.
-    """
-    import ast
-    from pathlib import Path as _P
-
-    base = _P(__file__).resolve().parents[1] / "src/dashboard/views/credentials"
-    tree = ast.parse((base / "_render.py").read_text(encoding="utf-8"))
-    fn = next(f for f in ast.walk(tree)
-              if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
-
-    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
-             and getattr(n.func, "id", "") == "render_save_verdict"]
-    assert len(calls) == 1, f"{len(calls)} appels au verdict dans un onglet"
-
-    guarded = any(
-        isinstance(n, ast.If)
-        and any(getattr(x, "id", "") == "verdict_owner" for x in ast.walk(n.test))
-        and any(isinstance(c, ast.Call) and getattr(c.func, "id", "") == "render_save_verdict"
-                for c in ast.walk(n))
-        for n in ast.walk(fn))
-    assert guarded, (
-        "le verdict n'est plus filtré par `verdict_owner` : les cinq onglets "
-        "l'appelleraient, et `pop` le ferait disparaître dans le premier rendu")
+# `test_a_successful_save_opens_the_next_tab` et `test_only_one_tab_renders_the_verdict`
+# ont été retirés le 2026-09-05. Ils figeaient un MÉCANISME — le réordonnancement des
+# onglets, et la rustine `verdict_owner` qu'il rendait nécessaire — et ce mécanisme a
+# disparu avec la refonte : l'onglet actif vit dans l'URL, un seul panneau est rendu.
+#
+# Leur question survit et est mieux gardée qu'avant, dans
+# `tests/test_the_active_tab_is_addressable.py` : elle y porte sur la RÈGLE (l'état
+# est adressable, la redirection l'écrit avant le widget) au lieu de la mécanique.
+# C'est le seul cas où retirer un garde est correct — quand un autre pose la même
+# question sur une meilleure surface.
 
 
 def test_the_soundcloud_failure_points_at_the_page_that_holds_the_panel():
