@@ -720,3 +720,89 @@ def test_the_post_signup_screen_gives_something_to_do(tmp_path):
         "wants to read while waiting")
     assert any("renvoyer" in b.label.lower() or "resend" in b.label.lower()
                for b in at.button), "no way to ask for the mail again"
+
+
+# ── 9. Les figures d'exemple ─────────────────────────────────────────────────
+
+EXAMPLES = REPO / "src" / "dashboard" / "assets" / "examples"
+CHARTS = REPO / "tools" / "dev" / "make_example_charts.py"
+VERIF = REPO / "src" / "utils" / "verification_email.py"
+
+
+def test_the_example_charts_exist_and_are_committed():
+    """They are shown to an account with NO data — so they must be prebuilt.
+
+    Rendered live they would need data that does not exist yet; exported live they
+    would need `kaleido`, absent from every image (measured 2026-09-04).
+    """
+    for name in ("dashboard-global.png", "prediction-discover-weekly.png",
+                 "meta-x-s4a.png"):
+        f = EXAMPLES / name
+        assert f.exists(), f"{name} is missing — run `make example-charts`"
+        assert f.stat().st_size > 10_000, f"{name} looks empty ({f.stat().st_size} B)"
+
+
+def test_every_example_chart_says_it_is_an_example():
+    """An example that does not announce itself is a lie with a chart around it.
+
+    The repo has already shipped a demo value read as real (the public artist counter
+    that counted our own canaries). The badge is drawn INTO the image, so it survives
+    a screenshot, a copy-paste and a forwarded e-mail.
+    """
+    fn = _fn(CHARTS, "_example_badge")
+    src = ast.get_source_segment(CHARTS.read_text(encoding="utf-8"), fn) or ""
+    assert "Exemple" in src and "fictives" in src, (
+        "the example badge no longer says the data is fictional")
+    body = CHARTS.read_text(encoding="utf-8")
+    tree = ast.parse(body)
+    for maker in ("dashboard_global", "discover_weekly_prediction", "meta_x_s4a"):
+        fn = next(n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == maker)
+        assert _call_lines(fn, "_example_badge"), (
+            f"{maker}() ships a figure with no example badge")
+
+
+def test_the_charts_never_use_a_second_y_axis():
+    """The #1 chart mistake, and this exact pair of measures invites it.
+
+    Spend and streams have different scales: one axis each, in two stacked panels
+    sharing the x. A `twinx()` here would let anyone read a correlation that is an
+    artefact of where the two scales were pinned.
+    """
+    body = CHARTS.read_text(encoding="utf-8")
+    tree = ast.parse(body)
+    twins = [n.lineno for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr in {"twinx", "twiny"}]
+    assert not twins, f"a dual-axis chart appeared at line(s) {twins}"
+
+
+def test_the_welcome_mail_embeds_its_image_and_reads_without_it():
+    """By CID, never by URL — and the mail must be complete when images are blocked."""
+    body = VERIF.read_text(encoding="utf-8")
+    assert "cid:" in body, "the welcome image is no longer embedded by Content-ID"
+    # Les DOCSTRINGS exclues. La première version cherchait `src="https://` dans le
+    # texte du module et se déclenchait sur le commentaire qui EXPLIQUE pourquoi c'est
+    # interdit. Huitième prédicat textuel à répondre à une question de structure : on
+    # ne regarde que les chaînes qui deviennent du HTML.
+    tree = ast.parse(body)
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef)):
+            d = ast.get_docstring(node, clean=False)
+            if d:
+                docstrings.add(d)
+    remote = [n.lineno for n in ast.walk(tree)
+              if isinstance(n, ast.Constant) and isinstance(n.value, str)
+              and n.value not in docstrings
+              and ("src=\"http" in n.value or "src='http" in n.value)]
+    assert not remote, (
+        f"an image is fetched from a URL at line(s) {remote}: the recipient's client "
+        "would tell a third party when the mail was opened, and most clients block "
+        "it anyway")
+    assert "email.welcome.image_alt" in body, (
+        "the embedded image has no alt text — blocked images are the normal case")
+    # One image, not three: a heavier welcome mail is a less deliverable one.
+    fn = _fn(VERIF, "_welcome_images")
+    src = ast.get_source_segment(body, fn) or ""
+    assert src.count(".png") == 1, "the welcome mail carries more than one image"

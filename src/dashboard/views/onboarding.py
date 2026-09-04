@@ -7,6 +7,7 @@ Accessible via /?page=onboarding (authenticated route).
 """
 import json
 import logging
+from pathlib import Path
 
 import streamlit as st
 
@@ -186,6 +187,23 @@ def _setup_roadmap() -> None:
             + t("onboarding.need", "À fournir : {need}").format(need=pv.need))
 
 
+_EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "assets" / "examples"
+
+
+def _example_chart(name: str) -> None:
+    """Une figure d'exemple, construite hors ligne par `make example-charts`.
+
+    Un PNG et non un graphique rendu : il n'y a AUCUNE donnée à tracer le jour où
+    cette page compte, la figure doit être identique en app, en mail et en PDF, et
+    `kaleido` est absent de toutes les images — Plotly ne saurait pas l'exporter.
+    Absente, l'image ne casse rien : le texte au-dessus dit déjà la promesse.
+    """
+    path = _EXAMPLES_DIR / name
+    if not path.exists():
+        return
+    st.image(str(path), use_container_width=True)
+
+
 def _language_buttons() -> None:
     """Bloc 0 — choisir sa langue SUR la page, et que ça se retienne.
 
@@ -245,19 +263,32 @@ def _step_welcome(plan: str, db) -> None:
     # « streaMLytics en bref » — demandé après le test du 2026-08-30. Un artiste qui
     # vient de créer son compte sait ce qu'il a acheté ; il ne sait pas encore ce que
     # l'outil FAIT. Trois phrases, avant l'offre et avant le guide.
-    st.markdown(t(
-        "onboarding.in_brief",
-        "### 1. streaMLytics en bref\n\n"
-        "**1. Toutes tes données au même endroit, récupérées chaque jour, "
-        "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
-        "Apple Music. Tes identifiants sont chiffrés ; tu ne ressaisis rien.\n\n"
-        "**2. La prédiction des algorithmes Spotify** — quand un titre a des chances "
-        "de déclencher Discover Weekly ou Release Radar, via des modèles de machine "
-        "learning entraînés sur tes données.\n\n"
-        "**3. L'optimisation de tes campagnes marketing (Instagram Ads, Meta Ads)** — "
-        "en reliant ce que tu dépenses en promo à ce que ça produit réellement en "
-        "écoutes."
-    ))
+    # Trois promesses, trois images. Un artiste sans données ne peut pas voir les
+    # siennes : l'illustration est la seule façon HONNÊTE de montrer ce qui l'attend,
+    # et chaque figure porte « Exemple — données fictives » dans l'image elle-même.
+    # Le dépôt a déjà été mordu par une valeur de démo lue comme réelle (le compteur
+    # public qui comptait nos propres canaris) : un exemple qui ne s'annonce pas est
+    # un mensonge avec un graphique autour.
+    st.markdown("### " + t("onboarding.b1_title", "1. streaMLytics en bref"))
+    for key, default, image in (
+        ("onboarding.brief_1",
+         "**Toutes tes données au même endroit, récupérées chaque jour, "
+         "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
+         "Apple Music. Tes identifiants sont chiffrés ; tu ne ressaisis rien.",
+         "dashboard-global.png"),
+        ("onboarding.brief_2",
+         "**La prédiction des algorithmes Spotify** — quand un titre a des chances "
+         "de déclencher Discover Weekly ou Release Radar, via des modèles de machine "
+         "learning entraînés sur tes données.",
+         "prediction-discover-weekly.png"),
+        ("onboarding.brief_3",
+         "**L'optimisation de tes campagnes marketing (Instagram Ads, Meta Ads)** — "
+         "en reliant ce que tu dépenses en promo à ce que ça produit réellement en "
+         "écoutes.",
+         "meta-x-s4a.png"),
+    ):
+        st.markdown(t(key, default))
+        _example_chart(image)
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",

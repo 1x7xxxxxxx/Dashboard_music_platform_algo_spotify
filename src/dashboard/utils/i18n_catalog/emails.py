@@ -65,6 +65,8 @@ EN = {
     "email.welcome.value3": "<strong>Campaign optimisation</strong> (Instagram Ads, "
                             "Meta Ads) — linking what you spend to what it produces "
                             "in streams.",
+    "email.welcome.image_alt": "Example: all your platforms on one screen — fictional data",
+    "email.welcome.image_caption": "Example — what you will see once your data is in.",
     "email.welcome.one_thing": "<strong>One thing to get started:</strong> follow the "
                                "<strong>getting-started guide</strong>. It is attached "
                                "to this e-mail, and in the app under "

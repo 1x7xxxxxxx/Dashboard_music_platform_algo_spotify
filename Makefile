@@ -14,7 +14,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-inbox error-resolve help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: example-charts error-inbox error-resolve help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -80,6 +80,9 @@ backup:      ## Dump spotify_etl → backups/*.sql.gz (+ retention)
 backup-test: ## Restore the latest backup into a throwaway DB + verify (drill)
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
 	@bash tools/db_restore_test.sh
+
+example-charts: ## Régénère les 3 figures d'exemple de la mise en route (PNG committés)
+	@python3 tools/dev/make_example_charts.py
 
 error-inbox: check-db ## Registre des erreurs applicatives → .claude/dev-docs/error-inbox.md
 	@python3 tools/error_inbox.py

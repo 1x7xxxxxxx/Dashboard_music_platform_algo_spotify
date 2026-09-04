@@ -3,7 +3,6 @@
 EN = {
     # Step 1 — Welcome
     "onboarding.welcome_title": "🎵 Welcome to streaMLytics!",
-    "onboarding.in_brief": "#### streaMLytics in brief\n\n**1. All your data in one place, pulled every day, automatically** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, Apple Music. Your credentials are encrypted; you never re-enter them.\n\n**2. Spotify algorithm predictions** — when a track is likely to trigger Discover Weekly or Release Radar, and how many streams to expect, from machine learning models trained on your data.\n\n**3. Campaign optimisation** — by linking what you spend on promotion to what it actually produces in streams.",
     "onboarding.pick_action": "👉 Tick what you want to set up now",
     "onboarding.pick_hint": "You do not have to connect everything. The rest will wait in the **API Credentials** tab, later, inside the app.",
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
@@ -101,6 +100,17 @@ EN = {
     "onboarding.step2": "2. Data",
     "onboarding.step3": "3. Ready!",
     # The four numbered blocks of the welcome step
+    "onboarding.b1_title": "1. streaMLytics in brief",
+    "onboarding.brief_1": "**All your data in one place, pulled every day, "
+                          "automatically** — Spotify, Instagram, Meta Ads, YouTube, "
+                          "SoundCloud, Apple Music. Your credentials are encrypted; "
+                          "you never re-enter them.",
+    "onboarding.brief_2": "**Spotify algorithm predictions** — when a track is likely "
+                          "to trigger Discover Weekly or Release Radar, from machine "
+                          "learning models trained on your own data.",
+    "onboarding.brief_3": "**Marketing campaign optimisation (Instagram Ads, Meta "
+                          "Ads)** — linking what you spend on promotion to what it "
+                          "actually produces in streams.",
     "onboarding.b0_title": "0. Your language",
     "onboarding.b0_help": "It applies to the whole app and to your PDF guide. "
                           "We remember it: you only pick it once.",

@@ -79,12 +79,38 @@ def _attach_pdf(msg: MIMEMultipart, path: str) -> bool:
     return True
 
 
+def _attach_inline_image(msg: MIMEMultipart, cid: str, path: str) -> bool:
+    """Embed an image by Content-ID. Non-raising — a missing file just skips.
+
+    By CID and never by URL. A remote `<img src="https://…">` in an e-mail is fetched
+    by the recipient's client, which means a third party learns when the message was
+    opened, and most clients block it anyway — so the picture would be missing for
+    the majority of readers. Embedded, it travels with the message.
+
+    The rule that comes with it: **the mail must read completely without the image.**
+    Blocked images are the normal case, not the exception.
+    """
+    from email.mime.image import MIMEImage
+
+    p = Path(path)
+    if not p.exists():
+        logger.warning("Inline image missing, sending without it: %s", path)
+        return False
+    img = MIMEImage(p.read_bytes())
+    img.add_header('Content-ID', f'<{cid}>')
+    img.add_header('Content-Disposition', 'inline', filename=p.name)
+    msg.attach(img)
+    return True
+
+
 def _send_html(to_email: str, subject: str, html: str,
-               attachments: list[str] | None = None) -> bool:
+               attachments: list[str] | None = None,
+               inline_images: list[tuple[str, str]] | None = None) -> bool:
     """Send one HTML email via the configured SMTP relay. Non-raising.
 
     Returns False (and logs) when SMTP is not configured or sending fails. Zero or
-    more PDF attachments are added (each missing path is skipped, email sent anyway).
+    more PDF attachments are added (each missing path is skipped, email sent anyway),
+    and zero or more `(content_id, path)` images are embedded the same way.
     """
     cfg = _smtp_config()
     smtp_host = cfg.get('host', 'smtp.gmail.com')
@@ -113,8 +139,10 @@ def _send_html(to_email: str, subject: str, html: str,
         msg.attach(body)
         for _att in (attachments or []):
             _attach_pdf(msg, _att)
+        for _cid, _img in (inline_images or []):
+            _attach_inline_image(msg, _cid, _img)
 
-                # `timeout=` EXPLICITE. Sans lui, `smtplib.SMTP` attend le délai TCP du
+        # `timeout=` EXPLICITE. Sans lui, `smtplib.SMTP` attend le délai TCP du
         # système — jusqu'à ~2 minutes sur Linux — et cet appel est DANS le chemin de
         # la requête : l'artiste regarde un spinner pendant que le serveur de mail ne
         # répond pas. Mesuré en production le 2026-09-04, la poignée de main coûte
@@ -170,7 +198,17 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
             lang, trial_days=trial_days)}</p>
         <h3>{_tr('email.welcome.value_header', "Ce que streaMLytics t'apporte :", lang)}</h3>
         <ul>{value}</ul>
-        <p>{_tr('email.welcome.one_thing',
+        <p style="margin:24px 0 8px;">
+        <img src="cid:{_WELCOME_IMAGE_CID}" width="560"
+             style="max-width:100%;height:auto;border-radius:8px;"
+             alt="{_tr('email.welcome.image_alt',
+                       "Exemple : toutes tes plateformes sur un seul écran — "
+                       "données fictives", lang)}">
+      </p>
+      <p style="color:#888;font-size:12px;margin:0 0 20px;">{_tr(
+          'email.welcome.image_caption',
+          "Exemple — ce que tu verras quand tes données seront là.", lang)}</p>
+      <p>{_tr('email.welcome.one_thing',
             "<strong>Une seule chose à faire pour démarrer :</strong> suis le "
             "<strong>guide de démarrage</strong>. Il est en pièce jointe de cet e-mail, "
             "et dans l'application sous « 📋 Guide de démarrage ».", lang)}</p>
@@ -191,7 +229,22 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
     """
     subject = _tr('email.welcome.subject',
                   "🎵 Bienvenue sur streaMLytics — ton guide de démarrage", lang)
-    return _send_html(to_email, subject, html, attachments=_guide_pdf_paths(lang))
+    return _send_html(to_email, subject, html, attachments=_guide_pdf_paths(lang),
+                      inline_images=_welcome_images())
+
+
+# UNE image, pas trois. Le mot de bienvenue vient d'être ramené à « la valeur, et une
+# seule chose à faire » ; trois figures le rendraient lourd, et le poids d'un message
+# pèse sur sa délivrabilité. Une suffit à montrer ce qui attend l'artiste — les deux
+# autres l'attendent dans l'application, où il peut les regarder.
+_WELCOME_IMAGE_CID = "streamlytics-example-dashboard"
+
+
+def _welcome_images() -> list[tuple[str, str]]:
+    """L'image d'exemple du mot de bienvenue, si elle est là."""
+    path = (Path(__file__).resolve().parents[2]
+            / "src" / "dashboard" / "assets" / "examples" / "dashboard-global.png")
+    return [(_WELCOME_IMAGE_CID, str(path))] if path.exists() else []
 
 
 def _unsub_secret() -> bytes:
