@@ -92,12 +92,31 @@ def test_the_seed_is_conditioned_on_what_the_mirror_wrote():
 
     parents = {id(c): p for p in ast.walk(tree) for c in ast.iter_child_nodes(p)}
 
+    # Les VARIABLES dérivées de `_page_mirrored` : depuis le 2026-09-04 la condition
+    # est nommée (`_own_mirror = _page_param == st.session_state.get('_page_mirrored')`)
+    # parce qu'elle sert dans DEUX branches — celle qui honore le paramètre et celle
+    # qui le jette ; ne la poser que dans la première a produit une régression.
+    #
+    # Le garde cherchait la CONSTANTE `"_page_mirrored"` dans le test du `if`. Il est
+    # donc devenu rouge sur un code dont le comportement n'avait pas changé : ancré
+    # sur la forme de la condition, pas sur la question « la graine est-elle
+    # conditionnée ? ». Il suit maintenant le nom.
+    mirror_vars = {
+        tgt.id for n in ast.walk(tree)
+        if isinstance(n, ast.Assign)
+        for tgt in n.targets
+        if isinstance(tgt, ast.Name)
+        and any(isinstance(x, ast.Constant) and x.value == "_page_mirrored"
+                for x in ast.walk(n.value))
+    }
+
     def _guarded(node) -> bool:
         cur = node
         while cur is not None:
             parent = parents.get(id(cur))
             if isinstance(parent, ast.If) and any(
-                isinstance(x, ast.Constant) and x.value == "_page_mirrored"
+                (isinstance(x, ast.Constant) and x.value == "_page_mirrored")
+                or (isinstance(x, ast.Name) and x.id in mirror_vars)
                 for x in ast.walk(parent.test)
             ):
                 return True

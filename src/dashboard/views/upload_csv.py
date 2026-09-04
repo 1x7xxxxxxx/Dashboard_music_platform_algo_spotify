@@ -341,257 +341,270 @@ def show():
                            "Impossible de déterminer votre identifiant artiste."))
                 return
 
-        # ── Upload multi-fichier ───────────────────────────────────────
-        with st.expander(t("upload_csv.sacem_howto_header",
-                           "🎼 Relevé SACEM (.xlsx) — comment l'obtenir")):
-            st.markdown(t("upload_csv.sacem_howto_body",
-                          "1. Connectez-vous sur **sacem.fr** (espace membre).\n"
-                          "2. **Mes répartitions** → **Relevé de compte**.\n"
-                          "3. Réglez le filtre de **date sur « depuis l'inscription »**.\n"
-                          "4. **Téléchargez le `.xlsx`**, puis glissez-le ci-dessous "
-                          "(type SACEM détecté automatiquement)."))
-        uploaded_files = st.file_uploader(
-            t("upload_csv.uploader_label", "Fichiers CSV / TSV / XLSX"),
-            type=["csv", "tsv", "xlsx", "xls"],
-            accept_multiple_files=True,
-            help=t("upload_csv.uploader_help",
-                   "Glissez tous vos fichiers en même temps. "
-                   "Le type (S4A timeline, audience, songs-all, Apple, iMusician, "
-                   "DistroKid, SACEM relevé .xlsx…) est détecté automatiquement."),
-            key=f"multi_upload_{target_artist_id}",
-        )
-
-        if not uploaded_files:
-            return
-
-        # ── Détection + parsing de tous les fichiers ───────────────────
-        st.markdown("---")
-        st.subheader(
-            t("upload_csv.detection_header", "🔍 Détection — {n} fichier(s)")
-            .format(n=len(uploaded_files))
-        )
-
-        file_results = []  # list of dicts: filename, platform_key, label, rows, error
-
-        for f in uploaded_files:
-            entry = {'filename': f.name, 'platform_key': None, 'label': '—',
-                     'rows': [], 'error': None, 'file': f}
-            try:
-                f.seek(0)
-                seen_cols = []
-                if f.name.lower().endswith(('.xlsx', '.xls')):
-                    # Excel route (SACEM statement) — sheet-based detection, not CSV headers.
-                    from src.transformers.sacem_parser import is_sacem_statement
-                    f.seek(0)
-                    platform_key = 'sacem' if is_sacem_statement(f) else None
-                else:
-                    f.seek(0)
-                    seen_cols = _read_headers(f)
-                    platform_key = _detect_platform(f.name, seen_cols)
-
-                if platform_key == 's4a_songs_all_rejected':
-                    entry['error'] = t(
-                        "upload_csv.err_songs_all",
-                        "Export « Depuis le début » non exploitable : Spotify y renvoie "
-                        "les auditeurs et les sauvegardes à **zéro**. Ce n'est pas le "
-                        "nom du fichier qui pose problème — le renommer ne changera "
-                        "rien. Reprends l'export en réglant la période sur **12 mois** "
-                        "(fichier `…-songs-1year.csv`).")
-                    platform_key = None
-
-                if platform_key is None and not entry.get('error'):
-                    # Echo the parsed header columns so a near-miss is diagnosable
-                    # ("colonnes vues: …") instead of a dead "type non reconnu".
-                    entry['error'] = t(
-                        "upload_csv.err_unknown_type",
-                        "Type non reconnu — vérifiez le nom et les colonnes du fichier.")
-                    if seen_cols:
-                        entry['error'] += t(
-                            "upload_csv.err_unknown_cols",
-                            " Colonnes vues : {cols}").format(cols=", ".join(seen_cols[:12]))
-                else:
-                    entry['platform_key'] = platform_key
-                    entry['label'] = t(
-                        f"upload_csv.platform.{platform_key}",
-                        _PLATFORMS[platform_key]['label'])
-                    f.seek(0)
-                    entry['rows'] = _parse_file(platform_key, f, target_artist_id)
-                    if not entry['rows']:
-                        entry['error'] = t(
-                            "upload_csv.err_no_valid_rows",
-                            "Aucune ligne valide détectée après parsing.")
-
-            except Exception as exc:
-                entry['error'] = str(exc)
-
-            file_results.append(entry)
-
-        # ── Tableau de détection ───────────────────────────────────────
-        summary_rows = []
-        for r in file_results:
-            if r['error']:
-                status = f"❌ {r['error']}"
-                count = '—'
-            else:
-                status = t("upload_csv.status_ready", "✅ Prêt")
-                count = len(r['rows'])
-            summary_rows.append({
-                t("upload_csv.col_file", "Fichier"): r['filename'],
-                t("upload_csv.col_detected_type", "Type détecté"): r['label'],
-                t("upload_csv.col_rows", "Lignes"): count,
-                t("upload_csv.col_status", "Statut"): status,
-            })
-
-        st.dataframe(pd.DataFrame(summary_rows), hide_index=True, width='stretch')
-
-        # ── Aperçus (collapse par défaut) ──────────────────────────────
-        ok_results = [r for r in file_results if not r['error']]
-        if not ok_results:
-            st.error(t("upload_csv.err_no_valid_file",
-                       "Aucun fichier valide à importer."))
-            return
-
-        for r in ok_results:
-            with st.expander(
-                t("upload_csv.preview_label", "Aperçu — {filename} ({n} lignes)")
-                .format(filename=r['filename'], n=len(r['rows'])),
-                expanded=False,
-            ):
-                st.dataframe(pd.DataFrame(r['rows']).head(10), hide_index=True, width='stretch')
-
-        # ── Taux USD→EUR (DistroKid paie en USD, le dashboard est en EUR) ──
-        fx_rate = None
-        if any(r['platform_key'] == 'distrokid_sales' for r in ok_results):
-            from src.utils.distrokid_rollup import default_fx_rate
-            fx_rate = st.number_input(
-                t("upload_csv.fx_label", "Taux de conversion USD → EUR (DistroKid)"),
-                min_value=0.0, value=default_fx_rate(), step=0.01, format="%.4f",
-                help=t("upload_csv.fx_help",
-                       "Les montants DistroKid sont en USD ; les revenus mensuels "
-                       "affichés dans Distributeur sont convertis en EUR avec ce taux. "
-                       "Défaut : DISTROKID_USD_EUR_RATE (.env) ou 0.92."),
-            )
-
-        # ── Confirmation ───────────────────────────────────────────────
-        st.markdown("---")
-        n_ok = len(ok_results)
-        n_skip = len(file_results) - n_ok
-        label = t("upload_csv.import_button", "✅ Importer {n} fichier(s)").format(n=n_ok)
-        if n_skip:
-            label += t("upload_csv.import_button_skip", "  (⚠️ {n} ignoré(s))").format(n=n_skip)
-
-        if st.button(label, type="primary"):
-            result_rows = []
-            total_ok = 0
-            total_err = 0
-
-            for r in ok_results:
-                cfg = _PLATFORMS[r['platform_key']]
-                try:
-                    count = db.upsert_many(
-                        table=cfg['table'],
-                        data=r['rows'],
-                        conflict_columns=cfg['conflict_columns'],
-                        update_columns=cfg['update_columns'],
-                    )
-                    total_ok += count
-                    # Archived only HERE, in the success branch: `count` is the proof
-                    # the rows reached the database. A copy of every file that failed
-                    # to import would fill the directory with the uninteresting case —
-                    # the one worth keeping is a file that imported cleanly and still
-                    # produced numbers that look wrong a week later.
-                    _archive_ok(target_artist_id, r)
-                    result_rows.append({
-                        t("upload_csv.col_file", "Fichier"): r['filename'],
-                        t("upload_csv.col_type", "Type"): r['label'],
-                        t("upload_csv.col_table", "Table"): cfg['table'],
-                        t("upload_csv.col_processed_rows", "Lignes traitées"): count,
-                        t("upload_csv.col_status", "Statut"): t("upload_csv.status_ok", "✅ OK"),
-                    })
-                    db.execute_query(
-                        "INSERT INTO csv_upload_log "
-                        "(artist_id, filename, platform, row_count, status) "
-                        "VALUES (%s, %s, %s, %s, 'success')",
-                        (target_artist_id, r['filename'], r['platform_key'], count),
-                    )
-                except Exception as exc:
-                    total_err += 1
-                    result_rows.append({
-                        t("upload_csv.col_file", "Fichier"): r['filename'],
-                        t("upload_csv.col_type", "Type"): r['label'],
-                        t("upload_csv.col_table", "Table"): cfg['table'],
-                        t("upload_csv.col_processed_rows", "Lignes traitées"): 0,
-                        t("upload_csv.col_status", "Statut"): f'❌ {exc}',
-                    })
-                    try:
-                        db.execute_query(
-                            "INSERT INTO csv_upload_log "
-                            "(artist_id, filename, platform, row_count, status, error_message) "
-                            "VALUES (%s, %s, %s, 0, 'error', %s)",
-                            (target_artist_id, r['filename'], r['platform_key'], str(exc)[:500]),
-                        )
-                    except Exception:
-                        pass  # audit log failure must never block the UI
-
-            # If S4A global summary was imported, rebuild the canonical
-            # release-date reference (authoritative source for "latest release"
-            # across all platforms). Non-blocking — never fails the import.
-            if any(r['platform_key'] == 's4a_songs_global' for r in ok_results):
-                try:
-                    from src.utils.track_matching import rebuild_release_reference
-                    n_ref = rebuild_release_reference(db, target_artist_id)
-                    if n_ref:
-                        st.caption(t("upload_csv.ref_updated",
-                                     "🎵 Référentiel de sorties mis à jour ({n} titres).")
-                                   .format(n=n_ref))
-                except Exception as exc:  # noqa: BLE001 — reference is best-effort
-                    st.caption(t("upload_csv.ref_failed",
-                                 "⚠️ Référentiel de sorties non mis à jour : {err}")
-                               .format(err=exc))
-
-            # If an iMusician sales report was imported, roll its per-line detail up
-            # into monthly_revenue so the Distributeur view + ROI surface it. Manual
-            # entries are preserved. Non-blocking — never fails the import.
-            if any(r['platform_key'] == 'imusician_sales' for r in ok_results):
-                try:
-                    from src.utils.imusician_rollup import rollup_sales_to_monthly
-                    n_months = rollup_sales_to_monthly(db, target_artist_id)
-                    if n_months:
-                        st.caption(t("upload_csv.monthly_aggregated",
-                                     "💰 Revenus mensuels agrégés ({n} mois) — visibles dans Distributeur.")
-                                   .format(n=n_months))
-                except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
-                    st.caption(t("upload_csv.monthly_failed",
-                                 "⚠️ Agrégation des revenus mensuels non effectuée : {err}")
-                               .format(err=exc))
-
-            # Same monthly roll-up for DistroKid, with the USD→EUR rate chosen above.
-            if any(r['platform_key'] == 'distrokid_sales' for r in ok_results):
-                try:
-                    from src.utils.distrokid_rollup import rollup_sales_to_monthly as dk_rollup
-                    n_months = dk_rollup(db, target_artist_id, fx_rate=fx_rate)
-                    if n_months:
-                        st.caption(t("upload_csv.dk_aggregated",
-                                     "💰 Revenus DistroKid agrégés ({n} mois, "
-                                     "taux {rate:.4f}) — visibles dans Distributeur.")
-                                   .format(n=n_months, rate=fx_rate))
-                except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
-                    st.caption(t("upload_csv.dk_failed",
-                                 "⚠️ Agrégation des revenus DistroKid non effectuée : {err}")
-                               .format(err=exc))
-
-            st.markdown("---")
-            st.subheader(t("upload_csv.results_header", "📋 Résultats de l'import"))
-
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric(t("upload_csv.metric_processed", "Fichiers traités"), len(ok_results))
-            k2.metric(t("upload_csv.metric_inserted", "Lignes insérées / mises à jour"),
-                      f"{total_ok:,}")
-            k3.metric(t("upload_csv.metric_errors", "Fichiers en erreur"), total_err,
-                      delta=None if total_err == 0 else "⚠️", delta_color="inverse")
-            k4.metric(t("upload_csv.metric_skipped", "Fichiers ignorés (type inconnu)"), n_skip)
-
-            st.dataframe(pd.DataFrame(result_rows), hide_index=True, width='stretch')
+        render_uploader(db, target_artist_id)
 
     finally:
         db.close()
+
+def render_uploader(db, target_artist_id: int) -> None:
+    """Le dépôt de fichiers, sans titre ni ouverture de connexion.
+
+    Extrait de `show()` le 2026-09-04 pour que l'onglet « 📂 Mes fichiers » de la page
+    Credentials puisse le rendre. Le `db` est PASSÉ, jamais ouvert ici : les vues de
+    ce dépôt sont plafonnées à une connexion (`tests/test_view_connection_budget.py`)
+    et la page appelante a déjà dépensé la sienne.
+    """
+    # ── Upload multi-fichier ───────────────────────────────────────
+    with st.expander(t("upload_csv.sacem_howto_header",
+                       "🎼 Relevé SACEM (.xlsx) — comment l'obtenir")):
+        st.markdown(t("upload_csv.sacem_howto_body",
+                      "1. Connectez-vous sur **sacem.fr** (espace membre).\n"
+                      "2. **Mes répartitions** → **Relevé de compte**.\n"
+                      "3. Réglez le filtre de **date sur « depuis l'inscription »**.\n"
+                      "4. **Téléchargez le `.xlsx`**, puis glissez-le ci-dessous "
+                      "(type SACEM détecté automatiquement)."))
+    uploaded_files = st.file_uploader(
+        t("upload_csv.uploader_label", "Fichiers CSV / TSV / XLSX"),
+        type=["csv", "tsv", "xlsx", "xls"],
+        accept_multiple_files=True,
+        help=t("upload_csv.uploader_help",
+               "Glissez tous vos fichiers en même temps. "
+               "Le type (S4A timeline, audience, songs-all, Apple, iMusician, "
+               "DistroKid, SACEM relevé .xlsx…) est détecté automatiquement."),
+        key=f"multi_upload_{target_artist_id}",
+    )
+
+    if not uploaded_files:
+        return
+
+    # ── Détection + parsing de tous les fichiers ───────────────────
+    st.markdown("---")
+    st.subheader(
+        t("upload_csv.detection_header", "🔍 Détection — {n} fichier(s)")
+        .format(n=len(uploaded_files))
+    )
+
+    file_results = []  # list of dicts: filename, platform_key, label, rows, error
+
+    for f in uploaded_files:
+        entry = {'filename': f.name, 'platform_key': None, 'label': '—',
+                 'rows': [], 'error': None, 'file': f}
+        try:
+            f.seek(0)
+            seen_cols = []
+            if f.name.lower().endswith(('.xlsx', '.xls')):
+                # Excel route (SACEM statement) — sheet-based detection, not CSV headers.
+                from src.transformers.sacem_parser import is_sacem_statement
+                f.seek(0)
+                platform_key = 'sacem' if is_sacem_statement(f) else None
+            else:
+                f.seek(0)
+                seen_cols = _read_headers(f)
+                platform_key = _detect_platform(f.name, seen_cols)
+
+            if platform_key == 's4a_songs_all_rejected':
+                entry['error'] = t(
+                    "upload_csv.err_songs_all",
+                    "Export « Depuis le début » non exploitable : Spotify y renvoie "
+                    "les auditeurs et les sauvegardes à **zéro**. Ce n'est pas le "
+                    "nom du fichier qui pose problème — le renommer ne changera "
+                    "rien. Reprends l'export en réglant la période sur **12 mois** "
+                    "(fichier `…-songs-1year.csv`).")
+                platform_key = None
+
+            if platform_key is None and not entry.get('error'):
+                # Echo the parsed header columns so a near-miss is diagnosable
+                # ("colonnes vues: …") instead of a dead "type non reconnu".
+                entry['error'] = t(
+                    "upload_csv.err_unknown_type",
+                    "Type non reconnu — vérifiez le nom et les colonnes du fichier.")
+                if seen_cols:
+                    entry['error'] += t(
+                        "upload_csv.err_unknown_cols",
+                        " Colonnes vues : {cols}").format(cols=", ".join(seen_cols[:12]))
+            else:
+                entry['platform_key'] = platform_key
+                entry['label'] = t(
+                    f"upload_csv.platform.{platform_key}",
+                    _PLATFORMS[platform_key]['label'])
+                f.seek(0)
+                entry['rows'] = _parse_file(platform_key, f, target_artist_id)
+                if not entry['rows']:
+                    entry['error'] = t(
+                        "upload_csv.err_no_valid_rows",
+                        "Aucune ligne valide détectée après parsing.")
+
+        except Exception as exc:
+            entry['error'] = str(exc)
+
+        file_results.append(entry)
+
+    # ── Tableau de détection ───────────────────────────────────────
+    summary_rows = []
+    for r in file_results:
+        if r['error']:
+            status = f"❌ {r['error']}"
+            count = '—'
+        else:
+            status = t("upload_csv.status_ready", "✅ Prêt")
+            count = len(r['rows'])
+        summary_rows.append({
+            t("upload_csv.col_file", "Fichier"): r['filename'],
+            t("upload_csv.col_detected_type", "Type détecté"): r['label'],
+            t("upload_csv.col_rows", "Lignes"): count,
+            t("upload_csv.col_status", "Statut"): status,
+        })
+
+    st.dataframe(pd.DataFrame(summary_rows), hide_index=True, width='stretch')
+
+    # ── Aperçus (collapse par défaut) ──────────────────────────────
+    ok_results = [r for r in file_results if not r['error']]
+    if not ok_results:
+        st.error(t("upload_csv.err_no_valid_file",
+                   "Aucun fichier valide à importer."))
+        return
+
+    for r in ok_results:
+        with st.expander(
+            t("upload_csv.preview_label", "Aperçu — {filename} ({n} lignes)")
+            .format(filename=r['filename'], n=len(r['rows'])),
+            expanded=False,
+        ):
+            st.dataframe(pd.DataFrame(r['rows']).head(10), hide_index=True, width='stretch')
+
+    # ── Taux USD→EUR (DistroKid paie en USD, le dashboard est en EUR) ──
+    fx_rate = None
+    if any(r['platform_key'] == 'distrokid_sales' for r in ok_results):
+        from src.utils.distrokid_rollup import default_fx_rate
+        fx_rate = st.number_input(
+            t("upload_csv.fx_label", "Taux de conversion USD → EUR (DistroKid)"),
+            min_value=0.0, value=default_fx_rate(), step=0.01, format="%.4f",
+            help=t("upload_csv.fx_help",
+                   "Les montants DistroKid sont en USD ; les revenus mensuels "
+                   "affichés dans Distributeur sont convertis en EUR avec ce taux. "
+                   "Défaut : DISTROKID_USD_EUR_RATE (.env) ou 0.92."),
+        )
+
+    # ── Confirmation ───────────────────────────────────────────────
+    st.markdown("---")
+    n_ok = len(ok_results)
+    n_skip = len(file_results) - n_ok
+    label = t("upload_csv.import_button", "✅ Importer {n} fichier(s)").format(n=n_ok)
+    if n_skip:
+        label += t("upload_csv.import_button_skip", "  (⚠️ {n} ignoré(s))").format(n=n_skip)
+
+    if st.button(label, type="primary"):
+        result_rows = []
+        total_ok = 0
+        total_err = 0
+
+        for r in ok_results:
+            cfg = _PLATFORMS[r['platform_key']]
+            try:
+                count = db.upsert_many(
+                    table=cfg['table'],
+                    data=r['rows'],
+                    conflict_columns=cfg['conflict_columns'],
+                    update_columns=cfg['update_columns'],
+                )
+                total_ok += count
+                # Archived only HERE, in the success branch: `count` is the proof
+                # the rows reached the database. A copy of every file that failed
+                # to import would fill the directory with the uninteresting case —
+                # the one worth keeping is a file that imported cleanly and still
+                # produced numbers that look wrong a week later.
+                _archive_ok(target_artist_id, r)
+                result_rows.append({
+                    t("upload_csv.col_file", "Fichier"): r['filename'],
+                    t("upload_csv.col_type", "Type"): r['label'],
+                    t("upload_csv.col_table", "Table"): cfg['table'],
+                    t("upload_csv.col_processed_rows", "Lignes traitées"): count,
+                    t("upload_csv.col_status", "Statut"): t("upload_csv.status_ok", "✅ OK"),
+                })
+                db.execute_query(
+                    "INSERT INTO csv_upload_log "
+                    "(artist_id, filename, platform, row_count, status) "
+                    "VALUES (%s, %s, %s, %s, 'success')",
+                    (target_artist_id, r['filename'], r['platform_key'], count),
+                )
+            except Exception as exc:
+                total_err += 1
+                result_rows.append({
+                    t("upload_csv.col_file", "Fichier"): r['filename'],
+                    t("upload_csv.col_type", "Type"): r['label'],
+                    t("upload_csv.col_table", "Table"): cfg['table'],
+                    t("upload_csv.col_processed_rows", "Lignes traitées"): 0,
+                    t("upload_csv.col_status", "Statut"): f'❌ {exc}',
+                })
+                try:
+                    db.execute_query(
+                        "INSERT INTO csv_upload_log "
+                        "(artist_id, filename, platform, row_count, status, error_message) "
+                        "VALUES (%s, %s, %s, 0, 'error', %s)",
+                        (target_artist_id, r['filename'], r['platform_key'], str(exc)[:500]),
+                    )
+                except Exception:
+                    pass  # audit log failure must never block the UI
+
+        # If S4A global summary was imported, rebuild the canonical
+        # release-date reference (authoritative source for "latest release"
+        # across all platforms). Non-blocking — never fails the import.
+        if any(r['platform_key'] == 's4a_songs_global' for r in ok_results):
+            try:
+                from src.utils.track_matching import rebuild_release_reference
+                n_ref = rebuild_release_reference(db, target_artist_id)
+                if n_ref:
+                    st.caption(t("upload_csv.ref_updated",
+                                 "🎵 Référentiel de sorties mis à jour ({n} titres).")
+                               .format(n=n_ref))
+            except Exception as exc:  # noqa: BLE001 — reference is best-effort
+                st.caption(t("upload_csv.ref_failed",
+                             "⚠️ Référentiel de sorties non mis à jour : {err}")
+                           .format(err=exc))
+
+        # If an iMusician sales report was imported, roll its per-line detail up
+        # into monthly_revenue so the Distributeur view + ROI surface it. Manual
+        # entries are preserved. Non-blocking — never fails the import.
+        if any(r['platform_key'] == 'imusician_sales' for r in ok_results):
+            try:
+                from src.utils.imusician_rollup import rollup_sales_to_monthly
+                n_months = rollup_sales_to_monthly(db, target_artist_id)
+                if n_months:
+                    st.caption(t("upload_csv.monthly_aggregated",
+                                 "💰 Revenus mensuels agrégés ({n} mois) — visibles dans Distributeur.")
+                               .format(n=n_months))
+            except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
+                st.caption(t("upload_csv.monthly_failed",
+                             "⚠️ Agrégation des revenus mensuels non effectuée : {err}")
+                           .format(err=exc))
+
+        # Same monthly roll-up for DistroKid, with the USD→EUR rate chosen above.
+        if any(r['platform_key'] == 'distrokid_sales' for r in ok_results):
+            try:
+                from src.utils.distrokid_rollup import rollup_sales_to_monthly as dk_rollup
+                n_months = dk_rollup(db, target_artist_id, fx_rate=fx_rate)
+                if n_months:
+                    st.caption(t("upload_csv.dk_aggregated",
+                                 "💰 Revenus DistroKid agrégés ({n} mois, "
+                                 "taux {rate:.4f}) — visibles dans Distributeur.")
+                               .format(n=n_months, rate=fx_rate))
+            except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
+                st.caption(t("upload_csv.dk_failed",
+                             "⚠️ Agrégation des revenus DistroKid non effectuée : {err}")
+                           .format(err=exc))
+
+        st.markdown("---")
+        st.subheader(t("upload_csv.results_header", "📋 Résultats de l'import"))
+
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric(t("upload_csv.metric_processed", "Fichiers traités"), len(ok_results))
+        k2.metric(t("upload_csv.metric_inserted", "Lignes insérées / mises à jour"),
+                  f"{total_ok:,}")
+        k3.metric(t("upload_csv.metric_errors", "Fichiers en erreur"), total_err,
+                  delta=None if total_err == 0 else "⚠️", delta_color="inverse")
+        k4.metric(t("upload_csv.metric_skipped", "Fichiers ignorés (type inconnu)"), n_skip)
+
+        st.dataframe(pd.DataFrame(result_rows), hide_index=True, width='stretch')
+
+
+

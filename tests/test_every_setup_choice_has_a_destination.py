@@ -45,22 +45,27 @@ _APP = _ROOT / "src" / "dashboard" / "app.py"
 
 
 def _routed_pages() -> set[str]:
-    """Les clés de page que `app.py` sait rendre — lues dans les `_NAV_SECTIONS`.
+    """Les clés de page que `app.py` sait RENDRE — lues sur les `page == "…"`.
 
-    Comparer à une liste écrite ici ferait exactement ce que ce fichier reproche au
-    reste : une deuxième copie qui dérive.
+    Elles étaient lues dans `_NAV_SECTIONS` jusqu'au 2026-09-04, c'est-à-dire dans le
+    MENU. La question de ce fichier n'a jamais été « peut-on cliquer dessus ? » mais
+    « la case à cocher mène-t-elle quelque part ? » — et `upload_csv` a fusionné dans
+    Credentials le même jour : plus d'entrée de menu, route conservée parce que six
+    pointeurs la visent. Le garde est devenu rouge sur une destination parfaitement
+    valide.
+
+    Deuxième fois le même jour, sur deux fichiers : `test_the_setup_landing_beats_a_
+    stale_url` portait le même prédicat et a été corrigé une heure plus tôt, SANS
+    balayer ses frères — la règle #14 dit de balayer avant d'écrire le fix, et je ne
+    l'ai pas fait. Les cinq fichiers qui lisent `_NAV_SECTIONS` ont été balayés cette
+    fois : les quatre autres interrogent bien le menu (un libellé, une entrée
+    attendue), et gardent donc leur lecture.
     """
     tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    pages: set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        if not any(getattr(t, "id", "") == "_NAV_SECTIONS" for t in node.targets):
-            continue
-        for const in ast.walk(node.value):
-            if isinstance(const, ast.Constant) and isinstance(const.value, str):
-                pages.add(const.value)
-    return pages
+    return {n.comparators[0].value for n in ast.walk(tree)
+            if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
+            and n.comparators and isinstance(n.comparators[0], ast.Constant)
+            and isinstance(n.comparators[0].value, str)}
 
 
 def test_every_checkbox_leads_somewhere_that_exists():

@@ -3253,3 +3253,68 @@ des deux fichiers rétrécit. Ce qui rouvre chacun est écrit dans le bloc lui-m
   - **Mapping d'événements exact** (quel event à quelle étape) à préciser au moment de l'implémentation.
   - Note : le `usage_events` server-side (first-party) peut rester comme sink interne ; PostHog
     client-side reste différé (Streamlit) — cf. § « Deferred ».
+
+## 📌 R58 — Les figures de la mise en route, tirées des vraies données
+
+- [x] **R58** — remplacer les trois figures d'exemple de l'écran de bienvenue (et du
+  mot de bienvenue) par des figures construites sur les données du locataire, dès
+  qu'il en a.
+
+**Ce qui existe déjà**, et qu'il ne faut pas refaire : les trois figures sont en place,
+côte à côte sur une ligne dans l'app (`views/onboarding._step_welcome`) et dans
+l'e-mail (`verification_email._welcome_image_row`, en vignettes), chacune portant
+« Exemple — données fictives » **dans l'image**. Elles sont produites hors ligne par
+`make example-charts` (`tools/dev/make_example_charts.py`), et celle de Meta × Spotify
+porte depuis le 2026-09-04 le seuil de déclenchement, la probabilité et la projection
+en pointillés.
+
+**Pourquoi c'est différé, et par qui.** Demandé et différé le même jour, dans les mêmes
+mots : « on doit les tirer de l'app en elle-même ⇒ on le garde pour maintenant mais on
+devra y revenir plus tard après le set up initial validé ».
+
+**Ce qui la débloque** : un locataire qui a des données. C'est R1. Avant ça il n'y a
+rien à tracer — l'écran de bienvenue s'affiche à un compte qui vient d'être créé, et
+c'est précisément la raison pour laquelle les figures sont des illustrations.
+
+**Les trois obstacles connus, à ne pas redécouvrir** :
+
+1. **`kaleido` est absent de toutes les images** (mesuré le 2026-09-04) : une figure
+   Plotly ne peut pas être exportée en PNG côté serveur. Le mail a besoin d'un PNG.
+   Soit on installe `kaleido`, soit on reste sur matplotlib pour ce qui part par mail.
+2. **Le mot de bienvenue part à la VÉRIFICATION**, donc avant toute collecte : il ne
+   pourra jamais montrer les données de son destinataire. La version « vraies données »
+   ne concerne que l'app — ou alors elle attend un second e-mail, plus tard.
+3. **Un exemple doit continuer à s'annoncer.** Le mélange est le vrai piège : une
+   figure réelle et une figure d'exemple côte à côte, sans que rien ne les distingue,
+   est pire que trois exemples. `tests/test_public_counters_count_humans.py` garde la
+   même classe ailleurs.
+
+**Livré le 2026-09-04 — et la moitié qui attendait vraiment R1 est nommée.**
+
+La tâche disait attendre « un locataire qui a des données, donc R1 ». Vérifié avant de
+la parquer une deuxième fois : **deux tiers l'attendaient, un tiers non.**
+
+  * le **mot de bienvenue** part à la VÉRIFICATION, donc avant toute collecte — il ne
+    pourra jamais montrer les chiffres de son destinataire. Il garde ses exemples, et
+    ce n'est pas un pis-aller : c'est le seul contenu vrai à cet instant ;
+  * **`kaleido` reste absent** de toutes les images — une figure Plotly ne s'exporte
+    pas en PNG côté serveur. Deuxième raison pour le mail, aucune pour l'app ;
+  * **l'app**, elle, rend Plotly nativement, et cette page s'affiche aussi à un artiste
+    qui REVIENT par le menu. Le mécanisme « la sienne si elle existe, l'exemple sinon »
+    était donc écrivable et éprouvable sans attendre personne.
+
+Livré : `src/dashboard/utils/welcome_figures.py`. La PREMIÈRE figure devient celle du
+locataire dès qu'il a ≥ 7 jours de données (S4A + SoundCloud réunis) ; les deux autres
+restent des illustrations — une prédiction d'algorithme et un croisement Meta × Spotify
+n'existent pas avant d'avoir collecté, et une figure vide y dirait « ça ne marche pas »
+là où « voilà ce que tu auras » est la vérité.
+
+**Le piège que la tâche nommait d'avance est fermé structurellement.** « Une figure
+réelle et une figure d'exemple côte à côte, sans que rien ne les distingue, est pire
+que trois exemples » : `figure_source()` décide la courbe ET le libellé, et
+`tests/test_the_welcome_figure_says_whose_it_is.py` vérifie qu'ils sortent de la même
+branche `if`. Trois mutations rouges, dont celle qui sort le libellé de sa branche.
+
+Éprouvé sur la base réelle : locataire 1 → 1267 jours (figure réelle), locataire 18
+(bac à sable, vide) → exemple.
+

@@ -28,6 +28,7 @@ rex:
 """
 import json
 import pathlib
+import ast
 import re
 import sys
 
@@ -58,11 +59,31 @@ def main() -> None:
 
     warnings = []
 
-    for m in re.finditer(r"\.style\.format\s*\(", content):
-        if "na_rep" not in content[m.start() : m.start() + 500]:
-            line = content[: m.start()].count("\n") + 1
+    # `.style.format(...)` sans `na_rep` — lu sur l'ARBRE.
+    #
+    # La version textuelle cherchait « na_rep » dans les 500 caractères suivants :
+    # un commentaire ou une docstring y suffisait à supprimer l'avertissement, sur
+    # un appel réellement non protégé. C'est le mécanisme de détection cité par la
+    # classe `df-na-rep` du catalogue, et il portait la même faiblesse que six
+    # `signature.cmd` corrigées le 2026-09-04.
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        tree = None                 # un fichier en cours d'écriture : rien à dire
+    if tree is not None:
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if getattr(func, "attr", None) != "format":
+                continue
+            if getattr(getattr(func, "value", None), "attr", None) != "style":
+                continue
+            if any(k.arg == "na_rep" for k in node.keywords):
+                continue
             warnings.append(
-                f"  L{line}: .style.format(...) without na_rep → see dashboard-view.md pitfall #1"
+                f"  L{node.lineno}: .style.format(...) without na_rep "
+                "→ see dashboard-view.md pitfall #1"
             )
 
     for m in re.finditer(r"make_subplots\s*\((.*?)\)", content, re.DOTALL):

@@ -239,13 +239,12 @@ _NAV_SECTIONS = [
     ("start",     "",                       [("🏠 Accueil", "home")]),
     ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
                                              ("📋 Guide de démarrage", "process_guide"),
-                                             ("🔑 Credentials API", "credentials"),
+                                             ("🔑 Credentials API + imports CSV", "credentials"),
                                              # Juste APRÈS la saisie : on remplit,
                                              # puis on regarde où on en est. Sortie
                                              # de Credentials le 2026-09-04, où elle
                                              # poussait le champ à y=1475.
                                              ("📋 État de tes plateformes", "platform_status"),
-                                             ("📂 Ajouter mes chiffres Spotify for Artists & Apple", "upload_csv"),
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
@@ -788,7 +787,13 @@ def _render_page(page):
     elif page == "process_guide": from views.process_guide import show; show()
     elif page == "platform_status": from views.platform_status import show; show()
     elif page == "onboarding_health": from views.onboarding_health import show; show()
-    elif page == "upload_csv": from views.upload_csv import show; show()
+    elif page == "upload_csv":
+        # La page a fusionné dans Credentials le 2026-09-04, mais la ROUTE survit :
+        # six pointeurs la visent — les boutons d'étape de `setup_completion`, la
+        # destination de S4A et Apple Music (`platform_destination`), la colonne
+        # « prochaine étape » de la matrice, et les signets. Supprimer la route les
+        # transformerait en culs-de-sac, ce que ce dépôt a déjà payé.
+        from views.credentials import show; show()
     elif page == "saisie_s4a": from views.saisie_s4a import show; show()
     elif page == "export_pdf": from views.export_pdf import show; show()
     elif page == "export_csv": from views.export_csv import show; show()
@@ -938,10 +943,25 @@ def _main_body():
         # Le test valait `not in _SETUP_PAGES`, ce qui exemptait Credentials, l'import
         # CSV et l'état des plateformes. Aucun lien n'y envoie au premier jour ; seule
         # une session précédente le fait.
+        # « C'est NOUS qui avons écrit ce paramètre. » Le miroir d'URL le pose à chaque
+        # navigation interne ; un vestige de session précédente ne l'a pas, parce que
+        # la déconnexion vide `session_state`.
+        #
+        # Ce test n'était consulté que dans la première branche. Conséquence, signalée
+        # le 2026-09-04 quelques minutes après le correctif d'atterrissage : « dès
+        # qu'on clique sur *Ajouter mes chiffres S4A & Apple*, ça nous ramène à la
+        # mise en route ». Le clic posait `_nav_page`, le miroir écrivait
+        # `?page=upload_csv`, et au rerun suivant l'atterrissage voyait un paramètre
+        # hors `_LANDING_LINKS` et le jetait — sans regarder qu'il venait de nous.
+        #
+        # La question de l'atterrissage n'est pas « cette page est-elle un lien ? »
+        # mais « ce paramètre vient-il d'ailleurs ? ». Un artiste qui NAVIGUE dans son
+        # installation navigue ; seul un onglet resté ouvert détourne.
+        _own_mirror = _page_param == st.session_state.get('_page_mirrored')
         _setup_landing = (bool(st.session_state.get(FIRST_RUN_FOCUS))
+                          and not _own_mirror
                           and _page_param not in _LANDING_LINKS)
-        if (_page_param in _nav_keys and not _setup_landing
-                and _page_param != st.session_state.get('_page_mirrored')):
+        if (_page_param in _nav_keys and not _setup_landing and not _own_mirror):
             st.session_state['_nav_page'] = _page_param
         elif _setup_landing:
             # Sans cette ligne, `resolve_nav_page` garderait la page de la session

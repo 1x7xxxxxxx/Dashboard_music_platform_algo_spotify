@@ -81,11 +81,25 @@ def test_the_csv_import_entry_names_spotify_for_artists():
     Le CSV et l'API sont deux processus différents (c'est la remarque même de
     l'artiste). L'entrée doit nommer la SOURCE du fichier, pas la plateforme.
     """
-    label = next(lbl for _s, lbl, key in _artist_items() if key == "upload_csv")
+    # L'import CSV n'a plus d'entrée de menu depuis le 2026-09-04 : il a fusionné
+    # dans la page Credentials, en onglet. La QUESTION ne change pas — « le libellé
+    # nomme-t-il la source du fichier, ou seulement la plateforme ? » — mais elle se
+    # pose maintenant sur le libellé de l'onglet. Un garde ancré sur l'ENDROIT serait
+    # mort avec l'entrée ; ancré sur la question, il suit.
+    from src.dashboard.utils.i18n_catalog.credentials import EN as _CREDS_EN
+
+    keys = [k for _s, lbl, k in _artist_items()]
+    assert "upload_csv" not in keys, (
+        "l'entrée de menu séparée pour l'import CSV est revenue")
+
+    label = _CREDS_EN["credentials.csv_tab"]
     assert "for artists" in label.lower(), (
-        f"l'entrée d'import s'appelle {label!r} : « Spotify » seul se confond avec "
-        "l'API Spotify, réglée dans la même section"
+        f"l'onglet d'import s'appelle {label!r} : « Spotify » seul se confond avec "
+        "l'API Spotify, réglée dans les onglets voisins"
     )
+    creds = next(lbl for _s, lbl, k in _artist_items() if k == "credentials")
+    assert "CSV" in creds, (
+        f"l'entrée Credentials ne dit pas qu'elle porte aussi les imports : {creds!r}")
 
 
 def test_the_algo_prediction_entry_does_not_promise_one_algorithm():

@@ -19,16 +19,17 @@ _SPOTIFY = PlatformCred(
     key="spotify",
     title="Spotify",
     icon="🎵",
-        intro=None,
+    intro=None,
     portal_url="https://open.spotify.com",
+    # Une ligne, comme la source française. Ce bloc est resté à l'ancienne version
+    # tout un lot parce qu'un `str.replace` sans assertion n'a pas mordu et n'a rien
+    # dit — la traduction du catalogue masquait l'écart à l'écran, mais le PDF anglais
+    # est rendu depuis CETTE source et portait encore trois étapes.
     steps=(
-        CredStep("On Spotify, open **your artist page**, then click the `•••` "
-                 "button — the **three dots**, to the right of the "
-                 "*Follow / Following* button.",
+        CredStep("`•••` button → **Share** → **Copy link to artist** → paste it into "
+                 "**Artist profile URL**, above.",
                  "spotify_share_artist_link.png",
                  "The ••• button → Share → Copy link to artist"),
-        CredStep("**Share** → **Copy link to artist**."),
-        CredStep("Paste the link ⬅ into **Artist profile URL**."),
     ),
     fields=(
         CredField("Artist profile URL",

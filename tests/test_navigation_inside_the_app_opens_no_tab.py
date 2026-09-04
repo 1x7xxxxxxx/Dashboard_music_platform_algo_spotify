@@ -96,14 +96,36 @@ def test_the_two_signup_paths_are_buttons():
     portait exactement la même forme. Un aller-retour entre connexion et inscription
     est le parcours le plus banal de l'application.
     """
-    auth = (_DASHBOARD / "auth.py").read_text(encoding="utf-8")
-    register = (_DASHBOARD / "views" / "register.py").read_text(encoding="utf-8")
+    # L'ARBRE, pas le texte. Ces trois assertions cherchaient `_goto_register` et
+    # `st.query_params["page"] = "register"` dans la CHAÎNE du fichier : un
+    # commentaire les satisfait, y compris celui qui explique le correctif. C'est
+    # exactement le défaut que `test_a_guard_reads_structure_not_text` traque, et il
+    # ne le voyait pas — son prédicat exemptait tout fichier qui parse ailleurs.
+    def _buttons(path):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        return {next((k.value.value for k in n.keywords
+                      if k.arg == "key" and isinstance(k.value, ast.Constant)), None): n
+                for n in ast.walk(tree)
+                if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "button"}
 
-    assert 'st.query_params["page"] = "register"' in auth, (
-        "l'écran de connexion ne renvoie plus vers l'inscription par un rerun")
-    assert "_goto_register" in auth, "le bouton « Créez-en un » a disparu"
-    assert "_goto_login" in register, (
+    auth_btn = _buttons(_DASHBOARD / "auth.py")
+    reg_btn = _buttons(_DASHBOARD / "views" / "register.py")
+
+    assert "_goto_register" in auth_btn, "le bouton « Créez-en un » a disparu"
+    assert "_goto_login" in reg_btn, (
         "l'écran d'inscription ne renvoie plus vers la connexion par un bouton")
+
+    # Le bouton pose bien le paramètre de page, et il le pose dans SA branche.
+    tree = ast.parse((_DASHBOARD / "auth.py").read_text(encoding="utf-8"))
+    posts = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Assign)
+             and any(isinstance(t, ast.Subscript)
+                     and "query_params" in ast.dump(t.value)
+                     and isinstance(t.slice, ast.Constant) and t.slice.value == "page"
+                     for t in n.targets)]
+    assert any(isinstance(a.value, ast.Constant) and a.value.value == "register"
+               for a in posts), (
+        "l'écran de connexion ne renvoie plus vers l'inscription par un rerun")
 
 
 def test_the_labels_carry_no_link_syntax():

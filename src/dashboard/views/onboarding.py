@@ -147,6 +147,27 @@ def _example_chart(name: str) -> None:
     st.image(str(path), use_container_width=True)
 
 
+def _tenant_series(db, artist_id):
+    """La série du locataire pour la première figure, ou `None` s'il n'y a rien.
+
+    Rend un DataFrame indexé par jour — la forme que `st.line_chart` attend — et
+    `None` quand `figure_source` dit « exemple ». Un seul point de décision : le
+    libellé et la courbe ne peuvent pas diverger.
+    """
+    from src.dashboard.utils.welcome_figures import figure_source, tenant_daily_streams
+
+    rows = tenant_daily_streams(db, artist_id)
+    if figure_source(rows) != "tenant":
+        return None
+    try:
+        import pandas as pd
+
+        df = pd.DataFrame(rows, columns=["jour", "écoutes"]).set_index("jour")
+        return df
+    except Exception:      # noqa: BLE001 — décoratif : on retombe sur l'exemple
+        return None
+
+
 def _language_buttons() -> None:
     """Bloc 0 — choisir sa langue SUR la page, et que ça se retienne.
 
@@ -244,6 +265,9 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # le texte l'explique. `use_container_width` la met à la largeur de la colonne,
     # donc au tiers — c'est là que « plus petit » se décide, pas dans le PNG, qui
     # doit rester à sa résolution native pour le PDF et l'e-mail.
+    # Lu AVANT la boucle : une requête, pas trois, et la décision est prise une fois.
+    _mine = _tenant_series(db, artist_id)
+
     _cols = st.columns(3)
     for _col, (key, default, image) in zip(_cols, (
         ("onboarding.brief_1",
@@ -263,7 +287,21 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
          "meta-x-s4a.png"),
     )):
         with _col:
-            _example_chart(image)
+            # R58, la moitié qui n'attendait pas R1 : la PREMIÈRE figure devient
+            # celle du locataire dès qu'il a de quoi tracer. Les deux autres restent
+            # des illustrations — une prédiction d'algorithme et un croisement Meta ×
+            # Spotify n'existent pas avant d'avoir collecté, et une figure vide dirait
+            # « ça ne marche pas » là où « voilà ce que tu auras » est la vérité.
+            #
+            # `figure_source` décide la courbe ET le libellé, ensemble. C'est le
+            # piège que la tâche nommait d'avance : une figure réelle et une figure
+            # d'exemple côte à côte, sans que rien ne les distingue, est pire que
+            # trois exemples.
+            if image == "dashboard-global.png" and _mine is not None:
+                st.caption(t("onboarding.figure_mine", "📈 **Tes chiffres**"))
+                st.line_chart(_mine, x_label="", y_label="")
+            else:
+                _example_chart(image)
             st.markdown(t(key, default))
     st.markdown("---")
 

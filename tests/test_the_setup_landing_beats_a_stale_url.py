@@ -73,14 +73,32 @@ def test_the_setup_pages_are_the_ones_a_first_arrival_may_keep():
     )
 
 
-def test_every_setup_page_is_a_real_menu_entry():
-    """Non-vacuité : un ensemble de pages fantômes n'arbitrerait rien."""
-    unknown = sorted(_SETUP_PAGES - _nav_keys())
+def test_every_setup_page_is_actually_reachable():
+    """Non-vacuité : un ensemble de pages fantômes n'arbitrerait rien.
+
+    Le prédicat visait le MENU jusqu'au 2026-09-04, et c'était trop étroit d'un cran :
+    `upload_csv` a fusionné dans Credentials, son entrée de menu a disparu, mais sa
+    ROUTE survit — six pointeurs la visent, et l'arbitrage d'URL la rencontre encore.
+    Ce qui compte pour cet arbitrage est qu'elle mène quelque part, pas qu'on puisse
+    la cliquer.
+    """
+    routed = _routed_pages()
+    unknown = sorted(_SETUP_PAGES - routed)
     assert not unknown, (
-        f"`_SETUP_PAGES` nomme des pages absentes du menu : {unknown}. Elles ne "
-        "seraient jamais comparées au paramètre d'URL, donc l'arbitrage serait muet "
-        "pour elles."
+        f"`_SETUP_PAGES` nomme des pages que rien ne rend : {unknown}. Le paramètre "
+        "d'URL les traverserait pour aboutir à un écran vide."
     )
+    assert _SETUP_PAGES & _nav_keys(), (
+        "aucune page de mise en route n'est au menu : le parcours serait invisible")
+
+
+def _routed_pages() -> set[str]:
+    """Les clés que `_main_body` sait rendre — lues sur les comparaisons `page == …`."""
+    tree = ast.parse(_APP.read_text(encoding="utf-8"))
+    return {n.comparators[0].value for n in ast.walk(tree)
+            if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
+            and n.comparators and isinstance(n.comparators[0], ast.Constant)
+            and isinstance(n.comparators[0].value, str)}
 
 
 # ── L'ordre des opérations, qui EST le défaut ───────────────────────────────
@@ -311,3 +329,61 @@ def test_the_url_block_arbitrates_on_the_narrow_set():
 def test_which_links_survive_a_first_arrival(page, first_run, honoured):
     detourned = first_run and page not in _LANDING_LINKS
     assert (not detourned) is honoured
+
+
+def test_navigating_inside_the_setup_does_not_bounce_back():
+    """Un clic dans le menu n'est pas un vestige d'URL.
+
+    Régression introduite par le correctif précédent, signalée dans l'heure : « dès
+    qu'on clique sur *Ajouter mes chiffres S4A & Apple*, ça nous ramène à la mise en
+    route ». Le clic posait `_nav_page`, le miroir écrivait `?page=upload_csv`, et au
+    rerun suivant l'atterrissage voyait un paramètre hors `_LANDING_LINKS` et le
+    jetait — sans regarder qu'il venait de NOUS.
+
+    `_page_mirrored` répond exactement à ça, et il n'était consulté que dans la
+    branche qui HONORE le paramètre, pas dans celle qui le jette. Une garde à moitié
+    posée sur deux branches qui décident du même fait.
+
+    La déconnexion vide `session_state`, donc un vrai vestige n'a pas de miroir : les
+    deux cas restent distincts.
+    """
+    body = _main_body_src()
+    i_url = body.find("if _page_param:")
+    block = body[i_url:i_url + 2600]
+    tree = ast.parse(_APP.read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "_main_body")
+    node = next(n for n in ast.walk(fn)
+                if isinstance(n, ast.If)
+                and isinstance(n.test, ast.Name) and n.test.id == "_page_param")
+
+    assign = next((n for n in ast.walk(node)
+                   if isinstance(n, ast.Assign)
+                   and any(getattr(t, "id", "") == "_setup_landing" for t in n.targets)),
+                  None)
+    assert assign is not None, "`_setup_landing` n'est plus calculé dans le bloc d'URL"
+    names = {x.id for x in ast.walk(assign.value) if isinstance(x, ast.Name)}
+    assert "_own_mirror" in names, (
+        "l'atterrissage ne regarde pas si le paramètre vient de notre propre miroir : "
+        "toute navigation interne pendant la mise en route rebondit sur l'assistant"
+    )
+    assert "_page_mirrored" in block, (
+        "plus rien ne calcule « c'est nous qui avons écrit ce paramètre »")
+
+
+@pytest.mark.parametrize("page,first_run,mirrored,honoured", [
+    # Le défaut d'origine : onglet d'hier, aucun miroir (la déconnexion l'a effacé).
+    ("credentials", True,  None,           False),
+    # La régression : l'artiste vient de cliquer dans le menu.
+    ("upload_csv",  True,  "upload_csv",   True),
+    ("platform_status", True, "platform_status", True),
+    # Le lien du mot de bienvenue, sans miroir : honoré quand même.
+    ("onboarding",  True,  None,           True),
+    # Configuration finie : tout est honoré.
+    ("credentials", False, None,           True),
+])
+def test_the_two_cases_stay_distinct(page, first_run, mirrored, honoured):
+    own = page == mirrored
+    detourned = first_run and not own and page not in _LANDING_LINKS
+    assert (not detourned) is honoured, (
+        f"page={page!r} première_arrivée={first_run} miroir={mirrored!r}")

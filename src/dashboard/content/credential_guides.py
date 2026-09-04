@@ -137,14 +137,21 @@ _SPOTIFY = PlatformCred(
     # menu, quel champ. Le glyphe garde son fond de code — `⋯` nu se lisait comme une
     # coupure de texte — et la capture reste sur l'étape où deux testeurs se sont
     # arrêtés.
+    # UNE ligne, pas trois. Demandé le 2026-09-04 : « modifie le texte pour qu'il
+    # apparaisse sur une seule ligne avec des flèches ». Trois étapes numérotées pour
+    # trois clics consécutifs dans le MÊME menu font lire trois fois « voici une
+    # étape » là où il n'y a qu'un geste continu ; la chaîne le montre d'un coup
+    # d'œil, et se relit sans compter.
+    #
+    # « au-dessus » et non « ⬅ » : depuis la mise en page en trois bandes, le champ
+    # est AU-DESSUS du guide, plus à sa gauche. Une direction ne survit pas au
+    # déplacement de ce qu'elle désigne — c'est la quatrième formulation de cette
+    # étape, et les trois précédentes sont mortes de ça.
     steps=(
-        CredStep("Clique le bouton `•••` sur ta page artiste.",
+        CredStep("Bouton `•••` → **Partager** → **Copier le lien vers l'artiste** → "
+                 "colle-le dans **URL profil artiste**, au-dessus.",
                  "spotify_share_artist_link.png",
                  "Le bouton ••• → Partager → Copier le lien vers l'artiste"),
-        CredStep("**Partager** → **Copier le lien vers l'artiste**."),
-        # La flèche pointe la colonne de gauche, où est le champ. Elle est décorative :
-        # la phrase reste vraie sans elle, et le nom du champ suffit dans le PDF.
-        CredStep("Colle le lien ⬅ dans **URL profil artiste**."),
     ),
     fields=(
         # « Spotify Artist ID ou URL profil » offrait un choix qui n'en est pas un :

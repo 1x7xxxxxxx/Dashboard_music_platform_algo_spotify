@@ -23,15 +23,16 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap).
 
-| id | tâche | prio | ce qu'il faut avant |
-|----|-------|------|----------------------|
-| R58 | Les figures de la mise en route, tirées des VRAIES données du locataire | P3 | rien de technique — un locataire qui a des données, donc R1 |
+**Aucune.** R58 — la dernière — a été livrée le 2026-09-04 (voir `archive.md`).
+
+Ne reste que ce qui attend un geste humain, dans la section « 🙋 En attente de toi »
+plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-04, une tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-04, aucune tâche de développement ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1, R58 -->
+<!-- reprise: open=R1 -->
 
 **▶️ Une seule tâche ouverte, R58**, ouverte le 2026-09-04 au soir et différée par
 celui qui l'a demandée : « on le garde pour maintenant mais on devra y revenir plus tard
@@ -141,41 +142,6 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
 
 📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=0 -->
-
-## 📌 R58 — Les figures de la mise en route, tirées des vraies données
-
-- [ ] **R58** — remplacer les trois figures d'exemple de l'écran de bienvenue (et du
-  mot de bienvenue) par des figures construites sur les données du locataire, dès
-  qu'il en a.
-
-**Ce qui existe déjà**, et qu'il ne faut pas refaire : les trois figures sont en place,
-côte à côte sur une ligne dans l'app (`views/onboarding._step_welcome`) et dans
-l'e-mail (`verification_email._welcome_image_row`, en vignettes), chacune portant
-« Exemple — données fictives » **dans l'image**. Elles sont produites hors ligne par
-`make example-charts` (`tools/dev/make_example_charts.py`), et celle de Meta × Spotify
-porte depuis le 2026-09-04 le seuil de déclenchement, la probabilité et la projection
-en pointillés.
-
-**Pourquoi c'est différé, et par qui.** Demandé et différé le même jour, dans les mêmes
-mots : « on doit les tirer de l'app en elle-même ⇒ on le garde pour maintenant mais on
-devra y revenir plus tard après le set up initial validé ».
-
-**Ce qui la débloque** : un locataire qui a des données. C'est R1. Avant ça il n'y a
-rien à tracer — l'écran de bienvenue s'affiche à un compte qui vient d'être créé, et
-c'est précisément la raison pour laquelle les figures sont des illustrations.
-
-**Les trois obstacles connus, à ne pas redécouvrir** :
-
-1. **`kaleido` est absent de toutes les images** (mesuré le 2026-09-04) : une figure
-   Plotly ne peut pas être exportée en PNG côté serveur. Le mail a besoin d'un PNG.
-   Soit on installe `kaleido`, soit on reste sur matplotlib pour ce qui part par mail.
-2. **Le mot de bienvenue part à la VÉRIFICATION**, donc avant toute collecte : il ne
-   pourra jamais montrer les données de son destinataire. La version « vraies données »
-   ne concerne que l'app — ou alors elle attend un second e-mail, plus tard.
-3. **Un exemple doit continuer à s'annoncer.** Le mélange est le vrai piège : une
-   figure réelle et une figure d'exemple côte à côte, sans que rien ne les distingue,
-   est pire que trois exemples. `tests/test_public_counters_count_humans.py` garde la
-   même classe ailleurs.
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 

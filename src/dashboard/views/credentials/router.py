@@ -82,12 +82,17 @@ def _next_label(key: str) -> str:
 
 
 def show():
-    st.title(t("credentials.title", "🔑 Credentials API"))
-    st.caption(t(
-        "credentials.caption",
-        "Gérez vos credentials d'accès API par plateforme. "
-        "Les secrets sont chiffrés (Fernet) avant stockage en base."
-    ))
+    # « Credentials API + imports CSV » : la page porte maintenant les DEUX façons de
+    # brancher une source — coller un identifiant, déposer un fichier. Demandé le
+    # 2026-09-04, avec le motif : cliquer sur l'entrée de menu séparée « Ajouter mes
+    # chiffres… » ramenait à la mise en route (régression corrigée le même jour), et
+    # deux entrées pour un seul geste — « connecter mes sources » — se cherchent.
+    st.title(t("credentials.title", "🔑 Credentials API + imports CSV"))
+    # La légende technique est partie : « Gérez vos credentials d'accès API par
+    # plateforme. Les secrets sont chiffrés (Fernet) avant stockage en base. » Elle
+    # décrivait une implémentation à quelqu'un qui vient coller un lien, et surtout
+    # elle repoussait les onglets — « on arrive avec les différents onglets cliquables
+    # tout en haut pour faciliter le parcours ».
 
     db = get_db_connection()
     try:
@@ -290,7 +295,8 @@ def show():
                 ordered = keep
 
         tab_labels = [info['label'] for _, info in ordered]
-        tabs = st.tabs(tab_labels)
+        _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple)")
+        tabs = st.tabs(tab_labels + [_CSV_TAB])
 
         # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
         # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient
@@ -307,6 +313,16 @@ def show():
         # s'affichait dans un onglet fermé. Ici, il est lu quoi qu'il arrive.
         render_save_verdict(next_platform, selection_complete)
 
+        # Le dernier onglet est le DÉPÔT DE FICHIERS, pas une plateforme : Spotify for
+        # Artists et Apple Music ne se connectent pas par identifiant. Ils avaient
+        # leur page à part, dont l'entrée de menu a disparu le 2026-09-04 — deux
+        # entrées pour un seul geste (« connecter mes sources ») se cherchent.
+        #
+        # UN onglet et non deux, contre la demande initiale, pour une raison mesurée :
+        # le dépôt reconnaît la source depuis le fichier (« le type est reconnu tout
+        # seul »). Deux onglets obligeraient l'artiste à classer son fichier AVANT de
+        # le déposer — une décision que le code prend mieux que lui, sur une page où
+        # aucun locataire n'a jamais terminé un import (mesuré le 2026-09-03).
         for tab, (platform_key, platform_info) in zip(tabs, ordered):
             with tab:
                 _render_platform_tab(
@@ -319,6 +335,15 @@ def show():
                     dag_states=dag_states,
                     artist_name=artist_name,
                 )
+
+        with tabs[-1]:
+            st.caption(t(
+                "credentials.csv_tab_help",
+                "Ces deux sources ne se connectent pas par identifiant : elles vous "
+                "laissent télécharger un fichier tableau. Déposez-le ici — le type "
+                "est reconnu tout seul, vous n'avez pas à l'ouvrir."))
+            from src.dashboard.views.upload_csv import render_uploader
+            render_uploader(db, target_artist_id)
 
         if hidden:
             with st.expander(t("credentials.other_platforms",

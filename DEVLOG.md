@@ -5,6 +5,84 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 27) — Les signatures du catalogue lisaient du texte, et R58 n'était pas bloquée
+
+Deux demandes en une : « on répète les mêmes erreurs, on pourrait pas /capitalise et
+mettre des gardes ? Normalement on doit déclencher spawn agent dès qu'on rencontre un
+problème ? » — puis « intègre toutes les optimisations error class et plus aucun item
+dans la roadmap ».
+
+Les deux étaient des reproches justes. **Je n'avais spawné aucun agent de la séance**
+malgré les règles 12/14/15, et jamais lancé `/capitalise` de moi-même après une dizaine
+de correctifs.
+
+### Le balayage a trouvé plus grave que ma classe
+
+Un `sibling-sweeper` sur « un garde qui lit du texte » a remonté **huit signatures du
+catalogue** portant le même défaut — et elles tournent dans `/sweep` et `make audit`,
+hors de portée du cliquet qui ne balaie que `tests/`.
+
+La pire est `dag-trigger-without-tenant-scope`, **P1 et `deterministic`, donc bloquante
+en CI** :
+
+    ! grep -rn "trigger_dag(" src/dashboard/ | grep -v "conf="
+
+Un commentaire en fin de ligne suffisait à la rendre aveugle. Mesuré sur le même
+défaut : **ancien `exit=0`, nouveau `exit=1`**.
+
+`guide-single-os-shortcut` avait la polarité inverse, et c'est le cas le plus retors :
+elle échouait dès que le motif apparaissait **n'importe où**, y compris dans le
+commentaire documentant son retrait. `deterministic` : la CI cassait *parce qu'on
+documentait le correctif*, donc la seule façon de la garder verte était d'arrêter
+d'écrire des commentaires.
+
+Deux autres — `artist-id-or-1`, `identity-mirrored-but-written-once` — portaient une
+**dérive `signature:` / `guard:`** : le garde avait migré vers un test AST, la ligne
+`signature:` (celle qu'exécute `audit_runner`) était restée l'ancien grep, par la règle
+append-only qui interdit de réécrire une entrée en place.
+
+### Ce que la mutation a rattrapé, deux fois
+
+Ma première mesure de la dette annonçait **29 fichiers / 64 assertions** ; la réalité
+est **39 / 116**. Le détecteur ne voyait pas les chemins portés par une constante de
+module — le motif cherché portait une parenthèse que `ast.dump` n'écrit pas toujours.
+Sans muter, j'aurais gelé un inventaire aux deux tiers aveugle en l'annonçant comme une
+couverture.
+
+Et mon détecteur AST du P1 produisait un **faux positif** sur `collection_trigger.py` :
+`conf` y est une variable, pas un littéral. Vérifié avant de conclure — le `else {}` est
+correct, `artist_id is None` n'est atteignable que pour un admin. Un faux positif use un
+garde aussi sûrement qu'un faux négatif.
+
+### Le dernier échec de la suite a prouvé le reproche
+
+`test_every_setup_choice_has_a_destination` est tombé sur le prédicat exact que j'avais
+réparé **trois heures plus tôt** dans un autre fichier — lire le MENU quand la question
+est l'ATTEIGNABILITÉ — parce que je n'avais pas balayé les frères. Cette fois : cinq
+fichiers lisent `_NAV_SECTIONS`, les trois autres interrogent bien le menu et gardent
+leur lecture.
+
+### R58 n'attendait pas ce qu'elle disait attendre
+
+Son bloc affirmait attendre « un locataire qui a des données, donc R1 ». Vérifié :
+**deux tiers l'attendaient, un tiers non.** Le mot de bienvenue part à la vérification,
+donc avant toute collecte, et `kaleido` manque pour l'export PNG — deux raisons de
+garder les exemples dans le mail, aucune pour l'app, qui rend Plotly nativement et
+affiche aussi cette page à un artiste qui REVIENT.
+
+Livré : la première figure devient celle du locataire dès 7 jours de données. Les deux
+autres restent des illustrations — une prédiction d'algorithme n'existe pas avant
+d'avoir collecté, et une figure vide y dirait « ça ne marche pas » là où « voilà ce que
+tu auras » est vrai.
+
+Le piège que la tâche nommait d'avance est fermé structurellement : `figure_source()`
+décide la courbe ET le libellé, et le garde vérifie qu'ils sortent de la même branche.
+Éprouvé sur la base réelle — locataire 1 : 1267 jours ; bac à sable : exemple.
+
+**Roadmap : zéro `- [ ]` dans le fichier actif.** Ne reste que R1, un geste humain.
+
+---
+
 ## 2026-09-04 (suite 26) — Un ensemble qui répondait à deux questions
 
 « Je viens de me connecter avec le reset et je tombe directement sur la page

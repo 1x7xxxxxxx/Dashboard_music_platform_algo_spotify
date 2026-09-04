@@ -2,10 +2,12 @@
 
 EN = {
     # ── router.py ──────────────────────────────────────────────────────
-    "credentials.title": "🔑 API Credentials",
-    "credentials.caption": (
-        "Manage your API access credentials per platform. "
-        "Secrets are encrypted (Fernet) before being stored in the database."
+    "credentials.title": "🔑 API Credentials + CSV imports",
+    "credentials.csv_tab": "📂 My files (Spotify for Artists, Apple)",
+    "credentials.csv_tab_help": (
+        "These two sources are not connected with an identifier: they let you "
+        "download a spreadsheet file. Drop it here — the type is recognised on its "
+        "own, you never have to open it."
     ),
     "credentials.no_active_artist": "No active artist. Create one in the Admin tab.",
     "credentials.target_artist": "Target artist",
@@ -303,9 +305,10 @@ EN = {
     # longtemps. Le rendu préférant la traduction à la source, un lecteur anglophone
     # recevait un guide qu'aucun francophone ne lisait plus (même défaut que
     # SoundCloud, corrigé la veille — voir `test_the_soundcloud_ask_is_one_thing`).
-    "credentials.guide.spotify.step_1": "Click the `•••` button on your artist page.",
-    "credentials.guide.spotify.step_2": "**Share** → **Copy link to artist**.",
-    "credentials.guide.spotify.step_3": "Paste the link ⬅ into **Artist profile URL**.",
+    "credentials.guide.spotify.step_1": (
+        "`•••` button → **Share** → **Copy link to artist** → paste it into "
+        "**Artist profile URL**, above."
+    ),
     "credentials.guide.spotify.field_1": "Artist profile URL",
     "credentials.guide.spotify.note_1": (
         "paste the full URL of your artist page — we extract the ID"

@@ -121,6 +121,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [environment-failure-worn-as-a-code-failure](#environment-failure-worn-as-a-code-failure) | P3 | deterministic | guarded | none |
 | [dag-conf-honoured-by-one-task-only](#dag-conf-honoured-by-one-task-only) | P3 | deterministic | guarded | none |
 | [local-db-drifts-from-canonical](#local-db-drifts-from-canonical) | P3 | manual | reported | none |
+| [guard-matches-its-own-comment](#guard-matches-its-own-comment) | P2 | deterministic | guarded | none |
+| [verified-locally-observed-in-prod](#verified-locally-observed-in-prod) | P2 | deterministic | guarded | none |
+| [one-set-answers-two-questions](#one-set-answers-two-questions) | P2 | manual | guarded | none |
+| [one-guide-three-sources](#one-guide-three-sources) | P3 | deterministic | guarded | none |
 
 | [ci-runs-twice-for-one-commit](#ci-runs-twice-for-one-commit) | — | deterministic | guarded | — |
 | [ci-has-no-concurrency-group](#ci-has-no-concurrency-group) | — | deterministic | guarded | — |
@@ -318,7 +322,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P1
 - kind: deterministic
 - symptom: `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7).
-- signature: `! grep -rnE "=[[:space:]]*get_artist_id\(\)[[:space:]]+or[[:space:]]+1" src/`
+- signature: `python3 -m pytest tests/test_a_tenant_scoped_action_names_its_tenant.py::test_a_missing_tenant_never_falls_back_to_a_hardcoded_one -q`
 - root_cause: `get_artist_id()` returns None for two unrelated states (admin, and no tenant), and `or 1` was the shortest way to make a view render during development.
 - long_term_fix: `view_session()` and `tenant_scope()` (R25) encapsulate the guard, so a view cannot express the fallback without going out of its way.
 - autofix: none
@@ -331,7 +335,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-05-15: no-arg /sweep caught a FALSE POSITIVE — the prior signature `get_artist_id() *or *1` matched the `view_session()` docstring + CLAUDE.md rule text that *quote* the anti-pattern, breaking the `deterministic` (CI-safe) contract. Hardened to require assignment context `= get_artist_id() or 1` (verified 0 real hits, docstring excluded). `make audit` recipe synced to the same regex (no catalogue↔audit drift).
   - 2026-06-13: **now CI-BLOCKING** — `audit_runner.py --deterministic` runs every `kind: deterministic` signature as a blocking ci.yml step (0 real hits today). status open→guarded; this P1 leak pattern can no longer merge.
   - 2026-08-23: gardée pour la première fois, dans le cadre de R40. La classe était cataloguée P1 depuis des mois avec `status: open` et `guard: none` — le catalogue la connaissait, rien ne la surveillait. Le garde lit l'AST : un `BoolOp(Or)` dont la première valeur est `get_artist_id()` / `tenant_scope()` et une autre une constante. Vu rouge par mutation sur `get_artist_id() or 1` et `tenant_scope() or 'admin'`, vert sur le dépôt réel.
-
+  - 2026-09-04: dérive `signature:` / `guard:`. Le garde réel avait migré vers un test AST ; la ligne `signature:`, celle qu'exécute `audit_runner`, était restée l'ancien `grep`. Les deux pointent désormais le même test.
 
 ## sql-fstring-identifier
 - status: open
@@ -353,7 +357,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P3
 - kind: heuristic
 - symptom: a Streamlit view opens >1 DB connection per `show()` instead of one opened-then-closed-in-finally (CLAUDE.md rule #9).
-- signature: `! for f in $(grep -rl get_db_connection src/dashboard/views/); do n=$(grep -c "get_db_connection(" "$f"); [ "$n" -gt 1 ] && echo "$f: $n"; done | grep .`
+- signature: `python3 .claude/scripts/audit_python_signatures.py --class db-connection-per-show`
 - root_cause: a helper called from a view opens its own connection because it cannot see the caller's — the cost is invisible in dev where the pool is idle.
 - long_term_fix: `view_session()` yields the one connection, and helpers take `db` as a parameter instead of resolving it.
 - autofix: none
@@ -363,6 +367,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-05-15: catalogued. Heuristic — a view legitimately may call the helper twice in branches; manual triage.
   - 2026-05-15: structural guard added — `view_session()` context manager (`src/dashboard/utils/__init__.py`) opens exactly 1 conn + auto-closes; CLAUDE.md #9 now mandates it for new views. Migrated views (instagram, soundcloud) can't regress. Existing un-migrated views keep the legacy manual guard (correct, not the bug) — class stays `open` until coverage is broad.
+  - 2026-09-04: la signature était `grep -c "get_db_connection("` — **le même compteur textuel** que `tests/test_view_connection_budget.py`, dont le docstring documente qu'il a été pris en défaut sur ses propres commentaires le 2026-08-22. Le second site n'avait jamais été corrigé, et il tourne dans `audit_runner`/`make audit`, hors de portée du cliquet des tests. Remplacée par `audit_python_signatures.py --class db-connection-per-show` (AST). Mutation : deux `get_db_connection()` réels dans `hypeddit.py` → détecté.
 
 ## naive-datetime-now
 - status: open
@@ -394,6 +399,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-05-14: `lint_dashboard_view.py` PostToolUse hook added (warns on save).
   - 2026-05-15: catalogued so `make audit` also sweeps the existing tree (the hook only catches new edits).
+  - 2026-09-04: le garde cité par cette classe est le hook `lint_dashboard_view.py`, qui cherchait « na_rep » dans les 500 caractères suivant `.style.format(`. Un commentaire y suffisait à supprimer l'avertissement. Passé en AST (mot-clé `na_rep` de l'appel). Trois mutations : sans `na_rep` → 1 avertissement ; avec → 0 ; `na_rep` en COMMENTAIRE → **ancien 0** (aveuglé), **nouveau 1**.
 
 ## unregistered-write-table
 - status: guarded
@@ -416,7 +422,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P4
 - kind: heuristic
 - symptom: a view uses raw `get_db_connection()` + the manual `get_artist_id()` guard instead of the `view_session()` context manager. The manual form is correct but not structurally enforced — every copy is a fresh chance to reintroduce `db-connection-per-show` / `artist-id-or-1`. Adoption backlog tracker.
-- signature: `! for f in src/dashboard/views/*.py; do grep -q "import get_db_connection" "$f" && ! grep -q view_session "$f" && echo "$f"; done | grep .`
+- signature: `python3 .claude/scripts/audit_python_signatures.py --class view-session-adoption`
 - root_cause: the manual four-line guard predates `view_session()` and is still correct, so nothing forces a rewrite — and every copy of it is a fresh chance to drop the `is_admin()` line. R25 found nine views that had.
 - long_term_fix: migrate the remaining views to `view_session()`; the class closes when no view holds its own copy of the guard.
 - autofix: none
@@ -425,6 +431,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: `view_session()` shipped + mandated for NEW views (CLAUDE.md #7/#9, dashboard-view skill). 2/32 views migrated (instagram, soundcloud — the clean try/finally shape). 30 remain on the legacy guard (try/except/finally or db-None/require_plan/helper-fn variants — migrating changes behaviour, so deliberately incremental). NOT CI-blocking: 30 valid views would make the gate permanently red (flaky-gate antipattern, cf. rules #6–#10). Status `open` = adoption backlog, not a defect; per-view migration is opt-in maintenance.
+  - 2026-09-04: `grep -q view_session "$f"` excluait un fichier dès qu'un COMMENTAIRE nommait `view_session` — « # TODO migrer vers view_session » suffisait à le retirer de la dette qu'il incarne. Remplacée par un détecteur AST, qui compte **19 vues** encore concernées.
 
 ## mixed-date-timestamp
 - status: guarded
@@ -582,7 +589,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - severity: P3
 - kind: heuristic
 - symptom: user-controlled values (song/campaign names, usernames) exported via `to_csv`/`to_excel` without defang → a cell like `=cmd|'/c calc'!A1` executes when the victim opens the file in Excel/Sheets (CWE-1236); worst case the admin multi-tenant export.
-- signature: `! grep -rnE 'to_(csv|excel)\(' src/dashboard --include=*.py | grep -viE 'defang_formulas|#'`
+- signature: `python3 .claude/scripts/audit_python_signatures.py --class csv-formula-injection`
 - root_cause: a spreadsheet treats a leading `=`, `+`, `-` or `@` as a formula, and our exports pass through names the tenant typed.
 - long_term_fix: every export goes through `defang_formulas()` in `csv_exporter.py`; the export helper is the only writer, so a new export inherits it.
 - autofix: none
@@ -591,6 +598,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-06-13 (ref: DEVLOG#2026-06-13-suite20)
 - History:
   - 2026-06-13: found via dashboard red-team — `export_all` (csv), `export_excel` (xlsx) and the admin opt-in export (`admin.py`) wrote raw values. Fix: `defang_formulas()` prefixes any string cell starting with `=,+,-,@,\t,\r` with `'` (OWASP), applied to all 3 export paths + guard test `test_defang_formulas_neutralizes_injection`. Durable rule: every new `to_csv`/`to_excel` export of DB/user data must route through `defang_formulas()`.
+  - 2026-09-04: `grep -viE 'defang_formulas|#'` excluait TOUTE ligne contenant `#` — donc un vrai `to_csv()` non défangé suivi d'un commentaire inoffensif, sur une classe CWE-1236. Mutation comparée sur le même défaut : **ancien `exit=0`** (aveugle), **nouveau `exit=1`**.
 
 ## config-not-env
 - status: guarded
@@ -866,7 +874,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: setup-guide prose spells a keyboard shortcut for one OS family (`Ctrl+U`, `Ctrl+F`, `F12`). A macOS artist following the guide literally is blocked at that step — those keys do nothing there — and the guide gives no alternative.
 - root_cause: guides were written on the machine the author had. Nothing in the content model could express "this differs per platform", so the first spelling written became the only one.
-- signature: `! grep -rnE --include=*.py "Ctrl\+[A-Z]|F12" src/dashboard/content/ src/dashboard/views/credentials/ src/dashboard/utils/i18n_catalog/credentials.py`
+- signature: `python3 .claude/scripts/audit_python_signatures.py --class guide-single-os-shortcut`
 - long_term_fix: guide prose carries `{{TOKEN}}` placeholders (`src/dashboard/utils/os_hints.py`) resolved at render time — per-session OS for the dashboard (auto-detected from User-Agent, switchable), both spellings for the emailed PDF, which cannot know the reader's machine.
 - autofix: none
 - guard: { type: test, ref: tests/test_os_hints.py }
@@ -875,6 +883,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-20: signature corrected the same day — without `--include=*.py` it matched stale `__pycache__/*.pyc` compiled from the pre-fix source and reported a permanent false hit in `audit_runner --deterministic` (CI-blocking). A signature that greps a source tree must exclude build artefacts.
   - 2026-08-20: 7 sites tokenised across FR content, EN content, the SoundCloud in-tab guide and the EN catalog. Signature proven non-zero on the pre-fix tree, zero after. Note the class is not limited to keyboard shortcuts — `FILE_MANAGER` / `DOWNLOADS_DIR` tokens exist for the Explorer-vs-Finder variant of the same defect.
+  - 2026-09-04: polarité inverse des autres. `deterministic`, donc bloquante — et le motif matchait n'importe où, y compris dans le commentaire documentant le RETRAIT du raccourci. Mutation : ajouter « on a retiré le raccourci Ctrl+U le 2026-09-03 » en commentaire donnait **ancien `exit=1`** (CI cassée en faux positif, la seule façon de la garder verte étant d'arrêter de documenter) contre **nouveau `exit=0`**. Le détecteur AST ne lit que les chaînes rendues, docstrings exclues.
 
 ## first-paint-chart-overload
 - status: guarded
@@ -945,7 +954,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a dashboard action triggers a DAG without `conf={'artist_id': …}`. The API collectors then run fleet-wide, and the CSV watchers — which defaulted to `artist_id = 1` — parse the SHARED drop directory into the admin's tenant. Reachable by any logged-in artist.
 - root_cause: the sidebar "🚀 Lancer TOUTES les collectes" button predates multi-tenancy and was never revisited; it was also rendered before any role gate. The verification e-mail sent at sign-up tells every new artist to press it.
-- signature: `! grep -rn --include=*.py "trigger_dag(" src/dashboard/ | grep -v "conf="`
+- signature: `python3 .claude/scripts/check_dag_trigger_scope.py`
 - long_term_fix: every trigger carries the tenant; a non-admin without a resolved `artist_id` triggers nothing; the CSV watchers have no default tenant — a manual trigger without `artist_id` raises, and a *scheduled* run (which legitimately has no conf) reports the unattributable files and writes nothing.
 - autofix: none
 - guard: { type: error-class-signature, ref: audit_runner --deterministic }
@@ -953,6 +962,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-20
 - History:
   - 2026-08-20: 1 hit (`app.py:348`), 0 after the fix. Found while tracing how an artist could write into tenant 1 without admin rights.
+  - 2026-09-04: la signature était un `grep … | grep -v "conf="`. Un commentaire en fin de ligne mentionnant `conf=` sur un appel réellement non scopé — `trigger_dag(dag_id)  # TODO conf=` — supprimait le hit **en silence** : la classe la plus grave du catalogue reposait sur une correspondance de texte, et elle est `deterministic`, donc bloquante en CI. Remplacée par `.claude/scripts/check_dag_trigger_scope.py`, qui lit l'arbre. Comparé sur le même défaut : ancien `exit=0` (aveugle), nouveau `exit=1`. Trouvé par un balayage `sibling-sweeper` sur la classe `guard-matches-its-own-comment`.
+  - 2026-09-04: la PREMIÈRE version du détecteur AST accusait `src/dashboard/utils/collection_trigger.py:39` — un faux positif : `conf` y est une variable (`conf = {'artist_id': artist_id} if … else {}`), pas un littéral. Vérifié avant de conclure, et le `else {}` est correct : `artist_id is None` n'est atteignable que pour un **admin** (garde `app.py:668`, et `tenant_scope()` documente « None = every tenant »). Le détecteur suit désormais l'assignation. Un faux positif use un garde aussi sûrement qu'un faux négatif.
+
 
 ## ast-guard-blind-to-bom
 - status: guarded
@@ -1132,7 +1144,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a tenant shows as connected on every screen, passes its connection test, and collects nothing. The DAG succeeds in under a second.
 - root_cause: one tenant identity is stored in TWO places — `artist_credentials.extra_config` (read by every screen and every readiness check) and `saas_artists.spotify_artist_id` (read by `spotify_api_daily` to decide whose catalogue to collect). The credentials form wrote both; `tools/create_canary.py` wrote only the first. Measured 2026-08-21: canary tenant 471 reported "Connecté — artiste « Daft Punk » ✅" everywhere while its DAG logged "aucun spotify_artist_id déclaré" and wrote 0 rows. The tenant whose entire purpose is to catch a false green WAS the false green.
-- signature: `! grep -rn "UPDATE saas_artists SET spotify_artist_id" src/ tools/ --include=*.py | grep -v tenant_identity.py`
+- signature: `python3 -m pytest tests/test_tenant_identity_mirrors.py -q`
 - long_term_fix: `src/utils/tenant_identity.py` holds `IDENTITY_MIRRORS` and `write_platform_identity()` — the single path that writes the credentials row AND every mirror the platform declares. Both writers call it; no third writer can get it half right.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_tenant_identity_mirrors.py }
@@ -1141,6 +1153,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: verifying a signature BY HAND in an interactive shell is unreliable here — `grep` is a shell function (the RTK wrapper), and it returns 0 whenever stdout is redirected, whatever it matched. Both signatures above looked constant-and-hollow under `! grep … > /dev/null` and were in fact correct. Verify a signature through `audit_runner.py`, which runs the real binary, or prefix `command grep`. The instrument was the defect, not the signature.
   - 2026-08-21: the guard's FIRST version was vacuous — it asserted `"write_platform_identity" in text`, which the import line satisfied on its own, so deleting the call left it green. Rewritten on the AST to require an actual `ast.Call`. Only then did the mutation turn it red. A guard that tests for a substring tests the import, not the behaviour.
+  - 2026-09-04: même dérive `signature:` / `guard:` que `artist-id-or-1`. L'historique de cette classe DIT que le garde a été réécrit en AST le 2026-08-21 après un premier échec vacuous — et la signature exécutée est restée le grep, par la règle append-only qui interdit de réécrire une entrée en place. Les deux pointent désormais `tests/test_tenant_identity_mirrors.py`.
 
 ## api-partial-date-into-date-column
 - status: fixed
@@ -1148,7 +1161,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: a collector fails with `invalid input syntax for type date: "2013"` and the artist loses EVERY row of that run, not just the offending one. Latent for years, then fires the first time a second tenant is collected.
 - root_cause: Spotify returns `album.release_date` at a precision it declares separately in `album.release_date_precision` — `"2013"`, `"2013-05"` or `"2013-05-21"`. `tracks.release_date` is `DATE`, and the value was passed through raw. Because `upsert_many` writes one batch per artist, a single year-precision album aborts the artist's whole batch, after which the DAG raises "collected 0 tracks". A comment sat directly above the line reading *"Gestion sécurisée de la date de sortie (parfois YYYY seulement)"* — describing a handling that did not exist. Measured 2026-08-21.
-- signature: `! grep -n "release_date = track\['album'\]\['release_date'\]" src/collectors/spotify_api.py`
+- signature: `python3 .claude/scripts/audit_python_signatures.py --class api-partial-date-into-date-column`
 - long_term_fix: `src/utils/api_dates.py::coerce_api_date()` accepts all three precisions and pads to the FIRST day of the declared period (never to today, which would read as "released this month" in recency features). An unusable value returns `None` — one column lost instead of the artist's batch. The CSV path already behaved this way implicitly via `pandas.to_datetime`; the two paths now agree.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_api_partial_dates.py }
@@ -1157,6 +1170,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-08-21: found by the canary tenant on its FIRST real collection, minutes after it was created. It had never fired in production because the admin's own catalogue carries full dates only — the defect was invisible to a one-tenant test by construction. This is the concrete payoff of the "run the suite against at least two tenants" lesson, and the single best argument for keeping the canary.
   - 2026-08-21: the comment above the defect claimed the case was handled. A comment is not a guard, and a comment that describes an intention the code does not implement is worse than none — it stops the next reader from looking.
+  - 2026-09-04: la signature cherchait la ligne fautive EXACTE ; `deterministic`, donc citer cette ligne en commentaire pour documenter le bug historique cassait la CI. Remplacée par un détecteur AST sur l'affectation de `release_date`.
 
 ## unguarded-drop-replayed-alone
 - status: fixed
@@ -3132,3 +3146,68 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-04: deux mutations, deux rouges — `_archive_ok` déplacé dans le `except` (le garde AST voit que l'archive collecterait les imports ÉCHOUÉS), et la condition de purge remplacée par `True` (le garde vérifie les deux directions : l'expiré part, le récent reste — seule la première moitié passerait sur un `rm -rf`).
   - 2026-09-04: le nettoyeur de nom rendait `2F.._2Fx` pour `..%2F..%2Fx` — inoffensif sans séparateur, et le test sur le **chemin résolu** le prouve, mais un nom qui contient `..` est assez piégeux pour qu'un outil en aval le traite comme un segment. Points consécutifs écrasés.
   - 2026-09-04: la suppression des watchers a fait rougir `test_the_known_list_has_not_rotted` — la liste d'exemptions DSN nommait quatre fichiers disparus. Le garde a fait exactement son travail. Et `test_no_watcher_polls_more_than_hourly` serait devenu **vide de sens** (il ne cherchait que `*_csv_watcher.py`) : élargi à tous les DAGs, avec une assertion de non-vacuité.
+
+## guard-matches-its-own-comment
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un test de garde est VERT sur le défaut qu'il existe pour attraper, ou ROUGE sur le commentaire qui explique le correctif. Les deux erreurs viennent de la même cause et se ressemblent si peu qu'on les traite séparément.
+- root_cause: le garde inspecte du code Python en cherchant une sous-chaîne dans le TEXTE du fichier (`assert "<nom>" in source`). Un nom présent dans un fichier ne dit rien de ce que le code en fait : un commentaire, une docstring ou une autre fonction suffisent à satisfaire la comparaison. Trois occurrences le 2026-09-04, toutes sur des gardes NEUFS : `test_navigation_inside_the_app_opens_no_tab` a accusé `auth.py` sur le commentaire expliquant pourquoi le lien avait été retiré ; `test_the_soundcloud_ask_is_one_thing` a accusé `guide_pdf.py` sur un commentaire disant « `cred.admin_note` n'est délibérément PAS rendu » ; `test_the_setup_landing_beats_a_stale_url` cherchait `"_SETUP_PAGES"` dans le source du bloc d'URL et se satisfaisait du commentaire disant que le test valait `_SETUP_PAGES` AVANT le correctif. Le cliquet `test_a_guard_reads_structure_not_text` existait déjà et n'en a vu aucune : son prédicat est au niveau du FICHIER — dès qu'un `ast.parse` y apparaît, tout le fichier est exempté, assertions textuelles comprises.
+- signature: `python3 -m pytest tests/test_a_guard_reads_structure_not_text.py -q`
+- long_term_fix: le cliquet descend au niveau de l'ASSERTION (`_text_assertions_on_source`) : il compte, par fichier, les `assert "<litt>" in <nom>` où `<nom>` est assigné depuis `read_text` d'un chemin Python ou `ast.get_source_segment`. L'inventaire est gelé et ne peut que diminuer. Restreint au source **Python** : la moitié des tests lisent du SQL, du shell ou du Markdown, où il n'y a pas d'arbre à interroger et où la comparaison de chaînes est le seul outil possible.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_guard_reads_structure_not_text.py }
+- rex_ref: tests/test_a_guard_reads_structure_not_text.py
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-04: le cliquet refusait un garde qui lit un **Dockerfile**, alors que son propre message promet l'exemption (« if this file really cannot parse (a Makefile, a workflow), it does not trip this test at all »). La promesse était écrite, pas implémentée. Prédicat restreint aux fichiers nommant du `.py` ; liste blanche descendue de **32 à 21** — les onze retirées gardaient des migrations SQL, la CI, la ROADMAP, et constituaient du budget pour un futur garde textuel que personne n'aurait décidé d'admettre.
+  - 2026-09-04: **la première mesure du nouveau détecteur était fausse de 77 %** — 29 fichiers / 64 assertions annoncés, 38 / 113 en réalité. Il ne voyait pas les chemins portés par une CONSTANTE de module (`_APP = _ROOT / … / "app.py"`), c'est-à-dire la forme la plus courante, parce que le motif cherché portait une parenthèse fermante que `ast.dump` n'écrit pas toujours. Trouvé en MUTANT le garde : la sonde soumise, écrite exactement comme les trois défauts, ne le faisait pas rougir. Sans cette mutation j'aurais gelé un inventaire aux deux tiers aveugle et je l'aurais annoncé comme une couverture.
+
+## verified-locally-observed-in-prod
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un utilisateur signale plusieurs fois la même absence ; chaque vérification confirme que la chose est là ; les corrections successives portent sur le texte et la mise en page et ne changent rien.
+- root_cause: l'observation est faite en PRODUCTION, la vérification en LOCAL. Ce sont deux questions différentes, et la seconde ressemble assez à une preuve pour clore la première. Cas mesuré le 2026-09-04, cinq signalements de « il n'y a pas le screen » : le `Dockerfile` copiait `src/`, `config/` et `.streamlit/`, pas `assets/` — 240 Ko. `docker exec … ls /app/assets/credential_guide/spotify/` → `No such file or directory`. Les **huit** captures des guides manquaient, pas une : celles de YouTube et de Meta n'avaient jamais été affichées en production non plus. La classe est silencieuse parce que les deux surfaces qui rendent ces images traitent l'absence comme « rien à montrer » (`screenshot_path()` rend un chemin inexistant, l'étape se dessine sans image) — comportement correct pour un artiste, et qui transforme un fichier manquant en page simplement plus courte.
+- signature: `python3 -m pytest tests/test_the_image_ships_with_the_app.py -q`
+- long_term_fix: `COPY assets/ ./assets/` dans le Dockerfile, et un garde qui compare les `COPY` aux répertoires que le CODE résout (`assets_dir()` est LU, pas recopié), vérifie que `.dockerignore` n'exclut pas ce qu'on copie — l'autre moitié du même défaut, un COPY qui copie du vide sans avoir l'air faux — et que chaque capture nommée par un guide existe sur le disque.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_image_ships_with_the_app.py }
+- rex_ref: tests/test_the_image_ships_with_the_app.py
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-04: trois mutations rouges, dont celle qui retire `COPY assets/` — elle reproduit l'état exact de la production pendant cinq signalements.
+  - 2026-09-04: variante de mise en page de la même erreur, le même jour. « Il n'y a pas le screen » a d'abord désigné une capture **présente mais à y=1569 sur une page de 2141**, sous la ligne de flottaison d'un viewport de 1000 px. J'ai vérifié la PRÉSENCE quatre fois ; il parlait de la VISIBILITÉ. Aucune correction de texte ne pouvait y répondre.
+
+## one-set-answers-two-questions
+- status: guarded
+- severity: P2
+- kind: manual
+- symptom: un correctif juste en produit un autre dans l'heure, à l'endroit exact qu'il venait de toucher.
+- root_cause: une constante ou un prédicat sert d'entrée à deux décisions qui ne posent pas la même question. Tant que les deux réponses coïncident, rien ne le montre. `src/dashboard/app.py` : `_SETUP_PAGES` répondait à « le mode première connexion survit-il à cette page ? » **et** à « ce paramètre d'URL peut-il battre l'atterrissage ? ». Un `?page=credentials` resté d'une session précédente était donc honoré — signalé le 2026-09-04. Le correctif a introduit `_LANDING_LINKS = {onboarding}`, et **a produit une régression dans l'heure** : un clic dans le menu écrivait `?page=upload_csv`, que l'atterrissage jetait à son tour. La garde qui répond exactement à ça (`_page_mirrored`, « c'est nous qui avons écrit ce paramètre ») n'était consultée que dans la branche qui HONORE le paramètre, pas dans celle qui le jette — une garde posée sur une seule des deux branches qui décident du même fait.
+- signature: `python3 -m pytest tests/test_the_setup_landing_beats_a_stale_url.py -q`
+- long_term_fix: — (le garde EST le fix : la règle d'arbitrage est figée sur des états lisibles, avec les DEUX cas côte à côte — vestige d'URL sans miroir vs navigation interne avec miroir — pour qu'ils ne puissent plus se confondre).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_setup_landing_beats_a_stale_url.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-04: la mutation qui retire `_own_mirror` du calcul reproduit la régression ; celle qui remet `_SETUP_PAGES` dans le bloc d'URL reproduit le défaut d'origine.
+  - 2026-09-04: `test_every_setup_page_is_a_real_menu_entry` est passé au rouge en conséquence — `upload_csv` a fusionné dans Credentials et n'a plus d'entrée de menu, mais garde sa route. Le prédicat visait le MENU ; ce qui compte pour cet arbitrage est l'ATTEIGNABILITÉ. Le garde a fait son travail, et son propre prédicat était trop étroit d'un cran.
+  - 2026-09-04: **variante « le garde lit le MENU quand la question est l'ATTEIGNABILITÉ »**, deux fichiers, le même jour. `test_the_setup_landing_beats_a_stale_url` corrigé le matin ; `test_every_setup_choice_has_a_destination` est tombé sur le même prédicat trois heures plus tard, parce que je n'avais **pas balayé les frères** — la règle #14 dit de le faire AVANT d'écrire le fix. Cinq fichiers lisent `_NAV_SECTIONS` ; balayés cette fois, les trois autres interrogent bien le menu (un libellé, une entrée attendue) et gardent leur lecture. Signalé par l'utilisateur : « normalement on doit déclencher spawn agent dès qu'on rencontre un problème ? ».
+
+
+## one-guide-three-sources
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un lecteur anglophone reçoit une procédure abandonnée côté français ; le PDF d'une langue décrit plus d'étapes que l'autre. Personne ne le voit : ces surfaces ne sont jamais rouges.
+- root_cause: un guide de credentials vit dans TROIS fichiers — `credential_guides.py` (FR), `credential_guides_en.py` (EN), et `i18n_catalog/credentials.py` que le rendu PRÉFÈRE aux deux (`t(f"credentials.guide.{k}.step_{n}", step.text)`). Rien ne les compare. Réécrire l'une laisse les autres en place. Deux occurrences le 2026-09-04 : le catalogue EN de SoundCloud décrivait encore « affiche le code source de /discover et cherche `soundcloud:users:` », abandonné la veille ; et la source EN de Spotify portait TROIS étapes quand le français en avait UNE — restée à l'ancienne version tout un lot parce qu'un `str.replace` de mon script d'édition n'avait pas mordu et n'avait rien dit. Le catalogue masquait l'écart à l'écran ; le PDF anglais est rendu depuis la source et livrait l'écart.
+- signature: `python3 -m pytest tests/test_the_two_language_guides_stay_in_step.py -q`
+- long_term_fix: le garde compare la FORME des trois surfaces — même nombre d'étapes, mêmes captures aux mêmes rangs, intro présente des deux côtés ou d'aucun, et aucune clé `step_N` du catalogue au-delà du nombre d'étapes réel. Il ne compare pas les mots : c'est une traduction, elle doit différer. Corollaire de méthode, hors dépôt : un `str.replace` d'édition sans `assert old in s` est un no-op silencieux.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_two_language_guides_stay_in_step.py }
+- rex_ref: tests/test_the_two_language_guides_stay_in_step.py
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-04: deux mutations rouges sur les DÉFAUTS RÉELS, pas sur des formes inventées — la source EN remise à trois étapes, et une clé `step_2` du catalogue survivant à un guide d'une étape.
