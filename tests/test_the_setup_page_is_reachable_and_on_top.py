@@ -126,19 +126,30 @@ def test_every_step_that_is_not_the_current_one_is_a_button():
     )
 
 
-def test_the_assistant_offers_a_way_into_the_app_and_a_way_to_stop_showing_it():
-    """A screen you cannot leave is a door, not a help page."""
+def test_the_assistant_offers_a_way_into_the_app():
+    """Un écran dont on ne peut pas sortir n'est pas une aide, c'est une porte.
+
+    Ce test demandait AUSSI une case « ne plus afficher cette page ». Elle a été
+    retirée le 2026-09-05 — « on doit voir uniquement le bouton connecter ma
+    sélection » — avec le compteur « Configuration : 2/4 » qui l'accompagnait.
+
+    La moitié qui survit est celle qui compte : la SORTIE. La moitié qui part était
+    un réglage offert à quelqu'un qui n'a pas encore vu ce qu'il réglerait, et le
+    mécanisme (`saas_users.show_setup_on_login`) existe toujours en base — c'est le
+    bouton de réglage qui disparaît, pas la préférence.
+    """
     fn = _fn(ONB, "_render_landing_choice")
-    assert _call_lines(fn, "button"), "no way out of the setup page"
-    assert _call_lines(fn, "checkbox"), (
-        "no checkbox: the artist cannot decide to stop landing here.")
-    assert _call_lines(fn, "set_show_on_login"), (
-        "the checkbox is not persisted — a login preference that does not survive the "
-        "login answers nothing."
-    )
+    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
+    tree = ast.parse(src)
+    buttons = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+               and getattr(n.func, "attr", "") == "button"]
+    assert buttons, "l'assistant n'a plus de sortie : on y entre sans pouvoir en sortir"
 
-
-# ── 3. One definition of 'finished' ───────────────────────────────────────────
+    boxes = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and getattr(n.func, "attr", "") == "checkbox"]
+    assert not boxes, (
+        "la case « afficher cette page à la connexion » est revenue : elle demande un "
+        "réglage à quelqu'un qui n'a pas encore vu ce qu'il réglerait")
 
 def test_the_landing_asks_whether_the_setup_is_FINISHED():
     src = ast.get_source_segment(
@@ -399,10 +410,10 @@ def test_the_welcome_step_is_three_numbered_blocks_then_the_choice():
     lang = src.index("_language_buttons()")
     brief = src.index("1. streaMLytics en bref")
     offer = src.index("onboarding.b2_title")
-    pick = src.index("_platform_picker(")
+    pick = src.index("_onb_go_creds")
     assert lang < brief < offer < pick, (
         "the blocks are out of order: the reader picks a language, learns what the "
-        "tool does, sees what they have and lose, then chooses what to connect."
+        "tool does, sees what they have and lose, then goes and connects."
     )
     assert "onboarding.b3_title" not in src, (
         "the guide block is back on the welcome step — it was removed because the "
@@ -414,89 +425,70 @@ def test_the_welcome_step_is_three_numbered_blocks_then_the_choice():
     )
 
 
-def test_the_picker_lays_out_three_derived_columns():
-    """Trois colonnes, et leur contenu vient des données — pas de trois listes ici.
+def test_the_setup_order_still_comes_from_the_registry():
+    """Les trois colonnes du sélecteur sont devenues l'ORDRE des onglets.
 
-    Mesuré au navigateur le 2026-09-04 à 1440 px : x = 380 / 717 / 1055, gauche
-    cochée. Ce test ne remesure pas ces pixels — `st.columns` les décide — il fige
-    ce qu'un navigateur ne dira jamais : que les groupes sont DÉRIVÉS. Une pile de
-    six cases et trois colonnes alimentées par des clés recopiées se ressemblent à
-    l'écran ; seule la seconde oublie une plateforme le jour où on en ajoute une.
+    Le sélecteur a été supprimé le 2026-09-05 — « on ne va pas demander les cases à
+    cocher de ce qu'il veut configurer, on propose tout directement par ordre de
+    simplicité et de plus-value ». Trois gardes le décrivaient : sa partition dérivée,
+    ses cases sans prose, ses cellules encadrées.
+
+    Leur question commune survit, et c'est la seule qui comptait : **« par où
+    commence-t-on, et qui le décide ? »** La réponse est toujours `setup_columns()`,
+    et elle est toujours DÉRIVÉE — c'est ce que ce test garde. Ce qui a changé est la
+    façon dont elle se présente : une colonne qui demandait de trancher est devenue
+    un rang d'onglet qui suggère.
     """
-    fn = _fn(ONB, "_platform_picker")
-    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
-    assert "setup_columns(" in src, (
-        "le sélecteur ne dérive plus ses colonnes du registre : il porte sa propre "
-        "idée de qui va où, et elle se périmera sans bruit"
+    import sys
+    sys.path.insert(0, str(REPO))
+    from src.dashboard.content.platform_value import (
+        SETUP_COLUMN_ORDER, setup_columns,
     )
-    assert "st.columns(len(SETUP_COLUMN_ORDER)" in src, (
-        "le nombre de colonnes est écrit en dur : ajouter un groupe en laisserait "
-        "un hors de l'écran"
-    )
-    # Aucune clé de plateforme littérale dans le corps du sélecteur — c'est la forme
-    # exacte qu'on refuse.
-    from src.dashboard.content.platform_value import PLATFORM_VALUES
-    hard = [pv.key for pv in PLATFORM_VALUES if f'"{pv.key}"' in src or f"'{pv.key}'" in src]
-    assert not hard, (
-        f"le sélecteur nomme {hard} en dur ; il doit lire le registre, sinon la "
-        "septième plateforme atterrit dans aucune colonne"
-    )
+    from src.dashboard.views.credentials.router import platform_destination
+
+    router = REPO / "src" / "dashboard" / "views" / "credentials" / "router.py"
+    src = router.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "show")
+    assert any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "setup_columns"
+               for n in ast.walk(fn)), (
+        "l'ordre des onglets ne vient plus de `setup_columns()` : il porterait sa "
+        "propre idée de « par où commencer », qui se périmerait sans bruit")
+
+    # Le premier onglet est celui de la première plateforme conseillée.
+    first = next(pv for col in SETUP_COLUMN_ORDER for pv in setup_columns().get(col, [])
+                 if platform_destination(pv.key).startswith("tab:"))
+    assert first.key == "spotify", (
+        f"la première plateforme conseillée est {first.key!r} — l'ordre a changé sans "
+        "que personne ne le décide")
 
 
-def test_the_picker_shows_checkboxes_and_nothing_else():
-    """Une case, et rien sous elle.
+def test_nothing_asks_the_artist_to_pick_before_seeing():
+    """Plus aucune case à cocher sur l'écran de bienvenue.
 
-    Trois légendes accompagnaient chaque plateforme — sa valeur, « À fournir : … »,
-    et le piège qui la fait échouer en silence. Sept plateformes : vingt et une lignes
-    de prose sur un écran dont le geste tient en sept clics. « On ne garde uniquement
-    les sections à cocher » (2026-09-04).
-
-    Aucune n'était fausse, et aucune n'est perdue : le piège vit dans le guide de sa
-    plateforme (lisible quand on y est), « À fournir » dans ce guide et dans la
-    dernière colonne de la matrice d'état, la valeur dans le titre de la colonne qui
-    groupe par effort. Ce test empêche leur retour ICI, pas leur existence.
+    Ce que le sélecteur coûtait : il demandait un ARBITRAGE avant d'avoir montré quoi
+    que ce soit. Un artiste qui n'a encore rien vu ne peut pas savoir si Meta Ads lui
+    servira, et cocher trois cases sur sept était moins un choix qu'un abandon des
+    quatre autres — ce que la page de saisie faisait ensuite, en repliant le reste.
     """
-    fn = _fn(ONB, "_platform_checkbox")
+    fn = _fn(ONB, "_step_welcome")
     src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
     tree = ast.parse(src)
-    captions = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
-                and getattr(n.func, "attr", "") == "caption"]
-    assert not captions, (
-        f"{len(captions)} légende(s) sont revenues sous les cases à cocher — c'est "
-        "la prose qui a été retirée le 2026-09-04, pas seulement son texte")
-
-    body = ONB.read_text(encoding="utf-8")
-    for key in ("onboarding.value.", "onboarding.need", "onboarding.caveat."):
-        assert key not in body, (
-            f"« {key} » est de retour sur la page de mise en route")
-
-
-def test_the_three_columns_are_bordered_cells():
-    """« Des lignes démarcatrices comme un tableau entre les 3 colonnes. »
-
-    `st.columns` ne trace rien : trois listes côte à côte se lisent comme une seule au
-    fil de l'œil. Le garde exige le cadre de Streamlit — `container(border=True)` —
-    et pas un `<style>` visant le DOM : un sélecteur sur la structure interne se
-    casse à la première montée de version, en silence, et personne ne le voit puisque
-    la page continue de s'afficher.
-
-    Mesuré au navigateur : trois cellules à x = 380 / 717 / 1055, bordure 1 px.
-    """
-    fn = _fn(ONB, "_platform_picker")
-    src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
-    tree = ast.parse(src)
-    containers = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
-                  and getattr(n.func, "attr", "") == "container"]
-    assert containers, (
-        "les colonnes ne sont plus des conteneurs : rien ne les sépare visuellement")
-    for call in containers:
-        border = next((k.value for k in call.keywords if k.arg == "border"), None)
-        assert isinstance(border, ast.Constant) and border.value is True, (
-            "le conteneur de colonne n'a plus de bordure — les trois listes "
-            "redeviennent une seule")
-    assert "unsafe_allow_html" not in src, (
-        "la séparation est retombée sur du HTML brut : un sélecteur visant le DOM de "
-        "Streamlit se casse à la montée de version sans que rien ne le dise")
+    boxes = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and getattr(n.func, "attr", "") == "checkbox"]
+    assert not boxes, (
+        f"{len(boxes)} case(s) à cocher sont revenues sur l'écran de bienvenue")
+    # L'ARBRE, pas le texte : le nom `_platform_picker` vit encore dans le
+    # commentaire qui explique sa suppression, et la première version de cette
+    # assertion l'a accusé. Quatrième garde textuel pris sur sa propre documentation
+    # le 2026-09-05 — celui-là même que `test_a_guard_reads_structure_not_text` a
+    # cessé de rater le matin.
+    whole = ast.parse(ONB.read_text(encoding="utf-8"))
+    defined = {f.name for f in ast.walk(whole)
+               if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    assert "_platform_picker" not in defined and "_platform_checkbox" not in defined, (
+        "le sélecteur est revenu")
 
 
 def test_the_trial_says_one_month_not_only_thirty_days():
@@ -557,30 +549,34 @@ def test_only_one_language_selector_is_rendered_at_a_time():
     )
 
 
-def test_the_first_run_shows_only_the_platforms_that_were_ticked():
-    """« il y avait uniquement les items qu'on avait sélectionnés, il faudrait le
-    remettre » — and the artist's own hypothesis, « peut-être uniquement après
-    création du compte », is the right scope."""
-    src = CREDS.read_text(encoding="utf-8")
-    # AST, not the word. The first version asserted `"FIRST_RUN_FOCUS" in src` and
-    # stayed GREEN when the flag was replaced by `first_run = False` — the name still
-    # appeared in the import and the comment. Sixth time a textual predicate answered
-    # a question about structure.
-    tree = ast.parse(src)
-    reads = [n for n in ast.walk(tree)
-             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-             and n.func.attr == "get"
-             and any(isinstance(a, ast.Name) and a.id == "FIRST_RUN_FOCUS"
-                     for a in n.args)]
-    assert reads, (
-        "nothing READS the first-run flag from the session any more: the credentials "
-        "page shows all six platforms on day one again."
-    )
-    assert "credentials.other_platforms" in src, (
-        "the unselected platforms are HIDDEN rather than folded away: hiding what "
-        "exists makes people hunt for it."
-    )
+def test_the_first_run_shows_every_platform_at_one_level():
+    """Plus de repli : toutes les plateformes sont des onglets, au même niveau.
 
+    Ce test gardait l'inverse — « la première connexion ne montre QUE ce qui a été
+    coché » — et c'était juste tant qu'il y avait un choix à respecter. Le 2026-09-05
+    le choix a été retiré, et le repli avec lui : « mettre ➕ Les autres plateformes +
+    import CSV sur le même niveau d'onglet ».
+
+    Ce qui remplace la réduction est l'ORDRE. Elle existait pour ne pas noyer un
+    nouvel artiste sous six onglets ; sa vraie réponse était de dire par où
+    commencer, pas de cacher le reste — masquer ce qui existe fait chercher.
+    """
+    router = REPO / "src" / "dashboard" / "views" / "credentials" / "router.py"
+    tree = ast.parse(router.read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "show")
+
+    names = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
+    assert "hidden" not in names, (
+        "le repli des plateformes non cochées est revenu — il n'y a plus de "
+        "sélection à respecter, donc rien à replier")
+
+    expanders = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+                 and getattr(n.func, "attr", "") == "expander"]
+    assert not expanders, (
+        f"{len(expanders)} accordéon(s) dans la page de saisie : un accordéon au bas "
+        "de la page pour ce que le même écran présente en onglets, c'est deux niveaux "
+        "pour une seule liste")
 
 def test_the_sandbox_reset_replays_the_email_verification():
     """« ça ne nous remet pas à l'étape de mail à vérifier ».

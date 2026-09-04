@@ -11,8 +11,6 @@ EN = {
         "To replay the whole journey, sign in with the **sandbox** account: that is "
         "the tenant made for it."
     ),
-    "onboarding.pick_action": "👉 Tick what you want to set up now",
-    "onboarding.pick_hint": "You do not have to connect everything. The rest will wait in the **API Credentials** tab, later, inside the app.",
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections and your exports. You lose **🚀 Road to Algo** (Discover Weekly trigger predictions), **revenue forecasts** and the **Meta × Spotify cross-analyses**.",
     "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
                                "Here is what your current plan includes:",
@@ -34,16 +32,8 @@ EN = {
         "⚠️ Could not read your connection status ({err}). The list below may show "
         "“not connected” by mistake — retry in a moment before reconfiguring anything."
     ),
-    "onboarding.already_connected": " — ✅ already connected",
     "onboarding.reco_tag": " — ⭐ recommended",
-    "onboarding.effort": " · ≈{mins} min",
     "onboarding.need": "You will need: {need}",
-    "onboarding.configure_selection": "Set up my selection ({n}) → ≈{mins} min",
-    "onboarding.ready_focus": (
-        "Your selection: **{names}** (≈{mins} min). The Credentials page is waiting "
-        "with the guide for each — and will tell you whether the connection really "
-        "brings data back."
-    ),
     "onboarding.go_configure": "🔑 Connect my selection →",
     # Les lignes de valeur et de piège par plateforme ont été retirées de l'écran le
     # 2026-09-04 — « on ne garde uniquement les sections à cocher ». Elles vivent
@@ -51,10 +41,7 @@ EN = {
     # colonne pour la valeur. `onboarding.need` reste : son appelant est l'écran
     # d'attente après inscription, où il n'y a rien d'autre à faire que rassembler
     # ses identifiants.
-    "onboarding.locked_platform": "🔒 {icon} **{label}** — *Available on the {plan} plan*",
     "onboarding.back": "← Back",
-    "onboarding.next_finish": "Next: Finish →",
-    # Step 3 — Ready
     "onboarding.go_dashboard": "🏠 Go to dashboard →",
     # Sidebar progress
     "onboarding.steps_header": "### Steps",
@@ -81,23 +68,11 @@ EN = {
                            "after the month if you do not go Premium. **Your data stays "
                            "yours either way** — nothing is deleted, and the CSV export "
                            "stays free.",
-    "onboarding.enter_app": "🏠 Go to the app →",
-    "onboarding.keep_landing": "Show this page on login until my setup is complete",
-    "onboarding.keep_landing_unsaved": "⚠️ Preference not saved — try again later.",
-    "onboarding.setup_complete": "✅ Your setup is complete ({done}/{total}). "
-                                 "This page will no longer open on login.",
-    "onboarding.setup_progress": "Setup: **{done}/{total}** — until it is complete, "
-                                 "login brings you back here.",
-
     "onboarding.feat_meta_budget": (
         "+ 💶 **How much to put back on which campaign** — scale up, hold or cut, "
         "campaign by campaign, from the cost per listen gained"
     ),
     "onboarding.status_title": "📋 Where you stand",
-    "onboarding.pick_first_time": (
-        "The minutes shown are **first-time** effort. After that, everything updates on its own."
-    ),
-    # Les trois colonnes du sélecteur — le geste, pas le goût.
     "onboarding.col.quick": "⭐ Start here",
     "onboarding.col.longer": "A little longer",
     "onboarding.col.csv": "By file (CSV)",

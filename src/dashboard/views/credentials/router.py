@@ -18,17 +18,18 @@ from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
-from src.dashboard.content.platform_value import BY_KEY
+from src.dashboard.content.platform_value import (
+    BY_KEY, SETUP_COLUMN_ORDER, setup_columns,
+)
 from src.dashboard.utils.navigation import goto
-from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS
 from src.dashboard.utils.setup_focus import (
-    connected_platforms, get_focus, remaining,
+    connected_platforms, get_focus,
 )
 
 from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
                     artist_display_name)
 from ._registry import PLATFORMS
-from ._render import _render_platform_tab, render_save_verdict
+from ._render import _render_platform_tab
 
 
 # La sélection d'onboarding est par PLATEFORME ; les onglets de cette page sont par
@@ -235,64 +236,32 @@ def show():
         # reste de sa sélection, puis les autres. Chaque groupe garde l'ordre du
         # registre, pour que la page ne se réorganise pas sous ses yeux à chaque
         # rerun.
-        ordered = list(PLATFORMS.items())
-        if focus:
-            head = [k for k in remaining(focus, connected)
-                    if platform_destination(k).startswith("tab:")][:1]
-            # Le rang est calculé sur les clés d'ONGLET, pas sur les clés logiques —
-            # et c'est le correctif du 2026-09-04.
-            #
-            # Il était bâti sur `focus`, qui contient `instagram`. Or `instagram`
-            # n'est jamais une clé d'onglet : il se saisit dans celui de `meta`. Son
-            # rang 0 ne s'appliquait donc à personne, `meta` tombait dans le rang par
-            # défaut, et `spotify` — deuxième de la liste, mais bien présent comme
-            # onglet — restait en tête. Après avoir connecté Spotify, l'artiste
-            # rouvrait donc l'onglet Spotify, pendant que le bandeau au-dessus lui
-            # annonçait « Suivante : Instagram ». Vu au navigateur.
-            #
-            # C'est la même classe que le défaut d'hier sur `_TAB_FOR_PLATFORM` : une
-            # traduction logique → onglet posée à un endroit et oubliée à l'autre.
-            # `platform_destination` est le seul traducteur ; ici aussi.
-            def _tab_of(key: str) -> str:
-                dest = platform_destination(key)
-                return dest.split(":", 1)[1] if dest.startswith("tab:") else ""
-
-            wanted = [_tab_of(k) for k in head + [f for f in focus if f not in head]]
-            rank: dict = {}
-            for i, tab in enumerate(t for t in wanted if t):
-                rank.setdefault(tab, i)
-            ordered.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
-
-        # ── Première connexion : SEULEMENT ce qui a été coché ──────────────
+        # TOUS les onglets, au même niveau, dans l'ordre où l'on conseille de s'y
+        # prendre. Décidé le 2026-09-05 : « on propose tout directement par ordre de
+        # simplicité et de plus-value, mais le parcours incite à tout faire ».
         #
-        # Réordonner ne suffisait pas. Signalé le 2026-09-04 : « il y avait uniquement
-        # les items qu'on avait sélectionnés, il faudrait le remettre, il y a trop
-        # d'infos au début — le plus simple possible, mais c'est peut-être uniquement
-        # après création du compte ? » La dernière moitié est la bonne réponse et
-        # c'est l'artiste qui la formule : la réduction n'a de sens que le premier
-        # jour. Le drapeau qui la porte est déjà celui de l'ARRIVÉE
-        # (`FIRST_RUN_FOCUS`), pas de la page, et il meurt dès que l'artiste est
-        # ailleurs — sa sélection (`FOCUS_KEY`) vit dans la même session, les deux
-        # apparaissent et disparaissent ensemble.
+        # Ce qui disparaît avec ce bloc :
         #
-        # Les autres plateformes ne sont pas cachées, elles sont REPLIÉES : masquer
-        # ce qui existe fait chercher, et le dépôt a déjà payé « du code correct que
-        # rien n'atteignait » six fois en une séance.
+        #   * le RÉORDONNANCEMENT par la sélection — il n'y a plus de sélection ;
+        #   * le REPLI des plateformes non cochées dans « ➕ Les N autres » — un
+        #     accordéon au bas de la page pour ce que le même écran présente en
+        #     onglets, c'est deux niveaux pour une seule liste ;
+        #   * la réduction « première connexion » : elle existait pour ne pas noyer
+        #     un nouvel artiste sous six onglets, et sa vraie réponse est l'ORDRE.
         #
-        # `instagram` n'a PAS d'onglet : il vit dans celui de `meta` (« 📱 Meta /
-        # Instagram »), et `apple_music` n'en a pas du tout — c'est un import CSV.
-        # Traduire la sélection en onglets est donc obligatoire : sans ça, un artiste
-        # qui coche Instagram voyait son onglet REPLIÉ, ce qui est pire que six
-        # onglets. Vu au navigateur, à la première tentative.
-        hidden = []
-        first_run = bool(st.session_state.get(FIRST_RUN_FOCUS))
-        if first_run and focus:
-            tabs_wanted = {platform_destination(k).split(":", 1)[1] for k in focus
-                           if platform_destination(k).startswith("tab:")}
-            keep = [kv for kv in ordered if kv[0] in tabs_wanted]
-            hidden = [kv for kv in ordered if kv[0] not in tabs_wanted]
-            if keep:
-                ordered = keep
+        # L'ordre vient de `setup_columns()`, le seul endroit qui décide « par où
+        # commencer » : les trois rapides d'abord (un lien à coller), puis celles qui
+        # demandent d'aller chercher un identifiant, puis le dépôt de fichiers. C'est
+        # la même information que les trois colonnes de l'ancien sélecteur — elle
+        # suggère au lieu de demander.
+        _rank = {}
+        for _col in SETUP_COLUMN_ORDER:
+            for _pv in setup_columns().get(_col, []):
+                dest = platform_destination(_pv.key)
+                if dest.startswith("tab:"):
+                    _rank.setdefault(dest.split(":", 1)[1], len(_rank))
+        ordered = sorted(PLATFORMS.items(),
+                         key=lambda kv: (_rank.get(kv[0], len(_rank)), kv[0]))
 
         tab_labels = [info['label'] for _, info in ordered]
         _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple)")
@@ -302,17 +271,33 @@ def show():
         # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient
         # d'être enregistrée compte déjà comme connectée, donc `left_here` désigne
         # bien la suivante et non celle qu'on vient de faire.
-        _left_here = [k for k in remaining(focus, connected)
-                      if platform_destination(k).startswith("tab:")] if focus else []
-        next_platform = (_left_here[0], _next_label(_left_here[0])) if _left_here else None
-        selection_complete = bool(focus) and not remaining(focus, connected)
+        # « La suivante » n'est plus tirée d'une sélection — il n'y en a plus. C'est
+        # le prochain ONGLET non connecté dans l'ordre conseillé, ce qui est la même
+        # promesse en plus simple : le parcours incite à tout faire, dans cet ordre.
+        def _next_after(key: str) -> tuple | None:
+            keys = [k for k, _ in ordered]
+            try:
+                start = keys.index(key) + 1
+            except ValueError:
+                start = 0
+            for nxt in keys[start:] + keys[:start]:
+                if nxt == key:
+                    continue
+                logical = next((lg for lg in BY_KEY
+                                if platform_destination(lg) == f"tab:{nxt}"), nxt)
+                if logical not in connected:
+                    return (logical, _next_label(logical))
+            return None
 
         # Le verdict de la sauvegarde qui vient d'avoir lieu — AU-DESSUS des onglets.
         # Dans l'onglet, il tombait dans celui qu'on venait de quitter : la page se
         # réordonne pour ouvrir la plateforme SUIVANTE, donc le « ✅ … est connecté »
         # s'affichait dans un onglet fermé. Ici, il est lu quoi qu'il arrive.
-        render_save_verdict(next_platform, selection_complete)
-
+        # Le verdict ne se rend plus ICI : il descend DANS l'onglet, juste au-dessus
+        # de « Saisir tes identifiants ». Demandé le 2026-09-05 : « dès que j'ai
+        # collé mon URL Spotify, il faudrait mettre les infos au-dessus de saisir tes
+        # identifiants ». Au-dessus des onglets il était à l'endroit qu'on venait de
+        # quitter ; au-dessus du champ il est à l'endroit où l'on regarde.
         # Le dernier onglet est le DÉPÔT DE FICHIERS, pas une plateforme : Spotify for
         # Artists et Apple Music ne se connectent pas par identifiant. Ils avaient
         # leur page à part, dont l'entrée de menu a disparu le 2026-09-04 — deux
@@ -334,6 +319,7 @@ def show():
                     fernet_ok=fernet_ok,
                     dag_states=dag_states,
                     artist_name=artist_name,
+                    next_platform=_next_after(platform_key),
                 )
 
         with tabs[-1]:
@@ -345,29 +331,9 @@ def show():
             from src.dashboard.views.upload_csv import render_uploader
             render_uploader(db, target_artist_id)
 
-        if hidden:
-            with st.expander(t("credentials.other_platforms",
-                               "➕ Les {n} autres plateformes ({names})").format(
-                                   n=len(hidden),
-                                   names=", ".join(i['label'] for _, i in hidden))):
-                st.caption(t(
-                    "credentials.other_platforms_help",
-                    "Repliées parce que tu ne les as pas cochées à la mise en route. "
-                    "Elles restent connectables ici, maintenant ou plus tard — et le "
-                    "menu complet réapparaît dès que tu entres dans l'application."))
-                sub = st.tabs([i['label'] for _, i in hidden])
-                for tab, (platform_key, platform_info) in zip(sub, hidden):
-                    with tab:
-                        _render_platform_tab(
-                            db=db,
-                            platform_key=platform_key,
-                            platform_info=platform_info,
-                            artist_id=target_artist_id,
-                            existing_row=existing.get(platform_key),
-                            fernet_ok=fernet_ok,
-                            dag_states=dag_states,
-                            artist_name=artist_name,
-                        )
+        # L'accordéon « ➕ Les N autres plateformes » a disparu avec le repli qu'il
+        # servait : elles sont toutes des onglets maintenant, au même niveau.
+
     finally:
         db.close()
 

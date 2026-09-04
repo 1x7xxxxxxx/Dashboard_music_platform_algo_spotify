@@ -36,6 +36,23 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from src.utils.env_files import load_project_env  # noqa: E402 — après le sys.path
+
+# CHARGER l'environnement, comme les quatre outils frères (`artist_preflight`,
+# `artist_first_look`, `create_canary`, `check_central_apps`). Celui-ci ne le faisait
+# pas, et le manque était INVISIBLE : la base marche quand même, parce que
+# `PostgresHandler.from_env_or_config()` retombe sur `config/config.yaml`. Tout ce qui
+# vient de l'env, lui, dégradait en silence :
+#
+#   `_default_email` ne trouvait ni SANDBOX_EMAIL, ni ALERT_EMAIL, ni SMTP_USER, et
+#   retombait sur `<slug>@sandbox.local` — un domaine qui n'existe pas ;
+#   `send_verification_email` ne trouvait aucun SMTP_* et ne pouvait pas partir.
+#
+# Signalé le 2026-09-05 : « je viens de refaire le script pour sandbox et je n'ai pas
+# l'email ». Le script disait pourtant « E-mail de vérification ENVOYÉ » ou son
+# contraire — mais l'adresse annoncée était déjà la mauvaise, deux écrans plus haut.
+load_project_env()
+
 
 _OK, _KO = "✅", "❌"
 

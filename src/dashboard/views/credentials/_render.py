@@ -78,19 +78,27 @@ def _verdict_from_probes(probes: dict, platform_key: str) -> tuple:
 
 
 def render_save_verdict(next_platform: tuple | None,
-                        selection_complete: bool = False) -> None:
+                        selection_complete: bool = False,
+                        owner: str | None = None) -> None:
     """Le verdict de la sauvegarde qui vient d'avoir lieu, en gros, une seule fois.
 
-    Rendu AU-DESSUS des onglets, par `router.show()`, et c'est un correctif du
-    2026-09-04 : il vivait dans `_render_platform_tab`, donc dans l'onglet de la
-    plateforme qu'on venait d'enregistrer. Or la page se réordonne au rerun pour
-    ouvrir la SUIVANTE à connecter — c'est le comportement voulu, « rediriger vers
-    la plateforme suivante ». Conséquence : l'onglet qui portait le « ✅ Spotify est
-    connecté » n'était plus celui qui s'ouvrait, et le verdict s'affichait dans un
-    onglet fermé. Deux comportements justes qui s'annulaient.
+    Rendu DANS l'onglet, au-dessus de « Saisir tes identifiants » — et il a fait
+    l'aller-retour, ce qui vaut d'être écrit.
 
-    Au-dessus des onglets, il est lu quel que soit celui qui est ouvert — et il
-    tombe juste à côté du bandeau qui nomme la suivante.
+    Le 2026-09-04 il en a été SORTI, pour une raison réelle : la page se réordonnait
+    au rerun pour ouvrir la plateforme suivante, donc l'onglet qui portait « ✅
+    Spotify est connecté » n'était plus celui qui s'ouvrait, et le verdict
+    s'affichait dans un onglet fermé.
+
+    Le 2026-09-05, le réordonnancement a disparu avec la sélection : l'ordre des
+    onglets est désormais fixe (`setup_columns`). La cause du déplacement n'existe
+    plus, et l'endroit demandé — « au-dessus de saisir tes identifiants » — est celui
+    où l'on regarde après avoir collé une valeur.
+
+    **Seul l'onglet CONCERNÉ le rend.** `pop` consomme le verdict : appelée depuis
+    les cinq onglets, la fonction le verrait disparaître dans le premier rendu par
+    Streamlit, qui n'est pas forcément celui qu'on regarde. Le filtre est donc dans
+    l'appelant, et `owner` le rend explicite.
 
     Consommé (`pop`) : c'est le compte rendu d'une action, pas un état. Laissé en
     place, il réapparaîtrait à chaque rerun de la page, y compris des jours plus
@@ -99,6 +107,8 @@ def render_save_verdict(next_platform: tuple | None,
     pending = st.session_state.get(VERDICT_KEY)
     if not pending:
         return
+    if owner is not None and pending[0] != owner:
+        return                      # ce verdict n'est pas le nôtre : ne pas le manger
     st.session_state.pop(VERDICT_KEY, None)
     platform_key, ok, reason = pending
     label = platform_label(platform_key)
@@ -211,7 +221,8 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
 
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None,
-                         artist_name: str | None = None):
+                         artist_name: str | None = None,
+                         next_platform: tuple | None = None):
     # Un champ `admin_only` est une surcharge d'exploitant : l'artiste ne doit ni
     # le voir ni pouvoir l'écrire. Filtré ICI, donc `_handle_save` ne le lit pas non
     # plus — le filtre porte sur la définition, pas seulement sur l'affichage.
@@ -307,6 +318,10 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         with _col_shot:
             for _path, _caption in _shots:
                 st.image(str(_path), caption=_caption, use_container_width=True)
+
+    # Le verdict de la sauvegarde qui vient d'avoir lieu, AU-DESSUS de tout le reste
+    # de cet onglet — donc au-dessus de « Saisir tes identifiants ».
+    render_save_verdict(next_platform, owner=platform_key)
 
     # ── Meta : l'assistant qui trouve le numéro de compte ─────────
     # AU-DESSUS du formulaire, parce que c'est l'étape qui précède la saisie : il

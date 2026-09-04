@@ -31,6 +31,16 @@ from pathlib import Path
 # and a type name alone cannot leak a credential.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from src.utils.env_files import load_project_env  # noqa: E402 — après le sys.path
+
+# Même omission que `create_sandbox.py`, trouvée par le même balayage (2026-09-05) et
+# plus exposée : cet outil est le cron de dérive de schéma qui s'auto-notifie par
+# Brevo, et il lit SIX variables SMTP. Il fonctionne aujourd'hui parce que le cron de
+# prod exporte l'environnement lui-même — c'est-à-dire pour une raison qui vit
+# ailleurs que dans ce fichier, et qu'une réécriture du cron peut retirer sans le
+# savoir. Un outil qui a besoin de l'environnement le charge.
+load_project_env()
+
 try:
     from src.utils.safe_error import safe_error  # noqa: E402 — needs the path line above
 except ImportError:  # pragma: no cover — exercised by test_alert_survives_a_broken_repo

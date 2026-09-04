@@ -19,11 +19,6 @@ from src.utils.tenant_identity import declared_identities
 from src.dashboard.utils.i18n import get_lang, t
 from src.dashboard.auth import tenant_scope, get_artist_plan, is_admin
 from src.database.stripe_schema import PLAN_FEATURES
-from src.dashboard.content.platform_value import (
-    COLUMN_CSV, COLUMN_LONGER, COLUMN_QUICK, SETUP_COLUMN_ORDER,
-    BY_KEY, setup_columns, total_effort,
-)
-from src.dashboard.utils.setup_focus import FOCUS_KEY
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.navigation import goto
 
@@ -441,172 +436,36 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # Le choix, ICI. Il vivait sur une deuxième page qui commençait par redire la
     # liste que la feuille de route venait d'énumérer. Une page de moins, un
     # inventaire de moins, et le geste au même endroit que ce qui l'explique.
-    selection = _platform_picker(plan, artist_id, db)
-
+    # PLUS DE CASES À COCHER. Décidé le 2026-09-05 : « on ne va pas demander les
+    # cases à cocher de ce qu'il veut configurer, on propose tout directement par
+    # ordre de simplicité et de plus-value, mais le parcours incite à tout faire ».
+    #
+    # Ce que le sélecteur coûtait, et qui ne se voyait pas en le regardant : il
+    # demandait un ARBITRAGE avant d'avoir montré quoi que ce soit. Un artiste qui
+    # n'a encore rien vu ne peut pas savoir si Meta Ads lui servira ; cocher trois
+    # cases sur sept était donc moins un choix qu'un abandon des quatre autres, et
+    # c'est exactement ce que la page de saisie faisait ensuite — elle repliait ce
+    # qu'il n'avait pas coché.
+    #
+    # Le tri par effort survit, lui : il est devenu l'ORDRE des onglets. Ce qui était
+    # une colonne « Commence par là » est maintenant le premier onglet, ce qui n'est
+    # pas la même information — l'un demande de trancher, l'autre suggère par où
+    # entrer et laisse tout atteignable.
     st.markdown("---")
-    if selection:
-        label = t("onboarding.configure_selection",
-                  "Configurer ma sélection ({n}) → ≈{mins} min").format(
-                      n=len(selection), mins=total_effort(selection))
-    else:
-        label = t("onboarding.next_finish", "Continuer sans rien connecter →")
-    if st.button(label, type="primary"):
-        # Carried to the credentials page, which walks the selection in order and
-        # tracks what is left — so "I picked two things" survives the navigation.
-        st.session_state[FOCUS_KEY] = selection
+    if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+                 type="primary", key="_onb_go_creds"):
         st.session_state[_STEP_KEY] = 2
-        if selection:
-            # DIRECTEMENT sur la page de saisie : un écran intermédiaire ne ferait
-            # que reposer la question à laquelle ce bouton vient de répondre
-            # (2026-09-04). L'étape 2 reste atteignable par la barre latérale, et
-            # c'est là qu'on revient voir où on en est.
-            _goto('credentials')
-            return
-        st.rerun()
+        _goto('credentials')
+        return
 
 
-def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
-    """Les cases à cocher, et la sélection qu'elles rendent.
-
-    Extraite de l'étape 2 le 2026-09-04 et remontée sur la page de bienvenue —
-    « il faudrait faire venir la section *coche ce que tu veux configurer* sur la
-    première page ».
-
-    Elle y remplace une liste qui disait la même chose en moins : nom, durée,
-    « À fournir », sans la valeur ni le piège de chaque plateforme. Deux inventaires
-    des mêmes six lignes à deux écrans d'intervalle, c'est la duplication signalée.
-    Ici, l'inventaire EST l'action : on lit et on coche au même endroit.
-    """
-    configured = _get_configured_platforms(artist_id, db)
-
-    accessible = PLAN_FEATURES.get(plan, set())
-    is_all = '*' in accessible
-    plan_ranks = {'free': 0, 'premium': 1}
-    current_rank = plan_ranks.get(plan, 0)
-
-    # L'ACTION en gros, l'info en petit — demandé après le test du 2026-08-30 :
-    # « mettre en gros gras surbrillance de section les ACTIONS à effectuer, en plus
-    # petit les infos ».
-    # ACTION → surbrillance. Voir le commentaire de `_render_platform_tab` sur le
-    # choix de `:orange-background[…]` plutôt qu'un `<style>`.
-    st.markdown("### :orange-background["
-                + t("onboarding.pick_action", "👉 Coche ce que tu veux configurer maintenant")
-                + "]")
-    # Il n'y a plus de ligne « ⭐ Recommandé pour démarrer : … ». Elle a été le pavé
-    # bleu, puis une ligne sous l'action, et le 2026-09-04 elle est devenue le TITRE
-    # de la première colonne — « ⭐ Commence par là ». Trois formes de la même phrase
-    # en une journée, dont la dernière la MONTRE au lieu de la dire : la colonne
-    # groupe exactement ce que la ligne énumérait, et son total est déjà sur le bouton
-    # (« Configurer ma sélection (3) → ≈9 min »).
-    #
-    # La liste des recommandées non encore connectées, qu'elle calculait, part avec
-    # elle : personne d'autre ne la lisait, et `setup_columns()` regroupe déjà.
-    st.caption(t("onboarding.pick_hint",
-                 "Tu n'as pas besoin de tout connecter. Le reste attendra dans "
-                 "l'onglet **Credentials API**, plus tard, dans l'application."))
-    # La SEULE chose que la liste supprimée disait et que les cases ne disaient pas :
-    # que ces durées sont le coût de la PREMIÈRE fois. Le reste — icône, nom, minutes,
-    # ⭐, « À fournir » — chaque case le porte déjà, et y ajoute la valeur de la
-    # plateforme et son piège. Une phrase, pas un second inventaire : c'est ce qui la
-    # distingue du bloc retiré le 2026-09-04.
-    st.caption(t("onboarding.pick_first_time",
-                 "Les minutes indiquées sont celles de **la première fois**. "
-                 "Ensuite, tout se met à jour tout seul."))
-
-    # Le récapitulatif replié des six coûts a vécu ici quelques heures, le
-    # 2026-09-04, et il a été retiré le jour même : « on le redit après, donc c'est
-    # redondant ». C'est exact, et le repli n'y changeait rien — il rangeait la
-    # répétition sans la supprimer. Chaque case porte déjà sa durée ; comparer les
-    # six ne vaut pas un bloc de plus sur l'écran qui demande de choisir.
-    #
-    # Ce qui reste de son intention est la ligne au-dessus : ces minutes sont celles
-    # de la première fois. C'était la seule chose qu'aucune case ne disait.
-
-    # TROIS COLONNES, et pas six cases empilées. Demandé le 2026-09-04 : « mettre à
-    # gauche et cochées celles qu'on recommande, à droite les autres, et ranger par
-    # colonne pour bien comprendre ».
-    #
-    # Une pile ne hiérarchise rien : le ⭐ posé sur trois lignes d'une même liste est
-    # un ornement, pas un ordre. Les colonnes, elles, disent la seule chose qui aide à
-    # choisir — combien de travail chaque groupe demande. Le découpage vient de
-    # `setup_columns()`, donc d'un champ des plateformes, pas de trois listes de clés
-    # recopiées ici (voir son commentaire).
-    selection: list[str] = []
-    groups = setup_columns(configured)
-    cols = st.columns(len(SETUP_COLUMN_ORDER), gap="medium")
-    for _col, _name in zip(cols, SETUP_COLUMN_ORDER):
-        # Une cellule ENCADRÉE par colonne — « des lignes démarcatrices comme un
-        # tableau entre les 3 colonnes » (2026-09-04). `st.columns` ne trace aucune
-        # séparation : trois listes côte à côte se lisent comme une seule au fil de
-        # l'œil. Le cadre est celui de Streamlit (`st.container(border=True)`), pas
-        # du CSS visant le DOM — un sélecteur sur la structure interne se casse à la
-        # première montée de version, en silence.
-        with _col.container(border=True):
-            st.markdown("**" + t(f"onboarding.col.{_name}", _COLUMN_TITLES[_name]) + "**")
-            for pv in groups[_name]:
-                selection.extend(_platform_checkbox(
-                    pv, configured, is_all, plan_ranks, current_rank))
-
-    return selection
-
-
-# Les sous-titres de colonne ont vécu une journée : « Un lien à copier, rien à
-# installer. » / « Un identifiant à aller chercher… » / « Un export à télécharger… ».
-# Ils expliquaient le critère de groupement à quelqu'un qui n'a pas à le connaître —
-# le titre de la colonne suffit à dire dans quel ordre s'y prendre.
-_COLUMN_TITLES = {
-    COLUMN_QUICK: "⭐ Commence par là",
-    COLUMN_LONGER: "Un peu plus long",
-    COLUMN_CSV: "Par fichier (CSV)",
-}
-
-
-def _platform_checkbox(pv, configured: set[str], is_all: bool,
-                       plan_ranks: dict, current_rank: int) -> list[str]:
-    """Une case et ce qu'elle dit — extraite le 2026-09-04 pour tenir en colonne.
-
-    Renvoie une liste plutôt qu'un booléen : l'appelant l'`extend`, donc une case
-    verrouillée ou déjà connectée n'ajoute rien sans que personne ait à filtrer.
-    """
-    meta = _PLATFORM_META.get(pv.key, {})
-    required_rank = plan_ranks.get(meta.get('plan', 'free'), 0)
-    if not (is_all or required_rank <= current_rank):
-        st.markdown(
-            t("onboarding.locked_platform",
-              "🔒 {icon} **{label}** — *Disponible en plan {plan}*").format(
-                  icon=pv.icon, label=pv.label,
-                  plan=meta.get('plan', 'free').capitalize())
-        )
-        return []
-
-    connected = pv.key in configured
-    head = f"{pv.icon} **{pv.label}**"
-    if connected:
-        head += t("onboarding.already_connected", " — ✅ déjà connecté")
-    head += t("onboarding.effort", " · ≈{mins} min").format(mins=pv.effort_min)
-
-    # Le ⭐ de la ligne a disparu avec la pile : dans une colonne intitulée
-    # « Commence par là », le répéter sur chacune de ses cases ne dit rien de plus.
-    checked = st.checkbox(head, value=(pv.recommended and not connected),
-                          disabled=connected, key=f"_onb_pick_{pv.key}")
-    # RIEN sous la case. Trois légendes l'accompagnaient — la valeur de la
-    # plateforme, « À fournir : … », et le piège qui la fait échouer — soit vingt et
-    # une lignes de prose sur un écran dont le geste tient en sept clics.
-    #
-    # Elles avaient chacune une raison d'être, et le mot juste est « avaient » :
-    #
-    #   la VALEUR répondait à « pourquoi celle-là ? » — la colonne y répond
-    #     maintenant, en groupant par effort ;
-    #   « À FOURNIR » répondait à « qu'est-ce qu'on va me demander ? » — le guide de
-    #     chaque onglet le dit à l'instant où c'est utile, c'est-à-dire quand on le
-    #     fournit, et la matrice d'état le redit dans sa dernière colonne ;
-    #   le PIÈGE (compte Business, titres publics, chaîne « … - Topic », asset
-    #     sharing) reste dans le guide de sa plateforme, où il est lisible parce
-    #     qu'on y est déjà.
-    #
-    # Aucune n'est perdue : elles sont dites là où elles servent, au lieu d'être
-    # dites toutes ensemble avant que rien ne serve.
-    return [pv.key] if (checked and not connected) else []
+# `_platform_picker` et `_platform_checkbox` ont été supprimés le 2026-09-05 avec le
+# choix qu'ils portaient. Les trois colonnes qu'ils rendaient — « Commence par là »,
+# « Un peu plus long », « Par fichier (CSV) » — vivent désormais dans l'ORDRE des
+# onglets de la page de saisie, où elles suggèrent au lieu de demander.
+#
+# `setup_columns()` reste : c'est elle qui donne cet ordre, et c'est le seul endroit
+# qui décide « par où commencer ».
 
 
 def _step_status(db, artist_id: int) -> None:
@@ -620,17 +479,11 @@ def _step_status(db, artist_id: int) -> None:
     mise en route dont deux ne portaient qu'un bouton chacun, c'était le contraire de
     « le plus simple possible ».
     """
-    focus = st.session_state.get(FOCUS_KEY) or []
+    # Plus de « Ta sélection : … » : il n'y a plus de sélection depuis le
+    # 2026-09-05. Ce bloc lisait `FOCUS_KEY`, que plus personne n'écrit — il était
+    # devenu du code correct que rien n'atteint, la forme que ce dépôt a payée six
+    # fois en une séance. Retiré avec le mécanisme, pas laissé « au cas où ».
     st.title(t("onboarding.status_title", "📋 Où tu en es"))
-
-    if focus:
-        names = " + ".join(f"{BY_KEY[k].icon} {BY_KEY[k].label}" for k in focus if k in BY_KEY)
-        st.success(
-            t("onboarding.ready_focus",
-              "Ta sélection : **{names}** (≈{mins} min). La page Credentials t'attend "
-              "avec le guide de chacune — et te dira si la connexion ramène "
-              "vraiment des données.").format(names=names, mins=total_effort(focus))
-        )
 
     if db is not None and artist_id is not None:
         render_status_matrix(db, artist_id, key_suffix="onboarding")
@@ -644,13 +497,15 @@ def _step_status(db, artist_id: int) -> None:
     if col_back.button(t("onboarding.back", "← Retour")):
         st.session_state[_STEP_KEY] = 1
         st.rerun()
-    if col_creds.button(t("onboarding.go_configure", "🔑 Connecter ma sélection →"),
-                        type="primary" if focus else "secondary",
-                        key="_onb_done_creds"):
+    # Le bouton de configuration est TOUJOURS l'action principale : c'est ce que le
+    # parcours incite à faire. Il dépendait d'une sélection (`type="primary" if focus`),
+    # et sans sélection cette condition n'avait plus de réponse — un artiste qui n'a
+    # rien coché n'existe plus.
+    if col_creds.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+                        type="primary", key="_onb_done_creds"):
         _goto('credentials')
     if col_home.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
-                       type="secondary" if focus else "primary",
-                       key="_onb_done_home"):
+                       type="secondary", key="_onb_done_home"):
         _goto('home')
 
 
@@ -711,47 +566,26 @@ def _render_landing_choice(db, state) -> None:
     L'écriture est synchrone, pas dans un `on_change` : le callback tournerait au début
     du run SUIVANT, quand la connexion de `show()` est déjà fermée.
     """
-    from src.dashboard.utils.setup_completion import FIRST_RUN_FOCUS, set_show_on_login
-
+    # Ni compteur, ni case à cocher : UN bouton.
+    #
+    # Ce qui part le 2026-09-05, et pourquoi. « Configuration : 2/4 — tant que ce
+    # n'est pas complet, tu retombes ici à la connexion » annonçait une contrainte au
+    # lieu d'une étape, et la barre de progression la répétait en image. « Afficher
+    # cette page à la connexion tant que ma configuration n'est pas terminée » offrait
+    # un réglage à quelqu'un qui n'a pas encore vu ce qu'il réglerait.
+    #
+    # Le compteur avait une deuxième raison de partir : il comptait sur QUATRE étapes
+    # (credentials, CSV S4A, CSV Apple, première collecte) pendant que la page,
+    # au-dessus, en propose six. Deux dénombrements du même parcours sur le même
+    # écran, dont aucun n'est faux — c'est la classe `one-set-answers-two-questions`,
+    # et ici la réponse la plus simple est de n'en garder aucun.
+    #
+    # La préférence `show_setup_on_login` existe toujours en base et reste écrite par
+    # `--reset` : ce qui disparaît est le RÉGLAGE offert ici, pas le mécanisme.
     st.markdown("---")
-    if state.complete:
-        st.success(t("onboarding.setup_complete",
-                     "✅ Ta configuration est complète ({done}/{total}). "
-                     "Cette page ne s'affichera plus à la connexion.")
-                   .format(done=state.done_count, total=state.total))
-    else:
-        st.progress(state.done_count / state.total if state.total else 0.0)
-        st.caption(t("onboarding.setup_progress",
-                     "Configuration : **{done}/{total}** — tant que ce n'est pas "
-                     "complet, tu retombes ici à la connexion.")
-                   .format(done=state.done_count, total=state.total))
-
-    col_go, col_keep = st.columns([2, 3])
-    with col_go:
-        if st.button(t("onboarding.enter_app", "🏠 Accéder à l'application →"),
-                     type="primary", use_container_width=True, key="_onb_enter_app"):
-            _goto('home')
-    with col_keep:
-        keep = st.checkbox(
-            t("onboarding.keep_landing",
-              "Afficher cette page à la connexion tant que ma configuration "
-              "n'est pas terminée"),
-            value=state.show_on_login, key="_onb_keep_landing")
-        user_id = st.session_state.get('user_id')
-        if keep != state.show_on_login and user_id and db is not None:
-            try:
-                set_show_on_login(db, user_id, keep)
-            except Exception as exc:      # noqa: BLE001 — une préférence, jamais un mur
-                logger.warning("show_setup_on_login not saved: %s", type(exc).__name__)
-                st.caption(t("onboarding.keep_landing_unsaved",
-                             "⚠️ Préférence non enregistrée — réessaie plus tard."))
-            else:
-                if not keep:
-                    # Décocher rend le menu TOUT DE SUITE. La barre latérale de ce run
-                    # est déjà dessinée sans lui : sans ce rerun, l'artiste décoche et
-                    # ne voit rien changer avant sa prochaine action.
-                    st.session_state.pop(FIRST_RUN_FOCUS, None)
-                    st.rerun()
+    if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+                 type="primary", use_container_width=True, key="_onb_enter_app"):
+        _goto('credentials')
 
 
 def show() -> None:

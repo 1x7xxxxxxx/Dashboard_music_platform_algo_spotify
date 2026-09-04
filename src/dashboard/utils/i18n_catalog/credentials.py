@@ -26,12 +26,6 @@ EN = {
         "identifier can belong to one artist only — check that this one is yours. "
         "If you believe this is a mistake, contact the administrator."
     ),
-    "credentials.other_platforms": "➕ The {n} other platforms ({names})",
-    "credentials.other_platforms_help": (
-        "Folded away because you did not tick them during setup. You can still "
-        "connect them here, now or later — and the full menu comes back as soon as "
-        "you enter the app."
-    ),
     "credentials.no_creds_banner": (
         "💡 **No credentials configured.** "
         "Select a platform below and follow the guide "

@@ -261,7 +261,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_the_pdf_says_what_the_screen_says.py": 2,
     "test_the_setup_asks_only_what_it_needs.py": 1,
     "test_the_setup_guide_is_reachable.py": 3,
-    "test_the_setup_page_is_reachable_and_on_top.py": 29,
+    "test_the_setup_page_is_reachable_and_on_top.py": 25,
     "test_the_soundcloud_ask_is_one_thing.py": 1,
     "test_the_trigger_rate_compares_the_same_ruler.py": 1,
     "test_two_checks_one_question.py": 7,

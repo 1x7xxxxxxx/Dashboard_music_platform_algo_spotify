@@ -5,6 +5,93 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 — Le parcours cesse de demander, et le bac à sable retrouve ses e-mails
+
+### « Je n'ai pas l'email » — ce n'était pas le SMTP
+
+`tools/create_sandbox.py` ne chargeait **jamais** `.env` / `.env.local`. Lancé depuis
+un shell ordinaire — la seule façon dont on le lance — il ne voyait ni
+`SANDBOX_EMAIL`, ni `ALERT_EMAIL`, ni `SMTP_USER`, et retombait sur son défaut
+`<slug>@sandbox.local` : un domaine qui n'existe pas. Puis il tentait l'envoi vers
+cette adresse, sans identifiants SMTP non plus.
+
+**Ce qui rendait la classe invisible : la moitié qui compte marchait quand même.**
+`PostgresHandler.from_env_or_config()` retombe sur `config.yaml`, donc la base
+répondait, le compte était créé, le mot de passe s'affichait, le script finissait en
+vert. Seul ce qui dépend UNIQUEMENT de l'environnement dégradait — et vers une valeur
+plausible, pas vers une erreur.
+
+Balayé avant de corriger : quatre outils frères chargent déjà `load_project_env`,
+**deux** ne le faisaient pas. Le second est `notify_schema_drift.py`, le cron de
+dérive de schéma qui s'auto-notifie par Brevo — six variables SMTP. Il fonctionne
+aujourd'hui parce que le cron de prod exporte l'environnement lui-même, c'est-à-dire
+pour une raison qui vit ailleurs que dans le fichier et qu'une réécriture du cron peut
+retirer sans le savoir.
+
+### Le sélecteur de plateformes est supprimé
+
+« On ne va pas demander les cases à cocher de ce qu'il veut configurer, on propose
+tout directement par ordre de simplicité et de plus-value, mais le parcours incite à
+tout faire. »
+
+Ce que le sélecteur coûtait, et qui ne se voyait pas en le regardant : **il demandait
+un arbitrage avant d'avoir montré quoi que ce soit.** Un artiste qui n'a encore rien vu
+ne peut pas savoir si Meta Ads lui servira ; cocher trois cases sur sept était moins un
+choix qu'un abandon des quatre autres — ce que la page de saisie faisait ensuite, en
+repliant le reste.
+
+Le tri par effort survit, et c'est tout ce qui méritait de survivre : il est devenu
+l'ORDRE des onglets. Ce qui était une colonne « Commence par là » est maintenant le
+premier onglet — l'un demande de trancher, l'autre suggère par où entrer et laisse
+tout atteignable.
+
+Partent avec lui : le repli « ➕ Les N autres plateformes », le réordonnancement par
+la sélection, la réduction « première connexion », et 16 clés i18n.
+
+### Le compteur avait un second défaut, non signalé
+
+« Configuration : 2/4 » comptait sur QUATRE étapes pendant que la page, au-dessus, en
+proposait SIX. Deux dénombrements du même parcours sur le même écran, dont aucun n'est
+faux — c'est `one-set-answers-two-questions`, capitalisée le matin même. La réponse la
+plus simple était de n'en garder aucun.
+
+### Le verdict a fait l'aller-retour, et la raison a changé
+
+Sorti de l'onglet le 2026-09-04 pour une vraie cause : la page se réordonnait, donc
+l'onglet portant « ✅ Spotify est connecté » n'était plus celui qui s'ouvrait. Ce
+réordonnancement disparaît avec la sélection — **la cause du déplacement n'existe
+plus**, et l'endroit demandé est celui où l'on regarde après avoir collé une valeur.
+
+Un détail qui aurait mordu : `pop` consomme le verdict. Appelée depuis les cinq
+onglets, la fonction le verrait disparaître dans le premier rendu par Streamlit, qui
+n'est pas celui qu'on regarde. Le filtre (`owner`) est donc dans l'appelant.
+
+Mesuré : verdict y=458, « Suivante » y=530, champ y=727.
+
+### Neuf gardes tombés, chacun tranché sur « la question survit-elle ? »
+
+Trois repointés — l'ordre des onglets porte ce que les colonnes portaient. Deux
+retirés, parce que le comportement l'a été. Un généralisé : « une durée montrée à un
+artiste est SOMMÉE » n'a plus de surface, et reste gardée pour le jour où l'on en
+remet une — ancré sur une fonction nommée, ce garde serait mort trois fois et vacuous
+la quatrième.
+
+Son premier prédicat balayait tout `src/dashboard` et accusait « session expirée après
+15 min » et « les données arrivent sous ~2 min ». Un garde qui hurle sur ce qu'il ne
+vise pas se fait désarmer.
+
+**Et mon propre garde a accusé le commentaire expliquant la suppression** — quatrième
+fois dans la journée, sur celui-là même que le cliquet a cessé de rater le matin.
+
+### Le cliquet a servi le lendemain de sa pose
+
+Repointer les gardes sur l'arbre a fait DESCENDRE la dette (116 → 112 assertions), et
+`test_the_text_assertion_inventory_does_not_rot` a refusé les anciens chiffres restés
+au-dessus du réel. C'est sa seconde moitié : un nombre gelé trop haut est du budget
+pour une régression que personne n'aurait décidé d'admettre.
+
+---
+
 ## 2026-09-04 (suite 27) — Les signatures du catalogue lisaient du texte, et R58 n'était pas bloquée
 
 Deux demandes en une : « on répète les mêmes erreurs, on pourrait pas /capitalise et

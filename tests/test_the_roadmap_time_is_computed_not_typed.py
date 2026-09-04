@@ -43,7 +43,7 @@ import ast
 import re
 from pathlib import Path
 
-from src.dashboard.content.platform_value import RECOMMENDED, total_effort
+from src.dashboard.content.platform_value import BY_KEY, RECOMMENDED, total_effort
 from src.dashboard.utils.i18n_catalog.onboarding import EN
 
 _VIEW = Path(__file__).resolve().parents[1] / "src/dashboard/views/onboarding.py"
@@ -76,15 +76,49 @@ def _string_literals(node: ast.FunctionDef) -> list[str]:
     return out
 
 
-def test_the_roadmap_sums_the_platform_efforts_instead_of_carrying_a_number():
-    calls = {
-        n.func.id for n in ast.walk(_function_node())
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-    }
-    assert "total_effort" in calls, (
-        f"{_FN}() no longer calls total_effort(). The minutes it shows would then be "
-        "independent of effort_min, which the platform matrix on the next step reads — "
-        "the two surfaces can now state different durations for the same work."
+def test_no_surface_types_a_platform_duration_by_hand():
+    """La question, sans sa surface — et c'est le troisième déménagement.
+
+    Elle a vécu dans « 🗺️ Ta mise en route », puis dans la ligne de recommandation,
+    puis sur le bouton « Configurer ma sélection ({n}) → ≈{mins} min ». Le 2026-09-05
+    le sélecteur entier a disparu — « on ne va pas demander les cases à cocher » — et
+    avec lui la dernière surface qui annonçait une durée.
+
+    Ancré sur une fonction nommée, ce garde serait mort trois fois et vacuous la
+    quatrième. La revendication, elle, n'a pas bougé : **une durée de plateforme
+    montrée à un artiste est SOMMÉE, jamais tapée.** Il n'y en a plus une seule
+    aujourd'hui ; le jour où l'on en remet une, elle passera par `total_effort` ou ce
+    test rougira.
+
+    C'est la différence entre retirer un garde parce que sa surface est partie — ce
+    qui arrête de surveiller la propriété — et le suivre là où la propriété vit.
+    """
+    import re as _re
+    from pathlib import Path as _Path
+
+    # Les DEUX fichiers qui portent le vocabulaire du coût de mise en route. Balayer
+    # tout `src/dashboard` attrapait « session expirée après 15 min » et « les données
+    # arrivent sous ~2 min » — des délais réels, sans rapport avec l'effort d'une
+    # plateforme. Un prédicat qui hurle sur ce qu'il ne vise pas se fait désarmer.
+    root = _Path(__file__).resolve().parents[1] / "src" / "dashboard"
+    scope = [root / "views" / "onboarding.py",
+             root.parent / "dashboard" / "content" / "platform_value.py"]
+    typed = []
+    for path in scope:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            for found in _re.findall(r"(\d+)\s*min\b", node.value):
+                # « 1 min » et « 0 min » sont des coûts FIXES, pas des sommes.
+                if found not in {"0", "1"}:
+                    typed.append(f"{path.name}:{node.lineno} → « {found} min »")
+    assert not typed, (
+        "Ces chaînes annoncent une durée de plateforme écrite à la main :\n  "
+        + "\n  ".join(typed)
+        + "\n\nElle doit venir de `total_effort()`, qui somme les `effort_min` que "
+          "les cases et la matrice lisent — sinon deux surfaces annoncent des durées "
+          "différentes pour le même travail."
     )
 
 
@@ -97,23 +131,20 @@ def test_the_recommended_setup_has_a_duration_worth_stating():
     )
 
 
-def test_no_language_drops_the_placeholders():
-    fr = [s for s in _string_literals(_function_node()) if "{mins}" in s]
-    assert fr, (
-        "no string in the welcome step substitutes {mins} any more: the duration is "
-        "either gone or typed as a literal."
-    )
-    assert any("{mins}" in s and "{n}" in s for s in fr), (
-        "the button lost {mins} or {n}: the artist reads a placeholder, or a count "
-        "and a duration that nothing recomputes."
-    )
-    en = EN.get("onboarding.configure_selection")
-    assert en, ("the English catalog has no onboarding.configure_selection — English "
-                "artists read the French button")
-    assert "{mins}" in en and "{n}" in en, (
-        f"the English button lost a placeholder: {en!r}. .format() would raise or, "
-        "worse, silently present a duration nothing recomputes."
-    )
+def test_the_summing_helper_still_exists_and_sums():
+    """Non-vacuité : sans `total_effort`, le test au-dessus n'interdirait rien.
+
+    Un garde qui interdit d'écrire une durée à la main ne vaut que s'il existe une
+    façon de la calculer. Les deux assertions précédentes remplaçaient la
+    vérification des `{mins}` / `{names}` d'un libellé qui n'existe plus.
+    """
+    from src.dashboard.content.platform_value import PLATFORM_VALUES
+
+    keys = [p.key for p in PLATFORM_VALUES][:3]
+    assert total_effort(keys) == sum(BY_KEY[k].effort_min for k in keys)
+    assert total_effort([]) == 0
+    assert total_effort(["inconnue"]) == 0, (
+        "une clé inconnue doit valoir 0, pas lever : ce total s'affiche")
 
 
 def test_no_translation_hard_codes_a_platform_sum():
