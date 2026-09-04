@@ -512,6 +512,14 @@ def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
     st.caption(t("onboarding.pick_hint",
                  "Tu n'as pas besoin de tout connecter. Le reste attendra dans "
                  "l'onglet **Credentials API**, plus tard, dans l'application."))
+    # La SEULE chose que la liste supprimée disait et que les cases ne disaient pas :
+    # que ces durées sont le coût de la PREMIÈRE fois. Le reste — icône, nom, minutes,
+    # ⭐, « À fournir » — chaque case le porte déjà, et y ajoute la valeur de la
+    # plateforme et son piège. Une phrase, pas un second inventaire : c'est ce qui la
+    # distingue du bloc retiré le 2026-09-04.
+    st.caption(t("onboarding.pick_first_time",
+                 "Les minutes indiquées sont **le temps de la première fois** — "
+                 "ensuite, tout se met à jour tout seul."))
 
     selection: list[str] = []
     for pv in ordered_for_setup(configured):

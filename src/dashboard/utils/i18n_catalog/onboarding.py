@@ -126,4 +126,7 @@ EN = {
         "campaign by campaign, from the cost per listen gained"
     ),
     "onboarding.status_title": "📋 Where you stand",
+    "onboarding.pick_first_time": (
+        "The minutes shown are **first-time** effort — after that everything updates on its own."
+    ),
 }

@@ -32,6 +32,20 @@ et depuis que « Configurer ma sélection » mène directement à la page de sai
 rappel de la sélection, la sortie vers le dashboard — vit dans « Où tu en es », où il
 arrive après le choix au lieu de le précéder.
 
+### La lecture qui a été faite, et le seul élément qui manquait
+
+La demande citait les DEUX blocs avant de dire « pourquoi on duplique ? ». Elle a été
+lue comme « supprime la répétition », pas comme « garde les deux » — et la suppression
+a porté sur le bloc de la page 1, parce qu'il ne portait rien que les cases n'aient
+déjà.
+
+Vérifié champ par champ avant de conclure : icône, nom, minutes, ⭐ recommandé et
+« À fournir » sont rendus par chaque case, qui y ajoute la valeur de la plateforme et
+son piège. **Une seule chose manquait** — la phrase disant que ces minutes sont le coût
+de la PREMIÈRE fois, demandée le matin même (« un total de 7 minutes ne dit pas si on
+peut en faire une maintenant »). Elle est revenue au-dessus des cases, en une ligne.
+Une phrase n'est pas un second inventaire : c'est la différence avec le bloc retiré.
+
 ### Ce que ça change pour qui lit
 
 Un artiste lisait la liste des six plateformes, cliquait « Suivant », et relisait la
