@@ -5,6 +5,55 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 8) — Le rapport PDF devient payant, et cinq écarts du parcours
+
+✅ **DÉPLOYÉ** (`5fdc65a`, migrations 084 et 085, DAG `trial_expiry_reminder` actif).
+
+### La décision de prix, faite jusqu'au bout
+
+`export_pdf` quitte Free **dans les trois endroits qui le disent** : `PLAN_FEATURES`
+(le gate), le catalogue semé en SQL, et la ligne que la production porte réellement.
+Elle avait divergé sans bruit — `subscription_plans.features` n'est lue par aucun code,
+donc rien ne pouvait le signaler. **Une donnée que personne ne lit et que personne ne
+met à jour est la forme la plus durable de documentation fausse.** Migration 085 +
+`test_plan_catalog_matches_the_gating`, qui compare les trois.
+
+Ce qui se vend n'est pas la donnée : l'export CSV reste gratuit, et le tableau le dit
+maintenant en toutes lettres — « tes données restent les tiennes dans les deux cas ».
+Ce qui se vend est le **rapport** : mis en page, filtrable, envoyé chaque semaine.
+
+### Les cinq écarts
+
+| # | Ce que c'était | Ce que c'est |
+|---|---|---|
+| 1 | quatre zéros le premier jour | une phrase **datée** : la collecte tourne entre 9 h et 10 h, ou ~2 min en manuel |
+| 2 | l'étape « lance ta collecte » **nommait** le geste | elle le **fait** — règle extraite dans `utils/collection_trigger` |
+| 3 | « Road to Algo (ML) » | « 🚀 Prédiction Discover Weekly » |
+| 4 | le tableau listait des **pages** | il nomme des **décisions** (« quel euro de pub a produit quelles écoutes ») |
+| 5 | rien ne rappelait la fin d'essai | rappel **J-3**, une fois, jamais deux (migration 084) |
+
+**Sur le point 2, le détail qui compte** : la règle de déclenchement est extraite, pas
+recopiée. Une seconde copie de `conf={'artist_id': …}` est exactement ce qui a produit
+la fuite de locataire.
+
+**Sur le point 5, ce que le rappel ne fait pas** : il ne vend pas (il dit ce qu'on perd
+ET ce qu'on garde), il ne se répète pas, et l'horodatage n'est écrit qu'**après** un
+envoi confirmé — une porte d'audience fermée ne doit pas consommer le rappel.
+`STREAMLYTICS_ALLOW_ARTIST_EMAIL` n'étant pas posée en prod, il journalise ses
+destinataires et n'envoie rien : état voulu, dit bruyamment.
+
+### Deux fois pris à mon propre piège en écrivant un garde
+
+`[a-z_]+` manquait `spotify_s4a_combined` — un chiffre au milieu d'un nom — et accusait
+la migration d'un écart inexistant. Puis le méta-garde `test_a_guard_reads_structure_not_text`
+a refusé le fichier, à raison : le SQL vit dans une constante Python, donc l'étape
+structurelle est de parser le module et de trouver la constante, **puis** de lire le SQL
+qu'elle porte. Un garde qui crie pour la mauvaise raison reste un garde qui crie.
+
+11 gardes neufs sur la séance, tous rouges par mutation. Suite : **3813 verts**.
+
+---
+
 ## 2026-09-04 (suite 7) — La mise en route en 4 blocs, et réduite au premier jour
 
 ✅ **DÉPLOYÉ** (`75d703b`). Parcours rejoué au navigateur depuis un `--reset`.
