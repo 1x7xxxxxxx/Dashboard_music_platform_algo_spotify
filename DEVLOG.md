@@ -5,6 +5,67 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 4) — Cinq remarques, une seule famille : la page existe, rien n'y mène
+
+✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`3471d44`, migration 082). Parcours rejoué de
+bout en bout **dans un navigateur**, pas seulement en tests.
+
+### Ce qui était cassé, dans l'ordre où tu l'as vu
+
+| Remarque | Ce que c'était |
+|---|---|
+| « c'est tout en bas du volet de navigation » | les « Étapes » étaient écrites par la VUE, donc pendant la phase contenu — sous le menu, sous le bouton de déconnexion |
+| « impossible de revenir aux différentes étapes de config » | trois `st.markdown` : elles **nommaient** les étapes sans y mener |
+| « je ne suis plus sur étapes 1 2 3 » | l'aiguillage demandait « a-t-il **rien** branché ? », l'accueil demandait « a-t-il **fini** ? » |
+| « pas d'onglet sélectionné » | l'init mettait **toutes** les radios à `None` |
+| « remonter artiste … au niveau de votre plan » | l'identité et son plan aux deux extrémités de la barre |
+
+### Les deux causes racines, que seul le navigateur a montrées
+
+Aucune n'était visible en tests — **aucun test ne rend la barre latérale et une vue dans
+le même run**, y compris le render-smoke des 44 vues, vert du début à la fin.
+
+**1. La route anticipée `?page=onboarding`.** Elle rendait l'assistant **seul** puis
+`st.stop()`. Or le miroir d'URL écrit `?page=<page>` à chaque rendu : dès le premier
+affichage de l'assistant, tout rerun suivant repassait par elle. Plus de barre latérale,
+plus de menu, plus d'étapes, et un clic sur un bouton qui ne correspondait à aucun widget
+instancié. C'est la vraie cause de « impossible de revenir ». Elle datait du temps où
+l'assistant n'était joignable que par l'e-mail de vérification ; il est une entrée de
+menu depuis, et `_render_page` le routait déjà.
+
+**2. `goto()` écrivait des clés de widgets déjà instanciés.** Appelée depuis une vue,
+après la barre latérale : `StreamlitAPIException`. **Toute** navigation programmatique
+plantait la page — les quatre étapes de l'accueil comprises. Le premier défaut masquait
+le second : sans barre latérale, pas de widget, pas d'exception. Classe
+`widget-key-written-after-instantiation`.
+
+### Ce qui a changé
+
+- `show_navigation_menu` est scindée : **résoudre** la page (avant tout widget) puis la
+  **dessiner**. C'est ce qui permet de placer quoi que ce soit au-dessus du menu.
+- Ordre de la barre : identité + plan + déconnexion → étapes → menu → collecte.
+- Les étapes non courantes sont des **boutons**.
+- Une seule définition de « configuration finie » (`utils/setup_completion`), lue par
+  l'accueil **et** par l'aiguillage. Tant que ce n'est pas 4/4 et que la case est
+  cochée, la connexion atterrit sur l'assistant — qui porte un **gros bouton** « Accéder
+  à l'application » et la **case** « afficher cette page à la connexion »
+  (`saas_users.show_setup_on_login`, migration 082).
+- L'accord menu ↔ page est réaffirmé **à chaque rendu**, plus seulement à la réparation.
+- Trouvé au passage : l'étape « lancer ta première collecte » pointait sur **Road to
+  Algo**, page Premium — un artiste Free atterrissait sur le mur de paiement.
+
+### Preuve
+
+Parcours joué au navigateur : connexion → atterrissage sur l'assistant avec
+`🚀 Mise en route` **surligné dans le menu** → clic sur « ⬜ 2. Données » → l'étape change,
+la barre reste → case décochée → `show_setup_on_login = f` **en base** → « Accéder à
+l'application » → deuxième connexion : **accueil**, comme demandé.
+
+8 gardes neufs, **les 8 rouges par mutation**. Suite complète : **3755 verts avec une
+vraie base** (les ~160 tests qui skippent sans Postgres ont tourné).
+
+---
+
 ## 2026-09-04 (suite 3) — La sauvegarde hors-site est partie sans que tu poses de carte
 
 ✅ **DÉPLOYÉ ET VÉRIFIÉ EN PRODUCTION** (`7ea5d5a`, `ef46294`). R57 est close. Elle
