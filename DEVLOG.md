@@ -5,6 +5,40 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-04 (suite 14) — Trois écrans pour une mise en route, dont deux qui se répètent
+
+« Pourquoi on duplique ? Je veux le plus simple possible. » Le constat est exact et se
+vérifie en comptant : la liste des six plateformes — nom, durée, « À fournir » —
+figurait **deux fois**, à un écran d'intervalle. Sur la page de bienvenue sous
+« Ce que coûte chaque plateforme », et sur la page suivante sous « Coche ce que tu veux
+configurer ». La deuxième portait en plus la valeur de chaque plateforme et son piège ;
+la première n'était donc pas un résumé, c'était la même chose en moins bien.
+
+### Deux étapes au lieu de trois
+
+| Avant | Après |
+|---|---|
+| 1. Bienvenue — dont un inventaire des 6 plateformes | 1. Bienvenue & choix — l'inventaire **est** les cases à cocher |
+| 2. Données — le même inventaire, cochable | *(fusionnée)* |
+| 3. Prêt ! — redemandait ce que le bouton venait de décider | 2. Où tu en es — la matrice, et la sortie |
+
+L'inventaire disparaît, il n'est pas déplacé : les cases le portaient déjà. Ce qui
+reste de la feuille de route est ce qu'aucune case ne dit — les trois temps du parcours
+et le droit de s'arrêter après une seule plateforme.
+
+L'étape « 🎉 C'est parti ! » disparaît aussi. Elle ne portait qu'un couple de boutons,
+et depuis que « Configurer ma sélection » mène directement à la page de saisie
+(2026-09-04, plus tôt), plus rien ne la traversait. Ce qu'elle avait d'utile — le
+rappel de la sélection, la sortie vers le dashboard — vit dans « Où tu en es », où il
+arrive après le choix au lieu de le précéder.
+
+### Ce que ça change pour qui lit
+
+Un artiste lisait la liste des six plateformes, cliquait « Suivant », et relisait la
+même liste. Il la lit maintenant une fois, au moment où il peut cocher — l'inventaire
+et l'action au même endroit. La page 2 ne pose plus de question : elle répond à celle
+qu'on se pose ensuite, « et maintenant, où j'en suis ? ».
+
 ## 2026-09-04 (suite 13) — L'URL de la session d'avant décidait de l'atterrissage
 
 ### Le défaut, reproduit avant d'être corrigé

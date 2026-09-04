@@ -324,9 +324,12 @@ def test_the_way_out_is_rendered_after_the_step_content():
     """
     show = _fn(ONB, "show")
     exit_lines = _call_lines(show, "_render_landing_choice")
+    # Les deux étapes qui restent. Il y en avait trois jusqu'au 2026-09-04 :
+    # `_step_credentials` (qui redisait la liste de plateformes de la page 1) et
+    # `_step_ready` (qui redemandait ce que le bouton précédent venait de décider)
+    # ont fusionné dans `_step_status`.
     step_lines = (_call_lines(show, "_step_welcome")
-                  + _call_lines(show, "_step_credentials")
-                  + _call_lines(show, "_step_ready"))
+                  + _call_lines(show, "_step_status"))
     assert exit_lines and step_lines, "show() no longer renders both"
     assert min(exit_lines) > max(step_lines), (
         "the exit block is rendered before the step content — it reads as a header, "

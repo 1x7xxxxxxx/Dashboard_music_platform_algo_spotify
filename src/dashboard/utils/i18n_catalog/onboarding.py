@@ -22,13 +22,10 @@ EN = {
     "onboarding.feat_creatives": "+ 🎨 **Which creative costs least** per stream gained",
     "onboarding.your_plan": " ← *your plan*",
     "onboarding.upgrade_to": "Upgrade to {tier} →",
-    "onboarding.next_data": "Next: Set up my data →",
     # Step 2 — Credentials
-    "onboarding.matrix_header": "#### 📋 Where you stand, platform by platform",
     "onboarding.matrix_legend":
         "**Set up**: the identifier is entered. **Responds**: the platform "
         "answered us. **Data**: figures have arrived.",
-    "onboarding.creds_title": "🔑 Where do you want to start?",
     "onboarding.status_unavailable": (
         "⚠️ Could not read your connection status ({err}). The list below may show "
         "“not connected” by mistake — retry in a moment before reconfiguring anything."
@@ -87,18 +84,11 @@ EN = {
     "onboarding.back": "← Back",
     "onboarding.next_finish": "Next: Finish →",
     # Step 3 — Ready
-    "onboarding.ready_title": "🎉 You're all set!",
-    "onboarding.ready_body": "Your dashboard is ready. You can configure your credentials "
-                             "at any time from **API Credentials** in the navigation.",
     "onboarding.go_dashboard": "🏠 Go to dashboard →",
-    "onboarding.configure_creds": "🔑 Configure credentials",
-    "onboarding.tip": "💡 Tip: launch data collection from the "
-                      "**Launch ALL collections** button in the sidebar.",
     # Sidebar progress
     "onboarding.steps_header": "### Steps",
-    "onboarding.step1": "1. Welcome",
-    "onboarding.step2": "2. Data",
-    "onboarding.step3": "3. Ready!",
+    "onboarding.step1": "1. Welcome & pick",
+    "onboarding.step2": "2. Where you stand",
     # The four numbered blocks of the welcome step
     "onboarding.b1_title": "1. streaMLytics in brief",
     "onboarding.brief_1": "**All your data in one place, pulled every day, "
@@ -122,7 +112,6 @@ EN = {
     "onboarding.b3_title": "3. Your getting-started guide",
     "onboarding.download_guide_fr": "🇫🇷 Guide en français (PDF)",
     "onboarding.download_guide_en": "🇬🇧 Guide in English (PDF)",
-    "onboarding.roadmap_per_platform": "**What each platform costs you, first time:**",
     # Landing choice — the way out, and the right not to come back
     "onboarding.enter_app": "🏠 Go to the app →",
     "onboarding.keep_landing": "Show this page on login until my setup is complete",
@@ -136,4 +125,5 @@ EN = {
         "+ 💶 **How much to put back on which campaign** — scale up, hold or cut, "
         "campaign by campaign, from the cost per listen gained"
     ),
+    "onboarding.status_title": "📋 Where you stand",
 }

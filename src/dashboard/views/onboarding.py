@@ -159,7 +159,7 @@ def _setup_roadmap() -> None:
     st.markdown(t(
         "onboarding.roadmap_body",
         "**1. Tu choisis tes plateformes** · ≈1 min\n"
-        "→ à l'étape suivante, tu coches ce que tu veux brancher.\n\n"
+        "→ juste en dessous, tu coches ce que tu veux brancher.\n\n"
         "**2. Tu saisis tes identifiants** · ≈{mins} min pour les deux "
         "recommandées ({names})\n"
         "→ chaque plateforme a son guide illustré, dans l'onglet Credentials API.\n\n"
@@ -171,20 +171,14 @@ def _setup_roadmap() -> None:
         "Tu peux t'arrêter après une seule plateforme et revenir quand tu veux — "
         "rien n'est perdu, et chaque plateforme ajoutée enrichit les autres."))
 
-    # Le temps PAR PLATEFORME, pas seulement le total. Demandé le 2026-09-04 : un
-    # total de 7 minutes ne dit pas si on peut en faire une maintenant. Les minutes
-    # viennent toutes de `effort_min` du registre — aucune n'est écrite ici, sinon
-    # elles cesseraient d'être vraies le jour où une plateforme change et personne
-    # ne le remarquerait.
-    st.markdown(t("onboarding.roadmap_per_platform",
-                  "**Ce que coûte chaque plateforme, la première fois :**"))
-    for pv in ordered_for_setup(set()):
-        star = t("onboarding.reco_tag", " — ⭐ recommandé") if pv.recommended else ""
-        st.markdown(
-            f"- {pv.icon} **{pv.label}** · "
-            + t("onboarding.effort", " ≈{mins} min").format(mins=pv.effort_min).strip()
-            + f"{star} — "
-            + t("onboarding.need", "À fournir : {need}").format(need=pv.need))
+    # La liste PAR PLATEFORME vivait ici — et elle disait, mot pour mot, ce que les
+    # cases à cocher disent quelques lignes plus bas : nom, durée, « À fournir ».
+    # Signalé le 2026-09-04 : « pourquoi on duplique ? Je veux le plus simple
+    # possible ». Elle est retirée, pas déplacée : les cases la portaient déjà, avec
+    # en plus ce qu'elle n'avait pas — la valeur de chaque plateforme et son piège.
+    #
+    # Ce qui reste ici est ce qu'aucune case ne dit : les trois temps du parcours, et
+    # le droit de s'arrêter après une seule plateforme.
 
 
 _EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "assets" / "examples"
@@ -247,7 +241,7 @@ def _language_buttons() -> None:
     st.markdown("---")
 
 
-def _step_welcome(plan: str, db) -> None:
+def _step_welcome(plan: str, artist_id: int, db) -> None:
     """Quatre blocs numérotés, dans l'ordre où l'artiste en a besoin.
 
     La page disait la même chose, dans le désordre : la langue vivait dans la barre
@@ -450,29 +444,45 @@ def _step_welcome(plan: str, db) -> None:
     _setup_roadmap()
     st.markdown("---")
 
+    # Le choix, ICI. Il vivait sur une deuxième page qui commençait par redire la
+    # liste que la feuille de route venait d'énumérer. Une page de moins, un
+    # inventaire de moins, et le geste au même endroit que ce qui l'explique.
+    selection = _platform_picker(plan, artist_id, db)
+
     st.markdown("---")
-    if st.button(t("onboarding.next_data", "Suivant : Configurer mes données →"), type="primary"):
+    if selection:
+        label = t("onboarding.configure_selection",
+                  "Configurer ma sélection ({n}) → ≈{mins} min").format(
+                      n=len(selection), mins=total_effort(selection))
+    else:
+        label = t("onboarding.next_finish", "Continuer sans rien connecter →")
+    if st.button(label, type="primary"):
+        # Carried to the credentials page, which walks the selection in order and
+        # tracks what is left — so "I picked two things" survives the navigation.
+        st.session_state[FOCUS_KEY] = selection
         st.session_state[_STEP_KEY] = 2
+        if selection:
+            # DIRECTEMENT sur la page de saisie : un écran intermédiaire ne ferait
+            # que reposer la question à laquelle ce bouton vient de répondre
+            # (2026-09-04). L'étape 2 reste atteignable par la barre latérale, et
+            # c'est là qu'on revient voir où on en est.
+            _goto('credentials')
+            return
         st.rerun()
 
 
-def _step_credentials(plan: str, artist_id: int, db) -> None:
-    st.title(t("onboarding.creds_title", "🔑 Par quoi veux-tu commencer ?"))
-    # L'ORDRE de cette étape, deux fois corrigé, et par la même personne.
-    #
-    # Le 2026-08-30 : « coche ce que tu veux » vivait au-dessus de la matrice d'état,
-    # et un artiste a essayé de cocher DANS la matrice, où il n'y a rien à cocher.
-    # L'instruction est descendue juste avant les vraies cases.
-    #
-    # Le 2026-09-04 : la matrice elle-même passe SOUS les cases. « On se répète » —
-    # et c'est exact : cette étape demandait de choisir, et l'écran s'ouvrait sur un
-    # tableau de cinq lignes toutes ⚪ qui redit, plateforme par plateforme, ce que
-    # les cases vont demander. Un état vide n'apprend rien tant qu'on n'a rien
-    # choisi ; il devient utile juste après, quand il montre l'effet du choix.
+def _platform_picker(plan: str, artist_id: int, db) -> list[str]:
+    """Les cases à cocher, et la sélection qu'elles rendent.
 
-    # La connexion est celle de `show()`, ouverte une fois pour le rendu entier et
-    # fermée par lui. Elle l'était ici, et refermée au milieu de l'étape : le bandeau
-    # d'état ajouté au-dessus en aurait ouvert une seconde (règle transverse #9).
+    Extraite de l'étape 2 le 2026-09-04 et remontée sur la page de bienvenue —
+    « il faudrait faire venir la section *coche ce que tu veux configurer* sur la
+    première page ».
+
+    Elle y remplace une liste qui disait la même chose en moins : nom, durée,
+    « À fournir », sans la valeur ni le piège de chaque plateforme. Deux inventaires
+    des mêmes six lignes à deux écrans d'intervalle, c'est la duplication signalée.
+    Ici, l'inventaire EST l'action : on lit et on coche au même endroit.
+    """
     configured = _get_configured_platforms(artist_id, db)
 
     accessible = PLAN_FEATURES.get(plan, set())
@@ -490,8 +500,6 @@ def _step_credentials(plan: str, artist_id: int, db) -> None:
             "relie ce que tu dépenses en promo à ce que ça produit en écoutes."
         ).format(names=" + ".join(f"{p.icon} {p.label}" for p in reco),
                  mins=total_effort(p.key for p in reco)))
-
-    st.markdown("---")
 
     # L'ACTION en gros, l'info en petit — demandé après le test du 2026-08-30 :
     # « mettre en gros gras surbrillance de section les ACTIONS à effectuer, en plus
@@ -538,56 +546,22 @@ def _step_credentials(plan: str, artist_id: int, db) -> None:
             st.caption(t(f"onboarding.caveat.{pv.key}", "⚠️ {c}").format(c=pv.caveat))
         st.markdown("")
 
-    # …et l'état APRÈS le choix, là où il répond à « et maintenant, où j'en suis ? »
-    if db is not None and artist_id is not None:
-        st.markdown("---")
-        st.markdown(t("onboarding.matrix_header",
-                      "#### 📋 Où tu en es, plateforme par plateforme"))
-        render_status_matrix(db, artist_id, key_suffix="onboarding")
-        # Même raison qu'à la page Credentials : la légende vit dans la matrice.
-        st.caption(t(
-            "onboarding.matrix_legend",
-            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
-
-    st.markdown("---")
-    col_back, col_next = st.columns([1, 3])
-    if col_back.button(t("onboarding.back", "← Retour")):
-        st.session_state[_STEP_KEY] = 1
-        st.rerun()
-
-    if selection:
-        label = t("onboarding.configure_selection",
-                  "Configurer ma sélection ({n}) → ≈{mins} min").format(
-                      n=len(selection), mins=total_effort(selection))
-    else:
-        label = t("onboarding.next_finish", "Continuer sans rien connecter →")
-    if col_next.button(label, type="primary"):
-        # Carried to the credentials page, which walks the selection in order and
-        # tracks what is left — so "I picked two things" survives the navigation.
-        st.session_state[FOCUS_KEY] = selection
-        if selection:
-            # DIRECTEMENT sur la page de saisie. L'étape 3 s'intercalait ici pour
-            # redemander ce qui vient d'être décidé : « 🔑 Connecter ma sélection »
-            # ou « 🏠 Aller au dashboard ». Un écran qui ne fait que reposer la
-            # question à laquelle le bouton précédent vient de répondre coûte un
-            # clic et une hésitation, et rien d'autre. Signalé le 2026-09-04 :
-            # « supprime ça et renvoie directement à la section connecter ma
-            # sélection ».
-            #
-            # L'étape 3 reste atteignable (la barre latérale la liste) et reste le
-            # bon écran pour l'autre branche : quelqu'un qui ne coche rien n'a
-            # justement aucune sélection à connecter, et a besoin qu'on lui dise
-            # où la retrouver plus tard.
-            st.session_state[_STEP_KEY] = 3
-            _goto('credentials')
-            return
-        st.session_state[_STEP_KEY] = 3
-        st.rerun()
+    return selection
 
 
-def _step_ready() -> None:
+def _step_status(db, artist_id: int) -> None:
+    """Étape 2 : où tu en es, et par où sortir.
+
+    Ce que l'ancienne étape 2 faisait — demander de choisir — se fait maintenant sur
+    la page de bienvenue, juste sous la feuille de route. Il ne reste ici que ce qui
+    n'a de sens qu'APRÈS le choix : l'état réel, plateforme par plateforme.
+
+    Elle absorbe aussi l'ancienne étape « 🎉 C'est parti ! ». Trois écrans pour une
+    mise en route dont deux ne portaient qu'un bouton chacun, c'était le contraire de
+    « le plus simple possible ».
+    """
     focus = st.session_state.get(FOCUS_KEY) or []
-    st.title(t("onboarding.ready_title", "🎉 C'est parti !"))
+    st.title(t("onboarding.status_title", "📋 Où tu en es"))
 
     if focus:
         names = " + ".join(f"{BY_KEY[k].icon} {BY_KEY[k].label}" for k in focus if k in BY_KEY)
@@ -597,49 +571,37 @@ def _step_ready() -> None:
               "avec le guide de chacune — et te dira si la connexion ramène "
               "vraiment des données.").format(names=names, mins=total_effort(focus))
         )
-    else:
-        st.success(
-            t("onboarding.ready_body",
-              "Votre tableau de bord est prêt. Vous pouvez configurer vos credentials "
-              "à tout moment depuis **Credentials API** dans la navigation.")
-        )
-    st.markdown("---")
 
-    col1, col2 = st.columns(2)
-    # The primary button follows the choice: someone who picked platforms wants the
-    # form, not the (still empty) dashboard.
-    if focus:
-        with col1:
-            if st.button(t("onboarding.go_configure", "🔑 Connecter ma sélection →"),
-                         type="primary", key="_onb_done_creds"):
-                _goto('credentials')
-        with col2:
-            if st.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
-                         key="_onb_done_home"):
-                _goto('home')
-    else:
-        with col1:
-            if st.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
-                         type="primary", key="_onb_done_home"):
-                _goto('home')
-        with col2:
-            if st.button(t("onboarding.configure_creds", "🔑 Configurer les credentials"),
-                         key="_onb_done_creds"):
-                _goto('credentials')
+    if db is not None and artist_id is not None:
+        render_status_matrix(db, artist_id, key_suffix="onboarding")
+        # Même raison qu'à la page Credentials : la légende vit dans la matrice.
+        st.caption(t(
+            "onboarding.matrix_legend",
+            "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
 
     st.markdown("---")
-    st.caption(
-        t("onboarding.tip",
-          "💡 Astuce : Lancez la collecte de données depuis le bouton "
-          "**Lancer TOUTES les collectes** dans la barre latérale.")
-    )
+    col_back, col_creds, col_home = st.columns([1, 2, 2])
+    if col_back.button(t("onboarding.back", "← Retour")):
+        st.session_state[_STEP_KEY] = 1
+        st.rerun()
+    if col_creds.button(t("onboarding.go_configure", "🔑 Connecter ma sélection →"),
+                        type="primary" if focus else "secondary",
+                        key="_onb_done_creds"):
+        _goto('credentials')
+    if col_home.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
+                       type="secondary" if focus else "primary",
+                       key="_onb_done_home"):
+        _goto('home')
 
 
 def _step_labels() -> list[str]:
+    # DEUX étapes. Il y en avait trois, dont deux ne portaient qu'un bouton chacune :
+    # « 2. Données » commençait par redire la liste de plateformes de la page 1, et
+    # « 3. Prêt ! » redemandait ce que le bouton précédent venait de décider.
+    # Demandé le 2026-09-04 : « je veux le plus simple possible ».
     return [
-        t("onboarding.step1", "1. Bienvenue"),
-        t("onboarding.step2", "2. Données"),
-        t("onboarding.step3", "3. Prêt !"),
+        t("onboarding.step1", "1. Bienvenue & choix"),
+        t("onboarding.step2", "2. Où tu en es"),
     ]
 
 
@@ -748,11 +710,9 @@ def show() -> None:
         state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
 
         if step == 1:
-            _step_welcome(plan, db)
-        elif step == 2:
-            _step_credentials(plan, artist_id, db)
+            _step_welcome(plan, artist_id, db)
         else:
-            _step_ready()
+            _step_status(db, artist_id)
 
         # En BAS, pas en haut. Il y était, au-dessus du titre de l'étape : la première
         # chose qu'un artiste voyait en arrivant sur sa mise en route était le bouton
