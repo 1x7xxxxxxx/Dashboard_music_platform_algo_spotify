@@ -3,7 +3,7 @@
 EN = {
     # Les liens de profil, saisis à l'inscription (2026-09-05). Facultatifs :
     # aucun `*` dans les libellés.
-    "register.links_expander": "🔗 My profile links (optional — saves you time)",
+    "register.links_expander": "🔗 My profile links",
     "register.links_help": (
         "Paste what you have; we will connect these platforms on our own as soon as "
         "your e-mail is confirmed. You can add or change them later."

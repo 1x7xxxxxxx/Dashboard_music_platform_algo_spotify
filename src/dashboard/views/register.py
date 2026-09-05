@@ -551,8 +551,12 @@ def show():
         # rend QUATRE profils SoundCloud du même nom, le bon étant le quatrième, et
         # sur YouTube la bonne chaîne n'est pas dans les cinq premiers résultats.
         # Un lien collé par son propriétaire ne se trompe pas.
-        with st.expander(t("register.links_expander",
-                           "🔗 Mes liens de profil (optionnel — gagne du temps)")):
+        # DÉPLIÉ, et sans « optionnel » dans le titre. Demandé le 2026-09-05 : replié,
+        # un bloc facultatif n'est pas lu ; et le mot « optionnel » invite à passer.
+        # Ces champs restent facultatifs — c'est l'ABSENCE d'astérisque qui le dit,
+        # comme pour tous les champs requis du formulaire qui, eux, en portent une.
+        with st.expander(t("register.links_expander", "🔗 Mes liens de profil"),
+                         expanded=True):
             st.caption(t(
                 "register.links_help",
                 "Colle ce que tu as ; on branchera ces plateformes tout seuls dès "

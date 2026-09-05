@@ -239,3 +239,108 @@ show()
     # Et la marque ne doit pas être partout, sinon elle ne distingue rien.
     assert labels.count("✓") < labels.count("content:"), (
         "tous les onglets portent la marque — elle ne sépare plus rien")
+
+
+# ── La chaîne ENTIÈRE, pas seulement son maillon central ─────────────────────
+# Les tests ci-dessus appellent `materialise` directement. Ils ne disent rien de deux
+# maillons : le formulaire d'inscription range-t-il vraiment les liens, et la
+# vérification de l'e-mail appelle-t-elle vraiment la matérialisation ? Une fonction
+# correcte que personne n'atteint reste une fonction correcte que personne n'atteint.
+
+def test_the_signup_form_stores_what_it_collected(tenant):
+    """Maillon 1 : le formulaire → la colonne d'attente."""
+    from src.dashboard.views.register import _store_pending_links
+
+    db, aid = tenant
+    _store_pending_links(db, aid, {
+        "spotify": "https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV",
+        "soundcloud": "  ",          # vide après strip : ne doit pas être rangé
+    })
+    stored = db.fetch_query(
+        "SELECT pending_profile_links FROM saas_artists WHERE id = %s", (aid,))[0][0]
+    stored = json.loads(stored) if isinstance(stored, str) else stored
+    assert stored == {"spotify": "https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV"}
+
+
+def test_the_signup_flow_is_wired_to_the_storage():
+    """Le formulaire APPELLE-t-il ce rangement ?
+
+    `test_the_signup_form_stores_what_it_collected` appelle `_store_pending_links`
+    directement : il reste vert si plus personne ne l'appelle. Vu sur une mutation —
+    remplacer l'appel dans `show()` par une expression morte n'a rien fait rougir.
+    Une fonction correcte que personne n'atteint reste une fonction correcte que
+    personne n'atteint.
+    """
+    import ast
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1]
+           / "src/dashboard/views/register.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "show"), None)
+    assert fn is not None, "`show()` a disparu de la page d'inscription"
+
+    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(fn) if isinstance(n, ast.Call)}
+    assert "_store_pending_links" in called, (
+        "l'inscription ne range plus les liens saisis : les champs existent, "
+        "l'artiste les remplit, et rien n'en sort")
+    assert "_create_artist_and_user" in called, (
+        "la liste des appels de `show()` a changé de forme — ce test ne mesure "
+        "peut-être plus ce qu'il croit")
+
+
+def test_email_verification_is_wired_to_the_materialisation():
+    """Maillon 2, lu dans l'ARBRE de `_verify_email`.
+
+    Pas au rendu : rejouer une vérification demande de fabriquer un utilisateur, un
+    jeton, et d'empêcher l'envoi d'un VRAI e-mail de bienvenue — trois vrais e-mails
+    sont déjà partis d'une suite de tests le 2026-08-23. La preuve de bout en bout a
+    été faite une fois, à la main, SMTP bloqué ; ce qui doit être gardé en continu est
+    que le fil ne soit pas coupé.
+    """
+    import ast
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1]
+           / "src/dashboard/app.py").read_text(encoding="utf-8")
+    fn = next((n for n in ast.walk(ast.parse(src))
+               if isinstance(n, ast.FunctionDef) and n.name == "_verify_email"), None)
+    assert fn is not None, "`_verify_email` a disparu"
+
+    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(fn) if isinstance(n, ast.Call)}
+    assert "materialise" in called, (
+        "la vérification de l'e-mail n'appelle plus la matérialisation : les liens "
+        "resteraient dans leur colonne d'attente pour toujours")
+    assert "_artist_id_of" in called, (
+        "le locataire n'est plus résolu depuis l'utilisateur — écrire sous un repli "
+        "serait la fuite de locataire du 2026-08-20, par la porte d'entrée")
+
+
+def test_the_links_block_is_open_and_never_says_optional():
+    """Déplié, et sans le mot qui invite à passer. L'absence d'étoile suffit."""
+    import ast
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1]
+           / "src/dashboard/views/register.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    opened = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and getattr(n.func, "attr", "") == "expander"
+        and any(k.arg == "expanded" and getattr(k.value, "value", None) is True
+                for k in n.keywords)
+    ]
+    assert opened, "le bloc des liens est replié : un bloc facultatif replié n'est pas lu"
+
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "t"
+                and len(node.args) == 2
+                and getattr(node.args[0], "value", "") == "register.links_expander"):
+            title = str(getattr(node.args[1], "value", ""))
+            assert "optionnel" not in title.lower(), (
+                "le titre dit « optionnel » — le mot invite à passer, alors que "
+                "l'absence d'astérisque dit déjà que ce n'est pas requis")

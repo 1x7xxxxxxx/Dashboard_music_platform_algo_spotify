@@ -5,6 +5,51 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 16) — Le bloc déplié, et la chaîne prouvée bout en bout
+
+Trois retouches et une preuve.
+
+**Déplié**, et le titre passe de « 🔗 Mes liens de profil (optionnel — gagne du temps) »
+à **« 🔗 Mes liens de profil »**. Un bloc facultatif replié n'est pas lu, et le mot
+« optionnel » invite à passer. Ils restent facultatifs : c'est l'**absence
+d'astérisque** qui le dit, comme pour les quatre champs requis du formulaire qui, eux,
+en portent une. Vérifié au rendu — `Nom d'artiste *`, `Email *`, `Mot de passe *` contre
+`Lien de ta page Spotify Artist`.
+
+### La preuve demandée, sur la chaîne entière
+
+Les tests écrits hier appelaient `materialise` **directement**. Ils ne disaient rien de
+deux maillons : le formulaire range-t-il vraiment, et la vérification appelle-t-elle
+vraiment ? Rejoué à la main sur un compte jetable, SMTP bloqué :
+
+    1) rangés à l'inscription : {'spotify': '…/4qG1qjeHfkASTdyRGbLWbV',
+                                 'soundcloud': 'https://soundcloud.com/fjaak'}
+    2) e-mail vérifié en base : True
+    3) credentials écrits     : soundcloud {'user_id': '1086119'}
+                                spotify    {'spotify_artist_id': '4qG1qjeHfkASTdyRGbLWbV'}
+    4) champ d'attente vidé   : True
+    5) message à l'écran      : « 🔗 On a déjà branché 🎵 Spotify, ☁️ SoundCloud… »
+
+Le champ vide (`youtube: ""`) n'est pas rangé, et le second passage n'écrit rien.
+
+### Un garde qui testait la fonction, pas son branchement
+
+Mutation restée **verte** : remplacer l'appel à `_store_pending_links` dans `show()` par
+une expression morte n'a rien fait rougir. Mon test appelait la fonction directement —
+il serait resté vert avec un formulaire qui collecte trois liens et n'en fait rien.
+
+C'est la même question que celle fermée la veille côté vérification (`materialise`
+est-il appelé ?), et je ne l'avais posée que d'un côté. Les deux branchements sont
+maintenant lus dans l'arbre.
+
+**La vérification de bout en bout reste manuelle, et c'est délibéré** : la rejouer
+demande de fabriquer un utilisateur, un jeton et d'empêcher l'envoi d'un VRAI e-mail de
+bienvenue. Trois vrais e-mails sont déjà partis d'une suite de tests le 2026-08-23. Ce
+qui est gardé en continu est que le fil ne soit pas coupé ; ce qui a été prouvé une
+fois, à la main, est qu'il conduit le courant.
+
+Quatre mutations vues rouges.
+
 ## 2026-09-05 (suite 15) — Les liens à l'inscription, parce que deviner ne marche pas
 
 Demande initiale : deviner les profils depuis le nom d'artiste pour pré-remplir les
