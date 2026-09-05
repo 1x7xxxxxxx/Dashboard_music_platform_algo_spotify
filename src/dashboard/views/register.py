@@ -243,6 +243,28 @@ def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: 
     )
 
 
+def _store_pending_links(db, artist_id: int, links: dict) -> None:
+    """Range les liens saisis à l'inscription. Ne lève jamais.
+
+    Un lien mal collé, une colonne absente ou une base capricieuse ne doivent pas
+    faire échouer une inscription qui a déjà réussi : le compte existe, l'e-mail de
+    vérification part, et l'artiste saisira ses liens sur la page Credentials comme
+    avant. C'est un raccourci, pas une étape.
+    """
+    import json
+
+    kept = {k: v.strip() for k, v in (links or {}).items() if (v or "").strip()}
+    if not kept:
+        return
+    try:
+        db.execute_query(
+            "UPDATE saas_artists SET pending_profile_links = %s WHERE id = %s",
+            (json.dumps(kept), artist_id))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("pending links not stored for artist %s: %s",
+                       artist_id, type(exc).__name__)
+
+
 def _create_artist_and_user(
     db, artist_name, slug, username, email, pw, token: str,
     marketing_consent: bool = False,
@@ -513,6 +535,39 @@ def show():
                    "(20% sur le premier mois)."),
         ).strip().upper()
 
+        # ── Les liens de profil, facultatifs, saisis UNE fois ──────────────
+        #
+        # Demandé le 2026-09-05. Ils ne servent à rien ici : ils sont écrits en
+        # attente et matérialisés en credentials à la vérification de l'e-mail
+        # (migration 087). Les demander maintenant évite à l'artiste de revenir
+        # remplir trois formulaires, et c'est le seul moment où il a déjà ses
+        # onglets ouverts.
+        #
+        # On demande le LIEN, jamais l'identifiant : c'est ce qu'il a sous la main,
+        # et les trois plateformes savent l'extraire.
+        #
+        # Pourquoi on ne les DEVINE pas depuis le nom d'artiste — mesuré le même
+        # jour contre trois locataires dont l'identifiant est vérifié : « Benken »
+        # rend QUATRE profils SoundCloud du même nom, le bon étant le quatrième, et
+        # sur YouTube la bonne chaîne n'est pas dans les cinq premiers résultats.
+        # Un lien collé par son propriétaire ne se trompe pas.
+        with st.expander(t("register.links_expander",
+                           "🔗 Mes liens de profil (optionnel — gagne du temps)")):
+            st.caption(t(
+                "register.links_help",
+                "Colle ce que tu as ; on branchera ces plateformes tout seuls dès "
+                "que ton e-mail sera confirmé. Tu pourras les ajouter ou les "
+                "changer plus tard."))
+            link_spotify = st.text_input(
+                t("register.link_spotify", "Lien de ta page Spotify Artist"),
+                placeholder="https://open.spotify.com/artist/…")
+            link_soundcloud = st.text_input(
+                t("register.link_soundcloud", "Lien de ton profil SoundCloud"),
+                placeholder="https://soundcloud.com/ton-nom")
+            link_youtube = st.text_input(
+                t("register.link_youtube", "Lien de ta chaîne YouTube"),
+                placeholder="https://youtube.com/@ta-chaine")
+
         st.markdown("---")
         terms = st.checkbox(
             t("register.terms_checkbox",
@@ -579,6 +634,17 @@ def show():
                 db, artist_name, slug, username, email, pw, token,
                 marketing_consent=marketing,
             )
+
+            # Les liens attendent la vérification de l'e-mail (migration 087). Écrire
+            # une identité MAINTENANT en ferait une identité prise au sens de
+            # `find_identity_conflict` — une inscription jamais confirmée pourrait
+            # donc squatter le profil Spotify de quelqu'un d'autre. Ils sont posés
+            # sans effet, et matérialisés quand le compte est confirmé.
+            _store_pending_links(db, new_artist_id, {
+                "spotify": link_spotify,
+                "soundcloud": link_soundcloud,
+                "youtube": link_youtube,
+            })
 
             # Codes are resolved only NOW, against an account that exists. Validating
             # first with an early return let anyone test a code for free; a probe now

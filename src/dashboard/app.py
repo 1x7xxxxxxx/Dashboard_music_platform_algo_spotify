@@ -81,6 +81,20 @@ airflow_trigger = AirflowTrigger(
     password=_airflow_pass,
 )
 
+def _artist_id_of(db, user_id: int):
+    """Le locataire de cet utilisateur, ou `None`. Ne lève jamais.
+
+    `None` et non un repli sur 1 : écrire les liens d'inscription sous l'artiste 1
+    serait la fuite de locataire du 2026-08-20, cette fois par la porte d'entrée.
+    """
+    try:
+        rows = db.fetch_query(
+            "SELECT artist_id FROM saas_users WHERE id = %s LIMIT 1", (user_id,))
+        return rows[0][0] if rows and rows[0][0] else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _verify_email(token: str) -> None:
     """Handle the email verification link (?page=verify&token=xxx)."""
     st.title(t("app.verify_title", "🎵 Vérification de l'email"))
@@ -139,6 +153,20 @@ def _verify_email(token: str) -> None:
             "verification_token_created_at = NULL WHERE id = %s",
             (uid,)
         )
+        # Les liens saisis à l'inscription deviennent des credentials MAINTENANT,
+        # et pas avant : le compte est confirmé, donc l'identité peut être opposée
+        # aux autres locataires (migration 087). Ne lève jamais — au pire l'artiste
+        # trouve ses champs vides, comme avant cette fonctionnalité.
+        _connected = []
+        try:
+            from src.dashboard.views.credentials._from_signup import materialise
+            _aid = _artist_id_of(db, uid)
+            _connected = materialise(db, _aid) if _aid else []
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).warning(
+                "signup links not materialised: %s", type(exc).__name__)
+
         # Show the confirmation FIRST — the verification is already committed above.
         # The welcome email (a blocking ~3s SMTP round-trip) must NOT delay the message
         # the user is waiting for; send it after the success is rendered.
@@ -147,6 +175,15 @@ def _verify_email(token: str) -> None:
             "✅ Email vérifié ! Bienvenue, **{u}**. "
             "Nous vous avons envoyé un guide de bienvenue par email."
         ).format(u=username))
+        if _connected:
+            from src.dashboard.views.credentials._registry import PLATFORMS
+            _names = ", ".join((PLATFORMS.get(p) or {}).get("label", p)
+                               for p in _connected)
+            st.info(t(
+                "app.verify_links_connected",
+                "🔗 On a déjà branché **{names}** avec les liens que tu as donnés à "
+                "l'inscription — rien à ressaisir."
+            ).format(names=_names))
         # Un BOUTON, pas un `st.link_button`. Signalé le 2026-09-04 : « ça m'ouvre une
         # nouvelle fenêtre, est-ce qu'on peut rester sur la même fenêtre ? »
         #

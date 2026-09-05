@@ -363,7 +363,20 @@ def show():
         # soit instancié, comme le menu le fait déjà.
         _CSV_KEY = "__csv__"
         _tab_keys = [k for k, _ in ordered] + [_CSV_KEY]
-        _tab_label = {k: info['label'] for k, info in ordered} | {_CSV_KEY: _CSV_TAB}
+        # Un ✓ sur ce qui est DÉJÀ branché. Demandé le 2026-09-05 : « ceux qui sont
+        # validés, on les propose différemment des plateformes qui restent à
+        # configurer ». Depuis que les liens d'inscription se matérialisent tout
+        # seuls, un artiste peut arriver ici avec deux onglets déjà faits sans avoir
+        # rien saisi sur cette page — sans marque, il les refait.
+        #
+        # La marque dit « une identité est enregistrée », pas « ça marche » : ce
+        # second verdict appartient aux pastilles et à la sonde, qui savent le
+        # mesurer. Deux affirmations différentes ne partagent pas un glyphe.
+        _connected_keys = connected_platforms(existing)
+        _tab_label = {
+            k: (f"✓ {info['label']}" if k in _connected_keys else info['label'])
+            for k, info in ordered
+        } | {_CSV_KEY: _CSV_TAB}
 
         def _tab_of(logical: str) -> str:
             dest = platform_destination(logical)

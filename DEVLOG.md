@@ -5,6 +5,79 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 15) — Les liens à l'inscription, parce que deviner ne marche pas
+
+Demande initiale : deviner les profils depuis le nom d'artiste pour pré-remplir les
+credentials, avec l'idée d'une case « c'est bien le même nom sur Spotify ». J'ai mesuré
+avant de construire, contre la **vérité terrain** — trois locataires de production dont
+l'identifiant de plateforme est déjà vérifié.
+
+### Deviner ne marche pas, et le chiffre le dit
+
+Recherche par nom, premier résultat :
+
+| nom | Spotify | SoundCloud | YouTube |
+|---|---|---|---|
+| `1x7…` | ✅ exact | ✅ exact | ✅ exact |
+| `Benken` | homonyme plausible | ✅ exact | ❌ **mauvaise chaîne** |
+| `GRiNCH` | ❌ rend « **Gringe** » | ✅ exact | — |
+
+Et en filtrant sur le nom **exactement identique**, ce qui devrait être le cas facile :
+
+    Benken → 4 profils SoundCloud nommés « Benken », le bon est le QUATRIÈME
+    FJAAK  → 4 profils SoundCloud, 2 Spotify
+    Benken → sur YouTube, la bonne chaîne n'est PAS dans les 5 premiers résultats
+
+**La case à cocher ne pouvait pas sauver ça.** Sur le cas YouTube, le nom EST le même et
+le compte est faux : une case cochée de bonne foi aurait produit une identité confiante
+et erronée — la classe la plus coûteuse de ce dépôt (fuite de locataire, 2026-08-20).
+
+J'avais commencé à écrire le devineur. Il est **supprimé**, pas mis de côté : une couche
+qu'on garde « au cas où » pourrit. La mesure, elle, reste — dans le docstring du garde,
+là où quelqu'un qui reproposera l'idée la lira.
+
+### Ce qu'on a construit à la place — la proposition de l'utilisateur
+
+Trois champs **facultatifs** au formulaire d'inscription : lien Spotify, SoundCloud,
+YouTube. Un lien collé par son propriétaire ne se trompe pas.
+
+**Ils n'écrivent rien tout de suite.** Ils attendent dans `saas_artists.pending_profile_links`
+(migration 087) et ne deviennent des credentials qu'à la **vérification de l'e-mail**.
+La raison n'est pas cosmétique : une identité écrite avant la confirmation serait une
+identité *prise* au sens de `find_identity_conflict`, donc une inscription jamais
+confirmée pourrait squatter le profil Spotify de quelqu'un d'autre.
+
+La matérialisation passe par **les mêmes** convertisseurs et **le même** contrôle
+d'unicité que la saisie manuelle. Un raccourci qui les contournerait écrirait des
+identités que le formulaire aurait refusées, et le premier symptôme serait un locataire
+lisant les chiffres d'un autre.
+
+Prouvé bout en bout sur un locataire jetable, avec de vrais liens :
+
+    branchées : ['spotify', 'soundcloud']
+    spotify    → {'spotify_artist_id': '4qG1qjeHfkASTdyRGbLWbV'}   (hors ligne)
+    soundcloud → {'user_id': '1086119'}                            (résolu par l'API)
+    youtube    → @handle non résolu : laissé à l'artiste, pas deviné
+    champ d'attente vidé : True · 2e passage : []  (idempotent)
+
+Et sur la page Credentials, un **✓** marque les plateformes déjà branchées. Depuis que
+les liens se matérialisent seuls, un artiste peut arriver avec deux onglets déjà faits
+sans avoir rien saisi ici — sans marque, il les refait. La marque dit « une identité est
+enregistrée », **pas** « ça marche » : ce second verdict appartient aux pastilles, qui
+savent le mesurer.
+
+### Trois gardes du dépôt m'ont arrêté, et les trois avaient raison
+
+- **La frontière HTTP de `conftest`** a refusé mon test : il dépensait du quota d'API
+  réel pour une question — l'isolement entre plateformes — qui ne s'y joue pas.
+- **Le cliquet anti-garde-textuel** a refusé mon assertion `"Lien de ta page…" in src`.
+  Elle est passée à l'AST.
+- **Une de mes mutations est restée verte** : mon prédicat cherchait « une expression
+  conditionnelle contenant une f-string » dans le routeur — vrai à plusieurs endroits,
+  donc aveugle au retrait de la marque. Réécrit contre le rendu réel.
+
+Cinq mutations vues rouges au total.
+
 ## 2026-09-05 (suite 14) — La porte était fermée, et deux gardes la défendaient
 
 Demande : envoyer automatiquement la demande de partage Meta à l'inscription, en

@@ -1,6 +1,10 @@
 """EN strings — app shell (verify/unsubscribe routes, sidebar panels, shared ui helpers)."""
 
 EN = {
+    "app.verify_links_connected": (
+        "🔗 We already connected **{names}** using the links you gave at sign-up — "
+        "nothing to re-enter."
+    ),
     # Email verification route (?page=verify)
     "app.verify_title": "🎵 Email verification",
     "app.verify_invalid_link": "Invalid verification link.",
