@@ -212,3 +212,83 @@ def test_instagram_refuses_a_blank_identity():
     ok, msg = _test_instagram({"access_token": "tok"})  # pragma: allowlist secret
     assert ok is False
     assert "Instagram Business Account ID" in msg, msg
+
+
+# ── La sonde doit poser la QUESTION DU COLLECTEUR ────────────────────────────
+# Ajouté le 2026-09-05, après qu'un artiste a lu « aucun titre public » sur un
+# profil qui en a DIX-SEPT, pendant que la collecte les ramenait.
+#
+# Mesuré sur `users/377065610` avec le jeton d'application, `linked_partitioning=1` :
+#
+#     limit=1  → 0 titre      limit=5  → 4      limit=50 → 17
+#     limit=2  → 1 titre      limit=10 → 8
+#
+# SoundCloud filtre certains titres APRÈS avoir appliqué la limite. La sonde
+# demandait une page de 1 et concluait « profil vide » ; le collecteur demande 50.
+# Une sonde qui ne pose pas la question du collecteur ne prédit pas son résultat.
+
+def test_the_probe_asks_for_the_same_page_as_the_collector():
+    """Le nombre est ÉPINGLÉ des deux côtés, pas la constante d'un seul.
+
+    Lecture par AST : le commentaire ci-dessus contient `limit=1`, donc une
+    recherche de chaîne serait rouge sur sa propre explication.
+    """
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+
+    def _limits(path: Path, needle: str) -> set:
+        found = set()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Dict):
+                continue
+            keys = {k.value for k in node.keys
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+            if needle not in keys:
+                continue
+            for k, v in zip(node.keys, node.values):
+                if (isinstance(k, ast.Constant) and k.value == "limit"
+                        and isinstance(v, ast.Constant)):
+                    found.add(v.value)
+        return found
+
+    probe = _limits(root / "src/dashboard/views/credentials/_platform_soundcloud.py",
+                    "linked_partitioning")
+    collector = _limits(root / "src/collectors/soundcloud_api_collector.py",
+                        "linked_partitioning")
+
+    assert probe, "la sonde n'a plus de page paginée"
+    assert collector, "le collecteur n'a plus de page paginée"
+    assert probe == collector, (
+        f"la sonde demande {probe} et le collecteur {collector} : elles ne posent "
+        "pas la même question, donc la sonde ne prédit pas ce que la collecte fera")
+    # Et jamais 1 : c'est la valeur qui rend 0 sur un profil qui a 17 titres.
+    assert 1 not in probe
+
+
+@patch("src.dashboard.views.credentials._platform_soundcloud.requests")
+def test_an_empty_first_page_with_a_next_page_is_not_an_empty_profile(mock_requests):
+    """Une page vide AVEC `next_href` ne prouve rien — on ne l'annonce pas comme vide."""
+    mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+    mock_requests.get.return_value = _resp(
+        200, {"collection": [], "next_href": "https://api.soundcloud.com/next"})
+
+    ok, msg = _test_soundcloud({"user_id": "377065610", "client_id": "cid",
+                                "client_secret": "sec"})  # pragma: allowlist secret
+
+    assert ok is True, "un profil dont la plateforme annonce d'autres pages est dit vide"
+    assert "aucun titre public" not in msg.lower()
+
+
+@patch("src.dashboard.views.credentials._platform_soundcloud.requests")
+def test_a_truly_empty_profile_is_still_a_failure(mock_requests):
+    """Le garde ci-dessus ne doit pas rendre la sonde complaisante."""
+    mock_requests.post.return_value = _resp(200, {"access_token": "tok"})  # pragma: allowlist secret
+    mock_requests.get.return_value = _resp(200, {"collection": []})  # pas de next_href
+
+    ok, msg = _test_soundcloud({"user_id": "377065610", "client_id": "cid",
+                                "client_secret": "sec"})  # pragma: allowlist secret
+
+    assert ok is False
+    assert "aucun titre public" in msg.lower()

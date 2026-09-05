@@ -19,6 +19,10 @@ EN = {
         "terminal opened at the project root:"
     ),
     "credentials.fetching_dag_status": "Fetching DAG status…",
+    "credentials.soundcloud.inconclusive_page": (
+        "Profile reachable. The first page of tracks came back empty while the "
+        "platform announces more — tonight's collection will settle it."
+    ),
     # Un titre par situation (2026-09-05) — `ok is False` en recouvrait huit, et
     # « the platform is not responding yet » était faux pour les huit.
     "credentials.verdict_unreachable": (

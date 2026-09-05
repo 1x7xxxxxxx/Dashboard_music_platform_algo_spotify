@@ -27,6 +27,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 |---|---|---|---|
 | R59 | Deux tests encodent des règles opposées sur la même sonde — trancher par ADR | P3 | `## Open Bugs` |
 | R60 | `_claimed_count` lit un échec comme un zéro et fabrique le défaut du 2026-09-05 | P2 | `## Open Bugs` |
+| R61 | La suite de tests sème des lignes fabriquées dans la base de dev, et les pastilles les comptent | P2 | `## Open Bugs` |
 
 Les deux sont sorties du balayage du **2026-09-05**, en corrigeant
 `headline-asserts-a-cause-the-probe-did-not-measure`. Aucune n'était ce bug : les
@@ -39,7 +40,7 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ## 🔖 REPRISE — état au 2026-09-05, deux tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1,R59,R60 -->
+<!-- reprise: open=R1,R59,R60,R61 -->
 
 **▶️ Deux tâches ouvertes, R59 et R60**, inscrites le 2026-09-05 en corrigeant le
 verdict de sonde qui affirmait une cause non mesurée (DEVLOG « suite 10 »). Elles sont
@@ -311,6 +312,22 @@ un correctif est la façon dont on livre trois choses à moitié.
   trace ne le distingue d'un vrai zéro. Classe connue : `probe-reads-unreadable-as-absent`.
   Commande : `rtk proxy grep -n "def _claimed_count" -A 25
   src/dashboard/views/credentials/_platform_soundcloud.py`
+
+- [ ] **R61 — la suite de tests sème des lignes fabriquées dans la base de dev.** P2.
+  `tests/test_e2e_two_tenants.py` écrit dans `soundcloud_tracks_daily` des lignes
+  `track_id = "track-of-<user_id>"`, titre « Track owned by <user_id> », 10 écoutes.
+  Elles vont dans la **vraie base locale** (`spotify_etl` sur 5433), pas dans un
+  schéma jetable : le locataire 1 en porte **358**, dont la plus récente date de
+  l'exécution du jour. `artist_readiness` les compte comme de la donnée fraîche, donc
+  la pastille **🟢 Données** est verte sur un locataire qui n'a rien collecté —
+  exactement ce qu'un artiste a signalé le 2026-09-05 (« l'item Données est en vert
+  mais on n'a pas les data ? »). Il avait raison, et j'ai d'abord pris ces lignes pour
+  une vraie collecte.
+  Même famille que la frontière SMTP/HTTP posée le 2026-08-23 : *une suite de tests a
+  un rayon de souffle*, et aucun garde ne demande ce que la suite fait au monde
+  extérieur — ici, à la base de développement.
+  Commande qui le montre :
+  `python3 -c "import sys;sys.path.insert(0,'.');from src.dashboard.utils import get_db_connection as g;print(g().fetch_df(\"SELECT artist_id,COUNT(*) FROM soundcloud_tracks_daily WHERE track_id LIKE 'track-of-%' GROUP BY 1\"))"`
 
 ### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
 

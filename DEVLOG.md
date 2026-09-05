@@ -5,6 +5,76 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 11) — « J'ai bien des titres » : il en avait dix-sept, la sonde en voyait zéro
+
+La suite 10 a corrigé l'**habillage** du message SoundCloud en tenant son **contenu**
+pour vrai. Une phrase de l'utilisateur a renversé le diagnostic :
+
+> « j'ai bien des titres donc quelque chose ne fonctionne pas ?? et il y a l'item
+> données qui est en vert mais on a pas les data ? »
+
+Il avait raison **sur les deux points**, et j'avais tort sur les deux.
+
+### Le profil a dix-sept titres
+
+Interrogé l'API SoundCloud réelle, avec le jeton d'application, sur `users/377065610` :
+
+    users/377065610        → HTTP 200, username 1x7xxxxxxx, track_count = 17
+
+Puis, `linked_partitioning=1`, en faisant varier la seule chose qui change :
+
+    limit=1  →  0 titre        limit=5  →  4        limit=50 → 17
+    limit=2  →  1 titre        limit=10 →  8
+
+SoundCloud écarte certains titres **après** avoir appliqué la limite : une page de 1
+revient vide dès que le premier élément est filtré. **La sonde demandait `limit: 1`.
+Le collecteur demande `limit: 50`.** Les deux lisent le même compte et ne lui posent
+pas la même question — c'est pour cela que la collecte ramenait les titres pendant que
+la sonde jurait qu'il n'y en avait aucun, et que le message envoyait un artiste ayant
+dix-sept titres publics « déclarer ses sorties hébergées sur d'autres comptes ». Lui
+faire réparer la seule chose qui était juste.
+
+Le `next_href` renvoyé **avec** la page vide disait déjà que la collection ne l'était
+pas. Il n'était pas lu. Il l'est maintenant : une page vide accompagnée d'une page
+suivante n'est plus annoncée comme un profil vide — c'est une réponse dont on ne peut
+rien conclure, et on le dit. Un profil réellement vide reste un échec, gardé par son
+propre test pour que le correctif ne rende pas la sonde complaisante.
+
+Le garde épingle la **paire** par AST, jamais la constante d'un seul côté : changer le
+collecteur seul rouvrirait la classe en silence. Il refuse en plus explicitement
+`limit=1`. Lecture structurelle obligatoire — le commentaire qui documente le correctif
+contient lui-même `limit=1`.
+
+Classe : `probe-does-not-ask-the-collectors-question` (P2).
+
+### « Données en vert mais on n'a pas les data » — il avait raison aussi
+
+J'avais écrit la veille, et répété dans la suite 10, que « les pastilles avaient raison,
+358 lignes réelles dans `soundcloud_tracks_daily` ». **Ces lignes sont fabriquées** :
+
+    track_id       = track-of-377065610
+    title          = Track owned by 377065610
+    playback_count = 10
+
+C'est `tests/test_e2e_two_tenants.py` qui les écrit — dans la **vraie base locale**, pas
+dans un schéma jetable. 358 lignes pour le locataire 1, la plus récente datant de
+l'exécution du jour, donc `artist_readiness` les compte comme de la donnée fraîche et
+la pastille passe au vert. Même famille que la frontière SMTP/HTTP posée le 2026-08-23 :
+*une suite de tests a un rayon de souffle*, et aucun garde ne demande ce qu'elle fait à
+la base de développement. Inscrit en **R61**, pas corrigé au passage.
+
+Cela ne remet pas en cause la suite 10 : la précédence « la mesure bat la prédiction »
+reste juste, et le titre affirmait bien une cause non mesurée. Ce qui est faux, c'est
+la preuve que j'avais avancée pour l'illustrer.
+
+### Ce que la séance apprend
+
+**Ne pas tenir le contenu d'un message pour vrai en corrigeant sa forme.** La suite 10 a
+soigné la phrase « aucun titre public » — sa police, son émoji, sa précédence — sans
+jamais demander si elle était exacte. Interroger l'API a pris deux minutes et a montré
+qu'elle ne l'était pas. Un utilisateur qui contredit une conclusion est une mesure, pas
+une objection à réfuter.
+
 ## 2026-09-05 (suite 10) — Le titre affirmait une cause que la sonde n'avait pas mesurée
 
 Sur **Credentials API → ☁️ SoundCloud**, après un enregistrement, trois affirmations

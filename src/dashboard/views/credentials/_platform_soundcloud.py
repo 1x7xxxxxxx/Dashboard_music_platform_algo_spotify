@@ -104,16 +104,42 @@ def _test_soundcloud(fields: dict) -> tuple:
             return False, tagged(t("credentials.soundcloud.token_missing",
                             "Token absent dans la réponse OAuth."), REFUSED)
 
-        # Step 2: fetch tracks
+        # Step 2: fetch tracks — LA MÊME PAGE QUE LE COLLECTEUR.
+        #
+        # `limit: 1` a fait dire à la sonde « aucun titre public » sur un profil qui
+        # en a DIX-SEPT. Mesuré le 2026-09-05 sur `users/377065610` avec le jeton
+        # d'application, `linked_partitioning=1` :
+        #
+        #     limit=1  → 0 titre      limit=5  → 4      limit=50 → 17
+        #     limit=2  → 1 titre      limit=10 → 8
+        #
+        # SoundCloud filtre certains titres APRÈS avoir appliqué la limite : demander
+        # une page de 1 rend une page vide dès que le premier élément est écarté.
+        # Le collecteur, lui, demande `limit: 50` (`soundcloud_api_collector.py`) et
+        # ramenait donc les titres pendant que la sonde jurait qu'il n'y en avait
+        # aucun. Une sonde qui ne pose pas la question du collecteur ne prédit pas son
+        # résultat : elle en invente un autre.
         r2 = requests.get(
             f'https://api.soundcloud.com/users/{user_id}/tracks',
             headers={'Authorization': f'OAuth {token}'},
-            params={'limit': 1, 'linked_partitioning': 1},
+            params={'limit': 50, 'linked_partitioning': 1},
             timeout=10,
             allow_redirects=False,  # INFO-04
         )
         if r2.status_code == 200:
-            count = len(r2.json().get('collection', []))
+            _body = r2.json()
+            _page = _body.get('collection', []) if isinstance(_body, dict) else (_body or [])
+            count = len(_page)
+            # Une page vide AVEC une page suivante n'est pas un profil vide : c'est
+            # une réponse dont on ne peut rien conclure. On ne l'annonce donc pas
+            # comme « aucun titre public » — la phrase qui envoyait un artiste
+            # déclarer des titres ailleurs alors que les siens étaient là.
+            if count == 0 and isinstance(_body, dict) and _body.get('next_href'):
+                return True, t(
+                    "credentials.soundcloud.inconclusive_page",
+                    "Profil joignable. La première page de titres est revenue vide "
+                    "alors que la plateforme en annonce d'autres — la collecte de "
+                    "cette nuit tranchera.")
             # A resolvable user_id with ZERO tracks is NOT a success: the collector will
             # upsert 0 rows, the DAG will exit SUCCESS and the view will stay empty —
             # the silent-success class (rule #6), reported from the Grinch session

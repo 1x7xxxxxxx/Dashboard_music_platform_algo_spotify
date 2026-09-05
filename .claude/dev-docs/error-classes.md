@@ -253,6 +253,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [guard-reads-the-box-not-its-subject](#guard-reads-the-box-not-its-subject) | P2 | deterministic | guarded | none |
 | [printed-command-assumes-a-shell-the-reader-does-not-have](#printed-command-assumes-a-shell-the-reader-does-not-have) | P3 | deterministic | guarded | none |
 | [headline-asserts-a-cause-the-probe-did-not-measure](#headline-asserts-a-cause-the-probe-did-not-measure) | P2 | deterministic | guarded | none |
+| [probe-does-not-ask-the-collectors-question](#probe-does-not-ask-the-collectors-question) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3340,3 +3341,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: `guarded`. **Le garde de la veille était vert sur ce défaut.** `test_a_failing_probe_yields_to_data_that_actually_landed` demandait « `_data_already_landed` est-il appelé quelque part dans `_render_platform_tab` ? » (`assert uses`) : un seul appel le satisfaisait, celui du bouton « Tester ». Il énumère désormais les surfaces (`_VERDICT_SURFACES`) et exige que **chacune** consulte la réconciliation — la portée du garde était le défaut, pas son sujet. Deux autres trous fermés : `test_status_matrix.py` passait `{}` comme mémoire de sondes, donc la précédence `status > probes` n'était **jamais** mise sous tension ; et `render_save_verdict` n'était couverte par **aucun** test (`grep` sur `tests/` : zéro). Six mutations vues rouges : réconciliation retirée du verdict, garde retiré de « Prochaine étape », précédence retirée de `_responds_cell`, titre unique remis, une situation privée de titre, parcours qui n'avance plus. Un test croise `PROBE_CATEGORIES` et `_VERDICT_HEADINGS` : une situation nommée sans titre retomberait sur le libellé neutre **sans erreur et sans que personne le voie**.
+
+## probe-does-not-ask-the-collectors-question
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une sonde de configuration annonce à l'utilisateur que sa source est vide, pendant que le collecteur en ramène le contenu tous les jours. Les deux interrogent la même API et le même compte, et se contredisent — parce qu'ils ne lui posent pas la même question.
+- root_cause: `_test_soundcloud` (`src/dashboard/views/credentials/_platform_soundcloud.py`) demandait `GET /users/{id}/tracks?limit=1&linked_partitioning=1` et concluait « aucun titre public » sur `len(collection) == 0`. Le collecteur (`src/collectors/soundcloud_api_collector.py`) demande `limit: 50`. Mesuré le 2026-09-05 contre le profil réel `377065610` avec le jeton d'application : `limit=1 → 0` titre, `limit=2 → 1`, `limit=5 → 4`, `limit=10 → 8`, `limit=50 → **17**`. SoundCloud écarte certains titres APRÈS avoir appliqué la limite : une page de 1 revient vide dès que le premier élément est filtré. La sonde envoyait donc un artiste ayant dix-sept titres publics « déclarer ses sorties hébergées sur d'autres comptes » — lui faire réparer la seule chose qui était juste. Le `next_href` renvoyé avec la page vide disait déjà que la collection ne l'était pas ; il n'était pas lu.
+- signature: `python3 -m pytest tests/test_connection_test_proves_tenant.py -q`
+- long_term_fix: la sonde demande **la même page que le collecteur**, et `test_the_probe_asks_for_the_same_page_as_the_collector` compare les deux valeurs **par AST** dans les deux fichiers — c'est la PAIRE qui est épinglée, jamais la constante d'un seul côté, sinon changer le collecteur rouvre la classe en silence. Le test refuse en plus explicitement `limit=1`. Seconde moitié : une page vide accompagnée d'un `next_href` n'est plus annoncée comme un profil vide — c'est une réponse dont on ne peut rien conclure, et on le dit. Un profil réellement vide (aucun `next_href`) reste un échec, gardé par son propre test pour que le correctif ne rende pas la sonde complaisante.
+- autofix: none
+- guard: { type: test, ref: tests/test_connection_test_proves_tenant.py }
+- rex_ref: src/dashboard/views/credentials/_platform_soundcloud.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: `guarded`. **Trouvé parce que l'utilisateur a contredit la conclusion**, pas par un test : « j'ai bien des titres donc quelque chose ne fonctionne pas ?? ». La séance venait de corriger l'HABILLAGE de ce message (`headline-asserts-a-cause-the-probe-did-not-measure`) en tenant son contenu pour vrai — le titre affirmait une cause fausse, et le corps aussi. Interroger l'API réelle a pris deux minutes et a renversé le diagnostic. Lecture du garde par AST : le commentaire qui documente le correctif contient lui-même `limit=1`, donc une recherche de chaîne serait rouge sur sa propre explication (`guard-matches-its-own-comment`). Trois mutations vues rouges : `limit` remis à 1, garde `next_href` retiré, et le collecteur passé à 20 sans la sonde.
