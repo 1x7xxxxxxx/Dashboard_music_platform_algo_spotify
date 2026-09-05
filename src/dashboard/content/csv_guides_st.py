@@ -22,16 +22,35 @@ from src.dashboard.utils.i18n import t
 _MAX_IMG_WIDTH = 720
 
 
+# Les deux plateformes que l'artiste vient chercher, côte à côte : Spotify for
+# Artists à GAUCHE, Apple Music à DROITE (demandé le 2026-09-06). Les distributeurs
+# suivent en dessous — ils ne concernent pas tout le monde, et les empiler tous les
+# quatre faisait défiler la page avant d'avoir vu la seconde.
+_SIDE_BY_SIDE = ("s4a", "apple")
+
+
 def render_csv_guides() -> None:
     """Render one expander per platform with download steps + expected-CSV table."""
     st.markdown(t("csv_guides.intro_heading",
                   "**Comment télécharger puis importer vos fichiers ?**"))
-    # The FIRST one opens; the rest stay folded. `expanded=False` everywhere meant an
-    # artist had to click to discover what they did not know they did not know — and
-    # the two who reached this page never did. Progressive disclosure keeps the rest
-    # closed (Cooper, About Face, p.271), which is why this is not "open them all".
-    for i, guide in enumerate(CSV_GUIDES):
-        _render_guide_expander(guide, expanded=(i == 0))
+    by_key = {g.key: g for g in CSV_GUIDES}
+    paired = [by_key[k] for k in _SIDE_BY_SIDE if k in by_key]
+    rest = [g for g in CSV_GUIDES if g.key not in _SIDE_BY_SIDE]
+
+    # Les deux principaux sont OUVERTS : côte à côte, ils tiennent tous les deux à
+    # l'écran, donc plus rien ne justifie d'en cacher un. Empilés, le premier seul
+    # s'ouvrait — et les deux artistes qui ont atteint cette page n'ont jamais
+    # déplié les suivants.
+    for col, guide in zip(st.columns(2), paired):
+        with col:
+            _render_guide_expander(guide, expanded=True)
+
+    # Les distributeurs restent repliés : ils ne concernent qu'une partie des
+    # artistes (Cooper, About Face, p.271 — divulgation progressive).
+    for row_start in range(0, len(rest), 2):
+        for col, guide in zip(st.columns(2), rest[row_start:row_start + 2]):
+            with col:
+                _render_guide_expander(guide, expanded=False)
 
 
 def _render_guide_expander(guide: PlatformGuide, expanded: bool = False) -> None:

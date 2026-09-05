@@ -316,9 +316,6 @@ def show():
     except Exception:  # noqa: BLE001 — une purge ratée ne doit pas fermer la page
         pass
 
-    from src.dashboard.content.csv_guides_st import render_csv_guides
-    render_csv_guides()
-
     db = get_db_connection()
     try:
         # ── Sélection artiste ──────────────────────────────────────────
@@ -355,14 +352,11 @@ def render_uploader(db, target_artist_id: int) -> None:
     et la page appelante a déjà dépensé la sienne.
     """
     # ── Upload multi-fichier ───────────────────────────────────────
-    with st.expander(t("upload_csv.sacem_howto_header",
-                       "🎼 Relevé SACEM (.xlsx) — comment l'obtenir")):
-        st.markdown(t("upload_csv.sacem_howto_body",
-                      "1. Connectez-vous sur **sacem.fr** (espace membre).\n"
-                      "2. **Mes répartitions** → **Relevé de compte**.\n"
-                      "3. Réglez le filtre de **date sur « depuis l'inscription »**.\n"
-                      "4. **Téléchargez le `.xlsx`**, puis glissez-le ci-dessous "
-                      "(type SACEM détecté automatiquement)."))
+    # Le mode d'emploi du relevé SACEM était ICI *et* dans la vue 🎼 Royalties SACEM,
+    # mot pour mot. Retiré de ce côté le 2026-09-06 : il s'adressait à qui vient
+    # déposer des fichiers Spotify et Apple, et la page SACEM est l'endroit où on se
+    # trouve quand on cherche un relevé SACEM. Deux copies d'une consigne, c'est une
+    # copie qui se périmera sans que personne ne le voie.
     uploaded_files = st.file_uploader(
         t("upload_csv.uploader_label", "Fichiers CSV / TSV / XLSX"),
         type=["csv", "tsv", "xlsx", "xls"],
@@ -373,6 +367,13 @@ def render_uploader(db, target_artist_id: int) -> None:
                "DistroKid, SACEM relevé .xlsx…) est détecté automatiquement."),
         key=f"multi_upload_{target_artist_id}",
     )
+
+    # Les guides sont rendus APRÈS la zone de dépôt (demandé le 2026-09-06) : la
+    # page s'ouvre sur le geste, pas sur sa notice. Ils vivent ici plutôt que dans
+    # `show()` pour que l'onglet « 📂 Mes fichiers » de Credentials, qui appelle
+    # cette fonction et rien d'autre, les ait aussi.
+    from src.dashboard.content.csv_guides_st import render_csv_guides
+    render_csv_guides()
 
     if not uploaded_files:
         return
@@ -605,6 +606,3 @@ def render_uploader(db, target_artist_id: int) -> None:
         k4.metric(t("upload_csv.metric_skipped", "Fichiers ignorés (type inconnu)"), n_skip)
 
         st.dataframe(pd.DataFrame(result_rows), hide_index=True, width='stretch')
-
-
-
