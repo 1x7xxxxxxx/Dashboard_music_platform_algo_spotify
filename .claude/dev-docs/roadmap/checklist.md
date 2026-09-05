@@ -26,9 +26,12 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Où |
 |---|---|---|---|
 
-R59, R60, R61 et R62 — les quatre ouvertes ce matin — ont été closes le 2026-09-05 au
-soir (voir `archive.md`). Deux l'ont été par un correctif, une par un ADR qui montre que
-sa prémisse était fausse, une par un ADR qui mesure une porte fermée.
+R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
+correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
+mesure une porte fermée. **R63** a suivi le soir même, le quota Meta revenu ayant permis
+de trancher : `business_discovery` lit un compte Instagram tiers sans aucun partage
+Business Manager (les insights, non) — 📸 Instagram a donc son onglet, et son collecteur
+retombe sur cette route.
 
 Ne reste que ce qui attend un geste humain, dans la section « 🙋 En attente de toi »
 plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
