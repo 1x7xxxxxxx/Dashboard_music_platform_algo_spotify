@@ -36,6 +36,10 @@ _FIELD = {
     "spotify": "spotify_artist_id",
     "soundcloud": "user_id",
     "youtube": "channel_id",
+    # Instagram s'écrit dans la ligne `meta` (`storage_platform`), pas dans une
+    # ligne à lui : c'est le modèle de stockage, et le séparer serait un autre
+    # changement. La fusion ci-dessous protège `account_id`, qui vit au même endroit.
+    "instagram": "ig_user_id",
 }
 
 
@@ -49,6 +53,14 @@ def _identifier(platform: str, link: str) -> str:
             from src.utils.platform_identity_resolver import soundcloud_user_id_from_url
             user_id, _permalink = soundcloud_user_id_from_url(link)
             return user_id or ""
+        if platform == "instagram":
+            from src.utils.platform_identity_resolver import (
+                instagram_user_id_from_handle,
+            )
+            ident, _name, problem = instagram_user_id_from_handle(link)
+            if problem:
+                logger.info("signup Instagram link unusable: %s", problem[:80])
+            return ident or ""
         if platform == "youtube":
             from src.dashboard.utils.youtube_channel import parse_channel_input
             parsed = parse_channel_input(link)
@@ -90,12 +102,26 @@ def materialise(db, artist_id: int) -> list:
     for platform, link in (links or {}).items():
         if platform not in _FIELD or not (link or "").strip():
             continue
-        if existing.get(platform):
+        from src.utils.tenant_identity import identity_field, storage_platform
+        row = storage_platform(platform)
+        field = identity_field(platform) or _FIELD[platform]
+        # `_load_credentials` rend l'ENREGISTREMENT (platform, token, extra_config,
+        # updated_at…), pas `extra_config`. Le confondre a produit un `Timestamp` dans
+        # le dict à écrire, donc un `TypeError` de sérialisation JSON — attrapé par le
+        # `except` par-plateforme, qui a fait passer un vrai défaut pour « ce lien
+        # n'était pas convertible ».
+        row_extra = dict((existing.get(row) or {}).get("extra_config") or {})
+        if row_extra.get(field):
             continue                       # jamais écraser une saisie de l'artiste
         identifier = _identifier(platform, link.strip())
         if not identifier:
             continue
-        extra = {_FIELD[platform]: identifier}
+        # Fusion : `_save_credentials` REMPLACE `extra_config`. Écrire `ig_user_id`
+        # seul effacerait `account_id` ET `account_ids` s'ils étaient déjà là — le
+        # déplacement d'une valeur ne doit jamais devenir la suppression d'une autre.
+        # On repart donc de l'existant, listes comprises.
+        extra = dict(row_extra)
+        extra[field] = identifier
         try:
             # LE MÊME contrôle que le formulaire. Sans lui, deux comptes pourraient
             # déclarer le même profil et lire les chiffres l'un de l'autre.
@@ -107,7 +133,7 @@ def materialise(db, artist_id: int) -> list:
             # et elle signifie « ne touche pas au secret » côté SQL. Aucune de ces
             # trois plateformes n'a de champ secret, mais la ligne en porte un en
             # production (P1 du 2026-08-22) — l'écraser serait le reperdre.
-            _save_credentials(db, artist_id, platform, "", extra)
+            _save_credentials(db, artist_id, row, "", extra)
             connected.append(platform)
         except Exception as exc:  # noqa: BLE001 — une plateforme n'en perd pas quatre
             logger.warning("could not materialise %s for %s: %s",

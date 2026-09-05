@@ -23,13 +23,28 @@ from src.dashboard.views.credentials._registry import PLATFORMS
 from src.utils.tenant_identity import PLATFORM_IDENTITIES
 
 
-def test_an_instagram_only_save_starts_instagram_not_meta() -> None:
-    assert dags_for_save("meta", {"ig_user_id": "17841400000000000"}) == ["instagram_daily"]
+# RÉANCRÉ le 2026-09-05 (soir) : Instagram a son propre onglet depuis que
+# `business_discovery` a supprimé le détour par Business Manager. Le stockage, lui,
+# n'a pas bougé — `ig_user_id` reste dans la ligne `meta`. La question du fichier est
+# inchangée : une saisie démarre-t-elle SA collecte, et une seule ?
+
+def test_an_instagram_save_starts_instagram_not_meta() -> None:
+    assert dags_for_save("instagram", {"ig_user_id": "17841400000000000"}) == [
+        "instagram_daily"]
+    # Et surtout PAS la collecte publicitaire : elle n'a rien à voir avec un profil.
+    assert "meta_ads_api_daily" not in dags_for_save(
+        "instagram", {"ig_user_id": "17841400000000000"})
 
 
-def test_a_full_meta_save_starts_both_collections() -> None:
-    dags = dags_for_save("meta", {"account_id": "123456789", "ig_user_id": "17841400000000000"})
-    assert set(dags) == {"meta_ads_api_daily", "instagram_daily"}
+def test_a_meta_save_starts_only_the_ad_collection() -> None:
+    """L'onglet Meta ne porte plus Instagram : il ne doit plus le déclencher.
+
+    Avant la séparation, `ig_user_id` traînait dans le même formulaire et un
+    enregistrement Meta lançait les deux. Une collecte Instagram déclenchée par une
+    saisie publicitaire, c'est un appel d'API que rien ne justifie.
+    """
+    dags = dags_for_save("meta", {"account_id": "123456789"})
+    assert set(dags) == {"meta_ads_api_daily"}
 
 
 def test_an_untouched_tab_starts_nothing() -> None:
@@ -50,11 +65,15 @@ def test_no_dag_map_key_is_unreachable() -> None:
     Every entry of the map must be producible by `dags_for_save` from some declared
     tab; an entry nothing can select is a promise the code never keeps.
     """
+    # Parcouru par les CHAMPS de l'onglet, comme `dags_for_save` lui-même. C'était
+    # `spec.storage == tab`, ce qui liait le DAG à la LIGNE : depuis que deux onglets
+    # partagent la ligne `meta`, ce calcul déclarait `instagram_daily` inatteignable
+    # alors qu'il est atteint par l'onglet Instagram. Le test mesurait le modèle
+    # d'hier, pas la question qu'il pose.
     reachable = set()
-    for tab in PLATFORMS:
-        for logical, spec in PLATFORM_IDENTITIES.items():
-            if spec.storage == tab:
-                reachable.update(dags_for_save(tab, {spec.field: "probe"}))
+    for tab, info in PLATFORMS.items():
+        for field in (f["key"] for f in info.get("fields", [])):
+            reachable.update(dags_for_save(tab, {field: "probe"}))
     unreachable = set(_IDENTITY_DAG_MAP.values()) - reachable
     assert not unreachable, (
         f"DAG(s) declared but unreachable from any tab: {sorted(unreachable)}"
@@ -62,6 +81,12 @@ def test_no_dag_map_key_is_unreachable() -> None:
 
 
 def test_every_identity_storage_is_a_real_tab() -> None:
+    """Une ligne de stockage est toujours ATTEIGNABLE par un onglet.
+
+    Elle n'a plus à porter le même nom que lui : `instagram` est un onglet dont la
+    ligne s'appelle `meta`. Ce qui compte est qu'aucune identité ne soit stockée
+    quelque part que l'artiste ne puisse jamais atteindre.
+    """
     tabs = set(PLATFORMS)
     for logical, spec in PLATFORM_IDENTITIES.items():
         assert spec.storage in tabs, (

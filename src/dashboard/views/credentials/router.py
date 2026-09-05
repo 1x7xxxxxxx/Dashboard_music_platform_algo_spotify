@@ -88,6 +88,17 @@ def _resolve_active_tab(keys: list[str], done: set | None = None) -> str:
     return keys[0]
 
 
+def _storage_for_tab(tab_key: str) -> str:
+    """La ligne `artist_credentials` que cet onglet lit et écrit.
+
+    Depuis la séparation de 📸 Instagram (2026-09-05), deux onglets partagent la
+    ligne `meta`. Confondre l'onglet et la ligne ferait lire un `existing_row` vide
+    à Instagram — donc un formulaire qui paraît neuf alors que la valeur est là.
+    """
+    from src.utils.tenant_identity import storage_platform
+    return storage_platform(tab_key)
+
+
 def platform_destination(key: str) -> str:
     """Où cette plateforme se configure : `tab:<clé d'onglet>` ou `page:<clé de page>`.
 
@@ -464,7 +475,9 @@ def show():
                 platform_key=_chosen,
                 platform_info=_info,
                 artist_id=target_artist_id,
-                existing_row=existing.get(_chosen),
+                # La LIGNE, pas l'onglet : 📸 Instagram lit la ligne `meta`, où son
+                # `ig_user_id` est stocké depuis toujours.
+                existing_row=existing.get(_storage_for_tab(_chosen)),
                 fernet_ok=fernet_ok,
                 dag_states=dag_states,
                 artist_name=artist_name,

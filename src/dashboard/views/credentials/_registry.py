@@ -74,13 +74,13 @@ PLATFORMS = {
         # remains an optional per-artist override. The connection test validates the
         # channel resolves (a bad UC… 404s the collector, not the key test).
         'fields': [
-            {'key': 'channel_id', 'label': 'Channel ID (UC…)', 'secret': False,
+            {'key': 'channel_id', 'label': 'Lien de ta chaîne YouTube (la chaîne « — Topic »)', 'secret': False,
              'example': 'UC_x5XG1OV2P6uZZ5FSM9Ttw'},
             {'key': 'api_key',    'label': 'API Key (surcharge)',         'secret': True, 'admin_only': True},
         ],
     },
     'meta': {
-        'label': '📱 Meta / Instagram',
+        'label': '📱 Meta Ads',
         # Shared System User app (access_token/app_id/app_secret) comes from the
         # platform env; the artist provides their own Ad Account ID and — for
         # Instagram — their Instagram Business Account ID. Stored per-artist app
@@ -103,9 +103,6 @@ PLATFORMS = {
              'example': 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345'},
             # Le LIEN du profil, comme partout ailleurs — l'ID numérique reste
             # accepté. C'est `_handle_save` qui résout, via `business_discovery`.
-            {'key': 'ig_user_id', 'label': 'Lien de ton profil Instagram',
-             'secret': False, 'show_example': False,
-             'example': 'https://instagram.com/ton-pseudo'},
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
             # plutôt qu'une liste dans `account_id` : les 100 % de locataires
             # mono-compte d'aujourd'hui ne voient aucun changement, et le champ
@@ -116,6 +113,26 @@ PLATFORMS = {
             # Credentials répond à « comment te connecter » ; un compte d'agence est
             # une déclaration de périmètre, pas une identité — l'identité est déjà
             # là. Même mouvement que les titres SoundCloud hébergés ailleurs.
+        ],
+    },
+    # ── Instagram, onglet à part depuis le 2026-09-05 ───────────────────────
+    #
+    # Il était un CHAMP de l'onglet Meta parce que son identifiant ne se trouvait
+    # que dans Business Manager : les deux plateformes partageaient donc le même
+    # parcours pénible. `business_discovery` ayant supprimé ce détour, Instagram est
+    # devenu une saisie de dix secondes — la garder derrière Meta forçait à lire une
+    # étape de partage de compte publicitaire pour brancher un profil public.
+    #
+    # L'onglet est séparé, le STOCKAGE ne l'est pas : `ig_user_id` reste dans la
+    # ligne `meta` (`storage_platform`), et `_handle_save` fusionne au lieu de
+    # remplacer — sans quoi enregistrer l'un effacerait l'autre.
+    'instagram': {
+        'label': '📸 Instagram',
+        'fields': [
+            {'key': 'ig_user_id',
+             'label': 'Lien de ton profil Instagram (compte Business/Créateur)',
+             'secret': False, 'show_example': False,
+             'example': 'https://instagram.com/ton-pseudo'},
         ],
     },
 }

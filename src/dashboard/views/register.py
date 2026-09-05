@@ -555,11 +555,22 @@ def show():
         link_spotify = st.text_input(
             t("register.link_spotify", "Lien de ta page Spotify Artist"),
             placeholder="https://open.spotify.com/artist/…")
+        link_instagram = st.text_input(
+            t("register.link_instagram",
+              "Lien de ton profil Instagram (compte Business/Créateur)"),
+            placeholder="https://instagram.com/ton-pseudo")
         link_soundcloud = st.text_input(
             t("register.link_soundcloud", "Lien de ton profil SoundCloud"),
             placeholder="https://soundcloud.com/ton-nom")
+        # « la chaîne Topic » et « Business ou Créateur » sont DANS le libellé, pas en
+        # infobulle ni en note sous le champ. Ce sont les deux conditions qui font
+        # qu'une saisie de bonne foi ne collecte rien : la chaîne personnelle d'un
+        # artiste n'a pas sa musique (elle est sur la chaîne « — Topic » générée par
+        # YouTube), et un compte Instagram personnel ne rend aucune statistique via
+        # l'API. Une condition qu'on découvre après coup coûte un aller-retour.
         link_youtube = st.text_input(
-            t("register.link_youtube", "Lien de ta chaîne YouTube"),
+            t("register.link_youtube",
+              "Lien de ta chaîne YouTube (la chaîne « — Topic »)"),
             placeholder="https://youtube.com/@ta-chaine")
 
         st.markdown("---")
@@ -647,6 +658,7 @@ def show():
                 "spotify": link_spotify,
                 "soundcloud": link_soundcloud,
                 "youtube": link_youtube,
+                "instagram": link_instagram,
             })
 
             # Codes are resolved only NOW, against an account that exists. Validating

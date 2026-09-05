@@ -5,6 +5,78 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 20) — Instagram sort de l'onglet Meta, et douze invariants avec
+
+Quatre demandes, dont une question.
+
+### « On a bien mis en place de lancer le DAG dès la saisie ? » — oui, mesuré
+
+    spotify     {spotify_artist_id}          → ['spotify_api_daily']
+    soundcloud  {user_id}                    → ['soundcloud_daily']
+    youtube     {channel_id}                 → ['youtube_daily']
+    meta        {account_id}                 → ['meta_ads_api_daily']
+    instagram   {ig_user_id}                 → ['instagram_daily']
+    instagram   {}                           → aucun
+
+Chaque enregistrement déclenche exactement le DAG des identités **réellement écrites**,
+avec `conf={'artist_id': …}`. Un onglet laissé vide ne déclenche rien.
+
+**Nuance à dire honnêtement** : le déclenchement a lieu à la SAUVEGARDE, avant le
+verdict de la sonde — pas « une fois que le pipeline a confirmé ». C'est le bon ordre
+(attendre coûterait des minutes), mais ce n'est pas ce que la question supposait.
+
+### Les deux conditions qui font qu'une saisie de bonne foi ne collecte rien
+
+Elles sont maintenant **dans le libellé**, à l'inscription comme dans Credentials :
+
+    Lien de ta chaîne YouTube (la chaîne « — Topic »)
+    Lien de ton profil Instagram (compte Business/Créateur)
+
+La chaîne personnelle d'un artiste distribué n'a pas sa musique — elle est sur la chaîne
+« — Topic » générée par YouTube. Un compte Instagram personnel ne rend aucune
+statistique via l'API. Une condition qu'on découvre après coup coûte un aller-retour.
+
+*(« Business/Créateur » et non « Business ou Créateur » : un garde du dépôt refuse un
+« ou » dans un libellé de champ, parce qu'il y a proposé un choix entre deux formes de
+valeur. Faux positif ici, mais la barre oblique dit la même chose sans l'ambiguïté.)*
+
+### 📸 Instagram devient un onglet — et le stockage ne suit pas
+
+Instagram était un CHAMP de l'onglet Meta parce que son identifiant ne se trouvait que
+dans Business Manager : les deux plateformes partageaient le même parcours pénible.
+`business_discovery` ayant supprimé ce détour, garder Instagram derrière Meta forçait à
+lire une étape de partage de compte publicitaire pour brancher un profil public.
+
+**L'onglet est séparé, la ligne ne l'est pas** : `ig_user_id` reste dans `meta`. C'est là
+qu'est le risque, et il est réel — `_save_credentials` **remplace** `extra_config`, donc
+enregistrer un onglet aurait effacé l'autre. La fusion est une fonction **pure**
+(`merge_into_row`), et elle retire d'abord les clés que l'onglet POSSÈDE — sans quoi le
+risque symétrique apparaît : un champ vidé par l'artiste survivrait.
+
+### Douze invariants sont tombés, et ils avaient tous la même forme
+
+Le split a fait rougir douze tests d'un coup. Tous posaient la bonne question avec le
+mauvais ancrage : **« l'onglet nommé par le stockage porte-t-il ce champ ? »** au lieu de
+**« un onglet le porte-t-il ? »**. Ils supposaient `tab == storage`, ce qui était vrai
+depuis toujours et ne l'est plus.
+
+Réancrés, pas contournés : typabilité d'une identité, atteignabilité d'un DAG, onglets
+sans secret, ordre des onglets. Un seul cas restait faux après coup — une méta-mutation
+qui vérifiait qu'Instagram n'a pas d'onglet ; elle porte maintenant sur `s4a`, qui n'en
+a toujours pas.
+
+### Le même trou de garde, cinquième et sixième fois
+
+Deux mutations vertes de plus, et deux formes nouvelles :
+
+- mon test **réimplémentait** la fusion au lieu d'appeler celle de production — d'où
+  l'extraction en fonction pure, appelée des deux côtés ;
+- `if False:` laisse l'appel **dans l'arbre** : chercher « la fonction est-elle
+  appelée ? » ne distingue pas d'une branche morte. Le garde vérifie désormais que la
+  condition nomme `SHARED_ROWS`.
+
+Cinq mutations vues rouges au total.
+
 ## 2026-09-05 (suite 19) — L'onglet vert qu'on saute, et Instagram sans Business Manager
 
 Six demandes. Deux étaient des questions, et les deux ont changé le code.

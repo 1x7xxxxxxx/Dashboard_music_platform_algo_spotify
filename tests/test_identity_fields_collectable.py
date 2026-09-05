@@ -33,6 +33,11 @@ _IDENTITY_FIELD = {
 }
 
 
+def _all_tabs() -> list:
+    from src.dashboard.views.credentials._registry import PLATFORMS
+    return list(PLATFORMS)
+
+
 def _form_field_keys(platform_key: str) -> set[str]:
     return {f["key"] for f in PLATFORMS[platform_key]["fields"]}
 
@@ -40,7 +45,12 @@ def _form_field_keys(platform_key: str) -> set[str]:
 @pytest.mark.parametrize("readiness_key", [p["key"] for p in ar._PLATFORMS])
 def test_identity_has_a_form_field(readiness_key):
     tab, field = _IDENTITY_FIELD[readiness_key]
-    assert field in _form_field_keys(tab), (
+    # UN onglet doit porter le champ, pas forcément celui qui porte son nom de
+    # stockage : 📸 Instagram est un onglet à part depuis le 2026-09-05, alors que
+    # `ig_user_id` reste dans la ligne `meta`. La question — « un artiste peut-il le
+    # saisir ? » — est inchangée ; c'est l'ancrage qui l'était.
+    _typable = set().union(*(_form_field_keys(k) for k in _all_tabs()))
+    assert field in _typable, (
         f"artist_readiness treats '{field}' as the {readiness_key} identity, but the "
         f"'{tab}' credential form has no such field — the artist cannot connect it."
     )
@@ -56,4 +66,4 @@ def test_instagram_dag_selects_on_a_collectable_field():
     dag = (_ROOT / "airflow/dags/instagram_daily.py").read_text(encoding="utf-8")
     keys = set(re.findall(r"\.get\('([a-z_]+)'\)", dag))
     assert "ig_user_id" in keys
-    assert "ig_user_id" in _form_field_keys("meta")
+    assert "ig_user_id" in set().union(*(_form_field_keys(k) for k in _all_tabs()))

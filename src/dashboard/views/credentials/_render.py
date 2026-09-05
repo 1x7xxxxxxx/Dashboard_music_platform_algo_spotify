@@ -16,6 +16,9 @@ from src.utils.tenant_identity import (
     malformed_identities,
 )
 from ._core import (
+    DERIVED_KEYS,
+    SHARED_ROWS,
+    merge_into_row,
     find_identity_conflict,
     dags_for_save,
     _STATE_ICON,
@@ -736,6 +739,28 @@ def resolve_message(code: str) -> str:
              _RESOLVE_MESSAGES.get(code, _RESOLVE_MESSAGES["upstream_error"]))
 
 
+
+def _saved_row_extra(db, artist_id: int, row: str) -> dict:
+    """`extra_config` de cette ligne, tel qu'il est en base. Ne lève jamais."""
+    import json as _json
+
+    try:
+        rows = db.fetch_query(
+            "SELECT extra_config FROM artist_credentials "
+            "WHERE artist_id = %s AND platform = %s", (artist_id, row))
+    except Exception:  # noqa: BLE001
+        return {}
+    if not rows or not rows[0][0]:
+        return {}
+    extra = rows[0][0]
+    if isinstance(extra, str):
+        try:
+            extra = _json.loads(extra)
+        except ValueError:
+            return {}
+    return dict(extra or {})
+
+
 def _saved_meta_accounts(db, artist_id: int) -> list:
     """Les comptes publicitaires déjà enregistrés. Ne lève jamais.
 
@@ -952,7 +977,24 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # secret field at all, so they ALWAYS land here with an empty blob while
         # their rows hold a rotated refresh_token / the System User token.
         encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
-        _save_credentials(db, artist_id, platform_key, encrypted_blob, extra)
+        # L'onglet et la LIGNE ne sont plus la même chose depuis que 📸 Instagram est
+        # séparé de 📱 Meta Ads : les deux onglets écrivent dans la ligne `meta`
+        # (`storage_platform`). Or `_save_credentials` REMPLACE `extra_config` —
+        # enregistrer Instagram effacerait donc le compte publicitaire, et
+        # réciproquement. On fusionne : on repart de ce que la ligne porte, on retire
+        # les clés que CET onglet possède (pour qu'un champ vidé soit vraiment vidé),
+        # puis on applique la saisie.
+        from src.utils.tenant_identity import storage_platform as _storage_of
+        _row = _storage_of(platform_key)
+        if _row != platform_key or _row in SHARED_ROWS:
+            _owned = ({f['key'] for f in fields_def}
+                      | DERIVED_KEYS.get(platform_key, set()))
+            # Relu en BASE, pas depuis `existing_values` : celui-ci est filtré par
+            # les champs de CET onglet, donc il ne contient jamais ceux de l'autre —
+            # la fusion n'aurait rien à fusionner.
+            extra = merge_into_row(_saved_row_extra(db, artist_id, _row),
+                                   extra, _owned)
+        _save_credentials(db, artist_id, _row, encrypted_blob, extra)
 
         # Spotify's identity is mirrored on saas_artists.spotify_artist_id, which is
         # what spotify_api_daily reads. The mirror list lives in one module so a second

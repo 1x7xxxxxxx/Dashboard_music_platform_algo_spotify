@@ -4,6 +4,9 @@ EN = {
     # Les liens de profil, saisis à l'inscription (2026-09-05). Facultatifs :
     # aucun `*` dans les libellés.
     "register.link_spotify": "Link to your Spotify Artist page",
+    "register.link_instagram": (
+        "Link to your Instagram profile (Business/Creator account)"
+    ),
     "register.link_soundcloud": "Link to your SoundCloud profile",
     "register.link_youtube": "Link to your YouTube channel",
     "register.title": "🎵 Create your account",

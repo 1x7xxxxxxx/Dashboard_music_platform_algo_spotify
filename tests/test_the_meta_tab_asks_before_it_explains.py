@@ -215,11 +215,10 @@ def test_the_agency_field_left_the_tab_and_instagram_is_not_optional():
     by_key = {f["key"]: f for f in PLATFORMS["meta"]["fields"]}
     assert "extra_account_ids" not in by_key, (
         "le champ d'agence est revenu dans l'onglet Credentials")
-    # Instagram n'est PAS étiqueté optionnel : le mot invitait à sauter la seule
-    # valeur qui fait exister l'onglet Instagram.
-    assert "optionnel" not in by_key["ig_user_id"]["label"].lower()
-    # …et il demande un LIEN, comme les autres onglets.
-    assert "lien" in by_key["ig_user_id"]["label"].lower()
+    # Instagram a QUITTÉ cet onglet le 2026-09-05 (soir) : il a le sien. On vérifie
+    # donc son absence ici, et son libellé se garde dans le fichier de la séparation.
+    assert "ig_user_id" not in by_key, (
+        "Instagram est revenu dans l'onglet Meta")
 
 
 def test_no_collapsed_field_remains_on_the_meta_tab():

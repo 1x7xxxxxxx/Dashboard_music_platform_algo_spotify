@@ -230,9 +230,13 @@ def test_the_tab_order_guard_goes_red_on_the_shape_that_shipped():
         out.sort(key=lambda kv: (rank.get(kv[0], len(rank)),))
         return [k for k, _ in out]
 
-    assert buggy(["spotify", "instagram"], {"spotify"})[0] == "spotify", (
-        "la mutation ne reproduit plus le défaut — vérifie qu'Instagram n'a toujours "
-        "pas d'onglet à lui"
+    # `s4a` et non `instagram` : Instagram a son propre onglet depuis le 2026-09-05,
+    # donc il ne reproduit plus le défaut. Ce qu'il faut ici est une plateforme
+    # cochable qui n'a PAS d'onglet — `s4a` se dépose sur la page d'import, et c'est
+    # justement le cas que le rang par clé logique traitait mal.
+    assert buggy(["spotify", "s4a"], {"spotify"})[0] == "spotify", (
+        "la mutation ne reproduit plus le défaut — vérifie que `s4a` n'a toujours "
+        "pas d'onglet de credentials"
     )
 
 

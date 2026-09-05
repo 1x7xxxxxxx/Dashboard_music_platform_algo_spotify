@@ -69,6 +69,12 @@ def _declare(db, artist_id, platform, extra):
     )
 
 
+def _any_tab_field_keys() -> set:
+    """Les clés saisissables dans N'IMPORTE quel onglet de credentials."""
+    from src.dashboard.views.credentials._registry import PLATFORMS
+    return {f["key"] for info in PLATFORMS.values() for f in info.get("fields", [])}
+
+
 @pytest.mark.parametrize("platform,field", sorted(UNIQUE_IDENTITY_FIELDS.items()))
 def test_identity_already_claimed_is_refused(db, two_tenants, platform, field):
     first, second = two_tenants
@@ -144,10 +150,12 @@ def test_every_identity_is_typable_in_a_real_tab():
         assert spec.storage in PLATFORMS, (
             f"{logical} is stored under '{spec.storage}', which is not a tab"
         )
-        keys = {f["key"] for f in PLATFORMS[spec.storage]["fields"]}
-        assert spec.field in keys, (
-            f"{logical}'s identity '{spec.field}' has no input in the "
-            f"'{spec.storage}' tab — no artist could ever declare it"
+        # N'IMPORTE quel onglet : depuis le 2026-09-05, 📸 Instagram est un onglet
+        # dont la ligne de stockage s'appelle `meta`. La question reste « un artiste
+        # peut-il déclarer cette identité ? », pas « où est-elle rangée ? ».
+        assert spec.field in _any_tab_field_keys(), (
+            f"{logical}'s identity '{spec.field}' has no input in ANY credentials "
+            "tab — no artist could ever declare it"
         )
         assert logical in UNIQUE_IDENTITY_FIELDS, (
             f"{logical} has no uniqueness rule — two tenants could claim the same one"

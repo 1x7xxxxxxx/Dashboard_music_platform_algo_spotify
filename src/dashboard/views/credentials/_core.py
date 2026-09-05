@@ -35,6 +35,33 @@ _IDENTITY_DAG_MAP = {
 }
 
 
+# Les lignes de `artist_credentials` écrites par PLUSIEURS onglets. Aujourd'hui la
+# seule est `meta` — 📱 Meta Ads et 📸 Instagram y cohabitent depuis le 2026-09-05.
+SHARED_ROWS = frozenset({"meta"})
+
+# Les clés qu'un onglet possède EN PLUS de ses champs déclarés, parce qu'il les
+# dérive. Sans elles, la fusion les croirait à l'autre onglet et les garderait pour
+# toujours — un compte publicitaire retiré ne partirait jamais.
+DERIVED_KEYS = {"meta": {"account_ids"}}
+
+
+def merge_into_row(current: dict, incoming: dict, owned: set) -> dict:
+    """Ce qu'il faut écrire dans une ligne PARTAGÉE par plusieurs onglets.
+
+    Pure, et extraite pour une raison mesurée : la première version de cette logique
+    vivait inline dans `_handle_save`, et son test la RÉIMPLÉMENTAIT. Deux mutations
+    — fusion désactivée, clés dérivées vidées — sont restées vertes : le test
+    validait sa propre copie. Une seule implémentation, appelée des deux côtés.
+
+    `owned` sont les clés de l'onglet qui écrit. Elles sont retirées de l'existant
+    AVANT la fusion, sans quoi un champ vidé par l'artiste survivrait — c'est le
+    risque symétrique de celui qu'on ferme ici.
+    """
+    kept = {k: v for k, v in (current or {}).items() if k not in (owned or set())}
+    kept.update(incoming or {})
+    return kept
+
+
 def dags_for_save(tab_key: str, extra: dict) -> list:
     """DAGs to trigger after saving `tab_key`, given the identities actually written.
 
@@ -45,9 +72,19 @@ def dags_for_save(tab_key: str, extra: dict) -> list:
     """
     from src.utils.tenant_identity import PLATFORM_IDENTITIES
 
+    from src.dashboard.views.credentials._registry import PLATFORMS
+
+    # Les clés que CET onglet déclare. On matchait sur `spec.storage == tab_key`, ce
+    # qui liait le DAG à la LIGNE ; depuis que 📸 Instagram est un onglet à part
+    # (2026-09-05) les deux partagent la ligne `meta`, et enregistrer Instagram
+    # n'aurait déclenché aucun DAG — ou celui de Meta Ads, ce qui est pire.
+    _own_fields = {f['key'] for f in (PLATFORMS.get(tab_key) or {}).get('fields', [])}
+
     out = []
     for logical, spec in PLATFORM_IDENTITIES.items():
-        if spec.storage != tab_key:
+        # L'onglet porte-t-il ce champ ? À défaut d'onglet déclaré (appel hors UI),
+        # on retombe sur l'ancienne règle, qui reste juste pour les onglets simples.
+        if spec.field not in _own_fields if _own_fields else spec.storage != tab_key:
             continue
         if not str((extra or {}).get(spec.field) or "").strip():
             continue
