@@ -1027,6 +1027,13 @@ def _main_body():
     # première connexion, par exemple.
     _bare = bool(st.session_state.get(FIRST_RUN_FOCUS)) and page == 'onboarding'
 
+    # Les ÉTAPES restent, même en barre nue : elles ne décrivent pas l'application,
+    # elles mènent aux deux écrans du parcours. C'est la seule chose de la barre qui
+    # serve pendant la mise en route.
+    if _bare:
+        from views.onboarding import render_sidebar_steps
+        render_sidebar_steps()
+
     from src.dashboard.utils.i18n import language_selector
     if not _bare:
         # Pendant la mise en route, la langue se choisit SUR la page (bloc 0) : deux
@@ -1052,7 +1059,12 @@ def _main_body():
     # La sortie, en dernier, dans les DEUX branches — y compris en première connexion,
     # où le menu n'est pas rendu. Un écran dont on ne peut pas sortir n'est pas une
     # aide (même raison que le gros bouton de l'assistant).
-    render_logout_footer()
+    # « Se déconnecter » n'apparaît PAS pendant la mise en route (2026-09-05). La
+    # sortie de cet écran est le gros bouton au milieu de la page ; un bouton de
+    # déconnexion à côté d'un compte qui vient d'être créé propose surtout de perdre
+    # ce qu'on vient de faire. Il revient dès qu'on entre dans l'application.
+    if not _bare:
+        render_logout_footer()
 
     # Le miroir : l'URL nomme la page en cours, donc un rechargement la retrouve.
     # Écriture gardée — réécrire la même valeur relancerait le script en boucle.

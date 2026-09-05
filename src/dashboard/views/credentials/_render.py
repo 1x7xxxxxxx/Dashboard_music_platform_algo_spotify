@@ -272,19 +272,17 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 st.success(t("credentials.creds_saved",
                              "Credentials enregistrés — mise à jour : {updated}").format(updated=updated_str))
         else:
-            # « Credentials ENREGISTRÉS » et rien d'autre : c'est tout ce que cette
-            # ligne peut affirmer. Signalé le 2026-09-05 — « SoundCloud me dit que
-            # j'ai : Credentials enregistrés… or c'est faux » : la valeur ÉTAIT
-            # enregistrée, et l'horodatage juste (01:14 UTC = 03:14 à Paris). Ce qui
-            # était faux est ce que la phrase laisse croire, à côté d'une sonde qui
-            # échoue : « enregistré » se lit « ça marche ».
+            # Trois pastilles, pas une phrase. « Valeur enregistrée le … —
+            # enregistrée ne veut pas dire vérifiée : c'est le test ci-dessous qui le
+            # dit » disait la bonne chose et la disait mal : une ligne de prose pour
+            # une nuance que la couleur montre, répétée sous chaque onglet.
             #
-            # `st.caption` et non `st.success` : le vert est un verdict, et le verdict
-            # appartient à la sonde. Une valeur en base n'est pas une connexion.
-            st.caption(t("credentials.creds_saved",
-                         "Valeur enregistrée le {updated} — enregistrée ne veut pas "
-                         "dire vérifiée : c'est le test ci-dessous qui le dit."
-                         ).format(updated=updated_str))
+            # Ce sont les MÊMES cellules que « 📋 État de tes plateformes » —
+            # `render_platform_state` appelle `_box` et `_responds_cell`, pas des
+            # jumelles. Deux surfaces qui décrivent le même état avec deux codes
+            # couleur, c'est un désaccord qu'aucune des deux ne peut voir.
+            from src.dashboard.utils.status_matrix import render_platform_state
+            render_platform_state(db, artist_id, platform_key)
         existing_values = _decode_row(existing_row, fields_def)
     else:
         # RIEN. « Aucun credential enregistré pour cette plateforme » était la

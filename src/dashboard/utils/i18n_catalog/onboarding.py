@@ -56,6 +56,8 @@ EN = {
                           "Ads)** — linking what you spend on promotion to what it "
                           "actually produces in streams.",
     "onboarding.figure_mine": "📈 **Your own figures**",
+    "onboarding.step1": "1. Welcome & pick",
+    "onboarding.step2": "2. Where you stand",
     "onboarding.b0_title": "0. Your language",
     "onboarding.b0_help": "It applies to the whole app and to your PDF guide. "
                           "We remember it: you only pick it once.",

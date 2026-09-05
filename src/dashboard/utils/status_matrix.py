@@ -250,6 +250,51 @@ def read_identities(db, artist_id: int) -> dict:
     return out
 
 
+def render_platform_state(db, artist_id: int, platform_key: str) -> None:
+    """Les mêmes pastilles que la matrice, pour UNE plateforme, en tout petit.
+
+    Demandé le 2026-09-05 : « mets uniquement des états vert orange rouge très petit
+    que pour l'onglet sélectionné, copié de l'onglet état de tes plateformes ».
+
+    Elles REMPLACENT la phrase « Valeur enregistrée le … — enregistrée ne veut pas
+    dire vérifiée ». Cette phrase disait la bonne chose et la disait mal : elle
+    expliquait en une ligne de prose une nuance que trois pastilles montrent d'un
+    coup d'œil, et elle la répétait sous chaque onglet.
+
+    « Copié de » est à prendre au pied de la lettre : `_box` et `_responds_cell` sont
+    les fonctions de la matrice, pas des jumelles. Deux surfaces qui décrivent le même
+    état avec deux codes couleur, c'est le désaccord qu'aucune des deux ne peut voir —
+    et ce dépôt l'a payé assez souvent.
+    """
+    from src.utils.artist_readiness import artist_readiness
+
+    try:
+        rows = artist_readiness(db, artist_id)
+        probes = read_probes(db, artist_id)
+    except Exception:      # noqa: BLE001 — décoratif : jamais un mur devant la saisie
+        return
+
+    # `platform_key` est une clé d'ONGLET (`meta`), la matrice raisonne en clés
+    # LOGIQUES (`meta`, `instagram`). Un onglet peut donc porter deux lignes, et
+    # c'est voulu : Instagram peut être muet pendant que Meta Ads répond.
+    from src.dashboard.views.credentials.router import platform_destination
+    mine = [r for r in rows
+            if platform_destination(r["key"]) == f"tab:{platform_key}"]
+    if not mine:
+        return
+
+    cells = []
+    for r in mine:
+        shape = _shape_cell(r, read_identities(db, artist_id))
+        responds = _responds_cell(r, probes)
+        prefix = f'<span style="font-size:0.8em;opacity:.75">{_html.escape(r["label"])}</span> '
+        cells.append(prefix
+                     + _box(shape[0], shape[1], f'{r["label"]} — {shape[2]}')
+                     + _box(responds[0], responds[1], f'{r["label"]} — {responds[2]}'))
+    st.markdown('<div style="font-size:0.85em">' + " &nbsp; ".join(cells) + "</div>",
+                unsafe_allow_html=True)
+
+
 def render_status_matrix(db, artist_id: int, *, compact: bool = False,
                          allow_probe: bool = True, key_suffix: str = "") -> list:
     """Draw the matrix and return the readiness rows.

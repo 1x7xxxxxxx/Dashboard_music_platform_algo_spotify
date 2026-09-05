@@ -521,7 +521,41 @@ def _step_status(db, artist_id: int) -> None:
         _goto('home')
 
 
-# `_step_labels` est parti avec `render_sidebar_steps`, son unique appelant.
+def _step_labels() -> list[str]:
+    # DEUX étapes. Il y en avait trois, dont deux ne portaient qu'un bouton chacune.
+    return [
+        t("onboarding.step1", "1. Bienvenue & choix"),
+        t("onboarding.step2", "2. Où tu en es"),
+    ]
+
+
+def render_sidebar_steps() -> None:
+    """Les étapes, cliquables, EN HAUT de la barre latérale — sans son titre.
+
+    Retirées entièrement le 2026-09-05, remises le même jour : la demande était
+    « retire … Étapes … », et j'ai lu le BLOC là où l'énumération listait des éléments
+    à retirer un par un. « J'avais pas demandé de les enlever » — le mot désignait le
+    titre `### Étapes`, pas les deux lignes sous lui.
+
+    Ce qu'elles font et que rien d'autre ne fait : elles MÈNENT aux étapes. Elles
+    étaient du `st.markdown` jusqu'au 2026-09-04, donc elles les nommaient sans y
+    conduire — « impossible de revenir aux différentes étapes de config ». L'étape
+    courante reste du texte : il n'y a rien à y aller.
+    """
+    if _STEP_KEY not in st.session_state:
+        st.session_state[_STEP_KEY] = 1
+    step = st.session_state[_STEP_KEY]
+
+    # Pas de `### Étapes` : c'est le mot qu'on a demandé de retirer, et un titre pour
+    # deux lignes qui se lisent seules est du bruit.
+    for i, label in enumerate(_step_labels(), 1):
+        prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
+        if i == step:
+            st.sidebar.markdown(f"**{prefix} {label}**")
+        elif st.sidebar.button(f"{prefix} {label}", key=f"_onb_jump_{i}",
+                               use_container_width=True):
+            st.session_state[_STEP_KEY] = i
+            st.rerun()
 
 
 def _render_landing_choice(db, state) -> None:

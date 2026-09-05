@@ -5,6 +5,66 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 4) — L'état en pastilles, et une lecture trop large corrigée
+
+### « J'avais pas demandé de les enlever »
+
+La demande précédente énumérait des éléments à retirer de la barre latérale : « 🎤
+Artiste — …, Votre plan : 💎 Premium, **Étapes** et 🟢 1 en ligne · 👥 5 artistes… ».
+J'ai lu « Étapes » comme le BLOC ; le mot désignait le titre `### Étapes`, pas les deux
+lignes sous lui.
+
+Ce que les étapes font et que rien d'autre ne fait : elles **mènent** aux écrans du
+parcours. Elles étaient du `st.markdown` jusqu'au 2026-09-04 — elles les nommaient sans
+y conduire, « impossible de revenir aux différentes étapes de config ». Les retirer
+rendait ce défaut, un jour après l'avoir corrigé.
+
+Remises, sans leur titre. Et « Se déconnecter » retiré de cet écran : un bouton pour
+partir à côté d'un compte créé il y a trente secondes propose surtout de perdre ce
+qu'on vient de faire. La barre de la mise en route ne porte plus que les deux étapes —
+mesuré : « ▶️ 1. Bienvenue & choix | ⬜ 2. Où tu en es ».
+
+### La phrase devient trois pastilles
+
+« Valeur enregistrée le … — enregistrée ne veut pas dire vérifiée : c'est le test
+ci-dessous qui le dit. » Elle disait la bonne chose et la disait mal : une ligne de
+prose pour une nuance que la couleur montre, répétée sous chaque onglet.
+
+« Copié de l'onglet état de tes plateformes » est pris au pied de la lettre :
+`render_platform_state` appelle `_box`, `_shape_cell` et `_responds_cell` — les
+fonctions de la matrice, pas des jumelles. Deux surfaces qui décrivent le même état
+avec deux codes couleur produisent un désaccord qu'AUCUNE des deux ne peut voir, et ce
+dépôt l'a payé sur la fraîcheur, les compteurs publics et la durée de mise en route.
+
+Mesuré sur l'onglet SoundCloud : deux pastilles, vert `rgba(40,167,69,…)` pour la forme
+de l'identifiant, orange pour « répond, mais aucun titre public » — exactement les
+couleurs de la matrice.
+
+### Un garde qui doit céder, et un qui doit tenir
+
+`test_logout_is_rendered_after_the_menu_not_inside_the_identity_block` exigeait un
+bouton de déconnexion **inconditionnel**, au motif qu'« un écran dont on ne peut pas
+sortir n'est pas une aide ». La demande le retire de la mise en route.
+
+Les deux ont raison, et la question est plus fine que le prédicat : **l'artiste
+peut-il sortir ?** Oui — un gros bouton centré mène dans l'application, et l'étape 2 a
+« Aller au dashboard ». Le garde vérifie donc maintenant que la déconnexion n'est
+conditionnée QUE par la mise en route, et que cet écran a bien une autre sortie.
+
+### Le cliquet m'attrape une cinquième fois, et mon prédicat une troisième
+
+Mon garde neuf contenait deux comparaisons de chaînes sur du source Python
+(`"#28a745" not in render`, `"platform_destination" in src`) —
+`test_a_guard_reads_structure_not_text` les a refusées. Il a raison : un code couleur
+cité dans un commentaire rendrait ce garde rouge sur du code juste.
+
+Et la version AST du premier accusait… `"### "` — un titre markdown de quatre
+caractères commençant par `#`. Resserré sur un vrai hexadécimal. Troisième prédicat
+trop large de la journée : un garde qui hurle sur ce qu'il ne vise pas se fait
+désarmer.
+
+---
+
 ## 2026-09-05 (suite 3) — L'onglet actif entre dans l'URL, et trois bugs disparaissent ensemble
 
 « On n'a pas un refactor avec la meilleure logique possible pour les onglets, la

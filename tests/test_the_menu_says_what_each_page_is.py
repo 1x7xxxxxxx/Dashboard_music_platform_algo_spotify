@@ -207,14 +207,37 @@ def test_logout_is_rendered_after_the_menu_not_inside_the_identity_block():
         "exactement un, hors du if/else, pour couvrir la première connexion"
     )
 
-    # Hors du if/else : l'appel est un statement direct du corps de la fonction.
-    top_level = [n for n in body.body
-                 if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
-                 and getattr(n.value.func, "id", "") == "render_logout_footer"]
-    assert top_level, (
-        "render_logout_footer est appelé DANS une branche : en première connexion "
-        "le menu n'est pas rendu, et l'artiste se retrouverait sans sortie"
-    )
+    # La QUESTION est « l'artiste peut-il sortir ? », pas « le bouton est-il
+    # inconditionnel ». Ce garde exigeait le second, et il a rougi le 2026-09-05
+    # quand la déconnexion a été retirée de l'écran de mise en route — demandé, et
+    # sans danger : cet écran a une sortie, un gros bouton centré qui mène dans
+    # l'application, plus « Aller au dashboard » à l'étape 2.
+    #
+    # Un bouton « Se déconnecter » à côté d'un compte créé il y a trente secondes
+    # propose surtout de perdre ce qu'on vient de faire.
+    #
+    # Ce qui reste vérifié, et qui est la vraie propriété : la déconnexion est rendue
+    # PARTOUT AILLEURS, donc sa condition ne peut porter que sur la mise en route.
+    guarded = [n for n in ast.walk(body)
+               if isinstance(n, ast.If)
+               and any(isinstance(c, ast.Call)
+                       and getattr(c.func, "id", "") == "render_logout_footer"
+                       for c in ast.walk(n))]
+    if guarded:
+        names = {x.id for n in guarded for x in ast.walk(n.test) if isinstance(x, ast.Name)}
+        assert names & {"_bare", "_focus", "FIRST_RUN_FOCUS"}, (
+            f"la déconnexion est conditionnée par {sorted(names)} — la seule condition "
+            "admise est l'écran de mise en route, qui a sa propre sortie. Partout "
+            "ailleurs, un écran dont on ne peut pas partir n'est pas une aide.")
+
+    # …et l'écran de mise en route a bien une sortie qui n'est pas la déconnexion.
+    onb = ast.parse((_ROOT / "src" / "dashboard" / "views" / "onboarding.py"
+                     ).read_text(encoding="utf-8"))
+    exits = [n for n in ast.walk(onb) if isinstance(n, ast.Call)
+             and getattr(n.func, "id", "") == "_goto"]
+    assert exits, (
+        "l'assistant n'a plus aucune sortie : sans déconnexion NI bouton d'entrée "
+        "dans l'application, c'est une porte fermée")
 
 
 @pytest.mark.parametrize("key", ["home", "credentials", "onboarding"])
