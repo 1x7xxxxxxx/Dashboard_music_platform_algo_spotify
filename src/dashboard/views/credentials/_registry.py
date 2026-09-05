@@ -87,10 +87,19 @@ PLATFORMS = {
         # so Instagram was unconnectable by the artist (the collector's own error
         # message pointed at a field that did not exist).
         'fields': [
-            {'key': 'account_id', 'label': 'Ad Account ID (act_… ou numérique)',
-             'secret': False, 'example': 'act_1234567890'},
+            # Le MÊME geste que Spotify et SoundCloud : on colle un lien, pas un
+            # identifiant qu'il faudrait d'abord découper. `_handle_save` extrait
+            # `act=` et accepte aussi le numéro nu — mais ce n'est plus une règle à
+            # retenir, c'est une tolérance.
+            #
+            # `show_example: False` : la légende « ex. act_1234567890 » répétait le
+            # texte fantôme du champ juste au-dessus d'elle. Demandé le 2026-09-05 —
+            # « il est déjà sous-entendu dans le champ de saisie, qui est parfait ».
+            {'key': 'account_id', 'label': 'Lien de ton compte publicitaire',
+             'secret': False, 'show_example': False,
+             'example': 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345'},
             {'key': 'ig_user_id', 'label': 'Instagram Business Account ID (optionnel)',
-             'secret': False, 'example': '17841400000000000'},
+             'secret': False, 'show_example': False, 'example': '17841400000000000'},
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
             # plutôt qu'une liste dans `account_id` : les 100 % de locataires
             # mono-compte d'aujourd'hui ne voient aucun changement, et le champ

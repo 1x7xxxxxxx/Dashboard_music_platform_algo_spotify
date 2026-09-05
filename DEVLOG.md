@@ -5,6 +5,69 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 12) — L'onglet Meta demande avant d'expliquer
+
+SoundCloud validé en prod, au tour de Meta / Instagram. C'était le seul onglet qui ne
+suivait pas la forme des trois autres, et il le montrait de quatre façons.
+
+### L'assistant qui passait devant la seule chose à faire
+
+Un bloc « 🔎 Trouver mon numéro de compte publicitaire », avec ses deux consignes
+« ① Ouvre le Gestionnaire… ② Copie l'adresse… », occupait le haut de l'onglet. Il
+répétait, en plus long, ce que le champ demande — et il le disait **avant** le champ.
+Supprimé : l'appel, la fonction `render_ad_account_picker` (74 lignes) et ses **sept**
+clés de traduction. Une fonction sans appelant n'est pas « en réserve », elle pourrit —
+et une traduction qui survit à son écran décrit une page qui n'existe plus.
+
+L'onglet s'ouvre désormais sur `👉 Saisir tes identifiants — 📱 Meta / Instagram`.
+
+### Un lien, comme Spotify et SoundCloud
+
+    avant : Ad Account ID (act_… ou numérique)      ex. act_1234567890
+    après : Lien de ton compte publicitaire
+
+Les deux autres onglets demandent un lien (`URL profil artiste`, `Lien de ton profil
+SoundCloud`) parce que le geste « copier la barre d'adresse » se fait sans réfléchir,
+alors que « prendre le nombre après `act=` et s'arrêter au `&` » est une règle à
+retenir. `_handle_save` acceptait déjà l'URL entière depuis le 2026-09-04 ; le champ ne
+le disait pas.
+
+Les légendes « ex. act_1234567890 » et « ex. 17841400000000000 » sont parties :
+`show_example: False` sur ces deux champs. Elles répétaient **mot pour mot** le texte
+fantôme affiché dans le champ juste au-dessus d'elles. Le drapeau est explicite et
+par-champ, pas global — les autres onglets gardent leur légende ; et un test vérifie
+qu'il est **lu** par le rendu, sans quoi il documenterait une intention sans effet.
+
+### Sept étapes → trois actions
+
+Ce qui a été retiré, et pourquoi. Chaque ligne décrivait un contexte, pas un geste :
+
+| Retiré | Raison |
+|---|---|
+| l'intro « app partagée, token géré par l'admin » | de l'architecture, pour quelqu'un qui a une valeur à coller |
+| « act_ ou pas act_, les deux marchent » | le champ prend l'URL entière : il n'y a plus rien à découper |
+| « ne confondez pas avec `business_id` » | même raison — on ne choisit plus |
+| « colle la valeur puis 💾 Enregistrer » | le bouton est sous le champ |
+| « prérequis Instagram » en étape séparée | c'est une condition, repliée dans la phrase Instagram |
+
+Ce qui **reste** est ce que personne ne peut deviner ni faire à la place de l'artiste :
+où copier, le **partage du compte publicitaire** — l'étape qui a bloqué la session du
+2026-06-19, et que le guide étiquetait alors « prérequis admin », c'est-à-dire « pas ton
+affaire » — et où trouver l'identifiant Instagram.
+
+### Gardes
+
+Sept tests, dont trois qui n'ont pas besoin de base. Le rendu est vérifié **à l'écran**
+et pas en lisant la configuration : rien ne précède « Saisir tes identifiants » sauf la
+barre d'onglets, et aucune trace de « Trouver mon numéro », « ① », « ex. act_ ».
+
+Un test compare la forme du champ Meta à celle de **Spotify et SoundCloud** au lieu
+d'épingler une chaîne : c'est la cohérence qui est gardée, pas un libellé. Cinq
+mutations vues rouges, dont une qui est passée verte au premier tour **parce que le
+script de mutation ne s'était pas appliqué** — la chaîne visée existait deux fois, et
+l'`assert count == 1` a levé sans que le compteur de sortie le distingue d'un test
+aveugle. Rejouée en vérifiant l'application : rouge.
+
 ## 2026-09-05 (suite 11) — « J'ai bien des titres » : il en avait dix-sept, la sonde en voyait zéro
 
 La suite 10 a corrigé l'**habillage** du message SoundCloud en tenant son **contenu**

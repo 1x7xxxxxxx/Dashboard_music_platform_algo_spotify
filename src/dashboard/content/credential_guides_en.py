@@ -104,56 +104,39 @@ _META = PlatformCred(
     key="meta",
     title="Meta / Instagram",
     icon="📱",
-    intro=(
-        "Meta is **configured at the platform level** (shared app). You provide "
-        "**only your Ad Account ID**; the token, the app and Instagram are managed "
-        "by the administrator."
-    ),
+    # No intro, like Spotify. Kept in step with the FR guide (2026-09-05): three
+    # actions, nothing that merely describes context. See `credential_guides.py`
+    # for what was removed and why — `test_the_two_language_guides_stay_in_step`
+    # fails if the two drift apart.
+    intro=None,
     portal_url="https://adsmanager.facebook.com/",
     steps=(
-        CredStep("Open the portal above and sign in. If you manage **several ad "
-                 "accounts**, pick the one you want to track first: that is the one "
-                 "the address will name."),
-        CredStep("**Simplest: copy the whole address.** Click your browser's "
-                 "**address bar** (at the very top), copy all of it, and paste it "
-                 "as-is — we extract the account number from it.\n\n"
-                 "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
-                 "If you would rather paste the number only, take the one right "
-                 "after **`act=`**, stopping at the `&`. **With or without the "
-                 "`act_` prefix, both work**: `act_123456789012345` and "
-                 "`123456789012345` are accepted identically.",
+        CredStep("Open the portal above, pick the account you want to track, then "
+                 "**copy the address bar** and paste it into **Your ad account "
+                 "link**, above.",
                  "meta_url_id.png", "The number after act= in the address bar"),
-        CredStep("⚠️ Don't confuse it with `business_id=…` (your Business Manager) "
-                 "or an **ad set ID**: only the number after **`act=`** is correct."),
         # This step existed as an "**Admin prerequisite**" footnote. The label told
         # the artist it was not their job — while it is THEIR ad account, in THEIR
         # Business Manager, and nobody else can do it for them. So they did not, the
         # connection test failed, and nothing said why. That is the 2026-06-19
-        # session.
-        CredStep("⚠️ **Required, and it is yours to do.** Until this account is "
-                 "shared, collection sees nothing — even with the right ID.\n\n"
-                 f"Open [Business Manager → Apps]({_META_BM_APPS_URL}) and look for "
-                 f"**{META_APP_DISPLAY_NAME}** — that is the name **our application "
-                 "goes by on Meta**; if it is not in the list, ask us to add it. "
-                 f"Then, in [Ad accounts]({_META_BM_ADACCOUNTS_URL}) → **Add people "
-                 "/ apps**, pick yours and grant **Analyst** (or Advertiser) "
-                 "permission."),
-        CredStep("Paste the value into the **Ad Account ID** field, then "
-                 "**💾 Save** — the connection is tested right after. A ❌ here "
-                 "almost always points back to the sharing step above."),
-        CredStep("**Instagram (optional but recommended).** To track followers and "
-                 "posts we need the **Instagram Business Account ID** — not your "
-                 "@handle. Open **Meta Business Suite → Settings → Accounts → "
-                 "Instagram accounts**, select your account: the **numeric ID** is "
-                 "shown under the name. Paste it into *Instagram Business Account ID*."),
-        CredStep("⚠️ Instagram prerequisite: the account must be a **Business** or "
-                 "**Creator** account (not personal) linked to a **Facebook Page**. "
-                 "A personal account returns no statistics through the API."),
+        # session, and it is why this step survived the trim.
+        CredStep("⚠️ **Share this account with our application — nobody can do it "
+                 "for you.** Without that sharing, collection sees nothing, even "
+                 "with the right link.\n\n"
+                 f"[Business Manager → Apps]({_META_BM_APPS_URL}) → look for "
+                 f"**{META_APP_DISPLAY_NAME}** (not in the list? ask us to add you). "
+                 f"Then [Ad accounts]({_META_BM_ADACCOUNTS_URL}) → **Add people / "
+                 "apps** → grant **Analyst** permission."),
+        CredStep("**Instagram, optional.** Business Suite → **Settings → Accounts → "
+                 "Instagram accounts** → copy the **numeric ID** shown under the name "
+                 "(not your @handle). The account must be **Business or Creator** and "
+                 "linked to a **Facebook Page**."),
     ),
     fields=(
-        CredField("Ad Account ID (act_… or numeric)", "act_1234567890",
-                  note="the full Ads Manager URL works too — `act_1234567890` and "
-                       "`1234567890` are accepted identically"),
+        CredField("Your ad account link",
+                  "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
+                  note="paste the full Ads Manager URL — we extract the account "
+                       "number from it"),
         CredField("Instagram Business Account ID", "17841400000000000",
                   note="optional — ~17 digits, for Instagram stats"),
     ),

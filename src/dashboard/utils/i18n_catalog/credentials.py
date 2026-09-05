@@ -405,44 +405,34 @@ EN = {
     "credentials.guide.soundcloud.note_1": "your page link — nothing to cut out",
     # ── credential_guides.py — Meta guide ──────────────────────────────
     "credentials.guide.meta.expander": "{icon} {title} — obtain the credentials",
-    "credentials.guide.meta.intro": (
-        "Meta is **configured at the platform level** (shared app). You "
-        "provide **only your Ad Account ID**; the token, the app and "
-        "Instagram are managed by the administrator."
-    ),
+    # Trois étapes depuis le 2026-09-05, en step avec `credential_guides.py` et
+    # `credential_guides_en.py`. Les anciennes `step_4` / `note` / `intro` ont été
+    # retirées avec les étapes qu'elles traduisaient — une traduction qui survit à
+    # son étape décrit un écran qui n'existe plus.
     "credentials.guide.meta.step_1": (
-        "Open the **Ads Manager** "
-        "([adsmanager.facebook.com](https://adsmanager.facebook.com/)) and "
-        "log in. Select the right account if you have several."
+        "Open the portal above, pick the account you want to track, then **copy the "
+        "address bar** and paste it into **Your ad account link**, above."
     ),
-    "credentials.guide.meta.step_2": (
-        "**Easiest method — via the URL.** Look at the **address "
-        "bar** of your browser (at the very top). The URL contains a "
-        "**`act=`** parameter, for example:\n\n"
-        "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
-        "Your **Ad Account ID** is the **number right after `act=`** and "
-        "**before the next `&`**. Tip: double-click that number to "
-        "select it, then **{{COPY}}**."
-    ),
-    "credentials.guide.meta.step_2_caption": (
+    "credentials.guide.meta.step_1_caption": (
         "The number after act= in the address bar"
     ),
+    "credentials.guide.meta.step_2": (
+        "⚠️ **Share this account with our application — nobody can do it for you.** "
+        "Without that sharing, collection sees nothing, even with the right link.\n\n"
+        "[Business Manager → Apps](https://business.facebook.com/settings/apps) → "
+        "look for **ETL_DASHBOARD_SPOTIFY** (not in the list? ask us to add you). "
+        "Then [Ad accounts](https://business.facebook.com/settings/ad-accounts) → "
+        "**Add people / apps** → grant **Analyst** permission."
+    ),
     "credentials.guide.meta.step_3": (
-        "⚠️ Do not confuse it with `business_id=…` (your Business Manager) or "
-        "with an **ad set ID**: only the number "
-        "after **`act=`** is the correct one."
+        "**Instagram, optional.** Business Suite → **Settings → Accounts → Instagram "
+        "accounts** → copy the **numeric ID** shown under the name (not your "
+        "@handle). The account must be **Business or Creator** and linked to a "
+        "**Facebook Page**."
     ),
-    "credentials.guide.meta.step_4": (
-        "Paste this number into **🔑 API Credentials → Meta / Instagram**, then "
-        "**Test connection**. (The `act_` prefix is added automatically.)"
-    ),
-    "credentials.guide.meta.note_1": (
-        "the only field — number or prefixed with 'act_'"
-    ),
-    "credentials.guide.meta.note": (
-        "**Admin prerequisite**: your ad account must be linked to the "
-        "shared app (System User) in Business Manager for collection to "
-        "work. Instagram is attached on the admin side."
+    "credentials.guide.meta.field_0": "Your ad account link",
+    "credentials.guide.meta.note_0": (
+        "paste the full Ads Manager URL — we extract the account number from it"
     ),
     "credentials.youtube.admin_key_invalid": "The platform's YouTube API key is being refused by Google. It is not your key and there is nothing for you to fix: please tell the administrator. Your Channel ID can stay as it is.",
     "credentials.youtube.quota_exceeded": "The platform's YouTube quota is exhausted for today. Nothing to fix on your side — try again tomorrow; the nightly collection will resume on its own.",
@@ -481,26 +471,5 @@ EN = {
     ),
 
     # ── L'assistant « trouve mon numéro de compte » (2026-09-04) ──
-    "credentials.meta.picker_title": "🔎 Find my ad account number",
-    "credentials.meta.picker_help": (
-        "① Open Ads Manager and pick the account you want to track. "
-        "② Copy the address shown at the top of your browser and paste it here — "
-        "we extract the number from it."
-    ),
-    "credentials.meta.picker_open": "① Open Ads Manager ↗",
-    "credentials.meta.picker_paste": "② Paste the page address here",
-    "credentials.meta.picker_found": (
-        "✅ Account found: **{acct}** — copy it into the **Ad Account ID** field "
-        "below, then **💾 Save**."
-    ),
-    "credentials.meta.picker_business_id": (
-        "⚠️ This is your **Business Manager** address (`business_id=…`), not an ad "
-        "account. Go back to Ads Manager and open the account itself: its address "
-        "contains `act=`."
-    ),
-    "credentials.meta.picker_not_found": (
-        "⚠️ No `act=` in this address. Check that you copied the address bar **of "
-        "Ads Manager**, with an account open."
-    ),
     "credentials.form.example_inline": "e.g. {ex}",
 }

@@ -472,14 +472,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         C'est la MÊME règle dans les deux cas — le texte est en face de ce qu'il
         décrit — et elle donne deux mises en page parce que les contenus diffèrent.
         """
-        # ── Meta : l'assistant qui trouve le numéro de compte ─────────
-        # AU-DESSUS du formulaire, parce que c'est l'étape qui précède la saisie : il
-        # produit la valeur que le champ attend. Hors du `st.form` — un formulaire ne
-        # rend rien tant qu'on ne l'a pas soumis, donc le numéro trouvé n'apparaîtrait
-        # qu'après un enregistrement, c'est-à-dire trop tard pour aider à le remplir.
-        if platform_key == 'meta':
-            from ._platform_meta import render_ad_account_picker
-            render_ad_account_picker(artist_id)
 
         # ── Formulaire standard (toutes plateformes) ─────────────────────
         with st.form(f"cred_{platform_key}_{artist_id}"):
@@ -556,7 +548,10 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                     # DANS le champ tant qu'il est vide — c'est la forme la plus
                     # directe — et cette ligne le garde lisible une fois qu'on a
                     # commencé à taper.
-                    if field.get('example') and not field['secret']:
+                    # `show_example` par défaut vrai — la légende n'est retirée que
+                    # là où elle répète mot pour mot le texte fantôme du champ.
+                    if (field.get('example') and not field['secret']
+                            and field.get('show_example', True)):
                         col.caption(t("credentials.form.example_inline",
                                       "ex. {ex}").format(ex=field['example']))
 

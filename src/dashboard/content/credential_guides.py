@@ -247,72 +247,54 @@ _META = PlatformCred(
     key="meta",
     title="Meta / Instagram",
     icon="📱",
-    intro=(
-        "Meta est **configuré au niveau de la plateforme** (app partagée). Vous "
-        "fournissez **uniquement votre Ad Account ID** ; le token, l'app et "
-        "Instagram sont gérés par l'administrateur."
-    ),
+    # Pas d'intro, comme Spotify. Elle disait « Meta est configuré au niveau de la
+    # plateforme (app partagée) ; le token, l'app et Instagram sont gérés par
+    # l'administrateur » — de l'architecture, vraie, et sans usage pour quelqu'un qui
+    # a une valeur à coller. Retirée le 2026-09-05 : « intègre uniquement l'essentiel
+    # en terme d'action ».
+    intro=None,
     portal_url="https://adsmanager.facebook.com/",
+    # TROIS actions, et pas une de plus. Ce qui a été retiré le 2026-09-05, et
+    # pourquoi — chaque ligne enlevée décrivait un contexte, pas un geste :
+    #
+    #   « act_ ou pas act_, les deux marchent »   le champ prend l'URL ENTIÈRE, il
+    #                                             n'y a plus rien à découper ;
+    #   « ne confondez pas avec business_id »     même raison : on ne choisit plus ;
+    #   « colle la valeur puis Enregistre »       le bouton est sous le champ ;
+    #   « prérequis Instagram » en étape à part   c'est une condition, pas une étape :
+    #                                             repliée dans la phrase Instagram.
+    #
+    # Ce qui RESTE est ce que personne ne peut deviner ni faire à sa place : où
+    # copier, le PARTAGE du compte (l'étape qui a bloqué la session du 2026-06-19),
+    # et où trouver l'identifiant Instagram.
     steps=(
-        # L'étape « Ouvrez le Gestionnaire de publicités (adsmanager.facebook.com) »
-        # a été retirée le 2026-09-04 : le lien du portail, rendu juste au-dessus de
-        # la première étape, dit déjà exactement cela. Ce qu'elle portait d'utile —
-        # « sélectionnez le bon compte si vous en avez plusieurs » — est descendu
-        # dans l'étape ci-dessous, qui est celle où le choix se voit.
-        CredStep("Ouvre le portail ci-dessus et connecte-toi. Si tu gères "
-                 "**plusieurs comptes publicitaires**, sélectionne d'abord celui que "
-                 "tu veux suivre : c'est lui que l'adresse va nommer."),
-        # « act_ ou pas act_ ? » — signalé le 2026-09-04 : « c'est confus ». Les deux
-        # sont acceptés (`_handle_save` normalise), donc la réponse n'est pas une
-        # règle de plus à retenir : c'est de dire qu'il n'y a rien à découper. Le
-        # champ accepte désormais l'URL ENTIÈRE, comme Spotify et SoundCloud
-        # acceptent déjà un lien — le geste est « copier la barre d'adresse », que
-        # tout le monde sait faire, au lieu de « sélectionner la bonne sous-chaîne ».
-        CredStep("**Le plus simple : copie l'adresse entière.** Clique dans la "
-                 "**barre d'adresse** de ton navigateur (tout en haut), copie tout, "
-                 "et colle-le tel quel — on en extrait le numéro de compte.\n\n"
-                 "`adsmanager.facebook.com/adsmanager/manage/campaigns?`**`act=123456789012345`**`&business_id=…`\n\n"
-                 "Si tu préfères ne coller que le numéro, prends celui qui suit "
-                 "**`act=`** et s'arrête au `&`. **Avec ou sans le préfixe `act_`, "
-                 "les deux marchent** : `act_123456789012345` et `123456789012345` "
-                 "sont acceptés à l'identique.",
+        CredStep("Ouvre le portail ci-dessus, sélectionne le compte à suivre, puis "
+                 "**copie la barre d'adresse** et colle-la dans **Lien de ton compte "
+                 "publicitaire**, au-dessus.",
                  "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
-        CredStep("⚠️ Ne confondez pas avec `business_id=…` (votre Business Manager) ni "
-                 "avec un **ID d'ensemble de publicités** (ad set) : seul le nombre "
-                 "après **`act=`** est le bon."),
-        # Cette étape existait, formulée comme « **Prérequis admin** », dans la note
-        # de bas de page. L'étiquette disait à l'artiste que ce n'était pas son
-        # affaire — alors que c'est SON compte publicitaire, dans SON Business
-        # Manager, et que personne d'autre ne peut le faire à sa place. Il ne le
-        # faisait donc pas, le test de connexion échouait, et rien ne disait
-        # pourquoi. C'est ce qui a bloqué la session du 2026-06-19.
-        CredStep("⚠️ **Étape indispensable, et c'est vous qui la faites.** Tant que "
-                 "ce compte n'est pas partagé, la collecte ne verra rien — même avec "
-                 "le bon ID.\n\n"
-                 f"Ouvrez [Business Manager → Applications]({_META_BM_APPS_URL}) et "
-                 f"cherchez **{META_APP_DISPLAY_NAME}** — c'est le nom sous lequel "
-                 "**notre application apparaît chez Meta** ; si elle n'est pas dans "
-                 "la liste, demandez-nous de vous l'ajouter. Puis, dans "
-                 f"[Comptes publicitaires]({_META_BM_ADACCOUNTS_URL}) → **Ajouter "
-                 "des personnes / des applications**, sélectionnez le vôtre et "
-                 "donnez-lui l'autorisation **Analyste** (ou Annonceur)."),
-        CredStep("Colle la valeur dans le champ **Ad Account ID**, puis "
-                 "**💾 Enregistrer** — la connexion est testée dans la foulée. "
-                 "Un ❌ ici pointe presque toujours vers l'étape de partage "
-                 "ci-dessus."),
-        CredStep("**Instagram (optionnel mais recommandé).** Pour suivre vos followers "
-                 "et vos posts, il faut l'**ID du compte Instagram Business** — pas votre "
-                 "@pseudo. Ouvrez **Meta Business Suite → Paramètres → Comptes → Comptes "
-                 "Instagram**, sélectionnez votre compte : l'**ID numérique** est affiché "
-                 "sous le nom. Collez-le dans le champ *Instagram Business Account ID*."),
-        CredStep("⚠️ Prérequis Instagram : le compte doit être en **Business** ou "
-                 "**Créateur** (pas personnel) et être relié à une **Page Facebook**. "
-                 "Un compte personnel ne renvoie aucune statistique via l'API."),
+        # Cette étape a été formulée « **Prérequis admin** » jusqu'au 2026-09-04.
+        # L'étiquette disait à l'artiste que ce n'était pas son affaire — alors que
+        # c'est SON compte, dans SON Business Manager, et que personne d'autre ne peut
+        # le faire. Il ne le faisait donc pas, le test échouait, et rien ne disait
+        # pourquoi. C'est ce qui a bloqué la session du 2026-06-19 : elle reste.
+        CredStep("⚠️ **Partage ce compte avec notre application — personne ne peut le "
+                 "faire à ta place.** Sans ce partage, la collecte ne verra rien, même "
+                 "avec le bon lien.\n\n"
+                 f"[Business Manager → Applications]({_META_BM_APPS_URL}) → cherche "
+                 f"**{META_APP_DISPLAY_NAME}** (absente de la liste ? demande-nous de "
+                 "t'y ajouter). Puis "
+                 f"[Comptes publicitaires]({_META_BM_ADACCOUNTS_URL}) → **Ajouter des "
+                 "personnes / des applications** → autorisation **Analyste**."),
+        CredStep("**Instagram, optionnel.** Business Suite → **Paramètres → Comptes → "
+                 "Comptes Instagram** → copie l'**ID numérique** affiché sous le nom "
+                 "(pas ton @pseudo). Le compte doit être **Business ou Créateur** et "
+                 "relié à une **Page Facebook**."),
     ),
     fields=(
-        CredField("Ad Account ID (act_… ou numérique)", "act_1234567890",
-                  note="l'URL entière du Gestionnaire de publicités convient aussi — "
-                       "`act_1234567890` et `1234567890` sont acceptés à l'identique"),
+        CredField("Lien de ton compte publicitaire",
+                  "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
+                  note="colle l'URL entière du Gestionnaire de publicités — on en "
+                       "extrait le numéro de compte"),
         CredField("Instagram Business Account ID", "17841400000000000",
                   note="optionnel — ~17 chiffres, pour les stats Instagram"),
     ),
