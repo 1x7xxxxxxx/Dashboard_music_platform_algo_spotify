@@ -568,6 +568,15 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                         col.caption(t("credentials.form.example_inline",
                                       "ex. {ex}").format(ex=field['example']))
 
+            # Le partage Meta, JUSTE SOUS le champ qu'il conditionne — et pas
+            # au-dessus. Placé avant la saisie, il repoussait « Saisir tes
+            # identifiants », c'est-à-dire exactement le défaut corrigé le matin même
+            # (l'assistant « Trouver mon numéro »). L'action d'abord, sa condition
+            # ensuite : coller le lien se fait sans rien savoir du partage.
+            if platform_key == 'meta':
+                from ._platform_meta import render_partner_share_block
+                render_partner_share_block()
+
             # Les champs repliés, sous les autres et FERMÉS. `st.expander` est
             # utilisable dans un `st.form` — la valeur est soumise avec le reste,
             # qu'on l'ait ouvert ou non.

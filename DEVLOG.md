@@ -5,6 +5,72 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 21) — La séparation était à moitié faite
+
+Cinq défauts signalés, tous conséquences directes de la séparation livrée une heure
+plus tôt. Trois avaient **une seule cause**.
+
+### `_TAB_FOR_PLATFORM` traduisait encore Instagram en « meta »
+
+    👉 Suivante : 📸 Instagram — dans l'onglet 📱 Meta Ads
+
+Le dictionnaire qui dit « cette plateforme se configure sous le nom d'une autre »
+portait toujours `{"instagram": "meta"}`. De là, trois symptômes : le bandeau
+« Suivante » envoyait au mauvais onglet, les pastilles **Saisi/Format/Répond/Données**
+d'Instagram s'affichaient dans l'onglet Meta, et le repli « les autres plateformes » s'y
+trompait aussi. Vidé — la fonction reste, elle redeviendra utile le jour où deux
+plateformes partageront un onglet.
+
+**C'est la moitié que j'avais oubliée** : séparer l'onglet dans le registre ne suffit
+pas si une table de traduction dit le contraire ailleurs.
+
+### Le vert disait « déclaré », pas « ça marche »
+
+    « L'onglet Meta Ads est vert alors qu'on a juste rentré le lien du compte pub,
+      on n'a pas donné l'accès »
+
+Exact. Coller un identifiant n'est pas se connecter : sur Meta il reste le partage du
+compte, et la sonde le sait déjà (`SHARING_MISSING`). L'onglet lit maintenant le verdict
+mémorisé :
+
+    🟢  déclaré, et rien ne dit que ça ne marche pas
+    ⚠️  déclaré, mais la dernière sonde a échoué — il RESTE une action
+    (rien)  pas encore déclaré
+
+Et l'atterrissage ne saute plus que les 🟢 : un onglet ⚠️ porte une action, l'ouvrir est
+exactement ce qu'on veut. Vérifié au rendu — Streamlit prend l'emoji de tête comme icône
+de la pastille, donc la marque remplace celle de la plateforme.
+
+### Le numéro de partenaire, copiable
+
+« On n'a aucun champ pour saisir qu'on a bien copié l'ID partenaire, avec un bouton
+copie et l'adresse exacte du Business Manager. » Le numéro était **au fil d'une
+phrase** : il fallait le sélectionner à la souris, et un chiffre manquant ne se voit
+pas. Il est maintenant dans un `st.code` — bouton de copie natif — avec le lien direct
+vers la liste des comptes publicitaires, **sous** le champ qu'il conditionne.
+
+Sous, et non au-dessus : placé avant la saisie il repoussait « Saisir tes
+identifiants », c'est-à-dire exactement le défaut corrigé le matin même avec
+l'assistant « Trouver mon numéro ». L'action d'abord, sa condition ensuite.
+
+Le numéro reste **aussi** écrit dans le guide, et ce n'est pas une redite : le guide
+part en PDF à l'inscription, où il n'y a pas d'onglet. Un lecteur hors ligne serait
+resté avec « le numéro est au-dessus du formulaire », c'est-à-dire nulle part. Un test
+l'a rattrapé.
+
+### Deux guides au lieu d'un
+
+Le guide Meta passe à **deux étapes** — la troisième était Instagram, qui a le sien :
+une seule étape, « copie l'adresse de ton profil ». Plus aucune mention d'Instagram dans
+Meta.
+
+### Douze tests encore, même forme que la fois d'avant
+
+Ils encodaient tous « Instagram vit dans l'onglet Meta ». Réancrés. Un dernier était de
+ma faute : mon extraction de texte appelait `.value`, qui est une **propriété** et lève
+sur un `link_button` — `getattr(e, "value", "")` ne protège pas de ça, le défaut ne
+couvre que l'attribut absent, pas la propriété qui explose.
+
 ## 2026-09-05 (suite 20) — Instagram sort de l'onglet Meta, et douze invariants avec
 
 Quatre demandes, dont une question.

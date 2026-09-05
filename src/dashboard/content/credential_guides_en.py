@@ -8,7 +8,6 @@ values are shared with the FR source. Selected by the guide PDF when lang == 'en
 """
 from src.dashboard.content.credential_guides import (
     META_BUSINESS_ID,
-    _META_PARTNERS_URL,
     CredField,
     CredStep,
     PlatformCred,
@@ -101,53 +100,59 @@ _SOUNDCLOUD = PlatformCred(
 
 _META = PlatformCred(
     key="meta",
-    title="Meta / Instagram",
+    title="Meta Ads",
     icon="📱",
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
-    # Three chains of clicks, in step with the FR guide (2026-09-05). The sharing
-    # step names OUR Business ID, not our app: an app only shows up in a Business
-    # Manager that owns it, so an artist could never find ours in their own list.
-    # See `META_BUSINESS_ID` in `credential_guides.py`.
+    # Two steps. Instagram left with its own tab on 2026-09-05; keeping it here made
+    # someone connecting ad campaigns read an Instagram instruction.
     steps=(
         CredStep("🔗 [Ads Manager](https://adsmanager.facebook.com/) → pick your "
                  "account → **copy the URL** and paste it above.",
                  "meta_url_id.png", "The number after act= in the address bar"),
-        # Manual because Meta refuses the call that would automate it: both
-        # `POST business/client_ad_accounts` and `POST adaccount/agencies` answer
-        # `(#3) Application does not have the capability` (ADR-017). Until that
-        # access is granted, only the artist can give it on THEIR account — so we
-        # do not pretend it is automatic, and we spell out the clicks.
-        CredStep("🤝 **Give us access to this account** — the one step we cannot do "
-                 "for you, and without it collection stays empty even with the "
-                 "right link.\n\n"
-                 f"① Open [Ad accounts]({_META_PARTNERS_URL}) and pick the account "
-                 "you want tracked.\n\n"
-                 "② **Partners** tab → **Assign partner** button.\n\n"
-                 "③ Paste "
+        # The number is written HERE too, not only in the tab's copy block: this
+        # guide also ships as a PDF at sign-up, where there is no tab.
+        CredStep("🤝 **Give us access** — without it, no data at all, even with "
+                 "the right link.\n\n"
+                 "⚙️ [Ad accounts](https://business.facebook.com/settings/ad-accounts) → your account → **Partners** → "
+                 "**Assign partner** → paste "
                  + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "**our Business ID** (ask us for it)")
-                 + " into the **Partner ID** field.\n\n"
-                 "④ Tick the **Analyst** permission (read-only) and confirm. "
-                 "That's it — nothing to send back to us."),
-        CredStep("📸 [Instagram accounts](https://business.facebook.com/settings/instagram-accounts) "
-                 "→ your account → copy the **numeric ID** under the name (not your "
-                 "@handle).\n\n"
-                 "It must be a **Business** or **Creator** account, linked to a "
-                 "**Facebook Page**."),
+                 + " → **Analyst** role."),
     ),
     fields=(
         CredField("Your ad account link",
                   "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
                   note="paste the full Ads Manager URL — we extract the account "
                        "number from it"),
-        CredField("Instagram Business Account ID", "17841400000000000",
-                  note="~17 digits, for Instagram stats"),
+    ),
+    admin_note="On our side: System User created, 5-scope token in place.",
+)
+
+_INSTAGRAM = PlatformCred(
+    key="instagram",
+    title="Instagram",
+    icon="📸",
+    intro=None,
+    portal_url="https://www.instagram.com/",
+    steps=(
+        CredStep("📸 Open your Instagram profile → **copy the address** "
+                 "(https://instagram.com/your-handle) and paste it above.\n\n"
+                 "Your account must be **Business** or **Creator**: a personal "
+                 "account returns no statistics through the API."),
+    ),
+    fields=(
+        CredField("Your Instagram profile link",
+                  "https://instagram.com/your-handle",
+                  note="we take it from there — nothing to look up in Business Manager"),
     ),
     admin_note=(
-        "On our side: System User created, 5-scope token in place, and the Instagram "
-        "attachment done at the Facebook Page level."
+        "On our side: the Instagram attachment is done at the Facebook Page level, "
+        "and `META_IG_DISCOVERY_ID` holds the account `business_discovery` looks "
+        "from."
     ),
 )
 
-CREDENTIAL_GUIDES_EN: tuple[PlatformCred, ...] = (_SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META)
+CREDENTIAL_GUIDES_EN: tuple[PlatformCred, ...] = (
+    _SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META, _INSTAGRAM,
+)

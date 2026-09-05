@@ -37,7 +37,13 @@ from ._render import VERDICT_KEY, _render_platform_tab
 # CREDENTIAL. Instagram n'a pas d'onglet à lui : il se saisit dans celui de Meta.
 # Apple Music n'en a aucun (c'est un import CSV) et disparaît donc de la
 # traduction — ce qui est correct : il n'y a rien à saisir ici pour lui.
-_TAB_FOR_PLATFORM = {"instagram": "meta"}
+# VIDE depuis le 2026-09-05 (soir) : 📸 Instagram a son propre onglet, donc plus
+# aucune plateforme ne se configure sous le nom d'une autre. Le dictionnaire reste —
+# il redeviendra utile le jour où une plateforme partagera l'onglet d'une autre — mais
+# le laisser peuplé produisait trois défauts d'un coup, tous signalés le soir même :
+# « 👉 Suivante : 📸 Instagram — dans l'onglet 📱 Meta Ads », les pastilles d'Instagram
+# rendues dans l'onglet Meta, et le repli « les autres plateformes » qui s'y trompait.
+_TAB_FOR_PLATFORM: dict = {}
 
 # Les plateformes de la sélection qui ne se saisissent PAS ici, avec la page qui les
 # porte vraiment. Apple Music est un import de fichier : elle n'a aucun onglet, et
@@ -115,9 +121,11 @@ def platform_destination(key: str) -> str:
 def _next_label(key: str) -> str:
     """Le nom de la plateforme, et celui de son onglet quand ils diffèrent.
 
-    « Suivante : Instagram » envoie chercher un onglet Instagram qui n'existe pas —
-    il se saisit dans « 📱 Meta / Instagram ». Nommer les deux coûte six mots et
-    supprime la seule question que la phrase pose.
+    Écrit quand Instagram se saisissait dans « 📱 Meta / Instagram » : « Suivante :
+    Instagram » envoyait alors chercher un onglet qui n'existait pas. Depuis qu'il a
+    le sien, la mention est SILENCIEUSE — `_TAB_FOR_PLATFORM` étant vide, `tab_key`
+    vaut la clé et la branche ne se déclenche plus. On garde la fonction : elle
+    redeviendra juste le jour où deux plateformes partageront un onglet.
     """
     pv = BY_KEY.get(key)
     name = f"{pv.icon} {pv.label}" if pv else key
@@ -397,10 +405,32 @@ def show():
         # second verdict appartient aux pastilles et à la sonde, qui savent le
         # mesurer. Deux affirmations différentes ne partagent pas un glyphe.
         _connected_keys = connected_platforms(existing)
-        # 🟢 et non ✓ : « en vert quand c'est configuré » (2026-09-05). Les pastilles
-        # de Streamlit n'ont pas de couleur par option — le glyphe EST la couleur.
+        # 🟢 = déclaré ET rien ne dit que ça ne marche pas. ⚠️ = déclaré mais la
+        # dernière sonde a échoué : il RESTE une action.
+        #
+        # Le vert marquait la seule déclaration d'identité, et c'était trompeur —
+        # signalé le 2026-09-05 : « l'onglet Meta Ads est vert alors qu'on a juste
+        # rentré le lien du compte pub, on n'a pas donné l'accès ». Coller un
+        # identifiant n'est pas se connecter : sur Meta il reste le partage du
+        # compte, que nous ne pouvons pas faire à sa place, et la sonde le sait
+        # (`SHARING_MISSING`).
+        #
+        # On ne fabrique aucun verdict ici : on lit celui qui est déjà mémorisé.
+        from src.dashboard.utils.status_matrix import read_probes
+        _probes = read_probes(db, target_artist_id)
+
+        def _tab_state(tab_key: str) -> str:
+            """'' | 'ok' | 'todo' — l'état AFFICHÉ de cet onglet."""
+            logicals = [k for k in _connected_keys
+                        if platform_destination(k) == f"tab:{tab_key}"]
+            if not logicals:
+                return ""
+            failed = any((_probes.get(k) or (None,))[0] is False for k in logicals)
+            return "todo" if failed else "ok"
+
+        _MARK = {"ok": "🟢 ", "todo": "⚠️ ", "": ""}
         _tab_label = {
-            k: (f"🟢 {info['label']}" if k in _connected_keys else info['label'])
+            k: f"{_MARK[_tab_state(k)]}{info['label']}"
             for k, info in ordered
         } | {_CSV_KEY: _CSV_TAB}
 
@@ -425,7 +455,11 @@ def show():
 
         # Les onglets DÉJÀ faits, dans l'espace des clés d'onglet — `connected_platforms`
         # rend des plateformes logiques, et Instagram n'a pas d'onglet à lui.
-        _done_tabs = {_tab_of(k) for k in _connected_keys} - {""}
+        # « Fait » = 🟢 seulement. Un onglet ⚠️ porte une action restante : l'ouvrir
+        # est exactement ce qu'on veut, alors que le sauter renverrait l'artiste vers
+        # une plateforme qu'il n'a pas encore branchée pendant qu'une autre attend un
+        # geste de sa part.
+        _done_tabs = {k for k, _ in ordered if _tab_state(k) == "ok"}
         _active = _resolve_active_tab(_tab_keys, _done_tabs)
         _chosen = st.segmented_control(
             t("credentials.tab_bar", "Plateforme"), _tab_keys,

@@ -37,6 +37,16 @@ EN = {
     "credentials.verdict_resolved": (
         "👉 {platform}: almost — one value to copy across."
     ),
+    "credentials.meta.share_title": "🤝 Give us access to your ad account",
+    "credentials.meta.share_help": (
+        "Without this sharing, no data comes through — even with the right link. "
+        "It is the one step we cannot do for you."
+    ),
+    "credentials.meta.share_steps": (
+        "Copy this number (button on the right) → open the link below → your "
+        "account → **Partners** → **Assign partner** → paste it → **Analyst** role."
+    ),
+    "credentials.meta.share_open": "⚙️ Open my ad accounts ↗",
     "credentials.meta.ig_resolved": (
         "📸 Instagram account recognised: **@{name}** (ID {ident})"
     ),
@@ -413,9 +423,7 @@ EN = {
     "credentials.guide.soundcloud.note_1": "your page link — nothing to cut out",
     # ── credential_guides.py — Meta guide ──────────────────────────────
     "credentials.guide.meta.expander": "{icon} {title} — obtain the credentials",
-    # Trois chaînes de clics, en step avec les deux guides (2026-09-05).
-    # L'étape de partage nomme NOTRE Business ID, pas notre app : une app
-    # n'apparaît que dans le Business Manager qui la possède.
+    # DEUX étapes depuis le 2026-09-05 (soir) : Instagram est parti avec son onglet.
     "credentials.guide.meta.step_1": (
         "🔗 [Ads Manager](https://adsmanager.facebook.com/) → pick your account → "
         "**copy the URL** and paste it above."
@@ -424,18 +432,23 @@ EN = {
         "The number after act= in the address bar"
     ),
     "credentials.guide.meta.step_2": (
-        "🤝 **Share this account with us** — without it, collection sees nothing, "
-        "even with the right link.\n\n"
-        "⚙️ [Ad accounts](https://business.facebook.com/settings/ad-accounts) → your "
-        "account → **Partners** → **Assign partner** → paste our Business ID → "
-        "**Analyst** role."
+        "🤝 **Give us access** — without it, no data at all, even with the right "
+        "link. The number to paste and the button are above the form."
     ),
-    "credentials.guide.meta.step_3": (
-        "📸 [Instagram accounts](https://business.facebook.com/settings/instagram-accounts) "
-        "→ your account → copy the **numeric ID** under the name (not your @handle)."
-        "\n\nIt must be a **Business** or **Creator** account, linked to a "
-        "**Facebook Page**."
+    "credentials.guide.instagram.expander": "{icon} {title} — obtain the credentials",
+    "credentials.guide.instagram.step_1": (
+        "📸 Open your Instagram profile → **copy the address** "
+        "(https://instagram.com/your-handle) and paste it above.\n\nYour account "
+        "must be **Business** or **Creator**: a personal account returns no "
+        "statistics through the API."
     ),
+    "credentials.guide.instagram.field_0": "Your Instagram profile link",
+    "credentials.guide.instagram.note_0": (
+        "we take it from there — nothing to look up in Business Manager"
+    ),
+    # Trois chaînes de clics, en step avec les deux guides (2026-09-05).
+    # L'étape de partage nomme NOTRE Business ID, pas notre app : une app
+    # n'apparaît que dans le Business Manager qui la possède.
     "credentials.guide.meta.field_0": "Your ad account link",
     "credentials.guide.meta.note_0": (
         "paste the full Ads Manager URL — we extract the account number from it"

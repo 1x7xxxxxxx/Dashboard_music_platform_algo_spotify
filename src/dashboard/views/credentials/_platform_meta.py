@@ -219,3 +219,49 @@ def _test_instagram(fields: dict):
 # adsmanager laisse l'artiste sur un écran de sélection dont l'URL ne nomme encore
 # aucun compte — c'est la moitié du « c'est confus » du 2026-09-04.
 ADS_MANAGER_URL = "https://adsmanager.facebook.com/adsmanager/manage/campaigns"
+
+
+# ── Le geste que nous ne pouvons pas faire, rendu copiable ──────────────────
+
+# URL EXACTE de la page où l'attribution se fait. `business.facebook.com/settings`
+# ouvre les réglages généraux et l'artiste doit encore trouver la bonne section ;
+# celle-ci ouvre directement la liste des comptes publicitaires.
+_ASSIGN_URL = "https://business.facebook.com/settings/ad-accounts"
+
+
+def render_partner_share_block() -> None:
+    """L'ID partenaire dans un bloc COPIABLE, avec le lien exact. Ne lève jamais.
+
+    Demandé le 2026-09-05 : « on n'a aucun champ pour saisir qu'on a bien copié l'ID
+    partenaire, avec un bouton copie et l'adresse exacte du Business Manager ».
+
+    `st.code` porte un bouton de copie natif — c'est la seule forme où le numéro se
+    prend d'un clic. Écrit au fil d'une phrase, il fallait le sélectionner à la
+    souris, sur mobile en particulier, et un chiffre manquant ne se voit pas.
+
+    Rendu AU-DESSUS du formulaire, pas dans le guide replié : c'est l'action qui
+    conditionne toutes les autres. Sans le partage, un lien parfaitement valide
+    collecte zéro.
+    """
+    import streamlit as st
+
+    from src.dashboard.content.credential_guides import META_BUSINESS_ID
+    from src.dashboard.utils.i18n import t
+
+    if not META_BUSINESS_ID:
+        return
+
+    st.markdown("**" + t("credentials.meta.share_title",
+                         "🤝 Donne-nous accès à ton compte publicitaire") + "**")
+    st.caption(t(
+        "credentials.meta.share_help",
+        "Sans ce partage, aucune donnée ne remonte — même avec le bon lien. "
+        "C'est le seul geste que nous ne pouvons pas faire à ta place."))
+    st.code(META_BUSINESS_ID, language=None)
+    st.caption(t(
+        "credentials.meta.share_steps",
+        "Copie ce numéro (bouton à droite) → ouvre le lien ci-dessous → ton compte "
+        "→ **Partenaires** → **Attribuer un partenaire** → colle-le → rôle "
+        "**Analyste**."))
+    st.link_button(t("credentials.meta.share_open",
+                     "⚙️ Ouvrir mes comptes publicitaires ↗"), _ASSIGN_URL)

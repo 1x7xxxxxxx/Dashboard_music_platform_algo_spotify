@@ -119,14 +119,17 @@ def test_the_ad_account_picker_is_gone_with_everything_that_named_it():
     ("src.dashboard.content.credential_guides", "CREDENTIAL_GUIDES"),
     ("src.dashboard.content.credential_guides_en", "CREDENTIAL_GUIDES_EN"),
 ])
-def test_the_meta_guide_is_three_actions_without_an_intro(module, attr):
+def test_the_meta_guide_is_two_actions_without_an_intro(module, attr):
     import importlib
 
     guides = getattr(importlib.import_module(module), attr)
     meta = next(g for g in guides if g.key == "meta")
 
     assert meta.intro is None, "l'intro décrit l'architecture, pas un geste"
-    assert len(meta.steps) == 3, (
+    # DEUX depuis le 2026-09-05 (soir) : la troisième était Instagram, parti avec son
+    # propre onglet. Le nombre n'est pas un objectif — c'est le compte de ce qu'on ne
+    # peut pas deviner : où copier, et le partage que nous ne pouvons pas faire.
+    assert len(meta.steps) == 2, (
         f"{len(meta.steps)} étapes : le guide a regrossi — chaque étape doit être "
         "une action que l'artiste est seul à pouvoir faire")
     joined = " ".join(s.text for s in meta.steps)
@@ -170,8 +173,24 @@ def test_the_entry_section_is_the_first_thing_on_the_meta_tab():
         return out
 
     els = flat(at.main)
-    texts = [str(getattr(e, "value", "") or getattr(e, "label", "")
-                 or getattr(e, "body", "") or "") for e in els]
+    def _text(el) -> str:
+        """Le texte d'un élément, sans jamais lever.
+
+        `.value` est une PROPRIÉTÉ sur certains éléments : sur un `link_button`, qui
+        n'a pas d'état, elle lève `KeyError`. Un `getattr(e, "value", "")` ne protège
+        pas de ça — le défaut par défaut ne couvre que l'absence d'attribut, pas une
+        propriété qui explose.
+        """
+        for attr in ("value", "label", "body"):
+            try:
+                got = getattr(el, attr, "")
+            except Exception:  # noqa: BLE001
+                continue
+            if got:
+                return str(got)
+        return ""
+
+    texts = [_text(e) for e in els]
     joined = "\n".join(texts)
 
     assert "Trouver mon numéro" not in joined, "l'assistant est de retour"

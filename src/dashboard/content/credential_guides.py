@@ -283,58 +283,74 @@ _SOUNDCLOUD = PlatformCred(
 
 _META = PlatformCred(
     key="meta",
-    title="Meta / Instagram",
+    title="Meta Ads",
     icon="📱",
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
-    # Trois lignes, chacune une chaîne de clics. Réécrites le 2026-09-05 :
-    # « simplifie au max », et surtout « je ne comprends pas comment l'utilisateur
-    # peut voir le nom de mon application ». Cette remarque a corrigé le GESTE, pas
-    # sa formulation — voir `META_BUSINESS_ID` plus haut.
+    # DEUX étapes. Instagram est parti avec son onglet le 2026-09-05 (soir) — le
+    # laisser ici faisait lire une consigne Instagram à qui vient brancher des
+    # campagnes. Le reste a été coupé pour la même raison : « il y a trop de
+    # blabla ». Ce qui survit est ce qu'on ne peut pas deviner.
     steps=(
         CredStep("🔗 [Gestionnaire de publicités](https://adsmanager.facebook.com/) "
                  "→ sélectionne ton compte → **copie l'URL** et colle-la au-dessus.",
                  "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
-        # Pourquoi CE geste est manuel, alors que tout le reste ne l'est pas : Meta
-        # refuse l'appel qui l'automatiserait. Mesuré le 2026-09-05 —
-        # `POST business/client_ad_accounts` et `POST adaccount/agencies` répondent
-        # tous deux `(#3) Application does not have the capability`, avec un jeton
-        # qui porte pourtant `business_management` et pendant qu'une écriture
-        # Business ordinaire passe. C'est une capacité d'app, accordée par une revue
-        # Meta distincte (ADR-017). Tant qu'elle n'est pas accordée, l'artiste est le
-        # seul à pouvoir donner cet accès sur SON compte.
-        #
-        # Donc : on ne prétend pas que c'est automatique, et on écrit les clics.
-        CredStep("🤝 **Donne-nous accès à ce compte** — c'est le seul geste que nous "
-                 "ne pouvons pas faire à ta place, et sans lui la collecte reste "
-                 "vide même avec le bon lien.\n\n"
-                 f"① Ouvre [Comptes publicitaires]({_META_PARTNERS_URL}) et "
-                 "sélectionne le compte à suivre.\n\n"
-                 "② Onglet **Partenaires** → bouton **Attribuer un partenaire**.\n\n"
-                 "③ Colle "
+        # Le seul geste que nous ne pouvons pas faire : Meta refuse l'appel qui
+        # l'automatiserait (`(#3) capability`, ADR-017). L'ID à coller est rendu par
+        # l'onglet dans un bloc copiable — pas ici, où il faudrait le sélectionner
+        # à la souris au milieu d'une phrase.
+        # Le numéro est ÉCRIT ICI, en plus du bloc copiable de l'onglet. Ce n'est
+        # pas une redite : ce guide part aussi en PDF à l'inscription, et là il n'y
+        # a pas d'onglet — un lecteur hors ligne resterait avec « le numéro est
+        # au-dessus du formulaire », c'est-à-dire nulle part.
+        CredStep("🤝 **Donne-nous l'accès** — sans lui, aucune donnée, même avec le "
+                 "bon lien.\n\n"
+                 "⚙️ [Comptes publicitaires](https://business.facebook.com/settings/ad-accounts) → ton compte → "
+                 "**Partenaires** → **Attribuer un partenaire** → colle "
                  + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "**notre numéro de Business** (demande-le nous)")
-                 + " dans le champ **ID du partenaire**.\n\n"
-                 "④ Coche l'autorisation **Analyste** (lecture seule) et valide. "
-                 "C'est tout — rien à nous renvoyer."),
-        CredStep("📸 [Comptes Instagram](https://business.facebook.com/settings/instagram-accounts) "
-                 "→ ton compte → copie l'**ID numérique** sous le nom (pas ton "
-                 "@pseudo).\n\n"
-                 "Il doit être **Business** ou **Créateur**, relié à une **Page "
-                 "Facebook**."),
+                 + " → rôle **Analyste**."),
     ),
     fields=(
         CredField("Lien de ton compte publicitaire",
                   "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
                   note="colle l'URL entière du Gestionnaire de publicités — on en "
                        "extrait le numéro de compte"),
-        CredField("Instagram Business Account ID", "17841400000000000",
-                  note="~17 chiffres, pour les stats Instagram"),
     ),
     admin_note=(
-        "Côté admin : System User créé, token à 5 scopes en place, et le rattachement "
-        "Instagram fait au niveau de la Page Facebook."
+        "Côté admin : System User créé, token à 5 scopes en place."
     ),
 )
 
-CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (_SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META)
+# 📸 Instagram — son propre guide depuis qu'il a son propre onglet.
+#
+# UNE étape, parce qu'il n'y a qu'un geste : coller son lien. `business_discovery`
+# résout l'identifiant numérique depuis le pseudo, donc le détour par Business
+# Manager — trois écrans — a disparu.
+_INSTAGRAM = PlatformCred(
+    key="instagram",
+    title="Instagram",
+    icon="📸",
+    intro=None,
+    portal_url="https://www.instagram.com/",
+    steps=(
+        CredStep("📸 Ouvre ton profil Instagram → **copie l'adresse** "
+                 "(https://instagram.com/ton-pseudo) et colle-la au-dessus.\n\n"
+                 "Ton compte doit être **Business** ou **Créateur** : un compte "
+                 "personnel ne renvoie aucune statistique via l'API."),
+    ),
+    fields=(
+        CredField("Lien de ton profil Instagram",
+                  "https://instagram.com/ton-pseudo",
+                  note="on s'occupe du reste — rien à chercher dans Business Manager"),
+    ),
+    admin_note=(
+        "Côté admin : le rattachement Instagram se fait au niveau de la Page "
+        "Facebook, et `META_IG_DISCOVERY_ID` porte le compte qui sert de point "
+        "d'observation à `business_discovery`."
+    ),
+)
+
+CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (
+    _SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META, _INSTAGRAM,
+)
