@@ -5,7 +5,7 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
-## 2026-09-05 (suite 7) — La CI rouge trois fois : le garde était juste, l'endroit ne l'était pas
+## 2026-09-05 (suite 7) — La CI rouge huit fois : le garde était juste, l'endroit ne l'était pas
 
 **Huit** runs consécutifs rouges sur `main` — pas trois. La série commence au commit
 fautif lui-même (`8176e97b`, 21 h 49) et court jusqu'à `a0cd505a` (01 h 05) ; les trois
@@ -51,6 +51,47 @@ de `.claude/`), et le hook lui-même vérifié rouge en restaurant l'entrée de 
 caractères, vert après.
 
 Capitalisé en `ci-gate-with-no-local-counterpart` (P3, 190 classes, 100 % complètes).
+
+### Ce que la CI a montré une fois qu'elle a pu avancer
+
+Le garde REX passe, la CI atteint « Run tests » — l'étape qu'elle n'avait plus vue
+depuis huit runs — et **un test rougit aussitôt** :
+
+    FAILED tests/test_a_tool_that_reads_the_env_loads_it.py
+      ::test_the_sandbox_default_address_is_deliverable
+
+Rien à voir avec le changement. Il chargeait `tools/create_sandbox.py`, dont l'import
+appelle `load_project_env()`, et affirmait que `_default_email()` rend un alias `+` et
+non `@sandbox.local`. **L'adresse de l'opérateur n'était posée nulle part** : elle
+venait du `.env` du dépôt. Ici le fichier existe, le test passait ; sur un runner il
+n'existe pas, et le test ne POUVAIT pas passer. Son propre docstring énonçait la
+condition — « quand l'environnement est chargé » — sans jamais l'établir.
+
+Le code de `create_sandbox.py` est juste, et le site d'appel avertit déjà en toutes
+lettres qu'une adresse `.local` rebondira. C'est le garde qui mesurait la machine.
+Corrigé en lui faisant **poser ce qu'il lit**, plus deux branches que rien
+n'atteignait : l'alias d'alias (`operateur+autre@` ne doit pas donner
+`operateur+autre+sandbox@`) et l'adresse d'opérateur morte.
+
+Capitalisé en `guard-reads-the-box-not-its-subject` (P2, 191 classes). Le détecteur
+`check_guards_are_env_independent.py` rejoue les **39** fichiers de test qui chargent
+un module de `tools/` avec le chargeur d'env neutralisé, et exige le même verdict :
+842 tests, ~41 s, identique dans les deux conditions une fois corrigé — la classe
+n'avait qu'un site.
+
+Deux pièges rencontrés en l'écrivant, tous deux du même genre que le défaut :
+
+- la première version vidait la constante `ENV_FILES`. Elle faisait rougir
+  `test_the_standalone_mailer_honours_the_same_env_precedence`, qui **compare** cette
+  constante : le détecteur mutait son propre sujet. C'est la fonction
+  `load_project_env` qui est neutralisée, pas la constante ;
+- écrite en signature `pytest`, elle aurait été regroupée par
+  `audit_runner.pytest_targets`, qui ne garde que les node-ids — le `PYTHONPATH` et le
+  `-p` du plugin jetés, la signature incapable de tirer une seule fois. Le détecteur
+  est donc un script dont le nom ne contient pas `pytest`.
+
+Signature vue `exit=1` sur le défaut et `exit=0` après, dans les deux sens, sans jamais
+toucher au `.env` du disque.
 
 Les cinq autres étapes de garde que la CI n'avait jamais atteintes — elle échouait à la
 troisième — ont été lancées ici : `--deterministic`, `--prose`, `check_config_refs`,

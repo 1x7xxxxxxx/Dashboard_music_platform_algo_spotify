@@ -250,6 +250,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [the-only-copy-is-consumed-on-read](#the-only-copy-is-consumed-on-read) | P2 | deterministic | guarded | none |
 | [exempt-row-hides-others-conflict](#exempt-row-hides-others-conflict) | P2 | deterministic | guarded | none |
 | [ci-gate-with-no-local-counterpart](#ci-gate-with-no-local-counterpart) | P3 | deterministic | guarded | none |
+| [guard-reads-the-box-not-its-subject](#guard-reads-the-box-not-its-subject) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3291,3 +3292,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: `guarded`. Lecture STRUCTURELLE du YAML, pas textuelle — le commentaire qui documente le hook nomme lui-même `validate_rex.py`, donc un `grep` resterait vert après suppression du hook (`guard-matches-its-own-comment`). Vérifié rouge par trois mutations distinctes : `entry` remplacée, `--strict` retiré, `files` élargi hors de `.claude/`. Le hook lui-même vérifié rouge en restaurant l'entrée REX de 399 caractères, vert après.
+
+## guard-reads-the-box-not-its-subject
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un garde est vert sur le poste où il a été écrit et rouge — ou vide — partout ailleurs. Il n'a jamais mesuré son sujet : son verdict vient de la configuration de la machine, un `.env` sur le disque, un service qui tourne, une variable héritée du shell.
+- root_cause: `tests/test_a_tool_that_reads_the_env_loads_it.py::test_the_sandbox_default_address_is_deliverable` chargeait `tools/create_sandbox.py`, dont l'import appelle `load_project_env()`, puis affirmait que `_default_email()` rend un alias `+` et non `@sandbox.local`. L'adresse de l'opérateur n'était **posée nulle part** : elle venait du `.env` du dépôt. Sur ce poste le fichier existe et le test passait ; sur un runner GitHub il n'existe pas, `SANDBOX_EMAIL`/`ALERT_EMAIL`/`SMTP_USER` sont absentes, le repli sort et le test échoue. Son propre docstring énonçait la condition — « quand l'environnement est chargé » — sans jamais l'établir. Découvert le 2026-09-05 : la CI n'atteignait plus l'étape « Run tests » depuis huit runs (classe `ci-gate-with-no-local-counterpart`), et le défaut est apparu à la seconde où elle l'a atteinte.
+- signature: `python3 .claude/scripts/check_guards_are_env_independent.py`
+- long_term_fix: le garde **pose ce qu'il lit** (`monkeypatch.setenv`) au lieu de le lire sur la machine, et `check_guards_are_env_independent.py` rejoue les 39 fichiers de test qui chargent un module de `tools/` — donc ceux dont l'import déclenche `load_project_env()` — avec le chargeur neutralisé, en exigeant le même verdict. Le détecteur remplace la FONCTION `load_project_env`, jamais la constante `ENV_FILES` : la vider faisait rougir `test_the_standalone_mailer_honours_the_same_env_precedence`, dont c'est le sujet — un détecteur ne mute pas ce qu'il mesure. Le nom du script ne contient pas `pytest`, sans quoi `audit_runner.pytest_targets` le regrouperait en ne gardant que les node-ids : le `PYTHONPATH` et le `-p` du plugin seraient jetés et la signature ne pourrait plus jamais tirer.
+- autofix: none
+- guard: { type: script, ref: .claude/scripts/check_guards_are_env_independent.py + .claude/scripts/pytest_without_dotenv.py, wired: .github/workflows/ci.yml }
+- rex_ref: tests/test_a_tool_that_reads_the_env_loads_it.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: `guarded`. Signature vue `exit=1` sur le défaut (le test d'origine remis par `git stash`, `FAILED …::test_the_sandbox_default_address_is_deliverable`) et `exit=0` après — dans les deux sens, sans toucher au `.env` du disque. Portée mesurée avant de figer : 39 fichiers, 842 tests, ~41 s, verdict identique dans les deux conditions une fois corrigé — la classe n'avait qu'un site. Le repli `@sandbox.local` de `tools/create_sandbox.py` est conservé volontairement : le site d'appel l'avertit déjà en toutes lettres, et deux tests neufs épinglent l'alias d'alias et l'adresse d'opérateur morte, deux branches que rien n'atteignait.

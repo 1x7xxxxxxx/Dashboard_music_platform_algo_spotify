@@ -115,26 +115,67 @@ def test_every_tool_that_reads_the_env_loads_it():
     )
 
 
-def test_the_sandbox_default_address_is_deliverable():
-    """Le cas signalé, épinglé : le bac à sable ne s'écrit pas à un domaine mort.
-
-    `@sandbox.local` n'existe pas — Gmail a renvoyé le mot de bienvenue le
-    2026-09-04, et c'est ce rebond qui a fait remplacer le défaut par un alias `+`.
-    Le garde vérifie que la substitution TIENT quand l'environnement est chargé,
-    puisque c'est la seule condition dans laquelle elle fonctionne.
-    """
+def _load_create_sandbox():
+    """Charge `tools/create_sandbox.py` isolément (son import appelle load_project_env)."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
         "_cs", _ROOT / "tools" / "create_sandbox.py")
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)          # charge l'env au passage — c'est le sujet
+    spec.loader.exec_module(mod)
+    return mod
 
-    addr = mod._default_email("sandbox")
+
+def test_the_sandbox_default_address_is_deliverable(monkeypatch):
+    """Le cas signalé, épinglé : le bac à sable ne s'écrit pas à un domaine mort.
+
+    `@sandbox.local` n'existe pas — Gmail a renvoyé le mot de bienvenue le
+    2026-09-04, et c'est ce rebond qui a fait remplacer le défaut par un alias `+`.
+
+    L'adresse de l'opérateur est POSÉE ICI, elle n'est plus lue sur la machine.
+    Écrit autrement, ce garde a rougi la CI le 2026-09-05 : il passait sur ce poste,
+    où `.env` existe, et ne pouvait pas passer sur un runner, qui n'en a pas. Il
+    mesurait la configuration du poste, pas la fonction — et il aurait donc rougi
+    pour une raison qui n'est pas le défaut qu'il garde. `load_project_env` charge
+    avec `override=False` : la variable posée ici gagne.
+    """
+    monkeypatch.setenv("SANDBOX_EMAIL", "operateur@gmail.com")
+    addr = _load_create_sandbox()._default_email("sandbox")
+
     assert not addr.endswith(".local"), (
         f"l'adresse par défaut du bac à sable est {addr!r} : les e-mails de "
         "vérification et de bienvenue rebondiront, et le parcours qu'il prétend "
         "rejouer saute son premier écran")
-    assert "+sandbox@" in addr, (
-        f"{addr!r} n'est pas un alias `+` : il n'arriverait pas dans la boîte de "
-        "l'opérateur, ou ne s'y filtrerait pas")
+    assert addr == "operateur+sandbox@gmail.com", (
+        f"{addr!r} n'est pas l'alias `+` attendu : il n'arriverait pas dans la boîte "
+        "de l'opérateur, ou ne s'y filtrerait pas")
+
+
+def test_the_sandbox_address_never_aliases_an_alias(monkeypatch):
+    """`operateur+autre@` ne doit pas donner `operateur+autre+sandbox@`.
+
+    Certains fournisseurs refusent le second `+`. La branche existe dans
+    `_default_email` (`local.split("+", 1)[0]`) et rien ne l'atteignait.
+    """
+    monkeypatch.delenv("SANDBOX_EMAIL", raising=False)
+    monkeypatch.setenv("ALERT_EMAIL", "operateur+alertes@gmail.com")
+    assert _load_create_sandbox()._default_email("sandbox") == (
+        "operateur+sandbox@gmail.com")
+
+
+def test_a_dead_operator_address_is_refused_not_aliased(monkeypatch):
+    """Une adresse d'opérateur en `.local` ne fabrique pas un alias tout aussi mort.
+
+    C'est la forme exacte du rebond du 2026-09-04 : le repli produisait une adresse
+    plausible et indélivrable. Sans adresse utilisable, `_default_email` rend la
+    sentinelle `.local` que l'appelant sait signaler (avertissement au site d'appel,
+    `tools/create_sandbox.py`), au lieu de faire passer un domaine mort pour bon.
+    """
+    # Les TROIS sont posées, aucune n'est retirée : `load_project_env` charge avec
+    # `override=False`, ce qui protège une variable POSÉE — pas une variable
+    # retirée, que le `.env` du poste repeuple à l'import. Une première version de
+    # ce test faisait un `delenv` et passait ou non selon la machine, c'est-à-dire
+    # le défaut qu'on est en train de corriger.
+    for var in ("SANDBOX_EMAIL", "ALERT_EMAIL", "SMTP_USER"):
+        monkeypatch.setenv(var, f"operateur-{var.lower()}@sandbox.local")
+    assert _load_create_sandbox()._default_email("sandbox").endswith(".local")
