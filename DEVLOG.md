@@ -83,6 +83,28 @@ n'est plus un ❌ générique.
 | **R61** | corrigé. Troisième frontière de `conftest.py` après SMTP et HTTP. |
 | **R62** | porte fermée, mesurée. `ADR-017`. |
 
+### « Quand quelqu'un s'inscrit » — le guide demandait ce qu'on savait déjà
+
+La partie littérale de la demande. Vérifié sur l'artefact réellement envoyé, pas sur le
+code : le guide reçu à la vérification d'e-mail disait **« demande-nous notre numéro de
+Business »** au lieu de le porter. Un aller-retour par courriel imposé à chaque nouvel
+artiste, pour une valeur que nous connaissons.
+
+La cause n'était pas le texte mais **qui le construit**. Le dashboard tourne sous
+`streamlit run`, qui charge l'environnement ; le générateur de guide tourne en
+`python -m` depuis le `Makefile` et ne le chargeait pas. `META_BUSINESS_ID` était donc
+vide **au moment de la construction du PDF, et là seulement**. Le repli fonctionnait —
+c'est exactement ce qui l'a rendu invisible.
+
+Le module charge maintenant l'env lui-même : il a trois appelants (dashboard,
+générateur, tests) et un seul y pensait.
+
+Le garde relance un interpréteur **nu**, seule façon de reproduire la condition du
+générateur depuis une suite qui, elle, a chargé l'env. Il était **vert au premier jet
+sur sa propre mutation** : il *skippait* quand la valeur était vide, et retirer le
+chargement produit précisément une valeur vide. Un skip n'est pas une preuve. Il
+conditionne désormais sur ce que le disque déclare.
+
 ### Une sentinelle qui se déclenchait sur sa propre documentation
 
 `test_view_connection_budget` comptait les connexions par une **expression régulière**

@@ -40,7 +40,31 @@ META_APP_DISPLAY_NAME = os.getenv("META_APP_DISPLAY_NAME", "ETL_DASHBOARD_SPOTIF
 # peut voir le nom de mon application ».
 #
 # Non défini ⇒ le guide dit de nous le demander, plutôt que d'afficher un trou.
-META_BUSINESS_ID = os.getenv("META_BUSINESS_ID", "")
+def _business_id() -> str:
+    """Notre Business ID, en chargeant `.env` si l'appelant ne l'a pas fait.
+
+    Le dashboard tourne sous `streamlit run`, qui charge l'environnement ; le
+    GÉNÉRATEUR DE GUIDE, lui, tourne en `python -m` depuis le Makefile et ne le
+    chargeait pas. Résultat mesuré le 2026-09-05 : le PDF **envoyé à l'inscription**
+    disait « demande-nous notre numéro de Business » au lieu de le porter — un
+    aller-retour par e-mail imposé à chaque nouvel artiste, pour une valeur que nous
+    connaissons.
+
+    Le module ne peut pas exiger que ses appelants pensent à charger l'env : il y en
+    a trois (dashboard, générateur de PDF, tests) et seul le premier le faisait.
+    """
+    value = os.getenv("META_BUSINESS_ID", "").strip()
+    if value:
+        return value
+    try:
+        from src.utils.env_files import load_project_env
+        load_project_env()
+    except Exception:  # noqa: BLE001 — pas de `.env` = le repli, pas une panne
+        return ""
+    return os.getenv("META_BUSINESS_ID", "").strip()
+
+
+META_BUSINESS_ID = _business_id()
 _META_PARTNERS_URL = "https://business.facebook.com/settings/ad-accounts"
 
 # Le réglage exact, chez Meta, où se fait le partage. Un lien vaut mieux qu'un
