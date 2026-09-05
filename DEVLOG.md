@@ -5,6 +5,98 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 19) — L'onglet vert qu'on saute, et Instagram sans Business Manager
+
+Six demandes. Deux étaient des questions, et les deux ont changé le code.
+
+### « On ne peut pas récupérer l'ID Instagram via le lien de la page ? » — si
+
+Mesuré avant de répondre. `business_discovery` rend l'identifiant numérique d'un compte
+Business/Créateur **à partir de son seul pseudo** :
+
+    GET {notre_ig_user_id}?fields=business_discovery.username(fjaak){id,username}
+    → {"id": "17841400196310703", "username": "fjaak", "followers_count": 330020}
+
+Le détour par Business Manager — « Paramètres → Comptes → Comptes Instagram, l'ID
+numérique est sous le nom » — **n'était pas nécessaire**. C'est trois écrans de moins,
+sur la valeur que l'artiste avait le plus de mal à trouver. Le champ demande désormais
+le **lien du profil** ; l'ID numérique reste accepté.
+
+Cinq formes résolues : `https://instagram.com/fjaak`, `@fjaak`, `fjaak`, l'ID nu, et
+l'URL avec paramètres. Un compte personnel échoue proprement (`#110`) avec le geste qui
+le débloque — c'était déjà un prérequis du guide, ce n'est plus une surprise.
+
+**Le résolveur ne lève pas, il rend un problème.** `test_no_probe_surfaces_a_whole_exception`
+a refusé ma première version, qui affichait `str(exc)` : une exception traversant la
+couche réseau porte l'URL préparée, donc le jeton. Le message est **construit** dans le
+résolveur, jamais extrait.
+
+### « On avait pas dit qu'on faisait la demande automatiquement ? »
+
+Non, et c'est mesuré : Meta refuse l'appel. `POST business/client_ad_accounts` et
+`POST adaccount/agencies` répondent tous deux `(#3) Application does not have the
+capability`, avec un jeton qui porte pourtant `business_management` et pendant qu'une
+écriture Business ordinaire passe. C'est une capacité d'app, accordée par une revue
+distincte (ADR-017).
+
+Donc on ne prétend pas que c'est automatique — on écrit les clics. L'étape 2 passe
+d'une ligne à quatre gestes numérotés, et dit explicitement que **c'est le seul geste
+que nous ne pouvons pas faire à sa place**.
+
+### L'onglet vert, et celui qu'on ouvre
+
+🟢 sur ce qui est configuré, et **l'atterrissage saute les verts** : Spotify branché à
+l'inscription ⇒ la page s'ouvre sur SoundCloud. Vérifié au rendu.
+
+Le défaut ne s'applique qu'à l'**absence de choix** : une session ou une URL qui nomment
+un onglet gagnent toujours, y compris un onglet vert. On n'empêche personne de revenir
+sur ce qui est fait.
+
+Les légendes « ex. … » de Spotify et SoundCloud sont parties — elles répétaient le texte
+fantôme du champ, comme celles de Meta la veille.
+
+### Un champ déplacé, et le défaut que ça crée
+
+« Comptes ads supplémentaires » quitte Credentials pour 📣 Meta Ads. Même mouvement que
+les titres SoundCloud hébergés ailleurs, partis sur leur page de performance le
+2026-09-04, et pour la même raison : **Credentials répond à « comment te connecter »,
+pas à « que veux-tu suivre »**.
+
+**Ce déplacement crée un défaut, et c'est le point le plus important de la séance.** Les
+comptes supplémentaires ne se saisissent plus ici, mais ils vivent dans la **même
+ligne** : sans relecture, `with_meta_accounts` aurait reconstruit la liste depuis le
+seul champ principal et **effacé les comptes d'agence à chaque réenregistrement des
+credentials**. Un déplacement de champ serait devenu une suppression de données.
+
+La relecture se fait sur la **ligne brute** : `existing_values` est filtré par les
+champs déclarés, et `account_ids` n'en est plus un — il y aurait donc toujours été vide,
+et le garde n'aurait rien gardé.
+
+### Le même trou de garde, trois fois dans la journée
+
+Une mutation est restée verte : mon test appelait `_saved_meta_accounts` **directement**
+et ne voyait pas que `_handle_save` avait cessé d'injecter le résultat. C'est la
+troisième fois aujourd'hui — après le formulaire d'inscription et la vérification
+d'e-mail. Le garde assère maintenant deux choses : la fonction est appelée, **et** sa
+valeur est dépliée dans ce qui sera écrit. Une variable calculée puis jetée fait rougir.
+
+Quatre mutations vues rouges.
+
+### Et le garde d'identité m'a arrêté sur le nom d'une variable
+
+`test_identity_has_no_env_fallback` a refusé mon `os.getenv("IG_USER_ID")`. Sa règle :
+l'environnement porte l'identité de l'**ADMIN**, donc un locataire au champ vide
+collecterait le compte de l'admin sous son propre nom — la fuite du 2026-08-20.
+
+Ici la valeur n'est pas une identité de locataire : c'est **notre** compte Instagram,
+le point d'observation depuis lequel `business_discovery` pose la question. Un
+credential d'app au sens de l'ADR-006. Mais le garde ne pouvait pas le savoir, et le
+nom `IG_USER_ID` ne le disait pas non plus.
+
+Renommée `META_IG_DISCOVERY_ID`, avec la raison écrite à l'endroit du `getenv`. **Le
+garde avait raison sur le fond même en se trompant de cas** : une variable qui ressemble
+à une identité de locataire finit par être lue comme telle.
+
 ## 2026-09-05 (suite 18) — Rien entre le titre et le premier champ
 
 Trois éléments vivaient entre « 🎵 Créez votre compte » et la première saisie. Aucun

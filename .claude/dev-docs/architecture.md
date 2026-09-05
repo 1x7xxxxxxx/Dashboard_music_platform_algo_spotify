@@ -206,6 +206,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `platform_status.py` | 📋 État de tes plateformes — la matrice complète des six sources. **Hors du menu depuis le 2026-09-05** (chaque onglet de Credentials porte les quatre pastilles de SA plateforme) mais toujours ROUTÉE : des messages y renvoient | lecture seule (artist_readiness) | all |
 | `soundcloud.py` | SoundCloud | soundcloud_tracks | all |
 | `soundcloud_claims.py` | Déclarer les titres hébergés sous le compte d'un label ou d'un collectif — fragment rendu par `soundcloud.py`, sorti de Credentials le 2026-09-04 | track_platform_link | all |
+| `meta_extra_accounts.py` | Déclarer les comptes publicitaires supplémentaires (agences) — fragment rendu par `meta_ads_overview.py`, sorti de Credentials le 2026-09-05, même mouvement que `soundcloud_claims.py` | artist_credentials | all |
 | `instagram.py` | Instagram | instagram_* | all |
 | `apple_music.py` | Apple Music | apple_* | all |
 | `hypeddit.py` | Hypeddit | hypeddit_* | all |

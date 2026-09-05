@@ -123,6 +123,7 @@ services:
       # No default — same reason as SPOTIFY_ARTIST_IDS above.
       META_AD_ACCOUNT_ID: ${META_AD_ACCOUNT_ID:-}
       META_BUSINESS_ID: ${META_BUSINESS_ID:-}
+      META_IG_DISCOVERY_ID: ${META_IG_DISCOVERY_ID:-}
       META_API_VERSION: v21.0
 
       # YouTube API
@@ -271,6 +272,7 @@ services:
       # que l'artiste colle dans « Attribuer un partenaire ». Absent, le
       # guide dit « demande-le nous » au lieu d'un trou.
       META_BUSINESS_ID: ${META_BUSINESS_ID:-}
+      META_IG_DISCOVERY_ID: ${META_IG_DISCOVERY_ID:-}
       # Email (verification / alerts / digest). With a relay like Brevo, SMTP_USER is
       # the relay login and SMTP_FROM is the authenticated sender (noreply@<domain>).
       SMTP_HOST: ${SMTP_HOST}

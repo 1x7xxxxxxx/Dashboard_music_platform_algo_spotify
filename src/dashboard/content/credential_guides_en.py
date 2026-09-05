@@ -113,13 +113,23 @@ _META = PlatformCred(
         CredStep("🔗 [Ads Manager](https://adsmanager.facebook.com/) → pick your "
                  "account → **copy the URL** and paste it above.",
                  "meta_url_id.png", "The number after act= in the address bar"),
-        CredStep("🤝 **Share this account with us** — without it, collection sees "
-                 "nothing, even with the right link.\n\n"
-                 f"⚙️ [Ad accounts]({_META_PARTNERS_URL}) → your account → "
-                 "**Partners** → **Assign partner** → paste "
+        # Manual because Meta refuses the call that would automate it: both
+        # `POST business/client_ad_accounts` and `POST adaccount/agencies` answer
+        # `(#3) Application does not have the capability` (ADR-017). Until that
+        # access is granted, only the artist can give it on THEIR account — so we
+        # do not pretend it is automatic, and we spell out the clicks.
+        CredStep("🤝 **Give us access to this account** — the one step we cannot do "
+                 "for you, and without it collection stays empty even with the "
+                 "right link.\n\n"
+                 f"① Open [Ad accounts]({_META_PARTNERS_URL}) and pick the account "
+                 "you want tracked.\n\n"
+                 "② **Partners** tab → **Assign partner** button.\n\n"
+                 "③ Paste "
                  + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "**our Business ID** (ask us for it)")
-                 + " → **Analyst** role."),
+                 + " into the **Partner ID** field.\n\n"
+                 "④ Tick the **Analyst** permission (read-only) and confirm. "
+                 "That's it — nothing to send back to us."),
         CredStep("📸 [Instagram accounts](https://business.facebook.com/settings/instagram-accounts) "
                  "→ your account → copy the **numeric ID** under the name (not your "
                  "@handle).\n\n"

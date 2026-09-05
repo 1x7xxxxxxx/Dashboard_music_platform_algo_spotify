@@ -56,8 +56,8 @@ _TAB_PARAM = "tab"
 _TAB_STATE = "_creds_tab"
 
 
-def _resolve_active_tab(keys: list[str]) -> str:
-    """L'onglet à ouvrir : la session d'abord, l'URL ensuite, le premier sinon.
+def _resolve_active_tab(keys: list[str], done: set | None = None) -> str:
+    """L'onglet à ouvrir : la session d'abord, l'URL ensuite, le premier À FAIRE sinon.
 
     L'ORDRE compte. La session porte ce que l'artiste vient de choisir ou ce qu'une
     redirection vient d'écrire ; l'URL porte ce qu'il a collé ou mis en signet. Lire
@@ -72,6 +72,19 @@ def _resolve_active_tab(keys: list[str]) -> str:
                       st.query_params.get(_TAB_PARAM)):
         if candidate in keys:
             return candidate
+    # Par défaut, le premier onglet qui reste À FAIRE — pas le premier tout court.
+    # Demandé le 2026-09-05 : « on ne doit pas arriver sur l'onglet vert déjà
+    # configuré, ça passe à celui directement à droite ». Depuis que les liens
+    # d'inscription se matérialisent seuls, un artiste peut arriver avec Spotify déjà
+    # branché ; l'ouvrir lui montre un formulaire qu'il vient de remplir ailleurs.
+    #
+    # Ce défaut ne s'applique qu'à l'ABSENCE de choix : une session ou une URL qui
+    # nomment un onglet gagnent toujours, y compris un onglet vert — on n'empêche
+    # personne de revenir sur ce qui est fait.
+    for key in keys:
+        if key not in (done or set()):
+            return key
+    # Tout est configuré : le premier, faute de mieux, plutôt qu'une page vide.
     return keys[0]
 
 
@@ -373,8 +386,10 @@ def show():
         # second verdict appartient aux pastilles et à la sonde, qui savent le
         # mesurer. Deux affirmations différentes ne partagent pas un glyphe.
         _connected_keys = connected_platforms(existing)
+        # 🟢 et non ✓ : « en vert quand c'est configuré » (2026-09-05). Les pastilles
+        # de Streamlit n'ont pas de couleur par option — le glyphe EST la couleur.
         _tab_label = {
-            k: (f"✓ {info['label']}" if k in _connected_keys else info['label'])
+            k: (f"🟢 {info['label']}" if k in _connected_keys else info['label'])
             for k, info in ordered
         } | {_CSV_KEY: _CSV_TAB}
 
@@ -397,7 +412,10 @@ def show():
                 # y est déjà.
                 _verdict_next = _nxt
 
-        _active = _resolve_active_tab(_tab_keys)
+        # Les onglets DÉJÀ faits, dans l'espace des clés d'onglet — `connected_platforms`
+        # rend des plateformes logiques, et Instagram n'a pas d'onglet à lui.
+        _done_tabs = {_tab_of(k) for k in _connected_keys} - {""}
+        _active = _resolve_active_tab(_tab_keys, _done_tabs)
         _chosen = st.segmented_control(
             t("credentials.tab_bar", "Plateforme"), _tab_keys,
             format_func=lambda k: _tab_label[k],

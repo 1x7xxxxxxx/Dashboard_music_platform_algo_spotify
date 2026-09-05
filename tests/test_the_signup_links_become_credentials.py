@@ -233,11 +233,11 @@ show()
     bars = [e for e in flat(at.main) if type(e).__name__ == "ButtonGroup"]
     assert bars, "la barre d'onglets a disparu"
     labels = str(bars[0])
-    assert "✓" in labels, (
-        "aucun onglet n'est marqué alors que ce locataire a des credentials : "
+    assert "🟢" in labels, (
+        "aucun onglet n'est en VERT alors que ce locataire a des credentials : "
         "l'artiste ne distingue plus ce qui reste à configurer de ce qui est fait")
     # Et la marque ne doit pas être partout, sinon elle ne distingue rien.
-    assert labels.count("✓") < labels.count("content:"), (
+    assert labels.count("🟢") < labels.count("content:"), (
         "tous les onglets portent la marque — elle ne sépare plus rien")
 
 

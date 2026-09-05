@@ -45,7 +45,10 @@ PLATFORMS = {
         # The optional OAuth real-likes path is an admin runbook (mint script),
         # not exposed in the artist form.
         'fields': [
+            # `show_example: False` — la légende « ex. … » répétait le texte
+            # fantôme du champ. Demandé le 2026-09-05, comme pour Meta.
             {'key': 'user_id', 'label': 'Lien de ton profil SoundCloud', 'secret': False,
+             'show_example': False,
              'example': 'https://soundcloud.com/ton-nom'},
         ],
     },
@@ -58,7 +61,7 @@ PLATFORMS = {
         # saas_artists.spotify_artist_id on save (the per-tenant collection key).
         'fields': [
             {'key': 'spotify_artist_id', 'label': 'URL profil artiste',
-             'secret': False,
+             'secret': False, 'show_example': False,
              'example': 'https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV'},
             {'key': 'client_id',     'label': 'Client ID (surcharge)',     'secret': False, 'admin_only': True},
             {'key': 'client_secret', 'label': 'Client Secret (surcharge)', 'secret': True, 'admin_only': True},
@@ -98,20 +101,21 @@ PLATFORMS = {
             {'key': 'account_id', 'label': 'Lien de ton compte publicitaire',
              'secret': False, 'show_example': False,
              'example': 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345'},
-            {'key': 'ig_user_id', 'label': 'Instagram Business Account ID',
-             'secret': False, 'show_example': False, 'example': '17841400000000000'},
+            # Le LIEN du profil, comme partout ailleurs — l'ID numérique reste
+            # accepté. C'est `_handle_save` qui résout, via `business_discovery`.
+            {'key': 'ig_user_id', 'label': 'Lien de ton profil Instagram',
+             'secret': False, 'show_example': False,
+             'example': 'https://instagram.com/ton-pseudo'},
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
             # plutôt qu'une liste dans `account_id` : les 100 % de locataires
             # mono-compte d'aujourd'hui ne voient aucun changement, et le champ
             # principal garde le motif de forme qui l'empêche d'entrer tel quel dans
             # un chemin REST. Une liste dans le champ principal aurait cassé les deux.
-            # Replié : ce champ ne concerne que les agences, donc presque personne.
-            # Déplié par défaut, il occupait une zone de saisie entière sous les deux
-            # champs qui, eux, servent à tout le monde. `collapsed` le met dans un
-            # dépliant fermé — il reste à un clic, il ne demande plus rien.
-            {'key': 'extra_account_ids',
-             'label': 'Comptes ads supplémentaires - pour agence (optionnel)',
-             'secret': False, 'multiline': True, 'collapsed': True},
+            # Le champ « comptes ads supplémentaires » a QUITTÉ cet onglet le
+            # 2026-09-05 pour la page 📣 Meta Ads (`views/meta_extra_accounts.py`).
+            # Credentials répond à « comment te connecter » ; un compte d'agence est
+            # une déclaration de périmètre, pas une identité — l'identité est déjà
+            # là. Même mouvement que les titres SoundCloud hébergés ailleurs.
         ],
     },
 }

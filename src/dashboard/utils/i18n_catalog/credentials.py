@@ -37,6 +37,9 @@ EN = {
     "credentials.verdict_resolved": (
         "👉 {platform}: almost — one value to copy across."
     ),
+    "credentials.meta.ig_resolved": (
+        "📸 Instagram account recognised: **@{name}** (ID {ident})"
+    ),
     "credentials.verdict_sharing_missing": (
         "⚠️ {platform}: this account is not shared with us yet."
     ),

@@ -58,6 +58,7 @@ honest answer rather than pretending symmetry.
 from __future__ import annotations
 
 import os
+import re
 
 _SC_TOKEN_URL = "https://api.soundcloud.com/oauth2/token"
 _SC_RESOLVE_URL = "https://api.soundcloud.com/resolve"
@@ -167,3 +168,85 @@ RESOLVED_HERE: dict[str, bool] = {
     "meta": False,        # ad account id lives inside Business Manager, never public
     "instagram": False,   # ig_user_id comes from the Meta graph, not from a page
 }
+
+
+# ── Instagram — l'ID numérique depuis le @pseudo, sans Business Manager ──────
+
+_IG_HANDLE = re.compile(r"(?:instagram\.com/)?@?([A-Za-z0-9._]{1,30})/?\s*$")
+
+
+def instagram_user_id_from_handle(value: str) -> tuple:
+    """`(id, pseudo, problème)` depuis un lien de profil ou un @pseudo.
+
+    Rend un PROBLÈME en troisième position plutôt que de lever : le site d'appel
+    afficherait alors `str(exc)`, et `test_no_probe_surfaces_a_whole_exception`
+    l'interdit — à raison. Une exception qui traverse une couche réseau porte
+    l'URL préparée, donc le jeton, et aucun relecteur ne peut distinguer d'un
+    coup d'œil celles qui sont sûres. Le message est CONSTRUIT ici.
+
+    Demandé le 2026-09-05 : « on ne peut pas récupérer l'ID numérique via le lien de
+    la page Instagram, ou on est obligé de passer par Business Manager ? ». **On
+    peut**, et c'est mesuré : `business_discovery` rend l'identifiant d'un compte
+    Business/Créateur public à partir de son seul pseudo.
+
+        GET {notre_ig_user_id}?fields=business_discovery.username(fjaak){id,username}
+        → {"business_discovery": {"id": "17841400196310703", "username": "fjaak",
+                                  "followers_count": 330020, "media_count": 706}}
+
+    Le détour par Business Manager — « Paramètres → Comptes → Comptes Instagram, l'ID
+    numérique est affiché sous le nom » — n'était donc pas nécessaire. C'est trois
+    écrans de moins, sur la valeur que l'artiste avait le plus de mal à trouver.
+
+    Deux limites, toutes deux mesurées et toutes deux déjà des prérequis du guide :
+    le compte cible doit être **Business ou Créateur** (un compte personnel rend
+    `(#110) Invalid user id`), et l'appel passe par NOTRE compte (`META_IG_DISCOVERY_ID`), qui doit être
+    configuré côté plateforme.
+
+    """
+    import os
+
+    raw = (value or "").strip()
+    if not raw:
+        return "", "", "Aucun compte Instagram fourni."
+    if raw.isdigit():
+        return raw, "", ""                  # déjà l'identifiant numérique
+    match = _IG_HANDLE.search(raw.split("?")[0])
+    if not match:
+        return "", "", ("Lien Instagram non reconnu. Colle l'adresse de ton "
+                        "profil (https://instagram.com/ton-pseudo) ou ton @pseudo.")
+    handle = match.group(1)
+
+    # `META_IG_DISCOVERY_ID` et pas `IG_USER_ID` : ce n'est PAS une identité de
+    # locataire, c'est notre propre compte Instagram, utilisé comme point
+    # d'observation pour `business_discovery` — un credential d'APP au sens de
+    # l'ADR-006. Le nom compte : `test_identity_has_no_env_fallback` refuse tout
+    # `x or os.getenv(<identité>)`, et il a raison — l'environnement porte l'identité
+    # de l'ADMIN, et un locataire au champ vide collecterait le compte de l'admin
+    # sous son propre nom. Ici rien ne retombe sur une identité : la valeur sert à
+    # POSER LA QUESTION, jamais à répondre à la place de l'artiste.
+    ours = (os.getenv("META_IG_DISCOVERY_ID") or "").strip()
+    if not ours:
+        return "", "", ("La résolution Instagram n'est pas configurée côté "
+                        "plateforme — colle directement l'ID numérique, ou "
+                        "préviens l'administrateur.")
+
+    from src.utils.meta_graph import MetaGraphError
+    from src.utils.meta_graph import get as graph_get
+    try:
+        body = graph_get(
+            ours,
+            fields=f"business_discovery.username({handle})"
+                   "{id,username,followers_count,media_count}")
+    except MetaGraphError as exc:
+        if exc.code == 110:
+            return "", "", (
+                f"« {handle} » est introuvable en compte **Business** ou "
+                "**Créateur**. Un compte personnel ne renvoie aucune statistique "
+                "via l'API : bascule-le en Business dans Instagram, puis réessaie.")
+        # `.explanation` est notre TABLE de codes, pas le texte de l'exception.
+        return "", "", f"Instagram n'a pas répondu ({exc.explanation})"
+
+    found = (body or {}).get("business_discovery") or {}
+    if not found.get("id"):
+        return "", "", f"« {handle} » n'a pas rendu d'identifiant Instagram."
+    return str(found["id"]), str(found.get("username") or handle), ""

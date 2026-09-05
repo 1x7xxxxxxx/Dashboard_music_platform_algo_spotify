@@ -1,6 +1,20 @@
 """EN strings for the Meta Ads overview view."""
 
 EN = {
+    # Comptes d'agence — déplacés de Credentials vers cette page le 2026-09-05.
+    "meta.extra_accounts_title": "➕ Extra ad accounts - for agencies (optional)",
+    "meta.extra_accounts_help": (
+        "Main account: **{main}** — change it in 🔑 API Credentials. Add the other "
+        "accounts to track here, **one per line**."
+    ),
+    "meta.extra_accounts_field": "Extra accounts",
+    "meta.extra_accounts_save": "💾 Save these accounts",
+    "meta.extra_accounts_malformed": (
+        "❌ Badly formatted account(s): {bad}. Digits only, optionally prefixed with "
+        "`act_`, one per line."
+    ),
+    "meta.extra_accounts_failed": "Could not save — try again in a moment.",
+    "meta.extra_accounts_saved": "✅ {n} account(s) tracked.",
     "meta_ads_overview.title": "📱 Meta Ads - Strategic Analysis",
     "meta_ads_overview.db_error": "DB connection error: {e}",
     "meta_ads_overview.scope": "🎯 Analysis Scope",

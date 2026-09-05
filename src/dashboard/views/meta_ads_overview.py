@@ -31,6 +31,12 @@ def show():
     # --- 1. CONNEXION & FILTRES ---
     with view_session() as (db, artist_id):
         _show_meta_ads(db, artist_id)
+        # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
+        # Credentials : cette page répond à « que veux-tu suivre », l'autre à
+        # « comment te connecter ». Même mouvement que les titres SoundCloud
+        # hébergés ailleurs, partis sur leur page de performance le 2026-09-04.
+        from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
+        render_extra_ad_accounts(db, artist_id)
 
 
 def _show_meta_ads(db, artist_id):

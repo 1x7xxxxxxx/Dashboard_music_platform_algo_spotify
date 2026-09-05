@@ -175,11 +175,19 @@ def test_the_entry_section_is_the_first_thing_on_the_meta_tab():
     joined = "\n".join(texts)
 
     assert "Trouver mon numéro" not in joined, "l'assistant est de retour"
-    assert "①" not in joined and "②" not in joined
     assert "ex. act_" not in joined
     assert "ex. 17841400000000000" not in joined
 
     idx_entry = next(i for i, x in enumerate(texts) if "Saisir tes identifiants" in x)
+
+    # Les glyphes ① ② étaient ceux de l'assistant supprimé, et ce test les
+    # interdisait PARTOUT. Depuis le 2026-09-05 (soir), l'étape de partage du guide
+    # les utilise légitimement pour numéroter quatre clics — la question n'a jamais
+    # été « ce glyphe existe-t-il ? » mais « quelque chose est-il revenu AU-DESSUS du
+    # formulaire ? ». Le prédicat suit donc la question, et pas le symptôme.
+    assert not [x for x in texts[:idx_entry] if "①" in x or "②" in x], (
+        "des consignes numérotées précèdent la saisie : c'est la forme de "
+        "l'assistant qui a été retiré")
     idx_guide = next((i for i, x in enumerate(texts)
                       if "obtenir les identifiants" in x), len(texts))
     assert idx_entry < idx_guide, "le guide passe devant le formulaire"
@@ -194,65 +202,39 @@ def test_the_entry_section_is_the_first_thing_on_the_meta_tab():
 
 # ── Ce que le 2026-09-05 (soir) a ajouté ─────────────────────────────────────
 
-def test_the_agency_field_is_tucked_away_and_the_instagram_one_is_not():
-    """« optionnel » là où c'en est un, et le champ d'agence hors du chemin."""
+def test_the_agency_field_left_the_tab_and_instagram_is_not_optional():
+    """Le champ d'agence n'est plus ici du tout — il est sur 📣 Meta Ads.
+
+    Il a été replié dans cet onglet quelques heures, puis DÉPLACÉ : « ça ne doit pas
+    être dans l'onglet credential ». Credentials répond à « comment te connecter » ;
+    un compte d'agence est une déclaration de périmètre. Ce test garde le
+    déplacement, pas le repli.
+    """
     from src.dashboard.views.credentials._registry import PLATFORMS
 
     by_key = {f["key"]: f for f in PLATFORMS["meta"]["fields"]}
-
-    extra = by_key["extra_account_ids"]
-    assert extra.get("collapsed") is True, (
-        "le champ d'agence est de retour en pleine page — il ne concerne presque "
-        "personne et demandait une décision à chaque visite")
-    assert "optionnel" in extra["label"].lower()
-    assert "agence" in extra["label"].lower()
-
-    # Instagram n'est PAS étiqueté optionnel : il l'était, et le mot invitait à
-    # sauter la seule chose qui fait exister l'onglet Instagram.
+    assert "extra_account_ids" not in by_key, (
+        "le champ d'agence est revenu dans l'onglet Credentials")
+    # Instagram n'est PAS étiqueté optionnel : le mot invitait à sauter la seule
+    # valeur qui fait exister l'onglet Instagram.
     assert "optionnel" not in by_key["ig_user_id"]["label"].lower()
+    # …et il demande un LIEN, comme les autres onglets.
+    assert "lien" in by_key["ig_user_id"]["label"].lower()
 
 
-@pytest.mark.skipif(not _db_ready(), reason=f"needs the DB on {_DB_HOST}:{_DB_PORT}")
-def test_the_render_tucks_collapsed_fields_inside_an_expander():
-    """Vérifié sur l'ARBRE RENDU, pas sur le source.
+def test_no_collapsed_field_remains_on_the_meta_tab():
+    """Le mécanisme `collapsed` reste, son unique usage est parti.
 
-    La première version de ce test cherchait un `.get("collapsed")` quelque part
-    dans `_render.py` — et restait VERTE quand on vidait la liste des champs
-    repliés, parce qu'un autre `.get('collapsed')` subsistait deux lignes plus haut.
-    La question n'est pas « le drapeau est-il lu ? » mais « la zone de saisie est-elle
-    DANS le dépliant ? ».
+    `_render.py` sait toujours replier un champ ; plus rien ne l'utilise ici. Ce test
+    dit l'état voulu de l'ONGLET, pas la disparition du mécanisme : le jour où un
+    champ mérite d'être replié, ce sera une décision, pas un héritage.
     """
-    from streamlit.testing.v1 import AppTest
+    from src.dashboard.views.credentials._registry import PLATFORMS
 
-    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd()))
-    at.run(timeout=200)
-    assert not at.exception, at.exception
-
-    def find_expander(node):
-        kids = getattr(node, "children", None)
-        for child in (kids.values() if isinstance(kids, dict) else (kids or [])):
-            label = str(getattr(child, "label", "") or "")
-            if type(child).__name__ == "Expander" and "agence" in label.lower():
-                return child
-            found = find_expander(child)
-            if found is not None:
-                return found
-        return None
-
-    def descendants(node, out=None):
-        out = [] if out is None else out
-        kids = getattr(node, "children", None)
-        for child in (kids.values() if isinstance(kids, dict) else (kids or [])):
-            out.append(child)
-            descendants(child, out)
-        return out
-
-    exp = find_expander(at.main)
-    assert exp is not None, "le champ d'agence n'est plus dans un dépliant"
-    inside = [type(e).__name__ for e in descendants(exp)]
-    assert "TextArea" in inside, (
-        "le dépliant est vide : la zone de saisie est rendue ailleurs, donc "
-        "toujours en pleine page")
+    collapsed = [f["key"] for f in PLATFORMS["meta"]["fields"] if f.get("collapsed")]
+    assert not collapsed, (
+        f"des champs sont repliés dans l'onglet Meta : {collapsed}. Un champ replié "
+        "sur le chemin obligatoire demande une décision à chaque visite")
 
 
 def test_the_sharing_step_names_a_number_the_artist_can_paste():

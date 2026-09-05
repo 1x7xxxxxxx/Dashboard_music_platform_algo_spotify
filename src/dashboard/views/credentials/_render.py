@@ -736,6 +736,33 @@ def resolve_message(code: str) -> str:
              _RESOLVE_MESSAGES.get(code, _RESOLVE_MESSAGES["upstream_error"]))
 
 
+def _saved_meta_accounts(db, artist_id: int) -> list:
+    """Les comptes publicitaires déjà enregistrés. Ne lève jamais.
+
+    Existe parce que le champ « comptes supplémentaires » a quitté cet onglet pour la
+    page Meta Ads, alors que la valeur, elle, est restée dans la même ligne. Sans
+    cette relecture, réenregistrer les credentials les effacerait — un déplacement de
+    champ deviendrait une suppression de données.
+    """
+    import json as _json
+
+    try:
+        rows = db.fetch_query(
+            "SELECT extra_config FROM artist_credentials "
+            "WHERE artist_id = %s AND platform = 'meta'", (artist_id,))
+    except Exception:  # noqa: BLE001
+        return []
+    if not rows or not rows[0][0]:
+        return []
+    extra = rows[0][0]
+    if isinstance(extra, str):
+        try:
+            extra = _json.loads(extra)
+        except ValueError:
+            return []
+    return list(extra.get("account_ids") or [])
+
+
 def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_values):
     """Prépare et sauvegarde les credentials chiffrés."""
     try:
@@ -820,9 +847,45 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 malformed_meta_accounts,
                 with_meta_accounts,
             )
+            # Instagram : on accepte le LIEN DU PROFIL, pas seulement l'ID numérique.
+            # Mesuré le 2026-09-05 — `business_discovery` rend l'identifiant d'un
+            # compte Business/Créateur à partir de son seul pseudo, donc le détour par
+            # Business Manager (« Paramètres → Comptes → Comptes Instagram, l'ID est
+            # sous le nom ») n'était pas nécessaire. Trois écrans de moins, sur la
+            # valeur que l'artiste avait le plus de mal à trouver.
+            _ig = (extra.get('ig_user_id') or '').strip()
+            if _ig and not _ig.isdigit():
+                from src.utils.platform_identity_resolver import (
+                    instagram_user_id_from_handle,
+                )
+                _ig_id, _ig_name, _ig_problem = instagram_user_id_from_handle(_ig)
+                if _ig_problem:
+                    # Un message CONSTRUIT par le résolveur, jamais `str(exc)` :
+                    # une exception qui traverse la couche réseau porte l'URL
+                    # préparée, donc le jeton.
+                    st.error(_ig_problem)
+                    return
+                extra['ig_user_id'] = _ig_id
+                if _ig_name:
+                    st.caption(t(
+                        "credentials.meta.ig_resolved",
+                        "📸 Compte Instagram reconnu : **@{name}** (ID {ident})"
+                    ).format(name=_ig_name, ident=_ig_id))
+
+            # Les comptes SUPPLÉMENTAIRES ne se saisissent plus ici (ils sont sur
+            # 📣 Meta Ads depuis le 2026-09-05) — mais ils vivent dans la MÊME ligne.
+            # Sans cette relecture, `with_meta_accounts` reconstruirait la liste à
+            # partir du seul champ principal et EFFACERAIT les comptes d'agence à
+            # chaque réenregistrement des credentials. Le déplacement d'un champ ne
+            # doit pas devenir une suppression de données.
+            # Relu sur la LIGNE BRUTE : `existing_values` est filtré par les champs
+            # déclarés, et `account_ids` n'en est plus un depuis le déplacement — il
+            # y serait donc toujours vide, et le garde ne garderait rien.
+            _kept = _saved_meta_accounts(db, artist_id)
             typed_extra = extra.pop('extra_account_ids', '')
             accounts = [extra.get('account_id', ''),
-                        *[p for p in _re.split(r"[,\n;]+", typed_extra)]]
+                        *[p for p in _re.split(r"[,\n;]+", typed_extra)],
+                        *_kept]
             extra = with_meta_accounts(extra, accounts)
             bad_accounts = malformed_meta_accounts(extra)
             if bad_accounts:

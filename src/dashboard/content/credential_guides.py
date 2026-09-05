@@ -295,13 +295,28 @@ _META = PlatformCred(
         CredStep("🔗 [Gestionnaire de publicités](https://adsmanager.facebook.com/) "
                  "→ sélectionne ton compte → **copie l'URL** et colle-la au-dessus.",
                  "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
-        CredStep("🤝 **Partage ce compte avec nous** — sans ça, la collecte ne verra "
-                 "rien, même avec le bon lien.\n\n"
-                 f"⚙️ [Comptes publicitaires]({_META_PARTNERS_URL}) → ton compte → "
-                 "**Partenaires** → **Attribuer un partenaire** → colle "
+        # Pourquoi CE geste est manuel, alors que tout le reste ne l'est pas : Meta
+        # refuse l'appel qui l'automatiserait. Mesuré le 2026-09-05 —
+        # `POST business/client_ad_accounts` et `POST adaccount/agencies` répondent
+        # tous deux `(#3) Application does not have the capability`, avec un jeton
+        # qui porte pourtant `business_management` et pendant qu'une écriture
+        # Business ordinaire passe. C'est une capacité d'app, accordée par une revue
+        # Meta distincte (ADR-017). Tant qu'elle n'est pas accordée, l'artiste est le
+        # seul à pouvoir donner cet accès sur SON compte.
+        #
+        # Donc : on ne prétend pas que c'est automatique, et on écrit les clics.
+        CredStep("🤝 **Donne-nous accès à ce compte** — c'est le seul geste que nous "
+                 "ne pouvons pas faire à ta place, et sans lui la collecte reste "
+                 "vide même avec le bon lien.\n\n"
+                 f"① Ouvre [Comptes publicitaires]({_META_PARTNERS_URL}) et "
+                 "sélectionne le compte à suivre.\n\n"
+                 "② Onglet **Partenaires** → bouton **Attribuer un partenaire**.\n\n"
+                 "③ Colle "
                  + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "**notre numéro de Business** (demande-le nous)")
-                 + " → rôle **Analyste**."),
+                 + " dans le champ **ID du partenaire**.\n\n"
+                 "④ Coche l'autorisation **Analyste** (lecture seule) et valide. "
+                 "C'est tout — rien à nous renvoyer."),
         CredStep("📸 [Comptes Instagram](https://business.facebook.com/settings/instagram-accounts) "
                  "→ ton compte → copie l'**ID numérique** sous le nom (pas ton "
                  "@pseudo).\n\n"
