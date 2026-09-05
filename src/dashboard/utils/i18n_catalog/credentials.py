@@ -373,41 +373,17 @@ EN = {
         "Jump straight to the **Channel ID** step below.\n\n"
         "*(Steps 1→5 are admin-only, one-time, if they set up their own key.)*"
     ),
+    "credentials.youtube.topic_found": (
+        "🎬 We also found your **{title}** channel — that is where your "
+        "distributed tracks live. We collect both."
+    ),
     "credentials.guide.youtube.step_1": (
-        "**(Admin, once)** On [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
-        "**create a project first** (the *Enable APIs* button stays **greyed out "
-        "until a project exists**), then click **+ Enable APIs and services**."
+        "[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
+        "→ **Channel ID** → **Copy**, and paste it above. That is your main "
+        "channel: we find the « — Topic » one from it, you do not have to look "
+        "for it."
     ),
     "credentials.guide.youtube.step_1_caption": "APIs and services → Enable APIs",
-    "credentials.guide.youtube.step_2": (
-        "In the [API Library](https://console.cloud.google.com/apis/library), "
-        "search for **YouTube Data API v3**."
-    ),
-    "credentials.guide.youtube.step_2_caption": "Library → search for the API",
-    "credentials.guide.youtube.step_3": "Click the **YouTube Data API v3** result.",
-    "credentials.guide.youtube.step_3_caption": "API selection",
-    "credentials.guide.youtube.step_4": (
-        "Click **Enable**; the product page must display **API enabled**."
-    ),
-    "credentials.guide.youtube.step_4_caption": "API enabled",
-    "credentials.guide.youtube.step_5": (
-        "Go to [Credentials](https://console.cloud.google.com/apis/credentials) → "
-        "**Create credentials → API key**, then **Show key** and copy it."
-    ),
-    "credentials.guide.youtube.step_5_caption": (
-        "Credentials → API key → Show key"
-    ),
-    "credentials.guide.youtube.step_6": (
-        "Retrieve the **Channel ID**: on "
-        "[youtube.com/account_advanced](https://www.youtube.com/account_advanced) → "
-        "**Channel ID** → **Copy** (starts with `UC…`)."
-    ),
-    "credentials.guide.youtube.step_6_caption": (
-        "YouTube → Advanced settings → Channel ID"
-    ),
-    "credentials.guide.youtube.step_7": (
-        "Paste the **API key** + the **Channel ID** into **🔑 API Credentials → YouTube**."
-    ),
     "credentials.guide.youtube.note_1": "starts with 'AIza', ~39 characters",
     "credentials.guide.youtube.note_2": "starts with 'UC', 24 characters",
     "credentials.guide.youtube.note": (

@@ -206,43 +206,44 @@ _YOUTUBE = PlatformCred(
     key="youtube",
     title="YouTube",
     icon="🎬",
-    intro=(
-        "**Côté artiste : une seule valeur — ton Channel ID** (commence par `UC…`). "
-        "La clé API est **partagée (gérée par l'admin)**, tu n'as pas à en créer. "
-        "Saute directement à l'étape **Channel ID** ci-dessous.\n\n"
-        "*(Les étapes 1→5 ne concernent que l'admin, une seule fois, s'il met en place "
-        "sa propre clé.)*"
-    ),
-    portal_url="https://console.cloud.google.com/apis/credentials",
+    # UNE étape. Le guide en portait sept, dont cinq qui décrivaient la création
+    # d'une clé Google Cloud — un geste d'ADMIN, fait une fois, déjà fait, et que
+    # personne d'autre ne peut ni ne doit refaire. L'intro le disait (« saute
+    # directement à l'étape 6 »), ce qui est l'aveu qu'on fait lire au mauvais
+    # lecteur : demandé le 2026-09-05, « à quoi sert tout ça si c'est uniquement
+    # pour l'admin ? ». La procédure n'est pas perdue — elle est passée dans
+    # `admin_note`, que `credential_guides_st` ne rend que si `is_admin()`.
+    intro=None,
+    portal_url="https://www.youtube.com/account_advanced",
     steps=(
-        CredStep("**(Admin, une fois)** Sur [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
-                 "**créez d'abord un projet** (le bouton *Activer les API* reste **grisé "
-                 "tant qu'aucun projet n'existe**), puis cliquez **+ Activer les API et "
-                 "les services**.",
-                 "GCP_Api_services.png", "API et services → Activer les API"),
-        CredStep("Dans la [Bibliothèque d'API](https://console.cloud.google.com/apis/library), "
-                 "recherchez **YouTube Data API v3**.",
-                 "GCP_youtube_data_api_v3.png", "Bibliothèque → rechercher l'API"),
-        CredStep("Cliquez sur le résultat **YouTube Data API v3**.",
-                 "GCP_youtube_click.png", "Sélection de l'API"),
-        CredStep("Cliquez **Activer** ; la page produit doit afficher **API activée**.",
-                 "gcp_activated_api_GCP_menu.png", "API activée"),
-        CredStep("Allez dans [Identifiants](https://console.cloud.google.com/apis/credentials) → "
-                 "**Créer des identifiants → Clé API**, puis **Afficher la clé** et copiez-la.",
-                 "gcp_create_api_key.png", "Identifiants → Clé API → Afficher la clé"),
-        CredStep("Récupérez le **Channel ID** : sur "
-                 "[youtube.com/account_advanced](https://www.youtube.com/account_advanced) → "
-                 "**ID de la chaîne** → **Copier** (commence par `UC…`).",
-                 "youtube_id_channel.png", "YouTube → Paramètres avancés → ID de la chaîne"),
-        CredStep("Collez la **clé API** + le **Channel ID** dans **🔑 Credentials API → YouTube**."),
+        CredStep("[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
+                 "→ **ID de la chaîne** → **Copier**, et colle-le au-dessus. "
+                 "C'est ta chaîne principale : on trouve la « — Topic » à partir "
+                 "d'elle, tu n'as pas à la chercher."),
     ),
     fields=(
-        CredField("API Key", "AIzaSyA1B2c3D4e5F6g7H8i9J0kLmNoPqRsTuVwX", secret=True,  # pragma: allowlist secret
-                  note="commence par 'AIza', ~39 caractères"),
-        CredField("Channel ID", "UC_x5XG1OV2P6uZZ5FSM9Ttw",
-                  note="commence par 'UC', 24 caractères"),
+        # La clé API a QUITTÉ cette liste : elle est `admin_only` dans le registre,
+        # et le DAG retombe sur `YOUTUBE_API_KEY`, la clé partagée. La faire figurer
+        # ici disait à l'artiste qu'il devait en fournir une.
+        CredField("Lien de ta chaîne YouTube",
+                  "https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw",
+                  note="l'identifiant `UC…`, un lien de chaîne ou ton @pseudo — "
+                       "on résout et on te montre ce qu'on a trouvé"),
     ),
     note="Quota gratuit ~10 000 unités/jour ; un dépassement renvoie 403 (temporaire).",
+    admin_note=(
+        "**Admin (une seule fois, déjà fait)** : la clé est partagée par tous les "
+        "locataires via `YOUTUBE_API_KEY`. Pour la régénérer — "
+        "[console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard) "
+        "→ créer un projet (le bouton *Activer les API* reste grisé tant qu'aucun "
+        "projet n'existe) → **+ Activer les API et les services** → "
+        "[Bibliothèque](https://console.cloud.google.com/apis/library) → "
+        "**YouTube Data API v3** → **Activer** → "
+        "[Identifiants](https://console.cloud.google.com/apis/credentials) → "
+        "**Créer des identifiants → Clé API** → **Afficher la clé**. Le champ "
+        "« API Key (surcharge) » de l'onglet ne sert qu'à déroger à cette clé pour "
+        "un locataire précis."
+    ),
 )
 
 _SOUNDCLOUD = PlatformCred(

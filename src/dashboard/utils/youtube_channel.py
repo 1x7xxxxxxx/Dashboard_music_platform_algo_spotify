@@ -120,3 +120,35 @@ def topic_channel_query(artist_name: str | None) -> str | None:
     """
     name = (artist_name or "").strip()
     return f"{name} - Topic" if name else None
+
+
+# Le suffixe que YouTube donne à toute chaîne auto-générée pour la musique d'un
+# artiste. Il est le même dans toutes les langues de l'interface — c'est un nom de
+# chaîne, pas une chaîne traduite.
+_TOPIC_SUFFIX = " - Topic"
+
+
+def pick_topic_channel(main_title: str | None, candidates) -> tuple[str, str] | None:
+    """La chaîne « … - Topic » de CET artiste, ou rien. Jamais une devinette.
+
+    `candidates` est ce que `search.list` a renvoyé : des `(titre, id)`. La règle
+    est une égalité de titre, pas une ressemblance — `"<titre> - Topic"` exactement.
+
+    Pourquoi si strict : une recherche par nom a déjà été mesurée non fiable sur ce
+    dépôt. Pour Benken, la bonne chaîne n'était même pas dans les cinq premiers
+    résultats, et quatre homonymes SoundCloud précédaient le bon. Une identité de
+    locataire devinée fait collecter le catalogue de quelqu'un d'autre — la classe
+    que ce dépôt a passé deux séances à retirer. Ici la contrainte est vérifiable :
+    le titre est dérivé du titre de la chaîne principale, que l'artiste vient de
+    nous donner, et on n'accepte que l'égalité.
+
+    Renvoie `(id, titre)`, ou `None` — auquel cas on ne dit rien plutôt que de
+    proposer un « à peu près ».
+    """
+    wanted = topic_channel_query(main_title)
+    if not wanted:
+        return None
+    for title, channel_id in candidates or ():
+        if (title or "").strip() == wanted and str(channel_id or "").startswith("UC"):
+            return str(channel_id), wanted
+    return None

@@ -74,8 +74,17 @@ PLATFORMS = {
         # remains an optional per-artist override. The connection test validates the
         # channel resolves (a bad UC… 404s the collector, not the key test).
         'fields': [
-            {'key': 'channel_id', 'label': 'Lien de ta chaîne YouTube (la chaîne « — Topic »)', 'secret': False,
-             'example': 'UC_x5XG1OV2P6uZZ5FSM9Ttw'},
+            # Le libellé demandait la chaîne « — Topic ». Or `account_advanced` —
+            # le seul endroit où un artiste trouve un ID de chaîne — ne montre QUE
+            # sa chaîne principale : la Topic est auto-générée par YouTube et
+            # n'appartient pas à son compte Google. On demandait donc une valeur
+            # introuvable depuis l'écran qu'on indiquait (2026-09-05). C'est l'app
+            # qui la trouve maintenant, à partir de la principale.
+            # `show_example: False` : la légende « ex. UC_x5… » répétait le texte
+            # fantôme du champ juste au-dessus.
+            {'key': 'channel_id', 'label': 'Lien de ta chaîne YouTube',
+             'secret': False, 'show_example': False,
+             'example': 'https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw'},
             {'key': 'api_key',    'label': 'API Key (surcharge)',         'secret': True, 'admin_only': True},
         ],
     },

@@ -47,38 +47,35 @@ _YOUTUBE = PlatformCred(
     key="youtube",
     title="YouTube",
     icon="🎬",
-    intro=(
-        "**2 values** to grab: the **API key** (YouTube Data API v3) and your "
-        "**channel ID**."
-    ),
-    portal_url="https://console.cloud.google.com/apis/credentials",
+    # ONE step. The other six described a Google Cloud key setup — an ADMIN gesture,
+    # done once, already done. The procedure moved to `admin_note`, which renders
+    # only for admins.
+    intro=None,
+    portal_url="https://www.youtube.com/account_advanced",
     steps=(
-        CredStep("At [console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard), "
-                 "create (or select) a project, then click **+ Enable APIs and services**.",
-                 "GCP_Api_services.png", "APIs & services → Enable APIs"),
-        CredStep("In the [API Library](https://console.cloud.google.com/apis/library), "
-                 "search for **YouTube Data API v3**.",
-                 "GCP_youtube_data_api_v3.png", "Library → search the API"),
-        CredStep("Click the **YouTube Data API v3** result.",
-                 "GCP_youtube_click.png", "Select the API"),
-        CredStep("Click **Enable**; the product page should show **API enabled**.",
-                 "gcp_activated_api_GCP_menu.png", "API enabled"),
-        CredStep("Go to [Credentials](https://console.cloud.google.com/apis/credentials) → "
-                 "**Create credentials → API key**, then **Show key** and copy it.",
-                 "gcp_create_api_key.png", "Credentials → API key → Show key"),
-        CredStep("Get the **Channel ID**: at "
-                 "[youtube.com/account_advanced](https://www.youtube.com/account_advanced) → "
-                 "**Channel ID** → **Copy** (starts with `UC…`).",
-                 "youtube_id_channel.png", "YouTube → Advanced settings → Channel ID"),
-        CredStep("Paste the **API key** + the **Channel ID** into **🔑 API Credentials → YouTube**."),
+        CredStep("[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
+                 "→ **Channel ID** → **Copy**, and paste it above. That is your main "
+                 "channel: we find the « — Topic » one from it, you do not have to "
+                 "look for it."),
     ),
     fields=(
-        CredField("API Key", "AIzaSyA1B2c3D4e5F6g7H8i9J0kLmNoPqRsTuVwX", secret=True,  # pragma: allowlist secret
-                  note="starts with 'AIza', ~39 characters"),
-        CredField("Channel ID", "UC_x5XG1OV2P6uZZ5FSM9Ttw",
-                  note="starts with 'UC', 24 characters"),
+        CredField("Your YouTube channel link",
+                  "https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw",
+                  note="the `UC…` id, a channel link or your @handle — we resolve it "
+                       "and show you what we found"),
     ),
     note="Free quota ~10,000 units/day; exceeding it returns 403 (temporary).",
+    admin_note=(
+        "**Admin (once, already done)**: the key is shared across tenants through "
+        "`YOUTUBE_API_KEY`. To regenerate it — "
+        "[console.cloud.google.com/apis/dashboard](https://console.cloud.google.com/apis/dashboard) "
+        "→ create a project → **+ Enable APIs and services** → "
+        "[Library](https://console.cloud.google.com/apis/library) → "
+        "**YouTube Data API v3** → **Enable** → "
+        "[Credentials](https://console.cloud.google.com/apis/credentials) → "
+        "**Create credentials → API key** → **Show key**. The tab's "
+        "\u00ab API Key (override) \u00bb field only overrides that key for one tenant."
+    ),
 )
 
 _SOUNDCLOUD = PlatformCred(

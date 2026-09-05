@@ -10,7 +10,10 @@ import requests
 
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.youtube_channel import (
-    lookup_params, parse_channel_input,
+    lookup_params,
+    parse_channel_input,
+    pick_topic_channel,
+    topic_channel_query,
 )
 from src.utils.platform_probes import (  # la situation que cette sonde nomme
     IDENTITY_MISSING,
@@ -177,3 +180,51 @@ def _test_youtube(fields: dict) -> tuple:
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
                             err=type(e).__name__), UNREACHABLE)
+
+
+def discover_topic_channel(channel_id: str, api_key: str) -> tuple[str, str] | None:
+    """La chaîne « … - Topic » de cet artiste, trouvée à partir de la principale.
+
+    Demandé le 2026-09-05 : « je ne vois pas d'ID de chaîne normal et d'ID de chaîne
+    Topic, comment on gère ça ? ». La réponse mesurée : ce sont DEUX chaînes, elles
+    portent des données différentes (FJAAK : 53 vidéos / 11 M vues sur la principale,
+    172 vidéos / 880 k vues sur la Topic), et `youtube.com/account_advanced` — le
+    seul écran où un artiste lit un identifiant — ne montre QUE la principale. La
+    Topic est auto-générée par YouTube et n'appartient pas à son compte Google. Lui
+    demander de la coller était donc impossible ; c'est l'app qui la trouve.
+
+    Deux appels : le titre de la chaîne principale, puis une recherche sur
+    « <titre> - Topic ». `pick_topic_channel` n'accepte qu'une ÉGALITÉ de titre —
+    une recherche par nom a déjà été mesurée non fiable ici (la bonne chaîne de
+    Benken n'était pas dans les cinq premiers résultats).
+
+    Ne lève jamais : ne pas trouver la Topic n'empêche pas d'enregistrer la
+    principale. Renvoie `None` plutôt qu'un « à peu près ».
+    """
+    if not (channel_id or "").startswith("UC") or not api_key:
+        return None
+    try:
+        rc = requests.get(
+            'https://www.googleapis.com/youtube/v3/channels',
+            params={'part': 'snippet', 'id': channel_id, 'key': api_key},
+            timeout=10, allow_redirects=False)
+        items = (rc.json().get('items') or []) if rc.status_code == 200 else []
+        title = ((items[0].get('snippet') or {}).get('title') if items else None)
+        query = topic_channel_query(title)
+        if not query:
+            return None
+        rs = requests.get(
+            'https://www.googleapis.com/youtube/v3/search',
+            params={'part': 'snippet', 'q': query, 'type': 'channel',
+                    'maxResults': 10, 'key': api_key},
+            timeout=10, allow_redirects=False)
+        found = (rs.json().get('items') or []) if rs.status_code == 200 else []
+        candidates = [((i.get('snippet') or {}).get('title'),
+                       (i.get('snippet') or {}).get('channelId')) for i in found]
+        picked = pick_topic_channel(title, candidates)
+        # La Topic d'un artiste ne peut pas être sa chaîne principale.
+        if picked and picked[0] == channel_id:
+            return None
+        return picked
+    except Exception:  # noqa: BLE001 — une découverte ratée n'est pas un échec de saisie
+        return None

@@ -888,6 +888,27 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # La leçon est la même que pour `_TAB_FOR_PLATFORM` le même soir : déplacer
         # un champ sans déplacer ce qui le traite laisse un traitement qui ne
         # s'applique plus. La condition porte donc sur la VALEUR, pas sur l'onglet.
+        # La chaîne « … - Topic » est trouvée PAR NOUS, à partir de la principale.
+        # L'artiste ne peut pas la donner : `account_advanced` ne montre que sa
+        # chaîne principale, la Topic étant auto-générée par YouTube et hors de son
+        # compte Google. Conditionné sur la VALEUR et non sur l'onglet — c'est la
+        # leçon de la résolution Instagram, restée dans `if platform_key == 'meta'`
+        # et devenue inerte le jour où le champ a changé d'onglet.
+        _chan = (extra.get('channel_id') or '').strip()
+        if _chan.startswith('UC'):
+            import os
+
+            from ._platform_youtube import discover_topic_channel
+            _key = (extra.get('api_key') or '').strip() or os.getenv('YOUTUBE_API_KEY', '')
+            _topic = discover_topic_channel(_chan, _key)
+            if _topic:
+                extra['topic_channel_id'] = _topic[0]
+                st.caption(t(
+                    "credentials.youtube.topic_found",
+                    "🎬 On a aussi trouvé ta chaîne **{title}** — c'est là que vivent "
+                    "tes titres distribués. On collecte les deux."
+                ).format(title=_topic[1]))
+
         _ig = (extra.get('ig_user_id') or '').strip()
         if _ig and not _ig.isdigit():
             from src.utils.platform_identity_resolver import (
