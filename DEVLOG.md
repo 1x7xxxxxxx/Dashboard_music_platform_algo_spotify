@@ -5,6 +5,57 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 22) — Un lien valide refusé, et l'onglet refusionné
+
+    ✅ Saisi   ✖ Format   ✖ Répond   🔴 Données
+    ❌ 📸 Instagram : enregistré, mais la connexion n'est pas prouvée.
+       Instagram Business Account ID invalide : chiffres uniquement (ex : 17841…)
+
+Sur un lien parfaitement valide. **C'est moi qui l'ai cassé une heure plus tôt** : la
+résolution `business_discovery` vivait dans la branche `if platform_key == 'meta'` de
+`_handle_save`. Le jour où Instagram a eu son propre onglet, elle a cessé de tourner,
+l'URL est arrivée telle quelle au contrôle de forme, et celui-ci a fait son travail.
+
+C'est **exactement** la même leçon que `_TAB_FOR_PLATFORM` le même soir, à une heure
+d'intervalle : **déplacer un champ sans déplacer ce qui le traite laisse un traitement
+qui ne s'applique plus.** La condition porte désormais sur la VALEUR — « un lien a-t-il
+été collé ? » — jamais sur l'onglet, et un test AST refuse qu'elle retourne dans une
+branche qui teste `platform_key`.
+
+### Les deux onglets sont refusionnés
+
+« Si sa config est liée à Meta Ads, on peut refaire les deux ensemble. » Elle l'est :
+même ligne de stockage, même jeton, même app. L'onglet s'appelle **📱 Meta Ads / Insta**
+et porte les deux liens.
+
+La séparation aura duré une heure. Ce qu'elle laisse est utile et reste : `merge_into_row`
+(une ligne partagée se fusionne, jamais ne se remplace), le marquage 🟢/⚠️, le bloc
+copiable du numéro de partenaire, et le garde ci-dessus.
+
+### « Peut-on avoir Instagram sans Business Manager ? » — la mesure est bloquée
+
+C'est la question qui déciderait de re-séparer. Ce qui est **prouvé** : `business_discovery`
+rend l'identifiant et les métriques publiques d'un compte Business tiers, sans aucun
+partage. Ce qui manque : le collecteur n'utilise pas cette route — il appelle
+`GET /{ig_user_id}` en direct, ce qui suppose un compte accessible à notre jeton.
+
+Les trois tentatives de mesure ont rendu `(#4) Application request limit reached` : le
+quota d'app était épuisé par la mise au point de la soirée. **Inscrit en R63**, avec la
+commande qui tranchera et les deux options qui en découlent. En attendant, l'onglet
+reste fusionné — c'est l'état sûr.
+
+### Un throttle ne se dit pas « n'a pas répondu »
+
+Le `(#4)` sortait en « Instagram n'a pas répondu », que l'artiste lit « mon compte ne
+marche pas » alors qu'il n'a rien à corriger. Les codes de limitation (4, 17, 32, 613)
+sont désormais nommés comme tels — les mêmes que `collectors/_meta_retry.py` reconnaît,
+pour que les deux couches appellent la même chose une limitation.
+
+Huit tests réancrés sur le modèle fusionné, dont un dont le prédicat était trop large :
+il exigeait un lien cliquable dans **chaque** étape, alors que l'étape Instagram
+n'envoie nulle part — elle demande l'adresse du profil de l'artiste, qu'il a sous les
+yeux. Il porte maintenant sur les étapes qui envoient vers une page de Meta.
+
 ## 2026-09-05 (suite 21) — La séparation était à moitié faite
 
 Cinq défauts signalés, tous conséquences directes de la séparation livrée une heure

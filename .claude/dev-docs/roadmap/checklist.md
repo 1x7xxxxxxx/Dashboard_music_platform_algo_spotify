@@ -23,9 +23,13 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap).
 
-**Aucune.** R59, R60, R61 et R62 — les quatre ouvertes ce matin — ont été closes le
-2026-09-05 au soir (voir `archive.md`). Deux l'ont été par un correctif, une par un ADR
-qui montre que sa prémisse était fausse, une par un ADR qui mesure une porte fermée.
+| id | Tâche | P | Où |
+|---|---|---|---|
+| R63 | Instagram est-il collectable **sans** Business Manager ? La mesure est bloquée par un throttle Meta | P3 | `## Open Bugs` |
+
+R59, R60, R61 et R62 — les quatre ouvertes ce matin — ont été closes le 2026-09-05 au
+soir (voir `archive.md`). Deux l'ont été par un correctif, une par un ADR qui montre que
+sa prémisse était fausse, une par un ADR qui mesure une porte fermée.
 
 Ne reste que ce qui attend un geste humain, dans la section « 🙋 En attente de toi »
 plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
@@ -34,7 +38,7 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ## 🔖 REPRISE — état au 2026-09-05 (soir), aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1 -->
+<!-- reprise: open=R1,R63 -->
 
 **▶️ Aucune tâche de développement ouverte.** Les quatre inscrites dans la journée
 (R59-R62) ont été closes le soir même — DEVLOG « suite 14 ». Ce qui reste est **R1**,
@@ -281,6 +285,31 @@ prochaine session artiste.
 ---
 
 ## Open Bugs
+
+- [ ] **R63 — Instagram est-il collectable sans Business Manager ?** P3.
+  C'est la question qui décide si 📸 Instagram mérite un onglet à lui, séparé de
+  📱 Meta Ads. Demandée le 2026-09-05 (nuit) : « si on peut avoir les données
+  d'Instagram sans configurer Meta Ads, on les laisse séparés ».
+
+  **Ce qui est déjà mesuré** : `business_discovery` rend l'identifiant numérique et
+  les métriques publiques (abonnés, nombre de posts, likes/commentaires) d'un compte
+  Business/Créateur **tiers**, sans aucun partage — prouvé sur `fjaak` le même jour.
+  Le collecteur, lui, n'utilise PAS cette route : `instagram_api_collector.py:167,273`
+  appelle `GET /{ig_user_id}` et `/{ig_user_id}/media` en direct, ce qui suppose que
+  le compte soit accessible à notre jeton — donc relié à une Page de notre Business
+  Manager.
+
+  **Ce qui manque** : la preuve que l'accès direct échoue bien sur un compte tiers.
+  Les trois tentatives ont rendu `(#4) Application request limit reached` — le quota
+  d'app était épuisé par la mise au point de la soirée. Sans cette mesure, on ne
+  tranche pas : l'onglet reste fusionné (« 📱 Meta Ads / Insta »), qui est l'état sûr.
+
+  Si l'accès direct échoue : deux options, à arbitrer — basculer le collecteur sur
+  `business_discovery` (Instagram devient autonome, au prix des métriques privées :
+  plus de portée ni d'impressions), ou garder l'état actuel.
+
+  Commande qui tranche, à rejouer quand le quota est revenu :
+  `python3 -c "import sys,os;sys.path.insert(0,'.');from dotenv import load_dotenv;[load_dotenv(f) for f in ('.env.local','.env')];from src.utils.meta_graph import get,MetaGraphError;\ntry: print('DIRECT tiers →', get('17841400196310703', fields='username,followers_count'))\nexcept MetaGraphError as e: print('DIRECT tiers → (#%s) %s' % (e.code, e.message[:80]))"`
 
 ### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
 

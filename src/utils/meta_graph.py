@@ -38,6 +38,17 @@ _TIMEOUT = 20
 _EXPLANATIONS = {
     3: ("L'application n'a pas la capacité de faire cet appel. Ce n'est ni le jeton "
         "ni ses permissions : c'est un accès à demander à Meta pour l'app."),
+    # Les codes de LIMITATION, les mêmes que `collectors/_meta_retry.py` reconnaît.
+    # Sans eux, un throttle passager se lisait « Instagram n'a pas répondu », que
+    # l'artiste comprend comme « mon compte ne marche pas » — alors qu'il n'a rien à
+    # corriger et que réessayer suffit. Vu en vrai le 2026-09-05 après une série
+    # d'appels de mise au point.
+    4: ("Meta limite temporairement nos appels. Rien à corriger de ton côté : "
+        "réessaie dans quelques minutes."),
+    17: ("Meta limite temporairement nos appels pour ce compte. Réessaie dans "
+         "quelques minutes."),
+    32: ("Meta limite temporairement nos appels. Réessaie dans quelques minutes."),
+    613: ("Meta limite temporairement nos appels. Réessaie dans quelques minutes."),
     10: ("L'application n'a pas la permission requise pour cet appel."),
     100: ("Paramètre invalide ou champ inexistant sur cet objet."),
     190: ("Le jeton est invalide ou a expiré. Il est géré par l'administrateur — "
@@ -62,6 +73,15 @@ class MetaGraphError(RuntimeError):
     def explanation(self) -> str:
         """La cause, en français, ou le message brut si le code est inconnu."""
         return _EXPLANATIONS.get(self.code, self.message)
+
+    @property
+    def is_throttled(self) -> bool:
+        """Une limitation passagère — donc « réessaie », jamais « c'est cassé ».
+
+        Les mêmes codes que `collectors/_meta_retry.py`, pour que les deux couches
+        appellent la même chose une limitation.
+        """
+        return self.code in (4, 17, 32, 613, 80004)
 
     @property
     def is_capability(self) -> bool:

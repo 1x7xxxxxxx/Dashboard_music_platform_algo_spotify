@@ -119,17 +119,18 @@ def test_the_ad_account_picker_is_gone_with_everything_that_named_it():
     ("src.dashboard.content.credential_guides", "CREDENTIAL_GUIDES"),
     ("src.dashboard.content.credential_guides_en", "CREDENTIAL_GUIDES_EN"),
 ])
-def test_the_meta_guide_is_two_actions_without_an_intro(module, attr):
+def test_the_meta_guide_is_three_actions_without_an_intro(module, attr):
     import importlib
 
     guides = getattr(importlib.import_module(module), attr)
     meta = next(g for g in guides if g.key == "meta")
 
     assert meta.intro is None, "l'intro décrit l'architecture, pas un geste"
-    # DEUX depuis le 2026-09-05 (soir) : la troisième était Instagram, parti avec son
-    # propre onglet. Le nombre n'est pas un objectif — c'est le compte de ce qu'on ne
-    # peut pas deviner : où copier, et le partage que nous ne pouvons pas faire.
-    assert len(meta.steps) == 2, (
+    # TROIS : où copier le lien du compte pub, le partage que nous ne pouvons pas
+    # faire, et le profil Instagram — qui partage cet onglet depuis la refusion du
+    # 2026-09-05 (nuit). Le nombre n'est pas un objectif : c'est le compte de ce
+    # qu'on ne peut pas deviner à la place de l'artiste.
+    assert len(meta.steps) == 3, (
         f"{len(meta.steps)} étapes : le guide a regrossi — chaque étape doit être "
         "une action que l'artiste est seul à pouvoir faire")
     joined = " ".join(s.text for s in meta.steps)
@@ -221,23 +222,23 @@ def test_the_entry_section_is_the_first_thing_on_the_meta_tab():
 
 # ── Ce que le 2026-09-05 (soir) a ajouté ─────────────────────────────────────
 
-def test_the_agency_field_left_the_tab_and_instagram_is_not_optional():
-    """Le champ d'agence n'est plus ici du tout — il est sur 📣 Meta Ads.
+def test_the_agency_field_left_the_tab_and_instagram_asks_for_a_link():
+    """Le champ d'agence est parti sur 📣 Meta Ads ; Instagram, lui, est resté ici.
 
-    Il a été replié dans cet onglet quelques heures, puis DÉPLACÉ : « ça ne doit pas
-    être dans l'onglet credential ». Credentials répond à « comment te connecter » ;
-    un compte d'agence est une déclaration de périmètre. Ce test garde le
-    déplacement, pas le repli.
+    Instagram a eu son propre onglet une heure le 2026-09-05 avant d'être refusionné :
+    sa configuration est celle de Meta Ads — même ligne, même jeton, même app.
     """
     from src.dashboard.views.credentials._registry import PLATFORMS
 
     by_key = {f["key"]: f for f in PLATFORMS["meta"]["fields"]}
     assert "extra_account_ids" not in by_key, (
         "le champ d'agence est revenu dans l'onglet Credentials")
-    # Instagram a QUITTÉ cet onglet le 2026-09-05 (soir) : il a le sien. On vérifie
-    # donc son absence ici, et son libellé se garde dans le fichier de la séparation.
-    assert "ig_user_id" not in by_key, (
-        "Instagram est revenu dans l'onglet Meta")
+    assert "ig_user_id" in by_key, "Instagram a de nouveau quitté cet onglet"
+    # Un LIEN, comme partout ailleurs — et pas « optionnel », le mot invitait à
+    # sauter la seule valeur qui fait exister la collecte Instagram.
+    label = by_key["ig_user_id"]["label"].lower()
+    assert "lien" in label
+    assert "optionnel" not in label
 
 
 def test_no_collapsed_field_remains_on_the_meta_tab():
@@ -290,7 +291,15 @@ def test_every_step_of_the_meta_guide_carries_a_clickable_portal():
     guides = importlib.import_module(
         "src.dashboard.content.credential_guides").CREDENTIAL_GUIDES
     meta = next(g for g in guides if g.key == "meta")
-    for i, step in enumerate(meta.steps, 1):
+    # Chaque étape qui ENVOIE sur une page externe porte son lien. L'étape Instagram
+    # n'envoie nulle part — elle dit de coller l'adresse de son propre profil, que
+    # l'artiste a déjà sous les yeux. Exiger un lien partout ferait ajouter un lien
+    # vers instagram.com, c'est-à-dire du bruit.
+    sends_away = [s for s in meta.steps
+                  if "Gestionnaire" in s.text or "Ads Manager" in s.text
+                  or "Comptes publicitaires" in s.text or "Ad accounts" in s.text]
+    assert sends_away, "aucune étape n'envoie plus vers une page de Meta"
+    for i, step in enumerate(sends_away, 1):
         assert "](http" in step.text, (
-            f"étape {i} sans lien cliquable : l'artiste doit chercher la page "
-            "lui-même")
+            f"l'étape {i} envoie sur une page Meta sans son lien : l'artiste doit "
+            "la chercher lui-même")

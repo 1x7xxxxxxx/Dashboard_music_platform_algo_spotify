@@ -283,7 +283,7 @@ _SOUNDCLOUD = PlatformCred(
 
 _META = PlatformCred(
     key="meta",
-    title="Meta Ads",
+    title="Meta Ads / Insta",
     icon="📱",
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
@@ -310,47 +310,21 @@ _META = PlatformCred(
                  + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "**notre numéro de Business** (demande-le nous)")
                  + " → rôle **Analyste**."),
+        CredStep("📸 **Instagram** — colle l'adresse de ton profil dans le champ du dessus. Ton compte doit être **Business** ou **Créateur** : un compte personnel ne renvoie aucune statistique."),
     ),
     fields=(
         CredField("Lien de ton compte publicitaire",
                   "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
                   note="colle l'URL entière du Gestionnaire de publicités — on en "
                        "extrait le numéro de compte"),
+        CredField("Lien de ton profil Instagram",
+                  "https://instagram.com/ton-pseudo",
+                  note="on s'occupe du reste — rien à chercher dans Business Manager"),
     ),
     admin_note=(
         "Côté admin : System User créé, token à 5 scopes en place."
     ),
 )
 
-# 📸 Instagram — son propre guide depuis qu'il a son propre onglet.
-#
-# UNE étape, parce qu'il n'y a qu'un geste : coller son lien. `business_discovery`
-# résout l'identifiant numérique depuis le pseudo, donc le détour par Business
-# Manager — trois écrans — a disparu.
-_INSTAGRAM = PlatformCred(
-    key="instagram",
-    title="Instagram",
-    icon="📸",
-    intro=None,
-    portal_url="https://www.instagram.com/",
-    steps=(
-        CredStep("📸 Ouvre ton profil Instagram → **copie l'adresse** "
-                 "(https://instagram.com/ton-pseudo) et colle-la au-dessus.\n\n"
-                 "Ton compte doit être **Business** ou **Créateur** : un compte "
-                 "personnel ne renvoie aucune statistique via l'API."),
-    ),
-    fields=(
-        CredField("Lien de ton profil Instagram",
-                  "https://instagram.com/ton-pseudo",
-                  note="on s'occupe du reste — rien à chercher dans Business Manager"),
-    ),
-    admin_note=(
-        "Côté admin : le rattachement Instagram se fait au niveau de la Page "
-        "Facebook, et `META_IG_DISCOVERY_ID` porte le compte qui sert de point "
-        "d'observation à `business_discovery`."
-    ),
-)
 
-CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (
-    _SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META, _INSTAGRAM,
-)
+CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (_SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META)

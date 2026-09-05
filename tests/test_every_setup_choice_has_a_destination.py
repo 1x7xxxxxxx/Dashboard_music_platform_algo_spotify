@@ -112,18 +112,14 @@ def test_where_says_credentials_the_destination_is_a_tab():
 def test_the_reported_selection_yields_its_three_destinations():
     """Le cas signalé, tel qu'il a été vécu : spotify + instagram + soundcloud.
 
-    Ce qui doit sortir : TROIS onglets — Spotify, SoundCloud et Instagram — et jamais
-    les deux qu'il a vus.
-
-    Instagram valait « meta » jusqu'au 2026-09-05 : il n'avait pas d'onglet à lui,
-    parce que son identifiant ne se trouvait que dans Business Manager. Il en a un
-    depuis que `business_discovery` a supprimé ce détour.
+    Ce qui doit sortir : TROIS onglets — Spotify, SoundCloud et Meta Ads / Insta —
+    et jamais les deux qu'il a vus.
     """
     selection = ["spotify", "instagram", "soundcloud"]
     tabs = {platform_destination(k).split(":", 1)[1] for k in selection}
-    assert tabs == {"spotify", "soundcloud", "instagram"}, (
+    assert tabs == {"spotify", "soundcloud", "meta"}, (
         f"la sélection {selection} donne les onglets {sorted(tabs)}; "
-        "SoundCloud doit y être, et Instagram a son propre onglet depuis le 2026-09-05"
+        "SoundCloud doit y être, et Instagram passe par l'onglet « Meta Ads / Insta »"
     )
 
 
@@ -209,10 +205,10 @@ def test_the_next_platform_is_the_tab_that_opens():
         "avant toute connexion, l'onglet ouvert doit être la première plateforme "
         "choisie"
     )
-    assert _tab_order(focus, {"spotify"})[0] == "instagram", (
+    assert _tab_order(focus, {"spotify"})[0] == "meta", (
         "après avoir connecté Spotify, l'onglet ouvert doit être celui d'Instagram — "
-        "le sien depuis le 2026-09-05. Sinon le bandeau annonce une suivante que la "
-        "page n'ouvre pas."
+        "c'est-à-dire « 📱 Meta Ads / Insta ». Sinon le bandeau annonce une suivante "
+        "que la page n'ouvre pas."
     )
 
 

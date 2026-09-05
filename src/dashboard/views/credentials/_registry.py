@@ -80,7 +80,7 @@ PLATFORMS = {
         ],
     },
     'meta': {
-        'label': '📱 Meta Ads',
+        'label': '📱 Meta Ads / Insta',
         # Shared System User app (access_token/app_id/app_secret) comes from the
         # platform env; the artist provides their own Ad Account ID and — for
         # Instagram — their Instagram Business Account ID. Stored per-artist app
@@ -98,9 +98,23 @@ PLATFORMS = {
             # `show_example: False` : la légende « ex. act_1234567890 » répétait le
             # texte fantôme du champ juste au-dessus d'elle. Demandé le 2026-09-05 —
             # « il est déjà sous-entendu dans le champ de saisie, qui est parfait ».
+            # REFUSIONNÉ le 2026-09-05 (nuit). Instagram a eu son onglet pendant
+            # une heure ; sa configuration est liée à celle de Meta Ads — même ligne
+            # de stockage, même jeton, même app — et deux onglets pour une seule
+            # configuration se cherchent. « Le plus simple possible ».
+            #
+            # Ce que la séparation a coûté et laissé : la résolution du lien
+            # Instagram était restée dans la branche `meta` de `_handle_save`, donc
+            # elle a cessé de tourner et un lien valide s'est fait refuser
+            # (« chiffres uniquement »). Elle porte désormais sur la VALEUR et non
+            # sur l'onglet — c'est ce qui reste de l'épisode, et c'est ce qui compte.
             {'key': 'account_id', 'label': 'Lien de ton compte publicitaire',
              'secret': False, 'show_example': False,
              'example': 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345'},
+            {'key': 'ig_user_id',
+             'label': 'Lien de ton profil Instagram (compte Business/Créateur)',
+             'secret': False, 'show_example': False,
+             'example': 'https://instagram.com/ton-pseudo'},
             # Le LIEN du profil, comme partout ailleurs — l'ID numérique reste
             # accepté. C'est `_handle_save` qui résout, via `business_discovery`.
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
@@ -113,26 +127,6 @@ PLATFORMS = {
             # Credentials répond à « comment te connecter » ; un compte d'agence est
             # une déclaration de périmètre, pas une identité — l'identité est déjà
             # là. Même mouvement que les titres SoundCloud hébergés ailleurs.
-        ],
-    },
-    # ── Instagram, onglet à part depuis le 2026-09-05 ───────────────────────
-    #
-    # Il était un CHAMP de l'onglet Meta parce que son identifiant ne se trouvait
-    # que dans Business Manager : les deux plateformes partageaient donc le même
-    # parcours pénible. `business_discovery` ayant supprimé ce détour, Instagram est
-    # devenu une saisie de dix secondes — la garder derrière Meta forçait à lire une
-    # étape de partage de compte publicitaire pour brancher un profil public.
-    #
-    # L'onglet est séparé, le STOCKAGE ne l'est pas : `ig_user_id` reste dans la
-    # ligne `meta` (`storage_platform`), et `_handle_save` fusionne au lieu de
-    # remplacer — sans quoi enregistrer l'un effacerait l'autre.
-    'instagram': {
-        'label': '📸 Instagram',
-        'fields': [
-            {'key': 'ig_user_id',
-             'label': 'Lien de ton profil Instagram (compte Business/Créateur)',
-             'secret': False, 'show_example': False,
-             'example': 'https://instagram.com/ton-pseudo'},
         ],
     },
 }

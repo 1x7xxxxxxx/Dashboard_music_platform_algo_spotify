@@ -874,6 +874,32 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # Fait AVANT le contrôle de forme, pour que celui-ci voie la valeur qui sera
         # réellement écrite : normaliser après aurait validé la saisie et stocké
         # autre chose.
+        # La résolution Instagram ne dépend PAS de l'onglet. Elle a vécu une heure
+        # dans la branche `meta` : quand Instagram a eu son propre onglet, elle a
+        # cessé de tourner, l'URL est arrivée telle quelle au contrôle de forme, et
+        # l'artiste a lu « Instagram Business Account ID invalide : chiffres
+        # uniquement » sur un lien parfaitement valide.
+        #
+        # La leçon est la même que pour `_TAB_FOR_PLATFORM` le même soir : déplacer
+        # un champ sans déplacer ce qui le traite laisse un traitement qui ne
+        # s'applique plus. La condition porte donc sur la VALEUR, pas sur l'onglet.
+        _ig = (extra.get('ig_user_id') or '').strip()
+        if _ig and not _ig.isdigit():
+            from src.utils.platform_identity_resolver import (
+                instagram_user_id_from_handle,
+            )
+            _ig_id, _ig_name, _ig_problem = instagram_user_id_from_handle(_ig)
+            if _ig_problem:
+                # Un message CONSTRUIT par le résolveur, jamais `str(exc)`.
+                st.error(_ig_problem)
+                return
+            extra['ig_user_id'] = _ig_id
+            if _ig_name:
+                st.caption(t(
+                    "credentials.meta.ig_resolved",
+                    "📸 Compte Instagram reconnu : **@{name}** (ID {ident})"
+                ).format(name=_ig_name, ident=_ig_id))
+
         if platform_key == 'meta':
             import re as _re
 
@@ -881,40 +907,10 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 malformed_meta_accounts,
                 with_meta_accounts,
             )
-            # Instagram : on accepte le LIEN DU PROFIL, pas seulement l'ID numérique.
-            # Mesuré le 2026-09-05 — `business_discovery` rend l'identifiant d'un
-            # compte Business/Créateur à partir de son seul pseudo, donc le détour par
-            # Business Manager (« Paramètres → Comptes → Comptes Instagram, l'ID est
-            # sous le nom ») n'était pas nécessaire. Trois écrans de moins, sur la
-            # valeur que l'artiste avait le plus de mal à trouver.
-            _ig = (extra.get('ig_user_id') or '').strip()
-            if _ig and not _ig.isdigit():
-                from src.utils.platform_identity_resolver import (
-                    instagram_user_id_from_handle,
-                )
-                _ig_id, _ig_name, _ig_problem = instagram_user_id_from_handle(_ig)
-                if _ig_problem:
-                    # Un message CONSTRUIT par le résolveur, jamais `str(exc)` :
-                    # une exception qui traverse la couche réseau porte l'URL
-                    # préparée, donc le jeton.
-                    st.error(_ig_problem)
-                    return
-                extra['ig_user_id'] = _ig_id
-                if _ig_name:
-                    st.caption(t(
-                        "credentials.meta.ig_resolved",
-                        "📸 Compte Instagram reconnu : **@{name}** (ID {ident})"
-                    ).format(name=_ig_name, ident=_ig_id))
-
-            # Les comptes SUPPLÉMENTAIRES ne se saisissent plus ici (ils sont sur
-            # 📣 Meta Ads depuis le 2026-09-05) — mais ils vivent dans la MÊME ligne.
-            # Sans cette relecture, `with_meta_accounts` reconstruirait la liste à
-            # partir du seul champ principal et EFFACERAIT les comptes d'agence à
-            # chaque réenregistrement des credentials. Le déplacement d'un champ ne
-            # doit pas devenir une suppression de données.
             # Relu sur la LIGNE BRUTE : `existing_values` est filtré par les champs
-            # déclarés, et `account_ids` n'en est plus un depuis le déplacement — il
-            # y serait donc toujours vide, et le garde ne garderait rien.
+            # déclarés, et `account_ids` n'en est plus un depuis que le champ
+            # d'agence a déménagé sur 📣 Meta Ads — il y serait donc toujours vide,
+            # et le garde ne garderait rien.
             _kept = _saved_meta_accounts(db, artist_id)
             typed_extra = extra.pop('extra_account_ids', '')
             accounts = [extra.get('account_id', ''),

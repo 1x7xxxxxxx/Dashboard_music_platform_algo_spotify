@@ -100,7 +100,7 @@ _SOUNDCLOUD = PlatformCred(
 
 _META = PlatformCred(
     key="meta",
-    title="Meta Ads",
+    title="Meta Ads / Insta",
     icon="📱",
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
@@ -119,40 +119,19 @@ _META = PlatformCred(
                  + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "**our Business ID** (ask us for it)")
                  + " → **Analyst** role."),
+        CredStep("📸 **Instagram** — paste your profile address in the field above. The account must be **Business** or **Creator**: a personal account returns no statistics."),
     ),
     fields=(
         CredField("Your ad account link",
                   "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
                   note="paste the full Ads Manager URL — we extract the account "
                        "number from it"),
-    ),
-    admin_note="On our side: System User created, 5-scope token in place.",
-)
-
-_INSTAGRAM = PlatformCred(
-    key="instagram",
-    title="Instagram",
-    icon="📸",
-    intro=None,
-    portal_url="https://www.instagram.com/",
-    steps=(
-        CredStep("📸 Open your Instagram profile → **copy the address** "
-                 "(https://instagram.com/your-handle) and paste it above.\n\n"
-                 "Your account must be **Business** or **Creator**: a personal "
-                 "account returns no statistics through the API."),
-    ),
-    fields=(
         CredField("Your Instagram profile link",
                   "https://instagram.com/your-handle",
                   note="we take it from there — nothing to look up in Business Manager"),
     ),
-    admin_note=(
-        "On our side: the Instagram attachment is done at the Facebook Page level, "
-        "and `META_IG_DISCOVERY_ID` holds the account `business_discovery` looks "
-        "from."
-    ),
+    admin_note="On our side: System User created, 5-scope token in place.",
 )
 
-CREDENTIAL_GUIDES_EN: tuple[PlatformCred, ...] = (
-    _SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META, _INSTAGRAM,
-)
+
+CREDENTIAL_GUIDES_EN: tuple[PlatformCred, ...] = (_SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META)

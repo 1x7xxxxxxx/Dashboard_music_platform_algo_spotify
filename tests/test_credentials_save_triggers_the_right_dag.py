@@ -28,23 +28,22 @@ from src.utils.tenant_identity import PLATFORM_IDENTITIES
 # n'a pas bougé — `ig_user_id` reste dans la ligne `meta`. La question du fichier est
 # inchangée : une saisie démarre-t-elle SA collecte, et une seule ?
 
-def test_an_instagram_save_starts_instagram_not_meta() -> None:
-    assert dags_for_save("instagram", {"ig_user_id": "17841400000000000"}) == [
-        "instagram_daily"]
-    # Et surtout PAS la collecte publicitaire : elle n'a rien à voir avec un profil.
-    assert "meta_ads_api_daily" not in dags_for_save(
-        "instagram", {"ig_user_id": "17841400000000000"})
+def test_an_instagram_only_save_starts_instagram_not_meta() -> None:
+    """Le champ décide, pas l'onglet.
 
-
-def test_a_meta_save_starts_only_the_ad_collection() -> None:
-    """L'onglet Meta ne porte plus Instagram : il ne doit plus le déclencher.
-
-    Avant la séparation, `ig_user_id` traînait dans le même formulaire et un
-    enregistrement Meta lançait les deux. Une collecte Instagram déclenchée par une
-    saisie publicitaire, c'est un appel d'API que rien ne justifie.
+    Les deux identités partagent l'onglet « 📱 Meta Ads / Insta » — elles ont eu deux
+    onglets pendant une heure le 2026-09-05, refusionnés parce que leur configuration
+    est la même. Ce qui compte n'a pas bougé : une identité laissée vide ne déclenche
+    aucune collecte.
     """
-    dags = dags_for_save("meta", {"account_id": "123456789"})
-    assert set(dags) == {"meta_ads_api_daily"}
+    assert dags_for_save("meta", {"ig_user_id": "17841400000000000"}) == [
+        "instagram_daily"]
+
+
+def test_a_full_meta_save_starts_both_collections() -> None:
+    dags = dags_for_save("meta", {"account_id": "123456789",
+                                  "ig_user_id": "17841400000000000"})
+    assert set(dags) == {"meta_ads_api_daily", "instagram_daily"}
 
 
 def test_an_untouched_tab_starts_nothing() -> None:

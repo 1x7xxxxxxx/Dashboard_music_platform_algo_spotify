@@ -153,10 +153,8 @@ def test_the_tabs_that_carry_no_secret_field_are_the_ones_this_pins():
         tab for tab, spec in PLATFORMS.items()
         if not any(f.get("secret") for f in spec["fields"])
     }
-    # `instagram` a rejoint la liste le 2026-09-05 : onglet séparé, un seul champ, aucun
-    # secret. Il partage la LIGNE de `meta`, qui porte le jeton System User — donc il
-    # est exactement le cas que ce fichier existe pour couvrir.
-    assert secretless == {"soundcloud", "meta", "instagram"}, (
+    # `instagram` y a figuré une heure le 2026-09-05, le temps d'un onglet séparé.
+    assert secretless == {"soundcloud", "meta"}, (
         f"the set of secret-less tabs changed to {sorted(secretless)}. Re-read "
         "tests/test_saving_a_tab_never_destroys_a_secret.py — it exists because a tab "
         "with no secret field always saves an empty blob."

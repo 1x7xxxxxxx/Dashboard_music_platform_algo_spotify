@@ -37,13 +37,12 @@ from ._render import VERDICT_KEY, _render_platform_tab
 # CREDENTIAL. Instagram n'a pas d'onglet à lui : il se saisit dans celui de Meta.
 # Apple Music n'en a aucun (c'est un import CSV) et disparaît donc de la
 # traduction — ce qui est correct : il n'y a rien à saisir ici pour lui.
-# VIDE depuis le 2026-09-05 (soir) : 📸 Instagram a son propre onglet, donc plus
-# aucune plateforme ne se configure sous le nom d'une autre. Le dictionnaire reste —
-# il redeviendra utile le jour où une plateforme partagera l'onglet d'une autre — mais
-# le laisser peuplé produisait trois défauts d'un coup, tous signalés le soir même :
-# « 👉 Suivante : 📸 Instagram — dans l'onglet 📱 Meta Ads », les pastilles d'Instagram
-# rendues dans l'onglet Meta, et le repli « les autres plateformes » qui s'y trompait.
-_TAB_FOR_PLATFORM: dict = {}
+# Instagram se saisit dans l'onglet de Meta Ads : même ligne de stockage, même
+# jeton, même app. Il a eu son propre onglet une heure le 2026-09-05 — deux
+# onglets pour une seule configuration se cherchent, et la traduction oubliée
+# ICI a produit trois défauts d'un coup (« Suivante » vers le mauvais onglet,
+# pastilles d'Instagram dans Meta, repli des « autres plateformes »).
+_TAB_FOR_PLATFORM = {"instagram": "meta"}
 
 # Les plateformes de la sélection qui ne se saisissent PAS ici, avec la page qui les
 # porte vraiment. Apple Music est un import de fichier : elle n'a aucun onglet, et
