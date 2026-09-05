@@ -122,6 +122,7 @@ services:
       META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
       # No default — same reason as SPOTIFY_ARTIST_IDS above.
       META_AD_ACCOUNT_ID: ${META_AD_ACCOUNT_ID:-}
+      META_BUSINESS_ID: ${META_BUSINESS_ID:-}
       META_API_VERSION: v21.0
 
       # YouTube API
@@ -266,6 +267,10 @@ services:
       META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
       META_APP_ID: ${META_APP_ID}
       META_APP_SECRET: ${META_APP_SECRET}
+      # Notre Business Manager — affiché dans le guide Meta comme le numéro
+      # que l'artiste colle dans « Attribuer un partenaire ». Absent, le
+      # guide dit « demande-le nous » au lieu d'un trou.
+      META_BUSINESS_ID: ${META_BUSINESS_ID:-}
       # Email (verification / alerts / digest). With a relay like Brevo, SMTP_USER is
       # the relay login and SMTP_FROM is the authenticated sender (noreply@<domain>).
       SMTP_HOST: ${SMTP_HOST}
