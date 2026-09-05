@@ -5,6 +5,47 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 6) — « Les barres vertes alors que ça ne marche pas » : les barres avaient raison
+
+Interrogé la PRODUCTION avant de conclure, et c'est l'inverse de ce que le rapport
+suggérait :
+
+    artist_readiness(18)                → soundcloud : ok 🟢
+    soundcloud_tracks_daily(18)         → 17 titres, collectés le matin même
+    sonde SoundCloud (jeton d'app)      → « aucun titre public — rien à collecter »
+
+Les deux chemins lisent le même compte et se contredisent. **La sonde est une
+prédiction, la collecte est un fait** — et la sonde affirmait une CONSÉQUENCE qu'elle
+ne peut pas connaître (« il n'y aura donc rien à collecter »), démentie le matin même.
+
+Quand la sonde échoue, l'écran demande maintenant à `artist_readiness` — la même source
+que les pastilles, pas une seconde requête — si des lignes sont arrivées. Si oui, le
+fait passe devant et le message devient un avertissement en dessous. Il n'est pas
+effacé : il peut nommer un vrai problème, un compte mal réglé qui collecte encore par
+un autre chemin.
+
+Capitalisé en `prediction-outranks-the-measurement`, signature vue rouge sans la
+réconciliation et verte avec.
+
+Au passage : les 17 titres du locataire 18 sont ceux du locataire 1 — **correct par
+construction**, le bac à sable réutilise l'identité de l'opérateur, et ce n'est donc
+pas une fuite. Vérifié plutôt que supposé, parce que la forme ressemble à la classe
+`tenant-leak` payée en août.
+
+### Deux retraits qui ont emporté leur espacement
+
+Le nom « SoundCloud » à gauche des pastilles redisait l'onglet sélectionné. Il n'est
+plus écrit QUE sur l'onglet Meta / Instagram, où deux sources se saisissent au même
+endroit et échouent séparément — là, il est la seule chose qui distingue les deux
+séries.
+
+Et les deux boutons d'étape étaient collés au logo : le titre `### Étapes`, retiré la
+veille, portait cet espacement sans qu'on le sache. **Deuxième fois en deux jours
+qu'une suppression emporte une respiration qu'on croyait ailleurs** — les deux filets à
+la file en étaient la première. Remplacé par un espace explicite, 60 px mesurés.
+
+---
+
 ## 2026-09-05 (suite 5) — Les quatre colonnes dans l'onglet, et une page qui devient redondante
 
 Les pastilles de la veille n'en montraient que DEUX (Format, Répond). C'est un résumé,

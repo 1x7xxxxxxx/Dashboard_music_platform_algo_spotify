@@ -208,3 +208,60 @@ def test_the_status_page_left_the_menu_but_not_the_router():
     assert "platform_status" in routed, (
         "la ROUTE a disparu avec l'entrée de menu : les messages qui y renvoient ne "
         "mènent plus nulle part")
+
+
+# ── Une mesure bat une prédiction ───────────────────────────────────────────
+
+def test_a_failing_probe_yields_to_data_that_actually_landed():
+    """« J'ai les barres vertes alors que ça ne marche pas » — les barres avaient raison.
+
+    Vérifié en production le 2026-09-05 : la sonde SoundCloud lit
+    `/users/{id}/tracks` avec le jeton d'application et conclut « aucun titre public —
+    il n'y aura donc rien à collecter ». Le collecteur avait ramené **17 titres le
+    matin même** pour ce locataire, et `soundcloud_tracks_daily` les portait.
+
+    Les deux lisent le même compte et se contredisent. La sonde affirme une
+    CONSÉQUENCE qu'elle ne peut pas connaître ; la collecte l'a démentie. Une mesure
+    qui a réellement eu lieu bat une prédiction.
+
+    Le message n'est pas effacé — il peut nommer un vrai problème — il devient un
+    avertissement, sous le fait qui le contredit.
+    """
+    render = _RENDER.read_text(encoding="utf-8")
+    tree = ast.parse(render)
+
+    helper = next((f for f in ast.walk(tree)
+                   if isinstance(f, ast.FunctionDef) and f.name == "_data_already_landed"),
+                  None)
+    assert helper is not None, (
+        "rien ne réconcilie plus la sonde et la donnée : un test qui échoue "
+        "affichera « rien à collecter » à côté de lignes déjà collectées")
+
+    called = {getattr(n.func, "id", "") for n in ast.walk(helper) if isinstance(n, ast.Call)}
+    assert "artist_readiness" in called, (
+        "la réconciliation n'interroge plus `artist_readiness` : elle porterait sa "
+        "propre idée de « des données sont arrivées », et les pastilles diraient "
+        "autre chose")
+
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
+    uses = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+            and getattr(n.func, "id", "") == "_data_already_landed"]
+    assert uses, "l'onglet n'utilise pas la réconciliation"
+
+
+def test_the_platform_name_is_written_only_when_two_rows_share_a_tab():
+    """Une seule ligne : l'onglet sélectionné dit déjà de quoi il parle.
+
+    Deux lignes : c'est Meta / Instagram, deux sources qui se saisissent au même
+    endroit et échouent SÉPARÉMENT — Instagram peut être muet pendant que Meta Ads
+    répond. Là, le nom est la seule chose qui distingue les deux séries de pastilles.
+    """
+    fn = next(f for f in ast.walk(ast.parse(_MATRIX.read_text(encoding="utf-8")))
+              if isinstance(f, ast.FunctionDef) and f.name == "render_platform_state")
+    guarded = [n for n in ast.walk(fn) if isinstance(n, ast.If)
+               and any(isinstance(c, ast.Call) and getattr(c.func, "id", "") == "len"
+                       for c in ast.walk(n.test))]
+    assert guarded, (
+        "le nom de la plateforme est écrit sans condition : il redit l'onglet "
+        "sélectionné sur les quatre onglets qui n'ont qu'une source")

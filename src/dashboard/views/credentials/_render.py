@@ -221,6 +221,26 @@ def _render_dag_status_badge(platform_key: str, dag_states: dict) -> None:
                          dag_id=dag_id, icon=icon, state=state_label, date=date))
 
 
+def _data_already_landed(db, artist_id: int, platform_key: str) -> bool:
+    """Des lignes sont-elles VRAIMENT arrivées pour cette plateforme ?
+
+    Lu depuis `artist_readiness`, la même source que les pastilles — pas une
+    deuxième requête qui pourrait dire autre chose.
+
+    Ne lève jamais : ce test sert à ADOUCIR un message d'erreur ; s'il échoue, on
+    retombe sur le message d'origine, qui est le comportement d'avant.
+    """
+    try:
+        from src.dashboard.views.credentials.router import platform_destination
+        from src.utils.artist_readiness import artist_readiness
+
+        return any(r["status"] in ("ok", "stale", "quiet")
+                   for r in artist_readiness(db, artist_id)
+                   if platform_destination(r["key"]) == f"tab:{platform_key}")
+    except Exception:      # noqa: BLE001 — au pire on garde le message d'origine
+        return False
+
+
 def _render_platform_tab(db, platform_key, platform_info, artist_id,
                          existing_row, fernet_ok, dag_states: dict | None = None,
                          artist_name: str | None = None,
@@ -530,6 +550,30 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 ok, msg = CONNECTION_TESTS[platform_key](test_fields)
                 if ok:
                     st.success(msg)
+                elif _data_already_landed(db, artist_id, platform_key):
+                    # LA DONNÉE TRANCHE. Signalé le 2026-09-05 : « j'ai les barres
+                    # vertes alors que ça ne marche pas ». Vérifié en production, et
+                    # c'est l'inverse : les barres avaient raison.
+                    #
+                    # La sonde SoundCloud lit `/users/{id}/tracks` avec le jeton
+                    # d'application et conclut « aucun titre public — il n'y aura donc
+                    # rien à collecter ». Le collecteur, lui, avait ramené **17 titres
+                    # le matin même** pour ce locataire. Les deux lisent le même
+                    # compte et se contredisent ; la sonde affirme une CONSÉQUENCE
+                    # qu'elle ne peut pas connaître, et la collecte l'a démentie.
+                    #
+                    # Une mesure qui a réellement eu lieu bat une prédiction. On
+                    # n'efface pas le message — il peut nommer un vrai problème — mais
+                    # il devient un avertissement, sous le fait qui le contredit.
+                    st.success(t(
+                        "credentials.test_data_wins",
+                        "✅ Des données sont bien arrivées pour cette plateforme — "
+                        "la connexion fonctionne."))
+                    st.caption(t(
+                        "credentials.test_failed_but_data",
+                        "Le test dit autre chose, et il se trompe sur la conséquence : "
+                        "« {msg} »"
+                    ).format(msg=msg))
                 else:
                     st.error(t("credentials.test_failed",
                                "Connexion échouée : {msg}").format(msg=msg))

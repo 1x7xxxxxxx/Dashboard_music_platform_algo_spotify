@@ -87,6 +87,12 @@ EN = {
     # ── _render.py — connection test ───────────────────────────────────
     "credentials.test_button": "🔌 Test connection",
     "credentials.testing": "Testing…",
+    "credentials.test_data_wins": (
+        "✅ Data has actually arrived for this platform — the connection works."
+    ),
+    "credentials.test_failed_but_data": (
+        "The test says otherwise, and it is wrong about the consequence: « {msg} »"
+    ),
     "credentials.test_failed": "Connection failed: {msg}",
     # ── _render.py — save handler ──────────────────────────────────────
     "credentials.collect_started": (

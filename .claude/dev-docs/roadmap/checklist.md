@@ -34,10 +34,14 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 <!-- reprise: open=R1 -->
 
-**▶️ Une seule tâche ouverte, R58**, ouverte le 2026-09-04 au soir et différée par
-celui qui l'a demandée : « on le garde pour maintenant mais on devra y revenir plus tard
-après le set up initial validé ». Elle n'attend aucun travail de plomberie — elle attend
-un locataire qui ait des données à montrer, donc R1.
+**▶️ Aucune tâche de développement ouverte.** R58 — la dernière — a été livrée le
+2026-09-04 et rotée dans `archive.md` : les figures de l'écran de bienvenue viennent
+des données du locataire dès qu'il en a sept jours. Elle disait attendre R1 ; vérifié
+avant de la parquer une seconde fois, deux tiers l'attendaient (le mot de bienvenue
+part AVANT toute collecte, et `kaleido` manque pour l'export PNG), un tiers non.
+
+**Ne reste que R1**, dans « 🙋 En attente de toi » plus bas : inviter la bêta. Aucune
+ligne de code ne la débloque.
 
 **Le reste : zéro `- [ ]` dans ce fichier.** Les 19 derniers ont été **rotés dans
 `archive.md` le 2026-09-03 au soir**, marqués `[CLOS — décision, non livré]` : aucun

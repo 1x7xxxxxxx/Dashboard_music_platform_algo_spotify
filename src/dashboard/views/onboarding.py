@@ -546,8 +546,15 @@ def render_sidebar_steps() -> None:
         st.session_state[_STEP_KEY] = 1
     step = st.session_state[_STEP_KEY]
 
-    # Pas de `### Étapes` : c'est le mot qu'on a demandé de retirer, et un titre pour
-    # deux lignes qui se lisent seules est du bruit.
+    # De l'AIR sous le logo. Signalé le 2026-09-05 : « c'est collé au logo
+    # streaMLytics ». Le titre `### Étapes` faisait cet espacement sans qu'on le
+    # sache — le retirer a rapproché les deux boutons du logo, ce qui est la trace
+    # d'une suppression, comme les deux filets à la file de la veille : un élément
+    # qui portait un espacement l'emporte avec lui.
+    #
+    # Un espace vide et non un titre : c'est bien le mot « Étapes » qu'on ne veut
+    # plus, pas la respiration.
+    st.sidebar.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
     for i, label in enumerate(_step_labels(), 1):
         prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
         if i == step:

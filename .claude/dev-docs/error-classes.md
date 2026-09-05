@@ -128,6 +128,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [ui-state-not-addressable](#ui-state-not-addressable) | P3 | deterministic | guarded | none |
 | [guard-anchored-on-shape-not-question](#guard-anchored-on-shape-not-question) | P3 | manual | reported | none |
 | [extracted-rule-with-one-caller-rewired](#extracted-rule-with-one-caller-rewired) | P2 | deterministic | guarded | none |
+| [prediction-outranks-the-measurement](#prediction-outranks-the-measurement) | P2 | deterministic | guarded | none |
 
 | [ci-runs-twice-for-one-commit](#ci-runs-twice-for-one-commit) | — | deterministic | guarded | — |
 | [ci-has-no-concurrency-group](#ci-has-no-concurrency-group) | — | deterministic | guarded | — |
@@ -3259,3 +3260,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: trouvé PAR le garde, une heure après l'extraction, et pas en relisant — le message nommait l'appelant manquant. Signature vérifiée dans les deux sens : `exit=1` avec la matrice recalculant ses états, `exit=0` après le rebranchement.
+
+## prediction-outranks-the-measurement
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un artiste voit un ❌ et un 🟢 sur le même écran, pour la même plateforme, et conclut que l'application se contredit. Il n'a pas tort ; ce qui est faux, c'est le rang qu'on donne aux deux.
+- root_cause: une SONDE affirme une conséquence qu'elle ne peut pas connaître, et l'écran la traite à égalité avec une COLLECTE qui a réellement eu lieu. Mesuré en production le 2026-09-05 : la sonde SoundCloud lit `/users/{id}/tracks` avec le jeton d'application, ne voit aucun titre, et conclut « il n'y aura donc rien à collecter » — alors que `soundcloud_tracks_daily` portait **17 titres collectés le matin même** pour ce locataire. Les deux chemins lisent le même compte et se contredisent ; la sonde est une prédiction, la collecte est un fait. Rapporté comme « j'ai les barres vertes alors que ça ne marche pas » : les barres avaient raison, et c'est le message d'erreur qui mentait sur la conséquence.
+- signature: `python3 -m pytest tests/test_the_tab_state_is_the_matrix_state.py -q`
+- long_term_fix: quand la sonde échoue, l'écran demande à `artist_readiness` — la MÊME source que les pastilles, pas une seconde requête — si des lignes sont arrivées. Si oui, le fait passe devant et le message de sonde devient un avertissement en dessous. Il n'est pas effacé : il peut nommer un vrai problème (un compte mal réglé qui collecte encore par un autre chemin). La règle générale tient au-delà de ce cas : **une mesure qui a eu lieu bat une prédiction sur ce qui aurait lieu**, et une sonde ne doit jamais affirmer de conséquence — seulement ce qu'elle a vu.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_tab_state_is_the_matrix_state.py::test_a_failing_probe_yields_to_data_that_actually_landed }
+- rex_ref: src/dashboard/views/credentials/_render.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: la contradiction a été trouvée en INTERROGEANT LA PRODUCTION, pas en relisant : `soundcloud_tracks_daily` donne 17 titres pour le locataire 18, les mêmes que ceux du locataire 1 — ce qui est correct par construction pour un bac à sable qui réutilise l'identité de l'opérateur, et n'est donc pas une fuite. Signature vérifiée dans les deux sens : `exit=1` sans la réconciliation, `exit=0` avec.

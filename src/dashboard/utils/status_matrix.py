@@ -325,8 +325,15 @@ def render_platform_state(db, artist_id: int, platform_key: str) -> None:
                        f'{_html.escape(title)}</div>')
             boxes.append('<div style="display:inline-block;text-align:center;'
                          f'margin-right:10px">{cell}{caption}</div>')
-        label = (f'<span style="font-size:0.8em;opacity:.75;margin-right:6px">'
-                 f'{_html.escape(r["label"])}</span>')
+        # Le nom de la plateforme n'est écrit QUE s'il y a deux lignes — c'est-à-dire
+        # sur l'onglet Meta / Instagram, où il distingue deux sources qui se saisissent
+        # au même endroit et échouent séparément. Ailleurs, l'onglet sélectionné le dit
+        # déjà : « retire SoundCloud situé à gauche des barres, on a déjà l'info dans
+        # le menu sélectionné » (2026-09-05).
+        label = ""
+        if len(mine) > 1:
+            label = (f'<span style="font-size:0.8em;opacity:.75;margin-right:6px">'
+                     f'{_html.escape(r["label"])}</span>')
         blocks.append(label + "".join(boxes))
     st.markdown('<div style="font-size:0.85em;margin-bottom:6px">'
                 + "<br>".join(blocks) + "</div>", unsafe_allow_html=True)
