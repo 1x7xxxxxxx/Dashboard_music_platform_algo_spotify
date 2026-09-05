@@ -292,9 +292,12 @@ _META = PlatformCred(
     # campagnes. Le reste a été coupé pour la même raison : « il y a trop de
     # blabla ». Ce qui survit est ce qu'on ne peut pas deviner.
     steps=(
-        CredStep("🔗 [Gestionnaire de publicités](https://adsmanager.facebook.com/) "
-                 "→ sélectionne ton compte → **copie l'URL** et colle-la au-dessus.",
-                 "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
+        # UNE LIGNE, sans capture et sans répéter le lien. Le « 🔗 Portail : … »
+        # rendu juste au-dessus par le gabarit portait DÉJÀ ce lien — l'étape le
+        # redisait mot pour mot (« on dit 2 fois la même chose », 2026-09-05).
+        # Reste ce que le portail ne dit pas : QUEL compte, et OÙ est le sélecteur.
+        CredStep("Sélectionne ton compte (flèche déroulante en haut de Meta) → "
+                 "**copie l'URL** → colle-la au-dessus."),
         # Le seul geste que nous ne pouvons pas faire : Meta refuse l'appel qui
         # l'automatiserait (`(#3) capability`, ADR-017). L'ID à coller est rendu par
         # l'onglet dans un bloc copiable — pas ici, où il faudrait le sélectionner
@@ -303,14 +306,19 @@ _META = PlatformCred(
         # pas une redite : ce guide part aussi en PDF à l'inscription, et là il n'y
         # a pas d'onglet — un lecteur hors ligne resterait avec « le numéro est
         # au-dessus du formulaire », c'est-à-dire nulle part.
-        CredStep("🤝 **Donne-nous l'accès** — sans lui, aucune donnée, même avec le "
-                 "bon lien.\n\n"
-                 "⚙️ [Comptes publicitaires](https://business.facebook.com/settings/ad-accounts) → ton compte → "
-                 "**Partenaires** → **Attribuer un partenaire** → colle "
-                 + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
-                    else "**notre numéro de Business** (demande-le nous)")
-                 + " → rôle **Analyste**."),
-        CredStep("📸 **Instagram** — colle l'adresse de ton profil dans le champ du dessus. Ton compte doit être **Business** ou **Créateur** : un compte personnel ne renvoie aucune statistique."),
+        # UNE LIGNE, et le geste détaillé vit dans le bloc de l'onglet — avec le
+        # numéro copiable et un lien qui ouvre DIRECTEMENT l'onglet Partenaires
+        # du compte saisi — mais le numéro est ÉCRIT ICI, en plus du bloc copiable de l'onglet — et un
+        # test l'a rattrapé DEUX FOIS. Ce guide part aussi en PDF à
+        # l'inscription, où il n'y a pas d'onglet : « le bloc au-dessus porte le
+        # numéro » y désigne le vide. Une ligne, mais complète.
+        CredStep("🤝 [Comptes publicitaires](" + _META_PARTNERS_URL + ") → ton "
+                 "compte → **Partenaires** → **Attribuer un partenaire** → "
+                 + (f"colle **`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
+                    else "colle **notre numéro** (demande-le nous)")
+                 + " → rôle **Analyste**. Sans ce partage, aucune donnée."),
+        CredStep("📸 **Instagram** — colle l'adresse de ton profil "
+                 "(compte business/créateur)."),
     ),
     fields=(
         CredField("Lien de ton compte publicitaire",

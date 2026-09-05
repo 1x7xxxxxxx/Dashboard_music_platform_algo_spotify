@@ -8,6 +8,7 @@ values are shared with the FR source. Selected by the guide PDF when lang == 'en
 """
 from src.dashboard.content.credential_guides import (
     META_BUSINESS_ID,
+    _META_PARTNERS_URL,
     CredField,
     CredStep,
     PlatformCred,
@@ -107,19 +108,21 @@ _META = PlatformCred(
     # Two steps. Instagram left with its own tab on 2026-09-05; keeping it here made
     # someone connecting ad campaigns read an Instagram instruction.
     steps=(
-        CredStep("🔗 [Ads Manager](https://adsmanager.facebook.com/) → pick your "
-                 "account → **copy the URL** and paste it above.",
-                 "meta_url_id.png", "The number after act= in the address bar"),
+        # One line, no screenshot, and no repeat of the portal link rendered just
+        # above by the template.
+        CredStep("Pick your account (dropdown at the top of Meta) → **copy the "
+                 "URL** → paste it above."),
         # The number is written HERE too, not only in the tab's copy block: this
         # guide also ships as a PDF at sign-up, where there is no tab.
-        CredStep("🤝 **Give us access** — without it, no data at all, even with "
-                 "the right link.\n\n"
-                 "⚙️ [Ad accounts](https://business.facebook.com/settings/ad-accounts) → your account → **Partners** → "
-                 "**Assign partner** → paste "
-                 + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
-                    else "**our Business ID** (ask us for it)")
-                 + " → **Analyst** role."),
-        CredStep("📸 **Instagram** — paste your profile address in the field above. The account must be **Business** or **Creator**: a personal account returns no statistics."),
+        # The number is written HERE too: this guide also ships as a PDF at
+        # sign-up, where there is no tab to point at.
+        CredStep("🤝 [Ad accounts](" + _META_PARTNERS_URL + ") → your account → "
+                 "**Partners** → **Assign partner** → "
+                 + (f"paste **`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
+                    else "paste **our Business ID** (ask us for it)")
+                 + " → **Analyst** role. Without it, no data at all."),
+        CredStep("📸 **Instagram** — paste your profile address "
+                 "(business/creator account)."),
     ),
     fields=(
         CredField("Your ad account link",

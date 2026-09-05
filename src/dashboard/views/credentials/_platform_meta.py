@@ -229,7 +229,7 @@ ADS_MANAGER_URL = "https://adsmanager.facebook.com/adsmanager/manage/campaigns"
 _ASSIGN_URL = "https://business.facebook.com/settings/ad-accounts"
 
 
-def render_partner_share_block() -> None:
+def render_partner_share_block(account_id: str = "") -> None:
     """L'ID partenaire dans un bloc COPIABLE, avec le lien exact. Ne lève jamais.
 
     Demandé le 2026-09-05 : « on n'a aucun champ pour saisir qu'on a bien copié l'ID
@@ -263,5 +263,16 @@ def render_partner_share_block() -> None:
         "Copie ce numéro (bouton à droite) → ouvre le lien ci-dessous → ton compte "
         "→ **Partenaires** → **Attribuer un partenaire** → colle-le → rôle "
         "**Analyste**."))
-    st.link_button(t("credentials.meta.share_open",
-                     "⚙️ Ouvrir mes comptes publicitaires ↗"), _ASSIGN_URL)
+    # Le lien ouvre DIRECTEMENT l'onglet « Partenaires » du compte saisi quand on
+    # le connaît — demandé le 2026-09-05 : « donne le lien directement où on
+    # attribue le partenaire pour coller directement le n° ». Sans identifiant, on
+    # ne peut ouvrir que la liste : c'est un écran de plus, mais c'est honnête.
+    _digits = "".join(c for c in (account_id or "") if c.isdigit())
+    if _digits:
+        st.link_button(
+            t("credentials.meta.share_open_direct",
+              "⚙️ Ouvrir « Partenaires » de ce compte ↗"),
+            f"{_ASSIGN_URL}/{_digits}?tab=partners")
+    else:
+        st.link_button(t("credentials.meta.share_open",
+                         "⚙️ Ouvrir mes comptes publicitaires ↗"), _ASSIGN_URL)

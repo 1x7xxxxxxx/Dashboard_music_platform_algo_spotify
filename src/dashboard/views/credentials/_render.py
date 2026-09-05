@@ -520,7 +520,12 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             # une décision (« est-ce que ça me concerne ? ») à chaque visite.
             inline_fields = [f for f in fields_def if not f.get('collapsed')]
             tucked_fields = [f for f in fields_def if f.get('collapsed')]
-            pairs = [inline_fields[i:i + 2] for i in range(0, len(inline_fields), 2)]
+            # UN champ par ligne. Ils allaient par deux, côte à côte : sur l'onglet
+            # Meta ça mettait le lien du compte publicitaire et celui du profil
+            # Instagram sur la même rangée, alors qu'ils se remplissent l'un après
+            # l'autre et que le second est le dernier geste. Demandé le 2026-09-05 :
+            # « les champs les uns à la suite des autres vers le bas ».
+            pairs = [[f] for f in inline_fields]
 
             for pair in pairs:
                 cols = st.columns(len(pair))
@@ -575,7 +580,7 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             # ensuite : coller le lien se fait sans rien savoir du partage.
             if platform_key == 'meta':
                 from ._platform_meta import render_partner_share_block
-                render_partner_share_block()
+                render_partner_share_block(existing_values.get('account_id', ''))
 
             # Les champs repliés, sous les autres et FERMÉS. `st.expander` est
             # utilisable dans un `st.form` — la valeur est soumise avec le reste,

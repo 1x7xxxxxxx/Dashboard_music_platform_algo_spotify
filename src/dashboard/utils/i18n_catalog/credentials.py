@@ -47,6 +47,9 @@ EN = {
         "account → **Partners** → **Assign partner** → paste it → **Analyst** role."
     ),
     "credentials.meta.share_open": "⚙️ Open my ad accounts ↗",
+    "credentials.meta.share_open_direct": (
+        "⚙️ Open this account's « Partners » tab ↗"
+    ),
     "credentials.meta.ig_resolved": (
         "📸 Instagram account recognised: **@{name}** (ID {ident})"
     ),
