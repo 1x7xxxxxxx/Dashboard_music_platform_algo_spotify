@@ -5,6 +5,58 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 7) — La CI rouge trois fois : le garde était juste, l'endroit ne l'était pas
+
+**Huit** runs consécutifs rouges sur `main` — pas trois. La série commence au commit
+fautif lui-même (`8176e97b`, 21 h 49) et court jusqu'à `a0cd505a` (01 h 05) ; les trois
+derniers seulement (`33932090213`, `33933510699`, `33935086070`) avaient été comptés au
+premier regard, avant de lire `gh run list --workflow=CI`. Tous à la même ligne, à la
+troisième étape sur huit :
+
+    REX validator — 64 tool(s) OK, 0 without rex key, 2 entry error(s)
+      scripts/audit_python_signatures.py: rex[0].issue > 350 chars
+      scripts/check_dag_trigger_scope.py: rex[0].issue > 350 chars
+
+Mesuré : **376 et 399 caractères** pour un plafond de 350. Les deux blocs viennent du
+commit `8176e97` de la veille. Reproduit à l'identique en local avant de toucher quoi
+que ce soit. Aucun autre défaut dans la série : les huit runs échouent sur ces deux
+mêmes lignes, vérifié run par run.
+
+**Le validateur n'avait pas tort — il a trouvé les deux entrées.** Ce qui était faux,
+c'est l'endroit où il tourne. `validate_rex.py --strict` est une étape **bloquante**
+de `ci.yml` et n'avait **aucun exemplaire** dans `.pre-commit-config.yaml`, qui ne
+lance que `ruff`, la parité des manifestes, l'hygiène et le scan de secrets. Les hooks
+sont pourtant installés sur ce poste : ils sont passés au vert sur un commit que la CI
+refuse. Treize heures entre le commit fautif et le mail qui l'apprend, et sept
+commits poussés par-dessus une CI déjà rouge.
+
+Corrigé sur les deux plans :
+
+- les deux `issue` ramenées sous le plafond, en retirant la phrase de provenance
+  (`Trouvé par un balayage sibling-sweeper.`) et la redite finale — le symptôme,
+  ce que le schéma demande, est intégralement conservé ;
+- hook local `validate-rex` ajouté, **0,6 s**, sans réseau, déclenché sur
+  `^\.claude/.*\.(md|py)$` — les seuls fichiers que `_SCAN_DIRS` lit.
+
+Le critère d'admission dans `pre-commit` est mesuré, pas d'humeur : `audit_runner.py
+--deterministic` lance des `pytest` et prend **plusieurs minutes** sur ce poste, il
+reste en CI seulement, et c'est écrit dans le docstring du test.
+
+`tests/test_the_rex_gate_runs_before_the_push.py` garde la paire des deux côtés en
+**lisant le YAML**, pas le texte : le commentaire qui documente le hook nomme lui-même
+`validate_rex.py`, donc un `grep` resterait vert après suppression du hook — la classe
+`guard-matches-its-own-comment`, prise en défaut quatre fois en août. Vérifié rouge par
+trois mutations distinctes (`entry` remplacée, `--strict` retiré, `files` élargi hors
+de `.claude/`), et le hook lui-même vérifié rouge en restaurant l'entrée de 399
+caractères, vert après.
+
+Capitalisé en `ci-gate-with-no-local-counterpart` (P3, 190 classes, 100 % complètes).
+
+Les cinq autres étapes de garde que la CI n'avait jamais atteintes — elle échouait à la
+troisième — ont été lancées ici : `--deterministic`, `--prose`, `check_config_refs`,
+`check_ci_waste`, `--fields --strict`, toutes à 0. Plus `ruff check .` et la parité des
+manifestes. Le seul défaut de la nuit était bien celui-là.
+
 ## 2026-09-05 (suite 6) — « Les barres vertes alors que ça ne marche pas » : les barres avaient raison
 
 Interrogé la PRODUCTION avant de conclure, et c'est l'inverse de ce que le rapport

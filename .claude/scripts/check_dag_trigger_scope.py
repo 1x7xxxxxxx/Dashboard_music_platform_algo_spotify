@@ -10,8 +10,7 @@ rex:
       deterministic, bloquante en CI) était `! grep -rn 'trigger_dag(' src/dashboard/
       | grep -v 'conf='`. Un commentaire en fin de ligne mentionnant `conf=` sur un
       appel réellement non scopé — `trigger_dag(dag_id)  # TODO conf=` — supprimait
-      le hit en silence. La classe la plus grave du catalogue reposait sur une
-      correspondance de texte."
+      le hit en silence."
     fix: "Détecteur AST : chaque `Call` dont la fonction s'appelle `trigger_dag` doit
       porter un mot-clé `conf`, et ce `conf` doit mentionner `artist_id`. Les
       commentaires n'existent pas dans un arbre."

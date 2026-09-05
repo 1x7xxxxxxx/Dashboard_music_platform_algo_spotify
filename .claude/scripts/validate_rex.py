@@ -30,6 +30,19 @@ rex:
     fix: "Anchored the delimiter to a line that is exactly `---` (^...$ with MULTILINE). Guarded by test_the_rex_parser_survives_rst_underlines, seen red on the old regex."
     ref: "roadmap-two-files-2026-08-03"
     severity: crit
+  - date: 2026-09-05
+    issue: "Ce validateur est une etape BLOQUANTE de ci.yml et n'avait aucun
+      exemplaire dans .pre-commit-config.yaml. Le commit 8176e97 a livre deux
+      champs `issue` de 376 et 399 caracteres pour un plafond de 350 : commit
+      vert sur le poste, huit runs CI consecutifs rouges sur main, decouverts
+      treize heures plus tard par mail."
+    fix: "Hook local `validate-rex` ajoute (files ^.claude/, pass_filenames false,
+      0,6 s, sans reseau), et tests/test_the_rex_gate_runs_before_the_push.py garde
+      la paire des deux cotes en LISANT le YAML, pas le texte : le commentaire du
+      hook nomme lui-meme le script, donc un grep resterait vert apres suppression.
+      Classe ci-gate-with-no-local-counterpart."
+    ref: "error-classes#ci-gate-with-no-local-counterpart"
+    severity: warn
 ---
 """
 import argparse

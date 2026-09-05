@@ -36,6 +36,7 @@ this only counts tests that read Python under `src/`.
 """
 from __future__ import annotations
 
+import ast as _ast
 from pathlib import Path
 
 _TESTS = Path(__file__).resolve().parent
@@ -104,7 +105,60 @@ def _reads_source_textually(path: Path) -> bool:
         return False
     # Nomme-t-il des fichiers Python ? `".py"` couvre les deux formes utilisées ici :
     # un chemin littéral (`… / "app.py"`) et un balayage (`rglob("*.py")`).
-    return '.py"' in body or ".py'" in body
+    if not ('.py"' in body or ".py'" in body):
+        return False
+    # Quatrieme terme, 2026-09-05 : ce `.py` est-il un fichier LU, ou une chaine
+    # CHERCHEE ? Voir `_a_py_literal_is_used_as_a_path`.
+    try:
+        return _a_py_literal_is_used_as_a_path(_ast.parse(body))
+    except SyntaxError:
+        return True
+
+
+def _a_py_literal_is_used_as_a_path(tree) -> bool:
+    """Le `.py` de ce fichier est-il un fichier LU, ou juste une chaine cherchee ?
+
+    Ajoute le 2026-09-05. Les trois termes precedents ne demandaient que « le mot
+    `.py` apparait quelque part » — le meme exces de portee qui avait fait lister
+    onze gardes de SQL, de Makefile et de workflows le 2026-09-04. Il s'est
+    reproduit sur `test_the_rex_gate_runs_before_the_push.py`, qui ne lit que deux
+    YAML (`.pre-commit-config.yaml`, `.github/workflows/ci.yml`) et ne portait `.py`
+    que parce que l'outil qu'il verifie s'appelle `validate_rex.py` : le nom
+    cherche, jamais le fichier ouvert. Le cliquet promet cette exemption dans son
+    propre docstring (« a YAML workflow — nothing here applies ») ; elle n'etait pas
+    implementee.
+
+    Un litteral `.py` designe un chemin quand il porte un separateur ou un joker
+    (`"src/dashboard/app.py"`, `"*.py"`), quand il vit dans un `Path()`, un `/`, un
+    `glob`/`rglob`, ou quand il est l'element d'une collection de noms de fichiers
+    (`("credential_guides.py", ...)`, jointe plus loin sur un repertoire — la forme
+    que prennent quatre des gardes geles). Il ne designe rien quand il est affecte
+    seul et compare par `in`.
+
+    Mesure sur les 24 gardes geles : les 24 restent detectes, et seul le garde YAML
+    sort. `test_the_frozen_list_does_not_rot` echoue au premier qui sortirait — ce
+    resserrement ne peut donc pas relacher le cliquet sans le dire.
+    """
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Constant) and isinstance(node.value, str):
+            v = node.value
+            if v.endswith(".py") and ("/" in v or "*" in v):
+                return True
+    for node in _ast.walk(tree):
+        if not any(isinstance(sub, _ast.Constant) and isinstance(sub.value, str)
+                   and sub.value.endswith(".py") for sub in _ast.walk(node)):
+            continue
+        if isinstance(node, _ast.BinOp) and isinstance(node.op, _ast.Div):
+            return True
+        if isinstance(node, (_ast.Tuple, _ast.List, _ast.Set)):
+            return True
+        if isinstance(node, _ast.Call):
+            fn = node.func
+            if isinstance(fn, _ast.Attribute) and fn.attr in {"glob", "rglob", "joinpath"}:
+                return True
+            if isinstance(fn, _ast.Name) and fn.id in {"Path", "open"}:
+                return True
+    return False
 
 
 def test_no_new_textual_guard_is_added():
@@ -319,4 +373,3 @@ def test_the_text_assertion_inventory_does_not_rot():
         + "\n\nLaissé tel quel, l'écart est du budget pour une régression que "
           "personne n'aurait décidé d'admettre."
     )
-

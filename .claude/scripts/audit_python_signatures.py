@@ -17,7 +17,7 @@ rex:
       source Python. Un commentaire pouvait supprimer un hit (`view-session-adoption`,
       `csv-formula-injection`, `db-connection-per-show`) ou en fabriquer un
       (`guide-single-os-shortcut`, `deterministic` donc bloquante : documenter le
-      correctif en commentaire cassait la CI). Trouvé par un balayage sibling-sweeper."
+      correctif en commentaire cassait la CI)."
     fix: "Un auditeur unique, une fonction par classe, lecture AST. Les lignes
       `signature:` du catalogue pointent dessus."
     severity: crit

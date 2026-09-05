@@ -33,6 +33,22 @@ repos:
         files: '^(pyproject\.toml|requirements\.txt|uv\.lock)$'
         pass_filenames: false
 
+  # ── REX schema (error class: ci-gate-with-no-local-counterpart) ───────
+  # `validate_rex.py --strict` is a BLOCKING ci.yml step and had no local
+  # counterpart: two `rex[0].issue` written past the 350-char cap on
+  # 2026-09-04 (commit 8176e97) passed pre-commit and reddened eight
+  # consecutive CI runs on main. Same script the CI step runs, 0.6 s, no
+  # network. Fires only when a .claude/ tool file changes — those are the
+  # only files it reads (_SCAN_DIRS in validate_rex.py).
+  - repo: local
+    hooks:
+      - id: validate-rex
+        name: REX schema (.claude/ tools)
+        language: system
+        entry: python3 .claude/scripts/validate_rex.py --strict
+        files: '^\.claude/.*\.(md|py)$'
+        pass_filenames: false
+
   # ── Generic hygiene ───────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

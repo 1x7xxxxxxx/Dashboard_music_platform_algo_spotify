@@ -249,6 +249,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [orchestrator-costs-more-than-what-it-orchestrates](#orchestrator-costs-more-than-what-it-orchestrates) | P3 | deterministic | guarded | none |
 | [the-only-copy-is-consumed-on-read](#the-only-copy-is-consumed-on-read) | P2 | deterministic | guarded | none |
 | [exempt-row-hides-others-conflict](#exempt-row-hides-others-conflict) | P2 | deterministic | guarded | none |
+| [ci-gate-with-no-local-counterpart](#ci-gate-with-no-local-counterpart) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3275,3 +3276,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: la contradiction a été trouvée en INTERROGEANT LA PRODUCTION, pas en relisant : `soundcloud_tracks_daily` donne 17 titres pour le locataire 18, les mêmes que ceux du locataire 1 — ce qui est correct par construction pour un bac à sable qui réutilise l'identité de l'opérateur, et n'est donc pas une fuite. Signature vérifiée dans les deux sens : `exit=1` sans la réconciliation, `exit=0` avec.
+
+## ci-gate-with-no-local-counterpart
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: `main` est rouge et personne ne le sait avant le mail de GitHub. Le commit est passé sur le poste — `pre-commit` était installé et vert — parce que le garde qui refuse le défaut ne tourne QUE sur le runner.
+- root_cause: le garde était correct et il a trouvé le défaut ; ce qui manquait est **l'endroit où il tourne**. `.github/workflows/ci.yml` lance `validate_rex.py --strict` en étape bloquante ; `.pre-commit-config.yaml` ne lançait que `ruff` et `check_manifest_consistency.py`. Le 2026-09-04, le commit `8176e97` a ajouté deux blocs `rex:` dont le champ `issue` faisait 376 et 399 caractères pour un plafond de 350 (`.claude/scripts/audit_python_signatures.py`, `.claude/scripts/check_dag_trigger_scope.py`) — **huit** runs CI consécutifs rouges sur `main`, du commit fautif (`8176e97b`) à `a0cd505a`, découverts treize heures plus tard par notification, sept commits ayant été poussés par-dessus une CI déjà rouge. Le plafond n'est écrit nulle part que l'auteur d'une entrée REX lise au moment où il l'écrit : le seul rappel est le refus du validateur.
+- signature: `python3 -m pytest tests/test_the_rex_gate_runs_before_the_push.py -q`
+- long_term_fix: le garde bloquant en CI a un exemplaire local dans `.pre-commit-config.yaml` (hook `validate-rex`, `files: ^\.claude/.*\.(md|py)$`, `pass_filenames: false`), et `tests/test_the_rex_gate_runs_before_the_push.py` garde la PAIRE des deux côtés. Le critère d'admission dans `pre-commit` est mesuré, pas d'humeur : sous la seconde, sans réseau, portée à un répertoire. `validate_rex.py` fait **0,6 s** et ne lit que `.claude/` ; `audit_runner.py --deterministic` lance des `pytest` et prend plusieurs minutes sur ce poste — il reste en CI seulement, et c'est écrit dans le docstring du test.
+- autofix: none
+- guard: { type: pre-commit, ref: .pre-commit-config.yaml (hook `validate-rex`) + tests/test_the_rex_gate_runs_before_the_push.py }
+- rex_ref: .claude/scripts/validate_rex.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: `guarded`. Lecture STRUCTURELLE du YAML, pas textuelle — le commentaire qui documente le hook nomme lui-même `validate_rex.py`, donc un `grep` resterait vert après suppression du hook (`guard-matches-its-own-comment`). Vérifié rouge par trois mutations distinctes : `entry` remplacée, `--strict` retiré, `files` élargi hors de `.claude/`. Le hook lui-même vérifié rouge en restaurant l'entrée REX de 399 caractères, vert après.
