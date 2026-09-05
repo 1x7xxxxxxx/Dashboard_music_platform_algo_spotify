@@ -9,6 +9,12 @@ import os
 import requests
 
 from src.dashboard.utils.i18n import t
+from src.utils.platform_probes import (  # la situation que cette sonde nomme
+    IDENTITY_MISSING,
+    NOT_FOUND,
+    UNREACHABLE,
+    tagged,
+)
 
 
 def _test_spotify(fields: dict) -> tuple:
@@ -41,10 +47,10 @@ def _test_spotify(fields: dict) -> tuple:
         if not artist_id:
             # The shared app answering is not "connected": without the artist's own ID
             # the collector has no key to collect on. Same class as Meta /me.
-            return False, t("credentials.spotify.artist_missing",
+            return False, tagged(t("credentials.spotify.artist_missing",
                             "App Spotify OK, mais ton **Spotify Artist ID** n'est pas "
                             "renseigné — sans lui aucune donnée ne peut être collectée. "
-                            "Colle l'URL de ta page artiste (open.spotify.com/artist/…).")
+                            "Colle l'URL de ta page artiste (open.spotify.com/artist/…)."), IDENTITY_MISSING)
         ra = requests.get(
             f'https://api.spotify.com/v1/artists/{artist_id}',
             headers={'Authorization': f"Bearer {data['access_token']}"},
@@ -52,9 +58,9 @@ def _test_spotify(fields: dict) -> tuple:
             allow_redirects=False,
         )
         if ra.status_code != 200 or not ra.json().get('id'):
-            return False, t("credentials.spotify.artist_not_found",
+            return False, tagged(t("credentials.spotify.artist_not_found",
                             "Artiste Spotify introuvable : « {aid} ». Colle l'URL de ta "
-                            "page Spotify Artist (open.spotify.com/artist/…).").format(aid=artist_id)
+                            "page Spotify Artist (open.spotify.com/artist/…).").format(aid=artist_id), NOT_FOUND)
         return True, t("credentials.spotify.test_ok_artist",
                        "Connecté — artiste « {name} » ✅").format(name=ra.json().get('name', artist_id))
     except Exception as e:
@@ -63,7 +69,7 @@ def _test_spotify(fields: dict) -> tuple:
         # credential included — and _render.py renders it to the tenant with
         # st.error. A DNS blip was enough to show a non-admin the platform-wide
         # token (Meta, never expires) or the billable API key (YouTube).
-        return False, t("credentials.probe_network_error",
+        return False, tagged(t("credentials.probe_network_error",
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
-                            err=type(e).__name__)
+                            err=type(e).__name__), UNREACHABLE)

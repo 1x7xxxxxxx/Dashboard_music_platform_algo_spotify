@@ -12,6 +12,14 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.youtube_channel import (
     lookup_params, parse_channel_input,
 )
+from src.utils.platform_probes import (  # la situation que cette sonde nomme
+    IDENTITY_MISSING,
+    NOTHING_TO_COLLECT,
+    NOT_FOUND,
+    RESOLVED,
+    UNREACHABLE,
+    tagged,
+)
 
 
 def _test_youtube(fields: dict) -> tuple:
@@ -72,11 +80,11 @@ def _test_youtube(fields: dict) -> tuple:
         if not channel_id:
             # Key-only green is the same lie as Meta's /me: the admin key is shared by
             # every tenant. Without the artist's own channel there is nothing to collect.
-            return False, t("credentials.youtube.channel_missing",
+            return False, tagged(t("credentials.youtube.channel_missing",
                             "Clé API valide, mais ton **Channel ID** n'est pas renseigné — "
                             "sans lui aucune vidéo ne peut être collectée. Il se lit dans "
                             "YouTube Studio → Paramètres → Chaîne → Paramètres avancés "
-                            "(commence par `UC…`).")
+                            "(commence par `UC…`)."), IDENTITY_MISSING)
         # Nobody knows their UC… id. What an artist has to hand is the address bar
         # or the handle under their name, and pasting either used to dead-end on
         # "Channel ID introuvable" at the very last step of the setup. Classify
@@ -119,11 +127,11 @@ def _test_youtube(fields: dict) -> tuple:
                     "→ Paramètres avancés (il commence par `UC…`)."
                 ).format(cid=parsed.value)
             resolved = found[0].get('id', '')
-            return False, t(
+            return False, tagged(t(
                 "credentials.youtube.handle_resolved",
                 "« {given} » correspond à la chaîne **`{cid}`**. Colle cette valeur "
                 "dans le champ Channel ID, puis relance le test."
-            ).format(given=parsed.value, cid=resolved)
+            ).format(given=parsed.value, cid=resolved), RESOLVED)
 
         if not parsed.is_usable:
             return False, t(
@@ -143,20 +151,20 @@ def _test_youtube(fields: dict) -> tuple:
         cd = rc.json()
         items = cd.get('items') or []
         if not (rc.status_code == 200 and items):
-            return False, t("credentials.youtube.channel_not_found",
+            return False, tagged(t("credentials.youtube.channel_not_found",
                             "Channel ID introuvable : « {cid} ». Vérifier qu'il commence "
-                            "par UC… (Paramètres avancés de la chaîne).").format(cid=channel_id)
+                            "par UC… (Paramètres avancés de la chaîne).").format(cid=channel_id), NOT_FOUND)
         # An empty channel resolves fine and then collects 0 videos forever — the Benken
         # case. Say so at connect time instead of leaving an eternally empty view.
         video_count = int((items[0].get('statistics') or {}).get('videoCount') or 0)
         if video_count == 0:
-            return False, t(
+            return False, tagged(t(
                 "credentials.youtube.channel_empty",
                 "Chaîne « {cid} » trouvée, mais elle ne contient **aucune vidéo** — il n'y "
                 "aura rien à collecter. Si ta musique est distribuée, c'est souvent la "
                 "chaîne **« … - Topic »** générée automatiquement qu'il faut renseigner, "
                 "pas ta chaîne personnelle."
-            ).format(cid=channel_id)
+            ).format(cid=channel_id), NOTHING_TO_COLLECT)
         return True, t("credentials.youtube.test_ok_channel",
                        "Clé API valide — chaîne trouvée, {n} vidéo(s) ✅").format(n=video_count)
     except Exception as e:
@@ -165,7 +173,7 @@ def _test_youtube(fields: dict) -> tuple:
         # credential included — and _render.py renders it to the tenant with
         # st.error. A DNS blip was enough to show a non-admin the platform-wide
         # token (Meta, never expires) or the billable API key (YouTube).
-        return False, t("credentials.probe_network_error",
+        return False, tagged(t("credentials.probe_network_error",
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
-                            err=type(e).__name__)
+                            err=type(e).__name__), UNREACHABLE)

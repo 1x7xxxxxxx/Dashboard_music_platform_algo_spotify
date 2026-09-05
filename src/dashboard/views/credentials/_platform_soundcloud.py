@@ -9,6 +9,14 @@ import os
 import requests
 
 from src.dashboard.utils.i18n import t
+from src.utils.platform_probes import (  # la situation que cette sonde nomme
+    IDENTITY_MISSING,
+    NOTHING_TO_COLLECT,
+    NOT_FOUND,
+    REFUSED,
+    UNREACHABLE,
+    tagged,
+)
 
 
 def _claimed_count(fields: dict) -> int:
@@ -45,10 +53,10 @@ def _test_soundcloud(fields: dict) -> tuple:
     client_secret = fields.get('client_secret', '').strip() or os.getenv('SOUNDCLOUD_CLIENT_SECRET', '')
 
     if not user_id:
-        return False, t("credentials.soundcloud.user_id_empty",
+        return False, tagged(t("credentials.soundcloud.user_id_empty",
                         "Rien à tester : colle le **lien de ton profil SoundCloud** "
                         "(https://soundcloud.com/ton-nom) dans le champ ci-dessous — "
-                        "on en déduit ton User ID.")
+                        "on en déduit ton User ID."), IDENTITY_MISSING)
 
     # A profile URL is what an artist HAS; the numeric id is what the pipeline needs.
     # The CANONICAL conversion happens at write time, in `_render._save_credentials`,
@@ -93,8 +101,8 @@ def _test_soundcloud(fields: dict) -> tuple:
 
         token = r.json().get('access_token')
         if not token:
-            return False, t("credentials.soundcloud.token_missing",
-                            "Token absent dans la réponse OAuth.")
+            return False, tagged(t("credentials.soundcloud.token_missing",
+                            "Token absent dans la réponse OAuth."), REFUSED)
 
         # Step 2: fetch tracks
         r2 = requests.get(
@@ -125,7 +133,7 @@ def _test_soundcloud(fields: dict) -> tuple:
                         "hébergé(s) sur d'autres comptes — c'est eux qui seront "
                         "collectés ✅"
                     ).format(n=claimed)
-                return False, t(
+                return False, tagged(t(
                     "credentials.soundcloud.no_public_tracks",
                     "User ID {user_id} joignable, mais **aucun titre public** n'y est "
                     "rattaché — il n'y aura donc rien à collecter. Deux cas :\n\n"
@@ -141,14 +149,14 @@ def _test_soundcloud(fields: dict) -> tuple:
                     "chaque titre, une par ligne.\n"
                     "• **Sinon** → vérifie que c'est bien l'ID de TON profil et que tes "
                     "titres sont en **public** (et non privés ou en écoute restreinte)."
-                ).format(user_id=user_id)
+                ).format(user_id=user_id), NOTHING_TO_COLLECT)
             return True, t("credentials.soundcloud.test_ok",
                            "API SoundCloud OAuth OK — {count} track(s) récupéré(s) pour user {user_id} ✅").format(
                                count=count, user_id=user_id)
         if r2.status_code == 404:
-            return False, t("credentials.soundcloud.not_found",
+            return False, tagged(t("credentials.soundcloud.not_found",
                             "404 — User ID '{user_id}' introuvable. Vérifier que c'est bien l'ID numérique.").format(
-                                user_id=user_id)
+                                user_id=user_id), NOT_FOUND)
         return False, f"HTTP {r2.status_code} — {r2.text[:200]}"
     except Exception as e:
         # NEVER str(e). This probe passes the shared credential as a QUERY
@@ -156,7 +164,7 @@ def _test_soundcloud(fields: dict) -> tuple:
         # credential included — and _render.py renders it to the tenant with
         # st.error. A DNS blip was enough to show a non-admin the platform-wide
         # token (Meta, never expires) or the billable API key (YouTube).
-        return False, t("credentials.probe_network_error",
+        return False, tagged(t("credentials.probe_network_error",
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
-                            err=type(e).__name__)
+                            err=type(e).__name__), UNREACHABLE)

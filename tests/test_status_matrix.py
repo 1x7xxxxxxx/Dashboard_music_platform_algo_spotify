@@ -207,3 +207,61 @@ class TestMatrix:
         db, artist_id = tenant
         rows = self._render(db, artist_id, compact=True, allow_probe=False)
         assert len(rows) == 5
+
+
+# ── La précédence « la mesure bat la prédiction », mise sous tension ─────────
+# Ajouté le 2026-09-05. Les tests ci-dessus passent `{}` comme mémoire de sondes ou
+# n'insèrent aucune ligne de données : la précédence `status > probes` de
+# `_responds_cell` n'était donc JAMAIS exercée, et le défaut est passé au travers.
+
+def test_arriving_data_outranks_a_probe_that_says_otherwise():
+    """Statut vert ET sonde rouge — la combinaison du rapport du 2026-09-05.
+
+    358 lignes collectées pour ce locataire, et la sonde qui répond « aucun titre
+    public ». La donnée doit gagner, et la raison de la sonde ne doit pas remonter
+    dans l'infobulle d'une source qui livre.
+    """
+    from datetime import datetime, timezone
+
+    from src.dashboard.utils.status_matrix import _responds_cell
+
+    red = {"soundcloud": (False, "aucun titre public", datetime.now(timezone.utc), None)}
+    for status in ("ok", "stale", "quiet"):
+        state, _glyph, tip = _responds_cell({"key": "soundcloud", "status": status}, red)
+        assert state != "red", f"{status} : la prédiction a battu la mesure"
+        assert "aucun titre public" not in tip, (
+            f"{status} : l'infobulle porte la raison d'une sonde que la donnée dément")
+    # Sans donnée, la sonde reprend la main — sinon on masquerait un vrai échec.
+    state, glyph, tip = _responds_cell({"key": "soundcloud", "status": "no_data"}, red)
+    assert (state, glyph) == ("red", "✖")
+    assert "aucun titre public" in tip
+
+
+def test_the_next_step_column_is_silent_when_the_data_proves_it():
+    """« Prochaine étape » écrasait `next_action` par la raison d'une sonde rouge.
+
+    `next_action(…, OK)` rend `""`, donc une ligne ENTIÈREMENT verte affichait « User
+    ID 377065610 joignable, mais aucun titre public » comme prochaine étape. Même
+    défaut que `_responds_cell`, dans le même fichier, jamais signalé.
+
+    Lecture STRUCTURELLE : le commentaire au-dessus du garde cite `_DATA_PROVES_IT`,
+    donc une recherche de chaîne resterait verte après sa suppression.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from src.dashboard.utils import status_matrix
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(status_matrix.render_status_matrix)))
+    guarded = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.BoolOp)
+        and any(isinstance(c, ast.Compare)
+                and any(isinstance(o, ast.NotIn) for o in c.ops)
+                and getattr(c.comparators[0], "id", "") == "_DATA_PROVES_IT"
+                for c in n.values)
+    ]
+    assert guarded, (
+        "la colonne « Prochaine étape » écrase de nouveau `next_action` par la "
+        "raison d'une sonde, sans regarder si des données sont arrivées")

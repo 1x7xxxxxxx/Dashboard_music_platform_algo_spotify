@@ -23,16 +23,29 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 `/roadmap-done <id>` la coche dans son bloc détaillé ET la retire de ce tableau **vers
 `archive.md`** (CLAUDE.md — flux roadmap).
 
-**Aucune.** R58 — la dernière — a été livrée le 2026-09-04 (voir `archive.md`).
+| id | Tâche | P | Où |
+|---|---|---|---|
+| R59 | Deux tests encodent des règles opposées sur la même sonde — trancher par ADR | P3 | `## Open Bugs` |
+| R60 | `_claimed_count` lit un échec comme un zéro et fabrique le défaut du 2026-09-05 | P2 | `## Open Bugs` |
 
-Ne reste que ce qui attend un geste humain, dans la section « 🙋 En attente de toi »
+Les deux sont sorties du balayage du **2026-09-05**, en corrigeant
+`headline-asserts-a-cause-the-probe-did-not-measure`. Aucune n'était ce bug : les
+inscrire plutôt que les corriger au passage est délibéré.
+
+S'y ajoute ce qui attend un geste humain, dans la section « 🙋 En attente de toi »
 plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-04, aucune tâche de développement ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-05, deux tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1 -->
+<!-- reprise: open=R1,R59,R60 -->
+
+**▶️ Deux tâches ouvertes, R59 et R60**, inscrites le 2026-09-05 en corrigeant le
+verdict de sonde qui affirmait une cause non mesurée (DEVLOG « suite 10 »). Elles sont
+détaillées sous `## Open Bugs`, chacune avec la commande qui la montre.
+
+Ce qui suit décrivait l'état au 2026-09-04, quand le fichier n'en portait aucune.
 
 **▶️ Aucune tâche de développement ouverte.** R58 — la dernière — a été livrée le
 2026-09-04 et rotée dans `archive.md` : les figures de l'écran de bienvenue viennent
@@ -269,6 +282,35 @@ prochaine session artiste.
 ---
 
 ## Open Bugs
+
+### 🔎 Sortis du balayage du 2026-09-05 — hors périmètre du correctif livré
+
+Deux constats mesurés en corrigeant `headline-asserts-a-cause-the-probe-did-not-measure`.
+Ils n'ont **pas** été corrigés au passage : ni l'un ni l'autre n'est ce bug, et élargir
+un correctif est la façon dont on livre trois choses à moitié.
+
+- [ ] **R59 — deux tests encodent des règles opposées sur la même sonde.** P3.
+  `tests/test_readiness_carries_the_live_diagnosis.py:161` verrouille « on ne sonde
+  jamais une plateforme verte » (`src/utils/artist_readiness.py:242` :
+  `if probe is not None and status in (NO_DATA, BROKEN)`), pendant que
+  `tests/test_saving_credentials_yields_a_verdict_now.py:81` **exige** que tout chemin
+  de sauvegarde appelle `run_probes_now` — inconditionnellement
+  (`src/dashboard/views/credentials/_render.py`, dans `_handle_save`). La sonde qui a
+  produit le ❌ du 2026-09-05 n'aurait, selon la première règle, jamais dû tourner.
+  Les deux sont défendables séparément ; c'est leur coexistence non écrite qui est le
+  défaut. Trancher demande un ADR, pas un patch.
+  Commande qui montre les deux : `python3 -m pytest
+  tests/test_readiness_carries_the_live_diagnosis.py::test_a_green_platform_is_never_probed
+  tests/test_saving_credentials_yields_a_verdict_now.py -q`
+
+- [ ] **R60 — `_claimed_count` fabrique le défaut qu'il devait éviter.** P2.
+  `src/dashboard/views/credentials/_platform_soundcloud.py` : `except Exception:
+  return 0`, et `0` aussi quand `get_db_connection()` rend `None`. Un échec de lecture
+  bascule donc un cas légitime (`True`, « titres hébergés ailleurs ») en `False`,
+  c'est-à-dire produit exactement le « aucun titre public » du rapport — sans qu'aucune
+  trace ne le distingue d'un vrai zéro. Classe connue : `probe-reads-unreadable-as-absent`.
+  Commande : `rtk proxy grep -n "def _claimed_count" -A 25
+  src/dashboard/views/credentials/_platform_soundcloud.py`
 
 ### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
 

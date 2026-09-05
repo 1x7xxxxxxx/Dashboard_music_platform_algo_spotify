@@ -79,7 +79,23 @@ def _age_label(probed_at) -> str:
 
 
 def read_probes(db, artist_id: int) -> dict:
-    """{platform: (ok, reason, probed_at)} — the remembered verdicts. Never raises."""
+    """{platform: (ok, reason, probed_at, category)} — the verdicts. Never raises.
+
+    `category` names the SITUATION (migration 086) and is `None` for a verdict
+    written before it, or by a probe that does not name one.
+
+    The fallback is not decoration. This module's `except` turns an unreadable
+    memory into « never measured », which blanks the whole « Répond » column — so a
+    target where 086 has not run yet would silently lose it. It reads the four old
+    columns instead, which is exactly today's behaviour.
+    """
+    try:
+        rows = db.fetch_query(
+            "SELECT platform, ok, reason, probed_at, category FROM "
+            "tenant_platform_probe WHERE artist_id = %s", (artist_id,))
+        return {r[0]: (r[1], r[2], r[3], r[4]) for r in rows}
+    except Exception as e:  # noqa: BLE001 — column absent, or no table at all
+        logger.warning("probe memory: reading without `category` (%s)", type(e).__name__)
     try:
         rows = db.fetch_query(
             "SELECT platform, ok, reason, probed_at FROM tenant_platform_probe "
@@ -87,17 +103,20 @@ def read_probes(db, artist_id: int) -> dict:
     except Exception as e:  # noqa: BLE001 — no table yet is "never measured"
         logger.warning("probe memory unreadable: %s", type(e).__name__)
         return {}
-    return {r[0]: (r[1], r[2], r[3]) for r in rows}
+    return {r[0]: (r[1], r[2], r[3], None) for r in rows}
 
 
-def save_probe(db, artist_id: int, platform: str, ok: bool, reason: str) -> None:
+def save_probe(db, artist_id: int, platform: str, ok: bool, reason: str,
+               category: str | None = None) -> None:
     """Remember one verdict. Overwrites — we want the latest, not a history."""
     db.execute_query(
-        "INSERT INTO tenant_platform_probe (artist_id, platform, ok, reason, probed_at) "
-        "VALUES (%s, %s, %s, %s, now()) "
+        "INSERT INTO tenant_platform_probe "
+        "  (artist_id, platform, ok, reason, category, probed_at) "
+        "VALUES (%s, %s, %s, %s, %s, now()) "
         "ON CONFLICT (artist_id, platform) DO UPDATE SET "
-        "  ok = EXCLUDED.ok, reason = EXCLUDED.reason, probed_at = EXCLUDED.probed_at",
-        (artist_id, platform, bool(ok), (reason or "")[:500]))
+        "  ok = EXCLUDED.ok, reason = EXCLUDED.reason, "
+        "  category = EXCLUDED.category, probed_at = EXCLUDED.probed_at",
+        (artist_id, platform, bool(ok), (reason or "")[:500], category))
 
 
 def run_probes_now(db, artist_id: int, platforms) -> int:
@@ -117,8 +136,12 @@ def run_probes_now(db, artist_id: int, platforms) -> int:
         if result is None:          # unavailable ≠ a verdict
             continue
         ok, reason = result
+        # La situation voyage SUR le message (`platform_probes.tagged`) : `(ok,
+        # reason)` est un contrat public, dépaqueté en deux à dix-neuf endroits.
+        from src.utils.platform_probes import category_of
+        category = category_of(reason)
         try:
-            save_probe(db, artist_id, platform, ok, reason)
+            save_probe(db, artist_id, platform, ok, reason, category)
             done += 1
         except Exception as e:  # noqa: BLE001
             logger.warning("could not remember the probe for %s: %s",
@@ -158,7 +181,7 @@ def _responds_cell(row: dict, probes: dict) -> tuple:
             "matrix.tip_never_probed",
             "Jamais vérifié. Clique sur « Vérifier maintenant » pour interroger la "
             "plateforme.")
-    ok, reason, probed_at = remembered
+    ok, reason, probed_at = remembered[0], remembered[1], remembered[2]
     age = _age_label(probed_at)
     if ok:
         return "amber", "✅", t(
@@ -422,7 +445,14 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
 
         remembered = probes.get(r["key"])
         action = r["next_action"]
-        if remembered is not None and not remembered[0]:
+        # LE MÊME ORDRE QUE `_responds_cell`, qui rend sur `status` AVANT de lire
+        # `probes`. Ici il manquait : `next_action(…, OK)` rend `""`, donc une ligne
+        # entièrement verte affichait en « Prochaine étape » la raison d'une sonde
+        # rouge — « User ID 377065610 joignable, mais aucun titre public », à côté de
+        # 358 lignes réellement collectées (2026-09-05). Une mesure qui a eu lieu bat
+        # une prédiction ; la sonde n'a rien à dire d'une source qui livre.
+        if (remembered is not None and not remembered[0]
+                and r["status"] not in _DATA_PROVES_IT):
             action = remembered[1] or action
         # `as_markdown` only fixes the line breaks: a single `\n` is not a break in
         # markdown, so the two bullets of a two-case diagnosis would run into one.

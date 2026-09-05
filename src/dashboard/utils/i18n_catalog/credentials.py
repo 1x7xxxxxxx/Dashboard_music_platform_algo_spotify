@@ -19,6 +19,20 @@ EN = {
         "terminal opened at the project root:"
     ),
     "credentials.fetching_dag_status": "Fetching DAG status…",
+    # Un titre par situation (2026-09-05) — `ok is False` en recouvrait huit, et
+    # « the platform is not responding yet » était faux pour les huit.
+    "credentials.verdict_unreachable": (
+        "❌ {platform}: saved, but the platform did not answer."
+    ),
+    "credentials.verdict_refused": "❌ {platform}: the platform refused our access.",
+    "credentials.verdict_not_found": "❌ {platform}: this identifier does not exist.",
+    "credentials.verdict_identity_missing": "⚠️ {platform}: your identifier is missing.",
+    "credentials.verdict_nothing_to_collect": (
+        "⚠️ {platform}: reachable, but there is nothing to collect."
+    ),
+    "credentials.verdict_resolved": (
+        "👉 {platform}: almost — one value to copy across."
+    ),
     "credentials.identity_taken_admin": "🛠️ Held by artist #{other}.",
     "credentials.identity_taken": (
         "❌ **{field} = {value}** already belongs to another account. A platform "
@@ -451,7 +465,7 @@ EN = {
     ),
     "credentials.verdict_go_home": "🏠 Go to the dashboard →",
     "credentials.verdict_ko": (
-        "❌ {platform}: saved, but the platform does not answer yet."
+        "❌ {platform}: saved, but the connection is not proven."
     ),
     "credentials.verdict_ko_what_now": (
         "Fix it below then **💾 Save** again — we will re-test straight away."

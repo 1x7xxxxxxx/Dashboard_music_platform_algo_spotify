@@ -45,6 +45,49 @@ from src.utils.diagnosis_text import clamp
 
 logger = logging.getLogger(__name__)
 
+# Les situations qu'une sonde peut nommer. Ce ne sont PAS des synonymes de `ok` :
+# `nothing_to_collect` et `resolved` sortent d'une réponse HTTP 200 parfaitement
+# valide, et `identity_missing` d'une app qui fonctionne. Un écran qui ne lit que
+# `ok` ne peut pas les distinguer — c'est le défaut que cette liste ferme.
+UNREACHABLE = "unreachable"              # rien n'a répondu : réseau, délai, 5xx
+REFUSED = "refused"                      # elle répond et refuse : 401 / 403
+NOT_FOUND = "not_found"                  # elle répond : cet identifiant n'existe pas
+IDENTITY_MISSING = "identity_missing"    # l'app va bien, le locataire n'a rien saisi
+NOTHING_TO_COLLECT = "nothing_to_collect"  # 200, joignable, mais aucun contenu
+RESOLVED = "resolved"                    # une résolution RÉUSSIE qui attend un collage
+
+PROBE_CATEGORIES = frozenset({
+    UNREACHABLE, REFUSED, NOT_FOUND, IDENTITY_MISSING, NOTHING_TO_COLLECT, RESOLVED,
+})
+
+
+class _Tagged(str):
+    """Un message de sonde qui porte la situation qu'il décrit.
+
+    La situation voyage SUR le message, et non en troisième élément du tuple, parce
+    que `(ok, message)` est un contrat public : `CONNECTION_TESTS` est dépaqueté en
+    deux à dix-neuf endroits, dont la vue et quatre fichiers de tests. L'élargir
+    aurait été un changement de contrat pour une information qui appartient au
+    « pourquoi », pas au verdict.
+
+    Attention : toute opération de chaîne rend un `str` nu et PERD la situation.
+    On étiquette donc en dernier, après `.format()` et après `clamp()`.
+    """
+
+    __slots__ = ("category",)
+
+
+def tagged(message: str, category=None) -> str:
+    """`message`, portant la situation que la sonde a mesurée."""
+    out = _Tagged(message)
+    out.category = category if category in PROBE_CATEGORIES else None
+    return out
+
+
+def category_of(message) -> "str | None":
+    """La situation portée par un message de sonde, ou `None`."""
+    return getattr(message, "category", None)
+
 # What a probe can answer. `None` is NOT a verdict — it means the probe did not run
 # (budget exhausted, or the import failed in this container). A check that could not
 # run must say so rather than look like a passing or a failing one; that contract is
@@ -80,12 +123,15 @@ def probe(db, artist_id: int, logical_platform: str) -> ProbeResult:
     except Exception as exc:  # noqa: BLE001
         # A raising probe is a red REASON, never a crash and never a verdict about
         # the artist — `broken-probe-rendered-as-user-fault`.
-        return False, f"la vérification a échoué ({type(exc).__name__})"
+        return False, tagged(f"la vérification a échoué ({type(exc).__name__})",
+                             UNREACHABLE)
     # The WHOLE diagnosis, not its first line. A probe message is authored in two
     # halves — the symptom, then the gesture that fixes it — and `splitlines()[0]`
     # kept the half nobody can act on. See `src.utils.diagnosis_text`, which renders
     # it per surface instead of flattening it for the narrowest one.
-    return bool(ok), clamp(str(message))
+    # `clamp(str(...))` rend un `str` nu : la situation est re-attachée après, sinon
+    # elle disparaît sans erreur et l'écran retombe sur le libellé neutre.
+    return bool(ok), tagged(clamp(str(message)), category_of(message))
 
 
 def _identity_fields(db, artist_id: int, logical_platform: str, storage_platform):

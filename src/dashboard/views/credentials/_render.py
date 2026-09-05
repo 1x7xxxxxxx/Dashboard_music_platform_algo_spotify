@@ -72,13 +72,89 @@ def _verdict_from_probes(probes: dict, platform_key: str) -> tuple:
     """
     remembered = (probes or {}).get(platform_key)
     if not remembered:
-        return (platform_key, None, "")
+        return (platform_key, None, "", None)
     ok, reason = remembered[0], remembered[1]
-    return (platform_key, bool(ok), reason or "")
+    # La SITUATION, quatrième élément depuis la migration 086. `ok` seul confond
+    # huit situations sur cinq plateformes, dont aucune ne veut dire « ne répond
+    # pas » — la sonde SoundCloud rendait `False` sur un HTTP 200.
+    category = remembered[3] if len(remembered) > 3 else None
+    return (platform_key, bool(ok), reason or "", category)
+
+
+# Un titre par SITUATION, et le geste qu'elle appelle — pas un rendu de booléen.
+#
+# `ok is False` recouvrait huit situations réparties sur cinq sondes, et l'écran les
+# traduisait toutes par « la plateforme ne répond pas encore ». Aucune ne le
+# signifie : SoundCloud et YouTube rendent `False` sur un HTTP 200 parfaitement
+# valide, Spotify/Meta/Instagram sur une app qui fonctionne, et `resolved` est un
+# SUCCÈS. L'artiste lisait « ne répond pas » au-dessus de « joignable ».
+#
+# Le second élément dit si « corrige ci-dessous puis enregistre » a un sens. Il n'en
+# a pas quand il n'y a rien à corriger dans CE formulaire : `nothing_to_collect`
+# demande d'aller déclarer des titres ailleurs, `unreachable` d'attendre.
+#
+# Les valeurs sont des `lambda` et non des chaînes : `t()` doit être appelée au
+# RENDU, pas à l'import, sinon la langue est figée à celle du premier chargement.
+_VERDICT_HEADINGS = {
+    "unreachable": (lambda: t(
+        "credentials.verdict_unreachable",
+        "❌ {platform} : enregistré, mais la plateforme n'a pas répondu."), False),
+    "refused": (lambda: t(
+        "credentials.verdict_refused",
+        "❌ {platform} : la plateforme a refusé notre accès."), True),
+    "not_found": (lambda: t(
+        "credentials.verdict_not_found",
+        "❌ {platform} : cet identifiant est introuvable."), True),
+    "identity_missing": (lambda: t(
+        "credentials.verdict_identity_missing",
+        "⚠️ {platform} : il manque ton identifiant."), True),
+    "nothing_to_collect": (lambda: t(
+        "credentials.verdict_nothing_to_collect",
+        "⚠️ {platform} : joignable, mais il n'y a rien à collecter."), False),
+    "resolved": (lambda: t(
+        "credentials.verdict_resolved",
+        "👉 {platform} : presque — une valeur à recopier."), False),
+}
+
+
+def _render_next_step(next_platform: tuple | None, selection_complete: bool,
+                      platform_key: str) -> None:
+    """La suite du parcours, après un verdict qui n'arrête pas l'artiste.
+
+    Extraite le 2026-09-05 pour être appelée depuis DEUX branches : le succès, et le
+    cas « la sonde a échoué mais des données sont bien arrivées ». Ce second cas
+    laissait l'artiste sur un ❌ alors que sa plateforme livre — donc bloqué par une
+    prédiction que la collecte avait déjà démentie.
+    """
+    if next_platform:
+        # Pas de « — son onglet est ci-dessus » ajouté ici : `_next_label` porte
+        # déjà l'onglet quand il diffère du nom de la plateforme, et la phrase
+        # complète disait « Suivante : Instagram — dans l'onglet Meta /
+        # Instagram — son onglet est ci-dessus » (vu au navigateur le
+        # 2026-09-04). Deux surfaces qui ajoutent chacune leur moitié de phrase
+        # produisent une redite que ni l'une ni l'autre ne voit seule.
+        _nxt_key, nxt_label = next_platform
+        st.markdown("### " + t(
+            "credentials.verdict_next", "👉 Suivante : **{label}**"
+        ).format(label=nxt_label))
+    elif selection_complete:
+        # « Tout est connecté » ne se dit QUE d'une sélection qu'on peut compter.
+        # Un artiste arrivé ici hors parcours de mise en route n'a pas de
+        # sélection : lui annoncer que tout est connecté serait une affirmation
+        # sur des plateformes auxquelles il n'a jamais touché.
+        st.markdown("### " + t(
+            "credentials.verdict_all_done",
+            "🎉 Toutes les plateformes que tu as choisies sont connectées. Les "
+            "premières données arrivent sous ~2 min."))
+        if st.button(t("credentials.verdict_go_home", "🏠 Aller au dashboard →"),
+                     type="primary", key=f"_verdict_home_{platform_key}"):
+            from src.dashboard.utils.navigation import goto
+            goto('home')
 
 
 def render_save_verdict(next_platform: tuple | None,
-                        selection_complete: bool = False) -> None:
+                        selection_complete: bool = False,
+                        db=None, artist_id: int | None = None) -> None:
     """Le verdict de la sauvegarde qui vient d'avoir lieu, en gros, une seule fois.
 
     Rendu DANS l'onglet, au-dessus de « Saisir tes identifiants » — et il a fait
@@ -112,48 +188,54 @@ def render_save_verdict(next_platform: tuple | None,
     if not pending:
         return
     st.session_state.pop(VERDICT_KEY, None)
-    platform_key, ok, reason = pending
+    platform_key, ok, reason = pending[0], pending[1], pending[2]
+    category = pending[3] if len(pending) > 3 else None
     label = platform_label(platform_key)
 
     if ok:
         st.markdown("## " + t("credentials.verdict_ok",
                               "✅ {platform} est connecté.").format(platform=label))
-        if next_platform:
-            _nxt_key, nxt_label = next_platform
-            # Pas de « — son onglet est ci-dessus » ajouté ici : `_next_label` porte
-            # déjà l'onglet quand il diffère du nom de la plateforme, et la phrase
-            # complète disait « Suivante : Instagram — dans l'onglet Meta /
-            # Instagram — son onglet est ci-dessus » (vu au navigateur le
-            # 2026-09-04). Deux surfaces qui ajoutent chacune leur moitié de phrase
-            # produisent une redite que ni l'une ni l'autre ne voit seule.
-            st.markdown("### " + t(
-                "credentials.verdict_next", "👉 Suivante : **{label}**"
-            ).format(label=nxt_label))
-        elif selection_complete:
-            # « Tout est connecté » ne se dit QUE d'une sélection qu'on peut compter.
-            # Un artiste arrivé ici hors parcours de mise en route n'a pas de
-            # sélection : lui annoncer que tout est connecté serait une affirmation
-            # sur des plateformes auxquelles il n'a jamais touché.
-            st.markdown("### " + t(
-                "credentials.verdict_all_done",
-                "🎉 Toutes les plateformes que tu as choisies sont connectées. Les "
-                "premières données arrivent sous ~2 min."))
-            if st.button(t("credentials.verdict_go_home", "🏠 Aller au dashboard →"),
-                         type="primary", key=f"_verdict_home_{platform_key}"):
-                from src.dashboard.utils.navigation import goto
-                goto('home')
+        _render_next_step(next_platform, selection_complete, platform_key)
         return
 
     if ok is False:
-        st.markdown("## " + t("credentials.verdict_ko",
-                              "❌ {platform} : enregistré, mais la plateforme ne "
-                              "répond pas encore.").format(platform=label))
+        # LA DONNÉE TRANCHE — la même règle que `_responds_cell`, qui rend sur le
+        # statut AVANT de lire les sondes, et que le bouton « Tester » plus bas.
+        # Elle manquait ICI, la surface que l'artiste voit après avoir enregistré :
+        # « ✅ Répond · 🟢 Données » et « ❌ … ne répond pas encore » sur le même
+        # écran, avec 358 lignes réellement collectées (2026-09-05). Le correctif de
+        # la veille avait été posé sur une seule des deux surfaces.
+        if db is not None and artist_id is not None and \
+                _data_already_landed(db, artist_id, platform_key):
+            st.markdown("## " + t("credentials.verdict_ok",
+                                  "✅ {platform} est connecté.").format(platform=label))
+            if reason:
+                # Jamais effacé : la sonde peut nommer un vrai problème. Elle se
+                # trompe sur la CONSÉQUENCE, pas forcément sur le symptôme.
+                st.caption(t(
+                    "credentials.test_failed_but_data",
+                    "Le test dit autre chose, et il se trompe sur la conséquence : "
+                    "« {msg} »").format(msg=reason))
+            _render_next_step(next_platform, selection_complete, platform_key)
+            return
+
+        # Le titre NOMME la situation. Il disait « la plateforme ne répond pas
+        # encore » pour les huit cas d'échec des cinq sondes — dont aucun ne le
+        # signifie, et dont le corps affiché juste en dessous disait « joignable ».
+        # Une catégorie inconnue (`None`, ou un verdict écrit avant la migration
+        # 086) retombe sur un titre qui n'affirme AUCUNE cause : le corps la porte.
+        heading, gesture = _VERDICT_HEADINGS.get(category, (None, True))
+        st.markdown("## " + (heading() if heading else t(
+            "credentials.verdict_ko",
+            "❌ {platform} : enregistré, mais la connexion n'est pas prouvée."
+        )).format(platform=label))
         if reason:
             st.error(reason)
-        st.markdown("### " + t(
-            "credentials.verdict_ko_what_now",
-            "Corrige ci-dessous puis **💾 Enregistre** à nouveau — on retestera "
-            "tout de suite."))
+        if gesture:
+            st.markdown("### " + t(
+                "credentials.verdict_ko_what_now",
+                "Corrige ci-dessous puis **💾 Enregistre** à nouveau — on retestera "
+                "tout de suite."))
         return
 
     # `ok is None` : rien à affirmer. Le dire vaut mieux qu'un ✅ optimiste, qui est
@@ -370,7 +452,7 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
     # Il a d'ailleurs survécu une heure de trop : le routeur avait cessé de le passer,
     # sa valeur par défaut `None` ne valait jamais `platform_key`, et le verdict ne
     # s'affichait plus du tout. Vu au navigateur, pas en relisant.
-    render_save_verdict(next_platform)
+    render_save_verdict(next_platform, db=db, artist_id=artist_id)
 
     def _render_form() -> None:
         """Le formulaire, extrait pour pouvoir vivre DANS une colonne.

@@ -11,6 +11,11 @@ import requests
 from src.utils.meta_config import META_GRAPH_BASE_URL
 from src.dashboard.utils.i18n import t
 from src.utils.tenant_identity import identity_is_well_formed, meta_ad_account_ids
+from src.utils.platform_probes import (  # la situation que cette sonde nomme
+    IDENTITY_MISSING,
+    UNREACHABLE,
+    tagged,
+)
 
 
 def _test_meta(fields: dict) -> tuple:
@@ -49,10 +54,10 @@ def _test_meta(fields: dict) -> tuple:
         # rien dire, et c'est le seul écran où l'artiste peut encore corriger.
         accounts = meta_ad_account_ids(fields)
         if not accounts:
-            return False, t("credentials.meta.account_missing",
+            return False, tagged(t("credentials.meta.account_missing",
                             "App Meta OK, mais ton **Ad Account ID** n'est pas renseigné — "
                             "sans lui aucune donnée ne peut être collectée. Il se lit dans "
-                            "l'URL du Gestionnaire de publicités, après `act=`.")
+                            "l'URL du Gestionnaire de publicités, après `act=`."), IDENTITY_MISSING)
         names = []
         for act_id in accounts:
             ok, detail = _probe_ad_account(act_id, token)
@@ -82,10 +87,10 @@ def _test_meta(fields: dict) -> tuple:
         # credential included — and _render.py renders it to the tenant with
         # st.error. A DNS blip was enough to show a non-admin the platform-wide
         # token (Meta, never expires) or the billable API key (YouTube).
-        return False, t("credentials.probe_network_error",
+        return False, tagged(t("credentials.probe_network_error",
                         "Erreur réseau ({err}) — réessaie dans un instant. Si ça "
                         "persiste, contacte l'administrateur.").format(
-                            err=type(e).__name__)
+                            err=type(e).__name__), UNREACHABLE)
 
 
 
@@ -174,12 +179,12 @@ def _test_instagram(fields: dict):
 
     ig_user_id = (fields.get('ig_user_id') or '').strip()
     if not ig_user_id:
-        return False, t(
+        return False, tagged(t(
             "credentials.meta.ig_id_missing",
             "Instagram Business Account ID manquant — renseigne-le dans l'onglet Meta "
             "(champ « Instagram Business Account ID »). Sans lui, aucune statistique "
             "Instagram ne peut être collectée."
-        )
+        ), IDENTITY_MISSING)
     token = (fields.get('access_token') or os.getenv('META_ACCESS_TOKEN') or '').strip()
     if not token:
         return False, t(
@@ -189,8 +194,8 @@ def _test_instagram(fields: dict):
     try:
         return _probe_instagram(ig_user_id, token)
     except Exception as e:  # noqa: BLE001 — a probe failure is a red verdict, not a crash
-        return False, t("credentials.meta.network_error_probe",
-                        "Erreur réseau pendant le test Instagram : {err}").format(err=e)
+        return False, tagged(t("credentials.meta.network_error_probe",
+                        "Erreur réseau pendant le test Instagram : {err}").format(err=e), UNREACHABLE)
 
 # ── L'assistant « je colle l'adresse, tu trouves mon numéro » ────────────────
 

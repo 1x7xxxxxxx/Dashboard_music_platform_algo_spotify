@@ -5,6 +5,122 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 10) — Le titre affirmait une cause que la sonde n'avait pas mesurée
+
+Sur **Credentials API → ☁️ SoundCloud**, après un enregistrement, trois affirmations
+sur le même écran :
+
+    ✅ Saisi   ✅ Format   ✅ Répond   🟢 Données
+    ## ❌ ☁️ SoundCloud : enregistré, mais la plateforme ne répond pas encore.
+       User ID 377065610 JOIGNABLE, mais aucun titre public n'y est rattaché…
+
+Le titre dit « ne répond pas ». Le corps du **même message** dit « joignable ».
+
+**Interrogé la base avant de conclure** : ce locataire porte **358 lignes** dans
+`soundcloud_tracks_daily`. Chacune des trois est vraie dans son référentiel — les
+pastilles lisent la base, la sonde lit l'API en direct, et ce profil n'a effectivement
+aucun titre public parce que ses sorties sont hébergées ailleurs et collectées par
+`fetch_claimed_tracks`. **Le seul énoncé faux du lot était le titre.**
+
+### Un rendu de booléen
+
+`ok is False` recouvre **huit situations réparties sur cinq sondes**, et l'écran les
+traduisait toutes par la même phrase. Aucune ne la justifie :
+
+| Sonde | Situation réelle |
+|---|---|
+| SoundCloud | HTTP **200**, mais zéro titre public |
+| YouTube | chaîne **trouvée**, zéro vidéo — jumeau exact |
+| YouTube | handle **résolu avec succès** → « colle `UC…` » |
+| Spotify / Meta / Instagram | l'app répond ; c'est l'identité qui manque |
+
+Le cas YouTube est le pire : un **succès** rendu comme une panne.
+
+Une sonde nomme donc sa situation (`unreachable`, `refused`, `not_found`,
+`identity_missing`, `nothing_to_collect`, `resolved`), et chaque situation a son titre
+— dont un `⚠️` qui n'est pas un ❌ — et dit si « corrige ci-dessous » a un sens. Il n'en
+a pas quand il n'y a rien à corriger dans ce formulaire.
+
+### Le même correctif, sur les deux surfaces qui l'avaient manqué
+
+La règle « une mesure qui a eu lieu bat une prédiction » vivait dans `_responds_cell`
+et sous le bouton « Tester ». Elle manquait aux **deux autres** surfaces :
+
+- le **verdict d'enregistrement**, celui que l'artiste voit sans rien cliquer ;
+- la colonne **« Prochaine étape »** de 📋 État de tes plateformes, qui écrasait
+  `next_action` par la raison de la sonde sans regarder le statut — or
+  `next_action(…, OK)` rend `""`, donc une ligne **entièrement verte** affichait
+  « aucun titre public » comme prochaine étape. Défaut jamais signalé, trouvé en
+  balayant.
+
+Quand la donnée tranche, le verdict devient ✅, le message de sonde reste **en dessous
+en avertissement** — jamais effacé, il peut nommer un vrai problème — et le parcours
+**avance** (`👉 Suivante`). Un artiste ne reste plus bloqué par une prédiction que sa
+propre collecte a démentie.
+
+### Le garde de la veille était vert sur ce défaut
+
+`test_a_failing_probe_yields_to_data_that_actually_landed`, écrit la veille pour cette
+classe exacte, demandait :
+
+    uses = [ … appels à _data_already_landed dans _render_platform_tab … ]
+    assert uses, "l'onglet n'utilise pas la réconciliation"
+
+**Un seul appel le satisfaisait.** Il y en avait un, sous le bouton « Tester ». La
+question n'est pas « est-ce utilisé ? » mais « **chaque** surface qui rend un verdict
+de sonde le consulte-t-elle ? ». Il énumère désormais les surfaces. La portée du garde
+était le défaut, pas son sujet — sixième fois.
+
+Deux autres trous fermés : `test_status_matrix.py` passait `{}` comme mémoire de
+sondes, donc la précédence `statut > sonde` n'était **jamais** exercée ; et
+`render_save_verdict` n'était couverte par **aucun** test (`grep` sur `tests/` : zéro).
+
+### Ce que le premier essai a coûté, et ce qu'il a appris
+
+La situation devait d'abord voyager en **troisième élément** du tuple. **30 tests
+rouges d'un coup** : `(ok, message)` est un contrat public, dépaqueté en **dix-neuf**
+endroits. Elle voyage donc **sur le message** (`tagged()` / `category_of()`, un `str`
+porteur d'attribut) — l'information appartient au « pourquoi », pas au verdict. Piège
+noté dans le code : toute opération de chaîne rend un `str` nu et **perd** l'étiquette,
+donc on étiquette en dernier, après `.format()` et après `clamp()`.
+
+Deux détails de méthode qui ont coûté du temps :
+
+- `end_col_offset` de l'AST est un offset **en octets UTF-8**. Ces fichiers sont pleins
+  d'accents : découper la `str` à cet index insère au mauvais endroit, **en silence**,
+  jusqu'à ce que ruff refuse.
+- `git checkout -- <fichier>` restaure depuis l'**index**, pas depuis HEAD. Les
+  fichiers ayant été `git add`és pour les mutations, la « restauration » rendait la
+  version déjà modifiée — et le script suivant ne trouvait plus rien à faire.
+
+### Migration et gardes
+
+Migration **086** : `tenant_platform_probe.category`, **nullable**, aucune reprise —
+les verdicts sont réécrits à chaque sonde. `read_probes` la lit et **retombe sur les
+quatre anciennes colonnes** si elle manque : son `except` transforme une mémoire
+illisible en « jamais mesuré », ce qui aurait vidé la colonne « Répond » sur une cible
+pas encore migrée.
+
+Huit mutations vues rouges, dont **deux qui étaient vertes au premier tour** : mes
+tests posaient la catégorie à la main et n'exerçaient jamais le chemin qui la
+fabrique. Retirer l'étiquette de la sonde SoundCloud, ou la laisser tomber dans
+`clamp()`, laissait la suite verte.
+
+Classe capitalisée : `headline-asserts-a-cause-the-probe-did-not-measure` (P2).
+
+### Deux constats inscrits, pas corrigés
+
+Sortis du balayage, hors périmètre — élargir un correctif est la façon dont on livre
+trois choses à moitié :
+
+- **R59** — `test_readiness_carries_the_live_diagnosis` verrouille « on ne sonde jamais
+  une plateforme verte », pendant que `test_saving_credentials_yields_a_verdict_now`
+  **exige** une sonde à chaque sauvegarde, inconditionnellement. La sonde qui a produit
+  ce ❌ n'aurait, selon la première règle, jamais dû tourner. Trancher demande un ADR.
+- **R60** — `_claimed_count` fait `except Exception: return 0`, et `0` aussi quand la
+  base est injoignable. Un échec de lecture bascule un cas légitime en `False` : il
+  **fabrique** exactement le « aucun titre public » de ce rapport.
+
 ## 2026-09-05 (suite 9) — Le choix avant le formulaire, et cinq commandes adressées à personne
 
 Sept demandes de parcours, un même fil : **la page montrait la réponse avant la

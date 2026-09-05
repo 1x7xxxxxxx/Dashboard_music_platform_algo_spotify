@@ -243,11 +243,26 @@ def test_a_failing_probe_yields_to_data_that_actually_landed():
         "propre idée de « des données sont arrivées », et les pastilles diraient "
         "autre chose")
 
-    fn = next(f for f in ast.walk(tree)
-              if isinstance(f, ast.FunctionDef) and f.name == "_render_platform_tab")
-    uses = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
-            and getattr(n.func, "id", "") == "_data_already_landed"]
-    assert uses, "l'onglet n'utilise pas la réconciliation"
+    # ÉLARGI le 2026-09-05. La version d'origine cherchait un appel « quelque part
+    # dans `_render_platform_tab` » et `assert uses` — donc UN SEUL appel suffisait.
+    # Il y en avait un, sous le bouton « Tester ». Le verdict d'ENREGISTREMENT, que
+    # l'artiste voit sans rien cliquer, n'en avait pas : il a affiché « ❌ … ne
+    # répond pas encore » à côté de 358 lignes réellement collectées. La question
+    # n'est pas « est-ce utilisé ? » mais « CHAQUE surface qui rend un verdict de
+    # sonde le consulte-t-elle ? ».
+    #
+    # Chaque nom listé rend un verdict issu de `probes` / `VERDICT_KEY`. Ajouter une
+    # troisième surface sans la réconciliation fait rougir ce test, pas la prod.
+    _VERDICT_SURFACES = ("_render_platform_tab", "render_save_verdict")
+    for name in _VERDICT_SURFACES:
+        fn = next((f for f in ast.walk(tree)
+                   if isinstance(f, ast.FunctionDef) and f.name == name), None)
+        assert fn is not None, f"{name} a disparu — la liste des surfaces est périmée"
+        uses = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+                and getattr(n.func, "id", "") == "_data_already_landed"]
+        assert uses, (
+            f"{name} rend un verdict de sonde sans demander si des données sont "
+            "arrivées : il contredira les pastilles, qui lisent la même source")
 
 
 def test_the_platform_name_is_written_only_when_two_rows_share_a_tab():
