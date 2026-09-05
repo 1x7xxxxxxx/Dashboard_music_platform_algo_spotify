@@ -15,10 +15,8 @@ EN = {
     "credentials.no_artist_id": "Unable to determine your artist identifier.",
     "credentials.fernet_missing": (
         "⚠️ `fernet_key` missing from `config/config.yaml`. "
-        "Saving is disabled. "
-        "Generate a key: "
-        "`python -c \"from cryptography.fernet import Fernet; "
-        "print(Fernet.generate_key().decode())\"`"
+        "Saving is disabled. Generate a key by pasting these lines into a "
+        "terminal opened at the project root:"
     ),
     "credentials.fetching_dag_status": "Fetching DAG status…",
     "credentials.identity_taken_admin": "🛠️ Held by artist #{other}.",

@@ -5,6 +5,65 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 8) — La page donnait une commande que le shell du lecteur ne peut pas lancer
+
+Arrivé sur « 🔑 Credentials API » sans clé de chiffrement, on lisait, en Markdown
+inline dans le corps du bandeau :
+
+    ⚠️ `fernet_key` absent de `config/config.yaml`. La sauvegarde est désactivée.
+    Générez une clé : `python -c "from cryptography.fernet import Fernet; …"`
+
+La commande est juste. Elle n'est pas **exécutable telle qu'affichée**, et pour deux
+raisons qu'aucune ligne du message n'énonçait : le seul interpréteur qui porte
+`cryptography` est celui du `venv/`, et sur ce poste le venv est un venv **Windows**
+(`venv/Scripts/`, aucun `venv/bin/`) que PowerShell refuse d'activer sous sa politique
+par défaut. Le lecteur colle, ça échoue, et rien ne dit laquelle des deux hypothèses
+tacites a lâché. Le Markdown inline ajoutait sa part : on repartait avec les backticks
+collés à la commande.
+
+La page rend désormais le bloc entier, dans l'ordre, en `st.code` copiable d'un clic :
+
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+    & C:\Users\…\venv\Scripts\Activate.ps1
+    python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+Trois décisions, chacune contre une classe déjà payée :
+
+- **La politique est portée par le processus**, jamais par la machine — `-Scope Process`
+  lève le refus pour ce shell et rien d'autre. Le bloc ne contient ni `CurrentUser` ni
+  `LocalMachine`, et un test l'affirme.
+- **Le venv est lu sur le disque**, jamais déduit de `sys.platform` : ce dépôt est
+  partagé entre WSL et Windows et n'en porte qu'un. Donc **aucun sélecteur d'OS** — il en
+  avait été retiré un de ces mêmes onglets le 2026-09-04, parce qu'il posait au lecteur
+  une question que le système de fichiers tranche.
+- `_windows_path()` réécrit `/mnt/c/...` en `C:\...` : la page est lue depuis PowerShell
+  même quand le processus qui la sert tourne sous WSL.
+
+**Le garde a failli refaire le défaut de la veille.** `venv/` est gitignoré : sur un
+runner les deux branches sont absentes, et un test qui aurait lu ce dépôt n'aurait
+jamais asserté que le repli — `guard-reads-the-box-not-its-subject`, corrigé douze
+heures plus tôt. `fernet_key_command_block(root=…)` prend donc sa racine en argument et
+chaque situation est **posée** sur un `tmp_path`. La lecture de `router.py` est
+structurelle (AST) et non textuelle, pour la raison inverse : le commentaire qui
+documente le correctif cite lui-même `python -c`, donc un `grep` resterait vert après
+régression (`guard-matches-its-own-comment`).
+
+Neuf tests, dont un qui **rejoue la page** sous `AppTest` en remplaçant `fernet_state`
+dans le module appelant — retirer la clé de `config/config.yaml` pour voir la bannière
+rendrait indéchiffrables les credentials déjà enregistrés. Six mutations vues rouges,
+`exit=1` puis `exit=0` restauré : ligne `ExecutionPolicy` retirée, commande remise en
+ligne dans le message, `st.code` supprimé, conversion `/mnt` cassée, branche venv POSIX
+supprimée, bloc non rendu.
+
+Classe capitalisée : `printed-command-assumes-a-shell-the-reader-does-not-have` (P3).
+Le catalogue EN portait la même commande non exécutable ; il a été corrigé avec le FR.
+
+**Ce qui reste dans la même famille, non traité ici** : six autres messages du dashboard
+impriment une commande à coller (`pip install pyotp qrcode[pil]`, `python3
+machine_learning/train.py`, `pip install lime`, `python airflow/debug_dag/…`,
+`streamlit run src/dashboard/app.py`). Aucun n'est sur le chemin d'un artiste qui
+s'inscrit ; ils supposent tous le même venv activé.
+
 ## 2026-09-05 (suite 7) — La CI rouge huit fois : le garde était juste, l'endroit ne l'était pas
 
 **Huit** runs consécutifs rouges sur `main` — pas trois. La série commence au commit

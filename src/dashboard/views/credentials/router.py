@@ -27,6 +27,7 @@ from src.dashboard.utils.setup_focus import (
 )
 
 from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
+                    fernet_key_command_block,
                     artist_display_name)
 from ._registry import PLATFORMS
 from ._render import VERDICT_KEY, _render_platform_tab
@@ -157,14 +158,20 @@ def show():
                 "ne se déchiffreraient plus. Répare celle-ci."
             ))
         elif _fernet_state == 'absent':
+            # Le message donnait la commande `python -c ...` seule, en Markdown inline.
+            # Elle n'est pas exécutable telle qu'affichée : le seul interpréteur qui a
+            # `cryptography` est celui du `venv/`, et PowerShell refuse `Activate.ps1`
+            # sous sa politique par défaut. Le bloc rend les trois lignes dans l'ordre,
+            # copiables d'un clic — et `st.code` évite que le lecteur reparte avec les
+            # backticks du Markdown collés à la commande.
             st.warning(t(
                 "credentials.fernet_missing",
                 "⚠️ `fernet_key` absent de `config/config.yaml`. "
-                "La sauvegarde est désactivée. "
-                "Générez une clé : "
-                "`python -c \"from cryptography.fernet import Fernet; "
-                "print(Fernet.generate_key().decode())\"`"
+                "La sauvegarde est désactivée. Générez une clé en collant ces "
+                "lignes dans un terminal ouvert à la racine du projet :"
             ))
+            _fernet_lang, _fernet_cmd = fernet_key_command_block()
+            st.code(_fernet_cmd, language=_fernet_lang)
 
         # ── Chargement credentials existants ─────────────────────────────
         existing = _load_credentials(db, target_artist_id)

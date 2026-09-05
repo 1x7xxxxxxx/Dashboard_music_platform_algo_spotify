@@ -251,6 +251,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [exempt-row-hides-others-conflict](#exempt-row-hides-others-conflict) | P2 | deterministic | guarded | none |
 | [ci-gate-with-no-local-counterpart](#ci-gate-with-no-local-counterpart) | P3 | deterministic | guarded | none |
 | [guard-reads-the-box-not-its-subject](#guard-reads-the-box-not-its-subject) | P2 | deterministic | guarded | none |
+| [printed-command-assumes-a-shell-the-reader-does-not-have](#printed-command-assumes-a-shell-the-reader-does-not-have) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3307,3 +3308,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: `guarded`. Signature vue `exit=1` sur le défaut (le test d'origine remis par `git stash`, `FAILED …::test_the_sandbox_default_address_is_deliverable`) et `exit=0` après — dans les deux sens, sans toucher au `.env` du disque. Portée mesurée avant de figer : 39 fichiers, 842 tests, ~41 s, verdict identique dans les deux conditions une fois corrigé — la classe n'avait qu'un site. Le repli `@sandbox.local` de `tools/create_sandbox.py` est conservé volontairement : le site d'appel l'avertit déjà en toutes lettres, et deux tests neufs épinglent l'alias d'alias et l'adresse d'opérateur morte, deux branches que rien n'atteignait.
+
+## printed-command-assumes-a-shell-the-reader-does-not-have
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une page donne au lecteur une commande à coller, il la colle, elle échoue — et rien dans le message ne dit laquelle des deux hypothèses tacites a lâché. La commande est juste ; le shell dans lequel elle est lue n'a ni l'interpréteur ni le droit d'exécution qu'elle suppose.
+- root_cause: la bannière `credentials.fernet_missing` (`src/dashboard/views/credentials/router.py`, page « 🔑 Credentials API ») affichait `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` en code Markdown inline, dans le corps du `st.warning`. Deux hypothèses non écrites : que `python` soit celui du `venv/` — seul à porter `cryptography` — et que le shell puisse l'activer. Sur ce poste le venv est un venv Windows (`venv/Scripts/`, aucun `venv/bin/`) et PowerShell refuse `Activate.ps1` sous sa politique par défaut. La commande était donc **non exécutable telle qu'affichée**, et le Markdown inline faisait en plus repartir le lecteur avec les backticks collés à la commande.
+- signature: `python3 -m pytest tests/test_a_printed_command_is_runnable_as_printed.py -q`
+- long_term_fix: `fernet_key_command_block()` (`_core.py`) rend `(langage, bloc)` — les lignes complètes, dans l'ordre, y compris `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` puis `& <racine>\venv\Scripts\Activate.ps1`, la politique portée par le **processus** et jamais par la machine. Le venv est **lu sur le disque**, jamais déduit de `sys.platform` : le dépôt est partagé entre WSL et Windows et ne porte qu'un `venv/`. Pas de sélecteur d'OS — il en avait été retiré un de ces onglets le 2026-09-04 parce qu'il posait au lecteur une question que le système de fichiers tranche. Le rendu passe par `st.code`, pas par du Markdown. `_windows_path()` réécrit `/mnt/c/...` en `C:\...` : la page est lue depuis PowerShell même quand le processus tourne sous WSL.
+- autofix: none
+- guard: { type: test, ref: tests/test_a_printed_command_is_runnable_as_printed.py }
+- rex_ref: src/dashboard/views/credentials/router.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: `guarded`. `root` est **injectable** dans `fernet_key_command_block` pour une raison mesurée la veille : `venv/` est gitignoré, donc sur un runner les deux branches sont absentes et un garde qui lirait ce dépôt n'asserterait jamais que le repli — c'est exactement `guard-reads-the-box-not-its-subject`. Chaque situation est POSÉE sur un `tmp_path`. Lecture de `router.py` **structurelle** (AST), pas textuelle : le commentaire qui documente le correctif cite lui-même `python -c`, donc un `grep` resterait vert après régression (`guard-matches-its-own-comment`). Six mutations vues rouges : ligne `ExecutionPolicy` retirée, commande remise en ligne dans le message, `st.code` supprimé, conversion `/mnt` cassée, branche venv POSIX supprimée, bloc non rendu (`exit=1`, puis `exit=0` restauré). Un neuvième test **rejoue la page** sous `AppTest` en remplaçant `fernet_state` dans le module appelant — retirer la clé de `config/config.yaml` pour voir la bannière rendrait indéchiffrables les credentials déjà enregistrés.
