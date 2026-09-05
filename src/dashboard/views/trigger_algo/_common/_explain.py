@@ -213,8 +213,12 @@ def _show_lime_explanation(ml_pred: dict | None) -> None:
                          "Contribution locale de chaque condition à la proba DW "
                          "(complément du SHAP waterfall — vue par perturbation)."))
         except ImportError:
+            # `pip install lime` s'adressait à un artiste, sur un module absent du
+            # SERVEUR. Cette explication est un complément du SHAP juste au-dessus :
+            # son absence ne lui coûte rien, et ne lui demande rien.
             st.caption(t("trigger_algo.common.lime_not_installed",
-                         "Module `lime` non installé — `pip install lime`."))
+                         "Explication complémentaire indisponible ici — "
+                         "le graphe SHAP ci-dessus donne la même lecture."))
         except Exception as e:
             st.caption(t("trigger_algo.common.lime_unavailable",
                          "LIME indisponible : {err}").format(err=e))

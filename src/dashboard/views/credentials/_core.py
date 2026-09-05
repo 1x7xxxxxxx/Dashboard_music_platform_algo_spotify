@@ -9,8 +9,6 @@ Pure relocation from the former credentials.py — no logic change.
 """
 import json
 import logging
-import re
-from pathlib import Path
 
 from src.utils.config_loader import config_loader
 from src.utils.tenant_identity import PLATFORM_IDENTITIES, storage_platform
@@ -116,52 +114,21 @@ def fernet_state() -> str:
     return 'ok'
 
 
-def _windows_path(path) -> str:
-    """`/mnt/c/x` → `C:\\x`. Identity on a real Windows interpreter.
-
-    The dashboard is launched from PowerShell on this box (`venv/Scripts/python.exe`,
-    Makefile `check-env`), but the same checkout is read from WSL, where `__file__` is a
-    `/mnt/<drive>/` path. A block that pastes `/mnt/c/...` into PowerShell does not run.
-    """
-    text = str(path)
-    m = re.match(r"^/mnt/([a-zA-Z])/(.*)$", text)
-    if m:
-        return f"{m.group(1).upper()}:\\" + m.group(2).replace("/", "\\")
-    return text
-
-
 def fernet_key_command_block(root=None) -> tuple:
     """`(language, block)` — the lines to paste to generate a Fernet key HERE.
 
     The bare `python -c "from cryptography.fernet import Fernet; ..."` the banner used
-    to print is not runnable as written: the only interpreter carrying `cryptography` is
-    the one inside `venv/`, and on Windows PowerShell refuses `Activate.ps1` under its
-    default execution policy (`RemoteSigned` scoped to the process lifts it for that
-    shell only, without touching the machine).
-
-    Which venv is on disk is READ, never guessed from `sys.platform` — this checkout is
-    shared between WSL and Windows and carries exactly one `venv/`. No OS selector: one
-    was removed from these tabs on 2026-09-04 because it asked the reader a question the
-    filesystem already answers.
-
-    `root` exists for the guard: `venv/` is gitignored, so on a runner both branches are
-    absent and a test reading this checkout would only ever assert the fallback — the
-    shape of `guard-reads-the-box-not-its-subject`, found on 2026-09-05.
+    to print is not runnable as written: the only interpreter carrying `cryptography`
+    is the one inside `venv/`. The activation prelude — and the reason PowerShell needs
+    `-Scope Process` first — lives in `utils.shell_block`, which is the single builder
+    for every command this app prints. A second copy diverges.
     """
-    gen = ('python -c "from cryptography.fernet import Fernet; '
-           'print(Fernet.generate_key().decode())"')
-    root = Path(__file__).resolve().parents[4] if root is None else Path(root)
-    ps1 = root / "venv" / "Scripts" / "Activate.ps1"
-    posix = root / "venv" / "bin" / "activate"
-    if ps1.exists():
-        return "powershell", (
-            "Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned\n"
-            f"& {_windows_path(ps1)}\n"
-            f"{gen}"
-        )
-    if posix.exists():
-        return "bash", f"source {posix}\n{gen}"
-    return "bash", gen
+    from src.dashboard.utils.shell_block import command_block
+    return command_block(
+        'python -c "from cryptography.fernet import Fernet; '
+        'print(Fernet.generate_key().decode())"',
+        root,
+    )
 
 
 def _encrypt_secrets(secrets: dict) -> str:

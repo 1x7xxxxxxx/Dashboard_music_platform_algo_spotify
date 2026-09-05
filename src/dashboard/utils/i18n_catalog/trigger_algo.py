@@ -407,7 +407,8 @@ EN = {
         "The white bar locates your track; n = sample size per bracket."
     ),
     "trigger_algo.common.pi_tables_unavailable": (
-        "PI threshold tables unavailable — run `python3 machine_learning/train.py`."
+        "The algorithmic gates have not been computed for your catalogue yet. "
+        "They will appear after the next run — nothing to do on your side."
     ),
     "trigger_algo.common.pi_predicted_metric": "Predicted Popularity Index",
     "trigger_algo.common.pi_predicted_help": (
@@ -570,7 +571,10 @@ EN = {
         "Local contribution of each condition to the DW probability "
         "(complements the SHAP waterfall — a perturbation-based view)."
     ),
-    "trigger_algo.common.lime_not_installed": "`lime` module not installed — `pip install lime`.",
+    "trigger_algo.common.lime_not_installed": (
+        "Complementary explanation unavailable here — the SHAP chart above "
+        "gives the same reading."
+    ),
     "trigger_algo.common.lime_unavailable": "LIME unavailable: {err}",
     "trigger_algo.common.band_p25_p75": "P25–P75 (cohort)",
     "trigger_algo.common.band_median": "Cohort median",

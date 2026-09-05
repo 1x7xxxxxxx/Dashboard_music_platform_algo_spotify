@@ -59,7 +59,7 @@ PLATFORMS = {
         'fields': [
             {'key': 'spotify_artist_id', 'label': 'URL profil artiste',
              'secret': False,
-             'example': 'https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4'},
+             'example': 'https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV'},
             {'key': 'client_id',     'label': 'Client ID (surcharge)',     'secret': False, 'admin_only': True},
             {'key': 'client_secret', 'label': 'Client Secret (surcharge)', 'secret': True, 'admin_only': True},
         ],

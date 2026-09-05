@@ -23,10 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from src.dashboard.views.credentials._core import (
-    _windows_path,
-    fernet_key_command_block,
-)
+from src.dashboard.utils.shell_block import windows_path as _windows_path
+from src.dashboard.views.credentials._core import fernet_key_command_block
 
 _CREDENTIALS = Path(__file__).resolve().parents[1] / "src/dashboard/views/credentials"
 _ROUTER = _CREDENTIALS / "router.py"
@@ -171,8 +169,20 @@ def test_the_page_actually_shows_the_block_when_the_key_is_missing():
 
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_string(_RENDER_SCRIPT.format(root=os.getcwd()))
-    at.run(timeout=120)
+    # `AppTest.from_string` partage `sys.modules` avec le processus de test : le
+    # `router.fernet_state = …` du script est une mutation de MODULE, pas une
+    # variable locale, et elle survit à la fin du test. Sans cette restauration,
+    # toute la suite d'après rendait la page credentials avec la bannière « clé
+    # absente » — `test_the_platform_buttons_are_the_first_line_of_the_page` est
+    # tombé pour ça, et seulement dans la grande exécution. Une suite de tests a un
+    # rayon de souffle.
+    import src.dashboard.views.credentials.router as _router
+    _original = _router.fernet_state
+    try:
+        at = AppTest.from_string(_RENDER_SCRIPT.format(root=os.getcwd()))
+        at.run(timeout=120)
+    finally:
+        _router.fernet_state = _original
     assert not at.exception, at.exception
 
     blocks = [c for c in at.code if "Fernet.generate_key" in c.value]
@@ -187,3 +197,73 @@ def test_the_page_actually_shows_the_block_when_the_key_is_missing():
     # divergent, et c'est celle du Markdown que le lecteur attrapait avec ses
     # backticks.
     assert not any("python -c" in w.value for w in at.warning)
+
+
+# ── Personne à qui la commande ne sert ────────────────────────────────────────
+# Le correctif ci-dessus rend une commande exécutable. Il ne dit pas si elle DOIT
+# être montrée. Trois pages en imprimaient une à un ARTISTE, sur des dépendances du
+# SERVEUR : `pip install pyotp qrcode[pil]` (page Compte), `python3
+# machine_learning/train.py` (portes PI), `pip install lime` (explication SHAP).
+# Aucune n'était exécutable par qui la lisait — la rendre runnable n'y aurait rien
+# changé. Elles ont été retirées, pas réparées (classe voisine
+# `the-app-speaks-its-own-plumbing`).
+#
+# Lecture par AST : les commentaires qui expliquent CE retrait citent eux-mêmes les
+# commandes retirées, donc un `grep` serait rouge sur sa propre documentation.
+
+_DASHBOARD = Path(__file__).resolve().parents[1] / "src/dashboard"
+
+# Les seuls textes qui peuvent porter une commande, avec la raison. `useful_links`
+# est admin-only (`_ADMIN_ONLY` dans `app.py`) et sa ligne DÉCRIT le service qu'on
+# est en train de regarder — elle n'appelle aucun geste.
+_COMMAND_ALLOWED = {
+    "src/dashboard/views/useful_links.py",
+    "src/dashboard/utils/i18n_catalog/useful_links.py",
+}
+
+_COMMAND_MARKERS = ("`pip install", "`python ", "`python3 ", "`streamlit run",
+                    "`uv ", "`docker ")
+
+
+def test_no_string_shown_to_an_artist_carries_a_command():
+    root = _DASHBOARD.parents[1]
+    offenders = []
+    for path in sorted(list((_DASHBOARD / "views").rglob("*.py"))
+                       + list((_DASHBOARD / "utils/i18n_catalog").rglob("*.py"))):
+        rel = path.relative_to(root).as_posix()
+        if rel in _COMMAND_ALLOWED:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # Un docstring est une constante pour l'AST et ne s'affiche à personne.
+        # Celui de `fernet_key_command_block` cite la commande qu'il a justement
+        # sortie du texte : le compter rendrait le garde rouge sur sa propre
+        # explication (`guard-matches-its-own-comment`).
+        docstrings = {
+            id(n.body[0].value)
+            for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.ClassDef,
+                              ast.FunctionDef, ast.AsyncFunctionDef))
+            and n.body and isinstance(n.body[0], ast.Expr)
+            and isinstance(n.body[0].value, ast.Constant)
+            and isinstance(n.body[0].value.value, str)
+        }
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and id(node) not in docstrings):
+                if any(m in node.value for m in _COMMAND_MARKERS):
+                    offenders.append(f"{rel}:{node.lineno} — {node.value[:70]!r}")
+    assert not offenders, (
+        "des textes de page portent une commande à coller ; si le lecteur est un "
+        "artiste, elle ne s'adresse à personne, et si c'est un admin elle passe par "
+        "`utils.shell_block.command_block` en `st.code` :\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_the_single_builder_is_the_one_that_prepends_the_prelude():
+    """`shell_block` est le SEUL constructeur : une deuxième copie diverge."""
+    from src.dashboard.utils.shell_block import command_block, venv_prelude
+
+    lang, prelude = venv_prelude(Path(__file__).resolve().parents[1])
+    lang2, block = command_block("echo hi", Path(__file__).resolve().parents[1])
+    assert lang == lang2
+    assert block.splitlines() == [*prelude, "echo hi"]

@@ -252,7 +252,11 @@ def show():
         # là), et de commencer par SoundCloud (c'est l'ORDRE des onglets qui le dit
         # depuis le 2026-09-05 — et il dit Spotify, ce que le bandeau contredisait).
 
-        st.markdown("---")
+        # Aucune règle horizontale entre le titre et les boutons. Demandé le
+        # 2026-09-05 : « la première ligne visible doit être celle des boutons ».
+        # La barre de plateformes était prise en sandwich entre deux `---` — deux
+        # traits qui séparent ce qui va ensemble et font descendre la seule chose
+        # à cliquer. « Ça rajoute des trucs pour rien. »
 
         # ── Onglets plateforme ────────────────────────────────────────────
         # L'ordre EST la sélection : `st.tabs` ouvre toujours le premier onglet et

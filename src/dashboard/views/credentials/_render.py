@@ -314,8 +314,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         # où il est lisible pour les six sources d'un coup au lieu d'une à la fois.
         existing_values = {}
 
-    st.markdown("---")
-
     # ── DEUX COLONNES : la saisie à gauche, son mode d'emploi à droite ─────
     #
     # Le guide vivait SOUS le formulaire, replié. Deux conséquences, signalées le
@@ -400,7 +398,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
         if platform_key == 'meta':
             from ._platform_meta import render_ad_account_picker
             render_ad_account_picker(artist_id)
-            st.markdown("---")
 
         # ── Formulaire standard (toutes plateformes) ─────────────────────
         with st.form(f"cred_{platform_key}_{artist_id}"):
@@ -421,8 +418,13 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                     "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
                 ))
             else:
+                # L'en-tête NOMME sa plateforme. « On ne sait pas sur quelle
+                # plateforme » (2026-09-05) : la barre de boutons dit laquelle est
+                # ouverte, mais elle est en haut, et c'est ici qu'on regarde en
+                # commençant à taper. Le libellé du registre porte déjà son icône.
                 st.markdown("### :orange-background[👉 "
-                            + t("credentials.form.enter", "Saisir tes identifiants") + "]")
+                            + t("credentials.form.enter", "Saisir tes identifiants")
+                            + f" — {platform_info.get('label', platform_key)}" + "]")
                 # Rien sous le titre. « 🔒 Chiffrés à l'enregistrement. C'est la seule
                 # action à faire sur cette page. » disait deux choses justes et
                 # inutiles ici : le chiffrement, que personne ne vérifie au moment de
@@ -521,7 +523,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
 
         # Le guide, SOUS le formulaire et sur toute la largeur : texte à gauche,
         # capture à droite, en face du texte qui la décrit.
-        st.markdown("---")
 
     if _shots:
         _render_form()
@@ -536,7 +537,6 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
 
     # ── Test de connexion (hors form) ─────────────────────────────────
     if existing_row and platform_key in CONNECTION_TESTS:
-        st.markdown("---")
         if st.button(
             t("credentials.test_button", "🔌 Tester la connexion"),
             key=f"test_{platform_key}_{artist_id}",

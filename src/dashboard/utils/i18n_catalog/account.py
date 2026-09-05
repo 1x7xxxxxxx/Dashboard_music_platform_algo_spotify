@@ -50,7 +50,10 @@ EN = {
     "account.totp_disabled": "✅ 2FA disabled. You can re-enable it at any time.",
     "account.totp_intro": "Protect your account with a time-based one-time password (TOTP). "
                           "Compatible with Google Authenticator, Authy, and similar apps.",
-    "account.totp_pkg_missing": "Required packages not installed: `pip install pyotp qrcode[pil]`",
+    "account.totp_unavailable": (
+        "Two-factor authentication is temporarily unavailable. Let the "
+        "administrator know — there is nothing to do on your side."
+    ),
     "account.totp_scan_caption": "Scan with your authenticator app",
     "account.totp_manual_key": "**Manual entry key:**",
     "account.totp_manual_caption": "Enter this key manually in your app if you cannot scan the QR code.",

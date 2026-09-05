@@ -141,10 +141,17 @@ def _render_uncollected_notice(uncollected: pd.DataFrame) -> None:
                     "🛠️ Rechargeable par une collecte full-history (qui re-récupère la "
                     "config des ads, pas seulement les insights) : Airflow → "
                     "`meta_ads_api_daily` → *Trigger DAG w/ config* "
-                    "`{{\"full_history\": true}}`, ou en local "
-                    "`python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`. "
+                    "`{{\"full_history\": true}}`. "
                     "Réserves : les publicités doivent exister encore côté Meta, et Meta "
                     "ne conserve les insights que ~37 mois."))
+                # La variante locale sortait du texte en Markdown inline, sans son
+                # préambule d'activation : le venv est le seul interpréteur qui porte
+                # les dépendances, et PowerShell refuse `Activate.ps1` par défaut.
+                from src.dashboard.utils.shell_block import command_block
+                _lang, _cmd = command_block(
+                    "python airflow/debug_dag/debug_meta_ads_api.py "
+                    "--full-history --write")
+                st.code(_cmd, language=_lang)
         col_spend = t("meta_creatives.col_campaign_spend", "Dépense campagne (€)")
         st.dataframe(
             df.rename(columns={

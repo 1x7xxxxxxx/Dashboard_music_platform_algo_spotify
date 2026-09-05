@@ -676,9 +676,14 @@ def show_user_sidebar(plan: str | None = None):
     role      = st.session_state.get('role', 'artist')
     artist_id = st.session_state.get('artist_id')
 
-    role_label = (_t("auth.role_admin", "👑 Admin") if role == 'admin'
-                  else _t("auth.role_artist", "🎤 Artiste"))
-    st.sidebar.markdown(f"**{role_label}** — {name}")
+    # « 🎤 Artiste — <son adresse> » retiré le 2026-09-05 (« ça ne sert à rien ») :
+    # il répond à une question que l'artiste ne se pose pas — il vient de se
+    # connecter, il sait qui il est, et son adresse ne lui apprend rien. La ligne
+    # reste pour l'ADMIN, qui bascule d'un locataire à l'autre : chez lui elle dit
+    # quelle identité est chargée, pas la sienne, et c'est le seul repère avec
+    # `artist_id`.
+    if role == 'admin':
+        st.sidebar.markdown(f"**{_t('auth.role_admin', '👑 Admin')}** — {name}")
 
     # Le plan, collé à l'identité qu'il qualifie. Indicatif, jamais masquant : les
     # entrées Premium restent visibles avec un 🔒 (montée en gamme, pas mur).

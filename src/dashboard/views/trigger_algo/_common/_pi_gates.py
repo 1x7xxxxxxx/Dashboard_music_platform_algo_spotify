@@ -30,8 +30,13 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
     ))
     tables = _load_threshold_tables()
     if not tables:
+        # « lancer `python3 machine_learning/train.py` » : personne qui lit cette page
+        # ne peut le faire — c'est une page artiste, et l'entraînement tourne chez
+        # nous. Le message nomme maintenant ce que l'artiste peut en conclure.
         show_empty_state(t("trigger_algo.common.pi_tables_unavailable",
-                           "Tables de seuils PI indisponibles — lancer `python3 machine_learning/train.py`."))
+                           "Les portes algorithmiques ne sont pas encore calculées "
+                           "pour ton catalogue. Elles apparaîtront après le prochain "
+                           "calcul — rien à faire de ton côté."))
         return
 
     pi = ml_pred.get("pi_forecast_7d") if ml_pred else None

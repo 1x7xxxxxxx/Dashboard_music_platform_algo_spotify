@@ -5,6 +5,108 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 9) — Le choix avant le formulaire, et cinq commandes adressées à personne
+
+Sept demandes de parcours, un même fil : **la page montrait la réponse avant la
+question**, et parlait à un lecteur qui n'était pas là.
+
+### La page Credentials
+
+« On arrive directement sur *Saisir tes identifiants* mais on ne sait pas sur quelle
+plateforme. » La barre de plateformes était pourtant là — prise en sandwich entre deux
+règles horizontales, sous le titre. Relevé sur l'arbre rendu, pas déduit :
+
+    Title      🔑 Credentials API + imports CSV
+    Markdown   ---
+    ButtonGroup spotify          ← le seul endroit où l'on choisit
+    Markdown   ---
+    Markdown   ### 👉 Saisir tes identifiants
+
+Deux traits qui séparent ce qui va ensemble et repoussent la seule chose à cliquer.
+Les cinq `---` de cette page sont partis (un dans `router.py`, quatre dans
+`_render.py`, dont celui de l'assistant Meta et celui du test de connexion) — « ça
+rajoute des trucs pour rien ». La barre de boutons est maintenant la première ligne
+sous le titre, et l'en-tête de saisie **nomme sa plateforme** : `👉 Saisir tes
+identifiants — 🎵 Spotify`. C'est la moitié de la remarque que le réordonnancement
+seul ne réglait pas : on regarde le champ, pas le haut de la page.
+
+L'exemple d'URL n'est plus le profil de Drake mais celui de **FJAAK**
+(`4qG1qjeHfkASTdyRGbLWbV`), sur les trois sites qui le portaient — guides FR et EN, et
+le registre. L'identifiant vient d'une requête à l'API Spotify, pas de mémoire.
+
+### La barre latérale
+
+« 🎤 Artiste — 1x7…+sandbox@gmail.com » retiré : il répond à une question que
+l'artiste ne se pose pas — il vient de se connecter, et son adresse ne lui apprend
+rien. La ligne **reste pour l'admin**, chez qui elle dit quel locataire est chargé,
+pas qui il est.
+
+« 🟢 n en ligne · 👥 n artistes » est remise **au-dessus du logo**. Le premier essai a
+échoué en silence, et c'est le point intéressant : la décision « barre nue ? » dépend
+de la page, résolue plus bas, donc un `st.container()` réserve la place et on la
+remplit après. Sauf que `show_live_activity_sidebar()` appelait
+`st.sidebar.caption(...)`, qui **ignore le `with`** de l'appelant — le conteneur
+restait vide et la ligne repassait sous le logo. La fonction prend maintenant sa cible
+en argument. Seul l'arbre rendu l'a montré ; la lecture du code disait le contraire.
+
+### Cinq commandes, triées par lecteur
+
+Prolongement de la suite 8, sur proposition acceptée. Le balayage a trouvé cinq autres
+textes imprimant une commande — et le constat ne trie pas par forme mais par **qui
+lit** :
+
+- **trois s'adressaient à un artiste sur des dépendances du serveur** — `pip install
+  pyotp qrcode[pil]` (page Compte), `python3 machine_learning/train.py` (portes PI),
+  `pip install lime` (sous le SHAP). Les rendre exécutables n'aurait rien changé :
+  personne qui les lit ne peut les lancer. **Retirées**, remplacées par ce que le
+  lecteur peut en conclure — « préviens l'administrateur, il n'y a rien à faire de ton
+  côté » ;
+- **une était déjà `is_admin()`-gardée** (`meta_creatives`) : sa variante locale passe
+  par le constructeur commun et sort avec son préambule d'activation ;
+- **une décrit le service qu'on regarde** (`useful_links`, page admin-only) et
+  n'appelle aucun geste — conservée, seule entrée de l'allowlist du garde.
+
+Le préambule est construit **une seule fois**, dans
+`src/dashboard/utils/shell_block.py` ; `fernet_key_command_block` y délègue. Une
+deuxième copie diverge, et le lecteur reçoit celle de la page qu'il a ouverte.
+
+### Les gardes
+
+Dix-sept tests, deux fichiers. Le balayage AST **exclut les docstrings** : celui de
+`fernet_key_command_block` cite la commande qu'il vient justement de sortir du texte,
+et le garde était rouge sur sa propre explication au premier jet.
+
+`test_the_choice_comes_before_the_form.py` rend `_main_body()` **en entier** — le
+harnais render-smoke appelle chaque `show()` isolément et ne rend jamais la barre avec
+la vue, ce qui a déjà laissé passer deux causes racines de navigation à travers 3755
+tests verts. Il descend l'**arbre** et non la liste plate : itérer `at.sidebar` donne
+l'ordre des *appels*, pas celui de l'écran — et c'est exactement ce qu'on vérifie.
+
+Cinq mutations vues rouges (`exit=1`, `exit=0` restauré) : règle remise, en-tête
+anonyme, ligne live sous le logo, identité artiste réaffichée, commande réadressée à
+un artiste. La première est passée verte au premier essai **parce que le `sed` ne
+s'était pas appliqué** — rejouée en vérifiant l'insertion, elle est rouge.
+
+### Ce que la grande exécution a trouvé et l'exécution isolée cachait
+
+Deux rouges apparus **seulement** dans la suite complète, aucun visible fichier par
+fichier.
+
+Le premier était **mon propre test de la suite 8**. `AppTest.from_string` partage
+`sys.modules` avec le processus de test : le `router.fernet_state = lambda: 'absent'`
+de son script est une mutation de **module**, pas une variable locale, et elle
+survivait au test. Toute la suite d'après rendait la page Credentials avec la bannière
+« clé absente » — donc un `st.warning` et un `st.code` **avant** la barre de
+plateformes, et le garde neuf tombait. Restauration en `finally`. Une suite de tests a
+un rayon de souffle, et il ne s'arrête pas au fichier.
+
+Le second était mécanique et juste : `test_the_shipped_guide_is_the_current_guide`
+refusait des PDF construits avant le changement d'URL d'exemple. `make guide` les
+reconstruit avec leur empreinte, dans le même geste — c'est le remède que le test
+nomme.
+
+4104 tests verts avec la base réelle montée.
+
 ## 2026-09-05 (suite 8) — La page donnait une commande que le shell du lecteur ne peut pas lancer
 
 Arrivé sur « 🔑 Credentials API » sans clé de chiffrement, on lisait, en Markdown

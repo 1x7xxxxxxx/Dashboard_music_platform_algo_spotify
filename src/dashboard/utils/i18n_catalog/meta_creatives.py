@@ -1,7 +1,7 @@
 """EN strings for the Meta Ads creatives view."""
 
 EN = {
-    'meta_creatives.uncollected_admin': '🛠️ Recoverable with a full-history collection (which re-fetches the ad config, not only the insights): Airflow → `meta_ads_api_daily` → *Trigger DAG w/ config* `{{"full_history": true}}`, or locally `python airflow/debug_dag/debug_meta_ads_api.py --full-history --write`. Caveats: the ads must still exist on Meta\'s side, and Meta only keeps insights ~37 months.',
+    'meta_creatives.uncollected_admin': '🛠️ Recoverable with a full-history collection (which re-fetches the ad config, not only the insights): Airflow → `meta_ads_api_daily` → *Trigger DAG w/ config* `{{"full_history": true}}`. Caveats: the ads must still exist on Meta\'s side, and Meta only keeps insights ~37 months.',
     "meta_creatives.title": "🎨 Meta Ads Creatives",
     "meta_creatives.subtitle": (
         "Your creatives ranked by CPR — based on Meta Ads API data (meta_ads × meta_insights)."

@@ -33,7 +33,7 @@ _SPOTIFY = PlatformCred(
     ),
     fields=(
         CredField("Artist profile URL",
-                  "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
+                  "https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV",
                   note="paste the full URL of your artist page — we extract the id"),
     ),
     admin_note=(

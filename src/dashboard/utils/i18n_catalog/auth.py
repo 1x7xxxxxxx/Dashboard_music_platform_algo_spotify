@@ -50,7 +50,6 @@ EN = {
                             "`docker-compose up -d`"),
     # Sidebar user block
     "auth.role_admin": "👑 Admin",
-    "auth.role_artist": "🎤 Artist",
     "auth.global_access": "Global access (all artists)",
     "auth.logout": "Logout",
     # Paywall

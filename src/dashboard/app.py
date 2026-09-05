@@ -634,8 +634,15 @@ def show_navigation_menu(role: str = 'artist'):
     page, rendered, all_skeys = resolve_nav_page(role)
     return render_navigation(role, rendered, all_skeys)
 
-def show_live_activity_sidebar():
-    """Live Activity counters in the sidebar — visible on every page."""
+def show_live_activity_sidebar(container=None):
+    """Live Activity counters in the sidebar — visible on every page.
+
+    `container` is where to write. Sans lui, cette fonction appelait
+    `st.sidebar.caption(...)`, qui écrit à la position courante de la barre et
+    **ignore le `with`** de l'appelant : le conteneur réservé au-dessus du logo
+    restait vide et la ligne repassait dessous. Vérifié dans l'arbre rendu, pas
+    déduit.
+    """
     try:
         from src.dashboard.utils import project_db
         from src.dashboard.utils.live_pulse import get_live_pulse
@@ -648,8 +655,9 @@ def show_live_activity_sidebar():
     # décision : il occupait le haut de la barre latérale, au-dessus de la
     # navigation, pour une information d'ambiance. Une ligne de caption, au-dessus
     # du logo. Le poids visuel suit ce que la chose change pour l'artiste.
-    st.sidebar.caption(t("app.live_line", "🟢 {live} en ligne · 👥 {total} artistes")
-                       .format(live=f"{live:,}", total=f"{registered:,}"))
+    (container or st.sidebar).caption(
+        t("app.live_line", "🟢 {live} en ligne · 👥 {total} artistes")
+        .format(live=f"{live:,}", total=f"{registered:,}"))
 
 
 # The DAGs the collection button fires, in the order an artist reads them.
@@ -1000,6 +1008,13 @@ def _main_body():
     # `show_live_activity_sidebar()` est descendu APRÈS la résolution de la page :
     # la décision « barre nue ? » dépend de la page, et elle était appelée avant que
     # la page soit connue.
+    # La ligne « 🟢 n en ligne · 👥 n artistes » est REMISE, au-dessus du logo
+    # (2026-09-05). Elle ne peut pas être APPELÉE ici : la décision « barre nue ? »
+    # dépend de la page, qui n'est résolue que plus bas. Un conteneur réserve donc
+    # sa place maintenant et elle y est écrite après — Streamlit rend un conteneur
+    # là où il a été créé, pas là où il est rempli. Sans lui, la ligne repassait
+    # sous le logo à chaque tentative de la remonter.
+    _live_slot = st.sidebar.container()
     _sb_logo = logo_html(variant="adaptive", max_width=220)
     if _sb_logo:
         st.sidebar.markdown(_sb_logo, unsafe_allow_html=True)
@@ -1050,7 +1065,7 @@ def _main_body():
         # Pendant la mise en route, la langue se choisit SUR la page (bloc 0) : deux
         # sélecteurs pour un réglage se réécrivent l'un l'autre.
         language_selector()
-        show_live_activity_sidebar()
+        show_live_activity_sidebar(_live_slot)
         show_user_sidebar(get_artist_plan())
 
     # Première connexion : la mise en route, et rien d'autre.

@@ -157,7 +157,7 @@ _SPOTIFY = PlatformCred(
         # « Spotify Artist ID ou URL profil » offrait un choix qui n'en est pas un :
         # on ne colle jamais l'ID, on colle l'URL, et le code en extrait l'ID.
         CredField("URL profil artiste",
-                  "https://open.spotify.com/artist/3TVXtAsR1Inumwj472S9r4",
+                  "https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV",
                   note="colle l'URL complète de ta page artiste — on extrait l'ID"),
     ),
     admin_note=(

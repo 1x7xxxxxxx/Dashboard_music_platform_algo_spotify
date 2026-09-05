@@ -199,8 +199,18 @@ def _section_totp(db, user: dict) -> None:
         import qrcode
         import io
     except ImportError:
-        st.error(t("account.totp_pkg_missing",
-                   "Packages requis non installés : `pip install pyotp qrcode[pil]`"))
+        # `pip install …` s'adressait à l'artiste. Ces paquets manquent sur le
+        # SERVEUR, pas sur sa machine : il n'a rien à installer et rien à corriger.
+        # La commande ne va donc qu'à l'admin, et par le seul constructeur de blocs
+        # (`utils.shell_block`), qui la fait précéder de ce que son shell exige.
+        st.error(t("account.totp_unavailable",
+                   "La double authentification est momentanément indisponible. "
+                   "Préviens l'administrateur — il n'y a rien à faire de ton côté."))
+        from src.dashboard.auth import is_admin
+        if is_admin():
+            from src.dashboard.utils.shell_block import command_block
+            _lang, _cmd = command_block("pip install pyotp 'qrcode[pil]'")
+            st.code(_cmd, language=_lang)
         return
 
     if 'totp_enroll_secret' not in st.session_state:
