@@ -401,3 +401,59 @@ show()
     assert terms is not None and terms.value is False, (
         "la case des CONDITIONS est pré-cochée : celle-là doit rester un acte "
         "positif, c'est elle qui autorise la création du compte")
+
+
+@pytest.mark.skipif(not _db(), reason="rendu : needs the DB for the shared imports")
+def test_nothing_stands_between_the_title_and_the_first_field():
+    """Retiré le 2026-09-05 : « ça ne sert à rien ».
+
+    Trois éléments vivaient entre le titre et le formulaire — un sous-titre
+    (« Rejoignez streaMLytics. Plan gratuit… »), un compteur « Live Activity » et une
+    règle horizontale. Aucun n'aide quelqu'un qui vient de cliquer « Créer un
+    compte » : il sait où il est, et un compteur qui annonce cinq inscrits dit
+    surtout que personne n'est là.
+
+    Le compteur reste calculé et affiché AILLEURS (barre latérale). Ce test garde sa
+    place sur ce chemin, pas son existence.
+    """
+    import os
+
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(f"""
+import sys
+sys.path.insert(0, {os.getcwd()!r})
+from src.dashboard.views.register import show
+show()
+""")
+    at.run(timeout=200)
+    assert not at.exception, at.exception
+
+    def flat(node, out=None):
+        out = [] if out is None else out
+        kids = getattr(node, "children", None)
+        for child in (kids.values() if isinstance(kids, dict) else (kids or [])):
+            out.append(child)
+            flat(child, out)
+        return out
+
+    els = flat(at.main)
+    kinds = [type(e).__name__ for e in els]
+    texts = [str(getattr(e, "label", "") or getattr(e, "value", "")
+                 or getattr(e, "body", "") or "") for e in els]
+    joined = "\n".join(texts)
+
+    assert "Live Activity" not in joined
+    assert "Rejoignez" not in joined
+    assert "utilisent streaMLytics" not in joined
+
+    first_field = next(i for i, k in enumerate(kinds) if k == "TextInput")
+    between = [k for k in kinds[:first_field]
+               if k not in ("SpecialBlock", "Block", "Column", "Title", "Radio")]
+    assert not between, (
+        f"des éléments séparent encore le titre du premier champ : {between}")
+    # Et surtout aucune règle horizontale sur ce chemin.
+    assert not [e for e in els[:first_field]
+                if type(e).__name__ == "Markdown"
+                and str(getattr(e, "value", "")).strip() == "---"], (
+        "la règle horizontale est revenue entre le titre et la saisie")

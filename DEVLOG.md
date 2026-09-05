@@ -5,6 +5,32 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 18) — Rien entre le titre et le premier champ
+
+Trois éléments vivaient entre « 🎵 Créez votre compte » et la première saisie. Aucun
+n'aide quelqu'un qui vient de cliquer « Créer un compte » :
+
+| Retiré | Pourquoi |
+|---|---|
+| « Rejoignez streaMLytics. Plan gratuit — passez à un plan supérieur à tout moment. » | il vient de cliquer pour s'inscrire ; il sait où il est, et le plan n'est pas la question de cet écran |
+| « Live Activity » + « **5** artistes utilisent streaMLytics » | un signal de réassurance qui, à cinq inscrits, dit surtout que personne n'est là |
+| une règle horizontale | elle séparait tout ça du formulaire |
+
+Les deux clés de traduction correspondantes sont **supprimées**, pas laissées
+orphelines — `test_i18n_orphans` refuse une traduction sans écran.
+
+**Le compteur reste calculé et affiché ailleurs** (barre latérale, `live_pulse`). Ce
+qui part est sa place sur le chemin de l'inscription, pas la fonctionnalité : le garde
+porte sur l'écran, pas sur l'existence du signal.
+
+Rendu après :
+
+    Title      🎵 Créez votre compte
+    Radio      🌐 Langue / Language
+    TextInput  Nom d'artiste *
+
+Trois mutations vues rouges : sous-titre remis, compteur remis, règle remise.
+
 ## 2026-09-05 (suite 17) — Un bloc à plat, et une case pré-cochée assumée
 
 « Le plus simple possible ». Le dépliant et ses deux phrases d'explication ont vécu

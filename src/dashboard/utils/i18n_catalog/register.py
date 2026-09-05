@@ -7,8 +7,6 @@ EN = {
     "register.link_soundcloud": "Link to your SoundCloud profile",
     "register.link_youtube": "Link to your YouTube channel",
     "register.title": "🎵 Create your account",
-    "register.subtitle": "Join the streaMLytics. Free plan — upgrade anytime.",
-    "register.live_activity": "{n} artists use streaMLytics",
     # Validation errors
     "register.err_artist_name": "Artist name is required.",
     "register.err_email": "A valid email address is required.",

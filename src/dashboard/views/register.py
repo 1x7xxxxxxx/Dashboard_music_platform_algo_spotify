@@ -495,18 +495,19 @@ def show():
         st.title(t("register.title", "🎵 Créez votre compte"))
     with _lang_col:
         language_selector(sidebar=False)
-    st.caption(t("register.subtitle",
-                 "Rejoignez streaMLytics. Plan gratuit — passez à un plan supérieur à tout moment."))
-
-    # Brick 32 — Live Activity (public trust signal). Count only, no PII.
-    # Cached 10 min server-side to absorb anonymous traffic bursts.
-    from src.dashboard.utils.live_pulse import get_registered_count_public
-    _registered = get_registered_count_public()
-    if _registered > 0:
-        st.metric("Live Activity",
-                  t("register.live_activity", "{n} artistes utilisent streaMLytics").format(
-                      n=f"{_registered:,}"))
-        st.markdown("---")
+    # Entre le titre et le premier champ : RIEN. Retiré le 2026-09-05.
+    #
+    # Trois éléments y vivaient, et aucun n'aidait quelqu'un qui est déjà venu créer
+    # un compte :
+    #
+    #   « Rejoignez streaMLytics. Plan gratuit — passez à un plan supérieur à tout
+    #     moment. »                          il a cliqué « Créer un compte », il sait ;
+    #   « Live Activity » + « n artistes… »  une réassurance qui, à cinq inscrits,
+    #                                        dit surtout que personne n'est là ;
+    #   une règle horizontale                qui séparait tout ça du formulaire.
+    #
+    # Le compteur reste calculé et affiché AILLEURS (barre latérale, `live_pulse`) :
+    # ce qui part ici est sa place sur le chemin de l'inscription, pas la fonction.
 
     with st.form("register"):
         artist_name = st.text_input(
