@@ -895,6 +895,28 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # leçon de la résolution Instagram, restée dans `if platform_key == 'meta'`
         # et devenue inerte le jour où le champ a changé d'onglet.
         _chan = (extra.get('channel_id') or '').strip()
+        if _chan:
+            import os
+
+            from ._platform_youtube import resolve_channel_id
+            _yt_key = ((extra.get('api_key') or '').strip()
+                       or os.getenv('YOUTUBE_API_KEY', ''))
+            _cid, _desc, _problem = resolve_channel_id(_chan, _yt_key)
+            if _problem:
+                st.error(_problem)
+                return
+            if _cid:
+                extra['channel_id'] = _chan = _cid
+            if _desc:
+                # La chaîne trouvée est MONTRÉE, jamais appliquée en silence : un
+                # pseudo n'est pas une identité. `@fjaak` est une chaîne vide qui
+                # n'est pas celle de l'artiste FJAAK (`@fjaakberlin`) — mesuré le
+                # 2026-09-05. « 0 vidéo » saute aux yeux ; un identifiant, non.
+                st.caption(t(
+                    "credentials.youtube.channel_resolved",
+                    "🎬 Chaîne reconnue : **{desc}**. Si ce n'est pas la tienne, "
+                    "colle l'identifiant lu sur youtube.com/account_advanced."
+                ).format(desc=_desc))
         if _chan.startswith('UC'):
             import os
 

@@ -568,9 +568,13 @@ def show():
         # artiste n'a pas sa musique (elle est sur la chaîne « — Topic » générée par
         # YouTube), et un compte Instagram personnel ne rend aucune statistique via
         # l'API. Une condition qu'on découvre après coup coûte un aller-retour.
+        # Le libellé demandait la chaîne « — Topic ». Retiré le 2026-09-05, ici
+        # comme dans l'onglet Credentials : `youtube.com/account_advanced` — le seul
+        # écran où un artiste lit un identifiant — ne montre QUE sa chaîne
+        # principale, la Topic étant auto-générée par YouTube et hors de son compte
+        # Google. C'est l'app qui la trouve, à partir de la principale.
         link_youtube = st.text_input(
-            t("register.link_youtube",
-              "Lien de ta chaîne YouTube (la chaîne « — Topic »)"),
+            t("register.link_youtube", "Lien de ta chaîne YouTube"),
             placeholder="https://youtube.com/@ta-chaine")
 
         st.markdown("---")

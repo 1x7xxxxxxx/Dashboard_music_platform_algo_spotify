@@ -62,12 +62,21 @@ def _identifier(platform: str, link: str) -> str:
                 logger.info("signup Instagram link unusable: %s", problem[:80])
             return ident or ""
         if platform == "youtube":
-            from src.dashboard.utils.youtube_channel import parse_channel_input
-            parsed = parse_channel_input(link)
-            # Seul un Channel ID DIRECTEMENT utilisable est accepté ici. Un handle
-            # demande un appel de résolution et peut échouer ; on laisse alors
-            # l'artiste le coller sur la page, où le message d'erreur existe.
-            return parsed.value if getattr(parsed, "is_usable", False) else ""
+            # RÉSOUT désormais, au lieu de n'accepter qu'un `UC…` tout fait. Avant le
+            # 2026-09-05, un artiste qui collait `youtube.com/@sa-chaine` à
+            # l'inscription voyait son lien silencieusement jeté : le seul champ que
+            # la page propose accepte justement cette forme-là. La résolution existe
+            # et coûte un appel — la même que l'onglet Credentials utilise.
+            import os
+
+            from src.dashboard.views.credentials._platform_youtube import (
+                resolve_channel_id,
+            )
+            ident, _desc, problem = resolve_channel_id(
+                link, os.getenv("YOUTUBE_API_KEY", ""))
+            if problem:
+                logger.info("signup YouTube link unusable: %s", problem[:80])
+            return ident or ""
     except Exception as exc:  # noqa: BLE001 — un lien illisible n'est pas une panne
         logger.info("signup link unusable for %s: %s", platform, type(exc).__name__)
     return ""

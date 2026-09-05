@@ -216,10 +216,13 @@ _YOUTUBE = PlatformCred(
     intro=None,
     portal_url="https://www.youtube.com/account_advanced",
     steps=(
+        # UNE phrase. La suite — « c'est ta chaîne principale, on trouve la Topic
+        # à partir d'elle » — expliquait notre plomberie à qui veut juste coller une
+        # valeur : « redondant et inutile » (2026-09-05). Ce que l'app trouve, elle
+        # le DIT au moment où elle le trouve, sous le champ ; l'annoncer d'avance
+        # dans une consigne ne rendait aucun geste plus court.
         CredStep("[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
-                 "→ **ID de la chaîne** → **Copier**, et colle-le au-dessus. "
-                 "C'est ta chaîne principale : on trouve la « — Topic » à partir "
-                 "d'elle, tu n'as pas à la chercher."),
+                 "→ **ID de la chaîne** → **Copier**, et colle-le au-dessus."),
     ),
     fields=(
         # La clé API a QUITTÉ cette liste : elle est `admin_only` dans le registre,

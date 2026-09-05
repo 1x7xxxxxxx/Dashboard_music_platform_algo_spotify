@@ -124,7 +124,14 @@ def test_youtube_empty_channel_is_a_failure(mock_requests):
     ok, msg = _test_youtube({"api_key": "AIzaKey", "channel_id": "UC_x5XG1OV2P6uZZ5FSM9Ttw"})  # pragma: allowlist secret
 
     assert ok is False
-    assert "Topic" in msg  # points at the auto-generated distribution channel
+    # Réancré le 2026-09-05. Le message renvoyait vers la chaîne « — Topic », que
+    # l'artiste ne peut PAS trouver (elle n'est pas dans son compte Google) et que
+    # l'app découvre désormais seule. Ce qu'il doit dire maintenant est le geste qui
+    # lève VRAIMENT une chaîne vide : relire l'identifiant sur account_advanced,
+    # connecté à son compte — parce qu'un pseudo peut appartenir à quelqu'un d'autre
+    # (`@fjaak` est une chaîne vide qui n'est pas celle de FJAAK).
+    assert "account_advanced" in msg
+    assert "aucune vidéo" in msg
 
 
 @patch("src.dashboard.views.credentials._platform_youtube.requests")

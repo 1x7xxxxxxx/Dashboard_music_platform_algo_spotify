@@ -54,9 +54,7 @@ _YOUTUBE = PlatformCred(
     portal_url="https://www.youtube.com/account_advanced",
     steps=(
         CredStep("[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
-                 "→ **Channel ID** → **Copy**, and paste it above. That is your main "
-                 "channel: we find the « — Topic » one from it, you do not have to "
-                 "look for it."),
+                 "→ **Channel ID** → **Copy**, and paste it above."),
     ),
     fields=(
         CredField("Your YouTube channel link",

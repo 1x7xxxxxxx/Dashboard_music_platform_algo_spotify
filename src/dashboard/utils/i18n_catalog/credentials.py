@@ -196,9 +196,13 @@ EN = {
         "settings, or your `@…` handle — we will convert it for you."
     ),
     "credentials.youtube.channel_empty": (
-        "Channel “{cid}” found, but it holds **no video** — there will be nothing "
-        "to collect. If your music is distributed, the channel to use is usually "
-        "the auto-generated **“… - Topic”** one, not your personal channel."
+        "Channel “{cid}” found, but it holds **no video**. That almost always means "
+        "it is not the right channel: a handle can belong to someone else. Copy the "
+        "id read on youtube.com/account_advanced, signed in to your account."
+    ),
+    "credentials.youtube.channel_resolved": (
+        "🎬 Channel found: **{desc}**. If that is not yours, paste the id read on "
+        "youtube.com/account_advanced."
     ),
     "credentials.youtube.channel_not_found": (
         "Channel ID not found: “{cid}”. Make sure it starts with UC… "
@@ -379,9 +383,7 @@ EN = {
     ),
     "credentials.guide.youtube.step_1": (
         "[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
-        "→ **Channel ID** → **Copy**, and paste it above. That is your main "
-        "channel: we find the « — Topic » one from it, you do not have to look "
-        "for it."
+        "→ **Channel ID** → **Copy**, and paste it above."
     ),
     "credentials.guide.youtube.step_1_caption": "APIs and services → Enable APIs",
     "credentials.guide.youtube.note_1": "starts with 'AIza', ~39 characters",

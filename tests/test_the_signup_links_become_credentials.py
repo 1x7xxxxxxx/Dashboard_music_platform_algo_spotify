@@ -105,8 +105,11 @@ def test_the_pending_field_is_cleared_and_a_second_pass_writes_nothing(tenant):
 def test_an_unusable_link_never_loses_the_usable_one(tenant):
     """Chaque plateforme est isolée — un lien illisible n'en fait pas perdre trois.
 
-    Le `@handle` YouTube en est le cas réel : il demande un appel de résolution qui
-    peut échouer, et il est donc laissé à l'artiste plutôt que deviné.
+    Le `@handle` YouTube en est le cas réel : il demande un appel de résolution, qui
+    peut ne rien trouver. Depuis le 2026-09-05 la matérialisation le RÉSOUT au lieu
+    de le jeter — un artiste qui colle l'adresse de sa chaîne à l'inscription voyait
+    son lien disparaître en silence, alors que c'est exactement la forme que le champ
+    lui propose.
     """
     from src.dashboard.views.credentials._from_signup import materialise
 
@@ -120,6 +123,12 @@ def test_an_unusable_link_never_loses_the_usable_one(tenant):
     monkeypatch.setattr(
         "src.utils.platform_identity_resolver.soundcloud_user_id_from_url",
         lambda url: (_ for _ in ()).throw(ValueError("lien illisible")))
+    # Et la résolution YouTube pour la même raison : elle appelle l'API de Google.
+    # La frontière HTTP l'a attrapée le 2026-09-05, sur ce test précis — 16
+    # connexions sortantes réelles vers googleapis. Ici, la chaîne est introuvable.
+    monkeypatch.setattr(
+        "src.dashboard.views.credentials._platform_youtube.resolve_channel_id",
+        lambda given, api_key: (None, None, "chaîne introuvable"))
     _pending(db, aid, {
         "spotify": "https://open.spotify.com/artist/4qG1qjeHfkASTdyRGbLWbV",
         "youtube": "https://youtube.com/@une-chaine-quelconque",

@@ -73,10 +73,17 @@ PLATFORM_VALUES: tuple[PlatformValue, ...] = (
         key="youtube", icon="🎬", label="YouTube",
         value="Vues, likes et commentaires par vidéo — utile pour arbitrer clip "
               "vs. audio seul.",
-        need="ton Channel ID (UC…)",
-        effort_min=3, where=CREDENTIALS,
-        caveat="si ta musique est distribuée, c'est souvent la chaîne "
-               "**« … - Topic »** qu'il faut, pas ta chaîne perso.",
+        need="le lien de ta chaîne",
+        effort_min=1, where=CREDENTIALS,
+        # Le caveat disait « c'est souvent la chaîne « … - Topic » qu'il faut ».
+        # Ce n'est plus un geste de l'artiste : l'app découvre cette chaîne à partir
+        # de la principale et collecte les deux. Mais le mode d'échec silencieux n'a
+        # pas disparu, il a changé — et un garde a refusé, à juste titre, que ce
+        # champ retombe à None. Mesuré le 2026-09-05 : `@fjaak` est une chaîne vide
+        # qui n'appartient PAS à l'artiste FJAAK, dont le pseudo est `@fjaakberlin`.
+        caveat="un `@pseudo` peut appartenir à quelqu'un d'autre : on t'affiche la "
+               "chaîne trouvée et son nombre de vidéos — si elle en a **0**, ce "
+               "n'est presque jamais la tienne.",
     ),
     PlatformValue(
         key="meta", icon="📱", label="Meta Ads",

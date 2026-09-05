@@ -163,10 +163,10 @@ def _test_youtube(fields: dict) -> tuple:
         if video_count == 0:
             return False, tagged(t(
                 "credentials.youtube.channel_empty",
-                "Chaîne « {cid} » trouvée, mais elle ne contient **aucune vidéo** — il n'y "
-                "aura rien à collecter. Si ta musique est distribuée, c'est souvent la "
-                "chaîne **« … - Topic »** générée automatiquement qu'il faut renseigner, "
-                "pas ta chaîne personnelle."
+                "Chaîne « {cid} » trouvée, mais elle ne contient **aucune vidéo**. "
+                "C'est presque toujours le signe que ce n'est pas la bonne chaîne : "
+                "un pseudo peut appartenir à quelqu'un d'autre. Recopie l'identifiant "
+                "lu sur youtube.com/account_advanced, en étant connecté à ton compte."
             ).format(cid=channel_id), NOTHING_TO_COLLECT)
         return True, t("credentials.youtube.test_ok_channel",
                        "Clé API valide — chaîne trouvée, {n} vidéo(s) ✅").format(n=video_count)
@@ -228,3 +228,73 @@ def discover_topic_channel(channel_id: str, api_key: str) -> tuple[str, str] | N
         return picked
     except Exception:  # noqa: BLE001 — une découverte ratée n'est pas un échec de saisie
         return None
+
+
+def resolve_channel_id(given: str, api_key: str):
+    """Un lien de chaîne ou un `@pseudo` → `(identifiant, description, problème)`.
+
+    Ne lève jamais ; au plus un des trois est non nul en cas d'échec. Le problème est
+    une phrase CONSTRUITE, jamais un `str(exc)` — la clé API voyage dans la chaîne de
+    requête, donc le message d'une `ConnectionError` la contiendrait.
+
+    Pourquoi résoudre ici : jusqu'au 2026-09-05, coller l'adresse de sa chaîne
+    enregistrait l'ADRESSE dans `channel_id`. Le test de connexion trouvait bien
+    l'identifiant — pour l'afficher et demander à l'artiste de le recopier à la main,
+    puis de relancer le test. Trois gestes pour une valeur que nous avions déjà.
+
+    Pourquoi RENDRE une description, et ne pas se contenter de l'identifiant : un
+    pseudo n'est pas une identité. Mesuré le jour même — `@fjaak` est une chaîne
+    **vide** (0 vidéo) qui n'est pas celle de l'artiste FJAAK, dont le vrai pseudo
+    est `@fjaakberlin`. Résoudre en silence aurait branché un locataire sur la chaîne
+    de quelqu'un d'autre, ce qui est la classe que ce dépôt a passé deux séances à
+    retirer. La description (titre + nombre de vidéos) est ce qui permet à l'artiste
+    de voir immédiatement que ce n'est pas la sienne.
+
+    Une adresse personnalisée `/c/…` reste irrésolvable — YouTube ne l'expose par
+    aucune arête — et c'est dit plutôt que deviné.
+    """
+    value = (given or "").strip()
+    if not value:
+        return None, None, None
+    parsed = parse_channel_input(value)
+    if parsed.kind == "name":
+        return None, None, t(
+            "credentials.youtube.channel_vanity_url",
+            "« {cid} » est une adresse personnalisée (`/c/…`) : YouTube ne "
+            "permet pas de retrouver l'identifiant à partir d'elle. Lis-le "
+            "directement dans YouTube Studio → Paramètres → Chaîne → "
+            "Paramètres avancés (il commence par `UC…`)."
+        ).format(cid=parsed.value)
+
+    direct = parsed.value if (parsed.kind == "id" and parsed.is_usable) else None
+    params = None if direct else lookup_params(parsed)
+    if not api_key or (direct is None and params is None):
+        return direct, None, None
+
+    try:
+        query = {'part': 'snippet,statistics', 'key': api_key}
+        query.update({'id': direct} if direct else params)
+        r = requests.get('https://www.googleapis.com/youtube/v3/channels',
+                         params=query, timeout=10, allow_redirects=False)
+        found = (r.json().get('items') or []) if r.status_code == 200 else []
+        if not found:
+            if direct:
+                return direct, None, None
+            return None, None, t(
+                "credentials.youtube.handle_not_found",
+                "Aucune chaîne ne correspond à « {cid} ». Vérifie l'orthographe, "
+                "ou lis l'identifiant dans YouTube Studio → Paramètres → Chaîne "
+                "→ Paramètres avancés (il commence par `UC…`)."
+            ).format(cid=parsed.value)
+        item = found[0]
+        title = (item.get('snippet') or {}).get('title') or ''
+        videos = int((item.get('statistics') or {}).get('videoCount') or 0)
+        return (item.get('id') or direct), f"{title} — {videos} vidéo(s)", None
+    except Exception as exc:  # noqa: BLE001 — jamais str(exc) : la clé est dans l'URL
+        if direct:
+            return direct, None, None
+        return None, None, t(
+            "credentials.probe_network_error",
+            "Erreur réseau ({err}) — réessaie dans un instant. Si ça persiste, "
+            "contacte l'administrateur."
+        ).format(err=type(exc).__name__)
