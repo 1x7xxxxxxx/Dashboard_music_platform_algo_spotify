@@ -319,28 +319,85 @@ def test_email_verification_is_wired_to_the_materialisation():
         "serait la fuite de locataire du 2026-08-20, par la porte d'entrée")
 
 
-def test_the_links_block_is_open_and_never_says_optional():
-    """Déplié, et sans le mot qui invite à passer. L'absence d'étoile suffit."""
+def test_the_links_are_plain_fields_with_no_wrapper_and_no_explanation():
+    """Un bloc, à plat. Demandé le 2026-09-05 : « le plus simple possible ».
+
+    Le dépliant et ses deux phrases d'explication ont vécu une heure. Ce qui les
+    remplace n'est pas un texte plus court : c'est aucun texte — le libellé de chaque
+    champ dit ce qu'on attend, et l'absence d'astérisque dit qu'il est facultatif.
+    """
     import ast
     from pathlib import Path
 
     src = (Path(__file__).resolve().parents[1]
            / "src/dashboard/views/register.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
-    opened = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.Call)
-        and getattr(n.func, "attr", "") == "expander"
-        and any(k.arg == "expanded" and getattr(k.value, "value", None) is True
-                for k in n.keywords)
-    ]
-    assert opened, "le bloc des liens est replié : un bloc facultatif replié n'est pas lu"
 
-    for node in ast.walk(tree):
-        if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "t"
-                and len(node.args) == 2
-                and getattr(node.args[0], "value", "") == "register.links_expander"):
-            title = str(getattr(node.args[1], "value", ""))
-            assert "optionnel" not in title.lower(), (
-                "le titre dit « optionnel » — le mot invite à passer, alors que "
-                "l'absence d'astérisque dit déjà que ce n'est pas requis")
+    # Aucun `st.expander` dans le formulaire d'inscription.
+    expanders = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Call)
+                 and getattr(n.func, "attr", "") == "expander"]
+    assert not expanders, (
+        "un dépliant est revenu sur la page d'inscription : il cache ce qu'il "
+        "contient, et un bloc facultatif caché n'est pas rempli")
+
+    # Et plus aucune clé de titre ou d'explication pour ce bloc.
+    keys = {n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    for gone in ("register.links_expander", "register.links_help"):
+        assert gone not in keys, f"{gone} est revenue — c'est du texte en plus"
+
+
+@pytest.mark.skipif(not _db(), reason="rendu : needs the DB for the shared imports")
+def test_the_form_renders_flat_with_the_marketing_box_ticked():
+    """Ce que l'artiste voit, pas ce que le source dit.
+
+    Deux affirmations en une : les trois liens sont des champs ORDINAIRES (aucun
+    conteneur ne les cache), et la case marketing arrive cochée — décision produit
+    du 2026-09-05, contraire à l'exigence RGPD d'un acte positif (CJUE *Planet49*,
+    C-673/17). Épinglée ici pour qu'un changement d'arbitrage soit un changement
+    VISIBLE, et pas une dérive.
+    """
+    import os
+
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(f"""
+import sys
+sys.path.insert(0, {os.getcwd()!r})
+from src.dashboard.views.register import show
+show()
+""")
+    at.run(timeout=200)
+    assert not at.exception, at.exception
+
+    def flat(node, out=None):
+        out = [] if out is None else out
+        kids = getattr(node, "children", None)
+        for child in (kids.values() if isinstance(kids, dict) else (kids or [])):
+            out.append(child)
+            flat(child, out)
+        return out
+
+    els = flat(at.main)
+    labels = [str(getattr(e, "label", "") or "") for e in els]
+
+    assert not [e for e in els if type(e).__name__ == "Expander"], (
+        "un dépliant est rendu sur la page d'inscription")
+    for needle in ("Spotify Artist", "SoundCloud", "YouTube"):
+        assert any(needle in x for x in labels), f"le champ {needle} n'est plus rendu"
+    # Facultatifs : pas d'astérisque, contrairement aux quatre champs requis.
+    for x in labels:
+        if "Lien de t" in x:
+            assert not x.rstrip().endswith("*"), f"{x!r} est devenu obligatoire"
+
+    boxes = [e for e in els if type(e).__name__ == "Checkbox"]
+    assert len(boxes) >= 2, "les deux cases de consentement ne sont plus rendues"
+    marketing = next((b for b in boxes if "marketing" in str(b.label).lower()), None)
+    assert marketing is not None, "la case marketing a disparu"
+    assert marketing.value is True, (
+        "la case marketing n'est plus pré-cochée — décision produit du 2026-09-05")
+    terms = next((b for b in boxes if "confidentialité" in str(b.label).lower()), None)
+    assert terms is not None and terms.value is False, (
+        "la case des CONDITIONS est pré-cochée : celle-là doit rester un acte "
+        "positif, c'est elle qui autorise la création du compte")

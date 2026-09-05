@@ -535,42 +535,31 @@ def show():
                    "(20% sur le premier mois)."),
         ).strip().upper()
 
-        # ── Les liens de profil, facultatifs, saisis UNE fois ──────────────
+        # ── Les liens de profil : un bloc, à plat, sans titre ni explication ──
         #
-        # Demandé le 2026-09-05. Ils ne servent à rien ici : ils sont écrits en
-        # attente et matérialisés en credentials à la vérification de l'e-mail
-        # (migration 087). Les demander maintenant évite à l'artiste de revenir
-        # remplir trois formulaires, et c'est le seul moment où il a déjà ses
-        # onglets ouverts.
+        # Ils ont eu un dépliant et deux phrases d'explication pendant une heure.
+        # Retirés le 2026-09-05 : « ça rajoute de la complexité, uniquement un gros
+        # bloc, le plus simple possible ». Le libellé de chaque champ dit déjà ce
+        # qu'on attend, et l'absence d'astérisque dit qu'il est facultatif — les
+        # quatre champs requis ci-dessus en portent une.
         #
-        # On demande le LIEN, jamais l'identifiant : c'est ce qu'il a sous la main,
-        # et les trois plateformes savent l'extraire.
+        # On demande le LIEN, jamais l'identifiant : c'est ce que l'artiste a sous la
+        # main. Ils attendent dans `pending_profile_links` et deviennent des
+        # credentials à la confirmation de l'e-mail (migration 087).
         #
-        # Pourquoi on ne les DEVINE pas depuis le nom d'artiste — mesuré le même
-        # jour contre trois locataires dont l'identifiant est vérifié : « Benken »
-        # rend QUATRE profils SoundCloud du même nom, le bon étant le quatrième, et
-        # sur YouTube la bonne chaîne n'est pas dans les cinq premiers résultats.
-        # Un lien collé par son propriétaire ne se trompe pas.
-        # DÉPLIÉ, et sans « optionnel » dans le titre. Demandé le 2026-09-05 : replié,
-        # un bloc facultatif n'est pas lu ; et le mot « optionnel » invite à passer.
-        # Ces champs restent facultatifs — c'est l'ABSENCE d'astérisque qui le dit,
-        # comme pour tous les champs requis du formulaire qui, eux, en portent une.
-        with st.expander(t("register.links_expander", "🔗 Mes liens de profil"),
-                         expanded=True):
-            st.caption(t(
-                "register.links_help",
-                "Colle ce que tu as ; on branchera ces plateformes tout seuls dès "
-                "que ton e-mail sera confirmé. Tu pourras les ajouter ou les "
-                "changer plus tard."))
-            link_spotify = st.text_input(
-                t("register.link_spotify", "Lien de ta page Spotify Artist"),
-                placeholder="https://open.spotify.com/artist/…")
-            link_soundcloud = st.text_input(
-                t("register.link_soundcloud", "Lien de ton profil SoundCloud"),
-                placeholder="https://soundcloud.com/ton-nom")
-            link_youtube = st.text_input(
-                t("register.link_youtube", "Lien de ta chaîne YouTube"),
-                placeholder="https://youtube.com/@ta-chaine")
+        # Pourquoi on ne les DEVINE pas depuis le nom d'artiste — mesuré contre trois
+        # locataires dont l'identifiant est vérifié : « Benken » rend QUATRE profils
+        # SoundCloud du même nom, le bon étant le quatrième, et sur YouTube la bonne
+        # chaîne n'est pas dans les cinq premiers résultats.
+        link_spotify = st.text_input(
+            t("register.link_spotify", "Lien de ta page Spotify Artist"),
+            placeholder="https://open.spotify.com/artist/…")
+        link_soundcloud = st.text_input(
+            t("register.link_soundcloud", "Lien de ton profil SoundCloud"),
+            placeholder="https://soundcloud.com/ton-nom")
+        link_youtube = st.text_input(
+            t("register.link_youtube", "Lien de ta chaîne YouTube"),
+            placeholder="https://youtube.com/@ta-chaine")
 
         st.markdown("---")
         terms = st.checkbox(
@@ -579,11 +568,20 @@ def show():
             value=False,
             help=t("register.terms_help", "Requis pour créer un compte."),
         )
+        # Pré-cochée sur demande explicite du 2026-09-05 (« coche automatiquement »).
+        #
+        # ⚠️ À savoir, et ce n'est pas une préférence de style : une case de
+        # consentement marketing PRÉ-COCHÉE n'est pas un consentement valide au sens
+        # du RGPD — CJUE *Planet49* (C-673/17, 2019) : le consentement doit être un
+        # acte positif. Le retrait reste possible à tout moment (le texte le dit), et
+        # `marketing_consent` est stocké tel quel, donc la trace existe.
+        # Décision produit assumée, pas un oubli : la remettre à `False` est le seul
+        # geste nécessaire si l'arbitrage change.
         marketing = st.checkbox(
             t("register.marketing_checkbox",
               "J'accepte de recevoir des actualités, mises à jour et communications marketing "
               "par email (optionnel)"),
-            value=False,
+            value=True,
             help=t("register.marketing_help", "Vous pouvez retirer ce consentement à tout moment."),
         )
 

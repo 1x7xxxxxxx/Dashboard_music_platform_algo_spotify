@@ -5,6 +5,45 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 17) — Un bloc à plat, et une case pré-cochée assumée
+
+« Le plus simple possible ». Le dépliant et ses deux phrases d'explication ont vécu
+une heure ; ce qui les remplace n'est pas un texte plus court, c'est **aucun texte**.
+
+    avant :  🔗 Mes liens de profil                       (dépliant)
+             Colle ce que tu as ; on branchera ces plateformes tout seuls
+             dès que ton e-mail sera confirmé. Tu pourras les ajouter…
+             [ Lien Spotify ] [ Lien SoundCloud ] [ Lien YouTube ]
+
+    après :  [ Lien de ta page Spotify Artist ]
+             [ Lien de ton profil SoundCloud  ]
+             [ Lien de ta chaîne YouTube      ]
+
+Le libellé de chaque champ dit ce qu'on attend ; l'absence d'astérisque dit qu'il est
+facultatif — les quatre champs requis au-dessus en portent une. Les deux clés de
+traduction du titre et de l'explication sont **supprimées**, pas laissées orphelines.
+
+### La case marketing, pré-cochée — décision produit, signalée
+
+Demandé explicitement. Je l'ai appliquée en signalant une fois, sans y revenir :
+**une case de consentement marketing pré-cochée n'est pas un consentement valide au
+sens du RGPD** — CJUE *Planet49* (C-673/17, 2019) exige un acte positif. Le retrait
+reste possible à tout moment, le texte le dit, et `marketing_consent` est stocké tel
+quel, donc la trace existe.
+
+C'est écrit dans le code, à l'endroit du `value=True`, et **épinglé par un test** : un
+changement d'arbitrage sera un changement visible, pas une dérive.
+
+### Le garde qui protège la case d'à côté
+
+Le même test vérifie que la case des **conditions d'utilisation**, elle, reste à
+`False`. Ce n'est pas de la symétrie : c'est celle-là qui autorise la création du
+compte, et la pré-cocher par ricochet — en copiant la ligne voisine — ferait accepter
+des conditions que personne n'a lues. Mutation vue rouge.
+
+Quatre mutations vues rouges : dépliant de retour, case marketing décochée, conditions
+pré-cochées, lien devenu obligatoire.
+
 ## 2026-09-05 (suite 16) — Le bloc déplié, et la chaîne prouvée bout en bout
 
 Trois retouches et une preuve.
