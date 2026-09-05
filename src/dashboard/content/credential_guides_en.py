@@ -7,9 +7,8 @@ Only the prose is translated; screenshots, portal URLs and the fake example
 values are shared with the FR source. Selected by the guide PDF when lang == 'en'.
 """
 from src.dashboard.content.credential_guides import (
-    META_APP_DISPLAY_NAME,
-    _META_BM_ADACCOUNTS_URL,
-    _META_BM_APPS_URL,
+    META_BUSINESS_ID,
+    _META_PARTNERS_URL,
     CredField,
     CredStep,
     PlatformCred,
@@ -104,33 +103,28 @@ _META = PlatformCred(
     key="meta",
     title="Meta / Instagram",
     icon="📱",
-    # No intro, like Spotify. Kept in step with the FR guide (2026-09-05): three
-    # actions, nothing that merely describes context. See `credential_guides.py`
-    # for what was removed and why — `test_the_two_language_guides_stay_in_step`
-    # fails if the two drift apart.
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
+    # Three chains of clicks, in step with the FR guide (2026-09-05). The sharing
+    # step names OUR Business ID, not our app: an app only shows up in a Business
+    # Manager that owns it, so an artist could never find ours in their own list.
+    # See `META_BUSINESS_ID` in `credential_guides.py`.
     steps=(
-        CredStep("Open the portal above, pick the account you want to track, then "
-                 "**copy the address bar** and paste it into **Your ad account "
-                 "link**, above.",
+        CredStep("🔗 [Ads Manager](https://adsmanager.facebook.com/) → pick your "
+                 "account → **copy the URL** and paste it above.",
                  "meta_url_id.png", "The number after act= in the address bar"),
-        # This step existed as an "**Admin prerequisite**" footnote. The label told
-        # the artist it was not their job — while it is THEIR ad account, in THEIR
-        # Business Manager, and nobody else can do it for them. So they did not, the
-        # connection test failed, and nothing said why. That is the 2026-06-19
-        # session, and it is why this step survived the trim.
-        CredStep("⚠️ **Share this account with our application — nobody can do it "
-                 "for you.** Without that sharing, collection sees nothing, even "
-                 "with the right link.\n\n"
-                 f"[Business Manager → Apps]({_META_BM_APPS_URL}) → look for "
-                 f"**{META_APP_DISPLAY_NAME}** (not in the list? ask us to add you). "
-                 f"Then [Ad accounts]({_META_BM_ADACCOUNTS_URL}) → **Add people / "
-                 "apps** → grant **Analyst** permission."),
-        CredStep("**Instagram, optional.** Business Suite → **Settings → Accounts → "
-                 "Instagram accounts** → copy the **numeric ID** shown under the name "
-                 "(not your @handle). The account must be **Business or Creator** and "
-                 "linked to a **Facebook Page**."),
+        CredStep("🤝 **Share this account with us** — without it, collection sees "
+                 "nothing, even with the right link.\n\n"
+                 f"⚙️ [Ad accounts]({_META_PARTNERS_URL}) → your account → "
+                 "**Partners** → **Assign partner** → paste "
+                 + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
+                    else "**our Business ID** (ask us for it)")
+                 + " → **Analyst** role."),
+        CredStep("📸 [Instagram accounts](https://business.facebook.com/settings/instagram-accounts) "
+                 "→ your account → copy the **numeric ID** under the name (not your "
+                 "@handle).\n\n"
+                 "It must be a **Business** or **Creator** account, linked to a "
+                 "**Facebook Page**."),
     ),
     fields=(
         CredField("Your ad account link",
@@ -138,7 +132,7 @@ _META = PlatformCred(
                   note="paste the full Ads Manager URL — we extract the account "
                        "number from it"),
         CredField("Instagram Business Account ID", "17841400000000000",
-                  note="optional — ~17 digits, for Instagram stats"),
+                  note="~17 digits, for Instagram stats"),
     ),
     admin_note=(
         "On our side: System User created, 5-scope token in place, and the Instagram "

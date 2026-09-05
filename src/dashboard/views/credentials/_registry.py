@@ -98,16 +98,20 @@ PLATFORMS = {
             {'key': 'account_id', 'label': 'Lien de ton compte publicitaire',
              'secret': False, 'show_example': False,
              'example': 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345'},
-            {'key': 'ig_user_id', 'label': 'Instagram Business Account ID (optionnel)',
+            {'key': 'ig_user_id', 'label': 'Instagram Business Account ID',
              'secret': False, 'show_example': False, 'example': '17841400000000000'},
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
             # plutôt qu'une liste dans `account_id` : les 100 % de locataires
             # mono-compte d'aujourd'hui ne voient aucun changement, et le champ
             # principal garde le motif de forme qui l'empêche d'entrer tel quel dans
             # un chemin REST. Une liste dans le champ principal aurait cassé les deux.
+            # Replié : ce champ ne concerne que les agences, donc presque personne.
+            # Déplié par défaut, il occupait une zone de saisie entière sous les deux
+            # champs qui, eux, servent à tout le monde. `collapsed` le met dans un
+            # dépliant fermé — il reste à un clic, il ne demande plus rien.
             {'key': 'extra_account_ids',
-             'label': 'Comptes publicitaires supplémentaires (un par ligne — agences)',
-             'secret': False, 'multiline': True},
+             'label': 'Comptes ads supplémentaires - pour agence (optionnel)',
+             'secret': False, 'multiline': True, 'collapsed': True},
         ],
     },
 }

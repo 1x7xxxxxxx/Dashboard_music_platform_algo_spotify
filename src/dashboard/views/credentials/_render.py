@@ -507,7 +507,14 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 # explique un COMPORTEMENT — laisser vide conserve la valeur.
 
             form_values = {}
-            pairs = [fields_def[i:i + 2] for i in range(0, len(fields_def), 2)]
+            # Un champ `collapsed` sort de la mise en colonnes et descend dans un
+            # dépliant FERMÉ, sous les autres. « Comptes ads supplémentaires » ne
+            # concerne que les agences : déplié, il occupait une zone de saisie
+            # entière sous les deux champs qui servent à tout le monde, et demandait
+            # une décision (« est-ce que ça me concerne ? ») à chaque visite.
+            inline_fields = [f for f in fields_def if not f.get('collapsed')]
+            tucked_fields = [f for f in fields_def if f.get('collapsed')]
+            pairs = [inline_fields[i:i + 2] for i in range(0, len(inline_fields), 2)]
 
             for pair in pairs:
                 cols = st.columns(len(pair))
@@ -554,6 +561,21 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                             and field.get('show_example', True)):
                         col.caption(t("credentials.form.example_inline",
                                       "ex. {ex}").format(ex=field['example']))
+
+            # Les champs repliés, sous les autres et FERMÉS. `st.expander` est
+            # utilisable dans un `st.form` — la valeur est soumise avec le reste,
+            # qu'on l'ait ouvert ou non.
+            for field in tucked_fields:
+                key = field['key']
+                label = t(f"credentials.field.{key}", field['label'])
+                with st.expander(label, expanded=bool(existing_values.get(key))):
+                    form_values[key] = st.text_area(
+                        label,
+                        value=existing_values.get(key, '') or field.get('default', ''),
+                        key=f"{platform_key}_{artist_id}_{key}",
+                        height=90,
+                        label_visibility="collapsed",
+                    )
 
             # La capture, DANS le formulaire, juste sous le champ qu'elle explique.
             #

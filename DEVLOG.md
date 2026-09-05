@@ -5,6 +5,70 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 13) — Une instruction que personne ne pouvait suivre
+
+Six remarques sur l'onglet Meta. Cinq sont des retouches de forme. **La sixième était
+une question, et elle a corrigé le geste, pas sa formulation :**
+
+> « Je comprends pas comment l'utilisateur puisse voir le nom de mon application »
+
+Il ne peut pas. Chez Meta, une application n'apparaît dans un Business Manager que si
+**ce BM la possède** — la nôtre appartient au nôtre. Le guide disait pourtant, depuis
+des mois : « Ouvrez Business Manager → Applications et cherchez
+`ETL_DASHBOARD_SPOTIFY` ». Un artiste ouvrait cette liste, ne trouvait rien, et
+l'étape s'arrêtait là. C'est l'étape qui avait déjà bloqué la session Benken du
+2026-06-19, et elle était **infaisable telle qu'écrite**.
+
+Le geste qui marche est l'inverse, et se fait avec un **numéro** : l'artiste attribue
+SON compte publicitaire à NOTRE Business, en partenaire.
+
+    ⚙️ Comptes publicitaires → ton compte → Partenaires
+       → Attribuer un partenaire → colle 212173878482503 → rôle Analyste
+
+Ce numéro n'existait **nulle part** dans la configuration. Mesuré contre l'API Graph
+avec le jeton System User (`me/adaccounts` → `business.id`), posé en
+`META_BUSINESS_ID`, et lu par les deux guides. Non défini, le guide dit « demande-le
+nous » plutôt que d'afficher un trou.
+
+### Le garde protégeait l'instruction infaisable
+
+`test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test` exigeait que
+l'étape **nomme `META_APP_DISPLAY_NAME`**. Il était vert sur un guide que personne ne
+pouvait suivre, et il serait devenu rouge sur le correctif. Son commentaire expliquait
+même pourquoi ce nom devait être configuré plutôt qu'écrit en dur — un raisonnement
+juste sur une prémisse fausse.
+
+Réancré sur la **question** et non sur un libellé : « l'étape que l'artiste est seul à
+pouvoir faire est-elle toujours là ? », plus une assertion neuve — le guide ne doit
+**jamais** renvoyer chercher notre app dans la liste d'applications de l'artiste.
+
+### Les cinq retouches
+
+- `Comptes publicitaires supplémentaires (un par ligne — agences)` →
+  **`Comptes ads supplémentaires - pour agence (optionnel)`**, et **replié** dans un
+  dépliant fermé (`collapsed`). Il ne concerne que les agences : déplié, il occupait
+  une zone de saisie entière sous les deux champs qui servent à tout le monde.
+- **« (optionnel) » retiré d'Instagram** : le mot invitait à sauter la seule valeur
+  qui fait exister l'onglet Instagram.
+- Étape 1 réduite à une chaîne de clics ; les trois étapes portent chacune leur
+  **lien cliquable**.
+- Étape 3 sans « optionnel », avec le portail Comptes Instagram en lien direct.
+
+### Un garde aveugle, pris par mutation
+
+`test_the_render_tucks_collapsed_fields_into_an_expander` cherchait un
+`.get("collapsed")` dans le source. **Vider la liste des champs repliés le laissait
+vert** — un autre `.get('collapsed')` subsistait deux lignes plus haut. La question
+n'est pas « le drapeau est-il lu ? » mais « la zone de saisie est-elle DANS le
+dépliant ? ». Réécrit contre l'**arbre rendu** : rouge sur les deux mutations (dépliant
+vidé, champ rendu deux fois).
+
+Six mutations vues rouges au total. 4137 tests verts.
+
+**R62 inscrite** : le partage reste un geste manuel dont nous ne sommes pas notifiés.
+L'automatiser suppose l'API Business Manager, donc `business_management` et une revue
+Meta — une brique avec dépendance externe, pas un patch.
+
 ## 2026-09-05 (suite 12) — L'onglet Meta demande avant d'expliquer
 
 SoundCloud validé en prod, au tour de Meta / Instagram. C'était le seul onglet qui ne

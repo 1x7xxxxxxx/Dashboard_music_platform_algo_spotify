@@ -84,20 +84,31 @@ def test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test():
         if guide.key != "meta":
             continue
         texts = [str(s.text) for s in guide.steps]
-        # The CONFIGURED app name, never the literal that shipped in 2026. The app
-        # is renameable on Meta's side (`META_APP_DISPLAY_NAME`), and a guard that
-        # greps a hardcoded string would then go red on correct code while staying
-        # green on a guide that names an app nobody can find — the failure mode this
-        # repo calls "a guard whose scope is the defect".
-        from src.dashboard.content.credential_guides import META_APP_DISPLAY_NAME
+        # RÉANCRÉ le 2026-09-05. Ce test exigeait que l'étape nomme
+        # `META_APP_DISPLAY_NAME` — et c'était précisément le défaut : chez Meta, une
+        # app n'apparaît que dans le Business Manager qui la POSSÈDE, donc un artiste
+        # ne pouvait pas trouver la nôtre dans sa liste. Le garde protégeait une
+        # instruction infaisable. Le geste qui marche nomme notre **Business ID**.
+        #
+        # Ce qui est gardé reste la même question — « l'étape que l'artiste est seul
+        # à pouvoir faire est-elle toujours là ? » — et non un libellé : on cherche
+        # le vocabulaire du partage, pas une chaîne figée.
+        from src.dashboard.content.credential_guides import META_BUSINESS_ID
 
         share = [i for i, t in enumerate(texts)
-                 if META_APP_DISPLAY_NAME in t]
+                 if (META_BUSINESS_ID and META_BUSINESS_ID in t)
+                 or "Attribuer un partenaire" in t or "Assign partner" in t]
         assert share, (
-            f"{lang}/meta no longer tells the artist to share their ad account with "
-            f"{META_APP_DISPLAY_NAME}. Without it the collection reads nothing, "
-            "whatever ID they paste."
+            f"{lang}/meta ne dit plus à l'artiste de nous PARTAGER son compte "
+            "publicitaire. Sans ce partage la collecte ne lit rien, quel que soit "
+            "l'identifiant collé."
         )
+        # Et jamais l'ancienne consigne : elle envoyait chercher, dans SON Business
+        # Manager, une application qui ne peut pas y être.
+        joined = " ".join(texts)
+        assert "Applications" not in joined and "→ Apps" not in joined, (
+            f"{lang}/meta renvoie l'artiste chercher notre app dans SA liste "
+            "d'applications — elle ne peut pas y apparaître")
         test_step = [i for i, t in enumerate(texts)
                      if "Tester la connexion" in t or "Test connection" in t
                      or "API Credentials → Meta" in t or "Credentials API → Meta" in t]

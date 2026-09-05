@@ -29,6 +29,20 @@ from pathlib import Path
 # signale. Il vient donc de la configuration, comme le reste de l'identité Meta.
 META_APP_DISPLAY_NAME = os.getenv("META_APP_DISPLAY_NAME", "ETL_DASHBOARD_SPOTIFY")
 
+# Notre Business Manager, celui à qui l'artiste attribue son compte publicitaire.
+#
+# C'est LA valeur qui rend l'étape faisable, et elle manquait. Le guide disait
+# « cherche ETL_DASHBOARD_SPOTIFY dans ta liste d'applications » — un artiste ne
+# peut pas l'y voir : chez Meta, une app n'apparaît dans un Business Manager que si
+# ce BM la possède. La nôtre appartient au nôtre. Le geste qui marche est l'inverse
+# et se fait avec un NUMÉRO : l'artiste attribue son compte à notre Business en
+# partenaire. Signalé le 2026-09-05 — « je ne comprends pas comment l'utilisateur
+# peut voir le nom de mon application ».
+#
+# Non défini ⇒ le guide dit de nous le demander, plutôt que d'afficher un trou.
+META_BUSINESS_ID = os.getenv("META_BUSINESS_ID", "")
+_META_PARTNERS_URL = "https://business.facebook.com/settings/ad-accounts"
+
 # Le réglage exact, chez Meta, où se fait le partage. Un lien vaut mieux qu'un
 # chemin de menu recopié : les libellés de Business Manager changent, les URL non.
 _META_BM_APPS_URL = "https://business.facebook.com/settings/apps"
@@ -247,48 +261,28 @@ _META = PlatformCred(
     key="meta",
     title="Meta / Instagram",
     icon="📱",
-    # Pas d'intro, comme Spotify. Elle disait « Meta est configuré au niveau de la
-    # plateforme (app partagée) ; le token, l'app et Instagram sont gérés par
-    # l'administrateur » — de l'architecture, vraie, et sans usage pour quelqu'un qui
-    # a une valeur à coller. Retirée le 2026-09-05 : « intègre uniquement l'essentiel
-    # en terme d'action ».
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
-    # TROIS actions, et pas une de plus. Ce qui a été retiré le 2026-09-05, et
-    # pourquoi — chaque ligne enlevée décrivait un contexte, pas un geste :
-    #
-    #   « act_ ou pas act_, les deux marchent »   le champ prend l'URL ENTIÈRE, il
-    #                                             n'y a plus rien à découper ;
-    #   « ne confondez pas avec business_id »     même raison : on ne choisit plus ;
-    #   « colle la valeur puis Enregistre »       le bouton est sous le champ ;
-    #   « prérequis Instagram » en étape à part   c'est une condition, pas une étape :
-    #                                             repliée dans la phrase Instagram.
-    #
-    # Ce qui RESTE est ce que personne ne peut deviner ni faire à sa place : où
-    # copier, le PARTAGE du compte (l'étape qui a bloqué la session du 2026-06-19),
-    # et où trouver l'identifiant Instagram.
+    # Trois lignes, chacune une chaîne de clics. Réécrites le 2026-09-05 :
+    # « simplifie au max », et surtout « je ne comprends pas comment l'utilisateur
+    # peut voir le nom de mon application ». Cette remarque a corrigé le GESTE, pas
+    # sa formulation — voir `META_BUSINESS_ID` plus haut.
     steps=(
-        CredStep("Ouvre le portail ci-dessus, sélectionne le compte à suivre, puis "
-                 "**copie la barre d'adresse** et colle-la dans **Lien de ton compte "
-                 "publicitaire**, au-dessus.",
+        CredStep("🔗 [Gestionnaire de publicités](https://adsmanager.facebook.com/) "
+                 "→ sélectionne ton compte → **copie l'URL** et colle-la au-dessus.",
                  "meta_url_id.png", "Le nombre après act= dans la barre d'adresse"),
-        # Cette étape a été formulée « **Prérequis admin** » jusqu'au 2026-09-04.
-        # L'étiquette disait à l'artiste que ce n'était pas son affaire — alors que
-        # c'est SON compte, dans SON Business Manager, et que personne d'autre ne peut
-        # le faire. Il ne le faisait donc pas, le test échouait, et rien ne disait
-        # pourquoi. C'est ce qui a bloqué la session du 2026-06-19 : elle reste.
-        CredStep("⚠️ **Partage ce compte avec notre application — personne ne peut le "
-                 "faire à ta place.** Sans ce partage, la collecte ne verra rien, même "
-                 "avec le bon lien.\n\n"
-                 f"[Business Manager → Applications]({_META_BM_APPS_URL}) → cherche "
-                 f"**{META_APP_DISPLAY_NAME}** (absente de la liste ? demande-nous de "
-                 "t'y ajouter). Puis "
-                 f"[Comptes publicitaires]({_META_BM_ADACCOUNTS_URL}) → **Ajouter des "
-                 "personnes / des applications** → autorisation **Analyste**."),
-        CredStep("**Instagram, optionnel.** Business Suite → **Paramètres → Comptes → "
-                 "Comptes Instagram** → copie l'**ID numérique** affiché sous le nom "
-                 "(pas ton @pseudo). Le compte doit être **Business ou Créateur** et "
-                 "relié à une **Page Facebook**."),
+        CredStep("🤝 **Partage ce compte avec nous** — sans ça, la collecte ne verra "
+                 "rien, même avec le bon lien.\n\n"
+                 f"⚙️ [Comptes publicitaires]({_META_PARTNERS_URL}) → ton compte → "
+                 "**Partenaires** → **Attribuer un partenaire** → colle "
+                 + (f"**`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
+                    else "**notre numéro de Business** (demande-le nous)")
+                 + " → rôle **Analyste**."),
+        CredStep("📸 [Comptes Instagram](https://business.facebook.com/settings/instagram-accounts) "
+                 "→ ton compte → copie l'**ID numérique** sous le nom (pas ton "
+                 "@pseudo).\n\n"
+                 "Il doit être **Business** ou **Créateur**, relié à une **Page "
+                 "Facebook**."),
     ),
     fields=(
         CredField("Lien de ton compte publicitaire",
@@ -296,7 +290,7 @@ _META = PlatformCred(
                   note="colle l'URL entière du Gestionnaire de publicités — on en "
                        "extrait le numéro de compte"),
         CredField("Instagram Business Account ID", "17841400000000000",
-                  note="optionnel — ~17 chiffres, pour les stats Instagram"),
+                  note="~17 chiffres, pour les stats Instagram"),
     ),
     admin_note=(
         "Côté admin : System User créé, token à 5 scopes en place, et le rattachement "

@@ -190,3 +190,107 @@ def test_the_entry_section_is_the_first_thing_on_the_meta_tab():
     for noisy in ("TextInput", "Expander"):
         assert noisy not in kinds_before, (
             f"un {noisy} précède « Saisir tes identifiants »")
+
+
+# ── Ce que le 2026-09-05 (soir) a ajouté ─────────────────────────────────────
+
+def test_the_agency_field_is_tucked_away_and_the_instagram_one_is_not():
+    """« optionnel » là où c'en est un, et le champ d'agence hors du chemin."""
+    from src.dashboard.views.credentials._registry import PLATFORMS
+
+    by_key = {f["key"]: f for f in PLATFORMS["meta"]["fields"]}
+
+    extra = by_key["extra_account_ids"]
+    assert extra.get("collapsed") is True, (
+        "le champ d'agence est de retour en pleine page — il ne concerne presque "
+        "personne et demandait une décision à chaque visite")
+    assert "optionnel" in extra["label"].lower()
+    assert "agence" in extra["label"].lower()
+
+    # Instagram n'est PAS étiqueté optionnel : il l'était, et le mot invitait à
+    # sauter la seule chose qui fait exister l'onglet Instagram.
+    assert "optionnel" not in by_key["ig_user_id"]["label"].lower()
+
+
+@pytest.mark.skipif(not _db_ready(), reason=f"needs the DB on {_DB_HOST}:{_DB_PORT}")
+def test_the_render_tucks_collapsed_fields_inside_an_expander():
+    """Vérifié sur l'ARBRE RENDU, pas sur le source.
+
+    La première version de ce test cherchait un `.get("collapsed")` quelque part
+    dans `_render.py` — et restait VERTE quand on vidait la liste des champs
+    repliés, parce qu'un autre `.get('collapsed')` subsistait deux lignes plus haut.
+    La question n'est pas « le drapeau est-il lu ? » mais « la zone de saisie est-elle
+    DANS le dépliant ? ».
+    """
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(_SCRIPT.format(root=os.getcwd()))
+    at.run(timeout=200)
+    assert not at.exception, at.exception
+
+    def find_expander(node):
+        kids = getattr(node, "children", None)
+        for child in (kids.values() if isinstance(kids, dict) else (kids or [])):
+            label = str(getattr(child, "label", "") or "")
+            if type(child).__name__ == "Expander" and "agence" in label.lower():
+                return child
+            found = find_expander(child)
+            if found is not None:
+                return found
+        return None
+
+    def descendants(node, out=None):
+        out = [] if out is None else out
+        kids = getattr(node, "children", None)
+        for child in (kids.values() if isinstance(kids, dict) else (kids or [])):
+            out.append(child)
+            descendants(child, out)
+        return out
+
+    exp = find_expander(at.main)
+    assert exp is not None, "le champ d'agence n'est plus dans un dépliant"
+    inside = [type(e).__name__ for e in descendants(exp)]
+    assert "TextArea" in inside, (
+        "le dépliant est vide : la zone de saisie est rendue ailleurs, donc "
+        "toujours en pleine page")
+
+
+def test_the_sharing_step_names_a_number_the_artist_can_paste():
+    """Un artiste ne peut PAS voir notre app dans son Business Manager.
+
+    Chez Meta, une application n'apparaît que dans le Business Manager qui la
+    possède ; la nôtre appartient au nôtre. Le guide disait « cherche
+    ETL_DASHBOARD_SPOTIFY dans ta liste d'applications » — une instruction que
+    personne ne pouvait suivre, et qu'aucun test ne remettait en cause parce que le
+    garde d'alors exigeait justement ce nom.
+
+    Le geste qui marche est l'inverse : l'artiste attribue SON compte à NOTRE
+    Business, en collant un numéro que nous lui donnons.
+    """
+    import importlib
+
+    for module, attr in (
+        ("src.dashboard.content.credential_guides", "CREDENTIAL_GUIDES"),
+        ("src.dashboard.content.credential_guides_en", "CREDENTIAL_GUIDES_EN"),
+    ):
+        guides = getattr(importlib.import_module(module), attr)
+        meta = next(g for g in guides if g.key == "meta")
+        joined = " ".join(s.text for s in meta.steps)
+        assert "Attribuer un partenaire" in joined or "Assign partner" in joined, (
+            f"{module}: l'étape de partage ne nomme plus le geste faisable")
+        assert "ETL_DASHBOARD_SPOTIFY" not in joined, (
+            f"{module}: le guide renvoie chercher notre app dans le Business Manager "
+            "de l'artiste, où elle ne peut pas apparaître")
+
+
+def test_every_step_of_the_meta_guide_carries_a_clickable_portal():
+    """Chaque étape commence par le lien qu'elle fait ouvrir — demandé le 2026-09-05."""
+    import importlib
+
+    guides = importlib.import_module(
+        "src.dashboard.content.credential_guides").CREDENTIAL_GUIDES
+    meta = next(g for g in guides if g.key == "meta")
+    for i, step in enumerate(meta.steps, 1):
+        assert "](http" in step.text, (
+            f"étape {i} sans lien cliquable : l'artiste doit chercher la page "
+            "lui-même")

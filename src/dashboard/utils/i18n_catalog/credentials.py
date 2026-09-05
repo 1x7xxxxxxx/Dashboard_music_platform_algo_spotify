@@ -50,7 +50,7 @@ EN = {
     "credentials.field.user_id": "Link to your SoundCloud profile",
     "credentials.field.account_id": "Ad Account ID (act_… or numeric)",
     "credentials.field.extra_account_ids": (
-        "Additional ad accounts (one per line — agencies)"
+        "Extra ad accounts - for agencies (optional)"
     ),
     "credentials.meta.accounts_malformed": (
         "❌ Ad account(s) in the wrong format: {bad}. Digits only, optionally "
@@ -405,35 +405,37 @@ EN = {
     "credentials.guide.soundcloud.note_1": "your page link — nothing to cut out",
     # ── credential_guides.py — Meta guide ──────────────────────────────
     "credentials.guide.meta.expander": "{icon} {title} — obtain the credentials",
-    # Trois étapes depuis le 2026-09-05, en step avec `credential_guides.py` et
-    # `credential_guides_en.py`. Les anciennes `step_4` / `note` / `intro` ont été
-    # retirées avec les étapes qu'elles traduisaient — une traduction qui survit à
-    # son étape décrit un écran qui n'existe plus.
+    # Trois chaînes de clics, en step avec les deux guides (2026-09-05).
+    # L'étape de partage nomme NOTRE Business ID, pas notre app : une app
+    # n'apparaît que dans le Business Manager qui la possède.
     "credentials.guide.meta.step_1": (
-        "Open the portal above, pick the account you want to track, then **copy the "
-        "address bar** and paste it into **Your ad account link**, above."
+        "🔗 [Ads Manager](https://adsmanager.facebook.com/) → pick your account → "
+        "**copy the URL** and paste it above."
     ),
     "credentials.guide.meta.step_1_caption": (
         "The number after act= in the address bar"
     ),
     "credentials.guide.meta.step_2": (
-        "⚠️ **Share this account with our application — nobody can do it for you.** "
-        "Without that sharing, collection sees nothing, even with the right link.\n\n"
-        "[Business Manager → Apps](https://business.facebook.com/settings/apps) → "
-        "look for **ETL_DASHBOARD_SPOTIFY** (not in the list? ask us to add you). "
-        "Then [Ad accounts](https://business.facebook.com/settings/ad-accounts) → "
-        "**Add people / apps** → grant **Analyst** permission."
+        "🤝 **Share this account with us** — without it, collection sees nothing, "
+        "even with the right link.\n\n"
+        "⚙️ [Ad accounts](https://business.facebook.com/settings/ad-accounts) → your "
+        "account → **Partners** → **Assign partner** → paste our Business ID → "
+        "**Analyst** role."
     ),
     "credentials.guide.meta.step_3": (
-        "**Instagram, optional.** Business Suite → **Settings → Accounts → Instagram "
-        "accounts** → copy the **numeric ID** shown under the name (not your "
-        "@handle). The account must be **Business or Creator** and linked to a "
+        "📸 [Instagram accounts](https://business.facebook.com/settings/instagram-accounts) "
+        "→ your account → copy the **numeric ID** under the name (not your @handle)."
+        "\n\nIt must be a **Business** or **Creator** account, linked to a "
         "**Facebook Page**."
     ),
     "credentials.guide.meta.field_0": "Your ad account link",
     "credentials.guide.meta.note_0": (
         "paste the full Ads Manager URL — we extract the account number from it"
     ),
+    # Trois étapes depuis le 2026-09-05, en step avec `credential_guides.py` et
+    # `credential_guides_en.py`. Les anciennes `step_4` / `note` / `intro` ont été
+    # retirées avec les étapes qu'elles traduisaient — une traduction qui survit à
+    # son étape décrit un écran qui n'existe plus.
     "credentials.youtube.admin_key_invalid": "The platform's YouTube API key is being refused by Google. It is not your key and there is nothing for you to fix: please tell the administrator. Your Channel ID can stay as it is.",
     "credentials.youtube.quota_exceeded": "The platform's YouTube quota is exhausted for today. Nothing to fix on your side — try again tomorrow; the nightly collection will resume on its own.",
     "credentials.youtube.unexpected": "YouTube refused the request ({code}). {msg} If it persists, tell the administrator.",

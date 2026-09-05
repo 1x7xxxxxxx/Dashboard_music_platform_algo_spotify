@@ -28,6 +28,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R59 | Deux tests encodent des règles opposées sur la même sonde — trancher par ADR | P3 | `## Open Bugs` |
 | R60 | `_claimed_count` lit un échec comme un zéro et fabrique le défaut du 2026-09-05 | P2 | `## Open Bugs` |
 | R61 | La suite de tests sème des lignes fabriquées dans la base de dev, et les pastilles les comptent | P2 | `## Open Bugs` |
+| R62 | Demande de partenariat Meta envoyée et acceptée par l'app, au lieu d'un geste manuel dans les deux sens | P3 | `## Open Bugs` |
 
 Les deux sont sorties du balayage du **2026-09-05**, en corrigeant
 `headline-asserts-a-cause-the-probe-did-not-measure`. Aucune n'était ce bug : les
@@ -40,7 +41,7 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ## 🔖 REPRISE — état au 2026-09-05, deux tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1,R59,R60,R61 -->
+<!-- reprise: open=R1,R59,R60,R61,R62 -->
 
 **▶️ Deux tâches ouvertes, R59 et R60**, inscrites le 2026-09-05 en corrigeant le
 verdict de sonde qui affirmait une cause non mesurée (DEVLOG « suite 10 »). Elles sont
@@ -328,6 +329,30 @@ un correctif est la façon dont on livre trois choses à moitié.
   extérieur — ici, à la base de développement.
   Commande qui le montre :
   `python3 -c "import sys;sys.path.insert(0,'.');from src.dashboard.utils import get_db_connection as g;print(g().fetch_df(\"SELECT artist_id,COUNT(*) FROM soundcloud_tracks_daily WHERE track_id LIKE 'track-of-%' GROUP BY 1\"))"`
+
+- [ ] **R62 — l'ajout d'un partenaire Meta reste un geste manuel des deux côtés.** P3.
+  Question posée le 2026-09-05 : « je ne comprends pas comment l'utilisateur peut voir
+  le nom de mon application, il faut prévoir un step de demande d'ajout et
+  d'acceptation de notre part automatique ? ». **Elle était fondée, et la moitié en a
+  été corrigée le jour même** : le guide envoyait l'artiste chercher
+  `ETL_DASHBOARD_SPOTIFY` dans SON Business Manager, où une application n'apparaît que
+  si ce BM la possède — instruction infaisable. Le guide nomme désormais notre
+  **Business ID** (`META_BUSINESS_ID`), que l'artiste colle dans « Attribuer un
+  partenaire ».
+
+  Ce qui reste ouvert est la seconde moitié : **le partage est toujours un geste
+  manuel**, et nous n'en sommes pas notifiés. L'artiste peut l'oublier, se tromper de
+  rôle, ou le faire sans qu'on le sache ; le seul retour est l'échec du test de
+  connexion. Automatiser suppose l'API Business Manager
+  (`/{business_id}/managed_partner_business`, agreements de partage d'actifs), donc la
+  permission `business_management` et une **revue Meta** — ce n'est pas un patch, c'est
+  une brique avec une dépendance externe.
+
+  Étape intermédiaire à évaluer d'abord, sans revue : détecter côté serveur qu'un
+  compte vient d'être partagé (le System User y gagne l'accès) et le dire dans l'app,
+  au lieu d'attendre que l'artiste re-teste.
+  Commande qui montre l'état actuel :
+  `python3 -c "import os,json,urllib.request,urllib.parse;from dotenv import load_dotenv;[load_dotenv(f) for f in ('.env.local','.env')];t=os.getenv('META_ACCESS_TOKEN');print(json.load(urllib.request.urlopen('https://graph.facebook.com/v21.0/me/adaccounts?'+urllib.parse.urlencode({'access_token':t,'fields':'account_id,name,business'}))))"`
 
 ### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
 
