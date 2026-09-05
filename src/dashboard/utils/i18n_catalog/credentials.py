@@ -43,12 +43,18 @@ EN = {
         "It is the one step we cannot do for you."
     ),
     "credentials.meta.share_steps": (
-        "Copy this number (button on the right) → open the link below → your "
-        "account → **Partners** → **Assign partner** → paste it → **Analyst** role."
+        "Copy this number (button on the right) → open the link below → **Add** → "
+        "**Give a partner access to your assets** → paste the number → tick your ad "
+        "account → **Analyst** role."
     ),
-    "credentials.meta.share_open": "⚙️ Open my ad accounts ↗",
-    "credentials.meta.share_open_direct": (
-        "⚙️ Open this account's « Partners » tab ↗"
+    "credentials.meta.share_open": "⚙️ Open my partners ↗",
+    "credentials.meta.share_owned": (
+        "✅ This ad account is already one of ours — there is nothing to share."
+    ),
+    "credentials.meta.share_accepted": "✅ Sharing is in place. The figures come through.",
+    "credentials.meta.share_pending": (
+        "⏳ Our access request is waiting for you to accept it, in your Business "
+        "Manager → Partners."
     ),
     "credentials.meta.ig_resolved": (
         "📸 Instagram account recognised: **@{name}** (ID {ident})"
@@ -300,8 +306,8 @@ EN = {
     # n'apparaissant que dans le Business Manager qui la possède.
     "credentials.meta.account_unreachable": (
         "Ad account **{act}**: it is not shared with us yet. {detail}\n\n"
-        "→ Business Manager → **Ad accounts** → your account → **Partners** → "
-        "**Assign partner** → {where} → **Analyst** role."
+        "→ Business settings → **Partners** → **Add** → **Give a partner access "
+        "to your assets** → {where} → tick the account → **Analyst** role."
     ),
     "credentials.meta.ig_id_missing": (
         "Instagram Business Account ID missing — enter it in the Meta tab "

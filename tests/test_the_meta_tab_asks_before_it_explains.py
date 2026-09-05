@@ -277,8 +277,14 @@ def test_the_sharing_step_names_a_number_the_artist_can_paste():
         guides = getattr(importlib.import_module(module), attr)
         meta = next(g for g in guides if g.key == "meta")
         joined = " ".join(s.text for s in meta.steps)
-        assert "Attribuer un partenaire" in joined or "Assign partner" in joined, (
+        # Réancré le 2026-09-05 (2ᵉ fois le même jour) : « Attribuer un partenaire »
+        # est le bouton de l'écran qui GÈRE les attributions existantes d'un compte.
+        # Le geste qui en AJOUTE une part des partenaires du Business.
+        assert ("l'accès à tes assets" in joined
+                or "access to your assets" in joined), (
             f"{module}: l'étape de partage ne nomme plus le geste faisable")
+        assert "Attribuer un partenaire" not in joined, (
+            f"{module}: retour du bouton de l'écran de gestion, qui n'ajoute rien")
         assert "ETL_DASHBOARD_SPOTIFY" not in joined, (
             f"{module}: le guide renvoie chercher notre app dans le Business Manager "
             "de l'artiste, où elle ne peut pas apparaître")
@@ -296,8 +302,8 @@ def test_every_step_of_the_meta_guide_carries_a_clickable_portal():
     # l'artiste a déjà sous les yeux. Exiger un lien partout ferait ajouter un lien
     # vers instagram.com, c'est-à-dire du bruit.
     sends_away = [s for s in meta.steps
-                  if "Gestionnaire" in s.text or "Ads Manager" in s.text
-                  or "Comptes publicitaires" in s.text or "Ad accounts" in s.text]
+                  if "Partenaires" in s.text or "Partners" in s.text
+                  or "Gestionnaire" in s.text or "Ads Manager" in s.text]
     assert sends_away, "aucune étape n'envoie plus vers une page de Meta"
     for i, step in enumerate(sends_away, 1):
         assert "](http" in step.text, (

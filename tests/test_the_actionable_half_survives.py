@@ -91,16 +91,23 @@ def test_the_meta_diagnosis_carries_the_sharing_instruction(benken_diagnosis):
     La question gardée reste la même — « le geste que l'artiste est seul à pouvoir
     faire survit-il jusqu'à l'écran ? » — mais elle est ancrée sur le geste QUI MARCHE.
     """
-    assert "Attribuer un partenaire" in benken_diagnosis
+    # RÉANCRÉ une seconde fois le 2026-09-05, quelques heures après la première :
+    # « Attribuer un partenaire » est le bouton de l'écran qui GÈRE les attributions
+    # d'un compte, pas celui qui en AJOUTE une. Un artiste l'a suivi et n'a rien
+    # trouvé. Le chemin canonique passe par les partenaires du Business.
+    assert "Partenaires" in benken_diagnosis
+    assert "l'accès à tes assets" in benken_diagnosis
     assert "Analyste" in benken_diagnosis
-    # Et jamais le retour de l'ancien : il envoyait chercher notre app chez l'artiste.
+    # Et jamais le retour des deux consignes infaisables déjà rencontrées :
+    # chercher notre app chez l'artiste, et le bouton de l'écran de gestion.
     assert "Business Assets" not in benken_diagnosis
     assert "ETL_DASHBOARD_SPOTIFY" not in benken_diagnosis
+    assert "Attribuer un partenaire" not in benken_diagnosis
 
 
 @pytest.mark.parametrize("fixture_name, tail", [
     ("grinch_diagnosis", "en **public**"),
-    ("benken_diagnosis", "Attribuer un partenaire"),
+    ("benken_diagnosis", "l'accès à tes assets"),
 ])
 def test_the_probe_seam_keeps_the_gesture(request, monkeypatch, fixture_name, tail):
     """`platform_probes.probe` is the seam every automatic surface reads through.

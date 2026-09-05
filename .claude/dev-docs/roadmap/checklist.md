@@ -25,7 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Où |
 |---|---|---|---|
-| R63 | Instagram est-il collectable **sans** Business Manager ? La mesure est bloquée par un throttle Meta | P3 | `## Open Bugs` |
 
 R59, R60, R61 et R62 — les quatre ouvertes ce matin — ont été closes le 2026-09-05 au
 soir (voir `archive.md`). Deux l'ont été par un correctif, une par un ADR qui montre que
@@ -38,7 +37,7 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ## 🔖 REPRISE — état au 2026-09-05 (soir), aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1,R63 -->
+<!-- reprise: open=R1 -->
 
 **▶️ Aucune tâche de développement ouverte.** Les quatre inscrites dans la journée
 (R59-R62) ont été closes le soir même — DEVLOG « suite 14 ». Ce qui reste est **R1**,
@@ -286,12 +285,12 @@ prochaine session artiste.
 
 ## Open Bugs
 
-- [ ] **R63 — Instagram est-il collectable sans Business Manager ?** P3.
+- [x] **R63 — Instagram est-il collectable sans Business Manager ?** P3.
   C'est la question qui décide si 📸 Instagram mérite un onglet à lui, séparé de
   📱 Meta Ads. Demandée le 2026-09-05 (nuit) : « si on peut avoir les données
   d'Instagram sans configurer Meta Ads, on les laisse séparés ».
 
-  **Ce qui est déjà mesuré** : `business_discovery` rend l'identifiant numérique et
+  **Mesuré le 2026-09-05, quota revenu — la réponse est OUI, partiellement** : `business_discovery` rend l'identifiant numérique et
   les métriques publiques (abonnés, nombre de posts, likes/commentaires) d'un compte
   Business/Créateur **tiers**, sans aucun partage — prouvé sur `fjaak` le même jour.
   Le collecteur, lui, n'utilise PAS cette route : `instagram_api_collector.py:167,273`
@@ -299,10 +298,35 @@ prochaine session artiste.
   le compte soit accessible à notre jeton — donc relié à une Page de notre Business
   Manager.
 
-  **Ce qui manque** : la preuve que l'accès direct échoue bien sur un compte tiers.
-  Les trois tentatives ont rendu `(#4) Application request limit reached` — le quota
-  d'app était épuisé par la mise au point de la soirée. Sans cette mesure, on ne
-  tranche pas : l'onglet reste fusionné (« 📱 Meta Ads / Insta »), qui est l'état sûr.
+**Les deux appels, côte à côte, sur `fjaak` (compte tiers que nous ne gérons pas)** :
+
+```
+GET /17841400196310703                → (#100) Object ... does not exist, cannot be loaded
+GET /{nous}?fields=business_discovery.username(fjaak){...}
+                                      → followers_count 330025, follows_count 2289,
+                                        media_count 706, biography, website,
+                                        profile_picture_url
+                                      → media{id,timestamp,like_count,comments_count,
+                                        media_type,permalink}
+GET ...business_discovery{media{insights.metric(reach)}}
+                                      → (#10) Application does not have permission
+```
+
+**La frontière** : le public passe, le privé non. Profil et publications (dont likes et
+commentaires) sont collectables **sans Business Manager** ; les insights — reach,
+impressions, vues de profil — exigent que le compte soit relié à une Page de notre
+Business, donc le partage.
+
+**La décision** : 📸 Instagram garde son onglet séparé, comme demandé. Ce n'est pas un
+onglet au rabais — 330 025 abonnés et 706 posts sont de vraies données, et l'artiste n'a
+rien d'autre à faire que coller l'adresse de son profil.
+
+**Ce qui reste, et qui est une brique neuve, pas ce bug** : `instagram_api_collector.py`
+(l.167 et 273) appelle encore `GET /{ig_user_id}` et `/{ig_user_id}/media` en direct —
+la route qui échoue en (#100) sur un tiers. Le basculer sur `business_discovery` est le
+travail qui rend l'onglet réellement collectant. Tant qu'il n'est pas fait, la saisie
+Instagram enregistre l'identité et la sonde la valide, mais le DAG ne ramènera rien pour
+un compte non relié.
 
   Si l'accès direct échoue : deux options, à arbitrer — basculer le collecteur sur
   `business_discovery` (Instagram devient autonome, au prix des métriques privées :

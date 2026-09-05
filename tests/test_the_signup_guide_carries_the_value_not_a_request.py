@@ -68,8 +68,14 @@ def test_the_shipped_guide_carries_the_number_rather_than_asking_for_it():
         pytest.skip("guide non construit ici — `make guide`")
     text = page.read_text(encoding="utf-8")
 
-    assert "Attribuer un partenaire" in text, (
+    # Réancré le 2026-09-05 : « Attribuer un partenaire » nomme l'écran qui GÈRE
+    # les attributions d'un compte, pas celui qui en ajoute une.
+    # L'apostrophe est échappée en `&#x27;` dans le HTML livré : on ancre sur le
+    # fragment qui traverse l'échappement, pas sur la phrase telle qu'écrite.
+    assert "accès à tes assets" in text, (
         "le guide livré ne porte plus le geste de partage")
+    assert "Attribuer un partenaire" not in text, (
+        "retour du bouton de l'écran de gestion, qui n'ajoute aucun partenaire")
     assert "demande-le nous" not in text, (
         "le guide livré renvoie l'artiste NOUS DEMANDER une valeur que nous "
         "connaissons — c'est un aller-retour par e-mail à chaque inscription")

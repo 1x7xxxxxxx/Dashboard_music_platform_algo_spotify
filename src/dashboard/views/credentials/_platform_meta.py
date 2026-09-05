@@ -134,9 +134,9 @@ def _probe_ad_account(act_id: str, token: str) -> tuple:
             "credentials.meta.account_unreachable",
             "Compte publicitaire **{act}** : il ne nous est pas encore partagé. "
             "{detail}\n\n"
-            "→ Business Manager → **Comptes publicitaires** → ton compte → "
-            "**Partenaires** → **Attribuer un partenaire** → {where} → rôle "
-            "**Analyste**."
+            "→ Paramètres du Business → **Partenaires** → **Ajouter** → "
+            "**Donner à un partenaire l'accès à tes assets** → {where} → coche le "
+            "compte → rôle **Analyste**."
         ).format(act=act_id, detail=detail, where=_where), SHARING_MISSING)
     return True, str(acc.get('name', act_id))
 
@@ -223,25 +223,47 @@ ADS_MANAGER_URL = "https://adsmanager.facebook.com/adsmanager/manage/campaigns"
 
 # ── Le geste que nous ne pouvons pas faire, rendu copiable ──────────────────
 
-# URL EXACTE de la page où l'attribution se fait. `business.facebook.com/settings`
-# ouvre les réglages généraux et l'artiste doit encore trouver la bonne section ;
-# celle-ci ouvre directement la liste des comptes publicitaires.
-_ASSIGN_URL = "https://business.facebook.com/settings/ad-accounts"
+# L'écran où un partenaire s'AJOUTE. Ce n'est pas celui des comptes publicitaires :
+# l'onglet « Partenaires » d'un compte GÈRE les attributions existantes et son champ
+# de recherche filtre cette liste — il n'ajoute rien. Un artiste y a collé notre
+# numéro le 2026-09-05 et n'a évidemment rien trouvé.
+_ASSIGN_URL = "https://business.facebook.com/settings/partners"
+
+
+def _share_state_cached(account_id: str) -> str:
+    """`share_state` derrière un cache court. Ne lève jamais, ne bloque jamais.
+
+    Trois appels Graph au plus, et cette fonction est sur le chemin de rendu d'un
+    onglet : sans cache, chaque interaction avec le formulaire les relancerait.
+    """
+    import streamlit as st
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _read(acct: str) -> str:
+        from src.utils.meta_partner import share_state
+        return share_state(acct)
+
+    try:
+        return _read(account_id)
+    except Exception:  # noqa: BLE001 — l'état du partage n'empêche jamais la saisie
+        return "unknown"
 
 
 def render_partner_share_block(account_id: str = "") -> None:
-    """L'ID partenaire dans un bloc COPIABLE, avec le lien exact. Ne lève jamais.
+    """Le geste de partage — mais SEULEMENT quand il reste à faire.
 
-    Demandé le 2026-09-05 : « on n'a aucun champ pour saisir qu'on a bien copié l'ID
-    partenaire, avec un bouton copie et l'adresse exacte du Business Manager ».
+    Demandé le 2026-09-05 : « on n'a aucun champ pour saisir qu'on a bien copié
+    l'ID partenaire, avec un bouton copie et l'adresse exacte du Business Manager ».
 
-    `st.code` porte un bouton de copie natif — c'est la seule forme où le numéro se
-    prend d'un clic. Écrit au fil d'une phrase, il fallait le sélectionner à la
-    souris, sur mobile en particulier, et un chiffre manquant ne se voit pas.
+    Le même jour, un artiste a suivi la consigne sur un compte que **notre propre
+    Business possède déjà**. Meta exclut du sélecteur le business propriétaire : le
+    numéro était introuvable, la consigne infaisable, et une installation qui
+    marchait paraissait cassée. L'app affirmait « il faut partager » sans jamais
+    regarder si le partage était acquis — alors que les trois arêtes qui le disent
+    étaient lisibles depuis le début.
 
-    Rendu AU-DESSUS du formulaire, pas dans le guide replié : c'est l'action qui
-    conditionne toutes les autres. Sans le partage, un lien parfaitement valide
-    collecte zéro.
+    `st.code` porte un bouton de copie natif : c'est la seule forme où le numéro se
+    prend d'un clic, sur mobile en particulier, où un chiffre manquant ne se voit pas.
     """
     import streamlit as st
 
@@ -251,6 +273,23 @@ def render_partner_share_block(account_id: str = "") -> None:
     if not META_BUSINESS_ID:
         return
 
+    state = _share_state_cached(account_id) if account_id else "unknown"
+
+    if state == "owned":
+        st.success(t("credentials.meta.share_owned",
+                     "✅ Ce compte publicitaire est déjà l'un des nôtres — il n'y a "
+                     "aucun partage à faire."))
+        return
+    if state == "accepted":
+        st.success(t("credentials.meta.share_accepted",
+                     "✅ Le partage est en place. Les chiffres remontent."))
+        return
+    if state == "pending":
+        st.info(t("credentials.meta.share_pending",
+                  "⏳ Notre demande d'accès attend ton acceptation, dans ton "
+                  "Business Manager → Partenaires."))
+        return
+
     st.markdown("**" + t("credentials.meta.share_title",
                          "🤝 Donne-nous accès à ton compte publicitaire") + "**")
     st.caption(t(
@@ -258,21 +297,14 @@ def render_partner_share_block(account_id: str = "") -> None:
         "Sans ce partage, aucune donnée ne remonte — même avec le bon lien. "
         "C'est le seul geste que nous ne pouvons pas faire à ta place."))
     st.code(META_BUSINESS_ID, language=None)
+    # Le chemin nommé ici est celui qui AJOUTE un partenaire. L'onglet
+    # « Partenaires » d'un compte publicitaire ne fait que gérer l'existant.
     st.caption(t(
         "credentials.meta.share_steps",
-        "Copie ce numéro (bouton à droite) → ouvre le lien ci-dessous → ton compte "
-        "→ **Partenaires** → **Attribuer un partenaire** → colle-le → rôle "
-        "**Analyste**."))
-    # Le lien ouvre DIRECTEMENT l'onglet « Partenaires » du compte saisi quand on
-    # le connaît — demandé le 2026-09-05 : « donne le lien directement où on
-    # attribue le partenaire pour coller directement le n° ». Sans identifiant, on
-    # ne peut ouvrir que la liste : c'est un écran de plus, mais c'est honnête.
-    _digits = "".join(c for c in (account_id or "") if c.isdigit())
-    if _digits:
-        st.link_button(
-            t("credentials.meta.share_open_direct",
-              "⚙️ Ouvrir « Partenaires » de ce compte ↗"),
-            f"{_ASSIGN_URL}/{_digits}?tab=partners")
-    else:
-        st.link_button(t("credentials.meta.share_open",
-                         "⚙️ Ouvrir mes comptes publicitaires ↗"), _ASSIGN_URL)
+        "Copie ce numéro (bouton à droite) → ouvre le lien ci-dessous → "
+        "**Ajouter** → **Donner à un partenaire l'accès à tes assets** → colle le "
+        "numéro → coche ton compte publicitaire → rôle **Analyste**."))
+    # Aucune URL ne peut pré-remplir l'écran avec l'identifiant de l'artiste : le
+    # paramètre `business_id` de Meta désigne le SIEN, que nous ne connaissons pas.
+    st.link_button(t("credentials.meta.share_open",
+                     "⚙️ Ouvrir mes partenaires ↗"), _ASSIGN_URL)

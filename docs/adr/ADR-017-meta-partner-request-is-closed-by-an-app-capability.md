@@ -69,3 +69,48 @@ marche pas ». Un écran ne dit plus ❌ là où il y a un geste à faire.
 Demander à Meta l'accès avancé « Business Asset Management » pour l'app
 `ETL_DASHBOARD_SPOTIFY`. Le contrôle qui dit que c'est ouvert est exactement celui
 ci-dessus : le `POST` cesse de répondre `(#3)`.
+
+---
+
+## Correction du 2026-09-05 (même jour) — deux affirmations non mesurées
+
+Cet ADR concluait : « Le guide garde le geste manuel — **qui, lui, fonctionne** ». Cette
+phrase n'a jamais été vérifiée. Elle est fausse deux fois, et l'artiste l'a rencontrée
+dans l'heure qui a suivi.
+
+**1. Le geste ne s'applique pas à un compte que nous possédons déjà.**
+
+```
+GET 212173878482503/owned_ad_accounts
+  → 651785234086429, 567214713853881, 780537043765438
+```
+
+`567214713853881` est le compte du locataire 1. Meta **exclut du sélecteur de
+partenaires le business qui possède déjà le compte** : coller `212173878482503` ne
+pouvait rien trouver. La consigne était infaisable, et une installation qui marchait
+paraissait cassée.
+
+L'app affirmait « il faut partager » sans jamais lire l'état du partage — alors que les
+trois arêtes qui le disent sont lisibles depuis le début et servaient déjà, dans ce même
+ADR, à prouver autre chose. `src/utils/meta_partner.share_state()` les lit désormais :
+`owned` / `accepted` / `pending` / `absent` / `unknown`, et le bloc ne parle que sur les
+deux derniers. `unknown` n'est pas `absent` : une lecture ratée ne prouve aucune absence.
+
+**2. Le chemin nommé n'était pas celui qui ajoute un partenaire.**
+
+Le guide envoyait vers `settings/ad-accounts` → compte → onglet « Partenaires » →
+« Attribuer un partenaire ». Cet écran **gère les attributions existantes** ; son champ
+de recherche filtre cette liste. Le chemin canonique est `settings/partners` →
+**Ajouter** → **Donner à un partenaire l'accès à tes assets** → coller le numéro →
+cocher le compte → rôle Analyste.
+
+Aucune URL ne peut pré-remplir cet écran : le paramètre `business_id` de Meta désigne le
+business **du lecteur**, que nous ne connaissons pas. Le lien direct par compte, ajouté
+quelques heures plus tôt, ouvrait donc précisément l'écran qui ne sert à rien.
+
+**Ce que la moitié « détection » ne couvrait pas.** L'ADR disait la détection déjà faite
+par la sonde nocturne. C'est vrai pour « le partage est-il arrivé ? » ; ce n'est pas vrai
+pour « ce geste est-il seulement à faire ? ». La sonde regarde si l'appel passe, jamais
+si la consigne s'adresse à quelqu'un.
+
+Garde : `tests/test_the_share_step_is_hidden_when_there_is_nothing_to_share.py`.

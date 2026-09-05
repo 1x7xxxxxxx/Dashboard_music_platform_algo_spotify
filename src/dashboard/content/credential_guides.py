@@ -65,12 +65,8 @@ def _business_id() -> str:
 
 
 META_BUSINESS_ID = _business_id()
-_META_PARTNERS_URL = "https://business.facebook.com/settings/ad-accounts"
+_META_PARTNERS_URL = "https://business.facebook.com/settings/partners"
 
-# Le réglage exact, chez Meta, où se fait le partage. Un lien vaut mieux qu'un
-# chemin de menu recopié : les libellés de Business Manager changent, les URL non.
-_META_BM_APPS_URL = "https://business.facebook.com/settings/apps"
-_META_BM_ADACCOUNTS_URL = "https://business.facebook.com/settings/ad-accounts"
 
 
 @dataclass(frozen=True)
@@ -312,11 +308,12 @@ _META = PlatformCred(
         # test l'a rattrapé DEUX FOIS. Ce guide part aussi en PDF à
         # l'inscription, où il n'y a pas d'onglet : « le bloc au-dessus porte le
         # numéro » y désigne le vide. Une ligne, mais complète.
-        CredStep("🤝 [Comptes publicitaires](" + _META_PARTNERS_URL + ") → ton "
-                 "compte → **Partenaires** → **Attribuer un partenaire** → "
+        CredStep("🤝 [Partenaires](" + _META_PARTNERS_URL + ") → **Ajouter** → "
+                 "**Donner à un partenaire l'accès à tes assets** → "
                  + (f"colle **`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
                     else "colle **notre numéro** (demande-le nous)")
-                 + " → rôle **Analyste**. Sans ce partage, aucune donnée."),
+                 + " → coche ton compte publicitaire → rôle **Analyste**. "
+                   "Sans ce partage, aucune donnée."),
         CredStep("📸 **Instagram** — colle l'adresse de ton profil "
                  "(compte business/créateur)."),
     ),
