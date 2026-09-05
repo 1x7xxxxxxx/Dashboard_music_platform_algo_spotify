@@ -28,7 +28,8 @@ except OSError as e:
 
 class InstagramCollector:
     def __init__(self, artist_id: int, access_token: str = None,
-                 ig_user_id: str = None, app_id: str = None, app_secret: str = None):
+                 ig_user_id: str = None, app_id: str = None, app_secret: str = None,
+                 ig_username: str = None):
         """Credentials are PARAMETERS; the env is only a single-tenant fallback.
 
         The DAG used to pass them by mutating `os.environ` inside its per-artist
@@ -47,6 +48,12 @@ class InstagramCollector:
         # variable that reaches no container documents a configuration that does not
         # exist, and that is what sends the next investigation to the wrong file.
         self.access_token = access_token or os.getenv("META_ACCESS_TOKEN")
+        # Le pseudo, quand la saisie l'a résolu. C'est la CLÉ de `business_discovery`,
+        # la seule route qui lit un compte Business/Créateur non relié à une Page de
+        # notre Business — mesuré le 2026-09-05 : l'appel direct rend (#100) sur un
+        # tiers, `business_discovery` rend abonnés, publications et commentaires.
+        # Sans pseudo, pas de repli possible : on lève plutôt que de rendre zéro.
+        self.ig_username = ig_username
         # The Instagram Business account id (not the username). NO env fallback: the
         # environment carries the ADMIN's identity, so `ig_user_id or os.getenv(...)`
         # makes a tenant with a blank field silently collect the admin's account and
@@ -159,6 +166,53 @@ class InstagramCollector:
         except Exception as e:
             logger.debug(f"Proactive refresh check skipped: {safe_error(e)}")
 
+
+    # ── Le repli qui rend l'onglet Instagram autonome ─────────────────────────
+    #
+    # Mesuré le 2026-09-05 sur un compte tiers (`fjaak`), avec notre jeton System
+    # User et sans aucun partage de Business Manager :
+    #
+    #   GET /{ig_id}                        → (#100) Object does not exist
+    #   business_discovery.username(fjaak)  → 330 025 abonnés, 706 posts, médias
+    #   business_discovery{media{insights}} → (#10) no permission
+    #
+    # Le public passe, le privé non. Un compte relié à une Page de notre Business
+    # garde donc l'appel direct — plus riche, et seul à ouvrir les insights ; un
+    # compte simplement déclaré passe par ici.
+    _DISCOVERY_CODES = (100, 803, 110)
+
+    def _discovery_owner(self) -> str:
+        """Le compte DEPUIS lequel on interroge — celui de l'app, pas du locataire.
+
+        `business_discovery` se lit toujours depuis un compte que nous gérons. Ce
+        n'est pas une identité de locataire : c'est l'app qui regarde. D'où le nom
+        `META_IG_DISCOVERY_ID`, et non `IG_USER_ID` — le second se serait fait
+        prendre, à raison, par le garde d'identité de locataire.
+        """
+        return os.getenv("META_IG_DISCOVERY_ID", "").strip()
+
+    def _discover(self, sub_fields: str) -> dict:
+        """`business_discovery` sur le pseudo du locataire. Lève si impossible."""
+        owner, handle = self._discovery_owner(), (self.ig_username or "").strip()
+        if not owner:
+            raise ValueError(
+                "Instagram: le compte non relié exige business_discovery, et "
+                "META_IG_DISCOVERY_ID n'est pas configuré. Action : ajouter la "
+                "variable au compose, avec l'identifiant du compte Instagram de "
+                "l'app."
+            )
+        if not handle:
+            raise ValueError(
+                f"Instagram: le compte {self.ig_user_id} n'est pas relié à une Page "
+                "de notre Business, et aucun pseudo n'est enregistré pour retomber "
+                "sur business_discovery. Action : Dashboard → Credentials → "
+                "📸 Instagram → recoller le lien du profil (il résout le pseudo)."
+            )
+        from src.utils.meta_graph import get
+        payload = get(owner, token=self.access_token,
+                      fields=f"business_discovery.username({handle}){{{sub_fields}}}")
+        return payload.get("business_discovery", {}) or {}
+
     @retry(max_attempts=3, backoff="exponential")
     def fetch_stats(self):
         """Récupère les stats du compte."""
@@ -196,10 +250,29 @@ class InstagramCollector:
                         f"Instagram API 400 (code {err_code}) — access_token expired or invalid: {err_msg}. "
                         "Action: Dashboard → Credentials → Meta → generate a new long-lived token (60 days)."
                     )
+                # Le compte n'est pas joignable EN DIRECT — c'est le cas normal
+                # d'un compte simplement déclaré, pas relié à une Page de notre
+                # Business. On ne s'arrête pas là : `business_discovery` le lit.
+                if err_code in self._DISCOVERY_CODES:
+                    logger.info(
+                        "IG %s unreachable directly (code %s) — falling back to "
+                        "business_discovery on @%s",
+                        self.ig_user_id, err_code, self.ig_username)
+                    d = self._discover(
+                        "id,username,followers_count,follows_count,media_count")
+                    return {
+                        'artist_id': self.artist_id,
+                        'ig_user_id': d.get('id') or self.ig_user_id,
+                        'username': d.get('username') or self.ig_username,
+                        'followers_count': d.get('followers_count', 0),
+                        'follows_count': d.get('follows_count', 0),
+                        'media_count': d.get('media_count', 0),
+                        'collected_at': datetime.now(timezone.utc),
+                    }
                 raise ValueError(
                     f"Instagram API 400 (code {err_code}) — ig_user_id={self.ig_user_id} may not be a "
                     f"Business/Creator account ID, or token lacks instagram_basic permission: {err_msg}. "
-                    "Action: Dashboard → Credentials → Meta → verify ig_user_id and token permissions."
+                    "Action: Dashboard → Credentials → 📸 Instagram → verify the profile link."
                 )
 
             response.raise_for_status()
@@ -288,6 +361,18 @@ class InstagramCollector:
                 if resp.status_code != 200:
                     err = (resp.json().get('error', {})
                            if resp.content else {})
+                    # Même repli que `fetch_stats`, et il doit être ici AUSSI : le
+                    # brancher sur un seul des deux appels aurait rendu des abonnés
+                    # sans aucune publication, ce qui ressemble à un compte vide.
+                    if err.get('code') in self._DISCOVERY_CODES and pages == 0:
+                        d = self._discover(
+                            "media.limit(50){id,caption,media_type,permalink,"
+                            "media_url,timestamp,comments_count}")
+                        # `like_count` n'est PAS rendu par cette route (mesuré le
+                        # 2026-09-05) : `_map_media` le lit avec un défaut à 0, et
+                        # c'est un zéro qu'on assume — pas un compte de likes faux.
+                        return [self._map_media(m)
+                                for m in (d.get('media', {}) or {}).get('data', [])]
                     raise ValueError(
                         f"Instagram media API {resp.status_code} "
                         f"(code {err.get('code', '')}): {err.get('message', '')[:200]}"

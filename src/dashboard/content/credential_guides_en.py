@@ -101,7 +101,7 @@ _SOUNDCLOUD = PlatformCred(
 
 _META = PlatformCred(
     key="meta",
-    title="Meta Ads / Insta",
+    title="Meta Ads",
     icon="📱",
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
@@ -122,20 +122,43 @@ _META = PlatformCred(
                     else "paste **our Business ID** (ask us for it)")
                  + " → tick your ad account → **Analyst** role. "
                    "Without it, no data at all."),
-        CredStep("📸 **Instagram** — paste your profile address "
-                 "(business/creator account)."),
     ),
     fields=(
         CredField("Your ad account link",
                   "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
                   note="paste the full Ads Manager URL — we extract the account "
                        "number from it"),
-        CredField("Your Instagram profile link",
-                  "https://instagram.com/your-handle",
-                  note="we take it from there — nothing to look up in Business Manager"),
     ),
     admin_note="On our side: System User created, 5-scope token in place.",
 )
 
 
-CREDENTIAL_GUIDES_EN: tuple[PlatformCred, ...] = (_SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META)
+_INSTAGRAM = PlatformCred(
+    key="instagram",
+    title="Instagram",
+    icon="📸",
+    intro=None,
+    portal_url="https://www.instagram.com/",
+    # One step, and it is true: nothing to set up on Meta's side. Measured on a
+    # third-party account on 2026-09-05 — `business_discovery` returns followers,
+    # posts, permalinks and comments with NO Business Manager sharing. Insights
+    # (reach, impressions, profile views) stay out of reach: they require the
+    # account to be linked to a Page of our Business.
+    steps=(
+        CredStep("Paste your profile address above. Your account must be "
+                 "**Business** or **Creator** — a personal account returns "
+                 "nothing. (Instagram → Settings → Account type)"),
+    ),
+    fields=(
+        CredField("Your Instagram profile link",
+                  "https://instagram.com/your-handle",
+                  note="we take it from there — nothing to look up in Business Manager"),
+    ),
+    admin_note=("On our side: same System User token as Meta Ads. Collection goes "
+                "through business_discovery, which needs no sharing."),
+)
+
+
+CREDENTIAL_GUIDES_EN: tuple[PlatformCred, ...] = (
+    _SPOTIFY, _YOUTUBE, _SOUNDCLOUD, _META, _INSTAGRAM,
+)

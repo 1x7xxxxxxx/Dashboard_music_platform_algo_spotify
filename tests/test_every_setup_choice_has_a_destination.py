@@ -112,15 +112,22 @@ def test_where_says_credentials_the_destination_is_a_tab():
 def test_the_reported_selection_yields_its_three_destinations():
     """Le cas signalé, tel qu'il a été vécu : spotify + instagram + soundcloud.
 
-    Ce qui doit sortir : TROIS onglets — Spotify, SoundCloud et Meta Ads / Insta —
-    et jamais les deux qu'il a vus.
+    Ce qui doit sortir : TROIS onglets, et jamais les deux qu'il a vus.
+
+    L'onglet d'Instagram a changé deux fois le 2026-09-05 — d'abord fusionné dans
+    « Meta Ads / Insta », puis rendu autonome quand la mesure a montré qu'il
+    collecte sans Meta Ads. Ce qui est gardé n'est donc pas QUEL onglet, mais que
+    chaque plateforme choisie en atteigne un qui EXISTE : c'est l'absence de
+    destination qui avait laissé l'artiste devant deux onglets pour trois choix.
     """
     selection = ["spotify", "instagram", "soundcloud"]
     tabs = {platform_destination(k).split(":", 1)[1] for k in selection}
-    assert tabs == {"spotify", "soundcloud", "meta"}, (
-        f"la sélection {selection} donne les onglets {sorted(tabs)}; "
-        "SoundCloud doit y être, et Instagram passe par l'onglet « Meta Ads / Insta »"
-    )
+    assert len(tabs) == 3, (
+        f"la sélection {selection} donne les onglets {sorted(tabs)} : deux choix "
+        "mènent au même endroit, l'artiste en perd un en route")
+    assert tabs <= set(PLATFORMS), (
+        f"{sorted(tabs - set(PLATFORMS))} n'est pas un onglet du registre — le "
+        "bandeau annoncerait une destination que la page n'ouvre pas")
 
 
 def test_a_csv_platform_is_never_announced_as_the_next_tab():
@@ -205,10 +212,12 @@ def test_the_next_platform_is_the_tab_that_opens():
         "avant toute connexion, l'onglet ouvert doit être la première plateforme "
         "choisie"
     )
-    assert _tab_order(focus, {"spotify"})[0] == "meta", (
-        "après avoir connecté Spotify, l'onglet ouvert doit être celui d'Instagram — "
-        "c'est-à-dire « 📱 Meta Ads / Insta ». Sinon le bandeau annonce une suivante "
-        "que la page n'ouvre pas."
+    assert _tab_order(focus, {"spotify"})[0] == platform_destination(
+        "instagram").split(":", 1)[1], (
+        "après avoir connecté Spotify, l'onglet ouvert doit être celui d'Instagram. "
+        "Sinon le bandeau annonce une suivante que la page n'ouvre pas. Ancré sur "
+        "`platform_destination` et non sur le nom de l'onglet : celui-ci a changé "
+        "deux fois le 2026-09-05, la règle non."
     )
 
 

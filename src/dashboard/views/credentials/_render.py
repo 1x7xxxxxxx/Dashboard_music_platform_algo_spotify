@@ -899,6 +899,12 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                 st.error(_ig_problem)
                 return
             extra['ig_user_id'] = _ig_id
+            # Le pseudo est PERSISTÉ, pas seulement affiché. `business_discovery`
+            # — la seule route qui lit un compte non relié à notre Business — est
+            # indexée par le pseudo, jamais par l'identifiant numérique. Sans lui
+            # en base, le collecteur n'aurait aucun moyen de retomber dessus.
+            if _ig_name:
+                extra['ig_username'] = _ig_name
             if _ig_name:
                 st.caption(t(
                     "credentials.meta.ig_resolved",

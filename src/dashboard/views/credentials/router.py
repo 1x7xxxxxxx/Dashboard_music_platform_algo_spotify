@@ -42,7 +42,10 @@ from ._render import VERDICT_KEY, _render_platform_tab
 # onglets pour une seule configuration se cherchent, et la traduction oubliée
 # ICI a produit trois défauts d'un coup (« Suivante » vers le mauvais onglet,
 # pastilles d'Instagram dans Meta, repli des « autres plateformes »).
-_TAB_FOR_PLATFORM = {"instagram": "meta"}
+# Vide depuis le 2026-09-05 : 📸 Instagram a son propre onglet, sur la mesure
+# qui prouve qu'il collecte sans Meta Ads (`business_discovery`). La ligne de
+# STOCKAGE reste `meta` — c'est `storage_platform` qui le dit, pas ceci.
+_TAB_FOR_PLATFORM: dict[str, str] = {}
 
 # Les plateformes de la sélection qui ne se saisissent PAS ici, avec la page qui les
 # porte vraiment. Apple Music est un import de fichier : elle n'a aucun onglet, et

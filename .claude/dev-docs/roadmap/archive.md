@@ -807,6 +807,66 @@ Audit statique + live Lighthouse (page login publique) effectués 2026-05-14. Vo
 - [x] **Welcome trial + plan-change audit** (`register.py`, `verification_email.py`, `src/utils/plan_history.py` NEW, `migrations/029`) — every new signup auto-grants a 30-day premium trial (`WELCOME_TRIAL_DAYS`) via `promo_plan` precedence; new `send_welcome_email()` recaps first actions; new append-only `subscription_plan_history` table (migration 029, idempotent backfill) with `log_plan_change()` write hooks in `register.py` (welcome_trial/promo), `admin.py` (admin_edit), `api/routers/stripe_webhook.py` (stripe_webhook). Migration 029 applied to local DB.
 - [x] **Admin plan-evolution + users views** (`alerts.py`) — plan-evolution stacked-area chart (from `subscription_plan_history`) + users table (email + signup date + effective plan).
 
+- [x] **R63 — Instagram est-il collectable sans Business Manager ?** P3.
+  C'est la question qui décide si 📸 Instagram mérite un onglet à lui, séparé de
+  📱 Meta Ads. Demandée le 2026-09-05 (nuit) : « si on peut avoir les données
+  d'Instagram sans configurer Meta Ads, on les laisse séparés ».
+
+  **Mesuré le 2026-09-05, quota revenu — la réponse est OUI, partiellement** : `business_discovery` rend l'identifiant numérique et
+  les métriques publiques (abonnés, nombre de posts, likes/commentaires) d'un compte
+  Business/Créateur **tiers**, sans aucun partage — prouvé sur `fjaak` le même jour.
+  Le collecteur, lui, n'utilise PAS cette route : `instagram_api_collector.py:167,273`
+  appelle `GET /{ig_user_id}` et `/{ig_user_id}/media` en direct, ce qui suppose que
+  le compte soit accessible à notre jeton — donc relié à une Page de notre Business
+  Manager.
+
+**Les deux appels, côte à côte, sur `fjaak` (compte tiers que nous ne gérons pas)** :
+
+```
+GET /17841400196310703                → (#100) Object ... does not exist, cannot be loaded
+GET /{nous}?fields=business_discovery.username(fjaak){...}
+                                      → followers_count 330025, follows_count 2289,
+                                        media_count 706, biography, website,
+                                        profile_picture_url
+                                      → media{id,timestamp,like_count,comments_count,
+                                        media_type,permalink}
+GET ...business_discovery{media{insights.metric(reach)}}
+                                      → (#10) Application does not have permission
+```
+
+**La frontière** : le public passe, le privé non. Profil et publications (dont likes et
+commentaires) sont collectables **sans Business Manager** ; les insights — reach,
+impressions, vues de profil — exigent que le compte soit relié à une Page de notre
+Business, donc le partage.
+
+**La décision** : 📸 Instagram garde son onglet séparé, comme demandé. Ce n'est pas un
+onglet au rabais — 330 025 abonnés et 706 posts sont de vraies données, et l'artiste n'a
+rien d'autre à faire que coller l'adresse de son profil.
+
+**Fait dans la foulée, parce qu'un onglet qui ne collecte pas ment** :
+`instagram_api_collector` retombe sur `business_discovery` quand l'appel direct rend
+(#100)/(#803)/(#110) — sur les DEUX appels, `fetch_stats` et `fetch_media` : le brancher
+sur un seul aurait rendu des abonnés sans aucune publication, ce qui ressemble à un
+compte vide. Le pseudo est persisté à la saisie (`ig_username`) et passé par le DAG,
+sans quoi le repli serait resté inatteignable en production. `META_IG_DISCOVERY_ID` a
+été ajoutée au compose : elle vivait dans `.env` sans atteindre aucun conteneur.
+`like_count` n'est pas rendu par cette route — c'est un zéro assumé, pas un compte faux.
+
+📸 Instagram a repris son onglet, et 📱 Meta Ads perd « / Insta ».
+
+  Si l'accès direct échoue : deux options, à arbitrer — basculer le collecteur sur
+  `business_discovery` (Instagram devient autonome, au prix des métriques privées :
+  plus de portée ni d'impressions), ou garder l'état actuel.
+
+  Commande qui tranche, à rejouer quand le quota est revenu :
+  `python3 -c "import sys,os;sys.path.insert(0,'.');from dotenv import load_dotenv;[load_dotenv(f) for f in ('.env.local','.env')];from src.utils.meta_graph import get,MetaGraphError;\ntry: print('DIRECT tiers →', get('17841400196310703', fields='username,followers_count'))\nexcept MetaGraphError as e: print('DIRECT tiers → (#%s) %s' % (e.code, e.message[:80]))"`
+
+### 🔍 Audit 2026-06-13 — deep multi-dimension (suite 19)
+
+Audit profond post-red-team (perf · correctness · supply-chain · tests · tech-debt), **vérifié en live contre le schéma + données prod**. **Bilan : 1 vrai bug prod + 1 gap de test systémique ; le reste = tech-debt P4 basse urgence. Aucun nouveau risque sécurité/critique.**
+
+**P3 — CORRIGÉ (suite 19b, déployé + vérifié live) :**
+
 ## Completed
 
 All bricks (1–19) fully implemented. Session implementation notes were archived in `saas-db-migration/checklist.md` (deleted 2026-03-23 — no longer needed).

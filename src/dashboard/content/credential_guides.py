@@ -279,7 +279,7 @@ _SOUNDCLOUD = PlatformCred(
 
 _META = PlatformCred(
     key="meta",
-    title="Meta Ads / Insta",
+    title="Meta Ads",
     icon="📱",
     intro=None,
     portal_url="https://adsmanager.facebook.com/",
@@ -314,17 +314,12 @@ _META = PlatformCred(
                     else "colle **notre numéro** (demande-le nous)")
                  + " → coche ton compte publicitaire → rôle **Analyste**. "
                    "Sans ce partage, aucune donnée."),
-        CredStep("📸 **Instagram** — colle l'adresse de ton profil "
-                 "(compte business/créateur)."),
     ),
     fields=(
         CredField("Lien de ton compte publicitaire",
                   "https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345",
                   note="colle l'URL entière du Gestionnaire de publicités — on en "
                        "extrait le numéro de compte"),
-        CredField("Lien de ton profil Instagram",
-                  "https://instagram.com/ton-pseudo",
-                  note="on s'occupe du reste — rien à chercher dans Business Manager"),
     ),
     admin_note=(
         "Côté admin : System User créé, token à 5 scopes en place."
@@ -332,4 +327,34 @@ _META = PlatformCred(
 )
 
 
-CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (_SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META)
+_INSTAGRAM = PlatformCred(
+    key="instagram",
+    title="Instagram",
+    icon="📸",
+    intro=None,
+    portal_url="https://www.instagram.com/",
+    # UNE étape, et c'est vrai : rien à configurer chez Meta. Mesuré le 2026-09-05
+    # sur un compte tiers — `business_discovery` rend abonnés, publications,
+    # permaliens et commentaires SANS aucun partage de Business Manager. Ce qui
+    # reste hors de portée, ce sont les insights (reach, impressions, vues de
+    # profil) : eux exigent que le compte soit relié à une Page de notre Business.
+    steps=(
+        CredStep("Colle l'adresse de ton profil au-dessus. Ton compte doit être "
+                 "**Business** ou **Créateur** — un compte personnel ne renvoie "
+                 "rien. (Instagram → Paramètres → Type de compte)"),
+    ),
+    fields=(
+        CredField("Lien de ton profil Instagram",
+                  "https://instagram.com/ton-pseudo",
+                  note="on s'occupe du reste — rien à chercher dans Business Manager"),
+    ),
+    admin_note=(
+        "Côté admin : même jeton System User que Meta Ads. La collecte passe par "
+        "business_discovery, qui ne demande aucun partage."
+    ),
+)
+
+
+CREDENTIAL_GUIDES: tuple[PlatformCred, ...] = (
+    _SOUNDCLOUD, _SPOTIFY, _YOUTUBE, _META, _INSTAGRAM,
+)

@@ -36,14 +36,25 @@ def test_an_instagram_only_save_starts_instagram_not_meta() -> None:
     est la même. Ce qui compte n'a pas bougé : une identité laissée vide ne déclenche
     aucune collecte.
     """
-    assert dags_for_save("meta", {"ig_user_id": "17841400000000000"}) == [
+    assert dags_for_save("instagram", {"ig_user_id": "17841400000000000"}) == [
         "instagram_daily"]
+    # Et le symétrique, qui est la moitié « not_meta » du nom : l'identité Instagram
+    # vit dans la ligne `meta`, donc elle se retrouve dans le blob enregistré depuis
+    # l'onglet Meta Ads. Elle ne doit RIEN y déclencher — sinon chaque sauvegarde de
+    # compte publicitaire relancerait la collecte Instagram.
+    assert dags_for_save("meta", {"ig_user_id": "17841400000000000"}) == []
 
 
-def test_a_full_meta_save_starts_both_collections() -> None:
-    dags = dags_for_save("meta", {"account_id": "123456789",
-                                  "ig_user_id": "17841400000000000"})
-    assert set(dags) == {"meta_ads_api_daily", "instagram_daily"}
+def test_each_tab_starts_only_its_own_collection() -> None:
+    """Les deux onglets partagent une ligne ; ils ne partagent pas leurs DAGs.
+
+    Ce test exigeait qu'un enregistrement Meta lance AUSSI `instagram_daily` —
+    juste tant que l'onglet portait les deux champs. Depuis la séparation du
+    2026-09-05, chacun ne lance que la collecte dont il porte l'identité.
+    """
+    both = {"account_id": "123456789", "ig_user_id": "17841400000000000"}
+    assert set(dags_for_save("meta", both)) == {"meta_ads_api_daily"}
+    assert set(dags_for_save("instagram", both)) == {"instagram_daily"}
 
 
 def test_an_untouched_tab_starts_nothing() -> None:

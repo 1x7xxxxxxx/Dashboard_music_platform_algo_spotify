@@ -26,19 +26,37 @@ from pathlib import Path
 _RENDER = Path(__file__).resolve().parents[1] / "src/dashboard/views/credentials/_render.py"
 
 
-def test_the_two_platforms_share_one_tab():
+def test_the_two_platforms_share_one_row():
+    """Ce qui est gardé est le partage de la LIGNE, jamais le nombre d'onglets.
+
+    Ce test exigeait « Instagram n'est pas un onglet ». Le 2026-09-05 au soir, la
+    mesure a tranché l'inverse : `business_discovery` collecte un compte tiers sans
+    aucun partage Meta, donc les deux configurations sont bien indépendantes et
+    Instagram a repris son onglet. Un garde ancré sur une DISPOSITION suit les
+    allers-retours de la disposition ; ancré sur l'invariant, il survit aux deux.
+
+    L'invariant, lui, n'a pas bougé d'un cran : les deux identités s'écrivent dans
+    la MÊME ligne `artist_credentials`, donc un enregistrement d'un côté ne doit
+    jamais effacer l'autre — c'est ce que `SHARED_ROWS` et `merge_into_row` tiennent.
+    """
+    from src.dashboard.views.credentials._core import SHARED_ROWS
     from src.dashboard.views.credentials._registry import PLATFORMS
     from src.dashboard.views.credentials.router import platform_destination
+    from src.utils.tenant_identity import storage_platform
 
-    assert "instagram" not in PLATFORMS, (
-        "Instagram a de nouveau son propre onglet : deux onglets pour une seule "
-        "configuration (même ligne, même jeton, même app)")
-    keys = [f["key"] for f in PLATFORMS["meta"]["fields"]]
-    assert "account_id" in keys and "ig_user_id" in keys, (
-        "l'onglet ne porte plus les deux identités")
-    assert platform_destination("instagram") == "tab:meta", (
-        "la traduction plateforme → onglet ne suit plus le registre : c'est elle "
-        "qui, oubliée, a envoyé « Suivante » vers le mauvais onglet")
+    assert storage_platform("instagram") == storage_platform("meta") == "meta", (
+        "les deux plateformes n'écrivent plus dans la même ligne : si c'est "
+        "voulu, `SHARED_ROWS` et `merge_into_row` n'ont plus lieu d'être")
+    assert "meta" in SHARED_ROWS, (
+        "la ligne partagée n'est plus déclarée : un enregistrement d'un onglet "
+        "REMPLACERAIT `extra_config` et effacerait l'identité de l'autre")
+
+    owners = [k for k, info in PLATFORMS.items()
+              if any(f["key"] == "ig_user_id" for f in info.get("fields", []))]
+    assert owners == ["instagram"], (
+        f"`ig_user_id` est saisissable depuis {owners} — une identité à deux "
+        "endroits est une identité qu'on oublie de déplacer")
+    assert platform_destination("instagram") == "tab:instagram"
 
 
 def test_the_instagram_resolution_does_not_depend_on_the_tab():

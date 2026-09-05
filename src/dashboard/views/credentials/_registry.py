@@ -80,7 +80,7 @@ PLATFORMS = {
         ],
     },
     'meta': {
-        'label': '📱 Meta Ads / Insta',
+        'label': '📱 Meta Ads',
         # Shared System User app (access_token/app_id/app_secret) comes from the
         # platform env; the artist provides their own Ad Account ID and — for
         # Instagram — their Instagram Business Account ID. Stored per-artist app
@@ -111,12 +111,6 @@ PLATFORMS = {
             {'key': 'account_id', 'label': 'Lien de ton compte publicitaire',
              'secret': False, 'show_example': False,
              'example': 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=123456789012345'},
-            {'key': 'ig_user_id',
-             'label': 'Lien de ton profil Instagram (compte Business/Créateur)',
-             'secret': False, 'show_example': False,
-             'example': 'https://instagram.com/ton-pseudo'},
-            # Le LIEN du profil, comme partout ailleurs — l'ID numérique reste
-            # accepté. C'est `_handle_save` qui résout, via `business_discovery`.
             # N comptes publicitaires (R53 / ADR-013). Champ SÉPARÉ et facultatif,
             # plutôt qu'une liste dans `account_id` : les 100 % de locataires
             # mono-compte d'aujourd'hui ne voient aucun changement, et le champ
@@ -127,6 +121,40 @@ PLATFORMS = {
             # Credentials répond à « comment te connecter » ; un compte d'agence est
             # une déclaration de périmètre, pas une identité — l'identité est déjà
             # là. Même mouvement que les titres SoundCloud hébergés ailleurs.
+        ],
+    },
+    'instagram': {
+        'label': '📸 Instagram',
+        # SÉPARÉ de Meta Ads le 2026-09-05, sur une mesure et non sur une intuition.
+        # La question était : « peut-on avoir les données Instagram sans configurer
+        # Meta Ads ? » — parce que si non, deux onglets pour une seule configuration
+        # se cherchent, et l'onglet avait justement été refusionné pour cette raison
+        # quelques heures plus tôt.
+        #
+        # Mesuré sur un compte tiers que nous ne gérons pas (`fjaak`) :
+        #   GET /{ig_id}                          → (#100) does not exist
+        #   business_discovery.username(fjaak)    → 330 025 abonnés, 706 posts,
+        #                                           médias, permaliens, commentaires
+        #   business_discovery{media{insights}}   → (#10) no permission
+        # Le public passe sans aucun partage ; les insights (reach, impressions,
+        # vues de profil) exigent que le compte soit relié à une Page de notre
+        # Business. L'onglet est donc autonome, et il le dit.
+        #
+        # La ligne de STOCKAGE reste `meta` (`storage_platform`) : l'identité vit
+        # dans le même `extra_config`, avec le même jeton et la même app. Un onglet
+        # n'est pas une ligne de base — c'est ce que `_save_credentials` fusionne au
+        # lieu de remplacer, sans quoi enregistrer ici effacerait le compte
+        # publicitaire d'à côté.
+        'fields': [
+            {'key': 'ig_user_id',
+             'label': 'Lien de ton profil Instagram (compte Business/Créateur)',
+             'secret': False, 'show_example': False,
+             'example': 'https://instagram.com/ton-pseudo'},
+            # Le LIEN du profil, comme partout ailleurs — l'ID numérique reste
+            # accepté. C'est `_handle_save` qui résout, via `business_discovery`,
+            # et la résolution porte sur la VALEUR, jamais sur l'onglet : l'avoir
+            # laissée dans la branche `meta` est ce qui avait fait refuser un lien
+            # valide lors de la première séparation.
         ],
     },
 }

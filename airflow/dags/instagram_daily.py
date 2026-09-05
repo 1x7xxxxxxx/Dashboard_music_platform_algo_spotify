@@ -119,6 +119,12 @@ def run_insta_collector(**context):
                 ig_user_id=ig_user_id,
                 app_id=creds.get('app_id'),
                 app_secret=creds.get('app_secret'),
+                # Le pseudo, résolu et enregistré à la saisie. Il n'est utilisé que
+                # si l'appel direct échoue — c'est-à-dire pour tout compte non relié
+                # à une Page de notre Business, qui est le cas de la plupart des
+                # artistes. Ne pas le passer ici aurait laissé le repli en place et
+                # inatteignable, exactement comme une couche débranchée.
+                ig_username=creds.get('ig_username'),
             ).run() or 0
             record_tenant_success('instagram_daily', artist_id, 'instagram', rows, run_id)
             succeeded += 1
