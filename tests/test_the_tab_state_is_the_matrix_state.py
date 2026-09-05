@@ -43,7 +43,11 @@ def test_the_tab_state_reuses_the_matrix_cells():
     fn = _fn(_MATRIX, "render_platform_state")
     called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
               for n in ast.walk(fn) if isinstance(n, ast.Call)}
-    for helper in ("_box", "_responds_cell", "_shape_cell", "artist_readiness"):
+    # `row_cells` depuis le 2026-09-05 : c'est elle qui porte les quatre états, et
+    # `_shape_cell` / `_responds_cell` sont devenues ses détails. Exiger les appels
+    # DIRECTS ferait rougir la factorisation qu'on vient de faire — un garde ancré sur
+    # le chemin d'appel argumente contre le refactor qui le simplifie.
+    for helper in ("_box", "row_cells", "artist_readiness"):
         assert helper in called, (
             f"`render_platform_state` n'appelle plus `{helper}` : il porterait sa "
             "propre idée de l'état, et deux surfaces diraient deux choses du même "
@@ -122,3 +126,85 @@ def test_a_broken_read_shows_nothing_instead_of_raising():
     from src.dashboard.utils.status_matrix import render_platform_state
 
     render_platform_state(_Boom(), 1, "spotify")     # ne doit pas lever
+
+
+# ── Les QUATRE colonnes, et la page qui devient redondante ──────────────────
+
+def test_the_tab_shows_every_column_of_the_matrix():
+    """Saisi · Format · Répond · Données — les quatre, pas un résumé.
+
+    Demandé le 2026-09-05 : « intègre les indicateurs verts orange rouge sur toutes
+    les colonnes ». Les deux premières versions n'en montraient que deux (Format et
+    Répond), ce qui est un résumé, donc une troisième opinion : « Saisi » et
+    « Données » répondent à des questions différentes — la valeur est-elle là, et
+    des lignes sont-elles arrivées.
+
+    Mesuré sur SoundCloud : Saisi ✅ vert · Format ✅ vert · Répond 🟠 · Données 🔴.
+    """
+    from src.dashboard.utils.status_matrix import _COLUMN_TITLES, row_cells
+
+    assert _COLUMN_TITLES == ("Saisi", "Format", "Répond", "Données"), (
+        f"les colonnes ont changé : {_COLUMN_TITLES}")
+
+    row = {"key": "soundcloud", "label": "☁️ SoundCloud", "status": "no_data",
+           "icon": "🔴", "status_label": "Connecté — aucune donnée"}
+    cells = row_cells(row, {}, {})
+    assert len(cells) == len(_COLUMN_TITLES), (
+        "le nombre de pastilles ne correspond plus au nombre de colonnes : "
+        "l'étiquette sous chaque pastille nommerait la mauvaise")
+    for state, glyph, tip in cells:
+        assert state in ("green", "amber", "red", "grey"), state
+        assert glyph and tip, "une pastille sans glyphe ou sans infobulle est un carré muet"
+
+
+def test_the_matrix_row_is_computed_in_one_place():
+    """La matrice et l'onglet appellent `row_cells` — pas deux copies de la règle.
+
+    Elle vivait dans la boucle d'affichage de `render_status_matrix`. La recopier
+    dans l'onglet aurait donné deux verdicts pour un même fait, et le partage de
+    `_box` seul ne l'aurait pas empêché : ce sont les ÉTATS qui doivent être calculés
+    une fois, pas seulement leur mise en forme.
+    """
+    src = _MATRIX.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    callers = {f.name for f in ast.walk(tree)
+               if isinstance(f, ast.FunctionDef)
+               and any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "row_cells"
+                       for n in ast.walk(f))}
+    assert {"render_platform_state", "render_status_matrix"} <= callers, (
+        f"`row_cells` n'est appelée que par {sorted(callers)} : l'autre surface "
+        "recalcule les états, et les deux peuvent diverger sans que rien ne le voie")
+
+
+def test_the_status_page_left_the_menu_but_not_the_router():
+    """Redondante au menu, pas supprimée : des liens la visent.
+
+    « Supprime l'onglet (ou archive) état des plateformes car c'est redondant » —
+    exact depuis que chaque onglet porte les quatre pastilles de SA plateforme. Mais
+    la matrice complète reste la seule vue qui montre les six sources d'un coup, et
+    des messages y renvoient : retirer la ROUTE transformerait ces renvois en
+    culs-de-sac, ce que ce dépôt a payé six fois en une séance.
+    """
+    app = (_ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8")
+    tree = ast.parse(app)
+
+    entries = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                getattr(x, "id", "") == "_NAV_SECTIONS" for x in node.targets):
+            for sub in ast.walk(node.value):
+                if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
+                    a, b = sub.elts
+                    if isinstance(b, ast.Constant) and isinstance(b.value, str):
+                        entries.append(b.value)
+    assert entries, "la lecture du menu a cassé — ce garde ne prouverait rien"
+    assert "platform_status" not in entries, (
+        "la page d'état est revenue au menu : chaque onglet montre déjà les quatre "
+        "pastilles de sa plateforme, là où l'on agit")
+
+    routed = {n.comparators[0].value for n in ast.walk(tree)
+              if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
+              and n.comparators and isinstance(n.comparators[0], ast.Constant)}
+    assert "platform_status" in routed, (
+        "la ROUTE a disparu avec l'entrée de menu : les messages qui y renvoient ne "
+        "mènent plus nulle part")

@@ -240,11 +240,17 @@ _NAV_SECTIONS = [
     ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
                                              ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API + imports CSV", "credentials"),
-                                             # Juste APRÈS la saisie : on remplit,
-                                             # puis on regarde où on en est. Sortie
-                                             # de Credentials le 2026-09-04, où elle
-                                             # poussait le champ à y=1475.
-                                             ("📋 État de tes plateformes", "platform_status"),
+                                             # « 📋 État de tes plateformes » a été
+                                             # RETIRÉE du menu le 2026-09-05 : chaque
+                                             # onglet de Credentials porte désormais
+                                             # les quatre mêmes pastilles pour SA
+                                             # plateforme, calculées par les mêmes
+                                             # fonctions. Une page entière pour redire
+                                             # ce que l'onglet montre là où l'on agit
+                                             # est une redirection de plus, pas une
+                                             # information de plus. La ROUTE survit
+                                             # (voir `_main_body`) — des liens la
+                                             # visent.
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
@@ -785,7 +791,12 @@ def _render_page(page):
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
     elif page == "process_guide": from views.process_guide import show; show()
-    elif page == "platform_status": from views.platform_status import show; show()
+    elif page == "platform_status":
+        # Hors du menu depuis le 2026-09-05, mais toujours ROUTÉE : la matrice
+        # complète reste la seule vue qui montre les six sources d'un coup, et des
+        # messages y renvoient. La supprimer transformerait ces renvois en
+        # culs-de-sac — ce dépôt a payé la réciproque six fois en une séance.
+        from views.platform_status import show; show()
     elif page == "onboarding_health": from views.onboarding_health import show; show()
     elif page == "upload_csv":
         # La page a fusionné dans Credentials le 2026-09-04, mais la ROUTE survit :

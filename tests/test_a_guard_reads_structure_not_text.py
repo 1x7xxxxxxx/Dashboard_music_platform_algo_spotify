@@ -248,7 +248,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_one_email_path_for_freshness.py": 1,
     "test_tenant_scope_is_not_view_session.py": 2,
     "test_the_alert_names_a_workable_action.py": 2,
-    "test_the_credentials_page_asks_before_it_reports.py": 3,
+    "test_the_credentials_page_asks_before_it_reports.py": 2,
     "test_the_dense_views_use_the_pattern_written_for_them.py": 2,
     "test_the_digest_is_a_paid_feature.py": 3,
     "test_the_error_boundary_covers_everything.py": 1,

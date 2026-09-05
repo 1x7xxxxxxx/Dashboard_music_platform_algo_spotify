@@ -109,37 +109,30 @@ def test_what_the_tabs_cannot_show_survives():
         "le bouton qui mène à la page d'import a disparu")
 
 
-def test_the_matrix_has_a_reachable_page_of_its_own():
-    """Déplacer sans réattacher, c'est supprimer — six fois payé dans ce dépôt."""
+def test_the_matrix_still_has_a_home_even_out_of_the_menu():
+    """Déplacer sans réattacher, c'est supprimer — six fois payé dans ce dépôt.
+
+    Ce test exigeait une ENTRÉE DE MENU. Elle a été retirée le 2026-09-05 : chaque
+    onglet de Credentials porte désormais les quatre pastilles de SA plateforme,
+    calculées par les mêmes fonctions, donc une page entière pour redire cela est une
+    redirection de plus et pas une information de plus.
+
+    La question survit, un cran plus bas : la matrice complète est-elle encore
+    ATTEIGNABLE ? Elle reste la seule vue qui montre les six sources d'un coup, et
+    des messages y renvoient. Une route sans entrée de menu est un choix ; une route
+    supprimée transforme ces renvois en culs-de-sac.
+    """
     assert _PAGE.exists(), "la page 📋 État de tes plateformes n'existe pas"
     src = _PAGE.read_text(encoding="utf-8")
     assert "render_status_matrix(" in src, "la page ne rend pas la matrice"
 
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    pages, labels = set(), set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-                getattr(x, "id", "") == "_NAV_SECTIONS" for x in node.targets):
-            for sub in ast.walk(node.value):
-                if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
-                    a, b = sub.elts
-                    if (isinstance(a, ast.Constant) and isinstance(b, ast.Constant)
-                            and isinstance(b.value, str)):
-                        pages.add(b.value)
-                        labels.add(str(a.value))
-    assert "platform_status" in pages, (
-        "la page n'est pas dans le menu : la matrice serait rendue par du code que "
-        "rien n'atteint — exactement ce que ce dépôt a payé six fois en une séance")
-    assert any("État de tes plateformes" in x for x in labels), (
-        "l'entrée de menu ne porte pas le nom demandé")
-
-    routed = _APP.read_text(encoding="utf-8")
-    assert 'page == "platform_status"' in routed, (
-        "la page est au menu mais aucune branche ne la rend : cliquer dessus "
-        "n'afficherait rien")
-
-
-# ── Une seule page pour « connecter mes sources » ────────────────────────────
+    app = _APP.read_text(encoding="utf-8")
+    tree = ast.parse(app)
+    routed = {n.comparators[0].value for n in ast.walk(tree)
+              if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
+              and n.comparators and isinstance(n.comparators[0], ast.Constant)}
+    assert "platform_status" in routed, (
+        "la route a disparu : cliquer sur un renvoi vers l'état n'afficherait rien")
 
 def test_the_csv_import_is_a_tab_not_a_separate_menu_entry():
     """Deux entrées de menu pour un seul geste se cherchent.

@@ -5,6 +5,61 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 5) — Les quatre colonnes dans l'onglet, et une page qui devient redondante
+
+Les pastilles de la veille n'en montraient que DEUX (Format, Répond). C'est un résumé,
+donc une troisième opinion : « Saisi » et « Données » répondent à des questions
+différentes — la valeur est-elle là, et des lignes sont-elles arrivées. Les quatre y
+sont, avec le nom de la colonne sous chacune : quatre carrés colorés sans étiquette
+sont un rébus.
+
+Mesuré sur SoundCloud : **Saisi ✅ vert · Format ✅ vert · Répond 🟠 · Données 🔴**.
+
+### Le garde a trouvé les deux copies une heure après l'extraction
+
+J'ai extrait `row_cells` pour que l'onglet et la matrice calculent les états au même
+endroit — et je n'ai rebranché QUE l'onglet. La matrice a continué de les calculer dans
+sa boucle d'affichage : deux copies de la règle, d'accord entre elles, donc invisibles
+à l'écran.
+
+Extraire une fonction et l'utiliser sont deux gestes, et le premier donne le sentiment
+d'avoir fait le second. Le garde le disait en nommant l'appelant manquant. Capitalisé
+en `extracted-rule-with-one-caller-rewired`, avec le corollaire qui compte : partager
+la MISE EN FORME (`_box`) sans partager le CALCUL ne protège rien — deux verdicts
+peuvent diverger tout en s'affichant dans la même palette.
+
+### « 📋 État de tes plateformes » quitte le menu, pas le routeur
+
+Créée avant-hier à la demande, redondante aujourd'hui : chaque onglet porte les quatre
+pastilles de SA plateforme, là où l'on agit. Une page entière pour redire cela est une
+redirection de plus, pas une information de plus.
+
+La ROUTE survit. La matrice complète reste la seule vue qui montre les six sources d'un
+coup, et des messages y renvoient — retirer la route transformerait ces renvois en
+culs-de-sac, ce que ce dépôt a payé six fois en une séance.
+
+### Trois classes capitalisées
+
+`ui-state-not-addressable` — un widget sans état adressable oblige à SIMULER la
+navigation, et chaque « redirection » devient un bug de mise en page. Les trois bugs
+d'hier en sont les symptômes.
+
+`guard-anchored-on-shape-not-question` — sept occurrences en deux jours, quatre formes
+(le nom d'une variable, la polarité d'une branche, le chemin d'appel, l'endroit du
+rendu). Livrée **sans signature** : un prédicat « ce test lit-il une forme ou une
+question ? » n'est pas mécanisable sans faux positifs massifs, et une signature jamais
+vue rouge vaut moins qu'une absence de signature. La distinction qui tranche est
+écrite : retirer un garde parce que le COMPORTEMENT a été retiré est correct ; le
+retirer parce qu'il est rouge sur un comportement inchangé est une régression déguisée
+en ménage.
+
+`extracted-rule-with-one-caller-rewired` — ci-dessus.
+
+Les deux signatures déterministes ont été vues rouges sur leur défaut (`exit=1` avec
+`st.tabs` remis ; `exit=1` avec la matrice recalculant ses états) et vertes après.
+
+---
+
 ## 2026-09-05 (suite 4) — L'état en pastilles, et une lecture trop large corrigée
 
 ### « J'avais pas demandé de les enlever »

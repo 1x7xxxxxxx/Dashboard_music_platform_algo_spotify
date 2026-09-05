@@ -250,6 +250,34 @@ def read_identities(db, artist_id: int) -> dict:
     return out
 
 
+def row_cells(r: dict, identities: dict, probes: dict) -> list[tuple]:
+    """Les QUATRE cellules d'une ligne : Saisi · Format · Répond · Données.
+
+    Extraites de `render_status_matrix` le 2026-09-05 pour que l'onglet de saisie
+    montre les mêmes — « intègre les indicateurs verts orange rouge sur toutes les
+    colonnes ». La matrice les calculait dans sa boucle d'affichage ; les recopier
+    dans l'onglet aurait créé deux verdicts pour un même fait, ce qui est le défaut
+    que le partage de `_box` et `_responds_cell` évitait déjà à moitié.
+
+    Rend `(state, glyph, tooltip)` par colonne, dans l'ordre de la matrice.
+    """
+    configured = r["status"] != "todo"
+    data_state = {"ok": "green", "stale": "amber", "quiet": "amber",
+                  "no_data": "red", "broken": "amber", "todo": "grey"}[r["status"]]
+    return [
+        ("green" if configured else "grey",
+         "✅" if configured else "○",
+         t("matrix.tip_set", "Identifiant saisi.") if configured
+         else t("matrix.tip_unset", "Aucun identifiant saisi.")),
+        _shape_cell(r, identities),
+        _responds_cell(r, probes),
+        (data_state, r["icon"], r["status_label"]),
+    ]
+
+
+_COLUMN_TITLES = ("Saisi", "Format", "Répond", "Données")
+
+
 def render_platform_state(db, artist_id: int, platform_key: str) -> None:
     """Les mêmes pastilles que la matrice, pour UNE plateforme, en tout petit.
 
@@ -283,16 +311,25 @@ def render_platform_state(db, artist_id: int, platform_key: str) -> None:
     if not mine:
         return
 
-    cells = []
+    identities = read_identities(db, artist_id)
+    blocks = []
     for r in mine:
-        shape = _shape_cell(r, read_identities(db, artist_id))
-        responds = _responds_cell(r, probes)
-        prefix = f'<span style="font-size:0.8em;opacity:.75">{_html.escape(r["label"])}</span> '
-        cells.append(prefix
-                     + _box(shape[0], shape[1], f'{r["label"]} — {shape[2]}')
-                     + _box(responds[0], responds[1], f'{r["label"]} — {responds[2]}'))
-    st.markdown('<div style="font-size:0.85em">' + " &nbsp; ".join(cells) + "</div>",
-                unsafe_allow_html=True)
+        # Le NOM de la colonne sous sa pastille : quatre carrés colorés sans étiquette
+        # sont un rébus. La matrice a un en-tête de tableau ; ici il n'y a qu'une ligne
+        # ou deux, donc l'étiquette voyage avec la pastille.
+        boxes = []
+        for (state, glyph, tip), title in zip(row_cells(r, identities, probes),
+                                              _COLUMN_TITLES):
+            cell = _box(state, glyph, f'{r["label"]} — {tip}')
+            caption = (f'<div style="font-size:0.7em;opacity:.65;margin-top:1px">'
+                       f'{_html.escape(title)}</div>')
+            boxes.append('<div style="display:inline-block;text-align:center;'
+                         f'margin-right:10px">{cell}{caption}</div>')
+        label = (f'<span style="font-size:0.8em;opacity:.75;margin-right:6px">'
+                 f'{_html.escape(r["label"])}</span>')
+        blocks.append(label + "".join(boxes))
+    st.markdown('<div style="font-size:0.85em;margin-bottom:6px">'
+                + "<br>".join(blocks) + "</div>", unsafe_allow_html=True)
 
 
 def render_status_matrix(db, artist_id: int, *, compact: bool = False,
@@ -368,29 +405,14 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
         if r.get("where"):
             cols[0].caption(_html.escape(r["where"]))
 
-        configured = r["status"] != "todo"
-        cols[1].markdown(
-            _box("green" if configured else "grey",
-                 "✅" if configured else "○",
-                 t("matrix.tip_set", "Identifiant saisi.") if configured
-                 else t("matrix.tip_unset", "Aucun identifiant saisi.")),
-            unsafe_allow_html=True)
+        # Les quatre cellules viennent de `row_cells`, comme celles de l'onglet de
+        # saisie. Elles étaient calculées ICI, dans la boucle d'affichage ; les
+        # extraire sans rebrancher la matrice aurait laissé DEUX copies de la règle —
+        # et c'est exactement ce qui s'est produit le 2026-09-05, pendant une heure,
+        # jusqu'à ce que le garde le dise.
+        for _i, (_state, _glyph, _tip) in enumerate(row_cells(r, identities, probes), 1):
+            cols[_i].markdown(_box(_state, _glyph, _tip), unsafe_allow_html=True)
 
-        cols[2].markdown(_box(*_shape_cell(r, identities)), unsafe_allow_html=True)
-
-        cols[3].markdown(_box(*_responds_cell(r, probes)), unsafe_allow_html=True)
-
-        # `quiet` était vert : un compte Meta sans campagne active s'affichait « ✅ »
-        # avec ZÉRO ligne de données. C'est le bon état (rien à collecter n'est pas une
-        # panne), mais ce n'est pas la même chose que « des données sont là ». L'icône
-        # portait déjà la nuance (⏸️, `artist_readiness._ICON`) ; la couleur la niait.
-        data_state = {"ok": "green", "stale": "amber", "quiet": "amber",
-                      "no_data": "red", "broken": "amber", "todo": "grey"}[r["status"]]
-        cols[4].markdown(
-            _box(data_state, r["icon"], r["status_label"]), unsafe_allow_html=True)
-
-        # The next step, and for a red platform that is the LIVE reason when we have
-        # one — the same sentence the nightly alert carries.
         remembered = probes.get(r["key"])
         action = r["next_action"]
         if remembered is not None and not remembered[0]:

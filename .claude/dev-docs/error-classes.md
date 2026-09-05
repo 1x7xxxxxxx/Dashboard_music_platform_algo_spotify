@@ -125,6 +125,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [verified-locally-observed-in-prod](#verified-locally-observed-in-prod) | P2 | deterministic | guarded | none |
 | [one-set-answers-two-questions](#one-set-answers-two-questions) | P2 | manual | guarded | none |
 | [one-guide-three-sources](#one-guide-three-sources) | P3 | deterministic | guarded | none |
+| [ui-state-not-addressable](#ui-state-not-addressable) | P3 | deterministic | guarded | none |
+| [guard-anchored-on-shape-not-question](#guard-anchored-on-shape-not-question) | P3 | manual | reported | none |
+| [extracted-rule-with-one-caller-rewired](#extracted-rule-with-one-caller-rewired) | P2 | deterministic | guarded | none |
 
 | [ci-runs-twice-for-one-commit](#ci-runs-twice-for-one-commit) | — | deterministic | guarded | — |
 | [ci-has-no-concurrency-group](#ci-has-no-concurrency-group) | — | deterministic | guarded | — |
@@ -3211,3 +3214,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-04
 - History:
   - 2026-09-04: deux mutations rouges sur les DÉFAUTS RÉELS, pas sur des formes inventées — la source EN remise à trois étapes, et une clé `step_2` du catalogue survivant à un guide d'une étape.
+
+## ui-state-not-addressable
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: chaque demande de « rediriger vers X » produit un bug de mise en page — la barre bouge sous l'utilisateur, un message s'affiche dans un panneau fermé, un rechargement perd la position. Les rapports arrivent séparés et se corrigent séparément ; aucun ne guérit.
+- root_cause: le widget de navigation n'expose PAS son état actif, donc « ouvrir X » ne peut être obtenu qu'en simulant — ici, en RÉORDONNANT la liste pour que X tombe en première position. `st.tabs` (Streamlit 1.54) rend tous ses panneaux et n'a pas d'index actif ; son paramètre `default` n'agit qu'au premier MONTAGE du widget, et un enregistrement passe par un rerun. Trois symptômes mesurés le 2026-09-05, tous du même mécanisme : la barre réordonnée au rerun d'un enregistrement puis revenue à sa place au suivant (« ça nous ramène sur Spotify au lieu de Meta ») ; le verdict rendu par un panneau que le réordonnancement venait de fermer, d'où une rustine `verdict_owner` qui a fini par **masquer le verdict entièrement** quand l'appelant a cessé de la passer ; et rien d'adressable — ni lien profond, ni bouton Précédent.
+- signature: `python3 -m pytest tests/test_the_active_tab_is_addressable.py -q`
+- long_term_fix: l'onglet devient un état comme la page — `?page=credentials&tab=soundcloud` — rendu par un widget PILOTABLE (`st.segmented_control` avec `key`), avec un seul panneau affiché. Rediriger n'est plus qu'écrire l'état, avant l'instanciation du widget (même contrainte et même motif que `_select_nav_radio` pour le menu). La rustine disparaît par construction : le panneau rendu EST celui qu'on regarde. La résolution lit la SESSION d'abord, l'URL ensuite — l'inverse ferait gagner un paramètre périmé sur un clic frais, défaut déjà corrigé un cran plus haut le 2026-09-04.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_active_tab_is_addressable.py }
+- rex_ref: src/dashboard/views/credentials/router.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: `st.tabs(default=…)` a été essayé EN PREMIER et ne suffit pas — vu au navigateur, l'onglet restait sur Spotify avec `default` posé. La docstring dit « the default tab to select », ce qui est vrai au premier montage seulement. Signature vérifiée dans les deux sens : `exit=1` avec `st.tabs` remis, `exit=0` après.
+
+## guard-anchored-on-shape-not-question
+- status: reported
+- severity: P3
+- kind: manual
+- symptom: un garde vire au rouge sur un changement qui n'altère AUCUN comportement — un renommage de variable, une branche inversée, une factorisation. Le réflexe est de revenir en arrière, donc le garde argumente pour l'ancienne écriture.
+- root_cause: l'assertion est ancrée sur la FORME du code plutôt que sur la question qu'elle protège. Sept occurrences en deux jours, quatre formes distinctes : le NOM d'une variable (`_focus` renommé `_bare` → deux gardes rouges sur un comportement inchangé) ; la POLARITÉ d'une branche (`if _focus: … else:` devenu `if not _bare:`) ; le CHEMIN d'appel (`_responds_cell` appelée directement puis via `row_cells` — le garde exigeait l'appel direct et rougissait sur la factorisation qu'il aurait dû encourager) ; et l'ENDROIT (« aucun `st.image` dans l'onglet », vrai tant que le guide les rendait — la meilleure disposition l'aurait rendu rouge). S'y ajoutent les gardes qui lisent une FENÊTRE DE TEXTE autour d'un appel (200 caractères), donc les commentaires.
+- signature: — (aucune vérifiée : un prédicat « ce test lit-il une forme ou une question ? » n'est pas mécanisable sans faux positifs massifs, et une signature jamais vue rouge vaut moins qu'une absence de signature)
+- long_term_fix: — (question de revue, pas de détecteur. Avant d'écrire une assertion : « si quelqu'un renomme, inverse ou factorise sans changer le comportement, ce test rougit-il ? » Si oui, viser la propriété — lire l'ARBRE et interroger l'effet, accepter plusieurs formes équivalentes, et nommer dans le message ce que le test protège et non ce qu'il a trouvé.)
+- autofix: none
+- guard: —
+- rex_ref: tests/test_the_setup_page_is_reachable_and_on_top.py
+- first_seen: 2026-09-04
+- History:
+  - 2026-09-05: la distinction qui tranche, et qui a servi sept fois : un garde qu'on RETIRE parce que le comportement a été retiré est correct ; un garde qu'on retire parce qu'il est rouge sur un comportement inchangé est une régression déguisée en ménage. Deux gardes ont été légitimement retirés ce jour-là (la liste des étapes, le réordonnancement) parce qu'un autre pose la même question sur une meilleure surface ; cinq ont été REPOINTÉS.
+
+## extracted-rule-with-one-caller-rewired
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une règle est factorisée pour être partagée, la factorisation est annoncée dans les commentaires — et les deux copies coexistent, parce qu'un seul appelant a été rebranché.
+- root_cause: extraire une fonction et l'utiliser sont deux gestes, et le premier donne le sentiment d'avoir fait le second. `status_matrix.row_cells` a été extraite le 2026-09-05 pour que l'onglet de saisie et la matrice calculent les quatre états au MÊME endroit ; seul l'onglet a été rebranché, la matrice a continué de les calculer dans sa boucle d'affichage. Une heure de coexistence silencieuse — les deux copies étaient d'accord, donc rien ne pouvait le montrer à l'écran.
+- signature: `python3 -m pytest tests/test_the_tab_state_is_the_matrix_state.py -q`
+- long_term_fix: le garde vérifie que la fonction partagée a bien **tous** ses appelants attendus, nommément, et pas seulement qu'elle existe. C'est la seule formulation qui distingue « extraite » de « partagée ». Corollaire de méthode : partager la MISE EN FORME (`_box`) sans partager le CALCUL des états ne protège rien — deux verdicts peuvent diverger tout en s'affichant dans la même palette.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_tab_state_is_the_matrix_state.py::test_the_matrix_row_is_computed_in_one_place }
+- rex_ref: src/dashboard/utils/status_matrix.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: trouvé PAR le garde, une heure après l'extraction, et pas en relisant — le message nommait l'appelant manquant. Signature vérifiée dans les deux sens : `exit=1` avec la matrice recalculant ses états, `exit=0` après le rebranchement.
