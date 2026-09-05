@@ -3318,3 +3318,90 @@ branche `if`. Trois mutations rouges, dont celle qui sort le libellé de sa bran
 Éprouvé sur la base réelle : locataire 1 → 1267 jours (figure réelle), locataire 18
 (bac à sable, vide) → exemple.
 
+### ✅ R59-R62 — ouvertes et closes le 2026-09-05
+
+Deux constats mesurés en corrigeant `headline-asserts-a-cause-the-probe-did-not-measure`.
+Ils n'ont **pas** été corrigés au passage : ni l'un ni l'autre n'est ce bug, et élargir
+un correctif est la façon dont on livre trois choses à moitié.
+
+- [x] **R59 — deux tests encodent des règles opposées sur la même sonde.** P3.
+  `tests/test_readiness_carries_the_live_diagnosis.py:161` verrouille « on ne sonde
+  jamais une plateforme verte » (`src/utils/artist_readiness.py:242` :
+  `if probe is not None and status in (NO_DATA, BROKEN)`), pendant que
+  `tests/test_saving_credentials_yields_a_verdict_now.py:81` **exige** que tout chemin
+  de sauvegarde appelle `run_probes_now` — inconditionnellement
+  (`src/dashboard/views/credentials/_render.py`, dans `_handle_save`). La sonde qui a
+  produit le ❌ du 2026-09-05 n'aurait, selon la première règle, jamais dû tourner.
+  Les deux sont défendables séparément ; c'est leur coexistence non écrite qui est le
+  défaut. Trancher demande un ADR, pas un patch.
+  Commande qui montre les deux : `python3 -m pytest
+  tests/test_readiness_carries_the_live_diagnosis.py::test_a_green_platform_is_never_probed
+  tests/test_saving_credentials_yields_a_verdict_now.py -q`
+
+- [x] **R60 — `_claimed_count` fabrique le défaut qu'il devait éviter.** P2.
+  `src/dashboard/views/credentials/_platform_soundcloud.py` : `except Exception:
+  return 0`, et `0` aussi quand `get_db_connection()` rend `None`. Un échec de lecture
+  bascule donc un cas légitime (`True`, « titres hébergés ailleurs ») en `False`,
+  c'est-à-dire produit exactement le « aucun titre public » du rapport — sans qu'aucune
+  trace ne le distingue d'un vrai zéro. Classe connue : `probe-reads-unreadable-as-absent`.
+  Commande : `rtk proxy grep -n "def _claimed_count" -A 25
+  src/dashboard/views/credentials/_platform_soundcloud.py`
+
+- [x] **R61 — la suite de tests sème des lignes fabriquées dans la base de dev.** P2.
+  `tests/test_e2e_two_tenants.py` écrit dans `soundcloud_tracks_daily` des lignes
+  `track_id = "track-of-<user_id>"`, titre « Track owned by <user_id> », 10 écoutes.
+  Elles vont dans la **vraie base locale** (`spotify_etl` sur 5433), pas dans un
+  schéma jetable : le locataire 1 en porte **358**, dont la plus récente date de
+  l'exécution du jour. `artist_readiness` les compte comme de la donnée fraîche, donc
+  la pastille **🟢 Données** est verte sur un locataire qui n'a rien collecté —
+  exactement ce qu'un artiste a signalé le 2026-09-05 (« l'item Données est en vert
+  mais on n'a pas les data ? »). Il avait raison, et j'ai d'abord pris ces lignes pour
+  une vraie collecte.
+  Même famille que la frontière SMTP/HTTP posée le 2026-08-23 : *une suite de tests a
+  un rayon de souffle*, et aucun garde ne demande ce que la suite fait au monde
+  extérieur — ici, à la base de développement.
+  Commande qui le montre :
+  `python3 -c "import sys;sys.path.insert(0,'.');from src.dashboard.utils import get_db_connection as g;print(g().fetch_df(\"SELECT artist_id,COUNT(*) FROM soundcloud_tracks_daily WHERE track_id LIKE 'track-of-%' GROUP BY 1\"))"`
+
+- [x] **R62 — l'ajout d'un partenaire Meta reste un geste manuel des deux côtés.** P3.
+  Question posée le 2026-09-05 : « je ne comprends pas comment l'utilisateur peut voir
+  le nom de mon application, il faut prévoir un step de demande d'ajout et
+  d'acceptation de notre part automatique ? ». **Elle était fondée, et la moitié en a
+  été corrigée le jour même** : le guide envoyait l'artiste chercher
+  `ETL_DASHBOARD_SPOTIFY` dans SON Business Manager, où une application n'apparaît que
+  si ce BM la possède — instruction infaisable. Le guide nomme désormais notre
+  **Business ID** (`META_BUSINESS_ID`), que l'artiste colle dans « Attribuer un
+  partenaire ».
+
+  Ce qui reste ouvert est la seconde moitié : **le partage est toujours un geste
+  manuel**, et nous n'en sommes pas notifiés. L'artiste peut l'oublier, se tromper de
+  rôle, ou le faire sans qu'on le sache ; le seul retour est l'échec du test de
+  connexion. Automatiser suppose l'API Business Manager
+  (`/{business_id}/managed_partner_business`, agreements de partage d'actifs), donc la
+  permission `business_management` et une **revue Meta** — ce n'est pas un patch, c'est
+  une brique avec une dépendance externe.
+
+  Étape intermédiaire à évaluer d'abord, sans revue : détecter côté serveur qu'un
+  compte vient d'être partagé (le System User y gagne l'accès) et le dire dans l'app,
+  au lieu d'attendre que l'artiste re-teste.
+  Commande qui montre l'état actuel :
+  `python3 -c "import os,json,urllib.request,urllib.parse;from dotenv import load_dotenv;[load_dotenv(f) for f in ('.env.local','.env')];t=os.getenv('META_ACCESS_TOKEN');print(json.load(urllib.request.urlopen('https://graph.facebook.com/v21.0/me/adaccounts?'+urllib.parse.urlencode({'access_token':t,'fields':'account_id,name,business'}))))"`
+
+
+**Comment chacune a été close** (DEVLOG « suite 14 ») :
+
+- **R59** — [CLOS — la prémisse était fausse] `ADR-016`. Les deux tests ne se
+  contredisent pas : l'un gouverne le chemin **nocturne** (budget, on ne sonde que le
+  rouge), l'autre le chemin **interactif** (un humain attend). Deux économies, deux
+  règles compatibles. Ce qui manquait était l'écrit, pas un arbitrage.
+- **R60** — [CLOS — corrigé] `_claimed_count` rend `None` (« je ne sais pas ») au lieu
+  de `0`, et journalise. Le message à deux cas couvre déjà l'inconnu : rendre `ok=True`
+  aurait été pire, car sur le chemin nocturne `None` est le cas **courant**.
+- **R61** — [CLOS — corrigé] frontière de données dans `tests/conftest.py`, troisième
+  du genre après SMTP et HTTP. Mesuré : **9** lignes fabriquées (et non 358) suffisaient
+  à faire passer au vert une plateforme dont la dernière vraie collecte datait de
+  **85 jours**.
+- **R62** — [CLOS — porte fermée, mesurée] `ADR-017`. Le jeton porte
+  `business_management` et une écriture Business ordinaire passe, mais les deux arêtes
+  de partage répondent `(#3) Application does not have the capability`. La **détection**
+  du partage existait déjà (`check_onboarding_readiness`, ≤24 h) : rien à réécrire.

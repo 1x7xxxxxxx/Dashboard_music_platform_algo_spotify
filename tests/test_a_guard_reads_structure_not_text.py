@@ -68,7 +68,9 @@ _TEXTUAL_GUARDS = {
     "test_os_hints.py",
     "test_probes_scoped_to_repo.py",
     "test_the_views_map_lists_every_view.py",
-    "test_view_connection_budget.py",
+    # `test_view_connection_budget.py` est SORTI de cette liste le 2026-09-05 :
+    # il comptait les connexions par expression régulière et se déclenchait sur un
+    # COMMENTAIRE qui citait `get_db_connection()`. Il lit l'AST maintenant.
     # ── Révélés le 2026-09-04, pas ajoutés ──────────────────────────────────
     # Ces trois-là étaient déjà des gardes textuels ; le prédicat ne les voyait pas.
     # `test_export_views_generate` échappait sur un `read_text(` coupé en deux lignes

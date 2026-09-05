@@ -4,6 +4,7 @@ Type: Sub
 Uses: requests, streamlit
 Pure relocation from the former credentials.py — no logic change.
 """
+import logging
 import os
 
 import requests
@@ -18,30 +19,43 @@ from src.utils.platform_probes import (  # la situation que cette sonde nomme
     tagged,
 )
 
+logger = logging.getLogger(__name__)
 
-def _claimed_count(fields: dict) -> int:
-    """How many tracks this tenant declared as hosted elsewhere. Never raises.
 
-    Read through the probe's `fields` dict so the connection test stays a pure
-    function of what it was handed — it is called from the form, from
-    `tools/artist_preflight.py` and from the nightly monitor, and only the first has
-    a Streamlit session to borrow a DB connection from.
+def _claimed_count(fields: dict) -> "int | None":
+    """Combien de titres ce locataire a déclarés ailleurs. `None` = on ne sait pas.
+
+    Lu à travers le `fields` de la sonde pour que le test de connexion reste une
+    fonction pure de ce qu'on lui passe — il est appelé depuis le formulaire, depuis
+    `tools/artist_preflight.py` et depuis le moniteur nocturne, et seul le premier a
+    une session Streamlit dont emprunter une connexion.
+
+    **`None` et `0` ne sont pas la même chose** — R60, 2026-09-05. Cette fonction
+    rendait `0` pour TROIS situations : aucun `_artist_id`, pas de base, lecture
+    échouée. Or `0` veut dire « ce locataire n'a rien déclaré », ce dont la sonde
+    conclut « aucun titre public — il n'y a rien à collecter ». Un simple échec de
+    lecture basculait donc un cas légitime — un artiste dont les sorties paraissent
+    sous un label — en un ❌ qui l'envoyait réparer la seule chose qui était juste.
+    Il FABRIQUAIT le défaut qu'il devait éviter. Classe
+    `probe-reads-unreadable-as-absent`.
     """
+    artist_id = fields.get('_artist_id')
+    if not artist_id:
+        return None                      # personne ne nous a dit de qui il s'agit
     try:
-        artist_id = fields.get('_artist_id')
-        if not artist_id:
-            return 0
         from src.dashboard.utils import get_db_connection
         from src.utils.claimed_tracks import claimed_track_ids
         db = get_db_connection()
         if db is None:
-            return 0
+            return None                  # pas de base : absence NON mesurée
         try:
             return len(claimed_track_ids(db, int(artist_id), 'soundcloud'))
         finally:
             db.close()
-    except Exception:  # noqa: BLE001 — an unreadable claim list is not a red profile
-        return 0
+    except Exception as exc:  # noqa: BLE001 — jamais une page fermée
+        logger.warning("claim list unreadable for tenant %s: %s",
+                       artist_id, type(exc).__name__)
+        return None
 
 
 def _test_soundcloud(fields: dict) -> tuple:
@@ -151,6 +165,15 @@ def _test_soundcloud(fields: dict) -> tuple:
                 # empty and always will be, and the collectable unit is the TRACK.
                 # Telling him to fix his User ID would be telling him to fix the one
                 # thing that is already right.
+                # `None` (illisible) et `0` (rien de déclaré) mènent tous deux au
+                # message à DEUX CAS ci-dessous, et c'est volontaire : il n'affirme
+                # pas l'absence de déclarations, il offre les deux branches. Rendre
+                # `ok=True` sur un `None` serait pire — dans le chemin nocturne,
+                # `get_db_connection()` est `None` par construction, donc l'inconnu
+                # y est le cas COURANT, et un vert y masquerait un vrai profil vide.
+                #
+                # Ce que R60 corrige n'est donc pas la branche mais la CÉCITÉ : une
+                # liste illisible passait pour un zéro mesuré, sans une ligne de log.
                 claimed = _claimed_count(fields)
                 if claimed:
                     return True, t(

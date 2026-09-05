@@ -5,6 +5,103 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-05 (suite 14) — La porte était fermée, et deux gardes la défendaient
+
+Demande : envoyer automatiquement la demande de partage Meta à l'inscription, en
+pensant refactor et long terme, et ramener la roadmap à zéro tâche.
+
+### Le blocage n'est pas celui qu'on croyait, et il est réel
+
+Mesuré avant de concevoir. Le jeton System User **porte déjà `business_management`**
+— aucune revue Meta n'était nécessaire pour les permissions. Les trois arêtes de
+partenariat répondent **en lecture**. Mais les deux écritures sont refusées :
+
+    POST 212173878482503/client_ad_accounts  → (#3) Application does not have
+    POST act_567214713853881/agencies        →      the capability to make this API call
+
+Le contrôle qui tranche : **une écriture Business ordinaire passe**
+(`POST /212173878482503` avec `name` → `{"id": …}`). Ce n'est donc ni le jeton, ni ses
+permissions, ni une panne : c'est une **capacité d'application**, accordée par une revue
+distincte. `ADR-017` fige la mesure, le refus, et le contrôle qui dira que c'est rouvert
+— le `POST` cesse de répondre `(#3)`.
+
+**Ce qu'on n'a pas construit** : un second mécanisme de détection. Il existait déjà.
+`check_onboarding_readiness` sonde chaque nuit les plateformes rouges ; le jour où
+l'artiste accepte, la sonde suivante obtient 200 et la matrice passe au vert **sans
+qu'il re-teste**. Latence ≤ 24 h. Le chercher a évité de le réécrire.
+
+### `meta_graph.py` — une seule porte, et une dérive déjà installée
+
+`meta_config` déclare `META_API_VERSION = "v24.0"` et affirme dans son propre docstring
+« no other file needs to change ». C'était faux : `central_apps.check_meta` écrivait
+`v21.0` **en dur, deux fois** — trois versions en arrière, sur les deux requêtes qui
+décident si l'app de la plateforme est vivante. Personne ne l'a vu parce que rien ne
+reliait les deux écritures.
+
+Le module porte la base, la version, le jeton résolu une fois, et une table code →
+message (3, 10, 100, 190, 200, 294, 803) au lieu de la ré-interprétation à chaque site.
+Le garde interdit tout `graph.facebook.com` écrit ailleurs sous `src/`.
+
+**Et il a failli naître débranché.** Écrit, testé, gardé — **zéro appelant**. C'est la
+dette la plus discrète : le module a l'air d'être la règle, il ne l'est nulle part, et
+il diverge du code réel jusqu'au jour où on le branche. `_probe_ad_account` passe
+désormais par lui, et `test_the_door_is_actually_used` refuse qu'il redevienne orphelin.
+
+Deux fuites fermées au passage, dans du code que je venais d'écrire : `r.text` et
+`str(exc)` embarquent l'URL préparée — donc le jeton System User, qui voyage en query
+string. Seuls le statut et le nom de la classe sortent, et un test le vérifie par AST.
+
+### Une classe neuve, et deux gardes qui la défendaient
+
+`instruction-assumes-visibility-the-reader-does-not-have` (P2). Une consigne nomme un
+objet que son lecteur ne peut pas voir depuis sa place. Ici : « cherche
+`ETL_DASHBOARD_SPOTIFY` dans ton Business Manager », alors qu'une app n'apparaît que
+dans le BM qui la **possède**. Rien n'échoue — l'utilisateur abandonne en silence.
+
+Elle a survécu des mois parce que **l'auteur, lui, la voyait** : il regardait depuis le
+Business Manager propriétaire.
+
+**Deux gardes la protégeaient**, verts sur un chemin infaisable et rouges sur le
+correctif — c'est ce renversement qui a révélé la classe. Le premier exigeait que
+l'étape nomme `META_APP_DISPLAY_NAME`, et son commentaire expliquait même pourquoi ce
+nom devait être configuré plutôt qu'écrit en dur : un raisonnement juste sur une
+prémisse fausse. Le second exigeait « Business Assets ». Réancrés sur la question, avec
+l'interdiction explicite du retour de l'ancien vocabulaire.
+
+Le message d'échec de la sonde et le guide se **contredisaient** depuis le matin — l'un
+disait « Business Assets », l'autre « Attribuer un partenaire ». C'est ce désaccord qui
+aurait dû alerter. Ils disent maintenant la même chose, et une seule constante porte le
+numéro. Nouvel état `SHARING_MISSING` : « ce compte ne nous est pas encore partagé »
+n'est plus un ❌ générique.
+
+### La roadmap retombe à zéro — dont deux tâches closes SANS correctif
+
+| | Comment |
+|---|---|
+| **R59** | **prémisse fausse.** Les deux tests ne se contredisent pas : l'un gouverne le chemin nocturne (budget, rouge seulement), l'autre l'interactif (un humain attend). `ADR-016`. |
+| **R60** | corrigé. `_claimed_count` rend `None` et journalise. Le message à deux cas couvre déjà l'inconnu — rendre `ok=True` aurait été **pire**, `None` étant le cas *courant* sur le chemin nocturne. |
+| **R61** | corrigé. Troisième frontière de `conftest.py` après SMTP et HTTP. |
+| **R62** | porte fermée, mesurée. `ADR-017`. |
+
+### Une sentinelle qui se déclenchait sur sa propre documentation
+
+`test_view_connection_budget` comptait les connexions par une **expression régulière**
+sur le source. Elle a vu deux connexions dans `_platform_soundcloud.py` là où il n'y en
+a qu'une : la seconde occurrence était le commentaire qui explique justement quand
+`get_db_connection()` rend `None`.
+
+La seule façon de faire taire un garde textuel est d'**affaiblir le commentaire** —
+payer en lisibilité une erreur de mesure. Elle lit l'AST maintenant. Deux mutations :
+deux vraies connexions ajoutées ⇒ rouge ; trois mentions en commentaire ⇒ **vert**,
+ce qui est le point.
+
+**Correction d'un chiffre que j'ai publié hier soir.** J'avais écrit que les 358 lignes
+SoundCloud du locataire 1 étaient fabriquées. **Neuf le sont.** Les 349 autres sont de
+vraies collectes — datées du **12 juin, il y a 85 jours**. Neuf lignes de test datées du
+jour suffisaient donc à déplacer `MAX(collected_at)` et à faire passer au vert une
+plateforme muette depuis trois mois. Le défaut est plus petit et plus vicieux que
+décrit ; j'avais généralisé depuis un échantillon trié par date.
+
 ## 2026-09-05 (suite 13) — Une instruction que personne ne pouvait suivre
 
 Six remarques sur l'onglet Meta. Cinq sont des retouches de forme. **La sixième était

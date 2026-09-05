@@ -11,7 +11,10 @@ import requests
 from src.utils.meta_config import META_GRAPH_BASE_URL
 from src.dashboard.utils.i18n import t
 from src.utils.tenant_identity import identity_is_well_formed, meta_ad_account_ids
+from src.utils.meta_graph import MetaGraphError
+from src.utils.meta_graph import get as graph_get
 from src.utils.platform_probes import (  # la situation que cette sonde nomme
+    SHARING_MISSING,
     IDENTITY_MISSING,
     UNREACHABLE,
     tagged,
@@ -105,23 +108,36 @@ def _probe_ad_account(act_id: str, token: str) -> tuple:
             "Ad Account ID invalide : chiffres uniquement, éventuellement "
             "préfixés par `act_` (ex : 567214713853881)."
         )
-    ra = requests.get(
-        f'{META_GRAPH_BASE_URL}/{act_id}',
-        params={'access_token': token, 'fields': 'name,account_status'},
-        timeout=10,
-        allow_redirects=False,
-    )
-    acc = ra.json()
-    if ra.status_code != 200 or not acc.get('id', acc.get('name')):
-        err = acc.get('error', {})
-        detail = str(err.get('message', 'réponse inattendue de Meta'))[:200] if isinstance(err, dict) else ''
-        return False, t(
+    # Par `meta_graph`, la seule porte vers Graph : elle porte la version, résout le
+    # jeton une fois et traduit les codes d'erreur au même endroit pour tout le monde.
+    # Écrit et gardé le 2026-09-05, il n'avait **aucun appelant** — une couche
+    # débranchée pourrit, et son premier branchement est ici.
+    detail = ""
+    acc: dict = {}
+    try:
+        acc = graph_get(act_id, token=token, fields="name,account_status")
+    except MetaGraphError as exc:
+        # `.explanation` traduit le code ; le message brut de Meta est déjà nettoyé
+        # de l'URL par le client, donc rien n'expose le jeton ici.
+        detail = exc.explanation[:200]
+    if not acc.get('id', acc.get('name')):
+        # Ce message nommait l'ANCIEN geste — « Apps → ETL_DASHBOARD_SPOTIFY →
+        # Business Assets » — pendant que le guide, deux colonnes plus loin, en
+        # donnait un autre. Deux surfaces qui se contredisent, et celle-ci décrivait
+        # un chemin infaisable : une app n'apparaît que dans le Business Manager qui
+        # la possède. Elles disent maintenant la MÊME chose, et une seule constante
+        # porte le numéro.
+        from src.dashboard.content.credential_guides import META_BUSINESS_ID
+        _where = (f"colle **`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
+                  else "colle **notre numéro de Business** (demande-le nous)")
+        return False, tagged(t(
             "credentials.meta.account_unreachable",
-            "Compte publicitaire **{act}** inaccessible avec l'app partagée : {detail}\n\n"
-            "→ Cause la plus fréquente : le compte n'a pas été **partagé** avec l'app "
-            "(Business Manager → Paramètres → Apps → ETL_DASHBOARD_SPOTIFY → Business "
-            "Assets → Ajouter des assets → Compte publicitaire, permission Annonceur)."
-        ).format(act=act_id, detail=detail)
+            "Compte publicitaire **{act}** : il ne nous est pas encore partagé. "
+            "{detail}\n\n"
+            "→ Business Manager → **Comptes publicitaires** → ton compte → "
+            "**Partenaires** → **Attribuer un partenaire** → {where} → rôle "
+            "**Analyste**."
+        ).format(act=act_id, detail=detail, where=_where), SHARING_MISSING)
     return True, str(acc.get('name', act_id))
 
 

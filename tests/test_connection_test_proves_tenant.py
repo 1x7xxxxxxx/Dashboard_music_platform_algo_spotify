@@ -70,13 +70,17 @@ def test_meta_shared_token_alone_is_not_connected(mock_requests):
     assert "Ad Account ID" in msg
 
 
+# Le contrôle du compte publicitaire passe par `meta_graph` depuis le 2026-09-05 —
+# la seule porte vers Graph. Le `/me` d'en-tête, lui, utilise encore `requests` :
+# ces deux tests simulent donc les DEUX couches. Ce qu'ils vérifient n'a pas changé.
+@patch("src.dashboard.views.credentials._platform_meta.graph_get")
 @patch("src.dashboard.views.credentials._platform_meta.requests")
-def test_meta_unshared_ad_account_is_a_failure(mock_requests):
+def test_meta_unshared_ad_account_is_a_failure(mock_requests, mock_graph):
     """The account exists but was never shared with the app → Graph errors."""
-    mock_requests.get.side_effect = [
-        _resp(200, {"id": "1", "name": "System User"}),
-        _resp(400, {"error": {"message": "Object does not exist"}}),
-    ]
+    from src.utils.meta_graph import MetaGraphError
+
+    mock_requests.get.return_value = _resp(200, {"id": "1", "name": "System User"})
+    mock_graph.side_effect = MetaGraphError(803, None, "Object does not exist")
 
     ok, msg = _test_meta({"access_token": "tok", "account_id": "65390907"})  # pragma: allowlist secret
 
@@ -85,12 +89,12 @@ def test_meta_unshared_ad_account_is_a_failure(mock_requests):
     assert "partagé" in msg  # names the asset-sharing fix
 
 
+@patch("src.dashboard.views.credentials._platform_meta.graph_get")
 @patch("src.dashboard.views.credentials._platform_meta.requests")
-def test_meta_shared_ad_account_passes(mock_requests):
-    mock_requests.get.side_effect = [
-        _resp(200, {"id": "1", "name": "System User"}),
-        _resp(200, {"id": "act_65390907", "name": "Benken Ads", "account_status": 1}),
-    ]
+def test_meta_shared_ad_account_passes(mock_requests, mock_graph):
+    mock_requests.get.return_value = _resp(200, {"id": "1", "name": "System User"})
+    mock_graph.return_value = {"id": "act_65390907", "name": "Benken Ads",
+                               "account_status": 1}
 
     ok, msg = _test_meta({"access_token": "tok", "account_id": "act_65390907"})  # pragma: allowlist secret
 

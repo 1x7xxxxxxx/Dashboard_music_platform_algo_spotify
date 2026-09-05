@@ -114,6 +114,9 @@ _VERDICT_HEADINGS = {
     "resolved": (lambda: t(
         "credentials.verdict_resolved",
         "👉 {platform} : presque — une valeur à recopier."), False),
+    "sharing_missing": (lambda: t(
+        "credentials.verdict_sharing_missing",
+        "⚠️ {platform} : ce compte ne nous est pas encore partagé."), False),
 }
 
 

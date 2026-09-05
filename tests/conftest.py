@@ -326,3 +326,49 @@ def _retry_backoff_costs_no_wall_clock(monkeypatch):
 
     import time as _real_time
     monkeypatch.setattr(_retry, "time", _NoWait())
+
+
+# ── La suite ne laisse pas de fausses données dans la base de développement ───
+#
+# Troisième frontière, même famille que SMTP et HTTP ci-dessus, et trouvée de la même
+# façon : par un artiste, pas par un test. Le 2026-09-05 il signale « l'item Données
+# est en vert mais on n'a pas les data ». Il avait raison.
+#
+# Mesuré : `soundcloud_tracks_daily` portait pour le locataire 1 **349 vraies lignes,
+# collectées le 12 juin — il y a 85 jours** — et **9 lignes fabriquées** par la suite
+# (`track_id = 'track-of-<user_id>'`, titre « Track owned by … »), datées du jour.
+# `artist_readiness` lit `MAX(collected_at)` : neuf lignes de test suffisaient donc à
+# faire passer au VERT une plateforme réellement périmée depuis trois mois.
+#
+# La question n'est pas « le test est-il juste ? » — il l'est — mais « que laisse-t-il
+# derrière lui ? ». Aucun garde ne la posait.
+_SYNTHETIC_TRACK_PREFIX = "track-of-"
+_SEEDED_TABLES = (("soundcloud_tracks_daily", "track_id"),)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_synthetic_rows_left_behind():
+    """Efface, en fin de session, les lignes que la suite a fabriquées.
+
+    Portée SESSION et non fonction : plusieurs tests s'appuient sur leurs propres
+    lignes pendant qu'ils tournent. On ne les empêche pas d'écrire, on les empêche de
+    SURVIVRE — c'est la persistance qui ment aux pastilles, pas l'écriture.
+
+    Ne lève jamais : sans base, il n'y a rien à nettoyer, et faire échouer toute la
+    suite pour ça remplacerait un défaut discret par un blocage.
+    """
+    yield
+    try:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        if db is None:
+            return
+        try:
+            for table, column in _SEEDED_TABLES:
+                db.execute_query(
+                    f"DELETE FROM {table} WHERE {column} LIKE %s",  # noqa: S608
+                    (f"{_SYNTHETIC_TRACK_PREFIX}%",))
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — un nettoyage n'échoue pas la suite
+        pass

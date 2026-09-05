@@ -81,13 +81,26 @@ def test_the_soundcloud_diagnosis_announces_two_cases_and_carries_them(grinch_di
 
 
 def test_the_meta_diagnosis_carries_the_sharing_instruction(benken_diagnosis):
-    assert "ETL_DASHBOARD_SPOTIFY" in benken_diagnosis
-    assert "Business Assets" in benken_diagnosis
+    """RÉANCRÉ le 2026-09-05, pour la raison qui a fait tomber ce test.
+
+    Il exigeait « ETL_DASHBOARD_SPOTIFY » et « Business Assets » — l'ancien geste,
+    et un geste INFAISABLE : une app n'apparaît que dans le Business Manager qui la
+    possède, donc un artiste ne pouvait pas la trouver dans sa liste. Ce message
+    contredisait en plus le guide affiché deux colonnes plus loin.
+
+    La question gardée reste la même — « le geste que l'artiste est seul à pouvoir
+    faire survit-il jusqu'à l'écran ? » — mais elle est ancrée sur le geste QUI MARCHE.
+    """
+    assert "Attribuer un partenaire" in benken_diagnosis
+    assert "Analyste" in benken_diagnosis
+    # Et jamais le retour de l'ancien : il envoyait chercher notre app chez l'artiste.
+    assert "Business Assets" not in benken_diagnosis
+    assert "ETL_DASHBOARD_SPOTIFY" not in benken_diagnosis
 
 
 @pytest.mark.parametrize("fixture_name, tail", [
     ("grinch_diagnosis", "en **public**"),
-    ("benken_diagnosis", "Business Assets"),
+    ("benken_diagnosis", "Attribuer un partenaire"),
 ])
 def test_the_probe_seam_keeps_the_gesture(request, monkeypatch, fixture_name, tail):
     """`platform_probes.probe` is the seam every automatic surface reads through.

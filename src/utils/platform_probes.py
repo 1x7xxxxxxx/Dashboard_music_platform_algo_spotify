@@ -55,9 +55,14 @@ NOT_FOUND = "not_found"                  # elle répond : cet identifiant n'exis
 IDENTITY_MISSING = "identity_missing"    # l'app va bien, le locataire n'a rien saisi
 NOTHING_TO_COLLECT = "nothing_to_collect"  # 200, joignable, mais aucun contenu
 RESOLVED = "resolved"                    # une résolution RÉUSSIE qui attend un collage
+# Meta : le compte existe, il répond, et il ne nous est simplement PAS PARTAGÉ. Ni
+# « introuvable » ni « refusé » : c'est un geste que l'artiste peut faire, et le seul
+# état que l'app savait montrer était un ❌ générique.
+SHARING_MISSING = "sharing_missing"
 
 PROBE_CATEGORIES = frozenset({
     UNREACHABLE, REFUSED, NOT_FOUND, IDENTITY_MISSING, NOTHING_TO_COLLECT, RESOLVED,
+    SHARING_MISSING,
 })
 
 

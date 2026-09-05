@@ -37,6 +37,9 @@ EN = {
     "credentials.verdict_resolved": (
         "👉 {platform}: almost — one value to copy across."
     ),
+    "credentials.verdict_sharing_missing": (
+        "⚠️ {platform}: this account is not shared with us yet."
+    ),
     "credentials.identity_taken_admin": "🛠️ Held by artist #{other}.",
     "credentials.identity_taken": (
         "❌ **{field} = {value}** already belongs to another account. A platform "
@@ -276,11 +279,13 @@ EN = {
         "Meta app OK, but your **Ad Account ID** is not set — without it no data "
         "can be collected. Read it from the Ads Manager URL, after `act=`."
     ),
+    # Le geste courant, le même que le guide. Il nommait « Apps →
+    # ETL_DASHBOARD_SPOTIFY → Business Assets » : un chemin infaisable, une app
+    # n'apparaissant que dans le Business Manager qui la possède.
     "credentials.meta.account_unreachable": (
-        "Ad account **{act}** is not reachable with the shared app: {detail}\n\n"
-        "→ Most common cause: the account was never **shared** with the app "
-        "(Business Manager → Settings → Apps → ETL_DASHBOARD_SPOTIFY → Business "
-        "Assets → Add assets → Ad account, Advertiser permission)."
+        "Ad account **{act}**: it is not shared with us yet. {detail}\n\n"
+        "→ Business Manager → **Ad accounts** → your account → **Partners** → "
+        "**Assign partner** → {where} → **Analyst** role."
     ),
     "credentials.meta.ig_id_missing": (
         "Instagram Business Account ID missing — enter it in the Meta tab "

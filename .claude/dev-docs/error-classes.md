@@ -254,6 +254,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [printed-command-assumes-a-shell-the-reader-does-not-have](#printed-command-assumes-a-shell-the-reader-does-not-have) | P3 | deterministic | guarded | none |
 | [headline-asserts-a-cause-the-probe-did-not-measure](#headline-asserts-a-cause-the-probe-did-not-measure) | P2 | deterministic | guarded | none |
 | [probe-does-not-ask-the-collectors-question](#probe-does-not-ask-the-collectors-question) | P2 | deterministic | guarded | none |
+| [instruction-assumes-visibility-the-reader-does-not-have](#instruction-assumes-visibility-the-reader-does-not-have) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -3356,3 +3357,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: `guarded`. **Trouvé parce que l'utilisateur a contredit la conclusion**, pas par un test : « j'ai bien des titres donc quelque chose ne fonctionne pas ?? ». La séance venait de corriger l'HABILLAGE de ce message (`headline-asserts-a-cause-the-probe-did-not-measure`) en tenant son contenu pour vrai — le titre affirmait une cause fausse, et le corps aussi. Interroger l'API réelle a pris deux minutes et a renversé le diagnostic. Lecture du garde par AST : le commentaire qui documente le correctif contient lui-même `limit=1`, donc une recherche de chaîne serait rouge sur sa propre explication (`guard-matches-its-own-comment`). Trois mutations vues rouges : `limit` remis à 1, garde `next_href` retiré, et le collecteur passé à 20 sans la sonde.
+
+## instruction-assumes-visibility-the-reader-does-not-have
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une consigne nomme un objet que son lecteur ne peut pas voir depuis sa place. Il ouvre l'écran indiqué, n'y trouve rien, et s'arrête. Rien n'échoue : ni erreur, ni test rouge, ni alerte — l'utilisateur abandonne en silence, et le support reçoit « je ne trouve pas ».
+- root_cause: le guide Meta disait « Business Manager → Applications → cherche `ETL_DASHBOARD_SPOTIFY` » (`src/dashboard/content/credential_guides.py`), et le message d'échec de la sonde nommait le même chemin (`_platform_meta.py`, « Apps → ETL_DASHBOARD_SPOTIFY → Business Assets »). Or **chez Meta une application n'apparaît que dans le Business Manager qui la POSSÈDE** : la nôtre appartient au nôtre, donc cette liste est vide chez tout artiste. La consigne était infaisable pour son seul lecteur possible. Elle a survécu des mois parce que l'auteur, lui, la voyait — il regardait depuis le Business Manager propriétaire. C'est l'étape qui a bloqué la session Benken du 2026-06-19 ; le geste qui marche est l'inverse et se fait avec un numéro (`META_BUSINESS_ID` → « Attribuer un partenaire »).
+- signature: `python3 -m pytest tests/test_the_guide_tells_the_artist_only_what_is_theirs.py tests/test_the_actionable_half_survives.py tests/test_the_meta_tab_asks_before_it_explains.py -q`
+- long_term_fix: la consigne nomme une valeur que le lecteur peut **coller**, pas un objet qu'il devrait **trouver** — un numéro qu'on lui donne bat un nom qu'il doit reconnaître. Les gardes cherchent le vocabulaire du geste faisable (« Attribuer un partenaire » / « Assign partner ») et **interdisent explicitement le retour de l'ancien** (`assert "Business Assets" not in …`, `assert "ETL_DASHBOARD_SPOTIFY" not in …`) sur les deux surfaces qui le portaient : le guide et le message d'échec de la sonde — elles se contredisaient, et c'est ce désaccord qui aurait dû alerter.
+- autofix: none
+- guard: { type: test, ref: tests/test_the_guide_tells_the_artist_only_what_is_theirs.py + tests/test_the_actionable_half_survives.py + tests/test_the_meta_tab_asks_before_it_explains.py }
+- rex_ref: src/dashboard/content/credential_guides.py
+- first_seen: 2026-09-05
+- History:
+  - 2026-09-05: `guarded`. **Deux gardes défendaient l'instruction infaisable.** `test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test` exigeait que l'étape nomme `META_APP_DISPLAY_NAME`, et son commentaire expliquait même pourquoi ce nom devait être configuré plutôt qu'écrit en dur — un raisonnement juste sur une prémisse fausse. `test_the_meta_diagnosis_carries_the_sharing_instruction` exigeait « Business Assets ». Tous deux **verts** sur un chemin que personne ne pouvait suivre, et tous deux **rouges sur le correctif** : c'est le signal qui a révélé la classe. Réancrés sur la QUESTION (« le geste que l'artiste est seul à pouvoir faire est-il là ? ») et non sur un libellé. Distincte de `guide-addresses-the-wrong-reader` (bon lecteur, mauvais vocabulaire) et de `the-page-that-tells-you-what-to-do-is-unreachable` (la page manque) : ici la page existe, le lecteur est le bon, et l'objet nommé ne peut pas s'y trouver. Trouvée par une **question** de l'utilisateur — « je ne comprends pas comment l'utilisateur peut voir le nom de mon application » — pas par un test : aucun garde ne demande « depuis où le lecteur regarde-t-il ? ».

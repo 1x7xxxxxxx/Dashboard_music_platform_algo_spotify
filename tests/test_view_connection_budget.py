@@ -36,6 +36,7 @@ loudly if someone "modernises" a view whose semantics do not fit.
 """
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -90,7 +91,23 @@ def _view_files() -> list[Path]:
 
 
 def _connections(path: Path) -> int:
-    return len(re.findall(r"get_db_connection\(\)", path.read_text(encoding="utf-8")))
+    """Les APPELS à `get_db_connection()`, lus dans l'arbre — pas dans le texte.
+
+    C'était une expression régulière jusqu'au 2026-09-05, et elle a compté DEUX
+    connexions dans `_platform_soundcloud.py` là où il n'y en a qu'une : la seconde
+    occurrence est un commentaire qui explique justement quand cette fonction rend
+    `None`. Un garde qui lit du texte se déclenche sur sa propre documentation, et la
+    seule façon de le faire taire est d'affaiblir le commentaire — c'est-à-dire de
+    payer en lisibilité une erreur de mesure. Le dépôt appelle ça
+    `guard-matches-its-own-comment` ; on lit donc l'AST.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return sum(
+        1 for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (getattr(node.func, "id", "") == "get_db_connection"
+             or getattr(node.func, "attr", "") == "get_db_connection")
+    )
 
 
 def test_no_view_opens_more_connections_than_it_used_to():

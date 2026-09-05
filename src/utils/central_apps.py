@@ -23,6 +23,7 @@ import os
 import requests
 
 from src.utils.meta_token_format import token_format_problem
+from src.utils.meta_config import META_GRAPH_BASE_URL
 
 TIMEOUT = 10
 
@@ -158,10 +159,16 @@ def check_meta() -> bool:
     # things. Naming them here is what turns a week into a minute:
     #   "Cannot get application info"        -> no app under that id (wrong id)
     #   "Invalid OAuth access token signature" -> app found, secret does not match
+    # La version d'API vient de `meta_config`, elle n'est PLUS écrite ici. Ces deux
+    # appels ont interrogé `v21.0` pendant des mois après le passage de la
+    # constante à `v24.0` — trois versions en arrière, sur les deux requêtes qui
+    # décident si l'app de la plateforme est vivante. Rien ne reliait les deux
+    # écritures, et le docstring de `meta_config` affirmait pourtant « no other
+    # file needs to change ». Gardé par `test_meta_graph_is_the_only_door.py`.
     if app_id and secret:
         try:
             resp = requests.get(
-                f"https://graph.facebook.com/v21.0/{app_id}",
+                f"{META_GRAPH_BASE_URL}/{app_id}",
                 params={"fields": "id,name", "access_token": f"{app_id}|{secret}"},
                 timeout=TIMEOUT, allow_redirects=False)
             body = resp.json() if resp.content else {}
@@ -187,7 +194,7 @@ def check_meta() -> bool:
     try:
         if app_id and secret:
             resp = requests.get(
-                "https://graph.facebook.com/v21.0/debug_token",
+                f"{META_GRAPH_BASE_URL}/debug_token",
                 params={"input_token": token, "access_token": f"{app_id}|{secret}"},
                 timeout=TIMEOUT,
                 allow_redirects=False,
