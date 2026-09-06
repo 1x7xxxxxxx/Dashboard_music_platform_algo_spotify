@@ -36,8 +36,26 @@ class _DB:
 
 
 def test_no_active_campaign_is_a_legitimate_silence() -> None:
+    """La raison est LUE PAR L'ARTISTE : elle porte le compte, et elle est en français.
+
+    Elle transite par `artist_readiness.next_action`, qui la recopie derrière
+    « Rien à faire — », et la matrice d'état l'affiche sous une pastille orange.
+    Écrite en anglais jusqu'au 2026-09-06, elle donnait une lumière orange, une
+    demi-phrase française et une explication que personne ne lisait.
+
+    Le garde n'épingle donc pas une formulation — il vérifie ce qui rend la phrase
+    utilisable : le nombre de campagnes, et le fait qu'aucune action n'est demandée.
+    """
     reason = _silence_reason(_DB([(0, 34)]), "meta_no_active_campaign")
-    assert reason and "no ACTIVE campaign" in reason and "34 known" in reason
+    assert reason, "aucune raison rendue : la silence légitime redevient une alerte"
+    assert "34" in reason, (
+        "la raison ne dit pas COMBIEN de campagnes sont connues — sans ce chiffre "
+        "elle ne se distingue pas d'un compte publicitaire vide")
+    assert not any(en in reason for en in ("no ACTIVE campaign", "known", "running")), (
+        f"la raison est affichée à l'artiste et doit être en français : {reason!r}")
+    assert any(w in reason.lower() for w in ("rien à réparer", "normal")), (
+        "la raison doit dire qu'il n'y a rien à faire ; une pastille orange sans "
+        "cette phrase se lit comme une panne")
 
 
 def test_an_active_campaign_means_the_silence_is_a_real_problem() -> None:

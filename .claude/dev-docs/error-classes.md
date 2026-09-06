@@ -277,6 +277,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-guess-that-leaves-no-trace](#a-guess-that-leaves-no-trace) | P2 | deterministic | guarded | none |
 | [a-count-that-is-claimed-not-measured](#a-count-that-is-claimed-not-measured) | P2 | deterministic | guarded | none |
 | [message-written-before-a-rerun](#message-written-before-a-rerun) | P3 | deterministic | guarded | none |
+| [empty-list-blames-the-most-common-cause](#empty-list-blames-the-most-common-cause) | P3 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3886,3 +3887,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: vu rouge sur trois mutations — un `st.success` réintroduit avant le rerun, une cible de navigation absente d'`app.py`, la disparition du vidage de la zone de dépôt ; vert après chacune. Le garde vérifie aussi qu'un rerun EXISTE encore : sans lui il ne mesurerait rien, et il serait vert pour cette raison.
+
+## empty-list-blames-the-most-common-cause
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une liste vide affiche un message écrit d'avance qui demande à l'utilisateur des gestes qu'il vient de faire. Il ne peut ni corriger ce qu'on lui reproche, ni comprendre ce qui manque, et il conclut que la fonctionnalité est cassée.
+- root_cause: « Aucune campagne. Connecte Meta Ads dans 🔑 Credentials API, puis lance 🚀 Lancer TOUTES les collectes » était affiché quelle que soit la cause. Mesuré le 2026-09-06 sur un artiste dont Meta était branché (pastille verte, sonde OK, 224 lignes d'insights, collecte réussie vingt minutes plus tôt avec 879 lignes) : les deux gestes demandés étaient faits. La vraie cause était la cinquième — `meta_campaigns` a pour clé de conflit `campaign_id` SEUL, délibérément (sa clé primaire porte quinze clés étrangères, et un upsert ne transfère jamais la propriété d'une ligne), donc deux profils déclarant le MÊME compte publicitaire se partagent les identifiants et le second n'en reçoit aucun. Aggravants trouvés au même endroit : la clé i18n `meta_mapping.no_campaigns` portait DEUX phrases françaises différentes selon le site d'appel (l'anglais n'en traduisait qu'une), et « ✅ Toutes les campagnes Meta sont déjà traitées » s'affichait sur ZÉRO campagne, juste au-dessus du message qui demandait de connecter Meta.
+- signature: `python3 -m pytest tests/test_an_empty_list_names_its_real_cause.py -q`
+- long_term_fix: une fonction PURE (`src/utils/meta_campaign_diagnosis.py`) qui rend la cause à partir de trois faits déjà en base — identité déclarée, statut du dernier run du locataire, présence de lignes de performance — et cinq messages, dont deux qui ne demandent aucun geste. Les trois surfaces qui annonçaient une liste vide appellent toutes le même diagnostic ; le garde compte ces appels, parce que corriger une surface sur trois est la forme que prend ce défaut quand on le corrige de mémoire.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_empty_list_names_its_real_cause.py }
+- rex_ref: src/dashboard/views/meta_mapping/_campaigns.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge sur quatre mutations — le diagnostic cessant de lire les insights, une surface sur trois revenue à un message figé, le succès sur ensemble vide redevenu inconditionnel, la phrase accusatrice réintroduite ; vert après chacune.
+  - 2026-09-06: même écran, défaut voisin. `freshness_monitor._silence_reason` rendait sa raison EN ANGLAIS, et `artist_readiness.next_action` la recopie derrière « Rien à faire — » sous une pastille ORANGE. L'artiste voyait une lumière orange, une demi-phrase française et une explication qu'il ne lisait pas. Le garde qui la couvrait épinglait la formulation anglaise : il aurait rougi sur la traduction. Réécrit pour vérifier la propriété — le compte est présent, aucune action n'est demandée, et rien n'est en anglais.

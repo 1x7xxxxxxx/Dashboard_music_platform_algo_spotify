@@ -144,8 +144,17 @@ def _silence_reason(db, rule: str, artist_id=None) -> str | None:
         return None          # nothing known about campaigns → do not suppress
     if active:
         return None          # ads ARE running, so silence is a real problem
-    return (f"no ACTIVE campaign ({total} known, none running) — Meta Ads insights "
-            "only exist while ads run, so this silence is expected")
+    # CETTE PHRASE EST LUE PAR L'ARTISTE, pas seulement par l'e-mail d'alerte.
+    # `artist_readiness.next_action` la recopie telle quelle derrière « Rien à faire
+    # — », et la matrice d'état l'affiche sous une pastille ORANGE. Écrite en
+    # anglais, elle donnait donc : une lumière orange, une demi-phrase française et
+    # une explication qu'on ne lit pas. « On ne sait pas ce qu'on doit faire »,
+    # 2026-09-06. La règle du dépôt réserve justement le français aux chaînes
+    # affichées dans l'interface.
+    return (f"ton compte publicitaire n'a aucune campagne active "
+            f"({total} campagne(s) connue(s), toutes en pause ou archivées). "
+            "Meta ne produit des chiffres que pendant qu'une publicité tourne : "
+            "ce silence est normal, il n'y a rien à réparer.")
 
 
 def check_freshness(db, artist_id=None):

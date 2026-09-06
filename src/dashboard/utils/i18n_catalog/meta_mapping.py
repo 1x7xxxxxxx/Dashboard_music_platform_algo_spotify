@@ -31,7 +31,27 @@ EN = {
     "meta_mapping.delete_title": "Delete a mapping",
     "meta_mapping.select_delete": "Select mapping to delete",
     "meta_mapping.deleted": "Deleted: {label}",
-    "meta_mapping.no_campaigns": 'No campaigns. Connect Meta Ads in **🔑 Credentials API**, then run **🚀 Launch ALL collections** in the sidebar.',
+    # `meta_mapping.no_campaigns` a été retirée le 2026-09-06 : elle portait DEUX
+    # phrases françaises différentes selon le site d'appel, et cette traduction n'en
+    # servait qu'une. Les cinq clés ci-dessous nomment chacune UNE cause mesurée.
+    "meta_mapping.empty_no_identity": (
+        "No campaigns: your Meta ad account is not set yet. Go to "
+        "**🔑 Credentials API → Meta Ads** and paste your Ad Account ID."),
+    "meta_mapping.empty_never_ran": (
+        "No campaigns: the Meta collection has never run for you yet. Start it with "
+        "**🚀 Launch ALL collections** in the sidebar."),
+    "meta_mapping.empty_run_failed": (
+        "No campaigns: the last Meta collection failed. Nothing for you to do — "
+        "we are looking into it."),
+    "meta_mapping.empty_no_campaign": (
+        "The Meta collection works, and your ad account holds no campaign. There is "
+        "nothing to map until you run an ad — this is normal, not an error."),
+    "meta_mapping.empty_elsewhere": (
+        "The Meta collection works — your performance figures did arrive. However no "
+        "campaign is attached to **this** profile: they belong to the first profile "
+        "that declared this ad account. That is by design — a campaign never changes "
+        "owner — and it only happens when two profiles share one ad account. Nothing "
+        "for you to do."),
     "meta_mapping.no_tracks": "No tracks found. Import your S4A CSVs first.",
     "meta_mapping.meta_campaign": "Meta campaign",
     "meta_mapping.spotify_track": "Spotify track",

@@ -550,8 +550,16 @@ def _render_after_import(db, artist_id: int, result: dict) -> None:
             "Les fichiers ont été retirés de la zone de dépôt."
         ).format(ok=n_ok, rows=f"{total:,}"))
 
+    # LE GESTE SUIVANT, AVANT LE DÉTAIL. Il était sous le tableau et sous les
+    # messages d'agrégation : l'artiste lisait « import exécuté », puis quinze
+    # lignes de détail, et le bouton arrivait quand il avait déjà quitté l'écran des
+    # yeux. Ce qui suit un bilan, c'est l'action suivante ; le détail est là pour
+    # qui veut vérifier, pas pour qui veut avancer.
+    _render_mapping_cta(artist_id)
+
     rows = result.get('rows') or []
     if rows:
+        st.markdown("---")
         st.dataframe(pd.DataFrame(rows), hide_index=True, width='stretch')
 
     # Les messages collectés PENDANT l'import — démarrage de la collecte,
@@ -560,8 +568,6 @@ def _render_after_import(db, artist_id: int, result: dict) -> None:
     _WRITER = {"success": st.success, "warning": st.warning, "caption": st.caption}
     for kind, text in result.get('notes') or []:
         _WRITER.get(kind, st.caption)(text)
-
-    _render_mapping_cta(artist_id)
 
 
 def _render_mapping_cta(artist_id: int) -> None:
@@ -572,7 +578,6 @@ def _render_mapping_cta(artist_id: int) -> None:
     Apple sont-ils le même morceau ? C'est le rôle du mapping cross-plateforme, et
     l'artiste n'avait aucune raison d'aller l'y chercher dans la barre latérale.
     """
-    st.markdown("---")
     st.caption(t(
         "upload_csv.mapping_why",
         "Tes fichiers viennent de plusieurs plateformes, qui n'écrivent pas les "

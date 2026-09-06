@@ -166,13 +166,89 @@ def _load_mappings(db, artist_id: int):
         "WHERE artist_id = %s ORDER BY created_at DESC", (artist_id,))
 
 
+def _empty_campaigns_message(db, artist_id: int) -> tuple[str, str]:
+    """(niveau, phrase) — POURQUOI la liste est vide, mesuré et non supposé.
+
+    Le message d'origine disait « Connecte Meta Ads […] puis lance les collectes »
+    quelle que soit la raison. Le 2026-09-06 il a été lu par un artiste dont Meta
+    était branché, sondé vert, avec 224 lignes d'insights et une collecte réussie
+    vingt minutes plus tôt : les deux gestes demandés étaient faits.
+
+    Les trois faits ci-dessous sont déjà en base ; les lire coûte une requête.
+    """
+    from src.utils.meta_campaign_diagnosis import (
+        CAMPAIGNS_ELSEWHERE, NEVER_RAN, NO_CAMPAIGN_AT_ALL, NO_IDENTITY,
+        RUN_FAILED, diagnose_empty_campaigns,
+    )
+
+    row = db.fetch_query(
+        "SELECT "
+        "  (SELECT COUNT(*) FROM artist_credentials WHERE artist_id = %s "
+        "     AND platform = 'meta' "
+        "     AND btrim(COALESCE(extra_config->>'account_id', '')) <> ''), "
+        "  (SELECT status FROM etl_run_log WHERE artist_id = %s AND platform = 'meta' "
+        "     ORDER BY started_at DESC LIMIT 1), "
+        "  (SELECT COUNT(*) FROM meta_insights_performance WHERE artist_id = %s)",
+        (artist_id, artist_id, artist_id),
+    )
+    has_id, last_status, insights = (row[0] if row else (0, None, 0))
+
+    cause = diagnose_empty_campaigns(
+        identity_present=bool(has_id),
+        last_run_status=last_status,
+        insight_rows=int(insights or 0),
+    )
+
+    if cause == NO_IDENTITY:
+        return "info", t(
+            "meta_mapping.empty_no_identity",
+            "Aucune campagne : ton compte publicitaire Meta n'est pas encore "
+            "renseigné. Va dans **🔑 Credentials API → Meta Ads** et colle ton "
+            "Ad Account ID.")
+    if cause == NEVER_RAN:
+        return "info", t(
+            "meta_mapping.empty_never_ran",
+            "Aucune campagne : la collecte Meta n'a encore jamais tourné pour toi. "
+            "Lance **🚀 Lancer TOUTES les collectes** dans la barre latérale.")
+    if cause == RUN_FAILED:
+        return "warning", t(
+            "meta_mapping.empty_run_failed",
+            "Aucune campagne : la dernière collecte Meta a échoué. Rien à faire de "
+            "ton côté — on regarde.")
+    if cause == NO_CAMPAIGN_AT_ALL:
+        return "info", t(
+            "meta_mapping.empty_no_campaign",
+            "La collecte Meta fonctionne, et ton compte publicitaire ne contient "
+            "aucune campagne. Il n'y a rien à mapper tant que tu n'as pas lancé de "
+            "publicité — c'est normal, pas une erreur.")
+    assert cause == CAMPAIGNS_ELSEWHERE
+    return "info", t(
+        "meta_mapping.empty_elsewhere",
+        "La collecte Meta fonctionne — tes chiffres de performance sont bien "
+        "arrivés. En revanche aucune campagne n'est rattachée à **ce** profil : "
+        "elles appartiennent au premier profil qui a déclaré ce compte "
+        "publicitaire. C'est voulu — une campagne ne change jamais de "
+        "propriétaire — et cela n'arrive que si deux profils partagent le même "
+        "compte publicitaire. Rien à faire de ton côté.")
+
+
 def render_campaign_tab(db, artist_id, canonical):
     # ── Suggestions to validate (top; green when nothing left) ──
     st.subheader(t("meta_mapping.auto_header", "🤖 Suggestions automatiques (campagne → titre)"))
     sugg, disp = _build_campaign_suggestions(db, artist_id, canonical)
     if disp.empty:
-        st.success(t("meta_mapping.auto_done",
-                     "✅ Toutes les campagnes Meta sont déjà traitées (associées ou rejetées)."))
+        # « Toutes les campagnes sont déjà traitées » sur ZÉRO campagne est un
+        # succès pour un ensemble vide : rien n'a été traité, il n'y avait rien.
+        # L'artiste du 2026-09-06 l'a lu juste au-dessus du message qui lui
+        # demandait de connecter Meta — deux affirmations contradictoires sur le
+        # même écran.
+        if _load_campaigns(db, artist_id):
+            st.success(t("meta_mapping.auto_done",
+                         "✅ Toutes les campagnes Meta sont déjà traitées "
+                         "(associées ou rejetées)."))
+        else:
+            _level, _msg = _empty_campaigns_message(db, artist_id)
+            (st.warning if _level == "warning" else st.info)(_msg)
     else:
         st.caption(t("meta_mapping.auto_legend",
                      "Score = similarité du nom **et** proximité avec la date de sortie. "
@@ -215,9 +291,8 @@ def render_campaign_tab(db, artist_id, canonical):
     st.subheader(t("meta_mapping.backlog_header", "📋 Backlog des campagnes (récap)"))
     bl = _load_campaign_backlog(db, artist_id)
     if bl.empty:
-        st.info(t("meta_mapping.no_campaigns",
-                  "Aucune campagne. Connecte Meta Ads dans **🔑 Credentials API**, puis lance "
-                  "**🚀 Lancer TOUTES les collectes** dans la barre latérale."))
+        _level, _msg = _empty_campaigns_message(db, artist_id)
+        (st.warning if _level == "warning" else st.info)(_msg)
     else:
         def _status(r):
             return ("🔴 Rejeté" if r['rejected'] else "✅ Associé" if r['track'] else "⏳ À traiter")
@@ -266,9 +341,16 @@ def render_campaign_tab(db, artist_id, canonical):
         campaigns = _load_campaigns(db, artist_id)
         tracks = _load_tracks(db, artist_id)
         if not campaigns:
-            st.warning(t("meta_mapping.no_campaigns",
-                         "Aucune campagne trouvée dans `meta_campaigns`. "
-                         "Lancez d'abord le DAG Meta Ads."))
+            # `meta_mapping.no_campaigns` portait DEUX phrases françaises
+            # différentes, ici et dans le backlog. Une clé, deux sens : la
+            # traduction anglaise n'en servait qu'un, et personne ne pouvait le
+            # voir. Les deux surfaces posent la même question — on rend la même
+            # réponse mesurée.
+            #
+            # Le texte d'origine nommait `meta_campaigns` et « le DAG Meta Ads » :
+            # une table et un DAG que l'artiste ne peut ni ouvrir ni lancer.
+            _level, _msg = _empty_campaigns_message(db, artist_id)
+            (st.warning if _level == "warning" else st.info)(_msg)
             return
         if not tracks:
             st.warning(t("meta_mapping.no_tracks",
