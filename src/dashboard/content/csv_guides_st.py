@@ -19,9 +19,16 @@ from src.dashboard.content.csv_guides import (
 )
 from src.dashboard.utils.i18n import t
 
-# Max display width (px). Streamlit's "content"/"stretch" both upscale small crops
-# to the column → blur. Capping to the native width avoids any upscaling.
-_MAX_IMG_WIDTH = 720
+# La largeur utile d'UNE colonne, estimée basse. Les guides sont rendus par paires
+# (`st.columns(_COLS)`), donc chacun dispose d'environ la moitié de la zone de contenu
+# — ~340 px sur la mise en page par défaut, moins l'espacement et la marge de
+# l'expander qui les contient.
+#
+# Le plafond était de 720 px, hérité de l'époque où un guide occupait toute la
+# largeur. Depuis la mise en colonnes, toute capture plus large que sa colonne
+# DÉBORDE du cadre — signalé le 2026-09-06 (« certaines captures dépassent du cadre,
+# c'est pas beau »), et mesuré : sur 16 captures, 8 font entre 1257 et 1693 px.
+_COLUMN_WIDTH_PX = 300
 
 
 # La mise en page est DÉRIVÉE de `PlatformGuide.family`, jamais d'une liste de clés
@@ -47,11 +54,12 @@ def render_csv_guides() -> None:
     platforms = [g for g in CSV_GUIDES if g.family == FAMILY_PLATFORM]
     distributors = [g for g in CSV_GUIDES if g.family == FAMILY_DISTRIBUTOR]
 
-    # Les plateformes d'écoute, côte à côte et DÉPLIÉES : elles tiennent toutes les
-    # deux à l'écran, donc plus rien ne justifie d'en cacher une. Empilées, seule la
-    # première s'ouvrait — et les deux artistes qui ont atteint cette page n'ont
-    # jamais déplié les suivantes.
-    _render_in_columns(platforms, expanded=True)
+    # REPLIÉES par défaut (demandé le 2026-09-06). Elles étaient dépliées depuis que
+    # la mise en colonnes les faisait tenir toutes les deux à l'écran — mais dépliées,
+    # elles poussent la page sur plusieurs écrans de captures avant qu'on ait vu ce
+    # qu'il y a en dessous, alors que la zone de dépôt est juste au-dessus et que la
+    # plupart des visites reviennent y déposer un fichier, pas relire la notice.
+    _render_in_columns(platforms, expanded=False)
 
     # Les distributeurs, TOUT EN BAS et en UN SEUL bloc (demandé le 2026-09-06).
     # Ils ne concernent qu'une partie des artistes et ne parlent pas d'écoutes mais
@@ -108,18 +116,42 @@ def _render_step(num: int, step: GuideStep) -> None:
     if step.screenshot:
         path = screenshot_path(step.screenshot)
         if path.exists():
-            st.image(str(path), caption=step.caption, width=_display_width(path))
+            render_bounded_image(path, step.caption)
         # else: missing screenshot — show nothing (step text still stands)
 
 
-def _display_width(path) -> int:
-    """Native image width, capped — never upscales (avoids blur on small crops)."""
+def render_bounded_image(path, caption=None) -> None:
+    """Jamais plus large que sa colonne, jamais agrandie non plus.
+
+    Les deux modes de laideur sont opposés et il faut les éviter tous les deux :
+    une capture de 1693 px dans une colonne de ~340 px déborde du cadre ; une
+    vignette de 138 px étirée à la colonne devient floue. Aucun réglage unique ne
+    règle les deux, parce que Streamlit ne dit pas au Python la largeur du conteneur.
+
+    D'où la règle : au-dessus de la largeur estimée d'une colonne, on laisse
+    Streamlit ajuster (ce qui ne peut être qu'une RÉDUCTION) ; en dessous, on rend la
+    taille native (ce qui ne peut pas déborder). L'estimation est volontairement
+    basse : se tromper vers le bas rend une image un peu petite, se tromper vers le
+    haut la fait dépasser — et c'est ce qu'on corrige.
+    """
+    # `width="stretch"` et non `use_container_width=True` : ce second est retiré de
+    # Streamlit depuis fin 2025 et lève ici (1.54). La page entière tombait en erreur,
+    # pas seulement l'image — vu au rendu, jamais à la lecture du code.
+    native = _native_width(path)
+    if native is None or native > _COLUMN_WIDTH_PX:
+        st.image(str(path), caption=caption, width="stretch")
+    else:
+        st.image(str(path), caption=caption, width=native)
+
+
+def _native_width(path):
+    """Largeur réelle du fichier, ou `None` si on ne peut pas la lire."""
     try:
         from PIL import Image
         with Image.open(path) as im:
-            return min(im.width, _MAX_IMG_WIDTH)
-    except Exception:
-        return _MAX_IMG_WIDTH
+            return im.width
+    except Exception:  # noqa: BLE001 — illisible : on laisse Streamlit ajuster
+        return None
 
 
 def _render_expected_table(guide: PlatformGuide) -> None:

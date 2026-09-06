@@ -119,9 +119,7 @@ _META = PlatformCred(
         # The number is written HERE too: this guide also ships as a PDF at
         # sign-up, where there is no tab to point at.
         CredStep("🤝 [Partners](" + _META_PARTNERS_URL + ") → **Add** → "
-                 "**Give a partner access to your assets** (not \u201cAsk your "
-                 "partner to share assets with you\u201d, which is the opposite "
-                 "direction) → "
+                 "**Give a partner access to your assets** → "
                  + f"paste **`{BUSINESS_ID_SHOWN_EN}`**"
                  + " → tick your ad account → **Analyst** role. "
                    "Without it, no data at all."),

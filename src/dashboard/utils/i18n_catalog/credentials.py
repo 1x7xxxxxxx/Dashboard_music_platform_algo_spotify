@@ -7,8 +7,7 @@ EN = {
     "credentials.csv_tab": "📂 My files (Spotify for Artists, Apple, distributor)",
     "credentials.csv_tab_help": (
         "These sources do not connect with an identifier: they let you download "
-        "a spreadsheet file. Drop it here — the type is recognised on its own, "
-        "you never have to open it, and everything lands in one place."),
+        "a spreadsheet file. Drop it here — the type is recognised on its own."),
     "credentials.no_active_artist": "No active artist. Create one in the Admin tab.",
     "credentials.target_artist": "Target artist",
     "credentials.no_artist_id": "Unable to determine your artist identifier.",

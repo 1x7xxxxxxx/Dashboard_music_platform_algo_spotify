@@ -16,7 +16,7 @@ from src.dashboard.content.credential_guides import (
     PlatformCred,
     screenshot_path,
 )
-from src.dashboard.content.csv_guides_st import _display_width
+from src.dashboard.content.csv_guides_st import render_bounded_image
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.os_hints import has_os_tokens, md as _os_md, os_selector
 from src.dashboard.auth import is_admin
@@ -182,7 +182,12 @@ def _render_step(platform_key: str, num: int, step: CredStep,
         if path.exists():
             caption = (t(f"credentials.guide.{platform_key}.step_{num}_caption",
                          step.caption) if step.caption else None)
-            st.image(str(path), caption=caption, width=_display_width(path))
+            # Le MÊME dimensionneur que les guides CSV, et pour la même raison : ces
+            # captures vivent dans `_col_guide` (`st.columns([3, 2])`), donc dans la
+            # colonne la PLUS ÉTROITE de la page. Un plafond de 720 px les faisait
+            # déborder du cadre — 8 des 16 captures CSV font plus de 1250 px de large,
+            # et celles-ci sont du même ordre.
+            render_bounded_image(path, caption)
 
 
 def _render_fields_table(guide: PlatformCred) -> None:

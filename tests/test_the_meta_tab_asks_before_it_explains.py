@@ -301,13 +301,16 @@ def test_the_sharing_step_names_a_number_the_artist_can_paste():
         assert ("Donner à un partenaire" in joined
                 or "Give a partner access" in joined), (
             f"{module}: l'étape de partage ne nomme plus le geste faisable")
-        # Le SENS, qui est la moitié qu'on perd en changeant de libellé : l'artiste
-        # nous donne accès, il ne demande pas l'accès aux nôtres.
-        assert ("Demander à ton partenaire" in joined
-                or "Ask your partner" in joined), (
-            f"{module}: l'option à ÉCARTER n'est plus nommée — signalé le "
-            "2026-09-06, « j'ai 2 options, je choisis lequel ? ». Nommer seulement "
-            "la bonne suffit quand on la reconnaît, pas quand on hésite.")
+        # LE SENS, gardé sans citer l'option à écarter. Cette assertion a exigé
+        # quelques heures que « Demander à ton partenaire » soit NOMMÉ — puis la
+        # mention a été retirée à la demande (2026-09-06) : citer ce qu'on ne veut
+        # pas fait relire une phrase pour l'annuler, devant un écran où l'on cherche
+        # un bouton. Ce qui compte reste le sens du partage, et il se lit dans le
+        # verbe : on DONNE l'accès, on ne le demande pas.
+        assert not any(w in joined for w in ("Demander l'accès", "Request access")), (
+            f"{module}: l'étape a basculé du côté « demander l'accès » — c'est le "
+            "sens inverse, et il ne produirait rien : c'est l'artiste qui nous "
+            "donne accès à SON compte.")
         assert "Attribuer un partenaire" not in joined, (
             f"{module}: retour du bouton de l'écran de gestion, qui n'ajoute rien")
         assert "ETL_DASHBOARD_SPOTIFY" not in joined, (

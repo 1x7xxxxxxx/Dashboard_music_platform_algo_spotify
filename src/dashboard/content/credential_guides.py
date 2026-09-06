@@ -333,16 +333,16 @@ _META = PlatformCred(
         # test l'a rattrapé DEUX FOIS. Ce guide part aussi en PDF à
         # l'inscription, où il n'y a pas d'onglet : « le bloc au-dessus porte le
         # numéro » y désigne le vide. Une ligne, mais complète.
-        # LE LIBELLÉ EXACT DE META, et l'option à écarter. Cette étape disait
-        # « l'accès à tes assets » quand le bouton s'appelle « l'accès à vos actifs » :
-        # deux formulations du même bouton, une dans le guide et une dans le bloc de
-        # l'onglet, sur le même écran. Et elle ne nommait que le bon choix — signalé le
-        # 2026-09-06, « j'ai 2 options, je choisis lequel ? ». Nommer celle à IGNORER
-        # est ce qui permet d'écarter, donc de décider.
+        # LE LIBELLÉ EXACT DE META. Cette étape disait « l'accès à tes assets »
+        # quand le bouton s'appelle « l'accès à vos actifs » : deux formulations du
+        # même bouton, une dans le guide et une dans le bloc de l'onglet, sur le même
+        # écran. Le libellé exact est ce qui se reconnaît sans traduire de tête.
+        #
+        # L'option à écarter a été nommée quelques heures, puis retirée à la demande
+        # (2026-09-06) : citer ce qu'on ne veut pas fait relire une phrase pour
+        # l'annuler, au moment précis où l'on cherche un bouton.
         CredStep("🤝 [Partenaires](" + _META_PARTNERS_URL + ") → **Ajouter** → "
-                 "**Donner à un partenaire l'accès à vos actifs** "
-                 "(et non « Demander à ton partenaire de partager des actifs avec "
-                 "toi », qui est le sens inverse) → "
+                 "**Donner à un partenaire l'accès à vos actifs** → "
                  + f"colle **`{BUSINESS_ID_SHOWN}`**"
                  + " → coche ton compte publicitaire → rôle **Analyste**. "
                    "Sans ce partage, aucune donnée."),

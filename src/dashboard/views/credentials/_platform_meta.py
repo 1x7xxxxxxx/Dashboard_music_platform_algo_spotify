@@ -303,23 +303,20 @@ def render_partner_share_block(account_id: str = "") -> None:
     st.code(META_BUSINESS_ID, language=None)
     # Le chemin nommé ici est celui qui AJOUTE un partenaire. L'onglet
     # « Partenaires » d'un compte publicitaire ne fait que gérer l'existant.
-    # LES DEUX OPTIONS SONT NOMMÉES, et pas seulement la bonne. Signalé le
-    # 2026-09-06 : « quand je clique sur le lien, j'ai 2 options, je choisis lequel ? »
-    # Le texte ne citait que celle à prendre, ce qui suffit quand on la reconnaît et
-    # ne suffit pas quand on hésite entre deux libellés voisins. Nommer celle à
-    # IGNORER est ce qui permet d'écarter, donc de décider.
+    # LE LIBELLÉ EXACT DE META, et lui seul. Signalé le 2026-09-06 : « j'ai 2
+    # options, je choisis lequel ? » — j'ai d'abord nommé les DEUX, celle à prendre
+    # et celle à écarter. Retiré le jour même à la demande : citer l'option qu'on ne
+    # veut pas fait relire une phrase pour l'annuler, et rallonge l'étape au moment
+    # précis où l'on cherche un bouton à l'écran. Le libellé exact suffit à le
+    # reconnaître ; l'autre choix de Meta n'y ressemble pas.
     #
-    # Les deux libellés de Meta (vérifiés le 2026-09-06) : « Donner à un partenaire
-    # l'accès à vos actifs » — le bon sens, c'est l'artiste qui nous donne — et
-    # « Demander à ton partenaire de partager des actifs avec toi », qui est le sens
-    # INVERSE et ne produirait rien ici.
+    # « vos actifs » et non « tes assets » : c'est le texte du bouton chez Meta,
+    # vérifié le 2026-09-06. Une paraphrase oblige à traduire de tête devant l'écran.
     st.caption(t(
         "credentials.meta.share_steps",
         "Copie ce numéro (bouton à droite) → ouvre le lien ci-dessous → "
-        "**Ajouter**. Meta propose alors deux choix : prends **« Donner à un "
-        "partenaire l'accès à vos actifs »** — surtout pas « Demander à ton "
-        "partenaire de partager des actifs avec toi », qui est le sens inverse. "
-        "Puis colle le numéro → coche ton compte publicitaire → rôle **Analyste**."))
+        "**Ajouter** → **« Donner à un partenaire l'accès à vos actifs »** → "
+        "colle le numéro → coche ton compte publicitaire → rôle **Analyste**."))
     # Aucune URL ne peut pré-remplir l'écran avec l'identifiant de l'artiste : le
     # paramètre `business_id` de Meta désigne le SIEN, que nous ne connaissons pas.
     # UN LIEN, pas un bouton. Demandé le 2026-09-06 : « il faudrait que "ouvrir mes

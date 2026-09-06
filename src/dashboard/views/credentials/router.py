@@ -504,8 +504,7 @@ def show():
                 "credentials.csv_tab_help",
                 "Ces sources ne se connectent pas par identifiant : elles vous "
                 "laissent télécharger un fichier tableau. Déposez-le ici — le type "
-                "est reconnu tout seul, vous n'avez pas à l'ouvrir, et tout arrive "
-                "au même endroit."))
+                "est reconnu tout seul."))
             from src.dashboard.views.upload_csv import render_uploader
             render_uploader(db, target_artist_id)
         else:
