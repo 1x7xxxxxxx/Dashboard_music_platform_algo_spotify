@@ -275,6 +275,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [filename-dependency-survives-below-detection](#filename-dependency-survives-below-detection) | P2 | deterministic | guarded | none |
 | [bulk-write-reads-only-the-first-row](#bulk-write-reads-only-the-first-row) | P2 | deterministic | guarded | none |
 | [a-guess-that-leaves-no-trace](#a-guess-that-leaves-no-trace) | P2 | deterministic | guarded | none |
+| [a-count-that-is-claimed-not-measured](#a-count-that-is-claimed-not-measured) | P2 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3854,3 +3855,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: vu rouge sur TROIS mutations — retirer `serialization` de l'écriture de succès (1 échec), remettre `utf-8` devant `utf-8-sig` (4), supprimer le garde xlsx (1) ; vert après chacune. Le garde xlsx existe parce que `latin-1` décode n'importe quels octets sans jamais lever : sans lui, un classeur Excel serait journalisé « latin-1 | , », une trace FAUSSE, pire qu'aucune trace.
   - 2026-09-06: le cas « cp1252 » du garde encodait « date,titre » — de l'ASCII pur, que `utf-8-sig` lit sans broncher. Il portait le nom d'un encodage qu'il ne mesurait pas. Un cas de repli ne prouve rien s'il passe par le chemin nominal.
+
+## a-count-that-is-claimed-not-measured
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'écran annonce « ✅ N ligne(s) importée(s) » et le journal enregistre N. Personne ne sait si la base en a reçu N. Le chiffre a exactement l'apparence d'une mesure.
+- root_cause: `upsert_many` renvoie `len(data)` — le nombre de lignes ENVOYÉES, après déduplication — et son propre commentaire dit pourquoi : le `rowcount` d'`execute_batch` ne reflète que le dernier lot. Ce chiffre remonte jusqu'à l'écran et jusqu'à `csv_upload_log.row_count` sans que rien, nulle part, n'interroge la destination. Densmore (*Data Pipelines Pocket Reference* p. 218) prescrit de « check row count growth in the data model » en fin de pipeline ; Petrella (*Fundamentals of Data Observability* p. 180) nomme les deux chiffres à confronter — « emitted record count » et « committed record count ». Nous n'avions que le premier.
+- signature: `python3 -m pytest tests/test_the_committed_count_is_measured.py -q`
+- long_term_fix: un `COUNT(*)` scopé au locataire AVANT et APRÈS l'écriture, dans la vue — la mesure se prend à la destination, sans toucher au chemin d'écriture qu'empruntent les seize DAGs. Le delta est affiché : un écart n'est pas une anomalie (un ré-import met à jour sans ajouter, et « 0 nouvelle » sur 400 lignes traitées est alors la bonne réponse), ce qui manquait n'était pas une alerte mais le chiffre. Le garde vérifie les DEUX moitiés — que la mesure est prise des deux côtés de l'écriture, et qu'elle atteint le tableau : mesurer sans afficher est la classe `finding-computed-but-never-sent` déplacée d'un cran.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_committed_count_is_measured.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge sur trois mutations — figer le compte d'avant à `0`, retirer le delta du tableau, retirer `validate_table` du helper ; vert après chacune.

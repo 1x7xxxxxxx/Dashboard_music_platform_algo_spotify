@@ -301,6 +301,34 @@ def _sniff_sep(file) -> str:
     return _resolve_serialization(file)[1]
 
 
+def _rows_in_table(db, table: str, artist_id: int) -> int:
+    """Combien de lignes la BASE porte pour ce locataire dans cette table.
+
+    « It's always good practice to run validation on the data models that are built
+      at the end of a pipeline. There are three things you can check on: […]
+      checking row count growth (or reduction) in the data model. »
+            — Densmore, *Data Pipelines Pocket Reference*, p. 218
+
+    `upsert_many` renvoie `len(data)` : le compte ENVOYÉ, après déduplication. C'est
+    une déclaration, pas une mesure — si la base en accepte moins, rien ne le dit.
+    Petrella (*Fundamentals of Data Observability*, p. 180) nomme les deux chiffres
+    à confronter : « emitted record count » et « committed record count ». Ici on
+    n'avait que le premier.
+
+    `table` vient de `_PLATFORMS`, un registre en dur — jamais d'une saisie — et
+    passe quand même par `validate_table` (règle transverse #8).
+    """
+    from src.database.postgres_handler import validate_table
+    validate_table(table)
+    from psycopg2 import sql as pgsql
+    row = db.fetch_query(
+        pgsql.SQL("SELECT COUNT(*) FROM {} WHERE artist_id = %s").format(
+            pgsql.Identifier(table)),
+        (artist_id,),
+    )
+    return int(row[0][0]) if row else 0
+
+
 def _store_answer(key: str, answer: dict) -> None:
     """Enregistre la réponse et relance le script — MAIS SEULEMENT SI ELLE CHANGE.
 
@@ -760,6 +788,13 @@ def render_uploader(db, target_artist_id: int) -> None:
         for r in ok_results:
             cfg = _PLATFORMS[r['platform_key']]
             try:
+                # LE COMPTE ÉMIS ET LE COMPTE COMMITÉ SONT DEUX CHIFFRES.
+                # On ne disposait que du premier ; le second se mesure ici, à la
+                # destination, sans toucher au chemin d'écriture qu'empruntent les
+                # seize DAGs. La différence n'est pas une anomalie — un ré-import
+                # met à jour sans ajouter, et voir « 0 nouvelle » sur 400 lignes
+                # traitées est alors la bonne réponse, pas un silence.
+                before = _rows_in_table(db, cfg['table'], target_artist_id)
                 count = db.upsert_many(
                     table=cfg['table'],
                     data=r['rows'],
@@ -774,6 +809,7 @@ def render_uploader(db, target_artist_id: int) -> None:
                 # personne n'ouvre). L'écart entre ce qu'on envoie et ce qu'on
                 # reçoit est la seule mesure disponible — on l'affiche.
                 merged = len(r['rows']) - count
+                added = _rows_in_table(db, cfg['table'], target_artist_id) - before
                 # Archived only HERE, in the success branch: `count` is the proof
                 # the rows reached the database. A copy of every file that failed
                 # to import would fill the directory with the uninteresting case —
@@ -787,6 +823,7 @@ def render_uploader(db, target_artist_id: int) -> None:
                     t("upload_csv.col_processed_rows", "Lignes traitées"): count,
                     t("upload_csv.col_merged", "Fusionnées"): (
                         merged if merged > 0 else ''),
+                    t("upload_csv.col_added", "Nouvelles en base"): added,
                     t("upload_csv.col_status", "Statut"): t("upload_csv.status_ok", "✅ OK"),
                 })
                 # LA SÉRIALISATION EST ÉCRITE AUSSI SUR LE SUCCÈS. Un fichier lu
@@ -810,6 +847,7 @@ def render_uploader(db, target_artist_id: int) -> None:
                     t("upload_csv.col_table", "Table"): cfg['table'],
                     t("upload_csv.col_processed_rows", "Lignes traitées"): 0,
                     t("upload_csv.col_merged", "Fusionnées"): '',
+                    t("upload_csv.col_added", "Nouvelles en base"): 0,
                     t("upload_csv.col_status", "Statut"): f'❌ {exc}',
                 })
                 try:
