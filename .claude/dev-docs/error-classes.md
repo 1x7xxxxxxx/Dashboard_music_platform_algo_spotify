@@ -272,6 +272,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [refusal-leaves-no-trace](#refusal-leaves-no-trace) | P2 | deterministic | guarded | none |
 | [finding-computed-but-never-sent](#finding-computed-but-never-sent) | P2 | deterministic | guarded | none |
 | [view-renders-nothing-and-says-nothing](#view-renders-nothing-and-says-nothing) | P2 | deterministic | guarded | none |
+| [filename-dependency-survives-below-detection](#filename-dependency-survives-below-detection) | P2 | deterministic | guarded | none |
+| [bulk-write-reads-only-the-first-row](#bulk-write-reads-only-the-first-row) | P2 | deterministic | guarded | none |
+| [a-guess-that-leaves-no-trace](#a-guess-that-leaves-no-trace) | P2 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3805,3 +3808,49 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: vu rouge en tronquant `apple_music.show()` juste après son titre — la vue ne lève pas, le render-smoke reste vert, et ce garde nomme l'écran blanc.
+
+## filename-dependency-survives-below-detection
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un fichier est reconnu à l'écran puis n'importe rien, sous un message qui accuse son CONTENU (« Aucune ligne valide détectée après parsing ») ou qui demande de le RENOMMER. Le correctif de la couche visible fait croire le problème réglé.
+- root_cause: le 2026-09-06, « tous les fichiers, peu importe leur nom, doivent être reconnus » a été tenu dans `_detect_platform`, qui ne lit plus que les colonnes — et le garde écrit ce jour-là s'arrête à la détection. Deux couches plus bas, `s4a_csv_parser.parse_timeline` prenait toujours le titre du morceau dans le nom de fichier (et rendait `[]` sinon) et `_detect_window` levait toujours si le nom ne portait ni `28d` ni `12m`. Le sibling le plus coûteux était `admin._upload_s4a`, qui n'a JAMAIS passé le nom : il affichait « ✅ 0 ligne(s) importée(s) », un succès vert pour un geste sans effet.
+- signature: `python3 -m pytest tests/test_a_renamed_export_still_reaches_the_database.py -q`
+- long_term_fix: ce que le fichier ne porte pas ne se devine pas et ne se fait pas fabriquer par l'utilisateur — **il se demande**. Une exception nommée (`MissingFromFilenameError`, avec un champ `field`) remplace le `[]` muet et le conseil de renommage ; la vue la transforme en un champ (titre) ou un choix (28 j / 12 mois), pré-rempli quand le nom est lisible, affiché uniquement sur les fichiers concernés. Le titre déduit est en outre AFFICHÉ dans le tableau de détection : `export (1).csv` s'importait sans erreur sous un morceau nommé « export (1) », et rien ne le montrait avant la base.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_renamed_export_still_reaches_the_database.py }
+- rex_ref: src/transformers/s4a_csv_parser.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge en cessant de transmettre la réponse de période à `parse_songs_global` (1 échec / 5) ; vert après. La leçon est la portée du garde, pas le défaut : celui qui existait posait la bonne question à la mauvaise profondeur. Un fichier « reconnu » qui rend zéro ligne n'est pas reconnu.
+
+## bulk-write-reads-only-the-first-row
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: aucun. La requête est valide, la transaction réussit, le compte renvoyé est juste — et une colonne n'a jamais été écrite. Le défaut ne se voit qu'en relisant la base des semaines plus tard.
+- root_cause: `insert_many` et `upsert_many` (`src/database/postgres_handler.py`) construisaient la liste des colonnes avec `list(data[0].keys())`. Toute colonne absente de la PREMIÈRE ligne était donc omise pour TOUT le lot, sans erreur ni journal. Un lot hétérogène est la norme dès qu'un parseur n'émet un champ que lorsqu'il le trouve.
+- signature: `python3 -m pytest tests/test_a_bulk_write_sees_every_column.py -q`
+- long_term_fix: `_union_columns(data)` — l'union des clés dans l'ordre de rencontre, partagée par les deux méthodes. Le garde n'inspecte pas le texte du fichier : il exécute les deux écritures avec un curseur factice et lit les colonnes réellement mises dans le SQL composé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_bulk_write_sees_every_column.py }
+- rex_ref: src/database/postgres_handler.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: le premier jet du garde est resté VERT sur le défaut. Sa colonne témoin (`streams`) figurait dans `update_columns`, donc `upsert_many` l'écrivait dans le `DO UPDATE SET` quelles que soient les données : l'assertion mesurait la mise à jour, pas les colonnes insérées. Un témoin doit n'apparaître que par le chemin qu'on teste — sinon on mesure autre chose et on croit avoir gardé.
+
+## a-guess-that-leaves-no-trace
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un fichier est refusé, ou pire, importé avec des chiffres faux — et rien nulle part ne dit comment il a été LU. Le diagnostic après coup est impossible, y compris quand le message d'erreur portait déjà la réponse.
+- root_cause: l'ingestion CSV devine trois choses (encodage, séparateur, type) et n'en enregistrait aucune. Reis & Housley, *Fundamentals of Data Engineering* p. 374 : « Autodetection […] is **inappropriate for production ingestion**. As a best practice, engineers should **record CSV encoding and schema details** in file metadata. » On ne peut pas cesser de deviner — les fichiers viennent de Spotify, d'Apple, parfois d'un Excel français, et rien ne nous laisse configurer la source ; mais la seconde phrase, elle, était applicable et ne l'était pas. Le 2026-09-06, douze exports refusés à cause d'un BOM : l'écran disait « Colonnes vues : ﻿date, streams » et le BOM ne se rend pas, donc personne ne pouvait voir la différence entre l'en-tête qu'on avait et celui qu'on voulait.
+- signature: `python3 -m pytest tests/test_an_import_records_what_it_guessed.py -q`
+- long_term_fix: une résolution UNIQUE (`_resolve_serialization`) qui RENVOIE l'encodage et le séparateur retenus au lieu de les garder pour elle, et une colonne `serialization` écrite sur les deux issues — refus ET succès. Le succès est le cas où la trace vaut le plus et c'est celui qui n'était pas journalisé : un fichier lu avec le mauvais séparateur ne lève pas, il importe des chiffres faux qu'on relira des semaines plus tard. La résolution vivait en DOUBLE, à l'identique, dans `_read_headers` et `_sniff_sep` — deux copies d'une règle est une copie qui divergera.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_import_records_what_it_guessed.py }
+- rex_ref: migrations/091_csv_upload_log_records_its_serialization.sql
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge sur TROIS mutations — retirer `serialization` de l'écriture de succès (1 échec), remettre `utf-8` devant `utf-8-sig` (4), supprimer le garde xlsx (1) ; vert après chacune. Le garde xlsx existe parce que `latin-1` décode n'importe quels octets sans jamais lever : sans lui, un classeur Excel serait journalisé « latin-1 | , », une trace FAUSSE, pire qu'aucune trace.
+  - 2026-09-06: le cas « cp1252 » du garde encodait « date,titre » — de l'ASCII pur, que `utf-8-sig` lit sans broncher. Il portait le nom d'un encodage qu'il ne mesurait pas. Un cas de repli ne prouve rien s'il passe par le chemin nominal.

@@ -226,7 +226,12 @@ def _upload_s4a(db, artist_id: int, file):
 
     df = pd.read_csv(file)
     parser = S4ACSVParser()
-    rows = parser.parse_timeline(df, artist_id=artist_id)
+    # LE NOM DU FICHIER EST OBLIGATOIRE : le titre du morceau n'est nulle part dans
+    # un export timeline (colonnes `date, streams`), Spotify ne le met que là. Cet
+    # appel l'omettait, donc `parse_timeline` rendait `[]` et cet import annonçait
+    # « ✅ 0 ligne(s) importée(s) » — un succès vert pour un geste sans effet.
+    rows = parser.parse_timeline(df, artist_id=artist_id,
+                                 filename=getattr(file, 'name', ''))
     if not rows:
         return 0
     db.upsert_many(

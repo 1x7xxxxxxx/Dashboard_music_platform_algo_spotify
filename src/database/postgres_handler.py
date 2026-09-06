@@ -87,6 +87,25 @@ def validate_columns(columns: List[str]) -> None:
             raise ValueError(f"SQL injection guard: invalid column name '{col}'")
 
 
+def _union_columns(data: List[Dict[str, Any]]) -> List[str]:
+    """Toutes les colonnes présentes dans AU MOINS une ligne, dans l'ordre de rencontre.
+
+    Prendre `data[0].keys()` — ce que faisaient les deux écritures de masse jusqu'au
+    2026-09-06 — signifie qu'une colonne absente de la PREMIÈRE ligne n'est écrite
+    pour AUCUNE, sans erreur ni journal : les valeurs suivantes disparaissent en
+    silence. Un lot hétérogène est la norme dès qu'un parseur n'émet un champ que
+    lorsqu'il le trouve.
+
+    L'ordre de rencontre plutôt qu'un tri : il garde la lisibilité de la requête et
+    reste déterministe pour un même lot.
+    """
+    seen: Dict[str, None] = {}
+    for row in data:
+        for key in row:
+            seen.setdefault(key, None)
+    return list(seen)
+
+
 class PostgresHandler:
     """Gestionnaire de connexion et opérations PostgreSQL."""
 
@@ -270,7 +289,7 @@ class PostgresHandler:
 
         validate_table(table)
         try:
-            columns = list(data[0].keys())
+            columns = _union_columns(data)
             validate_columns(columns)
             values = [[row.get(col) for col in columns] for row in data]
 
@@ -328,7 +347,7 @@ class PostgresHandler:
         validate_table(table)
         self._ensure_connection()
         try:
-            columns = list(data[0].keys())
+            columns = _union_columns(data)
             validate_columns(columns)
             validate_columns([c for c in conflict_columns if not c.startswith('(')])
             validate_columns(update_columns)

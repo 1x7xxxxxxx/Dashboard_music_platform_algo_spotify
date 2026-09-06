@@ -12,6 +12,35 @@ logger = logging.getLogger(__name__)
 _ARTIST_FILTER = '1x7xxxxxxx'
 
 
+class MissingFromFilenameError(ValueError):
+    """Le fichier ne porte pas une information que seul son NOM portait.
+
+    Deux champs sont dans ce cas chez Spotify for Artists, et aucun des deux ne
+    peut se déduire des données :
+
+    - le **titre du morceau** d'un export timeline (colonnes : `date, streams`) ;
+    - la **fenêtre** 28 jours / 12 mois d'un export « Titres » (l'export
+      « Depuis le début » n'a même pas de colonne date).
+
+    Jusqu'au 2026-09-06 le premier cas rendait `[]` — l'écran affichait alors
+    « Aucune ligne valide détectée après parsing », un message qui accuse le
+    CONTENU alors que le contenu est bon — et le second conseillait de RENOMMER le
+    fichier, c'est-à-dire de fabriquer à la main la donnée qui manque.
+
+    Les deux sont la même faute : deviner, ou faire deviner. La seule réponse
+    honnête est de **demander**, et cette exception est ce qui permet à la vue de
+    poser la question au lieu d'afficher une impasse.
+
+    `field` vaut 'song' ou 'window' ; `suggestion` porte la valeur lue dans le nom
+    quand elle est lisible, pour pré-remplir le champ.
+    """
+
+    def __init__(self, field: str, message: str, suggestion: str = ''):
+        super().__init__(message)
+        self.field = field
+        self.suggestion = suggestion
+
+
 def _to_int(value, default: int = 0) -> int:
     """Convert a raw CSV value (may contain commas or spaces) to int."""
     try:
@@ -58,17 +87,25 @@ class S4ACSVParser:
 
     # ── Public parse methods (called from upload_csv.py) ─────────────────────
 
-    def parse_timeline(self, df: pd.DataFrame, artist_id: int, filename: str = '') -> list:
+    def parse_timeline(self, df: pd.DataFrame, artist_id: int, filename: str = '',
+                       song_name: str = '') -> list:
         """Parse a per-song timeline CSV (headers: date, streams).
 
-        The song name is extracted from the filename — required to identify the track.
-        Returns an empty list if the filename is missing or unparseable.
+        The song title is NOT in the file — Spotify puts it in the filename only.
+        `song_name` overrides it (that is how the view passes an artist-typed title).
+        Raises MissingFromFilenameError when neither is readable, instead of
+        returning [] under a message that blames the contents.
         """
         df.columns = df.columns.str.strip().str.lower()
-        song_name = self._extract_song_name_from_filename(filename) if filename else ''
+        song_name = (song_name or '').strip()
         if not song_name:
-            logger.warning("parse_timeline: filename missing — cannot determine song name")
-            return []
+            song_name = self._extract_song_name_from_filename(filename) if filename else ''
+        if not song_name:
+            raise MissingFromFilenameError(
+                'song',
+                "Le titre du morceau ne figure pas dans ce fichier : Spotify ne le "
+                "met que dans le NOM du fichier, et celui-ci ne le porte pas. "
+                "Indique-le pour importer ce fichier.")
 
         stream_col = next((c for c in df.columns if c in ['streams', 'ecoutes', 'écoutes']), None)
         if 'date' not in df.columns or not stream_col:
@@ -87,35 +124,46 @@ class S4ACSVParser:
                 continue
         return data
 
-    def _detect_window(self, filename: str) -> str:
-        """Return '28d' or '12m' from the filename marker. Raises if ambiguous.
+    _WINDOWS = ('28d', '12m')
+
+    def _detect_window(self, filename: str, window: str = '') -> str:
+        """Return '28d' or '12m'. Raises MissingFromFilenameError if unreadable.
 
         Never defaults: a 28d export silently tagged '12m' (or vice-versa)
-        corrupts every window-filtered query downstream. Force an explicit marker.
+        corrupts every window-filtered query downstream.
+
+        Until 2026-09-06 the failure told the artist to RENAME the file — i.e. to
+        hand-write the very datum that is missing, with no way to check it. The
+        window is not in the data either (a "Depuis le début" export has no date
+        column at all), so the honest move is to ASK. `window` is that answer.
         """
+        window = (window or '').strip().lower()
+        if window in self._WINDOWS:
+            return window
         name = filename.lower()
         if any(t in name for t in ('28day', '28d', '28j')):
             return '28d'
         # '1year' is how S4A auto-names the 12-month "Titres" export; 'songs-all'
-        # (the "depuis le début" export) carries no window marker and is rejected
-        # on purpose — its listeners/saves columns come back all-zero.
+        # (the "depuis le début" export) carries no window marker and is refused
+        # earlier, on its data — its listeners/saves columns come back all-zero.
         if any(t in name for t in ('12m', '12month', '12mois', '1year', '1-year',
                                    'oneyear', '365d', '1y', '1an')):
             return '12m'
-        raise ValueError(
-            "Cannot determine the time window from the filename "
-            f"({filename!r}). Use the 12-month export (named '…-songs-1year.csv') "
-            "or rename the file to include '28d'/'28j' or '12m'/'1year'."
-        )
+        raise MissingFromFilenameError(
+            'window',
+            "La période de cet export (28 jours ou 12 mois) ne figure pas dans le "
+            "fichier : Spotify ne la met que dans le nom, et celui-ci ne la porte "
+            "pas. Choisis-la pour importer ce fichier.")
 
-    def parse_songs_global(self, df: pd.DataFrame, artist_id: int, filename: str = '') -> list:
+    def parse_songs_global(self, df: pd.DataFrame, artist_id: int, filename: str = '',
+                           window: str = '') -> list:
         """Parse a songs-all CSV (headers: song, listeners, streams, saves, release_date).
 
         Filters out the artist-level total row (1x7xxxxxxx).
         window is derived from the filename marker (28d vs 12m); raises if absent.
         """
         df.columns = df.columns.str.strip().str.lower()
-        window = self._detect_window(filename)
+        window = self._detect_window(filename, window)
 
         data = []
         for _, row in df.iterrows():

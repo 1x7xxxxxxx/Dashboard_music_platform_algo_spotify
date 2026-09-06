@@ -14,7 +14,7 @@ EN = {
         "⚠️ Automatic collection could not start. Launch it from the sidebar, or "
         "try again later."),
     # Header / intro (pre-existing keys)
-    "upload_csv.uploader_label": "CSV / TSV / XLSX files",
+    "upload_csv.uploader_label": "CSV / TSV / TXT / XLSX files",
     "upload_csv.uploader_help": (
         "Drag all your files at once. "
         "The type (S4A timeline, audience, songs-all, Apple, iMusician, "
@@ -38,10 +38,22 @@ EN = {
     "upload_csv.err_unknown_cols": " Columns seen: {cols}",
     "upload_csv.err_no_valid_rows": "No valid rows detected after parsing.",
     "upload_csv.status_ready": "✅ Ready",
+    "upload_csv.status_needs_answer": "❓ One detail is asked just below this table",
     "upload_csv.col_file": "File",
     "upload_csv.col_detected_type": "Detected type",
+    "upload_csv.col_song": "Title used",
     "upload_csv.col_rows": "Rows",
     "upload_csv.col_status": "Status",
+    # What the file does not say — we ask for it
+    "upload_csv.asks_header": (
+        "❓ {n} file(s) are valid but are missing a detail that Spotify only puts "
+        "in the filename. Fill it in here — the file will import on its own."),
+    "upload_csv.ask_song": "Track title",
+    "upload_csv.ask_song_ph": "e.g. Kimono à semelle de fer",
+    "upload_csv.ask_window": "Period covered by this export",
+    "upload_csv.ask_window_ph": "— pick the period —",
+    "upload_csv.window_12m": "12 months",
+    "upload_csv.window_28d": "28 days",
     # Previews
     "upload_csv.err_no_valid_file": "No valid file to import.",
     # FX rate
@@ -73,6 +85,7 @@ EN = {
     "upload_csv.col_type": "Type",
     "upload_csv.col_table": "Table",
     "upload_csv.col_processed_rows": "Processed rows",
+    "upload_csv.col_merged": "Merged",
     "upload_csv.status_ok": "✅ OK",
     "upload_csv.err_songs_all": "The « Since start » export cannot be used: Spotify returns listeners and saves as **zero** there. It is not the filename — renaming it changes nothing. Re-export with the period set to **12 months** (`…-songs-1year.csv`).",
 }

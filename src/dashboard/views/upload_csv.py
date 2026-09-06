@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils.i18n import t
+from src.transformers.s4a_csv_parser import MissingFromFilenameError
 
 _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
@@ -211,6 +212,72 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
 # Parsing dispatch
 # ─────────────────────────────────────────────
 
+# ── La configuration de SÉRIALISATION, résolue une seule fois ─────────────────
+#
+# « CSV file encoding and schema information must be configured in the target system
+#   to ensure appropriate ingestion. Autodetection is a convenience feature provided
+#   in many cloud environments but is inappropriate for production ingestion. As a
+#   best practice, engineers should record CSV encoding and schema details in file
+#   metadata. »  — Reis & Housley, *Fundamentals of Data Engineering*, p. 374
+#
+# On ne peut pas cesser de deviner : nos fichiers viennent de Spotify, d'Apple et
+# parfois d'un Excel français, et rien ne nous laisse configurer la source. Mais on
+# peut ENREGISTRER ce qu'on a deviné, et c'est la moitié qui manquait : le
+# 2026-09-06, douze fichiers ont été refusés à cause d'un BOM et rien ne disait quel
+# encodage avait gagné — l'écran affichait « Colonnes vues : ﻿date, streams », où le
+# BOM ne se rend pas.
+#
+# La résolution vivait en DOUBLE, à l'identique, dans `_read_headers` et
+# `_sniff_sep` : deux copies d'une règle est une copie qui divergera. Elle est ici,
+# une fois, et les deux appellent.
+_ENCODINGS = ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252')
+_SEPARATORS = ('\t', ';', ',')
+
+
+def _resolve_serialization(file) -> tuple[str, str, str]:
+    """(encodage retenu, séparateur retenu, ligne d'en-tête). `('', ',', '')` si illisible.
+
+    `utf-8-sig` AVANT `utf-8`, et c'est tout le défaut du 2026-09-06 : un fichier
+    UTF-8 portant un BOM décode SANS ERREUR en `utf-8`, donc la boucle s'arrêtait au
+    premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`).
+    `utf-8-sig` lit les deux cas à l'identique et retire le BOM quand il est là.
+
+    Le séparateur est le plus fréquent de la LIGNE D'EN-TÊTE. Le point-virgule y
+    figure parce que c'est ce que produit Excel en configuration française : un
+    artiste qui ouvre puis réenregistre son export obtenait un fichier lu comme UNE
+    colonne géante, donc « type non reconnu », sans que rien ne nomme la cause.
+    """
+    raw = file.read()
+    file.seek(0)
+    for enc in _ENCODINGS:
+        try:
+            first_line = raw.decode(enc).split('\n', 1)[0]
+            break
+        except (UnicodeDecodeError, ValueError):
+            continue
+    else:
+        return '', ',', ''
+    counts = {sep: first_line.count(sep) for sep in _SEPARATORS}
+    sep = max(counts, key=counts.get) if max(counts.values()) else ','
+    return enc, sep, first_line
+
+
+def _serialization_label(file) -> str:
+    """« utf-8-sig | , » — ce qu'on a DEVINÉ, pour le journal.
+
+    Sans cette trace, un refus reste indiagnosticable après coup : les colonnes vues
+    disent ce qu'on a lu, jamais avec quel encodage ni quel séparateur on l'a lu.
+    """
+    # Un classeur Excel n'a ni encodage de texte ni séparateur : `latin-1` décode
+    # n'importe quels octets sans jamais lever, donc la résolution rendrait
+    # « latin-1 | , » sur un binaire — une trace fausse, pire qu'aucune trace.
+    if getattr(file, 'name', '').lower().endswith(('.xlsx', '.xls')):
+        return 'xlsx (binaire — ni encodage ni séparateur)'
+    enc, sep, _ = _resolve_serialization(file)
+    printable = {'\t': 'TAB', ';': ';', ',': ','}.get(sep, sep)
+    return f"{enc or 'illisible'} | {printable}"
+
+
 def _read_headers(file) -> list[str]:
     """Header row of an uploaded file — encoding fallback + delimiter sniffing.
 
@@ -218,73 +285,62 @@ def _read_headers(file) -> list[str]:
     exports (tab-delimited, latin-1). Works for every supported platform.
     """
     import csv as _csv
-    raw = file.read()
-    file.seek(0)
-    text = None
-    # `utf-8-sig` AVANT `utf-8`, et c'est tout le défaut. Un fichier UTF-8 portant un
-    # BOM décode SANS ERREUR en `utf-8` — la boucle s'arrêtait donc au premier essai
-    # et le BOM survivait, collé au premier en-tête : `\ufeffdate` au lieu de `date`.
-    # `utf-8-sig` lit les deux cas à l'identique et retire le BOM quand il est là,
-    # donc le placer en tête ne coûte rien et supprime la classe.
-    #
-    # Mesuré le 2026-09-06 sur un import réel : DOUZE fichiers Spotify for Artists sur
-    # quatorze refusés en « type non reconnu », et le message le disait sans que
-    # personne puisse le lire — « Colonnes vues : ﻿date, streams », le BOM étant
-    # invisible à l'écran. Spotify exporte avec BOM ; Excel aussi, en réenregistrant.
-    for enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
-        try:
-            text = raw.decode(enc)
-            break
-        except (UnicodeDecodeError, ValueError):
-            continue
-    if not text:
+    _enc, sep, first_line = _resolve_serialization(file)
+    if not first_line:
         return []
-    first_line = text.split('\n', 1)[0]
-    # Le point-virgule manquait, et c'est le séparateur que produit **Excel en
-    # configuration française** : un artiste qui ouvre puis réenregistre son export
-    # obtient un fichier que la détection lisait comme UNE colonne géante, donc
-    # « type non reconnu », sans que rien ne nomme la vraie cause. On choisit le
-    # séparateur le plus fréquent de la ligne d'en-tête plutôt qu'un ordre de
-    # préférence arbitraire.
-    counts = {sep: first_line.count(sep) for sep in ('\t', ';', ',')}
-    sep = max(counts, key=counts.get) if max(counts.values()) else ','
     return next(_csv.reader([first_line], delimiter=sep), [])
 
 
 def _sniff_sep(file) -> str:
-    """Le séparateur de la ligne d'en-tête — la même règle que `_read_headers`.
+    """Le séparateur de la ligne d'en-tête — la MÊME résolution que `_read_headers`.
 
     `_parse_file` relisait le fichier avec `pd.read_csv(file)` nu, donc virgule et
     utf-8. Un fichier tabulé ou point-virgulé pouvait donc être DÉTECTÉ correctement
     puis exploser à la lecture, et le message rendu était l'exception brute de pandas.
     """
-    raw = file.read()
-    file.seek(0)
-    # `utf-8-sig` AVANT `utf-8`, et c'est tout le défaut. Un fichier UTF-8 portant un
-    # BOM décode SANS ERREUR en `utf-8` — la boucle s'arrêtait donc au premier essai
-    # et le BOM survivait, collé au premier en-tête : `\ufeffdate` au lieu de `date`.
-    # `utf-8-sig` lit les deux cas à l'identique et retire le BOM quand il est là,
-    # donc le placer en tête ne coûte rien et supprime la classe.
-    #
-    # Mesuré le 2026-09-06 sur un import réel : DOUZE fichiers Spotify for Artists sur
-    # quatorze refusés en « type non reconnu », et le message le disait sans que
-    # personne puisse le lire — « Colonnes vues : ﻿date, streams », le BOM étant
-    # invisible à l'écran. Spotify exporte avec BOM ; Excel aussi, en réenregistrant.
-    for enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
-        try:
-            first_line = raw.decode(enc).split('\n', 1)[0]
-            break
-        except (UnicodeDecodeError, ValueError):
-            continue
-    else:
-        return ','
-    counts = {sep: first_line.count(sep) for sep in ('\t', ';', ',')}
-    return max(counts, key=counts.get) if max(counts.values()) else ','
+    return _resolve_serialization(file)[1]
 
 
-def _parse_file(platform_key: str, file, artist_id: int) -> list:
-    """Parse an uploaded file for the given platform key. Returns a list of row dicts."""
+def _store_answer(key: str, answer: dict) -> None:
+    """Enregistre la réponse et relance le script — MAIS SEULEMENT SI ELLE CHANGE.
+
+    Le widget conserve sa valeur d'une exécution à l'autre. Relancer dès qu'il en
+    porte une boucle sans fin sur le cas qui compte le plus : une réponse qui ne
+    suffit pas à faire passer le fichier (une période choisie sur un export dont la
+    donnée est par ailleurs invalide). Le fichier resterait dans la liste des
+    questions, le widget se re-rendrait avec la même valeur, et on relancerait —
+    indéfiniment, sans que rien à l'écran ne l'explique.
+
+    Comparer avant de relancer rend l'appel idempotent : une seule relance par
+    réponse RÉELLEMENT nouvelle.
+    """
+    if st.session_state.get(key) == answer:
+        return
+    st.session_state[key] = answer
+    st.rerun()
+
+
+def _answers_key(artist_id: int, filename: str) -> str:
+    """Session key holding what the artist told us about ONE file."""
+    return f"_csv_answer_{artist_id}_{filename}"
+
+
+def _answers_for(artist_id: int, filename: str) -> dict:
+    """What the artist has already answered for this file (empty on first pass)."""
+    import streamlit as _st
+    return _st.session_state.get(_answers_key(artist_id, filename)) or {}
+
+
+def _parse_file(platform_key: str, file, artist_id: int,
+                answers: dict | None = None) -> list:
+    """Parse an uploaded file for the given platform key. Returns a list of row dicts.
+
+    `answers` carries what the FILE does not and only its name ever did — the song
+    title of a timeline export, the 28d/12m window of a "Titres" export. It is
+    empty on the first pass; the view fills it after asking, and re-parses.
+    """
     filename = getattr(file, 'name', '')
+    answers = answers or {}
 
     if platform_key == 'distrokid_sales':
         # Own reader: TSV or CSV, latin-1 fallback (not plain pd.read_csv)
@@ -307,7 +363,9 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
 
     if platform_key == 's4a':
         from src.transformers.s4a_csv_parser import S4ACSVParser
-        return S4ACSVParser().parse_timeline(df, artist_id=artist_id, filename=filename)
+        return S4ACSVParser().parse_timeline(
+            df, artist_id=artist_id, filename=filename,
+            song_name=answers.get('song', ''))
 
     if platform_key == 's4a_songs_global':
         # LE REFUS « Depuis le début », RECONNU DANS LES DONNÉES et non dans le nom.
@@ -328,7 +386,9 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
                     "les sauvegardes à **zéro**, quel que soit le nom du fichier. "
                     "Reprends l'export en réglant la période sur **12 mois**."))
         from src.transformers.s4a_csv_parser import S4ACSVParser
-        return S4ACSVParser().parse_songs_global(df, artist_id=artist_id, filename=filename)
+        return S4ACSVParser().parse_songs_global(
+            df, artist_id=artist_id, filename=filename,
+            window=answers.get('window', ''))
 
     if platform_key == 's4a_audience':
         from src.transformers.s4a_csv_parser import S4ACSVParser
@@ -415,9 +475,20 @@ def render_uploader(db, target_artist_id: int) -> None:
     # déposer des fichiers Spotify et Apple, et la page SACEM est l'endroit où on se
     # trouve quand on cherche un relevé SACEM. Deux copies d'une consigne, c'est une
     # copie qui se périmera sans que personne ne le voie.
+    # `txt` EST ACCEPTÉ ICI POUR POUVOIR ÊTRE REFUSÉ PLUS BAS.
+    #
+    # Ce paramètre est un filtre de Streamlit : ce qu'il écarte n'atteint jamais
+    # notre code, donc jamais notre message. Un export ouvert puis ré-enregistré par
+    # un tableur, ou téléchargé par un navigateur qui suffixe `.txt`, disparaissait
+    # de la zone de dépôt sans un mot — l'artiste voyait son fichier refusé par
+    # l'interface elle-même et n'avait rien à corriger.
+    #
+    # Un `.txt` qui contient un CSV se détecte exactement comme un `.csv` (on ne lit
+    # que ses en-têtes) ; un `.txt` qui n'en contient pas tombe dans « Type non
+    # reconnu — colonnes vues : … », qui est un refus avec sa raison.
     uploaded_files = st.file_uploader(
-        t("upload_csv.uploader_label", "Fichiers CSV / TSV / XLSX"),
-        type=["csv", "tsv", "xlsx", "xls"],
+        t("upload_csv.uploader_label", "Fichiers CSV / TSV / TXT / XLSX"),
+        type=["csv", "tsv", "txt", "xlsx", "xls"],
         accept_multiple_files=True,
         help=t("upload_csv.uploader_help",
                "Glissez tous vos fichiers en même temps. "
@@ -491,12 +562,22 @@ def render_uploader(db, target_artist_id: int) -> None:
                     f"upload_csv.platform.{platform_key}",
                     _PLATFORMS[platform_key]['label'])
                 f.seek(0)
-                entry['rows'] = _parse_file(platform_key, f, target_artist_id)
+                entry['rows'] = _parse_file(
+                    platform_key, f, target_artist_id,
+                    _answers_for(target_artist_id, f.name))
                 if not entry['rows']:
                     entry['error'] = t(
                         "upload_csv.err_no_valid_rows",
                         "Aucune ligne valide détectée après parsing.")
 
+        except MissingFromFilenameError as exc:
+            # CE N'EST PAS UN REFUS — c'est une question. Le fichier est bon ; il
+            # manque une information que Spotify ne met QUE dans le nom (le titre du
+            # morceau, la période 28 j / 12 mois) et que la donnée ne porte nulle
+            # part. On la demande sous le tableau plutôt que d'afficher une impasse.
+            entry['asks'] = {'field': exc.field, 'message': str(exc),
+                             'suggestion': exc.suggestion}
+            entry['error'] = str(exc)
         except Exception as exc:
             entry['error'] = str(exc)
 
@@ -513,15 +594,21 @@ def render_uploader(db, target_artist_id: int) -> None:
     # message à l'écran portait déjà la réponse — un BOM invisible devant `date` —
     # mais personne n'était là pour le lire. En base, `repr()` le rend visible.
     for r in file_results:
-        if not r['error']:
+        # Une QUESTION en attente n'est pas un refus : le fichier est bon, il lui
+        # manque une réponse. La journaliser gonflerait `csv_upload_log` — et donc
+        # l'alerte `check_csv_rejections` — d'un défaut qui n'existe pas.
+        if not r['error'] or r.get('asks'):
             continue
         try:
+            r['file'].seek(0)
             db.execute_query(
                 "INSERT INTO csv_upload_log "
                 "(artist_id, filename, platform, row_count, status, error_message, "
-                " seen_columns) VALUES (%s, %s, NULL, 0, 'rejected', %s, %s)",
+                " seen_columns, serialization) "
+                "VALUES (%s, %s, NULL, 0, 'rejected', %s, %s, %s)",
                 (target_artist_id, r['filename'], str(r['error'])[:500],
-                 repr(r.get('seen_columns') or [])[:500]),
+                 repr(r.get('seen_columns') or [])[:500],
+                 _serialization_label(r['file'])),
             )
         except Exception:  # noqa: BLE001 — journaliser ne doit jamais bloquer l'écran
             pass
@@ -529,26 +616,90 @@ def render_uploader(db, target_artist_id: int) -> None:
     # ── Tableau de détection ───────────────────────────────────────
     summary_rows = []
     for r in file_results:
-        if r['error']:
+        if r.get('asks'):
+            status = t("upload_csv.status_needs_answer",
+                       "❓ Une précision est demandée juste sous ce tableau")
+            count = '—'
+        elif r['error']:
             status = f"❌ {r['error']}"
             count = '—'
         else:
             status = t("upload_csv.status_ready", "✅ Prêt")
             count = len(r['rows'])
+        # LE TITRE EST AFFICHÉ, parce qu'il est DÉDUIT. Sur une timeline, le titre
+        # du morceau vient du nom du fichier et de rien d'autre : `export (1).csv`
+        # s'importe sans erreur sous un morceau nommé « export (1) ». Le montrer est
+        # ce qui rend une déduction fausse visible AVANT qu'elle n'entre en base —
+        # la colonne reste vide pour tous les autres types.
         summary_rows.append({
             t("upload_csv.col_file", "Fichier"): r['filename'],
             t("upload_csv.col_detected_type", "Type détecté"): r['label'],
+            t("upload_csv.col_song", "Titre retenu"): (
+                r['rows'][0].get('song', '') if r.get('platform_key') == 's4a'
+                and r.get('rows') else ''),
             t("upload_csv.col_rows", "Lignes"): count,
             t("upload_csv.col_status", "Statut"): status,
         })
 
     st.dataframe(pd.DataFrame(summary_rows), hide_index=True, width='stretch')
 
+    # ── Ce que le fichier ne dit pas : on le DEMANDE ───────────────
+    #
+    # Deux informations chez Spotify for Artists ne sont dans aucun fichier — le
+    # titre du morceau d'un export timeline (colonnes `date, streams`) et la période
+    # 28 jours / 12 mois d'un export « Titres ». Elles ne vivent que dans le NOM.
+    #
+    # Jusqu'au 2026-09-06, les deux finissaient en impasse : la première rendait zéro
+    # ligne sous « Aucune ligne valide détectée après parsing » — un message qui
+    # accuse le contenu alors que le contenu est bon ; la seconde conseillait de
+    # RENOMMER le fichier, c'est-à-dire de fabriquer à la main la donnée manquante,
+    # sans aucun moyen de vérifier ce qu'on écrit.
+    #
+    # Les deux sont la même faute : deviner, ou faire deviner. Le champ ci-dessous
+    # est la seule réponse honnête, et il n'apparaît QUE sur les fichiers concernés —
+    # un export au nom Spotify d'origine ne le voit jamais.
+    asked = [r for r in file_results if r.get('asks')]
+    if asked:
+        st.warning(t(
+            "upload_csv.asks_header",
+            "❓ {n} fichier(s) sont valides mais il leur manque une information que "
+            "Spotify ne met que dans le nom du fichier. Renseigne-la ici — le fichier "
+            "s'importera tout seul ensuite."
+        ).format(n=len(asked)))
+
+        for r in asked:
+            field = r['asks']['field']
+            st.caption(f"**{r['filename']}** — {r['asks']['message']}")
+            key = _answers_key(target_artist_id, r['filename'])
+            if field == 'song':
+                value = st.text_input(
+                    t("upload_csv.ask_song", "Titre du morceau"),
+                    value=r['asks'].get('suggestion', ''),
+                    key=f"{key}_song_widget",
+                    placeholder=t("upload_csv.ask_song_ph", "ex. Kimono à semelle de fer"),
+                )
+                if value.strip():
+                    _store_answer(key, {'song': value.strip()})
+            else:
+                choice = st.selectbox(
+                    t("upload_csv.ask_window", "Période couverte par cet export"),
+                    options=['', '12m', '28d'],
+                    format_func=lambda v: {
+                        '': t("upload_csv.ask_window_ph", "— choisis la période —"),
+                        '12m': t("upload_csv.window_12m", "12 mois"),
+                        '28d': t("upload_csv.window_28d", "28 jours"),
+                    }[v],
+                    key=f"{key}_window_widget",
+                )
+                if choice:
+                    _store_answer(key, {'window': choice})
+
     # ── Aperçus (collapse par défaut) ──────────────────────────────
     ok_results = [r for r in file_results if not r['error']]
     if not ok_results:
-        st.error(t("upload_csv.err_no_valid_file",
-                   "Aucun fichier valide à importer."))
+        if not asked:
+            st.error(t("upload_csv.err_no_valid_file",
+                       "Aucun fichier valide à importer."))
         return
 
     # LES APERÇUS PAR FICHIER ONT ÉTÉ RETIRÉS le 2026-09-06 : « le panneau de
@@ -616,6 +767,13 @@ def render_uploader(db, target_artist_id: int) -> None:
                     update_columns=cfg['update_columns'],
                 )
                 total_ok += count
+                # LA FUSION SE DIT. `upsert_many` déduplique sur la clé de conflit
+                # avant d'écrire, et ne renvoie que ce qui reste : un fichier de
+                # 400 lignes pouvait en importer 12 sans que rien ne l'indique à
+                # l'écran (seul un `logger.warning` le disait, dans un journal que
+                # personne n'ouvre). L'écart entre ce qu'on envoie et ce qu'on
+                # reçoit est la seule mesure disponible — on l'affiche.
+                merged = len(r['rows']) - count
                 # Archived only HERE, in the success branch: `count` is the proof
                 # the rows reached the database. A copy of every file that failed
                 # to import would fill the directory with the uninteresting case —
@@ -627,13 +785,22 @@ def render_uploader(db, target_artist_id: int) -> None:
                     t("upload_csv.col_type", "Type"): r['label'],
                     t("upload_csv.col_table", "Table"): cfg['table'],
                     t("upload_csv.col_processed_rows", "Lignes traitées"): count,
+                    t("upload_csv.col_merged", "Fusionnées"): (
+                        merged if merged > 0 else ''),
                     t("upload_csv.col_status", "Statut"): t("upload_csv.status_ok", "✅ OK"),
                 })
+                # LA SÉRIALISATION EST ÉCRITE AUSSI SUR LE SUCCÈS. Un fichier lu
+                # avec le mauvais séparateur ne lève pas : il importe des chiffres
+                # faux, qu'on relira des semaines plus tard sans rien pour
+                # comprendre. C'est le cas où la trace vaut le plus, et c'est
+                # précisément celui qu'on ne journalisait pas.
+                r['file'].seek(0)
                 db.execute_query(
                     "INSERT INTO csv_upload_log "
-                    "(artist_id, filename, platform, row_count, status) "
-                    "VALUES (%s, %s, %s, %s, 'success')",
-                    (target_artist_id, r['filename'], r['platform_key'], count),
+                    "(artist_id, filename, platform, row_count, status, serialization) "
+                    "VALUES (%s, %s, %s, %s, 'success', %s)",
+                    (target_artist_id, r['filename'], r['platform_key'], count,
+                     _serialization_label(r['file'])),
                 )
             except Exception as exc:
                 total_err += 1
@@ -642,6 +809,7 @@ def render_uploader(db, target_artist_id: int) -> None:
                     t("upload_csv.col_type", "Type"): r['label'],
                     t("upload_csv.col_table", "Table"): cfg['table'],
                     t("upload_csv.col_processed_rows", "Lignes traitées"): 0,
+                    t("upload_csv.col_merged", "Fusionnées"): '',
                     t("upload_csv.col_status", "Statut"): f'❌ {exc}',
                 })
                 try:
