@@ -93,11 +93,19 @@ def test_the_meta_sharing_step_is_the_artists_and_comes_before_the_test():
         # Ce qui est gardé reste la même question — « l'étape que l'artiste est seul
         # à pouvoir faire est-elle toujours là ? » — et non un libellé : on cherche
         # le vocabulaire du partage, pas une chaîne figée.
-        from src.dashboard.content.credential_guides import META_BUSINESS_ID
-
+        # RÉANCRÉ le 2026-09-06, sur une mesure. Cette liste cherchait d'abord
+        # `META_BUSINESS_ID` — une valeur lue dans le `.env` DU POSTE — et ses deux
+        # replis textuels (« Attribuer un partenaire », « Assign partner ») ne sont
+        # dans aucune des deux langues depuis la réécriture du 2026-09-05. Le garde
+        # ne tenait donc que par la variable d'environnement : vert ici, rouge sur
+        # les 27 exécutions CI consécutives qui n'ont pas de `.env`, et la CI
+        # s'arrêtant à l'étape des gardes, `Run tests` n'a plus tourné du tout.
+        #
+        # Un garde qui interroge l'environnement de son exécution n'interroge pas le
+        # code. On cherche donc le vocabulaire du partage, présent dans les deux
+        # branches et dans les deux langues, et rien d'autre.
         share = [i for i, t in enumerate(texts)
-                 if (META_BUSINESS_ID and META_BUSINESS_ID in t)
-                 or "Attribuer un partenaire" in t or "Assign partner" in t]
+                 if "Donner à un partenaire" in t or "Give a partner access" in t]
         assert share, (
             f"{lang}/meta ne dit plus à l'artiste de nous PARTAGER son compte "
             "publicitaire. Sans ce partage la collecte ne lit rien, quel que soit "

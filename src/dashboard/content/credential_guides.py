@@ -65,6 +65,15 @@ def _business_id() -> str:
 
 
 META_BUSINESS_ID = _business_id()
+
+# Ce que le guide AFFICHE, présent ou non. Un `if` autour de la phrase la rendait
+# différente selon la machine, et le digest de `guide_pdf.source_fingerprint` avec
+# elle : vert sur le poste qui a un `.env`, rouge sur les 27 exécutions CI qui n'en
+# ont pas — et la CI s'arrête à l'étape des gardes, donc `Run tests` n'avait plus
+# tourné depuis le 2026-09-04. La phrase a désormais UNE forme ; seul le jeton
+# intérieur change, et c'est lui que le digest normalise.
+BUSINESS_ID_FALLBACK = "notre numéro — demande-le nous"
+BUSINESS_ID_SHOWN = META_BUSINESS_ID or BUSINESS_ID_FALLBACK
 _META_PARTNERS_URL = "https://business.facebook.com/settings/partners"
 
 
@@ -314,8 +323,7 @@ _META = PlatformCred(
         # numéro » y désigne le vide. Une ligne, mais complète.
         CredStep("🤝 [Partenaires](" + _META_PARTNERS_URL + ") → **Ajouter** → "
                  "**Donner à un partenaire l'accès à tes assets** → "
-                 + (f"colle **`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
-                    else "colle **notre numéro** (demande-le nous)")
+                 + f"colle **`{BUSINESS_ID_SHOWN}`**"
                  + " → coche ton compte publicitaire → rôle **Analyste**. "
                    "Sans ce partage, aucune donnée."),
     ),

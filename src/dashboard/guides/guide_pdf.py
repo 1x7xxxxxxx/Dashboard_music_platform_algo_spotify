@@ -348,17 +348,62 @@ def source_fingerprint() -> str:
     across versions, so the guard would go red on a dependency bump and get disabled
     (`permanently-red-guard-reports-nothing`).
 
-    The one substitution below exists because `_render_cred_html` embeds
-    `APP_BASE_URL`, which legitimately differs between a laptop, CI and production.
+    The substitutions below exist because the render embeds values that come from
+    the ENVIRONMENT, and legitimately differ between a laptop, CI and production.
     Left in, this digest would depend on where it was computed — a guard that is red
     for a reason that has nothing to do with the guide.
+
+    That list was hand-written and named ONE variable, and the second one to arrive
+    walked straight past it. Measured 2026-09-06: `credential_guides.META_BUSINESS_ID`
+    (added 2026-09-05) is read from the operator's `.env` at import and pasted into
+    the Meta sharing step. This digest was therefore green on the machine that has a
+    `.env` and red on the 27 consecutive CI runs that do not — and CI stops at the
+    guard step, so `Run tests` had not executed since 2026-09-04. A hand-maintained
+    exclusion list is not a property of the code; `ENV_SUBSTITUTIONS` is now compared
+    to the environment the guide modules actually read, by
+    `tests/test_the_guide_digest_does_not_depend_on_the_host.py`.
     """
     import hashlib
 
-    app_base = os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
     joined = "\x00".join(build_guide_html(lang) for lang in ("fr", "en"))
-    normalised = joined.replace(app_base, "{APP_BASE_URL}")
-    return hashlib.sha256(normalised.encode("utf-8")).hexdigest()
+    # Longueur minimale, parce que le HTML porte ~1,6 Mo de captures en base64 et
+    # qu'un jeton court y tombe par hasard : mesuré, la valeur d'essai « NOPE » a
+    # été remplacée AU MILIEU d'un PNG encodé. Une substitution ne doit toucher que
+    # ce qu'elle vise ; sous 8 caractères, on ne peut pas l'affirmer.
+    for name, value in _env_values().items():
+        if len(value) >= _MIN_SUBSTITUTABLE:
+            joined = joined.replace(value, "{%s}" % name.removesuffix("_EN"))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+
+# Every environment-derived value that `build_guide_html` can embed. The guard named
+# in `source_fingerprint` fails if a guide module reads an env var absent from here.
+_MIN_SUBSTITUTABLE = 8
+
+ENV_SUBSTITUTIONS = ("APP_BASE_URL", "META_BUSINESS_ID", "META_APP_DISPLAY_NAME")
+
+
+def _env_values() -> dict[str, str]:
+    """The current value of each substituted variable, as the render would see it.
+
+    `META_BUSINESS_ID` is not read straight from `os.environ`: the guide module
+    resolves it once at import, loading `.env` itself when the caller has not. Reading
+    the raw env here would miss exactly the case that broke CI — a value present in
+    the module and absent from the environment of this process.
+    """
+    from src.dashboard.content import credential_guides as _cg
+    from src.dashboard.content import credential_guides_en as _en
+
+    return {
+        "APP_BASE_URL": os.environ.get("APP_BASE_URL", "http://localhost:8501").rstrip("/"),
+        # The token the sharing step SHOWS — the real id when the machine has one,
+        # the "ask us" fallback when it does not. Both normalise to the same
+        # placeholder, which is what makes the digest identical on a laptop with a
+        # `.env`, on CI without one, and in production.
+        "META_BUSINESS_ID": _cg.BUSINESS_ID_SHOWN,
+        "META_BUSINESS_ID_EN": _en.BUSINESS_ID_SHOWN_EN,
+        "META_APP_DISPLAY_NAME": getattr(_cg, "META_APP_DISPLAY_NAME", "") or "",
+    }
 
 
 def rendered_fingerprint() -> str:

@@ -5,6 +5,52 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-06 — Vingt-sept exécutions rouges, et la suite qui n'avait pas tourné
+
+**Ce qui a changé** — `gh run list` : **27 exécutions CI rouges d'affilée** entre le
+2026-09-04T22:36 et le 2026-09-06T07:19, une seule verte au milieu. Toutes au même
+endroit, l'étape 10 sur 15. Le fait qui compte n'est pas le rouge : c'est que
+`Run tests` était `skipped` dans les 27. **La suite n'a pas tourné pendant deux
+jours**, et 27 commits sont partis sur `main` là-dessus.
+
+Quatre gardes mordaient, pour **trois** causes distinctes — aucune n'était un défaut
+du produit.
+
+**1. Deux gardes lisaient le `.env` du poste.** `META_BUSINESS_ID` est résolu à
+l'import par `credential_guides.py`, qui charge le `.env` lui-même quand l'appelant
+ne l'a pas fait. Il partait ensuite dans deux directions : le texte de l'étape de
+partage Meta — une phrase quand la valeur est là, **une autre** quand elle ne l'est
+pas — et le digest `source_fingerprint`, dont la liste de normalisation était écrite
+à la main et ne nommait que `APP_BASE_URL`. Le garde de vocabulaire, lui, cherchait
+la valeur elle-même, ses deux replis textuels étant périmés depuis la réécriture du
+2026-09-05. Vert ici, incapable de passer ailleurs.
+
+Le premier correctif — substituer la valeur — **n'a pas suffi**, et c'est ce que la
+mesure a appris : un `if` change les MOTS, pas un jeton, donc aucune substitution ne
+le rattrape. La phrase a désormais une seule forme (`BUSINESS_ID_SHOWN`), et le
+digest normalise le jeton intérieur dans les deux langues. Avec un plancher de 8
+caractères, parce qu'une valeur d'essai de 4 caractères s'est fait remplacer **au
+milieu d'un PNG en base64** dans les 1,6 Mo de HTML.
+
+**2. Un garde « no-DB » ouvrait une base.** `test_a_missing_handle_…` interroge une
+branche pure de `_discover`, mais `InstagramCollector.__init__` ouvre une connexion
+Postgres. L'étape des signatures tourne **avant** `Provision Postgres` et sans
+`DATABASE_URL` : le garde tombait sur `psycopg2.OperationalError`, et remontait au
+rapport sous une classe qui n'avait rien à voir.
+
+**3. Et la vraie leçon, celle qui a coûté 27 runs.** Une CI rouge à l'étape 3/8 avait
+déjà caché « Run tests » pendant 8 exécutions ; c'était capitalisé comme un
+apprentissage, pas comme une propriété du workflow. Le coût a triplé. Les quatre
+étapes après les gardes portent maintenant `if: ${{ !cancelled() }}` — la porte
+bloque toujours, elle ne rend plus invisible ce qu'il y a derrière — et
+`tests/test_a_red_gate_does_not_hide_the_suite.py` le tient.
+
+Trois classes capitalisées, signatures vues **rouges sur le défaut** et vertes après :
+`guard-predicate-depends-on-the-host-env`, `no-db-signature-opens-a-connection`,
+`red-gate-hides-every-step-behind-it`.
+
+---
+
 ## 2026-09-05 (suite 22) — Un lien valide refusé, et l'onglet refusionné
 
     ✅ Saisi   ✖ Format   ✖ Répond   🔴 Données

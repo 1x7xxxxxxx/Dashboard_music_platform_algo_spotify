@@ -256,6 +256,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [probe-does-not-ask-the-collectors-question](#probe-does-not-ask-the-collectors-question) | P2 | deterministic | guarded | none |
 | [instruction-assumes-visibility-the-reader-does-not-have](#instruction-assumes-visibility-the-reader-does-not-have) | P2 | deterministic | guarded | none |
 | [instruction-given-without-reading-the-state-it-asks-to-change](#instruction-given-without-reading-the-state-it-asks-to-change) | P2 | deterministic | guarded | none |
+| [guard-predicate-depends-on-the-host-env](#guard-predicate-depends-on-the-host-env) | P2 | deterministic | guarded | none |
+| [no-db-signature-opens-a-connection](#no-db-signature-opens-a-connection) | P3 | deterministic | guarded | none |
+| [red-gate-hides-every-step-behind-it](#red-gate-hides-every-step-behind-it) | P2 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 
@@ -3422,3 +3425,50 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-05
 - History:
   - 2026-09-05: `guarded`. Distincte de `instruction-assumes-visibility-the-reader-does-not-have` (l'objet nommé est invisible depuis la place du lecteur) : ici l'objet et l'écran existent, le lecteur est le bon, et c'est la **situation** qui ne s'applique pas — le geste n'a pas à être fait. Distincte aussi de `the-app-speaks-its-own-plumbing` (le lecteur n'a pas le pouvoir d'agir) : ici il l'a, il n'y a simplement rien à faire. Le garde de la lecture illisible est passé **sur son propre mutant** au premier jet, cas (c) de `guard-asserts-presence-not-reachability`. Trouvée par un utilisateur qui a demandé « c'est normal ? », jamais par un test : aucun garde ne demande « ce geste est-il seulement à faire ? ».
+
+## guard-predicate-depends-on-the-host-env
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un garde est vert sur le poste où on l'écrit et rouge partout ailleurs, sur un code identique. Il n'interroge pas le code : il interroge l'environnement de la machine qui l'exécute, et la réponse dit d'abord si cette machine a un `.env`.
+- root_cause: `src/dashboard/content/credential_guides.py:56` résout `META_BUSINESS_ID` **à l'import** — depuis `os.environ`, et à défaut depuis le `.env` du projet, que le module charge lui-même. Deux surfaces le lisaient. **(1)** L'étape de partage Meta disait une phrase quand la valeur était là et une AUTRE quand elle ne l'était pas : `tests/test_the_guide_tells_the_artist_only_what_is_theirs.py:96` cherchait donc la valeur, et ses deux replis textuels (« Attribuer un partenaire », « Assign partner ») n'étaient plus dans aucune des deux langues depuis la réécriture du 2026-09-05 — le garde ne tenait plus que par la variable d'environnement. **(2)** `guide_pdf.source_fingerprint` normalisait `APP_BASE_URL` et rien d'autre, par une liste écrite à la main : le digest « des sources actuelles du guide » valait une chose sur la machine qui a un `.env` et une autre sur celle qui n'en a pas. Coût mesuré avec `gh run list` : **27 exécutions CI consécutives rouges** du 2026-09-04T22:36 au 2026-09-06T07:19, et la CI s'arrêtant à l'étape des gardes (10 sur 15), `Run tests` n'a pas tourné une seule fois de ces deux jours.
+- signature: `python3 -m pytest tests/test_the_guide_digest_does_not_depend_on_the_host.py -q`
+- long_term_fix: la phrase du guide a **une** forme — `BUSINESS_ID_SHOWN = META_BUSINESS_ID or BUSINESS_ID_FALLBACK` — et seul le jeton intérieur varie, parce qu'un `if` change les MOTS et qu'aucune substitution ne rattrape ça. Le digest normalise ce jeton, dans les deux langues, avec un plancher de 8 caractères : mesuré, une valeur d'essai de 4 caractères était remplacée AU MILIEU d'un PNG encodé en base64 dans les ~1,6 Mo de HTML. Et la liste `ENV_SUBSTITUTIONS` n'est plus tenue à la main : le garde balaie en **AST** les variables d'environnement que les trois modules du guide lisent réellement, et échoue sur toute variable absente de la liste — c'est `guard-scope-is-a-hand-written-list` appliqué à sa propre normalisation.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_guide_digest_does_not_depend_on_the_host.py }
+- rex_ref: src/dashboard/guides/guide_pdf.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: le premier correctif n'a substitué que la VALEUR, et le digest bougeait toujours. La cause n'était pas seulement la valeur mais le `if` autour de la phrase : une branche produit deux textes différents, et une substitution ne normalise qu'un jeton. Le troisième test de ce garde existe pour cette raison, et il rougit quand on remet le branchement.
+  - 2026-09-06: vu rouge par mutation sur l'arbre d'avant (branchement rétabli + `ENV_SUBSTITUTIONS = ("APP_BASE_URL",)`), vert après. Le garde lit l'AST, pas le texte : un commentaire nommant `META_BUSINESS_ID` ne peut pas le satisfaire.
+
+## no-db-signature-opens-a-connection
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde tombe pour une raison qui n'est pas la sienne. Le rapport nomme sa classe d'erreur, et la trace dessous dit `psycopg2.OperationalError` — on cherche le défaut gardé, il n'y en a pas.
+- root_cause: `tests/test_instagram_collects_without_business_manager.py:93` interroge une branche **pure** de `InstagramCollector._discover` (pas de pseudo ⇒ on lève avec le geste). Mais `src/collectors/instagram_api_collector.py:87` ouvre une connexion Postgres dans le constructeur (`self.db = PostgresHandler.from_env_or_config()`), qu'aucune de ces assertions n'utilise. Or `.github/workflows/ci.yml` exécute les signatures de classes à l'étape 10, **avant** `Provision Postgres` (étape 12) et sans le `DATABASE_URL` qui n'est posé que sur `Run tests`. Le garde échouait donc là sur l'absence de base, et remontait au rapport sous l'étiquette `guard-asserts-presence-not-reachability` — une classe qui n'avait rien à voir.
+- signature: `DATABASE_URL=postgresql://127.0.0.1:9/spotify_etl python3 -m pytest tests/test_instagram_collects_without_business_manager.py -q`
+- long_term_fix: le test débranche `PostgresHandler.from_env_or_config` le temps de la construction, et dit pourquoi. Un garde doit tomber pour SA raison ; tant que sa question est pure, son exécution doit l'être aussi. La signature porte volontairement un `DATABASE_URL` mort — port 9, et **sans identifiants** : un DSN d'essai portant `user:password` fait mordre `detect-secrets` à chaque commit, et une classe qui oblige à poser un `pragma: allowlist secret` apprend à en poser ailleurs. Elle vérifie l'indépendance à la base, pas seulement le passage du test.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_instagram_collects_without_business_manager.py }
+- rex_ref: src/collectors/instagram_api_collector.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge en rétablissant la construction directe avec un `DATABASE_URL` pointant un port mort, vert après. La cause n'est PAS que le constructeur ouvre une base — c'est un choix de conception qu'on ne change pas dans une séance de CI rouge — mais qu'une question pure ait été rendue dépendante de lui.
+
+## red-gate-hides-every-step-behind-it
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la CI est rouge et le reste des jours. Chaque exécution rapporte le même échec, à la même étape, et **rien de ce qui vient après n'a tourné** — donc rien ne dit si le produit marche encore. Le rouge devient une constante de fond, et on pousse au travers.
+- root_cause: `.github/workflows/ci.yml` place les gardes de classes d'erreur à l'étape 10 sur 15. GitHub Actions saute par défaut toute étape suivant un échec : `Provision Postgres`, `Run tests` et le reste étaient donc `skipped`. Mesuré avec `gh run list` le 2026-09-06 : **27 exécutions consécutives** entre le 2026-09-04T22:36 et le 2026-09-06T07:19, une seule verte au milieu, et la suite (3700+ tests) n'a pas tourné une fois. Les 27 commits sont partis sur `main` sur un unique signal, toujours le même, et sans rien derrière. La cause du rouge — deux gardes lisant le `.env` du poste, `guard-predicate-depends-on-the-host-env` — n'avait aucun rapport avec ce que la suite aurait dit.
+- signature: `python3 -m pytest tests/test_a_red_gate_does_not_hide_the_suite.py -q`
+- long_term_fix: les quatre étapes qui suivent les gardes portent `if: ${{ !cancelled() }}`. La porte est intacte — un garde rouge fait toujours échouer le job — mais elle ne rend plus invisible ce qui la suit. `!cancelled()` et non `always()` : le groupe de concurrence annule des exécutions à chaque poussée rapprochée, et provisionner un Postgres pour une annulation n'achète rien. Le garde exempte explicitement les trois portes bloquantes et exige la condition sur tout le reste, de sorte qu'une étape ajoutée demain hérite de la règle.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_red_gate_does_not_hide_the_suite.py }
+- rex_ref: .github/workflows/ci.yml
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: la leçon était déjà écrite — une CI rouge à l'étape 3/8 avait caché « Run tests » pendant 8 exécutions. Elle avait été capitalisée comme un apprentissage, pas comme une PROPRIÉTÉ du workflow, et le coût a donc triplé. Une phrase de rétro n'empêche rien ; un garde sur le fichier, si.
+  - 2026-09-06: vu rouge en retirant les quatre `if` du workflow, vert après.

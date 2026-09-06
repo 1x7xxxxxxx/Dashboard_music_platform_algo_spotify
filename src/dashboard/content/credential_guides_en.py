@@ -14,6 +14,11 @@ from src.dashboard.content.credential_guides import (
     PlatformCred,
 )
 
+# Same reason as the FR side: one shape, whatever the machine renders it. See
+# `credential_guides.BUSINESS_ID_SHOWN`.
+BUSINESS_ID_FALLBACK_EN = "our Business ID — ask us for it"
+BUSINESS_ID_SHOWN_EN = META_BUSINESS_ID or BUSINESS_ID_FALLBACK_EN
+
 _SPOTIFY = PlatformCred(
     key="spotify",
     title="Spotify",
@@ -113,8 +118,7 @@ _META = PlatformCred(
         # sign-up, where there is no tab to point at.
         CredStep("🤝 [Partners](" + _META_PARTNERS_URL + ") → **Add** → "
                  "**Give a partner access to your assets** → "
-                 + (f"paste **`{META_BUSINESS_ID}`**" if META_BUSINESS_ID
-                    else "paste **our Business ID** (ask us for it)")
+                 + f"paste **`{BUSINESS_ID_SHOWN_EN}`**"
                  + " → tick your ad account → **Analyst** role. "
                    "Without it, no data at all."),
     ),

@@ -99,10 +99,24 @@ def test_a_missing_handle_says_the_gesture_instead_of_collecting_zero():
     """
     import os
 
+    from src.collectors import instagram_api_collector as mod
     from src.collectors.instagram_api_collector import InstagramCollector as C
 
-    c = C(artist_id=1, access_token="x", ig_user_id="17841400000000000",
-          ig_username=None)
+    # `InstagramCollector.__init__` ouvre une connexion Postgres (`self.db`), dont
+    # cette question n'a aucun besoin : elle porte sur une branche pure de
+    # `_discover`. La signature de cette classe est déclarée « no-DB » et tourne dans
+    # l'étape CI qui précède `Provision Postgres` — sans `DATABASE_URL` et sans
+    # schéma. Mesuré le 2026-09-06 : le test échouait là sur un
+    # `psycopg2.OperationalError`, c'est-à-dire sur l'absence de base et non sur le
+    # défaut qu'il garde. Un garde doit tomber pour SA raison.
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(mod.PostgresHandler, "from_env_or_config",
+                        classmethod(lambda cls: None))
+    try:
+        c = C(artist_id=1, access_token="x", ig_user_id="17841400000000000",
+              ig_username=None)
+    finally:
+        monkeypatch.undo()
     os.environ.setdefault("META_IG_DISCOVERY_ID", "17841402151518986")
     with pytest.raises(ValueError) as exc:
         c._discover("id,username")

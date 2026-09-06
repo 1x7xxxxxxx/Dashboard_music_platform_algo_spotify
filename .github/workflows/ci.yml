@@ -108,7 +108,20 @@ jobs:
           uv run python .claude/scripts/check_config_refs.py
           uv run python .claude/scripts/check_ci_waste.py
 
+      # ── Pourquoi les quatre étapes qui suivent portent `if: ${{ !cancelled() }}` ──
+      # Mesuré le 2026-09-06. Les gardes de classes d'erreur sont l'étape 10 sur 15 ;
+      # un échec là saute les cinq suivantes, dont `Run tests`. La suite n'a donc PAS
+      # tourné pendant **27 exécutions consécutives** (2026-09-04 → 2026-09-06), sur
+      # une cause qui n'avait aucun rapport avec elle : deux gardes lisaient le `.env`
+      # du poste. Vingt-sept commits sont partis sur main avec un seul signal rouge,
+      # toujours le même, et rien derrière.
+      #
+      # `!cancelled()` et non `always()` : une annulation (le groupe de concurrence en
+      # produit à chaque poussée rapprochée) ne doit pas provisionner un Postgres pour
+      # rien. Le job échoue toujours si un garde échoue — la porte est intacte ; ce
+      # qui change est qu'elle ne rend plus le reste invisible.
       - name: Error-class schema completeness
+        if: ${{ !cancelled() }}
         # `audit_runner.py --fields --strict` fails when a class carries no
         # root_cause or no long_term_fix — a class nobody decided how to end.
         #
@@ -121,6 +134,7 @@ jobs:
         run: uv run python .claude/scripts/audit_runner.py --fields --strict
 
       - name: Provision Postgres (schema + migrations)
+        if: ${{ !cancelled() }}
         env:
           PGPASSWORD: postgres  # pragma: allowlist secret — throwaway CI DB
         run: |
@@ -163,6 +177,7 @@ jobs:
             -tA | grep -qx t || { echo "::error::CI database has fewer than 2 tenants"; exit 1; }
 
       - name: Mint a throwaway Fernet key for this run
+        if: ${{ !cancelled() }}
         id: ci_fernet
         # Base64-urlsafe of 32 random bytes is exactly what Fernet.generate_key()
         # produces, without needing the package installed at this point in the job.
@@ -170,6 +185,7 @@ jobs:
           echo "key=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" >> "$GITHUB_OUTPUT"
 
       - name: Run tests
+        if: ${{ !cancelled() }}
         env:
           # DATABASE_URL points the DB layer at the provisioned CI Postgres so the
           # 39-view render-smoke + ML DB tests run (they skip when it is absent).
