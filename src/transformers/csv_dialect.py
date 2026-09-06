@@ -47,7 +47,12 @@ def sniff_separator(text: str) -> str:
     single-column case, where every count is zero and any answer would be a guess
     dressed as a measurement.
     """
-    header = str(text or "").lstrip("﻿").split("\n", 1)[0]
+    # `str(x or "")` est le motif qui écrit la chaîne « nan » : un NaN pandas est
+    # VRAI en booléen, donc il traverse le `or` et `str()` le rend littéral.
+    # Ici le paramètre est typé `str`, donc le risque est théorique — mais un
+    # motif dont la forme est fautive se recopie, et celui-ci a déjà produit
+    # 2 533 lignes de « nan » dans le parseur iMusician.
+    header = (text if isinstance(text, str) else "").lstrip("\ufeff").split("\n", 1)[0]
     counts = {sep: header.count(sep) for sep in SEPARATORS}
     best = max(counts.values())
     if best == 0:

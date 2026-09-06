@@ -25,19 +25,41 @@ fautif dans les parseurs — c'est un motif qu'on réécrit sans y penser.
 """
 from __future__ import annotations
 
+import ast
 import pathlib
-import re
 
 import pytest
 
 _TRANSFORMERS = pathlib.Path("src/transformers")
 
-# La forme RÉELLE du défaut : une clé de dictionnaire alimentée par `str(...) or ''`.
-# Volontairement ancrée sur `^\\s+'clé':` — une première version de cette recherche
-# matchait la PROSE qui décrit le défaut (dans ce fichier et dans le catalogue),
-# donc documenter le correctif faisait rougir la CI, et la seule façon de la garder
-# verte aurait été d'arrêter d'écrire.
-_OFFENDING = re.compile(r"^\s+'[a-z_]+':\s+str\(.*or ''\)\.strip\(\)")
+
+def _offending_calls(tree: ast.AST) -> list[int]:
+    """Les lignes portant `str(<quelque chose> or '')`, lues sur la STRUCTURE.
+
+    Une première version cherchait ce motif par expression régulière, et le cliquet
+    du dépôt l'a refusée — à raison, deux fois plutôt qu'une :
+
+    * un garde textuel matche sa PROPRE documentation, donc écrire sur le défaut
+      fait rougir la CI et la seule façon de la garder verte est d'arrêter d'écrire ;
+    * il rate les variantes que l'AST voit toutes — `str(x or "")`, un retour à la
+      ligne au milieu, un espace de plus.
+
+    Ce qu'on cherche est parfaitement structurel : un appel à `str` dont l'unique
+    argument est un `or` dont la droite est la chaîne vide. C'est ce `or` qui est le
+    défaut — un NaN pandas est VRAI, donc il rend `nan`, jamais `''`.
+    """
+    bad = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name) and node.func.id == "str"
+                and len(node.args) == 1):
+            continue
+        arg = node.args[0]
+        if (isinstance(arg, ast.BoolOp) and isinstance(arg.op, ast.Or)
+                and isinstance(arg.values[-1], ast.Constant)
+                and arg.values[-1].value == ""):
+            bad.append(node.lineno)
+    return bad
 
 
 def test_text_turns_a_nan_into_none():
@@ -57,18 +79,21 @@ def test_text_turns_a_nan_into_none():
 
 
 @pytest.mark.parametrize(
-    "path", sorted(_TRANSFORMERS.rglob("*.py")),
-    ids=lambda p: p.name)
+    "path", sorted(_TRANSFORMERS.rglob("*.py")), ids=lambda p: p.name)
 def test_no_parser_builds_a_value_with_str_or_empty(path):
-    offenders = [
-        f"{path}:{i}" for i, line in
-        enumerate(path.read_text(encoding="utf-8").split("\n"), 1)
-        if _OFFENDING.match(line)
-    ]
-    assert not offenders, (
-        f"{', '.join(offenders)} : `str(x or '')` écrit 'nan' quand `x` est un NaN "
-        "pandas, parce qu'un NaN est VRAI en booléen. Utilise `_text(x)`, qui teste "
-        "`pd.isna` AVANT toute évaluation booléenne.")
+    lines = _offending_calls(ast.parse(path.read_text(encoding="utf-8")))
+    assert not lines, (
+        f"{path} ligne(s) {lines} : `str(x or '')` écrit la chaîne 'nan' quand `x` "
+        "est un NaN pandas, parce qu'un NaN est VRAI en booléen. Utilise `_text(x)`, "
+        "qui teste `pd.isna` AVANT toute évaluation booléenne.")
+
+
+def test_the_guard_would_see_the_defect_it_guards():
+    """Un garde jamais vu rouge ne garde rien — on lui montre le défaut ici même."""
+    assert _offending_calls(ast.parse("d = {'isrc': str(row[c] or '').strip() or None}"))
+    assert not _offending_calls(ast.parse("d = {'isrc': _text(row[c])}"))
+    assert not _offending_calls(ast.parse("s = str(value)")), (
+        "un `str()` ordinaire n'est pas le défaut — le défaut est le `or ''`")
 
 
 def test_the_cleanup_migration_is_still_there():

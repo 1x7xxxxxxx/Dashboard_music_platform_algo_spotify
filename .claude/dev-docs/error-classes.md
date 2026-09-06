@@ -3943,7 +3943,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - kind: deterministic
 - symptom: une colonne censée être vide contient la chaîne `'nan'`. Les requêtes `IS NULL` ne la voient pas, les regroupements la comptent comme une valeur, et une clé absente devient une clé partagée.
 - root_cause: `str(row[col] or '').strip() or None` — le motif employé dans tout `imusician_csv_parser`. Il paraît sûr et ne l'est pas : **un NaN pandas est VRAI** en contexte booléen, donc `nan or ''` rend `nan` et `str(nan)` rend `'nan'`. Mesuré en production le 2026-09-06 : 2 533 lignes de `track_version`, deux `isrc` et deux `track_title`.
-- signature: `! grep -rnE "^[[:space:]]+'[a-z_]+':[[:space:]]+str\(.*or ''\)\.strip\(\)" src/transformers/ --include=*.py`
+- signature: `python3 -m pytest tests/test_nan_is_never_written_as_a_value.py -q`
 - long_term_fix: un helper `_text()` qui teste `pd.isna` AVANT toute évaluation booléenne, plus une migration qui remet à NULL les lignes déjà écrites. Le coût n'est pas cosmétique : l'ISRC est la clé exacte du secteur — chaque version d'un morceau en porte une propre — et une absence écrite `'nan'` regroupe sous UNE MÊME valeur tout ce qui n'a pas d'identifiant, soit le pire regroupement possible pour une colonne dont le rôle est de distinguer.
 - autofix: none
 - guard: { type: pytest, ref: tests/test_nan_is_never_written_as_a_value.py }
@@ -3951,4 +3951,4 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: trouvé en cherchant à s'APPUYER sur ces colonnes, pas en les auditant. Une donnée fausse ne se remarque que le jour où quelque chose la lit.
-  - 2026-09-06: la première signature écrite ici matchait sa PROPRE documentation — la ligne de ce fichier qui cite le motif fautif. Écrire sur le défaut l'aurait fait rougir, et la seule façon de garder la CI verte aurait été d'arrêter de le documenter. Réécrite pour n'atteindre que la forme réelle du code (une clé de dictionnaire suivie de `str(...)`), puis vérifiée dans les deux sens : sortie 0 en réintroduisant le défaut sur `isrc`, sortie 1 sur l'arbre corrigé.
+  - 2026-09-06: la première signature écrite ici matchait sa PROPRE documentation — la ligne de ce fichier qui cite le motif fautif. Écrire sur le défaut l'aurait fait rougir, et la seule façon de garder la CI verte aurait été d'arrêter de le documenter. Corrigée en ancrant la recherche sur la forme du code… ce qui restait une recherche de CHAÎNE, et le cliquet `test_a_guard_reads_structure_not_text` l'a refusée en CI. Il avait raison deux fois : réécrit sur l'AST, le garde a trouvé du premier coup un site frère que la recherche textuelle ratait — `csv_dialect.py:50`. La signature est désormais le garde lui-même, comme pour les 229 autres classes.
