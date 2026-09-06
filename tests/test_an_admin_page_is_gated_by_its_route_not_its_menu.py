@@ -48,8 +48,27 @@ def _render_page_fn():
 
 
 def _admin_only_keys() -> set[str]:
-    from src.dashboard.app import _ADMIN_ONLY
-    return set(_ADMIN_ONLY)
+    """La liste, lue dans l'AST — sans IMPORTER `app.py`.
+
+    L'importer était le défaut, et la CI l'a dit avant moi. `app.py` lève à l'import
+    quand `FERNET_KEY` ou `AIRFLOW_PASSWORD` manquent — deux gardes de démarrage
+    délibérés — et ces variables ne sont posées que sur l'étape `Run tests`. Or ce
+    fichier est la signature d'une classe d'erreur, donc il tourne aussi à l'étape des
+    gardes, dix étapes plus tôt, dans un environnement nu. Vert en local où un `.env`
+    traîne, rouge sur le runner : c'est `guard-predicate-depends-on-the-host-env`,
+    troisième instance de la semaine, et la première où je l'ai écrite moi-même.
+
+    Lire l'AST répond exactement à la même question — quelles clés la liste
+    contient-elle ? — sans rien exécuter.
+    """
+    for node in ast.walk(_tree()):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(getattr(t_, "id", "") == "_ADMIN_ONLY" for t_ in node.targets):
+            continue
+        return {n.value for n in ast.walk(node.value)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    return set()
 
 
 def test_the_admin_set_is_not_empty():
