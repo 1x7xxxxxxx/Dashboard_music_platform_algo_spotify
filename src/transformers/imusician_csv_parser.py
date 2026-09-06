@@ -18,6 +18,33 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+def _text(value) -> "str | None":
+    """Une cellule de texte, ou None — jamais la chaîne « nan ».
+
+    `str(row[col] or '').strip() or None` était le motif employé partout ici. Il
+    paraît sûr et ne l'est pas : **un NaN pandas est VRAI** en contexte booléen,
+    donc `nan or ''` rend `nan`, et `str(nan)` rend la chaîne `'nan'`.
+
+    Mesuré en production le 2026-09-06 : 2 533 lignes de `track_version` valant
+    littéralement « nan », plus deux `isrc` et deux `track_title`.
+
+    Le coût n'est pas cosmétique. L'ISRC est la clé exacte du secteur — chaque
+    version d'un morceau en a une propre — et une absence écrite `'nan'` regroupe
+    sous une même valeur tout ce qui n'a pas d'identifiant : le pire regroupement
+    possible pour une colonne qui sert à distinguer.
+    """
+    if value is None:
+        return None
+    try:
+        import pandas as _pd
+        if _pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    return text or None
+
+
 class IMusicianCSVParser:
     """Parse iMusician CSV exports (release summary and sales detail)."""
 
@@ -108,8 +135,8 @@ class IMusicianCSVParser:
                     'artist_id':                  artist_id,
                     'year':                       year,
                     'month':                      month,
-                    'release_title':              str(row[self._col(df, 'Release title')] or '').strip() or None,
-                    'barcode':                    str(row[self._col(df, 'Barcode')] or '').strip() or None if self._col(df, 'Barcode') else None,
+                    'release_title':              _text(row[self._col(df, 'Release title')]),
+                    'barcode':                    _text(row[self._col(df, 'Barcode')]) if self._col(df, 'Barcode') else None,
                     'track_downloads':            self._clean_numeric(row.get(self._col(df, 'Track downloads') or ''), int),
                     'track_streams':              self._clean_numeric(row.get(self._col(df, 'Track streams') or ''), int),
                     'release_downloads':          self._clean_numeric(row.get(self._col(df, 'Release downloads') or ''), int),
@@ -145,15 +172,15 @@ class IMusicianCSVParser:
                     'sales_month':     sales_month,
                     'statement_year':  statement_year,
                     'statement_month': statement_month,
-                    'release_title':   str(row.get(self._col(df, 'Release title') or '', '') or '').strip() or None,
-                    'barcode':         str(row.get(self._col(df, 'Barcode') or '', '') or '').strip() or None,
-                    'label':           str(row.get(self._col(df, 'Label') or '', '') or '').strip() or None,
-                    'isrc':            str(row[self._col(df, 'ISRC')] or '').strip() or None,
-                    'track_title':     str(row.get(self._col(df, 'Track title') or '', '') or '').strip() or None,
-                    'track_version':   str(row.get(self._col(df, 'Track version') or '', '') or '').strip() or None,
-                    'shop':            str(row[self._col(df, 'Shop')] or '').strip() or None,
-                    'transaction_type': str(row.get(self._col(df, 'Transaction type') or '', '') or '').strip() or None,
-                    'country':         str(row.get(self._col(df, 'Country') or '', '') or '').strip() or None,
+                    'release_title':   _text(row.get(self._col(df, 'Release title') or '', '')),
+                    'barcode':         _text(row.get(self._col(df, 'Barcode') or '', '')),
+                    'label':           _text(row.get(self._col(df, 'Label') or '', '')),
+                    'isrc':            _text(row[self._col(df, 'ISRC')]),
+                    'track_title':     _text(row.get(self._col(df, 'Track title') or '', '')),
+                    'track_version':   _text(row.get(self._col(df, 'Track version') or '', '')),
+                    'shop':            _text(row[self._col(df, 'Shop')]),
+                    'transaction_type': _text(row.get(self._col(df, 'Transaction type') or '', '')),
+                    'country':         _text(row.get(self._col(df, 'Country') or '', '')),
                     'quantity':        self._clean_numeric(row.get(self._col(df, 'Quantity') or ''), int),
                     'revenue_eur':     self._clean_numeric(row.get(self._col(df, 'Revenue EUR') or '')),
                     'collected_at':    datetime.now(timezone.utc),

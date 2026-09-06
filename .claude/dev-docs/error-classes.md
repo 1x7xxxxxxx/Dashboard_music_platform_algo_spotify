@@ -278,6 +278,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-count-that-is-claimed-not-measured](#a-count-that-is-claimed-not-measured) | P2 | deterministic | guarded | none |
 | [message-written-before-a-rerun](#message-written-before-a-rerun) | P3 | deterministic | guarded | none |
 | [empty-list-blames-the-most-common-cause](#empty-list-blames-the-most-common-cause) | P3 | deterministic | guarded | none |
+| [one-version-marker-out-of-many](#one-version-marker-out-of-many) | P2 | deterministic | guarded | none |
+| [containment-ignores-what-it-leaves-out](#containment-ignores-what-it-leaves-out) | P2 | deterministic | guarded | none |
+| [nan-written-as-a-value](#nan-written-as-a-value) | P2 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3903,3 +3906,49 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: vu rouge sur quatre mutations — le diagnostic cessant de lire les insights, une surface sur trois revenue à un message figé, le succès sur ensemble vide redevenu inconditionnel, la phrase accusatrice réintroduite ; vert après chacune.
   - 2026-09-06: même écran, défaut voisin. `freshness_monitor._silence_reason` rendait sa raison EN ANGLAIS, et `artist_readiness.next_action` la recopie derrière « Rien à faire — » sous une pastille ORANGE. L'artiste voyait une lumière orange, une demi-phrase française et une explication qu'il ne lisait pas. Le garde qui la couvrait épinglait la formulation anglaise : il aurait rougi sur la traduction. Réécrit pour vérifier la propriété — le compte est présent, aucune action n'est demandée, et rien n'est en anglais.
+
+## one-version-marker-out-of-many
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: les écoutes d'un radio edit, d'un live ou d'un instrumental s'ajoutent à celles du titre original, sous la mauvaise date de sortie. Aucune erreur, aucun compte qui change : juste des chiffres faux en aval.
+- root_cause: `normalize_track_title` traitait `remix` comme un marqueur de version, et RIEN d'autre. Tous les autres marqueurs devenaient des mots ordinaires du titre, puis étaient absorbés par la règle d'inclusion de `title_similarity`, qui rendait 0,90 — au-dessus du seuil d'auto-acceptation de 0,80, donc appliqué sans qu'un humain le voie. Mesuré le 2026-09-06, chacun à 0,90 contre son propre titre de base : `(Radio Edit)`, `(Extended Mix)`, `(Sped Up)`, `(Live)`, `(Instrumental)`, `- VIP`. Défaut jumeau : la forme à tiret exigeait `remix\b`, donc « - Remixed by Bob » n'était pas reconnu du tout — le titre restait « base » face à un « remix », les statuts divergeaient et le score tombait à 0,0, sans aucun candidat.
+- signature: `python3 -m pytest tests/test_track_mapping_suggest.py tests/test_the_matcher_keeps_its_known_pairs.py -q`
+- long_term_fix: `split_version()` rend `(base, marqueurs)` et remplace la chaîne unique. Les marqueurs sont cherchés là où les distributeurs les écrivent — dans un groupe entre parenthèses, et dans un suffixe COURT après tiret dont le marqueur occupe la fin — et nulle part ailleurs : chercher partout ferait de « Live Your Life » une version live de « Your Life ». Le modèle est celui du secteur : DDEX sépare Title et Version Title, et chaque version porte son propre ISRC. `normalize_track_title` reste une façade rendant la chaîne, sans quoi les `match_key` déjà écrits dans `track_release_reference` cesseraient de joindre.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_matcher_keeps_its_known_pairs.py }
+- rex_ref: src/utils/track_matching.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: la passe a commencé par FIGER les 21 rapprochements réels de production dans un filet, avant de toucher à l'algorithme. C'est lui qui a rattrapé la seule régression de la séance — le nom de l'artiste compté comme un mot du titre — et le résultat final est mesuré : 21/21 conservés, dont 10 remontés de 0,90 à 1,00, 6 marqueurs de version tombés de 0,90 à 0,00, et 3 edits d'autres artistes tombés à 0,00.
+
+## containment-ignores-what-it-leaves-out
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un titre court s'associe tout seul à un libellé long qui le contient — un mix DJ, un set, un morceau d'un autre artiste. Le score est le même que pour un vrai rapprochement.
+- root_cause: `title_similarity` rendait `CONTAINMENT_SCORE` (0,90) dès qu'un jeu de jetons était inclus dans l'autre, SANS regarder ce qui restait. Mesuré le 2026-09-06 : « Mix » ⊆ « house music mix 3 back to old school » valait 0,90, « Feet » ⊆ « 1x7xxxxxxx feet first free download » aussi, et « Kimono à semelle de fer » ⊆ « Kimono à semelle de fer II » également. Inoffensif tant que les titres sont longs et distinctifs ; un artiste dont un morceau s'appelle « Solo » ou « Nuit » verrait un mix DJ auto-associé.
+- signature: `python3 -m pytest tests/test_track_mapping_suggest.py tests/test_every_ranking_call_names_the_artist.py -q`
+- long_term_fix: le score devient `0,9 × couverture`, la couverture étant la part des jetons de CONTENU du plus long expliqués par le plus court, une fois retirés le bruit connu (`free download`, `feat`, `official`…) et le NOM DE L'ARTISTE. SoundCloud et YouTube le préfixent au titre, donc sans lui la couverture chute et un vrai rapprochement passe sous le seuil : la fonction est délibérément moins sûre quand on ne le lui donne pas, et `test_every_ranking_call_names_the_artist.py` vérifie que chaque site d'appel de production le donne. Effet mesuré : les dix titres SoundCloud passent de 0,90 à 1,00, et les faux positifs à 0,13.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_ranking_call_names_the_artist.py }
+- rex_ref: src/utils/track_mapping_suggest.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: `_DASH_SUFFIX_MAX_WORDS` est resté VERT sous mutation — le porter de 3 à 99 ne cassait rien, parce qu'aucun test n'exerçait un suffixe long se terminant par un mot du vocabulaire. Un réglage qu'aucun test n'atteint est un réglage qu'on changera par erreur. Cas ajouté (« - Nous irons tous au paradis en live »), mutation revue rouge.
+
+## nan-written-as-a-value
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une colonne censée être vide contient la chaîne `'nan'`. Les requêtes `IS NULL` ne la voient pas, les regroupements la comptent comme une valeur, et une clé absente devient une clé partagée.
+- root_cause: `str(row[col] or '').strip() or None` — le motif employé dans tout `imusician_csv_parser`. Il paraît sûr et ne l'est pas : **un NaN pandas est VRAI** en contexte booléen, donc `nan or ''` rend `nan` et `str(nan)` rend `'nan'`. Mesuré en production le 2026-09-06 : 2 533 lignes de `track_version`, deux `isrc` et deux `track_title`.
+- signature: `! grep -rnE "^[[:space:]]+'[a-z_]+':[[:space:]]+str\(.*or ''\)\.strip\(\)" src/transformers/ --include=*.py`
+- long_term_fix: un helper `_text()` qui teste `pd.isna` AVANT toute évaluation booléenne, plus une migration qui remet à NULL les lignes déjà écrites. Le coût n'est pas cosmétique : l'ISRC est la clé exacte du secteur — chaque version d'un morceau en porte une propre — et une absence écrite `'nan'` regroupe sous UNE MÊME valeur tout ce qui n'a pas d'identifiant, soit le pire regroupement possible pour une colonne dont le rôle est de distinguer.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_nan_is_never_written_as_a_value.py }
+- rex_ref: migrations/092_nan_is_not_a_value.sql
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: trouvé en cherchant à s'APPUYER sur ces colonnes, pas en les auditant. Une donnée fausse ne se remarque que le jour où quelque chose la lit.
+  - 2026-09-06: la première signature écrite ici matchait sa PROPRE documentation — la ligne de ce fichier qui cite le motif fautif. Écrire sur le défaut l'aurait fait rougir, et la seule façon de garder la CI verte aurait été d'arrêter de le documenter. Réécrite pour n'atteindre que la forme réelle du code (une clé de dictionnaire suivie de `str(...)`), puis vérifiée dans les deux sens : sortie 0 en réintroduisant le défaut sur `isrc`, sortie 1 sur l'arbre corrigé.

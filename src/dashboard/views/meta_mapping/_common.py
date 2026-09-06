@@ -21,6 +21,26 @@ def _load_canonical(db, artist_id):
     return [{'match_key': r[0], 'title': r[1], 'release_date': r[2]} for r in (rows or [])]
 
 
+def _artist_noise(db, artist_id: int):
+    """Les jetons du nom d'artiste, à ignorer dans la comparaison de titres.
+
+    SoundCloud et YouTube préfixent le nom de l'artiste au titre
+    (« 1x7xxxxxxx - Kimono À Semelle De Fer »). Sans cette liste, ce nom compte
+    comme un mot du titre et fait chuter la couverture : mesuré le 2026-09-06, le
+    rapprochement tombait de 1,00 à 0,75, sous le seuil d'auto-acceptation.
+
+    Ne lève jamais : une comparaison sans le nom d'artiste est moins bonne, pas
+    cassée, et une page qui meurt vaut moins qu'un score un peu bas.
+    """
+    from src.utils.track_mapping_suggest import artist_noise_tokens
+    try:
+        rows = db.fetch_query(
+            "SELECT name FROM saas_artists WHERE id = %s", (artist_id,))
+    except Exception:  # noqa: BLE001
+        return frozenset()
+    return artist_noise_tokens(rows[0][0] if rows and rows[0] else '')
+
+
 def _mutex_checkboxes(editor_key: str, col_a: str, col_b: str):
     """data_editor on_change callback: make two boolean columns mutually exclusive —
     ticking one unticks the other (by injecting the counter-change into the editor's

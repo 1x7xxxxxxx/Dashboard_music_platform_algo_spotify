@@ -15,7 +15,7 @@ from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song
 from src.utils.track_mapping_suggest import confidence_badge, rank_campaign_candidates
 
-from ._common import _S4A_FILTER, _mutex_checkboxes
+from ._common import _S4A_FILTER, _artist_noise, _mutex_checkboxes
 
 
 def _load_unmapped_campaigns(db, artist_id: int):
@@ -75,8 +75,12 @@ def _build_campaign_suggestions(db, artist_id: int, canonical):
     ctx = _load_campaign_context(db, artist_id)
     rel_by_key = {c['match_key']: c['release_date'] for c in canonical}
     sugg, disp = [], []
+    # Une campagne Meta porte souvent le nom de l'artiste en préfixe, comme les
+    # titres SoundCloud : sans cette liste il compte comme un mot du titre.
+    noise = _artist_noise(db, artist_id)
     for c in _load_unmapped_campaigns(db, artist_id):
-        cands = rank_campaign_candidates(c['campaign'], c['start'], canonical, set(), top_n=1)
+        cands = rank_campaign_candidates(c['campaign'], c['start'], canonical, set(),
+                                         top_n=1, noise_tokens=noise)
         if not cands:
             continue
         cand = cands[0]

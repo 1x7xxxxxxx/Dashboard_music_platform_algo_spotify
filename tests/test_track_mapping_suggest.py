@@ -5,7 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils.track_mapping_suggest import (  # noqa: E402
+from src.utils.track_mapping_suggest import (
+    artist_noise_tokens,  # noqa: E402
     W_CAMP_DATE,
     W_CAMP_TITLE,
     confidence_badge,
@@ -24,9 +25,79 @@ def test_title_similarity_exact_after_normalize():
 
 
 def test_title_similarity_containment_artist_prefix():
-    s = title_similarity("1x7xxxxxxx - Kimono à semelle de fer (free download)",
-                         "Kimono à semelle de fer")
-    assert s >= 0.85
+    """Le préfixe d'artiste ne coûte plus rien — À CONDITION de le nommer.
+
+    L'inclusion rendait un 0,90 plat, sans regarder ce qu'elle laissait de côté :
+    « Mix » ⊆ « house music mix 3 back to old school » valait 0,90 aussi, soit
+    au-dessus du seuil d'auto-acceptation de 0,80. Elle est désormais pondérée par
+    la couverture, et le nom de l'artiste doit donc être déclaré comme du bruit,
+    sinon il compte comme un mot du titre.
+
+    Les deux moitiés du contrat sont ici. La seconde est le prix de la première :
+    une comparaison sans le nom d'artiste est MOINS sûre, et le score le dit.
+    C'est `tests/test_every_ranking_call_names_the_artist.py` qui garantit que la
+    production, elle, le nomme toujours.
+    """
+    noisy = "1x7xxxxxxx - Kimono à semelle de fer (free download)"
+    assert title_similarity(noisy, "Kimono à semelle de fer",
+                            artist_noise_tokens("1x7xxxxxxx")) == 1.0
+    assert title_similarity(noisy, "Kimono à semelle de fer") == 0.75
+
+
+def test_containment_is_weighted_by_what_it_leaves_out():
+    """Un titre court noyé dans du bruit ne doit plus franchir le seuil.
+
+    Mesuré le 2026-09-06 : ces deux cas valaient 0,90, donc auto-acceptés. Ils
+    étaient inoffensifs seulement parce que les titres du locataire testé sont
+    longs ; un morceau nommé « Solo » ou « Nuit » se serait vu associer un mix DJ.
+    """
+    assert title_similarity("HOUSE MUSIC MIX #3 BACK TO OLD SCHOOL", "Mix") < 0.5
+    assert title_similarity("1x7xxxxxxx - FEET FIRST (free download)", "Feet") < 0.5
+
+
+def test_a_version_marker_is_not_swallowed_by_the_base_title():
+    """Radio edit, live, instrumental : des sorties distinctes, pas des variantes.
+
+    Chacune valait 0,90 contre son titre de base — au-dessus du seuil — donc ses
+    écoutes se seraient ajoutées à celles de l'original, sous la mauvaise date.
+    Le secteur le dit dans son propre modèle : DDEX sépare Title et Version Title,
+    et chaque version porte son PROPRE ISRC.
+    """
+    base = "Kimono à semelle de fer"
+    for version in ("Kimono à semelle de fer (Radio Edit)",
+                    "Kimono à semelle de fer (Extended Mix)",
+                    "Kimono à semelle de fer (Sped Up)",
+                    "Kimono à semelle de fer (Live)",
+                    "Kimono à semelle de fer (Instrumental)",
+                    "Kimono à semelle de fer - VIP"):
+        assert title_similarity(version, base) == 0.0, (
+            f"{version!r} se confond avec son titre de base")
+
+
+def test_a_dash_suffix_is_a_version_only_when_it_is_short():
+    """« - Bob Remix » est une version ; « - Live Your Life » est un titre.
+
+    La forme à tiret exigeait `remix\b`, donc « - Remixed by Bob » n'était pas
+    reconnu : le titre restait « base », l'autre côté « remix », et le score
+    tombait à 0,0 — aucun candidat, échec silencieux.
+    """
+    remix = "Kimono à semelle de fer - Remix"
+    assert title_similarity("Kimono à semelle de fer - Remixed", remix) == 1.0
+    assert title_similarity("Kimono à semelle de fer - Bob Remix", remix) > 0.0
+    # Un titre qui COMMENCE par un mot du vocabulaire n'est pas une version.
+    assert title_similarity("1x7xxxxxxx - Live Your Life", "Live Your Life",
+                            artist_noise_tokens("1x7xxxxxxx")) == 1.0
+
+    # …ni un titre qui SE TERMINE par un tel mot, quand le suffixe est un titre et
+    # non un qualificatif. C'est `_DASH_SUFFIX_MAX_WORDS` qui fait la différence, et
+    # rien ne l'exerçait : la mutation qui portait le seuil de 3 à 99 laissait ce
+    # fichier VERT. Un réglage qu'aucun test n'atteint est un réglage qu'on
+    # changera par erreur.
+    long_suffix = "1x7xxxxxxx - Nous irons tous au paradis en live"
+    assert title_similarity(long_suffix, "Nous irons tous au paradis en live",
+                            artist_noise_tokens("1x7xxxxxxx")) == 1.0, (
+        "un suffixe de six mots est un TITRE ; le lire comme une version « live » "
+        "rend le morceau introuvable face à son propre nom")
 
 
 def test_title_similarity_base_vs_remix_is_zero():
