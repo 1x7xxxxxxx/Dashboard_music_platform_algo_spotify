@@ -96,3 +96,33 @@ def test_the_column_normaliser_is_the_second_layer(form):
     assert got == "s4a", (
         f"un en-tête préfixé de {form!r} n'est pas normalisé : la détection échoue "
         "sur une colonne qui s'AFFICHE correctement")
+
+
+# ── Le NOM ne décide de rien ─────────────────────────────────────────────────
+# Ajouté après avoir muté ce fichier et l'avoir vu rester VERT : aucun de ses cas
+# n'exerçait la dépendance au nom, donc rétablir `'audience' not in name` ne le
+# faisait pas rougir. Une signature qu'on n'a pas vue rouge ne garde rien.
+
+_NAME_CASES = [
+    # Un TITRE qui contient le mot « audience » — le cas que l'exclusion cassait.
+    ("Kimono - Audience-timeline.csv", "date,streams", "s4a"),
+    # Aucun mot-clé : ni « timeline », ni « audience », ni le nom de l'artiste.
+    ("export.csv", "date,streams", "s4a"),
+    ("fichier (1).csv", "date,streams", "s4a"),
+    # Et l'audience reste reconnue par sa COLONNE, sans jeton dans le nom.
+    ("export.csv", "date,listeners,streams", "s4a_audience"),
+]
+
+
+@pytest.mark.parametrize("name,header,expected", _NAME_CASES,
+                         ids=[f"{c[2]}:{c[0]}" for c in _NAME_CASES])
+def test_the_filename_decides_nothing(name, header, expected):
+    """Un nom est choisi par la plateforme, le navigateur, parfois l'utilisateur.
+
+    Rien de tout cela n'est un contrat. Le fichier porte ses colonnes ; c'est la
+    seule chose qui vienne de la donnée elle-même.
+    """
+    got = _detect_platform(name, _read_headers(_build(name, header, b"")))
+    assert got == expected, (
+        f"« {name} » → {got!r} au lieu de {expected!r}. La détection dépend encore "
+        "du nom du fichier : le renommer change la réponse.")

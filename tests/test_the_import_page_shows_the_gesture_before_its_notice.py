@@ -175,3 +175,35 @@ def test_both_columns_are_rendered_side_by_side():
                    for c in ast.walk(loop.iter)), (
             f"la paire est rendue par `{ast.unparse(loop.iter)}` : Spotify et Apple "
             "sont de nouveau empilés au lieu d'être côte à côte")
+
+
+def test_a_fully_recognised_batch_imports_without_a_second_click():
+    """« ✅ Prêt » et « ✅ Importer » portaient la même coche verte.
+
+    Mesuré le 2026-09-06 : l'artiste a déposé quinze fichiers, lu « Prêt », et le
+    journal de production ne portait aucune ligne du jour. Le tableau ne mentait
+    pas — il nommait un état intermédiaire comme un état final.
+
+    Ajouté après avoir muté le correctif et vu ce fichier rester VERT : rien n'y
+    interrogeait le déclenchement automatique.
+    """
+    fn = _fn(_UPLOAD, "render_uploader")
+    src = ast.unparse(fn)
+
+    # Le bouton doit être une ALTERNATIVE au démarrage automatique, pas la seule
+    # porte : `if _auto or st.button(...)`.
+    guarded = [n for n in ast.walk(fn)
+               if isinstance(n, ast.If)
+               and isinstance(n.test, ast.BoolOp)
+               and any(isinstance(v, ast.Call)
+                       and getattr(v.func, "attr", "") == "button"
+                       for v in n.test.values)]
+    assert guarded, (
+        "l'import ne part QUE sur un clic : un lot entièrement reconnu n'offre "
+        "aucun arbitrage, donc le bouton y est une étape de plus, pas une décision. "
+        "Attendu `if <auto> or st.button(...)`.")
+
+    assert "session_state" in src, (
+        "le démarrage automatique n'est borné par rien : Streamlit ré-exécute le "
+        "script à chaque interaction, donc le même dépôt se réimporterait à chaque "
+        "clic ailleurs sur la page. Il faut une signature du lot en session.")

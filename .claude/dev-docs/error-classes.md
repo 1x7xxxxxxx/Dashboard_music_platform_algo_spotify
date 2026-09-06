@@ -269,6 +269,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [menu-filter-mistaken-for-an-access-gate](#menu-filter-mistaken-for-an-access-gate) | P2 | deterministic | guarded | none |
 | [journey-completes-and-nothing-happens](#journey-completes-and-nothing-happens) | P2 | deterministic | guarded | none |
 | [bom-survives-the-encoding-fallback](#bom-survives-the-encoding-fallback) | P2 | deterministic | guarded | none |
+| [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
+| [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
 | [module-level-read-turns-a-deletion-into-a-collection-error](#module-level-read-turns-a-deletion-into-a-collection-error) | P3 | deterministic | guarded | none |
 | [instruction-points-by-direction-not-by-name](#instruction-points-by-direction-not-by-name) | P3 | deterministic | guarded | none |
@@ -3725,3 +3727,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-06: le message d'erreur était JUSTE et illisible, et c'est ce qui a coûté trois mois. « Colonnes vues : ﻿date, streams » nomme exactement la bonne colonne, parce qu'un BOM ne se rend pas. Un diagnostic affiché à l'utilisateur doit rendre visible ce qui diffère — ici il fallait `repr()`, pas le texte.
   - 2026-09-06: vérifié en RETIRANT le correctif : `None` avec BOM, `s4a` sans, sur les cinq fichiers du rapport. Les deux couches ont été mutées séparément.
   - 2026-09-06: découvert en vérifiant un import que l'artiste croyait terminé. Le journal de production ne portait AUCUNE ligne du jour : les trois fichiers marqués « ✅ Prêt » ne l'étaient qu'au sens de la DÉTECTION, et le bouton « Importer » n'avait pas été cliqué. Un état intermédiaire nommé comme un état final se lit comme un état final.
+
+## detection-keyed-on-the-filename
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un fichier valide est refusé, ou pire, un fichier invalide est accepté — selon comment il s'appelle. Renommer corrige ou casse, ce qui apprend à l'utilisateur que le nom compte alors qu'il ne devrait rien décider.
+- root_cause: `views/upload_csv.py::_detect_platform` portait trois conditions sur le NOM de fichier. **(1)** La timeline S4A exigeait `'audience' not in name` : un titre contenant le mot (« … - Audience-timeline.csv ») était refusé, et un export d'audience renommé serait passé pour une timeline. La condition était inutile — la branche audience passe avant et retient déjà tout ce qui porte `listeners`. **(2)** L'audience pouvait être reconnue par le seul jeton `audience` du nom. **(3)** L'export « Depuis le début », inexploitable parce que Spotify y renvoie auditeurs et sauvegardes à ZÉRO, était refusé sur `'songs-all' in name` — donc un renommage, ou le suffixe `(1)` qu'ajoute un navigateur, le faisait accepter comme un catalogue valide.
+- signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
+- long_term_fix: la détection se fait sur les COLONNES, qui sont une propriété du fichier ; le nom ne sert plus que de départage quand les colonnes ne tranchent pas. Le cas (3) ne pouvait pas se résoudre à la détection — un export « Depuis le début » a exactement les mêmes en-têtes qu'un export sur 12 mois — donc son refus est descendu dans `_parse_file`, où les VALEURS sont lisibles : `listeners` et `saves` entièrement à zéro. Un contrôle descend au niveau où l'information existe, plutôt que de s'appuyer sur un indice corrélé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: demandé explicitement — « tous les fichiers, peu importe leur nom, doivent être reconnus, c'est vraiment très important ». La formulation dit la bonne règle : un nom de fichier est choisi par la plateforme qui l'exporte, par le navigateur qui le télécharge, et parfois par l'utilisateur. Rien de tout cela n'est un contrat.
+
+## intermediate-state-named-like-a-final-one
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'utilisateur croit l'opération faite et s'en va. Rien n'est écrit, rien n'est en panne, et le rapport qu'il a sous les yeux dit « ✅ ».
+- root_cause: l'écran d'import affichait « ✅ Prêt » dans la colonne « Statut » à l'issue de la DÉTECTION, puis attendait un clic sur « ✅ Importer N fichier(s) » plus bas. Les deux portent une coche verte. Mesuré le 2026-09-06 : l'artiste a déposé quinze fichiers, lu « ✅ Prêt » sur trois d'entre eux, et le journal de production ne portait aucune ligne du jour — l'import n'avait jamais eu lieu. Le tableau ne mentait pas ; il nommait un état intermédiaire comme un état final.
+- signature: `python3 -m pytest tests/test_the_import_page_shows_the_gesture_before_its_notice.py -q`
+- long_term_fix: quand TOUS les fichiers sont reconnus, l'import part **tout seul** : s'il n'y a rien à trier, il n'y a rien à décider, et un bouton qui n'offre qu'un seul choix est une étape, pas une décision. Dès qu'un fichier est refusé le bouton revient — là il y a un arbitrage réel (importer les autres, ou repartir chercher le manquant). L'idempotence tient à la SIGNATURE du lot (noms + nombre de lignes) et non à un drapeau : Streamlit ré-exécute le script à chaque interaction, donc sans elle le même dépôt se réimporterait à chaque clic ailleurs sur la page ; un nouveau dépôt change la signature et redéclenche, ce qui est voulu.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_import_page_shows_the_gesture_before_its_notice.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: découvert en VÉRIFIANT ce que l'artiste croyait avoir fait, plutôt qu'en le croyant sur parole. La question « qu'est-ce qui est réellement arrivé en base ? » a été posée au journal de production, et sa réponse — dernière ligne le 2026-06-15 — contredisait le rapport à l'écran.

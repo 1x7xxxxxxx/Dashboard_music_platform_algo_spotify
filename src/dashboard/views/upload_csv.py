@@ -149,11 +149,17 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
        any(c in cols for c in ['écoutes', 'plays', 'play count', 'lectures']):
         return 'apple'
 
-    # S4A audience : `listeners` EST le discriminant, et il est dans les colonnes.
-    # Le jeton « audience » du nom de fichier reste un départage pour les exports
-    # qui n'ont pas cette colonne, jamais une exigence.
-    if (has_any('listeners', 'auditeurs') or 'audience' in name) and \
-       'date' in cols and 'song' not in cols:
+    # S4A audience : `listeners` EST le discriminant, et rien d'autre.
+    #
+    # Le jeton « audience » du nom de fichier a été retiré le 2026-09-06, et il a
+    # fallu un garde pour le voir : gardé même comme simple « départage », il
+    # classait « Kimono - Audience-timeline.csv » — une timeline dont le TITRE
+    # contient le mot — parmi les exports d'audience. Un nom de fichier porte le nom
+    # d'un morceau ; il ne peut pas servir d'indice sur le contenu.
+    #
+    # Un export d'audience sans colonne `listeners` n'existe pas : c'est la colonne
+    # que cet export est fait pour livrer.
+    if has_any('listeners', 'auditeurs') and 'date' in cols and 'song' not in cols:
         return 's4a_audience'
 
     # L'export « Depuis le début » de S4A (`…-songs-all.csv`) est REFUSÉ ICI, à la
