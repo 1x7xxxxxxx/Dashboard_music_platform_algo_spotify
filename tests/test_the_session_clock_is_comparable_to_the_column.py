@@ -100,3 +100,61 @@ def test_the_session_start_is_comparable_to_that_column(table, column):
     # rester vraie sur deux types comparables séparément mais pas entre eux.
     from datetime import timedelta
     assert (recorded - timedelta(days=1)) < recorded
+
+
+# ── Le repère est UNIQUE pour toute l'exécution, pas un par worker ───────────
+# Mesuré le 2026-09-06, et c'est la seconde cause du même rouge. Chaque worker xdist
+# lisait sa propre heure de départ. Ils ne démarrent pas ensemble : un locataire créé
+# par le worker A à T est ANTÉRIEUR au `sessionstart` du worker B démarré à T+2 s,
+# donc le filtre « créé pendant la session » ne l'excluait pas chez B, qui le
+# dénonçait comme une ligne fabriquée survivante pendant qu'un test voisin s'en
+# servait.
+#
+# Le décalage se compte en secondes et n'existe QUE dans l'exécution parallèle : le
+# reproduire par le temps serait une signature instable. On garde donc le MÉCANISME —
+# le contrôleur fixe l'instant et le passe dans `workerinput`, le worker le préfère
+# au sien — qui est vrai ou faux sans dépendre d'un chronomètre.
+
+
+def _conftest_tree():
+    import ast
+    from pathlib import Path as _P
+    return ast.parse((_P(__file__).parent / "conftest.py").read_text(encoding="utf-8"))
+
+
+def test_the_controller_hands_the_reference_point_to_every_worker():
+    """`pytest_configure_node` ne tourne que sur le contrôleur — c'est le point."""
+    import ast
+
+    tree = _conftest_tree()
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "pytest_configure_node"),
+              None)
+    assert fn is not None, (
+        "conftest n'a plus de `pytest_configure_node` : chaque worker relit l'horloge "
+        "à son propre démarrage, et un locataire créé par un worker voisin quelques "
+        "secondes plus tôt échappe au filtre « créé pendant la session ».")
+    body = ast.unparse(fn)
+    assert "workerinput" in body, (
+        "`pytest_configure_node` ne pose rien dans `workerinput` : les workers ne "
+        "reçoivent pas le repère du contrôleur")
+
+
+def test_the_worker_prefers_the_shared_reference_point_over_its_own():
+    """Le poser ne suffit pas : encore faut-il le préférer."""
+    import ast
+
+    tree = _conftest_tree()
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "pytest_sessionstart"),
+              None)
+    assert fn is not None, "conftest n'a plus de `pytest_sessionstart`"
+    body = ast.unparse(fn)
+    assert "workerinput" in body, (
+        "`pytest_sessionstart` ne lit pas `workerinput` : le repère du contrôleur "
+        "est envoyé et ignoré, ce qui est le défaut d'origine avec une étape de plus.")
+
+    # Et il doit le lire AVANT de fabriquer le sien, sinon la préférence est inverse.
+    assert body.index("workerinput") < body.index("_read_db_clock"), (
+        "le worker lit son horloge avant de regarder ce que le contrôleur lui a "
+        "donné — la valeur partagée arrive trop tard pour servir")

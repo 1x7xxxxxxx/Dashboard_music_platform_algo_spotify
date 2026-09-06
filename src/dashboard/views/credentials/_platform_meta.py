@@ -292,19 +292,41 @@ def render_partner_share_block(account_id: str = "") -> None:
 
     st.markdown("**" + t("credentials.meta.share_title",
                          "🤝 Donne-nous accès à ton compte publicitaire") + "**")
+    # « — même avec le bon lien. C'est le seul geste que nous ne pouvons pas faire à
+    # ta place. » retiré le 2026-09-06. Les deux moitiés parlaient de NOUS : la
+    # première anticipe une objection que l'artiste n'a pas encore, la seconde
+    # explique notre contrainte technique. Ni l'une ni l'autre ne l'aide à faire le
+    # geste, et elles s'intercalent entre le titre et le numéro à copier.
     st.caption(t(
         "credentials.meta.share_help",
-        "Sans ce partage, aucune donnée ne remonte — même avec le bon lien. "
-        "C'est le seul geste que nous ne pouvons pas faire à ta place."))
+        "Sans ce partage, aucune donnée ne remonte."))
     st.code(META_BUSINESS_ID, language=None)
     # Le chemin nommé ici est celui qui AJOUTE un partenaire. L'onglet
     # « Partenaires » d'un compte publicitaire ne fait que gérer l'existant.
+    # LES DEUX OPTIONS SONT NOMMÉES, et pas seulement la bonne. Signalé le
+    # 2026-09-06 : « quand je clique sur le lien, j'ai 2 options, je choisis lequel ? »
+    # Le texte ne citait que celle à prendre, ce qui suffit quand on la reconnaît et
+    # ne suffit pas quand on hésite entre deux libellés voisins. Nommer celle à
+    # IGNORER est ce qui permet d'écarter, donc de décider.
+    #
+    # Les deux libellés de Meta (vérifiés le 2026-09-06) : « Donner à un partenaire
+    # l'accès à vos actifs » — le bon sens, c'est l'artiste qui nous donne — et
+    # « Demander à ton partenaire de partager des actifs avec toi », qui est le sens
+    # INVERSE et ne produirait rien ici.
     st.caption(t(
         "credentials.meta.share_steps",
         "Copie ce numéro (bouton à droite) → ouvre le lien ci-dessous → "
-        "**Ajouter** → **Donner à un partenaire l'accès à tes assets** → colle le "
-        "numéro → coche ton compte publicitaire → rôle **Analyste**."))
+        "**Ajouter**. Meta propose alors deux choix : prends **« Donner à un "
+        "partenaire l'accès à vos actifs »** — surtout pas « Demander à ton "
+        "partenaire de partager des actifs avec toi », qui est le sens inverse. "
+        "Puis colle le numéro → coche ton compte publicitaire → rôle **Analyste**."))
     # Aucune URL ne peut pré-remplir l'écran avec l'identifiant de l'artiste : le
     # paramètre `business_id` de Meta désigne le SIEN, que nous ne connaissons pas.
-    st.link_button(t("credentials.meta.share_open",
-                     "⚙️ Ouvrir mes partenaires ↗"), _ASSIGN_URL)
+    # UN LIEN, pas un bouton. Demandé le 2026-09-06 : « il faudrait que "ouvrir mes
+    # partenaires" soit au même format que les autres liens cliquables : bleu
+    # souligné ». `st.link_button` rend un bouton encadré ; tous les autres renvois
+    # de cette page sont des liens markdown. Deux apparences pour une même action —
+    # « ouvre une page chez Meta » — font hésiter sur ce que fait la seconde.
+    st.markdown(
+        f"[{t('credentials.meta.share_open', '⚙️ Ouvrir mes partenaires ↗')}]"
+        f"({_ASSIGN_URL})")

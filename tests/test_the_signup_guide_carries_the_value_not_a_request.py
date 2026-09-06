@@ -72,7 +72,11 @@ def test_the_shipped_guide_carries_the_number_rather_than_asking_for_it():
     # les attributions d'un compte, pas celui qui en ajoute une.
     # L'apostrophe est échappée en `&#x27;` dans le HTML livré : on ancre sur le
     # fragment qui traverse l'échappement, pas sur la phrase telle qu'écrite.
-    assert "accès à tes assets" in text, (
+    # RÉANCRÉ le 2026-09-06 : ce fragment nommait « tes assets » quand le bouton de
+    # Meta s'appelle « vos actifs ». Un garde ancré sur un libellé suit la mode des
+    # boutons Meta — c'est écrit dans le catalogue, et c'est la troisième fois que
+    # cette étape le paie. On vise le verbe du partage.
+    assert "Donner à un partenaire" in text, (
         "le guide livré ne porte plus le geste de partage")
     assert "Attribuer un partenaire" not in text, (
         "retour du bouton de l'écran de gestion, qui n'ajoute aucun partenaire")

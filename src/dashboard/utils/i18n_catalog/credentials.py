@@ -37,13 +37,12 @@ EN = {
         "👉 {platform}: almost — one value to copy across."
     ),
     "credentials.meta.share_title": "🤝 Give us access to your ad account",
-    "credentials.meta.share_help": (
-        "Without this sharing, no data comes through — even with the right link. "
-        "It is the one step we cannot do for you."
-    ),
+    "credentials.meta.share_help": "Without this sharing, no data comes through.",
     "credentials.meta.share_steps": (
-        "Copy this number (button on the right) → open the link below → **Add** → "
-        "**Give a partner access to your assets** → paste the number → tick your ad "
+        "Copy this number (button on the right) → open the link below → **Add**. "
+        "Meta then offers two choices: pick **\u201cGive a partner access to your "
+        "assets\u201d** — never \u201cAsk your partner to share assets with you\u201d, "
+        "which is the opposite direction. Then paste the number → tick your ad "
         "account → **Analyst** role."
     ),
     "credentials.meta.share_open": "⚙️ Open my partners ↗",

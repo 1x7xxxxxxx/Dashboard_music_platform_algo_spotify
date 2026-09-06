@@ -354,37 +354,71 @@ _SEEDED_TABLES = (("soundcloud_tracks_daily", "track_id"),)
 _DB_SESSION_START: list = []
 
 
-def pytest_sessionstart(session):  # noqa: ARG001 — signature imposée par pytest
-    """Mémorise l'instant de départ, lu sur la base elle-même.
+def _read_db_clock():
+    """L'heure de la base, ou `None` si elle n'est pas joignable.
 
-    Un locataire dont `created_at` est POSTÉRIEUR à cet instant a été fabriqué par la
-    suite en cours : il sera effacé par son propre teardown, et un garde qui lit
-    l'état global de la base ne doit pas se prononcer dessus pendant qu'il vit. Sans
-    ce repère, `test_no_synthetic_track_survives_into_the_freshness_computation`
-    dépendait de ce qu'un AUTRE worker xdist était en train de faire à la seconde où
-    il regardait — un prédicat dont la valeur change sans que le code change.
-
-    Silencieux sans base : la question ne se pose pas, et faire échouer la collecte
-    pour ça remplacerait un défaut discret par un blocage.
+    LOCALTIMESTAMP et non CURRENT_TIMESTAMP : le second rend un `timestamptz`
+    (offset-AWARE) et `saas_artists.created_at` est un `timestamp without time zone`
+    (naive). Les comparer lève `TypeError`, et seulement dans la branche qui trouve
+    un coupable — donc jamais quand il n'y en a pas. `LOCALTIMESTAMP` est exactement
+    ce que le défaut de la colonne écrit.
     """
     try:
         from src.dashboard.utils import get_db_connection
         db = get_db_connection()
         if db is None:
-            return
+            return None
         try:
-            # LOCALTIMESTAMP et non CURRENT_TIMESTAMP : le second rend un
-            # `timestamptz` (offset-AWARE) et `saas_artists.created_at` est un
-            # `timestamp without time zone` (naive). Les comparer lève
-            # `TypeError: can't compare offset-naive and offset-aware datetimes` —
-            # et seulement dans la branche qui trouve un coupable, donc jamais quand
-            # il n'y en a pas. `LOCALTIMESTAMP` est exactement ce que le défaut de la
-            # colonne écrit.
-            _DB_SESSION_START.append(db.fetch_query("SELECT LOCALTIMESTAMP")[0][0])
+            return db.fetch_query("SELECT LOCALTIMESTAMP")[0][0]
         finally:
             db.close()
     except Exception:  # noqa: BLE001 — pas de base : rien à repérer
-        pass
+        return None
+
+
+def pytest_configure_node(node):  # noqa: ARG001 — signature imposée par xdist
+    """CONTRÔLEUR : fixe l'instant UNE fois et le donne à chaque worker.
+
+    Sans ça, chaque worker lisait sa propre heure de départ — et ils ne démarrent pas
+    ensemble. Un locataire créé par le worker A à T se retrouvait ANTÉRIEUR au
+    `sessionstart` du worker B, démarré à T+2 s : le filtre ne l'excluait pas, et
+    `test_no_synthetic_track_survives_into_the_freshness_computation` le dénonçait
+    comme une ligne fabriquée survivante alors qu'un test voisin était en train de
+    s'en servir. Le décalage est de quelques secondes et ne se voit que dans la
+    grande exécution parallèle, la seule où il existe.
+
+    Le hook ne s'exécute que sur le contrôleur, une fois par worker créé ; on ne lit
+    l'horloge qu'au premier.
+    """
+    if not _DB_SESSION_START:
+        stamp = _read_db_clock()
+        if stamp is not None:
+            _DB_SESSION_START.append(stamp)
+    if _DB_SESSION_START:
+        node.workerinput["db_session_start"] = _DB_SESSION_START[0].isoformat()
+
+
+def pytest_sessionstart(session):
+    """Le repère : celui du contrôleur s'il en a envoyé un, le nôtre sinon.
+
+    Un locataire dont `created_at` est POSTÉRIEUR à cet instant a été fabriqué par la
+    suite en cours : il sera effacé par son propre teardown, et un garde qui lit
+    l'état global de la base ne doit pas se prononcer dessus pendant qu'il vit.
+
+    Sans `-n`, il n'y a pas de contrôleur : on lit l'horloge ici, et c'est correct
+    puisqu'il n'y a qu'une session.
+    """
+    from datetime import datetime
+
+    shared = getattr(session.config, "workerinput", {}).get("db_session_start")
+    if shared:
+        _DB_SESSION_START.clear()
+        _DB_SESSION_START.append(datetime.fromisoformat(shared))
+        return
+    if not _DB_SESSION_START:
+        stamp = _read_db_clock()
+        if stamp is not None:
+            _DB_SESSION_START.append(stamp)
 
 
 @pytest.fixture(scope="session")

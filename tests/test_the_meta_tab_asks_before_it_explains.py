@@ -287,9 +287,27 @@ def test_the_sharing_step_names_a_number_the_artist_can_paste():
         # Réancré le 2026-09-05 (2ᵉ fois le même jour) : « Attribuer un partenaire »
         # est le bouton de l'écran qui GÈRE les attributions existantes d'un compte.
         # Le geste qui en AJOUTE une part des partenaires du Business.
-        assert ("l'accès à tes assets" in joined
-                or "access to your assets" in joined), (
+        #
+        # RÉANCRÉ le 2026-09-06, TROISIÈME fois. Cette assertion exigeait « l'accès à
+        # tes assets » — et le bouton de Meta s'appelle « l'accès à VOS ACTIFS ».
+        # L'app affichait donc, sur le même écran, deux formulations du même bouton :
+        # « vos actifs » dans le bloc de l'onglet, « tes assets » dans le guide. Un
+        # artiste qui hésitait entre deux options voisines n'était pas aidé.
+        #
+        # La leçon est écrite dans le catalogue depuis le 2026-09-05 — « un garde
+        # ancré sur un LIBELLÉ suit la mode des boutons Meta » — et ce garde l'était
+        # resté. On vise le VERBE du partage, présent quel que soit le nom que Meta
+        # donne à ses actifs, et la direction est protégée par l'assertion suivante.
+        assert ("Donner à un partenaire" in joined
+                or "Give a partner access" in joined), (
             f"{module}: l'étape de partage ne nomme plus le geste faisable")
+        # Le SENS, qui est la moitié qu'on perd en changeant de libellé : l'artiste
+        # nous donne accès, il ne demande pas l'accès aux nôtres.
+        assert ("Demander à ton partenaire" in joined
+                or "Ask your partner" in joined), (
+            f"{module}: l'option à ÉCARTER n'est plus nommée — signalé le "
+            "2026-09-06, « j'ai 2 options, je choisis lequel ? ». Nommer seulement "
+            "la bonne suffit quand on la reconnaît, pas quand on hésite.")
         assert "Attribuer un partenaire" not in joined, (
             f"{module}: retour du bouton de l'écran de gestion, qui n'ajoute rien")
         assert "ETL_DASHBOARD_SPOTIFY" not in joined, (

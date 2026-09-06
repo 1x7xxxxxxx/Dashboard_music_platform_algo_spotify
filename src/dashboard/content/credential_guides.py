@@ -186,13 +186,23 @@ _SPOTIFY = PlatformCred(
     # étape » là où il n'y a qu'un geste continu ; la chaîne le montre d'un coup
     # d'œil, et se relit sans compter.
     #
-    # « au-dessus » et non « ⬅ » : depuis la mise en page en trois bandes, le champ
-    # est AU-DESSUS du guide, plus à sa gauche. Une direction ne survit pas au
-    # déplacement de ce qu'elle désigne — c'est la quatrième formulation de cette
-    # étape, et les trois précédentes sont mortes de ça.
+    # ON NOMME LE CHAMP, plus sa direction — cinquième formulation de cette étape,
+    # et la première qui ne peut pas se périmer. Les quatre précédentes disaient « ⬅ »
+    # puis « au-dessus » ; la note qui accompagnait celle-ci affirmait « le champ est
+    # AU-DESSUS du guide, plus à sa gauche ». Signalé le 2026-09-06 : « c'est à
+    # gauche, pas au-dessus ».
+    #
+    # Les deux avaient raison, et c'est le point : `_render.py` rend
+    # `st.columns([3, 2])`, donc le formulaire est à GAUCHE sur un écran large et
+    # AU-DESSUS quand Streamlit empile les colonnes sur un écran étroit. Une
+    # direction est une propriété du viewport, pas du guide. Et ce même texte part en
+    # PDF à l'inscription, où ni l'une ni l'autre ne désigne quoi que ce soit.
+    #
+    # Le nom du champ, lui, est le même partout. Il vient de `fields=` ci-dessous :
+    # `tests/test_a_guide_step_names_a_field_that_exists.py` échoue s'ils divergent.
     steps=(
         CredStep("Bouton `•••` → **Partager** → **Copier le lien vers l'artiste** → "
-                 "colle-le dans **URL profil artiste**, au-dessus.",
+                 "colle-le dans le champ **URL profil artiste**, à gauche.",
                  "spotify_share_artist_link.png",
                  "Le bouton ••• → Partager → Copier le lien vers l'artiste"),
     ),
@@ -231,7 +241,8 @@ _YOUTUBE = PlatformCred(
         # le DIT au moment où elle le trouve, sous le champ ; l'annoncer d'avance
         # dans une consigne ne rendait aucun geste plus court.
         CredStep("[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
-                 "→ **ID de la chaîne** → **Copier**, et colle-le au-dessus."),
+                 "→ **ID de la chaîne** → **Copier**, et colle-le dans le champ "
+                 "**Lien de ta chaîne YouTube**, à gauche."),
     ),
     fields=(
         # La clé API a QUITTÉ cette liste : elle est `admin_only` dans le registre,
@@ -306,7 +317,8 @@ _META = PlatformCred(
         # redisait mot pour mot (« on dit 2 fois la même chose », 2026-09-05).
         # Reste ce que le portail ne dit pas : QUEL compte, et OÙ est le sélecteur.
         CredStep("Sélectionne ton compte (flèche déroulante en haut de Meta) → "
-                 "**copie l'URL** → colle-la au-dessus."),
+                 "**copie l'URL** → colle-la dans le champ "
+                 "**Lien de ton compte publicitaire**, à gauche."),
         # Le seul geste que nous ne pouvons pas faire : Meta refuse l'appel qui
         # l'automatiserait (`(#3) capability`, ADR-017). L'ID à coller est rendu par
         # l'onglet dans un bloc copiable — pas ici, où il faudrait le sélectionner
@@ -321,8 +333,16 @@ _META = PlatformCred(
         # test l'a rattrapé DEUX FOIS. Ce guide part aussi en PDF à
         # l'inscription, où il n'y a pas d'onglet : « le bloc au-dessus porte le
         # numéro » y désigne le vide. Une ligne, mais complète.
+        # LE LIBELLÉ EXACT DE META, et l'option à écarter. Cette étape disait
+        # « l'accès à tes assets » quand le bouton s'appelle « l'accès à vos actifs » :
+        # deux formulations du même bouton, une dans le guide et une dans le bloc de
+        # l'onglet, sur le même écran. Et elle ne nommait que le bon choix — signalé le
+        # 2026-09-06, « j'ai 2 options, je choisis lequel ? ». Nommer celle à IGNORER
+        # est ce qui permet d'écarter, donc de décider.
         CredStep("🤝 [Partenaires](" + _META_PARTNERS_URL + ") → **Ajouter** → "
-                 "**Donner à un partenaire l'accès à tes assets** → "
+                 "**Donner à un partenaire l'accès à vos actifs** "
+                 "(et non « Demander à ton partenaire de partager des actifs avec "
+                 "toi », qui est le sens inverse) → "
                  + f"colle **`{BUSINESS_ID_SHOWN}`**"
                  + " → coche ton compte publicitaire → rôle **Analyste**. "
                    "Sans ce partage, aucune donnée."),
@@ -351,7 +371,8 @@ _INSTAGRAM = PlatformCred(
     # reste hors de portée, ce sont les insights (reach, impressions, vues de
     # profil) : eux exigent que le compte soit relié à une Page de notre Business.
     steps=(
-        CredStep("Colle l'adresse de ton profil au-dessus. Ton compte doit être "
+        CredStep("Colle l'adresse de ton profil dans le champ **Lien de ton profil "
+                 "Instagram**, à gauche. Ton compte doit être "
                  "**Business** ou **Créateur** — un compte personnel ne renvoie "
                  "rien. (Instagram → Paramètres → Type de compte)"),
     ),

@@ -31,7 +31,7 @@ _SPOTIFY = PlatformCred(
     # est rendu depuis CETTE source et portait encore trois étapes.
     steps=(
         CredStep("`•••` button → **Share** → **Copy link to artist** → paste it into "
-                 "**Artist profile URL**, above.",
+                 "the **Artist profile URL** field, on the left.",
                  "spotify_share_artist_link.png",
                  "The ••• button → Share → Copy link to artist"),
     ),
@@ -59,7 +59,8 @@ _YOUTUBE = PlatformCred(
     portal_url="https://www.youtube.com/account_advanced",
     steps=(
         CredStep("[youtube.com/account_advanced](https://www.youtube.com/account_advanced) "
-                 "→ **Channel ID** → **Copy**, and paste it above."),
+                 "→ **Channel ID** → **Copy**, and paste it into the "
+                 "**Your YouTube channel link** field, on the left."),
     ),
     fields=(
         CredField("Your YouTube channel link",
@@ -111,13 +112,16 @@ _META = PlatformCred(
         # One line, no screenshot, and no repeat of the portal link rendered just
         # above by the template.
         CredStep("Pick your account (dropdown at the top of Meta) → **copy the "
-                 "URL** → paste it above."),
+                 "URL** → paste it into the **Your ad account link** field, "
+                 "on the left."),
         # The number is written HERE too, not only in the tab's copy block: this
         # guide also ships as a PDF at sign-up, where there is no tab.
         # The number is written HERE too: this guide also ships as a PDF at
         # sign-up, where there is no tab to point at.
         CredStep("🤝 [Partners](" + _META_PARTNERS_URL + ") → **Add** → "
-                 "**Give a partner access to your assets** → "
+                 "**Give a partner access to your assets** (not \u201cAsk your "
+                 "partner to share assets with you\u201d, which is the opposite "
+                 "direction) → "
                  + f"paste **`{BUSINESS_ID_SHOWN_EN}`**"
                  + " → tick your ad account → **Analyst** role. "
                    "Without it, no data at all."),
@@ -144,7 +148,8 @@ _INSTAGRAM = PlatformCred(
     # (reach, impressions, profile views) stay out of reach: they require the
     # account to be linked to a Page of our Business.
     steps=(
-        CredStep("Paste your profile address above. Your account must be "
+        CredStep("Paste your profile address into the **Your Instagram profile "
+                 "link** field, on the left. Your account must be "
                  "**Business** or **Creator** — a personal account returns "
                  "nothing. (Instagram → Settings → Account type)"),
     ),

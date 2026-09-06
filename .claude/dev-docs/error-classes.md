@@ -265,6 +265,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [check-then-insert-loses-the-race](#check-then-insert-loses-the-race) | P2 | deterministic | guarded | none |
 | [test-pinned-to-a-row-of-the-authors-database](#test-pinned-to-a-row-of-the-authors-database) | P3 | deterministic | guarded | none |
 | [guard-branch-only-reached-when-it-fails](#guard-branch-only-reached-when-it-fails) | P3 | deterministic | guarded | none |
+| [instruction-points-by-direction-not-by-name](#instruction-points-by-direction-not-by-name) | P3 | deterministic | guarded | none |
+| [header-announces-a-field-the-form-does-not-have](#header-announces-a-field-the-form-does-not-have) | P3 | deterministic | guarded | none |
+| [per-worker-reference-point-for-shared-state](#per-worker-reference-point-for-shared-state) | P3 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 
@@ -3573,3 +3576,51 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: **la mutation a menti, et c'est le vrai enseignement.** Le correctif avait été « vérifié » en plantant une ligne fabriquée puis en lisant `exit = 1`. Ce 1 venait du `TypeError`, pas du garde ayant vu la ligne. J'ai conclu « rouge donc il détecte » sans lire le MESSAGE. Une mutation ne prouve rien tant que sa raison n'est pas lue : rouge pour la mauvaise raison est indiscernable de rouge pour la bonne, et ici les deux se sont succédé sur la même commande. Le dépôt disait déjà « une signature jamais vue rouge ne garde rien » ; la formulation exacte est **vue rouge POUR SA RAISON**.
   - 2026-09-06: remuté après correction, message lu : « locataire 1 : ligne de test du 2026-09-07, dernière collecte réelle 2026-06-12 ». Et l'autre moitié vérifiée aussi — un locataire créé PENDANT la session, portant des lignes fraîches, est ignoré (exit 0), ce qui est le cas légitime pour lequel le filtre existe.
+
+## instruction-points-by-direction-not-by-name
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une consigne dit « colle-la au-dessus » et le champ est à gauche — ou l'inverse. Deux lecteurs de bonne foi se contredisent sur la même phrase, et chacun a raison sur son écran.
+- root_cause: `src/dashboard/content/credential_guides.py` désignait le champ de saisie par sa POSITION dans quatre étapes (spotify, youtube, meta, instagram) et dans les deux langues, soit huit occurrences. Or `views/credentials/_render.py:650` rend `st.columns([3, 2])` : le formulaire est à GAUCHE du guide sur un écran large et AU-DESSUS de lui dès que Streamlit empile les colonnes sur un écran étroit. Une direction est une propriété du VIEWPORT, pas du guide. Et ce même texte part en PDF à l'inscription, où il n'y a aucun formulaire : ni « au-dessus » ni « à gauche » n'y désigne quoi que ce soit. Signalé le 2026-09-06 (« c'est à gauche, pas au-dessus ») ; le commentaire qui défendait la formulation en place affirmait le contraire du commentaire qu'il avait lui-même remplacé (« au-dessus » et non « ⬅ ») — quatrième formulation de la même étape, quatrième péremption.
+- signature: `python3 -m pytest tests/test_a_guide_step_names_a_field_not_a_direction.py -q`
+- long_term_fix: l'étape nomme le CHAMP (`**Lien de ton compte publicitaire**`), qui est le même sur tous les écrans et dans le PDF. La direction reste autorisée en complément — « à gauche » aide là où c'est vrai — mais jamais À LA PLACE du nom. Le garde balaie le catalogue (pas une liste de clés : la cinquième étape écrite demain est couverte par construction), repère les étapes de collage, et exige qu'une étape employant un mot de position nomme aussi un champ **qui existe sur ce guide** — sans quoi la correction s'achèterait en inventant un libellé.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_guide_step_names_a_field_not_a_direction.py }
+- rex_ref: src/dashboard/content/credential_guides.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: le rapport ne portait que sur Meta ; le balayage a trouvé le même défaut sur trois autres étapes et dans les deux langues. Corriger la seule signalée aurait laissé sept occurrences vivantes.
+  - 2026-09-06: vu rouge en rétablissant « colle-la au-dessus » sur Meta — message : « fr/meta : ['au-dessus'] sans nommer un champ (['Lien de ton compte publicitaire']) » — vert après.
+
+## header-announces-a-field-the-form-does-not-have
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un en-tête de formulaire décrit des champs qui n'y sont pas. Le lecteur cherche ce qu'on lui annonce, ne le trouve pas, et doute du reste de la page.
+- root_cause: `views/credentials/_render.py` rendait « 🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle » sous le titre de TOUT formulaire en mise à jour. Mesuré sur le registre le 2026-09-06 : `meta`, `soundcloud` et `instagram` déclarent **zéro** champ secret — leur formulaire porte un seul champ, un lien public. Trois onglets sur cinq annonçaient donc une propriété fausse et une consigne sans objet. Signalé sur Meta Ads comme « inutile » ; la mesure dit plus que ça — c'était faux.
+- signature: `python3 -m pytest tests/test_the_form_only_claims_what_it_has.py -q`
+- long_term_fix: une CONDITION dérivée du registre (`any(f.get('secret') for f in fields_def)`), pas une suppression : sur `spotify` et `youtube` la phrase est vraie et utile, laisser vide y conserve un secret qu'on ne peut pas relire. Le garde lit l'AST et exige qu'au moins un `if` de la chaîne interroge les champs secrets **de ce formulaire** — il refuse aussi bien un `if True` qu'une liste de plateformes tapée à la main, qui ramènerait le défaut sous une autre forme. Il vérifie d'abord qu'il existe des plateformes des deux sortes, sans quoi la condition ne se distinguerait pas d'une constante.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_form_only_claims_what_it_has.py }
+- rex_ref: src/dashboard/views/credentials/_render.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: la demande était « retire, c'est inutile ». Retirer partout aurait supprimé une information vraie sur deux onglets. La question posée au registre — « ce formulaire A-T-IL un secret ? » — donne les deux réponses à la fois.
+  - 2026-09-06: vu rouge par deux mutations, `if True` et `if platform_key in ('spotify', 'youtube')`, vert après.
+
+## per-worker-reference-point-for-shared-state
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde qui lit un état partagé est vert seul et rouge en exécution parallèle, sur des données que rien n'a changé. Le rouge se déplace d'un fichier à l'autre selon la répartition des workers.
+- root_cause: `tests/conftest.py::pytest_sessionstart` lisait l'horloge de la base **dans chaque worker xdist**. Les workers ne démarrent pas ensemble : un locataire créé par le worker A à T est ANTÉRIEUR au `sessionstart` du worker B démarré à T+2 s. Le filtre « créé pendant la session », qui devait exclure les locataires appartenant à un test en cours, ne les excluait donc pas chez B — qui les dénonçait pendant qu'un test voisin s'en servait. Le décalage se compte en secondes et n'existe QUE dans l'exécution parallèle.
+- signature: `python3 -m pytest tests/test_the_session_clock_is_comparable_to_the_column.py -q`
+- long_term_fix: le CONTRÔLEUR fixe l'instant une fois (`pytest_configure_node`, qui ne s'exécute que là) et le passe à chaque worker via `workerinput` ; le worker le préfère au sien, et ne lit l'horloge lui-même que hors parallèle, où il n'y a qu'une session. Le garde est **structurel et non chronométré** : reproduire le décalage par le temps donnerait une signature instable, donc on vérifie le mécanisme — le hook existe, il pose la valeur, le worker la lit, et il la lit AVANT de fabriquer la sienne (sans quoi la préférence serait inverse).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_session_clock_is_comparable_to_the_column.py }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge en retirant `pytest_configure_node` et la lecture de `workerinput`, vert après. Les deux assertions tombent séparément, ce qui distingue « le contrôleur n'envoie rien » de « le worker ignore ce qu'on lui envoie » — deux corrections différentes.
+  - 2026-09-06: ce correctif n'a PAS suffi à rendre `test_no_synthetic_track_survives_into_the_freshness_computation` vert : la cause restante est différente et vise le locataire **1**, qui est réel. Écrit ici pour que l'entrée ne laisse pas croire l'inverse.

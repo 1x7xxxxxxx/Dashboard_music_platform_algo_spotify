@@ -493,10 +493,23 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             if existing_row:
                 st.markdown("### :orange-background[✏️ "
                             + t("credentials.form.update", "Mettre à jour") + "]")
-                st.caption(t(
-                    "credentials.form.caption",
-                    "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
-                ))
+                # La légende ne s'affiche QUE si ce formulaire a réellement un champ
+                # secret. Mesuré le 2026-09-06 : `meta`, `soundcloud` et `instagram`
+                # n'en ont aucun — leurs formulaires portent un seul champ, un lien
+                # public — et lisaient pourtant « 🔒 Champs secrets chiffrés •
+                # Laissez vide pour conserver la valeur actuelle ». Trois onglets sur
+                # cinq annonçaient une propriété fausse et une consigne sans objet.
+                #
+                # Signalé sur Meta Ads (« retire, inutile »), et corrigé par une
+                # CONDITION plutôt que par une suppression : sur Spotify et YouTube la
+                # phrase est vraie et utile — laisser vide y conserve un secret qu'on
+                # ne peut pas relire. Chaque champ secret porte déjà son propre `help`
+                # au même effet ; cette ligne l'annonce avant qu'on clique dedans.
+                if any(f.get('secret') for f in fields_def):
+                    st.caption(t(
+                        "credentials.form.caption",
+                        "🔒 Champs secrets chiffrés • Laissez vide pour conserver la valeur actuelle"
+                    ))
             else:
                 # L'en-tête NOMME sa plateforme. « On ne sait pas sur quelle
                 # plateforme » (2026-09-05) : la barre de boutons dit laquelle est
