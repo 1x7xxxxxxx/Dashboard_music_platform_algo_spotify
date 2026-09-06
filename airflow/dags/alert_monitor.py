@@ -872,6 +872,68 @@ def check_row_dips(**context):
     return dips
 
 
+# Le nombre de refus, dans une même semaine et pour un même locataire, à partir
+# duquel on soupçonne le CODE plutôt que le fichier. Deux, parce qu'un artiste qui
+# dépose son export complet en dépose une quinzaine d'un coup : si notre détection
+# marche, aucun ne doit être refusé, et deux refus signalent déjà un motif.
+# Le 2026-09-06 le compte réel était de 12 sur 15.
+CSV_REJECTION_THRESHOLD = 2
+
+
+def check_csv_rejections(**context):
+    """Les fichiers qu'un artiste a déposés et que nous n'avons pas su lire.
+
+    LE TROU QUE CETTE TÂCHE FERME. `csv_upload_log` n'enregistrait que ce qui
+    atteignait l'import ; un fichier écarté à la DÉTECTION — « type non reconnu » —
+    ne laissait aucune trace. Mesuré le 2026-09-06 : douze exports Spotify for
+    Artists refusés à cause d'un BOM, depuis juin, sans qu'une seule alerte parte.
+    L'artiste l'avait vu quinze fois à l'écran ; nous, zéro fois.
+
+    CE QUI DÉCLENCHE, et pourquoi ce n'est pas « au moins un refus ». Un refus isolé
+    est souvent un vrai mauvais export — un fichier d'une autre plateforme, une
+    capture d'écran renommée. Ce qui accuse le CODE, c'est la répétition : plusieurs
+    fichiers refusés dans un même dépôt, ou le même motif de colonnes vu chez
+    plusieurs locataires. Alerter sur l'unité rendrait cette tâche bruyante, donc
+    ignorée, donc inutile le jour où elle compte.
+
+    Le message porte les COLONNES VUES. Sans elles, « type non reconnu » ne se
+    diagnostique pas a posteriori : c'est le champ qui aurait nommé le BOM en juin.
+    """
+    from src.database.postgres_handler import PostgresHandler
+
+    db = PostgresHandler.from_env_or_config()
+    problems = []
+    try:
+        rows = db.fetch_query(
+            """
+            SELECT artist_id, count(*) AS n,
+                   min(imported_at)::date AS depuis,
+                   (array_agg(DISTINCT coalesce(seen_columns, '-')))[1:3] AS motifs,
+                   (array_agg(filename ORDER BY imported_at DESC))[1] AS dernier
+              FROM csv_upload_log
+             WHERE status = 'rejected'
+               AND imported_at > now() - interval '7 days'
+             GROUP BY artist_id
+            HAVING count(*) >= %s
+             ORDER BY count(*) DESC
+            """,
+            (CSV_REJECTION_THRESHOLD,),
+        )
+        for artist_id, n, depuis, motifs, dernier in rows or []:
+            problems.append({
+                'artist_id': artist_id,
+                'reason': (f"{n} fichier(s) refusés depuis le {depuis} — dernier : "
+                           f"{dernier}. Colonnes vues : {', '.join(motifs or [])}"),
+            })
+    except Exception as exc:      # noqa: BLE001 — une sonde ne fait pas tomber le DAG
+        logger.warning("check_csv_rejections: %s", type(exc).__name__)
+    finally:
+        db.close()
+
+    context['ti'].xcom_push(key='csv_rejections', value=problems)
+    return problems
+
+
 def check_onboarding_readiness(**context):
     """Flag any active artist CONNECTED to a platform but receiving NO data (the silent gap).
 
@@ -1504,6 +1566,9 @@ def send_consolidated_alert(**context):
     stalled_tenants = ti.xcom_pull(task_ids='check_onboarding_readiness', key='onboarding_stalled') or []
     canary_preflight = ti.xcom_pull(task_ids='check_canary_preflight', key='canary_preflight') or []
 
+    csv_rejections = ti.xcom_pull(task_ids='check_csv_rejections',
+                                  key='csv_rejections') or []
+
     canary = ti.xcom_pull(task_ids='check_canary_health', key='canary_problems') or []
 
     collection_failures = ti.xcom_pull(
@@ -1559,7 +1624,7 @@ def send_consolidated_alert(**context):
                   or billing_issues or row_anomalies or row_dips or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
-                  or offsite or app_errors)
+                  or offsite or app_errors or csv_rejections)
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -1690,6 +1755,39 @@ def send_consolidated_alert(**context):
           <thead><tr style="background:#fdf3f2">
             <th style="padding:8px 12px;text-align:left">Artiste</th>
             <th style="padding:8px 12px;text-align:left">Sources stale</th>
+          </tr></thead>
+          <tbody>{rows}</tbody>
+        </table>""")
+
+    # Section : les fichiers qu'un artiste nous a donnés et qu'on n'a pas su lire.
+    #
+    # C'est le seul constat de ce rapport qui vienne d'un geste RÉEL de l'artiste :
+    # les autres mesurent ce que nous produisons, celui-ci mesure ce que nous
+    # refusons. Douze refus ont vécu six mois sans être vus parce que rien ne les
+    # enregistrait — l'écran le disait à l'artiste, et à lui seul.
+    if csv_rejections:
+        rows = ''
+        for f in csv_rejections:
+            rows += (
+                f"<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"<b>#{f['artist_id']}</b></td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee'>"
+                f"{as_html(f['reason'])}</td></tr>"
+            )
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          📂 Des fichiers déposés ont été refusés ({len(csv_rejections)} locataire(s))
+        </h2>
+        <p style="font-size:0.9em;color:#555">
+          Plusieurs fichiers refusés dans la même semaine pour un même artiste : le
+          fichier n'est probablement pas en cause, notre détection l'est. Les
+          colonnes vues sont là pour trancher — c'est le champ qui aurait nommé le
+          BOM de septembre.
+        </p>
+        <table style="border-collapse:collapse;width:100%;font-size:0.9em">
+          <thead><tr style="background:#fdecea">
+            <th style="padding:8px 12px;text-align:left">Artiste</th>
+            <th style="padding:8px 12px;text-align:left">Constat</th>
           </tr></thead>
           <tbody>{rows}</tbody>
         </table>""")
@@ -2280,6 +2378,11 @@ with DAG(
         python_callable=check_row_dips,
     )
 
+    t_csv_rejects = PythonOperator(
+        task_id='check_csv_rejections',
+        python_callable=check_csv_rejections,
+    )
+
     t_readiness = PythonOperator(
         task_id='check_onboarding_readiness',
         python_callable=check_onboarding_readiness,
@@ -2329,4 +2432,4 @@ with DAG(
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
      t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
-     t_app_errors] >> t_alert
+     t_app_errors, t_csv_rejects] >> t_alert

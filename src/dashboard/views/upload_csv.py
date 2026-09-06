@@ -474,6 +474,7 @@ def render_uploader(db, target_artist_id: int) -> None:
                     "(fichier `…-songs-1year.csv`).")
                 platform_key = None
 
+            entry['seen_columns'] = seen_cols
             if platform_key is None and not entry.get('error'):
                 # Echo the parsed header columns so a near-miss is diagnosable
                 # ("colonnes vues: …") instead of a dead "type non reconnu".
@@ -500,6 +501,30 @@ def render_uploader(db, target_artist_id: int) -> None:
             entry['error'] = str(exc)
 
         file_results.append(entry)
+
+    # ── Le REFUS laisse une trace ──────────────────────────────────
+    #
+    # Enregistré ICI, à la détection, et pas au moment de l'import : un fichier
+    # écarté n'atteint jamais l'import, donc `csv_upload_log` ne le voyait pas. Douze
+    # fichiers refusés depuis juin 2026, aucune alerte — l'artiste l'a vu quinze fois
+    # à l'écran, et nous zéro.
+    #
+    # `seen_columns` est la moitié qui rend le refus DIAGNOSTICABLE après coup. Le
+    # message à l'écran portait déjà la réponse — un BOM invisible devant `date` —
+    # mais personne n'était là pour le lire. En base, `repr()` le rend visible.
+    for r in file_results:
+        if not r['error']:
+            continue
+        try:
+            db.execute_query(
+                "INSERT INTO csv_upload_log "
+                "(artist_id, filename, platform, row_count, status, error_message, "
+                " seen_columns) VALUES (%s, %s, NULL, 0, 'rejected', %s, %s)",
+                (target_artist_id, r['filename'], str(r['error'])[:500],
+                 repr(r.get('seen_columns') or [])[:500]),
+            )
+        except Exception:  # noqa: BLE001 — journaliser ne doit jamais bloquer l'écran
+            pass
 
     # ── Tableau de détection ───────────────────────────────────────
     summary_rows = []

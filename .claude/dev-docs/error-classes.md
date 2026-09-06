@@ -269,6 +269,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [menu-filter-mistaken-for-an-access-gate](#menu-filter-mistaken-for-an-access-gate) | P2 | deterministic | guarded | none |
 | [journey-completes-and-nothing-happens](#journey-completes-and-nothing-happens) | P2 | deterministic | guarded | none |
 | [bom-survives-the-encoding-fallback](#bom-survives-the-encoding-fallback) | P2 | deterministic | guarded | none |
+| [refusal-leaves-no-trace](#refusal-leaves-no-trace) | P2 | deterministic | guarded | none |
+| [finding-computed-but-never-sent](#finding-computed-but-never-sent) | P2 | deterministic | guarded | none |
+| [view-renders-nothing-and-says-nothing](#view-renders-nothing-and-says-nothing) | P2 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3757,3 +3760,48 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: découvert en VÉRIFIANT ce que l'artiste croyait avoir fait, plutôt qu'en le croyant sur parole. La question « qu'est-ce qui est réellement arrivé en base ? » a été posée au journal de production, et sa réponse — dernière ligne le 2026-06-15 — contredisait le rapport à l'écran.
+
+## refusal-leaves-no-trace
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'utilisateur voit un refus à l'écran, nous ne le voyons jamais. Le journal n'enregistre que ce qui a réussi, donc un défaut qui bloque tout un parcours peut vivre des mois sans qu'une alerte parte.
+- root_cause: `csv_upload_log` recevait une ligne à l'IMPORT — `success` ou `error` d'écriture. Un fichier écarté plus tôt, à la détection (« type non reconnu »), n'atteignait jamais ce code et ne laissait donc aucune trace. Mesuré le 2026-09-06 : douze exports Spotify for Artists refusés depuis juin à cause d'un BOM, zéro alerte. L'artiste l'avait vu quinze fois ; l'exploitant zéro. Le déséquilibre est structurel — on journalise ce qu'on réussit, jamais ce qu'on refuse.
+- signature: `python3 -m pytest tests/test_every_alert_check_reaches_the_email.py -q`
+- long_term_fix: le refus s'écrit AU MOMENT du refus, avec un statut `rejected` distinct de `error` (les deux appellent des gestes opposés : `error` est une écriture ratée, notre faute dans le code ; `rejected` est un fichier qu'on n'a pas su lire, visible seulement en agrégeant) et avec les COLONNES VUES, sans quoi le refus ne se diagnostique pas a posteriori. La tâche `check_csv_rejections` alerte à partir de DEUX refus par semaine et par locataire : un refus isolé est souvent un vrai mauvais export, la répétition accuse le code — alerter à l'unité rendrait la tâche bruyante, donc ignorée, donc inutile le jour où elle compte.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_alert_check_reaches_the_email.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: la question posée était « n'y a-t-il pas un framework pour ça ? ». La réponse mesurée est non : le dépôt portait déjà 18 tâches d'alerte et 3 surfaces. Ce qui manquait n'était pas un outil mais une DONNÉE — le refus n'existait nulle part, donc aucun outil, si bon soit-il, n'aurait pu le voir.
+
+## finding-computed-but-never-sent
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une tâche de surveillance tourne, calcule un constat juste, et reste verte. Personne n'est prévenu. Le contrôle a l'apparence exacte d'un contrôle qui fonctionne.
+- root_cause: dans `alert_monitor.py`, un constat doit franchir CINQ maillons pour valoir quelque chose — déclaré comme tâche, câblé dans la chaîne `>> t_alert`, relu par `xcom_pull`, rendu dans une section, et compté dans `has_issues` (le prédicat qui décide s'il y a un e-mail à envoyer). Chaque maillon rompu laisse la tâche verte. En écrivant `check_csv_rejections` le 2026-09-06, le quatrième manquait — `ruff` l'a signalé comme variable inutilisée, ce qui est un coup de chance : un nom réutilisé ailleurs serait passé. Puis le cinquième manquait aussi, et c'est un garde VOISIN qui l'a rattrapé.
+- signature: `python3 -m pytest tests/test_every_alert_check_reaches_the_email.py -q`
+- long_term_fix: un garde qui balaie les 18 tâches et vérifie les quatre premiers maillons ; le cinquième est tenu par `test_alert_monitor_sends_what_it_finds`, qui existait déjà. Deux gardes posant la même question à des profondeurs différentes valent mieux qu'un seul. Le garde suit les DÉRIVATIONS (`freshness` n'apparaît dans aucun `if` : il est filtré en `stale_sources`, qui conditionne la section) et refuse les branches statiquement mortes — `if False and x:` mentionne `x` et ne s'exécute jamais.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_alert_check_reaches_the_email.py }
+- rex_ref: airflow/dags/alert_monitor.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: le garde a dû être corrigé DEUX fois avant de garder quoi que ce soit. Il a d'abord crié sur du code sain — un constat dérivé avant d'être testé — ce qui est le pire mode d'échec d'un garde : bruyant sur le juste, il se fait désarmer et emporte les vrais cas. Puis il est resté vert sur `if False and csv_rejections:` : **présence n'est pas atteignabilité**, troisième fois que ce dépôt le paie.
+
+## view-renders-nothing-and-says-nothing
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une page s'affiche, ne lève pas, et ne montre rien. L'utilisateur ne sait pas s'il doit attendre, configurer, ou signaler — et aucune alerte ne se déclenche, parce qu'il n'y a rien à déclencher.
+- root_cause: une fonctionnalité cesse de servir de trois façons, et une seule alerte toute seule. Elle plante (exception → frontière centrale → e-mail : couvert). Elle refuse en silence (couvert depuis `refusal-leaves-no-trace`). Ou elle rend VIDE : une requête qui ne remonte plus rien, une table renommée, un graphique dont la donnée est partie. Le render-smoke du dépôt demandait « la vue lève-t-elle ? », jamais « la vue montre-t-elle quelque chose ? ».
+- signature: `python3 -m pytest tests/test_a_view_says_something_or_says_why.py -q`
+- long_term_fix: onze vues du parcours artiste doivent émettre soit un élément SUBSTANTIEL (graphique, tableau, métrique, carte…), soit un message qui NOMME l'absence (`st.info`, `st.warning`). La seconde branche est la convention du dépôt — dire l'absence plutôt que la laisser deviner — et elle est ce qui rend la règle tenable : une vue légitimement vide reste conforme en le disant. Ce qui est interdit est le troisième cas, un titre et rien.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_view_says_something_or_says_why.py }
+- rex_ref: src/dashboard/views/apple_music.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge en tronquant `apple_music.show()` juste après son titre — la vue ne lève pas, le render-smoke reste vert, et ce garde nomme l'écran blanc.
