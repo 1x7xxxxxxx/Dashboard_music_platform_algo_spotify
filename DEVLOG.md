@@ -5,6 +5,44 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-06 (suite 2) — La suite a tourné, et elle a trouvé cinq choses
+
+Le premier run de CI après le déblocage : `Run tests` s'exécute pour la première fois
+depuis le 2026-09-04 et rend **5 failed / 4314 passed**. C'est la suite du même
+mécanisme — 27 commits étaient partis sans qu'elle tourne, et voici ce qu'ils
+portaient. Aucun des cinq n'était visible en local.
+
+**Deux gardes lisaient un `repr` au lieu de l'objet.** La barre d'onglets était
+déclarée « pas verte » alors que le vert était là : Streamlit extrait l'emoji de TÊTE
+d'une option dans `content_icon`, que `str(ButtonGroup)` ne montre jamais — et la
+marque 🟢 est justement un préfixe. Mesuré : `('🎵 Spotify', '🟢')` pendant que le
+test lisait « aucun vert ».
+
+**Un garde dépendait du disque de la machine.** Le bloc de génération de clé Fernet
+était attendu en PowerShell ; `venv_prelude()` rend PowerShell si
+`venv/Scripts/Activate.ps1` existe, bash si `venv/bin/activate` existe, **rien** sinon
+— et `venv/` est gitignoré, donc un runner tombe toujours dans le troisième cas.
+Troisième instance de `guard-predicate-depends-on-the-host-env` dans la journée.
+
+**Une vraie course, côté produit.** `referral._get_or_create_code` faisait un `SELECT`
+puis, s'il ne rendait rien, un `INSERT`. Streamlit ré-exécute le script à chaque
+interaction : un double-clic ou deux onglets suffisent. Mesuré sur six appels
+concurrents — l'ancienne forme rend **3 codes et lève 3 `UniqueViolation`**, la
+nouvelle rend 6 codes identiques et ne lève rien. `ON CONFLICT … DO UPDATE …
+RETURNING`, et non `DO NOTHING` qui ne rend aucune ligne sur conflit.
+
+**Un test épinglé sur une ligne de MA base.** `_TENANT_WITHOUT_DATA = 23702` n'existe
+que chez son auteur ; la CI provisionne deux locataires. Les lectures s'en
+accommodaient (« rien » est la situation décrite), l'unique ÉCRITURE violait la clé
+étrangère. Le garde de la migration 086 ne prouvait donc rien là où il comptait le
+plus. Balayage AST de `tests/` : une seule autre constante en dur, qui ne sert qu'à
+des chemins de fichiers.
+
+Deux classes de plus : `check-then-insert-loses-the-race`,
+`test-pinned-to-a-row-of-the-authors-database`.
+
+---
+
 ## 2026-09-06 (suite) — Un seul endroit pour déposer, et une page que rien n'atteignait
 
 **Ce qui a changé** — demandé : « une seule zone de dépôt, les types répartis par

@@ -89,6 +89,22 @@ show()
     return bars[0]
 
 
+def _rendered_options(bar) -> list[str]:
+    """Ce que l'artiste LIT sur chaque onglet — texte ET icône.
+
+    `str(bar)` ne montre que `content`. Streamlit extrait l'emoji de TÊTE d'une
+    option et le range dans `content_icon`, où le `repr` ne le rend jamais : la
+    marque 🟢, posée en préfixe, y atterrit systématiquement. Mesuré le 2026-09-06 —
+    la barre affichait `('🎵 Spotify', '🟢')` pendant que le test lisait
+    « pas de vert ». Le garde interrogeait le `repr` de l'objet au lieu de l'objet
+    (`guard-reads-the-box-not-its-subject`).
+    """
+    proto = getattr(bar, "proto", None)
+    if proto is None:                       # repli : mieux qu'une erreur d'attribut
+        return [str(bar)]
+    return [f"{getattr(o, 'content_icon', '')} {o.content}" for o in proto.options]
+
+
 @pytest.mark.parametrize("tenant_with", [
     {"spotify": {"spotify_artist_id": "4qG1qjeHfkASTdyRGbLWbV"}},
 ], indirect=True)
@@ -97,7 +113,8 @@ def test_a_configured_platform_is_green_and_is_not_the_landing_tab(tenant_with):
     _db_, aid = tenant_with
     bar = _render(aid)
 
-    assert "🟢" in str(bar), "l'onglet configuré n'est pas en vert"
+    assert any("🟢" in o for o in _rendered_options(bar)), (
+        f"l'onglet configuré n'est pas en vert : {_rendered_options(bar)}")
     assert bar.value != "spotify", (
         "la page s'ouvre sur l'onglet DÉJÀ configuré : l'artiste y voit un "
         "formulaire qu'il vient de remplir ailleurs")
@@ -111,7 +128,8 @@ def test_with_nothing_configured_the_first_tab_opens_and_nothing_is_green(tenant
     _db_, aid = tenant_with
     bar = _render(aid)
 
-    assert "🟢" not in str(bar), "un onglet est vert alors que rien n'est configuré"
+    assert not any("🟢" in o for o in _rendered_options(bar)), (
+        f"un onglet est vert alors que rien n'est configuré : {_rendered_options(bar)}")
     assert bar.value == "spotify", (
         f"le premier onglet n'est plus celui qui s'ouvre ({bar.value!r})")
 

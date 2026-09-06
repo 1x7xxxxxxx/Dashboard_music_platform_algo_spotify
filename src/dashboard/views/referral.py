@@ -17,19 +17,30 @@ from src.dashboard.auth import tenant_scope
 
 
 def _get_or_create_code(db, artist_id: int) -> str:
-    """Return existing referral code for artist, or generate and insert a new one."""
-    row = db.fetch_query(
-        "SELECT code FROM referral_codes WHERE artist_id = %s",
-        (artist_id,),
-    )
-    if row:
-        return row[0][0]
+    """Return this artist's referral code, creating it once — atomically.
+
+    C'était un SELECT puis, s'il ne rendait rien, un INSERT. Deux rendus de la page
+    qui se croisent lisent tous les deux « aucun code », insèrent tous les deux, et
+    le second viole `referral_codes_artist_id_key` : la page CRASHE. Ce n'est pas une
+    hypothèse — la CI l'a produit le 2026-09-06 (`duplicate key value violates unique
+    constraint "referral_codes_artist_id_key"`, `referral.show()` en erreur), et
+    Streamlit re-exécute le script à chaque interaction, donc un double-clic ou deux
+    onglets suffisent chez un artiste.
+
+    `ON CONFLICT … DO UPDATE SET code = referral_codes.code` plutôt que `DO NOTHING` :
+    `DO NOTHING` ne rend AUCUNE ligne sur conflit, ce qui ramène le problème sous une
+    autre forme — il faudrait re-SELECT, et on serait à deux allers-retours pour la
+    même course. Le `DO UPDATE` réécrit la valeur existante par elle-même, ce qui est
+    un no-op, et `RETURNING` rend le code dans tous les cas.
+    """
     code = secrets.token_hex(3).upper()  # e.g. "A3F8C1"
-    db.execute_query(
-        "INSERT INTO referral_codes (artist_id, code) VALUES (%s, %s)",
+    row = db.fetch_query(
+        "INSERT INTO referral_codes (artist_id, code) VALUES (%s, %s) "
+        "ON CONFLICT (artist_id) DO UPDATE SET code = referral_codes.code "
+        "RETURNING code",
         (artist_id, code),
     )
-    return code
+    return row[0][0]
 
 
 def show():

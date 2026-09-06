@@ -98,6 +98,11 @@ def _texts(artist_id: int, category):
 # Le locataire qui a réellement produit le rapport : des lignes SoundCloud existent.
 _TENANT_WITH_DATA = 1
 # Un locataire sans aucune ligne SoundCloud — le cas où l'échec est réel.
+# Identifiant de la base de développement de ce dépôt. Les usages restants ne font
+# que LIRE — sur une base où il n'existe pas (la CI), la lecture rend « rien », ce qui
+# est exactement la situation que ces tests décrivent. Le seul usage qui ÉCRIVAIT a
+# été retiré le 2026-09-06 : il violait la clé étrangère en CI, donc le garde ne
+# prouvait rien là où il comptait le plus. N'écris jamais sur cette constante.
 _TENANT_WITHOUT_DATA = 23702
 
 
@@ -168,18 +173,37 @@ def test_an_unnamed_situation_falls_back_to_a_heading_asserting_no_cause():
 
 
 def test_the_category_survives_the_round_trip_through_the_database():
-    """Migration 086. Sans elle, le titre retombe sur le libellé neutre."""
+    """Migration 086. Sans elle, le titre retombe sur le libellé neutre.
+
+    Le locataire est FABRIQUÉ ici, et c'était le défaut. Ce test écrivait sur
+    `_TENANT_WITHOUT_DATA = 23702`, un identifiant codé en dur qui existe dans la base
+    de développement de son auteur — et dans aucune autre. Sur la CI, dont la base est
+    provisionnée à neuf avec deux locataires, l'écriture violait
+    `tenant_platform_probe_artist_id_fkey`. Le test ne prouvait donc rien là où il
+    comptait le plus, et son rouge ne parlait pas de la migration 086.
+
+    Les autres tests de ce fichier ne LISENT que des textes ; celui-ci est le seul à
+    écrire, donc le seul qui ait besoin d'une ligne réelle.
+    """
+    import uuid
+
     from src.dashboard.utils import get_db_connection
     from src.dashboard.utils.status_matrix import read_probes, save_probe
     db = get_db_connection()
+    slug = f"verdict-{uuid.uuid4().hex[:8]}"
+    aid = db.fetch_query(
+        "INSERT INTO saas_artists (name, slug, tier, active) "
+        "VALUES (%s, %s, 'free', TRUE) RETURNING id", (f"VERDICT {slug}", slug))[0][0]
     try:
-        save_probe(db, _TENANT_WITHOUT_DATA, "soundcloud", False, "x", "nothing_to_collect")
-        remembered = read_probes(db, _TENANT_WITHOUT_DATA)["soundcloud"]
+        save_probe(db, aid, "soundcloud", False, "x", "nothing_to_collect")
+        remembered = read_probes(db, aid)["soundcloud"]
         assert len(remembered) == 4, "le tuple ne porte pas la situation"
         assert remembered[3] == "nothing_to_collect"
-        save_probe(db, _TENANT_WITHOUT_DATA, "soundcloud", False, "x", None)
-        assert read_probes(db, _TENANT_WITHOUT_DATA)["soundcloud"][3] is None
+        save_probe(db, aid, "soundcloud", False, "x", None)
+        assert read_probes(db, aid)["soundcloud"][3] is None
     finally:
+        db.execute_query("DELETE FROM tenant_platform_probe WHERE artist_id = %s", (aid,))
+        db.execute_query("DELETE FROM saas_artists WHERE id = %s", (aid,))
         db.close()
 
 

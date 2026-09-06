@@ -262,6 +262,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [two-widgets-for-one-gesture](#two-widgets-for-one-gesture) | P3 | deterministic | guarded | none |
 | [page-that-nothing-routes-to](#page-that-nothing-routes-to) | P3 | deterministic | guarded | none |
 | [layout-keyed-by-a-hand-written-list](#layout-keyed-by-a-hand-written-list) | P4 | deterministic | guarded | none |
+| [check-then-insert-loses-the-race](#check-then-insert-loses-the-race) | P2 | deterministic | guarded | none |
+| [test-pinned-to-a-row-of-the-authors-database](#test-pinned-to-a-row-of-the-authors-database) | P3 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 
@@ -3444,6 +3446,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: le premier correctif n'a substitué que la VALEUR, et le digest bougeait toujours. La cause n'était pas seulement la valeur mais le `if` autour de la phrase : une branche produit deux textes différents, et une substitution ne normalise qu'un jeton. Le troisième test de ce garde existe pour cette raison, et il rougit quand on remet le branchement.
   - 2026-09-06: vu rouge par mutation sur l'arbre d'avant (branchement rétabli + `ENV_SUBSTITUTIONS = ("APP_BASE_URL",)`), vert après. Le garde lit l'AST, pas le texte : un commentaire nommant `META_BUSINESS_ID` ne peut pas le satisfaire.
+  - 2026-09-06: **troisième instance le même jour, et la plus discrète.** `test_a_printed_command_is_runnable_as_printed` exigeait le prélude PowerShell (`Set-ExecutionPolicy`, `Activate.ps1`) du bloc de génération de clé. Or `shell_block.venv_prelude()` lit le DISQUE : PowerShell si `venv/Scripts/Activate.ps1` existe, bash si `venv/bin/activate` existe, **rien** si aucun des deux — et `venv/` est gitignoré, donc un runner tombe toujours dans le troisième cas. Vert sur un poste à venv Windows, rouge sur la CI. Le docstring de `venv_prelude` annonçait le piège **pour les tests purs**, qui injectent `root` ; celui-ci rend la PAGE et ne le peut pas. Réancré sur ce que produit le constructeur (`fernet_key_command_block()`), les deux formes de prélude restant couvertes par les tests purs.
 
 ## no-db-signature-opens-a-connection
 - status: guarded
@@ -3522,3 +3525,33 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: vu rouge par trois mutations — la constante de clés rétablie, un distributeur déclaré avant Apple Music, une famille inventée sur un guide.
+
+## check-then-insert-loses-the-race
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une page qui « récupère ou crée » plante sur une contrainte d'unicité — pas toujours, pas pour tout le monde, et jamais quand on la regarde. Le message parle de doublon alors qu'il n'y a qu'un utilisateur.
+- root_cause: `src/dashboard/views/referral.py::_get_or_create_code` faisait un `SELECT code FROM referral_codes WHERE artist_id = %s`, puis, si le résultat était vide, un `INSERT`. Deux exécutions qui se croisent lisent toutes les deux « aucun code », insèrent toutes les deux, et la seconde viole `referral_codes_artist_id_key`. Ce n'est pas une condition de test : **Streamlit ré-exécute le script entier à chaque interaction**, donc un double-clic, un second onglet ou un `st.rerun` qui chevauche suffisent. Mesuré le 2026-09-06 sur six appels concurrents pour un locataire neuf : l'ancienne forme rend **3 codes et lève 3 `UniqueViolation`**, la nouvelle rend 6 codes identiques et ne lève rien. Trouvé par la CI (`referral.show()` en erreur dans le render-smoke) après 27 exécutions où la suite n'avait pas tourné.
+- signature: `python3 -m pytest tests/test_a_get_or_create_survives_two_renders.py -q`
+- long_term_fix: une seule instruction — `INSERT … ON CONFLICT (artist_id) DO UPDATE SET code = referral_codes.code RETURNING code`. `DO UPDATE` et non `DO NOTHING` : ce dernier ne rend AUCUNE ligne sur conflit, ce qui oblige à re-lire et ramène la course sous une autre forme. Le garde a deux moitiés, et il faut les deux : l'AST interdit un `if` dans la fonction et exige `ON CONFLICT` sur tout `INSERT`, et une mesure lance six fils concurrents sur un locataire jetable. La moitié AST seule serait satisfaite par une forme correcte-en-apparence ; la moitié concurrente seule passerait par chance.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_get_or_create_survives_two_renders.py }
+- rex_ref: src/dashboard/views/referral.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge en rétablissant le `SELECT`-puis-`INSERT`, vert après. Le garde AST lit la structure et non le texte, parce que le docstring du correctif CITE la requête fautive pour l'expliquer — une recherche de chaîne rougirait sur sa propre explication.
+
+## test-pinned-to-a-row-of-the-authors-database
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un test est vert chez son auteur et rouge partout ailleurs, sur une erreur de base de données qui ne parle pas du sujet gardé — une clé étrangère, une ligne absente. On lit le rouge comme un problème d'infrastructure.
+- root_cause: `tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py:101` déclarait `_TENANT_WITHOUT_DATA = 23702`, l'identifiant d'un locataire de la base de développement de son auteur. Les usages en LECTURE s'en accommodent — sur une base où la ligne n'existe pas, lire rend « rien », ce qui est justement la situation décrite. Mais `test_the_category_survives_the_round_trip_through_the_database` ÉCRIVAIT dessus, et la CI provisionne une base neuve à deux locataires : `insert or update on table "tenant_platform_probe" violates foreign key constraint`. Le garde de la migration 086 ne prouvait donc rien là où il comptait le plus, et son rouge ne parlait pas de la migration.
+- signature: `python3 -m pytest tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py -q`
+- long_term_fix: le test FABRIQUE son locataire (`INSERT … RETURNING id`) et l'efface en `finally`, comme `test_the_tab_bar_skips_what_is_done` le fait déjà. La constante survit pour les lectures, avec la consigne écrite à côté d'elle : ne jamais écrire dessus. La distinction lecture/écriture est le point — la remplacer partout aurait changé le sens des tests de rendu, qui décrivent bien « un locataire sans données ».
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py }
+- rex_ref: tests/test_the_verdict_does_not_assert_an_unmeasured_cause.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: balayage AST de `tests/` pour la classe — deux constantes d'identifiant en dur, dont une (`_TEST_TENANT = 999999`) ne sert qu'à des chemins de fichiers et ne touche aucune table. Une seule était le défaut.

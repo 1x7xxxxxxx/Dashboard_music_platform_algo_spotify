@@ -188,10 +188,30 @@ def test_the_page_actually_shows_the_block_when_the_key_is_missing():
     blocks = [c for c in at.code if "Fernet.generate_key" in c.value]
     assert blocks, "la page n'affiche aucun bloc de génération de clé"
     shown = blocks[0]
-    lines = shown.value.splitlines()
-    assert lines[0] == "Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned"
-    assert lines[1].startswith("& ") and lines[1].endswith("Activate.ps1")
-    assert shown.language == "powershell"
+
+    # RÉANCRÉ le 2026-09-06. Ces trois lignes exigeaient le prélude PowerShell —
+    # `Set-ExecutionPolicy`, `& …Activate.ps1`, `language == "powershell"`. Or
+    # `venv_prelude()` lit le DISQUE : il rend PowerShell si `venv/Scripts/
+    # Activate.ps1` existe, bash si `venv/bin/activate` existe, et RIEN si aucun des
+    # deux — ce qui est le cas sur un runner, `venv/` étant gitignoré. Le test était
+    # donc vert sur un poste avec un venv Windows et rouge sur la CI, pour une
+    # propriété de la machine et non du code. C'est la troisième instance de
+    # `guard-predicate-depends-on-the-host-env` en une journée, et le docstring de
+    # `venv_prelude` annonçait déjà le piège pour les tests purs — pas pour celui-ci,
+    # qui rend la PAGE et ne peut donc pas injecter `root`.
+    #
+    # La question réellement gardée est ailleurs : la page montre-t-elle CE QUE LE
+    # CONSTRUCTEUR PRODUIT, sans seconde copie ? Les deux formes de prélude sont
+    # couvertes par les tests purs plus haut, qui fabriquent l'arborescence dans un
+    # `tmp_path` et n'ont besoin d'aucune machine particulière.
+    expected_lang, expected_block = fernet_key_command_block()
+    assert shown.value == expected_block, (
+        "la page n'affiche pas le bloc du constructeur — une seconde copie a été "
+        f"écrite quelque part.\n  page   : {shown.value!r}\n  builder: "
+        f"{expected_block!r}")
+    assert shown.language == expected_lang
+    # Et quel que soit le shell, la dernière ligne EST la commande.
+    assert shown.value.splitlines()[-1].startswith('python -c "from cryptography')
 
     # Le message d'accompagnement ne doit plus porter la commande : deux copies
     # divergent, et c'est celle du Markdown que le lecteur attrapait avec ses

@@ -241,13 +241,22 @@ show()
 
     bars = [e for e in flat(at.main) if type(e).__name__ == "ButtonGroup"]
     assert bars, "la barre d'onglets a disparu"
-    labels = str(bars[0])
-    assert "🟢" in labels, (
+    # Texte ET icône. Streamlit extrait l'emoji de TÊTE d'une option dans
+    # `content_icon`, absent du `repr` — et la marque 🟢 est justement un préfixe.
+    # Mesuré le 2026-09-06 : la barre portait `('🎵 Spotify', '🟢')` pendant que ce
+    # test lisait « aucun vert » sur `str(bars[0])`. Il interrogeait la
+    # représentation de l'objet, pas l'objet.
+    proto = getattr(bars[0], "proto", None)
+    options = ([f"{getattr(o, 'content_icon', '')} {o.content}" for o in proto.options]
+               if proto is not None else [str(bars[0])])
+    green = [o for o in options if "🟢" in o]
+    assert green, (
         "aucun onglet n'est en VERT alors que ce locataire a des credentials : "
-        "l'artiste ne distingue plus ce qui reste à configurer de ce qui est fait")
+        f"l'artiste ne distingue plus ce qui reste à configurer de ce qui est fait "
+        f"({options})")
     # Et la marque ne doit pas être partout, sinon elle ne distingue rien.
-    assert labels.count("🟢") < labels.count("content:"), (
-        "tous les onglets portent la marque — elle ne sépare plus rien")
+    assert len(green) < len(options), (
+        f"tous les onglets portent la marque — elle ne sépare plus rien ({options})")
 
 
 # ── La chaîne ENTIÈRE, pas seulement son maillon central ─────────────────────
