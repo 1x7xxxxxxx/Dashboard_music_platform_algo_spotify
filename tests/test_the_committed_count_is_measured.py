@@ -32,17 +32,29 @@ n'était pas une alerte, c'était le chiffre.
 from __future__ import annotations
 
 import ast
+import functools
 import pathlib
 
 import pytest
 
 _VIEW = pathlib.Path("src/dashboard/views/upload_csv.py")
-_TREE = ast.parse(_VIEW.read_text(encoding="utf-8"))
+
+
+@functools.lru_cache(maxsize=1)
+def _tree() -> ast.Module:
+    """L'AST de la vue, lu À L'APPEL et non à l'import.
+
+    Une lecture au niveau module lève `FileNotFoundError` à la collecte le jour où
+    le fichier surveillé disparaît : pytest rapporte alors « errors » sans nommer
+    une seule des propriétés perdues. Cliquet du dépôt —
+    `tests/test_a_test_file_is_collectable_without_what_it_watches.py`.
+    """
+    return ast.parse(_VIEW.read_text(encoding="utf-8"))
 
 
 def _import_loop() -> ast.For:
     """La boucle qui écrit les fichiers en base, trouvée par son appel à upsert_many."""
-    for loop in [n for n in ast.walk(_TREE) if isinstance(n, ast.For)]:
+    for loop in [n for n in ast.walk(_tree()) if isinstance(n, ast.For)]:
         for node in ast.walk(loop):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                     and node.func.attr == "upsert_many"):
@@ -87,7 +99,7 @@ def test_the_measured_delta_reaches_the_screen():
 
 def test_the_count_helper_validates_its_table():
     """`table` vient d'un registre en dur, mais l'allowlist reste obligatoire (règle #8)."""
-    fn = next(n for n in ast.walk(_TREE)
+    fn = next(n for n in ast.walk(_tree())
               if isinstance(n, ast.FunctionDef) and n.name == "_rows_in_table")
     names = {n.func.id for n in ast.walk(fn)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
