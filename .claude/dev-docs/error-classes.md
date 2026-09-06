@@ -276,6 +276,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [bulk-write-reads-only-the-first-row](#bulk-write-reads-only-the-first-row) | P2 | deterministic | guarded | none |
 | [a-guess-that-leaves-no-trace](#a-guess-that-leaves-no-trace) | P2 | deterministic | guarded | none |
 | [a-count-that-is-claimed-not-measured](#a-count-that-is-claimed-not-measured) | P2 | deterministic | guarded | none |
+| [message-written-before-a-rerun](#message-written-before-a-rerun) | P3 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3870,3 +3871,18 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: vu rouge sur trois mutations — figer le compte d'avant à `0`, retirer le delta du tableau, retirer `validate_table` du helper ; vert après chacune.
+
+## message-written-before-a-rerun
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une action réussit, son message est écrit, et l'écran est vide. Le code est correct, la fonction appelée a fait son travail, et aucun test de rendu ne voit rien — le rendu EST produit, puis jeté.
+- root_cause: Streamlit ré-exécute le script de zéro sur `st.rerun()`. Tout `st.success` / `st.warning` / `st.caption` / `st.dataframe` posé avant lui dans le même passage n'est jamais vu. Ce dépôt l'a payé trois fois : le verdict de sauvegarde des credentials, le démarrage automatique de la collecte, puis le 2026-09-06 six messages du bloc d'import CSV (collecte démarrée, référentiel de sorties, agrégations iMusician et DistroKid) — au moment précis où vider la zone de dépôt a imposé un rerun à la fin du même bloc. Les deux premières occurrences avaient été corrigées une par une, sans garde : la troisième était donc inévitable.
+- signature: `python3 -m pytest tests/test_nothing_is_written_before_a_rerun.py -q`
+- long_term_fix: accumuler, poser en session, rendre après le rerun. Le garde lit l'AST de la vue, trouve les blocs dont le corps se termine par `st.rerun()` et refuse tout appel d'écriture dans les instructions qui le précèdent. Les widgets (`st.button`, `st.text_input`, `st.selectbox`) sont explicitement hors du jeu : leur valeur est relue au passage suivant, ils ne perdent rien.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_nothing_is_written_before_a_rerun.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge sur trois mutations — un `st.success` réintroduit avant le rerun, une cible de navigation absente d'`app.py`, la disparition du vidage de la zone de dépôt ; vert après chacune. Le garde vérifie aussi qu'un rerun EXISTE encore : sans lui il ne mesurerait rien, et il serait vert pour cette raison.

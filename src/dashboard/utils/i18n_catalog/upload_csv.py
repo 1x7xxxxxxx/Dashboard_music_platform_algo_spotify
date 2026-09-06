@@ -33,7 +33,6 @@ EN = {
     # traduisaient : le mode d'emploi du relevé SACEM vit dans la vue 🎼 Royalties
     # SACEM (`sacem.howto_*`), là où on se trouve quand on en cherche un.
     # Detection table
-    "upload_csv.detection_header": "🔍 Detection — {n} file(s)",
     "upload_csv.err_unknown_type": "Unrecognized type — check the filename and the file columns.",
     "upload_csv.err_unknown_cols": " Columns seen: {cols}",
     "upload_csv.err_no_valid_rows": "No valid rows detected after parsing.",
@@ -77,16 +76,27 @@ EN = {
     ),
     "upload_csv.dk_failed": "⚠️ DistroKid revenue aggregation not performed: {err}",
     # Results section
-    "upload_csv.results_header": "📋 Import results",
-    "upload_csv.metric_processed": "Files processed",
-    "upload_csv.metric_inserted": "Rows inserted / updated",
-    "upload_csv.metric_errors": "Files with errors",
-    "upload_csv.metric_skipped": "Files skipped (unknown type)",
-    "upload_csv.col_type": "Type",
-    "upload_csv.col_table": "Table",
-    "upload_csv.col_processed_rows": "Processed rows",
     "upload_csv.col_merged": "Merged",
     "upload_csv.col_added": "New in database",
-    "upload_csv.status_ok": "✅ OK",
+    "upload_csv.status_imported": "✅ Imported",
+    "upload_csv.song_many": "{n} titles",
+    # Detection banner — the count IS the headline
+    "upload_csv.detection_count": "Detection: {ok}/{total} files recognised",
+    "upload_csv.detection_asked_one": "{n} file to complete",
+    "upload_csv.detection_asked_many": "{n} files to complete",
+    "upload_csv.detection_bad_one": "{n} file to fix",
+    "upload_csv.detection_bad_many": "{n} files to fix",
+    # After the import — rendered past the rerun that clears the drop zone
+    "upload_csv.done_all": (
+        "✅ Import done: {ok} file(s), {rows} row(s) in the database. "
+        "The files were removed from the drop zone."),
+    "upload_csv.done_partial": (
+        "⚠️ Import finished: {ok} file(s) imported, {err} failed — "
+        "{rows} row(s) in the database."),
+    "upload_csv.mapping_why": (
+        "Your files come from several platforms, which do not spell titles the same "
+        "way. Cross-platform mapping matches them so your figures add up on the "
+        "right track."),
+    "upload_csv.mapping_cta": "🔗 Confirm track names (cross-platform mapping) →",
     "upload_csv.err_songs_all": "The « Since start » export cannot be used: Spotify returns listeners and saves as **zero** there. It is not the filename — renaming it changes nothing. Re-export with the period set to **12 months** (`…-songs-1year.csv`).",
 }

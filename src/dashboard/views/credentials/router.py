@@ -442,10 +442,29 @@ def show():
             return "todo" if failed else "ok"
 
         _MARK = {"ok": "🟢 ", "todo": "⚠️ ", "": ""}
+
+        # L'ONGLET DES FICHIERS PORTE LA MÊME PASTILLE QUE LES AUTRES.
+        #
+        # Il était le seul sans marque : un artiste qui venait d'importer quinze
+        # fichiers voyait onze onglets verts et celui-là gris, donc le refaisait.
+        # Demandé le 2026-09-06 : « intègre le logo import CSV en vert si c'est
+        # réussi ».
+        #
+        # Le verdict se lit dans la DONNÉE, pas dans un drapeau de session : des
+        # lignes S4A en base pour ce locataire. C'est la même mesure que l'étape
+        # « CSV » de la mise en route, prise par la même fonction — deux surfaces
+        # qui affirment la même chose ne doivent pas la calculer différemment.
+        from src.dashboard.utils.setup_completion import read_setup_state
+        try:
+            _setup = read_setup_state(db, target_artist_id)
+            _csv_done = any(step.key == "s4a" and step.done for step in _setup.steps)
+        except Exception:  # noqa: BLE001 — une pastille absente vaut mieux qu'un écran mort
+            _csv_done = False
+
         _tab_label = {
             k: f"{_MARK[_tab_state(k)]}{info['label']}"
             for k, info in ordered
-        } | {_CSV_KEY: _CSV_TAB}
+        } | {_CSV_KEY: f"{_MARK['ok'] if _csv_done else ''}{_CSV_TAB}"}
 
         def _tab_of(logical: str) -> str:
             dest = platform_destination(logical)

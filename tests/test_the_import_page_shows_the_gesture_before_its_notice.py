@@ -186,22 +186,52 @@ def test_a_fully_recognised_batch_imports_without_a_second_click():
 
     Ajouté après avoir muté le correctif et vu ce fichier rester VERT : rien n'y
     interrogeait le déclenchement automatique.
+
+    RÉÉCRIT le 2026-09-06 au soir. La première version épinglait la FORME
+    `if _auto or st.button(...)` et rougissait sur un changement qui renforçait la
+    propriété : le bouton est passé dans une variable pour être rendu même quand
+    l'automatisme court-circuite le `or`. Un garde qui interdit une amélioration
+    mesure une syntaxe, pas un comportement.
+
+    Deux propriétés, et elles sont indépendantes :
+
+    1. le bouton est RENDU dans tous les cas — demandé après un parcours réel :
+       « même si l'import est lancé automatiquement, il faut quand même mettre le
+       bouton pour valider l'action ». Un `st.button` posé dans le `or` n'est pas
+       évalué quand la gauche est vraie : il disparaît de l'écran exactement les
+       jours où tout va bien ;
+    2. il reste une ALTERNATIVE, pas la seule porte : un lot entièrement reconnu
+       n'offre aucun arbitrage, donc exiger le clic serait une étape de plus.
     """
     fn = _fn(_UPLOAD, "render_uploader")
     src = ast.unparse(fn)
 
-    # Le bouton doit être une ALTERNATIVE au démarrage automatique, pas la seule
-    # porte : `if _auto or st.button(...)`.
+    # 1. Le bouton est rendu au niveau instruction, hors de toute condition d'import.
+    clicked_names = {
+        t.id
+        for n in ast.walk(fn) if isinstance(n, ast.Assign)
+        and isinstance(n.value, ast.Call)
+        and getattr(n.value.func, "attr", "") == "button"
+        for t in n.targets if isinstance(t, ast.Name)
+    }
+    assert clicked_names, (
+        "`st.button` n'est plus appelé au niveau instruction : placé dans un `or`, "
+        "il n'est pas évalué quand le démarrage automatique est vrai — donc le "
+        "bouton DISPARAÎT de l'écran précisément les jours où tout est reconnu.")
+
+    # 2. …et l'import part aussi sans lui.
     guarded = [n for n in ast.walk(fn)
                if isinstance(n, ast.If)
                and isinstance(n.test, ast.BoolOp)
-               and any(isinstance(v, ast.Call)
-                       and getattr(v.func, "attr", "") == "button"
+               and isinstance(n.test.op, ast.Or)
+               and any(isinstance(v, ast.Name) and v.id in clicked_names
+                       for v in n.test.values)
+               and any(not (isinstance(v, ast.Name) and v.id in clicked_names)
                        for v in n.test.values)]
     assert guarded, (
         "l'import ne part QUE sur un clic : un lot entièrement reconnu n'offre "
         "aucun arbitrage, donc le bouton y est une étape de plus, pas une décision. "
-        "Attendu `if <auto> or st.button(...)`.")
+        "Attendu `if <auto> or <résultat du bouton>:`.")
 
     assert "session_state" in src, (
         "le démarrage automatique n'est borné par rien : Streamlit ré-exécute le "

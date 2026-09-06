@@ -475,6 +475,116 @@ def _archive_ok(artist_id: int, result: dict) -> None:
 # Ce module n'est plus une PAGE : c'est le composant de dépôt que l'onglet
 # « 📂 Mes fichiers » de Credentials rend, et le seul du produit.
 
+def _first_song(entry: dict) -> str:
+    """Le titre que ce fichier va écrire, quand il en porte un.
+
+    Sur une timeline S4A, il vient du NOM du fichier et de rien d'autre :
+    `export (1).csv` s'importe sans erreur sous un morceau nommé « export (1) ».
+    L'afficher est ce qui rend une déduction fausse visible AVANT la base.
+
+    Les autres formats portent le titre dans la donnée (`song_name`) : on le montre
+    aussi, parce que c'est la clé sur laquelle le mapping cross-plateforme devra
+    rapprocher les plateformes — et l'artiste doit pouvoir le lire ici.
+    """
+    rows = entry.get('rows') or []
+    if not rows:
+        return ''
+    first = rows[0]
+    value = first.get('song') or first.get('song_name') or ''
+    if len(rows) > 1:
+        distinct = {r.get('song') or r.get('song_name') for r in rows}
+        if len(distinct) > 1:
+            return t("upload_csv.song_many", "{n} titres").format(n=len(distinct))
+    return str(value)
+
+
+def _uploader_key(artist_id: int) -> str:
+    """Clé du dépôt, portant un compteur qu'on incrémente pour LE VIDER.
+
+    Streamlit n'offre aucun moyen d'effacer un `file_uploader` : réécrire sa clé de
+    session lève. Changer la clé du widget en crée un neuf, donc vide.
+
+    Pourquoi le vider : après un import, les quinze fichiers restaient affichés dans
+    la zone de dépôt. Un écran qui montre encore ce qu'on vient de déposer se lit
+    « rien n'est parti » — demandé le 2026-09-06, « il faut enlever les fichiers dès
+    qu'on a lancé la détection, car ça fait pas import exécuté ».
+    """
+    nonce = st.session_state.get(f"_csv_uploader_nonce_{artist_id}", 0)
+    return f"multi_upload_{artist_id}_{nonce}"
+
+
+def _clear_uploader(artist_id: int) -> None:
+    """Vide la zone de dépôt en changeant la clé du widget."""
+    key = f"_csv_uploader_nonce_{artist_id}"
+    st.session_state[key] = st.session_state.get(key, 0) + 1
+
+
+def _last_result_key(artist_id: int) -> str:
+    return f"_csv_last_result_{artist_id}"
+
+
+def _render_after_import(db, artist_id: int, result: dict) -> None:
+    """Le bilan d'un import, rendu APRÈS que la zone de dépôt a été vidée.
+
+    Il survit au rerun par la session : `st.rerun()` efface tout ce qui a été écrit
+    avant lui, et c'est le défaut exact qui avait rendu invisibles le verdict de
+    sauvegarde puis le démarrage automatique de la collecte. Même parade.
+
+    UN SEUL TABLEAU. La détection et le résultat en tenaient deux qui disaient les
+    mêmes choses — le fichier, son type, son compte — à quinze lignes d'intervalle.
+    """
+    n_ok = result.get('n_ok', 0)
+    n_err = result.get('n_err', 0)
+    total = result.get('total_rows', 0)
+
+    if n_err:
+        st.warning(t(
+            "upload_csv.done_partial",
+            "⚠️ Import terminé : {ok} fichier(s) importé(s), {err} en erreur — "
+            "{rows} ligne(s) en base."
+        ).format(ok=n_ok, err=n_err, rows=f"{total:,}"))
+    else:
+        st.success(t(
+            "upload_csv.done_all",
+            "✅ Import exécuté : {ok} fichier(s), {rows} ligne(s) en base. "
+            "Les fichiers ont été retirés de la zone de dépôt."
+        ).format(ok=n_ok, rows=f"{total:,}"))
+
+    rows = result.get('rows') or []
+    if rows:
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width='stretch')
+
+    # Les messages collectés PENDANT l'import — démarrage de la collecte,
+    # référentiel de sorties, agrégations de revenus. Écrits avant le rerun, ils
+    # auraient tous disparu.
+    _WRITER = {"success": st.success, "warning": st.warning, "caption": st.caption}
+    for kind, text in result.get('notes') or []:
+        _WRITER.get(kind, st.caption)(text)
+
+    _render_mapping_cta(artist_id)
+
+
+def _render_mapping_cta(artist_id: int) -> None:
+    """Le geste SUIVANT, nommé et cliquable.
+
+    Un import réussi laisse une question ouverte que nous ne pouvons pas trancher :
+    « Kimono à semelle de fer » chez Spotify et « Kimono a semelle de fer » chez
+    Apple sont-ils le même morceau ? C'est le rôle du mapping cross-plateforme, et
+    l'artiste n'avait aucune raison d'aller l'y chercher dans la barre latérale.
+    """
+    st.markdown("---")
+    st.caption(t(
+        "upload_csv.mapping_why",
+        "Tes fichiers viennent de plusieurs plateformes, qui n'écrivent pas les "
+        "titres de la même façon. Le mapping les rapproche pour que tes chiffres "
+        "s'additionnent sur le bon morceau."))
+    if st.button(t("upload_csv.mapping_cta",
+                   "🔗 Confirmer le nom des titres (mapping cross-plateforme) →"),
+                 type="primary", key=f"_csv_to_mapping_{artist_id}"):
+        st.session_state['_nav_page'] = 'meta_mapping'
+        st.rerun()
+
+
 def render_uploader(db, target_artist_id: int) -> None:
     """Le dépôt de fichiers, sans titre ni ouverture de connexion.
 
@@ -522,7 +632,7 @@ def render_uploader(db, target_artist_id: int) -> None:
                "Glissez tous vos fichiers en même temps. "
                "Le type (S4A timeline, audience, songs-all, Apple, iMusician, "
                "DistroKid, SACEM relevé .xlsx…) est détecté automatiquement."),
-        key=f"multi_upload_{target_artist_id}",
+        key=_uploader_key(target_artist_id),
     )
 
     # LES GUIDES SONT RENDUS EN DERNIER quand des fichiers sont déposés — voir la fin
@@ -534,16 +644,20 @@ def render_uploader(db, target_artist_id: int) -> None:
     # Entre les deux il y a la même idée : ce qu'on regarde après avoir déposé, c'est
     # le résultat, pas la marche à suivre pour déposer.
     if not uploaded_files:
+        # LE BILAN DU DERNIER IMPORT, s'il vient d'avoir lieu. On arrive ici juste
+        # après avoir vidé la zone de dépôt, donc c'est le SEUL endroit où ce bilan
+        # peut se lire : sans lui, l'écran redeviendrait vierge et l'import n'aurait
+        # laissé aucune trace visible.
+        _last = st.session_state.pop(_last_result_key(target_artist_id), None)
+        if _last:
+            _render_after_import(db, target_artist_id, _last)
+            st.markdown("---")
         from src.dashboard.content.csv_guides_st import render_csv_guides
         render_csv_guides()
         return
 
     # ── Détection + parsing de tous les fichiers ───────────────────
     st.markdown("---")
-    st.subheader(
-        t("upload_csv.detection_header", "🔍 Détection — {n} fichier(s)")
-        .format(n=len(uploaded_files))
-    )
 
     file_results = []  # list of dicts: filename, platform_key, label, rows, error
 
@@ -641,7 +755,46 @@ def render_uploader(db, target_artist_id: int) -> None:
         except Exception:  # noqa: BLE001 — journaliser ne doit jamais bloquer l'écran
             pass
 
-    # ── Tableau de détection ───────────────────────────────────────
+    # ── Le titre PORTE le compte, et sa couleur porte le verdict ───
+    #
+    # « 🔍 Détection — 15 fichier(s) » ne disait que ce qu'on avait déposé. Le
+    # chiffre qui compte est celui des fichiers RECONNUS sur le total, et il doit se
+    # lire sans parcourir le tableau. Demandé le 2026-09-06.
+    #
+    # Le pluriel est accordé pour de vrai : « 15 fichier(s) à corriger » se lisait
+    # comme quinze problèmes alors qu'il y en avait un.
+    _n_total = len(file_results)
+    _n_ready = sum(1 for r in file_results if not r['error'])
+    _n_asked = sum(1 for r in file_results if r.get('asks'))
+    _n_bad = _n_total - _n_ready - _n_asked
+
+    _head = t("upload_csv.detection_count", "Détection : {ok}/{total} fichiers reconnus") \
+        .format(ok=_n_ready, total=_n_total)
+    if _n_ready == _n_total:
+        st.success(f"✅ {_head}")
+    else:
+        _parts = []
+        if _n_asked:
+            _parts.append(t("upload_csv.detection_asked_one", "{n} fichier à compléter")
+                          .format(n=_n_asked) if _n_asked == 1 else
+                          t("upload_csv.detection_asked_many", "{n} fichiers à compléter")
+                          .format(n=_n_asked))
+        if _n_bad:
+            _parts.append(t("upload_csv.detection_bad_one", "{n} fichier à corriger")
+                          .format(n=_n_bad) if _n_bad == 1 else
+                          t("upload_csv.detection_bad_many", "{n} fichiers à corriger")
+                          .format(n=_n_bad))
+        _banner = f"{_head} — {', '.join(_parts)}"
+        (st.error if _n_bad else st.warning)(
+            f"{'❌' if _n_bad else '⚠️'} {_banner}")
+
+    # ── UN SEUL TABLEAU ────────────────────────────────────────────
+    #
+    # Il y en avait deux — « Détection » puis « Résultats de l'import » — qui
+    # nommaient le même fichier, le même type et un compte, à quinze lignes
+    # d'intervalle. Consolidés le 2026-09-06 : celui-ci porte les colonnes de
+    # résultat, vides tant que l'import n'a pas eu lieu, et c'est LUI qu'on
+    # mémorise pour le réafficher après.
     summary_rows = []
     for r in file_results:
         if r.get('asks'):
@@ -659,13 +812,16 @@ def render_uploader(db, target_artist_id: int) -> None:
         # s'importe sans erreur sous un morceau nommé « export (1) ». Le montrer est
         # ce qui rend une déduction fausse visible AVANT qu'elle n'entre en base —
         # la colonne reste vide pour tous les autres types.
+        # Les colonnes de résultat sont posées VIDES dès maintenant : `dict.update`
+        # conserve l'ordre d'insertion, donc les déclarer ici est ce qui garde
+        # « Statut » en dernière colonne une fois l'import fait.
         summary_rows.append({
             t("upload_csv.col_file", "Fichier"): r['filename'],
             t("upload_csv.col_detected_type", "Type détecté"): r['label'],
-            t("upload_csv.col_song", "Titre retenu"): (
-                r['rows'][0].get('song', '') if r.get('platform_key') == 's4a'
-                and r.get('rows') else ''),
+            t("upload_csv.col_song", "Titre retenu"): _first_song(r),
             t("upload_csv.col_rows", "Lignes"): count,
+            t("upload_csv.col_merged", "Fusionnées"): '',
+            t("upload_csv.col_added", "Nouvelles en base"): '',
             t("upload_csv.col_status", "Statut"): status,
         })
 
@@ -774,16 +930,41 @@ def render_uploader(db, target_artist_id: int) -> None:
     _signature = tuple(sorted((r['filename'], len(r['rows'])) for r in ok_results))
     _AUTO_KEY = f"_csv_autoimport_{target_artist_id}"
     _auto = bool(ok_results) and not n_skip and st.session_state.get(_AUTO_KEY) != _signature
+
+    # LE BOUTON EST RENDU DANS TOUS LES CAS, y compris quand le déclenchement
+    # automatique va faire le travail au même passage. Demandé le 2026-09-06 :
+    # « même si l'import est lancé automatiquement, il faut quand même mettre le
+    # bouton pour valider l'action à faire ».
+    #
+    # Ce n'est pas une redondance : une action qui se produit sans qu'aucun contrôle
+    # ne la porte à l'écran ne se distingue pas d'une action qui ne s'est pas
+    # produite — c'est exactement ce qui s'est passé le jour où l'artiste a lu
+    # « ✅ Prêt » et cru l'import fait. Le bouton nomme le geste ; l'automatisme
+    # évite d'avoir à le cliquer quand il n'y a rien à arbitrer.
+    _clicked = st.button(label, type="primary", key=f"_csv_import_{target_artist_id}",
+                         width="stretch")
     if _auto:
         st.session_state[_AUTO_KEY] = _signature
         st.info(t("upload_csv.auto_import",
                   "🚀 Les {n} fichiers sont reconnus — import lancé automatiquement.")
                 .format(n=n_ok))
 
-    if _auto or st.button(label, type="primary"):
-        result_rows = []
+    if _auto or _clicked:
+        # LE TABLEAU DE RÉSULTAT EST LE TABLEAU DE DÉTECTION, complété.
+        # Deux tableaux disaient le fichier, le type et un compte à quinze lignes
+        # d'intervalle ; celui-ci est le même objet, enrichi en place.
+        _row_for = dict(zip([r['filename'] for r in file_results], summary_rows))
         total_ok = 0
         total_err = 0
+        # LES MESSAGES D'APRÈS-IMPORT SONT COLLECTÉS, PAS ÉCRITS.
+        #
+        # Tout ce qui suit se termine par `st.rerun()` — nécessaire pour vider la
+        # zone de dépôt — et un rerun efface tout ce qui a été écrit avant lui. Six
+        # messages vivaient ici (démarrage de la collecte, référentiel de sorties,
+        # agrégations iMusician et DistroKid) : les laisser en `st.success` les
+        # aurait rendus invisibles, exactement comme le verdict de sauvegarde l'a
+        # été. Ils voyagent donc par la session et sont rendus après le rerun.
+        _notes: list[tuple[str, str]] = []
 
         for r in ok_results:
             cfg = _PLATFORMS[r['platform_key']]
@@ -816,15 +997,13 @@ def render_uploader(db, target_artist_id: int) -> None:
                 # the one worth keeping is a file that imported cleanly and still
                 # produced numbers that look wrong a week later.
                 _archive_ok(target_artist_id, r)
-                result_rows.append({
-                    t("upload_csv.col_file", "Fichier"): r['filename'],
-                    t("upload_csv.col_type", "Type"): r['label'],
-                    t("upload_csv.col_table", "Table"): cfg['table'],
-                    t("upload_csv.col_processed_rows", "Lignes traitées"): count,
+                _row_for[r['filename']].update({
+                    t("upload_csv.col_rows", "Lignes"): count,
                     t("upload_csv.col_merged", "Fusionnées"): (
                         merged if merged > 0 else ''),
                     t("upload_csv.col_added", "Nouvelles en base"): added,
-                    t("upload_csv.col_status", "Statut"): t("upload_csv.status_ok", "✅ OK"),
+                    t("upload_csv.col_status", "Statut"): t(
+                        "upload_csv.status_imported", "✅ Importé"),
                 })
                 # LA SÉRIALISATION EST ÉCRITE AUSSI SUR LE SUCCÈS. Un fichier lu
                 # avec le mauvais séparateur ne lève pas : il importe des chiffres
@@ -841,11 +1020,8 @@ def render_uploader(db, target_artist_id: int) -> None:
                 )
             except Exception as exc:
                 total_err += 1
-                result_rows.append({
-                    t("upload_csv.col_file", "Fichier"): r['filename'],
-                    t("upload_csv.col_type", "Type"): r['label'],
-                    t("upload_csv.col_table", "Table"): cfg['table'],
-                    t("upload_csv.col_processed_rows", "Lignes traitées"): 0,
+                _row_for[r['filename']].update({
+                    t("upload_csv.col_rows", "Lignes"): 0,
                     t("upload_csv.col_merged", "Fusionnées"): '',
                     t("upload_csv.col_added", "Nouvelles en base"): 0,
                     t("upload_csv.col_status", "Statut"): f'❌ {exc}',
@@ -883,18 +1059,18 @@ def render_uploader(db, target_artist_id: int) -> None:
         except Exception:  # noqa: BLE001 — un démarrage raté ne casse pas l'import
             pass
         if _launched:
-            st.success(t(
+            _notes.append(("success", t(
                 "upload_csv.autostart_ok",
                 "🚀 Ta configuration est complète — la collecte vient de démarrer "
                 "toute seule ({n} sources). Tes premiers chiffres arrivent d'ici "
-                "quelques minutes.").format(n=len(_launched)))
+                "quelques minutes.").format(n=len(_launched))))
         elif _not_launched:
             # On le DIT. Un démarrage automatique qui échoue en silence laisse
             # l'artiste devant une quatrième étape ⬜ sans savoir qu'on a essayé.
-            st.warning(t(
+            _notes.append(("warning", t(
                 "upload_csv.autostart_failed",
                 "⚠️ La collecte automatique n'a pas pu démarrer. Lance-la depuis la "
-                "barre latérale, ou réessaie plus tard."))
+                "barre latérale, ou réessaie plus tard.")))
 
         # If S4A global summary was imported, rebuild the canonical
         # release-date reference (authoritative source for "latest release"
@@ -904,13 +1080,15 @@ def render_uploader(db, target_artist_id: int) -> None:
                 from src.utils.track_matching import rebuild_release_reference
                 n_ref = rebuild_release_reference(db, target_artist_id)
                 if n_ref:
-                    st.caption(t("upload_csv.ref_updated",
-                                 "🎵 Référentiel de sorties mis à jour ({n} titres).")
-                               .format(n=n_ref))
+                    _notes.append(("caption", t(
+                        "upload_csv.ref_updated",
+                        "🎵 Référentiel de sorties mis à jour ({n} titres).")
+                        .format(n=n_ref)))
             except Exception as exc:  # noqa: BLE001 — reference is best-effort
-                st.caption(t("upload_csv.ref_failed",
-                             "⚠️ Référentiel de sorties non mis à jour : {err}")
-                           .format(err=exc))
+                _notes.append(("caption", t(
+                    "upload_csv.ref_failed",
+                    "⚠️ Référentiel de sorties non mis à jour : {err}")
+                    .format(err=exc)))
 
         # If an iMusician sales report was imported, roll its per-line detail up
         # into monthly_revenue so the Distributeur view + ROI surface it. Manual
@@ -920,13 +1098,15 @@ def render_uploader(db, target_artist_id: int) -> None:
                 from src.utils.imusician_rollup import rollup_sales_to_monthly
                 n_months = rollup_sales_to_monthly(db, target_artist_id)
                 if n_months:
-                    st.caption(t("upload_csv.monthly_aggregated",
-                                 "💰 Revenus mensuels agrégés ({n} mois) — visibles dans Distributeur.")
-                               .format(n=n_months))
+                    _notes.append(("caption", t(
+                        "upload_csv.monthly_aggregated",
+                        "💰 Revenus mensuels agrégés ({n} mois) — visibles dans Distributeur.")
+                        .format(n=n_months)))
             except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
-                st.caption(t("upload_csv.monthly_failed",
-                             "⚠️ Agrégation des revenus mensuels non effectuée : {err}")
-                           .format(err=exc))
+                _notes.append(("caption", t(
+                    "upload_csv.monthly_failed",
+                    "⚠️ Agrégation des revenus mensuels non effectuée : {err}")
+                    .format(err=exc)))
 
         # Same monthly roll-up for DistroKid, with the USD→EUR rate chosen above.
         if any(r['platform_key'] == 'distrokid_sales' for r in ok_results):
@@ -934,27 +1114,37 @@ def render_uploader(db, target_artist_id: int) -> None:
                 from src.utils.distrokid_rollup import rollup_sales_to_monthly as dk_rollup
                 n_months = dk_rollup(db, target_artist_id, fx_rate=fx_rate)
                 if n_months:
-                    st.caption(t("upload_csv.dk_aggregated",
-                                 "💰 Revenus DistroKid agrégés ({n} mois, "
-                                 "taux {rate:.4f}) — visibles dans Distributeur.")
-                               .format(n=n_months, rate=fx_rate))
+                    _notes.append(("caption", t(
+                        "upload_csv.dk_aggregated",
+                        "💰 Revenus DistroKid agrégés ({n} mois, "
+                        "taux {rate:.4f}) — visibles dans Distributeur.")
+                        .format(n=n_months, rate=fx_rate)))
             except Exception as exc:  # noqa: BLE001 — roll-up is best-effort
-                st.caption(t("upload_csv.dk_failed",
-                             "⚠️ Agrégation des revenus DistroKid non effectuée : {err}")
-                           .format(err=exc))
+                _notes.append(("caption", t(
+                    "upload_csv.dk_failed",
+                    "⚠️ Agrégation des revenus DistroKid non effectuée : {err}")
+                    .format(err=exc)))
 
-        st.markdown("---")
-        st.subheader(t("upload_csv.results_header", "📋 Résultats de l'import"))
-
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric(t("upload_csv.metric_processed", "Fichiers traités"), len(ok_results))
-        k2.metric(t("upload_csv.metric_inserted", "Lignes insérées / mises à jour"),
-                  f"{total_ok:,}")
-        k3.metric(t("upload_csv.metric_errors", "Fichiers en erreur"), total_err,
-                  delta=None if total_err == 0 else "⚠️", delta_color="inverse")
-        k4.metric(t("upload_csv.metric_skipped", "Fichiers ignorés (type inconnu)"), n_skip)
-
-        st.dataframe(pd.DataFrame(result_rows), hide_index=True, width='stretch')
+        # LE BILAN PASSE PAR LA SESSION, ET LA ZONE DE DÉPÔT EST VIDÉE.
+        #
+        # Deux demandes du 2026-09-06 qui n'en font qu'une : les quinze fichiers
+        # restaient affichés dans la zone de dépôt après l'import, et un écran qui
+        # montre encore ce qu'on vient de déposer se lit « rien n'est parti ».
+        # Streamlit n'a aucune API pour vider un `file_uploader` — on change la clé
+        # du widget, ce qui en crée un neuf, donc vide.
+        #
+        # Vider impose de relancer le script, et `st.rerun()` efface tout ce qui a
+        # été écrit avant lui : le bilan doit donc voyager par la session, comme le
+        # verdict de sauvegarde et le démarrage automatique de la collecte avant lui.
+        st.session_state[_last_result_key(target_artist_id)] = {
+            'rows': summary_rows,
+            'n_ok': len(ok_results) - total_err,
+            'n_err': total_err,
+            'total_rows': total_ok,
+            'notes': _notes,
+        }
+        _clear_uploader(target_artist_id)
+        st.rerun()
 
     # LES GUIDES, TOUT EN BAS. Demandé le 2026-09-06 : « déplace les onglets à
     # dérouler de process pour télécharger en dessous de la détection ».

@@ -274,11 +274,17 @@ _NAV_SECTIONS = [
     # le commentaire ci-dessus annonce « Order = user journey ». Descendus après les
     # analytics, là où l'artiste a enfin quelque chose à emporter.
     ("start",     "",                       [("🏠 Accueil", "home")]),
-    # L'ORDRE SUIT LE PARCOURS, et il ne le suivait pas. Demandé le 2026-09-06 :
-    # « remonte santé onboarding en dessous de credentials API pour que la logique se
-    # suive ». On configure, puis on regarde si ça a pris — donc l'écran qui répond
-    # « où en es-tu ? » vient juste après celui où l'on saisit, pas trois entrées plus
-    # bas derrière le mapping.
+    # L'ORDRE SUIT LE PARCOURS : assistant → où j'en suis → je saisis → je rapproche
+    # les titres. Révisé le 2026-09-06 en fin de journée, après un parcours réel :
+    # « mets l'onglet santé onboarding juste après mise en route, il faut que
+    # credential API + CSV soit juste avant mapping cross-plateforme ».
+    #
+    # Le matin, la même journée, « Santé onboarding » avait été placée APRÈS
+    # Credentials, au motif qu'on configure puis qu'on regarde si ça a pris. Le
+    # parcours a tranché autrement, et c'est lui qui décide : on ouvre l'assistant,
+    # on veut savoir ce qui manque, on va le saisir, puis on confirme les titres.
+    # Credentials doit toucher le mapping parce que ce qu'on vient d'importer est
+    # exactement ce que le mapping demande de rapprocher.
     #
     # « 📋 Guide de démarrage » a été RETIRÉE le même jour : « l'app est bien mieux
     # faite et ça rajoute de l'inutile ». Elle redisait en quatre listes à puces ce que
@@ -288,8 +294,8 @@ _NAV_SECTIONS = [
     # déménagé dans « 🚦 Santé onboarding », où l'artiste est quand il se demande ce
     # qu'il lui manque. La ROUTE survit et mène là-bas : des liens la visent.
     ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
-                                             ("🔑 Credentials API + imports CSV", "credentials"),
                                              ("🚦 Santé onboarding", "onboarding_health"),
+                                             ("🔑 Credentials API + imports CSV", "credentials"),
                                              # « 📋 État de tes plateformes » a été
                                              # RETIRÉE du menu le 2026-09-05 : chaque
                                              # onglet de Credentials porte désormais
