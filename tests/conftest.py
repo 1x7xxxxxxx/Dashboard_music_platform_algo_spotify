@@ -346,6 +346,53 @@ _SYNTHETIC_TRACK_PREFIX = "track-of-"
 _SEEDED_TABLES = (("soundcloud_tracks_daily", "track_id"),)
 
 
+# L'horloge de la BASE au démarrage de la session, pas celle de ce processus.
+# `saas_artists.created_at` est un `timestamp without time zone` dont le défaut est
+# `CURRENT_TIMESTAMP` — donc l'horloge du serveur. Comparer un `datetime.now()` de
+# WSL à cette colonne compare deux horloges qui peuvent diverger de plusieurs
+# secondes, et un locataire créé « juste avant » basculerait du mauvais côté.
+_DB_SESSION_START: list = []
+
+
+def pytest_sessionstart(session):  # noqa: ARG001 — signature imposée par pytest
+    """Mémorise l'instant de départ, lu sur la base elle-même.
+
+    Un locataire dont `created_at` est POSTÉRIEUR à cet instant a été fabriqué par la
+    suite en cours : il sera effacé par son propre teardown, et un garde qui lit
+    l'état global de la base ne doit pas se prononcer dessus pendant qu'il vit. Sans
+    ce repère, `test_no_synthetic_track_survives_into_the_freshness_computation`
+    dépendait de ce qu'un AUTRE worker xdist était en train de faire à la seconde où
+    il regardait — un prédicat dont la valeur change sans que le code change.
+
+    Silencieux sans base : la question ne se pose pas, et faire échouer la collecte
+    pour ça remplacerait un défaut discret par un blocage.
+    """
+    try:
+        from src.dashboard.utils import get_db_connection
+        db = get_db_connection()
+        if db is None:
+            return
+        try:
+            # LOCALTIMESTAMP et non CURRENT_TIMESTAMP : le second rend un
+            # `timestamptz` (offset-AWARE) et `saas_artists.created_at` est un
+            # `timestamp without time zone` (naive). Les comparer lève
+            # `TypeError: can't compare offset-naive and offset-aware datetimes` —
+            # et seulement dans la branche qui trouve un coupable, donc jamais quand
+            # il n'y en a pas. `LOCALTIMESTAMP` est exactement ce que le défaut de la
+            # colonne écrit.
+            _DB_SESSION_START.append(db.fetch_query("SELECT LOCALTIMESTAMP")[0][0])
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — pas de base : rien à repérer
+        pass
+
+
+@pytest.fixture(scope="session")
+def db_session_start():
+    """L'instant de départ, ou `None` si la base n'était pas joignable."""
+    return _DB_SESSION_START[0] if _DB_SESSION_START else None
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _no_synthetic_rows_left_behind():
     """Efface, en fin de session, les lignes que la suite a fabriquées.

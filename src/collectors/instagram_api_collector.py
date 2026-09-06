@@ -29,7 +29,7 @@ except OSError as e:
 class InstagramCollector:
     def __init__(self, artist_id: int, access_token: str = None,
                  ig_user_id: str = None, app_id: str = None, app_secret: str = None,
-                 ig_username: str = None):
+                 ig_username: str = None, db=None):
         """Credentials are PARAMETERS; the env is only a single-tenant fallback.
 
         The DAG used to pass them by mutating `os.environ` inside its per-artist
@@ -80,11 +80,21 @@ class InstagramCollector:
         self.base_url = META_GRAPH_BASE_URL
         self.session = requests.Session()
 
-        # Connexion BDD
-        # One resolution for the DSN (R33): DATABASE_URL → DATABASE_* → config.yaml.
-        # The five os.getenv calls that used to live here defaulted the host to
-        # 'localhost', which is wrong inside Airflow — where this collector runs.
-        self.db = PostgresHandler.from_env_or_config()
+        # Connexion BDD — INJECTABLE, comme `MetaAdsCollector` depuis toujours.
+        #
+        # Elle était ouverte inconditionnellement ici, si bien qu'une question PURE
+        # sur ce collecteur — « un pseudo absent lève-t-il avec le geste ? » — ne
+        # pouvait pas se poser sans une base. Mesuré le 2026-09-06 : le garde de
+        # `guard-asserts-presence-not-reachability` tombait sur un
+        # `psycopg2.OperationalError` dans l'étape CI qui précède `Provision
+        # Postgres`, c'est-à-dire pour une raison qui n'était pas la sienne.
+        #
+        # L'injection plutôt qu'une connexion PARESSEUSE : la seconde déplacerait
+        # l'échec d'une base injoignable APRÈS les appels d'API, donc après avoir
+        # dépensé du quota pour des lignes qu'on ne pourra pas écrire. Ici, la
+        # production garde son échec immédiat — `db=None` reste le chemin de
+        # production — et un appelant qui n'a rien à écrire peut le dire.
+        self.db = db if db is not None else PostgresHandler.from_env_or_config()
 
     def _refresh_access_token(self) -> bool:
         """Exchange current long-lived token for a new one via Meta's token endpoint.

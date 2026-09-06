@@ -5,6 +5,48 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-06 (suite 3) — 🟢 CI verte, et les deux dettes que je m'étais gardées
+
+**La CI est verte.** Run `34034904194`, aucune étape non-verte : la série de 27
+exécutions rouges est close, et `Run tests` passe pour la première fois depuis le
+2026-09-04. Les deux points que j'avais listés « ouverts, non corrigés » ont été
+fermés ensuite — c'est ce qui suit.
+
+**1. Le garde qui lisait l'état global de la base.**
+`test_no_synthetic_track_survives_into_the_freshness_computation` interroge toute la
+table. Sous `-n auto` — la commande que la CI utilise — un autre worker détient au
+même instant un locataire jetable portant ses propres lignes fraîches, légitimes,
+qu'il effacera à son teardown. Le garde rougissait donc sur ce qu'un test VOISIN
+faisait : un prédicat dont la valeur change sans que le code change.
+
+Le filtre est `saas_artists.created_at`, pas une liste de slugs : un locataire créé
+PENDANT la session appartient par construction à un test en cours. L'instant de
+référence est lu sur l'horloge de la BASE (`pytest_sessionstart` → `SELECT
+CURRENT_TIMESTAMP`), pas sur celle de WSL — la colonne est un `timestamp without
+time zone` dont le défaut est `CURRENT_TIMESTAMP`, donc comparer deux horloges qui
+divergent ferait basculer un locataire créé « juste avant ». Mutation : une ligne
+fabriquée déposée sur le locataire **1** (réel, créé en mars) rougit toujours.
+
+**2. La base ouverte dans le constructeur des collecteurs.**
+Je l'avais écartée en écrivant « c'est un choix de conception qu'on ne change pas
+dans une séance de CI rouge ». Juste comme priorité, **faux comme diagnostic** :
+`meta_ads_api_collector.py:114` porte déjà `self.db = db if db is not None else
+self._default_db()`. Le motif était dans le dépôt ; deux collecteurs sur trois ne
+l'avaient jamais adopté. L'adopter n'inventait rien et ne décidait rien.
+
+Injection et **non** connexion paresseuse : la seconde déplacerait l'échec d'une base
+injoignable APRÈS les appels d'API, donc après avoir dépensé du quota pour des lignes
+qu'on ne pourra pas écrire. `db=None` reste le chemin de production et garde son
+échec immédiat ; seul un appelant qui n'a rien à écrire le dit. Le `monkeypatch` sur
+`PostgresHandler` a disparu du test avec le problème qu'il masquait.
+
+Le garde balaie `src/collectors/` en AST et pose trois questions, pas une : `db=`
+existe-t-il, est-il RÉELLEMENT posé sur `self.db` (un paramètre accepté puis jeté ment
+à son appelant), et son défaut est-il resté `None` (sinon la production ne construit
+plus sa connexion). Trois mutations, trois rouges.
+
+---
+
 ## 2026-09-06 (suite 2) — La suite a tourné, et elle a trouvé cinq choses
 
 Le premier run de CI après le déblocage : `Run tests` s'exécute pour la première fois

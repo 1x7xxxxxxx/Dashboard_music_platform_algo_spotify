@@ -90,6 +90,19 @@ def test_the_dag_passes_the_handle_the_fallback_needs():
         f"pas être atteint en production (arguments passés : {sorted(passed)})")
 
 
+class _NoDb:
+    """Une base qui n'existe pas, et qui le dit si on l'utilise.
+
+    `db=None` retomberait sur la vraie connexion : le sentinelle doit être un objet.
+    Toute méthode appelée dessus lève, donc un test qui croit ne rien écrire et se
+    met à écrire ne passe pas en silence.
+    """
+
+    def __getattr__(self, name):
+        raise AssertionError(
+            f"ce test ne doit toucher aucune base — il a appelé db.{name}()")
+
+
 def test_a_missing_handle_says_the_gesture_instead_of_collecting_zero():
     """Pas de pseudo ⇒ on lève avec le geste, jamais un zéro silencieux.
 
@@ -99,24 +112,21 @@ def test_a_missing_handle_says_the_gesture_instead_of_collecting_zero():
     """
     import os
 
-    from src.collectors import instagram_api_collector as mod
     from src.collectors.instagram_api_collector import InstagramCollector as C
 
-    # `InstagramCollector.__init__` ouvre une connexion Postgres (`self.db`), dont
-    # cette question n'a aucun besoin : elle porte sur une branche pure de
-    # `_discover`. La signature de cette classe est déclarée « no-DB » et tourne dans
-    # l'étape CI qui précède `Provision Postgres` — sans `DATABASE_URL` et sans
-    # schéma. Mesuré le 2026-09-06 : le test échouait là sur un
-    # `psycopg2.OperationalError`, c'est-à-dire sur l'absence de base et non sur le
-    # défaut qu'il garde. Un garde doit tomber pour SA raison.
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr(mod.PostgresHandler, "from_env_or_config",
-                        classmethod(lambda cls: None))
-    try:
-        c = C(artist_id=1, access_token="x", ig_user_id="17841400000000000",
-              ig_username=None)
-    finally:
-        monkeypatch.undo()
+    # `db=` INJECTÉ, et non un `monkeypatch` sur `PostgresHandler`. Cette question
+    # porte sur une branche pure de `_discover` et n'écrit rien ; la signature de
+    # cette classe est déclarée « no-DB » et tourne dans l'étape CI qui précède
+    # `Provision Postgres`, sans `DATABASE_URL` ni schéma. Mesuré le 2026-09-06 : le
+    # test tombait là sur un `psycopg2.OperationalError`, donc pour une raison qui
+    # n'était pas la sienne.
+    #
+    # La première version débranchait `from_env_or_config` par monkeypatch — ça
+    # marchait, et ça gardait le vrai problème : le collecteur n'offrait aucun moyen
+    # de dire « je n'ai rien à écrire ». Le paramètre existe maintenant, comme sur
+    # `MetaAdsCollector` depuis toujours ; le patch a disparu avec lui.
+    c = C(artist_id=1, access_token="x", ig_user_id="17841400000000000",
+          ig_username=None, db=_NoDb())
     os.environ.setdefault("META_IG_DISCOVERY_ID", "17841402151518986")
     with pytest.raises(ValueError) as exc:
         c._discover("id,username")

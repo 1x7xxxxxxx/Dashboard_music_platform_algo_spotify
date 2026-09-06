@@ -40,7 +40,8 @@ class SoundCloudCollector:
                  client_id: str = None,
                  client_secret: str = None,
                  user_id: str = None,
-                 refresh_token: str = None):
+                 refresh_token: str = None,
+                 db=None):
         self.artist_id = artist_id
         self.client_id = client_id or os.getenv("SOUNDCLOUD_CLIENT_ID")
         self.client_secret = client_secret or os.getenv("SOUNDCLOUD_CLIENT_SECRET")
@@ -81,7 +82,12 @@ class SoundCloudCollector:
         # One resolution for the DSN (R33): DATABASE_URL → DATABASE_* → config.yaml.
         # The five os.getenv calls that used to live here defaulted the host to
         # 'localhost', which is wrong inside Airflow — where this collector runs.
-        self.db = PostgresHandler.from_env_or_config()
+        #
+        # INJECTABLE depuis le 2026-09-06, comme `MetaAdsCollector` l'était déjà :
+        # sans cela, aucune question pure sur ce collecteur ne peut se poser sans une
+        # base. La production passe toujours `db=None` et garde donc son échec
+        # immédiat, avant tout appel d'API.
+        self.db = db if db is not None else PostgresHandler.from_env_or_config()
 
     def _get_access_token(self) -> None:
         """Fetch a new OAuth access token via Client Credentials grant."""

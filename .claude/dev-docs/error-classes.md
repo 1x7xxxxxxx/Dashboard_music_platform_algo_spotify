@@ -264,6 +264,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [layout-keyed-by-a-hand-written-list](#layout-keyed-by-a-hand-written-list) | P4 | deterministic | guarded | none |
 | [check-then-insert-loses-the-race](#check-then-insert-loses-the-race) | P2 | deterministic | guarded | none |
 | [test-pinned-to-a-row-of-the-authors-database](#test-pinned-to-a-row-of-the-authors-database) | P3 | deterministic | guarded | none |
+| [guard-branch-only-reached-when-it-fails](#guard-branch-only-reached-when-it-fails) | P3 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 
@@ -3455,13 +3456,14 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - symptom: un garde tombe pour une raison qui n'est pas la sienne. Le rapport nomme sa classe d'erreur, et la trace dessous dit `psycopg2.OperationalError` — on cherche le défaut gardé, il n'y en a pas.
 - root_cause: `tests/test_instagram_collects_without_business_manager.py:93` interroge une branche **pure** de `InstagramCollector._discover` (pas de pseudo ⇒ on lève avec le geste). Mais `src/collectors/instagram_api_collector.py:87` ouvre une connexion Postgres dans le constructeur (`self.db = PostgresHandler.from_env_or_config()`), qu'aucune de ces assertions n'utilise. Or `.github/workflows/ci.yml` exécute les signatures de classes à l'étape 10, **avant** `Provision Postgres` (étape 12) et sans le `DATABASE_URL` qui n'est posé que sur `Run tests`. Le garde échouait donc là sur l'absence de base, et remontait au rapport sous l'étiquette `guard-asserts-presence-not-reachability` — une classe qui n'avait rien à voir.
 - signature: `DATABASE_URL=postgresql://127.0.0.1:9/spotify_etl python3 -m pytest tests/test_instagram_collects_without_business_manager.py -q`
-- long_term_fix: le test débranche `PostgresHandler.from_env_or_config` le temps de la construction, et dit pourquoi. Un garde doit tomber pour SA raison ; tant que sa question est pure, son exécution doit l'être aussi. La signature porte volontairement un `DATABASE_URL` mort — port 9, et **sans identifiants** : un DSN d'essai portant `user:password` fait mordre `detect-secrets` à chaque commit, et une classe qui oblige à poser un `pragma: allowlist secret` apprend à en poser ailleurs. Elle vérifie l'indépendance à la base, pas seulement le passage du test.
+- long_term_fix: **le constructeur accepte `db=`**, comme `MetaAdsCollector` depuis toujours — le motif était dans le dépôt, deux collecteurs sur trois ne l'avaient jamais adopté. Le premier correctif débranchait `PostgresHandler.from_env_or_config` par monkeypatch : ça marchait, et ça laissait vivre le vrai problème — le collecteur n'offrait aucun moyen de dire « je n'ai rien à écrire ». **Injection et non connexion PARESSEUSE** : la seconde déplacerait l'échec d'une base injoignable APRÈS les appels d'API, donc après avoir dépensé du quota pour des lignes qu'on ne pourra pas écrire ; `db=None` reste le chemin de production et garde l'échec immédiat. Le garde `tests/test_a_collector_can_be_asked_a_question_without_a_database.py` balaie `src/collectors/` en AST, exige `db=` sur tout `__init__` qui ouvre une connexion, exige que le paramètre soit RÉELLEMENT posé sur `self.db` (un paramètre accepté puis jeté ment à son appelant), et vérifie que le défaut reste `None`. La signature porte un `DATABASE_URL` mort — port 9, **sans identifiants** : un DSN d'essai portant `user:password` fait mordre `detect-secrets` à chaque commit, et une classe qui oblige à poser un `pragma: allowlist secret` apprend à en poser ailleurs.
 - autofix: none
-- guard: { type: pytest, ref: tests/test_instagram_collects_without_business_manager.py }
+- guard: { type: pytest, ref: tests/test_a_collector_can_be_asked_a_question_without_a_database.py }
 - rex_ref: src/collectors/instagram_api_collector.py
 - first_seen: 2026-09-06
 - History:
-  - 2026-09-06: vu rouge en rétablissant la construction directe avec un `DATABASE_URL` pointant un port mort, vert après. La cause n'est PAS que le constructeur ouvre une base — c'est un choix de conception qu'on ne change pas dans une séance de CI rouge — mais qu'une question pure ait été rendue dépendante de lui.
+  - 2026-09-06: vu rouge en rétablissant la construction directe avec un `DATABASE_URL` pointant un port mort, vert après.
+  - 2026-09-06 (soir): j'avais écrit « la cause n'est PAS que le constructeur ouvre une base — c'est un choix de conception qu'on ne change pas dans une séance de CI rouge ». C'était juste comme priorité et faux comme diagnostic : le motif d'injection existait DÉJÀ dans `meta_ads_api_collector.py:114`, donc l'adopter n'inventait rien et ne décidait rien. Reporter une correction parce qu'elle *ressemble* à un choix de conception, sans vérifier si le dépôt l'a déjà tranchée, coûte un aller-retour. Trois mutations rouges : paramètre retiré, paramètre accepté puis ignoré, défaut autre que `None`.
 
 ## red-gate-hides-every-step-behind-it
 - status: guarded
@@ -3555,3 +3557,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-06
 - History:
   - 2026-09-06: balayage AST de `tests/` pour la classe — deux constantes d'identifiant en dur, dont une (`_TEST_TENANT = 999999`) ne sert qu'à des chemins de fichiers et ne touche aucune table. Une seule était le défaut.
+
+## guard-branch-only-reached-when-it-fails
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un garde est vert sur une base propre et rouge dans la grande exécution, et le rouge ne parle pas du sujet gardé — un `TypeError`, un `KeyError`, une comparaison impossible. On le lit comme de l'instabilité de la suite.
+- root_cause: `tests/conftest.py::pytest_sessionstart` enregistrait `SELECT CURRENT_TIMESTAMP`, un `timestamptz` **averti**, et `test_no_synthetic_track_survives_into_the_freshness_computation` le comparait à `saas_artists.created_at`, un `timestamp without time zone` **naïf** — `TypeError: can't compare offset-naive and offset-aware datetimes`. La comparaison vit dans le `if` d'une compréhension de liste qui n'est évaluée que pour les lignes DÉJÀ suspectes : sur une base sans coupable, la branche n'est jamais exécutée. Le garde était donc vert sur son propre défaut partout sauf dans l'exécution parallèle complète, la seule où un locataire vivant fabrique une ligne candidate.
+- signature: `python3 -m pytest tests/test_the_session_clock_is_comparable_to_the_column.py -q`
+- long_term_fix: `LOCALTIMESTAMP`, qui rend exactement ce que le défaut de la colonne écrit. Et surtout un garde qui **rend la branche atteignable à chaque exécution** sans base à salir ni coupable à fabriquer : il lit le type de la colonne dans `information_schema`, le compare à la nature du repère enregistré (naïf/averti), puis exécute une comparaison réelle — une assertion sur les types seuls resterait vraie sur deux types comparables séparément mais pas entre eux. La liste `_COMPARED_TO` déclare les colonnes visées, pour qu'une comparaison ajoutée ailleurs vienne s'y inscrire au lieu de se découvrir en production de la suite.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_session_clock_is_comparable_to_the_column.py }
+- rex_ref: tests/conftest.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: **la mutation a menti, et c'est le vrai enseignement.** Le correctif avait été « vérifié » en plantant une ligne fabriquée puis en lisant `exit = 1`. Ce 1 venait du `TypeError`, pas du garde ayant vu la ligne. J'ai conclu « rouge donc il détecte » sans lire le MESSAGE. Une mutation ne prouve rien tant que sa raison n'est pas lue : rouge pour la mauvaise raison est indiscernable de rouge pour la bonne, et ici les deux se sont succédé sur la même commande. Le dépôt disait déjà « une signature jamais vue rouge ne garde rien » ; la formulation exacte est **vue rouge POUR SA RAISON**.
+  - 2026-09-06: remuté après correction, message lu : « locataire 1 : ligne de test du 2026-09-07, dernière collecte réelle 2026-06-12 ». Et l'autre moitié vérifiée aussi — un locataire créé PENDANT la session, portant des lignes fraîches, est ignoré (exit 0), ce qui est le cas légitime pour lequel le filtre existe.

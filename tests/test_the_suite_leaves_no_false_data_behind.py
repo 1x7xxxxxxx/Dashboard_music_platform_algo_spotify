@@ -44,26 +44,48 @@ def _db():
 pytestmark = pytest.mark.skipif(_db() is None, reason="needs the provisioned DB")
 
 
-def test_no_synthetic_track_survives_into_the_freshness_computation():
+def test_no_synthetic_track_survives_into_the_freshness_computation(db_session_start):
     """Le nettoyage de `conftest` tourne en fin de SESSION.
 
     Ce test ne peut donc pas constater zéro pendant la session en cours : il constate
     que les lignes fabriquées n'ont pas d'AVANCE sur les vraies. C'est la propriété
     qui compte — une ligne de test plus récente que la dernière collecte réelle
     déplace `MAX(collected_at)` et ment aux pastilles.
+
+    LE FILTRE SUR `created_at`, ajouté le 2026-09-06, et pourquoi il n'affaiblit rien.
+    Ce test lit l'état GLOBAL de la base. Sous `-n auto` — la commande que la CI
+    utilise — un autre worker détient au même instant un locataire jetable portant
+    ses propres lignes fraîches, parfaitement légitimes, qu'il effacera à son
+    teardown. Le garde rougissait donc sur ce qu'un test VOISIN était en train de
+    faire : un prédicat dont la valeur change sans que le code change. Mesuré : rouge
+    dans la grande exécution, vert sur son propre fichier, et aucun coupable en base
+    une fois la session finie.
+
+    On ne se prononce que sur les locataires ANTÉRIEURS à la session. Un locataire
+    créé pendant est, par construction, la propriété d'un test en cours. Ce qui reste
+    couvert est exactement le défaut d'origine — des lignes fabriquées déposées sur un
+    locataire RÉEL, dont la pastille est lue par quelqu'un. C'est le cas du locataire
+    1, qui existe depuis mars.
+
+    Sans base joignable au démarrage (`db_session_start is None`), on ne filtre pas :
+    l'ancien comportement, plutôt qu'un test qui ne prouve plus rien.
     """
     db = _db()
     try:
         rows = db.fetch_query(f"""
-            SELECT artist_id,
-                   MAX(collected_at) FILTER (WHERE track_id LIKE '{_PREFIX}%%'),
-                   MAX(collected_at) FILTER (WHERE track_id NOT LIKE '{_PREFIX}%%')
-              FROM soundcloud_tracks_daily GROUP BY artist_id
+            SELECT t.artist_id, a.created_at,
+                   MAX(t.collected_at) FILTER (WHERE t.track_id LIKE '{_PREFIX}%%'),
+                   MAX(t.collected_at) FILTER (WHERE t.track_id NOT LIKE '{_PREFIX}%%')
+              FROM soundcloud_tracks_daily t
+              LEFT JOIN saas_artists a ON a.id = t.artist_id
+             GROUP BY t.artist_id, a.created_at
         """)  # noqa: S608 — préfixe littéral, aucune donnée utilisateur
         offenders = [
             f"locataire {aid} : ligne de test du {fake:%Y-%m-%d}, "
             f"dernière collecte réelle {real:%Y-%m-%d}"
-            for aid, fake, real in rows if fake and real and fake > real
+            for aid, created, fake, real in rows
+            if fake and real and fake > real
+            and not (db_session_start and created and created >= db_session_start)
         ]
         assert not offenders, (
             "des lignes fabriquées par la suite sont PLUS RÉCENTES que la dernière "
