@@ -57,35 +57,55 @@ def test_the_sacem_howto_lives_in_exactly_one_view():
         "ailleurs, c'est une copie qui se périmera en silence.")
 
 
-def test_the_guides_come_after_the_drop_zone_and_before_the_early_return():
+def test_the_guides_come_after_the_drop_zone_and_after_the_result():
+    """Les guides sont rendus APRÈS la zone de dépôt, et APRÈS ce qu'on a déposé.
+
+    RÉANCRÉ le 2026-09-06. Ce test exigeait qu'ils soient rendus AVANT le retour
+    anticipé — donc entre la zone de dépôt et la détection. Demandé le même jour :
+    « déplace les onglets à dérouler de process pour télécharger EN DESSOUS de la
+    détection ».
+
+    La question gardée ne change pas : la page s'ouvre sur le GESTE, jamais sur sa
+    notice. Ce qui change est ce qu'on considère comme « après » — après le dépôt ne
+    suffisait pas, il faut après le RÉSULTAT du dépôt. Quelqu'un qui vient de voir
+    quinze fichiers refusés a besoin de relire comment les exporter, et c'est là
+    qu'il est.
+
+    Les guides sont donc rendus DEUX fois dans la fonction, et c'est voulu : une fois
+    dans la branche « rien de déposé » — le seul moment où l'on ne sait pas encore
+    quoi télécharger — et une fois tout en bas, sous les résultats.
+    """
     fn = _fn(_UPLOAD, "render_uploader")
-    body = fn.body
 
-    def _line_of(pred) -> int | None:
-        for node in ast.walk(fn):
-            if pred(node):
-                return node.lineno
-        return None
+    def _lines(pred) -> list[int]:
+        return sorted(n.lineno for n in ast.walk(fn) if pred(n))
 
-    uploader = _line_of(lambda n: isinstance(n, ast.Call)
-                        and getattr(n.func, "attr", "") == "file_uploader")
-    guides = _line_of(lambda n: isinstance(n, ast.Call)
-                      and getattr(n.func, "id", "") == "render_csv_guides")
+    uploader = _lines(lambda n: isinstance(n, ast.Call)
+                      and getattr(n.func, "attr", "") == "file_uploader")
+    guides = _lines(lambda n: isinstance(n, ast.Call)
+                    and getattr(n.func, "id", "") == "render_csv_guides")
+    tables = _lines(lambda n: isinstance(n, ast.Call)
+                    and getattr(n.func, "attr", "") == "dataframe")
     assert uploader and guides, "la zone de dépôt ou les guides ont disparu"
-    assert guides > uploader, (
+    assert min(guides) > min(uploader), (
         "les guides sont rendus AVANT la zone de dépôt : la page s'ouvre sur la "
         "notice au lieu du geste")
 
-    # Le `return` qui coupe la fonction quand rien n'est déposé.
-    early = next((s.lineno for s in ast.walk(fn)
-                  if isinstance(s, ast.Return) and s.value is None
-                  and s.lineno > uploader), None)
+    assert tables, "le tableau de détection a disparu"
+    assert max(guides) > max(tables), (
+        "les guides restent au-dessus du dernier tableau : ils repoussent le "
+        "résultat de l'import, qui est ce qu'on vient lire après avoir déposé")
+
+    # Et ils restent joignables quand RIEN n'est déposé : sinon la page d'accueil de
+    # l'import n'explique plus où trouver les fichiers.
+    early = next((n.lineno for n in ast.walk(fn)
+                  if isinstance(n, ast.Return) and n.value is None
+                  and n.lineno > min(uploader)), None)
     assert early is not None, "le retour anticipé a disparu — vérifier ce test"
-    assert guides < early, (
-        "les guides sont rendus après le retour anticipé : ils n'apparaîtraient "
-        "qu'une fois un fichier déposé, c'est-à-dire trop tard pour aider à le "
-        "télécharger")
-    assert body  # la fonction n'est pas vide
+    assert min(guides) < early, (
+        "aucun guide n'est rendu avant le retour anticipé : un artiste qui arrive "
+        "les mains vides ne voit plus comment exporter ses fichiers")
+
 
 
 def _paired_keys() -> tuple[str, ...]:

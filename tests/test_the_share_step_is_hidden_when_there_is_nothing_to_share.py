@@ -55,11 +55,31 @@ m.render_partner_share_block("567214713853881")
     if not META_BUSINESS_ID:
         pytest.skip("META_BUSINESS_ID absent de cet environnement")
 
+    # RÉANCRÉ le 2026-09-06. Ce test exigeait que le numéro soit TU quand le partage
+    # est acquis. Demandé le même jour : « il n'y a plus l'id qu'on doit faire en
+    # partenaire dans le champ de mettre à jour, il faut le réintégrer avec l'url ».
+    #
+    # Les deux ont raison, et la différence est le NIVEAU : un partage acquis ne doit
+    # pas réclamer une action — d'où le message court — mais le numéro doit rester
+    # ATTEIGNABLE, parce qu'on change de compte publicitaire, qu'un accès se révoque,
+    # et qu'on teste le parcours avec le Business d'un proche. Cacher ce dont on aura
+    # besoin parce que « c'est déjà fait » suppose que ce ne sera jamais à refaire.
+    #
+    # Ce qui est gardé devient donc : dans un état acquis, le numéro n'est pas dans
+    # le flux principal — il est replié.
     shown = [c.value for c in at.code]
-    assert (META_BUSINESS_ID in shown) is speaks, (
-        f"état {state} : le numéro est {'absent' if speaks else 'affiché'} alors "
-        f"qu'il devrait être {'affiché' if speaks else 'tu'}"
-    )
+    expanders = [e.label for e in at.expander]
+    if speaks:
+        assert META_BUSINESS_ID in shown, (
+            f"état {state} : le partage reste à faire et le numéro n'est pas là")
+        assert not expanders, (
+            f"état {state} : le geste à faire est replié — il doit être visible")
+    else:
+        assert expanders, (
+            f"état {state} : le numéro n'est plus atteignable du tout. Il doit "
+            "rester disponible dans un dépliant pour refaire le partage.")
+        assert META_BUSINESS_ID in shown, (
+            f"état {state} : le dépliant ne porte pas le numéro")
 
 
 def test_an_unreadable_state_never_claims_the_share_is_done(monkeypatch):

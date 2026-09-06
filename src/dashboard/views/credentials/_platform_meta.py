@@ -275,19 +275,46 @@ def render_partner_share_block(account_id: str = "") -> None:
 
     state = _share_state_cached(account_id) if account_id else "unknown"
 
-    if state == "owned":
-        st.success(t("credentials.meta.share_owned",
-                     "✅ Ce compte publicitaire est déjà l'un des nôtres — il n'y a "
-                     "aucun partage à faire."))
-        return
-    if state == "accepted":
-        st.success(t("credentials.meta.share_accepted",
-                     "✅ Le partage est en place. Les chiffres remontent."))
-        return
-    if state == "pending":
-        st.info(t("credentials.meta.share_pending",
-                  "⏳ Notre demande d'accès attend ton acceptation, dans ton "
-                  "Business Manager → Partenaires."))
+    # LE NUMÉRO ET LE LIEN RESTENT ATTEIGNABLES, même quand le partage est acquis.
+    #
+    # Ces trois branches se contentaient d'un message et d'un `return` : dès qu'un
+    # compte était configuré, l'écran « Mettre à jour » ne portait plus ni le numéro
+    # de Business ni le lien vers les Partenaires. Signalé le 2026-09-06 : « il n'y a
+    # plus l'id qu'on doit faire en partenaire dans le champ de mettre à jour, il
+    # faut le réintégrer avec l'url ».
+    #
+    # Le cas d'usage est réel : on change de compte publicitaire, on refait le
+    # partage après l'avoir révoqué, ou — comme ici — on teste le parcours avec le
+    # Business d'un proche. Cacher ce dont on a besoin parce que « c'est déjà fait »
+    # suppose que ce ne sera jamais à refaire.
+    #
+    # Replié, donc : le chemin heureux garde son message court, et ce qui sert à
+    # refaire tient dans un dépliant fermé (divulgation progressive).
+    _settled = {
+        "owned": ("success", t(
+            "credentials.meta.share_owned",
+            "✅ Ce compte publicitaire est déjà l'un des nôtres — il n'y a aucun "
+            "partage à faire.")),
+        "accepted": ("success", t(
+            "credentials.meta.share_accepted",
+            "✅ Le partage est en place. Les chiffres remontent.")),
+        "pending": ("info", t(
+            "credentials.meta.share_pending",
+            "⏳ Notre demande d'accès attend ton acceptation, dans ton Business "
+            "Manager → Partenaires.")),
+    }.get(state)
+    if _settled:
+        kind, message = _settled
+        (st.success if kind == "success" else st.info)(message)
+        with st.expander(t("credentials.meta.share_redo",
+                           "🤝 Refaire le partage (autre compte, accès révoqué…)"),
+                         expanded=False):
+            st.caption(t("credentials.meta.share_redo_help",
+                         "Notre numéro de Business, à coller côté Partenaires :"))
+            st.code(META_BUSINESS_ID, language=None)
+            st.markdown(
+                f"[{t('credentials.meta.share_open', '⚙️ Ouvrir mes partenaires ↗')}]"
+                f"({_ASSIGN_URL})")
         return
 
     st.markdown("**" + t("credentials.meta.share_title",

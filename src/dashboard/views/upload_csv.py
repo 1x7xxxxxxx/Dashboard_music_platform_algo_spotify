@@ -91,13 +91,39 @@ _PLATFORMS = {
 # Auto-detection
 # ─────────────────────────────────────────────
 
+_BOM_FORMS = (
+    "\ufeff",      # le BOM décodé en UTF-8
+    "ï»¿",         # le même octets-pour-octets, décodé en latin-1 ou cp1252
+)
+
+
+def _normalise_header(col: str) -> str:
+    """Un en-tête comparable : sans BOM, sans espaces, en minuscules.
+
+    Trois formes du même caractère invisible peuvent arriver ici selon l'encodage
+    par lequel le fichier a été lu. Aucune n'est un blanc, donc `strip()` seul les
+    laisse toutes passer — et une comparaison `"date" in cols` échoue sur un en-tête
+    qui s'AFFICHE « date ». C'est ce qui rend la classe si coûteuse : le message
+    d'erreur montre la bonne colonne.
+    """
+    out = str(col or "")
+    for form in _BOM_FORMS:
+        out = out.replace(form, "")
+    return out.lower().strip()
+
+
 def _detect_platform(filename: str, columns: list[str]) -> str | None:
     """Return a platform key from filename + column headers, or None if unknown.
 
     Detection is ordered from most specific to least specific to avoid false positives.
     """
     name = filename.lower()
-    cols = {c.lower().strip() for c in columns}
+    # `\ufeff` n'est PAS un blanc : `str.strip()` ne le retire pas. Une colonne
+    # arrivée par un autre chemin — un parseur tiers, un fichier recollé à la main —
+    # porterait donc encore son BOM ici, et la détection échouerait de nouveau en
+    # silence. Le lecteur d'en-têtes le retire déjà à la source ; ceci est la
+    # seconde couche, celle qui rend la classe impossible plutôt qu'improbable.
+    cols = {_normalise_header(c) for c in columns}
 
     def has_any(*opts):
         return any(o in cols for o in opts)
@@ -123,9 +149,10 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
        any(c in cols for c in ['écoutes', 'plays', 'play count', 'lectures']):
         return 'apple'
 
-    # S4A audience (artist-level daily): listeners + date, no per-song column. The
-    # filename 'audience' token is now a tie-breaker, NOT a hard requirement.
-    if (('audience' in name) or has_any('listeners', 'auditeurs')) and \
+    # S4A audience : `listeners` EST le discriminant, et il est dans les colonnes.
+    # Le jeton « audience » du nom de fichier reste un départage pour les exports
+    # qui n'ont pas cette colonne, jamais une exigence.
+    if (has_any('listeners', 'auditeurs') or 'audience' in name) and \
        'date' in cols and 'song' not in cols:
         return 's4a_audience'
 
@@ -141,14 +168,34 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
     if 'songs-all' in name or 'songs_all' in name:
         return 's4a_songs_all_rejected'
 
+    # LA MÊME REFUS, SANS LE NOM. Un export « Depuis le début » renommé — ou
+    # simplement téléchargé par un navigateur qui suffixe `(1)` — passait la branche
+    # ci-dessus et était accepté comme un catalogue valide, alors que ses auditeurs
+    # et ses sauvegardes sont à ZÉRO. La donnée est reconnaissable en elle-même :
+    # un catalogue par titre dont les colonnes `listeners` ET `saves` existent et ne
+    # contiennent que des zéros ne peut pas être un vrai export sur 12 mois.
+    #
+    # Le contrôle se fait donc à la LECTURE (`_parse_file`), où les valeurs sont
+    # disponibles — la détection ne voit que les en-têtes, et ceux d'un export
+    # « Depuis le début » sont identiques à ceux d'un export sur 12 mois.
+
     # S4A songs-all (per-song catalogue): 'song' + release_date (or filename signal).
     if 'song' in cols and ('release_date' in cols or 'saves' in cols):
         return 's4a_songs_global'
 
-    # S4A per-song timeline: date + a streams column, no per-song column, not audience.
-    # Drops the former hard '-timeline' filename requirement (Benken's export had no such
-    # token → "type non reconnu"); the name is only used to exclude audience exports.
-    if 'date' in cols and has_any(*_STREAMS) and 'song' not in cols and 'audience' not in name:
+    # S4A timeline par titre : date + écoutes, sans colonne de titre. AUCUNE
+    # condition sur le nom du fichier.
+    #
+    # L'exclusion `'audience' not in name` a été retirée le 2026-09-06 : « tous les
+    # fichiers, peu importe leur nom, doivent être reconnus ». Elle était en plus
+    # dangereuse dans les deux sens — un titre contenant le mot « audience »
+    # (« Kimono à semelle de fer - Audience-timeline.csv ») était refusé, et un
+    # export d'audience renommé serait passé pour une timeline.
+    #
+    # Elle est INUTILE parce que la branche audience passe avant et retient déjà tout
+    # ce qui porte `listeners` ; ce qui arrive ici n'en a pas. Le départage se fait
+    # donc sur les colonnes, où il a toujours été.
+    if 'date' in cols and has_any(*_STREAMS) and 'song' not in cols:
         return 's4a'
 
     return None
@@ -168,7 +215,17 @@ def _read_headers(file) -> list[str]:
     raw = file.read()
     file.seek(0)
     text = None
-    for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
+    # `utf-8-sig` AVANT `utf-8`, et c'est tout le défaut. Un fichier UTF-8 portant un
+    # BOM décode SANS ERREUR en `utf-8` — la boucle s'arrêtait donc au premier essai
+    # et le BOM survivait, collé au premier en-tête : `\ufeffdate` au lieu de `date`.
+    # `utf-8-sig` lit les deux cas à l'identique et retire le BOM quand il est là,
+    # donc le placer en tête ne coûte rien et supprime la classe.
+    #
+    # Mesuré le 2026-09-06 sur un import réel : DOUZE fichiers Spotify for Artists sur
+    # quatorze refusés en « type non reconnu », et le message le disait sans que
+    # personne puisse le lire — « Colonnes vues : ﻿date, streams », le BOM étant
+    # invisible à l'écran. Spotify exporte avec BOM ; Excel aussi, en réenregistrant.
+    for enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
         try:
             text = raw.decode(enc)
             break
@@ -197,7 +254,17 @@ def _sniff_sep(file) -> str:
     """
     raw = file.read()
     file.seek(0)
-    for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
+    # `utf-8-sig` AVANT `utf-8`, et c'est tout le défaut. Un fichier UTF-8 portant un
+    # BOM décode SANS ERREUR en `utf-8` — la boucle s'arrêtait donc au premier essai
+    # et le BOM survivait, collé au premier en-tête : `\ufeffdate` au lieu de `date`.
+    # `utf-8-sig` lit les deux cas à l'identique et retire le BOM quand il est là,
+    # donc le placer en tête ne coûte rien et supprime la classe.
+    #
+    # Mesuré le 2026-09-06 sur un import réel : DOUZE fichiers Spotify for Artists sur
+    # quatorze refusés en « type non reconnu », et le message le disait sans que
+    # personne puisse le lire — « Colonnes vues : ﻿date, streams », le BOM étant
+    # invisible à l'écran. Spotify exporte avec BOM ; Excel aussi, en réenregistrant.
+    for enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
         try:
             first_line = raw.decode(enc).split('\n', 1)[0]
             break
@@ -237,6 +304,23 @@ def _parse_file(platform_key: str, file, artist_id: int) -> list:
         return S4ACSVParser().parse_timeline(df, artist_id=artist_id, filename=filename)
 
     if platform_key == 's4a_songs_global':
+        # LE REFUS « Depuis le début », RECONNU DANS LES DONNÉES et non dans le nom.
+        # Cet export a exactement les mêmes en-têtes qu'un export sur 12 mois ; ce
+        # qui le distingue est que Spotify y renvoie auditeurs ET sauvegardes à
+        # ZÉRO. Un fichier renommé — ou suffixé « (1) » par le navigateur —
+        # échappait au contrôle par nom et était accepté comme un catalogue valide.
+        for _col in ('listeners', 'saves'):
+            if _col not in df.columns:
+                break
+        else:
+            _num = df[['listeners', 'saves']].apply(
+                pd.to_numeric, errors='coerce').fillna(0)
+            if len(_num) and (_num.to_numpy() == 0).all():
+                raise ValueError(t(
+                    "upload_csv.err_songs_all_zero",
+                    "Export « Depuis le début » : Spotify y renvoie les auditeurs et "
+                    "les sauvegardes à **zéro**, quel que soit le nom du fichier. "
+                    "Reprends l'export en réglant la période sur **12 mois**."))
         from src.transformers.s4a_csv_parser import S4ACSVParser
         return S4ACSVParser().parse_songs_global(df, artist_id=artist_id, filename=filename)
 
@@ -336,14 +420,17 @@ def render_uploader(db, target_artist_id: int) -> None:
         key=f"multi_upload_{target_artist_id}",
     )
 
-    # Les guides sont rendus APRÈS la zone de dépôt (demandé le 2026-09-06) : la
-    # page s'ouvre sur le geste, pas sur sa notice. Ils vivent ici plutôt que dans
-    # `show()` pour que l'onglet « 📂 Mes fichiers » de Credentials, qui appelle
-    # cette fonction et rien d'autre, les ait aussi.
-    from src.dashboard.content.csv_guides_st import render_csv_guides
-    render_csv_guides()
-
+    # LES GUIDES SONT RENDUS EN DERNIER quand des fichiers sont déposés — voir la fin
+    # de cette fonction. Ici, ils ne s'affichent QUE si la zone est vide : c'est le
+    # moment où l'on ne sait pas encore quoi télécharger, donc le seul où une notice
+    # aide. Demandé le 2026-09-06 : « déplace les onglets à dérouler de process pour
+    # télécharger EN DESSOUS de la détection ».
+    #
+    # Entre les deux il y a la même idée : ce qu'on regarde après avoir déposé, c'est
+    # le résultat, pas la marche à suivre pour déposer.
     if not uploaded_files:
+        from src.dashboard.content.csv_guides_st import render_csv_guides
+        render_csv_guides()
         return
 
     # ── Détection + parsing de tous les fichiers ───────────────────
@@ -433,13 +520,13 @@ def render_uploader(db, target_artist_id: int) -> None:
                    "Aucun fichier valide à importer."))
         return
 
-    for r in ok_results:
-        with st.expander(
-            t("upload_csv.preview_label", "Aperçu — {filename} ({n} lignes)")
-            .format(filename=r['filename'], n=len(r['rows'])),
-            expanded=False,
-        ):
-            st.dataframe(pd.DataFrame(r['rows']).head(10), hide_index=True, width='stretch')
+    # LES APERÇUS PAR FICHIER ONT ÉTÉ RETIRÉS le 2026-09-06 : « le panneau de
+    # détection, on consolide tout en un seul tableau, là il y en a plusieurs ».
+    #
+    # Un dépliant par fichier, c'est quinze dépliants pour un import S4A normal —
+    # donc quinze décisions (« dois-je l'ouvrir ? ») pour une information que
+    # personne n'a demandée : le tableau au-dessus dit déjà le type détecté et le
+    # nombre de lignes, qui sont les deux chiffres sur lesquels on décide.
 
     # ── Taux USD→EUR (DistroKid paie en USD, le dashboard est en EUR) ──
     fx_rate = None
@@ -454,15 +541,36 @@ def render_uploader(db, target_artist_id: int) -> None:
                    "Défaut : DISTROKID_USD_EUR_RATE (.env) ou 0.92."),
         )
 
-    # ── Confirmation ───────────────────────────────────────────────
-    st.markdown("---")
+    # ── Confirmation, JUSTE SOUS le tableau ────────────────────────
     n_ok = len(ok_results)
     n_skip = len(file_results) - n_ok
     label = t("upload_csv.import_button", "✅ Importer {n} fichier(s)").format(n=n_ok)
     if n_skip:
         label += t("upload_csv.import_button_skip", "  (⚠️ {n} ignoré(s))").format(n=n_skip)
 
-    if st.button(label, type="primary"):
+    # DÉCLENCHEMENT AUTOMATIQUE quand TOUS les fichiers sont reconnus. Demandé le
+    # 2026-09-06. Le raisonnement : s'il n'y a rien à trier, il n'y a rien à décider,
+    # et un bouton qui n'offre qu'un seul choix n'est pas une décision — c'est une
+    # étape de plus. L'artiste du jour a lu « ✅ Prêt » et cru l'import fait ; le
+    # journal de production ne portait aucune ligne, parce que ce bouton attendait.
+    #
+    # Dès qu'UN fichier est refusé, on redemande : là il y a un arbitrage — importer
+    # les autres quand même, ou repartir chercher le manquant.
+    #
+    # L'idempotence tient à la signature du LOT (noms + tailles), pas à un simple
+    # drapeau : Streamlit ré-exécute le script à chaque interaction, donc sans elle
+    # le même dépôt se réimporterait à chaque clic ailleurs sur la page. Un nouveau
+    # dépôt change la signature et redéclenche, ce qui est le comportement voulu.
+    _signature = tuple(sorted((r['filename'], len(r['rows'])) for r in ok_results))
+    _AUTO_KEY = f"_csv_autoimport_{target_artist_id}"
+    _auto = bool(ok_results) and not n_skip and st.session_state.get(_AUTO_KEY) != _signature
+    if _auto:
+        st.session_state[_AUTO_KEY] = _signature
+        st.info(t("upload_csv.auto_import",
+                  "🚀 Les {n} fichiers sont reconnus — import lancé automatiquement.")
+                .format(n=n_ok))
+
+    if _auto or st.button(label, type="primary"):
         result_rows = []
         total_ok = 0
         total_err = 0
@@ -610,3 +718,13 @@ def render_uploader(db, target_artist_id: int) -> None:
         k4.metric(t("upload_csv.metric_skipped", "Fichiers ignorés (type inconnu)"), n_skip)
 
         st.dataframe(pd.DataFrame(result_rows), hide_index=True, width='stretch')
+
+    # LES GUIDES, TOUT EN BAS. Demandé le 2026-09-06 : « déplace les onglets à
+    # dérouler de process pour télécharger en dessous de la détection ».
+    #
+    # Hors du bloc d'import — donc rendus qu'on ait cliqué ou non : quelqu'un qui
+    # vient de voir un fichier refusé a besoin de relire comment l'exporter, et c'est
+    # précisément là qu'il est. Repliés, ils ne coûtent rien à qui n'en a pas besoin.
+    st.markdown("---")
+    from src.dashboard.content.csv_guides_st import render_csv_guides
+    render_csv_guides()

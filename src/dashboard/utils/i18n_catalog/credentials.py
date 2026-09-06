@@ -1,6 +1,10 @@
 """EN catalog for the credentials (API Credentials) view package."""
 
 EN = {
+    "credentials.meta.share_redo": (
+        "🤝 Redo the sharing (another account, access revoked…)"),
+    "credentials.meta.share_redo_help": (
+        "Our Business number, to paste on the Partners side:"),
     "credentials.autostart_ok": (
         "🚀 Your setup is complete — collection just started on its own ({n} "
         "sources). Your first figures arrive within minutes."),

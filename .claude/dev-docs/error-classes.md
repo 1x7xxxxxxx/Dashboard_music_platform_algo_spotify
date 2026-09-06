@@ -268,6 +268,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [view-state-outlives-the-visit](#view-state-outlives-the-visit) | P3 | deterministic | guarded | none |
 | [menu-filter-mistaken-for-an-access-gate](#menu-filter-mistaken-for-an-access-gate) | P2 | deterministic | guarded | none |
 | [journey-completes-and-nothing-happens](#journey-completes-and-nothing-happens) | P2 | deterministic | guarded | none |
+| [bom-survives-the-encoding-fallback](#bom-survives-the-encoding-fallback) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
 | [module-level-read-turns-a-deletion-into-a-collection-error](#module-level-read-turns-a-deletion-into-a-collection-error) | P3 | deterministic | guarded | none |
 | [instruction-points-by-direction-not-by-name](#instruction-points-by-direction-not-by-name) | P3 | deterministic | guarded | none |
@@ -3707,3 +3708,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: ma première mesure annonçait **171 fichiers** concernés, ce qui aurait condamné l'idée de cliquet. Elle était fausse : le balayage descendait dans les `def` du niveau module, où une lecture est parfaitement sûre. Le vrai chiffre est **5**. Un détecteur trop large ne se contente pas de crier au loup — il fait renoncer au correctif qu'il devait justifier.
   - 2026-09-06: le fichier fautif a été réancré sur `onboarding_health.py` et sa clé de page est désormais DÉDUITE (`GUIDE_PAGE.stem`) au lieu d'être recopiée. C'était son deuxième déménagement, et à chaque fois la clé écrite à la main avait un déménagement de retard.
+
+## bom-survives-the-encoding-fallback
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un export parfaitement valide est refusé, et le message d'erreur affiche la BONNE colonne. « Type non reconnu — colonnes vues : date, streams » alors que `date` est exactement ce qu'on attend. Rien à l'écran ne distingue l'en-tête qu'on a de celui qu'on veut.
+- root_cause: `views/upload_csv.py::_read_headers` essayait les encodages dans l'ordre `('utf-8', 'utf-8-sig', …)`. Un fichier UTF-8 portant un BOM **décode sans erreur** en `utf-8` : la boucle s'arrêtait au premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`). Seconde condition, nécessaire pour que ça casse : `_detect_platform` normalisait par `c.lower().strip()`, et `\ufeff` n'est PAS un blanc — `strip()` ne le retire pas. Mesuré le 2026-09-06 sur un import réel : **12 fichiers Spotify for Artists sur 14 refusés**. Spotify exporte avec BOM ; Excel en ajoute un en réenregistrant, ce qui touche aussi les artistes qui ouvrent leur CSV avant de le déposer.
+- signature: `python3 -m pytest tests/test_a_csv_is_recognised_whatever_its_encoding.py -q`
+- long_term_fix: `utf-8-sig` passe AVANT `utf-8` dans les deux lecteurs (`_read_headers` et `_sniff_sep`) — il lit les deux cas à l'identique et retire le BOM quand il est là, donc le placer en tête ne coûte rien. Seconde couche, celle qui rend la classe impossible plutôt qu'improbable : `_normalise_header` retire les DEUX formes du marqueur — `\ufeff` (décodé en UTF-8) et `ï»¿` (les mêmes octets lus en latin-1) — avant toute comparaison, pour qu'un en-tête arrivé par un autre chemin ne rouvre pas le défaut. Le garde rejoue les CINQ fichiers réellement refusés, avec ET sans BOM : la question est « le préfixe invisible change-t-il la réponse ? ».
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_csv_is_recognised_whatever_its_encoding.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: le message d'erreur était JUSTE et illisible, et c'est ce qui a coûté trois mois. « Colonnes vues : ﻿date, streams » nomme exactement la bonne colonne, parce qu'un BOM ne se rend pas. Un diagnostic affiché à l'utilisateur doit rendre visible ce qui diffère — ici il fallait `repr()`, pas le texte.
+  - 2026-09-06: vérifié en RETIRANT le correctif : `None` avec BOM, `s4a` sans, sur les cinq fichiers du rapport. Les deux couches ont été mutées séparément.
+  - 2026-09-06: découvert en vérifiant un import que l'artiste croyait terminé. Le journal de production ne portait AUCUNE ligne du jour : les trois fichiers marqués « ✅ Prêt » ne l'étaient qu'au sens de la DÉTECTION, et le bouton « Importer » n'avait pas été cliqué. Un état intermédiaire nommé comme un état final se lit comme un état final.

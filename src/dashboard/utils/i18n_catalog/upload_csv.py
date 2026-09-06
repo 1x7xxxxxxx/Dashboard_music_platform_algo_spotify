@@ -1,6 +1,12 @@
 """EN catalog for the upload_csv view."""
 
 EN = {
+    "upload_csv.auto_import": (
+        "🚀 All {n} files are recognised — import started automatically."),
+    "upload_csv.err_songs_all_zero": (
+        "« Since start » export: Spotify returns listeners and saves as **zero** "
+        "there, whatever the file is called. Export again with the period set to "
+        "**12 months**."),
     "upload_csv.autostart_ok": (
         "🚀 Your setup is complete — collection just started on its own ({n} "
         "sources). Your first figures arrive within minutes."),
@@ -38,7 +44,6 @@ EN = {
     "upload_csv.col_status": "Status",
     # Previews
     "upload_csv.err_no_valid_file": "No valid file to import.",
-    "upload_csv.preview_label": "Preview — {filename} ({n} rows)",
     # FX rate
     "upload_csv.fx_label": "USD → EUR conversion rate (DistroKid)",
     "upload_csv.fx_help": (

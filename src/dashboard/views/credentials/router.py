@@ -334,7 +334,19 @@ def show():
         # le prochain ONGLET non connecté dans l'ordre conseillé, ce qui est la même
         # promesse en plus simple : le parcours incite à tout faire, dans cet ordre.
         def _next_after(key: str) -> tuple | None:
-            keys = [k for k, _ in ordered]
+            # L'ONGLET DE DÉPÔT FAIT PARTIE DE LA SUITE. `keys` n'énumérait que les
+            # plateformes, donc « la suivante » ne pouvait jamais être « 📂 Mes
+            # fichiers » : après la DERNIÈRE plateforme configurée, l'enchaînement
+            # s'arrêtait net. Signalé le 2026-09-06 : « dès qu'on configure Meta Ads,
+            # il n'y a pas le passage automatique vers fichiers CSV ».
+            #
+            # Il est en FIN de liste, et c'est ce qui le place au bon moment : la
+            # boucle rend la première étape non faite, donc le dépôt n'est proposé
+            # qu'une fois toutes les plateformes branchées. Spotify for Artists et
+            # Apple Music n'étant jamais « connectés » au sens des identifiants — ils
+            # n'ont pas d'identité à saisir — cet onglet reste la dernière étape tant
+            # qu'aucun fichier n'est déposé, ce qui est exactement sa place.
+            keys = [k for k, _ in ordered] + [_CSV_KEY]
             try:
                 start = keys.index(key) + 1
             except ValueError:

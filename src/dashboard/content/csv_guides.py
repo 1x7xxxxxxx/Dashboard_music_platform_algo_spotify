@@ -92,7 +92,8 @@ _S4A = PlatformGuide(
     ),
     steps=(
         GuideStep(
-            "Connectez-vous sur artists.spotify.com et ouvrez l'onglet **Musique** "
+            "Connectez-vous sur [artists.spotify.com](https://artists.spotify.com) et "
+            "ouvrez l'onglet **Musique** "
             "(icône disque, barre latérale gauche).",
             "s4a_music_pannel.png", "Barre latérale → onglet Musique",
         ),
@@ -156,7 +157,8 @@ _APPLE = PlatformGuide(
     ),
     steps=(
         GuideStep(
-            "Connectez-vous sur artists.apple.com, sélectionnez votre artiste, puis sur "
+            "Connectez-vous sur [artists.apple.com](https://artists.apple.com), "
+            "sélectionnez votre artiste, puis sur "
             "l'onglet **Aperçu** réglez le sélecteur de période (en haut à droite) sur "
             "**Depuis le début**.",
             "apple_music_aperçu_filtre_depuisledébut.png",
