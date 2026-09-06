@@ -95,8 +95,18 @@ def test_the_meta_diagnosis_carries_the_sharing_instruction(benken_diagnosis):
     # « Attribuer un partenaire » est le bouton de l'écran qui GÈRE les attributions
     # d'un compte, pas celui qui en AJOUTE une. Un artiste l'a suivi et n'a rien
     # trouvé. Le chemin canonique passe par les partenaires du Business.
+    #
+    # RÉANCRÉ une TROISIÈME fois le 2026-09-06, et c'est la fois de trop pour un
+    # libellé : « l'accès à tes assets » n'est pas le texte du bouton — Meta écrit
+    # « l'accès à vos actifs ». L'app portait donc deux formulations du même bouton,
+    # et un artiste devait traduire de tête devant son écran.
+    #
+    # On garde le VERBE du partage, qui survit au prochain relookage de Meta, et le
+    # reste de la consigne (l'écran, le rôle). Le catalogue le dit depuis le
+    # 2026-09-05 : « un garde ancré sur un LIBELLÉ suit la mode des boutons Meta ».
+    # Cinq surfaces portaient cette phrase ; deux gardes l'épinglaient encore.
     assert "Partenaires" in benken_diagnosis
-    assert "l'accès à tes assets" in benken_diagnosis
+    assert "Donner à un partenaire" in benken_diagnosis
     assert "Analyste" in benken_diagnosis
     # Et jamais le retour des deux consignes infaisables déjà rencontrées :
     # chercher notre app chez l'artiste, et le bouton de l'écran de gestion.
@@ -107,7 +117,7 @@ def test_the_meta_diagnosis_carries_the_sharing_instruction(benken_diagnosis):
 
 @pytest.mark.parametrize("fixture_name, tail", [
     ("grinch_diagnosis", "en **public**"),
-    ("benken_diagnosis", "l'accès à tes assets"),
+    ("benken_diagnosis", "Donner à un partenaire"),
 ])
 def test_the_probe_seam_keeps_the_gesture(request, monkeypatch, fixture_name, tail):
     """`platform_probes.probe` is the seam every automatic surface reads through.

@@ -136,7 +136,7 @@ def _render_guide_web_link() -> None:
         return
     st.link_button(
         t("process_guide.web_version", "🌐 Ouvrir le guide complet dans un onglet"),
-        f"{base}/guide", use_container_width=False,
+        f"{base}/guide", width="content",
     )
     st.caption(t("process_guide.web_version_note",
                  "Version web : toujours à jour, images nettes, liens cliquables."))

@@ -41,6 +41,13 @@ EN = {
 
     # ── Colonne « Format » + légende intégrée (2026-09-04) ──
     "matrix.col_shape": "**Shape**",
+    "matrix.sharing_unknown": (
+        "🤝 Ad account sharing: not checked yet — run the connection test in the "
+        "📱 Meta Ads tab."),
+    "matrix.sharing_ok": "🤝 Ad account sharing: in place.",
+    "matrix.sharing_missing": (
+        "🤝 Ad account sharing: **to do** — it is the one step we cannot do for you, "
+        "and without it no data arrives."),
     "matrix.legend_inline": (
         "**Entered**: you typed an identifier · **Shape**: it looks the way the "
         "platform expects · **Responds**: the platform answered when we asked · "

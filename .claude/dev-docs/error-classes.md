@@ -265,6 +265,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [check-then-insert-loses-the-race](#check-then-insert-loses-the-race) | P2 | deterministic | guarded | none |
 | [test-pinned-to-a-row-of-the-authors-database](#test-pinned-to-a-row-of-the-authors-database) | P3 | deterministic | guarded | none |
 | [guard-branch-only-reached-when-it-fails](#guard-branch-only-reached-when-it-fails) | P3 | deterministic | guarded | none |
+| [view-state-outlives-the-visit](#view-state-outlives-the-visit) | P3 | deterministic | guarded | none |
+| [menu-filter-mistaken-for-an-access-gate](#menu-filter-mistaken-for-an-access-gate) | P2 | deterministic | guarded | none |
 | [instruction-points-by-direction-not-by-name](#instruction-points-by-direction-not-by-name) | P3 | deterministic | guarded | none |
 | [header-announces-a-field-the-form-does-not-have](#header-announces-a-field-the-form-does-not-have) | P3 | deterministic | guarded | none |
 | [per-worker-reference-point-for-shared-state](#per-worker-reference-point-for-shared-state) | P3 | deterministic | guarded | none |
@@ -3624,3 +3626,34 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: vu rouge en retirant `pytest_configure_node` et la lecture de `workerinput`, vert après. Les deux assertions tombent séparément, ce qui distingue « le contrôleur n'envoie rien » de « le worker ignore ce qu'on lui envoie » — deux corrections différentes.
   - 2026-09-06: ce correctif n'a PAS suffi à rendre `test_no_synthetic_track_survives_into_the_freshness_computation` vert : la cause restante est différente et vise le locataire **1**, qui est réel. Écrit ici pour que l'entrée ne laisse pas croire l'inverse.
+
+## view-state-outlives-the-visit
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: on rouvre un écran et il s'ouvre là où on l'avait laissé, alors qu'on y revient pour le reprendre depuis le début. Rien n'est en panne, et la page semble ignorer qu'on vient de cliquer sur son entrée de menu.
+- root_cause: `views/onboarding.py` gardait l'étape courante dans `st.session_state['_onboarding_step']`, qui survit à la navigation. Un artiste passé une fois à l'étape 2 rouvrait l'assistant sur « Où tu en es » pour le reste de sa session, y compris au premier clic d'une visite ultérieure — c'est-à-dire exactement quand il voulait revoir « Bienvenue & choix ». Signalé le 2026-09-06 : « quand je me balade sur l'app et que je reclique sur mise en route, je n'ai pas automatiquement redirection vers le bienvenu ». La cause profonde est que **Streamlit ré-exécute le script entier à chaque interaction** : une vue ne peut pas distinguer « il vient de cliquer sur mon entrée de menu » de « il est déjà dessus et a cliqué sur un bouton » — les deux produisent des runs identiques.
+- signature: `python3 -m pytest tests/test_the_assistant_reopens_on_its_first_step.py -q`
+- long_term_fix: `app.py` publie la page rendue au run PRÉCÉDENT (`session_state['_page_arrived_from']`), le seul signal qui sépare les deux cas, et la vue remet son étape à 1 quand elle vient d'ailleurs. Deux subtilités que le garde épingle parce qu'elles rendraient le correctif faux : **(1)** le marqueur est posé AVANT le rendu de la barre latérale, qui dessine les étapes au-dessus du corps — posé après, la barre lirait l'étape d'avant et le corps celle d'après, deux moitiés du même écran en désaccord pendant un run ; **(2)** un marqueur ABSENT n'est pas une arrivée — sans cette distinction, chaque rerun remettrait l'étape à 1, y compris le clic qui fait passer à l'étape 2, et l'assistant deviendrait intraversable.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_assistant_reopens_on_its_first_step.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: la première version du garde comparait des chaînes au texte source d'`app.py`. Le cliquet de `tests/test_a_guard_reads_structure_not_text.py` l'a pris — et il avait raison : ce fichier ET `app.py` EXPLIQUENT le marqueur en commentaire, donc la recherche de chaîne serait restée verte le jour où l'écriture disparaîtrait et où seule la prose resterait. Passé à l'AST : on cherche l'affectation `session_state['…']` comme NŒUD.
+  - 2026-09-06: le même écran portait QUATRE boutons pour trois actions, dont un doublon exact — `_step_status` rendait « 🔑 Connecter mes sources → » et `_render_landing_choice`, appelée quinze lignes plus loin depuis `show()`, rendait le même. Personne ne l'avait vu parce qu'il venait d'une AUTRE fonction : deux fonctions qui écrivent le même écran ne se lisent jamais ensemble. Le garde compte désormais les boutons de l'ÉCRAN, pas ceux d'une fonction.
+
+## menu-filter-mistaken-for-an-access-gate
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une page réservée n'apparaît pas dans le menu et s'affiche quand même — il suffit d'en connaître l'adresse. La liste qui devait la protéger existe, elle est correcte, et personne ne la lit au bon endroit.
+- root_cause: `src/dashboard/app.py::_ADMIN_ONLY` était consultée dans UN seul endroit, le constructeur de la barre latérale. `_render_page` aiguillait sans demander qui demandait, donc `?page=<clé>` — un signet, un lien dans un vieux mail, une URL tapée — atteignait la vue. Les dix pages concernées se gardent chacune elles-mêmes, vérifié une par une le 2026-09-06 ; le défaut n'est donc pas une fuite constatée mais une garantie qui repose sur dix copies au lieu d'une, avec trois orthographes différentes (`is_admin()`, `not is_admin()`, `session_state['role'] != 'admin'`). `db_health`, ajoutée à la liste le même jour, n'avait AUCUN garde interne.
+- signature: `python3 -m pytest tests/test_an_admin_page_is_gated_by_its_route_not_its_menu.py -q`
+- long_term_fix: `_render_page` refuse la page avant tout aiguillage quand la clé est dans `_ADMIN_ONLY` et que la session n'est pas admin. La liste devient le garde au lieu d'un filtre d'affichage : ajouter une clé suffit désormais, et les gardes internes restent en défense de profondeur — les retirer ferait de ce point unique un point de défaillance unique. Le garde vérifie aussi que le refus PRÉCÈDE le premier `page == …` (sinon la page se rend, puis on dit non) et qu'il fait bien un `return` (un `st.error` sans sortie afficherait le message AU-DESSUS de la page qu'il refuse).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_admin_page_is_gated_by_its_route_not_its_menu.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: j'ai d'abord annoncé DEUX pages non gardées (`ml_performance`, `etl_logs`) sur la foi d'un `grep -c "is_admin()"`. C'était faux : `ml_performance` teste `st.session_state.get("role") != "admin"`, ce qu'une recherche sur le nom de la fonction ne voit pas. Compter les occurrences d'un NOM ne mesure pas la présence d'un contrôle — il y a autant de façons d'écrire « es-tu admin ? » que d'auteurs.

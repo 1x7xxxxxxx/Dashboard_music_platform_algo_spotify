@@ -63,6 +63,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.credentials": "🔑 API Credentials",
         "nav.item.platform_status": "📋 Where each platform stands",
         "nav.item.upload_csv": "📂 Add my Spotify for Artists & Apple figures",
+        "nav.admin_only": "🔒 This page is for administrators only.",
         "nav.item.meta_mapping": "🔗 Cross-platform mapping",
         "nav.item.onboarding_health": "🚦 Onboarding health",
         "nav.item.db_health": "🗄️ Data health",

@@ -439,7 +439,7 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                                         expanded=True, with_images=not _shots)
         with _col_shot:
             for _path, _caption in _shots:
-                st.image(str(_path), caption=_caption, use_container_width=True)
+                st.image(str(_path), caption=_caption, width="stretch")
 
     # Le verdict de la sauvegarde qui vient d'avoir lieu, AU-DESSUS de tout le reste
     # de cet onglet — donc au-dessus de « Saisir tes identifiants ».

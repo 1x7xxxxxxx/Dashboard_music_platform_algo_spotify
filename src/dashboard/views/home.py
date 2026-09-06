@@ -184,11 +184,11 @@ def _section_onboarding(db, artist_id: int) -> None:
         # écrit quand le bouton est ailleurs. Elle le fait maintenant elle-même.
         if page_key == "onboarding" and idx == len(steps) - 1:
             if st.button(f"⬜ {label}", key=f"home_step_{idx}",
-                         use_container_width=True, type="primary"):
+                         width="stretch", type="primary"):
                 _launch_collections()
             continue
         if st.button(f"⬜ {label}", key=f"home_step_{idx}",
-                     use_container_width=True):
+                     width="stretch"):
             goto(page_key)
 
     # One compact line of per-platform boxes, only while something is still amber or

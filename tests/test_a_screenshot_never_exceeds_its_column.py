@@ -76,18 +76,37 @@ def test_no_surface_calls_st_image_with_a_bare_pixel_cap(surface):
                 "faisait `_MAX_IMG_WIDTH = 720`.")
 
 
-@pytest.mark.parametrize("surface", _SURFACES)
-def test_no_surface_uses_the_removed_container_flag(surface):
-    """`use_container_width` est retiré de Streamlit depuis fin 2025 et LÈVE.
+def test_no_dashboard_file_uses_the_removed_container_flag():
+    """`use_container_width` est retiré de Streamlit depuis fin 2025.
 
-    Vu au rendu le 2026-09-06 : la page entière tombait en erreur, pas seulement
-    l'image. La lecture du code ne le disait pas — la signature l'accepte encore.
+    Sur `st.image` il LÈVE — vu au rendu le 2026-09-06, la page entière tombait en
+    erreur, pas seulement l'image. Sur les autres widgets il n'avertit encore que par
+    un message dans les logs, ce qui est pire à sa façon : le compte à rebours court
+    et rien ne le rend visible à l'écran.
+
+    Le balayage porte sur TOUT `src/dashboard/`, et pas sur les deux surfaces de
+    guides : le défaut n'est pas propre aux captures. Mesuré le 2026-09-06 — 11 sites
+    dans 5 fichiers, dont 8 boutons et un `link_button`.
     """
-    for call in _image_calls(_CONTENT / surface):
-        names = {kw.arg for kw in call.keywords}
-        assert "use_container_width" not in names, (
-            f"{surface}: `use_container_width` lève sur Streamlit ≥ 1.54. "
-            "L'équivalent est `width=\"stretch\"`.")
+    root = _repo_root() / "src" / "dashboard"
+    offenders = []
+    for path in sorted(root.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:  # pragma: no cover — un fichier cassé se voit ailleurs
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for kw in node.keywords:
+                if kw.arg == "use_container_width":
+                    offenders.append(
+                        f"{path.relative_to(root)}:{node.lineno} "
+                        f"({getattr(node.func, 'attr', '?')})")
+    assert not offenders, (
+        "`use_container_width` est retiré de Streamlit ; sur `st.image` il lève et "
+        "emporte toute la page.\n  " + "\n  ".join(offenders)
+        + '\n\nÉquivalents : True → width="stretch", False → width="content".')
 
 
 def test_both_surfaces_go_through_the_same_renderer():

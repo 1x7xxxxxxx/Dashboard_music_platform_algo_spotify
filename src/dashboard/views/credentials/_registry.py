@@ -90,6 +90,17 @@ PLATFORMS = {
     },
     'meta': {
         'label': '📱 Meta Ads',
+        # Meta est la SEULE plateforme où coller le bon identifiant ne suffit pas :
+        # il faut en plus que l'artiste nous partage son compte publicitaire depuis
+        # SON Business Manager, et nous ne pouvons pas le faire à sa place. Sans ce
+        # partage, l'appel rend `(#3) capability` et aucune donnée n'arrive — même
+        # avec un identifiant parfaitement valide.
+        #
+        # Déclaré ICI, dans la donnée, parce que la matrice d'état doit le montrer et
+        # qu'une liste `if key == "meta"` dans le rendu serait la forme que ce dépôt
+        # a déjà payée (`layout-keyed-by-a-hand-written-list`). Une plateforme future
+        # qui demanderait un partage l'écrira à côté de ses champs.
+        'requires_sharing': True,
         # Shared System User app (access_token/app_id/app_secret) comes from the
         # platform env; the artist provides their own Ad Account ID and — for
         # Instagram — their Instagram Business Account ID. Stored per-artist app

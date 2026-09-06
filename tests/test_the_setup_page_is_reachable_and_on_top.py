@@ -111,13 +111,25 @@ def test_the_assistant_offers_a_way_into_the_app():
     un réglage offert à quelqu'un qui n'a pas encore vu ce qu'il réglerait, et le
     mécanisme (`saas_users.show_setup_on_login`) existe toujours en base — c'est le
     bouton de réglage qui disparaît, pas la préférence.
+
+    RÉANCRÉ le 2026-09-06 : `_render_landing_choice` a été supprimée. Elle ne rendait
+    plus qu'un séparateur et un bouton identique à celui de `_step_status`, sur le
+    même écran — un doublon invisible parce qu'il venait d'une AUTRE fonction. La
+    sortie existe toujours ; elle vit maintenant là où on la lit.
+
+    Et le test compte les boutons de l'ÉCRAN, plus ceux d'une fonction : c'est ce
+    dénombrement-là qui aurait signalé le doublon, et qu'aucun garde ne faisait.
     """
-    fn = _fn(ONB, "_render_landing_choice")
+    fn = _fn(ONB, "_step_status")
     src = ast.get_source_segment(ONB.read_text(encoding="utf-8"), fn) or ""
     tree = ast.parse(src)
     buttons = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
                and getattr(n.func, "attr", "") == "button"]
     assert buttons, "l'assistant n'a plus de sortie : on y entre sans pouvoir en sortir"
+    assert len(buttons) == 1, (
+        f"{len(buttons)} boutons sur l'écran « Où tu en es » : il n'en faut qu'un. "
+        "La barre latérale porte déjà le retour aux étapes et l'accueil, et deux "
+        "boutons identiques font douter qu'ils fassent la même chose.")
 
     boxes = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "checkbox"]
@@ -326,18 +338,25 @@ def test_the_way_out_is_rendered_after_the_step_content():
     It was above the step's own title: the first thing an artist saw on their setup
     page was the button for leaving it.
     """
-    show = _fn(ONB, "show")
-    exit_lines = _call_lines(show, "_render_landing_choice")
-    # Les deux étapes qui restent. Il y en avait trois jusqu'au 2026-09-04 :
-    # `_step_credentials` (qui redisait la liste de plateformes de la page 1) et
-    # `_step_ready` (qui redemandait ce que le bouton précédent venait de décider)
-    # ont fusionné dans `_step_status`.
-    step_lines = (_call_lines(show, "_step_welcome")
-                  + _call_lines(show, "_step_status"))
-    assert exit_lines and step_lines, "show() no longer renders both"
-    assert min(exit_lines) > max(step_lines), (
-        "the exit block is rendered before the step content — it reads as a header, "
-        "which is what was reported."
+    # RÉANCRÉ le 2026-09-06. Ce test vérifiait que `show()` appelle
+    # `_render_landing_choice` APRÈS les étapes. Cette fonction n'existe plus : elle
+    # ne rendait qu'un séparateur et un bouton « 🔑 Connecter mes sources → », c'est-
+    # à-dire le bouton EXACT que `_step_status` rend déjà quinze lignes plus haut,
+    # sur le même écran. Deux fonctions qui écrivent le même écran ne se lisent
+    # jamais ensemble, et personne n'avait vu le doublon.
+    #
+    # La question gardée est la même — la sortie se lit APRÈS le contenu de l'étape,
+    # jamais en en-tête — mais elle se pose maintenant DANS `_step_status`, où le
+    # bouton vit : il doit venir après la matrice d'état.
+    fn = _fn(ONB, "_step_status")
+    exit_lines = [n.lineno for n in ast.walk(fn)
+                  if isinstance(n, ast.Call)
+                  and getattr(n.func, "attr", "") == "button"]
+    content_lines = _call_lines(fn, "render_status_matrix")
+    assert exit_lines and content_lines, "_step_status ne rend plus les deux"
+    assert min(exit_lines) > max(content_lines), (
+        "le bouton de sortie est rendu avant la matrice d'état — il se lit comme un "
+        "en-tête, ce qui est exactement ce qui avait été signalé."
     )
 
 
@@ -539,7 +558,13 @@ def test_the_only_action_is_centred_and_full_width():
     assert btn is not None, "le bouton « Connecter mes sources » a disparu"
 
     kw = {k.arg: k.value for k in btn.keywords}
-    assert getattr(kw.get("use_container_width"), "value", False) is True, (
+    # `width="stretch"` depuis le 2026-09-06 : `use_container_width` est retiré de
+    # Streamlit et LÈVE sur `st.image`, emportant la page entière. Les deux formes
+    # sont acceptées ici parce que la question gardée est l'INTENTION — le bouton
+    # occupe-t-il sa colonne ? — et non le nom du paramètre du jour.
+    _full = (getattr(kw.get("use_container_width"), "value", False) is True
+             or getattr(kw.get("width"), "value", "") == "stretch")
+    assert _full, (
         "le bouton n'occupe plus sa colonne : il retombe à sa largeur automatique, "
         "celle d'un lien secondaire")
     assert getattr(kw.get("type"), "value", "") == "primary", (

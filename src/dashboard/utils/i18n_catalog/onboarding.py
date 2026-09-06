@@ -41,8 +41,6 @@ EN = {
     # colonne pour la valeur. `onboarding.need` reste : son appelant est l'écran
     # d'attente après inscription, où il n'y a rien d'autre à faire que rassembler
     # ses identifiants.
-    "onboarding.back": "← Back",
-    "onboarding.go_dashboard": "🏠 Go to dashboard →",
     # Sidebar progress
     "onboarding.b1_title": "1. streaMLytics in brief",
     "onboarding.brief_1": "**All your data in one place, pulled every day, "

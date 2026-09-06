@@ -135,7 +135,7 @@ def _probe_ad_account(act_id: str, token: str) -> tuple:
             "Compte publicitaire **{act}** : il ne nous est pas encore partagé. "
             "{detail}\n\n"
             "→ Paramètres du Business → **Partenaires** → **Ajouter** → "
-            "**Donner à un partenaire l'accès à tes assets** → {where} → coche le "
+            "**Donner à un partenaire l'accès à vos actifs** → {where} → coche le "
             "compte → rôle **Analyste**."
         ).format(act=act_id, detail=detail, where=_where), SHARING_MISSING)
     return True, str(acc.get('name', act_id))

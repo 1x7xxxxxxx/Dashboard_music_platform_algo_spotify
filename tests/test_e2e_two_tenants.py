@@ -174,6 +174,31 @@ def tenant(db):
             pass
     db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
 
+    # ET LES LIGNES POSÉES SUR LES AUTRES LOCATAIRES, qui sont l'angle mort de ce
+    # nettoyage. Plusieurs tests de ce fichier appellent `_run_soundcloud()` SANS
+    # `artist_id` — un run de FLOTTE, ce qui est précisément ce qu'ils vérifient : la
+    # boucle passe donc sur tous les locataires actifs déclarant SoundCloud, dont
+    # l'admin (id 1), et écrit sous LEUR identifiant une ligne fabriquée par l'API
+    # mockée. Légitime pendant le test, et invisible pour la boucle ci-dessus qui ne
+    # connaît que son propre locataire.
+    #
+    # Mesuré le 2026-09-06 par une sonde en psycopg2 direct : la ligne survivait
+    # jusqu'à la fin de session, et pendant tout ce temps
+    # `test_no_synthetic_track_survives_into_the_freshness_computation` la voyait
+    # dénoncer le locataire 1 — un rouge qui ne dépendait que de l'ordre des workers.
+    # Le nettoyage de `conftest` passe en fin de SESSION ; ici on rend la ligne
+    # aussi éphémère que le test qui l'a produite.
+    #
+    # Le préfixe est celui de `conftest._SYNTHETIC_TRACK_PREFIX` : les titres viennent
+    # du faux SoundCloud (`track-of-<user_id>`), donc aucune ligne réelle ne le porte.
+    from tests.conftest import _SYNTHETIC_TRACK_PREFIX
+    try:
+        db.execute_query(
+            "DELETE FROM soundcloud_tracks_daily WHERE track_id LIKE %s",
+            (f"{_SYNTHETIC_TRACK_PREFIX}%",))
+    except Exception:  # noqa: BLE001 — un nettoyage n'échoue pas le test
+        pass
+
 
 def _connect(db, artist_id: int, platform: str, extra: dict) -> None:
     import json

@@ -139,7 +139,7 @@ def _example_chart(name: str) -> None:
     path = _EXAMPLES_DIR / name
     if not path.exists():
         return
-    st.image(str(path), use_container_width=True)
+    st.image(str(path), width="stretch")
 
 
 def _tenant_series(db, artist_id):
@@ -188,7 +188,7 @@ def _language_buttons() -> None:
     cols = st.columns([1, 1, 3])
     for col, (code, label) in zip(cols, (("fr", "🇫🇷 Français"), ("en", "🇬🇧 English"))):
         with col:
-            if st.button(label, key=f"_onb_lang_{code}", use_container_width=True,
+            if st.button(label, key=f"_onb_lang_{code}", width="stretch",
                          type="primary" if cur == code else "secondary",
                          disabled=(cur == code)):
                 set_lang(code)
@@ -465,7 +465,7 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     _l, _mid, _r = st.columns([1, 2, 1])
     with _mid:
         if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
-                     type="primary", use_container_width=True, key="_onb_go_creds"):
+                     type="primary", width="stretch", key="_onb_go_creds"):
             st.session_state[_STEP_KEY] = 2
             _goto('credentials')
             return
@@ -504,21 +504,26 @@ def _step_status(db, artist_id: int) -> None:
             "onboarding.matrix_legend",
             "🟢 vert = fait · ⚪ blanc = pas encore · 🔴 rouge = à corriger."))
 
+    # UN SEUL bouton. Il y en avait QUATRE sur cet écran : « ← Retour »,
+    # « 🔑 Connecter mes sources → », « 🏠 Aller au dashboard → » ici, et un SECOND
+    # « 🔑 Connecter mes sources → » juste dessous, rendu par `_render_landing_choice`.
+    # Signalé le 2026-09-06 : deux fois la même action à trois centimètres d'écart, et
+    # deux sorties qui doublent la barre latérale.
+    #
+    # Ce qui part, et pourquoi chacun :
+    #   * le doublon — deux boutons identiques font douter qu'ils fassent la même
+    #     chose, donc lire les deux ;
+    #   * « ← Retour » — les étapes de la barre latérale y mènent déjà, et depuis que
+    #     l'assistant rouvre sur l'étape 1 il n'y a plus de retour à faire ;
+    #   * « 🏠 Aller au dashboard » — c'est « 🏠 Accueil », première entrée du menu.
+    #
+    # Reste l'action que le parcours incite à faire, seule et primaire.
     st.markdown("---")
-    col_back, col_creds, col_home = st.columns([1, 2, 2])
-    if col_back.button(t("onboarding.back", "← Retour")):
-        st.session_state[_STEP_KEY] = 1
-        st.rerun()
-    # Le bouton de configuration est TOUJOURS l'action principale : c'est ce que le
-    # parcours incite à faire. Il dépendait d'une sélection (`type="primary" if focus`),
-    # et sans sélection cette condition n'avait plus de réponse — un artiste qui n'a
-    # rien coché n'existe plus.
-    if col_creds.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
-                        type="primary", key="_onb_done_creds"):
-        _goto('credentials')
-    if col_home.button(t("onboarding.go_dashboard", "🏠 Aller au dashboard →"),
-                       type="secondary", key="_onb_done_home"):
-        _goto('home')
+    _l, _mid, _r = st.columns([1, 2, 1])
+    with _mid:
+        if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+                     type="primary", width="stretch", key="_onb_done_creds"):
+            _goto('credentials')
 
 
 def _step_labels() -> list[str]:
@@ -560,48 +565,56 @@ def render_sidebar_steps() -> None:
         if i == step:
             st.sidebar.markdown(f"**{prefix} {label}**")
         elif st.sidebar.button(f"{prefix} {label}", key=f"_onb_jump_{i}",
-                               use_container_width=True):
+                               width="stretch"):
             st.session_state[_STEP_KEY] = i
             st.rerun()
 
 
-def _render_landing_choice(db, state) -> None:
-    """La sortie, et le droit de ne plus revenir.
+# `_render_landing_choice` a été SUPPRIMÉE le 2026-09-06. Elle ne rendait plus qu'un
+# `st.markdown("---")` et un bouton « 🔑 Connecter mes sources → » — exactement le
+# bouton que `_step_status` rend déjà quinze lignes plus haut, sur le même écran.
+#
+# Elle avait porté un compteur « Configuration : 2/4 » et une case « afficher cette
+# page à la connexion », retirés le 2026-09-05. Ce qui restait était le résidu d'un
+# bloc vidé : un doublon que personne n'avait vu parce qu'il était rendu par une
+# AUTRE fonction, appelée depuis `show()`. Deux fonctions qui écrivent sur le même
+# écran ne se lisent jamais ensemble.
+#
+# La préférence `show_setup_on_login` existe toujours en base et reste écrite par
+# `--reset` : ce qui disparaît est le rendu, pas le mécanisme.
 
-    Demandé le 2026-09-04 : « un gros bouton d'accès à l'app si on le souhaite avec
-    case à cocher qui nous dit qu'on souhaite garder cette page de connexion au début
-    ou non ». Les deux comptent, et pour la même raison : l'assistant redevient
-    l'atterrissage tant que la configuration n'est pas finie, ce qui n'est utile que si
-    on peut le traverser **et** le désactiver. Un écran qu'on ne peut pas quitter n'est
-    pas une aide, c'est une porte.
 
-    L'écriture est synchrone, pas dans un `on_change` : le callback tournerait au début
-    du run SUIVANT, quand la connexion de `show()` est déjà fermée.
+def _entering_from_elsewhere() -> bool:
+    """Vient-on d'ARRIVER sur l'assistant, ou y était-on déjà ?
+
+    `app.py` publie la page rendue au run précédent (`_page_arrived_from`). Streamlit
+    ré-exécute le script à chaque clic, donc sans ce repère la vue ne peut pas faire
+    la différence entre « il vient de cliquer sur Mise en route » et « il est dessus
+    et vient de cliquer sur un bouton » — et l'étape gardée en session survivait à la
+    navigation.
+
+    Une clé ABSENTE (premier run de la session, tests headless qui appellent `show()`
+    sans passer par `app.py`) n'est PAS une arrivée : sans quoi chaque rerun
+    remettrait l'étape à 1 et l'assistant deviendrait impossible à traverser.
     """
-    # Ni compteur, ni case à cocher : UN bouton.
-    #
-    # Ce qui part le 2026-09-05, et pourquoi. « Configuration : 2/4 — tant que ce
-    # n'est pas complet, tu retombes ici à la connexion » annonçait une contrainte au
-    # lieu d'une étape, et la barre de progression la répétait en image. « Afficher
-    # cette page à la connexion tant que ma configuration n'est pas terminée » offrait
-    # un réglage à quelqu'un qui n'a pas encore vu ce qu'il réglerait.
-    #
-    # Le compteur avait une deuxième raison de partir : il comptait sur QUATRE étapes
-    # (credentials, CSV S4A, CSV Apple, première collecte) pendant que la page,
-    # au-dessus, en propose six. Deux dénombrements du même parcours sur le même
-    # écran, dont aucun n'est faux — c'est la classe `one-set-answers-two-questions`,
-    # et ici la réponse la plus simple est de n'en garder aucun.
-    #
-    # La préférence `show_setup_on_login` existe toujours en base et reste écrite par
-    # `--reset` : ce qui disparaît est le RÉGLAGE offert ici, pas le mécanisme.
-    st.markdown("---")
-    if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
-                 type="primary", use_container_width=True, key="_onb_enter_app"):
-        _goto('credentials')
+    arrived_from = st.session_state.get('_page_arrived_from')
+    return arrived_from is not None and arrived_from != 'onboarding'
 
 
 def show() -> None:
-    if _STEP_KEY not in st.session_state:
+    # ROUVRIR SUR L'ÉTAPE 1. Signalé le 2026-09-06 : « dès qu'on clique sur
+    # l'assistant, ça devrait nous ramener à bienvenue et choix au lieu de directement
+    # où tu en es ».
+    #
+    # `_STEP_KEY` vit dans `session_state`, qui survit à la navigation : un artiste
+    # passé une fois à l'étape 2 rouvrait l'assistant sur « Où tu en es » pour le
+    # reste de sa session. Ce n'est pas un état de session, c'est l'endroit où l'on
+    # en était dans un parcours qu'on vient de reprendre depuis le début.
+    #
+    # On ne remet pas à 1 à chaque run — seulement quand on ARRIVE d'une autre page.
+    # Les deux boutons d'étape de la barre latérale continuent de fonctionner, et
+    # `_step_welcome` peut toujours pousser vers l'étape 2.
+    if _entering_from_elsewhere() or _STEP_KEY not in st.session_state:
         st.session_state[_STEP_KEY] = 1
 
     step = st.session_state[_STEP_KEY]
@@ -612,29 +625,20 @@ def show() -> None:
     # la liste de cases posent la même question à la même base (règle transverse #9).
     db = get_db_connection()
     try:
-        from src.dashboard.utils.setup_completion import read_setup_state
-        state = read_setup_state(db, artist_id, st.session_state.get('user_id'))
+        # `read_setup_state` n'est plus appelée ICI. Elle l'était pour décider
+        # d'afficher un bloc de sortie en bas de l'étape 2 — bloc supprimé le
+        # 2026-09-06 parce qu'il rendait un doublon du bouton de `_step_status`.
+        # L'atterrissage au login, lui, la lit depuis `app.py` : ce qui disparaît est
+        # une lecture devenue sans lecteur, pas le mécanisme.
+        #
+        # Elle est retirée plutôt que gardée « au cas où » : une requête dont
+        # personne ne lit le résultat est une connexion dépensée pour rien, et la
+        # règle transverse #9 plafonne cette page à une seule.
 
         if step == 1:
             _step_welcome(plan, artist_id, db)
         else:
             _step_status(db, artist_id)
-
-        # En BAS, et SEULEMENT à l'étape 2 — deux corrections du même jour, dans le
-        # même sens.
-        #
-        # Le matin : ce bloc était au-dessus du titre de l'étape, donc la première
-        # chose qu'un artiste voyait en arrivant sur sa mise en route était le bouton
-        # pour en sortir. « Le bouton accéder à l'application [doit être] à la fin ».
-        #
-        # Le soir : il ne s'affiche plus du tout sur la page de bienvenue. « Sur cette
-        # page de bienvenue, supprime configuration 0/4 et bouton accéder à l'appli…
-        # elle apparaît uniquement au step 2. » La page 1 pose une question — que
-        # veux-tu brancher ? — et son bouton y répond ; y ajouter une jauge « 0/4 »,
-        # une sortie et une préférence de connexion donne trois façons de partir avant
-        # d'avoir répondu. Ce qui a un sens APRÈS le choix se lit après le choix.
-        if state.steps and step != 1:
-            _render_landing_choice(db, state)
     finally:
         if db is not None:
             db.close()

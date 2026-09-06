@@ -61,7 +61,18 @@ def show():
             matrix = artist_readiness(db, aid)
             reds = [m for m in matrix if m["status"] == NO_DATA]
             total_red += len(reds)
-            header = f"{name} (id={aid}) — " + " ".join(m["icon"] for m in matrix)
+            # L'IDENTIFIANT NE S'AFFICHE QUE POUR L'ADMIN. Signalé le 2026-09-06 :
+            # « retire id=xx, inutile pour l'user ». Il l'est, et pas seulement par
+            # encombrement : un artiste ne voit QUE sa propre ligne, donc le numéro ne
+            # distingue rien — il ne peut pas se tromper d'artiste. Pour l'admin, qui
+            # déroule la liste entière, c'est l'inverse : deux artistes peuvent porter
+            # le même nom, et c'est ce numéro qu'il colle dans
+            # `make artist-preflight ARTIST=<id>`.
+            #
+            # Le supprimer pour tout le monde aurait retiré à l'admin le seul endroit
+            # de l'app où il lit cet identifiant.
+            header = (f"{name} (id={aid}) — " if is_admin() else f"{name} — ")
+            header += " ".join(m["icon"] for m in matrix)
             with st.expander(header, expanded=bool(reds) or not is_admin()):
                 # The same renderer as the artist's own pages: an admin looking at a
                 # blocked tenant must see exactly what that tenant sees, or the two

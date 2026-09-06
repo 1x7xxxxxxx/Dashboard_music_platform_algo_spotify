@@ -362,6 +362,54 @@ def render_platform_state(db, artist_id: int, platform_key: str) -> None:
                 + "<br>".join(blocks) + "</div>", unsafe_allow_html=True)
 
 
+def _requires_sharing(platform_key: str) -> bool:
+    """Cette plateforme demande-t-elle un partage que nous ne pouvons pas faire ?
+
+    Lu dans le registre (`_registry.PLATFORMS[...]['requires_sharing']`) et non écrit
+    ici : un `if key == "meta"` dans le rendu serait la forme que ce dépôt a déjà
+    payée — une mise en page clavée sur une liste tapée à la main, muette le jour où
+    une seconde plateforme rejoint le cas.
+    """
+    try:
+        from src.dashboard.views.credentials._registry import PLATFORMS
+    except Exception:  # noqa: BLE001 — la matrice se rend sans le registre
+        return False
+    return bool((PLATFORMS.get(platform_key) or {}).get("requires_sharing"))
+
+
+def _sharing_line(row: dict, remembered) -> str:
+    """La phrase à mettre sous la ligne, ou `""` si la question ne se pose pas.
+
+    Trois états, et ils appellent trois gestes différents :
+      * jamais mesuré  → on ne sait pas, et le dire vaut mieux qu'un silence qui se
+        lit comme « rien à faire » ;
+      * mesuré manquant → c'est LE geste restant, et il est à l'artiste ;
+      * mesuré présent → on le dit aussi, parce qu'un partage acquis est une chose
+        qu'on n'a pas à refaire et que personne ne peut vérifier autrement.
+    """
+    if not _requires_sharing(row.get("key", "")):
+        return ""
+    if remembered is None:
+        return t("matrix.sharing_unknown",
+                 "🤝 Partage du compte publicitaire : pas encore vérifié — teste la "
+                 "connexion dans l'onglet 📱 Meta Ads.")
+    ok, _reason = remembered[0], remembered[1]
+    category = remembered[3] if len(remembered) > 3 else None
+    if ok:
+        return t("matrix.sharing_ok",
+                 "🤝 Partage du compte publicitaire : en place.")
+    if category == "sharing_missing":
+        return t("matrix.sharing_missing",
+                 "🤝 Partage du compte publicitaire : **à faire** — c'est le seul "
+                 "geste que nous ne pouvons pas faire à ta place, et sans lui aucune "
+                 "donnée n'arrive.")
+    # Rouge pour une AUTRE raison : ne rien affirmer sur le partage, qui n'a pas été
+    # mesuré. Une sonde qui échoue sur un identifiant mal formé ne dit rien de lui.
+    return t("matrix.sharing_unknown",
+             "🤝 Partage du compte publicitaire : pas encore vérifié — teste la "
+             "connexion dans l'onglet 📱 Meta Ads.")
+
+
 def render_status_matrix(db, artist_id: int, *, compact: bool = False,
                          allow_probe: bool = True, key_suffix: str = "") -> list:
     """Draw the matrix and return the readiness rows.
@@ -459,6 +507,21 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
         # The escape stays — the tail of this string is a platform's own answer.
         cols[5].caption(
             as_markdown(_html.escape(action)) if action else "—")
+
+        # LE PARTAGE PARTENAIRE, sous la ligne qui le demande. Signalé le
+        # 2026-09-06 : « il manque sur Meta Ads le partage partenaire ». Les quatre
+        # colonnes disent Saisi / Format / Répond / Données, et aucune ne nomme la
+        # condition qui, sur Meta, décide de tout le reste : tant que l'artiste ne
+        # nous a pas partagé son compte depuis SON Business Manager, l'identifiant
+        # peut être parfait et rien n'arrivera. « Répond » finit rouge, mais
+        # seulement APRÈS un test de connexion — avant, la ligne est muette sur le
+        # seul geste qui reste à faire.
+        #
+        # Aucune requête ajoutée : l'état est celui que la dernière sonde a
+        # mémorisé, déjà lu plus haut. Rien n'est appelé au rendu (règle #9).
+        _sharing_note = _sharing_line(r, remembered)
+        if _sharing_note:
+            cols[0].caption(_sharing_note)
 
         # Une plateforme prouvée par PLUSIEURS sources se détaille sous sa ligne.
         # Spotify en a deux — l'API et l'import CSV Spotify for Artists — et la

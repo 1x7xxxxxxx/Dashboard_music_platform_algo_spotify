@@ -331,9 +331,16 @@ _NAV_SECTIONS = [
                                              ("⚙️ Admin", "admin")]),
 ]
 # Pages réservées admin (cachées pour le rôle 'artist')
+# `db_health` a rejoint la liste le 2026-09-06. Il répond à la même question que
+# « 🚦 Santé onboarding » — « mes données arrivent-elles ? » — mais dans le vocabulaire
+# de la plomberie : « jeux de données », « fraîcheur par dataset », « heatmap
+# d'import », « taille des imports par semaine ». L'artiste a déjà sa réponse, dans
+# ses mots, sur la matrice d'état ; celle-ci est l'outil de l'exploitant. Deux écrans
+# qui répondent à une même question dans deux langues, c'est
+# `one-set-answers-two-questions`, et ici la version artiste est la bonne.
 _ADMIN_ONLY = {'airflow_kpi', 'admin', 'ml_performance', 'useful_links',
                'etl_logs', 'referral_kpi', 'promo_admin', 'perf_monitor',
-               'usage_analytics', 'alerts'}
+               'usage_analytics', 'alerts', 'db_health'}
 
 
 def _on_nav_select(skey: str, all_skeys: list):
@@ -634,11 +641,11 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     from src.dashboard.utils.navigation import goto
     if _c_prev.button("◀", key="_nav_prev", disabled=_prev is None,
                       help=t("nav.prev", "Page précédente"),
-                      use_container_width=True):
+                      width="stretch"):
         goto(_prev)
     if _c_next.button("▶", key="_nav_next", disabled=_next is None,
                       help=t("nav.next", "Page suivante"),
-                      use_container_width=True):
+                      width="stretch"):
         goto(_next)
 
     label_by_key = {key: t(f"nav.item.{key}", lbl)
@@ -811,6 +818,23 @@ def _render_page(page):
         for _blob_key in ("_export_pdf_bytes", "_export_pdf_autodl",
                           "_export_csv_bytes"):
             st.session_state.pop(_blob_key, None)
+
+    # LE FILTRE DU MENU N'EST PAS UN GARDE. `_ADMIN_ONLY` ne servait qu'à construire
+    # la barre latérale (ligne ~491) : une page admin restait atteignable par
+    # `?page=<clé>`, un signet ou un lien. Les dix vues concernées se gardent bien
+    # elles-mêmes — vérifié une par une le 2026-09-06, et je m'étais d'abord trompé
+    # en croyant deux d'entre elles ouvertes : `ml_performance` teste
+    # `session_state['role']` et non `is_admin()`, ce qu'un grep sur le nom de la
+    # fonction ne voit pas.
+    #
+    # Mais dix copies avec trois orthographes, c'est dix endroits où la onzième page
+    # oubliera de se garder. La liste devient donc le garde plutôt qu'un simple
+    # filtre d'affichage : ajouter une clé suffit, et les gardes internes restent en
+    # défense de profondeur.
+    from src.dashboard.auth import is_admin as _is_admin
+    if page in _ADMIN_ONLY and not _is_admin():
+        st.error(t("nav.admin_only", "🔒 Cette page est réservée aux administrateurs."))
+        return
 
     if page == "home":
         from views.home import show; show()
@@ -1070,6 +1094,24 @@ def _main_body():
     # C'est pour cela que la page est résolue AVANT d'être rendue : rien ne peut se
     # placer au-dessus de la navigation tant que c'est la navigation qui calcule la page.
     page, _rendered, _all_skeys = resolve_nav_page(role)
+
+    # LA PAGE PRÉCÉDENTE, publiée pour qui a besoin de savoir qu'on vient d'ARRIVER.
+    #
+    # Streamlit ré-exécute le script à chaque interaction : une vue ne peut pas
+    # distinguer « l'artiste vient de cliquer sur mon entrée de menu » de « il est
+    # déjà dessus et a cliqué sur un bouton ». Sans cette distinction, un état de vue
+    # gardé en session — l'étape de l'assistant — survit à la navigation et rouvre
+    # l'écran où l'on s'était arrêté. Signalé le 2026-09-06 : « quand je me balade sur
+    # l'app et que je reclique sur mise en route, je n'ai pas automatiquement
+    # redirection vers le bienvenu ».
+    #
+    # ICI et pas plus bas, et c'est le point : la barre latérale rend les étapes de
+    # l'assistant quelques lignes plus loin, donc AVANT le corps de la page. Posée
+    # après `_render_page`, la marque aurait fait lire à la barre l'étape d'avant et
+    # au corps l'étape d'après — deux surfaces du même écran en désaccord pendant un
+    # run. C'est la première position où `page` est connue.
+    st.session_state['_page_arrived_from'] = st.session_state.get('_page_rendered_last')
+    st.session_state['_page_rendered_last'] = page
 
     # UN SEUL sélecteur de langue à la fois, et c'est un correctif de plantage.
     #
