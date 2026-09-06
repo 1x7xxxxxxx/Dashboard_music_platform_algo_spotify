@@ -11,9 +11,7 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 
-from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
-from src.dashboard.auth import get_artist_id, is_admin
 
 _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
@@ -288,60 +286,16 @@ def _archive_ok(artist_id: int, result: dict) -> None:
         pass
 
 
-def show():
-    # Named by what the artist GETS, not by what the machine eats. Measured
-    # 2026-09-03: 2 of the 6 tenants who ever logged in reached this page and **none**
-    # ever completed an upload — every CSV-fed table in production holds rows for the
-    # admin alone. The page opened on the word "CSV" three times before explaining it
-    # once, which is Johnson's « geek speak » (Designing with the Mind in Mind, p.18):
-    # « Why should shopping on the Web require us to learn "USB", "TIFF" or
-    # "broadband"? ». The old title is kept as the subtitle so anyone who was told
-    # "go to Import CSV" still recognises the page.
-    st.title(t("upload_csv.title", "📂 Ajouter mes chiffres Spotify & Apple"))
-    st.caption(t(
-        "upload_csv.caption",
-        "Un **CSV** est un petit fichier tableau que ces plateformes vous laissent "
-        "télécharger. Vous n'avez pas à l'ouvrir : téléchargez-le, puis déposez-le "
-        "ici. Jusqu'à une dizaine à la fois — le type est reconnu tout seul."
-    ))
-
-    # Purge opportuniste des archives expirées. Ici plutôt que dans un cron : le
-    # répertoire ne grossit QUE quand quelqu'un dépose un fichier, donc la purge n'a
-    # besoin de tourner qu'à ce moment-là. Une chose planifiée de moins à oublier —
-    # et ce dépôt vient de passer une séance sur un drill de restauration qui dormait
-    # sans appelant depuis juin.
-    try:
-        from src.utils.upload_archive import purge_expired
-        purge_expired()
-    except Exception:  # noqa: BLE001 — une purge ratée ne doit pas fermer la page
-        pass
-
-    db = get_db_connection()
-    try:
-        # ── Sélection artiste ──────────────────────────────────────────
-        if is_admin():
-            df_artists = db.fetch_df(
-                "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id"
-            )
-            if df_artists.empty:
-                st.warning(t("upload_csv.no_active_artist",
-                             "Aucun artiste actif. Créez-en un dans l'onglet Admin."))
-                return
-            choices = {f"{r['id']} — {r['name']}": r['id'] for _, r in df_artists.iterrows()}
-            sel_label = st.selectbox(t("upload_csv.target_artist", "Artiste cible"),
-                                     list(choices.keys()))
-            target_artist_id = choices[sel_label]
-        else:
-            target_artist_id = get_artist_id()
-            if target_artist_id is None:
-                st.error(t("upload_csv.no_artist_id",
-                           "Impossible de déterminer votre identifiant artiste."))
-                return
-
-        render_uploader(db, target_artist_id)
-
-    finally:
-        db.close()
+# `show()` a été RETIRÉE le 2026-09-06, et le fait qui l'a décidée est mesurable :
+# `app.py` ne l'importe pas. La route `?page=upload_csv` rend `views.credentials`
+# depuis la fusion du 2026-09-04 — donc cette fonction n'était atteignable par
+# personne. Elle rendait pourtant un titre, une légende et une seconde
+# `st.file_uploader`, et `tests/test_views_render_smoke.py` l'appelait directement,
+# ce qui la faisait passer pour vivante : un test de rendu ne dit jamais si une page
+# est ATTEIGNABLE (`code-nothing-reaches`, déjà six fois dans ce dépôt).
+#
+# Ce module n'est plus une PAGE : c'est le composant de dépôt que l'onglet
+# « 📂 Mes fichiers » de Credentials rend, et le seul du produit.
 
 def render_uploader(db, target_artist_id: int) -> None:
     """Le dépôt de fichiers, sans titre ni ouverture de connexion.
@@ -351,6 +305,20 @@ def render_uploader(db, target_artist_id: int) -> None:
     ce dépôt sont plafonnées à une connexion (`tests/test_view_connection_budget.py`)
     et la page appelante a déjà dépensé la sienne.
     """
+    # Purge opportuniste des archives expirées. ICI et non dans un cron : le
+    # répertoire ne grossit QUE quand quelqu'un dépose un fichier, donc la purge n'a
+    # besoin de tourner qu'à ce moment-là.
+    #
+    # Elle vivait dans `show()`, qu'`app.py` n'appelait plus depuis la fusion du
+    # 2026-09-04 — donc **plus rien ne purgeait** depuis deux jours, et retirer la
+    # fonction morte l'a simplement rendu visible. Déplacée dans la fonction que
+    # l'onglet rend réellement, c'est-à-dire là où un fichier arrive.
+    try:
+        from src.utils.upload_archive import purge_expired
+        purge_expired()
+    except Exception:  # noqa: BLE001 — une purge ratée ne doit pas fermer la page
+        pass
+
     # ── Upload multi-fichier ───────────────────────────────────────
     # Le mode d'emploi du relevé SACEM était ICI *et* dans la vue 🎼 Royalties SACEM,
     # mot pour mot. Retiré de ce côté le 2026-09-06 : il s'adressait à qui vient

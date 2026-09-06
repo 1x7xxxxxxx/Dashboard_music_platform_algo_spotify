@@ -38,7 +38,11 @@ from pathlib import Path
 
 from src.dashboard.content.platform_value import PLATFORM_VALUES, CREDENTIALS, CSV
 from src.dashboard.views.credentials._registry import PLATFORMS
-from src.dashboard.views.credentials.router import platform_destination
+from src.dashboard.views.credentials.router import (
+    CSV_TAB_KEY,
+    all_tab_keys,
+    platform_destination,
+)
 
 _ROOT = Path(__file__).resolve().parents[1]
 _APP = _ROOT / "src" / "dashboard" / "app.py"
@@ -76,10 +80,15 @@ def test_every_checkbox_leads_somewhere_that_exists():
     )
 
     broken = []
+    # `all_tab_keys()` et non `PLATFORMS` : l'onglet de dépôt est un onglet de cette
+    # page depuis toujours, mais il n'était dans aucun registre — voir la docstring
+    # de `all_tab_keys`. Lire `PLATFORMS` ici, c'était interroger la moitié de la
+    # barre d'onglets et appeler « inexistant » celui qu'on voit à l'écran.
+    tabs = set(all_tab_keys())
     for pv in PLATFORM_VALUES:
         dest = platform_destination(pv.key)
         kind, target = dest.split(":", 1)
-        if kind == "tab" and target not in PLATFORMS:
+        if kind == "tab" and target not in tabs:
             broken.append(f"{pv.key} → onglet '{target}' (inexistant)")
         elif kind == "page" and target not in routed:
             broken.append(f"{pv.key} → page '{target}' (non routée)")
@@ -97,15 +106,33 @@ def test_where_says_credentials_the_destination_is_a_tab():
     """`PlatformValue.where` et la destination doivent dire la même chose.
 
     Deux registres qui décrivent le même fait : ils s'accordent (ADR-009) ou l'un des
-    deux ment. `where=CSV` avec une destination d'onglet est la forme exacte du bug
-    d'Apple Music, à l'envers.
+    deux ment.
+
+    RÉANCRÉ le 2026-09-06. Ce test exigeait `where=CSV ⇒ destination "page"`, ce qui
+    était vrai tant que le dépôt de fichiers avait sa propre page. Il en avait DEUX :
+    la page `upload_csv` et l'onglet « 📂 Mes fichiers », chacune avec son
+    `st.file_uploader`, donc deux états de session pour un seul geste. La seconde
+    zone a été retirée ; `where` décrit désormais le GESTE (coller un identifiant vs
+    déposer un fichier) et la destination dit où — un onglet dans les deux cas,
+    puisqu'il n'y a plus qu'une page.
+
+    Ce qui est gardé reste la même question : les deux registres se contredisent-ils ?
+    Simplement, l'accord se lit maintenant sur l'onglet visé, pas sur le genre de
+    destination.
     """
     mismatched = []
     for pv in PLATFORM_VALUES:
-        kind = platform_destination(pv.key).split(":", 1)[0]
-        expected = "tab" if pv.where == CREDENTIALS else "page"
-        if kind != expected:
-            mismatched.append(f"{pv.key}: where={pv.where!r} mais destination={kind!r}")
+        dest = platform_destination(pv.key)
+        kind, target = dest.split(":", 1)
+        if kind != "tab":
+            mismatched.append(f"{pv.key}: destination={dest!r} — plus rien ne se "
+                              "configure hors de la page Credentials")
+        elif pv.where == CREDENTIALS and target == CSV_TAB_KEY:
+            mismatched.append(f"{pv.key}: where=CREDENTIALS mais mène au dépôt de "
+                              "fichiers — l'artiste y chercherait un formulaire")
+        elif pv.where == CSV and target != CSV_TAB_KEY:
+            mismatched.append(f"{pv.key}: where=CSV mais mène à l'onglet {target!r} — "
+                              "l'artiste y chercherait un champ à remplir")
     assert not mismatched, "\n".join(mismatched)
 
 
@@ -125,8 +152,8 @@ def test_the_reported_selection_yields_its_three_destinations():
     assert len(tabs) == 3, (
         f"la sélection {selection} donne les onglets {sorted(tabs)} : deux choix "
         "mènent au même endroit, l'artiste en perd un en route")
-    assert tabs <= set(PLATFORMS), (
-        f"{sorted(tabs - set(PLATFORMS))} n'est pas un onglet du registre — le "
+    assert tabs <= set(all_tab_keys()), (
+        f"{sorted(tabs - set(all_tab_keys()))} n'est pas un onglet de la page — le "
         "bandeau annoncerait une destination que la page n'ouvre pas")
 
 
@@ -140,8 +167,12 @@ def test_a_csv_platform_is_never_announced_as_the_next_tab():
     csv_keys = [pv.key for pv in PLATFORM_VALUES if pv.where == CSV]
     assert csv_keys, "aucune plateforme CSV : ce test ne prouverait rien"
     for key in csv_keys:
-        assert platform_destination(key).startswith("page:"), (
-            f"{key} s'importe par fichier mais pointe vers un onglet de saisie"
+        # Elles ont maintenant un onglet — celui du DÉPÔT. Ce qu'on interdit reste
+        # ce qui rendait le bandeau faux : les envoyer vers un onglet de SAISIE, où
+        # il n'y a aucun champ qui les concerne.
+        assert platform_destination(key) == f"tab:{CSV_TAB_KEY}", (
+            f"{key} s'importe par fichier et doit mener à l'onglet de dépôt, "
+            f"pas à {platform_destination(key)!r}"
         )
 
 

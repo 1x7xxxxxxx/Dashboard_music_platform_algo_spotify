@@ -33,7 +33,7 @@ TENANT_VIEWS = [
     "home", "spotify_s4a_combined", "export_pdf", "export_csv", "imusician",
     "soundcloud", "youtube", "instagram", "apple_music", "data_wrapped",
     "credentials", "account", "billing", "alerts", "onboarding",
-    "onboarding_health", "saisie_s4a", "upload_csv", "meta_ads_overview",
+    "onboarding_health", "saisie_s4a", "meta_ads_overview",
     "meta_x_spotify", "referral", "sacem", "trigger_algo",
 ]
 
@@ -60,9 +60,14 @@ show()
 def test_a_stray_session_reads_no_tenant_data(view):
     """The measurement is on the queries, not on the message.
 
-    A view may refuse this session in its own words — `upload_csv` does, more
-    clearly than the shared guard — and that is fine. What is not fine is reaching
-    a tenant table without a tenant.
+    A view may refuse this session in its own words, and that is fine. What is not
+    fine is reaching a tenant table without a tenant.
+
+    `upload_csv` a quitté cette liste le 2026-09-06 : sa `show()` a été retirée
+    parce qu'aucune route ne l'importait (`?page=upload_csv` rend
+    `views.credentials`). La zone de dépôt vit dans `render_uploader`, que
+    `credentials` — présente ici — rend dans son onglet ; la surface est donc
+    toujours couverte, par l'entrée qui correspond à ce qu'un artiste ouvre.
     """
     from streamlit.testing.v1 import AppTest
 

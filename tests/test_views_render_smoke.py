@@ -73,7 +73,7 @@ VIEWS = [
     "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
     "promo_admin", "referral", "referral_admin",
     "revenue_forecast", "sacem", "saisie_s4a", "soundcloud",
-    "spotify_s4a_combined", "trigger_algo", "upgrade", "upload_csv", "usage_analytics",
+    "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
     "useful_links", "youtube",
     # The three views a brand-new artist meets FIRST were absent from this list
     # until 2026-08-20 — the onboarding path was rendered by nobody.
@@ -129,10 +129,16 @@ show()
 
 # Views an artist can actually reach (admin-only pages excluded), kept small
 # enough to stay fast while covering every data-shape an empty tenant produces.
+# `upload_csv` a quitté LES DEUX listes le 2026-09-06, et la raison est le défaut
+# lui-même : sa `show()` n'était importée par aucune route — `?page=upload_csv`
+# rend `views.credentials` depuis la fusion du 2026-09-04. Ce fichier l'appelait
+# directement, donc elle rendait vert dans une liste intitulée « ce qu'un artiste
+# peut atteindre » alors qu'aucun artiste ne pouvait l'atteindre. Le composant de
+# dépôt reste couvert : `credentials` est dans les deux listes et rend son onglet.
 _TENANT_VIEWS = [
     "home", "onboarding", "onboarding_health", "credentials", "account",
     "soundcloud", "youtube", "instagram", "spotify_s4a_combined", "apple_music",
-    "upload_csv", "export_csv", "export_pdf", "useful_links", "process_guide",
+    "export_csv", "export_pdf", "useful_links", "process_guide",
 ]
 
 

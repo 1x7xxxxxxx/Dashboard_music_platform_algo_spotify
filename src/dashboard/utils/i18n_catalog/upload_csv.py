@@ -2,15 +2,6 @@
 
 EN = {
     # Header / intro (pre-existing keys)
-    "upload_csv.title": "📂 Add my Spotify & Apple numbers",
-    "upload_csv.caption": (
-        "A **CSV** is a small spreadsheet file these platforms let you download. "
-        "You do not have to open it: download it, then drop it here. Up to about "
-        "ten at a time — the type is recognised on its own."
-    ),
-    "upload_csv.no_active_artist": "No active artist. Create one in the Admin tab.",
-    "upload_csv.target_artist": "Target artist",
-    "upload_csv.no_artist_id": "Unable to determine your artist identifier.",
     "upload_csv.uploader_label": "CSV / TSV / XLSX files",
     "upload_csv.uploader_help": (
         "Drag all your files at once. "

@@ -88,25 +88,41 @@ def test_the_guides_come_after_the_drop_zone_and_before_the_early_return():
     assert body  # la fonction n'est pas vide
 
 
+def _paired_keys() -> tuple[str, ...]:
+    """Les guides rendus côte à côte, en haut — lus dans la DONNÉE.
+
+    RÉANCRÉ le 2026-09-06. Ces trois tests lisaient `csv_guides_st._SIDE_BY_SIDE`,
+    une constante du RENDU qui énumérait ("s4a", "apple") et laissait tout le reste
+    tomber dans un groupe par défaut. Ce groupe porte désormais un intitulé
+    (« 💿 Mon distributeur »), ce qui rendait la constante dangereuse : un guide de
+    plateforme ajouté demain aurait hérité d'un titre faux, en silence — la classe
+    `layout-keyed-by-a-hand-written-list`.
+
+    La question gardée ne change pas : Spotify for Artists à gauche, Apple à droite,
+    côte à côte, avec leurs captures. Seule la source de vérité change — la famille
+    déclarée sur chaque guide, plus une liste tapée dans le rendu.
+    """
+    from src.dashboard.content.csv_guides import CSV_GUIDES, FAMILY_PLATFORM
+    return tuple(g.key for g in CSV_GUIDES if g.family == FAMILY_PLATFORM)
+
+
 def test_spotify_is_left_and_apple_is_right():
     from src.dashboard.content.csv_guides import CSV_GUIDES
-    from src.dashboard.content.csv_guides_st import _SIDE_BY_SIDE
 
-    assert _SIDE_BY_SIDE == ("s4a", "apple"), (
+    assert _paired_keys() == ("s4a", "apple"), (
         "l'ordre gauche/droite a changé : Spotify for Artists à gauche, Apple à "
-        "droite (demandé le 2026-09-06)")
+        f"droite (demandé le 2026-09-06). Lu : {_paired_keys()}")
     keys = {g.key for g in CSV_GUIDES}
-    assert set(_SIDE_BY_SIDE) <= keys, (
-        f"{sorted(set(_SIDE_BY_SIDE) - keys)} n'est plus un guide : la paire "
+    assert set(_paired_keys()) <= keys, (
+        f"{sorted(set(_paired_keys()) - keys)} n'est plus un guide : la paire "
         "mise en avant pointe dans le vide et la page perdrait une colonne")
 
 
 def test_the_paired_guides_carry_screenshots_that_exist():
     """« Avec quelques screens » — un fichier absent se dégrade en silence."""
     from src.dashboard.content.csv_guides import CSV_GUIDES, screenshot_path
-    from src.dashboard.content.csv_guides_st import _SIDE_BY_SIDE
 
-    for guide in (g for g in CSV_GUIDES if g.key in _SIDE_BY_SIDE):
+    for guide in (g for g in CSV_GUIDES if g.key in _paired_keys()):
         shots = [s.screenshot for s in guide.steps if s.screenshot]
         assert shots, f"{guide.key} n'a plus aucune capture"
         missing = [s for s in shots if not screenshot_path(s).exists()]
@@ -122,14 +138,18 @@ def test_both_columns_are_rendered_side_by_side():
     propre mutant, parce que la rangée des distributeurs en porte un second. On
     vise donc la boucle sur `paired`, et on regarde ce qu'elle parcourt.
     """
-    fn = _fn(_GUIDES_ST, "render_csv_guides")
+    # La boucle vit maintenant dans le helper `_render_in_columns`, appelé une fois
+    # pour les plateformes et une fois pour les distributeurs. Viser ce helper plutôt
+    # que `render_csv_guides` est ce qui garde la question au bon endroit : c'est LUI
+    # qui décide si les guides tiennent sur une ligne.
+    fn = _fn(_GUIDES_ST, "_render_in_columns")
 
     paired_loops = [
         n for n in ast.walk(fn)
-        if isinstance(n, ast.For) and "paired" in ast.unparse(n.iter)
+        if isinstance(n, ast.For) and "st.columns" in ast.unparse(n.iter)
     ]
     assert paired_loops, (
-        "plus aucune boucle ne rend la paire mise en avant")
+        "plus aucune boucle ne rend les guides en colonnes")
     for loop in paired_loops:
         assert any(isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "columns"
                    for c in ast.walk(loop.iter)), (

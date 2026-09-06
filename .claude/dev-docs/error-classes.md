@@ -259,6 +259,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [guard-predicate-depends-on-the-host-env](#guard-predicate-depends-on-the-host-env) | P2 | deterministic | guarded | none |
 | [no-db-signature-opens-a-connection](#no-db-signature-opens-a-connection) | P3 | deterministic | guarded | none |
 | [red-gate-hides-every-step-behind-it](#red-gate-hides-every-step-behind-it) | P2 | deterministic | guarded | none |
+| [two-widgets-for-one-gesture](#two-widgets-for-one-gesture) | P3 | deterministic | guarded | none |
+| [page-that-nothing-routes-to](#page-that-nothing-routes-to) | P3 | deterministic | guarded | none |
+| [layout-keyed-by-a-hand-written-list](#layout-keyed-by-a-hand-written-list) | P4 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 
@@ -3472,3 +3475,50 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: la leçon était déjà écrite — une CI rouge à l'étape 3/8 avait caché « Run tests » pendant 8 exécutions. Elle avait été capitalisée comme un apprentissage, pas comme une PROPRIÉTÉ du workflow, et le coût a donc triplé. Une phrase de rétro n'empêche rien ; un garde sur le fichier, si.
   - 2026-09-06: vu rouge en retirant les quatre `if` du workflow, vert après.
+
+## two-widgets-for-one-gesture
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'utilisateur fait une chose à un endroit, la retrouve absente à l'autre, et rien n'est en panne. Le produit a deux surfaces pour un seul geste, chacune avec son état, et aucune ne mentionne l'autre.
+- root_cause: `st.file_uploader` était instancié par `views/upload_csv.py::show()` **et**, via le même `render_uploader`, par l'onglet « 📂 Mes fichiers » de la page Credentials. Streamlit garde un état par widget : un fichier déposé d'un côté n'existait pas de l'autre. La page `upload_csv` avait quitté le menu le 2026-09-04 mais restait routée, et `platform_value.CSV` y envoyait encore l'artiste depuis le sélecteur de mise en route — le doublon était donc la route **recommandée**, pas un vestige.
+- signature: `python3 -m pytest tests/test_there_is_one_place_to_drop_a_file.py -q`
+- long_term_fix: une seule zone de dépôt, dans l'onglet, et `_PAGE_FOR_PLATFORM` vidé — plus aucune plateforme ne se configure hors de la page Credentials. Le garde compte les `st.file_uploader` **par AST** dans tout `views/` hors admin et exige exactement un ; il vérifie en plus que chaque plateforme `where=CSV` pointe sur l'onglet qui le contient. Compter les widgets et non les fichiers est le point : c'est ce que l'utilisateur voit.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_there_is_one_place_to_drop_a_file.py }
+- rex_ref: src/dashboard/views/upload_csv.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: ma première version du garde affirmait que la page retirée « mène à l'onglet au lieu de rendre le sien » — elle lisait le texte du renvoi que je venais d'écrire dans `show()`. Or `app.py` n'importe `views.upload_csv` **nulle part** : `?page=upload_csv` rend `views.credentials` depuis la fusion. Le renvoi était donc correct et inatteignable, et le garde le gardait. Réancré sur l'ATTEIGNABILITÉ — voir `page-that-nothing-routes-to`.
+  - 2026-09-06: vu rouge par mutation (une seconde zone rendue depuis la page retirée ; S4A repointé sur l'ancienne page ; le lien de sortie changé), vert après.
+
+## page-that-nothing-routes-to
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une vue rend parfaitement, son test de rendu est vert, elle figure dans une liste intitulée « ce qu'un artiste peut atteindre » — et aucun artiste ne peut l'atteindre. On la compte, on la maintient, on la corrige.
+- root_cause: `app.py` route `?page=upload_csv` vers `views.credentials` depuis la fusion du 2026-09-04, et n'importe `views.upload_csv` nulle part. `views/upload_csv.py::show()` — 54 lignes, un titre, une légende et une `st.file_uploader` — n'était donc appelée que par `tests/test_views_render_smoke.py`, qui l'importe **directement** (`from src.dashboard.views.{view} import show`). Le test prouvait qu'elle rend ; personne ne demandait si on y arrive. Elle était de surcroît listée dans `_TENANT_VIEWS`, dont le commentaire dit « views an artist can actually reach ». J'ai commencé par la CORRIGER — en y écrivant un renvoi vers l'onglet — avant de mesurer qu'elle était morte.
+- signature: `python3 -m pytest tests/test_there_is_one_place_to_drop_a_file.py -q`
+- long_term_fix: `show()` retirée ; le module est déclaré pour ce qu'il est, le composant de dépôt que l'onglet rend. Le garde interdit qu'un `show()` y réapparaisse et vérifie qu'`app.py` ne route pas vers ce module — deux questions d'atteignabilité, qu'un test de rendu ne pose jamais. La leçon générale est plus large que ce fichier : **une liste de vues « atteignables » écrite à la main ne mesure pas l'atteignabilité** ; ici la contradiction était visible en lisant `app.py` et la liste ensemble, ce que personne ne faisait.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_there_is_one_place_to_drop_a_file.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: trouvé en rendant l'application ENTIÈRE (barre latérale + corps) au lieu d'appeler `show()` seule — la page attendue n'affichait ni titre ni bouton. C'est exactement le mode de panne que `feedback_the_sidebar_and_the_view_never_render_together` décrit, et la première fois qu'il rapporte du code mort plutôt qu'un bug de navigation.
+  - 2026-09-06: **le code mort cachait une conséquence vivante**. `show()` appelait `purge_expired()` — la purge opportuniste des archives d'upload, délibérément posée sur la page « parce que le répertoire ne grossit que quand quelqu'un dépose ». Elle n'était donc plus appelée depuis la fusion du 2026-09-04, et **rien ne purgeait depuis deux jours**. Personne ne l'a vu : la fonction existait, son test était vert (il lisait l'AST de la vue), et la vue rendait — dans le test. Retirer la fonction morte n'a pas créé ce défaut, il l'a **révélé** : le garde est passé au rouge à la seconde où l'appel a disparu du fichier. Corollaire : avant de supprimer une fonction inatteignable, lire ce qu'elle appelait — un effet de bord utile peut y être branché depuis longtemps, et personne ne le sait précisément parce que rien ne l'atteint.
+
+## layout-keyed-by-a-hand-written-list
+- status: guarded
+- severity: P4
+- kind: deterministic
+- symptom: une mise en page range correctement ce que son auteur avait en tête, et range tout le reste dans un groupe par défaut — qui porte un titre. L'élément suivant hérite donc d'un intitulé faux, en silence.
+- root_cause: `csv_guides_st.py` portait `_SIDE_BY_SIDE = ("s4a", "apple")` et rendait `rest = [tout le reste]` en dessous. Tant que ce bas de page n'avait pas d'intitulé, l'erreur était bénigne. Le 2026-09-06 il en reçoit un — « 💿 Mon distributeur (revenus) » — et un guide de plateforme d'écoute ajouté demain y serait rangé sous un titre qui ment sur son contenu, sans que rien ne le signale : la constante est dans le RENDU, où l'auteur du nouveau guide ne va pas.
+- signature: `python3 -m pytest tests/test_the_csv_types_are_laid_out_by_family.py -q`
+- long_term_fix: `PlatformGuide.family` — un champ de la DONNÉE, avec deux valeurs nommées. Ajouter un guide oblige à répondre à la question, là où on l'écrit. Le garde interdit à toute constante de `csv_guides_st` d'énumérer des clés de guides (c'est la forme exacte qui revient), exige que le rendu lise les deux familles, et vérifie qu'un seul expander est ouvert au premier niveau — le bloc distributeurs, en bas.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_csv_types_are_laid_out_by_family.py }
+- rex_ref: src/dashboard/content/csv_guides.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: vu rouge par trois mutations — la constante de clés rétablie, un distributeur déclaré avant Apple Music, une famille inventée sur un guide.

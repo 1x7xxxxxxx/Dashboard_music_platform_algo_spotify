@@ -21,9 +21,8 @@ from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.content.platform_value import (
     BY_KEY, SETUP_COLUMN_ORDER, setup_columns,
 )
-from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.setup_focus import (
-    connected_platforms, get_focus,
+    connected_platforms,
 )
 
 from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
@@ -37,6 +36,11 @@ from ._render import VERDICT_KEY, _render_platform_tab
 # CREDENTIAL. Instagram n'a pas d'onglet à lui : il se saisit dans celui de Meta.
 # Apple Music n'en a aucun (c'est un import CSV) et disparaît donc de la
 # traduction — ce qui est correct : il n'y a rien à saisir ici pour lui.
+# La clé de l'onglet de dépôt. Au niveau du module, et non dans `show()`, parce que
+# `_TAB_FOR_PLATFORM` juste en dessous en a besoin — et parce qu'un lien profond
+# (`?page=credentials&tab=__csv__`) la nomme depuis l'extérieur.
+CSV_TAB_KEY = "__csv__"
+
 # Instagram se saisit dans l'onglet de Meta Ads : même ligne de stockage, même
 # jeton, même app. Il a eu son propre onglet une heure le 2026-09-05 — deux
 # onglets pour une seule configuration se cherchent, et la traduction oubliée
@@ -45,7 +49,8 @@ from ._render import VERDICT_KEY, _render_platform_tab
 # Vide depuis le 2026-09-05 : 📸 Instagram a son propre onglet, sur la mesure
 # qui prouve qu'il collecte sans Meta Ads (`business_discovery`). La ligne de
 # STOCKAGE reste `meta` — c'est `storage_platform` qui le dit, pas ceci.
-_TAB_FOR_PLATFORM: dict[str, str] = {}
+_TAB_FOR_PLATFORM: dict[str, str] = {"apple_music": CSV_TAB_KEY,
+                                     "s4a": CSV_TAB_KEY}
 
 # Les plateformes de la sélection qui ne se saisissent PAS ici, avec la page qui les
 # porte vraiment. Apple Music est un import de fichier : elle n'a aucun onglet, et
@@ -53,9 +58,17 @@ _TAB_FOR_PLATFORM: dict[str, str] = {}
 # NULLE PART — ni en onglet, ni dans le repli « les autres plateformes », qui se
 # construit à partir des onglets. Elle disparaissait de son plan sans un mot, ce qui
 # est la forme exacte du défaut qu'il a signalé le même jour sur SoundCloud.
-# Les deux plateformes qui ne se CONNECTENT pas : on y dépose un fichier. Elles
-# partagent la même page — « 📂 Ajouter mes chiffres Spotify for Artists & Apple ».
-_PAGE_FOR_PLATFORM = {"apple_music": "upload_csv", "s4a": "upload_csv"}
+# PLUS AUCUNE plateforme ne se configure hors de cette page (2026-09-06). Spotify
+# for Artists et Apple Music pointaient vers `upload_csv`, une page sortie du menu
+# le 2026-09-04 mais toujours routée, qui rendait sa PROPRE zone de dépôt : deux
+# `st.file_uploader` pour un seul geste, donc deux états de session, donc un fichier
+# déposé d'un côté invisible de l'autre. Elles pointent maintenant sur l'onglet de
+# dépôt, qui est le seul.
+#
+# Le dictionnaire reste, vide : `platform_destination` sait rendre `page:…`, et une
+# plateforme future pourrait légitimement vivre ailleurs. Ce qui n'existe plus, ce
+# sont les DEUX cas qui l'utilisaient.
+_PAGE_FOR_PLATFORM: dict[str, str] = {}
 
 # L'onglet actif de la page Credentials — un état comme la page, pas une propriété
 # invisible du rendu. Dans l'URL pour être adressable (lien profond, bouton
@@ -107,6 +120,20 @@ def _storage_for_tab(tab_key: str) -> str:
     return storage_platform(tab_key)
 
 
+def all_tab_keys() -> list[str]:
+    """Les onglets que cette page rend RÉELLEMENT : les plateformes, puis le dépôt.
+
+    Une seule définition, parce qu'il y en avait deux et qu'elles ont divergé. La
+    liste vivait dans le corps de `show()` (`[k for k, _ in ordered] + [_CSV_KEY]`)
+    et `tests/test_every_setup_choice_has_a_destination.py` interrogeait `PLATFORMS`
+    seul — donc l'onglet de dépôt n'était un onglet pour personne d'autre que la
+    fonction qui le rendait. Le jour où S4A et Apple Music ont pointé dessus
+    (2026-09-06), le garde a annoncé « onglet inexistant » sur un onglet visible à
+    l'écran.
+    """
+    return list(PLATFORMS) + [CSV_TAB_KEY]
+
+
 def platform_destination(key: str) -> str:
     """Où cette plateforme se configure : `tab:<clé d'onglet>` ou `page:<clé de page>`.
 
@@ -125,9 +152,10 @@ def _next_label(key: str) -> str:
 
     Écrit quand Instagram se saisissait dans « 📱 Meta / Instagram » : « Suivante :
     Instagram » envoyait alors chercher un onglet qui n'existait pas. Depuis qu'il a
-    le sien, la mention est SILENCIEUSE — `_TAB_FOR_PLATFORM` étant vide, `tab_key`
-    vaut la clé et la branche ne se déclenche plus. On garde la fonction : elle
-    redeviendra juste le jour où deux plateformes partageront un onglet.
+    le sien, la mention n'était plus déclenchée — `_TAB_FOR_PLATFORM` était vide.
+    Elle l'est de nouveau depuis le 2026-09-06 : Spotify for Artists et Apple
+    Music partagent l'onglet de dépôt, donc « Suivante : 🎵 Spotify for Artists »
+    doit nommer l'onglet « 📂 Mes fichiers » où l'artiste va réellement.
     """
     pv = BY_KEY.get(key)
     name = f"{pv.icon} {pv.label}" if pv else key
@@ -241,45 +269,16 @@ def show():
         # ── Reprise de la sélection faite à l'onboarding ──────────────────
         # Without this the artist arrives on six equal tabs and has to remember
         # what they had decided one page earlier.
-        focus = get_focus()
         connected = connected_platforms(existing)
-        if focus:
-            # Il n'y a plus de récapitulatif ni de bandeau « Suivante ». Ils
-            # disaient, en huit lignes, ce que les onglets montrent :
-            #
-            #   « 🎯 Ce que tu as choisi de brancher (0/3) : ⬜ Spotify ⬜ SoundCloud
-            #     ⬜ Instagram — dans l'onglet Meta / Instagram »
-            #   « 👉 Suivante : 🎵 Spotify — à fournir : le lien de ta page Spotify
-            #     Artist. Son onglet est le premier ci-dessous, déjà ouvert. »
-            #
-            # « Trop long et inutile » (2026-09-04). C'est exact, et pour une raison
-            # qui n'existait pas quand ces lignes ont été écrites : depuis, les
-            # onglets sont RÉDUITS à la sélection le premier jour et ORDONNÉS pour que
-            # le premier soit celui qu'on annonçait. Le bandeau décrivait donc une
-            # mise en page devenue lisible d'elle-même — et son propre texte le
-            # disait, « son onglet est le premier ci-dessous, déjà ouvert ».
-            #
-            # Ce qui reste ci-dessous est ce qu'aucun onglet ne peut montrer : une
-            # plateforme cochée qui ne se configure PAS sur cette page.
-            # Ce que l'artiste a coché et qui ne se configure PAS ici. Sans cette
-            # ligne, la plateforme s'évaporait entre les deux pages : ni onglet, ni
-            # repli, ni message. Elle reste comptée dans sa sélection — c'est bien
-            # son plan — mais elle nomme la page qui la porte, et y mène.
-            elsewhere = [k for k in focus
-                         if platform_destination(k).startswith("page:")]
-            if elsewhere:
-                names = ", ".join(f"{BY_KEY[k].icon} {BY_KEY[k].label}"
-                                  for k in elsewhere if k in BY_KEY)
-                st.info(t(
-                    "credentials.focus_elsewhere",
-                    "📂 **{names}** ne se connecte pas par identifiant : c'est un "
-                    "fichier à déposer. Sa page est **📂 Ajouter mes chiffres "
-                    "Spotify for Artists & Apple**."
-                ).format(names=names))
-                if st.button(t("credentials.focus_elsewhere_go",
-                               "📂 Aller y déposer mes fichiers →"),
-                             key="_creds_focus_elsewhere"):
-                    goto(_PAGE_FOR_PLATFORM[elsewhere[0]])
+        # `get_focus()` ne sert plus ICI. Son `if focus:` ne portait plus que trois
+        # bandeaux, retirés l'un après l'autre : le récapitulatif et « Suivante » le
+        # 2026-09-04, parce que les onglets — réduits à la sélection et ordonnés —
+        # disaient déjà la même chose ; le renvoi « ça se configure sur une autre
+        # page » le 2026-09-06, avec la seconde zone de dépôt qu'il annonçait.
+        #
+        # La sélection d'onboarding continue de compter, mais par l'ORDRE des onglets
+        # (`setup_columns()` plus bas), pas par un bandeau qui la répète.
+
         # Pas de bandeau « Aucun credential configuré » non plus. Il disait trois
         # choses, toutes redondantes avec l'écran : qu'il n'y a rien (le formulaire le
         # montre), de choisir une plateforme ci-dessous (la barre d'onglets est juste
@@ -330,7 +329,7 @@ def show():
         ordered = sorted(PLATFORMS.items(),
                          key=lambda kv: (_rank.get(kv[0], len(_rank)), kv[0]))
 
-        _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple)")
+        _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple, distributeur)")
         # « La suivante » n'est plus tirée d'une sélection — il n'y en a plus. C'est
         # le prochain ONGLET non connecté dans l'ordre conseillé, ce qui est la même
         # promesse en plus simple : le parcours incite à tout faire, dans cet ordre.
@@ -395,8 +394,8 @@ def show():
         #
         # Rediriger n'est plus qu'écrire l'état : poser la clé du widget AVANT qu'il
         # soit instancié, comme le menu le fait déjà.
-        _CSV_KEY = "__csv__"
-        _tab_keys = [k for k, _ in ordered] + [_CSV_KEY]
+        _CSV_KEY = CSV_TAB_KEY
+        _tab_keys = [k for k, _ in ordered] + [_CSV_KEY]  # = all_tab_keys(), réordonné
         # Un ✓ sur ce qui est DÉJÀ branché. Demandé le 2026-09-05 : « ceux qui sont
         # validés, on les propose différemment des plateformes qui restent à
         # configurer ». Depuis que les liens d'inscription se matérialisent tout
@@ -497,11 +496,16 @@ def show():
         # le déposer — une décision que le code prend mieux que lui, sur une page où
         # aucun locataire n'a jamais terminé un import (mesuré le 2026-09-03).
         if _chosen == _CSV_KEY:
+            # « Ces DEUX sources » était juste tant que l'onglet ne portait que
+            # Spotify for Artists et Apple Music. Depuis que les distributeurs y
+            # vivent aussi (2026-09-06), le compte est faux — et un compte faux dans
+            # la première phrase d'une page est ce qui fait douter du reste.
             st.caption(t(
                 "credentials.csv_tab_help",
-                "Ces deux sources ne se connectent pas par identifiant : elles vous "
+                "Ces sources ne se connectent pas par identifiant : elles vous "
                 "laissent télécharger un fichier tableau. Déposez-le ici — le type "
-                "est reconnu tout seul, vous n'avez pas à l'ouvrir."))
+                "est reconnu tout seul, vous n'avez pas à l'ouvrir, et tout arrive "
+                "au même endroit."))
             from src.dashboard.views.upload_csv import render_uploader
             render_uploader(db, target_artist_id)
         else:

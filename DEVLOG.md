@@ -5,6 +5,65 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-06 (suite) — Un seul endroit pour déposer, et une page que rien n'atteignait
+
+**Ce qui a changé** — demandé : « une seule zone de dépôt, les types répartis par
+colonne, et le distributeur tout en bas de S4A et Apple ». Les trois sont faits ;
+c'est en cherchant la « seconde zone » qu'un défaut plus intéressant est sorti.
+
+**Une zone, pas deux.** `st.file_uploader` était instancié par `upload_csv.show()`
+**et** par l'onglet « 📂 Mes fichiers » de Credentials, via le même
+`render_uploader`. Streamlit garde un état PAR WIDGET : un fichier déposé d'un côté
+n'existait pas de l'autre. Et ce n'était pas un vestige — `platform_value.CSV`
+envoyait l'artiste sur la page depuis le sélecteur de mise en route. Le doublon
+était la route recommandée.
+
+**Puis la mesure a contredit le correctif.** J'ai d'abord réécrit `show()` pour
+qu'elle renvoie vers l'onglet. Le renvoi était juste et **inatteignable** :
+`app.py` route `?page=upload_csv` vers `views.credentials` depuis la fusion du
+2026-09-04 et n'importe `views.upload_csv` nulle part. `show()` était morte depuis
+deux jours — 54 lignes, un titre, une légende et une seconde zone de dépôt — et
+seul `test_views_render_smoke.py` l'appelait, en l'important **directement**. Elle
+figurait même dans `_TENANT_VIEWS`, dont le commentaire dit « ce qu'un artiste peut
+atteindre ». Un test de rendu ne pose jamais la question de l'atteignabilité.
+
+Ce qui l'a montré : rendre l'application ENTIÈRE, barre latérale comprise, au lieu
+d'appeler `show()` seule. La page attendue n'affichait ni titre ni bouton.
+
+**Les types par colonne.** La mise en page était clavée sur
+`_SIDE_BY_SIDE = ("s4a", "apple")` dans le rendu, tout le reste tombant dans un bas
+de page sans intitulé. Lui en donner un — « 💿 Mon distributeur (revenus) » — rendait
+la constante dangereuse : un guide de plateforme ajouté demain aurait hérité d'un
+titre faux, en silence. La famille est passée dans la DONNÉE
+(`PlatformGuide.family`), où l'auteur du prochain guide doit répondre à la question.
+
+**Retiré aussi** : le bandeau « ça se configure sur une autre page », qui nommait une
+page ne faisant plus que rediriger ; `_PAGE_FOR_PLATFORM`, désormais vide — plus
+aucune plateforme ne se configure hors de Credentials ; et deux textes devenus faux
+(« ces DEUX sources », « déposez-le ici » sur une page sans zone de dépôt).
+
+**Ce que la suite complète a rattrapé, et que huit tests ciblés verts ne disaient
+pas.** Huit échecs réels, tous causés par la même suppression :
+
+* `purge_expired()` vivait dans la `show()` morte. **Plus rien ne purgeait les
+  archives d'upload depuis deux jours** — la fonction morte cachait une conséquence
+  vivante. Déplacée dans `render_uploader`, là où un fichier arrive vraiment.
+* trois gardes de mise en page lisaient `_SIDE_BY_SIDE`, deux gardes de page
+  lisaient `credentials.focus_elsewhere`, un lisait `platform_destination` comme si
+  toute destination était une page. Tous réancrés sur la question qu'ils posaient —
+  pas sur l'interne que j'avais remplacé.
+* mon propre garde comparait une chaîne au texte source, ce que
+  `test_a_guard_reads_structure_not_text.py` interdit avec un cliquet gelé à 0.
+  Il avait raison : le commentaire d'`app.py` qui explique cette route mentionne
+  `views.upload_csv`, donc la version textuelle aurait rougi sur sa propre
+  documentation. Passé à l'AST.
+
+Trois classes capitalisées : `two-widgets-for-one-gesture`,
+`page-that-nothing-routes-to`, `layout-keyed-by-a-hand-written-list`. Les trois
+gardes ont été mutés (huit mutations, toutes rouges).
+
+---
+
 ## 2026-09-06 — Vingt-sept exécutions rouges, et la suite qui n'avait pas tourné
 
 **Ce qui a changé** — `gh run list` : **27 exécutions CI rouges d'affilée** entre le

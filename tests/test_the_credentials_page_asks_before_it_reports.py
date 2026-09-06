@@ -95,18 +95,38 @@ def test_no_selection_recap_precedes_the_tabs():
 
 
 def test_what_the_tabs_cannot_show_survives():
-    """Une plateforme cochée qui ne se configure PAS ici n'a aucun onglet pour le dire.
+    """Une plateforme cochée doit se voir quelque part sur cette page.
 
-    C'est la moitié à ne pas emporter avec le reste : sans cette ligne, Apple Music ou
-    Spotify for Artists s'évaporent entre les deux pages — ni onglet, ni repli, ni
-    message. Le défaut a déjà été payé une fois.
+    RÉANCRÉ le 2026-09-06, et le réancrage est la correction du défaut, pas son
+    contournement. Ce test exigeait un BANDEAU (`credentials.focus_elsewhere`)
+    disant « Apple Music ne se configure pas ici, sa page est ailleurs ». Ce bandeau
+    existait parce que ces deux plateformes n'avaient AUCUN onglet — il rattrapait
+    l'évaporation au lieu de l'empêcher.
+
+    Elles en ont un depuis : l'onglet de dépôt. Le rattrapage est donc devenu inutile
+    et surtout FAUX — il nommait une page qui ne fait plus que rediriger. Ce qui est
+    gardé reste la même question, « une case cochée mène-t-elle quelque part ? », et
+    la réponse est maintenant structurelle : chacune a son onglet dans la barre.
     """
+    from src.dashboard.content.platform_value import CSV, PLATFORM_VALUES
+    from src.dashboard.views.credentials.router import all_tab_keys, platform_destination
+
+    tabs = set(all_tab_keys())
+    csv_keys = [pv.key for pv in PLATFORM_VALUES if pv.where == CSV]
+    assert csv_keys, "aucune plateforme s'important par fichier : rien à prouver"
+    for key in csv_keys:
+        dest = platform_destination(key)
+        assert dest.startswith("tab:") and dest.split(":", 1)[1] in tabs, (
+            f"{key} → {dest} : elle n'a pas d'onglet sur cette page et s'évapore "
+            "entre deux écrans, exactement comme avant le 2026-09-04")
+
+    # Et le bandeau de rattrapage ne doit pas revenir : il redirait, en moins juste,
+    # ce que la barre d'onglets montre.
     strings = _router_strings()
-    assert "credentials.focus_elsewhere" in strings, (
-        "la ligne qui nomme les plateformes s'important par fichier est partie avec "
-        "le récapitulatif : une case cochée mènerait de nouveau nulle part")
-    assert "credentials.focus_elsewhere_go" in strings, (
-        "le bouton qui mène à la page d'import a disparu")
+    assert "credentials.focus_elsewhere" not in strings, (
+        "le bandeau « ça se configure sur une autre page » est de retour alors que "
+        "plus aucune plateforme ne se configure ailleurs — il nommerait une page qui "
+        "redirige ici")
 
 
 def test_the_matrix_still_has_a_home_even_out_of_the_menu():
@@ -178,16 +198,26 @@ def test_the_old_csv_route_still_answers():
 
     from src.dashboard.utils.setup_completion import _STEP_PAGES
     from src.dashboard.views.credentials.router import platform_destination
-    targets = {page for _key, page in _STEP_PAGES}
-    targets |= {platform_destination(k).split(":", 1)[1]
-                for k in ("s4a", "apple_music")}
+    # Une destination est soit une PAGE (routée par `app.py`), soit un ONGLET de
+    # cette page. Confondre les deux faisait chercher `__csv__` dans la table des
+    # routes depuis que S4A et Apple Music y pointent (2026-09-06) — et déclarer
+    # « routée nulle part » un onglet visible à l'écran.
+    from src.dashboard.views.credentials.router import all_tab_keys
     tree = ast.parse(app)
     routed = {n.comparators[0].value for n in ast.walk(tree)
               if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
               and n.comparators and isinstance(n.comparators[0], ast.Constant)}
-    missing = sorted(t for t in targets if t not in routed)
+    tabs = set(all_tab_keys())
+
+    missing = sorted(p for p in {page for _key, page in _STEP_PAGES}
+                     if p not in routed)
+    for key in ("s4a", "apple_music"):
+        kind, target = platform_destination(key).split(":", 1)
+        pool, label = (routed, "routée") if kind == "page" else (tabs, "un onglet")
+        if target not in pool:
+            missing.append(f"{key} → {kind}:{target} (n'est pas {label})")
     assert not missing, (
-        f"ces destinations ne sont routées nulle part : {missing}")
+        f"ces destinations ne mènent nulle part : {sorted(missing)}")
 
 
 def test_the_menu_offers_one_place_to_connect_a_source():

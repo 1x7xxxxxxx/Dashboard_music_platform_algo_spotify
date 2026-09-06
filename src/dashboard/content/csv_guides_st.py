@@ -10,6 +10,8 @@ import streamlit as st
 
 from src.dashboard.content.csv_guides import (
     CSV_GUIDES,
+    FAMILY_DISTRIBUTOR,
+    FAMILY_PLATFORM,
     ExpectedCsv,
     GuideStep,
     PlatformGuide,
@@ -22,46 +24,83 @@ from src.dashboard.utils.i18n import t
 _MAX_IMG_WIDTH = 720
 
 
-# Les deux plateformes que l'artiste vient chercher, côte à côte : Spotify for
-# Artists à GAUCHE, Apple Music à DROITE (demandé le 2026-09-06). Les distributeurs
-# suivent en dessous — ils ne concernent pas tout le monde, et les empiler tous les
-# quatre faisait défiler la page avant d'avoir vu la seconde.
-_SIDE_BY_SIDE = ("s4a", "apple")
+# La mise en page est DÉRIVÉE de `PlatformGuide.family`, jamais d'une liste de clés
+# tapée ici. La constante `_SIDE_BY_SIDE = ("s4a", "apple")` qui tenait ce rôle
+# jusqu'au 2026-09-06 rangeait tout le reste en « distributeurs » par défaut : un
+# guide ajouté demain aurait pris ce titre sans que personne l'ait décidé, et la
+# page ne l'aurait jamais signalé. Voir `csv_guides.FAMILY_PLATFORM`.
+_COLS = 2
 
 
 def render_csv_guides() -> None:
-    """Render one expander per platform with download steps + expected-CSV table."""
+    """Les types acceptés, en colonnes, sous l'unique zone de dépôt.
+
+    Une seule zone de dépôt et plusieurs colonnes de TYPES : le fichier est reconnu
+    tout seul, donc l'artiste n'a rien à classer avant de déposer — les colonnes
+    lui disent seulement où aller chercher quoi. C'est la demande du 2026-09-06,
+    et c'est aussi ce que la détection automatique permet : classer serait une
+    décision que le code prend mieux que lui.
+    """
     st.markdown(t("csv_guides.intro_heading",
                   "**Comment télécharger puis importer vos fichiers ?**"))
-    by_key = {g.key: g for g in CSV_GUIDES}
-    paired = [by_key[k] for k in _SIDE_BY_SIDE if k in by_key]
-    rest = [g for g in CSV_GUIDES if g.key not in _SIDE_BY_SIDE]
 
-    # Les deux principaux sont OUVERTS : côte à côte, ils tiennent tous les deux à
-    # l'écran, donc plus rien ne justifie d'en cacher un. Empilés, le premier seul
-    # s'ouvrait — et les deux artistes qui ont atteint cette page n'ont jamais
-    # déplié les suivants.
-    for col, guide in zip(st.columns(2), paired):
-        with col:
-            _render_guide_expander(guide, expanded=True)
+    platforms = [g for g in CSV_GUIDES if g.family == FAMILY_PLATFORM]
+    distributors = [g for g in CSV_GUIDES if g.family == FAMILY_DISTRIBUTOR]
 
-    # Les distributeurs restent repliés : ils ne concernent qu'une partie des
-    # artistes (Cooper, About Face, p.271 — divulgation progressive).
-    for row_start in range(0, len(rest), 2):
-        for col, guide in zip(st.columns(2), rest[row_start:row_start + 2]):
+    # Les plateformes d'écoute, côte à côte et DÉPLIÉES : elles tiennent toutes les
+    # deux à l'écran, donc plus rien ne justifie d'en cacher une. Empilées, seule la
+    # première s'ouvrait — et les deux artistes qui ont atteint cette page n'ont
+    # jamais déplié les suivantes.
+    _render_in_columns(platforms, expanded=True)
+
+    # Les distributeurs, TOUT EN BAS et en UN SEUL bloc (demandé le 2026-09-06).
+    # Ils ne concernent qu'une partie des artistes et ne parlent pas d'écoutes mais
+    # de revenus : deux volets de même rang que Spotify et Apple donnaient à un
+    # sujet minoritaire la moitié de la page. Divulgation progressive — Cooper,
+    # About Face, p.271.
+    if distributors:
+        st.markdown("---")
+        with st.expander(t("csv_guides.distributor_group",
+                           "💿 Mon distributeur (revenus) — iMusician, DistroKid…"),
+                         expanded=False):
+            st.caption(t(
+                "csv_guides.distributor_help",
+                "Uniquement si vous voulez suivre vos **revenus**. Ces fichiers ne "
+                "contiennent pas d'écoutes : ils n'ont aucun effet sur vos "
+                "statistiques Spotify ou Apple."))
+            _render_in_columns(distributors, expanded=False, nested=True)
+
+
+def _render_in_columns(guides: list[PlatformGuide], *, expanded: bool,
+                       nested: bool = False) -> None:
+    """`_COLS` par ligne, dans l'ordre de déclaration de `CSV_GUIDES`."""
+    for start in range(0, len(guides), _COLS):
+        for col, guide in zip(st.columns(_COLS), guides[start:start + _COLS]):
             with col:
-                _render_guide_expander(guide, expanded=False)
+                _render_guide_expander(guide, expanded=expanded, nested=nested)
 
 
-def _render_guide_expander(guide: PlatformGuide, expanded: bool = False) -> None:
+def _render_guide_expander(guide: PlatformGuide, expanded: bool = False,
+                           nested: bool = False) -> None:
     label = t("csv_guides.expander_suffix",
               "{icon} {title} — télécharger & importer").format(
         icon=guide.icon, title=guide.title)
+    # Streamlit interdit un expander DANS un expander : à l'intérieur du bloc
+    # distributeurs, le volet devient un titre. Écrit ici plutôt que chez l'appelant
+    # parce que c'est une contrainte du widget, pas une décision de mise en page.
+    if nested:
+        st.markdown(f"**{label}**")
+        _render_guide_body(guide)
+        return
     with st.expander(label, expanded=expanded):
-        st.markdown(guide.intro)
-        for i, step in enumerate(guide.steps, 1):
-            _render_step(i, step)
-        _render_expected_table(guide)
+        _render_guide_body(guide)
+
+
+def _render_guide_body(guide: PlatformGuide) -> None:
+    st.markdown(guide.intro)
+    for i, step in enumerate(guide.steps, 1):
+        _render_step(i, step)
+    _render_expected_table(guide)
 
 
 def _render_step(num: int, step: GuideStep) -> None:

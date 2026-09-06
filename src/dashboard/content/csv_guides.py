@@ -31,6 +31,22 @@ class ExpectedCsv:
     columns: tuple[str, ...]
 
 
+# Les deux familles de source, et pourquoi la distinction vit ICI et non dans le
+# rendu. Une plateforme d'écoute concerne TOUS les artistes ; un distributeur n'en
+# concerne qu'une partie, et son fichier porte des revenus, pas des écoutes. Le
+# dépôt range donc les premières côte à côte, en haut et dépliées, et regroupe les
+# seconds en un bloc unique en bas.
+#
+# Une constante `_SIDE_BY_SIDE = ("s4a", "apple")` tenait ce rôle dans
+# `csv_guides_st.py`. C'était `guard-scope-is-a-hand-written-list` appliqué à une
+# mise en page : un guide ajouté demain tombait dans « distributeurs » sans que
+# personne l'ait décidé, et la page l'aurait affiché sous un titre faux sans jamais
+# rien signaler. La famille est maintenant un CHAMP : ajouter un guide oblige à
+# répondre à la question.
+FAMILY_PLATFORM = "platform"
+FAMILY_DISTRIBUTOR = "distributor"
+
+
 @dataclass(frozen=True)
 class PlatformGuide:
     key: str
@@ -39,6 +55,7 @@ class PlatformGuide:
     intro: str
     steps: tuple[GuideStep, ...]
     expected: tuple[ExpectedCsv, ...]
+    family: str = FAMILY_PLATFORM
 
 
 def assets_dir() -> Path:
@@ -206,6 +223,7 @@ _IMUSICIAN = PlatformGuide(
         ExpectedCsv("Rapport de vente", "*.csv",
                     ("Sales date", "ISRC", "Shop", "Revenue EUR")),
     ),
+    family=FAMILY_DISTRIBUTOR,
 )
 
 _DISTROKID = PlatformGuide(
@@ -242,6 +260,7 @@ _DISTROKID = PlatformGuide(
                     ("Sale Month", "Store", "Title", "ISRC", "Quantity",
                      "Earnings (USD)")),
     ),
+    family=FAMILY_DISTRIBUTOR,
 )
 
 CSV_GUIDES: tuple[PlatformGuide, ...] = (_S4A, _APPLE, _IMUSICIAN, _DISTROKID)

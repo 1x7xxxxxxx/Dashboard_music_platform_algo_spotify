@@ -4,12 +4,11 @@ EN = {
     # ── router.py ──────────────────────────────────────────────────────
     "credentials.title": "🔑 API Credentials + CSV imports",
     "credentials.tab_bar": "Platform",
-    "credentials.csv_tab": "📂 My files (Spotify for Artists, Apple)",
+    "credentials.csv_tab": "📂 My files (Spotify for Artists, Apple, distributor)",
     "credentials.csv_tab_help": (
-        "These two sources are not connected with an identifier: they let you "
-        "download a spreadsheet file. Drop it here — the type is recognised on its "
-        "own, you never have to open it."
-    ),
+        "These sources do not connect with an identifier: they let you download "
+        "a spreadsheet file. Drop it here — the type is recognised on its own, "
+        "you never have to open it, and everything lands in one place."),
     "credentials.no_active_artist": "No active artist. Create one in the Admin tab.",
     "credentials.target_artist": "Target artist",
     "credentials.no_artist_id": "Unable to determine your artist identifier.",
@@ -450,11 +449,6 @@ EN = {
 
     # ── La sélection, énumérée + le verdict de sauvegarde (2026-09-04) ──
     "credentials.next_in_tab": "{name} — in the **{tab}** tab",
-    "credentials.focus_elsewhere": (
-        "📂 **{names}** is not connected with an identifier: it is a file to drop. "
-        "Its page is **📂 Add my Spotify for Artists & Apple figures**."
-    ),
-    "credentials.focus_elsewhere_go": "📂 Go and drop my files →",
     "credentials.guide.paste_header": "**The values to paste:**",
     "credentials.guide.example_inline": (
         "*e.g. {example}* — sample format, do not copy it"
