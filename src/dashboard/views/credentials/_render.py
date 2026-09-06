@@ -52,6 +52,7 @@ from src.dashboard.auth import is_admin
 #
 # (plateforme, ok | None, raison). `ok is None` = la sonde n'a pas pu conclure —
 # distinct de `ok is False`, qui est un vrai refus de la plateforme.
+AUTOSTART_KEY = "_creds_autostart_result"
 VERDICT_KEY = "_cred_last_verdict"
 
 
@@ -1184,6 +1185,30 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
             logger.warning("post-save probe of %s failed for artist %s: %s",
                            platform_key, artist_id, type(probe_err).__name__)
             st.session_state[VERDICT_KEY] = (platform_key, None, "")
+
+        # LE PARCOURS VIENT PEUT-ÊTRE DE SE BOUCLER — on démarre la collecte.
+        #
+        # Le second des deux gestes qui peuvent compléter la mise en route ; l'autre
+        # est l'import CSV. Jusqu'au 2026-09-06 l'artiste finissait de tout saisir et
+        # rien ne partait : il devait trouver dans la barre latérale un bouton qu'il
+        # n'avait aucune raison de chercher.
+        #
+        # Le résultat passe par `session_state` et non par un `st.success` : le
+        # `st.rerun()` juste en dessous efface tout ce qui est écrit à l'écran — c'est
+        # exactement ce qui avait rendu invisible le verdict de sauvegarde, deux
+        # lignes plus haut. Le même piège, la même parade.
+        try:
+            from src.dashboard.app import COLLECTION_DAGS
+            from src.dashboard.utils.collection_trigger import (
+                autostart_if_journey_complete,
+            )
+            from src.utils import airflow_trigger as _trigger
+            _launched, _failed = autostart_if_journey_complete(
+                db, artist_id, st.session_state, _trigger, COLLECTION_DAGS)
+            if _launched or _failed:
+                st.session_state[AUTOSTART_KEY] = (len(_launched), len(_failed))
+        except Exception:  # noqa: BLE001 — un démarrage raté ne casse pas la saisie
+            pass
 
         st.rerun()
 

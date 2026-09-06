@@ -29,7 +29,7 @@ from ._core import (_load_credentials, _fetch_dag_last_states, fernet_state,
                     fernet_key_command_block,
                     artist_display_name)
 from ._registry import PLATFORMS
-from ._render import VERDICT_KEY, _render_platform_tab
+from ._render import AUTOSTART_KEY, VERDICT_KEY, _render_platform_tab
 
 
 # La sélection d'onboarding est par PLATEFORME ; les onglets de cette page sont par
@@ -470,6 +470,31 @@ def show():
         # L'URL suit la sélection — un lien profond et le bouton Précédent marchent.
         if st.query_params.get(_TAB_PARAM) != _chosen:
             st.query_params[_TAB_PARAM] = _chosen
+
+        # LE DÉMARRAGE AUTOMATIQUE, ANNONCÉ APRÈS LE RERUN.
+        #
+        # `_handle_save` le déclenche puis appelle `st.rerun()`, qui efface tout ce
+        # qui est écrit à l'écran : un `st.success` posé là-bas n'aurait été lu par
+        # personne — c'est le défaut exact qui avait rendu invisible le verdict de
+        # sauvegarde, et la parade est la même, passer par la session.
+        #
+        # Au-dessus des onglets, pas dedans : la page se réordonne après un
+        # enregistrement pour ouvrir la plateforme suivante, donc un message rendu
+        # dans l'onglet tomberait dans celui qu'on vient de quitter.
+        _auto = st.session_state.pop(AUTOSTART_KEY, None)
+        if _auto:
+            _ok, _ko = _auto
+            if _ok:
+                st.success(t(
+                    "credentials.autostart_ok",
+                    "🚀 Ta configuration est complète — la collecte vient de démarrer "
+                    "toute seule ({n} sources). Tes premiers chiffres arrivent d'ici "
+                    "quelques minutes.").format(n=_ok))
+            elif _ko:
+                st.warning(t(
+                    "credentials.autostart_failed",
+                    "⚠️ La collecte automatique n'a pas pu démarrer. Lance-la depuis "
+                    "la barre latérale, ou réessaie plus tard."))
 
         # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
         # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient

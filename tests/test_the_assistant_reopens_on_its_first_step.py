@@ -92,14 +92,31 @@ def test_the_marker_is_published_before_the_sidebar_draws_the_steps():
         "celle d'après.")
 
 
-def test_the_view_resets_its_step_when_arriving_from_elsewhere():
+def test_both_readers_of_the_step_go_through_the_same_reset():
+    """UN seul endroit décide, et les DEUX lecteurs l'appellent.
+
+    Ce test exigeait `_entering_from_elsewhere` dans `show()` seulement. C'était la
+    moitié du problème : `render_sidebar_steps` lit la même clé et s'exécute AVANT,
+    donc la barre affichait l'étape mémorisée pendant que le corps la remettait à 1.
+    Exiger la remise à zéro dans une seule des deux surfaces, c'est garantir qu'elles
+    peuvent diverger.
+    """
     tree = ast.parse(_VIEW.read_text(encoding="utf-8"))
-    show = next(n for n in ast.walk(tree)
-                if isinstance(n, ast.FunctionDef) and n.name == "show")
-    src = ast.unparse(show)
-    assert "_entering_from_elsewhere" in src, (
-        "`show()` ne demande plus si l'on vient d'arriver — l'étape gardée en "
-        "session survit à la navigation")
+    for name in ("show", "render_sidebar_steps"):
+        fn = next(n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == name)
+        called = {ast.unparse(n.func) for n in ast.walk(fn)
+                  if isinstance(n, ast.Call)}
+        assert "sync_step_on_arrival" in called, (
+            f"`{name}()` ne passe pas par `sync_step_on_arrival` : ce lecteur de "
+            "`_onboarding_step` peut afficher une étape différente de l'autre")
+
+    # Et la remise à zéro doit interroger l'arrivée, pas remettre à 1 sans condition.
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "sync_step_on_arrival")
+    assert "_entering_from_elsewhere" in ast.unparse(fn), (
+        "`sync_step_on_arrival` ne demande plus si l'on vient d'arriver : elle "
+        "remettrait l'assistant à l'étape 1 à chaque clic")
 
 
 def test_an_absent_marker_is_not_an_arrival():
@@ -155,3 +172,96 @@ def test_the_step_two_screen_offers_a_single_way_forward():
     called = {ast.unparse(n.func) for n in ast.walk(tree) if isinstance(n, ast.Call)}
     assert "_render_landing_choice" not in called, (
         "quelque chose appelle encore `_render_landing_choice`")
+
+
+# ── LES DEUX LECTEURS, RENDUS ENSEMBLE ───────────────────────────────────────
+# Le reste de ce fichier lit la structure ; ce qui suit RÉEXÉCUTE la page. Il a fallu
+# les deux : les assertions structurelles étaient vertes le 2026-09-06 pendant que
+# l'écran se contredisait, parce que `_STEP_KEY` a DEUX lecteurs — la barre latérale,
+# rendue en premier par `app.py`, et le corps. La remise à zéro ne vivait que dans le
+# second : la barre affichait l'étape mémorisée, le corps l'étape 1.
+#
+# « Quand on clique sur assistant, on arrive sur la deuxième page "où tu en es" alors
+# qu'on visualise "bienvenue sur streaMLytics" ». C'est le mode de panne que
+# `feedback_the_sidebar_and_the_view_never_render_together` décrit, et aucun test du
+# dépôt ne rendait les deux dans le même run.
+
+import os
+
+import pytest
+
+
+def _render_both(arrived_from: str, memorised_step: int):
+    """(titres du corps, étape mise en avant dans la barre) — dans l'ORDRE réel."""
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(f"""
+import sys
+sys.path.insert(0, {os.getcwd()!r})
+import streamlit as st
+st.session_state["role"] = "artist"
+st.session_state["artist_id"] = 1
+st.session_state["email"] = "a@t"
+st.session_state["authenticated"] = True
+st.session_state['_page_arrived_from'] = {arrived_from!r}
+st.session_state['_onboarding_step'] = {memorised_step}
+from src.dashboard.views.onboarding import render_sidebar_steps, show
+render_sidebar_steps()
+show()
+""")
+    at.run(timeout=200)
+    assert not at.exception, at.exception
+    body = " ".join(t.value for t in at.title)
+    highlighted = [m.value for m in at.sidebar.markdown if "▶️" in (m.value or "")]
+    return body, highlighted
+
+
+@pytest.mark.parametrize("arrived_from,memorised,expect_step_one", [
+    ("credentials", 2, True),    # LE DÉFAUT SIGNALÉ : on arrive d'ailleurs
+    ("home", 2, True),
+    ("onboarding", 2, False),    # on était déjà là : on ne le renvoie pas au début
+    ("onboarding", 1, True),
+])
+def test_the_sidebar_and_the_body_show_the_same_step(arrived_from, memorised,
+                                                     expect_step_one):
+    """La question n'est pas « quelle étape » mais « la même des deux côtés »."""
+    body, highlighted = _render_both(arrived_from, memorised)
+    assert highlighted, "la barre latérale ne met plus aucune étape en avant"
+    side_is_one = "1." in highlighted[0]
+    body_is_one = "Bienvenue" in body
+
+    assert side_is_one == body_is_one, (
+        f"la barre affiche l'étape {'1' if side_is_one else '2'} et le corps "
+        f"l'étape {'1' if body_is_one else '2'} — le même écran se contredit.\n"
+        f"  barre : {highlighted}\n  corps : {body!r}")
+    assert body_is_one is expect_step_one, (
+        f"arrivée depuis {arrived_from!r} avec l'étape {memorised} mémorisée : "
+        f"attendu étape {'1' if expect_step_one else '2'}, obtenu {body!r}")
+
+
+def test_the_steps_carry_a_direction_not_only_a_state():
+    """Les flèches, demandées le 2026-09-06.
+
+    Les pastilles ✅/▶️/⬜ décrivaient un ÉTAT et rien ne disait que ces lignes
+    mènent quelque part : deux sont cliquables, la troisième non, et elles se
+    ressemblaient toutes.
+    """
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(f"""
+import sys
+sys.path.insert(0, {os.getcwd()!r})
+import streamlit as st
+st.session_state["role"] = "artist"
+st.session_state["artist_id"] = 1
+st.session_state["authenticated"] = True
+st.session_state['_page_arrived_from'] = 'onboarding'
+st.session_state['_onboarding_step'] = 2
+from src.dashboard.views.onboarding import render_sidebar_steps
+render_sidebar_steps()
+""")
+    at.run(timeout=120)
+    labels = [b.label for b in at.sidebar.button]
+    assert labels, "plus aucune étape cliquable dans la barre"
+    assert any("⬅" in lbl for lbl in labels), (
+        f"depuis l'étape 2, aucun retour n'est signalé par une flèche : {labels}")

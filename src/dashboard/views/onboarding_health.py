@@ -18,6 +18,8 @@ from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
 from src.utils.artist_readiness import artist_readiness, NO_DATA
+from src.dashboard.utils.guide_assets import credentials_guide_pdf
+from src.dashboard.utils.i18n import t
 
 
 def _matrix_df(matrix: list) -> pd.DataFrame:
@@ -84,5 +86,105 @@ def show():
                 st.warning(f"🔴 {total_red} plateforme(s) connectée(s) sans données — action requise.")
             else:
                 st.success("✅ Aucun blocage 'connecté sans données' sur les artistes actifs.")
+
+        # ── Ce qui vient du « 📋 Guide de démarrage », supprimé le 2026-09-06 ──
+        #
+        # Cette page-là redisait en quatre listes à puces ce que l'assistant montre,
+        # ce que les onglets de Credentials déplient et ce que la matrice ci-dessus
+        # mesure. Deux de ses sections n'existaient nulle part ailleurs, et elles
+        # atterrissent ICI parce que c'est ici qu'on est quand on se demande ce qui
+        # manque : « ajouter le lien de téléchargement du guide dans l'onglet santé
+        # onboarding, je pense que c'est le plus pertinent » (2026-09-06).
+        st.markdown("---")
+        _render_credentials_pdf()
+        _render_csv_definitions()
+        _render_next_step_mapping()
     finally:
         db.close()
+
+
+def _render_credentials_pdf() -> None:
+    """Le PDF des identifiants — le même que celui joint à l'e-mail de vérification.
+
+    Il n'existait QUE dans cet e-mail : perdu le mail, perdu le PDF, et aucun bouton
+    nulle part dans l'application. Il vivait ensuite dans le guide de démarrage ;
+    celui-ci supprimé, il se pose ici.
+
+    `credentials_guide_pdf` préfère la copie pré-rendue et met le reste en cache : le
+    régénérer à chaque rerun coûtait 573 ms mesurés en prod.
+    """
+    st.subheader(t("onboarding_health.cred_pdf_title",
+                   "📘 Guide des identifiants (PDF, avec captures d'écran)"))
+    lang = st.session_state.get("lang", "fr")
+    pdf_bytes = credentials_guide_pdf(lang)
+    if pdf_bytes:
+        st.download_button(
+            t("onboarding_health.cred_pdf_dl",
+              "⬇️ Télécharger le guide des identifiants"),
+            data=pdf_bytes,
+            file_name=f"streamlytics_guide_identifiants_{lang}.pdf",
+            mime="application/pdf",
+            key="dl_cred_guide_pdf_health",
+        )
+        st.caption(t("onboarding_health.cred_pdf_note",
+                     "C'est le même document que celui joint à ton e-mail de "
+                     "vérification — plateforme par plateforme, avec les captures."))
+    else:
+        # WeasyPrint absent ou guide introuvable : on le dit, on ne casse pas.
+        st.info(t("onboarding_health.cred_pdf_unavailable",
+                  "Le PDF n'a pas pu être généré ici. Il reste disponible en pièce "
+                  "jointe de ton e-mail de vérification, et les mêmes étapes sont "
+                  "dépliables sur la page **🔑 Credentials API**."))
+
+
+def _render_csv_definitions() -> None:
+    """Ce que chaque CSV contient, et le fichier attendu.
+
+    Les définitions vivent dans `content/csv_guides.py` — intitulé, colonnes
+    attendues, nom de fichier — et n'étaient rendues que sur la page d'import, dans un
+    dépliant fermé. Un artiste qui se demande « c'est quoi ce CSV ? » n'est pas en
+    train d'en déposer un : il est là, devant une ligne qui lui dit qu'il en manque un.
+    """
+    st.subheader(t("onboarding_health.csv_defs_title",
+                   "📄 Les CSV attendus, et ce qu'ils contiennent"))
+    try:
+        from src.dashboard.content.csv_guides import CSV_GUIDES
+    except Exception:      # noqa: BLE001 — la page reste lisible sans cette section
+        return
+    for guide in CSV_GUIDES:
+        with st.expander(f"{guide.icon} {guide.title}", expanded=False):
+            st.markdown(guide.intro)
+            for exp in guide.expected:
+                st.markdown(
+                    t("onboarding_health.csv_expected",
+                      "**{label}** — fichier `{hint}`").format(
+                          label=exp.label, hint=exp.filename_hint))
+                if exp.columns:
+                    st.caption(
+                        t("onboarding_health.csv_columns",
+                          "Colonnes attendues : {cols}")
+                        .format(cols=", ".join(exp.columns)))
+
+
+def _render_next_step_mapping() -> None:
+    """Le geste d'APRÈS, nommé là où l'on constate que le reste est fait.
+
+    Demandé le 2026-09-06 : « je sais pas trop où mettre l'action de valider le
+    mapping automatique une fois qu'on a terminé avec les credentials ».
+
+    Un RENVOI, et pas une seconde copie de l'action. Le mapping garde son onglet — il
+    porte un tableau, des suggestions et un backlog qui ne tiennent pas dans un
+    encadré — et rendre son bouton ici en ferait deux surfaces pour un même geste,
+    donc deux états, ce que ce dépôt a déjà payé (`two-widgets-for-one-gesture`).
+    """
+    st.subheader(t("onboarding_health.next_title", "🔗 Et ensuite : relier tes titres"))
+    st.caption(t(
+        "onboarding_health.next_body",
+        "Une fois tes sources connectées, il reste à dire quelle campagne Meta "
+        "correspond à quel titre. L'application propose des associations "
+        "automatiques : il n'y a qu'à les valider."))
+    if st.button(t("onboarding_health.next_cta",
+                   "🔗 Ouvrir le mapping cross-plateforme →"),
+                 key="_health_goto_mapping"):
+        from src.dashboard.utils.navigation import goto
+        goto("meta_mapping")

@@ -1,6 +1,12 @@
 """EN catalog for the credentials (API Credentials) view package."""
 
 EN = {
+    "credentials.autostart_ok": (
+        "🚀 Your setup is complete — collection just started on its own ({n} "
+        "sources). Your first figures arrive within minutes."),
+    "credentials.autostart_failed": (
+        "⚠️ Automatic collection could not start. Launch it from the sidebar, or "
+        "try again later."),
     # ── router.py ──────────────────────────────────────────────────────
     "credentials.title": "🔑 API Credentials + CSV imports",
     "credentials.tab_bar": "Platform",

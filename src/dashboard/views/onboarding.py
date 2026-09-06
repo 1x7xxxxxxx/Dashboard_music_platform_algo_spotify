@@ -526,6 +526,20 @@ def _step_status(db, artist_id: int) -> None:
             _goto('credentials')
 
 
+def sync_step_on_arrival() -> None:
+    """Remet l'assistant à l'étape 1 quand on vient d'ARRIVER d'une autre page.
+
+    UN SEUL endroit qui décide, appelé par les DEUX lecteurs de `_STEP_KEY` : la
+    barre latérale (rendue en premier) et le corps de la page. La première version ne
+    corrigeait que le corps, et la barre restait sur l'étape mémorisée — un écran qui
+    se contredisait lui-même, ce qui est pire que le défaut d'origine.
+
+    Idempotente : le second appel du même run relit une valeur déjà remise à 1.
+    """
+    if _entering_from_elsewhere() or _STEP_KEY not in st.session_state:
+        st.session_state[_STEP_KEY] = 1
+
+
 def _step_labels() -> list[str]:
     # DEUX étapes. Il y en avait trois, dont deux ne portaient qu'un bouton chacune.
     return [
@@ -547,8 +561,16 @@ def render_sidebar_steps() -> None:
     conduire — « impossible de revenir aux différentes étapes de config ». L'étape
     courante reste du texte : il n'y a rien à y aller.
     """
-    if _STEP_KEY not in st.session_state:
-        st.session_state[_STEP_KEY] = 1
+    # LA MÊME SYNCHRONISATION QUE LE CORPS, et c'est tout l'objet de cet appel.
+    # La barre latérale est rendue AVANT `show()` : sans cette ligne elle lisait
+    # l'étape mémorisée pendant que le corps, quelques instants plus tard, la
+    # remettait à 1. Signalé le 2026-09-06 : « quand on clique sur assistant, on
+    # arrive sur la deuxième page "où tu en es" alors qu'on visualise "bienvenue sur
+    # streaMLytics" » — les deux moitiés du même écran en désaccord, exactement le
+    # mode de panne que j'avais annoncé en déplaçant le marqueur et pas la remise à
+    # zéro. Déplacer le repère ne suffit pas si les deux lecteurs n'en tirent pas la
+    # même conclusion.
+    sync_step_on_arrival()
     step = st.session_state[_STEP_KEY]
 
     # De l'AIR sous le logo. Signalé le 2026-09-05 : « c'est collé au logo
@@ -559,13 +581,27 @@ def render_sidebar_steps() -> None:
     #
     # Un espace vide et non un titre : c'est bien le mot « Étapes » qu'on ne veut
     # plus, pas la respiration.
-    st.sidebar.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+    #
+    # 18 px → 44 px le 2026-09-06 : « descends un peu le menu bienvenue & choix pour
+    # faciliter la compréhension ». Collée au logo, la liste se lisait comme une
+    # suite du titre ; détachée, elle se lit comme ce qu'elle est — deux endroits où
+    # aller.
+    st.sidebar.markdown("<div style='height:44px'></div>", unsafe_allow_html=True)
     for i, label in enumerate(_step_labels(), 1):
-        prefix = "✅" if i < step else ("▶️" if i == step else "⬜")
+        # LA FLÈCHE DIT OÙ VA LE CLIC, pas seulement où l'on en est. Demandé le
+        # 2026-09-06. Les pastilles ✅/▶️/⬜ décrivaient un ÉTAT — fait, en cours, à
+        # venir — et rien ne disait que ces lignes étaient cliquables : deux d'entre
+        # elles le sont, la troisième non, et elles se ressemblaient toutes.
+        #
+        # `⬅` pour revenir en arrière, `➡` pour avancer : la direction est calculée
+        # par rapport à l'étape courante, elle n'est pas écrite dans le libellé.
         if i == step:
-            st.sidebar.markdown(f"**{prefix} {label}**")
-        elif st.sidebar.button(f"{prefix} {label}", key=f"_onb_jump_{i}",
-                               width="stretch"):
+            st.sidebar.markdown(f"**▶️ {label}**")
+            continue
+        arrow = "⬅" if i < step else "➡"
+        done = "✅ " if i < step else ""
+        if st.sidebar.button(f"{arrow} {done}{label}", key=f"_onb_jump_{i}",
+                             width="stretch"):
             st.session_state[_STEP_KEY] = i
             st.rerun()
 
@@ -614,8 +650,7 @@ def show() -> None:
     # On ne remet pas à 1 à chaque run — seulement quand on ARRIVE d'une autre page.
     # Les deux boutons d'étape de la barre latérale continuent de fonctionner, et
     # `_step_welcome` peut toujours pousser vers l'étape 2.
-    if _entering_from_elsewhere() or _STEP_KEY not in st.session_state:
-        st.session_state[_STEP_KEY] = 1
+    sync_step_on_arrival()
 
     step = st.session_state[_STEP_KEY]
     plan = get_artist_plan()

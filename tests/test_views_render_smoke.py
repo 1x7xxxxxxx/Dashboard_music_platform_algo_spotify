@@ -70,7 +70,7 @@ VIEWS = [
     "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
-    "meta_x_spotify", "ml_performance", "perf_monitor", "process_guide",
+    "meta_x_spotify", "ml_performance", "perf_monitor",
     "promo_admin", "referral", "referral_admin",
     "revenue_forecast", "sacem", "saisie_s4a", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
@@ -135,10 +135,16 @@ show()
 # directement, donc elle rendait vert dans une liste intitulée « ce qu'un artiste
 # peut atteindre » alors qu'aucun artiste ne pouvait l'atteindre. Le composant de
 # dépôt reste couvert : `credentials` est dans les deux listes et rend son onglet.
+# `process_guide` a quitté LES DEUX listes le 2026-09-06 avec la vue elle-même :
+# « 📋 Guide de démarrage » redisait ce que l'assistant montre et ce que la matrice
+# mesure. Ses deux sections uniques — PDF des identifiants, définition des CSV —
+# vivent dans `onboarding_health`, qui est dans les deux listes et les rend donc.
+# La ROUTE `?page=process_guide` survit et mène là-bas ; c'est `app.py` qui la
+# porte, pas une vue, donc rien à rendre ici.
 _TENANT_VIEWS = [
     "home", "onboarding", "onboarding_health", "credentials", "account",
     "soundcloud", "youtube", "instagram", "spotify_s4a_combined", "apple_music",
-    "export_csv", "export_pdf", "useful_links", "process_guide",
+    "export_csv", "export_pdf", "useful_links",
 ]
 
 

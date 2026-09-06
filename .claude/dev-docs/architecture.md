@@ -217,7 +217,6 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `airflow_kpi.py` | Airflow KPI | Airflow REST API | admin |
 | `admin.py` | Admin | saas_artists, artist_credentials | admin |
 | `credentials/` (package) | Credentials API — under "Données" section since 2026-05-28 (above Import CSV) | artist_credentials | all |
-| `process_guide.py` | 📋 Guide de démarrage (since 2026-05-28) — downloadable PDF (WeasyPrint, HTML fallback) | static | all |
 | `billing.py` | Billing — **2 colonnes Free / Premium**. Le palier `basic` est retiré (migration 048) ; la source de vérité est `PLAN_FEATURES` / `PLAN_CATALOG` dans `src/database/stripe_schema.py`, jamais un prix écrit ici | subscription_plans, artist_subscriptions, subscription_plan_history | all |
 | `alerts.py` | Alerting — + plan-evolution stacked-area + users table (admin) since 2026-05-28 | subscription_plan_history, saas_artists, circuit/freshness/billing alerts | admin |
 | `saisie_s4a.py` | 📝 Saisie S4A (since 2026-06-08, "Prédiction algos" section, above Road to Algo) — bulk `st.data_editor` grid (track × 7j/28j/12m + Discovery Mode) with grouped save + a custom date-range section for the days after a release. Replaced the short-lived `reglages.py` standalone view (deleted same session). S4A-UI-only signals, no API. | s4a_song_timeline + tracks (read) → s4a_song_playlist_adds (windowed, migration 044), s4a_song_discovery_mode (write) | all |

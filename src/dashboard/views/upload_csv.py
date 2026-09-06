@@ -515,6 +515,42 @@ def render_uploader(db, target_artist_id: int) -> None:
                 except Exception:
                     pass  # audit log failure must never block the UI
 
+        # LE PARCOURS VIENT PEUT-ÊTRE DE SE BOUCLER — on démarre la collecte.
+        #
+        # Ici plutôt que sur un bouton : l'import CSV est, avec la saisie des
+        # identifiants, l'un des deux gestes qui peuvent compléter la mise en route.
+        # Jusqu'au 2026-09-06 l'artiste finissait de tout déposer et rien ne partait ;
+        # il lui fallait trouver dans la barre latérale un bouton qu'il n'avait
+        # aucune raison de chercher, et sa quatrième étape restait ⬜.
+        #
+        # `autostart_if_journey_complete` ne fait rien dans l'immense majorité des
+        # appels — parcours incomplet, ou collecte déjà enregistrée — et ce silence
+        # est voulu : cette ligne s'exécute à CHAQUE import réussi.
+        _launched = _not_launched = {}
+        try:
+            from src.dashboard.app import COLLECTION_DAGS
+            from src.dashboard.utils.collection_trigger import (
+                autostart_if_journey_complete,
+            )
+            from src.utils import airflow_trigger as _trigger
+            _launched, _not_launched = autostart_if_journey_complete(
+                db, target_artist_id, st.session_state, _trigger, COLLECTION_DAGS)
+        except Exception:  # noqa: BLE001 — un démarrage raté ne casse pas l'import
+            pass
+        if _launched:
+            st.success(t(
+                "upload_csv.autostart_ok",
+                "🚀 Ta configuration est complète — la collecte vient de démarrer "
+                "toute seule ({n} sources). Tes premiers chiffres arrivent d'ici "
+                "quelques minutes.").format(n=len(_launched)))
+        elif _not_launched:
+            # On le DIT. Un démarrage automatique qui échoue en silence laisse
+            # l'artiste devant une quatrième étape ⬜ sans savoir qu'on a essayé.
+            st.warning(t(
+                "upload_csv.autostart_failed",
+                "⚠️ La collecte automatique n'a pas pu démarrer. Lance-la depuis la "
+                "barre latérale, ou réessaie plus tard."))
+
         # If S4A global summary was imported, rebuild the canonical
         # release-date reference (authoritative source for "latest release"
         # across all platforms). Non-blocking — never fails the import.

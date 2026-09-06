@@ -11,7 +11,8 @@ The defect, measured
 payload present at render time, so a page that builds the file inline pays for it
 on each rerun — expanding an accordion re-renders a PDF nobody asked to download.
 
-Measured in the production container on 2026-08-30, `process_guide`:
+Measured in the production container on 2026-08-30, `process_guide` (supprimée
+le 2026-09-06 ; son téléchargement vit désormais dans `onboarding_health`) :
 
     573 ms   credentials guide (WeasyPrint, with screenshots)
     148 ms   start guide
@@ -273,6 +274,10 @@ def test_the_guard_stays_green_on_the_three_accepted_shapes(tmp_path):
     assert not offending_downloads([gated])
     # And the real, fixed views.
     assert not offending_downloads([
-        _VIEWS / "process_guide.py", _VIEWS / "onboarding.py",
+        # `process_guide.py` a été supprimée le 2026-09-06 ; son téléchargement du
+        # guide des identifiants — celui qui coûtait 573 ms par rerun — vit
+        # maintenant dans `onboarding_health.py`. Le garde suit le code, pas le
+        # nom de fichier : c'est la même dépense qu'il surveille.
+        _VIEWS / "onboarding_health.py", _VIEWS / "onboarding.py",
         _VIEWS / "export_pdf.py", _VIEWS / "export_csv.py",
     ])

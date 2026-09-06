@@ -267,6 +267,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [guard-branch-only-reached-when-it-fails](#guard-branch-only-reached-when-it-fails) | P3 | deterministic | guarded | none |
 | [view-state-outlives-the-visit](#view-state-outlives-the-visit) | P3 | deterministic | guarded | none |
 | [menu-filter-mistaken-for-an-access-gate](#menu-filter-mistaken-for-an-access-gate) | P2 | deterministic | guarded | none |
+| [journey-completes-and-nothing-happens](#journey-completes-and-nothing-happens) | P2 | deterministic | guarded | none |
+| [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
+| [module-level-read-turns-a-deletion-into-a-collection-error](#module-level-read-turns-a-deletion-into-a-collection-error) | P3 | deterministic | guarded | none |
 | [instruction-points-by-direction-not-by-name](#instruction-points-by-direction-not-by-name) | P3 | deterministic | guarded | none |
 | [header-announces-a-field-the-form-does-not-have](#header-announces-a-field-the-form-does-not-have) | P3 | deterministic | guarded | none |
 | [per-worker-reference-point-for-shared-state](#per-worker-reference-point-for-shared-state) | P3 | deterministic | guarded | none |
@@ -3658,3 +3661,49 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: j'ai d'abord annoncé DEUX pages non gardées (`ml_performance`, `etl_logs`) sur la foi d'un `grep -c "is_admin()"`. C'était faux : `ml_performance` teste `st.session_state.get("role") != "admin"`, ce qu'une recherche sur le nom de la fonction ne voit pas. Compter les occurrences d'un NOM ne mesure pas la présence d'un contrôle — il y a autant de façons d'écrire « es-tu admin ? » que d'auteurs.
   - 2026-09-06: **le garde lui-même a été rouge en CI, et pour la classe d'à côté.** Il lisait `_ADMIN_ONLY` en IMPORTANT `src.dashboard.app` — or ce module lève à l'import quand `FERNET_KEY` ou `AIRFLOW_PASSWORD` manquent (deux gardes de démarrage délibérés), et ces variables ne sont posées que sur l'étape `Run tests`. La signature d'une classe tourne DIX étapes plus tôt, dans un environnement nu : vert sur un poste où traîne un `.env`, rouge sur le runner. C'est `guard-predicate-depends-on-the-host-env`, et c'est la première fois que je l'écris moi-même après l'avoir capitalisée le matin. La liste se lit maintenant dans l'AST — même question, rien d'exécuté. Vérifié dans un `env -i`.
+
+## journey-completes-and-nothing-happens
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'utilisateur finit tout ce qu'on lui a demandé et l'écran ne bouge pas. La dernière étape reste ⬜, et l'action qui la coche est ailleurs — derrière un bouton qu'il n'a aucune raison de chercher.
+- root_cause: la mise en route de streaMLytics a quatre étapes ; les trois premières sont des gestes de l'artiste (identifiants, CSV S4A, CSV Apple) et la quatrième — « une collecte a réussi » — est un geste de la MACHINE. Rien ne la déclenchait : l'artiste devait trouver, dans la barre latérale, un panneau « lancer la collecte » qui ne se présentait jamais comme la suite de ce qu'il venait de faire. Deux séances de test artiste se sont terminées sur une configuration complète et zéro donnée.
+- signature: `python3 -m pytest tests/test_the_journey_starts_the_collection_itself.py -q`
+- long_term_fix: `collection_trigger.autostart_if_journey_complete` démarre les DAGs du locataire aux DEUX moments qui peuvent boucler le parcours — l'enregistrement d'identifiants et l'import CSV. **L'idempotence est DÉRIVÉE, pas stockée** : on ne démarre que si `etl_run_log` ne porte aucun run réussi pour ce locataire, c'est-à-dire le compteur `has_runs` que le parcours utilise déjà pour sa quatrième étape. Conséquences voulues : aucune migration, aucune SECONDE source de vérité qui pourrait diverger des runs réels, impossibilité de relancer en boucle, et un artiste qui purge ses données repart d'un parcours neuf. Un drapeau de session complète la condition sans la remplacer — deux reruns rapprochés pourraient tous deux lire `has_runs = 0` avant que le premier run ne soit journalisé. `apple` est volontairement HORS de la condition : beaucoup d'artistes n'ont pas de compte Apple for Artists, et l'exiger laisserait leur collecte à l'arrêt indéfiniment.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_journey_starts_the_collection_itself.py }
+- rex_ref: src/dashboard/utils/collection_trigger.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: le verdict du démarrage passe par `session_state` et non par un `st.success` posé au point de déclenchement. `_handle_save` finit par `st.rerun()`, qui efface tout ce qui vient d'être écrit — c'est le défaut exact qui avait rendu invisible le verdict de sauvegarde quelques semaines plus tôt, et la parade est la même. Un message écrit juste avant un rerun n'est lu par personne.
+
+## page-that-restates-what-the-app-already-shows
+- status: guarded
+- severity: P4
+- kind: deterministic
+- symptom: une page « guide » explique en prose ce que l'application montre déjà en agissant. Elle vieillit plus vite que ce qu'elle décrit, et deux surfaces finissent par se contredire sans que rien ne le signale.
+- root_cause: « 📋 Guide de démarrage » (`views/process_guide.py`, 300 lignes) rendait quatre listes à puces décrivant les étapes que l'assistant fait parcourir, les identifiants que les onglets de Credentials déplient avec leurs captures, et l'état des plateformes que la matrice mesure. Trois surfaces pour la même information, dont une seule est calculée sur les données réelles. Signalé le 2026-09-06 : « l'app est bien mieux faite et ça rajoute de l'inutile ». Elle coûtait en plus 1034 ms par rerun, dont 721 ms de génération de PDF, sur la première page qu'un nouvel artiste lisait.
+- signature: `python3 -m pytest tests/test_the_views_map_lists_every_view.py -q`
+- long_term_fix: la page est supprimée ; ses DEUX sections qui n'existaient nulle part ailleurs — le PDF des identifiants et la définition des CSV attendus — déménagent dans « 🚦 Santé onboarding », c'est-à-dire là où l'artiste est quand il constate qu'il lui manque quelque chose. La ROUTE `?page=process_guide` survit et mène à cette page : un ancien lien y trouve ce qu'il venait chercher plutôt qu'une page d'accueil générique, et supprimer la route ferait des culs-de-sac que ce dépôt a déjà payés. `ALWAYS_ACCESSIBLE` la garde aussi, sinon un artiste dont l'abonnement a expiré tomberait sur un mur de paiement en suivant un lien vers son propre guide.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_views_map_lists_every_view.py }
+- rex_ref: src/dashboard/views/onboarding_health.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: supprimer la vue a fait tomber SIX tests, et c'est le signe que la suppression était vue. Le plus instructif : `test_a_download_is_built_on_click_not_on_rerun` nommait `process_guide.py` pour vérifier qu'il ne reconstruit pas son PDF à chaque rerun. Le remplacer par « rien » aurait supprimé la garantie en même temps que le fichier — il vise maintenant `onboarding_health.py`, où ce téléchargement a déménagé. Un garde suit le CODE, pas le nom de fichier.
+
+## module-level-read-turns-a-deletion-into-a-collection-error
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: on supprime un fichier et le rapport de tests annonce « N errors » au lieu de « N failed ». Les propriétés que ces tests défendaient disparaissent de l'exécution sans qu'aucune ne soit nommée — et avec elles TOUS les autres tests du même module.
+- root_cause: `tests/test_the_guide_is_fetchable_not_only_mailed.py:33` faisait `SRC = GUIDE_PAGE.read_text(...)` au niveau MODULE, sur `views/process_guide.py`. Cette vue supprimée le 2026-09-06, pytest a levé `FileNotFoundError` pendant l'IMPORT du module de test — donc avant la moindre assertion. Quatre tests ont cessé d'être collectés. Un échec aurait dit « la page qui porte le PDF du guide a quitté la navigation » et désigné la surface à réancrer ; une erreur de collecte dit un chemin et un type d'exception.
+- signature: `python3 -m pytest tests/test_a_test_file_is_collectable_without_what_it_watches.py -q`
+- long_term_fix: un CLIQUET plutôt qu'une réécriture. Mesuré : cinq affectations de module lisent un fichier, toutes sur des fichiers qui existent aujourd'hui — c'est justement ce qui les rend invisibles jusqu'au jour où l'un d'eux disparaît. Les réécrire toutes serait un changement que personne n'a demandé ; ce que le cliquet achète est que la SIXIÈME ne puisse pas être ajoutée, exactement comme le dépôt traite déjà les assertions chaîne-contre-source. Le détecteur ne compte QUE les affectations de module : un `def` ou une `class` au niveau module n'est pas exécuté à l'import, donc un fichier manquant y produit un échec — ce qu'on veut — et non une erreur de collecte. Le cliquet a deux moitiés : la liste ne peut pas s'allonger, et elle ne peut pas garder un nom périmé (sans quoi elle autoriserait un site de plus qu'il n'en existe).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_test_file_is_collectable_without_what_it_watches.py }
+- rex_ref: tests/test_the_guide_is_fetchable_not_only_mailed.py
+- first_seen: 2026-09-06
+- History:
+  - 2026-09-06: ma première mesure annonçait **171 fichiers** concernés, ce qui aurait condamné l'idée de cliquet. Elle était fausse : le balayage descendait dans les `def` du niveau module, où une lecture est parfaitement sûre. Le vrai chiffre est **5**. Un détecteur trop large ne se contente pas de crier au loup — il fait renoncer au correctif qu'il devait justifier.
+  - 2026-09-06: le fichier fautif a été réancré sur `onboarding_health.py` et sa clé de page est désormais DÉDUITE (`GUIDE_PAGE.stem`) au lieu d'être recopiée. C'était son deuxième déménagement, et à chaque fois la clé écrite à la main avait un déménagement de retard.

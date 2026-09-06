@@ -98,7 +98,13 @@ PLAN_CAPABILITIES: dict[str, frozenset[str]] = {
     'premium': frozenset({'weekly_digest'}),
 }
 
-ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide', 'onboarding'}
+# `process_guide` reste dans cette liste alors que la VUE a été supprimée le
+# 2026-09-06 : la route survit et mène à `onboarding_health`, et un artiste dont
+# l'abonnement a expiré doit toujours pouvoir suivre un ancien lien vers son guide.
+# La retirer transformerait ce lien en mur de paiement, ce qui est exactement ce que
+# cette liste existe pour empêcher.
+ALWAYS_ACCESSIBLE = {'account', 'billing', 'process_guide', 'onboarding',
+                     'onboarding_health'}
 
 # 'basic' kept as an alias (rank of premium) so any legacy 'basic' value still
 # resolves to full access until migration 048 rewrites the rows.

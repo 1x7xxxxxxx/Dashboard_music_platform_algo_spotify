@@ -1,6 +1,12 @@
 """EN catalog for the upload_csv view."""
 
 EN = {
+    "upload_csv.autostart_ok": (
+        "🚀 Your setup is complete — collection just started on its own ({n} "
+        "sources). Your first figures arrive within minutes."),
+    "upload_csv.autostart_failed": (
+        "⚠️ Automatic collection could not start. Launch it from the sidebar, or "
+        "try again later."),
     # Header / intro (pre-existing keys)
     "upload_csv.uploader_label": "CSV / TSV / XLSX files",
     "upload_csv.uploader_help": (

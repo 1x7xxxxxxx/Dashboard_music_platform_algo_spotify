@@ -21,6 +21,19 @@ with the buttons.
 Deleting them would have been the easy read and the wrong one: the property that
 kept failing here is reachability, and a guard that disappears with the surface it
 watched stops watching the property.
+
+Moved again — 2026-09-06
+------------------------
+« 📋 Guide de démarrage » a été supprimée : elle redisait ce que l'assistant montre
+et ce que la matrice d'état mesure. Le téléchargement du guide l'a suivie jusqu'à
+« 🚦 Santé onboarding », qui est l'écran où l'on constate ce qui manque — donc
+l'endroit où l'on veut ce document. Ce fichier vise cette page ; c'est la deuxième
+fois qu'il déménage, et la deuxième fois que la QUESTION ne change pas.
+
+Le collecter au niveau du module (`SRC = GUIDE_PAGE.read_text()`) a un coût qu'on a
+mesuré ici : quand la page a disparu, ce ne sont pas des assertions qui ont rougi
+mais QUATRE tests qui n'ont plus pu être collectés du tout — un `FileNotFoundError`
+avant la moindre exécution. C'est plus brutal qu'un échec, et moins lisible.
 """
 from __future__ import annotations
 
@@ -29,7 +42,7 @@ import pathlib
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 ONBOARDING = REPO / "src/dashboard/views/onboarding.py"
-GUIDE_PAGE = REPO / "src/dashboard/views/process_guide.py"
+GUIDE_PAGE = REPO / "src/dashboard/views/onboarding_health.py"
 SRC = GUIDE_PAGE.read_text(encoding="utf-8")
 
 
@@ -50,9 +63,15 @@ def test_that_page_is_reachable_from_the_navigation():
             for sub in ast.walk(node.value):
                 if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
                     pages.add(sub.value)
-    assert "process_guide" in pages, (
-        "the page that carries the guide PDF left the navigation — the document "
-        "would again be reachable only through the verification e-mail")
+    # La page est DÉDUITE du fichier surveillé, plus écrite ici. C'est la deuxième
+    # fois que ce test déménage (2026-09-04, puis 2026-09-06), et à chaque fois la
+    # clé était recopiée à la main — donc à chaque fois elle a menti d'un déménagement
+    # de retard. Le nom du module qui porte le bouton EST la clé de page.
+    carrier = GUIDE_PAGE.stem
+    assert carrier in pages, (
+        f"« {carrier} » — la page qui porte le PDF du guide — a quitté la "
+        "navigation : le document redeviendrait joignable uniquement par l'e-mail "
+        "de vérification.")
 
 
 def test_the_button_is_wired_to_the_real_builder():

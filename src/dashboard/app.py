@@ -274,9 +274,22 @@ _NAV_SECTIONS = [
     # le commentaire ci-dessus annonce « Order = user journey ». Descendus après les
     # analytics, là où l'artiste a enfin quelque chose à emporter.
     ("start",     "",                       [("🏠 Accueil", "home")]),
+    # L'ORDRE SUIT LE PARCOURS, et il ne le suivait pas. Demandé le 2026-09-06 :
+    # « remonte santé onboarding en dessous de credentials API pour que la logique se
+    # suive ». On configure, puis on regarde si ça a pris — donc l'écran qui répond
+    # « où en es-tu ? » vient juste après celui où l'on saisit, pas trois entrées plus
+    # bas derrière le mapping.
+    #
+    # « 📋 Guide de démarrage » a été RETIRÉE le même jour : « l'app est bien mieux
+    # faite et ça rajoute de l'inutile ». Elle redisait en quatre listes à puces ce que
+    # l'assistant montre, ce que les onglets de Credentials déplient, et ce que la
+    # matrice d'état mesure. Ses deux seules sections qui n'existaient nulle part
+    # ailleurs — le PDF des identifiants et la définition des CSV attendus — ont
+    # déménagé dans « 🚦 Santé onboarding », où l'artiste est quand il se demande ce
+    # qu'il lui manque. La ROUTE survit et mène là-bas : des liens la visent.
     ("data",      "⚙️ Configuration de streaMLytics",             [("🚀 Mise en route (assistant)", "onboarding"),
-                                             ("📋 Guide de démarrage", "process_guide"),
                                              ("🔑 Credentials API + imports CSV", "credentials"),
+                                             ("🚦 Santé onboarding", "onboarding_health"),
                                              # « 📋 État de tes plateformes » a été
                                              # RETIRÉE du menu le 2026-09-05 : chaque
                                              # onglet de Credentials porte désormais
@@ -289,7 +302,6 @@ _NAV_SECTIONS = [
                                              # (voir `_main_body`) — des liens la
                                              # visent.
                                              ("🔗 Mapping cross-plateforme", "meta_mapping"),
-                                             ("🚦 Santé onboarding", "onboarding_health"),
                                              ("🗄️ Santé des données", "db_health")]),
     ("analytics", "📊 Analytics plateformes", [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
                                              ("🎵 META x Spotify", "meta_x_spotify"),
@@ -859,7 +871,18 @@ def _render_page(page):
     elif page == "data_wrapped": from views.data_wrapped import show; show()
     elif page == "imusician": from views.imusician import show; show()
     elif page == "credentials": from views.credentials import show; show()
-    elif page == "process_guide": from views.process_guide import show; show()
+    elif page == "process_guide":
+        # LA ROUTE SURVIT, LA PAGE NON. « 📋 Guide de démarrage » a été supprimée le
+        # 2026-09-06 — « l'app est bien mieux faite et ça rajoute de l'inutile ». Elle
+        # redisait en quatre listes à puces ce que l'assistant montre, ce que les
+        # onglets de Credentials déplient et ce que la matrice d'état mesure.
+        #
+        # Ses deux sections uniques — le PDF des identifiants, la définition des CSV
+        # attendus — vivent maintenant dans « 🚦 Santé onboarding », qui est donc la
+        # destination juste : un ancien lien y trouve ce qu'il venait chercher, et
+        # non une page d'accueil générique. Supprimer la route en ferait des
+        # culs-de-sac, ce que ce dépôt a déjà payé six fois en une séance.
+        from views.onboarding_health import show; show()
     elif page == "platform_status":
         # Hors du menu depuis le 2026-09-05, mais toujours ROUTÉE : la matrice
         # complète reste la seule vue qui montre les six sources d'un coup, et des
