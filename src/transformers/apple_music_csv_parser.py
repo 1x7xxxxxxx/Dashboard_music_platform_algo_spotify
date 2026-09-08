@@ -151,7 +151,12 @@ class AppleMusicCSVParser:
                     'album_name': str(row[album_col]) if album_col and not pd.isna(row[album_col]) else None,
                     'plays': self.clean_number(row[plays_col]),
                     'listeners': self.clean_number(row[listeners_col]) if listeners_col else 0,
-                    'collected_at': datetime.now(timezone.utc)
+                    'collected_at': datetime.now(timezone.utc),
+                    # Le jour du dépôt : l'export Apple ne porte pas sa propre date de
+                    # période, donc c'est la seule que nous connaissions. Elle entre
+                    # dans la clé (migration 093) pour que deux dépôts fassent deux
+                    # relevés au lieu de s'écraser.
+                    'snapshot_date': datetime.now(timezone.utc).date(),
                 }
 
                 # Champs optionnels (si tables étendues)

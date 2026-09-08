@@ -104,7 +104,11 @@ def _section_streams(db, artist_id):
                 return None
             return sum(v for d, v in series.get(pkey, []) if since <= d <= until)
         s4a, yt, sc = _sum("spotify"), _sum("youtube"), _sum("soundcloud")
-        apple = None
+        # Apple n'a pas de résolution quotidienne, mais elle a des RELEVÉS datés
+        # depuis la migration 093 : sur une période qui en contient deux, l'écart est
+        # calculable. `None` tant qu'il n'y en a qu'un.
+        from src.dashboard.utils.platform_timeseries import apple_period_plays
+        apple = apple_period_plays(db, artist_id, since, until)
     grand_total = sum(v for v in (s4a, yt, sc, apple) if v)
 
     if not grand_total and not ig_count:
@@ -156,13 +160,15 @@ def _render_totals(db, artist_id, series, since, until,
     # APPLE N'A QU'UN RELEVÉ PAR DÉPÔT DE CSV, et pour l'instant un seul en tout.
     # Le message le dit plutôt que d'annoncer une impossibilité de principe : au
     # deuxième CSV, la comparaison de deux relevés devient possible.
+    from src.dashboard.utils.platform_timeseries import apple_snapshot_count
     c4.metric("🍎 Apple Music", _fmt(apple),
               help=None if apple is not None else t(
                   "home.apple_no_window",
                   "Apple Music ne fournit pas de série quotidienne : chaque dépôt de "
-                  "CSV est un relevé à une date. Il n'y en a qu'un pour l'instant, "
-                  "donc rien à comparer sur une période. Choisis « Depuis le début » "
-                  "pour son total."))
+                  "CSV est un relevé daté, et l'écart se calcule entre deux relevés. "
+                  "Tu en as **{n}** pour l'instant — au prochain dépôt à une autre "
+                  "date, ce chiffre se remplira. « Depuis le début » affiche le total."
+              ).format(n=apple_snapshot_count(db, artist_id)))
 
     # LES ABONNÉS INSTAGRAM SONT UN ÉTAT, pas un flux : on ne les additionne pas sur
     # une période, on regarde de combien ils ont bougé. Demandé le 2026-09-08.
@@ -200,8 +206,23 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
         render_missing_history_note, render_platform_chart,
     )
 
+    # QUELLES SOURCES TRACER. Toutes par défaut : le filtre sert à ISOLER une
+    # plateforme, pas à en cacher. Les cases ne proposent que ce que la période
+    # contient — cocher une source qui n'a rien à dire ne montrerait rien et se
+    # lirait comme une panne.
+    from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS, measured_days
+    available = [k for k in PLATFORM_LABELS if measured_days(series, k, since, until)]
+    chosen = available
+    if len(available) > 1:
+        chosen = st.multiselect(
+            t("home.trend_sources", "Sources affichées"), available,
+            default=available, format_func=lambda k: PLATFORM_LABELS[k],
+            key=f"home_trend_sources_{artist_id}",
+            label_visibility="collapsed",
+            placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
+
     if not render_platform_chart(
-            series, since=since, until=until,
+            series, since=since, until=until, only=chosen,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
             + f" — {date_range.label(range_key)}",
             key=f"home_trend_{artist_id}"):

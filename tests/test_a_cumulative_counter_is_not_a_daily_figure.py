@@ -21,9 +21,11 @@ pas des cas d'école. Chacun ferait dessiner un pic qui n'a pas eu lieu :
    jour suivant : 23 480 écoutes le 2026-06-05 ;
 2. **un trou de collecte** — 104 jours entre le 2025-12-16 et le 2026-03-30 : les 163
    écoutes gagnées entre-temps ne sont pas celles du 30 mars ;
-3. **plusieurs chaînes YouTube pour un locataire** — le bac à sable en porte trois,
-   dont une d'un onboarding abandonné à 155 vues. Un `MAX` toutes chaînes confondues
-   sautait de 155 à 120 627 et affichait 120 472 vues en une journée.
+3. **plusieurs vidéos (ou chaînes) pour un locataire** — l'écart doit se prendre par
+   ENTITÉ avant d'additionner, sinon le cumul entier d'une vidéo apparaît le jour de sa
+   première collecte. Le bac à sable portait trois `channel_id`, dont un d'un onboarding
+   abandonné à 155 vues : un `MAX` toutes entités confondues sautait de 155 à 120 627 et
+   affichait 120 472 vues en une journée.
 
 Le test tourne sur un vrai moteur SQL (sqlite) plutôt que sur un faux : les trois
 règles VIVENT dans le SQL (`MAX … OVER`, `jour - veille = 1`, `PARTITION BY`), et un
@@ -77,13 +79,19 @@ def _sc_db(rows):
 
 
 def _yt_db(rows):
-    """rows = [(jour, channel_id, view_count)]"""
+    """rows = [(jour, video_id, view_count)]
+
+    `youtube_video_stats` et non `youtube_channel_history` : le compteur de CHAÎNE
+    donnait des chiffres faux — figé onze jours puis +360 attribués à une seule
+    journée, contre 64 vues annoncées par YouTube Studio sur la période. La somme des
+    compteurs PAR VIDÉO suit le même ordre de grandeur que Studio (44 sur 28 jours).
+    """
     db = _SqliteDB()
-    db.execute("CREATE TABLE youtube_channel_history "
-               "(artist_id INT, channel_id TEXT, view_count INT, collected_at TEXT)")
-    for jour, chan, views in rows:
-        db.execute("INSERT INTO youtube_channel_history VALUES (?,?,?,?)",
-                   (1, chan, views, jour))
+    db.execute("CREATE TABLE youtube_video_stats "
+               "(artist_id INT, video_id TEXT, view_count INT, collected_at TEXT)")
+    for jour, video, views in rows:
+        db.execute("INSERT INTO youtube_video_stats VALUES (?,?,?,?)",
+                   (1, video, views, jour))
     return db
 
 
@@ -128,14 +136,14 @@ def test_a_gap_in_collection_produces_no_point_at_all() -> None:
 
 
 def test_two_channels_are_two_series_not_one_maximum() -> None:
-    """L'artefact du bac à sable : trois `channel_id`, dont une à 155 vues.
+    """L'artefact du bac à sable : trois entités, dont une à 155 vues.
 
     Un `MAX(view_count)` toutes chaînes confondues passait de 155 à 120 627 et
     affichait 120 472 vues en une journée. Ce n'était pas une journée.
     """
     rows = [("2026-09-05", "abandonnee", 155),
             ("2026-09-06", "vraie", 120627), ("2026-09-06", "autre", 2664),
-            ("2026-09-07", "vraie", 120987), ("2026-09-07", "autre", 2665)]
+            ("2026-09-07", "vraie", 120987), ("2026-09-07", "autre", 2665)]  # noqa: E501
     got = _series(_yt_db(rows), pts._SQL_YOUTUBE, (1,))
     assert got.get("2026-09-06") is None, (
         "le premier jour d'une chaîne ne peut pas porter d'écart")
@@ -168,3 +176,27 @@ def test_apple_is_named_as_missing_rather_than_drawn_at_zero() -> None:
 def test_every_charted_platform_has_a_colour(platform) -> None:
     """La courbe et la tuile de l'accueil doivent parler de la même plateforme."""
     assert pts.PLATFORM_COLORS.get(platform), platform
+
+
+def test_youtube_reads_per_video_counters_not_the_channel_one() -> None:
+    """La SOURCE, épinglée — c'est elle qui donnait des chiffres faux.
+
+    `youtube_channel_history.view_count` est mis à jour par PALIERS et porte autre
+    chose que la somme des vidéos : mesuré le 2026-09-08, figé à 120 627 pendant onze
+    jours puis 120 987, soit +360 attribués à une seule journée. YouTube Studio
+    annonçait **64 vues** sur la période ; la somme des compteurs par vidéo en donnait
+    44 sur 28 jours — le bon ordre de grandeur.
+
+    Lu sur la structure de la requête, pas sur son texte : ce fichier NOMME les deux
+    tables dans sa documentation.
+    """
+    import re
+    tables = set(re.findall(r"FROM\s+([a-z_]+)", pts._SQL_YOUTUBE))
+    assert "youtube_video_stats" in tables, (
+        f"la série YouTube ne lit pas les compteurs par vidéo : {sorted(tables)}")
+    assert "youtube_channel_history" not in tables, (
+        "la série YouTube est revenue au compteur de CHAÎNE, qui saute par paliers et "
+        "attribue des centaines de vues à une seule journée")
+    assert "PARTITION BY video_id" in pts._SQL_YOUTUBE, (
+        "l'écart n'est pas pris par vidéo : le cumul entier d'une vidéo apparaîtra le "
+        "jour de sa première collecte")

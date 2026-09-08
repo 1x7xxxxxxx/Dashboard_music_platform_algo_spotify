@@ -2,7 +2,7 @@
 
 Type: Utility
 Uses: PostgresHandler (passé, jamais ouvert ici)
-Depends on: s4a_song_timeline, youtube_channel_history, soundcloud_tracks_daily
+Depends on: s4a_song_timeline, youtube_video_stats, soundcloud_tracks_daily
 Persists in: nothing
 
 Pourquoi ce module existe
@@ -35,8 +35,7 @@ Ce que chaque source mesure, et ce qu'on en fait
 plateforme      table / colonne                nature       conversion
 =============== ============================== ============ =======================
 Spotify (S4A)   s4a_song_timeline.streams      quotidien    somme (MAX par jour+titre)
-YouTube         youtube_channel_history        cumul        écart d'un jour à l'autre
-                .view_count
+YouTube         youtube_video_stats.view_count cumul        écart par vidéo, puis somme
 SoundCloud      soundcloud_tracks_daily        cumul        écart par titre, puis somme
                 .playback_count
 Apple Music     apple_songs_performance.plays  cumul, UN    **exclu** — voir plus bas
@@ -118,21 +117,32 @@ _SQL_SPOTIFY = """
     ) t GROUP BY date ORDER BY date
 """
 
-# Compteur de CHAÎNE — et un locataire peut en avoir PLUSIEURS. La première version
-# prenait `MAX(view_count)` par jour, toutes chaînes confondues : sur le bac à sable,
-# qui porte trois `channel_id` (deux chaînes réelles plus une d'un onboarding
-# abandonné, à 155 vues), elle sautait de 155 à 120 627 d'un jour à l'autre et
-# affichait **120 472 vues en une journée**. Ce n'était pas une journée, c'était un
-# changement de chaîne. On partitionne donc par chaîne, comme SoundCloud par titre.
+# Compteur PAR VIDÉO — et non le compteur de la CHAÎNE, qui donnait des chiffres faux.
+#
+# Mesuré le 2026-09-08 contre YouTube Studio, qui annonçait **64 vues** sur la période :
+#
+#   youtube_channel_history.view_count : 120 627 pendant onze jours, puis 120 987
+#                                        → +360 attribués à une seule journée
+#   somme des youtube_video_stats      : +3, 0, +3, 0, +1, +1, +3… soit 44 sur 28 jours
+#
+# Le compteur de chaîne est mis à jour par PALIERS et porte autre chose que la somme des
+# vidéos (vidéos privées ou supprimées, agrégats internes). La somme par vidéo suit le
+# même ordre de grandeur que Studio ; l'écart qui reste (44 contre 64) tient à la
+# granularité du relevé quotidien et aux vidéos qui ont quitté la chaîne, pas à un
+# facteur dix.
+#
+# L'écart se prend PAR VIDÉO avant d'additionner, pour la même raison que SoundCloud le
+# prend par titre : le prendre sur la somme ferait apparaître le cumul entier d'une
+# vidéo le jour de sa première collecte.
 _SQL_YOUTUBE = """
     SELECT jour, SUM(GREATEST(view_count - vu_max, 0))::bigint FROM (
-        SELECT jour, channel_id, view_count,
-               MAX(view_count) OVER (PARTITION BY channel_id ORDER BY jour
+        SELECT jour, video_id, view_count,
+               MAX(view_count) OVER (PARTITION BY video_id ORDER BY jour
                    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS vu_max,
-               LAG(jour) OVER (PARTITION BY channel_id ORDER BY jour) AS veille
+               LAG(jour) OVER (PARTITION BY video_id ORDER BY jour) AS veille
           FROM (
-            SELECT collected_at::date AS jour, channel_id, MAX(view_count) AS view_count
-              FROM youtube_channel_history
+            SELECT collected_at::date AS jour, video_id, MAX(view_count) AS view_count
+              FROM youtube_video_stats
              WHERE artist_id = %s AND view_count IS NOT NULL
              GROUP BY 1, 2
           ) t
@@ -242,3 +252,55 @@ def followers_change(db, artist_id, since=None, until=None):
     if len(rows) < 2:
         return None
     return rows[0][1], rows[-1][1], rows[-1][1] - rows[0][1]
+
+
+def apple_period_plays(db, artist_id, since=None, until=None):
+    """Les écoutes Apple sur la période, ou `None` — la différence de deux relevés.
+
+    Apple n'a pas de résolution quotidienne : chaque dépôt de CSV est un relevé daté
+    (`snapshot_date`, migration 093), et `plays` y est un cumul. Sur une période, la
+    seule chose vraie est donc l'écart entre le premier et le dernier relevé qu'elle
+    contient — pas une somme, et surtout pas une valeur par jour.
+
+    C'est pour ça qu'Apple n'entre pas dans la bande empilée, qui est quotidienne, mais
+    qu'elle peut désormais remplir sa TUILE. Avant la migration 093 elle ne le pouvait
+    pas : la clé `(artist_id, song_name)` faisait écraser chaque relevé par le suivant,
+    et la table n'a jamais porté plus d'un point.
+
+    Rend `None` tant qu'il n'y a pas DEUX relevés dans la période : un écart a besoin
+    de deux points.
+    """
+    if db is None or artist_id is None:
+        return None
+    sql = ("SELECT snapshot_date, SUM(plays)::bigint FROM apple_songs_performance "
+           "WHERE artist_id = %s AND plays IS NOT NULL")
+    params: list = [artist_id]
+    if since is not None:
+        sql += " AND snapshot_date >= %s"
+        params.append(since)
+    if until is not None:
+        sql += " AND snapshot_date <= %s"
+        params.append(until)
+    sql += " GROUP BY 1 ORDER BY 1"
+    try:
+        rows = [(r[0], int(r[1])) for r in (db.fetch_query(sql, tuple(params)) or [])
+                if r[1] is not None]
+    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+        logger.warning("apple period unavailable: %s", type(exc).__name__)
+        return None
+    if len(rows) < 2:
+        return None
+    return max(rows[-1][1] - rows[0][1], 0)
+
+
+def apple_snapshot_count(db, artist_id) -> int:
+    """Combien de relevés Apple existent — pour DIRE pourquoi la tuile est vide."""
+    if db is None or artist_id is None:
+        return 0
+    try:
+        row = db.fetch_query(
+            "SELECT COUNT(DISTINCT snapshot_date) FROM apple_songs_performance "
+            "WHERE artist_id = %s", (artist_id,))
+        return int(row[0][0] or 0) if row else 0
+    except Exception:      # noqa: BLE001
+        return 0

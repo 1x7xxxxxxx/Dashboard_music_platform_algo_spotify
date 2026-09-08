@@ -252,7 +252,7 @@ def _segments(span: list, aligned: dict, order: list) -> list:
 
 
 def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
-                          since=None, until=None,
+                          since=None, until=None, only=None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -298,6 +298,14 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # l'autre. Une source trop clairsemée est NOMMÉE plutôt qu'empilée — la même règle
     # qu'Apple, qui n'a pas d'historique du tout.
     order, thin = stackable(span, aligned)
+    if only:
+        # Le filtre de SOURCES, demandé le 2026-09-08 : « il faudrait pouvoir
+        # sélectionner différentes sources, par exemple afficher que YouTube sur la
+        # période sélectionnée ». Il s'applique APRÈS `stackable` : une plateforme
+        # écartée pour cause de couverture le reste, sinon cocher une case ferait
+        # réapparaître une bande qu'on a décidé de ne pas empiler.
+        order = [k for k in order if k in only]
+        thin = {k: v for k, v in thin.items() if k in only}
     if not order:
         return False
     segments = _segments(span, aligned, order)

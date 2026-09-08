@@ -770,7 +770,11 @@ def show_data_collection_panel():
     except Exception:
         pass  # progress is informational — never block the sidebar on it
 
-    st.sidebar.markdown("---")
+    # Le filet qui fermait ce bloc a disparu avec le bouton qu'il séparait (2026-09-08 :
+    # « retire les 2 lignes où était le bouton de collecte »). Un séparateur sépare deux
+    # choses ; celui-ci fermait une section réduite à un panneau qui ne s'affiche que
+    # pendant une collecte.
+
 
 def _check_db_health():
     """Affiche une bannière rouge si PostgreSQL est inaccessible.

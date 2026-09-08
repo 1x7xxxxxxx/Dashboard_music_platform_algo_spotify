@@ -36,11 +36,13 @@ EN = {
         "platform was not measured. We prefer a blank to a zero: a zero would say "
         "\"no plays\"."),
     "home.apple_no_window": (
-        "Apple Music has no daily series: each CSV upload is one reading at one date. "
-        "There is only one so far, so nothing to compare over a period. Pick "
-        "\"Since the beginning\" for its total."),
+        "Apple Music has no daily series: each CSV upload is one dated reading, and the "
+        "change is measured between two readings. You have **{n}** so far — the next "
+        "upload on another date will fill this in. \"Since the beginning\" shows the total."),
     "home.ig_delta": "over the period",
     "home.ig_no_change": "change: not enough readings",
+    "home.trend_sources": "Sources shown",
+    "home.trend_sources_ph": "All sources",
     "home.trend_title": "All your platforms, one screen",
     "home.trend_caption": (
         "**Daily** plays, platform by platform, over the last 90 days. A gap in a "

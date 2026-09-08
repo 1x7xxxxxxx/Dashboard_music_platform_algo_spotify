@@ -13,7 +13,11 @@ APPLE_MUSIC_CSV_SCHEMA = {
             radio_spins INTEGER DEFAULT 0,
             purchases INTEGER DEFAULT 0,
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(artist_id, song_name)
+            -- La DATE du relevé fait partie de la clé (migration 093). Sans elle,
+            -- chaque dépôt de CSV écrasait le précédent et la table ne portait
+            -- jamais plus d'un relevé : aucune période n'était découpable.
+            snapshot_date DATE NOT NULL DEFAULT CURRENT_DATE,
+            UNIQUE(artist_id, song_name, snapshot_date)
         );
 
         CREATE INDEX IF NOT EXISTS idx_apple_songs_perf_name

@@ -45,7 +45,10 @@ _PLATFORMS = {
     'apple': {
         'label': 'Apple Music',
         'table': 'apple_songs_performance',
-        'conflict_columns': ['artist_id', 'song_name'],
+        # La DATE entre dans la clé (migration 093) : deux dépôts à deux dates font
+        # deux relevés, et Apple a enfin une série. Deux dépôts le MÊME jour restent
+        # un seul relevé — re-déposer le même export ne crée pas un point de plus.
+        'conflict_columns': ['artist_id', 'song_name', 'snapshot_date'],
         'update_columns': ['plays', 'listeners', 'shazam_count', 'collected_at'],
     },
     'imusician_summary': {
