@@ -100,6 +100,37 @@ def _window(series: dict, days: int) -> tuple:
     return span, {k: _continuous(rows, span) for k, rows in series.items() if rows}
 
 
+def stackable(span: list, aligned: dict) -> tuple:
+    """(plateformes empilables, plateformes trop clairsemées) — la règle, une fois.
+
+    « A-t-elle au moins un point ? » était le premier critère, et il était faux : la
+    bande se coupe dès qu'UNE plateforme manque, donc une source mesurée deux jours sur
+    quatre-vingt-dix vétait les quatre-vingt-sept jours des autres. Mesuré le
+    2026-09-08 juste après déploiement — le bac à sable n'avait plus AUCUNE figure
+    alors qu'il a 87 jours de Spotify.
+
+    Le critère est donc la COUVERTURE sur la fenêtre, et les distributions réelles ne
+    laissent pas d'ambiguïté : 87/90, 90/90 et 82/90 d'un côté ; 2/90 et 4/90 de
+    l'autre. Une source trop clairsemée est NOMMÉE plutôt qu'empilée — la même règle
+    qu'Apple, qui n'a pas d'historique du tout.
+
+    Exportée, et non repliée dans le rendu, parce que son garde doit l'APPELER : une
+    règle recopiée dans un test est une deuxième règle, qui diverge au premier
+    changement — c'est exactement ce que ce module reproche à la figure d'exemple.
+    """
+    order, thin = [], {}
+    for key in PLATFORM_LABELS:
+        values = aligned.get(key) or []
+        measured = sum(1 for v in values if v is not None)
+        if not measured:
+            continue
+        if measured * 2 >= len(span):
+            order.append(key)
+        else:
+            thin[key] = (PLATFORM_LABELS[key], measured, len(span))
+    return order, thin
+
+
 def _segments(span: list, aligned: dict, order: list) -> list:
     """Les tranches de jours CONSÉCUTIFS où toutes les aires ont une mesure.
 
@@ -140,10 +171,19 @@ def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT
         logger.warning("plotly unavailable — chart skipped")
         return False
 
-    # Ordre FIXE, jamais cyclé, et restreint à ce qui a des points : une plateforme
-    # muette ne prend pas une couleur qu'une autre porterait ailleurs.
-    order = [k for k in PLATFORM_LABELS
-             if aligned.get(k) and any(v is not None for v in aligned[k])]
+    # Ordre FIXE, jamais cyclé, et restreint à ce qui peut ÊTRE EMPILÉ.
+    #
+    # « A-t-elle au moins un point ? » était le premier critère, et il était faux : la
+    # bande se coupe dès qu'UNE plateforme manque, donc une source mesurée deux jours
+    # sur quatre-vingt-dix vétait les quatre-vingt-sept jours des autres. Mesuré le
+    # 2026-09-08 juste après déploiement — le bac à sable n'avait plus AUCUNE figure
+    # alors qu'il a 87 jours de Spotify.
+    #
+    # Le critère est donc la COUVERTURE sur la fenêtre. Les distributions réelles ne
+    # laissent pas d'ambiguïté : 87/90, 90/90 et 82/90 d'un côté ; 2/90 et 4/90 de
+    # l'autre. Une source trop clairsemée est NOMMÉE plutôt qu'empilée — la même règle
+    # qu'Apple, qui n'a pas d'historique du tout.
+    order, thin = stackable(span, aligned)
     if not order:
         return False
     segments = _segments(span, aligned, order)
@@ -193,7 +233,19 @@ def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT
     if len(segments) > 1 or len(span) > sum(len(s) for s in segments):
         missing = len(span) - sum(len(s) for s in segments)
         st.caption(t_missing(missing, len(span)))
+    for label, measured, total in thin.values():
+        st.caption(t_too_thin(label, measured, total))
     return True
+
+
+def t_too_thin(label: str, measured: int, total: int) -> str:
+    """Pourquoi une plateforme n'est pas dans la pile — nommée, jamais tue."""
+    from src.dashboard.utils.i18n import t
+    return t("platform_chart.too_thin",
+             "{label} n'est pas dans la pile : mesurée **{measured} jour(s) sur "
+             "{total}**, elle couperait la bande partout. Ses chiffres restent dans "
+             "le tableau ci-dessous."
+             ).format(label=label, measured=measured, total=total)
 
 
 def t_missing(missing: int, total: int) -> str:

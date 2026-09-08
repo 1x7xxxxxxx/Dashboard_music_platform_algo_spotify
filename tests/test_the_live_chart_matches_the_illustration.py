@@ -114,3 +114,45 @@ def test_a_platform_with_no_point_takes_no_colour() -> None:
     segments = pc._segments(span, aligned, ["spotify"])
     assert segments == [[0, 1, 2]], (
         "une plateforme sans aucun point ne doit pas casser la bande des autres")
+
+
+# ── La couverture décide qui entre dans la pile ─────────────────────────────
+
+def _coverage_order(span_len: int, measured: dict) -> tuple:
+    """APPELLE la règle du rendu, ne la rejoue pas.
+
+    La première version recopiait le calcul ici — deux règles pour une question, ce
+    que ce fichier reproche justement à la figure. `stackable` est exportée pour ça.
+    """
+    aligned = {k: [1] * n + [None] * (span_len - n) for k, n in measured.items()}
+    order, thin = pc.stackable(list(range(span_len)), aligned)
+    return order, sorted(thin)
+
+
+def test_a_sparse_platform_does_not_veto_the_others() -> None:
+    """Les couvertures RÉELLES du 2026-09-08, pas un cas d'école.
+
+    La bande se coupe dès qu'une plateforme manque : avec « au moins un point » pour
+    critère, les 2 jours de YouTube du bac à sable supprimaient les 87 jours de
+    Spotify, et la page n'affichait plus aucune figure.
+    """
+    principal = {"spotify": 87, "youtube": 90, "soundcloud": 82}
+    bac_a_sable = {"spotify": 87, "youtube": 2, "soundcloud": 4}
+
+    order, thin = _coverage_order(90, principal)
+    assert order == ["spotify", "youtube", "soundcloud"] and not thin, (
+        f"le profil principal perd une plateforme : empilées={order}, écartées={thin}")
+
+    order, thin = _coverage_order(90, bac_a_sable)
+    assert order == ["spotify"], (
+        f"le bac à sable devrait empiler Spotify seul, il empile {order}")
+    assert set(thin) == {"youtube", "soundcloud"}, (
+        f"les sources clairsemées doivent être écartées et NOMMÉES, pas tues : {thin}")
+
+
+def test_a_platform_left_out_is_named() -> None:
+    """Une absence sans raison se lit comme une panne — la leçon de la matrice d'état."""
+    phrase = pc.t_too_thin("🎬 YouTube", 2, 90)
+    assert "2" in phrase and "90" in phrase, (
+        "la phrase ne dit pas COMBIEN de jours sont mesurés — sans ce chiffre elle "
+        "ne se distingue pas d'une panne")

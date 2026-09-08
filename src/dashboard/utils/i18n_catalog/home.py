@@ -28,6 +28,9 @@ EN = {
     ),
     "home.streams_header": "🎧 Total streams",
     "home.total_all_platforms": "🎧 Total streams across all platforms",
+    "platform_chart.too_thin": (
+        "{label} is not in the stack: measured on **{measured} day(s) out of {total}**, "
+        "it would break the band everywhere. Its figures stay in the table below."),
     "platform_chart.gaps": (
         "White areas are **{missing} day(s) out of {total}** where at least one "
         "platform was not measured. We prefer a blank to a zero: a zero would say "
