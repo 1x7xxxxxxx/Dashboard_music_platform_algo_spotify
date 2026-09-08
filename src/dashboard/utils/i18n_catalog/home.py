@@ -41,6 +41,14 @@ EN = {
         "upload on another date will fill this in. \"Since the beginning\" shows the total."),
     "home.ig_delta": "over the period",
     "home.ig_no_change": "change: not enough readings",
+    "home.trend_mode": "Display",
+    "home.mode_cumulative": "Cumulative",
+    "home.mode_absolute": "Per period",
+    "home.mode_share": "Share of each platform",
+    "home.trend_share_hint": (
+        "A platform can be invisible without being absent: if one carries most of the "
+        "total, the others fall below one pixel. **Share of each platform** makes them "
+        "all visible."),
     "home.trend_step": "Step",
     "home.step_auto": "Automatic",
     "home.step_week": "Weekly",

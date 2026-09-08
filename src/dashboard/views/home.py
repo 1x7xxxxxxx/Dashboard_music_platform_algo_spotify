@@ -227,10 +227,24 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
     # LE PAS. Automatique par défaut ; « Par année » est le SEUL où Apple existe, parce
     # que ses exports sont des totaux de période et non des quantités du jour. Étaler
     # une année sur 366 points inventerait une valeur que personne n'a mesurée.
+    from src.dashboard.utils.platform_chart import MODES
+
     steps = {'auto': t("home.step_auto", "Automatique"),
              'week': t("home.step_week", "Par semaine"),
              'year': t("home.step_year", "Par année")}
-    col_step, col_src = st.columns([1, 2])
+    # LE MODE, et pourquoi il y en a trois. « Cumulé » est le défaut : c'est la forme de
+    # l'illustration, des bandes qui montent, et c'est ce qu'un artiste vient voir.
+    # « Part de chaque plateforme » existe pour une raison MESURÉE : Spotify pèse 99,74 %
+    # du total de l'artiste 1, YouTube 0,22 %, SoundCloud 0,04 %. À l'échelle linéaire,
+    # deux plateformes sur trois sont sous le pixel — « je ne vois que Spotify » n'était
+    # pas un bug, c'était l'échelle, et aucune disposition empilée ne les rend visibles
+    # ensemble. Une part de 100 % le fait par construction.
+    col_mode, col_step, col_src = st.columns([1, 1, 2])
+    with col_mode:
+        mode = st.selectbox(
+            t("home.trend_mode", "Affichage"), list(MODES),
+            format_func=lambda k: t(f"home.mode_{k}", MODES[k]),
+            key=f"home_trend_mode_{artist_id}", label_visibility="collapsed")
     with col_step:
         step = st.selectbox(
             t("home.trend_step", "Pas"), list(steps), format_func=steps.get,
@@ -253,6 +267,12 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
                 label_visibility="collapsed",
                 placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
 
+    if mode != 'share' and len(chosen) > 1:
+        st.caption(t(
+            "home.trend_share_hint",
+            "Une plateforme peut être invisible sans être absente : si l'une pèse "
+            "l'essentiel du total, les autres passent sous le pixel. **Part de chaque "
+            "plateforme** les rend toutes visibles."))
     if step != 'year' and any(k in series and series[k] for k in STEP_ONLY):
         st.caption(t(
             "home.trend_apple_hint",
@@ -261,7 +281,7 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
             "inventerait une valeur que personne n'a mesurée."))
 
     if not render_platform_chart(
-            series, since=since, until=until, only=chosen, step=step,
+            series, since=since, until=until, only=chosen, step=step, mode=mode,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
             + f" — {date_range.label(range_key)}",
             key=f"home_trend_{artist_id}"):

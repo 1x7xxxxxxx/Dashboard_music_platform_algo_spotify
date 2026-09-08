@@ -25,6 +25,11 @@ _DYNAMIC_PREFIXES = (
     # `test_a_link_is_enough_to_identify_a_tenant` checks every one has an entry.
     "credentials.resolve.",
     "export_csv.source.", "export_pdf.period.", "export_pdf.section.",
+    # Construites par `t(f"home.mode_{k}", MODES[k])` — les trois modes d'affichage de
+    # la courbe. `MODES` les énumère, et `test_every_mode_is_offered_and_named`
+    # (test_the_live_chart_matches_the_illustration) vérifie qu'aucun n'est sans
+    # libellé : le prefix n'ouvre donc pas une porte sans contrôle.
+    "home.mode_",
     "home.dag.", "meta_ads_overview.dim.", "meta_ads_overview.gender.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",

@@ -282,6 +282,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [containment-ignores-what-it-leaves-out](#containment-ignores-what-it-leaves-out) | P2 | deterministic | guarded | none |
 | [nan-written-as-a-value](#nan-written-as-a-value) | P2 | deterministic | guarded | none |
 | [one-identity-two-readers](#one-identity-two-readers) | P3 | deterministic | guarded | none |
+| [conflict-target-an-index-cannot-match](#conflict-target-an-index-cannot-match) | P2 | deterministic | guarded | none |
 | [a-key-that-forbids-history](#a-key-that-forbids-history) | P2 | deterministic | guarded | none |
 | [an-aggregate-counter-is-not-the-sum-of-its-parts](#an-aggregate-counter-is-not-the-sum-of-its-parts) | P2 | deterministic | guarded | none |
 | [overlapping-readings-summed-as-one](#overlapping-readings-summed-as-one) | P2 | deterministic | guarded | none |
@@ -4104,3 +4105,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-08: signature vue ROUGE en neutralisant le test de chevauchement — « le découpage retenu se chevauche : [(2015-06-30, 2026-09-04, 3718), (2024-01-01, 2024-12-31, 900)] » — et verte sur l'arbre corrigé.
   - 2026-09-08: le garde de la variante annuelle est resté VERT sur sa mutation, et le cas manquant est instructif : le filtre « un relevé ne compte que s'il tient dans UNE année » ne se distingue pas tant qu'un relevé plus court existe à côté, puisque le découpage écarte déjà le long. Il ne se distingue que si le relevé de onze ans est SEUL — sans le filtre, il deviendrait un point « 2015 » portant onze ans d'écoutes. Un cas de test qui ne varie qu'avec un autre cas présent ne teste pas la règle.
+
+## conflict-target-an-index-cannot-match
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: tout upsert sur la table échoue, en bloc, avec un message qui parle d'une contrainte ABSENTE alors qu'elle est là. Signalé le 2026-09-08 sur cinq fichiers à la fois : « there is no unique or exclusion constraint matching the ON CONFLICT specification » — 11 titres détectés, 0 ligne écrite, cinq fois.
+- root_cause: la migration 094 a créé l'index unique sur des EXPRESSIONS — `(artist_id, song_name, snapshot_date, COALESCE(period_start, DATE '0001-01-01'), COALESCE(period_end, DATE '0001-01-01'))` — pendant que l'upsert désignait des COLONNES : `ON CONFLICT (artist_id, song_name, snapshot_date, period_start, period_end)`. Postgres n'apparie une cible `ON CONFLICT` à un index que si les expressions coïncident, donc la contrainte existait et l'upsert ne pouvait pas la voir. Le `COALESCE` avait une vraie raison : un index unique ordinaire tient deux NULL pour différents, et deux relevés « depuis le début » n'auraient plus été dédupliqués — l'idempotence acquise en 093 aurait été perdue.
+- signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- long_term_fix: migration 095 — `NULLS NOT DISTINCT` (PostgreSQL 15+, la production tourne en 17.10) rend deux NULL égaux DANS l'index, sans expression : la cible redevient une liste de colonnes, l'upsert l'apparie, et l'idempotence tient. Le garde compare les DEUX listes — celle du schéma canonique et celle que la page d'import envoie — et refuse toute expression dans la contrainte, parce qu'une expression rend la cible inappariable par construction.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- rex_ref: migrations/095_apple_conflict_target_matches_its_index.sql
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE en remettant la contrainte sur `COALESCE(...)` — « la contrainte porte une EXPRESSION […] : un `ON CONFLICT (col, …)` ne pourra jamais l'apparier » — et verte sur l'arbre corrigé.
+  - 2026-09-08: la migration a été testée sur son EXÉCUTION (`✅ no unexpected psql error`) et pas sur son USAGE. Un `CREATE UNIQUE INDEX` réussit toujours ; ce qui échoue, c'est l'`INSERT … ON CONFLICT` qui vient après, et rien dans la séance ne l'exerçait. Une migration qui change une clé d'unicité doit être suivie d'un upsert réel, pas seulement d'un psql vert.
+  - 2026-09-08: c'est le TROISIÈME correctif de la même clé en une journée — 093 (garder plusieurs relevés), 094 (savoir ce que chacun mesure), 095 (que Postgres puisse l'apparier). Chacun était juste et incomplet. Une clé d'unicité porte trois questions distinctes : que dédupliquer, quoi distinguer, et sous quelle forme l'upsert la désigne.

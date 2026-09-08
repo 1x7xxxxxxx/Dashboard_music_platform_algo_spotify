@@ -274,8 +274,49 @@ def _segments(span: list, aligned: dict, order: list) -> list:
     return out
 
 
+# Les trois façons de lire la même donnée. Chacune répond à une question différente, et
+# la troisième existe pour une raison MESURÉE : sur l'artiste 1, Spotify pèse 99,74 % du
+# total, YouTube 0,22 %, SoundCloud 0,04 %. À l'échelle linéaire, deux plateformes sur
+# trois sont sous le pixel — « je ne vois que Spotify » n'était pas un bug d'affichage,
+# c'était l'échelle. Aucune disposition empilée ne les rend visibles ensemble ; une part
+# de 100 % le fait par construction.
+MODES = {
+    "cumulative": "Cumulé",
+    "absolute": "Par période",
+    "share": "Part de chaque plateforme",
+}
+
+
+def _as_mode(aligned: dict, order: list, mode: str) -> dict:
+    """Les mêmes séries, lues selon le mode. `None` reste `None` : on n'invente rien."""
+    if mode == "cumulative":
+        out = {}
+        for key, values in aligned.items():
+            total, acc = 0, []
+            for v in values:
+                if v is None:
+                    # Un trou ne remet pas le cumul à zéro et n'invente pas de valeur :
+                    # la courbe s'interrompt, le total reprend où il en était.
+                    acc.append(None)
+                    continue
+                total += v
+                acc.append(total)
+            out[key] = acc
+        return out
+    if mode == "share":
+        out = {k: list(v) for k, v in aligned.items()}
+        for i in range(len(next(iter(aligned.values()), []))):
+            total = sum(aligned[k][i] or 0 for k in order)
+            for k in order:
+                out[k][i] = None if aligned[k][i] is None else (
+                    100.0 * aligned[k][i] / total if total else 0.0)
+        return out
+    return aligned
+
+
 def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           since=None, until=None, only=None, step=None,
+                          mode: str = "cumulative",
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -356,6 +397,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     surface = "#1a1a19" if _is_dark() else "#fcfcfb"
     grid = "rgba(150,150,150,0.20)"
 
+    aligned = _as_mode(aligned, order, mode)
+
     fig = go.Figure()
     for pkey in order:
         for n, seg in enumerate(segments):
@@ -377,7 +420,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                 # chaîne n'a pas bougé de la journée.
                 customdata=[["compteur inchangé" if (aligned[pkey][i] or 0) == 0
                              else ""] for i in seg],
-                hovertemplate=("%{y:,} %{customdata[0]}<extra>"
+                hovertemplate=(("%{y:.1f} %<extra>" if mode == "share"
+                                else "%{y:,} %{customdata[0]}<extra>")
                                + PLATFORM_LABELS[pkey] + "</extra>"),
             ))
 
@@ -411,9 +455,12 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
             # de « Toutes tes plateformes, un seul écran » — vu au rendu le 2026-09-08.
             # Il ne s'applique qu'au nombre.
             text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
-                  f"{format(total, ',').replace(',', chr(8239))} écoutes sur "
-                  f"{len(span)} {_STEP_UNITS[step]}</span>"
-                  if title else None),
+                  + (f"{len(span)} {_STEP_UNITS[step]} · part de chaque plateforme"
+                     if mode == "share" else
+                     f"{format(total, ',').replace(',', chr(8239))} écoutes sur "
+                     f"{len(span)} {_STEP_UNITS[step]}"
+                     + (" · cumulé" if mode == "cumulative" else ""))
+                  + "</span>" if title else None),
             x=0, xanchor="left"),
         hovermode="x unified",
         height=340,
@@ -424,7 +471,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),
         xaxis=dict(showgrid=False, linecolor=grid, title=None),
-        yaxis=dict(gridcolor=grid, zeroline=False, title=None, rangemode="tozero"),
+        yaxis=dict(gridcolor=grid, zeroline=False, title=None, rangemode="tozero",
+                   range=[0, 100] if mode == "share" else None,
+                   ticksuffix=" %" if mode == "share" else None),
     )
     st.plotly_chart(fig, width="stretch", key=key)
     if len(segments) > 1 or len(span) > sum(len(s) for s in segments):

@@ -258,3 +258,49 @@ def test_the_upsert_key_lets_a_second_reading_exist() -> None:
     assert {"period_start", "period_end"} <= cols, (
         f"la clé de conflit Apple est {sorted(cols)} : sans les bornes de période, "
         "deux exports annuels déposés le même jour s'écrasent l'un l'autre")
+
+
+def test_the_conflict_target_can_actually_be_matched_by_postgres() -> None:
+    """La clé de conflit doit désigner un index que Postgres sait APPARIER.
+
+    Signalé le 2026-09-08 sur les cinq fichiers à la fois :
+    « there is no unique or exclusion constraint matching the ON CONFLICT
+    specification ». La table avait bien sa contrainte d'unicité — mais sur des
+    EXPRESSIONS (`COALESCE(period_start, …)`), et l'upsert désignait des COLONNES.
+    Postgres n'apparie une cible `ON CONFLICT` à un index que si les expressions
+    coïncident : la contrainte existait, l'upsert ne pouvait pas la voir.
+
+    Le garde lit le schéma canonique, parce que c'est lui qui décrit la table qu'une
+    installation neuve obtient — et le compare aux colonnes que la page d'import
+    envoie. Deux listes qui doivent coïncider, dans deux fichiers.
+    """
+    schema = pathlib.Path("src/database/apple_music_csv_schema.py").read_text(
+        encoding="utf-8")
+    tree = ast.parse(_UPLOAD.read_text(encoding="utf-8"))
+    apple_cfg = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        keys = [k.value for k in node.keys if isinstance(k, ast.Constant)]
+        if "table" not in keys:
+            continue
+        table = node.values[keys.index("table")]
+        if isinstance(table, ast.Constant) and table.value == "apple_songs_performance":
+            apple_cfg = dict(zip(keys, node.values))
+            break
+    assert apple_cfg is not None, "la configuration d'import Apple a disparu"
+    cols = [c.value for c in apple_cfg["conflict_columns"].elts
+            if isinstance(c, ast.Constant)]
+
+    # La contrainte du schéma, réduite à ses colonnes. Un `COALESCE` y rendrait la
+    # cible inappariable — c'est exactement le défaut.
+    import re as _re
+    m = _re.search(r"UNIQUE(?:\s+NULLS\s+NOT\s+DISTINCT)?\s*\(([^)]*)\)", schema)
+    assert m, "aucune contrainte d'unicité dans le schéma Apple"
+    declared = [c.strip() for c in m.group(1).split(",")]
+    assert all("(" not in c for c in declared), (
+        f"la contrainte porte une EXPRESSION ({declared}) : un `ON CONFLICT (col, …)` "
+        "ne pourra jamais l'apparier")
+    assert sorted(declared) == sorted(cols), (
+        f"la clé d'upsert {sorted(cols)} et la contrainte {sorted(declared)} ne "
+        "coïncident pas : Postgres refusera l'insertion")

@@ -248,3 +248,46 @@ def test_the_daily_table_is_gone_and_nothing_still_calls_it() -> None:
                 if isinstance(n, ast.ImportFrom) for a in n.names}
     assert not (called | imported) & gone, (
         "l'accueil appelle ou importe une fonction supprimée")
+
+
+# ── Les trois lectures d'une même donnée ────────────────────────────────────
+
+def test_the_cumulative_mode_only_adds_up_what_was_measured() -> None:
+    """« Cumulé » est la forme de l'illustration : des bandes qui montent.
+
+    Un trou n'y remet PAS le cumul à zéro et n'invente pas de valeur — la courbe
+    s'interrompt, et le total reprend où il en était. Remettre à zéro dessinerait une
+    chute d'écoutes qui n'a pas eu lieu ; combler inventerait une mesure.
+    """
+    aligned = {"spotify": [10, 5, None, 7]}
+    got = pc._as_mode(aligned, ["spotify"], "cumulative")
+    assert got["spotify"] == [10, 15, None, 22], got["spotify"]
+
+
+def test_the_share_mode_makes_a_tiny_platform_visible() -> None:
+    """La raison MESURÉE de ce mode : Spotify pèse 99,74 % du total de l'artiste 1.
+
+    À l'échelle linéaire, YouTube (0,22 %) et SoundCloud (0,04 %) sont sous le pixel —
+    « je ne vois que Spotify » n'était pas un bug d'affichage, c'était l'échelle, et
+    aucune disposition empilée ne les rend visibles ensemble. Une part de 100 % le fait
+    par construction.
+    """
+    aligned = {"spotify": [9974], "youtube": [22], "soundcloud": [4]}
+    order = ["spotify", "youtube", "soundcloud"]
+    got = pc._as_mode(aligned, order, "share")
+    assert round(sum(got[k][0] for k in order), 3) == 100.0
+    assert got["youtube"][0] > 0.2, (
+        "une plateforme minuscule reste minuscule en part : le mode ne sert à rien")
+
+
+def test_absolute_mode_changes_nothing() -> None:
+    """« Par période » est la donnée telle quelle — aucune transformation cachée."""
+    aligned = {"spotify": [1, None, 3]}
+    assert pc._as_mode(aligned, ["spotify"], "absolute") is aligned
+
+
+def test_every_mode_is_offered_and_named() -> None:
+    """Un mode sans libellé est un mode qu'on ne choisit pas."""
+    assert set(pc.MODES) == {"cumulative", "absolute", "share"}
+    for key, label in pc.MODES.items():
+        assert label.strip(), key

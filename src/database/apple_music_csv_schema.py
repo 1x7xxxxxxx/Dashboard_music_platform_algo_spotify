@@ -17,7 +17,17 @@ APPLE_MUSIC_CSV_SCHEMA = {
             -- chaque dépôt de CSV écrasait le précédent et la table ne portait
             -- jamais plus d'un relevé : aucune période n'était découpable.
             snapshot_date DATE NOT NULL DEFAULT CURRENT_DATE,
-            UNIQUE(artist_id, song_name, snapshot_date)
+            -- La PÉRIODE couverte par l'export (migration 094). NULL = « depuis le
+            -- début » sans bornes connues, pour les lignes d'avant la lecture
+            -- automatique du nom de fichier.
+            period_start DATE,
+            period_end DATE,
+            -- `NULLS NOT DISTINCT` (migration 095, PostgreSQL 15+) : deux relevés sans
+            -- bornes restent dédupliqués, ET la cible reste une liste de COLONNES —
+            -- un index sur `COALESCE(...)` ne peut pas servir de cible à un
+            -- `ON CONFLICT (col, …)`, ce qui a fait échouer cinq imports.
+            UNIQUE NULLS NOT DISTINCT (artist_id, song_name, snapshot_date,
+                                       period_start, period_end)
         );
 
         CREATE INDEX IF NOT EXISTS idx_apple_songs_perf_name
