@@ -31,6 +31,10 @@ EN = {
     "platform_chart.too_thin": (
         "{label} is not drawn: only **{measured} reading(s)**, and an area needs two. "
         "Its figures stay in the table below."),
+    "platform_chart.coarsened": (
+        "**{asked}** gives a single point over this period — an area needs at least "
+        "two. Showing **{used}**. 🎎 Apple Music only exists at the Yearly step: widen "
+        "the period to see it again."),
     "platform_chart.too_coarse": (
         "{label} does not appear at this step: none of its {unit}s is measured on "
         "enough days to make an honest total. Pick a finer step to see it."),

@@ -106,6 +106,10 @@ def _continuous(rows: list[tuple], days: list) -> list:
 # plus déroutante qu'une courbe un peu lissée.
 _WEEKLY_ABOVE_DAYS = 92
 
+# Vers quoi descendre quand le pas demandé ne produit pas assez de seaux pour dessiner
+# quoi que ce soit. Du plus grossier au plus fin, en s'arrêtant au premier qui tient.
+_FINER_STEPS = {"year": ["year", "week", "day"], "week": ["week", "day"], "day": ["day"]}
+
 # Le mot qui suit le nombre, dans le sous-titre.
 _STEP_UNITS = {"day": "jours", "week": "semaines", "year": "années"}
 
@@ -442,33 +446,54 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # et non sur celle demandée : « depuis le début » n'a pas de nombre de jours.
     # Le pas : imposé par l'appelant, sinon déduit de la largeur de la fenêtre.
     step = step or ("week" if len(span) > _WEEKLY_ABOVE_DAYS else "day")
-    weekly = step != "day"
-    if weekly:
-        # LES BORNES SONT RAMENÉES AU LUNDI, sinon rien ne s'aligne : les semaines sont
-        # clavées au lundi et « Cette année » commence un 1ᵉʳ janvier — un jeudi en
-        # 2026. La fenêtre parcourait jeudi, jeudi+7, … et ne tombait sur AUCUNE clé.
-        # Vu au rendu le 2026-09-08 : « Cette année » et « 12 mois » n'empilaient plus
-        # aucune plateforme, tandis que « Depuis le début » (sans borne, donc calée sur
-        # une clé existante) fonctionnait. Deux périodes muettes pour un décalage de
-        # trois jours.
-        w_since = _bucket_key(since, step) if since is not None else None
-        w_until = _bucket_key(until, step) if until is not None else None
-        if step == "year":
-            # Un pas ANNUEL ne se parcourt pas en jours fixes : 365 ou 366. On
-            # construit donc l'axe sur les 1ᵉʳ janvier réellement présents.
-            agg = _aggregate(series, step, since, until)
-            years = sorted({d for rows in agg.values() for d, _ in rows
-                            if (w_since is None or d >= w_since)
-                            and (w_until is None or d <= w_until)})
-            if not years:
-                return False
-            span = years
-            aligned = {k: _continuous(rows, span) for k, rows in agg.items() if rows}
-        else:
-            span, aligned = _window(_aggregate(series, step, since, until), None,
-                                    w_since, w_until, step_days=7)
-        if not span or not aligned:
-            return False
+    daily_span, daily_aligned = span, aligned
+    coarsened = None
+    # UN PAS QUI NE PRODUIT QU'UN SEUL SEAU NE PEUT RIEN DESSINER, et on descend.
+    #
+    # Signalé au rendu : « cumulé, par année, cette année — je ne vois aucune data pour
+    # Spotify, YouTube, SoundCloud ». Reproduit : le pas annuel sur une période d'un an
+    # rend UN point par plateforme, et sous un point isolé il n'y a pas de surface. Les
+    # séries se voyaient déjà refuser une aire à moins de deux mesures (`_MIN_POINTS`) ;
+    # la même contrainte de forme n'était pas appliquée à l'AXE, et la figure sortait
+    # vide sans rien dire.
+    #
+    # On descend donc au pas immédiatement plus fin plutôt que de rendre une page
+    # muette — au pas hebdomadaire, la même période porte 24 points sur les trois
+    # plateformes. Le choix de l'utilisateur n'est pas ignoré en silence : `t_coarsened`
+    # le dit, et nomme ce que le pas plus fin coûte (Apple n'existe qu'au pas annuel).
+    for candidate in _FINER_STEPS.get(step, [step]):
+        span, aligned = daily_span, daily_aligned
+        if candidate != "day":
+            # LES BORNES SONT RAMENÉES AU LUNDI, sinon rien ne s'aligne : les semaines
+            # sont clavées au lundi et « Cette année » commence un 1ᵉʳ janvier — un jeudi
+            # en 2026. La fenêtre parcourait jeudi, jeudi+7, … et ne tombait sur AUCUNE
+            # clé. Vu au rendu le 2026-09-08 : « Cette année » et « 12 mois »
+            # n'empilaient plus aucune plateforme, tandis que « Depuis le début » (sans
+            # borne, donc calée sur une clé existante) fonctionnait. Deux périodes
+            # muettes pour un décalage de trois jours.
+            w_since = _bucket_key(since, candidate) if since is not None else None
+            w_until = _bucket_key(until, candidate) if until is not None else None
+            if candidate == "year":
+                # Un pas ANNUEL ne se parcourt pas en jours fixes : 365 ou 366. On
+                # construit donc l'axe sur les 1ᵉʳ janvier réellement présents.
+                agg = _aggregate(series, candidate, since, until)
+                years = sorted({d for rows in agg.values() for d, _ in rows
+                                if (w_since is None or d >= w_since)
+                                and (w_until is None or d <= w_until)})
+                span = years
+                aligned = {k: _continuous(rows, span) for k, rows in agg.items() if rows}
+            else:
+                span, aligned = _window(_aggregate(series, candidate, since, until),
+                                        None, w_since, w_until, step_days=7)
+        if span and aligned and len(span) >= _MIN_POINTS:
+            if candidate != step:
+                coarsened = (step, candidate)
+            step = candidate
+            break
+    else:
+        return False
+    if not span or not aligned:
+        return False
     try:
         import plotly.graph_objects as go
     except Exception:      # noqa: BLE001 — l'app rend Plotly nativement, mais on ne parie pas
@@ -518,7 +543,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         _render_facets(fig_span=span, aligned=aligned, order=order, segments=segments,
                        palette=palette, ink=ink, muted=muted, surface=surface,
                        grid=grid, title=title, step=step, total=total, key=key)
-        _render_notes(span, aligned_raw, order, thin, coarse, step, stacked=False)
+        _render_notes(span, aligned_raw, order, thin, coarse, step,
+                      stacked=False, coarsened=coarsened)
         return True
 
     fig = go.Figure()
@@ -619,17 +645,21 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                    ticksuffix=" %" if mode == "share" else None),
     )
     st.plotly_chart(fig, width="stretch", key=key)
-    _render_notes(span, aligned_raw, order, thin, coarse, step)
+    _render_notes(span, aligned_raw, order, thin, coarse, step,
+                  coarsened=coarsened)
     return True
 
 
 def _render_notes(span: list, aligned_raw: dict, order: list, thin: dict,
-                  coarse: list, step: str, *, stacked: bool = True) -> None:
+                  coarse: list, step: str, *, stacked: bool = True,
+                  coarsened=None) -> None:
     """Ce que la figure ne peut pas dessiner, écrit sous elle. Jamais tu.
 
     Une plateforme qui manque sans explication se lit comme une panne — la leçon de la
     matrice d'état, appliquée à une figure.
     """
+    if coarsened:
+        st.caption(t_coarsened(*coarsened))
     gaps = {k: n for k, n in gap_counts(span, aligned_raw, order).items() if n}
     if gaps:
         st.caption(t_missing(gaps, len(span), step, stacked=stacked))
@@ -702,6 +732,17 @@ def t_too_thin(label: str, measured: int, total: int) -> str:
              "faut deux pour dessiner une aire. Ses chiffres restent dans le tableau "
              "ci-dessous."
              ).format(label=label, measured=measured, total=total)
+
+
+def t_coarsened(asked: str, used: str) -> str:
+    """Le pas demandé ne dessinait rien ; on le dit, et on dit ce que ça coûte."""
+    from src.dashboard.utils.i18n import t
+    names = {"day": "Par jour", "week": "Par semaine", "year": "Par année"}
+    return t("platform_chart.coarsened",
+             "**{asked}** ne donne qu'un seul point sur cette période — une aire a "
+             "besoin d'au moins deux. Affiché **{used}**. 🎎 Apple Music n'existe "
+             "qu'au pas Par année : élargis la période pour le retrouver."
+             ).format(asked=names.get(asked, asked), used=names.get(used, used))
 
 
 def t_too_coarse(label: str, step: str) -> str:

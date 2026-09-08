@@ -63,6 +63,17 @@ colonnes / 95 tables, code déployé == `origin/main`).
   un texte qui nomme l'exemption. Classe
   `an-exemption-on-one-surface-reads-as-a-failure-on-another`.
 
+- **« Cumulé · par année · cette année » ne montrait AUCUNE plateforme** : un pas annuel
+  sur une période d'un an ne produit qu'un seul seau, et une aire d'un point ne dessine
+  rien. La contrainte `_MIN_POINTS = 2` existait déjà, appliquée aux séries et jamais à
+  l'axe. Un pas qui ne tient pas **descend** au pas plus fin et le dit. Classe
+  `a-form-constraint-checked-on-the-series-not-on-the-axis`.
+- **La déduplication `SUM(streams)` par `(date, song)` n'a PAS lieu d'être** — mesuré,
+  pas supposé : `UNIQUE(artist_id, song, date)` existe en local et en prod, 0 doublon,
+  `SUM` brut = `SUM` dédoublonné = 163 088. Les 6 `DISTINCT ON (date, song)` sont
+  redondants. Les 5 sommes sans `artist_id` sont les branches flotte de l'admin, hors
+  d'atteinte d'un locataire (`view_session` / `tenant_scope`). Vérifier a évité un
+  refactor de dix sites sur une prémisse fausse.
 - **Le « gros trou dans les données de S4A » n'existait pas** : S4A a 365 / 366 / 365 /
   248 jours consécutifs depuis le 2023-01-01. Le trou était dans la FIGURE — les
   tranches de la bande étaient communes, donc un jour sans collecte YouTube coupait

@@ -454,3 +454,58 @@ def test_the_subtitle_sums_quantities_not_cumulative_values(monkeypatch) -> None
         assert digits.endswith("100"), (
             f"mode {mode} : le sous-titre annonce {digits} au lieu de 100 — "
             "il additionne des cumuls")
+
+
+# ── Un pas qui ne dessine rien descend, au lieu de rendre une page muette ───
+
+def test_a_step_that_yields_one_bucket_falls_back(monkeypatch) -> None:
+    """« Cumulé · par année · cette année » ne montrait AUCUNE plateforme.
+
+    Signalé au rendu le 2026-09-08. Reproduit : le pas annuel sur une période d'un an
+    rend **un seul point** par plateforme, et sous un point isolé il n'y a pas de
+    surface. Les séries se voyaient déjà refuser une aire à moins de deux mesures
+    (`_MIN_POINTS`) ; la même contrainte de forme n'était pas appliquée à l'AXE, et la
+    figure sortait vide sans rien dire.
+
+    On descend au pas immédiatement plus fin — mesuré : la même période porte alors 24
+    points sur les trois plateformes — et on le DIT, parce qu'un réglage ignoré en
+    silence se lit comme une panne.
+    """
+    import datetime as dt
+    import streamlit as st_mod
+
+    figs, caps = {}, []
+    monkeypatch.setattr(st_mod, "plotly_chart", lambda fig, **k: figs.setdefault("f", fig))
+    monkeypatch.setattr(st_mod, "caption", lambda txt, **k: caps.append(txt))
+
+    since, until = dt.date(2026, 1, 1), dt.date(2026, 6, 30)
+    series = {"spotify": [(since + dt.timedelta(days=i), 10) for i in range(180)]}
+    assert pc.render_platform_chart(series, title="T", since=since, until=until,
+                                    step="year", mode="cumulative", key="k")
+    drawn = [len(t.x) for t in figs["f"].data]
+    assert drawn and max(drawn) >= 2, (
+        f"la figure ne porte que {drawn} point(s) : une aire d'un point ne dessine rien")
+    assert any("Par année" in c for c in caps), (
+        f"le pas a été changé sans le dire : {caps}")
+
+
+def test_a_step_that_works_is_never_changed(monkeypatch) -> None:
+    """L'autre moitié : on ne descend que quand il le faut.
+
+    Sans ce cas, un repli systématique passerait le test précédent et retirerait à
+    l'utilisateur le pas qu'il a choisi.
+    """
+    import datetime as dt
+    import streamlit as st_mod
+
+    figs, caps = {}, []
+    monkeypatch.setattr(st_mod, "plotly_chart", lambda fig, **k: figs.setdefault("f", fig))
+    monkeypatch.setattr(st_mod, "caption", lambda txt, **k: caps.append(txt))
+
+    since = dt.date(2023, 1, 1)
+    series = {"spotify": [(since + dt.timedelta(days=i), 10) for i in range(1000)]}
+    assert pc.render_platform_chart(series, title="T", since=since,
+                                    until=since + dt.timedelta(days=999),
+                                    step="year", mode="cumulative", key="k")
+    assert not any("Par année" in c for c in caps), (
+        f"le pas annuel tenait sur 3 années et a quand même été changé : {caps}")

@@ -5,6 +5,42 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 12) — Une contrainte de forme vérifiée d'un seul côté
+
+**« Je ne vois aucune data dans cumulé · par année · cette année »** — Spotify, YouTube,
+SoundCloud, une figure entièrement vide alors que les données sont là. Trouvé par
+l'artiste sur une combinaison de deux menus, une heure après 4 737 tests verts.
+
+Reproduit : le pas annuel sur une période d'un an ne produit qu'**un seul seau**, donc un
+point par plateforme — et sous un point isolé il n'y a pas de surface. La contrainte était
+pourtant déjà écrite dans le module (`_MIN_POINTS = 2`, « une aire a besoin de deux
+points »), **appliquée aux séries et jamais à l'axe**. La figure se rendait « avec
+succès », traces comprises, et ne dessinait rien. C'est mon changement de la séance qui
+l'a rendu atteignable, en resserrant `stackable` sur cette contrainte sans la propager au
+`span`.
+
+Un pas qui ne produit pas au moins deux seaux **descend** au pas plus fin (année →
+semaine → jour) et le dit — mesuré : la même période porte alors 24 points sur les trois
+plateformes. Un réglage ignoré en silence se lit comme une panne. Classe
+`a-form-constraint-checked-on-the-series-not-on-the-axis`.
+
+**Ce qui n'a PAS été fait, et pourquoi.** La déduplication `SUM(streams)` par
+`(date, song)` était le dernier point du plan. Elle n'a pas lieu d'être : la table porte
+`UNIQUE(artist_id, song, date)`, en local **et en production**, donc le doublon est
+impossible — 0 groupe en double, et `SUM` brut = `SUM` dédoublonné = 163 088 exactement.
+Les 6 requêtes qui font `DISTINCT ON (date, song)` sont redondantes, pas correctives.
+
+Le balayage a quand même servi : sur les 109 lectures de `s4a_song_timeline`, 4 joignent
+une autre table (toutes sur une sous-requête déjà dégroupée, aucun risque) et 5 somment
+sans `artist_id`. Ces cinq sont des branches `else` de la vue flotte de l'admin, et
+`view_session()` / `tenant_scope()` garantissent qu'un non-admin ne les atteint jamais —
+aucune fuite. **Vérifier a évité un refactor de dix sites sur une prémisse fausse.**
+
+**Vérifié** : 4 740 tests verts, ruff propre, audits `--deterministic` et `--prose`
+propres, trois mutations sur le nouveau garde.
+
+---
+
 ## 2026-09-08 (suite 11) — Le trou n'était pas dans les données, il était dans la figure
 
 **« Il y a un gros trou dans les données de S4A »** — et S4A n'a aucun trou : 365 / 366 /

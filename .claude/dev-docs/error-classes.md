@@ -304,6 +304,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-total-that-sums-the-display-instead-of-the-data](#a-total-that-sums-the-display-instead-of-the-data) | P2 | deterministic | guarded | none |
 | [a-partial-bucket-drawn-as-a-full-one](#a-partial-bucket-drawn-as-a-full-one) | P2 | deterministic | guarded | none |
 | [a-failed-collection-writes-zeros](#a-failed-collection-writes-zeros) | P2 | deterministic | guarded | none |
+| [a-form-constraint-checked-on-the-series-not-on-the-axis](#a-form-constraint-checked-on-the-series-not-on-the-axis) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4191,3 +4192,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-08: signature vue ROUGE sur quatre mutations — prédicat élargi à « jamais positif », S4A ajouté au périmètre, tâche non câblée à un opérateur, catégorie absente de l'empreinte — et verte sur l'arbre corrigé.
   - 2026-09-08: lancé pour de vrai en production, il a remonté l'incident du **2026-06-01** — juste, et qu'il aurait répété chaque nuit pendant trois mois : la requête balayait tout l'historique. Borné au dernier jour COMPLET, la fenêtre de `check_row_dips` — deux détecteurs voisins avec deux politiques de fenêtre seraient illisibles. Un détecteur ne se juge pas sur ce qu'il trouve, mais sur ce qu'il dira DEMAIN.
   - 2026-09-08: le patron du livre a été MESURÉ avant d'être retenu, et il a été écarté. *Data Quality Fundamentals* p. 117 propose le taux de valeurs nulles comparé à la veille ; rejoué sur l'historique réel, il sonnait **93 fois sur 1 254 jours** pour `s4a_song_timeline`, dont les `streams` sont une quantité du jour où zéro est normal (27 à 55 % du catalogue, tous les jours). Le prédicat retenu sonne **une** fois, sur le seul incident. Un patron de livre se calibre sur les données avant d'être câblé.
+
+## a-form-constraint-checked-on-the-series-not-on-the-axis
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une combinaison de réglages rend une figure entièrement VIDE, sans message, alors que les données sont là. Signalé au rendu le 2026-09-08 : « je vois aucune data dans cumulé par année cette année, Spotify YouTube SoundCloud ».
+- root_cause: le pas annuel appliqué à une période d'un an ne produit qu'UN seul seau, donc un seul point par plateforme — et sous un point isolé il n'y a pas de surface. La contrainte de forme était pourtant déjà écrite dans le module (`_MIN_POINTS = 2`, « une aire a besoin de deux points »), mais appliquée aux SÉRIES uniquement, jamais à l'AXE. La figure se rendait donc « avec succès », traces comprises, et ne dessinait rien. C'est mon propre changement de la même séance qui l'a rendu atteignable, en resserrant `stackable` sur cette contrainte sans la propager au `span`.
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q -k step`
+- long_term_fix: `_FINER_STEPS` — quand le pas demandé ne produit pas au moins `_MIN_POINTS` seaux, on descend au pas immédiatement plus fin (année → semaine → jour) et `t_coarsened` le dit, en nommant ce que le pas plus fin coûte (Apple n'existe qu'au pas annuel). Un réglage ignoré en silence se lit comme une panne. La règle générale : une contrainte de forme s'applique à TOUT ce qui compose la forme — les séries et l'axe —, sinon elle est vraie d'un côté et fausse de l'autre.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE sur trois mutations — repli supprimé, repli systématique, repli silencieux (« le pas a été changé sans le dire : [] ») — et verte sur l'arbre corrigé.
+  - 2026-09-08: le défaut a été trouvé par un artiste sur une combinaison de deux menus, pas par les 4 737 tests verts de l'heure précédente. Une figure se teste sur les réglages qu'un lecteur peut COMBINER, pas seulement sur ceux que le test choisit — le produit cartésien des menus est le vrai espace de rendu, et il était couvert par un seul point.
