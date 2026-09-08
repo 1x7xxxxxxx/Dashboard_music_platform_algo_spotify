@@ -68,6 +68,14 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **Cinq points du parcours artiste, quatre défauts et une mesure** (suite 2) : la
+  colonne « Format » lisait une seule des deux copies de l'identité Spotify ; l'étape 2
+  de l'assistant n'était atteignable par **aucun** chemin sur un compte configuré ; la
+  courbe « tes chiffres » additionnait un cumul et un quotidien (23 560 → 1 748 par
+  jour) ; l'accueil porte désormais l'**évolution par plateforme** sous les totaux. Le
+  cinquième — « le bac à sable n'a pas la même app » — est **faux, mesuré** : les deux
+  rendus diffèrent d'une ligne, celle du plan.
+
 **Le mapping des campagnes n'est pas rejouable dans le bac à sable, par construction** —
 c'est le seul geste du parcours qui demande le profil principal. Mesuré : le bac à sable
 a les insights Meta (224 lignes, 21 campagnes, ventilations à 87–99 % du principal) mais

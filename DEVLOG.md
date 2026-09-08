@@ -5,6 +5,73 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 2) — Une courbe qui additionnait un cumul et un quotidien
+
+Cinq points remontés du parcours artiste. **Quatre étaient des défauts, le cinquième
+n'en était pas un** — et le vérifier a évité un chantier.
+
+**1. « Format non vérifiable » pour Spotify.** L'identité Spotify vit à DEUX endroits :
+`extra_config` et le miroir `saas_artists.spotify_artist_id`. `_identity` accepte l'un
+OU l'autre pour dire « Saisi ✅ » ; `read_identities`, écrite le 2026-09-04 pour la
+colonne « Format », ne lisait que le premier. Deux colonnes de la MÊME ligne, deux
+lectures, deux réponses. L'état est atteignable : le `--reset` du bac à sable efface
+les credentials, le ré-onboarding réécrit le miroir avant la ligne.
+
+C'est la **troisième** lecture à faire l'erreur — `declared_identities` l'avait faite,
+corrigée le 2026-08-26, sa docstring dit déjà « two readers, one question, two
+answers ». Le garde ne vérifie donc pas un appel : il fait tourner les **deux** lecteurs
+sur les mêmes données et exige le même résultat. Il rougit quel que soit celui qui
+dérive.
+
+**2. L'étape 2 de l'assistant n'était atteignable par aucun chemin.** Les boutons
+d'étape n'étaient rendus que sous `_bare`, c'est-à-dire en première connexion seulement.
+Sur un compte configuré, les trois routes étaient fermées à la fois :
+`sync_step_on_arrival` remet à l'étape 1 en arrivant, le seul bouton qui pose l'étape 2
+quitte l'assistant dans la même action, et les boutons qui y mènent n'existaient pas. Le
+commentaire disait pourtant l'intention — « les étapes restent, **même** en barre nue » —
+mais le code écrivait « seulement si ».
+
+**3. La courbe additionnait des grandeurs différentes.** `s4a_song_timeline.streams` est
+un quotidien ; `playback_count` et `view_count` sont des cumuls depuis toujours. Le
+`UNION ALL` rendait **23 560 « écoutes » le 8 septembre**, et le même chiffre chaque
+jour, contre un maximum réel de 1 605/jour.
+
+Convertir naïvement en `LAG` **déplace** le défaut, et trois artefacts réels le
+prouvent : une collecte ratée qui écrit 0 (2026-06-01, 19 titres) rend 23 480 le
+lendemain ; un trou de 104 jours pose 104 jours de gain sur un seul ; un locataire
+portant trois `channel_id` saute de 155 à 120 627 en une nuit. D'où trois règles —
+écart sur le **maximum déjà vu**, uniquement entre jours **consécutifs**, et **par
+entité** avant toute somme. Ce qui n'a pas d'historique (Apple : un instantané par CSV)
+est **nommé**, pas dessiné à zéro. Après correction, le maximum passe de 23 560 à 1 748.
+
+La moitié « pas beau » avait sa propre cause, mesurable elle aussi : le validateur de la
+skill dataviz a **refusé** les couleurs de marque exactes — `#FF0000` contre `#FF5500`,
+ΔE 7,4 en vision normale, sous le plancher de 15. Deux traits qu'on ne peut pas
+attribuer, ce qui est la définition d'une courbe illisible. Jeux clair **et** sombre
+re-calés séparément (la bande de clarté diffère), tous deux « ALL CHECKS PASS ».
+
+**4. L'évolution par plateforme sur l'accueil**, sous les totaux — la demande. Même
+module, même rendu que l'écran de bienvenue : les tuiles disent « combien en tout », la
+courbe dit « est-ce que ça monte ».
+
+**5. « Pas la même app entre bac à sable et principal » : mesuré, c'est faux.** Les deux
+rendus sont identiques à UNE ligne près, celle qui nomme le plan. Le bac à sable porte
+une promo premium jusqu'au 2026-10-08, donc aucune entrée verrouillée d'un côté ni de
+l'autre. Aucun correctif — et c'est le deuxième point de la journée fermé par une mesure
+plutôt que par du code.
+
+**Deux gardes du dépôt ont refusé le passage, et ils avaient raison.** Le filtre de la
+ligne « Total » devait rester LISIBLE dans le SQL — un `%s` le cachait au garde — et
+l'illustration de ma propre docstring le faisait ensuite rougir sur elle-même, la classe
+`a-textual-guard-matches-its-own-documentation`. Le garde de l'écran de bienvenue, lui,
+était ancré sur `line_chart`, l'interne que je remplaçais, et non sur sa question ;
+réancré sur la liste des rendus, il redevient vrai au prochain changement.
+
+Suite complète contre une base vivante : **4621 passed**. Audit déterministe : 235
+classes, propre. 7 mutations, 7 rouges.
+
+---
+
 ## 2026-09-08 (suite) — Deux verdicts opposés sur un seul compte publicitaire
 
 **Signalé** : la matrice Meta du bac à sable affiche 🟡 « Rien à faire de ton côté — la
