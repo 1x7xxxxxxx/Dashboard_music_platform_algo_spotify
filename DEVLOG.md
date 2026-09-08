@@ -5,6 +5,48 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 8) — Apple écrit ses dates dans le nom, on ne demande plus rien
+
+« Je pense que quand c'est par année, c'est marqué dans le nom de fichier. » Vérifié sur
+les dépôts réels (`csv_upload_log`), et la réalité est **meilleure** que l'intuition : ce
+n'est pas l'année, ce sont les **deux bornes exactes**.
+
+    songs_1700256678_2015-06-30_2026-09-04.csv
+           ^identifiant  ^début      ^fin
+
+La période se lit donc toute seule, et **la question posée le matin même devient un
+repli** : elle n'apparaît que si le nom ne porte pas ses dates — fichier renommé, ou
+suffixé « (1) » par le navigateur. Un fichier renommé garde le droit d'être importé.
+
+**Ce que la lecture automatique CRÉE, et qu'il a fallu régler.** Un artiste aura
+naturellement des périodes **imbriquées** : l'export « depuis le début » (2015-06-30 →
+2026-09-04) et, à côté, celui de 2024. Les additionner compterait 2024 deux fois — une
+fois seul, une fois dans le cumul. C'est exactement la faute du matin, les 23 560
+« écoutes » par jour, sur une autre table : **additionner deux grandeurs qui se
+recouvrent**.
+
+`non_overlapping_cover` garde donc le découpage le plus **fin** qui ne se chevauche pas —
+les plus courts d'abord, et un relevé n'est retenu que s'il ne chevauche aucun des
+gardés. Le total, lui, prend le relevé le plus **large** : l'export « depuis le début »
+porte déjà tout ce que les années contiennent.
+
+**Deux mutations sont restées vertes, et l'une était un vrai trou.** `bounds = None` — la
+lecture débranchée — laissait *tous* les tests verts : la fonction marchait, et plus
+personne ne l'appelait. Classe `correct-code-nothing-reaches`, à l'échelle d'une ligne.
+Le garde vérifie désormais que `_parse_file` **appelle** le lecteur, pas seulement qu'il
+existe. La seconde mutation était sans effet réel — un dépliage à une valeur lève déjà.
+
+Le guide dit maintenant le geste exact — un export par année, les trois déposés — et la
+seule chose à ne pas faire : **renommer le fichier**.
+
+⚠️ Le relevé Apple déjà en base a été déposé AVANT ce changement : ses bornes sont nulles,
+donc il ne compte que comme total. Le redéposer lui donnera ses dates réelles.
+
+Suite complète : **4684 passed**. PDF du guide régénérés, déployé et vérifié en
+production sur le vrai nom de fichier.
+
+---
+
 ## 2026-09-08 (suite 7) — Oui, mais seulement si on demande ce que le fichier couvre
 
 Question : « y a-t-il un intérêt de demander à l'artiste d'importer les CSV de chaque

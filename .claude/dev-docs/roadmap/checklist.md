@@ -68,6 +68,10 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **La période d'un export Apple se lit dans le NOM du fichier**
+  (`songs_…_2015-06-30_2026-09-04.csv`) : rien à saisir, la question n'est qu'un repli
+  pour un fichier renommé. Les périodes imbriquées ne sont jamais sommées à l'aveugle
+  (`non_overlapping_cover`).
 - **Apple gagne une précision par ANNÉE** (migration 094) : l'export n'ayant aucune
   colonne de date, la période est **demandée** au dépôt. Périodes bornées → sommées ;
   cumuls → soustraits ; total → le dernier cumul, sinon la somme des années. Le guide
