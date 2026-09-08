@@ -35,6 +35,9 @@ EN = {
         "White areas are **{missing} day(s) out of {total}** where at least one "
         "platform was not measured. We prefer a blank to a zero: a zero would say "
         "\"no plays\"."),
+    "home.apple_no_window": (
+        "Apple Music only provides one statement per CSV upload: it cannot be split by period. "
+        "Pick \"Since the beginning\" for its total."),
     "home.trend_title": "All your platforms, one screen",
     "home.trend_header": "📈 Evolution per platform",
     "home.trend_caption": (

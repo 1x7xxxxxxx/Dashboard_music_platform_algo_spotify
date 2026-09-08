@@ -116,38 +116,55 @@ def test_a_platform_with_no_point_takes_no_colour() -> None:
         "une plateforme sans aucun point ne doit pas casser la bande des autres")
 
 
-# ── La couverture décide qui entre dans la pile ─────────────────────────────
+# ── Une source récente ne coûte pas l'historique des autres ─────────────────
 
-def _coverage_order(span_len: int, measured: dict) -> tuple:
-    """APPELLE la règle du rendu, ne la rejoue pas.
+def _shape(span_len: int, measured_last: dict) -> dict:
+    """Des séries alignées où chaque plateforme n'est mesurée que sur ses N derniers pas."""
+    return {k: [None] * (span_len - n) + [1] * n for k, n in measured_last.items()}
 
-    La première version recopiait le calcul ici — deux règles pour une question, ce
-    que ce fichier reproche justement à la figure. `stackable` est exportée pour ça.
+
+def test_a_recent_platform_does_not_cost_the_others_their_history() -> None:
+    """La forme RÉELLE du bac à sable au 2026-09-08, pas un cas d'école.
+
+    Spotify y est mesuré 87 jours sur 90, YouTube 2 et SoundCloud 4 — parce qu'ils
+    viennent d'être branchés. Une bande empilée exige que toutes les plateformes soient
+    connues le même jour ; si « pas encore collectée » comptait comme « on ne sait
+    pas », les 2 jours de YouTube effaceraient les 87 de Spotify et la page n'aurait
+    **aucune** figure. C'est ce qui s'est produit après le déploiement du matin.
+
+    Avant sa première mesure, une plateforme n'a rien apporté à ce qu'on peut montrer :
+    zéro y est la bonne valeur, et seuls les trous À L'INTÉRIEUR de sa plage coupent.
     """
-    aligned = {k: [1] * n + [None] * (span_len - n) for k, n in measured.items()}
-    order, thin = pc.stackable(list(range(span_len)), aligned)
-    return order, sorted(thin)
+    span = list(range(90))
+    aligned = _shape(90, {"spotify": 87, "youtube": 2, "soundcloud": 4})
+    order, _thin = pc.stackable(span, aligned)
+    assert set(order) == {"spotify", "youtube", "soundcloud"}, (
+        f"une plateforme récente est écartée de la pile : {order}")
+    covered = sum(len(seg) for seg in pc._segments(span, aligned, order))
+    assert covered >= 85, (
+        f"la bande ne couvre que {covered} jours sur 90 : les plateformes branchées "
+        "récemment effacent l'historique des autres")
 
 
-def test_a_sparse_platform_does_not_veto_the_others() -> None:
-    """Les couvertures RÉELLES du 2026-09-08, pas un cas d'école.
+def test_a_hole_inside_a_platform_range_still_cuts() -> None:
+    """L'autre moitié : dans sa plage, un jour non mesuré reste inconnu."""
+    span = list(range(6))
+    aligned = {"spotify": [1, 1, 1, 1, 1, 1],
+               "youtube": [None, 1, None, 1, 1, 1]}   # plage = 1..5, trou en 2
+    order, _ = pc.stackable(span, aligned)
+    segments = pc._segments(span, aligned, order)
+    assert [0, 1] in segments and all(2 not in seg for seg in segments), (
+        f"le trou interne n'a pas coupé la bande : {segments}")
 
-    La bande se coupe dès qu'une plateforme manque : avec « au moins un point » pour
-    critère, les 2 jours de YouTube du bac à sable supprimaient les 87 jours de
-    Spotify, et la page n'affichait plus aucune figure.
-    """
-    principal = {"spotify": 87, "youtube": 90, "soundcloud": 82}
-    bac_a_sable = {"spotify": 87, "youtube": 2, "soundcloud": 4}
 
-    order, thin = _coverage_order(90, principal)
-    assert order == ["spotify", "youtube", "soundcloud"] and not thin, (
-        f"le profil principal perd une plateforme : empilées={order}, écartées={thin}")
-
-    order, thin = _coverage_order(90, bac_a_sable)
-    assert order == ["spotify"], (
-        f"le bac à sable devrait empiler Spotify seul, il empile {order}")
-    assert set(thin) == {"youtube", "soundcloud"}, (
-        f"les sources clairsemées doivent être écartées et NOMMÉES, pas tues : {thin}")
+def test_a_platform_measured_once_in_a_long_range_is_named_not_stacked() -> None:
+    """Trop clairsemée DANS SA PROPRE PLAGE : elle couperait partout."""
+    span = list(range(40))
+    aligned = {"spotify": [1] * 40,
+               "youtube": [None] * 10 + [1] + [None] * 28 + [1]}   # 2 mesures sur 30
+    order, thin = pc.stackable(span, aligned)
+    assert order == ["spotify"] and "youtube" in thin, (
+        f"empilées={order}, écartées={sorted(thin)}")
 
 
 def test_a_platform_left_out_is_named() -> None:
@@ -156,3 +173,78 @@ def test_a_platform_left_out_is_named() -> None:
     assert "2" in phrase and "90" in phrase, (
         "la phrase ne dit pas COMBIEN de jours sont mesurés — sans ce chiffre elle "
         "ne se distingue pas d'une panne")
+
+
+# ── L'identité ne repose jamais sur la seule couleur ────────────────────────
+
+def test_the_labels_are_on_the_bands_not_in_a_legend_box() -> None:
+    """Le relief exigé par le validateur, et le correctif de « la légende est masquée ».
+
+    La palette porte un avertissement de contraste ; le validateur impose alors
+    « visible labels or a table view ». La table sous la figure a été retirée le
+    2026-09-08 (« inutile ») — l'étiquette directe est donc le SEUL relief restant, et
+    la retirer laisserait l'identité d'une aire à sa seule couleur.
+
+    C'est aussi ce qui règle « la légende est masquée, c'est assez moche » : la légende
+    horizontale était ancrée dans la marge où vit le titre sur deux lignes, et les deux
+    se recouvraient. Une étiquette collée à sa bande n'a rien à recouvrir.
+    """
+    tree = ast.parse(_CHART.read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree)
+              if isinstance(f, ast.FunctionDef) and f.name == "render_platform_chart")
+    kwargs = {kw.arg for call in ast.walk(fn) if isinstance(call, ast.Call)
+              for kw in call.keywords if kw.arg}
+    assert "annotations" in kwargs, (
+        "la figure n'a plus d'étiquette posée sur les bandes : l'identité d'une aire "
+        "ne repose plus que sur sa couleur, ce que l'avertissement de contraste du "
+        "validateur interdit")
+    assert "showlegend" in kwargs, (
+        "la boîte de légende n'est plus explicitement éteinte — elle revient dans la "
+        "marge du titre, qu'elle recouvre")
+
+
+def test_the_labels_are_spaced_in_the_margin_not_stuck_to_the_bands() -> None:
+    """Ancrées à la FIGURE, à des hauteurs distinctes — sinon elles se recouvrent.
+
+    La première version les posait au milieu de leur aire : dès qu'une bande devient
+    fine, deux étiquettes se superposent. Vu au rendu le 2026-09-08 sur « Depuis le
+    début », où YouTube et SoundCloud pèsent quelques écoutes contre plusieurs milliers.
+
+    Le garde exerce la fonction plutôt que de lire le fichier : `annotations=` peut
+    être passé avec n'importe quoi.
+    """
+    span = list(range(10))
+    aligned = {"spotify": [1000] * 10, "youtube": [1] * 10, "soundcloud": [1] * 10}
+    order, _ = pc.stackable(span, aligned)
+    labels = pc.margin_labels(order, ink="#000")
+    assert len(labels) == len(order), "une plateforme empilée sans étiquette"
+    assert {a["yref"] for a in labels} == {"paper"}, (
+        "les étiquettes suivent l'épaisseur des bandes : elles se recouvriront")
+    ys = sorted(a["y"] for a in labels)
+    gaps = [round(b - a, 6) for a, b in zip(ys, ys[1:])]
+    assert gaps and min(gaps) > 0.1, (
+        f"les étiquettes sont trop proches ({gaps}) — elles se chevaucheront")
+
+
+def test_the_daily_table_is_gone_and_nothing_still_calls_it() -> None:
+    """Retirée le 2026-09-08 (« inutile »), et retirée VRAIMENT.
+
+    Une fonction morte laissée en place finit par cacher une conséquence vivante —
+    classe `dead-code-can-hide-a-live-consequence`, mesurée dans ce dépôt le 2026-09-06.
+    """
+    # Lu sur la STRUCTURE : le cliquet `test_a_guard_reads_structure_not_text` refuse
+    # une comparaison de chaînes au texte source, et il a raison ici comme ailleurs —
+    # ce fichier NOMME `render_daily_table` deux fois dans sa propre documentation.
+    gone = {"render_daily_table"}
+
+    assert not hasattr(pc, next(iter(gone))), (
+        "`render_daily_table` est encore définie alors que plus rien ne l'appelle")
+
+    home_tree = ast.parse(pathlib.Path("src/dashboard/views/home.py")
+                          .read_text(encoding="utf-8"))
+    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(home_tree) if isinstance(n, ast.Call)}
+    imported = {a.name for n in ast.walk(home_tree)
+                if isinstance(n, ast.ImportFrom) for a in n.names}
+    assert not (called | imported) & gone, (
+        "l'accueil appelle ou importe une fonction supprimée")

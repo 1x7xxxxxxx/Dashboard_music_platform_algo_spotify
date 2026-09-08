@@ -65,14 +65,40 @@ def _section_freshness(db, artist_id):
 
 
 def _section_streams(db, artist_id):
+    from src.dashboard.utils import date_range
+    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
+
     st.subheader(t("home.streams_header", "🎧 Streams totaux"))
-    s4a = get_total_streams_s4a(db, artist_id)
-    yt = get_total_views_youtube(db, artist_id)
-    sc = get_total_plays_soundcloud(db, artist_id)
-    apple = get_total_plays_apple(db, artist_id)
+
+    # LE SÉLECTEUR EST ICI, et il vaut aussi pour la figure en dessous. Un seul
+    # propriétaire du réglage : la figure le LIT, elle ne le redessine pas — deux
+    # sélecteurs pour une même période se réécrivent l'un l'autre à chaque rerun.
+    range_key = date_range.render_selector()
+    since, until = date_range.bounds(range_key)
+
+    # `series` sert aux DEUX : les totaux de la période et la figure. Une seule
+    # lecture, donc un seul jeu de chiffres — sans quoi la tuile et la courbe
+    # pourraient se contredire à l'écran.
+    series = daily_streams_by_platform(db, artist_id)
     ig = get_instagram_followers(db, artist_id)
     ig_count = ig['followers'] if ig else 0
-    grand_total = s4a + yt + sc + apple  # Instagram followers ≠ streams, not summed
+
+    if since is None:
+        # « Depuis le début » : les compteurs que les plateformes annoncent
+        # aujourd'hui. Ils portent tout ce qui précède notre première collecte.
+        s4a = get_total_streams_s4a(db, artist_id)
+        yt = get_total_views_youtube(db, artist_id)
+        sc = get_total_plays_soundcloud(db, artist_id)
+        apple = get_total_plays_apple(db, artist_id)
+    else:
+        # Période bornée : on ne peut additionner que ce qu'on a MESURÉ. Apple n'a
+        # qu'un instantané par CSV, donc aucune somme sur une période — elle est dite,
+        # pas devinée.
+        def _sum(pkey):
+            return sum(v for d, v in series.get(pkey, []) if since <= d <= until)
+        s4a, yt, sc = _sum("spotify"), _sum("youtube"), _sum("soundcloud")
+        apple = None
+    grand_total = s4a + yt + sc + (apple or 0)  # Instagram followers ≠ streams
 
     # Quatre zéros ne disent pas « pas encore », ils disent « rien ». Le premier jour,
     # c'est faux et décourageant : la collecte automatique tourne le matin, et un
@@ -104,7 +130,12 @@ def _section_streams(db, artist_id):
     c1.metric("🎵 Spotify S4A", f"{s4a:,}")
     c2.metric("🎬 YouTube", f"{yt:,}")
     c3.metric("☁️ SoundCloud", f"{sc:,}")
-    c4.metric("🍎 Apple Music", f"{apple:,}")
+    c4.metric("🍎 Apple Music", f"{apple:,}" if apple is not None else "—",
+              help=None if apple is not None else t(
+                  "home.apple_no_window",
+                  "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible "
+                  "de le découper par période. Choisis « Depuis le début » pour son "
+                  "total."))
     # Instagram followers — colour-differentiated from stream platforms (rose Instagram)
     c5.markdown(
         f"""<div style="border:1px solid #E4405F; background:#E4405F18;
@@ -116,10 +147,13 @@ def _section_streams(db, artist_id):
         unsafe_allow_html=True
     )
 
-    _section_platform_trend(db, artist_id)
+    if date_range.is_bounded(range_key):
+        st.caption(date_range.RANGE_NOTE)
+
+    _section_platform_trend(db, artist_id, series, since, until, range_key)
 
 
-def _section_platform_trend(db, artist_id) -> None:
+def _section_platform_trend(db, artist_id, series, since, until, range_key) -> None:
     """L'ÉVOLUTION sous les totaux — demandé le 2026-09-08, « juste en dessous ».
 
     Les tuiles au-dessus répondent « combien en tout » ; elles ne disent pas si ça
@@ -131,22 +165,22 @@ def _section_platform_trend(db, artist_id) -> None:
     courbe additionnerait des totaux-depuis-toujours à des streams quotidiens — le
     défaut mesuré le même jour sur l'écran de bienvenue.
     """
+    from src.dashboard.utils import date_range
     from src.dashboard.utils.platform_chart import (
-        render_daily_table, render_missing_history_note, render_platform_chart,
+        render_missing_history_note, render_platform_chart,
     )
-    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
 
-    series = daily_streams_by_platform(db, artist_id)
     st.markdown("---")
     st.subheader(t("home.trend_header", "📈 Évolution par plateforme"))
     st.caption(t(
         "home.trend_caption",
-        "Écoutes **du jour**, plateforme par plateforme, sur les 90 derniers jours. "
-        "Un trou dans une courbe veut dire qu'on n'a pas de mesure ce jour-là — pas "
-        "zéro écoute."))
+        "Écoutes **du jour**, plateforme par plateforme, sur la période choisie "
+        "ci-dessus. Un blanc dans la bande veut dire qu'on n'a pas de mesure ce "
+        "jour-là — pas zéro écoute."))
     if not render_platform_chart(
-            series,
-            title=t("home.trend_title", "Toutes tes plateformes, un seul écran"),
+            series, since=since, until=until,
+            title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
+            + f" — {date_range.label(range_key)}",
             key=f"home_trend_{artist_id}"):
         st.info(t(
             "home.trend_no_series",
@@ -154,7 +188,6 @@ def _section_platform_trend(db, artist_id) -> None:
             "moins deux journées de collecte consécutives sur une plateforme."))
         return
     render_missing_history_note()
-    render_daily_table(series, key=f"home_trend_table_{artist_id}")
 
 
 _DAG_LABELS = {
@@ -206,8 +239,6 @@ def _section_onboarding(db, artist_id: int) -> None:
                          done=completed, total=len(steps)))
     with st.expander(header, expanded=not all_done):
         _render_onboarding_body(db, artist_id, steps, completed, all_done)
-
-    st.markdown("---")
 
 
 def _render_onboarding_body(db, artist_id: int, steps, completed: int,
@@ -367,8 +398,11 @@ def _section_dag_status():
 
 
 def show():
+    # Pas de filet sous le titre ni sous le bandeau de mise en route. Demandé le
+    # 2026-09-08 : « enlève les 2 traits blancs qui entourent mise en route ». Un
+    # séparateur sépare deux choses ; celui-ci encadrait un bloc qui porte déjà sa
+    # propre bordure d'accordéon, donc il doublait un trait déjà là.
     st.title(t("home.title", "🎵 streaMLytics — Dashboard plateformes musicales"))
-    st.markdown("---")
 
     artist_id = tenant_scope()  # None = admin only, never a stray artist
 

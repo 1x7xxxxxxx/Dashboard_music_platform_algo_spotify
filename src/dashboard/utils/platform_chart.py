@@ -51,11 +51,7 @@ import logging
 
 import streamlit as st
 
-from src.dashboard.utils.platform_timeseries import (
-    MISSING_HISTORY,
-    PLATFORM_LABELS,
-    combined_daily_streams,
-)
+from src.dashboard.utils.platform_timeseries import MISSING_HISTORY, PLATFORM_LABELS
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +60,9 @@ logger = logging.getLogger(__name__)
 _PALETTE_LIGHT = {"spotify": "#2a78d6", "youtube": "#eb6834", "soundcloud": "#1baf7a"}
 _PALETTE_DARK = {"spotify": "#2a78d6", "youtube": "#e05f2b", "soundcloud": "#1baf7a"}
 
-# Fenêtre par défaut. L'artiste 1 a 1 344 jours de série Spotify : tout afficher
-# écrase les variations récentes, qui sont ce qu'on vient regarder.
-_DEFAULT_DAYS = 90
+# Aucune fenêtre par défaut : « depuis le début » est le choix par défaut du sélecteur
+# de l'accueil (`utils/date_range`), et la figure doit dire la même chose que lui.
+_DEFAULT_DAYS = None
 
 
 def _is_dark() -> bool:
@@ -89,15 +85,110 @@ def _continuous(rows: list[tuple], days: list) -> list:
     return [by_day.get(d) for d in days]
 
 
-def _window(series: dict, days: int) -> tuple:
-    """(jours continus, séries alignées) sur les `days` derniers jours mesurés."""
+# Au-delà de ce nombre de jours, on agrège par SEMAINE. Ce n'est pas un réglage
+# esthétique : mesuré sur les séries réelles de l'artiste 1 le 2026-09-08, nos sources
+# n'ont pas la même cadence de collecte — Spotify 1 344 mesures sur 1 344 jours (100 %),
+# SoundCloud 92 sur 162 (56 %), YouTube 112 sur 283 (39 %). Une bande empilée exige que
+# toutes soient mesurées le MÊME jour ; au pas quotidien, « Depuis le début » perdait
+# YouTube entièrement et « Cette année » ne dessinait que 165 jours sur 251.
+#
+# Au pas hebdomadaire, les mêmes données donnent 90 % de semaines complètes sur tout
+# l'historique, 100 % sur 30 et 90 jours, et les trois plateformes sont TOUJOURS
+# présentes — une plateforme qui apparaît et disparaît selon la période choisie est
+# plus déroutante qu'une courbe un peu lissée.
+_WEEKLY_ABOVE_DAYS = 92
+
+
+def margin_labels(order: list, ink: str) -> list:
+    """Les étiquettes, espacées dans la marge droite, dans l'ordre visuel de la pile.
+
+    Exportée pour que son garde l'APPELLE : `annotations=` peut être passé avec
+    n'importe quoi, et vérifier qu'un mot-clé existe ne dit rien de ce qu'il porte.
+    """
+    top_first = list(reversed(order))      # l'ordre visuel de la pile, de haut en bas
+    step = 1.0 / (len(top_first) + 1)
+    return [
+        dict(x=1.0, y=1.0 - step * (n + 1), xref="paper", yref="paper",
+             xanchor="left", xshift=12,
+             text=f"<b>{PLATFORM_LABELS[pkey]}</b>", showarrow=False,
+             font=dict(color=ink, size=12), align="left")
+        for n, pkey in enumerate(top_first)
+    ]
+
+
+def _monday(day):
+    """Le lundi de la semaine de `day` — la clé d'agrégation, écrite une seule fois."""
+    return day - _dt.timedelta(days=day.weekday())
+
+
+def _weekly(series: dict) -> dict:
+    """La même série, sommée par semaine (lundi), sans rien inventer.
+
+    Une semaine ne porte que ce qui a été MESURÉ dedans : c'est une somme partielle
+    quand un jour manque, jamais une extrapolation. Une semaine sans aucune mesure
+    reste absente, donc inconnue, donc elle coupe la bande comme un jour manquant.
+    """
+    out: dict = {}
+    for key, rows in (series or {}).items():
+        weeks: dict = {}
+        for day, value in rows:
+            monday = _monday(day)
+            weeks[monday] = weeks.get(monday, 0) + value
+        out[key] = sorted(weeks.items())
+    return out
+
+
+def _window(series: dict, days: int | None,
+            since=None, until=None, step_days: int = 1) -> tuple:
+    """(jours continus, séries alignées).
+
+    `since`/`until` bornent explicitement — c'est le sélecteur de période de l'accueil.
+    Sans eux, on retombe sur les `days` derniers jours mesurés ; `days=None` prend tout
+    l'historique, ce qui est le défaut « depuis le début ».
+    """
     all_days = sorted({d for rows in series.values() for d, _ in rows})
     if not all_days:
         return [], {}
-    last = all_days[-1]
-    first = max(all_days[0], last - _dt.timedelta(days=days - 1))
-    span = [first + _dt.timedelta(days=i) for i in range((last - first).days + 1)]
+    first, last = all_days[0], all_days[-1]
+    if since is not None:
+        first = max(first, since)
+    if until is not None:
+        last = min(last, until)
+    if days is not None and since is None:
+        first = max(first, last - _dt.timedelta(days=days - 1))
+    if first > last:
+        return [], {}
+    span = [first + _dt.timedelta(days=i)
+            for i in range(0, (last - first).days + 1, step_days)]
     return span, {k: _continuous(rows, span) for k, rows in series.items() if rows}
+
+
+def _measured_range(values: list) -> tuple:
+    """(premier, dernier) index mesuré d'une série, ou `(None, None)`."""
+    seen = [i for i, v in enumerate(values) if v is not None]
+    return (seen[0], seen[-1]) if seen else (None, None)
+
+
+def known(values: list, index: int) -> bool:
+    """Sait-on ce que cette plateforme a fait ce jour-là ?
+
+    Deux absences très différentes se ressemblent dans une liste de `None`, et les
+    confondre coûtait tout l'historique :
+
+    * **avant sa première mesure (ou après la dernière)** — la plateforme n'était pas
+      encore collectée. Elle n'a rien apporté à ce qu'on peut montrer, et 0 est la
+      bonne valeur. Sans cette distinction, SoundCloud — collectée depuis le
+      2026-03-31 — coupait la bande sur les 1 142 jours de Spotify qui la précèdent,
+      et « Depuis le début » n'affichait plus qu'une seule plateforme ;
+    * **entre les deux** — un jour où la collecte n'a pas tourné. Là on ne sait pas, et
+      la bande se coupe.
+    """
+    first, last = _measured_range(values)
+    if first is None:
+        return False
+    if index < first or index > last:
+        return True
+    return values[index] is not None
 
 
 def stackable(span: list, aligned: dict) -> tuple:
@@ -121,13 +212,19 @@ def stackable(span: list, aligned: dict) -> tuple:
     order, thin = [], {}
     for key in PLATFORM_LABELS:
         values = aligned.get(key) or []
-        measured = sum(1 for v in values if v is not None)
-        if not measured:
+        first, last = _measured_range(values)
+        if first is None:
             continue
-        if measured * 2 >= len(span):
+        measured = sum(1 for v in values if v is not None)
+        own = last - first + 1
+        # La couverture se juge sur la plage où la plateforme EXISTE. La juger sur
+        # toute la fenêtre punissait une source récente : sur « Depuis le début »
+        # (1 254 jours), YouTube et SoundCloud tombaient sous la moitié et
+        # disparaissaient d'une figure qu'ils avaient pourtant le droit d'habiter.
+        if measured * 2 >= own:
             order.append(key)
         else:
-            thin[key] = (PLATFORM_LABELS[key], measured, len(span))
+            thin[key] = (PLATFORM_LABELS[key], measured, own)
     return order, thin
 
 
@@ -141,7 +238,7 @@ def _segments(span: list, aligned: dict, order: list) -> list:
     Mesuré sur l'artiste 1 le 2026-09-08 : 79 jours complets sur 90, en 2 tranches —
     la bande reste lisible, et les 11 jours manquants ne mentent pas.
     """
-    ok = [all(aligned[k][i] is not None for k in order) for i in range(len(span))]
+    ok = [all(known(aligned[k], i) for k in order) for i in range(len(span))]
     out, cur = [], []
     for i, good in enumerate(ok):
         if good:
@@ -154,7 +251,8 @@ def _segments(span: list, aligned: dict, order: list) -> list:
     return out
 
 
-def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT_DAYS,
+def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
+                          since=None, until=None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -162,9 +260,25 @@ def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT
     « aucune donnée » ni un exemple à la place : les deux se sont déjà lus comme une
     panne ailleurs dans ce dépôt.
     """
-    span, aligned = _window(series or {}, days)
+    span, aligned = _window(series or {}, days, since, until)
     if not span or not aligned:
         return False
+    # Le PAS suit la largeur de la fenêtre, décidée sur la fenêtre réellement obtenue
+    # et non sur celle demandée : « depuis le début » n'a pas de nombre de jours.
+    weekly = len(span) > _WEEKLY_ABOVE_DAYS
+    if weekly:
+        # LES BORNES SONT RAMENÉES AU LUNDI, sinon rien ne s'aligne : les semaines sont
+        # clavées au lundi et « Cette année » commence un 1ᵉʳ janvier — un jeudi en
+        # 2026. La fenêtre parcourait jeudi, jeudi+7, … et ne tombait sur AUCUNE clé.
+        # Vu au rendu le 2026-09-08 : « Cette année » et « 12 mois » n'empilaient plus
+        # aucune plateforme, tandis que « Depuis le début » (sans borne, donc calée sur
+        # une clé existante) fonctionnait. Deux périodes muettes pour un décalage de
+        # trois jours.
+        w_since = _monday(since) if since is not None else None
+        w_until = _monday(until) if until is not None else None
+        span, aligned = _window(_weekly(series), None, w_since, w_until, step_days=7)
+        if not span or not aligned:
+            return False
     try:
         import plotly.graph_objects as go
     except Exception:      # noqa: BLE001 — l'app rend Plotly nativement, mais on ne parie pas
@@ -201,10 +315,10 @@ def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT
         for n, seg in enumerate(segments):
             fig.add_trace(go.Scatter(
                 x=[span[i] for i in seg],
-                y=[aligned[pkey][i] for i in seg],
+                y=[aligned[pkey][i] or 0 for i in seg],
                 name=PLATFORM_LABELS[pkey],
                 legendgroup=pkey,
-                showlegend=(n == 0),          # une entrée de légende par plateforme
+                showlegend=False,             # étiquettes directes — voir plus bas
                 mode="lines",
                 stackgroup=f"g{n}",           # une pile PAR TRANCHE : la bande se coupe
                 line=dict(width=1.6, color=surface),   # le filet de 2 px entre les aires
@@ -212,18 +326,46 @@ def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT
                 hovertemplate="%{y:,}<extra>" + PLATFORM_LABELS[pkey] + "</extra>",
             ))
 
+    # LES ÉTIQUETTES SONT POSÉES SUR LA FIGURE, pas dans une boîte de légende.
+    #
+    # C'est la forme de l'illustration, et c'est aussi le correctif du 2026-09-08 :
+    # « sur le graphique évolution par plateforme, la légende est masquée, c'est assez
+    # moche ». La légende horizontale était ancrée à `y=1.0`, c'est-à-dire dans la
+    # marge où vit déjà le titre sur deux lignes — les deux se recouvraient.
+    #
+    # Une étiquette collée à la bande qu'elle nomme n'a rien à recouvrir, et elle porte
+    # le RELIEF qu'exige l'avertissement de contraste du validateur : l'identité d'une
+    # aire ne repose alors plus sur sa seule couleur.
+    # Espacées dans la MARGE, pas collées au milieu de leur bande.
+    #
+    # La première version les ancrait au centre de l'aire, ce qui les empilait les unes
+    # sur les autres dès qu'une bande devenait fine — vu au rendu : « SoundCloud » et
+    # « Spotify » se recouvraient sur la vue « Depuis le début », où YouTube et
+    # SoundCloud pèsent quelques écoutes contre plusieurs milliers.
+    #
+    # C'est aussi ce que fait l'illustration : ses quatre étiquettes sont à des
+    # hauteurs fixes à droite, dans l'ordre de la pile. Une étiquette n'a pas à
+    # désigner une épaisseur, elle a à nommer une couleur.
+    annotations = margin_labels(order, ink)
+
     total = sum(v for rows in series.values() for d, v in rows if d in set(span))
     fig.update_layout(
+        annotations=annotations,
         title=dict(
+            # Le `.replace(",", " ")` portait sur TOUT le titre, et mangeait la virgule
+            # de « Toutes tes plateformes, un seul écran » — vu au rendu le 2026-09-08.
+            # Il ne s'applique qu'au nombre.
             text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
-                  f"{total:,} écoutes sur {len(span)} jours</span>".replace(",", " ")
+                  f"{format(total, ',').replace(',', chr(8239))} écoutes sur "
+                  f"{len(span)} {'semaines' if weekly else 'jours'}</span>"
                   if title else None),
             x=0, xanchor="left"),
         hovermode="x unified",
         height=340,
-        margin=dict(l=8, r=8, t=64 if title else 12, b=8),
-        legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0,
-                    font=dict(color=ink)),
+        # De la place À DROITE pour les étiquettes, et plus de marge haute réservée à
+        # une légende qui n'existe plus.
+        margin=dict(l=8, r=132, t=58 if title else 12, b=8),
+        showlegend=False,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),
         xaxis=dict(showgrid=False, linecolor=grid, title=None),
@@ -266,28 +408,3 @@ def render_missing_history_note() -> None:
     """
     for label, why in MISSING_HISTORY.values():
         st.caption(f"{label} — {why}.")
-
-
-def render_daily_table(series: dict, *, days: int = _DEFAULT_DAYS,
-                       key: str = "platform_table") -> None:
-    """Les chiffres, sous la courbe et repliés.
-
-    Ce n'est pas un supplément : le validateur rend un avertissement de contraste sur
-    le vert Spotify (2,52:1) et exige alors « visible labels or a table view ». C'est
-    cette table.
-    """
-    span, aligned = _window(series or {}, days)
-    if not span or not aligned:
-        return
-    try:
-        import pandas as pd
-    except Exception:      # noqa: BLE001
-        return
-    data = {"Jour": span}
-    for pkey, values in aligned.items():
-        data[PLATFORM_LABELS.get(pkey, pkey)] = values
-    total = dict(combined_daily_streams(series))
-    data["Total"] = [total.get(d) for d in span]
-    with st.expander("🔢 Voir les chiffres jour par jour", expanded=False):
-        st.dataframe(pd.DataFrame(data).iloc[::-1], hide_index=True,
-                     width="stretch", key=key)
