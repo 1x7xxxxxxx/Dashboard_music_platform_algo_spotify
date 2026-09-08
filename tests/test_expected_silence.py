@@ -275,3 +275,67 @@ def test_the_debug_script_does_not_print_a_quiet_source_as_ok() -> None:
         "the debug freshness loop renders `not stale` as OK with no expected-silence "
         "branch, so it prints a green line beside a two-year-old row."
     )
+
+
+class _TenantDB:
+    """Une base qui répond À LA QUESTION POSÉE, et non la même ligne à tout.
+
+    Le stub `_DB` rend le même tuple quelle que soit la requête : il ne peut donc pas
+    distinguer « combien de campagnes possède ce locataire » de « combien en porte le
+    compte qu'il a déclaré ». C'est exactement l'écart mesuré le 2026-09-08, donc le
+    stub qui le teste doit le voir.
+    """
+
+    def __init__(self, owned, account_rows, declared) -> None:
+        self.owned, self.account_rows, self.declared = owned, account_rows, declared
+        self.asked_account = False
+
+    def fetch_query(self, sql, params=None):  # noqa: ANN001
+        if "artist_credentials" in sql:
+            return [({"account_id": a},) for a in self.declared]
+        if "ad_account_id = ANY" in sql:
+            self.asked_account = True
+            return [self.account_rows]
+        return [self.owned]
+
+
+def test_a_tenant_that_owns_no_campaign_falls_back_to_its_declared_account() -> None:
+    """Le bac à sable partage le compte du profil principal et n'en possède aucune ligne.
+
+    `meta_campaigns` a `campaign_id` pour seule clé de conflit et un upsert ne
+    transfère jamais la propriété : le second profil qui déclare un compte n'obtient
+    aucune campagne. Le repli « aucune campagne connue → on garde l'alerte » se
+    déclenchait donc sur lui, et sa matrice affichait 🟡 « la collecte s'est arrêtée,
+    on regarde » — sur le MÊME compte publicitaire où le profil principal lisait
+    « rien à faire », le même jour. Deux verdicts opposés sur un seul fait.
+    """
+    db = _TenantDB(owned=(0, 0), account_rows=(0, 34), declared=["567214713853881"])
+    reason = _silence_reason(db, "meta_no_active_campaign", artist_id=18)
+    assert db.asked_account, (
+        "le repli n'a pas interrogé le compte déclaré : la question porte sur le "
+        "COMPTE publicitaire, pas sur les lignes qu'un locataire possède")
+    assert reason and "34" in reason
+
+
+def test_the_fallback_still_refuses_to_guess() -> None:
+    """Conservateur des deux côtés — c'est ce qui rend la suppression acceptable."""
+    # Aucun compte déclaré : on ne sait rien, on garde l'alerte.
+    assert _silence_reason(
+        _TenantDB(owned=(0, 0), account_rows=(0, 34), declared=[]),
+        "meta_no_active_campaign", artist_id=18) is None
+    # Le compte déclaré porte une campagne ACTIVE : le silence est un vrai incident.
+    assert _silence_reason(
+        _TenantDB(owned=(0, 0), account_rows=(2, 34), declared=["567214713853881"]),
+        "meta_no_active_campaign", artist_id=18) is None
+    # Le compte déclaré n'a aucune campagne connue : on ne devine pas.
+    assert _silence_reason(
+        _TenantDB(owned=(0, 0), account_rows=(0, 0), declared=["567214713853881"]),
+        "meta_no_active_campaign", artist_id=18) is None
+
+
+def test_a_tenant_that_owns_campaigns_never_asks_the_account() -> None:
+    """Le repli ne s'ouvre QUE sur zéro ligne possédée — il n'élargit rien d'autre."""
+    db = _TenantDB(owned=(0, 34), account_rows=(9, 99), declared=["567214713853881"])
+    reason = _silence_reason(db, "meta_no_active_campaign", artist_id=1)
+    assert not db.asked_account, "le repli s'est ouvert alors que le locataire possède ses campagnes"
+    assert reason and "34" in reason

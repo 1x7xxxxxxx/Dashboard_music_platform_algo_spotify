@@ -119,13 +119,50 @@ _ALLOWED_COLS = frozenset(
 )
 
 
+def _declared_ad_accounts(db, artist_id: int) -> list:
+    """Les comptes publicitaires que CE locataire a déclarés, normalisés `act_…`.
+
+    Utilisé quand le locataire ne possède aucune ligne de `meta_campaigns` — voir
+    `_silence_reason`. On lit ce qu'il a lui-même saisi, jamais l'identité d'un autre.
+    """
+    from src.utils.tenant_identity import meta_ad_account_ids
+
+    import json
+    rows = db.fetch_query(
+        "SELECT extra_config FROM artist_credentials "
+        "WHERE artist_id = %s AND platform = 'meta'", (artist_id,))
+    out = []
+    for (extra,) in (rows or []):
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except ValueError:
+                continue
+        out += meta_ad_account_ids(extra or {})
+    return sorted(set(a for a in out if a))
+
+
 def _silence_reason(db, rule: str, artist_id=None) -> str | None:
     """Return why a source is legitimately silent, or None if its silence is a fault.
 
     Deliberately conservative: any doubt — an unknown rule, a failed query, no
-    campaign row at all — returns None, i.e. keeps the alert. Suppressing an alert
-    on a guess is strictly worse than one noisy line, because it removes the only
-    signal that a real outage would produce.
+    campaign known for the declared ad account — returns None, i.e. keeps the alert.
+    Suppressing an alert on a guess is strictly worse than one noisy line, because it
+    removes the only signal that a real outage would produce.
+
+    La question porte sur le COMPTE PUBLICITAIRE, pas sur les lignes qu'un locataire
+    possède, et les deux ont divergé le 2026-09-08. Le bac à sable partage le compte
+    du profil principal ; comme `meta_campaigns` a `campaign_id` pour seule clé de
+    conflit, il n'en possède aucune ligne. Le repli « aucune campagne connue → on
+    garde l'alerte » se déclenchait donc sur lui, et sa matrice affichait 🟡 « la
+    collecte s'est arrêtée, on regarde » — alors que le compte n'a aucune campagne
+    active depuis le 2024-09-30 et que rien ne s'est arrêté. Le profil principal,
+    avec ses 34 campagnes, lisait 🟢 « rien à faire » sur le MÊME compte, le même
+    jour. Deux verdicts opposés sur un seul fait.
+
+    Le repli lit donc les campagnes du compte que ce locataire a **lui-même
+    déclaré**. Il reste conservateur : sans compte déclaré, ou si ce compte n'a
+    aucune campagne connue, l'alerte est gardée.
     """
     if rule != "meta_no_active_campaign":
         return None
@@ -137,6 +174,13 @@ def _silence_reason(db, rule: str, artist_id=None) -> str | None:
             sql += " WHERE artist_id = %s"
             params = (artist_id,)
         active, total = db.fetch_query(sql, params)[0]
+        if not total and artist_id is not None:
+            accounts = _declared_ad_accounts(db, artist_id)
+            if accounts:
+                active, total = db.fetch_query(
+                    "SELECT count(*) FILTER (WHERE status = 'ACTIVE'), count(*) "
+                    "FROM meta_campaigns WHERE ad_account_id = ANY(%s)",
+                    (accounts,))[0]
     except Exception as e:  # noqa: BLE001 — a failed probe must not silence anything
         logger.warning("silence probe failed (%s); keeping the alert: %s", rule, e)
         return None
