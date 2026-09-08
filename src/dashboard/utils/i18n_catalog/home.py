@@ -28,6 +28,11 @@ EN = {
     ),
     "home.streams_header": "🎧 Total streams",
     "home.total_all_platforms": "🎧 Total streams across all platforms",
+    "platform_chart.gaps": (
+        "White areas are **{missing} day(s) out of {total}** where at least one "
+        "platform was not measured. We prefer a blank to a zero: a zero would say "
+        "\"no plays\"."),
+    "home.trend_title": "All your platforms, one screen",
     "home.trend_header": "📈 Evolution per platform",
     "home.trend_caption": (
         "**Daily** plays, platform by platform, over the last 90 days. A gap in a "

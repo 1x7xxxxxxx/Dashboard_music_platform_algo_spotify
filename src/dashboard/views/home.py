@@ -144,7 +144,10 @@ def _section_platform_trend(db, artist_id) -> None:
         "Écoutes **du jour**, plateforme par plateforme, sur les 90 derniers jours. "
         "Un trou dans une courbe veut dire qu'on n'a pas de mesure ce jour-là — pas "
         "zéro écoute."))
-    if not render_platform_chart(series, key=f"home_trend_{artist_id}"):
+    if not render_platform_chart(
+            series,
+            title=t("home.trend_title", "Toutes tes plateformes, un seul écran"),
+            key=f"home_trend_{artist_id}"):
         st.info(t(
             "home.trend_no_series",
             "Pas encore assez d'historique pour tracer une évolution : il faut au "
@@ -188,13 +191,36 @@ def _section_onboarding(db, artist_id: int) -> None:
     completed = state.done_count
     all_done = state.complete
 
+    # LE BANDEAU EST REPLIÉ QUAND LA CONFIGURATION EST FINIE, et déplié tant qu'elle
+    # ne l'est pas. Demandé le 2026-09-08.
+    #
+    # C'est la même information dans les deux cas ; ce qui change est ce qu'elle
+    # DEMANDE. Tant qu'il reste une étape, le bandeau est la première chose à faire et
+    # il occupe la place ; une fois terminé, il ne réclame rien et n'a plus à pousser
+    # les chiffres vers le bas à chaque visite. Le repli n'est pas un masquage : le
+    # titre porte le verdict, et on l'ouvre pour revoir le détail.
+    header = (t("home.onboarding_done_header",
+                "✅ Mise en route — configuration terminée") if all_done
+              else t("home.onboarding_progress",
+                     "🚀 Mise en route — {done}/{total} étapes complétées").format(
+                         done=completed, total=len(steps)))
+    with st.expander(header, expanded=not all_done):
+        _render_onboarding_body(db, artist_id, steps, completed, all_done)
+
+    st.markdown("---")
+
+
+def _render_onboarding_body(db, artist_id: int, steps, completed: int,
+                            all_done: bool) -> None:
+    """Le CONTENU du bandeau, extrait pour qu'il puisse être replié.
+
+    Extrait tel quel le 2026-09-08 : le corps n'a pas changé, seul son contenant. Le
+    titre, lui, a quitté le corps — il est devenu l'étiquette du repli, sans quoi il
+    aurait été écrit deux fois.
+    """
     if all_done:
-        st.markdown(t("home.onboarding_done_header", "#### ✅ Mise en route — configuration terminée"))
         st.success(t("home.onboarding_done", "Toutes les étapes de mise en route sont complètes. 🎉"))
     else:
-        st.markdown(t("home.onboarding_progress",
-                      "#### 🚀 Mise en route — {done}/{total} étapes complétées").format(
-                          done=completed, total=len(steps)))
         st.progress(completed / len(steps))
         # Ce que la coche MESURE. Un artiste en test a cliqué « Connecter ma
         # sélection », est arrivé sur la page, et s'est étonné que la case reste
@@ -236,8 +262,6 @@ def _section_onboarding(db, artist_id: int) -> None:
                      "Par plateforme — survole une case pour le détail :"))
         render_status_matrix(db, artist_id, compact=True, allow_probe=False,
                              key_suffix="home")
-
-    st.markdown("---")
 
 
 def _launch_collections() -> None:

@@ -67,6 +67,30 @@ def _call_lines(fn: ast.AST, name: str) -> list[int]:
     return out
 
 
+def _reaches(path: Path, start: str, target: str, seen=None) -> list[int]:
+    """`target` est-il appelé depuis `start`, DIRECTEMENT ou via ce module ?
+
+    `_call_lines` seul répond « non » dès qu'on EXTRAIT un corps de fonction — ce qui
+    est un remaniement, pas une régression. Le 2026-09-08, `_section_onboarding` a été
+    scindée pour que son bandeau puisse se replier, et ce garde a rougi sur le
+    découpage au lieu de rougir sur un défaut. La question qu'il pose est
+    « l'étape lance-t-elle quelque chose ? », pas « à quel endroit du fichier ».
+    """
+    seen = seen if seen is not None else set()
+    if start in seen:
+        return []
+    seen.add(start)
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    local = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    fn = _fn(path, start)
+    hits = _call_lines(fn, target)
+    for node in ast.walk(fn):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in local and node.func.id != target):
+            hits += _reaches(path, node.func.id, target, seen)
+    return hits
+
+
 # ── 1. Position ───────────────────────────────────────────────────────────────
 
 def test_the_view_no_longer_writes_the_sidebar_itself():
@@ -851,8 +875,7 @@ def test_the_home_says_WHEN_instead_of_showing_four_zeros():
 
 def test_the_launch_step_launches():
     """An instruction is what you write when the button is somewhere else."""
-    fn = _fn(HOME, "_section_onboarding")
-    assert _call_lines(fn, "_launch_collections"), (
+    assert _reaches(HOME, "_section_onboarding", "_launch_collections"), (
         "the 'launch your first collection' step no longer launches anything — it "
         "names the action and sends the artist to the sidebar to perform it.")
     # And the rule must not be copied: a second `conf={'artist_id': …}` is what

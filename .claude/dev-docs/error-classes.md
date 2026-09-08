@@ -283,6 +283,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [nan-written-as-a-value](#nan-written-as-a-value) | P2 | deterministic | guarded | none |
 | [one-identity-two-readers](#one-identity-two-readers) | P3 | deterministic | guarded | none |
 | [a-cumulative-counter-charted-as-a-daily-figure](#a-cumulative-counter-charted-as-a-daily-figure) | P2 | deterministic | guarded | none |
+| [the-live-chart-drifted-from-its-illustration](#the-live-chart-drifted-from-its-illustration) | P3 | deterministic | guarded | none |
 | [a-step-that-nothing-routes-to](#a-step-that-nothing-routes-to) | P3 | deterministic | guarded | none |
 | [consumed-state-hides-its-own-widget](#consumed-state-hides-its-own-widget) | P2 | deterministic | guarded | none |
 | [an-exemption-on-one-surface-reads-as-a-failure-on-another](#an-exemption-on-one-surface-reads-as-a-failure-on-another) | P3 | deterministic | guarded | none |
@@ -4035,3 +4036,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-08
 - History:
   - 2026-09-08: aucun test existant ne pouvait le voir — `test_views_render_smoke` appelle `onboarding.show()` sans barre latérale, et c'est la barre qui porte les boutons. Même angle mort que la classe `consumed-state-hides-its-own-widget` le matin même.
+
+## the-live-chart-drifted-from-its-illustration
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: l'artiste voit une figure d'exemple, puis « la sienne », et ce n'est pas la même chose — autre forme, autres couleurs. La seconde se lit comme une régression. Signalé le 2026-09-08 : « ce n'est plus le même graphique, tu m'avais fait un plot qui montre des courbes superposées des différentes plateformes avec différentes couleurs ».
+- root_cause: l'illustration committée (`assets/examples/dashboard-global.png`, générée par `tools/dev/make_example_charts.py`) est un `stackplot` aux couleurs `BLUE/ORANGE/AQUA` — déjà passées par le validateur `dataviz`. La figure live, écrite plus tard et sans la regarder, était faite de lignes qui se croisent aux couleurs de MARQUE — lesquelles ont d'ailleurs été refusées par le même validateur. Deux formes, deux palettes, une seule promesse. L'empilement n'est pas cosmétique : il répond à « combien au total, et qui y contribue », là où des lignes superposées répondent « laquelle est la plus haute » — qui n'est pas la question de l'accueil.
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q`
+- long_term_fix: le garde LIT la palette dans le générateur de l'illustration au lieu de la recopier — deux copies divergent au premier changement — et vérifie la forme sur la structure (`stackgroup`, `fillcolor`), pas sur le texte. Le mode sombre ne déplace que le pas refusé par la bande de clarté (l'orange), les deux autres restant identiques : décaler les trois « pour l'harmonie » ferait de la figure sombre une autre figure.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: une aire empilée n'a pas de trou, et c'est la contrainte qui a demandé le plus de mesure. Compter un jour non mesuré pour zéro fait plonger le TOTAL et se lit comme une chute d'écoutes ; on coupe donc la bande. Mesuré sur l'artiste 1 avant de trancher : 79 jours complets sur 90, en 2 tranches — la bande reste lisible et les 11 jours manquants ne mentent pas.
+  - 2026-09-08: le remaniement qui a replié le bandeau de mise en route a fait rougir `test_the_launch_step_launches`, ancré sur `_section_onboarding` — la fonction scindée — et non sur sa question. Réancré en suivant les appels du module, comme les autres gardes de la journée.

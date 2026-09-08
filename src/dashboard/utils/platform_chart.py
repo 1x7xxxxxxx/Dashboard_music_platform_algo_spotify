@@ -5,26 +5,37 @@ Uses: plotly, streamlit, platform_timeseries
 Triggers: views/home._section_streams, views/onboarding._step_welcome
 Persists in: nothing
 
+La FORME : des aires empilées, comme l'illustration
+---------------------------------------------------
+Signalé le 2026-09-08 : « ce n'est plus le même graphique, tu m'avais fait un plot qui
+montre des courbes superposées des différentes plateformes avec différentes
+couleurs ». C'est exact — la figure d'exemple committée
+(`assets/examples/dashboard-global.png`, `tools/dev/make_example_charts.py`) est un
+`stackplot`, et le premier jet live était fait de lignes qui se croisent. Deux formes
+différentes pour la même promesse : l'artiste voyait l'illustration puis autre chose.
+
+L'empilement répond en plus à la question qu'on se pose ici — « combien AU TOTAL, et
+qui y contribue » — là où des lignes superposées répondent « laquelle est la plus
+haute », qui n'est pas la question de l'accueil.
+
 Les couleurs ne sont pas choisies à l'œil
 -----------------------------------------
-Elles sortent du validateur de la skill `dataviz`
-(`node scripts/validate_palette.js "<hex,…>" --mode light|dark`), et le premier jet
-— les couleurs de marque exactes — a été **refusé** :
+Ce sont celles de l'illustration, et elles sortent du validateur de la skill `dataviz`
+(`node scripts/validate_palette.js "<hex,…>" --mode light|dark`). Le premier jet live
+avait pris les couleurs de MARQUE, et il a été **refusé** :
 
     #1DB954, #FF0000, #FF5500
     [FAIL] CVD separation      #FF5500 ↔ #FF0000  ΔE 4.5 (deutan)
     [FAIL] Normal-vision floor #FF5500 ↔ #FF0000  ΔE 7.4 — en dessous de 15
 
 Le rouge YouTube et l'orange SoundCloud sont indiscernables **même en vision
-normale**, et c'est exactement ce qui rend une courbe « pas belle » : deux traits
-qu'on ne peut pas attribuer. Le vert Spotify est conservé tel quel ; le rouge est
-assombri et l'orange décalé vers l'ambre jusqu'à ce que les six contrôles passent.
+normale** : deux aires qu'on ne peut pas attribuer, ce qui est la définition d'une
+figure illisible.
 
 Le mode sombre a ses PROPRES pas — la bande de clarté y est 0,48–0,67 contre
-0,43–0,77 en clair, donc un simple éclaircissement ne passe pas. Les deux jeux sont
-validés séparément, et le jeu sombre porte un avertissement (ΔE 6,9 en deutan) qui
-n'est *légal qu'avec un second encodage* : d'où les étiquettes en bout de courbe et
-les motifs de trait distincts, qui ne sont pas décoratifs.
+0,43–0,77 en clair. Seul l'orange bouge (`#eb6834` → `#e05f2b`) : la figure reste la
+même d'un thème à l'autre. L'avertissement de contraste du vert oblige un **relief** —
+d'où l'étiquette posée sur chaque aire, qui n'est pas décorative.
 
 Un trou est un trou
 -------------------
@@ -48,13 +59,10 @@ from src.dashboard.utils.platform_timeseries import (
 
 logger = logging.getLogger(__name__)
 
-# Validées le 2026-09-08 — « ALL CHECKS PASS » sur les six contrôles.
-_PALETTE_LIGHT = {"spotify": "#1DB954", "youtube": "#CC0000", "soundcloud": "#FF9500"}
-_PALETTE_DARK = {"spotify": "#15803D", "youtube": "#DC2626", "soundcloud": "#B8860B"}
-
-# Le second encodage qu'exige l'avertissement CVD du jeu sombre : l'identité d'une
-# courbe ne repose jamais sur sa seule couleur.
-_DASH = {"spotify": "solid", "youtube": "dash", "soundcloud": "dot"}
+# Les couleurs de l'illustration committée, validées le 2026-09-08 — « ALL CHECKS
+# PASS » sur les six contrôles, dans les deux modes.
+_PALETTE_LIGHT = {"spotify": "#2a78d6", "youtube": "#eb6834", "soundcloud": "#1baf7a"}
+_PALETTE_DARK = {"spotify": "#2a78d6", "youtube": "#e05f2b", "soundcloud": "#1baf7a"}
 
 # Fenêtre par défaut. L'artiste 1 a 1 344 jours de série Spotify : tout afficher
 # écrase les variations récentes, qui sont ce qu'on vient regarder.
@@ -92,9 +100,32 @@ def _window(series: dict, days: int) -> tuple:
     return span, {k: _continuous(rows, span) for k, rows in series.items() if rows}
 
 
+def _segments(span: list, aligned: dict, order: list) -> list:
+    """Les tranches de jours CONSÉCUTIFS où toutes les aires ont une mesure.
+
+    Une aire empilée n'a pas de trou : le jour où une plateforme n'a pas été mesurée,
+    la compter pour zéro ferait plonger le TOTAL, ce qui se lit comme une chute
+    d'écoutes. On coupe donc la bande, et le blanc dit « on ne sait pas ».
+
+    Mesuré sur l'artiste 1 le 2026-09-08 : 79 jours complets sur 90, en 2 tranches —
+    la bande reste lisible, et les 11 jours manquants ne mentent pas.
+    """
+    ok = [all(aligned[k][i] is not None for k in order) for i in range(len(span))]
+    out, cur = [], []
+    for i, good in enumerate(ok):
+        if good:
+            cur.append(i)
+        elif cur:
+            out.append(cur)
+            cur = []
+    if cur:
+        out.append(cur)
+    return out
+
+
 def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT_DAYS,
                           key: str = "platform_chart") -> bool:
-    """Trace une courbe par plateforme. Rend False si rien n'est traçable.
+    """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
     L'appelant décide quoi dire quand c'est False — cette fonction n'écrit ni
     « aucune donnée » ni un exemple à la place : les deux se sont déjà lus comme une
@@ -109,37 +140,70 @@ def render_platform_chart(series: dict, *, title: str = "", days: int = _DEFAULT
         logger.warning("plotly unavailable — chart skipped")
         return False
 
-    palette = _PALETTE_DARK if _is_dark() else _PALETTE_LIGHT
-    ink = "#E6E6E6" if _is_dark() else "#31333F"
-    grid = "rgba(150,150,150,0.18)"
-
-    fig = go.Figure()
-    for pkey in PLATFORM_LABELS:              # ordre FIXE : jamais recalculé, jamais cyclé
-        values = aligned.get(pkey)
-        if not values or not any(v is not None for v in values):
-            continue
-        fig.add_trace(go.Scatter(
-            x=span, y=values, name=PLATFORM_LABELS[pkey], mode="lines",
-            connectgaps=False,                # un trou reste un trou
-            line=dict(color=palette[pkey], width=2, dash=_DASH[pkey]),
-            hovertemplate="%{y:,} écoutes<extra>" + PLATFORM_LABELS[pkey] + "</extra>",
-        ))
-    if not fig.data:
+    # Ordre FIXE, jamais cyclé, et restreint à ce qui a des points : une plateforme
+    # muette ne prend pas une couleur qu'une autre porterait ailleurs.
+    order = [k for k in PLATFORM_LABELS
+             if aligned.get(k) and any(v is not None for v in aligned[k])]
+    if not order:
+        return False
+    segments = _segments(span, aligned, order)
+    if not segments:
         return False
 
+    palette = _PALETTE_DARK if _is_dark() else _PALETTE_LIGHT
+    ink = "#E6E6E6" if _is_dark() else "#1a1a19"
+    muted = "#9a9a97" if _is_dark() else "#6b6b68"
+    surface = "#1a1a19" if _is_dark() else "#fcfcfb"
+    grid = "rgba(150,150,150,0.20)"
+
+    fig = go.Figure()
+    for pkey in order:
+        for n, seg in enumerate(segments):
+            fig.add_trace(go.Scatter(
+                x=[span[i] for i in seg],
+                y=[aligned[pkey][i] for i in seg],
+                name=PLATFORM_LABELS[pkey],
+                legendgroup=pkey,
+                showlegend=(n == 0),          # une entrée de légende par plateforme
+                mode="lines",
+                stackgroup=f"g{n}",           # une pile PAR TRANCHE : la bande se coupe
+                line=dict(width=1.6, color=surface),   # le filet de 2 px entre les aires
+                fillcolor=palette[pkey],
+                hovertemplate="%{y:,}<extra>" + PLATFORM_LABELS[pkey] + "</extra>",
+            ))
+
+    total = sum(v for rows in series.values() for d, v in rows if d in set(span))
     fig.update_layout(
-        title=title or None,
-        hovermode="x unified",                # une seule lecture verticale, pas trois
-        height=320,
-        margin=dict(l=8, r=8, t=36 if title else 12, b=8),
-        legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0),
+        title=dict(
+            text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
+                  f"{total:,} écoutes sur {len(span)} jours</span>".replace(",", " ")
+                  if title else None),
+            x=0, xanchor="left"),
+        hovermode="x unified",
+        height=340,
+        margin=dict(l=8, r=8, t=64 if title else 12, b=8),
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0,
+                    font=dict(color=ink)),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),
         xaxis=dict(showgrid=False, linecolor=grid, title=None),
         yaxis=dict(gridcolor=grid, zeroline=False, title=None, rangemode="tozero"),
     )
     st.plotly_chart(fig, width="stretch", key=key)
+    if len(segments) > 1 or len(span) > sum(len(s) for s in segments):
+        missing = len(span) - sum(len(s) for s in segments)
+        st.caption(t_missing(missing, len(span)))
     return True
+
+
+def t_missing(missing: int, total: int) -> str:
+    """La phrase qui explique le blanc dans la bande — mesurée, pas décorative."""
+    from src.dashboard.utils.i18n import t
+    return t("platform_chart.gaps",
+             "Les zones blanches sont **{missing} jour(s) sur {total}** où au moins "
+             "une plateforme n'a pas été mesurée. On préfère un blanc à un zéro : "
+             "un zéro dirait « aucune écoute »."
+             ).format(missing=missing, total=total)
 
 
 def render_missing_history_note() -> None:
