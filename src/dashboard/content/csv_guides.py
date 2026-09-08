@@ -154,12 +154,14 @@ _APPLE = PlatformGuide(
         "Apple Music for Artists n'a pas d'API : l'export CSV de la performance "
         "par morceau est la seule source. Commencez par la période **Depuis le "
         "début** — c'est votre total.\n\n"
-        "**Un export par année vous donne bien plus.** Le fichier ne dit nulle part "
-        "quelle période il couvre : c'est vous qui le direz au dépôt, en une "
-        "seconde. Reprenez donc l'export en réglant la période sur **2023**, puis "
-        "**2024**, puis **2025** — chaque fichier devient un point de plus, et Apple "
-        "cesse d'être un seul chiffre figé pour rejoindre les autres plateformes "
-        "quand vous filtrez par période. En-têtes FR et EN reconnus."
+        "**Un export par année vous donne bien plus.** Reprenez l'export en réglant "
+        "la période sur **2023**, puis **2024**, puis **2025**, et déposez les trois : "
+        "Apple cesse d'être un seul chiffre figé et rejoint les autres plateformes "
+        "quand vous filtrez par période.\n\n"
+        "Vous n'avez rien à saisir — Apple écrit les dates dans le nom du fichier "
+        "(`songs_…_2024-01-01_2024-12-31.csv`) et nous les lisons. **Ne renommez donc "
+        "pas le fichier** ; s'il a perdu ses dates, l'app vous demandera la période. "
+        "En-têtes FR et EN reconnus."
     ),
     steps=(
         GuideStep(

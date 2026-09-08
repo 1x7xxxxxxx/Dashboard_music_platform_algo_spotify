@@ -9,6 +9,8 @@ Flux : Upload (multi-fichier) → Détection auto du type → Aperçu → Confir
 import sys
 from pathlib import Path
 import streamlit as st
+import re
+
 import pandas as pd
 
 from src.dashboard.utils.i18n import t
@@ -363,12 +365,45 @@ def _answers_for(artist_id: int, filename: str) -> dict:
     return _st.session_state.get(_answers_key(artist_id, filename)) or {}
 
 
+# Apple ÉCRIT la période dans le nom du fichier, et c'est mieux qu'une question.
+#
+# Vérifié le 2026-09-08 sur les noms réellement déposés (`csv_upload_log`) :
+#
+#     songs_1700256678_2015-06-30_2026-09-04.csv
+#            ^identifiant   ^début      ^fin
+#
+# Ce sont les bornes EXACTES de l'export, pas seulement l'année — un export « depuis
+# le début » y écrit la date de la première sortie. On les lit donc, et on ne demande
+# que si le nom ne les porte pas : un fichier renommé, ou suffixé « (1) » par le
+# navigateur, garde le droit d'être importé.
+_APPLE_DATE = re.compile(r"(\d{4}-\d{2}-\d{2})")
+
+
+def _apple_period_from_filename(filename: str):
+    """(début, fin) lues dans le nom, ou `None` si le nom ne les porte pas.
+
+    Exactement DEUX dates, dans l'ordre : un nom qui en porte une seule, trois, ou
+    aucune ne dit pas une période, et deviner laquelle serait la même faute que
+    deviner la période elle-même.
+    """
+    import datetime as _dt
+    found = _APPLE_DATE.findall(filename or "")
+    if len(found) != 2:
+        return None
+    try:
+        start, end = (_dt.date.fromisoformat(d) for d in found)
+    except ValueError:
+        return None
+    return (start, end) if start <= end else None
+
+
 def _apple_period_bounds(period: str):
-    """(début, fin) d'une période Apple — `(None, None)` pour « depuis le début ».
+    """(début, fin) d'une période choisie À LA MAIN — le repli quand le nom est muet.
 
     Une ANNÉE est bornée aux deux extrémités : c'est ce qui permet de la placer dans
-    une fenêtre sans la confondre avec un cumul. « Depuis le début » n'a pas de borne,
-    et c'est la valeur qu'ont les relevés déposés avant qu'on pose la question.
+    une fenêtre sans la confondre avec un cumul. « Depuis le début » n'a pas de borne
+    connue quand personne ne l'écrit, et c'est la valeur des relevés déposés avant que
+    la question existe.
     """
     import datetime as _dt
     if period == 'all':
@@ -456,15 +491,19 @@ def _parse_file(platform_key: str, file, artist_id: int,
         from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
         from src.transformers.s4a_csv_parser import MissingFromFilenameError
 
-        period = (answers.get('apple_period') or '').strip()
-        if not period:
-            raise MissingFromFilenameError(
-                'apple_period',
-                t("upload_csv.ask_apple_period_why",
-                  "Apple n'écrit pas la période dans le fichier — c'est le sélecteur "
-                  "de leur site qui la choisit. Dis-nous laquelle tu as prise."))
+        bounds = _apple_period_from_filename(filename)
+        if bounds is None:
+            period = (answers.get('apple_period') or '').strip()
+            if not period:
+                raise MissingFromFilenameError(
+                    'apple_period',
+                    t("upload_csv.ask_apple_period_why",
+                      "Ce fichier ne porte pas ses dates. Apple les écrit normalement "
+                      "dans le nom (`songs_…_2024-01-01_2024-12-31.csv`) — il a dû "
+                      "être renommé. Dis-nous quelle période tu as exportée."))
+            bounds = _apple_period_bounds(period)
         rows = AppleMusicCSVParser().parse_songs_performance(df)
-        start, end = _apple_period_bounds(period)
+        start, end = bounds
         for row in rows:
             row['artist_id'] = artist_id
             row['period_start'] = start

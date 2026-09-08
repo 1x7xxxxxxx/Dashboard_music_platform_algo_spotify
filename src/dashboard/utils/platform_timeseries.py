@@ -254,49 +254,69 @@ def followers_change(db, artist_id, since=None, until=None):
     return rows[0][1], rows[-1][1], rows[-1][1] - rows[0][1]
 
 
+def _apple_readings(db, artist_id):
+    """[(début, fin, écoutes)] des relevés BORNÉS — `(None, None)` exclus."""
+    try:
+        rows = db.fetch_query(
+            "SELECT period_start, period_end, COALESCE(SUM(plays), 0)::bigint "
+            "FROM apple_songs_performance "
+            "WHERE artist_id = %s AND period_start IS NOT NULL "
+            "  AND period_end IS NOT NULL "
+            "GROUP BY 1, 2 ORDER BY 1, 2", (artist_id,))
+    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+        logger.warning("apple readings unavailable: %s", type(exc).__name__)
+        return []
+    return [(r[0], r[1], int(r[2] or 0)) for r in (rows or [])]
+
+
+def non_overlapping_cover(readings: list) -> list:
+    """Le sous-ensemble le plus FIN qui ne se chevauche pas — sinon on compte double.
+
+    Depuis que la période se lit dans le nom du fichier, un artiste a naturellement des
+    relevés IMBRIQUÉS : l'export « depuis le début » (2015-06-30 → 2026-09-04) et, à
+    côté, celui de 2024. Les additionner compterait 2024 deux fois — une fois seul, une
+    fois dans le cumul. C'est la même faute que celle qui a produit 23 560 « écoutes »
+    par jour ce matin : additionner deux grandeurs qui se recouvrent.
+
+    On garde donc les plus COURTS d'abord, et on n'ajoute un relevé que s'il ne
+    chevauche aucun de ceux déjà retenus. Le résultat est le découpage le plus précis
+    dont on dispose, sans jamais compter deux fois la même journée.
+    """
+    kept: list = []
+    for start, end, plays in sorted(readings, key=lambda r: (r[1] - r[0], r[0])):
+        if any(start <= k_end and k_start <= end for k_start, k_end, _ in kept):
+            continue
+        kept.append((start, end, plays))
+    return sorted(kept)
+
+
 def apple_period_plays(db, artist_id, since=None, until=None):
     """Les écoutes Apple sur la période, ou `None`. Deux chemins, dans cet ordre.
 
     Apple n'a pas de résolution quotidienne, mais depuis les migrations 093/094 chaque
-    dépôt de CSV est un relevé daté qui SAIT ce qu'il couvre. Deux formes coexistent, et
-    on ne les additionne jamais entre elles :
+    dépôt est un relevé qui SAIT ce qu'il couvre — et depuis le 2026-09-08 il le sait
+    tout seul, en lisant les deux dates que Apple écrit dans le nom du fichier.
 
-    * **des périodes bornées** (« 2023 », « 2024 »…) — elles sont DISJOINTES, donc on
-      somme celles qui tiennent entièrement dans la fenêtre. C'est le chemin précis, et
-      c'est ce que gagne un artiste qui dépose un export par année ;
-    * **des relevés « depuis le début »** — chacun est un cumul, donc on ne somme pas :
-      on prend l'écart entre le premier et le dernier de la fenêtre. Sans deux relevés,
-      il n'y a pas d'écart, et on rend `None`.
+    * **des relevés bornés** : on somme le découpage non chevauchant qui tient dans la
+      fenêtre. Ne jamais sommer à l'aveugle : ils s'imbriquent.
+    * **des relevés « depuis le début » sans bornes connues** (déposés avant que la
+      période soit lue) : ce sont des cumuls, donc on prend l'écart entre le premier et
+      le dernier de la fenêtre.
 
-    Mélanger les deux compterait deux fois les mêmes écoutes, une fois dans le cumul et
-    une fois dans l'année.
+    Mélanger les deux compterait deux fois les mêmes écoutes.
     """
     if db is None or artist_id is None:
         return None
 
-    bounded = ("SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
-               "WHERE artist_id = %s AND period_start IS NOT NULL "
-               "  AND period_end IS NOT NULL")
-    params: list = [artist_id]
-    if since is not None:
-        bounded += " AND period_start >= %s"
-        params.append(since)
-    if until is not None:
-        bounded += " AND period_end <= %s"
-        params.append(until)
-    try:
-        row = db.fetch_query(bounded, tuple(params))
-        total = int(row[0][0] or 0) if row else 0
-    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
-        logger.warning("apple period unavailable: %s", type(exc).__name__)
-        return None
-    if total:
-        return total
+    inside = [r for r in _apple_readings(db, artist_id)
+              if (since is None or r[0] >= since) and (until is None or r[1] <= until)]
+    cover = non_overlapping_cover(inside)
+    if cover:
+        return sum(plays for _s, _e, plays in cover)
 
-    # Repli : les relevés « depuis le début », comparés deux à deux.
     sql = ("SELECT snapshot_date, SUM(plays)::bigint FROM apple_songs_performance "
            "WHERE artist_id = %s AND plays IS NOT NULL AND period_start IS NULL")
-    params = [artist_id]
+    params: list = [artist_id]
     if since is not None:
         sql += " AND snapshot_date >= %s"
         params.append(since)
@@ -318,13 +338,22 @@ def apple_period_plays(db, artist_id, since=None, until=None):
 def apple_lifetime_plays(db, artist_id):
     """Le total Apple « depuis le début », sans compter deux fois.
 
-    Un artiste peut déposer À LA FOIS un export « depuis le début » et un export par
-    année : sommer toutes les lignes compterait les mêmes écoutes deux fois. On préfère
-    donc le dernier relevé non borné — c'est un cumul, il porte déjà tout — et on ne
-    somme les périodes bornées que s'il n'y en a aucun.
+    Trois formes peuvent coexister, et l'ordre de préférence est celui de la précision
+    décroissante :
+
+    1. le relevé borné le plus LARGE — c'est l'export « depuis le début », qui porte
+       déjà tout ce que les années contiennent ;
+    2. sinon, la somme du découpage non chevauchant des années ;
+    3. sinon, le dernier relevé sans bornes connues (les lignes d'avant la lecture
+       automatique de la période).
     """
     if db is None or artist_id is None:
         return 0
+    readings = _apple_readings(db, artist_id)
+    if readings:
+        widest = max(readings, key=lambda r: (r[1] - r[0], r[2]))
+        cover_total = sum(p for _s, _e, p in non_overlapping_cover(readings))
+        return max(widest[2], cover_total)
     try:
         row = db.fetch_query(
             "SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
@@ -333,12 +362,6 @@ def apple_lifetime_plays(db, artist_id):
             "                         FROM apple_songs_performance "
             "                        WHERE artist_id = %s AND period_start IS NULL)",
             (artist_id, artist_id))
-        lifetime = int(row[0][0] or 0) if row else 0
-        if lifetime:
-            return lifetime
-        row = db.fetch_query(
-            "SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
-            "WHERE artist_id = %s AND period_start IS NOT NULL", (artist_id,))
         return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001
         logger.warning("apple lifetime unavailable: %s", type(exc).__name__)
