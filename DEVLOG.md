@@ -5,6 +5,49 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 6) — Le mauvais compteur, et une table sans droit au passé
+
+Deux chiffres faux, deux causes racines, et pour la première fois de la journée une
+**source extérieure** pour trancher : les 64 vues annoncées par YouTube Studio.
+
+**YouTube lisait le compteur de la CHAÎNE.** `youtube_channel_history.view_count` est
+figé à 120 627 du 2026-08-28 au 2026-09-07, puis saute à 120 987 : il est mis à jour par
+paliers et porte autre chose que la somme des vidéos. La série lui prenait son écart,
+donc elle attribuait **+360 à une seule journée** — et ce 360 tombait dans toutes les
+fenêtres, d'où « 360 streams YouTube sur toute période sélectionnée ».
+
+La somme des compteurs **par vidéo** (`youtube_video_stats`) donne +3, 0, +3, 0, +1…
+soit **44 vues sur 28 jours**, contre 64 chez Studio. Le reste de l'écart tient à la
+granularité du relevé quotidien et aux vidéos qui ont quitté la chaîne — pas à un
+facteur dix. Après correction : médiane **1 vue/jour**, maximum 5, et 45 sur 30 jours en
+production.
+
+**Apple n'avait pas le droit d'avoir un passé.** « J'ai refait le process avec le CSV
+d'aujourd'hui et rien ne s'est actualisé » — la cause est dans la clé :
+`UNIQUE(artist_id, song_name)`, sans date. Chaque dépôt **écrasait** le précédent, donc
+la table n'a jamais porté plus d'un relevé : 11 lignes pour l'artiste 1, toutes au même
+horodatage.
+
+Ce n'était donc pas « Apple ne fournit pas de série », comme l'app le disait depuis ce
+matin : **c'est nous qui n'en gardions aucune**. Migration 093 — `snapshot_date` entre
+dans la clé. Deux dépôts à deux dates font deux relevés ; deux dépôts le même jour
+restent un seul point, ce qui est voulu. La tuile affiche l'écart entre deux relevés de
+la période et, quand il n'y en a qu'un, elle **dit combien il y en a** et ce qui la
+remplira.
+
+**Un sélecteur de sources** sur la figure : il ne propose que ce que la période contient
+— cocher une source muette ne montrerait rien et se lirait comme une panne. Et le filet
+resté seul en barre latérale après le retrait du bouton de collecte est parti avec lui.
+
+Le garde de la série YouTube visait `youtube_channel_history` — la source fautive.
+Réancré, il épingle désormais la SOURCE elle-même : revenir au compteur de chaîne rougit,
+retirer le `PARTITION BY video_id` aussi.
+
+Suite complète : **4665 passed**. Vérifié en production : 45 vues YouTube sur 30 jours,
+118 sur l'année, le sélecteur de sources en place, un seul filet en barre latérale.
+
+---
+
 ## 2026-09-08 (suite 5) — Trois questions, et les réponses sont dans la base
 
 Sept demandes sur l'accueil, dont **trois questions**. Les réponses ne viennent pas de

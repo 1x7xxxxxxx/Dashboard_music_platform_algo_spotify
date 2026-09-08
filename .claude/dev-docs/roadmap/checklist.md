@@ -68,6 +68,12 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **YouTube lisait le compteur de CHAÎNE**, mis à jour par paliers : +360 attribués à
+  une seule journée contre 64 vues chez YouTube Studio. Il lit désormais les compteurs
+  **par vidéo** (44 sur 28 j — le bon ordre de grandeur), écart pris par vidéo.
+- **Apple ne pouvait pas avoir d'historique** : `UNIQUE(artist_id, song_name)` sans
+  date faisait écraser chaque dépôt de CSV par le suivant. Migration **093** —
+  `snapshot_date` entre dans la clé, et la tuile compare deux relevés.
 - **Le bouton « Lancer TOUTES les collectes » a été RETIRÉ de la barre latérale** : les
   cinq collectes ont leur cron quotidien (Meta 5 h · Spotify 7 h · YouTube 8 h ·
   SoundCloud 9 h · Instagram 10 h) et une collecte repart dès qu'un identifiant est
