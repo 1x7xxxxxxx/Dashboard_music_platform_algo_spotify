@@ -9,6 +9,7 @@ Tasks:
   4. check_billing_sync      — Stripe subscriptions stuck / lapsed without sync
   5. check_row_anomalies     — daily-insert spike vs trailing baseline (data poison)
   5b. check_row_dips         — per-tenant daily-insert DIP (partial collection, R39)
+  5c. check_zero_resets      — cumulative counters written back to zero (bad collect)
   6. send_consolidated_alert — build and send one email with all findings
 
 Implements bricks:
@@ -872,6 +873,103 @@ def check_row_dips(**context):
     return dips
 
 
+# Les compteurs CUMULÉS, ceux où un retour à zéro est arithmétiquement impossible.
+# `s4a_song_timeline.streams` n'y est pas, et c'est le point : c'est une quantité du
+# jour, où zéro est le cas normal 27 à 55 % du temps. Rejoué sur l'historique réel,
+# le prédicat « taux de zéros > 2× la veille » y sonnait 93 fois sur 1 254 jours.
+ZERO_RESET_TARGETS = [
+    ("soundcloud_tracks_daily", "playback_count", "track_id", "collected_at"),
+    ("youtube_video_stats", "view_count", "video_id", "collected_at"),
+]
+_ZR_TABLES = frozenset(t for t, _c, _e, _d in ZERO_RESET_TARGETS)
+_ZR_COLUMNS = frozenset(
+    [c for _t, c, _e, _d in ZERO_RESET_TARGETS]
+    + [e for _t, _c, e, _d in ZERO_RESET_TARGETS]
+    + [d for _t, _c, _e, d in ZERO_RESET_TARGETS]
+)
+
+
+def check_zero_resets(**context):
+    """Les lignes sont arrivées ; leurs VALEURS sont fausses.
+
+    Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a reçu 19 titres
+    dont **19 à zéro**, pour des compteurs cumulés qui portaient plusieurs milliers la
+    veille. Une collecte ratée écrite en base. Aucun contrôle ne l'a vu, et chacun avait
+    raison de ne pas le voir : la fraîcheur voyait des lignes du jour ;
+    `check_row_anomalies` ne regarde que les pics ; `check_row_dips` exclut zéro **en
+    nombre de lignes** — il y en avait dix-neuf, toutes fausses.
+
+    ON SIGNALE, ON NE RÉÉCRIT PAS. Une correction silencieuse en base est exactement le
+    défaut que le journal des révisions (migration 096) existe pour rendre visible ; en
+    introduire un ici serait se contredire dans la même séance.
+
+    Le prédicat vit dans `src.utils.value_monitor` — testable sans Airflow, avec la
+    mesure qui a fait écarter le patron du livre écrite à côté.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.value_monitor import is_reportable, zero_reset_finding
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    resets = []
+    try:
+        for table, col, entity, date_col in ZERO_RESET_TARGETS:
+            # Règle #8 : allowlist AVANT l'interpolation, jamais après.
+            if (table not in _ZR_TABLES or col not in _ZR_COLUMNS
+                    or entity not in _ZR_COLUMNS or date_col not in _ZR_COLUMNS):
+                logger.warning(f"Zero-reset: identifiant hors allowlist: {table}.{col}")
+                continue
+            # Le maximum ANTÉRIEUR de la même entité, jamais la veille seule : une
+            # collecte peut sauter des jours, et comparer au dernier point connu ferait
+            # dépendre le verdict de la régularité de la collecte plutôt que de la
+            # valeur. C'est la même règle que la conversion cumul → quotidien.
+            rows = db.fetch_query(
+                f"""WITH d AS (
+                        SELECT artist_id, {entity} AS entity,
+                               {date_col}::date AS day, max({col}) AS v
+                        FROM {table}
+                        WHERE artist_id IS NOT NULL
+                        GROUP BY 1, 2, 3
+                    ),
+                    flagged AS (
+                        SELECT artist_id, day, entity,
+                               max(v) OVER (PARTITION BY artist_id, entity
+                                            ORDER BY day
+                                            ROWS BETWEEN UNBOUNDED PRECEDING
+                                                     AND 1 PRECEDING) AS prev_max,
+                               v
+                        FROM d
+                    )
+                    SELECT artist_id, day::text,
+                           count(*) FILTER (WHERE prev_max > 0 AND v = 0),
+                           count(*)
+                    FROM flagged
+                    GROUP BY 1, 2
+                    HAVING count(*) FILTER (WHERE prev_max > 0 AND v = 0) > 0
+                    ORDER BY 2 DESC
+                    LIMIT 20"""
+            )
+            for tenant, day, hit, total in rows or []:
+                if is_reportable(hit, total):
+                    resets.append(zero_reset_finding(table, col, tenant, day,
+                                                     hit, total))
+                    logger.warning(
+                        f"Zero reset: {table}.{col} tenant={tenant} {hit}/{total} "
+                        f"counters back to zero on {day}"
+                    )
+    finally:
+        db.close()
+
+    logger.info(f"Zero-reset check: {len(resets)} collection(s) wrote zeros")
+    context['task_instance'].xcom_push(key='zero_resets', value=resets)
+    return resets
+
+
 # Le nombre de refus, dans une même semaine et pour un même locataire, à partir
 # duquel on soupçonne le CODE plutôt que le fichier. Deux, parce qu'un artiste qui
 # dépose son export complet en dépose une quinzaine d'un coup : si notre détection
@@ -1559,6 +1657,7 @@ def send_consolidated_alert(**context):
     billing_issues = ti.xcom_pull(task_ids='check_billing_sync', key='billing_issues') or []
     row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
     row_dips = ti.xcom_pull(task_ids='check_row_dips', key='row_dips') or []
+    zero_resets = ti.xcom_pull(task_ids='check_zero_resets', key='zero_resets') or []
     tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
     central_broken = ti.xcom_pull(task_ids='check_central_apps',
                                   key='central_apps_broken') or []
@@ -1621,7 +1720,8 @@ def send_consolidated_alert(**context):
     # caught here by `test_every_pulled_finding_takes_part_in_the_send_decision`
     # before it shipped, which is the guard doing precisely its job.
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
-                  or billing_issues or row_anomalies or row_dips or tenant_gaps or readiness_flags
+                  or billing_issues or row_anomalies or row_dips or zero_resets
+            or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
                   or offsite or app_errors or csv_rejections)
@@ -2015,6 +2115,25 @@ def send_consolidated_alert(**context):
           et le périmètre collecté de cet artiste.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
+    # Section: compteurs cumulés revenus à zéro (pilier « valeurs »).
+    if zero_resets:
+        items = ''.join(
+            f"<li>artiste <b>{z['tenant']}</b> — <b>{z['table']}.{z['column']}</b> : "
+            f"<b>{z['entities']}</b> compteur(s) sur {z['total']} revenus à 0 le "
+            f"{z['day']}</li>"
+            for z in zero_resets
+        )
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          🧨 Compteurs remis à zéro ({len(zero_resets)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Un compteur cumulé ne redescend pas : ces
+          lignes sont une collecte ratée ÉCRITE en base, pas une baisse d'audience. Les
+          lignes existent, donc la fraîcheur et le détecteur de collecte partielle ne
+          voient rien. Relancer la collecte du jour concerné pour cet artiste ; les
+          valeurs écrasées sont conservées dans <code>data_revisions</code>.</p>
+        <ul style="font-size:0.9em">{items}</ul>""")
+
     # Section: offsite backup. First, and on purpose. Every other finding here is
     # about data that did not arrive; this one is about the data already held having
     # no copy anywhere else. It is the only line in this mail that describes a way to
@@ -2274,6 +2393,8 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"📈 {len(row_anomalies)} pic(s)")
     if row_dips:
         subject_parts.append(f"📉 {len(row_dips)} collecte(s) partielle(s)")
+    if zero_resets:
+        subject_parts.append(f"🧨 {len(zero_resets)} compteur(s) remis à zéro")
 
     # An empty subject was reachable: the four tenant-level signals contributed no
     # subject text, so a night carrying only those sent "🚨 Dashboard Alert:" and
@@ -2296,7 +2417,7 @@ def send_consolidated_alert(**context):
         failing_dags=failing_dags, stale_sources=stale_sources,
         missing_creds=missing_creds, sparks=sparks, drift=drift,
         billing_issues=billing_issues, row_anomalies=row_anomalies,
-        row_dips=row_dips, tenant_gaps=tenant_gaps,
+        row_dips=row_dips, zero_resets=zero_resets, tenant_gaps=tenant_gaps,
         central_broken=central_broken, canary=canary,
         readiness_flags=readiness_flags, stalled_tenants=stalled_tenants,
         canary_preflight=canary_preflight,
@@ -2378,6 +2499,11 @@ with DAG(
         python_callable=check_row_dips,
     )
 
+    t_zero_resets = PythonOperator(
+        task_id='check_zero_resets',
+        python_callable=check_zero_resets,
+    )
+
     t_csv_rejects = PythonOperator(
         task_id='check_csv_rejections',
         python_callable=check_csv_rejections,
@@ -2432,4 +2558,4 @@ with DAG(
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
      t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
-     t_app_errors, t_csv_rejects] >> t_alert
+     t_app_errors, t_csv_rejects, t_zero_resets] >> t_alert

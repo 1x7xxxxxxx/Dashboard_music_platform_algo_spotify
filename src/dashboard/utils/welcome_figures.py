@@ -46,26 +46,28 @@ MIN_POINTS = 7
 def tenant_daily_streams(db: Any, artist_id: Optional[int]) -> list[tuple]:
     """(jour, écoutes) du locataire, toutes sources confondues, ordre chronologique.
 
+    Elle portait son PROPRE SQL, et il additionnait deux formes :
+    `s4a_song_timeline.streams` (une quantité du jour) et
+    `soundcloud_tracks_daily.playback_count` (un compteur CUMULÉ par titre) dans un
+    même `UNION ALL`. Le total d'un jour valait donc la somme des écoutes du jour plus
+    le cumul de carrière de chaque titre SoundCloud — un chiffre faux qui a l'air juste,
+    et le SQL littéral que le catalogue d'erreurs cite comme origine de la classe.
+
+    Il était inoffensif ici parce que son seul appelant n'en lit que le NOMBRE de
+    points ; il était public et invitant. `platform_timeseries` sait déjà faire cette
+    conversion correctement — chaque source ramenée à des quantités du jour, delta pris
+    par entité et seulement entre jours consécutifs. Il n'y a plus de deuxième version.
+
     Ne lève jamais : cette figure est décorative, et une page de bienvenue qui plante
     sur un `SELECT` coûte infiniment plus que trois exemples.
     """
     if db is None or artist_id is None:
         return []
-    sql = """
-        SELECT d::date AS jour, SUM(v)::bigint AS ecoutes FROM (
-            SELECT date AS d, streams AS v
-              FROM s4a_song_timeline
-             WHERE artist_id = %s AND song NOT ILIKE '%%1x7xxxxxxx%%'
-            UNION ALL
-            SELECT collected_at::date AS d, playback_count AS v
-              FROM soundcloud_tracks_daily
-             WHERE artist_id = %s
-        ) t
-        WHERE d IS NOT NULL AND v IS NOT NULL
-        GROUP BY 1 ORDER BY 1
-    """
+    from src.dashboard.utils.platform_timeseries import (
+        combined_daily_streams, daily_streams_by_platform,
+    )
     try:
-        return list(db.fetch_query(sql, (artist_id, artist_id)) or [])
+        return combined_daily_streams(daily_streams_by_platform(db, artist_id))
     except Exception:      # noqa: BLE001 — décoratif : on retombe sur l'exemple
         return []
 

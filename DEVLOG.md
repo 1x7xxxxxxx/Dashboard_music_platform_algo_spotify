@@ -5,6 +5,67 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 11) — Le trou n'était pas dans les données, il était dans la figure
+
+**« Il y a un gros trou dans les données de S4A »** — et S4A n'a aucun trou : 365 / 366 /
+365 / 248 jours consécutifs depuis le 2023-01-01, pas un seul manquant. Le trou était
+dans le graphique, et il en cachait cinq autres.
+
+**Ce qui a été mesuré, pas supposé :**
+
+| Constat | Chiffre |
+|---|---|
+| Semaines Spotify effacées par un trou d'une AUTRE plateforme | **19**, dont **13** dont YouTube était seul responsable |
+| Semaines partielles tracées comme pleines | **38 %** YouTube, **31 %** SoundCloud, **0 %** Spotify |
+| Plateformes exclues de TOUTES les vues par la règle de couverture | YouTube (24 j sur 195), SoundCloud (12 sur 74) — la plainte « je ne vois que Spotify » |
+| Total du sous-titre en mode cumulé | **16 568 594** affichés pour **163 102** réels — facteur 89 |
+| Collecte ratée écrite en base | 2026-06-01, **19 compteurs sur 19** remis à zéro |
+
+**Ce qui change.** Les tranches de la bande deviennent **par plateforme** : un trou
+n'appartient plus qu'à sa source, les autres continuent, et la légende dit qui manque et
+combien. Un seau (semaine, année) mesuré sur moins de la moitié de ses jours devient
+**inconnu** au lieu d'être tracé comme plein — plancher calibré sur les distributions
+réelles, épinglées dans le test. La règle de couverture disparaît : elle compensait le
+défaut qu'on vient de retirer, et cachait deux plateformes sur trois.
+
+**Un quatrième mode d'affichage : « Chacune à son échelle ».** Le mode « part » avait été
+présenté comme la réponse à « je ne vois que Spotify ». Il ne l'est pas — 0,26 % occupe
+0,26 % de la hauteur, en pourcentage comme en écoutes — et il a fallu **rendre la figure
+et la regarder** pour le voir. Des petits multiples, une facette par plateforme, chacune
+sur son échelle : c'est la seule forme qui rende YouTube et SoundCloud lisibles.
+
+**Rien d'écrasé n'est perdu** (ADR-018, migration 096). Un déclencheur PostgreSQL
+générique journalise dans `data_revisions` toute mise à jour qui CHANGE une valeur
+surveillée — table, locataire, clé de ligne, avant, après, quand. Côté base et pas dans
+`upsert_many` parce qu'un déclencheur ne s'oublie pas, et qu'un écrivain futur qui
+oublierait perdrait l'historique en silence. Motif : Spotify **retire rétroactivement**
+des écoutes (leur page *Artificial Streaming*), et nos upserts écrasaient sans trace.
+
+**Un pilier de contrôle manquait : les valeurs.** `check_zero_resets` signale un compteur
+cumulé revenu à zéro. Le patron du livre (*Data Quality Fundamentals* p. 117, taux de
+zéros contre la veille) a été **mesuré avant d'être retenu, et écarté** : il sonnait
+93 fois sur 1 254 jours pour S4A, dont les `streams` sont une quantité du jour où zéro
+est normal. Le prédicat retenu sonne **une** fois, sur le seul incident réel.
+
+**Un seul calcul de total** pour l'accueil, le PDF (qui ignorait sa propre période),
+la page Apple et l'API — quatre versions qui ne s'accordaient pas, dont trois lisaient le
+compteur de CHAÎNE YouTube prouvé ~10× faux le matin même. `welcome_figures` perd son SQL
+en double, celui qui additionnait un cumul et un quotidien dans un `UNION ALL`.
+
+**Ce que j'ai appris.** Un test de rendu ne dit pas si un nombre est juste : le premier
+garde écrit ce jour-là est resté **vert** sur le total faux d'un facteur 89, parce qu'il
+comparait des surfaces entre elles et que le sous-titre n'en est aucune. Ce qui l'a
+trouvé, c'est d'avoir regardé l'image. Et retirer une cause n'annule pas ses
+compensations : `stackable` écartait les sources clairsemées parce que leurs trous
+coupaient tout le monde — la cause partie, la règle a survécu et cachait deux
+plateformes.
+
+**Vérifié** : 4 737 tests verts, ruff propre, `audit_runner --deterministic` et `--prose`
+propres, quatre classes d'erreur avec leur signature vue **rouge puis verte**, huit
+mutations sur les nouveaux gardes.
+
+---
+
 ## 2026-09-08 (suite 10) — La contrainte existait, l'upsert ne pouvait pas la voir
 
 **Les cinq imports Apple échouaient** avec « there is no unique or exclusion constraint

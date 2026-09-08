@@ -128,6 +128,12 @@ _OUT_OF_SCOPE = {
     "active_sessions": "liveness heartbeats",
     "usage_events": "first-party analytics",
     "csv_upload_log": "audit trail of uploads",
+    "data_revisions": "journal des valeurs écrasées (migration 096). `artist_id` y est "
+                      "RECOPIÉ de la ligne révisée par le déclencheur, jamais résolu "
+                      "depuis une identité de plateforme : il n'y a donc rien à "
+                      "comparer. Une contamination y serait le REFLET d'une "
+                      "contamination dans la table d'origine, que ce contrôle voit déjà "
+                      "là-bas — la voir deux fois n'ajouterait rien",
     "etl_run_log": "pipeline telemetry",
     "app_error_log": "diagnostics: one row per DEFECT, keyed by fingerprint. artist_id records WHO happened to hit it, never who owns the row — a defect has no tenant",
     "etl_circuit_breaker": "pipeline telemetry",

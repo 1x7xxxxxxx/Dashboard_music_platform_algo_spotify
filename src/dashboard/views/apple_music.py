@@ -32,16 +32,38 @@ def show():
             songs_count = _songs_row[0][0] if _songs_row else 0
             col1.metric(t("apple_music.kpi_songs", "🎵 Chansons Suivies"), f"{songs_count:,}")
 
-            # Total Shazams et Plays (Dernier état connu)
-            totals_query = """
-                SELECT
-                    COALESCE(SUM(plays), 0) as total_plays,
-                    COALESCE(SUM(shazam_count), 0) as total_shazams
-                FROM apple_songs_performance
-                WHERE artist_id = %s
-            """
-            result = db.fetch_query(totals_query, (artist_id,))
-            total_plays, total_shazams = result[0] if result else (0, 0)
+            # LE TOTAL PASSE PAR LA RÈGLE COMMUNE, pas par un SUM nu.
+            #
+            # `SUM(plays)` sur toute la table était juste tant qu'un artiste n'avait
+            # qu'UN relevé — ce que la clé lui imposait avant la migration 093. Depuis
+            # qu'il peut déposer un export « depuis le début » ET un export par année,
+            # la somme brute compte deux fois les années contenues dans le cumul. Cette
+            # page affichait donc un total Apple différent de celui de l'accueil, pour
+            # le même artiste au même instant.
+            from src.dashboard.utils.platform_timeseries import (
+                apple_lifetime_plays, non_overlapping_cover,
+            )
+            total_plays = apple_lifetime_plays(db, artist_id)
+            # Les Shazams suivent la même règle : on ne somme que le découpage non
+            # chevauchant, sinon une année comptée dans le cumul l'est deux fois.
+            _shazam_rows = db.fetch_query(
+                "SELECT period_start, period_end, COALESCE(SUM(shazam_count), 0)::bigint "
+                "FROM apple_songs_performance WHERE artist_id = %s "
+                "  AND period_start IS NOT NULL AND period_end IS NOT NULL "
+                "GROUP BY 1, 2", (artist_id,)) or []
+            if _shazam_rows:
+                total_shazams = sum(
+                    v for _s, _e, v in non_overlapping_cover(
+                        [(r[0], r[1], int(r[2] or 0)) for r in _shazam_rows]))
+            else:
+                _row = db.fetch_query(
+                    "SELECT COALESCE(SUM(shazam_count), 0)::bigint "
+                    "FROM apple_songs_performance WHERE artist_id = %s "
+                    "  AND period_start IS NULL AND snapshot_date = ("
+                    "    SELECT MAX(snapshot_date) FROM apple_songs_performance "
+                    "     WHERE artist_id = %s AND period_start IS NULL)",
+                    (artist_id, artist_id))
+                total_shazams = int(_row[0][0] or 0) if _row else 0
 
             col2.metric(t("apple_music.kpi_streams", "▶️ Total Streams (Cumul)"), f"{total_plays:,}")
             col3.metric(t("apple_music.kpi_shazams", "⚡ Total Shazams (Cumul)"), f"{total_shazams:,}")
@@ -53,11 +75,14 @@ def show():
             # ============================================================
             st.subheader(t("apple_music.top_header", "🏆 Top Chansons (Cumulé)"))
 
+            # UN TITRE, UNE LIGNE. Sans le relevé le plus récent, le classement
+            # listait le même titre une fois par dépôt de CSV, et plaçait son export
+            # « depuis le début » au-dessus de l'année d'un autre titre.
             top_query = """
-                SELECT song_name, plays, shazam_count
+                SELECT DISTINCT ON (song_name) song_name, plays, shazam_count
                 FROM apple_songs_performance
                 WHERE artist_id = %s
-                ORDER BY plays DESC
+                ORDER BY song_name, snapshot_date DESC, plays DESC
                 LIMIT 10
             """
             df_top = db.fetch_df(top_query, (artist_id,))

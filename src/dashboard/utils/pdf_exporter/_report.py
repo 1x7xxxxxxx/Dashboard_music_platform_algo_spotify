@@ -2,9 +2,7 @@
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from src.dashboard.utils.kpi_helpers import (
-    get_source_freshness, get_total_streams_s4a, get_total_views_youtube,
-    get_total_plays_soundcloud, get_total_plays_apple,
-    get_spotify_popularity, get_instagram_followers, get_soundcloud_likes,
+    get_source_freshness, get_spotify_popularity, get_instagram_followers, get_soundcloud_likes,
     get_roi_data,
     ARTIST_NAME_FILTER,
 )
@@ -46,10 +44,20 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
     months = max(1, round((to_date - from_date).days / 30))
 
     freshness = get_source_freshness(db, artist_id)
-    s4a   = get_total_streams_s4a(db, artist_id)
-    yt    = get_total_views_youtube(db, artist_id)
-    sc    = get_total_plays_soundcloud(db, artist_id)
-    apple = get_total_plays_apple(db, artist_id)
+    # LE PDF COMPTE SA PROPRE PÉRIODE, et non la carrière entière.
+    #
+    # Les quatre chiffres étaient les totaux « depuis le début », quel que soit
+    # `from_date`/`to_date` : un rapport « 30 jours » imprimait des chiffres de carrière
+    # sous un titre de période. Et le total additionnait le compteur de CHAÎNE YouTube,
+    # celui qu'on a prouvé ~10× faux le 2026-09-08. `platform_totals` porte les deux
+    # régimes et refuse d'additionner deux formes — c'est la même fonction que l'accueil,
+    # pour que les deux surfaces cessent de se contredire.
+    from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
+    _totals = platform_totals(db, artist_id, from_date, to_date)
+    s4a   = _totals.get('spotify')
+    yt    = _totals.get('youtube')
+    sc    = _totals.get('soundcloud')
+    apple = _totals.get('apple')
     pop   = get_spotify_popularity(db, artist_id)
     ig    = get_instagram_followers(db, artist_id)
     likes = get_soundcloud_likes(db, artist_id)
@@ -172,8 +180,10 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
         'from_date':       from_date,
         'to_date':         to_date,
         'freshness':       freshness,
+        # Une plateforme non mesurée sur la période vaut `None`, jamais 0 : le
+        # rendu doit écrire « — » plutôt qu'affirmer qu'il ne s'est rien passé.
         'streams':         {'s4a': s4a, 'youtube': yt, 'soundcloud': sc, 'apple': apple,
-                            'total': s4a + yt + sc + apple},
+                            'total': combined_total(_totals)},
         'spotify_popularity': pop,
         'instagram':       ig,
         'soundcloud_likes': likes,

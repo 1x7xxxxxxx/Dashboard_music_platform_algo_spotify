@@ -300,6 +300,10 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [per-worker-reference-point-for-shared-state](#per-worker-reference-point-for-shared-state) | P3 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
+| [a-gap-in-one-series-erases-every-other](#a-gap-in-one-series-erases-every-other) | P2 | deterministic | guarded | none |
+| [a-total-that-sums-the-display-instead-of-the-data](#a-total-that-sums-the-display-instead-of-the-data) | P2 | deterministic | guarded | none |
+| [a-partial-bucket-drawn-as-a-full-one](#a-partial-bucket-drawn-as-a-full-one) | P2 | deterministic | guarded | none |
+| [a-failed-collection-writes-zeros](#a-failed-collection-writes-zeros) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4089,6 +4093,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-08: signature vue ROUGE en remettant `youtube_channel_history` comme source (2 échecs), verte sur l'arbre corrigé.
   - 2026-09-08: ce qui a permis de trancher n'est pas un raisonnement mais un chiffre venu d'ailleurs. Sans les 64 vues de YouTube Studio, les deux sources étaient également plausibles — l'une disait 360, l'autre 44, et rien dans notre base ne départageait. Quand deux compteurs internes divergent, chercher la mesure extérieure avant de choisir.
+  - 2026-09-08: l'affirmation est ramenée à sa preuve. Une recherche web n'a trouvé AUCUNE source décrivant un décalage entre le compteur de chaîne YouTube et la somme des compteurs par vidéo : ce qui est établi ici est une MESURE sur ce locataire, confrontée à YouTube Studio, pas un comportement documenté de l'API. La conduite à tenir ne change pas — lire l'entité la plus fine — mais la raison n'est pas « YouTube est connu pour ça ».
 
 ## overlapping-readings-summed-as-one
 - status: guarded
@@ -4122,3 +4127,66 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-08: signature vue ROUGE en remettant la contrainte sur `COALESCE(...)` — « la contrainte porte une EXPRESSION […] : un `ON CONFLICT (col, …)` ne pourra jamais l'apparier » — et verte sur l'arbre corrigé.
   - 2026-09-08: la migration a été testée sur son EXÉCUTION (`✅ no unexpected psql error`) et pas sur son USAGE. Un `CREATE UNIQUE INDEX` réussit toujours ; ce qui échoue, c'est l'`INSERT … ON CONFLICT` qui vient après, et rien dans la séance ne l'exerçait. Une migration qui change une clé d'unicité doit être suivie d'un upsert réel, pas seulement d'un psql vert.
   - 2026-09-08: c'est le TROISIÈME correctif de la même clé en une journée — 093 (garder plusieurs relevés), 094 (savoir ce que chacun mesure), 095 (que Postgres puisse l'apparier). Chacun était juste et incomplet. Une clé d'unicité porte trois questions distinctes : que dédupliquer, quoi distinguer, et sous quelle forme l'upsert la désigne.
+
+## a-gap-in-one-series-erases-every-other
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un artiste voit un trou dans une plateforme qui n'en a AUCUN. Signalé le 2026-09-08 : « il y a un gros trou dans les données de S4A ». Mesuré le même jour : S4A a 365 / 366 / 365 / 248 jours consécutifs depuis le 2023-01-01, pas un seul manquant. Le trou était dans la figure.
+- root_cause: `platform_chart._segments` calculait des tranches COMMUNES — un pas n'était tracé que si TOUTES les plateformes empilées y avaient une mesure. Une aire empilée n'a pas de trou, donc couper la bande entière semblait la seule réponse honnête à un jour non mesuré. Conséquence chiffrée sur l'artiste 1, au pas hebdomadaire : **19 semaines** de Spotify effacées, dont **13** dont YouTube était le seul responsable, et **0** où Spotify manquait. La règle `stackable` qui écartait les plateformes clairsemées était le correctif de ce même défaut, et elle excluait YouTube (24 jours mesurés sur 195) et SoundCloud (12 sur 74) de TOUTES les vues — c'est la plainte « je ne vois que Spotify ».
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q`
+- long_term_fix: les tranches sont **par plateforme**. Une source inconnue ne dessine rien ce jour-là et les autres continuent ; Plotly empile en un seul `stackgroup`, donc le total d'un pas incomplet est celui des plateformes présentes, et `t_missing` le dit avec le compte PAR plateforme. La règle de couverture disparaît : elle ne protégeait plus rien, il ne reste que la contrainte de forme — deux points, sinon il n'y a pas d'aire.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE en remettant les tranches communes — « Spotify est coupé par le trou d'une AUTRE plateforme : [[0, 1], [4, 5]] » — et verte sur l'arbre corrigé. Preuve sur les vraies séries : les 19 semaines masquées tombent à **0**, Spotify tracé 181/181 en une seule tranche.
+  - 2026-09-08: le correctif d'un défaut de figure en a créé un deuxième, plus silencieux. `stackable` écartait les sources clairsemées PARCE QUE leurs trous coupaient tout le monde ; une fois la cause retirée, la règle a survécu et cachait deux plateformes sur trois. Retirer une cause n'annule pas ses compensations — il faut aller les chercher.
+
+## a-total-that-sums-the-display-instead-of-the-data
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un total affiché est faux d'un ou deux ordres de grandeur, sans erreur ni trou. Vu au rendu le 2026-09-08 : **16 568 594 écoutes** en sous-titre de la vue par défaut, pour un artiste qui en a 163 102 — un facteur 89.
+- root_cause: le sous-titre lisait `aligned`, c'est-à-dire la série APRÈS `_as_mode`. En mode cumulé chaque point porte le total depuis le début, donc les additionner somme des cumuls. Le correctif précédent du même jour avait déplacé le calcul de `series` (la série brute, qui ignorait le filtre de sources et comparait des dates du jour à des clés de seau) vers `aligned` — plus près, toujours faux, et sur une variable dont le nom ne dit pas qu'elle a été transformée.
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py::test_the_subtitle_sums_quantities_not_cumulative_values -q`
+- long_term_fix: `aligned_raw` conserve les quantités par pas avant `_as_mode`, et c'est la seule forme qu'on somme. Le garde lit le sous-titre RENDU — il rend la figure, extrait le nombre du titre et le compare à la somme connue — au lieu de vérifier quelle variable la fonction utilise : c'est le nombre affiché qui était faux.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE en relisant `aligned` — « mode cumulative : le sous-titre annonce 126668550 au lieu de 100 — il additionne des cumuls » — et verte sur l'arbre corrigé.
+  - 2026-09-08: aucun test ne pouvait le voir, et le premier garde écrit ce jour-là (`test_every_surface_gives_the_same_total`) est resté VERT sur le défaut : il compare des surfaces entre elles, or le sous-titre n'est aucune des trois. Ce qui l'a trouvé est d'avoir RENDU la figure et regardé l'image. Une valeur affichée n'est prouvée que par un garde qui la lit là où elle s'affiche.
+
+## a-partial-bucket-drawn-as-a-full-one
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une agrégation sous-estime silencieusement, d'un facteur qui dépend de la collecte. Mesuré le 2026-09-08 : **38 %** des semaines YouTube et **31 %** des semaines SoundCloud n'étaient mesurées que sur une partie de leurs jours, et étaient tracées comme des semaines pleines — jusqu'à un facteur 7.
+- root_cause: `_aggregate` sommait ce qu'il trouvait dans chaque seau sans jamais compter combien de jours ce seau CONTENAIT. Une semaine à un jour mesuré et une semaine à sept produisaient un point de même nature. La conversion cumul → quotidien ne rattrape rien : un delta n'est calculé qu'entre deux jours CONSÉCUTIFS, donc les jours sautés ne sont pas reportés sur le suivant, ils manquent. Le verdict d'empilement était en outre pris APRÈS agrégation, où un seau partiel comptait pour un seau mesuré : la couverture paraissait meilleure au pas hebdomadaire qu'au pas quotidien, sur les mêmes données.
+- signature: `python3 -m pytest tests/test_the_live_chart_matches_the_illustration.py -q -k bucket`
+- long_term_fix: un seau doit être mesuré sur au moins la moitié des jours qu'il contient DANS la plage utile — les bords comptent pour ce qu'ils peuvent, sinon on perdrait un seau juste à chaque extrémité. En dessous il est rendu INCONNU. Une série déjà au grain du seau (`STEP_ONLY`, Apple par année) y échappe : sa mesure est entière, c'est l'unité qui diffère. Le verdict d'empilement se prend sur la série QUOTIDIENNE. Le test épingle les distributions réelles (1,1,1,1,2,2,2,3,5,6 jours par semaine pour YouTube ; 1,1,2,3,5 pour SoundCloud ; 7 partout pour Spotify), pas la constante.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_live_chart_matches_the_illustration.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE avec `_BUCKET_FLOOR = 0.0` — « une semaine mesurée 1 jour sur 7 est tracée comme une semaine pleine » et « assert 10 == 2 » — et verte sur l'arbre corrigé. Deuxième mutation (retirer l'exemption `STEP_ONLY`) rouge sur « le plancher a mangé les relevés annuels d'Apple ».
+
+## a-failed-collection-writes-zeros
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: des lignes arrivent, à l'heure, en nombre normal — et leurs valeurs sont fausses. Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a reçu 19 titres dont **19 compteurs cumulés à zéro**, pour des titres qui portaient plusieurs milliers la veille.
+- root_cause: aucun pilier ne regardait les VALEURS. La fraîcheur compte des lignes ; `check_row_anomalies` ne surveille que le sens du pic ; `is_partial_collection` (pilier Volume, R39) exclut explicitement zéro **en nombre de lignes** — il y en avait dix-neuf, toutes fausses. La figure absorbe déjà le cas en refusant les deltas négatifs, ce qui rendait l'incident invisible à celui qui regardait le plus.
+- signature: `python3 -m pytest tests/test_a_zeroed_collection_is_seen.py -q`
+- long_term_fix: `check_zero_resets` dans `alert_monitor`, prédicat dans `src/utils/value_monitor.py` — un compteur CUMULÉ revenu à zéro après avoir été positif, comparé au maximum ANTÉRIEUR de la même entité et non à la veille. On signale, on ne réécrit jamais : les valeurs écrasées sont conservées par `data_revisions` (ADR-018).
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_zeroed_collection_is_seen.py }
+- rex_ref: src/utils/value_monitor.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE sur quatre mutations — prédicat élargi à « jamais positif », S4A ajouté au périmètre, tâche non câblée à un opérateur, catégorie absente de l'empreinte — et verte sur l'arbre corrigé.
+  - 2026-09-08: le patron du livre a été MESURÉ avant d'être retenu, et il a été écarté. *Data Quality Fundamentals* p. 117 propose le taux de valeurs nulles comparé à la veille ; rejoué sur l'historique réel, il sonnait **93 fois sur 1 254 jours** pour `s4a_song_timeline`, dont les `streams` sont une quantité du jour où zéro est normal (27 à 55 % du catalogue, tous les jours). Le prédicat retenu sonne **une** fois, sur le seul incident. Un patron de livre se calibre sur les données avant d'être câblé.

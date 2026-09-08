@@ -176,7 +176,8 @@ def suppression_reason(digest: str, last_digest, last_delivered_at, now=None) ->
 # refermée. Un seul endroit construit l'entrée ; tout le reste l'appelle.
 FINDING_CATEGORIES = (
     "failing_dags", "stale_sources", "missing_creds", "sparks", "drift",
-    "billing_issues", "row_anomalies", "row_dips", "tenant_gaps", "central_broken",
+    "billing_issues", "row_anomalies", "row_dips", "zero_resets",
+    "tenant_gaps", "central_broken",
     "canary", "readiness_flags", "stalled_tenants", "canary_preflight",
     "collection_failures", "contamination",
 )

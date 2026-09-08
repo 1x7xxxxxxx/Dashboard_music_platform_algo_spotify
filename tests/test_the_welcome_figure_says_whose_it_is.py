@@ -75,25 +75,41 @@ def test_no_tenant_no_query():
     assert tenant_daily_streams(object(), None) == []
 
 
-def test_the_query_carries_the_tenant_and_the_total_row_filter():
-    """Deux règles transverses, sur la même requête.
+def test_the_figure_has_no_second_query_of_its_own():
+    """Elle n'a plus de SQL : elle passe par le convertisseur de formes.
 
-    `WHERE artist_id = %s` (#8 / python.md) et, sur `s4a_song_timeline`, le filtre de
-    la ligne « Total » des CSV S4A — sans lui la figure d'un artiste vaudrait le
-    double de ses écoutes réelles.
+    Son ancienne requête additionnait `s4a_song_timeline.streams` — une quantité du
+    JOUR — et `soundcloud_tracks_daily.playback_count` — un compteur CUMULÉ par titre —
+    dans un même `UNION ALL`. Le total d'un jour valait donc les écoutes du jour plus le
+    cumul de carrière de chaque titre SoundCloud. Inoffensif tant que l'appelant n'en
+    lisait que le nombre de points ; c'était le SQL littéral que le catalogue d'erreurs
+    cite comme origine de la classe, laissé public et invitant.
+
+    Le garde suit les APPELS, pas le texte : une chaîne « platform_timeseries » dans un
+    commentaire rendrait vert un module qui a repris son propre SQL.
     """
     src = (Path(__file__).resolve().parents[1] / "src" / "dashboard" / "utils"
            / "welcome_figures.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
-    sql = " ".join(n.value for n in ast.walk(tree)
-                   if isinstance(n, ast.Constant) and isinstance(n.value, str)
-                   and "s4a_song_timeline" in n.value)
-    assert sql, "la requête a disparu"
-    assert sql.count("artist_id = %s") >= 2, (
-        "une des deux sources ne porte pas son locataire")
-    assert "1x7xxxxxxx" in sql, (
-        "le filtre de la ligne « Total » des CSV S4A a sauté — la figure "
-        "afficherait le double des écoutes réelles")
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "tenant_daily_streams")
+    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(fn) if isinstance(n, ast.Call)}
+    assert {"combined_daily_streams", "daily_streams_by_platform"} <= called, (
+        f"la figure ne passe plus par platform_timeseries : {sorted(called)}")
+    assert "fetch_query" not in called, (
+        "la figure a repris un SQL à elle — c'est ainsi qu'une deuxième version d'un "
+        "calcul apparaît, et qu'elle diverge")
+
+    # Le DOCSTRING est retiré avant de chercher : il contient le mot « SELECT » en
+    # expliquant pourquoi cette fonction ne lève pas, et le garde rougissait sur sa
+    # propre explication. C'est la classe `a-textual-guard-is-blind` prise à l'envers —
+    # un garde qui punit la documentation apprend à ne plus documenter.
+    body = fn.body[1:] if ast.get_docstring(fn) else fn.body
+    sql = [n.value for stmt in body for n in ast.walk(stmt)
+           if isinstance(n, ast.Constant) and isinstance(n.value, str)
+           and "SELECT" in n.value.upper() and "FROM" in n.value.upper()]
+    assert not sql, f"du SQL est revenu dans la figure : {sql}"
 
 
 # ── Le libellé ne peut pas diverger de la courbe ────────────────────────────

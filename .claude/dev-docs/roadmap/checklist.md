@@ -63,14 +63,48 @@ colonnes / 95 tables, code déployé == `origin/main`).
   un texte qui nomme l'exemption. Classe
   `an-exemption-on-one-surface-reads-as-a-failure-on-another`.
 
+- **Le « gros trou dans les données de S4A » n'existait pas** : S4A a 365 / 366 / 365 /
+  248 jours consécutifs depuis le 2023-01-01. Le trou était dans la FIGURE — les
+  tranches de la bande étaient communes, donc un jour sans collecte YouTube coupait
+  aussi Spotify : **19 semaines** effacées, dont **13** dont YouTube était seul
+  responsable. Les tranches sont désormais **par plateforme** ; Spotify est tracé
+  181/181 en une seule tranche. Classe `a-gap-in-one-series-erases-every-other`.
+- **Une semaine mesurée un jour sur sept était tracée comme une semaine pleine** —
+  38 % des semaines YouTube, 31 % SoundCloud. Sous la moitié des jours qu'il contient,
+  un seau devient **inconnu** ; le plancher est calibré sur les distributions réelles,
+  épinglées dans le test. Classe `a-partial-bucket-drawn-as-a-full-one`.
+- **Le sous-titre annonçait 16 568 594 écoutes pour 163 102** — facteur 89 — parce
+  qu'il sommait la série APRÈS transformation, donc des cumuls. Aucun test ne le
+  voyait ; c'est d'avoir **rendu la figure et regardé l'image** qui l'a trouvé. Classe
+  `a-total-that-sums-the-display-instead-of-the-data`.
+- **« Je ne vois que Spotify » a enfin sa réponse** : le mode « part » n'en était pas
+  une (0,26 % occupe 0,26 % de la hauteur). Quatrième mode, **« Chacune à son
+  échelle »** — des petits multiples, une facette par plateforme. La règle de couverture
+  qui excluait YouTube (24 j sur 195) et SoundCloud (12 sur 74) de toutes les vues a
+  disparu : elle compensait le défaut des tranches communes, retiré ci-dessus.
+- **Rien d'écrasé n'est perdu** (ADR-018, migration **096**) : un déclencheur générique
+  journalise dans `data_revisions` toute mise à jour qui CHANGE une valeur surveillée.
+  Motif : Spotify retire rétroactivement des écoutes (leur page *Artificial Streaming*),
+  et nos upserts écrasaient sans trace. Côté base, parce qu'un déclencheur ne s'oublie
+  pas.
+- **Un pilier de contrôle manquait — les VALEURS.** Le 2026-06-01, SoundCloud a écrit
+  **19 compteurs cumulés sur 19 à zéro** ; fraîcheur, pics et collecte partielle avaient
+  tous raison de ne rien voir. `check_zero_resets` le signale (jamais ne le réécrit). Le
+  patron du livre a été mesuré puis **écarté** : 93 alertes sur 1 254 jours contre 1
+  pour le prédicat retenu. Classe `a-failed-collection-writes-zeros`.
+- **Un seul calcul de total** pour l'accueil, le PDF (qui ignorait sa propre période),
+  la page Apple et l'API — quatre versions qui ne s'accordaient pas. `welcome_figures`
+  perd son SQL en double, celui qui additionnait un cumul et un quotidien.
+
 - **La matrice Meta du bac à sable criait une panne inexistante** (🟡 « la collecte
   s'est arrêtée, on regarde ») sur le compte où le profil principal lisait 🟢 « rien à
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
-- **Trois modes d'affichage sur la courbe** : Cumulé (défaut, l'allure de
-  l'illustration), Par période, et **Part de chaque plateforme** — ce dernier existe
-  parce que Spotify pèse 99,74 % du total et que les autres sont sous le pixel.
+- **Quatre modes d'affichage sur la courbe** : Cumulé (défaut, l'allure de
+  l'illustration), Par période, Part de chaque plateforme, et **Chacune à son échelle**
+  — ce dernier est le seul qui rende visibles YouTube (0,22 %) et SoundCloud (0,04 %)
+  à côté de Spotify (99,74 %).
 - **Migration 095** : la clé d'unicité Apple était sur des EXPRESSIONS, donc
   inappariable par un `ON CONFLICT (col, …)` — cinq imports échouaient. `NULLS NOT
   DISTINCT` (PostgreSQL 15+) rend la cible appariable sans perdre la déduplication.

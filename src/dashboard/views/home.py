@@ -13,10 +13,7 @@ from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.airflow_monitor import AirflowMonitor, cached_last_run_per_dag
 from src.dashboard.utils.kpi_helpers import (
-    get_source_freshness, freshness_status,
-    get_total_streams_s4a, get_total_views_youtube,
-    get_total_plays_soundcloud, get_total_plays_apple,
-    get_instagram_followers,
+    get_source_freshness, freshness_status, get_instagram_followers,
 )
 
 
@@ -73,9 +70,7 @@ def _section_streams(db, artist_id):
     la version empilée, où le filtre était à un écran de la figure qu'il commande.
     """
     from src.dashboard.utils import date_range
-    from src.dashboard.utils.platform_timeseries import (
-        daily_streams_by_platform, measured_days,
-    )
+    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
 
     st.subheader(t("home.streams_header", "🎧 Tes chiffres"))
 
@@ -96,30 +91,18 @@ def _section_streams(db, artist_id):
     ig = get_instagram_followers(db, artist_id)
     ig_count = ig['followers'] if ig else 0
 
-    if since is None:
-        s4a = get_total_streams_s4a(db, artist_id)
-        yt = get_total_views_youtube(db, artist_id)
-        sc = get_total_plays_soundcloud(db, artist_id)
-        # `get_total_plays_apple` ne somme plus toute la table : depuis qu'un artiste
-        # peut déposer À LA FOIS un export « depuis le début » et un export par année,
-        # la somme brute comptait deux fois les mêmes écoutes. La règle vit dans
-        # `apple_lifetime_plays`, derrière ce helper, pour les trois lecteurs.
-        apple = get_total_plays_apple(db, artist_id)
-    else:
-        def _sum(pkey):
-            # ZÉRO MESURE ≠ ZÉRO ÉCOUTE. Sans ce test, une plateforme non collectée
-            # sur la période afficherait « 0 », ce qui affirme qu'il ne s'est rien
-            # passé — alors qu'on n'a pas regardé.
-            if not measured_days(series, pkey, since, until):
-                return None
-            return sum(v for d, v in series.get(pkey, []) if since <= d <= until)
-        s4a, yt, sc = _sum("spotify"), _sum("youtube"), _sum("soundcloud")
-        # Apple n'a pas de résolution quotidienne, mais elle a des RELEVÉS datés
-        # depuis la migration 093 : sur une période qui en contient deux, l'écart est
-        # calculable. `None` tant qu'il n'y en a qu'un.
-        from src.dashboard.utils.platform_timeseries import apple_period_plays
-        apple = apple_period_plays(db, artist_id, since, until)
-    grand_total = sum(v for v in (s4a, yt, sc, apple) if v)
+    # UN SEUL CALCUL, pour toutes les surfaces. `platform_totals` porte les deux
+    # régimes — compteurs des plateformes « depuis le début », somme des écarts mesurés
+    # sur une période bornée — et refuse d'additionner deux formes. Le grand total vert
+    # additionnait ici le compteur de CHAÎNE YouTube, celui qu'on a prouvé ~10× faux le
+    # 2026-09-08 : trois pages du même produit donnaient trois totaux différents.
+    from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
+    totals = platform_totals(db, artist_id, since, until)
+    s4a = totals.get("spotify")
+    yt = totals.get("youtube")
+    sc = totals.get("soundcloud")
+    apple = totals.get("apple")
+    grand_total = combined_total(totals)
 
     if not grand_total and not ig_count:
         st.info(t(
@@ -232,13 +215,18 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
     steps = {'auto': t("home.step_auto", "Automatique"),
              'week': t("home.step_week", "Par semaine"),
              'year': t("home.step_year", "Par année")}
-    # LE MODE, et pourquoi il y en a trois. « Cumulé » est le défaut : c'est la forme de
-    # l'illustration, des bandes qui montent, et c'est ce qu'un artiste vient voir.
-    # « Part de chaque plateforme » existe pour une raison MESURÉE : Spotify pèse 99,74 %
-    # du total de l'artiste 1, YouTube 0,22 %, SoundCloud 0,04 %. À l'échelle linéaire,
-    # deux plateformes sur trois sont sous le pixel — « je ne vois que Spotify » n'était
-    # pas un bug, c'était l'échelle, et aucune disposition empilée ne les rend visibles
-    # ensemble. Une part de 100 % le fait par construction.
+    # LE MODE. « Cumulé » est le défaut : c'est la forme de l'illustration, des bandes
+    # qui montent, et c'est ce qu'un artiste vient voir.
+    #
+    # Les deux derniers existent pour une raison MESURÉE : Spotify pèse 99,74 % du total
+    # de l'artiste 1, YouTube 0,22 %, SoundCloud 0,04 %. À l'échelle linéaire, deux
+    # plateformes sur trois sont sous le pixel — « je ne vois que Spotify » n'était pas
+    # un bug, c'était l'échelle.
+    #
+    # « Part de chaque plateforme » a d'abord été donné comme la réponse. Il ne l'est
+    # pas, et il a fallu regarder la figure pour le voir : 0,26 % occupe 0,26 % de la
+    # hauteur, en pourcentage comme en écoutes. C'est « Chacune à son échelle » — des
+    # petits multiples, une facette par plateforme — qui règle vraiment la plainte.
     col_mode, col_step, col_src = st.columns([1, 1, 2])
     with col_mode:
         mode = st.selectbox(
@@ -267,12 +255,13 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
                 label_visibility="collapsed",
                 placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
 
-    if mode != 'share' and len(chosen) > 1:
+    if mode != 'facets' and len(chosen) > 1:
         st.caption(t(
             "home.trend_share_hint",
             "Une plateforme peut être invisible sans être absente : si l'une pèse "
-            "l'essentiel du total, les autres passent sous le pixel. **Part de chaque "
-            "plateforme** les rend toutes visibles."))
+            "l'essentiel du total, les autres passent sous le pixel. **Chacune à son "
+            "échelle** donne à chaque plateforme son propre cadre, et rend la plus "
+            "petite lisible."))
     if step != 'year' and any(k in series and series[k] for k in STEP_ONLY):
         st.caption(t(
             "home.trend_apple_hint",

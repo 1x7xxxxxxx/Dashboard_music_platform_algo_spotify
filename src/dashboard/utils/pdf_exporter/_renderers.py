@@ -69,6 +69,17 @@ def _render_freshness(freshness):
       <tbody>{''.join(rows)}</tbody></table>"""
 
 
+def _fmt_count(value) -> str:
+    """Un nombre, ou « — » quand rien n'a été mesuré sur la période.
+
+    Depuis que le rapport compte SA période (2026-09-08), une plateforme non collectée
+    sur ces dates rend `None` et non `0` : un zéro affirmerait qu'il ne s'est rien passé
+    alors qu'on n'a pas regardé. C'est la même règle que les tuiles de l'accueil, et
+    `f'{None:,}'` lève de toute façon.
+    """
+    return "—" if value is None else f"{value:,}"
+
+
 def _render_streams(streams):
     items = [
         ("🎵 Spotify S4A", streams['s4a']),
@@ -77,11 +88,12 @@ def _render_streams(streams):
         ("🍎 Apple Music",  streams['apple']),
     ]
     total_card = _kpi_card(
-        f'{streams["total"]:,}', _t("pdf.kpi.total_all_platforms", "🎧 Total toutes plateformes"),
+        _fmt_count(streams["total"]),
+        _t("pdf.kpi.total_all_platforms", "🎧 Total toutes plateformes"),
         card_style="border-color:#1DB954; background:#f0faf3;",
         val_style="font-size:22pt;",
     )
-    cards = "".join(_kpi_card(f'{v:,}', lbl) for lbl, v in items)
+    cards = "".join(_kpi_card(_fmt_count(v), lbl) for lbl, v in items)
     return _kpi_grid(total_card + cards)
 
 
@@ -401,11 +413,11 @@ def _render_overview(data):
     s = data['streams']
     ig = data.get('instagram') or {}
     return _kpi_grid(
-        _kpi_card(f"{s['total']:,}", _t("pdf.kpi.total_streams_all", "Total streams (toutes plateformes)"))
-        + _kpi_card(f"{s['s4a']:,}", _t("pdf.kpi.streams_s4a", "Streams Spotify S4A"))
-        + _kpi_card(f"{s['youtube']:,}", _t("pdf.kpi.youtube_views", "Vues YouTube"))
-        + _kpi_card(f"{s['soundcloud']:,}", _t("pdf.kpi.soundcloud_plays", "Plays SoundCloud"))
-        + _kpi_card(f"{s['apple']:,}", _t("pdf.kpi.apple_plays", "Plays Apple Music"))
+        _kpi_card(_fmt_count(s['total']), _t("pdf.kpi.total_streams_all", "Total streams (toutes plateformes)"))
+        + _kpi_card(_fmt_count(s['s4a']), _t("pdf.kpi.streams_s4a", "Streams Spotify S4A"))
+        + _kpi_card(_fmt_count(s['youtube']), _t("pdf.kpi.youtube_views", "Vues YouTube"))
+        + _kpi_card(_fmt_count(s['soundcloud']), _t("pdf.kpi.soundcloud_plays", "Plays SoundCloud"))
+        + _kpi_card(_fmt_count(s['apple']), _t("pdf.kpi.apple_plays", "Plays Apple Music"))
         + _kpi_card(f"{ig.get('followers', 0):,}" if ig else "—", _t("pdf.kpi.instagram_followers", "Followers Instagram"))
     )
 

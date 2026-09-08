@@ -93,18 +93,26 @@ def test_the_form_is_a_stack_not_overlapping_lines() -> None:
     assert "fillcolor" in kwargs, "une aire empilée sans remplissage n'est pas une aire"
 
 
-def test_a_missing_day_cuts_the_band_instead_of_dropping_it() -> None:
-    """Une aire empilée n'a pas de trou : on coupe la bande, on ne la fait pas plonger.
+def test_a_missing_day_cuts_ONLY_the_platform_that_is_missing() -> None:
+    """Un trou appartient à la plateforme qui l'a, et à elle seule.
 
-    Compter l'absence pour zéro ferait chuter le TOTAL le jour où une source n'a pas
-    tourné — exactement ce que la légende sous la figure interdit de laisser croire.
+    Les tranches étaient COMMUNES : un jour sans collecte YouTube coupait aussi
+    Spotify. Mesuré le 2026-09-08 sur l'artiste 1, au pas hebdomadaire : **19 semaines**
+    de Spotify effacées, dont **13** dont YouTube était le seul responsable, et **0**
+    où Spotify manquait lui-même. L'artiste l'a lu comme « un gros trou dans les
+    données de S4A » — S4A n'a aucun trou.
+
+    Le jour non mesuré reste coupé POUR SA PLATEFORME : l'aire s'y interrompt, on ne la
+    compte pas pour zéro.
     """
     span = list(range(6))
     aligned = {"spotify": [1, 2, 3, 4, 5, 6],
                "soundcloud": [1, 1, None, None, 2, 2]}
     segments = pc._segments(span, aligned, ["spotify", "soundcloud"])
-    assert segments == [[0, 1], [4, 5]], (
-        f"les tranches sont {segments} : un jour non mesuré doit COUPER la bande")
+    assert segments["spotify"] == [[0, 1, 2, 3, 4, 5]], (
+        f"Spotify est coupé par le trou d'une AUTRE plateforme : {segments['spotify']}")
+    assert segments["soundcloud"] == [[0, 1], [4, 5]], (
+        f"le trou de SoundCloud ne coupe pas son aire : {segments['soundcloud']}")
 
 
 def test_a_platform_with_no_point_takes_no_colour() -> None:
@@ -112,7 +120,7 @@ def test_a_platform_with_no_point_takes_no_colour() -> None:
     span = list(range(3))
     aligned = {"spotify": [1, 2, 3], "youtube": [None, None, None]}
     segments = pc._segments(span, aligned, ["spotify"])
-    assert segments == [[0, 1, 2]], (
+    assert segments == {"spotify": [[0, 1, 2]]}, (
         "une plateforme sans aucun point ne doit pas casser la bande des autres")
 
 
@@ -140,7 +148,7 @@ def test_a_recent_platform_does_not_cost_the_others_their_history() -> None:
     order, _thin = pc.stackable(span, aligned)
     assert set(order) == {"spotify", "youtube", "soundcloud"}, (
         f"une plateforme récente est écartée de la pile : {order}")
-    covered = sum(len(seg) for seg in pc._segments(span, aligned, order))
+    covered = sum(len(seg) for seg in pc._segments(span, aligned, order)["spotify"])
     assert covered >= 85, (
         f"la bande ne couvre que {covered} jours sur 90 : les plateformes branchées "
         "récemment effacent l'historique des autres")
@@ -152,27 +160,55 @@ def test_a_hole_inside_a_platform_range_still_cuts() -> None:
     aligned = {"spotify": [1, 1, 1, 1, 1, 1],
                "youtube": [None, 1, None, 1, 1, 1]}   # plage = 1..5, trou en 2
     order, _ = pc.stackable(span, aligned)
-    segments = pc._segments(span, aligned, order)
+    segments = pc._segments(span, aligned, order)["youtube"]
     assert [0, 1] in segments and all(2 not in seg for seg in segments), (
-        f"le trou interne n'a pas coupé la bande : {segments}")
+        f"le trou interne n'a pas coupé l'aire de YouTube : {segments}")
 
 
-def test_a_platform_measured_once_in_a_long_range_is_named_not_stacked() -> None:
-    """Trop clairsemée DANS SA PROPRE PLAGE : elle couperait partout."""
+def test_a_sparse_platform_is_drawn_now_that_its_holes_are_its_own() -> None:
+    """La règle de couverture a disparu, et c'est un correctif, pas un relâchement.
+
+    Elle écartait YouTube (**24 jours mesurés sur 195**) et SoundCloud (**12 sur 74**)
+    de TOUTES les vues de l'artiste 1 — mesuré le 2026-09-08, et c'est exactement la
+    plainte « je ne vois que Spotify ». Elle existait parce qu'un trou coupait la bande
+    de tout le monde ; depuis que les tranches sont par plateforme, une source
+    clairsemée ne coûte plus rien aux autres, et l'écarter ne protège plus personne.
+    """
     span = list(range(40))
     aligned = {"spotify": [1] * 40,
                "youtube": [None] * 10 + [1] + [None] * 28 + [1]}   # 2 mesures sur 30
     order, thin = pc.stackable(span, aligned)
+    assert order == ["spotify", "youtube"] and not thin, (
+        f"une plateforme clairsemée est encore écartée : empilées={order}, "
+        f"écartées={sorted(thin)}")
+
+
+def test_a_single_reading_draws_no_area_and_says_so() -> None:
+    """Le seul seuil qui reste est une contrainte de FORME, pas un jugement.
+
+    Sous un point isolé il n'y a pas de surface : la tracer ne montrerait rien, et une
+    plateforme absente sans explication se lit comme une panne — la leçon de la matrice
+    d'état.
+    """
+    span = list(range(40))
+    aligned = {"spotify": [1] * 40, "youtube": [None] * 39 + [1]}
+    order, thin = pc.stackable(span, aligned)
     assert order == ["spotify"] and "youtube" in thin, (
         f"empilées={order}, écartées={sorted(thin)}")
+    phrase = pc.t_too_thin(*thin["youtube"])
+    assert "1" in phrase, f"la phrase ne dit pas combien de mesures : {phrase}"
 
 
-def test_a_platform_left_out_is_named() -> None:
-    """Une absence sans raison se lit comme une panne — la leçon de la matrice d'état."""
-    phrase = pc.t_too_thin("🎬 YouTube", 2, 90)
-    assert "2" in phrase and "90" in phrase, (
-        "la phrase ne dit pas COMBIEN de jours sont mesurés — sans ce chiffre elle "
-        "ne se distingue pas d'une panne")
+def test_a_platform_dropped_by_the_step_is_named(monkeypatch) -> None:
+    """Assez de jours, aucun seau assez rempli — le cas YouTube au pas annuel.
+
+    Ses 24 jours se répartissent sur deux années civiles dont aucune n'atteint la
+    moitié : un total annuel bâti sur 15 jours sur 163 serait ~10× trop bas. Elle
+    disparaît alors de ce pas, et le dire est la seule façon que ça ne ressemble pas à
+    une panne.
+    """
+    phrase = pc.t_too_coarse("🎬 YouTube", "year")
+    assert "YouTube" in phrase and "année" in phrase, phrase
 
 
 # ── L'identité ne repose jamais sur la seule couleur ────────────────────────
@@ -288,6 +324,133 @@ def test_absolute_mode_changes_nothing() -> None:
 
 def test_every_mode_is_offered_and_named() -> None:
     """Un mode sans libellé est un mode qu'on ne choisit pas."""
-    assert set(pc.MODES) == {"cumulative", "absolute", "share"}
+    assert set(pc.MODES) == {"cumulative", "absolute", "share", "facets"}
     for key, label in pc.MODES.items():
         assert label.strip(), key
+
+
+def test_the_smallest_platform_is_visible_in_at_least_one_mode() -> None:
+    """La plainte « je ne vois que Spotify » a une réponse mesurable, et une seule.
+
+    Sur l'artiste 1 : Spotify 99,74 %, YouTube 0,22 %, SoundCloud 0,04 %. Empilé ou en
+    part, 0,26 % occupe 0,26 % de la hauteur — le mode « part » a d'abord été présenté
+    comme la solution et il ne l'était pas ; il a fallu REGARDER la figure pour le
+    voir. Les petits multiples donnent à chaque plateforme son propre cadre.
+
+    Le garde suit la structure, pas le libellé : c'est `make_subplots` — une facette
+    par plateforme — qui est la promesse, pas le mot « échelle » dans un menu.
+    """
+    src = _CHART.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "_render_facets")
+    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(fn) if isinstance(n, ast.Call)}
+    assert "make_subplots" in called, (
+        "le mode « chacune à son échelle » ne fait pas de petits multiples — une seule "
+        "figure ne peut pas porter trois ordres de grandeur")
+    rows = [n for n in ast.walk(fn)
+            if isinstance(n, ast.keyword) and n.arg == "rows"]
+    assert rows, "les facettes ne sont pas indexées par plateforme"
+    assert "facets" in pc.MODES, "le mode n'est pas proposé"
+
+
+# ── Un seau partiel ne se fait pas passer pour un seau plein ────────────────
+
+def test_a_partial_bucket_is_unknown_not_full() -> None:
+    """Une semaine mesurée un jour sur sept était tracée comme une semaine pleine.
+
+    Elle sous-estime alors d'un facteur ~7, et rien ne le disait — **38 %** des
+    semaines YouTube et **31 %** des semaines SoundCloud étaient dans ce cas sur
+    l'artiste 1 au 2026-09-08.
+
+    La conversion cumul → quotidien ne rattrape rien : un delta n'est calculé qu'entre
+    deux jours CONSÉCUTIFS, donc les jours sautés ne sont pas reportés sur le suivant.
+    """
+    import datetime as dt
+    mon = dt.date(2026, 1, 5)                       # un lundi
+    full = [(mon + dt.timedelta(days=i), 10) for i in range(7)]
+    thin = [(mon + dt.timedelta(days=7), 10)]       # 1 jour de la semaine suivante
+    tail = [(mon + dt.timedelta(days=14 + i), 10) for i in range(7)]
+    out = pc._aggregate({"youtube": full + thin + tail}, "week")["youtube"]
+    keys = [d for d, _ in out]
+    assert mon in keys and mon + dt.timedelta(days=14) in keys, keys
+    assert mon + dt.timedelta(days=7) not in keys, (
+        "une semaine mesurée 1 jour sur 7 est tracée comme une semaine pleine : "
+        f"{out}")
+
+
+def test_the_bucket_floor_matches_the_measured_distributions() -> None:
+    """Le plancher est calibré sur les distributions RÉELLES, pas choisi d'instinct.
+
+    C'est la leçon du plancher de 30 lignes/jour écrit à l'aveugle, qui rendait un
+    détecteur aveugle à deux locataires sur trois. Ce sont les jours-par-semaine
+    mesurés sur l'artiste 1 le 2026-09-08 qui sont épinglés ici — pas la constante,
+    qu'on peut changer sans rien apprendre.
+    """
+    import datetime as dt
+    mon = dt.date(2026, 1, 5)
+
+    def weeks(day_counts: list) -> int:
+        rows = []
+        for w, n in enumerate(day_counts):
+            rows += [(mon + dt.timedelta(days=7 * w + i), 5) for i in range(n)]
+        return len(pc._aggregate({"youtube": rows}, "week")["youtube"])
+
+    # youtube : 1,1,1,1,2,2,2,3,5,6 jours — aucune semaine à 7
+    assert weeks([1, 1, 1, 1, 2, 2, 2, 3, 5, 6]) == 2, (
+        "le plancher ne garde plus les 2 seules semaines YouTube à moitié mesurées")
+    # soundcloud : 1,1,2,3,5
+    assert weeks([1, 1, 2, 3, 5]) == 1, "la distribution SoundCloud a changé de verdict"
+    # spotify : 7 jours partout — aucune semaine perdue
+    assert weeks([7] * 12) == 12, "le plancher mange des semaines PLEINES"
+
+
+def test_a_series_already_at_the_bucket_grain_escapes_the_floor() -> None:
+    """Apple produit un total par ANNÉE : 1 « jour » mesuré sur 365, et c'est complet.
+
+    Lui appliquer le plancher supprimerait chacun de ses points. La mesure est entière,
+    c'est l'unité qui diffère — et `STEP_ONLY` est ce qui le dit.
+    """
+    import datetime as dt
+    rows = [(dt.date(y, 1, 1), 900) for y in (2024, 2025, 2026)]
+    out = pc._aggregate({"apple": rows}, "year")["apple"]
+    assert len(out) == 3, f"le plancher a mangé les relevés annuels d'Apple : {out}"
+
+
+# ── Le sous-titre compte des quantités, jamais des cumuls ───────────────────
+
+def _subtitle(monkeypatch, series: dict, **kw) -> str:
+    """Rend la figure pour de vrai et rend le texte de son titre.
+
+    Par EFFET, et pas en lisant quelle variable la fonction utilise : c'est le nombre
+    affiché qui était faux, et c'est lui qu'il faut lire.
+    """
+    import streamlit as st_mod
+    captured = {}
+    monkeypatch.setattr(st_mod, "plotly_chart",
+                        lambda fig, **k: captured.setdefault("fig", fig))
+    monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
+    assert pc.render_platform_chart(series, title="T", key="t", **kw)
+    return captured["fig"].layout.title.text
+
+
+def test_the_subtitle_sums_quantities_not_cumulative_values(monkeypatch) -> None:
+    """En mode cumulé, additionner les points somme des cumuls — et c'est énorme.
+
+    Mesuré au rendu du 2026-09-08 : **16 568 594 écoutes** annoncées pour un artiste qui
+    en a 163 102. Faux d'un facteur 89, sur la vue par DÉFAUT, et aucun test ne le
+    voyait — il a fallu regarder la figure. `aligned` est la série après `_as_mode` ;
+    seule `aligned_raw` porte des quantités, la seule forme qu'on ait le droit de
+    sommer.
+    """
+    import datetime as dt
+    day = dt.date(2026, 1, 1)
+    series = {"spotify": [(day + dt.timedelta(days=i), 10) for i in range(10)]}
+
+    for mode in ("cumulative", "absolute"):
+        text = _subtitle(monkeypatch, series, step="day", mode=mode)
+        digits = "".join(c for c in text.split("écoutes")[0] if c.isdigit())
+        assert digits.endswith("100"), (
+            f"mode {mode} : le sous-titre annonce {digits} au lieu de 100 — "
+            "il additionne des cumuls")

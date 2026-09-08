@@ -401,3 +401,95 @@ def apple_yearly_series(db, artist_id) -> list:
                 if r[0].year == r[1].year]
     return [(_dt.date(start.year, 1, 1), plays)
             for start, _end, plays in non_overlapping_cover(readings)]
+
+
+# ── UN SEUL CALCUL DE TOTAL ─────────────────────────────────────────────────
+#
+# Balayé le 2026-09-08 : il existait au moins QUATRE façons de calculer « le total »
+# dans ce dépôt, et elles ne s'accordaient pas. L'accueil et l'export PDF additionnaient
+# le compteur de CHAÎNE YouTube — celui qu'on a prouvé ~10× faux le matin même ; la page
+# Apple sommait toutes ses lignes et comptait deux fois les années contenues dans un
+# export « depuis le début » ; l'API rendait le cumul d'UNE SEULE vidéo comme total de la
+# plateforme. Un même locataire lisait donc trois totaux différents sur trois pages.
+#
+# Ce module portait déjà les bonnes règles, une par forme. Il porte désormais leur
+# APPLICATION, pour que les surfaces n'aient plus à choisir.
+
+def platform_totals(db, artist_id, since=None, until=None) -> dict:
+    """{plateforme: écoutes sur la période} — `None` quand rien n'a été mesuré.
+
+    Deux régimes, et les confondre donnerait des chiffres faux :
+
+    * **`since is None` — depuis le début.** Les compteurs que les plateformes annoncent
+      aujourd'hui, qui portent tout ce qui précède notre première collecte. YouTube y est
+      la somme des compteurs PAR VIDÉO (le dernier relevé de chacune) et non le compteur
+      de chaîne : celui-ci avance par paliers et compte des vidéos qui ne sont pas les
+      siennes.
+    * **Une période bornée.** On ne peut additionner que ce qu'on a MESURÉ : la somme des
+      écarts quotidiens. Zéro mesure rend `None` — jamais `0`, qui affirmerait qu'il ne
+      s'est rien passé.
+
+    Apple suit sa propre règle dans les deux cas (`apple_lifetime_plays` /
+    `apple_period_plays`) : ses relevés sont des totaux de période qui s'imbriquent.
+    """
+    if db is None or artist_id is None:
+        return {}
+
+    if since is not None:
+        series = daily_streams_by_platform(db, artist_id)
+        out = {}
+        for key in ("spotify", "youtube", "soundcloud"):
+            if not measured_days(series, key, since, until):
+                out[key] = None
+                continue
+            out[key] = sum(v for d, v in series.get(key, []) if since <= d <= until)
+        out["apple"] = apple_period_plays(db, artist_id, since, until)
+        return out
+
+    return {
+        "spotify": _lifetime(db, _SQL_LIFETIME_SPOTIFY, artist_id),
+        "youtube": _lifetime(db, _SQL_LIFETIME_YOUTUBE, artist_id),
+        "soundcloud": _lifetime(db, _SQL_LIFETIME_SOUNDCLOUD, artist_id),
+        "apple": apple_lifetime_plays(db, artist_id),
+    }
+
+
+def combined_total(totals: dict) -> int:
+    """La somme des plateformes MESURÉES. Une absence ne compte pas pour zéro."""
+    return sum(v for v in (totals or {}).values() if v)
+
+
+_SQL_LIFETIME_SPOTIFY = """
+    SELECT COALESCE(SUM(daily_max), 0)::bigint FROM (
+        SELECT MAX(streams) AS daily_max FROM s4a_song_timeline
+         WHERE artist_id = %s AND song NOT ILIKE '%%1x7xxxxxxx%%'
+         GROUP BY date, song
+    ) sub
+"""
+
+# La somme des compteurs PAR VIDÉO, et non `youtube_channel_history`. Le compteur de
+# chaîne porte les vidéos privées, supprimées et les agrégats internes, et il avance par
+# paliers : mesuré le 2026-09-08, +360 en une journée quand YouTube Studio en annonçait
+# 64 sur la période.
+_SQL_LIFETIME_YOUTUBE = """
+    SELECT COALESCE(SUM(view_count), 0)::bigint FROM (
+        SELECT DISTINCT ON (video_id) view_count FROM youtube_video_stats
+         WHERE artist_id = %s ORDER BY video_id, collected_at DESC
+    ) latest
+"""
+
+_SQL_LIFETIME_SOUNDCLOUD = """
+    SELECT COALESCE(SUM(playback_count), 0)::bigint FROM (
+        SELECT DISTINCT ON (track_id) playback_count FROM soundcloud_tracks_daily
+         WHERE artist_id = %s ORDER BY track_id, collected_at DESC
+    ) latest
+"""
+
+
+def _lifetime(db, sql: str, artist_id) -> int:
+    try:
+        row = db.fetch_query(sql, (artist_id,))
+        return int(row[0][0] or 0) if row else 0
+    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+        logger.warning("lifetime total unavailable: %s", type(exc).__name__)
+        return 0

@@ -29,12 +29,19 @@ EN = {
     "home.streams_header": "🎧 Total streams",
     "home.total_all_platforms": "🎧 Total streams across all platforms",
     "platform_chart.too_thin": (
-        "{label} is not in the stack: measured on **{measured} day(s) out of {total}**, "
-        "it would break the band everywhere. Its figures stay in the table below."),
+        "{label} is not drawn: only **{measured} reading(s)**, and an area needs two. "
+        "Its figures stay in the table below."),
+    "platform_chart.too_coarse": (
+        "{label} does not appear at this step: none of its {unit}s is measured on "
+        "enough days to make an honest total. Pick a finer step to see it."),
+    "platform_chart.gaps_unstacked": (
+        "Over {total} {unit}, some platforms were not measured everywhere ({who}). "
+        "Their line stops there — a blank, never a zero: a zero would say \"no "
+        "plays\"."),
     "platform_chart.gaps": (
-        "White areas are **{missing} day(s) out of {total}** where at least one "
-        "platform was not measured. We prefer a blank to a zero: a zero would say "
-        "\"no plays\"."),
+        "Over {total} {unit}, some platforms were not measured everywhere ({who}). "
+        "Their area stops there; the others carry on, so the total for those {unit} is "
+        "lower — no play was lost."),
     "home.apple_no_window": (
         "Apple Music has no daily series: each CSV upload is one dated reading, and the "
         "change is measured between two readings. You have **{n}** so far — the next "
@@ -45,10 +52,11 @@ EN = {
     "home.mode_cumulative": "Cumulative",
     "home.mode_absolute": "Per period",
     "home.mode_share": "Share of each platform",
+    "home.mode_facets": "Each on its own scale",
     "home.trend_share_hint": (
         "A platform can be invisible without being absent: if one carries most of the "
-        "total, the others fall below one pixel. **Share of each platform** makes them "
-        "all visible."),
+        "total, the others fall below one pixel. **Each on its own scale** gives every "
+        "platform its own panel, and makes the smallest one readable."),
     "home.trend_step": "Step",
     "home.step_auto": "Automatic",
     "home.step_week": "Weekly",
