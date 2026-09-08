@@ -116,6 +116,32 @@ def test_a_task_actually_runs_the_detector() -> None:
     assert wired, "aucun PythonOperator n'exécute check_zero_resets"
 
 
+def test_the_detector_only_looks_at_the_last_complete_day() -> None:
+    """Sans borne, il redit un fait vieux de trois mois toutes les nuits.
+
+    Lancé en production le 2026-09-08, il a remonté l'incident du **2026-06-01** — juste,
+    et qu'il aurait répété chaque nuit indéfiniment. C'est la classe
+    `watchdog-becomes-the-noise` : un détecteur qu'on finit par ne plus lire.
+
+    La fenêtre est celle de `check_row_dips`, son voisin immédiat, et pas une troisième
+    politique : le dernier jour COMPLET, le jour en cours exclu parce qu'une collecte à
+    moitié écrite ressemble à une collecte fautive.
+    """
+    tree = ast.parse(_DAG.read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "check_zero_resets")
+    sql = " ".join(n.value for n in ast.walk(fn)
+                   if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                   and "FROM flagged" in n.value)
+    assert sql, "la requête a disparu"
+    assert "CURRENT_DATE" in sql, (
+        "le détecteur balaie tout l'historique : il criera un incident de juin chaque "
+        "nuit de septembre")
+    assert "max(day)" in sql and "day <" in sql, (
+        "la borne n'est pas « le dernier jour complet » — le jour en cours ferait "
+        "partir une alerte chaque matin sur une collecte à moitié écrite")
+
+
 def test_the_finding_reaches_the_email_and_the_digest() -> None:
     """Un constat qui n'entre pas dans l'empreinte se tait la nuit où lui seul change.
 

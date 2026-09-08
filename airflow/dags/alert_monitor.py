@@ -949,10 +949,22 @@ def check_zero_resets(**context):
                            count(*) FILTER (WHERE prev_max > 0 AND v = 0),
                            count(*)
                     FROM flagged
+                    -- SUR LE DERNIER JOUR COMPLET, comme `check_row_dips`, et pour la
+                    -- même raison. Sans cette borne le détecteur balaie tout
+                    -- l'historique : lancé en production le 2026-09-08, il a remonté
+                    -- l'incident du **2026-06-01** — juste, et qu'il aurait alors
+                    -- répété chaque nuit pendant trois mois. Un détecteur qui redit
+                    -- tous les jours un fait vieux de trois mois est la classe
+                    -- `watchdog-becomes-the-noise`, déjà au catalogue.
+                    --
+                    -- Le jour EN COURS est exclu : une collecte à moitié écrite
+                    -- ressemble à une collecte fautive, et l'alerte partirait chaque
+                    -- matin. Deux détecteurs voisins avec deux politiques de fenêtre
+                    -- seraient illisibles ; celle-ci est celle du pilier Volume.
+                    WHERE day = (SELECT max(day) FROM d WHERE day < CURRENT_DATE)
                     GROUP BY 1, 2
                     HAVING count(*) FILTER (WHERE prev_max > 0 AND v = 0) > 0
-                    ORDER BY 2 DESC
-                    LIMIT 20"""
+                    ORDER BY 1"""
             )
             for tenant, day, hit, total in rows or []:
                 if is_reportable(hit, total):
