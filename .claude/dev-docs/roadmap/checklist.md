@@ -68,6 +68,10 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **Apple gagne une précision par ANNÉE** (migration 094) : l'export n'ayant aucune
+  colonne de date, la période est **demandée** au dépôt. Périodes bornées → sommées ;
+  cumuls → soustraits ; total → le dernier cumul, sinon la somme des années. Le guide
+  invite désormais à déposer un export par année.
 - **YouTube lisait le compteur de CHAÎNE**, mis à jour par paliers : +360 attribués à
   une seule journée contre 64 vues chez YouTube Studio. Il lit désormais les compteurs
   **par vidéo** (44 sur 28 j — le bon ordre de grandeur), écart pris par vidéo.

@@ -5,6 +5,56 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 7) — Oui, mais seulement si on demande ce que le fichier couvre
+
+Question : « y a-t-il un intérêt de demander à l'artiste d'importer les CSV de chaque
+année pour nos graphiques Apple Music ? »
+
+**Oui**, et le fait qui décide de tout est mesurable : **l'export Apple n'a aucune
+colonne de date**. C'est le sélecteur de leur interface qui choisit la période, et le
+fichier n'en garde pas la trace — le parseur le confirme, il ne classe un export en
+`songs_performance` que s'il n'a *pas* de colonne date.
+
+**Sans question posée, importer 2023/2024/2025 aurait produit des chiffres faux**, de
+deux façons distinctes : trois exports annuels déposés le même jour s'écrasent (même
+`snapshot_date`, donc même clé), et deux exports annuels traités comme deux photos d'un
+cumul auraient été soustraits l'un de l'autre — alors que ce sont des périodes
+**disjointes**.
+
+La migration 093 du matin avait donné à la table le droit de garder plusieurs relevés ;
+il lui manquait de savoir ce que chacun **mesure**. Migration 094 : `period_start` /
+`period_end`, remplis par une question au dépôt — le mécanisme existait déjà pour la
+fenêtre 28 j / 12 mois des exports Spotify (`MissingFromFilenameError`), il n'y avait
+qu'à l'étendre.
+
+**Trois formes, trois règles, jamais mélangées** :
+
+* des périodes bornées → on les **somme** (elles sont disjointes) ;
+* des relevés « depuis le début » → on les **soustrait** deux à deux (ce sont des
+  cumuls) ;
+* le total → le dernier cumul s'il existe, **sinon** la somme des années.
+
+La troisième est le piège, et c'est un défaut qui existait déjà : un cumul **contient**
+les années. `SUM(plays)` sur toute la table comptait donc les mêmes écoutes deux fois
+dès qu'un artiste déposait les deux formes. Corrigé dans `get_total_plays_apple` — donc
+pour ses **trois** lecteurs, accueil, Data Wrapped et export PDF, et pas seulement là
+où le défaut se serait vu.
+
+Le guide dit maintenant à l'artiste ce que ça lui rapporte, en une phrase qui n'était
+pas là : Apple cesse d'être un seul chiffre figé et rejoint les autres plateformes
+quand il filtre par période.
+
+**Mon garde de la question est resté vert sur la première mutation.** Le `raise` était
+bien là, mais un repli `or 'all'` rendait la question inatteignable — le garde voyait la
+structure sans voir qu'on ne l'atteindrait jamais. Il vérifie désormais que la lecture
+ne porte **aucun** défaut, ni dans le `get` ni dans le `or`. Troisième fois de la
+journée qu'un garde teste sa forme au lieu de sa question.
+
+Suite complète : **4678 passed**. Migration 094 appliquée en production, `sync-check`
+vert sur les quatre axes, PDF du guide régénérés.
+
+---
+
 ## 2026-09-08 (suite 6) — Le mauvais compteur, et une table sans droit au passé
 
 Deux chiffres faux, deux causes racines, et pour la première fois de la journée une
