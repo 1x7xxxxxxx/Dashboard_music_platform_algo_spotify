@@ -586,8 +586,15 @@ def _render_mapping_cta(artist_id: int) -> None:
     if st.button(t("upload_csv.mapping_cta",
                    "🔗 Confirmer le nom des titres (mapping cross-plateforme) →"),
                  type="primary", key=f"_csv_to_mapping_{artist_id}"):
-        st.session_state['_nav_page'] = 'meta_mapping'
-        st.rerun()
+        # Le bilan est clos par le GESTE, pas par son affichage — voir
+        # `utils/pending_notice.py`.
+        from src.dashboard.utils.pending_notice import clear_notice
+        clear_notice(_last_result_key(artist_id))
+        # `goto` et non `_nav_page` + `rerun` : elle retire aussi `?page=`, sans quoi
+        # `main()` ré-épingle la page courante au rerun suivant. Une seule règle de
+        # navigation dans ce dépôt, et c'est elle.
+        from src.dashboard.utils.navigation import goto
+        goto('meta_mapping')
 
 
 def render_uploader(db, target_artist_id: int) -> None:
@@ -653,7 +660,12 @@ def render_uploader(db, target_artist_id: int) -> None:
         # après avoir vidé la zone de dépôt, donc c'est le SEUL endroit où ce bilan
         # peut se lire : sans lui, l'écran redeviendrait vierge et l'import n'aurait
         # laissé aucune trace visible.
-        _last = st.session_state.pop(_last_result_key(target_artist_id), None)
+        # `get` borné à la page, et NON `pop`. Le bilan porte un bouton — « 🔗
+        # Confirmer le nom des titres » — et un bloc consommé au rendu ne
+        # ré-instancie pas ses widgets au rerun du clic : le geste était jeté
+        # (classe `consumed-state-hides-its-own-widget`, 2026-09-08).
+        from src.dashboard.utils.pending_notice import pending_notice
+        _last = pending_notice(_last_result_key(target_artist_id))
         if _last:
             _render_after_import(db, target_artist_id, _last)
             st.markdown("---")

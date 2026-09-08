@@ -89,21 +89,42 @@ def test_no_screen_output_precedes_a_rerun():
     )
 
 
+def _navigation_targets(tree: ast.AST) -> set:
+    """Les pages que cette vue vise, quelle que soit la FORME de la navigation.
+
+    Deux formes coexistent dans ce dépôt, et un garde qui n'en lit qu'une se rend
+    aveugle au jour où l'autre est adoptée :
+
+    * `st.session_state['_nav_page'] = 'x'` — la forme brute ;
+    * `goto('x')` — `utils/navigation.py`, qui retire en plus `?page=`.
+
+    Le 2026-09-08 la vue est passée de la première à la seconde et ce garde a échoué
+    sur son propre message « garde à repointer » : il ne mesurait plus rien, mais il
+    l'a DIT au lieu de passer au vert sur zéro site. C'est la seule différence qui
+    compte entre un garde périmé et un garde qui ment.
+    """
+    targets = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            for target in node.targets:
+                if (isinstance(target, ast.Subscript)
+                        and isinstance(target.value, ast.Attribute)
+                        and target.value.attr == "session_state"
+                        and isinstance(target.slice, ast.Constant)
+                        and target.slice.value == "_nav_page"):
+                    targets.add(node.value.value)
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "goto" and len(node.args) == 1
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)):
+            targets.add(node.args[0].value)
+    return targets
+
+
 def test_the_mapping_button_targets_a_real_page():
-    """Un bouton qui pose `_nav_page` sur une page inexistante mène à l'accueil."""
-    pages = {
-        node.value
-        for node in ast.walk(_tree())
-        if isinstance(node, ast.Assign)
-        for target in node.targets
-        if isinstance(target, ast.Subscript)
-        and isinstance(target.value, ast.Attribute)
-        and target.value.attr == "session_state"
-        and isinstance(target.slice, ast.Constant)
-        and target.slice.value == "_nav_page"
-        for node2 in [node.value] if isinstance(node2, ast.Constant)
-    }
-    targets = {p.value for p in pages if isinstance(p, ast.Constant)}
+    """Un bouton qui vise une page inexistante mène à l'accueil."""
+    targets = _navigation_targets(_tree())
     assert targets, "aucun bouton de navigation dans la vue — garde à repointer"
 
     app = pathlib.Path("src/dashboard/app.py").read_text(encoding="utf-8")

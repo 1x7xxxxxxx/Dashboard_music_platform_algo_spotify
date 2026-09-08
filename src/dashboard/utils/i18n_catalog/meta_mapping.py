@@ -52,6 +52,12 @@ EN = {
         "that declared this ad account. That is by design — a campaign never changes "
         "owner — and it only happens when two profiles share one ad account. Nothing "
         "for you to do."),
+    "meta_mapping.empty_sandbox": (
+        "No campaign, and that is **expected here**: this profile is the sandbox, and "
+        "it declares the same ad account as your main profile. A campaign belongs "
+        "permanently to the first profile that collected it — yours are all on your "
+        "main profile, with their mapping. The sandbox replays onboarding, not "
+        "campaign mapping: for that one, sign in with your main account."),
     "meta_mapping.no_tracks": "No tracks found. Import your S4A CSVs first.",
     "meta_mapping.meta_campaign": "Meta campaign",
     "meta_mapping.spotify_track": "Spotify track",

@@ -5,6 +5,73 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 — Le bouton qui terminait la mise en route était mort, deux fois
+
+**Signalé** : « quand j'ai fini de tout configurer dans credential API + csv, quand je
+clique sur configurer le mapping, ça me renvoie nulle part, et j'ai aucune suggestion
+automatique de campagnes meta ». Deux symptômes, deux causes distinctes, toutes deux
+mesurées avant d'écrire une ligne.
+
+**1. Un compte rendu consommé ne peut pas porter de bouton.**
+
+`st.rerun()` efface tout ce qui est écrit avant lui, donc un compte rendu d'action
+voyage par la session — et on le CONSOMME au rendu (`session_state.pop`) pour qu'il ne
+réapparaisse pas des jours plus tard en contredisant l'état. Ce motif est juste pour un
+message et **faux dès que le bloc porte un widget** : un clic ne se lit pas au moment du
+clic, il déclenche un rerun, et `st.button(...)` ne rend `True` que si le widget est
+ré-instancié pendant ce rerun. La valeur ayant été consommée au rendu précédent, `pop`
+rend `None`, le bloc est sauté, le bouton n'existe pas, le geste est jeté.
+
+Deux sites, tous deux au **bout** d'un parcours de mise en route : « 🔗 Confirmer le nom
+des titres » après un import de CSV, et « 🏠 Aller au dashboard → » après la dernière
+plateforme connectée. Le second est la dernière chose qu'un artiste fait avant d'entrer
+dans l'application.
+
+`utils/pending_notice.py` remplace la consommation par une BORNE : la valeur est lue et
+gardée le temps de la page, oubliée dès qu'on est ailleurs — ce qui était la seule
+raison d'être du `pop` — et la consommation se déplace sur le GESTE. Conséquence tenue
+en même temps : `credentials/router.py` se servait de cette consommation comme borne
+pour ouvrir l'onglet suivant ; sans mémo il aurait refermé à chaque rerun l'onglet que
+l'artiste venait d'ouvrir à la main.
+
+**2. Une exemption accordée sur une surface se lit comme une panne sur une autre.**
+
+Le locataire est le **bac à sable** (`is_sandbox`, migration 080), exempté du garde
+d'unicité d'identité — c'est sa raison d'être. Il déclare donc le compte publicitaire du
+profil principal. Or `meta_campaigns` a pour clé de conflit `campaign_id` seul et un
+upsert ne transfère jamais la propriété d'une ligne : il n'obtiendra **jamais** une
+campagne. Mesuré en production : 224 lignes d'insights, 12 titres de référence, **0
+campagne**, les 34 étant sur le locataire 1 sous le même `ad_account_id`.
+
+Deux VRAIS locataires ne peuvent plus tomber là-dedans — le garde d'identité les bloque
+à la saisie. Le message générique écrit pour eux (« rien à faire de ton côté ») était
+donc lu par le seul locataire chez qui le cas survient encore. Cause distincte
+`SANDBOX_SHARES_ACCOUNT`, quatrième fait lu dans la même requête, et un texte qui nomme
+l'exemption, sa conséquence, et le geste qui reste possible.
+
+**Ce que les gardes ont coûté, et appris.**
+
+Le garde structurel (`test_a_consumed_message_carries_no_widget`) devait suivre les
+APPELS et pas le corps du `if` : dans les deux sites réels le bouton était à un ou deux
+appels du `pop`. Mutation faite — sans la récursion, il redevient vert sur les deux
+défauts.
+
+Le garde de comportement, lui, **est passé vert sur le défaut à sa première écriture**.
+Son script re-semait le compte rendu à chaque exécution (`setdefault` en tête), donc le
+harnais compensait le `pop` qu'il était censé attraper. Semé une seule fois, avant le
+premier rendu, il rougit aux deux sites avec le bon message. C'est la cinquième fois que
+la portée d'un garde est le défaut, et la première où c'est le HARNAIS qui ment.
+
+Note de terrain : on ne peut pas piloter deux `.run()` sur la page Credentials via
+AppTest — sa barre d'onglets est un `st.segmented_control` dont le harnais itère la
+valeur (une chaîne) caractère par caractère, `KeyError: '_'`. Rien à voir avec notre
+code ; c'est pourquoi le test rend la fonction et non `app.py` entier.
+
+Suite complète contre une base vivante : **4589 passed**. Audit déterministe : 232
+classes, propre.
+
+---
+
 ## 2026-09-07 (suite) — Le garde qui lisait du texte ratait un site frère que l'AST voit
 
 **La CI a refusé deux choses, et elle avait raison sur les deux.** Les deux refus

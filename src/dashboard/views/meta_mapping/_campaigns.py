@@ -182,7 +182,7 @@ def _empty_campaigns_message(db, artist_id: int) -> tuple[str, str]:
     """
     from src.utils.meta_campaign_diagnosis import (
         CAMPAIGNS_ELSEWHERE, NEVER_RAN, NO_CAMPAIGN_AT_ALL, NO_IDENTITY,
-        RUN_FAILED, diagnose_empty_campaigns,
+        RUN_FAILED, SANDBOX_SHARES_ACCOUNT, diagnose_empty_campaigns,
     )
 
     row = db.fetch_query(
@@ -192,15 +192,20 @@ def _empty_campaigns_message(db, artist_id: int) -> tuple[str, str]:
         "     AND btrim(COALESCE(extra_config->>'account_id', '')) <> ''), "
         "  (SELECT status FROM etl_run_log WHERE artist_id = %s AND platform = 'meta' "
         "     ORDER BY started_at DESC LIMIT 1), "
-        "  (SELECT COUNT(*) FROM meta_insights_performance WHERE artist_id = %s)",
-        (artist_id, artist_id, artist_id),
+        "  (SELECT COUNT(*) FROM meta_insights_performance WHERE artist_id = %s), "
+        # Le quatrième fait, ajouté le 2026-09-08 : sans lui, le seul locataire chez
+        # qui « les campagnes sont ailleurs » peut ENCORE se produire lisait la
+        # phrase écrite pour un cas qui, lui, ne se produit plus.
+        "  (SELECT COALESCE(is_sandbox, FALSE) FROM saas_artists WHERE id = %s)",
+        (artist_id, artist_id, artist_id, artist_id),
     )
-    has_id, last_status, insights = (row[0] if row else (0, None, 0))
+    has_id, last_status, insights, is_sandbox = (row[0] if row else (0, None, 0, False))
 
     cause = diagnose_empty_campaigns(
         identity_present=bool(has_id),
         last_run_status=last_status,
         insight_rows=int(insights or 0),
+        is_sandbox=bool(is_sandbox),
     )
 
     if cause == NO_IDENTITY:
@@ -225,6 +230,16 @@ def _empty_campaigns_message(db, artist_id: int) -> tuple[str, str]:
             "La collecte Meta fonctionne, et ton compte publicitaire ne contient "
             "aucune campagne. Il n'y a rien à mapper tant que tu n'as pas lancé de "
             "publicité — c'est normal, pas une erreur.")
+    if cause == SANDBOX_SHARES_ACCOUNT:
+        return "info", t(
+            "meta_mapping.empty_sandbox",
+            "Aucune campagne, et c'est **attendu ici** : ce profil est le bac à "
+            "sable, il déclare le même compte publicitaire que ton profil "
+            "principal. Une campagne appartient définitivement au premier profil "
+            "qui l'a collectée — les tiennes sont donc toutes sur ton profil "
+            "principal, avec leur mapping. Le bac à sable rejoue la mise en route, "
+            "pas l'association des campagnes : pour celle-ci, connecte-toi avec "
+            "ton compte principal.")
     assert cause == CAMPAIGNS_ELSEWHERE
     return "info", t(
         "meta_mapping.empty_elsewhere",

@@ -28,10 +28,11 @@ NEVER_RAN = "never_ran"
 RUN_FAILED = "run_failed"
 NO_CAMPAIGN_AT_ALL = "no_campaign_at_all"
 CAMPAIGNS_ELSEWHERE = "campaigns_elsewhere"
+SANDBOX_SHARES_ACCOUNT = "sandbox_shares_account"
 
 
 def diagnose_empty_campaigns(*, identity_present: bool, last_run_status: str | None,
-                             insight_rows: int) -> str:
+                             insight_rows: int, is_sandbox: bool = False) -> str:
     """La cause d'une liste de campagnes vide, à partir de trois faits mesurés.
 
     `last_run_status` est le statut du dernier run Meta de CE locataire
@@ -49,6 +50,21 @@ def diagnose_empty_campaigns(*, identity_present: bool, last_run_status: str | N
     clés étrangères et un upsert ne transfère jamais la propriété d'une ligne. Deux
     locataires qui déclarent le MÊME compte publicitaire se partagent donc les
     identifiants de campagne, et le second n'en reçoit aucune.
+
+    `SANDBOX_SHARES_ACCOUNT` est ce même fait, sur le seul locataire chez qui il peut
+    encore se produire — et c'est ce qui le distingue. Deux VRAIS locataires ne
+    peuvent plus déclarer le même compte publicitaire : le garde d'identité les
+    bloque à la saisie. Le bac à sable, lui, en est **exempté par construction** — il
+    rejoue la mise en route avec les identifiants de l'opérateur (`is_sandbox`,
+    migration 080). Il déclare donc toujours le compte du profil principal, et
+    n'obtient jamais une seule campagne.
+
+    Le dire est le fond du correctif du 2026-09-08 : « j'ai aucune suggestion
+    automatique de campagnes meta, c'est pas normal ». C'était normal, et la phrase
+    générique — « rien à faire de ton côté » — ne permettait pas de le savoir. Une
+    exemption accordée sur une surface (l'unicité de l'identité) a une conséquence sur
+    une autre (la propriété des lignes) : tant qu'aucun texte ne la nomme, elle se lit
+    comme une panne.
     """
     if not identity_present:
         return NO_IDENTITY
@@ -56,4 +72,6 @@ def diagnose_empty_campaigns(*, identity_present: bool, last_run_status: str | N
         return NEVER_RAN
     if last_run_status != "success":
         return RUN_FAILED
-    return CAMPAIGNS_ELSEWHERE if insight_rows else NO_CAMPAIGN_AT_ALL
+    if not insight_rows:
+        return NO_CAMPAIGN_AT_ALL
+    return SANDBOX_SHARES_ACCOUNT if is_sandbox else CAMPAIGNS_ELSEWHERE

@@ -155,6 +155,9 @@ def _render_next_step(next_platform: tuple | None, selection_complete: bool,
             "premières données arrivent sous ~2 min."))
         if st.button(t("credentials.verdict_go_home", "🏠 Aller au dashboard →"),
                      type="primary", key=f"_verdict_home_{platform_key}"):
+            # Le verdict est clos par le GESTE, pas par son affichage.
+            from src.dashboard.utils.pending_notice import clear_notice
+            clear_notice(VERDICT_KEY)
             from src.dashboard.utils.navigation import goto
             goto('home')
 
@@ -187,14 +190,21 @@ def render_save_verdict(next_platform: tuple | None,
     où l'artiste regarde. Après un ÉCHEC, l'onglet de la plateforme saisie : il faut
     corriger là où l'on a saisi.
 
-    Consommé (`pop`) : c'est le compte rendu d'une action, pas un état. Laissé en
-    place, il réapparaîtrait à chaque rerun de la page, y compris des jours plus
-    tard, et finirait par contredire la matrice — qui, elle, est un état.
+    Borné à la page, et non consommé au rendu : c'est le compte rendu d'une action,
+    pas un état, donc il ne doit pas réapparaître des jours plus tard en contredisant
+    la matrice — mais le `pop` qui l'assurait TUAIT le bouton que ce bloc porte.
+
+    « 🎉 Toutes les plateformes que tu as choisies sont connectées » s'accompagne d'un
+    « 🏠 Aller au dashboard → », et un bloc consommé au rendu ne ré-instancie pas ses
+    widgets au rerun du clic : le geste qui termine la mise en route était jeté. Même
+    défaut, même jour, que le bouton de mapping après un import de CSV — classe
+    `consumed-state-hides-its-own-widget`, 2026-09-08. `pending_notice` garde la
+    valeur le temps de la page et l'oublie dès qu'on est ailleurs.
     """
-    pending = st.session_state.get(VERDICT_KEY)
+    from src.dashboard.utils.pending_notice import pending_notice
+    pending = pending_notice(VERDICT_KEY)
     if not pending:
         return
-    st.session_state.pop(VERDICT_KEY, None)
     platform_key, ok, reason = pending[0], pending[1], pending[2]
     category = pending[3] if len(pending) > 3 else None
     label = platform_label(platform_key)

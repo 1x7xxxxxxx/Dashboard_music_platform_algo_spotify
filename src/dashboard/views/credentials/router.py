@@ -472,18 +472,26 @@ def show():
 
         _pending = st.session_state.get(VERDICT_KEY)
         _verdict_next: tuple | None = None
+        # L'ouverture d'onglet se fait UNE FOIS PAR VERDICT, et c'est ce mémo qui
+        # l'assure. Le verdict était consommé (`pop`) par son affichage, ce qui la
+        # bornait de fait ; depuis le 2026-09-08 il vit le temps de la page — sans quoi
+        # le bouton qu'il porte serait mort — et re-steerer à chaque rerun REFERMERAIT
+        # l'onglet que l'artiste vient d'ouvrir à la main.
+        _steered = st.session_state.get("_cred_verdict_steered")
         if _pending and _pending[1]:                       # sauvegarde RÉUSSIE
             _nxt = _next_after(_pending[0])
             _wanted = _tab_of(_nxt[0]) if _nxt else ""
             if _wanted in _tab_keys:
-                # AVANT l'instanciation du widget : c'est la seule fenêtre où poser sa
-                # valeur a un effet. Après, Streamlit considère que l'utilisateur a
-                # choisi et refuse l'écriture.
-                st.session_state[_TAB_STATE] = _wanted
-                st.query_params[_TAB_PARAM] = _wanted
                 # « Suivante » nomme l'onglet qu'on OUVRE, pas celui d'après : l'artiste
-                # y est déjà.
+                # y est déjà. C'est une LECTURE du verdict, recalculée à chaque rendu.
                 _verdict_next = _nxt
+                if _steered != tuple(_pending[:2]):
+                    st.session_state["_cred_verdict_steered"] = tuple(_pending[:2])
+                    # AVANT l'instanciation du widget : c'est la seule fenêtre où poser
+                    # sa valeur a un effet. Après, Streamlit considère que
+                    # l'utilisateur a choisi et refuse l'écriture.
+                    st.session_state[_TAB_STATE] = _wanted
+                    st.query_params[_TAB_PARAM] = _wanted
 
         # Les onglets DÉJÀ faits, dans l'espace des clés d'onglet — `connected_platforms`
         # rend des plateformes logiques, et Instagram n'a pas d'onglet à lui.

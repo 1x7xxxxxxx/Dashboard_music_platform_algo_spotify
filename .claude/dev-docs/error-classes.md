@@ -281,6 +281,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [one-version-marker-out-of-many](#one-version-marker-out-of-many) | P2 | deterministic | guarded | none |
 | [containment-ignores-what-it-leaves-out](#containment-ignores-what-it-leaves-out) | P2 | deterministic | guarded | none |
 | [nan-written-as-a-value](#nan-written-as-a-value) | P2 | deterministic | guarded | none |
+| [consumed-state-hides-its-own-widget](#consumed-state-hides-its-own-widget) | P2 | deterministic | guarded | none |
+| [an-exemption-on-one-surface-reads-as-a-failure-on-another](#an-exemption-on-one-surface-reads-as-a-failure-on-another) | P3 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
 | [intermediate-state-named-like-a-final-one](#intermediate-state-named-like-a-final-one) | P2 | deterministic | guarded | none |
 | [page-that-restates-what-the-app-already-shows](#page-that-restates-what-the-app-already-shows) | P4 | deterministic | guarded | none |
@@ -3952,3 +3954,34 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-06: trouvé en cherchant à s'APPUYER sur ces colonnes, pas en les auditant. Une donnée fausse ne se remarque que le jour où quelque chose la lit.
   - 2026-09-06: la première signature écrite ici matchait sa PROPRE documentation — la ligne de ce fichier qui cite le motif fautif. Écrire sur le défaut l'aurait fait rougir, et la seule façon de garder la CI verte aurait été d'arrêter de le documenter. Corrigée en ancrant la recherche sur la forme du code… ce qui restait une recherche de CHAÎNE, et le cliquet `test_a_guard_reads_structure_not_text` l'a refusée en CI. Il avait raison deux fois : réécrit sur l'AST, le garde a trouvé du premier coup un site frère que la recherche textuelle ratait — `csv_dialect.py:50`. La signature est désormais le garde lui-même, comme pour les 229 autres classes.
+
+## consumed-state-hides-its-own-widget
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un bouton s'affiche, on clique, et il ne se passe rien. Aucune erreur, aucune trace : le bloc qui portait le bouton disparaît simplement de l'écran. Signalé le 2026-09-08 en fin de mise en route — « quand je clique sur configurer le mapping, ça me renvoie nulle part ».
+- root_cause: `st.rerun()` efface tout ce qui a été écrit avant lui, donc un compte rendu d'action voyage par `st.session_state`, et on le CONSOMME au rendu (`session_state.pop`) pour qu'il ne réapparaisse pas indéfiniment en contredisant l'état. Ce motif est juste pour un message et faux dès que le bloc porte un widget : un clic ne se lit pas au moment du clic, il déclenche un rerun, et `st.button(...)` ne rend `True` que si le widget est **ré-instancié pendant ce rerun**. La valeur ayant été consommée au rendu précédent, `pop` rend `None`, le bloc est sauté, le widget n'existe pas, et le geste est jeté. Deux sites en production, tous deux au bout d'un parcours de mise en route : `upload_csv._render_after_import` → `_render_mapping_cta` (« 🔗 Confirmer le nom des titres », après un import réussi) et `credentials/_render.render_save_verdict` → `_render_next_step` (« 🏠 Aller au dashboard → », après la dernière plateforme connectée).
+- signature: `python3 -m pytest tests/test_a_consumed_message_carries_no_widget.py -q`
+- long_term_fix: `src/dashboard/utils/pending_notice.py` — la valeur est LUE (`pending_notice`) et non consommée, bornée à la page qui l'a vue naître : elle disparaît dès que l'artiste est ailleurs, ce qui était la seule raison d'être du `pop`, et le widget est ré-instancié à chaque rendu tant qu'on est là. La consommation (`clear_notice`) est déplacée sur le GESTE — le bouton qui emmène ailleurs — et non sur l'affichage. Conséquence à tenir en même temps : un lecteur qui SE SERVAIT de la consommation comme borne doit se borner lui-même — `credentials/router.py` ouvrait l'onglet suivant à partir de ce même verdict, et sans mémo il aurait refermé à chaque rerun l'onglet que l'artiste venait d'ouvrir.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_consumed_message_carries_no_widget.py }
+- rex_ref: src/dashboard/utils/pending_notice.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: le garde doit suivre les APPELS, pas le seul corps du `if`. Dans les deux sites réels le bouton était à un ou deux appels du `pop` (`render_uploader` → `_render_after_import` → `_render_mapping_cta`) : un prédicat lexical les aurait déclarés propres tous les deux. Mutation vérifiée — en retirant la récursion sur les appels du module, le garde redevient vert sur les deux défauts.
+  - 2026-09-08: aucun test de rendu ne peut voir cette classe. `test_views_render_smoke.py` appelle `show()` et constate que le bouton EST dessiné — ce qu'il est. Ce qui manque n'est pas le rendu, c'est le rendu SUIVANT.
+
+## an-exemption-on-one-surface-reads-as-a-failure-on-another
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une fonctionnalité reste vide pour un locataire, et le message d'explication — pourtant mesuré et exact — se termine par « rien à faire de ton côté ». L'utilisateur conclut à une panne. Signalé le 2026-09-08 : « j'ai aucune suggestion automatique de campagnes meta, c'est pas normal ». C'était normal.
+- root_cause: le bac à sable (`saas_artists.is_sandbox`, migration 080) est **exempté du garde d'unicité d'identité** — c'est sa raison d'être : rejouer la mise en route avec les identifiants de l'opérateur. L'exemption a été accordée sur une surface (la saisie) sans que sa CONSÉQUENCE sur une autre soit nommée : `meta_campaigns` a pour clé de conflit `campaign_id` seul et un upsert ne transfère jamais la propriété d'une ligne, donc le bac à sable, qui déclare toujours le compte publicitaire du profil principal, n'obtient jamais une seule campagne. Mesuré en production : locataire 18, 224 lignes d'insights, 12 titres de référence, **0 campagne**, les 34 étant sur le locataire 1 sous le même `ad_account_id`. Le diagnostic existant rendait `CAMPAIGNS_ELSEWHERE`, une phrase écrite pour deux VRAIS locataires — cas que le garde d'identité rend désormais impossible.
+- signature: `python3 -m pytest tests/test_an_empty_list_names_its_real_cause.py -q`
+- long_term_fix: une cause distincte, `SANDBOX_SHARES_ACCOUNT`, et le quatrième fait qu'elle demande (`is_sandbox`) lu dans la même requête que les trois autres. Le message nomme l'exemption, sa conséquence, et le geste qui reste possible — se connecter avec le profil principal pour mapper. La règle générale : quand une exemption est accordée à un locataire, écrire ce qu'elle lui RETIRE ailleurs, sinon l'absence se lit comme une panne.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_empty_list_names_its_real_cause.py }
+- rex_ref: src/utils/meta_campaign_diagnosis.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: le drapeau ne doit pas fabriquer une cause. Sans lignes d'insights la question reste « ce compte a-t-il des campagnes », pas « à qui sont-elles » — cas épinglé dans le garde.

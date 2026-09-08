@@ -37,6 +37,7 @@ from src.utils.meta_campaign_diagnosis import (
     NO_CAMPAIGN_AT_ALL,
     NO_IDENTITY,
     RUN_FAILED,
+    SANDBOX_SHARES_ACCOUNT,
     diagnose_empty_campaigns,
 )
 
@@ -49,22 +50,31 @@ def _tree() -> ast.Module:
 
 
 @pytest.mark.parametrize(
-    "identity,status,insights,expected",
+    "identity,status,insights,sandbox,expected",
     [
-        (False, None,        0,   NO_IDENTITY),
-        (False, "success", 224,   NO_IDENTITY),   # l'identité prime sur tout
-        (True,  None,        0,   NEVER_RAN),
-        (True,  "failed",    0,   RUN_FAILED),
-        (True,  "success",   0,   NO_CAMPAIGN_AT_ALL),
+        (False, None,        0,   False, NO_IDENTITY),
+        (False, "success", 224,   False, NO_IDENTITY),   # l'identité prime sur tout
+        (True,  None,        0,   False, NEVER_RAN),
+        (True,  "failed",    0,   False, RUN_FAILED),
+        (True,  "success",   0,   False, NO_CAMPAIGN_AT_ALL),
         # LE CAS RÉEL du 2026-09-06 : la collecte a réussi ET des chiffres sont
         # arrivés, donc l'API répond pour ce compte — mais aucune campagne n'est
         # rattachée à ce profil.
-        (True,  "success", 224,   CAMPAIGNS_ELSEWHERE),
+        (True,  "success", 224,   False, CAMPAIGNS_ELSEWHERE),
+        # LE CAS RÉEL du 2026-09-08, et le seul qui puisse encore se produire : deux
+        # VRAIS locataires sont bloqués à la saisie par le garde d'identité ; le bac
+        # à sable en est exempté par construction, donc il déclare toujours le compte
+        # du profil principal et n'obtient jamais une campagne.
+        (True,  "success", 224,   True,  SANDBOX_SHARES_ACCOUNT),
+        # Le drapeau ne fabrique pas une cause : sans lignes d'insights, la question
+        # reste « ce compte a-t-il des campagnes », pas « à qui sont-elles ».
+        (True,  "success",   0,   True,  NO_CAMPAIGN_AT_ALL),
     ],
 )
-def test_each_cause_is_distinguished(identity, status, insights, expected):
+def test_each_cause_is_distinguished(identity, status, insights, sandbox, expected):
     assert diagnose_empty_campaigns(
-        identity_present=identity, last_run_status=status, insight_rows=insights
+        identity_present=identity, last_run_status=status, insight_rows=insights,
+        is_sandbox=sandbox,
     ) == expected
 
 
