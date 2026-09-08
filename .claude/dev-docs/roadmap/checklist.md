@@ -68,6 +68,12 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **Trois modes d'affichage sur la courbe** : Cumulé (défaut, l'allure de
+  l'illustration), Par période, et **Part de chaque plateforme** — ce dernier existe
+  parce que Spotify pèse 99,74 % du total et que les autres sont sous le pixel.
+- **Migration 095** : la clé d'unicité Apple était sur des EXPRESSIONS, donc
+  inappariable par un `ON CONFLICT (col, …)` — cinq imports échouaient. `NULLS NOT
+  DISTINCT` (PostgreSQL 15+) rend la cible appariable sans perdre la déduplication.
 - **Apple figure sur la courbe, au pas ANNUEL uniquement** — ses exports sont des
   totaux de période ; les étaler sur des jours inventerait une valeur. Sélecteur de pas
   (Automatique / semaine / année) sur l'accueil, et le guide demande un export par

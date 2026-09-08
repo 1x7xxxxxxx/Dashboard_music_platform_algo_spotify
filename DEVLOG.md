@@ -5,6 +5,51 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 10) — La contrainte existait, l'upsert ne pouvait pas la voir
+
+**Les cinq imports Apple échouaient** avec « there is no unique or exclusion constraint
+matching the ON CONFLICT specification » — 11 titres détectés, 0 ligne écrite, cinq
+fois. C'est mon défaut, dans la migration 094 du jour même : elle a créé l'index unique
+sur des **expressions** (`COALESCE(period_start, …)`) pendant que l'upsert désignait des
+**colonnes**. Postgres n'apparie une cible `ON CONFLICT` à un index que si les
+expressions coïncident — la contrainte était là, l'upsert ne pouvait pas la voir.
+
+Le `COALESCE` avait une vraie raison : un index unique ordinaire tient deux `NULL` pour
+différents, donc deux relevés « depuis le début » n'auraient plus été dédupliqués.
+PostgreSQL 15+ a la réponse exacte et la production tourne en **17.10** :
+`NULLS NOT DISTINCT` rend deux `NULL` égaux **dans l'index**, sans expression. La cible
+redevient une liste de colonnes. Migration 095, vérifiée en production sur les cinq
+fichiers réels — cinq relevés distincts, et re-déposer le premier n'en crée pas un
+sixième.
+
+**Ce que je n'avais pas fait.** J'ai testé la migration sur son **exécution** (`✅ no
+unexpected psql error`) et pas sur son **usage**. Un `CREATE UNIQUE INDEX` réussit
+toujours ; ce qui échoue est l'`INSERT … ON CONFLICT` qui vient après, et rien dans la
+séance ne l'exerçait. C'est le **troisième** correctif de la même clé en une journée —
+093 garder plusieurs relevés, 094 savoir ce que chacun mesure, 095 que Postgres puisse
+l'apparier — et chacun était juste et incomplet. Une clé d'unicité porte trois questions
+distinctes : que dédupliquer, quoi distinguer, et sous quelle forme l'upsert la désigne.
+
+**Le graphique cumulé est de retour**, et c'est le mode par **défaut** : des bandes qui
+montent, l'allure de l'illustration. Un trou n'y remet pas le cumul à zéro et n'invente
+pas de valeur — la courbe s'interrompt, le total reprend où il en était.
+
+**« Je ne vois que Spotify » n'est pas un bug, c'est l'échelle**, et le chiffre le dit :
+sur l'artiste 1, Spotify pèse **99,74 %** du total, YouTube **0,22 %**, SoundCloud
+**0,04 %**. Sous le pixel. Aucune disposition empilée ne les rend visibles ensemble ; un
+troisième mode — **Part de chaque plateforme**, 100 % empilé — le fait par construction.
+Vérifié au rendu : les trois bandes apparaissent.
+
+Classe capitalisée : `conflict-target-an-index-cannot-match` (P2, deterministic),
+signature vue **rouge** en remettant la contrainte sur `COALESCE`, verte après. Le garde
+compare les **deux** listes — schéma canonique et clé d'upsert — et refuse toute
+expression, parce qu'une expression rend la cible inappariable par construction.
+
+Suite complète : **4695 passed**. Audit déterministe propre sur **240 classes**,
+`--prose` propre.
+
+---
+
 ## 2026-09-08 (suite 9) — Apple rejoint la figure, au seul pas où elle a des valeurs
 
 **Les cinq erreurs signalées n'en étaient pas.** Le conteneur qui lit les dates du nom a
