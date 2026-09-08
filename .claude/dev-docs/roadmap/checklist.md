@@ -68,6 +68,10 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **Apple figure sur la courbe, au pas ANNUEL uniquement** — ses exports sont des
+  totaux de période ; les étaler sur des jours inventerait une valeur. Sélecteur de pas
+  (Automatique / semaine / année) sur l'accueil, et le guide demande un export par
+  période.
 - **La période d'un export Apple se lit dans le NOM du fichier**
   (`songs_…_2015-06-30_2026-09-04.csv`) : rien à saisir, la question n'est qu'un repli
   pour un fichier renommé. Les périodes imbriquées ne sont jamais sommées à l'aveugle

@@ -5,6 +5,50 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 9) — Apple rejoint la figure, au seul pas où elle a des valeurs
+
+**Les cinq erreurs signalées n'en étaient pas.** Le conteneur qui lit les dates du nom a
+démarré à **18:47** ; les imports datent de **15:47** — trois heures plus tôt, sur la
+version qui posait encore la question. `csv_upload_log` le confirme : seul
+`2015-06-30_2026-09-06` a été importé, les quatre fichiers annuels ont été bloqués par la
+question et n'ont jamais atteint la base. Il suffit de les redéposer.
+
+**Apple sur la figure « toutes tes plateformes ».** Ses exports sont des totaux de
+PÉRIODE, pas des quantités du jour : étaler 900 écoutes de 2024 sur 366 jours
+inventerait 2,46 écoutes/jour que personne n'a mesurées — précisément la faute que ce
+module existe pour empêcher. Il n'y a donc **qu'un pas** où Apple peut figurer
+honnêtement, et c'est l'**année** : là, « 2024 » est exactement un point.
+
+D'où un sélecteur de pas — Automatique / Par semaine / Par année. Apple n'est proposée
+comme source qu'au pas annuel, et une phrase dit pourquoi partout ailleurs. Les relevés
+à cheval sur plusieurs années — l'export « depuis le début » — n'entrent pas dans la
+série annuelle : ils recouvriraient les années qu'ils contiennent. Sa couleur est
+l'ambre `#eda100`, le **quatrième** emplacement de l'illustration committée, validé par
+le script `dataviz` (clair : ALL CHECKS PASS ; sombre re-calé à `#c08400`).
+
+Vérifié en production : au pas annuel la figure rend quatre points — 2023, 2024, 2025,
+2026 — et Apple n'y est pas encore proposée, ce qui est **juste** : le seul relevé en
+base date d'avant la lecture automatique, il n'a pas de bornes.
+
+**Le guide** dit maintenant le geste en une étape : recommencer pour chaque période du
+sélecteur — Depuis le début, Depuis le début de l'année, puis chaque année — et tout
+déposer ensemble sans renommer.
+
+**Une vraie dérive trouvée en passant** : `platform_timeseries` portait une COPIE de la
+palette (`PLATFORM_COLORS`) qui n'avait pas suivi l'ajout d'Apple. Deux constantes pour
+une question — exactement ce que le garde de l'illustration dénonce, dans le module
+d'à côté. Supprimée ; la palette vit dans `platform_chart`, et le garde la lit là.
+
+**Un garde est resté vert sur sa mutation**, et le cas manquant était instructif : le
+filtre « un relevé ne compte que s'il tient dans UNE année » ne se distingue pas tant
+qu'un relevé plus court existe à côté — le découpage non chevauchant écarte déjà le
+long. Il ne se distingue que si le relevé de onze ans est **seul**. Cas ajouté, mutation
+rouge.
+
+Suite complète : **4687 passed**. PDF du guide régénérés.
+
+---
+
 ## 2026-09-08 (suite 8) — Apple écrit ses dates dans le nom, on ne demande plus rien
 
 « Je pense que quand c'est par année, c'est marqué dans le nom de fichier. » Vérifié sur
