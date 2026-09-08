@@ -5,6 +5,65 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 5) — Trois questions, et les réponses sont dans la base
+
+Sept demandes sur l'accueil, dont **trois questions**. Les réponses ne viennent pas de
+moi mais de mesures, et deux d'entre elles disent qu'il n'y avait rien à corriger.
+
+**« Pourquoi 360 streams YouTube sur TOUTE période ? »** Le compteur de la chaîne est
+**figé** à 120 627 du 2026-08-28 au 2026-09-07, puis saute à 120 987 le 8. YouTube ne
+renvoie pas un compteur qui avance chaque jour : il le met à jour par paliers. Il n'y a
+donc qu'un seul jour à écart non nul dans l'historique récent, et il tombe dans toutes
+les fenêtres. Le calcul est juste ; c'est la source qui est en escalier.
+
+**« Pourquoi aucun chiffre Apple selon la période ? »** `apple_songs_performance` ne
+porte qu'**un** relevé par artiste — un seul dépôt de CSV à ce jour. Un relevé ne fait
+pas une série. Le message le dit désormais ainsi plutôt que d'annoncer une impossibilité
+de principe : au deuxième CSV, comparer deux relevés devient possible.
+
+**« La collecte est automatique, ce bouton n'est plus pertinent ? »** Confirmé, et
+vérifié plutôt que supposé : les cinq collectes ont chacune leur cron quotidien — Meta
+5 h, Spotify 7 h, YouTube 8 h, SoundCloud 9 h, Instagram 10 h — et `credentials/router`
+en relance une dès qu'un identifiant est enregistré. Le seul moment où attendre coûte
+quelque chose est le premier jour, et c'est l'étape 4 de l'accueil, qui appelle le
+lanceur elle-même. **Le bouton est retiré.**
+
+Il n'a **pas** été déplacé vers le mapping cross-plateforme : cette page relie des
+titres, elle ne collecte pas, et y poser un bouton de collecte l'aurait mis là où
+personne ne le cherche. Les **cinq** textes qui envoyaient « dans la barre latérale »
+ont été réécrits — un texte qui nomme un bouton disparu est la classe
+`page-that-nothing-routes-to` en version prose.
+
+**Ce qui change à l'écran.** Filtre en haut au centre, courbe à gauche, chiffres à
+droite : la période commande les deux et ne demande plus de faire défiler entre elles.
+Une période **📅 Sur mesure** (deux dates) rejoint les cinq raccourcis. Les deux traits
+au-dessus de « Fraîcheur des données » sont retirés — il n'en reste plus **aucun** sur
+la page.
+
+**Zéro mesure n'est pas zéro écoute** — la remarque était juste. Une plateforme non
+collectée sur la période affiche « — » et non « 0 » : un zéro affirme qu'il ne s'est
+rien passé, alors qu'on n'a pas regardé. Sur la figure, le survol d'un point à zéro dit
+« compteur inchangé », parce que là, si : c'est une mesure.
+
+**Les abonnés Instagram ont un écart.** C'est un ÉTAT, pas un flux : on ne l'additionne
+pas sur une période, on compare ses deux extrémités (106 relevés depuis le 2025-12-10).
+Sans **deux** relevés dans la période, on écrit « pas assez de relevés » plutôt qu'un
+« +0 » qu'on n'a pas mesuré. Vérifié en prod : −81 depuis le début, −61 cette année,
+−11 sur 30 jours.
+
+**Deux gardes ont rougi sur des déplacements, pas sur des défauts** — le panneau de
+collecte retiré, les tuiles passées dans une autre fonction. Réancrés sur leur question.
+
+**Et mon propre garde du « — » est resté vert sur le défaut.** Il n'exerçait que le
+helper `measured_days`, pas la page : le helper marchait, la tuile affichait « 0 ».
+Réécrit pour lire la TUILE, il rougit (`'0'` au lieu de `'—'`), et le couple
+locataire/période est **choisi par la mesure**, pas écrit en dur. Deuxième fois dans la
+journée qu'un garde teste son intermédiaire au lieu de sa question.
+
+Suite complète : **4663 passed**.
+
+---
+
 ## 2026-09-08 (suite 4) — Une période choisie une fois, une bande lisible sur trois ans
 
 Quatre demandes sur l'accueil. Les trois premières étaient des retraits ; la quatrième a

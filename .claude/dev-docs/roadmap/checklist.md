@@ -68,6 +68,13 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **Le bouton « Lancer TOUTES les collectes » a été RETIRÉ de la barre latérale** : les
+  cinq collectes ont leur cron quotidien (Meta 5 h · Spotify 7 h · YouTube 8 h ·
+  SoundCloud 9 h · Instagram 10 h) et une collecte repart dès qu'un identifiant est
+  enregistré. Les 5 textes qui l'envoyaient « dans la barre latérale » ont été réécrits.
+- **L'accueil est en deux colonnes** — courbe à gauche, chiffres à droite, filtre au
+  centre en haut — avec une période « 📅 Sur mesure », un écart d'abonnés Instagram sur
+  la période, et « — » plutôt que « 0 » pour une plateforme non mesurée.
 - **L'accueil porte un sélecteur de période** (« Depuis le début » par défaut, Cette
   année / 12 mois / 90 / 30 jours) qui vaut pour les tuiles ET la courbe, un seul
   propriétaire du réglage. La bande s'agrège **par semaine** au-delà de 92 jours : nos
