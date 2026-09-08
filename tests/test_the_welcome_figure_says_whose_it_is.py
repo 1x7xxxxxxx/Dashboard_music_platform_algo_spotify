@@ -105,6 +105,11 @@ def _welcome_src() -> str:
     return ast.get_source_segment(_ONB.read_text(encoding="utf-8"), fn) or ""
 
 
+# Les façons de DESSINER la courbe du locataire. Une liste, parce que le rendu a déjà
+# changé une fois et qu'un garde ancré sur un seul nom rougit à chaque remplacement.
+_RENDERERS = {"line_chart", "area_chart", "plotly_chart", "render_platform_chart"}
+
+
 def test_the_real_figure_and_its_label_share_one_branch():
     """Le libellé « Tes chiffres » et la courbe réelle sortent du MÊME `if`.
 
@@ -117,7 +122,15 @@ def test_the_real_figure_and_its_label_share_one_branch():
         n for n in branches
         if any(isinstance(c, ast.Constant) and c.value == "onboarding.figure_mine"
                for c in ast.walk(n))
-        and any(isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "line_chart"
+        # Le RENDU, quel qu'il soit — pas un nom d'appel gelé. Le 2026-09-08 la
+        # figure est passée de `st.line_chart` (une courbe nue, sans couleurs de
+        # plateforme ni distinction entre « zéro » et « pas mesuré ») à
+        # `render_platform_chart`, et ce garde a rougi sur le CHANGEMENT au lieu du
+        # défaut : il vérifiait le nom de la fonction, pas la question « le libellé
+        # et la courbe sortent-ils du même `if` ».
+        and any((isinstance(c, ast.Call)
+                 and (getattr(c.func, "attr", "") in _RENDERERS
+                      or getattr(c.func, "id", "") in _RENDERERS))
                 for c in ast.walk(n))
     ]
     assert holding, (

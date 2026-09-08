@@ -116,6 +116,43 @@ def _section_streams(db, artist_id):
         unsafe_allow_html=True
     )
 
+    _section_platform_trend(db, artist_id)
+
+
+def _section_platform_trend(db, artist_id) -> None:
+    """L'ÉVOLUTION sous les totaux — demandé le 2026-09-08, « juste en dessous ».
+
+    Les tuiles au-dessus répondent « combien en tout » ; elles ne disent pas si ça
+    monte. C'est la même donnée sous l'autre question, et c'est pour ça qu'elle est
+    ici plutôt que sur une page de plus.
+
+    Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les
+    compteurs cumulatifs (SoundCloud, YouTube) à leur écart quotidien, sans quoi la
+    courbe additionnerait des totaux-depuis-toujours à des streams quotidiens — le
+    défaut mesuré le même jour sur l'écran de bienvenue.
+    """
+    from src.dashboard.utils.platform_chart import (
+        render_daily_table, render_missing_history_note, render_platform_chart,
+    )
+    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
+
+    series = daily_streams_by_platform(db, artist_id)
+    st.markdown("---")
+    st.subheader(t("home.trend_header", "📈 Évolution par plateforme"))
+    st.caption(t(
+        "home.trend_caption",
+        "Écoutes **du jour**, plateforme par plateforme, sur les 90 derniers jours. "
+        "Un trou dans une courbe veut dire qu'on n'a pas de mesure ce jour-là — pas "
+        "zéro écoute."))
+    if not render_platform_chart(series, key=f"home_trend_{artist_id}"):
+        st.info(t(
+            "home.trend_no_series",
+            "Pas encore assez d'historique pour tracer une évolution : il faut au "
+            "moins deux journées de collecte consécutives sur une plateforme."))
+        return
+    render_missing_history_note()
+    render_daily_table(series, key=f"home_trend_table_{artist_id}")
+
 
 _DAG_LABELS = {
     "spotify_api_daily":        ("🎵", "Spotify API"),

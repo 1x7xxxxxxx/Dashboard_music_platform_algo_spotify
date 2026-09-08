@@ -281,6 +281,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [one-version-marker-out-of-many](#one-version-marker-out-of-many) | P2 | deterministic | guarded | none |
 | [containment-ignores-what-it-leaves-out](#containment-ignores-what-it-leaves-out) | P2 | deterministic | guarded | none |
 | [nan-written-as-a-value](#nan-written-as-a-value) | P2 | deterministic | guarded | none |
+| [one-identity-two-readers](#one-identity-two-readers) | P3 | deterministic | guarded | none |
+| [a-cumulative-counter-charted-as-a-daily-figure](#a-cumulative-counter-charted-as-a-daily-figure) | P2 | deterministic | guarded | none |
+| [a-step-that-nothing-routes-to](#a-step-that-nothing-routes-to) | P3 | deterministic | guarded | none |
 | [consumed-state-hides-its-own-widget](#consumed-state-hides-its-own-widget) | P2 | deterministic | guarded | none |
 | [an-exemption-on-one-surface-reads-as-a-failure-on-another](#an-exemption-on-one-surface-reads-as-a-failure-on-another) | P3 | deterministic | guarded | none |
 | [detection-keyed-on-the-filename](#detection-keyed-on-the-filename) | P2 | deterministic | guarded | none |
@@ -3986,3 +3989,49 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-08: le drapeau ne doit pas fabriquer une cause. Sans lignes d'insights la question reste « ce compte a-t-il des campagnes », pas « à qui sont-elles » — cas épinglé dans le garde.
   - 2026-09-08 (soir): **TROISIÈME surface**, trouvée en demandant « et la matrice d'état, que dit-elle ? ». `_silence_reason` comptait les campagnes du LOCATAIRE ; le bac à sable n'en possédant aucune, son repli conservateur (« aucune campagne connue → on garde l'alerte ») s'ouvrait, et sa matrice affichait 🟡 « la collecte s'est arrêtée, on regarde » — sur le MÊME compte publicitaire où le profil principal lisait 🟢 « rien à faire », le même jour, avec les mêmes 34 campagnes toutes en pause depuis le 2024-09-30. Deux verdicts opposés sur un seul fait, dont un qui annonce une panne inexistante. Le repli lit désormais les campagnes du compte que ce locataire a lui-même DÉCLARÉ, et reste conservateur des trois côtés (aucun compte déclaré / une campagne active / aucune campagne connue sur ce compte). La leçon générale : après avoir corrigé une surface, demander lesquelles posent la MÊME question — pas lesquelles portent le même code.
+
+## one-identity-two-readers
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: deux colonnes de la MÊME ligne se contredisent — « Saisi ✅ » à côté de « Format ? — forme non vérifiable pour cette plateforme ». Signalé le 2026-09-08 sur Santé onboarding, pour Spotify.
+- root_cause: l'identité Spotify vit à DEUX endroits — `artist_credentials.extra_config.spotify_artist_id` et le miroir `saas_artists.spotify_artist_id`. `artist_readiness._identity` accepte l'un OU l'autre pour dire « Saisi » ; `status_matrix.read_identities`, écrite le 2026-09-04 pour la colonne « Format », ne lisait que le premier. L'état est atteignable : `clear_platform_identities` — le `--reset` du bac à sable — efface les lignes de credentials, et un ré-onboarding réécrit le miroir avant la ligne. **Troisième lecture à faire l'erreur** : `declared_identities` l'avait faite, corrigée le 2026-08-26, sa docstring dit déjà « two readers, one question, two answers ».
+- signature: `python3 -m pytest tests/test_two_columns_never_disagree_on_one_identity.py -q`
+- long_term_fix: `read_identities` lit le miroir (`IDENTITY_MIRRORS`) quand `extra_config` est vide, exactement comme `declared_identities`. Le garde ne vérifie pas un appel : il fait tourner les DEUX lecteurs sur les mêmes données et exige le même ensemble — il rougit donc quel que soit celui des deux qui dérive, ce qu'un garde ancré sur un seul n'aurait pas fait.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_two_columns_never_disagree_on_one_identity.py }
+- rex_ref: src/dashboard/utils/status_matrix.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: la leçon générale n'est pas « ajouter le miroir », c'est qu'une donnée à deux domiciles a besoin d'un lecteur UNIQUE. Trois docstrings avertissaient ; la troisième lecture a quand même été écrite sans les lire.
+
+## a-cumulative-counter-charted-as-a-daily-figure
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une courbe « par jour » affiche des valeurs absurdes et plates, ou un pic vertical isolé. Aucune erreur : le graphique a l'air d'un graphique. Signalé le 2026-09-08 — « les datas sont incohérentes ».
+- root_cause: toutes les sources ne mesurent pas la même chose. `s4a_song_timeline.streams` est une quantité du JOUR ; `soundcloud_tracks_daily.playback_count` et `youtube_channel_history.view_count` sont des cumuls depuis toujours. La figure de bienvenue les additionnait dans un `UNION ALL` : **23 560 « écoutes » le 8 septembre** pour l'artiste 1, chaque jour, contre un maximum réel de 1 605 streams/jour. Convertir naïvement le cumul en écart (`LAG`) déplace le défaut sans le retirer, et trois artefacts réels le prouvent : une collecte ratée qui écrit 0 (2026-06-01, 19 titres) rend 23 480 le lendemain ; un trou de 104 jours pose 104 jours de gain sur un seul ; et un locataire portant plusieurs `channel_id` (le bac à sable en a trois, dont une à 155 vues) saute de 155 à 120 627 en une nuit.
+- signature: `python3 -m pytest tests/test_a_cumulative_counter_is_not_a_daily_figure.py -q`
+- long_term_fix: `src/dashboard/utils/platform_timeseries.py` — un seul endroit qui nomme la NATURE de chaque colonne, et trois règles : l'écart se prend sur le maximum déjà vu (pas sur la veille), il n'existe qu'entre deux jours **consécutifs** (sinon aucun point, un trou étant la forme honnête de « on ne sait pas »), et il se calcule par entité (titre, chaîne) avant toute somme. Ce qui n'a pas d'historique — Apple Music, un instantané par CSV — est **nommé** plutôt que dessiné à zéro.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
+- rex_ref: src/dashboard/utils/platform_timeseries.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: le garde tourne sur un vrai moteur SQL (sqlite) et non sur un stub, parce que les trois règles VIVENT dans le SQL. Un stub Python rendant des lignes toutes faites n'aurait testé que le stub — et le premier jet l'a failli : sans traduire `GREATEST` en `MAX`, la requête levait, le filet de `_rows` rattrapait, et le test passait au vert sur zéro ligne exécutée.
+  - 2026-09-08: la moitié « pas beau » du reproche avait sa propre cause, mesurable elle aussi. Les couleurs de marque exactes ont été REFUSÉES par le validateur de la skill dataviz — `#FF0000` (YouTube) contre `#FF5500` (SoundCloud) : ΔE 7,4 en vision normale, sous le plancher de 15. Deux traits qu'on ne peut pas attribuer. Jeux clair et sombre re-calés séparément (la bande de clarté diffère), tous deux « ALL CHECKS PASS ».
+
+## a-step-that-nothing-routes-to
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: une étape d'un parcours existe, se rend correctement, et aucun chemin n'y mène. Signalé le 2026-09-08 : « quand je clique sur mise en route (assistant), je n'arrive pas sur la page d'onboarding, j'ai uniquement les 2 onglets bienvenue / offre ».
+- root_cause: les deux boutons d'étape de la barre latérale n'étaient rendus que sous `_bare`, c'est-à-dire uniquement en mode première connexion. Sur un compte configuré, `FIRST_RUN_FOCUS` n'est jamais armé, donc les boutons n'existaient pas — et les deux autres chemins ne mènent nulle part non plus : `sync_step_on_arrival()` remet à l'étape 1 dès qu'on arrive d'ailleurs, et le seul bouton qui pose l'étape 2 quitte l'assistant dans la même action. Le commentaire du site disait pourtant l'intention — « les étapes restent, MÊME en barre nue » — mais le code écrivait « seulement si ».
+- signature: `python3 -m pytest tests/test_every_step_of_the_assistant_is_reachable.py -q`
+- long_term_fix: la condition devient « sommes-nous sur l'assistant ? » et non « est-ce une première connexion ? ». `_bare` continue de décider ce que la barre montre d'AUTRE ; il ne décide plus si les étapes existent. Le garde rend l'application entière, clique le bouton, et vérifie que l'étape a changé — un rendu ne dit jamais si une étape est atteignable.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_step_of_the_assistant_is_reachable.py }
+- rex_ref: src/dashboard/app.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: aucun test existant ne pouvait le voir — `test_views_render_smoke` appelle `onboarding.show()` sans barre latérale, et c'est la barre qui porte les boutons. Même angle mort que la classe `consumed-state-hides-its-own-widget` le matin même.

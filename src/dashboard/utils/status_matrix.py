@@ -241,11 +241,55 @@ def _shape_cell(row: dict, identities: dict) -> tuple:
         "avec du texte autour. Ressaisis-le.")
 
 
+def _read_mirrors(db, artist_id: int) -> dict:
+    """{plateforme logique: valeur} pour les identités AUSSI portées par `saas_artists`.
+
+    Ne lève jamais : sans miroir lisible, la colonne « Format » retombe sur ce que
+    `artist_credentials` porte — c'est-à-dire le contrat d'avant le 2026-09-08.
+    """
+    from src.utils.tenant_identity import IDENTITY_MIRRORS
+    if not IDENTITY_MIRRORS:
+        return {}
+    cols = sorted(set(IDENTITY_MIRRORS.values()))
+    try:
+        # Les noms de colonnes viennent d'une constante de module, jamais d'un
+        # appelant : la f-string interpole un identifiant de la liste blanche
+        # (règle transverse #8). Aucune VALEUR n'y entre.
+        row = db.fetch_query(
+            f"SELECT {', '.join(cols)} FROM saas_artists WHERE id = %s",  # noqa: S608
+            (artist_id,))
+    except Exception as e:  # noqa: BLE001 — le miroir est un complément, pas un socle
+        logger.warning("mirrors unreadable: %s", type(e).__name__)
+        return {}
+    if not row:
+        return {}
+    by_col = dict(zip(cols, row[0]))
+    return {logical: by_col.get(col)
+            for logical, col in IDENTITY_MIRRORS.items() if by_col.get(col)}
+
+
 def read_identities(db, artist_id: int) -> dict:
     """{plateforme logique: valeur d'identité} — ce qui est réellement stocké.
 
-    Une seule requête, sur la connexion du rendu (règle transverse #9). Ne lève
-    jamais : une forme non vérifiable s'affiche « ? », jamais « ✖ ».
+    **Une identité peut vivre à DEUX endroits**, et les ignorer est la raison d'être
+    de cette version. Spotify est écrit dans `artist_credentials.extra_config` ET
+    mirroité sur `saas_artists.spotify_artist_id` ; `artist_readiness._identity`
+    accepte l'une OU l'autre pour dire « Saisi », alors que cette fonction ne lisait
+    que la première. Deux colonnes de la MÊME ligne répondaient donc à la même
+    question avec deux lectures différentes : « Saisi ✅ » et « Format ? — forme non
+    vérifiable pour cette plateforme ».
+
+    L'état est atteignable et il a été atteint : `clear_platform_identities` (le
+    `--reset` du bac à sable) efface les lignes de credentials, et un ré-onboarding
+    réécrit le miroir avant la ligne. Signalé le 2026-09-08 sur Santé onboarding.
+
+    C'est la TROISIÈME lecture de cette identité à faire l'erreur. `declared_identities`
+    l'avait faite et a été corrigée le 2026-08-26 — sa docstring dit déjà « two
+    readers, one question, two answers » — et cette fonction, écrite le 2026-09-04
+    pour la colonne « Format », l'a refaite sans la connaître. Une identité à deux
+    domiciles a besoin d'un lecteur unique, pas d'un rappel dans trois docstrings.
+
+    Ne lève jamais : une forme non vérifiable s'affiche « ? », jamais « ✖ ».
     """
     import json
 
@@ -266,9 +310,12 @@ def read_identities(db, artist_id: int) -> dict:
             except ValueError:
                 extra = {}
         extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
+    mirrors = _read_mirrors(db, artist_id)
     for logical, spec in PLATFORM_IDENTITIES.items():
         value = (extra_by_platform.get(spec.storage) or {}).get(spec.field)
-        if value:
+        if not str(value or "").strip() and spec.mirror:
+            value = mirrors.get(logical)
+        if str(value or "").strip():
             out[logical] = str(value)
     return out
 

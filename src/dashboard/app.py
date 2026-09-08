@@ -1161,10 +1161,22 @@ def _main_body():
     # première connexion, par exemple.
     _bare = bool(st.session_state.get(FIRST_RUN_FOCUS)) and page == 'onboarding'
 
-    # Les ÉTAPES restent, même en barre nue : elles ne décrivent pas l'application,
-    # elles mènent aux deux écrans du parcours. C'est la seule chose de la barre qui
-    # serve pendant la mise en route.
-    if _bare:
+    # Les ÉTAPES sont rendues DÈS QU'ON EST SUR L'ASSISTANT, première connexion ou
+    # non — et la condition était `_bare`, ce qui les réservait à la première.
+    #
+    # Conséquence signalée le 2026-09-08, sur un compte configuré : « quand je clique
+    # sur mise en route (assistant), je n'arrive pas sur la page d'onboarding, j'ai
+    # uniquement les 2 onglets bienvenue / offre ». C'est exact, et l'étape 2 (« Où tu
+    # en es ») n'était atteignable par AUCUN chemin : `sync_step_on_arrival` remet à
+    # l'étape 1 dès qu'on arrive d'ailleurs, le seul bouton qui pose l'étape 2
+    # (`🔑 Connecter mes sources →`) quitte l'assistant dans la foulée, et les deux
+    # boutons qui y mènent n'étaient pas rendus. Une étape que rien ne route, à un
+    # niveau en dessous de la classe `page-that-nothing-routes-to`.
+    #
+    # `_bare` continue de décider ce que la barre montre D'AUTRE ; il ne décide plus
+    # si les étapes existent. Le commentaire d'origine le disait déjà — « elles
+    # restent, même en barre nue » — mais « même en » avait été écrit « seulement si ».
+    if page == 'onboarding':
         from views.onboarding import render_sidebar_steps
         render_sidebar_steps()
 

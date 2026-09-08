@@ -28,6 +28,13 @@ EN = {
     ),
     "home.streams_header": "🎧 Total streams",
     "home.total_all_platforms": "🎧 Total streams across all platforms",
+    "home.trend_header": "📈 Evolution per platform",
+    "home.trend_caption": (
+        "**Daily** plays, platform by platform, over the last 90 days. A gap in a "
+        "line means we have no measurement that day — not zero plays."),
+    "home.trend_no_series": (
+        "Not enough history yet to draw a trend: it takes at least two consecutive "
+        "days of collection on one platform."),
     "home.ig_followers": "📸 Instagram Followers",
     # Onboarding tracker
     "home.matrix_caption": "Per platform — hover a box for the detail:",

@@ -143,24 +143,33 @@ def _example_chart(name: str) -> None:
 
 
 def _tenant_series(db, artist_id):
-    """La série du locataire pour la première figure, ou `None` s'il n'y a rien.
+    """Les séries du locataire pour la première figure, ou `None` s'il n'y a rien.
 
-    Rend un DataFrame indexé par jour — la forme que `st.line_chart` attend — et
-    `None` quand `figure_source` dit « exemple ». Un seul point de décision : le
-    libellé et la courbe ne peuvent pas diverger.
+    Rend `{plateforme: [(jour, écoutes du jour), …]}` — la forme que
+    `render_platform_chart` attend — et `None` quand `figure_source` dit « exemple ».
+    Un seul point de décision : le libellé et la courbe ne peuvent pas diverger.
+
+    `tenant_daily_streams` reste la porte d'entrée parce que c'est elle qui décide
+    « assez de données pour tracer » (7 jours, `MIN_POINTS`). Ce qui est TRACÉ, en
+    revanche, ne vient plus d'elle : sa requête additionnait un cumul et un
+    quotidien. Voir `platform_timeseries`.
     """
     from src.dashboard.utils.welcome_figures import figure_source, tenant_daily_streams
 
     rows = tenant_daily_streams(db, artist_id)
     if figure_source(rows) != "tenant":
         return None
-    try:
-        import pandas as pd
-
-        df = pd.DataFrame(rows, columns=["jour", "écoutes"]).set_index("jour")
-        return df
-    except Exception:      # noqa: BLE001 — décoratif : on retombe sur l'exemple
+    from src.dashboard.utils.platform_timeseries import (
+        MIN_POINTS_DRAWN, combined_daily_streams, daily_streams_by_platform,
+    )
+    series = daily_streams_by_platform(db, artist_id)
+    # « Assez de lignes en base » ne veut pas dire « assez de points à tracer » : les
+    # compteurs cumulatifs ne rendent un point qu'entre deux jours consécutifs. Sans
+    # cette seconde condition, le libellé « Tes chiffres » s'afficherait au-dessus
+    # d'une figure vide — le mélange exact que `figure_source` existe pour empêcher.
+    if len(combined_daily_streams(series)) < MIN_POINTS_DRAWN:
         return None
+    return series
 
 
 def _language_buttons() -> None:
@@ -294,7 +303,18 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
             # trois exemples.
             if image == "dashboard-global.png" and _mine is not None:
                 st.caption(t("onboarding.figure_mine", "📈 **Tes chiffres**"))
-                st.line_chart(_mine, x_label="", y_label="")
+                # `st.line_chart` sur une série bricolée a été remplacé le 2026-09-08,
+                # et les deux moitiés du reproche — « pas beau » et « les datas sont
+                # incohérentes » — avaient chacune une cause distincte :
+                #
+                #   * la SÉRIE additionnait des streams quotidiens et le cumul
+                #     SoundCloud depuis toujours (23 560 « écoutes » chaque jour) ;
+                #   * le RENDU était un `line_chart` nu, sans couleurs de plateforme,
+                #     sans légende et sans distinction entre « zéro » et « pas mesuré ».
+                #
+                # Les deux sont maintenant réglés au même endroit que l'accueil.
+                from src.dashboard.utils.platform_chart import render_platform_chart
+                render_platform_chart(_mine, key="onb_trend")
             else:
                 _example_chart(image)
             st.markdown(t(key, default))
