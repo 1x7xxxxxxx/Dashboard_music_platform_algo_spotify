@@ -68,6 +68,11 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **Le bandeau de mise en route se replie quand la configuration est terminée**, et la
+  figure de l'accueil redevient celle de l'illustration : des **aires empilées** aux
+  couleurs du générateur d'exemples, une par plateforme. Une source trop clairsemée
+  (2 jours sur 90) est nommée sous la figure au lieu d'empêcher toute la pile — la
+  régression trouvée en **vérifiant** le déploiement, pas en attendant un signalement.
 - **Cinq points du parcours artiste, quatre défauts et une mesure** (suite 2) : la
   colonne « Format » lisait une seule des deux copies de l'identité Spotify ; l'étape 2
   de l'assistant n'était atteignable par **aucun** chemin sur un compte configuré ; la

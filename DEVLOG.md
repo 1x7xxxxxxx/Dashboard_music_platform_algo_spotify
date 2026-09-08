@@ -5,6 +5,60 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 3) — La figure redevient l'illustration, et le bandeau se replie
+
+**Le bandeau de mise en route se replie quand la configuration est terminée**, et reste
+déplié tant qu'il manque une étape. C'est la même information dans les deux cas ; ce qui
+change est ce qu'elle DEMANDE. Replié, le titre porte le verdict — c'est tout ce qu'on
+lit. Le garde lit `expanded` sur le proto de l'élément **rendu**, pas le code : un
+`expanded=X` peut être écrit juste et rendu par une branche qu'on n'atteint pas, et les
+deux locataires du test sont choisis en **mesurant** leur état de configuration.
+
+**La figure redevient celle de l'illustration.** « Ce n'est plus le même graphique, tu
+m'avais fait un plot qui montre des courbes superposées des différentes plateformes avec
+différentes couleurs » — exact. `assets/examples/dashboard-global.png` est un
+`stackplot` aux couleurs `BLUE/ORANGE/AQUA`, déjà validées ; la figure live était partie
+sur des lignes qui se croisent, aux couleurs de marque, lesquelles avaient d'ailleurs
+été refusées par le validateur. Deux formes, deux palettes, une seule promesse.
+
+L'empilement n'est pas cosmétique : il répond à « combien au total, et qui y contribue »,
+là où des lignes superposées répondent « laquelle est la plus haute » — pas la question
+de l'accueil.
+
+**Une aire empilée n'a pas de trou, et c'est ce qui a demandé le plus de mesure.**
+Compter un jour non mesuré pour zéro fait plonger le TOTAL, ce qui se lit comme une
+chute d'écoutes ; on coupe donc la bande, et le blanc dit « on ne sait pas ». Vérifié
+avant de trancher : 79 jours complets sur 90 pour l'artiste 1, en 2 tranches — lisible,
+et sans mentir.
+
+**Puis la vérification du déploiement a trouvé la régression que le déploiement venait
+d'introduire.** Le bac à sable n'avait plus **aucune** figure alors qu'il a 87 jours de
+Spotify : le critère d'entrée dans la pile était « a-t-elle au moins un point ? », donc
+YouTube (2 jours sur 90) et SoundCloud (4) vétaient les 87 autres — zéro tranche
+complète, zéro figure. Le critère devient la **couverture**, et les distributions
+réelles ne laissent pas d'ambiguïté : 87/90, 90/90, 82/90 d'un côté ; 2/90 et 4/90 de
+l'autre. Une source trop clairsemée est **nommée** sous la figure, avec son compte de
+jours — une absence sans raison se lit comme une panne.
+
+La règle est **exportée** et le garde l'**appelle**. Sa première version la recopiait :
+deux règles pour une question, exactement ce que ce fichier reproche à la figure
+d'exemple.
+
+**Trois gardes ont rougi sur des remaniements plutôt que sur des défauts**, et les trois
+étaient ancrés sur un interne remplacé : `test_the_launch_step_launches` sur la fonction
+que le repli a scindée, le garde de l'écran de bienvenue sur `line_chart`, et le garde
+du filtre S4A sur un `%s` qui lui cachait le filtre. Réancrés sur leur question, ils
+rougissent toujours sur le vrai défaut — vérifié par mutation à chaque fois.
+
+Vérifié en production après déploiement : locataire 1, **6 traces empilées** aux
+couleurs `#2a78d6 / #eb6834 / #1baf7a`, légende « 11 jours sur 90 » ; locataire 18,
+Spotify seul empilé, YouTube et SoundCloud nommés avec leur compte de jours.
+
+Suite complète contre une base vivante : **4640 passed**. Audit déterministe : 236
+classes, propre.
+
+---
+
 ## 2026-09-08 (suite 2) — Une courbe qui additionnait un cumul et un quotidien
 
 Cinq points remontés du parcours artiste. **Quatre étaient des défauts, le cinquième
