@@ -744,26 +744,25 @@ def show_data_collection_panel():
     if artist_id is None and not is_admin():
         # Rule #7: a non-admin without a resolved tenant triggers nothing.
         return
-    from src.dashboard.utils.collection_progress import (
-        remember_runs, remember_not_launched, render_progress)
+    from src.dashboard.utils.collection_progress import render_progress
 
-    if st.sidebar.button(t("app.run_all_collections", "🚀 Lancer TOUTES les collectes"),
-                         type="primary"):
-        # La règle de déclenchement vit dans `utils.collection_trigger` — l'étape 4 de
-        # l'accueil en avait besoin, et une deuxième copie de « conf={'artist_id': …} »
-        # est exactement ce qui a produit la fuite de locataire.
-        from src.dashboard.utils.collection_trigger import trigger_all_collections
-
-        # Le panneau ne rend plus RIEN ligne à ligne pendant le déclenchement : sept
-        # lignes qui disparaissent, et qui ne parlaient que du déclenchement — « lancé »
-        # ne veut pas dire « des données sont arrivées ». Tout ce qui compte descend
-        # dans « Collecte en cours », qui survit aux reruns.
-        with st.sidebar.status(t("app.syncing", "Synchronisation..."), expanded=False):
-            launched, not_launched = trigger_all_collections(
-                artist_id, airflow_trigger, COLLECTION_DAGS)
-        remember_runs(launched)
-        remember_not_launched(not_launched)
-
+    # LE BOUTON « 🚀 Lancer TOUTES les collectes » A ÉTÉ RETIRÉ le 2026-09-08, et la
+    # question posée était la bonne : « vu que c'est automatique, je pense que ce bouton
+    # n'est plus pertinent ». Vérifié plutôt que supposé — les cinq collectes ont chacune
+    # leur cron quotidien (Meta 5 h, Spotify 7 h, YouTube 8 h, SoundCloud 9 h,
+    # Instagram 10 h), et `credentials/router` en relance une dès qu'un identifiant est
+    # enregistré. Il ne restait qu'un cas où attendre coûte quelque chose : le premier
+    # jour — et c'est exactement l'étape 4 de l'accueil, qui appelle
+    # `_launch_collections` elle-même.
+    #
+    # Il n'a pas été DÉPLACÉ vers le mapping cross-plateforme : cette page relie des
+    # titres, elle ne collecte pas, et y poser un bouton de collecte l'aurait mis là où
+    # personne ne le cherche. Les cinq textes qui l'envoyaient « dans la barre latérale »
+    # ont été réécrits le même jour — un texte qui nomme un bouton disparu est la classe
+    # `page-that-nothing-routes-to` en version prose.
+    #
+    # `render_progress` RESTE : il rend compte d'une collecte en cours, quelle que soit
+    # la façon dont elle a démarré, et c'est la seule surface qui le dise.
     # Reported on every rerun, not only right after the click.
     try:
         from src.dashboard.utils.airflow_monitor import AirflowMonitor

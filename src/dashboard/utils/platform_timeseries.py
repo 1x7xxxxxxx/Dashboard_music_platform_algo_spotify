@@ -195,3 +195,50 @@ def combined_daily_streams(series: dict) -> list[tuple]:
         for day, value in rows:
             total[day] = total.get(day, 0) + value
     return sorted(total.items())
+
+
+def measured_days(series: dict, key: str, since=None, until=None) -> int:
+    """Combien de jours cette plateforme a-t-elle été MESURÉE sur la période.
+
+    Zéro mesure et zéro écoute ne sont pas la même chose, et l'écran les affichait
+    pareil. Signalé le 2026-09-08 : « on a des 0 sur youtube et soundcloud, je pense
+    qu'on a tout simplement pas la data ». Un appelant qui obtient 0 ici doit écrire
+    « — », jamais « 0 ».
+    """
+    return sum(1 for d, _ in (series or {}).get(key, [])
+               if (since is None or d >= since) and (until is None or d <= until))
+
+
+def followers_change(db, artist_id, since=None, until=None):
+    """(premier, dernier, écart) des abonnés Instagram sur la période, ou `None`.
+
+    `instagram_daily_stats.followers_count` est un ÉTAT, pas un flux : on ne l'additionne
+    pas, on compare ses deux extrémités. C'est pour ça que cette fonction ne vit pas dans
+    `daily_streams_by_platform`, qui ne rend que des quantités du jour.
+
+    Rend `None` s'il n'y a pas DEUX relevés dans la période : un écart a besoin de deux
+    points, et afficher « +0 » sur un seul relevé serait une affirmation qu'on n'a pas
+    mesurée.
+    """
+    if db is None or artist_id is None:
+        return None
+    sql = ("SELECT collected_at::date AS jour, MAX(followers_count) "
+           "FROM instagram_daily_stats "
+           "WHERE artist_id = %s AND followers_count IS NOT NULL")
+    params: list = [artist_id]
+    if since is not None:
+        sql += " AND collected_at::date >= %s"
+        params.append(since)
+    if until is not None:
+        sql += " AND collected_at::date <= %s"
+        params.append(until)
+    sql += " GROUP BY 1 ORDER BY 1"
+    try:
+        rows = [(r[0], int(r[1])) for r in (db.fetch_query(sql, tuple(params)) or [])
+                if r[1] is not None]
+    except Exception as exc:      # noqa: BLE001 — un compteur décoratif ne casse pas la page
+        logger.warning("followers change unavailable: %s", type(exc).__name__)
+        return None
+    if len(rows) < 2:
+        return None
+    return rows[0][1], rows[-1][1], rows[-1][1] - rows[0][1]

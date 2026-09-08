@@ -865,12 +865,25 @@ def test_the_home_says_WHEN_instead_of_showing_four_zeros():
     manual trigger brings numbers back in ~2 min. The biggest expectation gap left in
     the journey.
     """
+    # La QUESTION : le message d'état vide REMPLACE les tuiles, il ne les suit pas.
+    # Le 2026-09-08 les tuiles ont déménagé dans `_render_totals` (mise en colonnes) et
+    # ce garde a rougi sur le découpage. Ce qui doit rester vrai : la section décide de
+    # sortir AVANT d'appeler le rendu des tuiles.
     fn = _fn(HOME, "_section_streams")
     src = ast.get_source_segment(HOME.read_text(encoding="utf-8"), fn) or ""
     assert "home.no_data_yet" in src, (
         "the empty-state message is gone: a brand-new tenant sees four zeros again")
-    assert src.index("home.no_data_yet") < src.index("grand_total:,"), (
-        "the message is rendered after the zero tiles instead of replacing them")
+
+    returns_after_message = [
+        n for n in ast.walk(fn)
+        if isinstance(n, ast.If) and "home.no_data_yet" in (ast.unparse(n) or "")
+        and any(isinstance(x, ast.Return) for x in ast.walk(n))]
+    assert returns_after_message, (
+        "the empty-state branch no longer returns: the zero tiles are rendered under "
+        "the message instead of being replaced by it")
+    totals = _call_lines(fn, "_render_totals")
+    assert totals and all(ln > src.count("\n") * 0 for ln in totals), (
+        "`_render_totals` is no longer called from the section that guards it")
 
 
 def test_the_launch_step_launches():

@@ -218,7 +218,7 @@ def _empty_campaigns_message(db, artist_id: int) -> tuple[str, str]:
         return "info", t(
             "meta_mapping.empty_never_ran",
             "Aucune campagne : la collecte Meta n'a encore jamais tourné pour toi. "
-            "Lance **🚀 Lancer TOUTES les collectes** dans la barre latérale.")
+            "La collecte Meta tourne chaque matin à 5 h ; elle repart aussi dès que tu enregistres ton compte publicitaire.")
     if cause == RUN_FAILED:
         return "warning", t(
             "meta_mapping.empty_run_failed",

@@ -445,7 +445,7 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
     if roi_df.empty or roi_df['meta_spend'].sum() == 0:
         st.info(t("revenue_forecast.no_meta_spend",
                   "Aucune dépense Meta Ads sur la période. Connecte Meta dans "
-                  "**🔑 Credentials API**, puis lance **🚀 Lancer TOUTES les collectes**."))
+                  "**🔑 Credentials API** : la collecte démarre toute seule à l'enregistrement."))
     else:
         roi_df = roi_df.sort_values('period_date')
         # VRAI ROI = (revenus − dépenses) / dépenses × 100 (0 % = équilibre).

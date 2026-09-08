@@ -524,7 +524,7 @@ def show() -> None:
             st.info(t(
                 "meta_creatives.no_data",
                 "Aucune donnée de créative. Vérifie que Meta Ads est connecté dans "
-                "**🔑 Credentials API**, puis lance **🚀 Lancer TOUTES les collectes** "
+                "**🔑 Credentials API** — la collecte démarre toute seule à l'enregistrement, "
                 "dans la barre latérale."
             ))
             return

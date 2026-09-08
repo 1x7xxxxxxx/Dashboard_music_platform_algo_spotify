@@ -184,3 +184,89 @@ def test_apple_says_it_cannot_be_windowed_instead_of_showing_a_wrong_number() ->
     assert _tile(at, "Apple Music") == "—", (
         "Apple affiche un total sur une période bornée alors qu'elle n'a qu'un "
         "relevé : ce chiffre serait faux, ou celui d'une autre période")
+
+
+# ── Ce que la période a ajouté le 2026-09-08 ────────────────────────────────
+
+def test_a_custom_range_is_offered_and_bounded_by_its_two_dates() -> None:
+    """« Un filtre intelligent PERSONNALISABLE » : deux dates, pas six raccourcis."""
+    assert "custom" in date_range.RANGES, "aucune période sur mesure"
+    # Tant que les deux dates ne sont pas posées, « sur mesure » ne borne rien : une
+    # fenêtre vide serait pire que pas de filtre.
+    assert date_range.bounds("custom") == (None, None)
+
+
+def test_the_tile_of_an_unmeasured_platform_shows_a_dash_on_screen() -> None:
+    """La règle À L'ÉCRAN, pas seulement dans son helper.
+
+    La première version de ce garde n'exerçait que `measured_days`, et elle est restée
+    VERTE quand on a débranché la règle dans `home` — le helper marchait, la page
+    affichait « 0 ». C'est la question qui compte : que lit l'artiste sur la tuile ?
+
+    Le couple (locataire, période) est CHOISI par la mesure : on cherche un cas où une
+    plateforme n'a aucune mesure et une autre en a. Sans un tel cas, le test saute — il
+    ne s'invente pas un verdict.
+    """
+    from src.dashboard.utils import get_db_connection
+    from src.dashboard.utils.platform_timeseries import (
+        daily_streams_by_platform, measured_days,
+    )
+
+    labels = {"spotify": "Spotify S4A", "youtube": "YouTube", "soundcloud": "SoundCloud"}
+    db = get_db_connection()
+    try:
+        tenants = [int(r[0]) for r in
+                   (db.fetch_query("SELECT id FROM saas_artists WHERE active ORDER BY id") or [])]
+        for aid in tenants:
+            series = daily_streams_by_platform(db, aid)
+            if not any(series.values()):
+                continue
+            for period in ("30d", "90d", "ytd", "12m"):
+                since, until = date_range.bounds(period)
+                missing = [k for k in labels if not measured_days(series, k, since, until)]
+                present = [k for k in labels if measured_days(series, k, since, until)]
+                if missing and present:
+                    at = _home(aid, period)
+                    value = _tile(at, labels[missing[0]])
+                    assert value == "—", (
+                        f"locataire {aid}, période {period} : la tuile "
+                        f"{labels[missing[0]]} affiche {value!r} alors qu'AUCUNE mesure "
+                        "n'existe sur la période. « 0 » affirme qu'il ne s'est rien "
+                        "passé ; on n'a pas regardé.")
+                    return
+    finally:
+        db.close()
+    pytest.skip("aucun couple (locataire, période) sans mesure dans la base locale")
+
+
+def test_the_measured_days_helper_separates_the_two_absences() -> None:
+    """Zéro mesure et zéro écoute ne sont pas la même chose.
+
+    Signalé le 2026-09-08 : « on a des 0 sur youtube et soundcloud, je pense qu'on a
+    tout simplement pas la data ». Un « 0 » affirme qu'il ne s'est rien passé ; « — »
+    dit qu'on n'a pas regardé.
+    """
+    from src.dashboard.utils.platform_timeseries import measured_days
+    import datetime as d
+
+    series = {"youtube": [(d.date(2026, 1, 1), 5)]}
+    assert measured_days(series, "youtube",
+                         d.date(2026, 6, 1), d.date(2026, 6, 30)) == 0
+    assert measured_days(series, "spotify") == 0
+    assert measured_days(series, "youtube") == 1
+
+
+def test_the_followers_delta_needs_two_readings() -> None:
+    """Un écart a besoin de deux points ; « +0 » sur un seul relevé serait inventé."""
+    from src.dashboard.utils.platform_timeseries import followers_change
+
+    class _DB:
+        def __init__(self, rows): self.rows = rows
+        def fetch_query(self, sql, params=None): return self.rows
+
+    import datetime as d
+    assert followers_change(_DB([]), 1) is None
+    assert followers_change(_DB([(d.date(2026, 1, 1), 100)]), 1) is None
+    assert followers_change(
+        _DB([(d.date(2026, 1, 1), 100), (d.date(2026, 2, 1), 92)]), 1
+    ) == (100, 92, -8)

@@ -65,117 +65,141 @@ def _section_freshness(db, artist_id):
 
 
 def _section_streams(db, artist_id):
+    """Le filtre en haut au centre, la courbe à gauche, les chiffres à droite.
+
+    Disposition demandée le 2026-09-08. Elle n'est pas qu'esthétique : la courbe est ce
+    qu'on regarde, les tuiles ce qu'on vérifie. Côte à côte, elles répondent à la même
+    période sans qu'on ait à faire défiler entre les deux — c'était le vrai défaut de
+    la version empilée, où le filtre était à un écran de la figure qu'il commande.
+    """
     from src.dashboard.utils import date_range
-    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
+    from src.dashboard.utils.platform_timeseries import (
+        daily_streams_by_platform, measured_days,
+    )
 
-    st.subheader(t("home.streams_header", "🎧 Streams totaux"))
+    st.subheader(t("home.streams_header", "🎧 Tes chiffres"))
 
-    # LE SÉLECTEUR EST ICI, et il vaut aussi pour la figure en dessous. Un seul
-    # propriétaire du réglage : la figure le LIT, elle ne le redessine pas — deux
-    # sélecteurs pour une même période se réécrivent l'un l'autre à chaque rerun.
-    range_key = date_range.render_selector()
+    # LE FILTRE, EN HAUT AU CENTRE. Un seul propriétaire du réglage : tout ce qui suit
+    # le LIT.
+    _l, _mid, _r = st.columns([1, 3, 1])
+    with _mid:
+        range_key = date_range.render_selector()
     since, until = date_range.bounds(range_key)
 
-    # `series` sert aux DEUX : les totaux de la période et la figure. Une seule
-    # lecture, donc un seul jeu de chiffres — sans quoi la tuile et la courbe
-    # pourraient se contredire à l'écran.
     series = daily_streams_by_platform(db, artist_id)
     ig = get_instagram_followers(db, artist_id)
     ig_count = ig['followers'] if ig else 0
 
     if since is None:
-        # « Depuis le début » : les compteurs que les plateformes annoncent
-        # aujourd'hui. Ils portent tout ce qui précède notre première collecte.
         s4a = get_total_streams_s4a(db, artist_id)
         yt = get_total_views_youtube(db, artist_id)
         sc = get_total_plays_soundcloud(db, artist_id)
         apple = get_total_plays_apple(db, artist_id)
     else:
-        # Période bornée : on ne peut additionner que ce qu'on a MESURÉ. Apple n'a
-        # qu'un instantané par CSV, donc aucune somme sur une période — elle est dite,
-        # pas devinée.
         def _sum(pkey):
+            # ZÉRO MESURE ≠ ZÉRO ÉCOUTE. Sans ce test, une plateforme non collectée
+            # sur la période afficherait « 0 », ce qui affirme qu'il ne s'est rien
+            # passé — alors qu'on n'a pas regardé.
+            if not measured_days(series, pkey, since, until):
+                return None
             return sum(v for d, v in series.get(pkey, []) if since <= d <= until)
         s4a, yt, sc = _sum("spotify"), _sum("youtube"), _sum("soundcloud")
         apple = None
-    grand_total = s4a + yt + sc + (apple or 0)  # Instagram followers ≠ streams
+    grand_total = sum(v for v in (s4a, yt, sc, apple) if v)
 
-    # Quatre zéros ne disent pas « pas encore », ils disent « rien ». Le premier jour,
-    # c'est faux et décourageant : la collecte automatique tourne le matin, et un
-    # déclenchement manuel ramène des chiffres en ~2 min. Une phrase DATÉE vaut mieux
-    # qu'un tableau vide — c'est le plus gros écart attente/réalité du parcours.
-    if grand_total == 0 and ig_count == 0:
+    if not grand_total and not ig_count:
         st.info(t(
             "home.no_data_yet",
             "🕐 **Tes premiers chiffres ne sont pas encore là — c'est normal.**\n\n"
-            "La collecte automatique tourne **chaque matin entre 9 h et 10 h** (heure "
+            "La collecte automatique tourne **chaque matin entre 5 h et 11 h** (heure "
             "de Paris) et remplit cette page toute seule. Tu n'as rien à faire.\n\n"
-            "Tu ne veux pas attendre demain ? Le bouton **🚀 Lancer TOUTES les "
-            "collectes** dans la barre latérale ramène tes chiffres en ~2 minutes."))
+            "Elle démarre aussi d'elle-même dès que tu enregistres des identifiants."))
         st.caption(t("home.no_data_hint",
                      "Si rien n'arrive après une collecte, la page **🚦 Santé "
                      "onboarding** dit quelle source ne répond pas, et pourquoi."))
         return
 
-    st.markdown(
-        f"""<div style="text-align:center; padding:16px; background:#f0f2f6;
-            border-radius:10px; margin-bottom:16px;">
-            <div style="color:#555; font-size:1em; font-weight:600;">{t("home.total_all_platforms", "🎧 Total streams toutes plateformes")}</div>
-            <div style="font-size:3em; color:#1DB954; font-weight:800;">{grand_total:,}</div>
-        </div>""",
-        unsafe_allow_html=True
-    )
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("🎵 Spotify S4A", f"{s4a:,}")
-    c2.metric("🎬 YouTube", f"{yt:,}")
-    c3.metric("☁️ SoundCloud", f"{sc:,}")
-    c4.metric("🍎 Apple Music", f"{apple:,}" if apple is not None else "—",
-              help=None if apple is not None else t(
-                  "home.apple_no_window",
-                  "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible "
-                  "de le découper par période. Choisis « Depuis le début » pour son "
-                  "total."))
-    # Instagram followers — colour-differentiated from stream platforms (rose Instagram)
-    c5.markdown(
-        f"""<div style="border:1px solid #E4405F; background:#E4405F18;
-            border-radius:8px; padding:10px 12px; text-align:center;
-            margin-top:4px;">
-            <div style="color:#666; font-size:0.85em;">{t("home.ig_followers", "📸 Followers Instagram")}</div>
-            <div style="font-size:1.75em; color:#E4405F; font-weight:700;">{ig_count:,}</div>
-        </div>""",
-        unsafe_allow_html=True
-    )
+    left, right = st.columns([3, 2], gap="large")
+    with left:
+        _render_trend(series, since, until, range_key, artist_id)
+    with right:
+        _render_totals(db, artist_id, series, since, until,
+                       s4a, yt, sc, apple, ig_count, grand_total)
 
     st.caption(date_range.RANGE_NOTE)
 
-    _section_platform_trend(db, artist_id, series, since, until, range_key)
+
+def _fmt(value) -> str:
+    """Un nombre, ou « — » quand rien n'a été mesuré. Jamais « 0 » pour une absence."""
+    return "—" if value is None else f"{value:,}"
 
 
-def _section_platform_trend(db, artist_id, series, since, until, range_key) -> None:
-    """L'ÉVOLUTION sous les totaux — demandé le 2026-09-08, « juste en dessous ».
+def _render_totals(db, artist_id, series, since, until,
+                   s4a, yt, sc, apple, ig_count, grand_total) -> None:
+    """La colonne de droite : le total, les quatre plateformes, les abonnés."""
+    from src.dashboard.utils.platform_timeseries import followers_change
 
-    Les tuiles au-dessus répondent « combien en tout » ; elles ne disent pas si ça
-    monte. C'est la même donnée sous l'autre question, et c'est pour ça qu'elle est
-    ici plutôt que sur une page de plus.
+    st.markdown(
+        f"""<div style="text-align:center; padding:14px; background:#f0f2f6;
+            border-radius:10px; margin-bottom:12px;">
+            <div style="color:#555; font-size:0.95em; font-weight:600;">{t("home.total_all_platforms", "🎧 Total streams toutes plateformes")}</div>
+            <div style="font-size:2.4em; color:#1DB954; font-weight:800;">{grand_total:,}</div>
+        </div>""",
+        unsafe_allow_html=True
+    )
 
-    Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les
-    compteurs cumulatifs (SoundCloud, YouTube) à leur écart quotidien, sans quoi la
-    courbe additionnerait des totaux-depuis-toujours à des streams quotidiens — le
-    défaut mesuré le même jour sur l'écran de bienvenue.
+    c1, c2 = st.columns(2)
+    c1.metric("🎵 Spotify S4A", _fmt(s4a))
+    c2.metric("🎬 YouTube", _fmt(yt))
+    c3, c4 = st.columns(2)
+    c3.metric("☁️ SoundCloud", _fmt(sc))
+    # APPLE N'A QU'UN RELEVÉ PAR DÉPÔT DE CSV, et pour l'instant un seul en tout.
+    # Le message le dit plutôt que d'annoncer une impossibilité de principe : au
+    # deuxième CSV, la comparaison de deux relevés devient possible.
+    c4.metric("🍎 Apple Music", _fmt(apple),
+              help=None if apple is not None else t(
+                  "home.apple_no_window",
+                  "Apple Music ne fournit pas de série quotidienne : chaque dépôt de "
+                  "CSV est un relevé à une date. Il n'y en a qu'un pour l'instant, "
+                  "donc rien à comparer sur une période. Choisis « Depuis le début » "
+                  "pour son total."))
+
+    # LES ABONNÉS INSTAGRAM SONT UN ÉTAT, pas un flux : on ne les additionne pas sur
+    # une période, on regarde de combien ils ont bougé. Demandé le 2026-09-08.
+    change = followers_change(db, artist_id, since, until)
+    if change is None:
+        delta_html = ('<div style="font-size:0.75em; color:#888;">'
+                      + t("home.ig_no_change", "évolution : pas assez de relevés")
+                      + '</div>')
+    else:
+        _first, _last, diff = change
+        sign = "+" if diff > 0 else ""
+        colour = "#00A870" if diff > 0 else ("#C0392B" if diff < 0 else "#888")
+        delta_html = (f'<div style="font-size:0.9em; color:{colour}; font-weight:700;">'
+                      f'{sign}{diff:,} ' + t("home.ig_delta", "sur la période") + '</div>')
+    st.markdown(
+        f"""<div style="border:1px solid #E4405F; background:#E4405F18;
+            border-radius:8px; padding:10px 12px; text-align:center; margin-top:8px;">
+            <div style="color:#666; font-size:0.85em;">{t("home.ig_followers", "📸 Followers Instagram")}</div>
+            <div style="font-size:1.75em; color:#E4405F; font-weight:700;">{ig_count:,}</div>
+            {delta_html}
+        </div>""",
+        unsafe_allow_html=True
+    )
+
+
+def _render_trend(series, since, until, range_key, artist_id) -> None:
+    """La colonne de gauche : l'évolution, sur la même période que les chiffres.
+
+    Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les compteurs
+    cumulatifs (SoundCloud, YouTube) à leur écart quotidien, sans quoi la courbe
+    additionnerait des totaux-depuis-toujours à des streams quotidiens.
     """
     from src.dashboard.utils import date_range
     from src.dashboard.utils.platform_chart import (
         render_missing_history_note, render_platform_chart,
     )
 
-    st.markdown("---")
-    st.subheader(t("home.trend_header", "📈 Évolution par plateforme"))
-    st.caption(t(
-        "home.trend_caption",
-        "Écoutes **du jour**, plateforme par plateforme, sur la période choisie "
-        "ci-dessus. Un blanc dans la bande veut dire qu'on n'a pas de mesure ce "
-        "jour-là — pas zéro écoute."))
     if not render_platform_chart(
             series, since=since, until=until,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
@@ -186,6 +210,14 @@ def _section_platform_trend(db, artist_id, series, since, until, range_key) -> N
             "Pas encore assez d'historique pour tracer une évolution : il faut au "
             "moins deux journées de collecte consécutives sur une plateforme."))
         return
+    # La légende sous la figure et non au-dessus : le titre de la figure dit DÉJÀ ce
+    # qu'elle montre et sur quelle période. Le sous-titre « 📈 Évolution par
+    # plateforme » qui la coiffait a disparu avec la mise en colonnes — il redisait le
+    # titre porté par la figure elle-même, à trois centimètres de lui.
+    st.caption(t(
+        "home.trend_caption",
+        "Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut "
+        "dire qu'on n'a pas de mesure ce jour-là — pas zéro écoute."))
     render_missing_history_note()
 
 
@@ -306,7 +338,7 @@ def _launch_collections() -> None:
     except Exception:      # noqa: BLE001 — hors app : le bouton ne doit pas casser la page
         st.warning(t("home.launch_unavailable",
                      "⚠️ Le déclenchement n'est pas disponible ici. Utilise le bouton "
-                     "**🚀 Lancer TOUTES les collectes** dans la barre latérale."))
+                     "Elle démarre aussi d'elle-même dès que tu enregistres des identifiants."))
         return
 
     artist_id = tenant_scope()
@@ -412,10 +444,11 @@ def show():
                 _section_onboarding(db, artist_id)
 
             _section_streams(db, artist_id)
-            st.markdown("---")
             # PDF shortcut removed here — redundant with the dedicated "📄 Export PDF" page.
+            # Pas de filet avant la fraîcheur : demandé le 2026-09-08, « retire les
+            # 2 traits au-dessus de fraîcheur des données ». Les sous-titres suffisent
+            # à séparer trois blocs qui ne se ressemblent pas.
             _section_dag_status()
-            st.markdown("---")
             _section_freshness(db, artist_id)
         except Exception as e:
             st.error(t("home.display_error", "Erreur d'affichage : {err}").format(err=e))

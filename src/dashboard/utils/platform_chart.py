@@ -323,7 +323,16 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                 stackgroup=f"g{n}",           # une pile PAR TRANCHE : la bande se coupe
                 line=dict(width=1.6, color=surface),   # le filet de 2 px entre les aires
                 fillcolor=palette[pkey],
-                hovertemplate="%{y:,}<extra>" + PLATFORM_LABELS[pkey] + "</extra>",
+                # `0` VEUT DIRE ZÉRO ÉCOUTE CE JOUR-LÀ, et rien d'autre : un jour
+                # non mesuré n'a pas de point du tout, la bande y est coupée. Le
+                # survol le dit, parce que les deux se ressemblent à l'œil —
+                # « on a des 0 sur youtube et soundcloud, je pense qu'on a tout
+                # simplement pas la data » (2026-09-08). Ici, si : le compteur de la
+                # chaîne n'a pas bougé de la journée.
+                customdata=[["compteur inchangé" if (aligned[pkey][i] or 0) == 0
+                             else ""] for i in seg],
+                hovertemplate=("%{y:,} %{customdata[0]}<extra>"
+                               + PLATFORM_LABELS[pkey] + "</extra>"),
             ))
 
     # LES ÉTIQUETTES SONT POSÉES SUR LA FIGURE, pas dans une boîte de légende.

@@ -35,8 +35,6 @@ EN = {
                             "Make sure Docker is running: `docker-compose up -d`"),
     # Sidebar — Live Activity
     # Sidebar — data collection panel
-    "app.run_all_collections": "🚀 Run ALL collections",
-    "app.syncing": "Synchronizing...",
     # Collection progress (collection_progress.py) — what happened after "Lancé !"
     "app.live_line": "🟢 {live} online · 👥 {total} artists",
     "app.collection_progress": "**Collection in progress**",

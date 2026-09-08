@@ -245,7 +245,7 @@ def show() -> None:
             "meta_cpr_optimizer.no_mapping",
             "Aucun mapping campagne → titre. "
             "Crée-les dans **🔗 Mapping cross-plateforme**, puis relance "
-            "**🚀 Lancer TOUTES les collectes** dans la barre latérale."
+            "La collecte tourne chaque matin, et redémarre dès que tu enregistres un identifiant."
         ))
         return
 

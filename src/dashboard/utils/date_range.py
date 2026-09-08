@@ -44,9 +44,13 @@ RANGES: dict = {
     "12m": (365, "12 mois"),
     "90d": (90, "90 jours"),
     "30d": (30, "30 jours"),
+    "custom": ("custom", "📅 Sur mesure"),
 }
 
 DEFAULT = "all"
+
+# Les bornes du choix « sur mesure », posées par le sélecteur de dates.
+_CUSTOM_SINCE, _CUSTOM_UNTIL = "_home_range_from", "_home_range_to"
 
 
 def current_key() -> str:
@@ -71,7 +75,20 @@ def bounds(key: str | None = None, today: _dt.date | None = None):
     day = today or _dt.date.today()
     if span == "ytd":
         return _dt.date(day.year, 1, 1), day
+    if span == "custom":
+        since, until = custom_bounds()
+        # Tant que les deux dates ne sont pas posées, « sur mesure » ne borne rien :
+        # afficher une fenêtre vide serait pire que ne pas filtrer.
+        return (since, until) if since and until else (None, None)
     return day - _dt.timedelta(days=span - 1), day
+
+
+def custom_bounds():
+    """Les deux dates saisies, ou `(None, None)` — jamais une exception hors Streamlit."""
+    try:
+        return st.session_state.get(_CUSTOM_SINCE), st.session_state.get(_CUSTOM_UNTIL)
+    except Exception:      # noqa: BLE001 — appelé depuis un test headless
+        return None, None
 
 
 def is_bounded(key: str | None = None) -> bool:
@@ -103,6 +120,18 @@ def render_selector(*, key: str = "_home_range_widget") -> str:
             format_func=lambda k: labels[k], key=key, label_visibility="collapsed")
     chosen = chosen or current
     st.session_state[_KEY] = chosen
+
+    # LES DEUX DATES N'APPARAISSENT QUE SI ON LES A DEMANDÉES. Un sélecteur de dates
+    # affiché en permanence à côté de six raccourcis, c'est deux façons de dire la même
+    # chose sur la même ligne — et la plus lourde des deux occupe la place tout le
+    # temps pour servir une fois.
+    if chosen == "custom":
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.date_input("Du", key=_CUSTOM_SINCE, format="DD/MM/YYYY")
+        with col_b:
+            st.date_input("Au", key=_CUSTOM_UNTIL, format="DD/MM/YYYY",
+                          value=st.session_state.get(_CUSTOM_UNTIL) or _dt.date.today())
     return chosen
 
 

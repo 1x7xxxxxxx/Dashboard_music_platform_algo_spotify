@@ -44,6 +44,7 @@ fait que les déclenchements REFUSÉS soient mémorisés (`remember_not_launched
 """
 
 import ast
+import pathlib
 from pathlib import Path
 
 _APP = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "app.py"
@@ -134,14 +135,21 @@ def test_a_refused_trigger_is_remembered_and_rendered():
     interroger plus tard, et s'il n'est pas mémorisé au moment du clic il n'existe
     nulle part dès que la `st.status` se referme.
     """
-    tree = _tree()
-    panel = next((n for n in ast.walk(tree)
-                  if isinstance(n, ast.FunctionDef)
-                  and n.name == "show_data_collection_panel"), None)
-    assert panel is not None, "show_data_collection_panel a disparu de app.py"
+    # LE LANCEUR, où qu'il vive. Le 2026-09-08 le bouton « Lancer TOUTES les
+    # collectes » a quitté la barre latérale — la collecte est quotidienne et repart
+    # seule à l'enregistrement d'un identifiant — et ce garde a rougi sur le
+    # DÉPLACEMENT, pas sur un défaut. Il visait `show_data_collection_panel` ; la
+    # question qu'il pose est « le lanceur mémorise-t-il les refus ? », et le lanceur
+    # est désormais l'étape 4 de l'accueil.
+    launcher = next(
+        (n for n in ast.walk(ast.parse(
+            pathlib.Path("src/dashboard/views/home.py").read_text(encoding="utf-8")))
+         if isinstance(n, ast.FunctionDef) and n.name == "_launch_collections"), None)
+    assert launcher is not None, (
+        "aucun lanceur de collecte dans l'application — garde à repointer")
 
     called = {getattr(n.func, "id", getattr(n.func, "attr", ""))
-              for n in ast.walk(panel) if isinstance(n, ast.Call)}
+              for n in ast.walk(launcher) if isinstance(n, ast.Call)}
     assert "remember_not_launched" in called, (
         "les déclenchements refusés ne sont plus mémorisés. Sans ça ils ne vivent que "
         "dans la `st.status` du clic, qui se referme — l'artiste voit un panneau "
