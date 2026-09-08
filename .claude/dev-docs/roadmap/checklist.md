@@ -38,9 +38,39 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-05 (soir), aucune tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-07 (soir), aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R1 -->
+
+### Ce que le 2026-09-06 et le 2026-09-07 ont changé (rien n'ouvre de tâche)
+
+**Ce qui reste ouvert est inchangé : R1, et rien d'autre.** Ces deux journées n'ont
+inscrit aucune tâche — elles ont fermé une série de CI rouge et corrigé des défauts
+trouvés en s'appuyant sur les données, pas en les auditant.
+
+- **La CI est verte** (run `34034904194`). La série de **27 exécutions rouges** est
+  close : `Run tests` n'avait plus tourné depuis le 2026-09-04, et il a rendu 5 échecs
+  réels dès qu'on l'a débloqué — aucun n'était visible en local. Réparer l'étape
+  bloquante n'était pas la fin de la séance, c'était ce qui rendait le reste
+  observable.
+- **Le rapprochement des titres était faux au-dessus du seuil d'auto-acceptation**
+  (2026-09-07) : « remix » était le seul marqueur de version reconnu, donc un radio
+  edit, un live ou un instrumental valait 0,90 contre son titre de base et ses écoutes
+  s'ajoutaient à l'original. Corrigé et **mesuré sur les 21 rapprochements réels de
+  production, figés en filet AVANT de toucher à l'algorithme** : 21/21 conservés, zéro
+  régression.
+- **17 % du catalogue était invisible** : `imusician_sales_detail` porte `isrc`,
+  `track_title` et `track_version` que rien ne lisait, et l'export S4A « 12 mois » ne
+  montre que ce qui a été écouté. Deux vraies sorties passaient pour des intrus.
+- **2 533 lignes portaient la chaîne littérale `nan`** — un NaN pandas est vrai en
+  booléen. Sur une clé comme l'ISRC, ça regroupe sous une même valeur tout ce qui n'a
+  pas d'identifiant. Corrigé + **migration 092**.
+- **Un garde textuel a été refusé par le cliquet et réécrit sur l'AST** : il a trouvé
+  du premier coup un site frère (`csv_dialect.py:50`) que la recherche de chaîne
+  ratait. Registre : **230 classes, propre.**
+
+Ce qui suit décrivait l'état au 2026-09-05.
+
 
 **▶️ Aucune tâche de développement ouverte.** Les quatre inscrites dans la journée
 (R59-R62) ont été closes le soir même — DEVLOG « suite 14 ». Ce qui reste est **R1**,

@@ -5,6 +5,104 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-07 (suite) — Le garde qui lisait du texte ratait un site frère que l'AST voit
+
+**La CI a refusé deux choses, et elle avait raison sur les deux.** Les deux refus
+portaient sur le travail de la veille — la classe `nan-written-as-a-value` et son
+garde — et le second a livré un défaut que je n'avais pas vu.
+
+**`test_a_guard_reads_structure_not_text` a refusé le garde.** Il cherchait le motif
+fautif par expression régulière : une clé de dictionnaire suivie de
+`str(… or '').strip()`. Le cliquet, gelé à 0, ne discute pas la qualité de la regex —
+il refuse la catégorie. Réécrit sur l'AST — *un appel à `str` dont l'unique argument
+est un `or` dont la droite est la chaîne vide* — il a trouvé **du premier coup** un
+site que la recherche textuelle ratait : `csv_dialect.py:50`,
+`str(text or "").lstrip(…)`. Le paramètre y est typé `str`, donc le risque est
+théorique ; le motif, lui, se recopie, et c'est exactement celui qui a produit 2 533
+lignes de « nan » dans le parseur iMusician. Corrigé en `text if isinstance(text, str)
+else ""`, avec le pourquoi écrit au-dessus.
+
+C'est la meilleure démonstration qu'on ait eue de l'écart entre les deux approches, et
+elle est arrivée le jour même où le cliquet a été invoqué : la version textuelle
+n'était pas « moins élégante », elle était **aveugle à un site réel**.
+
+**`test_every_named_guard_exists` a refusé la classe elle-même** : son champ `guard`
+pointait vers un répertoire, pas vers un fichier. Une classe marquée `guarded` dont le
+garde n'existe pas est une classe **ouverte qui se fait passer pour fermée** — le pire
+état, puisque le registre la compte comme close.
+
+**La trajectoire de la signature est notée dans l'historique de la classe**, parce
+qu'elle se répétera. D'abord un grep qui matchait sa PROPRE documentation : écrire sur
+le défaut faisait rougir la CI, et la seule façon de la garder verte aurait été
+d'arrêter de documenter. Puis un grep ancré sur la forme du code — refusé, c'était
+toujours du texte. Enfin le garde lui-même, `python3 -m pytest
+tests/test_nan_is_never_written_as_a_value.py -q`, comme pour les 229 autres classes.
+
+Audit déterministe : **230 classes, propre.**
+
+---
+
+## 2026-09-07 — Une version n'est pas une variante du titre, et 17 % du catalogue était invisible
+
+Le rapprochement des titres décide si les écoutes Spotify, les lectures Apple et les
+plays SoundCloud **s'additionnent sur le bon morceau**. Il se trompe en silence, et le
+seuil d'auto-acceptation est à 0,80 : au-dessus, personne ne relit.
+
+**D'abord le filet.** Les 21 rapprochements réels de production ont été figés dans
+`test_the_matcher_keeps_its_known_pairs.py` **avant** de toucher à l'algorithme — il
+marchait déjà à 21/21, donc le seul risque de la passe était de le dégrader. Il a
+servi : il a rattrapé la seule régression de la séance (le nom de l'artiste compté
+comme un mot du titre).
+
+**Trois défauts mesurés :**
+
+* **« remix » était le seul marqueur de version reconnu.** `(Radio Edit)`,
+  `(Extended Mix)`, `(Sped Up)`, `(Live)`, `(Instrumental)`, `- VIP` valaient tous
+  **0,90 contre leur titre de base** — au-dessus du seuil. Les écoutes d'un radio edit
+  se seraient ajoutées à l'original, sous la mauvaise date de sortie.
+  `split_version()` rend désormais `(base, marqueurs)`, cherchés là où les
+  distributeurs les écrivent — un groupe entre parenthèses, un suffixe COURT après
+  tiret — et nulle part ailleurs : chercher partout ferait de « Live Your Life » une
+  version live de « Your Life ». C'est le modèle du secteur : DDEX sépare Title et
+  Version Title, et chaque version porte son propre ISRC.
+* **L'inclusion rendait 0,90 sans regarder ce qu'elle laissait de côté.** « Mix » ⊆
+  « house music mix 3 back to old school » valait 0,90. Le score devient
+  `0,9 × couverture`, bruit et **nom d'artiste** retirés — SoundCloud et YouTube le
+  préfixent au titre, donc la fonction est délibérément moins sûre quand on ne le lui
+  donne pas, et `test_every_ranking_call_names_the_artist.py` vérifie que **chaque site
+  d'appel de production le déclare**.
+* **La forme à tiret exigeait `remix\b`** : « - Remixed by Bob » n'était pas reconnu du
+  tout — score 0,0, aucun candidat. Échec silencieux, pas mauvais score.
+
+**Mesure avant/après sur les vrais titres :** 21/21 conservés, dont 10 remontés de 0,90
+à 1,00 ; 6 marqueurs de version tombés de 0,90 à 0,00 ; 3 edits d'autres artistes
+tombés à 0,00. **Zéro régression.**
+
+**La trouvaille.** `imusician_sales_detail` porte `isrc`, `track_title` et
+`track_version` — le champ Version de DDEX — que **rien ne lisait**. L'export S4A « 12
+mois » ne contient que ce qui a été écouté sur douze mois : 10 morceaux, contre 12 au
+relevé du distributeur. « Bô bun mon bon monsieur » et « Feet First » sont de vraies
+sorties avec ISRC que l'app prenait pour des intrus — 17 % du catalogue invisible. La
+référence lit maintenant les deux sources, S4A gardant la main sur les dates.
+
+**Et le défaut de données qui bloquait tout :** `nan` était écrit en **chaîne
+littérale**, 2 533 lignes. Un NaN pandas est VRAI en booléen, donc `str(nan or '')`
+rend `'nan'`. Sur une colonne-clé comme l'ISRC, ça regroupe sous une même valeur tout
+ce qui n'a pas d'identifiant — le pire regroupement possible pour une colonne dont le
+rôle est de distinguer. Corrigé par un helper `_text()` qui teste `pd.isna` avant toute
+évaluation booléenne, plus la **migration 092**.
+
+Enfin, les titres qu'aucune sortie ne réclame **ne disparaissent plus** : ils sont
+listés avec LA raison (pas de référence / version absente / aucune ressemblance).
+
+**Trois classes capitalisées** — `one-version-marker-out-of-many`,
+`containment-ignores-what-it-leaves-out`, `nan-written-as-a-value`. 11 mutations vues
+rouges — dont **une restée verte**, qui a révélé que `_DASH_SUFFIX_MAX_WORDS` n'était
+exercé par aucun test : un réglage qu'aucun test n'atteint est un réglage qu'on
+changera par erreur. Cas ajouté, mutation revue rouge.
+
+---
+
 ## 2026-09-06 (suite 3) — 🟢 CI verte, et les deux dettes que je m'étais gardées
 
 **La CI est verte.** Run `34034904194`, aucune étape non-verte : la série de 27
