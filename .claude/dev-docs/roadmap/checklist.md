@@ -38,9 +38,36 @@ plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-07 (soir), aucune tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-08, aucune tâche ouverte (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R1 -->
+
+### Ce que le 2026-09-08 a changé (rien n'ouvre de tâche)
+
+**Deux défauts remontés par le parcours artiste, corrigés et DÉPLOYÉS le jour même**
+(`2840423`, api + dashboard sains, `make sync-check` vert : prod == canonique, 972
+colonnes / 95 tables, code déployé == `origin/main`).
+
+- **Le bouton qui terminait la mise en route était mort, aux DEUX sorties** — « 🔗
+  Confirmer le nom des titres » après un import de CSV, et « 🏠 Aller au dashboard → »
+  après la dernière plateforme connectée. Le compte rendu qui les porte était consommé
+  (`session_state.pop`) à l'affichage ; au rerun du clic le bloc n'existait plus, le
+  widget n'était pas ré-instancié, le geste était jeté. `utils/pending_notice.py`
+  remplace la consommation par une borne de page. Classe
+  `consumed-state-hides-its-own-widget`.
+- **« Aucune suggestion de campagne Meta » était NORMAL, et rien ne le disait.** Le bac
+  à sable est exempté du garde d'unicité d'identité — sa raison d'être — donc il
+  déclare le compte publicitaire du profil principal ; `meta_campaigns` ayant
+  `campaign_id` pour seule clé de conflit, il n'obtiendra jamais une campagne. Mesuré :
+  224 insights, 12 titres, **0 campagne**. Cause distincte `SANDBOX_SHARES_ACCOUNT` et
+  un texte qui nomme l'exemption. Classe
+  `an-exemption-on-one-surface-reads-as-a-failure-on-another`.
+
+**Le mapping des campagnes n'est pas rejouable dans le bac à sable, par construction** —
+c'est le seul geste du parcours qui demande le profil principal.
+
+Ce qui suit décrivait l'état au 2026-09-07.
+
 
 ### Ce que le 2026-09-06 et le 2026-09-07 ont changé (rien n'ouvre de tâche)
 
