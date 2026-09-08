@@ -164,18 +164,32 @@ def test_the_combined_total_never_counts_an_absence_as_a_zero() -> None:
     assert pts.combined_daily_streams(series) == [(d(2026, 9, 1), 40), (d(2026, 9, 2), 57)]
 
 
-def test_apple_is_named_as_missing_rather_than_drawn_at_zero() -> None:
-    """Apple n'a qu'un instantané par CSV : une ligne à zéro serait un mensonge."""
-    assert "apple" in pts.MISSING_HISTORY
-    assert "apple" not in pts.PLATFORM_LABELS
-    label, why = pts.MISSING_HISTORY["apple"]
-    assert why and label, "l'absence doit porter sa raison, sinon elle se lit en panne"
+def test_apple_exists_only_at_the_yearly_step() -> None:
+    """Apple a une série depuis les migrations 093/094 — mais à un seul pas.
+
+    Ses exports sont des totaux de PÉRIODE. Étaler 900 écoutes de 2024 sur 366 jours
+    inventerait une valeur quotidienne que personne n'a mesurée : c'est la faute que ce
+    module existe pour empêcher. Au pas annuel, en revanche, « 2024 » est exactement un
+    point.
+    """
+    assert pts.STEP_ONLY.get("apple") == "year", (
+        "Apple n'est plus restreinte au pas annuel : elle va être étalée sur des jours "
+        "qu'aucun relevé ne mesure")
+    assert "apple" in pts.PLATFORM_LABELS, "Apple a disparu des libellés"
 
 
 @pytest.mark.parametrize("platform", sorted(pts.PLATFORM_LABELS))
 def test_every_charted_platform_has_a_colour(platform) -> None:
-    """La courbe et la tuile de l'accueil doivent parler de la même plateforme."""
-    assert pts.PLATFORM_COLORS.get(platform), platform
+    """UNE seule palette, celle du rendu.
+
+    `platform_timeseries` en portait une COPIE (`PLATFORM_COLORS`) qui n'a pas suivi
+    l'ajout d'Apple : deux constantes pour une question, la dérive exacte que le garde
+    de l'illustration dénonce. Retirée le 2026-09-08 ; la palette vit dans
+    `platform_chart`, et ce test la lit là.
+    """
+    from src.dashboard.utils import platform_chart as pc
+    assert pc._PALETTE_LIGHT.get(platform), platform
+    assert pc._PALETTE_DARK.get(platform), platform
 
 
 def test_youtube_reads_per_video_counters_not_the_channel_one() -> None:

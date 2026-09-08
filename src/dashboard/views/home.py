@@ -87,6 +87,12 @@ def _section_streams(db, artist_id):
     since, until = date_range.bounds(range_key)
 
     series = daily_streams_by_platform(db, artist_id)
+    # Apple n'a pas de série quotidienne : ses relevés annuels sont ajoutés tels quels
+    # et ne deviennent traçables qu'au pas annuel (`STEP_ONLY`).
+    from src.dashboard.utils.platform_timeseries import apple_yearly_series
+    _apple = apple_yearly_series(db, artist_id)
+    if _apple:
+        series['apple'] = _apple
     ig = get_instagram_followers(db, artist_id)
     ig_count = ig['followers'] if ig else 0
 
@@ -214,19 +220,48 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
     # plateforme, pas à en cacher. Les cases ne proposent que ce que la période
     # contient — cocher une source qui n'a rien à dire ne montrerait rien et se
     # lirait comme une panne.
-    from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS, measured_days
-    available = [k for k in PLATFORM_LABELS if measured_days(series, k, since, until)]
+    from src.dashboard.utils.platform_timeseries import (
+        PLATFORM_LABELS, STEP_ONLY, measured_days,
+    )
+
+    # LE PAS. Automatique par défaut ; « Par année » est le SEUL où Apple existe, parce
+    # que ses exports sont des totaux de période et non des quantités du jour. Étaler
+    # une année sur 366 points inventerait une valeur que personne n'a mesurée.
+    steps = {'auto': t("home.step_auto", "Automatique"),
+             'week': t("home.step_week", "Par semaine"),
+             'year': t("home.step_year", "Par année")}
+    col_step, col_src = st.columns([1, 2])
+    with col_step:
+        step = st.selectbox(
+            t("home.trend_step", "Pas"), list(steps), format_func=steps.get,
+            key=f"home_trend_step_{artist_id}", label_visibility="collapsed")
+    step = None if step == 'auto' else step
+
+    available = [k for k in PLATFORM_LABELS
+                 # Une source qui n'existe qu'à un pas donné n'est proposée qu'à ce
+                 # pas-là : la cocher ailleurs ne montrerait rien et se lirait comme
+                 # une panne.
+                 if (STEP_ONLY.get(k) is None or STEP_ONLY[k] == step)
+                 and measured_days(series, k, since, until)]
     chosen = available
-    if len(available) > 1:
-        chosen = st.multiselect(
-            t("home.trend_sources", "Sources affichées"), available,
-            default=available, format_func=lambda k: PLATFORM_LABELS[k],
-            key=f"home_trend_sources_{artist_id}",
-            label_visibility="collapsed",
-            placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
+    with col_src:
+        if len(available) > 1:
+            chosen = st.multiselect(
+                t("home.trend_sources", "Sources affichées"), available,
+                default=available, format_func=lambda k: PLATFORM_LABELS[k],
+                key=f"home_trend_sources_{artist_id}",
+                label_visibility="collapsed",
+                placeholder=t("home.trend_sources_ph", "Toutes les sources")) or available
+
+    if step != 'year' and any(k in series and series[k] for k in STEP_ONLY):
+        st.caption(t(
+            "home.trend_apple_hint",
+            "🎎 **Apple Music** n'apparaît qu'au pas **Par année** : ses exports sont "
+            "des totaux de période, pas des chiffres du jour. L'étaler sur 365 jours "
+            "inventerait une valeur que personne n'a mesurée."))
 
     if not render_platform_chart(
-            series, since=since, until=until, only=chosen,
+            series, since=since, until=until, only=chosen, step=step,
             title=t("home.trend_title", "Toutes tes plateformes, un seul écran")
             + f" — {date_range.label(range_key)}",
             key=f"home_trend_{artist_id}"):

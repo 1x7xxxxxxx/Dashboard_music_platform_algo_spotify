@@ -109,6 +109,15 @@ _APPLE = PlatformGuide(
             "`songs_….csv` (Song, Plays, Avg. Listeners, Shazams, Radio Spins, Purchases).",
             "apple_music_tout_télécharger.png", "Download the CSV",
         ),
+        GuideStep(
+            "**Repeat for every period in the selector** — *Since the beginning*, "
+            "*Year to date*, then **each year** (2025, 2024, 2023…). One download per "
+            "period, and upload them all together: that is what gives Apple Music a "
+            "year-by-year trend instead of a single number. The dates are in the "
+            "filename — do not rename it.",
+            "apple_music_aperçu_filtre_depuisledébut.png",
+            "One period at a time, all uploaded together",
+        ),
     ),
     expected=(
         ExpectedCsv("Per-song performance", "songs_….csv",

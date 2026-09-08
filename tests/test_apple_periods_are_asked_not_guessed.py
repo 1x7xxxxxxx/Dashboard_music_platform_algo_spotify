@@ -192,3 +192,35 @@ def test_the_parser_actually_uses_the_filename_reader() -> None:
     assert "_apple_period_from_filename" in called, (
         "`_parse_file` ne lit plus les dates du nom de fichier : la question sera "
         "posée à chaque dépôt alors que la réponse est écrite dessus")
+
+
+def test_apple_is_a_yearly_point_never_spread_over_days() -> None:
+    """Un export « 2024 » vaut UN point au 1ᵉʳ janvier, pas 366 valeurs quotidiennes.
+
+    C'est la condition pour qu'Apple figure sur la même figure que les autres sans
+    inventer : étaler 900 écoutes sur une année produirait 2,46 écoutes/jour que
+    personne n'a mesurées.
+    """
+    db = _DB(readings=[(dt.date(2023, 1, 1), dt.date(2023, 12, 31), 600),
+                       (dt.date(2024, 1, 1), dt.date(2024, 12, 31), 900)])
+    assert pts.apple_yearly_series(db, 1) == [
+        (dt.date(2023, 1, 1), 600), (dt.date(2024, 1, 1), 900)]
+
+
+def test_a_multi_year_reading_never_joins_the_yearly_series() -> None:
+    """L'export « depuis le début » couvre 2015→2026 : il recouvrirait chaque année."""
+    db = _DB(readings=[(dt.date(2015, 6, 30), dt.date(2026, 9, 4), 3718),
+                       (dt.date(2024, 1, 1), dt.date(2024, 12, 31), 900)])
+    assert pts.apple_yearly_series(db, 1) == [(dt.date(2024, 1, 1), 900)], (
+        "un relevé à cheval sur plusieurs années est entré dans la série annuelle : "
+        "il compterait les années qu'il contient une seconde fois")
+
+    # LE CAS QUI DISTINGUE VRAIMENT LES DEUX RÈGLES, et qu'il fallait ajouter : SEUL
+    # l'export « depuis le début ». Le découpage non chevauchant le garde — il ne
+    # chevauche rien — et sans le filtre sur l'année il deviendrait un point « 2015 »
+    # portant onze ans d'écoutes. Mesuré : la première version de ce garde restait
+    # verte quand on retirait le filtre.
+    only_wide = _DB(readings=[(dt.date(2015, 6, 30), dt.date(2026, 9, 4), 3718)])
+    assert pts.apple_yearly_series(only_wide, 1) == [], (
+        "un relevé de onze ans est devenu un point « 2015 » : la figure annoncerait "
+        "3 718 écoutes sur une année qui n'en a jamais vu autant")

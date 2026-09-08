@@ -72,6 +72,7 @@ point égal au cumul est exactement le défaut qu'on corrige ici.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import logging
 from typing import Any, Optional
 
@@ -87,21 +88,19 @@ PLATFORM_LABELS = {
     "spotify": "🎵 Spotify",
     "youtube": "🎬 YouTube",
     "soundcloud": "☁️ SoundCloud",
+    # Apple n'a de valeurs qu'au pas ANNUEL — ses exports sont des totaux de période.
+    # Elle est donc dans les libellés, mais sa série n'existe qu'à ce pas-là
+    # (`apple_yearly_series`), et l'accueil ne la propose que là.
+    "apple": "🎎 Apple Music",
 }
 
-# Les couleurs de marque, pour que la courbe et la tuile parlent de la même chose.
-PLATFORM_COLORS = {
-    "spotify": "#1DB954",
-    "youtube": "#FF0000",
-    "soundcloud": "#FF5500",
-}
+# Les plateformes qui n'ont de série qu'à un pas donné. Lu par l'accueil pour ne pas
+# proposer une source qui ne pourrait rien tracer.
+STEP_ONLY = {"apple": "year"}
 
 # Ce dont on ne PEUT pas tracer l'évolution, et pourquoi. L'appelant l'affiche ; il ne
 # le devine pas, et il ne dessine surtout pas une ligne à zéro à la place.
-MISSING_HISTORY = {
-    "apple": ("🍎 Apple Music",
-              "un seul relevé par dépôt de CSV — pas d'historique à tracer"),
-}
+MISSING_HISTORY = {}
 
 # Le minimum pour qu'une courbe dise quelque chose — le même esprit que `MIN_POINTS`
 # de `welcome_figures`, mais compté sur ce qui est RÉELLEMENT traçable après
@@ -384,3 +383,21 @@ def apple_snapshot_count(db, artist_id) -> int:
         return int(row[0][0] or 0) if row else 0
     except Exception:      # noqa: BLE001
         return 0
+
+
+def apple_yearly_series(db, artist_id) -> list:
+    """[(1ᵉʳ janvier, écoutes)] — les relevés Apple qui tiennent dans UNE année civile.
+
+    C'est la seule façon honnête de faire figurer Apple sur la même figure que les
+    autres : ses exports sont des totaux de PÉRIODE, pas des quantités du jour. Étaler
+    900 écoutes de 2024 sur 366 jours inventerait une valeur quotidienne que personne
+    n'a mesurée — la faute que ce module existe pour empêcher.
+
+    Au pas ANNUEL, en revanche, un export « 2024 » est exactement un point. Les relevés
+    à cheval sur plusieurs années (l'export « depuis le début ») sont écartés : ils
+    recouvriraient les années qu'ils contiennent.
+    """
+    readings = [r for r in _apple_readings(db, artist_id)
+                if r[0].year == r[1].year]
+    return [(_dt.date(start.year, 1, 1), plays)
+            for start, _end, plays in non_overlapping_cover(readings)]

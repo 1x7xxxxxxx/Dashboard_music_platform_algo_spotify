@@ -41,6 +41,14 @@ EN = {
         "upload on another date will fill this in. \"Since the beginning\" shows the total."),
     "home.ig_delta": "over the period",
     "home.ig_no_change": "change: not enough readings",
+    "home.trend_step": "Step",
+    "home.step_auto": "Automatic",
+    "home.step_week": "Weekly",
+    "home.step_year": "Yearly",
+    "home.trend_apple_hint": (
+        "🎎 **Apple Music** only appears at the **Yearly** step: its exports are period "
+        "totals, not daily figures. Spreading one over 365 days would invent a value "
+        "nobody measured."),
     "home.trend_sources": "Sources shown",
     "home.trend_sources_ph": "All sources",
     "home.trend_title": "All your platforms, one screen",

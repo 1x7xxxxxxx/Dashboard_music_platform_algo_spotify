@@ -64,15 +64,15 @@ def test_the_live_palette_is_the_illustration_palette() -> None:
 def test_the_dark_palette_only_moves_what_the_validator_refused() -> None:
     """Le mode sombre garde la figure reconnaissable — un seul pas bouge.
 
-    La bande de clarté du mode sombre (0,48–0,67) refuse `#eb6834` ; les deux autres
-    passent tels quels. Décaler les trois « pour l'harmonie » ferait de la figure
-    sombre une autre figure.
+    La bande de clarté du mode sombre (0,48–0,67) refuse `#eb6834` (YouTube) et
+    `#eda100` (Apple, ajoutée le 2026-09-08) ; les deux autres passent tels quels.
+    Décaler les quatre « pour l'harmonie » ferait de la figure sombre une autre figure.
     """
     light, dark = pc._PALETTE_LIGHT, pc._PALETTE_DARK
-    moved = [k for k in light if light[k].lower() != dark[k].lower()]
-    assert moved == ["youtube"], (
-        f"le mode sombre déplace {moved} — seul l'orange a été refusé par le "
-        "validateur, le reste doit rester identique")
+    moved = sorted(k for k in light if light[k].lower() != dark[k].lower())
+    assert moved == ["apple", "youtube"], (
+        f"le mode sombre déplace {moved} — seuls l'orange et l'ambre ont été refusés "
+        "par le validateur, le reste doit rester identique")
 
 
 def test_the_form_is_a_stack_not_overlapping_lines() -> None:

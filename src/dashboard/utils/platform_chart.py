@@ -33,8 +33,10 @@ normale** : deux aires qu'on ne peut pas attribuer, ce qui est la définition d'
 figure illisible.
 
 Le mode sombre a ses PROPRES pas — la bande de clarté y est 0,48–0,67 contre
-0,43–0,77 en clair. Seul l'orange bouge (`#eb6834` → `#e05f2b`) : la figure reste la
-même d'un thème à l'autre. L'avertissement de contraste du vert oblige un **relief** —
+0,43–0,77 en clair. Seuls l'orange et l'ambre bougent (`#eb6834` → `#e05f2b`,
+`#eda100` → `#c08400`) : la figure reste la même d'un thème à l'autre. Le quatrième
+emplacement, l'ambre, est celui d'Apple, et c'est le même que la quatrième série de
+l'illustration. L'avertissement de contraste du vert oblige un **relief** —
 d'où l'étiquette posée sur chaque aire, qui n'est pas décorative.
 
 Un trou est un trou
@@ -57,8 +59,10 @@ logger = logging.getLogger(__name__)
 
 # Les couleurs de l'illustration committée, validées le 2026-09-08 — « ALL CHECKS
 # PASS » sur les six contrôles, dans les deux modes.
-_PALETTE_LIGHT = {"spotify": "#2a78d6", "youtube": "#eb6834", "soundcloud": "#1baf7a"}
-_PALETTE_DARK = {"spotify": "#2a78d6", "youtube": "#e05f2b", "soundcloud": "#1baf7a"}
+_PALETTE_LIGHT = {"spotify": "#2a78d6", "youtube": "#eb6834", "soundcloud": "#1baf7a",
+                  "apple": "#eda100"}
+_PALETTE_DARK = {"spotify": "#2a78d6", "youtube": "#e05f2b", "soundcloud": "#1baf7a",
+                 "apple": "#c08400"}
 
 # Aucune fenêtre par défaut : « depuis le début » est le choix par défaut du sélecteur
 # de l'accueil (`utils/date_range`), et la figure doit dire la même chose que lui.
@@ -98,6 +102,9 @@ def _continuous(rows: list[tuple], days: list) -> list:
 # plus déroutante qu'une courbe un peu lissée.
 _WEEKLY_ABOVE_DAYS = 92
 
+# Le mot qui suit le nombre, dans le sous-titre.
+_STEP_UNITS = {"day": "jours", "week": "semaines", "year": "années"}
+
 
 def margin_labels(order: list, ink: str) -> list:
     """Les étiquettes, espacées dans la marge droite, dans l'ordre visuel de la pile.
@@ -121,21 +128,37 @@ def _monday(day):
     return day - _dt.timedelta(days=day.weekday())
 
 
-def _weekly(series: dict) -> dict:
-    """La même série, sommée par semaine (lundi), sans rien inventer.
+def _bucket_key(day, step: str):
+    """Le point auquel ce jour appartient, selon le pas."""
+    if step == "year":
+        return _dt.date(day.year, 1, 1)
+    if step == "week":
+        return _monday(day)
+    return day
 
-    Une semaine ne porte que ce qui a été MESURÉ dedans : c'est une somme partielle
-    quand un jour manque, jamais une extrapolation. Une semaine sans aucune mesure
-    reste absente, donc inconnue, donc elle coupe la bande comme un jour manquant.
+
+def _aggregate(series: dict, step: str) -> dict:
+    """La même série, sommée par semaine ou par année, sans rien inventer.
+
+    Un seau ne porte que ce qui a été MESURÉ dedans : c'est une somme partielle quand
+    un jour manque, jamais une extrapolation. Un seau sans aucune mesure reste absent,
+    donc inconnu, donc il coupe la bande comme un jour manquant.
     """
+    if step == "day":
+        return series
     out: dict = {}
     for key, rows in (series or {}).items():
-        weeks: dict = {}
+        buckets: dict = {}
         for day, value in rows:
-            monday = _monday(day)
-            weeks[monday] = weeks.get(monday, 0) + value
-        out[key] = sorted(weeks.items())
+            k = _bucket_key(day, step)
+            buckets[k] = buckets.get(k, 0) + value
+        out[key] = sorted(buckets.items())
     return out
+
+
+def _weekly(series: dict) -> dict:
+    """Conservée : `_aggregate(series, "week")`, sous son ancien nom."""
+    return _aggregate(series, "week")
 
 
 def _window(series: dict, days: int | None,
@@ -252,7 +275,7 @@ def _segments(span: list, aligned: dict, order: list) -> list:
 
 
 def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
-                          since=None, until=None, only=None,
+                          since=None, until=None, only=None, step=None,
                           key: str = "platform_chart") -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -265,7 +288,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         return False
     # Le PAS suit la largeur de la fenêtre, décidée sur la fenêtre réellement obtenue
     # et non sur celle demandée : « depuis le début » n'a pas de nombre de jours.
-    weekly = len(span) > _WEEKLY_ABOVE_DAYS
+    # Le pas : imposé par l'appelant, sinon déduit de la largeur de la fenêtre.
+    step = step or ("week" if len(span) > _WEEKLY_ABOVE_DAYS else "day")
+    weekly = step != "day"
     if weekly:
         # LES BORNES SONT RAMENÉES AU LUNDI, sinon rien ne s'aligne : les semaines sont
         # clavées au lundi et « Cette année » commence un 1ᵉʳ janvier — un jeudi en
@@ -274,9 +299,22 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         # aucune plateforme, tandis que « Depuis le début » (sans borne, donc calée sur
         # une clé existante) fonctionnait. Deux périodes muettes pour un décalage de
         # trois jours.
-        w_since = _monday(since) if since is not None else None
-        w_until = _monday(until) if until is not None else None
-        span, aligned = _window(_weekly(series), None, w_since, w_until, step_days=7)
+        w_since = _bucket_key(since, step) if since is not None else None
+        w_until = _bucket_key(until, step) if until is not None else None
+        if step == "year":
+            # Un pas ANNUEL ne se parcourt pas en jours fixes : 365 ou 366. On
+            # construit donc l'axe sur les 1ᵉʳ janvier réellement présents.
+            agg = _aggregate(series, step)
+            years = sorted({d for rows in agg.values() for d, _ in rows
+                            if (w_since is None or d >= w_since)
+                            and (w_until is None or d <= w_until)})
+            if not years:
+                return False
+            span = years
+            aligned = {k: _continuous(rows, span) for k, rows in agg.items() if rows}
+        else:
+            span, aligned = _window(_aggregate(series, step), None,
+                                    w_since, w_until, step_days=7)
         if not span or not aligned:
             return False
     try:
@@ -374,7 +412,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
             # Il ne s'applique qu'au nombre.
             text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
                   f"{format(total, ',').replace(',', chr(8239))} écoutes sur "
-                  f"{len(span)} {'semaines' if weekly else 'jours'}</span>"
+                  f"{len(span)} {_STEP_UNITS[step]}</span>"
                   if title else None),
             x=0, xanchor="left"),
         hovermode="x unified",
