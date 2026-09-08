@@ -224,3 +224,37 @@ def test_a_multi_year_reading_never_joins_the_yearly_series() -> None:
     assert pts.apple_yearly_series(only_wide, 1) == [], (
         "un relevé de onze ans est devenu un point « 2015 » : la figure annoncerait "
         "3 718 écoutes sur une année qui n'en a jamais vu autant")
+
+
+def test_the_upsert_key_lets_a_second_reading_exist() -> None:
+    """La CLÉ décide s'il peut y avoir un passé — c'était elle, le défaut.
+
+    `UNIQUE(artist_id, song_name)` faisait écraser chaque dépôt par le suivant : la
+    table n'a jamais porté plus d'un relevé, et l'app en concluait « Apple ne fournit
+    pas de série ». Elle en fournissait ; c'est nous qui n'en gardions aucune.
+
+    Le garde lit la clé de conflit de la page d'import — celle qui décide vraiment,
+    plus que le DDL, parce que c'est elle qu'`upsert_many` envoie à Postgres.
+    """
+    tree = ast.parse(_UPLOAD.read_text(encoding="utf-8"))
+    apple_cfg = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        keys = [k.value for k in node.keys if isinstance(k, ast.Constant)]
+        if "table" not in keys:
+            continue
+        table = node.values[keys.index("table")]
+        if isinstance(table, ast.Constant) and table.value == "apple_songs_performance":
+            apple_cfg = dict(zip(keys, node.values))
+            break
+    assert apple_cfg is not None, "la configuration d'import Apple a disparu"
+
+    conflict = apple_cfg.get("conflict_columns")
+    cols = {c.value for c in getattr(conflict, "elts", []) if isinstance(c, ast.Constant)}
+    assert "snapshot_date" in cols, (
+        f"la clé de conflit Apple est {sorted(cols)} : sans la DATE, chaque dépôt "
+        "écrase le précédent et la table ne pourra jamais porter deux relevés")
+    assert {"period_start", "period_end"} <= cols, (
+        f"la clé de conflit Apple est {sorted(cols)} : sans les bornes de période, "
+        "deux exports annuels déposés le même jour s'écrasent l'un l'autre")

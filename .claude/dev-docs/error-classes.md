@@ -282,6 +282,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [containment-ignores-what-it-leaves-out](#containment-ignores-what-it-leaves-out) | P2 | deterministic | guarded | none |
 | [nan-written-as-a-value](#nan-written-as-a-value) | P2 | deterministic | guarded | none |
 | [one-identity-two-readers](#one-identity-two-readers) | P3 | deterministic | guarded | none |
+| [a-key-that-forbids-history](#a-key-that-forbids-history) | P2 | deterministic | guarded | none |
+| [an-aggregate-counter-is-not-the-sum-of-its-parts](#an-aggregate-counter-is-not-the-sum-of-its-parts) | P2 | deterministic | guarded | none |
+| [overlapping-readings-summed-as-one](#overlapping-readings-summed-as-one) | P2 | deterministic | guarded | none |
 | [a-cumulative-counter-charted-as-a-daily-figure](#a-cumulative-counter-charted-as-a-daily-figure) | P2 | deterministic | guarded | none |
 | [the-live-chart-drifted-from-its-illustration](#the-live-chart-drifted-from-its-illustration) | P3 | deterministic | guarded | none |
 | [a-step-that-nothing-routes-to](#a-step-that-nothing-routes-to) | P3 | deterministic | guarded | none |
@@ -2099,6 +2102,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-08-23
 - History:
   - 2026-08-23: le contraste est ce qui rend la classe intéressante — la matrice à L'ÉCRAN était CORRECTE, et l'enquête est partie de l'hypothèse inverse. C'est la surface **imprimée**, celle qui survit à la session et que l'artiste garde, qui mentait. Chercher un faux vert là où on le voit peut envoyer sur la mauvaise surface.
+  - 2026-09-08: variante par COPIE, et non par recalcul. `platform_timeseries.PLATFORM_COLORS` doublait la palette de `platform_chart._PALETTE_LIGHT` ; l'ajout d'une quatrième plateforme n'a été fait que dans l'une des deux, et le garde qui lisait la copie a rougi sur une plateforme sans couleur. Constante supprimée — la palette vit dans le module qui DESSINE, et le garde la lit là. Le module qui portait la copie est celui-là même dont un test dénonce la dérive entre la figure live et son illustration : un fichier peut interdire une duplication et en héberger une autre.
 
 ## success-message-outside-its-condition
 - status: guarded
@@ -4052,3 +4056,51 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-08: une aire empilée n'a pas de trou, et c'est la contrainte qui a demandé le plus de mesure. Compter un jour non mesuré pour zéro fait plonger le TOTAL et se lit comme une chute d'écoutes ; on coupe donc la bande. Mesuré sur l'artiste 1 avant de trancher : 79 jours complets sur 90, en 2 tranches — la bande reste lisible et les 11 jours manquants ne mentent pas.
   - 2026-09-08: le remaniement qui a replié le bandeau de mise en route a fait rougir `test_the_launch_step_launches`, ancré sur `_section_onboarding` — la fonction scindée — et non sur sa question. Réancré en suivant les appels du module, comme les autres gardes de la journée.
+
+## a-key-that-forbids-history
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: on conclut qu'une source « ne fournit pas d'historique », et on l'écrit dans le produit. Signalé le 2026-09-08 : « pour Apple je ne comprends pas, je viens de refaire le process avec le CSV d'aujourd'hui et rien ne s'est actualisé ».
+- root_cause: `apple_songs_performance` portait `UNIQUE(artist_id, song_name)` — sans date. Chaque dépôt de CSV écrasait donc le précédent, et la table n'a JAMAIS porté plus d'un relevé : 11 lignes pour l'artiste 1, toutes au même horodatage. Aucune période n'était découpable, et re-déposer le même export ne pouvait rien changer. La source fournissait bien une donnée par période ; c'est la clé qui interdisait de la garder. La conclusion « Apple n'a pas de série » a ensuite été écrite dans un message affiché à l'artiste, transformant notre contrainte en propriété de la plateforme.
+- signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- long_term_fix: migrations 093 (`snapshot_date` dans la clé) et 094 (`period_start`/`period_end`, remplis en lisant les deux dates que Apple écrit dans le nom du fichier). Le garde lit la clé de conflit de la PAGE D'IMPORT et non le DDL : c'est elle qu'`upsert_many` envoie à Postgres, donc c'est elle qui décide. La règle générale : avant d'écrire dans le produit qu'une source n'a pas d'historique, vérifier si c'est la source, la CLÉ, ou une question qu'on n'a jamais posée.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- rex_ref: migrations/093_apple_keeps_every_snapshot.sql
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE en remettant `['artist_id', 'song_name']` comme clé de conflit — « la clé de conflit Apple est ['artist_id', 'song_name'] : sans la DATE, chaque dépôt écrase le précédent » — et verte sur l'arbre corrigé.
+  - 2026-09-08: le défaut a survécu à un premier correctif. La migration 093 a donné le droit de garder plusieurs relevés, mais pas de savoir ce que chacun MESURE : trois exports annuels déposés le même jour se seraient encore écrasés. Une clé qui autorise l'historique n'est pas la même chose qu'une clé qui distingue les relevés.
+
+## an-aggregate-counter-is-not-the-sum-of-its-parts
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un chiffre affiché est faux d'un facteur cinq à dix, sans erreur ni trou. Signalé le 2026-09-08 : « les données de YouTube sont fausses, voici celles que j'obtiens via YouTube Studio » — 64 vues sur la période, contre 360 attribuées à une seule journée par l'app.
+- root_cause: `youtube_channel_history.view_count` est le compteur de la CHAÎNE. Mesuré : figé à 120 627 du 2026-08-28 au 2026-09-07, puis 120 987 d'un coup. Il est mis à jour par paliers et porte autre chose que la somme des vidéos — vidéos privées ou supprimées, agrégats internes. La série lui prenait son écart quotidien, donc un palier de +360 devenait « 360 vues le 8 septembre ». La somme des compteurs PAR VIDÉO (`youtube_video_stats`) donne +3, 0, +3, 0, +1… soit 44 sur 28 jours — le même ordre de grandeur que Studio.
+- signature: `python3 -m pytest tests/test_a_cumulative_counter_is_not_a_daily_figure.py -q`
+- long_term_fix: lire les compteurs de l'entité la plus FINE que la source expose, et prendre l'écart par entité avant d'additionner. Le garde épingle la source elle-même : `youtube_video_stats` présent, `youtube_channel_history` absent, `PARTITION BY video_id` présent. La règle générale : un compteur agrégé fourni par une plateforme n'est pas la somme de ses parties, et seule une source EXTÉRIEURE — ici YouTube Studio — permet de savoir lequel des deux ment.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_cumulative_counter_is_not_a_daily_figure.py }
+- rex_ref: src/dashboard/utils/platform_timeseries.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE en remettant `youtube_channel_history` comme source (2 échecs), verte sur l'arbre corrigé.
+  - 2026-09-08: ce qui a permis de trancher n'est pas un raisonnement mais un chiffre venu d'ailleurs. Sans les 64 vues de YouTube Studio, les deux sources étaient également plausibles — l'une disait 360, l'autre 44, et rien dans notre base ne départageait. Quand deux compteurs internes divergent, chercher la mesure extérieure avant de choisir.
+
+## overlapping-readings-summed-as-one
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un total gonfle sans raison visible, d'autant plus que l'utilisateur a fourni PLUS de données. Aucune erreur : chaque relevé est juste, c'est leur addition qui ment.
+- root_cause: des relevés de période qui se RECOUVRENT sont additionnés comme s'ils étaient disjoints. Apparu le 2026-09-08 en conséquence directe d'un correctif : dès que la période d'un export Apple se lit dans le nom du fichier, un artiste a naturellement l'export « depuis le début » (2015-06-30 → 2026-09-04) ET celui de 2024. Les sommer compte 2024 deux fois — une fois seul, une fois dans le cumul qui le contient. C'est la même faute que `a-cumulative-counter-charted-as-a-daily-figure`, sur des périodes au lieu de grandeurs : additionner deux mesures qui se recouvrent.
+- signature: `python3 -m pytest tests/test_apple_periods_are_asked_not_guessed.py -q`
+- long_term_fix: `non_overlapping_cover` — on garde le découpage le plus FIN qui ne se chevauche pas (les plus courts d'abord, et un relevé n'est retenu que s'il ne chevauche aucun des gardés), et le total prend le relevé le plus LARGE, qui porte déjà tout. La règle générale : avant de sommer des mesures de période, vérifier qu'aucune n'en contient une autre — un correctif qui donne accès à plus de données crée souvent cette forme.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_apple_periods_are_asked_not_guessed.py }
+- rex_ref: src/dashboard/utils/platform_timeseries.py
+- first_seen: 2026-09-08
+- History:
+  - 2026-09-08: signature vue ROUGE en neutralisant le test de chevauchement — « le découpage retenu se chevauche : [(2015-06-30, 2026-09-04, 3718), (2024-01-01, 2024-12-31, 900)] » — et verte sur l'arbre corrigé.
+  - 2026-09-08: le garde de la variante annuelle est resté VERT sur sa mutation, et le cas manquant est instructif : le filtre « un relevé ne compte que s'il tient dans UNE année » ne se distingue pas tant qu'un relevé plus court existe à côté, puisque le découpage écarte déjà le long. Il ne se distingue que si le relevé de onze ans est SEUL — sans le filtre, il deviendrait un point « 2015 » portant onze ans d'écoutes. Un cas de test qui ne varie qu'avec un autre cas présent ne teste pas la règle.
