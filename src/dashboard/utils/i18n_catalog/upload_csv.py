@@ -49,6 +49,12 @@ EN = {
         "in the filename. Fill it in here — the file will import on its own."),
     "upload_csv.ask_song": "Track title",
     "upload_csv.ask_song_ph": "e.g. Kimono à semelle de fer",
+    "upload_csv.ask_apple_period": "Period covered by this export",
+    "upload_csv.ask_apple_period_ph": "— pick the period —",
+    "upload_csv.apple_period_all": "Since the beginning",
+    "upload_csv.ask_apple_period_why": (
+        "Apple does not write the period inside the file — their site's selector "
+        "chooses it. Tell us which one you picked."),
     "upload_csv.ask_window": "Period covered by this export",
     "upload_csv.ask_window_ph": "— pick the period —",
     "upload_csv.window_12m": "12 months",

@@ -247,18 +247,28 @@ def get_total_plays_soundcloud(_db, artist_id):
 
 @st.cache_data(ttl=60)
 def get_total_plays_apple(_db, artist_id):
-    """Total plays Apple Music."""
-    db = _db
+    """Total plays Apple Music, SANS compter deux fois.
+
+    `SUM(plays)` sur toute la table était juste tant qu'un artiste n'avait qu'un seul
+    relevé — ce que la clé lui imposait avant la migration 093. Depuis qu'il peut
+    déposer plusieurs exports (« depuis le début », puis un par année, migration 094),
+    la somme brute additionne un cumul ET les années qu'il contient déjà : les mêmes
+    écoutes deux fois.
+
+    La règle est donc « le dernier cumul s'il existe, sinon la somme des périodes
+    bornées » — elle vit dans `platform_timeseries.apple_lifetime_plays`, et les trois
+    lecteurs (accueil, Data Wrapped, export PDF) passent par ici.
+    """
+    if artist_id is not None:
+        from src.dashboard.utils.platform_timeseries import apple_lifetime_plays
+        return apple_lifetime_plays(_db, artist_id)
     try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                "SELECT SUM(plays) FROM apple_songs_performance WHERE artist_id = %s",
-                (artist_id,)
-            )
-        else:
-            row = db.fetch_query("SELECT SUM(plays) FROM apple_songs_performance")
+        # Vue flotte (admin) : pas de locataire, donc pas de notion de « son » cumul.
+        row = _db.fetch_query(
+            "SELECT COALESCE(SUM(plays), 0) FROM apple_songs_performance "
+            "WHERE period_start IS NULL")
         return int(row[0][0] or 0)
-    except Exception:
+    except Exception:      # noqa: BLE001
         return 0
 
 

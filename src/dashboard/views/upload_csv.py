@@ -48,7 +48,8 @@ _PLATFORMS = {
         # La DATE entre dans la clé (migration 093) : deux dépôts à deux dates font
         # deux relevés, et Apple a enfin une série. Deux dépôts le MÊME jour restent
         # un seul relevé — re-déposer le même export ne crée pas un point de plus.
-        'conflict_columns': ['artist_id', 'song_name', 'snapshot_date'],
+        'conflict_columns': ['artist_id', 'song_name', 'snapshot_date',
+                             'period_start', 'period_end'],
         'update_columns': ['plays', 'listeners', 'shazam_count', 'collected_at'],
     },
     'imusician_summary': {
@@ -362,6 +363,23 @@ def _answers_for(artist_id: int, filename: str) -> dict:
     return _st.session_state.get(_answers_key(artist_id, filename)) or {}
 
 
+def _apple_period_bounds(period: str):
+    """(début, fin) d'une période Apple — `(None, None)` pour « depuis le début ».
+
+    Une ANNÉE est bornée aux deux extrémités : c'est ce qui permet de la placer dans
+    une fenêtre sans la confondre avec un cumul. « Depuis le début » n'a pas de borne,
+    et c'est la valeur qu'ont les relevés déposés avant qu'on pose la question.
+    """
+    import datetime as _dt
+    if period == 'all':
+        return None, None
+    try:
+        year = int(period)
+    except (TypeError, ValueError):
+        return None, None
+    return _dt.date(year, 1, 1), _dt.date(year, 12, 31)
+
+
 def _parse_file(platform_key: str, file, artist_id: int,
                 answers: dict | None = None) -> list:
     """Parse an uploaded file for the given platform key. Returns a list of row dicts.
@@ -426,12 +444,31 @@ def _parse_file(platform_key: str, file, artist_id: int,
         return S4ACSVParser().parse_audience(df, artist_id=artist_id)
 
     if platform_key == 'apple':
-        # _detect_platform only routes songs-performance CSVs here (morceau/song + plays);
-        # parse_songs_performance does not inject artist_id, so add it per row.
+        # LA PÉRIODE EST DEMANDÉE, JAMAIS DEVINÉE. L'export Apple n'a aucune colonne
+        # de date : c'est le sélecteur de leur interface qui décide, et le fichier
+        # n'en garde pas la trace. Sans cette question, trois exports annuels déposés
+        # le même jour s'écrasent, et deux exports annuels distincts sont traités
+        # comme deux photos d'un cumul — on soustrairait 2023 de 2024, qui sont des
+        # périodes DISJOINTES.
+        #
+        # Même mécanisme que la fenêtre 28 j / 12 mois des exports Spotify : une
+        # question sous le tableau, pas une impasse.
         from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
+        from src.transformers.s4a_csv_parser import MissingFromFilenameError
+
+        period = (answers.get('apple_period') or '').strip()
+        if not period:
+            raise MissingFromFilenameError(
+                'apple_period',
+                t("upload_csv.ask_apple_period_why",
+                  "Apple n'écrit pas la période dans le fichier — c'est le sélecteur "
+                  "de leur site qui la choisit. Dis-nous laquelle tu as prise."))
         rows = AppleMusicCSVParser().parse_songs_performance(df)
+        start, end = _apple_period_bounds(period)
         for row in rows:
             row['artist_id'] = artist_id
+            row['period_start'] = start
+            row['period_end'] = end
         return rows
 
     if platform_key == 'imusician_summary':
@@ -884,6 +921,21 @@ def render_uploader(db, target_artist_id: int) -> None:
                 )
                 if value.strip():
                     _store_answer(key, {'song': value.strip()})
+            elif field == 'apple_period':
+                import datetime as _dt
+                _year = _dt.date.today().year
+                _years = [str(y) for y in range(_year, _year - 6, -1)]
+                choice = st.selectbox(
+                    t("upload_csv.ask_apple_period", "Période couverte par cet export"),
+                    options=[''] + ['all'] + _years,
+                    format_func=lambda v: {
+                        '': t("upload_csv.ask_apple_period_ph", "— choisis la période —"),
+                        'all': t("upload_csv.apple_period_all", "Depuis le début"),
+                    }.get(v, v),
+                    key=f"{key}_apple_period_widget",
+                )
+                if choice:
+                    _store_answer(key, {'apple_period': choice})
             else:
                 choice = st.selectbox(
                     t("upload_csv.ask_window", "Période couverte par cet export"),

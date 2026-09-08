@@ -94,6 +94,10 @@ def _section_streams(db, artist_id):
         s4a = get_total_streams_s4a(db, artist_id)
         yt = get_total_views_youtube(db, artist_id)
         sc = get_total_plays_soundcloud(db, artist_id)
+        # `get_total_plays_apple` ne somme plus toute la table : depuis qu'un artiste
+        # peut déposer À LA FOIS un export « depuis le début » et un export par année,
+        # la somme brute comptait deux fois les mêmes écoutes. La règle vit dans
+        # `apple_lifetime_plays`, derrière ce helper, pour les trois lecteurs.
         apple = get_total_plays_apple(db, artist_id)
     else:
         def _sum(pkey):

@@ -255,26 +255,48 @@ def followers_change(db, artist_id, since=None, until=None):
 
 
 def apple_period_plays(db, artist_id, since=None, until=None):
-    """Les écoutes Apple sur la période, ou `None` — la différence de deux relevés.
+    """Les écoutes Apple sur la période, ou `None`. Deux chemins, dans cet ordre.
 
-    Apple n'a pas de résolution quotidienne : chaque dépôt de CSV est un relevé daté
-    (`snapshot_date`, migration 093), et `plays` y est un cumul. Sur une période, la
-    seule chose vraie est donc l'écart entre le premier et le dernier relevé qu'elle
-    contient — pas une somme, et surtout pas une valeur par jour.
+    Apple n'a pas de résolution quotidienne, mais depuis les migrations 093/094 chaque
+    dépôt de CSV est un relevé daté qui SAIT ce qu'il couvre. Deux formes coexistent, et
+    on ne les additionne jamais entre elles :
 
-    C'est pour ça qu'Apple n'entre pas dans la bande empilée, qui est quotidienne, mais
-    qu'elle peut désormais remplir sa TUILE. Avant la migration 093 elle ne le pouvait
-    pas : la clé `(artist_id, song_name)` faisait écraser chaque relevé par le suivant,
-    et la table n'a jamais porté plus d'un point.
+    * **des périodes bornées** (« 2023 », « 2024 »…) — elles sont DISJOINTES, donc on
+      somme celles qui tiennent entièrement dans la fenêtre. C'est le chemin précis, et
+      c'est ce que gagne un artiste qui dépose un export par année ;
+    * **des relevés « depuis le début »** — chacun est un cumul, donc on ne somme pas :
+      on prend l'écart entre le premier et le dernier de la fenêtre. Sans deux relevés,
+      il n'y a pas d'écart, et on rend `None`.
 
-    Rend `None` tant qu'il n'y a pas DEUX relevés dans la période : un écart a besoin
-    de deux points.
+    Mélanger les deux compterait deux fois les mêmes écoutes, une fois dans le cumul et
+    une fois dans l'année.
     """
     if db is None or artist_id is None:
         return None
-    sql = ("SELECT snapshot_date, SUM(plays)::bigint FROM apple_songs_performance "
-           "WHERE artist_id = %s AND plays IS NOT NULL")
+
+    bounded = ("SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
+               "WHERE artist_id = %s AND period_start IS NOT NULL "
+               "  AND period_end IS NOT NULL")
     params: list = [artist_id]
+    if since is not None:
+        bounded += " AND period_start >= %s"
+        params.append(since)
+    if until is not None:
+        bounded += " AND period_end <= %s"
+        params.append(until)
+    try:
+        row = db.fetch_query(bounded, tuple(params))
+        total = int(row[0][0] or 0) if row else 0
+    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+        logger.warning("apple period unavailable: %s", type(exc).__name__)
+        return None
+    if total:
+        return total
+
+    # Repli : les relevés « depuis le début », comparés deux à deux.
+    sql = ("SELECT snapshot_date, SUM(plays)::bigint FROM apple_songs_performance "
+           "WHERE artist_id = %s AND plays IS NOT NULL AND period_start IS NULL")
+    params = [artist_id]
     if since is not None:
         sql += " AND snapshot_date >= %s"
         params.append(since)
@@ -285,7 +307,7 @@ def apple_period_plays(db, artist_id, since=None, until=None):
     try:
         rows = [(r[0], int(r[1])) for r in (db.fetch_query(sql, tuple(params)) or [])
                 if r[1] is not None]
-    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+    except Exception as exc:      # noqa: BLE001
         logger.warning("apple period unavailable: %s", type(exc).__name__)
         return None
     if len(rows) < 2:
@@ -293,14 +315,49 @@ def apple_period_plays(db, artist_id, since=None, until=None):
     return max(rows[-1][1] - rows[0][1], 0)
 
 
-def apple_snapshot_count(db, artist_id) -> int:
-    """Combien de relevés Apple existent — pour DIRE pourquoi la tuile est vide."""
+def apple_lifetime_plays(db, artist_id):
+    """Le total Apple « depuis le début », sans compter deux fois.
+
+    Un artiste peut déposer À LA FOIS un export « depuis le début » et un export par
+    année : sommer toutes les lignes compterait les mêmes écoutes deux fois. On préfère
+    donc le dernier relevé non borné — c'est un cumul, il porte déjà tout — et on ne
+    somme les périodes bornées que s'il n'y en a aucun.
+    """
     if db is None or artist_id is None:
         return 0
     try:
         row = db.fetch_query(
-            "SELECT COUNT(DISTINCT snapshot_date) FROM apple_songs_performance "
-            "WHERE artist_id = %s", (artist_id,))
+            "SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
+            "WHERE artist_id = %s AND period_start IS NULL "
+            "  AND snapshot_date = (SELECT MAX(snapshot_date) "
+            "                         FROM apple_songs_performance "
+            "                        WHERE artist_id = %s AND period_start IS NULL)",
+            (artist_id, artist_id))
+        lifetime = int(row[0][0] or 0) if row else 0
+        if lifetime:
+            return lifetime
+        row = db.fetch_query(
+            "SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
+            "WHERE artist_id = %s AND period_start IS NOT NULL", (artist_id,))
+        return int(row[0][0] or 0) if row else 0
+    except Exception as exc:      # noqa: BLE001
+        logger.warning("apple lifetime unavailable: %s", type(exc).__name__)
+        return 0
+
+
+def apple_snapshot_count(db, artist_id) -> int:
+    """Combien de relevés Apple existent — pour DIRE pourquoi la tuile est vide.
+
+    Un relevé = un couple (jour de dépôt, période couverte). Deux exports annuels
+    déposés le même jour font bien deux relevés.
+    """
+    if db is None or artist_id is None:
+        return 0
+    try:
+        row = db.fetch_query(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT snapshot_date, period_start, "
+            "period_end FROM apple_songs_performance WHERE artist_id = %s) r",
+            (artist_id,))
         return int(row[0][0] or 0) if row else 0
     except Exception:      # noqa: BLE001
         return 0

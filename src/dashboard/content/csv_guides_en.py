@@ -77,9 +77,15 @@ _APPLE = PlatformGuide(
     title="Apple Music for Artists",
     icon="🎎",
     intro=(
-        "Apple Music for Artists has no API: the per-song performance CSV export "
-        "is the only source (**a single file**). Make sure to set the period to "
-        "**All Time** for a complete history. FR and EN headers are both recognized."
+        "Apple Music for Artists has no API: the per-song performance CSV export is "
+        "the only source. Start with the **Since the beginning** period — that is "
+        "your total.\n\n"
+        "**One export per year gives you far more.** The file never says which "
+        "period it covers: you will tell us at upload, in one second. So export "
+        "again with the period set to **2023**, then **2024**, then **2025** — each "
+        "file becomes one more point, and Apple stops being a single frozen number: "
+        "it joins the other platforms when you filter by period. FR and EN headers "
+        "recognised."
     ),
     steps=(
         GuideStep(
