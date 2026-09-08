@@ -106,9 +106,15 @@ def render_selector(*, key: str = "_home_range_widget") -> str:
     return chosen
 
 
+# Affichée à CHAQUE période, et pas seulement sur les périodes bornées.
+#
+# L'écart est le plus grand là où la note manquait : sur « Depuis le début », les
+# tuiles annoncent 165 065 écoutes Spotify et la figure en totalise 23 397 pour le même
+# artiste. Les deux sont justes et ne répondent pas à la même question — un chiffre qui
+# en contredit un autre sur le même écran, sans un mot, se lit comme un bug.
 RANGE_NOTE = (
-    "Sur une période bornée, les totaux sont la somme de ce qu'on a **mesuré** jour "
-    "après jour. « Depuis le début » affiche les compteurs des plateformes, qui "
-    "incluent tout ce qui précède notre première collecte — c'est pour ça qu'ils sont "
-    "plus élevés."
+    "**Les tuiles et la courbe ne comptent pas la même chose.** Les tuiles « depuis le "
+    "début » sont les compteurs des plateformes : ils portent tout ce qui précède "
+    "notre première collecte. La courbe, elle, ne trace que ce que nous avons "
+    "**mesuré** — elle commence donc le jour où l'on a branché chaque source."
 )

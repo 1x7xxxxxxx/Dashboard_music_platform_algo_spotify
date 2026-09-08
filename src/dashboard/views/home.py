@@ -147,8 +147,7 @@ def _section_streams(db, artist_id):
         unsafe_allow_html=True
     )
 
-    if date_range.is_bounded(range_key):
-        st.caption(date_range.RANGE_NOTE)
+    st.caption(date_range.RANGE_NOTE)
 
     _section_platform_trend(db, artist_id, series, since, until, range_key)
 

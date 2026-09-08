@@ -68,6 +68,11 @@ colonnes / 95 tables, code déployé == `origin/main`).
   faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
   maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
 
+- **L'accueil porte un sélecteur de période** (« Depuis le début » par défaut, Cette
+  année / 12 mois / 90 / 30 jours) qui vaut pour les tuiles ET la courbe, un seul
+  propriétaire du réglage. La bande s'agrège **par semaine** au-delà de 92 jours : nos
+  sources n'ont pas la même cadence (Spotify 100 %, SoundCloud 56 %, YouTube 39 % de
+  jours mesurés), et au pas quotidien deux périodes perdaient une plateforme entière.
 - **Le bandeau de mise en route se replie quand la configuration est terminée**, et la
   figure de l'accueil redevient celle de l'illustration : des **aires empilées** aux
   couleurs du générateur d'exemples, une par plateforme. Une source trop clairsemée

@@ -5,6 +5,63 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite 4) — Une période choisie une fois, une bande lisible sur trois ans
+
+Quatre demandes sur l'accueil. Les trois premières étaient des retraits ; la quatrième a
+demandé de **mesurer avant d'écrire**, et deux fois plutôt qu'une.
+
+**Retirés** : la table « Voir les chiffres jour par jour » — supprimée pour de bon, pas
+laissée endormie ; les deux traits blancs qui encadraient « Mise en route », qui
+doublaient la bordure de l'accordéon ; et la légende qui recouvrait le titre, ancrée à
+`y=1.0`, c'est-à-dire dans la marge où vit déjà un titre sur deux lignes. La table
+portait le **relief** qu'exige l'avertissement de contraste du validateur : ce sont
+désormais les étiquettes posées sur la figure.
+
+**Le sélecteur de période** vaut pour les tuiles ET pour la courbe, avec un seul
+propriétaire du réglage. « Depuis le début » par défaut — et ce n'est **pas** une très
+grande fenêtre : les tuiles y sont les compteurs des plateformes, qui portent tout ce
+qui précède notre première collecte, alors qu'une période bornée ne peut additionner que
+ce qu'on a mesuré. Apple, qui n'a qu'un relevé par CSV, affiche « — » plutôt qu'un
+nombre pris à une autre période.
+
+**Ce que la mesure a changé, et qu'aucun raisonnement n'aurait donné.** Nos sources
+n'ont pas la même cadence : Spotify est mesuré 100 % de sa plage, SoundCloud 56 %,
+YouTube **39 %**. Une bande empilée exige que toutes soient connues le même jour — au
+pas quotidien, « Depuis le début » perdait YouTube entièrement et « Cette année » ne
+dessinait que 165 jours sur 251. Au pas **hebdomadaire** au-delà de 92 jours, les mêmes
+données donnent 90 % de semaines complètes sur tout l'historique, 100 % sur 30 et 90
+jours, et les trois plateformes sont **toujours** présentes. Une plateforme qui apparaît
+et disparaît selon la période est plus déroutante qu'une courbe un peu lissée.
+
+**Deuxième distinction, trouvée au rendu** : « pas encore collectée » n'est pas « on ne
+sait pas ». Avant sa première mesure, une plateforme n'a rien apporté à ce qu'on peut
+montrer — zéro y est la bonne valeur, et seuls les trous **dans** sa plage coupent la
+bande. Sans cette distinction, les 2 jours de YouTube du bac à sable effaçaient les 87
+jours de Spotify et la page n'avait plus aucune figure.
+
+**Et un décalage de trois jours rendait deux périodes muettes** : les semaines sont
+clavées au lundi, « Cette année » commence un 1ᵉʳ janvier — un jeudi en 2026 — donc la
+fenêtre parcourait jeudi, jeudi+7… et ne tombait sur aucune clé. « Depuis le début »,
+sans borne, tombait sur une clé existante et marchait : deux périodes cassées, une
+troisième qui masquait le défaut.
+
+**Le dernier écart a été nommé plutôt que corrigé.** Sur « Depuis le début », les tuiles
+annoncent 165 065 écoutes Spotify et la figure en totalise 23 397 pour le même artiste.
+Les deux sont justes et ne répondent pas à la même question ; un chiffre qui en
+contredit un autre sur le même écran, sans un mot, se lit comme un bug. La phrase est
+maintenant sous les tuiles, à **chaque** période.
+
+**Trois gardes du dépôt ont refusé le passage, et les trois avaient raison** : le
+cliquet anti-garde-textuel sur ma propre assertion — ce fichier nomme la fonction
+supprimée dans sa documentation — et deux clés i18n sans entrée anglaise.
+
+Vérifié en production sur les deux locataires et les **cinq** périodes : les trois
+plateformes étiquetées partout, le bandeau replié, la table disparue.
+
+Suite complète : **4659 passed**. 6 mutations, 6 rouges.
+
+---
+
 ## 2026-09-08 (suite 3) — La figure redevient l'illustration, et le bandeau se replie
 
 **Le bandeau de mise en route se replie quand la configuration est terminée**, et reste
