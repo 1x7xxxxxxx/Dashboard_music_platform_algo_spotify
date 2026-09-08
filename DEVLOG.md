@@ -5,6 +5,53 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-08 (suite) — Deux verdicts opposés sur un seul compte publicitaire
+
+**Signalé** : la matrice Meta du bac à sable affiche 🟡 « Rien à faire de ton côté — la
+collecte s'est arrêtée, on regarde ». **Rien ne s'est arrêté**, et la preuve était déjà
+en base : le run Meta de 11h01 a rendu `success` avec **879 lignes insérées**, la sonde
+répond « Connecté : Musicanalytics — compte publicitaire … ✅ ».
+
+Le compte n'a simplement **aucune campagne active** : 34 connues, 19 archivées, 15 en
+pause, dernier insight le 2024-09-30. Meta ne produit des chiffres que pendant qu'une
+publicité tourne. `_silence_reason` existe précisément pour dire ça — et il le disait,
+**à un seul des deux profils**.
+
+Il comptait les campagnes du LOCATAIRE. Le bac à sable n'en possède aucune : la clé de
+conflit de `meta_campaigns` est `campaign_id` seul, un upsert ne transfère jamais la
+propriété, donc le second profil qui déclare un compte n'obtient aucune ligne. Son repli
+conservateur — « aucune campagne connue → on garde l'alerte » — s'ouvrait donc, et il
+lisait 🟡 « on regarde » là où le profil principal lisait 🟢 « rien à faire », **sur le
+même compte, le même jour, avec les mêmes 34 campagnes**.
+
+La question porte sur le COMPTE publicitaire, pas sur les lignes qu'un locataire
+possède. Le repli lit désormais les campagnes du compte que ce locataire a lui-même
+**déclaré**, et reste conservateur des trois côtés : aucun compte déclaré, une campagne
+active, ou aucune campagne connue sur ce compte → l'alerte est gardée. Vérifié après
+déploiement : les deux profils rendent maintenant `quiet` avec la même phrase.
+
+**Troisième surface de la même exemption**, après l'onglet Mapping et le message de
+diagnostic du matin. La leçon est écrite dans la classe : après avoir corrigé une
+surface, demander **lesquelles posent la même question** — pas lesquelles portent le
+même code. Les trois n'avaient aucune ligne en commun.
+
+**Le stub du test a dû changer avec elle.** `_DB` rendait le même tuple à toute requête :
+il ne pouvait pas distinguer « ce que le locataire possède » de « ce que son compte
+porte », c'est-à-dire exactement l'écart testé. Un `_TenantDB` qui répond à la question
+posée, deux mutations, deux rouges.
+
+**Ce que le bac à sable peut valider, mesuré table par table.** Il a les insights — 224
+lignes de performance, 21 campagnes, et toutes les tables de ventilation entre 87 % et
+99 % du profil principal. Il n'a ni `meta_campaigns` (0/34), ni `meta_adsets` (0/69),
+ni `meta_ads` (0/144), ni `campaign_track_mapping` (0/19). Les onglets qui lisent les
+insights tracent donc ; ceux qui joignent la configuration de campagne restent vides, et
+c'est structurel, pas réparable côté bac à sable.
+
+Suite complète contre une base vivante : **4592 passed**. Audit déterministe : 232
+classes, propre.
+
+---
+
 ## 2026-09-08 — Le bouton qui terminait la mise en route était mort, deux fois
 
 **Signalé** : « quand j'ai fini de tout configurer dans credential API + csv, quand je

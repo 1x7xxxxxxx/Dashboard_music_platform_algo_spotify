@@ -63,8 +63,17 @@ colonnes / 95 tables, code déployé == `origin/main`).
   un texte qui nomme l'exemption. Classe
   `an-exemption-on-one-surface-reads-as-a-failure-on-another`.
 
+- **La matrice Meta du bac à sable criait une panne inexistante** (🟡 « la collecte
+  s'est arrêtée, on regarde ») sur le compte où le profil principal lisait 🟢 « rien à
+  faire », le même jour. `_silence_reason` comptait les campagnes du LOCATAIRE ; il lit
+  maintenant celles du compte **déclaré**. Troisième surface de la même exemption.
+
 **Le mapping des campagnes n'est pas rejouable dans le bac à sable, par construction** —
-c'est le seul geste du parcours qui demande le profil principal.
+c'est le seul geste du parcours qui demande le profil principal. Mesuré : le bac à sable
+a les insights Meta (224 lignes, 21 campagnes, ventilations à 87–99 % du principal) mais
+aucune ligne de configuration (`meta_campaigns` 0/34, `meta_adsets` 0/69, `meta_ads`
+0/144, `campaign_track_mapping` 0/19). Les onglets qui lisent les insights tracent ; ceux
+qui joignent la configuration restent vides.
 
 Ce qui suit décrivait l'état au 2026-09-07.
 
