@@ -5,6 +5,91 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-10 (suite) — L'audit transverse : trois prémisses fausses sur huit
+
+Huit tâches (R75–R82) ouvertes par l'audit transverse — résilience API, vitesse Streamlit
+et ingestion, robustesse des données, couches, cybersécurité, refactor, filtres, méthode
+de tracé. Toutes closes. Le résultat le plus utile n'est aucun des correctifs : c'est que
+**trois énoncés sur huit étaient faux**, et que les vérifier a évité une régression.
+
+### Les trois prémisses rectifiées
+
+| Énoncé de la roadmap | Ce que la mesure a rendu |
+|---|---|
+| « Spotify : 144 runs non-success sur 183 » | 144 **`skipped`** — quatre locataires n'ont pas déclaré d'identifiant. C'est le troisième état délibéré du journal, pas une panne |
+| « 6 des 14 requêtes de l'accueil sont des doublons exacts » | Périmé : le retrait des tuiles (R64–R69) les avait déjà retirés. Compte réel : **14 exécutions, 13 questions, 1 doublon** |
+| « Trois collecteurs relisent tout chaque nuit, sans repère de progression » | **Poser ce repère aurait été une régression.** Ces API rendent des compteurs CUMULÉS par entité ; relire chaque entité chaque nuit *est* la mesure, et tout `platform_timeseries` en dépend |
+
+La troisième a rendu un vrai défaut, à l'opposé de ce qui était écrit : le plafond de
+pagination Instagram laisse des publications **hors** de la base et ne le disait que dans
+un `logger.warning`. Non pas trop lire — lire trop peu, en silence. Ça s'enregistre
+`partial` désormais.
+
+### Le faux vert
+
+R77 était « livrée » : 12 axes secondaires → 0, cliquet posé. Le cliquet lisait 0 pendant
+que **trois figures** en portaient encore un. Il ne cherchait que `yaxis2…9`, la forme
+d'`update_layout` ; Plotly en a une seconde, `make_subplots(specs=[[{"secondary_y":
+True}]])`, qui n'écrit ce nom nulle part.
+
+Un cliquet gelé à zéro sur un prédicat partiel ne dit pas « il n'y en a plus », il dit
+« je n'en vois plus » — et les deux phrases se ressemblent au point d'être confondues dans
+un rapport vert. Septième instance de « la portée d'un garde est le défaut », la première
+sur un cliquet écrit **le jour même**. La leçon en prose (« un garde lit la structure, pas
+le texte ») ne l'a pas empêchée : ce prédicat lisait bien l'AST, il lisait le mauvais nœud.
+
+### Ce que la production a dit
+
+| Mesure | Avant | Après |
+|---|---|---|
+| Lignes d'`etl_run_log` sans durée exploitable (30 j) | **515 / 587** | les 4 DAGs chronomètrent |
+| `UPDATE saas_users` pour 447 vues de page | **932** | 1 par changement réel |
+| Requêtes SQL d'un rendu de l'accueil (admin) | 14 pour 13 questions | **13 / 0 doublon** |
+| Nuits d'échec Meta du locataire 12, sans distinction | **93**, même objet chaque soir | ancienneté mesurée, montrée, ordonnée |
+| Lignes committées quand un lot de 1 001 échoue au rang 501 | **500** | **0** |
+| Index jamais parcourus | 232 / 385 — dont **107 garants d'une contrainte** | 15 retirés (préfixe strict d'un autre), 110 listés pour arbitrage |
+| `app.py` | 1 252 lignes | **1 073**, et deux flux devenus testables |
+
+### Deux pièges évités au correctif, plus instructifs que les correctifs
+
+**Dire « je ne sais pas » dans la mauvaise colonne.** Pour cesser d'écrire une durée de
+zéro, le réflexe était `started_at = NULL`. Cette colonne est NOT NULL depuis la migration
+006 : l'INSERT lève, le `except` de la fonction l'avale, et **la ligne disparaît** — le
+trou même que ce journal existe pour retirer. Une durée absente est un fait ; une ligne
+absente est un trou. L'inconnu se dit dans `duration_ms`, qui est nullable.
+
+**Un cache qui n'a jamais un seul succès.** `get_live_pulse` passait `now() - 5 min` dans
+la clé : deux rendus séparés d'une milliseconde donnent deux clés. Un cache sans succès se
+comporte exactement comme pas de cache, sans aucun signal. La borne est arrondie à la
+fenêtre.
+
+### Ce qui n'a pas été fait, et pourquoi c'est écrit
+
+- **La navigation d'`app.py` n'est pas découpée.** Deux causes racines de navigation ont
+  déjà traversé 3 755 tests verts ici : le harnais appelle chaque `show()` isolément et
+  jamais `_main_body`. Un tel découpage ne se valide qu'au navigateur ; le faire sans
+  cette vérification échangerait de la dette lisible contre un risque invisible.
+- **Les 110 index jamais parcourus mais non redondants ne sont pas retirés.** Aucune
+  propriété ne les dit inutiles — seule leur absence d'usage passé le suggère.
+  `make index-report` les liste avec leur DDL de recréation ; la décision est humaine.
+- **La bascule sur le rôle applicatif non-superutilisateur n'est pas faite.** Le rôle
+  existe, ses bornes sont prouvées en s'y connectant (`pg_authid`, `COPY … TO PROGRAM` et
+  le DDL refusés), et `docker-compose.example.yml` lit `DATABASE_USER` dans
+  l'environnement. Changer le rôle d'une application vivante est un geste d'exploitation
+  avec redémarrage, pas l'effet de bord d'un `git pull`.
+
+### Et une faute de geste, la deuxième de la journée
+
+`git checkout --` sur deux fichiers non commités pour défaire une mutation : il a détruit
+la conversion de deux figures et l'élargissement d'un cliquet. J'avais consigné cette
+leçon le matin même (« muter par script, jamais par `git checkout` ») et je l'ai refaite.
+Ce qui l'a arrêtée n'est pas la leçon, c'est le geste : **commit avant chaque mutation**,
+puis `git stash` pour défaire. Et l'un des deux fichiers était `docker-compose.yml`,
+gitignoré — donc non restaurable par cette voie, et surtout un fichier sur lequel je
+venais d'ancrer un garde qui n'aurait jamais tourné en CI.
+
+---
+
 ## 2026-09-10 — Huit tâches ouvertes le matin, la roadmap vide le soir
 
 Parti d'une question sur la figure de l'accueil, fini sur une couche sémantique. Ce qui a
