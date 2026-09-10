@@ -65,6 +65,10 @@ EN = {
     "home.trend_sources": "Sources shown",
     "home.trend_sources_ph": "All sources",
     "home.trend_title": "All your platforms, one screen",
+    "home.trend_discarded": (
+        "⏸️ Plays measured but **not chartable**: {parts}. They happened between two "
+        "collections more than a day apart — we know how many, never on which day. "
+        "Pinning them to a date would invent a spike."),
     "home.trend_caption": (
         "**Daily** plays, platform by platform, over the last 90 days. A gap in a "
         "line means we have no measurement that day — not zero plays."),

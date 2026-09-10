@@ -76,7 +76,7 @@ def bounds(key: str | None = None, today: _dt.date | None = None):
     span = RANGES.get(key, RANGES[DEFAULT])[0]
     if span is None:
         return None, None
-    day = today or _dt.date.today()
+    day = today or _today_in_display_tz()
     if span == "ytd":
         return _dt.date(day.year, 1, 1), day
     if span == "custom":
@@ -85,6 +85,26 @@ def bounds(key: str | None = None, today: _dt.date | None = None):
         # afficher une fenêtre vide serait pire que ne pas filtrer.
         return (since, until) if since and until else (None, None)
     return day - _dt.timedelta(days=span - 1), day
+
+
+def _today_in_display_tz() -> _dt.date:
+    """La journée du PRODUIT, pas celle de l'hôte qui affiche.
+
+    `_dt.date.today()` rend la date locale du serveur, qui n'a aucune raison d'être
+    celle du lecteur ni celle des données. Les séries, elles, sont datées en UTC pour
+    les sources API. Une borne posée sur une troisième horloge fait entrer ou sortir
+    un jour entier de la fenêtre — et le 1ᵉʳ janvier, une année entière.
+
+    On fixe donc la journée du produit sur `DISPLAY_TZ`, le fuseau dans lequel il est
+    lu, déjà déclaré une fois pour toutes à côté.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+
+        from src.dashboard.utils.tz import DISPLAY_TZ
+        return _dt.datetime.now(ZoneInfo(DISPLAY_TZ)).date()
+    except Exception:      # noqa: BLE001 — un fuseau absent ne fait pas tomber la page
+        return _dt.date.today()
 
 
 def custom_bounds():

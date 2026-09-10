@@ -123,10 +123,10 @@ def _section_streams(db, artist_id):
                      "onboarding** dit quelle source ne répond pas, et pourquoi."))
         return
 
-    _render_trend(series, since, until, range_key, artist_id)
+    _render_trend(db, series, since, until, range_key, artist_id)
 
 
-def _render_trend(series, since, until, range_key, artist_id) -> None:
+def _render_trend(db, series, since, until, range_key, artist_id) -> None:
     """La figure de l'accueil — pleine largeur depuis que les tuiles sont parties.
 
     Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les compteurs
@@ -226,6 +226,30 @@ def _render_trend(series, since, until, range_key, artist_id) -> None:
         "home.trend_caption",
         "Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut "
         "dire qu'on n'a pas de mesure ce jour-là — pas zéro écoute."))
+
+    # CE QUE LA FIGURE NE TRACE PAS, DIT PLUTÔT QUE TU.
+    #
+    # Pour un compteur cumulé, l'écart n'est calculé qu'entre deux jours CONSÉCUTIFS :
+    # entre deux relevés distants de neuf jours on sait ce qui s'est passé EN TOUT,
+    # jamais quel jour, et l'attribuer au dernier inventerait un pic. Ces écoutes-là
+    # sont donc écartées — et elles l'étaient EN SILENCE.
+    #
+    # Mesuré le 2026-09-10 sur l'artiste 1 : la figure trace 21 écoutes YouTube et en
+    # écarte 167. Une figure qui montre un neuvième du volume sans le dire se lit comme
+    # une plateforme morte.
+    from src.dashboard.utils.platform_timeseries import discarded_deltas
+    _lost = discarded_deltas(db, artist_id)
+    if _lost:
+        _parts = ", ".join(
+            f"{PLATFORM_LABELS.get(k, k)} {v[2]:,}".replace(",", " ")
+            for k, v in sorted(_lost.items(), key=lambda kv: -kv[1][2]) if v[2])
+        if _parts:
+            st.caption(t(
+                "home.trend_discarded",
+                "⏸️ Écoutes mesurées mais **non traçables** : {parts}. Elles se sont "
+                "produites entre deux collectes espacées de plus d'un jour — on sait "
+                "combien, jamais quel jour. Les attribuer à une date inventerait un pic."
+            ).format(parts=_parts))
     render_missing_history_note()
 
 

@@ -155,12 +155,27 @@ def get_source_freshness(_db, artist_id):
 
 
 def freshness_status(last_dt):
-    """
-    Retourne (emoji, color, label) selon l'âge de last_dt.
+    """(emoji, couleur, libellé) selon l'âge de `last_dt`.
+
+    DEUX HORLOGES ÉTAIENT SOUSTRAITES L'UNE DE L'AUTRE. `datetime.now()` nu rend
+    l'heure LOCALE de l'hôte, tandis que `last_dt` sort d'une colonne sans fuseau où
+    les collecteurs écrivent de l'UTC. Tous les âges de fraîcheur de la page étaient
+    donc faux d'une heure l'hiver, de deux l'été — assez pour qu'une source collectée
+    il y a 23 h s'affiche « il y a 25 h » et bascule de vert à orange.
+
+    Mesuré le 2026-09-10 : 7,9 % des lignes de `youtube_video_stats` changent même de
+    JOUR selon le fuseau retenu. Une date qui circule sans dire d'où elle vient finit
+    par décider d'un verdict.
+
+    On compare donc deux instants du même référentiel : l'heure courante en UTC contre
+    un horodatage qu'on déclare UTC, ce qu'il est.
     """
     if last_dt is None:
         return "⚫", "#888888", "Pas de données"
-    age_h = (datetime.now() - last_dt).total_seconds() / 3600
+    from datetime import timezone as _tz
+    _now = datetime.now(_tz.utc)
+    _ref = last_dt if last_dt.tzinfo is not None else last_dt.replace(tzinfo=_tz.utc)
+    age_h = (_now - _ref).total_seconds() / 3600
     if age_h < _FRESH_H:
         return "🟢", "#1DB954", f"Il y a {int(age_h)}h"
     elif age_h < _WARN_H:

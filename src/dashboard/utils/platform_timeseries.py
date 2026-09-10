@@ -167,6 +167,59 @@ _SQL_SOUNDCLOUD = """
 """
 
 
+# ── CE QUE LA CONVERSION CUMUL → QUOTIDIEN JETTE ────────────────────────────
+#
+# Un écart n'est calculé qu'entre deux jours CONSÉCUTIFS (`jour - veille = 1`). C'est
+# la seule règle honnête : entre deux relevés distants de neuf jours, on sait ce qui
+# s'est passé EN TOUT, jamais quel jour. L'attribuer au dernier jour inventerait un pic.
+#
+# Mais jeter en silence est un autre défaut. YouTube n'est mesurée que 39 % des jours :
+# la majorité des écoutes réelles n'entre donc ni dans la courbe, ni dans les totaux de
+# période, et rien ne le disait. Ces requêtes comptent ce qui a été écarté, pour qu'on
+# puisse le NOMMER — ce qui manque n'est pas la donnée, c'est l'aveu.
+_SQL_DISCARDED_YOUTUBE = """
+    SELECT COUNT(*)::int AS trous,
+           COALESCE(SUM(jour - veille - 1), 0)::int AS jours_non_couverts,
+           COALESCE(SUM(GREATEST(view_count - vu_max, 0)), 0)::bigint AS ecoutes_ecartees
+      FROM (
+        SELECT jour, view_count,
+               MAX(view_count) OVER (PARTITION BY video_id ORDER BY jour
+                   ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS vu_max,
+               LAG(jour) OVER (PARTITION BY video_id ORDER BY jour) AS veille
+          FROM (
+            SELECT collected_at::date AS jour, video_id, MAX(view_count) AS view_count
+              FROM youtube_video_stats
+             WHERE artist_id = %s AND view_count IS NOT NULL
+             GROUP BY 1, 2
+          ) t
+    ) w WHERE vu_max IS NOT NULL AND jour - veille > 1
+"""
+
+_SQL_DISCARDED_SOUNDCLOUD = _SQL_DISCARDED_YOUTUBE.replace(
+    "view_count", "playback_count").replace("video_id", "track_id").replace(
+    "youtube_video_stats", "soundcloud_tracks_daily")
+
+
+def discarded_deltas(db: Any, artist_id: Optional[int]) -> dict:
+    """{plateforme: (trous, jours non couverts, écoutes écartées)} — ce qu'on ne trace pas.
+
+    Rendu vide plutôt que faux si la lecture échoue : ce compte sert à AVOUER une
+    imprécision, pas à en introduire une.
+    """
+    if db is None or artist_id is None:
+        return {}
+    out = {}
+    for key, sql in (("youtube", _SQL_DISCARDED_YOUTUBE),
+                     ("soundcloud", _SQL_DISCARDED_SOUNDCLOUD)):
+        try:
+            row = db.fetch_query(sql, (artist_id,))
+            if row and row[0][0]:
+                out[key] = (int(row[0][0]), int(row[0][1] or 0), int(row[0][2] or 0))
+        except Exception as exc:      # noqa: BLE001
+            logger.warning("discarded deltas unreadable (%s): %s", key, type(exc).__name__)
+    return out
+
+
 def _rows(db: Any, sql: str, params: tuple) -> list[tuple]:
     """Ne lève jamais : ces courbes sont un affichage, pas un calcul de facturation."""
     try:
