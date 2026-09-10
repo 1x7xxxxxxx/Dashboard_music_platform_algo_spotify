@@ -324,6 +324,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-date-that-does-not-say-which-clock-produced-it](#a-date-that-does-not-say-which-clock-produced-it) | P2 | deterministic | guarded | none |
 | [a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser](#a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser) | P2 | deterministic | guarded | none |
 | [a-surgical-restore-erases-work-nothing-will-give-back](#a-surgical-restore-erases-work-nothing-will-give-back) | P2 | deterministic | guarded | none |
+| [a-verdict-computed-past-the-end-of-its-evidence](#a-verdict-computed-past-the-end-of-its-evidence) | P2 | deterministic | guarded | none |
+| [a-diagram-is-verified-by-looking-at-it](#a-diagram-is-verified-by-looking-at-it) | P3 | heuristic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4534,3 +4536,35 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: le garde couvre les DEUX orthographes du même effet — `git checkout --` et `git restore`. N'en garder qu'une aurait été la classe « la portée d'un garde est le défaut », dont ce dépôt compte sept instances.
   - 2026-09-10: et il refuse d'accuser un fichier NON SUIVI, que ce geste ne peut pas toucher. Un garde qui crie sur ce qui ne risque rien perd sa crédibilité sur ce qui risque quelque chose — c'est le mécanisme par lequel les huit gardes `rm -rf /tmp/...` du banc avaient rendu le travail impossible.
   - 2026-09-10: **le test écrit pour ce garde a lui-même abîmé sa cible.** Sa mise en scène salissait `README.md` par `read_text`/`write_text` : sur un montage Windows, l'aller-retour en mode texte réécrit les fins de ligne du fichier ENTIER, et la « restauration » laissait 52 lignes modifiées. Une sonde qui vérifie qu'on n'abîme rien doit lire et écrire en BINAIRE.
+
+## a-verdict-computed-past-the-end-of-its-evidence
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une page affiche un verdict en vert — « breakeven atteint le … » — sur un croisement de courbes garanti par construction. Mesuré le 2026-09-10 pour l'artiste 1 : la dépense Meta s'arrête au 2024-09-30, le revenu du distributeur continue **458 jours** de plus.
+- root_cause: la frise court du premier au dernier jour des DEUX séries réunies, et les trous sont comblés par des zéros. Ces zéros sont JUSTES au milieu d'une série — un jour sans dépense publicitaire a bien dépensé zéro — et FAUX après sa fin : celle qui s'arrête la première continue en ligne plate, non parce qu'elle vaut zéro sur cette période, mais parce que personne ne l'a encore rapportée. Sur ces 458 jours un cumul monte pendant que l'autre est figé : les deux courbes se croisent nécessairement, et le verdict lit ce croisement.
+- signature: `python3 -m pytest tests/test_a_verdict_stops_where_its_evidence_stops.py -q`
+- long_term_fix: borner le verdict au RECOUVREMENT — la fenêtre où les deux séries existent — et NOMMER la période au-delà, à l'écrit comme sur la figure (zone ombrée). Règle générale : un `fillna(0)` sur une série temporelle est légitime à l'intérieur de sa couverture et faux au-delà ; avant de combler, se demander si le trou est « rien ne s'est passé » ou « personne n'a encore rapporté ». Et recadrer en SILENCE ne suffit pas — un « non atteint » qui ne dit pas jusqu'où il regarde se lit comme un constat définitif.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_verdict_stops_where_its_evidence_stops.py }
+- rex_ref: src/dashboard/views/trigger_algo/_tab_budget_roi.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: même famille que `a-cumulative-counter-falling-back-to-zero` — après le dernier relevé on ne sait pas, et « on ne sait pas » ne se dessine pas comme une valeur. La différence est que celle-ci porte un VERDICT et pas seulement une courbe : le lecteur n'a pas à interpréter un tracé, on lui annonce une conclusion.
+  - 2026-09-10: le garde vérifie que la borne est un `min` et pas un `max`, et surtout que la boucle du calcul la LIT. Une borne calculée et ignorée est pire qu'absente : elle donne au relecteur l'apparence d'un correctif.
+
+## a-diagram-is-verified-by-looking-at-it
+- status: guarded
+- severity: P3
+- kind: heuristic
+- symptom: un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neufs : **six défauts**, aucun visible dans le code ni dans le HTML rendu.
+- root_cause: deux causes distinctes, et c'est ce qui rend la vérification par lecture insuffisante. (1) **Le placement est calculé, pas écrit.** Une arête directe bronze → or fait remonter la boîte OR au rang 1, donc à GAUCHE de l'argent : le schéma censé montrer trois couches dans l'ordre les montrait à l'envers, alors que chaque nœud et chaque arête étaient corrects. (2) **La mise en forme du texte est calculée aussi** : mermaid casse un mot plus long que sa boîte, et un identifiant SQL n'a pas d'espace où casser — `youtube_channel_histor/y`, `apple_songs_performanc/e`, `meta_insights_performa/nce_day`, `v_artist_monthly_revenu/e`. Plus un schéma de sept nœuds en ligne illisible à l'échelle de la colonne, et un nœud orphelin relié à rien.
+- signature: `python3 tools/dev/architecture_dossier/main.py /tmp/d.pdf && pdftoppm -png -r 105 /tmp/d.pdf /tmp/page`
+- long_term_fix: rendre, convertir en images et REGARDER, à chaque ajout de schéma — la procédure tient en trois commandes et vit dans le README du générateur. Les coupures se corrigent en posant soi-même un `<br/>` sur un `_` ; l'ordre des couches, en faisant passer chaque chemin par la couche intermédiaire, ce qui se trouve être plus juste aussi. Règle générale : quand un outil CALCULE le rendu, la seule vérification qui porte sur le résultat est de le regarder. Compter les `<text>` d'un SVG prouve qu'il y a du texte, pas qu'il est lisible ni bien placé.
+- autofix: none
+- guard: { type: manual, ref: tools/dev/architecture_dossier/README.md }
+- rex_ref: tools/dev/architecture_dossier/README.md
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: `heuristic` et `manual` assumés — aucun prédicat automatique ne dit « ce schéma est lisible ». Ce qui est gardé est la PROCÉDURE, écrite dans le README avec ses trois commandes, parce que c'est la seule forme qui survit à l'oubli.
+  - 2026-09-10: onzième défaut de rendu de ce générateur trouvé en regardant, et le premier trouvé APRÈS que le README ait annoncé les cinq précédents. La note ne l'a pas empêché ; l'avoir refait l'a corrigé. Une leçon de procédure ne vaut que si on l'exécute.

@@ -76,8 +76,7 @@ def test_the_overlap_is_computed_from_both_series() -> None:
 
 def test_the_breakeven_search_is_restricted_to_the_overlap() -> None:
     """Le calcul doit LIRE la borne, pas seulement la poser à côté."""
-    src = (ROOT / _REL).read_text(encoding="utf-8")
-    tree = ast.parse(src)
+    tree = _tree()
     guarded = False
     for node in ast.walk(tree):
         if not isinstance(node, ast.For):
@@ -94,13 +93,22 @@ def test_the_breakeven_search_is_restricted_to_the_overlap() -> None:
 
 
 def test_the_uncovered_window_is_named_not_merely_cropped() -> None:
-    """Un verdict borné en silence se lit comme un verdict définitif."""
-    src = (ROOT / _REL).read_text(encoding="utf-8")
-    assert "trigger_algo.roi.breakeven_window" in src, (
+    """Un verdict borné en silence se lit comme un verdict définitif.
+
+    Lu par l'AST, pas par une recherche de chaîne : ce dépôt a mesuré quatre gardes
+    passés au vert sur leur PROPRE commentaire, et le méta-garde
+    `test_no_new_assertion_compares_strings_against_source_text` interdit d'en ajouter.
+    """
+    tree = _tree()
+    keys = {n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    assert "trigger_algo.roi.breakeven_window" in keys, (
         "la légende qui dit jusqu'où porte le verdict a disparu. Recadrer sans le dire "
         "laisse un « non atteint » se lire comme un constat définitif, alors qu'il ne "
         "porte que sur la fenêtre où les deux séries existent.")
-    assert "add_vrect" in src, (
+    drawn = {n.func.attr for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+    assert "add_vrect" in drawn, (
         "la zone non couverte n'est plus distinguée sur la figure. Le lecteur doit "
         "VOIR où la comparaison cesse d'en être une — c'est la moitié du correctif que "
         "le texte seul ne fait pas.")
@@ -108,8 +116,11 @@ def test_the_uncovered_window_is_named_not_merely_cropped() -> None:
 
 def test_the_note_is_translated() -> None:
     """Une clé sans entrée anglaise rend la clé brute à l'écran."""
-    catalog = (ROOT / "src/dashboard/utils/i18n_catalog/trigger_algo.py").read_text(
-        encoding="utf-8")
+    catalog = ast.parse(
+        (ROOT / "src/dashboard/utils/i18n_catalog/trigger_algo.py").read_text(
+            encoding="utf-8"))
+    declared = {n.value for n in ast.walk(catalog)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)}
     for key in ("trigger_algo.roi.breakeven_window",
                 "trigger_algo.roi.one_series_only"):
-        assert key in catalog, f"`{key}` n'a pas d'entrée EN — la clé s'afficherait brute"
+        assert key in declared, f"`{key}` n'a pas d'entrée EN — la clé s'afficherait brute"
