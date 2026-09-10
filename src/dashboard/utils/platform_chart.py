@@ -110,8 +110,16 @@ _WEEKLY_ABOVE_DAYS = 92
 # quoi que ce soit. Du plus grossier au plus fin, en s'arrêtant au premier qui tient.
 _FINER_STEPS = {"year": ["year", "week", "day"], "week": ["week", "day"], "day": ["day"]}
 
-# Le mot qui suit le nombre, dans le sous-titre.
+# Le mot qui suit le nombre, dans le sous-titre. Il compte des SEAUX, pas des unités
+# de temps écoulé — et la nuance n'est pas de la pédanterie : sur une fenêtre de 12 mois
+# à cheval sur deux années civiles, la figure a 2 seaux annuels et disait « sur
+# 2 années », ce qui se lit comme deux ans d'historique. Vu au rendu le 2026-09-10.
 _STEP_UNITS = {"day": "jours", "week": "semaines", "year": "années"}
+
+# Le mot juste quand le seau peut être PLUS LARGE que la fenêtre. Au pas jour et au pas
+# semaine, un seau vaut à peu près son unité et la confusion n'existe pas ; au pas
+# annuel, un seau peut ne couvrir qu'un mois de la fenêtre demandée.
+_STEP_BUCKETS = {"day": "jours", "week": "semaines", "year": "points annuels"}
 
 
 def margin_labels(order: list, ink: str) -> list:
@@ -425,8 +433,12 @@ MODES = {
     "facets": "Chacune à son échelle",
 }
 
-# Les modes qui n'empilent pas : le total ne s'y lit pas, et le sous-titre le dit.
-_UNSTACKED = {"share", "facets"}
+# `_UNSTACKED = {"share", "facets"}` vivait ici, déclarée pour piloter le sous-titre et
+# LUE NULLE PART — la logique a fini écrite en ligne (`mode == "share"`). Retirée le
+# 2026-09-10, et pas seulement parce qu'elle était morte : son contenu était FAUX.
+# `share` empile, à 100 % même ; seul `facets` n'empile pas. Une constante morte est du
+# bruit, une constante morte et fausse enseigne quelque chose de faux au premier lecteur
+# qui la croit. Le seul mode qui n'empile pas se lit désormais où il est utilisé.
 
 
 def _as_mode(aligned: dict, order: list, mode: str) -> dict:
@@ -579,7 +591,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                        palette=palette, ink=ink, muted=muted, surface=surface,
                        grid=grid, title=title, step=step, total=total, key=key)
         _render_notes(span, aligned_raw, order, thin, coarse, step,
-                      stacked=False, coarsened=coarsened)
+                      stacked=False, coarsened=coarsened, mode=mode)
         return True
 
     fig = go.Figure()
@@ -656,10 +668,10 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
             # de « Toutes tes plateformes, un seul écran » — vu au rendu le 2026-09-08.
             # Il ne s'applique qu'au nombre.
             text=(f"<b>{title}</b><br><span style='font-size:12px;color:{muted}'>"
-                  + (f"{len(span)} {_STEP_UNITS[step]} · part de chaque plateforme"
+                  + (f"{len(span)} {_STEP_BUCKETS[step]} · part de chaque plateforme"
                      if mode == "share" else
                      f"{format(total, ',').replace(',', chr(8239))} écoutes sur "
-                     f"{len(span)} {_STEP_UNITS[step]}"
+                     f"{len(span)} {_STEP_BUCKETS[step]}"
                      + (" · cumulé" if mode == "cumulative" else ""))
                   + "</span>" if title else None),
             x=0, xanchor="left"),
@@ -681,18 +693,72 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     )
     st.plotly_chart(fig, width="stretch", key=key)
     _render_notes(span, aligned_raw, order, thin, coarse, step,
-                  coarsened=coarsened)
+                  coarsened=coarsened, mode=mode)
     return True
+
+
+# Ce que porte un point, selon le pas — et ce qu'un blanc veut dire au même pas.
+_STEP_POINT = {
+    "day": ("du jour", "ce jour-là"),
+    "week": ("de la semaine", "cette semaine-là"),
+    "year": ("de l'année", "cette année-là"),
+}
+
+# La forme que le lecteur a sous les yeux, selon le mode. Un « blanc dans la bande »
+# n'a aucun sens quand il n'y a pas de bande.
+_MODE_SHAPE = {
+    "cumulative": "la courbe",
+    "absolute": "la bande",
+    "share": "la courbe",
+    "facets": "la facette",
+}
+
+
+def t_trend_caption(step: str, mode: str) -> str:
+    """La légende sous la figure, DÉRIVÉE de ce que la figure fait.
+
+    Elle était fixe dans `views/home.py` et disait « Écoutes **du jour** […] un blanc
+    dans la bande […] pas de mesure ce jour-là » — sous TOUS les modes et TOUS les pas.
+    Vu au rendu le 2026-09-10 en « Chacune à son échelle · Par année » : trois
+    affirmations fausses d'un coup, sur une figure qui montrait des totaux ANNUELS en
+    facettes séparées.
+
+    C'est la cause (E) de l'audit du 2026-09-10 — « le texte est écrit à côté du
+    comportement, pas dérivé de lui » — et c'est pourquoi la fonction vit ICI : le
+    module de la figure est le seul endroit qui connaisse le pas EFFECTIF. `views/home.py`
+    ne connaît que le pas demandé, et « Automatique » n'en est pas un.
+
+    En mode cumulé, un point ne porte pas la quantité d'une période mais le total
+    depuis le début : la phrase change de sujet, pas seulement d'unité.
+    """
+    from src.dashboard.utils.i18n import t
+    unit, when = _STEP_POINT.get(step, _STEP_POINT["day"])
+    shape = _MODE_SHAPE.get(mode, "la bande")
+    if mode == "cumulative":
+        return t(
+            "platform_chart.caption_cumulative",
+            "Total **depuis le début de la période**, plateforme par plateforme. Une "
+            "interruption dans {shape} veut dire qu'on n'a pas de mesure — pas que le "
+            "compteur est retombé."
+        ).format(shape=shape)
+    return t(
+        "platform_chart.caption_period",
+        "Écoutes **{unit}**, plateforme par plateforme. Un blanc dans {shape} veut "
+        "dire qu'on n'a pas de mesure {when} — pas zéro écoute."
+    ).format(unit=unit, shape=shape, when=when)
 
 
 def _render_notes(span: list, aligned_raw: dict, order: list, thin: dict,
                   coarse: list, step: str, *, stacked: bool = True,
-                  coarsened=None) -> None:
+                  coarsened=None, mode: str = "absolute") -> None:
     """Ce que la figure ne peut pas dessiner, écrit sous elle. Jamais tu.
 
     Une plateforme qui manque sans explication se lit comme une panne — la leçon de la
     matrice d'état, appliquée à une figure.
     """
+    # La légende générale d'abord : elle dit ce que la figure MONTRE. Les notes qui
+    # suivent disent ce qu'elle ne peut pas montrer.
+    st.caption(t_trend_caption(step, mode))
     if coarsened:
         st.caption(t_coarsened(*coarsened))
     gaps = {k: n for k, n in gap_counts(span, aligned_raw, order).items() if n}
@@ -743,7 +809,7 @@ def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict
     fig.update_layout(
         title=dict(text=(f"<b>{title}</b><br><span style='font-size:12px;color:"
                          f"{muted}'>{format(total, ',').replace(',', chr(8239))} "
-                         f"écoutes sur {len(fig_span)} {_STEP_UNITS[step]} · chaque "
+                         f"écoutes sur {len(fig_span)} {_STEP_BUCKETS[step]} · chaque "
                          "plateforme a sa propre échelle, elles ne se comparent pas"
                          "</span>") if title else None,
                    x=0, xanchor="left"),

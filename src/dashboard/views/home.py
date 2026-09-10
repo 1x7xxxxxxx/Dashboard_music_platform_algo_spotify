@@ -218,14 +218,18 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
             "Pas encore assez d'historique pour tracer une évolution : il faut au "
             "moins deux journées de collecte consécutives sur une plateforme."))
         return
-    # La légende sous la figure et non au-dessus : le titre de la figure dit DÉJÀ ce
-    # qu'elle montre et sur quelle période. Le sous-titre « 📈 Évolution par
-    # plateforme » qui la coiffait a disparu avec la mise en colonnes — il redisait le
-    # titre porté par la figure elle-même, à trois centimètres de lui.
-    st.caption(t(
-        "home.trend_caption",
-        "Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut "
-        "dire qu'on n'a pas de mesure ce jour-là — pas zéro écoute."))
+    # LA LÉGENDE EST PARTIE DANS LE MODULE DE LA FIGURE, le 2026-09-10.
+    #
+    # Elle était fixe ici et disait « Écoutes **du jour** […] un blanc dans la bande
+    # […] pas de mesure ce jour-là » sous TOUS les modes et TOUS les pas. En
+    # « Chacune à son échelle · Par année », les trois affirmations étaient fausses en
+    # même temps : les points portaient des totaux ANNUELS, il n'y avait pas de bande
+    # mais des facettes, et un blanc ne parlait pas d'un jour.
+    #
+    # Elle ne pouvait pas être juste depuis ici : cette vue connaît le pas DEMANDÉ, et
+    # « Automatique » n'en est pas un — seul le module sait lequel a été retenu. Le
+    # texte vit désormais à côté du comportement dont il parle (`t_trend_caption`),
+    # rendu par `_render_notes` avec les autres explications.
 
     # CE QUE LA FIGURE NE TRACE PAS, DIT PLUTÔT QUE TU.
     #
