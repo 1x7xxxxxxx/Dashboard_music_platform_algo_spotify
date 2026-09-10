@@ -322,7 +322,11 @@ def _hydrate_session(user: dict) -> None:
         preferred = load_preferred_lang(user['id'])
         if preferred:
             from src.dashboard.utils.i18n import set_lang
+            from src.dashboard.utils.lang_pref import mark_lang_persisted
             set_lang(preferred)
+            # La valeur qu'on vient de LIRE est déjà en base : la réécrire au premier
+            # rerun serait la première des deux écritures par page qu'on retire ici.
+            mark_lang_persisted(user['id'], preferred)
     except Exception:  # noqa: BLE001 — une préférence illisible n'empêche pas d'entrer
         pass
     try:

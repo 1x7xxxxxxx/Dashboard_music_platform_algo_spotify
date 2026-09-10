@@ -306,8 +306,34 @@ def followers_change(db, artist_id, since=None, until=None):
     return rows[0][1], rows[-1][1], rows[-1][1] - rows[0][1]
 
 
+# LA MÊME LECTURE, TROIS APPELANTS, UN SEUL ALLER-RETOUR.
+#
+# `_apple_readings` a trois appelants, et deux d'entre eux tirent au même rendu de
+# l'accueil : mesuré le 2026-09-10, cette requête partait DEUX fois avec exactement
+# les mêmes paramètres. Le mémo est attaché à la CONNEXION, pas à une horloge, pour
+# une raison de durée de vie : une vue ouvre exactement une connexion par rendu via
+# `view_session()`, refermée à la sortie. Le cache a donc précisément la durée d'un
+# rendu — il ne peut ni se périmer trop tard, ni franchir la frontière d'un locataire.
+#
+# Un `st.cache_data` serait le réflexe, et il est refusé ici : ce module est
+# volontairement sans Streamlit (l'export PDF headless et les tests l'appellent), et
+# c'est la même règle qui a fait naître `lang_pref` à côté de `i18n`.
+_APPLE_MEMO = "_apple_readings_memo"
+
+
 def _apple_readings(db, artist_id):
     """[(début, fin, écoutes)] des relevés BORNÉS — `(None, None)` exclus."""
+    memo = getattr(db, _APPLE_MEMO, None)
+    if memo is None:
+        memo = {}
+        try:
+            setattr(db, _APPLE_MEMO, memo)
+        except AttributeError:
+            # Une connexion qui refuse un attribut (doublure de test à `__slots__`)
+            # relit simplement : le mémo est une optimisation, pas un contrat.
+            memo = None
+    if memo is not None and artist_id in memo:
+        return memo[artist_id]
     try:
         rows = db.fetch_query(
             "SELECT period_start, period_end, COALESCE(SUM(plays), 0)::bigint "
@@ -317,8 +343,14 @@ def _apple_readings(db, artist_id):
             "GROUP BY 1, 2 ORDER BY 1, 2", (artist_id,))
     except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
         logger.warning("apple readings unavailable: %s", type(exc).__name__)
+        # Un échec n'est PAS mémorisé : le rendu suivant doit pouvoir réessayer, et
+        # surtout une liste vide mise en cache se lirait « cet artiste n'a rien sur
+        # Apple », ce qui est le mensonge que ce dépôt refuse partout ailleurs.
         return []
-    return [(r[0], r[1], int(r[2] or 0)) for r in (rows or [])]
+    out = [(r[0], r[1], int(r[2] or 0)) for r in (rows or [])]
+    if memo is not None:
+        memo[artist_id] = out
+    return out
 
 
 def non_overlapping_cover(readings: list) -> list:

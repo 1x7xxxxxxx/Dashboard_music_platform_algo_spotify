@@ -1132,6 +1132,8 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
                     # one moment staleness is felt as the page lying.
                     from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
                     cached_last_run_per_dag.clear()
+                    from src.dashboard.utils.kpi_helpers import clear_kpi_caches
+                    clear_kpi_caches()
                     st.toast(t("credentials.collect_started",
                                "🚀 Collecte {platform} lancée — données disponibles dans ~2 min").format(
                                    platform=platform_key), icon="✅")

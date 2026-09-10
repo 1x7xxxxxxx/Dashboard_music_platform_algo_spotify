@@ -6,11 +6,25 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-# Read-only metadata getters below are wrapped in @st.cache_data(ttl=60). The DB
-# handle is passed as `_db` (leading underscore) so Streamlit excludes the
+# Read-only metadata getters below are wrapped in @st.cache_data(ttl=_KPI_TTL). The
+# DB handle is passed as `_db` (leading underscore) so Streamlit excludes the
 # unhashable connection from the cache key — entries are keyed on artist_id only.
-# 60s TTL: pure read metadata, no behavioural change, saves repeat round-trips on
-# re-render. kpi_helpers is imported only by Streamlit views (no Airflow caller).
+# kpi_helpers is imported only by Streamlit views (no Airflow caller).
+#
+# UNE DURÉE DE CACHE SE RÈGLE SUR LE RYTHME DE LA SOURCE, PAS SUR LA PRUDENCE.
+#
+# Ces dix helpers lisaient des tables alimentées UNE FOIS PAR NUIT par les DAGs de
+# collecte, avec un TTL de 60 secondes : à partir de la 61ᵉ seconde, dix requêtes
+# repartaient chercher un nombre dont on savait qu'il ne changerait pas avant le
+# lendemain. Le TTL de 60 s protégeait contre une fraîcheur que la source ne fournit
+# pas.
+#
+# Il reste UN moment où ces nombres changent en pleine journée : quand l'artiste
+# déclenche une collecte depuis le dashboard. Ce moment est déjà connu du code —
+# `collection_trigger` et la page Credentials y purgent `cached_last_run_per_dag`.
+# `clear_kpi_caches()` s'y greffe, et c'est ce qui rend le TTL long sans effet de
+# bord visible : on ne fait pas confiance à l'horloge, on écoute l'événement.
+_KPI_TTL = 600
 
 
 # Seuils de fraîcheur (en heures)
@@ -95,7 +109,7 @@ _ALLOWED_ARTIST_COLS = frozenset(s["artist_col"] for s in SOURCES_CONFIG if s.ge
 _ALLOWED_ARTIST_FILTERS = frozenset(s["artist_filter"] for s in SOURCES_CONFIG if s.get("artist_filter"))
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_source_freshness(_db, artist_id):
     """Return {label: {icon, last_dt}} for each source in a single UNION ALL query.
 
@@ -188,7 +202,7 @@ def freshness_status(last_dt):
 
 # ─── KPI Streams ────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_total_streams_s4a(_db, artist_id):
     """Total streams Spotify S4A (dédupliqué par MAX/jour/chanson)."""
     db = _db
@@ -218,7 +232,7 @@ def get_total_streams_s4a(_db, artist_id):
         return 0
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_total_views_youtube(_db, artist_id):
     """Total vues YouTube — la couche OR (`v_platform_totals`, ADR-019).
 
@@ -247,7 +261,7 @@ def get_total_views_youtube(_db, artist_id):
         return 0
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_total_plays_soundcloud(_db, artist_id):
     """Total plays SoundCloud (dernière snapshot disponible)."""
     db = _db
@@ -276,7 +290,7 @@ def get_total_plays_soundcloud(_db, artist_id):
         return 0
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_total_plays_apple(_db, artist_id):
     """Total plays Apple Music, SANS compter deux fois.
 
@@ -305,7 +319,7 @@ def get_total_plays_apple(_db, artist_id):
 
 # ─── KPI ML ─────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_spotify_popularity(_db, artist_id):
     """Score de popularité Spotify (dernier enregistrement)."""
     db = _db
@@ -326,7 +340,7 @@ def get_spotify_popularity(_db, artist_id):
     return None
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_instagram_followers(_db, artist_id):
     """Nombre d'abonnés Instagram (dernier snapshot)."""
     db = _db
@@ -348,7 +362,7 @@ def get_instagram_followers(_db, artist_id):
     return None
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_soundcloud_likes(_db, artist_id):
     """Total likes SoundCloud (dernière snapshot)."""
     db = _db
@@ -417,7 +431,7 @@ def fmt_eur(val, digits: int = 2) -> str:
     return f"{val:,.{digits}f} €"
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_roi_data(_db, artist_id, from_date, to_date):
     """
     Calcule le ROI iMusician / Meta Ads pour une période donnée.
@@ -498,7 +512,7 @@ def get_roi_data(_db, artist_id, from_date, to_date):
     return result
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=_KPI_TTL)
 def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     """Monthly revenue vs Meta spend for the period.
     Columns: period_date, distributor_revenue, sacem_revenue, revenue_eur (= the two
@@ -575,3 +589,21 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     df['revenue_eur'] = df['distributor_revenue'] + df['sacem_revenue']
     df['period_date'] = pd.to_datetime(df['period_date'])
     return df.sort_values('period_date')
+
+
+def clear_kpi_caches() -> None:
+    """Purge les compteurs mis en cache — appelée quand une collecte est déclenchée.
+
+    Sans elle, un artiste qui lance une collecte depuis le dashboard verrait ses
+    anciens totaux pendant dix minutes et conclurait que rien ne s'est passé. C'est
+    le seul instant où ces nombres changent hors de la nuit, et il est observable :
+    on ne raccourcit donc pas le TTL « au cas où », on purge à cet instant précis.
+    """
+    for fn in (get_source_freshness, get_total_streams_s4a, get_total_views_youtube,
+               get_total_plays_soundcloud, get_total_plays_apple,
+               get_spotify_popularity, get_instagram_followers, get_soundcloud_likes,
+               get_roi_data, get_monthly_roi_series):
+        try:
+            fn.clear()
+        except Exception:  # noqa: BLE001 — une purge best-effort ne casse pas un clic
+            pass

@@ -41,6 +41,10 @@ def trigger_all_collections(artist_id: Optional[int], airflow_trigger,
                 # The cached "latest run per DAG" is stale the instant a run starts.
                 from src.dashboard.utils.airflow_monitor import cached_last_run_per_dag
                 cached_last_run_per_dag.clear()
+                # Et les compteurs eux-mêmes : c'est l'unique moment de la journée
+                # où ils changent, donc celui qui autorise leur cache long.
+                from src.dashboard.utils.kpi_helpers import clear_kpi_caches
+                clear_kpi_caches()
                 if result.get('dag_run_id'):
                     launched[dag_id] = result['dag_run_id']
             else:

@@ -48,14 +48,24 @@ def bump_heartbeat(db, artist_id: int) -> None:
 from src.utils.tenant_kind import HUMAN_TENANTS as _HUMAN_TENANTS
 
 
-def get_live_pulse(db, ttl_minutes: int = 5) -> tuple[int, int]:
-    """Return (live_count, registered_count).
+# LE POULS EST UNE AMBIANCE, PAS UN KPI.
+#
+# Cette requête partait à CHAQUE rerun de la barre latérale — donc à chaque clic de
+# tout administrateur — alors que son voisin immédiat dans ce même fichier,
+# `get_registered_count_public`, est caché 600 s. Elle compte des sessions dont la
+# fenêtre de vivacité est de cinq MINUTES : la rafraîchir plusieurs fois par seconde
+# ne rend rien de plus vrai, cela produit seulement deux sous-requêtes de comptage
+# par clic.
+#
+# 30 s : court devant la fenêtre de 5 min qu'elle mesure (donc l'affichage reste
+# juste), long devant la cadence des reruns (donc la requête cesse d'être gratuite).
+_PULSE_TTL_S = 30
 
-    live_count: distinct artists with a heartbeat newer than ttl_minutes.
-    registered_count: real tenants — canaries excluded, see _HUMAN_TENANTS.
-    """
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes)
-    rows = db.fetch_query(
+
+@st.cache_data(ttl=_PULSE_TTL_S, show_spinner=False)
+def _pulse_counts(_db, cutoff: datetime) -> tuple[int, int]:
+    """La lecture elle-même. `_db` est exclu de la clé de cache (préfixe `_`)."""
+    rows = _db.fetch_query(
         "SELECT "
         "  (SELECT COUNT(*) FROM active_sessions WHERE last_heartbeat > %s) AS live, "
         f"  (SELECT COUNT(*) FROM saas_artists WHERE {_HUMAN_TENANTS}) AS registered",
@@ -65,6 +75,22 @@ def get_live_pulse(db, ttl_minutes: int = 5) -> tuple[int, int]:
         return 0, 0
     live, registered = rows[0]
     return int(live), int(registered)
+
+
+def get_live_pulse(db, ttl_minutes: int = 5) -> tuple[int, int]:
+    """Return (live_count, registered_count).
+
+    live_count: distinct artists with a heartbeat newer than ttl_minutes.
+    registered_count: real tenants — canaries excluded, see _HUMAN_TENANTS.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes)
+    # La borne est arrondie à la fenêtre de cache : sans cela chaque rerun produit un
+    # `cutoff` différent à la microseconde près, donc une clé de cache neuve, donc un
+    # cache qui n'a jamais un seul succès. C'est la façon la plus courante de croire
+    # avoir mis un cache en place sans en avoir mis un.
+    cutoff = cutoff.replace(
+        second=(cutoff.second // _PULSE_TTL_S) * _PULSE_TTL_S, microsecond=0)
+    return _pulse_counts(db, cutoff)
 
 
 @st.cache_data(ttl=600)
