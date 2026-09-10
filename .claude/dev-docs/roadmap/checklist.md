@@ -44,6 +44,21 @@ plateforme repointées sur la définition unique — le total YouTube de l'artis
 120 627 sur deux d'entre elles et 118 219 sur les trois autres au même instant. Le lot
 de huit est clos.
 
+**Le soir du 2026-09-10 a construit les propositions du dossier d'architecture**, sans
+ouvrir de tâche : le cliquet de la frontière du bronze (124 couples, il ne peut que
+descendre), le compteur de ce que la conversion cumul → quotidien jette (la figure
+traçait 21 écoutes YouTube et en écartait 167, en silence), une seule horloge pour
+décider d'une date, 38 lectures muettes du rapport client désormais tracées, et les
+zéros de prédiction retirés. **ADR-020** clôt la question des deux vocabulaires de
+période : ils ne sont pas une duplication, ils répondent à deux questions — l'une
+calendaire, l'autre ancrée sur une sortie.
+
+Deux chantiers restent, et aucun n'est une tâche : la réconciliation des fuseaux de
+PUBLICATION (Spotify et Apple datent dans le leur ; 7,9 % des lignes YouTube changent de
+jour selon celui qu'on retient) demande une décision écrite avant d'être engagée, et la
+reprise des définitions encore recopiées se fait **au fil de l'eau** sous la règle de
+livraison d'ADR-019 — son avancement se lit dans le cliquet du bronze, pas ici.
+
 **R1** reste le seul geste humain, dans la section « 🙋 En attente de toi » plus bas :
 inviter la bêta. Aucune ligne de code ne la débloque.
 
