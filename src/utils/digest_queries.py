@@ -1,4 +1,5 @@
-"""SQL used by the weekly KPI digest, kept outside the DAG so it can be tested.
+"""SQL and formatters used by the weekly KPI digest, kept outside the DAG so they
+can be tested.
 
 Type: Utility
 Uses: nothing (pure string constants)
@@ -56,3 +57,65 @@ week_ago AS (
 SELECT (SELECT SUM(playback_count) FROM latest)   AS latest_total,
        (SELECT SUM(playback_count) FROM week_ago) AS week_ago_total
 """
+
+
+# ── Spotify for Artists : les streams de la semaine ─────────────────────────
+#
+# PAS de COALESCE, pour la raison écrite plus haut à propos de SoundCloud : un
+# locataire qui n'a jamais déposé de CSV S4A n'a pas « 0 stream cette semaine », il
+# n'a pas de mesure. `SUM(CASE …)` rend NULL sur zéro ligne, et c'est la bonne
+# réponse. Mesuré le 2026-09-10 : ce fichier appliquait déjà la règle à SoundCloud,
+# à Instagram et au ML, et la contredisait ici et sur Meta.
+#
+# `DISTINCT ON (date, song)` garde le dernier dépôt pour un jour donné : deux
+# imports du même jour ne doivent pas doubler les streams.
+SPOTIFY_WEEKLY_STREAMS_SQL = """
+SELECT
+    SUM(CASE WHEN date >= CURRENT_DATE - 7 THEN streams END) AS last_7d,
+    SUM(CASE WHEN date >= CURRENT_DATE - 14 AND date < CURRENT_DATE - 7 THEN streams END) AS prev_7d
+FROM (
+    SELECT DISTINCT ON (date, song) date, streams
+    FROM s4a_song_timeline
+    WHERE artist_id = %s
+      AND song NOT ILIKE '%%1x7xxxxxxx%%'
+      AND date >= CURRENT_DATE - 14
+    ORDER BY date, song, collected_at DESC
+) sub
+"""
+
+# ── Meta Ads : dépense et CTR de la semaine ─────────────────────────────────
+#
+# `ELSE NULL` et non `ELSE 0` : sans impression, le taux de clic n'est pas nul, il
+# est indéfini — 0/0. Annoncer « 0,00 % » à un artiste qui n'a jamais fait de
+# publicité lui décrit une campagne qui n'existe pas.
+META_WEEKLY_SPEND_SQL = """
+SELECT
+    SUM(spend),
+    CASE WHEN SUM(impressions) > 0
+         THEN ROUND((SUM(link_clicks)::numeric / SUM(impressions)::numeric) * 100, 2)
+         ELSE NULL END
+FROM meta_insights_performance
+WHERE artist_id = %s
+  AND date_start >= CURRENT_DATE - 7
+"""
+
+
+def fmt_value(val, spec: str = ",", suffix: str = "") -> str:
+    """Une quantité, ou « N/A » — jamais un zéro fabriqué.
+
+    Il existe parce que les gabarits du digest formatent avec `:,` / `:.2f`, qui
+    LÈVENT sur `None`. Sans lui, « ne pas inventer de zéro » se paierait d'un e-mail
+    non envoyé : le correctif honnête deviendrait une panne.
+    """
+    if val is None:
+        return "<span style='color:#888'>N/A</span>"
+    return f"{val:{spec}}{suffix}"
+
+
+def fmt_delta(val, suffix: str = "") -> str:
+    """Un écart signé et coloré, ou « N/A ». Jumeau de `fmt_value` pour les variations."""
+    if val is None:
+        return "<span style='color:#888'>N/A</span>"
+    color = "#27ae60" if val >= 0 else "#e74c3c"
+    sign = "+" if val >= 0 else ""
+    return f"<span style='color:{color}'>{sign}{val:,}{suffix}</span>"

@@ -86,21 +86,66 @@ def test_no_surface_reads_the_channel_counter_as_streams(db) -> None:
     import pathlib
 
     from src.dashboard.utils import platform_timeseries as pts
-    for sql_name in ("_SQL_LIFETIME_YOUTUBE", "_SQL_YOUTUBE"):
-        sql = getattr(pts, sql_name)
-        assert "youtube_video_stats" in sql, sql_name
-        assert "youtube_channel_history" not in sql, (
-            f"{sql_name} est revenu au compteur de chaîne")
+    # `_SQL_LIFETIME_*` lit désormais la couche or (`v_platform_totals`, ADR-019), qui
+    # porte la règle « somme des compteurs PAR VIDÉO ». La série quotidienne, elle,
+    # lit toujours la table directement.
+    assert "youtube_video_stats" in pts._SQL_YOUTUBE
+    assert "youtube_channel_history" not in pts._SQL_YOUTUBE, (
+        "_SQL_YOUTUBE est revenu au compteur de chaîne")
+    assert "v_platform_totals" in pts._SQL_LIFETIME, (
+        "les totaux « depuis le début » ne lisent plus la couche or")
 
     tree = ast.parse(pathlib.Path("src/api/routers/kpis.py").read_text(encoding="utf-8"))
     consts = [n.value for n in ast.walk(tree)
               if isinstance(n, ast.Constant) and isinstance(n.value, str)]
-    yt_reads = [c for c in consts if "youtube_video_stats" in c]
-    assert yt_reads, "l'API ne lit plus les compteurs par vidéo — garde à repointer"
-    for sql in yt_reads:
-        assert "DISTINCT ON" in sql or "SUM" in sql, (
-            "l'API rend le compteur d'une seule vidéo comme total de la plateforme :\n"
-            + sql[:200])
+    # L'API lit désormais la couche or (ADR-019) plutôt que de recopier la règle. Ce
+    # garde visait `youtube_video_stats` parce que c'était là que la règle vivait ; il
+    # a demandé lui-même à être repointé le 2026-09-10 (« l'API ne lit plus les
+    # compteurs par vidéo »), ce qui est le comportement voulu d'un garde ancré sur un
+    # emplacement plutôt que sur une propriété.
+    yt_reads = [c for c in consts if "v_platform_totals" in c and "youtube" in c]
+    assert yt_reads, (
+        "l'API ne lit plus la couche or pour YouTube — soit elle a recopié la règle "
+        "une cinquième fois, soit la vue a disparu")
+    assert not [c for c in consts
+                if "youtube_channel_history" in c and "view_count" in c], (
+        "l'API est revenue au compteur de chaîne")
+
+    # LA PORTÉE ÉTAIT LE DÉFAUT. Ce garde ne regardait que `platform_timeseries` et
+    # l'API ; le compteur de chaîne a donc survécu comme TOTAL dans deux autres
+    # surfaces jusqu'au 2026-09-10 — `kpi_helpers.get_total_views_youtube`, affiché sur
+    # « Data Wrapped », et `pdf_exporter/_collectors.py`, imprimé dans le PDF client à
+    # côté du total corrigé. Le même locataire lisait 120 627 ici et 118 219 là.
+    #
+    # On balaie donc TOUTES les surfaces qui affichent un total, et on n'accepte le
+    # compteur de chaîne que là où il est légitime : les ABONNÉS, qui n'ont pas d'autre
+    # source.
+    for path in ("src/dashboard/utils/kpi_helpers.py",
+                 "src/dashboard/utils/pdf_exporter/_collectors.py",
+                 "src/dashboard/views/data_wrapped.py"):
+        tree = ast.parse(pathlib.Path(path).read_text(encoding="utf-8"))
+        # Les DOCSTRINGS sont exclues : ce garde a rougi sur l'explication du correctif
+        # qu'il venait de garder — deuxième fois dans la même séance. Un garde qui
+        # oblige à cesser de documenter apprend que le rouge est du bruit.
+        docstrings = {
+            d for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                              ast.AsyncFunctionDef))
+            for d in [ast.get_docstring(n, clean=False)] if d is not None
+        }
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            sql = node.value
+            if sql in docstrings:
+                continue
+            if "youtube_channel_history" not in sql:
+                continue
+            assert "view_count" not in sql, (
+                f"{path}:{node.lineno} lit `youtube_channel_history.view_count`. "
+                "Ce compteur avance par paliers et porte des vidéos qui ne sont pas "
+                "les siennes : il ne peut pas être un total de vues. La définition "
+                "unique est la vue `v_platform_totals` (ADR-019).")
 
 
 def test_a_bounded_period_is_never_larger_than_the_lifetime(db) -> None:

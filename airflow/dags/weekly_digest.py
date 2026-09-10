@@ -23,7 +23,10 @@ sys.path.insert(0, '/opt/airflow')
 # their credential as a QUERY PARAMETER. stdlib-only, safe at DAG parse time.
 from src.utils.safe_error import safe_error
 from src.utils.dag_timeouts import dagrun_timeout_for
-from src.utils.digest_queries import SOUNDCLOUD_WEEKLY_DELTA_SQL
+from src.utils.digest_queries import (
+    META_WEEKLY_SPEND_SQL, SOUNDCLOUD_WEEKLY_DELTA_SQL, SPOTIFY_WEEKLY_STREAMS_SQL,
+    fmt_delta, fmt_value,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -113,26 +116,12 @@ def send_weekly_digest(**context):
             logger.info(f"Building digest for {artist_name} (id={artist_id})")
 
             # ── S4A streams: last 7d vs previous 7d ──────────────────────────
-            streams_rows = db.fetch_query(
-                """
-                SELECT
-                    COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - 7 THEN streams END), 0) AS last_7d,
-                    COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - 14 AND date < CURRENT_DATE - 7 THEN streams END), 0) AS prev_7d
-                FROM (
-                    SELECT DISTINCT ON (date, song) date, streams
-                    FROM s4a_song_timeline
-                    WHERE artist_id = %s
-                      AND song NOT ILIKE '%%1x7xxxxxxx%%'
-                      AND date >= CURRENT_DATE - 14
-                    ORDER BY date, song, collected_at DESC
-                ) sub
-                """,
-                (artist_id,)
-            )
-            last_7d = int(streams_rows[0][0]) if streams_rows else 0
-            prev_7d = int(streams_rows[0][1]) if streams_rows else 0
-            streams_delta = last_7d - prev_7d
-            streams_delta_pct = round((streams_delta / prev_7d * 100), 1) if prev_7d > 0 else None
+            streams_rows = db.fetch_query(SPOTIFY_WEEKLY_STREAMS_SQL, (artist_id,))
+            last_7d = int(streams_rows[0][0]) if (streams_rows and streams_rows[0][0] is not None) else None
+            prev_7d = int(streams_rows[0][1]) if (streams_rows and streams_rows[0][1] is not None) else None
+            streams_delta = (last_7d - prev_7d) if (last_7d is not None and prev_7d is not None) else None
+            streams_delta_pct = (round((streams_delta / prev_7d * 100), 1)
+                                 if (streams_delta is not None and prev_7d) else None)
 
             # ── Top song this week ────────────────────────────────────────────
             top_song_rows = db.fetch_query(
@@ -157,24 +146,12 @@ def send_weekly_digest(**context):
             # track name is a stored payload that renders in the recipient's mail
             # client — and the recipient is the artist, not the author.
             top_song = escape(str(top_song_rows[0][0])) if top_song_rows else "—"
-            top_song_streams = int(top_song_rows[0][1]) if top_song_rows else 0
+            top_song_streams = int(top_song_rows[0][1]) if top_song_rows else None
 
             # ── Meta Ads spend + CTR ──────────────────────────────────────────
-            meta_rows = db.fetch_query(
-                """
-                SELECT
-                    COALESCE(SUM(spend), 0),
-                    CASE WHEN SUM(impressions) > 0
-                         THEN ROUND((SUM(link_clicks)::numeric / SUM(impressions)::numeric) * 100, 2)
-                         ELSE 0 END
-                FROM meta_insights_performance
-                WHERE artist_id = %s
-                  AND date_start >= CURRENT_DATE - 7
-                """,
-                (artist_id,)
-            )
-            meta_spend = float(meta_rows[0][0]) if meta_rows else 0.0
-            meta_ctr = float(meta_rows[0][1]) if meta_rows else 0.0
+            meta_rows = db.fetch_query(META_WEEKLY_SPEND_SQL, (artist_id,))
+            meta_spend = float(meta_rows[0][0]) if (meta_rows and meta_rows[0][0] is not None) else None
+            meta_ctr = float(meta_rows[0][1]) if (meta_rows and meta_rows[0][1] is not None) else None
 
             # ── Instagram followers delta ─────────────────────────────────────
             ig_rows = db.fetch_query(
@@ -226,17 +203,10 @@ def send_weekly_digest(**context):
             ml_dw = round(float(ml_rows[0][1]) * 100, 1) if (ml_rows and ml_rows[0][1]) else None
 
             # ── Build HTML email ──────────────────────────────────────────────
-            def _fmt_delta(val, suffix=""):
-                if val is None:
-                    return "<span style='color:#888'>N/A</span>"
-                color = "#27ae60" if val >= 0 else "#e74c3c"
-                sign = "+" if val >= 0 else ""
-                return f"<span style='color:{color}'>{sign}{val:,}{suffix}</span>"
-
-            streams_delta_str = _fmt_delta(streams_delta)
-            streams_pct_str = f" ({_fmt_delta(streams_delta_pct, '%')})" if streams_delta_pct is not None else ""
-            ig_delta_str = _fmt_delta(ig_delta)
-            sc_delta_str = _fmt_delta(sc_delta)
+            streams_delta_str = fmt_delta(streams_delta)
+            streams_pct_str = f" ({fmt_delta(streams_delta_pct, '%')})" if streams_delta_pct is not None else ""
+            ig_delta_str = fmt_delta(ig_delta)
+            sc_delta_str = fmt_delta(sc_delta)
 
             run_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -251,12 +221,12 @@ def send_weekly_digest(**context):
             <table style="width:100%;border-collapse:collapse;">
               <tr style="background:#f5f5f5;">
                 <td style="padding:8px;">Streams (last 7 days)</td>
-                <td style="padding:8px;text-align:right;font-weight:bold;">{last_7d:,}</td>
+                <td style="padding:8px;text-align:right;font-weight:bold;">{fmt_value(last_7d)}</td>
                 <td style="padding:8px;text-align:right;">{streams_delta_str}{streams_pct_str} vs prev week</td>
               </tr>
               <tr>
                 <td style="padding:8px;">Top song</td>
-                <td style="padding:8px;" colspan="2"><b>{top_song}</b> — {top_song_streams:,} streams</td>
+                <td style="padding:8px;" colspan="2"><b>{top_song}</b> — {fmt_value(top_song_streams)} streams</td>
               </tr>
             </table>
 
@@ -264,11 +234,11 @@ def send_weekly_digest(**context):
             <table style="width:100%;border-collapse:collapse;">
               <tr style="background:#f5f5f5;">
                 <td style="padding:8px;">Spend</td>
-                <td style="padding:8px;text-align:right;font-weight:bold;">{meta_spend:.2f} €</td>
+                <td style="padding:8px;text-align:right;font-weight:bold;">{fmt_value(meta_spend, ".2f", " €")}</td>
               </tr>
               <tr>
                 <td style="padding:8px;">CTR</td>
-                <td style="padding:8px;text-align:right;">{meta_ctr:.2f}%</td>
+                <td style="padding:8px;text-align:right;">{fmt_value(meta_ctr, ".2f", "%")}</td>
               </tr>
             </table>
 

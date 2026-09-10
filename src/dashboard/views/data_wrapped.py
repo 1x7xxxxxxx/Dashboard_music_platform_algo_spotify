@@ -293,10 +293,11 @@ def _recap_revenue(db, aid):
     st.subheader(t("data_wrapped.recap_revenue_header", "💶 Revenus & publicité (carrière)"))
     roi = get_roi_data(db, aid, date(2000, 1, 1), date.today())
     r1, r2, r3 = st.columns(3)
+    from src.dashboard.utils.kpi_helpers import fmt_eur
     r1.metric(t("data_wrapped.recap_imusician_revenue", "Revenu iMusician"),
-              f"{roi['revenue_eur']:,.0f} €")
+              fmt_eur(roi['revenue_eur'], 0))
     r2.metric(t("data_wrapped.recap_meta_spend", "Dépense Meta Ads"),
-              f"{roi['meta_spend']:,.0f} €")
+              fmt_eur(roi['meta_spend'], 0))
     roi_pct = roi.get("roi_pct")
     r3.metric(t("data_wrapped.recap_roi", "ROI"),
               f"{roi_pct:.0f} %" if roi_pct is not None else "—",

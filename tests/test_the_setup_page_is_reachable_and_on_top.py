@@ -881,9 +881,11 @@ def test_the_home_says_WHEN_instead_of_showing_four_zeros():
     assert returns_after_message, (
         "the empty-state branch no longer returns: the zero tiles are rendered under "
         "the message instead of being replaced by it")
-    totals = _call_lines(fn, "_render_totals")
-    assert totals and all(ln > src.count("\n") * 0 for ln in totals), (
-        "`_render_totals` is no longer called from the section that guards it")
+    # `_render_totals` a été supprimée le 2026-09-10 avec les tuiles. Ce qui doit
+    # rester vrai est inchangé et se lit une ligne plus haut : la section SORT avant de
+    # rendre quoi que ce soit. On l'ancre désormais sur le rendu qui subsiste.
+    trend = _call_lines(fn, "_render_trend")
+    assert trend, "`_render_trend` is no longer called from the section that guards it"
 
 
 def test_the_launch_step_launches():

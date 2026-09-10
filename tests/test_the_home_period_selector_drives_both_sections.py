@@ -159,8 +159,18 @@ def test_there_is_exactly_one_period_selector() -> None:
         f"{len(widgets)} sélecteurs de période sur l'accueil — il en faut exactement un")
 
 
-def test_narrowing_the_period_shrinks_both_the_chart_and_the_totals() -> None:
-    """La MOITIÉ qui compte : le sélecteur change les deux surfaces, pas une seule."""
+def test_narrowing_the_period_shrinks_the_chart() -> None:
+    """Le sélecteur commande la figure.
+
+    Il commandait DEUX surfaces jusqu'au 2026-09-10 ; les tuiles ont quitté l'accueil
+    ce jour-là, parce qu'elles portaient les compteurs « depuis le début » des
+    plateformes à côté d'une figure qui ne trace que le mesuré — deux nombres pour la
+    même période, dont aucun n'était faux.
+
+    Ce que ce garde ne couvre PLUS, et il faut le dire : que les totaux suivent la
+    période. Ils sont désormais sur les pages plateforme, chacune avec son propre
+    filtre (`period_filter`), et aucun test ne relie encore ces deux filtres.
+    """
     aid = _tenant_with_history()
     wide, narrow = _home(aid, "all"), _home(aid, "30d")
 
@@ -170,20 +180,17 @@ def test_narrowing_the_period_shrinks_both_the_chart_and_the_totals() -> None:
         f"contre {wide_days} en « depuis le début »")
     assert narrow_days <= 30, f"« 30 jours » en affiche {narrow_days}"
 
-    wide_tile, narrow_tile = _tile(wide, "Spotify S4A"), _tile(narrow, "Spotify S4A")
-    assert wide_tile and narrow_tile, "la tuile Spotify a disparu — garde à repointer"
-    to_int = lambda v: int(str(v).replace(",", "").replace(" ", "").replace("—", "0"))  # noqa: E731
-    assert to_int(narrow_tile) < to_int(wide_tile), (
-        f"les totaux ne suivent pas le sélecteur : {narrow_tile} sur 30 jours contre "
-        f"{wide_tile} depuis le début — le sélecteur ne change qu'une moitié de l'écran")
+    assert not _tile(wide, "Spotify S4A"), (
+        "une tuile de total est revenue sur l'accueil. Elle porte un compteur « depuis "
+        "le début » que la figure d'à côté contredit par construction — c'est la "
+        "contradiction retirée le 2026-09-10, et `RANGE_NOTE` était la prose qui "
+        "l'excusait.")
 
 
-def test_apple_says_it_cannot_be_windowed_instead_of_showing_a_wrong_number() -> None:
-    """Un instantané par CSV ne se découpe pas : on l'écrit, on ne devine pas."""
-    at = _home(_tenant_with_history(), "30d")
-    assert _tile(at, "Apple Music") == "—", (
-        "Apple affiche un total sur une période bornée alors qu'elle n'a qu'un "
-        "relevé : ce chiffre serait faux, ou celui d'une autre période")
+# La règle « Apple ne se découpe pas » vit toujours, ailleurs : elle est gardée par
+# `tests/test_apple_periods_are_asked_not_guessed.py` (non_overlapping_cover,
+# apple_period_plays rendant None sous deux relevés) et par la page Apple elle-même.
+# Le garde qui la lisait SUR L'ACCUEIL est retiré avec la tuile qu'il lisait.
 
 
 # ── Ce que la période a ajouté le 2026-09-08 ────────────────────────────────

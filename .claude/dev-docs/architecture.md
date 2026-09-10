@@ -89,14 +89,14 @@ graph LR
 
 | Platform | Collector | Table(s) | DAG |
 |---|---|---|---|
-| Spotify API | `spotify_api.py` | `spotify_tracks`, `spotify_top_tracks` | `spotify_api_daily` |
-| Spotify for Artists | `s4a_csv_watcher.py` | `s4a_songs_global`, `s4a_song_timeline`, `s4a_audience` | `s4a_csv_watcher` |
+| Spotify API | `spotify_api.py` | `artists`, `artist_history`, `tracks`, `track_popularity_history` | `spotify_api_daily` |
+| Spotify for Artists | `s4a_csv_parser.py` | `s4a_songs_global`, `s4a_song_timeline`, `s4a_audience` | import CSV du dashboard (`views/upload_csv.py`) |
 | Meta Ads (API — **sole writer** since 2026-05-29) | `meta_ads_api_collector.py` | `meta_campaigns`, `meta_adsets` (+ 10 targeting cols), `meta_ads` (+ title/body/cta), campaign-grain: `meta_insights_performance` + `_day/_age/_country/_placement`, `meta_insights_engagement` + `_day/_age/_country/_placement`; **ad/adset-grain (NEW): `meta_insights_{performance,engagement}_{ad,adset}_{country,placement,age}`** (12 tables, migration 032 — lifetime aggregates, no date col) | `meta_ads_api_daily` |
 | YouTube | `youtube_collector.py` | `youtube_channels`, `youtube_channel_history`, `youtube_videos` | `youtube_daily` |
-| SoundCloud | `soundcloud_api_collector.py` | `soundcloud_tracks` | `soundcloud_daily` |
-| Instagram | `instagram_api_collector.py` | `instagram_media`, `instagram_stories` | `instagram_daily` |
-| Apple Music | `apple_music_csv_parser.py` | `apple_songs_performance`, `apple_daily_plays`, `apple_listeners` | `apple_music_csv_watcher` |
-| iMusician | manual entry + CSV import | `imusician_sales_detail` (raw, per-line) → `imusician_monthly_revenue` (DERIVED, rolled up) | `imusician_csv_watcher` |
+| SoundCloud | `soundcloud_api_collector.py` | `soundcloud_tracks_daily` | `soundcloud_daily` |
+| Instagram | `instagram_api_collector.py` | `instagram_daily_stats`, `instagram_media`, `instagram_media_insights` | `instagram_daily` |
+| Apple Music | `apple_music_csv_parser.py` | `apple_songs_performance`, `apple_daily_plays`, `apple_listeners` | import CSV du dashboard (`views/upload_csv.py`) |
+| iMusician | manual entry + CSV import | `imusician_sales_detail` (raw, per-line) → `imusician_monthly_revenue` (DERIVED, rolled up) | import CSV du dashboard (`views/upload_csv.py`) |
 | ML scoring | `ml_inference.py` (**v3**, group-CV rebuild 2026-06-05) | `ml_song_predictions` (+`pi_forecast_7d`), `s4a_song_saves_daily` (saves history → resurrection radar) | `ml_scoring_daily` |
 | ML outcome labelling (NEW 2026-06-12) | `ml_outcome_labeling.py` | `s4a_song_algo_outcomes` (manual realized DW/RR/Radio streams, windowed 7d/28d/custom — capture in Saisie S4A), `ml_prediction_outcomes` (training-ready labelled pairs; labels use **28d only**) | `ml_outcome_labeling` (weekly Mon 06:00) |
 | Algo lifecycle benchmark | `machine_learning/export_lifecycle_benchmark.py` (offline) | `algo_lifecycle_benchmark` (GLOBAL / non-tenant, read-only, NOT in `_ALLOWED_TABLES`) | none (manual seed via migration 035; PROVISIONAL) |
@@ -114,6 +114,13 @@ graph LR
 
 > **Meta Ads — SINGLE ingestion path (since 2026-05-29 — legacy CSV stack archived):**
 >
+> ⚠️ **Les 4 `*_csv_watcher` ont été SUPPRIMÉS le 2026-09-04** (ADR-014, « Airflow a
+> maigri ») : ils représentaient 97,2 % des `dag_run` et 98,4 % des `task_instance` pour
+> sonder des répertoires vides, 1 536 exécutions/jour toutes `skipped`. L'import CSV se
+> fait depuis la page d'import du dashboard, qui garde le fichier 14 jours — la seule
+> moitié utile d'un watcher. Ce document les nommait encore le 2026-09-10 ; corrigé, et
+> gardé par `tests/test_no_surface_reads_a_table_nobody_writes.py`.
+
 > ⚠️ **Single-writer consolidation (2026-05-29, P2 fix):** the Meta tables previously had a DUAL WRITER — the API collector AND the one-time Dec-2025 legacy Meta CSV stack — writing with incompatible conventions (aggregate `'All'` total rows + French placement labels vs API snake_case), inflating campaign-grain breakdown spend ~2×. The entire redundant CSV stack (8 files: DAGs `meta_config_dag`/`meta_insights_dag`, watchers `meta_csv_watcher`/`meta_insight_watcher`, parsers, debug scripts) is now ARCHIVED to `archive/legacy_meta_csv/`; all dashboard/alerting references repointed to the canonical `meta_ads_api_daily`; `archive/` added to `.dockerignore`. **The Meta tables now have exactly ONE writer (`meta_ads_api_collector` / `meta_ads_api_daily`) → the double-count cannot recur.** Residual (low risk): campaign-grain breakdowns key on `campaign_name`, so a future campaign RENAME could re-introduce stale rows (ad/adset grains key by ID, immune). The spurious rows were already cleaned (all grains reconcile to the day total).
 >
 > **API (daily, automatic):** `meta_ads_api_daily` DAG runs at 05:00 UTC via `meta_ads_api_collector.py`. Uses `facebook_business` SDK. Fetches campaigns / adsets / ads / creatives, then the insight breakdown tables: campaign-grain (performance + engagement, each with _day / _age / _country / _placement) PLUS, since 2026-05-29, **ad-grain and adset-grain breakdowns** `meta_insights_{performance,engagement}_{ad,adset}_{country,placement,age}` (12 tables, migration 032 — lifetime aggregates, no date col) via the new `_fetch_breakdown(level, id_field, breakdown, goal_by_entity)` helper (`_build_goal_maps` now also returns `goal_by_adset`; +6 API calls/run). Since 2026-05-29 SDK list/get calls go through the generic `_meta_retry()` (retries throttle codes `{4,17,32,80004}` with 60→120→240s exponential backoff, 4 attempts, materialising the cursor inside the retry); `_meta_list()` delegates to it. `run(insights_only=True)` mode skips the config fetch and loads campaign list from DB instead, reducing API calls by ~75% — intended for repeated manual runs to avoid triggering the hourly quota. `run(fetch_creatives=False)` skips the per-creative content fetch (title/body/CTA — one call per creative, the dominant rate-limit driver). Breakdown rows are trimmed to their slim schema before upsert.
@@ -130,7 +137,7 @@ graph LR
 > write raw per-line rows to `imusician_sales_detail`; `imusician_monthly_revenue` is a
 > DERIVED table rolled up from it by `src/utils/imusician_rollup.py::rollup_sales_to_monthly`.
 > The roll-up must fire from ALL THREE import paths: Streamlit upload (`upload_csv.py`),
-> the watcher DAG (`imusician_csv_watcher.py::process_csv_files`), and the debug script
+> the CSV import page (`views/upload_csv.py`), and the debug script
 > (`debug_imusician_csv.py::step_5_real_upsert`). It originally lived only in the Streamlit
 > path, so files imported by the DAG left `monthly_revenue` stale (showed ~5% of real
 > revenue, no error). Both the Distributeur view (`imusician.py`) and the revenue-forecast
@@ -195,16 +202,16 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | View file | Page name | Data sources | Role |
 |---|---|---|---|
 | `home.py` | Home | All tables (KPI + freshness) | all |
-| `spotify_s4a_combined.py` | Spotify + S4A | spotify_tracks, s4a_* | all |
+| `spotify_s4a_combined.py` | Spotify + S4A | tracks, track_popularity_history, s4a_* | all |
 | `meta_ads_overview.py` | Meta Ads | meta_insights_performance (+ custom_conversions, lp_views), meta_insights_performance_day/age/country/placement, meta_insights_engagement, meta_adsets (targeting × CPR — "🎯 Ciblage vs Performance") | all |
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
 | `meta_breakdowns.py` | 🌍 Breakdowns Meta (since 2026-05-29) — campaign→adset→creative cascade, dimension (country/placement/age) × metric-family (perf/engagement); choropleth (utils/geo.py) + Pareto (utils/charts.py::pareto_spend_cpr) | all |
 | `perf_monitor.py` | Perf. Dashboard | st.session_state._perf_log, psutil, DB ping | admin |
-| `meta_x_spotify.py` | Meta × Spotify | meta_insights, spotify_tracks, campaign_track_mapping (read-only) | all |
+| `meta_x_spotify.py` | Meta × Spotify | meta_insights, tracks, track_popularity_history, campaign_track_mapping (read-only) | all |
 | `meta_mapping.py` | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |
 | `platform_status.py` | 📋 État de tes plateformes — la matrice complète des six sources. **Hors du menu depuis le 2026-09-05** (chaque onglet de Credentials porte les quatre pastilles de SA plateforme) mais toujours ROUTÉE : des messages y renvoient | lecture seule (artist_readiness) | all |
-| `soundcloud.py` | SoundCloud | soundcloud_tracks | all |
+| `soundcloud.py` | SoundCloud | soundcloud_tracks_daily | all |
 | `soundcloud_claims.py` | Déclarer les titres hébergés sous le compte d'un label ou d'un collectif — fragment rendu par `soundcloud.py`, sorti de Credentials le 2026-09-04 | track_platform_link | all |
 | `meta_extra_accounts.py` | Déclarer les comptes publicitaires supplémentaires (agences) — fragment rendu par `meta_ads_overview.py`, sorti de Credentials le 2026-09-05, même mouvement que `soundcloud_claims.py` | artist_credentials | all |
 | `instagram.py` | Instagram | instagram_* | all |
@@ -224,7 +231,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `onboarding_health.py` | 🚦 Santé onboarding — matrice de préparation par artiste | `src.utils.artist_readiness` | all |
 | `db_health.py` | 🗄️ Santé des données — imports et fraîcheur | pg_stat_user_tables, colonnes `collected_at` | all |
 | `meta_cpr_optimizer.py` | 📊 CPR Optimizer — score ML × CPR et recommandations de budget | meta_insights_*, ml_song_predictions | premium |
-| `sacem.py` | 🎼 SACEM — répartitions brutes, charges sociales et net dans le temps | sacem_statements | all |
+| `sacem.py` | 🎼 SACEM — répartitions brutes, charges sociales et net dans le temps | sacem_statement | all |
 | `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution | artist_wrapped | all |
 | `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |
 | `referral.py` | 🎁 Parrainage — page côté artiste | referral_codes, referral_events | all |

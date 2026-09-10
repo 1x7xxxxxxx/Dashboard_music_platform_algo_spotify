@@ -52,6 +52,11 @@ EN = {
     "imusician.roi_profitable": "✅ Profitable",
     "imusician.roi_unprofitable": "⚠️ Unprofitable",
     "imusician.roi_no_spend_help": "No promo spend over the period — widen the filter",
+    "imusician.roi_effective_window": (
+        "Period actually covered: {a} → {b} — revenue is monthly, so the window is "
+        "rounded to whole months."),
+    "imusician.roi_unavailable_help": (
+        "Figures unavailable — the read failed. This is not \u201cno spend\u201d."),
     "imusician.meta_spend_eur": "Meta spend (€)",
     "imusician.dist_revenue_eur": "Distributor revenue (€)",
     "imusician.sacem_revenue_eur": "SACEM royalties (€)",

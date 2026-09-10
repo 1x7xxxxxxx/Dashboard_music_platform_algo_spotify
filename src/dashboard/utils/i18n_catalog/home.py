@@ -27,7 +27,6 @@ EN = {
         "Apple Music, distributors): updated **on each CSV import** (folder watched every 15 min)."
     ),
     "home.streams_header": "🎧 Total streams",
-    "home.total_all_platforms": "🎧 Total streams across all platforms",
     "platform_chart.too_thin": (
         "{label} is not drawn: only **{measured} reading(s)**, and an area needs two. "
         "Its figures stay in the table below."),
@@ -46,12 +45,6 @@ EN = {
         "Over {total} {unit}, some platforms were not measured everywhere ({who}). "
         "Their area stops there; the others carry on, so the total for those {unit} is "
         "lower — no play was lost."),
-    "home.apple_no_window": (
-        "Apple Music has no daily series: each CSV upload is one dated reading, and the "
-        "change is measured between two readings. You have **{n}** so far — the next "
-        "upload on another date will fill this in. \"Since the beginning\" shows the total."),
-    "home.ig_delta": "over the period",
-    "home.ig_no_change": "change: not enough readings",
     "home.trend_mode": "Display",
     "home.mode_cumulative": "Cumulative",
     "home.mode_absolute": "Per period",
@@ -78,7 +71,6 @@ EN = {
     "home.trend_no_series": (
         "Not enough history yet to draw a trend: it takes at least two consecutive "
         "days of collection on one platform."),
-    "home.ig_followers": "📸 Instagram Followers",
     # Onboarding tracker
     "home.matrix_caption": "Per platform — hover a box for the detail:",
     "home.onboarding_creds": "🔑 Configure API credentials",

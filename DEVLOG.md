@@ -5,6 +5,85 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-10 — Huit tâches ouvertes le matin, la roadmap vide le soir
+
+Parti d'une question sur la figure de l'accueil, fini sur une couche sémantique. Ce qui a
+tenu la journée est une seule discipline : **ne rien corriger avant de l'avoir mesuré.**
+
+### Ce que la mesure a trouvé et que la lecture avait manqué
+
+L'audit à la lecture a rendu 32 incohérences et 7 causes. La **mesure**, elle, a rendu un
+défaut que personne n'avait vu et corrigé deux de mes propres conclusions.
+
+| Période | Pas | Σ mesuré | Σ dessinée |
+|---|---|---|---|
+| Cette année | semaine | 4 559 | 4 671 |
+| 12 mois | semaine | 8 490 | 8 609 |
+| **12 mois** | **année** | **8 490** | **23 251** |
+
+La figure dessinait **×2,7** ce qu'elle avait mesuré. `_aggregate` sommait toute la série
+dans ses seaux — `since`/`until` ne servaient qu'au plancher — et `_bucket_key(since)`
+ramenait la borne basse en arrière : « 12 mois » au pas annuel retenait le seau
+`2025-01-01`, donc **toute l'année 2025**. Après correctif : 8 490 → 8 490.
+
+Et le « 165 065 contre 23 397 » que `RANGE_NOTE` expliquait depuis deux jours décrivait un
+état **périmé** : les deux SQL Spotify s'accordent exactement (163 088, écart 0). Une
+prose qui explique un écart empêche de le mesurer.
+
+### Le défaut le plus cher n'a pas été trouvé par moi
+
+`code-critic`, lancé sur le DESIGN avant qu'une ligne soit écrite, a trouvé ce que mon
+correctif n'aurait pas protégé : `pdf_exporter/_renderers._render_roi` fait
+`float(roi.get('revenue_eur') or 0)` **et recalcule son propre verdict**. Sur une base
+injoignable : `rev = 0`, `spend = 0`, `net = 0`, et le PDF **payant** imprime
+« ✅ Rentable ». Corriger le helper seul l'aurait laissé intact.
+
+C'est la justification empirique de la règle « challenger avant d'écrire, pas avant de
+commiter ».
+
+### Ce qui a été livré
+
+Huit tâches, chacune avec son correctif, son garde et ses mutations vues rouges.
+
+- **R64** — le revenu était comparé sur `make_date(year, month, 1)` et la dépense Meta sur
+  `day_date` : une fenêtre 15 jan → 10 sep excluait janvier et comptait tout septembre.
+  Mesuré par mutation : 1,69 € rendu pour 4,88 € réels, **65 % du revenu perdu**.
+- **R65** — l'e-mail hebdomadaire annonçait « 0 streams cette semaine » et « CTR 0,00 % » à
+  un artiste sans données. Le même fichier refusait explicitement de le faire pour
+  SoundCloud, vingt lignes plus bas.
+- **R66/R68** — le ×2,7, `known()` désymétrisée (une plateforme dont la collecte s'arrête
+  ne retombe plus à zéro en mode Cumulé), et l'invariant « Σ des y tracés ≤ Σ mesuré dans
+  la fenêtre » sur le produit cartésien des menus.
+- **R67** — les tuiles KPI ont quitté l'accueil, et `RANGE_NOTE` avec elles.
+- **R69** — `check_metric_bounds` dans `alert_monitor`, `make metric-check`. Densmore
+  p. 218 : valider les modèles de **fin** de pipeline, pas seulement la source. C'était le
+  trou : quatre piliers instrumentés, tous sur les tables brutes.
+- **R70** — ADR-019 et migration 097. Le total YouTube de l'artiste 1 valait 120 627 sur
+  deux surfaces et 118 219 sur trois autres, au même instant. Cinq surfaces repointées sur
+  une vue Postgres ordinaire.
+- **R71** — `etl_daily_metrics` (2 lignes, aucun écrivain) remplacée par `etl_run_log`
+  (2 196). Documentée « USED-but-undeclared » depuis trois mois : le défaut n'était pas
+  ignoré, il était documenté, et la seule trace visible avait été de faire taire le
+  détecteur qui le signalait.
+
+### Quatre fois où un garde m'a repris
+
+1. Le garde anti-fuite a vu que je journalisais une exception en clair.
+2. Deux gardes ont rougi **sur leur propre docstring** — le motif que le dépôt catalogue,
+   deux fois dans la même journée. Réécrits sur l'AST.
+3. Un prédicat a crié sur seize noms valides avant de tenir sur six vraies dérives.
+4. Une mutation est restée **verte** : le garde ne voyait pas le découpage au pas jour.
+   Un test direct a été ajouté pour l'atteindre.
+
+Et le garde élargi de R70 a demandé lui-même à être repointé quand l'API a changé de
+source — le comportement attendu d'un garde ancré sur un emplacement.
+
+**Vérifié** : 4 810 tests verts, ruff propre, `audit_runner --deterministic` et `--prose`
+propres sur **255 classes**, six nouvelles chacune avec sa signature vue rouge puis verte.
+Roadmap : `open=R1` — le seul geste humain, inviter la bêta.
+
+---
+
 ## 2026-09-08 (suite 12) — Une contrainte de forme vérifiée d'un seul côté
 
 **« Je ne vois aucune data dans cumulé · par année · cette année »** — Spotify, YouTube,

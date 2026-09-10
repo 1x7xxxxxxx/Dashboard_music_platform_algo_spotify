@@ -98,8 +98,33 @@ def _render_streams(streams):
 
 
 def _render_roi(roi, from_date, to_date):
-    rev = float(roi.get('revenue_eur') or 0)
-    spend = float(roi.get('meta_spend') or 0)
+    # `or 0` ABSORBAIT L'INCONNU, et le rendait en verdict.
+    #
+    # Mesuré le 2026-09-10 : `get_roi_data` rendait `0.0` sur une panne de lecture ;
+    # ici `rev = 0`, `spend = 0`, `net = 0`, et la ligne `net >= 0` imprimait
+    # « Rentable » sur le rapport PAYANT d'un artiste — un verdict produit par une
+    # panne de base. La fonction recalcule son propre statut, donc corriger le helper
+    # seul ne l'aurait pas protégée.
+    if roi.get('unreadable'):
+        unavailable = _t("pdf.roi.unavailable",
+                         "Chiffres indisponibles — la lecture des revenus ou des "
+                         "dépenses a échoué. Ce n'est pas un résultat nul.")
+        return f'''
+    <div class="roi-card">
+      <p style="font-size:9pt;color:#555;">{unavailable}</p>
+    </div>'''
+    rev = roi.get('revenue_eur')
+    spend = roi.get('meta_spend')
+    # Rien mesuré n'est pas non plus un verdict : sans les deux côtés, pas de « net ».
+    if rev is None or spend is None:
+        nothing = _t("pdf.roi.not_measured",
+                     "Pas encore de revenu ou de dépense mesurés sur la période.")
+        return f'''
+    <div class="roi-card">
+      <p style="font-size:9pt;color:#555;">{nothing}</p>
+    </div>'''
+    rev = float(rev)
+    spend = float(spend)
     net = rev - spend
     # TRUE ROI = (gain - cost) / cost. The shared helper's roi_pct is rev/spend
     # (a recovery ratio), which mislabels a deficit as "+6.9%". Compute it right here.

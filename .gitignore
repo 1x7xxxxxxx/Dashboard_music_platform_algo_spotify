@@ -108,3 +108,7 @@ data/uploads/
 .offsite-git/
 .backup_passphrase
 data/offsite_receipt.json
+
+# Le dossier d'architecture est DÉRIVÉ (~1,1 Mo, au-dessus du plafond de 1 Mo).
+# Son générateur est versionné sous tools/dev/architecture_dossier/.
+docs/streamlytics-architecture-et-qualite-des-donnees.pdf

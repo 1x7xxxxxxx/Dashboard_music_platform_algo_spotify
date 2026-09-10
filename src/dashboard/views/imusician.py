@@ -417,10 +417,18 @@ def show():
                 roi = get_roi_data(db, artist_id, from_date, to_date)
 
                 c1, c2, c3 = st.columns(3)
+                # `fmt_eur` rend « — » sur None : le revenu est mensuel, la fenêtre
+                # est élargie aux mois entiers (`effective_from`/`effective_to`), et
+                # une lecture qui échoue ne s'affiche plus « 0,00 € ».
+                from src.dashboard.utils.kpi_helpers import fmt_eur
                 c1.metric(t("imusician.roi_revenue", "💰 Revenus (distrib. + SACEM)"),
-                          f"{roi['revenue_eur']:,.2f} €")
+                          fmt_eur(roi['revenue_eur']))
                 c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
-                          f"{roi['meta_spend']:,.2f} €")
+                          fmt_eur(roi['meta_spend']))
+                st.caption(t("imusician.roi_effective_window",
+                             "Période réellement couverte : {a} → {b} — le revenu est "
+                             "mensuel, la fenêtre est donc arrondie aux mois entiers."
+                             ).format(a=roi['effective_from'], b=roi['effective_to']))
 
                 if roi['roi_pct'] is not None:
                     roi_label = f"{roi['roi_pct']:.1f} %"
@@ -431,9 +439,16 @@ def show():
                         "📊 ROI", roi_label, roi_delta,
                         delta_color="normal" if roi['profitable'] else "inverse",
                         help=t("imusician.roi_total_help",
-                               "ROI sur la dépense Meta Ads = {total:,.2f} €").format(
-                                   total=roi['total_spend'])
+                               "ROI sur la dépense Meta Ads = {total}").format(
+                                   total=fmt_eur(roi['total_spend']))
                     )
+                elif roi['unreadable']:
+                    # Le TROISIÈME état, demandé par la revue du design : une panne de
+                    # lecture ne doit pas emprunter le texte d'une absence légitime.
+                    c3.metric("📊 ROI", "—",
+                              help=t("imusician.roi_unavailable_help",
+                                     "Chiffres indisponibles — la lecture a échoué. "
+                                     "Ce n'est pas « aucune dépense »."))
                 else:
                     c3.metric("📊 ROI", "—",
                               help=t("imusician.roi_no_spend_help",

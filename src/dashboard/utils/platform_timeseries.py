@@ -447,9 +447,9 @@ def platform_totals(db, artist_id, since=None, until=None) -> dict:
         return out
 
     return {
-        "spotify": _lifetime(db, _SQL_LIFETIME_SPOTIFY, artist_id),
-        "youtube": _lifetime(db, _SQL_LIFETIME_YOUTUBE, artist_id),
-        "soundcloud": _lifetime(db, _SQL_LIFETIME_SOUNDCLOUD, artist_id),
+        "spotify": _lifetime(db, _SQL_LIFETIME, artist_id, "spotify"),
+        "youtube": _lifetime(db, _SQL_LIFETIME, artist_id, "youtube"),
+        "soundcloud": _lifetime(db, _SQL_LIFETIME, artist_id, "soundcloud"),
         "apple": apple_lifetime_plays(db, artist_id),
     }
 
@@ -459,36 +459,24 @@ def combined_total(totals: dict) -> int:
     return sum(v for v in (totals or {}).values() if v)
 
 
-_SQL_LIFETIME_SPOTIFY = """
-    SELECT COALESCE(SUM(daily_max), 0)::bigint FROM (
-        SELECT MAX(streams) AS daily_max FROM s4a_song_timeline
-         WHERE artist_id = %s AND song NOT ILIKE '%%1x7xxxxxxx%%'
-         GROUP BY date, song
-    ) sub
+# LA COUCHE OR (ADR-019, migration 097). Ces trois requêtes étaient trois copies de la
+# règle de chaque plateforme ; elles lisent désormais la définition unique. La règle
+# elle-même n'a pas changé — la vue porte exactement ce que ces constantes portaient —
+# mais elle n'existe plus qu'à UN endroit, et l'API comme le PDF peuvent la lire sans
+# recopier le `DISTINCT ON`.
+_SQL_LIFETIME = """
+    SELECT COALESCE(total, 0)::bigint FROM v_platform_totals
+     WHERE artist_id = %s AND platform = %s
 """
 
-# La somme des compteurs PAR VIDÉO, et non `youtube_channel_history`. Le compteur de
-# chaîne porte les vidéos privées, supprimées et les agrégats internes, et il avance par
-# paliers : mesuré le 2026-09-08, +360 en une journée quand YouTube Studio en annonçait
-# 64 sur la période.
-_SQL_LIFETIME_YOUTUBE = """
-    SELECT COALESCE(SUM(view_count), 0)::bigint FROM (
-        SELECT DISTINCT ON (video_id) view_count FROM youtube_video_stats
-         WHERE artist_id = %s ORDER BY video_id, collected_at DESC
-    ) latest
-"""
-
-_SQL_LIFETIME_SOUNDCLOUD = """
-    SELECT COALESCE(SUM(playback_count), 0)::bigint FROM (
-        SELECT DISTINCT ON (track_id) playback_count FROM soundcloud_tracks_daily
-         WHERE artist_id = %s ORDER BY track_id, collected_at DESC
-    ) latest
-"""
+_SQL_LIFETIME_SPOTIFY = _SQL_LIFETIME
+_SQL_LIFETIME_YOUTUBE = _SQL_LIFETIME
+_SQL_LIFETIME_SOUNDCLOUD = _SQL_LIFETIME
 
 
-def _lifetime(db, sql: str, artist_id) -> int:
+def _lifetime(db, sql: str, artist_id, platform: str = "spotify") -> int:
     try:
-        row = db.fetch_query(sql, (artist_id,))
+        row = db.fetch_query(sql, (artist_id, platform))
         return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
         logger.warning("lifetime total unavailable: %s", type(exc).__name__)

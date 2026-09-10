@@ -97,11 +97,18 @@ def _section_streams(db, artist_id):
     # additionnait ici le compteur de CHAÎNE YouTube, celui qu'on a prouvé ~10× faux le
     # 2026-09-08 : trois pages du même produit donnaient trois totaux différents.
     from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
+    # LES TUILES ONT QUITTÉ CET ÉCRAN (2026-09-10).
+    #
+    # Elles portaient les compteurs « depuis le début » des plateformes ; la figure, à
+    # côté, ne trace que ce que NOUS avons mesuré. Deux nombres pour la même période,
+    # sur la même ligne, sans qu'aucun soit faux — et `RANGE_NOTE` existait uniquement
+    # pour excuser cet écart en prose. Une contradiction qu'on doit expliquer sous la
+    # figure est une contradiction qu'il fallait retirer.
+    #
+    # Le compteur de chaque plateforme reste lisible sur SA page (🎵 Spotify, 🎬
+    # YouTube, ☁️ SoundCloud, 🍎 Apple Music, 📸 Instagram), où il ne côtoie aucune
+    # série mesurée qui le contredit.
     totals = platform_totals(db, artist_id, since, until)
-    s4a = totals.get("spotify")
-    yt = totals.get("youtube")
-    sc = totals.get("soundcloud")
-    apple = totals.get("apple")
     grand_total = combined_total(totals)
 
     if not grand_total and not ig_count:
@@ -116,79 +123,11 @@ def _section_streams(db, artist_id):
                      "onboarding** dit quelle source ne répond pas, et pourquoi."))
         return
 
-    left, right = st.columns([3, 2], gap="large")
-    with left:
-        _render_trend(series, since, until, range_key, artist_id)
-    with right:
-        _render_totals(db, artist_id, series, since, until,
-                       s4a, yt, sc, apple, ig_count, grand_total)
-
-    st.caption(date_range.RANGE_NOTE)
-
-
-def _fmt(value) -> str:
-    """Un nombre, ou « — » quand rien n'a été mesuré. Jamais « 0 » pour une absence."""
-    return "—" if value is None else f"{value:,}"
-
-
-def _render_totals(db, artist_id, series, since, until,
-                   s4a, yt, sc, apple, ig_count, grand_total) -> None:
-    """La colonne de droite : le total, les quatre plateformes, les abonnés."""
-    from src.dashboard.utils.platform_timeseries import followers_change
-
-    st.markdown(
-        f"""<div style="text-align:center; padding:14px; background:#f0f2f6;
-            border-radius:10px; margin-bottom:12px;">
-            <div style="color:#555; font-size:0.95em; font-weight:600;">{t("home.total_all_platforms", "🎧 Total streams toutes plateformes")}</div>
-            <div style="font-size:2.4em; color:#1DB954; font-weight:800;">{grand_total:,}</div>
-        </div>""",
-        unsafe_allow_html=True
-    )
-
-    c1, c2 = st.columns(2)
-    c1.metric("🎵 Spotify S4A", _fmt(s4a))
-    c2.metric("🎬 YouTube", _fmt(yt))
-    c3, c4 = st.columns(2)
-    c3.metric("☁️ SoundCloud", _fmt(sc))
-    # APPLE N'A QU'UN RELEVÉ PAR DÉPÔT DE CSV, et pour l'instant un seul en tout.
-    # Le message le dit plutôt que d'annoncer une impossibilité de principe : au
-    # deuxième CSV, la comparaison de deux relevés devient possible.
-    from src.dashboard.utils.platform_timeseries import apple_snapshot_count
-    c4.metric("🍎 Apple Music", _fmt(apple),
-              help=None if apple is not None else t(
-                  "home.apple_no_window",
-                  "Apple Music ne fournit pas de série quotidienne : chaque dépôt de "
-                  "CSV est un relevé daté, et l'écart se calcule entre deux relevés. "
-                  "Tu en as **{n}** pour l'instant — au prochain dépôt à une autre "
-                  "date, ce chiffre se remplira. « Depuis le début » affiche le total."
-              ).format(n=apple_snapshot_count(db, artist_id)))
-
-    # LES ABONNÉS INSTAGRAM SONT UN ÉTAT, pas un flux : on ne les additionne pas sur
-    # une période, on regarde de combien ils ont bougé. Demandé le 2026-09-08.
-    change = followers_change(db, artist_id, since, until)
-    if change is None:
-        delta_html = ('<div style="font-size:0.75em; color:#888;">'
-                      + t("home.ig_no_change", "évolution : pas assez de relevés")
-                      + '</div>')
-    else:
-        _first, _last, diff = change
-        sign = "+" if diff > 0 else ""
-        colour = "#00A870" if diff > 0 else ("#C0392B" if diff < 0 else "#888")
-        delta_html = (f'<div style="font-size:0.9em; color:{colour}; font-weight:700;">'
-                      f'{sign}{diff:,} ' + t("home.ig_delta", "sur la période") + '</div>')
-    st.markdown(
-        f"""<div style="border:1px solid #E4405F; background:#E4405F18;
-            border-radius:8px; padding:10px 12px; text-align:center; margin-top:8px;">
-            <div style="color:#666; font-size:0.85em;">{t("home.ig_followers", "📸 Followers Instagram")}</div>
-            <div style="font-size:1.75em; color:#E4405F; font-weight:700;">{ig_count:,}</div>
-            {delta_html}
-        </div>""",
-        unsafe_allow_html=True
-    )
+    _render_trend(series, since, until, range_key, artist_id)
 
 
 def _render_trend(series, since, until, range_key, artist_id) -> None:
-    """La colonne de gauche : l'évolution, sur la même période que les chiffres.
+    """La figure de l'accueil — pleine largeur depuis que les tuiles sont parties.
 
     Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les compteurs
     cumulatifs (SoundCloud, YouTube) à leur écart quotidien, sans quoi la courbe

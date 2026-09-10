@@ -80,6 +80,10 @@ EN = {
     "pdf.roi.profitable": "✅ Profitable",
     "pdf.roi.deficit": "⚠️ Loss-making",
     "pdf.roi.since_start": "Since the start (full history)",
+    "pdf.roi.unavailable": (
+        "Figures unavailable — reading revenue or spend failed. This is not a zero "
+        "result."),
+    "pdf.roi.not_measured": "No revenue or spend measured over the period yet.",
     "pdf.roi.revenue_total": "💰 Revenue (iMusician + DistroKid + SACEM)",
     "pdf.roi.spend_meta": "📱 Meta Ads spend",
     "pdf.roi.net": "Net (revenue − spend)",

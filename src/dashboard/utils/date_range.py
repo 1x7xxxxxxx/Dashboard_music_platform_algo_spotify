@@ -25,8 +25,12 @@ Ce n'est pas « une très grande fenêtre », et les confondre donnerait des chi
   passé avant qu'on le regarde.
 
 Le second est donc structurellement plus petit que le premier, et ce n'est pas une
-perte de données : c'est la seule chose qu'on puisse affirmer. `RANGE_NOTE` porte cette
-phrase pour que l'écart ne se lise pas comme un bug.
+perte de données : c'est la seule chose qu'on puisse affirmer.
+
+`RANGE_NOTE` a porté cette phrase sous la figure de l'accueil jusqu'au 2026-09-10. Elle
+a été RETIRÉE avec les tuiles qu'elle excusait : les deux nombres ne se côtoient plus,
+donc il n'y a plus d'écart à expliquer. Une note qui rend une contradiction acceptable
+n'est pas un correctif — c'est une contradiction qu'on a décidé de garder.
 """
 from __future__ import annotations
 
@@ -133,17 +137,3 @@ def render_selector(*, key: str = "_home_range_widget") -> str:
             st.date_input("Au", key=_CUSTOM_UNTIL, format="DD/MM/YYYY",
                           value=st.session_state.get(_CUSTOM_UNTIL) or _dt.date.today())
     return chosen
-
-
-# Affichée à CHAQUE période, et pas seulement sur les périodes bornées.
-#
-# L'écart est le plus grand là où la note manquait : sur « Depuis le début », les
-# tuiles annoncent 165 065 écoutes Spotify et la figure en totalise 23 397 pour le même
-# artiste. Les deux sont justes et ne répondent pas à la même question — un chiffre qui
-# en contredit un autre sur le même écran, sans un mot, se lit comme un bug.
-RANGE_NOTE = (
-    "**Les tuiles et la courbe ne comptent pas la même chose.** Les tuiles « depuis le "
-    "début » sont les compteurs des plateformes : ils portent tout ce qui précède "
-    "notre première collecte. La courbe, elle, ne trace que ce que nous avons "
-    "**mesuré** — elle commence donc le jour où l'on a branché chaque source."
-)

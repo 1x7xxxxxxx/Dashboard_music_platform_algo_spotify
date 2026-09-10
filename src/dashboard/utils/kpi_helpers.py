@@ -1,7 +1,10 @@
 """Fonctions KPI réutilisables par toutes les views du dashboard."""
+import logging
 from datetime import datetime
 
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 # Read-only metadata getters below are wrapped in @st.cache_data(ttl=60). The DB
 # handle is passed as `_db` (leading underscore) so Streamlit excludes the
@@ -202,17 +205,30 @@ def get_total_streams_s4a(_db, artist_id):
 
 @st.cache_data(ttl=60)
 def get_total_views_youtube(_db, artist_id):
-    """Total vues YouTube (compteur global chaîne, dernière valeur)."""
+    """Total vues YouTube — la couche OR (`v_platform_totals`, ADR-019).
+
+    Cette fonction lisait `youtube_channel_history.view_count`, le compteur de CHAÎNE,
+    prouvé ~10× faux le 2026-09-08 : figé onze jours puis +360 attribués à une seule
+    journée, quand YouTube Studio annonçait 64 vues sur la période. Il porte les vidéos
+    privées, supprimées et des agrégats internes, et il avance par paliers.
+
+    Elle alimente « Data Wrapped », qui affichait donc un total YouTube différent de
+    celui de l'accueil et de l'API pour le même locataire au même instant. Mesuré le
+    2026-09-10 sur l'artiste 1 : 120 627 ici contre 118 219 par la définition retenue.
+    """
     db = _db
     try:
         if artist_id is not None:
-            q = "SELECT view_count FROM youtube_channel_history WHERE artist_id = %s ORDER BY collected_at DESC LIMIT 1"
-            row = db.fetch_query(q, (artist_id,))
+            row = db.fetch_query(
+                "SELECT COALESCE(total, 0) FROM v_platform_totals "
+                "WHERE artist_id = %s AND platform = 'youtube'", (artist_id,))
         else:
-            q = "SELECT view_count FROM youtube_channel_history ORDER BY collected_at DESC LIMIT 1"
-            row = db.fetch_query(q)
-        return int(row[0][0] or 0)
-    except Exception:
+            row = db.fetch_query(
+                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals "
+                "WHERE platform = 'youtube'")
+        return int(row[0][0] or 0) if row else 0
+    except Exception as exc:      # noqa: BLE001
+        logger.warning("YouTube total unreadable: %s", type(exc).__name__)
         return 0
 
 
@@ -348,6 +364,44 @@ def get_soundcloud_likes(_db, artist_id):
 
 # ─── ROI Breakheaven ─────────────────────────────────────────────────────────
 
+def month_window(from_date, to_date):
+    """Les bornes JOUR des mois que la fenêtre demandée chevauche.
+
+    `v_artist_monthly_revenue` n'a pas de grain jour : ses colonnes sont `year` et
+    `month`. Il n'existe donc AUCUNE fenêtre exacte côté revenu — le mois est le grain
+    natif, pas une approximation qu'on choisit.
+
+    On élargit aux mois entiers plutôt que de restreindre aux mois pleinement contenus,
+    parce que restreindre rendrait vide toute fenêtre courte, et qu'un revenu vide est
+    indiscernable à l'écran d'un revenu absent. L'élargissement est rendu à l'appelant
+    (`effective_from` / `effective_to`) pour qu'il puisse le DIRE — un réglage qu'on ne
+    peut pas honorer se dit, il ne se tait pas.
+
+    Le défaut que ce helper retire, lu le 2026-09-10 : le revenu était filtré sur
+    `make_date(year, month, 1) BETWEEN from AND to` pendant que la dépense Meta l'était
+    sur `day_date`. Une fenêtre 15 janvier → 10 septembre excluait janvier en entier et
+    comptait tout septembre — numérateur et dénominateur du ROI sur deux périodes
+    différentes.
+    """
+    import calendar
+    import datetime as _dt
+
+    def _as_date(d):
+        return d.date() if isinstance(d, _dt.datetime) else d
+
+    lo, hi = _as_date(from_date), _as_date(to_date)
+    eff_from = lo.replace(day=1)
+    eff_to = hi.replace(day=calendar.monthrange(hi.year, hi.month)[1])
+    return eff_from, eff_to
+
+
+def fmt_eur(val, digits: int = 2) -> str:
+    """Un montant, ou « — ». Jamais « 0,00 € » pour une valeur qu'on n'a pas pu lire."""
+    if val is None:
+        return "—"
+    return f"{val:,.{digits}f} €"
+
+
 @st.cache_data(ttl=60)
 def get_roi_data(_db, artist_id, from_date, to_date):
     """
@@ -356,54 +410,72 @@ def get_roi_data(_db, artist_id, from_date, to_date):
     roi_pct = VRAI ROI = (revenus − dépenses) / dépenses × 100
     (0 % = équilibre, négatif = perte). Pas un ratio revenus/dépenses.
     """
+    eff_from, eff_to = month_window(from_date, to_date)
     result = {
-        'revenue_eur': 0.0,
-        'meta_spend': 0.0,
-        'total_spend': 0.0,
+        # `None` et non `0.0` : une lecture qui échoue ne se déguise pas en « rien
+        # gagné ». `profitable=False` par défaut faisait produire un VERDICT métier
+        # par une panne de base (règle .claude/rules/python.md § Erreurs et absences).
+        'revenue_eur': None,
+        'meta_spend': None,
+        'total_spend': None,
         'roi_pct': None,
-        'profitable': False,
+        'profitable': None,
+        # La fenêtre RÉELLEMENT couverte, pour que l'appelant l'affiche.
+        'effective_from': eff_from,
+        'effective_to': eff_to,
+        # LE TROISIÈME ÉTAT. « Rien mesuré » et « on n'a pas pu lire » rendent tous
+        # deux None ; sans cette liste l'appelant les confond, et affiche « aucune
+        # dépense promo » sur une panne de base.
+        'unreadable': [],
     }
 
     # Revenus distributeurs (iMusician + DistroKid, aggregation sur year+month)
     try:
         if artist_id is not None:
             row = _db.fetch_query(
-                """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
+                """SELECT SUM(revenue_eur) FROM v_artist_monthly_revenue
                    WHERE artist_id = %s AND make_date(year, month, 1) BETWEEN %s AND %s""",
-                (artist_id, from_date, to_date)
+                (artist_id, eff_from, eff_to)
             )
         else:
             row = _db.fetch_query(
-                """SELECT COALESCE(SUM(revenue_eur), 0) FROM v_artist_monthly_revenue
+                """SELECT SUM(revenue_eur) FROM v_artist_monthly_revenue
                    WHERE make_date(year, month, 1) BETWEEN %s AND %s""",
-                (from_date, to_date)
+                (eff_from, eff_to)
             )
-        result['revenue_eur'] = float(row[0][0] or 0)
-    except Exception:
-        pass
+        raw = row[0][0] if row else None
+        result['revenue_eur'] = float(raw) if raw is not None else None
+    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+        logger.warning("ROI revenue unreadable: %s", type(exc).__name__)
+        result['unreadable'].append('revenue')
 
     # Dépenses Meta Ads
     try:
         if artist_id is not None:
             row = _db.fetch_query(
-                """SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day
+                """SELECT SUM(spend) FROM meta_insights_performance_day
                    WHERE artist_id = %s AND day_date BETWEEN %s AND %s""",
-                (artist_id, from_date, to_date)
+                (artist_id, eff_from, eff_to)
             )
         else:
             row = _db.fetch_query(
-                """SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day
+                """SELECT SUM(spend) FROM meta_insights_performance_day
                    WHERE day_date BETWEEN %s AND %s""",
-                (from_date, to_date)
+                (eff_from, eff_to)
             )
-        result['meta_spend'] = float(row[0][0] or 0)
-    except Exception:
-        pass
+        raw = row[0][0] if row else None
+        result['meta_spend'] = float(raw) if raw is not None else None
+    except Exception as exc:      # noqa: BLE001
+        logger.warning("ROI spend unreadable: %s", type(exc).__name__)
+        result['unreadable'].append('spend')
 
     # Promo spend = Meta Ads only (the Hypeddit "budget" the user enters is in fact the
     # Meta-ad budget, not a separate Hypeddit spend — so it must not be double-counted).
     result['total_spend'] = result['meta_spend']
-    if result['total_spend'] > 0:
+    # Un ROI ne se calcule QUE si les deux côtés sont connus. Un côté inconnu rend le
+    # verdict inconnu — il ne le rend pas « déficitaire ».
+    known = result['revenue_eur'] is not None and result['total_spend'] is not None
+    if known and result['total_spend'] > 0:
         result['roi_pct'] = (
             (result['revenue_eur'] - result['total_spend']) / result['total_spend']) * 100
         result['profitable'] = result['revenue_eur'] >= result['total_spend']
@@ -419,12 +491,17 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     (the entered Hypeddit budget is in fact the Meta-ad budget — not a real spend)."""
     import pandas as pd
 
+    # LES DEUX SÉRIES SUR LES MÊMES BORNES. Le revenu est mensuel, la dépense
+    # quotidienne ; les borner différemment faisait comparer deux périodes.
+    eff_from, eff_to = month_window(from_date, to_date)
+
     def _q(sql_artist, sql_all, cols):
         try:
             if artist_id is not None:
-                return _db.fetch_df(sql_artist, (artist_id, from_date, to_date))
-            return _db.fetch_df(sql_all, (from_date, to_date))
-        except Exception:
+                return _db.fetch_df(sql_artist, (artist_id, eff_from, eff_to))
+            return _db.fetch_df(sql_all, (eff_from, eff_to))
+        except Exception as exc:      # noqa: BLE001 — une courbe absente ne tue pas la page
+            logger.warning("ROI series unreadable (%s): %s", cols[1], type(exc).__name__)
             return pd.DataFrame(columns=cols)
 
     # Revenue per month — distributor (iMusician + DistroKid) and SACEM split in ONE
@@ -465,7 +542,21 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     if df_spend.empty:
         df_spend = pd.DataFrame(columns=['period_date', 'meta_spend'])
 
-    df = pd.merge(df_rev, df_spend, on='period_date', how='outer').fillna(0)
+    # PAS de `.fillna(0)` : un mois présent côté revenu et absent côté Meta n'a pas
+    # « 0 € dépensé », il n'a pas de mesure. Les deux appelants pandas
+    # (`revenue_forecast.py`, `_tab_budget_roi.py`) étaient DÉJÀ écrits pour l'absence
+    # — `.sum()` saute les NaN et l'un fait même un `dropna` explicite ; c'est le
+    # helper qui la leur cachait.
+    df = pd.merge(df_rev, df_spend, on='period_date', how='outer')
+    # LE TYPE, pas seulement la valeur. `.fillna(0)` coerçait accessoirement ces
+    # colonnes en float64 ; en le retirant, psycopg2 les laisse en `object` porteuses
+    # de `decimal.Decimal`, et le premier `float - Decimal` d'un appelant lève
+    # (`revenue_forecast.py:453`, vu rouge le 2026-09-10). C'est la classe
+    # `object-dtype-numeric-op` du catalogue. `errors='coerce'` garde les NaN NaN :
+    # on convertit le type, on ne remplit pas l'absence.
+    for _col in ('distributor_revenue', 'sacem_revenue', 'meta_spend'):
+        if _col in df.columns:
+            df[_col] = pd.to_numeric(df[_col], errors='coerce')
     df['revenue_eur'] = df['distributor_revenue'] + df['sacem_revenue']
     df['period_date'] = pd.to_datetime(df['period_date'])
     return df.sort_values('period_date')

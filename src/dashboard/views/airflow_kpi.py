@@ -9,6 +9,20 @@ from src.database.postgres_handler import validate_table, validate_columns
 from src.dashboard.utils.i18n import t
 
 def get_quality_metrics(db):
+    """Les métriques de qualité par DAG, lues dans le registre qui est RÉELLEMENT écrit.
+
+    Cette fonction lisait `etl_daily_metrics` — une table **que rien n'écrit dans ce
+    dépôt**. Créée en prod hors de toute migration, puis rétro-inscrite dans
+    `migrations/062_reconcile_schema_drift.sql` dans le seul but de faire taire
+    `make schema-check`, elle est classée « USED-but-undeclared » dans
+    `.claude/dev-docs/schema-drift-2026-06-13.md:22` depuis le 2026-06-13. Mesuré le
+    2026-09-10 : **2 lignes** dedans, contre **2 196** dans `etl_run_log` — le registre
+    par exécution qu'écrit `src/utils/dag_run_logger.py` à chaque collecte, juste à
+    côté. La page affichait donc un panneau vide en lisant la mauvaise table.
+
+    Le défaut n'était pas ignoré : il était documenté et laissé en l'état, et la seule
+    trace visible avait été de faire taire le détecteur qui le signalait.
+    """
     """Récupère les KPIs métiers depuis PostgreSQL.
 
     Takes the connection show() opened. This function used to open its own — one
@@ -19,13 +33,17 @@ def get_quality_metrics(db):
         query = """
             SELECT
                 dag_id,
-                SUM(total_rows) as total_rows,
-                SUM(invalid_rows) as total_invalid,
-                SUM(anomalies_confirmed) as total_anomalies,
-                AVG(alert_delay_seconds) as avg_alert_delay,
-                COUNT(*) as days_count
-            FROM etl_daily_metrics
-            WHERE run_date >= CURRENT_DATE - INTERVAL '7 days'
+                SUM(rows_inserted) as total_rows,
+                SUM(rows_failed)    as total_invalid,
+                -- `etl_run_log` ne porte pas d'anomalies confirmées : on n'invente pas
+                -- une colonne, on rend 0 et le tableau affiche « 0 % » sur un ratio
+                -- dont le numérateur n'existe pas. À remplacer le jour où une source
+                -- d'anomalies par DAG existe vraiment.
+                0                   as total_anomalies,
+                AVG(duration_ms) / 1000.0 as avg_alert_delay,
+                COUNT(*)            as days_count
+            FROM etl_run_log
+            WHERE started_at >= CURRENT_DATE - INTERVAL '7 days'
             GROUP BY dag_id
         """
         df = db.fetch_df(query)
@@ -247,17 +265,17 @@ def _section_last_runs(db):
                     "_state": None,
                 })
 
-    # Rows inserted from etl_daily_metrics (last day per DAG)
+    # Rows inserted from etl_run_log (last day per DAG) — see get_quality_metrics
     rows_inserted: dict = {}
     if db:
         try:
             df_metrics = db.fetch_df(
                 """
-                SELECT dag_id, SUM(total_rows) AS rows_inserted
-                FROM etl_daily_metrics
-                WHERE run_date = (
-                    SELECT MAX(run_date) FROM etl_daily_metrics m2
-                    WHERE m2.dag_id = etl_daily_metrics.dag_id
+                SELECT dag_id, SUM(rows_inserted) AS rows_inserted
+                FROM etl_run_log
+                WHERE started_at::date = (
+                    SELECT MAX(started_at::date) FROM etl_run_log m2
+                    WHERE m2.dag_id = etl_run_log.dag_id
                 )
                 GROUP BY dag_id
                 """

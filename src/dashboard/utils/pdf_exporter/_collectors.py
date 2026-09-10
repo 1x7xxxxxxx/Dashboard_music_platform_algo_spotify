@@ -220,13 +220,23 @@ def _collect_youtube(db, artist_id, single_song=None):
     if artist_id is None:
         return None
     try:
+        # Les ABONNÉS viennent de l'historique de chaîne (c'est leur seule source) ;
+        # les VUES viennent de la couche or (ADR-019, migration 097). Le compteur de
+        # chaîne était imprimé ici comme total, à côté du total corrigé que
+        # `_report.py` tire de `platform_totals` — le même PDF portait deux nombres
+        # pour la même chose.
         ch = db.fetch_query(
-            """SELECT MAX(subscriber_count), MAX(view_count)
+            """SELECT MAX(subscriber_count)
                FROM youtube_channel_history WHERE artist_id = %s""",
             (artist_id,),
         )
         subs  = int(ch[0][0] or 0) if ch else 0
-        views = int(ch[0][1] or 0) if ch else 0
+        vw = db.fetch_query(
+            """SELECT COALESCE(total, 0) FROM v_platform_totals
+               WHERE artist_id = %s AND platform = 'youtube'""",
+            (artist_id,),
+        )
+        views = int(vw[0][0] or 0) if vw else 0
         vids  = db.fetch_query(
             """SELECT v.title, v.published_at,
                       vs.view_count, vs.like_count, vs.comment_count
@@ -606,15 +616,43 @@ def _collect_mapping(db, artist_id):
 
 
 def _collect_youtube_history(db, artist_id):
-    """Daily channel snapshots: (date, subscribers, cumulative views)."""
+    """Relevés quotidiens : (date, abonnés, vues cumulées).
+
+    Les ABONNÉS viennent de l'historique de chaîne — c'est leur seule source. Les VUES
+    sont la somme des compteurs PAR VIDÉO à cette date, pas le compteur de chaîne.
+
+    Le compteur de chaîne avance par PALIERS et porte des vidéos qui ne sont pas les
+    siennes (privées, supprimées, agrégats internes) : mesuré le 2026-09-08, +360
+    attribués à une seule journée quand YouTube Studio annonçait 64 vues sur la
+    période. Tracé ici, il produisait une courbe dont les marches n'existent pas, et
+    dont le dernier point contredisait le total imprimé plus haut dans le MÊME PDF —
+    120 627 contre 118 219 pour l'artiste 1 le 2026-09-10.
+    """
     if artist_id is None:
         return []
     try:
-        rows = db.fetch_query(
-            "SELECT date(collected_at), MAX(subscriber_count), MAX(view_count) "
-            "FROM youtube_channel_history WHERE artist_id = %s GROUP BY 1 ORDER BY 1",
-            (artist_id,))
-        return [(r[0], int(r[1] or 0), int(r[2] or 0)) for r in rows] if rows else []
+        # DEUX requêtes, une table chacune, et c'est délibéré : jointes dans une seule
+        # chaîne, `youtube_channel_history` et `view_count` cohabitent, et le garde
+        # `test_no_surface_reads_the_channel_counter_as_streams` ne peut plus distinguer
+        # « le compteur de chaîne sert de total » de « les deux tables sont lues ». Un
+        # garde qu'on doit affaiblir pour faire passer son propre correctif est un garde
+        # qu'on vient de perdre — on change la forme du code, pas le prédicat.
+        subs_rows = db.fetch_query(
+            "SELECT date(collected_at), MAX(subscriber_count) "
+            "FROM youtube_channel_history WHERE artist_id = %s GROUP BY 1",
+            (artist_id,)) or []
+        views_rows = db.fetch_query(
+            """SELECT j, SUM(view_count) FROM (
+                   SELECT DISTINCT ON (video_id, date(collected_at))
+                          date(collected_at) AS j, video_id, view_count
+                     FROM youtube_video_stats WHERE artist_id = %s
+                    ORDER BY video_id, date(collected_at), collected_at DESC
+               ) d GROUP BY j""",
+            (artist_id,)) or []
+        subs = {r[0]: int(r[1] or 0) for r in subs_rows}
+        views = {r[0]: int(r[1] or 0) for r in views_rows}
+        return [(day, subs.get(day, 0), views.get(day, 0))
+                for day in sorted(set(subs) | set(views))]
     except Exception:
         return []
 

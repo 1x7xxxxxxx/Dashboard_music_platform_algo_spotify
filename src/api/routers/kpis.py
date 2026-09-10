@@ -56,38 +56,32 @@ def get_kpis(
     )
     spotify_7d = int(raw_spotify) if raw_spotify else None
 
-    # LA SOMME DES ENTITÉS, pas le compteur d'une seule.
-    #
-    # Ces deux lectures prenaient UNE ligne — `ORDER BY collected_at DESC LIMIT 1` —
-    # c'est-à-dire le cumul de la dernière vidéo ou du dernier titre collecté, et le
-    # présentaient comme le total de la plateforme. Sur un catalogue de 67 vidéos, l'API
-    # rendait donc le compteur d'une seule d'entre elles. `DISTINCT ON` prend le dernier
-    # relevé de CHAQUE entité, ce qui est la définition du total.
+    # LA COUCHE OR (ADR-019, migration 097) : une définition par métrique, et une
+    # seule. Ces deux lectures étaient la 4ᵉ copie de la règle « somme des compteurs par
+    # entité ». Elles avaient d'abord porté un défaut — `ORDER BY collected_at DESC
+    # LIMIT 1` rendait le cumul de la DERNIÈRE vidéo collectée comme total de la
+    # plateforme, sur un catalogue de 67 — puis la bonne règle, recopiée. Une règle
+    # recopiée est une règle qui divergera : mesuré le 2026-09-10, le total YouTube
+    # avait TROIS définitions vivantes dans le dépôt, dont deux fausses.
     raw_yt = _first_val(
         db,
         f"""
-        SELECT COALESCE(SUM(view_count), 0) FROM (
-            SELECT DISTINCT ON (video_id) view_count FROM youtube_video_stats
-            WHERE 1=1 {filt}
-            ORDER BY video_id, collected_at DESC
-        ) latest
+        SELECT COALESCE(SUM(total), 0) FROM v_platform_totals
+        WHERE platform = 'youtube' {filt}
         """,
         p_aid,
-        "view_count",
+        "total",
     )
     yt_views = int(raw_yt) if raw_yt else None
 
     raw_sc = _first_val(
         db,
         f"""
-        SELECT COALESCE(SUM(playback_count), 0) FROM (
-            SELECT DISTINCT ON (track_id) playback_count FROM soundcloud_tracks_daily
-            WHERE 1=1 {filt}
-            ORDER BY track_id, collected_at DESC
-        ) latest
+        SELECT COALESCE(SUM(total), 0) FROM v_platform_totals
+        WHERE platform = 'soundcloud' {filt}
         """,
         p_aid,
-        "playback_count",
+        "total",
     )
     sc_plays = int(raw_sc) if raw_sc else None
 

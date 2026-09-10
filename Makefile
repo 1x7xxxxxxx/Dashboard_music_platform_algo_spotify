@@ -159,6 +159,13 @@ artist-preflight: check-db ## Prove a NON-admin tenant works BEFORE inviting an 
 	  echo "   Ou relancez sans PROD_SSH pour viser la base locale."; exit 1; }
 	@$(GUIDE_PY) tools/artist_preflight.py $(if $(ARTIST),--artist $(ARTIST),)
 
+dossier:     ## Régénère le dossier d'architecture (PDF, non versionné). Requiert mmdc.
+	@command -v mmdc >/dev/null || { echo "❌ mermaid-cli absent. Run: npm i -g @mermaid-js/mermaid-cli"; exit 1; }
+	@python3 tools/dev/architecture_dossier/main.py docs/streamlytics-architecture-et-qualite-des-donnees.pdf
+
+metric-check: check-db ## Les nombres que le produit CALCULE s'accordent-ils entre eux ?
+	@python3 tools/metric_check.py
+
 tenant-check: check-db ## Report rows sitting under a tenant they cannot belong to (read-only)
 	@$(GUIDE_PY) tools/tenant_contamination_check.py
 

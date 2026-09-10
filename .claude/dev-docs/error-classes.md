@@ -299,6 +299,12 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [header-announces-a-field-the-form-does-not-have](#header-announces-a-field-the-form-does-not-have) | P3 | deterministic | guarded | none |
 | [per-worker-reference-point-for-shared-state](#per-worker-reference-point-for-shared-state) | P3 | deterministic | guarded | none |
 | [guard-asserts-presence-not-reachability](#guard-asserts-presence-not-reachability) | P2 | deterministic | guarded | none |
+| [a-window-widened-to-its-bucket-instead-of-the-bucket-clipped](#a-window-widened-to-its-bucket-instead-of-the-bucket-clipped) | P2 | deterministic | guarded | none |
+| [a-symmetric-guard-for-an-asymmetric-truth](#a-symmetric-guard-for-an-asymmetric-truth) | P2 | deterministic | guarded | none |
+| [a-verdict-computed-from-a-value-nobody-read](#a-verdict-computed-from-a-value-nobody-read) | P1 | deterministic | guarded | none |
+| [a-fabricated-zero-mailed-as-a-measurement](#a-fabricated-zero-mailed-as-a-measurement) | P2 | deterministic | guarded | none |
+| [a-surface-reads-a-table-nobody-writes](#a-surface-reads-a-table-nobody-writes) | P3 | deterministic | guarded | none |
+| [a-rule-copied-is-a-rule-that-will-diverge](#a-rule-copied-is-a-rule-that-will-diverge) | P2 | deterministic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 | [a-gap-in-one-series-erases-every-other](#a-gap-in-one-series-erases-every-other) | P2 | deterministic | guarded | none |
 | [a-total-that-sums-the-display-instead-of-the-data](#a-total-that-sums-the-display-instead-of-the-data) | P2 | deterministic | guarded | none |
@@ -4208,3 +4214,100 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-08: signature vue ROUGE sur trois mutations — repli supprimé, repli systématique, repli silencieux (« le pas a été changé sans le dire : [] ») — et verte sur l'arbre corrigé.
   - 2026-09-08: le défaut a été trouvé par un artiste sur une combinaison de deux menus, pas par les 4 737 tests verts de l'heure précédente. Une figure se teste sur les réglages qu'un lecteur peut COMBINER, pas seulement sur ceux que le test choisit — le produit cartésien des menus est le vrai espace de rendu, et il était couvert par un seul point.
+
+## a-window-widened-to-its-bucket-instead-of-the-bucket-clipped
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une figure ou un total bornés par une période affichent PLUS que ce que la période contient. Mesuré le 2026-09-10 sur l'accueil : « 12 mois · Par année » dessinait **23 251** écoutes pour **8 490** mesurées dans la fenêtre — ×2,7 — et « Cette année · semaine » +2,5 %.
+- root_cause: deux gestes qui se composent. (1) `platform_chart._aggregate` sommait TOUTE la série dans ses seaux ; `since`/`until` ne servaient qu'au calcul du plancher, jamais à la somme. (2) `_bucket_key(since, step)` ramène la borne basse EN ARRIÈRE, au lundi ou au 1ᵉʳ janvier — geste ajouté pour une vraie raison (sans lui les fenêtres ne tombaient sur aucune clé de seau et deux périodes n'empilaient plus rien), qui a réglé l'alignement et ouvert le débordement. Le seau de bord était donc rempli de jours hors fenêtre au lieu d'être découpé. Même forme dans `kpi_helpers.get_roi_data`, où le revenu était comparé sur `make_date(year, month, 1)` — une fenêtre 15 janvier → 10 septembre excluait janvier en entier et comptait tout septembre.
+- signature: `python3 -m pytest tests/test_the_figure_never_draws_more_than_it_measured.py -q`
+- long_term_fix: la fenêtre découpe les LIGNES avant l'agrégation (`_in_window` dans `_aggregate`, appliqué à tous les pas), et le seau de bord ne porte que ses jours utiles — ce qui rend aussi le plancher juste, puisqu'il comptait des jours hors fenêtre. Règle générale : quand un grain est plus grossier que la fenêtre demandée, on découpe le SEAU, jamais on n'élargit la fenêtre ; et si le grain natif interdit la découpe (`v_artist_monthly_revenue` n'a pas de jour), on élargit **et on rend la période effective à l'appelant** pour qu'il la dise.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: signature vue ROUGE sur trois mutations — découpage retiré (« la figure dessine 36 700 pour 36 500 mesurés »), découpage retiré au seul pas jour, et `known()` remis symétrique — puis verte sur l'arbre corrigé. La deuxième mutation est la plus instructive : elle est restée VERTE au premier essai, parce qu'au pas jour `_window` borne déjà l'axe. Un test direct sur `_aggregate` a été ajouté pour l'atteindre.
+  - 2026-09-10: aucun test ne pouvait le voir. `test_a_bounded_period_is_never_larger_than_the_lifetime` compare deux TUILES entre elles ; rien ne comparait la figure à sa propre source. Et l'écart allait dans le sens INVERSE de ce que la prose du produit affirmait (« la courbe ne trace que le mesuré, elle est donc plus petite »), donc personne ne le cherchait de ce côté. Une prose qui explique un écart empêche de le mesurer.
+
+## a-symmetric-guard-for-an-asymmetric-truth
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: en mode « Cumulé » — l'affichage par défaut de l'accueil — la bande d'une plateforme dont la collecte s'arrête MONTE puis **retombe à zéro** et y reste, ce qui se lit « cette plateforme a perdu toutes ses écoutes ». En mode « Par période », les mêmes jours sont tracés `0` avec l'infobulle « compteur inchangé », qui affirme une mesure que personne n'a faite.
+- root_cause: `platform_chart.known()` rendait `True` **avant la première mesure ET après la dernière**, avec un seul et même argument dans sa docstring (« la plateforme n'était pas encore collectée, 0 est la bonne valeur »). Les deux extrémités ne sont pas symétriques : avant la première mesure, zéro est vrai — la plateforme n'existait pas dans nos données ; après la dernière, la plateforme existe toujours, c'est NOUS qui avons cessé de mesurer. Les index concernés entraient donc dans une tranche continue, et le rendu écrit `y=[aligned[k][i] or 0 …]`. Corollaire : `gap_counts` ne les comptait pas non plus, donc la note `t_missing` promettait « un blanc, jamais un zéro » à propos de jours qu'elle ne voyait pas.
+- signature: `python3 -m pytest tests/test_the_figure_never_draws_more_than_it_measured.py -q -k plateau`
+- long_term_fix: `known()` distingue les deux bords — avant la première mesure : connu (0) ; après la dernière : inconnu. La règle générale : quand un prédicat traite deux cas du même argument, vérifier que l'argument vaut pour les deux. Ici la docstring elle-même les avait mis entre parenthèses (« avant sa première mesure (ou après la dernière) ») — la parenthèse était le défaut.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: trouvé en SIMULANT les fonctions pures, pas en lisant — `[10, 20, 30, 40, 50, None × 15]` devenait `[10, 20, 30, 40, 50, 0 × 15]` à l'écran. La lecture du code seule avait laissé passer `or 0`.
+  - 2026-09-10: signature vue ROUGE en remettant `if index < first or index > last: return True`, verte sur l'arbre corrigé.
+
+## a-verdict-computed-from-a-value-nobody-read
+- status: guarded
+- severity: P1
+- kind: deterministic
+- symptom: un document PAYANT affirme « ✅ Rentable » à un artiste alors que la base était injoignable. Le chiffre affiché est `0,00 €` des deux côtés, le net vaut 0, et `net >= 0` imprime le verdict.
+- root_cause: trois couches qui se couvrent. `kpi_helpers.get_roi_data` initialisait `revenue_eur: 0.0` et `profitable: False`, et avalait toute exception par `except Exception: pass` — une panne rendait donc « rien gagné, non rentable ». Puis `pdf_exporter/_renderers._render_roi` faisait `float(roi.get('revenue_eur') or 0)` et **recalculait son propre statut**, donc corriger le helper seul ne l'aurait pas protégé. Enfin `imusician.py` affichait, pour une panne, le texte prévu pour une absence légitime (« Aucune dépense promo sur la période — élargissez le filtre ») : il n'existait aucun troisième état.
+- signature: `python3 -m pytest tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py -q`
+- long_term_fix: trois états explicites — mesuré / rien mesuré / **pas lisible** (`unreadable`), ce dernier porté par le retour du helper. Aucun verdict n'est calculé sans les deux côtés connus, et chaque surface d'affichage a sa phrase pour la panne, distincte de celle de l'absence. `COALESCE(SUM(x), 0)` retiré des deux requêtes : une absence rend NULL. Règle générale : un affichage qui recalcule son propre verdict doit être corrigé DANS LE MÊME CHANGEMENT que le helper qui le nourrit — sinon le garde du helper ne le protège pas.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py }
+- rex_ref: src/dashboard/utils/kpi_helpers.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: le `_render_roi` du PDF a été trouvé par la revue de design (`code-critic`) lancée AVANT d'écrire le correctif, pas par moi. Mon design ne touchait que `kpi_helpers.py` et aurait laissé le verdict du document payant intact. C'est la justification empirique de la règle « challenger avant d'écrire, pas avant de commiter ».
+  - 2026-09-10: signature vue ROUGE sur quatre mutations — bornes du revenu remises sur la fenêtre demandée (1,69 € rendu au lieu de 4,88 €, soit 65 % du revenu perdu sur cette fenêtre), `COALESCE` remis, `profitable: False` remis, `or 0` remis dans le PDF — et verte sur l'arbre corrigé.
+  - 2026-09-10: un test existant, `test_revenue_math.py::test_zero_spend_leaves_roi_undefined`, EXIGEAIT `profitable is False` sur une dépense nulle, dans le même souffle que son commentaire « ROI is undefined ». Le contrat historique portait le défaut. Corrigé avec la raison écrite à côté.
+
+## a-fabricated-zero-mailed-as-a-measurement
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un artiste premium sans dépôt S4A reçoit par e-mail « Streams (last 7 days) : 0 · +0 vs prev week », « Spend : 0.00 € » et « CTR : 0.00 % ». Trois affirmations qu'on n'a pas mesurées, dont une arithmétiquement fausse : sans impression, le taux de clic n'est pas nul, il est indéfini (0/0).
+- root_cause: `COALESCE(SUM(…), 0)` sur les streams et la dépense, `ELSE 0` sur le CTR, dans `weekly_digest.py`. Le même fichier écrivait vingt lignes plus bas, à propos de SoundCloud : « No COALESCE: an absent snapshot must read "N/A", not a fabricated 0. » La règle était connue, écrite, appliquée à trois sources sur cinq, et contredite sur les deux autres — parce que rien ne la vérifiait.
+- signature: `python3 -m pytest tests/test_the_digest_never_mails_a_fabricated_zero.py -q`
+- long_term_fix: les deux requêtes rendent NULL sur zéro ligne, et un formateur (`digest_queries.fmt_value`) rend « N/A ». Le formateur n'est pas cosmétique : `f"{None:,}"` lève, donc sans lui le correctif honnête se serait payé d'un e-mail non envoyé. SQL et formateurs sont sortis du DAG vers `src/utils/digest_queries.py`, parce qu'un garde posé à côté d'un DAG skippe en silence sur tout interpréteur sans Airflow — ce module existe déjà pour cette raison.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_digest_never_mails_a_fabricated_zero.py }
+- rex_ref: src/utils/digest_queries.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: signature vue ROUGE sur trois mutations — `COALESCE` remis sur les streams (« la colonne 0 rend 0 pour un locataire qui n'a AUCUNE ligne »), `ELSE 0` remis sur le CTR, et `{last_7d:,}` interpolé à nu — verte sur l'arbre corrigé. Les deux premières s'exécutent contre le VRAI moteur avec un identifiant de locataire inexistant : c'est ce que la requête REND qui est testé, pas la présence du mot `COALESCE`, qui survit légitimement ailleurs et dans les commentaires du correctif.
+
+## a-surface-reads-a-table-nobody-writes
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit.
+- root_cause: `views/airflow_kpi.py` lisait `etl_daily_metrics` — **2 lignes** — pendant que `etl_run_log`, écrit à chaque collecte par `dag_run_logger.py`, en portait **2 196** juste à côté. La table avait été créée en prod hors de toute migration, puis rétro-inscrite dans `migrations/062_reconcile_schema_drift.sql` dans le seul but de faire taire `make schema-check`. Elle est classée « USED-but-undeclared » dans `.claude/dev-docs/schema-drift-2026-06-13.md:22` **depuis le 2026-06-13** : le défaut n'était pas ignoré, il était documenté et laissé en l'état, et la seule trace visible avait été de faire taire le détecteur qui le signalait.
+- signature: `python3 -m pytest tests/test_no_surface_reads_a_table_nobody_writes.py -q`
+- long_term_fix: la page lit le registre réellement écrit. Le garde couvre les deux moitiés de la classe : aucune surface ne lit la table orpheline, et **aucune table citée par `.claude/dev-docs/architecture.md` n'est absente du schéma canonique** — un diagramme qui envoie vers une table fantôme oriente vers du vide. Règle générale : rendre un détecteur muet n'est pas fermer ce qu'il signalait.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_no_surface_reads_a_table_nobody_writes.py }
+- rex_ref: .claude/dev-docs/architecture.md
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: le garde a trouvé **six** dérives de documentation, dont quatre que le balayage manuel avait manquées — `soundcloud_tracks` (→ `_daily`), `instagram_stories` (inexistante), `sacem_statements` (→ `sacem_statement`), et trois `*_csv_watcher` supprimés le 2026-09-04 que le diagramme nommait encore. Il a aussi trouvé, à sa PREMIÈRE exécution, qu'il rougissait sur sa propre docstring : réécrit sur l'AST, en excluant les docstrings par construction.
+  - 2026-09-10: son prédicat a d'abord crié sur seize noms valides — des DAGs et des constantes que le diagramme cite dans les mêmes cellules que les tables. Un détecteur qui crie sur du juste finit désarmé : les noms de fichiers et les constantes majuscules du dépôt sont exclus, et le compte est passé de 16 faux positifs à 6 vraies dérives.
+
+## a-rule-copied-is-a-rule-that-will-diverge
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: le même locataire lit trois nombres différents pour la même métrique, au même instant, sur trois surfaces du même produit. Mesuré le 2026-09-10 : le total de vues YouTube de l'artiste 1 valait **120 627** sur « Data Wrapped » et dans le PDF client, **118 219** sur l'accueil et dans l'API.
+- root_cause: la règle « le total d'une plateforme est la somme des compteurs PAR ENTITÉ, jamais le compteur agrégé » était correcte et **recopiée** à quatre endroits. Deux copies ont dérivé vers `youtube_channel_history.view_count`, le compteur de chaîne prouvé ~10× faux le 2026-09-08 ; une troisième avait porté un défaut distinct (`ORDER BY collected_at DESC LIMIT 1` rendait le cumul d'UNE vidéo comme total d'un catalogue de 67) avant d'être corrigée sur place. Le garde existant, `test_no_surface_reads_the_channel_counter_as_streams`, ne regardait que `platform_timeseries` et `src/api/routers/kpis.py` — **sa portée était le défaut**, et c'est pourquoi les deux copies fausses ont survécu à sa création.
+- signature: `python3 -m pytest tests/test_every_surface_gives_the_same_total.py -q`
+- long_term_fix: une **vue Postgres ordinaire** porte la définition (`v_platform_totals`, migration 097, ADR-019) et les cinq surfaces la lisent. Pas de table matérialisée : ces duplications vivent dans des requêtes exécutées à la lecture, donc matérialiser n'en retirerait aucune (ADR-014). Le garde balaie désormais toutes les surfaces qui affichent un total, et n'accepte le compteur de chaîne que là où il est légitime — les ABONNÉS, qui n'ont pas d'autre source. Règle générale, écrite dans ADR-019 : une vue n'existe que si elle retire au moins **deux** sites d'appel divergents.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_every_surface_gives_the_same_total.py }
+- rex_ref: docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: signature vue ROUGE en remettant le compteur de chaîne dans `kpi_helpers`, verte sur l'arbre corrigé.
+  - 2026-09-10: le garde élargi a rougi DEUX fois sur des choses justes avant de tenir. D'abord sur sa propre docstring — deuxième fois dans la même séance, corrigé en excluant les docstrings par l'AST. Ensuite sur une requête qui joignait légitimement les deux tables : plutôt que d'affaiblir le prédicat, la requête a été **coupée en deux**, une table par chaîne. Un garde qu'on doit affaiblir pour faire passer son propre correctif est un garde qu'on vient de perdre.
+  - 2026-09-10: en repointant l'API sur la vue, le garde a demandé lui-même à être repointé (« l'API ne lit plus les compteurs par vidéo — garde à repointer »). C'est le comportement attendu d'un garde ancré sur un EMPLACEMENT ; celui qui le remplace est ancré sur la propriété (« lit la couche or », « ne lit pas le compteur de chaîne »).

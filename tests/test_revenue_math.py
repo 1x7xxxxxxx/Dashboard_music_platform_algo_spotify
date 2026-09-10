@@ -41,4 +41,9 @@ def test_zero_spend_leaves_roi_undefined():
     r = get_roi_data(_stub_db(50.0, 0.0), 1, date(2020, 1, 1), date(2026, 1, 1))
     # No spend → ROI is undefined (no division), not 0 or infinity.
     assert r["roi_pct"] is None
-    assert r["profitable"] is False
+    # `profitable` était `False` ici, et cette ligne portait le défaut que ce test
+    # décrit dans son propre commentaire : si le ROI est INDÉFINI, le verdict l'est
+    # aussi. 50 € gagnés pour 0 € dépensé n'est pas « non rentable » — c'est un ratio
+    # qui n'existe pas. Changé le 2026-09-10, même classe que le « ✅ Rentable »
+    # imprimé sur le PDF payant à partir d'une base injoignable.
+    assert r["profitable"] is None

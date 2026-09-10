@@ -9,6 +9,116 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R70 — Une définition par métrique, et une seule (clos 2026-09-10)
+
+- [x] **R70 — bronze / argent / or, posé comme une FRONTIÈRE et non comme un stockage.**
+  Le désaccord mesuré : le total de vues YouTube de l'artiste 1 valait **120 627** sur
+  « Data Wrapped » et dans le PDF client, **118 219** sur l'accueil et dans l'API — trois
+  définitions vivantes, dont deux lisaient le compteur de CHAÎNE prouvé ~10× faux le
+  2026-09-08.
+  - **ADR-019** — supersède ADR-014 sur un seul point : une couche conformée se justifie
+    par le **désaccord** (18 calculs divergents de 6 métriques), pas par le volume. Les
+    43 Mo et les 18,5 ms d'ADR-014 restent vrais ; rien ici n'est motivé par la
+    performance. Le medallion **matérialisé** est rejeté par la mesure : ces duplications
+    vivent dans des requêtes exécutées à la LECTURE, matérialiser n'en retirerait aucune.
+  - **Migration 097** — `v_platform_totals`, une vue Postgres ordinaire, sur le précédent
+    `migrations/056` (qui a retiré ~6 copiés-collés et compte 11 sites d'appel).
+  - **Cinq surfaces repointées** : `platform_timeseries._SQL_LIFETIME_*`,
+    `kpi_helpers.get_total_views_youtube` (→ Data Wrapped), le total du PDF, la FIGURE
+    du PDF (qui traçait le compteur de chaîne, donc contredisait le total du même
+    document), et `src/api/routers/kpis.py`. Vérifié : 118 219 partout.
+  - **Garde élargi** — `test_no_surface_reads_the_channel_counter_as_streams` ne
+    couvrait que `platform_timeseries` et l'API : sa portée était le défaut. Il balaie
+    désormais toutes les surfaces qui affichent un total. Mutation vue rouge.
+  - Classe : `a-rule-copied-is-a-rule-that-will-diverge`.
+  - **Ce que l'ADR laisse au fil de l'eau, et qui n'est pas une tâche** : les
+    duplications restantes (`artist_id = %s` 328 fois, le filtre `1x7` dans 35 fichiers,
+    « dernière prédiction ML » dans 15) se traitent une par une, chacune avec son test,
+    sous la règle de livraison d'ADR-019 — jamais en balayage mécanique (ADR-007).
+
+### R64–R69 · R71 — sept tâches ouvertes le matin, livrées le soir (clos 2026-09-10)
+
+Sept bricks nées du même audit de la figure de l'accueil (voir `checklist.md`, entrée du
+2026-09-10) : un correctif, un garde dédié avec mutations rouges vues AVANT d'écrire le
+fix, et la suite complète verte à **4 804 tests** en sortie de séance. Cinq classes
+d'erreur cataloguées le même jour : `a-window-widened-to-its-bucket-instead-of-the-
+bucket-clipped`, `a-symmetric-guard-for-an-asymmetric-truth`,
+`a-verdict-computed-from-a-value-nobody-read`, `a-fabricated-zero-mailed-as-a-measurement`,
+`a-surface-reads-a-table-nobody-writes`. **R70** (bronze/argent/or) reste ouverte —
+voir `checklist.md`.
+
+- [x] **R64 — Revenu/ROI : la fenêtre était comparée au début de mois.** P2.
+  `kpi_helpers.get_roi_data` / `get_monthly_roi_series` comparaient le revenu sur
+  `make_date(year, month, 1)` et la dépense Meta sur `day_date` : une plage 15 jan →
+  10 sep excluait janvier en entier et comptait tout septembre. Nouvel helper
+  `month_window()` : les deux séries sur les mêmes bornes, la période effective rendue
+  à l'appelant, le `COALESCE` qui maquillait l'absence de mesure retiré au profit de
+  trois états explicites (mesuré / rien mesuré / `unreadable`). Trouvé avant l'écriture
+  par `code-critic` : le PDF payant imprimait « ✅ Rentable » sur une base injoignable —
+  `_renderers._render_roi` recalculait son propre verdict au lieu de lire celui, déjà
+  correct, du helper. Garde
+  `tests/test_the_roi_never_states_a_verdict_it_did_not_measure.py`, 4 mutations
+  rouges. Mesure qui a tranché : l'ancien code rendait 1,69 € pour 4,88 € réellement
+  dépensés sur la fenêtre testée. Classe `a-verdict-computed-from-a-value-nobody-read`.
+
+- [x] **R65 — L'e-mail hebdomadaire fabriquait des zéros.** P2.
+  `weekly_digest.py` : `COALESCE(SUM(…),0)` sur les streams 7 j, la dépense Meta et le
+  CTR faisaient recevoir « 0 streams cette semaine » et « CTR 0,00 % » à un artiste
+  sans dépôt S4A — un zéro indiscernable d'une vraie mesure. Le même fichier refusait
+  déjà explicitement ce raccourci pour SoundCloud. SQL et formateurs sortis vers
+  `src/utils/digest_queries.py`, qui distingue mesuré de non mesuré. Garde
+  `tests/test_the_digest_never_mails_a_fabricated_zero.py`, 3 mutations rouges.
+  Classe `a-fabricated-zero-mailed-as-a-measurement`.
+
+- [x] **R66 — La figure de l'accueil dessinait PLUS que le mesuré.** P2.
+  ×2,7 sur « 12 mois · Par année » (8 490 mesurés, 23 251 dessinés) : `_aggregate` ne
+  clippait pas les lignes sur la fenêtre et `_bucket_key(since)` ramenait la borne
+  basse en arrière. `_aggregate` découpe désormais les lignes sur la fenêtre avant de
+  sommer. Plus `known()` désymétrisée : une plateforme dont la collecte s'arrête ne
+  retombe plus à zéro en mode Cumulé. Vérifié après correctif : 8 490 → 8 490.
+  Classe `a-window-widened-to-its-bucket-instead-of-the-bucket-clipped` pour le
+  premier défaut, `a-symmetric-guard-for-an-asymmetric-truth` pour le second.
+
+- [x] **R67 — Les tuiles KPI ont quitté l'accueil.** P3.
+  Décidé le 2026-09-10 : la figure porte seule les chiffres, le compteur « depuis le
+  début » reste sur la page plateforme, et `RANGE_NOTE` — qui n'existait que pour
+  excuser la contradiction entre tuiles et figure — disparaît avec elles. Quatre gardes
+  des tuiles repointés vers leur nouvel emplacement, pas supprimés.
+
+- [x] **R68 — Le garde qui rend.** P2.
+  `tests/test_the_figure_never_draws_more_than_it_measured.py` : invariant « Σ des y
+  tracés ≤ Σ mesuré dans la fenêtre », vérifié sur le produit cartésien période × pas ×
+  mode × sources — 16 tests, 3 mutations rouges dont une qui a révélé un angle mort
+  resté ouvert jusque-là (`share` / `facets` jamais rendus par aucun test existant).
+  Angle mort refermé dans la foulée.
+
+- [x] **R69 — Valider ce qu'on calcule, pas seulement ce qu'on collecte.** P2.
+  `check_metric_bounds` ajouté à `alert_monitor` (surface 2, 23 h), constat porté
+  jusqu'au corps ET au sujet de l'e-mail ; prédicat pur extrait dans
+  `src/utils/metric_bounds.py` ; `make metric-check` + `tools/metric_check.py` pour le
+  lancer hors cron. Référence : Densmore, *Data Pipelines Pocket Reference* p.218 —
+  valider les modèles de FIN de pipeline, pas seulement leur alimentation. Garde
+  `tests/test_the_computed_numbers_agree_with_each_other.py`, 4 mutations rouges.
+  Classe `a-surface-reads-a-table-nobody-writes` (partagée avec R71 — un calcul en aval
+  qui n'est jamais contrôlé est la même famille qu'une surface qui lit une table que
+  personne n'écrit : rien entre la source et l'affichage ne certifie l'accord).
+  **Second volet sans objet** : `data_quality_check` reste en pause — le verdict R46
+  tient, son déclencheur documenté n'a pas tiré (S4A muette depuis 95 jours,
+  `MAX(date) = 2026-06-07`).
+
+- [x] **R71 — `etl_daily_metrics` était lue et n'avait aucun écrivain.** P3.
+  `views/airflow_kpi.py:27,257` lisait une table créée en prod hors migration, puis
+  rétro-inscrite dans `migrations/062` uniquement pour faire taire `make schema-check`
+  — documentée « USED-but-undeclared » depuis trois mois sans être traitée
+  (`schema-drift-2026-06-13.md:22`). Remplacée par `etl_run_log` (2 196 lignes contre
+  2 dans l'ancienne table, aucun écrivain). Six dérives corrigées dans
+  `architecture.md` au passage, dont trois DAGs supprimés le 2026-09-04 et
+  `spotify_tracks` / `spotify_top_tracks`, qui n'existent pas. Garde
+  `tests/test_no_surface_reads_a_table_nobody_writes.py`, 2 mutations rouges.
+  Classe `a-surface-reads-a-table-nobody-writes`.
+
+---
+
 <!-- section actif : Open Bugs -->
 
 ### R57 — La sauvegarde hors-site, sans jamais créer de bucket (clos 2026-09-04)

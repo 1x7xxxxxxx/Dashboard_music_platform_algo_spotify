@@ -192,10 +192,28 @@ def _aggregate(series: dict, step: str, since=None, until=None) -> dict:
     n'est calculé qu'entre deux jours CONSÉCUTIFS, donc les jours sautés ne sont pas
     reportés sur le suivant — ils manquent pour de bon.
     """
+    def _in_window(rows):
+        """Les lignes de la FENÊTRE, et rien d'autre.
+
+        Le défaut que cette fonction retire, mesuré le 2026-09-10 : la boucle ci-dessous
+        sommait TOUTE la série dans ses seaux, `since`/`until` ne servant qu'au plancher.
+        Combiné au ramenage des bornes au lundi ou au 1ᵉʳ janvier (`_bucket_key` sur
+        `since`, qui recule), la fenêtre s'élargissait au lieu que le seau se découpe :
+
+            « 12 mois » au pas annuel  →  seau 2025-01-01  →  TOUTE l'année 2025
+            8 490 écoutes mesurées dans la fenêtre, 23 251 dessinées — ×2,7
+
+        Découper ici corrige aussi le plancher : `counts[k]` comptait des jours hors
+        fenêtre, donc un seau de bord paraissait plus rempli qu'il ne l'est.
+        """
+        return [(d, v) for d, v in rows
+                if (since is None or d >= since) and (until is None or d <= until)]
+
     if step == "day":
-        return series
+        return {k: _in_window(rows) for k, rows in (series or {}).items()}
     out: dict = {}
     for key, rows in (series or {}).items():
+        rows = _in_window(rows)
         if not rows:
             out[key] = []
             continue
@@ -266,19 +284,36 @@ def known(values: list, index: int) -> bool:
     Deux absences très différentes se ressemblent dans une liste de `None`, et les
     confondre coûtait tout l'historique :
 
-    * **avant sa première mesure (ou après la dernière)** — la plateforme n'était pas
-      encore collectée. Elle n'a rien apporté à ce qu'on peut montrer, et 0 est la
-      bonne valeur. Sans cette distinction, SoundCloud — collectée depuis le
-      2026-03-31 — coupait la bande sur les 1 142 jours de Spotify qui la précèdent,
-      et « Depuis le début » n'affichait plus qu'une seule plateforme ;
+    * **avant sa première mesure** — la plateforme n'était pas encore collectée. Elle
+      n'a rien apporté à ce qu'on peut montrer, et 0 est la bonne valeur. Sans cette
+      distinction, SoundCloud — collectée depuis le 2026-03-31 — coupait la bande sur
+      les 1 142 jours de Spotify qui la précèdent, et « Depuis le début » n'affichait
+      plus qu'une seule plateforme ;
     * **entre les deux** — un jour où la collecte n'a pas tourné. Là on ne sait pas, et
-      la bande se coupe.
+      la bande se coupe ;
+    * **après la dernière mesure** — on ne sait pas non plus, et c'est le cas que cette
+      fonction traitait comme le premier.
+
+    Les deux extrémités ne sont PAS symétriques, et la version précédente les traitait
+    du même argument. Avant la première mesure, zéro est vrai : la plateforme n'existait
+    pas dans nos données. Après la dernière, la plateforme existe toujours — c'est NOUS
+    qui avons cessé de la mesurer. Prouvé par exécution le 2026-09-10 : YouTube mesurée
+    les 5 premiers jours d'une fenêtre de 20 donnait, en mode Cumulé (le défaut),
+
+        cumulé  [10, 20, 30, 40, 50, None × 15]
+        TRACÉ   [10, 20, 30, 40, 50,   0 × 15]   ← une seule tranche continue
+
+    c'est-à-dire une bande qui monte puis **retombe à zéro** — « YouTube a perdu toutes
+    ses écoutes ». En mode Par période, les mêmes jours étaient tracés `0` avec
+    l'infobulle « compteur inchangé », qui affirme une mesure qu'on n'a pas faite.
     """
     first, last = _measured_range(values)
     if first is None:
         return False
-    if index < first or index > last:
+    if index < first:
         return True
+    if index > last:
+        return False
     return values[index] is not None
 
 

@@ -10,6 +10,7 @@ Tasks:
   5. check_row_anomalies     — daily-insert spike vs trailing baseline (data poison)
   5b. check_row_dips         — per-tenant daily-insert DIP (partial collection, R39)
   5c. check_zero_resets      — cumulative counters written back to zero (bad collect)
+  5d. check_metric_bounds    — the numbers the product COMPUTES disagree with each other
   6. send_consolidated_alert — build and send one email with all findings
 
 Implements bricks:
@@ -1654,6 +1655,66 @@ def _close_alert_attempt(run_id, delivered: bool, error) -> None:
         logger.error("could not close the alert-delivery ledger row: %s", safe_error(e))
 
 
+
+def check_metric_bounds(**context):
+    """Valider ce qu'on CALCULE, et pas seulement ce qu'on collecte.
+
+    Les cinq piliers instrumentés ici regardent tous les tables BRUTES : fraîcheur,
+    volume, distribution, schéma, valeurs. Aucun ne regarde les nombres que le produit
+    affiche. Densmore le nomme (*Data Pipelines Pocket Reference*, p. 218) : valider
+    les modèles construits en FIN de pipeline, pas seulement la source.
+
+    Mesuré le 2026-09-10 : la figure de l'accueil dessinait 23 251 écoutes là où la
+    fenêtre en contenait 8 490 — ×2,7 — et aucun contrôle ne pouvait le voir.
+
+    Ce contrôle lit les DEUX chemins que le tableau de bord emploie réellement
+    (`platform_totals` et `daily_streams_by_platform` de `platform_timeseries`) et les
+    confronte. Pour une source quotidienne ils doivent être ÉGAUX ; pour un compteur
+    cumulé, la somme mesurée ne peut pas dépasser le compteur. Le prédicat vit dans
+    `src.utils.metric_bounds`, testable sans Airflow.
+    """
+    from src.database.postgres_handler import PostgresHandler
+    from src.dashboard.utils.platform_timeseries import (
+        daily_streams_by_platform, platform_totals,
+    )
+    from src.utils.metric_bounds import KINDS, report
+
+    db = PostgresHandler(
+        host=os.getenv('DATABASE_HOST', 'postgres'),
+        port=int(os.getenv('DATABASE_PORT', 5432)),
+        database=os.getenv('DATABASE_NAME', 'spotify_etl'),
+        user=os.getenv('DATABASE_USER', 'postgres'),
+        password=os.getenv('DATABASE_PASSWORD'),
+    )
+    findings = []
+    try:
+        tenants = [r[0] for r in db.fetch_query(
+            "SELECT DISTINCT artist_id FROM s4a_song_timeline WHERE artist_id IS NOT NULL "
+            "UNION SELECT DISTINCT artist_id FROM soundcloud_tracks_daily WHERE artist_id IS NOT NULL "
+            "UNION SELECT DISTINCT artist_id FROM youtube_video_stats WHERE artist_id IS NOT NULL"
+        ) or []]
+        for aid in tenants:
+            lifetime = platform_totals(db, aid)
+            series = daily_streams_by_platform(db, aid)
+            rows = [(k, lifetime.get(k), sum(v for _, v in series.get(k, []) or []) or None)
+                    for k in KINDS]
+            for msg in report(rows):
+                findings.append(f"artiste {aid} — {msg}")
+    except Exception as exc:      # noqa: BLE001 — un contrôle ne fait pas tomber le DAG
+        # Le TYPE seulement : un message d'exception peut porter une chaîne de
+        # connexion ou un identifiant de locataire, et ce journal part en clair.
+        logger.error("check_metric_bounds: %s", type(exc).__name__)
+    finally:
+        try:
+            db.close()
+        except Exception:      # noqa: BLE001
+            pass
+
+    logger.info("Metric bounds: %d désaccord(s)", len(findings))
+    context['task_instance'].xcom_push(key='metric_bounds', value=findings)
+    return findings
+
+
 def send_consolidated_alert(**context):
     """Assemble one email with all findings: failures, freshness, missing creds."""
     from src.utils.alert_repetition import (
@@ -1670,6 +1731,7 @@ def send_consolidated_alert(**context):
     row_anomalies = ti.xcom_pull(task_ids='check_row_anomalies', key='row_anomalies') or []
     row_dips = ti.xcom_pull(task_ids='check_row_dips', key='row_dips') or []
     zero_resets = ti.xcom_pull(task_ids='check_zero_resets', key='zero_resets') or []
+    metric_bounds = ti.xcom_pull(task_ids='check_metric_bounds', key='metric_bounds') or []
     tenant_gaps = ti.xcom_pull(task_ids='check_data_freshness', key='tenant_freshness_gaps') or []
     central_broken = ti.xcom_pull(task_ids='check_central_apps',
                                   key='central_apps_broken') or []
@@ -1733,6 +1795,7 @@ def send_consolidated_alert(**context):
     # before it shipped, which is the guard doing precisely its job.
     has_issues = (failing_dags or stale_sources or missing_creds or sparks or drift
                   or billing_issues or row_anomalies or row_dips or zero_resets
+                  or metric_bounds
             or tenant_gaps or readiness_flags
                   or central_broken or canary or stalled_tenants
                   or canary_preflight or collection_failures or contamination
@@ -2127,6 +2190,23 @@ def send_consolidated_alert(**context):
           et le périmètre collecté de cet artiste.</p>
         <ul style="font-size:0.9em">{items}</ul>""")
 
+    # Section: les chiffres que le produit CALCULE ne s'accordent pas entre eux.
+    #
+    # Le sujet seul ne suffit pas : un constat qui n'atteint pas le corps du message
+    # est un constat perdu — c'est la leçon des trois nuits d'alertes évaporées.
+    if metric_bounds:
+        items = ''.join(f"<li>{escape(m)}</li>" for m in metric_bounds)
+        sections.append(f"""
+        <h2 style="color:#c0392b;border-left:4px solid #c0392b;padding-left:10px">
+          📐 Chiffres en désaccord ({len(metric_bounds)})
+        </h2>
+        <p style="color:#888;font-size:0.9em">Deux chemins de calcul du MÊME nombre ne
+          rendent pas la même valeur. Pour une source quotidienne (Spotify for Artists),
+          le compteur « depuis le début » et la somme de la série doivent être égaux :
+          ils lisent la même table. Un écart veut dire qu'un des deux chemins a changé
+          de sens — vérifier `platform_timeseries` avant de croire l'écran.</p>
+        <ul style="font-size:0.9em">{items}</ul>""")
+
     # Section: compteurs cumulés revenus à zéro (pilier « valeurs »).
     if zero_resets:
         items = ''.join(
@@ -2407,6 +2487,8 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"📉 {len(row_dips)} collecte(s) partielle(s)")
     if zero_resets:
         subject_parts.append(f"🧨 {len(zero_resets)} compteur(s) remis à zéro")
+    if metric_bounds:
+        subject_parts.append(f"📐 {len(metric_bounds)} chiffre(s) en désaccord")
 
     # An empty subject was reachable: the four tenant-level signals contributed no
     # subject text, so a night carrying only those sent "🚨 Dashboard Alert:" and
@@ -2516,6 +2598,11 @@ with DAG(
         python_callable=check_zero_resets,
     )
 
+    t_metric_bounds = PythonOperator(
+        task_id='check_metric_bounds',
+        python_callable=check_metric_bounds,
+    )
+
     t_csv_rejects = PythonOperator(
         task_id='check_csv_rejections',
         python_callable=check_csv_rejections,
@@ -2570,4 +2657,4 @@ with DAG(
     [t_creds, t_failures, t_freshness, t_resurrection, t_drift,
      t_billing, t_anomalies, t_readiness, t_central, t_canary,
      t_preflight, t_outcomes, t_contamination, t_dips, t_offsite,
-     t_app_errors, t_csv_rejects, t_zero_resets] >> t_alert
+     t_app_errors, t_csv_rejects, t_zero_resets, t_metric_bounds] >> t_alert

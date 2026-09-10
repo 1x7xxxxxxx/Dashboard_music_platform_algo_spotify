@@ -33,14 +33,34 @@ de trancher : `business_discovery` lit un compte Instagram tiers sans aucun part
 Business Manager (les insights, non) — 📸 Instagram a donc son onglet, et son collecteur
 retombe sur cette route.
 
-Ne reste que ce qui attend un geste humain, dans la section « 🙋 En attente de toi »
-plus bas : **R1**, inviter la bêta. Aucune ligne de code ne la débloque.
+**Le 2026-09-10 a rouvert huit tâches** (R64–R71), venues d'un audit de la figure de
+l'accueil qui a mesuré un défaut invisible aux 4 740 tests — la figure dessinait ×2,7 ce
+qui avait été mesuré — puis d'un balayage du dépôt qui a rendu **~130 sites frères** sur
+cinq classes. **Sept ont été livrées le jour même** — R64, R65, R66, R67, R68, R69, R71,
+voir `archive.md` — correctif, garde, mutations rouges et suite complète verte à 4 804
+tests. **R70 a suivi le soir même** : ADR-019 écrit, migration 097
+(`v_platform_totals`), et les **cinq** surfaces qui calculaient le total d'une
+plateforme repointées sur la définition unique — le total YouTube de l'artiste 1 valait
+120 627 sur deux d'entre elles et 118 219 sur les trois autres au même instant. Le lot
+de huit est clos.
+
+**R1** reste le seul geste humain, dans la section « 🙋 En attente de toi » plus bas :
+inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-08, aucune tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-10, une tâche ouverte (à lire EN PREMIER au `/resume`)
 
 <!-- reprise: open=R1 -->
+
+### Ce que le 2026-09-10 a changé (sept tâches livrées, une reste)
+
+R64, R65, R66, R67, R68, R69 et R71 sont **livrées et rotées dans `archive.md`** —
+correctif, garde dédié, mutations rouges avant écriture, suite complète verte à 4 804
+tests. Détail dans l'archive ; ne reste ouvert de ce lot que **R70** (couches bronze /
+argent / or, P4, ADR à écrire — voir la table ci-dessus).
+
+Ce qui suit décrivait l'état au 2026-09-08.
 
 ### Ce que le 2026-09-08 a changé (rien n'ouvre de tâche)
 
