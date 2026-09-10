@@ -305,6 +305,9 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-fabricated-zero-mailed-as-a-measurement](#a-fabricated-zero-mailed-as-a-measurement) | P2 | deterministic | guarded | none |
 | [a-surface-reads-a-table-nobody-writes](#a-surface-reads-a-table-nobody-writes) | P3 | deterministic | guarded | none |
 | [a-rule-copied-is-a-rule-that-will-diverge](#a-rule-copied-is-a-rule-that-will-diverge) | P2 | deterministic | guarded | none |
+| [two-clocks-subtracted-from-each-other](#two-clocks-subtracted-from-each-other) | P2 | deterministic | guarded | none |
+| [a-glyph-with-no-font-vanishes-without-a-trace](#a-glyph-with-no-font-vanishes-without-a-trace) | P3 | deterministic | guarded | none |
+| [a-discarded-measurement-is-discarded-in-silence](#a-discarded-measurement-is-discarded-in-silence) | P2 | heuristic | guarded | none |
 | [a-handle-is-not-an-identity](#a-handle-is-not-an-identity) | P1 | deterministic | guarded | none |
 | [a-gap-in-one-series-erases-every-other](#a-gap-in-one-series-erases-every-other) | P2 | deterministic | guarded | none |
 | [a-total-that-sums-the-display-instead-of-the-data](#a-total-that-sums-the-display-instead-of-the-data) | P2 | deterministic | guarded | none |
@@ -4311,3 +4314,50 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: signature vue ROUGE en remettant le compteur de chaîne dans `kpi_helpers`, verte sur l'arbre corrigé.
   - 2026-09-10: le garde élargi a rougi DEUX fois sur des choses justes avant de tenir. D'abord sur sa propre docstring — deuxième fois dans la même séance, corrigé en excluant les docstrings par l'AST. Ensuite sur une requête qui joignait légitimement les deux tables : plutôt que d'affaiblir le prédicat, la requête a été **coupée en deux**, une table par chaîne. Un garde qu'on doit affaiblir pour faire passer son propre correctif est un garde qu'on vient de perdre.
   - 2026-09-10: en repointant l'API sur la vue, le garde a demandé lui-même à être repointé (« l'API ne lit plus les compteurs par vidéo — garde à repointer »). C'est le comportement attendu d'un garde ancré sur un EMPLACEMENT ; celui qui le remplace est ancré sur la propriété (« lit la couche or », « ne lit pas le compteur de chaîne »).
+
+## two-clocks-subtracted-from-each-other
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un âge, une durée ou une borne de période est faux d'une à deux heures, et le décalage change avec la saison. Mesuré le 2026-09-10 : une source collectée il y a **23 h** s'affichait « il y a 1j », faisant basculer son voyant de vert à orange sans que rien n'ait vieilli.
+- root_cause: `freshness_status` faisait `datetime.now() - last_dt` — `datetime.now()` nu rend l'heure LOCALE de l'hôte, tandis que `last_dt` sort d'une colonne sans fuseau où les collecteurs écrivent `datetime.now(timezone.utc)`. Deux référentiels soustraits l'un de l'autre. Même forme sur les bornes de période, qui suivaient `date.today()` — une TROISIÈME horloge, après celle des données et celle du lecteur. Les deux classes tz déjà au catalogue (`tz-aware-naive-mix`, `mixed-date-timestamp`) ne pouvaient pas le voir : leurs signatures visent `pd.to_datetime` et `sorted()` dans `views/`, pas l'arithmétique de `datetime` dans `utils/`.
+- signature: `python3 -m pytest tests/test_one_clock_decides_a_date.py -q`
+- long_term_fix: comparer deux instants du même référentiel — l'heure courante en UTC contre un horodatage déclaré UTC — et faire suivre à la « journée du produit » le fuseau d'affichage déclaré une fois (`DISPLAY_TZ`), jamais l'horloge de la machine qui affiche. Règle générale : une date qui entre dans une comparaison porte son fuseau, ou la comparaison est fausse d'une quantité qui change avec la saison.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_one_clock_decides_a_date.py }
+- rex_ref: src/dashboard/utils/tz.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: signature vue ROUGE en remettant `datetime.now()` nu (« Il y a 1j » pour 23 h) et en décalant la journée produit d'un jour ; verte sur l'arbre corrigé.
+  - 2026-09-10: ce qui RESTE ouvert est mesuré et écrit : **200 lignes sur 2 535** de `youtube_video_stats` (7,9 %) changent de JOUR selon le fuseau retenu, 19 sur 349 pour SoundCloud. Or c'est la date qui décide si deux relevés sont consécutifs, donc si l'écart quotidien est gardé ou jeté. Réconcilier les fuseaux de PUBLICATION (Spotify, Apple) avec les nôtres change des chiffres affichés : cela demande une décision écrite, pas un correctif.
+
+## a-glyph-with-no-font-vanishes-without-a-trace
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un document généré perd des caractères — sans erreur, sans avertissement, sans carré de substitution. Reproduit le 2026-09-10 : rendu le golden HTML du rapport, un seul émoji sur vingt-neuf s'imprimait.
+- root_cause: l'image de production (`python:3.11-slim`) n'embarque **aucune police** — vérifié, zéro entrée — et le `Dockerfile` installe la pile de rendu de WeasyPrint sans une seule fonte. **Correction du constat initial :** le chemin de PRODUCTION retire déjà tous les émojis du HTML avant d'appeler WeasyPrint. J'avais mesuré sur le golden, un artefact d'AMONT dont le rendu direct contourne ce filtre — le rapport livré n'a donc jamais porté d'émoji invisible. Ce qui restait vrai et fragile : la source COMPTAIT sur ce filtre d'aval, au point que `_badge` indexait un dictionnaire par le glyphe de fraîcheur, c'est-à-dire par un caractère que le filtre effaçait de la sortie. Un émoji portait une décision.
+- signature: `python3 -m pytest tests/test_the_pdf_prints_every_glyph_it_carries.py -q`
+- long_term_fix: deux moitiés. Le filtre reste sur le chemin de rendu, et un garde structurel vérifie qu'il y est appliqué — pas que son nom apparaisse. Et la source cesse d'en dépendre : plus aucun glyphe indessinable dans une chaîne, donc plus aucune décision portée par un caractère qui disparaîtra. `_badge` se choisit sur la couleur, rendue par la même fonction et dessinable.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_pdf_prints_every_glyph_it_carries.py }
+- rex_ref: src/dashboard/utils/pdf_exporter/_config.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: **le constat de départ était faux, et la mesure l'a corrigé.** J'avais annoncé « le rapport client portait 29 émojis dont un seul s'imprimait » ; c'était vrai du golden, pas du produit. Vérifier quel artefact on regarde fait partie de la mesure : rendre un fichier de test n'est pas rendre le document.
+  - 2026-09-10: la leçon de forme tient malgré la correction — cinq défauts de rendu ont été trouvés le même jour **en regardant les pages**, jamais en relisant la source : boîtes vides, balises littérales, diagramme écrasé, libellés d'axe en miroir, repère hors cadre.
+
+## a-discarded-measurement-is-discarded-in-silence
+- status: guarded
+- severity: P2
+- kind: heuristic
+- symptom: une figure montre une fraction du volume réel d'une plateforme, sans le dire, ce qui se lit comme une plateforme morte. Mesuré le 2026-09-10 : l'accueil traçait **21** écoutes YouTube et en écartait **167** — un neuvième affiché.
+- root_cause: la conversion cumul → quotidien n'émet un écart que si le relevé précédent date de la VEILLE (`jour - veille = 1`). La règle est juste : entre deux relevés distants de neuf jours on sait ce qui s'est passé en tout, jamais quel jour, et l'attribuer au dernier inventerait un pic. Ce qui manquait n'était pas la donnée, c'était l'aveu — YouTube n'est mesurée que 39 % des jours, donc la majorité de ses écoutes n'entrait ni dans la courbe ni dans les totaux de période, et rien ne le signalait.
+- signature: `python3 -m pytest tests/test_the_figure_never_draws_more_than_it_measured.py -q`
+- long_term_fix: un compteur des écarts écartés, rendu à l'appelant et NOMMÉ sous la figure. Règle générale : quand une règle de calcul jette de la donnée pour une raison valable, le volume jeté se compte et se dit — sinon la rigueur du calcul se lit comme une panne de la source.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_figure_never_draws_more_than_it_measured.py }
+- rex_ref: src/dashboard/utils/platform_timeseries.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: `heuristic` et non `deterministic`, délibérément : le volume écarté dépend de la cadence de collecte, donc aucun seuil ne le sépare d'un fonctionnement normal. Ce qui est gardé est la PRÉSENCE du compteur et son affichage, pas une valeur.

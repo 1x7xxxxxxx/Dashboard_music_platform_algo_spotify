@@ -1,9 +1,18 @@
 """PDF export — collectors layer (move-only split of pdf_exporter)."""
+import logging
 from datetime import timedelta
 from src.utils.track_matching import track_title_matches, canonical_song_sql
 from src.dashboard.utils.kpi_helpers import (
     ARTIST_NAME_FILTER,
 )
+
+# UNE LECTURE QUI ÉCHOUE LAISSAIT UNE SECTION VIDE, SANS UNE TRACE.
+#
+# Ce module portait 36 gestionnaires d'exception muets, un par collecteur, tous en
+# amont du rapport CLIENT : une requête cassée y devenait « cette section n'a pas de
+# données », c'est-à-dire une affirmation sur l'artiste. On ne décide pas encore quoi
+# AFFICHER dans ce cas — d'abord savoir combien de fois ça arrive.
+logger = logging.getLogger(__name__)
 from ._config import _t
 
 
@@ -17,7 +26,8 @@ def _latest_release(db, artist_id):
             "ORDER BY release_date DESC LIMIT 1",
             (artist_id,))
         return rows[0][0] if rows else None
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _latest_release unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -27,7 +37,8 @@ def _get_artist_name(db, artist_id):
     try:
         row = db.fetch_query("SELECT name FROM saas_artists WHERE id = %s", (artist_id,))
         return row[0][0] if row else f"Artiste #{artist_id}"
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _get_artist_name unreadable: %s", type(exc).__name__)
         return f"Artiste #{artist_id}"
 
 
@@ -51,7 +62,8 @@ def get_available_songs(db, artist_id):
                 (f"%{ARTIST_NAME_FILTER}%",)
             )
         return [r[0] for r in rows] if rows else []
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: get_available_songs unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -62,7 +74,8 @@ def get_artists_list(db):
             "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
         )
         return [{'id': r[0], 'name': r[1]} for r in rows] if rows else []
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: get_artists_list unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -93,7 +106,8 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
                     (song, f"%{ARTIST_NAME_FILTER}%", from_date, to_date)
                 )
             entry['total_streams'] = int(row[0][0] or 0)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PDF: _collect_songs_focus unreadable: %s", type(exc).__name__)
             pass
 
         # Streams 7 derniers jours
@@ -114,7 +128,8 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
                     (song, f"%{ARTIST_NAME_FILTER}%")
                 )
             entry['last7d_streams'] = int(row[0][0] or 0)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PDF: _collect_songs_focus unreadable: %s", type(exc).__name__)
             pass
 
         # ML predictions
@@ -146,7 +161,8 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
                     'rr_forecast':   float(row[0][4] or 0),
                     'prediction_date': str(row[0][5]),
                 }
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PDF: _collect_songs_focus unreadable: %s", type(exc).__name__)
             pass
 
         result.append(entry)
@@ -211,7 +227,8 @@ def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None)
                 )
             last7_map[song] = int(r7[0][0] or 0) if r7 else 0
         return [(r[0], int(r[1] or 0), last7_map.get(r[0], 0)) for r in rows]
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_s4a_top_songs unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -265,7 +282,8 @@ def _collect_youtube(db, artist_id, single_song=None):
             'videos':           videos,
             'single':           bool(single_song),
         }
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_youtube unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -297,7 +315,8 @@ def _collect_instagram(db, artist_id, from_date, to_date):
             'media_count': int(media_count or 0),
             'history':     [(str(r[0]), int(r[1] or 0)) for r in history] if history else [],
         }
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_instagram unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -353,7 +372,8 @@ def _collect_meta(db, artist_id, from_date, to_date, ad_account=None):
             'total_spend':   float(tot[0][0] or 0) if tot else 0.0,
             'total_results': int(tot[0][1] or 0) if tot else 0,
         }
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_meta unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -370,7 +390,8 @@ def _collect_soundcloud_tracks(db, artist_id, single_song=None):
                ORDER BY track_id, collected_at DESC""",
             (artist_id,),
         )
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_soundcloud_tracks unreadable: %s", type(exc).__name__)
         return []
     rows = rows or []
     if single_song:
@@ -391,7 +412,8 @@ def _collect_apple(db, artist_id, selected_songs=None):
         rows = db.fetch_query(
             "SELECT song_name, plays, shazam_count FROM apple_songs_performance "
             "WHERE artist_id = %s ORDER BY plays DESC", (artist_id,))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_apple unreadable: %s", type(exc).__name__)
         return None
     rows = rows or []
     sel = list(selected_songs or [])
@@ -426,7 +448,8 @@ def _collect_hypeddit(db, artist_id, from_date, to_date):
             'total_visits': sum(s[1] for s in series),
             'total_clicks': sum(s[2] for s in series),
         }
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_hypeddit unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -442,7 +465,8 @@ def _collect_playlist_adds_windows(db, artist_id, song):
                ORDER BY time_window, recorded_at DESC""",
             (artist_id, song))
         return {r[0]: int(r[1] or 0) for r in (rows or [])}
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_playlist_adds_windows unreadable: %s", type(exc).__name__)
         return {}
 
 
@@ -470,7 +494,8 @@ def _collect_meta_breakdowns(db, artist_id, ad_account=None):
                     GROUP BY {col} ORDER BY spend DESC LIMIT 8""",
                 (artist_id, *_acct_p))
             out[key] = [(r[0], float(r[1] or 0)) for r in rows] if rows else []
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PDF: meta breakdown unreadable: %s", type(exc).__name__)
             out[key] = []
     return out if any(out.values()) else None
 
@@ -496,7 +521,8 @@ def _collect_revenue_forecast(db, artist_id):
         sacem = sum(float(r[2] or 0) for r in rows)
         return {'months': months, 'total': total,
                 'sacem': sacem, 'distributor': total - sacem}
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_revenue_forecast unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -549,7 +575,8 @@ def _collect_meta_x_spotify(db, artist_id, from_date, to_date, ad_account=None):
             'spend':   ser(sp), 'results': ser(res), 'cpr': ser(cpr),
             'streams': ser(stq), 'popularity': ser(pp),
         }
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_meta_x_spotify unreadable: %s", type(exc).__name__)
         return None
 
 
@@ -558,12 +585,13 @@ def _has_wrapped(db, artist_id):
         r = db.fetch_query(
             "SELECT 1 FROM artist_wrapped WHERE artist_id = %s LIMIT 1", (artist_id,))
         return bool(r)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _has_wrapped unreadable: %s", type(exc).__name__)
         return False
 
 
-_CRED_PLATFORMS = [("spotify", "🎵 Spotify"), ("youtube", "🎬 YouTube"),
-                   ("soundcloud", "☁️ SoundCloud"), ("meta", "📱 Meta / Instagram")]
+_CRED_PLATFORMS = [("spotify", "Spotify"), ("youtube", "YouTube"),
+                   ("soundcloud", "SoundCloud"), ("meta", " Meta / Instagram")]
 
 
 def _collect_credentials_status(db, artist_id):
@@ -594,7 +622,8 @@ def _collect_credentials_status(db, artist_id):
     try:
         from src.utils.artist_readiness import artist_readiness
         rows = artist_readiness(db, artist_id)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_credentials_status unreadable: %s", type(exc).__name__)
         return None
     # `status != "todo"` est LE prédicat de la colonne « Configuré » de la matrice
     # (`status_matrix.py:186`). Le répéter ici serait le laisser dériver ; on le lit.
@@ -611,7 +640,8 @@ def _collect_mapping(db, artist_id):
             "SELECT campaign_name, track_name FROM campaign_track_mapping "
             "WHERE artist_id = %s ORDER BY campaign_name", (artist_id,))
         return [(r[0], r[1]) for r in rows] if rows else []
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_mapping unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -653,7 +683,8 @@ def _collect_youtube_history(db, artist_id):
         views = {r[0]: int(r[1] or 0) for r in views_rows}
         return [(day, subs.get(day, 0), views.get(day, 0))
                 for day in sorted(set(subs) | set(views))]
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_youtube_history unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -666,7 +697,8 @@ def _collect_s4a_audience(db, artist_id):
             "SELECT date, listeners, followers FROM s4a_audience "
             "WHERE artist_id = %s ORDER BY date", (artist_id,))
         return [(r[0], r[1], r[2]) for r in rows] if rows else []
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_s4a_audience unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -683,7 +715,8 @@ def _collect_s4a_daily(db, artist_id, from_date, to_date):
                GROUP BY date ORDER BY date""",
             (artist_id, f"%{ARTIST_NAME_FILTER}%", from_date, to_date))
         return [(r[0], int(r[1] or 0)) for r in rows] if rows else []
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_s4a_daily unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -696,7 +729,8 @@ def _release_date(db, artist_id, song, fallback):
             (song, artist_id))
         if rr and rr[0][0]:
             return rr[0][0]
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _release_date unreadable: %s", type(exc).__name__)
         pass
     return fallback
 
@@ -710,7 +744,8 @@ def _collect_j28(db, artist_id, song):
             "SELECT date, streams FROM s4a_song_timeline "
             "WHERE song = %s AND artist_id = %s AND date IS NOT NULL ORDER BY date ASC",
             (song, artist_id))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_j28 unreadable: %s", type(exc).__name__)
         return []
     rows = [(r[0], int(r[1] or 0)) for r in (rows or []) if r[1] is not None]
     if len(rows) < 2:
@@ -738,7 +773,8 @@ def _collect_song_timeline(db, artist_id, song, from_date, to_date):
                    ORDER BY date, collected_at DESC) t ORDER BY date""",
             (artist_id, song, from_date, to_date))
         return [(r[0], int(r[1] or 0)) for r in rows] if rows else []
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_song_timeline unreadable: %s", type(exc).__name__)
         return []
 
 
@@ -754,7 +790,8 @@ def _collect_apple_daily(db, artist_id, single_song, from_date, to_date):
                FROM apple_songs_history WHERE artist_id = %s AND date BETWEEN %s AND %s
                ORDER BY song_name, date""",
             (artist_id, from_date, to_date))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_apple_daily unreadable: %s", type(exc).__name__)
         return []
     agg = {}
     for d, name, ds, dsh in (rows or []):
@@ -775,7 +812,8 @@ def _collect_apple_timeline(db, artist_id, single_song, from_date, to_date):
             """SELECT date, song_name, plays, shazam_count FROM apple_songs_history
                WHERE artist_id = %s AND date BETWEEN %s AND %s ORDER BY date""",
             (artist_id, from_date, to_date))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_apple_timeline unreadable: %s", type(exc).__name__)
         return []
     agg = {}
     for d, name, plays, shz in (rows or []):
@@ -798,7 +836,8 @@ def _collect_sc_series(db, artist_id, single_song, from_date, to_date):
                WHERE artist_id = %s AND collected_at::date BETWEEN %s AND %s
                ORDER BY collected_at""",
             (artist_id, from_date, to_date))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_sc_series unreadable: %s", type(exc).__name__)
         return []
     agg = {}
     for d, title, pb, lk, rp, cm in (rows or []):
@@ -827,7 +866,8 @@ def _collect_ig_monthly(db, artist_id, from_date, to_date):
             "SELECT followers_count FROM instagram_daily_stats WHERE artist_id = %s "
             "ORDER BY collected_at DESC LIMIT 1", (artist_id,))
         followers = int(fr[0][0]) if fr and fr[0][0] else 0
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_ig_monthly unreadable: %s", type(exc).__name__)
         return []
     out = []
     for m, likes, comments, posts in (rows or []):
@@ -849,7 +889,8 @@ def _collect_meta_funnel(db, artist_id, from_date, to_date, ad_account=None):
                FROM meta_insights_performance_day
                WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s""",
             (artist_id, *_acct_p, from_date, to_date))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_meta_funnel unreadable: %s", type(exc).__name__)
         return []
     if not r:
         return []
@@ -870,7 +911,8 @@ def _collect_meta_daily(db, artist_id, from_date, to_date, ad_account=None):
                WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
                GROUP BY day_date ORDER BY day_date""",
             (artist_id, *_acct_p, from_date, to_date))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_meta_daily unreadable: %s", type(exc).__name__)
         return []
     out = []
     for d, spend, res in (rows or []):
@@ -884,12 +926,14 @@ def _collect_ml_explain(db, artist_id, tracks):
     out = []
     try:
         from src.dashboard.views.trigger_algo._common import _load_ml_pred
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_ml_explain unreadable: %s", type(exc).__name__)
         return out
     for t in (tracks or [])[:5]:
         try:
             pred = _load_ml_pred(db, t, artist_id)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PDF: ml prediction unreadable: %s", type(exc).__name__)
             pred = None
         if pred and pred.get('features_json'):
             out.append((t, pred['features_json']))
@@ -902,7 +946,8 @@ def _collect_score20(db, artist_id, sel):
     try:
         from src.dashboard.views.trigger_algo._common import _load_scored_tracks
         df = _load_scored_tracks(db, artist_id)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_score20 unreadable: %s", type(exc).__name__)
         return []
     if df is None or df.empty:
         return []
@@ -925,7 +970,8 @@ def _collect_pi_gate(db, artist_id, song):
         from src.utils.ml_inference import _resolve_path
         with open(_resolve_path("threshold_tables.json"), encoding="utf-8") as f:
             tables = json.load(f)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_pi_gate unreadable: %s", type(exc).__name__)
         return None, None
     here = None
     try:
@@ -939,6 +985,7 @@ def _collect_pi_gate(db, artist_id, song):
                 if lo <= pi <= hi:
                     here = lbl
                     break
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PDF: _collect_pi_gate unreadable: %s", type(exc).__name__)
         pass
     return tables, here

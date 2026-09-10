@@ -69,8 +69,12 @@ def _sample_data():
 
 @pytest.fixture(autouse=True)
 def _freeze_freshness(monkeypatch):
+    # La COULEUR est désormais ce qui choisit la pastille — l'émoji ne le fait plus,
+    # parce qu'il était retiré du document en aval et ne pouvait donc porter aucune
+    # décision. Le stub rendait `None` ici : il aurait fait passer le test sur une
+    # pastille grise, c'est-à-dire sur un chemin que la production n'emprunte pas.
     monkeypatch.setattr(pdf_exporter, "freshness_status",
-                        lambda _dt: ("🟢", None, "à jour"))
+                        lambda _dt: ("🟢", "#1DB954", "à jour"))
 
 
 def test_render_html_matches_golden():

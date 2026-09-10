@@ -34,7 +34,7 @@ def _logo_svg() -> str:
 
 
 _EMOJI_RE = re.compile(
-    "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF✀-➿️⭐⬆☁❤]+"
+    "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF-⭐⬆]+"
 )
 
 
@@ -44,23 +44,23 @@ PREMIUM_SECTIONS = frozenset({
 
 
 ALL_SECTIONS = {
-    'overview':           "🏠 Vue d'ensemble",
-    'data_setup':         '📁 Connexions & mapping',
-    'freshness':          '📡 Fraîcheur des sources',
-    'streams':            '🎵 S4A — évolution',
-    's4a_songs':          '🎵 S4A — chansons',
-    'meta_x_spotify':     '🔗 Meta × Spotify',
-    'apple':              '🍎 Apple Music',
-    'youtube':            '🎬 YouTube',
-    'soundcloud_detail':  '☁️ SoundCloud',
-    'instagram':          '📸 Instagram',
-    'hypeddit':           '📣 Hypeddit',
-    'songs':              '🔮 Prédiction algos',
-    'ml_explain':         '🔬 Explainabilité (SHAP)',
-    'meta':               '📱 Meta Ads',
-    'meta_breakdowns':    '🌍 Meta — Répartitions',
-    'roi':                '💹 ROI Breakeven',
-    'revenue_forecast':   '📈 Prévisions revenus',
+    'overview':           "Vue d'ensemble",
+    'data_setup':         'Connexions & mapping',
+    'freshness':          'Fraîcheur des sources',
+    'streams':            'S4A — évolution',
+    's4a_songs':          'S4A — chansons',
+    'meta_x_spotify':     'Meta × Spotify',
+    'apple':              'Apple Music',
+    'youtube':            'YouTube',
+    'soundcloud_detail':  'SoundCloud',
+    'instagram':          'Instagram',
+    'hypeddit':           'Hypeddit',
+    'songs':              'Prédiction algos',
+    'ml_explain':         'Explainabilité (SHAP)',
+    'meta':               'Meta Ads',
+    'meta_breakdowns':    'Meta — Répartitions',
+    'roi':                'ROI Breakeven',
+    'revenue_forecast':   'Prévisions revenus',
 }
 
 

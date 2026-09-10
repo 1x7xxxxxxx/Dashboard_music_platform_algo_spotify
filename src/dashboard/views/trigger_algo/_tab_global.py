@@ -190,11 +190,24 @@ def _show_tab_global(db, track: str, artist_id, date_from, date_to, ml_pred, rel
         if df_bench is not None and not df_bench.empty:
             display = df_bench[["song", "score_20", "dw_probability", "rr_probability",
                                 "radio_probability", "streams_28d"]].copy()
-            display["score_20"] = display["score_20"].fillna(0).round(1)
-            display["dw_probability"] = (display["dw_probability"].fillna(0) * 100).round(0).astype(int)
-            display["rr_probability"] = (display["rr_probability"].fillna(0) * 100).round(0).astype(int)
-            display["radio_probability"] = (display["radio_probability"].fillna(0) * 100).round(0).astype(int)
-            display["streams_28d"] = display["streams_28d"].fillna(0).astype(int)
+            # PAS DE `fillna(0)` SUR UNE PRÉDICTION ABSENTE.
+            #
+            # Un titre que le modèle n'a pas encore noté s'affichait « 0 % de chance »,
+            # indiscernable d'un titre noté à 0 % — et le tableau est trié dessus, donc
+            # un titre non prédit descendait tout en bas comme un mauvais titre. Un
+            # score qu'on n'a pas calculé n'est pas un mauvais score.
+            #
+            # `Int64` (majuscule) est le type entier de pandas qui accepte l'absence :
+            # sans lui, `astype(int)` lève sur un NaN, et c'est ce qui avait conduit au
+            # `fillna(0)`.
+            def _pct(col):
+                return (display[col] * 100).round(0).astype("Int64")
+
+            display["score_20"] = display["score_20"].round(1)
+            display["dw_probability"] = _pct("dw_probability")
+            display["rr_probability"] = _pct("rr_probability")
+            display["radio_probability"] = _pct("radio_probability")
+            display["streams_28d"] = display["streams_28d"].astype("Int64")
             display.columns = ["Titre", "Score /20", "DW %", "RR %", "Radio %", "Streams 28j"]
 
             def _color_score(val):

@@ -30,9 +30,18 @@ def _esc(value) -> str:
     return escape(str(value), quote=True)
 
 
-def _badge(emoji, label):
-    css = {'🟢': 'green', '🟠': 'orange', '🔴': 'red'}.get(emoji, 'gray')
-    return f'<span class="badge {css}">{emoji} {label}</span>'
+# La pastille se choisit sur la COULEUR, pas sur l'émoji.
+#
+# Elle indexait un dictionnaire par le glyphe rendu par `freshness_status` (🟢/🟠/🔴),
+# puis imprimait ce glyphe dans le document. Or l'image de production n'embarque aucune
+# police : le glyphe disparaissait, la pastille perdait son symbole, et la CLÉ de ce
+# dictionnaire était le seul endroit du dépôt où un émoji portait une décision.
+# La couleur, rendue par la même fonction, dit la même chose et se dessine.
+_BADGE_CSS = {"#1DB954": "green", "#FFA500": "orange", "#FF4444": "red"}
+
+
+def _badge(color, label):
+    return f'<span class="badge {_BADGE_CSS.get(color, "gray")}">{label}</span>'
 
 
 def _html_table(headers, rows_html):
@@ -57,10 +66,12 @@ def _kpi_grid(cards_html):
 def _render_freshness(freshness):
     rows = []
     for label, info in freshness.items():
-        emoji, _, age_label = _pkg.freshness_status(info['last_dt'])
+        _, color, age_label = _pkg.freshness_status(info['last_dt'])
+        # `info['icon']` est une icône d'interface : invisible dans le document, elle
+        # ne laissait qu'une espace avant le nom de la source.
         rows.append(
-            f"<tr><td>{info['icon']} {label}</td>"
-            f"<td>{_badge(emoji, age_label)}</td></tr>"
+            f"<tr><td>{label}</td>"
+            f"<td>{_badge(color, age_label)}</td></tr>"
         )
     _h_source = _t("pdf.col.source", "Source")
     _h_last = _t("pdf.col.last_collect", "Dernière collecte")
@@ -82,14 +93,14 @@ def _fmt_count(value) -> str:
 
 def _render_streams(streams):
     items = [
-        ("🎵 Spotify S4A", streams['s4a']),
-        ("🎬 YouTube",      streams['youtube']),
-        ("☁️ SoundCloud",   streams['soundcloud']),
-        ("🍎 Apple Music",  streams['apple']),
+        ("Spotify S4A", streams['s4a']),
+        ("YouTube",      streams['youtube']),
+        ("SoundCloud",   streams['soundcloud']),
+        ("Apple Music",  streams['apple']),
     ]
     total_card = _kpi_card(
         _fmt_count(streams["total"]),
-        _t("pdf.kpi.total_all_platforms", "🎧 Total toutes plateformes"),
+        _t("pdf.kpi.total_all_platforms", "Total toutes plateformes"),
         card_style="border-color:#1DB954; background:#f0faf3;",
         val_style="font-size:22pt;",
     )
@@ -131,11 +142,11 @@ def _render_roi(roi, from_date, to_date):
     roi_true = (net / spend * 100) if spend > 0 else None
     roi_val = f"{roi_true:+.1f} %" if roi_true is not None else "—"
     net_color = "#1DB954" if net >= 0 else "#FF4444"
-    status = (_t("pdf.roi.profitable", "✅ Rentable") if net >= 0
-              else _t("pdf.roi.deficit", "⚠️ Déficitaire"))
+    status = (_t("pdf.roi.profitable", "Rentable") if net >= 0
+              else _t("pdf.roi.deficit", "Déficitaire"))
     since_start = _t("pdf.roi.since_start", "Depuis le début (tout l'historique)")
-    lbl_rev = _t("pdf.roi.revenue_total", "💰 Revenus (iMusician + DistroKid + SACEM)")
-    lbl_spend = _t("pdf.roi.spend_meta", "📱 Dépenses Meta Ads")
+    lbl_rev = _t("pdf.roi.revenue_total", "Revenus (iMusician + DistroKid + SACEM)")
+    lbl_spend = _t("pdf.roi.spend_meta", "Dépenses Meta Ads")
     lbl_net = _t("pdf.roi.net", "Net (revenus − dépenses)")
     return f"""
     <div class="roi-card">
@@ -155,7 +166,7 @@ def _render_roi(roi, from_date, to_date):
         </div>
         <div class="roi-item">
           <div class="kpi-val" style="font-size:14pt;color:{net_color};">{roi_val}</div>
-          <div class="kpi-lbl">📊 ROI — {status}</div>
+          <div class="kpi-lbl">ROI — {status}</div>
         </div>
       </div>
     </div>"""
@@ -212,7 +223,7 @@ def _render_songs_focus(songs_data):
 
         parts.append(f"""
         <div class="song-block">
-          <div class="song-title">🎵 {_esc(s['song'])}</div>
+          <div class="song-title">{_esc(s['song'])}</div>
           <table style="width:auto;margin-bottom:0;">
             <tr>
               <td style="padding:3px 16px 3px 0;border:none;">
@@ -367,7 +378,7 @@ def _render_revenue_forecast(rfc):
     # per-source SACEM trace on the revenue-forecast view).
     if rfc.get("sacem"):
         cards += _kpi_card(f'{rfc["sacem"]:,.0f} €',
-                           _t("pdf.kpi.sacem_royalties", "🎼 Royalties SACEM"))
+                           _t("pdf.kpi.sacem_royalties", "Royalties SACEM"))
     return _kpi_grid(cards)
 
 
@@ -406,7 +417,7 @@ def _render_trigger_then_now(cmp_):
     early = cmp_.get("early") or {}
     note = ""
     if cmp_.get("reason"):
-        note += f"<p class='subtitle'>⚠️ {cmp_['reason']}</p>"
+        note += f"<p class='subtitle'>{cmp_['reason']}</p>"
     if early.get("n"):
         note += (f"<p class='subtitle'>"
                  f"{_t('pdf.note.trigger_early_n', 'Fenêtre initiale : médiane de {n} mesure(s).').format(n=early['n'])}"

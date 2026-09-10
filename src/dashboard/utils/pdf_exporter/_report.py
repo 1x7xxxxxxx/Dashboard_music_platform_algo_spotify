@@ -241,9 +241,9 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         body_parts.append(html)
 
     # ── État des données : complétude + fraîcheur côte à côte (1ʳᵉ page) ──
-    h_freshness = _t("pdf.section.freshness", "📡 Fraîcheur des sources")
-    h_data_status = _t("pdf.section.data_status", "📋 État des données")
-    h_completeness = _t("pdf.section.completeness", "📋 Complétude")
+    h_freshness = _t("pdf.section.freshness", "Fraîcheur des sources")
+    h_data_status = _t("pdf.section.data_status", "État des données")
+    h_completeness = _t("pdf.section.completeness", "Complétude")
     _fresh = (f"<div class='status-col'><h3>{h_freshness}</h3>"
               f"{_render_freshness(data['freshness'])}</div>"
               if sections.get('freshness') else "")
@@ -253,13 +253,13 @@ def render_html(data, artist_name, sections=None, lang="fr"):
 
     # ── 🏠 Accueil — vue d'ensemble (vrais totaux par plateforme) ──
     if sections.get('overview'):
-        h_overview = _t("pdf.section.overview", "🏠 Vue d'ensemble")
+        h_overview = _t("pdf.section.overview", "Vue d'ensemble")
         _sec(f"<div class='section'><h2>{h_overview}</h2>\n"
              f"{_render_overview(data)}{_chart(charts.get('platform'))}</div>")
 
     # ── 📁 Données — credentials & mapping ──
     if sections.get('data_setup'):
-        h_data_setup = _t("pdf.section.data_setup", "📁 Données — connexions & mapping")
+        h_data_setup = _t("pdf.section.data_setup", "Données — connexions & mapping")
         h_conn = _t("pdf.subsection.connections", "Connexions par plateforme")
         h_map = _t("pdf.subsection.mapping", "Mapping campagne ↔ titre")
         _sec(f"<div class='section'><h2>{h_data_setup}</h2>\n"
@@ -269,7 +269,7 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     # ── 🎵 Spotify S4A — évolution (TOUT le catalogue, quelle que soit la sélection) ──
     if sections.get('streams'):
         _nc = data.get('n_catalog') or 0
-        h_streams = _t("pdf.section.streams", "🎵 Spotify S4A — évolution")
+        h_streams = _t("pdf.section.streams", "Spotify S4A — évolution")
         sub_streams = _t(
             "pdf.subtitle.full_catalog",
             "Tout le catalogue — {n} titres (indépendant des chansons sélectionnées).",
@@ -286,11 +286,11 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         else:
             inner = (_chart(charts.get('s4a_top'))
                      + _render_s4a_top_songs(data.get('s4a_top_songs', [])))
-        h_s4a_songs = _t("pdf.section.s4a_songs", "🎵 Spotify S4A — chansons")
+        h_s4a_songs = _t("pdf.section.s4a_songs", "Spotify S4A — chansons")
         _sec(f"<div class='section'><h2>{h_s4a_songs}</h2>\n{inner}</div>")
 
     if sections.get('meta_x_spotify'):
-        h_mxs = _t("pdf.section.meta_x_spotify", "🔗 Meta × Spotify")
+        h_mxs = _t("pdf.section.meta_x_spotify", "Meta × Spotify")
         mxs = (_chart(charts.get('mxs')) if charts.get('mxs')
                else f'<p class="no-data">{_t("pdf.nodata.mxs", "Pas assez de données campagne/streams.")}</p>')
         _sec(f"<div class='section'><h2>{h_mxs}</h2>\n{mxs}</div>")
@@ -299,11 +299,11 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         _single = data.get('single_song')
         ad = data.get('apple_data')
         if _single:
-            _h = _t("pdf.section.apple_single", "🍎 Apple Music — {song}").format(song=_single)
+            _h = _t("pdf.section.apple_single", "Apple Music — {song}").format(song=_single)
         elif data.get('report_n'):
-            _h = _t("pdf.section.apple_selected", "🍎 Apple Music — titres sélectionnés")
+            _h = _t("pdf.section.apple_selected", "Apple Music — titres sélectionnés")
         else:
-            _h = _t("pdf.section.apple_career", "🍎 Apple Music (cumul carrière)")
+            _h = _t("pdf.section.apple_career", "Apple Music (cumul carrière)")
         if _single and (not ad or not ad.get('top_songs')):
             inner = f'<p class="no-data">{_t("pdf.nodata.apple_song", "Pas de données pour cette chanson sur Apple Music.")}</p>'
         elif _single:
@@ -319,15 +319,15 @@ def render_html(data, artist_name, sections=None, lang="fr"):
             vid = f'<p class="no-data">{_t("pdf.nodata.youtube_song", "Pas de vidéo YouTube identifiée pour cette chanson.")}</p>'
         else:
             vid = _chart(charts.get('youtube'))
-        h_youtube = _t("pdf.section.youtube", "🎬 YouTube")
+        h_youtube = _t("pdf.section.youtube", "YouTube")
         _sec(f"<div class='section'><h2>{h_youtube}</h2>\n"
              f"{_chart(charts.get('yt_growth'))}{vid}\n{_render_youtube(yd)}</div>")
 
     if sections.get('soundcloud_detail'):
         _single = data.get('single_song')
         sct = data.get('sc_tracks', [])
-        _h = (_t("pdf.section.soundcloud_single", "☁️ SoundCloud — {song}").format(song=_single)
-              if _single else _t("pdf.section.soundcloud_career", "☁️ SoundCloud (cumul carrière)"))
+        _h = (_t("pdf.section.soundcloud_single", "SoundCloud — {song}").format(song=_single)
+              if _single else _t("pdf.section.soundcloud_career", "SoundCloud (cumul carrière)"))
         _ts = _chart(charts.get('sc_multi'))
         if _single and not sct:
             inner = f'<p class="no-data">{_t("pdf.nodata.soundcloud_song", "Pas de données pour cette chanson sur SoundCloud.")}</p>'
@@ -338,13 +338,13 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         _sec(f"<div class='section'><h2>{_h}</h2>\n{inner}</div>")
 
     if sections.get('instagram'):
-        h_instagram = _t("pdf.section.instagram", "📸 Instagram")
+        h_instagram = _t("pdf.section.instagram", "Instagram")
         _sec(f"<div class='section'><h2>{h_instagram}</h2>\n"
              f"{_chart(charts.get('instagram'))}{_chart(charts.get('ig_engagement'))}\n"
              f"{_render_instagram(data.get('instagram_data'))}</div>")
 
     if sections.get('hypeddit'):
-        h_hypeddit = _t("pdf.section.hypeddit", "📣 Hypeddit")
+        h_hypeddit = _t("pdf.section.hypeddit", "Hypeddit")
         _sec(f"<div class='section'><h2>{h_hypeddit}</h2>\n"
              f"{_render_hypeddit(data.get('hypeddit_data'))}\n"
              f"{_chart(charts.get('hypeddit'))}</div>")
@@ -352,8 +352,8 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     # ── 🔮 Prédiction algos (focus algo + chansons ML) — déplacé ici ──
     if sections.get('songs'):
         _focus = data.get('single_song') or data.get('latest_release')
-        head = f"<div class='song-title'>🚀 {_focus}</div>" if _focus else ""
-        score_h = _t("pdf.subsection.score20", "🏆 Score /20 — tracks du rapport")
+        head = f"<div class='song-title'>{_focus}</div>" if _focus else ""
+        score_h = _t("pdf.subsection.score20", "Score /20 — tracks du rapport")
         score = (f"<h3>{score_h}</h3>"
                  f"{_render_score20(data.get('score20'))}")
         j28_txt = _t(
@@ -368,7 +368,7 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         )
         _j28_note = (f"<p class='subtitle'>{j28_txt}</p>" if charts.get('j28') else "")
         no_ml = _t("pdf.nodata.no_ml", "Pas de prédiction ML.")
-        h_songs = _t("pdf.section.songs", "🔮 Prédiction algorithmique (J+28)")
+        h_songs = _t("pdf.section.songs", "Prédiction algorithmique (J+28)")
         inner = (head + _chart(charts.get('ml')) + _chart(charts.get('j28')) + _j28_note
                  + _chart(charts.get('playlist_adds')) + _chart(charts.get('pi_gate'))
                  + score
@@ -380,11 +380,11 @@ def render_html(data, artist_name, sections=None, lang="fr"):
     if sections.get('ml_explain'):
         from src.dashboard.utils import pdf_ml
         no_shap = _t("pdf.nodata.shap", "SHAP indisponible pour cette chanson.")
-        h_cursors = _t("pdf.subsection.cursors", "🎚️ Curseurs de décision (DW · RR · Radio)")
+        h_cursors = _t("pdf.subsection.cursors", "Curseurs de décision (DW · RR · Radio)")
         no_cursors = _t("pdf.nodata.cursors", "Curseurs indisponibles.")
         trunc_note = _t("pdf.note.ml_truncated", "(Limité aux 5 premières chansons du rapport.)")
         no_ml_pred = _t("pdf.nodata.ml_predictions", "Aucune prédiction ML disponible.")
-        h_ml_explain = _t("pdf.section.ml_explain", "🔬 Explainabilité ML (SHAP &amp; curseurs)")
+        h_ml_explain = _t("pdf.section.ml_explain", "Explainabilité ML (SHAP &amp; curseurs)")
         blocks = []
         for track, fj in data.get('ml_explain', []):
             wf = "".join(
@@ -397,7 +397,7 @@ def render_html(data, artist_name, sections=None, lang="fr"):
                     + (cur or f"<p class='no-data'>{no_cursors}</p>"))
             # Plain wrapper (no .section → no page-break-inside:avoid): each track block
             # spans multiple pages, so "avoid" would only orphan the heading on a blank page.
-            blocks.append(f"<div class='ml-track'><h3>🔬 {track}</h3>{body}</div>")
+            blocks.append(f"<div class='ml-track'><h3>{track}</h3>{body}</div>")
         if data.get('ml_explain_truncated'):
             blocks.append(f"<p class='subtitle'>{trunc_note}</p>")
         inner = "".join(blocks) or f'<p class="no-data">{no_ml_pred}</p>'
@@ -406,13 +406,13 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         _sec(f"<h2>{h_ml_explain}</h2>{inner}")
 
     if sections.get('meta'):
-        h_meta = _t("pdf.section.meta", "📱 Meta Ads (cumul carrière)")
+        h_meta = _t("pdf.section.meta", "Meta Ads (cumul carrière)")
         _sec(f"<div class='section'><h2>{h_meta}</h2>\n"
              f"{_chart(charts.get('meta'))}{_chart(charts.get('meta_funnel'))}"
              f"{_chart(charts.get('meta_daily'))}\n{_render_meta(data.get('meta_data'))}</div>")
 
     if sections.get('meta_breakdowns'):
-        h_bd = _t("pdf.section.meta_breakdowns", "🌍 Meta — Répartitions (pays · placement · âge)")
+        h_bd = _t("pdf.section.meta_breakdowns", "Meta — Répartitions (pays · placement · âge)")
         bd = (f"{_chart(charts.get('bd_country'))}{_chart(charts.get('bd_placement'))}"
               f"{_chart(charts.get('bd_age'))}")
         if not bd.strip():
@@ -420,13 +420,13 @@ def render_html(data, artist_name, sections=None, lang="fr"):
         _sec(f"<div class='section'><h2>{h_bd}</h2>\n{bd}</div>")
 
     if sections.get('roi'):
-        h_roi = _t("pdf.section.roi", "💹 ROI Breakeven")
+        h_roi = _t("pdf.section.roi", "ROI Breakeven")
         _sec(f"<div class='section'><h2>{h_roi}</h2>\n"
              f"{_render_roi(data['roi'], data['from_date'], data['to_date'])}\n"
              f"{_chart(charts.get('roi'))}</div>")
 
     if sections.get('revenue_forecast'):
-        h_rfc = _t("pdf.section.revenue_forecast", "📈 Prévisions revenus")
+        h_rfc = _t("pdf.section.revenue_forecast", "Prévisions revenus")
         _sec(f"<div class='section'><h2>{h_rfc}</h2>\n"
              f"{_render_revenue_forecast(data.get('revenue_fc'))}\n"             f"{_trigger_block}"
              f"{_chart(charts.get('revenue_fc'))}</div>")
