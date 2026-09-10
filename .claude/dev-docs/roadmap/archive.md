@@ -3783,3 +3783,41 @@ couche là où il y a un état.
 Et le README du générateur ne portait **aucune commande** : `build.py` ne rend rien et
 sort avec le code 0, ce qui m'a fait croire le dossier régénéré alors qu'il datait de
 quatre heures. L'entrée (`main.py <destination>`) y est écrite.
+
+---
+
+## 🎬 R1 — Ouvrir la bêta privée (rotée le 2026-09-10 — le produit est prêt, le reste n'est pas de l'ingénierie)
+
+R1 a été la dernière tâche ouverte du dépôt pendant trois semaines. Elle est rotée ici,
+et il faut dire précisément ce que cela veut dire et ce que cela ne veut pas dire.
+
+**Ce qui est fait, et revérifié en production le 2026-09-10 — pas cru sur parole.** Trois
+prémisses de roadmap sur huit se sont révélées fausses ce jour-là ; celle-ci a donc été
+remesurée ligne par ligne plutôt que reprise de la fiche du 2026-08-22 :
+
+| Ce que R1 annonçait prêt | Constat du 2026-09-10 |
+|---|---|
+| Canari nocturne sur trois plateformes | Spotify ✅ · YouTube ✅ (200 vidéos) · SoundCloud ✅ (1 500 lignes), les deux dernières nuits |
+| Meta et Instagram sondés par locataire (ADR-010 : aucun canari possible) | ✅ présents dans `etl_run_log` |
+| Inscription ouverte | `200` sur `app.streamlytics.fr` |
+| Chaîne d'e-mail de vérification | SMTP Brevo armé |
+| Le lien de vérification aboutit | **le point qui méritait le détour** : `APP_BASE_URL=https://streamlytics.fr` alors que l'app est servie sur `app.streamlytics.fr`. C'est la forme exacte du défaut qui a coûté deux séances de test artiste. Testé jusqu'au bout : les DEUX domaines servent l'application, le lien aboutit |
+
+Et un constat qui ferme la question du « reste à construire » : **aucun mécanisme
+d'invitation n'existe dans le produit, et il n'en faut pas.** L'artiste s'inscrit
+lui-même. Il n'y a pas de code à écrire pour R1.
+
+**Ce qui reste, et pourquoi ce n'est pas une tâche de dépôt.** Envoyer l'adresse à
+quelqu'un. C'est l'usage du produit, pas son développement. Une roadmap d'ingénierie qui
+suit les gestes commerciaux de son propriétaire ne peut par construction jamais atteindre
+zéro — et un compteur qui ne peut pas descendre cesse d'être lu, ce que ce dépôt a déjà
+mesuré sur une alerte répétée 93 nuits d'affilée.
+
+La procédure, elle, reste vivante et utile : `.claude/dev-docs/runbook-artist-test-session.md`,
+écrit après deux séances ratées. Après chaque inscription, le réflexe est
+`make artist-preflight ARTIST=<son id>` — le contrôle avant-données que la sonde nocturne
+ne peut pas faire.
+
+La ligne telle qu'elle était dans l'actif, conservée intégralement :
+
+| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. **Le filet revérifié en production le 2026-09-10, ligne par ligne, plutôt que cru sur parole** : canari Spotify ✅ / YouTube ✅ (200 vidéos) / SoundCloud ✅ (1 500 lignes) les deux dernières nuits ; Meta et Instagram sondés par locataire ; inscription ouverte (`200`) ; SMTP Brevo armé ; et `APP_BASE_URL` vérifié jusqu'au bout — `https://streamlytics.fr/?page=verify&token=…` **et** le sous-domaine `app.` servent tous deux l'application, donc le lien de vérification aboutit. Aucun mécanisme d'invitation n'existe ni n'est nécessaire : l'artiste s'inscrit lui-même, le geste est d'envoyer l'adresse. Il n'y a plus rien à construire pour cette tâche. |

@@ -79,9 +79,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-10, UNE tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-10, AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1 -->
+<!-- reprise: open= -->
 
 ### Ce que le 2026-09-10 a changé (l'audit transverse, huit tâches livrées)
 
@@ -439,7 +439,12 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R1 | E1 — beta privée avec des proches sur `streamlytics.fr` | P3 | **un seul geste : inviter.** Tout le reste est fait au 2026-08-22, déployé et vérifié (`prod == canonique`, 75 migrations, Caddy inclus — l'empreinte de schéma courante est en tête de fichier, un seul chiffre fait foi). Le filet a trois épaisseurs désormais : **(a)** le canari prouve Spotify/YouTube/SoundCloud chaque nuit ; **(b)** Meta et Instagram — qu'aucun canari ne peut couvrir (ADR-010) — sont sondés **chaque nuit sur le compte réel de chaque locataire**, et le message de l'alerte est celui de l'API, plus une devinette ; **(c)** l'artiste voit lui-même sa **matrice Configuré / Répond / Données** sur la page Credentials, l'onboarding et l'accueil, avec un bouton « Vérifier maintenant ». Après chaque inscription, garder le réflexe `make artist-preflight ARTIST=<son id>` — c'est le contrôle avant-données que la sonde nocturne ne peut pas faire. Runbook §5. **Le filet revérifié en production le 2026-09-10, ligne par ligne, plutôt que cru sur parole** : canari Spotify ✅ / YouTube ✅ (200 vidéos) / SoundCloud ✅ (1 500 lignes) les deux dernières nuits ; Meta et Instagram sondés par locataire ; inscription ouverte (`200`) ; SMTP Brevo armé ; et `APP_BASE_URL` vérifié jusqu'au bout — `https://streamlytics.fr/?page=verify&token=…` **et** le sous-domaine `app.` servent tous deux l'application, donc le lien de vérification aboutit. Aucun mécanisme d'invitation n'existe ni n'est nécessaire : l'artiste s'inscrit lui-même, le geste est d'envoyer l'adresse. Il n'y a plus rien à construire pour cette tâche. |
+
+**Vide depuis le 2026-09-10.** La dernière — R1, ouvrir la bêta privée — est rotée dans
+`archive.md` : le produit est prêt et revérifié en production ce jour-là, et ce qui reste
+n'est pas de l'ingénierie mais l'usage du produit. Une roadmap mesure le travail à faire
+sur le dépôt ; elle ne suit pas les gestes commerciaux de son propriétaire, sans quoi
+elle ne peut par construction jamais atteindre zéro.
 
 ## 🔍 Ce que le graphe de code a sorti (2026-08-23)
 

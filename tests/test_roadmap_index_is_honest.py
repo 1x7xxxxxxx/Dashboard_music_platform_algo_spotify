@@ -68,19 +68,41 @@ def _ids(name: str) -> list[str]:
     return [m.group(1) for line in _section(name) if (m := _ROW.match(line))]
 
 
-def test_the_sections_are_not_empty():
-    """Non-vacuity. Without this, every assertion below is true of nothing.
+def test_the_extraction_still_finds_rows_when_there_are_rows():
+    """Non-vacuity. Without it, every assertion below is true of nothing.
 
-    The extraction reads a markdown file by heading; a heading that also appears
-    in prose, a rename, or a reordering all produce an empty list rather than an
-    error. An empty list satisfies `assert not offenders` perfectly.
+    L'extraction lit un markdown par titre : un titre qui apparaît AUSSI dans la prose,
+    un renommage ou une réorganisation rendent une liste vide plutôt qu'une erreur — et
+    une liste vide satisfait parfaitement `assert not offenders`. Ce test a expédié ce
+    défaut pendant une dizaine de minutes le 2026-08-21.
+
+    Il vérifiait « la roadmap a au moins une ligne », et disait lui-même quoi faire le
+    jour où ce serait faux : « soit tout est réellement clos — auquel cas supprimer ce
+    test — soit l'extraction vise à côté ». Le 2026-09-10, tout EST réellement clos.
+
+    Supprimer le test serait pourtant la mauvaise moitié de l'alternative : il retirerait
+    la protection de non-vacuité des cinq assertions qui suivent, exactement au moment où
+    elles portent toutes sur des listes vides. La leçon du jour, mesurée sur un cliquet
+    d'axes secondaires gelé à zéro qui certifiait une propriété fausse : **un contrôle
+    qui n'a plus rien à trouver doit prouver qu'il sait encore VOIR.** La preuve se
+    déplace donc de la roadmap vers le PARSEUR, sur un échantillon fabriqué ici.
     """
-    total = len(_ids(_ACTIONABLE_H)) + len(_ids(_WAITING_H))
-    assert total > 0, (
-        "neither roadmap section yielded a single row. Either every item is "
-        "genuinely gone — in which case delete this test — or the extraction is "
-        "matching the wrong place and every check here is passing on nothing."
+    sample = [
+        "| R42 | quelque chose | P2 | mesuré par ceci |",
+        "| R7 | autre chose | P3 | mesuré par cela |",
+        "pas une ligne de tableau",
+        "| X9 | identifiant qui n'est pas un R-id | P1 | — |",
+    ]
+    found = [m.group(1) for line in sample if (m := _ROW.match(line))]
+    assert found == ["R42", "R7"], (
+        f"le motif de ligne de roadmap ne reconnaît plus ses propres lignes : {found}. "
+        "Tant qu'il est cassé, les cinq contrôles ci-dessous passent sur du vide, que "
+        "la roadmap soit pleine ou non."
     )
+    # Et le découpage par titre : les deux sections doivent exister et être trouvées au
+    # DÉBUT d'une ligne, pas dans la prose qui les mentionne deux paragraphes plus haut.
+    for heading in (_ACTIONABLE_H, _WAITING_H):
+        _section(heading)  # lève si le titre n'est pas ancré en début de ligne
 
 
 def test_both_sections_exist():
@@ -248,7 +270,21 @@ def test_the_live_heading_pattern_actually_distinguishes_the_two_forms():
     done = "## 2. ~~R20 — Créer le canari~~ · ✅ FAIT le 2026-08-21"
     assert _LIVE_HEADING.findall(live) == ["R1"], "a live heading must be seen"
     assert _LIVE_HEADING.findall(done) == [], "a struck heading must be ignored"
-    assert _live_runbook_ids(), (
-        "the runbook yielded no live section at all — either every task is done, in "
-        "which case delete this test, or the pattern stopped matching the file."
+    # Troisième assertion, DÉPLACÉE le 2026-09-10. Elle vérifiait que le runbook réel
+    # porte au moins une section vivante — vrai tant qu'une tâche restait ouverte, faux
+    # depuis que R1 est rotée. Son message disait « soit tout est fait, auquel cas
+    # supprimer ce test ». Supprimer serait la mauvaise moitié de l'alternative : ce
+    # qu'on veut prouver n'est pas que le fichier contient du travail, c'est que
+    # l'EXTRACTEUR sait encore lire un fichier qui en contient. Même leçon qu'un cliquet
+    # gelé à zéro — il doit prouver qu'il VOIT, pas seulement qu'il ne trouve rien.
+    fabricated = "\n".join([
+        "## 1. ~~R13 — deja clos~~ · CLOS le 2026-08-22",
+        "## 2. R99 — une tache encore ouverte · P2",
+        "## 3. ~~R20 — clos aussi~~ · FAIT le 2026-08-21",
+        "du texte qui n'est pas un titre de section",
+    ])
+    assert _LIVE_HEADING.findall(fabricated) == ["R99"], (
+        "l'extracteur de sections vivantes ne distingue plus les deux formes sur un "
+        "fichier qui en contient : tant qu'il est casse, "
+        "`test_no_runbook_section_outlives_its_task` passe sur du vide."
     )

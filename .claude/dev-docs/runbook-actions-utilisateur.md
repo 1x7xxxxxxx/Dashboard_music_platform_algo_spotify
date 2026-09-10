@@ -317,7 +317,19 @@ envoie un vrai e-mail de résumé. Mesuré le 2026-08-23.
 
 ---
 
-## 5. R1 — Ouvrir la bêta privée · P3
+## 5. ~~R1 — Ouvrir la bêta privée~~ · ✅ CÔTÉ PRODUIT le 2026-09-10 — **il n'y a plus rien à construire**
+
+> Rotée dans `archive.md` ce jour-là. Le filet a été revérifié EN PRODUCTION,
+> ligne par ligne, plutôt que repris de la fiche du 2026-08-22 : canari Spotify /
+> YouTube / SoundCloud verts les deux dernières nuits, Meta et Instagram sondés par
+> locataire, inscription à `200`, SMTP Brevo armé, et le lien de vérification testé
+> jusqu'au bout (`APP_BASE_URL` pointe `streamlytics.fr` quand l'app est servie sur
+> `app.` — les DEUX domaines servent l'application, le lien aboutit ; c'était la
+> forme exacte du défaut qui a coûté deux séances de test artiste).
+>
+> Aucun mécanisme d'invitation n'existe et il n'en faut pas : l'artiste s'inscrit
+> lui-même. **Les étapes ci-dessous restent vivantes et utiles** — ce n'est pas la
+> procédure qui est close, c'est le travail de dépôt qu'elle attendait.
 
 > 📋 **La procédure pas à pas est `.claude/dev-docs/runbook-artist-test-session.md`** —
 > écrite après deux sessions de test artiste ratées pour la même heure perdue. Elle
