@@ -156,15 +156,54 @@ def show():
                               'likes_count': 'Likes',
                               'reposts_count': 'Reposts',
                               'comment_count': t("soundcloud.comments", "Commentaires")}
-                        agg = (df_filtered.groupby('collected_at')[list(_m)]
+                        # PAR JOUR, PAS PAR INSTANT — et c'est le défaut principal.
+                        #
+                        # `collected_at` est un horodatage à la seconde, et les titres
+                        # d'une même nuit ne sont pas écrits au même instant. Mesuré sur
+                        # l'artiste 1 le 2026-09-10 : **317 horodatages distincts pour
+                        # 19 jours de collecte**, et le point MÉDIAN de cette courbe
+                        # sommait **un seul titre**. Elle présentait donc l'évolution
+                        # d'un titre comme celle du catalogue, sur presque tous ses
+                        # points.
+                        #
+                        # Regroupé par jour : 19 points, 17 à 19 titres chacun.
+                        _by_day = df_filtered.copy()
+                        _by_day['_jour'] = pd.to_datetime(
+                            _by_day['collected_at']).dt.normalize()
+                        agg = (_by_day.groupby('_jour')[list(_m)]
                                .sum().sort_index())
                         norm_rows = []
                         for col, lbl in _m.items():
                             s = agg[col].astype('float')
-                            if col == 'likes_count':
-                                # pre-fix client_credentials 0s = not collected
-                                s = s[s > 0]
-                            s = s.dropna()
+                            # UN CUMUL QUI REDESCEND EST UNE PANNE, PAS UNE BAISSE.
+                            #
+                            # Ces quatre compteurs sont CUMULÉS par titre : leur somme à
+                            # un instant donné est le niveau du catalogue, et un niveau
+                            # ne décroît pas. Quand il décroît, l'API a répondu faux.
+                            #
+                            # Mesuré sur l'artiste 1 le 2026-09-10 : le **2026-06-01**,
+                            # `SUM(playback_count)` vaut **0** alors que les 19 titres
+                            # sont présents dans la collecte. C'est la remise à zéro que
+                            # `check_zero_resets` détecte déjà côté surveillance — et
+                            # cette courbe la traçait comme une chute à zéro, suivie
+                            # d'un bond, sur une base 100 où le premier point sert de
+                            # référence.
+                            #
+                            # Le filtre `> 0` n'existait que pour `likes_count`, pour
+                            # cette raison exacte, et ne couvrait pas les trois autres :
+                            # la portée du garde était le défaut, une fois de plus. Il
+                            # vaut maintenant pour les quatre, et il écarte aussi le
+                            # RECUL, pas seulement le zéro — un compteur qui passe de
+                            # 23 486 à 12 000 est une panne tout autant qu'un zéro.
+                            #
+                            # Mesuré : une fois le regroupement fait par jour, **un
+                            # seul** relevé sur 19 est écarté — celui du 2026-06-01, où
+                            # l'API a répondu zéro sur les 19 titres présents.
+                            s = s[s > 0].dropna()
+                            if len(s) >= 2:
+                                # Le maximum déjà vu : le même principe que la
+                                # conversion cumul → quotidien de `platform_timeseries`.
+                                s = s[s.cummax() == s]
                             if len(s) < 2 or not s.iloc[0]:
                                 continue
                             base = s.iloc[0]
@@ -172,6 +211,17 @@ def show():
                                 norm_rows.append({'date': d, 'Métrique': lbl,
                                                   'Base 100': round(v / base * 100, 2)})
                         if norm_rows:
+                            _kept = len(agg)
+                            _drawn = len({r['date'] for r in norm_rows})
+                            if _drawn < _kept:
+                                st.caption(t(
+                                    "soundcloud.base100_dropped",
+                                    "{n} relevé(s) écarté(s) de cette courbe : un "
+                                    "compteur cumulé y redescendait, ce qui est une "
+                                    "panne de l'API et non une baisse d'audience. "
+                                    "Les tracer donnerait une chute qui n'a pas eu "
+                                    "lieu."
+                                ).format(n=_kept - _drawn))
                             df_norm = pd.DataFrame(norm_rows)
                             fig_n = px.line(
                                 df_norm, x='date', y='Base 100', color='Métrique',

@@ -136,7 +136,22 @@ def show():
         try:
             frag_m, params_m = win_m.sql_between("timestamp")
 
-            # Engagement par mois (likes + commentaires des posts réels)
+            # CE N'EST PAS UN ENGAGEMENT PAR MOIS. C'EST UNE COHORTE DE PUBLICATION.
+            #
+            # `like_count` est le compteur CUMULÉ d'un post, tel qu'il est aujourd'hui ;
+            # `timestamp` est sa date de PUBLICATION. Grouper l'un par l'autre range donc
+            # les likes dans le mois où le post est SORTI, quelle que soit la date à
+            # laquelle ils ont été donnés. Un post de janvier qui décolle en juin met ses
+            # likes de juin dans la barre de janvier.
+            #
+            # Il n'existe aucun flux mensuel à calculer, et c'est mesuré, pas supposé :
+            # `instagram_media` porte **51 lignes pour 51 posts** — un instantané par
+            # post, pas un historique — et `instagram_media_insights` est **vide**.
+            # Fabriquer une courbe d'engagement mensuel demanderait d'inventer une
+            # répartition que personne n'a mesurée.
+            #
+            # Le correctif est donc de NOMMER ce que la barre porte, comme pour Apple :
+            # un chiffre juste sous un mauvais titre est un chiffre faux.
             df_eng = db.fetch_df(f"""
                 SELECT date_trunc('month', timestamp) AS mois,
                        SUM(like_count) AS likes,
@@ -155,9 +170,12 @@ def show():
                 )
                 fig_e = px.bar(
                     df_long, x='mois', y='Total', color='Type',
-                    title=t("instagram.engagement_by_month", "Engagement par mois ({label})").format(label=win_m.label),
+                    title=t("instagram.engagement_by_cohort",
+                            "Likes et commentaires ACQUIS À CE JOUR, par mois de "
+                            "publication ({label})").format(label=win_m.label),
                     hover_data=['posts'],
-                    labels={'mois': t("common.month", "Mois"),
+                    labels={'mois': t("instagram.month_published",
+                                      "Mois de publication"),
                             'Total': t("common.total", "Total")},
                 )
                 fig_e.update_layout(
@@ -165,6 +183,15 @@ def show():
                     yaxis_title=t("instagram.likes_comments_axis", "Likes + commentaires"),
                 )
                 st.plotly_chart(fig_e, width="stretch")
+                st.caption(t(
+                    "instagram.engagement_cohort_note",
+                    "Chaque barre regroupe les posts **publiés** ce mois-là et montre "
+                    "les likes qu'ils ont accumulés **jusqu'à aujourd'hui** — pas ceux "
+                    "reçus pendant ce mois. Instagram ne nous donne qu'un compteur "
+                    "courant par post : il n'y a pas d'historique d'où tirer un "
+                    "engagement mensuel, et l'inventer serait pire que de ne pas le "
+                    "montrer. Le filtre de période porte donc sur la date de "
+                    "**publication**."))
 
                 # Secondaire : dérivé des mêmes chiffres, sur une base indicative.
                 with secondary_analyses(t("instagram.rate_expander",

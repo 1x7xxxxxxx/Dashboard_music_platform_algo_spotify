@@ -93,6 +93,20 @@ def _count_axes_in(tree: ast.AST) -> int:
         elif (isinstance(node, ast.Constant) and isinstance(node.value, str)
               and id(node) not in docs and node.value == "secondary_y"):
             n += 1
+        # TROISIÈME forme, trouvée le 2026-09-10 — quelques heures après la seconde,
+        # et sur le même prédicat. Un axe peut être CONSTRUIT : `f"yaxis{i + 1}"` ne
+        # contient aucune des chaînes cherchées jusqu'ici, et `meta_creatives.py`
+        # empilait ainsi jusqu'à six axes pendant que ce cliquet lisait zéro.
+        #
+        # Une f-string dont la partie littérale vaut « yaxis » ou « y » et qui est
+        # suivie d'une interpolation construit un identifiant d'axe. C'est la seule
+        # façon d'en fabriquer un que Plotly accepte.
+        elif isinstance(node, ast.JoinedStr):
+            lit = "".join(v.value for v in node.values
+                          if isinstance(v, ast.Constant) and isinstance(v.value, str))
+            has_slot = any(isinstance(v, ast.FormattedValue) for v in node.values)
+            if has_slot and lit in ("yaxis", "y"):
+                n += 1
     return n
 
 

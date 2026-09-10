@@ -302,9 +302,31 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
 
     # Smart granularity: weekly down-sampling past ~120 days keeps the lines readable.
     span_days = int((tsf['date'].max() - tsf['date'].min()).days)
+    partial_weeks = 0
     if span_days > 120:
         agg_map = {col: agg for _, col, agg, _, _, derived in _TIMELINE_METRICS if not derived}
-        tsf = tsf.set_index('date').resample('W').agg(agg_map).reset_index()
+        _idx = tsf.set_index('date')
+        _measured = _idx.resample('W').size()
+        tsf = _idx.resample('W').agg(agg_map)
+
+        # UNE SEMAINE MESURÉE 3 JOURS SUR 7 N'EST PAS UNE SEMAINE.
+        #
+        # `resample('W').sum()` additionne ce qui EXISTE dans la semaine et le trace à
+        # pleine hauteur. Une semaine mesurée trois jours sur sept sous-dessine donc
+        # d'environ moitié, et rien ne le dit — la courbe se lit comme un effondrement
+        # de la campagne.
+        #
+        # Mesuré sur l'artiste 1 le 2026-09-10 : **37 semaines sur 59 (63 %)** ont
+        # moins de sept jours mesurés, avec une MÉDIANE de trois. C'est la vue par
+        # défaut au-delà de 120 jours, donc celle que l'artiste voit en premier.
+        #
+        # Même règle que la figure d'accueil (`_BUCKET_FLOOR`) : sous la moitié des
+        # jours, le seau est rendu INCONNU plutôt que faux. La courbe s'y interrompt,
+        # ce qui est la lecture juste — on ne sait pas.
+        _floor = _measured.reindex(tsf.index).fillna(0) >= 3.5
+        partial_weeks = int((~_floor).sum())
+        tsf = tsf.where(_floor, other=float("nan"))
+        tsf = tsf.reset_index()
         granularity = t("meta_creatives.granularity_weekly", "hebdomadaire")
     else:
         granularity = t("meta_creatives.granularity_daily", "journalière")
@@ -313,30 +335,62 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
     # NaN where no result on the period → the line simply gaps there.
     tsf['cpr'] = (tsf['spend'] / tsf['conversions'].where(tsf['conversions'] != 0)).astype(float)
 
-    # One Y-axis per metric (autoshift spreads them so they don't overlap). Legend
-    # click toggles a metric and its axis; non-default metrics open as 'legendonly'.
-    fig = go.Figure()
-    layout = {"hovermode": "x unified", "xaxis": {"title": ""},
-              "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02,
-                         "xanchor": "right", "x": 1},
-              "margin": {"t": 40}}
-    for i, (label, col, _, color, visible, _) in enumerate(_TIMELINE_METRICS):
-        label_t = t(f"meta_creatives.metric.{col}", label)
-        axis_id = "y" if i == 0 else f"y{i + 1}"
-        fig.add_trace(go.Scatter(
-            x=tsf['date'], y=tsf[col], name=label_t, mode="lines+markers",
-            line={"color": color}, marker={"color": color},
-            yaxis=axis_id, visible=True if visible else "legendonly",
-        ))
-        axis_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
-        axis_cfg = {"title": {"text": label_t, "font": {"color": color}},
-                    "tickfont": {"color": color}}
-        if i > 0:
-            axis_cfg.update({"overlaying": "y", "side": "right" if i % 2 else "left",
-                             "anchor": "free", "autoshift": True})
-        layout[axis_key] = axis_cfg
-    fig.update_layout(**layout)
+    # TROIS PANNEAUX, UN PAR UNITÉ — et non sept axes superposés.
+    #
+    # Cette figure empilait SEPT axes Y sur un même repère : des euros, des
+    # impressions, des clics, une portée, des résultats, un pourcentage et un coût.
+    # Rien n'y est comparable, et `autoshift` ne rend pas comparable ce qui ne l'est
+    # pas — il range seulement les graduations pour qu'elles ne se chevauchent plus.
+    #
+    # Elle a survécu au cliquet des axes secondaires posé le 2026-09-10 parce qu'elle
+    # les CONSTRUIT : `f"yaxis{i + 1}"` ne contient aucune des chaînes que le prédicat
+    # cherchait. Troisième forme aveugle du même garde, trouvée le même jour.
+    #
+    # Les petits multiples sont la seule alternative admise par ce dépôt. Le
+    # regroupement se fait par UNITÉ : à l'intérieur d'un panneau les courbes se
+    # comparent vraiment, entre panneaux elles ne prétendent pas le faire. Le
+    # basculement par la légende reste possible dans chaque panneau.
+    from plotly.subplots import make_subplots
+
+    _UNIT_ROWS = [
+        (t("meta_creatives.unit_money", "Euros"), ("spend", "cpr")),
+        (t("meta_creatives.unit_counts", "Volumes"),
+         ("impressions", "clicks", "reach", "conversions")),
+        (t("meta_creatives.unit_rate", "Taux (%)"), ("ctr",)),
+    ]
+    _by_col = {col: (label, color, visible)
+               for label, col, _, color, visible, _ in _TIMELINE_METRICS}
+
+    fig = make_subplots(rows=len(_UNIT_ROWS), cols=1, shared_xaxes=True,
+                        vertical_spacing=0.07,
+                        subplot_titles=[r[0] for r in _UNIT_ROWS])
+    for row, (_unit, cols) in enumerate(_UNIT_ROWS, start=1):
+        for col in cols:
+            if col not in tsf.columns:
+                continue
+            label, color, visible = _by_col[col]
+            fig.add_trace(go.Scatter(
+                x=tsf['date'], y=tsf[col],
+                name=t(f"meta_creatives.metric.{col}", label),
+                mode="lines+markers", line={"color": color}, marker={"color": color},
+                visible=True if visible else "legendonly",
+                # Les trous laissés par les semaines partielles restent des TROUS.
+                connectgaps=False,
+            ), row=row, col=1)
+        fig.update_yaxes(rangemode="tozero", row=row, col=1)
+    fig.update_layout(
+        hovermode="x unified", height=190 * len(_UNIT_ROWS) + 60,
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.04,
+                "xanchor": "right", "x": 1},
+        margin={"t": 70})
     st.plotly_chart(fig, width="stretch")
+    if partial_weeks:
+        st.caption(t(
+            "meta_creatives.partial_weeks",
+            "{n} semaine(s) ne sont pas tracées : moins de la moitié de leurs jours "
+            "ont été mesurés, et les additionner à pleine hauteur ferait lire une "
+            "chute qui n'a pas eu lieu. La courbe s'y interrompt — on ne sait pas."
+        ).format(n=partial_weeks))
     st.caption(t(
         "meta_creatives.timeline_caption",
         "Créative **{creative}** · granularité {granularity} · {d_from} → {d_to}. "
