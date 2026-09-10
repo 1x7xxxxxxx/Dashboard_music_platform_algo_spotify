@@ -113,3 +113,64 @@ UNRECONCILABLE_NOTE = (
     "côté ou de l'autre. L'écart n'est pas corrigeable — il est nommé ici plutôt "
     "qu'effacé."
 )
+
+# ── Ce que la date DATE, ce qui n'est pas la même question que « quelle horloge » ──
+#
+# `COLUMN_CLOCK` ci-dessus dit QUI a produit la date. Il reste à dire de QUOI elle est
+# la date — et c'est cette seconde question qui décide si une figure bornée sur elle
+# répond à ce qu'elle annonce.
+#
+# Le cas qui a fait naître cette table, mesuré le 2026-09-10 : Instagram bornait sa
+# figure « Engagement par mois » sur `timestamp`, la date de PUBLICATION du post,
+# alors que `like_count` est un compteur cumulé lu aujourd'hui. La barre de janvier
+# portait donc les likes donnés en juin à un post de janvier. Le filtre était appliqué,
+# la borne portait sur la mauvaise chose, et aucun garde ne pouvait le voir : tous
+# vérifiaient QUE la fenêtre est appliquée, aucun SUR QUOI.
+
+
+class Dates:
+    """De quoi une colonne de date est la date."""
+
+    #: Le moment où la chose s'est produite. Une figure « sur la période » veut ça.
+    EVENT = "event"
+    #: Le moment où NOUS avons relevé la valeur. Pour un compteur cumulé, c'est la
+    #: seule date disponible, et elle date la MESURE, pas l'écoute.
+    MEASUREMENT = "measurement"
+    #: Le moment où l'entité est SORTIE. Borner dessus construit une COHORTE — un
+    #: regroupement parfaitement légitime, mais qui ne répond pas à « que s'est-il
+    #: passé sur la période ». Il doit être annoncé comme tel.
+    PUBLICATION = "publication"
+
+
+COLUMN_SUBJECT: dict[str, str] = {
+    "date": Dates.EVENT,                 # s4a, hypeddit, apple : le jour rapporté
+    "day_date": Dates.EVENT,             # Meta : sa journée publicitaire
+    "reporting_date": Dates.EVENT,
+    "line_date": Dates.EVENT,
+    "snapshot_date": Dates.MEASUREMENT,
+    "collected_at": Dates.MEASUREMENT,
+    "run_date": Dates.MEASUREMENT,
+    "prediction_date": Dates.MEASUREMENT,
+    "period_start": Dates.EVENT,
+    "period_end": Dates.EVENT,
+    "timestamp": Dates.PUBLICATION,      # instagram_media : la sortie du post
+    "published_at": Dates.PUBLICATION,
+    "release_date": Dates.PUBLICATION,
+    "track_created_at": Dates.PUBLICATION,
+}
+
+
+def subject_of(column: str) -> str | None:
+    """De quoi cette colonne est la date, ou None si elle n'est pas déclarée."""
+    return COLUMN_SUBJECT.get(column)
+
+
+def is_cohort_column(column: str) -> bool:
+    """Borner là-dessus regroupe par date de SORTIE, pas par période d'activité.
+
+    Ce n'est pas une faute — c'est une lecture différente, et souvent la seule
+    possible. Mais elle doit être ANNONCÉE : « likes acquis à ce jour, par mois de
+    publication » et « engagement par mois » ne disent pas la même chose, et seul le
+    second se lit comme un flux.
+    """
+    return subject_of(column) == Dates.PUBLICATION
