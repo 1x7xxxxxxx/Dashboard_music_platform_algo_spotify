@@ -73,6 +73,14 @@ migrate-prod: ## Apply migrations on PROD over ssh (no `make` needed there). PRO
 	@echo "   Deploy first if you have not: make deploy PROD_SSH=$(PROD_SSH)"
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && bash tools/migrate.sh'
 
+db-app-role: ## Pose le mot de passe du rôle applicatif. APP_DB_PASSWORD='…' make db-app-role
+	@if [ -z "$(PG_CONT)" ]; then echo "❌ Postgres n'est pas en marche. Lancer : make up"; exit 1; fi
+	@bash tools/db_app_role.sh set
+
+db-role-check: ## Vérifie que le rôle applicatif n'est pas superutilisateur et suffit
+	@if [ -z "$(PG_CONT)" ]; then echo "❌ Postgres n'est pas en marche. Lancer : make up"; exit 1; fi
+	@bash tools/db_app_role.sh check
+
 backup:      ## Dump spotify_etl → backups/*.sql.gz (+ retention)
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
 	@bash tools/db_backup.sh
