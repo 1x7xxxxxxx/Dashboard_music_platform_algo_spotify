@@ -82,6 +82,50 @@ def _upsert_subscription(conn, stripe_customer_id: str, stripe_subscription_id: 
     cur.close()
 
 
+def _verified_artist_id(conn, claimed, data: dict):
+    """L'identifiant réclamé, s'il appartient bien à l'e-mail qui a payé. Sinon `None`.
+
+    Trois refus, chacun pour une raison distincte :
+
+    * l'identifiant n'est pas un entier — un lien bricolé ;
+    * il ne désigne aucun locataire — provisionner lèverait une violation de clé
+      étrangère, donc un 500, donc un rejeu Stripe pendant trois jours : carte débitée,
+      plan jamais posé ;
+    * aucun compte de CE locataire ne porte l'e-mail du checkout — c'est le cas
+      malveillant, et le seul que la signature Stripe ne peut pas voir.
+
+    Rendre `None` fait retomber le handler sur sa branche « rien à faire », qui répond
+    200 : on n'invite pas Stripe à rejouer un événement qu'on refuse délibérément.
+    """
+    try:
+        aid = int(claimed)
+    except (TypeError, ValueError):
+        logger.warning("Stripe: client_reference_id non entier — événement ignoré")
+        return None
+
+    email = (data.get("customer_email")
+             or (data.get("customer_details") or {}).get("email") or "").strip().lower()
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM saas_artists WHERE id = %s", (aid,))
+    if cur.fetchone() is None:
+        logger.warning("Stripe: locataire %s inconnu — événement ignoré", aid)
+        return None
+    if not email:
+        # Sans e-mail on ne peut rien apparier. On refuse plutôt que de faire confiance :
+        # le mode « lien de paiement » de Stripe fournit toujours `customer_details`.
+        logger.warning("Stripe: aucun e-mail dans la session — locataire %s ignoré", aid)
+        return None
+    cur.execute(
+        "SELECT 1 FROM saas_users WHERE artist_id = %s AND lower(email) = %s LIMIT 1",
+        (aid, email))
+    if cur.fetchone() is None:
+        logger.warning(
+            "Stripe: l'e-mail payeur n'appartient à aucun compte du locataire %s — "
+            "événement ignoré", aid)
+        return None
+    return aid
+
+
 @router.post("/stripe", summary="Stripe webhook receiver")
 async def stripe_webhook(request: Request):
     """Verify Stripe signature and process billing events."""
@@ -133,6 +177,20 @@ async def stripe_webhook(request: Request):
             # Payment Links pass the tenant via client_reference_id (?client_reference_id=…);
             # API-created sessions may instead set metadata.artist_id. Accept both.
             artist_id = data.get("client_reference_id") or data.get("metadata", {}).get("artist_id")
+            # LE PAYEUR NE CHOISIT PAS LE LOCATAIRE À PROVISIONNER.
+            #
+            # `client_reference_id` arrive du lien de paiement, construit côté client et
+            # modifiable dans la barre d'adresse. La signature Stripe passe — elle
+            # relaie fidèlement ce que le payeur a mis. Sans appariement, un locataire A
+            # pouvait activer PUIS révoquer l'abonnement d'un locataire V (l'`ON CONFLICT
+            # (artist_id)` écrasait la ligne de V avec le client Stripe de A), et V, s'il
+            # payait réellement, cessait d'être synchronisé en silence : ses propres
+            # événements ne matchaient plus aucune ligne.
+            #
+            # On apparie donc l'identifiant à l'e-mail réellement payé. C'est la même
+            # classe que « le lien de paiement non attribuable » du 2026-08-23, fermée
+            # alors sur les deux surfaces d'ÉMISSION et pas sur celle de RÉCEPTION.
+            artist_id = _verified_artist_id(conn, artist_id, data)
             plan_name = data.get("metadata", {}).get("plan_name", "premium")
             if plan_name == "basic":          # retired tier → premium
                 plan_name = "premium"

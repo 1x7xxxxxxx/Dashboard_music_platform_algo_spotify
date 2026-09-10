@@ -41,6 +41,12 @@ import os
 _LOCAL_FALLBACK_PORT = 5433
 
 
+# Les bornes d'attente, déclarées UNE fois et nommées pour être vérifiables : le garde
+# les lit par leur VALEUR, pas par le texte de l'appel — un dictionnaire déballé ne
+# laisse aucun littéral à lire à l'endroit de l'appel.
+CONNECT_BOUNDS = {"connect_timeout": 5, "options": "-c statement_timeout=15000"}
+
+
 def dsn_source() -> str:
     """Which of the three sources will be used. For diagnostics, never for logic."""
     if os.getenv("DATABASE_URL"):
@@ -75,7 +81,19 @@ def resolve_kwargs() -> dict:
     precedence instead of restating it — the restating is what produced the
     `localhost` / `postgres` divergence in the first place. `DATABASE_URL` is NOT
     handled here: it is a DSN string, not keywords, and each caller has its own
-    door for it (`psycopg2.connect(url)` / `PostgresHandler.from_url`).
+    # DÉLAIS D'ATTENTE — une base qui PEND est pire qu'une base qui refuse.
+    #
+    # Sans `connect_timeout`, une partition réseau ou un `max_connections` atteint fait
+    # attendre le délai TCP du système (~2 min). L'API tourne en un seul processus avec
+    # des endpoints synchrones : quarante requêtes suffisent alors à épuiser le pool de
+    # threads, et `/health` — synchrone lui aussi — cesse de répondre. La sonde externe
+    # conclut que l'API est morte alors que seule la base pend.
+    #
+    # `statement_timeout` borne la requête elle-même : une table verrouillée ne peut
+    # plus retenir un thread indéfiniment. 15 s est très au-dessus de l'agrégat le plus
+    # lourd du produit, mesuré à 39 ms.
+    door for it (`psycopg2.connect(
+            connect_timeout=5, options="-c statement_timeout=15000",url)` / `PostgresHandler.from_url`).
     """
     host = os.getenv("DATABASE_HOST")
     if host:
@@ -108,6 +126,7 @@ def connect(autocommit: bool = False):
     import psycopg2
 
     url = os.getenv("DATABASE_URL")
-    conn = psycopg2.connect(url) if url else psycopg2.connect(**resolve_kwargs())
+    conn = (psycopg2.connect(url, **CONNECT_BOUNDS) if url
+            else psycopg2.connect(**resolve_kwargs(), **CONNECT_BOUNDS))
     conn.autocommit = autocommit
     return conn

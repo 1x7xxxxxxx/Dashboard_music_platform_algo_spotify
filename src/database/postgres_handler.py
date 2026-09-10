@@ -177,7 +177,19 @@ class PostgresHandler:
     def _connect(self) -> None:
         """Établit la connexion à PostgreSQL."""
         try:
+    # DÉLAIS D'ATTENTE — une base qui PEND est pire qu'une base qui refuse.
+    #
+    # Sans `connect_timeout`, une partition réseau ou un `max_connections` atteint fait
+    # attendre le délai TCP du système (~2 min). L'API tourne en un seul processus avec
+    # des endpoints synchrones : quarante requêtes suffisent alors à épuiser le pool de
+    # threads, et `/health` — synchrone lui aussi — cesse de répondre. La sonde externe
+    # conclut que l'API est morte alors que seule la base pend.
+    #
+    # `statement_timeout` borne la requête elle-même : une table verrouillée ne peut
+    # plus retenir un thread indéfiniment. 15 s est très au-dessus de l'agrégat le plus
+    # lourd du produit, mesuré à 39 ms.
             self.conn = psycopg2.connect(
+            connect_timeout=5, options="-c statement_timeout=15000",
                 host=self.host,
                 port=self.port,
                 database=self.database,

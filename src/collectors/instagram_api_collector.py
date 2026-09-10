@@ -1,6 +1,14 @@
 import os
 import sys
 import requests
+
+# DÉLAI D'ATTENTE HTTP — les trois appels de ce collecteur n'en portaient aucun.
+#
+# Tous les autres collecteurs du dépôt en déclarent un (SoundCloud 15 s, YouTube 30 s,
+# Meta une constante dédiée). Un appel pendu ici retient un créneau Airflow jusqu'au
+# `dagrun_timeout` : la collecte Instagram mesure 17,9 s en moyenne et 39,8 s au pire,
+# donc trente secondes laissent de la marge sans autoriser un blocage.
+_HTTP_TIMEOUT = 30
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -235,7 +243,8 @@ class InstagramCollector:
         }
 
         try:
-            response = self.session.get(url, params=params)
+            response = self.session.get(url, params=params,
+                                        timeout=_HTTP_TIMEOUT)
 
             # Gestion précise des erreurs Token
             if response.status_code == 401:
@@ -362,7 +371,9 @@ class InstagramCollector:
         media, pages = [], 0
         try:
             while url and pages < max_pages:
-                resp = self.session.get(url, params=params if pages == 0 else None)
+                resp = self.session.get(
+                    url, params=params if pages == 0 else None,
+                    timeout=_HTTP_TIMEOUT)
                 if resp.status_code == 401:
                     raise ValueError(
                         "Instagram API 401 — token expired/invalid. Action: "
@@ -405,6 +416,7 @@ class InstagramCollector:
         resp = self.session.get(
             f"{self.base_url}/{mid}/insights",
             params={'metric': metrics, 'access_token': self.access_token},
+            timeout=_HTTP_TIMEOUT,
         )
         if resp.status_code == 401:
             raise ValueError(

@@ -119,7 +119,12 @@ def test_database_url_wins(monkeypatch):
     assert pg_connect.dsn_source() == "DATABASE_URL"
     with patch("psycopg2.connect", return_value=MagicMock()) as m:
         pg_connect.connect()
-    m.assert_called_once_with("postgresql://u:p@h:1/d")
+    # L'URL gagne, ET la connexion porte ses bornes d'attente : figer la signature
+    # exacte faisait échouer ce test le jour où `connect_timeout` / `statement_timeout`
+    # ont été ajoutés — alors que c'est précisément ce qu'on veut voir ici.
+    args, kwargs = m.call_args
+    assert args == ("postgresql://u:p@h:1/d",)
+    assert kwargs == pg_connect.CONNECT_BOUNDS
 
 
 def test_env_vars_are_used_when_there_is_no_url(monkeypatch):
