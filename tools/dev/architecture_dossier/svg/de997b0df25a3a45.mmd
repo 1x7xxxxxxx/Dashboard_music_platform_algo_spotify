@@ -1,0 +1,28 @@
+flowchart TB
+  subgraph B["BRONZE — ce que la source a dit"]
+    direction LR
+    B1["Compteurs par vidéo<br/>relevés bruts, cumulés"]
+    B2["Lignes du fichier déposé<br/>quantités du jour"]
+    B3["Export de période<br/>un total, deux bornes"]
+  end
+  subgraph S["ARGENT — une ligne par entité et par jour"]
+    direction LR
+    S1["Écart quotidien<br/>par vidéo, par titre"]
+    S2["Quantité du jour<br/>dédoublonnée"]
+    S3["Période laissée<br/>à son grain"]
+  end
+  subgraph G["OR — une définition par métrique"]
+    direction LR
+    G1["Total par plateforme"]
+    G2["Série pour la figure"]
+    G3["Revenu mensuel"]
+  end
+  B1 -->|"écart sur le max<br/>déjà vu, par entité"| S1
+  B2 -->|"un seul relevé<br/>par jour et par titre"| S2
+  B3 -->|"périodes imbriquées<br/>jamais sommées à l'aveugle"| S3
+  S1 & S2 --> G1
+  S1 & S2 --> G2
+  S3 --> G1
+  G1 --> U1["Accueil · API<br/>PDF · e-mails"]
+  G2 --> U1
+  G3 --> U1

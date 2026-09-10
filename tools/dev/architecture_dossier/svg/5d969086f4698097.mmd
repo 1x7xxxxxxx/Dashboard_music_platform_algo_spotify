@@ -1,0 +1,15 @@
+flowchart TB
+  A["Un défaut est signalé<br/>presque toujours par l'artiste"] --> B["MESURER<br/>sur les vraies données"]
+  B --> C{"Le défaut est-il<br/>celui qu'on croyait ?"}
+  C -->|"non — 2 fois sur 6"| B
+  C -->|"oui"| D["BALAYER le dépôt<br/>pour les occurrences sœurs"]
+  D --> E["CRITIQUER la conception<br/>avant d'écrire"]
+  E --> F{"Verdict"}
+  F -->|"à modifier"| E
+  F -->|"à construire"| G["ÉCRIRE le correctif"]
+  G --> H["ÉCRIRE le garde"]
+  H --> I["MUTER : remettre le défaut<br/>et voir le garde ROUGIR"]
+  I --> J{"Le garde<br/>a-t-il rougi ?"}
+  J -->|"non"| H
+  J -->|"oui"| K["CATALOGUER la classe"]
+  K --> L["La classe ne peut plus<br/>revenir sans qu'on le sache"]

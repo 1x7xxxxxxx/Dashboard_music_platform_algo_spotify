@@ -321,6 +321,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [the-application-connects-as-a-superuser](#the-application-connects-as-a-superuser) | P2 | deterministic | guarded | none |
 | [a-batch-that-commits-one-row-at-a-time](#a-batch-that-commits-one-row-at-a-time) | P2 | deterministic | guarded | none |
 | [a-truncated-read-recorded-as-a-complete-one](#a-truncated-read-recorded-as-a-complete-one) | P2 | deterministic | guarded | none |
+| [a-date-that-does-not-say-which-clock-produced-it](#a-date-that-does-not-say-which-clock-produced-it) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4336,7 +4337,8 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-10
 - History:
   - 2026-09-10: signature vue ROUGE en remettant `datetime.now()` nu (« Il y a 1j » pour 23 h) et en décalant la journée produit d'un jour ; verte sur l'arbre corrigé.
-  - 2026-09-10: ce qui RESTE ouvert est mesuré et écrit : **200 lignes sur 2 535** de `youtube_video_stats` (7,9 %) changent de JOUR selon le fuseau retenu, 19 sur 349 pour SoundCloud. Or c'est la date qui décide si deux relevés sont consécutifs, donc si l'écart quotidien est gardé ou jeté. Réconcilier les fuseaux de PUBLICATION (Spotify, Apple) avec les nôtres change des chiffres affichés : cela demande une décision écrite, pas un correctif.
+  - 2026-09-10: j'avais écrit ici « **200 lignes sur 2 535** (7,9 %) changent de JOUR selon le fuseau ». **Ce chiffre était faux**, et le recompter en production a retourné la conclusion. Il mélangeait deux ères sur une base locale. Le compte juste : `collected_at` post-migration-019 — l'ère actuelle — fait basculer **0 ligne sur 5 807** pour YouTube (les collectes nocturnes atterrissent à 10 h UTC, à plus de quatre heures de toute frontière de jour) et **29 lignes toutes plateformes confondues**, toutes des collectes déclenchées à la main tard dans la journée. Les 267 lignes YouTube qui basculent sont **pré-019** : des `DATE`, un jour calendaire, pas un instant.
+  - 2026-09-10: la conséquence est que **le risque était à l'envers**. Le danger de cette zone n'est pas de laisser `collected_at` tranquille — c'est de le « corriger » : une conversion de fuseau appliquée à une colonne d'éditeur déplacerait 267 jours déjà justes d'une journée entière, en croyant les réparer. C'est le chemin qu'une prochaine « harmonisation des fuseaux » prendrait naturellement, et c'est celui que garde `tests/test_a_naive_timestamp_is_not_reinterpreted.py`. Ce qui manquait n'était donc pas un correctif mais la DÉCLARATION : `src/utils/clocks.py` nomme l'horloge de chaque colonne de date, sépare l'horloge de mesure (UTC, celle des collecteurs) de celle d'affichage, et **nomme** l'écart Spotify/Apple qu'on ne peut pas fermer au lieu de l'effacer. ADR-021.
 
 ## a-glyph-with-no-font-vanishes-without-a-trace
 - status: guarded
@@ -4479,3 +4481,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-10
 - History:
   - 2026-09-10: trouvée en VÉRIFIANT une prémisse de roadmap, pas en la suivant. La tâche affirmait que trois collecteurs « relisent tout chaque nuit sans repère de progression » et qu'un repère les accélérerait : c'est FAUX et l'appliquer aurait été une régression — ces API rendent des compteurs CUMULÉS par entité, et relire chaque entité chaque nuit est la mesure elle-même. Le vrai défaut du voisinage était l'inverse : non pas trop lire, mais lire trop peu en silence.
+
+## a-date-that-does-not-say-which-clock-produced-it
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: aucun, tant qu'on ne compare pas deux périodes — et alors l'écart est de quelques heures, change avec la saison, et personne ne peut dire s'il est réel. Quatre horloges cohabitaient sur le même axe de la figure d'accueil et rien, nulle part, ne déclarait laquelle avait produit une date donnée.
+- root_cause: une date entre dans le produit par quatre chemins — un instant écrit par nos collecteurs (UTC), un jour calendaire lu dans une colonne de CSV (fuseau de publication de Spotify), un jour calendaire lu dans un NOM de fichier (fuseau d'Apple), un jour choisi par le lecteur (fuseau d'affichage) — et circulait ensuite sans distinction. Une même colonne en portait deux selon l'âge de la ligne : `DATE` avant la migration 019, instant après.
+- signature: `python3 -m pytest tests/test_a_naive_timestamp_is_not_reinterpreted.py -q`
+- long_term_fix: déclarer l'horloge de chaque colonne (`src/utils/clocks.py`), séparer l'horloge de MESURE de celle d'AFFICHAGE, et n'autoriser la conversion de fuseau que sur les dates qui sont des instants. Règle générale, et elle est contre-intuitive : **le danger n'est pas la date non convertie, c'est la conversion appliquée à ce qui n'est pas un instant.** Un jour calendaire lu chez un éditeur n'a rien à convertir ; le convertir le déplace d'une journée entière en croyant le réparer. Et l'écart qu'on ne peut pas fermer — les journées de reporting de Spotify et d'Apple, arrêtées dans leur fuseau qu'aucun ne publie — se NOMME au lieu de s'effacer.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_naive_timestamp_is_not_reinterpreted.py }
+- rex_ref: docs/adr/ADR-021-a-date-declares-the-clock-that-produced-it.md
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: **le chiffre qui justifiait cette classe était faux, et le recompter a inversé la conclusion.** J'avais écrit « 200 lignes sur 2 535 (7,9 %) changent de jour selon le fuseau » : mesuré sur une base locale, ce compte mélangeait les deux ères. En production, sur l'ère actuelle, **0 ligne sur 5 807** pour YouTube et **29** toutes plateformes confondues — les collectes nocturnes atterrissent à 10 h UTC, à plus de quatre heures de toute frontière. Un chiffre non ancré à sa population dit le contraire de la vérité.
+  - 2026-09-10: cette cause a été retrouvée **en lisant le PDF**, pas la roadmap. Elle vivait dans une ligne d'historique d'une autre classe — c'est-à-dire à l'endroit exact où rien ne la relit. Un reste mesuré qui n'entre pas dans la roadmap n'est pas suivi, quelle que soit la qualité de l'endroit où il est écrit.
+  - 2026-09-10: la mutation qui devait prouver le balayage anti-conversion est d'abord restée VERTE — elle avait atterri dans le docstring du module, que le prédicat exclut à raison. Deuxième fois dans la séance qu'une mutation accuse un garde à tort. Vérifier que la mutation touche du CODE avant de conclure.

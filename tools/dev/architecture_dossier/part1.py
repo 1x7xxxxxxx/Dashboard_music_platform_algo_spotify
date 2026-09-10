@@ -132,7 +132,10 @@ flowchart LR
 
   <h3>Quatre horloges</h3>
   <p>La date d'une ligne ne vient pas du même endroit selon la source, et rien ne le
-    déclarait. C'est une cause identifiée, encore ouverte à ce jour.</p>
+    déclarait — c'était la septième cause de l'audit. Chaque colonne de date dit
+    désormais laquelle de ces quatre horloges l'a produite, et une seule d'entre elles
+    porte un <em>instant</em> : les trois autres portent un jour calendaire, qu'aucune
+    conversion de fuseau ne doit toucher.</p>
   <table>
     <thead><tr><th>Série</th><th>D'où vient sa date</th><th>Fuseau</th></tr></thead>
     <tbody>
@@ -142,8 +145,11 @@ flowchart LR
       <tr><td>Les bornes choisies par l'artiste</td><td>horloge du serveur d'affichage</td><td>heure locale</td></tr>
     </tbody>
   </table>
-  <p class="tight">Une même colonne peut même en porter deux : les lignes écrites avant un
-    changement de format sont en heure locale, celles d'après en UTC, et elles cohabitent
-    dans la table.</p>
+  <p class="tight">Une même colonne en porte même deux : les lignes écrites avant un
+    changement de format sont des jours calendaires, celles d'après des instants UTC, et
+    elles cohabitent dans la table. Mesuré : sur l'ère actuelle, <strong>zéro</strong>
+    ligne YouTube change de jour selon le fuseau retenu — les collectes atterrissent à
+    10 h UTC, loin de toute frontière. Le risque n'est donc pas de laisser ces dates
+    tranquilles, c'est de les convertir sans distinguer les deux natures.</p>
 </section>
 """

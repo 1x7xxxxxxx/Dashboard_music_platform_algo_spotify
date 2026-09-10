@@ -1,0 +1,30 @@
+flowchart TB
+  subgraph EXT["Sources externes"]
+    direction LR
+    A1["API<br/>Spotify · YouTube<br/>SoundCloud · Instagram · Meta"]
+    A2["Fichiers déposés<br/>Spotify for Artists · Apple<br/>distributeurs · droits"]
+    A3["Saisie manuelle<br/>compléments non exposés<br/>par les API"]
+  end
+  subgraph ING["Collecte — treize chaînes programmées"]
+    B1["Collecteurs<br/>une plateforme chacun"]
+    B2["Lecteurs de fichiers<br/>déclenchés au dépôt"]
+  end
+  subgraph STO["Base de données"]
+    direction LR
+    C1["BRONZE<br/>64 tables · tel que reçu"]
+    C2["ARGENT<br/>une ligne par entité et par jour"]
+    C3["OR<br/>une définition par métrique"]
+  end
+  subgraph SUR["Surfaces"]
+    direction LR
+    D1["Tableau de bord"]
+    D2["API"]
+    D3["Rapport PDF"]
+    D4["E-mails"]
+  end
+  A1 --> B1 --> C1
+  A2 --> B2 --> C1
+  A3 --> C1
+  C1 --> C2 --> C3
+  C3 --> D1 & D2 & D3 & D4
+  C1 -.->|"interdit"| D1

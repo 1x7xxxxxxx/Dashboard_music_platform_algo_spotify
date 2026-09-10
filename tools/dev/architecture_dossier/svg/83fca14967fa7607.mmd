@@ -1,0 +1,15 @@
+flowchart LR
+  subgraph AV["AVANT — la bande retombe"]
+    direction TB
+    C1["Jours 1-5 : mesurés"] --> C2["10 · 20 · 30 · 40 · 50"]
+    C3["Jours 6-20 : NON mesurés"] --> C4["0 · 0 · 0 … 0"]
+    C2 --> C5["Lecture de l'artiste :<br/>« j'ai tout perdu »"]
+    C4 --> C5
+  end
+  subgraph AP["APRÈS — la bande s'arrête"]
+    direction TB
+    D1["Jours 1-5 : mesurés"] --> D2["10 · 20 · 30 · 40 · 50"]
+    D3["Jours 6-20 : inconnus"] --> D4["la courbe s'interrompt<br/>et la note le compte"]
+    D2 --> D5["Lecture de l'artiste :<br/>« on a arrêté de mesurer »"]
+    D4 --> D5
+  end

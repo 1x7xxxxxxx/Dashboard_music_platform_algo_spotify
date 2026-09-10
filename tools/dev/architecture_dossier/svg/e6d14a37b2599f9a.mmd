@@ -1,0 +1,17 @@
+flowchart TB
+  subgraph SRC["Ce qu'on COLLECTE — les quatre piliers instrumentés"]
+    direction LR
+    P1["FRAÎCHEUR<br/>la donnée est-elle<br/>arrivée à l'heure ?"]
+    P2["VOLUME<br/>en bonne quantité ?"]
+    P3["DISTRIBUTION<br/>les valeurs sont-elles<br/>plausibles ?"]
+    P4["SCHÉMA<br/>la forme a-t-elle<br/>changé ?"]
+  end
+  subgraph OUT["Hors périmètre, assumé"]
+    P5["LIGNAGE<br/>qui dépend de quoi"]
+  end
+  subgraph CALC["Ce qu'on CALCULE — le sixième, ajouté"]
+    P6["ACCORD<br/>deux chemins vers le même<br/>nombre rendent-ils<br/>la même valeur ?"]
+  end
+  SRC --> X["Les tables brutes"]
+  X --> CALC
+  CALC --> Y["Les chiffres affichés"]

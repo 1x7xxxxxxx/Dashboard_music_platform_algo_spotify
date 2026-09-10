@@ -28,35 +28,46 @@ PART6 = """
     <div class="qaxis"><span>← effort faible</span><span>effort élevé →</span></div>
   </div>
 
-  <h3>1 · Déclarer l'horloge de chaque date <span class="pill b">cause ouverte</span></h3>
-  <p>C'est la seule des sept causes identifiées qui reste entière. Quatre horloges
-    cohabitent sur le même axe, et une colonne en porte même deux selon l'âge de la ligne.
-    Tant qu'une date circule sans dire d'où elle vient, aucune comparaison de période n'est
-    entièrement sûre.</p>
-  <p><strong>Ce que je ferais :</strong> mesurer d'abord combien de jours changent de seau
-    selon le fuseau retenu — le chiffre décidera de l'ampleur. Puis faire porter à chaque
-    date son fuseau au moment où elle entre dans une comparaison, et <em>nommer</em> l'écart
-    entre les fuseaux de publication qu'on ne peut pas corriger, plutôt que de l'effacer.</p>
+  <h3>1 · Déclarer l'horloge de chaque date <span class="pill ok">livré — et la mesure a retourné la conclusion</span></h3>
+  <p>C'était la dernière des sept causes à rester entière. La méthode annoncée ici était
+    la bonne — « mesurer d'abord combien de jours changent de seau » — et c'est la mesure
+    qui a réduit le chantier <em>et inversé le risque</em>.</p>
+  <table>
+    <thead><tr><th>Population</th><th>Lignes qui changent de jour selon le fuseau</th></tr></thead>
+    <tbody>
+      <tr><td>Ère actuelle (YouTube)</td><td><strong>0 sur 5 807</strong> — les collectes atterrissent à 10 h UTC</td></tr>
+      <tr><td>Ère actuelle, toutes plateformes</td><td><strong>29</strong>, toutes des collectes déclenchées à la main</td></tr>
+      <tr><td>Ancienne ère</td><td>267 — mais ce sont des jours calendaires, pas des instants</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Donc le danger n'est pas de laisser ces dates tranquilles, c'est de les
+    « corriger ».</strong> Une harmonisation des fuseaux appliquée sans distinction
+    déplacerait 267 jours déjà justes d'une journée entière — et c'est précisément la
+    forme qu'une future tâche d'unification prendrait. Ce qui manquait n'était pas un
+    correctif mais la <em>déclaration</em> : chaque colonne de date dit désormais laquelle
+    des quatre horloges l'a produite, l'horloge de mesure est séparée de celle
+    d'affichage, et l'écart entre les journées de reporting de Spotify et d'Apple — qu'on
+    ne peut pas fermer — est <em>nommé</em> au lieu d'être effacé.</p>
 
-  <h3>2 · Compter ce que la collecte jette <span class="pill b">cause ouverte</span></h3>
+  <h3>2 · Compter ce que la collecte jette <span class="pill ok">livré</span></h3>
   <p>Pour un compteur cumulé, l'écart n'est calculé qu'entre deux jours consécutifs. Une
     source mesurée moins de deux jours sur cinq voit donc la majorité de ses écoutes réelles
     n'entrer ni dans la courbe, ni dans les totaux de période — et <strong>rien ne le
     dit</strong>.</p>
-  <p><strong>Ce que je ferais :</strong> deux options, et je choisirais la seconde.
-    Reporter l'écart en disant qu'il couvre N jours — honnête mais l'attribution reste
-    inventée. Ou le jeter comme aujourd'hui, mais le <strong>compter</strong> et l'afficher
-    dans la décomposition d'un total : « 142 jours non mesurés, 8 seaux incomplets ». Ce
-    qui manque n'est pas la donnée, c'est l'aveu.</p>
+  <p><strong>Fait, par la seconde option.</strong> L'écart continue d'être jeté — le
+    reporter sur N jours inventerait une attribution — mais il est désormais
+    <strong>compté</strong> et nommé sous la figure. Le premier relevé l'a dit sans
+    détour : sur YouTube, 21 écoutes dessinées et <strong>167 écartées</strong>. Ce qui
+    manquait n'était pas la donnée, c'était l'aveu.</p>
 
-  <h3>3 · Rendre la frontière du bronze vérifiable</h3>
+  <h3>3 · Rendre la frontière du bronze vérifiable <span class="pill ok">livré</span></h3>
   <p>« Aucune surface ne lit le bronze directement » est aujourd'hui une règle écrite. Une
     règle écrite que rien ne vérifie dérive — c'est le constat central de ce dossier,
     observé six fois.</p>
-  <p><strong>Ce que je ferais :</strong> un contrôle automatique qui liste les tables lues
-    par les surfaces d'affichage et refuse celles qui appartiennent au bronze, avec une
-    liste d'exceptions justifiées et datée. Peu coûteux, et il transforme une intention en
-    propriété.</p>
+  <p><strong>Fait, et sous forme de cliquet.</strong> Le contrôle liste les tables lues
+    par les surfaces d'affichage, gèle le compte du jour et n'accepte que la baisse : une
+    exception peut disparaître, aucune ne peut s'ajouter. L'intention est devenue une
+    propriété, et elle ne peut que se resserrer.</p>
 
   <h3>4 · Un seul contrat de période dans tout le produit</h3>
   <p>L'accueil et les pages plateforme ont <strong>deux vocabulaires de période

@@ -1,0 +1,9 @@
+flowchart LR
+  A["API YouTube"] --> B1["Compteur de CHAÎNE<br/>par paliers, pollué"]
+  A --> B2["Compteur PAR VIDÉO"]
+  B2 --> C["Écart depuis le<br/>maximum déjà vu<br/>de CETTE vidéo"]
+  C --> D{"Le relevé précédent<br/>date-t-il de la veille ?"}
+  D -->|"oui"| E["ARGENT<br/>écart du jour"]
+  D -->|"non"| F["Écart écarté<br/>trou de collecte"]
+  E --> G["OR"]
+  B1 -.->|"abonnés<br/>uniquement"| G2["Page YouTube"]

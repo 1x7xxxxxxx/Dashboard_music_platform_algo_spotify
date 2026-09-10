@@ -1,0 +1,4 @@
+flowchart LR
+  A["Aucune donnée<br/>pour ce locataire"] --> B{"La requête<br/>remplit-elle le vide ?"}
+  B -->|"AVANT — oui"| C["0"] --> D["« 0 écoute cette semaine »<br/>une affirmation"]
+  B -->|"APRÈS — non"| E["inconnu"] --> F["« N/A »<br/>une absence"]

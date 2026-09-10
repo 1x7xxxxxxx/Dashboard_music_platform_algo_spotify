@@ -1,0 +1,7 @@
+flowchart LR
+  A["Export<br/>« 2015-06-30 → 2026-09-04 »"] --> B["Les deux bornes se lisent<br/>dans le NOM du fichier"]
+  B --> C{"L'export tient-il<br/>dans une année civile ?"}
+  C -->|"oui"| D["Un point annuel"]
+  C -->|"non"| E["Écarté de la série<br/>recouvrirait les années<br/>qu'il contient"]
+  D --> F["OR — total annuel"]
+  D -.->|"jamais étalé<br/>sur 365 jours"| G["Série quotidienne"]

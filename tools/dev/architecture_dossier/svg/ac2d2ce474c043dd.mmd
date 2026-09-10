@@ -1,0 +1,17 @@
+flowchart LR
+  subgraph C["Dix-neuf contrôles indépendants"]
+    direction TB
+    K1["Fraîcheur des sources"]
+    K2["Volume — pics et creux"]
+    K3["Compteurs remis à zéro"]
+    K4["Chiffres en désaccord"]
+    K5["Identifiants et jetons"]
+    K6["Facturation"]
+    K7["Erreurs applicatives"]
+    K8["Sauvegarde hors-site"]
+    K9["… et onze autres"]
+  end
+  K1 & K2 & K3 & K4 & K5 & K6 & K7 & K8 & K9 --> M["Un seul e-mail<br/>le soir"]
+  M --> H{"Rien à signaler ?"}
+  H -->|"oui"| S["Silence"]
+  H -->|"non"| E["Symptôme + action,<br/>par locataire"]

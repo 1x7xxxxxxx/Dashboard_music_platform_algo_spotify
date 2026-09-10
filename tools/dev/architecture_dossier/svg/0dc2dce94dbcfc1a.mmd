@@ -1,0 +1,8 @@
+flowchart LR
+  A["Export déposé<br/>par l'artiste"] --> B["BRONZE<br/>une ligne par titre<br/>et par jour"]
+  B --> C{"Deux dépôts<br/>pour le même jour ?"}
+  C -->|"oui"| D["On garde le<br/>relevé le plus fort"]
+  C -->|"non"| E["Tel quel"]
+  D & E --> F["ARGENT<br/>quantité du jour"]
+  F --> G["OR — total et série"]
+  B -.->|"écartée"| H["Ligne « Total »<br/>du fichier"]

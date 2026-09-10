@@ -108,6 +108,26 @@ portaient encore un axe secondaire, sous une forme Plotly que le prédicat ne vo
 pas. Septième instance de « la portée d'un garde est le défaut », la première sur un
 cliquet écrit le jour même.
 
+### R83 — la septième cause, trouvée en LISANT le PDF
+
+Le dossier d'architecture annonçait « quatre horloges » comme la seule des sept causes
+de l'audit restée entière. Elle n'était **dans aucune roadmap** : elle vivait dans une
+ligne d'historique d'une classe d'erreur, là où personne ne la relit. Ouverte et close
+le même jour — voir `archive.md`.
+
+Deux choses en sortent, plus utiles que le correctif :
+
+- **le chiffre que j'avais écrit était faux.** « 200 lignes sur 2 535 (7,9 %) changent
+  de jour selon le fuseau » mélangeait deux ères sur une base locale. En production, sur
+  l'ère actuelle : **0 sur 5 807** pour YouTube, **29** toutes plateformes confondues ;
+- **le risque était à l'envers.** Le danger n'est pas de laisser ces dates tranquilles,
+  c'est de les « corriger » : une harmonisation des fuseaux déplacerait 267 jours
+  calendaires déjà justes d'une journée entière. Ce qui manquait n'était pas un
+  correctif mais la DÉCLARATION — `src/utils/clocks.py`, ADR-021.
+
+Le PDF, lui, annonçait « cause ouverte » sur trois suggestions dont **deux étaient déjà
+livrées**. Un document généré se périme comme un commentaire.
+
 **Un seul geste humain en sort** (il ne rouvre pas de tâche, il attend une main) :
 basculer la production sur le rôle applicatif non-superutilisateur créé par R80 —
 `APP_DB_PASSWORD='…' make db-app-role`, puis `DATABASE_USER=streamlytics_app` dans

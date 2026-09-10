@@ -3722,3 +3722,64 @@ mutations vues rouges avant écriture.
 `DATABASE_PASSWORD=<le même>` dans l'environnement de prod et redémarrer. À faire quand
 quelqu'un peut le surveiller ; `make db-role-check` dit à tout moment sous quel rôle
 l'application tourne.
+
+---
+
+## 🕐 R83 — la septième cause : déclarer l'horloge de chaque date (close le 2026-09-10)
+
+**Ouverte et close le même jour, et elle n'aurait pas dû attendre.** Le dossier
+d'architecture annonçait « quatre horloges » comme la seule des sept causes de l'audit
+restée entière — et c'est en la lisant dans le PDF que la question a été reposée. Elle
+n'était dans aucune roadmap : elle vivait dans une ligne d'historique d'une classe
+d'erreur, c'est-à-dire là où personne ne la relit.
+
+**Mesuré par** : `SELECT count(*) FILTER (WHERE (collected_at AT TIME ZONE 'UTC' AT TIME
+ZONE 'Europe/Paris')::date <> collected_at::date), count(*) FROM <table>`, séparé
+avant/après l'application de la migration 019, en **production**.
+
+### La mesure a retourné la conclusion
+
+| Population | Lignes qui changent de jour selon le fuseau |
+|---|---|
+| `collected_at` post-019 (YouTube) | **0 sur 5 807** — collectes à 10 h UTC, marge min. 15 199 s |
+| post-019, toutes plateformes | **29** — toutes des collectes déclenchées à la main, jusqu'à 23 h UTC |
+| pré-019 (YouTube) | 267 — mais ce sont des `DATE`, un jour calendaire, pas un instant |
+
+J'avais écrit « 200 lignes sur 2 535, 7,9 % » dans le catalogue d'erreurs. **Ce chiffre
+était faux** : mesuré sur une base locale, il mélangeait les deux ères. L'entrée est
+corrigée, avec la façon dont l'erreur a été faite.
+
+### Ce qui en découle, et qui est l'inverse de ce qu'on attendait
+
+**Le danger n'est pas de laisser ces dates tranquilles, c'est de les « corriger ».** Une
+harmonisation des fuseaux appliquée sans distinguer les natures déplacerait 267 jours
+calendaires déjà justes d'une journée entière — et c'est exactement la forme qu'une
+future tâche « unifier les fuseaux » prendrait. Ce qui manquait n'était donc pas un
+correctif : c'était la DÉCLARATION.
+
+- `src/utils/clocks.py` — les quatre horloges nommées, et l'horloge de chaque colonne de
+  date déclarée. `MEASUREMENT_TZ` (UTC, celle des collecteurs) est séparée de
+  `DISPLAY_TZ` : un jour de mesure ne dépend pas de la machine qui affiche. Seules les
+  dates de l'horloge `OURS` sont convertibles ; les trois autres portent un jour
+  calendaire, qu'aucune conversion ne doit toucher.
+- `UNRECONCILABLE_NOTE` — l'écart entre les journées de reporting de Spotify et d'Apple,
+  arrêtées dans leur propre fuseau qu'aucun ne publie, est **nommé** au lieu d'être
+  effacé. Le nommer est le correctif ; l'effacer serait la faute.
+- **ADR-021**, avec les quatre alternatives rejetées — dont « passer les 51 tables en
+  `timestamptz` », rejetée parce qu'aucun défaut mesurable ne la paie.
+- Garde : `tests/test_a_naive_timestamp_is_not_reinterpreted.py`, quatre prédicats, quatre
+  mutations vues rouges. Il balaie `src/` et `airflow/` par l'AST pour interdire qu'une
+  date d'éditeur passe par un `AT TIME ZONE`.
+
+### Le dossier remis à jour
+
+Le PDF annonçait « cause ouverte » sur **trois** suggestions dont **deux étaient déjà
+livrées** (compter ce que la collecte jette — R64 ; rendre la frontière du bronze
+vérifiable — R70). Un document généré se périme comme un commentaire. Les trois portent
+maintenant leur état réel, sur une pastille de STATUT distincte des pastilles de COUCHE
+(bronze/argent/or) — réutiliser la pastille « or » pour dire « livré » faisait lire une
+couche là où il y a un état.
+
+Et le README du générateur ne portait **aucune commande** : `build.py` ne rend rien et
+sort avec le code 0, ce qui m'a fait croire le dossier régénéré alors qu'il datait de
+quatre heures. L'entrée (`main.py <destination>`) y est écrite.

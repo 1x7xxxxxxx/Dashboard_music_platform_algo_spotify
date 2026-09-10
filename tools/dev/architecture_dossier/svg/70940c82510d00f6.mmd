@@ -1,0 +1,11 @@
+flowchart TB
+  subgraph AV["AVANT"]
+    A1["Période demandée<br/>11 sept. 2025 → 10 sept. 2026"] --> A2["Borne ramenée au<br/>1ᵉʳ janvier 2025"]
+    A2 --> A3["Le seau « 2025 » embarque<br/>TOUTE l'année 2025"]
+    A3 --> A4["23 251 tracées<br/>huit mois non demandés"]
+  end
+  subgraph AP["APRÈS"]
+    B1["Période demandée<br/>11 sept. 2025 → 10 sept. 2026"] --> B2["Les lignes sont DÉCOUPÉES<br/>avant d'être sommées"]
+    B2 --> B3["Le seau de bord ne porte<br/>que ses jours utiles"]
+    B3 --> B4["8 490 tracées"]
+  end

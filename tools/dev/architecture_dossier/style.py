@@ -77,6 +77,11 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: now
 .pill.b { background: #f0e6d8; color: #7a5a2a; }
 .pill.s { background: #e6ecf2; color: #3d5a72; }
 .pill.g { background: #fdf1d6; color: #8a6410; }
+/* b / s / g nomment les COUCHES (bronze, argent, or) — un code couleur qui doit rester
+   lisible comme tel. Un statut de livraison prend donc sa propre pastille : réutiliser
+   la pastille « or » pour dire « livré » ferait lire une couche là où il y a un état. */
+.pill.ok  { background: #e3f2e6; color: #2c6b3a; }
+.pill.due { background: #f5e7e4; color: #8a3a2a; }
 
 .quad { margin: 4mm 0 6mm; break-inside: avoid; }
 .qgrid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 46mm 40mm;

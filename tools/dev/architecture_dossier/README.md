@@ -8,6 +8,23 @@ plafond de 1 Mo que `check-added-large-files` fait respecter sur ce dépôt. Un 
 dérivé qui grossit à chaque régénération est exactement ce que ce plafond existe pour
 tenir à distance. Le générateur, lui, est petit et se relit.
 
+## Générer
+
+```bash
+cd tools/dev/architecture_dossier
+python3 main.py ../../../docs/streamlytics-architecture-et-qualite-des-donnees.pdf
+```
+
+`main.py` est l'entrée — **pas `build.py`**, qui ne définit que le rendu mermaid et sort
+en silence avec le code 0 si on l'exécute seul. Le 2026-09-10 j'ai lancé `build.py`, vu
+`rc=0`, et cru le dossier régénéré : il datait de quatre heures. Un script qui sort 0 en
+n'ayant rien fait est indiscernable d'un script qui a réussi, et ce README ne portait
+aucune commande — c'est ce qui a rendu la confusion possible.
+
+Sans argument, `main.py` écrit `dossier.pdf` à côté de lui. Il laisse aussi
+`dossier.html` : c'est là qu'on vérifie ce qui a été rendu, l'extraction de texte d'un
+PDF à polices sous-ensemblées ne le dit pas de façon fiable.
+
 ## Ce que la chaîne apprend, et qu'il faut savoir avant d'y toucher
 
 Cinq défauts de rendu ont été trouvés **en regardant les pages**, jamais en lisant le
