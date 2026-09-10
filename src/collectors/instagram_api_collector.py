@@ -362,6 +362,7 @@ class InstagramCollector:
     @retry(max_attempts=3, backoff="exponential")
     def fetch_media(self, max_pages: int = 10) -> list:
         """Fetch the account's posts via /{ig-user-id}/media (paginated, capped)."""
+        self.media_truncated = False
         url = f"{self.base_url}/{self.ig_user_id}/media"
         params = {
             'fields': 'id,caption,media_type,permalink,media_url,'
@@ -403,7 +404,24 @@ class InstagramCollector:
                 url = data.get('paging', {}).get('next')
                 pages += 1
             if pages >= max_pages and url:
-                logger.warning(f"IG media pagination cap ({max_pages}) hit — older posts skipped.")
+                # UNE TRONCATURE EST UN FAIT SUR LES DONNÉES, PAS UNE LIGNE DE LOG.
+                #
+                # Ce plafond n'est pas une erreur : c'est une lecture bornée, et le
+                # collecteur a raison de ne pas lever. Mais il laisse des publications
+                # HORS de la base, définitivement pour cette nuit, et l'artiste voit
+                # un historique incomplet sans que rien ne le lui dise. Un
+                # `logger.warning` part dans le journal d'un conteneur que personne
+                # ne lit — le dépôt a déjà payé cette classe (« 672 échecs en une
+                # semaine, aucun rapporté »).
+                #
+                # On le porte donc sur l'objet, où le DAG peut le lire et enregistrer
+                # `partial` : c'est le statut que la tâche d'alerte remonte déjà
+                # (`status not in ('failed', 'partial')`), et il dit exactement la
+                # vérité — la collecte a marché, mais pas en entier.
+                self.media_truncated = True
+                logger.warning(
+                    "IG media pagination cap (%s pages) hit — older posts skipped "
+                    "for this tenant tonight.", max_pages)
             logger.info(f"Fetched {len(media)} Instagram media item(s)")
             return media
         except ValueError:

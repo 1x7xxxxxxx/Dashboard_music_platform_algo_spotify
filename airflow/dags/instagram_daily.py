@@ -80,7 +80,8 @@ def run_insta_collector(**context):
             return
 
     from src.utils.dag_run_logger import (
-        record_tenant_failure, record_tenant_skip, record_tenant_success,
+        record_tenant_failure, record_tenant_run, record_tenant_skip,
+        record_tenant_success,
     )
     run_id = context.get('run_id', '') if context else ''
 
@@ -120,7 +121,7 @@ def run_insta_collector(**context):
             # mesures. Le schéma impose `started_at NOT NULL` — on ne peut donc pas dire
             # « je ne sais pas » ; on mesure.
             _t0 = _time.monotonic()
-            rows = InstagramCollector(
+            _collector = InstagramCollector(
                 artist_id=artist_id,
                 access_token=token,
                 ig_user_id=ig_user_id,
@@ -132,9 +133,23 @@ def run_insta_collector(**context):
                 # artistes. Ne pas le passer ici aurait laissé le repli en place et
                 # inatteignable, exactement comme une couche débranchée.
                 ig_username=creds.get('ig_username'),
-            ).run() or 0
-            record_tenant_success('instagram_daily', artist_id, 'instagram', rows, run_id,
-                                  duration_ms=int((_time.monotonic() - _t0) * 1000))
+            )
+            rows = _collector.run() or 0
+            # PARTIEL N'EST PAS SUCCÈS. Le plafond de pagination d'Instagram laisse
+            # les publications les plus anciennes hors de la base — la collecte a
+            # marché, mais pas en entier. L'écrire `success` rendrait un historique
+            # amputé indiscernable d'un historique complet, et `partial` est
+            # précisément le statut que la tâche d'alerte remonte déjà.
+            if getattr(_collector, 'media_truncated', False):
+                record_tenant_run(
+                    'instagram_daily', artist_id, 'instagram', run_id,
+                    status='partial', rows=rows,
+                    reason='pagination Instagram plafonnée — les publications les '
+                           'plus anciennes n ont pas été relues cette nuit',
+                    duration_ms=int((_time.monotonic() - _t0) * 1000))
+            else:
+                record_tenant_success('instagram_daily', artist_id, 'instagram', rows, run_id,
+                                      duration_ms=int((_time.monotonic() - _t0) * 1000))
             succeeded += 1
             logger.info(f"  Collect done for {artist_name}")
         except Exception as e:
