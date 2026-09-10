@@ -50,6 +50,37 @@ _COHORT_WORDS = ("publication", "publié", "publiés", "sortie", "cohorte",
                  "acquis à ce jour", "published", "cohort")
 
 
+@lru_cache(maxsize=32)
+def _user_facing_strings(rel: str) -> tuple[str, ...]:
+    """Les chaînes que l'artiste LIT : défauts de `t()`, titres, légendes.
+
+    Un commentaire ou un docstring n'annonce rien à personne. Seul ce qui atteint
+    l'écran peut dire au lecteur que la figure regroupe par date de sortie.
+    """
+    tree = ast.parse((VIEWS / rel).read_text(encoding="utf-8"))
+    out: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
+        if name == "t":
+            # `t("clé", "défaut")` — le défaut est le texte français affiché.
+            for arg in node.args[1:]:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    out.append(arg.value)
+        elif name in ("caption", "header", "subheader", "markdown", "info",
+                      "warning", "write", "title"):
+            for arg in node.args:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    out.append(arg.value)
+        for kw in node.keywords:
+            if kw.arg in ("title", "labels", "yaxis_title", "xaxis_title"):
+                for c in ast.walk(kw.value):
+                    if isinstance(c, ast.Constant) and isinstance(c.value, str):
+                        out.append(c.value)
+    return tuple(out)
+
+
 @lru_cache(maxsize=1)
 def _bindings() -> list[tuple[str, str, int]]:
     """(fichier, colonne bornée, ligne) pour chaque sélecteur de période."""
@@ -99,8 +130,16 @@ def test_a_cohort_bound_figure_says_so() -> None:
     for f, col, lineno in _bindings():
         if not is_cohort_column(col):
             continue
-        text = (VIEWS / f).read_text(encoding="utf-8").lower()
-        if not any(w in text for w in _COHORT_WORDS):
+        # Dans un texte VU PAR L'ARTISTE, pas n'importe où dans le fichier.
+        #
+        # La première version cherchait le mot dans tout le source : un commentaire
+        # expliquant le correctif suffisait alors à satisfaire le garde, et une
+        # mutation qui retirait l'annonce de l'ÉCRAN restait verte. C'est la même
+        # faiblesse que « une mention vaut un bornage », trouvée le même jour — et
+        # c'est la sixième fois que ce dépôt mesure qu'un garde textuel se satisfait
+        # de sa propre documentation.
+        if not any(w in txt.lower() for txt in _user_facing_strings(f)
+                   for w in _COHORT_WORDS):
             offenders.append(f"{f}:{lineno} borne sur `{col}`")
     assert not offenders, (
         f"{offenders} : la fenêtre porte sur une date de PUBLICATION, donc la figure "
