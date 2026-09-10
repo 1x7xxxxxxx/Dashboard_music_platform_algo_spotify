@@ -25,14 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R75 | **Le disjoncteur n'a aucun appelant de production** — `etl_circuit_breaker` compte **0 ligne**. Un credential cassé consomme donc 2 essais × 13 DAGs × N locataires chaque nuit, indéfiniment. Et `@retry` rejoue **toute** exception, y compris un 401/403 qui ne redeviendra jamais vrai, en ignorant `Retry-After` — que SoundCloud lit et n'utilise pas. | P2 | `SELECT count(*) FROM etl_circuit_breaker` = 0 |
-| R76 | **L'instrumentation d'ingestion ment.** 4 DAGs sur 5 écrivent `ended_at == started_at`, donc `duration_ms` nulle : seul Meta est mesurable par `etl_run_log`. Et deux échecs persistants qu'aucune alerte ne remonte comme tels : **Spotify 144 runs non-success sur 183**, Meta locataire 12 en échec **tous les jours** depuis des semaines. | P2 | `etl_run_log` + `task_instance` en prod |
-| R77 | **Axes doubles, triples et quadruples sur 6 vues et 9 figures**, alors que le dépôt en a fait un principe explicite ailleurs — dont une figure à **4 axes superposés**. Plus deux `fillna(0)` qui restent sur une FIGURE : une popularité recopiée par `ffill` dans le fichier qui refuse trois lignes plus bas de fabriquer un CPR, et un âge inconnu dessiné à « importé aujourd'hui ». | P3 | 9 occurrences localisées |
-| R78 | **Rien n'empêche mécaniquement la réapparition.** Un axe double ou une clé `session_state` non scopée par locataire peut revenir dans la 45ᵉ vue : la garantie repose sur le commentaire d'un fichier voisin, pas sur un test. C'est la classe que ce dépôt a déjà nommée six fois sous d'autres formes. Deux cliquets à poser. | P3 | constat du critique, non gardé |
-| R79 | **Écritures et requêtes gratuites.** `remember_lang` écrit en base à chaque rerun sans comparer : **932 UPDATE pour 447 vues**. `get_live_pulse` non caché quand son voisin immédiat l'est. **6 des 14 requêtes de l'accueil sont des doublons exacts**. Et un TTL de 60 s sur 11 helpers alimentés une fois par nuit — à relever, mais couplé à une purge au déclenchement de collecte. | P3 | mesuré en prod |
-| R80 | **La base est atteinte en superutilisateur.** Une injection ou une fuite de DSN ne donne pas « lecture des tables », elle donne `COPY … TO PROGRAM` — exécution de commandes sur l'hôte — plus les empreintes de mots de passe et les jetons chiffrés de toute la flotte. Combiné aux 0/93 tables sous RLS (choix assumé), il n'y a aucune couche entre une erreur applicative et la base entière. | P4 | `docker-compose.yml:59` |
-| R81 | **Poids mort mesuré.** 234 index jamais utilisés, **10 Mo sur 61 (16 %)**, payés à chaque upsert nocturne. `insert_many` fait **un COMMIT par ligne** (1 500 titres pour un locataire). Et trois collecteurs relisent tout chaque nuit, sans repère de progression. | P4 | `idx_scan = 0` sur 234 index |
-| R82 | **Ce qui coûte à faire vivre.** Trois fichiers au-dessus de 1 200 lignes, dont un mélangeant navigation, routage, session et première visite. Le garde du locataire réécrit en clair 3 fois dans `hypeddit`, alors que le helper créé pour ça ne couvre que 2 sites sur 4. | P4 | comptage de lignes |
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
 correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
@@ -87,11 +79,42 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-10, neuf tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-10, UNE tâche ouverte (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1,R75,R76,R77,R78,R79,R80,R81,R82 -->
+<!-- reprise: open=R1 -->
 
-### Ce que le 2026-09-10 a changé (sept tâches livrées, une reste)
+### Ce que le 2026-09-10 a changé (l'audit transverse, huit tâches livrées)
+
+**R75 à R82 sont livrées et rotées dans `archive.md`.** Elles portaient l'audit
+transverse commandé ce jour-là : résilience API, vitesse Streamlit et ingestion,
+robustesse des données, couche or/argent/bronze, cybersécurité, refactor, filtres,
+méthode de tracé. Chacune avec son correctif, son garde dédié, et ses mutations vues
+ROUGES avant écriture.
+
+Trois d'entre elles ont rectifié leur propre énoncé, et c'est le résultat le plus
+utile de la séance — une roadmap se périme comme un commentaire :
+
+- les « 144 échecs Spotify » de R76 sont des `skipped` : quatre locataires n'ont pas
+  déclaré d'identifiant. Le troisième état délibéré du journal, pas une panne ;
+- les « 6 requêtes en double de l'accueil » de R79 avaient déjà été retirées par
+  R64–R69. Le vrai compte du jour était 14 exécutions pour 13 questions, un seul
+  doublon ;
+- le « repère de progression manquant » de R81 aurait été une **régression** : ces API
+  rendent des compteurs cumulés par entité, et relire chaque entité chaque nuit est la
+  mesure elle-même.
+
+Et R77 a été trouvée fausse-verte : son cliquet lisait 0 pendant que trois figures
+portaient encore un axe secondaire, sous une forme Plotly que le prédicat ne voyait
+pas. Septième instance de « la portée d'un garde est le défaut », la première sur un
+cliquet écrit le jour même.
+
+**Un seul geste humain en sort** (il ne rouvre pas de tâche, il attend une main) :
+basculer la production sur le rôle applicatif non-superutilisateur créé par R80 —
+`APP_DB_PASSWORD='…' make db-app-role`, puis `DATABASE_USER=streamlytics_app` dans
+l'environnement de prod et redémarrer. `make db-role-check` dit à tout moment sous
+quel rôle l'application tourne.
+
+### Ce que le 2026-09-10 a changé plus tôt (sept tâches livrées)
 
 R64, R65, R66, R67, R68, R69 et R71 sont **livrées et rotées dans `archive.md`** —
 correctif, garde dédié, mutations rouges avant écriture, suite complète verte à 4 804

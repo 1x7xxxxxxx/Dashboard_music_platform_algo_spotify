@@ -20,8 +20,15 @@ La lenteur est le symptôme visible ; l'état partiel indiscernable d'un état c
 est le défaut. C'est la même famille que « le non-mesuré affiché comme zéro » : une
 donnée fausse qui ne ressemble pas à une erreur.
 
-Mesuré après correctif : 1 500 lignes en 67 ms, et **0 ligne committée** quand la
+Mesuré après correctif : 1 500 lignes en 118 ms, et **0 ligne committée** quand la
 501ᵉ viole une contrainte.
+
+`execute_values` (une seule instruction pour tout le lot, 67 ms mesurés) a été essayé
+et écarté : il exige un vrai curseur psycopg2 pour rendre les identifiants, ce qui
+rend `test_a_bulk_write_sees_every_column` inexécutable. Ce garde tient une classe
+déjà payée — `bulk-write-reads-only-the-first-row` — et on ne désarme pas un garde
+pour gagner 50 ms sur un lot nocturne. Le défaut à retirer était la transaction par
+ligne ; il l'est.
 """
 from __future__ import annotations
 
@@ -73,6 +80,9 @@ def test_insert_many_no_longer_sends_one_statement_per_row() -> None:
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
     assert "executemany" not in calls, (
         "insert_many est revenu à `executemany` : 1 500 titres = 1 500 transactions")
+    assert "execute_batch" in calls or "execute_values" in calls, (
+        "insert_many n'envoie plus son lot par un helper de psycopg2 — le prédicat "
+        "ci-dessus serait alors satisfait par une implémentation qui n'écrit rien")
 
 
 def test_the_atomic_context_restores_what_it_changed() -> None:

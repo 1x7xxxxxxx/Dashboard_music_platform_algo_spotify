@@ -3598,3 +3598,127 @@ un correctif est la façon dont on livre trois choses à moitié.
   `business_management` et une écriture Business ordinaire passe, mais les deux arêtes
   de partage répondent `(#3) Application does not have the capability`. La **détection**
   du partage existait déjà (`check_onboarding_readiness`, ≤24 h) : rien à réécrire.
+
+---
+
+## 🧱 R75–R82 — l'audit transverse, clos le 2026-09-10
+
+Huit tâches ouvertes par l'audit du 2026-09-10 (résilience API, vitesse Streamlit et
+ingestion, robustesse des données, couches or/argent/bronze, cybersécurité, refactor,
+filtres, méthode de tracé). Toutes closes le jour même, chacune avec son garde et ses
+mutations vues rouges avant écriture.
+
+- **R75** — [CLOS — corrigé] Le disjoncteur avait 0 ligne : aucun appelant de
+  production. `DagRunLogger.__exit__` l'alimente désormais. Et `@retry` rejouait
+  **toute** exception : `_http_verdict` distingue le refus (4xx hors 429, qui ne
+  redeviendra jamais vrai) du contretemps, et honore `Retry-After`.
+  Gardes : `test_a_refusal_is_not_retried.py`, `test_nothing_waits_without_a_bound.py`.
+
+- **R76** — [CLOS — corrigé, et une prémisse rectifiée] `record_tenant_run` écrivait
+  `started_at == ended_at`. Mesuré en production : **515 lignes d'`etl_run_log` sur 587
+  (30 j) sans durée exploitable** — seul Meta en avait. Les quatre autres DAGs
+  chronomètrent. L'inconnu se dit dans `duration_ms` (nullable) et jamais dans
+  `started_at` (NOT NULL depuis la migration 006) : y écrire NULL fait lever l'INSERT,
+  que le `except` avale, et **la ligne disparaît** — le trou même que ce journal existe
+  pour retirer.
+
+  Les « 144 runs Spotify non-success sur 183 » de l'énoncé sont des **`skipped`** :
+  quatre locataires n'ont pas déclaré d'identifiant Spotify. C'est le troisième état
+  délibéré du journal, pas une panne.
+
+  Le locataire 12 échoue sur Meta **toutes les nuits depuis le 2026-06-19 — 93 nuits**,
+  toujours `(#200) Ad account owner has NOT grant ads_management or ads_read
+  permission`. Aucune exécution ne peut la retirer : elle nomme un geste humain chez
+  Meta. Le défaut n'était pas de le dire, c'était de le dire **à l'identique la nuit 1
+  et la nuit 93** — un objet d'e-mail qui ne change jamais cesse d'être lu, et le soir
+  où il change personne ne le voit. L'ancienneté est mesurée et montrée ; le sujet
+  nomme ce qui vient de casser et compte ce qui est bloqué. Rien n'est tu.
+  Gardes : `test_a_duration_is_read_where_it_is_written.py`,
+  `test_a_block_of_ninety_three_nights_does_not_read_like_tonight.py`.
+
+- **R77** — [CLOS — corrigé, après un faux vert] 12 axes secondaires convertis en
+  petits multiples… puis **trois de plus**, invisibles au cliquet : il ne cherchait que
+  `yaxis2…9`, et Plotly a une seconde forme — `make_subplots(specs=[[{"secondary_y":
+  True}]])` — qui n'écrit ce nom nulle part. Septième instance de « la portée d'un
+  garde est le défaut », la première sur un cliquet écrit **le jour même**. Le prédicat
+  voit les deux formes, le cliquet et sa sonde n'en partagent plus qu'un seul, et le
+  compte est à **0**. Plus un `.ffill().fillna(0)` qui recopiait une popularité non
+  mesurée puis écrivait 0 — la valeur la plus basse de l'échelle — là où le relevé
+  n'avait jamais commencé.
+
+- **R78** — [CLOS — corrigé] Deux cliquets posés : axes secondaires (0) et clés de
+  widget littérales (77, ne peut que descendre). `test_the_visual_rules_only_tighten.py`.
+
+- **R79** — [CLOS — corrigé, et une prémisse rectifiée] `remember_lang` écrivait à
+  chaque rerun sans comparer : **932 UPDATE pour 447 vues de page**. Il n'écrit plus
+  que sur un vrai changement — et **marque après le succès**, jamais avant : marquer
+  d'abord perdrait le choix en silence quand la base est injoignable.
+  `get_live_pulse` est caché 30 s, sur un `cutoff` ARRONDI à la fenêtre — sans cet
+  arrondi, chaque rerun produit une clé de cache neuve et le cache n'a jamais un seul
+  succès (c'est la façon la plus courante de croire avoir mis un cache).
+  TTL des 10 helpers KPI : 60 s → 600 s, **couplé à `clear_kpi_caches()`** aux deux
+  sites qui déclenchent une collecte — on ne fait pas confiance à l'horloge, on écoute
+  l'événement.
+
+  Les « 6 requêtes de l'accueil en double » étaient périmées : le retrait des tuiles
+  (R64–R69) les avait déjà retirées. Mesure du jour : **14 exécutions pour 13 questions
+  distinctes**, un seul vrai doublon (`_apple_readings`, appelé par trois fonctions au
+  même rendu). Mémo attaché à la CONNEXION — donc d'une durée exactement égale à un
+  rendu, sans horloge et sans franchir la frontière d'un locataire. Résultat : 13 / 0.
+  Gardes : `test_a_preference_is_written_when_it_changes.py`,
+  `test_a_page_asks_the_same_question_once.py` (cliquet 13 admin / 11 artiste).
+
+- **R80** — [CLOS — livré, la bascule reste un geste] Migration 098 :
+  `streamlytics_app`, NOSUPERUSER, sans DDL. Prouvé en se connectant sous ce rôle :
+  lectures et INSERT/UPDATE/DELETE passent ; `pg_authid`, `COPY … TO PROGRAM` et le
+  DDL sont **refusés**. `docker-compose.example.yml` lit `DATABASE_USER` dans
+  l'environnement (défaut `postgres`) : la bascule est un geste d'exploitation, pas
+  l'effet de bord d'un `git pull`. `make db-app-role` / `make db-role-check`.
+  Le garde visait d'abord `docker-compose.yml` — **gitignoré**, donc un contrôle qui
+  n'aurait jamais tourné en CI : quatrième instance de cette classe.
+  Garde : `test_the_application_is_not_a_superuser.py`.
+
+- **R81** — [CLOS — corrigé, et une prémisse rectifiée] Recompté en production :
+  385 index / 28 Mo, 232 jamais parcourus — mais **107 d'entre eux garantissent une
+  clé primaire ou une unicité**. Les compter comme du poids mort, c'est proposer de
+  retirer une contrainte d'intégrité au motif que personne ne l'a interrogée. Migration
+  099 retire les **15** dont les colonnes sont un préfixe strict de celles d'un autre
+  index — propriété démontrable, pas une opinion sur l'usage. Les 110 autres sont
+  listés par `make index-report`, avec leur DDL de recréation : la décision est humaine.
+
+  `insert_many` faisait **une transaction par ligne** (`executemany` + `autocommit`).
+  La lenteur était le symptôme ; le défaut était qu'un échec à la ligne 501 laissait
+  **500 lignes committées**, indiscernables d'une collecte complète. Contexte `_atomic()`
+  sur les deux écritures de lot : mesuré 1 500 lignes en 118 ms et **0 ligne committée**
+  sur échec. (`execute_values` faisait 67 ms mais rend
+  `test_a_bulk_write_sees_every_column` inexécutable — on ne désarme pas un garde pour
+  50 ms sur un lot nocturne.)
+
+  Le « repère de progression manquant sur trois collecteurs » est **faux**, et le
+  vérifier a évité une régression : ces API rendent des compteurs CUMULÉS par entité.
+  Relire chaque entité chaque nuit n'est pas du gaspillage, c'est la mesure — tout
+  `platform_timeseries` en dépend. Le vrai défaut du voisinage était l'inverse : le
+  plafond de pagination Instagram laisse des publications hors de la base, et ne le
+  disait que dans un `logger.warning`. Il s'enregistre désormais `partial`.
+  Gardes : `test_a_batch_is_all_or_nothing.py`, `test_a_truncated_read_is_not_a_full_one.py`.
+
+- **R82** — [CLOS — corrigé, avec une part explicitement non faite] Les deux pages
+  atteintes depuis un e-mail (`_verify_email`, `_unsubscribe`) sortent d'`app.py` vers
+  `views/email_actions.py` : 1 252 → **1 073** lignes, et surtout ces flux deviennent
+  TESTABLES — l'en-tête d'`app.py` lève sans `AIRFLOW_PASSWORD` ni `FERNET_KEY`, donc
+  rien de ce qu'il contenait n'était atteignable depuis un test. Le garde du locataire
+  de `hypeddit` passe de 2 sites recopiés à **0** : deux helpers, une seule décision.
+  Cliquet de longueur posé sur les quatre plus gros fichiers, gelé à la ligne près.
+
+  **Non fait, et délibérément** : la navigation d'`app.py` n'est pas découpée. Deux
+  causes racines de navigation ont déjà traversé 3 755 tests verts ici, parce que le
+  harnais appelle chaque `show()` isolément et jamais `_main_body` : un tel découpage
+  ne peut être validé qu'au navigateur, et le faire sans cette vérification échangerait
+  de la dette lisible contre un risque de régression invisible.
+  Gardes : `test_the_tenant_guard_is_written_once.py`, `test_a_file_only_gets_shorter.py`.
+
+**Le geste humain que R80 laisse** : basculer la production sur le rôle applicatif —
+`APP_DB_PASSWORD='…' make db-app-role`, puis poser `DATABASE_USER=streamlytics_app` et
+`DATABASE_PASSWORD=<le même>` dans l'environnement de prod et redémarrer. À faire quand
+quelqu'un peut le surveiller ; `make db-role-check` dit à tout moment sous quel rôle
+l'application tourne.

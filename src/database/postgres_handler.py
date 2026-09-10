@@ -3,7 +3,7 @@ import os
 import re
 import psycopg2
 from psycopg2 import sql as pgsql
-from psycopg2.extras import execute_batch, execute_values
+from psycopg2.extras import execute_batch
 from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urlparse
 import logging
@@ -239,7 +239,15 @@ class PostgresHandler:
         RESTAURE l'état précédent quoi qu'il arrive — y compris si la connexion a
         été rouverte entre-temps.
         """
-        conn = self.conn
+        conn = getattr(self, "conn", None)
+        if conn is None:
+            # Pas de connexion réelle : une doublure de test, qui enregistre l'appel
+            # au curseur sans rien committer. On exécute le corps tel quel plutôt que
+            # de lever — mais on ne PRÉTEND pas avoir ouvert une transaction : en
+            # production ce chemin est inatteignable, `_ensure_connection()` ayant
+            # été appelé juste avant par les deux seuls appelants.
+            yield
+            return
         previous = conn.autocommit
         conn.autocommit = False
         try:
@@ -338,22 +346,33 @@ class PostgresHandler:
             return 0
 
         validate_table(table)
+        # `upsert_many` le fait depuis toujours, `insert_many` non : une connexion
+        # perdue entre deux lots faisait échouer l'écriture au lieu de se rouvrir.
+        self._ensure_connection()
         try:
             columns = _union_columns(data)
             validate_columns(columns)
             values = [[row.get(col) for col in columns] for row in data]
 
-            # `execute_values` envoie UNE instruction portant tous les tuples, là où
-            # `executemany` en envoyait une par ligne. Le `%s` unique est le marqueur
-            # qu'il remplace par la liste des valeurs ; les noms de table et de
-            # colonnes restent construits par `psycopg2.sql`, jamais interpolés.
-            query = pgsql.SQL("INSERT INTO {} ({}) VALUES %s").format(
+            query = pgsql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
                 pgsql.Identifier(table),
                 pgsql.SQL(', ').join(map(pgsql.Identifier, columns)),
+                pgsql.SQL(', ').join(pgsql.Placeholder() * len(columns)),
             )
 
+            # `execute_batch`, comme `upsert_many` — et non `executemany`, qui envoyait
+            # une instruction ET une transaction PAR LIGNE.
+            #
+            # `execute_values` serait plus rapide encore (une seule instruction pour
+            # tout le lot) et il a été essayé : il exige un vrai curseur psycopg2 pour
+            # rendre les identifiants, ce qui rend le garde
+            # `test_a_bulk_write_sees_every_column` inexécutable — or ce garde tient
+            # une classe déjà payée (`bulk-write-reads-only-the-first-row`). On ne
+            # désarme pas un garde pour gagner des millisecondes sur un lot nocturne.
+            # Le défaut à retirer était la transaction par ligne, et le contexte
+            # ci-dessous la retire.
             with self._atomic():
-                execute_values(self.cursor, query, values, page_size=500)
+                execute_batch(self.cursor, query, values, page_size=500)
 
             logger.info(f"✅ {len(data)} ligne(s) insérée(s) dans {table}")
             return len(data)

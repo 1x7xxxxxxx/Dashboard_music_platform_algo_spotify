@@ -314,6 +314,13 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-partial-bucket-drawn-as-a-full-one](#a-partial-bucket-drawn-as-a-full-one) | P2 | deterministic | guarded | none |
 | [a-failed-collection-writes-zeros](#a-failed-collection-writes-zeros) | P2 | deterministic | guarded | none |
 | [a-form-constraint-checked-on-the-series-not-on-the-axis](#a-form-constraint-checked-on-the-series-not-on-the-axis) | P2 | deterministic | guarded | none |
+| [a-zero-that-was-never-measured-passes-for-a-measurement](#a-zero-that-was-never-measured-passes-for-a-measurement) | P2 | deterministic | guarded | none |
+| [an-alert-that-never-changes-stops-being-read](#an-alert-that-never-changes-stops-being-read) | P2 | heuristic | guarded | none |
+| [a-ratchet-frozen-on-a-partial-predicate](#a-ratchet-frozen-on-a-partial-predicate) | P2 | deterministic | guarded | none |
+| [a-cache-key-that-can-never-be-hit-twice](#a-cache-key-that-can-never-be-hit-twice) | P3 | deterministic | guarded | none |
+| [the-application-connects-as-a-superuser](#the-application-connects-as-a-superuser) | P2 | deterministic | guarded | none |
+| [a-batch-that-commits-one-row-at-a-time](#a-batch-that-commits-one-row-at-a-time) | P2 | deterministic | guarded | none |
+| [a-truncated-read-recorded-as-a-complete-one](#a-truncated-read-recorded-as-a-complete-one) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4361,3 +4368,114 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - first_seen: 2026-09-10
 - History:
   - 2026-09-10: `heuristic` et non `deterministic`, délibérément : le volume écarté dépend de la cadence de collecte, donc aucun seuil ne le sépare d'un fonctionnement normal. Ce qui est gardé est la PRÉSENCE du compteur et son affichage, pas une valeur.
+
+## a-zero-that-was-never-measured-passes-for-a-measurement
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une colonne de mesure est remplie sur toutes les lignes, donc elle a l'air mesurée, et toute moyenne calculée dessus est fausse — pas approximative, fausse. Mesuré en production le 2026-09-10 : **515 lignes d'`etl_run_log` sur 587** (30 j) portaient une durée de zéro ; seule la plateforme Meta était réellement chronométrée.
+- root_cause: `record_tenant_run` écrivait `started_at = ended_at = now()`. Quatre des cinq DAGs de collecte passent par elle. Un zéro écrit par construction est indiscernable d'un zéro observé : il n'y a ni valeur manquante, ni exception, ni journal — la colonne est simplement pleine de nombres qui ne viennent d'aucune horloge.
+- signature: `python3 -m pytest tests/test_a_duration_is_read_where_it_is_written.py -q`
+- long_term_fix: l'appelant mesure et transmet `duration_ms` ; l'inconnu se dit dans cette colonne, qui est NULLABLE, et jamais dans `started_at`, qui est NOT NULL. Le piège inverse a failli être posé au correctif : y écrire NULL pour dire « je ne sais pas » fait lever l'INSERT, que le `except` de la fonction avale — **la ligne disparaît**, ce qui est l'infirmité même que ce journal existe pour retirer. Règle générale : une durée absente est un fait, une ligne absente est un trou ; on ne troque pas le second contre le premier. Et une colonne de mesure qui ne peut pas valoir NULL ne peut pas dire « non mesuré » : c'est une propriété du schéma, à vérifier avant d'y écrire un repli.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_duration_is_read_where_it_is_written.py }
+- rex_ref: src/utils/dag_run_logger.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: signature vue ROUGE trois fois, une par prédicat — un DAG qui n'chronomètre plus, un repli NULL sur une colonne NOT NULL, une surface qui reconstruit la durée par `ended_at - started_at`. Le troisième prédicat existe parce que cet écart vaut zéro quand la mesure manque : sans lui, le correctif rouvrait la classe par une autre porte.
+
+## an-alert-that-never-changes-stops-being-read
+- status: guarded
+- severity: P2
+- kind: heuristic
+- symptom: une alerte quotidienne signale correctement un problème réel, à l'identique, pendant des mois. Le lecteur cesse de l'ouvrir, et le soir où une VRAIE panne s'y ajoute, personne ne la voit. Mesuré en production le 2026-09-10 : le locataire 12 tenait la ligne d'objet du mail nocturne **depuis le 2026-06-19 — 93 nuits consécutives**, toujours `(#200) Ad account owner has NOT grant ads_management or ads_read permission`.
+- root_cause: la tâche ne lisait que le DERNIER état par (locataire, plateforme) et le rendait sans son ancienneté. Une panne de cette nuit et un blocage de trois mois produisaient donc exactement la même ligne, la même couleur et la même place dans le sujet. Or les deux appellent des gestes opposés : l'une peut être corrigée par une exécution, l'autre attend une main chez un tiers et aucune relance ne la retirera.
+- signature: `python3 -m pytest tests/test_a_block_of_ninety_three_nights_does_not_read_like_tonight.py -q`
+- long_term_fix: mesurer les nuits d'échec depuis le dernier succès, et s'en servir pour ORDONNER, COLORER et composer le sujet — le récent nommé, l'installé compté. Rien n'est tu : un blocage garde sa ligne complète dans le corps, avec son ancienneté et sa cause. Règle générale : quand un détecteur peut répéter le même constat, il doit rendre **depuis quand**, sinon sa répétition devient sa propre panne. Corollaire de forme : la décision d'ancienneté vit dans `src/utils/`, pas dans le DAG — un module de DAG ne s'importe pas hors de son conteneur, donc un seuil écrit dedans est un seuil qu'aucun test n'exerce.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_block_of_ninety_three_nights_does_not_read_like_tonight.py }
+- rex_ref: src/utils/collection_outcomes.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: `heuristic`, délibérément — aucun seuil ne sépare « installé » de « récent » dans l'absolu ; ce qui est gardé est que l'ancienneté soit MESURÉE et MONTRÉE, pas une valeur.
+  - 2026-09-10: le garde vérifie aussi qu'une ancienneté ILLISIBLE se lit « cette nuit ». Un incident dont on ne sait pas dater le début ne doit pas se ranger en silence parmi les blocages connus — l'erreur qui coûte cher est celle-là, pas l'inverse.
+
+## a-ratchet-frozen-on-a-partial-predicate
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un cliquet gelé à zéro passe au vert, et la chose qu'il interdit est toujours là. Mesuré le 2026-09-10 : `_MAX_SECONDARY_AXES = 0` était vert alors que **trois figures** portaient encore un axe secondaire.
+- root_cause: le prédicat ne cherchait que `yaxis2…yaxis9`, la forme produite par `update_layout`. Plotly en a une seconde — `make_subplots(specs=[[{"secondary_y": True}]])` puis `add_trace(..., secondary_y=True)` — qui ne fait apparaître ce nom nulle part. Le cliquet ne disait donc pas « il n'y en a plus », il disait « je n'en vois plus », et les deux phrases se ressemblent au point d'être confondues dans un rapport de test vert.
+- signature: `python3 -m pytest tests/test_the_visual_rules_only_tighten.py -q`
+- long_term_fix: un cliquet à ZÉRO doit prouver sa non-vacuité sur **chaque forme** qu'il prétend couvrir, et le prédicat du cliquet et celui de sa sonde doivent être **le même objet** — sinon la sonde valide une copie. Règle générale : un cliquet gelé au-dessus de la mesure du jour est du mou (il autorise en silence la croissance qu'il prétend interdire) ; un cliquet gelé à zéro sur un prédicat partiel est pire, il certifie une propriété fausse. Avant de figer à zéro, énumérer les formes que la chose peut prendre dans la bibliothèque employée.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_visual_rules_only_tighten.py }
+- rex_ref: tests/test_a_file_only_gets_shorter.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: septième instance de « la portée d'un garde est le défaut » dans ce dépôt, et la PREMIÈRE sur un cliquet écrit le jour même. La leçon en prose (« un garde lit la structure, pas le texte ») ne l'a pas empêchée : ce prédicat lisait bien l'AST, il lisait le mauvais nœud.
+  - 2026-09-10: deux mutations ont d'abord été jugées à tort comme des gardes aveugles — `secondary_y=False` (qui ne crée aucun axe) et la désactivation d'UNE seule des deux branches (l'autre voyant encore la sonde). Une mutation qui reste verte accuse le garde ; vérifier d'abord qu'elle introduit vraiment le défaut.
+
+## a-cache-key-that-can-never-be-hit-twice
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: un cache est posé, le code a l'air correct, et la requête part quand même à chaque rendu. Aucun signal : un cache sans succès se comporte exactement comme pas de cache.
+- root_cause: la clé contient une valeur qui change à chaque appel. Ici `get_live_pulse` calculait `cutoff = now() - 5 min` et le passait au helper caché : deux rendus séparés d'une milliseconde produisent deux clés distinctes, donc zéro succès de cache pour toujours.
+- signature: `python3 -m pytest tests/test_a_page_asks_the_same_question_once.py -q`
+- long_term_fix: arrondir toute borne temporelle à la fenêtre de cache avant de la faire entrer dans la clé. Règle générale : avant de déclarer un cache posé, se demander quelle est sa clé et si deux appels consécutifs peuvent la partager — un horodatage nu ne le peut jamais. Le garde ne vérifie pas la présence du cache (invérifiable de l'extérieur) mais son EFFET : le nombre d'allers-retours SQL d'un rendu réel, gelé en cliquet.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_page_asks_the_same_question_once.py }
+- rex_ref: src/dashboard/utils/live_pulse.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: le garde compte des ÉVÉNEMENTS (des requêtes), jamais un temps. Une mesure de temps depuis WSL est inexploitable en valeur absolue — leçon déjà payée ici — alors qu'un compte d'allers-retours est reproductible partout.
+  - 2026-09-10: la clé de comptage inclut les PARAMÈTRES. Sans cela le garde « trouvait » trois faux doublons (la vue or interrogée une fois par plateforme, ce qui est exactement ce qu'on lui demande) et manquait le vrai.
+
+## the-application-connects-as-a-superuser
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: aucun. Tout fonctionne — c'est le propre de cette classe : elle ne se manifeste que le jour où autre chose échoue.
+- root_cause: le dashboard, l'API et les DAGs se connectaient en `postgres`. Ce que cela donne à une injection ou à une fuite de DSN n'est pas « la lecture des tables » : c'est `COPY … TO PROGRAM`, donc l'exécution de commandes sur l'hôte de la base, plus `pg_authid` (les empreintes de mots de passe de tous les rôles), plus la désactivation de n'importe quel garde en base. Entre une erreur applicative et la machine, il n'y avait aucune couche.
+- signature: `python3 -m pytest tests/test_the_application_is_not_a_superuser.py -q`
+- long_term_fix: un rôle applicatif `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`, propriétaire de rien, avec SELECT/INSERT/UPDATE/DELETE sur les données et **aucun DDL** — les migrations gardent le superutilisateur, ce qui est exactement la séparation cherchée. `ALTER DEFAULT PRIVILEGES` couvre les tables futures, sans quoi la panne arriverait des semaines plus tard sur une surface sans rapport. La migration REDESCEND le rôle à chaque passage : `make migrate` est rejoué à chaque déploiement, c'est la ceinture contre une promotion faite à la main. Règle générale : le rôle qui exécute les requêtes de l'application n'est jamais celui qui a créé les tables.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_application_is_not_a_superuser.py }
+- rex_ref: migrations/098_the_app_is_not_a_superuser.sql
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: les bornes sont prouvées EN SE CONNECTANT sous le rôle, pas en lisant les droits : lectures et écritures passent, `pg_authid` / `COPY … TO PROGRAM` / DDL sont refusés par Postgres lui-même. Lire une table de privilèges n'aurait dit que ce qu'on a écrit.
+  - 2026-09-10: le garde visait d'abord `docker-compose.yml` — **gitignoré**. Il n'aurait jamais tourné en CI ni dit quoi que ce soit de ce que le dépôt livre. Quatrième instance de « un contrôle qui ne peut jamais passer » ; le contrat public est `docker-compose.example.yml`, et le fichier local est vérifié EN PLUS, pour la dérive entre le poste et le dépôt.
+  - 2026-09-10: la bascule n'est pas faite par la migration. Créer un rôle inutilisé ne change aucun comportement, ce qui est délibéré : changer le rôle d'une application vivante est un geste d'exploitation avec redémarrage, pas l'effet de bord d'un `git pull`.
+
+## a-batch-that-commits-one-row-at-a-time
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: une écriture de lot est lente, et — le vrai défaut — un échec en cours de route laisse la première moitié en base. Mesuré le 2026-09-10 : sur 1 001 lignes dont la 501ᵉ viole une contrainte, **500 lignes restaient committées**.
+- root_cause: la connexion est en `autocommit = True`, bon défaut pour une écriture isolée. `insert_many` appelait `executemany`, donc une instruction ET une transaction par ligne. La lenteur est le symptôme visible ; ce qui compte est qu'une collecte à moitié appliquée soit **indiscernable d'une collecte complète** — pas d'erreur en base, pas de marqueur, juste moins de lignes.
+- signature: `python3 -m pytest tests/test_a_batch_is_all_or_nothing.py -q`
+- long_term_fix: un contexte `_atomic()` qui suspend l'autocommit le temps du lot, valide en bloc, annule sur exception et RESTAURE l'état dans un `finally` — sans ce `finally`, une exception laisserait la connexion en transaction ouverte pour toute la session, et chaque écriture suivante attendrait un commit que personne n'écrit. Règle générale : `autocommit` et « lot » ne vont pas ensemble ; la question à poser d'une écriture multiple n'est pas « combien de temps » mais « que reste-t-il en base si elle échoue au milieu ».
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_batch_is_all_or_nothing.py }
+- rex_ref: src/database/postgres_handler.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: `execute_values` (une seule instruction pour tout le lot, 67 ms contre 118) a été essayé puis ÉCARTÉ : il exige un vrai curseur psycopg2 pour rendre les identifiants, ce qui rend inexécutable le garde `test_a_bulk_write_sees_every_column` — lequel tient une classe déjà payée (`bulk-write-reads-only-the-first-row`). On ne désarme pas un garde pour gagner 50 ms sur un lot nocturne.
+  - 2026-09-10: le correctif a d'abord cassé un test tiers en lisant `self.conn` sur une doublure qui n'en a pas. Cela a révélé que `insert_many` n'appelait PAS `_ensure_connection()`, contrairement à `upsert_many` — une connexion perdue entre deux lots faisait échouer l'écriture au lieu de se rouvrir.
+
+## a-truncated-read-recorded-as-a-complete-one
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la collecte d'un locataire s'enregistre `success`, et une partie de ses données n'a pas été lue. L'artiste voit un historique amputé sans que rien ne le lui dise.
+- root_cause: `fetch_media` plafonne à 10 pages ; au-delà, les publications les plus anciennes ne sont pas relues, et le seul signal était un `logger.warning` dans le journal d'un conteneur. Ce plafond n'est pas une erreur — c'est une lecture bornée, et le collecteur a raison de ne pas lever — mais son résultat est un fait sur les DONNÉES, et un fait sur les données ne se dit pas dans un log.
+- signature: `python3 -m pytest tests/test_a_truncated_read_is_not_a_full_one.py -q`
+- long_term_fix: le collecteur porte la troncature sur l'objet (remise à faux à chaque appel, sinon un locataire tronqué marque tous les suivants du même processus), et le DAG l'enregistre `partial` — le statut que la tâche d'alerte remonte déjà. Règle générale : entre `success` et `failed` il existe un troisième cas, « ça a marché mais pas en entier », et l'écrire `success` rend l'incomplet indiscernable du complet sur toutes les surfaces qui lisent le journal.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_truncated_read_is_not_a_full_one.py }
+- rex_ref: src/collectors/instagram_api_collector.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: trouvée en VÉRIFIANT une prémisse de roadmap, pas en la suivant. La tâche affirmait que trois collecteurs « relisent tout chaque nuit sans repère de progression » et qu'un repère les accélérerait : c'est FAUX et l'appliquer aurait été une régression — ces API rendent des compteurs CUMULÉS par entité, et relire chaque entité chaque nuit est la mesure elle-même. Le vrai défaut du voisinage était l'inverse : non pas trop lire, mais lire trop peu en silence.
