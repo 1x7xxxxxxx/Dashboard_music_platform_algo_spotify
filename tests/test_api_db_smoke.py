@@ -56,8 +56,18 @@ from fastapi.testclient import TestClient  # noqa: E402
 from src.api.auth import create_access_token  # noqa: E402
 from src.api.main import app  # noqa: E402
 
-# require_artist_scope/get_current_user trust the signed claims (no DB user lookup),
-# so a forged token exercises the routers without seeding a user row.
+# LE GARDE ÉTAIT AVEUGLE DEPUIS QUE `get_current_user` RELIT LA BASE.
+#
+# Ce commentaire disait, à raison le jour où il a été écrit, que les claims signés
+# suffisaient. R24 a ajouté une relecture de `saas_users` dans `get_current_user`
+# (`src/api/deps.py:71`) : un jeton forgé pour un `sub` qui n'existe pas en base est
+# désormais refusé en **401, AVANT d'atteindre le moindre routeur**.
+#
+# Les 28 assertions de ce fichier sont `status != 500`. Elles étaient donc toutes
+# satisfaites par des 401, et le fichier n'exécutait plus une seule requête SQL —
+# mesuré le 2026-09-10, et c'est **pourquoi** un `/kpis` cassé en production est passé
+# sur une suite verte. `dependency_overrides` court-circuite la relecture : ce test
+# garde la dérive de SCHÉMA, pas l'authentification, qui a ses propres tests.
 # - admin (artist_id None) → routers run their broadest UNSCOPED query path.
 # - tenant (artist_id=N)   → routers run the scoped `WHERE artist_id=%s` path.
 # MULTI-TENANT: parametrise over EVERY active artist (not just artist 1) — the Benken class
@@ -100,6 +110,21 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _bypass_user_lookup(request):
+    """Le routeur reçoit l'identité directement, sans relecture de `saas_users`."""
+    from src.api.deps import get_current_user
+    role = request.node.callspec.params.get("role") if hasattr(request.node, "callspec") else None
+    if role is None:
+        yield
+        return
+    app.dependency_overrides[get_current_user] = lambda: dict(_ROLES[role])
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
 @pytest.mark.parametrize("role", list(_ROLES), ids=list(_ROLES))
 @pytest.mark.parametrize("path", _DATA_ENDPOINTS)
 def test_data_endpoint_no_server_error(client, path, role):
@@ -110,3 +135,28 @@ def test_data_endpoint_no_server_error(client, path, role):
     assert r.status_code != 500, (
         f"{path} as {role} → 500 (schema drift / query bug): {r.text[:300]}"
     )
+    assert r.status_code != 401, (
+        f"{path} as {role} → 401 : le routeur n'a PAS été atteint, donc aucune requête "
+        "SQL n'a été exécutée et ce test ne prouve rien. C'est l'état dans lequel il "
+        "est resté trois semaines."
+    )
+
+
+def test_at_least_one_endpoint_actually_returns_data(client):
+    """Non-vacuité : une suite qui ne voit que des refus ne garde rien.
+
+    Écrite après avoir mesuré que les 28 assertions `!= 500` de ce fichier étaient
+    toutes satisfaites par des 401. Un test qui passe sans jamais toucher ce qu'il
+    prétend garder est pire qu'absent : il occupe la place du garde.
+    """
+    from src.api.deps import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: dict(_ROLES["admin"])
+    try:
+        codes = {p: client.get(p, headers={"Authorization": "Bearer x"}).status_code
+                 for p in _DATA_ENDPOINTS}
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert 200 in codes.values(), (
+        "aucun des endpoints de données ne rend 200 : " + repr(codes)
+        + ". Le SQL n'est donc jamais exécuté contre le schéma réel.")

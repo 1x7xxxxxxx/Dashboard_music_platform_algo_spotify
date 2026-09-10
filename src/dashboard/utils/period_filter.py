@@ -146,6 +146,10 @@ def smart_period_filter(
 ) -> PeriodWindow:
     """Render the shared period selector and return the resolved window."""
     _validate(table, date_column, artist_column)
+    # Toutes les clés de CE sélecteur portent le locataire, pour la raison écrite dans
+    # `_widget_key` : une plage de dates ou un grain choisis pour un artiste ne doivent
+    # pas être réinjectés dans la page d'un autre.
+    key = _widget_key(key, artist_id)
     span_min, span_max = _data_span(db, table, date_column, artist_column, artist_id)
     span_days = (span_max - span_min).days if span_min and span_max else None
     init_preset, init_grain = _default_preset(span_days, default_override)
@@ -230,6 +234,22 @@ def _entity_key(prefix: str, primary: Optional[str]) -> str:
     return f"{prefix}_{primary or 'all'}"
 
 
+def _widget_key(prefix: str, artist_id: Optional[int]) -> str:
+    """La clé d'un widget porte TOUJOURS le locataire.
+
+    `key_prefix` est une constante par vue (« apple_daily », « sc »), jamais scopée.
+    Or `st.session_state` persiste entre les changements de page dans la même session
+    du navigateur : un administrateur qui choisit un titre sur l'artiste A puis ouvre
+    la même page pour l'artiste B retrouve la valeur de A injectée dans le widget de B.
+    Si ce titre n'existe pas dans le catalogue de B, Streamlit lève sur une valeur par
+    défaut hors options — la page ne s'affiche plus.
+
+    L'accueil applique déjà cette convention (`home_trend_mode_{artist_id}`) ; elle
+    n'avait pas été étendue ici.
+    """
+    return f"{prefix}_{artist_id or 'na'}"
+
+
 def _entity_options(
     db: PostgresHandler, spec: EntitySpec, artist_id: Optional[int],
 ) -> list:
@@ -263,13 +283,14 @@ def entity_period_filter(
 
     if spec.multi:
         selection = st.multiselect(
-            label, options, default=default, key=f"{key_prefix}_ent",
+            label, options, default=default,
+            key=_widget_key(f"{key_prefix}_ent", artist_id),
         )
     else:
         idx = options.index(default) if default in options else 0
         selection = st.selectbox(
             label, options, index=idx if options else None,
-            key=f"{key_prefix}_ent",
+            key=_widget_key(f"{key_prefix}_ent", artist_id),
         )
 
     sel_list = selection if spec.multi else ([selection] if selection else [])

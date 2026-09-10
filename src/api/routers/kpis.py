@@ -66,7 +66,7 @@ def get_kpis(
     raw_yt = _first_val(
         db,
         f"""
-        SELECT COALESCE(SUM(total), 0) FROM v_platform_totals
+        SELECT COALESCE(SUM(total), 0) AS total FROM v_platform_totals
         WHERE platform = 'youtube' {filt}
         """,
         p_aid,
@@ -77,7 +77,7 @@ def get_kpis(
     raw_sc = _first_val(
         db,
         f"""
-        SELECT COALESCE(SUM(total), 0) FROM v_platform_totals
+        SELECT COALESCE(SUM(total), 0) AS total FROM v_platform_totals
         WHERE platform = 'soundcloud' {filt}
         """,
         p_aid,
