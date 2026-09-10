@@ -326,6 +326,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-surgical-restore-erases-work-nothing-will-give-back](#a-surgical-restore-erases-work-nothing-will-give-back) | P2 | deterministic | guarded | none |
 | [a-verdict-computed-past-the-end-of-its-evidence](#a-verdict-computed-past-the-end-of-its-evidence) | P2 | deterministic | guarded | none |
 | [a-diagram-is-verified-by-looking-at-it](#a-diagram-is-verified-by-looking-at-it) | P3 | heuristic | guarded | none |
+| [a-caption-written-beside-the-behaviour-instead-of-derived-from-it](#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4568,3 +4569,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-10: `heuristic` et `manual` assumés — aucun prédicat automatique ne dit « ce schéma est lisible ». Ce qui est gardé est la PROCÉDURE, écrite dans le README avec ses trois commandes, parce que c'est la seule forme qui survit à l'oubli.
   - 2026-09-10: onzième défaut de rendu de ce générateur trouvé en regardant, et le premier trouvé APRÈS que le README ait annoncé les cinq précédents. La note ne l'a pas empêché ; l'avoir refait l'a corrigé. Une leçon de procédure ne vaut que si on l'exécute.
+
+## a-caption-written-beside-the-behaviour-instead-of-derived-from-it
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: la légende sous une figure affirme trois choses fausses en même temps, sans qu'aucune ne soit un bug de calcul. Vu au rendu le 2026-09-10 en « Chacune à son échelle · Par année · 12 mois » : « Écoutes **du jour**, plateforme par plateforme. Un blanc dans la bande veut dire qu'on n'a pas de mesure ce jour-là. » Or les points portaient des totaux ANNUELS, il n'y avait pas de bande mais des facettes, et un blanc ne parlait pas d'un jour.
+- root_cause: la légende était une constante dans `views/home.py`, écrite quand la figure n'avait qu'un mode et qu'un pas. Chaque menu ajouté depuis l'a rendue fausse dans un cas de plus, sans jamais la casser — un texte fixe ne lève pas. Et elle ne POUVAIT pas être juste depuis là : la vue connaît le pas DEMANDÉ, et « Automatique » n'en est pas un ; seul le module de la figure sait lequel a été retenu. C'est la cause (E) de l'audit de cette figure, nommée et restée ouverte.
+- signature: `python3 -m pytest tests/test_the_legend_says_what_the_figure_shows.py -q`
+- long_term_fix: une fonction pure dans le module de la figure, qui prend le pas EFFECTIF et le mode et rend la phrase ; le rendu des notes l'appelle avec les autres explications. Règle générale : un texte qui décrit un état variable se dérive de cet état, et vit là où l'état est connu. Le garde couvre le PRODUIT CARTÉSIEN des menus — trois pas × quatre modes — parce qu'un texte juste dans onze cas sur douze passe inaperçu.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_the_legend_says_what_the_figure_shows.py }
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: **le balayage de la classe a rendu 1 site sur 22.** Les 21 autres textes qui disent « quotidien » ou « chaque jour » parlent d'une chose réellement quotidienne — la collecte nocturne, le scoring ML, la croissance Apple. Un correctif de masse les aurait tous abîmés ; c'est le balayage qui a évité le refactor « de cohérence » dont ce dépôt a déjà mesuré qu'il est le plus dangereux.
+  - 2026-09-10: la version ANGLAISE était pire que la française — elle ajoutait « over the last 90 days », une période codée en dur sans rapport avec la fenêtre choisie. Une traduction se périme comme le texte qu'elle traduit, et personne ne relit celle qu'il ne parle pas.
+  - 2026-09-10: deux coquilles voisines trouvées au même rendu. Le sous-titre annonçait « sur 2 années » pour une fenêtre de 12 mois : le nombre était juste — deux seaux annuels, la fenêtre étant à cheval sur deux années civiles — et le mot faux. Et `_UNSTACKED` était déclarée, lue NULLE PART, et son contenu faux : `share` empile, à 100 % même. Une constante morte est du bruit ; morte et fausse, elle enseigne quelque chose de faux au premier lecteur qui la croit.
+  - 2026-09-10: la plainte d'origine — « pourquoi je n'ai pas YouTube » — n'était PAS un défaut. L'absence est délibérée (24 jours mesurés sur deux années civiles dont aucune n'atteint la moitié) et l'écran le disait déjà. Reproduire avant de corriger a évité de desserrer un plancher qui protège d'un total ~10× trop bas.

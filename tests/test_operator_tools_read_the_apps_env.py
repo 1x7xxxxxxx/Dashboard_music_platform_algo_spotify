@@ -39,8 +39,15 @@ DOCS = (
 # has to stay true: `make_avatar_gif.py` derives every value from constants and from
 # `src/dashboard/assets/logo_mark.svg`, and writes one GIF — there is no configuration
 # for it to read the wrong copy of.
+# Les outils qui ne lisent AUCUN environnement — ils rendent un document ou un
+# graphique à partir du dépôt seul. Leur imposer `load_project_env()` ne les rendrait
+# pas plus justes ; cela ajouterait un appel décoratif que le prochain lecteur croirait
+# nécessaire. `architecture_dossier/main.py` a rejoint la liste le 2026-09-10, découvert
+# parce qu'une signature de classe d'erreur le nomme — la découverte a donc bien
+# fonctionné, et la réponse est de DÉCLARER, pas d'affaiblir le prédicat.
 _NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render_html.py",
-           "tools/dev/make_avatar_gif.py"}
+           "tools/dev/make_avatar_gif.py",
+           "tools/dev/architecture_dossier/main.py"}
 
 
 def _documented_tools() -> list[str]:

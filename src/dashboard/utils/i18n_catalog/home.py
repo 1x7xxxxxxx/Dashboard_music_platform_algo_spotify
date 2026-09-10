@@ -27,6 +27,12 @@ EN = {
         "Apple Music, distributors): updated **on each CSV import** (folder watched every 15 min)."
     ),
     "home.streams_header": "🎧 Total streams",
+    "platform_chart.caption_period": (
+        "Plays **{unit}**, platform by platform. A gap in {shape} means no "
+        "measurement {when} — not zero plays."),
+    "platform_chart.caption_cumulative": (
+        "Running total **since the start of the period**, platform by platform. "
+        "A break in {shape} means no measurement — not a counter falling back."),
     "platform_chart.too_thin": (
         "{label} is not drawn: only **{measured} reading(s)**, and an area needs two. "
         "Its figures stay in the table below."),
@@ -69,9 +75,6 @@ EN = {
         "⏸️ Plays measured but **not chartable**: {parts}. They happened between two "
         "collections more than a day apart — we know how many, never on which day. "
         "Pinning them to a date would invent a spike."),
-    "home.trend_caption": (
-        "**Daily** plays, platform by platform, over the last 90 days. A gap in a "
-        "line means we have no measurement that day — not zero plays."),
     "home.trend_no_series": (
         "Not enough history yet to draw a trend: it takes at least two consecutive "
         "days of collection on one platform."),
