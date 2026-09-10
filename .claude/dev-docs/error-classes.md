@@ -325,7 +325,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser](#a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser) | P2 | deterministic | guarded | none |
 | [a-surgical-restore-erases-work-nothing-will-give-back](#a-surgical-restore-erases-work-nothing-will-give-back) | P2 | deterministic | guarded | none |
 | [a-verdict-computed-past-the-end-of-its-evidence](#a-verdict-computed-past-the-end-of-its-evidence) | P2 | deterministic | guarded | none |
-| [a-diagram-is-verified-by-looking-at-it](#a-diagram-is-verified-by-looking-at-it) | P3 | heuristic | guarded | none |
+| [a-diagram-is-verified-by-looking-at-it](#a-diagram-is-verified-by-looking-at-it) | P3 | manual | reported | none |
 | [a-caption-written-beside-the-behaviour-instead-of-derived-from-it](#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | P3 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
@@ -4555,19 +4555,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: le garde vérifie que la borne est un `min` et pas un `max`, et surtout que la boucle du calcul la LIT. Une borne calculée et ignorée est pire qu'absente : elle donne au relecteur l'apparence d'un correctif.
 
 ## a-diagram-is-verified-by-looking-at-it
-- status: guarded
+- status: reported
 - severity: P3
-- kind: heuristic
+- kind: manual
 - symptom: un schéma généré est syntaxiquement valide, son SVG contient tout le texte attendu, et il est faux à l'œil. Mesuré le 2026-09-10 sur sept schémas neufs : **six défauts**, aucun visible dans le code ni dans le HTML rendu.
 - root_cause: deux causes distinctes, et c'est ce qui rend la vérification par lecture insuffisante. (1) **Le placement est calculé, pas écrit.** Une arête directe bronze → or fait remonter la boîte OR au rang 1, donc à GAUCHE de l'argent : le schéma censé montrer trois couches dans l'ordre les montrait à l'envers, alors que chaque nœud et chaque arête étaient corrects. (2) **La mise en forme du texte est calculée aussi** : mermaid casse un mot plus long que sa boîte, et un identifiant SQL n'a pas d'espace où casser — `youtube_channel_histor/y`, `apple_songs_performanc/e`, `meta_insights_performa/nce_day`, `v_artist_monthly_revenu/e`. Plus un schéma de sept nœuds en ligne illisible à l'échelle de la colonne, et un nœud orphelin relié à rien.
-- signature: `python3 tools/dev/architecture_dossier/main.py /tmp/d.pdf && pdftoppm -png -r 105 /tmp/d.pdf /tmp/page`
+- signature: — **aucune, et c'est délibéré.** La commande qui figurait ici (`main.py … && pdftoppm …`) rend le document et le convertit en images : elle sort **0 que le schéma soit juste ou faux**. Une signature qui ne peut pas rougir est une fausse garantie, et une fausse garantie coûte plus cher qu'une absence de garantie — c'est la règle de `/capitalise`, et je l'ai enfreinte en écrivant cette entrée. La procédure de vérification reste, dans le README du générateur ; ce qu'elle produit est un JUGEMENT humain, pas un code de sortie.
 - long_term_fix: rendre, convertir en images et REGARDER, à chaque ajout de schéma — la procédure tient en trois commandes et vit dans le README du générateur. Les coupures se corrigent en posant soi-même un `<br/>` sur un `_` ; l'ordre des couches, en faisant passer chaque chemin par la couche intermédiaire, ce qui se trouve être plus juste aussi. Règle générale : quand un outil CALCULE le rendu, la seule vérification qui porte sur le résultat est de le regarder. Compter les `<text>` d'un SVG prouve qu'il y a du texte, pas qu'il est lisible ni bien placé.
 - autofix: none
-- guard: { type: manual, ref: tools/dev/architecture_dossier/README.md }
+- guard: — (procédure humaine, `tools/dev/architecture_dossier/README.md`)
 - rex_ref: tools/dev/architecture_dossier/README.md
 - first_seen: 2026-09-10
 - History:
-  - 2026-09-10: `heuristic` et `manual` assumés — aucun prédicat automatique ne dit « ce schéma est lisible ». Ce qui est gardé est la PROCÉDURE, écrite dans le README avec ses trois commandes, parce que c'est la seule forme qui survit à l'oubli.
+  - 2026-09-10: écrite d'abord en `heuristic`/`guarded` **avec une signature qui ne peut pas rougir** — `main.py … && pdftoppm …` sort 0 quel que soit le rendu. Corrigée le jour même en `manual`/`reported`, sans signature. C'est la règle de `/capitalise` appliquée à ma propre entrée : je ne peux produire ni l'exécution rouge ni la verte, donc je livre sans signature plutôt qu'avec une non vérifiée. Aucun prédicat automatique ne dit « ce schéma est lisible » ; ce qui reste est une PROCÉDURE, et son statut doit le dire.
   - 2026-09-10: onzième défaut de rendu de ce générateur trouvé en regardant, et le premier trouvé APRÈS que le README ait annoncé les cinq précédents. La note ne l'a pas empêché ; l'avoir refait l'a corrigé. Une leçon de procédure ne vaut que si on l'exécute.
 
 ## a-caption-written-beside-the-behaviour-instead-of-derived-from-it
