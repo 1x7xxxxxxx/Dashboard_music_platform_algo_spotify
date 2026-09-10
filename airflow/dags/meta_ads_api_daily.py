@@ -56,6 +56,21 @@ def run_meta_api_collector(**context):
     configured = 0
     succeeded = 0
     errors = []
+    # UN COMPTE PUBLICITAIRE N'EST COLLECTÉ QU'UNE FOIS PAR NUIT.
+    #
+    # Le bac à sable déclare le compte du profil principal — c'est sa raison d'être, il
+    # est exempté du garde d'unicité d'identité. La collecte le reprenait donc à
+    # l'identique, et Meta la limitait : mesuré sur le run du 09-09, **535 s pour le
+    # second locataire dont 424 s de sommeil imposé**, contre 96 s pour le premier, sur
+    # le MÊME compte. Meta pesait 528 s des 651 s d'ETL nocturne — 81 %.
+    #
+    # On saute donc la reprise, et on le DIT. Conséquence assumée : les lignes déjà
+    # écrites sous le second locataire ne sont plus rafraîchies. C'est acceptable pour
+    # un locataire d'essai, et très préférable à un throttle qui retombe sur la flotte
+    # réelle. Dupliquer les lignes depuis une seule collecte serait l'autre option —
+    # écarté : écrire sous deux locataires depuis une source unique est exactement le
+    # motif qui a coûté deux séances de test artiste.
+    seen_accounts: dict = {}
     for artist_id, artist_name in artists:
         creds = load_platform_credentials(artist_id, 'meta')
         # Central model: the access_token is admin-owned (META_ACCESS_TOKEN env, shared
@@ -69,6 +84,15 @@ def run_meta_api_collector(**context):
             )
             continue
 
+        account = str(creds.get('account_id'))
+        if account in seen_accounts:
+            logger.warning(
+                "Meta: compte %s déjà collecté pour l'artiste %s — reprise sautée "
+                "pour %s (id=%s). Ses lignes existantes ne sont pas rafraîchies.",
+                account, seen_accounts[account], artist_name, artist_id)
+            continue
+        seen_accounts[account] = artist_id
+
         configured += 1
         logger.info(f"▶ Meta API collect — artist_id={artist_id} ({artist_name})")
         try:
@@ -78,7 +102,14 @@ def run_meta_api_collector(**context):
             with DagRunLogger('meta_ads_api_daily', artist_id=artist_id,
                               platform='meta', run_id=run_id) as run_log:
                 collector = MetaAdsApiCollector(artist_id=artist_id)
-                total_rows = collector.run(full_history=full_history)
+                # `fetch_creatives` fait un appel Graph PAR CRÉATIVE : 143 appels
+                # unitaires par locataire et par nuit, mesurés à ~110 s, et le
+                # collecteur le documente lui-même comme « le principal moteur de
+                # limitation ». Le contenu des créatives (titre, corps, appel à
+                # l'action) ne change pas tous les jours ; il se récupère à la demande
+                # par un `full_history`.
+                total_rows = collector.run(full_history=full_history,
+                                           fetch_creatives=full_history)
                 run_log.rows_inserted = total_rows or 0
             succeeded += 1
             logger.info(f"  ✅ Done for {artist_name} ({total_rows} insight rows)")
