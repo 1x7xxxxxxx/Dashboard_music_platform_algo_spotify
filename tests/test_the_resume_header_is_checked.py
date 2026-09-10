@@ -110,10 +110,18 @@ def test_the_index_is_not_empty_of_both_sections():
     """Non-vacuity: two empty tables would make the comparison above trivially true."""
     text = _text()
     assert _ACTIONABLE_H in text and _WAITING_H in text
-    assert _ROW.search(text), (
-        "no `| Rxx |` row anywhere in checklist.md. Either every task is genuinely "
-        "gone — delete this test — or the row pattern stopped matching and the "
-        "comparison above is passing on two empty sets."
+    # DÉPLACÉE le 2026-09-10 — troisième garde du dépôt à ancrer sa non-vacuité sur
+    # « la roadmap contient au moins une ligne ». Vrai pendant deux ans, faux le jour où
+    # la roadmap est légitimement vide, et les trois sont tombés ensemble. Leur message
+    # proposait « supprimer ce test » : ce serait la mauvaise moitié de l'alternative,
+    # car elle retire la protection exactement quand la comparaison porte sur du vide.
+    # Ce qu'on prouve n'est pas que le fichier contient du travail, c'est que le MOTIF
+    # sait encore lire un fichier qui en contient.
+    fabricated = "| R42 | une tache | P2 | mesuree par ceci |"
+    assert _ROW.search(fabricated), (
+        "le motif `| Rxx |` ne reconnaît plus une ligne de roadmap : tant qu'il est "
+        "cassé, la comparaison ci-dessus passe sur deux ensembles vides, que la "
+        "roadmap soit pleine ou non."
     )
 
 
