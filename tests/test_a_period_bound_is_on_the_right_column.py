@@ -44,22 +44,35 @@ VIEWS = ROOT / "src" / "dashboard" / "views"
 
 _MAKERS = {"smart_period_filter", "period_filter", "entity_period_filter"}
 
-# Les mots qui annoncent une lecture par cohorte au lecteur. Il en faut UN dans les
-# textes de la vue qui borne sur une date de sortie.
-_COHORT_WORDS = ("publication", "publié", "publiés", "sortie", "cohorte",
-                 "acquis à ce jour", "published", "cohort")
+# Les PHRASES qui annoncent une lecture par cohorte. Des mots isolés ne suffisent pas,
+# et c'est mesuré : la première version cherchait « publication », que la page
+# Instagram contient sept fois dans des titres de section sans rapport (« 📸
+# Publications », « Publié le »). Un garde satisfait par le vocabulaire du domaine ne
+# garde rien. Une annonce nomme le REGROUPEMENT, pas le sujet de la page.
+_COHORT_PHRASES = (
+    "par mois de publication", "par date de publication", "par date de sortie",
+    "acquis à ce jour", "cohorte de publication", "cohorte de sortie",
+    "by month of publication", "by publication date", "earned to date",
+)
+
+# Combien de lignes après le bornage on considère comme « autour de la figure ».
+# Au-delà, le texte parle d'autre chose sur la même page.
+_NEARBY_LINES = 90
 
 
 @lru_cache(maxsize=32)
-def _user_facing_strings(rel: str) -> tuple[str, ...]:
-    """Les chaînes que l'artiste LIT : défauts de `t()`, titres, légendes.
+def _user_facing_strings(rel: str, start: int = 0, end: int = 10 ** 6) -> tuple[str, ...]:
+    """Les chaînes que l'artiste LIT, entre deux lignes : `t()`, titres, légendes.
 
-    Un commentaire ou un docstring n'annonce rien à personne. Seul ce qui atteint
-    l'écran peut dire au lecteur que la figure regroupe par date de sortie.
+    Un commentaire ou un docstring n'annonce rien à personne — seul ce qui atteint
+    l'écran le peut. Et la fenêtre de lignes compte : sur une page Instagram, le mot
+    « publications » vit dans sept titres de section sans rapport avec la figure.
     """
     tree = ast.parse((VIEWS / rel).read_text(encoding="utf-8"))
     out: list[str] = []
     for node in ast.walk(tree):
+        if not (start <= getattr(node, "lineno", 0) <= end):
+            continue
         if not isinstance(node, ast.Call):
             continue
         name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
@@ -138,8 +151,8 @@ def test_a_cohort_bound_figure_says_so() -> None:
         # faiblesse que « une mention vaut un bornage », trouvée le même jour — et
         # c'est la sixième fois que ce dépôt mesure qu'un garde textuel se satisfait
         # de sa propre documentation.
-        if not any(w in txt.lower() for txt in _user_facing_strings(f)
-                   for w in _COHORT_WORDS):
+        near = _user_facing_strings(f, lineno, lineno + _NEARBY_LINES)
+        if not any(w in txt.lower() for txt in near for w in _COHORT_PHRASES):
             offenders.append(f"{f}:{lineno} borne sur `{col}`")
     assert not offenders, (
         f"{offenders} : la fenêtre porte sur une date de PUBLICATION, donc la figure "
@@ -165,6 +178,10 @@ def test_the_three_subjects_are_actually_distinguished() -> None:
     kinds = set(COLUMN_SUBJECT.values())
     assert kinds == {Dates.EVENT, Dates.MEASUREMENT, Dates.PUBLICATION}, (
         f"les trois sujets ne sont plus tous déclarés : {sorted(kinds)}")
+    assert _COHORT_PHRASES and all(" " in p for p in _COHORT_PHRASES), (
+        "les annonces de cohorte sont redevenues des MOTS isolés. « publication » "
+        "apparaît sept fois sur la page Instagram dans des titres sans rapport : un "
+        "garde satisfait par le vocabulaire du domaine ne garde rien.")
     assert is_cohort_column("timestamp") and not is_cohort_column("date"), (
         "la distinction publication / événement s'est effondrée — c'est elle, et elle "
         "seule, qui distingue une cohorte d'un flux")
