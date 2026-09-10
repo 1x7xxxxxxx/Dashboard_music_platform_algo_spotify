@@ -73,6 +73,10 @@ migrate-prod: ## Apply migrations on PROD over ssh (no `make` needed there). PRO
 	@echo "   Deploy first if you have not: make deploy PROD_SSH=$(PROD_SSH)"
 	@ssh -o ConnectTimeout=10 $(PROD_SSH) 'cd $(PROD_REPO) && bash tools/migrate.sh'
 
+index-report: ## Index jamais parcourus, séparés en « intouchables » et « à arbitrer »
+	@if [ -z "$(PG_CONT)" ]; then echo "❌ Postgres n'est pas en marche. Lancer : make up"; exit 1; fi
+	@bash tools/index_report.sh
+
 db-app-role: ## Pose le mot de passe du rôle applicatif. APP_DB_PASSWORD='…' make db-app-role
 	@if [ -z "$(PG_CONT)" ]; then echo "❌ Postgres n'est pas en marche. Lancer : make up"; exit 1; fi
 	@bash tools/db_app_role.sh set

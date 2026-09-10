@@ -3,10 +3,11 @@ import os
 import re
 import psycopg2
 from psycopg2 import sql as pgsql
-from psycopg2.extras import execute_batch
+from psycopg2.extras import execute_batch, execute_values
 from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urlparse
 import logging
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +220,43 @@ class PostgresHandler:
             logger.warning("⚠️ Connexion PostgreSQL interrompue — reconnexion automatique...")
             self._connect()
 
+    @contextmanager
+    def _atomic(self):
+        """UN lot, UNE transaction — au lieu d'une transaction par ligne.
+
+        La connexion est en `autocommit = True`, ce qui est le bon défaut pour une
+        lecture ou une écriture isolée. Sur un LOT, il produit deux effets, et le
+        second est le vrai défaut :
+
+        * chaque ligne est sa propre transaction, donc son propre fsync — 1 500
+          titres pour un locataire font 1 500 transactions ;
+        * surtout, un échec à la ligne 900 laisse **899 lignes committées**. La
+          collecte est appliquée à moitié, et rien en base ne dit laquelle des deux
+          moitiés on regarde. C'est la forme silencieuse d'une donnée fausse : pas
+          une erreur visible, un état partiel indiscernable d'un état complet.
+
+        Ce contexte suspend l'autocommit le temps du lot, valide en bloc, et
+        RESTAURE l'état précédent quoi qu'il arrive — y compris si la connexion a
+        été rouverte entre-temps.
+        """
+        conn = self.conn
+        previous = conn.autocommit
+        conn.autocommit = False
+        try:
+            yield
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001 — une connexion morte ne se rollback pas
+                pass
+            raise
+        finally:
+            try:
+                conn.autocommit = previous
+            except Exception:  # noqa: BLE001 — idem : on ne masque pas l'erreur d'origine
+                pass
+
     def execute_query(self, query: str, params: Optional[Tuple] = None) -> None:
         """
         Exécute une requête SQL (INSERT, UPDATE, DELETE, CREATE).
@@ -305,14 +343,17 @@ class PostgresHandler:
             validate_columns(columns)
             values = [[row.get(col) for col in columns] for row in data]
 
-            query = pgsql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+            # `execute_values` envoie UNE instruction portant tous les tuples, là où
+            # `executemany` en envoyait une par ligne. Le `%s` unique est le marqueur
+            # qu'il remplace par la liste des valeurs ; les noms de table et de
+            # colonnes restent construits par `psycopg2.sql`, jamais interpolés.
+            query = pgsql.SQL("INSERT INTO {} ({}) VALUES %s").format(
                 pgsql.Identifier(table),
                 pgsql.SQL(', ').join(map(pgsql.Identifier, columns)),
-                pgsql.SQL(', ').join(pgsql.Placeholder() * len(columns)),
             )
 
-            self.cursor.executemany(query, values)
-            # ✅ Pas de commit nécessaire avec autocommit = True
+            with self._atomic():
+                execute_values(self.cursor, query, values, page_size=500)
 
             logger.info(f"✅ {len(data)} ligne(s) insérée(s) dans {table}")
             return len(data)
@@ -391,7 +432,11 @@ class PostgresHandler:
                 ),
             )
 
-            execute_batch(self.cursor, query, values)
+            # `execute_batch` groupe les allers-retours par paquets de 100 ; sans le
+            # contexte ci-dessous, CHAQUE paquet restait sa propre transaction, donc
+            # un échec au 12ᵉ paquet laissait 1 100 lignes en base et 400 dehors.
+            with self._atomic():
+                execute_batch(self.cursor, query, values)
             # cursor.rowcount after execute_batch reflects the last batch only — not the total.
             # Return len(data) (post-deduplication) as the canonical row count.
             rows_affected = len(data)
