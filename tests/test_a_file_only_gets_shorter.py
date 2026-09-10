@@ -31,6 +31,7 @@ dette lisible contre un risque de régression invisible.
 """
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -50,11 +51,24 @@ FROZEN = {
 }
 
 
+def _lines(path: Path) -> int:
+    """Le nombre de lignes — après avoir vérifié que le fichier est du Python valide.
+
+    `ast.parse` n'est pas décoratif ici : compter les lignes d'un fichier qu'on ne
+    peut pas analyser reviendrait à surveiller un compteur sans savoir de quoi. Et le
+    dépôt interdit d'ajouter un garde qui lit du Python sans passer par l'AST — la
+    règle vaut aussi pour un garde qui ne fait que compter.
+    """
+    text = path.read_text(encoding="utf-8")
+    ast.parse(text)
+    return len(text.splitlines())
+
+
 @pytest.mark.parametrize("rel,ceiling", sorted(FROZEN.items()))
 def test_the_longest_files_only_get_shorter(rel, ceiling) -> None:
     path = ROOT / rel
     assert path.exists(), f"{rel} a disparu — mettre à jour le cliquet, pas le contourner"
-    n = len(path.read_text(encoding="utf-8").splitlines())
+    n = _lines(path)
     assert n <= ceiling, (
         f"{rel} : {n} lignes contre un plafond gelé à {ceiling}. Ce plafond ne monte "
         "pas. Ce qui entre dans ce fichier doit en faire sortir autant — de "
@@ -69,7 +83,7 @@ def test_no_other_file_has_joined_the_list() -> None:
         rel = str(path.relative_to(ROOT))
         if rel in FROZEN:
             continue
-        n = len(path.read_text(encoding="utf-8").splitlines())
+        n = _lines(path)
         if n > 1200:
             over.append(f"{rel} ({n})")
     assert not over, (

@@ -31,13 +31,17 @@ est un seuil qu'aucun test n'exerce jamais.
 from __future__ import annotations
 
 import ast
+from functools import lru_cache
 from pathlib import Path
 
 from src.utils.collection_outcomes import (
     describe_failure_age, failure_age_nights, is_long_standing, split_by_age)
 
-_DAG = (Path(__file__).resolve().parents[1]
-        / "airflow" / "dags" / "alert_monitor.py").read_text(encoding="utf-8")
+@lru_cache(maxsize=1)
+def _dag() -> str:
+    """Lu à l'APPEL, pas à l'import — voir `test_a_test_file_is_collectable_without_what_it_watches`."""
+    return (Path(__file__).resolve().parents[1]
+            / "airflow" / "dags" / "alert_monitor.py").read_text(encoding="utf-8")
 
 _TONIGHT = {'artist_name': 'GRiNCH', 'platform': 'soundcloud', 'failing_nights': 1,
             'last_success': '2026-09-09 03:12:00'}
@@ -83,7 +87,7 @@ def test_an_unreadable_age_alerts_rather_than_being_filed_away() -> None:
 
 def test_the_alert_reads_the_age_instead_of_recomputing_it() -> None:
     """Le DAG doit passer par le module, sinon le garde ci-dessus ne garde rien."""
-    tree = ast.parse(_DAG)
+    tree = ast.parse(_dag())
     imported = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)
                 and (n.module or '').endswith('collection_outcomes') for a in n.names}
     assert {'describe_failure_age', 'split_by_age'} <= imported, (

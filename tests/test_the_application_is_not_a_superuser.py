@@ -32,12 +32,27 @@ from __future__ import annotations
 import os
 import re
 import socket
+from functools import lru_cache
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-MIG = (ROOT / "migrations" / "098_the_app_is_not_a_superuser.sql").read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=4)
+def _read(rel: str) -> str:
+    """Lu à l'APPEL, pas à l'import.
+
+    Une lecture au niveau module fait lever `FileNotFoundError` à la collecte le jour
+    où le fichier disparaît : pytest rapporte « errors » sans nommer une seule des
+    propriétés perdues. Un échec nomme ce qu'on a perdu, une erreur de collecte non.
+    """
+    return (ROOT / rel).read_text(encoding="utf-8")
+
+
+def MIG() -> str:
+    return _read("migrations/098_the_app_is_not_a_superuser.sql")
 # LE FICHIER VERSIONNÉ, PAS CELUI DE CETTE MACHINE.
 #
 # `docker-compose.yml` est gitignoré (chaque poste a le sien, la prod a le sien) : un
@@ -45,7 +60,10 @@ MIG = (ROOT / "migrations" / "098_the_app_is_not_a_superuser.sql").read_text(enc
 # C'est la classe « un contrôle qui ne peut jamais passer », déjà payée trois fois
 # ici. Le contrat public est `docker-compose.example.yml` ; le local est vérifié en
 # plus, quand il existe.
-COMPOSE = (ROOT / "docker-compose.example.yml").read_text(encoding="utf-8")
+def COMPOSE() -> str:
+    return _read("docker-compose.example.yml")
+
+
 _LOCAL = ROOT / "docker-compose.yml"
 
 # Tout ce qu'un rôle applicatif ne doit jamais porter. `pg_read_server_files` et
@@ -63,7 +81,7 @@ def _statements(sql: str) -> list[str]:
 
 
 def test_the_migration_never_grants_what_it_exists_to_deny() -> None:
-    for stmt in _statements(MIG):
+    for stmt in _statements(MIG()):
         for word in FORBIDDEN:
             # NOSUPERUSER contient SUPERUSER : on cherche le mot NON préfixé de NO.
             for m in re.finditer(rf"(?<![A-Z_]){re.escape(word)}\b", stmt, re.I):
@@ -74,15 +92,15 @@ def test_the_migration_never_grants_what_it_exists_to_deny() -> None:
 
 def test_the_migration_pins_the_role_down_on_every_replay() -> None:
     """`make migrate` est rejoué à chaque déploiement : c'est la ceinture."""
-    assert re.search(r"ALTER ROLE\s+streamlytics_app\s+NOSUPERUSER", MIG, re.I), (
+    assert re.search(r"ALTER ROLE\s+streamlytics_app\s+NOSUPERUSER", MIG(), re.I), (
         "rien ne redescend le rôle s'il a été promu à la main entre deux "
         "déploiements — or c'est le seul moment où on peut s'en apercevoir")
 
 
 def test_no_password_is_committed_in_the_migration() -> None:
-    assert "PASSWORD '" not in MIG.replace("PASSWORD %L", ""), (
+    assert "PASSWORD '" not in MIG().replace("PASSWORD %L", ""), (
         "un mot de passe en clair dans un fichier versionné")
-    assert "current_setting('app.streamlytics_app_password'" in MIG
+    assert "current_setting('app.streamlytics_app_password'" in MIG()
 
 
 _READS_ENV = re.compile(r"DATABASE_USER:\s*\$\{DATABASE_USER:-postgres\}")
@@ -90,7 +108,7 @@ _READS_ENV = re.compile(r"DATABASE_USER:\s*\$\{DATABASE_USER:-postgres\}")
 
 def test_the_shipped_compose_template_reads_the_role_from_the_environment() -> None:
     """Imposer `postgres` en dur rend la bascule impossible sans éditer le dépôt."""
-    assert _READS_ENV.search(COMPOSE), (
+    assert _READS_ENV.search(COMPOSE()), (
         "docker-compose.example.yml fige DATABASE_USER : chaque déploiement issu de "
         "ce gabarit repartirait en superutilisateur, et basculer demanderait un "
         "commit — donc ne se ferait pas")

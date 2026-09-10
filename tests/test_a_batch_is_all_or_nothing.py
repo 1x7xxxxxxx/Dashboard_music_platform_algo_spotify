@@ -33,6 +33,7 @@ ligne ; il l'est.
 from __future__ import annotations
 
 import ast
+from functools import lru_cache
 import os
 import socket
 from datetime import datetime, timezone
@@ -41,11 +42,18 @@ from pathlib import Path
 import pytest
 
 _SRC_PATH = Path(__file__).resolve().parents[1] / "src" / "database" / "postgres_handler.py"
-_TREE = ast.parse(_SRC_PATH.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def _tree() -> ast.Module:
+    """Lu à l'APPEL, pas à l'import : un fichier de test doit rester collectable même
+    quand ce qu'il surveille a disparu, sinon sa disparition casse la collecte de toute
+    la suite au lieu de rougir un seul test."""
+    return ast.parse(_SRC_PATH.read_text(encoding="utf-8"))
 
 
 def _method(name: str) -> ast.FunctionDef:
-    for cls in (n for n in ast.walk(_TREE) if isinstance(n, ast.ClassDef)):
+    for cls in (n for n in ast.walk(_tree()) if isinstance(n, ast.ClassDef)):
         for fn in cls.body:
             if isinstance(fn, ast.FunctionDef) and fn.name == name:
                 return fn
@@ -76,8 +84,11 @@ def test_the_batch_runs_inside_one_transaction(method) -> None:
 
 def test_insert_many_no_longer_sends_one_statement_per_row() -> None:
     """`executemany` = un aller-retour ET une transaction par ligne."""
-    calls = {n.func.attr for n in ast.walk(_method("insert_many"))
-             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+    # Collecter les DEUX formes d'appel : `self.cursor.executemany(...)` (Attribute) et
+    # `execute_batch(...)` (Name, fonction importée). Ne lire que `.attr` rendait ce
+    # prédicat aveugle à l'implémentation réelle — il a été rouge sur du code correct.
+    calls = {getattr(n.func, "attr", None) or getattr(n.func, "id", None)
+             for n in ast.walk(_method("insert_many")) if isinstance(n, ast.Call)}
     assert "executemany" not in calls, (
         "insert_many est revenu à `executemany` : 1 500 titres = 1 500 transactions")
     assert "execute_batch" in calls or "execute_values" in calls, (

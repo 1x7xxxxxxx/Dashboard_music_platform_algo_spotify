@@ -321,11 +321,24 @@ def test_email_verification_is_wired_to_the_materialisation():
     import ast
     from pathlib import Path
 
-    src = (Path(__file__).resolve().parents[1]
-           / "src/dashboard/app.py").read_text(encoding="utf-8")
-    fn = next((n for n in ast.walk(ast.parse(src))
-               if isinstance(n, ast.FunctionDef) and n.name == "_verify_email"), None)
-    assert fn is not None, "`_verify_email` a disparu"
+    # Le chemin était `src/dashboard/app.py` en dur jusqu'au 2026-09-10 : `_verify_email`
+    # en est sorti (avec `_unsubscribe`) et le garde a pointé dans le vide pendant une
+    # exécution. On CHERCHE la fonction plutôt que de rejouer un chemin, pour que le
+    # prochain déplacement ne rouvre pas le trou.
+    root = Path(__file__).resolve().parents[1] / "src" / "dashboard"
+    fn = None
+    for candidate in sorted(root.rglob("*.py")):
+        text = candidate.read_text(encoding="utf-8")
+        if "def _verify_email" not in text:
+            continue
+        fn = next((n for n in ast.walk(ast.parse(text))
+                   if isinstance(n, ast.FunctionDef) and n.name == "_verify_email"), None)
+        if fn is not None:
+            break
+    assert fn is not None, (
+        "`_verify_email` n'existe plus nulle part sous src/dashboard/ — soit la "
+        "vérification d'adresse a disparu, soit elle a été renommée sans que ce garde "
+        "suive")
 
     called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
               for n in ast.walk(fn) if isinstance(n, ast.Call)}

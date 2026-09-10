@@ -169,9 +169,17 @@ class TestInsertMany:
         # is exercised.
         handler = _make_handler()
         data = [{"col_a": 1, "col_b": "x"}, {"col_a": 2, "col_b": "y"}]
-        result = handler.insert_many("subscription_plans", data)
+        # `execute_batch`, plus `executemany` : depuis le 2026-09-10, `insert_many`
+        # envoie son lot dans UNE transaction. `executemany` sous `autocommit = True`
+        # en ouvrait une par ligne, donc un échec au milieu laissait la première
+        # moitié committée. Ce test suit la même forme que `TestUpsertMany`, qui
+        # patchait déjà `execute_batch` — c'est la migration qui n'était pas venue
+        # jusqu'ici.
+        with patch("src.database.postgres_handler.execute_batch") as mock_batch:
+            result = handler.insert_many("subscription_plans", data)
         assert result == 2
-        handler.cursor.executemany.assert_called_once()
+        mock_batch.assert_called_once()
+        handler.cursor.executemany.assert_not_called()
 
 
 # =============================================================================

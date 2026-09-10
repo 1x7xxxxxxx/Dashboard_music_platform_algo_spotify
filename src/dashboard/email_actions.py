@@ -5,6 +5,16 @@ Uses: streamlit, get_db_connection, src.utils.verification_email
 Triggers: src/dashboard/app.py (?page=verify, ?page=unsubscribe)
 Persists in: saas_users (email_verified, marketing_consent, weekly_digest_optout_at)
 
+Pourquoi ce module n'est PAS sous `views/`
+------------------------------------------
+Dans ce dépôt, `views/` veut dire « une page de la navigation, avec un `show()` ». Ces
+deux flux n'ont ni l'un ni l'autre : pas de `show()`, absents de `_NAV_SECTIONS`,
+atteints par une URL. Les y ranger a été essayé et deux gardes l'ont dit, chacun à sa
+façon — la Views Map réclamait une ligne pour une page qui n'existe pas, et le budget de
+connexions comptait 2 connexions par fichier là où la règle #9 parle d'un `show()`. Or
+la règle est respectée : un visiteur atteint exactement UN des deux flux par requête, et
+chacun ouvre une connexion. Le fichier était au mauvais endroit, pas le code.
+
 Pourquoi ces deux flux vivent hors de `app.py`
 ----------------------------------------------
 `app.py` porte la navigation, le routage, la session et la première visite — quatre

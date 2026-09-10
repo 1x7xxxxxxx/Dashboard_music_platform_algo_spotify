@@ -11,7 +11,23 @@ from unittest.mock import MagicMock
 import psycopg2
 import pytest
 
-from src.dashboard.utils.live_pulse import bump_heartbeat, get_live_pulse
+from src.dashboard.utils.live_pulse import (
+    _PULSE_TTL_S, _pulse_counts, bump_heartbeat, get_live_pulse)
+
+
+@pytest.fixture(autouse=True)
+def _no_pulse_cache():
+    """Le pouls est caché depuis le 2026-09-10 — sans purge, un test empoisonne le suivant.
+
+    `_pulse_counts` porte un `@st.cache_data(ttl=30)`. Trois tests de ce fichier
+    appellent `get_live_pulse` avec des doublures différentes dans la même fenêtre :
+    le premier remplit le cache, les suivants n'atteignent jamais leur propre
+    doublure et lisent `call_args is None`. Le cache est la bonne décision (voir le
+    module) ; ce qui manquait était de le vider entre deux tests.
+    """
+    _pulse_counts.clear()
+    yield
+    _pulse_counts.clear()
 
 
 class TestBumpHeartbeat:
@@ -61,8 +77,14 @@ class TestGetLivePulse:
         sql, params = db.fetch_query.call_args[0]
         (cutoff,) = params
         # Cutoff must be UTC-aware and within the 10-min window around the call.
+        #
+        # La tolérance suit `_PULSE_TTL_S`, pas une constante à part : la borne est
+        # ARRONDIE à la fenêtre de cache, délibérément — sans cet arrondi chaque rerun
+        # produit une clé neuve et le cache n'a jamais un seul succès. L'arrondi ne
+        # peut que reculer le `cutoff`, jamais l'avancer, d'où l'asymétrie ci-dessous.
         assert cutoff.tzinfo is not None
-        assert before - timedelta(seconds=2) <= cutoff <= after + timedelta(seconds=2)
+        assert (before - timedelta(seconds=_PULSE_TTL_S)
+                <= cutoff <= after + timedelta(seconds=2))
         assert "active = TRUE" in sql
         assert "last_heartbeat > %s" in sql
 
@@ -72,4 +94,8 @@ class TestGetLivePulse:
         get_live_pulse(db)  # default
         (cutoff,) = db.fetch_query.call_args[0][1]
         expected = datetime.now(timezone.utc) - timedelta(minutes=5)
-        assert abs((cutoff - expected).total_seconds()) < 2
+        # Idem : l'arrondi ne peut que RECULER la borne, d'au plus une fenêtre de
+        # cache. Une borne en AVANCE, elle, resterait un défaut — elle exclurait des
+        # sessions vivantes.
+        delta = (expected - cutoff).total_seconds()
+        assert -2 < delta < _PULSE_TTL_S + 2, delta

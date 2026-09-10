@@ -83,7 +83,7 @@ airflow_trigger = AirflowTrigger(
 
 # Les deux pages atteintes depuis un e-mail vivent à part : elles n'ont ni
 # session, ni barre latérale, ni locataire résolu. Voir le module pour le motif.
-from src.dashboard.views.email_actions import _unsubscribe, _verify_email
+from src.dashboard.email_actions import _unsubscribe, _verify_email
 
 
 
