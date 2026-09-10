@@ -135,19 +135,43 @@ def _sites() -> list[tuple[bool, bool, str, int, str]]:
                 if not bounded:
                     # Bornage en PANDAS : la fenêtre appliquée par un masque juste
                     # après la lecture. `soundcloud.py` fait cela délibérément.
-                    bounded = bool(_names_in(ast.parse(after or "pass")) & avail) \
-                        if _parses(after) else any(v in after for v in avail)
+                    #
+                    # Et il faut une COMPARAISON, pas une mention. Le premier jet
+                    # acceptait n'importe quelle occurrence du nom dans les 45 lignes
+                    # suivantes — donc `start_d.strftime()` dans le TITRE de la figure
+                    # suffisait à la déclarer bornée. C'est exactement le défaut que ce
+                    # garde existe pour empêcher : le libellé annonce une période que
+                    # les données ne respectent pas.
+                    bounded = _compares_with(after, avail)
                 found.append((bounded, bool(_DRAWS.search(after)),
                               str(path.relative_to(VIEWS)), call.lineno, fn.name))
     return found
 
 
-def _parses(src: str) -> bool:
+def _compares_with(src: str, window_names: set[str]) -> bool:
+    """Une variable de fenêtre entre-t-elle dans une COMPARAISON, ici ?
+
+    Un nom cité dans un `f"…{start_d:%d/%m}…"` de titre ne borne rien. Seule une
+    comparaison (`>=`, `<=`, `between`, `<`, `>`) applique la fenêtre aux données.
+    """
     try:
-        ast.parse(src)
-        return True
+        tree = ast.parse(src)
     except SyntaxError:
-        return False
+        # Le fragment coupé à 45 lignes n'est pas toujours du Python valide ; on
+        # retombe sur une lecture textuelle du même prédicat, jamais sur « présent ».
+        return bool(re.search(
+            r"(>=|<=|[<>]|\.between\()\s*[^\n]*\b(" + "|".join(map(re.escape, window_names)) + r")\b",
+            src)) or bool(re.search(
+            r"\b(" + "|".join(map(re.escape, window_names)) + r")\b\s*(>=|<=|[<>])", src))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare):
+            if _names_in(node) & window_names:
+                return True
+        if (isinstance(node, ast.Call)
+                and getattr(node.func, "attr", None) == "between"
+                and _names_in(node) & window_names):
+            return True
+    return False
 
 
 def test_no_figure_under_a_period_selector_ignores_it() -> None:
