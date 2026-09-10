@@ -38,7 +38,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIG = (ROOT / "migrations" / "098_the_app_is_not_a_superuser.sql").read_text(encoding="utf-8")
-COMPOSE = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+# LE FICHIER VERSIONNÉ, PAS CELUI DE CETTE MACHINE.
+#
+# `docker-compose.yml` est gitignoré (chaque poste a le sien, la prod a le sien) : un
+# garde qui le lit ne tourne jamais en CI et ne dit rien de ce que le dépôt livre.
+# C'est la classe « un contrôle qui ne peut jamais passer », déjà payée trois fois
+# ici. Le contrat public est `docker-compose.example.yml` ; le local est vérifié en
+# plus, quand il existe.
+COMPOSE = (ROOT / "docker-compose.example.yml").read_text(encoding="utf-8")
+_LOCAL = ROOT / "docker-compose.yml"
 
 # Tout ce qu'un rôle applicatif ne doit jamais porter. `pg_read_server_files` et
 # `pg_write_server_files` sont là parce qu'ils redonnent, par un autre chemin, ce que
@@ -77,11 +85,27 @@ def test_no_password_is_committed_in_the_migration() -> None:
     assert "current_setting('app.streamlytics_app_password'" in MIG
 
 
-def test_the_compose_file_reads_the_role_from_the_environment() -> None:
+_READS_ENV = re.compile(r"DATABASE_USER:\s*\$\{DATABASE_USER:-postgres\}")
+
+
+def test_the_shipped_compose_template_reads_the_role_from_the_environment() -> None:
     """Imposer `postgres` en dur rend la bascule impossible sans éditer le dépôt."""
-    assert re.search(r"DATABASE_USER:\s*\$\{DATABASE_USER:-postgres\}", COMPOSE), (
-        "docker-compose fige DATABASE_USER : basculer sur le rôle applicatif "
-        "demanderait alors un commit, donc ne se ferait pas")
+    assert _READS_ENV.search(COMPOSE), (
+        "docker-compose.example.yml fige DATABASE_USER : chaque déploiement issu de "
+        "ce gabarit repartirait en superutilisateur, et basculer demanderait un "
+        "commit — donc ne se ferait pas")
+
+
+def test_the_local_compose_did_not_drift_from_the_template() -> None:
+    """Le fichier de cette machine est ignoré par git : rien d'autre ne le compare."""
+    if not _LOCAL.exists():
+        pytest.skip("pas de docker-compose.yml local")
+    local = _LOCAL.read_text(encoding="utf-8")
+    if "DATABASE_USER" not in local:
+        pytest.skip("ce compose local ne câble pas la base de l'app")
+    assert _READS_ENV.search(local), (
+        "le compose de CETTE machine fige DATABASE_USER alors que le gabarit le lit "
+        "dans l'environnement — la dérive silencieuse entre le poste et le dépôt")
 
 
 # ── Le contrôle sur la base vivante ──────────────────────────────────────────

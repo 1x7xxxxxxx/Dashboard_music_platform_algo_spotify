@@ -75,7 +75,19 @@ services:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: spotify_etl
-      DATABASE_USER: postgres
+      # LE RÔLE DE L'APPLICATION N'EST PAS CELUI DES MIGRATIONS.
+      #
+      # `postgres` est SUPERUTILISATEUR : une injection ou une fuite de DSN n'y
+      # donne pas « la lecture des tables », elle donne `COPY … TO PROGRAM` — une
+      # exécution de commandes sur l'hôte — plus `pg_authid`. La migration 098 crée
+      # `streamlytics_app`, NOSUPERUSER, sans DDL, prouvé suffisant pour les
+      # lectures et les écritures de l'app (`make db-role-check`).
+      #
+      # Le défaut reste `postgres` : la bascule est un geste d'exploitation
+      # (poser DATABASE_USER + DATABASE_PASSWORD, redémarrer), pas un effet de bord
+      # d'un `git pull`. Les migrations, elles, restent en `postgres` par
+      # construction — `make migrate` n'utilise pas ces variables.
+      DATABASE_USER: ${DATABASE_USER:-postgres}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       FERNET_KEY: ${FERNET_KEY}
 
