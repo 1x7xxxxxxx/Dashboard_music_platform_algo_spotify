@@ -322,6 +322,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-batch-that-commits-one-row-at-a-time](#a-batch-that-commits-one-row-at-a-time) | P2 | deterministic | guarded | none |
 | [a-truncated-read-recorded-as-a-complete-one](#a-truncated-read-recorded-as-a-complete-one) | P2 | deterministic | guarded | none |
 | [a-date-that-does-not-say-which-clock-produced-it](#a-date-that-does-not-say-which-clock-produced-it) | P2 | deterministic | guarded | none |
+| [a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser](#a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4498,3 +4499,19 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: **le chiffre qui justifiait cette classe était faux, et le recompter a inversé la conclusion.** J'avais écrit « 200 lignes sur 2 535 (7,9 %) changent de jour selon le fuseau » : mesuré sur une base locale, ce compte mélangeait les deux ères. En production, sur l'ère actuelle, **0 ligne sur 5 807** pour YouTube et **29** toutes plateformes confondues — les collectes nocturnes atterrissent à 10 h UTC, à plus de quatre heures de toute frontière. Un chiffre non ancré à sa population dit le contraire de la vérité.
   - 2026-09-10: cette cause a été retrouvée **en lisant le PDF**, pas la roadmap. Elle vivait dans une ligne d'historique d'une autre classe — c'est-à-dire à l'endroit exact où rien ne la relit. Un reste mesuré qui n'entre pas dans la roadmap n'est pas suivi, quelle que soit la qualité de l'endroit où il est écrit.
   - 2026-09-10: la mutation qui devait prouver le balayage anti-conversion est d'abord restée VERTE — elle avait atterri dans le docstring du module, que le prédicat exclut à raison. Deuxième fois dans la séance qu'une mutation accuse un garde à tort. Vérifier que la mutation touche du CODE avant de conclure.
+
+## a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: le jour où le travail est réellement terminé, **trois gardes tombent ensemble** — et ils tombent sur la seule chose qu'ils n'avaient pas prévue : le succès. Mesuré le 2026-09-10, à la rotation de la dernière tâche de la roadmap : `test_the_sections_are_not_empty`, `test_the_live_heading_pattern_actually_distinguishes_the_two_forms` et `test_the_index_is_not_empty_of_both_sections`, dans trois fichiers différents.
+- root_cause: chacun protégeait, à raison, contre une extraction qui vise à côté — un titre markdown qui apparaît aussi dans la prose, un renommage, une réorganisation rendent une liste vide plutôt qu'une erreur, et une liste vide satisfait `assert not offenders` parfaitement. Mais tous les trois ont ancré cette preuve sur le CONTENU du fichier de production (« la roadmap a au moins une ligne ») au lieu du PARSEUR. Une assertion de non-vacuité assise sur des données réelles confond deux propositions : « mon prédicat fonctionne » et « il y a du travail en cours ». Les deux sont vraies pendant deux ans, et se séparent le jour où l'on finit.
+- signature: `python3 -m pytest tests/test_roadmap_index_is_honest.py tests/test_the_resume_header_is_checked.py -q`
+- long_term_fix: prouver la non-vacuité sur un **échantillon fabriqué dans le test** — trois lignes de markdown écrites sur place, dont une qui doit matcher et deux qui ne doivent pas. Le prédicat reste gardé, et il l'est indépendamment de l'état du dépôt. Règle générale : une assertion de non-vacuité porte sur l'OUTIL, jamais sur la matière. Corollaire de forme, et c'est celui qui a failli faire perdre les trois gardes : leurs messages disaient « soit tout est fait, auquel cas supprimer ce test ». C'est la mauvaise moitié de l'alternative — supprimer retire la protection exactement au moment où les assertions voisines portent toutes sur du vide.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_roadmap_index_is_honest.py }
+- rex_ref: tests/test_the_resume_header_is_checked.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: même famille que `a-ratchet-frozen-on-a-partial-predicate`, écrite le même jour, et c'est le lien qui a donné le correctif : un cliquet gelé à zéro et un garde de non-vacuité vidé posent la MÊME question — « ce contrôle ne trouve rien : est-ce parce qu'il n'y a rien, ou parce qu'il ne voit rien ? ». La seule réponse est de lui donner quelque chose à voir, fabriqué sur place.
+  - 2026-09-10: une mutation est d'abord restée verte — retirer le `(?!~~)` de `_LIVE_HEADING`. Ce n'était pas le garde qui était aveugle : le lookahead est **redondant**, les `~~` bloquent déjà la position. Il a fallu écrire `~*(R\d+)` pour rendre le motif réellement permissif. Troisième fois de la séance qu'une mutation accuse un garde à tort.
