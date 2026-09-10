@@ -168,7 +168,12 @@ def show():
                         #
                         # Regroupé par jour : 19 points, 17 à 19 titres chacun.
                         _by_day = df_filtered.copy()
-                        _by_day['_jour'] = pd.to_datetime(
+                        # `to_local_naive` et non `pd.to_datetime` : la colonne est
+                        # un `timestamptz`, et ses lignes portent +01:00 ou +02:00
+                        # selon la saison. `pd.to_datetime` lève dès qu'une fenêtre
+                        # enjambe un changement d'heure — et retirer le fuseau AVANT
+                        # de convertir laisserait l'offset que la ligne portait.
+                        _by_day['_jour'] = to_local_naive(
                             _by_day['collected_at']).dt.normalize()
                         agg = (_by_day.groupby('_jour')[list(_m)]
                                .sum().sort_index())

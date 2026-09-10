@@ -327,6 +327,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-verdict-computed-past-the-end-of-its-evidence](#a-verdict-computed-past-the-end-of-its-evidence) | P2 | deterministic | guarded | none |
 | [a-diagram-is-verified-by-looking-at-it](#a-diagram-is-verified-by-looking-at-it) | P3 | manual | reported | none |
 | [a-caption-written-beside-the-behaviour-instead-of-derived-from-it](#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | P3 | deterministic | guarded | none |
+| [a-figure-under-a-period-selector-that-ignores-it](#a-figure-under-a-period-selector-that-ignores-it) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4591,3 +4592,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: la version ANGLAISE était pire que la française — elle ajoutait « over the last 90 days », une période codée en dur sans rapport avec la fenêtre choisie. Une traduction se périme comme le texte qu'elle traduit, et personne ne relit celle qu'il ne parle pas.
   - 2026-09-10: deux coquilles voisines trouvées au même rendu. Le sous-titre annonçait « sur 2 années » pour une fenêtre de 12 mois : le nombre était juste — deux seaux annuels, la fenêtre étant à cheval sur deux années civiles — et le mot faux. Et `_UNSTACKED` était déclarée, lue NULLE PART, et son contenu faux : `share` empile, à 100 % même. Une constante morte est du bruit ; morte et fausse, elle enseigne quelque chose de faux au premier lecteur qui la croit.
   - 2026-09-10: la plainte d'origine — « pourquoi je n'ai pas YouTube » — n'était PAS un défaut. L'absence est délibérée (24 jours mesurés sur deux années civiles dont aucune n'atteint la moitié) et l'écran le disait déjà. Reproduire avant de corriger a évité de desserrer un plancher qui protège d'un total ~10× trop bas.
+
+## a-figure-under-a-period-selector-that-ignores-it
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'artiste choisit « 30 jours » et la figure lui montre autre chose, sans que rien ne le dise. Aucune erreur, aucun trou : des barres pleines, sur une période qui n'est pas celle qu'il a demandée.
+- root_cause: une vue Streamlit est un seul `show()` de plusieurs centaines de lignes. Le sélecteur de période y ouvre une fenêtre, et chaque requête écrite ensuite doit la reprendre — en SQL par un fragment, ou en pandas par un masque. Rien ne l'imposait : 29 vues dessinent des figures, 12 portent un sélecteur, et une seule — l'accueil — avait un garde sur leur cohérence.
+- signature: `python3 -m pytest tests/test_a_chart_is_bounded_by_the_period_it_announces.py -q`
+- long_term_fix: un prédicat AST qui, pour chaque requête placée SOUS une ouverture de fenêtre, exige que la borne apparaisse — en SQL ou dans une COMPARAISON pandas. Cliquet à zéro. Règle générale : dans une vue mono-fonction, la portée d'un réglage se lit par la POSITION, pas par la fonction englobante.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_chart_is_bounded_by_the_period_it_announces.py }
+- rex_ref: src/dashboard/views/soundcloud.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: **le prédicat s'est trompé trois fois, en accusant du code juste.** (1) Portée de FONCTION : il a accusé 24 requêtes sur 30, dont les six figures de `spotify_s4a_combined` — dont la fenêtre est ouverte ligne 281, SOUS elles. Une fenêtre ne borne que ce qui vient après. (2) Variables DÉRIVÉES : `window.start` dépaqueté en `start_d`, `sql_between()` en `frag, params` — la borne voyage sous d'autres noms, il faut la clôture transitive. (3) Bornage en PANDAS : `soundcloud.py` lit tout l'historique en SQL, délibérément, et applique la fenêtre par un masque juste après.
+  - 2026-09-10: après correction, **15 requêtes sous une fenêtre, 0 figure non bornée**. La mesure n'a donc rien corrigé sur cette classe — elle a transformé une croyance en propriété vérifiable, et les trois faux départs sont gardés parce qu'ils reviendront.
+  - 2026-09-10: la première version du bornage pandas acceptait n'importe quelle MENTION du nom dans les 45 lignes suivantes — donc `start_d.strftime()` dans le TITRE de la figure suffisait. Le garde validait ainsi exactement le défaut qu'il cherche : un libellé qui annonce une période que les données ne respectent pas. Il exige désormais une COMPARAISON.
+  - 2026-09-10: ce qu'il NE tient pas est écrit dans le fichier : que la borne porte sur la bonne colonne. `instagram` filtre sur la date de PUBLICATION, ce qui est juste pour une cohorte et faux pour un engagement — aucun prédicat ne rend ce jugement, et ce cas-là a été traité par le texte de la figure.

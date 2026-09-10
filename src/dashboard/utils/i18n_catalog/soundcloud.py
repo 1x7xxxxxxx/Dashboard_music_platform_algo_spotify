@@ -1,6 +1,10 @@
 """EN strings for the SoundCloud view."""
 
 EN = {
+    "soundcloud.base100_dropped": (
+        "{n} reading(s) dropped from this curve: a cumulative counter went DOWN there, "
+        "which is an API failure and not a fall in audience. Drawing them would show a "
+        "drop that never happened."),
     "soundcloud.title": "☁️ SoundCloud - Performance",
     "soundcloud.kpi_plays": "🎧 Total Plays",
     "soundcloud.kpi_likes": "❤️ Total Likes",

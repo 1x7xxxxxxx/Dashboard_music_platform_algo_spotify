@@ -1,6 +1,15 @@
 """EN strings for the Instagram view."""
 
 EN = {
+    "instagram.engagement_by_cohort": (
+        "Likes and comments EARNED TO DATE, by month of publication ({label})"),
+    "instagram.month_published": "Month published",
+    "instagram.engagement_cohort_note": (
+        "Each bar groups the posts **published** that month and shows the likes they "
+        "have accumulated **up to today** — not the ones received during that month. "
+        "Instagram only gives us a current counter per post: there is no history to "
+        "derive a monthly engagement from, and inventing it would be worse than not "
+        "showing it. The period filter therefore applies to the **publication** date."),
     "instagram.title": "📸 Instagram - Performance",
     "instagram.account": "Account: @{username}",
     "instagram.kpi_followers": "👥 Followers",
@@ -23,7 +32,6 @@ EN = {
     "instagram.history_error": "History error: {err}",
     "instagram.engagement_header": "📝 Engagement & posts",
     "instagram.no_posts": "No posts in this period.",
-    "instagram.engagement_by_month": "Engagement by month ({label})",
     "instagram.likes_comments_axis": "Likes + comments",
     "instagram.engagement_rate_title": "Engagement rate ≈ (avg. eng./post) ÷ followers — indicative",
     "instagram.rate_axis": "Rate (%)",
