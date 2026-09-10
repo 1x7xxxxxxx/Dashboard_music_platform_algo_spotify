@@ -25,9 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R72 | **Stripe : le locataire à provisionner est choisi par le PAYEUR.** `client_reference_id` arrive du lien de paiement, modifiable dans la barre d'adresse, et n'est apparié ni à la session authentifiée ni à l'e-mail du checkout. Un locataire A peut activer PUIS révoquer l'abonnement d'un locataire V, et V — s'il paie réellement — cesse d'être synchronisé en silence. La signature Stripe passe : elle relaie fidèlement ce que le payeur a mis. | **P1** | `stripe_webhook.py:135` ; chaîne d'atteinte tracée sur 4 lignes |
-| R73 | **Le bac à sable recollecte le compte publicitaire du locataire 1**, et se fait limiter par Meta. Meta = **528 s sur 651 s d'ETL nocturne (81 %)**, dont **424 s de sommeil** imposé par le throttle, sur 4 des 5 derniers runs. Et `fetch_creatives=False` existe, documenté comme « le principal moteur de limitation », mais le DAG ne le câble pas. | P2 | `task_instance` en prod, run du 09-09 |
-| R74 | **Aucun délai d'attente nulle part sur Postgres** (ni `connect_timeout`, ni `statement_timeout`), et l'API tourne en **un seul processus** avec des endpoints synchrones. Si la base pend au lieu de refuser, 40 requêtes suffisent à épuiser le pool de threads — et `/health`, synchrone lui aussi, ne répond plus : la sonde externe voit l'API morte alors que seule la base pend. Plus 3 appels Instagram sans `timeout=`. | P2 | balayage AST : zéro occurrence |
 | R75 | **Le disjoncteur n'a aucun appelant de production** — `etl_circuit_breaker` compte **0 ligne**. Un credential cassé consomme donc 2 essais × 13 DAGs × N locataires chaque nuit, indéfiniment. Et `@retry` rejoue **toute** exception, y compris un 401/403 qui ne redeviendra jamais vrai, en ignorant `Retry-After` — que SoundCloud lit et n'utilise pas. | P2 | `SELECT count(*) FROM etl_circuit_breaker` = 0 |
 | R76 | **L'instrumentation d'ingestion ment.** 4 DAGs sur 5 écrivent `ended_at == started_at`, donc `duration_ms` nulle : seul Meta est mesurable par `etl_run_log`. Et deux échecs persistants qu'aucune alerte ne remonte comme tels : **Spotify 144 runs non-success sur 183**, Meta locataire 12 en échec **tous les jours** depuis des semaines. | P2 | `etl_run_log` + `task_instance` en prod |
 | R77 | **Axes doubles, triples et quadruples sur 6 vues et 9 figures**, alors que le dépôt en a fait un principe explicite ailleurs — dont une figure à **4 axes superposés**. Plus deux `fillna(0)` qui restent sur une FIGURE : une popularité recopiée par `ffill` dans le fichier qui refuse trois lignes plus bas de fabriquer un CPR, et un âge inconnu dessiné à « importé aujourd'hui ». | P3 | 9 occurrences localisées |
@@ -65,6 +62,10 @@ entre-temps arrêtait les requêtes avant les routeurs. Corrigé, déployé, et 
 rougit désormais sur ce défaut précis.
 
 Onze tâches en sont sorties, **R72 à R82**, chacune avec la mesure qui l'a établie.
+**Trois sont livrées et déployées le soir même** — R72 (le payeur ne choisit plus le
+locataire à provisionner), R73 (Meta pesait 81 % de la nuit dont 424 s de sommeil
+imposé), R74 (plus aucune attente illimitée, ni base ni HTTP). Les huit autres restent
+ouvertes, chacune avec sa mesure : ce sont des chantiers, pas des retouches.
 
 **Le soir du 2026-09-10 a construit les propositions du dossier d'architecture**, sans
 ouvrir de tâche : le cliquet de la frontière du bronze (124 couples, il ne peut que
@@ -86,9 +87,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-10, douze tâches ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-10, neuf tâches ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R1,R72,R73,R74,R75,R76,R77,R78,R79,R80,R81,R82 -->
+<!-- reprise: open=R1,R75,R76,R77,R78,R79,R80,R81,R82 -->
 
 ### Ce que le 2026-09-10 a changé (sept tâches livrées, une reste)
 

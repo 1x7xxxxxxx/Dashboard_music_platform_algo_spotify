@@ -9,6 +9,29 @@ Rotation actif → archive : `Spawn roadmap-keeper` (CLAUDE.md règle 17). Un it
 
 ---
 
+### R72 · R73 · R74 — les trois premières de l'audit transverse (clos 2026-09-10)
+
+- [x] **R72 — le payeur ne choisit plus le locataire à provisionner.** `client_reference_id`
+  arrive du lien de paiement, modifiable dans la barre d'adresse ; la signature Stripe
+  passe, elle relaie fidèlement ce que le payeur a mis. Un locataire A pouvait activer
+  puis révoquer l'abonnement d'un locataire V, et V — s'il payait réellement — cessait
+  d'être synchronisé en silence. L'identifiant est désormais apparié à l'e-mail payé,
+  avec trois refus distincts. Garde `test_the_payer_does_not_choose_the_tenant.py`,
+  mutation rouge. Même classe que le 2026-08-23, fermée alors sur l'ÉMISSION du lien et
+  pas sur la RÉCEPTION.
+- [x] **R73 — Meta pesait 528 s des 651 s d'ETL nocturne (81 %).** Le bac à sable
+  recollectait le compte publicitaire du profil principal : 535 s dont **424 s de
+  sommeil imposé** par le throttle, contre 96 s pour la première collecte du même
+  compte. Un compte n'est plus collecté qu'une fois par nuit, et la boucle par créative
+  (143 appels Graph, que le collecteur nomme lui-même « le principal moteur de
+  limitation ») passe à la demande. Conséquence assumée et dite : les lignes du bac à
+  sable ne sont plus rafraîchies.
+- [x] **R74 — plus aucune attente illimitée.** Zéro `connect_timeout` et zéro
+  `statement_timeout` dans tout le dépôt ; l'API tourne en un seul processus avec des
+  endpoints synchrones, donc une base qui PEND aurait épuisé le pool de threads et fait
+  taire `/health` — la sonde externe aurait conclu que l'API est morte alors que seule
+  la base pendait. Les quatre fabriques sont bornées, plus les trois appels Instagram.
+
 ### R70 — Une définition par métrique, et une seule (clos 2026-09-10)
 
 - [x] **R70 — bronze / argent / or, posé comme une FRONTIÈRE et non comme un stockage.**
