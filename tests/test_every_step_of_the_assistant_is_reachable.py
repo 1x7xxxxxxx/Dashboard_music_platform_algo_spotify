@@ -29,7 +29,17 @@ import os
 import socket
 import time
 
+from pathlib import Path
+
 import pytest
+
+# CHEMIN ABSOLU, dérivé de la racine du dépôt.
+#
+# `AppTest.from_file` résout un chemin RELATIF depuis le fichier qui l'appelle — donc
+# depuis `tests/`, ce qui donne `tests/src/dashboard/app.py`. Le chemin relatif ne
+# marchait que par la grâce de la version de Streamlit installée localement ; en CI il
+# a rendu `FileNotFoundError` sur trois tests, et le rouge cachait tout ce qui suivait.
+_APP = str(Path(__file__).resolve().parent.parent / "src" / "dashboard" / "app.py")
 
 _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 
@@ -85,7 +95,7 @@ def _configured_tenant() -> int:
 def _render_assistant(artist_id: int):
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_file("src/dashboard/app.py", default_timeout=180)
+    at = AppTest.from_file(_APP, default_timeout=180)
     for key, value in {
         "authenticated": True, "role": "artist", "artist_id": artist_id,
         "username": "artist@test", "email": "artist@test", "name": "artist@test",

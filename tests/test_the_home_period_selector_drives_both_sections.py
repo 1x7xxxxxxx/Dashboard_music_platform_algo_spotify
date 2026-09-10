@@ -25,7 +25,17 @@ import os
 import socket
 import time
 
+from pathlib import Path
+
 import pytest
+
+# CHEMIN ABSOLU, dérivé de la racine du dépôt.
+#
+# `AppTest.from_file` résout un chemin RELATIF depuis le fichier qui l'appelle — donc
+# depuis `tests/`, ce qui donne `tests/src/dashboard/app.py`. Le chemin relatif ne
+# marchait que par la grâce de la version de Streamlit installée localement ; en CI il
+# a rendu `FileNotFoundError` sur trois tests, et le rouge cachait tout ce qui suivait.
+_APP = str(Path(__file__).resolve().parent.parent / "src" / "dashboard" / "app.py")
 
 from src.dashboard.utils import date_range
 
@@ -111,7 +121,7 @@ def _tenant_with_history() -> int:
 def _home(artist_id: int, period: str | None = None):
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_file("src/dashboard/app.py", default_timeout=180)
+    at = AppTest.from_file(_APP, default_timeout=180)
     state = {
         "authenticated": True, "role": "artist", "artist_id": artist_id,
         "username": "artist@test", "email": "artist@test", "name": "artist@test",

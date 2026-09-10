@@ -27,7 +27,10 @@ import socket
 import pytest
 
 _DB_HOST, _DB_PORT = "127.0.0.1", 5433
-_PROBE_ARTIST = 471          # locataire technique, jamais un artiste réel
+# Un identifiant HORS de toute plage réelle, et que ce fichier crée lui-même.
+# 471 était utilisé avant : il existait dans la base de développement, posé à la main,
+# et nulle part ailleurs — d'où un test vert en local et rouge en CI.
+_PROBE_ARTIST = 999_471
 _PROBE_SONG = "__probe_revision__"
 
 
@@ -59,8 +62,21 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture()
 def db():
+    """Le locataire technique est CRÉÉ ici, pas supposé.
+
+    `s4a_song_timeline.artist_id` porte une clé étrangère vers `saas_artists` : sans
+    la ligne parente, l'insertion est refusée. Le test passait pourtant en local et
+    échouait en CI — parce que le locataire 471 existait dans MA base, posé à la main
+    un jour, et nulle part ailleurs. Un test qui s'appuie sur l'état local d'une base
+    ne prouve rien : il prouve que cette base-là a cet état.
+    """
     from src.dashboard.utils import get_db_connection
     conn = get_db_connection()
+    conn.execute_query(
+        "INSERT INTO saas_artists (id, name, slug, tier, active) "
+        "VALUES (%s, %s, %s, 'free', false) ON CONFLICT (id) DO NOTHING",
+        (_PROBE_ARTIST, "probe — nothing_overwritten_is_lost",
+         f"probe-nothing-overwritten-{_PROBE_ARTIST}"))
     _clean(conn)
     try:
         yield conn
