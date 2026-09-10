@@ -111,4 +111,15 @@ data/offsite_receipt.json
 
 # Le dossier d'architecture est DÉRIVÉ (~1,1 Mo, au-dessus du plafond de 1 Mo).
 # Son générateur est versionné sous tools/dev/architecture_dossier/.
+#
+# Les INTERMÉDIAIRES de sa chaîne le sont aussi, et la raison est la même : le HTML
+# rendu (504 Ko), les SVG mermaid et leur source `.mmd` (520 Ko) et le fichier de
+# configuration mermaid réécrit à chaque exécution sont tous reconstruits par
+# `main.py`. Le 2026-09-10 ils sont entrés dans un commit par un `git add -A` — 1 Mo
+# de dérivé qui grossit à chaque régénération, exactement ce que le plafond existe
+# pour tenir à distance.
+tools/dev/architecture_dossier/dossier.html
+tools/dev/architecture_dossier/dossier.pdf
+tools/dev/architecture_dossier/mermaid.json
+tools/dev/architecture_dossier/svg/
 docs/streamlytics-architecture-et-qualite-des-donnees.pdf
