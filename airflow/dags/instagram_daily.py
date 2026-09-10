@@ -12,6 +12,7 @@ from src.utils.safe_error import safe_error
 from src.utils.dag_timeouts import dagrun_timeout_for
 
 import logging
+import time as _time
 logger = logging.getLogger(__name__)
 
 
@@ -113,6 +114,12 @@ def run_insta_collector(**context):
         configured += 1
         logger.info(f"Instagram collect — artist_id={artist_id} ({artist_name})")
         try:
+            # LE CHRONOMÈTRE. `record_tenant_success` écrivait `started_at == ended_at`,
+            # donc une durée de zéro : quatre DAGs sur cinq étaient dans ce cas, et toute
+            # moyenne calculée sur `etl_run_log` intégrait des zéros qui n'étaient pas des
+            # mesures. Le schéma impose `started_at NOT NULL` — on ne peut donc pas dire
+            # « je ne sais pas » ; on mesure.
+            _t0 = _time.monotonic()
             rows = InstagramCollector(
                 artist_id=artist_id,
                 access_token=token,
@@ -126,7 +133,8 @@ def run_insta_collector(**context):
                 # inatteignable, exactement comme une couche débranchée.
                 ig_username=creds.get('ig_username'),
             ).run() or 0
-            record_tenant_success('instagram_daily', artist_id, 'instagram', rows, run_id)
+            record_tenant_success('instagram_daily', artist_id, 'instagram', rows, run_id,
+                                  duration_ms=int((_time.monotonic() - _t0) * 1000))
             succeeded += 1
             logger.info(f"  Collect done for {artist_name}")
         except Exception as e:

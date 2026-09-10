@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import sys
 import os
 import logging
+import time as _time
 from src.utils.dag_timeouts import dagrun_timeout_for
 
 sys.path.insert(0, '/opt/airflow')
@@ -116,6 +117,12 @@ def collect_youtube_data(**context):
 
             artists_with_creds += 1
             try:
+                # LE CHRONOMÈTRE. `record_tenant_success` écrivait `started_at == ended_at`,
+                # donc une durée de zéro : quatre DAGs sur cinq étaient dans ce cas, et toute
+                # moyenne calculée sur `etl_run_log` intégrait des zéros qui n'étaient pas des
+                # mesures. Le schéma impose `started_at NOT NULL` — on ne peut donc pas dire
+                # « je ne sais pas » ; on mesure.
+                _t0 = _time.monotonic()
                 collector = YouTubeCollector(api_key)
                 # 200 (not 50): older releases (e.g. a remix) get pushed past the 50 most-recent
                 # uploads by frequent content (DJ sets) and were never collected → unmappable.
@@ -231,7 +238,8 @@ def collect_youtube_data(**context):
                     _videos_total += len(data['videos'])
 
                 record_tenant_success('youtube_daily', saas_artist_id, 'youtube',
-                                      _videos_total, run_id)
+                                      _videos_total, run_id,
+                                      duration_ms=int((_time.monotonic() - _t0) * 1000))
                 results.append({'artist': artist_name, 'videos': _videos_total,
                                 'channels': len(_channels)})
             except Exception as e:

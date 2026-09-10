@@ -27,6 +27,8 @@ sys.path.insert(0, '/opt/airflow')
 from src.utils.diagnosis_text import as_html
 from src.utils.dag_timeouts import dagrun_timeout_for
 from src.utils.safe_error import redact, safe_error
+from src.utils.collection_outcomes import (
+    describe_failure_age, failure_age_nights, is_long_standing, split_by_age)
 
 import os
 import logging
@@ -1172,21 +1174,53 @@ def check_collection_outcomes(**context):
         # The LAST outcome per (tenant, platform) inside the window. A tenant that
         # failed at 03:00 and succeeded on a manual re-run at 09:00 is not a problem;
         # taking the latest row is what makes that true.
+        # DEPUIS COMBIEN DE NUITS, ET PAS SEULEMENT « CETTE NUIT ».
+        #
+        # Mesuré le 2026-09-10 en production : le locataire 12 échoue sur Meta
+        # **toutes les nuits depuis le 2026-06-19**, 93 fois, avec exactement la
+        # même cause — « Ad account owner has NOT grant ads_management or ads_read
+        # permission ». Aucune exécution ne peut la retirer : elle nomme un geste
+        # humain à faire chez Meta, pas une panne.
+        #
+        # Le problème n'est pas que l'alerte le dise ; c'est qu'elle le dise à
+        # l'identique la nuit 1 et la nuit 93. Un lecteur ne peut pas distinguer ce
+        # qui vient de casser de ce qui est bloqué depuis trois mois, donc il finit
+        # par ne plus lire la section — et une vraie panne s'y noie. On mesure donc
+        # l'ancienneté et on la montre, sans rien faire taire.
         rows = db.fetch_query(
             """
-            SELECT DISTINCT ON (e.artist_id, e.platform)
-                   e.artist_id, a.name, e.platform, e.dag_id,
-                   e.status, e.error_message, e.started_at
-            FROM etl_run_log e
-            JOIN saas_artists a ON a.id = e.artist_id
-            WHERE e.started_at > now() - make_interval(hours => %s)
-              AND e.artist_id IS NOT NULL
-            ORDER BY e.artist_id, e.platform, e.started_at DESC
+            WITH latest AS (
+                SELECT DISTINCT ON (e.artist_id, e.platform)
+                       e.artist_id, e.platform, e.dag_id,
+                       e.status, e.error_message, e.started_at
+                FROM etl_run_log e
+                WHERE e.started_at > now() - make_interval(hours => %s)
+                  AND e.artist_id IS NOT NULL
+                ORDER BY e.artist_id, e.platform, e.started_at DESC
+            )
+            SELECT l.artist_id, a.name, l.platform, l.dag_id,
+                   l.status, l.error_message, l.started_at,
+                   (SELECT max(s.started_at) FROM etl_run_log s
+                     WHERE s.artist_id = l.artist_id AND s.platform = l.platform
+                       AND s.status = 'success') AS last_success,
+                   (SELECT count(DISTINCT s.started_at::date) FROM etl_run_log s
+                     WHERE s.artist_id = l.artist_id AND s.platform = l.platform
+                       AND s.status IN ('failed', 'partial')
+                       AND s.started_at > COALESCE(
+                           (SELECT max(s2.started_at) FROM etl_run_log s2
+                             WHERE s2.artist_id = l.artist_id
+                               AND s2.platform = l.platform
+                               AND s2.status = 'success'),
+                           '-infinity'::timestamp)) AS failing_nights
+            FROM latest l
+            JOIN saas_artists a ON a.id = l.artist_id
+            ORDER BY l.artist_id, l.platform
             """,
             (WINDOW_H,),
         )
 
-        for artist_id, name, platform, dag_id, status, error_message, started_at in rows:
+        for (artist_id, name, platform, dag_id, status, error_message, started_at,
+             last_success, failing_nights) in rows:
             if status not in ('failed', 'partial'):
                 continue
             problems.append({
@@ -1198,7 +1232,15 @@ def check_collection_outcomes(**context):
                 # The literal cause, already redacted at write time by safe_error.
                 'reason': (error_message or 'no cause recorded')[:300],
                 'when': str(started_at),
+                # Nights failed since the last success — 1 means "broke tonight".
+                'failing_nights': int(failing_nights or 1),
+                'last_success': str(last_success) if last_success else None,
             })
+
+        # Le plus RÉCENT en premier : ce qui vient de casser est ce sur quoi une
+        # exécution peut encore agir. Ce qui traîne depuis des semaines attend un
+        # geste humain et ne doit pas occuper le haut de la liste chaque nuit.
+        problems.sort(key=failure_age_nights)
     except Exception as e:  # noqa: BLE001
         # Same contract as check_central_apps: a check that could not run says so
         # rather than looking like a passing one.
@@ -2322,6 +2364,11 @@ def send_consolidated_alert(**context):
     if collection_failures:
         rows = ''
         for f in collection_failures:
+            # Une nuit = ce qui vient de casser, en rouge. Plusieurs = un blocage
+            # installé, en gris : le lire chaque nuit dans la même couleur que
+            # l'urgence est ce qui apprend à ne plus lire la section.
+            age = describe_failure_age(f)
+            age_color = '#888' if is_long_standing(f) else '#c0392b'
             rows += f"""
             <tr>
               <td style="padding:6px 12px;border-bottom:1px solid #eee">
@@ -2330,6 +2377,9 @@ def send_consolidated_alert(**context):
               <td style="padding:6px 12px;border-bottom:1px solid #eee">{f['platform']}</td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#c0392b">
                 {f['status']}
+              </td>
+              <td style="padding:6px 12px;border-bottom:1px solid #eee;color:{age_color}">
+                {as_html(age)}
               </td>
               <td style="padding:6px 12px;border-bottom:1px solid #eee;color:#555">
                 {as_html(f['reason'])}
@@ -2350,6 +2400,7 @@ def send_consolidated_alert(**context):
               <th style="padding:8px 12px;text-align:left">Locataire</th>
               <th style="padding:8px 12px;text-align:left">Plateforme</th>
               <th style="padding:8px 12px;text-align:left">Issue</th>
+              <th style="padding:8px 12px;text-align:left">Depuis</th>
               <th style="padding:8px 12px;text-align:left">Cause</th>
             </tr>
           </thead>
@@ -2457,14 +2508,27 @@ def send_consolidated_alert(**context):
         subject_parts.append(f"🧬 CONTAMINATION : {len(contamination)} "
                              f"({', '.join(_kinds)})")
     if collection_failures:
+        # LE SUJET NOMME CE QUI VIENT DE CASSER, PAS CE QUI EST BLOQUÉ DEPUIS 93 NUITS.
+        #
+        # Mesuré en production le 2026-09-10 : le locataire 12 tient la ligne d'objet
+        # tous les soirs depuis le 2026-06-19 sur une permission Meta qu'aucune
+        # exécution ne peut accorder. Un objet qui ne change jamais cesse d'être lu,
+        # et le soir où il change vraiment personne ne le voit. Les blocages installés
+        # restent intégralement dans le corps, avec leur ancienneté.
+        _fresh, _stuck = split_by_age(collection_failures)
         _cf = []
-        for f in collection_failures:
+        for f in _fresh:
             label = f"{f['artist_name']} ({f['platform']})"
             if label not in _cf:
                 _cf.append(label)
-        shown, extra = _cf[:3], len(_cf) - 3
-        subject_parts.append("🔴 COLLECTE KO : " + ", ".join(shown)
-                             + (f" +{extra}" if extra > 0 else ""))
+        if _cf:
+            shown, extra = _cf[:3], len(_cf) - 3
+            subject_parts.append("🔴 COLLECTE KO : " + ", ".join(shown)
+                                 + (f" +{extra}" if extra > 0 else ""))
+        if _stuck:
+            # Compté, jamais nommé : le décompte bouge quand un blocage se lève ou
+            # s'ajoute, ce qui est la seule information neuve que porte cette moitié.
+            subject_parts.append(f"⏳ {len(_stuck)} collecte(s) bloquée(s) de longue date")
     if failing_dags:
         subject_parts.append(f"{len(failing_dags)} DAG(s) en échec")
     if stale_sources:

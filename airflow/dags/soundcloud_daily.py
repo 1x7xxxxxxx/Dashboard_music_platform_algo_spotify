@@ -19,6 +19,7 @@ from src.utils.safe_error import safe_error
 from src.utils.dag_timeouts import dagrun_timeout_for
 
 import logging
+import time as _time
 logger = logging.getLogger(__name__)
 
 
@@ -160,6 +161,12 @@ def run_soundcloud_collector(**context):
         configured += 1
         logger.info(f"▶ SoundCloud collect — artist_id={artist_id} ({artist_name})")
         try:
+            # LE CHRONOMÈTRE. `record_tenant_success` écrivait `started_at == ended_at`,
+            # donc une durée de zéro : quatre DAGs sur cinq étaient dans ce cas, et toute
+            # moyenne calculée sur `etl_run_log` intégrait des zéros qui n'étaient pas des
+            # mesures. Le schéma impose `started_at NOT NULL` — on ne peut donc pas dire
+            # « je ne sais pas » ; on mesure.
+            _t0 = _time.monotonic()
             collector = SoundCloudCollector(
                 artist_id=artist_id,
                 client_id=client_id,
@@ -168,7 +175,8 @@ def run_soundcloud_collector(**context):
                 refresh_token=refresh_token,
             )
             rows = collector.run() or 0
-            record_tenant_success('soundcloud_daily', artist_id, 'soundcloud', rows, run_id)
+            record_tenant_success('soundcloud_daily', artist_id, 'soundcloud', rows, run_id,
+                                  duration_ms=int((_time.monotonic() - _t0) * 1000))
             succeeded += 1
             logger.info(f"  ✅ Collecte terminée pour {artist_name}")
         except Exception as e:

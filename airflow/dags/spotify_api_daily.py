@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, date  # ✅ AJOUT de 'date'
 import sys
 import os
 import logging
+import time as _time
 
 # Ajouter le projet au path
 sys.path.insert(0, '/opt/airflow')
@@ -172,6 +173,12 @@ def collect_spotify_artists(**context):
             logger.info(f'📊 Collecte artiste: {artist_id}')
 
             try:
+                # LE CHRONOMÈTRE. `record_tenant_success` écrivait `started_at == ended_at`,
+                # donc une durée de zéro : quatre DAGs sur cinq étaient dans ce cas, et toute
+                # moyenne calculée sur `etl_run_log` intégrait des zéros qui n'étaient pas des
+                # mesures. Le schéma impose `started_at NOT NULL` — on ne peut donc pas dire
+                # « je ne sais pas » ; on mesure.
+                _t0 = _time.monotonic()
                 # Récupérer infos artiste
                 artist_info = collector.get_artist_info(artist_id)
 
@@ -199,7 +206,8 @@ def collect_spotify_artists(**context):
                     logger.info(f'✅ Artiste {artist_id} collecté')
                     if saas_artist_id is not None:
                         record_tenant_success('spotify_api_daily', saas_artist_id,
-                                              'spotify', 1, run_id)
+                                              'spotify', 1, run_id,
+                                              duration_ms=int((_time.monotonic() - _t0) * 1000))
             except Exception as e:
                 # Per-artist isolation: a single bad Spotify ID must not abort the fleet.
                 logger.error(f'  Spotify collect failed for {artist_id}: {safe_error(e)}')

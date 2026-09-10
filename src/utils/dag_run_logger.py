@@ -11,7 +11,7 @@ to 'success' or 'failed' on exit. Exceptions are re-raised after logging.
 """
 import logging
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from src.utils.safe_error import safe_error
 
@@ -189,7 +189,8 @@ class DagRunLogger:
 
 def record_tenant_run(dag_id: str, artist_id: int, platform: str, run_id: str = None,
                       status: str = _STATUS_SUCCESS, rows: int = 0,
-                      exc: BaseException = None, reason: str = None) -> None:
+                      exc: BaseException = None, reason: str = None,
+                      duration_ms: int = None) -> None:
     """Write ONE finished etl_run_log row for one (tenant, platform) outcome.
 
     Why this exists alongside `DagRunLogger` — the collection DAGs already isolate
@@ -209,6 +210,30 @@ def record_tenant_run(dag_id: str, artist_id: int, platform: str, run_id: str = 
     Never raises: bookkeeping must not be able to fail the collection it observes.
     """
     now = datetime.now(timezone.utc)
+    # UNE DURÉE DE ZÉRO EST UN MENSONGE ; UNE DURÉE ABSENTE EST UN FAIT.
+    #
+    # Cette fonction écrivait `started_at = ended_at = now`, donc une durée nulle. Elle
+    # est employée par quatre des cinq DAGs de collecte : mesuré le 2026-09-10, seul
+    # Meta avait des durées exploitables dans `etl_run_log`, et toute moyenne calculée
+    # dessus était fausse — pas approximative, fausse, parce qu'elle intégrait des zéros
+    # qui n'étaient pas des mesures.
+    #
+    # Quand l'appelant sait combien de temps la collecte a pris, il le dit, et
+    # `started_at` recule d'autant. Sinon `duration_ms` reste NULL — c'est LÀ que se dit
+    # « je ne sais pas », et c'est la colonne que lisent les deux seules surfaces qui
+    # calculent une durée (`etl_logs.py`, `airflow_kpi.py`), la première filtrant déjà
+    # explicitement `duration_ms IS NOT NULL`.
+    #
+    # `started_at` reste renseigné même sans mesure, parce que la colonne est NOT NULL
+    # depuis la migration 006 : y écrire NULL fait lever l'INSERT, que le `except`
+    # ci-dessous avale — et la LIGNE DISPARAÎT. Or l'absence de ligne est précisément
+    # l'infirmité que ce journal a été écrit pour retirer. Une durée absente est un
+    # fait ; une ligne absente est un trou. On ne troque pas le second contre le premier.
+    #
+    # Corollaire à tenir : `ended_at - started_at` vaut zéro quand la durée est inconnue.
+    # Personne ne doit calculer une durée par cette soustraction — garde :
+    # tests/test_a_duration_is_read_where_it_is_written.py
+    _started = (now - timedelta(milliseconds=duration_ms)) if duration_ms else now
     # safe_error, NOT str(): this message is PERSISTED and rendered by
     # src/dashboard/views/etl_logs.py. An HTTP exception message embeds the prepared
     # URL, and several upstream APIs take their credential as a query parameter.
@@ -221,11 +246,11 @@ def record_tenant_run(dag_id: str, artist_id: int, platform: str, run_id: str = 
             """
             INSERT INTO etl_run_log
                 (dag_id, artist_id, platform, run_id, started_at, ended_at,
-                 rows_inserted, status, error_type, error_message)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 duration_ms, rows_inserted, status, error_type, error_message)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (dag_id, artist_id, platform, run_id, now, now, rows, status,
-             type(exc).__name__ if exc is not None else None, error_msg),
+            (dag_id, artist_id, platform, run_id, _started, now, duration_ms, rows,
+             status, type(exc).__name__ if exc is not None else None, error_msg),
         )
         conn.commit()
         cur.close()
@@ -234,9 +259,16 @@ def record_tenant_run(dag_id: str, artist_id: int, platform: str, run_id: str = 
         logger.warning(f"etl_run_log: could not record {dag_id}/{artist_id} — {safe_error(e)}")
 
 
-def record_tenant_success(dag_id, artist_id, platform, rows, run_id=None) -> None:
+def record_tenant_success(dag_id, artist_id, platform, rows, run_id=None,
+                          duration_ms: int = None) -> None:
+    """`duration_ms` est OPTIONNEL, et son absence se voit dans la table.
+
+    L'appelant qui a chronométré sa collecte le dit ; celui qui ne l'a pas fait laisse
+    `started_at` à NULL plutôt que d'écrire une durée de zéro. Une moyenne calculée sur
+    des zéros n'est pas approximative, elle est fausse.
+    """
     record_tenant_run(dag_id, artist_id, platform, run_id,
-                      status=_STATUS_SUCCESS, rows=rows or 0)
+                      status=_STATUS_SUCCESS, rows=rows or 0, duration_ms=duration_ms)
 
 
 def record_tenant_failure(dag_id, artist_id, platform, exc, run_id=None) -> None:

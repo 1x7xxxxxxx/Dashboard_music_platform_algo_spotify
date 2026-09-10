@@ -23,6 +23,19 @@ Le dépôt a déjà nommé ce phénomène six fois sous d'autres formes. Il n'av
 contrôle mécanique du côté visuel : la garantie reposait sur le commentaire d'un fichier
 voisin. Un exemple n'est pas une règle.
 
+Ce que le prédicat ne voyait pas (mesuré le 2026-09-10, après coup)
+------------------------------------------------------------------
+Le compte est descendu à 0 et le cliquet est passé au vert — alors que **trois figures
+portaient encore un axe secondaire**, sur `trigger_algo/_tab_algos.py` et
+`_tab_budget_roi.py`. Le prédicat ne cherchait que `yaxis2…yaxis9`, la forme produite
+par `update_layout`. Plotly en a une seconde, qui ne fait apparaître ce nom nulle part :
+`make_subplots(specs=[[{"secondary_y": True}]])`, puis `add_trace(..., secondary_y=True)`.
+
+Septième instance de « la portée d'un garde est le défaut » dans ce dépôt, et la
+première sur un cliquet écrit **le jour même**. Un cliquet gelé à 0 sur un prédicat
+partiel ne dit pas « il n'y en a plus » ; il dit « je n'en vois plus ». Le prédicat
+compte désormais les DEUX formes, et sa non-vacuité est vérifiée sur les deux.
+
 Pourquoi des CLIQUETS
 ----------------------
 Interdire d'un coup rendrait ces tests rouges en permanence, donc ignorés. On gèle le
@@ -43,6 +56,10 @@ VIEWS = Path(__file__).resolve().parent.parent / "src" / "dashboard" / "views"
 _MAX_SECONDARY_AXES = 0
 _MAX_LITERAL_KEYS = 77
 
+# La source-sonde de la seconde forme, gardée hors des tests pour rester lisible.
+SECOND_FORM = ('fig = make_subplots(specs=[[{"secondary_y": True}]])\n'
+               'fig.add_trace(tr, secondary_y=True)')
+
 _YAXIS_N = re.compile(r"yaxis[2-9]")
 
 
@@ -55,6 +72,30 @@ def _docstrings(tree: ast.AST) -> set[int]:
             and isinstance(p.body[0].value.value, str)}
 
 
+def _count_axes_in(tree: ast.AST) -> int:
+    """LE prédicat des axes secondaires — un seul, partagé par le cliquet et sa sonde.
+
+    Deux formes Plotly, et une seule était comptée jusqu'au 2026-09-10 :
+    `update_layout(yaxis2=…)`, et `make_subplots(specs=[[{"secondary_y": True}]])`
+    avec ses `add_trace(..., secondary_y=True)`, qui n'écrit `yaxis2` nulle part.
+    """
+    docs = _docstrings(tree)
+    n = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.keyword) and _YAXIS_N.fullmatch(node.arg or ""):
+            n += 1
+        elif (isinstance(node, ast.Constant) and isinstance(node.value, str)
+              and id(node) not in docs and _YAXIS_N.fullmatch(node.value)):
+            n += 1
+        elif (isinstance(node, ast.keyword) and node.arg == "secondary_y"
+              and isinstance(node.value, ast.Constant) and node.value.value is True):
+            n += 1
+        elif (isinstance(node, ast.Constant) and isinstance(node.value, str)
+              and id(node) not in docs and node.value == "secondary_y"):
+            n += 1
+    return n
+
+
 def _counts() -> tuple[dict, dict]:
     axes, keys = {}, {}
     for f in sorted(VIEWS.rglob("*.py")):
@@ -62,20 +103,12 @@ def _counts() -> tuple[dict, dict]:
             tree = ast.parse(f.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
-        docs = _docstrings(tree)
-        n_ax = n_k = 0
-        for n in ast.walk(tree):
-            # `yaxis2=dict(...)` en argument, ou "yaxis2" en clé de dict de layout.
-            if isinstance(n, ast.keyword) and _YAXIS_N.fullmatch(n.arg or ""):
-                n_ax += 1
-            elif (isinstance(n, ast.Constant) and isinstance(n.value, str)
-                  and id(n) not in docs and _YAXIS_N.fullmatch(n.value)):
-                n_ax += 1
-            # Une clé de widget littérale ne porte pas le locataire ; une f-string le
-            # peut. On compte donc les littérales, sans juger chacune.
-            if (isinstance(n, ast.keyword) and n.arg == "key"
-                    and isinstance(n.value, ast.Constant)):
-                n_k += 1
+        n_ax = _count_axes_in(tree)
+        # Une clé de widget littérale ne porte pas le locataire ; une f-string le
+        # peut. On compte donc les littérales, sans juger chacune.
+        n_k = sum(1 for n in ast.walk(tree)
+                  if isinstance(n, ast.keyword) and n.arg == "key"
+                  and isinstance(n.value, ast.Constant))
         if n_ax:
             axes[f.name] = n_ax
         if n_k:
@@ -122,9 +155,13 @@ def test_the_predicate_sees_both_shapes() -> None:
     assert keys, "aucune clé littérale trouvée — le prédicat est cassé"
 
     # Le prédicat des axes ne trouve plus rien, ce qui est le but : on vérifie donc
-    # qu'il sait encore VOIR, sur une source fabriquée pour l'occasion.
-    import ast as _ast
-    probe = _ast.parse("fig.update_layout(yaxis2=dict(overlaying='y'))")
-    seen = sum(1 for n in _ast.walk(probe)
-               if isinstance(n, _ast.keyword) and _YAXIS_N.fullmatch(n.arg or ""))
-    assert seen == 1, "le prédicat des axes secondaires est devenu aveugle"
+    # qu'il sait encore VOIR — sur les DEUX formes, parce qu'il n'en voyait qu'une et
+    # que trois figures sont passées par l'autre.
+    for source, why in (
+        ("fig.update_layout(yaxis2=dict(overlaying='y'))",
+         "la forme update_layout"),
+        (SECOND_FORM,
+         "la forme make_subplots — celle qui a traversé ce cliquet le 2026-09-10"),
+    ):
+        assert _count_axes_in(ast.parse(source)) >= 1, (
+            f"le prédicat des axes secondaires est aveugle à {why}")

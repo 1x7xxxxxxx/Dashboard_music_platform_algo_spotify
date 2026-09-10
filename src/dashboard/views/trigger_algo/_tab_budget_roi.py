@@ -367,27 +367,33 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                     breakeven_date = row["date"]
                     break
 
-            fig_be = make_subplots(specs=[[{"secondary_y": True}]])
+            # Les deux séries en euros PARTAGENT un axe — c'est précisément la
+            # comparaison qu'on demande au lecteur de faire, et l'unité est la même.
+            # La popularité, elle, n'est pas des euros : elle prend son panneau.
+            fig_be = make_subplots(
+                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                row_heights=[0.65, 0.35])
             fig_be.add_trace(go.Scatter(
                 x=df_tl["date"], y=df_tl["cumul_spend"],
                 name=t("trigger_algo.roi.trace_cumul_spend", "Cumul Spend Meta"),
                 mode="lines", line=dict(color="#FF6B6B", width=2),
                 fill="tozeroy", fillcolor="rgba(255,107,107,0.08)"
-            ), secondary_y=False)
+            ), row=1, col=1)
             fig_be.add_trace(go.Scatter(
                 x=df_tl["date"], y=df_tl["cumul_revenue"],
                 name=t("trigger_algo.roi.trace_cumul_revenue", "Cumul Revenue iMusician"),
                 mode="lines", line=dict(color="#1DB954", width=2),
                 fill="tozeroy", fillcolor="rgba(29,185,84,0.08)"
-            ), secondary_y=False)
+            ), row=1, col=1)
 
             if not df_pop_be.empty:
                 df_pop_be["date"] = pd.to_datetime(df_pop_be["date"])
                 fig_be.add_trace(go.Scatter(
                     x=df_pop_be["date"], y=df_pop_be["popularity"],
                     name=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"), mode="lines",
-                    line=dict(color="#FFE66D", width=1, dash="dot")
-                ), secondary_y=True)
+                    line=dict(color="#FFE66D", width=1, dash="dot"),
+                    connectgaps=False
+                ), row=2, col=1)
 
             if breakeven_date:
                 fig_be.add_vline(
@@ -395,7 +401,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                     line_dash="dash", line_color="white",
                     annotation_text=t("trigger_algo.roi.breakeven_annotation", "Breakeven : {date}")
                     .format(date=breakeven_date.strftime('%d/%m/%Y')),
-                    annotation_position="top right"
+                    annotation_position="top right", row="all", col=1
                 )
                 st.success(t("trigger_algo.roi.breakeven_reached", "✅ Breakeven atteint le **{date}**")
                            .format(date=breakeven_date.strftime('%d/%m/%Y')))
@@ -410,9 +416,9 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                 legend=dict(orientation="h", y=1.12)
             )
             fig_be.update_yaxes(title_text=t("trigger_algo.roi.axis_cumul_amount", "Montant cumulé (€)"),
-                                secondary_y=False)
+                                row=1, col=1)
             fig_be.update_yaxes(title_text=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"),
-                                secondary_y=True, range=[0, 100])
+                                range=[0, 100], row=2, col=1)
             st.plotly_chart(fig_be, width='stretch')
         else:
             st.info(t("trigger_algo.roi.breakeven_missing_data",

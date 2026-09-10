@@ -80,11 +80,20 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             st.info(t("trigger_algo.algos.no_streams_period", "Aucun stream sur cette période."))
         else:
             df_streams["date"] = pd.to_datetime(df_streams["date"])
-            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            # DEUX PANNEAUX, PAS DEUX AXES.
+            #
+            # Un compte de streams et une probabilité en pourcentage n'ont ni unité
+            # ni ordre de grandeur communs : les superposer par décalage de côté
+            # laisse le lecteur croire qu'un croisement de courbes veut dire quelque
+            # chose. Le repère partagé est l'axe du TEMPS, et lui seul — c'est le
+            # principe que la figure principale de ce produit documente déjà.
+            fig = make_subplots(
+                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                row_heights=[0.55, 0.45])
             fig.add_trace(go.Bar(
                 x=df_streams["date"], y=df_streams["streams"],
                 name="Streams", marker_color="#1DB954", opacity=0.8
-            ), secondary_y=False)
+            ), row=1, col=1)
 
             if not df_proba.empty:
                 df_proba["prediction_date"] = pd.to_datetime(df_proba["prediction_date"])
@@ -92,17 +101,17 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                     x=df_proba["prediction_date"], y=df_proba["dw_probability"] * 100,
                     name="Discover Weekly %", mode="lines+markers",
                     line=dict(color="#FF6B6B", width=2)
-                ), secondary_y=True)
+                ), row=2, col=1)
                 fig.add_trace(go.Scatter(
                     x=df_proba["prediction_date"], y=df_proba["rr_probability"] * 100,
                     name="Release Radar %", mode="lines+markers",
                     line=dict(color="#4ECDC4", width=2)
-                ), secondary_y=True)
+                ), row=2, col=1)
                 fig.add_trace(go.Scatter(
                     x=df_proba["prediction_date"], y=df_proba["radio_probability"] * 100,
                     name="Radio %", mode="lines+markers",
                     line=dict(color="#FFE66D", width=2)
-                ), secondary_y=True)
+                ), row=2, col=1)
             else:
                 st.caption(t("trigger_algo.algos.no_ml_history",
                              "Aucun historique de probabilités ML sur cette période."))
@@ -113,7 +122,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                     x=df_pi["date"], y=df_pi["popularity"],
                     name="Popularity Index", mode="lines",
                     line=dict(color="#FFFFFF", width=1.5, dash="dot")
-                ), secondary_y=True)
+                ), row=2, col=1)
 
             fig.update_layout(
                 title=t("trigger_algo.algos.chart_streams_probas_title",
@@ -122,10 +131,10 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                 legend=dict(orientation="h", y=1.12)
             )
             fig.update_yaxes(title_text=t("trigger_algo.algos.axis_streams", "Streams"),
-                             secondary_y=False)
+                             row=1, col=1)
             fig.update_yaxes(title_text=t("trigger_algo.algos.axis_proba_pi",
                                           "Proba algo (%) / Popularity Index"),
-                             secondary_y=True, range=[0, 100])
+                             range=[0, 100], row=2, col=1)
             st.plotly_chart(fig, width='stretch')
     except Exception as e:
         st.warning(t("trigger_algo.algos.chart_unavailable",
@@ -170,38 +179,52 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             if not df_pop.empty:
                 df_pop["date"] = pd.to_datetime(df_pop["date"])
                 df_focus = pd.merge(df_focus, df_pop, on="date", how="left")
-                df_focus["popularity"] = df_focus["popularity"].ffill().fillna(0)
+                # UN JOUR NON MESURÉ RESTE UN BLANC.
+                #
+                # `.ffill().fillna(0)` faisait deux mensonges de suite : il recopiait
+                # la dernière popularité connue sur des jours où personne n'a mesuré,
+                # puis écrivait 0 — la valeur la PLUS basse de l'échelle — là où le
+                # relevé n'a jamais commencé. Plotly rend `None` comme une
+                # interruption du tracé, ce qui est la lecture juste : on ne sait pas.
+                df_focus["popularity"] = df_focus["popularity"].astype("float").where(
+                    df_focus["popularity"].notna(), None)
             else:
-                df_focus["popularity"] = 0
+                df_focus["popularity"] = None
 
             current_total = float(df_focus["streams_cumul"].max())
             days_elapsed = int(df_focus["day_index"].max()) if not df_focus.empty else 0
 
-            fig2 = make_subplots(specs=[[{"secondary_y": True}]])
+            # Un cumul de streams (sans borne) et un index 0-100 : deux panneaux.
+            fig2 = make_subplots(
+                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.09,
+                row_heights=[0.6, 0.4])
             fig2.add_trace(go.Scatter(
                 x=df_focus["day_index"], y=df_focus["streams_cumul"],
                 name="Streams Cumulés", mode="lines+markers",
                 line=dict(color="#1DB954", width=3), fill="tozeroy"
-            ), secondary_y=False)
+            ), row=1, col=1)
             fig2.add_trace(go.Scatter(
                 x=df_focus["day_index"], y=df_focus["popularity"],
                 name="Index Popularité", mode="lines",
-                line=dict(color="#ffffff", width=2, dash="dot")
-            ), secondary_y=True)
+                line=dict(color="#ffffff", width=2, dash="dot"),
+                connectgaps=False
+            ), row=2, col=1)
             # Trigger thresholds are intentionally NOT drawn as reference lines: they are
             # algo-streams the playlists GENERATE (detection signal), not a target on the
             # song's own cumulative streams. They are described in the caption below instead.
             fig2.update_layout(
                 title=t("trigger_algo.algos.j28_chart_title",
                         "Trajectoire de '{track}' (28 premiers jours)").format(track=track),
-                xaxis_title=t("trigger_algo.algos.axis_days_since", "Jours depuis la sortie (J+)"),
                 hovermode="x unified", height=550,
                 legend=dict(orientation="h", y=1.12)
             )
+            fig2.update_xaxes(
+                title_text=t("trigger_algo.algos.axis_days_since",
+                             "Jours depuis la sortie (J+)"), row=2, col=1)
             fig2.update_yaxes(title_text=t("trigger_algo.algos.axis_stream_volume", "Volume Streams"),
-                              secondary_y=False)
+                              row=1, col=1)
             fig2.update_yaxes(title_text=t("trigger_algo.algos.axis_popularity", "Popularité (0-100)"),
-                              secondary_y=True, range=[0, 100])
+                              range=[0, 100], row=2, col=1)
             st.plotly_chart(fig2, width='stretch')
             st.caption(t(
                 "trigger_algo.algos.j28_caption",
