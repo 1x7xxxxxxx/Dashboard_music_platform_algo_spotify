@@ -51,6 +51,39 @@ def retry(max_attempts: int = 3, backoff: str = "exponential", base_delay: float
     """
     NON_RETRIABLE = (ValueError, KeyError, TypeError, AttributeError)
 
+    def _http_verdict(exc):
+        """(rejouable ?, délai imposé par le serveur) — ou (None, None) si pas du HTTP.
+
+        UN 401 NE REDEVIENDRA JAMAIS VRAI. Un credential révoqué, un compte publicitaire
+        retiré, une ressource supprimée : la branche `except Exception` finale rejouait
+        tout, donc trois tentatives et six secondes d'attente par appel, pour échouer
+        quand même. `NON_RETRIABLE` ne couvre que les erreurs de données Python et ne
+        pouvait pas l'attraper.
+
+        ET LE SERVEUR SAIT MIEUX QUE NOUS. Sur 429, notre recul est fixe (2 s, 4 s)
+        pendant que Spotify et Meta annoncent des fenêtres de plusieurs minutes à
+        plusieurs heures dans `Retry-After` — que SoundCloud lit déjà, et n'utilise pas.
+        Les trois tentatives sont alors garanties de rater.
+        """
+        resp = getattr(exc, "response", None)
+        status = getattr(resp, "status_code", None)
+        if status is None:
+            status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+        if not isinstance(status, int):
+            return None, None
+        after = None
+        try:
+            raw = (resp.headers or {}).get("Retry-After") if resp is not None else None
+            if raw is not None:
+                after = float(str(raw).strip())
+        except (TypeError, ValueError, AttributeError):
+            after = None
+        if status == 429 or status >= 500:
+            return True, after
+        if 400 <= status < 500:
+            return False, None
+        return None, None
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -75,14 +108,24 @@ def retry(max_attempts: int = 3, backoff: str = "exponential", base_delay: float
                     )
                     time.sleep(delay)
                 except Exception as exc:
-                    # Autre exception non identifiée : retry quand même
                     last_exc = exc
+                    retriable, server_delay = _http_verdict(exc)
+                    if retriable is False:
+                        logger.warning(
+                            "⚠️ %s — refus définitif du serveur (%s) : aucune reprise, "
+                            "réessayer ne changera rien.",
+                            func.__qualname__, type(exc).__name__)
+                        raise
                     if attempt == max_attempts:
                         break
                     if backoff == "exponential":
                         delay = (2 ** (attempt - 1)) * base_delay
                     else:
                         delay = attempt * base_delay
+                    if server_delay is not None:
+                        # Le serveur a DIT combien attendre : on l'écoute, sans jamais
+                        # descendre en dessous de notre propre recul.
+                        delay = max(delay, server_delay)
                     logger.warning(
                         f"⚠️ {func.__qualname__} — tentative {attempt}/{max_attempts} échouée "
                         f"({type(exc).__name__}: {safe_error(exc)}). Retry dans {delay:.1f}s."

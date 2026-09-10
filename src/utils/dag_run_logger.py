@@ -97,6 +97,31 @@ class DagRunLogger:
             logger.warning(f"etl_run_log: could not write start record — {safe_error(e)}")
         return self
 
+    def _record_on_the_breaker(self, status: str, error_msg) -> None:
+        """Alimente le disjoncteur — le seul endroit qui connaît l'issue de la collecte.
+
+        `src/utils/circuit_breaker.py` existait depuis des mois avec **zéro appelant** :
+        mesuré le 2026-09-10, `etl_circuit_breaker` comptait **0 ligne**. Un credential
+        cassé consommait donc deux essais × treize DAGs × N locataires chaque nuit,
+        indéfiniment — exactement ce que le module avait été écrit pour éviter.
+
+        On enregistre ici plutôt que dans chaque DAG : c'est le seul point que TOUTES
+        les collectes traversent déjà, et un mécanisme qu'il faut câbler treize fois
+        finit par n'être câblé nulle part.
+        """
+        if not self.platform or self.artist_id is None:
+            return
+        try:
+            from src.utils.circuit_breaker import CircuitBreaker
+            cb = CircuitBreaker(self.platform, self.artist_id)
+            if status == _STATUS_SUCCESS:
+                cb.record_success()
+            elif status == _STATUS_FAILED:
+                cb.record_failure(error_msg or "")
+        except Exception:      # noqa: BLE001 — le disjoncteur ne fait pas tomber la collecte
+            logger.warning("circuit breaker unreachable for %s/%s",
+                           self.platform, self.artist_id)
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         ended_at = datetime.now(timezone.utc)
         duration_ms = int((ended_at - self._started_at).total_seconds() * 1000) if self._started_at else None
@@ -153,6 +178,11 @@ class DagRunLogger:
             )
         except Exception as e:
             logger.warning(f"etl_run_log: could not write end record — {safe_error(e)}")
+
+        # Le disjoncteur est alimenté APRÈS l'écriture du journal, et dans son propre
+        # filet : un disjoncteur injoignable ne doit pas faire perdre la trace de la
+        # collecte, qui est la donnée la plus précieuse des deux.
+        self._record_on_the_breaker(status, error_msg)
 
         return False  # never suppress exceptions
 
