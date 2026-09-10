@@ -30,6 +30,32 @@ PDF à polices sous-ensemblées ne le dit pas de façon fiable.
 Cinq défauts de rendu ont été trouvés **en regardant les pages**, jamais en lisant le
 code — c'est pourquoi ils sont écrits ici plutôt que découverts une deuxième fois.
 
+> **Le 2026-09-10, six défauts de plus, tous trouvés en REGARDANT** — la section
+> « le trajet complet d'un KPI » a été rendue, convertie en images et inspectée page par
+> page avant d'être gardée. Aucun n'était visible dans le code ni dans le HTML :
+> les couches dessinées dans le DÉSORDRE sur deux schémas (une arête directe
+> bronze → or fait remonter la boîte OR au rang 1, donc à gauche de l'argent — le schéma
+> censé montrer trois couches en ordre les montrait à l'envers) ; quatre identifiants SQL
+> coupés en plein mot (`youtube_channel_histor/y`, `apple_songs_performanc/e`,
+> `meta_insights_performa/nce_day`, `v_artist_monthly_revenu/e`) parce que mermaid casse
+> un mot plus long que sa boîte et qu'un identifiant n'a pas d'espace où casser ; un
+> schéma de sept nœuds en ligne illisible à l'échelle de la colonne ; et un nœud orphelin
+> relié à rien.
+>
+> La vérification tient en trois commandes, et elle vaut d'être refaite à chaque ajout de
+> schéma :
+>
+> ```bash
+> python3 main.py /tmp/dossier.pdf        # laisse aussi dossier.html
+> pdftoppm -png -r 105 /tmp/dossier.pdf /tmp/page
+> # puis ouvrir /tmp/page-*.png
+> ```
+>
+> Les coupures se corrigent en posant soi-même un `<br/>` sur un `_` ; l'ordre des
+> couches, en faisant passer CHAQUE chemin par l'argent — ce qui est d'ailleurs plus
+> juste, « prendre le dernier compteur de chaque entité » étant une résolution de nature
+> même quand elle vit à l'intérieur de la vue.
+
 | Symptôme | Cause | Ce qu'on fait |
 |---|---|---|
 | Les boîtes des schémas sortent **vides** | mermaid pose ses libellés dans un `foreignObject` HTML, que WeasyPrint ignore | `htmlLabels: false` — les libellés deviennent du `<text>` SVG |

@@ -119,6 +119,208 @@ flowchart LR
     </tbody>
   </table>
 
+
+  <h3 class="newpage">Le trajet complet d'un KPI, plateforme par plateforme</h3>
+  <p>Les fiches ci-dessus disent le piège de chaque source. Celles qui suivent disent le
+    <em>trajet</em> : pour un chiffre précis, ce que la plateforme a écrit, ce qu'on en
+    fait, et d'où sort la valeur affichée. Les nombres sont ceux de l'artiste 1, relevés
+    le 2026-09-10 — un schéma sans mesure est un dessin.</p>
+  <p class="tight">Trois couleurs, trois rôles, et la même lecture partout :
+    <span class="pill b">BRONZE</span> ce que la source a écrit, jamais retouché —
+    <span class="pill s">ARGENT</span> la nature de la série résolue une fois —
+    <span class="pill g">OR</span> une définition par métrique, et une seule.
+    L'argent porte souvent <em>deux</em> branches : la série et le total ne posent pas la
+    même question au même relevé.</p>
+
+  <h4>Spotify for Artists — KPI « écoutes totales » : 163 088</h4>
+  <mermaid>
+flowchart LR
+  subgraph B["BRONZE"]
+    B1["s4a_song_<br/>timeline<br/>13 794 lignes<br/>11 titres · 1 254 jours"]
+  end
+  subgraph S["ARGENT"]
+    S1["Nature : QUOTIDIEN<br/>rien à convertir"]
+    S2["MAX par jour et par titre<br/>un re-dépôt du même jour<br/>ne compte qu'une fois"]
+  end
+  subgraph G["OR"]
+    G1["v_platform_<br/>totals<br/>platform = spotify<br/>163 088"]
+  end
+  B1 --> S1 --> S2 --> G1
+  B1 -.->|"ligne « Total »<br/>du fichier : ÉCARTÉE"| S1
+  </mermaid>
+  <p class="tight">La seule source réellement quotidienne. Le seul travail de l'argent est
+    de refuser le double comptage — celui d'un re-dépôt, et celui de la ligne d'agrégat
+    qui ressemble à un titre.</p>
+
+  <h4>YouTube — KPI « vues totales » : 118 219</h4>
+  <mermaid>
+flowchart LR
+  subgraph B["BRONZE"]
+    B1["youtube_video_<br/>stats<br/>1 734 lignes<br/>67 vidéos · 34 jours"]
+    B2["youtube_channel_<br/>history<br/>compteur de CHAÎNE"]
+  end
+  subgraph S["ARGENT"]
+    S1["Pour la SÉRIE<br/>cumul par vidéo<br/>écart jour moins veille<br/>jours consécutifs seuls"]
+    S2["Pour le TOTAL<br/>dernier compteur<br/>de chaque vidéo"]
+    S3["Écarts jetés : COMPTÉS<br/>et affichés sous la figure"]
+  end
+  subgraph G["OR"]
+    G1["v_platform_<br/>totals<br/>118 219"]
+    G2["Abonnés<br/>aucune autre source"]
+  end
+  B1 --> S1 --> S3
+  B1 --> S2 --> G1
+  B2 --> G2
+  B2 -.->|"JAMAIS pour les vues<br/>prouvé ~10x faux"| G1
+  </mermaid>
+  <div class="box warn"><div class="lbl">Les deux compteurs</div>
+    <p>La chaîne expose un total de vues, et il est faux d'un facteur dix : il agrège une
+      audience que nos vidéos ne couvrent pas. Le total juste est la somme des compteurs
+      PAR VIDÉO. Quatre surfaces sur six lisaient le mauvais avant que la couche or
+      n'existe ; le même compteur reste la bonne source pour les ABONNÉS, qui n'en ont pas
+      d'autre. Une source n'est ni bonne ni mauvaise — elle l'est pour une métrique.</p>
+  </div>
+
+  <h4>SoundCloud — KPI « écoutes totales » : 23 486</h4>
+  <mermaid>
+flowchart LR
+  subgraph B["BRONZE"]
+    B1["soundcloud_tracks_<br/>daily<br/>349 lignes<br/>19 titres · 19 jours"]
+  end
+  subgraph S["ARGENT"]
+    S1["Pour la SÉRIE<br/>écart par titre,<br/>jours consécutifs"]
+    S2["Pour le TOTAL<br/>dernier compteur<br/>de chaque titre"]
+    S3["Remise à zéro détectée<br/>= panne, pas une baisse"]
+  end
+  subgraph G["OR"]
+    G1["v_platform_<br/>totals<br/>23 486"]
+  end
+  B1 --> S1 --> S3
+  B1 --> S2 --> G1
+  </mermaid>
+  <p class="tight">Même forme que YouTube, avec un piège de plus : l'API a déjà répondu
+    zéro sur des titres vivants. Un cumul qui redescend n'est pas une écoute perdue, c'est
+    une panne — la traiter comme une mesure écrirait des zéros dans l'histoire.</p>
+
+  <h4>Apple Music — KPI « écoutes » : 3 267, et pas de série</h4>
+  <mermaid>
+flowchart LR
+  subgraph B["BRONZE"]
+    B1["apple_songs_<br/>performance<br/>11 lignes<br/>UN instantané par dépôt"]
+  end
+  subgraph S["ARGENT"]
+    S1["Nature : TOTAL<br/>DE PÉRIODE<br/>la période est dans<br/>le NOM du fichier"]
+    S2["Découpage non chevauchant<br/>« depuis le début »<br/>contient déjà « 2024 »"]
+  end
+  subgraph G["OR"]
+    G1["Total de période<br/>3 267"]
+    G2["Série quotidienne<br/>AUCUNE — et c'est dit"]
+  end
+  B1 --> S1 --> S2 --> G1
+  S1 -.->|"rien à découper<br/>en jours"| G2
+  </mermaid>
+  <div class="box warn"><div class="lbl">Ce que l'or refuse de fabriquer</div>
+    <p>Apple ne livre pas de série : additionner ses relevés jour par jour reviendrait à
+      inventer une répartition. La couche or rend donc un total et <em>déclare</em> qu'il
+      n'y a pas de courbe, au lieu de tracer une plateforme muette à zéro. Un chiffre
+      absent qui se dit vaut mieux qu'un zéro qui ment.</p>
+  </div>
+
+  <h4>Instagram — KPI « abonnés » : de 1 526 à 1 606</h4>
+  <mermaid>
+flowchart LR
+  subgraph B["BRONZE"]
+    B1["instagram_daily_<br/>stats<br/>29 relevés"]
+    B2["instagram_<br/>media<br/>plafonné à 10 pages"]
+  end
+  subgraph S["ARGENT"]
+    S1["Nature : NIVEAU<br/>ni cumul,<br/>ni quantité du jour"]
+    S2["Écart = dernier moins premier<br/>sur la période DEMANDÉE"]
+    S3["Lecture tronquée<br/>= statut « partial »<br/>jamais « success »"]
+  end
+  subgraph G["OR"]
+    G1["Abonnés<br/>de 1 526 à 1 606"]
+  end
+  B1 --> S1 --> S2 --> G1
+  B2 --> S3
+  </mermaid>
+  <p class="tight">Un nombre d'abonnés n'est ni un cumul ni une quantité du jour : c'est un
+    NIVEAU. Sa variation se lit entre deux relevés de la période demandée — et le compteur
+    lui-même ne se bornait pas, ce qui faisait afficher un compteur hors période à côté
+    d'un écart borné. Le plafond de pagination, lui, laisse des publications hors de la
+    base : la collecte s'enregistre alors « partielle », jamais « réussie ».</p>
+
+  <h4>Meta Ads — KPI « dépense » : 3 088 EUR sur 205 jours</h4>
+  <mermaid>
+flowchart TB
+  subgraph B["BRONZE — 26 tables, par grain et par découpage"]
+    B1["meta_insights_<br/>performance_day<br/>231 lignes · 205 jours"]
+    B2["meta_insights<br/>grain publicité"]
+  end
+  subgraph S["ARGENT"]
+    S1["Nature : QUOTIDIEN<br/>la journée est celle de Meta,<br/>arrêtée dans SON fuseau"]
+    S2["Un compte publicitaire<br/>collecté UNE fois par nuit"]
+  end
+  subgraph G["OR"]
+    G1["Dépense de la période<br/>3 088 EUR"]
+    G2["v_artist_monthly_<br/>revenue"]
+    G3["ROI = revenu moins dépense<br/>TROIS états"]
+  end
+  B1 --> S1 --> S2 --> G1 --> G3
+  B2 --> S2
+  G2 --> G3
+  G3 -.->|"revenu absent"| G4["« illisible »<br/>jamais zéro"]
+  </mermaid>
+  <div class="box warn"><div class="lbl">Le ROI a trois états, pas deux</div>
+    <p>Positif, négatif, et <em>illisible</em>. Un mois sans dépense publicitaire déclarée
+      n'a pas un ROI de zéro : il n'en a pas. Le troisième état existe parce que la
+      jointure entre revenu mensuel et dépense quotidienne comblait les trous avec des
+      zéros — et un zéro sur de l'argent est la forme de mensonge la plus coûteuse de ce
+      produit.</p>
+  </div>
+
+  <h4>Ce que les six ont en commun</h4>
+  <mermaid>
+flowchart TB
+  subgraph B["BRONZE — 64 tables, jamais retouchées"]
+    B1["quotidien<br/>Spotify · Meta"]
+    B2["cumul par entité<br/>YouTube · SoundCloud"]
+    B3["total de période<br/>Apple"]
+    B4["niveau<br/>Instagram"]
+  end
+  subgraph S["ARGENT — la nature résolue UNE fois"]
+    S1["tel quel"]
+    S2["écart par entité<br/>ou dernier compteur"]
+    S3["découpage<br/>non chevauchant"]
+    S4["dernier moins premier"]
+  end
+  subgraph G["OR — une définition par métrique"]
+    G1["v_platform_<br/>totals"]
+    G2["v_artist_monthly_<br/>revenue"]
+  end
+  B1 --> S1
+  B2 --> S2
+  B3 --> S3
+  B4 --> S4
+  S1 --> G1
+  S2 --> G1
+  S1 --> G2
+  G1 --> U["Accueil · API · PDF<br/>e-mail hebdomadaire<br/>Data Wrapped"]
+  G2 --> U
+  </mermaid>
+  <p>C'est la seule figure du dossier qui explique <em>pourquoi</em> la couche existe.
+    Quatre natures de série entrent ; si chaque surface les reconvertit pour son compte,
+    il y a autant de définitions que de surfaces — et c'est exactement ce qui a été mesuré
+    avant : le même artiste lisait <strong>120 627</strong> vues YouTube sur une page et
+    <strong>118 219</strong> sur une autre, au même instant. La conversion se fait une
+    fois, à l'argent ; la définition vit une fois, à l'or ; les cinq surfaces la lisent.</p>
+  <p class="tight">Et rien de tout cela n'est une base de données nouvelle. Mesuré le
+    2026-09-10 : zéro base, zéro schéma, zéro table portant ces noms, zéro vue
+    matérialisée. L'or est <strong>deux vues Postgres ordinaires</strong>, calculées à la
+    lecture. La couche est une frontière, pas un stockage — et l'argent n'est pas une
+    table non plus : c'est la décision qui vit à l'intérieur de la vue et du module de
+    séries.</p>
+
   <h3>L'entonnoir du soir</h3>
   <p>Dix-neuf contrôles indépendants convergent vers <strong>un seul message</strong>. Le
     principe est explicite : une alerte nomme un symptôme et une action, jamais un code, et

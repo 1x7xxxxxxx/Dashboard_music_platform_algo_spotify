@@ -323,6 +323,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-truncated-read-recorded-as-a-complete-one](#a-truncated-read-recorded-as-a-complete-one) | P2 | deterministic | guarded | none |
 | [a-date-that-does-not-say-which-clock-produced-it](#a-date-that-does-not-say-which-clock-produced-it) | P2 | deterministic | guarded | none |
 | [a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser](#a-non-vacuity-check-anchored-on-the-data-instead-of-the-parser) | P2 | deterministic | guarded | none |
+| [a-surgical-restore-erases-work-nothing-will-give-back](#a-surgical-restore-erases-work-nothing-will-give-back) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4515,3 +4516,21 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 - History:
   - 2026-09-10: même famille que `a-ratchet-frozen-on-a-partial-predicate`, écrite le même jour, et c'est le lien qui a donné le correctif : un cliquet gelé à zéro et un garde de non-vacuité vidé posent la MÊME question — « ce contrôle ne trouve rien : est-ce parce qu'il n'y a rien, ou parce qu'il ne voit rien ? ». La seule réponse est de lui donner quelque chose à voir, fabriqué sur place.
   - 2026-09-10: une mutation est d'abord restée verte — retirer le `(?!~~)` de `_LIVE_HEADING`. Ce n'était pas le garde qui était aveugle : le lookahead est **redondant**, les `~~` bloquent déjà la position. Il a fallu écrire `~*(R\d+)` pour rendre le motif réellement permissif. Troisième fois de la séance qu'une mutation accuse un garde à tort.
+
+## a-surgical-restore-erases-work-nothing-will-give-back
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans un commit, ni dans un stash, ni dans le reflog. Mesuré **deux fois dans la même séance** le 2026-09-10, à quelques heures d'intervalle — un correctif de rendu et deux clés i18n la première fois, la conversion de deux figures et l'élargissement d'un cliquet la seconde.
+- root_cause: `git checkout -- <un fichier>` pour défaire une mutation de test. Le garde du dépôt bloquait déjà `git checkout -- .` et `git restore .` par correspondance de chaîne, c'est-à-dire les formes qui ont l'air dangereuses. La forme qui coûte est la forme **chirurgicale** : elle nomme un seul fichier, elle a l'air maîtrisée, et elle écrase exactement le même travail. Aggravant, mesuré le même jour : l'un des fichiers visés était **gitignoré**, donc pas même restaurable par cette voie.
+- signature: `python3 -m pytest tests/test_a_restore_does_not_erase_unsaved_work.py -q`
+- long_term_fix: un hook PreToolUse **à état**. Interdire la forme serait faux — sur un fichier propre ce geste est un no-op légitime et d'usage courant, et un garde qui interdit l'usage courant est un garde qu'on apprend à esquiver. Le garde lit donc `git status --porcelain` sur les chemins visés et ne bloque **que s'il y a réellement quelque chose à perdre**, en le NOMMANT et en proposant le geste de remplacement (`git stash && git stash drop`). Règle générale : quand un geste n'est dangereux que selon l'ÉTAT, le garde doit lire l'état — un prédicat purement syntaxique doit choisir entre laisser passer le défaut et interdire le travail légitime, et il choisit toujours mal.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_restore_does_not_erase_unsaved_work.py }
+- rex_ref: .claude/hooks/guard_destructive.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: **la leçon en prose n'a rien empêché.** Elle était écrite en mémoire depuis la première occurrence, quelques heures plus tôt, dans les termes exacts du défaut (« muter par script, jamais par git »). Un geste réflexe ne se garde pas par une note : entre la note et la seconde occurrence il n'y a eu ni oubli ni négligence, juste l'automatisme. Ce qui l'a arrêtée est un hook, c'est-à-dire quelque chose qui s'interpose au moment du geste.
+  - 2026-09-10: le garde couvre les DEUX orthographes du même effet — `git checkout --` et `git restore`. N'en garder qu'une aurait été la classe « la portée d'un garde est le défaut », dont ce dépôt compte sept instances.
+  - 2026-09-10: et il refuse d'accuser un fichier NON SUIVI, que ce geste ne peut pas toucher. Un garde qui crie sur ce qui ne risque rien perd sa crédibilité sur ce qui risque quelque chose — c'est le mécanisme par lequel les huit gardes `rm -rf /tmp/...` du banc avaient rendu le travail impossible.
+  - 2026-09-10: **le test écrit pour ce garde a lui-même abîmé sa cible.** Sa mise en scène salissait `README.md` par `read_text`/`write_text` : sur un montage Windows, l'aller-retour en mode texte réécrit les fins de ligne du fichier ENTIER, et la « restauration » laissait 52 lignes modifiées. Une sonde qui vérifie qu'on n'abîme rien doit lire et écrire en BINAIRE.
