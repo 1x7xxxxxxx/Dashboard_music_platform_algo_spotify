@@ -5,6 +5,77 @@ Journal de session structuré. Mis à jour en fin de session via :
 
 ---
 
+## 2026-09-10 (fin) — Un geste réflexe se garde par un hook, pas par une note
+
+### Le commit qui écrase, mesuré
+
+`git checkout -- <un fichier>` pour défaire une mutation de test a détruit du travail
+non commité **deux fois dans la séance**, à quelques heures d'intervalle. La première :
+un correctif de rendu et deux clés i18n. La seconde : la conversion de deux figures et
+l'élargissement d'un cliquet — dont l'un des fichiers était gitignoré, donc pas même
+restaurable par cette voie.
+
+**La leçon était écrite entre les deux.** Il n'y a eu ni oubli ni négligence : une note
+en prose s'adresse à la délibération, et un geste réflexe ne passe pas par là.
+
+Le garde du dépôt bloquait déjà `-- .` et `restore .`, c'est-à-dire les formes qui ont
+l'air dangereuses. Celle qui coûte a l'air maîtrisée : elle nomme un seul fichier. Un
+blocage sec aurait été faux — sur un fichier propre ce geste est un no-op légitime et
+d'usage courant, et **un garde qui interdit l'usage courant est un garde qu'on apprend à
+esquiver**. Le hook lit donc `git status --porcelain` sur les chemins visés et ne bloque
+que s'il y a réellement quelque chose à perdre, en le nommant et en proposant `git stash`.
+
+Six cas prouvés, trois mutations rouges. Et le test écrit pour ce garde a lui-même abîmé
+sa cible : sa mise en scène salissait `README.md` en mode texte, ce qui sur un montage
+Windows réécrit les fins de ligne du fichier entier — la « restauration » laissait
+52 lignes modifiées. Une sonde qui vérifie qu'on n'abîme rien lit et écrit en binaire.
+
+### Sept schémas, six défauts que le code ne montrait pas
+
+La section demandée — le trajet bronze/argent/or d'un KPI nommé, plateforme par
+plateforme — a été rendue, convertie en images et **regardée** avant d'être gardée.
+
+| Défaut | Ce qui l'a caché |
+|---|---|
+| Couches dessinées à l'**envers** sur deux schémas | chaque nœud et chaque arête étaient corrects ; c'est le PLACEMENT qui est calculé, et une arête directe bronze → or fait remonter la boîte OR au rang 1 |
+| `youtube_channel_histor/y`, `apple_songs_performanc/e`, `meta_insights_performa/nce_day`, `v_artist_monthly_revenu/e` | mermaid casse un mot plus long que sa boîte, et un identifiant SQL n'a pas d'espace où casser |
+| Un schéma de sept nœuds illisible à l'échelle de la colonne | le SVG contenait tout son texte |
+| Un nœud orphelin relié à rien | syntaxiquement valide |
+
+Corriger l'ordre a rendu les schémas **plus justes** : « prendre le dernier compteur de
+chaque entité » est une résolution de nature, donc de l'argent, même quand elle vit à
+l'intérieur de la vue. Le schéma faux venait d'un modèle mental faux.
+
+Le README du générateur annonçait déjà cinq défauts trouvés de cette façon. La note ne
+les a pas empêchés ; l'avoir refait les a corrigés.
+
+### Le verdict qui se prononçait hors de sa preuve
+
+Suggestion laissée de côté la veille, intégrée. La figure « breakeven » compare deux
+cumuls en euros sur une frise qui court du premier au dernier jour des DEUX séries. Les
+trous sont comblés par des zéros — justes au MILIEU d'une série, faux APRÈS sa fin.
+
+Mesuré pour l'artiste 1 : la dépense Meta s'arrête au **2024-09-30**, le revenu continue
+**458 jours** de plus. Sur ces 458 jours un cumul monte pendant que l'autre est figé :
+les courbes se croisent nécessairement. Et sur ce croisement, la page affichait
+« ✅ Breakeven atteint le … » — un verdict, en vert, sur une comparaison qui n'en est
+plus une.
+
+Le verdict est borné au recouvrement, et la période au-delà est nommée : une légende, et
+une zone ombrée sur la figure. **Recadrer en silence ne suffisait pas** — un « non
+atteint » qui ne dit pas jusqu'où il regarde se lit comme un constat définitif.
+
+### Chiffres
+
+| | |
+|---|---|
+| Tests | **5 023 verts** |
+| Classes d'erreur écrites | 4 |
+| Schémas ajoutés | 7, tous inspectés à l'image |
+| Prod | `5b174e0`, code == `origin/main`, Caddy identique |
+
+---
+
 ## 2026-09-10 (suite) — L'audit transverse : trois prémisses fausses sur huit
 
 Huit tâches (R75–R82) ouvertes par l'audit transverse — résilience API, vitesse Streamlit
