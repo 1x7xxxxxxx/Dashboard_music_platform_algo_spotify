@@ -361,8 +361,29 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             df_tl["cumul_spend"] = df_tl["spend"].cumsum()
             df_tl["cumul_revenue"] = df_tl["revenue"].cumsum()
 
+            # UN CUMUL NE SE PROLONGE PAS AU-DELÀ DE CE QU'IL COUVRE.
+            #
+            # La frise court du premier au dernier jour des DEUX séries réunies. Celle
+            # qui s'arrête la première continue donc en ligne plate — non pas parce
+            # qu'elle vaut zéro sur cette période, mais parce que personne ne l'a
+            # encore rapportée. Mesuré pour l'artiste 1 le 2026-09-10 : la dépense
+            # Meta s'arrête au 2024-09-30 et le revenu continue **458 jours** de plus.
+            # Le croisement des deux courbes y est donc garanti, et il ne dit rien.
+            #
+            # C'est la même famille que le compteur cumulé qui retombe à zéro après la
+            # dernière mesure : après le dernier relevé, on ne sait pas — et « on ne
+            # sait pas » ne se dessine pas comme une valeur.
+            #
+            # Le verdict ne se prononce donc que sur le RECOUVREMENT, et la période
+            # au-delà est nommée sous la figure au lieu d'être tracée en silence.
+            _spend_end = df_spend_d["date"].max()
+            _rev_end = df_rev["date"].max()
+            covered_end = min(_spend_end, _rev_end)
+            _tail_days = int((max(_spend_end, _rev_end) - covered_end).days)
+            _tail_side = ("le revenu" if _rev_end > _spend_end else "la dépense")
+
             breakeven_date = None
-            for _, row in df_tl.iterrows():
+            for _, row in df_tl[df_tl["date"] <= covered_end].iterrows():
                 if row["cumul_spend"] > 0 and row["cumul_revenue"] >= row["cumul_spend"]:
                     breakeven_date = row["date"]
                     break
@@ -395,6 +416,17 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
                     connectgaps=False
                 ), row=2, col=1)
 
+            # La zone que le verdict ne couvre pas, ombrée : le lecteur voit où la
+            # comparaison cesse d'être une comparaison.
+            if _tail_days > 0:
+                fig_be.add_vrect(
+                    x0=covered_end.timestamp() * 1000,
+                    x1=max(_spend_end, _rev_end).timestamp() * 1000,
+                    fillcolor="rgba(120,120,120,0.10)", line_width=0,
+                    annotation_text=t("trigger_algo.roi.one_series_only",
+                                      "une seule série renseignée"),
+                    annotation_position="top left", row="all", col=1)
+
             if breakeven_date:
                 fig_be.add_vline(
                     x=breakeven_date.timestamp() * 1000,
@@ -408,6 +440,18 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to):
             else:
                 st.warning(t("trigger_algo.roi.breakeven_not_reached",
                              "⚠️ Breakeven non atteint sur la période disponible."))
+
+            # La borne du verdict, dite plutôt que sous-entendue. Sans cette ligne, un
+            # « non atteint » se lit comme un constat définitif alors qu'il ne porte
+            # que sur la fenêtre où les deux séries existent.
+            if _tail_days > 0:
+                st.caption(t(
+                    "trigger_algo.roi.breakeven_window",
+                    "Verdict arrêté au {date} — au-delà, seul {side} est renseigné "
+                    "({days} jours). Comparer un cumul à une courbe que personne n'a "
+                    "encore rapportée ferait dire au croisement ce qu'il ne dit pas."
+                ).format(date=covered_end.strftime('%d/%m/%Y'),
+                         side=_tail_side, days=_tail_days))
 
             fig_be.update_layout(
                 title=t("trigger_algo.roi.breakeven_chart_title",

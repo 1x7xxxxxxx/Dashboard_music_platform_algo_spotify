@@ -345,6 +345,8 @@ EN = {
     "trigger_algo.roi.breakeven_annotation": "Breakeven: {date}",
     "trigger_algo.roi.breakeven_reached": "✅ Breakeven reached on **{date}**",
     "trigger_algo.roi.breakeven_not_reached": "⚠️ Breakeven not reached over the available period.",
+    "trigger_algo.roi.breakeven_window": "Verdict cut off at {date} — beyond it only {side} is reported ({days} days). Comparing a cumulative total against a curve nobody has reported yet would make the crossing say what it does not say.",
+    "trigger_algo.roi.one_series_only": "only one series reported",
     "trigger_algo.roi.breakeven_chart_title": "Cumulative Meta spend vs Cumulative iMusician revenue",
     "trigger_algo.roi.axis_cumul_amount": "Cumulative amount (€)",
     "trigger_algo.roi.breakeven_missing_data": "Spend or revenue data missing for the breakeven chart.",
