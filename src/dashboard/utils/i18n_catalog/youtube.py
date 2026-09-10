@@ -25,8 +25,6 @@ EN = {
     "youtube.comments": "Comments",
     "youtube.ratio_views_like": "Views/Like Ratio",
     "youtube.top_chart_title": "Top {n} {type}",
-    "youtube.coms_axis": "Comments",
-    "youtube.ratio_axis": "V/L Ratio",
     "youtube.no_video_category": "No video in this category.",
     "youtube.no_video_db": "No video found in the database.",
     "youtube.error": "Error: {err}",

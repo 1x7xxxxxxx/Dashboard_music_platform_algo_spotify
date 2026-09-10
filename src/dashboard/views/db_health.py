@@ -201,7 +201,13 @@ def _show_freshness_bar(df_health: pd.DataFrame):
     )
 
     fig = go.Figure(go.Bar(
-        x=df['age_days'].fillna(0),
+        # UN ÂGE INCONNU N'EST PAS ZÉRO JOUR.
+        #
+        # `fillna(0)` plaçait la barre à l'extrémité la PLUS favorable de l'axe, c'est-à-
+        # dire « importé aujourd'hui », pour un jeu de données dont on ignore l'âge.
+        # L'étiquette disait bien « — », mais la position — la seule information que
+        # porte une barre — disait le contraire. NaN laisse la barre absente.
+        x=df['age_days'],
         y=df['label'],
         orientation='h',
         marker_color=df['color'],

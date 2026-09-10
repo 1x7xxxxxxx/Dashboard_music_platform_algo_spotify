@@ -467,25 +467,32 @@ def _tab_artist_forecast(db, artist_id: int | None, show_infra: bool = False) ->
                    else t("revenue_forecast.loss_making", "déficitaire"),
                    delta_color="normal" if global_roi >= 0 else "inverse")
 
-        fig_roi = go.Figure()
+        from plotly.subplots import make_subplots
+        fig_roi = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                vertical_spacing=0.09, row_heights=[0.62, 0.38],
+                                subplot_titles=["€", "ROI (%)"])
         fig_roi.add_trace(go.Bar(
             x=roi_df['period_date'], y=roi_df['revenue_eur'],
             name='Revenus (€)', marker_color='#1DB954',
-        ))
+        ), row=1, col=1)
         fig_roi.add_trace(go.Bar(
             x=roi_df['period_date'], y=roi_df['meta_spend'],
             name='Dépense Meta (€)', marker_color='#FF6B35',
-        ))
+        ), row=1, col=1)
+        # DEUX CADRES DANS UNE SEULE FIGURE. Des euros et un pourcentage ne partagent
+        # pas un repère ; mais en faire deux FIGURES ferait franchir à cette page son
+        # budget de graphiques — le garde l'a dit, et il a raison : ce qui compte pour
+        # le lecteur est le nombre de décisions à l'écran, pas le nombre d'objets.
         fig_roi.add_trace(go.Scatter(
             x=roi_df['period_date'], y=roi_df['roi_pct'],
-            name='ROI (%)', yaxis='y2', mode='lines+markers',
-            line=dict(color='#A855F7', width=2), marker=dict(size=5),
-        ))
+            name='ROI (%)', mode='lines+markers',
+            line=dict(color='#eda100', width=2), marker=dict(size=5),
+        ), row=2, col=1)
+        fig_roi.update_yaxes(title_text='€', row=1, col=1)
+        fig_roi.update_yaxes(title_text='ROI (%)', zeroline=True,
+                             zerolinecolor='#c8c8c4', row=2, col=1)
         fig_roi.update_layout(
-            barmode='group', hovermode='x unified',
-            yaxis=dict(title='€'),
-            yaxis2=dict(title='ROI (%)', overlaying='y', side='right'),
-            legend=dict(orientation='h', y=-0.2),
+            barmode='group', hovermode='x unified', showlegend=False, height=460,
         )
         st.plotly_chart(fig_roi, width='stretch')
 

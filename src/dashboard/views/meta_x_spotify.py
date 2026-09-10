@@ -207,7 +207,14 @@ def _show_body(db, artist_id):
             df_master[c] = pd.to_numeric(df_master[c], errors='coerce').fillna(0).astype(float)
 
     if 'popularity' in df_master.columns:
-        df_master['popularity'] = df_master['popularity'].replace(0, pd.NA).ffill().fillna(0)
+        # UNE POPULARITÉ RECOPIÉE EST UNE MESURE INVENTÉE.
+        #
+        # `ffill().fillna(0)` reconduisait la dernière valeur connue sur les jours non
+        # mesurés, puis mettait 0 en tête. Trois lignes plus bas, ce même fichier écrit
+        # à propos du CPR : « NaN is kept as-is → chart shows a gap. No recompute — that
+        # would fabricate a value. » Deux séries de la MÊME figure, deux traitements
+        # opposés ; c'est celui-ci qui avait tort.
+        df_master['popularity'] = df_master['popularity'].replace(0, pd.NA)
 
     # CPR comes straight from the collector, which already suppresses it (NULL) for
     # non-conversion goals (engagement/traffic). NaN is kept as-is → chart shows a gap,

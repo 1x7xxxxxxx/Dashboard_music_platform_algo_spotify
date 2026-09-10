@@ -439,18 +439,24 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
     ts['date'] = pd.to_datetime(ts['date'])
     ts['frequency'] = pd.to_numeric(ts['frequency'], errors='coerce').astype(float)
     ts['ctr'] = pd.to_numeric(ts['ctr'], errors='coerce').astype(float)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=ts['date'], y=ts['frequency'], name=t("meta_creatives.frequency", "Fréquence"),
-                             mode='lines+markers', line={'color': '#d62728'}))
-    fig.add_trace(go.Scatter(x=ts['date'], y=ts['ctr'], name='CTR (%)', yaxis='y2',
-                             mode='lines+markers', line={'color': '#1f77b4'}))
-    fig.update_layout(
-        hovermode="x unified",
-        yaxis={'title': {'text': t("meta_creatives.frequency", "Fréquence"), 'font': {'color': '#d62728'}}},
-        yaxis2={'title': {'text': 'CTR (%)', 'font': {'color': '#1f77b4'}},
-                'overlaying': 'y', 'side': 'right'},
-        legend={'orientation': 'h', 'y': 1.02, 'x': 1, 'xanchor': 'right'}, height=420,
-    )
+    # DEUX CADRES, PAS DEUX AXES. Une fréquence (autour de 2-3) et un taux de clic
+    # (autour de 1 %) n'ont ni la même unité ni le même ordre de grandeur : superposées
+    # sur un repère commun, la seconde est sous le pixel ; sur deux axes décalés, leur
+    # croisement visuel ne veut rien dire. Partagés en x, les deux cadres disent
+    # exactement ce que la légende promet — la fréquence monte PENDANT que le CTR
+    # baisse — sans qu'aucune forme soit un artefact d'échelle.
+    from plotly.subplots import make_subplots
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=[t("meta_creatives.frequency", "Fréquence"),
+                                        "CTR (%)"])
+    fig.add_trace(go.Scatter(x=ts['date'], y=ts['frequency'],
+                             name=t("meta_creatives.frequency", "Fréquence"),
+                             mode='lines+markers', line={'color': '#eb6834'}),
+                  row=1, col=1)
+    fig.add_trace(go.Scatter(x=ts['date'], y=ts['ctr'], name='CTR (%)',
+                             mode='lines+markers', line={'color': '#2a78d6'}),
+                  row=2, col=1)
+    fig.update_layout(hovermode="x unified", showlegend=False, height=420)
     st.plotly_chart(fig, width="stretch")
     st.caption(t("meta_creatives.fatigue_caption",
                  "Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative."))

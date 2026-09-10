@@ -45,7 +45,13 @@ def show():
             df_hist = db.fetch_df(hist_query, (artist_id, *frag_params))
 
             if not df_hist.empty:
-                fig_channel = go.Figure()
+                from plotly.subplots import make_subplots
+                fig_channel = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                            vertical_spacing=0.09,
+                                            subplot_titles=[
+                                                t("youtube.subscribers", "Abonnés"),
+                                                t("youtube.cumulative_views",
+                                                  "Vues Cumulées")])
 
                 # Axe Y1 (Gauche) : Abonnés (ligne + marqueurs, PAS de remplissage)
                 # fill='tozeroy' ancrait la bande à 0 → avec des comptes absolus élevés,
@@ -56,8 +62,7 @@ def show():
                     name=t("youtube.subscribers", "Abonnés"),
                     mode='lines+markers',
                     line=dict(color='#FF0000', width=2),
-                    yaxis='y'
-                ))
+                ), row=1, col=1)
 
                 # Axe Y2 (Droite) : Vues Totales (Blanc/Gris clair pour Dark Mode)
                 # ✅ CORRECTION COULEUR (Visible sur fond noir)
@@ -66,8 +71,7 @@ def show():
                     name=t("youtube.total_views", "Vues Totales"),
                     mode='lines+markers',
                     line=dict(color='#E0E0E0', width=2, dash='dot'),
-                    yaxis='y2'
-                ))
+                ), row=2, col=1)
 
                 # Smart range: zoom the subscriber axis onto the actual data band
                 # with a small margin, instead of starting at 0. Makes day-to-day
@@ -81,26 +85,22 @@ def show():
                 else:
                     subs_range = None  # flat series → let Plotly autorange
 
+                # DEUX CADRES. Des abonnés (milliers) et un compteur de vues cumulées
+                # (centaines de milliers) sur un repère commun rendent la première
+                # courbe plate ; sur deux axes superposés, leur croisement est un
+                # artefact de cadrage. La plage resserrée des abonnés — écrite pour
+                # rendre l'évolution quotidienne visible — garde tout son sens dans son
+                # propre cadre.
+                fig_channel.update_yaxes(title_text=t("youtube.subscribers", "Abonnés"),
+                                         range=subs_range, tickformat="~s", row=1, col=1)
+                fig_channel.update_yaxes(
+                    title_text=t("youtube.cumulative_views", "Vues Cumulées"),
+                    tickformat="~s", row=2, col=1)
+                fig_channel.update_xaxes(title_text=t("common.date", "Date"), row=2, col=1)
                 fig_channel.update_layout(
-                    title=t("youtube.channel_chart_title", "Croissance : Abonnés vs Vues Totales"),
-                    xaxis=dict(title=t("common.date", "Date")),
-                    yaxis=dict(
-                        title=dict(text=t("youtube.subscribers", "Abonnés"), font=dict(color="#FF0000")),
-                        tickfont=dict(color="#FF0000"),
-                        range=subs_range,
-                        tickformat="~s",  # SI suffix (1.2k, 3.4M) — legible at any scale
-                    ),
-                    yaxis2=dict(
-                        title=dict(text=t("youtube.cumulative_views", "Vues Cumulées"), font=dict(color="#E0E0E0")),
-                        tickfont=dict(color="#E0E0E0"),
-                        overlaying='y',
-                        side='right',
-                        showgrid=False,
-                        tickformat="~s",
-                    ),
-                    hovermode='x unified',
-                    legend=dict(orientation="h", y=1.1),
-                    height=450
+                    title=t("youtube.channel_chart_title",
+                            "Croissance : Abonnés vs Vues Totales"),
+                    hovermode='x unified', showlegend=False, height=480,
                 )
                 st.plotly_chart(fig_channel, width="stretch")
 
@@ -202,97 +202,50 @@ def show():
                 df_top = df_filtered.head(top_n)
 
                 if not df_top.empty:
-                    # GRAPHIQUE 4 AXES (Vues, Likes, Coms, Ratio)
-                    fig_top = go.Figure()
+                    # QUATRE MESURES, QUATRE CADRES — plus quatre axes superposés.
+                    #
+                    # Cette figure empilait `yaxis` à `yaxis4` : des vues (dizaines de
+                    # milliers), des likes (centaines), des commentaires (dizaines) et
+                    # un ratio sans unité, forcés à partager un même repère par simple
+                    # décalage de côté. Un lecteur ne peut pas comparer deux courbes qui
+                    # n'ont ni la même unité ni la même échelle ; il lit une forme, et
+                    # cette forme ne veut rien dire.
+                    #
+                    # Les petits multiples sont la seule alternative admise dans ce
+                    # produit — la figure de l'accueil porte la même décision, écrite le
+                    # 2026-09-08. On perd la superposition, on gagne quatre séries
+                    # réellement lisibles, chacune sur SON échelle.
+                    from plotly.subplots import make_subplots
 
-                    # 1. Vues (Barres - Axe Gauche)
-                    fig_top.add_trace(go.Bar(
-                        x=df_top['title'],
-                        y=df_top['view_count'],
-                        name=t("youtube.views", "Vues"),
-                        marker_color='#FF0000', # Rouge
-                        yaxis='y'
-                    ))
-
-                    # 2. Likes (Ligne - Axe Droit 1)
-                    fig_top.add_trace(go.Scatter(
-                        x=df_top['title'],
-                        y=df_top['like_count'],
-                        name='Likes',
-                        mode='lines+markers',
-                        line=dict(color='#2ECC71', width=3), # Vert
-                        yaxis='y2'
-                    ))
-
-                    # 3. Commentaires (Ligne - Axe Droit 2 - Décalé)
-                    fig_top.add_trace(go.Scatter(
-                        x=df_top['title'],
-                        y=df_top['comment_count'],
-                        name=t("youtube.comments", "Commentaires"),
-                        mode='lines+markers',
-                        line=dict(color='#9B59B6', width=2), # Violet
-                        yaxis='y3'
-                    ))
-
-                    # 4. Ratio Vues/Like (Ligne - Axe Droit 3 - Décalé)
-                    # Note : Plus c'est bas, meilleur c'est
-                    fig_top.add_trace(go.Scatter(
-                        x=df_top['title'],
-                        y=df_top['ratio_views_like'],
-                        name=t("youtube.ratio_views_like", "Ratio Vues/Like"),
-                        mode='lines',
-                        line=dict(color='#F1C40F', width=2, dash='dot'), # Jaune
-                        yaxis='y4'
-                    ))
+                    _panels = [
+                        (t("youtube.views", "Vues"), "view_count", "#2a78d6", "bar"),
+                        ("Likes", "like_count", "#1baf7a", "line"),
+                        (t("youtube.comments", "Commentaires"), "comment_count",
+                         "#eb6834", "line"),
+                        (t("youtube.ratio_views_like", "Ratio Vues/Like"),
+                         "ratio_views_like", "#eda100", "line"),
+                    ]
+                    fig_top = make_subplots(
+                        rows=len(_panels), cols=1, shared_xaxes=True,
+                        vertical_spacing=0.05,
+                        subplot_titles=[lbl for lbl, _, _, _ in _panels],
+                    )
+                    for _row, (_lbl, _col, _colour, _kind) in enumerate(_panels, start=1):
+                        _trace = (go.Bar(x=df_top['title'], y=df_top[_col],
+                                         name=_lbl, marker_color=_colour)
+                                  if _kind == "bar" else
+                                  go.Scatter(x=df_top['title'], y=df_top[_col],
+                                             name=_lbl, mode='lines+markers',
+                                             line=dict(color=_colour, width=2)))
+                        fig_top.add_trace(_trace, row=_row, col=1)
 
                     fig_top.update_layout(
-                        title=t("youtube.top_chart_title", "Top {n} {type}").format(n=top_n, type=selected_type),
-                        xaxis=dict(title="", tickangle=45),
-
-                        # Axe 1 : Vues (Gauche)
-                        yaxis=dict(
-                            title=dict(text=t("youtube.views", "Vues"), font=dict(color="#FF0000")),
-                            tickfont=dict(color="#FF0000"),
-                            side='left',
-                            showgrid=True
-                        ),
-
-                        # Axe 2 : Likes (Droite)
-                        yaxis2=dict(
-                            title=dict(text="Likes", font=dict(color="#2ECC71")),
-                            tickfont=dict(color="#2ECC71"),
-                            side='right',
-                            overlaying='y',
-                            showgrid=False
-                        ),
-
-                        # Axe 3 : Commentaires (Droite décalée)
-                        yaxis3=dict(
-                            title=dict(text=t("youtube.coms_axis", "Coms"), font=dict(color="#9B59B6")),
-                            tickfont=dict(color="#9B59B6"),
-                            anchor="free",
-                            overlaying='y',
-                            side='right',
-                            position=0.94, # Décalage vers la gauche
-                            showgrid=False
-                        ),
-
-                        # Axe 4 : Ratio (Droite décalée)
-                        yaxis4=dict(
-                            title=dict(text=t("youtube.ratio_axis", "Ratio V/L"), font=dict(color="#F1C40F")),
-                            tickfont=dict(color="#F1C40F"),
-                            anchor="free",
-                            overlaying='y',
-                            side='right',
-                            position=0.88, # Décalage encore plus à gauche
-                            showgrid=False
-                        ),
-
+                        title=t("youtube.top_chart_title", "Top {n} {type}").format(
+                            n=top_n, type=selected_type),
+                        showlegend=False,          # chaque cadre porte son propre titre
                         hovermode='x unified',
-                        # Légende en haut pour ne pas gêner
-                        legend=dict(orientation="h", y=1.15, x=0.5, xanchor='center'),
-                        height=650,
-                        margin=dict(b=100, r=50) # Marges pour les axes multiples
+                        height=180 * len(_panels),
+                        margin=dict(b=90, r=20),
                     )
 
                     st.plotly_chart(fig_top, width="stretch")

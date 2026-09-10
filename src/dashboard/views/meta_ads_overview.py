@@ -248,7 +248,18 @@ def _show_meta_ads(db, artist_id):
         df_chart['cpm'] = df_chart.apply(lambda x: x['spend']/x['impressions']*1000 if x['impressions']>0 else 0, axis=1)
         df_chart['cpc'] = df_chart.apply(lambda x: x['spend']/x['link_clicks'] if x['link_clicks']>0 else 0, axis=1)
 
-        fig = go.Figure()
+        # TROIS UNITÉS, TROIS CADRES — les six séries étaient réparties sur trois axes
+        # superposés (budget en euros, volumes en unités, ratios en euros par résultat).
+        # Un lecteur y voyait des courbes se croiser ; ces croisements ne sont que le
+        # produit du cadrage choisi. Partagés en x, les cadres gardent la comparaison
+        # campagne par campagne et rendent chaque grandeur lisible sur son échelle.
+        from plotly.subplots import make_subplots
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.07,
+                            row_heights=[0.4, 0.3, 0.3],
+                            subplot_titles=[
+                                t("meta_ads_overview.budget_eur", "Budget (€)"),
+                                t("meta_ads_overview.volumes", "Volumes"),
+                                t("meta_ads_overview.ratios_eur", "Ratios (€)")])
 
         # Axe Y1 (Gauche - Barres)
         fig.add_trace(go.Bar(
@@ -266,52 +277,42 @@ def _show_meta_ads(db, artist_id):
         ))
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['link_clicks'],
-            name=t("meta_ads_overview.link_clicks", "Clics Lien"), marker_color='rgba(88, 80, 141, 0.7)',
-            yaxis='y2', offsetgroup=2, visible=True
-        ))
+            name=t("meta_ads_overview.link_clicks", "Clics Lien"), marker_color='rgba(88, 80, 141, 0.7)', offsetgroup=2, visible=True
+        ), row=2, col=1)
         fig.add_trace(go.Bar(
             x=df_chart['campaign_name'], y=df_chart['page_interactions'],
-            name=t("meta_ads_overview.interactions", "Interactions"), marker_color='rgba(255, 166, 0, 0.7)',
-            yaxis='y2', offsetgroup=2, visible=True
-        ))
+            name=t("meta_ads_overview.interactions", "Interactions"), marker_color='rgba(255, 166, 0, 0.7)', offsetgroup=2, visible=True
+        ), row=2, col=1)
 
         # Impressions
         fig.add_trace(go.Scatter(
             x=df_chart['campaign_name'], y=df_chart['impressions'],
             name=t("meta_ads_overview.impressions", "Impressions"), mode='markers',
-            marker=dict(symbol='star', size=10, color='#333'),
-            yaxis='y2', visible='legendonly'
-        ))
+            marker=dict(symbol='star', size=10, color='#333'), visible='legendonly'
+        ), row=2, col=1)
 
         # Axe Y3 (Droite 2 - Ratios) - ACTIVÉS
         fig.add_trace(go.Scatter(
             x=df_chart['campaign_name'], y=df_chart['cpr'],
             name='CPR (€)', mode='lines+markers+text',
             text=df_chart['cpr'].apply(lambda x: f"{x:.2f}€"), textposition="top center",
-            line=dict(color='#bc5090', width=2), marker=dict(size=8),
-            yaxis='y3', visible=True
-        ))
+            line=dict(color='#bc5090', width=2), marker=dict(size=8), visible=True
+        ), row=3, col=1)
         fig.add_trace(go.Scatter(
             x=df_chart['campaign_name'], y=df_chart['cpm'],
             name='CPM (€)', mode='lines+markers',
-            line=dict(color='#ffa600', width=2), marker=dict(size=8),
-            yaxis='y3', visible=True
-        ))
+            line=dict(color='#ffa600', width=2), marker=dict(size=8), visible=True
+        ), row=3, col=1)
         fig.add_trace(go.Scatter(
             x=df_chart['campaign_name'], y=df_chart['cpc'],
             name='CPC (€)', mode='lines+markers',
-            line=dict(color='#ff6361', width=2), marker=dict(size=8),
-            yaxis='y3', visible=True
-        ))
+            line=dict(color='#ff6361', width=2), marker=dict(size=8), visible=True
+        ), row=3, col=1)
 
         fig.update_layout(
             height=600,
             title=t("meta_ads_overview.chart_360", "Vue 360° : Budget vs Volumes vs Ratios"),
-            xaxis=dict(title=t("meta_ads_overview.campaigns", "Campagnes"), domain=[0, 0.85]),
-            yaxis=dict(title=dict(text=t("meta_ads_overview.budget_eur", "Budget (€)"), font=dict(color="#ff6361"))),
-            yaxis2=dict(title=dict(text=t("meta_ads_overview.volumes", "Volumes"), font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right"),
-            yaxis3=dict(title=dict(text=t("meta_ads_overview.ratios_eur", "Ratios (€)"), font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.92),
-            legend=dict(orientation="h", y=1.12),
+            showlegend=False,
             hovermode="x unified",
             barmode='group'
         )
@@ -401,19 +402,31 @@ def _show_meta_ads(db, artist_id):
             df_day[c] = pd.to_numeric(df_day[c], errors='coerce').fillna(0)
         df_day['cpr'] = (df_day['spend'] / df_day['custom_conversions']).where(df_day['custom_conversions'] > 0).fillna(0)
 
-        fig_time = go.Figure()
-        fig_time.add_trace(go.Bar(x=df_day['day_date'], y=df_day['spend'], name=t("meta_ads_overview.spend_eur", "Dépenses (€)"), marker_color='rgba(255, 99, 97, 0.4)', yaxis='y'))
-        fig_time.add_trace(go.Scatter(x=df_day['day_date'], y=df_day['custom_conversions'], name=t("meta_ads_overview.spotify_clicks", "Clics Spotify"), mode='lines', line=dict(color='#1DB954', width=3), yaxis='y2'))
-        fig_time.add_trace(go.Scatter(x=df_day['day_date'], y=df_day['cpr'], name='CPR (€)', mode='lines+markers', line=dict(color='#bc5090', width=2, dash='dot'), yaxis='y3'))
-
+        # TROIS UNITÉS, TROIS CADRES. Des euros dépensés, un nombre de clics et un coût
+        # par résultat n'ont ni la même unité ni le même ordre de grandeur ; trois axes
+        # superposés donnaient à leurs croisements une apparence de sens qu'ils n'ont
+        # pas. Partagés en x, les trois cadres gardent la lecture chronologique.
+        from plotly.subplots import make_subplots
+        fig_time = make_subplots(
+            rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.07,
+            row_heights=[0.4, 0.3, 0.3],
+            subplot_titles=[t("meta_ads_overview.spend_eur", "Dépenses (€)"),
+                            t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
+                            "CPR (€)"])
+        fig_time.add_trace(go.Bar(
+            x=df_day['day_date'], y=df_day['spend'],
+            name=t("meta_ads_overview.spend_eur", "Dépenses (€)"),
+            marker_color='#2a78d6'), row=1, col=1)
+        fig_time.add_trace(go.Scatter(
+            x=df_day['day_date'], y=df_day['custom_conversions'],
+            name=t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
+            mode='lines', line=dict(color='#1baf7a', width=2)), row=2, col=1)
+        fig_time.add_trace(go.Scatter(
+            x=df_day['day_date'], y=df_day['cpr'], name='CPR (€)',
+            mode='lines+markers', line=dict(color='#eda100', width=2)), row=3, col=1)
         fig_time.update_layout(
-            height=500, title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"), hovermode="x unified",
-            xaxis=dict(domain=[0, 0.9]),
-            yaxis=dict(title=dict(text=t("meta_ads_overview.budget_eur", "Budget (€)"), font=dict(color="#ff6361")), showgrid=False),
-            yaxis2=dict(title=dict(text=t("meta_ads_overview.results", "Résultats"), font=dict(color="#003f5c")), anchor="x", overlaying="y", side="right", showgrid=False),
-            yaxis3=dict(title=dict(text="CPR (€)", font=dict(color="#bc5090")), anchor="free", overlaying="y", side="right", position=0.95, showgrid=False),
-            legend=dict(orientation="h", y=1.1)
-        )
+            height=560, title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"),
+            hovermode="x unified", showlegend=False)
         st.plotly_chart(fig_time, width="stretch")
     else:
         st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
@@ -432,15 +445,26 @@ def _show_meta_ads(db, artist_id):
         df['cpr'] = df.apply(lambda x: x['spend'] / x['results'] if x['results'] > 0 else 0, axis=1)
         df = df.sort_values('spend', ascending=False).head(15)
 
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=df[x_col], y=df['spend'], name=t("meta_ads_overview.spend_eur", "Dépenses (€)"), marker_color='rgba(0, 63, 92, 0.6)', yaxis='y'))
-        fig.add_trace(go.Scatter(x=df[x_col], y=df['cpr'], name='CPR (€)', mode='lines+markers+text', text=df['cpr'].apply(lambda x: f"{x:.2f}€"), textposition="top center", line=dict(color='#ff6361', width=3), yaxis='y2'))
-
-        fig.update_layout(
-            title=title, yaxis=dict(title=t("meta_ads_overview.spend_eur", "Dépenses (€)"), showgrid=False),
-            yaxis2=dict(title="CPR (€)", overlaying='y', side='right', showgrid=False),
-            showlegend=False, height=400
-        )
+        # DEUX CADRES PARTAGÉS EN X. Cette fabrique est instanciée TROIS fois (pays,
+        # placement, âge) : son axe secondaire comptait donc pour trois. Dépense totale
+        # et coût par résultat sont tous deux en euros, mais séparés de deux ordres de
+        # grandeur — superposés, le CPR est plat ; sur un second axe, son croisement
+        # avec les barres est un artefact de cadrage. Les valeurs restent écrites sur
+        # les points, donc rien n'est perdu à la lecture.
+        from plotly.subplots import make_subplots
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.09,
+                            row_heights=[0.62, 0.38],
+                            subplot_titles=[t("meta_ads_overview.spend_eur",
+                                              "Dépenses (€)"), "CPR (€)"])
+        fig.add_trace(go.Bar(x=df[x_col], y=df['spend'],
+                             name=t("meta_ads_overview.spend_eur", "Dépenses (€)"),
+                             marker_color='#2a78d6'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df[x_col], y=df['cpr'], name='CPR (€)',
+                                 mode='lines+markers+text',
+                                 text=df['cpr'].apply(lambda x: f"{x:.2f}€"),
+                                 textposition="top center",
+                                 line=dict(color='#eb6834', width=2)), row=2, col=1)
+        fig.update_layout(title=title, showlegend=False, height=460)
         return fig
 
     query_country = (

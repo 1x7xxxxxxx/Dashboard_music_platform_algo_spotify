@@ -187,25 +187,35 @@ def show():
                     df_daily['daily_streams'] = df_daily['daily_streams'].apply(lambda x: max(0, x))
                     df_daily['daily_shazams'] = df_daily['daily_shazams'].apply(lambda x: max(0, x))
 
-                    fig = go.Figure()
+                    # DEUX CADRES PARTAGÉS EN X, pas deux axes superposés.
+                    #
+                    # Les Shazams se comptent en unités quand les streams se comptent en
+                    # centaines : sur un repère commun, la barre est invisible ; sur un
+                    # second axe décalé, son croisement avec la courbe est un artefact de
+                    # cadrage et non un fait. Les deux cadres gardent la lecture
+                    # chronologique et rendent chaque série lisible sur son échelle.
+                    from plotly.subplots import make_subplots
+                    fig = make_subplots(
+                        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=[
+                            t("apple_music.streams_per_day", "Streams / jour"),
+                            t("apple_music.shazams_per_day", "Shazams / jour")])
                     for song in df_daily['song_name'].unique():
                         d = df_daily[df_daily['song_name'] == song]
                         fig.add_trace(go.Scatter(
                             x=d['date'], y=d['daily_streams'],
-                            name=f"🎧 {song}", mode='lines+markers', yaxis='y',
-                        ))
+                            name=f"🎧 {song}", mode='lines+markers',
+                        ), row=1, col=1)
                         fig.add_trace(go.Bar(
                             x=d['date'], y=d['daily_shazams'],
-                            name=f"⚡ {song}", opacity=0.4, yaxis='y2',
-                        ))
+                            name=f"⚡ {song}", opacity=0.6, showlegend=False,
+                        ), row=2, col=1)
                     fig.update_layout(
                         title=t("apple_music.daily_chart_title",
                                 "Streams & Shazams par jour · {label}").format(label=window.label),
                         hovermode='x unified',
-                        yaxis=dict(title=t("apple_music.streams_per_day", "Streams / jour")),
-                        yaxis2=dict(title=t("apple_music.shazams_per_day", "Shazams / jour"), overlaying='y',
-                                    side='right', showgrid=False),
                         barmode='group',
+                        height=520,
                         legend=dict(orientation='h'),
                     )
                     st.plotly_chart(fig, width="stretch")
