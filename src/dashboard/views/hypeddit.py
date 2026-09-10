@@ -24,11 +24,9 @@ def add_campaign_stats(db, campaign_name: str, date, visits: int, clicks: int):
     celle de Meta Ads (ROI Breakeven). La colonne DB `budget` reste à sa valeur par
     défaut (0). Seules les visites/clics (vraies métriques smart-link) sont saisies.
     """
-    artist_id = get_artist_id()
+    artist_id = _resolve_artist_id_or_none()
     if artist_id is None:
-        if not is_admin():
-            return False, t("hypeddit.invalid_session", "❌ Session invalide.")
-        artist_id = 1  # admin: defaults to artist 1
+        return False, t("hypeddit.invalid_session", "❌ Session invalide.")
 
     try:
         # 1. Assurer que la campagne existe
@@ -67,21 +65,35 @@ def add_campaign_stats(db, campaign_name: str, date, visits: int, clicks: int):
         return False, t("hypeddit.save_error", "❌ Erreur: {err}").format(err=e)
 
 
-def _resolve_artist_id() -> int:
-    """Tenant for this call — rule #7: `get_artist_id() or 1` is forbidden.
+def _resolve_artist_id_or_none() -> int | None:
+    """LA décision du locataire, en un seul endroit — sans décider quoi en faire.
 
-    Three call sites resolved `None` straight to 1 with no `is_admin()` check.
-    Two of them are module-level public functions, so the guard belongs here, not
-    in a caller: a non-admin whose session lost its artist_id must never silently
-    read tenant 1 (the admin's) rows.
+    Règle #7 : `get_artist_id() or 1` est interdit. Rend l'identifiant, ou `None`
+    quand la session ne permet pas de le résoudre.
+
+    Cette forme existe parce que les appelants ne peuvent pas tous réagir de la même
+    façon : une fonction de RENDU arrête la page (`st.stop()`), une fonction
+    d'ÉCRITURE doit rendre un couple `(False, message)` à son appelant. Le garde
+    lui-même — « personne d'autre qu'un administrateur ne retombe sur le locataire
+    1 » — est identique dans les deux cas, et c'est LUI qu'on ne veut pas voir
+    réécrit à la main : il l'était encore sur deux sites, chacun avec sa propre
+    version du message.
     """
     artist_id = get_artist_id()
     if artist_id is not None:
         return artist_id
     if not is_admin():
+        return None
+    return 1  # admin fallback — documented, admins only
+
+
+def _resolve_artist_id() -> int:
+    """Le même garde, pour un appelant qui rend une page : arrête au lieu de mentir."""
+    artist_id = _resolve_artist_id_or_none()
+    if artist_id is None:
         st.error(t("hypeddit.session_invalid", "Session invalide."))
         st.stop()
-    return 1  # admin fallback — documented, admins only
+    return artist_id
 
 
 def get_campaigns_list(db):
@@ -176,11 +188,7 @@ def _render_global_stats(db):
 def _render_history(db):
     """Section Historique (50 dernières lignes)."""
     st.header(t("hypeddit.history_header", "📋 Historique"))
-    artist_id = get_artist_id()
-    if artist_id is None:
-        if not is_admin():
-            st.error(t("hypeddit.session_invalid", "Session invalide.")); st.stop()
-        artist_id = 1  # admin: defaults to artist 1
+    artist_id = _resolve_artist_id()
     df_hist = db.fetch_df("""
         SELECT campaign_name, date, visits, clicks
         FROM hypeddit_daily_stats
