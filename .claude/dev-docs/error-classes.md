@@ -328,6 +328,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-diagram-is-verified-by-looking-at-it](#a-diagram-is-verified-by-looking-at-it) | P3 | manual | reported | none |
 | [a-caption-written-beside-the-behaviour-instead-of-derived-from-it](#a-caption-written-beside-the-behaviour-instead-of-derived-from-it) | P3 | deterministic | guarded | none |
 | [a-figure-under-a-period-selector-that-ignores-it](#a-figure-under-a-period-selector-that-ignores-it) | P2 | deterministic | guarded | none |
+| [a-window-applied-to-the-wrong-date](#a-window-applied-to-the-wrong-date) | P2 | deterministic | guarded | none |
 
 > A `—` cell means the entry itself declares no such field. The two CI-waste classes
 > arrived from another repo in a looser format; no severity has been invented for them.
@@ -4610,3 +4611,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: après correction, **15 requêtes sous une fenêtre, 0 figure non bornée**. La mesure n'a donc rien corrigé sur cette classe — elle a transformé une croyance en propriété vérifiable, et les trois faux départs sont gardés parce qu'ils reviendront.
   - 2026-09-10: la première version du bornage pandas acceptait n'importe quelle MENTION du nom dans les 45 lignes suivantes — donc `start_d.strftime()` dans le TITRE de la figure suffisait. Le garde validait ainsi exactement le défaut qu'il cherche : un libellé qui annonce une période que les données ne respectent pas. Il exige désormais une COMPARAISON.
   - 2026-09-10: ce qu'il NE tient pas est écrit dans le fichier : que la borne porte sur la bonne colonne. `instagram` filtre sur la date de PUBLICATION, ce qui est juste pour une cohorte et faux pour un engagement — aucun prédicat ne rend ce jugement, et ce cas-là a été traité par le texte de la figure.
+
+## a-window-applied-to-the-wrong-date
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: le filtre de période EST appliqué, et la figure répond quand même à une autre question. Aucun garde ne peut le voir : tous demandent *que* la fenêtre soit appliquée, jamais *sur quoi*. Mesuré le 2026-09-10 : « Engagement par mois » d'Instagram bornait sur `timestamp`, la date de PUBLICATION du post, alors que `like_count` est un compteur cumulé lu aujourd'hui — la barre de janvier portait les likes donnés en juin à un post de janvier.
+- root_cause: une colonne de date porte DEUX informations que le code ne distinguait pas : quelle horloge l'a produite, et de quoi elle est la date. La seconde décide si une figure bornée sur elle répond à ce qu'elle annonce — un jour d'événement, un jour de mesure, ou un jour de SORTIE. Borner sur une date de sortie construit une cohorte, ce qui est légitime et souvent la seule lecture possible ; ne pas le dire ne l'est pas.
+- signature: `python3 -m pytest tests/test_a_period_bound_is_on_the_right_column.py -q`
+- long_term_fix: `COLUMN_SUBJECT` dans `src/utils/clocks.py` déclare, pour chaque colonne de date, de quoi elle est la date — à côté de `COLUMN_CLOCK`, qui dit qui l'a produite. Le garde exige alors qu'une figure bornée sur une date de publication l'ANNONCE, dans un texte vu par l'artiste et proche de la figure. Règle générale : « la fenêtre est appliquée » et « la fenêtre porte sur la bonne chose » sont deux propriétés distinctes, et la seconde ne se vérifie qu'en déclarant le sujet de chaque date.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_period_bound_is_on_the_right_column.py }
+- rex_ref: src/utils/clocks.py
+- first_seen: 2026-09-10
+- History:
+  - 2026-09-10: **j'avais écrit que ce jugement n'était pas mécanisable.** C'était faux, et l'inventaire l'a montré en une commande : 13 sites de bornage, six colonnes distinctes, dont UNE SEULE est une date de publication. Ce qui manquait n'était pas un algorithme, c'était une DÉCLARATION — la même forme que pour les quatre horloges, écrite le matin même sur la même colonne.
+  - 2026-09-10: le garde a été trouvé faux DEUX fois par ses propres mutations. D'abord il cherchait le mot dans TOUT le fichier : un commentaire expliquant le correctif le satisfaisait, et retirer l'annonce de l'écran le laissait vert. Restreint aux chaînes vues par l'artiste. Puis il cherchait le MOT « publication », que la page Instagram contient sept fois dans des titres de section sans rapport (« 📸 Publications », « Publié le ») — un garde satisfait par le vocabulaire du domaine ne garde rien. Il exige désormais des PHRASES qui nomment le regroupement, dans une fenêtre de 90 lignes autour du bornage.
+  - 2026-09-10: ce qu'il n'interdit pas, et c'est important : borner sur une date de sortie. Instagram ne livre qu'un compteur courant par post — `instagram_media` porte 51 lignes pour 51 posts et `instagram_media_insights` est vide — donc aucun flux mensuel n'existe. Fabriquer une courbe d'engagement demanderait d'inventer une répartition. Le correctif est de NOMMER, pas de calculer autrement.
