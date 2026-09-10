@@ -63,7 +63,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [make-fail-late](#make-fail-late) | P3 | heuristic | reported | none |
 | [collector-silent-success](#collector-silent-success) | P2 | heuristic | guarded | none |
 | [artist-id-or-1](#artist-id-or-1) | P1 | deterministic | guarded | none |
-| [sql-fstring-identifier](#sql-fstring-identifier) | P1 | heuristic | open | none |
+| [sql-fstring-identifier](#sql-fstring-identifier) | P1 | deterministic | guarded | none |
 | [db-connection-per-show](#db-connection-per-show) | P3 | heuristic | open | none |
 | [naive-datetime-now](#naive-datetime-now) | P2 | heuristic | open | none |
 | [df-na-rep](#df-na-rep) | P3 | heuristic | guarded | none |
@@ -420,18 +420,22 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-04: dérive `signature:` / `guard:`. Le garde réel avait migré vers un test AST ; la ligne `signature:`, celle qu'exécute `audit_runner`, était restée l'ancien `grep`. Les deux pointent désormais le même test.
 
 ## sql-fstring-identifier
-- status: open
+- status: guarded
 - severity: P1
-- kind: heuristic
+- kind: deterministic
 - symptom: a table/column name interpolated into SQL via f-string without `frozenset` allowlist validation (CLAUDE.md rule #8) → SQL injection.
-- signature: `! grep -rnE "f\"\"\"?[^\"]*(FROM|JOIN|INTO|UPDATE|TABLE) +\{" src/ --include=*.py`
+- signature: `python3 -m pytest tests/test_a_sql_identifier_comes_from_a_closed_set.py -q`
 - root_cause: psycopg2 parameterises VALUES but not identifiers, so a dynamic table or column name has no `%s` form and the f-string is the only thing that works.
 - long_term_fix: every dynamic identifier resolves through a `frozenset` allowlist before interpolation (rule #8); the allowlist is the fix, the grep only finds the ones that skipped it.
 - autofix: none
-- guard: { type: cross-cutting-rule, ref: CLAUDE.md#8 }
+- guard: { type: pytest, ref: tests/test_a_sql_identifier_comes_from_a_closed_set.py }
 - rex_ref: CLAUDE.md
 - first_seen: 2026-03-28 (ref: DEVLOG#2026-03-28)
 - History:
+  - 2026-09-10: **P1 et `open` depuis des mois — son seul garde était une PHRASE** (la règle #8 de `CLAUDE.md`) doublée d'une signature en `grep` textuel. Ce dépôt a mesuré cinq fois qu'un garde textuel est aveugle. Remplacée par un prédicat AST qui tient la PROVENANCE : l'expression interpolée doit venir d'un `frozenset` consulté, d'un validateur importé, ou d'un conteneur littéral de module.
+  - 2026-09-10: **20 sites mesurés, 0 injection vivante.** Neuf modules valident contre une allowlist ; le dixième (`pdf_exporter/_collectors.py`) itère sur `_BREAKDOWN_DIMS`, un dictionnaire littéral. La mesure n'a donc rien corrigé — elle a transformé « on croit que la règle est suivie » en « on sait qu'elle l'est, et on le saura demain ».
+  - 2026-09-10: le premier prédicat s'est trompé deux fois. Il cherchait la validation dans la fonction ENGLOBANTE — or `period_filter.py` valide dans `_validate()`, appelée d'ailleurs : sept faux positifs. Et il comptait « ✅ Table {name} », un message de LOG, parce que son motif voyait le mot `Table`. La f-string doit d'abord porter un VERBE SQL — un garde qui crie sur un log perd sa crédibilité sur une injection.
+  - 2026-09-10: ce qu'il ne tient PAS, dit plutôt que sous-entendu : aucune analyse de flot. Un identifiant qui traverserait trois fonctions depuis une entrée utilisateur lui échapperait. Le cliquet est à ZÉRO, donc tout site nouveau doit prouver sa provenance — c'est la propriété qu'on peut réellement vérifier.
   - 2026-05-15: catalogued. Heuristic — manual triage required (value `%s` params are fine; only identifier interpolation is the bug).
 
 ## db-connection-per-show
