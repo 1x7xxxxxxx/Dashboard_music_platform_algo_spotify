@@ -291,8 +291,15 @@ def _render_trend(db, series, since, until, range_key, artist_id) -> None:
     # Mesuré le 2026-09-10 sur l'artiste 1 : la figure trace 21 écoutes YouTube et en
     # écarte 167. Une figure qui montre un neuvième du volume sans le dire se lit comme
     # une plateforme morte.
+    # ⚠️ SEULEMENT DANS LES MODES QUI TRACENT LA SÉRIE QUOTIDIENNE.
+    #
+    # En mode « Cumulé », la courbe ne vient plus de cette série mais de la couche or,
+    # qui lit le COMPTEUR : ces écoutes-là y sont, par construction. Les annoncer
+    # « non traçables » sous une figure qui les trace est un mensonge dans l'autre
+    # sens, et c'est celui qui a été signalé le 2026-09-11 — « je n'ai aucune data sur
+    # YouTube depuis le début », sous une courbe qui affichait 118 334.
     from src.dashboard.utils.platform_timeseries import discarded_deltas
-    _lost = discarded_deltas(db, artist_id)
+    _lost = discarded_deltas(db, artist_id) if mode != "cumulative" else {}
     if _lost:
         _parts = ", ".join(
             f"{PLATFORM_LABELS.get(k, k)} {v[2]:,}".replace(",", " ")
