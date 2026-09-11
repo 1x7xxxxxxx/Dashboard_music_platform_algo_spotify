@@ -59,34 +59,28 @@ def get_db_connection() -> Optional[PostgresHandler]:
     The Streamlit-specific part stays here, and only that: turning a failure into a
     red banner and a None, because a view must degrade rather than crash.
     """
-    # LE POOL N'EST PAS ACTIVÉ ICI, ET C'EST DÉLIBÉRÉ (2026-09-11).
+    # Le pool et le cache s'arment au PREMIER besoin de connexion du processus, une
+    # seule fois chacun. Ici plutôt qu'à l'import : un import ne doit pas ouvrir de
+    # socket, et les tests importent ce module sans base.
     #
-    # Il est écrit, testé et mesuré — 20 cycles ouverture/fermeture font 0 poignée
-    # de main au lieu de 20, soit ~40 ms sur un rendu de 287 en production. Mais
-    # l'activer fait passer l'accueil de 13 à 23 requêtes SQL, mesuré sur une base
-    # neuve contre `main` à l'identique, et **je n'ai pas su expliquer pourquoi**.
-    # Suspect principal : `_ensure_connection()` appelle `conn.poll()`, qui sur une
-    # connexion RÉUTILISÉE peut lever `OperationalError` et déclencher un emprunt
-    # supplémentaire. Non prouvé.
+    # ILS ONT ÉTÉ DÉBRANCHÉS DEUX FOIS SUR UN FAUX DIAGNOSTIC, le 2026-09-11, et
+    # c'est la partie à retenir. La CI comptait 21 puis 23 requêtes sur l'accueil au
+    # lieu de 13 ; j'ai accusé le pool, puis le cache, et débranché les deux. Aucun
+    # des deux n'y était pour rien : la page coûte simplement DEUX PRIX selon que la
+    # mise en route du locataire est finie ou non — terminée elle lit ses sections de
+    # données, inachevée elle rend EN PLUS la matrice de mise en route, soit dix
+    # requêtes. La base locale avait un artiste configuré, celle de la CI est neuve.
+    # Le test comparait donc deux ÉTATS, pas deux versions du code.
     #
-    # Un chemin chaud que traversent 43 vues, l'API et Airflow ne reçoit pas un
-    # changement dont on ne sait pas expliquer un effet mesuré. `enable_pool()`
-    # reste disponible, personne ne l'appelle, et la reproduction est écrite dans
-    # la tâche de roadmap qui porte ce reste.
-
-    # LE CACHE DES SÉRIES N'EST PAS BRANCHÉ NON PLUS, POUR LA MÊME RAISON.
-    #
-    # Il est écrit, testé et compris en isolation : lecture mémorisée, panne JAMAIS
-    # mémorisée, clé portant `artist_id`, et il fait baisser l'accueil artiste de
-    # 13 à 11 requêtes en local. Mais branché, la CI compte **21** requêtes sur
-    # l'accueil, et je n'ai pas su reproduire ni expliquer cet écart : ni le pool,
-    # ni les purges, ni un `clear()` répété (500/500 lectures correctes) ne le
-    # produisent hors CI.
-    #
-    # Le motif mesuré est +10 / −2 — une SECTION de plus rendue et `discarded_deltas`
-    # en moins — ce qui est la signature d'une page qui conclut « pas encore de
-    # données ». Tant que je ne peux pas montrer que ce n'est pas ça, un chemin que
-    # traverse chaque rendu ne le reçoit pas. `install()` reste disponible.
+    # Une fois l'état du locataire épinglé dans la mesure
+    # (`tests/test_a_page_asks_the_same_question_once.py`), les deux rebranchés
+    # passent à 13 sur une base neuve. Gains mesurés en production : ~40 ms de
+    # poignées de main évitées par le pool, et l'accueil artiste de 13 à 11 requêtes
+    # par le cache.
+    from src.database.postgres_handler import enable_pool
+    enable_pool(minconn=1, maxconn=8)
+    from src.dashboard.utils.series_cache import install as _install_series_cache
+    _install_series_cache()
 
     try:
         return PostgresHandler.from_env_or_config()

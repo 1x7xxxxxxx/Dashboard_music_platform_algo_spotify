@@ -21,11 +21,12 @@ EN = {
                                "**🚀 Run ALL collections** button in the sidebar.",
     "home.title": "🎵 streaMLytics — Music platform dashboard",
     "home.freshness_header": "📡 Data freshness",
-    "home.freshness_caption": (
-        "🔄 **API** sources (Spotify, YouTube, SoundCloud, Instagram, Meta Ads): collected "
-        "**automatically every day** for each artist. **File** sources (Spotify for Artists, "
-        "Apple Music, distributors): updated **on each CSV import** (folder watched every 15 min)."
-    ),
+    "home.freshness_api": "🔄 Collected automatically",
+    "home.freshness_api_hint": "Nothing to do: it runs on its own every morning, Paris time.",
+    "home.freshness_csv": "📂 You upload these",
+    "home.freshness_csv_hint": "These sources only move when a file is dropped — no API gives them to us.",
+    "home.freshness_every_day": "every day at {h}",
+    "home.freshness_on_upload": "on every upload",
     "home.streams_header": "🎧 Total streams",
     "platform_chart.caption_period": (
         "Plays **{unit}**, platform by platform. A gap in {shape} means no "
@@ -83,7 +84,6 @@ EN = {
     "home.onboarding_creds": "🔑 Configure API credentials",
     "home.onboarding_s4a": "📂 Upload a Spotify for Artists CSV",
     "home.onboarding_apple": "🍎 Upload an Apple Music CSV",
-    "home.onboarding_run": "🚀 Run your first data collection",
     "home.onboarding_done_header": "#### ✅ Getting started — setup complete",
     "home.onboarding_done": "All getting-started steps are complete. 🎉",
     "home.onboarding_ticks_on_action": "A step is ticked when the action is **done**, not when the page is opened.",

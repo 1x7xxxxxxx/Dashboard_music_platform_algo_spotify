@@ -3920,3 +3920,39 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
 
 📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=0 -->
+
+- [x] **R85 — Cacher les lectures de `platform_timeseries`** et **R86 — pool de
+  connexions** (P3) — LIVRÉES le 2026-09-11, et l'histoire de leur livraison vaut
+  plus que le gain.
+
+  **Gains mesurés en production** : le pool fait 0 poignée de main sur 20 cycles au
+  lieu de 20 (~40 ms sur un rendu de 287, `statement_timeout` préservé) ; le cache
+  ramène l'accueil artiste de 13 à 11 requêtes.
+
+  **Le cache est placé À L'INTÉRIEUR de l'avalement**, au niveau de la requête
+  (`platform_timeseries.set_fetch()` + `utils/series_cache.py`). C'était le point
+  bloquant d'une revue `code-critic` : ces fonctions sont écrites pour ne jamais
+  lever et rendent vide sur panne, donc les envelopper aurait mis la PANNE en cache
+  — une coupure d'une seconde devenue « aucune donnée » pendant 600 s pour tous les
+  spectateurs. La clé `(sql, params)` porte toujours `artist_id` : l'isolation entre
+  locataires est structurelle.
+
+  **Le pool ne résout AUCUNE configuration** : `enable_pool(min, max)` n'enregistre
+  qu'une taille, et le pool se construit à la première connexion à partir des
+  attributs que le handler tient de `from_env_or_config()`. Sa première version
+  lisait `DATABASE_URL` — une QUATRIÈME copie de la précédence DSN, refusée en CI par
+  `test_one_door_onto_the_database`, sous un commentaire qui affirmait ne pas la
+  recopier.
+
+  **Les deux ont été débranchés DEUX FOIS sur un faux diagnostic.** La CI comptait 21
+  puis 23 requêtes sur l'accueil au lieu de 13 ; j'ai accusé le pool, puis le cache.
+  Aucun des deux n'y était pour rien : la page coûte deux prix selon que la mise en
+  route du locataire est finie ou non — inachevée elle rend EN PLUS la matrice de
+  mise en route, dix requêtes. La base locale avait un artiste configuré, celle de la
+  CI est neuve. Le test comparait deux ÉTATS, pas deux versions.
+
+  La leçon, troisième instance du jour : quand une mesure diffère entre deux
+  environnements, la première question n'est pas « qu'ai-je changé ? » mais « ces
+  deux environnements mesurent-ils la même chose ? ». Les trois fois, non — caches
+  réchauffés par les tests voisins, base restaurée à moitié, locataire configuré
+  contre locataire neuf. ref: DEVLOG#2026-09-11.

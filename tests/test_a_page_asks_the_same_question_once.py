@@ -95,6 +95,21 @@ import streamlit as st
 # neuve, rend 13 pour un plafond de 11 — il ne passait qu'accompagné.
 from src.dashboard.utils.kpi_helpers import clear_kpi_caches as _clear
 _clear()
+# ET l'état du LOCATAIRE est fixé, pas subi.
+#
+# La page coûte deux prix selon que la mise en route est finie ou non : terminée
+# elle lit ses sections de données, inachevée elle rend EN PLUS la matrice de
+# mise en route (fraîcheur par source, sonde Meta, identifiants) — dix requêtes.
+# Le plafond avait été gelé sur une base locale où l'artiste 1 est configuré ; en
+# CI la base est neuve et il ne l'est pas, d'où 13 ici et 23 là-bas pour le MÊME
+# code. Le test comparait donc deux états, pas deux versions.
+#
+# On mesure l'état « configuré », celui d'un artiste installé — c'est la page que
+# la plupart des rendus servent. Le coût de la mise en route se mesure ailleurs.
+import src.dashboard.utils.setup_completion as _sc
+_sc.read_setup_state = lambda *a, **k: _sc.SetupState(
+    steps=[_sc.Step(k_, True, p_) for k_, p_ in _sc._STEP_PAGES],
+    show_on_login=False, collected=True)
 st.session_state["role"] = {role!r}
 st.session_state["artist_id"] = 1
 st.session_state["email"] = "probe@test"

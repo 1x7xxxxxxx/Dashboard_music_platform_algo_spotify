@@ -26,11 +26,9 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R84 | Déployer la migration 100 **avant** le code YouTube qui en dépend | P2 | `pytest tests/test_an_upsert_targets_an_index_that_exists.py` contre la prod : vert = l'index existe |
-| R85 | **Brancher** le cache des séries (écrit, testé, non branché) — comprendre d'abord pourquoi la CI compte 21 requêtes sur l'accueil alors qu'en local il le fait passer de 13 à 11 | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` reste à 13/11 **en CI** avec `install()` branché |
-| R86 | **Activer** le pool (écrit et testé, personne ne l'appelle) — comprendre d'abord pourquoi il fait passer l'accueil de 13 à 23 requêtes | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` doit rester à 13/11 **avec** `enable_pool()` branché dans `get_db_connection` |
 | R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
 | R88 | **Étendre la couche or aux SÉRIES** (ADR-019 n'a couvert que les totaux scalaires) : une courbe cumulée affirme un total à son dernier point et doit lire la même définition que la tuile — YouTube trace 136 contre 118 334 annoncés (×870), SoundCloud 77 contre 23 563 | P2 | le dernier point de la courbe égale la tuile **par construction**, pour les 3 plateformes |
-| R89 | Reporter dans le PDF deux correctifs que l'app a déjà : compteur de chaîne YouTube (~10× faux) et double axe interdit | P3 | `pdf_charts.youtube_channel_growth` ne lit plus `youtube_channel_history.view_count` et n'appelle plus `twinx()` |
+| R89 | ~~Compteur de chaîne dans le PDF~~ — **PRÉMISSE FAUSSE, vérifiée** : le PDF lit déjà les compteurs par vidéo, `youtube_channel_history` n'y sert qu'aux ABONNÉS (sa seule source), et `test_every_surface_gives_the_same_total` le garde. Reste le **double axe** de `youtube_channel_growth`, à trancher : abonnés et vues ne sont pas deux grandeurs comparables, donc l'interdit de `platform_chart` ne s'y applique pas mécaniquement | P4 | une décision écrite, ou `twinx()` retiré |
 | R90 | Retirer le `multiselect` « Sources affichées » au profit du clic sur la légende — **sauf en mode « part »**, dont les pourcentages sont calculés sur l'ensemble choisi | P4 | `home.py` n'a plus de `st.multiselect` pour les sources hors mode `share` |
 | R91 | Donner au PDF les figures pertinentes en partageant la DONNÉE, pas le rendu (`kaleido` est absent, Plotly→PNG impossible) | P3 | une figure du PDF et son équivalent à l'écran lisent la même fonction de `platform_timeseries` |
 
@@ -87,9 +85,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-11, R84 à R91 ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, R84 · R87 · R88 à R91 ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R84,R85,R86,R87,R88,R89,R90,R91 -->
+<!-- reprise: open=R84,R87,R88,R89,R90,R91 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
