@@ -248,14 +248,19 @@ def show() -> None:
         # du cliquet demande (« elle la lit dans une requête existante »).
         #
         # La sous-requête est posée AUTOUR de l'agrégat et non dedans : dans le SELECT
-        # d'un `GROUP BY`, Postgres exigerait de l'y faire figurer. Et elle vise
-        # toujours `meta_insights_performance_day`, qui porte `ad_account_id` — donc
-        # `_acct`, jamais `_acct_tbl`, qui dépend de la table du breakdown.
+        # d'un `GROUP BY`, Postgres exigerait de l'y faire figurer.
+        #
+        # Elle lit `v_meta_spend_totals` (migration 101), la définition OR de la
+        # dépense, et non la table brute. Le cliquet de la frontière du bronze a
+        # refusé la première version — 125 couples contre 124 — et il avait raison :
+        # « combien a-t-on dépensé » est une règle métier, et dix fichiers
+        # l'agrégeaient déjà chacun de leur côté. La vue porte `ad_account_id`, donc
+        # `_acct` s'y applique tel quel.
         inner = (f"SELECT {dim_cols}, {metrics} FROM {table} "
                  f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}")
         if family == "performance":
             sql = (f"SELECT b.*, (SELECT COALESCE(SUM(spend), 0) FROM "
-                   f"meta_insights_performance_day WHERE artist_id = %s{_acct}) "
+                   f"v_meta_spend_totals WHERE artist_id = %s{_acct}) "
                    f"AS _spend_total FROM ({inner}) b")
             args = tuple(params) + (artist_id, *_acct_params)
         else:

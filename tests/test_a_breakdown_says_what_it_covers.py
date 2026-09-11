@@ -108,20 +108,38 @@ def test_the_query_and_the_note_agree_on_the_column_name() -> None:
     requête : la page rendait ses deux figures, sans la note, sans une erreur, et
     aucun test ne rougissait.
 
-    Les deux extrémités sont donc épinglées ensemble : la requête doit produire le
-    nom que la note lit.
+    Lu par AST et non par recherche de chaîne : la première version comparait le nom
+    au TEXTE du source, et le cliquet anti-garde-textuel l'a refusée — à raison, le
+    nom survit dans un commentaire. On interroge donc la structure : quel littéral la
+    requête produit-elle, et quel littéral la note lit-elle ?
     """
+    import ast
     import inspect
 
     from src.dashboard.views import meta_breakdowns as mb
 
-    page = inspect.getsource(mb)
-    produced = page.count("_spend_total")
-    assert produced >= 2, (
-        f"`_spend_total` n'apparaît que {produced} fois : la requête et la note ne "
-        "parlent plus de la même colonne, et la note disparaîtra en silence.")
-    assert "AS _spend_total" in page, (
-        "la requête ne produit plus la colonne `_spend_total` — la note ne sortira "
-        "jamais, et rien ne le dira")
-    assert '"_spend_total"' in inspect.getsource(mb._render_coverage), (
-        "la note ne lit plus `_spend_total`")
+    tree = ast.parse(inspect.getsource(mb))
+
+    # Côté REQUÊTE : un littéral de f-string qui déclare l'alias.
+    produced = {
+        part.value
+        for n in ast.walk(tree) if isinstance(n, ast.JoinedStr)
+        for part in n.values
+        if isinstance(part, ast.Constant) and isinstance(part.value, str)
+        and "AS _" in part.value
+    }
+    alias = {seg.split("AS ")[1].split()[0]
+             for seg in produced if "AS _" in seg}
+
+    # Côté NOTE : les colonnes que `_render_coverage` indexe réellement.
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "_render_coverage")
+    read = {n.slice.value for n in ast.walk(fn)
+            if isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Constant)
+            and isinstance(n.slice.value, str)}
+
+    assert "_spend_total" in alias, (
+        f"la requête ne produit plus d'alias `_spend_total` (elle produit {alias}) — "
+        "la note ne sortira jamais, et rien ne le dira")
+    assert "_spend_total" in read, (
+        f"la note ne lit plus `_spend_total` (elle lit {sorted(read)})")

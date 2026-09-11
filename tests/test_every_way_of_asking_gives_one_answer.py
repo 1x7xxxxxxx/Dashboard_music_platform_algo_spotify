@@ -158,10 +158,25 @@ def test_the_period_mode_totals_what_the_lifetime_total_says(db, step) -> None:
                     f"{got:,.0f}, la croissance du compteur vaut {expected:,} "
                     f"(×{expected / max(got, 1):.0f})")
 
-    assert compared, (
-        "aucun couple (figure, compteur) n'a pu être comparé : ce garde passerait à "
-        "vide. Il lui faut au moins un locataire dont la figure trace une plateforme "
-        "à compteur.")
+    if not compared:
+        # DISTINGUER « la base n'a pas de quoi comparer » de « le garde a sauté ».
+        #
+        # Ce test a rougi en CI le 2026-09-11 sur cette assertion : la base de CI est
+        # neuve, aucun locataire n'y porte à la fois une série quotidienne traçable et
+        # un compteur. Échouer y serait dire « le produit est incohérent » alors que
+        # la mesure n'a pas pu avoir lieu — le contraire de ce que ce fichier défend.
+        #
+        # Mais sauter en silence rendrait le garde inutile le jour où il saute pour
+        # une MAUVAISE raison. On sépare donc les deux : s'il existe un locataire avec
+        # une série cumulée, il DOIT y avoir eu une comparaison.
+        with_levels = [aid for aid in tenants
+                       if any(len(r or []) >= 2
+                              for r in cumulative_by_platform(db, aid).values())]
+        assert not with_levels, (
+            f"{len(with_levels)} locataire(s) portent une série cumulée et aucune "
+            "comparaison n'a eu lieu : la figure ne trace aucune plateforme à "
+            f"compteur (locataires : {with_levels[:5]}).")
+        pytest.skip("aucun locataire de cette base ne porte de compteur traçable")
     assert not wrong, (
         "Deux surfaces du même produit répondent deux nombres à « combien sur cette "
         "plateforme ». C'est la famille de défauts du 2026-09-11, et chacun de ces "
