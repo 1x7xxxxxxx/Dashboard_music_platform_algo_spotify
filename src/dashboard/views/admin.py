@@ -10,6 +10,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_table
 from src.dashboard.utils.tz import to_local_datetime
+from src.dashboard.utils.cache_invalidation import purge_after_write
 
 
 def _guard():
@@ -255,11 +256,31 @@ def _upload_apple(db, artist_id: int, file):
     rows = parser.parse(df, artist_id=artist_id)
     if not rows:
         return 0
+    # LA CIBLE DE L'`ON CONFLICT` DOIT ÊTRE UN INDEX UNIQUE QUI EXISTE.
+    #
+    # Celle-ci était `(artist_id, song_name)` et ce chemin d'import LEVAIT en
+    # production. Vérifié le 2026-09-11 par un INSERT réel, annulé :
+    #
+    #     ERROR: there is no unique or exclusion constraint matching the
+    #            ON CONFLICT specification
+    #
+    # La migration 093 a fait entrer `snapshot_date` dans la clé (deux dépôts à
+    # deux dates font deux relevés, et Apple a enfin une série), puis 094-095 y
+    # ont ajouté la période et l'ont rendue appariable via `NULLS NOT DISTINCT`.
+    # `upload_csv.py:53` avait suivi ; cette copie-ci était restée en arrière —
+    # un même geste déclaré à deux endroits, dont un seul a été corrigé.
+    #
+    # `period_start` / `period_end` restent NULL ici : le parseur ne les produit
+    # pas (c'est `upload_csv` qui lit la période dans le nom du fichier), et
+    # `NULLS NOT DISTINCT` fait que deux dépôts du même jour se dédoublonnent
+    # quand même. `collected_at` entre dans les colonnes mises à jour, sans quoi
+    # un ré-import laisserait la fraîcheur figée à la date du premier.
     db.upsert_many(
         table='apple_songs_performance',
         data=rows,
-        conflict_columns=['artist_id', 'song_name'],
-        update_columns=['plays', 'listeners', 'shazam_count']
+        conflict_columns=['artist_id', 'song_name', 'snapshot_date',
+                          'period_start', 'period_end'],
+        update_columns=['plays', 'listeners', 'shazam_count', 'collected_at'],
     )
     return len(rows)
 
@@ -811,6 +832,8 @@ def _tab_upload(db) -> None:
                 n = _upload_s4a(db, target_artist_id, uploaded)
             else:
                 n = _upload_apple(db, target_artist_id, uploaded)
+            # La donnée vient de changer — voir `utils/cache_invalidation`.
+            purge_after_write(n)
             st.success(t("admin.import_success", "✅ {n} ligne(s) importée(s) pour l'artiste #{artist_id}.").format(n=n, artist_id=target_artist_id))
         except Exception as e:
             st.error(t("admin.import_error", "❌ Erreur import : {err}").format(err=e))

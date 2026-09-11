@@ -231,7 +231,11 @@ def collect_youtube_data(**context):
                         db.upsert_many(
                             table='youtube_comments',
                             data=comments_with_artist,
-                            conflict_columns=['comment_id'],
+                            # (artist_id, comment_id) depuis la migration 100 :
+                            # l'index unique est désormais par locataire, et un
+                            # ON CONFLICT dont la cible n'a plus d'index
+                            # correspondant LÈVE (leçon de la migration 095).
+                            conflict_columns=['artist_id', 'comment_id'],
                             update_columns=['like_count', 'collected_at']
                         )
 

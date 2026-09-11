@@ -1,6 +1,7 @@
 """Handler pour les interactions avec PostgreSQL - VERSION OPTIMISÉE."""
 import os
 import re
+import threading
 import psycopg2
 from psycopg2 import sql as pgsql
 from psycopg2.extras import execute_batch
@@ -72,6 +73,127 @@ _ALLOWED_TABLES = frozenset({
 _VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
 
 
+# ── Pool de connexions, OPT-IN ───────────────────────────────────────────────
+#
+# Activé par les processus qui ouvrent et referment beaucoup de connexions
+# courtes — le dashboard (4 par rendu) et l'API (1 par requête). JAMAIS par
+# Airflow : ses tâches tiennent une connexion pendant des minutes, un pool n'y
+# gagne rien et lui ferait partager des connexions entre opérateurs.
+#
+# `options` et `connect_timeout` sont posés À LA CRÉATION de chaque connexion du
+# pool, exactement comme dans `_connect()`. C'est le piège de cette classe :
+# `statement_timeout` voyage dans les options de connexion, donc un pool qui les
+# oublierait supprimerait la borne des 15 s **en silence**.
+_POOL = None
+_POOL_LOCK = threading.Lock()
+
+
+def enable_pool(minconn: int = 1, maxconn: int = 10, **connect_kwargs) -> None:
+    """Crée le pool du processus. Idempotent ; sans effet si déjà créé."""
+    global _POOL
+    with _POOL_LOCK:
+        if _POOL is not None:
+            return
+        from psycopg2.pool import ThreadedConnectionPool
+        _POOL = ThreadedConnectionPool(
+            minconn, maxconn,
+            connect_timeout=5, options="-c statement_timeout=15000",
+            **connect_kwargs,
+        )
+        logger.info("pool de connexions actif (%d-%d)", minconn, maxconn)
+
+
+def enable_pool_from_env(minconn: int = 1, maxconn: int = 10) -> bool:
+    """Active le pool avec la configuration que l'application utilise déjà.
+
+    La précédence `DATABASE_URL` → `DATABASE_*` → `config.yaml` n'est pas
+    recopiée ici : elle vit dans `PostgresHandler.from_env_or_config()` et
+    `src.utils.pg_connect.resolve_kwargs()`. Une seconde copie dériverait, et ce
+    dépôt a déjà payé pour cette forme exacte — la moitié API et la moitié
+    Airflow atteignaient la même base par deux mécanismes dont aucun ne
+    fonctionnait à la place de l'autre.
+
+    Rend False (sans lever) quand rien n'est configuré : un pool absent est un
+    ralentissement, pas une panne.
+    """
+    try:
+        url = os.environ.get("DATABASE_URL")
+        if url:
+            parsed = urlparse(url)
+            kwargs = {
+                "host": parsed.hostname or "localhost",
+                "port": parsed.port or 5432,
+                "database": parsed.path.lstrip("/"),
+                "user": parsed.username or "postgres",
+                "password": parsed.password or "",
+            }
+        else:
+            from src.utils.pg_connect import resolve_kwargs
+            kwargs = resolve_kwargs()
+        enable_pool(minconn, maxconn, **kwargs)
+        return True
+    except Exception as exc:      # noqa: BLE001 — sans pool on retombe sur le direct
+        logger.warning("pool non activé (%s) — connexions directes", type(exc).__name__)
+        return False
+
+
+def disable_pool() -> None:
+    """Ferme le pool et revient aux connexions directes (tests, arrêt propre)."""
+    global _POOL
+    with _POOL_LOCK:
+        if _POOL is None:
+            return
+        try:
+            _POOL.closeall()
+        finally:
+            _POOL = None
+
+
+def pool_is_enabled() -> bool:
+    return _POOL is not None
+
+
+def _borrow_from_pool():
+    """Une connexion du pool, ou None s'il n'y en a pas.
+
+    Une panne du pool ne doit pas rendre l'application indisponible : on retombe
+    sur une connexion directe, qui est le comportement d'avant.
+    """
+    if _POOL is None:
+        return None
+    try:
+        return _POOL.getconn()
+    except Exception as exc:      # noqa: BLE001 — le repli direct est correct
+        logger.warning("pool indisponible (%s) — connexion directe", type(exc).__name__)
+        return None
+
+
+def _return_to_pool(conn) -> bool:
+    """Rend la connexion au pool. True si elle a été rendue.
+
+    Une connexion laissée dans une transaction avortée EMPOISONNE le pool : le
+    prochain emprunteur reçoit un `current transaction is aborted`. `_atomic()`
+    bascule l'autocommit pour la durée d'un lot, donc le cas est atteignable.
+    On annule donc toujours avant de rendre, et on JETTE la connexion si même
+    cela échoue.
+    """
+    if _POOL is None or conn is None:
+        return False
+    try:
+        if not conn.closed:
+            conn.rollback()
+            conn.autocommit = True
+        _POOL.putconn(conn)
+        return True
+    except Exception as exc:      # noqa: BLE001
+        logger.warning("connexion non rendue au pool (%s) — jetée", type(exc).__name__)
+        try:
+            _POOL.putconn(conn, close=True)
+        except Exception:         # noqa: BLE001
+            pass
+        return True
+
+
 def validate_table(table: str) -> None:
     """Raise ValueError if table is not in the allowlist."""
     if table not in _ALLOWED_TABLES:
@@ -128,6 +250,7 @@ class PostgresHandler:
         self.password = password
         self.conn = None
         self.cursor = None
+        self._from_pool = False
 
         self._connect()
 
@@ -176,7 +299,27 @@ class PostgresHandler:
         return cls(**resolve_kwargs())
 
     def _connect(self) -> None:
-        """Établit la connexion à PostgreSQL."""
+        """Établit la connexion à PostgreSQL, en l'empruntant au pool s'il existe.
+
+        MESURÉ, parce que la décision inverse avait été prise sur la mauvaise
+        grandeur. Le 2026-08-30, le pooling est écarté au motif que « SQL sur les
+        42 vues : 755 ms pour 372 requêtes = 2 ms la requête ». C'est le coût des
+        REQUÊTES, et il est juste. Le coût d'une CONNEXION n'avait pas été pris :
+        mesuré depuis le conteneur de production le 2026-09-11, **p50 13 ms**,
+        dont ~8,5 ms de poignée de main SCRAM — et un rendu de page en ouvre
+        **4**, soit 52 ms sur un rendu de 287 ms, 18 %.
+
+        Le pool est OPT-IN et personne ne l'active par défaut : `enable_pool()`
+        est appelé par le dashboard et l'API, jamais par Airflow, dont les tâches
+        tiennent une connexion pendant des minutes et n'y gagneraient rien.
+        """
+        pool = _borrow_from_pool()
+        if pool is not None:
+            self.conn, self._from_pool = pool, True
+            self.conn.autocommit = True
+            self.cursor = self.conn.cursor()
+            return
+        self._from_pool = False
         try:
     # DÉLAIS D'ATTENTE — une base qui PEND est pire qu'une base qui refuse.
     #
@@ -493,9 +636,22 @@ class PostgresHandler:
             return 0
 
     def close(self) -> None:
-        """Ferme la connexion PostgreSQL."""
+        """Ferme la connexion — ou la REND au pool si elle en vient.
+
+        Sans cette distinction le pool ne servirait à rien : chaque `close()`
+        détruirait la connexion empruntée, et le pool en rouvrirait une au
+        suivant. Le curseur est toujours fermé, lui : une connexion rendue avec
+        un curseur ouvert emporte son état chez l'emprunteur d'après.
+        """
         if self.cursor:
-            self.cursor.close()
+            try:
+                self.cursor.close()
+            except Exception:      # noqa: BLE001 — un curseur mort est déjà fermé
+                pass
+            self.cursor = None
+        if getattr(self, "_from_pool", False) and _return_to_pool(self.conn):
+            self.conn = None
+            return
         if self.conn:
             self.conn.close()
         logger.info("🔒 Connexion PostgreSQL fermée")

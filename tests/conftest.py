@@ -139,6 +139,46 @@ def _pytest_terminal_summary_db(terminalreporter, exitstatus, config):
 # de `test_an_error_leaves_a_row.py`, qui ne passe jamais par cette porte.
 
 @pytest.fixture(autouse=True)
+def _no_series_cache_between_tests():
+    """Le cache des séries ne traverse JAMAIS deux tests.
+
+    Ajouté le 2026-09-11, après que le cache ait fait rougir quatre tests qui
+    étaient justes. Leur forme est la bonne et elle est courante : chacun sème
+    des lignes DIFFÉRENTES dans la base, puis appelle `platform_timeseries`
+    avec les MÊMES `(sql, params)` — c'est la clé du cache. Le second test
+    recevait donc les lignes du premier, et l'assertion tombait sur des données
+    qui n'étaient pas les siennes.
+
+    Ce n'est pas un défaut du produit : en production la base ne change pas
+    sous une même clé pendant le TTL, et les cinq gestes qui la changent en
+    pleine journée purgent. C'est un effet de bord de la SUITE, du même genre
+    que le SMTP et le HTTP bornés plus bas — une chose que les tests font au
+    monde partagé, qu'aucun garde de correction ne peut voir.
+
+    Purger ne suffit pas : `test_the_followers_delta_needs_two_readings` fait
+    TROIS appels dans un même test, avec trois fausses bases et la même clé. On
+    DÉSINSTALLE donc le crochet pour toute la durée de chaque test — la suite
+    exerce le chemin direct, et les tests qui visent le cache l'installent
+    eux-mêmes (`tests/test_a_failed_read_is_never_cached.py`).
+
+    La production, elle, l'installe dans `get_db_connection()` : une seule base
+    derrière une clé, et les cinq gestes qui la changent en pleine journée
+    purgent.
+    """
+    def _reset():
+        try:
+            from src.dashboard.utils import platform_timeseries as pt
+            from src.dashboard.utils.series_cache import clear
+            clear()
+            pt.set_fetch(None)
+        except Exception:      # noqa: BLE001 — streamlit absent = rien à purger
+            pass
+    _reset()
+    yield
+    _reset()
+
+
+@pytest.fixture(autouse=True)
 def _no_registry_writes(monkeypatch):
     """`notify_app_error` ne persiste rien pendant la suite."""
     try:

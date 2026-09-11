@@ -338,16 +338,20 @@ make graph-update           # refresh graph.json + GRAPH_REPORT.md (AST, no LLM)
 make graph-html             # re-render graph.html from current graph.json
 ```
 
-The graph currently indexes **6393 nodes / 12548 edges across 849 communities**
-(regenerated 2026-08-28; it read 5468/10691/689 on 2026-08-23, and "1500+ nodes / 94
-communities" before that — a figure from June that was off by 3.6×).
+The graph currently indexes **9520 nodes / 17884 edges across 1210 communities**
+(regenerated 2026-09-11; it read 6393/12548/849 on 2026-08-28, 5468/10691/689 on
+2026-08-23, and "1500+ nodes / 94 communities" before that — a figure from June that
+was off by 3.6×).
 
-⚠️ **`graphify update` ajoute, il ne retire pas.** Remesuré le 2026-08-28 **après une
-régénération fraîche** — et c'est le point : **17 fichiers** y sont référencés alors
-qu'ils n'existent plus sur le disque (145 nœuds, 2 %). Régénérer ne nettoie donc pas.
-On y trouve d'anciens modules devenus des paquets (`views/trigger_algo.py`,
-`utils/pdf_exporter.py`, `views/meta_mapping.py`), un dossier `archive/` supprimé, et
-`utils/error_handler.py` retiré par R48. Le rapport envoie vers des modules fantômes.
+⚠️ **`graphify update` ajoute, il ne retire pas.** Remesuré le 2026-09-11 **après une
+régénération fraîche** — et c'est le point : **24 fichiers** y sont référencés alors
+qu'ils n'existent plus sur le disque (177 nœuds, 1,9 % — c'était 17 / 145 le
+2026-08-28, donc le résidu GRANDIT à chaque régénération). On y trouve d'anciens
+modules devenus des paquets (`utils/pdf_exporter.py`, 56 nœuds ;
+`views/trigger_algo/_common.py`, 24), un dossier `archive/` supprimé, des watchers
+retirés (`meta_insight_watcher.py`, `s4a_csv_watcher.py`) et `tests/test_error_handler.py`.
+Le rapport envoie vers des modules fantômes. Le compte se rejoue :
+`python3 -c "import json,pathlib,collections; g=json.load(open('graphify-out/graph.json')); p=collections.Counter(n['source_file'] for n in g['nodes'] if n.get('source_file')); m={k:v for k,v in p.items() if not pathlib.Path(k).exists()}; print(len(m),'fichiers,',sum(m.values()),'nœuds')"`
 Avant d'agir sur un chemin lu dans `GRAPH_REPORT.md`, vérifier qu'il existe — le graphe
 oriente, il ne prouve pas. If you
 add or rename modules, regenerate so future `Glob`/`Grep` calls see the new

@@ -607,3 +607,14 @@ def clear_kpi_caches() -> None:
             fn.clear()
         except Exception:  # noqa: BLE001 — une purge best-effort ne casse pas un clic
             pass
+
+    # Le cache des SÉRIES vit à côté (`series_cache`), parce que
+    # `platform_timeseries` doit rester sans Streamlit. Les deux se vident
+    # ensemble : les cinq endroits qui appellent cette fonction sont exactement
+    # les moments où la donnée change en pleine journée, et il n'y a aucune
+    # raison qu'un des deux caches survive à l'autre.
+    try:
+        from src.dashboard.utils.series_cache import clear as _clear_series
+        _clear_series()
+    except Exception:  # noqa: BLE001
+        pass

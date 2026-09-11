@@ -25,6 +25,10 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R84 | Déployer la migration 100 **avant** le code YouTube qui en dépend | P2 | `pytest tests/test_an_upsert_targets_an_index_that_exists.py` contre la prod : vert = l'index existe |
+| R85 | Cacher les lectures de `platform_timeseries` (BUILD-MODIFIED, 5 conditions) | P3 | `loadtest_dashboard.py -n 12` : p50 287 ms → attendu ~190 ms |
+| R86 | Pool de connexions (dashboard + API) | P3 | même commande : `conns/rendu` 4,0 → 1,0, −40 ms |
+| R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
 correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
@@ -79,9 +83,77 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-10, AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, R84 à R87 ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R84,R85,R86,R87 -->
+
+### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
+
+Question posée : combien d'utilisateurs simultanés, quel palier suivant, et que penser
+du conseil « regarde star schema / Data Vault mais ne les mets pas en place ». Tout ce
+qui suit est **mesuré dans le conteneur de production**, pas estimé.
+
+| Mesure | Valeur |
+|---|---|
+| Rendu de page complète, caches chauds (12 rendus, 0 échec) | **p50 287 ms**, p95 345 ms |
+| dont SQL (12 requêtes) | **103 ms — 39,5 %** |
+| dont connexions (4 poignées de main × 13 ms) | **40 ms — 15,4 %** |
+| dont plotly | **0,9 ms** |
+| Part de tout le SQL venant de `platform_timeseries.py` | **88 %** |
+| Base : taille / lignes / plus grosse table / locataires | 62 Mo / 111 008 / 34 078 / 8 |
+| `EXPLAIN (ANALYZE, BUFFERS)` de l'agrégat le plus lourd | `shared hit=626`, **`read=0`** |
+
+**Le mur est le GIL de Streamlit, pas la donnée.** Un seul processus, un seul upstream
+Caddy, aucun pool. Plafond dérivé de p50 : **~12 utilisateurs actifs** à un clic toutes
+les 5 s, ~24 à 10 s, ~49 à 20 s. `read=0` dit qu'il n'y a aucune entrée-sortie disque à
+optimiser : la base tient entière dans `shared_buffers`.
+
+**Le mentor a raison, et ADR-012 + ADR-018 disent pourquoi** : les deux choses que vend
+le Data Vault — traçabilité des sources, historisation de ce qui change — sont déjà
+achetées ici, moins cher. Le seul motif de Kimball dont ce dépôt aura besoin est la
+**table de faits agrégée**, et son déclencheur est écrit plus bas.
+
+**Trois chiffres démentis par la mesure** (le détail vit dans le DEVLOG) : « ~25-50
+utilisateurs » venait d'un rendu de *vue* (61 ms) et non de *page* ; « plotly, 36
+figures, le pire cas » vaut pour `trigger_algo` et pas pour l'accueil (0,9 ms) ; et
+replier les trois appels à `v_platform_totals` en un seul rapporte **1,0 ms**, pas 20 —
+le prédicat `platform = %s` élague déjà les autres branches. Mesurer a évité ce refactor.
+
+### Conditions d'attente — ce qui n'est PAS une tâche
+
+Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans l'index.
+
+| Ce qu'on ne fait pas | Ce qui le rouvrirait, calculable |
+|---|---|
+| Retirer les **110 index jamais scannés** (5,7 Mo) | une table de faits dépasse **1 M lignes** — l'amplification d'écriture devient réelle. Aujourd'hui : 34 078. `SELECT max(n_live_tup) FROM pg_stat_user_tables` |
+| Sortir **Airflow** de la boîte (il prend 2,3 Go des 7,7) | la RAM des conteneurs dashboard dépasse **2 Go** — ce que R87 rapproche. `docker stats --no-stream` |
+| Construire la **couche or** (table de faits agrégée) | un locataire dépasse **100 000 lignes** sur une table de faits, ou un agrégat d'accueil dépasse **200 ms**. Aujourd'hui : 14 694 lignes, 46 ms |
+| ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
+
+### La méthode, pour R85 à R87
+
+- **R85 (cache)** est sorti **BUILD-MODIFIED** d'une revue `code-critic`, avec un point
+  bloquant : les cinq fonctions visées sont écrites pour *ne jamais lever et rendre
+  vide*. Les cacher transformerait une panne passagère de base en « aucune donnée »
+  faux pendant 600 s **pour tous les spectateurs**. Les quatre autres conditions :
+  `views/onboarding.py:162` manque à la liste des appelants ; `apple_lifetime_plays`
+  n'est pas dans l'ensemble enveloppé alors que c'est ce dont `apple_music.py` a besoin ;
+  les imports de constantes ne doivent pas passer par le module caché ; et
+  `upload_csv.py` doit purger — **fait le 2026-09-11**, c'était un défaut vivant.
+  Le précédent à copier est `kpi_helpers` : `ttl=600`, `_db` hors clé, `artist_id`
+  DEDANS, purge sur l'événement et pas sur l'horloge.
+- **R86 (pool)** touche 43 vues, l'API et Airflow. Trois pièges vérifiés :
+  `statement_timeout` voyage dans les options de connexion, `_ensure_connection()`
+  reconnecte en silence, et ADR-002 interdit SQLAlchemy — donc `psycopg2.pool` derrière
+  `@st.cache_resource` (0 occurrence aujourd'hui).
+- **R87 (répliques)** ne change aucune ligne d'application : 3 services, 3 upstreams, et
+  **`lb_policy cookie` est obligatoire** (Streamlit tient un état serveur par websocket).
+  Le compose de prod est gitignoré : modifier sur la boîte ET porter dans
+  `docker-compose.example.yml`. Conséquence à accepter : le cache devient par réplique.
+- **Mesurer, pas déduire** : `tools/loadtest_dashboard.py`, à lancer **sur le serveur**
+  (il refuse `/mnt/…`, où DrvFS gonfle les temps de 5× à 160×). Il ne trace **pas** de
+  courbe de concurrence et `--self-check` montre pourquoi : `AppTest` sature de lui-même
+  sous threads, un `st.write('hello')` passant de 352 ms à 2 144 ms.
 
 ### Ce que le 2026-09-10 a changé (l'audit transverse, huit tâches livrées)
 

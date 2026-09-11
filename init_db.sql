@@ -700,9 +700,17 @@ CREATE TABLE IF NOT EXISTS youtube_channels (
     view_count BIGINT DEFAULT 0,
     thumbnail_url TEXT,
     country VARCHAR(10),
-    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_channel_id UNIQUE(channel_id)
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Uniqueness is per (TENANT, platform object), never on the platform id alone.
+-- Migration 064 fixed exactly this in production: two artists touching the same
+-- video did not get a row each — the second collection RE-ASSIGNED the existing
+-- row and the first tenant's data vanished from their own views. The index name
+-- below is the one 064 creates, so replaying 064 on a fresh database is a true
+-- no-op instead of leaving two identical indexes behind.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_channels_artist_channel
+    ON youtube_channels (artist_id, channel_id);
 
 CREATE TABLE IF NOT EXISTS youtube_channel_history (
     id SERIAL PRIMARY KEY,
@@ -730,9 +738,17 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
     thumbnail_url TEXT,
     duration VARCHAR(50),
     definition VARCHAR(10),
-    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_video_id UNIQUE(video_id)
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Uniqueness is per (TENANT, platform object), never on the platform id alone.
+-- Migration 064 fixed exactly this in production: two artists touching the same
+-- video did not get a row each — the second collection RE-ASSIGNED the existing
+-- row and the first tenant's data vanished from their own views. The index name
+-- below is the one 064 creates, so replaying 064 on a fresh database is a true
+-- no-op instead of leaving two identical indexes behind.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_videos_artist_video
+    ON youtube_videos (artist_id, video_id);
 
 CREATE TABLE IF NOT EXISTS youtube_video_stats (
     id SERIAL PRIMARY KEY,
@@ -758,9 +774,13 @@ CREATE TABLE IF NOT EXISTS youtube_playlists (
     video_count INTEGER DEFAULT 0,
     published_at TIMESTAMP,
     thumbnail_url TEXT,
-    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_playlist_id UNIQUE(playlist_id)
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Par (locataire, objet de plateforme) — migration 100, même classe que 064.
+-- Jamais sur l'identifiant de plateforme seul : le second locataire qui
+-- collecte le même objet n'obtient pas sa ligne, il écrase celle du premier.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_playlists_artist_playlist
+    ON youtube_playlists(artist_id, playlist_id);
 
 CREATE TABLE IF NOT EXISTS youtube_comments (
     id SERIAL PRIMARY KEY,
@@ -771,9 +791,13 @@ CREATE TABLE IF NOT EXISTS youtube_comments (
     text TEXT,
     like_count INTEGER DEFAULT 0,
     published_at TIMESTAMP,
-    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_comment_id UNIQUE(comment_id)
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Par (locataire, objet de plateforme) — migration 100, même classe que 064.
+-- Jamais sur l'identifiant de plateforme seul : le second locataire qui
+-- collecte le même objet n'obtient pas sa ligne, il écrase celle du premier.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_comments_artist_comment
+    ON youtube_comments(artist_id, comment_id);
 
 CREATE INDEX IF NOT EXISTS idx_youtube_channels_id ON youtube_channels(channel_id);
 CREATE INDEX IF NOT EXISTS idx_youtube_channel_history_channel ON youtube_channel_history(channel_id);
