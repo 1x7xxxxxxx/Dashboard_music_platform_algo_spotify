@@ -29,7 +29,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | R85 | **Brancher** le cache des séries (écrit, testé, non branché) — comprendre d'abord pourquoi la CI compte 21 requêtes sur l'accueil alors qu'en local il le fait passer de 13 à 11 | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` reste à 13/11 **en CI** avec `install()` branché |
 | R86 | **Activer** le pool (écrit et testé, personne ne l'appelle) — comprendre d'abord pourquoi il fait passer l'accueil de 13 à 23 requêtes | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` doit rester à 13/11 **avec** `enable_pool()` branché dans `get_db_connection` |
 | R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
-| R88 | **Le cumulé d'un compteur doit tracer le compteur**, pas la somme de nos écarts — YouTube affiche 136 contre 118 334 annoncés (×870), SoundCloud 77 contre 23 563 (×306) | P2 | la somme des points tracés égale `v_platform_totals` pour les 3 plateformes, comme c'est déjà le cas pour Spotify |
+| R88 | **Étendre la couche or aux SÉRIES** (ADR-019 n'a couvert que les totaux scalaires) : une courbe cumulée affirme un total à son dernier point et doit lire la même définition que la tuile — YouTube trace 136 contre 118 334 annoncés (×870), SoundCloud 77 contre 23 563 | P2 | le dernier point de la courbe égale la tuile **par construction**, pour les 3 plateformes |
 | R89 | Reporter dans le PDF deux correctifs que l'app a déjà : compteur de chaîne YouTube (~10× faux) et double axe interdit | P3 | `pdf_charts.youtube_channel_growth` ne lit plus `youtube_channel_history.view_count` et n'appelle plus `twinx()` |
 | R90 | Retirer le `multiselect` « Sources affichées » au profit du clic sur la légende — **sauf en mode « part »**, dont les pourcentages sont calculés sur l'ensemble choisi | P4 | `home.py` n'a plus de `st.multiselect` pour les sources hors mode `share` |
 | R91 | Donner au PDF les figures pertinentes en partageant la DONNÉE, pas le rendu (`kaleido` est absent, Plotly→PNG impossible) | P3 | une figure du PDF et son équivalent à l'écran lisent la même fonction de `platform_timeseries` |
@@ -146,6 +146,20 @@ alors les agrégats — au pas **annuel, YouTube garde 0 seau**.
 
 Classe `cumulative-counter-drawn-as-its-own-history`. Le balayage a trouvé deux frères
 dans le PDF (R89), déjà corrigés côté app et jamais reportés.
+
+**Ce que ce défaut dit de l'architecture, et c'est le plus utile.** La couche or existe
+et elle est juste : `v_platform_totals` (migration 097) donne 118 334, et la tuile le
+lit. Le graphique la CONTOURNE — il prend une série de la couche argent, les écarts
+quotidiens, et la ré-additionne pour fabriquer son propre total. Deux définitions du
+même nombre sur un écran, ce qu'ADR-019 interdit.
+
+**ADR-019 a couvert les totaux SCALAIRES, pas les séries.** La migration 097 avait
+repointé les cinq surfaces qui calculaient *un nombre*. Une courbe cumulée fait la même
+affirmation — son dernier point EST un total — et n'a jamais été comptée parmi elles.
+Une couche or qui définit un total sans définir la série qui y aboutit laisse la
+contradiction visible. R88 est donc énoncée comme une extension de la frontière, pas
+comme la correction d'un mode : le premier énoncé empêche la classe de revenir, le
+second ne corrige qu'une instance.
 
 ### Conditions d'attente — ce qui n'est PAS une tâche
 
