@@ -96,6 +96,7 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [a-query-assembled-by-string-substitution](#a-query-assembled-by-string-substitution) | P2 | deterministic | guarded | none |
 | [a-filtered-test-run-proves-nothing](#a-filtered-test-run-proves-nothing) | P3 | manual | reported | none |
 | [a-note-outlives-the-figure-it-explains](#a-note-outlives-the-figure-it-explains) | P2 | deterministic | guarded | none |
+| [a-bucket-sums-deltas-instead-of-deriving-the-counter](#a-bucket-sums-deltas-instead-of-deriving-the-counter) | P2 | deterministic | guarded | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4778,3 +4779,20 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-11 (nuit) : le garde général a d'abord été écrit trop large — « une plateforme tracée ne peut être nommée dans aucune note de manque ». Il refusait « s'interrompt » sur une bande qui s'interrompt RÉELLEMENT : au pas du jour, YouTube est tracée ET trouée, les deux en même temps. Chaque phrase est maintenant vérifiée contre ce qu'elle AFFIRME — aucune trace pour « n'apparaît pas », une couverture partielle de l'axe pour « s'interrompt », le pas du jour pour « non traçables ».
   - 2026-09-11: **aucun test ne pouvait le voir, et c'est le point.** Les gardes de ce dépôt demandent « le chiffre est-il juste ? » ; ici il l'était. La question qui manquait est « la phrase et la figure disent-elles la même chose ? ». Le render-smoke rend la page sans lire ce qu'elle écrit, et les gardes de figure lisent `fig.data` sans lire les `st.caption`.
   - 2026-09-11: le diagnostic a d'abord cherché au mauvais endroit — j'ai reproduit la figure trois fois (accueil à tous les pas, page YouTube, filtre de sources) en cherchant une bande manquante, et les trois étaient correctes. Ce qui a tranché est d'avoir rendu la page et **lu les légendes** plutôt que les données. Quand la mesure contredit le signalement, c'est souvent que le signalement décrit ce qui est ÉCRIT et la mesure ce qui est CALCULÉ.
+
+
+## a-bucket-sums-deltas-instead-of-deriving-the-counter
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: un agrégat de période sur une plateforme à COMPTEUR vaut une fraction de la réalité, et la bande devient invisible. Mesuré en production le 2026-09-11, artiste 1, « Depuis le début » au pas hebdomadaire : la somme des seaux YouTube valait **124** quand le compteur avait gagné **18 740** — facteur **151**, et 0,14 % de la hauteur de Spotify, c'est-à-dire sous le pixel. Rapporté comme « je n'ai aucune data sur YouTube ».
+- root_cause: la série quotidienne d'un compteur est une DIFFÉRENCE, et elle n'existe qu'entre deux jours consécutifs (`_SQL_YOUTUBE`, `jour - veille = 1`) — c'est la seule attribution honnête au pas du jour. YouTube n'étant relevée que 39 % des jours, additionner ce qui reste par semaine ne totalise presque rien. L'erreur est d'avoir traité un agrégat de SEAU comme un agrégat de JOURS : à l'échelle du seau, aucune attribution n'est nécessaire, la croissance est la différence des niveaux aux deux bornes.
+- long_term_fix: un seau plus large qu'un jour porte `niveau(fin du seau) − niveau(fin du seau précédent)`, dérivé de la série cumulée de la couche or. La règle générale : **une quantité de période sur une source à compteur se DÉRIVE des niveaux, elle ne s'additionne pas depuis les écarts** — c'est déjà ce que fait `platform_totals` borné, et les deux surfaces devaient s'accorder. La limite est explicite et testée : au pas du JOUR on garde les écarts, parce qu'attribuer à une journée l'écart observé entre deux relevés distants de neuf jours inventerait un pic.
+- autofix: none
+- signature: `python3 -c "import ast,sys;src=open('src/dashboard/utils/platform_chart.py').read();f=next((n for n in ast.walk(ast.parse(src)) if isinstance(n,ast.FunctionDef) and n.name=='render_platform_chart'),None);body=ast.unparse(f) if f else '';sys.exit(0 if \"step != 'day'\" in body and '_carry_forward' in body else 1)"`
+- guard: tests/test_a_curve_ends_where_its_tile_says.py — `test_a_coarse_bucket_carries_the_counter_growth_not_the_measured_deltas` (les seaux totalisent la croissance du compteur) et `test_the_daily_step_keeps_the_honest_deltas` (la limite, dans l'autre sens). Mutations vues rouges le 2026-09-11 : la dérivation retirée (« 1 au lieu de 20 000 »), et la dérivation appliquée AUSSI au pas du jour (« 20 000 attribués à des journées précises »).
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: **le correctif du mode Cumulé n'avait pas suffi, et c'est le point.** `cumulative-counter-drawn-as-its-own-history` a été fermée en faisant lire la couche or au mode Cumulé, et déclarée résolue après vérification en production. Les deux AUTRES modes lisaient toujours la somme des écarts. Fermer une classe sur la surface où elle a été signalée laisse ses frères vivants : le balayage doit porter sur les MODES d'une figure comme il porte sur les fichiers d'un dépôt.
+  - 2026-09-11: le défaut était invisible à toute la batterie de gardes parce qu'aucun ne comparait deux façons de répondre à la MÊME question. Le total borné disait 18 625 et la figure 124, dans le même produit, sur la même période — et chacun était vert dans son test. Le garde qui manquait est un garde de COHÉRENCE entre surfaces, pas de justesse d'une surface.

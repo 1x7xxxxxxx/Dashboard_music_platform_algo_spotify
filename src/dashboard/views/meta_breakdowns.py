@@ -240,11 +240,32 @@ def show() -> None:
                       "SUM(impressions) AS impressions, SUM(reach) AS reach"
         else:
             metrics = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
-        df = db.fetch_df(
-            f"SELECT {dim_cols}, {metrics} FROM {table} "
-            f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}",
-            tuple(params),
-        )
+        # La dépense TOTALE voyage dans la même requête, en sous-requête scalaire.
+        #
+        # Elle était d'abord lue par un `fetch_query` séparé, et le cliquet
+        # d'allers-retours l'a refusé — à raison : une note explicative ne vaut pas un
+        # aller-retour de plus sur le chemin chaud. C'est exactement ce que le message
+        # du cliquet demande (« elle la lit dans une requête existante »).
+        #
+        # La sous-requête est posée AUTOUR de l'agrégat et non dedans : dans le SELECT
+        # d'un `GROUP BY`, Postgres exigerait de l'y faire figurer.
+        #
+        # Elle lit `v_meta_spend_totals` (migration 101), la définition OR de la
+        # dépense, et non la table brute. Le cliquet de la frontière du bronze a
+        # refusé la première version — 125 couples contre 124 — et il avait raison :
+        # « combien a-t-on dépensé » est une règle métier, et dix fichiers
+        # l'agrégeaient déjà chacun de leur côté. La vue porte `ad_account_id`, donc
+        # `_acct` s'y applique tel quel.
+        inner = (f"SELECT {dim_cols}, {metrics} FROM {table} "
+                 f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}")
+        if family == "performance":
+            sql = (f"SELECT b.*, (SELECT COALESCE(SUM(spend), 0) FROM "
+                   f"v_meta_spend_totals WHERE artist_id = %s{_acct}) "
+                   f"AS _spend_total FROM ({inner}) b")
+            args = tuple(params) + (artist_id, *_acct_params)
+        else:
+            sql, args = inner, tuple(params)
+        df = db.fetch_df(sql, args)
 
     if df is None or df.empty:
         st.info(t(
@@ -255,6 +276,43 @@ def show() -> None:
         return
 
     if family == "performance":
-        _render_performance(df, dim_key, entity_label)
+        _render_coverage(df)
+        _render_performance(df.drop(columns=["_spend_total"], errors="ignore"),
+                            dim_key, entity_label)
     else:
         _render_engagement(df, dim_key, entity_label)
+
+
+def _render_coverage(df) -> None:
+    """Quelle PART de la dépense cette ventilation couvre, mesurée à chaque rendu.
+
+    Meta n'attribue pas toute la dépense à une dimension : les impressions dont il
+    ignore le pays, l'âge ou le placement n'apparaissent dans aucune ligne du
+    breakdown. Mesuré en production le 2026-09-11 sur l'artiste 1 : **2 348 €** dans
+    la ventilation par pays contre **3 088 €** de dépense totale — **76 %**, et les
+    ventilations par âge et par placement tombent sur la même part.
+
+    Ce n'est pas notre défaut, c'est celui de la source. Ce qui SERAIT notre défaut,
+    c'est de ne pas le dire : le lecteur qui additionne les barres trouve 740 € de
+    moins que le chiffre de l'onglet d'à côté, et ce dépôt a déjà payé trois fois
+    pour deux nombres sans explication.
+
+    La part est RECALCULÉE, jamais écrite en dur : elle dépend du compte, de la
+    campagne et de la période collectée, et une constante deviendrait fausse à la
+    première nouvelle campagne.
+    """
+    if "spend" not in df.columns or "_spend_total" not in df.columns:
+        return
+    shown = float(df["spend"].fillna(0).sum())
+    total = float(df["_spend_total"].iloc[0] or 0)
+    if total <= 0 or shown <= 0 or shown >= total * 0.995:
+        return
+    st.caption(t(
+        "meta_breakdowns.coverage",
+        "ⓘ Cette ventilation porte **{shown} €** sur **{total} €** dépensés, soit "
+        "**{pct} %**. Meta n'attribue pas toute la dépense à une dimension — les "
+        "impressions dont il ignore le pays, l'âge ou le placement ne sont dans "
+        "aucune barre. L'écart n'est pas une donnée manquante de notre côté."
+    ).format(shown=f"{shown:,.0f}".replace(",", "\u202f"),
+             total=f"{total:,.0f}".replace(",", "\u202f"),
+             pct=f"{100 * shown / total:.0f}"))
