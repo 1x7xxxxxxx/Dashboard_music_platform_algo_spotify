@@ -682,7 +682,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                        palette=palette, ink=ink, muted=muted, surface=surface,
                        grid=grid, title=title, step=step, total=total, key=key)
         _render_notes(span, aligned_raw, order, thin, coarse, step,
-                      stacked=False, coarsened=coarsened, mode=mode)
+                      stacked=False, coarsened=coarsened, mode=mode, served=served)
         return True
 
     # LA LÉGENDE EST LE FILTRE DE SOURCES, et c'est ce qui retire un widget.
@@ -812,7 +812,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     )
     st.plotly_chart(fig, width="stretch", key=key)
     _render_notes(span, aligned_raw, order, thin, coarse, step,
-                  coarsened=coarsened, mode=mode)
+                  coarsened=coarsened, mode=mode, served=served)
     return True
 
 
@@ -869,18 +869,30 @@ def t_trend_caption(step: str, mode: str) -> str:
 
 def _render_notes(span: list, aligned_raw: dict, order: list, thin: dict,
                   coarse: list, step: str, *, stacked: bool = True,
-                  coarsened=None, mode: str = "absolute") -> None:
+                  coarsened=None, mode: str = "absolute", served=()) -> None:
     """Ce que la figure ne peut pas dessiner, écrit sous elle. Jamais tu.
 
     Une plateforme qui manque sans explication se lit comme une panne — la leçon de la
     matrice d'état, appliquée à une figure.
+
+    UNE NOTE QUI DÉCRIT UNE AUTRE FIGURE QUE CELLE AFFICHÉE EST PIRE QUE PAS DE NOTE.
+    Signalé le 2026-09-11 : « je n'ai aucune data sur YouTube depuis le début ». La
+    figure traçait pourtant YouTube à 118 334, et c'est la PROSE qui disait le
+    contraire — « 🎬 YouTube 26 [semaines non mesurées], leur aire s'interrompt là ».
+    Ces notes sont calculées sur `aligned_raw`, la série QUOTIDIENNE, et elles étaient
+    exactes tant que la courbe en venait. Depuis que le mode cumulé lit la couche or,
+    une plateforme à compteur n'a plus de trou : entre deux relevés son niveau est
+    connu, la courbe est continue, et l'annoncer interrompue fait lire une panne là où
+    il y a une mesure. `served` nomme ces plateformes, et elles sortent de la note.
     """
     # La légende générale d'abord : elle dit ce que la figure MONTRE. Les notes qui
     # suivent disent ce qu'elle ne peut pas montrer.
     st.caption(t_trend_caption(step, mode))
     if coarsened:
         st.caption(t_coarsened(*coarsened))
-    gaps = {k: n for k, n in gap_counts(span, aligned_raw, order).items() if n}
+    _no_gaps = set(served) if mode == "cumulative" else set()
+    gaps = {k: n for k, n in gap_counts(span, aligned_raw, order).items()
+            if n and k not in _no_gaps}
     if gaps:
         st.caption(t_missing(gaps, len(span), step, stacked=stacked))
     for label, measured, total in thin.values():
