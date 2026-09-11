@@ -18,14 +18,15 @@ from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import require_plan, is_admin
 
 # All-creatives daily series (for the heatmap + cumulative-budget charts).
+# La jointure `meta_insights` x `meta_ads` vivait ici et dans deux autres requetes
+# de ce fichier. `v_meta_creative_daily` (migration 106) la porte — y compris son
+# `artist_id`, qu'il suffit d'oublier une fois pour melanger deux locataires.
 _QUERY_TS_ALL = """
-SELECT ma.ad_name AS creative_name, mi.date::date AS date,
-       SUM(mi.spend) AS spend
-FROM meta_insights mi
-JOIN meta_ads ma ON ma.ad_id = mi.ad_id
-WHERE ma.artist_id = %s{acct}
-GROUP BY ma.ad_name, mi.date
-ORDER BY mi.date
+SELECT creative_name, day AS date, SUM(spend) AS spend
+FROM v_meta_creative_daily
+WHERE artist_id = %s{acct}
+GROUP BY creative_name, day
+ORDER BY day
 """
 
 
@@ -91,8 +92,11 @@ FROM meta_campaigns mc
 JOIN meta_ads ma ON ma.campaign_id = mc.campaign_id
 LEFT JOIN meta_insights mi ON mi.ad_id = ma.ad_id
 LEFT JOIN (
+    -- La dépense par campagne vient de la couche or (`v_meta_daily`, migration 106)
+    -- et non de la table brute : c'est la même question que celle de l'onglet
+    -- Breakdowns, et deux façons d'y répondre finissent par donner deux nombres.
     SELECT campaign_name, SUM(spend) AS campaign_spend
-    FROM meta_insights_performance_day
+    FROM v_meta_daily
     WHERE artist_id = %s{acct}
     GROUP BY campaign_name
 ) cl ON cl.campaign_name = mc.campaign_name
@@ -244,7 +248,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
     st.subheader(t("meta_creatives.timeline_title", "📈 Évolution d'une créative dans le temps"))
 
     # Honour the page-level campaign filter for the creative dropdown.
-    campaign_clause = "" if selected_campaign == "Toutes" else " AND mc.campaign_name = %s"
+    campaign_clause = "" if selected_campaign == "Toutes" else " AND campaign_name = %s"
     name_params = ((artist_id, *acct_params) if selected_campaign == "Toutes"
                    else (artist_id, *acct_params, selected_campaign))
     names = db.fetch_df(
@@ -266,18 +270,16 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
                             names['ad_name'].tolist(), key="tl_creative")
 
     ts = db.fetch_df(
-        f"""SELECT mi.date::date AS date,
-                   SUM(mi.spend)       AS spend,
-                   SUM(mi.impressions) AS impressions,
-                   SUM(mi.clicks)      AS clicks,
-                   SUM(mi.reach)       AS reach,
-                   SUM(mi.conversions) AS conversions,
-                   AVG(mi.ctr)         AS ctr
-            FROM meta_insights mi
-            JOIN meta_ads ma ON ma.ad_id = mi.ad_id
-            JOIN meta_campaigns mc ON mc.campaign_id = ma.campaign_id
-            WHERE ma.artist_id = %s{acct} AND ma.ad_name = %s{campaign_clause}
-            GROUP BY mi.date ORDER BY mi.date""",
+        f"""SELECT day AS date,
+                   SUM(spend)       AS spend,
+                   SUM(impressions) AS impressions,
+                   SUM(clicks)      AS clicks,
+                   SUM(reach)       AS reach,
+                   SUM(conversions) AS conversions,
+                   AVG(ctr)         AS ctr
+            FROM v_meta_creative_daily
+            WHERE artist_id = %s{acct} AND creative_name = %s{campaign_clause}
+            GROUP BY day ORDER BY day""",
         (artist_id, *acct_params, creative) if selected_campaign == "Toutes"
         else (artist_id, *acct_params, creative, selected_campaign),
     )
@@ -481,10 +483,10 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
         return
     sel = st.selectbox(t("meta_creatives.creative", "Créative"), names['ad_name'].tolist(), key="fatigue_creative")
     ts = db.fetch_df(
-        f"""SELECT mi.date::date AS date, AVG(mi.frequency) AS frequency, AVG(mi.ctr) * 100 AS ctr
-           FROM meta_insights mi JOIN meta_ads ma ON ma.ad_id = mi.ad_id
-           WHERE ma.artist_id = %s{acct} AND ma.ad_name = %s
-           GROUP BY mi.date ORDER BY mi.date""",
+        f"""SELECT day AS date, AVG(frequency) AS frequency, AVG(ctr) * 100 AS ctr
+           FROM v_meta_creative_daily
+           WHERE artist_id = %s{acct} AND creative_name = %s
+           GROUP BY day ORDER BY day""",
         (artist_id, *acct_params, sel),
     )
     if ts.empty:

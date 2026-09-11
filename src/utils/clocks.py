@@ -161,6 +161,11 @@ COLUMN_SUBJECT: dict[str, str] = {
     "period_start": Dates.EVENT,
     "period_end": Dates.EVENT,
     "timestamp": Dates.PUBLICATION,      # instagram_media : la sortie du post
+    # `month` est la colonne de `v_instagram_media_monthly`, qui regroupe les posts
+    # par mois de PUBLICATION. Elle hérite donc du sujet de `timestamp` : borner
+    # dessus construit une cohorte de posts, pas une période d'activité — et c'est
+    # exactement ce que la vue nomme dans son commentaire.
+    "month": Dates.PUBLICATION,
     "published_at": Dates.PUBLICATION,
     "release_date": Dates.PUBLICATION,
     "track_created_at": Dates.PUBLICATION,

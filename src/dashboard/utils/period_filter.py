@@ -44,7 +44,7 @@ _ALLOWED_DATE_COLUMNS = frozenset({
     # pouvoir se borner comme les autres — sans ça, le seul moyen de filtrer une
     # période était de revenir à la table brute, ce qui est exactement l'inverse du
     # but. Ajoutée le 2026-09-12 avec la migration 105.
-    "day_date", "date", "day", "collected_at", "first_seen", "timestamp",
+    "day_date", "date", "day", "month", "collected_at", "first_seen", "timestamp",
     "track_created_at",
 })
 _ALLOWED_ARTIST_COLUMNS = frozenset({"artist_id"})

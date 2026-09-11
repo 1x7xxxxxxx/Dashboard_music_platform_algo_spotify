@@ -74,13 +74,13 @@ _FACTS: dict[str, tuple[str, ...]] = {
 # Le plafond, gelé le 2026-09-11. IL NE MONTE JAMAIS — le baisser est le travail.
 _CEILING: dict[str, int] = {
     "Spotify S4A": 0,
-    "Meta Ads":    22,
-    "Instagram":    3,
-    "Apple":        0,
-    "Hypeddit":     1,
-    "Revenu":       1,
-    "YouTube":      0,
-    "SoundCloud":   0,
+    "Meta Ads":    0,
+    "Instagram":   0,
+    "Apple":       0,
+    "Hypeddit":    0,
+    "Revenu":      0,
+    "YouTube":     0,
+    "SoundCloud":  0,
 }
 
 _AGG = re.compile(r"\b(SUM|AVG)\s*\(", re.I)
@@ -141,20 +141,25 @@ def test_no_platform_gains_a_metric_computed_outside_the_gold_layer() -> None:
 
 
 def test_the_clean_platforms_stay_clean() -> None:
-    """QUATRE plateformes à zéro — et Spotify S4A est la plus dure des quatre.
+    """LES HUIT plateformes sont à zéro. Il n'y a plus d'exception à nommer.
 
-    YouTube et SoundCloud y sont arrivées le 2026-09-11, après trois défauts qui se
-    contredisaient entre eux ; Apple le 2026-09-12 quand sa règle est descendue en SQL
-    (migrations 102 et 103) ; **Spotify S4A le même jour**, de 33 à 0, quand
-    `v_s4a_song_daily` (migration 105) lui a donné le grain TITRE — la maille que
-    réclamaient 21 de ses 32 agrégats, et qu'aucune vue ne portait.
+    Chronologie, parce qu'elle dit ce qui a marché : YouTube et SoundCloud le
+    2026-09-11, après trois défauts qui se contredisaient entre eux. Apple le
+    2026-09-12, quand sa règle — une sélection gloutonne d'intervalles — est
+    descendue en PL/pgSQL (102, 103). Spotify le même jour, de 33 à 0, avec le grain
+    TITRE (105). Puis Meta, Instagram, Hypeddit et le revenu (106).
 
-    Le test général les couvrirait toutes, mais NOMMER les plateformes propres est ce
-    qui rend la régression lisible : « Meta passe de 22 à 23 » se discute,
-    « Spotify n'est plus à zéro » ne se discute pas.
+    Le geste a été le même huit fois, et il ne s'invente pas à chaque fois : COMPTER
+    les agrégats, voir quelle MAILLE ils réclament, écrire la vue qui la porte,
+    repointer, et vérifier qu'aucun chiffre n'a bougé. Le comptage est ce qui dit où
+    aller ; le plafond est ce qui empêche de revenir.
+
+    À zéro partout, ce test dit une chose simple : plus aucune surface d'affichage
+    n'agrège une table de fait. Toute nouvelle qui le ferait est refusée ici, nommée,
+    avec le fichier et la ligne.
     """
     sites = _sites()
-    for platform in ("YouTube", "SoundCloud", "Apple", "Spotify S4A"):
+    for platform in sorted(_FACTS):
         found = sites.get(platform, [])
         assert not found, (
             f"{platform} agrège de nouveau une table de fait hors de la couche or :\n"

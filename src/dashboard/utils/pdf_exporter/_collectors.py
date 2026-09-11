@@ -338,8 +338,8 @@ def _collect_meta(db, artist_id, from_date, to_date, ad_account=None):
                       SUM(impressions) AS impressions,
                       SUM(reach)       AS reach,
                       SUM(spend) / NULLIF(SUM(results), 0) AS cpr
-               FROM meta_insights_performance_day
-               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
+               FROM v_meta_daily
+               WHERE artist_id = %s{_acct} AND day BETWEEN %s AND %s
                GROUP BY campaign_name
                ORDER BY spend DESC
                LIMIT 10""",
@@ -355,8 +355,8 @@ def _collect_meta(db, artist_id, from_date, to_date, ad_account=None):
         # Totals from the SAME period-filtered day table (all campaigns, not just top 10).
         tot = db.fetch_query(
             f"""SELECT COALESCE(SUM(spend), 0), COALESCE(SUM(results), 0)
-               FROM meta_insights_performance_day
-               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s""",
+               FROM v_meta_daily
+               WHERE artist_id = %s{_acct} AND day BETWEEN %s AND %s""",
             (artist_id, *_acct_p, from_date, to_date),
         )
         return {
@@ -427,10 +427,10 @@ def _collect_hypeddit(db, artist_id, from_date, to_date):
         return None
     try:
         rows = db.fetch_query(
-            """SELECT date::text, SUM(visits), SUM(clicks)
-               FROM hypeddit_daily_stats
-               WHERE artist_id = %s AND date BETWEEN %s AND %s
-               GROUP BY date ORDER BY date""",
+            """SELECT day::text, SUM(visits), SUM(clicks)
+               FROM v_hypeddit_daily
+               WHERE artist_id = %s AND day BETWEEN %s AND %s
+               GROUP BY day ORDER BY day""",
             (artist_id, from_date, to_date))
         if not rows:
             return None
@@ -525,21 +525,21 @@ def _collect_meta_x_spotify(db, artist_id, from_date, to_date, ad_account=None):
     _acct, _acct_p = _meta_account_clause(ad_account)
     try:
         camp = db.fetch_query(
-            f"""SELECT campaign_name, MIN(day_date), MAX(day_date)
-               FROM meta_insights_performance_day
-               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
-               GROUP BY campaign_name ORDER BY MAX(day_date) DESC LIMIT 1""",
+            f"""SELECT campaign_name, MIN(day), MAX(day)
+               FROM v_meta_daily
+               WHERE artist_id = %s{_acct} AND day BETWEEN %s AND %s
+               GROUP BY campaign_name ORDER BY MAX(day) DESC LIMIT 1""",
             (artist_id, *_acct_p, from_date, to_date))
         if not camp:
             return None
         name, c_from, c_to = camp[0]
         meta = db.fetch_query(
-            f"""SELECT day_date::text, SUM(spend), SUM(results),
+            f"""SELECT day::text, SUM(spend), SUM(results),
                       SUM(spend) / NULLIF(SUM(results), 0)
-               FROM meta_insights_performance_day
+               FROM v_meta_daily
                WHERE artist_id = %s{_acct} AND campaign_name = %s
-                 AND day_date BETWEEN %s AND %s
-               GROUP BY day_date ORDER BY day_date""",
+                 AND day BETWEEN %s AND %s
+               GROUP BY day ORDER BY day""",
             (artist_id, *_acct_p, name, c_from, c_to))
         streams = db.fetch_query(
             """SELECT day::text, SUM(streams) FROM v_s4a_song_daily
@@ -860,10 +860,10 @@ def _collect_ig_monthly(db, artist_id, from_date, to_date):
         return []
     try:
         rows = db.fetch_query(
-            """SELECT date_trunc('month', timestamp)::date, SUM(like_count),
-                      SUM(comments_count), COUNT(*) FROM instagram_media
-               WHERE artist_id = %s AND timestamp BETWEEN %s AND %s
-               GROUP BY 1 ORDER BY 1""",
+            """SELECT month, likes, comments, posts
+                 FROM v_instagram_media_monthly
+                WHERE artist_id = %s AND month BETWEEN %s AND %s
+                ORDER BY month""",
             (artist_id, from_date, to_date))
         fr = db.fetch_query(
             "SELECT followers_count FROM instagram_daily_stats WHERE artist_id = %s "
@@ -889,8 +889,8 @@ def _collect_meta_funnel(db, artist_id, from_date, to_date, ad_account=None):
         r = db.fetch_query(
             f"""SELECT COALESCE(SUM(impressions),0), COALESCE(SUM(reach),0),
                       COALESCE(SUM(results),0), COALESCE(SUM(custom_conversions),0)
-               FROM meta_insights_performance_day
-               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s""",
+               FROM v_meta_daily
+               WHERE artist_id = %s{_acct} AND day BETWEEN %s AND %s""",
             (artist_id, *_acct_p, from_date, to_date))
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_meta_funnel unreadable: %s", type(exc).__name__)
@@ -909,10 +909,10 @@ def _collect_meta_daily(db, artist_id, from_date, to_date, ad_account=None):
     _acct, _acct_p = _meta_account_clause(ad_account)
     try:
         rows = db.fetch_query(
-            f"""SELECT day_date, SUM(spend), SUM(results)
-               FROM meta_insights_performance_day
-               WHERE artist_id = %s{_acct} AND day_date BETWEEN %s AND %s
-               GROUP BY day_date ORDER BY day_date""",
+            f"""SELECT day, SUM(spend), SUM(results)
+               FROM v_meta_daily
+               WHERE artist_id = %s{_acct} AND day BETWEEN %s AND %s
+               GROUP BY day ORDER BY day""",
             (artist_id, *_acct_p, from_date, to_date))
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF: _collect_meta_daily unreadable: %s", type(exc).__name__)
