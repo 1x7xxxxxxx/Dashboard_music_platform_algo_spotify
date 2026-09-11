@@ -59,19 +59,23 @@ def get_db_connection() -> Optional[PostgresHandler]:
     The Streamlit-specific part stays here, and only that: turning a failure into a
     red banner and a None, because a view must degrade rather than crash.
     """
-    # Le pool s'active au PREMIER besoin de connexion du processus, et une seule
-    # fois (`enable_pool` est idempotent). Ici plutôt qu'à l'import : un import
-    # ne doit pas ouvrir de socket — les tests importent ce module sans base, et
-    # `app.py` lève déjà à l'import pour d'autres raisons.
+    # LE POOL N'EST PAS ACTIVÉ ICI, ET C'EST DÉLIBÉRÉ (2026-09-11).
     #
-    # Mesuré le 2026-09-11 en production : un rendu de page ouvre 4 connexions à
-    # 13 ms de poignée de main, soit 52 ms sur 287. Sans pool, c'est 18 % du
-    # rendu dépensé à se présenter.
-    from src.database.postgres_handler import enable_pool
-    enable_pool(minconn=1, maxconn=8)   # idempotent ; le pool naît à la 1re connexion
+    # Il est écrit, testé et mesuré — 20 cycles ouverture/fermeture font 0 poignée
+    # de main au lieu de 20, soit ~40 ms sur un rendu de 287 en production. Mais
+    # l'activer fait passer l'accueil de 13 à 23 requêtes SQL, mesuré sur une base
+    # neuve contre `main` à l'identique, et **je n'ai pas su expliquer pourquoi**.
+    # Suspect principal : `_ensure_connection()` appelle `conn.poll()`, qui sur une
+    # connexion RÉUTILISÉE peut lever `OperationalError` et déclencher un emprunt
+    # supplémentaire. Non prouvé.
+    #
+    # Un chemin chaud que traversent 43 vues, l'API et Airflow ne reçoit pas un
+    # changement dont on ne sait pas expliquer un effet mesuré. `enable_pool()`
+    # reste disponible, personne ne l'appelle, et la reproduction est écrite dans
+    # la tâche de roadmap qui porte ce reste.
 
-    # Et le cache des séries, au même moment et pour la même raison : une fois
-    # par processus, au premier besoin, jamais à l'import.
+    # Le cache des séries, lui, est compris et branché : une fois par processus,
+    # au premier besoin, jamais à l'import (un import ne doit pas ouvrir de socket).
     from src.dashboard.utils.series_cache import install as _install_series_cache
     _install_series_cache()
 

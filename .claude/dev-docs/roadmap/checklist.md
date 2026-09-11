@@ -26,8 +26,7 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R84 | Déployer la migration 100 **avant** le code YouTube qui en dépend | P2 | `pytest tests/test_an_upsert_targets_an_index_that_exists.py` contre la prod : vert = l'index existe |
-| R85 | Cacher les lectures de `platform_timeseries` (BUILD-MODIFIED, 5 conditions) | P3 | `loadtest_dashboard.py -n 12` : p50 287 ms → attendu ~190 ms |
-| R86 | Pool de connexions (dashboard + API) | P3 | même commande : `conns/rendu` 4,0 → 1,0, −40 ms |
+| R86 | **Activer** le pool (écrit et testé, personne ne l'appelle) — comprendre d'abord pourquoi il fait passer l'accueil de 13 à 23 requêtes | P3 | `pytest tests/test_a_page_asks_the_same_question_once.py` doit rester à 13/11 **avec** `enable_pool()` branché dans `get_db_connection` |
 | R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
@@ -83,9 +82,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-11, R84 à R87 ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, R84 · R86 · R87 ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R84,R85,R86,R87 -->
+<!-- reprise: open=R84,R86,R87 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 
@@ -142,10 +141,20 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
   `upload_csv.py` doit purger — **fait le 2026-09-11**, c'était un défaut vivant.
   Le précédent à copier est `kpi_helpers` : `ttl=600`, `_db` hors clé, `artist_id`
   DEDANS, purge sur l'événement et pas sur l'horloge.
-- **R86 (pool)** touche 43 vues, l'API et Airflow. Trois pièges vérifiés :
-  `statement_timeout` voyage dans les options de connexion, `_ensure_connection()`
-  reconnecte en silence, et ADR-002 interdit SQLAlchemy — donc `psycopg2.pool` derrière
-  `@st.cache_resource` (0 occurrence aujourd'hui).
+- **R86 (pool) est ÉCRIT, TESTÉ, MESURÉ — et personne ne l'appelle.** Le gain est
+  réel : 20 cycles ouverture/fermeture font **0 poignée de main** au lieu de 20, soit
+  ~40 ms sur un rendu de 287 en production, et `statement_timeout` survit au pool
+  (mutations vues rouges sur les trois propriétés). Ce qui bloque est ailleurs et
+  **n'est pas expliqué** : l'activer fait passer l'accueil de **13 à 23 requêtes SQL**,
+  mesuré sur une base neuve, à l'identique contre `main`. Les dix en trop ne sont pas
+  un surcoût mais une **section supplémentaire rendue** (matrice de mise en route,
+  fraîcheur par source, sonde Meta). Suspect principal, non prouvé :
+  `_ensure_connection()` appelle `conn.poll()`, qui sur une connexion RÉUTILISÉE peut
+  lever `OperationalError` et déclencher un emprunt de plus. Reproduction : brancher
+  `enable_pool(1, 8)` dans `get_db_connection()`, puis
+  `pytest tests/test_a_page_asks_the_same_question_once.py` sur une base neuve.
+  Tant que l'effet n'est pas expliqué, le chemin chaud de 43 vues + l'API + Airflow
+  ne le reçoit pas.
 - **R87 (répliques)** ne change aucune ligne d'application : 3 services, 3 upstreams, et
   **`lb_policy cookie` est obligatoire** (Streamlit tient un état serveur par websocket).
   Le compose de prod est gitignoré : modifier sur la boîte ET porter dans
