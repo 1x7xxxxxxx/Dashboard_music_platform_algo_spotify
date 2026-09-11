@@ -25,8 +25,6 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R84 | Déployer la migration 100 **avant** le code YouTube qui en dépend | P2 | `pytest tests/test_an_upsert_targets_an_index_that_exists.py` contre la prod : vert = l'index existe |
-| R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
 | R88 | **Étendre la couche or aux SÉRIES** (ADR-019 n'a couvert que les totaux scalaires) : une courbe cumulée affirme un total à son dernier point et doit lire la même définition que la tuile — YouTube trace 136 contre 118 334 annoncés (×870), SoundCloud 77 contre 23 563 | P2 | le dernier point de la courbe égale la tuile **par construction**, pour les 3 plateformes |
 | R89 | ~~Compteur de chaîne dans le PDF~~ — **PRÉMISSE FAUSSE, vérifiée** : le PDF lit déjà les compteurs par vidéo, `youtube_channel_history` n'y sert qu'aux ABONNÉS (sa seule source), et `test_every_surface_gives_the_same_total` le garde. Reste le **double axe** de `youtube_channel_growth`, à trancher : abonnés et vues ne sont pas deux grandeurs comparables, donc l'interdit de `platform_chart` ne s'y applique pas mécaniquement | P4 | une décision écrite, ou `twinx()` retiré |
 | R90 | Retirer le `multiselect` « Sources affichées » au profit du clic sur la légende — **sauf en mode « part »**, dont les pourcentages sont calculés sur l'ensemble choisi | P4 | `home.py` n'a plus de `st.multiselect` pour les sources hors mode `share` |
@@ -85,9 +83,9 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-11, R84 · R87 · R88 à R91 ouvertes (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, R88 à R91 ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R84,R87,R88,R89,R90,R91 -->
+<!-- reprise: open=R88,R89,R90,R91 -->
 
 ### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
 

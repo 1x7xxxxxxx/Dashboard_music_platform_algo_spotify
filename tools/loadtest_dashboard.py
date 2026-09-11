@@ -123,26 +123,48 @@ def _silence_telemetry() -> None:
 
 
 class _ConnectionCounter:
-    """Count every psycopg2 handshake performed while the block is open."""
+    """Two counts, because a pool makes them different — and the difference IS the gain.
+
+    `acquired` = how many times the app asked for a connection.
+    `handshakes` = how many TCP+SCRAM handshakes actually happened.
+
+    The first version counted only `_connect` and priced every acquisition at
+    13 ms. Once the pool shipped, that line claimed "52 ms of handshakes, 68 % of
+    the render" on a render where the pool had performed **zero** — a tool
+    announcing a cost it had not measured, which is the failure this repository
+    names most often. Measured in production on 2026-09-11, right after the
+    deploy that made the number wrong.
+    """
 
     def __init__(self) -> None:
-        self.count = 0
-        self._original = None
+        self.acquired = 0
+        self.handshakes = 0
+        self._orig_connect = None
+        self._orig_pg = None
 
     def __enter__(self) -> "_ConnectionCounter":
+        import psycopg2
         from src.database.postgres_handler import PostgresHandler
-        self._original = PostgresHandler._connect
+        self._orig_connect = PostgresHandler._connect
+        self._orig_pg = psycopg2.connect
 
         def counted(inner_self):  # noqa: ANN001
-            self.count += 1
-            return self._original(inner_self)
+            self.acquired += 1
+            return self._orig_connect(inner_self)
+
+        def counted_pg(*a, **k):  # noqa: ANN002
+            self.handshakes += 1
+            return self._orig_pg(*a, **k)
 
         PostgresHandler._connect = counted                          # type: ignore[assignment]
+        psycopg2.connect = counted_pg                               # type: ignore[assignment]
         return self
 
     def __exit__(self, *exc) -> None:  # noqa: ANN002
+        import psycopg2
         from src.database.postgres_handler import PostgresHandler
-        PostgresHandler._connect = self._original                   # type: ignore[assignment]
+        PostgresHandler._connect = self._orig_connect               # type: ignore[assignment]
+        psycopg2.connect = self._orig_pg                            # type: ignore[assignment]
 
 
 def _peak_backends_sampler(stop: threading.Event, out: list[int]) -> None:
@@ -351,15 +373,21 @@ def main() -> int:
     latencies.sort()
     p50 = statistics.median(latencies)
     p95 = latencies[min(int(len(latencies) * 0.95), len(latencies) - 1)]
-    per_render = counter.count / len(latencies)
+    per_render = counter.acquired / len(latencies)
+    hs_per_render = counter.handshakes / len(latencies)
 
     print(f"page={args.page} role={args.role} artist_id={args.artist_id}")
     print(f"rendus mesurés : {len(latencies)}   échecs : {failures}\n")
     print(f"  p50           {p50:>8.0f} ms")
     print(f"  p95           {p95:>8.0f} ms")
     print(f"  min / max     {latencies[0]:>8.0f} / {latencies[-1]:.0f} ms")
-    print(f"  conns/rendu   {per_render:>8.1f}   (≈ {per_render * _HANDSHAKE_MS:.0f} ms "
-          f"de poignées de main, {per_render * _HANDSHAKE_MS / p50 * 100:.0f} % du rendu)")
+    print(f"  conns/rendu   {per_render:>8.1f}   (connexions demandées par l'application)")
+    if hs_per_render:
+        print(f"  poignées/rendu{hs_per_render:>8.1f}   (≈ {hs_per_render * _HANDSHAKE_MS:.0f} ms, "
+              f"{hs_per_render * _HANDSHAKE_MS / p50 * 100:.0f} % du rendu)")
+    else:
+        print(f"  poignées/rendu{0:>8.1f}   pool actif : aucune poignée de main, "
+              f"~{per_render * _HANDSHAKE_MS:.0f} ms évitées par rendu")
     print(f"  pic backends  {max(peaks) if peaks else 0:>8}   sur max_connections=100, "
           f"partagé avec Airflow et l'API")
 

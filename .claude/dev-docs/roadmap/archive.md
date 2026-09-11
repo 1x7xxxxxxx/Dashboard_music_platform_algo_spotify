@@ -3956,3 +3956,29 @@ consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
   deux environnements mesurent-ils la même chose ? ». Les trois fois, non — caches
   réchauffés par les tests voisins, base restaurée à moitié, locataire configuré
   contre locataire neuf. ref: DEVLOG#2026-09-11.
+
+- [x] **R84 — Déployer la migration 100 avant le code qui en dépend** (P2) — FAIT le
+  2026-09-11. Ordre respecté et vérifié : `bash tools/migrate.sh` d'abord (« 1
+  migration → 97 déjà enregistrées », aucune erreur psql), les deux index créés
+  (`uq_youtube_comments_artist_comment`, `uq_youtube_playlists_artist_playlist`),
+  PUIS `bash tools/deploy.sh api dashboard` (`8ff7baf`, api et dashboard sains).
+  Recette : l'index de prod est bien `(artist_id, comment_id)` et
+  `youtube_daily.py` cible exactement ces colonnes. `make` étant absent du serveur,
+  la commande est `bash tools/migrate.sh` — `make migrate` y sort en 127.
+
+- [x] **R87 — Répliques Streamlit + affinité Caddy** (P3) — CLOSE PAR LA MESURE, pas
+  livrée, et c'est la bonne réponse. Après le déploiement du pool et du cache, le
+  rendu de page mesuré en production passe de **287 ms à 77-104 ms** (facteur ~3).
+  Le plafond dérivé passe donc de ~12 utilisateurs actifs à **~46** (un clic toutes
+  les 5 s), ~91 à 10 s, ~183 à 20 s — alors que le pic jamais observé sur
+  `usage_events` est de 12 `session_id` distincts en une minute, très probablement
+  un seul testeur qui recharge.
+
+  Répliquer maintenant dépenserait du risque — compose de prod gitignoré, Caddyfile
+  systemd hôte, affinité de session obligatoire, caches par réplique — contre un
+  bénéfice mesuré à zéro. C'est exactement ce qu'ADR-007 interdit.
+
+  **Déclencheur de réouverture, calculable** : `loadtest_dashboard.py -n 12` sur le
+  serveur rend un p50 au-dessus de **200 ms**, ou `usage_events` montre plus de
+  **20 sessions distinctes** dans une même minute :
+  `SELECT max(s) FROM (SELECT count(DISTINCT session_id) s FROM usage_events GROUP BY date_trunc('minute', ts)) x`
