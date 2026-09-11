@@ -240,11 +240,27 @@ def show() -> None:
                       "SUM(impressions) AS impressions, SUM(reach) AS reach"
         else:
             metrics = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
-        df = db.fetch_df(
-            f"SELECT {dim_cols}, {metrics} FROM {table} "
-            f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}",
-            tuple(params),
-        )
+        # La dépense TOTALE voyage dans la même requête, en sous-requête scalaire.
+        #
+        # Elle était d'abord lue par un `fetch_query` séparé, et le cliquet
+        # d'allers-retours l'a refusé — à raison : une note explicative ne vaut pas un
+        # aller-retour de plus sur le chemin chaud. C'est exactement ce que le message
+        # du cliquet demande (« elle la lit dans une requête existante »).
+        #
+        # La sous-requête est posée AUTOUR de l'agrégat et non dedans : dans le SELECT
+        # d'un `GROUP BY`, Postgres exigerait de l'y faire figurer. Et elle vise
+        # toujours `meta_insights_performance_day`, qui porte `ad_account_id` — donc
+        # `_acct`, jamais `_acct_tbl`, qui dépend de la table du breakdown.
+        inner = (f"SELECT {dim_cols}, {metrics} FROM {table} "
+                 f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {dim_cols}")
+        if family == "performance":
+            sql = (f"SELECT b.*, (SELECT COALESCE(SUM(spend), 0) FROM "
+                   f"meta_insights_performance_day WHERE artist_id = %s{_acct}) "
+                   f"AS _spend_total FROM ({inner}) b")
+            args = tuple(params) + (artist_id, *_acct_params)
+        else:
+            sql, args = inner, tuple(params)
+        df = db.fetch_df(sql, args)
 
     if df is None or df.empty:
         st.info(t(
@@ -255,13 +271,14 @@ def show() -> None:
         return
 
     if family == "performance":
-        _render_coverage(db, artist_id, df, _acct_tbl, params[0] if params else artist_id)
-        _render_performance(df, dim_key, entity_label)
+        _render_coverage(df)
+        _render_performance(df.drop(columns=["_spend_total"], errors="ignore"),
+                            dim_key, entity_label)
     else:
         _render_engagement(df, dim_key, entity_label)
 
 
-def _render_coverage(db, artist_id, df, _acct_tbl: str, _aid) -> None:
+def _render_coverage(df) -> None:
     """Quelle PART de la dépense cette ventilation couvre, mesurée à chaque rendu.
 
     Meta n'attribue pas toute la dépense à une dimension : les impressions dont il
@@ -279,16 +296,10 @@ def _render_coverage(db, artist_id, df, _acct_tbl: str, _aid) -> None:
     campagne et de la période collectée, et une constante deviendrait fausse à la
     première nouvelle campagne.
     """
-    if "spend" not in df.columns:
+    if "spend" not in df.columns or "_spend_total" not in df.columns:
         return
     shown = float(df["spend"].fillna(0).sum())
-    try:
-        row = db.fetch_query(
-            f"SELECT COALESCE(SUM(spend), 0) FROM meta_insights_performance_day "
-            f"WHERE artist_id = %s{_acct_tbl}", (artist_id,))
-        total = float(row[0][0] or 0)
-    except Exception:      # noqa: BLE001 — une note absente vaut mieux qu'une page morte
-        return
+    total = float(df["_spend_total"].iloc[0] or 0)
     if total <= 0 or shown <= 0 or shown >= total * 0.995:
         return
     st.caption(t(

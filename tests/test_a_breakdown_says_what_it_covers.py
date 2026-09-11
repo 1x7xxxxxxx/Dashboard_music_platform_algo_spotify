@@ -28,17 +28,15 @@ from __future__ import annotations
 import pytest
 
 
-class _FakeDB:
-    def __init__(self, total: float) -> None:
-        self.total = total
-
-    def fetch_query(self, sql, params=()):  # noqa: ANN001
-        return [(self.total,)]
-
-
 @pytest.fixture
 def rendered(monkeypatch):
-    """Appelle `_render_coverage` et renvoie les légendes écrites."""
+    """Appelle `_render_coverage` et renvoie les légendes écrites.
+
+    Aucune base : le total voyage désormais dans une COLONNE du dataframe, en
+    sous-requête scalaire de la requête du breakdown. C'est le cliquet
+    d'allers-retours qui l'a imposé — une note explicative ne vaut pas un aller-retour
+    de plus sur le chemin chaud — et ça rend ce garde plus simple qu'avant.
+    """
     import pandas as pd
 
     from src.dashboard.views import meta_breakdowns as mb
@@ -48,8 +46,7 @@ def rendered(monkeypatch):
 
     def run(shown: float, total: float):
         written.clear()
-        df = pd.DataFrame({"spend": [shown]})
-        mb._render_coverage(_FakeDB(total), 1, df, "", 1)
+        mb._render_coverage(pd.DataFrame({"spend": [shown], "_spend_total": [total]}))
         return list(written)
 
     return run
@@ -100,3 +97,31 @@ def test_the_share_is_measured_and_not_written_down() -> None:
         "être divisée à chaque rendu, pas écrite.")
     assert any(isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div)
                for n in ast.walk(tree)), "la part n'est plus calculée par une division"
+
+
+def test_the_query_and_the_note_agree_on_the_column_name() -> None:
+    """Renommer la colonne d'un côté fait disparaître la note SANS erreur.
+
+    `_render_coverage` sort silencieusement quand `_spend_total` manque — c'est
+    voulu : une note absente vaut mieux qu'une page morte. Mais ce silence rend le
+    renommage indétectable. Vérifié le 2026-09-11 en renommant la colonne dans la
+    requête : la page rendait ses deux figures, sans la note, sans une erreur, et
+    aucun test ne rougissait.
+
+    Les deux extrémités sont donc épinglées ensemble : la requête doit produire le
+    nom que la note lit.
+    """
+    import inspect
+
+    from src.dashboard.views import meta_breakdowns as mb
+
+    page = inspect.getsource(mb)
+    produced = page.count("_spend_total")
+    assert produced >= 2, (
+        f"`_spend_total` n'apparaît que {produced} fois : la requête et la note ne "
+        "parlent plus de la même colonne, et la note disparaîtra en silence.")
+    assert "AS _spend_total" in page, (
+        "la requête ne produit plus la colonne `_spend_total` — la note ne sortira "
+        "jamais, et rien ne le dira")
+    assert '"_spend_total"' in inspect.getsource(mb._render_coverage), (
+        "la note ne lit plus `_spend_total`")
