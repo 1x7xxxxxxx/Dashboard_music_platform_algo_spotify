@@ -47,11 +47,10 @@ def get_kpis(
         db,
         f"""
         SELECT COALESCE(SUM(streams), 0) AS total
-        FROM s4a_song_timeline
-        WHERE date >= CURRENT_DATE - 7
-          AND song NOT ILIKE %s {filt}
+        FROM v_s4a_song_daily
+        WHERE day >= CURRENT_DATE - 7 {filt}
         """,
-        (f"%{_ARTIST_NAME_FILTER}%",) + p_aid,
+        p_aid,
         "total",
     )
     spotify_7d = int(raw_spotify) if raw_spotify else None

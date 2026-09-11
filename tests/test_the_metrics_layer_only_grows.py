@@ -73,7 +73,7 @@ _FACTS: dict[str, tuple[str, ...]] = {
 
 # Le plafond, gelé le 2026-09-11. IL NE MONTE JAMAIS — le baisser est le travail.
 _CEILING: dict[str, int] = {
-    "Spotify S4A": 31,
+    "Spotify S4A": 0,
     "Meta Ads":    22,
     "Instagram":    3,
     "Apple":        0,
@@ -141,16 +141,20 @@ def test_no_platform_gains_a_metric_computed_outside_the_gold_layer() -> None:
 
 
 def test_the_clean_platforms_stay_clean() -> None:
-    """YouTube, SoundCloud et Apple sont à zéro, et c'est l'état cible.
+    """QUATRE plateformes à zéro — et Spotify S4A est la plus dure des quatre.
 
-    Les deux premières y sont arrivées le 2026-09-11, après trois défauts qui se
-    contredisaient entre eux ; Apple le 2026-09-12, quand sa règle est descendue en
-    SQL (migrations 102 et 103). Le test général les couvrirait aussi, mais NOMMER
-    les plateformes propres est ce qui rend la régression lisible : « Spotify passe
-    de 31 à 32 » se discute, « Apple n'est plus à zéro » ne se discute pas.
+    YouTube et SoundCloud y sont arrivées le 2026-09-11, après trois défauts qui se
+    contredisaient entre eux ; Apple le 2026-09-12 quand sa règle est descendue en SQL
+    (migrations 102 et 103) ; **Spotify S4A le même jour**, de 33 à 0, quand
+    `v_s4a_song_daily` (migration 105) lui a donné le grain TITRE — la maille que
+    réclamaient 21 de ses 32 agrégats, et qu'aucune vue ne portait.
+
+    Le test général les couvrirait toutes, mais NOMMER les plateformes propres est ce
+    qui rend la régression lisible : « Meta passe de 22 à 23 » se discute,
+    « Spotify n'est plus à zéro » ne se discute pas.
     """
     sites = _sites()
-    for platform in ("YouTube", "SoundCloud", "Apple"):
+    for platform in ("YouTube", "SoundCloud", "Apple", "Spotify S4A"):
         found = sites.get(platform, [])
         assert not found, (
             f"{platform} agrège de nouveau une table de fait hors de la couche or :\n"
