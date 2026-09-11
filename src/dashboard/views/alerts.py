@@ -326,15 +326,18 @@ def show():
     st.title(t("alerts.title", "🚨 Alerting Dashboard"))
     st.caption(t("alerts.caption", "Real-time status of platform health, data freshness, and security events."))
 
-    db = get_db_connection()
-    if db is None:
-        st.error(t("alerts.db_unreachable", "❌ Database unreachable."))
-        return
-
+    # Tenant first, connection second: the `st.stop()` below raised between the
+    # open and the `try`, so the `finally` never ran and the connection leaked.
+    # Same fix as `utils.view_session()` and `db_health.show()`.
     artist_id = get_artist_id()
     if artist_id is None and not is_admin():
         st.error(t("alerts.invalid_session", "Session invalide."))
         st.stop()
+
+    db = get_db_connection()
+    if db is None:
+        st.error(t("alerts.db_unreachable", "❌ Database unreachable."))
+        return
 
     admin = is_admin()
 

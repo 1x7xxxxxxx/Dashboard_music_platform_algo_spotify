@@ -98,7 +98,11 @@ def should_autostart(state) -> bool:
     if not steps:
         return False        # lecture impossible : on ne pousse personne
     by_key = {s.key: s.done for s in steps}
-    if by_key.get("run"):
+    # `collected` remplace l'ancienne étape « run », retirée de l'affichage le
+    # 2026-09-11 : l'artiste ne lance plus rien à la main, la collecte part seule ici
+    # et repart chaque matin par cron. Le FAIT reste lu, et il doit l'être — sans lui
+    # une collecte repartirait à chaque enregistrement d'identifiant.
+    if getattr(state, "collected", False):
         return False        # une collecte a déjà réussi : plus rien à démarrer
     # Les étapes de l'artiste. `apple` n'en fait PAS partie : l'import Apple Music est
     # facultatif — beaucoup d'artistes n'ont pas de compte Apple for Artists, et

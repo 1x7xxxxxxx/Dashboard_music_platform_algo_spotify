@@ -33,7 +33,9 @@ import pathlib
 
 import pytest
 
-from src.dashboard.views.upload_csv import _resolve_serialization, _serialization_label
+from src.dashboard.utils.csv_serialization import (
+    _resolve_serialization, _serialization_label,
+)
 
 _VIEW = pathlib.Path("src/dashboard/views/upload_csv.py")
 

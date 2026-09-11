@@ -78,16 +78,34 @@ def test_the_idempotence_is_derived_from_the_runs_not_from_a_flag():
     dire « déjà lancé » alors qu'aucun run n'a réussi, et l'artiste resterait sans
     données avec une étape cochée. Le compteur des runs ne peut pas mentir là-dessus.
     """
+    # La CHAÎNE, pas un littéral. Le 2026-09-11, l'étape « 🚀 Lancer votre première
+    # collecte » a été retirée de l'affichage — l'artiste ne lance plus rien, la
+    # collecte part seule ici et repart chaque matin. Ce test cherchait la chaîne
+    # `"run"` dans `should_autostart` et a donc rougi sur un changement qui préserve
+    # exactement ce qu'il protège. Il vérifie désormais les DEUX bouts :
+    #   1. la décision lit bien `collected` ;
+    #   2. `collected` est calculé à partir du COMPTEUR DE RUNS, pas d'un drapeau.
+    # Un drapeau `auto_started` en base serait une seconde source de vérité, capable
+    # de dire « déjà lancé » quand aucun run n'a réussi.
     src = (_ROOT / "utils" / "collection_trigger.py").read_text(encoding="utf-8")
     fn = next(n for n in ast.walk(ast.parse(src))
               if isinstance(n, ast.FunctionDef) and n.name == "should_autostart")
+    body = ast.unparse(fn)
+    assert "collected" in body, (
+        "`should_autostart` n'interroge plus l'état de collecte : plus rien ne "
+        "l'empêche de relancer une collecte à chaque enregistrement")
     keys = {n.value for n in ast.walk(fn)
             if isinstance(n, ast.Constant) and isinstance(n.value, str)}
-    assert "run" in keys, (
-        "`should_autostart` n'interroge plus l'étape `run` : plus rien ne l'empêche "
-        "de relancer une collecte à chaque enregistrement")
     assert "creds" in keys and "s4a" in keys, (
         "la condition ne lit plus les étapes de l'artiste")
+
+    setup = (_ROOT / "utils" / "setup_completion.py").read_text(encoding="utf-8")
+    maker = next(n for n in ast.walk(ast.parse(setup))
+                 if isinstance(n, ast.FunctionDef) and n.name == "steps_from_counts")
+    assert "collected=bool(has_runs)" in ast.unparse(maker).replace(" ", ""), (
+        "`collected` ne vient plus du compteur de runs — c'est devenu un drapeau, "
+        "donc une seconde source de vérité qui peut affirmer « déjà lancé » alors "
+        "qu'aucune collecte n'a réussi")
 
 
 @pytest.mark.parametrize("path", _TRIGGER_SITES, ids=lambda p: p.name)

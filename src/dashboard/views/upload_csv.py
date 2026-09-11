@@ -15,6 +15,10 @@ import pandas as pd
 
 from src.dashboard.utils.i18n import t
 from src.transformers.s4a_csv_parser import MissingFromFilenameError
+from src.dashboard.utils.cache_invalidation import purge_after_write
+from src.dashboard.utils.csv_serialization import (
+    _read_headers, _serialization_label, _sniff_sep,
+)
 
 _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
@@ -236,77 +240,6 @@ def _detect_platform(filename: str, columns: list[str]) -> str | None:
 # La résolution vivait en DOUBLE, à l'identique, dans `_read_headers` et
 # `_sniff_sep` : deux copies d'une règle est une copie qui divergera. Elle est ici,
 # une fois, et les deux appellent.
-_ENCODINGS = ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252')
-_SEPARATORS = ('\t', ';', ',')
-
-
-def _resolve_serialization(file) -> tuple[str, str, str]:
-    """(encodage retenu, séparateur retenu, ligne d'en-tête). `('', ',', '')` si illisible.
-
-    `utf-8-sig` AVANT `utf-8`, et c'est tout le défaut du 2026-09-06 : un fichier
-    UTF-8 portant un BOM décode SANS ERREUR en `utf-8`, donc la boucle s'arrêtait au
-    premier essai et le BOM survivait, collé au premier en-tête (`\ufeffdate`).
-    `utf-8-sig` lit les deux cas à l'identique et retire le BOM quand il est là.
-
-    Le séparateur est le plus fréquent de la LIGNE D'EN-TÊTE. Le point-virgule y
-    figure parce que c'est ce que produit Excel en configuration française : un
-    artiste qui ouvre puis réenregistre son export obtenait un fichier lu comme UNE
-    colonne géante, donc « type non reconnu », sans que rien ne nomme la cause.
-    """
-    raw = file.read()
-    file.seek(0)
-    for enc in _ENCODINGS:
-        try:
-            first_line = raw.decode(enc).split('\n', 1)[0]
-            break
-        except (UnicodeDecodeError, ValueError):
-            continue
-    else:
-        return '', ',', ''
-    counts = {sep: first_line.count(sep) for sep in _SEPARATORS}
-    sep = max(counts, key=counts.get) if max(counts.values()) else ','
-    return enc, sep, first_line
-
-
-def _serialization_label(file) -> str:
-    """« utf-8-sig | , » — ce qu'on a DEVINÉ, pour le journal.
-
-    Sans cette trace, un refus reste indiagnosticable après coup : les colonnes vues
-    disent ce qu'on a lu, jamais avec quel encodage ni quel séparateur on l'a lu.
-    """
-    # Un classeur Excel n'a ni encodage de texte ni séparateur : `latin-1` décode
-    # n'importe quels octets sans jamais lever, donc la résolution rendrait
-    # « latin-1 | , » sur un binaire — une trace fausse, pire qu'aucune trace.
-    if getattr(file, 'name', '').lower().endswith(('.xlsx', '.xls')):
-        return 'xlsx (binaire — ni encodage ni séparateur)'
-    enc, sep, _ = _resolve_serialization(file)
-    printable = {'\t': 'TAB', ';': ';', ',': ','}.get(sep, sep)
-    return f"{enc or 'illisible'} | {printable}"
-
-
-def _read_headers(file) -> list[str]:
-    """Header row of an uploaded file — encoding fallback + delimiter sniffing.
-
-    pd.read_csv(nrows=0) assumed utf-8 + comma, which broke on DistroKid
-    exports (tab-delimited, latin-1). Works for every supported platform.
-    """
-    import csv as _csv
-    _enc, sep, first_line = _resolve_serialization(file)
-    if not first_line:
-        return []
-    return next(_csv.reader([first_line], delimiter=sep), [])
-
-
-def _sniff_sep(file) -> str:
-    """Le séparateur de la ligne d'en-tête — la MÊME résolution que `_read_headers`.
-
-    `_parse_file` relisait le fichier avec `pd.read_csv(file)` nu, donc virgule et
-    utf-8. Un fichier tabulé ou point-virgulé pouvait donc être DÉTECTÉ correctement
-    puis exploser à la lecture, et le message rendu était l'exception brute de pandas.
-    """
-    return _resolve_serialization(file)[1]
-
-
 def _rows_in_table(db, table: str, artist_id: int) -> int:
     """Combien de lignes la BASE porte pour ce locataire dans cette table.
 
@@ -1147,17 +1080,19 @@ def render_uploader(db, target_artist_id: int) -> None:
                 except Exception:
                     pass  # audit log failure must never block the UI
 
-        # LE PARCOURS VIENT PEUT-ÊTRE DE SE BOUCLER — on démarre la collecte.
+        # DEUX CHOSES APRÈS UN IMPORT, ET ELLES SONT DISTINCTES.
         #
-        # Ici plutôt que sur un bouton : l'import CSV est, avec la saisie des
-        # identifiants, l'un des deux gestes qui peuvent compléter la mise en route.
-        # Jusqu'au 2026-09-06 l'artiste finissait de tout déposer et rien ne partait ;
-        # il lui fallait trouver dans la barre latérale un bouton qu'il n'avait
-        # aucune raison de chercher, et sa quatrième étape restait ⬜.
+        # 1. Purger les caches (600 s) : sinon l'écran dit « ✅ Importé » et le
+        #    chiffre ne bouge pas pendant dix minutes. Voir `cache_invalidation`.
+        # 2. Démarrer la collecte SI le parcours vient de se boucler — ici plutôt
+        #    que sur un bouton, l'import étant l'un des deux gestes qui le
+        #    complètent (avant le 2026-09-06 rien ne partait).
         #
-        # `autostart_if_journey_complete` ne fait rien dans l'immense majorité des
-        # appels — parcours incomplet, ou collecte déjà enregistrée — et ce silence
-        # est voulu : cette ligne s'exécute à CHAQUE import réussi.
+        # Les confondre était le défaut : `autostart_if_journey_complete` ne fait
+        # rien une fois la première collecte enregistrée, donc à TOUS les
+        # ré-imports — le cas courant d'un locataire installé. S'appuyer sur lui
+        # pour purger revenait à ne jamais purger.
+        purge_after_write(total_ok)
         _launched = _not_launched = {}
         try:
             from src.dashboard.app import COLLECTION_DAGS

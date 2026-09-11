@@ -14,9 +14,14 @@ YOUTUBE_SCHEMA = {
             view_count BIGINT DEFAULT 0,
             thumbnail_url TEXT,
             country VARCHAR(10),
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT unique_channel_id UNIQUE(channel_id)
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Per (tenant, platform object) — see migration 064 and the note
+        -- in init_db.sql. Never on channel_id alone: that hands one tenant's
+        -- row to the next tenant who collects the same object.
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_channels_artist_channel
+        ON youtube_channels(artist_id, channel_id);
 
         CREATE INDEX IF NOT EXISTS idx_youtube_channels_id
         ON youtube_channels(channel_id);
@@ -56,9 +61,14 @@ YOUTUBE_SCHEMA = {
             thumbnail_url TEXT,
             duration VARCHAR(50),
             definition VARCHAR(10),
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT unique_video_id UNIQUE(video_id)
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Per (tenant, platform object) — see migration 064 and the note
+        -- in init_db.sql. Never on video_id alone: that hands one tenant's
+        -- row to the next tenant who collects the same object.
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_videos_artist_video
+        ON youtube_videos(artist_id, video_id);
 
         CREATE INDEX IF NOT EXISTS idx_youtube_videos_id
         ON youtube_videos(video_id);
@@ -104,9 +114,14 @@ YOUTUBE_SCHEMA = {
             video_count INTEGER DEFAULT 0,
             published_at TIMESTAMP,
             thumbnail_url TEXT,
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT unique_playlist_id UNIQUE(playlist_id)
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Par (locataire, objet de plateforme) — migration 100, même classe
+        -- que 064. Jamais sur playlist_id seul : le second locataire qui collecte
+        -- le même objet n'obtient pas sa ligne, il écrase celle du premier.
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_playlists_artist_playlist
+        ON youtube_playlists(artist_id, playlist_id);
 
         CREATE INDEX IF NOT EXISTS idx_youtube_playlists_id
         ON youtube_playlists(playlist_id);
@@ -125,9 +140,14 @@ YOUTUBE_SCHEMA = {
             text TEXT,
             like_count INTEGER DEFAULT 0,
             published_at TIMESTAMP,
-            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT unique_comment_id UNIQUE(comment_id)
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Par (locataire, objet de plateforme) — migration 100, même classe
+        -- que 064. Jamais sur comment_id seul : le second locataire qui collecte
+        -- le même objet n'obtient pas sa ligne, il écrase celle du premier.
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_youtube_comments_artist_comment
+        ON youtube_comments(artist_id, comment_id);
 
         CREATE INDEX IF NOT EXISTS idx_youtube_comments_video
         ON youtube_comments(video_id);

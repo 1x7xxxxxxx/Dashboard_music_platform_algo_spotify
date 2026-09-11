@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import smart_date_range
+from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.kpi_helpers import get_roi_data, get_monthly_roi_series
 from src.database.postgres_handler import validate_table
@@ -114,6 +115,7 @@ def _delete_revenue(db, table, artist_id, year, month):
         f"DELETE FROM {table} WHERE artist_id = %s AND year = %s AND month = %s",
         (artist_id, year, month)
     )
+    purge_after_write()
 
 
 def _upsert_revenue(db, table, artist_id, year, month, revenue_eur, notes):
@@ -133,6 +135,7 @@ def _upsert_revenue(db, table, artist_id, year, month, revenue_eur, notes):
         conflict_columns=['artist_id', 'year', 'month'],
         update_columns=['revenue_eur', 'notes', 'source', 'updated_at'],
     )
+    purge_after_write()
 
 
 def _render_entry_form(db, artist_id):

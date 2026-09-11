@@ -31,15 +31,15 @@ _LANGS = {"fr": "🇫🇷 FR", "en": "🇬🇧 EN"}
 # translations added incrementally.
 _TR: dict[str, dict[str, str]] = {
     "fr": {
-        "ui.language": "🌐 Langue / Language",
         "nav.title": "🎵 Navigation",
         "ui.invalid_session": "Session invalide.",
+        "ui.language": "🌐 Langue / Language",
         "ui.db_unreachable": "❌ Base de données injoignable. Vérifiez que Docker tourne : `docker-compose up -d`",
     },
     "en": {
-        "ui.language": "🌐 Langue / Language",
         "nav.title": "🎵 Navigation",
         "ui.invalid_session": "Invalid session.",
+        "ui.language": "🌐 Langue / Language",
         "ui.db_unreachable": "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`",
         # Admin "View as" QA toggle + artist plan badge
         "nav.view_as_header": "###### 👁️ View as (admin QA)",
@@ -184,11 +184,35 @@ def language_selector(sidebar: bool = True) -> None:
     labels = list(_LANGS)
     container = st.sidebar if sidebar else st
     choice = container.radio(
+        # « 🌐 Langue / Language » NE S'AFFICHE PLUS (2026-09-11) : au-dessus de
+        # deux boutons qui disent déjà « Français » et « English », il faisait lire
+        # deux fois la même chose dans un panneau où chaque ligne coûte.
+        #
+        # Le retirer VRAIMENT a été essayé — libellé vide, entrées de catalogue
+        # supprimées — et Streamlit le refuse, en toutes lettres :
+        #
+        #     `label` got an empty value. This is discouraged for accessibility
+        #     reasons and MAY BE DISALLOWED IN THE FUTURE by raising an exception.
+        #     Please provide a non-empty label and hide it with label_visibility.
+        #
+        # C'est donc `collapsed` : absent de l'écran, conservé pour les lecteurs
+        # d'écran, et pas une bombe à retardement au prochain Streamlit.
         t("ui.language"), labels,
         index=labels.index(cur) if cur in labels else 0,
         format_func=lambda c: _LANGS[c], horizontal=True,
         key="_lang_sel" if sidebar else "_lang_sel_pre_login",
-        label_visibility="visible")
+        # LIBELLÉ MASQUÉ, PAS SUPPRIMÉ (2026-09-11).
+        #
+        # « 🌐 Langue / Language » au-dessus de deux boutons qui disent déjà
+        # « Français » et « English » ne dit rien de plus : l'artiste lit deux
+        # fois la même chose, dans un panneau où chaque ligne coûte.
+        #
+        # La chaîne reste, et c'est délibéré : Streamlit exige un libellé non
+        # vide, et `collapsed` le retire de l'écran en le gardant pour les
+        # lecteurs d'écran. Passer une chaîne vide afficherait un avertissement
+        # et retirerait le seul nom que la commande porte pour qui ne voit pas
+        # les boutons.
+        label_visibility="collapsed")
     set_lang(choice)
     # Mémoire longue, pour un utilisateur connecté. Import local : `i18n` est appelé
     # par des surfaces sans base (PDF headless, DAGs, tests) et ne doit pas en

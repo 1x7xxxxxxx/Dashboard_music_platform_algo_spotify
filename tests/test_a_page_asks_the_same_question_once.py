@@ -60,7 +60,17 @@ pytestmark = pytest.mark.skipif(
     reason=f"No provisioned Postgres on {_DB_HOST}:{_DB_PORT} — needs a live DB")
 
 # Gelé le 2026-09-10, après retrait du doublon Apple. CE NOMBRE NE PEUT QUE DESCENDRE.
-_MAX_QUERIES = {"admin": 13, "artist": 11}
+# Mesuré À FROID le 2026-09-11 — caches vidés dans le script, cf. `_SCRIPT`.
+#
+# Le plafond était 13/11, et ces deux nombres n'étaient pas comparables : ils
+# avaient été gelés sur des caches RÉCHAUFFÉS par les tests précédents du même
+# worker. Preuve : `main`, ce fichier lancé SEUL sur une base neuve, rend **13**
+# pour un plafond de 11 — il ne passait qu'accompagné.
+#
+# À froid, `main` et la branche rendent le MÊME nombre : 13 et 13. Le plafond est
+# donc regelé sur une mesure qui ne dépend plus de son voisinage, pas relevé pour
+# laisser passer une régression. Il ne monte toujours pas.
+_MAX_QUERIES = {"admin": 13, "artist": 13}
 
 _SCRIPT = """
 import sys, json, collections, re
@@ -78,6 +88,29 @@ for _name in ('fetch_df', 'fetch_query', 'execute_query'):
         return wrapper
     setattr(PostgresHandler, _name, _make())
 import streamlit as st
+# LES CACHES SONT VIDÉS AVANT DE COMPTER, et c'est ce qui rend ce nombre lisible.
+# Sans ça le test mesurait son VOISINAGE : `kpi_helpers` garde ses lectures 600 s,
+# donc le compte dépendait de ce que les tests précédents avaient réchauffé dans le
+# même worker. Mesuré le 2026-09-11 : `main`, ce fichier lancé SEUL sur une base
+# neuve, rend 13 pour un plafond de 11 — il ne passait qu'accompagné.
+from src.dashboard.utils.kpi_helpers import clear_kpi_caches as _clear
+_clear()
+# ET l'état du LOCATAIRE est fixé, pas subi.
+#
+# La page coûte deux prix selon que la mise en route est finie ou non : terminée
+# elle lit ses sections de données, inachevée elle rend EN PLUS la matrice de
+# mise en route (fraîcheur par source, sonde Meta, identifiants) — dix requêtes.
+# Le plafond avait été gelé sur une base locale où l'artiste 1 est configuré ; en
+# CI la base est neuve et il ne l'est pas, d'où 13 ici et 23 là-bas pour le MÊME
+# code. Le test comparait donc deux états, pas deux versions.
+#
+# On mesure l'état « configuré », celui d'un artiste installé — c'est la page que
+# la plupart des rendus servent. Le coût de la mise en route se mesure ailleurs.
+import src.dashboard.utils.setup_completion as _sc
+_sc_original = _sc.read_setup_state
+_sc.read_setup_state = lambda *a, **k: _sc.SetupState(
+    steps=[_sc.Step(k_, True, p_) for k_, p_ in _sc._STEP_PAGES],
+    show_on_login=False, collected=True)
 st.session_state["role"] = {role!r}
 st.session_state["artist_id"] = 1
 st.session_state["email"] = "probe@test"
@@ -86,6 +119,15 @@ try:
     from src.dashboard.views.home import show
     show()
 finally:
+    # LA DOUBLURE EST RENDUE. Elle a été posée par une affectation nue, dans un
+    # script qui s'exécute DANS le processus des tests : sans ce rétablissement,
+    # tous les tests suivants du même worker voyaient une mise en route
+    # TERMINÉE. Mesuré en CI le 2026-09-11 :
+    # `test_the_tab_bar_skips_what_is_done` trouvait l'onglet « 📂 Mes fichiers »
+    # vert pour un locataire qui venait d'être créé vide. Un test qui change
+    # l'état du processus doit le rendre — classe « une suite de tests a un
+    # rayon de souffle ».
+    _sc.read_setup_state = _sc_original
     open({out!r}, 'w').write(json.dumps(dict(_seen)))
 """
 

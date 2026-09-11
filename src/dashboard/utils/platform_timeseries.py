@@ -212,7 +212,7 @@ def discarded_deltas(db: Any, artist_id: Optional[int]) -> dict:
     for key, sql in (("youtube", _SQL_DISCARDED_YOUTUBE),
                      ("soundcloud", _SQL_DISCARDED_SOUNDCLOUD)):
         try:
-            row = db.fetch_query(sql, (artist_id,))
+            row = _q(db, sql, (artist_id,))
             if row and row[0][0]:
                 out[key] = (int(row[0][0]), int(row[0][1] or 0), int(row[0][2] or 0))
         except Exception as exc:      # noqa: BLE001
@@ -220,10 +220,44 @@ def discarded_deltas(db: Any, artist_id: Optional[int]) -> dict:
     return out
 
 
+# ── LE POINT OÙ UN CACHE PEUT SE BRANCHER, ET LE SEUL ───────────────────────
+#
+# Ce module reste SANS Streamlit : l'export PDF headless et les tests l'appellent.
+# Un `@st.cache_data` sur ses fonctions publiques est donc impossible — et il
+# serait faux même s'il était possible. Ces fonctions sont écrites pour NE JAMAIS
+# LEVER : sur une panne de base elles rendent vide, indiscernable de « rien à
+# lire ». Les envelopper dans un cache mettrait la PANNE en cache, et une
+# coupure d'une seconde deviendrait « aucune donnée » pendant dix minutes, pour
+# tous les spectateurs à la fois. C'est le constat CRITIQUE qui a fait refuser
+# la première conception, le 2026-09-11.
+#
+# D'où ce crochet, placé À L'INTÉRIEUR de l'avalement : la couche Streamlit y
+# installe une lecture mise en cache ; si elle lève, rien n'est mémorisé, le
+# `except` ci-dessous dégrade comme avant, et le rendu suivant réessaie.
+#
+# La clé du cache est `(sql, params)`, et `params` porte toujours `artist_id` :
+# l'isolation entre locataires est donc structurelle, pas une convention à
+# respecter à chaque appel.
+_FETCH = None
+
+
+def set_fetch(fetch) -> None:
+    """Installe la lecture du processus (`fetch(db, sql, params) -> rows`)."""
+    global _FETCH
+    _FETCH = fetch
+
+
+def _q(db: Any, sql: str, params: tuple):
+    """Lit, par le crochet du processus s'il y en a un."""
+    if _FETCH is not None:
+        return _FETCH(db, sql, params)
+    return db.fetch_query(sql, params)
+
+
 def _rows(db: Any, sql: str, params: tuple) -> list[tuple]:
     """Ne lève jamais : ces courbes sont un affichage, pas un calcul de facturation."""
     try:
-        return [(r[0], int(r[1] or 0)) for r in (db.fetch_query(sql, params) or [])
+        return [(r[0], int(r[1] or 0)) for r in (_q(db, sql, params) or [])
                 if r[0] is not None and r[1] is not None]
     except Exception as exc:      # noqa: BLE001 — une page qui plante coûte plus qu'une courbe absente
         logger.warning("platform series unavailable: %s", type(exc).__name__)
@@ -296,7 +330,7 @@ def followers_change(db, artist_id, since=None, until=None):
         params.append(until)
     sql += " GROUP BY 1 ORDER BY 1"
     try:
-        rows = [(r[0], int(r[1])) for r in (db.fetch_query(sql, tuple(params)) or [])
+        rows = [(r[0], int(r[1])) for r in (_q(db, sql, tuple(params)) or [])
                 if r[1] is not None]
     except Exception as exc:      # noqa: BLE001 — un compteur décoratif ne casse pas la page
         logger.warning("followers change unavailable: %s", type(exc).__name__)
@@ -335,7 +369,7 @@ def _apple_readings(db, artist_id):
     if memo is not None and artist_id in memo:
         return memo[artist_id]
     try:
-        rows = db.fetch_query(
+        rows = _q(db,
             "SELECT period_start, period_end, COALESCE(SUM(plays), 0)::bigint "
             "FROM apple_songs_performance "
             "WHERE artist_id = %s AND period_start IS NOT NULL "
@@ -409,7 +443,7 @@ def apple_period_plays(db, artist_id, since=None, until=None):
         params.append(until)
     sql += " GROUP BY 1 ORDER BY 1"
     try:
-        rows = [(r[0], int(r[1])) for r in (db.fetch_query(sql, tuple(params)) or [])
+        rows = [(r[0], int(r[1])) for r in (_q(db, sql, tuple(params)) or [])
                 if r[1] is not None]
     except Exception as exc:      # noqa: BLE001
         logger.warning("apple period unavailable: %s", type(exc).__name__)
@@ -439,7 +473,7 @@ def apple_lifetime_plays(db, artist_id):
         cover_total = sum(p for _s, _e, p in non_overlapping_cover(readings))
         return max(widest[2], cover_total)
     try:
-        row = db.fetch_query(
+        row = _q(db,
             "SELECT COALESCE(SUM(plays), 0)::bigint FROM apple_songs_performance "
             "WHERE artist_id = %s AND period_start IS NULL "
             "  AND snapshot_date = (SELECT MAX(snapshot_date) "
@@ -461,7 +495,7 @@ def apple_snapshot_count(db, artist_id) -> int:
     if db is None or artist_id is None:
         return 0
     try:
-        row = db.fetch_query(
+        row = _q(db,
             "SELECT COUNT(*) FROM (SELECT DISTINCT snapshot_date, period_start, "
             "period_end FROM apple_songs_performance WHERE artist_id = %s) r",
             (artist_id,))
@@ -561,7 +595,7 @@ _SQL_LIFETIME_SOUNDCLOUD = _SQL_LIFETIME
 
 def _lifetime(db, sql: str, artist_id, platform: str = "spotify") -> int:
     try:
-        row = db.fetch_query(sql, (artist_id, platform))
+        row = _q(db, sql, (artist_id, platform))
         return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
         logger.warning("lifetime total unavailable: %s", type(exc).__name__)

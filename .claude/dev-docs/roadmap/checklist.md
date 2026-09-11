@@ -25,6 +25,12 @@ Index concis des tâches **qu'on peut commencer maintenant**. À la complétion 
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R84 | Déployer la migration 100 **avant** le code YouTube qui en dépend | P2 | `pytest tests/test_an_upsert_targets_an_index_that_exists.py` contre la prod : vert = l'index existe |
+| R87 | Répliques Streamlit + `lb_policy cookie` dans Caddy | P3 | un test de charge **au niveau websocket** ; `loadtest_dashboard.py` ne sait pas le faire et le dit |
+| R88 | **Étendre la couche or aux SÉRIES** (ADR-019 n'a couvert que les totaux scalaires) : une courbe cumulée affirme un total à son dernier point et doit lire la même définition que la tuile — YouTube trace 136 contre 118 334 annoncés (×870), SoundCloud 77 contre 23 563 | P2 | le dernier point de la courbe égale la tuile **par construction**, pour les 3 plateformes |
+| R89 | ~~Compteur de chaîne dans le PDF~~ — **PRÉMISSE FAUSSE, vérifiée** : le PDF lit déjà les compteurs par vidéo, `youtube_channel_history` n'y sert qu'aux ABONNÉS (sa seule source), et `test_every_surface_gives_the_same_total` le garde. Reste le **double axe** de `youtube_channel_growth`, à trancher : abonnés et vues ne sont pas deux grandeurs comparables, donc l'interdit de `platform_chart` ne s'y applique pas mécaniquement | P4 | une décision écrite, ou `twinx()` retiré |
+| R90 | Retirer le `multiselect` « Sources affichées » au profit du clic sur la légende — **sauf en mode « part »**, dont les pourcentages sont calculés sur l'ensemble choisi | P4 | `home.py` n'a plus de `st.multiselect` pour les sources hors mode `share` |
+| R91 | Donner au PDF les figures pertinentes en partageant la DONNÉE, pas le rendu (`kaleido` est absent, Plotly→PNG impossible) | P3 | une figure du PDF et son équivalent à l'écran lisent la même fonction de `platform_timeseries` |
 
 R59, R60, R61 et R62 ont été closes le 2026-09-05 (voir `archive.md`) : deux par un
 correctif, une par un ADR qui montre que sa prémisse était fausse, une par un ADR qui
@@ -79,9 +85,125 @@ inviter la bêta. Aucune ligne de code ne la débloque.
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-10, AUCUNE tâche ouverte (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-09-11, R84 · R87 · R88 à R91 ouvertes (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R84,R87,R88,R89,R90,R91 -->
+
+### Le 2026-09-11 a chiffré la montée en charge, et démenti trois de mes chiffres
+
+Question posée : combien d'utilisateurs simultanés, quel palier suivant, et que penser
+du conseil « regarde star schema / Data Vault mais ne les mets pas en place ». Tout ce
+qui suit est **mesuré dans le conteneur de production**, pas estimé.
+
+| Mesure | Valeur |
+|---|---|
+| Rendu de page complète, caches chauds (12 rendus, 0 échec) | **p50 287 ms**, p95 345 ms |
+| dont SQL (12 requêtes) | **103 ms — 39,5 %** |
+| dont connexions (4 poignées de main × 13 ms) | **40 ms — 15,4 %** |
+| dont plotly | **0,9 ms** |
+| Part de tout le SQL venant de `platform_timeseries.py` | **88 %** |
+| Base : taille / lignes / plus grosse table / locataires | 62 Mo / 111 008 / 34 078 / 8 |
+| `EXPLAIN (ANALYZE, BUFFERS)` de l'agrégat le plus lourd | `shared hit=626`, **`read=0`** |
+
+**Le mur est le GIL de Streamlit, pas la donnée.** Un seul processus, un seul upstream
+Caddy, aucun pool. Plafond dérivé de p50 : **~12 utilisateurs actifs** à un clic toutes
+les 5 s, ~24 à 10 s, ~49 à 20 s. `read=0` dit qu'il n'y a aucune entrée-sortie disque à
+optimiser : la base tient entière dans `shared_buffers`.
+
+**Le mentor a raison, et ADR-012 + ADR-018 disent pourquoi** : les deux choses que vend
+le Data Vault — traçabilité des sources, historisation de ce qui change — sont déjà
+achetées ici, moins cher. Le seul motif de Kimball dont ce dépôt aura besoin est la
+**table de faits agrégée**, et son déclencheur est écrit plus bas.
+
+**Trois chiffres démentis par la mesure** (le détail vit dans le DEVLOG) : « ~25-50
+utilisateurs » venait d'un rendu de *vue* (61 ms) et non de *page* ; « plotly, 36
+figures, le pire cas » vaut pour `trigger_algo` et pas pour l'accueil (0,9 ms) ; et
+replier les trois appels à `v_platform_totals` en un seul rapporte **1,0 ms**, pas 20 —
+le prédicat `platform = %s` élague déjà les autres branches. Mesurer a évité ce refactor.
+
+### Le graphique de l'accueil — six symptômes, UNE cause (2026-09-11)
+
+Signalés par l'artiste : cumulé incohérent pour YouTube et SoundCloud, mesures
+« uniquement journalières » sur cette année / 12 mois / 90 j / 30 j, aucune donnée en
+« Par période », idem par année et par semaine. Mesuré en production, artiste 1 :
+
+| | Somme des points tracés | Total annoncé | Écart |
+|---|---|---|---|
+| Spotify | 165 065 | 165 065 | ×1,0 |
+| YouTube | **136** | 118 334 | **×870** |
+| SoundCloud | **77** | 23 563 | **×306** |
+
+**Le mode « Cumulé » fait un `cumsum` de la série quotidienne.** Pour Spotify c'est
+juste — le CSV S4A porte l'historique. Pour les deux autres, cette série est un ÉCART
+de compteur : elle ne contient rien d'avant notre première collecte ni les trous. On
+ne peut pas ré-intégrer une dérivée sans sa constante, et le compteur la donne.
+
+La conséquence explique tout le reste : YouTube est mesuré **115 jours**, SoundCloud
+**95**, contre **1 344** pour Spotify. Le plancher de seau (50 %, posé à raison) vide
+alors les agrégats — au pas **annuel, YouTube garde 0 seau**.
+
+Classe `cumulative-counter-drawn-as-its-own-history`. Le balayage a trouvé deux frères
+dans le PDF (R89), déjà corrigés côté app et jamais reportés.
+
+**Ce que ce défaut dit de l'architecture, et c'est le plus utile.** La couche or existe
+et elle est juste : `v_platform_totals` (migration 097) donne 118 334, et la tuile le
+lit. Le graphique la CONTOURNE — il prend une série de la couche argent, les écarts
+quotidiens, et la ré-additionne pour fabriquer son propre total. Deux définitions du
+même nombre sur un écran, ce qu'ADR-019 interdit.
+
+**ADR-019 a couvert les totaux SCALAIRES, pas les séries.** La migration 097 avait
+repointé les cinq surfaces qui calculaient *un nombre*. Une courbe cumulée fait la même
+affirmation — son dernier point EST un total — et n'a jamais été comptée parmi elles.
+Une couche or qui définit un total sans définir la série qui y aboutit laisse la
+contradiction visible. R88 est donc énoncée comme une extension de la frontière, pas
+comme la correction d'un mode : le premier énoncé empêche la classe de revenir, le
+second ne corrige qu'une instance.
+
+### Conditions d'attente — ce qui n'est PAS une tâche
+
+Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans l'index.
+
+| Ce qu'on ne fait pas | Ce qui le rouvrirait, calculable |
+|---|---|
+| Retirer les **110 index jamais scannés** (5,7 Mo) | une table de faits dépasse **1 M lignes** — l'amplification d'écriture devient réelle. Aujourd'hui : 34 078. `SELECT max(n_live_tup) FROM pg_stat_user_tables` |
+| Sortir **Airflow** de la boîte (il prend 2,3 Go des 7,7) | la RAM des conteneurs dashboard dépasse **2 Go** — ce que R87 rapproche. `docker stats --no-stream` |
+| Construire la **couche or** (table de faits agrégée) | un locataire dépasse **100 000 lignes** sur une table de faits, ou un agrégat d'accueil dépasse **200 ms**. Aujourd'hui : 14 694 lignes, 46 ms |
+| ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
+
+### La méthode, pour R85 à R87
+
+- **R85 (cache)** est sorti **BUILD-MODIFIED** d'une revue `code-critic`, avec un point
+  bloquant : les cinq fonctions visées sont écrites pour *ne jamais lever et rendre
+  vide*. Les cacher transformerait une panne passagère de base en « aucune donnée »
+  faux pendant 600 s **pour tous les spectateurs**. Les quatre autres conditions :
+  `views/onboarding.py:162` manque à la liste des appelants ; `apple_lifetime_plays`
+  n'est pas dans l'ensemble enveloppé alors que c'est ce dont `apple_music.py` a besoin ;
+  les imports de constantes ne doivent pas passer par le module caché ; et
+  `upload_csv.py` doit purger — **fait le 2026-09-11**, c'était un défaut vivant.
+  Le précédent à copier est `kpi_helpers` : `ttl=600`, `_db` hors clé, `artist_id`
+  DEDANS, purge sur l'événement et pas sur l'horloge.
+- **R86 (pool) est ÉCRIT, TESTÉ, MESURÉ — et personne ne l'appelle.** Le gain est
+  réel : 20 cycles ouverture/fermeture font **0 poignée de main** au lieu de 20, soit
+  ~40 ms sur un rendu de 287 en production, et `statement_timeout` survit au pool
+  (mutations vues rouges sur les trois propriétés). Ce qui bloque est ailleurs et
+  **n'est pas expliqué** : l'activer fait passer l'accueil de **13 à 23 requêtes SQL**,
+  mesuré sur une base neuve, à l'identique contre `main`. Les dix en trop ne sont pas
+  un surcoût mais une **section supplémentaire rendue** (matrice de mise en route,
+  fraîcheur par source, sonde Meta). Suspect principal, non prouvé :
+  `_ensure_connection()` appelle `conn.poll()`, qui sur une connexion RÉUTILISÉE peut
+  lever `OperationalError` et déclencher un emprunt de plus. Reproduction : brancher
+  `enable_pool(1, 8)` dans `get_db_connection()`, puis
+  `pytest tests/test_a_page_asks_the_same_question_once.py` sur une base neuve.
+  Tant que l'effet n'est pas expliqué, le chemin chaud de 43 vues + l'API + Airflow
+  ne le reçoit pas.
+- **R87 (répliques)** ne change aucune ligne d'application : 3 services, 3 upstreams, et
+  **`lb_policy cookie` est obligatoire** (Streamlit tient un état serveur par websocket).
+  Le compose de prod est gitignoré : modifier sur la boîte ET porter dans
+  `docker-compose.example.yml`. Conséquence à accepter : le cache devient par réplique.
+- **Mesurer, pas déduire** : `tools/loadtest_dashboard.py`, à lancer **sur le serveur**
+  (il refuse `/mnt/…`, où DrvFS gonfle les temps de 5× à 160×). Il ne trace **pas** de
+  courbe de concurrence et `--self-check` montre pourquoi : `AppTest` sature de lui-même
+  sous threads, un `st.write('hello')` passant de 352 ms à 2 144 ms.
 
 ### Ce que le 2026-09-10 a changé (l'audit transverse, huit tâches livrées)
 
@@ -333,98 +455,6 @@ redite de **R1**, le geste humain porté par la table « En attente de toi » ci
 
 Ce qui rouvre chacun est écrit dans son bloc, dans l'archive. Ne reste donc qu'**un**
 geste, et lui seul : **R1** — inviter la bêta.
-
-### Ce que le 2026-09-04 (soir) a changé sous cette ligne
-
-Deux lots de parcours artiste, traités et déployés le même jour — DEVLOG « suite 10 »
-et « suite 11 ». Vingt remarques, une seule famille : **l'app parlait d'elle-même**.
-Les gestes qui la fermaient sont, dans l'ordre de ce qu'ils ont coûté à un artiste :
-
-- un **verdict de connexion calculé et jamais montré** (le `st.rerun()` effaçait le
-  message juste avant qu'il s'affiche) ;
-- **Apple Music cochable et ne menant nulle part** — aucun onglet, aucun repli, aucun
-  message, et éternellement « Suivante » ;
-- un **sélecteur d'OS** en tête de chaque onglet alors qu'aucun guide ne dépend plus
-  du clavier ;
-- une **alerte DAG** qui envoyait remplir `SPOTIFY_ARTIST_IDS`, variable qui doit
-  rester vide sous peine de réarmer la fuite de locataire du 2026-08-20 ;
-- un **bac à sable qui masquait un conflit d'identité entre deux vrais locataires**
-  (classe `exempt-row-hides-others-conflict`, P2).
-
-### Ce que le 2026-09-04 avait déjà changé
-
-Rien n'a été rouvert ; trois choses ont été **retirées ou rendues prouvables**.
-
-- **ADR-014** tranche la stack data moderne (dbt, ClickHouse, DuckDB, dlt, Dagster,
-  Parquet/R2, Supabase, ECharts) : tout différé, chaque refus avec un déclencheur
-  **calculable**. Le chiffre qui tranche : 43 Mo de base, agrégat à 18,5 ms.
-- **Le seul trou de robustesse réel a été comblé** — les 21 sauvegardes vivaient sur le
-  disque de la base, et le drill de restauration n'avait aucun appelant depuis juin.
-  **Refermé pour de bon le 2026-09-04** : R57 attendait un bucket, donc une carte
-  bancaire ; elle est partie sur un dépôt privé chiffré (ADR-015), 22 archives
-  distantes, et la restauration a été prouvée **sans le serveur** — archive tirée de
-  GitHub, déchiffrée localement, 93 tables. Le geste humain a disparu avec la tâche.
-- **Airflow a maigri** : parsing 30 → 300 s, métadonnées 246 → 91 Mo, et les 4
-  `*_csv_watcher` **supprimés** — 98,4 % des lignes de métadonnées pour sonder des
-  répertoires vides. La page d'import garde désormais le fichier 14 jours, ce qui
-  était la seule moitié utile d'un watcher.
-
-**R1 a commencé le 2026-08-30** : premier parcours d'onboarding fait en entier, ~20
-remarques de terrain, toutes traitées et déployées (PR #115, migration 079). Aucune ne
-portait sur la lenteur — la classe dominante était du texte adressé au mauvais lecteur.
-R1 reste ouverte parce que le test n'est pas fini : l'artiste reprend là où il s'était
-arrêté.
-
-### Audit du 2026-09-03 — trois jours de tourne sans intervention
-
-La prod tourne depuis 64 jours (`postgres` 2 mois, `dashboard`/`api` 3 jours). **Rien
-n'a cassé pendant l'absence** et, pour la première fois, ce n'est pas une déduction :
-les surfaces de preuve construites en août ont toutes répondu.
-
-| Ce qui a été lu | Verdict |
-|---|---|
-| 16 DAGs, 4 jours de runs | **0 tâche Airflow en échec** ; les 4 DAGs sans run récent sont hebdomadaires (`0 * * 1`), pas muets |
-| `etl_run_log`, par locataire × plateforme | 1 seule défaillance : `meta_ads_api_daily` / Benken (12), 5 nuits d'affilée, `act_65390907` — **le blocage connu de partage de compte, pas une régression** |
-| `check_tenant_contamination` | **0 constat** — aucune ligne sous un locataire qui ne peut pas la porter |
-| `check_canary_health` (locataire 14) | 0 problème, et il redit lui-même qu'il ne couvre ni Meta ni Instagram (ADR-010) |
-| `check_row_dips` | 0 collecte partielle |
-| Sources périmées | 2 : **S4A (88 j) et Apple Music (79 j)** — les deux alimentées par CSV, que personne ne dépose. Attendu, pas un incident (R46) |
-| Meta Ads « silencieux » | qualifié `expected_silence` : 34 campagnes connues, aucune active — la vue distingue enfin « pas de données » de « pas de campagne » |
-| `app.` / `api.` / apex `streamlytics.fr` | 200, ~0,2 s ; `/health` → `{"status":"ok"}` |
-| Sauvegardes | quotidiennes à 03:00, 4 dernières présentes et **croissantes** (1,52 → 1,79 Mo) |
-| Disque / RAM | 42 % de 150 Go ; 4,5 Go dispo sur 7,7 |
-
-**Le point le plus utile de l'audit** : le mail nocturne n'est pas parti, et c'est
-**décidé**. Le log dit `✉️ not re-sent (constats inchangés depuis le dernier envoi
-(2j), renvoi dans 4j ou dès qu'un constat change)`. Un silence obtenu par dédup nommée,
-pas un silence par accident — exactement ce que le commit `5d22bd2` visait.
-
-**Ce qui attend une décision, pas un correctif** : `STREAMLYTICS_ALLOW_ARTIST_EMAIL`
-n'est posée dans aucun conteneur de prod. Le garde d'audience de PR #121 est donc actif,
-et **aucun e-mail ne partira jamais vers un locataire** tant qu'elle n'est pas posée.
-C'est l'état voulu aujourd'hui ; c'est aussi la variable à poser le jour où R1 passe à
-l'invitation réelle. `verification_email` n'est pas concernée — l'inscription vaut
-consentement, et elle part depuis `streamlytics_dashboard`, qui porte bien
-`STREAMLYTICS_ENV=production` et ses trois variables SMTP.
-
-> `streamlytics_api` n'a pas `STREAMLYTICS_ENV`. Sans effet aujourd'hui : `src/api/`
-> n'importe ni `email_alerts` ni `instance_identity`, donc aucun chemin d'envoi n'y
-> passe. À reposer si l'API se met un jour à écrire à quelqu'un.
-
-> La ligne `<!-- reprise: open=… -->` ci-dessus n'est pas décorative : c'est la même
-> affirmation que le paragraphe, sous une forme que `tests/test_the_resume_header_is_checked.py`
-> peut comparer aux deux tableaux d'index. Une prose ne se vérifie pas ; une prose
-> **ancrée** se vérifie.
-
-> ⚠️ Ce bloc nommait encore R13, R17 et R55 le 2026-08-28 alors que les trois étaient
-> closes. Le corps du fichier le disait déjà ; c'est l'en-tête qui n'avait pas suivi.
-> Une roadmap se périme comme un commentaire, et son en-tête plus vite que son corps :
-> c'est la seule partie que `/resume` recopie sans la relire. Les comptes rendus des
-> séances du 26 au 30 août ont été **rotés dans `archive.md` le 2026-09-03** — le
-> fichier actif était à 42 Ko dont ~80 % d'historique.
-
-📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
-<!-- error-inbox: open=0 -->
 
 ## 🙋 En attente de toi (aucune ne se débloque sans une action humaine)
 

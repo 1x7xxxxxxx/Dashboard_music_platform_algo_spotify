@@ -46,6 +46,17 @@ class Step(NamedTuple):
 class SetupState(NamedTuple):
     steps: list[Step]
     show_on_login: bool
+    # A-t-on déjà une collecte réussie ? Ce n'est PLUS une étape affichée — l'artiste
+    # n'a rien à lancer, la collecte part toute seule dès que les identifiants sont
+    # là (`autostart_if_journey_complete`) et repart chaque matin par cron. Lui
+    # montrer une case à cocher qu'il ne coche pas lui-même était une consigne
+    # adressée à personne.
+    #
+    # L'information reste dans l'ÉTAT parce qu'une chose la lit encore, et doit
+    # continuer : `should_autostart` refuse de relancer quand une collecte a déjà
+    # réussi. Retirer l'étape sans garder le fait aurait relancé une collecte à
+    # chaque enregistrement.
+    collected: bool = False
 
     @property
     def done_count(self) -> int:
@@ -76,7 +87,6 @@ _STEP_PAGES: tuple[tuple[str, str], ...] = (
     ("creds", "credentials"),
     ("s4a", "upload_csv"),
     ("apple", "upload_csv"),
-    ("run", "onboarding"),
 )
 
 # Labels are callables: `t()` must run at RENDER time, not at import time, or the
@@ -85,8 +95,6 @@ STEP_LABELS = {
     "creds": lambda: _t("home.onboarding_creds", "🔑 Configurer les credentials API"),
     "s4a":   lambda: _t("home.onboarding_s4a", "📂 Importer un CSV Spotify for Artists"),
     "apple": lambda: _t("home.onboarding_apple", "🍎 Importer un CSV Apple Music"),
-    "run":   lambda: _t("home.onboarding_run",
-                        "🚀 Lancer votre première collecte de données"),
 }
 
 
@@ -99,10 +107,11 @@ def steps_from_counts(has_creds: int, has_csv: int, has_apple: int,
                       has_runs: int, show_on_login: bool = True) -> SetupState:
     """Pure: the four raw counts → the state every surface renders."""
     done = {"creds": bool(has_creds), "s4a": bool(has_csv),
-            "apple": bool(has_apple), "run": bool(has_runs)}
+            "apple": bool(has_apple)}
     return SetupState(
         steps=[Step(key, done[key], page) for key, page in _STEP_PAGES],
         show_on_login=bool(show_on_login),
+        collected=bool(has_runs),
     )
 
 

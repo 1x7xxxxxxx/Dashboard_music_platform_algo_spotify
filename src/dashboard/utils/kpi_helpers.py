@@ -37,9 +37,22 @@ ARTIST_NAME_FILTER = "1x7xxxxxxx"
 
 # ─── Fraîcheur des sources ──────────────────────────────────────────────────
 
+# `kind` et `at` : ce que l'artiste doit savoir de CHAQUE source, déclaré à côté
+# d'elle plutôt que résumé en prose au-dessus de la grille.
+#
+#   kind="api"  la collecte part toute seule, `at` est l'heure du cron (Europe/Paris)
+#   kind="csv"  la source ne bouge qu'au dépôt d'un fichier, donc `at` est None
+#
+# Les heures sont celles des DAGs (`airflow/dags/*.py`, `schedule="0 H * * *"`) :
+# Meta 5 h, Spotify 7 h, YouTube 8 h, SoundCloud 9 h, Instagram 10 h. Les recopier
+# ici est une duplication assumée et gardée par
+# `tests/test_the_announced_collection_time_is_the_real_one.py`, qui les compare aux
+# DAGs — annoncer une heure fausse est pire que n'en annoncer aucune.
 SOURCES_CONFIG = [
     {
         "label": "Spotify API",
+        "kind": "api",
+        "at": "07:00",
         "icon": "🎸",
         "table": "artists",
         "col": "collected_at",
@@ -53,6 +66,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "Spotify S4A",
+        "kind": "csv",
+        "at": None,
         "icon": "🎵",
         "table": "s4a_song_timeline",
         "col": "collected_at",
@@ -60,6 +75,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "YouTube",
+        "kind": "api",
+        "at": "08:00",
         "icon": "🎬",
         "table": "youtube_channel_history",
         "col": "collected_at",
@@ -67,6 +84,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "SoundCloud",
+        "kind": "api",
+        "at": "09:00",
         "icon": "☁️",
         "table": "soundcloud_tracks_daily",
         "col": "collected_at",  # DATE
@@ -74,6 +93,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "Instagram",
+        "kind": "api",
+        "at": "10:00",
         "icon": "📸",
         "table": "instagram_daily_stats",
         "col": "collected_at",  # DATE
@@ -81,6 +102,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "Apple Music",
+        "kind": "csv",
+        "at": None,
         "icon": "🍎",
         "table": "apple_songs_performance",
         "col": "collected_at",
@@ -88,6 +111,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "Meta Ads",
+        "kind": "api",
+        "at": "05:00",
         "icon": "📱",
         "table": "meta_insights_performance_day",
         "col": "collected_at",
@@ -95,6 +120,8 @@ SOURCES_CONFIG = [
     },
     {
         "label": "iMusician",
+        "kind": "csv",
+        "at": None,
         "icon": "💰",
         "table": "imusician_monthly_revenue",
         "col": "updated_at",
@@ -607,3 +634,14 @@ def clear_kpi_caches() -> None:
             fn.clear()
         except Exception:  # noqa: BLE001 — une purge best-effort ne casse pas un clic
             pass
+
+    # Le cache des SÉRIES vit à côté (`series_cache`), parce que
+    # `platform_timeseries` doit rester sans Streamlit. Les deux se vident
+    # ensemble : les cinq endroits qui appellent cette fonction sont exactement
+    # les moments où la donnée change en pleine journée, et il n'y a aucune
+    # raison qu'un des deux caches survive à l'autre.
+    try:
+        from src.dashboard.utils.series_cache import clear as _clear_series
+        _clear_series()
+    except Exception:  # noqa: BLE001
+        pass

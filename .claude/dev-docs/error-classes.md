@@ -88,6 +88,11 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
 | [check-calls-a-binary-its-image-lacks](#check-calls-a-binary-its-image-lacks) | P2 | deterministic | guarded | none |
 | [env-not-wired-to-service](#env-not-wired-to-service) | P1 | deterministic | guarded | none |
 | [prod-compose-drift](#prod-compose-drift) | P2 | heuristic | reported | none |
+| [connection-escapes-unclosed](#connection-escapes-unclosed) | P3 | deterministic | guarded | none |
+| [ddl-resurrects-a-migrated-fix](#ddl-resurrects-a-migrated-fix) | P2 | deterministic | guarded | none |
+| [on-conflict-target-without-index](#on-conflict-target-without-index) | P2 | deterministic | guarded | none |
+| [write-path-without-cache-invalidation](#write-path-without-cache-invalidation) | P3 | deterministic | guarded | none |
+| [cumulative-counter-drawn-as-its-own-history](#cumulative-counter-drawn-as-its-own-history) | P2 | manual | reported | none |
 | [central-app-missing](#central-app-missing) | P2 | manual | reported | none |
 | [multitenant-mono-test-blindspot](#multitenant-mono-test-blindspot) | P2 | manual | reported | none |
 | [config-path-dangling](#config-path-dangling) | P2 | deterministic | guarded | none |
@@ -4628,3 +4633,88 @@ consume `signature.cmd` literally — signature logic lives nowhere else.
   - 2026-09-10: **j'avais écrit que ce jugement n'était pas mécanisable.** C'était faux, et l'inventaire l'a montré en une commande : 13 sites de bornage, six colonnes distinctes, dont UNE SEULE est une date de publication. Ce qui manquait n'était pas un algorithme, c'était une DÉCLARATION — la même forme que pour les quatre horloges, écrite le matin même sur la même colonne.
   - 2026-09-10: le garde a été trouvé faux DEUX fois par ses propres mutations. D'abord il cherchait le mot dans TOUT le fichier : un commentaire expliquant le correctif le satisfaisait, et retirer l'annonce de l'écran le laissait vert. Restreint aux chaînes vues par l'artiste. Puis il cherchait le MOT « publication », que la page Instagram contient sept fois dans des titres de section sans rapport (« 📸 Publications », « Publié le ») — un garde satisfait par le vocabulaire du domaine ne garde rien. Il exige désormais des PHRASES qui nomment le regroupement, dans une fenêtre de 90 lignes autour du bornage.
   - 2026-09-10: ce qu'il n'interdit pas, et c'est important : borner sur une date de sortie. Instagram ne livre qu'un compteur courant par post — `instagram_media` porte 51 lignes pour 51 posts et `instagram_media_insights` est vide — donc aucun flux mensuel n'existe. Fabriquer une courbe d'engagement demanderait d'inventer une répartition. Le correctif est de NOMMER, pas de calculer autrement.
+
+## connection-escapes-unclosed
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: sans charge, rien. Au palier suivant, des connexions s'accumulent contre `max_connections` (100 par défaut, partagé avec Airflow et une API qui peut en tenir 40), et le symptôme n'est pas une lenteur : c'est un refus de connexion, donc une page en erreur.
+- root_cause: `st.stop()` lève `StopException`, et il était levé ENTRE l'ouverture de la connexion et le `try` qui la referme — donc le `finally` ne s'exécutait jamais. Quatre sites : `src/dashboard/utils/__init__.py:110` (`view_session`), `views/alerts.py:329`, `views/db_health.py:384`, plus `views/spotify_s4a_combined.py:23` dont le `close()` vivait à l'indentation du corps, ~290 lignes après l'ouverture, hors de tout `finally`.
+- signature: `python3 -m pytest tests/test_a_connection_is_closed_on_every_path.py -q`
+- long_term_fix: résoudre le locataire AVANT d'ouvrir la connexion — il n'y a alors rien à fuir sur le chemin qui sort. Pour un corps long, le gestionnaire de contexte maison `project_db()`. Règle générale : entre l'acquisition d'une ressource et le `try` qui la libère, il ne doit exister AUCUNE instruction qui puisse sortir.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_connection_is_closed_on_every_path.py }
+- rex_ref: src/dashboard/utils/__init__.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: trouvé en chiffrant la montée en charge, pas par un signalement. La lecture manuelle avait vu 3 sites ; le balayage AST en a rendu 4 — `alerts.py:329` manquait.
+  - 2026-09-11: **le premier prédicat accusait `project_db()`, qui est juste.** Sa seule sortie précoce est `if db is None: st.stop()`, où par construction rien n'est ouvert. Un prédicat qui épouse le symptôme (« il y a un stop ») plutôt que la question (« peut-on sortir en TENANT une connexion ») rapporte un site correct. `_tests_absent` est cette correction, et un test paramétré la fige.
+  - 2026-09-11: le cliquet maison `tests/test_a_render_opens_one_connection.py` ne pouvait pas voir cette classe — il rend chaque `show()` isolément, jamais `_main_body`, donc il ignore la barre latérale et l'authentification. Mesuré ensuite en production : un rendu de page ouvre **4 connexions**, pas une.
+
+## ddl-resurrects-a-migrated-fix
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: la production est correcte, et toute base NEUVE renaît avec le défaut — CI, poste de développeur, reconstruction après sinistre — jusqu'à ce que quelqu'un rejoue les migrations. Un correctif qui ne vit que dans une migration est un correctif que la prochaine base annule.
+- root_cause: `init_db.sql` est monté en `docker-entrypoint-initdb.d` et le même DDL est déclaré une seconde fois dans `src/database/*_schema.py`. La migration 064 avait remplacé `UNIQUE(video_id)` / `UNIQUE(channel_id)` par des uniques par locataire — parce que deux artistes partageant une vidéo se volaient la ligne — et ces deux déclarations sont restées à la forme globale (4 sites, 2 fichiers).
+- signature: `h=0; for n in $(grep -rhoE "DROP CONSTRAINT IF EXISTS +[a-z_][a-z0-9_]*" migrations/*.sql | awk "{print \$NF}" | sort -u); do grep -rnE "^[^-#]*CONSTRAINT +$n\b" init_db.sql src/database/*.py 2>/dev/null && h=1; done; exit $h`
+- long_term_fix: toute contrainte qu'une migration RETIRE ne doit plus être DÉCLARÉE par le DDL de base — c'est ce que la signature vérifie, sans base de données. Le complément est `tests/test_uniqueness_names_its_tenant.py`, qui construit le schéma depuis `init_db.sql` dans un espace de noms jetable et interroge `pg_index` : l'effet, pas l'artefact.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_uniqueness_names_its_tenant.py }
+- rex_ref: init_db.sql
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: le balayage a rendu **deux tables que la migration 064 avait entièrement manquées**, vivantes en production : `youtube_comments` et `youtube_playlists`. Les deux à 0 ligne — ce qui est la raison de les corriger ce jour-là (migration 100) : à zéro ligne l'échange de contrainte ne migre aucune donnée, et sur une table peuplée il faudrait décider quoi faire des lignes déjà fusionnées entre locataires.
+  - 2026-09-11: **un site qui n'est PAS un défaut** — `ml_prediction_outcomes UNIQUE(prediction_id)` a la même forme et référence une clé de substitution déjà globale ; y ajouter `artist_id` autoriserait deux résultats pour une prédiction. L'exemption est portée par le garde AVEC sa raison, pour qu'un balayage ultérieur ne la « corrige » pas.
+  - 2026-09-11: la première version du garde lisait le DDL en **regex**, et `test_a_guard_reads_structure_not_text` l'a rejetée — à raison : une regex ne voit ni un `ALTER TABLE`, ni un `CREATE UNIQUE INDEX` nu, et lit les commentaires comme du code. Réécrite sur le catalogue. Elle exclut `public` du `search_path`, sans quoi `CREATE TABLE IF NOT EXISTS` retrouve les vraies tables, saute, et le garde est vert **en ne vérifiant rien**.
+
+## on-conflict-target-without-index
+- status: guarded
+- severity: P2
+- kind: deterministic
+- symptom: l'import ne se dégrade pas, il LÈVE — `ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification`. Prouvé en production le 2026-09-11 par un INSERT réel dans une transaction annulée, sur le chemin d'import Apple de `views/admin.py`.
+- root_cause: PostgreSQL exige que `ON CONFLICT (cols)` corresponde EXACTEMENT à un index unique existant. Les migrations 093-095 ont déplacé la clé d'`apple_songs_performance` vers `(artist_id, song_name, snapshot_date, period_start, period_end)` ; `views/upload_csv.py:53` a suivi, `views/admin.py` non — un même geste déclaré à deux endroits, dont un seul corrigé.
+- signature: `python3 -m pytest tests/test_an_upsert_targets_an_index_that_exists.py -q`
+- long_term_fix: confronter chaque `conflict_columns` littéral au CATALOGUE de la base où le code tournera, pas aux fichiers de migration — seul le catalogue répond à « cet index existe-t-il ici ». Corollaire d'ordonnancement, écrit dans le message du garde : **la migration part AVANT le code qui en dépend.**
+- autofix: none
+- guard: { type: pytest, ref: tests/test_an_upsert_targets_an_index_that_exists.py }
+- rex_ref: src/dashboard/views/admin.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: 33 appels à `upsert_many`, 29 cibles littérales vérifiées. Trois signalées, et il fallait juger chacune : une vraie (`admin.py`), un aléa de déploiement créé le jour même (`youtube_comments` attend la migration 100 en prod), et **un faux positif de la première version du contrôle** — `pg_index.indkey` vaut 0 pour une colonne d'expression, donc `(collected_at::date)` disparaissait de la reconstruction et `youtube_video_stats` était accusé à tort. Corrigé en lisant `pg_get_indexdef`.
+  - 2026-09-11: le garde nomme les 4 sites dont la cible est construite à l'exécution (`_meta_upsert.py`, `imusician.py`, `upload_csv.py`, `ml_scoring_daily.py`) plutôt que de laisser croire qu'il les couvre, et rougit si cette liste s'allonge.
+  - 2026-09-11: dépend d'un Postgres. La CI en a un et rejoue `init_db.sql` puis les migrations, donc la signature y garde ; en local sans base elle SKIPPE, c'est-à-dire qu'elle sort 0 sans rien vérifier.
+
+## write-path-without-cache-invalidation
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: le locataire enregistre, l'écran confirme (« ✅ Importé »), et le chiffre affiché reste l'ancien pendant jusqu'à 600 s, sans que rien n'explique pourquoi. Aucune erreur, aucun journal.
+- root_cause: `kpi_helpers` garde ses lectures 600 s, et cette durée longue n'est sûre que parce que les gestes qui changent la donnée en pleine journée purgent explicitement (`collection_trigger.py:46`, `credentials/_render.py:1135`). Trois chemins d'écriture n'étaient pas câblés : `views/upload_csv.py` (le seul point de purge qu'il pouvait atteindre, `autostart_if_journey_complete`, ne s'exécute qu'une fois dans la vie du locataire), `views/admin.py` (import pour le compte d'un artiste ; le cache Streamlit étant global au processus, c'est la seule purge qui puisse l'atteindre) et `views/imusician.py` (saisie manuelle, upsert et suppression).
+- signature: `python3 -m pytest tests/test_a_write_path_purges_the_cache_it_invalidates.py -q`
+- long_term_fix: un prédicat AST qui exige, de tout module du dashboard appelant `upsert_many` sur une table que `kpi_helpers` cache, un APPEL à `clear_kpi_caches()`. Une cible de table dynamique compte comme un défaut : un lecteur statique ne peut pas prouver qu'elle ne nomme jamais une table cachée, et le défaut honnête pour « je ne peux pas prouver que c'est sûr » est d'exiger la purge. Dans `imusician`, la purge vit DANS les deux helpers, pas à leurs appels — un troisième appelant en hérite.
+- autofix: none
+- guard: { type: pytest, ref: tests/test_a_write_path_purges_the_cache_it_invalidates.py }
+- rex_ref: src/dashboard/utils/kpi_helpers.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: trouvé par une revue `code-critic` d'une conception de cache — qui a par ailleurs été REFUSÉE, le défaut vivant valant plus que la fonctionnalité proposée.
+  - 2026-09-11: **la mutation du garde est passée verte.** Le prédicat demandait `"clear_kpi_caches" in text` ; le nom survivait dans le commentaire expliquant le correctif. Cinquième instance dans ce dépôt de « un garde textuel est aveugle », écrite l'heure même où la leçon était citée. Le prédicat exige désormais un NŒUD D'APPEL, et un test fige qu'un commentaire ne le satisfait pas.
+  - 2026-09-11: la question posée en TEXTE rendait onze fichiers, dont deux écrivaient réellement. La question structurelle rend exactement les modules qui peuvent rendre le cache faux.
+
+## cumulative-counter-drawn-as-its-own-history
+- status: reported
+- severity: P2
+- kind: manual
+- symptom: la courbe « Cumulé » et la tuile de la même plateforme, sur le MÊME écran, donnent deux totaux. Mesuré en production le 2026-09-11 pour l'artiste 1 : YouTube **136** tracés contre **118 334** annoncés (×870), SoundCloud **77** contre **23 563** (×306). Spotify, lui, tombe juste au point près (165 065 = 165 065).
+- root_cause: le mode « Cumulé » fait un `cumsum` de la série QUOTIDIENNE (`platform_chart._as_mode`). Pour Spotify c'est la vérité — le CSV S4A porte l'historique jour par jour. Pour YouTube et SoundCloud, cette série est un ÉCART entre deux relevés d'un compteur, calculé uniquement entre jours consécutifs : elle ne contient rien d'avant notre première collecte, et rien des trous. Son cumul répond donc à « ce que nous avons vu croître depuis qu'on regarde », jamais à « combien au total ». La même racine explique les autres symptômes : YouTube n'est mesuré que 115 jours et SoundCloud 95, contre 1 344 pour Spotify, donc le plancher de seau (`_BUCKET_FLOOR = 0.5`, posé à raison) élimine presque tous les seaux dès qu'on agrège — au pas ANNUEL, YouTube en garde **0**.
+- long_term_fix: pour une plateforme dont la source est un COMPTEUR, le mode cumulé doit tracer le compteur lui-même (dernier relevé par entité, la définition que porte déjà `v_platform_totals`), pas la somme de nos écarts. Règle générale : une série dérivée par différence ne peut pas être ré-intégrée pour reconstituer son total — il manque la constante d'intégration, qui est précisément ce que le compteur donne gratuitement. Tant que ce n'est pas fait, ne pas proposer « Cumulé » comme défaut pour ces plateformes.
+- autofix: none
+- guard: —
+- rex_ref: src/dashboard/utils/platform_chart.py
+- first_seen: 2026-09-11
+- History:
+  - 2026-09-11: signalé par l'artiste sous six formes distinctes (« cumulé incohérent », « uniquement journalière », « aucune data en Par période », « idem par année/semaine »). La mesure a montré **une seule cause** et une conséquence de couverture, pas six défauts.
+  - 2026-09-11: **le balayage d'impact a d'abord produit une prémisse FAUSSE, corrigée en la vérifiant.** J'ai écrit que le PDF lisait encore le compteur de CHAÎNE, à partir d'un `grep` sur un docstring (« vues cumulées ») et sur le nom de la table. Lecture faite : les deux requêtes de `youtube_channel_history` ne prennent que `MAX(subscriber_count)` — les abonnés, dont c'est la seule source — et les VUES viennent des compteurs par vidéo, avec `test_every_surface_gives_the_same_total` pour le tenir. Le PDF avait donc bien reçu le correctif. Ce qui reste, plus modeste : `youtube_channel_growth` trace un double axe, mais entre deux grandeurs DIFFÉRENTES (abonnés / vues), cas que l'interdit de `platform_chart` — écrit pour des séries de même nature d'ampleurs incomparables — ne couvre pas mécaniquement.
+  - 2026-09-11: **l'architecture aurait dû l'empêcher, et c'est le constat le plus utile.** La couche or existe et elle est juste — `v_platform_totals` (migration 097, ADR-019) donne 118 334, et la tuile le lit. Le graphique la CONTOURNE : il ré-additionne une série de la couche argent pour fabriquer son propre total. ADR-019 a couvert les totaux **scalaires** et pas les **séries** : la migration 097 avait repointé les cinq surfaces qui calculaient *un nombre*, et une courbe cumulée — dont le dernier point EST un total — n'a jamais été comptée parmi elles. Une couche or qui définit un total sans définir la série qui y aboutit laisse la contradiction à l'écran.
+  - 2026-09-11: pas de garde livré ce jour-là, et c'est dit plutôt que simulé — le correctif change ce que la figure SIGNIFIE pour deux plateformes, ce qui est une décision de produit, pas une retouche. La tâche de roadmap porte la mesure et la reproduction.

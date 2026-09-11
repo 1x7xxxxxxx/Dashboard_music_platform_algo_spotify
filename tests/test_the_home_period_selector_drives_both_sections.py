@@ -213,47 +213,51 @@ def test_a_custom_range_is_offered_and_bounded_by_its_two_dates() -> None:
     assert date_range.bounds("custom") == (None, None)
 
 
-def test_the_tile_of_an_unmeasured_platform_shows_a_dash_on_screen() -> None:
-    """La règle À L'ÉCRAN, pas seulement dans son helper.
+def test_the_home_shows_no_per_platform_tile_to_contradict_its_curve() -> None:
+    """L'accueil ne porte plus de tuile par plateforme — et c'est une DÉCISION.
 
-    La première version de ce garde n'exerçait que `measured_days`, et elle est restée
-    VERTE quand on a débranché la règle dans `home` — le helper marchait, la page
-    affichait « 0 ». C'est la question qui compte : que lit l'artiste sur la tuile ?
+    Ce test s'appelait `test_the_tile_of_an_unmeasured_platform_shows_a_dash_on_
+    screen` et vérifiait qu'une plateforme sans mesure affiche « — » plutôt que
+    « 0 ». Il a cessé d'être vrai le 2026-09-10, quand les tuiles ont quitté cet
+    écran : elles portaient les compteurs « depuis le début » à côté d'une figure
+    qui ne trace que ce qu'on a MESURÉ, soit deux nombres pour la même période
+    sans qu'aucun soit faux (`views/home.py`, commentaire « LES TUILES ONT QUITTÉ
+    CET ÉCRAN »).
 
-    Le couple (locataire, période) est CHOISI par la mesure : on cherche un cas où une
-    plateforme n'a aucune mesure et une autre en a. Sans un tel cas, le test saute — il
-    ne s'invente pas un verdict.
+    Il ne l'a pas dit tout de suite. Il cherche un couple (locataire, période) où
+    une plateforme a des mesures et une autre non, et SAUTE quand il n'en trouve
+    pas — donc il est resté vert par absence de cas pendant que sa cible
+    disparaissait. Il n'a rougi que le 2026-09-11, quand un locataire local
+    (471, 1 001 lignes YouTube et zéro ailleurs) a fini par lui en fournir un. Un
+    garde qui saute est un garde dont on n'apprend rien.
+
+    Ce qu'il tient maintenant est la décision elle-même : si une tuile par
+    plateforme revient sur l'accueil, la règle « — plutôt que 0 » redevient
+    nécessaire et ce test le rappellera. La règle côté helper reste couverte par
+    le test suivant.
     """
     from src.dashboard.utils import get_db_connection
-    from src.dashboard.utils.platform_timeseries import (
-        daily_streams_by_platform, measured_days,
-    )
 
-    labels = {"spotify": "Spotify S4A", "youtube": "YouTube", "soundcloud": "SoundCloud"}
     db = get_db_connection()
+    if db is None:
+        pytest.skip("pas de base")
     try:
-        tenants = [int(r[0]) for r in
-                   (db.fetch_query("SELECT id FROM saas_artists WHERE active ORDER BY id") or [])]
-        for aid in tenants:
-            series = daily_streams_by_platform(db, aid)
-            if not any(series.values()):
-                continue
-            for period in ("30d", "90d", "ytd", "12m"):
-                since, until = date_range.bounds(period)
-                missing = [k for k in labels if not measured_days(series, k, since, until)]
-                present = [k for k in labels if measured_days(series, k, since, until)]
-                if missing and present:
-                    at = _home(aid, period)
-                    value = _tile(at, labels[missing[0]])
-                    assert value == "—", (
-                        f"locataire {aid}, période {period} : la tuile "
-                        f"{labels[missing[0]]} affiche {value!r} alors qu'AUCUNE mesure "
-                        "n'existe sur la période. « 0 » affirme qu'il ne s'est rien "
-                        "passé ; on n'a pas regardé.")
-                    return
+        rows = db.fetch_query(
+            "SELECT id FROM saas_artists WHERE active ORDER BY id LIMIT 1") or []
+        if not rows:
+            pytest.skip("aucun locataire actif")
+        at = _home(int(rows[0][0]))
     finally:
         db.close()
-    pytest.skip("aucun couple (locataire, période) sans mesure dans la base locale")
+
+    platform_tiles = [m.label for m in at.metric
+                      if any(k in m.label for k in ("Spotify S4A", "YouTube", "SoundCloud"))]
+    assert not platform_tiles, (
+        f"des tuiles par plateforme sont revenues sur l'accueil : {platform_tiles}. "
+        "Elles y côtoient une figure qui ne trace que ce qui a été mesuré — rétablir "
+        "alors la règle « — plutôt que 0 » (une absence de mesure n'est pas un zéro), "
+        "et remettre ce test sur elle."
+    )
 
 
 def test_the_measured_days_helper_separates_the_two_absences() -> None:

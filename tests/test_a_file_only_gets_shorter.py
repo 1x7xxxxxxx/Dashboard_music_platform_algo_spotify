@@ -45,7 +45,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # sont celles lues le jour du gel, à la ligne près.
 FROZEN = {
     "airflow/dags/alert_monitor.py": 2724,
-    "src/dashboard/views/upload_csv.py": 1268,
+    # 1268 → 1203 le 2026-09-11 : le sujet « encodage et séparateur » est sorti
+    # dans utils/csv_serialization.py, comme le message de ce cliquet le demande.
+    "src/dashboard/views/upload_csv.py": 1203,
     "src/dashboard/views/credentials/_render.py": 1229,
     "src/dashboard/app.py": 1073,
 }

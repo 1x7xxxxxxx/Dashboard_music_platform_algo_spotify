@@ -381,7 +381,9 @@ def show():
     st.title(t("db_health.title", "🗄️ Santé des données"))
     st.markdown(t("db_health.intro", "Suivi des imports, de la fraîcheur et des volumes, par jeu de données."))
 
-    db = get_db_connection()
+    # Tenant first, connection second: `st.stop()` raises, and raised between
+    # the open and the `try` it skipped the `finally` — the connection leaked on
+    # every invalid session. See the same fix in `utils.view_session()`.
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
@@ -389,6 +391,7 @@ def show():
             st.stop()
         artist_id = None  # admin: cross-tenant view
 
+    db = get_db_connection()
     try:
         with st.spinner(t("db_health.spinner", "Chargement des métriques DB…")):
             df_health  = _load_health(db, artist_id)

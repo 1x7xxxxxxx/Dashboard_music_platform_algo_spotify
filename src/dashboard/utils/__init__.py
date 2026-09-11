@@ -59,6 +59,29 @@ def get_db_connection() -> Optional[PostgresHandler]:
     The Streamlit-specific part stays here, and only that: turning a failure into a
     red banner and a None, because a view must degrade rather than crash.
     """
+    # Le pool et le cache s'arment au PREMIER besoin de connexion du processus, une
+    # seule fois chacun. Ici plutôt qu'à l'import : un import ne doit pas ouvrir de
+    # socket, et les tests importent ce module sans base.
+    #
+    # ILS ONT ÉTÉ DÉBRANCHÉS DEUX FOIS SUR UN FAUX DIAGNOSTIC, le 2026-09-11, et
+    # c'est la partie à retenir. La CI comptait 21 puis 23 requêtes sur l'accueil au
+    # lieu de 13 ; j'ai accusé le pool, puis le cache, et débranché les deux. Aucun
+    # des deux n'y était pour rien : la page coûte simplement DEUX PRIX selon que la
+    # mise en route du locataire est finie ou non — terminée elle lit ses sections de
+    # données, inachevée elle rend EN PLUS la matrice de mise en route, soit dix
+    # requêtes. La base locale avait un artiste configuré, celle de la CI est neuve.
+    # Le test comparait donc deux ÉTATS, pas deux versions du code.
+    #
+    # Une fois l'état du locataire épinglé dans la mesure
+    # (`tests/test_a_page_asks_the_same_question_once.py`), les deux rebranchés
+    # passent à 13 sur une base neuve. Gains mesurés en production : ~40 ms de
+    # poignées de main évitées par le pool, et l'accueil artiste de 13 à 11 requêtes
+    # par le cache.
+    from src.database.postgres_handler import enable_pool
+    enable_pool(minconn=1, maxconn=8)
+    from src.dashboard.utils.series_cache import install as _install_series_cache
+    _install_series_cache()
+
     try:
         return PostgresHandler.from_env_or_config()
     except Exception as e:
@@ -107,13 +130,20 @@ def view_session() -> Iterator[tuple[PostgresHandler, int]]:
     """
     from src.dashboard.auth import get_artist_id, is_admin
     from src.dashboard.utils.i18n import t
-    db = get_db_connection()
+    # The tenant is resolved BEFORE the connection is opened, and the order is
+    # the fix, not a style choice. `st.stop()` raises `StopException`; it used to
+    # be raised between the open and the `try`, so the `finally` never ran and
+    # the connection leaked. Invisible with one user — under concurrency those
+    # sockets accumulate against `max_connections` (100, default, shared with
+    # Airflow and the API), and the symptom is not slowness but a refused
+    # connection. Resolving first means there is nothing open to leak.
     artist_id = get_artist_id()
     if artist_id is None:
         if not is_admin():
             st.error(t("ui.invalid_session", "Session invalide."))
             st.stop()
         artist_id = 1  # admin fallback — full cross-tenant view (Admin panel)
+    db = get_db_connection()
     try:
         yield db, artist_id
     finally:
